@@ -3,6 +3,25 @@ import UIKit
 @testable import Aidoku
 
 struct ReaderTranslationBalloonMergerTests {
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("DeviceSpeed/horizontal-source.png").path)))
+    func capturedHorizontalBalloon() async throws {
+        let directory = URL.documentsDirectory.appendingPathComponent("DeviceSpeed")
+        let image = try #require(UIImage(contentsOfFile: directory.appendingPathComponent("horizontal-source.png").path)?.cgImage)
+        let configuration = ReaderTranslationSettings().ocrConfiguration
+        let pipeline = NativeCoreMLOCRPipeline(modelTier: configuration.modelTier,
+            detectorMaximumSide: configuration.detectorMaximumSide, recognizerMaximumWidth: configuration.recognizerMaximumWidth)
+        let native = try await pipeline.recognize(image: image, requestID: UUID().uuidString, confidenceThreshold: configuration.confidenceThreshold)
+        let separator = NativeOCRRegionSeparator(image: image)
+        let merged = NativeOCRTextLineMerger.merge(native.lines, imageWidth: image.width, imageHeight: image.height,
+            separationCheck: { separator?.separates($0, $1, orientation: $2) ?? false })
+        let raw: [[String: Any]] = native.lines.map { ["text": $0.text, "polygon": $0.polygon.map { [$0.x, $0.y] }, "orientation": String(describing: $0.orientation)] }
+        let rows: [[String: Any]] = merged.map { ["text": $0.text, "box": [$0.boundingRect.minX, $0.boundingRect.minY, $0.boundingRect.width, $0.boundingRect.height]] }
+        try JSONSerialization.data(withJSONObject: ["raw": raw, "merged": rows], options: .prettyPrinted)
+            .write(to: directory.appendingPathComponent("horizontal-diagnostics.json"))
+        #expect(merged.filter { $0.boundingRect.minY > 140 && $0.boundingRect.maxY < 250 }.map(\.text) == ["どしたん話聞こか？"])
+        await pipeline.purgeResources()
+    }
+
     private func image(_ boxes: [CGRect]) throws -> CGImage {
         let context = try #require(CGContext(data: nil, width: 400, height: 400,
             bitsPerComponent: 8, bytesPerRow: 400, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: 0))

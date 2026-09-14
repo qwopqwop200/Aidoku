@@ -159,7 +159,7 @@ enum NativeOCRTextLineMerger {
             }
         }
         let merged = mergeConservativeTextLines(
-            suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(lines)),
+            inheritHorizontalInlineGlyphs(suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(lines))),
             imageWidth: CGFloat(imageWidth),
             imageHeight: CGFloat(imageHeight),
             recognizedLatinWords: recognizedLatinWords, separationCheck: separationCheck
@@ -520,6 +520,14 @@ enum NativeOCRTextLineMerger {
                 }
                 if leftGeometry.supportsHorizontal,
                    rightGeometry.supportsHorizontal,
+                   !spatialIndex.indices(intersecting: leftGeometry.line.box.union(rightGeometry.line.box)).contains(where: { middle in
+                       guard middle != left, middle != right else { return false }
+                       let item = geometries[middle]
+                       return item.centerX > min(leftGeometry.centerX, rightGeometry.centerX) &&
+                           item.centerX < max(leftGeometry.centerX, rightGeometry.centerX) &&
+                           abs(item.centerY - (leftGeometry.centerY + rightGeometry.centerY) / 2) <
+                               min(leftGeometry.line.box.height, rightGeometry.line.box.height) * 0.35
+                   }),
                    let candidate = mergeCandidate(
                        leftGeometry,
                        rightGeometry,
@@ -728,7 +736,7 @@ enum NativeOCRTextLineMerger {
             }
             guard overlappingJoin(
                 ordered[0], ordered[1], orientation: orientation
-            ) != nil else { return nil }
+            ) != nil || (orientation == .horizontal && paddedCJKNeighbours(ordered[0], ordered[1])) else { return nil }
         }
         return Candidate(
             left: left.index,
@@ -736,6 +744,38 @@ enum NativeOCRTextLineMerger {
             normalizedGap: max(0, primaryGap) / smallerFont,
             orientation: orientation
         )
+    }
+
+    /// Detector expansion may overlap adjacent glyph boxes without either
+    /// recognition containing the other's text. Keep every glyph in that case.
+    private static func paddedCJKNeighbours(_ left: Line, _ right: Line) -> Bool {
+        let a = left.text.unicodeScalars.filter { !CharacterSet.punctuationCharacters.contains($0) }
+        let b = right.text.unicodeScalars.filter { !CharacterSet.punctuationCharacters.contains($0) }
+        guard left.text.count == 1 || right.text.count == 1,
+              !a.isEmpty, !b.isEmpty, a.allSatisfy(isCJK), b.allSatisfy(isCJK),
+              left.box.minX < right.box.minX, left.box.maxX < right.box.maxX else { return false }
+        let overlap = left.box.maxX - right.box.minX
+        return overlap > 0 && overlap <= min(left.box.height, right.box.height) * 0.55 &&
+            overlap <= min(left.box.width, right.box.width) * 0.55
+    }
+
+    private static func inheritHorizontalInlineGlyphs(_ lines: [Line]) -> [Line] {
+        let index = NativeOCRSpatialIndex(boxes: lines.map(\.box))
+        return lines.map { line in
+            guard line.orientation == .vertical, isSingleCJKGlyph(line.text),
+                  line.box.height >= line.box.width * 0.65,
+                  line.box.height <= line.box.width * 1.6 else { return line }
+            let neighbours = index.indices(intersecting: line.box.insetBy(dx: -line.box.height * 0.6, dy: 0)).map { lines[$0] }.filter {
+                $0.index != line.index && $0.orientation == .horizontal &&
+                    $0.box.height / line.box.height >= 0.75 && $0.box.height / line.box.height <= 1.4 &&
+                    abs($0.box.midY - line.box.midY) <= line.box.height * 0.2
+            }
+            guard neighbours.contains(where: { $0.box.midX < line.box.midX && $0.box.maxX < line.box.maxX }),
+                  neighbours.contains(where: { $0.box.midX > line.box.midX && $0.box.minX > line.box.minX }) else { return line }
+            return Line(index: line.index, text: line.text, confidence: line.confidence,
+                box: line.box, polygon: line.polygon, orientationHint: .horizontal,
+                orientation: .horizontal, singleVerticalColumn: false, sourceTileBounds: line.sourceTileBounds)
+        }
     }
 
     private static func componentRemainsLineLike(

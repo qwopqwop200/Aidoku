@@ -7,6 +7,23 @@ import UIKit
 @testable import Aidoku
 
 struct NativeOCRTextLineMergerTests {
+    @Test func capturedHorizontalJapaneseGlyphsJoinWithoutSkippingTheMiddle() {
+        for scale: CGFloat in [0.5, 1, 2] {
+            let boxes: [(String, CGFloat, CGFloat, CGFloat, CGFloat)] = [
+                ("どした", 468, 161, 150, 70), ("ん", 588, 166, 72, 61),
+                ("話", 635, 164, 65, 64), ("聞", 684, 164, 57, 65),
+                ("こ", 731, 167, 47, 60), ("か？", 763, 161, 103, 71)]
+            let input = boxes.map { text, x, y, w, h in
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: x*scale, y: y*scale), CGPoint(x: (x+w)*scale, y: y*scale),
+                    CGPoint(x: (x+w)*scale, y: (y+h)*scale), CGPoint(x: x*scale, y: (y+h)*scale)],
+                    text: text, score: 0.99, orientation: text == "こ" ? .vertical : .horizontal)
+            }
+            for rows in [input, Array(input.reversed())] {
+                #expect(merge(rows, width: Int(1290*scale), height: Int(1824*scale)).map(\.text) == ["どしたん話聞こか？"])
+            }
+        }
+    }
+
     @Test func slantedComicPosterPreservesRowsAndParagraphGaps() {
         // Real detector quads: Pepper&Carrot E03P03 Chinese, David Revoy and
         // translators, CC BY 4.0. Text is replaced; geometry is unmodified.
