@@ -36,6 +36,8 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var automaticallyTranslate = true
     var translateMangaTitles = false
     var translateChapterTitles = false
+    var translateMangaDescriptions = false
+    var mangaDescriptionSourceLanguages: [String] = []
     var mangaTitleSourceLanguages: [String] = []
     var chapterTitleSourceLanguages: [String] = []
     var custom = ReaderCustomTranslationSettings()
@@ -92,6 +94,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         automaticallyTranslate = defaults.object(forKey: Self.keyPrefix + "automatic") as? Bool ?? automaticallyTranslate
         translateMangaTitles = defaults.bool(forKey: Self.keyPrefix + "mangaTitles")
         translateChapterTitles = defaults.bool(forKey: Self.keyPrefix + "chapterTitles")
+        translateMangaDescriptions = defaults.bool(forKey: Self.keyPrefix + "mangaDescriptions")
+        mangaDescriptionSourceLanguages = ReaderTranslationLanguageFilter.normalized(
+            defaults.stringArray(forKey: Self.keyPrefix + "mangaDescriptionSourceLanguages") ?? []
+        ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
         mangaTitleSourceLanguages = ReaderTranslationLanguageFilter.normalized(
             defaults.stringArray(forKey: Self.keyPrefix + "mangaTitleSourceLanguages") ?? []
         ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
@@ -160,7 +166,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
               ocr.confidenceThreshold.isFinite, (0...1).contains(ocr.confidenceThreshold),
               (1...64).contains(maximumConcurrentRequests), ReaderTranslationDiskCache.limitChoices.contains(cacheLimitBytes)
         else { throw RemoteTranslationError.invalidRequest("Invalid OCR or overlay setting.") }
-        guard [translationSourceLanguages, mangaTitleSourceLanguages, chapterTitleSourceLanguages].allSatisfy({ languages in
+        guard [translationSourceLanguages, mangaTitleSourceLanguages, chapterTitleSourceLanguages, mangaDescriptionSourceLanguages].allSatisfy({ languages in
             languages.count <= AutomaticSourceLanguageDetector.supportedLanguageCodes.count &&
                 Set(languages).count == languages.count &&
                 languages.allSatisfy { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
@@ -216,6 +222,8 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         defaults.set(automaticallyTranslate, forKey: Self.keyPrefix + "automatic")
         defaults.set(translateMangaTitles, forKey: Self.keyPrefix + "mangaTitles")
         defaults.set(translateChapterTitles, forKey: Self.keyPrefix + "chapterTitles")
+        defaults.set(translateMangaDescriptions, forKey: Self.keyPrefix + "mangaDescriptions")
+        defaults.set(mangaDescriptionSourceLanguages.sorted(), forKey: Self.keyPrefix + "mangaDescriptionSourceLanguages")
         defaults.set(mangaTitleSourceLanguages.sorted(), forKey: Self.keyPrefix + "mangaTitleSourceLanguages")
         defaults.set(chapterTitleSourceLanguages.sorted(), forKey: Self.keyPrefix + "chapterTitleSourceLanguages")
         defaults.set(customData, forKey: Self.keyPrefix + "custom")

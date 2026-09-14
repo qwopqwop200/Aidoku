@@ -33,6 +33,10 @@ struct ReaderTranslationSettingsView: View {
                     .accessibilityIdentifier("translation.chapterTitles")
                 titleLanguageFilterLink("TRANSLATION_CHAPTER_TITLE_FILTER", selection: persistedSettings.chapterTitleSourceLanguages,
                                         accessibilityPrefix: "translation.chapterTitleFilter")
+                Toggle(NSLocalizedString("TRANSLATION_MANGA_DESCRIPTIONS"), isOn: persistedSettings.translateMangaDescriptions)
+                    .accessibilityIdentifier("translation.mangaDescriptions")
+                titleLanguageFilterLink("TRANSLATION_DESCRIPTION_FILTER", selection: persistedSettings.mangaDescriptionSourceLanguages,
+                                        accessibilityPrefix: "translation.descriptionFilter")
             } footer: {
                 Text(NSLocalizedString("TRANSLATION_TITLES_HELP"))
             }
@@ -143,7 +147,7 @@ struct ReaderTranslationSettingsView: View {
     private func titleLanguageFilterLink(_ key: String, selection: Binding<[String]>, accessibilityPrefix: String) -> some View {
         NavigationLink {
             ReaderTranslationLanguageFilterView(selection: selection, title: NSLocalizedString(key),
-                help: NSLocalizedString("TRANSLATION_TITLE_FILTER_HELP"), accessibilityPrefix: accessibilityPrefix)
+                help: NSLocalizedString("TRANSLATION_METADATA_FILTER_HELP"), accessibilityPrefix: accessibilityPrefix)
         } label: {
             VStack(alignment: .leading, spacing: 4) {
                 Text(NSLocalizedString(key))

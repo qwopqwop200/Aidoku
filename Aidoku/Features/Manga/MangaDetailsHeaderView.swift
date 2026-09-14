@@ -191,7 +191,7 @@ struct MangaDetailsHeaderView: View {
             .padding(.horizontal, 20)
 
             if let description = manga.description, !description.isEmpty {
-                ExpandableTextView(text: description, expanded: $descriptionExpanded)
+                TranslatedDescriptionView(original: description, expanded: $descriptionExpanded)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 12)
                     .padding(.horizontal, 20)

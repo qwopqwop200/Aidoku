@@ -946,7 +946,7 @@
 
 "TRANSLATION_CACHE_USED" = "Storage Used";
 
-"TRANSLATION_CACHE_HELP" = "Save OCR, page translations, manga and chapter title translations, and text layout automatically. Page images stay only in nearby-page memory. Recently viewed pages stay in the cache; the least recently used results are removed when the selected limit is reached. Default: 1 GB. Maximum: 100 GB. Save to apply a new limit; lowering it removes the least recently used results until the cache fits.";
+"TRANSLATION_CACHE_HELP" = "Save OCR, page translations, manga and chapter title translations, manga descriptions, and text layout automatically. Page images stay only in nearby-page memory. Recently viewed pages stay in the cache; the least recently used results are removed when the selected limit is reached. Default: 1 GB. Maximum: 100 GB. Save to apply a new limit; lowering it removes the least recently used results until the cache fits.";
 
 // Source-language filtering
 "TRANSLATION_SOURCE_FILTER" = "Translation Source Filter";
@@ -968,7 +968,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Translate Chapter Titles";
 
-"TRANSLATION_TITLES_HELP" = "Uses your translation API and target language independently of automatic page translation. Turn off to show original titles. Originals remain visible while loading or if translation fails.";
+"TRANSLATION_TITLES_HELP" = "Uses your translation API and target language independently of automatic page translation. Turn off to show original titles and descriptions. Originals remain visible while loading or if translation fails.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Manga Title Languages";
 
@@ -977,3 +977,9 @@
 "TRANSLATION_PAGE_SOURCE" = "Page Source Language";
 
 "TRANSLATION_TITLE_FILTER_HELP" = "Automatically detect each title’s source language and translate only the selected languages. All Languages removes the language restriction. Page and other title source-language settings do not affect this selection.";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Translate Manga Descriptions";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "Manga Description Languages";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "Automatically detect the source language and translate only the selected languages. All Languages removes the restriction. Page, manga title, chapter title, and description filters work independently.";
