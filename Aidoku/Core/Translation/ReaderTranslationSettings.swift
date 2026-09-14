@@ -36,6 +36,8 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var automaticallyTranslate = true
     var translateMangaTitles = false
     var translateChapterTitles = false
+    var mangaTitleSourceLanguages: [String] = []
+    var chapterTitleSourceLanguages: [String] = []
     var custom = ReaderCustomTranslationSettings()
     private var openAIModel = "gpt-5-mini"
     private var openAIReasoningEffort: OpenAIReasoningEffort = .modelDefault
@@ -90,6 +92,12 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         automaticallyTranslate = defaults.object(forKey: Self.keyPrefix + "automatic") as? Bool ?? automaticallyTranslate
         translateMangaTitles = defaults.bool(forKey: Self.keyPrefix + "mangaTitles")
         translateChapterTitles = defaults.bool(forKey: Self.keyPrefix + "chapterTitles")
+        mangaTitleSourceLanguages = ReaderTranslationLanguageFilter.normalized(
+            defaults.stringArray(forKey: Self.keyPrefix + "mangaTitleSourceLanguages") ?? []
+        ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
+        chapterTitleSourceLanguages = ReaderTranslationLanguageFilter.normalized(
+            defaults.stringArray(forKey: Self.keyPrefix + "chapterTitleSourceLanguages") ?? []
+        ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
         if let data = defaults.data(forKey: Self.keyPrefix + "custom"),
            let value = try? JSONDecoder().decode(ReaderCustomTranslationSettings.self, from: data) { custom = value }
         targetLanguage = defaults.string(forKey: Self.keyPrefix + "targetLanguage") ?? targetLanguage
@@ -152,9 +160,11 @@ struct ReaderTranslationSettings: Equatable, Sendable {
               ocr.confidenceThreshold.isFinite, (0...1).contains(ocr.confidenceThreshold),
               (1...64).contains(maximumConcurrentRequests), ReaderTranslationDiskCache.limitChoices.contains(cacheLimitBytes)
         else { throw RemoteTranslationError.invalidRequest("Invalid OCR or overlay setting.") }
-        guard translationSourceLanguages.count <= AutomaticSourceLanguageDetector.supportedLanguageCodes.count,
-              Set(translationSourceLanguages).count == translationSourceLanguages.count,
-              translationSourceLanguages.allSatisfy({ AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) })
+        guard [translationSourceLanguages, mangaTitleSourceLanguages, chapterTitleSourceLanguages].allSatisfy({ languages in
+            languages.count <= AutomaticSourceLanguageDetector.supportedLanguageCodes.count &&
+                Set(languages).count == languages.count &&
+                languages.allSatisfy { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
+        })
         else { throw RemoteTranslationError.invalidRequest("Invalid translation source-language filter.") }
         _ = try configuration.validatedEndpoint()
         try RemoteTranslationRequest(
@@ -206,6 +216,8 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         defaults.set(automaticallyTranslate, forKey: Self.keyPrefix + "automatic")
         defaults.set(translateMangaTitles, forKey: Self.keyPrefix + "mangaTitles")
         defaults.set(translateChapterTitles, forKey: Self.keyPrefix + "chapterTitles")
+        defaults.set(mangaTitleSourceLanguages.sorted(), forKey: Self.keyPrefix + "mangaTitleSourceLanguages")
+        defaults.set(chapterTitleSourceLanguages.sorted(), forKey: Self.keyPrefix + "chapterTitleSourceLanguages")
         defaults.set(customData, forKey: Self.keyPrefix + "custom")
         defaults.set(maximumConcurrentRequests, forKey: Self.keyPrefix + "concurrency")
         defaults.set(openAIModel.trimmingCharacters(in: .whitespacesAndNewlines), forKey: Self.keyPrefix + "model")

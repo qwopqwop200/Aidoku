@@ -27,8 +27,12 @@ struct ReaderTranslationSettingsView: View {
             Section {
                 Toggle(NSLocalizedString("TRANSLATION_MANGA_TITLES"), isOn: persistedSettings.translateMangaTitles)
                     .accessibilityIdentifier("translation.mangaTitles")
+                titleLanguageFilterLink("TRANSLATION_MANGA_TITLE_FILTER", selection: persistedSettings.mangaTitleSourceLanguages,
+                                        accessibilityPrefix: "translation.mangaTitleFilter")
                 Toggle(NSLocalizedString("TRANSLATION_CHAPTER_TITLES"), isOn: persistedSettings.translateChapterTitles)
                     .accessibilityIdentifier("translation.chapterTitles")
+                titleLanguageFilterLink("TRANSLATION_CHAPTER_TITLE_FILTER", selection: persistedSettings.chapterTitleSourceLanguages,
+                                        accessibilityPrefix: "translation.chapterTitleFilter")
             } footer: {
                 Text(NSLocalizedString("TRANSLATION_TITLES_HELP"))
             }
@@ -48,7 +52,7 @@ struct ReaderTranslationSettingsView: View {
                 Picker(NSLocalizedString("TRANSLATION_TARGET"), selection: persistedSettings.targetLanguage) {
                     ForEach(languages, id: \.0) { code, title in Text(title).tag(code) }
                 }
-                Picker(NSLocalizedString("TRANSLATION_SOURCE"), selection: persistedSettings.sourceLanguage) {
+                Picker(NSLocalizedString("TRANSLATION_PAGE_SOURCE"), selection: persistedSettings.sourceLanguage) {
                     Text(NSLocalizedString("TRANSLATION_AUTO")).tag("auto")
                     ForEach(ReaderTranslationLanguageOptions.codes, id: \.self) { code in
                         Text(ReaderTranslationLanguageOptions.name(code)).tag(code == "zh" ? "zh-Hans" : code)
@@ -134,6 +138,21 @@ struct ReaderTranslationSettingsView: View {
         } message: {
             Text(message ?? "")
         }
+    }
+
+    private func titleLanguageFilterLink(_ key: String, selection: Binding<[String]>, accessibilityPrefix: String) -> some View {
+        NavigationLink {
+            ReaderTranslationLanguageFilterView(selection: selection, title: NSLocalizedString(key),
+                help: NSLocalizedString("TRANSLATION_TITLE_FILTER_HELP"), accessibilityPrefix: accessibilityPrefix)
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(NSLocalizedString(key))
+                Text(selection.wrappedValue.isEmpty ? NSLocalizedString("TRANSLATION_FILTER_ALL") :
+                        selection.wrappedValue.map(ReaderTranslationLanguageOptions.name).joined(separator: ", "))
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            }
+        }
+        .accessibilityIdentifier(accessibilityPrefix)
     }
 
     private var cacheSection: some View {

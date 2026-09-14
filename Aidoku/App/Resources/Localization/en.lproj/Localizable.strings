@@ -969,3 +969,11 @@
 "TRANSLATION_CHAPTER_TITLES" = "Translate Chapter Titles";
 
 "TRANSLATION_TITLES_HELP" = "Uses your translation API and target language independently of automatic page translation. Turn off to show original titles. Originals remain visible while loading or if translation fails.";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "Manga Title Languages";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "Chapter Title Languages";
+
+"TRANSLATION_PAGE_SOURCE" = "Page Source Language";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "Automatically detect each title’s source language and translate only the selected languages. All Languages removes the language restriction. Page and other title source-language settings do not affect this selection.";

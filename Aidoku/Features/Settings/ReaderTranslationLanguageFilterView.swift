@@ -12,6 +12,9 @@ enum ReaderTranslationLanguageOptions {
 
 struct ReaderTranslationLanguageFilterView: View {
     @Binding var selection: [String]
+    var title = NSLocalizedString("TRANSLATION_SOURCE_FILTER")
+    var help = NSLocalizedString("TRANSLATION_FILTER_HELP")
+    var accessibilityPrefix = "translation.sourceFilter"
     @State private var search = ""
 
     private var filteredCodes: [String] {
@@ -27,9 +30,9 @@ struct ReaderTranslationLanguageFilterView: View {
                 Button { selection = [] } label: {
                     row(NSLocalizedString("TRANSLATION_FILTER_ALL"), selected: selection.isEmpty)
                 }
-                .accessibilityIdentifier("translation.sourceFilter.all")
+                .accessibilityIdentifier(accessibilityPrefix + ".all")
             } footer: {
-                Text(NSLocalizedString("TRANSLATION_FILTER_HELP"))
+                Text(help)
             }
             Section {
                 ForEach(filteredCodes, id: \.self) { code in
@@ -38,12 +41,12 @@ struct ReaderTranslationLanguageFilterView: View {
                     } label: {
                         row(ReaderTranslationLanguageOptions.name(code), code: code, selected: selection.contains(code))
                     }
-                    .accessibilityIdentifier("translation.sourceFilter." + code)
+                    .accessibilityIdentifier(accessibilityPrefix + "." + code)
                 }
             }
         }
         .searchable(text: $search)
-        .navigationTitle(NSLocalizedString("TRANSLATION_SOURCE_FILTER"))
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
     }
 

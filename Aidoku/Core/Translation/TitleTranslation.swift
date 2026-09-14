@@ -14,10 +14,20 @@ enum TitleTranslationKind: String {
 }
 
 enum TitleTranslation {
+    /// Title detection is independent even when the reader uses a fixed source language.
+    static func effectiveSettings(_ settings: ReaderTranslationSettings, kind: TitleTranslationKind) -> ReaderTranslationSettings {
+        var result = settings
+        result.sourceLanguage = "auto"
+        result.translationSourceLanguages = kind == .manga ? settings.mangaTitleSourceLanguages : settings.chapterTitleSourceLanguages
+        result.rightToLeftPanelOrder = false
+        return result
+    }
+
     static func cacheKey(_ original: String, kind: TitleTranslationKind, settings: ReaderTranslationSettings) -> String {
+        let settings = effectiveSettings(settings, kind: kind)
         let config = settings.configuration
         return ReaderTranslationCacheIdentity.encoded([
-            "title-translation-v1", kind.rawValue, original, config.provider.rawValue, config.apiProtocol.rawValue,
+            "title-translation-v2-independent-languages", kind.rawValue, original, config.provider.rawValue, config.apiProtocol.rawValue,
             config.baseURL, config.model, config.credentialAccount, String(config.credentialGeneration),
             config.reasoningEffort.rawValue, config.instructions, settings.sourceLanguage, settings.targetLanguage
         ] + (ReaderTranslationLanguageFilter.identity(settings: settings) ?? []))
@@ -30,6 +40,7 @@ enum TitleTranslation {
         guard kind.isEnabled(in: settings), !original.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return original
         }
+        let settings = effectiveSettings(settings, kind: kind)
         let key = cacheKey(original, kind: kind, settings: settings)
         let generation = await diskCache.currentGeneration()
         if let cached = try? await diskCache.regions(for: key, kind: .translation),
