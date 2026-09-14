@@ -20,6 +20,7 @@ class ReaderPageView: UIView {
     private let temporaryPageStore: ReaderTemporaryPageStore
 
     let imageView = GIFImageView()
+    lazy var translationPage = ReaderTranslationPage(imageView: imageView)
     let progressView = CircularProgressView(frame: CGRect(x: 0, y: 0, width: 40, height: 40))
 
     @available(iOS 16.0, *)
@@ -58,6 +59,7 @@ class ReaderPageView: UIView {
 
     // MARK: - Reload functionality properties
     private var currentPage: Page?
+    var isTranslationPreload = false
     private var currentImageRequest: ImageRequest?
 
     init(temporaryPageStore: ReaderTemporaryPageStore) {
@@ -131,6 +133,7 @@ extension ReaderPageView {
     func setPage(_ page: Page, sourceId: String? = nil, skipProcessing: Bool = false) async -> Bool {
         // Store current page data for reload functionality
         self.currentPage = page
+        translationPage.sourcePage = page
 
         if sourceId != nil {
             self.sourceId = sourceId
@@ -423,6 +426,7 @@ extension ReaderPageView {
     }
 
     func setPageText(text: String) {
+        translationPage.reset()
         cancelDictionaryTextAnalysis()
         clearDictionaryOverlays()
         imageView.image = nil
@@ -461,13 +465,22 @@ extension ReaderPageView {
     }
 
     func setPageImage(_ image: UIImage?, gifData: Data? = nil) {
+        if imageView.image !== image { translationPage.reset() }
         imageView.image = image
-        if let gifData {
+        if !isTranslationPreload { NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: translationPage) }
+        if let gifData, !isTranslationPreload {
             imageView.animate(withGIFData: gifData)
         }
         fixImageSize()
-        startLiveTextAnalysis()
-        scheduleDictionaryTextAnalysis()
+        if !isTranslationPreload {
+            startLiveTextAnalysis()
+            scheduleDictionaryTextAnalysis()
+        }
+    }
+
+    func cancelTranslationPreload() {
+        imageTask?.cancel()
+        translationPage.cancel()
     }
 }
 
@@ -595,6 +608,7 @@ extension ReaderPageView {
         clearCurrentImageCache()
 
         // Clear the current image to show loading state
+        translationPage.reset()
         imageView.image = nil
 
         // Reload the image using the original page data

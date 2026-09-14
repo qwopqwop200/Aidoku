@@ -32,7 +32,7 @@ struct KomgaSetupView: View {
         }
 
         // request the user info endpoint to ensure it gives us an komga auth error
-        let response: KomgaError? = try? await URLSession.shared.object(from: testUrl)
+        let response: KomgaError? = try? await SourceNetwork.shared.object(from: testUrl)
 
         guard let response, response.error == "Unauthorized" else {
             return ServerCheck(canLoginBasic: false)
@@ -55,7 +55,7 @@ struct KomgaSetupView: View {
         struct Response: Codable {
             let email: String
         }
-        let response: Response? = try? await URLSession.shared.object(from: request)
+        let response: Response? = try? await SourceNetwork.shared.object(from: request)
 
         guard let response, response.email == username else {
             return false

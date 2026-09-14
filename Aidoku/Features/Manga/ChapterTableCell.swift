@@ -48,7 +48,7 @@ struct ChapterTableCell: View {
 
             VStack(alignment: .leading, spacing: 8 / 3) {
                 let title = chapter.formattedTitle(forceMode: displayMode)
-                Text(title)
+                TranslatedTitleText(title, kind: .chapter, translating: chapter.title ?? "")
                     .foregroundStyle(locked || read ? .secondary : .primary)
                     .font(.system(size: 16))
                     .lineLimit(1)

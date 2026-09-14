@@ -41,7 +41,7 @@ class MangaGridCell: UICollectionViewCell {
     }
 
     let imageView = GIFImageView()
-    private let titleLabel = UILabel()
+    private let titleLabel = TranslatedTitleLabel()
     private let overlayView = UIView()
     private let gradient = CAGradientLayer()
 
@@ -181,6 +181,7 @@ class MangaGridCell: UICollectionViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
+        titleLabel.text = nil
         imageView.image = UIImage(named: "MangaPlaceholder")
         imageTask?.cancel()
         imageTask = nil

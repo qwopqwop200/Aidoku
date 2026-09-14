@@ -38,7 +38,7 @@ struct WebView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> WKWebView {
-        webView.load(URLRequest(url: url))
+        webView.loadSourceRequest(URLRequest(url: url))
         webView.navigationDelegate = context.coordinator
         return webView
     }

@@ -148,6 +148,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             ]
         )
         AppSettings.registerDefaults()
+        Task(priority: .background) { try? await ReaderTranslationDiskCache.shared.compact() }
 
         // PlayCover fix: eagerly initialize the Core Data stack on the main thread
         // before any background migration task touches it. The `lazy var container`
@@ -173,11 +174,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         DataLoader.sharedUrlCache.diskCapacity = 0
 
         let pipeline = ImagePipeline(delegate: self) {
-            let dataLoader: DataLoader = {
-                let config = URLSessionConfiguration.default
-                config.urlCache = nil
-                return DataLoader(configuration: config)
-            }()
+            let dataLoader = SourceImageDataLoader()
             let dataCache = try? DataCache(name: "app.aidoku.Aidoku.datacache") // disk cache
             let imageCache = Nuke.ImageCache() // memory cache
             dataCache?.sizeLimit = 500 * 1024 * 1024

@@ -232,7 +232,10 @@ extension SourceManager {
     }
 
     private func loadSourceList(url: URL) async -> SourceList? {
-        let session = URLSession.withTimeoutInterval(15)
+        guard let config = try? await SourceNetwork.shared.configuration() else { return nil }
+        config.timeoutIntervalForRequest = 15
+        let session = URLSession(configuration: config)
+        defer { session.finishTasksAndInvalidate() }
         guard let (data, _) = try? await session.data(from: url) else { return nil }
         let sourceList = try? JSONDecoder().decode(CodableSourceList.self, from: data)
 
@@ -453,7 +456,7 @@ extension SourceManager {
         var fileUrl = url
         if !fileUrl.isFileURL {
             do {
-                let (location, _) = try await URLSession.shared.download(for: URLRequest.from(url))
+                let (location, _) = try await SourceNetwork.shared.download(for: URLRequest.from(url))
                 fileUrl = location
             } catch {
                 LogManager.logger.error("Failed to download source from \(url.absoluteString): \(error)")

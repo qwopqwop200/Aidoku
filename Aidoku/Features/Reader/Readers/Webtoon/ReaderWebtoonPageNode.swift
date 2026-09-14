@@ -38,6 +38,17 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
     private var shouldShowLiveTextButton = false
     private var liveTextAnalysisTask: Task<Void, Never>?
     private var dictionaryAnalysisTask: Task<Void, Never>?
+    private var _translationPage: ReaderTranslationPage?
+
+    @MainActor
+    var translationPage: ReaderTranslationPage? {
+        guard let imageView = imageNode.imageView else { return nil }
+        if let existing = _translationPage, existing.imageView === imageView { return existing }
+        let page = ReaderTranslationPage(imageView: imageView)
+        page.sourcePage = self.page
+        _translationPage = page
+        return page
+    }
     var onDictionaryOverlayTap: ((String, String, CGRect, [CGRect]) -> Void)? {
         get { dictionaryOverlayController.onLookup }
         set { dictionaryOverlayController.onLookup = newValue }
@@ -132,12 +143,18 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
 
     override func didEnterVisibleState() {
         super.didEnterVisibleState()
+        Task { @MainActor in NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: nil) }
         displayPage()
     }
 
     override func didEnterDisplayState() {
         super.didEnterDisplayState()
         displayPage()
+    }
+
+    override func didExitVisibleState() {
+        super.didExitVisibleState()
+        Task { @MainActor in NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: nil) }
     }
 
     override func didExitDisplayState() {
@@ -543,6 +560,7 @@ extension ReaderWebtoonPageNode {
     }
 
     private func clearDisplayedImage() {
+        Task { @MainActor [page = _translationPage] in page?.reset() }
         imageNode.reset()
         image = nil
     }

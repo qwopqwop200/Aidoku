@@ -9,7 +9,7 @@ import UIKit
 
 extension UINavigationItem {
 
-    func setTitle(upper: String?, lower: String) {
+    func setTitle(upper: String?, lower: String, translateLowerTitle: Bool = false) {
         if let upper = upper {
             let upperLabel = UILabel()
             upperLabel.text = upper
@@ -33,6 +33,15 @@ extension UINavigationItem {
             lowerLabel.sizeToFit()
 
             self.titleView = stackView
+        } else if translateLowerTitle {
+            let label = TranslatedTitleLabel()
+            label.kind = .chapter
+            label.font = .systemFont(ofSize: 17, weight: .semibold)
+            label.textAlignment = .center
+            label.text = lower
+            label.sizeToFit()
+            self.title = lower
+            self.titleView = label
         } else {
             self.titleView = nil
             self.title = lower

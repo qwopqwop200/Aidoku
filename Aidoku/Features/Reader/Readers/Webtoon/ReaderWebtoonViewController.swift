@@ -335,6 +335,7 @@ extension ReaderWebtoonViewController {
     // Update current page when scrolling
     override func scrollViewDidScroll(_ scrollView: UIScrollView) {
         super.scrollViewDidScroll(scrollView)
+        delegate?.translationVisibilityDidChange()
 
         isScrolling = true
 
@@ -989,5 +990,12 @@ extension ReaderWebtoonViewController: ASCollectionDataSource {
                 )
             }
         }
+    }
+}
+
+extension ReaderWebtoonViewController {
+    func translationPages() -> [ReaderTranslationPage] {
+        collectionNode.visibleNodes.sorted { $0.frame.minY < $1.frame.minY }
+            .compactMap { ($0 as? ReaderWebtoonPageNode)?.translationPage }
     }
 }

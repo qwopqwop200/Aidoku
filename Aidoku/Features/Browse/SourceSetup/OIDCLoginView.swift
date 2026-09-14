@@ -75,7 +75,7 @@ private class OIDCLoginController: UIViewController, WKNavigationDelegate {
         super.viewDidLoad()
         self.view.addSubview(webView)
         let request = URLRequest(url: loginURL)
-        webView.load(request)
+        webView.loadSourceRequest(request)
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {

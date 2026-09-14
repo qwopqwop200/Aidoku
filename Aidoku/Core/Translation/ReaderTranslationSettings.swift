@@ -1,0 +1,237 @@
+import CryptoKit
+import Foundation
+
+// The bundled Core ML packages require iOS 18.
+enum IPhoneOCRModelTier: String, Codable, CaseIterable, Sendable {
+    case medium
+    case small
+    case tiny
+}
+
+enum IPhoneOCRSettings {
+    static let defaultDetectorMaximumSide = 1_600
+    static let defaultRecognizerMaximumWidth = 1_600
+}
+
+struct ReaderOCRConfiguration: Equatable, Codable, Sendable {
+    var modelTier: IPhoneOCRModelTier = .medium
+    var detectorMaximumSide = 1_600
+    var recognizerMaximumWidth = 1_600
+    var confidenceThreshold = 0.5
+}
+
+struct ReaderCustomTranslationSettings: Equatable, Codable, Sendable {
+    var baseURL = ""
+    var model = ""
+    var apiProtocol: RemoteTranslationProtocol = .responses
+    var reasoningEffort: OpenAIReasoningEffort = .modelDefault
+}
+
+struct ReaderTranslationSettings: Equatable, Sendable {
+    static let keyPrefix = "Reader.translation."
+    static let credentialAccount = "openai"
+    static let changed = Notification.Name("Reader.translation.changed")
+
+    var provider: RemoteTranslationProvider = .openAI
+    var automaticallyTranslate = true
+    var translateMangaTitles = false
+    var translateChapterTitles = false
+    var custom = ReaderCustomTranslationSettings()
+    private var openAIModel = "gpt-5-mini"
+    private var openAIReasoningEffort: OpenAIReasoningEffort = .modelDefault
+    var model: String {
+        get { provider == .openAI ? openAIModel : custom.model }
+        set {
+            if provider == .openAI { openAIModel = newValue } else { custom.model = newValue }
+        }
+    }
+    var reasoningEffort: OpenAIReasoningEffort {
+        get {
+            if provider == .openAI { return openAIReasoningEffort }
+            return custom.reasoningEffort
+        }
+        set {
+            if provider == .openAI { openAIReasoningEffort = newValue } else { custom.reasoningEffort = newValue }
+        }
+    }
+    var selectedCredentialAccount: String {
+        guard provider == .custom else { return Self.credentialAccount }
+        // Bind each custom key to the exact configured URL (including path).
+        // Changing servers cannot reuse OpenAI's key or another server's key.
+        let address = custom.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let digest = SHA256.hash(data: Data(address.utf8)).map { String(format: "%02x", $0) }.joined()
+        return "custom-" + digest
+    }
+    var targetLanguage = "ko"
+    var sourceLanguage = "auto"
+    var translationSourceLanguages: [String] = []
+    // Transient chapter direction, supplied by the reader coordinator.
+    var rightToLeftPanelOrder = false
+    var modelTier: IPhoneOCRModelTier {
+        get { ocr.modelTier }
+        set { ocr.modelTier = newValue }
+    }
+    static let defaultOverlay = IPhoneOverlaySettings(
+        visible: true, mode: .translateOnly, colorMode: .white, opacity: 0.84,
+        fixedFontSizePoints: 14, textPlacement: .replace, expansionPolicy: .panelConstrained,
+        fontSizing: .autoFit, subtitlePosition: .bottom, subtitleMaxLines: 2, subtitleContextSentences: 0
+    )
+    var overlay = Self.defaultOverlay
+    var ocr = ReaderOCRConfiguration()
+    var maximumConcurrentRequests = 16
+    var instructions = RemoteTranslationConfiguration.defaultInstructions
+    var credentialGeneration: UInt64 = 0
+    var cacheLimitBytes: Int64 = ReaderTranslationDiskCache.defaultBytes
+
+    init(defaults: UserDefaults = .standard) {
+        // Keep the existing OpenAI preferences and Keychain account during migration.
+        openAIModel = defaults.string(forKey: Self.keyPrefix + "model") ?? openAIModel
+        provider = defaults.string(forKey: Self.keyPrefix + "provider").flatMap(RemoteTranslationProvider.init) ?? provider
+        automaticallyTranslate = defaults.object(forKey: Self.keyPrefix + "automatic") as? Bool ?? automaticallyTranslate
+        translateMangaTitles = defaults.bool(forKey: Self.keyPrefix + "mangaTitles")
+        translateChapterTitles = defaults.bool(forKey: Self.keyPrefix + "chapterTitles")
+        if let data = defaults.data(forKey: Self.keyPrefix + "custom"),
+           let value = try? JSONDecoder().decode(ReaderCustomTranslationSettings.self, from: data) { custom = value }
+        targetLanguage = defaults.string(forKey: Self.keyPrefix + "targetLanguage") ?? targetLanguage
+        sourceLanguage = defaults.string(forKey: Self.keyPrefix + "sourceLanguage") ?? sourceLanguage
+        translationSourceLanguages = ReaderTranslationLanguageFilter.normalized(
+            defaults.stringArray(forKey: Self.keyPrefix + "translationSourceLanguages") ?? []
+        ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
+        modelTier = defaults.string(forKey: Self.keyPrefix + "modelTier").flatMap(IPhoneOCRModelTier.init) ?? modelTier
+        if let data = defaults.data(forKey: Self.keyPrefix + "overlay"),
+           let value = try? JSONDecoder().decode(IPhoneOverlaySettings.self, from: data) { overlay = value }
+        overlay.enforceSourceReplacement()
+        if let data = defaults.data(forKey: Self.keyPrefix + "ocr"),
+           let value = try? JSONDecoder().decode(ReaderOCRConfiguration.self, from: data) { ocr = value }
+        ocr.modelTier = modelTier
+        openAIReasoningEffort = defaults.string(forKey: Self.keyPrefix + "reasoningEffort")
+            .flatMap(OpenAIReasoningEffort.init(rawValue:)) ?? openAIReasoningEffort
+        maximumConcurrentRequests = defaults.object(forKey: Self.keyPrefix + "concurrency") as? Int ?? maximumConcurrentRequests
+        instructions = defaults.string(forKey: Self.keyPrefix + "instructions") ?? instructions
+        credentialGeneration = UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration")))
+        if let value = defaults.object(forKey: Self.keyPrefix + "cacheLimitBytes") as? NSNumber,
+           ReaderTranslationDiskCache.limitChoices.contains(value.int64Value) { cacheLimitBytes = value.int64Value }
+    }
+
+    var configuration: RemoteTranslationConfiguration {
+        RemoteTranslationConfiguration(
+            provider: provider,
+            apiProtocol: provider == .openAI ? .responses : custom.apiProtocol,
+            baseURL: provider == .openAI ? "https://api.openai.com" : custom.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            model: model.trimmingCharacters(in: .whitespacesAndNewlines),
+            credentialAccount: selectedCredentialAccount,
+            credentialGeneration: credentialGeneration,
+            instructions: instructions,
+            reasoningEffort: reasoningEffort,
+            timeout: 120
+        )
+    }
+
+    var ocrConfiguration: ReaderOCRConfiguration {
+        var value = ocr
+        value.modelTier = modelTier
+        return value
+    }
+
+    func hasSameTranslation(as other: Self) -> Bool {
+        rightToLeftPanelOrder == other.rightToLeftPanelOrder && configuration == other.configuration && ocrConfiguration == other.ocrConfiguration &&
+            sourceLanguage == other.sourceLanguage && targetLanguage == other.targetLanguage &&
+            ReaderTranslationLanguageFilter.identity(settings: self) == ReaderTranslationLanguageFilter.identity(settings: other)
+    }
+
+    static func setAutomaticTranslation(_ enabled: Bool, defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: keyPrefix + "automatic")
+        NotificationCenter.default.post(name: changed, object: nil)
+    }
+
+    func validate() throws {
+        guard overlay.opacity.isFinite, (0.2...1).contains(overlay.opacity),
+              (8...64).contains(overlay.fixedFontSizePoints),
+              [800, 1_200, 1_600, 2_000].contains(ocr.detectorMaximumSide),
+              [800, 1_200, 1_600, 2_000].contains(ocr.recognizerMaximumWidth),
+              ocr.confidenceThreshold.isFinite, (0...1).contains(ocr.confidenceThreshold),
+              (1...64).contains(maximumConcurrentRequests), ReaderTranslationDiskCache.limitChoices.contains(cacheLimitBytes)
+        else { throw RemoteTranslationError.invalidRequest("Invalid OCR or overlay setting.") }
+        guard translationSourceLanguages.count <= AutomaticSourceLanguageDetector.supportedLanguageCodes.count,
+              Set(translationSourceLanguages).count == translationSourceLanguages.count,
+              translationSourceLanguages.allSatisfy({ AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) })
+        else { throw RemoteTranslationError.invalidRequest("Invalid translation source-language filter.") }
+        _ = try configuration.validatedEndpoint()
+        try RemoteTranslationRequest(
+            sourceLanguage: sourceLanguage,
+            targetLanguage: targetLanguage,
+            sourceText: "validation"
+        ).validate()
+    }
+
+    func save(
+        defaults: UserDefaults = .standard,
+        apiKey: String = "",
+        credentialStore: any TranslationCredentialManaging = KeychainTranslationCredentialStore()
+    ) throws {
+        try validate()
+        try persist(defaults: defaults, apiKey: apiKey, credentialStore: credentialStore, notify: true)
+    }
+
+    /// Preserve form edits even while an endpoint or model is incomplete.
+    /// Network requests still validate the configuration before sending anything.
+    func autosave(
+        defaults: UserDefaults = .standard,
+        apiKey: String = "",
+        credentialStore: any TranslationCredentialManaging = KeychainTranslationCredentialStore()
+    ) throws {
+        try persist(defaults: defaults, apiKey: apiKey, credentialStore: credentialStore, notify: false)
+    }
+
+    private func persist(
+        defaults: UserDefaults, apiKey: String,
+        credentialStore: any TranslationCredentialManaging, notify: Bool
+    ) throws {
+        var replacement = overlay
+        replacement.enforceSourceReplacement()
+        let overlayData = try JSONEncoder().encode(replacement)
+        let ocrData = try JSONEncoder().encode(ocrConfiguration)
+        let customData = try JSONEncoder().encode(custom)
+        // Encode everything before mutating credentials or preferences.
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        var generation = max(credentialGeneration, UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration"))))
+        if !key.isEmpty {
+            try credentialStore.save(key, for: selectedCredentialAccount)
+            generation = max(generation, UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration")))) &+ 1
+        }
+        defaults.set(overlayData, forKey: Self.keyPrefix + "overlay")
+        defaults.set(ocrData, forKey: Self.keyPrefix + "ocr")
+        defaults.set(openAIReasoningEffort.rawValue, forKey: Self.keyPrefix + "reasoningEffort")
+        defaults.set(provider.rawValue, forKey: Self.keyPrefix + "provider")
+        defaults.set(automaticallyTranslate, forKey: Self.keyPrefix + "automatic")
+        defaults.set(translateMangaTitles, forKey: Self.keyPrefix + "mangaTitles")
+        defaults.set(translateChapterTitles, forKey: Self.keyPrefix + "chapterTitles")
+        defaults.set(customData, forKey: Self.keyPrefix + "custom")
+        defaults.set(maximumConcurrentRequests, forKey: Self.keyPrefix + "concurrency")
+        defaults.set(openAIModel.trimmingCharacters(in: .whitespacesAndNewlines), forKey: Self.keyPrefix + "model")
+        defaults.set(targetLanguage, forKey: Self.keyPrefix + "targetLanguage")
+        defaults.set(sourceLanguage, forKey: Self.keyPrefix + "sourceLanguage")
+        defaults.set(translationSourceLanguages.sorted(), forKey: Self.keyPrefix + "translationSourceLanguages")
+        defaults.set(modelTier.rawValue, forKey: Self.keyPrefix + "modelTier")
+        defaults.set(instructions, forKey: Self.keyPrefix + "instructions")
+        defaults.set(Int(clamping: generation), forKey: Self.keyPrefix + "credentialGeneration")
+        let previousCacheLimit = defaults.object(forKey: Self.keyPrefix + "cacheLimitBytes") as? NSNumber
+        defaults.set(cacheLimitBytes, forKey: Self.keyPrefix + "cacheLimitBytes")
+        if defaults === UserDefaults.standard, previousCacheLimit?.int64Value != cacheLimitBytes {
+            Task { try? await ReaderTranslationDiskCache.shared.setByteLimit(cacheLimitBytes) }
+        }
+        if notify { NotificationCenter.default.post(name: Self.changed, object: nil) }
+    }
+
+    mutating func deleteKey(
+        defaults: UserDefaults = .standard,
+        credentialStore: any TranslationCredentialManaging = KeychainTranslationCredentialStore()
+    ) throws {
+        try credentialStore.deleteSecret(for: selectedCredentialAccount)
+        // Publish immediately without committing unrelated edits in the settings form.
+        let savedGeneration = UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration")))
+        credentialGeneration = max(credentialGeneration, savedGeneration) &+ 1
+        defaults.set(Int(clamping: credentialGeneration), forKey: Self.keyPrefix + "credentialGeneration")
+        NotificationCenter.default.post(name: Self.changed, object: nil)
+    }
+}

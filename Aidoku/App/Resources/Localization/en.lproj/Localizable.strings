@@ -871,3 +871,101 @@
 "TOGGLE_BARS" = "Toggle bar visibility";
 "CLOSE_READER" = "Close reader";
 "TOGGLE_PAGE_OFFSET" = "Toggle page offset";
+
+// OCR and translation
+"TRANSLATION_TITLE" = "OCR & Translation";
+"TRANSLATION_TRANSLATE" = "Translate Visible Pages";
+"TRANSLATION_RECOGNIZE" = "Recognize Text (Offline)";
+"TRANSLATION_ORIGINAL" = "Show Original";
+"TRANSLATION_TEXT" = "Recognized & Translated Text";
+"TRANSLATION_NO_IMAGE" = "Wait for an image page to load, then try again.";
+"TRANSLATION_NO_TEXT" = "No text was recognized. Try another OCR model or a clearer image.";
+"TRANSLATION_WORKING" = "Recognizing and translating…";
+"TRANSLATION_OCR_WORKING" = "Recognizing text on device…";
+"TRANSLATION_HELP" = "The translation icon turns translation on or off. Pages are prepared in this order: current, next, previous, two ahead, two behind, continuing to both ends of the chapter. Completed OCR, translations and rendered pages are reused after closing the reader or restarting the app. Leaving the reader cancels unfinished work.";
+"TRANSLATION_PRIVACY" = "OCR runs on your device. Translation sends recognized text and your instructions to the selected provider; page images are not uploaded. API charges depend on your provider. Keys stay in Keychain. OCR, translations and rendered page images are saved in protected app storage excluded from backups.";
+"TRANSLATION_KEY_REPLACE" = "Replace saved API key (optional)";
+"TRANSLATION_KEY" = "API key";
+"TRANSLATION_KEY_SAVED" = "API key saved in Keychain";
+"TRANSLATION_KEY_DELETE" = "Delete API Key";
+"TRANSLATION_MODEL" = "Model ID";
+"TRANSLATION_GET_KEY" = "Open OpenAI API Keys";
+"TRANSLATION_LANGUAGE" = "Languages";
+"TRANSLATION_TARGET" = "Translate To";
+"TRANSLATION_SOURCE" = "Source Language";
+"TRANSLATION_AUTO" = "Detect Automatically";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 requires iOS 18 or later. Medium is the default; Small uses less memory. Tiny has a smaller character dictionary. These models do not support Korean OCR. Korean translation output is supported.";
+"TRANSLATION_INSTRUCTIONS" = "Translation Instructions";
+"TRANSLATION_RESET_PROMPT" = "Restore Default Instructions";
+"TRANSLATION_CLEAR_CACHE" = "Clear Translation Cache";
+"TRANSLATION_CACHE_CLEARED" = "Translation cache cleared.";
+"TRANSLATION_NOTICES" = "OCR & Translation Licenses";
+
+// Translation overlay and pipeline controls
+"TRANSLATION_ADVANCED" = "Translation Options";
+"TRANSLATION_REASONING" = "Reasoning Effort";
+"TRANSLATION_MODEL_DEFAULT" = "Model Default";
+"TRANSLATION_CONCURRENCY" = "Concurrent Requests";
+"TRANSLATION_DETECTOR_SIZE" = "Detector Maximum Side";
+"TRANSLATION_RECOGNIZER_SIZE" = "Recognizer Maximum Width";
+"TRANSLATION_CONFIDENCE" = "OCR Confidence";
+"TRANSLATION_SURFACE" = "Background Color";
+"TRANSLATION_WHITE" = "White";
+"TRANSLATION_DARK" = "Dark";
+"TRANSLATION_OPACITY" = "Background Opacity";
+"TRANSLATION_EXPANSION" = "Box Expansion";
+"TRANSLATION_PANEL_BOUNDS" = "Within Image Panel";
+"TRANSLATION_SOURCE_BOUNDS" = "Within Original Box";
+"TRANSLATION_UNRESTRICTED" = "Unrestricted";
+"TRANSLATION_FONT_SIZE" = "Font Size";
+"TRANSLATION_AUTO_FIT" = "Fit Automatically";
+"TRANSLATION_FIXED" = "Fixed";
+"TRANSLATION_OVERLAY" = "Translation Overlay";
+"TRANSLATION_OVERLAY_HELP" = "Replaces text over its source box using collision-aware layout and script-specific wrapping. Display changes reuse existing OCR.";
+
+"TRANSLATION_PROVIDER" = "Translation Provider";
+"TRANSLATION_BASE_URL" = "Server URL";
+"TRANSLATION_API_FORMAT" = "API Format";
+"TRANSLATION_CUSTOM_HELP" = "Enter an HTTPS base URL or full API endpoint and a model supported by your server. Each server URL has its own saved key; changing the URL clears any key you are entering. Responses and Chat Completions use structured JSON output.";
+
+"TRANSLATION_AUTOMATIC" = "Automatic Translation";
+"TRANSLATION_AUTOMATIC_HELP" = "Check the saved API settings once in the background when the app opens or API settings change. Translation starts after success. A failed check pauses translation without changing your automatic translation preference. Reopen the app or test the API connection again to retry. Page changes and ON/OFF reuse the check result. Reasoning effort uses your saved setting.";
+
+"TRANSLATION_TEST" = "Test API Connection";
+"TRANSLATION_TEST_RUNNING" = "Testing Connection…";
+"TRANSLATION_TEST_SUCCESS" = "Connection Successful";
+"TRANSLATION_TEST_FAILURE" = "Connection Failed";
+"TRANSLATION_TEST_HELP" = "Translates a short sentence using the values in this form. Leave the key blank to use this server’s saved key. Changes are saved automatically.";
+
+// Search suggestions
+"SEARCH_SUGGESTIONS" = "Search Suggestions";
+
+"TRANSLATION_CACHE" = "Offline Cache";
+
+"TRANSLATION_CACHE_LIMIT" = "Maximum Storage";
+
+"TRANSLATION_CACHE_USED" = "Storage Used";
+
+"TRANSLATION_CACHE_HELP" = "Save OCR, page translations, manga and chapter title translations, and text layout automatically. Page images stay only in nearby-page memory. Recently viewed pages stay in the cache; the least recently used results are removed when the selected limit is reached. Default: 1 GB. Maximum: 100 GB. Save to apply a new limit; lowering it removes the least recently used results until the cache fits.";
+
+// Source-language filtering
+"TRANSLATION_SOURCE_FILTER" = "Translation Source Filter";
+"TRANSLATION_FILTER_ALL" = "All Detected Languages";
+"TRANSLATION_FILTER_HELP" = "Select the original languages to translate. Unselected or uncertain text stays unchanged. Choose All Detected Languages to remove the filter.";
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Only text identified as the selected original language is translated. Languages without on-device detection remain unfiltered.";
+"HTTPS_BYPASS" = "HTTPS Blocking Bypass";
+"HTTPS_BYPASS_HELP" = "Use TLS fragmentation and encrypted DNS (Cloudflare) for source requests, images, downloads and source web views. Applies to new connections. IP blocks and restrictions imposed by the website are not bypassed.";
+"HTTPS_BYPASS_TEST" = "Test Connection";
+"HTTPS_BYPASS_TEST_HELP" = "Tests this HTTPS address through the bypass, even when the switch is off. A response confirms connectivity, not that an ISP block was present.";
+"HTTPS_BYPASS_INVALID_URL" = "Enter an HTTPS URL without a username or password.";
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d received · TLS fragmentation applied";
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d received · TLS fragmentation not confirmed";
+"HTTPS_BYPASS_TEST_FAILED" = "Could not connect through HTTPS bypass.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Translation API request failed. Check your connection and try again.";
+
+"TRANSLATION_MANGA_TITLES" = "Translate Manga Titles";
+
+"TRANSLATION_CHAPTER_TITLES" = "Translate Chapter Titles";
+
+"TRANSLATION_TITLES_HELP" = "Uses your translation API and target language independently of automatic page translation. Turn off to show original titles. Originals remain visible while loading or if translation fails.";

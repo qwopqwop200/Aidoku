@@ -1,0 +1,130 @@
+import Testing
+import Foundation
+import CoreGraphics
+@testable import Aidoku
+
+@Suite(.serialized)
+struct ReaderTranslationConcurrencyTests {
+    @Test func readerHonorsConcurrencyAboveSixteen() async throws {
+        let client = ConcurrencyProbe()
+        let service = ReaderTranslationService(client: client)
+        let value = settings(concurrency: 32)
+        let regions = regions(prefix: "wide", count: 2_500)
+        #expect(ReaderTranslationService.plans(regions: regions, settings: value).count > 32)
+        let work = Task { try await service.translate(regions: regions, settings: value) }
+        defer { work.cancel() }
+        try await waitUntil { await client.active == 32 }
+        #expect(await client.peak == 32)
+        await client.release()
+        #expect(try await work.value.count == regions.count)
+        #expect(await client.peak == 32)
+    }
+
+    @Test func currentAndPrefetchShareTheConfiguredRequestCap() async throws {
+        let client = ConcurrencyProbe()
+        let service = ReaderTranslationService(client: client)
+        let value = settings(concurrency: 4)
+        let first = Task { try await service.translate(regions: regions(prefix: "current", count: 300), settings: value) }
+        defer { first.cancel() }
+        try await waitUntil { await client.active == 4 }
+        let second = Task {
+            try await service.translate(regions: regions(prefix: "ahead", count: 300), settings: value, priority: .prefetch)
+        }
+        defer { second.cancel() }
+        await client.release()
+        #expect(try await first.value.count == 300)
+        #expect(try await second.value.count == 300)
+        #expect(await client.peak <= 4)
+    }
+
+    @Test func queuedForegroundPrecedesPrefetchAndCancelledWaiterDoesNotConsumePermit() async throws {
+        let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
+        let recorder = PermitRecorder()
+        let first = Task { try await limiter.withPermit { try await recorder.enter("active", blocked: true) } }
+        defer { first.cancel() }
+        try await waitUntil { await recorder.order == ["active"] }
+        let prefetch = Task { try await limiter.withPermit(priority: .prefetch) { try await recorder.enter("prefetch") } }
+        defer { prefetch.cancel() }
+        try await waitUntil { await limiter.queuedRequestCount == 1 }
+        let cancelled = Task { try await limiter.withPermit { try await recorder.enter("cancelled") } }
+        defer { cancelled.cancel() }
+        try await waitUntil { await limiter.queuedRequestCount == 2 }
+        cancelled.cancel()
+        await #expect(throws: CancellationError.self) { try await cancelled.value }
+        let visible = Task { try await limiter.withPermit { try await recorder.enter("visible") } }
+        defer { visible.cancel() }
+        try await waitUntil { await limiter.queuedRequestCount == 2 }
+        await recorder.release()
+        try await first.value
+        try await visible.value
+        try await prefetch.value
+        #expect(await recorder.order == ["active", "visible", "prefetch"])
+    }
+
+    @Test func raisingLimitAdmitsWaitersAndLoweringLimitDrainsExistingRequests() async throws {
+        let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
+        let recorder = PermitRecorder()
+        let first = Task { try await limiter.withPermit { try await recorder.enter("first", blocked: true) } }
+        defer { first.cancel() }
+        try await waitUntil { await recorder.order == ["first"] }
+        let second = Task { try await limiter.withPermit { try await recorder.enter("second", blocked: true) } }
+        defer { second.cancel() }
+        try await waitUntil { await limiter.queuedRequestCount == 1 }
+        await limiter.setMaximumConcurrentRequests(2)
+        try await waitUntil { await recorder.order == ["first", "second"] }
+        await limiter.setMaximumConcurrentRequests(1)
+        let third = Task { try await limiter.withPermit { try await recorder.enter("third") } }
+        defer { third.cancel() }
+        try await waitUntil { await limiter.queuedRequestCount == 1 }
+        first.cancel()
+        await #expect(throws: CancellationError.self) { try await first.value }
+        #expect(await limiter.queuedRequestCount == 1)
+        #expect(await recorder.order == ["first", "second"])
+        await recorder.release()
+        try await second.value
+        try await third.value
+        #expect(await recorder.order == ["first", "second", "third"])
+    }
+
+    private func settings(concurrency: Int) -> ReaderTranslationSettings {
+        var value = ReaderTranslationSettings(defaults: UserDefaults(suiteName: "concurrency-" + UUID().uuidString)!)
+        value.maximumConcurrentRequests = concurrency
+        return value
+    }
+    private func regions(prefix: String, count: Int) -> [ReaderTranslationRegion] {
+        (0..<count).map { .init(id: "\(prefix)-\($0)", rect: .zero, source: "\(prefix) text \($0)") }
+    }
+    private func waitUntil(_ condition: () async -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(10)
+        while !(await condition()) {
+            if Date() > deadline { throw URLError(.timedOut) }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+    }
+}
+
+private actor ConcurrencyProbe: RemoteTranslating {
+    var active = 0
+    var peak = 0
+    private var released = false
+    func release() { released = true }
+    func translate(_ request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration) async throws -> RemoteTranslationBatchResult {
+        active += 1
+        peak = max(peak, active)
+        defer { active -= 1 }
+        while !released { try await Task.sleep(for: .milliseconds(5)) }
+        try await Task.sleep(for: .milliseconds(5))
+        return RemoteTranslationBatchResult(translations: request.segments.map { .init(id: $0.id, text: "translated " + $0.text) },
+                                            source: .network, providerRequestID: nil)
+    }
+}
+
+private actor PermitRecorder {
+    var order: [String] = []
+    private var released = false
+    func release() { released = true }
+    func enter(_ name: String, blocked: Bool = false) async throws {
+        order.append(name)
+        while blocked && !released { try await Task.sleep(for: .milliseconds(5)) }
+    }
+}

@@ -25,11 +25,11 @@ struct ReaderChapterListView: View {
                     } label: {
                         HStack {
                             VStack(alignment: .leading) {
-                                Text(displayString(for: chapter))
+                                TranslatedTitleText(displayString(for: chapter), kind: .chapter, translating: chapter.title ?? "")
                                     .foregroundColor(.primary)
                                     .font(.subheadline)
                                 if let title = chapter.title, chapter.chapterNumber != nil || chapter.volumeNumber != nil {
-                                    Text(title)
+                                    TranslatedTitleText(title, kind: .chapter, translating: chapter.title ?? "")
                                         .foregroundColor(.secondary)
                                         .font(.subheadline)
                                 }

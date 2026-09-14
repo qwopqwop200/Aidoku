@@ -51,7 +51,7 @@ struct MangaGridItem: View {
                     .strokeBorder(Color(UIColor.quaternarySystemFill), lineWidth: 1)
             )
             .overlay(
-                Text(title)
+                TranslatedTitleText(title, kind: .manga)
                     .foregroundStyle(.white)
                     .font(.system(size: 15, weight: .medium))
                     .multilineTextAlignment(.leading)

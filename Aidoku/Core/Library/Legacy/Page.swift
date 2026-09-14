@@ -30,6 +30,9 @@ struct Page: Hashable {
     var context: PageContext?
     var hasDescription: Bool = false
     var description: String?
+    // Split reader pages reuse the full source page's prepared translation.
+    var translationOriginalKey: String?
+    var translationSourceRect: CGRect?
 
     var key: String {
         "\(chapterId)|\(index)"

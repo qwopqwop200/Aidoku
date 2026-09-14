@@ -52,6 +52,7 @@ class ReaderViewController: BaseObservingViewController {
 
     // Dictionary popup state
     private lazy var dictionaryCoordinator = ReaderDictionaryCoordinator(owner: self)
+    private lazy var translationCoordinator = ReaderTranslationCoordinator(owner: self)
     private var _dictionaryLongPressSelection: Any?
     @available(iOS 18.0, *)
     private var dictionaryLongPressSelection: TextRecognizer.Result? {
@@ -228,6 +229,7 @@ class ReaderViewController: BaseObservingViewController {
         navigationController?.toolbar.scrollEdgeAppearance = toolbarAppearance
 
         loadNavbarTitle()
+        translationCoordinator.install()
 
         // toolbar view
         toolbarView.sliderView.addTarget(self, action: #selector(sliderMoved(_:)), for: .valueChanged)
@@ -412,6 +414,7 @@ class ReaderViewController: BaseObservingViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        translationCoordinator.resume()
 
         sessionReadPages = [self.currentPage]
         sessionStartDate = Date.now
@@ -435,6 +438,7 @@ class ReaderViewController: BaseObservingViewController {
     }
 
     override func viewWillDisappear(_ animated: Bool) {
+        translationCoordinator.suspend()
         super.viewWillDisappear(animated)
 
         (reader as? ReaderWebtoonViewController)?.stopAutoScroll()
@@ -601,7 +605,8 @@ extension ReaderViewController {
                 chapter.title ?? ""
             }
 
-        navigationItem.setTitle(upper: volume, lower: title)
+        navigationItem.setTitle(upper: volume, lower: title,
+                                translateLowerTitle: chapter.chapterNumber == nil && chapter.volumeNumber == nil)
         // re-apply theme title colors, since setTitle recreates the title view
         updateTextThemeOverride()
     }
@@ -667,6 +672,7 @@ extension ReaderViewController {
     }
 
     @objc func close() {
+        translationCoordinator.close()
         Task {
             await temporaryPageStore.removeAll()
         }
@@ -831,6 +837,9 @@ extension ReaderViewController {
             }
         }
         // the two-line title view (volume + chapter) uses plain labels instead
+        if let label = navigationItem.titleView as? TranslatedTitleLabel {
+            label.textColor = titleColor ?? .label
+        }
         if let stackView = navigationItem.titleView as? UIStackView {
             let labels = stackView.arrangedSubviews.compactMap { $0 as? UILabel }
             if labels.count == 2 {
@@ -1041,6 +1050,7 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
 
     func setChapter(_ chapter: AidokuRunner.Chapter) {
         guard chapter != self.chapter else { return }
+        translationCoordinator.cancel()
 
         // store current history data since it will change when new chapter loads
         let currentPage = currentPage
@@ -1059,6 +1069,8 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
         configureDictionaryLookupGesture()
         configureDictionaryOverlayInteractionMode()
         loadNavbarTitle()
+        // The child reader replaces its pages after publishing the chapter change.
+        Task { @MainActor [weak self] in self?.translationCoordinator.visiblePagesDidChange() }
     }
 
     func setCurrentPage(_ page: Int, position: Double? = nil) {
@@ -1070,6 +1082,7 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
     }
 
     private func setCurrentPages(_ pages: ClosedRange<Int>, position: Double? = nil) {
+        defer { translationCoordinator.visiblePagesDidChange() }
         guard let totalPages = toolbarView.totalPages else { return }
 
         updateDescriptionButton(pages: pages)
@@ -1098,6 +1111,16 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
         }
     }
 
+    var translationUpcomingPages: [Page] {
+        pages.filter { $0.type == .imagePage && !$0.isTextPage }
+    }
+
+    var translationCurrentPageIndex: Int { max(0, currentPage - 1) }
+
+    func translationVisibilityDidChange() {
+        translationCoordinator.visiblePagesDidChange()
+    }
+
     private func updateDescriptionButton(pages: ClosedRange<Int>) {
         let pageItems = pages.compactMap { self.pages[safe: $0 - 1]?.toNew() }
         if pageItems.contains(where: { $0.hasDescription }) {
@@ -1119,6 +1142,7 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
     }
 
     func setPages(_ pages: [Page]) {
+        defer { Task { @MainActor [weak self] in self?.translationCoordinator.visiblePagesDidChange() } }
         // If already in a text reader with text pages, just update toolbar - don't trigger any switches
         if
             reader is ReaderPagedTextViewController || reader is ReaderTextViewController,

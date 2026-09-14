@@ -39,13 +39,13 @@ struct MangaUpdateItemView: View {
             .padding(.trailing, 6)
 
             VStack(alignment: .leading) {
-                Text(manga?.title ?? "")
+                TranslatedTitleText(manga?.title ?? "", kind: .manga)
                     .foregroundStyle(viewed ? .secondary : .primary)
                     .lineLimit(2)
 
                 ForEach(updates.prefix(chaptersLimit)) { item in
                     if let chapterTitle = item.chapter?.makeTitle() {
-                        Text(chapterTitle)
+                        TranslatedTitleText(chapterTitle, kind: .chapter, translating: item.chapter?.title ?? "")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)

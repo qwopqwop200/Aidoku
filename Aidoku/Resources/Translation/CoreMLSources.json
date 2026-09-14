@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "minimumDeploymentTarget": "18.0",
+  "converterRequirementsSha256": "b2e3385adec5cddfe348cf12f278aba6a7f46afdfd2ce43bf339dc00bd757bc8",
+  "models": [
+    {
+      "id": "medium-detector",
+      "tier": "Medium",
+      "role": "detector",
+      "sourceURL": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv6_medium_det_onnx_infer.tar",
+      "sourceArchiveSha256": "c5adb0b15de1b1838934eba1dd72e7529e7d80132216c6ee6d26eba6fa054fcf",
+      "sourceOnnxSha256": "eb13b44b25bb36f89528b68720af8a61d9cf381176107f465db1757b65d086e1",
+      "outputResource": "PP-OCRv6-Medium-DetShapes.mlpackage",
+      "dynamicMaximumDimension": 2000,
+      "effectiveDynamicMaximumDimension": 1984
+    },
+    {
+      "id": "medium-recognizer",
+      "tier": "Medium",
+      "role": "recognizer",
+      "sourceURL": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv6_medium_rec_onnx_infer.tar",
+      "sourceArchiveSha256": "d8cc46c7163c83a151aef8fce5856b965860df90a875029216d605b0f607eaec",
+      "sourceOnnxSha256": "9c09abf0957f7968c7586464b7397b84ad2387a0497a351af40e9acc71b673ba",
+      "outputResource": "PP-OCRv6-Medium-RecWidths.mlpackage",
+      "dictionaryResource": "ppocrv6_medium_rec_character_dict.txt",
+      "dictionarySha256": "7959f3fee8d7a0b24f1e94a54d01041b2ea8d0ae61381358bf536bbc88ed6a0a",
+      "dynamicMaximumWidth": 2000
+    },
+    {
+      "id": "small-detector",
+      "tier": "Small",
+      "role": "detector",
+      "sourceURL": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv6_small_det_onnx_infer.tar",
+      "sourceArchiveSha256": "d218f6fbf0f1c23d2161bd6ac7f5eaa6104fa89955c09290497e31008e2618e4",
+      "sourceOnnxSha256": "d73e0058b7a8086bbd57f3d10b8bcd4ff95363f67e06e2762b5e814fe9c9410e",
+      "outputResource": "PP-OCRv6-Small-DetShapes.mlpackage",
+      "dynamicMaximumDimension": 2000,
+      "effectiveDynamicMaximumDimension": 1984
+    },
+    {
+      "id": "small-recognizer",
+      "tier": "Small",
+      "role": "recognizer",
+      "sourceURL": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv6_small_rec_onnx_infer.tar",
+      "sourceArchiveSha256": "d267ab077a44a0eedb1ea8f8c542d263f211de8e9d7a029bf9fcfff7e5a88fb1",
+      "sourceOnnxSha256": "5435fd747c9e0efe15a96d0b378d5bd157e9492ed8fd80edf08f30d02fa24634",
+      "outputResource": "PP-OCRv6-Small-RecWidths.mlpackage",
+      "dictionaryResource": "ppocrv6_small_rec_character_dict.txt",
+      "dictionarySha256": "7959f3fee8d7a0b24f1e94a54d01041b2ea8d0ae61381358bf536bbc88ed6a0a",
+      "dynamicMaximumWidth": 2000
+    },
+    {
+      "id": "tiny-detector",
+      "tier": "Tiny",
+      "role": "detector",
+      "sourceURL": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv6_tiny_det_onnx_infer.tar",
+      "sourceArchiveSha256": "ff6ab415b0a6e0c488550f2fb5d5046f1719848df220b2dc21b56402a65bc05d",
+      "sourceOnnxSha256": "193bab7a04fca699a6c82e6abb5b81bdb28177f0abd4062552b04908dafb19f8",
+      "outputResource": "PP-OCRv6-Tiny-DetShapes.mlpackage",
+      "dynamicMaximumDimension": 2000,
+      "effectiveDynamicMaximumDimension": 1984
+    },
+    {
+      "id": "tiny-recognizer",
+      "tier": "Tiny",
+      "role": "recognizer",
+      "sourceURL": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv6_tiny_rec_onnx_infer.tar",
+      "sourceArchiveSha256": "1e13b22717b1edd89d4cde4fda272b6c17d5b505c97c2baea99da1a3a2d54b29",
+      "sourceOnnxSha256": "9ef676d6ed3c88256a2d92c640c44f25b0c40947e111b14b8be8f594091563e6",
+      "outputResource": "PP-OCRv6-Tiny-RecWidths.mlpackage",
+      "dictionaryResource": "ppocrv6_tiny_rec_character_dict.txt",
+      "dictionarySha256": "fecc468c6cd05ed73dc7cab36e296c8fe3f90e7feb3aa666fca8be41df6d70c5",
+      "dynamicMaximumWidth": 2000
+    }
+  ]
+}

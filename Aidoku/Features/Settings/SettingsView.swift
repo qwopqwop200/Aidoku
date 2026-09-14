@@ -308,6 +308,12 @@ extension SettingsView {
             TapZonesSelectView()
         } else if key == "Reader.upscalingModels" {
             UpscaleModelListView()
+        } else if key == "Network.httpsBypassPage" {
+            if #available(iOS 17.0, *) { HTTPSBypassSettingsView() }
+        } else if key == "Reader.translation" {
+            if #available(iOS 18.0, *) {
+                ReaderTranslationSettingsView()
+            }
         } else if key == "Dictionary.dictionaries" {
             if #available(iOS 18.0, *) {
                 DictionaryListView()

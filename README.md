@@ -17,6 +17,7 @@ A free and open source manga reading application for iOS, iPadOS, and macOS.
 - Downloads
 - Tracker integration (AniList, MyAnimeList, etc.)
 - OCR dictionary lookup
+- On-device PP-OCRv6 and OpenAI / Custom OpenAI page translation ([setup and development](docs/ocr-translation.md))
 
 ## Installation
 

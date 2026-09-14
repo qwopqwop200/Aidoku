@@ -367,11 +367,11 @@ private struct HistoryEntryCell: View, @MainActor Equatable {
                     downsampleWidth: Self.coverImageWidth
                 )
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(manga?.title ?? "")
+                    TranslatedTitleText(manga?.title ?? "", kind: .manga)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                         .foregroundStyle(.primary)
-                    Text(makeSubtitle())
+                    TranslatedTitleText(makeSubtitle(), kind: .chapter, translating: chapter?.title ?? "")
                         .foregroundStyle(.secondary)
                         .font(.subheadline)
                         .lineLimit(1)

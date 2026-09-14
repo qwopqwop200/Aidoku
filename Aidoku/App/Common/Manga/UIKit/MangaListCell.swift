@@ -68,7 +68,7 @@ class MangaListCell: UICollectionViewCell {
     }()
 
     private lazy var titleLabel = {
-        let titleLabel = UILabel()
+        let titleLabel = TranslatedTitleLabel()
         titleLabel.adjustsFontForContentSizeCategory = true
         titleLabel.font = UIFont.preferredFont(forTextStyle: .body)
         titleLabel.numberOfLines = 2
@@ -77,7 +77,7 @@ class MangaListCell: UICollectionViewCell {
     }()
 
     private lazy var subtitleLabel  = {
-        let subtitleLabel = UILabel()
+        let subtitleLabel = TranslatedTitleLabel()
         subtitleLabel.adjustsFontForContentSizeCategory = true
         subtitleLabel.font = UIFont.preferredFont(forTextStyle: .body)
         subtitleLabel.textColor = .secondaryLabel
@@ -159,6 +159,7 @@ class MangaListCell: UICollectionViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
+        titleLabel.text = nil
         coverImageView.image = UIImage(named: "MangaPlaceholder")
         imageTask?.cancel()
         imageTask = nil

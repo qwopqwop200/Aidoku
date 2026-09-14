@@ -612,21 +612,25 @@ extension ReaderPagedViewController {
         let chapterId = chapter?.id ?? ""
         let reverseOrderSetting = UserDefaults.standard.bool(forKey: "Reader.reverseSplitOrder")
         let reverseOrder = readingMode == .rtl ? reverseOrderSetting : !reverseOrderSetting
-        let originalPage = viewModel.pages[safe: pageIndex] ?? viewModel.pages.first
+        let originalPage = viewModel.pages[safe: pageIndex - 1] ?? viewModel.pages.first
 
         let leftPage = Page(
             sourceId: sourceId,
             chapterId: chapterId,
             index: pageIndex,
             image: leftImage,
-            language: originalPage?.language
+            language: originalPage?.language,
+            translationOriginalKey: originalPage?.translationCacheKey,
+            translationSourceRect: CGRect(x: 0, y: 0, width: 0.5, height: 1)
         )
         let rightPage = Page(
             sourceId: sourceId,
             chapterId: chapterId,
             index: pageIndex,
             image: rightImage,
-            language: originalPage?.language
+            language: originalPage?.language,
+            translationOriginalKey: originalPage?.translationCacheKey,
+            translationSourceRect: CGRect(x: 0.5, y: 0, width: 0.5, height: 1)
         )
         return reverseOrder ? [leftPage, rightPage] : [rightPage, leftPage]
     }
@@ -979,6 +983,7 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
     ) {
         isTransitioning = false
         setLiveTextButtonHidden(delegate?.barsHidden ?? false)
+        delegate?.translationVisibilityDidChange()
         if completed {
             for viewController in previousViewControllers {
                 if let pageController = viewController as? ReaderPageViewController {
@@ -1457,5 +1462,12 @@ extension ReaderPagedViewController {
 
     private func saveSplitPosition(for key: String, page: Int, offset: Int) {
         Self.splitPosition[key] = (page, offset)
+    }
+}
+
+extension ReaderPagedViewController {
+    func translationPages() -> [ReaderTranslationPage] {
+        guard #available(iOS 18.0, *) else { return [] }
+        return visiblePageControllers().compactMap { $0.pageView?.translationPage }
     }
 }

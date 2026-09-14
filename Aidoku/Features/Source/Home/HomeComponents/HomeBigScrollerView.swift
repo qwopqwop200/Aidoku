@@ -78,9 +78,8 @@ struct HomeBigScrollerView: View {
                                 .id(entry.cover ?? "") // fixes cover not updating when view is reused
 
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text(entry.title)
-                                        .font(.title3)
-                                        .fontWeight(.semibold)
+                                    TranslatedTitleText(entry.title, kind: .manga)
+                                        .font(.title3.weight(.semibold))
                                         .lineLimit(3)
                                         .multilineTextAlignment(.leading)
                                     if let authors = entry.authors, !authors.isEmpty {

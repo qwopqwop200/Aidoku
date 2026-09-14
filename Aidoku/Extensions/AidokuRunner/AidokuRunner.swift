@@ -22,7 +22,7 @@ extension InterpreterConfiguration {
                 }
 
                 do {
-                    let (data, response) = try await URLSession.shared.data(for: request)
+                    let (data, response) = try await SourceNetwork.shared.data(for: request)
 
                     let httpResponse = response as? HTTPURLResponse
                     if let httpResponse {

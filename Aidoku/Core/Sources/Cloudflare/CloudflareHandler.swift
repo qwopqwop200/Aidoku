@@ -98,7 +98,7 @@ actor CloudflareHandler: NSObject {
         } else {
             request
         }
-        let (data, response) = try await URLSession.shared.data(for: newRequest)
+        let (data, response) = try await SourceNetwork.shared.data(for: newRequest)
         if
             let response = response as? HTTPURLResponse,
             shouldHandle(response: response, data: data)
@@ -115,6 +115,7 @@ extension CloudflareHandler {
 
         guard await addWebView(for: request) else { throw HandleError.missingParentView }
 
+        try await SourceNetwork.configure(webView.configuration.websiteDataStore)
         _ = await webView.load(request)
 
         try await withCheckedThrowingContinuation { continuation in

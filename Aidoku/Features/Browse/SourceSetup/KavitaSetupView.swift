@@ -39,7 +39,7 @@ struct KavitaSetupView: View {
         }
 
         // ensure we can reach kavita api from server
-        let check: Bool? = try? await URLSession.shared.object(from: testUrl)
+        let check: Bool? = try? await SourceNetwork.shared.object(from: testUrl)
         guard check == true else {
             return ServerCheck(canLoginBasic: false)
         }
@@ -51,7 +51,7 @@ struct KavitaSetupView: View {
             let enabled: Bool
             let providerName: String
         }
-        let response: OIDCResponse? = try? await URLSession.shared.object(from: oidcCheckUrl)
+        let response: OIDCResponse? = try? await SourceNetwork.shared.object(from: oidcCheckUrl)
         if let response {
             return ServerCheck(
                 canLoginBasic: !response.disablePasswordAuthentication,

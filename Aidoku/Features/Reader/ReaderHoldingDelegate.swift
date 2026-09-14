@@ -23,4 +23,9 @@ protocol ReaderHoldingDelegate: AnyObject {
     func displayPage(_ page: Int) // show page on toolbar but don't set it as current page
     func setSliderOffset(_ offset: CGFloat)
     func setCompleted()
+    func translationVisibilityDidChange()
+}
+
+extension ReaderHoldingDelegate {
+    func translationVisibilityDidChange() {}
 }

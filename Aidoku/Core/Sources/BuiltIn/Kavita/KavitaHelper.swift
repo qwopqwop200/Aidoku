@@ -70,15 +70,12 @@ struct KavitaHelper: Sendable {
         allBaseUrls.append(mainUrl)
         allBaseUrls.append(contentsOf: mirrors.filter { $0 != lastWorkingMirror })
 
-        let session = if !mirrors.isEmpty {
-            URLSession(configuration: {
-                let config = URLSessionConfiguration.default
-                config.timeoutIntervalForRequest = 5 // time out requests after 5s so we can try next mirror
-                return config
-            }())
-        } else {
-            URLSession.shared
+        guard let config = try? await SourceNetwork.shared.configuration() else {
+            throw SourceError.message("HTTPS_BYPASS_TEST_FAILED")
         }
+        if !mirrors.isEmpty { config.timeoutIntervalForRequest = 5 }
+        let session = URLSession(configuration: config)
+        defer { session.finishTasksAndInvalidate() }
 
         func doRequest(baseUrl: URL) async throws(SourceError) -> T? {
             guard let url = URL(string: path, relativeTo: baseUrl) else {

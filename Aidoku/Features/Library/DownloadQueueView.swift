@@ -65,7 +65,7 @@ struct DownloadQueueView: View {
                                 .padding(.trailing, 6)
 
                                 VStack(alignment: .leading) {
-                                    Text(download.manga.title)
+                                    TranslatedTitleText(download.manga.title, kind: .manga)
                                         .lineLimit(3)
                                     Text(download.chapter.formattedTitle())
                                         .foregroundStyle(.secondary)

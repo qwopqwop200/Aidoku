@@ -165,7 +165,7 @@ struct HomeListView: View {
             )
 
             let titleStack = VStack(alignment: .leading, spacing: 4) {
-                Text(entry.title)
+                TranslatedTitleText(entry.title, kind: .manga)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 

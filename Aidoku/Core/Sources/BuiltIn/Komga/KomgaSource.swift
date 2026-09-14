@@ -539,7 +539,7 @@ actor KomgaSourceRunner: Runner {
         struct Response: Codable {
             let email: String
         }
-        let response: Response? = try? await URLSession.shared.object(from: request)
+        let response: Response? = try? await SourceNetwork.shared.object(from: request)
 
         guard let response, response.email == email else {
             return false

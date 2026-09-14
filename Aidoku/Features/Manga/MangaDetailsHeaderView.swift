@@ -138,7 +138,7 @@ struct MangaDetailsHeaderView: View {
                     Button {
                         onTitlePressed?()
                     } label: {
-                        Text(manga.title)
+                        TranslatedTitleText(manga.title, kind: .manga)
                             .lineLimit(4)
                             .font(.system(.title2).weight(.semibold))
                             .foregroundStyle(.primary)

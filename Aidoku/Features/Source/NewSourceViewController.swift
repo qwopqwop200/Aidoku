@@ -15,6 +15,7 @@ class NewSourceViewController: UIViewController {
     let source: AidokuRunner.Source
     // if the listings/home should be hidden and the search view shown by default
     private let onlySearch: Bool
+    private let suggestionService: SearchSuggestionService?
 
     private let searchController: UISearchController = .init(searchResultsController: nil)
 
@@ -31,6 +32,15 @@ class NewSourceViewController: UIViewController {
     }()
 
     private lazy var searchViewController = SourceSearchViewController(source: source)
+    private lazy var suggestionConfiguration = SearchSuggestionConfiguration.load(sourceURL: source.url)
+    private lazy var suggestionsViewController: SearchSuggestionsViewController? = {
+        guard let configuration = suggestionConfiguration else { return nil }
+        let controller = SearchSuggestionsViewController(viewModel: .init(configuration: configuration, service: suggestionService))
+        controller.onSelect = { [weak self] query, suggestion in
+            self?.applySearchSuggestion(suggestion, to: query)
+        }
+        return controller
+    }()
 
     // MARK: SwiftUI Bindings
     private var listings: [AidokuRunner.Listing] = [] {
@@ -196,11 +206,13 @@ class NewSourceViewController: UIViewController {
     init(
         source: AidokuRunner.Source,
         onlySearch: Bool? = nil,
-        searchQuery: String? = nil
+        searchQuery: String? = nil,
+        suggestionService: SearchSuggestionService? = nil
     ) {
         self.source = source
         self.onlySearch = onlySearch ?? source.onlySearch
         self.searchText = searchQuery ?? ""
+        self.suggestionService = suggestionService
         super.init(nibName: nil, bundle: nil)
 
         self.searchViewController.searchText = self.searchText
@@ -246,6 +258,9 @@ class NewSourceViewController: UIViewController {
 
         searchController.hidesNavigationBarDuringPresentation = true
         searchController.searchBar.delegate = self
+        if suggestionConfiguration != nil {
+            searchController.obscuresBackgroundDuringPresentation = false
+        }
 
         // fix iPadOS 26 bug
         if #available(iOS 26.0, *), UIDevice.current.userInterfaceIdiom == .pad {
@@ -327,6 +342,7 @@ class NewSourceViewController: UIViewController {
             view.addSubview(importHostingController.view)
             importHostingController.didMove(toParent: self)
         }
+        suggestionsViewController?.attach(to: self)
     }
 
     private func constrain() {
@@ -382,6 +398,11 @@ class NewSourceViewController: UIViewController {
             // e.g. returned to search page after exiting manga page
             self.setNavigationBarOpaque(true)
         }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        suggestionsViewController?.viewModel.dismiss()
     }
 }
 
@@ -742,6 +763,39 @@ extension NewSourceViewController {
 }
 
 extension NewSourceViewController {
+    private func searchSelection() -> NSRange? {
+        let field = searchController.searchBar.searchTextField
+        guard let selection = field.selectedTextRange else { return nil }
+        return NSRange(
+            location: field.offset(from: field.beginningOfDocument, to: selection.start),
+            length: field.offset(from: selection.start, to: selection.end)
+        )
+    }
+
+    private func updateSearchSuggestions() {
+        guard let controller = suggestionsViewController else { return }
+        let field = searchController.searchBar.searchTextField
+        guard field.isFirstResponder, field.markedTextRange == nil, let selection = searchSelection() else {
+            controller.viewModel.dismiss()
+            return
+        }
+        controller.viewModel.update(text: field.text ?? "", selection: selection)
+    }
+
+    private func applySearchSuggestion(_ suggestion: SearchSuggestion, to query: SearchSuggestionQuery) {
+        let field = searchController.searchBar.searchTextField
+        guard let configuration = suggestionConfiguration, let selection = searchSelection(),
+              SearchSuggestionQuery(text: field.text ?? "", selection: selection, configuration: configuration) == query,
+              let result = query.applying(suggestion)
+        else { return }
+        searchController.searchBar.text = result.text
+        if let position = field.position(from: field.beginningOfDocument, offset: result.selection.location) {
+            field.selectedTextRange = field.textRange(from: position, to: position)
+        }
+        searchText = result.text
+        searchViewController.searchBar(searchController.searchBar, textDidChange: result.text)
+    }
+
     private func saveEnabledFilters() {
         guard !AppSettings.general.incognitoMode.get() else { return }
 
@@ -763,18 +817,29 @@ extension NewSourceViewController: UISearchBarDelegate {
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         searchViewController.searchBar(searchBar, textDidChange: searchText)
         self.searchText = searchText
+        updateSearchSuggestions()
     }
 
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        suggestionsViewController?.viewModel.dismiss()
         searchViewController.searchBarSearchButtonClicked(searchBar)
     }
 
     func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        suggestionsViewController?.viewModel.dismiss()
         searchViewController.searchBarCancelButtonClicked(searchBar)
         searchText = ""
         // dismiss search view
         if !onlySearch {
             hideSearchView()
         }
+    }
+
+    func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
+        updateSearchSuggestions()
+    }
+
+    func searchBarTextDidEndEditing(_ searchBar: UISearchBar) {
+        suggestionsViewController?.viewModel.dismiss()
     }
 }

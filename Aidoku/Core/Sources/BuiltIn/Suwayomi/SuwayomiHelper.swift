@@ -51,7 +51,7 @@ struct SuwayomiHelper: Sendable {
 
         let data: Data
         do {
-            (data, _) = try await URLSession.shared.data(for: request)
+            (data, _) = try await SourceNetwork.shared.data(for: request)
         } catch {
             throw SourceError.networkError
         }
@@ -104,12 +104,15 @@ struct SuwayomiHelper: Sendable {
         request.httpBody = components.percentEncodedQuery?.data(using: .utf8)
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
 
-        guard
-            let (_, response) = try? await URLSession(
-                configuration: .ephemeral,
+        guard let config = try? await SourceNetwork.shared.configuration(.ephemeral) else { return false }
+        let session = URLSession(
+                configuration: config,
                 delegate: NoRedirectDelegate(),
                 delegateQueue: nil
-            ).data(for: request),
+            )
+        defer { session.finishTasksAndInvalidate() }
+        guard
+            let (_, response) = try? await session.data(for: request),
             let httpResponse = response as? HTTPURLResponse,
             (200..<400).contains(httpResponse.statusCode)
         else {
@@ -374,11 +377,9 @@ extension SuwayomiHelper {
     }
 
     private static func send(_ request: URLRequest, followRedirects: Bool = true) async -> SuwayomiResponse {
-        let session = if followRedirects {
-            URLSession.shared
-        } else {
-            URLSession(configuration: .ephemeral, delegate: NoRedirectDelegate(), delegateQueue: nil)
-        }
+        guard let config = try? await SourceNetwork.shared.configuration(followRedirects ? .default : .ephemeral) else { return .init() }
+        let session = URLSession(configuration: config, delegate: followRedirects ? nil : NoRedirectDelegate(), delegateQueue: nil)
+        defer { session.finishTasksAndInvalidate() }
 
         guard
             let (data, response) = try? await session.data(for: request),

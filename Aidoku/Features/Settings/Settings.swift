@@ -74,8 +74,31 @@ enum Settings {
                 ))
             )
         ] + {
+            if #available(iOS 17.0, *) {
+                [
+                    .init(
+                        key: "Network.httpsBypassPage",
+                        title: NSLocalizedString("HTTPS_BYPASS"),
+                        value: .page(.init(
+                            items: [],
+                            inlineTitle: true,
+                            icon: .system(name: "network.badge.shield.half.filled", color: "blue")
+                        ))
+                    )
+                ]
+            } else { [] }
+        }() + {
             if #available(iOS 18.0, *) {
                 [
+                    .init(
+                        key: "Reader.translation",
+                        title: NSLocalizedString("TRANSLATION_TITLE"),
+                        value: .page(.init(
+                            items: [],
+                            inlineTitle: true,
+                            icon: .system(name: "character.bubble.fill", color: "#009688")
+                        ))
+                    ),
                     .init(
                         title: NSLocalizedString("DICTIONARIES"),
                         value: .page(.init(

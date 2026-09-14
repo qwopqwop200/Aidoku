@@ -24,6 +24,7 @@ class GIFImageNode: ASControlNode {
         didSet {
             Task { @MainActor in
                 imageView?.image = image
+                NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: nil)
             }
         }
     }

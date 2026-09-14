@@ -160,28 +160,17 @@ extension WasmNet {
 
         guard let request = modifyRequest(urlRequest) else { return nil }
 
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            self.incrementRequest()
-
-            if let httpResponse = response as? HTTPURLResponse, let data {
-                // check for cloudflare block
-                if CloudflareHandler.shared.shouldHandle(response: httpResponse, data: data) {
-                    Task {
-                        do {
-                            let (data, response) = try await CloudflareHandler.shared.handle(request: request)
-                            self.storedResponse = .init(data: data, response: response)
-                        } catch {
-                            self.storedResponse = .init(error: error)
-                        }
-                        self.semaphore.signal()
-                    }
-                    return
+        Task {
+            defer { self.incrementRequest(); self.semaphore.signal() }
+            do {
+                var (data, response) = try await SourceNetwork.shared.data(for: request)
+                if let httpResponse = response as? HTTPURLResponse,
+                   CloudflareHandler.shared.shouldHandle(response: httpResponse, data: data) {
+                    (data, response) = try await CloudflareHandler.shared.handle(request: request)
                 }
-            }
-
-            self.storedResponse = WasmResponseObject(data: data, response: response, error: error)
-            self.semaphore.signal()
-        }.resume()
+                self.storedResponse = .init(data: data, response: response)
+            } catch { self.storedResponse = .init(error: error) }
+        }
 
         self.semaphore.wait()
 

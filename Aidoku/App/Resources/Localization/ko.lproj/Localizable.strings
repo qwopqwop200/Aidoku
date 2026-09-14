@@ -528,3 +528,101 @@
 "CHAPTER_BACKWARD" = "이전 챕터";
 "OPEN_CHAPTER_LIST" = "챕터 목록 열기";
 "CLOSE_READER" = "리더 닫기";
+
+// OCR and translation
+"TRANSLATION_TITLE" = "OCR 및 번역";
+"TRANSLATION_TRANSLATE" = "보이는 페이지 번역";
+"TRANSLATION_RECOGNIZE" = "글자 인식 (오프라인)";
+"TRANSLATION_ORIGINAL" = "원문 이미지 보기";
+"TRANSLATION_TEXT" = "인식 및 번역된 텍스트";
+"TRANSLATION_NO_IMAGE" = "이미지 페이지가 로드된 후 다시 시도하세요.";
+"TRANSLATION_NO_TEXT" = "인식된 글자가 없습니다. 다른 OCR 모델이나 더 선명한 이미지를 사용하세요.";
+"TRANSLATION_WORKING" = "글자 인식 및 번역 중…";
+"TRANSLATION_OCR_WORKING" = "기기에서 글자 인식 중…";
+"TRANSLATION_HELP" = "번역 아이콘으로 ON/OFF를 전환합니다. 현재, 다음, 이전, 두 칸 다음, 두 칸 이전 순서로 이번 화의 양쪽 끝까지 준비합니다. 완료된 OCR·번역·렌더링은 뷰어를 닫거나 앱을 재실행해도 재사용합니다. 뷰어를 나가면 진행 중인 작업은 중단됩니다.";
+"TRANSLATION_PRIVACY" = "OCR은 기기에서 실행됩니다. 번역 시 인식된 텍스트와 번역 지침을 선택한 제공업체로 보내며 페이지 이미지는 업로드하지 않습니다. API 요금은 제공업체 정책에 따릅니다. 키는 Keychain에 보관합니다. OCR·번역·렌더링 이미지는 백업에서 제외된 앱의 보호된 저장소에 보관합니다.";
+"TRANSLATION_KEY_REPLACE" = "저장된 API 키 교체 (선택 사항)";
+"TRANSLATION_KEY" = "API 키";
+"TRANSLATION_KEY_SAVED" = "Keychain에 API 키 저장됨";
+"TRANSLATION_KEY_DELETE" = "API 키 삭제";
+"TRANSLATION_MODEL" = "모델 ID";
+"TRANSLATION_GET_KEY" = "OpenAI API 키 관리 열기";
+"TRANSLATION_LANGUAGE" = "언어";
+"TRANSLATION_TARGET" = "번역할 언어";
+"TRANSLATION_SOURCE" = "원문 언어";
+"TRANSLATION_AUTO" = "자동 감지";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6는 iOS 18 이상에서 작동합니다. 기본 모델은 Medium이며 Small은 메모리를 덜 사용합니다. Tiny는 문자 사전이 더 작습니다. 이 모델들은 한국어 OCR을 지원하지 않습니다. 한국어 번역 출력은 지원합니다.";
+"TRANSLATION_INSTRUCTIONS" = "번역 지침";
+"TRANSLATION_RESET_PROMPT" = "기본 번역 지침 복원";
+"TRANSLATION_CLEAR_CACHE" = "번역 캐시 비우기";
+"TRANSLATION_CACHE_CLEARED" = "번역 캐시를 비웠습니다.";
+"TRANSLATION_NOTICES" = "OCR 및 번역 라이선스";
+
+// Translation overlay and pipeline controls
+"TRANSLATION_ADVANCED" = "번역 옵션";
+"TRANSLATION_REASONING" = "추론 강도";
+"TRANSLATION_MODEL_DEFAULT" = "모델 기본값";
+"TRANSLATION_CONCURRENCY" = "동시 요청 수";
+"TRANSLATION_DETECTOR_SIZE" = "탐지 입력 최대 변 길이";
+"TRANSLATION_RECOGNIZER_SIZE" = "인식 입력 최대 너비";
+"TRANSLATION_CONFIDENCE" = "OCR 신뢰도";
+"TRANSLATION_SURFACE" = "배경색";
+"TRANSLATION_WHITE" = "흰색";
+"TRANSLATION_DARK" = "어두움";
+"TRANSLATION_OPACITY" = "배경 불투명도";
+"TRANSLATION_EXPANSION" = "박스 확장";
+"TRANSLATION_PANEL_BOUNDS" = "이미지 패널 안";
+"TRANSLATION_SOURCE_BOUNDS" = "원문 박스 안";
+"TRANSLATION_UNRESTRICTED" = "제한 없음";
+"TRANSLATION_FONT_SIZE" = "글꼴 크기";
+"TRANSLATION_AUTO_FIT" = "자동 맞춤";
+"TRANSLATION_FIXED" = "고정";
+"TRANSLATION_OVERLAY" = "번역 오버레이";
+"TRANSLATION_OVERLAY_HELP" = "충돌 회피 배치와 언어별 줄바꿈으로 원문 박스 위에 표시합니다. 표시 설정을 바꿔도 기존 OCR 결과를 재사용합니다.";
+
+"TRANSLATION_PROVIDER" = "번역 제공업체";
+"TRANSLATION_BASE_URL" = "서버 주소";
+"TRANSLATION_API_FORMAT" = "API 방식";
+"TRANSLATION_CUSTOM_HELP" = "HTTPS 기본 주소 또는 API 전체 주소와 서버에서 지원하는 모델을 입력하세요. 키는 서버 주소별로 저장되며, 주소를 변경하면 입력 중인 키가 지워집니다. Responses와 Chat Completions의 구조화된 JSON 응답을 사용합니다.";
+
+"TRANSLATION_AUTOMATIC" = "자동 번역";
+"TRANSLATION_AUTOMATIC_HELP" = "앱을 열거나 API 설정을 변경하면 저장된 설정 그대로 백그라운드에서 한 번 검사합니다. 검사에 성공하면 번역을 시작합니다. 실패하면 번역 실행만 멈추며 자동번역 설정은 유지됩니다. 앱을 다시 열거나 API 연결 테스트로 재검사할 수 있습니다. 페이지 이동과 ON/OFF는 검사 결과를 재사용합니다. 추론 강도는 지정한 설정을 유지합니다.";
+
+"TRANSLATION_TEST" = "API 연결 테스트";
+"TRANSLATION_TEST_RUNNING" = "연결 테스트 중…";
+"TRANSLATION_TEST_SUCCESS" = "연결 성공";
+"TRANSLATION_TEST_FAILURE" = "연결 실패";
+"TRANSLATION_TEST_HELP" = "현재 입력값으로 짧은 문장을 번역합니다. 키를 비워두면 이 서버에 저장된 키를 사용합니다. 변경 사항은 자동으로 저장됩니다.";
+
+// Search suggestions
+"SEARCH_SUGGESTIONS" = "검색 자동완성";
+
+"TRANSLATION_CACHE" = "오프라인 캐시";
+
+"TRANSLATION_CACHE_LIMIT" = "최대 저장 용량";
+
+"TRANSLATION_CACHE_USED" = "사용 중인 용량";
+
+"TRANSLATION_CACHE_HELP" = "OCR·페이지 번역·만화 및 챕터 제목 번역·텍스트 배치 정보를 자동 저장합니다. 페이지 이미지는 현재·주변 페이지의 메모리에만 보관합니다. 최근 본 페이지부터 보관하며, 용량이 차면 가장 오래 사용하지 않은 결과부터 삭제합니다. 기본 1GB, 최대 100GB이며 새 용량은 저장을 누르면 적용됩니다. 한도를 줄이면 가장 오래 사용하지 않은 결과부터 삭제해 용량을 맞춥니다.";
+
+// Source-language filtering
+"TRANSLATION_SOURCE_FILTER" = "번역 대상 원문 필터";
+"TRANSLATION_FILTER_ALL" = "모든 감지 언어";
+"TRANSLATION_FILTER_HELP" = "번역할 원문 언어를 선택하세요. 선택하지 않았거나 판별이 불확실한 텍스트는 원본을 유지합니다. 필터를 해제하려면 모든 감지 언어를 선택하세요.";
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "선택한 원문 언어로 판별된 텍스트만 번역합니다. 기기에서 언어를 판별할 수 없는 언어에는 필터를 적용하지 않습니다.";
+"HTTPS_BYPASS" = "HTTPS 차단 우회";
+"HTTPS_BYPASS_HELP" = "소스 요청·이미지·다운로드·소스 웹뷰에 TLS 분할과 암호화 DNS(Cloudflare)를 사용합니다. 새 연결부터 적용됩니다. IP 차단이나 사이트 자체의 접속 제한은 우회하지 못합니다.";
+"HTTPS_BYPASS_TEST" = "연결 테스트";
+"HTTPS_BYPASS_TEST_HELP" = "스위치가 꺼져 있어도 입력한 HTTPS 주소를 우회 경로로 테스트합니다. 응답 수신은 연결 확인이며, 통신사 차단 여부를 뜻하지는 않습니다.";
+"HTTPS_BYPASS_INVALID_URL" = "사용자 이름과 비밀번호가 없는 HTTPS 주소를 입력하세요.";
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d 수신 · TLS 분할 적용 확인";
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d 수신 · TLS 분할 미확인";
+"HTTPS_BYPASS_TEST_FAILED" = "HTTPS 우회 경로로 연결하지 못했습니다.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "번역 API 요청에 실패했어요. 연결 확인 후 다시 켜 주세요.";
+
+"TRANSLATION_MANGA_TITLES" = "만화 제목 번역";
+
+"TRANSLATION_CHAPTER_TITLES" = "챕터 제목 번역";
+
+"TRANSLATION_TITLES_HELP" = "기존 번역 API와 대상 언어를 사용합니다. 페이지 자동 번역과 별도로 동작하며, 끄면 원래 제목이 표시됩니다. 번역 중이거나 실패하면 원문을 표시합니다.";

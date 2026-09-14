@@ -8,6 +8,20 @@
 import WebKit
 
 extension WKWebView {
+    func loadSourceRequest(_ request: URLRequest) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await SourceNetwork.configure(configuration.websiteDataStore)
+                load(request)
+            } catch {
+                // Never silently navigate directly when bypass setup fails.
+                let message = NSLocalizedString("HTTPS_BYPASS_TEST_FAILED")
+                loadHTMLString("<meta name='viewport' content='width=device-width'><p>\(message)</p>", baseURL: nil)
+            }
+        }
+    }
+
     func getCookies(for domain: String? = nil) async -> [String: String]  {
         await withCheckedContinuation { continuation in
             configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in

@@ -62,6 +62,13 @@ struct ReaderSettingsView: View {
         PlatformNavigationStack {
             List {
                 generalSection
+                if #available(iOS 18.0, *), reader != .text {
+                    Section {
+                        NavigationLink(destination: ReaderTranslationSettingsView()) {
+                            Label(NSLocalizedString("TRANSLATION_TITLE"), systemImage: "character.bubble")
+                        }
+                    }
+                }
 
                 if #available(iOS 18.0, *), reader != .text {
                     dictionarySection
