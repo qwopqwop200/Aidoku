@@ -322,7 +322,8 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         let translations = try TranslationHTTPCodec.responseTranslations(
             from: body,
             protocol: configuration.apiProtocol,
-            expectedSegmentIDs: request.segments.map(\.id)
+            expectedSegmentIDs: request.segments.map(\.id),
+            sfxSourceTexts: request.filtersSFX == true ? Dictionary(uniqueKeysWithValues: request.segments.map { ($0.id, $0.text) }) : nil
         )
         TranslationPerformanceDiagnostics.clientPhaseCompleted(
             phase: "parse",

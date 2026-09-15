@@ -13,7 +13,8 @@ struct ReaderTranslationAPIPipelineTests {
         let session = ReaderTranslationSession(validate: { _ in }, process: { page, settings, progress in
             try await preloader.translate(page, settings: settings, onProgress: progress)
         }, cancelProcessing: { preloader.cancel() },
-           cancelProcessingForPage: { preloader.cancel(preservingRecognitionFor: $0) }, diskCache: disk)
+           cancelProcessingForPage: { preloader.cancel(preservingRecognitionFor: $0) }, diskCache: disk,
+           availableMemory: { 4 * 1_024 * 1_024 * 1_024 })
         preloader.nextPage = { [weak session] page in session?.nextPageForRecognition(after: page) }
         defer { session.close() }
         let value = settings()
@@ -53,6 +54,139 @@ struct ReaderTranslationAPIPipelineTests {
         #expect(try await second.value.first?.translation == "complete-ko-1")
     }
 
+    @Test func pageTurnPauseAndAnchorUpdatePreserveDestinationButDiscardSkippedLookahead() async throws {
+        for destination in [1, 3] {
+            let recorder = APIPipelineRecorder(blocked: [0, 1, 3])
+            let preloader = preloader(recorder)
+            let session = ReaderTranslationSession(process: { page, settings, progress in
+                try await preloader.translate(page, settings: settings, onProgress: progress)
+            }, cancelProcessing: { preloader.cancel() },
+               cancelProcessingForPage: { preloader.cancel(preservingRecognitionFor: $0) },
+               availableMemory: { 4 * 1_024 * 1_024 * 1_024 })
+            preloader.nextPage = { [weak session] page in session?.nextPageForRecognition(after: page) }
+            defer { session.close() }
+            let items = (0..<4).map { ReaderTranslationSession.Item(page($0)) }
+            session.update(items: items, visible: [], context: "chapter", currentPageIndex: 0)
+            session.enable(settings: settings())
+            try await waitUntil { Set(await recorder.published) == [0, 1] }
+            session.pauseForPageTurn(preservingRecognitionFor: page(destination))
+            try await waitUntil { await recorder.cancelled.contains(0) }
+            // The debounce must not launch the new destination early.
+            try await Task.sleep(for: .milliseconds(350))
+            #expect(await recorder.started == [0, 1])
+            if destination == 1 {
+                #expect(await recorder.cancelled == [0])
+            } else {
+                try await waitUntil { await recorder.cancelled.contains(1) }
+            }
+            session.update(items: items, visible: [], context: "chapter", currentPageIndex: destination)
+            try await waitUntil { await recorder.started.contains(destination) }
+            #expect(await recorder.started.filter { $0 == destination }.count == 1)
+            #expect(await recorder.ocr.filter { $0 == destination }.count == 1)
+            if destination == 1 { #expect(await recorder.cancelled == [0]) }
+        }
+    }
+
+    @Test func navigationAdoptsInProgressOCRWithoutStartingItAgain() async throws {
+        let recorder = APIPipelineRecorder(blocked: [0, 1], blockedOCR: [1])
+        let preloader = preloader(recorder)
+        preloader.nextPage = { _ in page(1) }
+        let first = Task { try await preloader.translate(page(0), settings: settings()) }
+        defer { preloader.cancel(); first.cancel() }
+        try await waitUntil { await recorder.ocr == [0, 1] }
+        preloader.cancel(preservingRecognitionFor: page(1))
+        let second = Task { try await preloader.translate(page(1), settings: settings()) }
+        defer { second.cancel() }
+        await recorder.releaseRecognition(1)
+        try await waitUntil { await recorder.started.contains(1) }
+        await recorder.release(1)
+        #expect(try await second.value.first?.translation == "complete-ko-1")
+        #expect(await recorder.ocr == [0, 1])
+        #expect(await recorder.started.filter { $0 == 1 }.count == 1)
+        await #expect(throws: CancellationError.self) { try await first.value }
+    }
+
+    @Test func arrivingAtAlreadyActivePageKeepsItsWorkAcrossRepeatedCancellation() async throws {
+        let recorder = APIPipelineRecorder(blocked: [1, 2])
+        let preloader = preloader(recorder)
+        preloader.nextPage = { _ in page(2) }
+        let first = Task { try await preloader.translate(page(1), settings: settings()) }
+        defer { preloader.cancel(); first.cancel() }
+        try await waitUntil { Set(await recorder.published) == [1, 2] }
+        preloader.cancel(preservingRecognitionFor: page(1))
+        // The post-debounce anchor update repeats cancellation.
+        preloader.cancel(preservingRecognitionFor: page(1))
+        try await waitUntil { await recorder.cancelled == [2] }
+        preloader.nextPage = nil
+        let second = Task { try await preloader.translate(page(1), settings: settings()) }
+        defer { second.cancel() }
+        await recorder.release(1)
+        #expect(try await second.value.first?.translation == "complete-ko-1")
+        await #expect(throws: CancellationError.self) { try await first.value }
+        #expect(await recorder.ocr.filter { $0 == 1 }.count == 1)
+        #expect(await recorder.started.filter { $0 == 1 }.count == 1)
+        #expect(await recorder.cancelled == [2])
+    }
+
+    @Test func sessionTransfersActiveDestinationBeforeCancellingItsOldConsumer() async throws {
+        let recorder = APIPipelineRecorder(blocked: [0, 1, 2])
+        let preloader = preloader(recorder)
+        var calls: [Int] = []
+        let session = ReaderTranslationSession(process: { page, settings, progress in
+            calls.append(page.index)
+            return try await preloader.translate(page, settings: settings, onProgress: progress)
+        }, cancelProcessing: { preloader.cancel() },
+           cancelProcessingForPage: { preloader.cancel(preservingRecognitionFor: $0) },
+           availableMemory: { 4 * 1_024 * 1_024 * 1_024 })
+        preloader.nextPage = { [weak session] page in session?.nextPageForRecognition(after: page) }
+        defer { session.close() }
+        let items = (0..<3).map { ReaderTranslationSession.Item(page($0)) }
+        session.update(items: items, visible: [], context: "chapter", currentPageIndex: 0)
+        session.enable(settings: settings())
+        try await waitUntil { Set(await recorder.published) == [0, 1] }
+        await recorder.release(0)
+        try await waitUntil { calls == [0, 1] }
+        session.pauseForPageTurn(preservingRecognitionFor: page(1))
+        session.update(items: items, visible: [], context: "chapter", currentPageIndex: 1)
+        try await waitUntil { calls == [0, 1, 1] }
+        await recorder.release(1)
+        try await waitUntil { await recorder.completed.contains(1) }
+        #expect(await recorder.started.filter { $0 == 1 }.count == 1)
+        #expect(await recorder.ocr.filter { $0 == 1 }.count == 1)
+        #expect(await recorder.cancelled.contains(1) == false)
+    }
+
+    @Test func coordinatorKeepsDebounceAndAdoptsDestinationWork() async throws {
+        let recorder = APIPipelineRecorder(blocked: [0, 1, 2])
+        let preloader = preloader(recorder)
+        let owner = APIPipelineOwner(pages: (0..<3).map { page($0) })
+        var calls: [Int] = []
+        let session = ReaderTranslationSession(process: { page, settings, progress in
+            calls.append(page.index)
+            return try await preloader.translate(page, settings: settings, onProgress: progress)
+        }, cancelProcessing: { preloader.cancel() },
+           cancelProcessingForPage: { preloader.cancel(preservingRecognitionFor: $0) },
+           availableMemory: { 4 * 1_024 * 1_024 * 1_024 })
+        preloader.nextPage = { [weak session] page in session?.nextPageForRecognition(after: page) }
+        var value = settings()
+        value.automaticallyTranslate = true
+        let coordinator = ReaderTranslationCoordinator(owner: owner, session: session,
+                                                        readSettings: { value }, setEnabled: { _ in })
+        defer { coordinator.close() }
+        coordinator.resume()
+        try await waitUntil { Set(await recorder.published) == [0, 1] }
+        owner.translationCurrentPageIndex = 1
+        let movedAt = ProcessInfo.processInfo.systemUptime
+        coordinator.visiblePagesDidChange()
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(calls == [0])
+        try await waitUntil { calls.contains(1) }
+        #expect(ProcessInfo.processInfo.systemUptime - movedAt >= 0.35)
+        #expect(await recorder.started.filter { $0 == 1 }.count == 1)
+        #expect(await recorder.ocr.filter { $0 == 1 }.count == 1)
+        #expect(await recorder.cancelled == [0])
+    }
+
     @Test func directParentCancellationStopsBothPageRequests() async throws {
         let recorder = APIPipelineRecorder(blocked: [0, 1])
         let preloader = preloader(recorder)
@@ -74,8 +208,11 @@ struct ReaderTranslationAPIPipelineTests {
         try await waitUntil { Set(await recorder.started) == [0, 1] }
         await recorder.release(0)
         #expect(try await work.value.first?.translation == "complete-ko-0")
-        await #expect(throws: RemoteTranslationError.self) {
-            try await preloader.translate(page(1), settings: settings())
+        do {
+            _ = try await preloader.translate(page(1), settings: settings())
+            Issue.record("Expected the speculative API failure")
+        } catch let fallback as ReaderTranslationOCRFallback {
+            #expect(fallback.underlying as? RemoteTranslationError == .httpStatus(503, requestID: nil))
         }
         #expect(await recorder.started.filter { $0 == 1 }.count == 1)
     }
@@ -202,15 +339,19 @@ private actor APIPipelineRecorder {
     var maximumActive = 0
     private var active = 0
     private var blocked: Set<Int>
+    private var blockedOCR: Set<Int>
     private let failed: Set<Int>
     private let delayMilliseconds: Int
 
-    init(blocked: Set<Int> = [], failed: Set<Int> = [], delayMilliseconds: Int = 0) {
+    init(blocked: Set<Int> = [], failed: Set<Int> = [], delayMilliseconds: Int = 0, blockedOCR: Set<Int> = []) {
         self.blocked = blocked; self.failed = failed; self.delayMilliseconds = delayMilliseconds
+        self.blockedOCR = blockedOCR
     }
     func release(_ index: Int) { blocked.remove(index) }
+    func releaseRecognition(_ index: Int) { blockedOCR.remove(index) }
     func recognize(_ index: Int) async throws -> [ReaderTranslationRegion] {
         ocr.append(index)
+        while blockedOCR.contains(index) { try await Task.sleep(for: .milliseconds(5)) }
         try await Task.sleep(for: .milliseconds(25))
         return [Self.region(index)]
     }
@@ -239,4 +380,17 @@ private actor APIPipelineRecorder {
     static func region(_ index: Int) -> ReaderTranslationRegion {
         .init(id: String(index), rect: CGRect(x: 0.1, y: 0.1, width: 0.2, height: 0.2), source: "Text \(index)")
     }
+}
+
+
+@MainActor private final class APIPipelineOwner: UIViewController, ReaderTranslationOwner {
+    let translationUpcomingPages: [Aidoku.Page]
+    let translationVisiblePages: [ReaderTranslationPage] = []
+    let translationChapterKey = "chapter"
+    var translationCurrentPageIndex = 0
+    init(pages: [Aidoku.Page]) {
+        translationUpcomingPages = pages
+        super.init(nibName: nil, bundle: nil)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 }

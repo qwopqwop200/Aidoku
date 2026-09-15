@@ -173,3 +173,223 @@
 "OPTIONS" = "Opcioj";
 "%i_CHAPTERS" = "%i ĉapitroj";
 "SHARE" = "Dividi";
+
+"TRANSLATION_TITLE" = "OCR & Tradukado";
+
+"TRANSLATION_TRANSLATE" = "Traduku Videblajn Paĝojn";
+
+"TRANSLATION_RECOGNIZE" = "Rekonu tekston (eksterrete)";
+
+"TRANSLATION_ORIGINAL" = "Montru Originalon";
+
+"TRANSLATION_TEXT" = "Rekonita & Tradukita Teksto";
+
+"TRANSLATION_NO_IMAGE" = "Atendu la ŝarĝon de bildopaĝo, poste provu denove.";
+
+"TRANSLATION_NO_TEXT" = "Neniu teksto estis rekonita. Provu alian OCR-modelon aŭ pli klaran bildon.";
+
+"TRANSLATION_WORKING" = "Rekonante kaj tradukante...";
+
+"TRANSLATION_OCR_WORKING" = "Rekonante tekston sur aparato...";
+
+"TRANSLATION_HELP" = "La tradukikono ŝaltas aŭ malŝaltas tradukon. Paĝoj estas preparitaj en ĉi tiu ordo: nuna, sekva, antaŭa, du antaŭe, du malantaŭe, daŭrante ĝis ambaŭ finoj de la ĉapitro. Finitaj OCR, tradukoj kaj teksta aranĝo estas reuzitaj post fermo de la leganto aŭ rekomenco de la apo. Forlasi la leganton nuligas nefinitan laboron.";
+
+"TRANSLATION_PRIVACY" = "OCR funkcias en via aparato. Tradukado sendas agnoskitan tekston kaj viajn instrukciojn al la elektita provizanto. Se Inkluzivi Paĝan Bildon en Tradukado estas ebligita, la origina paĝa bildo ankaŭ estas alŝutita. API-kostoj dependas de via provizanto. Ŝlosiloj restas en Ŝlosilĉeno. OCR, tradukoj kaj teksta aranĝo estas konservitaj en protektita aplikaĵa stokado ekskludita de sekurkopioj.";
+
+"TRANSLATION_KEY_REPLACE" = "Anstataŭigi konservitan API-ŝlosilon (laŭvola)";
+
+"TRANSLATION_KEY" = "API-ŝlosilo";
+
+"TRANSLATION_KEY_SAVED" = "API-ŝlosilo konservita en Ŝlosilĉeno";
+
+"TRANSLATION_KEY_DELETE" = "Forigu API-Ŝlosilon";
+
+"TRANSLATION_MODEL" = "Model ID";
+
+"TRANSLATION_GET_KEY" = "Malfermu OpenAI-API-Ŝlosilojn";
+
+"TRANSLATION_LANGUAGE" = "Lingvoj";
+
+"TRANSLATION_TARGET" = "Traduku Al";
+
+"TRANSLATION_SOURCE" = "Fontlingvo";
+
+"TRANSLATION_AUTO" = "Detekti Aŭtomate";
+
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 postulas iOS 18 aŭ poste. Mezumo estas la defaŭlta; Malgranda uzas malpli da memoro. Tiny havas pli malgrandan sign-vortaron. Ĉi tiuj modeloj ne subtenas korean OCR. Korea traduka eligo estas subtenata.";
+
+"TRANSLATION_INSTRUCTIONS" = "Instrukcioj pri tradukado";
+
+"TRANSLATION_RESET_PROMPT" = "Restarigu la defaŭltajn tradukajn instrukciojn";
+
+"TRANSLATION_CLEAR_CACHE" = "Forigi Traduka Kaŝmemoro";
+
+"TRANSLATION_CACHE_CLEARED" = "Traduka kaŝmemoro malplenigita.";
+
+"TRANSLATION_NOTICES" = "OCR & Tradukaj Licencoj";
+
+"TRANSLATION_ADVANCED" = "Tradukaj Opcioj";
+
+"TRANSLATION_REASONING" = "Rezona Penado";
+
+"TRANSLATION_MODEL_DEFAULT" = "Modela Defaŭlto";
+
+"TRANSLATION_CONCURRENCY" = "Samtempaj Petoj";
+
+"TRANSLATION_DETECTOR_SIZE" = "Detektilo Maksimuma Flanko";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "Maksimuma Larĝo de rekonilo";
+
+"TRANSLATION_CONFIDENCE" = "OCR-Konfido";
+
+"TRANSLATION_SURFACE" = "Fona Koloro";
+
+"TRANSLATION_WHITE" = "Blanka";
+
+"TRANSLATION_DARK" = "Mallumo";
+
+"TRANSLATION_OPACITY" = "Fona Opakeco";
+
+"TRANSLATION_EXPANSION" = "Skatolo Ekspansio";
+
+"TRANSLATION_PANEL_BOUNDS" = "Ene de Bilda Panelo";
+
+"TRANSLATION_SOURCE_BOUNDS" = "Ene de Originala Skatolo";
+
+"TRANSLATION_UNRESTRICTED" = "Senlima";
+
+"TRANSLATION_FONT_SIZE" = "Tiparo Grandeco";
+
+"TRANSLATION_AUTO_FIT" = "Fit Aŭtomate";
+
+"TRANSLATION_FIXED" = "Fiksa tiparo grandeco";
+
+"TRANSLATION_OVERLAY" = "Traduko Overlay";
+
+"TRANSLATION_OVERLAY_HELP" = "Anstataŭigas tekston super ĝia fonta skatolo uzante kolizio-konscian aranĝon kaj skript-specifan envolvadon. Montraj ŝanĝoj reuzas ekzistantan OCR.";
+
+"TRANSLATION_PROVIDER" = "Traduka provizanto";
+
+"TRANSLATION_BASE_URL" = "Servila URL";
+
+"TRANSLATION_API_FORMAT" = "API Formato";
+
+"TRANSLATION_CUSTOM_HELP" = "Enigu HTTPS-bazan URL aŭ plenan API-finpunkton kaj modelon subtenata de via servilo. Ĉiu servila URL havas sian propran konservitan ŝlosilon; ŝanĝi la URL forigas ajnan ŝlosilon, kiun vi enigas. Respondoj kaj Babilejo-Kompletigoj uzas strukturitan JSON-eligon.";
+
+"TRANSLATION_AUTOMATIC" = "Aŭtomata Tradukado";
+
+"TRANSLATION_AUTOMATIC_HELP" = "Kontrolu la konservitajn API-agordojn unufoje en la fono kiam la aplikaĵo malfermiĝas aŭ API-agordoj ŝanĝiĝas. Tradukado komenciĝas post sukceso. Malsukcesa kontrolo paŭzas tradukon sen ŝanĝi vian aŭtomatan tradukpreferon. Remalfermu la apon aŭ provu la API-konekton denove por reprovi. Paĝŝanĝoj kaj ON/OFF reuzas la ĉekrezulton. Rezona klopodo uzas vian konservitan agordon.";
+
+"TRANSLATION_TEST" = "Testu API-Konekton";
+
+"TRANSLATION_TEST_RUNNING" = "Testante konekton...";
+
+"TRANSLATION_TEST_SUCCESS" = "Konekto Sukcesa";
+
+"TRANSLATION_TEST_FAILURE" = "Konekto Malsukcesis";
+
+"TRANSLATION_TEST_HELP" = "Tradukas mallongan frazon uzante la valorojn en ĉi tiu formo. Lasu la ŝlosilon malplena por uzi la konservitan ŝlosilon de ĉi tiu servilo. Ŝanĝoj estas konservitaj aŭtomate.";
+
+"SEARCH_SUGGESTIONS" = "Serĉaj Sugestoj";
+
+"TRANSLATION_CACHE" = "Senkonekta Kaŝmemoro";
+
+"TRANSLATION_CACHE_LIMIT" = "Maksimuma Stokado";
+
+"TRANSLATION_CACHE_USED" = "Stokado Uzita";
+
+"TRANSLATION_CACHE_HELP" = "Konservu OCR, paĝtradukojn, tradukojn de mangao kaj ĉapitraj titoloj, priskribojn de mangao kaj tekstan aranĝon aŭtomate. Paĝaj bildoj restas nur en apudpaĝa memoro. La malplej ĵus uzataj rezultoj estas forigitaj kiam la elektita limo estas atingita. Defaŭlte: 1 GB. Maksimumo: 100 GB. Ŝanĝoj validas aŭtomate; malaltigi la limon forigas la malplej ĵus uzatajn rezultojn ĝis la kaŝmemoro konvenas.";
+
+"TRANSLATION_SOURCE_FILTER" = "Traduka Fonta Filtrilo";
+
+"TRANSLATION_FILTER_ALL" = "Ĉiuj Detektitaj Lingvoj";
+
+"TRANSLATION_FILTER_HELP" = "Elektu la originalajn lingvojn por traduki. Neelektita aŭ necerta teksto restas senŝanĝa. Elektu Ĉiuj Detektitaj Lingvoj por forigi la filtrilon.";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Nur teksto identigita kiel la elektita originala lingvo estas tradukita. Lingvoj sen sur-aparata detekto restas nefiltritaj.";
+
+"HTTPS_BYPASS" = "HTTPS-Blokanta Preterpaso";
+
+"HTTPS_BYPASS_HELP" = "Uzu TLS-fragmentiĝon kaj ĉifritan DNS (Cloudflare) por fontpetoj, bildoj, elŝutoj kaj fontaj interretaj vidoj. Validas por novaj konektoj. IP-blokoj kaj limigoj truditaj de la retejo ne estas preterpasitaj.";
+
+"HTTPS_BYPASS_TEST" = "Testa Konekto";
+
+"HTTPS_BYPASS_TEST_HELP" = "Testas ĉi tiun HTTPS-adreson per la pretervojo, eĉ kiam la ŝaltilo estas malŝaltita. Respondo konfirmas konekteblecon, ne ke ISP-bloko ĉeestis.";
+
+"HTTPS_BYPASS_INVALID_URL" = "Enigu HTTPS-URL sen uzantnomo aŭ pasvorto.";
+
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d ricevis · TLS-fragmentiĝo aplikita";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d ricevita · TLS-fragmentiĝo ne konfirmita";
+
+"HTTPS_BYPASS_TEST_FAILED" = "Ne eblis konekti per HTTPS-pretervojo.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Tradukado malsukcesis. Montrante OCR-tekston. Bonvolu kontroli vian konekton.";
+
+"TRANSLATION_MANGA_TITLES" = "Traduku Mangao-Titolojn";
+
+"TRANSLATION_CHAPTER_TITLES" = "Traduku Ĉapitrotitolojn";
+
+"TRANSLATION_TITLES_HELP" = "Uzas vian tradukan API kaj cellingvon sendepende de aŭtomata paĝa tradukado. Malŝaltu por montri originalajn titolojn kaj priskribojn. Originaloj restas videblaj dum ŝarĝo aŭ se tradukado malsukcesas.";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "Mangao Titolo Lingvoj";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "Ĉapitro Titolo Lingvoj";
+
+"TRANSLATION_PAGE_SOURCE" = "Paĝa Fonta Lingvo";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "Aŭtomate detektu la fontlingvon de ĉiu titolo kaj traduku nur la elektitajn lingvojn. Ĉiuj lingvoj forigas la lingvan limigon. Paĝo kaj aliaj titolaj fontlingvaj agordoj ne influas ĉi tiun elekton.";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Traduku Mangaaj Priskriboj";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "Mangaaj priskribaj lingvoj";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "Aŭtomate detektu la fontlingvon kaj traduku nur la elektitajn lingvojn. Ĉiuj lingvoj forigas la limigon. Paĝo, Mangao-titolo, ĉapitro-titolo kaj priskribaj filtriloj funkcias sendepende.";
+
+"TRANSLATION_SFX_FILTER" = "SFX-Filtrado (Nur la japana)";
+
+"TRANSLATION_SFX_FILTER_HELP" = "Lasu verŝajnajn japanajn sonefektojn netradukitaj. Uzu lokan vortaron kaj konservativan aranĝkontrolojn. Teksto kiu ne povas esti memfide identigita kiel sonefekto ankoraŭ estas tradukita.";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Inkluzivi Kuntekst-Bezonatajn Enskribojn (Nur la Japana)";
+
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Aplikas dum SFX-Filtrado estas ebligita. Ankaŭ filtras enskribojn markitajn kiel postulantajn kuntekston uzante vortarajn kongruojn, tekstgrandecon kaj proksiman aranĝon. Neniu LLM analizas la kuntekston, do dialogo ankaŭ povas esti ekskludita.";
+
+"TRANSLATION_INCLUDE_IMAGE" = "Inkluzivi Paĝan Bildon en Tradukado";
+
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Sendu la originalan paĝon kun OCR-teksto por sceno kaj esprima kunteksto. Bildaj instrukcioj estas almetitaj aŭtomate. Postulas modelon kiu subtenas bildojn kaj povas pliigi datuman uzadon kaj API-koston.";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "Konservu Originalan Teksto-Koloron";
+
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Taksi la originalan tekstokoloron sen plia modelo. Uzu la defaŭltan koloron kiam necerta aŭ kiam kontrasto estas tro malalta.";
+
+"TRANSLATION_LLM_SFX" = "Filtrado de LLM SFX (Ĉiuj lingvoj)";
+
+"TRANSLATION_LLM_SFX_HELP" = "Klasifiku sonefektojn en la tradukpeto. Povas esti kombinita kun la japana loka filtrilo: sonefika decido de ambaŭ filtriloj lasas la originalon senŝanĝa. Kongrua kun sendado de la paĝa bildo.";
+
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Sen bilda enigo, limigita vida kaj aranĝa kunteksto povas redukti SFX-klasifikan precizecon.";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Konservu Originalan Panelan Koloron";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Kongruu la tradukpanelon al la fono ĉirkaŭ la originala teksto. Uzu la defaŭltan panelon kiam necerta aŭ nelegebla. Via opakeco ankoraŭ validas.";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "Propra OpenAI";
+
+"TRANSLATION_OCR_MEDIUM" = "Meza";
+
+"TRANSLATION_OCR_SMALL" = "Malgranda";
+
+"TRANSLATION_OCR_TINY" = "Eta";
+
+"TRANSLATION_REASONING_NONE" = "Neniu";
+
+"TRANSLATION_REASONING_MINIMAL" = "Minimuma";
+
+"TRANSLATION_REASONING_LOW" = "Malalta";
+
+"TRANSLATION_REASONING_MEDIUM" = "Meza";
+
+"TRANSLATION_REASONING_HIGH" = "Alta";
+
+"TRANSLATION_REASONING_XHIGH" = "Tre Alta";
+
+"TRANSLATION_REASONING_MAX" = "Maksimumo";

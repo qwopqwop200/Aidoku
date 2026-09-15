@@ -827,3 +827,223 @@
 "MIGRATE_WITH_HISTORY" = "迁移并保留历史";
 "AUTO_SCROLL" = "自动滚动";
 "AUTO_SCROLL_SPEED" = "自动滚动速度";
+
+"TRANSLATION_TITLE" = "光学字符识别和翻译";
+
+"TRANSLATION_TRANSLATE" = "翻译可见页面";
+
+"TRANSLATION_RECOGNIZE" = "识别文本（离线）";
+
+"TRANSLATION_ORIGINAL" = "显示原件";
+
+"TRANSLATION_TEXT" = "识别和翻译的文本";
+
+"TRANSLATION_NO_IMAGE" = "等待图像页面加载，然后重试。";
+
+"TRANSLATION_NO_TEXT" = "没有识别出任何文字。尝试其他 OCR 模型或更清晰的图像。";
+
+"TRANSLATION_WORKING" = "识别和翻译...";
+
+"TRANSLATION_OCR_WORKING" = "正在识别设备上的文本...";
+
+"TRANSLATION_HELP" = "翻译图标可打开或关闭翻译。页面按以下顺序准备：当前、下一页、上一页、前面两页、后面两页，继续到章节的两端。关闭阅读器或重新启动应用程序后，可以重复使用已完成的 OCR、翻译和文本布局。离开读者就取消了未完成的工作。";
+
+"TRANSLATION_PRIVACY" = "OCR 在您的设备上运行。 Translation 将识别的文本和您的说明发送给选定的提供商。如果启用在翻译中包含页面图像，则还会上传原始页面图像。 API 费用取决于您的提供商。钥匙留在钥匙串中。 OCR、翻译和文本布局保存在受保护的应用程序存储中，不包含在备份中。";
+
+"TRANSLATION_KEY_REPLACE" = "替换已保存的 API 密钥（可选）";
+
+"TRANSLATION_KEY" = "API密钥";
+
+"TRANSLATION_KEY_SAVED" = "API 密钥保存在钥匙串中";
+
+"TRANSLATION_KEY_DELETE" = "删除 API 密钥";
+
+"TRANSLATION_MODEL" = "型号编号";
+
+"TRANSLATION_GET_KEY" = "打开 OpenAI API 密钥";
+
+"TRANSLATION_LANGUAGE" = "语言";
+
+"TRANSLATION_TARGET" = "翻译为";
+
+"TRANSLATION_SOURCE" = "源语言";
+
+"TRANSLATION_AUTO" = "自动检测";
+
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 需要 iOS 18 或更高版本。中为默认值；小使用较少的内存。 Tiny 的字符字典较小。这些型号不支持韩语 OCR。支持韩语翻译输出。";
+
+"TRANSLATION_INSTRUCTIONS" = "翻译指令";
+
+"TRANSLATION_RESET_PROMPT" = "恢复默认翻译指令";
+
+"TRANSLATION_CLEAR_CACHE" = "清除翻译缓存";
+
+"TRANSLATION_CACHE_CLEARED" = "翻译缓存已清除。";
+
+"TRANSLATION_NOTICES" = "OCR 和翻译许可证";
+
+"TRANSLATION_ADVANCED" = "翻译选项";
+
+"TRANSLATION_REASONING" = "推理强度";
+
+"TRANSLATION_MODEL_DEFAULT" = "型号默认";
+
+"TRANSLATION_CONCURRENCY" = "并发请求";
+
+"TRANSLATION_DETECTOR_SIZE" = "检测图像最大边长";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "识别图像最大宽度";
+
+"TRANSLATION_CONFIDENCE" = "OCR 置信度";
+
+"TRANSLATION_SURFACE" = "背景颜色";
+
+"TRANSLATION_WHITE" = "白色";
+
+"TRANSLATION_DARK" = "黑暗";
+
+"TRANSLATION_OPACITY" = "背景不透明度";
+
+"TRANSLATION_EXPANSION" = "盒子扩展";
+
+"TRANSLATION_PANEL_BOUNDS" = "在图像面板内";
+
+"TRANSLATION_SOURCE_BOUNDS" = "原盒内";
+
+"TRANSLATION_UNRESTRICTED" = "无限制";
+
+"TRANSLATION_FONT_SIZE" = "字体大小";
+
+"TRANSLATION_AUTO_FIT" = "自动适配";
+
+"TRANSLATION_FIXED" = "固定";
+
+"TRANSLATION_OVERLAY" = "翻译叠加";
+
+"TRANSLATION_OVERLAY_HELP" = "使用碰撞感知布局和特定于脚本的换行替换源框中的文本。显示更改重用现有 OCR。";
+
+"TRANSLATION_PROVIDER" = "翻译提供商";
+
+"TRANSLATION_BASE_URL" = "服务器地址";
+
+"TRANSLATION_API_FORMAT" = "API格式";
+
+"TRANSLATION_CUSTOM_HELP" = "输入 HTTPS 基本 URL 或完整 API 端点以及您的服务器支持的模型。每个服务器 URL 都有自己保存的密钥；更改 URL 会清除您输入的任何键。响应和聊天完成使用结构化 JSON 输出。";
+
+"TRANSLATION_AUTOMATIC" = "自动翻译";
+
+"TRANSLATION_AUTOMATIC_HELP" = "当应用程序打开或 API 设置更改时，请在后台检查保存的 API 设置。成功后开始翻译。失败的检查会暂停翻译，但不会更改您的自动翻译首选项。重新打开应用程序或再次测试 API 连接以重试。页面更改和ON/OFF重复使用检查结果。推理工作使用您保存的设置。";
+
+"TRANSLATION_TEST" = "测试API连接";
+
+"TRANSLATION_TEST_RUNNING" = "测试连接...";
+
+"TRANSLATION_TEST_SUCCESS" = "连接成功";
+
+"TRANSLATION_TEST_FAILURE" = "连接失败";
+
+"TRANSLATION_TEST_HELP" = "使用此形式的值翻译一个短句子。将密钥留空以使用该服务器保存的密钥。更改会自动保存。";
+
+"SEARCH_SUGGESTIONS" = "搜索建议";
+
+"TRANSLATION_CACHE" = "离线缓存";
+
+"TRANSLATION_CACHE_LIMIT" = "最大存储空间";
+
+"TRANSLATION_CACHE_USED" = "已用存储空间";
+
+"TRANSLATION_CACHE_HELP" = "自动保存 OCR、页面翻译、漫画和章节标题翻译、漫画描述和文本布局。页面图像仅保留在附近页面内存中。当达到选定的限制时，最近最少使用的结果将被删除。默认值：1 GB。最大：100 GB。更改自动应用；降低限制会删除最近最少使用的结果，直到缓存适合为止。";
+
+"TRANSLATION_SOURCE_FILTER" = "翻译源过滤器";
+
+"TRANSLATION_FILTER_ALL" = "所有检测到的语言";
+
+"TRANSLATION_FILTER_HELP" = "选择要翻译的原始语言。未选择或不确定的文本保持不变。选择所有检测到的语言以删除过滤器。";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "仅翻译被识别为所选原始语言的文本。没有设备上检测的语言仍然不会被过滤。";
+
+"HTTPS_BYPASS" = "HTTPS 阻塞绕过";
+
+"HTTPS_BYPASS_HELP" = "对源请求、图像、下载和源 Web 视图使用 TLS 分段和加密 DNS (Cloudflare)。适用于新连接。无法绕过网站施加的 IP 封锁和限制。";
+
+"HTTPS_BYPASS_TEST" = "测试连接";
+
+"HTTPS_BYPASS_TEST_HELP" = "即使交换机关闭，也会通过旁路测试此 HTTPS 地址。响应确认连接，而不是存在 ISP 阻止。";
+
+"HTTPS_BYPASS_INVALID_URL" = "输入不带用户名或密码的 HTTPS URL。";
+
+"HTTPS_BYPASS_TEST_RESULT" = "收到 HTTP %d · 应用了 TLS 分段";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "收到 HTTP %d · TLS 碎片未确认";
+
+"HTTPS_BYPASS_TEST_FAILED" = "无法通过 HTTPS 旁路连接。";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "翻译失败。显示 OCR 文本。请检查您的连接。";
+
+"TRANSLATION_MANGA_TITLES" = "翻译漫画标题";
+
+"TRANSLATION_CHAPTER_TITLES" = "翻译章节标题";
+
+"TRANSLATION_TITLES_HELP" = "使用独立于自动页面翻译的翻译 API 和目标语言。关闭以显示原始标题和说明。加载时或翻译失败时，原件仍然可见。";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "漫画标题语言";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "章节标题 语言";
+
+"TRANSLATION_PAGE_SOURCE" = "页面源语言";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "自动检测每个标题的源语言并仅翻译选定的语言。所有语言消除了语言限制。页面和其他标题源语言设置不会影响此选择。";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "翻译漫画描述";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "漫画简介翻译语言";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "自动检测源语言并仅翻译选定的语言。所有语言都消除了限制。页面、漫画标题、章节标题和描述过滤器独立工作。";
+
+"TRANSLATION_SFX_FILTER" = "SFX 过滤（仅限日语）";
+
+"TRANSLATION_SFX_FILTER_HELP" = "保留可能的日语音效不翻译。使用本地字典和保守的布局检查。无法自信地识别为声音效果的文本仍会被翻译。";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "包括上下文所需的条目（仅限日语）";
+
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "在启用 SFX 过滤时适用。还可以使用字典匹配、文本大小和附近布局来过滤标记为需要上下文的条目。没有法学硕士分析上下文，因此对话也可能被排除在外。";
+
+"TRANSLATION_INCLUDE_IMAGE" = "在翻译中包含页面图像";
+
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "发送包含场景和表达式上下文的 OCR 文本的原始页面。图像说明会自动附加。需要支持图像的模型，可能会增加数据使用量和 API 成本。";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "保留原始文本颜色";
+
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "无需额外模型即可估计原始文本颜色。当不确定或对比度太低时，请使用默认颜色。";
+
+"TRANSLATION_LLM_SFX" = "LLM SFX 过滤（所有语言）";
+
+"TRANSLATION_LLM_SFX_HELP" = "对翻译请求中的音效进行分类。可以与日本本地滤波器结合使用：任一滤波器的音效决定都保持原始效果不变。兼容发送页面图片。";
+
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "如果没有图像输入，有限的视觉和布局上下文可能会降低 SFX 分类的准确性。";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "保留原始面板颜色";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "将翻译面板与原文周围的背景相匹配。当不确定或不可读时，使用默认面板。您的不透明度设置仍然适用。";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "定制 OpenAI";
+
+"TRANSLATION_OCR_MEDIUM" = "中型";
+
+"TRANSLATION_OCR_SMALL" = "小型";
+
+"TRANSLATION_OCR_TINY" = "超小型";
+
+"TRANSLATION_REASONING_NONE" = "无";
+
+"TRANSLATION_REASONING_MINIMAL" = "最小";
+
+"TRANSLATION_REASONING_LOW" = "低";
+
+"TRANSLATION_REASONING_MEDIUM" = "中等";
+
+"TRANSLATION_REASONING_HIGH" = "高";
+
+"TRANSLATION_REASONING_XHIGH" = "非常高";
+
+"TRANSLATION_REASONING_MAX" = "最大";

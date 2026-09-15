@@ -60,6 +60,10 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
         }?.text
         return sourceText != nil &&
             sourceText == expectedSourceText &&
+            cacheKey.segments.first(where: { $0.id == segmentID })?.bounds ==
+                expected.cacheKey.segments.first(where: { $0.id == expected.segmentID })?.bounds &&
+            cacheKey.imageDigest == expected.cacheKey.imageDigest &&
+            cacheKey.sfxPolicy == expected.cacheKey.sfxPolicy &&
             cacheKey.version == expected.cacheKey.version &&
             cacheKey.provider == expected.cacheKey.provider &&
             cacheKey.apiProtocol == expected.cacheKey.apiProtocol &&
@@ -81,7 +85,9 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
     func hasSameTranslationConfiguration(
         as expected: NativeTranslationReuseIdentity
     ) -> Bool {
-        cacheKey.version == expected.cacheKey.version &&
+        cacheKey.imageDigest == expected.cacheKey.imageDigest &&
+            cacheKey.sfxPolicy == expected.cacheKey.sfxPolicy &&
+            cacheKey.version == expected.cacheKey.version &&
             cacheKey.provider == expected.cacheKey.provider &&
             cacheKey.apiProtocol == expected.cacheKey.apiProtocol &&
             cacheKey.endpointNamespace == expected.cacheKey.endpointNamespace &&

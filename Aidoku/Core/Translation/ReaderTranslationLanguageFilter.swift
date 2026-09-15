@@ -9,6 +9,14 @@ enum ReaderTranslationLanguageFilter {
     /// Nil preserves the existing all-language cache. Fixed sources with no Apple
     /// classifier also keep the permissive fallback.
     static func identity(settings: ReaderTranslationSettings) -> [String]? {
+        var language = languageIdentity(settings: settings)
+        if settings.filterSFXWithLLM { language = (language ?? []) + ["llm-sfx-v1"] }
+        guard settings.filterJapaneseSFX else { return language }
+        return (language ?? []) + [ReaderJapaneseSFXFilter.version] +
+            (settings.filterJapaneseSFXContext ? [ReaderJapaneseSFXFilter.contextVersion] : [])
+    }
+
+    private static func languageIdentity(settings: ReaderTranslationSettings) -> [String]? {
         let source = canonical(settings.sourceLanguage)
         if source == "auto" {
             let languages = normalized(settings.translationSourceLanguages)
@@ -21,9 +29,10 @@ enum ReaderTranslationLanguageFilter {
     static func apply(_ regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings) -> [ReaderTranslationRegion] {
         let source = canonical(settings.sourceLanguage)
         let languages = normalized(settings.translationSourceLanguages)
-        return regions.filter {
+        let eligible = regions.filter {
             AutomaticSourceLanguageDetector.allowsOCRText($0.source, configuredSourceLanguage: source, automaticLanguageFilter: languages)
         }
+        return ReaderJapaneseSFXFilter.apply(eligible, settings: settings)
     }
 
     /// NaturalLanguage classification must not block reader gestures.

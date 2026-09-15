@@ -158,6 +158,8 @@ final class BrowserPageImageOverlayRenderer {
                 let rawResult = try await javaScriptEvaluator(webView, Self.renderScript, [
                     "items": payload,
                     "appearance": ["opacity": min(1, max(0, settings.opacity)),
+                                   "preserveSourceTextColor": settings.preserveSourceTextColor,
+                                   "preserveSourceBackgroundColor": settings.preserveSourceBackgroundColor,
                                    "minimumReadableFontSize": BrowserOverlayLayoutPlanner.minimumRenderedFontSize],
                     "revision": String(currentRevision), "session": sessionIdentifier
                 ])
@@ -396,6 +398,8 @@ final class BrowserPageImageOverlayRenderer {
             }
             let payload: [String: Any] = [
                 "id": String(segment.item.stableRegionID ?? UInt64(index)),
+                "sourceColorEligible": segment.content.hasTranslation && settings.mode == .translateOnly &&
+                    settings.textPlacement == .replace,
                 "sourceCleanup": segment.content.hasTranslation && settings.mode == .translateOnly &&
                     settings.textPlacement == .replace &&
                     (settings.colorMode == .white || (settings.colorMode == .automatic && segment.sourceVertical)),
@@ -612,7 +616,7 @@ final class BrowserPageImageOverlayRenderer {
     return { status: 'cleared', revision: String(revision), itemCount: 0 };
     """
 
-    static let renderScript = BrowserSourceInkCleanup.script + """
+    static let renderScript = BrowserSourceInkCleanup.script + BrowserSourceTextColor.script + """
     const revisionNumber = Number(revision);
     if (!Number.isFinite(revisionNumber)) {
       throw new TypeError('invalid overlay revision');
@@ -689,6 +693,8 @@ final class BrowserPageImageOverlayRenderer {
     let cleanupPixels = 0, cleanupCount = 0;
     const cleanupStarted = performance.now();
     const sourceImage = document.getElementById('reader-source-image');
+    const sourceColors = aidokuSourceColorSampler(sourceImage,
+      Boolean(appearance?.preserveSourceTextColor || appearance?.preserveSourceBackgroundColor));
     const cleanupCanvas = document.createElement('canvas');
     const cleanupContext = cleanupCanvas.getContext('2d', {willReadFrequently: true});
     const appendSourceCleanup = item => {
@@ -785,11 +791,19 @@ final class BrowserPageImageOverlayRenderer {
         const paddingBottom = finiteNumber(item.paddingBottom, 'padding bottom');
         const paddingLeft = finiteNumber(item.paddingLeft, 'padding left');
         if (fontSize < minimumFontSize) continue;
-        const lightSurface = Boolean(item.lightSurface);
-        const surface = lightSurface ? '255,254,249' : '7,9,13';
+        const sampled = item.sourceColorEligible ? sourceColors.sample(item.sourceBounds) : null;
+        const panelCandidate = appearance?.preserveSourceBackgroundColor ? sampled?.background : null;
+        const panelForeground = aidokuPanelForeground(panelCandidate, opacity);
+        const sampledBackground = panelForeground ? panelCandidate : null;
+        const lightSurface = panelForeground ? panelForeground[0] !== 255 : Boolean(item.lightSurface);
+        const surface = sampledBackground ? sampledBackground.join(',') : (lightSurface ? '255,254,249' : '7,9,13');
         const veil = lightSurface ? '255,255,255' : '7,9,13';
         const veilAlpha = lightSurface ? 0.42 : 0.64;
-        const foreground = lightSurface ? '17,18,23' : '255,255,255';
+        const readableColor = appearance?.preserveSourceTextColor
+          ? aidokuReadableSourceColor(sampled?.foreground, lightSurface, opacity, sampledBackground) : null;
+        const foreground = readableColor ? readableColor.join(',') : (lightSurface ? '17,18,23' : '255,255,255');
+        node.dataset.sourceTextColor = readableColor ? 'preserved' : 'fallback';
+        node.dataset.sourceBackgroundColor = sampledBackground ? 'preserved' : 'fallback';
         Object.assign(node.style, {
           position: 'absolute',
           zIndex: '2',
@@ -804,7 +818,7 @@ final class BrowserPageImageOverlayRenderer {
           margin: '0', borderRadius: '6px',
           border: '0',
           backgroundColor: `rgba(${surface},${opacity})`,
-          backgroundImage:
+          backgroundImage: sampledBackground ? 'none' :
             `linear-gradient(rgba(${veil},${veilAlpha}),` +
             `rgba(${veil},${veilAlpha}))`,
           color: `rgb(${foreground})`,
@@ -813,14 +827,14 @@ final class BrowserPageImageOverlayRenderer {
           fontSize: `${fontSize}px`,
           lineHeight: `${Math.max(fontSize, lineHeight)}px`,
           letterSpacing: '-0.012em', textAlign: 'center',
-          textShadow: lightSurface
+          textShadow: sampledBackground ? 'none' : lightSurface
             ? '0 1px 0 rgba(255,255,255,0.75)'
             : '0 1px 2px rgba(0,0,0,0.95),0 0 1px rgba(0,0,0,0.90)',
           boxShadow: 'none',
-          backdropFilter: lightSurface
+          backdropFilter: sampledBackground ? 'blur(2px)' : lightSurface
             ? 'blur(2px) saturate(0.6)'
             : 'blur(3px) saturate(0.75)',
-          webkitBackdropFilter: lightSurface
+          webkitBackdropFilter: sampledBackground ? 'blur(2px)' : lightSurface
             ? 'blur(2px) saturate(0.6)'
             : 'blur(3px) saturate(0.75)',
           webkitTextSizeAdjust: 'none', textSizeAdjust: 'none',
@@ -1029,6 +1043,10 @@ final class BrowserPageImageOverlayRenderer {
     }
     globalThis[watermarkKey] = revisionNumber;
     globalThis[sessionKey] = sessionValue;
+    root.dataset.sourceColorPixels = String(sourceColors.stats.pixels);
+    root.dataset.sourceColorCacheHits = String(sourceColors.stats.hits);
+    root.dataset.sourceColorSamples = String(sourceColors.stats.samples);
+    root.dataset.sourceColorMilliseconds = String(sourceColors.stats.milliseconds);
     if (rootAtCommit) rootAtCommit.replaceWith(root);
     else mount.appendChild(root);
     return {

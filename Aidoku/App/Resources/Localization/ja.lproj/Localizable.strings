@@ -821,3 +821,215 @@
 "JSON_ERROR" = "JSONエラー";
 "SOURCE_CRASHED" = "ソースがクラッシュしました";
 "DOWNLOAD_INCOMPLETE" = "不完全なダウンロード";
+
+"TRANSLATION_SFX_FILTER" = "効果音フィルタリング（日本語のみ）";
+"TRANSLATION_SFX_FILTER_HELP" = "日本語の効果音と思われる文字を翻訳せず原文のまま表示します。端末内の辞書と保守的な配置条件を使用し、不確かな文字は翻訳します。";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "文脈確認が必要な項目も除外（日本語のみ）";
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "効果音フィルタリングが有効な場合に適用されます。文脈確認が必要な項目も、辞書との一致、文字サイズ、周囲の配置で判定します。LLMによる文脈解析は行わないため、セリフも除外される場合があります。";
+
+"TRANSLATION_INCLUDE_IMAGE" = "翻訳にページ画像を添付";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "元のページをOCRテキストとともにAPIへ送り、場面や表情を翻訳の参考にします。画像専用の指示を自動追加します。画像対応モデルが必要で、通信量やAPI料金が増える場合があります。";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "原文の文字色を維持";
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "追加モデルを使わずに原文の文字色を推定します。推定が不確かな場合や背景とのコントラストが低い場合は標準の文字色を使います。";
+
+"TRANSLATION_LLM_SFX" = "LLM効果音フィルタリング（全言語）";
+"TRANSLATION_LLM_SFX_HELP" = "翻訳リクエストで効果音も判定します。日本語ローカルフィルターと併用でき、どちらかが効果音と判定すれば原文のまま残します。ページ画像の送信と併用できます。";
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "画像が入力されない場合、文脈や配置を確認しにくいため、効果音の判定精度が下がることがあります。";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "原文のパネル背景色を維持";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "原文の文字周辺の背景色を翻訳パネルに適用します。推定が不確か、または読みにくい場合は標準のパネルを使います。設定した不透明度は維持されます。";
+
+"TRANSLATION_TITLE" = "OCRと翻訳";
+
+"TRANSLATION_TRANSLATE" = "表示されているページを翻訳する";
+
+"TRANSLATION_RECOGNIZE" = "テキストを認識する (オフライン)";
+
+"TRANSLATION_ORIGINAL" = "原文を表示";
+
+"TRANSLATION_TEXT" = "認識したテキストと翻訳";
+
+"TRANSLATION_NO_IMAGE" = "画像ページがロードされるまで待ってから、再試行してください。";
+
+"TRANSLATION_NO_TEXT" = "テキストが認識されませんでした。別の OCR モデルまたはより鮮明な画像を試してください。";
+
+"TRANSLATION_WORKING" = "テキスト認識・翻訳中…";
+
+"TRANSLATION_OCR_WORKING" = "端末上でテキストを認識中…";
+
+"TRANSLATION_HELP" = "翻訳アイコンで翻訳のオン・オフを切り替えます。現在、次、前、2ページ先、2ページ前の順に、チャプターの両端まで処理します。完了したOCR・翻訳・テキスト配置は、ビューアを閉じたりアプリを再起動したりしても再利用されます。ビューアを閉じると、処理中の作業は中断されます。";
+
+"TRANSLATION_PRIVACY" = "OCRは端末上で実行されます。翻訳時には、認識したテキストと翻訳指示を選択したプロバイダーに送信します。「翻訳にページ画像を添付」が有効な場合は、元のページ画像もアップロードされます。API料金はプロバイダーによって異なります。APIキーはKeychainに保存されます。OCR・翻訳・テキスト配置は、バックアップ対象外の保護されたアプリ領域に保存されます。";
+
+"TRANSLATION_KEY_REPLACE" = "保存済みAPIキーを置き換える（任意）";
+
+"TRANSLATION_KEY" = "APIキー";
+
+"TRANSLATION_KEY_SAVED" = "APIキーはKeychainに保存済み";
+
+"TRANSLATION_KEY_DELETE" = "APIキーの削除";
+
+"TRANSLATION_MODEL" = "モデルID";
+
+"TRANSLATION_GET_KEY" = "OpenAI API キーを開く";
+
+"TRANSLATION_LANGUAGE" = "言語";
+
+"TRANSLATION_TARGET" = "翻訳先";
+
+"TRANSLATION_SOURCE" = "原文の言語";
+
+"TRANSLATION_AUTO" = "自動検出";
+
+"TRANSLATION_OCR_HELP" = "PP-OCRv6にはiOS 18以降が必要です。標準は中型で、小型はメモリ使用量を抑えます。超小型は文字辞書の収録数が少なくなります。これらのモデルは韓国語のOCRに対応していませんが、韓国語への翻訳には対応しています。";
+
+"TRANSLATION_INSTRUCTIONS" = "翻訳指示";
+
+"TRANSLATION_RESET_PROMPT" = "翻訳指示を初期設定に戻す";
+
+"TRANSLATION_CLEAR_CACHE" = "翻訳キャッシュのクリア";
+
+"TRANSLATION_CACHE_CLEARED" = "翻訳キャッシュがクリアされました。";
+
+"TRANSLATION_NOTICES" = "OCR および翻訳ライセンス";
+
+"TRANSLATION_ADVANCED" = "翻訳オプション";
+
+"TRANSLATION_REASONING" = "推論の強度";
+
+"TRANSLATION_MODEL_DEFAULT" = "モデルのデフォルト";
+
+"TRANSLATION_CONCURRENCY" = "同時リクエスト数";
+
+"TRANSLATION_DETECTOR_SIZE" = "検出画像の最大辺長";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "認識画像の最大幅";
+
+"TRANSLATION_CONFIDENCE" = "OCRの信頼度";
+
+"TRANSLATION_SURFACE" = "背景色";
+
+"TRANSLATION_WHITE" = "白";
+
+"TRANSLATION_DARK" = "暗色";
+
+"TRANSLATION_OPACITY" = "背景の不透明度";
+
+"TRANSLATION_EXPANSION" = "テキスト枠の拡張";
+
+"TRANSLATION_PANEL_BOUNDS" = "コマの内側まで";
+
+"TRANSLATION_SOURCE_BOUNDS" = "原文の枠内のみ";
+
+"TRANSLATION_UNRESTRICTED" = "無制限";
+
+"TRANSLATION_FONT_SIZE" = "フォントサイズ";
+
+"TRANSLATION_AUTO_FIT" = "自動調整";
+
+"TRANSLATION_FIXED" = "固定";
+
+"TRANSLATION_OVERLAY" = "翻訳オーバーレイ";
+
+"TRANSLATION_OVERLAY_HELP" = "文字同士の重なりを避け、文字体系に応じて改行しながら、原文の位置に翻訳を重ねて表示します。表示設定を変更しても既存のOCR結果を再利用します。";
+
+"TRANSLATION_PROVIDER" = "翻訳プロバイダー";
+
+"TRANSLATION_BASE_URL" = "サーバーURL";
+
+"TRANSLATION_API_FORMAT" = "APIフォーマット";
+
+"TRANSLATION_CUSTOM_HELP" = "HTTPSのベースURLまたはAPIエンドポイントの完全なURLと、サーバーが対応するモデルを入力してください。APIキーはサーバーURLごとに保存されます。URLを変更すると入力中のキーが消去されます。ResponsesとChat Completionsは構造化JSON出力を使用します。";
+
+"TRANSLATION_AUTOMATIC" = "自動翻訳";
+
+"TRANSLATION_AUTOMATIC_HELP" = "アプリの起動時またはAPI設定の変更時に、保存済みのAPI設定をバックグラウンドで一度確認します。成功すると翻訳を開始します。確認に失敗した場合は、自動翻訳の設定を維持したまま翻訳を一時停止します。再試行するにはアプリを開き直すか、API接続を再テストしてください。ページの切り替えやオン・オフでは確認結果を再利用します。推論の強度には保存済みの設定を使用します。";
+
+"TRANSLATION_TEST" = "API接続のテスト";
+
+"TRANSLATION_TEST_RUNNING" = "接続をテスト中…";
+
+"TRANSLATION_TEST_SUCCESS" = "接続成功";
+
+"TRANSLATION_TEST_FAILURE" = "接続に失敗しました";
+
+"TRANSLATION_TEST_HELP" = "この画面の設定で短い文を翻訳します。APIキーを空欄にすると、このサーバーの保存済みキーを使用します。設定の変更は自動保存されます。";
+
+"SEARCH_SUGGESTIONS" = "検索候補";
+
+"TRANSLATION_CACHE" = "オフラインキャッシュ";
+
+"TRANSLATION_CACHE_LIMIT" = "保存容量の上限";
+
+"TRANSLATION_CACHE_USED" = "使用容量";
+
+"TRANSLATION_CACHE_HELP" = "OCR・ページ翻訳・マンガとチャプターのタイトル翻訳・マンガの説明文・テキスト配置を自動保存します。ページ画像は現在と周辺ページのメモリにのみ保持されます。容量が上限に達すると、最後に使用してから最も時間が経った結果から削除します。初期値は1GB、最大は100GBです。変更は自動適用され、上限を下げると容量内に収まるまで古い結果から削除します。";
+
+"TRANSLATION_SOURCE_FILTER" = "翻訳対象の原文言語";
+
+"TRANSLATION_FILTER_ALL" = "検出したすべての言語";
+
+"TRANSLATION_FILTER_HELP" = "翻訳する元の言語を選択します。選択されていないテキストまたは不確実なテキストは変更されません。フィルターを削除するには、[検出されたすべての言語] を選択します。";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "選択した原文言語と判定されたテキストだけを翻訳します。端末上での言語判定に対応していない言語には、フィルターを適用しません。";
+
+"HTTPS_BYPASS" = "HTTPSブロックの回避";
+
+"HTTPS_BYPASS_HELP" = "ソースリクエスト、画像、ダウンロード、ソースWebビューにはTLSフラグメンテーションと暗号化DNS（Cloudflare）を使用します。新しい接続に適用されます。 Web サイトによって課される IP ブロックや制限は回避されません。";
+
+"HTTPS_BYPASS_TEST" = "接続をテスト";
+
+"HTTPS_BYPASS_TEST_HELP" = "スイッチがオフの場合でも、バイパス経由でこの HTTPS アドレスをテストします。応答は接続を確認するものであり、ISP ブロックが存在したことを確認するものではありません。";
+
+"HTTPS_BYPASS_INVALID_URL" = "ユーザー名やパスワードを含まないHTTPS URLを入力してください。";
+
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d を受信しました · TLS フラグメンテーションが適用されました";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d受信・TLSフラグメンテーション未確認";
+
+"HTTPS_BYPASS_TEST_FAILED" = "HTTPS バイパス経由で接続できませんでした。";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "翻訳に失敗しました。 OCRテキストを表示しています。接続を確認してください。";
+
+"TRANSLATION_MANGA_TITLES" = "マンガのタイトルを翻訳する";
+
+"TRANSLATION_CHAPTER_TITLES" = "チャプターのタイトルを翻訳";
+
+"TRANSLATION_TITLES_HELP" = "自動ページ翻訳とは別に、翻訳 API とターゲット言語を使用します。元のタイトルと説明を表示するにはオフにします。ロード中または翻訳が失敗した場合でも、オリジナルは表示されたままになります。";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "マンガタイトルの翻訳対象言語";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "チャプタータイトルの翻訳対象言語";
+
+"TRANSLATION_PAGE_SOURCE" = "ページの原文言語";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "各タイトルのソース言語を自動的に検出し、選択した言語のみを翻訳します。 [すべての言語] では、言語の制限が解除されます。ページおよびその他のタイトルのソース言語設定は、この選択には影響しません。";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "マンガの説明文を翻訳";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "マンガ説明文の翻訳対象言語";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "ソース言語を自動的に検出し、選択した言語のみを翻訳します。 [すべての言語] では制限が解除されます。ページ、マンガのタイトル、章のタイトル、および説明のフィルターは独立して機能します。";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "カスタム OpenAI";
+
+"TRANSLATION_OCR_MEDIUM" = "中型";
+
+"TRANSLATION_OCR_SMALL" = "小型";
+
+"TRANSLATION_OCR_TINY" = "超小型";
+
+"TRANSLATION_REASONING_NONE" = "なし";
+
+"TRANSLATION_REASONING_MINIMAL" = "最小限";
+
+"TRANSLATION_REASONING_LOW" = "低";
+
+"TRANSLATION_REASONING_MEDIUM" = "中";
+
+"TRANSLATION_REASONING_HIGH" = "高";
+
+"TRANSLATION_REASONING_XHIGH" = "非常に高い";
+
+"TRANSLATION_REASONING_MAX" = "最大";

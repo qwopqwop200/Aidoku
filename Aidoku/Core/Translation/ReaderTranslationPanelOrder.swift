@@ -2,8 +2,9 @@ import CoreGraphics
 import Foundation
 
 /// Image-backed, deliberately partial reading-order evidence. This only supplies
-/// RTL ranks across clearly separated panels, and within disjoint vertical-text
-/// bands. Horizontal lettering retains its within-panel order. Callers
+/// RTL ranks from a hierarchy of clearly separated panels, and within disjoint
+/// vertical-text bands. OCR enumeration need not keep panel members contiguous.
+/// Horizontal lettering retains its within-panel order. Callers
 /// must use the reader's explicit direction, never the OCR/source language.
 enum ReaderTranslationPanelOrder {
     struct Input: Sendable {
@@ -14,13 +15,13 @@ enum ReaderTranslationPanelOrder {
     static func rightToLeftRanks(image: CGImage, inputs: [Input]) -> [Int] {
         let unchanged = Array(inputs.indices)
         guard inputs.count >= 2, inputs.count <= 512, !Task.isCancelled else { return unchanged }
-        // A candidate panel/band reversal needs a left-before-right pair with
-        // overlapping vertical extents. Avoid raster/decode cost otherwise.
+        // Skip raster work only when neither a panel-row reversal nor a RTL
+        // reversal is possible. Detector output can interleave different panels.
         var hasReversedPair = false
         for first in inputs.indices {
             for second in inputs.indices where second > first {
                 let a = inputs[first].rect, b = inputs[second].rect
-                if a.maxX <= b.minX && min(a.maxY, b.maxY) - max(a.minY, b.minY) >= max(a.height, b.height) * 0.25 {
+                if b.maxY < a.minY || a.maxX <= b.minX {
                     hasReversedPair = true
                     break
                 }
@@ -58,7 +59,7 @@ enum ReaderTranslationPanelOrder {
                                         width: $0.rect.width * CGFloat(width), height: $0.rect.height * CGFloat(height)) }
         struct Area { let x0: Int; let y0: Int; let x1: Int; let y1: Int }
         var leaves: [[Int]] = []
-        var verticalSplits: [(ids: [Int], right: Set<Int>)] = []
+
         func split(_ area: Area, _ ids: [Int], _ depth: Int) {
             guard ids.count >= 2, depth < 5, !Task.isCancelled else { leaves.append(ids); return }
             for horizontal in [true, false] {
@@ -122,11 +123,10 @@ enum ReaderTranslationPanelOrder {
                         split(Area(x0: area.x0, y0: area.y0, x1: area.x1, y1: cut), before, depth + 1)
                         split(Area(x0: area.x0, y0: cut, x1: area.x1, y1: area.y1), after, depth + 1)
                     } else {
-                        split(Area(x0: area.x0, y0: area.y0, x1: cut, y1: area.y1), before, depth + 1)
+                        // Traverse the right panel completely before the left, even
+                        // when detector indices from those panels are interleaved.
                         split(Area(x0: cut, y0: area.y0, x1: area.x1, y1: area.y1), after, depth + 1)
-                        if let first = ids.first, let last = ids.last, last - first + 1 == ids.count {
-                            verticalSplits.append((ids: ids, right: Set(after)))
-                        }
+                        split(Area(x0: area.x0, y0: area.y0, x1: cut, y1: area.y1), before, depth + 1)
                     }
                     return
                 }
@@ -135,27 +135,18 @@ enum ReaderTranslationPanelOrder {
         }
         split(Area(x0: 0, y0: 0, x1: width, y1: height), unchanged, 0)
         guard leaves.count >= 2, !Task.isCancelled else { return unchanged }
-        var order = unchanged
-        // Apply child splits before parents; stable partitions retain the order
-        // already resolved inside each image-separated panel.
-        for split in verticalSplits {
-            let slots = split.ids
-            let members = slots.map { order[$0] }
-            let reordered = members.filter { split.right.contains($0) } + members.filter { !split.right.contains($0) }
-            for (slot, id) in zip(slots, reordered) { order[slot] = id }
-        }
-        for ids in leaves {
-            guard ids.count >= 2, let first = ids.first, let last = ids.last,
-                  last - first + 1 == ids.count, ids.allSatisfy({ inputs[$0].isVertical }) else { continue }
+        // Leaves are already in top-to-bottom / right-to-left traversal order.
+        // Build the permutation directly, rather than swapping detector slots:
+        // slot swaps can undo a nested split or strand text in another panel.
+        let order = leaves.flatMap { ids -> [Int] in
+            guard ids.count >= 2, ids.allSatisfy({ inputs[$0].isVertical }) else { return ids }
             let commonTop = ids.map { boxes[$0].minY }.max() ?? 0
             let commonBottom = ids.map { boxes[$0].maxY }.min() ?? 0
             let maximumHeight = ids.map { boxes[$0].height }.max() ?? 0
-            guard commonBottom - commonTop >= maximumHeight * 0.25 else { continue }
+            guard commonBottom - commonTop >= maximumHeight * 0.25 else { return ids }
             let leftToRight = ids.sorted { boxes[$0].minX < boxes[$1].minX }
-            guard zip(leftToRight, leftToRight.dropFirst()).allSatisfy({ boxes[$0.0].maxX <= boxes[$0.1].minX }) else { continue }
-            let members = Set(ids)
-            let slots = order.indices.filter { members.contains(order[$0]) }
-            for (slot, id) in zip(slots, leftToRight.reversed()) { order[slot] = id }
+            guard zip(leftToRight, leftToRight.dropFirst()).allSatisfy({ boxes[$0.0].maxX <= boxes[$0.1].minX }) else { return ids }
+            return Array(leftToRight.reversed())
         }
         var ranks = unchanged
         for (rank, id) in order.enumerated() { ranks[id] = rank }

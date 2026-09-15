@@ -1,5 +1,6 @@
 // OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 import Foundation
+import CryptoKit
 
 private func isASCIIAlphaNumeric(_ scalar: Unicode.Scalar) -> Bool {
     switch scalar.value {
@@ -92,6 +93,7 @@ struct TranslationGlossaryEntry: Codable, Hashable, Sendable {
 struct RemoteTranslationSegment: Codable, Hashable, Sendable {
     let id: String
     let text: String
+    var bounds: [Double]? = nil
 }
 
 /// Builds subtitle continuity only from text that is already eligible for
@@ -158,6 +160,7 @@ enum TranslationSubtitleContextBuilder {
 struct RemoteTranslatedSegment: Codable, Hashable, Sendable {
     let id: String
     let text: String
+    var isSFX: Bool? = nil
 }
 
 struct RemoteTranslationRequest: Codable, Hashable, Sendable {
@@ -170,6 +173,9 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
     static let maximumContextBytes = 64 * 1024
     static let maximumGlossaryEntries = 100
     static let maximumGlossaryBytes = 64 * 1024
+
+    var imageJPEG: Data? = nil
+    var filtersSFX: Bool? = nil
 
     let sourceLanguage: String
     let targetLanguage: String
@@ -210,6 +216,9 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
     }
 
     func validate() throws {
+        if let imageJPEG, imageJPEG.isEmpty || imageJPEG.count > 4 * 1024 * 1024 {
+            throw RemoteTranslationError.invalidRequest("translation image exceeds its safe size limit")
+        }
         try validateLanguage(sourceLanguage, field: "source language", permitsAuto: true)
         try validateLanguage(targetLanguage, field: "target language", permitsAuto: false)
 
@@ -221,6 +230,11 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
         var segmentIDs = Set<String>()
         var sourceBytes = 0
         for segment in segments {
+            if let bounds = segment.bounds {
+                guard bounds.count == 4, bounds.allSatisfy({ $0.isFinite && (0...1).contains($0) }) else {
+                    throw RemoteTranslationError.invalidRequest("invalid segment bounds")
+                }
+            }
             guard Self.hasValidIdentifier(segment),
                   segmentIDs.insert(segment.id).inserted
             else {
@@ -527,6 +541,8 @@ struct RemoteTranslationConfiguration: Hashable, Sendable {
 struct TranslationCacheKey: Codable, Hashable, Sendable {
     static let schemaVersion = 1
 
+    let imageDigest: String?
+    let sfxPolicy: String?
     let version: Int
     let provider: RemoteTranslationProvider
     let apiProtocol: RemoteTranslationProtocol
@@ -549,6 +565,8 @@ struct TranslationCacheKey: Codable, Hashable, Sendable {
     ) {
         let canonicalRequest =
             request.canonicalizedForTranslationSemantics().request
+        sfxPolicy = request.filtersSFX == true ? "llm-sfx-v1" : nil
+        imageDigest = request.imageJPEG.map { SHA256.hash(data: $0).map { String(format: "%02x", $0) }.joined() }
         version = Self.schemaVersion
         provider = configuration.provider
         apiProtocol = configuration.apiProtocol
@@ -634,7 +652,7 @@ struct CanonicalRemoteTranslationRequest: Sendable {
             }
             return RemoteTranslatedSegment(
                 id: callerSegmentIDs[index],
-                text: translation.text
+                text: translation.text, isSFX: translation.isSFX
             )
         }
         return RemoteTranslationBatchResult(
@@ -654,21 +672,21 @@ extension RemoteTranslationRequest {
     func canonicalizedForTranslationSemantics()
         -> CanonicalRemoteTranslationRequest
     {
-        CanonicalRemoteTranslationRequest(
-            request: RemoteTranslationRequest(
-                sourceLanguage: sourceLanguage,
-                targetLanguage: targetLanguage,
-                segments: segments.enumerated().map { index, segment in
-                    RemoteTranslationSegment(
-                        id: Self.batchLocalSegmentID(at: index),
-                        text: segment.text
-                    )
-                },
-                context: context,
-                glossary: glossary
-            ),
-            callerSegmentIDs: segments.map(\.id)
+        var canonical = RemoteTranslationRequest(
+            sourceLanguage: sourceLanguage,
+            targetLanguage: targetLanguage,
+            segments: segments.enumerated().map { index, segment in
+                RemoteTranslationSegment(
+                    id: Self.batchLocalSegmentID(at: index),
+                    text: segment.text, bounds: segment.bounds
+                )
+            },
+            context: context,
+            glossary: glossary
         )
+        canonical.imageJPEG = imageJPEG
+        canonical.filtersSFX = filtersSFX
+        return CanonicalRemoteTranslationRequest(request: canonical, callerSegmentIDs: segments.map(\.id))
     }
 }
 

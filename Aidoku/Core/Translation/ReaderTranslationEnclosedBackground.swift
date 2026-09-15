@@ -27,6 +27,7 @@ enum ReaderTranslationEnclosedBackground {
         guard rendered else { return [] }
         var groups: [Int: [String]] = [:]
         for input in candidates.prefix(64) {
+            guard !Task.isCancelled else { return [] }
             let rect = CGRect(x: input.rect.minX / coordinateSize.width * CGFloat(width),
                               y: input.rect.minY / coordinateSize.height * CGFloat(height),
                               width: input.rect.width / coordinateSize.width * CGFloat(width),
@@ -83,7 +84,7 @@ enum ReaderTranslationEnclosedBackground {
         var cursor = 0, minX = width, maxX = 0, minY = height, maxY = 0
         let budget = min(pixels.count / 3, max(256, (x1 - x0) * (y1 - y0) * 12))
         while cursor < queue.count {
-            guard queue.count <= budget else { return nil }
+            guard !Task.isCancelled, queue.count <= budget else { return nil }
             let point = queue[cursor]; cursor += 1
             let x = point % width, y = point / width
             guard x > 0, y > 0, x < width - 1, y < height - 1 else { return nil }

@@ -1,3 +1,4 @@
+import UIKit
 import CoreGraphics
 import Foundation
 
@@ -13,6 +14,7 @@ struct ReaderTranslationRegion: Equatable, Sendable {
     var sourceOrientation: BrowserOCRSourceOrientation = .unknown
     var sourceSingleVerticalColumn: Bool?
     var translationReuseIdentity: NativeTranslationReuseIdentity?
+    var sfxEnclosedBackground: Bool? = nil // Positive evidence protects text; nil means not sampled.
 
     /// If translation adds no information, preserve the original lettering.
     /// This avoids opaque boxes over numbers, punctuation, unchanged names,
@@ -84,7 +86,9 @@ actor ReaderOCRService {
 
     private func recognizeSerial(image: CGImage, configuration: ReaderOCRConfiguration) async throws -> [ReaderTranslationRegion] {
         try Task.checkCancellation()
-        if loadedConfiguration != configuration {
+        if loadedConfiguration?.modelTier != configuration.modelTier ||
+            loadedConfiguration?.detectorMaximumSide != configuration.detectorMaximumSide ||
+            loadedConfiguration?.recognizerMaximumWidth != configuration.recognizerMaximumWidth {
             await pipeline?.purgeResources()
             pipeline = NativeCoreMLOCRPipeline(
                 modelTier: configuration.modelTier, detectorMaximumSide: configuration.detectorMaximumSide,
@@ -95,11 +99,13 @@ actor ReaderOCRService {
         guard let pipeline else { return [] }
         // Pass the complete source once. The detector owns aspect-preserving
         // resize and maps detections back to original-image coordinates.
+        ReaderTranslationDiagnostics.record("ocr_begin")
         let result = try await pipeline.recognize(
             image: image, requestID: UUID().uuidString,
             confidenceThreshold: configuration.confidenceThreshold
         )
         try Task.checkCancellation()
+        ReaderTranslationDiagnostics.record("ocr_end", count: result.lines.count)
         let lines = result.lines
         var phases: [String: Double] = ["native": result.totalMilliseconds, "ocrPasses": 1]
         let wordStart = ProcessInfo.processInfo.systemUptime
@@ -115,9 +121,31 @@ actor ReaderOCRService {
         let mergeStart = ProcessInfo.processInfo.systemUptime
         let separator = lines.count >= 2 ? NativeOCRRegionSeparator(image: image) : nil
         try Task.checkCancellation()
+        // Cache even inconclusive colour samples: each candidate rectangle is sampled once.
+        var inkSamples: [NSValue: [Double]] = [:]
+        func ink(_ rect: CGRect) -> [Double] {
+            let key = NSValue(cgRect: rect)
+            if let cached = inkSamples[key] { return cached }
+            let sample = ReaderTranslationBalloonMerger.outlinedInk(in: image, rect: rect)
+            let value = sample.map { [$0.0, $0.1, $0.2] } ?? []
+            inkSamples[key] = value
+            return value
+        }
         let merged = NativeOCRTextLineMerger.merge(
             lines, imageWidth: image.width, imageHeight: image.height, recognizedLatinWords: recognizedWords,
-            separationCheck: { separator?.separates($0, $1, orientation: $2) ?? false }
+            separationCheck: { a, b, orientation in
+                if orientation == .vertical {
+                    let first = ink(a), second = ink(b)
+                    if first.count == 3, second.count == 3 {
+                        if zip(first, second).contains(where: { abs($0 - $1) >= 70 }) { return true }
+                        // Outlined captions on artwork have observable gutters,
+                        // even when recognition drops every quotation mark.
+                        let gap = max(a.minX, b.minX) - min(a.maxX, b.maxX)
+                        if gap >= min(a.width, b.width) * 0.3 { return true }
+                    }
+                }
+                return separator?.separates(a, b, orientation: orientation) ?? false
+            }
         )
         try Task.checkCancellation()
         phases["mergeAndSeparator"] = (ProcessInfo.processInfo.systemUptime - mergeStart) * 1000
@@ -140,7 +168,7 @@ actor ReaderOCRService {
             )
         }
         let balloonStart = ProcessInfo.processInfo.systemUptime
-        let joined = ReaderTranslationBalloonMerger.apply(regions, image: image)
+        let joined = ReaderTranslationBalloonMerger.apply(regions, image: image, sourceLines: lines.map { .init(polygon: $0.polygon, text: $0.text, orientation: $0.orientation) })
         lastPhaseMilliseconds["balloonMerge"] = (ProcessInfo.processInfo.systemUptime - balloonStart) * 1000
         try Task.checkCancellation()
         return joined
@@ -181,7 +209,11 @@ actor ReaderTranslationService {
 
     static func plans(regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings) -> [NativeTranslationBatchPlan] {
         var candidates = regions.enumerated().map {
-            NativeTranslationBatchCandidate(inputIndex: $0.offset, segment: .init(id: $0.element.id, text: $0.element.source))
+            let rect = $0.element.rect
+            let bounds = [Double(rect.minX), Double(rect.minY), Double(rect.width), Double(rect.height)]
+            return NativeTranslationBatchCandidate(inputIndex: $0.offset,
+                segment: .init(id: $0.element.id, text: $0.element.source,
+                    bounds: settings.filterSFXWithLLM && bounds.allSatisfy { $0.isFinite && (0...1).contains($0) } ? bounds : nil))
         }
         let ranks = regions.compactMap(\.translationOrder)
         if settings.rightToLeftPanelOrder, ranks.count == regions.count, Set(ranks).count == ranks.count {
@@ -189,7 +221,11 @@ actor ReaderTranslationService {
         }
         let plans = NativeTranslationBatchPlanner.makeBatches(candidates: candidates,
             sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage, context: [], glossary: [])
-        return plans
+        return plans.map { plan in
+            var request = plan.request
+            request.filtersSFX = settings.filterSFXWithLLM ? true : nil
+            return NativeTranslationBatchPlan(request: request, inputIndicesBySegmentID: plan.inputIndicesBySegmentID)
+        }
     }
 
     static func requests(regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings) throws -> [RemoteTranslationRequest] {
@@ -202,7 +238,7 @@ actor ReaderTranslationService {
     typealias Progress = @Sendable ([ReaderTranslationRegion]) async throws -> Void
 
     func translate(
-        regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings, onProgress: Progress? = nil,
+        regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings, image: UIImage? = nil, onProgress: Progress? = nil,
         priority: TranslationRequestPriority = .foreground
     ) async throws -> [ReaderTranslationRegion] {
         try Task.checkCancellation()
@@ -212,14 +248,19 @@ actor ReaderTranslationService {
         let concurrency = max(1, min(BoundedTranslationBatchExecutor.allowedMaximumConcurrentRequests, settings.maximumConcurrentRequests))
         await limiter.setMaximumConcurrentRequests(concurrency)
         try Task.checkCancellation()
-        let plans = Self.plans(regions: regions, settings: settings)
+        let imageJPEG = try settings.includePageImage ? image.map(ReaderTranslationImagePreparation.translationJPEG) : nil
+        let plans = Self.plans(regions: regions, settings: settings).map { plan in
+            var request = plan.request
+            request.imageJPEG = imageJPEG
+            return NativeTranslationBatchPlan(request: request, inputIndicesBySegmentID: plan.inputIndicesBySegmentID)
+        }
         let progress = try ReaderTranslationProgress(regions: regions, plans: plans, configuration: settings.configuration)
         // Clear translations whose language/model/prompt identity no longer matches before publishing any batch.
         try await onProgress?(await progress.snapshot())
         _ = try await BoundedTranslationBatchExecutor.translate(
             plans.map(\.request), configuration: settings.configuration, service: service,
-            // Prefetch occupies at most two slots, leaving room for visible work.
-            maximumConcurrentRequests: priority == .prefetch ? min(2, max(1, concurrency - 1)) : concurrency,
+            // The scheduler reserves foreground capacity until a lookahead is promoted.
+            maximumConcurrentRequests: concurrency,
             priority: priority,
             onBatchCompleted: { index, result in
                 try Task.checkCancellation()

@@ -882,8 +882,8 @@
 "TRANSLATION_NO_TEXT" = "No text was recognized. Try another OCR model or a clearer image.";
 "TRANSLATION_WORKING" = "Recognizing and translating…";
 "TRANSLATION_OCR_WORKING" = "Recognizing text on device…";
-"TRANSLATION_HELP" = "The translation icon turns translation on or off. Pages are prepared in this order: current, next, previous, two ahead, two behind, continuing to both ends of the chapter. Completed OCR, translations and rendered pages are reused after closing the reader or restarting the app. Leaving the reader cancels unfinished work.";
-"TRANSLATION_PRIVACY" = "OCR runs on your device. Translation sends recognized text and your instructions to the selected provider; page images are not uploaded. API charges depend on your provider. Keys stay in Keychain. OCR, translations and rendered page images are saved in protected app storage excluded from backups.";
+"TRANSLATION_HELP" = "The translation icon turns translation on or off. Pages are prepared in this order: current, next, previous, two ahead, two behind, continuing to both ends of the chapter. Completed OCR, translations and text layout are reused after closing the reader or restarting the app. Leaving the reader cancels unfinished work.";
+"TRANSLATION_PRIVACY" = "OCR runs on your device. Translation sends recognized text and your instructions to the selected provider. If Include Page Image in Translation is enabled, the original page image is also uploaded. API charges depend on your provider. Keys stay in Keychain. OCR, translations and text layout are saved in protected app storage excluded from backups.";
 "TRANSLATION_KEY_REPLACE" = "Replace saved API key (optional)";
 "TRANSLATION_KEY" = "API key";
 "TRANSLATION_KEY_SAVED" = "API key saved in Keychain";
@@ -946,7 +946,7 @@
 
 "TRANSLATION_CACHE_USED" = "Storage Used";
 
-"TRANSLATION_CACHE_HELP" = "Save OCR, page translations, manga and chapter title translations, manga descriptions, and text layout automatically. Page images stay only in nearby-page memory. Recently viewed pages stay in the cache; the least recently used results are removed when the selected limit is reached. Default: 1 GB. Maximum: 100 GB. Save to apply a new limit; lowering it removes the least recently used results until the cache fits.";
+"TRANSLATION_CACHE_HELP" = "Save OCR, page translations, manga and chapter title translations, manga descriptions, and text layout automatically. Page images stay only in nearby-page memory. The least recently used results are removed when the selected limit is reached. Default: 1 GB. Maximum: 100 GB. Changes apply automatically; lowering the limit removes the least recently used results until the cache fits.";
 
 // Source-language filtering
 "TRANSLATION_SOURCE_FILTER" = "Translation Source Filter";
@@ -983,3 +983,43 @@
 "TRANSLATION_DESCRIPTION_FILTER" = "Manga Description Languages";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Automatically detect the source language and translate only the selected languages. All Languages removes the restriction. Page, manga title, chapter title, and description filters work independently.";
+
+"TRANSLATION_SFX_FILTER" = "SFX Filtering (Japanese Only)";
+"TRANSLATION_SFX_FILTER_HELP" = "Leave likely Japanese sound effects untranslated. Use a local dictionary and conservative layout checks. Text that cannot confidently be identified as a sound effect is still translated.";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Include Context-Required Entries (Japanese Only)";
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Applies while SFX Filtering is enabled. Also filters entries marked as requiring context using dictionary matches, text size, and nearby layout. No LLM analyzes the context, so dialogue may also be excluded.";
+
+"TRANSLATION_INCLUDE_IMAGE" = "Include Page Image in Translation";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Send the original page with OCR text for scene and expression context. Image instructions are appended automatically. Requires a model that supports images and may increase data usage and API cost.";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "Preserve Original Text Color";
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Estimate the original text color without an additional model. Use the default color when uncertain or when contrast is too low.";
+
+"TRANSLATION_LLM_SFX" = "LLM SFX Filtering (All Languages)";
+"TRANSLATION_LLM_SFX_HELP" = "Classify sound effects in the translation request. Can be combined with the Japanese local filter: a sound-effect decision from either filter leaves the original unchanged. Compatible with sending the page image.";
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Without image input, limited visual and layout context may reduce SFX classification accuracy.";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Preserve Original Panel Color";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Match the translation panel to the background around the original text. Use the default panel when uncertain or unreadable. Your opacity setting still applies.";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "Custom OpenAI";
+
+"TRANSLATION_OCR_MEDIUM" = "Medium";
+
+"TRANSLATION_OCR_SMALL" = "Small";
+
+"TRANSLATION_OCR_TINY" = "Tiny";
+
+"TRANSLATION_REASONING_NONE" = "None";
+
+"TRANSLATION_REASONING_MINIMAL" = "Minimal";
+
+"TRANSLATION_REASONING_LOW" = "Low";
+
+"TRANSLATION_REASONING_MEDIUM" = "Medium";
+
+"TRANSLATION_REASONING_HIGH" = "High";
+
+"TRANSLATION_REASONING_XHIGH" = "Very High";
+
+"TRANSLATION_REASONING_MAX" = "Maximum";

@@ -319,3 +319,223 @@
 "DONE" = "Hotovo";
 "INVALID" = "Neplatné";
 "PAUSE" = "Pauza";
+
+"TRANSLATION_TITLE" = "OCR & Překlad";
+
+"TRANSLATION_TRANSLATE" = "Přeložte viditelné stránky";
+
+"TRANSLATION_RECOGNIZE" = "Rozpoznat text (offline)";
+
+"TRANSLATION_ORIGINAL" = "Zobrazit originál";
+
+"TRANSLATION_TEXT" = "Rozpoznaný a přeložený text";
+
+"TRANSLATION_NO_IMAGE" = "Počkejte, až se načte stránka s obrázkem, a zkuste to znovu.";
+
+"TRANSLATION_NO_TEXT" = "Nebyl rozpoznán žádný text. Zkuste jiný model OCR nebo čistší obraz.";
+
+"TRANSLATION_WORKING" = "Rozpoznávání a překlad…";
+
+"TRANSLATION_OCR_WORKING" = "Rozpoznává se text v zařízení…";
+
+"TRANSLATION_HELP" = "Ikona překladu zapíná nebo vypíná překlad. Stránky se připravují v tomto pořadí: aktuální, další, předchozí, dvě dopředu, dvě za sebou, pokračují na oba konce kapitoly. Dokončené OCR, překlady a rozložení textu se znovu použijí po zavření čtečky nebo restartování aplikace. Opuštěním čtečky se ruší nedokončená práce.";
+
+"TRANSLATION_PRIVACY" = "OCR běží na vašem zařízení. Překlad odešle rozpoznaný text a vaše pokyny vybranému poskytovateli. Pokud je povolena možnost Zahrnout obrázek stránky do překladu, nahraje se také původní obrázek stránky. Poplatky za API závisí na vašem poskytovateli. Klíče zůstávají v Keychain. OCR, překlady a rozvržení textu jsou uloženy v chráněném úložišti aplikací vyloučeném ze záloh.";
+
+"TRANSLATION_KEY_REPLACE" = "Nahradit uložený klíč API (volitelné)";
+
+"TRANSLATION_KEY" = "API klíč";
+
+"TRANSLATION_KEY_SAVED" = "Klíč API uložený v Keychain";
+
+"TRANSLATION_KEY_DELETE" = "Smazat klíč API";
+
+"TRANSLATION_MODEL" = "ID modelu";
+
+"TRANSLATION_GET_KEY" = "Otevřete OpenAI API Keys";
+
+"TRANSLATION_LANGUAGE" = "Jazyky";
+
+"TRANSLATION_TARGET" = "Přeložit do";
+
+"TRANSLATION_SOURCE" = "Zdrojový jazyk";
+
+"TRANSLATION_AUTO" = "Detekovat automaticky";
+
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 vyžaduje iOS 18 nebo novější. Střední je výchozí; Small využívá méně paměti. Tiny má menší slovník znaků. Tyto modely nepodporují korejské OCR. Korejský překladový výstup je podporován.";
+
+"TRANSLATION_INSTRUCTIONS" = "Pokyny k překladu";
+
+"TRANSLATION_RESET_PROMPT" = "Obnovte výchozí pokyny pro překlad";
+
+"TRANSLATION_CLEAR_CACHE" = "Vymazat mezipaměť překladu";
+
+"TRANSLATION_CACHE_CLEARED" = "Mezipaměť překladu byla vymazána.";
+
+"TRANSLATION_NOTICES" = "Licence pro OCR a překlady";
+
+"TRANSLATION_ADVANCED" = "Možnosti překladu";
+
+"TRANSLATION_REASONING" = "Uvažovací úsilí";
+
+"TRANSLATION_MODEL_DEFAULT" = "Výchozí model";
+
+"TRANSLATION_CONCURRENCY" = "Souběžné požadavky";
+
+"TRANSLATION_DETECTOR_SIZE" = "Maximální strana detektoru";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "Maximální šířka rozpoznávače";
+
+"TRANSLATION_CONFIDENCE" = "Spolehlivost OCR";
+
+"TRANSLATION_SURFACE" = "Barva pozadí";
+
+"TRANSLATION_WHITE" = "Bílá";
+
+"TRANSLATION_DARK" = "Tmavý";
+
+"TRANSLATION_OPACITY" = "Neprůhlednost pozadí";
+
+"TRANSLATION_EXPANSION" = "Rozšíření krabice";
+
+"TRANSLATION_PANEL_BOUNDS" = "Na panelu obrázků";
+
+"TRANSLATION_SOURCE_BOUNDS" = "V originální krabici";
+
+"TRANSLATION_UNRESTRICTED" = "Bez omezení";
+
+"TRANSLATION_FONT_SIZE" = "Velikost písma";
+
+"TRANSLATION_AUTO_FIT" = "Přizpůsobit automaticky";
+
+"TRANSLATION_FIXED" = "Pevná velikost písma";
+
+"TRANSLATION_OVERLAY" = "Překlad Overlay";
+
+"TRANSLATION_OVERLAY_HELP" = "Nahradí text nad zdrojovým rámečkem pomocí rozvržení s ohledem na kolize a zalamování specifického pro skript. Změny zobrazení znovu používají stávající OCR.";
+
+"TRANSLATION_PROVIDER" = "Poskytovatel překladu";
+
+"TRANSLATION_BASE_URL" = "Adresa URL serveru";
+
+"TRANSLATION_API_FORMAT" = "Formát API";
+
+"TRANSLATION_CUSTOM_HELP" = "Zadejte základní adresu URL HTTPS nebo úplný koncový bod API a model podporovaný vaším serverem. Každá adresa URL serveru má svůj vlastní uložený klíč; změna adresy URL vymaže jakýkoli klíč, který zadáváte. Odpovědi a dokončování chatu používají strukturovaný výstup JSON.";
+
+"TRANSLATION_AUTOMATIC" = "Automatický překlad";
+
+"TRANSLATION_AUTOMATIC_HELP" = "Zkontrolujte uložená nastavení API jednou na pozadí, když se aplikace otevře nebo se změní nastavení API. Překlad začíná po úspěchu. Neúspěšná kontrola pozastaví překlad, aniž by se změnila předvolba automatického překladu. Znovu otevřete aplikaci nebo znovu otestujte připojení API a zkuste to znovu. Změny stránky a ON/OFF znovu použijí výsledek kontroly. Rozumné úsilí používá vaše uložené nastavení.";
+
+"TRANSLATION_TEST" = "Test připojení API";
+
+"TRANSLATION_TEST_RUNNING" = "Testování připojení…";
+
+"TRANSLATION_TEST_SUCCESS" = "Připojení úspěšné";
+
+"TRANSLATION_TEST_FAILURE" = "Připojení se nezdařilo";
+
+"TRANSLATION_TEST_HELP" = "Přeloží krátkou větu pomocí hodnot v tomto tvaru. Chcete-li použít uložený klíč tohoto serveru, ponechte klíč prázdný. Změny se ukládají automaticky.";
+
+"SEARCH_SUGGESTIONS" = "Návrhy vyhledávání";
+
+"TRANSLATION_CACHE" = "Offline mezipaměť";
+
+"TRANSLATION_CACHE_LIMIT" = "Maximální úložiště";
+
+"TRANSLATION_CACHE_USED" = "Použité úložiště";
+
+"TRANSLATION_CACHE_HELP" = "Ukládejte automaticky OCR, překlady stránek, překlady manga a názvů kapitol, popisy manga a rozložení textu. Obrázky stránek zůstávají pouze v paměti blízké stránky. Po dosažení vybraného limitu budou odstraněny naposledy použité výsledky. Výchozí: 1 GB. Maximum: 100 GB. Změny se použijí automaticky; snížením limitu se odstraní nejméně nedávno použité výsledky, dokud se mezipaměť nevejde.";
+
+"TRANSLATION_SOURCE_FILTER" = "Filtr zdroje překladu";
+
+"TRANSLATION_FILTER_ALL" = "Všechny zjištěné jazyky";
+
+"TRANSLATION_FILTER_HELP" = "Vyberte původní jazyky k překladu. Nevybraný nebo nejistý text zůstane nezměněn. Chcete-li filtr odstranit, vyberte Všechny zjištěné jazyky.";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Překládá se pouze text označený jako vybraný původní jazyk. Jazyky bez detekce na zařízení zůstanou nefiltrované.";
+
+"HTTPS_BYPASS" = "Obcházení blokování HTTPS";
+
+"HTTPS_BYPASS_HELP" = "Používejte fragmentaci TLS a šifrované DNS (Cloudflare) pro zdrojové požadavky, obrázky, stahování a zdrojové webové zobrazení. Platí pro nová připojení. Blokování IP a omezení uložená webem nejsou obcházena.";
+
+"HTTPS_BYPASS_TEST" = "Test připojení";
+
+"HTTPS_BYPASS_TEST_HELP" = "Testuje tuto HTTPS adresu přes bypass, i když je přepínač vypnutý. Odpověď potvrzuje připojení, nikoli to, že byl přítomen blok ISP.";
+
+"HTTPS_BYPASS_INVALID_URL" = "Zadejte HTTPS URL bez uživatelského jména a hesla.";
+
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d přijato · Byla použita fragmentace TLS";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "Přijato HTTP %d · Fragmentace TLS nebyla potvrzena";
+
+"HTTPS_BYPASS_TEST_FAILED" = "Nelze se připojit přes HTTPS bypass.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Překlad se nezdařil. Zobrazuje se text OCR. Zkontrolujte připojení.";
+
+"TRANSLATION_MANGA_TITLES" = "Přeložte názvy manga";
+
+"TRANSLATION_CHAPTER_TITLES" = "Přeložte názvy kapitol";
+
+"TRANSLATION_TITLES_HELP" = "Používá vaše překladové API a cílový jazyk nezávisle na automatickém překladu stránek. Vypnutím zobrazíte původní názvy a popisy. Originály zůstávají viditelné při načítání nebo v případě selhání překladu.";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "Jazyky titulků manga";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "Jazyky titulků kapitoly";
+
+"TRANSLATION_PAGE_SOURCE" = "Jazyk zdroje stránky";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "Automaticky detekovat zdrojový jazyk každého titulu a překládat pouze vybrané jazyky. Všechny jazyky ruší jazykové omezení. Stránka a další nastavení zdrojového jazyka titulků nemají na tento výběr vliv.";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Přeložte popisy manga";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "Jazyky popisu manga";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "Automaticky detekovat zdrojový jazyk a překládat pouze vybrané jazyky. Všechny jazyky toto omezení odstraní. Filtry stránky, názvu manga, názvu kapitoly a popisu fungují nezávisle.";
+
+"TRANSLATION_SFX_FILTER" = "Filtrování SFX (pouze japonština)";
+
+"TRANSLATION_SFX_FILTER_HELP" = "Pravděpodobné japonské zvukové efekty ponechte nepřeložené. Použijte místní slovník a konzervativní kontroly rozvržení. Text, který nelze s jistotou identifikovat jako zvukový efekt, je stále překládán.";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Zahrnout kontextově požadované položky (pouze v Japonsku)";
+
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Platí, když je povoleno filtrování SFX. Filtruje také položky označené jako vyžadující kontext pomocí shod ve slovníku, velikosti textu a blízkého rozvržení. Žádný LLM neanalyzuje kontext, takže dialog může být také vyloučen.";
+
+"TRANSLATION_INCLUDE_IMAGE" = "Zahrnout obrázek stránky do překladu";
+
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Odešlete původní stránku s textem OCR pro kontext scény a výrazu. Pokyny pro obrázky se připojují automaticky. Vyžaduje model, který podporuje obrázky a může zvýšit využití dat a náklady na rozhraní API.";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "Zachovat původní barvu textu";
+
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Odhadněte barvu původního textu bez dalšího modelu. Pokud si nejste jisti nebo je kontrast příliš nízký, použijte výchozí barvu.";
+
+"TRANSLATION_LLM_SFX" = "Filtrování SFX LLM (všechny jazyky)";
+
+"TRANSLATION_LLM_SFX_HELP" = "Klasifikujte zvukové efekty v žádosti o překlad. Lze kombinovat s japonským místním filtrem: rozhodnutí o zvukovém efektu z kteréhokoli filtru ponechá původní nezměněný. Kompatibilní s odesláním obrázku stránky.";
+
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Bez zadání obrázku může omezený vizuální kontext a kontext rozvržení snížit přesnost klasifikace SFX.";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Zachovat původní barvu panelu";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Přiřaďte panel překladu k pozadí kolem původního textu. V případě nejistoty nebo nečitelnosti použijte výchozí panel. Vaše nastavení krytí stále platí.";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "Vlastní OpenAI";
+
+"TRANSLATION_OCR_MEDIUM" = "Střední";
+
+"TRANSLATION_OCR_SMALL" = "Malý";
+
+"TRANSLATION_OCR_TINY" = "Maličký";
+
+"TRANSLATION_REASONING_NONE" = "žádný";
+
+"TRANSLATION_REASONING_MINIMAL" = "Minimální";
+
+"TRANSLATION_REASONING_LOW" = "Nízká";
+
+"TRANSLATION_REASONING_MEDIUM" = "Střední";
+
+"TRANSLATION_REASONING_HIGH" = "Vysoká";
+
+"TRANSLATION_REASONING_XHIGH" = "Velmi vysoká";
+
+"TRANSLATION_REASONING_MAX" = "Maximální";

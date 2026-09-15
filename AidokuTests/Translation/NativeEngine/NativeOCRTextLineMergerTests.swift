@@ -7,6 +7,179 @@ import UIKit
 @testable import Aidoku
 
 struct NativeOCRTextLineMergerTests {
+    @Test func realComics3000RubyHandlesSingleKanaTiltAndIncompleteRecognition() {
+        // Original medium-model detections, preserved at source resolution.
+        // Work-level holdout comic-1605 was evaluated after freezing the rule.
+        let fixtures: [(String, [NativeCoreMLOCRLine])] = [
+            // comic-0420: reading や
+            ("加賀屋南", [
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: 375, y: 1123), CGPoint(x: 611, y: 1123), CGPoint(x: 611, y: 1200), CGPoint(x: 375, y: 1200)],
+                    text: "加賀屋南", score: 0.95, orientation: .horizontal, orientationIsEstimated: true),
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: 501, y: 1120), CGPoint(x: 523, y: 1120), CGPoint(x: 523, y: 1141), CGPoint(x: 501, y: 1141)],
+                    text: "や", score: 0.95, orientation: .horizontal, orientationIsEstimated: true),
+            ]),
+            // comic-0605: reading たいせん
+            ("大戦の英雄だ", [
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: 386, y: 10), CGPoint(x: 410, y: 10), CGPoint(x: 410, y: 121), CGPoint(x: 386, y: 121)],
+                    text: "大戦の英雄だ", score: 0.95, orientation: .vertical, orientationIsEstimated: true),
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: 403, y: 12), CGPoint(x: 418, y: 11), CGPoint(x: 422, y: 56), CGPoint(x: 407, y: 57)],
+                    text: "たいせん", score: 0.95, orientation: .vertical, orientationIsEstimated: true),
+            ]),
+            // comic-1246: reading ひび
+            ("日比野力フカは", [
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: 86, y: 99), CGPoint(x: 121, y: 98), CGPoint(x: 122, y: 303), CGPoint(x: 87, y: 303)],
+                    text: "日比野力フカは", score: 0.95, orientation: .vertical, orientationIsEstimated: true),
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: 117, y: 103), CGPoint(x: 133, y: 103), CGPoint(x: 133, y: 158), CGPoint(x: 117, y: 158)],
+                    text: "ひび", score: 0.95, orientation: .vertical, orientationIsEstimated: true),
+            ]),
+            // comic-1402: reading あ
+            ("俺が斬り上げた", [
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: 106, y: 298), CGPoint(x: 135, y: 298), CGPoint(x: 135, y: 456), CGPoint(x: 106, y: 456)],
+                    text: "俺が斬り上げた", score: 0.95, orientation: .vertical, orientationIsEstimated: true),
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: 132, y: 393), CGPoint(x: 142, y: 393), CGPoint(x: 142, y: 408), CGPoint(x: 132, y: 408)],
+                    text: "あ", score: 0.95, orientation: .vertical, orientationIsEstimated: true),
+            ]),
+            // comic-1682: reading な
+            ("名づけて", [
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: 86, y: 654), CGPoint(x: 117, y: 653), CGPoint(x: 118, y: 752), CGPoint(x: 88, y: 753)],
+                    text: "名づけて", score: 0.95, orientation: .vertical, orientationIsEstimated: true),
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: 111, y: 661), CGPoint(x: 126, y: 661), CGPoint(x: 126, y: 682), CGPoint(x: 111, y: 682)],
+                    text: "な", score: 0.95, orientation: .vertical, orientationIsEstimated: true),
+            ]),
+            // comic-1933: reading むほん
+            ("謀反でも", [
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: 273, y: 952), CGPoint(x: 297, y: 952), CGPoint(x: 297, y: 1038), CGPoint(x: 273, y: 1038)],
+                    text: "謀反でも", score: 0.95, orientation: .vertical, orientationIsEstimated: true),
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: 293, y: 955), CGPoint(x: 307, y: 955), CGPoint(x: 307, y: 1014), CGPoint(x: 293, y: 1014)],
+                    text: "むほん", score: 0.95, orientation: .vertical, orientationIsEstimated: true),
+            ]),
+            // comic-1605: reading し
+            ("死ぬほど", [
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: 671, y: 148), CGPoint(x: 709, y: 148), CGPoint(x: 709, y: 269), CGPoint(x: 671, y: 269)],
+                    text: "死ぬほど", score: 0.95, orientation: .vertical, orientationIsEstimated: true),
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: 703, y: 164), CGPoint(x: 714, y: 162), CGPoint(x: 716, y: 179), CGPoint(x: 705, y: 180)],
+                    text: "し", score: 0.95, orientation: .vertical, orientationIsEstimated: true),
+            ]),
+        ]
+        for (expected, lines) in fixtures {
+            for scale: CGFloat in [0.5, 1, 2] {
+                let scaled = lines.map { row in
+                    NativeCoreMLOCRLine(polygon: row.polygon.map { CGPoint(x: $0.x * scale, y: $0.y * scale) },
+                        text: row.text, score: row.score, orientation: row.orientation, orientationIsEstimated: true)
+                }
+                for input in [scaled, Array(scaled.reversed())] {
+                    #expect(merge(input, width: Int(1600 * scale), height: Int(1600 * scale)).map(\.text) == [expected])
+                }
+            }
+        }
+    }
+
+    @Test func realComics3000SingletonStutterIsNotRuby() {
+        // comic-2026: “も もう既に” is a stutter beside kana, not a reading
+        // for the Han later in the column. The estimated direction may vary.
+        for orientation in [BrowserOCRSourceOrientation.vertical, .horizontal, .unknown] {
+            let result = merge([
+                line("もう既に", 405, 558, 28, 82, orientation: .vertical, orientationIsEstimated: true),
+                line("も", 434, 562, 16, 22, orientation: orientation, orientationIsEstimated: true)
+            ], width: 800, height: 1200).map(\.text).joined()
+            #expect(result.filter { $0 == "も" }.count == 2)
+        }
+    }
+
+    @Test func page141PaddedColumnsPreserveBothFragments() {
+        for scale: CGFloat in [0.5, 1, 2] {
+            for (a, b, textA, textB) in [
+                (CGRect(x: 2013, y: 95, width: 65, height: 235), CGRect(x: 2011, y: 308, width: 69, height: 241), "ふーっ♡", "ふーっ♡"),
+                (CGRect(x: 735, y: 1003, width: 70, height: 398), CGRect(x: 737, y: 1370, width: 72, height: 297), "奥ッ♡響くう♡", "おひゅっ♡")
+            ] {
+                let rows = [line(textA, a.minX * scale, a.minY * scale, a.width * scale, a.height * scale, orientation: .vertical),
+                            line(textB, b.minX * scale, b.minY * scale, b.width * scale, b.height * scale, orientation: .vertical)]
+                for input in [rows, Array(rows.reversed())] {
+                    #expect(merge(input, width: Int(2600 * scale), height: Int(1950 * scale)).map(\.text) == [textA + textB])
+                }
+            }
+        }
+    }
+
+    @Test func interruptedColumnJoinsBeforeAdjacentColumn() {
+        for scale: CGFloat in [0.5, 1, 2] {
+            let input = [line("右の本文", 270 * scale, 50 * scale, 40 * scale, 380 * scale, orientation: .vertical),
+                         line("左の前半", 225 * scale, 60 * scale, 40 * scale, 100 * scale, orientation: .vertical),
+                         line("左の後半", 225 * scale, 185 * scale, 40 * scale, 115 * scale, orientation: .vertical)]
+            for rows in [input, Array(input.reversed())] {
+                #expect(merge(rows, width: Int(500 * scale), height: Int(500 * scale)).map(\.text) == ["右の本文左の前半左の後半"])
+            }
+        }
+    }
+
+    @Test func localCaptionGuttersSeparateDetachedColumns() {
+        // Detector rectangles from the supplied crops; neutral text keeps the
+        // test about geometry rather than recognizer spelling or translation.
+        for boxes in [
+            [CGRect(x: 69, y: 25, width: 35, height: 95), CGRect(x: 120, y: 27, width: 33, height: 357), CGRect(x: 144, y: 26, width: 35, height: 279)],
+            [CGRect(x: 77, y: 38, width: 37, height: 378), CGRect(x: 127, y: 38, width: 38, height: 340), CGRect(x: 157, y: 40, width: 23, height: 173)]
+        ] {
+            for scale: CGFloat in [0.5, 1, 2] {
+                let input = zip(["独立文", "本文続き", "本文先頭"], boxes).map { text, b in
+                    line(text, b.minX * scale, b.minY * scale, b.width * scale, b.height * scale, orientation: .vertical)
+                }
+                for rows in [input, Array(input.reversed())] {
+                    #expect(Set(merge(rows, width: Int(250 * scale), height: Int(500 * scale)).map(\.text)) == ["独立文", "本文先頭本文続き"])
+                }
+            }
+        }
+    }
+
+    @Test func cachedAlignedColumnFragmentsJoinAcrossPauses() {
+        // Physical rectangles from the device OCR cache (2600 x 1950).
+        // Neutral words retain the observed fragment lengths; no image/model needed.
+        let samples: [[CGRect]] = [
+            [CGRect(x: 2027, y: 439, width: 71, height: 320), CGRect(x: 2037, y: 809, width: 50, height: 120)],
+            [CGRect(x: 2294, y: 615, width: 79, height: 356), CGRect(x: 2293, y: 930, width: 83, height: 210)],
+            [CGRect(x: 489, y: 774, width: 74, height: 219), CGRect(x: 488, y: 1025, width: 75, height: 217)],
+            [CGRect(x: 480, y: 769, width: 74, height: 221), CGRect(x: 474, y: 1022, width: 81, height: 475)]
+        ]
+        for scale: CGFloat in [0.5, 1, 2] {
+            for boxes in samples {
+                let input = zip(["「シスター？", "平気？」"], boxes).map { text, box in
+                    line(text, box.minX * scale, box.minY * scale, box.width * scale, box.height * scale, orientation: .vertical)
+                }
+                for rows in [input, Array(input.reversed())] {
+                    let output = merge(rows, width: Int(2600 * scale), height: Int(1950 * scale))
+                    #expect(output.count == 1)
+                    #expect(output.first?.text == "「シスター？平気？」")
+                }
+            }
+        }
+    }
+
+    @Test func alignedColumnPauseDoesNotBridgeParagraphsOrNewQuotes() {
+        let upper = line("「先の文章", 100, 100, 20, 90, orientation: .vertical)
+        for lower in [
+            line("次の文章」", 100, 230, 20, 90, orientation: .vertical),
+            line("「別の文章」", 100, 200, 20, 90, orientation: .vertical),
+            line("次の文章」", 112, 200, 20, 90, orientation: .vertical)
+        ] {
+            #expect(merge([upper, lower], width: 500, height: 500).count == 2)
+        }
+        let lower = line("次の文章」", 100, 200, 20, 90, orientation: .vertical)
+        #expect(NativeOCRTextLineMerger.merge([upper, lower], imageWidth: 500, imageHeight: 500,
+            separationCheck: { _, _, _ in true }).count == 2)
+    }
+
+    @Test func separatedQuotedUtterancesDoNotBecomeOneCaption() {
+        for scale: CGFloat in [0.5, 1, 2] {
+            let right = CGRect(x: 140 * scale, y: 10 * scale, width: 20 * scale, height: 160 * scale)
+            let left = CGRect(x: 110 * scale, y: 10 * scale, width: 20 * scale, height: 180 * scale)
+            #expect(ReaderTranslationBalloonMerger.separatesVerticalUtterances("「先の発言", box: right, "「次の発言」", box: left))
+            #expect(ReaderTranslationBalloonMerger.separatesVerticalUtterances("先の発言", box: right, "「次の発言」", box: left))
+            #expect(ReaderTranslationBalloonMerger.separatesVerticalUtterances("先の発言」", box: right, "次の発言", box: left))
+            #expect(!ReaderTranslationBalloonMerger.separatesVerticalUtterances("「長い文章は", box: right, "次の行に続く」", box: left))
+            let tight = left.offsetBy(dx: 8 * scale, dy: 0)
+            #expect(!ReaderTranslationBalloonMerger.separatesVerticalUtterances("「彼は", box: right, "「引用」と言う」", box: tight))
+        }
+    }
+
     @Test func capturedHorizontalJapaneseGlyphsJoinWithoutSkippingTheMiddle() {
         for scale: CGFloat in [0.5, 1, 2] {
             let boxes: [(String, CGFloat, CGFloat, CGFloat, CGFloat)] = [

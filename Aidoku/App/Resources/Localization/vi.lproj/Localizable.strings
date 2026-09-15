@@ -696,3 +696,223 @@
 "SEARCH_MANUALLY" = "Tìm kiếm thủ công";
 "SELECTED_%i_OF_%i" = "Đã chọn (%i/%i)";
 "TOGGLE_PAGE_OFFSET" = "Chuyển đổi độ lệch trang";
+
+"TRANSLATION_TITLE" = "OCR & Dịch thuật";
+
+"TRANSLATION_TRANSLATE" = "Dịch các trang hiển thị";
+
+"TRANSLATION_RECOGNIZE" = "Nhận dạng văn bản (Ngoại tuyến)";
+
+"TRANSLATION_ORIGINAL" = "Hiển thị bản gốc";
+
+"TRANSLATION_TEXT" = "Văn bản được nhận dạng và dịch";
+
+"TRANSLATION_NO_IMAGE" = "Đợi trang hình ảnh tải rồi thử lại.";
+
+"TRANSLATION_NO_TEXT" = "Không có văn bản nào được nhận dạng. Hãy thử một mô hình OCR khác hoặc một hình ảnh rõ ràng hơn.";
+
+"TRANSLATION_WORKING" = "Nhận biết và dịch…";
+
+"TRANSLATION_OCR_WORKING" = "Đang nhận dạng văn bản trên thiết bị…";
+
+"TRANSLATION_HELP" = "Biểu tượng dịch sẽ bật hoặc tắt dịch. Các trang được chuẩn bị theo thứ tự sau: hiện tại, tiếp theo, trước đó, hai trang phía trước, hai trang phía sau, tiếp tục cho đến cả hai đầu của chương. OCR đã hoàn thành, bản dịch và bố cục văn bản sẽ được sử dụng lại sau khi đóng trình đọc hoặc khởi động lại ứng dụng. Để người đọc hủy bỏ công việc còn dang dở.";
+
+"TRANSLATION_PRIVACY" = "OCR chạy trên thiết bị của bạn. Bản dịch sẽ gửi văn bản được nhận dạng và hướng dẫn của bạn đến nhà cung cấp đã chọn. Nếu Bao gồm hình ảnh trang trong bản dịch được bật thì hình ảnh trang gốc cũng được tải lên. Phí API tùy thuộc vào nhà cung cấp của bạn. Chìa khóa vẫn ở trong Móc khóa. OCR, bản dịch và bố cục văn bản được lưu trong bộ lưu trữ ứng dụng được bảo vệ, loại trừ khỏi bản sao lưu.";
+
+"TRANSLATION_KEY_REPLACE" = "Thay thế khóa API đã lưu (tùy chọn)";
+
+"TRANSLATION_KEY" = "Khóa API";
+
+"TRANSLATION_KEY_SAVED" = "Khóa API được lưu trong Chuỗi khóa";
+
+"TRANSLATION_KEY_DELETE" = "Xóa khóa API";
+
+"TRANSLATION_MODEL" = "Mã mẫu";
+
+"TRANSLATION_GET_KEY" = "Mở khóa API OpenAI";
+
+"TRANSLATION_LANGUAGE" = "Ngôn ngữ";
+
+"TRANSLATION_TARGET" = "Dịch sang";
+
+"TRANSLATION_SOURCE" = "Ngôn ngữ nguồn";
+
+"TRANSLATION_AUTO" = "Tự động phát hiện";
+
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 yêu cầu iOS 18 trở lên. Phương tiện là mặc định; Nhỏ sử dụng ít bộ nhớ hơn. Tiny có một từ điển ký tự nhỏ hơn. Những mẫu này không hỗ trợ OCR của Hàn Quốc. Đầu ra bản dịch tiếng Hàn được hỗ trợ.";
+
+"TRANSLATION_INSTRUCTIONS" = "Hướng dẫn dịch thuật";
+
+"TRANSLATION_RESET_PROMPT" = "Khôi phục hướng dẫn dịch mặc định";
+
+"TRANSLATION_CLEAR_CACHE" = "Xóa bộ đệm dịch";
+
+"TRANSLATION_CACHE_CLEARED" = "Đã xóa bộ nhớ đệm dịch.";
+
+"TRANSLATION_NOTICES" = "Giấy phép OCR & Dịch thuật";
+
+"TRANSLATION_ADVANCED" = "Tùy chọn dịch";
+
+"TRANSLATION_REASONING" = "Nỗ lực lý luận";
+
+"TRANSLATION_MODEL_DEFAULT" = "Mặc định mẫu";
+
+"TRANSLATION_CONCURRENCY" = "Yêu cầu đồng thời";
+
+"TRANSLATION_DETECTOR_SIZE" = "Phía tối đa của máy dò";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "Chiều rộng tối đa của bộ nhận dạng";
+
+"TRANSLATION_CONFIDENCE" = "Độ tin cậy của OCR";
+
+"TRANSLATION_SURFACE" = "Màu nền";
+
+"TRANSLATION_WHITE" = "trắng";
+
+"TRANSLATION_DARK" = "Tối";
+
+"TRANSLATION_OPACITY" = "Độ mờ nền";
+
+"TRANSLATION_EXPANSION" = "Mở rộng hộp";
+
+"TRANSLATION_PANEL_BOUNDS" = "Trong bảng hình ảnh";
+
+"TRANSLATION_SOURCE_BOUNDS" = "Trong Hộp Ban Đầu";
+
+"TRANSLATION_UNRESTRICTED" = "Không hạn chế";
+
+"TRANSLATION_FONT_SIZE" = "Cỡ chữ";
+
+"TRANSLATION_AUTO_FIT" = "Tự động điều chỉnh";
+
+"TRANSLATION_FIXED" = "Cỡ chữ cố định";
+
+"TRANSLATION_OVERLAY" = "Lớp phủ dịch";
+
+"TRANSLATION_OVERLAY_HELP" = "Thay thế văn bản trên hộp nguồn bằng cách sử dụng bố cục nhận biết va chạm và gói theo tập lệnh cụ thể. Hiển thị các thay đổi sử dụng lại OCR hiện có.";
+
+"TRANSLATION_PROVIDER" = "Nhà cung cấp dịch thuật";
+
+"TRANSLATION_BASE_URL" = "URL máy chủ";
+
+"TRANSLATION_API_FORMAT" = "Định dạng API";
+
+"TRANSLATION_CUSTOM_HELP" = "Nhập URL cơ sở HTTPS hoặc điểm cuối API đầy đủ và mô hình được máy chủ của bạn hỗ trợ. Mỗi URL máy chủ có khóa lưu riêng; việc thay đổi URL sẽ xóa mọi khóa bạn đang nhập. Phản hồi và Hoàn thành cuộc trò chuyện sử dụng kết quả JSON có cấu trúc.";
+
+"TRANSLATION_AUTOMATIC" = "Dịch tự động";
+
+"TRANSLATION_AUTOMATIC_HELP" = "Kiểm tra cài đặt API đã lưu một lần ở chế độ nền khi ứng dụng mở ra hoặc cài đặt API thay đổi. Quá trình dịch bắt đầu sau khi thành công. Kiểm tra không thành công sẽ tạm dừng dịch mà không thay đổi tùy chọn dịch tự động của bạn. Hãy mở lại ứng dụng hoặc kiểm tra lại kết nối API để thử lại. Thay đổi trang và BẬT/TẮT sử dụng lại kết quả kiểm tra. Nỗ lực lý luận sử dụng cài đặt đã lưu của bạn.";
+
+"TRANSLATION_TEST" = "Kiểm tra kết nối API";
+
+"TRANSLATION_TEST_RUNNING" = "Đang kiểm tra kết nối…";
+
+"TRANSLATION_TEST_SUCCESS" = "Kết nối thành công";
+
+"TRANSLATION_TEST_FAILURE" = "Kết nối không thành công";
+
+"TRANSLATION_TEST_HELP" = "Dịch một câu ngắn bằng cách sử dụng các giá trị ở dạng này. Để trống khóa để sử dụng khóa đã lưu của máy chủ này. Các thay đổi được lưu tự động.";
+
+"SEARCH_SUGGESTIONS" = "Đề xuất tìm kiếm";
+
+"TRANSLATION_CACHE" = "Bộ nhớ đệm ngoại tuyến";
+
+"TRANSLATION_CACHE_LIMIT" = "Dung lượng tối đa";
+
+"TRANSLATION_CACHE_USED" = "Bộ nhớ đã sử dụng";
+
+"TRANSLATION_CACHE_HELP" = "Tự động lưu OCR, bản dịch trang, bản dịch tiêu đề manga và chương, mô tả manga và bố cục văn bản. Hình ảnh trang chỉ lưu lại trong bộ nhớ trang lân cận. Các kết quả ít được sử dụng gần đây nhất sẽ bị xóa khi đạt đến giới hạn đã chọn. Mặc định: 1GB. Tối đa: 100 GB. Các thay đổi được áp dụng tự động; việc giảm giới hạn sẽ loại bỏ các kết quả ít được sử dụng gần đây nhất cho đến khi vừa bộ nhớ đệm.";
+
+"TRANSLATION_SOURCE_FILTER" = "Bộ lọc nguồn dịch";
+
+"TRANSLATION_FILTER_ALL" = "Tất cả ngôn ngữ được phát hiện";
+
+"TRANSLATION_FILTER_HELP" = "Chọn ngôn ngữ gốc để dịch. Văn bản không được chọn hoặc không chắc chắn sẽ không thay đổi. Chọn Tất cả ngôn ngữ được phát hiện để xóa bộ lọc.";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Chỉ văn bản được xác định là ngôn ngữ gốc đã chọn mới được dịch. Những ngôn ngữ không được phát hiện trên thiết bị vẫn không được lọc.";
+
+"HTTPS_BYPASS" = "Bỏ qua chặn HTTPS";
+
+"HTTPS_BYPASS_HELP" = "Sử dụng phân mảnh TLS và DNS được mã hóa (Cloudflare) cho các yêu cầu nguồn, hình ảnh, nội dung tải xuống và lượt xem web nguồn. Áp dụng cho các kết nối mới. Việc chặn IP và các hạn chế do trang web áp đặt sẽ không bị bỏ qua.";
+
+"HTTPS_BYPASS_TEST" = "Kiểm tra kết nối";
+
+"HTTPS_BYPASS_TEST_HELP" = "Kiểm tra địa chỉ HTTPS này thông qua đường vòng, ngay cả khi nút chuyển tắt. Phản hồi xác nhận kết nối chứ không phải có khối ISP.";
+
+"HTTPS_BYPASS_INVALID_URL" = "Nhập URL HTTPS không có tên người dùng hoặc mật khẩu.";
+
+"HTTPS_BYPASS_TEST_RESULT" = "Đã nhận được HTTP %d · Đã áp dụng phân mảnh TLS";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "Đã nhận được HTTP %d · Phân mảnh TLS chưa được xác nhận";
+
+"HTTPS_BYPASS_TEST_FAILED" = "Không thể kết nối thông qua đường vòng HTTPS.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Bản dịch không thành công. Hiển thị văn bản OCR. Vui lòng kiểm tra kết nối của bạn.";
+
+"TRANSLATION_MANGA_TITLES" = "Dịch Tiêu Đề Manga";
+
+"TRANSLATION_CHAPTER_TITLES" = "Dịch tiêu đề chương";
+
+"TRANSLATION_TITLES_HELP" = "Sử dụng API dịch và ngôn ngữ đích của bạn độc lập với dịch trang tự động. Tắt để hiển thị tiêu đề và mô tả gốc. Bản gốc vẫn hiển thị trong khi tải hoặc nếu bản dịch không thành công.";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "Ngôn ngữ tiêu đề manga";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "Ngôn ngữ tiêu đề chương";
+
+"TRANSLATION_PAGE_SOURCE" = "Ngôn ngữ nguồn trang";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "Tự động phát hiện ngôn ngữ nguồn của từng tiêu đề và chỉ dịch các ngôn ngữ đã chọn. Tất cả các ngôn ngữ loại bỏ hạn chế ngôn ngữ. Cài đặt trang và ngôn ngữ nguồn tiêu đề khác không ảnh hưởng đến lựa chọn này.";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Dịch mô tả Manga";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "Ngôn ngữ mô tả manga";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "Tự động phát hiện ngôn ngữ nguồn và chỉ dịch các ngôn ngữ đã chọn. Tất cả các ngôn ngữ loại bỏ hạn chế. Các bộ lọc trang, tiêu đề manga, tiêu đề chương và mô tả hoạt động độc lập.";
+
+"TRANSLATION_SFX_FILTER" = "Lọc SFX (Chỉ tiếng Nhật)";
+
+"TRANSLATION_SFX_FILTER_HELP" = "Để nguyên các hiệu ứng âm thanh tiếng Nhật có thể không được dịch. Sử dụng từ điển cục bộ và kiểm tra bố cục thận trọng. Văn bản không thể chắc chắn được xác định là hiệu ứng âm thanh vẫn được dịch.";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Bao gồm các mục nhập bắt buộc theo ngữ cảnh (Chỉ tiếng Nhật)";
+
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Áp dụng khi Lọc SFX được bật. Đồng thời lọc các mục được đánh dấu là yêu cầu ngữ cảnh bằng cách sử dụng kết quả khớp từ điển, kích thước văn bản và bố cục lân cận. Không có LLM nào phân tích bối cảnh nên đối thoại cũng có thể bị loại trừ.";
+
+"TRANSLATION_INCLUDE_IMAGE" = "Bao gồm hình ảnh trang trong bản dịch";
+
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Gửi trang gốc có văn bản OCR cho bối cảnh cảnh và biểu cảm. Hướng dẫn bằng hình ảnh được tự động thêm vào. Yêu cầu mô hình hỗ trợ hình ảnh và có thể tăng mức sử dụng dữ liệu và chi phí API.";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "Giữ nguyên màu văn bản gốc";
+
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Ước tính màu văn bản gốc mà không cần mô hình bổ sung. Sử dụng màu mặc định khi không chắc chắn hoặc khi độ tương phản quá thấp.";
+
+"TRANSLATION_LLM_SFX" = "Lọc LLM SFX (Tất cả ngôn ngữ)";
+
+"TRANSLATION_LLM_SFX_HELP" = "Phân loại hiệu ứng âm thanh trong yêu cầu dịch thuật. Có thể kết hợp với bộ lọc cục bộ của Nhật Bản: quyết định về hiệu ứng âm thanh từ một trong hai bộ lọc sẽ không thay đổi bản gốc. Tương thích với việc gửi hình ảnh trang.";
+
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Nếu không có hình ảnh đầu vào, bối cảnh bố cục và hình ảnh bị hạn chế có thể làm giảm độ chính xác của phân loại SFX.";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Giữ nguyên màu bảng gốc";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Khớp bảng dịch với nền xung quanh văn bản gốc. Sử dụng bảng mặc định khi không chắc chắn hoặc không thể đọc được. Cài đặt độ mờ của bạn vẫn được áp dụng.";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "OpenAI tùy chỉnh";
+
+"TRANSLATION_OCR_MEDIUM" = "Trung bình";
+
+"TRANSLATION_OCR_SMALL" = "nhỏ";
+
+"TRANSLATION_OCR_TINY" = "nhỏ bé";
+
+"TRANSLATION_REASONING_NONE" = "không có";
+
+"TRANSLATION_REASONING_MINIMAL" = "Tối thiểu";
+
+"TRANSLATION_REASONING_LOW" = "Thấp";
+
+"TRANSLATION_REASONING_MEDIUM" = "Trung bình";
+
+"TRANSLATION_REASONING_HIGH" = "Cao";
+
+"TRANSLATION_REASONING_XHIGH" = "Rất cao";
+
+"TRANSLATION_REASONING_MAX" = "Tối đa";

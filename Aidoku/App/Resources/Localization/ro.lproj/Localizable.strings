@@ -323,3 +323,223 @@
 "PHOTOS_ACCESS_DENIED_TEXT" = "Accesul a fost refuzat anterior. Te rugăm să permiți Aidoku acces la Fotografii pentru a salva imaginile în Galeria ta. Poți activa accesul din Setările de confidențialitate.";
 "CONTENT" = "Conținut";
 "%@_EXPERIMENTAL" = "%@ (Experimental)";
+
+"TRANSLATION_TITLE" = "OCR și traducere";
+
+"TRANSLATION_TRANSLATE" = "Traduceți pagini vizibile";
+
+"TRANSLATION_RECOGNIZE" = "Recunoașteți textul (offline)";
+
+"TRANSLATION_ORIGINAL" = "Afișați originalul";
+
+"TRANSLATION_TEXT" = "Text recunoscut și tradus";
+
+"TRANSLATION_NO_IMAGE" = "Așteptați să se încarce o pagină de imagine, apoi încercați din nou.";
+
+"TRANSLATION_NO_TEXT" = "Niciun text nu a fost recunoscut. Încercați un alt model OCR sau o imagine mai clară.";
+
+"TRANSLATION_WORKING" = "Recunoașterea și traducerea...";
+
+"TRANSLATION_OCR_WORKING" = "Se recunoaște textul de pe dispozitiv...";
+
+"TRANSLATION_HELP" = "Pictograma de traducere activează sau dezactivează traducerea. Paginile sunt pregătite în această ordine: curent, următor, precedent, două înainte, două în urmă, continuând până la ambele capete ale capitolului. OCR finalizat, traducerile și aspectul textului sunt reutilizate după închiderea cititorului sau repornirea aplicației. Lăsarea cititorului anulează munca neterminată.";
+
+"TRANSLATION_PRIVACY" = "OCR rulează pe dispozitivul dvs. Traducerea trimite textul recunoscut și instrucțiunile dvs. către furnizorul selectat. Dacă includeți imaginea paginii în traducere este activată, este încărcată și imaginea paginii originale. Taxele API depind de furnizorul dvs. Cheile rămân în breloc. OCR, traducerile și aspectul textului sunt salvate în spațiul de stocare protejat al aplicației, exclus din backup.";
+
+"TRANSLATION_KEY_REPLACE" = "Înlocuiți cheia API salvată (opțional)";
+
+"TRANSLATION_KEY" = "cheie API";
+
+"TRANSLATION_KEY_SAVED" = "Cheia API salvată în Keychain";
+
+"TRANSLATION_KEY_DELETE" = "Ștergeți cheia API";
+
+"TRANSLATION_MODEL" = "ID model";
+
+"TRANSLATION_GET_KEY" = "Deschideți cheile API OpenAI";
+
+"TRANSLATION_LANGUAGE" = "Limbi";
+
+"TRANSLATION_TARGET" = "Traduceți în";
+
+"TRANSLATION_SOURCE" = "Limba sursă";
+
+"TRANSLATION_AUTO" = "Detectează automat";
+
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 necesită iOS 18 sau o versiune ulterioară. Mediu este valoarea implicită; Micul folosește mai puțină memorie. Tiny are un dicționar de caractere mai mic. Aceste modele nu acceptă OCR coreean. Ieșirea traducerii în coreeană este acceptată.";
+
+"TRANSLATION_INSTRUCTIONS" = "Instrucțiuni de traducere";
+
+"TRANSLATION_RESET_PROMPT" = "Restabiliți instrucțiunile implicite de traducere";
+
+"TRANSLATION_CLEAR_CACHE" = "Ștergeți memoria cache de traducere";
+
+"TRANSLATION_CACHE_CLEARED" = "Cache-ul de traducere a fost golit.";
+
+"TRANSLATION_NOTICES" = "OCR și licențe de traducere";
+
+"TRANSLATION_ADVANCED" = "Opțiuni de traducere";
+
+"TRANSLATION_REASONING" = "Efort de raționament";
+
+"TRANSLATION_MODEL_DEFAULT" = "Model implicit";
+
+"TRANSLATION_CONCURRENCY" = "Cereri concurente";
+
+"TRANSLATION_DETECTOR_SIZE" = "Latura maximă a detectorului";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "Lățimea maximă a recunoașterii";
+
+"TRANSLATION_CONFIDENCE" = "Încrederea OCR";
+
+"TRANSLATION_SURFACE" = "Culoare de fundal";
+
+"TRANSLATION_WHITE" = "alb";
+
+"TRANSLATION_DARK" = "Întuneric";
+
+"TRANSLATION_OPACITY" = "Opacitatea fundalului";
+
+"TRANSLATION_EXPANSION" = "Expansiune cutie";
+
+"TRANSLATION_PANEL_BOUNDS" = "În Panoul de imagini";
+
+"TRANSLATION_SOURCE_BOUNDS" = "În cutia originală";
+
+"TRANSLATION_UNRESTRICTED" = "Nerestricționat";
+
+"TRANSLATION_FONT_SIZE" = "Dimensiunea fontului";
+
+"TRANSLATION_AUTO_FIT" = "Se potrivește automat";
+
+"TRANSLATION_FIXED" = "Dimensiune fixă a fontului";
+
+"TRANSLATION_OVERLAY" = "Suprapunere de traducere";
+
+"TRANSLATION_OVERLAY_HELP" = "Înlocuiește textul peste caseta sursă folosind un aspect care ține cont de coliziuni și o împachetare specifică scriptului. Modificările de afișare reutilizați OCR existent.";
+
+"TRANSLATION_PROVIDER" = "Furnizor de traduceri";
+
+"TRANSLATION_BASE_URL" = "Adresa URL a serverului";
+
+"TRANSLATION_API_FORMAT" = "Format API";
+
+"TRANSLATION_CUSTOM_HELP" = "Introduceți o adresă URL de bază HTTPS sau un punct final API complet și un model acceptat de serverul dvs. Fiecare URL de server are propria sa cheie salvată; schimbarea URL-ului șterge orice cheie pe care o introduceți. Răspunsurile și Terminările de chat folosesc ieșire JSON structurată.";
+
+"TRANSLATION_AUTOMATIC" = "Traducere automată";
+
+"TRANSLATION_AUTOMATIC_HELP" = "Verificați setările API salvate o dată în fundal când se deschide aplicația sau se schimbă setările API. Traducerea începe după succes. O verificare nereușită întrerupe traducerea fără a modifica preferința de traducere automată. Redeschideți aplicația sau testați din nou conexiunea API pentru a reîncerca. Schimbările paginii și ON/OFF reutilizați rezultatul verificării. Efortul de raționament folosește setarea dvs. salvată.";
+
+"TRANSLATION_TEST" = "Testați conexiunea API";
+
+"TRANSLATION_TEST_RUNNING" = "Se testează conexiunea...";
+
+"TRANSLATION_TEST_SUCCESS" = "Conexiune reușită";
+
+"TRANSLATION_TEST_FAILURE" = "Conexiune a eșuat";
+
+"TRANSLATION_TEST_HELP" = "Traduce o propoziție scurtă folosind valorile din această formă. Lăsați cheia goală pentru a utiliza cheia salvată a acestui server. Modificările sunt salvate automat.";
+
+"SEARCH_SUGGESTIONS" = "Sugestii de căutare";
+
+"TRANSLATION_CACHE" = "Cache offline";
+
+"TRANSLATION_CACHE_LIMIT" = "Stocare maximă";
+
+"TRANSLATION_CACHE_USED" = "Depozitare folosită";
+
+"TRANSLATION_CACHE_HELP" = "Salvați automat OCR, traducerile de pagini, traducerile de titluri de manga și capitole, descrierile manga și aspectul textului. Imaginile paginii rămân numai în memoria paginii din apropiere. Rezultatele utilizate cel mai puțin recent sunt eliminate când se atinge limita selectată. Implicit: 1 GB. Maxim: 100 GB. Modificările se aplică automat; scăderea limitei elimină rezultatele cel mai puțin recent utilizate până când se potrivește cache-ul.";
+
+"TRANSLATION_SOURCE_FILTER" = "Filtru sursă traducere";
+
+"TRANSLATION_FILTER_ALL" = "Toate limbile detectate";
+
+"TRANSLATION_FILTER_HELP" = "Selectați limbile originale de tradus. Textul neselectat sau incert rămâne neschimbat. Alegeți Toate limbile detectate pentru a elimina filtrul.";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Este tradus doar textul identificat ca limba originală selectată. Limbile fără detectarea pe dispozitiv rămân nefiltrate.";
+
+"HTTPS_BYPASS" = "Bypass de blocare HTTPS";
+
+"HTTPS_BYPASS_HELP" = "Utilizați fragmentarea TLS și DNS criptat (Cloudflare) pentru solicitările sursă, imagini, descărcări și vizualizări web sursă. Se aplică noilor conexiuni. Blocurile IP și restricțiile impuse de site-ul web nu sunt ocolite.";
+
+"HTTPS_BYPASS_TEST" = "Testează conexiunea";
+
+"HTTPS_BYPASS_TEST_HELP" = "Testează această adresă HTTPS prin bypass, chiar și atunci când comutatorul este oprit. Un răspuns confirmă conectivitatea, nu că era prezent un bloc ISP.";
+
+"HTTPS_BYPASS_INVALID_URL" = "Introduceți o adresă URL HTTPS fără nume de utilizator sau parolă.";
+
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d primit · Fragmentare TLS aplicată";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d primit · Fragmentarea TLS nu a fost confirmată";
+
+"HTTPS_BYPASS_TEST_FAILED" = "Nu s-a putut conecta prin ocolire HTTPS.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Traducerea a eșuat. Se afișează textul OCR. Vă rugăm să vă verificați conexiunea.";
+
+"TRANSLATION_MANGA_TITLES" = "Traduceți Titluri Manga";
+
+"TRANSLATION_CHAPTER_TITLES" = "Traduceți titlurile capitolelor";
+
+"TRANSLATION_TITLES_HELP" = "Utilizează API-ul de traducere și limba țintă independent de traducerea automată a paginii. Dezactivați pentru a afișa titlurile și descrierile originale. Originalele rămân vizibile în timpul încărcării sau dacă traducerea eșuează.";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "Limbi pentru titluri manga";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "Titlul capitolului Limbi";
+
+"TRANSLATION_PAGE_SOURCE" = "Limba sursă a paginii";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "Detectați automat limba sursă a fiecărui titlu și traduceți numai limbile selectate. Toate limbile elimină restricția de limbă. Pagina și alte setări pentru limba sursă a titlului nu afectează această selecție.";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Traduceți Descrieri Manga";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "Limbaje de descriere manga";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "Detectați automat limba sursă și traduceți numai limbile selectate. Toate limbile elimină restricția. Filtrele de pagină, titlul manga, titlul capitolului și descrierea funcționează independent.";
+
+"TRANSLATION_SFX_FILTER" = "Filtrare SFX (numai în japoneză)";
+
+"TRANSLATION_SFX_FILTER_HELP" = "Lăsați efectele sonore japoneze probabil netraduse. Utilizați un dicționar local și verificări conservatoare ale aspectului. Textul care nu poate fi identificat cu încredere ca efect sonor este încă tradus.";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Includeți intrări necesare în funcție de context (numai în japoneză)";
+
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Se aplică în timp ce filtrarea SFX este activată. De asemenea, filtrează intrările marcate ca necesitând context utilizând potriviri din dicționar, dimensiunea textului și aspectul din apropiere. Niciun LLM nu analizează contextul, astfel încât dialogul poate fi, de asemenea, exclus.";
+
+"TRANSLATION_INCLUDE_IMAGE" = "Includeți imaginea paginii în traducere";
+
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Trimiteți pagina originală cu text OCR pentru contextul scenei și al expresiei. Instrucțiunile de imagine sunt atașate automat. Necesită un model care acceptă imagini și poate crește utilizarea datelor și costul API.";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "Păstrați culoarea originală a textului";
+
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Estimați culoarea textului original fără un model suplimentar. Utilizați culoarea implicită atunci când este incert sau când contrastul este prea scăzut.";
+
+"TRANSLATION_LLM_SFX" = "Filtrare LLM SFX (toate limbile)";
+
+"TRANSLATION_LLM_SFX_HELP" = "Clasificați efectele sonore în cererea de traducere. Poate fi combinat cu filtrul local japonez: o decizie privind efectul sonor din oricare dintre filtrul lasă originalul neschimbat. Compatibil cu trimiterea imaginii paginii.";
+
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Fără introducerea imaginii, contextul vizual și aspectul limitat poate reduce acuratețea clasificării SFX.";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Păstrează culoarea originală a panoului";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Potriviți panoul de traducere cu fundalul din jurul textului original. Folosiți panoul implicit atunci când sunteți incert sau imposibil de citit. Setarea de opacitate încă se aplică.";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "OpenAI personalizat";
+
+"TRANSLATION_OCR_MEDIUM" = "Mediu";
+
+"TRANSLATION_OCR_SMALL" = "Mic";
+
+"TRANSLATION_OCR_TINY" = "Micut";
+
+"TRANSLATION_REASONING_NONE" = "Niciuna";
+
+"TRANSLATION_REASONING_MINIMAL" = "Minimal";
+
+"TRANSLATION_REASONING_LOW" = "Scăzut";
+
+"TRANSLATION_REASONING_MEDIUM" = "Mediu";
+
+"TRANSLATION_REASONING_HIGH" = "Înalt";
+
+"TRANSLATION_REASONING_XHIGH" = "Foarte sus";
+
+"TRANSLATION_REASONING_MAX" = "Maximum";

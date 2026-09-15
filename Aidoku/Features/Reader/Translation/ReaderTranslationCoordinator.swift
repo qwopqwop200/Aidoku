@@ -33,10 +33,9 @@ final class ReaderTranslationCoordinator {
     private var observers: [NSObjectProtocol] = []
     private var isVisible = false
     private var synchronizationTask: Task<Void, Never>?
+    private var memoryRecoveryTask: Task<Void, Never>?
     private var navigationIdentity: String?
     private var isScrubbing = false
-    private var failureNotice: UIView?
-    private var failureNoticeTask: Task<Void, Never>?
     private let session: ReaderTranslationSession
     private let readSettings: () -> ReaderTranslationSettings
     private let setEnabled: (Bool) -> Void
@@ -74,10 +73,8 @@ final class ReaderTranslationCoordinator {
         }
         self.session.onFailure = { [weak self] error in
             guard let self else { return }
-            // A failed request stops this session, not the user's saved preference.
+            // Automatic recovery is silent; keep failure details available to accessibility.
             button.accessibilityHint = error.localizedDescription
-            showFailureNotice()
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
         }
         for name in [ReaderTranslationSettings.changed, ReaderTranslationPage.imageChanged, UIApplication.didBecomeActiveNotification] {
             observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
@@ -91,19 +88,26 @@ final class ReaderTranslationCoordinator {
             forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.session.suspendWorkForResourcePressure()
-                ReaderTranslationRenderCache.shared.clearMemory()
-                if #available(iOS 18.0, *) { await ReaderOCRService.shared.purge() }
-                // A warning may arrive after the last navigation callback. Resume
-                // through the settling delay instead of waiting for another swipe.
-                self?.visiblePagesDidChange()
+                guard let self else { return }
+                // Inspect every warning, including escalation during a recovery.
+                guard self.session.handleMemoryWarning() else { return }
+                guard self.memoryRecoveryTask == nil else { return }
+                self.memoryRecoveryTask = Task { [weak self] in
+                    guard let self else { return }
+                    ReaderTranslationRenderCache.shared.clearMemory()
+                    if #available(iOS 18.0, *) { await ReaderOCRService.shared.purge() }
+                    do { try await Task.sleep(nanoseconds: 3_000_000_000) } catch { return }
+                    guard !Task.isCancelled else { return }
+                    self.memoryRecoveryTask = nil
+                    self.visiblePagesDidChange()
+                }
             }
         })
     }
 
     deinit {
+        memoryRecoveryTask?.cancel()
         synchronizationTask?.cancel()
-        failureNoticeTask?.cancel()
         observers.forEach { NotificationCenter.default.removeObserver($0) }
     }
 
@@ -119,55 +123,11 @@ final class ReaderTranslationCoordinator {
         owner.navigationItem.rightBarButtonItems = items
     }
 
-    private func showFailureNotice() {
-        guard isVisible, let view = (owner as? UIViewController)?.viewIfLoaded,
-              view.window != nil else { return }
-        dismissFailureNotice()
-        let notice = UIView()
-        notice.backgroundColor = UIColor.black.withAlphaComponent(0.88)
-        notice.layer.cornerRadius = 10
-        notice.isUserInteractionEnabled = false
-        notice.translatesAutoresizingMaskIntoConstraints = false
-        let label = UILabel()
-        label.text = NSLocalizedString("TRANSLATION_CONNECTION_FAILED_NOTICE", comment: "")
-        label.font = .preferredFont(forTextStyle: .footnote)
-        label.adjustsFontForContentSizeCategory = true
-        label.textColor = .white
-        label.numberOfLines = 0
-        label.textAlignment = .center
-        label.translatesAutoresizingMaskIntoConstraints = false
-        notice.addSubview(label)
-        view.addSubview(notice)
-        NSLayoutConstraint.activate([
-            notice.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            notice.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -72),
-            notice.leadingAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
-            notice.trailingAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -20),
-            notice.widthAnchor.constraint(lessThanOrEqualToConstant: 360),
-            label.leadingAnchor.constraint(equalTo: notice.leadingAnchor, constant: 14),
-            label.trailingAnchor.constraint(equalTo: notice.trailingAnchor, constant: -14),
-            label.topAnchor.constraint(equalTo: notice.topAnchor, constant: 10),
-            label.bottomAnchor.constraint(equalTo: notice.bottomAnchor, constant: -10)
-        ])
-        failureNotice = notice
-        UIAccessibility.post(notification: .announcement, argument: label.text)
-        failureNoticeTask = Task { [weak self] in
-            do { try await Task.sleep(nanoseconds: 3_000_000_000) } catch { return }
-            self?.dismissFailureNotice()
-        }
-    }
-
-    private func dismissFailureNotice() {
-        failureNoticeTask?.cancel()
-        failureNoticeTask = nil
-        failureNotice?.removeFromSuperview()
-        failureNotice = nil
-    }
-
     @objc func toggle() {
-        dismissFailureNotice()
-        if session.state != .off {
-            session.disable()
+        if session.state != .off || readSettings().automaticallyTranslate {
+            synchronizationTask?.cancel()
+            synchronizationTask = nil
+            session.disable(preservingVisibleRendering: true)
             setEnabled(false)
         } else {
             button.accessibilityHint = nil
@@ -177,13 +137,15 @@ final class ReaderTranslationCoordinator {
     }
 
     func resume() { isVisible = true; visiblePagesDidChange() }
-    func suspend() { dismissFailureNotice(); isVisible = false; session.disable(reason: "reader_left") }
+    func suspend() { isVisible = false; session.disable(reason: "reader_left") }
     func cancel(reason: String = "cancelled") { session.suspendWorkForResourcePressure() }
     func close() {
-        dismissFailureNotice()
+        memoryRecoveryTask?.cancel()
+        memoryRecoveryTask = nil
         isVisible = false
         session.close()
-        if #available(iOS 18.0, *) { Task { await ReaderOCRService.shared.purge() } }
+        // The selected OCR models remain warm across readers. Memory pressure
+        // and OCR configuration changes are the resource-release boundaries.
     }
 
     func sliderInteractionBegan() {
@@ -200,18 +162,21 @@ final class ReaderTranslationCoordinator {
     }
 
     func visiblePagesDidChange() {
-        guard isVisible, !isScrubbing, let owner else { return }
+        guard isVisible, let owner else { return }
         let identity = owner.translationChapterKey + ":" + String(owner.translationCurrentPageIndex)
         let moved = navigationIdentity != identity
         if moved {
             navigationIdentity = identity
-            session.pauseForPageTurn()
+            let pages = owner.translationUpcomingPages
+            let index = owner.translationCurrentPageIndex
+            let destination = pages.indices.contains(index) ? pages[index] : nil
+            session.pauseForPageTurn(preservingRecognitionFor: destination)
             synchronizationTask?.cancel()
             synchronizationTask = nil
         }
         // Existing results can display immediately without starting OCR.
         session.refreshVisiblePages(owner.translationVisiblePages)
-        guard synchronizationTask == nil else { return }
+        guard !isScrubbing, synchronizationTask == nil else { return }
         synchronizationTask = Task { [weak self] in
             do { try await Task.sleep(nanoseconds: moved ? 350_000_000 : 80_000_000) }
             catch { return }
@@ -232,6 +197,6 @@ final class ReaderTranslationCoordinator {
                        currentPageIndex: owner.translationCurrentPageIndex, renderContext: renderContext)
         var settings = readSettings()
         settings.rightToLeftPanelOrder = owner.translationReadsRightToLeft
-        if settings.automaticallyTranslate { session.enable(settings: settings) } else { session.disable() }
+        if settings.automaticallyTranslate { session.enable(settings: settings) } else { session.disable(preservingVisibleRendering: true) }
     }
 }

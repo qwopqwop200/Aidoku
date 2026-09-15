@@ -6,6 +6,118 @@ import WebKit
 @Suite(.serialized)
 @MainActor
 struct ReaderTranslationRenderingTests {
+    @Test func backgroundReplacementPreservesDocumentAndReadablePixels() async throws {
+        let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
+        let host = try window(frame: frame)
+        host.rootViewController = UIViewController()
+        let overlay = ReaderTranslationOverlayView(frame: frame)
+        host.rootViewController?.view.addSubview(overlay)
+        host.makeKeyAndVisible()
+        defer { overlay.cancelWork(); host.isHidden = true }
+        let deadline = Date().addingTimeInterval(20)
+        while overlay.webView.isLoading || overlay.webView.url == nil {
+            if Date() > deadline { throw URLError(.timedOut) }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        _ = try await overlay.webView.evaluateJavaScript("document.documentElement.dataset.testIdentity = 'retained'")
+        for (color, channel) in [(UIColor.red, 0), (UIColor.blue, 2)] {
+            let source = UIGraphicsImageRenderer(size: CGSize(width: 32, height: 32)).image { context in
+                color.setFill()
+                context.fill(CGRect(x: 0, y: 0, width: 32, height: 32))
+            }
+            overlay.update(regions: [], imageSize: source.size, aspectFit: true,
+                           settings: fixtureSettings(), image: source)
+            var matched = false
+            while !matched {
+                if Date() > deadline { throw URLError(.timedOut) }
+                let pixels = try await overlay.webView.evaluateJavaScript("""
+                (() => {
+                  const image = document.getElementById('reader-source-image');
+                  if (!image?.complete || !image.naturalWidth) return [];
+                  const canvas = document.createElement('canvas');
+                  canvas.width = canvas.height = 1;
+                  const context = canvas.getContext('2d');
+                  context.drawImage(image, 0, 0, 1, 1);
+                  return Array.from(context.getImageData(0, 0, 1, 1).data);
+                })()
+                """) as? [Int] ?? []
+                matched = pixels.count == 4 && pixels[channel] > 240 && pixels[2 - channel] < 15
+                if !matched { try await Task.sleep(for: .milliseconds(20)) }
+            }
+            let marker = try await overlay.webView.evaluateJavaScript("document.documentElement.dataset.testIdentity") as? String
+            #expect(marker == "retained")
+            #expect(try await overlay.webView.evaluateJavaScript("document.querySelectorAll('#reader-source-image').length") as? Int == 1)
+        }
+    }
+
+    @Test func oversizedBackgroundAndCropStayBounded() throws {
+        for size in [CGSize(width: 4000, height: 20000), CGSize(width: 1, height: 100000),
+                     CGSize(width: 20000, height: 4000)] {
+            let output = ReaderTranslationBackgroundImage.pixelSize(for: size)
+            #expect(output.width * output.height <= ReaderTranslationBackgroundImage.maximumPixels)
+            #expect(max(output.width, output.height) <= ReaderTranslationBackgroundImage.maximumSide)
+        }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.preferredRange = .standard
+        let source = UIGraphicsImageRenderer(size: CGSize(width: 3200, height: 1600), format: format).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 1600, height: 1600))
+            UIColor.blue.setFill()
+            context.fill(CGRect(x: 1600, y: 0, width: 1600, height: 1600))
+        }
+        let background = try ReaderTranslationBackgroundImage.prepare(source)
+        let pixels = try #require(background.cgImage)
+        #expect(pixels.width * pixels.height <= 4_000_000)
+        #expect(abs(background.size.width / background.size.height - 2) < 0.002)
+        let cropped = try ReaderTranslationBackgroundImage.prepare(source, crop: CGRect(x: 0.5, y: 0, width: 0.5, height: 1))
+        #expect(cropped.size == CGSize(width: 1600, height: 1600))
+        let cropPixels = try #require(cropped.cgImage)
+        var rgba = [UInt8](repeating: 0, count: 4)
+        let drawn = rgba.withUnsafeMutableBytes { bytes -> Bool in
+            guard let context = CGContext(data: bytes.baseAddress, width: 1, height: 1, bitsPerComponent: 8,
+                bytesPerRow: 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(cropPixels, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+            return true
+        }
+        #expect(drawn && rgba[2] > 240 && rgba[0] < 15)
+    }
+
+    @Test func contentTerminationBudgetSurvivesProgressUpdates() {
+        let overlay = ReaderTranslationOverlayView(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
+        defer { overlay.cancelWork() }
+        let settings = fixtureSettings()
+        for _ in 0..<8 {
+            overlay.webViewWebContentProcessDidTerminate(overlay.webView)
+            overlay.update(regions: [], imageSize: CGSize(width: 390, height: 700), aspectFit: false, settings: settings)
+        }
+        #expect(overlay.contentTerminationCount == 3)
+        #expect(overlay.hasExhaustedRecovery)
+        #expect(overlay.webView.isHidden)
+        #expect(!overlay.canCacheRendering)
+    }
+
+    @Test func stalledDocumentRecoversWithoutNewTranslationData() async throws {
+        let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
+        let host = try window(frame: frame)
+        host.rootViewController = UIViewController()
+        let overlay = ReaderTranslationOverlayView(frame: frame)
+        host.rootViewController?.view.addSubview(overlay)
+        host.makeKeyAndVisible()
+        defer { overlay.cancelWork(); host.isHidden = true }
+        // Simulate a document load whose completion callback never arrives.
+        overlay.webView.navigationDelegate = nil
+        var settings = fixtureSettings()
+        settings.overlay = ReaderTranslationSettings.defaultOverlay
+        let region = ReaderTranslationRegion(id: "recovery", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2), source: "Hello")
+        overlay.update(regions: [region], imageSize: frame.size, aspectFit: false, settings: settings)
+        try await Task.sleep(for: .seconds(1))
+        #expect(overlay.lastDiagnostic == nil)
+        overlay.webView.navigationDelegate = overlay
+        try await waitForRender(overlay)
+        #expect(overlay.lastDiagnostic?.renderedItemCount == 1)
+    }
+
     @Test func sessionPaintsFirstBatchBeforePreloaderFinishesThePage() async throws {
         let source = image()
         let imageView = UIImageView(image: source)
@@ -36,7 +148,7 @@ struct ReaderTranslationRenderingTests {
         let page = ReaderTranslationPage(imageView: imageView)
         let sourcePage = Page(sourceId: "unit-test", chapterId: "progress", index: 0, image: source)
         page.sourcePage = sourcePage
-        var settings = ReaderTranslationSettings()
+        var settings = fixtureSettings()
         settings.modelTier = .medium
         settings.overlay = ReaderTranslationSettings.defaultOverlay
         session.update(items: [.init(sourcePage)], visible: [page], context: "progress")
@@ -90,7 +202,7 @@ struct ReaderTranslationRenderingTests {
         let page = ReaderTranslationPage(imageView: imageView, progressiveTranslate: { regions, settings, progress in
             try await service.translate(regions: regions, settings: settings, onProgress: progress)
         })
-        var settings = ReaderTranslationSettings()
+        var settings = fixtureSettings()
         settings.modelTier = .medium
         settings.targetLanguage = "ko"
         let count = try await page.process(translate: true, settings: settings)
@@ -136,7 +248,7 @@ struct ReaderTranslationRenderingTests {
         controller.view.addSubview(overlay)
         window.makeKeyAndVisible()
         defer { window.isHidden = true }
-        var settings = ReaderTranslationSettings()
+        var settings = fixtureSettings()
         settings.targetLanguage = "ko"
         settings.overlay = ReaderTranslationSettings.defaultOverlay
         let regions = (0..<10).map { index in
@@ -187,8 +299,11 @@ struct ReaderTranslationRenderingTests {
             try await progress?(translated)
             return translated
         })
-        let task = Task { try await page.process(translate: true, settings: ReaderTranslationSettings()) }
-        while !(await barrier.started) { await Task.yield() }
+        let task = Task { try await page.process(translate: true, settings: fixtureSettings()) }
+        let deadline = Date().addingTimeInterval(5)
+        while !(await barrier.started), Date() < deadline { await Task.yield() }
+        let started = await barrier.started
+        guard started else { task.cancel(); Issue.record("Fixture translation never reached the barrier"); return }
         #expect(page.regions.count == 1)
         page.reset()
         await barrier.release()
@@ -390,7 +505,7 @@ struct ReaderTranslationRenderingTests {
             window.rootViewController?.view.addSubview(overlay)
             window.makeKeyAndVisible()
             defer { window.isHidden = true; overlay.cancelWork() }
-            var settings = ReaderTranslationSettings()
+            var settings = fixtureSettings()
             settings.targetLanguage = fixture.targetLanguage
             settings.overlay = ReaderTranslationSettings.defaultOverlay
             let regions = fixture.regions.map { item in
@@ -489,6 +604,13 @@ struct ReaderTranslationRenderingTests {
             """)
             try await export(overlay, image: source, name: fixture.id + "-unclipped.png")
         }
+    }
+
+    private func fixtureSettings() -> ReaderTranslationSettings {
+        var settings = ReaderTranslationSettings()
+        settings.sourceLanguage = "auto"
+        settings.translationSourceLanguages = []
+        return settings
     }
 
     private func waitForRender(_ overlay: ReaderTranslationOverlayView, after revision: UInt64 = 0) async throws {

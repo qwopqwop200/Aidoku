@@ -108,15 +108,10 @@ final class ReaderTranslationLayoutPreparer {
                     _ = try await withTaskCancellationHandler { try await layout.value } onCancel: { layout.cancel() }
                     return
                 }
-                let cropTask = Task.detached(priority: .utility) { () -> UIImage in
-                    guard crop != unit else { return image }
-                    let format = UIGraphicsImageRendererFormat()
-                    format.scale = image.scale
-                    return UIGraphicsImageRenderer(size: size, format: format).image { _ in
-                        image.draw(at: CGPoint(x: -image.size.width * crop.minX, y: -image.size.height * crop.minY))
-                    }
+                let cropTask = Task.detached(priority: .utility) {
+                    try ReaderTranslationBackgroundImage.prepare(image, crop: crop)
                 }
-                let source = await withTaskCancellationHandler { await cropTask.value } onCancel: { cropTask.cancel() }
+                let source = try await withTaskCancellationHandler { try await cropTask.value } onCancel: { cropTask.cancel() }
                 try Task.checkCancellation()
                 let overlay = ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: viewport))
                 let snapshotStart = ProcessInfo.processInfo.systemUptime
@@ -130,6 +125,7 @@ final class ReaderTranslationLayoutPreparer {
                                                      viewport: viewport, dark: geometry.dark, preparedLayout: layout))
                 let deadline = ProcessInfo.processInfo.systemUptime + 30
                 while !overlay.didStoreSnapshot {
+                    guard overlay.contentTerminationCount == 0 else { throw URLError(.cannotDecodeContentData) }
                     try Task.checkCancellation()
                     if case .failed = overlay.lastDiagnostic?.outcome {
                         _ = try await layout.value

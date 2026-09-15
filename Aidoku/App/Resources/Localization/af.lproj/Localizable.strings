@@ -209,3 +209,223 @@
 "IMPORT_FAIL" = "Invoer Misluk";
 "BACKUP_IMPORT_SUCCESS" = "Rugsteun Ingevoer";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Om na hierdie rugsteun te herstel, vind dit in die rugsteunbladsy in instellings.";
+
+"TRANSLATION_TITLE" = "OCR en Vertaling";
+
+"TRANSLATION_TRANSLATE" = "Vertaal sigbare bladsye";
+
+"TRANSLATION_RECOGNIZE" = "Herken teks (vanlyn)";
+
+"TRANSLATION_ORIGINAL" = "Wys oorspronklike";
+
+"TRANSLATION_TEXT" = "Herkende en vertaalde teks";
+
+"TRANSLATION_NO_IMAGE" = "Wag vir 'n prentbladsy om te laai en probeer dan weer.";
+
+"TRANSLATION_NO_TEXT" = "Geen teks is herken nie. Probeer 'n ander OCR-model of 'n duideliker beeld.";
+
+"TRANSLATION_WORKING" = "Herken en vertaal...";
+
+"TRANSLATION_OCR_WORKING" = "Herken tans teks op toestel …";
+
+"TRANSLATION_HELP" = "Die vertaalikoon skakel vertaling aan of af. Bladsye word in hierdie volgorde voorberei: huidige, volgende, vorige, twee voor, twee agter, gaan voort na albei kante van die hoofstuk. Voltooide OCR, vertalings en teksuitleg word hergebruik nadat die leser toegemaak of die toepassing herbegin is. Om die leser te verlaat, kanselleer onvoltooide werk.";
+
+"TRANSLATION_PRIVACY" = "OCR loop op jou toestel. Vertaling stuur erkende teks en jou instruksies na die geselekteerde verskaffer. As Sluit bladsyprent in Vertaling in geaktiveer is, word die oorspronklike bladsyprent ook opgelaai. API-koste hang af van jou verskaffer. Sleutels bly in Sleutelhanger. OCR, vertalings en teksuitleg word gestoor in beskermde programberging wat van rugsteun uitgesluit is.";
+
+"TRANSLATION_KEY_REPLACE" = "Vervang gestoorde API-sleutel (opsioneel)";
+
+"TRANSLATION_KEY" = "API sleutel";
+
+"TRANSLATION_KEY_SAVED" = "API-sleutel gestoor in sleutelhanger";
+
+"TRANSLATION_KEY_DELETE" = "Vee API-sleutel uit";
+
+"TRANSLATION_MODEL" = "Model ID";
+
+"TRANSLATION_GET_KEY" = "Maak OpenAI API-sleutels oop";
+
+"TRANSLATION_LANGUAGE" = "Tale";
+
+"TRANSLATION_TARGET" = "Vertaal na";
+
+"TRANSLATION_SOURCE" = "Brontaal";
+
+"TRANSLATION_AUTO" = "Bespeur outomaties";
+
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 vereis iOS 18 of later. Medium is die verstek; Klein gebruik minder geheue. Tiny het 'n kleiner karakterwoordeboek. Hierdie modelle ondersteun nie Koreaanse OCR nie. Koreaanse vertalingsuitset word ondersteun.";
+
+"TRANSLATION_INSTRUCTIONS" = "Vertaling instruksies";
+
+"TRANSLATION_RESET_PROMPT" = "Herstel die verstekvertaalinstruksies";
+
+"TRANSLATION_CLEAR_CACHE" = "Vee vertaalkas uit";
+
+"TRANSLATION_CACHE_CLEARED" = "Vertaalkas is skoongemaak.";
+
+"TRANSLATION_NOTICES" = "OCR en vertaallisensies";
+
+"TRANSLATION_ADVANCED" = "Vertaalopsies";
+
+"TRANSLATION_REASONING" = "Redenerende poging";
+
+"TRANSLATION_MODEL_DEFAULT" = "Model Standaard";
+
+"TRANSLATION_CONCURRENCY" = "Gelyktydige versoeke";
+
+"TRANSLATION_DETECTOR_SIZE" = "Detektor maksimum kant";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "Herkenner maksimum breedte";
+
+"TRANSLATION_CONFIDENCE" = "OCR Vertroue";
+
+"TRANSLATION_SURFACE" = "Agtergrondkleur";
+
+"TRANSLATION_WHITE" = "Wit";
+
+"TRANSLATION_DARK" = "Donker";
+
+"TRANSLATION_OPACITY" = "Agtergrond ondeursigtigheid";
+
+"TRANSLATION_EXPANSION" = "Box Uitbreiding";
+
+"TRANSLATION_PANEL_BOUNDS" = "Binne Beeldpaneel";
+
+"TRANSLATION_SOURCE_BOUNDS" = "Binne oorspronklike boks";
+
+"TRANSLATION_UNRESTRICTED" = "Onbeperk";
+
+"TRANSLATION_FONT_SIZE" = "Lettergrootte";
+
+"TRANSLATION_AUTO_FIT" = "Pas outomaties aan";
+
+"TRANSLATION_FIXED" = "Vaste lettergrootte";
+
+"TRANSLATION_OVERLAY" = "Vertaling oorleg";
+
+"TRANSLATION_OVERLAY_HELP" = "Vervang teks oor sy bronkassie deur botsingsbewuste uitleg en skrifspesifieke omvou te gebruik. Vertoon veranderinge hergebruik bestaande OCR.";
+
+"TRANSLATION_PROVIDER" = "Vertaalverskaffer";
+
+"TRANSLATION_BASE_URL" = "Bediener URL";
+
+"TRANSLATION_API_FORMAT" = "API-formaat";
+
+"TRANSLATION_CUSTOM_HELP" = "Voer 'n HTTPS-basis-URL of volledige API-eindpunt in en 'n model wat deur jou bediener ondersteun word. Elke bediener-URL het sy eie gestoorde sleutel; die verandering van die URL vee enige sleutel uit wat jy invoer. Antwoorde en kletsvoltooiings gebruik gestruktureerde JSON-uitvoer.";
+
+"TRANSLATION_AUTOMATIC" = "Outomatiese vertaling";
+
+"TRANSLATION_AUTOMATIC_HELP" = "Gaan die gestoorde API-instellings een keer op die agtergrond na wanneer die toepassing oopmaak of API-instellings verander. Vertaling begin na sukses. 'n Mislukte kontrole onderbreek vertaling sonder om jou outomatiese vertalingvoorkeur te verander. Heropen die toepassing of toets die API-verbinding weer om weer te probeer. Bladsyveranderinge en AAN/UIT hergebruik die kontrole-resultaat. Redeneringpoging gebruik jou gestoorde instelling.";
+
+"TRANSLATION_TEST" = "Toets API-verbinding";
+
+"TRANSLATION_TEST_RUNNING" = "Toets tans verbinding …";
+
+"TRANSLATION_TEST_SUCCESS" = "Verbinding suksesvol";
+
+"TRANSLATION_TEST_FAILURE" = "Verbinding het misluk";
+
+"TRANSLATION_TEST_HELP" = "Vertaal 'n kort sin deur die waardes in hierdie vorm te gebruik. Laat die sleutel leeg om hierdie bediener se gestoorde sleutel te gebruik. Veranderinge word outomaties gestoor.";
+
+"SEARCH_SUGGESTIONS" = "Soekvoorstelle";
+
+"TRANSLATION_CACHE" = "Vanlyn kas";
+
+"TRANSLATION_CACHE_LIMIT" = "Maksimum berging";
+
+"TRANSLATION_CACHE_USED" = "Berging gebruik";
+
+"TRANSLATION_CACHE_HELP" = "Stoor OCR, bladsyvertalings, manga- en hoofstuktitelvertalings, mangabeskrywings en teksuitleg outomaties. Bladsyprente bly net in nabygeleë bladsygeheue. Die resultate wat die minste onlangs gebruik is, word verwyder wanneer die geselekteerde limiet bereik word. Verstek: 1 GB. Maksimum: 100 GB. Veranderinge geld outomaties; die verlaging van die limiet verwyder die minste onlangs gebruikte resultate totdat die kas pas.";
+
+"TRANSLATION_SOURCE_FILTER" = "Vertaling Bron Filter";
+
+"TRANSLATION_FILTER_ALL" = "Alle bespeurde tale";
+
+"TRANSLATION_FILTER_HELP" = "Kies die oorspronklike tale om te vertaal. Ongeselekteerde of onseker teks bly onveranderd. Kies Alle bespeurde tale om die filter te verwyder.";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Slegs teks wat as die geselekteerde oorspronklike taal geïdentifiseer is, word vertaal. Tale sonder opsporing op die toestel bly ongefiltreer.";
+
+"HTTPS_BYPASS" = "HTTPS-blokkeeromleiding";
+
+"HTTPS_BYPASS_HELP" = "Gebruik TLS-fragmentasie en geïnkripteer DNS (Cloudflare) vir bronversoeke, beelde, aflaaie en bronwebaansigte. Van toepassing op nuwe verbindings. IP-blokke en beperkings wat deur die webwerf opgelê word, word nie omseil nie.";
+
+"HTTPS_BYPASS_TEST" = "Toets verbinding";
+
+"HTTPS_BYPASS_TEST_HELP" = "Toets hierdie HTTPS-adres deur die omseil, selfs wanneer die skakelaar af is. 'n Antwoord bevestig konnektiwiteit, nie dat 'n ISP-blok teenwoordig was nie.";
+
+"HTTPS_BYPASS_INVALID_URL" = "Voer 'n HTTPS-URL in sonder 'n gebruikersnaam of wagwoord.";
+
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d ontvang · TLS-fragmentasie toegepas";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d ontvang · TLS-fragmentasie nie bevestig nie";
+
+"HTTPS_BYPASS_TEST_FAILED" = "Kon nie deur HTTPS-omleiding koppel nie.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Vertaling het misluk. Wys tans OCR-teks. Gaan asseblief jou verbinding na.";
+
+"TRANSLATION_MANGA_TITLES" = "Vertaal Manga-titels";
+
+"TRANSLATION_CHAPTER_TITLES" = "Vertaal hoofstuktitels";
+
+"TRANSLATION_TITLES_HELP" = "Gebruik jou vertaling-API en teikentaal onafhanklik van outomatiese bladsyvertaling. Skakel af om oorspronklike titels en beskrywings te wys. Oorspronklikes bly sigbaar tydens laai of as vertaling misluk.";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "Manga-titeltale";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "Hoofstuk Titel Tale";
+
+"TRANSLATION_PAGE_SOURCE" = "Bladsy Brontaal";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "Bespeur outomaties elke titel se brontaal en vertaal slegs die geselekteerde tale. Alle tale verwyder die taalbeperking. Bladsy- en ander titelbrontaalinstellings beïnvloed nie hierdie keuse nie.";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Vertaal mangabeskrywings";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "Manga Beskrywing Tale";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "Bespeur die brontaal outomaties en vertaal slegs die geselekteerde tale. Alle tale verwyder die beperking. Bladsy-, mangatitel-, hoofstuktitel- en beskrywingfilters werk onafhanklik.";
+
+"TRANSLATION_SFX_FILTER" = "SFX-filtrering (slegs Japannees)";
+
+"TRANSLATION_SFX_FILTER_HELP" = "Laat waarskynlik Japannese klankeffekte onvertaald. Gebruik 'n plaaslike woordeboek en konserwatiewe uitlegkontroles. Teks wat nie met vertroue as 'n klankeffek geïdentifiseer kan word nie, word steeds vertaal.";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Sluit konteks-vereiste inskrywings in (slegs Japannees)";
+
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Van toepassing terwyl SFX-filtrering geaktiveer is. Filtreer ook inskrywings wat gemerk is as wat konteks vereis deur woordeboekpassings, teksgrootte en nabygeleë uitleg te gebruik. Geen LLM ontleed die konteks nie, dus kan dialoog ook uitgesluit word.";
+
+"TRANSLATION_INCLUDE_IMAGE" = "Sluit bladsybeeld in Vertaling in";
+
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Stuur die oorspronklike bladsy met OCR teks vir toneel en uitdrukking konteks. Prentinstruksies word outomaties aangeheg. Vereis 'n model wat beelde ondersteun en kan datagebruik en API-koste verhoog.";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "Behou oorspronklike tekskleur";
+
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Skat die oorspronklike tekskleur sonder 'n bykomende model. Gebruik die verstekkleur wanneer onseker is of wanneer kontras te laag is.";
+
+"TRANSLATION_LLM_SFX" = "LLM SFX-filtrering (alle tale)";
+
+"TRANSLATION_LLM_SFX_HELP" = "Klassifiseer klankeffekte in die vertaling versoek. Kan gekombineer word met die Japannese plaaslike filter: 'n klank-effek besluit van enige filter laat die oorspronklike onveranderd. Versoenbaar met die stuur van die bladsyprent.";
+
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Sonder beeldinvoer kan beperkte visuele en uitlegkonteks die akkuraatheid van SFX-klassifikasie verminder.";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Behou oorspronklike paneelkleur";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Pas die vertaalpaneel by die agtergrond rondom die oorspronklike teks. Gebruik die verstekpaneel wanneer onseker of onleesbaar is. Jou deursigtigheidinstelling geld steeds.";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "Pasgemaakte OpenAI";
+
+"TRANSLATION_OCR_MEDIUM" = "Medium";
+
+"TRANSLATION_OCR_SMALL" = "Klein";
+
+"TRANSLATION_OCR_TINY" = "Klein";
+
+"TRANSLATION_REASONING_NONE" = "Geen";
+
+"TRANSLATION_REASONING_MINIMAL" = "Minimaal";
+
+"TRANSLATION_REASONING_LOW" = "Laag";
+
+"TRANSLATION_REASONING_MEDIUM" = "Medium";
+
+"TRANSLATION_REASONING_HIGH" = "Hoog";
+
+"TRANSLATION_REASONING_XHIGH" = "Baie hoog";
+
+"TRANSLATION_REASONING_MAX" = "Maksimum";

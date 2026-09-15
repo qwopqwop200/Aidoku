@@ -16,6 +16,41 @@ struct ReaderTranslationSnapshotTarget {
     var preparedLayout: Task<Data, Error>?
 }
 
+/// Bound only the WebKit background copy; OCR keeps its original coordinates and pixels.
+enum ReaderTranslationBackgroundImage {
+    static let maximumPixels: CGFloat = 4_000_000
+    static let maximumSide: CGFloat = 8_192
+
+    static func pixelSize(for size: CGSize) -> CGSize {
+        guard size.width.isFinite, size.height.isFinite, size.width > 0, size.height > 0 else { return .zero }
+        let scale = min(1, maximumSide / max(size.width, size.height),
+                        sqrt(maximumPixels / size.width / size.height))
+        return CGSize(width: max(1, floor(size.width * scale)), height: max(1, floor(size.height * scale)))
+    }
+
+    static func prepare(_ image: UIImage, crop: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1)) throws -> UIImage {
+        try Task.checkCancellation()
+        let source = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
+        let size = pixelSize(for: CGSize(width: source.width * crop.width, height: source.height * crop.height))
+        guard size.width > 0, size.height > 0, crop.width > 0, crop.height > 0 else {
+            throw URLError(.cannotDecodeContentData)
+        }
+        if crop == CGRect(x: 0, y: 0, width: 1, height: 1), size == source, image.imageOrientation == .up { return image }
+        return try autoreleasepool {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            format.preferredRange = .standard
+            let result = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+                image.draw(in: CGRect(x: -crop.minX * size.width / crop.width,
+                                      y: -crop.minY * size.height / crop.height,
+                                      width: size.width / crop.width, height: size.height / crop.height))
+            }
+            try Task.checkCancellation()
+            return result
+        }
+    }
+}
+
 /// Hosts the translation layout planner and DOM renderer over the reader image.
 /// The image and this view share the reader's scroll/zoom transform. Page pixels stay in this local document.
 @MainActor
@@ -24,6 +59,13 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     let webView: WKWebView
     private let renderer = BrowserPageImageOverlayRenderer()
     private var ready = false
+    private var documentReady = false
+    private var backgroundTask: Task<Void, Never>?
+    private var backgroundRevision = 0
+    private var recoveryTask: Task<Void, Never>?
+    private var recoveryAttempts = 0
+    private(set) var contentTerminationCount = 0
+    var hasExhaustedRecovery: Bool { contentTerminationCount > 2 }
     private weak var preparedImage: UIImage?
     private var imageTask: Task<Void, Never>?
     private var imageGeneration = UUID()
@@ -61,22 +103,29 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         renderer.onDiagnostic = { [weak self] diagnostic in
             guard let self else { return }
             lastDiagnostic = diagnostic
-            if diagnostic.outcome == .committed { captureCompletedRender(revision: diagnostic.revision) }
+            if diagnostic.outcome == .committed {
+                recoveryTask?.cancel(); recoveryTask = nil
+                ReaderTranslationDiagnostics.record("visible_render_committed", count: diagnostic.renderedItemCount)
+                captureCompletedRender(revision: diagnostic.revision)
+            }
         }
         loadDocument()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    deinit { imageTask?.cancel(); snapshotTask?.cancel() }
+    deinit { imageTask?.cancel(); backgroundTask?.cancel(); snapshotTask?.cancel(); recoveryTask?.cancel() }
 
     func cancelWork() {
+        recoveryTask?.cancel(); recoveryTask = nil
         snapshotGeneration = UUID()
         snapshotTask?.cancel()
         snapshotTask = nil
         imageGeneration = UUID()
         imageTask?.cancel()
         imageTask = nil
+        backgroundRevision += 1
+        backgroundTask?.cancel(); backgroundTask = nil
         renderer.cancelPendingRender()
         webView.stopLoading()
     }
@@ -85,7 +134,11 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         regions: [ReaderTranslationRegion], imageSize: CGSize, aspectFit: Bool,
         settings: ReaderTranslationSettings, image: UIImage? = nil, snapshotTarget: ReaderTranslationSnapshotTarget? = nil
     ) {
-        self.snapshotTarget = snapshotTarget
+        self.snapshotTarget = contentTerminationCount == 0 ? snapshotTarget : nil
+        recoveryTask?.cancel(); recoveryTask = nil
+        recoveryAttempts = 0
+        lastDiagnostic = nil
+        scheduleRenderRecovery()
         didStoreSnapshot = false
         snapshotGeneration = UUID()
         snapshotTask?.cancel()
@@ -94,8 +147,25 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         self.settings = settings
         items = ReaderTranslationRegion.overlayItems(regions, imageSize: imageSize)
         dirty = true
-        if let image, preparedImage !== image { prepareBackground(image) }
+        if contentTerminationCount == 0, let image, preparedImage !== image { prepareBackground(image) }
         setNeedsLayout()
+    }
+
+    // Translation data can be complete while WebKit has never committed its
+    // pixels. Recover only that presentation, with a bounded retry budget.
+    private func scheduleRenderRecovery() {
+        guard !hasExhaustedRecovery, recoveryTask == nil, recoveryAttempts < 2 else { return }
+        recoveryTask = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: 8_000_000_000) } catch { return }
+            guard let self, !Task.isCancelled else { return }
+            recoveryTask = nil
+            guard !items.isEmpty, lastDiagnostic?.outcome != .committed else { return }
+            recoveryAttempts += 1
+            ReaderTranslationDiagnostics.record("visible_render_retry", count: recoveryAttempts)
+            // Encoding already in progress must finish before its document loads.
+            if imageTask == nil { loadDocument() }
+            scheduleRenderRecovery()
+        }
     }
 
     private func prepareBackground(_ image: UIImage) {
@@ -104,19 +174,20 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         imageGeneration = UUID()
         let issued = imageGeneration
         ready = false
+        backgroundRevision += 1
+        backgroundTask?.cancel(); backgroundTask = nil
+        renderer.cancelPendingRender()
         webView.isHidden = true
         let gate = Self.encodingGate
         imageTask = Task { [weak self] in
             let encoding = Task.detached(priority: .utility) { () throws -> String? in
                 try await gate.withPermit {
                 try Task.checkCancellation()
+                ReaderTranslationDiagnostics.record("background_encode_begin")
+                defer { ReaderTranslationDiagnostics.record("background_encode_end") }
                 return try autoreleasepool {
-                    let data: Data?
-                    if image.imageOrientation == .up { data = image.pngData() } else {
-                        let format = UIGraphicsImageRendererFormat()
-                        format.scale = image.scale
-                        data = UIGraphicsImageRenderer(size: image.size, format: format).image { _ in image.draw(at: .zero) }.pngData()
-                    }
+                    let background = try ReaderTranslationBackgroundImage.prepare(image)
+                    let data = background.pngData()
                     try Task.checkCancellation()
                     return data.map { "data:image/png;base64," + $0.base64EncodedString() }
                 }
@@ -125,10 +196,10 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
             let dataURL = await withTaskCancellationHandler {
                 try? await encoding.value
             } onCancel: { encoding.cancel() }
-            guard !Task.isCancelled, let self, imageGeneration == issued else { return }
+            guard !Task.isCancelled, let self, imageGeneration == issued, contentTerminationCount == 0 else { return }
             imageDataURL = dataURL
-            loadDocument()
             imageTask = nil
+            installBackground()
         }
     }
 
@@ -203,29 +274,91 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        guard imageTask == nil else { return }
-        ready = true
-        webView.isHidden = false
-        dirty = true
-        setNeedsLayout()
+        documentReady = true
+        installBackground()
     }
 
-    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { loadDocument() }
+    /// Keep the document and isolated-world state alive across image changes.
+    /// Await decoding before cleanup samples pixels or a complete-page snapshot runs.
+    private func installBackground() {
+        guard documentReady, !hasExhaustedRecovery, imageTask == nil else { return }
+        backgroundTask?.cancel()
+        backgroundRevision += 1
+        let revision = backgroundRevision
+        backgroundTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let installed = try await webView.callAsyncJavaScript(
+                    Self.backgroundScript,
+                    arguments: ["source": imageDataURL ?? "", "fit": aspectFit ? "contain" : "fill",
+                                "revision": revision],
+                    in: nil, contentWorld: ReaderTranslationDOM.contentWorld
+                ) as? Bool
+                guard !Task.isCancelled, backgroundRevision == revision, installed == true else { return }
+                backgroundTask = nil
+                ready = true
+                webView.isHidden = false
+                dirty = true
+                setNeedsLayout()
+            } catch { /* The bounded render watchdog reloads a stalled document. */ }
+        }
+    }
+
+    static let backgroundScript = """
+    const key = '__aidokuReaderBackgroundRevision';
+    globalThis[key] = revision;
+    const previous = document.getElementById('reader-source-image');
+    if (!source) {
+      previous?.remove();
+      return true;
+    }
+    const image = new Image();
+    image.id = 'reader-source-image';
+    image.alt = '';
+    image.setAttribute('aria-hidden', 'true');
+    Object.assign(image.style, {
+      position: 'absolute', inset: '0', width: '100%', height: '100%',
+      objectFit: fit, pointerEvents: 'none'
+    });
+    image.src = source;
+    await image.decode();
+    if (globalThis[key] !== revision) return false;
+    if (previous) previous.replaceWith(image);
+    else document.body.prepend(image);
+    return true;
+    """
+
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        ReaderTranslationDiagnostics.record("web_content_terminated")
+        guard !hasExhaustedRecovery else { return }
+        contentTerminationCount += 1
+        cancelWork()
+        ready = false
+        webView.isHidden = true
+        imageDataURL = nil
+        // Keep the original UIImageView beneath a text-only recovery document.
+        // Such a document cannot be cached as a complete page snapshot.
+        snapshotTarget = nil
+        lastDiagnostic = nil
+        guard !hasExhaustedRecovery else { return }
+        loadDocument()
+        scheduleRenderRecovery()
+    }
 
     private func loadDocument() {
+        guard !hasExhaustedRecovery else { return }
+        renderer.cancelPendingRender()
+        lastDiagnostic = nil
         ready = false
-        let background = imageDataURL.map {
-            """
-            <img id="reader-source-image" alt="" aria-hidden="true" src="\($0)"
-              style="position:absolute;inset:0;width:100%;height:100%;object-fit:\(aspectFit ? "contain" : "fill");pointer-events:none;">
-            """
-        } ?? ""
+        documentReady = false
+        backgroundRevision += 1
+        backgroundTask?.cancel(); backgroundTask = nil
         webView.loadHTMLString("""
         <!doctype html><html><head>
         <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'">
         <style>html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden;}</style>
-        </head><body>\(background)</body></html>
+        </head><body></body></html>
         """, baseURL: nil)
     }
 }

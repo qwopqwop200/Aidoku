@@ -315,3 +315,223 @@
 "BUILD" = "Build";
 "SCANLATOR" = "Scanlator";
 "NO_SCANLATOR" = "Pa scanlator";
+
+"TRANSLATION_TITLE" = "OCR & Përkthim";
+
+"TRANSLATION_TRANSLATE" = "Përktheni faqet e dukshme";
+
+"TRANSLATION_RECOGNIZE" = "Njohja e tekstit (jashtë linje)";
+
+"TRANSLATION_ORIGINAL" = "Shfaq origjinalin";
+
+"TRANSLATION_TEXT" = "Tekst i njohur dhe i përkthyer";
+
+"TRANSLATION_NO_IMAGE" = "Prisni që një faqe imazhi të ngarkohet, më pas provoni përsëri.";
+
+"TRANSLATION_NO_TEXT" = "Asnjë tekst nuk u njoh. Provoni një model tjetër OCR ose një imazh më të qartë.";
+
+"TRANSLATION_WORKING" = "Duke njohur dhe përkthyer…";
+
+"TRANSLATION_OCR_WORKING" = "Teksti në pajisje po njihet…";
+
+"TRANSLATION_HELP" = "Ikona e përkthimit aktivizon ose çaktivizon përkthimin. Faqet përgatiten në këtë mënyrë: aktuale, vijuese, e mëparshme, dy përpara, dy prapa, duke vazhduar në të dy skajet e kapitullit. OCR e përfunduar, përkthimet dhe faqosja e tekstit ripërdoren pas mbylljes së lexuesit ose rinisjes së aplikacionit. Lënia e lexuesit anulon punën e papërfunduar.";
+
+"TRANSLATION_PRIVACY" = "OCR funksionon në pajisjen tuaj. Përkthimi dërgon tekstin e njohur dhe udhëzimet tuaja te ofruesi i zgjedhur. Nëse aktivizohet Include Page Image in Translation, ngarkohet edhe imazhi origjinal i faqes. Tarifat e API varen nga ofruesi juaj. Çelësat qëndrojnë në Keychain. OCR, përkthimet dhe faqosja e tekstit ruhen në hapësirën e mbrojtur të aplikacionit të përjashtuar nga kopjet rezervë.";
+
+"TRANSLATION_KEY_REPLACE" = "Zëvendëso çelësin e ruajtur API (opsionale)";
+
+"TRANSLATION_KEY" = "Tasti API";
+
+"TRANSLATION_KEY_SAVED" = "Çelësi API i ruajtur në Keychain";
+
+"TRANSLATION_KEY_DELETE" = "Fshi çelësin API";
+
+"TRANSLATION_MODEL" = "ID e modelit";
+
+"TRANSLATION_GET_KEY" = "Hapni çelësat OpenAI API";
+
+"TRANSLATION_LANGUAGE" = "Gjuhët";
+
+"TRANSLATION_TARGET" = "Përkthe në";
+
+"TRANSLATION_SOURCE" = "Gjuha e burimit";
+
+"TRANSLATION_AUTO" = "Zbulo automatikisht";
+
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 kërkon iOS 18 ose më vonë. Medium është i paracaktuar; Small përdor më pak memorie. Tiny ka një fjalor më të vogël të karaktereve. Këto modele nuk mbështesin OCR Koreane. Prodhimi i përkthimit koreanisht mbështetet.";
+
+"TRANSLATION_INSTRUCTIONS" = "Udhëzime përkthimi";
+
+"TRANSLATION_RESET_PROMPT" = "Rikthe udhëzimet e përkthimit të parazgjedhur";
+
+"TRANSLATION_CLEAR_CACHE" = "Pastro memorien e përkthimit";
+
+"TRANSLATION_CACHE_CLEARED" = "Memoria e memories së përkthimit u pastrua.";
+
+"TRANSLATION_NOTICES" = "OCR & Licencat e Përkthimit";
+
+"TRANSLATION_ADVANCED" = "Opsionet e përkthimit";
+
+"TRANSLATION_REASONING" = "Përpjekje për arsyetim";
+
+"TRANSLATION_MODEL_DEFAULT" = "Modeli i parazgjedhur";
+
+"TRANSLATION_CONCURRENCY" = "Kërkesat e njëkohshme";
+
+"TRANSLATION_DETECTOR_SIZE" = "Ana maksimale e detektorit";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "Gjerësia maksimale e njohësit";
+
+"TRANSLATION_CONFIDENCE" = "Besimi OCR";
+
+"TRANSLATION_SURFACE" = "Ngjyra e sfondit";
+
+"TRANSLATION_WHITE" = "E bardha";
+
+"TRANSLATION_DARK" = "E errët";
+
+"TRANSLATION_OPACITY" = "Opaciteti i sfondit";
+
+"TRANSLATION_EXPANSION" = "Zgjerimi i kutisë";
+
+"TRANSLATION_PANEL_BOUNDS" = "Brenda panelit të imazhit";
+
+"TRANSLATION_SOURCE_BOUNDS" = "Brenda kutisë origjinale";
+
+"TRANSLATION_UNRESTRICTED" = "I pakufizuar";
+
+"TRANSLATION_FONT_SIZE" = "Madhësia e shkronjave";
+
+"TRANSLATION_AUTO_FIT" = "Përshtatet automatikisht";
+
+"TRANSLATION_FIXED" = "Madhësia fikse e shkronjave";
+
+"TRANSLATION_OVERLAY" = "Mbivendosja e përkthimit";
+
+"TRANSLATION_OVERLAY_HELP" = "Zëvendëson tekstin mbi kutinë e tij burimore duke përdorur paraqitjen e vetëdijshme për përplasje dhe mbështjelljen specifike të skriptit. Ndryshimet e ekranit ripërdor OCR ekzistuese.";
+
+"TRANSLATION_PROVIDER" = "Ofruesi i Përkthimit";
+
+"TRANSLATION_BASE_URL" = "URL e serverit";
+
+"TRANSLATION_API_FORMAT" = "Formati API";
+
+"TRANSLATION_CUSTOM_HELP" = "Fut një URL bazë HTTPS ose pikën fundore të plotë të API-së dhe një model të mbështetur nga serveri yt. Çdo URL e serverit ka çelësin e vet të ruajtur; ndryshimi i URL-së fshin çdo çelës që po futni. Përgjigjet dhe plotësimet e bisedës përdorin dalje të strukturuar JSON.";
+
+"TRANSLATION_AUTOMATIC" = "Përkthim automatik";
+
+"TRANSLATION_AUTOMATIC_HELP" = "Kontrolloni cilësimet e ruajtura të API-së një herë në sfond kur hapet aplikacioni ose kur ndryshojnë cilësimet e API. Përkthimi fillon pas suksesit. Një kontroll i dështuar e ndalon përkthimin pa ndryshuar preferencën tuaj të përkthimit automatik. Rihap aplikacionin ose provo sërish lidhjen API për të riprovuar. Ndryshimet e faqes dhe ON/OFF ripërdorni rezultatin e kontrollit. Përpjekja e arsyetimit përdor cilësimin tuaj të ruajtur.";
+
+"TRANSLATION_TEST" = "Testoni lidhjen API";
+
+"TRANSLATION_TEST_RUNNING" = "Po teston lidhjen…";
+
+"TRANSLATION_TEST_SUCCESS" = "Lidhja e suksesshme";
+
+"TRANSLATION_TEST_FAILURE" = "Lidhja dështoi";
+
+"TRANSLATION_TEST_HELP" = "Përkthen një fjali të shkurtër duke përdorur vlerat në këtë formë. Lëreni çelësin bosh për të përdorur çelësin e ruajtur të këtij serveri. Ndryshimet ruhen automatikisht.";
+
+"SEARCH_SUGGESTIONS" = "Sugjerimet e kërkimit";
+
+"TRANSLATION_CACHE" = "Cache jashtë linje";
+
+"TRANSLATION_CACHE_LIMIT" = "Magazinimi maksimal";
+
+"TRANSLATION_CACHE_USED" = "Magazinimi i përdorur";
+
+"TRANSLATION_CACHE_HELP" = "Ruani automatikisht OCR, përkthimet e faqeve, përkthimet e mangave dhe të titujve të kapitujve, përshkrimet e mangave dhe paraqitjen e tekstit. Imazhet e faqeve qëndrojnë vetëm në memorien e faqeve aty pranë. Rezultatet më pak të përdorura së fundi hiqen kur arrihet kufiri i zgjedhur. Parazgjedhja: 1 GB. Maksimumi: 100 GB. Ndryshimet zbatohen automatikisht; ulja e kufirit heq rezultatet më pak të përdorura së fundi derisa të përshtatet cache.";
+
+"TRANSLATION_SOURCE_FILTER" = "Filtri i burimit të përkthimit";
+
+"TRANSLATION_FILTER_ALL" = "Të gjitha gjuhët e zbuluara";
+
+"TRANSLATION_FILTER_HELP" = "Zgjidhni gjuhët origjinale për të përkthyer. Teksti i pazgjedhur ose i pasigurt mbetet i pandryshuar. Zgjidhni të gjitha gjuhët e zbuluara për të hequr filtrin.";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Përkthehet vetëm teksti i identifikuar si gjuha origjinale e zgjedhur. Gjuhët pa zbulimin në pajisje mbeten të pafiltruara.";
+
+"HTTPS_BYPASS" = "Anashkalimi i bllokimit të HTTPS";
+
+"HTTPS_BYPASS_HELP" = "Përdorni fragmentimin TLS dhe DNS të koduar (Cloudflare) për kërkesat burimore, imazhet, shkarkimet dhe pamjet e burimit në ueb. Zbatohet për lidhjet e reja. Blloqet IP dhe kufizimet e vendosura nga faqja e internetit nuk anashkalohen.";
+
+"HTTPS_BYPASS_TEST" = "Test lidhjen";
+
+"HTTPS_BYPASS_TEST_HELP" = "Teston këtë adresë HTTPS përmes bypass-it, edhe kur çelësi është i fikur. Një përgjigje konfirmon lidhjen, jo se një bllok ISP ishte i pranishëm.";
+
+"HTTPS_BYPASS_INVALID_URL" = "Fut një URL HTTPS pa një emër përdoruesi ose fjalëkalim.";
+
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d u mor · U aplikua fragmentimi TLS";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d u mor · Fragmentimi TLS nuk u konfirmua";
+
+"HTTPS_BYPASS_TEST_FAILED" = "Nuk mund të lidhej përmes anashkalimit HTTPS.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Përkthimi dështoi. Po shfaq tekstin OCR. Ju lutemi kontrolloni lidhjen tuaj.";
+
+"TRANSLATION_MANGA_TITLES" = "Përkthe tituj Manga";
+
+"TRANSLATION_CHAPTER_TITLES" = "Përkthe titujt e kapitujve";
+
+"TRANSLATION_TITLES_HELP" = "Përdor API-në tuaj të përkthimit dhe gjuhën e synuar pavarësisht nga përkthimi automatik i faqeve. Çaktivizoje për të shfaqur titujt dhe përshkrimet origjinale. Origjinalet mbeten të dukshme gjatë ngarkimit ose nëse përkthimi dështon.";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "Gjuhët e Titullit Manga";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "Gjuhët e titullit të kapitullit";
+
+"TRANSLATION_PAGE_SOURCE" = "Gjuha e burimit të faqes";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "Zbuloni automatikisht gjuhën burimore të secilit titull dhe përktheni vetëm gjuhët e zgjedhura. Të gjitha gjuhët heq kufizimin gjuhësor. Faqja dhe cilësimet e tjera të gjuhës burimore të titullit nuk ndikojnë në këtë përzgjedhje.";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Përkthe përshkrimet e Mangës";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "Gjuhët e përshkrimit manga";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "Zbuloni automatikisht gjuhën burimore dhe përktheni vetëm gjuhët e zgjedhura. Të gjitha gjuhët heq kufizimin. Faqe, titulli manga, titulli i kapitullit dhe filtrat e përshkrimit funksionojnë në mënyrë të pavarur.";
+
+"TRANSLATION_SFX_FILTER" = "Filtrimi SFX (vetëm japonezisht)";
+
+"TRANSLATION_SFX_FILTER_HELP" = "Lërini efektet e mundshme zanore japoneze të papërkthyera. Përdorni një fjalor lokal dhe kontrolle konservatore të paraqitjes. Teksti që nuk mund të identifikohet me siguri si një efekt zanor është ende i përkthyer.";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Përfshi hyrjet e kërkuara nga konteksti (vetëm japoneze)";
+
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Zbatohet ndërsa filtrimi SFX është i aktivizuar. Gjithashtu filtron hyrjet e shënuara si që kërkojnë kontekst duke përdorur përputhjet e fjalorit, madhësinë e tekstit dhe paraqitjen aty pranë. Asnjë LLM nuk analizon kontekstin, kështu që dialogu gjithashtu mund të përjashtohet.";
+
+"TRANSLATION_INCLUDE_IMAGE" = "Përfshi imazhin e faqes në përkthim";
+
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Dërgoni faqen origjinale me tekst OCR për kontekstin e skenës dhe shprehjes. Udhëzimet e imazhit shtohen automatikisht. Kërkon një model që mbështet imazhet dhe mund të rrisë përdorimin e të dhënave dhe koston e API-së.";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "Ruani ngjyrën origjinale të tekstit";
+
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Vlerësoni ngjyrën origjinale të tekstit pa një model shtesë. Përdorni ngjyrën e paracaktuar kur është e pasigurt ose kur kontrasti është shumë i ulët.";
+
+"TRANSLATION_LLM_SFX" = "Filtrimi LLM SFX (Të gjitha gjuhët)";
+
+"TRANSLATION_LLM_SFX_HELP" = "Klasifikoni efektet zanore në kërkesën për përkthim. Mund të kombinohet me filtrin lokal japonez: një vendim me efekt zëri nga cilido filtër e lë origjinalin të pandryshuar. E përputhshme me dërgimin e imazhit të faqes.";
+
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Pa futjen e imazhit, konteksti i kufizuar vizual dhe i paraqitjes mund të zvogëlojë saktësinë e klasifikimit SFX.";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Ruani ngjyrën origjinale të panelit";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Përputhni panelin e përkthimit me sfondin rreth tekstit origjinal. Përdorni panelin e paracaktuar kur është i pasigurt ose i palexueshëm. Cilësimi yt i errësirës vazhdon të zbatohet.";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "OpenAI me porosi";
+
+"TRANSLATION_OCR_MEDIUM" = "E mesme";
+
+"TRANSLATION_OCR_SMALL" = "I vogël";
+
+"TRANSLATION_OCR_TINY" = "I vogel";
+
+"TRANSLATION_REASONING_NONE" = "Asnjë";
+
+"TRANSLATION_REASONING_MINIMAL" = "Minimale";
+
+"TRANSLATION_REASONING_LOW" = "E ulët";
+
+"TRANSLATION_REASONING_MEDIUM" = "E mesme";
+
+"TRANSLATION_REASONING_HIGH" = "Lartë";
+
+"TRANSLATION_REASONING_XHIGH" = "Shumë e lartë";
+
+"TRANSLATION_REASONING_MAX" = "Maksimumi";

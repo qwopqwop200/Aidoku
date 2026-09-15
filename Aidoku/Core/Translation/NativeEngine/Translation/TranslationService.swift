@@ -101,6 +101,43 @@ enum TranslationPerformanceDiagnostics {
 enum TranslationRequestPriority: Sendable {
     case foreground
     case prefetch
+    case promotable(TranslationRequestPromotion)
+
+    var isForeground: Bool {
+        switch self {
+        case .foreground: true
+        case .prefetch: false
+        case .promotable(let promotion): promotion.isForeground
+        }
+    }
+}
+
+/// Shared by one page's OCR admission, batch scheduler, and queued provider
+/// requests. Promotion never cancels or duplicates an in-flight request.
+final class TranslationRequestPromotion: @unchecked Sendable {
+    private let lock = NSLock()
+    private var foreground = false
+    let changes: AsyncStream<Void>
+    private let continuation: AsyncStream<Void>.Continuation
+
+    init() {
+        let stream = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        changes = stream.stream
+        continuation = stream.continuation
+    }
+
+    var isForeground: Bool { lock.withLock { foreground } }
+
+    func promote() {
+        let changed = lock.withLock {
+            guard !foreground else { return false }
+            foreground = true
+            return true
+        }
+        if changed { continuation.yield(()); continuation.finish() }
+    }
+
+    deinit { continuation.finish() }
 }
 
 /// Visible work precedes queued prefetches; each priority remains FIFO.
@@ -173,7 +210,7 @@ actor TranslationProviderRequestLimiter {
     private func admitWaiters() {
         // Lowering a live limit lets existing requests drain before admitting more.
         while activeRequests < maximumConcurrentRequests, !waiters.isEmpty {
-            let index = waiters.firstIndex { $0.priority == .foreground } ?? 0
+            let index = waiters.firstIndex { $0.priority.isForeground } ?? 0
             activeRequests += 1
             waiters.remove(at: index).continuation.resume()
         }
@@ -558,7 +595,44 @@ actor TranslationService {
                     )
                 return result
             } catch {
+                if case let RemoteTranslationError.invalidResponse(reason) = error {
+                    // Only locally defined parser reasons; never record response bodies or text.
+                    let knownReasons = [
+                        "response body is not valid JSON", "response root must be a JSON object",
+                        "the Responses API returned an error object", "the Responses API response is incomplete",
+                        "the Responses API did not complete successfully", "missing Responses API output array",
+                        "a Responses API output item did not complete", "expected exactly one Responses API output_text item",
+                        "missing chat completions choices array", "expected exactly one chat completion choice at index zero",
+                        "the chat completion was truncated", "the chat completion did not finish with text",
+                        "expected exactly one text content part", "missing chat completion message content",
+                        "structured translation is not valid JSON", "structured translation does not match the required schema",
+                        "structured translation contains an invalid segment", "structured translation is missing one or more segment IDs"
+                    ]
+                    ReaderTranslationDiagnostics.record("api_invalid_response", count: attempt,
+                                                        code: knownReasons.firstIndex(of: reason).map { $0 + 1 } ?? 0)
+                }
                 let isRepairable = Self.isStructuredOutputRetryable(error)
+                if isRepairable, attempt == 1, request.segments.count > 1 {
+                    // Split on the first malformed multi-segment answer to avoid
+                    // another full-batch round trip. Reduce the problem while keeping
+                    // the original IDs, context, validation and cancellation.
+                    try Task.checkCancellation()
+                    ReaderTranslationDiagnostics.record("api_batch_split", count: request.segments.count)
+                    let middle = request.segments.count / 2
+                    var recovered: [RemoteTranslatedSegment] = []
+                    for segments in [Array(request.segments[..<middle]), Array(request.segments[middle...])] {
+                        try Task.checkCancellation()
+                        var part = RemoteTranslationRequest(sourceLanguage: request.sourceLanguage,
+                            targetLanguage: request.targetLanguage, segments: segments,
+                            context: request.context, glossary: request.glossary)
+                        part.imageJPEG = request.imageJPEG
+                        part.filtersSFX = request.filtersSFX
+                        let result = try await requestProvider(client: client, request: part, configuration: configuration,
+                            providerRequestLimiter: providerRequestLimiter, priority: priority)
+                        recovered.append(contentsOf: result.translations)
+                    }
+                    return RemoteTranslationBatchResult(translations: recovered, source: .network, providerRequestID: nil)
+                }
                 let willRetry =
                     isRepairable &&
                     attempt <= maximumStructuredOutputRetries
@@ -732,39 +806,33 @@ enum BoundedTranslationBatchExecutor {
             return left < right
         }
         let results = try await withThrowingTaskGroup(
-            of: IndexedBatchResult.self,
+            of: IndexedBatchResult?.self,
             returning: [RemoteTranslationBatchResult].self
         ) { group in
+            defer { group.cancelAll() }
             var nextSubmission = 0
+            var active = 0
+            var completedCount = 0
+            var pendingProgress: IndexedBatchResult?
             var orderedResults = Array<RemoteTranslationBatchResult?>(
                 repeating: nil,
                 count: requests.count
             )
-
-            while nextSubmission < concurrency {
-                let index = submissionOrder[nextSubmission]
-                nextSubmission += 1
+            // Wake on promotion even when both speculative API batches are slow.
+            if case .promotable(let promotion) = priority {
                 group.addTask {
-                    try Task.checkCancellation()
-                    return try await IndexedBatchResult(
-                        index: index,
-                        result: service.translate(
-                            requests[index],
-                            configuration: configuration,
-                            usesCache: usesCache,
-                            priority: priority
-                        )
-                    )
+                    for await _ in promotion.changes { break }
+                    return nil
                 }
             }
 
-            while let completed = try await group.next() {
-                orderedResults[completed.index] = completed.result
-                // Refill the provider slot before publishing UI progress so
-                // main-actor layout never leaves a network connection idle.
-                if nextSubmission < submissionOrder.count {
+            while true {
+                try Task.checkCancellation()
+                let limit = priority.isForeground ? concurrency : min(2, max(1, maximumConcurrentRequests - 1))
+                while active < limit, nextSubmission < submissionOrder.count {
                     let index = submissionOrder[nextSubmission]
                     nextSubmission += 1
+                    active += 1
                     group.addTask {
                         try Task.checkCancellation()
                         return try await IndexedBatchResult(
@@ -778,11 +846,18 @@ enum BoundedTranslationBatchExecutor {
                         )
                     }
                 }
-                try Task.checkCancellation()
-                try await onBatchCompleted?(
-                    completed.index,
-                    completed.result
-                )
+                // Refill before UI progress so rendering cannot idle provider slots.
+                if let completed = pendingProgress {
+                    try await onBatchCompleted?(completed.index, completed.result)
+                    pendingProgress = nil
+                }
+                if completedCount == requests.count { break }
+                guard let event = try await group.next() else { break }
+                guard let completed = event else { continue }
+                active -= 1
+                completedCount += 1
+                orderedResults[completed.index] = completed.result
+                pendingProgress = completed
             }
 
             try Task.checkCancellation()

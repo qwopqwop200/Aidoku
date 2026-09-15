@@ -30,6 +30,9 @@ enum TitleTranslation {
         if kind == .description, !result.instructions.hasSuffix(descriptionInstructions) {
             result.instructions += descriptionInstructions
         }
+        result.filterSFXWithLLM = false
+        result.filterJapaneseSFX = false
+        result.filterJapaneseSFXContext = false
         result.rightToLeftPanelOrder = false
         return result
     }

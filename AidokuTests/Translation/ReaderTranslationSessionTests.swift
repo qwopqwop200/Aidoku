@@ -5,6 +5,342 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationSessionTests {
+    @Test func modelAllocationWarningsDoNotCancelTheCurrentPage() async throws {
+        let fixture = SessionFixture()
+        let gate = SessionGate()
+        var budget: UInt64 = 2_000 * 1_024 * 1_024
+        var cancellations = 0
+        var completions = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            await gate.wait()
+            try Task.checkCancellation()
+            completions += 1
+            return [Self.region]
+        }, cancelProcessing: { cancellations += 1 }, availableMemory: { budget })
+        defer { session.close() }
+        session.update(items: [.init(Self.page(0))], visible: [], context: "warning")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { await gate.started }
+        let baseline = cancellations
+        budget = 617 * 1_024 * 1_024 // Captured 102nd-page warning headroom.
+        for _ in 0..<3 { #expect(!session.handleMemoryWarning()) }
+        #expect(cancellations == baseline)
+        await gate.release()
+        try await waitUntil { completions == 1 }
+        #expect(session.state == .on)
+        budget = 48 * 1_024 * 1_024
+        #expect(session.handleMemoryWarning())
+        #expect(cancellations > baseline)
+    }
+
+    @Test func memoryTrimRestoresSamePageAfterItsImageChanges() async throws {
+        let fixture = SessionFixture()
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let disk = ReaderTranslationDiskCache(directory: directory)
+        let source = Self.page(41)
+        let key = ReaderTranslationCacheIdentity.translation(page: source.translationCacheKey, settings: fixture.settings)
+        try await disk.storeRegions([Self.region], for: key, kind: .translation, generation: disk.currentGeneration())
+        let view = UIImageView(image: Self.image())
+        let page = ReaderTranslationPage(imageView: view)
+        page.sourcePage = source
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in calls += 1; return [] }, diskCache: disk,
+            availableMemory: { 659 * 1_024 * 1_024 })
+        defer { session.close() }
+        session.enable(settings: fixture.settings)
+        session.refreshVisiblePages([page])
+        try await waitUntil { page.hasCompletedTranslation(settings: fixture.settings) }
+        // Same page identity, new decoded UIImage, with no page-turn callback.
+        view.image = Self.image()
+        #expect(!page.hasCompletedTranslation(settings: fixture.settings))
+        #expect(!session.handleMemoryWarning())
+        try await waitUntil { page.hasCompletedTranslation(settings: fixture.settings) }
+        #expect(!view.subviews.isEmpty)
+        #expect(calls == 0)
+    }
+
+    @Test func evictedRegionsRestoreWhenCurrentPageImageArrivesLate() async throws {
+        let fixture = SessionFixture()
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let disk = ReaderTranslationDiskCache(directory: directory)
+        let source = Self.page(24)
+        let key = ReaderTranslationCacheIdentity.translation(page: source.translationCacheKey, settings: fixture.settings)
+        try await disk.storeRegions([Self.region], for: key, kind: .translation, generation: disk.currentGeneration())
+        let view = UIImageView() // Page is visible before its decoded image arrives.
+        let page = ReaderTranslationPage(imageView: view)
+        page.sourcePage = source
+        let cache = ReaderTranslationSessionCache()
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in calls += 1; return [] }, diskCache: disk,
+            availableMemory: { 659 * 1_024 * 1_024 }, cache: cache)
+        defer { session.close() }
+        session.enable(settings: fixture.settings)
+        session.refreshVisiblePages([page])
+        try await waitUntil { cache.contains(source.translationCacheKey) }
+        #expect(!page.hasCompletedTranslation(settings: fixture.settings))
+        // NSCache eviction does not require our memory-warning handler to run.
+        cache.clear()
+        view.image = Self.image()
+        session.refreshVisiblePages([page]) // Same page key, just like imageChanged.
+        try await waitUntil { page.hasCompletedTranslation(settings: fixture.settings) }
+        #expect(!view.subviews.isEmpty)
+        #expect(calls == 0)
+    }
+
+    @Test func lowMemoryDefersNewOCRAndRecoversWithoutTurningOff() async throws {
+        let fixture = SessionFixture()
+        var budget: UInt64 = 50 * 1_024 * 1_024
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in calls += 1; return [Self.region] }, availableMemory: { budget })
+        defer { session.close() }
+        session.update(items: [.init(Self.page(0))], visible: [], context: "memory")
+        session.enable(settings: fixture.settings)
+        for _ in 0..<20 { await Task.yield() }
+        #expect(calls == 0)
+        #expect(session.state == .on)
+        budget = 3 * 1_024 * 1_024 * 1_024
+        try await waitUntil { calls == 1 }
+        #expect(session.state == .on)
+    }
+
+    @Test func preparationWindowDoesNotDrainTheEntireChapter() async throws {
+        let fixture = SessionFixture()
+        var indices: [Int] = []
+        let session = ReaderTranslationSession(process: { page, _, _ in indices.append(page.index); return [Self.region] },
+            availableMemory: { UInt64.max })
+        defer { session.close() }
+        session.update(items: (0..<20).map { .init(Self.page($0)) }, visible: [], context: "bounded", currentPageIndex: 0)
+        session.enable(settings: fixture.settings)
+        try await waitUntil { indices.count >= 5 }
+        for _ in 0..<20 { await Task.yield() }
+        #expect(indices == [0, 1, 2, 3, 4])
+        session.update(items: (0..<20).map { .init(Self.page($0)) }, visible: [], context: "bounded", currentPageIndex: 12)
+        try await waitUntil { indices.contains(12) }
+        #expect(indices.count <= 10)
+    }
+
+    @Test func visibleDiskCacheRestoresBeforeSettledUpdateWithoutOCR() async throws {
+        let fixture = SessionFixture()
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let disk = ReaderTranslationDiskCache(directory: directory)
+        let page = Self.page(12)
+        let key = ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: fixture.settings)
+        try await disk.storeRegions([Self.region], for: key, kind: .translation, generation: disk.currentGeneration())
+        let view = UIImageView(image: Self.image())
+        let visible = ReaderTranslationPage(imageView: view)
+        visible.sourcePage = page
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in calls += 1; return [] }, diskCache: disk,
+            availableMemory: { 50 * 1_024 * 1_024 })
+        defer { session.close() }
+        session.enable(settings: fixture.settings)
+        session.pauseForPageTurn()
+        // Deliberately never deliver the debounced update: disk restoration must
+        // finish independently, and cannot invoke the expensive processor.
+        session.refreshVisiblePages([visible])
+        try await waitUntil { visible.hasCompletedTranslation(settings: fixture.settings) }
+        #expect(calls == 0)
+        #expect(!view.subviews.isEmpty)
+    }
+
+    @Test func movingAwayCancelsCacheRestoreAndCacheMissDoesNotStartOCR() async throws {
+        let fixture = SessionFixture()
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let disk = ReaderTranslationDiskCache(directory: directory)
+        let old = Self.page(1), next = Self.page(2)
+        let key = ReaderTranslationCacheIdentity.translation(page: old.translationCacheKey, settings: fixture.settings)
+        try await disk.storeRegions([Self.region], for: key, kind: .translation, generation: disk.currentGeneration())
+        let oldView = UIImageView(image: Self.image()), nextView = UIImageView(image: Self.image())
+        let oldPage = ReaderTranslationPage(imageView: oldView), nextPage = ReaderTranslationPage(imageView: nextView)
+        oldPage.sourcePage = old; nextPage.sourcePage = next
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in calls += 1; return [] }, diskCache: disk,
+            availableMemory: { 50 * 1_024 * 1_024 })
+        defer { session.close() }
+        session.enable(settings: fixture.settings)
+        session.refreshVisiblePages([oldPage])
+        session.pauseForPageTurn()
+        session.refreshVisiblePages([nextPage])
+        // An actor round trip lets queued disk reads run, then yield to their callbacks.
+        _ = await disk.currentGeneration()
+        for _ in 0..<20 { await Task.yield() }
+        #expect(!oldPage.hasCompletedTranslation(settings: fixture.settings))
+        #expect(!nextPage.hasCompletedTranslation(settings: fixture.settings))
+        #expect(calls == 0)
+    }
+
+    @Test func repeatedOffOnReusesVisibleRenderer() async throws {
+        let fixture = SessionFixture()
+        let view = UIImageView(image: Self.image())
+        let visible = ReaderTranslationPage(imageView: view)
+        visible.sourcePage = Self.page(0)
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in calls += 1; return [Self.region] })
+        defer { session.close() }
+        session.update(items: [.init(Self.page(0))], visible: [visible], context: "toggle")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { visible.hasCompletedTranslation(settings: fixture.settings) }
+        let overlay = try #require(view.subviews.first)
+        for _ in 0..<40 {
+            session.disable(preservingVisibleRendering: true)
+            #expect(overlay.isHidden)
+            session.enable(settings: fixture.settings)
+            #expect(view.subviews.count == 1)
+            #expect(view.subviews.first === overlay)
+            #expect(!overlay.isHidden)
+        }
+        #expect(calls == 1)
+    }
+
+    @Test func page141OriginalResolution() async throws {
+        let image = try #require(UIImage(contentsOfFile: URL.documentsDirectory.appendingPathComponent("page141.avif").path)?.cgImage)
+        #expect(image.width == 2600 && image.height == 1950)
+        let config = ReaderTranslationSettings().ocrConfiguration
+        let pipeline = NativeCoreMLOCRPipeline(modelTier: config.modelTier, detectorMaximumSide: config.detectorMaximumSide, recognizerMaximumWidth: config.recognizerMaximumWidth)
+        let raw = try await pipeline.recognize(image: image, requestID: UUID().uuidString, confidenceThreshold: config.confidenceThreshold)
+        let regions = try await ReaderOCRService.shared.recognize(image: image, configuration: config)
+        let report: [String: Any] = ["raw": raw.lines.map { ["source": $0.text, "polygon": $0.polygon.map { [$0.x, $0.y] }] },
+            "final": regions.map { ["source": $0.source, "box": [$0.rect.minX, $0.rect.minY, $0.rect.width, $0.rect.height]] }]
+        try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: URL.documentsDirectory.appendingPathComponent("page141-result.json"))
+        let bottom = regions.filter { $0.rect.midX > 0.27 && $0.rect.midX < 0.4 && $0.rect.minY > 0.5 }
+        #expect(bottom.count == 1)
+        #expect(bottom.first?.source.contains("おひゅ") == true)
+        let top = regions.filter { $0.rect.midX > 0.74 && $0.rect.minY < 0.3 }
+        #expect(!top.contains { $0.source == "ふーっ♡" })
+        #expect(top.map(\.source).joined().components(separatedBy: "ふーっ♡").count == 3)
+    }
+
+    @Test func lastColumnTailRealImages() async throws {
+        var report: [String: Any] = [:]
+        for number in [1, 2] {
+            let image = try #require(UIImage(contentsOfFile: URL.documentsDirectory.appendingPathComponent("last-column-\(number).png").path)?.cgImage)
+            let regions = try await ReaderOCRService.shared.recognize(image: image, tier: .small)
+            if number == 2 {
+                let right = regions.filter { $0.rect.midX > 0.5 }
+                #expect(right.count == 1)
+                #expect(right.first?.source.contains("響") == true)
+                #expect(right.first?.source.contains("おひゅ") == true)
+            }
+            report[String(number)] = regions.map { ["source": $0.source, "box": [$0.rect.minX, $0.rect.minY, $0.rect.width, $0.rect.height]] }
+        }
+        try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: URL.documentsDirectory.appendingPathComponent("last-column-results.json"))
+    }
+
+    @Test func enclosedCaptionFragmentRealImage() async throws {
+        let root = URL.documentsDirectory
+        let image = try #require(UIImage(contentsOfFile: root.appendingPathComponent("enclosed-caption.png").path)?.cgImage)
+        let pipeline = NativeCoreMLOCRPipeline(modelTier: .small, detectorMaximumSide: 1600, recognizerMaximumWidth: 1024)
+        let raw = try await pipeline.recognize(image: image, requestID: UUID().uuidString, confidenceThreshold: 0.3)
+        let final = try await ReaderOCRService.shared.recognize(image: image, tier: .small)
+        let report: [String: Any] = ["raw": raw.lines.map { ["text": $0.text, "polygon": $0.polygon.map { [$0.x, $0.y] }] },
+            "final": final.map { ["text": $0.source, "box": [$0.rect.minX, $0.rect.minY, $0.rect.width, $0.rect.height]] }]
+        try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: root.appendingPathComponent("enclosed-caption.json"))
+        #expect(final.count == 1)
+    }
+
+    @Test func stackedAndAdjacentCaptionsRemainDistinctCases() async throws {
+        let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        var report: [String: Any] = [:]
+        for number in [1, 2, 3, 6] {
+            guard let image = UIImage(contentsOfFile: root.appendingPathComponent("stacked-source-\(number).png").path)?.cgImage else { continue }
+            let regions = try await ReaderOCRService.shared.recognize(image: image, tier: .small)
+            let relevant = regions.filter { number == 6 ? $0.rect.midX > 0.25 : (number == 2 ? $0.rect.midX > 0.2 : $0.rect.midX > 0.35) }
+            #expect(relevant.count == (number <= 2 ? 2 : 1), "Stacked caption fixture \(number)")
+            report[String(number)] = regions.map { ["source": $0.source, "x": $0.rect.minX, "y": $0.rect.minY,
+                "width": $0.rect.width, "height": $0.rect.height] as [String: Any] }
+        }
+        if !report.isEmpty { try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
+            .write(to: root.appendingPathComponent("stacked-results.json")) }
+    }
+
+    @Test func independentCaptionColumnsOnDevice() async throws {
+        let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        var report: [String: Any] = [:]
+        for number in 1...5 {
+            guard let image = UIImage(contentsOfFile: root.appendingPathComponent("gutter-source-\(number).png").path)?.cgImage else { continue }
+            let regions = try await ReaderOCRService.shared.recognize(image: image, tier: .small)
+            let relevant = regions.filter { number != 4 || $0.rect.midX > 0.2 }
+            report[String(number)] = regions.map { ["text": $0.source, "x": $0.rect.minX, "width": $0.rect.width] as [String: Any] }
+            #expect(relevant.count == 2, "Caption fixture \(number) must retain its independent columns")
+        }
+        if !report.isEmpty {
+            try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
+                .write(to: root.appendingPathComponent("gutter-results.json"))
+        }
+    }
+
+    @Test func capturedColumnSpacingDiagnostics() async throws {
+        let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        var report: [String: Any] = [:]
+        let pipeline = NativeCoreMLOCRPipeline(modelTier: .small, detectorMaximumSide: 1600, recognizerMaximumWidth: 1024)
+        for number in [1, 3, 5] {
+            let path = root.appendingPathComponent("spacing-source-\(number).png")
+            guard let image = UIImage(contentsOfFile: path.path)?.cgImage else { continue }
+            let raw = try await pipeline.recognize(image: image, requestID: UUID().uuidString, confidenceThreshold: 0.3)
+            let merged = NativeOCRTextLineMerger.merge(raw.lines, imageWidth: image.width, imageHeight: image.height)
+            let final = try await ReaderOCRService.shared.recognize(image: image, tier: .small)
+            if number == 3 || number == 5 {
+                #expect(merged.count == 2)
+                #expect(final.count == 2)
+            }
+            if number == 1 {
+                #expect(merged.contains { $0.boundingRect.minY < 30 && $0.boundingRect.maxY > 330 })
+                #expect(final.contains { $0.rect.minY < 0.1 && $0.rect.maxY > 0.85 })
+            }
+            report[String(number)] = ["finalCount": final.count, "raw": raw.lines.map { l in
+                ["text": l.text, "polygon": l.polygon.map { [$0.x, $0.y] }] as [String: Any]
+            }, "merged": merged.map(\.text)]
+        }
+        await pipeline.purgeResources()
+        if !report.isEmpty {
+            try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
+                .write(to: root.appendingPathComponent("spacing-diagnostics.json"))
+        }
+    }
+
+    @Test func capturedColourCaptionOCRDiagnostics() async throws {
+        let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        var all: [String: Any] = [:]
+        for number in [42, 43, 44, 47] {
+            let path = root.appendingPathComponent("merge-source-\(number).png")
+            guard FileManager.default.fileExists(atPath: path.path) else { continue }
+            let image = try #require(UIImage(contentsOfFile: path.path)?.cgImage)
+            let crop = try #require(image.cropping(to: CGRect(x: 0, y: CGFloat(image.height) * 0.327,
+                width: CGFloat(image.width), height: CGFloat(image.height) * 0.346)))
+            let regions = try await ReaderOCRService.shared.recognize(image: crop, tier: .small)
+            all[String(number)] = regions.map { r -> [String: Any] in
+                let pixelRect = CGRect(x: r.rect.minX * CGFloat(crop.width), y: r.rect.minY * CGFloat(crop.height), width: r.rect.width * CGFloat(crop.width), height: r.rect.height * CGFloat(crop.height))
+                let ink = ReaderTranslationBalloonMerger.outlinedInk(in: crop, rect: pixelRect)
+                return ["ink": ink.map { [$0.0, $0.1, $0.2] } ?? [], "source": r.source, "x": r.rect.minX, "y": r.rect.minY, "width": r.rect.width,
+                 "height": r.rect.height, "single": r.sourceSingleVerticalColumn ?? false]
+            }
+            #expect(!regions.isEmpty)
+            if number == 44 {
+                let purple = try #require(regions.first { $0.rect.midX > 0.68 && $0.rect.midX < 0.72 })
+                let orange = try #require(regions.first { $0.rect.midX > 0.72 && $0.rect.midX < 0.76 })
+                #expect(purple.rect.maxX < orange.rect.minX)
+                #expect(purple.rect.width < 0.05 && orange.rect.width < 0.05)
+            }
+            if number == 47 {
+                #expect(regions.contains { $0.source.contains("パン屋") && !$0.source.contains("でも私") })
+                #expect(regions.contains { $0.source.contains("でも私") && !$0.source.contains("パン屋") })
+            }
+            if number == 43 {
+                #expect(regions.contains { $0.source.contains("アタシ") && !$0.source.contains("それで") })
+                #expect(regions.contains { $0.source.contains("それで") && !$0.source.contains("アタシ") })
+                #expect(!regions.contains { $0.source.contains("ごめんな") && $0.source.contains("マリ") })
+            }
+        }
+        if !all.isEmpty {
+            try JSONSerialization.data(withJSONObject: all, options: [.prettyPrinted, .sortedKeys])
+                .write(to: root.appendingPathComponent("merge-caption-result.json"))
+        }
+    }
+
     @Test func visibleRenderingDoesNotWaitForSpeculativeSnapshot() async throws {
         let disk = ReaderTranslationDiskCache(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
         let cache = ReaderTranslationRenderCache(disk: disk)
@@ -43,6 +379,94 @@ struct ReaderTranslationSessionTests {
         try await waitUntil { visible.hasCompletedTranslation(settings: fixture.settings) }
         #expect(calls == 2)
         #expect(session.state == .on)
+    }
+
+    @Test(arguments: [429, 500, 503])
+    func apiRetryPrecedesOCRFallbackAndFailureNotification(status: Int) async throws {
+        let fixture = SessionFixture()
+        let source = Self.page(0)
+        let view = UIImageView(image: Self.image())
+        let visible = ReaderTranslationPage(imageView: view)
+        visible.sourcePage = source
+        var calls = 0
+        var failures = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            calls += 1
+            if calls == 1 {
+                throw ReaderTranslationOCRFallback(regions: [Self.region],
+                    underlying: RemoteTranslationError.httpStatus(status, requestID: nil))
+            }
+            return [Self.region]
+        })
+        defer { session.close() }
+        session.onFailure = { _ in failures += 1 }
+        session.update(items: [.init(source)], visible: [visible], context: "http-retry")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { calls == 1 }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(visible.regions.isEmpty)
+        #expect(failures == 0)
+        try await waitUntil { visible.hasCompletedTranslation(settings: fixture.settings) }
+        #expect(calls == 2)
+        #expect(failures == 0)
+    }
+
+    @Test func failedPageRetriesWhenVisibilityArrivesAfterPageIndex() async throws {
+        let fixture = SessionFixture()
+        let source = Self.page(0)
+        let view = UIImageView(image: Self.image())
+        let visible = ReaderTranslationPage(imageView: view)
+        visible.sourcePage = source
+        var calls = 0
+        var failures = 0
+        var offline = true
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            calls += 1
+            if offline {
+                throw ReaderTranslationOCRFallback(regions: [Self.region], underlying: URLError(.notConnectedToInternet))
+            }
+            return [Self.region]
+        })
+        defer { session.close() }
+        session.onFailure = { _ in failures += 1 }
+        let items = [ReaderTranslationSession.Item(source)]
+        session.update(items: items, visible: [visible], context: "revisit", currentPageIndex: 0)
+        session.enable(settings: fixture.settings)
+        try await waitUntil { failures == 1 }
+        #expect(calls == 3)
+        #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
+        session.pauseForPageTurn()
+        session.update(items: items, visible: [], context: "revisit", currentPageIndex: 1)
+        // Index updates first, without a loaded view. This must not consume the retry demand.
+        session.update(items: items, visible: [], context: "revisit", currentPageIndex: 0)
+        offline = false
+        session.refreshVisiblePages([visible])
+        session.update(items: items, visible: [visible], context: "revisit", currentPageIndex: 0)
+        try await waitUntil { visible.hasCompletedTranslation(settings: fixture.settings) }
+        #expect(calls == 4)
+        #expect(session.state == .on)
+    }
+
+    @Test func leavingPageCancelsPendingAPIRetry() async throws {
+        let fixture = SessionFixture()
+        let source = Self.page(0)
+        let view = UIImageView(image: Self.image())
+        let visible = ReaderTranslationPage(imageView: view)
+        visible.sourcePage = source
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            calls += 1
+            throw ReaderTranslationOCRFallback(regions: [Self.region], underlying: URLError(.timedOut))
+        })
+        defer { session.close() }
+        session.update(items: [.init(source)], visible: [visible], context: "cancel-retry")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { calls == 1 }
+        try await Task.sleep(for: .milliseconds(100))
+        session.pauseForPageTurn()
+        try await Task.sleep(for: .milliseconds(1200))
+        #expect(calls == 1)
+        #expect(visible.regions.isEmpty)
     }
 
     @Test func persistentOfflineFailureHasBoundedRetries() async throws {
@@ -159,8 +583,8 @@ struct ReaderTranslationSessionTests {
         coordinator.install()
         coordinator.resume()
         defer { coordinator.close() }
-        try await waitUntil { prepared.count == 8 }
-        #expect(prepared == [3, 4, 2, 5, 1, 6, 0, 7])
+        try await waitUntil { prepared.count == 5 }
+        #expect(prepared == [3, 4, 2, 5, 1])
         #expect(session.state == .on)
         #expect(owner.translationVisiblePages.first?.hasCompletedTranslation(settings: fixture.settings) == true)
         // Ordering must not invalidate already persisted page identities.
@@ -267,16 +691,16 @@ struct ReaderTranslationSessionTests {
         #expect(session.state == .checking)
         #expect(indices.isEmpty)
         await gate.release()
-        try await waitUntil { indices.count == 8 }
+        try await waitUntil { indices.count == 5 }
         #expect(session.state == .on)
-        #expect(indices == [2, 3, 1, 4, 0, 5, 6, 7])
+        #expect(indices == [2, 3, 1, 4, 0])
         #expect(efforts.allSatisfy { $0 == .high })
         #expect(visible.regions.first?.translation == "안녕")
         session.disable()
         #expect(imageView.subviews.allSatisfy { $0.isHidden })
         session.enable(settings: settings)
         try await waitUntil { session.state == .on }
-        #expect(indices.count == 8)
+        #expect(indices.count == 5)
         #expect(imageView.subviews.contains { !$0.isHidden })
     }
 

@@ -22,3 +22,223 @@
 "PHOTOS_ACCESS_DENIED_TEXT" = "Kuingia umekataliwa. samahani ruhusu Aidoku kuingia kwa ifadhi ya picha ndio iweke picha. Unaweza peana ruhusa katika mipangilio fiche.";
 "CONTENT" = "yaliyomo";
 "%@_EXPERIMENTAL" = "%@(Majaribio)";
+
+"TRANSLATION_TITLE" = "OCR na Tafsiri";
+
+"TRANSLATION_TRANSLATE" = "Tafsiri Kurasa Zinazoonekana";
+
+"TRANSLATION_RECOGNIZE" = "Tambua Maandishi (Nje ya Mtandao)";
+
+"TRANSLATION_ORIGINAL" = "Onyesha Asili";
+
+"TRANSLATION_TEXT" = "Maandishi Yanayotambuliwa na Kutafsiriwa";
+
+"TRANSLATION_NO_IMAGE" = "Subiri ukurasa wa picha upakie, kisha ujaribu tena.";
+
+"TRANSLATION_NO_TEXT" = "Hakuna maandishi yaliyotambuliwa. Jaribu muundo mwingine wa OCR au picha iliyo wazi zaidi.";
+
+"TRANSLATION_WORKING" = "Inatambua na kutafsiri...";
+
+"TRANSLATION_OCR_WORKING" = "Inatambua maandishi kwenye kifaa...";
+
+"TRANSLATION_HELP" = "Aikoni ya kutafsiri huwasha au kuzima tafsiri. Kurasa zimeandaliwa kwa utaratibu huu: sasa, ijayo, uliopita, mbili mbele, mbili nyuma, kuendelea hadi mwisho wa sura. OCR iliyokamilishwa, tafsiri na mpangilio wa maandishi hutumika tena baada ya kufunga kisomaji au kuanzisha upya programu. Kumwacha msomaji kunaghairi kazi ambayo haijakamilika.";
+
+"TRANSLATION_PRIVACY" = "OCR inaendeshwa kwenye kifaa chako. Tafsiri hutuma maandishi yanayotambuliwa na maagizo yako kwa mtoaji aliyechaguliwa. Ikiwa Jumuisha Picha ya Ukurasa katika Tafsiri imewezeshwa, picha asili ya ukurasa pia itapakiwa. Gharama za API hutegemea mtoaji wako. Funguo hukaa kwenye Keychain. OCR, tafsiri na mpangilio wa maandishi huhifadhiwa katika hifadhi ya programu iliyolindwa bila kujumuishwa kwenye hifadhi rudufu.";
+
+"TRANSLATION_KEY_REPLACE" = "Badilisha ufunguo wa API uliohifadhiwa (si lazima)";
+
+"TRANSLATION_KEY" = "Kitufe cha API";
+
+"TRANSLATION_KEY_SAVED" = "Kitufe cha API kimehifadhiwa kwenye Keychain";
+
+"TRANSLATION_KEY_DELETE" = "Futa Ufunguo wa API";
+
+"TRANSLATION_MODEL" = "Kitambulisho cha mfano";
+
+"TRANSLATION_GET_KEY" = "Fungua Vifunguo vya OpenAI API";
+
+"TRANSLATION_LANGUAGE" = "Lugha";
+
+"TRANSLATION_TARGET" = "Tafsiri Kwa";
+
+"TRANSLATION_SOURCE" = "Lugha Chanzo";
+
+"TRANSLATION_AUTO" = "Tambua Kiotomatiki";
+
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 inahitaji iOS 18 au matoleo mapya zaidi. Kati ndio chaguo-msingi; Ndogo hutumia kumbukumbu kidogo. Tiny ina kamusi ndogo ya herufi. Miundo hii haitumii OCR ya Korea. Toleo la tafsiri ya Kikorea linatumika.";
+
+"TRANSLATION_INSTRUCTIONS" = "Maagizo ya tafsiri";
+
+"TRANSLATION_RESET_PROMPT" = "Rejesha maagizo chaguomsingi ya utafsiri";
+
+"TRANSLATION_CLEAR_CACHE" = "Futa Akiba ya Tafsiri";
+
+"TRANSLATION_CACHE_CLEARED" = "Akiba ya tafsiri imefutwa.";
+
+"TRANSLATION_NOTICES" = "OCR & Leseni za Utafsiri";
+
+"TRANSLATION_ADVANCED" = "Chaguo za Tafsiri";
+
+"TRANSLATION_REASONING" = "Juhudi za Kufikiri";
+
+"TRANSLATION_MODEL_DEFAULT" = "Chaguomsingi la Mfano";
+
+"TRANSLATION_CONCURRENCY" = "Maombi ya Pamoja";
+
+"TRANSLATION_DETECTOR_SIZE" = "Upeo wa Detector";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "Kitambua Upeo wa upana";
+
+"TRANSLATION_CONFIDENCE" = "Kujiamini kwa OCR";
+
+"TRANSLATION_SURFACE" = "Rangi ya Mandharinyuma";
+
+"TRANSLATION_WHITE" = "Nyeupe";
+
+"TRANSLATION_DARK" = "Giza";
+
+"TRANSLATION_OPACITY" = "Uwazi wa Mandharinyuma";
+
+"TRANSLATION_EXPANSION" = "Upanuzi wa Sanduku";
+
+"TRANSLATION_PANEL_BOUNDS" = "Ndani ya Paneli ya Picha";
+
+"TRANSLATION_SOURCE_BOUNDS" = "Ndani ya Sanduku Asili";
+
+"TRANSLATION_UNRESTRICTED" = "Haina kikomo";
+
+"TRANSLATION_FONT_SIZE" = "Ukubwa wa herufi";
+
+"TRANSLATION_AUTO_FIT" = "Fit Kiotomatiki";
+
+"TRANSLATION_FIXED" = "Ukubwa wa fonti usiobadilika";
+
+"TRANSLATION_OVERLAY" = "Uwekeleaji wa Tafsiri";
+
+"TRANSLATION_OVERLAY_HELP" = "Hubadilisha maandishi juu ya kisanduku cha chanzo kwa kutumia mpangilio unaotambua mgongano na ufunikaji wa hati mahususi. Mabadiliko ya onyesho tumia tena OCR iliyopo.";
+
+"TRANSLATION_PROVIDER" = "Mtoa Tafsiri";
+
+"TRANSLATION_BASE_URL" = "URL ya seva";
+
+"TRANSLATION_API_FORMAT" = "Umbizo la API";
+
+"TRANSLATION_CUSTOM_HELP" = "Weka URL ya msingi ya HTTPS au sehemu kamili ya mwisho ya API na muundo unaotumika na seva yako. Kila URL ya seva ina ufunguo wake uliohifadhiwa; kubadilisha URL hufuta ufunguo wowote unaoingiza. Majibu na Ukamilishaji wa Gumzo hutumia pato la muundo wa JSON.";
+
+"TRANSLATION_AUTOMATIC" = "Tafsiri ya Kiotomatiki";
+
+"TRANSLATION_AUTOMATIC_HELP" = "Angalia mipangilio ya API iliyohifadhiwa mara moja nyuma wakati programu inafungua au mipangilio ya API inabadilika. Tafsiri huanza baada ya mafanikio. Ukaguzi ulioshindwa husitisha utafsiri bila kubadilisha mapendeleo yako ya utafsiri kiotomatiki. Fungua tena programu au ujaribu muunganisho wa API tena ili ujaribu tena. Mabadiliko ya ukurasa na ON/OFF tumia tena matokeo ya kuangalia. Juhudi za hoja hutumia mipangilio uliyohifadhi.";
+
+"TRANSLATION_TEST" = "Jaribu Muunganisho wa API";
+
+"TRANSLATION_TEST_RUNNING" = "Inajaribu Muunganisho...";
+
+"TRANSLATION_TEST_SUCCESS" = "Muunganisho Umefaulu";
+
+"TRANSLATION_TEST_FAILURE" = "Muunganisho Umeshindwa";
+
+"TRANSLATION_TEST_HELP" = "Hutafsiri sentensi fupi kwa kutumia maadili katika fomu hii. Acha ufunguo wazi ili kutumia ufunguo uliohifadhiwa wa seva hii. Mabadiliko yanahifadhiwa kiotomatiki.";
+
+"SEARCH_SUGGESTIONS" = "Tafuta Mapendekezo";
+
+"TRANSLATION_CACHE" = "Akiba ya Nje ya Mtandao";
+
+"TRANSLATION_CACHE_LIMIT" = "Upeo wa Hifadhi";
+
+"TRANSLATION_CACHE_USED" = "Hifadhi Imetumika";
+
+"TRANSLATION_CACHE_HELP" = "Hifadhi OCR, tafsiri za ukurasa, tafsiri za mada za manga na sura, maelezo ya manga na mpangilio wa maandishi kiotomatiki. Picha za ukurasa hukaa tu kwenye kumbukumbu ya ukurasa wa karibu. Matokeo machache yaliyotumiwa hivi majuzi zaidi huondolewa wakati kikomo kilichochaguliwa kinapofikiwa. Chaguomsingi: GB 1. Upeo wa juu: 100 GB. Mabadiliko yatatumika kiotomatiki; kupunguza kikomo huondoa matokeo yaliyotumiwa hivi majuzi hadi kache inafaa.";
+
+"TRANSLATION_SOURCE_FILTER" = "Kichujio cha Chanzo cha Tafsiri";
+
+"TRANSLATION_FILTER_ALL" = "Lugha Zote Zilizogunduliwa";
+
+"TRANSLATION_FILTER_HELP" = "Chagua lugha asili za kutafsiri. Maandishi ambayo hayajachaguliwa au ambayo hayana uhakika hubakia bila kubadilika. Chagua Lugha Zote Zilizogunduliwa ili kuondoa kichujio.";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Maandishi yaliyotambuliwa kama lugha asili iliyochaguliwa pekee ndiyo yanatafsiriwa. Lugha zisizo na utambuzi wa kifaa husalia bila kuchujwa.";
+
+"HTTPS_BYPASS" = "Njia ya Kuzuia HTTPS";
+
+"HTTPS_BYPASS_HELP" = "Tumia ugawaji wa TLS na DNS iliyosimbwa kwa njia fiche (Cloudflare) kwa maombi ya chanzo, picha, vipakuliwa na mitazamo ya tovuti chanzo. Inatumika kwa miunganisho mipya. Vitalu vya IP na vizuizi vilivyowekwa na wavuti havipitishwi.";
+
+"HTTPS_BYPASS_TEST" = "Muunganisho wa Mtihani";
+
+"HTTPS_BYPASS_TEST_HELP" = "Hujaribu anwani hii ya HTTPS kupitia njia ya kukwepa, hata swichi ikiwa imezimwa. Jibu linathibitisha muunganisho, sio kwamba kizuizi cha ISP kilikuwepo.";
+
+"HTTPS_BYPASS_INVALID_URL" = "Weka URL ya HTTPS bila jina la mtumiaji au nenosiri.";
+
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d imepokelewa · Mgawanyiko wa TLS umetumika";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d imepokelewa · Mgawanyiko wa TLS haujathibitishwa";
+
+"HTTPS_BYPASS_TEST_FAILED" = "Haikuweza kuunganisha kupitia HTTPS bypass.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Tafsiri imeshindwa. Inaonyesha maandishi ya OCR. Tafadhali angalia muunganisho wako.";
+
+"TRANSLATION_MANGA_TITLES" = "Tafsiri Majina ya Manga";
+
+"TRANSLATION_CHAPTER_TITLES" = "Tafsiri Vichwa vya Sura";
+
+"TRANSLATION_TITLES_HELP" = "Hutumia API yako ya tafsiri na lugha lengwa bila kutafsiri ukurasa kiotomatiki. Zima ili kuonyesha mada na maelezo asili. Asili hubakia kuonekana wakati wa kupakia au tafsiri ikishindikana.";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "Lugha za Kichwa cha Manga";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "Lugha za Kichwa cha Sura";
+
+"TRANSLATION_PAGE_SOURCE" = "Lugha Chanzo cha Ukurasa";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "Gundua kiotomatiki lugha asilia ya kila mada na utafsiri lugha ulizochagua pekee. Lugha zote huondoa kizuizi cha lugha. Ukurasa na mipangilio mingine ya lugha chanzo haiathiri uteuzi huu.";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Tafsiri Maelezo ya Manga";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "Manga Maelezo Lugha";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "Gundua lugha asili kiotomatiki na utafsiri lugha ulizochagua pekee. Lugha zote huondoa kizuizi. Ukurasa, kichwa cha manga, kichwa cha sura, na vichujio vya maelezo hufanya kazi kivyake.";
+
+"TRANSLATION_SFX_FILTER" = "Uchujaji wa SFX (Kijapani Pekee)";
+
+"TRANSLATION_SFX_FILTER_HELP" = "Acha madoido ya sauti ya Kijapani yanayoweza kutafsiriwa. Tumia kamusi ya ndani na ukaguzi wa mpangilio wa kihafidhina. Maandishi ambayo hayawezi kutambuliwa kwa ujasiri kama athari ya sauti bado yanatafsiriwa.";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Jumuisha Maingizo-Yanayohitajika (Kijapani Pekee)";
+
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Inatumika wakati Uchujaji wa SFX umewashwa. Pia huchuja maingizo yaliyotiwa alama kuwa yanahitaji muktadha kwa kutumia ulinganifu wa kamusi, ukubwa wa maandishi na mpangilio ulio karibu. Hakuna LLM inayochanganua muktadha, kwa hivyo mazungumzo yanaweza pia kutengwa.";
+
+"TRANSLATION_INCLUDE_IMAGE" = "Jumuisha Picha ya Ukurasa katika Tafsiri";
+
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Tuma ukurasa asili na maandishi ya OCR kwa muktadha wa tukio na usemi. Maagizo ya picha huongezwa kiotomatiki. Inahitaji muundo unaotumia picha na huenda ukaongeza matumizi ya data na gharama ya API.";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "Hifadhi Rangi Asilia ya Maandishi";
+
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Kadiria rangi asilia ya maandishi bila muundo wa ziada. Tumia rangi chaguo-msingi wakati huna uhakika au wakati utofautishaji uko chini sana.";
+
+"TRANSLATION_LLM_SFX" = "Uchujaji wa LLM SFX (Lugha Zote)";
+
+"TRANSLATION_LLM_SFX_HELP" = "Kuainisha athari za sauti katika ombi la tafsiri. Inaweza kuunganishwa na kichujio cha Kijapani: uamuzi wa athari ya sauti kutoka kwa kichujio chochote huacha asili bila kubadilika. Sambamba na kutuma picha ya ukurasa.";
+
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Bila ingizo la picha, muktadha mdogo wa mwonekano na mpangilio unaweza kupunguza usahihi wa uainishaji wa SFX.";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Hifadhi Rangi ya Paneli Asili";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Linganisha kidirisha cha tafsiri na usuli karibu na maandishi asilia. Tumia paneli chaguo-msingi wakati huna uhakika au kusomeka. Mipangilio yako ya uwazi bado inatumika.";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "OpenAI Maalum";
+
+"TRANSLATION_OCR_MEDIUM" = "Kati";
+
+"TRANSLATION_OCR_SMALL" = "Ndogo";
+
+"TRANSLATION_OCR_TINY" = "Kidogo";
+
+"TRANSLATION_REASONING_NONE" = "Hakuna";
+
+"TRANSLATION_REASONING_MINIMAL" = "Ndogo";
+
+"TRANSLATION_REASONING_LOW" = "Chini";
+
+"TRANSLATION_REASONING_MEDIUM" = "Kati";
+
+"TRANSLATION_REASONING_HIGH" = "Juu";
+
+"TRANSLATION_REASONING_XHIGH" = "Juu Sana";
+
+"TRANSLATION_REASONING_MAX" = "Upeo wa juu";

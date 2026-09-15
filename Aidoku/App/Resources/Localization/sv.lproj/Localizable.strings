@@ -728,3 +728,223 @@
 "DONT_MIGRATE" = "Migrera ej";
 "MIGRATE_%i_OF_%i" = "Migrerade (%i/%i)";
 "SHOW_ENTRY" = "Visa objekt";
+
+"TRANSLATION_TITLE" = "OCR och översättning";
+
+"TRANSLATION_TRANSLATE" = "Översätt synliga sidor";
+
+"TRANSLATION_RECOGNIZE" = "Känna igen text (offline)";
+
+"TRANSLATION_ORIGINAL" = "Visa original";
+
+"TRANSLATION_TEXT" = "Igenkänd och översatt text";
+
+"TRANSLATION_NO_IMAGE" = "Vänta tills en bildsida laddas och försök sedan igen.";
+
+"TRANSLATION_NO_TEXT" = "Ingen text kändes igen. Prova en annan OCR-modell eller en tydligare bild.";
+
+"TRANSLATION_WORKING" = "Erkänner och översätter...";
+
+"TRANSLATION_OCR_WORKING" = "Känner igen text på enheten...";
+
+"TRANSLATION_HELP" = "Översättningsikonen aktiverar eller inaktiverar översättning. Sidorna förbereds i denna ordning: nuvarande, nästa, föregående, två före, två bakom, fortsätter till båda ändarna av kapitlet. Färdig OCR, översättningar och textlayout återanvänds efter att läsaren stängts eller appen startas om. Att lämna läsaren avbryter oavslutat arbete.";
+
+"TRANSLATION_PRIVACY" = "OCR körs på din enhet. Translation skickar igenkänd text och dina instruktioner till den valda leverantören. Om Inkludera sidbild i översättning är aktiverat laddas även den ursprungliga sidbilden upp. API-avgifter beror på din leverantör. Nycklar stannar i nyckelring. OCR, översättningar och textlayout sparas i skyddad applagring utesluten från säkerhetskopiering.";
+
+"TRANSLATION_KEY_REPLACE" = "Ersätt sparad API-nyckel (valfritt)";
+
+"TRANSLATION_KEY" = "API-nyckel";
+
+"TRANSLATION_KEY_SAVED" = "API-nyckel sparad i nyckelring";
+
+"TRANSLATION_KEY_DELETE" = "Ta bort API-nyckel";
+
+"TRANSLATION_MODEL" = "Modell ID";
+
+"TRANSLATION_GET_KEY" = "Öppna OpenAI API Keys";
+
+"TRANSLATION_LANGUAGE" = "Språk";
+
+"TRANSLATION_TARGET" = "Översätt till";
+
+"TRANSLATION_SOURCE" = "Källspråk";
+
+"TRANSLATION_AUTO" = "Upptäck automatiskt";
+
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 kräver iOS 18 eller senare. Medium är standard; Liten använder mindre minne. Tiny har en mindre karaktärsordbok. Dessa modeller stöder inte koreansk OCR. Koreansk översättning stöds.";
+
+"TRANSLATION_INSTRUCTIONS" = "Översättningsinstruktioner";
+
+"TRANSLATION_RESET_PROMPT" = "Återställ standardöversättningsinstruktionerna";
+
+"TRANSLATION_CLEAR_CACHE" = "Rensa översättningscache";
+
+"TRANSLATION_CACHE_CLEARED" = "Översättningscacheminnet rensades.";
+
+"TRANSLATION_NOTICES" = "OCR- och översättningslicenser";
+
+"TRANSLATION_ADVANCED" = "Översättningsalternativ";
+
+"TRANSLATION_REASONING" = "Resonerande ansträngning";
+
+"TRANSLATION_MODEL_DEFAULT" = "Modell Standard";
+
+"TRANSLATION_CONCURRENCY" = "Samtidiga förfrågningar";
+
+"TRANSLATION_DETECTOR_SIZE" = "Detektor maxsida";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "Identifierarens maximala bredd";
+
+"TRANSLATION_CONFIDENCE" = "OCR-förtroende";
+
+"TRANSLATION_SURFACE" = "Bakgrundsfärg";
+
+"TRANSLATION_WHITE" = "Vit";
+
+"TRANSLATION_DARK" = "Mörkt";
+
+"TRANSLATION_OPACITY" = "Bakgrund Opacitet";
+
+"TRANSLATION_EXPANSION" = "Box Expansion";
+
+"TRANSLATION_PANEL_BOUNDS" = "Inom bildpanelen";
+
+"TRANSLATION_SOURCE_BOUNDS" = "Inuti originalkartong";
+
+"TRANSLATION_UNRESTRICTED" = "Obegränsad";
+
+"TRANSLATION_FONT_SIZE" = "Teckenstorlek";
+
+"TRANSLATION_AUTO_FIT" = "Anpassa automatiskt";
+
+"TRANSLATION_FIXED" = "Fast teckenstorlek";
+
+"TRANSLATION_OVERLAY" = "Översättningsöverlägg";
+
+"TRANSLATION_OVERLAY_HELP" = "Ersätter text över källrutan med hjälp av kollisionsmedveten layout och skriptspecifik radbrytning. Visningsändringar återanvänder befintlig OCR.";
+
+"TRANSLATION_PROVIDER" = "Översättningsleverantör";
+
+"TRANSLATION_BASE_URL" = "Server URL";
+
+"TRANSLATION_API_FORMAT" = "API-format";
+
+"TRANSLATION_CUSTOM_HELP" = "Ange en HTTPS-bas-URL eller fullständig API-slutpunkt och en modell som stöds av din server. Varje server-URL har sin egen sparade nyckel; Om du ändrar URL:en rensas alla nycklar du anger. Svar och chattavslut använder strukturerad JSON-utdata.";
+
+"TRANSLATION_AUTOMATIC" = "Automatisk översättning";
+
+"TRANSLATION_AUTOMATIC_HELP" = "Kontrollera de sparade API-inställningarna en gång i bakgrunden när appen öppnas eller API-inställningarna ändras. Översättningen börjar efter framgång. En misslyckad kontroll pausar översättningen utan att ändra dina inställningar för automatisk översättning. Öppna appen igen eller testa API-anslutningen igen för att försöka igen. Sidändringar och PÅ/AV återanvänd kontrollresultatet. Resonera ansträngning använder din sparade inställning.";
+
+"TRANSLATION_TEST" = "Testa API-anslutning";
+
+"TRANSLATION_TEST_RUNNING" = "Testar anslutningen...";
+
+"TRANSLATION_TEST_SUCCESS" = "Anslutningen lyckades";
+
+"TRANSLATION_TEST_FAILURE" = "Anslutningen misslyckades";
+
+"TRANSLATION_TEST_HELP" = "Översätter en kort mening med hjälp av värdena i detta formulär. Lämna nyckeln tom för att använda den här serverns sparade nyckel. Ändringar sparas automatiskt.";
+
+"SEARCH_SUGGESTIONS" = "Sökförslag";
+
+"TRANSLATION_CACHE" = "Offline cache";
+
+"TRANSLATION_CACHE_LIMIT" = "Maximal lagring";
+
+"TRANSLATION_CACHE_USED" = "Förvaring används";
+
+"TRANSLATION_CACHE_HELP" = "Spara OCR, sidöversättningar, manga- och kapiteltitelöversättningar, mangabeskrivningar och textlayout automatiskt. Sidbilder finns bara kvar i minnet för närliggande sidor. De senast använda resultaten tas bort när den valda gränsen nås. Standard: 1 GB. Max: 100 GB. Ändringar gäller automatiskt; sänkning av gränsen tar bort de minst nyligen använda resultaten tills cachen passar.";
+
+"TRANSLATION_SOURCE_FILTER" = "Översättningskällfilter";
+
+"TRANSLATION_FILTER_ALL" = "Alla upptäckta språk";
+
+"TRANSLATION_FILTER_HELP" = "Välj originalspråken att översätta. Omarkerad eller osäker text förblir oförändrad. Välj Alla upptäckta språk för att ta bort filtret.";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Endast text som identifieras som det valda originalspråket översätts. Språk utan identifiering på enheten förblir ofiltrerade.";
+
+"HTTPS_BYPASS" = "Förbikoppling av HTTPS-blockering";
+
+"HTTPS_BYPASS_HELP" = "Använd TLS-fragmentering och krypterad DNS (Cloudflare) för källförfrågningar, bilder, nedladdningar och källwebbvyer. Gäller nya anslutningar. IP-blockeringar och begränsningar som införs av webbplatsen förbigås inte.";
+
+"HTTPS_BYPASS_TEST" = "Testa anslutningen";
+
+"HTTPS_BYPASS_TEST_HELP" = "Testar denna HTTPS-adress genom bypass, även när strömbrytaren är avstängd. Ett svar bekräftar anslutning, inte att ett ISP-block fanns.";
+
+"HTTPS_BYPASS_INVALID_URL" = "Ange en HTTPS-URL utan användarnamn eller lösenord.";
+
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d mottaget · TLS-fragmentering tillämpas";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d mottagen · TLS-fragmentering inte bekräftad";
+
+"HTTPS_BYPASS_TEST_FAILED" = "Kunde inte ansluta via HTTPS-bypass.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Översättning misslyckades. Visar OCR-text. Kontrollera din anslutning.";
+
+"TRANSLATION_MANGA_TITLES" = "Översätt mangatitlar";
+
+"TRANSLATION_CHAPTER_TITLES" = "Översätt kapiteltitlar";
+
+"TRANSLATION_TITLES_HELP" = "Använder ditt översättnings-API och målspråk oberoende av automatisk sidöversättning. Stäng av för att visa originaltitlar och beskrivningar. Originalen förblir synliga när de laddas eller om översättningen misslyckas.";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "Manga Titel Språk";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "Kapiteltitel Språk";
+
+"TRANSLATION_PAGE_SOURCE" = "Sidans källspråk";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "Upptäck automatiskt varje titels källspråk och översätt endast de valda språken. Alla språk tar bort språkbegränsningen. Sida och andra källspråksinställningar för titeln påverkar inte detta val.";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Översätt mangabeskrivningar";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "Manga Beskrivning Språk";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "Upptäck källspråket automatiskt och översätt endast de valda språken. Alla språk tar bort begränsningen. Sida, manga titel, kapitel titel och beskrivning filter fungerar oberoende.";
+
+"TRANSLATION_SFX_FILTER" = "SFX-filtrering (endast japanska)";
+
+"TRANSLATION_SFX_FILTER_HELP" = "Lämna sannolikt japanska ljudeffekter oöversatta. Använd en lokal ordbok och konservativa layoutkontroller. Text som inte säkert kan identifieras som en ljudeffekt översätts fortfarande.";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Inkludera kontextkrävda poster (endast japanska)";
+
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Gäller när SFX-filtrering är aktiverat. Filtrerar även poster markerade som kräver sammanhang med hjälp av ordboksmatchningar, textstorlek och närliggande layout. Ingen LLM analyserar sammanhanget, så dialog kan också uteslutas.";
+
+"TRANSLATION_INCLUDE_IMAGE" = "Inkludera sidbild i översättning";
+
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Skicka originalsidan med OCR-text för scen- och uttryckssammanhang. Bildinstruktioner läggs till automatiskt. Kräver en modell som stöder bilder och kan öka dataanvändning och API-kostnad.";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "Bevara originaltextfärg";
+
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Uppskatta den ursprungliga textfärgen utan en extra modell. Använd standardfärgen när du är osäker eller när kontrasten är för låg.";
+
+"TRANSLATION_LLM_SFX" = "LLM SFX-filtrering (alla språk)";
+
+"TRANSLATION_LLM_SFX_HELP" = "Klassificera ljudeffekter i översättningsbegäran. Kan kombineras med det japanska lokala filtret: ett ljudeffektbeslut från båda filtren lämnar originalet oförändrat. Kompatibel med att skicka sidbilden.";
+
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Utan bildinmatning kan begränsad visuell och layoutkontext minska SFX-klassificeringsnoggrannheten.";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Bevara den ursprungliga panelfärgen";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Matcha översättningspanelen med bakgrunden runt originaltexten. Använd standardpanelen när du är osäker eller oläsbar. Din opacitetsinställning gäller fortfarande.";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "Anpassad OpenAI";
+
+"TRANSLATION_OCR_MEDIUM" = "Medium";
+
+"TRANSLATION_OCR_SMALL" = "Liten";
+
+"TRANSLATION_OCR_TINY" = "Liten";
+
+"TRANSLATION_REASONING_NONE" = "Inga";
+
+"TRANSLATION_REASONING_MINIMAL" = "Minimal";
+
+"TRANSLATION_REASONING_LOW" = "Låg";
+
+"TRANSLATION_REASONING_MEDIUM" = "Medium";
+
+"TRANSLATION_REASONING_HIGH" = "Hög";
+
+"TRANSLATION_REASONING_XHIGH" = "Mycket hög";
+
+"TRANSLATION_REASONING_MAX" = "Max";

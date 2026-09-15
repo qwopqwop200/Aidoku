@@ -304,7 +304,7 @@ struct ReaderTranslationPersistentPipelineTests {
         let items = pages.map(ReaderTranslationSession.Item.init)
         session.update(items: items, visible: [], context: "chapter", currentPageIndex: 0)
         session.enable(settings: fixture.settings)
-        try await waitUntil { prepared.count == 10 }
+        try await waitUntil { prepared.count == 5 }
         #expect(cache.cachedImage(for: "pixels-1") != nil)
         #expect(cache.cachedImage(for: "pixels-9") == nil)
         session.update(items: items, visible: [], context: "chapter", currentPageIndex: 9)

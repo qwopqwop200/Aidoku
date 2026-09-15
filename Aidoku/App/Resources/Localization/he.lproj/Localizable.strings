@@ -300,3 +300,223 @@
 "COPY" = "העתק";
 "WARNING" = "אזהרה";
 "ADD" = "הוסף";
+
+"TRANSLATION_TITLE" = "OCR ותרגום";
+
+"TRANSLATION_TRANSLATE" = "תרגם דפים גלויים";
+
+"TRANSLATION_RECOGNIZE" = "זיהוי טקסט (לא מקוון)";
+
+"TRANSLATION_ORIGINAL" = "הצג מקורי";
+
+"TRANSLATION_TEXT" = "טקסט מזוהה ומתורגם";
+
+"TRANSLATION_NO_IMAGE" = "המתן לטעינת דף תמונה ולאחר מכן נסה שוב.";
+
+"TRANSLATION_NO_TEXT" = "לא זוהה טקסט. נסה דגם OCR אחר או תמונה ברורה יותר.";
+
+"TRANSLATION_WORKING" = "מזהה ומתרגם...";
+
+"TRANSLATION_OCR_WORKING" = "מזהה טקסט במכשיר...";
+
+"TRANSLATION_HELP" = "סמל התרגום מפעיל או מכבה את התרגום. דפים מוכנים בסדר הזה: נוכחי, הבא, הקודם, שניים קדימה, שניים מאחור, ממשיכים לשני קצוות הפרק. נעשה שימוש חוזר ב-OCR שהושלם, בתרגומים ובפריסת טקסט לאחר סגירת הקורא או הפעלה מחדש של האפליקציה. עזיבת הקורא מבטלת עבודה לא גמורה.";
+
+"TRANSLATION_PRIVACY" = "OCR פועל במכשיר שלך. תרגום שולח טקסט מזוהה ואת ההוראות שלך לספק הנבחר. אם כלול תמונת עמוד בתרגום מופעלת, תמונת העמוד המקורית תועלה גם היא. חיובי API תלויים בספק שלך. מפתחות נשארים במחזיק מפתחות. OCR, תרגומים ופריסה של טקסט נשמרים באחסון אפליקציות מוגן שלא נכלל מגיבויים.";
+
+"TRANSLATION_KEY_REPLACE" = "החלף מפתח API שמור (אופציונלי)";
+
+"TRANSLATION_KEY" = "מפתח API";
+
+"TRANSLATION_KEY_SAVED" = "מפתח API נשמר במחזיק מפתחות";
+
+"TRANSLATION_KEY_DELETE" = "מחק מפתח API";
+
+"TRANSLATION_MODEL" = "מזהה דגם";
+
+"TRANSLATION_GET_KEY" = "פתח את מפתחות API של OpenAI";
+
+"TRANSLATION_LANGUAGE" = "שפות";
+
+"TRANSLATION_TARGET" = "תרגם ל";
+
+"TRANSLATION_SOURCE" = "שפת המקור";
+
+"TRANSLATION_AUTO" = "זיהוי אוטומטי";
+
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 דורש iOS 18 ואילך. בינוני הוא ברירת המחדל; קטן משתמש בפחות זיכרון. לקטנטונת יש מילון תווים קטן יותר. דגמים אלה אינם תומכים ב-OCR קוריאני. פלט תרגום קוריאנית נתמך.";
+
+"TRANSLATION_INSTRUCTIONS" = "הוראות תרגום";
+
+"TRANSLATION_RESET_PROMPT" = "שחזר את הוראות התרגום המוגדרות כברירת מחדל";
+
+"TRANSLATION_CLEAR_CACHE" = "נקה מטמון תרגום";
+
+"TRANSLATION_CACHE_CLEARED" = "מטמון התרגום נוקה.";
+
+"TRANSLATION_NOTICES" = "רישיונות OCR ותרגום";
+
+"TRANSLATION_ADVANCED" = "אפשרויות תרגום";
+
+"TRANSLATION_REASONING" = "מאמץ הגיוני";
+
+"TRANSLATION_MODEL_DEFAULT" = "דגם ברירת מחדל";
+
+"TRANSLATION_CONCURRENCY" = "בקשות במקביל";
+
+"TRANSLATION_DETECTOR_SIZE" = "גלאי מקסימום צד";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "מזהה רוחב מרבי";
+
+"TRANSLATION_CONFIDENCE" = "רמת הביטחון בזיהוי טקסט";
+
+"TRANSLATION_SURFACE" = "צבע רקע";
+
+"TRANSLATION_WHITE" = "לבן";
+
+"TRANSLATION_DARK" = "כהה";
+
+"TRANSLATION_OPACITY" = "אטימות רקע";
+
+"TRANSLATION_EXPANSION" = "הרחבת תיבה";
+
+"TRANSLATION_PANEL_BOUNDS" = "בתוך לוח תמונה";
+
+"TRANSLATION_SOURCE_BOUNDS" = "בתוך הקופסה המקורית";
+
+"TRANSLATION_UNRESTRICTED" = "ללא הגבלה";
+
+"TRANSLATION_FONT_SIZE" = "גודל גופן";
+
+"TRANSLATION_AUTO_FIT" = "התאמה אוטומטית";
+
+"TRANSLATION_FIXED" = "גודל גופן קבוע";
+
+"TRANSLATION_OVERLAY" = "שכבת תרגום";
+
+"TRANSLATION_OVERLAY_HELP" = "מחליף טקסט מעל תיבת המקור שלו באמצעות פריסה מודעת להתנגשות וגליפה ספציפית לסקריפט. שינויים בתצוגה עושים שימוש חוזר ב-OCR קיים.";
+
+"TRANSLATION_PROVIDER" = "ספק תרגום";
+
+"TRANSLATION_BASE_URL" = "כתובת האתר של השרת";
+
+"TRANSLATION_API_FORMAT" = "פורמט API";
+
+"TRANSLATION_CUSTOM_HELP" = "הזן כתובת URL בסיסית של HTTPS או נקודת קצה מלאה של API ומודל שנתמך על ידי השרת שלך. לכל כתובת אתר של שרת יש מפתח שמור משלה; שינוי כתובת האתר מנקה כל מפתח שאתה מזין. תגובות והשלמות צ'אט משתמשות בפלט JSON מובנה.";
+
+"TRANSLATION_AUTOMATIC" = "תרגום אוטומטי";
+
+"TRANSLATION_AUTOMATIC_HELP" = "בדוק את הגדרות ה-API השמורות פעם אחת ברקע כאשר האפליקציה נפתחת או הגדרות ה-API משתנות. התרגום מתחיל לאחר הצלחה. בדיקה שנכשלה משהה את התרגום מבלי לשנות את העדפת התרגום האוטומטית שלך. פתח מחדש את האפליקציה או בדוק שוב את חיבור ה-API כדי לנסות שוב. שינויים בעמוד והפעלה/כיבוי שימוש חוזר בתוצאת הבדיקה. מאמץ הגיון משתמש בהגדרה השמורה שלך.";
+
+"TRANSLATION_TEST" = "בדוק חיבור API";
+
+"TRANSLATION_TEST_RUNNING" = "בודק חיבור...";
+
+"TRANSLATION_TEST_SUCCESS" = "החיבור הצליח";
+
+"TRANSLATION_TEST_FAILURE" = "החיבור נכשל";
+
+"TRANSLATION_TEST_HELP" = "מתרגם משפט קצר באמצעות הערכים בטופס זה. השאר את המפתח ריק כדי להשתמש במפתח השמור של שרת זה. השינויים נשמרים באופן אוטומטי.";
+
+"SEARCH_SUGGESTIONS" = "הצעות חיפוש";
+
+"TRANSLATION_CACHE" = "מטמון לא מקוון";
+
+"TRANSLATION_CACHE_LIMIT" = "אחסון מקסימלי";
+
+"TRANSLATION_CACHE_USED" = "אחסון בשימוש";
+
+"TRANSLATION_CACHE_HELP" = "שמור OCR, תרגומי עמודים, תרגומי מנגה וכותרות פרקים, תיאורי מנגה ופריסת טקסט באופן אוטומטי. תמונות העמוד נשארות רק בזיכרון העמוד הקרוב. התוצאות שהכי פחות השתמשו בהן יוסרו כשמגיעים למגבלה שנבחרה. ברירת מחדל: 1 GB. מקסימום: 100 GB. שינויים חלים באופן אוטומטי; הורדת הגבול מסירה את התוצאות הפחות בשימוש עד שהמטמון יתאים.";
+
+"TRANSLATION_SOURCE_FILTER" = "מסנן מקור תרגום";
+
+"TRANSLATION_FILTER_ALL" = "כל השפות שזוהו";
+
+"TRANSLATION_FILTER_HELP" = "בחר את שפות המקור לתרגום. טקסט לא נבחר או לא ודאי נשאר ללא שינוי. בחר בכל השפות שזוהו כדי להסיר את המסנן.";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "רק טקסט המזוהה כשפת המקור שנבחרה מתורגם. שפות ללא זיהוי במכשיר נשארות ללא סינון.";
+
+"HTTPS_BYPASS" = "מעקף חסימת HTTPS";
+
+"HTTPS_BYPASS_HELP" = "השתמש בפיצול TLS וב-DNS מוצפן (Cloudflare) עבור בקשות מקור, תמונות, הורדות ותצוגות אינטרנט מקור. חל על חיבורים חדשים. חסימות IP והגבלות המוטלות על ידי האתר אינן עוקפות.";
+
+"HTTPS_BYPASS_TEST" = "בדיקת חיבור";
+
+"HTTPS_BYPASS_TEST_HELP" = "בודק כתובת HTTPS זו דרך המעקף, גם כשהמתג כבוי. תגובה מאשרת קישוריות, לא שהייתה בלוק של ספק שירותי אינטרנט.";
+
+"HTTPS_BYPASS_INVALID_URL" = "הזן כתובת URL של HTTPS ללא שם משתמש או סיסמה.";
+
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d התקבל · פיצול TLS הוחל";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d התקבל · פיצול TLS לא אושר";
+
+"HTTPS_BYPASS_TEST_FAILED" = "לא ניתן להתחבר דרך מעקף HTTPS.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "התרגום נכשל. מציג טקסט OCR. אנא בדוק את החיבור שלך.";
+
+"TRANSLATION_MANGA_TITLES" = "תרגם כותרות מנגה";
+
+"TRANSLATION_CHAPTER_TITLES" = "תרגם כותרות פרקים";
+
+"TRANSLATION_TITLES_HELP" = "משתמש ב-API התרגום שלך ובשפת היעד שלך ללא תלות בתרגום אוטומטי של דפים. כבה כדי להציג כותרות ותיאורים מקוריים. המקורות נשארים גלויים בזמן טעינה או אם התרגום נכשל.";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "שפות כותרת מנגה";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "שפות כותרת הפרק";
+
+"TRANSLATION_PAGE_SOURCE" = "שפת מקור העמוד";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "זהה אוטומטית את שפת המקור של כל כותר ותרגם רק את השפות שנבחרו. כל השפות מסירה את הגבלת השפה. הגדרות עמוד ושפת מקור אחרות של הכותרת אינן משפיעות על בחירה זו.";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "תרגם תיאורי מנגה";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "שפות תיאור מנגה";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "זיהוי אוטומטי של שפת המקור ותרגם רק את השפות שנבחרו. כל השפות מסירה את ההגבלה. מסנני עמוד, כותרת מנגה, כותרת פרק ותיאור פועלים באופן עצמאי.";
+
+"TRANSLATION_SFX_FILTER" = "סינון SFX (יפני בלבד)";
+
+"TRANSLATION_SFX_FILTER_HELP" = "השאר אפקטים קוליים יפניים לא מתורגמים. השתמש במילון מקומי ובבדיקות פריסה שמרניות. טקסט שלא ניתן לזהות בבטחה כאפקט קול עדיין מתורגם.";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "כלול ערכים נדרשים בהקשר (יפנית בלבד)";
+
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "חל כאשר סינון SFX מופעל. מסנן גם ערכים המסומנים כמחייבים הקשר באמצעות התאמות מילון, גודל טקסט ופריסה קרובה. שום LLM לא מנתח את ההקשר, כך שגם דיאלוג עשוי להיות לא נכלל.";
+
+"TRANSLATION_INCLUDE_IMAGE" = "כלול תמונת עמוד בתרגום";
+
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "שלח את הדף המקורי עם טקסט OCR להקשר של סצנה והבעה. הוראות תמונה מצורפות אוטומטית. דורש דגם התומך בתמונות ועשוי להגדיל את השימוש בנתונים ואת עלות ה-API.";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "שמור על צבע הטקסט המקורי";
+
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "הערך את צבע הטקסט המקורי ללא דגם נוסף. השתמש בצבע ברירת המחדל כאשר לא בטוח או כאשר הניגודיות נמוכה מדי.";
+
+"TRANSLATION_LLM_SFX" = "סינון LLM SFX (כל השפות)";
+
+"TRANSLATION_LLM_SFX_HELP" = "סיווג אפקטים קוליים בבקשת התרגום. ניתן לשלב עם הפילטר המקומי היפני: החלטה על אפקט קול מכל אחד מהפילטרים משאירה את המקור ללא שינוי. תואם לשליחת תמונת העמוד.";
+
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "ללא קלט תמונה, הקשר חזותי ופריסה מוגבל עשוי להפחית את דיוק סיווג SFX.";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "שמור על צבע הפאנל המקורי";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "התאם את חלונית התרגום לרקע סביב הטקסט המקורי. השתמש בחלונית ברירת המחדל כאשר לא בטוח או לא ניתן לקריאה. הגדרת האטימות שלך עדיין חלה.";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "OpenAI מותאם אישית";
+
+"TRANSLATION_OCR_MEDIUM" = "בינוני";
+
+"TRANSLATION_OCR_SMALL" = "קטן";
+
+"TRANSLATION_OCR_TINY" = "זעיר";
+
+"TRANSLATION_REASONING_NONE" = "אין";
+
+"TRANSLATION_REASONING_MINIMAL" = "מינימלי";
+
+"TRANSLATION_REASONING_LOW" = "נמוך";
+
+"TRANSLATION_REASONING_MEDIUM" = "בינוני";
+
+"TRANSLATION_REASONING_HIGH" = "גבוה";
+
+"TRANSLATION_REASONING_XHIGH" = "גבוה מאוד";
+
+"TRANSLATION_REASONING_MAX" = "מקסימום";

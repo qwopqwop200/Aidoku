@@ -3,6 +3,61 @@ import UIKit
 @testable import Aidoku
 
 struct ReaderTranslationBalloonMergerTests {
+    @Test func overlappingTailRequiresOriginalLastColumnEvidence() throws {
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1
+        let image = try #require(UIGraphicsImageRenderer(size: CGSize(width: 300, height: 400), format: format).image { ctx in
+            UIColor.darkGray.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 300, height: 400))
+            for x in [105, 135, 165] {
+                for y in stride(from: 25, to: 340, by: 12) {
+                    UIColor.white.setFill(); ctx.fill(CGRect(x: x, y: y, width: 10, height: 10))
+                    UIColor.magenta.setFill(); ctx.fill(CGRect(x: x + 1, y: y + 1, width: 8, height: 8))
+                }
+            }
+        }.cgImage)
+        func region(_ id: String, _ text: String, _ y: CGFloat, _ h: CGFloat, single: Bool) -> ReaderTranslationRegion {
+            ReaderTranslationRegion(id: id, rect: CGRect(x: 100.0 / 300, y: y / 400, width: (single ? 30.0 : 90.0) / 300, height: h / 400),
+                source: text, confidence: 1, sourceImageAspectRatio: 0.75, sourceOrientation: .vertical, sourceSingleVerticalColumn: single)
+        }
+        let head = region("head", "本文最後の列", 20, 270, single: false)
+        let tail = region("tail", "続き", 210, 130, single: true)
+        let line = ReaderTranslationBalloonMerger.SourceLine(polygon: [CGPoint(x: 100, y: 20), CGPoint(x: 130, y: 20),
+            CGPoint(x: 130, y: 185), CGPoint(x: 100, y: 185)], text: "最後の列", orientation: .vertical)
+        // Previous rectangle-only rule leaves the cached shape split.
+        #expect(ReaderTranslationBalloonMerger.apply([head, tail], image: image).count == 2)
+        #expect(ReaderTranslationBalloonMerger.apply([head, tail], image: image, sourceLines: [line]).map(\.source) == ["本文最後の列続き"])
+        // The first screenshot's internal short fragment never extends past the head.
+        let internalFragment = region("inside", "別の断片", 150, 100, single: true)
+        #expect(ReaderTranslationBalloonMerger.apply([head, internalFragment], image: image, sourceLines: [line]).count == 2)
+        let unrelated = ReaderTranslationBalloonMerger.SourceLine(polygon: line.polygon, text: "別の文", orientation: .vertical)
+        #expect(ReaderTranslationBalloonMerger.apply([head, tail], image: image, sourceLines: [unrelated]).count == 2)
+    }
+
+    @Test func outlinedCaptionInkMatchesAcrossColumnWidthsButRejectsOtherSpeakers() throws {
+        func sample(_ second: UIColor, firstColour: UIColor = .magenta) -> CGImage {
+            let format = UIGraphicsImageRendererFormat(); format.scale = 1
+            return UIGraphicsImageRenderer(size: CGSize(width: 130, height: 200), format: format).image { context in
+                UIColor.darkGray.setFill(); context.fill(CGRect(x: 0, y: 0, width: 130, height: 200))
+                for (x, colour) in [(20, firstColour), (70, second), (90, second)] {
+                    for y in stride(from: 15, to: 175, by: 12) {
+                        UIColor.white.setFill(); context.fill(CGRect(x: CGFloat(x), y: CGFloat(y), width: 8, height: 8))
+                        colour.setFill(); context.fill(CGRect(x: CGFloat(x + 1), y: CGFloat(y + 1), width: 6, height: 6))
+                    }
+                }
+            }.cgImage!
+        }
+        let first = CGRect(x: 10, y: 10, width: 30, height: 175)
+        let second = CGRect(x: 60, y: 10, width: 50, height: 175)
+        #expect(ReaderTranslationBalloonMerger.matchingOutlinedInk(in: sample(.magenta), first: first, second: second))
+        #expect(!ReaderTranslationBalloonMerger.matchingOutlinedInk(in: sample(.orange), first: first, second: second))
+        #expect(!ReaderTranslationBalloonMerger.matchingOutlinedInk(in: sample(.gray), first: first, second: second))
+        #expect(ReaderTranslationBalloonMerger.differentOutlinedInk(in: sample(.orange), first: first, second: second))
+        #expect(!ReaderTranslationBalloonMerger.differentOutlinedInk(in: sample(.magenta), first: first, second: second))
+        #expect(!ReaderTranslationBalloonMerger.differentOutlinedInk(in: sample(.gray), first: first, second: second))
+        let softenedOrange = sample(UIColor(red: 1, green: 0.65, blue: 0.3, alpha: 1), firstColour: .orange)
+        #expect(!ReaderTranslationBalloonMerger.differentOutlinedInk(in: softenedOrange, first: first, second: second))
+        #expect(ReaderTranslationBalloonMerger.matchingOutlinedInk(in: softenedOrange, first: first, second: second))
+    }
+
     @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("DeviceSpeed/horizontal-source.png").path)))
     func capturedHorizontalBalloon() async throws {
         let directory = URL.documentsDirectory.appendingPathComponent("DeviceSpeed")

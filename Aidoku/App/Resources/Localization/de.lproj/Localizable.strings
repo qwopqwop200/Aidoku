@@ -502,3 +502,223 @@
 "%@_TRACKER_LOGIN_NEEDED" = "%@ Anmeldung benötigt";
 "CLOSE_READER" = "Reader schließen";
 "%i_SERIES" = "Serien";
+
+"TRANSLATION_TITLE" = "OCR und Übersetzung";
+
+"TRANSLATION_TRANSLATE" = "Sichtbare Seiten übersetzen";
+
+"TRANSLATION_RECOGNIZE" = "Text erkennen (Offline)";
+
+"TRANSLATION_ORIGINAL" = "Original anzeigen";
+
+"TRANSLATION_TEXT" = "Erkannter und übersetzter Text";
+
+"TRANSLATION_NO_IMAGE" = "Warten Sie, bis eine Bildseite geladen ist, und versuchen Sie es dann erneut.";
+
+"TRANSLATION_NO_TEXT" = "Es wurde kein Text erkannt. Probieren Sie ein anderes OCR-Modell oder ein klareres Bild aus.";
+
+"TRANSLATION_WORKING" = "Erkennen und Übersetzen…";
+
+"TRANSLATION_OCR_WORKING" = "Text auf dem Gerät wird erkannt…";
+
+"TRANSLATION_HELP" = "Das Übersetzungssymbol schaltet die Übersetzung ein oder aus. Die Seiten werden in dieser Reihenfolge vorbereitet: aktuelle, nächste, vorherige, zwei voran, zwei dahinter, bis zu beiden Enden des Kapitels. Fertige OCR, Übersetzungen und Textlayouts werden nach dem Schließen des Readers oder einem Neustart der App wiederverwendet. Durch das Verlassen des Readers werden unvollendete Arbeiten abgebrochen.";
+
+"TRANSLATION_PRIVACY" = "OCR läuft auf Ihrem Gerät. Die Übersetzung sendet erkannten Text und Ihre Anweisungen an den ausgewählten Anbieter. Wenn „Seitenbild in Übersetzung einbeziehen“ aktiviert ist, wird auch das Originalseitenbild hochgeladen. Die API-Gebühren hängen von Ihrem Anbieter ab. Schlüssel bleiben im Schlüsselbund. OCR, Übersetzungen und Textlayout werden im geschützten App-Speicher gespeichert und von Backups ausgeschlossen.";
+
+"TRANSLATION_KEY_REPLACE" = "Gespeicherten API-Schlüssel ersetzen (optional)";
+
+"TRANSLATION_KEY" = "API-Schlüssel";
+
+"TRANSLATION_KEY_SAVED" = "API-Schlüssel im Schlüsselbund gespeichert";
+
+"TRANSLATION_KEY_DELETE" = "API-Schlüssel löschen";
+
+"TRANSLATION_MODEL" = "Modell-ID";
+
+"TRANSLATION_GET_KEY" = "Öffnen Sie OpenAI-API-Schlüssel";
+
+"TRANSLATION_LANGUAGE" = "Sprachen";
+
+"TRANSLATION_TARGET" = "Übersetzen nach";
+
+"TRANSLATION_SOURCE" = "Quellsprache";
+
+"TRANSLATION_AUTO" = "Automatisch erkennen";
+
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 erfordert iOS 18 oder höher. Mittel ist die Standardeinstellung; Klein verbraucht weniger Speicher. Tiny hat ein kleineres Zeichenwörterbuch. Diese Modelle unterstützen keine koreanische OCR. Die Ausgabe koreanischer Übersetzungen wird unterstützt.";
+
+"TRANSLATION_INSTRUCTIONS" = "Übersetzungsanweisungen";
+
+"TRANSLATION_RESET_PROMPT" = "Standardanweisungen wiederherstellen";
+
+"TRANSLATION_CLEAR_CACHE" = "Übersetzungscache leeren";
+
+"TRANSLATION_CACHE_CLEARED" = "Übersetzungscache geleert.";
+
+"TRANSLATION_NOTICES" = "OCR- und Übersetzungslizenzen";
+
+"TRANSLATION_ADVANCED" = "Übersetzungsoptionen";
+
+"TRANSLATION_REASONING" = "Argumentationsaufwand";
+
+"TRANSLATION_MODEL_DEFAULT" = "Modellstandard";
+
+"TRANSLATION_CONCURRENCY" = "Gleichzeitige Anfragen";
+
+"TRANSLATION_DETECTOR_SIZE" = "Maximale Seite des Detektors";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "Maximale Breite des Erkenners";
+
+"TRANSLATION_CONFIDENCE" = "OCR-Vertrauen";
+
+"TRANSLATION_SURFACE" = "Hintergrundfarbe";
+
+"TRANSLATION_WHITE" = "Weiß";
+
+"TRANSLATION_DARK" = "Dunkel";
+
+"TRANSLATION_OPACITY" = "Hintergrundopazität";
+
+"TRANSLATION_EXPANSION" = "Box-Erweiterung";
+
+"TRANSLATION_PANEL_BOUNDS" = "Im Bildbereich";
+
+"TRANSLATION_SOURCE_BOUNDS" = "Im Originalkarton";
+
+"TRANSLATION_UNRESTRICTED" = "Uneingeschränkt";
+
+"TRANSLATION_FONT_SIZE" = "Schriftgröße";
+
+"TRANSLATION_AUTO_FIT" = "Automatisch anpassen";
+
+"TRANSLATION_FIXED" = "Feste Größe";
+
+"TRANSLATION_OVERLAY" = "Übersetzungsüberlagerung";
+
+"TRANSLATION_OVERLAY_HELP" = "Ersetzt Text über seinem Quellfeld durch kollisionsbewusstes Layout und skriptspezifischen Umbruch. Bei Anzeigeänderungen wird die vorhandene OCR wiederverwendet.";
+
+"TRANSLATION_PROVIDER" = "Übersetzungsanbieter";
+
+"TRANSLATION_BASE_URL" = "Server-URL";
+
+"TRANSLATION_API_FORMAT" = "API-Format";
+
+"TRANSLATION_CUSTOM_HELP" = "Geben Sie eine HTTPS-Basis-URL oder einen vollständigen API-Endpunkt und ein von Ihrem Server unterstütztes Modell ein. Jede Server-URL verfügt über einen eigenen gespeicherten Schlüssel. Durch das Ändern der URL werden alle von Ihnen eingegebenen Schlüssel gelöscht. Antworten und Chat-Abschlüsse verwenden eine strukturierte JSON-Ausgabe.";
+
+"TRANSLATION_AUTOMATIC" = "Automatische Übersetzung";
+
+"TRANSLATION_AUTOMATIC_HELP" = "Überprüfen Sie die gespeicherten API-Einstellungen einmal im Hintergrund, wenn die App geöffnet wird oder sich die API-Einstellungen ändern. Die Übersetzung beginnt nach Erfolg. Bei einer fehlgeschlagenen Prüfung wird die Übersetzung angehalten, ohne dass Ihre Einstellungen für die automatische Übersetzung geändert werden. Öffnen Sie die App erneut oder testen Sie die API-Verbindung erneut, um es erneut zu versuchen. Seitenwechsel und EIN/AUS verwenden das Prüfergebnis erneut. Reasoning-Aufwand verwendet Ihre gespeicherte Einstellung.";
+
+"TRANSLATION_TEST" = "Testen Sie die API-Verbindung";
+
+"TRANSLATION_TEST_RUNNING" = "Verbindung testen…";
+
+"TRANSLATION_TEST_SUCCESS" = "Verbindung erfolgreich";
+
+"TRANSLATION_TEST_FAILURE" = "Verbindung fehlgeschlagen";
+
+"TRANSLATION_TEST_HELP" = "Übersetzt einen kurzen Satz mit den Werten in diesem Formular. Lassen Sie den Schlüssel leer, um den gespeicherten Schlüssel dieses Servers zu verwenden. Änderungen werden automatisch gespeichert.";
+
+"SEARCH_SUGGESTIONS" = "Suchvorschläge";
+
+"TRANSLATION_CACHE" = "Offline-Cache";
+
+"TRANSLATION_CACHE_LIMIT" = "Maximaler Speicherplatz";
+
+"TRANSLATION_CACHE_USED" = "Verwendeter Speicher";
+
+"TRANSLATION_CACHE_HELP" = "OCR, Seitenübersetzungen, Übersetzungen von Manga- und Kapiteltiteln, Manga-Beschreibungen und Textlayout werden automatisch gespeichert. Seitenbilder werden nur für die aktuelle Seite und benachbarte Seiten im Arbeitsspeicher gehalten. Bei Erreichen der Speichergrenze werden zuerst die Ergebnisse entfernt, deren letzte Verwendung am längsten zurückliegt. Standard: 1 GB. Maximum: 100 GB. Änderungen werden automatisch angewendet. Beim Senken der Grenze werden diese älteren Ergebnisse entfernt, bis der Cache innerhalb der Grenze liegt.";
+
+"TRANSLATION_SOURCE_FILTER" = "Übersetzungsquellenfilter";
+
+"TRANSLATION_FILTER_ALL" = "Alle erkannten Sprachen";
+
+"TRANSLATION_FILTER_HELP" = "Wählen Sie die zu übersetzenden Originalsprachen aus. Nicht ausgewählter oder unsicherer Text bleibt unverändert. Wählen Sie „Alle erkannten Sprachen“, um den Filter zu entfernen.";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Es wird nur Text übersetzt, der als ausgewählte Originalsprache identifiziert wurde. Sprachen ohne Erkennung auf dem Gerät bleiben ungefiltert.";
+
+"HTTPS_BYPASS" = "Umgehung der HTTPS-Blockierung";
+
+"HTTPS_BYPASS_HELP" = "Nutzen Sie TLS-Fragmentierung und verschlüsseltes DNS (Cloudflare) für Quellanfragen, Bilder, Downloads und Quell-Webansichten. Gilt für neue Verbindungen. Von der Website auferlegte IP-Sperren und -Einschränkungen werden nicht umgangen.";
+
+"HTTPS_BYPASS_TEST" = "Testverbindung";
+
+"HTTPS_BYPASS_TEST_HELP" = "Testet diese HTTPS-Adresse über die Umgehung, auch wenn der Schalter ausgeschaltet ist. Eine Antwort bestätigt die Konnektivität, nicht, dass eine ISP-Blockierung vorhanden war.";
+
+"HTTPS_BYPASS_INVALID_URL" = "Geben Sie eine HTTPS-URL ohne Benutzernamen und Passwort ein.";
+
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d empfangen · TLS-Fragmentierung angewendet";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d empfangen · TLS-Fragmentierung nicht bestätigt";
+
+"HTTPS_BYPASS_TEST_FAILED" = "Es konnte keine Verbindung über die HTTPS-Umgehung hergestellt werden.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Die Übersetzung ist fehlgeschlagen. OCR-Text wird angezeigt. Bitte überprüfen Sie Ihre Verbindung.";
+
+"TRANSLATION_MANGA_TITLES" = "Übersetzen Sie Manga-Titel";
+
+"TRANSLATION_CHAPTER_TITLES" = "Übersetzen Sie Kapiteltitel";
+
+"TRANSLATION_TITLES_HELP" = "Verwendet Ihre Übersetzungs-API und Zielsprache unabhängig von der automatischen Seitenübersetzung. Deaktivieren Sie diese Option, um Originaltitel und -beschreibungen anzuzeigen. Die Originale bleiben beim Laden oder bei fehlgeschlagener Übersetzung sichtbar.";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "Manga-Titelsprachen";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "Kapiteltitelsprachen";
+
+"TRANSLATION_PAGE_SOURCE" = "Quellsprache der Seite";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "Erkennen Sie automatisch die Quellsprache jedes Titels und übersetzen Sie nur die ausgewählten Sprachen. Alle Sprachen heben die Sprachenbeschränkung auf. Seiten- und andere Quellspracheneinstellungen des Titels haben keinen Einfluss auf diese Auswahl.";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Übersetzen Sie Manga-Beschreibungen";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "Manga-Beschreibungssprachen";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "Erkennen Sie automatisch die Ausgangssprache und übersetzen Sie nur die ausgewählten Sprachen. Alle Sprachen heben die Einschränkung auf. Seiten-, Mangatitel-, Kapiteltitel- und Beschreibungsfilter funktionieren unabhängig voneinander.";
+
+"TRANSLATION_SFX_FILTER" = "SFX-Filterung (nur Japanisch)";
+
+"TRANSLATION_SFX_FILTER_HELP" = "Lassen Sie wahrscheinlich japanische Soundeffekte unübersetzt. Verwenden Sie ein lokales Wörterbuch und konservative Layoutprüfungen. Text, der nicht sicher als Soundeffekt identifiziert werden kann, wird dennoch übersetzt.";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Kontexterforderliche Einträge einbeziehen (nur Japanisch)";
+
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Gilt, während die SFX-Filterung aktiviert ist. Filtert außerdem Einträge, die als „Kontext erfordernd“ markiert sind, mithilfe von Wörterbuchübereinstimmungen, Textgröße und nahegelegenem Layout. Kein LLM analysiert den Kontext, daher kann auch der Dialog ausgeschlossen werden.";
+
+"TRANSLATION_INCLUDE_IMAGE" = "Beziehen Sie das Seitenbild in die Übersetzung ein";
+
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Senden Sie die Originalseite mit OCR-Text für Szenen- und Ausdruckskontext. Bildanweisungen werden automatisch angehängt. Erfordert ein Modell, das Bilder unterstützt und möglicherweise die Datennutzung und API-Kosten erhöht.";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "Originaltextfarbe beibehalten";
+
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Schätzen Sie die ursprüngliche Textfarbe ohne ein zusätzliches Modell. Verwenden Sie die Standardfarbe, wenn Sie unsicher sind oder der Kontrast zu niedrig ist.";
+
+"TRANSLATION_LLM_SFX" = "LLM SFX-Filterung (alle Sprachen)";
+
+"TRANSLATION_LLM_SFX_HELP" = "Klassifizieren Sie Soundeffekte in der Übersetzungsanfrage. Kann mit dem japanischen lokalen Filter kombiniert werden: Eine Soundeffekt-Entscheidung aus einem der beiden Filter lässt das Original unverändert. Kompatibel mit dem Senden des Seitenbildes.";
+
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Ohne Bildeingabe kann ein eingeschränkter visueller und Layout-Kontext die Genauigkeit der SFX-Klassifizierung beeinträchtigen.";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Behalten Sie die ursprüngliche Panelfarbe bei";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Passen Sie das Übersetzungsfeld an den Hintergrund um den Originaltext an. Verwenden Sie das Standardfenster, wenn Sie unsicher oder nicht lesbar sind. Ihre Deckkrafteinstellung gilt weiterhin.";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "Benutzerdefinierte OpenAI";
+
+"TRANSLATION_OCR_MEDIUM" = "Mittel";
+
+"TRANSLATION_OCR_SMALL" = "Klein";
+
+"TRANSLATION_OCR_TINY" = "Winzig";
+
+"TRANSLATION_REASONING_NONE" = "Keine";
+
+"TRANSLATION_REASONING_MINIMAL" = "Minimal";
+
+"TRANSLATION_REASONING_LOW" = "Niedrig";
+
+"TRANSLATION_REASONING_MEDIUM" = "Mittel";
+
+"TRANSLATION_REASONING_HIGH" = "Hoch";
+
+"TRANSLATION_REASONING_XHIGH" = "Sehr hoch";
+
+"TRANSLATION_REASONING_MAX" = "Maximal";

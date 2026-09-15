@@ -54,6 +54,8 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
     var visible: Bool
     var mode: IPhoneOverlayMode
     var colorMode: IPhoneOverlayColorMode
+    var preserveSourceTextColor = false
+    var preserveSourceBackgroundColor = false
     var opacity: Double
     var fixedFontSizePoints: Int
     var textPlacement: IPhoneOverlayTextPlacement
@@ -67,6 +69,8 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
         case visible
         case mode
         case colorMode
+        case preserveSourceTextColor
+        case preserveSourceBackgroundColor
         case opacity
         case fixedFontSizePoints
         case textPlacement
@@ -111,6 +115,8 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
             IPhoneOverlayColorMode.self,
             forKey: .colorMode
         )
+        preserveSourceTextColor = try container.decodeIfPresent(Bool.self, forKey: .preserveSourceTextColor) ?? false
+        preserveSourceBackgroundColor = try container.decodeIfPresent(Bool.self, forKey: .preserveSourceBackgroundColor) ?? false
         opacity = try container.decode(Double.self, forKey: .opacity)
         fixedFontSizePoints = try container.decode(
             Int.self,
@@ -154,4 +160,3 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
         subtitleContextSentences = 0
     }
 }
-

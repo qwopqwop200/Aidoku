@@ -746,3 +746,223 @@
 "KAVITA" = "Kavita";
 "FORMAT_EPUB" = "EPUB";
 "SUWAYOMI" = "Suwayomi";
+
+"TRANSLATION_TITLE" = "OCR ve Çeviri";
+
+"TRANSLATION_TRANSLATE" = "Görünür Sayfaları Çevir";
+
+"TRANSLATION_RECOGNIZE" = "Metni Tanı (Çevrimdışı)";
+
+"TRANSLATION_ORIGINAL" = "Orijinali Göster";
+
+"TRANSLATION_TEXT" = "Tanınan ve Çevrilmiş Metin";
+
+"TRANSLATION_NO_IMAGE" = "Bir resim sayfasının yüklenmesini bekleyin, ardından tekrar deneyin.";
+
+"TRANSLATION_NO_TEXT" = "Hiçbir metin tanınmadı. Başka bir OCR modelini veya daha net bir görüntüyü deneyin.";
+
+"TRANSLATION_WORKING" = "Tanımak ve tercüme etmek…";
+
+"TRANSLATION_OCR_WORKING" = "Cihazdaki metin tanınıyor…";
+
+"TRANSLATION_HELP" = "Çeviri simgesi çeviriyi açar veya kapatır. Sayfalar şu sırayla hazırlanır: şimdiki, sonraki, önceki, iki ileri, iki geri, bölümün her iki ucuna doğru devam eden. Tamamlanan OCR, çeviriler ve metin düzeni, okuyucu kapatıldıktan veya uygulama yeniden başlatıldıktan sonra yeniden kullanılır. Okuyucuyu bırakmak, yarım kalan işi iptal eder.";
+
+"TRANSLATION_PRIVACY" = "OCR cihazınızda çalışır. Çeviri, tanınan metni ve talimatlarınızı seçilen sağlayıcıya gönderir. Çeviriye Sayfa Resmini Ekle seçeneği etkinse orijinal sayfa resmi de yüklenir. API ücretleri sağlayıcınıza bağlıdır. Anahtarlar Anahtarlıkta kalır. OCR, çeviriler ve metin düzeni, yedeklemelerin dışında tutulan korumalı uygulama depolama alanına kaydedilir.";
+
+"TRANSLATION_KEY_REPLACE" = "Kaydedilen API anahtarını değiştirin (isteğe bağlı)";
+
+"TRANSLATION_KEY" = "API anahtarı";
+
+"TRANSLATION_KEY_SAVED" = "Anahtar Zincirine kaydedilen API anahtarı";
+
+"TRANSLATION_KEY_DELETE" = "API Anahtarını Sil";
+
+"TRANSLATION_MODEL" = "Model Kimliği";
+
+"TRANSLATION_GET_KEY" = "OpenAI API Anahtarlarını açın";
+
+"TRANSLATION_LANGUAGE" = "Diller";
+
+"TRANSLATION_TARGET" = "Çevir";
+
+"TRANSLATION_SOURCE" = "Kaynak Dil";
+
+"TRANSLATION_AUTO" = "Otomatik Olarak Algıla";
+
+"TRANSLATION_OCR_HELP" = "PP-OCRv6, iOS 18 veya üstünü gerektirir. Orta varsayılandır; Küçük, daha az bellek kullanır. Tiny'nin daha küçük bir karakter sözlüğü var. Bu modeller Kore OCR'sini desteklemez. Korece çeviri çıktısı desteklenmektedir.";
+
+"TRANSLATION_INSTRUCTIONS" = "Çeviri talimatları";
+
+"TRANSLATION_RESET_PROMPT" = "Varsayılan çeviri talimatlarını geri yükleyin";
+
+"TRANSLATION_CLEAR_CACHE" = "Çeviri Önbelleğini Temizle";
+
+"TRANSLATION_CACHE_CLEARED" = "Çeviri önbelleği temizlendi.";
+
+"TRANSLATION_NOTICES" = "OCR ve Çeviri Lisansları";
+
+"TRANSLATION_ADVANCED" = "Çeviri Seçenekleri";
+
+"TRANSLATION_REASONING" = "Muhakeme Çabası";
+
+"TRANSLATION_MODEL_DEFAULT" = "Model Varsayılanı";
+
+"TRANSLATION_CONCURRENCY" = "Eşzamanlı İstekler";
+
+"TRANSLATION_DETECTOR_SIZE" = "Dedektör Maksimum Tarafı";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "Tanıyıcı Maksimum Genişliği";
+
+"TRANSLATION_CONFIDENCE" = "OCR Güveni";
+
+"TRANSLATION_SURFACE" = "Arka Plan Rengi";
+
+"TRANSLATION_WHITE" = "Beyaz";
+
+"TRANSLATION_DARK" = "Karanlık";
+
+"TRANSLATION_OPACITY" = "Arka Plan Opaklığı";
+
+"TRANSLATION_EXPANSION" = "Kutu Genişletme";
+
+"TRANSLATION_PANEL_BOUNDS" = "Görüntü Paneli İçinde";
+
+"TRANSLATION_SOURCE_BOUNDS" = "Orijinal Kutusunda";
+
+"TRANSLATION_UNRESTRICTED" = "Sınırsız";
+
+"TRANSLATION_FONT_SIZE" = "Yazı Tipi Boyutu";
+
+"TRANSLATION_AUTO_FIT" = "Otomatik Olarak Sığdır";
+
+"TRANSLATION_FIXED" = "Sabit yazı tipi boyutu";
+
+"TRANSLATION_OVERLAY" = "Çeviri Yer Paylaşımı";
+
+"TRANSLATION_OVERLAY_HELP" = "Çarpışmaya duyarlı düzen ve komut dosyasına özel kaydırma kullanarak metni kaynak kutusu üzerinde değiştirir. Görüntüleme değişiklikleri mevcut OCR'yi yeniden kullanır.";
+
+"TRANSLATION_PROVIDER" = "Çeviri Sağlayıcı";
+
+"TRANSLATION_BASE_URL" = "Sunucu URL'si";
+
+"TRANSLATION_API_FORMAT" = "API Formatı";
+
+"TRANSLATION_CUSTOM_HELP" = "Bir HTTPS temel URL'si veya tam API uç noktası ve sunucunuz tarafından desteklenen bir model girin. Her sunucu URL'sinin kendi kayıtlı anahtarı vardır; URL'yi değiştirmek girdiğiniz tüm anahtarları siler. Yanıtlar ve Sohbet Tamamlamalar, yapılandırılmış JSON çıktısını kullanır.";
+
+"TRANSLATION_AUTOMATIC" = "Otomatik Çeviri";
+
+"TRANSLATION_AUTOMATIC_HELP" = "Uygulama açıldığında veya API ayarları değiştiğinde, kaydedilen API ayarlarını arka planda bir kez kontrol edin. Çeviri başarıdan sonra başlar. Başarısız bir kontrol, otomatik çeviri tercihinizi değiştirmeden çeviriyi duraklatır. Yeniden denemek için uygulamayı yeniden açın veya API bağlantısını tekrar test edin. Sayfa değişiklikleri ve AÇIK/KAPALI, kontrol sonucunu yeniden kullanır. Muhakeme çabası kayıtlı ayarınızı kullanır.";
+
+"TRANSLATION_TEST" = "API Bağlantısını Test Edin";
+
+"TRANSLATION_TEST_RUNNING" = "Bağlantı Test Ediliyor…";
+
+"TRANSLATION_TEST_SUCCESS" = "Bağlantı Başarılı";
+
+"TRANSLATION_TEST_FAILURE" = "Bağlantı Başarısız";
+
+"TRANSLATION_TEST_HELP" = "Bu formdaki değerleri kullanarak kısa bir cümleyi çevirir. Bu sunucunun kayıtlı anahtarını kullanmak için anahtarı boş bırakın. Değişiklikler otomatik olarak kaydedilir.";
+
+"SEARCH_SUGGESTIONS" = "Arama Önerileri";
+
+"TRANSLATION_CACHE" = "Çevrimdışı Önbellek";
+
+"TRANSLATION_CACHE_LIMIT" = "Maksimum Depolama";
+
+"TRANSLATION_CACHE_USED" = "Kullanılan Depolama";
+
+"TRANSLATION_CACHE_HELP" = "OCR'yi, sayfa çevirilerini, manga ve bölüm başlığı çevirilerini, manga açıklamalarını ve metin düzenini otomatik olarak kaydedin. Sayfa görüntüleri yalnızca yakındaki sayfa belleğinde kalır. Seçilen sınıra ulaşıldığında en son kullanılan sonuçlar kaldırılır. Varsayılan: 1 GB. Maksimum: 100 GB. Değişiklikler otomatik olarak uygulanır; sınırın düşürülmesi, önbellek sığıncaya kadar en son kullanılan sonuçları kaldırır.";
+
+"TRANSLATION_SOURCE_FILTER" = "Çeviri Kaynağı Filtresi";
+
+"TRANSLATION_FILTER_ALL" = "Algılanan Tüm Diller";
+
+"TRANSLATION_FILTER_HELP" = "Çevrilecek orijinal dilleri seçin. Seçilmemiş veya belirsiz metin değişmeden kalır. Filtreyi kaldırmak için Algılanan Tüm Diller'i seçin.";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Yalnızca seçilen orijinal dil olarak tanımlanan metin çevrilir. Cihazda algılama özelliği olmayan diller filtrelenmeden kalır.";
+
+"HTTPS_BYPASS" = "HTTPS Engelleme Atlaması";
+
+"HTTPS_BYPASS_HELP" = "Kaynak istekleri, görüntüler, indirmeler ve kaynak web görünümleri için TLS parçalanmasını ve şifrelenmiş DNS'yi (Cloudflare) kullanın. Yeni bağlantılar için geçerlidir. Web sitesinin uyguladığı IP engellemeleri ve kısıtlamalar aşılmaz.";
+
+"HTTPS_BYPASS_TEST" = "Bağlantıyı Test Et";
+
+"HTTPS_BYPASS_TEST_HELP" = "Anahtar kapalı olsa bile bu HTTPS adresini bypass yoluyla test eder. Bir yanıt, bir ISP bloğunun mevcut olduğunu değil, bağlantıyı doğrular.";
+
+"HTTPS_BYPASS_INVALID_URL" = "Kullanıcı adı veya şifre olmadan bir HTTPS URL'si girin.";
+
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d alındı · TLS parçalanması uygulandı";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d alındı · TLS parçalanması onaylanmadı";
+
+"HTTPS_BYPASS_TEST_FAILED" = "HTTPS atlama yoluyla bağlantı kurulamadı.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Çeviri başarısız oldu. OCR metni gösteriliyor. Lütfen bağlantınızı kontrol edin.";
+
+"TRANSLATION_MANGA_TITLES" = "Manga Başlıklarını Çevir";
+
+"TRANSLATION_CHAPTER_TITLES" = "Bölüm Başlıklarını Çevir";
+
+"TRANSLATION_TITLES_HELP" = "Otomatik sayfa çevirisinden bağımsız olarak çeviri API'nizi ve hedef dilinizi kullanır. Orijinal başlıkları ve açıklamaları göstermek için kapatın. Yükleme sırasında veya çeviri başarısız olduğunda orijinaller görünür durumda kalır.";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "Manga Başlık Dilleri";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "Bölüm Başlığı Diller";
+
+"TRANSLATION_PAGE_SOURCE" = "Sayfa Kaynak Dili";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "Her başlığın kaynak dilini otomatik olarak algılayın ve yalnızca seçilen dilleri çevirin. Tüm Diller dil kısıtlamasını kaldırır. Sayfa ve diğer başlık kaynak-dil ayarları bu seçimi etkilemez.";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Manga Açıklamalarını Çevir";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "Manga Açıklama Dilleri";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "Kaynak dili otomatik olarak algılayın ve yalnızca seçilen dilleri çevirin. Tüm Diller kısıtlamayı kaldırır. Sayfa, manga başlığı, bölüm başlığı ve açıklama filtreleri bağımsız olarak çalışır.";
+
+"TRANSLATION_SFX_FILTER" = "SFX Filtreleme (Yalnızca Japonca)";
+
+"TRANSLATION_SFX_FILTER_HELP" = "Olası Japonca ses efektlerini çevrilmeden bırakın. Yerel bir sözlük ve muhafazakar düzen kontrolleri kullanın. Ses efekti olduğu kesin olarak tanımlanamayan metinler yine de çevrilir.";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Bağlam Gerekli Girişleri Ekle (Yalnızca Japonca)";
+
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "SFX Filtreleme etkinken geçerlidir. Ayrıca sözlük eşleşmelerini, metin boyutunu ve yakındaki düzeni kullanarak bağlam gerektiren olarak işaretlenen girişleri de filtreler. Hiçbir LLM bağlamı analiz etmez, dolayısıyla diyalog da hariç tutulabilir.";
+
+"TRANSLATION_INCLUDE_IMAGE" = "Sayfa Resmini Çeviriye Ekle";
+
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Sahne ve ifade bağlamı için orijinal sayfayı OCR metniyle birlikte gönderin. Resim talimatları otomatik olarak eklenir. Görüntüleri destekleyen bir model gerektirir ve veri kullanımını ve API maliyetini artırabilir.";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "Orijinal Metin Rengini Koru";
+
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Ek bir model olmadan orijinal metin rengini tahmin edin. Belirsiz olduğunda veya kontrast çok düşük olduğunda varsayılan rengi kullanın.";
+
+"TRANSLATION_LLM_SFX" = "Yüksek Lisans SFX Filtreleme (Tüm Diller)";
+
+"TRANSLATION_LLM_SFX_HELP" = "Çeviri isteğindeki ses efektlerini sınıflandırın. Japon yerel filtresiyle birleştirilebilir: Her iki filtreden alınan ses efekti kararı, orijinali değiştirmeden bırakır. Sayfa görüntüsünün gönderilmesiyle uyumludur.";
+
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Görüntü girişi olmadan sınırlı görsel ve düzen bağlamı, SFX sınıflandırma doğruluğunu azaltabilir.";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Orijinal Panel Rengini Koru";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Çeviri panelini orijinal metnin etrafındaki arka planla eşleştirin. Belirsiz olduğunda veya okunamadığında varsayılan paneli kullanın. Opaklık ayarınız hâlâ geçerlidir.";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "Özel OpenAI";
+
+"TRANSLATION_OCR_MEDIUM" = "Orta";
+
+"TRANSLATION_OCR_SMALL" = "Küçük";
+
+"TRANSLATION_OCR_TINY" = "minik";
+
+"TRANSLATION_REASONING_NONE" = "Yok";
+
+"TRANSLATION_REASONING_MINIMAL" = "Asgari";
+
+"TRANSLATION_REASONING_LOW" = "Düşük";
+
+"TRANSLATION_REASONING_MEDIUM" = "Orta";
+
+"TRANSLATION_REASONING_HIGH" = "Yüksek";
+
+"TRANSLATION_REASONING_XHIGH" = "Çok Yüksek";
+
+"TRANSLATION_REASONING_MAX" = "Maksimum";

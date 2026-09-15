@@ -258,3 +258,22 @@ PaddleOCR license text
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+Japanese SFX candidate lexicon (local/personal build)
+14,946 candidates derived from the local reviewed corpus; no LLM runs in the app.
+Sources: yuiseki/onomatopoeia-ja (dataset card: MIT); COO by Jeonghun Baek,
+Yusuke Matsui and Kiyoharu Aizawa, ECCV 2022 (annotations: CC BY 4.0,
+https://creativecommons.org/licenses/by/4.0/); nanoskript/jp-onomatopoeia
+(upstream redistribution rights unconfirmed); RWCP-SSD-Onomatopoeia by Yuki
+Okamoto et al., DCASE 2020 (personal/noncommercial research use; redistribution
+not permitted). This combined lexicon must not be included in public releases
+without resolving the respective permissions. Original images are not bundled.
+Processing: normalization, source aggregation, offline LLM classification and
+contradiction review; lexical candidates are not verified occurrence labels.
+https://huggingface.co/datasets/yuiseki/onomatopoeia-ja
+https://github.com/ku21fan/COO-Comic-Onomatopoeia
+https://github.com/nanoskript/jp-onomatopoeia
+https://github.com/KeisukeImoto/RWCPSSD_Onomatopoeia
+
+JapaneseSFXContextCandidates.json adds 8,587 reviewed context_required keys from the same combined corpus under the same source restrictions above. Optional local geometry filtering; no runtime LLM.
+JapaneseSFXSpeechSensitive.json protects 1,676 human-vocalization, ordinary-speech or high-risk keys from the same offline review. It introduces no additional runtime model or provider request and carries the same source restrictions.

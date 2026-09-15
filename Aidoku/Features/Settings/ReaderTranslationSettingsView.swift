@@ -44,7 +44,7 @@ struct ReaderTranslationSettingsView: View {
             Section(NSLocalizedString("TRANSLATION_ADVANCED")) {
                 Picker(NSLocalizedString("TRANSLATION_REASONING"), selection: persistedSettings.reasoningEffort) {
                     ForEach(OpenAIReasoningEffort.allCases, id: \.self) { effort in
-                        Text(effort == .modelDefault ? NSLocalizedString("TRANSLATION_MODEL_DEFAULT") : effort.rawValue).tag(effort)
+                        Text(reasoningTitle(effort)).tag(effort)
                     }
                 }
                 .accessibilityIdentifier("translation.reasoning")
@@ -86,9 +86,9 @@ struct ReaderTranslationSettingsView: View {
             }
             Section {
                 Picker("PP-OCRv6", selection: persistedSettings.modelTier) {
-                    Text("Medium").tag(IPhoneOCRModelTier.medium)
-                    Text("Small").tag(IPhoneOCRModelTier.small)
-                    Text("Tiny").tag(IPhoneOCRModelTier.tiny)
+                    Text(NSLocalizedString("TRANSLATION_OCR_MEDIUM")).tag(IPhoneOCRModelTier.medium)
+                    Text(NSLocalizedString("TRANSLATION_OCR_SMALL")).tag(IPhoneOCRModelTier.small)
+                    Text(NSLocalizedString("TRANSLATION_OCR_TINY")).tag(IPhoneOCRModelTier.tiny)
                 }
                 Picker(NSLocalizedString("TRANSLATION_DETECTOR_SIZE"), selection: persistedSettings.ocr.detectorMaximumSide) {
                     ForEach([800, 1_200, 1_600, 2_000], id: \.self) { Text(String($0)).tag($0) }
@@ -104,6 +104,30 @@ struct ReaderTranslationSettingsView: View {
                 Slider(value: persistedSettings.ocr.confidenceThreshold, in: 0...1, step: 0.05)
             } footer: {
                 Text(NSLocalizedString("TRANSLATION_OCR_HELP"))
+            }
+            Section {
+                Toggle(NSLocalizedString("TRANSLATION_SFX_FILTER"), isOn: persistedSettings.filterJapaneseSFX)
+                    .accessibilityIdentifier("translation.filterJapaneseSFX")
+                Toggle(NSLocalizedString("TRANSLATION_SFX_CONTEXT_FILTER"), isOn: persistedSettings.filterJapaneseSFXContext)
+                    .accessibilityIdentifier("translation.filterJapaneseSFXContext")
+                    .disabled(!settings.filterJapaneseSFX)
+            } footer: {
+                Text(NSLocalizedString("TRANSLATION_SFX_FILTER_HELP") + "\n\n" + NSLocalizedString("TRANSLATION_SFX_CONTEXT_FILTER_HELP"))
+            }
+            Section {
+                Toggle(NSLocalizedString("TRANSLATION_LLM_SFX"), isOn: persistedSettings.filterSFXWithLLM)
+                    .accessibilityIdentifier("translation.filterSFXWithLLM")
+            } footer: {
+                Text(NSLocalizedString("TRANSLATION_LLM_SFX_HELP"))
+                if !settings.includePageImage {
+                    Text(NSLocalizedString("TRANSLATION_LLM_SFX_NO_IMAGE"))
+                }
+            }
+            Section {
+                Toggle(NSLocalizedString("TRANSLATION_INCLUDE_IMAGE"), isOn: persistedSettings.includePageImage)
+                    .accessibilityIdentifier("translation.includePageImage")
+            } footer: {
+                Text(NSLocalizedString("TRANSLATION_INCLUDE_IMAGE_HELP"))
             }
             overlaySection
             cacheSection
@@ -141,6 +165,19 @@ struct ReaderTranslationSettingsView: View {
             Button(NSLocalizedString("OK"), role: .cancel) { message = nil }
         } message: {
             Text(message ?? "")
+        }
+    }
+
+    private func reasoningTitle(_ effort: OpenAIReasoningEffort) -> String {
+        switch effort {
+        case .modelDefault: NSLocalizedString("TRANSLATION_MODEL_DEFAULT")
+        case .none: NSLocalizedString("TRANSLATION_REASONING_NONE")
+        case .minimal: NSLocalizedString("TRANSLATION_REASONING_MINIMAL")
+        case .low: NSLocalizedString("TRANSLATION_REASONING_LOW")
+        case .medium: NSLocalizedString("TRANSLATION_REASONING_MEDIUM")
+        case .high: NSLocalizedString("TRANSLATION_REASONING_HIGH")
+        case .xhigh: NSLocalizedString("TRANSLATION_REASONING_XHIGH")
+        case .max: NSLocalizedString("TRANSLATION_REASONING_MAX")
         }
     }
 
@@ -199,7 +236,7 @@ struct ReaderTranslationSettingsView: View {
         Section {
             Picker(NSLocalizedString("TRANSLATION_PROVIDER"), selection: persistedSettings.provider) {
                 Text("OpenAI").tag(RemoteTranslationProvider.openAI)
-                Text("Custom OpenAI").tag(RemoteTranslationProvider.custom)
+                Text(NSLocalizedString("TRANSLATION_CUSTOM_PROVIDER")).tag(RemoteTranslationProvider.custom)
             }
             .accessibilityIdentifier("translation.provider")
             if settings.provider == .custom {
@@ -304,6 +341,22 @@ struct ReaderTranslationSettingsView: View {
 
     private var overlaySection: some View {
         Section {
+            Toggle(isOn: persistedSettings.overlay.preserveSourceTextColor) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(NSLocalizedString("TRANSLATION_SOURCE_TEXT_COLOR"))
+                    Text(NSLocalizedString("TRANSLATION_SOURCE_TEXT_COLOR_HELP"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Toggle(isOn: persistedSettings.overlay.preserveSourceBackgroundColor) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(NSLocalizedString("TRANSLATION_SOURCE_BACKGROUND_COLOR"))
+                    Text(NSLocalizedString("TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
             Picker(NSLocalizedString("TRANSLATION_SURFACE"), selection: persistedSettings.overlay.colorMode) {
                 Text(NSLocalizedString("TRANSLATION_WHITE")).tag(IPhoneOverlayColorMode.white)
                 Text(NSLocalizedString("TRANSLATION_DARK")).tag(IPhoneOverlayColorMode.dark)

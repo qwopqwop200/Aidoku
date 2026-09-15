@@ -17,7 +17,7 @@ struct ReaderOCRConfiguration: Equatable, Codable, Sendable {
     var modelTier: IPhoneOCRModelTier = .medium
     var detectorMaximumSide = 1_600
     var recognizerMaximumWidth = 1_600
-    var confidenceThreshold = 0.5
+    var confidenceThreshold = 0.75
 }
 
 struct ReaderCustomTranslationSettings: Equatable, Codable, Sendable {
@@ -34,6 +34,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
 
     var provider: RemoteTranslationProvider = .openAI
     var automaticallyTranslate = true
+    var includePageImage = false
+    var filterSFXWithLLM = false
+    var filterJapaneseSFX = false
+    var filterJapaneseSFXContext = false
     var translateMangaTitles = false
     var translateChapterTitles = false
     var translateMangaDescriptions = false
@@ -92,6 +96,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         openAIModel = defaults.string(forKey: Self.keyPrefix + "model") ?? openAIModel
         provider = defaults.string(forKey: Self.keyPrefix + "provider").flatMap(RemoteTranslationProvider.init) ?? provider
         automaticallyTranslate = defaults.object(forKey: Self.keyPrefix + "automatic") as? Bool ?? automaticallyTranslate
+        includePageImage = defaults.bool(forKey: Self.keyPrefix + "includePageImage")
+        filterSFXWithLLM = defaults.bool(forKey: Self.keyPrefix + "filterSFXWithLLM")
+        filterJapaneseSFX = defaults.bool(forKey: Self.keyPrefix + "filterJapaneseSFX")
+        filterJapaneseSFXContext = defaults.bool(forKey: Self.keyPrefix + "filterJapaneseSFXContext")
         translateMangaTitles = defaults.bool(forKey: Self.keyPrefix + "mangaTitles")
         translateChapterTitles = defaults.bool(forKey: Self.keyPrefix + "chapterTitles")
         translateMangaDescriptions = defaults.bool(forKey: Self.keyPrefix + "mangaDescriptions")
@@ -148,7 +156,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     }
 
     func hasSameTranslation(as other: Self) -> Bool {
-        rightToLeftPanelOrder == other.rightToLeftPanelOrder && configuration == other.configuration && ocrConfiguration == other.ocrConfiguration &&
+        includePageImage == other.includePageImage && rightToLeftPanelOrder == other.rightToLeftPanelOrder && configuration == other.configuration && ocrConfiguration == other.ocrConfiguration &&
             sourceLanguage == other.sourceLanguage && targetLanguage == other.targetLanguage &&
             ReaderTranslationLanguageFilter.identity(settings: self) == ReaderTranslationLanguageFilter.identity(settings: other)
     }
@@ -219,7 +227,11 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         defaults.set(ocrData, forKey: Self.keyPrefix + "ocr")
         defaults.set(openAIReasoningEffort.rawValue, forKey: Self.keyPrefix + "reasoningEffort")
         defaults.set(provider.rawValue, forKey: Self.keyPrefix + "provider")
+        defaults.set(includePageImage, forKey: Self.keyPrefix + "includePageImage")
+        defaults.set(filterSFXWithLLM, forKey: Self.keyPrefix + "filterSFXWithLLM")
         defaults.set(automaticallyTranslate, forKey: Self.keyPrefix + "automatic")
+        defaults.set(filterJapaneseSFX, forKey: Self.keyPrefix + "filterJapaneseSFX")
+        defaults.set(filterJapaneseSFXContext, forKey: Self.keyPrefix + "filterJapaneseSFXContext")
         defaults.set(translateMangaTitles, forKey: Self.keyPrefix + "mangaTitles")
         defaults.set(translateChapterTitles, forKey: Self.keyPrefix + "chapterTitles")
         defaults.set(translateMangaDescriptions, forKey: Self.keyPrefix + "mangaDescriptions")

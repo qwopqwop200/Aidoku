@@ -86,6 +86,69 @@ struct ReaderTranslationConcurrencyTests {
         #expect(await recorder.order == ["first", "second", "third"])
     }
 
+    @Test func promotionFillsForegroundSlotsWithoutWaitingForSlowPrefetchBatches() async throws {
+        let client = ConcurrencyProbe()
+        let service = ReaderTranslationService(client: client)
+        let promotion = TranslationRequestPromotion()
+        let work = Task {
+            try await service.translate(regions: regions(prefix: "promoted", count: 300),
+                                        settings: settings(concurrency: 4), priority: .promotable(promotion))
+        }
+        defer { work.cancel() }
+        try await waitUntil { await client.active == 2 }
+        promotion.promote()
+        try await waitUntil { await client.active == 4 }
+        #expect(await client.peak == 4)
+        await client.release()
+        #expect(try await work.value.count == 300)
+        #expect(await client.peak == 4)
+    }
+
+    @Test func unpromotedSchedulerCompletesAndCancelsWithoutWaitingForPromotion() async throws {
+        for cancel in [false, true] {
+            let client = ConcurrencyProbe()
+            let service = ReaderTranslationService(client: client)
+            let promotion = TranslationRequestPromotion()
+            let work = Task {
+                try await service.translate(regions: regions(prefix: "unpromoted", count: 300),
+                                            settings: settings(concurrency: 4), priority: .promotable(promotion))
+            }
+            defer { work.cancel() }
+            try await waitUntil { await client.active == 2 }
+            if cancel {
+                work.cancel()
+                await #expect(throws: CancellationError.self) { try await work.value }
+            } else {
+                await client.release()
+                #expect(try await work.value.count == 300)
+            }
+            #expect(await client.peak == 2)
+        }
+    }
+
+    @Test func promotionReordersAlreadyQueuedProviderRequests() async throws {
+        let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
+        let recorder = PermitRecorder()
+        let promotion = TranslationRequestPromotion()
+        let first = Task { try await limiter.withPermit { try await recorder.enter("active", blocked: true) } }
+        defer { first.cancel() }
+        try await waitUntil { await recorder.order == ["active"] }
+        let ahead = Task { try await limiter.withPermit(priority: .prefetch) { try await recorder.enter("ahead") } }
+        defer { ahead.cancel() }
+        try await waitUntil { await limiter.queuedRequestCount == 1 }
+        let destination = Task {
+            try await limiter.withPermit(priority: .promotable(promotion)) { try await recorder.enter("destination") }
+        }
+        defer { destination.cancel() }
+        try await waitUntil { await limiter.queuedRequestCount == 2 }
+        promotion.promote()
+        await recorder.release()
+        try await first.value
+        try await ahead.value
+        try await destination.value
+        #expect(await recorder.order == ["active", "destination", "ahead"])
+    }
+
     private func settings(concurrency: Int) -> ReaderTranslationSettings {
         var value = ReaderTranslationSettings(defaults: UserDefaults(suiteName: "concurrency-" + UUID().uuidString)!)
         value.maximumConcurrentRequests = concurrency

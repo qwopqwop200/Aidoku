@@ -16,19 +16,33 @@ final class ReaderTranslationPreloader {
         let pageKey: String
         let recognition: Task<[ReaderTranslationRegion]?, Error>
         let progress: ReaderTranslationPreparedProgress
+        let promotion: TranslationRequestPromotion
         var translation: Task<[ReaderTranslationRegion]?, Error>?
 
         func cancel() { recognition.cancel(); translation?.cancel() }
     }
+    /// Cancellation belongs to the consumer until navigation hands its work to
+    /// the next consumer. Old cancellation handlers must not kill adopted work.
+    private final class DemandLease: @unchecked Sendable {
+        private let lock = NSLock()
+        private var retained = false
+        private let cancelWork: @Sendable () -> Void
+
+        init(_ work: PreparedPage) { cancelWork = { work.cancel() } }
+        var isRetained: Bool { lock.withLock { retained } }
+        func retain() { lock.withLock { retained = true } }
+        func cancel() { lock.withLock { if !retained { cancelWork() } } }
+    }
+
     // Acquire before decoding, not after images have accumulated waiting for OCR.
     private static let imagePreparationGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private let loader = ReaderTranslationImageLoader()
-    private let translator: ReaderTranslationPage.ProgressiveTranslator
-    private let prefetchTranslator: ReaderTranslationPage.ProgressiveTranslator
+    private let translator: ReaderTranslationPage.ProgressiveTranslator?
     private let recognizer: Recognizer?
     private let diskCache: ReaderTranslationDiskCache?
     private var operation: Task<[ReaderTranslationRegion], Error>?
     private var preparedPage: PreparedPage?
+    private var currentDemand: (work: PreparedPage, lease: DemandLease)?
     private var generation = UUID()
     var nextPage: ((Page) -> Page?)?
 
@@ -37,14 +51,7 @@ final class ReaderTranslationPreloader {
         translator: ReaderTranslationPage.ProgressiveTranslator? = nil,
         recognizer: Recognizer? = nil
     ) {
-        self.translator = translator ?? { regions, settings, progress in
-            try await ReaderTranslationService.shared.translate(regions: regions, settings: settings, onProgress: progress)
-        }
-        prefetchTranslator = translator ?? { regions, settings, progress in
-            try await ReaderTranslationService.shared.translate(
-                regions: regions, settings: settings, onProgress: progress, priority: .prefetch
-            )
-        }
+        self.translator = translator
         self.diskCache = diskCache
         self.recognizer = recognizer
     }
@@ -68,19 +75,29 @@ final class ReaderTranslationPreloader {
             preparedPage = nil
             work = makeWork(page, settings: settings, speculative: false)
         }
+        work.promotion.promote()
         if work.translation == nil {
             work.translation = translationTask(work, page: page, settings: settings, speculative: false)
         }
         let demand = work
+        let lease = DemandLease(demand)
+        currentDemand = (demand, lease)
         let task = Task { [weak self] in
-            try await demand.progress.observe(onProgress)
+            try await demand.progress.observe { [weak lease] regions in
+                guard let lease, !lease.isRetained else { return }
+                do { try await onProgress?(regions) }
+                catch {
+                    // Navigation can invalidate the observer while it awaits MainActor.
+                    if !lease.isRetained { throw error }
+                }
+            }
             // Wait for this OCR before preparing another, retaining serial recognition.
-            let recognized = try await withTaskCancellationHandler { try await demand.recognition.value } onCancel: { demand.cancel() }
+            let recognized = try await withTaskCancellationHandler { try await demand.recognition.value } onCancel: { lease.cancel() }
             try Task.checkCancellation()
             if recognized != nil, self?.generation == issued { self?.prepareNext(after: page, settings: settings) }
             let result = try await withTaskCancellationHandler {
                 try await demand.translation?.value
-            } onCancel: { demand.cancel() }
+            } onCancel: { lease.cancel() }
             try Task.checkCancellation()
             if let result { return result }
             if let stored = try? await self?.diskCache?.translatedRegions(page: page.translationCacheKey, settings: settings) {
@@ -100,22 +117,25 @@ final class ReaderTranslationPreloader {
             } onCancel: { fallback.cancel() }
         }
         operation = task
-        defer { if generation == issued { operation = nil } }
+        defer { if generation == issued { operation = nil; currentDemand = nil } }
         do {
             return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
         } catch {
-            demand.cancel()
+            lease.cancel()
             if generation == issued { preparedPage?.cancel(); preparedPage = nil }
             throw error
         }
     }
 
     private func makeWork(_ page: Page, settings: ReaderTranslationSettings, speculative: Bool) -> PreparedPage {
+        let promotion = TranslationRequestPromotion()
+        if !speculative { promotion.promote() }
         var work = PreparedPage(
             key: ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: settings),
             pageKey: page.translationCacheKey,
-            recognition: recognitionTask(page, settings: settings, skipTranslated: speculative),
-            progress: ReaderTranslationPreparedProgress()
+            recognition: recognitionTask(page, settings: settings, skipTranslated: speculative, promotion: promotion),
+            progress: ReaderTranslationPreparedProgress(),
+            promotion: promotion
         )
         // A one-request setting preserves OCR-only lookahead, with no queued API prefetch.
         if !speculative || settings.maximumConcurrentRequests > 1 {
@@ -127,8 +147,8 @@ final class ReaderTranslationPreloader {
     private func translationTask(
         _ work: PreparedPage, page: Page, settings: ReaderTranslationSettings, speculative: Bool
     ) -> Task<[ReaderTranslationRegion]?, Error> {
-        let translate = speculative ? prefetchTranslator : translator
-        return Task.detached(priority: speculative ? .utility : .userInitiated) { [diskCache] in
+        let translate = translator
+        return Task.detached(priority: speculative ? .utility : .userInitiated) { [diskCache, loader] in
             let diskGeneration = await diskCache?.currentGeneration() ?? 0
             guard let regions = try await withTaskCancellationHandler(operation: { try await work.recognition.value },
                                                                       onCancel: { work.recognition.cancel() }) else { return nil }
@@ -139,7 +159,16 @@ final class ReaderTranslationPreloader {
                 result = []
             } else {
                 do {
-                    result = try await translate(eligible, settings) { try await work.progress.publish($0) }
+                    if let translate {
+                        result = try await translate(eligible, settings) { try await work.progress.publish($0) }
+                    } else {
+                        let image = settings.includePageImage ? try await loader.load(page) : nil
+                        result = try await ReaderTranslationService.shared.translate(
+                            regions: eligible, settings: settings, image: image,
+                            onProgress: { try await work.progress.publish($0) },
+                            priority: .promotable(work.promotion)
+                        )
+                    }
                 } catch {
                     try Task.checkCancellation()
                     if error is CancellationError { throw error }
@@ -169,31 +198,37 @@ final class ReaderTranslationPreloader {
     }
 
     private func recognitionTask(
-        _ page: Page, settings: ReaderTranslationSettings, skipTranslated: Bool = false
+        _ page: Page, settings: ReaderTranslationSettings, skipTranslated: Bool = false,
+        promotion: TranslationRequestPromotion
     ) -> Task<[ReaderTranslationRegion]?, Error> {
         let key = ReaderTranslationCacheIdentity.ocr(page: page.translationCacheKey, settings: settings)
         let admission = Self.imagePreparationGate
         return Task.detached(priority: .utility) { [diskCache, loader, recognizer] in
-            try await admission.withPermit {
+            try await admission.withPermit(priority: .promotable(promotion)) {
             try Task.checkCancellation()
             let diskGeneration = await diskCache?.currentGeneration() ?? 0
             if skipTranslated, let diskCache,
                try await diskCache.translatedRegions(page: page.translationCacheKey, settings: settings) != nil { return nil }
             if let stored = try? await diskCache?.regions(for: key, kind: .ocr) {
-                guard settings.rightToLeftPanelOrder else { return stored }
+                guard settings.rightToLeftPanelOrder || ReaderJapaneseSFXImageEvidence.requiresSampling(stored, settings: settings) else { return stored }
                 let image = try await loader.load(page)
                 try Task.checkCancellation()
-                return ReaderTranslationImagePreparation.apply(stored, image: image, settings: settings)
+                let prepared = ReaderTranslationImagePreparation.apply(stored, image: image, settings: settings)
+                try? await diskCache?.storeRegions(prepared, for: key, kind: .ocr, generation: diskGeneration)
+                return prepared
             }
             let regions: [ReaderTranslationRegion]
             var evidenceImage: UIImage?
             if let recognizer {
                 regions = try await recognizer(page, settings)
+                if settings.rightToLeftPanelOrder || ReaderJapaneseSFXImageEvidence.requiresSampling(regions, settings: settings) {
+                    evidenceImage = try await loader.load(page)
+                }
             } else {
                 guard #available(iOS 18.0, *) else { return [] }
                 var phaseStart = ProcessInfo.processInfo.systemUptime
                 let image = try await loader.load(page)
-                if settings.rightToLeftPanelOrder { evidenceImage = image }
+                if settings.rightToLeftPanelOrder || settings.filterJapaneseSFX { evidenceImage = image }
                 TranslationPerformanceDiagnostics.clientPhaseCompleted(
                     phase: "reader_image_load", segmentCount: 0,
                     elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: phaseStart)
@@ -215,15 +250,21 @@ final class ReaderTranslationPreloader {
                 )
             }
             try Task.checkCancellation()
-            try? await diskCache?.storeRegions(regions, for: key, kind: .ocr, generation: diskGeneration)
-            if let evidenceImage { return ReaderTranslationImagePreparation.apply(regions, image: evidenceImage, settings: settings) }
-            return regions
+            let prepared = evidenceImage.map { ReaderTranslationImagePreparation.apply(regions, image: $0, settings: settings) } ?? regions
+            try? await diskCache?.storeRegions(prepared, for: key, kind: .ocr, generation: diskGeneration)
+            return prepared
             }
         }
     }
 
     func cancel(preservingRecognitionFor page: Page? = nil) {
         generation = UUID()
+        if let currentDemand, let page, currentDemand.work.pageKey == page.translationCacheKey {
+            currentDemand.lease.retain()
+            preparedPage?.cancel()
+            preparedPage = currentDemand.work
+        }
+        currentDemand = nil
         operation?.cancel()
         operation = nil
         // A page turn promotes both OCR and API work. OFF/exit/settings changes

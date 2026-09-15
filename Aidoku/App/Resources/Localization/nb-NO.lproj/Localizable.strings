@@ -187,3 +187,223 @@
 "MANGA" = "Manga";
 "TYPE_COLON_%@" = "Type: %@";
 "STATUS_COLON_%@" = "Status: %@";
+
+"TRANSLATION_TITLE" = "OCR og oversettelse";
+
+"TRANSLATION_TRANSLATE" = "Oversett synlige sider";
+
+"TRANSLATION_RECOGNIZE" = "Gjenkjenne tekst (frakoblet)";
+
+"TRANSLATION_ORIGINAL" = "Vis original";
+
+"TRANSLATION_TEXT" = "Gjenkjent og oversatt tekst";
+
+"TRANSLATION_NO_IMAGE" = "Vent til en bildeside lastes inn, og prøv på nytt.";
+
+"TRANSLATION_NO_TEXT" = "Ingen tekst ble gjenkjent. Prøv en annen OCR-modell eller et klarere bilde.";
+
+"TRANSLATION_WORKING" = "Gjenkjenner og oversetter...";
+
+"TRANSLATION_OCR_WORKING" = "Gjenkjenner tekst på enheten …";
+
+"TRANSLATION_HELP" = "Oversettelsesikonet slår oversettelse på eller av. Sidene er forberedt i denne rekkefølgen: gjeldende, neste, forrige, to foran, to bak, fortsetter til begge ender av kapitlet. Fullført OCR, oversettelser og tekstoppsett gjenbrukes etter lukking av leseren eller restart av appen. Å forlate leseren kansellerer uferdig arbeid.";
+
+"TRANSLATION_PRIVACY" = "OCR kjører på enheten din. Oversettelse sender gjenkjent tekst og instruksjonene dine til den valgte leverandøren. Hvis Inkluder sidebilde i oversettelse er aktivert, lastes også det originale sidebildet opp. API-kostnader avhenger av leverandøren din. Nøkler forblir i nøkkelring. OCR, oversettelser og tekstoppsett lagres i beskyttet applagring ekskludert fra sikkerhetskopiering.";
+
+"TRANSLATION_KEY_REPLACE" = "Erstatt lagret API-nøkkel (valgfritt)";
+
+"TRANSLATION_KEY" = "API-nøkkel";
+
+"TRANSLATION_KEY_SAVED" = "API-nøkkel lagret i nøkkelring";
+
+"TRANSLATION_KEY_DELETE" = "Slett API-nøkkel";
+
+"TRANSLATION_MODEL" = "Modell-ID";
+
+"TRANSLATION_GET_KEY" = "Åpne OpenAI API Keys";
+
+"TRANSLATION_LANGUAGE" = "Språk";
+
+"TRANSLATION_TARGET" = "Oversett til";
+
+"TRANSLATION_SOURCE" = "Kildespråk";
+
+"TRANSLATION_AUTO" = "Oppdag automatisk";
+
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 krever iOS 18 eller nyere. Medium er standard; Liten bruker mindre minne. Tiny har en mindre karakterordbok. Disse modellene støtter ikke koreansk OCR. Koreansk oversettelse støttes.";
+
+"TRANSLATION_INSTRUCTIONS" = "Oversettelsesinstruksjoner";
+
+"TRANSLATION_RESET_PROMPT" = "Gjenopprett standard oversettelsesinstruksjoner";
+
+"TRANSLATION_CLEAR_CACHE" = "Tøm oversettelsesbufferen";
+
+"TRANSLATION_CACHE_CLEARED" = "Oversettelsesbufferen er tømt.";
+
+"TRANSLATION_NOTICES" = "OCR og oversettelseslisenser";
+
+"TRANSLATION_ADVANCED" = "Oversettelsesalternativer";
+
+"TRANSLATION_REASONING" = "Resonneringsinnsats";
+
+"TRANSLATION_MODEL_DEFAULT" = "Modell Standard";
+
+"TRANSLATION_CONCURRENCY" = "Samtidige forespørsler";
+
+"TRANSLATION_DETECTOR_SIZE" = "Detektor maksimal side";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "Gjenkjenner maksimal bredde";
+
+"TRANSLATION_CONFIDENCE" = "OCR-tillit";
+
+"TRANSLATION_SURFACE" = "Bakgrunnsfarge";
+
+"TRANSLATION_WHITE" = "Hvit";
+
+"TRANSLATION_DARK" = "Mørkt";
+
+"TRANSLATION_OPACITY" = "Bakgrunnsopasitet";
+
+"TRANSLATION_EXPANSION" = "Boksutvidelse";
+
+"TRANSLATION_PANEL_BOUNDS" = "Innenfor bildepanelet";
+
+"TRANSLATION_SOURCE_BOUNDS" = "Inne i original eske";
+
+"TRANSLATION_UNRESTRICTED" = "Ubegrenset";
+
+"TRANSLATION_FONT_SIZE" = "Skriftstørrelse";
+
+"TRANSLATION_AUTO_FIT" = "Tilpass automatisk";
+
+"TRANSLATION_FIXED" = "Fast skriftstørrelse";
+
+"TRANSLATION_OVERLAY" = "Oversettelsesoverlegg";
+
+"TRANSLATION_OVERLAY_HELP" = "Erstatter tekst over kildeboksen ved hjelp av kollisjonsbevisst layout og skriptspesifikk innpakning. Vis endringer gjenbruk eksisterende OCR.";
+
+"TRANSLATION_PROVIDER" = "Oversettelsesleverandør";
+
+"TRANSLATION_BASE_URL" = "Server URL";
+
+"TRANSLATION_API_FORMAT" = "API-format";
+
+"TRANSLATION_CUSTOM_HELP" = "Skriv inn en HTTPS-base-URL eller fullstendig API-endepunkt og en modell som støttes av serveren din. Hver server-URL har sin egen lagrede nøkkel; endring av URL sletter alle nøkler du skriver inn. Svar og chatfullføringer bruker strukturert JSON-utdata.";
+
+"TRANSLATION_AUTOMATIC" = "Automatisk oversettelse";
+
+"TRANSLATION_AUTOMATIC_HELP" = "Sjekk de lagrede API-innstillingene én gang i bakgrunnen når appen åpnes eller API-innstillingene endres. Oversettelsen starter etter suksess. En mislykket kontroll setter oversettelsen på pause uten å endre preferansen for automatisk oversettelse. Åpne appen på nytt eller test API-tilkoblingen på nytt for å prøve på nytt. Sideendringer og PÅ/AV gjenbruk sjekkresultatet. Resonneringsinnsats bruker den lagrede innstillingen.";
+
+"TRANSLATION_TEST" = "Test API-tilkobling";
+
+"TRANSLATION_TEST_RUNNING" = "Tester tilkoblingen …";
+
+"TRANSLATION_TEST_SUCCESS" = "Tilkobling vellykket";
+
+"TRANSLATION_TEST_FAILURE" = "Tilkobling mislyktes";
+
+"TRANSLATION_TEST_HELP" = "Oversetter en kort setning ved å bruke verdiene i dette skjemaet. La nøkkelen stå tom for å bruke denne serverens lagrede nøkkel. Endringer lagres automatisk.";
+
+"SEARCH_SUGGESTIONS" = "Søkeforslag";
+
+"TRANSLATION_CACHE" = "Frakoblet buffer";
+
+"TRANSLATION_CACHE_LIMIT" = "Maksimal lagring";
+
+"TRANSLATION_CACHE_USED" = "Oppbevaring brukt";
+
+"TRANSLATION_CACHE_HELP" = "Lagre OCR, sideoversettelser, manga- og kapitteltitteloversettelser, mangabeskrivelser og tekstoppsett automatisk. Sidebilder forblir bare i sideminnet i nærheten. De minst nylig brukte resultatene fjernes når den valgte grensen er nådd. Standard: 1 GB. Maksimum: 100 GB. Endringer gjelder automatisk; senking av grensen fjerner de minst nylig brukte resultatene til cachen passer.";
+
+"TRANSLATION_SOURCE_FILTER" = "Oversettelseskildefilter";
+
+"TRANSLATION_FILTER_ALL" = "Alle oppdagede språk";
+
+"TRANSLATION_FILTER_HELP" = "Velg originalspråkene som skal oversettes. Uvalgt eller usikker tekst forblir uendret. Velg Alle oppdagede språk for å fjerne filteret.";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Bare tekst identifisert som det valgte originalspråket blir oversatt. Språk uten gjenkjenning på enheten forblir ufiltrerte.";
+
+"HTTPS_BYPASS" = "Omgå HTTPS-blokkering";
+
+"HTTPS_BYPASS_HELP" = "Bruk TLS-fragmentering og kryptert DNS (Cloudflare) for kildeforespørsler, bilder, nedlastinger og kildenettvisninger. Gjelder nye forbindelser. IP-blokkeringer og begrensninger pålagt av nettstedet omgås ikke.";
+
+"HTTPS_BYPASS_TEST" = "Test tilkobling";
+
+"HTTPS_BYPASS_TEST_HELP" = "Tester denne HTTPS-adressen gjennom bypass, selv når bryteren er av. Et svar bekrefter tilkobling, ikke at en ISP-blokk var til stede.";
+
+"HTTPS_BYPASS_INVALID_URL" = "Skriv inn en HTTPS URL uten brukernavn eller passord.";
+
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d mottatt · TLS-fragmentering brukt";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d mottatt · TLS-fragmentering er ikke bekreftet";
+
+"HTTPS_BYPASS_TEST_FAILED" = "Kunne ikke koble til via HTTPS-bypass.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Oversettelsen mislyktes. Viser OCR-tekst. Vennligst sjekk tilkoblingen din.";
+
+"TRANSLATION_MANGA_TITLES" = "Oversett mangatitler";
+
+"TRANSLATION_CHAPTER_TITLES" = "Oversett kapitteltitler";
+
+"TRANSLATION_TITLES_HELP" = "Bruker oversettelses-API og målspråk uavhengig av automatisk sideoversettelse. Slå av for å vise originale titler og beskrivelser. Originalene forblir synlige under innlasting eller hvis oversettelsen mislykkes.";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "Manga tittelspråk";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "Kapitteltittel Språk";
+
+"TRANSLATION_PAGE_SOURCE" = "Sidens kildespråk";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "Oppdag automatisk hver tittels kildespråk og oversett kun de valgte språkene. Alle språk fjerner språkbegrensningen. Side og andre innstillinger for kildespråk for tittel påvirker ikke dette valget.";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Oversett mangabeskrivelser";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "Manga Beskrivelse Språk";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "Oppdag kildespråket automatisk og oversett kun de valgte språkene. Alle språk fjerner begrensningen. Side-, mangatittel-, kapitteltittel- og beskrivelsesfiltre fungerer uavhengig.";
+
+"TRANSLATION_SFX_FILTER" = "SFX-filtrering (kun japansk)";
+
+"TRANSLATION_SFX_FILTER_HELP" = "La sannsynlige japanske lydeffekter være uoversatte. Bruk en lokal ordbok og konservative layoutsjekker. Tekst som ikke sikkert kan identifiseres som en lydeffekt, blir fortsatt oversatt.";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Inkluder innholdspåkrevde oppføringer (bare japansk)";
+
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Gjelder mens SFX-filtrering er aktivert. Filtrerer også oppføringer merket som krever kontekst ved hjelp av ordboktreff, tekststørrelse og nærliggende layout. Ingen LLM analyserer konteksten, så dialog kan også utelukkes.";
+
+"TRANSLATION_INCLUDE_IMAGE" = "Inkluder sidebilde i oversettelse";
+
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Send originalsiden med OCR-tekst for scene- og uttrykkskontekst. Bildeinstruksjoner legges til automatisk. Krever en modell som støtter bilder og kan øke databruken og API-kostnadene.";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "Bevar original tekstfarge";
+
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Anslå den originale tekstfargen uten en ekstra modell. Bruk standardfargen når du er usikker eller når kontrasten er for lav.";
+
+"TRANSLATION_LLM_SFX" = "LLM SFX-filtrering (alle språk)";
+
+"TRANSLATION_LLM_SFX_HELP" = "Klassifiser lydeffekter i oversettelsesforespørselen. Kan kombineres med det japanske lokale filteret: en lydeffektbeslutning fra begge filterene lar originalen være uendret. Kompatibel med å sende sidebildet.";
+
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Uten bildeinndata kan begrenset visuell og layoutkontekst redusere SFX-klassifiseringsnøyaktigheten.";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Bevar original panelfarge";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Tilpass oversettelsespanelet til bakgrunnen rundt originalteksten. Bruk standardpanelet når du er usikker eller uleselig. Opasitetsinnstillingen din gjelder fortsatt.";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "Tilpasset OpenAI";
+
+"TRANSLATION_OCR_MEDIUM" = "Middels";
+
+"TRANSLATION_OCR_SMALL" = "Liten";
+
+"TRANSLATION_OCR_TINY" = "Liten";
+
+"TRANSLATION_REASONING_NONE" = "Ingen";
+
+"TRANSLATION_REASONING_MINIMAL" = "Minimal";
+
+"TRANSLATION_REASONING_LOW" = "Lavt";
+
+"TRANSLATION_REASONING_MEDIUM" = "Middels";
+
+"TRANSLATION_REASONING_HIGH" = "Høy";
+
+"TRANSLATION_REASONING_XHIGH" = "Veldig høy";
+
+"TRANSLATION_REASONING_MAX" = "Maksimum";

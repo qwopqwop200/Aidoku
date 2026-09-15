@@ -28,7 +28,7 @@ final class ReaderTranslationPage {
     var isUsingCachedRendering: Bool { cachedOverlay != nil }
     private let recognize: Recognizer
     private let translateRegions: Translator?
-    private let progressiveTranslate: ProgressiveTranslator
+    private let progressiveTranslate: ProgressiveTranslator?
     private var settingsObserver: NSObjectProtocol?
     private var memoryObserver: NSObjectProtocol?
 
@@ -39,9 +39,7 @@ final class ReaderTranslationPage {
             return try await ReaderOCRService.shared.recognize(image: image, configuration: configuration)
         },
         translate: Translator? = nil,
-        progressiveTranslate: @escaping ProgressiveTranslator = { regions, settings, progress in
-            try await ReaderTranslationService.shared.translate(regions: regions, settings: settings, onProgress: progress)
-        }
+        progressiveTranslate: ProgressiveTranslator? = nil
     ) {
         self.imageView = imageView
         self.recognize = recognize
@@ -94,6 +92,12 @@ final class ReaderTranslationPage {
         renderLookupTask?.cancel()
         renderLookupTask = nil
         renderLookupKey = nil
+    }
+
+    func hidePreparedTranslation() {
+        cancel()
+        overlay?.isHidden = true
+        cachedOverlay?.isHidden = true
     }
 
     func showOriginal() {
@@ -157,11 +161,13 @@ final class ReaderTranslationPage {
             try Task.checkCancellation()
             if translate && !eligible.isEmpty {
                 if let translateRegions { return try await translateRegions(eligible, settings) }
-                return try await progressiveTranslate(
-                    eligible, settings, { [weak self] partial in
-                        try Task.checkCancellation()
-                        try await self?.publish(partial, image: image, settings: settings, generation: issued, renderOverlay: renderOverlay)
-                    }
+                let progress: ReaderTranslationService.Progress = { [weak self] partial in
+                    try Task.checkCancellation()
+                    try await self?.publish(partial, image: image, settings: settings, generation: issued, renderOverlay: renderOverlay)
+                }
+                if let progressiveTranslate { return try await progressiveTranslate(eligible, settings, progress) }
+                return try await ReaderTranslationService.shared.translate(
+                    regions: eligible, settings: settings, image: image, onProgress: progress
                 )
             }
             return eligible.map {
@@ -329,7 +335,7 @@ final class ReaderTranslationPage {
             return
         }
         let wasHidden = overlay?.isHidden ?? cachedOverlay?.isHidden ?? true
-        if old.configuration != settings.configuration || old.sourceLanguage != settings.sourceLanguage ||
+        if old.includePageImage != settings.includePageImage || old.configuration != settings.configuration || old.sourceLanguage != settings.sourceLanguage ||
             old.targetLanguage != settings.targetLanguage {
             completedTranslation = false
             regions = regions.map {

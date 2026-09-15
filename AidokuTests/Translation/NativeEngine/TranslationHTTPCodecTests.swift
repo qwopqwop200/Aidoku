@@ -1,9 +1,139 @@
 // OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 import Foundation
 import Testing
+import UIKit
 @testable import Aidoku
 
 struct TranslationHTTPCodecTests {
+    @Test func pageImageEncodingResizesAndProducesJPEG() throws {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 2400, height: 1200), format: format).image { ctx in
+            UIColor.red.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 2400, height: 1200))
+        }
+        let data = try ReaderTranslationImagePreparation.translationJPEG(image)
+        let decoded = try #require(UIImage(data: data)?.cgImage)
+        #expect(decoded.width == 2048)
+        #expect(decoded.height == 1024)
+        #expect(data.prefix(2) == Data([0xff, 0xd8]))
+    }
+
+    @Test(arguments: [RemoteTranslationProtocol.responses, .chatCompletions])
+    func imagePayloadAndInstructionsAreConditional(apiProtocol: RemoteTranslationProtocol) throws {
+        var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", sourceText: "こんにちは")
+        let configuration = RemoteTranslationConfiguration(provider: .custom, apiProtocol: apiProtocol,
+            baseURL: "https://translator.example", model: "vision", credentialAccount: "test", instructions: "Custom instruct")
+        let textBody = try TranslationHTTPCodec.requestBody(configuration: configuration, request: request)
+        #expect(!String(decoding: textBody, as: UTF8.self).contains("Image context:"))
+        let endpoint = try configuration.validatedEndpoint()
+        let textKey = TranslationCacheKey(configuration: configuration, endpoint: endpoint, request: request)
+        request.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9])
+        #expect(request.canonicalizedForTranslationSemantics().request.imageJPEG == request.imageJPEG)
+        let imageKey = TranslationCacheKey(configuration: configuration, endpoint: endpoint, request: request)
+        #expect(imageKey != textKey)
+        let body = try TranslationHTTPCodec.requestBody(configuration: configuration, request: request)
+        let root = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let content: [[String: Any]]
+        let instructions: String
+        if apiProtocol == .responses {
+            content = try #require((root["input"] as? [[String: Any]])?.first?["content"] as? [[String: Any]])
+            instructions = try #require(root["instructions"] as? String)
+            #expect(content.last?["type"] as? String == "input_image")
+            #expect(content.last?["image_url"] as? String == "data:image/jpeg;base64,/9j/2Q==")
+        } else {
+            let messages = try #require(root["messages"] as? [[String: Any]])
+            content = try #require(messages.last?["content"] as? [[String: Any]])
+            instructions = try #require(messages.first?["content"] as? String)
+            #expect(content.last?["type"] as? String == "image_url")
+            #expect((content.last?["image_url"] as? [String: Any])?["url"] as? String == "data:image/jpeg;base64,/9j/2Q==")
+        }
+        #expect(content.count == 2)
+        #expect(instructions.hasPrefix("Custom instruct"))
+        #expect(instructions.contains(TranslationHTTPCodec.imageInstructions))
+        #expect(configuration.instructions == "Custom instruct")
+        request.imageJPEG = Data([1, 2, 3])
+        #expect(TranslationCacheKey(configuration: configuration, endpoint: endpoint, request: request) != imageKey)
+    }
+
+    @Test func imageSettingDefaultsOffAndAutosavesIndependently() throws {
+        let suite = "ImageSettings.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var settings = ReaderTranslationSettings(defaults: defaults)
+        #expect(!settings.includePageImage)
+        let originalInstructions = settings.instructions
+        let key = ReaderTranslationCacheIdentity.translation(page: "page", settings: settings)
+        let textSettings = settings
+        settings.includePageImage = true
+        #expect(!settings.hasSameTranslation(as: textSettings))
+        try settings.autosave(defaults: defaults)
+        #expect(ReaderTranslationSettings(defaults: defaults).includePageImage)
+        #expect(ReaderTranslationSettings(defaults: defaults).instructions == originalInstructions)
+        #expect(ReaderTranslationCacheIdentity.translation(page: "page", settings: settings) != key)
+        settings.includePageImage = false
+        try settings.autosave(defaults: defaults)
+        #expect(!ReaderTranslationSettings(defaults: defaults).includePageImage)
+    }
+
+    @Test(arguments: [RemoteTranslationProtocol.responses, .chatCompletions])
+    func outputContractCarriesExactIDsAndCount(apiProtocol: RemoteTranslationProtocol) throws {
+        let request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",
+            segments: [.init(id: "bubble-7", text: "こんにちは"), .init(id: "bubble-9", text: "ありがとう")])
+        let configuration = RemoteTranslationConfiguration(provider: .custom, apiProtocol: apiProtocol,
+            baseURL: "https://translator.example", model: "test", credentialAccount: "test")
+        let body = try TranslationHTTPCodec.requestBody(configuration: configuration, request: request)
+        let root = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let schema: [String: Any]
+        let instructions: String
+        if apiProtocol == .responses {
+            let format = try #require((root["text"] as? [String: Any])?["format"] as? [String: Any])
+            schema = try #require(format["schema"] as? [String: Any])
+            instructions = try #require(root["instructions"] as? String)
+        } else {
+            let format = try #require((root["response_format"] as? [String: Any])?["json_schema"] as? [String: Any])
+            schema = try #require(format["schema"] as? [String: Any])
+            instructions = try #require((root["messages"] as? [[String: Any]])?.first?["content"] as? String)
+        }
+        let array = try #require((schema["properties"] as? [String: Any])?["translations"] as? [String: Any])
+        #expect(array["minItems"] as? Int == 2)
+        #expect(array["maxItems"] as? Int == 2)
+        let properties = try #require((array["items"] as? [String: Any])?["properties"] as? [String: Any])
+        #expect((properties["id"] as? [String: Any])?["enum"] as? [String] == ["bubble-7", "bubble-9"])
+        #expect(instructions.contains("bubble-7, bubble-9"))
+        #expect(instructions.contains("Return only a JSON object"))
+    }
+
+    @Test func firstMalformedBatchSplitsImmediatelyAndRestoresCallerIDs() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let client = MalformedBatchClient()
+        let service = TranslationService(client: client, cache: try TranslationCache(storageRootURL: root))
+        var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",
+            segments: (0..<4).map { .init(id: "bubble-\($0)", text: "文\($0)") }, context: ["文脈"])
+        request.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9])
+        let result = try await service.translateLive(request, configuration: .openAI(model: "test"))
+        #expect(result.translations.map(\.id) == request.segments.map(\.id))
+        #expect(result.translations.map(\.text) == request.segments.map { "번역 " + $0.text })
+        let calls = await client.sizes
+        #expect(calls == [4, 2, 1, 1, 2, 1, 1])
+        #expect(await client.contexts.allSatisfy { $0 == ["文脈"] })
+        #expect(await client.images.allSatisfy { $0 == request.imageJPEG })
+    }
+
+    @Test func refusalIsNotRetriedOrSplit() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let client = MalformedBatchClient(refuses: true)
+        let service = TranslationService(client: client, cache: try TranslationCache(storageRootURL: root))
+        let request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",
+            segments: [.init(id: "a", text: "文"), .init(id: "b", text: "言葉")])
+        await #expect(throws: RemoteTranslationError.refused) {
+            try await service.translateLive(request, configuration: .openAI(model: "test"))
+        }
+        #expect(await client.sizes == [2])
+    }
+
     @Test(arguments: OpenAIReasoningEffort.allCases)
     func responsesPayloadMapsEverySupportedReasoningEffort(
         _ effort: OpenAIReasoningEffort
@@ -360,5 +490,25 @@ struct TranslationHTTPCodecTests {
             context: context,
             glossary: glossary
         )
+    }
+}
+
+private actor MalformedBatchClient: RemoteTranslating {
+    var sizes: [Int] = []
+    var contexts: [[String]] = []
+    var images: [Data?] = []
+    let refuses: Bool
+    init(refuses: Bool = false) { self.refuses = refuses }
+    func translate(_ request: RemoteTranslationRequest,
+                   configuration: RemoteTranslationConfiguration) async throws -> RemoteTranslationBatchResult {
+        sizes.append(request.segments.count)
+        contexts.append(request.context)
+        images.append(request.imageJPEG)
+        if refuses { throw RemoteTranslationError.refused }
+        if request.segments.count > 1 {
+            throw RemoteTranslationError.invalidResponse("structured translation does not match the required schema")
+        }
+        return RemoteTranslationBatchResult(translations: request.segments.map { .init(id: $0.id, text: "번역 " + $0.text) },
+                                            source: .network, providerRequestID: nil)
     }
 }

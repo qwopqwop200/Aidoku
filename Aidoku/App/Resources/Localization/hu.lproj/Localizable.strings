@@ -323,3 +323,223 @@
 "SAVE_SEARCH_FAIL" = "A mentés sikertelen volt";
 "SAVE_SEARCH_FAIL_INFO" = "Már létezik egy ilyen nevű mentett keresés, válassz egyedi nevet.";
 "INCOGNITO_FILTERS_NOTICE" = "A módosított szűrők inkognitó módban nem működnek.";
+
+"TRANSLATION_TITLE" = "OCR és fordítás";
+
+"TRANSLATION_TRANSLATE" = "Látható oldalak fordítása";
+
+"TRANSLATION_RECOGNIZE" = "Szöveg felismerése (offline)";
+
+"TRANSLATION_ORIGINAL" = "Eredeti megjelenítése";
+
+"TRANSLATION_TEXT" = "Felismert és lefordított szöveg";
+
+"TRANSLATION_NO_IMAGE" = "Várja meg, amíg egy képoldal betöltődik, majd próbálja újra.";
+
+"TRANSLATION_NO_TEXT" = "Nem ismert fel szöveget. Próbáljon ki egy másik OCR-modellt vagy egy tisztább képet.";
+
+"TRANSLATION_WORKING" = "Felismerés és fordítás…";
+
+"TRANSLATION_OCR_WORKING" = "Szöveg felismerése az eszközön…";
+
+"TRANSLATION_HELP" = "A fordítás ikonja be- vagy kikapcsolja a fordítást. Az oldalak a következő sorrendben készülnek: aktuális, következő, előző, kettő előre, kettő mögött, a fejezet mindkét végén folytatódik. A befejezett OCR, a fordítások és a szövegelrendezés újrafelhasználható az olvasó bezárása vagy az alkalmazás újraindítása után. Az olvasó elhagyása a befejezetlen munkát törli.";
+
+"TRANSLATION_PRIVACY" = "Az OCR fut az eszközön. A fordítás elküldi a felismert szöveget és az Ön utasításait a kiválasztott szolgáltatónak. Ha az Oldalkép felvétele a fordításba be van kapcsolva, a rendszer az eredeti oldalképet is feltölti. Az API díjai a szolgáltatótól függenek. A kulcsok a kulcstartóban maradnak. Az OCR, a fordítások és a szövegelrendezés egy védett alkalmazástárba kerül mentésre, a biztonsági mentések nélkül.";
+
+"TRANSLATION_KEY_REPLACE" = "Mentett API-kulcs cseréje (opcionális)";
+
+"TRANSLATION_KEY" = "API kulcs";
+
+"TRANSLATION_KEY_SAVED" = "API-kulcs mentve a Keychainben";
+
+"TRANSLATION_KEY_DELETE" = "API-kulcs törlése";
+
+"TRANSLATION_MODEL" = "Modellazonosító";
+
+"TRANSLATION_GET_KEY" = "Nyissa meg az OpenAI API kulcsokat";
+
+"TRANSLATION_LANGUAGE" = "Nyelvek";
+
+"TRANSLATION_TARGET" = "Fordítás ide";
+
+"TRANSLATION_SOURCE" = "Forrásnyelv";
+
+"TRANSLATION_AUTO" = "Automatikus észlelés";
+
+"TRANSLATION_OCR_HELP" = "A PP-OCRv6 használatához iOS 18 vagy újabb verzió szükséges. A közepes az alapértelmezett; A kicsi kevesebb memóriát használ. A Tinynek van egy kisebb karakterszótára. Ezek a modellek nem támogatják a koreai OCR-t. A koreai fordítási kimenet támogatott.";
+
+"TRANSLATION_INSTRUCTIONS" = "Fordítási utasítások";
+
+"TRANSLATION_RESET_PROMPT" = "Állítsa vissza az alapértelmezett fordítási utasításokat";
+
+"TRANSLATION_CLEAR_CACHE" = "Törölje a fordítási gyorsítótárat";
+
+"TRANSLATION_CACHE_CLEARED" = "A fordítási gyorsítótár törölve.";
+
+"TRANSLATION_NOTICES" = "OCR és fordítási engedélyek";
+
+"TRANSLATION_ADVANCED" = "Fordítási lehetőségek";
+
+"TRANSLATION_REASONING" = "Érvelési erőfeszítés";
+
+"TRANSLATION_MODEL_DEFAULT" = "Modell alapértelmezett";
+
+"TRANSLATION_CONCURRENCY" = "Egyidejű kérések";
+
+"TRANSLATION_DETECTOR_SIZE" = "Az érzékelő maximális oldala";
+
+"TRANSLATION_RECOGNIZER_SIZE" = "A felismerő maximális szélessége";
+
+"TRANSLATION_CONFIDENCE" = "OCR bizalom";
+
+"TRANSLATION_SURFACE" = "Háttérszín";
+
+"TRANSLATION_WHITE" = "Fehér";
+
+"TRANSLATION_DARK" = "Sötét";
+
+"TRANSLATION_OPACITY" = "Háttér átlátszatlansága";
+
+"TRANSLATION_EXPANSION" = "Doboz bővítés";
+
+"TRANSLATION_PANEL_BOUNDS" = "Képpanelen belül";
+
+"TRANSLATION_SOURCE_BOUNDS" = "Eredeti dobozában";
+
+"TRANSLATION_UNRESTRICTED" = "Korlátlan";
+
+"TRANSLATION_FONT_SIZE" = "Betűméret";
+
+"TRANSLATION_AUTO_FIT" = "Automatikus illeszkedés";
+
+"TRANSLATION_FIXED" = "Fix betűméret";
+
+"TRANSLATION_OVERLAY" = "Fordítási fedvény";
+
+"TRANSLATION_OVERLAY_HELP" = "Ütközésérzékeny elrendezéssel és szkript-specifikus tördeléssel cseréli le a szöveget a forrásmező felett. A megjelenítési módosítások újra felhasználják a meglévő OCR-t.";
+
+"TRANSLATION_PROVIDER" = "Fordításszolgáltató";
+
+"TRANSLATION_BASE_URL" = "Szerver URL";
+
+"TRANSLATION_API_FORMAT" = "API formátum";
+
+"TRANSLATION_CUSTOM_HELP" = "Adjon meg egy HTTPS-alap URL-t vagy teljes API-végpontot, valamint a kiszolgáló által támogatott modellt. Minden szerver URL-nek megvan a saját mentett kulcsa; az URL módosítása törli a beírt kulcsokat. A válaszok és a csevegés befejezései strukturált JSON-kimenetet használnak.";
+
+"TRANSLATION_AUTOMATIC" = "Automatikus fordítás";
+
+"TRANSLATION_AUTOMATIC_HELP" = "Ellenőrizze a mentett API-beállításokat egyszer a háttérben, amikor az alkalmazás megnyílik, vagy az API-beállítások megváltoznak. A fordítás a siker után kezdődik. A sikertelen ellenőrzés szünetelteti a fordítást anélkül, hogy megváltoztatná az automatikus fordítási beállításokat. Nyissa meg újra az alkalmazást, vagy próbálja újra az API-kapcsolatot. Az oldal módosítása és a BE/KI újrafelhasználása az ellenőrzés eredményét. Az okoskodás a mentett beállítást használja.";
+
+"TRANSLATION_TEST" = "Teszt API-kapcsolat";
+
+"TRANSLATION_TEST_RUNNING" = "Kapcsolat tesztelése…";
+
+"TRANSLATION_TEST_SUCCESS" = "Sikeres csatlakozás";
+
+"TRANSLATION_TEST_FAILURE" = "Sikertelen csatlakozás";
+
+"TRANSLATION_TEST_HELP" = "Lefordít egy rövid mondatot az ebben a formában lévő értékek használatával. Hagyja üresen a kulcsot a szerver mentett kulcsának használatához. A változtatások automatikusan mentésre kerülnek.";
+
+"SEARCH_SUGGESTIONS" = "Keresési javaslatok";
+
+"TRANSLATION_CACHE" = "Offline gyorsítótár";
+
+"TRANSLATION_CACHE_LIMIT" = "Maximális tárhely";
+
+"TRANSLATION_CACHE_USED" = "Tárolás használt";
+
+"TRANSLATION_CACHE_HELP" = "Automatikusan mentheti az OCR-t, az oldalfordításokat, a mangák és a fejezetcímek fordításait, a mangaleírásokat és a szövegelrendezést. Az oldalak képei csak a közeli oldal memóriájában maradnak meg. A legutóbb használt eredményeket a rendszer eltávolítja a kiválasztott korlát elérésekor. Alapértelmezett: 1 GB. Maximum: 100 GB. A változtatások automatikusan érvényesek; a korlát csökkentése eltávolítja a legutóbb használt eredményeket, amíg a gyorsítótár nem illeszkedik.";
+
+"TRANSLATION_SOURCE_FILTER" = "Fordítási forrásszűrő";
+
+"TRANSLATION_FILTER_ALL" = "Minden észlelt nyelv";
+
+"TRANSLATION_FILTER_HELP" = "Válassza ki a fordítani kívánt eredeti nyelveket. A kijelöletlen vagy bizonytalan szöveg változatlan marad. A szűrő eltávolításához válassza az Összes észlelt nyelv lehetőséget.";
+
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Csak a kiválasztott eredeti nyelvként azonosított szöveget fordítják le. Az eszközön belüli észlelés nélküli nyelvek szűretlenek maradnak.";
+
+"HTTPS_BYPASS" = "HTTPS blokkoló bypass";
+
+"HTTPS_BYPASS_HELP" = "Használja a TLS-töredezettséget és a titkosított DNS-t (Cloudflare) a forráskérésekhez, képekhez, letöltésekhez és forrásweb-nézetekhez. Új kapcsolatokra vonatkozik. A webhely által előírt IP-blokkolások és korlátozások nem kerülnek megkerülésre.";
+
+"HTTPS_BYPASS_TEST" = "Kapcsolat tesztelése";
+
+"HTTPS_BYPASS_TEST_HELP" = "Teszteli ezt a HTTPS-címet a bypass-on keresztül, még akkor is, ha a kapcsoló ki van kapcsolva. A válasz megerősíti a kapcsolatot, nem pedig azt, hogy ISP-blokk volt jelen.";
+
+"HTTPS_BYPASS_INVALID_URL" = "Adjon meg egy HTTPS URL-t felhasználónév vagy jelszó nélkül.";
+
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d érkezett · TLS-töredezettség alkalmazva";
+
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d érkezett · A TLS-töredezettség nincs megerősítve";
+
+"HTTPS_BYPASS_TEST_FAILED" = "Nem sikerült csatlakozni HTTPS bypass-on keresztül.";
+
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "A fordítás nem sikerült. OCR szöveg megjelenítése. Kérjük, ellenőrizze a kapcsolatot.";
+
+"TRANSLATION_MANGA_TITLES" = "Manga címek fordítása";
+
+"TRANSLATION_CHAPTER_TITLES" = "Fordítsa le a fejezetcímeket";
+
+"TRANSLATION_TITLES_HELP" = "A fordítási API-t és a célnyelvet az automatikus oldalfordítástól függetlenül használja. Kapcsolja ki az eredeti címek és leírások megjelenítéséhez. Az eredetik láthatóak maradnak betöltés közben, vagy ha a fordítás sikertelen.";
+
+"TRANSLATION_MANGA_TITLE_FILTER" = "Manga Cím Nyelvek";
+
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "Fejezet Cím Nyelvek";
+
+"TRANSLATION_PAGE_SOURCE" = "Az oldal forrásnyelve";
+
+"TRANSLATION_TITLE_FILTER_HELP" = "Automatikusan felismeri az egyes címek forrásnyelvét, és csak a kiválasztott nyelveket fordítja le. Az Összes nyelv eltávolítja a nyelvi korlátozást. Az oldal és más címek forrásnyelvi beállításai nincsenek hatással erre a választásra.";
+
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Manga leírások fordítása";
+
+"TRANSLATION_DESCRIPTION_FILTER" = "Manga Leírás Nyelvek";
+
+"TRANSLATION_METADATA_FILTER_HELP" = "Automatikusan felismeri a forrásnyelvet, és csak a kiválasztott nyelveket fordítja le. Minden nyelv megszünteti a korlátozást. Az oldal-, manga-, fejezetcím- és leírásszűrők egymástól függetlenül működnek.";
+
+"TRANSLATION_SFX_FILTER" = "SFX szűrés (csak japán)";
+
+"TRANSLATION_SFX_FILTER_HELP" = "Hagyja lefordítatlanul a valószínű japán hangeffektusokat. Használjon helyi szótárt és konzervatív elrendezési ellenőrzéseket. A hanghatásként nem azonosítható szöveget továbbra is lefordítják.";
+
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Kontextushoz szükséges bejegyzések belefoglalása (csak japán nyelven)";
+
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Akkor érvényes, ha az SFX szűrés engedélyezve van. Szűri a kontextust igénylőként megjelölt bejegyzéseket is a szótári egyezések, a szövegméret és a közeli elrendezés segítségével. Egyetlen LLM sem elemzi a kontextust, így a párbeszéd is kizárható.";
+
+"TRANSLATION_INCLUDE_IMAGE" = "Oldalkép belefoglalása a fordításba";
+
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Küldje el az eredeti oldalt OCR-szöveggel a jelenet és a kifejezés kontextusához. A képre vonatkozó utasítások automatikusan hozzá vannak csatolva. Olyan modellt igényel, amely támogatja a képeket, és növelheti az adathasználatot és az API-költségeket.";
+
+"TRANSLATION_SOURCE_TEXT_COLOR" = "Az eredeti szöveg színének megőrzése";
+
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Becsülje meg az eredeti szöveg színét további modell nélkül. Használja az alapértelmezett színt, ha bizonytalan, vagy ha túl alacsony a kontraszt.";
+
+"TRANSLATION_LLM_SFX" = "LLM SFX szűrés (minden nyelven)";
+
+"TRANSLATION_LLM_SFX_HELP" = "Osztályozza a hanghatásokat a fordítási kérelemben. Kombinálható a japán lokális szűrővel: bármelyik szűrő hangeffektus-döntése az eredetit változatlanul hagyja. Kompatibilis az oldalkép elküldésével.";
+
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Képbevitel nélkül a korlátozott vizuális és elrendezési környezet csökkentheti az SFX osztályozási pontosságot.";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "A panel eredeti színének megőrzése";
+
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Illessze a fordítópanelt az eredeti szöveg háttéréhez. Használja az alapértelmezett panelt, ha bizonytalan vagy olvashatatlan. Az átlátszóság beállítása továbbra is érvényes.";
+
+"TRANSLATION_CUSTOM_PROVIDER" = "Egyedi OpenAI";
+
+"TRANSLATION_OCR_MEDIUM" = "Közepes";
+
+"TRANSLATION_OCR_SMALL" = "Kicsi";
+
+"TRANSLATION_OCR_TINY" = "Apró";
+
+"TRANSLATION_REASONING_NONE" = "Egyik sem";
+
+"TRANSLATION_REASONING_MINIMAL" = "Minimális";
+
+"TRANSLATION_REASONING_LOW" = "Alacsony";
+
+"TRANSLATION_REASONING_MEDIUM" = "Közepes";
+
+"TRANSLATION_REASONING_HIGH" = "Magas";
+
+"TRANSLATION_REASONING_XHIGH" = "Nagyon magas";
+
+"TRANSLATION_REASONING_MAX" = "Maximum";
