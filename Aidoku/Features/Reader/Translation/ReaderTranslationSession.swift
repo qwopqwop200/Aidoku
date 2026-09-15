@@ -1,6 +1,6 @@
 import UIKit
 
-/// Activation is gated by a real API probe. One cancellable consumer drains
+/// Activation is local. One cancellable consumer drains
 /// the chapter; its preloader can overlap one following page's OCR and API work.
 @MainActor
 final class ReaderTranslationSession {
@@ -17,7 +17,7 @@ final class ReaderTranslationSession {
         pages.enumerated().map { Item($0.element, position: $0.offset) }
     }
     private(set) var state: State = .off
-    private let validate: (ReaderTranslationSettings) async throws -> Void
+    private let validate: ((ReaderTranslationSettings) async throws -> Void)?
     private let process: Processor
     private let cancelProcessing: () -> Void
     private let cancelProcessingForPage: ((Page) -> Void)?
@@ -31,6 +31,8 @@ final class ReaderTranslationSession {
     private var visible: [ReaderTranslationPage] = []
     private let knownPages = NSHashTable<ReaderTranslationPage>.weakObjects()
     private var attempted: Set<String> = []
+    private var ocrFallbacks: [String: [ReaderTranslationRegion]] = [:]
+    private var didReportTranslationFailure = false
     private var context: String?
     private var activation = UUID()
     private var workGeneration = UUID()
@@ -49,9 +51,7 @@ final class ReaderTranslationSession {
     var onFailure: ((Error) -> Void)?
 
     init(
-        validate: @escaping (ReaderTranslationSettings) async throws -> Void = {
-            try await ReaderTranslationAPIValidator.shared.validateFreshForActivation($0)
-        },
+        validate: ((ReaderTranslationSettings) async throws -> Void)? = nil,
         process: @escaping Processor,
         cancelProcessing: @escaping () -> Void = {},
         cancelProcessingForPage: ((Page) -> Void)? = nil,
@@ -71,8 +71,11 @@ final class ReaderTranslationSession {
     deinit { probeTask?.cancel(); worker?.cancel(); layoutTask?.cancel() }
 
     func refreshVisiblePages(_ pages: [ReaderTranslationPage]) {
-        let ids = Set(pages.map(ObjectIdentifier.init))
-        visible.filter { !ids.contains(ObjectIdentifier($0)) }.forEach { $0.releaseOverlay() }
+        // Keep only the incoming and outgoing sets during animation. A transient
+        // empty callback must not erase the outgoing page or retain an entire swipe history.
+        guard !pages.isEmpty else { return }
+        let retained = Set((visible + pages).map(ObjectIdentifier.init))
+        knownPages.allObjects.filter { !retained.contains(ObjectIdentifier($0)) }.forEach { $0.releaseOverlay() }
         visible = pages
         pages.forEach { $0.renderCache = renderCache; knownPages.add($0) }
         if state == .on { displayPreparedPages() }
@@ -93,9 +96,13 @@ final class ReaderTranslationSession {
             self.renderContext = renderContext
         }
         let visibleIDs = Set(visible.map(ObjectIdentifier.init))
-        self.visible.filter { !visibleIDs.contains(ObjectIdentifier($0)) }.forEach { $0.releaseOverlay() }
+        knownPages.allObjects.filter { !visibleIDs.contains(ObjectIdentifier($0)) }.forEach { $0.releaseOverlay() }
         let visibleKeys = Set(visible.compactMap { $0.sourcePage?.translationCacheKey })
         let anchor = currentPageIndex ?? items.first(where: { visibleKeys.contains($0.key) })?.position ?? items.first?.position ?? 0
+        if currentPosition != anchor {
+            stopWorker()
+            cancelLayout(clearQueue: true)
+        }
         if currentPosition != anchor || self.items.count != items.count {
             ReaderTranslationDiagnostics.record("queue", page: anchor + 1, count: items.count)
             currentPosition = anchor
@@ -131,6 +138,18 @@ final class ReaderTranslationSession {
         if self.settings?.hasSameTranslation(as: settings) == false { cache.clear(); finished.removeAll(); preparedLayouts.removeAll() }
         self.settings = settings
         attempted.removeAll()
+        ocrFallbacks.removeAll()
+        didReportTranslationFailure = false
+        guard let validate else {
+            state = .on
+            ReaderTranslationDiagnostics.record("enabled", page: (currentPosition ?? -1) + 1, count: items.count)
+            onStateChanged?(state)
+            displayPreparedPages()
+            drain()
+            enqueuePreparedLayouts()
+            drainLayout()
+            return
+        }
         state = .checking
         onStateChanged?(state)
         let issued = activation
@@ -169,11 +188,33 @@ final class ReaderTranslationSession {
         onStateChanged?(state)
     }
 
+    /// Cancel the previous demand and lookahead immediately while navigation
+    /// settles. Keep completed results and the ON state for instant redisplay.
+    func pauseForPageTurn() {
+        stopWorker()
+        cancelLayout(clearQueue: true)
+    }
+
+    /// Release expensive work without changing the user's ON/OFF choice.
+    func suspendWorkForResourcePressure() {
+        stopWorker()
+        cancelLayout(clearQueue: true)
+        cache.clear()
+        ocrFallbacks.removeAll()
+        attempted.removeAll()
+        finished.removeAll()
+        preparedLayouts.removeAll()
+        renderCache?.clearMemory()
+        let visibleIDs = Set(visible.map(ObjectIdentifier.init))
+        knownPages.allObjects.filter { !visibleIDs.contains(ObjectIdentifier($0)) }.forEach { $0.releaseOverlay() }
+    }
+
     func close() {
         disable(reason: "reader_closed")
         items = []
         visible = []
         knownPages.removeAllObjects()
+        ocrFallbacks.removeAll()
         cache.clear()
         finished.removeAll()
         preparedLayouts.removeAll()
@@ -258,6 +299,8 @@ final class ReaderTranslationSession {
             guard let key = page.sourcePage?.translationCacheKey else { continue }
             if let regions = cache.regions(for: key) {
                 page.displayPrepared(regions, settings: settings)
+            } else if let fallback = ocrFallbacks[key] {
+                page.displayPrepared(fallback, settings: settings, completed: false)
             } else if key == activeKey, let activeRegions {
                 page.displayPrepared(activeRegions, settings: settings, completed: false)
             }
@@ -330,6 +373,8 @@ final class ReaderTranslationSession {
                     guard workGeneration == issued else { return }
                     try cache.store(regions, for: item.key)
                     finished.insert(item.key)
+                    ocrFallbacks.removeValue(forKey: item.key)
+                    didReportTranslationFailure = false
                     ReaderTranslationDiagnostics.record("translation_finished", page: item.position + 1, count: regions.count)
                     displayPreparedPages()
                     if stored == nil {
@@ -348,10 +393,16 @@ final class ReaderTranslationSession {
                 } catch {
                     guard workGeneration == issued, !Task.isCancelled else { return }
                     ReaderTranslationDiagnostics.record("page_failed", page: item.position + 1, code: (error as NSError).code)
-                    if error is RemoteTranslationError || error is TranslationCredentialStoreError {
-                        disable()
-                        onFailure?(error)
-                        return
+                    if let fallback = error as? ReaderTranslationOCRFallback {
+                        ocrFallbacks[item.key] = fallback.regions
+                        // Bound transient OCR fallback storage to nearby pages.
+                        let keep = Set(items.filter { abs($0.position - item.position) <= 2 }.map(\.key))
+                            .union(visible.compactMap { $0.sourcePage?.translationCacheKey })
+                        ocrFallbacks = ocrFallbacks.filter { keep.contains($0.key) }
+                        displayPreparedPages()
+                    }
+                    if error is ReaderTranslationOCRFallback || error is RemoteTranslationError || error is TranslationCredentialStoreError {
+                        if !didReportTranslationFailure { onFailure?(error); didReportTranslationFailure = true }
                     }
                     // A broken image must not stop preparation of the remaining chapter.
                     attempted.insert(item.key)

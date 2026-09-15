@@ -202,6 +202,59 @@ struct ReaderTranslationSessionTests {
         try await waitUntil { newCalls == 1 }
     }
 
+    @Test func pageTurnPauseCancelsOldWorkAndRestartsFromNewAnchor() async throws {
+        let fixture = SessionFixture()
+        let gate = SessionGate()
+        var calls: [Int] = []
+        var cancellations = 0
+        let session = ReaderTranslationSession(process: { page, _, _ in
+            calls.append(page.index)
+            if calls.count == 1 { await gate.wait() }
+            return [Self.region]
+        }, cancelProcessing: { cancellations += 1 })
+        defer { session.close() }
+        let items = (0..<8).map { ReaderTranslationSession.Item(Self.page($0)) }
+        session.update(items: items, visible: [], context: "chapter", currentPageIndex: 0)
+        session.enable(settings: fixture.settings)
+        try await waitUntil { await gate.started }
+        session.pauseForPageTurn()
+        let before = calls.count
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(calls.count == before)
+        #expect(session.state == .on)
+        #expect(cancellations > 0)
+        session.update(items: items, visible: [], context: "chapter", currentPageIndex: 6)
+        try await waitUntil { calls.count > before }
+        #expect(calls[before] == 6)
+        await gate.release()
+    }
+
+    @Test func resourcePressureAndOCRFallbackKeepAutomaticTranslationOn() async throws {
+        let fixture = SessionFixture()
+        var calls = 0
+        var failures = 0
+        var states: [ReaderTranslationSession.State] = []
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            calls += 1
+            throw ReaderTranslationOCRFallback(regions: [Self.region], underlying: URLError(.notConnectedToInternet))
+        })
+        defer { session.close() }
+        session.onFailure = { _ in failures += 1 }
+        session.onStateChanged = { states.append($0) }
+        session.update(items: (0..<3).map { .init(Self.page($0)) }, visible: [], context: "chapter")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { calls == 3 }
+        #expect(session.state == .on)
+        #expect(failures == 1)
+        states.removeAll()
+        session.suspendWorkForResourcePressure()
+        session.update(items: [.init(Self.page(4))], visible: [], context: "chapter", currentPageIndex: 4)
+        session.enable(settings: fixture.settings)
+        try await waitUntil { calls == 4 }
+        #expect(session.state == .on)
+        #expect(states.isEmpty)
+    }
+
     @Test func failedProbeOrAPIStopsWorkButBrokenImagesAreSkipped() async throws {
         let fixture = SessionFixture()
         for failureAtProbe in [true, false] {
@@ -219,8 +272,9 @@ struct ReaderTranslationSessionTests {
             session.update(items: (0..<4).map { .init(Self.page($0)) }, visible: [], context: "chapter")
             session.enable(settings: fixture.settings)
             try await waitUntil { errors == 1 }
-            #expect(session.state == .off)
-            #expect(calls == (failureAtProbe ? 0 : 2))
+            if !failureAtProbe { try await waitUntil { calls == 4 } }
+            #expect(session.state == (failureAtProbe ? .off : .on))
+            #expect(calls == (failureAtProbe ? 0 : 4))
         }
     }
 
@@ -248,7 +302,7 @@ struct ReaderTranslationSessionTests {
         session.update(items: [.init(Self.page(0))], visible: [], context: "chapter")
         session.enable(settings: fixture.settings)
         try await waitUntil { failures == 1 }
-        #expect(session.state == .off)
+        #expect(session.state == (failureAtProbe ? .off : .on))
         #expect(fixture.settings.automaticallyTranslate)
         shouldFail = false
         session.enable(settings: fixture.settings)
@@ -318,6 +372,70 @@ struct ReaderTranslationSessionTests {
             try #require(image.pngData()).write(to: directory.appendingPathComponent("reader-translation-\(state).png"))
         }
         #expect(buttons.last?.accessibilityValue == "OFF")
+    }
+
+    @Test func transientVisibilityDoesNotRemoveRenderedTextBeforeNavigationSettles() async throws {
+        let fixture = SessionFixture()
+        let imageView = UIImageView(image: Self.image())
+        let first = ReaderTranslationPage(imageView: imageView)
+        first.sourcePage = Self.page(0)
+        let session = ReaderTranslationSession(process: { _, _, _ in [Self.region] })
+        defer { session.close() }
+        let items = [ReaderTranslationSession.Item(Self.page(0))]
+        session.update(items: items, visible: [first], context: "chapter")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { first.hasCompletedTranslation(settings: fixture.settings) }
+        let overlay = try #require(imageView.subviews.first)
+        for _ in 0..<20 {
+            session.pauseForPageTurn()
+            session.refreshVisiblePages([])
+            #expect(overlay.superview === imageView)
+            session.refreshVisiblePages([first])
+            #expect(imageView.subviews.first === overlay)
+        }
+        session.update(items: items, visible: [], context: "chapter")
+        #expect(imageView.subviews.isEmpty)
+        session.update(items: items, visible: [first], context: "chapter")
+        #expect(!imageView.subviews.isEmpty)
+    }
+
+    @Test func rapidVisibilityRefreshRetainsOnlyIncomingAndOutgoingOverlays() {
+        let fixture = SessionFixture()
+        let views = (0..<12).map { _ in UIImageView(image: Self.image()) }
+        let pages = views.enumerated().map { index, view in
+            let page = ReaderTranslationPage(imageView: view)
+            page.sourcePage = Self.page(index)
+            return page
+        }
+        let session = ReaderTranslationSession(process: { _, _, _ in [] })
+        defer { session.close() }
+        for page in pages {
+            page.displayPrepared([Self.region], settings: fixture.settings)
+            session.refreshVisiblePages([page])
+            #expect(views.filter { !$0.subviews.isEmpty }.count <= 2)
+        }
+    }
+
+    @Test func memoryWarningPreservesVisibleCompletedOverlay() async throws {
+        let fixture = SessionFixture()
+        let imageView = UIImageView(image: Self.image())
+        let page = ReaderTranslationPage(imageView: imageView)
+        page.sourcePage = Self.page(0)
+        let session = ReaderTranslationSession(process: { _, _, _ in [Self.region] })
+        defer { session.close() }
+        let items = [ReaderTranslationSession.Item(Self.page(0))]
+        session.update(items: items, visible: [page], context: "chapter")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { page.hasCompletedTranslation(settings: fixture.settings) }
+        let overlay = try #require(imageView.subviews.first)
+        NotificationCenter.default.post(name: UIApplication.didReceiveMemoryWarningNotification, object: nil)
+        session.suspendWorkForResourcePressure()
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(session.state == .on)
+        #expect(page.hasCompletedTranslation(settings: fixture.settings))
+        #expect(imageView.subviews.first === overlay)
+        session.update(items: items, visible: [page], context: "chapter")
+        #expect(imageView.subviews.first === overlay)
     }
 
     @Test func leavingPagesReleasesOverlaysAndReturningReusesTranslation() async throws {

@@ -33,6 +33,7 @@ final class ReaderTranslationCoordinator {
     private var observers: [NSObjectProtocol] = []
     private var isVisible = false
     private var synchronizationTask: Task<Void, Never>?
+    private var navigationIdentity: String?
     private var failureNotice: UIView?
     private var failureNoticeTask: Task<Void, Never>?
     private let session: ReaderTranslationSession
@@ -72,7 +73,6 @@ final class ReaderTranslationCoordinator {
         }
         self.session.onFailure = { [weak self] error in
             guard let self else { return }
-            ReaderTranslationAPIValidator.shared.recordFailure(error, settings: readSettings())
             // A failed request stops this session, not the user's saved preference.
             button.accessibilityHint = error.localizedDescription
             showFailureNotice()
@@ -90,9 +90,12 @@ final class ReaderTranslationCoordinator {
             forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.cancel(reason: "memory_warning")
+                self?.session.suspendWorkForResourcePressure()
                 ReaderTranslationRenderCache.shared.clearMemory()
                 if #available(iOS 18.0, *) { await ReaderOCRService.shared.purge() }
+                // A warning may arrive after the last navigation callback. Resume
+                // through the settling delay instead of waiting for another swipe.
+                self?.visiblePagesDidChange()
             }
         })
     }
@@ -174,7 +177,7 @@ final class ReaderTranslationCoordinator {
 
     func resume() { isVisible = true; visiblePagesDidChange() }
     func suspend() { dismissFailureNotice(); isVisible = false; session.disable(reason: "reader_left") }
-    func cancel(reason: String = "cancelled") { session.disable(reason: reason) }
+    func cancel(reason: String = "cancelled") { session.suspendWorkForResourcePressure() }
     func close() {
         dismissFailureNotice()
         isVisible = false
@@ -183,11 +186,21 @@ final class ReaderTranslationCoordinator {
     }
 
     func visiblePagesDidChange() {
-        // A hot cached page must be shown in this frame, not after the queue debounce.
-        if isVisible { session.refreshVisiblePages(owner?.translationVisiblePages ?? []) }
+        guard isVisible, let owner else { return }
+        let identity = owner.translationChapterKey + ":" + String(owner.translationCurrentPageIndex)
+        let moved = navigationIdentity != identity
+        if moved {
+            navigationIdentity = identity
+            session.pauseForPageTurn()
+            synchronizationTask?.cancel()
+            synchronizationTask = nil
+        }
+        // Existing results can display immediately without starting OCR.
+        session.refreshVisiblePages(owner.translationVisiblePages)
         guard synchronizationTask == nil else { return }
         synchronizationTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 80_000_000)
+            do { try await Task.sleep(nanoseconds: moved ? 350_000_000 : 80_000_000) }
+            catch { return }
             guard !Task.isCancelled, let self else { return }
             synchronizationTask = nil
             synchronizeVisiblePages()

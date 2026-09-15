@@ -4,6 +4,30 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationPersistentPipelineTests {
+    @Test func failedTranslationDisplaysOCRAndKeepsToggleOn() async throws {
+        let fixture = PersistentFixture()
+        let sourcePage = fixture.page(0)
+        let view = UIImageView(image: Self.image())
+        let visible = ReaderTranslationPage(imageView: view)
+        visible.sourcePage = sourcePage
+        var raw = Self.region
+        raw.translation = nil
+        let fallback = raw
+        var notices = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            throw ReaderTranslationOCRFallback(regions: [fallback], underlying: URLError(.timedOut))
+        }, diskCache: fixture.disk)
+        defer { session.close() }
+        session.onFailure = { _ in notices += 1 }
+        session.update(items: [.init(sourcePage)], visible: [visible], context: "fallback")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { notices == 1 }
+        #expect(session.state == .on)
+        #expect(visible.regions.map(\.source) == [fallback.source])
+        #expect(visible.regions.allSatisfy { $0.translation == nil })
+        #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
+    }
+
     @Test func preparationFansOutToBothChapterEndsAndReprioritizes() {
         let pages = (0..<8).map { Page(sourceId: "test", chapterId: "chapter", index: $0) }
         let items = pages.map(ReaderTranslationSession.Item.init)
@@ -43,7 +67,15 @@ struct ReaderTranslationPersistentPipelineTests {
         let fixture = PersistentFixture()
         let page = fixture.page(0)
         let first = ReaderTranslationPreloader(diskCache: fixture.disk, translator: { _, _, _ in throw PersistentTestError.api })
-        await #expect(throws: PersistentTestError.api) { try await first.translate(page, settings: fixture.settings) }
+        do {
+            _ = try await first.translate(page, settings: fixture.settings)
+            Issue.record("Expected OCR fallback")
+        } catch let fallback as ReaderTranslationOCRFallback {
+            #expect(!fallback.regions.isEmpty)
+            #expect(fallback.regions.allSatisfy { $0.translation == nil })
+        }
+        let translationKey = ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: fixture.settings)
+        #expect(try await fixture.disk.regions(for: translationKey, kind: .translation) == nil)
         let key = ReaderTranslationCacheIdentity.ocr(page: page.translationCacheKey, settings: fixture.settings)
         let saved = try #require(try await fixture.disk.regions(for: key, kind: .ocr))
         #expect(!saved.isEmpty)

@@ -962,7 +962,7 @@
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d received · TLS fragmentation not confirmed";
 "HTTPS_BYPASS_TEST_FAILED" = "Could not connect through HTTPS bypass.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Translation API request failed. Check your connection and try again.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Translation failed. Showing OCR text. Please check your connection.";
 
 "TRANSLATION_MANGA_TITLES" = "Translate Manga Titles";
 

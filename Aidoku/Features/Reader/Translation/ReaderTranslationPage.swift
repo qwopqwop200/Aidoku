@@ -57,7 +57,7 @@ final class ReaderTranslationPage {
         } }
         memoryObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main
-        ) { [weak self] _ in Task { @MainActor in self?.reset() } }
+        ) { [weak self] _ in Task { @MainActor in self?.discardRecognitionCache() } }
     }
 
     deinit {
@@ -65,6 +65,13 @@ final class ReaderTranslationPage {
         renderLookupTask?.cancel()
         if let settingsObserver { NotificationCenter.default.removeObserver(settingsObserver) }
         if let memoryObserver { NotificationCenter.default.removeObserver(memoryObserver) }
+    }
+
+    // Memory pressure must not erase a visible translation or interrupt its render.
+    private func discardRecognitionCache() {
+        recognizedImage = nil
+        recognizedConfiguration = nil
+        recognizedRegions = nil
     }
 
     func reset() {

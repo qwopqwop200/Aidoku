@@ -619,7 +619,7 @@
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d 수신 · TLS 분할 미확인";
 "HTTPS_BYPASS_TEST_FAILED" = "HTTPS 우회 경로로 연결하지 못했습니다.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "번역 API 요청에 실패했어요. 연결 확인 후 다시 켜 주세요.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "번역에 실패해 OCR 원문을 표시합니다. 연결을 확인해 주세요.";
 
 "TRANSLATION_MANGA_TITLES" = "만화 제목 번역";
 

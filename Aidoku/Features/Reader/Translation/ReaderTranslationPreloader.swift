@@ -1,6 +1,11 @@
 import Nuke
 import UIKit
 
+struct ReaderTranslationOCRFallback: Error {
+    let regions: [ReaderTranslationRegion]
+    let underlying: Error
+}
+
 /// Prepares a demand page and at most one following page without reader views.
 /// OCR remains serial; spare provider capacity can translate the following page.
 @MainActor
@@ -15,6 +20,8 @@ final class ReaderTranslationPreloader {
 
         func cancel() { recognition.cancel(); translation?.cancel() }
     }
+    // Acquire before decoding, not after images have accumulated waiting for OCR.
+    private static let imagePreparationGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private let loader = ReaderTranslationImageLoader()
     private let translator: ReaderTranslationPage.ProgressiveTranslator
     private let prefetchTranslator: ReaderTranslationPage.ProgressiveTranslator
@@ -131,7 +138,18 @@ final class ReaderTranslationPreloader {
             if eligible.isEmpty {
                 result = []
             } else {
-                result = try await translate(eligible, settings) { try await work.progress.publish($0) }
+                do {
+                    result = try await translate(eligible, settings) { try await work.progress.publish($0) }
+                } catch {
+                    try Task.checkCancellation()
+                    if error is CancellationError { throw error }
+                    throw ReaderTranslationOCRFallback(regions: regions.map {
+                        var value = $0
+                        value.translation = nil
+                        value.translationReuseIdentity = nil
+                        return value
+                    }, underlying: error)
+                }
             }
             try Task.checkCancellation()
             if speculative {
@@ -154,7 +172,9 @@ final class ReaderTranslationPreloader {
         _ page: Page, settings: ReaderTranslationSettings, skipTranslated: Bool = false
     ) -> Task<[ReaderTranslationRegion]?, Error> {
         let key = ReaderTranslationCacheIdentity.ocr(page: page.translationCacheKey, settings: settings)
+        let admission = Self.imagePreparationGate
         return Task.detached(priority: .utility) { [diskCache, loader, recognizer] in
+            try await admission.withPermit {
             try Task.checkCancellation()
             let diskGeneration = await diskCache?.currentGeneration() ?? 0
             if skipTranslated, let diskCache,
@@ -198,6 +218,7 @@ final class ReaderTranslationPreloader {
             try? await diskCache?.storeRegions(regions, for: key, kind: .ocr, generation: diskGeneration)
             if let evidenceImage { return ReaderTranslationImagePreparation.apply(regions, image: evidenceImage, settings: settings) }
             return regions
+            }
         }
     }
 
