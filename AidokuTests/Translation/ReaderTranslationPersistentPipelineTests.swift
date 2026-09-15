@@ -344,7 +344,7 @@ struct ReaderTranslationPersistentPipelineTests {
         #expect(calls == 1)
     }
 
-    @Test func visiblePageJoinsAnExistingRenderWithoutCreatingAnotherWebView() async throws {
+    @Test func visiblePageCancelsSpeculativeRenderAndDisplaysLiveWithoutWaiting() async throws {
         let fixture = PersistentFixture()
         let cache = ReaderTranslationRenderCache(disk: fixture.disk)
         let image = Self.image()
@@ -368,12 +368,13 @@ struct ReaderTranslationPersistentPipelineTests {
         }
         try await waitUntil { await gate.started }
         page.displayPrepared([Self.region], settings: fixture.settings)
-        try await Task.sleep(for: .milliseconds(50))
-        #expect(view.subviews.isEmpty)
+        try await waitUntil { view.subviews.contains { $0 is ReaderTranslationOverlayView } }
+        #expect(!page.isUsingCachedRendering)
         await gate.release()
-        try await work.value
-        try await waitUntil { page.isUsingCachedRendering }
-        #expect(!view.subviews.contains { $0 is ReaderTranslationOverlayView })
+        _ = try? await work.value
+        // The cancelled speculative result cannot replace the current live view.
+        #expect(cache.cachedImage(for: key) == nil)
+        #expect(view.subviews.contains { $0 is ReaderTranslationOverlayView })
         page.reset()
     }
 

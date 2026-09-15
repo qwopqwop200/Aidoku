@@ -31,6 +31,8 @@ final class ReaderTranslationSession {
     private var visible: [ReaderTranslationPage] = []
     private let knownPages = NSHashTable<ReaderTranslationPage>.weakObjects()
     private var attempted: Set<String> = []
+    private var retryCounts: [String: Int] = [:]
+    private var retryTasks: [String: Task<Void, Never>] = [:]
     private var ocrFallbacks: [String: [ReaderTranslationRegion]] = [:]
     private var didReportTranslationFailure = false
     private var context: String?
@@ -68,7 +70,10 @@ final class ReaderTranslationSession {
         self.prepareLayout = prepareLayout
     }
 
-    deinit { probeTask?.cancel(); worker?.cancel(); layoutTask?.cancel() }
+    deinit {
+        probeTask?.cancel(); worker?.cancel(); layoutTask?.cancel()
+        retryTasks.values.forEach { $0.cancel() }
+    }
 
     func refreshVisiblePages(_ pages: [ReaderTranslationPage]) {
         // Keep only the incoming and outgoing sets during animation. A transient
@@ -102,6 +107,11 @@ final class ReaderTranslationSession {
         if currentPosition != anchor {
             stopWorker()
             cancelLayout(clearQueue: true)
+            // Revisiting a page is a fresh demand, including after a failed request.
+            for key in visibleKeys {
+                attempted.remove(key)
+                retryCounts.removeValue(forKey: key)
+            }
         }
         if currentPosition != anchor || self.items.count != items.count {
             ReaderTranslationDiagnostics.record("queue", page: anchor + 1, count: items.count)
@@ -138,6 +148,7 @@ final class ReaderTranslationSession {
         if self.settings?.hasSameTranslation(as: settings) == false { cache.clear(); finished.removeAll(); preparedLayouts.removeAll() }
         self.settings = settings
         attempted.removeAll()
+        retryCounts.removeAll()
         ocrFallbacks.removeAll()
         didReportTranslationFailure = false
         guard let validate else {
@@ -221,6 +232,11 @@ final class ReaderTranslationSession {
     }
 
     private func stopWorker(preservingRecognitionFor page: Page? = nil) {
+        for (key, task) in retryTasks {
+            task.cancel()
+            attempted.remove(key)
+        }
+        retryTasks.removeAll()
         if let activeKey {
             ReaderTranslationDiagnostics.record("worker_cancelled", page: (items.first { $0.key == activeKey }?.position ?? -1) + 1)
         }
@@ -345,6 +361,39 @@ final class ReaderTranslationSession {
         }
     }
 
+    private func scheduleTransientRetry(_ error: Error, key: String) {
+        var cause = (error as? ReaderTranslationOCRFallback)?.underlying ?? error
+        if let remote = cause as? RemoteTranslationError, case .transport(let code) = remote {
+            cause = URLError(code)
+        }
+        if let remote = cause as? RemoteTranslationError, remote == .privateTailnetUnavailable {
+            cause = URLError(.cannotConnectToHost)
+        }
+        let transient: Bool
+        if cause is CancellationError {
+            transient = true
+        } else if let url = cause as? URLError {
+            transient = [.cancelled, .timedOut, .networkConnectionLost, .notConnectedToInternet,
+                         .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed].contains(url.code)
+        } else {
+            transient = false
+        }
+        guard transient, visible.contains(where: { $0.sourcePage?.translationCacheKey == key }),
+              retryTasks[key] == nil, retryCounts[key, default: 0] < 2 else { return }
+        retryCounts[key, default: 0] += 1
+        let delay = retryCounts[key] == 1 ? 1 : 3
+        let issued = workGeneration
+        retryTasks[key] = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000) } catch { return }
+            guard let self, state == .on, workGeneration == issued, !Task.isCancelled else { return }
+            retryTasks.removeValue(forKey: key)
+            attempted.remove(key)
+            // Current-page recovery should not wait behind an offscreen API batch.
+            if let activeKey, activeKey != key { stopWorker() }
+            drain()
+        }
+    }
+
     private func drain() {
         guard state == .on, worker == nil, let settings, nextItem() != nil else { return }
         let issued = workGeneration
@@ -374,6 +423,7 @@ final class ReaderTranslationSession {
                     try cache.store(regions, for: item.key)
                     finished.insert(item.key)
                     ocrFallbacks.removeValue(forKey: item.key)
+                    retryCounts.removeValue(forKey: item.key)
                     didReportTranslationFailure = false
                     ReaderTranslationDiagnostics.record("translation_finished", page: item.position + 1, count: regions.count)
                     displayPreparedPages()
@@ -406,6 +456,7 @@ final class ReaderTranslationSession {
                     }
                     // A broken image must not stop preparation of the remaining chapter.
                     attempted.insert(item.key)
+                    scheduleTransientRetry(error, key: item.key)
                 }
                 activeKey = nil
                 activeRegions = nil

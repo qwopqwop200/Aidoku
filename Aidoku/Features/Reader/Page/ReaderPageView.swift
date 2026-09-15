@@ -40,6 +40,8 @@ class ReaderPageView: UIView {
     private var imageWidthConstraint: NSLayoutConstraint?
     private var imageHeightConstraint: NSLayoutConstraint?
     private var imageTask: ImageTask?
+    private var imageLoadGeneration = UUID()
+    private static let base64Gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private var sourceId: String?
     private var shouldShowLiveTextButton = false
     @available(iOS 16.0, *)
@@ -131,6 +133,7 @@ class ReaderPageView: UIView {
 
 extension ReaderPageView {
     func setPage(_ page: Page, sourceId: String? = nil, skipProcessing: Bool = false) async -> Bool {
+        guard !Task.isCancelled else { return false }
         // Store current page data for reload functionality
         self.currentPage = page
         translationPage.sourcePage = page
@@ -156,6 +159,11 @@ extension ReaderPageView {
         } else if let zipURL = page.zipURL, let url = URL(string: zipURL), let filePath = page.imageURL {
             return await setPageImage(zipURL: url, filePath: filePath)
         } else if let urlString = page.imageURL, let url = URL(string: urlString) {
+            if url.isFileURL, page.translationSourceRect != nil {
+                guard !Task.isCancelled, let image = UIImage(contentsOfFile: url.path) else { return false }
+                setPageImage(image)
+                return true
+            }
             return await setPageImage(url: url, context: page.context, sourceId: self.sourceId)
         } else if let base64 = page.base64 {
             return await setPageImage(base64: base64, key: page.hashValue)
@@ -254,46 +262,53 @@ extension ReaderPageView {
             progressView.isHidden = false
         }
 
+        guard !Task.isCancelled else { return false }
         return await startImageTask(request)
     }
 
     private func startImageTask(_ request: ImageRequest) async -> Bool {
-        imageTask = ImagePipeline.shared.loadImage(
+        imageLoadGeneration = UUID()
+        let issued = imageLoadGeneration
+        let loading = ImagePipeline.shared.loadImage(
             with: request,
             progress: { [weak self] _, completed, total in
-                guard let self else { return }
+                guard let self, self.imageLoadGeneration == issued else { return }
                 self.progressView.setProgress(value: Float(completed) / Float(total), withAnimation: false)
             },
             completion: { _ in }
         )
-        // hide progress view when task completes
+        imageTask = loading
+        // A cancelled request must never clear a newer request's handle.
         defer {
-            progressView.isHidden = true
-            imageTask = nil
+            if imageLoadGeneration == issued {
+                progressView.isHidden = true
+                imageTask = nil
+            }
         }
         do {
-            let response = try await imageTask?.response
-            guard let response else {
-                return false
-            }
+            let response = try await withTaskCancellationHandler {
+                try await loading.response
+            } onCancel: { loading.cancel() }
+            guard !Task.isCancelled, imageLoadGeneration == issued else { return false }
             setPageImage(response.image, gifData: response.container.type == .gif ? response.container.data : nil)
             completion?(true)
             return true
         } catch {
+            guard !Task.isCancelled, imageLoadGeneration == issued else { return false }
             // we can still send to image processor even if the request failed
             if request.userInfo[.processesKey] as? Bool == true {
                 let processor = request.processors.first(where: { $0 is PageInterceptorProcessor }) as? PageInterceptorProcessor
                 if let processor {
                     let result: Nuke.ImageContainer?
-                    switch error {
-                        case .dataLoadingFailed, .dataIsEmpty, .decodingFailed:
+                    switch error as? ImagePipeline.Error {
+                        case .dataLoadingFailed?, .dataIsEmpty?, .decodingFailed?:
                             result = await Task.detached {
                                 try? processor.processWithoutImage(request: request)
                             }.value
                         default:
                             result = nil
                     }
-                    if let result {
+                    if let result, !Task.isCancelled, imageLoadGeneration == issued {
                         setPageImage(result.image, gifData: result.type == .gif ? result.data : nil)
                         completion?(true)
                         return true
@@ -329,7 +344,10 @@ extension ReaderPageView {
             return true
         }
 
-        let image: UIImage? = await Task.detached {
+        let gate = Self.base64Gate
+        let processing = Task.detached { () throws -> UIImage? in
+            try await gate.withPermit {
+            try Task.checkCancellation()
             guard
                 let imageData = Data(base64Encoded: base64),
                 var image = UIImage(data: imageData)
@@ -355,9 +373,14 @@ extension ReaderPageView {
                 }
             }
 
+            try Task.checkCancellation()
             return image
-        }.value
-        guard let image else { return false }
+            }
+        }
+        let image = try? await withTaskCancellationHandler {
+            try await processing.value
+        } onCancel: { processing.cancel() }
+        guard !Task.isCancelled, let image else { return false }
 
         ImagePipeline.shared.cache.storeCachedImage(ImageContainer(image: image), for: request)
         setPageImage(image)
@@ -465,6 +488,7 @@ extension ReaderPageView {
     }
 
     func setPageImage(_ image: UIImage?, gifData: Data? = nil) {
+        guard !Task.isCancelled else { return }
         if imageView.image !== image { translationPage.reset() }
         imageView.image = image
         if !isTranslationPreload { NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: translationPage) }
@@ -476,6 +500,23 @@ extension ReaderPageView {
             startLiveTextAnalysis()
             scheduleDictionaryTextAnalysis()
         }
+    }
+
+    func releasePageResources() {
+        imageLoadGeneration = UUID()
+        imageTask?.cancel()
+        imageTask = nil
+        let pending = completion
+        completion = nil
+        pending?(false)
+        cancelLiveTextAnalysis()
+        cancelDictionaryTextAnalysis()
+        translationPage.reset()
+        translationPage.sourcePage = nil
+        currentPage = nil
+        imageView.image = nil
+        currentImageRequest = nil
+        progressView.isHidden = true
     }
 
     func cancelTranslationPreload() {

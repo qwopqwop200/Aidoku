@@ -48,6 +48,7 @@ class ReaderPagedViewController: BaseObservingViewController {
     // Split pages tracking
     private var actualPageIndices: [Int] = []
     private var splitPages: [Int: [Page]] = [:]
+    private var splitPersistenceCount = 0
     private var previousPreviewSplitPages: [Page]?
     private var nextPreviewSplitPages: [Page]?
 
@@ -442,7 +443,32 @@ extension ReaderPagedViewController {
         }
     }
 
+    private func visiblePageControllers() -> [ReaderPageViewController] {
+        guard let currentVCs = pageViewController.viewControllers else { return [] }
+        return currentVCs.flatMap { controller -> [ReaderPageViewController] in
+            if let pageVC = controller as? ReaderPageViewController {
+                return [pageVC]
+            }
+            if let doublePageVC = controller as? ReaderDoublePageViewController {
+                return [doublePageVC.firstPageController, doublePageVC.secondPageController]
+            }
+            return []
+        }
+    }
+
     func loadPages(in range: ClosedRange<Int>) {
+        // Rebase decoded images and in-flight loads on every completed navigation.
+        // Visible controllers remain protected during UIKit's transition callback.
+        let visible = Set(visiblePageControllers().map(ObjectIdentifier.init))
+        for (index, controller) in pageViewControllers.enumerated() {
+            guard case .page = controller.type,
+                  !range.contains(pageIndex(from: index)),
+                  !visible.contains(ObjectIdentifier(controller)) else { continue }
+            controller.clearPage()
+        }
+        nextChapterPreloadTask?.cancel()
+        nextChapterPreloadTask = nil
+        pagePrefetcher.reset()
         for i in range {
             guard i > 0 else { continue }
             guard i <= displayPageCount else { break }
@@ -645,6 +671,7 @@ extension ReaderPagedViewController {
     private func checkAndSplitWideImage(at pageIndex: Int, controller: ReaderPageViewController) {
         guard
             splitWideImages,
+            splitPersistenceCount < 2,
             splitPages[pageIndex] == nil,
             controller.isWideImage,
             pageViewControllers.contains(controller),
@@ -1206,19 +1233,6 @@ extension ReaderPagedViewController: @MainActor ReaderDictionaryReader {
         return nil
     }
 
-    private func visiblePageControllers() -> [ReaderPageViewController] {
-        guard let currentVCs = pageViewController.viewControllers else { return [] }
-        return currentVCs.flatMap { controller -> [ReaderPageViewController] in
-            if let pageVC = controller as? ReaderPageViewController {
-                return [pageVC]
-            }
-            if let doublePageVC = controller as? ReaderDoublePageViewController {
-                return [doublePageVC.firstPageController, doublePageVC.secondPageController]
-            }
-            return []
-        }
-    }
-
     func setDictionaryOverlayTapHandler(_ handler: ((String, String, CGRect, [CGRect]) -> Void)?) {
         dictionaryOverlayTapHandler = handler
         for controller in pageViewControllers {
@@ -1442,7 +1456,24 @@ extension ReaderPagedViewController {
 
     private func cacheSplitPages(_ pages: [Page], at pageIndex: Int) {
         guard let key = splitPageCacheKey, pageIndex >= 1, pageIndex <= viewModel.pages.count else { return }
-        Self.splitStore[key, default: [:]][pageIndex] = pages
+        guard let store = viewModel.temporaryPageStore else { return }
+        splitPersistenceCount += 1
+        Task { [weak self] in
+            let stored = await store.storeSplitPages(pages, chapterKey: key, pageIndex: pageIndex)
+            guard let self else { return }
+            // If storage fails, keep the admission slot occupied: allocating more
+            // split images without being able to offload them would be unbounded.
+            guard let stored else { return }
+            splitPersistenceCount -= 1
+            if splitPageCacheKey == key, splitPages[pageIndex] == pages {
+                splitPages[pageIndex] = stored
+                Self.splitStore[key, default: [:]][pageIndex] = stored
+            }
+            for controller in visiblePageControllers() {
+                guard let index = pageViewControllers.firstIndex(of: controller) else { continue }
+                checkAndSplitWideImage(at: actualPageIndex(from: self.pageIndex(from: index)), controller: controller)
+            }
+        }
     }
 
     private func restoreCachedSplitPages() {
@@ -1451,7 +1482,10 @@ extension ReaderPagedViewController {
             let cached = Self.splitStore[key]
         else { return }
         for (pageIndex, pages) in cached where splitPages[pageIndex] == nil {
-            guard pages.allSatisfy({ $0.image != nil }) else { continue }
+            guard pages.allSatisfy({ page in
+                guard let path = page.imageURL, let url = URL(string: path) else { return false }
+                return url.isFileURL && FileManager.default.fileExists(atPath: url.path)
+            }) else { continue }
             splitPages[pageIndex] = pages
         }
     }

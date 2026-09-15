@@ -5,6 +5,140 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationSessionTests {
+    @Test func visibleRenderingDoesNotWaitForSpeculativeSnapshot() async throws {
+        let disk = ReaderTranslationDiskCache(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let cache = ReaderTranslationRenderCache(disk: disk)
+        let gate = SessionGate()
+        let preparation = Task { try await cache.prepare("pending") { await gate.wait() } }
+        try await waitUntil { await gate.started }
+        var released = false
+        let release = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            released = true
+            await gate.release()
+        }
+        #expect(await cache.load("pending") == nil)
+        #expect(!released)
+        await release.value
+        _ = try? await preparation.value
+    }
+
+    @Test func transientTransportFailureRecoversWithoutAnotherPageTurn() async throws {
+        let fixture = SessionFixture()
+        let source = Self.page(0)
+        let view = UIImageView(image: Self.image())
+        let visible = ReaderTranslationPage(imageView: view)
+        visible.sourcePage = source
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            calls += 1
+            if calls == 1 {
+                throw ReaderTranslationOCRFallback(regions: [Self.region], underlying: RemoteTranslationError.transport(.timedOut))
+            }
+            return [Self.region]
+        })
+        defer { session.close() }
+        session.update(items: [.init(source)], visible: [visible], context: "retry")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { visible.hasCompletedTranslation(settings: fixture.settings) }
+        #expect(calls == 2)
+        #expect(session.state == .on)
+    }
+
+    @Test func persistentOfflineFailureHasBoundedRetries() async throws {
+        let fixture = SessionFixture()
+        let source = Self.page(0)
+        let view = UIImageView(image: Self.image())
+        let visible = ReaderTranslationPage(imageView: view)
+        visible.sourcePage = source
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            calls += 1
+            throw ReaderTranslationOCRFallback(regions: [Self.region], underlying: URLError(.notConnectedToInternet))
+        })
+        defer { session.close() }
+        session.update(items: [.init(source)], visible: [visible], context: "offline")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { calls == 3 }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(calls == 3)
+        #expect(session.state == .on)
+        #expect(!visible.regions.isEmpty)
+    }
+
+    @Test func cancelledBase64DecodeDoesNotPublishAnImage() async throws {
+        let store = ReaderTemporaryPageStore()
+        let view = ReaderPageView(temporaryPageStore: store)
+        let encoded = try #require(Self.image().pngData()).base64EncodedString()
+        let task = Task { await view.setPageImage(base64: encoded, key: UUID().hashValue) }
+        task.cancel()
+        #expect(await task.value == false)
+        #expect(view.imageView.image == nil)
+        await store.removeAll()
+    }
+
+    @Test func splitPagesPersistWithoutDecodedImagesAndReloadWithIdentity() async throws {
+        let store = ReaderTemporaryPageStore()
+        var left = Self.page(0)
+        left.translationOriginalKey = "original"
+        left.translationSourceRect = CGRect(x: 0, y: 0, width: 0.5, height: 1)
+        var right = left
+        right.translationSourceRect = CGRect(x: 0.5, y: 0, width: 0.5, height: 1)
+        let stored = try #require(await store.storeSplitPages([left, right], chapterKey: "split-test", pageIndex: 0))
+        #expect(stored.allSatisfy { $0.image == nil })
+        #expect(stored.map(\.translationSourceRect) == [left.translationSourceRect, right.translationSourceRect])
+        #expect(stored.map(\.translationOriginalKey) == ["original", "original"])
+        let controller = ReaderPageViewController(type: .page, delegate: nil, temporaryPageStore: store)
+        controller.setPage(stored[0])
+        try await waitUntil { controller.pageView?.imageView.image != nil }
+        #expect(controller.pageView?.imageView.image?.cgImage?.width == left.image?.cgImage?.width)
+        #expect(controller.pageView?.imageView.image?.cgImage?.height == left.image?.cgImage?.height)
+        controller.clearPage()
+        await store.removeAll()
+    }
+
+    @Test func sliderScrubbingDefersWorkAndRestartsAtFinalDestination() async throws {
+        let fixture = SessionFixture()
+        let pages = (0..<12).map { Self.page($0) }
+        let owner = UnindexedChapterOwner(pages: pages, current: 0)
+        var calls: [Int] = []
+        let session = ReaderTranslationSession(process: { page, _, _ in
+            calls.append(page.index)
+            return [Self.region]
+        })
+        let coordinator = ReaderTranslationCoordinator(owner: owner, session: session,
+            readSettings: { fixture.settings }, setEnabled: { _ in })
+        defer { coordinator.close() }
+        coordinator.resume()
+        for index in [9, 2, 11, 4, 8] {
+            coordinator.sliderInteractionBegan()
+            owner.page.sourcePage = pages[index]
+            coordinator.visiblePagesDidChange()
+        }
+        try await Task.sleep(for: .milliseconds(450))
+        #expect(calls.isEmpty)
+        coordinator.sliderInteractionEnded()
+        try await waitUntil { owner.page.hasCompletedTranslation(settings: fixture.settings) }
+        #expect(calls.first == 8)
+        #expect(session.state == .on)
+    }
+
+    @Test func clearingPageCancelsPendingLoadAndAllowsImmediateReload() async throws {
+        let controller = ReaderPageViewController(type: .page, delegate: nil,
+            temporaryPageStore: ReaderTemporaryPageStore())
+        let page = Self.page(0)
+        controller.setPage(page)
+        controller.clearPage()
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(controller.page == nil)
+        #expect(controller.pageView?.imageView.image == nil)
+        controller.setPage(page)
+        try await waitUntil { controller.pageView?.imageView.image != nil }
+        controller.clearPage()
+        #expect(controller.pageView?.imageView.image == nil)
+        #expect(controller.pageView?.translationPage.sourcePage == nil)
+    }
+
     @Test func realSourceAdapterPagesPrepareNeighborsWithoutAnyPageTurn() async throws {
         let fixture = SessionFixture()
         let pages = (0..<8).map { index in

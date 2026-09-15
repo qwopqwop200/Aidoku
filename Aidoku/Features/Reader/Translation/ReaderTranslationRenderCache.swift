@@ -29,12 +29,12 @@ final class ReaderTranslationRenderCache {
     }
 
     func load(_ key: String) async -> UIImage? {
+        guard !Task.isCancelled else { return nil }
         if let image = cachedImage(for: key) { return image }
-        let issued = generation
-        // Join the nearby page's render if it is already running.
-        if let preparation = preparations[key] { try? await preparation.task.value }
-        guard !Task.isCancelled, generation == issued else { return nil }
-        return cachedImage(for: key)
+        // A visible page must not wait for a speculative WebKit snapshot (up to
+        // 30 seconds). Cancel that preparation and let the caller render live.
+        preparations[key]?.task.cancel()
+        return nil
     }
 
     func prepare(_ key: String, operation: @escaping @MainActor () async throws -> Void) async throws {

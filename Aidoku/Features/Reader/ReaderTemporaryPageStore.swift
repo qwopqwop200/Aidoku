@@ -48,6 +48,20 @@ actor ReaderTemporaryPageStore {
         }
     }
 
+    /// Keep split ordering/crop metadata without retaining decoded page pixels.
+    func storeSplitPages(_ pages: [Page], chapterKey: String, pageIndex: Int) -> [Page]? {
+        var result: [Page] = []
+        for (offset, page) in pages.enumerated() {
+            guard !Task.isCancelled, let image = page.image,
+                  let url = store(image, chapterKey: chapterKey + "-split", pageIndex: pageIndex * 2 + offset) else { return nil }
+            var stored = page
+            stored.image = nil
+            stored.imageURL = url.absoluteString
+            result.append(stored)
+        }
+        return result
+    }
+
     func storeArchiveEntry(
         from archiveURL: URL,
         path: String

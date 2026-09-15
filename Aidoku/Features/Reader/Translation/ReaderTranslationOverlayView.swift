@@ -20,6 +20,7 @@ struct ReaderTranslationSnapshotTarget {
 /// The image and this view share the reader's scroll/zoom transform. Page pixels stay in this local document.
 @MainActor
 final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
+    private static let encodingGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     let webView: WKWebView
     private let renderer = BrowserPageImageOverlayRenderer()
     private var ready = false
@@ -104,8 +105,10 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         let issued = imageGeneration
         ready = false
         webView.isHidden = true
+        let gate = Self.encodingGate
         imageTask = Task { [weak self] in
             let encoding = Task.detached(priority: .utility) { () throws -> String? in
+                try await gate.withPermit {
                 try Task.checkCancellation()
                 return try autoreleasepool {
                     let data: Data?
@@ -116,6 +119,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                     }
                     try Task.checkCancellation()
                     return data.map { "data:image/png;base64," + $0.base64EncodedString() }
+                }
                 }
             }
             let dataURL = await withTaskCancellationHandler {

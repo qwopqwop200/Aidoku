@@ -34,6 +34,7 @@ final class ReaderTranslationCoordinator {
     private var isVisible = false
     private var synchronizationTask: Task<Void, Never>?
     private var navigationIdentity: String?
+    private var isScrubbing = false
     private var failureNotice: UIView?
     private var failureNoticeTask: Task<Void, Never>?
     private let session: ReaderTranslationSession
@@ -185,8 +186,21 @@ final class ReaderTranslationCoordinator {
         if #available(iOS 18.0, *) { Task { await ReaderOCRService.shared.purge() } }
     }
 
+    func sliderInteractionBegan() {
+        isScrubbing = true
+        synchronizationTask?.cancel()
+        synchronizationTask = nil
+        session.pauseForPageTurn()
+    }
+
+    func sliderInteractionEnded() {
+        isScrubbing = false
+        navigationIdentity = nil
+        visiblePagesDidChange()
+    }
+
     func visiblePagesDidChange() {
-        guard isVisible, let owner else { return }
+        guard isVisible, !isScrubbing, let owner else { return }
         let identity = owner.translationChapterKey + ":" + String(owner.translationCurrentPageIndex)
         let moved = navigationIdentity != identity
         if moved {

@@ -680,10 +680,12 @@ extension ReaderViewController {
     }
 
     @objc func sliderMoved(_ sender: ReaderSliderView) {
+        translationCoordinator.sliderInteractionBegan()
         reader?.sliderMoved(value: sender.currentValue)
     }
     @objc func sliderStopped(_ sender: ReaderSliderView) {
         reader?.sliderStopped(value: sender.currentValue)
+        translationCoordinator.sliderInteractionEnded()
     }
 }
 

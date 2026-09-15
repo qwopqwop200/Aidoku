@@ -53,6 +53,8 @@ class ReaderPageViewController: BaseObservingViewController {
 
     var page: Page?
     private var pageSet = false
+    private var pageLoadTask: Task<Void, Never>?
+    private var pageLoadGeneration = UUID()
     private var didLoadPageSuccessfully = false
     private var sourceId: String?
     private var imageAspectRatio: CGFloat? // Aspect ratio of the image, > 1 means wide image
@@ -187,9 +189,13 @@ class ReaderPageViewController: BaseObservingViewController {
         updateDoubleTapZoomSetting()
         reloadButton.isHidden = true
         zoomView?.zoomEnabled = false
-        Task {
+        pageLoadTask?.cancel()
+        pageLoadGeneration = UUID()
+        let issued = pageLoadGeneration
+        pageLoadTask = Task {
             let result = await pageView.setPage(page, sourceId: sourceId, skipProcessing: skipProcessing)
-            guard self.page == page else { return }
+            guard !Task.isCancelled, pageLoadGeneration == issued, self.page == page else { return }
+            pageLoadTask = nil
 
             didLoadPageSuccessfully = result
             zoomView?.zoomEnabled = result && !isInDoublePageController
@@ -263,6 +269,12 @@ class ReaderPageViewController: BaseObservingViewController {
     }
 
     func clearPage() {
+        pageLoadGeneration = UUID()
+        pageLoadTask?.cancel()
+        pageLoadTask = nil
+        pageView?.releasePageResources()
+        didLoadPageSuccessfully = false
+        pageBackground = nil
         page = nil
         pageSet = false
         pageView?.imageView.image = nil
