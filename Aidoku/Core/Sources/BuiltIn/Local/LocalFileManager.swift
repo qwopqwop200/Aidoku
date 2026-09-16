@@ -281,6 +281,30 @@ extension LocalFileManager {
 }
 
 extension LocalFileManager {
+    /// Preserve a chosen cover; otherwise use the first image in chapter/page order.
+    static func defaultCover(in folder: URL) -> URL? {
+        for ext in allowedImageExtensions.sorted() {
+            let existing = folder.appendingPathComponent("cover.\(ext)")
+            if existing.exists { return existing }
+        }
+        let chapters = folder.contents.filter { allowedFileExtensions.contains($0.pathExtension.lowercased()) }
+            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        for chapter in chapters {
+            guard let archive = try? Archive(url: chapter, accessMode: .read) else { continue }
+            let pages = archive.filter {
+                $0.type == .file && !$0.path.hasPrefix("__MACOSX/") &&
+                allowedImageExtensions.contains(($0.path as NSString).pathExtension.lowercased())
+            }.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+            guard let first = pages.first, first.uncompressedSize <= 250 * 1024 * 1024 else { continue }
+            let cover = folder.appendingPathComponent("cover.\((first.path as NSString).pathExtension.lowercased())")
+            do {
+                _ = try archive.extract(first, to: cover)
+                return cover
+            } catch { try? FileManager.default.removeItem(at: cover) }
+        }
+        return nil
+    }
+
     // add a new file to the local files source
     // swiftlint:disable:next cyclomatic_complexity
     func uploadFile(
@@ -453,27 +477,8 @@ extension LocalFileManager {
             } catch {
                 throw LocalFileManagerError.fileCopyFailed
             }
-        } else if mangaId == nil {
-            // copy first page image to use as cover image
-            let firstImageEntry = pageEntries.first(where: { LocalFileManager.allowedImageExtensions.contains($0.path.pathExtension().lowercased()) })
-            if let firstImageEntry {
-                let coverExt = (firstImageEntry.path as NSString).pathExtension
-                let coverFileName = "cover.\(coverExt)"
-                let newCoverURL = mangaFolder.appendingPathComponent(coverFileName)
-                do {
-                    if newCoverURL.exists {
-                        try? fileManager.removeItem(at: newCoverURL)
-                    }
-                    _ = try archive.extract(firstImageEntry, to: newCoverURL)
-                    coverURL = newCoverURL
-                } catch {
-                    throw LocalFileManagerError.fileCopyFailed
-                }
-            } else {
-                coverURL = nil
-            }
         } else {
-            coverURL = nil
+            coverURL = Self.defaultCover(in: mangaFolder)
         }
 
         // create the objects in db

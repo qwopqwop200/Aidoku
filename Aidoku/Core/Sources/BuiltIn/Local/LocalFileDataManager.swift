@@ -435,19 +435,19 @@ extension LocalFileDataManager {
                 guard !toRemove.contains($0.id) else { return false }
                 // check if cover url is nil or doesn't exist on disk
                 guard let coverUrl = $0.cover, let url = URL(string: coverUrl) else { return true }
-                return !url.exists
+                return !(url.toAidokuFileUrl() ?? url).exists
             }
         for manga in toFixCovers {
-            // try to find a cover image in the manga folder
-            for ext in LocalFileManager.allowedImageExtensions {
-                let coverPath = mangaFolders.first(where: { $0.lastPathComponent == manga.id })?
-                    .appendingPathComponent("cover.\(ext)")
-                if let coverPath, coverPath.exists {
-                    manga.cover = coverPath.absoluteString
-                    break
-                }
-            }
+            guard let folder = mangaFolders.first(where: { $0.lastPathComponent.normalized == manga.id }),
+                  let cover = LocalFileManager.defaultCover(in: folder) else { continue }
+            manga.cover = cover.toAidokuImageUrl()?.absoluteString
         }
+        // Normalize legacy absolute paths too, so app updates do not break covers.
+        for manga in coreDataManga {
+            if let value = manga.cover, let url = URL(string: value), url.isFileURL,
+               let relative = url.toAidokuImageUrl() { manga.cover = relative.absoluteString }
+        }
+        if context.hasChanges { try? context.save() }
 
         return (
             // manga that no longer exist on disk

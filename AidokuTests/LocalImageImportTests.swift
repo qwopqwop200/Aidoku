@@ -6,6 +6,32 @@ import ZIPFoundation
 
 @MainActor
 struct LocalImageImportTests {
+    @Test func defaultCoverUsesFirstImageAndPreservesChosenCover() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let first = folder.appendingPathComponent("2.png")
+        let later = folder.appendingPathComponent("10.png")
+        try writeImage(to: first, color: .red)
+        try writeImage(to: later, color: .blue)
+        do {
+            let archive = try Archive(url: folder.appendingPathComponent("chapter.cbz"), accessMode: .create)
+            try archive.addEntry(with: "10.png", relativeTo: folder)
+            try archive.addEntry(with: "2.png", relativeTo: folder)
+        }
+        let cover = try #require(LocalFileManager.defaultCover(in: folder))
+        #expect(try Data(contentsOf: cover) == Data(contentsOf: first))
+        // A user-selected cover must survive rescans and additional imports.
+        try writeImage(to: cover, color: .green)
+        let chosen = try Data(contentsOf: cover)
+        #expect(LocalFileManager.defaultCover(in: folder) == cover)
+        #expect(try Data(contentsOf: cover) == chosen)
+        // Older imports without a cover can be repaired from their first page.
+        try FileManager.default.removeItem(at: cover)
+        let repaired = try #require(LocalFileManager.defaultCover(in: folder))
+        #expect(try Data(contentsOf: repaired) == Data(contentsOf: first))
+    }
+
     @Test func invalidSharedArchiveDoesNotCreateLibraryEntry() async throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".cbz")
         defer { try? FileManager.default.removeItem(at: url) }
