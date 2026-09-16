@@ -84,7 +84,8 @@ actor TranslationCache {
     private struct MemoryEntry {
         let translations: [RemoteTranslatedSegment]
         let chargeBytes: Int
-        var accessSequence: UInt64
+        var previous: TranslationCacheKey?
+        var next: TranslationCacheKey?
     }
 
     private(set) var configuration: TranslationCacheConfiguration
@@ -92,7 +93,8 @@ actor TranslationCache {
     private var maximumBytes: Int
     private var memoryEntries: [TranslationCacheKey: MemoryEntry] = [:]
     private var memoryBytes = 0
-    private var accessSequence: UInt64 = 0
+    private var oldestMemoryKey: TranslationCacheKey?
+    private var newestMemoryKey: TranslationCacheKey?
     private var diskStore: TranslationDiskStore?
     private var pendingDiskWrites:
         [TranslationCacheKey: [RemoteTranslatedSegment]] = [:]
@@ -162,14 +164,11 @@ actor TranslationCache {
         for key: TranslationCacheKey,
         recordsMiss: Bool
     ) throws -> CachedTranslation? {
-        if configuration.memoryEnabled, var entry = memoryEntries[key] {
+        if configuration.memoryEnabled, let entry = memoryEntries[key] {
             if !cachedTranslationsAreValid(entry.translations, for: key) {
-                memoryEntries.removeValue(forKey: key)
-                memoryBytes -= entry.chargeBytes
+                removeMemoryEntry(key)
             } else {
-                accessSequence &+= 1
-                entry.accessSequence = accessSequence
-                memoryEntries[key] = entry
+                promoteMemoryEntry(key)
                 memoryHits &+= 1
                 return CachedTranslation(
                     translations: entry.translations,
@@ -259,8 +258,7 @@ actor TranslationCache {
         }
 
         if !next.memoryEnabled {
-            memoryEntries.removeAll(keepingCapacity: false)
-            memoryBytes = 0
+            clearMemoryEntries()
         }
         maximumBytes = nextMaximumBytes
         configuration = next
@@ -294,8 +292,7 @@ actor TranslationCache {
 
     func clear(memory: Bool = true, disk: Bool = true) throws {
         if memory {
-            memoryEntries.removeAll(keepingCapacity: false)
-            memoryBytes = 0
+            clearMemoryEntries()
         }
         if disk {
             persistenceTask?.cancel()
@@ -317,8 +314,7 @@ actor TranslationCache {
         persistenceTask?.cancel()
         persistenceTask = nil
         pendingDiskWrites.removeAll(keepingCapacity: false)
-        memoryEntries.removeAll(keepingCapacity: false)
-        memoryBytes = 0
+        clearMemoryEntries()
 
         if let diskStore {
             try diskStore.clear()
@@ -371,34 +367,57 @@ actor TranslationCache {
             key: key,
             translations: translations
         ), chargeBytes <= maximumBytes else {
-            if let previous = memoryEntries.removeValue(forKey: key) {
-                memoryBytes -= previous.chargeBytes
-            }
+            removeMemoryEntry(key)
             return
         }
-        if let previous = memoryEntries.removeValue(forKey: key) {
-            memoryBytes -= previous.chargeBytes
-        }
-        accessSequence &+= 1
+        removeMemoryEntry(key)
         memoryEntries[key] = MemoryEntry(
             translations: translations,
             chargeBytes: chargeBytes,
-            accessSequence: accessSequence
+            previous: newestMemoryKey
         )
+        if let newestMemoryKey { memoryEntries[newestMemoryKey]?.next = key }
+        else { oldestMemoryKey = key }
+        newestMemoryKey = key
         memoryBytes += chargeBytes
         trimMemoryToBudget()
     }
 
+    // Keep an explicit LRU chain: eviction must not scan all cached translations
+    // for each victim when a large response arrives or the budget shrinks.
+    private func unlinkMemoryEntry(_ entry: MemoryEntry) {
+        if let previous = entry.previous { memoryEntries[previous]?.next = entry.next }
+        else { oldestMemoryKey = entry.next }
+        if let next = entry.next { memoryEntries[next]?.previous = entry.previous }
+        else { newestMemoryKey = entry.previous }
+    }
+
+    private func promoteMemoryEntry(_ key: TranslationCacheKey) {
+        guard newestMemoryKey != key, var entry = memoryEntries[key] else { return }
+        unlinkMemoryEntry(entry)
+        entry.previous = newestMemoryKey
+        entry.next = nil
+        if let newestMemoryKey { memoryEntries[newestMemoryKey]?.next = key }
+        memoryEntries[key] = entry
+        newestMemoryKey = key
+    }
+
+    private func removeMemoryEntry(_ key: TranslationCacheKey) {
+        guard let entry = memoryEntries.removeValue(forKey: key) else { return }
+        unlinkMemoryEntry(entry)
+        memoryBytes -= entry.chargeBytes
+    }
+
+    private func clearMemoryEntries() {
+        memoryEntries.removeAll(keepingCapacity: false)
+        oldestMemoryKey = nil
+        newestMemoryKey = nil
+        memoryBytes = 0
+    }
+
     private func trimMemoryToBudget() {
-        while memoryBytes > maximumBytes,
-              let leastRecentlyUsed = memoryEntries.min(
-                  by: { left, right in
-                      left.value.accessSequence < right.value.accessSequence
-                  }
-              )
-        {
-            memoryBytes -= leastRecentlyUsed.value.chargeBytes
-            memoryEntries.removeValue(forKey: leastRecentlyUsed.key)
+        while memoryBytes > maximumBytes, let oldestMemoryKey {
+            removeMemoryEntry(oldestMemoryKey)
             evictions &+= 1
         }
     }

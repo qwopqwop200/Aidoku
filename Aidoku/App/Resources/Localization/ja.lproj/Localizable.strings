@@ -1079,3 +1079,5 @@
 
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "同梱の5つのモデルはオフラインでインストールできます。インストール後、「有効なモデル」でモデルをタップしてください。MangaJaNaiは高さ約1200ピクセルの白黒ページ向けで、カラーページは元のまま表示されます。";
+
+"DOWNLOAD_TRANSLATED" = "翻訳してダウンロード";

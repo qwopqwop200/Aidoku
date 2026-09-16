@@ -1089,3 +1089,5 @@
 
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "内置的5个模型均可离线安装。安装模型后，在“已启用模型”中点按选择。MangaJaNai 适用于高度约1200像素的黑白页面；彩色页面保持原样。";
+
+"DOWNLOAD_TRANSLATED" = "翻译后下载";

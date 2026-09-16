@@ -1089,3 +1089,5 @@
 
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "Die fünf enthaltenen Modelle lassen sich offline installieren. Installiere ein Modell und tippe anschließend unter „Aktiviertes Modell“ darauf. MangaJaNai ist für Schwarz-Weiß-Seiten mit etwa 1200 Pixeln Höhe gedacht; Farbseiten bleiben unverändert.";
+
+"DOWNLOAD_TRANSLATED" = "Übersetzt herunterladen";

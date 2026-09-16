@@ -1066,3 +1066,5 @@
 
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "Pesë modele të përfshira mund të instalohen jashtë linje. Instaloni një model dhe më pas prekni në Modeli i aktivizuar. MangaJaNai është për faqe bardh e zi rreth 1200 piksele të larta; faqet me ngjyra mbeten të pandryshuara.";
+
+"DOWNLOAD_TRANSLATED" = "Shkarko me përkthim";

@@ -1089,3 +1089,5 @@
 
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "Pet uključenih modela može se instalirati izvan mreže. Instalirajte model, zatim ga dodirnite u Uključen model. MangaJaNai je za crno-bijele stranice visine oko 1200 piksela; stranice u boji ostaju nepromijenjene.";
+
+"DOWNLOAD_TRANSLATED" = "Preuzmi s prijevodom";

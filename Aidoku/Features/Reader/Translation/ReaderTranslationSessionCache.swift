@@ -36,10 +36,13 @@ final class ReaderTranslationSessionCache {
     }
     private let values = NSCache<NSString, Regions>()
 
-    init() { values.totalCostLimit = 16 * 1_024 * 1_024 }
+    init() {
+        values.totalCostLimit = 16 * 1_024 * 1_024
+        values.countLimit = 128 // Empty OCR results also consume keys and wrapper objects.
+    }
     func contains(_ key: String) -> Bool { values.object(forKey: key as NSString) != nil }
     func store(_ regions: [ReaderTranslationRegion], for key: String) throws {
-        let cost = regions.reduce(0) { $0 + $1.source.utf8.count + ($1.translation?.utf8.count ?? 0) + 512 + $1.polygon.count * 16 }
+        let cost = regions.reduce(128 + key.utf8.count) { $0 + $1.source.utf8.count + ($1.translation?.utf8.count ?? 0) + 512 + $1.polygon.count * 16 }
         values.setObject(Regions(regions), forKey: key as NSString, cost: cost)
     }
     func regions(for key: String) -> [ReaderTranslationRegion]? { values.object(forKey: key as NSString)?.values }

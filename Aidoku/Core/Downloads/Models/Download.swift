@@ -24,6 +24,9 @@ struct Download: Equatable, Sendable, Codable {
 
     var status: DownloadStatus = .queued
 
+    // Optional for compatibility with queue files saved before translated downloads.
+    var translatesImages: Bool? = nil
+
     var progress: Int = 0
     var total: Int = 0
 

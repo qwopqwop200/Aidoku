@@ -1087,3 +1087,5 @@
 
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "Lima model yang disertakan dapat diinstal secara offline. Instal model, lalu ketuk di Model yang Diaktifkan. MangaJaNai ditujukan untuk halaman hitam-putih dengan tinggi sekitar 1200 piksel; halaman berwarna tetap tidak berubah.";
+
+"DOWNLOAD_TRANSLATED" = "Unduh dengan terjemahan";

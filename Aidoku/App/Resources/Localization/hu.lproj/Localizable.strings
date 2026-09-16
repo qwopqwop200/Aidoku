@@ -1087,3 +1087,5 @@
 
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "Öt mellékelt modell offline is telepíthető. Telepítsen egy modellt, majd érintse meg a Engedélyezett modell mezőben. A MangaJaNai körülbelül 1200 képpont magas fekete-fehér oldalakhoz való; a színes oldalak változatlanok maradnak.";
+
+"DOWNLOAD_TRANSLATED" = "Letöltés fordítással";

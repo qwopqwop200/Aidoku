@@ -1089,3 +1089,5 @@
 
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "Năm mô hình đi kèm có thể được cài đặt ngoại tuyến. Cài đặt một mô hình, sau đó nhấn vào mô hình đó trong Mô hình đang bật. MangaJaNai dành cho các trang đen trắng có chiều cao khoảng 1200 pixel; các trang màu không thay đổi.";
+
+"DOWNLOAD_TRANSLATED" = "Tải xuống bản dịch";

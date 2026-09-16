@@ -1039,7 +1039,7 @@
 "LOCAL_IMAGE_IMPORT_TEXT" = "Import photos, image files, or a CBZ or ZIP archive to read.";
 
 // Translated page export
-"SAVE_TRANSLATED_IMAGE" = "Save Image with Translation";
+"SAVE_TRANSLATED_IMAGE" = "Save Translated Image";
 "TRANSLATED_IMAGE_SAVE_FAILED" = "Could not render the translated image. Wait for translation to finish and try again.";
 
 "TRANSLATION_AUTHORS" = "Translate Author Names";
@@ -1059,3 +1059,5 @@
 
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "Five included models can be installed offline. Install a model, then tap it in Enabled Model. MangaJaNai is for black-and-white pages around 1200 pixels tall; color pages stay unchanged.";
+
+"DOWNLOAD_TRANSLATED" = "Download Translated";

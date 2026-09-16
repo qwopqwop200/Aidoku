@@ -1087,3 +1087,5 @@
 
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "Kvin inkluzivitaj modeloj povas esti instalitaj eksterrete. Instalu modelon, tiam frapetu ĝin en Ebligita Modelo. MangaJaNai estas por nigrablankaj paĝoj ĉirkaŭ 1200 pikseloj altaj; koloraj paĝoj restas senŝanĝaj.";
+
+"DOWNLOAD_TRANSLATED" = "Elŝuti kun traduko";

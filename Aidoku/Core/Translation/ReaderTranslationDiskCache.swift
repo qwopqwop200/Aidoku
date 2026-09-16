@@ -365,7 +365,9 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     }
 
     func touch(_ name: String) throws {
-        try statement("UPDATE cache SET accessed=(SELECT COALESCE(MAX(accessed),0)+1 FROM cache) WHERE name=?", name: name, body: step)
+        // The newest entry already has the correct durable LRU position. Repeated
+        // reads need no journal/fsync; alternating entries still persist exact order.
+        try statement("UPDATE cache SET accessed=(SELECT COALESCE(MAX(accessed),0)+1 FROM cache) WHERE name=? AND name != (SELECT name FROM cache ORDER BY accessed DESC, name DESC LIMIT 1)", name: name, body: step)
     }
 
     func delete(_ name: String) throws {

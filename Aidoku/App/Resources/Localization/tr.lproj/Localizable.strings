@@ -1089,3 +1089,5 @@
 
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "Dahil edilen beş model çevrimdışı olarak kurulabilir. Bir model yükleyin ve ardından Etkinleştirilen Model'de ona dokunun. MangaJaNai, yaklaşık 1200 piksel yüksekliğinde siyah beyaz sayfalar içindir; renkli sayfalar değişmeden kalır.";
+
+"DOWNLOAD_TRANSLATED" = "Çevirerek indir";

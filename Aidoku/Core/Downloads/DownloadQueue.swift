@@ -116,7 +116,7 @@ actor DownloadQueue {
     }
 
     @discardableResult
-    func add(chapters: [AidokuRunner.Chapter], manga: AidokuRunner.Manga, autoStart: Bool = true) async -> [Download] {
+    func add(chapters: [AidokuRunner.Chapter], manga: AidokuRunner.Manga, autoStart: Bool = true, translatesImages: Bool = false) async -> [Download] {
         var downloads: [Download] = []
         for chapter in chapters {
             let identifier = ChapterIdentifier(
@@ -128,12 +128,15 @@ actor DownloadQueue {
                 continue
             }
 
+            guard queue[manga.sourceKey]?.contains(where: { $0.chapterIdentifier == identifier }) != true else { continue }
+
             // create tmp directory so we know it's queued
             let tmpDirectory = cache.tmpDirectory(for: identifier)
             tmpDirectory.removeItem() // remove in case it exists from a previous failed download
             tmpDirectory.createDirectory()
 
-            let download = Download.from(manga: manga, chapter: chapter)
+            var download = Download.from(manga: manga, chapter: chapter)
+            download.translatesImages = translatesImages
             downloads.append(download)
             if queue[manga.sourceKey] == nil {
                 queue[manga.sourceKey] = [download]

@@ -127,6 +127,65 @@ struct ReaderTranslationDiskCacheTests {
         #expect(try await reopened.statistics().entries == 999)
     }
 
+    @Test func indexedReadsWithOneHundredThousandEntries() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        try await cache.store(Data("hot".utf8), for: "hot", kind: .translation, generation: 0)
+        var handle: OpaquePointer?
+        #expect(sqlite3_open(root.appendingPathComponent("cache.sqlite").path, &handle) == SQLITE_OK)
+        defer { sqlite3_close(handle) }
+        #expect(sqlite3_exec(handle, """
+            WITH RECURSIVE numbers(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM numbers WHERE x<100000)
+            INSERT INTO cache(name,data,accessed)
+            SELECT 'translation-bulk-' || printf('%06d',x), zeroblob(256), x FROM numbers
+            """, nil, nil, nil) == SQLITE_OK)
+        #expect(try await cache.statistics().entries == 100_001)
+        let start = Date()
+        for _ in 0..<100 {
+            #expect(try await cache.data(for: "hot", kind: .translation) == Data("hot".utf8))
+            #expect(try await cache.data(for: "missing", kind: .translation) == nil)
+        }
+        print("CACHE_LARGE_READ entries=100001 hits=100 misses=100 seconds=\(Date().timeIntervalSince(start))")
+        let reopened = ReaderTranslationDiskCache(directory: root)
+        #expect(try await reopened.data(for: "hot", kind: .translation) == Data("hot".utf8))
+        #expect(try await reopened.statistics().entries == 100_001)
+    }
+
+    @Test func newestEntryReadsAvoidWritesAndTiedLegacyAccessStillPromotes() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        try await cache.store(Data("first".utf8), for: "first", kind: .translation, generation: 0)
+        try await cache.store(Data("second".utf8), for: "second", kind: .translation, generation: 0)
+        var handle: OpaquePointer?
+        #expect(sqlite3_open(root.appendingPathComponent("cache.sqlite").path, &handle) == SQLITE_OK)
+        defer { sqlite3_close(handle) }
+        func version() throws -> Int32 {
+            var statement: OpaquePointer?
+            #expect(sqlite3_prepare_v2(handle, "PRAGMA data_version", -1, &statement, nil) == SQLITE_OK)
+            defer { sqlite3_finalize(statement) }
+            #expect(sqlite3_step(statement) == SQLITE_ROW)
+            return sqlite3_column_int(statement, 0)
+        }
+        let initial = try version()
+        for _ in 0..<10 {
+            #expect(try await cache.data(for: "second", kind: .translation) == Data("second".utf8))
+            try await cache.markUsed("second", kind: .translation)
+        }
+        #expect(try version() == initial)
+        try await cache.markUsed("first", kind: .translation)
+        #expect(try version() != initial)
+        // Imported legacy files can have identical timestamps: the smaller name
+        // must still move past the other entry when touched.
+        #expect(sqlite3_exec(handle, "UPDATE cache SET accessed=42", nil, nil, nil) == SQLITE_OK)
+        let tied = try version()
+        let firstName = ReaderTranslationCacheIdentity.digest("first")
+        let secondName = ReaderTranslationCacheIdentity.digest("second")
+        try await cache.markUsed(firstName < secondName ? "first" : "second", kind: .translation)
+        #expect(try version() != tied)
+    }
+
     @Test func legacyBatchMigrationReducesActualAllocationAndPreservesEveryEntry() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }

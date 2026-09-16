@@ -1087,3 +1087,5 @@
 
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "Fem inkluderade modeller kan installeras offline. Installera en modell och tryck sedan på den i Aktiverad modell. MangaJaNai är för svartvita sidor runt 1200 pixlar höga; färgsidor förblir oförändrade.";
+
+"DOWNLOAD_TRANSLATED" = "Ladda ner med översättning";

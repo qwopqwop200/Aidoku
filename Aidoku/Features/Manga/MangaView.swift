@@ -406,7 +406,7 @@ extension MangaView {
             chapterKey: chapter.key
         )
 
-        let hasDownloadButton = viewModel.source != nil && !viewModel.manga.isLocal() && downloadStatus != .finished && downloadStatus != .downloading
+        let hasDownloadButton = viewModel.source != nil && !viewModel.manga.isLocal() && downloadStatus != .finished && downloadStatus != .downloading && downloadStatus != .queued
         let hasShareButton = downloadStatus == .finished || chapter.url != nil
         Section {
             let inControlGroup = hasDownloadButton && hasShareButton
@@ -451,6 +451,21 @@ extension MangaView {
                 }
             } else {
                 buttons
+            }
+        }
+
+        if hasDownloadButton, #available(iOS 18.0, *) {
+            Button {
+                let wifiOnly = AppSettings.downloads.downloadOnlyOnWifi.get()
+                if !wifiOnly || Reachability.getConnectionType() == .wifi {
+                    Task {
+                        await DownloadManager.shared.download(manga: viewModel.manga, chapters: [chapter], translatesImages: true)
+                    }
+                } else {
+                    showConnectionAlert = true
+                }
+            } label: {
+                Label(NSLocalizedString("DOWNLOAD_TRANSLATED"), systemImage: "character.bubble")
             }
         }
 
@@ -716,38 +731,52 @@ extension MangaView {
                 showRemoveSelectedConfirm = true
             }
         } else {
-            Button(NSLocalizedString("DOWNLOAD")) {
-                let downloadChapters = (viewModel.manga.chapters ?? viewModel.chapters)
-                    .filter { chapter in
-                        let isSelected = selectedChapters.contains(chapter.key)
-                        guard isSelected else { return false }
-                        let isDownloaded = viewModel.downloadStatus[chapter.key] == .finished
-                        let isDownloading = viewModel.downloadStatus[chapter.key] == .downloading
-                        let isQueued = viewModel.downloadStatus[chapter.key] == .queued
-                        guard !isDownloaded, !isDownloading, !isQueued else { return false }
-                        return true
+            Menu {
+                Button(NSLocalizedString("DOWNLOAD")) { downloadSelectedChapters() }
+                if #available(iOS 18.0, *) {
+                    Button {
+                        downloadSelectedChapters(translatesImages: true)
+                    } label: {
+                        Label(NSLocalizedString("DOWNLOAD_TRANSLATED"), systemImage: "character.bubble")
                     }
-                    .reversed()
-
-                let downloadOnlyOnWifi = AppSettings.downloads.downloadOnlyOnWifi.get()
-                if
-                    downloadOnlyOnWifi && Reachability.getConnectionType() == .wifi
-                        || !downloadOnlyOnWifi
-                {
-                    Task {
-                        await DownloadManager.shared.download(
-                            manga: viewModel.manga,
-                            chapters: Array(downloadChapters)
-                        )
-                    }
-                } else {
-                    showConnectionAlert = true
                 }
-                withAnimation {
-                    editMode = .inactive
-                }
+            } label: {
+                Text(NSLocalizedString("DOWNLOAD"))
             }
             .disabled(viewModel.source == nil || viewModel.manga.isLocal() || selectedChapters.isEmpty)
+        }
+    }
+
+    func downloadSelectedChapters(translatesImages: Bool = false) {
+        let downloadChapters = (viewModel.manga.chapters ?? viewModel.chapters)
+            .filter { chapter in
+                let isSelected = selectedChapters.contains(chapter.key)
+                guard isSelected else { return false }
+                let isDownloaded = viewModel.downloadStatus[chapter.key] == .finished
+                let isDownloading = viewModel.downloadStatus[chapter.key] == .downloading
+                let isQueued = viewModel.downloadStatus[chapter.key] == .queued
+                guard !isDownloaded, !isDownloading, !isQueued else { return false }
+                return true
+            }
+            .reversed()
+
+        let downloadOnlyOnWifi = AppSettings.downloads.downloadOnlyOnWifi.get()
+        if
+            downloadOnlyOnWifi && Reachability.getConnectionType() == .wifi
+                || !downloadOnlyOnWifi
+        {
+            Task {
+                await DownloadManager.shared.download(
+                    manga: viewModel.manga,
+                    chapters: Array(downloadChapters),
+                    translatesImages: translatesImages
+                )
+            }
+        } else {
+            showConnectionAlert = true
+        }
+        withAnimation {
+            editMode = .inactive
         }
     }
 }

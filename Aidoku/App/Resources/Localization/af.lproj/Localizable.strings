@@ -1087,3 +1087,5 @@
 
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "Vyf ingesluit modelle kan vanlyn geïnstalleer word. Installeer 'n model en tik dit dan in Geaktiveerde model. MangaJaNai is vir swart-en-wit bladsye van ongeveer 1200 pixels hoog; kleurbladsye bly onveranderd.";
+
+"DOWNLOAD_TRANSLATED" = "Laai vertaal af";

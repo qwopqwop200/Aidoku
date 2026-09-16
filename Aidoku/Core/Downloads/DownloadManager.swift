@@ -213,8 +213,8 @@ extension DownloadManager {
     }
 
     /// Download given chapters from a manga.
-    func download(manga: AidokuRunner.Manga, chapters: [AidokuRunner.Chapter]) async {
-        let downloads = await queue.add(chapters: chapters, manga: manga, autoStart: true)
+    func download(manga: AidokuRunner.Manga, chapters: [AidokuRunner.Chapter], translatesImages: Bool = false) async {
+        let downloads = await queue.add(chapters: chapters, manga: manga, autoStart: true, translatesImages: translatesImages)
         NotificationCenter.default.post(
             name: .downloadsQueued,
             object: downloads

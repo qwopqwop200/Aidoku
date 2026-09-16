@@ -1089,3 +1089,5 @@
 
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "Cinco modelos incluídos podem ser instalados offline. Instale um modelo e toque nele em Modelo habilitado. MangaJaNai é para páginas em preto e branco com cerca de 1200 pixels de altura; as páginas coloridas permanecem inalteradas.";
+
+"DOWNLOAD_TRANSLATED" = "Baixar traduzido";
