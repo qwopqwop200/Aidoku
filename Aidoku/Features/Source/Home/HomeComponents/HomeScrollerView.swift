@@ -83,7 +83,13 @@ struct HomeScrollerView: View {
                                 )
 
                                 VStack(alignment: .leading, spacing: 0) {
-                                    Text(entry.title)
+                                    Group {
+                                        if case .manga = entry.value {
+                                            TranslatedTitleText(entry.title, kind: .manga)
+                                        } else {
+                                            TranslatedTitleText(entry.title, kind: .sourceLabel)
+                                        }
+                                    }
                                         .lineLimit(2)
                                         .multilineTextAlignment(.leading)
 

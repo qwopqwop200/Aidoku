@@ -7,3 +7,5 @@
 */
 
 "CFBundleDisplayName" = "Aidoku";
+
+"NSLocalNetworkUsageDescription" = "Aidoku connects to your custom translation server when its address is on your local network.";

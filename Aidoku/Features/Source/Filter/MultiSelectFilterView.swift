@@ -9,6 +9,7 @@ import AidokuRunner
 import SwiftUI
 
 struct MultiSelectFilterView: View {
+    @State private var translatedLabels: [String: String] = [:]
     let filter: AidokuRunner.Filter
 
     @Binding var enabledFilters: [FilterValue]
@@ -52,7 +53,7 @@ struct MultiSelectFilterView: View {
     var body: some View {
         Group {
             let label = FilterLabelView(
-                name: filter.title ?? "",
+                name: translatedLabels[filter.title ?? ""] ?? filter.title ?? "",
                 badgeCount: isDefault ? 0 : includedOptions.count + excludedOptions.count,
                 chevron: true
             )
@@ -63,7 +64,7 @@ struct MultiSelectFilterView: View {
                         toggle(option: id)
                     } label: {
                         HStack {
-                            Text(option)
+                            Text(translatedLabels[option] ?? option)
                             Spacer()
                             if includedOptions.contains(id) {
                                 Image(systemName: "checkmark")
@@ -80,6 +81,7 @@ struct MultiSelectFilterView: View {
                 label
             }
         }
+        .modifier(SourceMenuTranslationModifier(originals: multiSelectFilter.options, labels: $translatedLabels, limitsOptions: true, filterTitle: filter.title, optionKind: (multiSelectFilter.isGenre || multiSelectFilter.usesTagStyle) ? .tag : .sourceLabel))
         .sheet(isPresented: $showingSheet) {
             PlatformNavigationStack {
                 ScrollView(.vertical) {
@@ -89,7 +91,7 @@ struct MultiSelectFilterView: View {
                         excludedOptions: $excludedOptions
                     )
                 }
-                .navigationTitle(filter.title?.localizedCapitalized ?? "")
+                .navigationTitle(translatedLabels[filter.title ?? ""] ?? filter.title?.localizedCapitalized ?? "")
                 .navigationBarTitleDisplayMode(.inline)
             }
         }
@@ -224,7 +226,8 @@ struct MultiSelectFilterGroupView: View {
                         toggle(option: id)
                     }
                 } label: {
-                    Text(option.title)
+                    SourceFilterOptionText(original: option.title, totalOptionCount: allOptions.count,
+                        kind: (multiSelectFilter.isGenre || multiSelectFilter.usesTagStyle) ? .tag : .sourceLabel)
                 }
                 .buttonStyle(
                     GenreButtonStyle(state: {
@@ -270,7 +273,8 @@ struct MultiSelectFilterGroupView: View {
                                     .font(.system(size: 14).weight(.semibold))
                             }
                         }
-                        Text(option.title)
+                        SourceFilterOptionText(original: option.title, totalOptionCount: allOptions.count,
+                        kind: (multiSelectFilter.isGenre || multiSelectFilter.usesTagStyle) ? .tag : .sourceLabel)
                             .padding(.leading, 1)
                             .lineLimit(1)
                         Spacer()

@@ -66,7 +66,16 @@ struct ReaderSmallTextDOMGuardTests {
         let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 780))
         window.rootViewController?.view.addSubview(webView)
         window.makeKeyAndVisible()
-        let renderer = BrowserPageImageOverlayRenderer()
+        // Isolate enlargement guards from the subsequent Korean shrink repair.
+        // The full production composition is exercised by real-page replay.
+        let renderer = BrowserPageImageOverlayRenderer { webView, script, arguments in
+            var isolated = script
+            if let begin = isolated.range(of: "// Repair existing Korean emergency breaks"),
+               let end = isolated.range(of: "measurementNode.remove();", range: begin.upperBound..<isolated.endIndex) {
+                isolated.removeSubrange(begin.lowerBound..<end.lowerBound)
+            }
+            return try await BrowserPageImageOverlayRenderer.evaluateJavaScript(webView, isolated, arguments)
+        }
         defer { renderer.cancelPendingRender(); window.isHidden = true; previous?.makeKey() }
         webView.loadHTMLString("<meta name='viewport' content='width=device-width,initial-scale=1'><style>html,body{margin:0;width:100%;height:100%}</style><div id='fixture-ready'></div>", baseURL: nil)
         let deadline = Date().addingTimeInterval(20)

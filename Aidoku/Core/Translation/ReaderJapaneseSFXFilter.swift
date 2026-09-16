@@ -3,7 +3,7 @@ import Foundation
 
 /// Local lexical candidates plus deliberately conservative geometry. Never removes raw OCR.
 enum ReaderJapaneseSFXFilter {
-    static let version = "japanese-sfx-v4-visual-size"
+    static let version = "japanese-sfx-v6-spoken-reaction"
     static let contextVersion = "japanese-sfx-context-v3-speech-protection"
     static let candidates = loadCandidates("JapaneseSFXCandidates")
     static let contextCandidates = loadCandidates("JapaneseSFXContextCandidates")

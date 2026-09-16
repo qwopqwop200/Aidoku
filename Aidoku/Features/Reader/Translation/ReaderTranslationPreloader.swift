@@ -149,7 +149,7 @@ final class ReaderTranslationPreloader {
     ) -> Task<[ReaderTranslationRegion]?, Error> {
         let translate = translator
         return Task.detached(priority: speculative ? .utility : .userInitiated) { [diskCache, loader] in
-            let diskGeneration = await diskCache?.currentGeneration() ?? 0
+            let diskGeneration = await diskCache?.currentGeneration(settings: settings) ?? 0
             guard let regions = try await withTaskCancellationHandler(operation: { try await work.recognition.value },
                                                                       onCancel: { work.recognition.cancel() }) else { return nil }
             try Task.checkCancellation()
@@ -206,7 +206,7 @@ final class ReaderTranslationPreloader {
         return Task.detached(priority: .utility) { [diskCache, loader, recognizer] in
             try await admission.withPermit(priority: .promotable(promotion)) {
             try Task.checkCancellation()
-            let diskGeneration = await diskCache?.currentGeneration() ?? 0
+            let diskGeneration = await diskCache?.currentGeneration(settings: settings) ?? 0
             if skipTranslated, let diskCache,
                try await diskCache.translatedRegions(page: page.translationCacheKey, settings: settings) != nil { return nil }
             if let stored = try? await diskCache?.regions(for: key, kind: .ocr) {

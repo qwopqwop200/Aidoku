@@ -444,7 +444,7 @@
 "LOGIN_WEBVIEW_WARNING" = "Đăng nhập qua chế độ xem web?";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "Đồng bộ iCloud là tính năng thử nghiệm. Việc bật hoặc tắt tính năng này có thể gây mất dữ liệu.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "Đồng bộ iCloud chỉ khả dụng khi được cài đặt thông qua TestFlight.";
-"NO_RESULTS_FOR_%@" = "Không có kết quả cho \"#@\"";
+"NO_RESULTS_FOR_%@" = "Không có kết quả cho “%@”";
 "NO_RESULTS_TEXT" = "Kiểm tra chính tả hoặc thử tìm kiếm mới.";
 "LEARN_MORE" = "Tìm hiểu thêm…";
 "COPY_URL" = "Sao chép URL";
@@ -916,3 +916,173 @@
 "TRANSLATION_REASONING_XHIGH" = "Rất cao";
 
 "TRANSLATION_REASONING_MAX" = "Tối đa";
+
+"TRANSLATION_MANGA_TAGS" = "Dịch thẻ manga";
+"TRANSLATION_TAG_FILTER" = "Ngôn ngữ gốc của thẻ";
+
+"TRANSLATION_SOURCE_LABELS" = "Dịch menu và tiêu đề mục của nguồn";
+
+// Completed app localization
+"DOWNLOAD_INCOMPLETE" = "Tải xuống chưa hoàn tất";
+"CATEGORY_SEARCH" = "Tìm trong danh mục";
+"REFRESH_NO_WIFI_TEXT" = "Cài đặt chỉ cập nhật qua Wi-Fi đã được bật. Kết nối với Wi-Fi để làm mới thư viện của bạn.";
+"REFRESH_ANYWAYS" = "Dù sao cũng làm mới";
+"LIBRARY_REFRESH_INTERRUPTED" = "Làm mới thư viện bị gián đoạn";
+"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Lần làm mới thư viện cuối cùng đã bị gián đoạn trước khi hoàn thành. Bạn có muốn tiếp tục không?";
+"CREATE_FILTER_GROUP" = "Tạo nhóm bộ lọc";
+"EDIT_FILTER_GROUP" = "Chỉnh sửa nhóm bộ lọc";
+"DISABLE" = "Vô hiệu hóa";
+"ENABLE" = "Kích hoạt";
+"RESTART" = "Khởi động lại";
+"HTML_ERROR" = "Lỗi HTML";
+"JSON_ERROR" = "Lỗi JSON";
+"SOURCE_CRASHED" = "Nguồn bị lỗi";
+"NAME_SAVED_SEARCH_INFO" = "Việc lưu tìm kiếm này sẽ lưu trữ các bộ lọc và văn bản tìm kiếm hiện được định cấu hình.";
+"INCOGNITO_FILTERS_NOTICE" = "Các bộ lọc đã sửa đổi không tồn tại ở Chế độ ẩn danh.";
+"EPUB_NAME" = "EPUB";
+"MIRRORS" = "Máy chủ nhân bản";
+"MIRRORS_INFO" = "Các URL bổ sung để thử sử dụng làm URL cơ sở nếu URL chính không kết nối được.";
+"OIDC" = "OIDC";
+"API_KEY_LOGIN_INFO" = "Việc cung cấp khóa API để đăng nhập theo cách thủ công sẽ ghi đè các phương thức đăng nhập khác. Bạn có thể để trống để sử dụng các phương thức đăng nhập khác.";
+"SUWAYOMI" = "Suwayomi";
+"SUWAYOMI_TAGLINE" = "Máy chủ đọc truyện tranh";
+"SUWAYOMI_INFO" = "Suwayomi là máy chủ đọc truyện tranh tự lưu trữ chạy các tiện ích mở rộng được xây dựng cho Mihon (Tachiyomi). Bạn sẽ cần thiết lập và chạy máy chủ Suwayomi để sử dụng nguồn này.";
+"SUWAYOMI_SETUP" = "Cài đặt Suwayomi";
+"STATUS_LICENSED" = "Được cấp phép";
+"STATUS_PUBLISHING_FINISHED" = "Xuất bản đã hoàn tất";
+"AUTHOR_NAME" = "Tên tác giả";
+"ARTIST_NAME" = "Tên nghệ sĩ";
+"INVALID_KEY" = "Khóa không hợp lệ";
+"REFRESH_DETAILS" = "Làm mới chi tiết";
+"REFRESH_LOGIN" = "Làm mới đăng nhập";
+"LANDSCAPE_ROWS" = "Hàng cảnh";
+"CONTINUE_READING_ON_RESELECT" = "Nhấn đúp vào tab Lịch sử để tiếp tục đọc";
+"NEW_CHAPTER_NOTIFICATIONS" = "Thông báo chương mới";
+"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Gửi thông báo khi thư viện được làm mới ở chế độ nền.";
+"1_NEW_CHAPTER_AVAILABLE" = "Đã có chương mới";
+"X_NEW_CHAPTERS_AVAILABLE" = "%d có chương mới";
+"NEW_CHAPTERS_AVAILABLE" = "Chương mới có sẵn";
+"X_SERIES_HAVE_NEW_CHAPTERS" = "Dòng %d có chương mới";
+"LEGACY_SOURCE_LIST" = "Danh sách nguồn kế thừa";
+"LEGACY_SOURCE_LIST_WARNING" = "Cảnh báo: Danh sách nguồn cũ";
+"LEGACY_SOURCE_LIST_WARNING_INFO" = "Bạn hiện đã định cấu hình danh sách nguồn kế thừa. Định dạng này đã lỗi thời và sẽ ngừng hoạt động trong phiên bản Aidoku trong tương lai. Mặc dù hiện tại nó vẫn hoạt động nhưng bạn nên tìm một giải pháp thay thế và định cấu hình nó trong Cài đặt > Danh sách nguồn.";
+"TEXT_READER_PAGED" = "Đọc theo trang";
+"TEXT_HORIZONTAL_PADDING" = "Lề ngang";
+"TEXT_THEME" = "chủ đề";
+"TEXT_THEME_SEPIA" = "màu nâu đỏ";
+"TEXT_THEME_PAPER" = "Giấy";
+"TEXT_THEME_GRAY" = "Màu xám";
+"DICTIONARY_LOOKUP" = "Tra cứu từ điển";
+"DICTIONARY_SETTINGS_TEXT" = "Bật Tra cứu Từ điển để cho phép xử lý OCR trên hình ảnh trang để tìm kiếm các từ trong bất kỳ từ điển Yomitan đã nhập nào.";
+"DICTIONARIES" = "Từ điển";
+"ABOUT_DICTIONARIES" = "Giới thiệu về từ điển";
+"ABOUT_DICTIONARIES_TEXT" = "Từ điển Yomitan có thể được nhập từ tệp zip. Bạn có thể bật hoặc tắt từ điển và có thể sắp xếp lại chúng bằng cách kéo.";
+"LOOKUP_GESTURE" = "Tra cứu cử chỉ";
+"SINGLE_TAP" = "Nhấn một lần";
+"LONG_PRESS" = "Nhấn và giữ";
+"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Nhấn vào đầu một từ sẽ kích hoạt cửa sổ bật lên. Điều này vô hiệu hóa thao tác nhấn đúp để thu phóng khi được bật.";
+"LOOKUP_GESTURE_LONG_PRESS_INFO" = "Nhấn giữ vào đầu một từ sẽ làm nổi bật từ đó và thả ra sẽ kích hoạt cửa sổ bật lên. Điều này vô hiệu hóa các hành động nhanh của trang khi được bật.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Bị khóa bằng cử chỉ tra cứu: Nhấn một lần.";
+"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Bị khóa bằng cử chỉ tra cứu: Nhấn và giữ.";
+"DICTIONARY_TEXT_OVERLAY_MODE" = "Lớp phủ văn bản OCR";
+"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Hiển thị hộp văn bản trên vùng hình ảnh khi kích hoạt tra cứu. Điều này có thể hữu ích để xác định văn bản nào đã được OCR nhận dạng chính xác.";
+"DICTIONARY_OVERLAY_PADDING" = "Lớp đệm lớp phủ";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "Kích thước văn bản lớp phủ";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Hạn chế ngôn ngữ OCR";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Khi được bật, chỉ các chương được đánh dấu là (các) ngôn ngữ đã chọn mới được xử lý cho OCR. Bạn chỉ nên chọn ngôn ngữ mà bạn đã nhập từ điển.";
+"DICTIONARY_OCR_LANGUAGES" = "Ngôn ngữ OCR";
+"DICTIONARY_POPUP" = "Cửa sổ bật lên từ điển";
+"DISPLAY_MODE" = "Chế độ hiển thị";
+"DEFAULT_DISPLAY_MODE" = "Mặc định";
+"FULL_WIDTH" = "Chiều rộng đầy đủ";
+"DICTIONARY_POPUP_WIDTH" = "Chiều rộng cửa sổ bật lên";
+"DICTIONARY_POPUP_HEIGHT" = "Chiều cao cửa sổ bật lên";
+"TERM_DICTIONARIES" = "Từ điển thuật ngữ";
+"FREQUENCY_DICTIONARIES" = "Từ điển tần số từ";
+"PITCH_DICTIONARIES" = "Từ điển cao độ giọng";
+"KANJI_DICTIONARIES" = "Từ Điển Kanji";
+"IMPORTING_DICTIONARY" = "Đang nhập từ điển…";
+"IMPORT_ERROR" = "Lỗi nhập";
+"REVISION" = "Sửa đổi";
+"URL" = "URL";
+"ATTRIBUTION" = "Ghi công";
+"SOURCE_LANGUAGE" = "Ngôn ngữ nguồn";
+"TARGET_LANGUAGE" = "Ngôn ngữ mục tiêu";
+"TERM_COUNT" = "Số lượng từ điển";
+"TERM_META_COUNT" = "Số mục nhập siêu dữ liệu thuật ngữ";
+"KANJI_COUNT" = "Đếm Kanji";
+"KANJI_META_COUNT" = "Số mục siêu dữ liệu kanji";
+"TAG_COUNT" = "Số lượng thẻ";
+"MEDIA_COUNT" = "Số lượng phương tiện";
+"IS_UPDATABLE" = "Có thể cập nhật";
+"SIZE" = "Kích thước";
+"REMOVE_DICTIONARY" = "Xóa từ điển";
+"REMOVE_WORD" = "Xóa từ";
+"VOCABULARY" = "từ vựng";
+"1_WORD" = "1 từ";
+"%i_WORDS" = "%i từ";
+"NO_VOCABULARY" = "Không có từ vựng";
+"NO_VOCABULARY_TEXT" = "Từ vựng đã lưu sẽ xuất hiện ở đây.";
+"DEFINITION" = "Định nghĩa";
+"VOCAB_CONTEXT" = "Bối cảnh";
+"VOCAB_SOURCE" = "Nguồn";
+"CLEAR_VOCABULARY_LIST" = "Xóa tất cả từ vựng đã lưu";
+"CLEAR_VOCABULARY_LIST_TEXT" = "Hành động này là không thể đảo ngược. Tất cả từ vựng đã lưu sẽ bị xóa.";
+"DICTIONARY_UPDATES" = "Cập nhật";
+"UPDATE_NOW" = "Cập nhật ngay";
+"LAST_UPDATED_%@" = "Cập nhật lần cuối: %@";
+"MONTHLY" = "hàng tháng";
+"GET_RECOMMENDED_DICTIONARIES" = "Nhận từ điển được đề xuất";
+"RECOMMENDED_DICTIONARIES" = "Từ điển được đề xuất";
+"RECOMMENDED_DICTIONARIES_NOTE" = "Các từ điển dưới đây đều là ngôn ngữ Nhật-Anh. Đối với các ngôn ngữ khác, bạn có thể kiểm tra danh sách từ điển Wiktionary.";
+"RESTORE_MISSING_SOURCES" = "Khôi phục nguồn bị thiếu?";
+"RESTORE_MISSING_SOURCES_TEXT" = "Bạn có muốn tìm kiếm và cài đặt các nguồn còn thiếu không?";
+"INSTALL_SOURCES" = "Nguồn cài đặt";
+"INSTALLING_SOURCES" = "Đang cài đặt nguồn…";
+"SET_TRACK_CHAPTER_OFFSET" = "Đặt bù chương";
+"TRACK_CHAPTER_OFFSET_TEXT" = "Điều chỉnh cập nhật chương trình theo dõi tự động cho tiêu đề này khi số chương nguồn khác với số chương trình theo dõi.";
+"UNAVAILABLE_TRACKER_ITEM" = "Mục theo dõi không có sẵn";
+"UNAVAILABLE_TRACKER_ITEM_INFO" = "Mục theo dõi được liên kết này được liên kết với một trình theo dõi không còn khả dụng. Bạn nên xóa mục này hoặc đăng nhập lại vào trình theo dõi được liên kết.";
+"ENHANCED_TRACKERS" = "Trình theo dõi nâng cao";
+"ENHANCED_TRACKERS_INFO" = "Trình theo dõi nâng cao có thể tự động liên kết tới các mục được thêm vào thư viện của bạn từ các nguồn được hỗ trợ, theo dõi lịch sử đọc hai chiều.";
+"ENHANCED_TRACKERS_TOGGLE_INFO" = "Việc tắt tính năng theo dõi cho một nguồn sẽ xóa tất cả các trình theo dõi được liên kết và việc bật sẽ tự động liên kết tất cả các mục trong thư viện của bạn.";
+"TRACKER_LOGOUT_INFO" = "Việc đăng xuất sẽ xóa thông tin theo dõi được liên kết khỏi trình theo dõi này cho tất cả các bộ.";
+"UNSET_AS_SINGLE_PAGE" = "Bỏ đặt thành một trang";
+"CONTINUOUS_WITH_GAPS" = "Liên tục có khoảng trống";
+"MIGRATE_CONFIRM_TEXT" = "Lịch sử đọc các mục gốc sẽ bị xóa khi di chuyển sang nguồn khác.";
+"MIGRATE_WITH_HISTORY" = "Di chuyển và lưu giữ lịch sử";
+"SELECT_PINNED_SOURCES" = "Chọn nguồn được ghim";
+"DONT_MIGRATE" = "Không di chuyển";
+"MIGRATE_%i_OF_%i" = "Di chuyển (%i/%i)";
+"SHOW_ENTRY" = "Xem mục nhập";
+"AUTO_SCROLL" = "Tự động cuộn";
+"AUTO_SCROLL_SPEED" = "Tốc độ cuộn tự động";
+"AUTO_SCROLL_POSITION" = "Vị trí cuộn tự động";
+"POSITION_LEFT" = "trái";
+"POSITION_RIGHT" = "Đúng";
+"UPLOAD_FILE" = "Tải tệp lên";
+"MIGRATE_CHAPTER_HISTORY" = "Di chuyển lịch sử chương";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "Di chuyển lịch sử đọc còn sót lại từ các phiên bản cũ hơn không được liên kết với các chương trong cơ sở dữ liệu cục bộ. Điều này thường xảy ra tự động sau khi cập nhật. Nếu nó chưa hoàn thành, bạn có thể chạy lại ở đây.";
+
+// Local image import
+"IMPORT_PHOTO" = "Nhập ảnh";
+"LOCAL_IMAGE_IMPORT_TEXT" = "Nhập ảnh, tệp hình ảnh hoặc tệp nén CBZ hay ZIP để đọc.";
+
+// Translated page export
+"SAVE_TRANSLATED_IMAGE" = "Lưu ảnh kèm bản dịch";
+"TRANSLATED_IMAGE_SAVE_FAILED" = "Không thể tạo ảnh đã dịch. Hãy thử lại sau khi dịch xong.";
+
+"TRANSLATION_AUTHORS" = "Dịch tên tác giả";
+
+"TRANSLATION_AUTHOR_FILTER" = "Ngôn ngữ gốc của tên tác giả";
+"TRANSLATION_SOURCE_LABEL_FILTER" = "Ngôn ngữ menu và mục của nguồn";
+
+// Shared image retention
+"SAVE_SHARED_IMAGES" = "Giữ hình ảnh được chia sẻ trong tệp cục bộ";
+"SAVE_SHARED_IMAGES_HELP" = "Khi tắt, hình ảnh được chia sẻ sẽ tạm thời mở và bị xóa khi đóng. Lịch sử đọc và bộ đệm OCR/bản dịch không được lưu.";
+
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "Dịch danh sách bộ lọc lớn (hơn 100 tùy chọn)";
+
+"SETTING_INVALID_STEPPER_RANGE" = "Phạm vi cài đặt số không hợp lệ.";
+
+"SETTING_MISSING_CONTENT_HANDLER" = "Không thể hiển thị cài đặt: %@";

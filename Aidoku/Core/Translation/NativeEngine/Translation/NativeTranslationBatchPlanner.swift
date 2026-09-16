@@ -28,7 +28,8 @@ enum NativeTranslationBatchPlanner {
         sourceLanguage: String,
         targetLanguage: String,
         context: [String],
-        glossary: [TranslationGlossaryEntry]
+        glossary: [TranslationGlossaryEntry],
+        includesNeighborContext: Bool = false
     ) -> [NativeTranslationBatchPlan] {
         let admissible = RemoteTranslationRequest
             .admissibleSegmentIndices(
@@ -40,6 +41,7 @@ enum NativeTranslationBatchPlanner {
         var isLeadingBatch = true
 
         while cursor < admissible.count {
+            let selectionStart = cursor
             var selection: [NativeTranslationBatchCandidate] = []
             var sourceBytes = 0
             let minimumSegments = isLeadingBatch
@@ -85,7 +87,8 @@ enum NativeTranslationBatchPlanner {
                     sourceLanguage: sourceLanguage,
                     targetLanguage: targetLanguage,
                     segments: selection.map(\.segment),
-                    context: context,
+                    context: includesNeighborContext && context.isEmpty
+                        ? neighborContext(in: admissible, range: selectionStart..<cursor) : context,
                     glossary: glossary
                 ),
                 inputIndicesBySegmentID: Dictionary(
@@ -97,6 +100,23 @@ enum NativeTranslationBatchPlanner {
             isLeadingBatch = false
         }
         return batches
+    }
+
+    /// At most two nearby OCR utterances, already available before dispatch.
+    /// Keep complete strings (no truncated names/words), and never wait for
+    /// another translation batch. Only admissible, language-filtered inputs
+    /// reach the reader planner. No page-wide context or extra provider call.
+    static func neighborContext(
+        in candidates: [NativeTranslationBatchCandidate], range: Range<Int>
+    ) -> [String] {
+        var result: [String] = []
+        for (index, label) in [(range.lowerBound - 1, "Previous"), (range.upperBound, "Next")] {
+            guard candidates.indices.contains(index) else { continue }
+            let text = candidates[index].segment.text
+            guard text.utf8.count <= 240 else { continue }
+            result.append("\(label) OCR utterance (context only): \(text)")
+        }
+        return result
     }
 
     /// Deliberately hashes source content rather than tracker identity. Identical

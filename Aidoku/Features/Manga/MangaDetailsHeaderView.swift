@@ -151,7 +151,7 @@ struct MangaDetailsHeaderView: View {
                     .padding(.bottom, 4)
 
                     if let authors = manga.authors, !authors.isEmpty {
-                        let label = Text(authors.joined(separator: ", "))
+                        let label = TranslatedTitleText(authors.joined(separator: ", "), kind: .author)
                             .lineLimit(1)
                             .foregroundStyle(.secondary)
                             .font(.callout)
@@ -495,10 +495,17 @@ struct MangaDetailsHeaderView: View {
 
 struct LabelView: View {
     let text: String
+    var translatesTag = false
     var background = Color(UIColor.tertiarySystemFill)
 
     var body: some View {
-        Text(text)
+        Group {
+            if translatesTag {
+                TranslatedTitleText(text, kind: .tag)
+            } else {
+                Text(text)
+            }
+        }
             .lineLimit(1)
             .foregroundStyle(.secondary)
             .font(.caption2)
@@ -513,7 +520,7 @@ private struct TagView: View {
     let text: String
 
     var body: some View {
-        Text(text)
+        TranslatedTitleText(text, kind: .tag)
             .lineLimit(1)
             .foregroundStyle(.secondary)
             .font(.footnote)

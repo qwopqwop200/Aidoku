@@ -628,7 +628,7 @@ extension SettingView {
                 )
                 .labelsHidden()
             } else {
-                Text("Error: Invalid stepper range")
+                Text(NSLocalizedString("SETTING_INVALID_STEPPER_RANGE"))
             }
         }
         .opacity(disabled ? disabledOpacity : 1)
@@ -1479,7 +1479,7 @@ extension SettingView {
             if let customContentHandler {
                 customContentHandler(setting)
             } else {
-                Text("Missing custom content handler for key \(setting.key)")
+                Text(String(format: NSLocalizedString("SETTING_MISSING_CONTENT_HANDLER"), setting.key))
                     .foregroundStyle(.secondary)
             }
         }

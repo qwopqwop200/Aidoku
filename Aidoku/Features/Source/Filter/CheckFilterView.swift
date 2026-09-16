@@ -63,7 +63,8 @@ struct CheckFilterView: View {
                     } else {
                         nil
                     }
-                }()
+                }(),
+                translationKind: .sourceLabel
             )
         }
         .onChange(of: state) { _ in
@@ -137,7 +138,7 @@ struct CheckFilterGroupView: View {
                             .font(.system(size: 14).weight(.semibold))
                     }
                 }
-                Text(name ?? filter.title ?? "")
+                TranslatedTitleText(name ?? filter.title ?? "", kind: .sourceLabel)
                     .padding(.leading, 1)
                     .lineLimit(1)
                 Spacer()

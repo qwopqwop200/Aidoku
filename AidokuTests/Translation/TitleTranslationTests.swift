@@ -5,6 +5,256 @@ import CoreGraphics
 
 @Suite(.serialized) @MainActor
 struct TitleTranslationTests {
+    @Test func tagsPersistAndReuseCacheAcrossSourceIndependentRequests() async throws {
+        let suite = "tag-tests-" + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var settings = ReaderTranslationSettings(defaults: defaults)
+        let page = settings
+        settings.translateMangaTags = true
+        settings.mangaTagSourceLanguages = ["en"]
+        try settings.autosave(defaults: defaults)
+        let saved = ReaderTranslationSettings(defaults: defaults)
+        #expect(saved.translateMangaTags && saved.mangaTagSourceLanguages == ["en"])
+        #expect(saved.hasSameTranslation(as: page))
+        settings.mangaTagSourceLanguages = []
+        settings.targetLanguage = "ko"
+        let fixture = TitleCacheFixture()
+        let client = TitleTestClient()
+        let text = "School Life"
+        _ = await TitleTranslation.translate(text, kind: .tag, settings: settings,
+            service: ReaderTranslationService(client: client), diskCache: fixture.disk)
+        let offline = TitleTestClient(fail: true)
+        let result = await TitleTranslation.translate(text, kind: .tag, settings: settings,
+            service: ReaderTranslationService(client: offline), diskCache: ReaderTranslationDiskCache(directory: fixture.root))
+        #expect(result == "일본어 제목")
+        #expect(await offline.requests.isEmpty)
+        settings.translateMangaTags = false
+        #expect(await TitleTranslation.translate(text, kind: .tag, settings: settings,
+            service: ReaderTranslationService(client: offline), diskCache: fixture.disk) == text)
+    }
+
+    @Test func targetLanguageSkipsNetworkButMixedAndRomanizedTextRemainEligible() async throws {
+        let fixture = TitleCacheFixture()
+        let client = TitleTestClient()
+        let service = ReaderTranslationService(client: client)
+        var settings = ReaderTranslationSettings()
+        settings.targetLanguage = "ko"
+        settings.translateMangaTitles = true
+        settings.mangaTitleSourceLanguages = []
+        let korean = "골목길의 수녀님 1–9"
+        #expect(await TitleTranslation.translate(korean, kind: .manga, settings: settings,
+            service: service, diskCache: fixture.disk) == korean)
+        #expect(await client.requests.isEmpty)
+        for text in ["일본어 제목: 路地裏のシスター", "한국어와 English", "Isekai Majutsushi", "School Life"] {
+            #expect(!ReaderTranslationLanguageFilter.isAlreadyTargetLanguage(text, target: "ko"))
+            _ = await TitleTranslation.translate(text, kind: .manga, settings: settings,
+                service: service, diskCache: fixture.disk)
+        }
+        #expect(await client.requests.count == 4)
+        #expect(!ReaderTranslationLanguageFilter.isAlreadyTargetLanguage("Isekai Majutsushi", target: "en"))
+        #expect(!ReaderTranslationLanguageFilter.isAlreadyTargetLanguage("日本語 English", target: "ja"))
+        #expect(ReaderTranslationLanguageFilter.isAlreadyTargetLanguage("これは日本語です", target: "ja"))
+        #expect(try ReaderTranslationService.requests(regions: [.init(id: "ko", rect: .zero, source: korean)], settings: settings).isEmpty)
+    }
+
+    @Test func screenshotEnglishTitleTranslatesWithEnglishFilter() async {
+        let fixture = TitleCacheFixture()
+        let client = TitleTestClient()
+        var settings = ReaderTranslationSettings()
+        settings.translateMangaTitles = true
+        settings.targetLanguage = "ko"
+        settings.mangaTitleSourceLanguages = []
+        let result = await TitleTranslation.translate("CycloneAction Batch 11", kind: .manga, settings: settings,
+            service: ReaderTranslationService(client: client), diskCache: fixture.disk)
+        #expect(result == "일본어 제목")
+        #expect(await client.requests.count == 1)
+    }
+
+    @Test func sourceLabelsHaveIndependentToggleAndCacheIdentity() async throws {
+        let suite = "source-label-tests-" + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var settings = ReaderTranslationSettings(defaults: defaults)
+        settings.targetLanguage = "ko"
+        settings.mangaTitleSourceLanguages = ["ja"]
+        settings.translationSourceLanguages = ["ja"]
+        let fixture = TitleCacheFixture()
+        let client = TitleTestClient()
+        let service = ReaderTranslationService(client: client)
+        #expect(await TitleTranslation.translate("Popular Today", kind: .sourceLabel, settings: settings,
+            service: service, diskCache: fixture.disk) == "Popular Today")
+        #expect(await client.requests.isEmpty)
+        settings.translateSourceLabels = true
+        try settings.autosave(defaults: defaults)
+        #expect(ReaderTranslationSettings(defaults: defaults).translateSourceLabels)
+        #expect(!ReaderTranslationSettings(defaults: defaults).translateMangaTitles)
+        #expect(await TitleTranslation.translate("Popular Today", kind: .sourceLabel, settings: settings,
+            service: service, diskCache: fixture.disk) == "일본어 제목")
+        let offline = TitleTestClient(fail: true)
+        #expect(await TitleTranslation.translate("Popular Today", kind: .sourceLabel, settings: settings,
+            service: ReaderTranslationService(client: offline), diskCache: fixture.disk) == "일본어 제목")
+        #expect(await offline.requests.isEmpty)
+        let effective = TitleTranslation.effectiveSettings(settings, kind: .manga)
+        #expect(effective.instructions.contains("including English words"))
+        #expect(TitleTranslation.effectiveSettings(effective, kind: .manga) == effective)
+    }
+
+    @Test func sourceLabelLanguageFilterPersistsAndDoesNotReuseExcludedCache() async throws {
+        let suite = "source-label-filter-" + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var settings = ReaderTranslationSettings(defaults: defaults)
+        #expect(settings.sourceLabelSourceLanguages.isEmpty)
+        settings.translateSourceLabels = true
+        settings.targetLanguage = "ko"
+        let page = settings
+        let mangaKey = TitleTranslation.cacheKey("Popular Today", kind: .manga, settings: settings)
+        settings.sourceLabelSourceLanguages = ["en"]
+        try settings.autosave(defaults: defaults)
+        #expect(ReaderTranslationSettings(defaults: defaults).sourceLabelSourceLanguages == ["en"])
+        #expect(settings.hasSameTranslation(as: page))
+        #expect(TitleTranslation.cacheKey("Popular Today", kind: .manga, settings: settings) == mangaKey)
+        let fixture = TitleCacheFixture()
+        let client = TitleTestClient()
+        let service = ReaderTranslationService(client: client)
+        #expect(await TitleTranslation.translate("Popular Today", kind: .sourceLabel, settings: settings,
+            service: service, diskCache: fixture.disk) == "일본어 제목")
+        settings.sourceLabelSourceLanguages = ["ja"]
+        #expect(await TitleTranslation.translate("Popular Today", kind: .sourceLabel, settings: settings,
+            service: service, diskCache: fixture.disk) == "Popular Today")
+        #expect(await client.requests.count == 1)
+        settings.sourceLabelSourceLanguages = ["invalid"]
+        #expect(throws: RemoteTranslationError.self) { try settings.save(defaults: defaults) }
+        #expect(ReaderTranslationSettings(defaults: defaults).sourceLabelSourceLanguages == ["en"])
+    }
+
+    @Test func authorsHaveIndependentSettingsAndPersistentCache() async throws {
+        let suite = "author-tests-" + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var settings = ReaderTranslationSettings(defaults: defaults)
+        settings.targetLanguage = "ko"
+        let page = settings
+        let fixture = TitleCacheFixture()
+        let client = TitleTestClient()
+        let service = ReaderTranslationService(client: client)
+        #expect(await TitleTranslation.translate("ogami kazuki", kind: .author, settings: settings,
+            service: service, diskCache: fixture.disk) == "ogami kazuki")
+        #expect(await client.requests.isEmpty)
+        settings.translateAuthors = true
+        settings.authorSourceLanguages = ["en", "ja"]
+        try settings.autosave(defaults: defaults)
+        let saved = ReaderTranslationSettings(defaults: defaults)
+        #expect(saved.translateAuthors && saved.authorSourceLanguages == ["en", "ja"])
+        #expect(saved.hasSameTranslation(as: page))
+        settings.authorSourceLanguages = []
+        #expect(await TitleTranslation.translate("ogami kazuki", kind: .author, settings: settings,
+            service: service, diskCache: fixture.disk) == "일본어 제목")
+        let offline = TitleTestClient(fail: true)
+        #expect(await TitleTranslation.translate("ogami kazuki", kind: .author, settings: settings,
+            service: ReaderTranslationService(client: offline), diskCache: ReaderTranslationDiskCache(directory: fixture.root)) == "일본어 제목")
+        #expect(await offline.requests.isEmpty)
+        #expect(TitleTranslation.effectiveSettings(settings, kind: .author).instructions.contains("phonetic transliteration"))
+        settings.authorSourceLanguages = ["invalid"]
+        #expect(throws: RemoteTranslationError.self) { try settings.save(defaults: defaults) }
+    }
+
+    @Test func chapterLanguageNamesUseAppLocaleWithoutChangingGroupNames() {
+        let korean = Locale(identifier: "ko")
+        #expect(ChapterLanguageDisplay.localized("japanese", locale: korean) == "일본어")
+        #expect(ChapterLanguageDisplay.localized("ja", locale: korean) == "일본어")
+        #expect(ChapterLanguageDisplay.localized("Japanese", acceptsCode: false, locale: korean) == "일본어")
+        #expect(ChapterLanguageDisplay.localized("English", acceptsCode: false, locale: korean) == "영어")
+        #expect(ChapterLanguageDisplay.localized("en", acceptsCode: false, locale: korean) == "en")
+        #expect(ChapterLanguageDisplay.localized("Japanese Scan Team", acceptsCode: false, locale: korean) == "Japanese Scan Team")
+        #expect(ChapterLanguageDisplay.localized("japanese", locale: Locale(identifier: "en")) == "Japanese")
+    }
+
+    @Test func nativeSortMenuPreloadsUniqueLabelsAndSharesSourceLabelToggle() async {
+        let fixture = TitleCacheFixture()
+        let client = TitleTestClient()
+        let service = ReaderTranslationService(client: client)
+        var settings = ReaderTranslationSettings()
+        settings.translateSourceLabels = true
+        settings.sourceLabelSourceLanguages = []
+        settings.targetLanguage = "ko"
+        let options = ["人気", "タイトル", "更新順", "評価", "人気"]
+        let translated = await SourceMenuTranslation.translate(options, settings: settings, service: service, diskCache: fixture.disk)
+        #expect(translated.count == 4)
+        #expect(translated["タイトル"] == "일본어 제목")
+        #expect(await client.requests.count == 4)
+        #expect(options == ["人気", "タイトル", "更新順", "評価", "人気"])
+        settings.translateSourceLabels = false
+        #expect(await SourceMenuTranslation.translate(options, settings: settings, service: service, diskCache: fixture.disk).isEmpty)
+        #expect(await client.requests.count == 4)
+    }
+
+    @Test func largeFilterOptionsNeverReachTranslationButHeadingDoes() async {
+        let fixture = TitleCacheFixture()
+        let client = TitleTestClient()
+        let service = ReaderTranslationService(client: client)
+        var settings = ReaderTranslationSettings()
+        settings.translateSourceLabels = true
+        settings.sourceLabelSourceLanguages = []
+        settings.targetLanguage = "ko"
+        let options = (0..<1000).map { "Tag \($0)" }
+        let labels = SourceMenuTranslation.labelsToTranslate(options: options, title: "Tags")
+        #expect(labels == ["Tags"])
+        _ = await SourceMenuTranslation.translate(labels, settings: settings, service: service, diskCache: fixture.disk)
+        #expect(await client.requests.flatMap(\.segments).map(\.text) == ["Tags"])
+        #expect(!SourceMenuTranslation.translatesOptions(count: options.count))
+        #expect(SourceMenuTranslation.labelsToTranslate(options: options).isEmpty)
+        #expect(SourceMenuTranslation.labelsToTranslate(options: Array(options.prefix(100))).count == 100)
+        #expect(SourceMenuTranslation.labelsToTranslate(options: Array(options.prefix(101))).isEmpty)
+    }
+
+    @Test func largeFilterTranslationRequiresExplicitOptInAndPersists() throws {
+        let suite = "large-filter-tests-" + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var settings = ReaderTranslationSettings(defaults: defaults)
+        #expect(!settings.translateLargeFilterOptions)
+        let options = (0..<101).map { "Option \($0)" }
+        #expect(SourceMenuTranslation.labelsToTranslate(options: options, title: "Tags",
+            includeLargeLists: settings.translateLargeFilterOptions) == ["Tags"])
+        settings.translateLargeFilterOptions = true
+        try settings.autosave(defaults: defaults)
+        #expect(ReaderTranslationSettings(defaults: defaults).translateLargeFilterOptions)
+        #expect(SourceMenuTranslation.labelsToTranslate(options: options,
+            includeLargeLists: settings.translateLargeFilterOptions) == options)
+        #expect(!settings.translateSourceLabels)
+        settings.translateLargeFilterOptions = false
+        try settings.autosave(defaults: defaults)
+        #expect(!ReaderTranslationSettings(defaults: defaults).translateLargeFilterOptions)
+    }
+
+    @Test func tagFilterOptionsUseTagSwitchFilterAndCacheRatherThanSourceLabels() async {
+        let fixture = TitleCacheFixture()
+        let client = TitleTestClient()
+        let service = ReaderTranslationService(client: client)
+        var settings = ReaderTranslationSettings()
+        settings.targetLanguage = "ko"
+        settings.translateSourceLabels = true
+        settings.translateMangaTags = false
+        #expect(await SourceMenuTranslation.translate(["School Life"], settings: settings, kind: .tag,
+            service: service, diskCache: fixture.disk).isEmpty)
+        #expect(await client.requests.isEmpty)
+        settings.translateSourceLabels = false
+        settings.translateMangaTags = true
+        settings.mangaTagSourceLanguages = []
+        #expect(await SourceMenuTranslation.translate(["School Life"], settings: settings, kind: .tag,
+            service: service, diskCache: fixture.disk)["School Life"] == "일본어 제목")
+        let offline = TitleTestClient(fail: true)
+        #expect(await TitleTranslation.translate("School Life", kind: .tag, settings: settings,
+            service: ReaderTranslationService(client: offline), diskCache: fixture.disk) == "일본어 제목")
+        #expect(await offline.requests.isEmpty)
+        settings.mangaTagSourceLanguages = ["ja"]
+        #expect(await SourceMenuTranslation.translate(["School Life"], settings: settings, kind: .tag,
+            service: service, diskCache: fixture.disk)["School Life"] == "School Life")
+        #expect(await client.requests.count == 1)
+    }
+
     @Test func switchesPersistIndependentlyWithoutChangingPageTranslation() throws {
         let suite = "title-tests-" + UUID().uuidString
         let defaults = try #require(UserDefaults(suiteName: suite))

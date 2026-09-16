@@ -1,0 +1,34 @@
+name: Localization
+
+on:
+  pull_request:
+    paths:
+      - "Aidoku/**/*.swift"
+      - "AidokuShare/**"
+      - "Aidoku/Info.plist"
+      - "Aidoku.xcodeproj/project.pbxproj"
+      - "Aidoku/App/Resources/Localization/**"
+      - "Scripts/*localizations.py"
+      - ".github/workflows/localization.yml"
+  push:
+    paths:
+      - "Aidoku/**/*.swift"
+      - "AidokuShare/**"
+      - "Aidoku/Info.plist"
+      - "Aidoku.xcodeproj/project.pbxproj"
+      - "Aidoku/App/Resources/Localization/**"
+      - "Scripts/*localizations.py"
+      - ".github/workflows/localization.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - name: Test localization validator
+        run: python3 -m unittest discover -s Scripts -v
+      - name: Validate all app localizations
+        run: python3 Scripts/validate_localizations.py

@@ -1,0 +1,5 @@
+"IMPORT" = "Impor";
+"DONE" = "Selesai";
+"FILE_IMPORT_FAIL_TEXT" = "Gagal mengimpor file. Pastikan file tersebut adalah arsip CBZ atau ZIP yang valid yang berisi gambar.";
+"FORMAT_IMAGE" = "Gambar";
+"SHARED_IMAGES_SAVED" = "Gambar disimpan. Buka Aidoku untuk mengimpornya secara otomatis ke berkas lokal.";

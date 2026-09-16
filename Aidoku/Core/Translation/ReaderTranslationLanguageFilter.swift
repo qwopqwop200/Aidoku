@@ -1,7 +1,46 @@
 import Foundation
+import NaturalLanguage
 
 /// Apply the source-language policy after raw OCR caching, before requests or overlays.
 enum ReaderTranslationLanguageFilter {
+    /// Only skip confident, unmixed text. Short Latin tags and romanized titles remain eligible.
+    static func isAlreadyTargetLanguage(_ text: String, target: String) -> Bool {
+        let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }
+        guard !letters.isEmpty else { return false }
+        let language = canonical(target)
+        let hangul: (Unicode.Scalar) -> Bool = {
+            (0xAC00...0xD7A3).contains($0.value) || (0x1100...0x11FF).contains($0.value) ||
+                (0x3130...0x318F).contains($0.value)
+        }
+        if language == "ko" { return letters.allSatisfy(hangul) }
+        if letters.contains(where: hangul) { return false }
+        let han: (Unicode.Scalar) -> Bool = {
+            (0x3400...0x9FFF).contains($0.value) || (0x20000...0x323AF).contains($0.value)
+        }
+        let kana: (Unicode.Scalar) -> Bool = {
+            (0x3040...0x30FF).contains($0.value) || (0xFF66...0xFF9D).contains($0.value)
+        }
+        if language == "ja" {
+            return letters.contains(where: kana) && letters.allSatisfy { kana($0) || han($0) }
+        }
+        if language == "zh" || language == "zh-Hant" {
+            return letters.allSatisfy(han) && AutomaticSourceLanguageDetector.detect(text) == language
+        }
+        guard letters.count >= 20, !letters.contains(where: han), !letters.contains(where: kana) else { return false }
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(text)
+        guard let best = recognizer.languageHypotheses(withMaximum: 2).max(by: { $0.value < $1.value }),
+              best.key.rawValue == language, best.value >= 0.95 else { return false }
+        // A confident foreign word is evidence of mixed-language metadata.
+        for word in text.split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }) where word.count >= 4 {
+            recognizer.reset()
+            recognizer.processString(String(word))
+            if let wordLanguage = recognizer.languageHypotheses(withMaximum: 1).first,
+               wordLanguage.value >= 0.9, wordLanguage.key.rawValue != language { return false }
+        }
+        return true
+    }
+
     static func canonical(_ code: String) -> String { code == "zh-Hans" ? "zh" : code }
 
     static func normalized(_ codes: [String]) -> [String] { Set(codes.map(canonical)).sorted() }
@@ -30,6 +69,7 @@ enum ReaderTranslationLanguageFilter {
         let source = canonical(settings.sourceLanguage)
         let languages = normalized(settings.translationSourceLanguages)
         let eligible = regions.filter {
+            !isAlreadyTargetLanguage($0.source, target: settings.targetLanguage) &&
             AutomaticSourceLanguageDetector.allowsOCRText($0.source, configuredSourceLanguage: source, automaticLanguageFilter: languages)
         }
         return ReaderJapaneseSFXFilter.apply(eligible, settings: settings)

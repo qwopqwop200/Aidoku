@@ -751,6 +751,15 @@ final class BrowserPageImageOverlayRenderer {
     root.dataset.cleanupMilliseconds = String(performance.now() - cleanupStarted);
     let renderedItemCount = 0;
     let refinementCharacterBudget = 16384;
+    // Reserve the original allowance for emergency-size captions, regardless
+    // of item order. New 8–9 pt proposals only spend otherwise unused capacity.
+    const emergencyCharacters = items.reduce((total, item) => {
+      const length = String(item?.text || '').length;
+      return total + (item?.smallTextReference?.fontSize < 8 && length <= 512 ? length : 0);
+    }, 0);
+    let readableRefinementBudget = Math.min(2048, Math.max(0, refinementCharacterBudget - emergencyCharacters));
+    let koreanWrapCharacterBudget = 2048;
+    const koreanWrapMeasure = document.createElement('canvas').getContext('2d');
     try {
       for (const item of items) {
         if (!item || typeof item !== 'object') {
@@ -939,8 +948,13 @@ final class BrowserPageImageOverlayRenderer {
         if (hasReference) {
           setPadding(reference.padding);
           const baselineFont = fitMeasuredFont(reference.fontSize);
-          const canProfile = displayedText.length <= 512 && displayedText.length <= refinementCharacterBudget;
-          if (canProfile) refinementCharacterBudget -= displayedText.length;
+          const emergency = reference.fontSize < 8;
+          const canProfile = displayedText.length <= 512 && displayedText.length <= refinementCharacterBudget &&
+            (emergency || displayedText.length <= readableRefinementBudget);
+          if (canProfile) {
+            refinementCharacterBudget -= displayedText.length;
+            if (!emergency) readableRefinementBudget -= displayedText.length;
+          }
           const baseline = canProfile ? lineProfile() : null;
           if (baseline) {
             setPadding([paddingTop, paddingRight, paddingBottom, paddingLeft]);
@@ -1012,6 +1026,52 @@ final class BrowserPageImageOverlayRenderer {
         } else { fitMeasuredFont(fontSize); }
         if (hasReference) root.dataset.smallTextRefinementMilliseconds = String(
           Number(root.dataset.smallTextRefinementMilliseconds || 0) + performance.now() - refinementStarted);
+        // Repair existing Korean emergency breaks inside the same card. Two
+        // bounded probes trade at most 12% type size for intact words/closing
+        // punctuation; never expand boxes or touch the translation string.
+        const koreanWrapStarted = performance.now();
+        let mayBreakKoreanWord = false;
+        if (!vertical && wrappingScript === 'korean' && koreanWrapMeasure && displayedText.length <= 180) {
+          koreanWrapMeasure.font = `${node.style.fontWeight} ${node.style.fontSize} ${node.style.fontFamily}`;
+          const available = width - parseFloat(node.style.paddingLeft || 0) - parseFloat(node.style.paddingRight || 0);
+          // Canvas omits the small negative letter spacing, so this estimate
+          // errs toward checking a word rather than missing an overflow.
+          mayBreakKoreanWord = displayedText.split(/\\s+/u).some(word => koreanWrapMeasure.measureText(word).width > available);
+        }
+        if (mayBreakKoreanWord && displayedText.length <= koreanWrapCharacterBudget) {
+          koreanWrapCharacterBudget -= displayedText.length;
+          const originalFont = parseFloat(node.style.fontSize);
+          const original = lineProfile();
+          const penalty = profile => profile.badStarts.length * 4 + profile.badEnds.length * 4 + profile.breaks.length;
+          if (original && penalty(original) > 0) {
+            let chosenFont = originalFont, chosen = original;
+            const exclusions = Array.isArray(reference?.exclusionRects) ? reference.exclusionRects : [];
+            const violations = profile => profile.ink.filter(a =>
+              a[0] < x - 0.5 || a[1] < y - 0.5 || a[0] + a[2] > x + width + 0.5 ||
+              a[1] + a[3] > y + height + 0.5 || exclusions.some(b =>
+                Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0]) > 0.5 &&
+                Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]) > 0.5)).length;
+            const originalViolations = violations(original);
+            for (const ratio of [0.94, 0.88]) {
+              const size = Math.max(Math.ceil(originalFont * 0.88 * 4) / 4, Math.floor(originalFont * ratio * 4) / 4);
+              if (size < minimumFontSize) continue;
+              applyMeasuredFontSize(size);
+              const candidate = lineProfile();
+              if (candidate && contentFits() && candidate.lines <= original.lines &&
+                  candidate.badStarts.length <= original.badStarts.length &&
+                  candidate.badEnds.length <= original.badEnds.length &&
+                  candidate.breaks.every(offset => original.breaks.includes(offset)) &&
+                  violations(candidate) <= originalViolations && penalty(candidate) < penalty(chosen)) {
+                chosenFont = size; chosen = candidate;
+                if (penalty(chosen) === 0) break;
+              }
+            }
+            applyMeasuredFontSize(chosenFont);
+            if (chosenFont < originalFont) node.dataset.koreanWrapRepair = 'accepted';
+          }
+        }
+        root.dataset.koreanWrapMilliseconds = String(
+          Number(root.dataset.koreanWrapMilliseconds || 0) + performance.now() - koreanWrapStarted);
         measurementNode.remove();
         renderedItemCount += 1;
       }
@@ -5359,7 +5419,13 @@ struct BrowserOverlayLayoutPlanner {
                 preservingLineLayoutAt: layout.maximumFontSize) ?? layout.maximumFontSize)
         var best = BrowserOverlayCardLayout(rect: layout.rect,
             maximumFontSize: max(layout.maximumFontSize, strictFont), contentInsets: layout.contentInsets)
-        guard best.maximumFontSize < 8 else { return best }
+        // Korean captions just above the emergency size can still be difficult
+        // to read. Offer the same guarded, fixed-card refinement below 9 pt;
+        // WebKit must still preserve word boundaries and avoid nearby sources.
+        let refinementFloor: CGFloat = !vertical && variants.allSatisfy {
+            BrowserOverlayTextFlow.wrappingScript(for: $0.displayText) == .korean
+        } ? 9 : 8
+        guard best.maximumFontSize < refinementFloor else { return best }
         let referenceFont = best.maximumFontSize
         let old = layout.contentInsets
         func reduced(_ value: CGFloat) -> CGFloat { min(value, max(2, value * 0.65)) }
@@ -5385,7 +5451,7 @@ struct BrowserOverlayLayoutPlanner {
             best = .init(rect: layout.rect, maximumFontSize: 12, contentInsets: old)
         } else {
             for insets in [old, compact] {
-                if best.maximumFontSize >= 8 { break }
+                if best.maximumFontSize >= refinementFloor { break }
                 if let font = readableFontSize(variants: variants, rect: layout.rect,
                     ceiling: 12, settings: settings, contentInsets: insets,
                     measurementCache: measurementCache, preservingLineLayoutAt: referenceFont,

@@ -394,6 +394,11 @@ extension Settings {
 
     private static let readerSettings: [Setting] = [
         .init(value: .group(.init(items: [
+            .init(key: AppSettings.reader.saveSharedImages.key,
+                  title: NSLocalizedString("SAVE_SHARED_IMAGES"),
+                  value: .toggle(.init(subtitle: NSLocalizedString("SAVE_SHARED_IMAGES_HELP"))))
+        ]))),
+        .init(value: .group(.init(items: [
             .init(
                 key: "Reader.readingMode",
                 title: NSLocalizedString("READING_MODE"),
@@ -662,7 +667,8 @@ extension Settings {
                         title: NSLocalizedString("TEXT_FONT_FAMILY"),
                         notification: .init("Reader.textFontFamily"),
                         value: .select(.init(
-                            values: Self.availableFonts
+                            values: Self.availableFonts,
+                            titles: Self.availableFonts.map { $0 == "System" ? NSLocalizedString("READER_BG_COLOR_SYSTEM") : $0 }
                         ))
                     ),
                     .init(
@@ -905,7 +911,7 @@ extension Settings {
                 ),
                 .init(
                     key: "Advanced.migrateHistory",
-                    title: "Migrate Chapter History",
+                    title: NSLocalizedString("MIGRATE_CHAPTER_HISTORY"),
                     value: .button(.init())
                 ),
                 .init(

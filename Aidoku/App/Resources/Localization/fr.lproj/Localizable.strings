@@ -342,7 +342,7 @@
 "PHOTOS_ACCESS_DENIED_TEXT" = "L'accès a été précédemment refusé. Merci d'autoriser Aidoku à accéder à vos photos pour sauvegarder les images dans votre pellicules. Vous pouvez activer l'accès dans les paramètres de confidentialité.";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "Cette action est irrémédiable. Tout l'historique de lecture hors librairie sera retiré.";
 "CLEAR_EXCLUDING_LIBRARY" = "Effacer l'historique de lecture (sauf la bibliothèque)";
-"READER_ORIENTATION" = "Orientation";
+"READER_ORIENTATION" = "Orientation de l'écran";
 "FOLLOW_DEVICE" = "Suivre l'appareil";
 "MARK_DUPLICATE_CHAPTERS" = "Marquer les chapitres dupliqués comme lus";
 "NO_SCANLATOR" = "Pas de scantrad";
@@ -462,7 +462,7 @@
 "SORT_FOLDER_NAME" = "Nom du répertoire";
 "SORT_BOOKS_COUNT" = "Nombre de livres";
 "SORT_RANDOM" = "Aléatoire";
-"GENRE" = "Genre";
+"GENRE" = "Genre manga";
 "TAG" = "Tag";
 "PUBLISHER" = "Éditeur";
 "AGE_RATING" = "Âge minimal";
@@ -481,11 +481,11 @@
 "SORT_TIME_TO_READ" = "Temps de lecture";
 "SORT_AVERAGE_RATING" = "Note moyenne";
 "STATUS_ENDED" = "Terminer";
-"FORMAT" = "Format";
+"FORMAT" = "Format de fichier";
 "FORMAT_IMAGE" = "Image";
 "FORMAT_EPUB" = "EPUB";
 "FORMAT_PDF" = "PDF";
-"FORMAT_ARCHIVE" = "Archive";
+"FORMAT_ARCHIVE" = "Fichier d'archive";
 "LOGIN_VIA_OIDC" = "Connexion via OIDC";
 "SET_COVER_IMAGE" = "Définir l’image de couverture";
 "UPLOAD_CUSTOM_COVER" = "Importer une couverture personnalisée";
@@ -1002,3 +1002,88 @@
 "TRANSLATION_REASONING_XHIGH" = "Très élevé";
 
 "TRANSLATION_REASONING_MAX" = "Maximale";
+
+"TRANSLATION_MANGA_TAGS" = "Traduire les tags du manga";
+"TRANSLATION_TAG_FILTER" = "Langues sources des tags";
+
+// Completed app localization
+"TEXT_THEME" = "Thème";
+"TEXT_THEME_SEPIA" = "Sépia";
+"TEXT_THEME_PAPER" = "Papier";
+"TEXT_THEME_GRAY" = "Gris";
+"SINGLE_TAP" = "Un seul clic";
+"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Appuyer sur le début d'un mot activera la fenêtre contextuelle. Cela désactive le double appui pour zoomer lorsqu'il est activé.";
+"LOOKUP_GESTURE_LONG_PRESS_INFO" = "Maintenir le début d'un mot le mettra en surbrillance et relâcher activera la fenêtre contextuelle. Cela désactive les actions rapides de la page lorsqu'elles sont activées.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Verrouillé par un geste de recherche : une seule pression.";
+"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Verrouillé par un geste de recherche : appui long.";
+"DICTIONARY_TEXT_OVERLAY_MODE" = "Superposition de texte OCR";
+"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Affiche les zones de texte sur les régions de l'image lorsqu'une recherche est activée. Cela peut être utile pour déterminer quel texte a été correctement reconnu par l'OCR.";
+"DICTIONARY_OVERLAY_PADDING" = "Remplissage de superposition";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "Taille du texte de superposition";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Restreindre les langues OCR";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Lorsqu'il est activé, seuls les chapitres marqués comme étant la ou les langues sélectionnées seront traités pour l'OCR. Il est recommandé de sélectionner uniquement les langues pour lesquelles vous avez importé des dictionnaires.";
+"DICTIONARY_POPUP" = "Fenêtre contextuelle du dictionnaire";
+"DEFAULT_DISPLAY_MODE" = "Par défaut";
+"FULL_WIDTH" = "Pleine largeur";
+"DICTIONARY_POPUP_WIDTH" = "Largeur de la fenêtre contextuelle";
+"DICTIONARY_POPUP_HEIGHT" = "Hauteur de la fenêtre contextuelle";
+"TERM_DICTIONARIES" = "Dictionnaires de termes";
+"FREQUENCY_DICTIONARIES" = "Dictionnaires de fréquence des mots";
+"PITCH_DICTIONARIES" = "Dictionnaires d'accent de hauteur";
+"KANJI_DICTIONARIES" = "Dictionnaires Kanji";
+"IMPORTING_DICTIONARY" = "Importation du dictionnaire…";
+"IMPORT_ERROR" = "Erreur d'importation";
+"REVISION" = "Révision";
+"ATTRIBUTION" = "Attribution";
+"TERM_COUNT" = "Nombre de termes du dictionnaire";
+"TERM_META_COUNT" = "Nombre d'entrées de métadonnées de termes";
+"KANJI_COUNT" = "Nombre de Kanji";
+"KANJI_META_COUNT" = "Nombre d'entrées de métadonnées kanji";
+"TAG_COUNT" = "Nombre de balises";
+"MEDIA_COUNT" = "Nombre de médias";
+"IS_UPDATABLE" = "Peut être mis à jour";
+"REMOVE_DICTIONARY" = "Supprimer le dictionnaire";
+"VOCABULARY" = "Vocabulaire";
+"%i_WORDS" = "Mots %i";
+"NO_VOCABULARY" = "Pas de vocabulaire";
+"NO_VOCABULARY_TEXT" = "Le vocabulaire enregistré apparaîtra ici.";
+"DEFINITION" = "Définition";
+"VOCAB_CONTEXT" = "Contexte";
+"CLEAR_VOCABULARY_LIST" = "Supprimer tout le vocabulaire enregistré";
+"CLEAR_VOCABULARY_LIST_TEXT" = "Cette action est irréversible. Tout le vocabulaire enregistré sera supprimé.";
+"LAST_UPDATED_%@" = "Dernière mise à jour : %@";
+"RECOMMENDED_DICTIONARIES_NOTE" = "Les dictionnaires ci-dessous sont tous en japonais-anglais. Pour les autres langues, vous pouvez consulter la liste des dictionnaires Wiktionnaire.";
+"MIGRATE_WITH_HISTORY" = "Migrer et conserver l'historique";
+"AUTO_SCROLL" = "Défilement automatique";
+"AUTO_SCROLL_SPEED" = "Vitesse de défilement automatique";
+"AUTO_SCROLL_POSITION" = "Position de défilement automatique";
+"POSITION_LEFT" = "Gauche";
+"POSITION_RIGHT" = "À droite";
+"UPLOAD_FILE" = "Télécharger le fichier";
+"MIGRATE_CHAPTER_HISTORY" = "Migrer l'historique des chapitres";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "Migrez l'historique de lecture restant des anciennes versions qui n'est pas lié aux chapitres de la base de données locale. Cela se produit normalement automatiquement après une mise à jour. Si cela ne s'est pas terminé, vous pouvez le réexécuter ici.";
+
+"TRANSLATION_SOURCE_LABELS" = "Traduire les menus et titres de sections de la source";
+
+// Local image import
+"IMPORT_PHOTO" = "Importer des photos";
+"LOCAL_IMAGE_IMPORT_TEXT" = "Importez des photos, des fichiers image ou une archive CBZ ou ZIP pour les lire.";
+
+// Translated page export
+"SAVE_TRANSLATED_IMAGE" = "Enregistrer l’image traduite";
+"TRANSLATED_IMAGE_SAVE_FAILED" = "Impossible de créer l’image traduite. Réessayez une fois la traduction terminée.";
+
+"TRANSLATION_AUTHORS" = "Traduire les noms des auteurs";
+
+"TRANSLATION_AUTHOR_FILTER" = "Langues sources des noms des auteurs";
+"TRANSLATION_SOURCE_LABEL_FILTER" = "Langues sources des menus et sections de la source";
+
+// Shared image retention
+"SAVE_SHARED_IMAGES" = "Conserver les images partagées dans des fichiers locaux";
+"SAVE_SHARED_IMAGES_HELP" = "Lorsqu'elle est désactivée, les images partagées s'ouvrent temporairement et sont supprimées une fois fermées. L’historique de lecture et les caches OCR/traduction ne sont pas enregistrés.";
+
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "Traduire les grandes listes de filtres (plus de 100 options)";
+
+"SETTING_INVALID_STEPPER_RANGE" = "Plage de paramètres numériques non valide.";
+
+"SETTING_MISSING_CONTENT_HANDLER" = "Impossible d'afficher le paramètre : %@";

@@ -220,7 +220,8 @@ actor ReaderTranslationService {
             candidates.sort { ranks[$0.inputIndex] < ranks[$1.inputIndex] }
         }
         let plans = NativeTranslationBatchPlanner.makeBatches(candidates: candidates,
-            sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage, context: [], glossary: [])
+            sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage, context: [], glossary: [],
+            includesNeighborContext: true)
         return plans.map { plan in
             var request = plan.request
             request.filtersSFX = settings.filterSFXWithLLM ? true : nil

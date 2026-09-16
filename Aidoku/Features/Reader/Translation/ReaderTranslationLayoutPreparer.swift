@@ -69,7 +69,7 @@ final class ReaderTranslationLayoutPreparer {
         let cache = renderCache.disk
         let operation = Task.detached(priority: .utility) { try await loader.load(page) }
         let image = try await withTaskCancellationHandler { try await operation.value } onCancel: { operation.cancel() }
-        let generation = await cache.currentGeneration()
+        let generation = await cache.currentGeneration(settings: settings)
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
         let crops = geometry.crop == unit ? [unit] : [CGRect(x: 0, y: 0, width: 0.5, height: 1), CGRect(x: 0.5, y: 0, width: 0.5, height: 1)]
         for crop in crops {

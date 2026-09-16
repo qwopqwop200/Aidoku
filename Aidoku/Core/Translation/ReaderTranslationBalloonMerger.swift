@@ -56,6 +56,12 @@ enum ReaderTranslationBalloonMerger {
                 let gap = right.rect.minX - left.rect.maxX
                 let overlap = min(right.rect.maxY, left.rect.maxY) - max(right.rect.minY, left.rect.minY)
                 if gap < -smallest * 0.2 || gap > smallest * 1.8 || overlap < min(right.rect.height, left.rect.height) * 0.5 { valid = false; break }
+                // A connected white component can contain several balloon lobes.
+                // Across a wide column gutter, require a clear bridge over the
+                // shared text height; a narrow neck is not one text block.
+                if gap > smallest * 0.6 && !ReaderTranslationEnclosedBackground.hasClearVerticalBridge(
+                    in: image, left: pixels(left.rect), right: pixels(right.rect)
+                ) { valid = false; break }
             }
             guard valid else { continue }
             let box = members.dropFirst().reduce(first.rect) { $0.union($1.rect) }

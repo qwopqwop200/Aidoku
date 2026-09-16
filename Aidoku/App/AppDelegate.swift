@@ -10,6 +10,7 @@ import CloudKit
 import Nuke
 import SwiftUI
 import UserNotifications
+import UniformTypeIdentifiers
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -22,6 +23,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     static let isSideloaded = Bundle.main.bundleIdentifier != canonicalID
 
     private var networkObserverId: UUID?
+    private var importingSharedImages = false
 
     private lazy var loadingAlert: UIAlertController = {
         let loadingAlert = UIAlertController(
@@ -197,6 +199,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         MangaManager.shared.register()
 
         ReaderTemporaryPageStore.removeAllSessions()
+        TemporarySharedImageSession.removeAllSessions()
 
         Task {
             await SourceManager.shared.start()
@@ -491,7 +494,9 @@ extension AppDelegate {
 
     func handleUrl(url: URL) {
         if url.scheme == "aidoku" { // aidoku://
-            if url.host == "addSourceList" { // addSourceList?url=
+            if url.host == "importSharedImages" {
+                importPendingSharedImages()
+            } else if url.host == "addSourceList" { // addSourceList?url=
                 let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
                 if
                     let listUrlString = components?.queryItems?.first(where: { $0.name == "url" })?.value,
@@ -596,9 +601,28 @@ extension AppDelegate {
                     )
                 }
             }
+        } else if url.isFileURL && LocalFileManager.allowedFileExtensions.contains(url.pathExtension.lowercased()) {
+            Task {
+                do {
+                    let manga = try await LocalFileManager.shared.importSharedArchive(from: url)
+                    NotificationCenter.default.post(name: .init("refresh-content"), object: nil)
+                    if let navigationController,
+                       let source = await SourceManager.shared.source(for: LocalSourceRunner.sourceKey) {
+                        navigationController.pushViewController(
+                            MangaViewController(source: source, manga: manga, parent: navigationController.topViewController),
+                            animated: true
+                        )
+                    }
+                } catch {
+                    LogManager.logger.error("Failed to import shared archive: \(error)")
+                    presentAlert(title: NSLocalizedString("IMPORT_FAIL"), message: NSLocalizedString("FILE_IMPORT_FAIL_TEXT"))
+                }
+            }
         } else if
-            SourceManager.shared.store.localSourceInstalled
-                && LocalFileManager.allowedFileExtensions.contains(url.pathExtension.lowercased())
+            url.isFileURL && (
+                LocalFileManager.allowedFileExtensions.contains(url.pathExtension.lowercased())
+                || UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) == true
+            )
         {
             Task {
                 let fileInfo = await LocalFileManager.shared.loadImportFileInfo(url: url)
@@ -618,6 +642,77 @@ extension AppDelegate {
             Task {
                 await handleDeepLink(url: url)
             }
+        }
+    }
+
+    func importPendingSharedImages() {
+        guard !importingSharedImages else { return }
+        importingSharedImages = true
+        Task {
+            defer { importingSharedImages = false }
+            do {
+                let inbox = try SharedImageInbox.live()
+                let batches = try inbox.pendingBatches()
+                guard !batches.isEmpty else { return }
+                if !AppSettings.reader.saveSharedImages.get() {
+                    guard let info = await LocalFileManager.shared.prepareImageImport(
+                        from: batches.flatMap(\.images), name: batches[0].title
+                    ) else { throw LocalFileManagerError.invalidFileType }
+                    let temporary = try TemporarySharedImageSession(fileInfo: info)
+                    guard navigationController != nil else { return }
+                    for batch in batches { try inbox.remove(batch) }
+                    presentSharedImageReader(ReaderViewController(
+                        source: temporary.source, manga: temporary.manga, chapter: temporary.chapter,
+                        startPage: 1, temporaryImageSession: temporary
+                    ))
+                    return
+                }
+                guard await SourceManager.shared.ensureLocalSourceForImport() else { return }
+                var lastMangaID: String?
+                for batch in batches {
+                    lastMangaID = batch.title.normalized
+                    // A previous launch may have saved the chapter before removing the inbox item.
+                    if await LocalFileDataManager.shared.hasChapter(series: batch.title.normalized, volume: nil, chapter: 1) {
+                        try inbox.remove(batch)
+                        continue
+                    }
+                    guard let info = await LocalFileManager.shared.prepareImageImport(
+                        from: batch.images, name: batch.title
+                    ) else { throw LocalFileManagerError.invalidFileType }
+                    try await LocalFileManager.shared.uploadFile(
+                        from: info.url,
+                        mangaName: batch.title,
+                        chapterName: batch.title,
+                        chapter: 1
+                    )
+                    try inbox.remove(batch)
+                }
+                NotificationCenter.default.post(name: .init("refresh-content"), object: nil)
+                if let lastMangaID,
+                   var manga = await LocalFileDataManager.shared.fetchLocalSeries(id: lastMangaID),
+                   let source = await SourceManager.shared.source(for: LocalSourceRunner.sourceKey) {
+                    manga.chapters = await LocalFileDataManager.shared.fetchChapters(mangaId: lastMangaID)
+                    if let chapter = manga.chapters?.first {
+                        presentSharedImageReader(ReaderViewController(source: source, manga: manga, chapter: chapter, startPage: 1))
+                    }
+                }
+            } catch SharedImageInbox.InboxError.unavailable {
+                // Builds without an App Group can still use the in-app image picker.
+            } catch {
+                LogManager.logger.error("Failed to import shared images: \(error)")
+                presentAlert(title: NSLocalizedString("IMPORT_FAIL"), message: NSLocalizedString("FILE_IMPORT_FAIL_TEXT"))
+            }
+        }
+    }
+
+    private func presentSharedImageReader(_ reader: ReaderViewController) {
+        guard let navigationController else { return }
+        let controller = ReaderNavigationController(readerViewController: reader)
+        controller.modalPresentationStyle = .fullScreen
+        if navigationController.presentedViewController != nil {
+            navigationController.dismiss(animated: false) { navigationController.present(controller, animated: true) }
+        } else {
+            navigationController.present(controller, animated: true)
         }
     }
 

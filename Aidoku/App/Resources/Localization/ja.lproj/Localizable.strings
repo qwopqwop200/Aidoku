@@ -149,7 +149,7 @@
 "HISTORY_LOCKED" = "履歴はロックされている。";
 "AUTH_TO_ENABLE" = "有効するには認証が必要です。";
 "AUTH_TO_DISABLE" = "無効するには認証が必要です。";
-"ABOUT" = "About";
+"ABOUT" = "このアプリについて";
 "SUPPPORT_DEVELOPMENT" = "開発をサポートする";
 "GENERAL" = "一般";
 "ICLOUD_SYNC" = "iCloud同期";
@@ -1033,3 +1033,46 @@
 "TRANSLATION_REASONING_XHIGH" = "非常に高い";
 
 "TRANSLATION_REASONING_MAX" = "最大";
+
+"TRANSLATION_MANGA_TAGS" = "漫画のタグを翻訳";
+"TRANSLATION_TAG_FILTER" = "タグの原文言語";
+
+// Completed app localization
+"TEXT_THEME" = "テーマ";
+"TEXT_THEME_SEPIA" = "セピア";
+"TEXT_THEME_PAPER" = "紙";
+"TEXT_THEME_GRAY" = "グレー";
+"MIGRATE_WITH_HISTORY" = "履歴を移行して保持する";
+"AUTO_SCROLL" = "自動スクロール";
+"AUTO_SCROLL_SPEED" = "自動スクロール速度";
+"AUTO_SCROLL_POSITION" = "自動スクロール位置";
+"POSITION_LEFT" = "左";
+"POSITION_RIGHT" = "右";
+"UPLOAD_FILE" = "ファイルをアップロードする";
+"MIGRATE_CHAPTER_HISTORY" = "章履歴の移行";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "ローカル データベース内の章にリンクされていない、古いバージョンから残っている読書履歴を移行します。これは通常、更新後に自動的に行われます。完了しなかった場合は、ここで再度実行できます。";
+
+"TRANSLATION_SOURCE_LABELS" = "ソースのメニュー・セクション名を翻訳";
+
+// Local image import
+"IMPORT_PHOTO" = "写真を読み込む";
+"LOCAL_IMAGE_IMPORT_TEXT" = "写真や画像ファイル、またはCBZ・ZIPファイルを読み込んで読めます。";
+
+// Translated page export
+"SAVE_TRANSLATED_IMAGE" = "翻訳付き画像を保存";
+"TRANSLATED_IMAGE_SAVE_FAILED" = "翻訳画像を作成できませんでした。翻訳完了後にもう一度お試しください。";
+
+"TRANSLATION_AUTHORS" = "作者名を翻訳";
+
+"TRANSLATION_AUTHOR_FILTER" = "作者名の原文言語";
+"TRANSLATION_SOURCE_LABEL_FILTER" = "ソースメニュー・セクションの原文言語";
+
+// Shared image retention
+"SAVE_SHARED_IMAGES" = "共有画像をローカルファイルに保存";
+"SAVE_SHARED_IMAGES_HELP" = "オフの場合、共有画像を一時的に開き、閉じると削除します。読書履歴とOCR・翻訳キャッシュも保存しません。";
+
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "大量のフィルター項目を翻訳（100件超）";
+
+"SETTING_INVALID_STEPPER_RANGE" = "数値の設定範囲が無効です。";
+
+"SETTING_MISSING_CONTENT_HANDLER" = "設定を表示できません: %@";

@@ -43,6 +43,7 @@ struct ExpandableTextView: View {
         let text = expanded ? text : textUntilNewline
         ZStack(alignment: .bottomTrailing) {
             Markdown(text)
+                .markdownSoftBreakMode(.lineBreak)
                 .markdownTheme(markdownTheme)
                 .environment(
                     \.openURL,

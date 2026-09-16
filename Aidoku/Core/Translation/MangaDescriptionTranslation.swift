@@ -2,6 +2,15 @@ import SwiftUI
 
 /// Preserve the complete synopsis while keeping each request within the API segment limit.
 enum MangaDescriptionTranslation {
+    /// Repair escaped newlines and the source metadata typo " /nLabel:" without changing URL paths.
+    static func normalizedLineBreaks(_ text: String) -> String {
+        text.replacingOccurrences(of: "\\r\\n", with: "\n")
+            .replacingOccurrences(of: "\\n", with: "\n")
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .replacingOccurrences(of: #"[ \t]+/n(?=[^/\s:]{1,32}:)"#, with: "\n", options: .regularExpression)
+    }
+
     static func chunks(_ text: String) -> [String] {
         var chunks: [String] = []
         var current = ""
@@ -23,9 +32,10 @@ enum MangaDescriptionTranslation {
     static func translate(_ original: String, settings: ReaderTranslationSettings,
                           service: ReaderTranslationService = .shared,
                           diskCache: ReaderTranslationDiskCache = .shared) async -> String {
+        let original = normalizedLineBreaks(original)
         guard settings.translateMangaDescriptions else { return original }
-        // Paragraph separators stay outside translated content, retaining the source layout.
-        let paragraphs = original.components(separatedBy: "\n\n")
+        // Keep every source line boundary outside model output, including empty lines.
+        let paragraphs = original.components(separatedBy: "\n")
         var translated = paragraphs
         await withTaskGroup(of: (Int, String).self) { group in
             for (index, paragraph) in paragraphs.enumerated() where !paragraph.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -41,7 +51,7 @@ enum MangaDescriptionTranslation {
             }
             for await (index, result) in group { translated[index] = result }
         }
-        return Task.isCancelled ? original : translated.joined(separator: "\n\n")
+        return Task.isCancelled ? original : normalizedLineBreaks(translated.joined(separator: "\n"))
     }
 }
 
@@ -54,7 +64,8 @@ struct TranslatedDescriptionView: View {
     private var identity: String { revision.uuidString + original }
 
     var body: some View {
-        ExpandableTextView(text: translatedIdentity == identity ? (translation ?? original) : original, expanded: $expanded)
+        let fallback = MangaDescriptionTranslation.normalizedLineBreaks(original)
+        ExpandableTextView(text: translatedIdentity == identity ? (translation ?? fallback) : fallback, expanded: $expanded)
             .task(id: identity) {
                 let requestedIdentity = identity
                 let result = await MangaDescriptionTranslation.translate(original, settings: ReaderTranslationSettings())

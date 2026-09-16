@@ -1,0 +1,5 @@
+/* Localized app information. */
+
+// Completed app localization
+"CFBundleDisplayName" = "Aidoku";
+"NSLocalNetworkUsageDescription" = "Aidoku stellt eine Verbindung zu Ihrem benutzerdefinierten Übersetzungsserver her, wenn sich seine Adresse in Ihrem lokalen Netzwerk befindet.";

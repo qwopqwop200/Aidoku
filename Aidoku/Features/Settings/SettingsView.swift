@@ -244,9 +244,8 @@ extension SettingsView {
                 }
             case "Advanced.migrateHistory":
                 confirmAction(
-                    title: "Migrate Chapter History",
-                    // swiftlint:disable:next line_length
-                    message: "This will migrate leftover reading history from old versions that are not currently linked with stored chapters in the local database. This should've happened automatically upon updating, but if it didn't complete, it can be re-executed this way."
+                    title: NSLocalizedString("MIGRATE_CHAPTER_HISTORY"),
+                    message: NSLocalizedString("MIGRATE_CHAPTER_HISTORY_TEXT")
                 ) {
                     Task {
                         UIApplication.shared.appDelegate?.showLoadingIndicator(style: .progress)

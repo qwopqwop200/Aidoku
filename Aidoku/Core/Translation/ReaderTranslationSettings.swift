@@ -40,6 +40,13 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var filterJapaneseSFXContext = false
     var translateMangaTitles = false
     var translateChapterTitles = false
+    var translateAuthors = false
+    var authorSourceLanguages: [String] = []
+    var translateSourceLabels = false
+    var translateLargeFilterOptions = false
+    var sourceLabelSourceLanguages: [String] = []
+    var translateMangaTags = false
+    var mangaTagSourceLanguages: [String] = []
     var translateMangaDescriptions = false
     var mangaDescriptionSourceLanguages: [String] = []
     var mangaTitleSourceLanguages: [String] = []
@@ -102,6 +109,19 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         filterJapaneseSFXContext = defaults.bool(forKey: Self.keyPrefix + "filterJapaneseSFXContext")
         translateMangaTitles = defaults.bool(forKey: Self.keyPrefix + "mangaTitles")
         translateChapterTitles = defaults.bool(forKey: Self.keyPrefix + "chapterTitles")
+        translateAuthors = defaults.bool(forKey: Self.keyPrefix + "authors")
+        authorSourceLanguages = ReaderTranslationLanguageFilter.normalized(
+            defaults.stringArray(forKey: Self.keyPrefix + "authorSourceLanguages") ?? []
+        ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
+        translateLargeFilterOptions = defaults.bool(forKey: Self.keyPrefix + "largeFilterOptions")
+        translateSourceLabels = defaults.bool(forKey: Self.keyPrefix + "sourceLabels")
+        sourceLabelSourceLanguages = ReaderTranslationLanguageFilter.normalized(
+            defaults.stringArray(forKey: Self.keyPrefix + "sourceLabelSourceLanguages") ?? []
+        ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
+        translateMangaTags = defaults.bool(forKey: Self.keyPrefix + "mangaTags")
+        mangaTagSourceLanguages = ReaderTranslationLanguageFilter.normalized(
+            defaults.stringArray(forKey: Self.keyPrefix + "mangaTagSourceLanguages") ?? []
+        ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
         translateMangaDescriptions = defaults.bool(forKey: Self.keyPrefix + "mangaDescriptions")
         mangaDescriptionSourceLanguages = ReaderTranslationLanguageFilter.normalized(
             defaults.stringArray(forKey: Self.keyPrefix + "mangaDescriptionSourceLanguages") ?? []
@@ -174,7 +194,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
               ocr.confidenceThreshold.isFinite, (0...1).contains(ocr.confidenceThreshold),
               (1...64).contains(maximumConcurrentRequests), ReaderTranslationDiskCache.limitChoices.contains(cacheLimitBytes)
         else { throw RemoteTranslationError.invalidRequest("Invalid OCR or overlay setting.") }
-        guard [translationSourceLanguages, mangaTitleSourceLanguages, chapterTitleSourceLanguages, mangaDescriptionSourceLanguages].allSatisfy({ languages in
+        guard [translationSourceLanguages, mangaTitleSourceLanguages, chapterTitleSourceLanguages, mangaDescriptionSourceLanguages, mangaTagSourceLanguages, sourceLabelSourceLanguages, authorSourceLanguages].allSatisfy({ languages in
             languages.count <= AutomaticSourceLanguageDetector.supportedLanguageCodes.count &&
                 Set(languages).count == languages.count &&
                 languages.allSatisfy { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
@@ -234,6 +254,13 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         defaults.set(filterJapaneseSFXContext, forKey: Self.keyPrefix + "filterJapaneseSFXContext")
         defaults.set(translateMangaTitles, forKey: Self.keyPrefix + "mangaTitles")
         defaults.set(translateChapterTitles, forKey: Self.keyPrefix + "chapterTitles")
+        defaults.set(translateAuthors, forKey: Self.keyPrefix + "authors")
+        defaults.set(authorSourceLanguages.sorted(), forKey: Self.keyPrefix + "authorSourceLanguages")
+        defaults.set(translateLargeFilterOptions, forKey: Self.keyPrefix + "largeFilterOptions")
+        defaults.set(translateSourceLabels, forKey: Self.keyPrefix + "sourceLabels")
+        defaults.set(sourceLabelSourceLanguages.sorted(), forKey: Self.keyPrefix + "sourceLabelSourceLanguages")
+        defaults.set(translateMangaTags, forKey: Self.keyPrefix + "mangaTags")
+        defaults.set(mangaTagSourceLanguages.sorted(), forKey: Self.keyPrefix + "mangaTagSourceLanguages")
         defaults.set(translateMangaDescriptions, forKey: Self.keyPrefix + "mangaDescriptions")
         defaults.set(mangaDescriptionSourceLanguages.sorted(), forKey: Self.keyPrefix + "mangaDescriptionSourceLanguages")
         defaults.set(mangaTitleSourceLanguages.sorted(), forKey: Self.keyPrefix + "mangaTitleSourceLanguages")
@@ -252,6 +279,9 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         if defaults === UserDefaults.standard, previousCacheLimit?.int64Value != cacheLimitBytes {
             Task { try? await ReaderTranslationDiskCache.shared.setByteLimit(cacheLimitBytes) }
         }
+        if defaults === UserDefaults.standard {
+            Task { try? await ReaderTranslationDiskCache.shared.refreshSavedSettings() }
+        }
         if notify { NotificationCenter.default.post(name: Self.changed, object: nil) }
     }
 
@@ -264,6 +294,9 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         let savedGeneration = UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration")))
         credentialGeneration = max(credentialGeneration, savedGeneration) &+ 1
         defaults.set(Int(clamping: credentialGeneration), forKey: Self.keyPrefix + "credentialGeneration")
+        if defaults === UserDefaults.standard {
+            Task { try? await ReaderTranslationDiskCache.shared.refreshSavedSettings() }
+        }
         NotificationCenter.default.post(name: Self.changed, object: nil)
     }
 }

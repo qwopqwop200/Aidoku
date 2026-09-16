@@ -18,3 +18,6 @@ UBIQUITY_KVSTORE_ID         = $(TeamIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER
 // Store build
 // Dev / sideload build (leave flag 'CANONICAL_BUILD' undefined)
 OTHER_SWIFT_FLAGS = $(inherited) -DCANONICAL_BUILD
+
+// Shared image inbox used by the app and its Share extension.
+SHARED_IMAGE_APP_GROUP = group.$(APP_ID_PREFIX).$(APP_ID_SUFFIX)

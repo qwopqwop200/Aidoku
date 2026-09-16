@@ -9,6 +9,7 @@ import AidokuRunner
 import SwiftUI
 
 struct SelectFilterView: View {
+    @State private var translatedLabels: [String: String] = [:]
     let filter: AidokuRunner.Filter
 
     @Binding var enabledFilters: [FilterValue]
@@ -41,7 +42,7 @@ struct SelectFilterView: View {
     var body: some View {
         Group {
             let label = FilterLabelView(
-                name: filter.title ?? "",
+                name: translatedLabels[filter.title ?? ""] ?? filter.title ?? "",
                 active: selectedOption != selectFilter.resolvedDefaultValue,
                 chevron: true
             )
@@ -53,7 +54,7 @@ struct SelectFilterView: View {
                         selectedOption = value
                     } label: {
                         HStack {
-                            Text(option)
+                            Text(translatedLabels[option] ?? option)
                             Spacer()
                             if selectedOption == value {
                                 Image(systemName: "checkmark")
@@ -66,6 +67,7 @@ struct SelectFilterView: View {
                 label
             }
         }
+        .modifier(SourceMenuTranslationModifier(originals: selectFilter.options, labels: $translatedLabels, limitsOptions: true, filterTitle: filter.title, optionKind: (selectFilter.isGenre || selectFilter.usesTagStyle) ? .tag : .sourceLabel))
         .sheet(isPresented: $showingSheet) {
             PlatformNavigationStack {
                 ScrollView(.vertical) {
@@ -74,7 +76,7 @@ struct SelectFilterView: View {
                         selectedOption: $selectedOption
                     )
                 }
-                .navigationTitle(filter.title?.localizedCapitalized ?? "")
+                .navigationTitle(translatedLabels[filter.title ?? ""] ?? filter.title?.localizedCapitalized ?? "")
                 .navigationBarTitleDisplayMode(.inline)
             }
         }
@@ -170,7 +172,8 @@ struct SelectFilterGroupView: View {
                     selectedOption = option.value
                 }
             } label: {
-                Text(option.title)
+                SourceFilterOptionText(original: option.title, totalOptionCount: allOptions.count,
+                        kind: (selectFilter.isGenre || selectFilter.usesTagStyle) ? .tag : .sourceLabel)
             }
             .buttonStyle(SelectButtonStyle(selected: selectedOption == option.value))
             .padding([.trailing, .bottom], 8)
@@ -198,7 +201,8 @@ struct SelectFilterGroupView: View {
                                     .font(.system(size: 14).weight(.semibold))
                             }
                         }
-                        Text(option.title)
+                        SourceFilterOptionText(original: option.title, totalOptionCount: allOptions.count,
+                        kind: (selectFilter.isGenre || selectFilter.usesTagStyle) ? .tag : .sourceLabel)
                             .padding(.leading, 1)
                             .lineLimit(1)
                         Spacer()

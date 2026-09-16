@@ -66,6 +66,7 @@ extension SourceManager {
     }
 
     func reloadSources() async {
+        await installDefaultLocalSourceIfNeeded()
         sourcesByKey = await getInstalledSources()
         loadSourceLanguages()
 
@@ -73,6 +74,38 @@ extension SourceManager {
         notifySourcesLoaded(keys: sourcesByKey.keys)
 
         await loadLegacySourceFilters()
+    }
+
+    // One-time migration for new and existing installations. Keep this outside the local.*
+    // namespace so removing a source's settings does not undo the user's choice.
+    static let localDefaultRegistrationKey = "Browse.localDefaultRegistrationCompleted"
+
+    private func installDefaultLocalSourceIfNeeded() async {
+        guard !UserDefaults.standard.bool(forKey: Self.localDefaultRegistrationKey) else { return }
+        let disabled = disabledSourceKeys.contains(LocalSourceRunner.sourceKey)
+        let success = await CoreDataManager.shared.container.performBackgroundTask { context in
+            if UserDefaults.standard.bool(forKey: Self.localDefaultRegistrationKey) { return true }
+            if !disabled, CoreDataManager.shared.getSource(key: LocalSourceRunner.sourceKey, context: context) == nil {
+                let config = CustomSourceConfig.local
+                let object = CoreDataManager.shared.createSource(source: config.toSource(), context: context)
+                object.customSource = config.encode() as NSObject
+            }
+            do {
+                try context.save()
+                return true
+            } catch {
+                LogManager.logger.error("Failed to register default local source: \(error)")
+                return false
+            }
+        }
+        if success { UserDefaults.standard.set(true, forKey: Self.localDefaultRegistrationKey) }
+    }
+
+    // Importing a file is an explicit request to use local files, including after deletion.
+    func ensureLocalSourceForImport() async -> Bool {
+        await waitForSourcesLoad()
+        if sourcesByKey[LocalSourceRunner.sourceKey] != nil { return true }
+        return await createCustomSource(.local) != nil
     }
 
     private func getInstalledSources() async -> [String: AidokuRunner.Source] {
@@ -645,13 +678,26 @@ extension SourceManager {
         }
         let source = config.toSource()
 
-        // add to coredata
-        await CoreDataManager.shared.container.performBackgroundTask { context in
-            let result = CoreDataManager.shared.createSource(source: source, context: context)
+        // Publish only after persistence succeeds, so failed registration can be retried.
+        let saved = await CoreDataManager.shared.container.performBackgroundTask { context in
+            let result = CoreDataManager.shared.getSource(key: source.key, context: context)
+                ?? CoreDataManager.shared.createSource(source: source, context: context)
             result.customSource = config.encode() as NSObject
-            try? context.save()
+            do {
+                try context.save()
+                return true
+            } catch {
+                LogManager.logger.error("Failed to save custom source: \(error)")
+                return false
+            }
         }
+        guard saved else { return nil }
 
+        if source.key == LocalSourceRunner.sourceKey {
+            UserDefaults.standard.set(true, forKey: Self.localDefaultRegistrationKey)
+            disabledSourceKeys.remove(source.key)
+            AppSettings.browse.disabledSources.set(disabledSourceKeys)
+        }
         sourcesByKey[source.key] = source
 
         await publishSourceState()
@@ -675,6 +721,7 @@ extension SourceManager {
     }
 
     func clearSources() async {
+        UserDefaults.standard.set(true, forKey: Self.localDefaultRegistrationKey)
         let objects: [SourceObjectData] = await CoreDataManager.shared.container.performBackgroundTask { context in
             let objects = CoreDataManager.shared.getSources(context: context).map { $0.toData() }
 
@@ -711,6 +758,9 @@ extension SourceManager {
     }
 
     func remove(sourceKey: String, skipUpdateNotification: Bool = false) async {
+        if sourceKey == LocalSourceRunner.sourceKey {
+            UserDefaults.standard.set(true, forKey: Self.localDefaultRegistrationKey)
+        }
         let data: SourceObjectData? = await CoreDataManager.shared.container.performBackgroundTask { context in
             let data = CoreDataManager.shared.getSource(key: sourceKey, context: context)?.toData()
             if data != nil {

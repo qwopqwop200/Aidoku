@@ -24,12 +24,14 @@ enum LocalFileType {
     case cbz
     case zip
     case epub
+    case image
 
     var localizedName: String {
         switch self {
             case .cbz: NSLocalizedString("CBZ_NAME")
             case .zip: NSLocalizedString("ZIP_NAME")
             case .epub: NSLocalizedString("EPUB_NAME")
+            case .image: NSLocalizedString("FORMAT_IMAGE")
         }
     }
 }
@@ -41,4 +43,26 @@ struct ImportFileInfo: Hashable {
     let pageCount: Int
     let fileType: LocalFileType
     let comicInfo: ComicInfo?
+    var temporaryImageFile: TemporaryLocalImageFile?
+}
+
+// Keeps a prepared image alive through the import sheet and removes it on cancellation or completion.
+final class TemporaryLocalImageFile: Hashable {
+    let directory: URL
+
+    init(directory: URL) {
+        self.directory = directory
+    }
+
+    deinit {
+        try? FileManager.default.removeItem(at: directory)
+    }
+
+    static func == (lhs: TemporaryLocalImageFile, rhs: TemporaryLocalImageFile) -> Bool {
+        lhs === rhs
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(ObjectIdentifier(self))
+    }
 }

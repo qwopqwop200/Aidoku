@@ -17,6 +17,9 @@ class ReaderViewController: BaseObservingViewController {
         case text
     }
 
+    let temporaryImageSession: TemporarySharedImageSession?
+    var isTemporaryImageSession: Bool { temporaryImageSession != nil }
+
     let source: AidokuRunner.Source?
     let manga: AidokuRunner.Manga
     var chapter: AidokuRunner.Chapter
@@ -157,8 +160,10 @@ class ReaderViewController: BaseObservingViewController {
         source: AidokuRunner.Source?,
         manga: AidokuRunner.Manga,
         chapter: AidokuRunner.Chapter,
-        startPage: Int? = nil
+        startPage: Int? = nil,
+        temporaryImageSession: TemporarySharedImageSession? = nil
     ) {
+        self.temporaryImageSession = temporaryImageSession
         self.source = source
         self.manga = manga
         self.chapter = chapter
@@ -505,6 +510,7 @@ extension ReaderViewController {
         let effectiveCurrentPage = currentPage ?? self.currentPage
 
         guard
+            !isTemporaryImageSession,
             !AppSettings.general.incognitoMode.get(),
             effectiveTotalPages > 0 // ensure chapter pages are loaded
         else {
@@ -540,7 +546,7 @@ extension ReaderViewController {
     }
 
     private func saveReadingSession(chapter: AidokuRunner.Chapter? = nil) async {
-        guard let sessionStartDate else { return }
+        guard !isTemporaryImageSession, let sessionStartDate else { return }
         let pagesRead = sessionReadPages.count
         if pagesRead > 0 && sessionLastInteraction != nil {
             let chapter = chapter ?? self.chapter
@@ -676,7 +682,7 @@ extension ReaderViewController {
         Task {
             await temporaryPageStore.removeAll()
         }
-        dismiss(animated: true)
+        dismiss(animated: true) { [temporaryImageSession] in temporaryImageSession?.removeFiles() }
     }
 
     @objc func sliderMoved(_ sender: ReaderSliderView) {
@@ -1198,7 +1204,7 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
     }
 
     func setCompleted() {
-        guard !AppSettings.general.incognitoMode.get() else { return }
+        guard !isTemporaryImageSession, !AppSettings.general.incognitoMode.get() else { return }
 
         Task { [chaptersToMark] in
             await HistoryManager.shared.addHistory(

@@ -1,0 +1,5 @@
+"IMPORT" = "Uvezi";
+"DONE" = "Gotovo";
+"FILE_IMPORT_FAIL_TEXT" = "Uvoz datoteke nije uspio. Osiguraj da se radi o valjanoj CBZ ili ZIP arhivi koja sadrži slike.";
+"FORMAT_IMAGE" = "Slika";
+"SHARED_IMAGES_SAVED" = "Slike su spremljene. Otvorite Aidoku za automatski uvoz u lokalne datoteke.";

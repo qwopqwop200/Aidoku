@@ -1,0 +1,5 @@
+"IMPORT" = "İçe aktar";
+"DONE" = "Bitti";
+"FILE_IMPORT_FAIL_TEXT" = "Dosya içeri aktarılamadı. Lütfen resim içeren geçerli bir CBZ veya ZIP arşivi olduğundan emin olun.";
+"FORMAT_IMAGE" = "Görsel";
+"SHARED_IMAGES_SAVED" = "Görseller kaydedildi. Yerel dosyalara otomatik olarak aktarmak için Aidoku’yu açın.";

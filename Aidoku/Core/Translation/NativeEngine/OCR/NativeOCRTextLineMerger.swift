@@ -158,8 +158,10 @@ enum NativeOCRTextLineMerger {
                 retained.append((index, fallback([native])[0]))
             }
         }
+        let filtered = inheritHorizontalInlineGlyphs(suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(suppressSlantedVerticalRuby(lines))))
+        let semanticRuby = semanticRubyAnnotations(in: lines, retained: filtered)
         let merged = mergeConservativeTextLines(
-            inheritHorizontalInlineGlyphs(suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(lines))),
+            filtered,
             imageWidth: CGFloat(imageWidth),
             imageHeight: CGFloat(imageHeight),
             recognizedLatinWords: recognizedLatinWords, separationCheck: separationCheck
@@ -168,13 +170,76 @@ enum NativeOCRTextLineMerger {
                 poly: line.polygon.map {
                     PaddleOCRPoint(x: $0.x, y: $0.y)
                 },
-                text: line.text,
+                text: applyingSemanticRuby(semanticRuby, to: line),
                 score: line.confidence,
                 orientationRaw: line.orientation.source.rawValue,
                 singleVerticalColumn: line.singleVerticalColumn
             ))
         }
         return (merged + retained).sorted { $0.index < $1.index }.map(\.line)
+    }
+
+    private struct SemanticRuby {
+        let parent: Line
+        let annotatedText: String
+    }
+
+    /// Pronouns over unrelated Han text can supply the intended referent (e.g.
+    /// 世界《わたし》). Preserve that evidence without making another OCR region.
+    /// Ordinary readings of 私/俺/僕/君 remain suppressed. Geometry and grouping
+    /// continue to use the original body text; annotations are applied last.
+    private static func semanticRubyAnnotations(in lines: [Line], retained: [Line]) -> [SemanticRuby] {
+        let spellings: [String: [String]] = [
+            "わたし": ["私"], "おれ": ["俺"], "ぼく": ["僕"],
+            "あなた": ["貴方", "貴女", "彼方"], "きみ": ["君"]
+        ]
+        let kept = Set(retained.map(\.index))
+        let readings = lines.filter { !kept.contains($0.index) && spellings[$0.text] != nil }
+        guard !readings.isEmpty else { return [] }
+        let spatial = NativeOCRSpatialIndex(boxes: lines.map(\.box))
+        var result: [SemanticRuby] = []
+        for reading in readings.prefix(8) {
+            let candidates = spatial.indices(intersecting: reading.box.insetBy(
+                dx: -reading.box.width, dy: -reading.box.height)).compactMap { index -> Line? in
+                let parent = lines[index]
+                guard parent.index != reading.index, kept.contains(parent.index) else { return nil }
+                let pair = [parent, reading]
+                let keptPair = suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(pair))
+                return keptPair.contains(where: { $0.index == reading.index }) ? nil : parent
+            }
+            guard candidates.count == 1, let parent = candidates.first else { continue }
+            let chars = Array(parent.text)
+            let vertical = parent.orientation == .vertical
+            let length = vertical ? parent.box.height : parent.box.width
+            let position = ((vertical ? reading.box.midY : reading.box.midX) -
+                (vertical ? parent.box.minY : parent.box.minX)) / length * CGFloat(chars.count)
+            func isHan(_ char: Character) -> Bool {
+                char.unicodeScalars.contains { (0x3400...0x4DBF).contains($0.value) ||
+                    (0x4E00...0x9FFF).contains($0.value) || $0.value == 0x3005 }
+            }
+            guard !chars.isEmpty, position.isFinite else { continue }
+            let center = min(chars.count - 1, max(0, Int(position)))
+            guard isHan(chars[center]) else { continue }
+            var start = center, end = center + 1
+            while start > 0 && isHan(chars[start - 1]) { start -= 1 }
+            while end < chars.count && isHan(chars[end]) { end += 1 }
+            let body = String(chars[start..<end])
+            guard !spellings[reading.text, default: []].contains(where: { body.contains($0) }),
+                  !result.contains(where: { $0.parent.index == parent.index }) else { continue }
+            result.append(SemanticRuby(parent: parent, annotatedText:
+                String(chars[..<end]) + "《" + reading.text + "》" + String(chars[end...])))
+        }
+        return result
+    }
+
+    private static func applyingSemanticRuby(_ annotations: [SemanticRuby], to line: Line) -> String {
+        var text = line.text
+        for annotation in annotations where line.box.contains(annotation.parent.box) {
+            guard let range = text.range(of: annotation.parent.text),
+                  text.range(of: annotation.parent.text, range: range.upperBound..<text.endIndex) == nil else { continue }
+            text.replaceSubrange(range, with: annotation.annotatedText)
+        }
+        return text
     }
 
     private static func fallback(
@@ -223,6 +288,54 @@ enum NativeOCRTextLineMerger {
             singleVerticalColumn: orientation == .vertical,
             sourceTileBounds: native.sourceTileBounds
         )
+    }
+
+    /// Compare tilted readings in the parent's own coordinate frame. Rotating
+    /// only the geometry avoids inflated bounding boxes masquerading as large
+    /// type. Full-size kana, different slopes, and semantic katakana readings
+    /// retain the existing conservative behavior.
+    private static func suppressSlantedVerticalRuby(_ lines: [Line]) -> [Line] {
+        func angle(_ line: Line) -> CGFloat? {
+            guard line.orientation == .vertical, line.polygon.count == 4 else { return nil }
+            let p = line.polygon
+            let dx = (p[2].x + p[3].x - p[0].x - p[1].x) / 2
+            let dy = (p[2].y + p[3].y - p[0].y - p[1].y) / 2
+            guard dy > 0 else { return nil }
+            return atan2(dx, dy)
+        }
+        let parents = lines.filter { line in
+            guard let tilt = angle(line), abs(tilt) >= 0.04, abs(tilt) <= 0.35 else { return false }
+            return line.text.unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) }
+        }
+        guard !parents.isEmpty else { return lines }
+        let spatial = NativeOCRSpatialIndex(boxes: lines.map(\.box))
+        var removed = Set<Int>()
+        for parent in parents {
+            let tilt = angle(parent)!
+            func aligned(_ line: Line) -> Line {
+                let copy = line
+                let points = line.polygon.map { p in
+                    CGPoint(x: p.x * cos(tilt) - p.y * sin(tilt),
+                            y: p.x * sin(tilt) + p.y * cos(tilt))
+                }
+                // Line geometry is immutable; all text/identity stays original.
+                return Line(index: copy.index, text: copy.text, confidence: copy.confidence,
+                    box: boundingBox(points), polygon: points, orientationHint: copy.orientationHint,
+                    orientation: copy.orientation, singleVerticalColumn: copy.singleVerticalColumn)
+            }
+            let body = aligned(parent)
+            for index in spatial.indices(intersecting: parent.box.insetBy(dx: -body.box.width, dy: 0)) {
+                let reading = lines[index]
+                guard reading.index != parent.index, let slope = angle(reading),
+                      abs(slope - tilt) <= 0.08, (2...12).contains(reading.text.count),
+                      reading.text.unicodeScalars.allSatisfy({ (0x3041...0x3096).contains($0.value) || $0.value == 0x30FC })
+                else { continue }
+                if !suppressSeparateVerticalRuby([body, aligned(reading)]).contains(where: { $0.index == reading.index }) {
+                    removed.insert(reading.index)
+                }
+            }
+        }
+        return lines.filter { !removed.contains($0.index) }
     }
 
     // Separate ruby can interrupt adjacency before columns are assembled. Require

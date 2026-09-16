@@ -88,6 +88,9 @@ struct ReaderTranslationDiskCacheTests {
         try await cache.clear()
         try await cache.store(Data(repeating: 1, count: 50), for: "late", kind: .layout, generation: oldGeneration)
         #expect(try await cache.statistics().entries == 0)
+        try await cache.storeRegions([ReaderTranslationRegion(id: "late", rect: .zero, source: "late")],
+            for: "late-regions", kind: .translation, generation: oldGeneration)
+        #expect(try await cache.statistics().entries == 0)
         let current = await cache.currentGeneration()
         try await cache.store(Data(repeating: 1, count: 50), for: "new", kind: .layout, generation: current)
         #expect(try await cache.statistics().payloadBytes == 50)
@@ -323,6 +326,241 @@ struct ReaderTranslationDiskCacheTests {
         #expect(try await ReaderTranslationDiskCache(directory: root).statistics().bytes <= size)
     }
 
+    @Test func sharedRegionsSurviveDeletionReplacementAndReopening() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        let request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", segments: [
+            .init(id: "one", text: "同じ原文"), .init(id: "two", text: "次の台詞")
+        ])
+        let identities = try NativeTranslationReuseIdentity.identitiesBySegmentID(
+            configuration: .openAI(model: "cache-test"), request: request)
+        var regions = request.segments.map { segment in
+            var region = ReaderTranslationRegion(id: segment.id, rect: CGRect(x: 0.1, y: 0.2, width: 0.3, height: 0.4),
+                source: segment.text, translation: "번역 " + segment.id, polygon: [CGPoint(x: 0.123456789, y: 0.987654321)])
+            region.translationReuseIdentity = identities[segment.id]
+            region.sfxEnclosedBackground = false
+            return region
+        }
+        let source = regions.map { value in
+            var value = value; value.translation = nil; value.translationReuseIdentity = nil; return value
+        }
+        try await cache.storeRegions(source, for: "ocr", kind: .ocr, generation: 0)
+        try await cache.storeRegions(regions, for: "ko", kind: .translation, generation: 0)
+        regions[0].translation = "different target"
+        try await cache.storeRegions(regions, for: "en", kind: .translation, generation: 0)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_bases") == 1)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_links") == 3)
+        try await cache.remove("ocr", kind: .ocr)
+        try await cache.store(Data("replaced".utf8), for: "ko", kind: .translation, generation: 0)
+        let reopened = ReaderTranslationDiskCache(directory: root)
+        #expect(try await reopened.regions(for: "en", kind: .translation) == regions)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_bases") == 1)
+        try await reopened.remove("en", kind: .translation)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_bases") == 0)
+        #expect(try await reopened.statistics().payloadBytes == 8)
+    }
+
+    @Test func sharedBaseEvictionKeepsTheNewestVariantReadable() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        var region = ReaderTranslationRegion(id: "one", rect: .zero, source: noise(20_000).base64EncodedString())
+        try await cache.storeRegions([region], for: "old-ocr", kind: .ocr, generation: 0)
+        region.translation = noise(30_000).base64EncodedString()
+        try await cache.storeRegions([region], for: "old-translation", kind: .translation, generation: 0)
+        region.translation = "newest " + (region.translation ?? "")
+        try await cache.storeRegions([region], for: "keep", kind: .translation, generation: 0)
+        let before = try await cache.statistics()
+        try await cache.setByteLimit(before.bytes - 1)
+        #expect(try await cache.statistics().bytes <= before.bytes - 1)
+        #expect(try await cache.statistics().entries < before.entries)
+        #expect(try await cache.regions(for: "keep", kind: .translation) == [region])
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_bases") == 1)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM pragma_foreign_key_check") == 0)
+    }
+
+    @Test func failedSharedReplacementRollsBackBaseLinksPayloadAndTotals() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        let old = [ReaderTranslationRegion(id: "one", rect: .zero, source: "original", translation: "원래 번역")]
+        try await cache.storeRegions(old, for: "key", kind: .translation, generation: 0)
+        let before = try await cache.statistics().payloadBytes
+        try databaseExecute(root, "CREATE TRIGGER fail_link BEFORE INSERT ON region_links BEGIN SELECT RAISE(ABORT, 'injected failure'); END")
+        do {
+            try await cache.storeRegions([ReaderTranslationRegion(id: "new", rect: .zero, source: "new source")],
+                for: "key", kind: .translation, generation: 0)
+            Issue.record("Injected transaction failure must propagate")
+        } catch { }
+        #expect(try await cache.regions(for: "key", kind: .translation) == old)
+        #expect(try await cache.statistics().payloadBytes == before)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_bases") == 1)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_links") == 1)
+    }
+
+    @Test func corruptSharedBaseBecomesMissAndLastReferenceReclaimsStorage() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        let regions = [ReaderTranslationRegion(id: "one", rect: .zero, source: "source")]
+        try await cache.storeRegions(regions, for: "one", kind: .ocr, generation: 0)
+        try await cache.storeRegions(regions, for: "two", kind: .translation, generation: 0)
+        // Corruption without changing length also leaves byte accounting intact.
+        try databaseExecute(root, "UPDATE region_bases SET data=zeroblob(length(data))")
+        #expect(try await cache.regions(for: "one", kind: .ocr) == nil)
+        #expect(try await cache.regions(for: "two", kind: .translation) == nil)
+        #expect(try await cache.statistics().entries == 0)
+        #expect(try await cache.statistics().payloadBytes == 0)
+    }
+
+    @Test(arguments: [1, 3])
+    func realRegionCorpusReducesAllocatedStorageAndMigratesLosslessly(variants: Int) async throws {
+        let root = directory()
+        let legacyRoot = directory()
+        defer {
+            try? FileManager.default.removeItem(at: root)
+            try? FileManager.default.removeItem(at: legacyRoot)
+        }
+        let bundle = Bundle(for: ReaderCacheFixtureBundle.self)
+        let url = try #require(bundle.url(forResource: "CacheRealRegions", withExtension: "json"))
+        let pages = try JSONDecoder().decode([String: [ReaderTranslationStoredRegion]].self, from: Data(contentsOf: url))
+        let optimized = ReaderTranslationDiskCache(directory: root)
+        let legacy = ReaderTranslationDiskCache(directory: legacyRoot)
+        for (key, stored) in pages.sorted(by: { $0.key < $1.key }) {
+            let regions = stored.map(\.region)
+            let source = regions.map { value in
+                var value = value; value.translation = nil; value.translationReuseIdentity = nil; return value
+            }
+            try await legacy.store(JSONEncoder().encode(source.map(ReaderTranslationStoredRegion.init)), for: key, kind: .ocr, generation: 0)
+            try await optimized.storeRegions(source, for: key, kind: .ocr, generation: 0)
+            // One actual Korean translation plus two simulated settings variants.
+            for variant in 0..<variants {
+                let translated = regions.map { value in
+                    var value = value
+                    if variant > 0, let text = value.translation { value.translation = text + " [variant \(variant)]" }
+                    return value
+                }
+                let name = key + "-\(variant)"
+                try await legacy.store(JSONEncoder().encode(translated.map(ReaderTranslationStoredRegion.init)), for: name, kind: .translation, generation: 0)
+                try await optimized.storeRegions(translated, for: name, kind: .translation, generation: 0)
+                #expect(try await optimized.regions(for: name, kind: .translation) == translated)
+            }
+        }
+        let before = try await legacy.statistics()
+        let after = try await optimized.statistics()
+        #expect(after.entries == before.entries)
+        #expect(after.payloadBytes < before.payloadBytes)
+        #expect(after.bytes < before.bytes)
+        let accessBefore = try databaseInteger(legacyRoot, "SELECT SUM(accessed) FROM cache")
+        try await legacy.compact()
+        #expect(try databaseInteger(legacyRoot, "SELECT SUM(accessed) FROM cache") == accessBefore)
+        let migrated = try await legacy.statistics()
+        #expect(migrated.payloadBytes == after.payloadBytes)
+        #expect(migrated.bytes < before.bytes)
+        let reopened = ReaderTranslationDiskCache(directory: legacyRoot)
+        for (key, stored) in pages {
+            #expect(try await reopened.regions(for: key + "-0", kind: .translation) == stored.map(\.region))
+        }
+        // Repeat migration is idempotent and shared bases are removed by LRU eviction.
+        try await reopened.compact()
+        #expect(try await reopened.statistics().payloadBytes == migrated.payloadBytes)
+        try await reopened.setByteLimit(65_536)
+        #expect(try await reopened.statistics().bytes <= 65_536)
+        #expect(try databaseInteger(legacyRoot, "SELECT COUNT(*) FROM region_bases WHERE NOT EXISTS (SELECT 1 FROM region_links WHERE base=region_bases.name)") == 0)
+        #expect(try databaseInteger(legacyRoot, "SELECT bytes FROM totals") == databaseInteger(legacyRoot,
+            "SELECT COALESCE((SELECT SUM(length(data)) FROM cache),0)+COALESCE((SELECT SUM(length(data)) FROM region_bases),0)"))
+        print("CACHE_NORMALIZED variants=\(variants) realPages=\(pages.count) entries=\(after.entries) oldPayload=\(before.payloadBytes) newPayload=\(after.payloadBytes) oldAllocated=\(before.bytes) newAllocated=\(after.bytes) migratedAllocated=\(migrated.bytes)")
+    }
+
+    @Test(arguments: ["model", "language", "prompt", "credentials", "provider", "filter"])
+    func changingTranslationSettingsDeletesOldResultsButKeepsOCR(change: String) async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        let original = settings
+        try await cache.synchronizeSettings(settings)
+        let oldGeneration = await cache.currentGeneration(settings: settings)
+        var region = ReaderTranslationRegion(id: "one", rect: .zero, source: "original")
+        try await cache.storeRegions([region], for: "ocr", kind: .ocr, generation: oldGeneration)
+        region.translation = "이전 번역"
+        try await cache.storeRegions([region], for: "old", kind: .translation, generation: oldGeneration)
+        try await cache.store(Data("layout".utf8), for: "old", kind: .layout, generation: oldGeneration)
+        switch change {
+        case "model": settings.model = "new-model"
+        case "language": settings.targetLanguage = "en"
+        case "prompt": settings.instructions += " Translate differently."
+        case "credentials": settings.credentialGeneration += 1
+        case "provider": settings.provider = .custom; settings.custom.baseURL = "https://example.invalid/v1"; settings.model = "custom-model"
+        default: settings.translationSourceLanguages = ["ja"]
+        }
+        try await cache.synchronizeSettings(settings)
+        #expect(try await cache.regions(for: "ocr", kind: .ocr)?.first?.source == "original")
+        #expect(try await cache.contains("old", kind: .translation) == false)
+        #expect(try await cache.contains("old", kind: .layout) == false)
+        #expect(try await cache.statistics().entries == 1)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_bases") == 1)
+        // Both requests already in flight and old requests queued after the change are rejected.
+        try await cache.storeRegions([region], for: "late", kind: .translation, generation: oldGeneration)
+        let staleQueuedGeneration = await cache.currentGeneration(settings: original)
+        try await cache.storeRegions([region], for: "queued", kind: .translation, generation: staleQueuedGeneration)
+        #expect(try await cache.statistics().entries == 1)
+        let current = await cache.currentGeneration(settings: settings)
+        try await cache.storeRegions([region], for: "new", kind: .translation, generation: current)
+        let reopened = ReaderTranslationDiskCache(directory: root)
+        try await reopened.synchronizeSettings(settings)
+        #expect(try await reopened.regions(for: "new", kind: .translation) == [region])
+        settings.model = "third-model"
+        try await reopened.synchronizeSettings(settings)
+        #expect(try await reopened.contains("new", kind: .translation) == false)
+        #expect(try await reopened.contains("ocr", kind: .ocr))
+    }
+
+    @Test func appearanceChangesOnlyRemoveLayoutsAndOperationalSettingsKeepAllResults() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        try await cache.synchronizeSettings(settings)
+        let generation = await cache.currentGeneration(settings: settings)
+        for kind in ReaderTranslationDiskCache.Kind.allCases {
+            try await cache.store(Data("value".utf8), for: "keep", kind: kind, generation: generation)
+        }
+        settings.maximumConcurrentRequests = 2
+        settings.cacheLimitBytes = 200_000_000
+        settings.automaticallyTranslate.toggle()
+        settings.translateMangaTitles.toggle()
+        settings.rightToLeftPanelOrder = true // A chapter's reading direction is not a global model switch.
+        try await cache.synchronizeSettings(settings)
+        #expect(await cache.currentGeneration(settings: settings) == generation)
+        #expect(try await cache.statistics().entries == 3)
+        settings.overlay.opacity = 0.5
+        try await cache.synchronizeSettings(settings)
+        #expect(try await cache.statistics().entries == 2)
+        #expect(try await cache.contains("keep", kind: .translation))
+        #expect(try await cache.contains("keep", kind: .ocr))
+        #expect(try await cache.contains("keep", kind: .layout) == false)
+    }
+
+    private func databaseExecute(_ root: URL, _ sql: String) throws {
+        var handle: OpaquePointer?
+        #expect(sqlite3_open(root.appendingPathComponent("cache.sqlite").path, &handle) == SQLITE_OK)
+        defer { sqlite3_close(handle) }
+        #expect(sqlite3_exec(handle, sql, nil, nil, nil) == SQLITE_OK)
+    }
+
+    private func databaseInteger(_ root: URL, _ sql: String) throws -> Int64 {
+        var handle: OpaquePointer?
+        #expect(sqlite3_open(root.appendingPathComponent("cache.sqlite").path, &handle) == SQLITE_OK)
+        defer { sqlite3_close(handle) }
+        var statement: OpaquePointer?
+        #expect(sqlite3_prepare_v2(handle, sql, -1, &statement, nil) == SQLITE_OK)
+        defer { sqlite3_finalize(statement) }
+        #expect(sqlite3_step(statement) == SQLITE_ROW)
+        return sqlite3_column_int64(statement, 0)
+    }
+
     private func noise(_ count: Int) -> Data {
         var state: UInt64 = 0x123456789abcdef
         return Data((0..<count).map { _ in
@@ -335,3 +573,5 @@ struct ReaderTranslationDiskCacheTests {
 
     private func directory() -> URL { FileManager.default.temporaryDirectory.appendingPathComponent("translation-cache-test-" + UUID().uuidString) }
 }
+
+private final class ReaderCacheFixtureBundle: NSObject {}

@@ -1,0 +1,5 @@
+"IMPORT" = "Importeren";
+"DONE" = "Klaar";
+"FILE_IMPORT_FAIL_TEXT" = "Kan bestand niet importeren. Zorg ervoor dat het een geldig CBZ- of ZIP-archief is dat afbeeldingen bevat.";
+"FORMAT_IMAGE" = "Afbeelding";
+"SHARED_IMAGES_SAVED" = "Afbeeldingen opgeslagen. Open Aidoku om ze automatisch naar lokale bestanden te importeren.";

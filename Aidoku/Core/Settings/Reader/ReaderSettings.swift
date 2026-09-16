@@ -8,9 +8,12 @@
 struct ReaderSettings: Sendable {
     var keys: [any SettingsDefault] {
         [
-            autoScrollPosition
+            autoScrollPosition,
+            saveSharedImages
         ]
     }
+
+    let saveSharedImages = SettingsKey<Bool>("Reader.saveSharedImages", default: true)
 
     // todo: move reader settings here
 

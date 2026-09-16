@@ -383,7 +383,7 @@
 "ADD_TO_OTHER_SERIES_INFO" = "Filen kommer att läggas till den valda serien.";
 "%i_PAGES" = "%i sidor";
 "1_PAGE" = "1 sida";
-"CBZ_NAME" = "Comic Book Zip Archive";
+"CBZ_NAME" = "ZIP-arkiv med serier";
 "ZIP_NAME" = "Zip-arkiv";
 "KOMGA" = "Komga";
 "KOMGA_TAGLINE" = "Självhostad mediaserver";
@@ -420,7 +420,7 @@
 "SORT_FOLDER_NAME" = "Mappnamn";
 "SORT_BOOKS_COUNT" = "Antal böcker";
 "SORT_RANDOM" = "Slumpmässigt";
-"GENRE" = "Genre";
+"GENRE" = "Manga genre";
 "TAG" = "Tagg";
 "PUBLISHER" = "Utgivare";
 "AGE_RATING" = "Åldersgräns";
@@ -431,7 +431,7 @@
 "INVALID_SERVER_URL" = "Ogiltig server-URL";
 "LINK_COPIED" = "Länk kopierad";
 "LINK_COPIED_TEXT" = "Länken har kopierats till urklippet.";
-"SCANLATOR" = "Scanlator";
+"SCANLATOR" = "Scanlationsteam";
 "NO_SCANLATOR" = "Ingen scanlator";
 "LOCKED" = "Låst";
 "TOGGLE_LOCK" = "Lås/lås upp";
@@ -543,7 +543,7 @@
 "SORT_TIME_TO_READ" = "Tid att läsa";
 "SORT_AVERAGE_RATING" = "Genomsnittligt betyg";
 "STATUS_ENDED" = "Avslutad";
-"FORMAT" = "Format";
+"FORMAT" = "Filformat";
 "FORMAT_IMAGE" = "Bild";
 "FORMAT_EPUB" = "EPUB";
 "FORMAT_PDF" = "PDF";
@@ -568,7 +568,7 @@
 "BACKGROUND_REFRESH_TEXT" = "Tillåt manuella biblioteksuppdateringar att avslutas även när appen körs i bakgrunden.";
 "EVERY_6_HOURS" = "Var 6:e timme";
 "NO_RESULTS_FOR_%@" = "Hitta inga resultat för \"%@\"";
-"STREAKS" = "Streaks";
+"STREAKS" = "Lässviter";
 "STATS" = "Statistik";
 "CURRENT_STREAK" = "Nuvarande streak";
 "NO_CURRENT_STREAK" = "Finns ingen nuvarande streak";
@@ -668,7 +668,7 @@
 "SAVED_SEARCH_NAME" = "Namn";
 "SAVE_SEARCH_FAIL" = "Kunde inte spara";
 "SAVE_SEARCH_FAIL_INFO" = "En sparad sökning med detta namn finns redan. Välj ett unikt namn.";
-"MIRRORS" = "Mirrors";
+"MIRRORS" = "Spegelservrar";
 "MIRRORS_INFO" = "Extra URL:s som används om huvud-URL:en inte kan anslutas till.";
 "REFRESH_LOGIN" = "Ladda om inloggning";
 "LEGACY_SOURCE_LIST" = "Föråldrad källista";
@@ -805,7 +805,7 @@
 
 "TRANSLATION_OPACITY" = "Bakgrund Opacitet";
 
-"TRANSLATION_EXPANSION" = "Box Expansion";
+"TRANSLATION_EXPANSION" = "Textexpansion";
 
 "TRANSLATION_PANEL_BOUNDS" = "Inom bildpanelen";
 
@@ -825,7 +825,7 @@
 
 "TRANSLATION_PROVIDER" = "Översättningsleverantör";
 
-"TRANSLATION_BASE_URL" = "Server URL";
+"TRANSLATION_BASE_URL" = "Serveradress";
 
 "TRANSLATION_API_FORMAT" = "API-format";
 
@@ -937,7 +937,7 @@
 
 "TRANSLATION_REASONING_NONE" = "Inga";
 
-"TRANSLATION_REASONING_MINIMAL" = "Minimal";
+"TRANSLATION_REASONING_MINIMAL" = "Minsta resonemangsansträngning";
 
 "TRANSLATION_REASONING_LOW" = "Låg";
 
@@ -948,3 +948,139 @@
 "TRANSLATION_REASONING_XHIGH" = "Mycket hög";
 
 "TRANSLATION_REASONING_MAX" = "Max";
+
+"TRANSLATION_MANGA_TAGS" = "Översätt mangataggar";
+"TRANSLATION_TAG_FILTER" = "Källspråk för taggar";
+
+"TRANSLATION_SOURCE_LABELS" = "Översätt källmenyer och avsnittsrubriker";
+
+// Completed app localization
+"DOWNLOAD_INCOMPLETE" = "Ofullständig nedladdning";
+"LIBRARY_REFRESH_INTERRUPTED" = "Bibliotekets uppdatering avbröts";
+"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Den senaste biblioteksuppdateringen avbröts innan den slutfördes. Vill du fortsätta?";
+"DISABLE" = "Inaktivera";
+"ENABLE" = "Aktivera";
+"RESTART" = "Starta om";
+"HTML_ERROR" = "HTML-fel";
+"JSON_ERROR" = "JSON-fel";
+"SOURCE_CRASHED" = "Källa kraschade";
+"EPUB_NAME" = "EPUB";
+"SUWAYOMI" = "Suwayomi";
+"SUWAYOMI_TAGLINE" = "Manga läsare server";
+"SUWAYOMI_INFO" = "Suwayomi är en egenvärdig manga-läsarserver som kör tillägg byggda för Mihon (Tachiyomi). Du behöver en Suwayomi-server konfigurerad och kör för att kunna använda denna källa.";
+"SUWAYOMI_SETUP" = "Suwayomi-inställning";
+"STATUS_LICENSED" = "Licensierad";
+"STATUS_PUBLISHING_FINISHED" = "Publicering avslutad";
+"AUTHOR_NAME" = "Författarens namn";
+"ARTIST_NAME" = "Artistnamn";
+"INVALID_KEY" = "Ogiltig nyckel";
+"CONTINUE_READING_ON_RESELECT" = "Dubbelklicka på fliken Historik för att återuppta läsningen";
+"NEW_CHAPTER_NOTIFICATIONS" = "Nya kapitelmeddelanden";
+"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Skicka meddelanden när biblioteket uppdateras i bakgrunden.";
+"1_NEW_CHAPTER_AVAILABLE" = "Nytt kapitel tillgängligt";
+"X_NEW_CHAPTERS_AVAILABLE" = "%d nya kapitel tillgängliga";
+"NEW_CHAPTERS_AVAILABLE" = "Nya kapitel tillgängliga";
+"X_SERIES_HAVE_NEW_CHAPTERS" = "%d-serien har nya kapitel";
+"TEXT_THEME" = "Tema";
+"TEXT_THEME_SEPIA" = "Sepia";
+"TEXT_THEME_PAPER" = "Papper";
+"TEXT_THEME_GRAY" = "Grå";
+"DICTIONARY_LOOKUP" = "Uppslag i ordbok";
+"DICTIONARY_SETTINGS_TEXT" = "Aktivera Dictionary Lookup för att tillåta OCR-bearbetning på sidbilder för att söka efter ord i alla importerade Yomitan-ordböcker.";
+"DICTIONARIES" = "Ordböcker";
+"ABOUT_DICTIONARIES" = "Om ordböcker";
+"ABOUT_DICTIONARIES_TEXT" = "Yomitan-ordböcker kan importeras från zip-filer. Du kan aktivera eller inaktivera ordlistor, och de kan ordnas om genom att dra.";
+"LOOKUP_GESTURE" = "Sökgest";
+"SINGLE_TAP" = "Enkeltapp";
+"LONG_PRESS" = "Långt tryck";
+"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Genom att trycka på början av ett ord aktiveras popup-fönstret. Detta inaktiverar dubbeltryck för att zooma när det är aktiverat.";
+"LOOKUP_GESTURE_LONG_PRESS_INFO" = "Om du håller ner början av ett ord markeras det, och om du släpper det aktiveras popup-fönstret. Detta inaktiverar sidsnabbåtgärder när det är aktiverat.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Låst av uppslagsgest: Enkeltryck.";
+"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Låst av uppslagsgest: Långt tryck.";
+"DICTIONARY_TEXT_OVERLAY_MODE" = "OCR-textöverlägg";
+"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Visar textrutor på bildområden när en uppslagning är aktiverad. Detta kan vara till hjälp för att avgöra vilken text som har identifierats korrekt av OCR.";
+"DICTIONARY_OVERLAY_PADDING" = "Överläggsstoppning";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "Överlagringstextstorlek";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Begränsa OCR-språk";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "När det är aktiverat kommer endast kapitel markerade som valda språk att behandlas för OCR. Det rekommenderas att endast välja de språk som du har importerade ordböcker för.";
+"DICTIONARY_OCR_LANGUAGES" = "OCR-språk";
+"DICTIONARY_POPUP" = "Ordbok popup";
+"DISPLAY_MODE" = "Visningsläge";
+"DEFAULT_DISPLAY_MODE" = "Standard";
+"FULL_WIDTH" = "Full bredd";
+"DICTIONARY_POPUP_WIDTH" = "Popup-bredd";
+"DICTIONARY_POPUP_HEIGHT" = "Popup-höjd";
+"TERM_DICTIONARIES" = "Termordböcker";
+"FREQUENCY_DICTIONARIES" = "Ord frekvens ordböcker";
+"PITCH_DICTIONARIES" = "Pitch accent ordböcker";
+"KANJI_DICTIONARIES" = "Kanji ordböcker";
+"IMPORTING_DICTIONARY" = "Importerar ordbok...";
+"IMPORT_ERROR" = "Importfel";
+"REVISION" = "Revision";
+"URL" = "URL";
+"ATTRIBUTION" = "Tillskrivning";
+"SOURCE_LANGUAGE" = "Källspråk";
+"TARGET_LANGUAGE" = "Målspråk";
+"TERM_COUNT" = "Antal ordbokstermer";
+"TERM_META_COUNT" = "Antal termmetadataposter";
+"KANJI_COUNT" = "Kanji greve";
+"KANJI_META_COUNT" = "Antal kanji-metadataposter";
+"TAG_COUNT" = "Antal taggar";
+"MEDIA_COUNT" = "Antal mediefiler";
+"IS_UPDATABLE" = "Är uppdateringsbar";
+"SIZE" = "Storlek";
+"REMOVE_DICTIONARY" = "Ta bort ordbok";
+"REMOVE_WORD" = "Ta bort Word";
+"VOCABULARY" = "Ordförråd";
+"1_WORD" = "1 ord";
+"%i_WORDS" = "%i ord";
+"NO_VOCABULARY" = "Inget ordförråd";
+"NO_VOCABULARY_TEXT" = "Sparad vokabulär visas här.";
+"DEFINITION" = "Definition";
+"VOCAB_CONTEXT" = "Sammanhang";
+"VOCAB_SOURCE" = "Källa";
+"CLEAR_VOCABULARY_LIST" = "Radera alla sparade ordförråd";
+"CLEAR_VOCABULARY_LIST_TEXT" = "Denna åtgärd är oåterkallelig. Alla sparade ordförråd kommer att tas bort.";
+"DICTIONARY_UPDATES" = "Uppdateringar";
+"UPDATE_NOW" = "Uppdatera nu";
+"LAST_UPDATED_%@" = "Senast uppdaterad: %@";
+"MONTHLY" = "Månadsvis";
+"GET_RECOMMENDED_DICTIONARIES" = "Få rekommenderade ordböcker";
+"RECOMMENDED_DICTIONARIES" = "Rekommenderade ordböcker";
+"RECOMMENDED_DICTIONARIES_NOTE" = "Ordböckerna nedan är alla japanska-engelska. För andra språk kan du kontrollera listan med Wiktionary-ordböcker.";
+"RESTORE_MISSING_SOURCES" = "Återställa saknade källor?";
+"RESTORE_MISSING_SOURCES_TEXT" = "Vill du söka efter och installera saknade källor?";
+"INSTALL_SOURCES" = "Installera källor";
+"INSTALLING_SOURCES" = "Installerar källor...";
+"MIGRATE_WITH_HISTORY" = "Migrera och spara historik";
+"AUTO_SCROLL" = "Automatisk rullning";
+"AUTO_SCROLL_SPEED" = "Automatisk rullningshastighet";
+"AUTO_SCROLL_POSITION" = "Placering av automatisk rullning";
+"POSITION_LEFT" = "Vänster";
+"POSITION_RIGHT" = "Rätt";
+"UPLOAD_FILE" = "Ladda upp fil";
+"MIGRATE_CHAPTER_HISTORY" = "Migrera kapitelhistorik";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "Migrera läshistorik överbliven från äldre versioner som inte är kopplad till kapitel i den lokala databasen. Detta sker normalt automatiskt efter en uppdatering. Om det inte slutfördes kan du köra det igen här.";
+
+// Local image import
+"IMPORT_PHOTO" = "Importera foton";
+"LOCAL_IMAGE_IMPORT_TEXT" = "Importera foton, bildfiler eller ett CBZ- eller ZIP-arkiv för att läsa.";
+
+// Translated page export
+"SAVE_TRANSLATED_IMAGE" = "Spara bild med översättning";
+"TRANSLATED_IMAGE_SAVE_FAILED" = "Kunde inte skapa den översatta bilden. Försök igen när översättningen är klar.";
+
+"TRANSLATION_AUTHORS" = "Översätt författarnamn";
+
+"TRANSLATION_AUTHOR_FILTER" = "Källspråk för författarnamn";
+"TRANSLATION_SOURCE_LABEL_FILTER" = "Språk för källmenyer och avsnitt";
+
+// Shared image retention
+"SAVE_SHARED_IMAGES" = "Behåll delade bilder i lokala filer";
+"SAVE_SHARED_IMAGES_HELP" = "När den är avstängd öppnas delade bilder tillfälligt och raderas när de stängs. Läshistorik och OCR/översättningscache sparas inte.";
+
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "Översätt stora filterlistor (över 100 alternativ)";
+
+"SETTING_INVALID_STEPPER_RANGE" = "Ogiltigt numeriskt inställningsområde.";
+
+"SETTING_MISSING_CONTENT_HANDLER" = "Kan inte visa inställning: %@";

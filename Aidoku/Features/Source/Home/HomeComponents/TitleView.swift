@@ -41,17 +41,15 @@ struct TitleView: View {
     var titleView: some View {
         if let subtitle {
             VStack(alignment: .leading) {
-                Text(title)
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Text(subtitle)
+                TranslatedTitleText(title, kind: .sourceLabel)
+                    .font(.title3.weight(.semibold))
+                TranslatedTitleText(subtitle, kind: .sourceLabel)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
         } else {
-            Text(title)
-                .font(.title3)
-                .fontWeight(.semibold)
+            TranslatedTitleText(title, kind: .sourceLabel)
+                .font(.title3.weight(.semibold))
         }
     }
 }

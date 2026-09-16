@@ -7,6 +7,53 @@ import UIKit
 @testable import Aidoku
 
 struct NativeOCRTextLineMergerTests {
+    @Test func semanticPronounRubyPreservesReferentWithoutAnotherRegion() {
+        // comic-1185: 世界 carries わたし, not the ordinary reading せかい.
+        for scale: CGFloat in [0.5, 1, 2] {
+            func row(_ text: String, _ rect: CGRect) -> NativeCoreMLOCRLine {
+                NativeCoreMLOCRLine(polygon: [CGPoint(x: rect.minX, y: rect.minY),
+                    CGPoint(x: rect.maxX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.maxY),
+                    CGPoint(x: rect.minX, y: rect.maxY)].map { CGPoint(x: $0.x * scale, y: $0.y * scale) },
+                    text: text, score: 0.99, orientation: .vertical, orientationIsEstimated: true)
+            }
+            let parent = row("世界だなって", CGRect(x: 192, y: 873, width: 33, height: 146))
+            let reading = row("わたし", CGRect(x: 218, y: 877, width: 16, height: 50))
+            let plain = merge([parent], width: Int(1000 * scale), height: Int(1400 * scale))
+            for input in [[parent, reading], [reading, parent]] {
+                let result = merge(input, width: Int(1000 * scale), height: Int(1400 * scale))
+                #expect(result.count == 1)
+                #expect(result.first?.text == "世界《わたし》だなって")
+                #expect(result.first?.boundingRect == plain.first?.boundingRect)
+            }
+            let ordinary = row("私だなって", CGRect(x: 192, y: 873, width: 33, height: 146))
+            #expect(merge([ordinary, reading], width: Int(1000 * scale), height: Int(1400 * scale)).map(\.text) == ["私だなって"])
+            let unrelated = row("わたし", CGRect(x: 90, y: 877, width: 16, height: 50))
+            #expect(!merge([parent, unrelated], width: Int(1000 * scale), height: Int(1400 * scale)).map(\.text).joined().contains("《"))
+        }
+    }
+
+    @Test func slantedRealPageRubyUsesParentCoordinateFrame() {
+        let fixtures: [(String, [NativeCoreMLOCRLine])] = [
+("そんさい", [NativeCoreMLOCRLine(polygon: [CGPoint(x: 746, y: 167), CGPoint(x: 776, y: 169), CGPoint(x: 758, y: 400), CGPoint(x: 728, y: 398)], text: "忌み嫌われた存在ー…", score: 0.95, orientation: .vertical, orientationIsEstimated: true),
+NativeCoreMLOCRLine(polygon: [CGPoint(x: 758, y: 303), CGPoint(x: 777, y: 304), CGPoint(x: 774, y: 356), CGPoint(x: 755, y: 355)], text: "そんさい", score: 0.95, orientation: .vertical, orientationIsEstimated: true)]),
+("じゅうたく", [NativeCoreMLOCRLine(polygon: [CGPoint(x: 659, y: 326), CGPoint(x: 696, y: 332), CGPoint(x: 666, y: 514), CGPoint(x: 630, y: 508)], text: "ザ・高級住宅！！", score: 0.95, orientation: .vertical, orientationIsEstimated: true),
+NativeCoreMLOCRLine(polygon: [CGPoint(x: 675, y: 435), CGPoint(x: 688, y: 438), CGPoint(x: 677, y: 489), CGPoint(x: 665, y: 487)], text: "じゅうたく", score: 0.95, orientation: .vertical, orientationIsEstimated: true)])
+        ]
+        for (reading, source) in fixtures {
+            for scale: CGFloat in [0.5, 1, 2] {
+                let rows = source.map { row in
+                    NativeCoreMLOCRLine(polygon: row.polygon.map { CGPoint(x: $0.x * scale, y: $0.y * scale) },
+                        text: row.text, score: row.score, orientation: row.orientation, orientationIsEstimated: true)
+                }
+                for order in [rows, Array(rows.reversed())] {
+                    let result = merge(order, width: Int(1000 * scale), height: Int(1400 * scale))
+                    #expect(result.count == 1)
+                    #expect(!result.map(\.text).joined().contains(reading))
+                }
+            }
+        }
+    }
+
     @Test func realComics3000RubyHandlesSingleKanaTiltAndIncompleteRecognition() {
         // Original medium-model detections, preserved at source resolution.
         // Work-level holdout comic-1605 was evaluated after freezing the rule.

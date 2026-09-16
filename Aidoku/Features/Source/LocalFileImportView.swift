@@ -67,6 +67,7 @@ extension LocalFileImportView {
         @State private var showImportFailAlert = false
         @State private var showSeriesConfigurePage = false
         @State private var showImagePicker = false
+        @State private var showPhotoImport = false
 
         @Environment(\.dismiss) private var dismiss
 
@@ -134,7 +135,8 @@ extension LocalFileImportView.ContentView {
             }
             .sheet(isPresented: $importing) {
                 DocumentPickerView(
-                    allowedContentTypes: [.init(filenameExtension: "cbz")!, .zip],
+                    allowedContentTypes: [.init(filenameExtension: "cbz")!, .zip, .image],
+                    allowsMultipleSelection: true,
                     onDocumentsPicked: { urls in
                         guard let url = urls.first else {
                             loadingImport = false
@@ -142,7 +144,15 @@ extension LocalFileImportView.ContentView {
                         }
                         loadingFile = true
                         Task {
-                            let importFileInfo = await LocalFileManager.shared.loadImportFileInfo(url: url)
+                            let importFileInfo: ImportFileInfo?
+                            if urls.count == 1 {
+                                importFileInfo = await LocalFileManager.shared.loadImportFileInfo(url: url)
+                            } else {
+                                let sorted = urls.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+                                importFileInfo = await LocalFileManager.shared.prepareImageImport(
+                                    from: sorted, name: sorted[0].lastPathComponent
+                                )
+                            }
                             if let importFileInfo {
                                 fileInfo = importFileInfo
                                 fullyPresented = true
@@ -154,6 +164,29 @@ extension LocalFileImportView.ContentView {
                         }
                     }
                 )
+                .ignoresSafeArea()
+            }
+            .sheet(isPresented: $showPhotoImport) {
+                LocalPhotosPicker(onSelection: {
+                    loadingImport = true
+                    loadingFile = true
+                }, onCompletion: { directory, urls in
+                    Task {
+                        defer {
+                            if let directory { try? FileManager.default.removeItem(at: directory) }
+                            loadingFile = false
+                            loadingImport = false
+                        }
+                        if let info = await LocalFileManager.shared.prepareImageImport(
+                            from: urls, name: NSLocalizedString("FORMAT_IMAGE") + " " + UUID().uuidString.prefix(8) + ".png"
+                        ) {
+                            fileInfo = info
+                            fullyPresented = true
+                        } else {
+                            showImportFailAlert = true
+                        }
+                    }
+                })
                 .ignoresSafeArea()
             }
             .onChange(of: fileInfo) { _ in
@@ -180,7 +213,7 @@ extension LocalFileImportView.ContentView {
                 Text(NSLocalizedString("LOCAL_FILE_IMPORT"))
                     .font(.title2)
                     .fontWeight(.semibold)
-                Text(NSLocalizedString("LOCAL_FILE_IMPORT_TEXT"))
+                Text(NSLocalizedString("LOCAL_IMAGE_IMPORT_TEXT"))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -208,6 +241,17 @@ extension LocalFileImportView.ContentView {
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
+            .disabled(loadingImport)
+
+            Button {
+                showPhotoImport = true
+            } label: {
+                Label(NSLocalizedString("IMPORT_PHOTO"), systemImage: "photo.on.rectangle")
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(loadingImport)
         }
     }
 
@@ -449,6 +493,10 @@ extension LocalFileImportView.ContentView {
     func importFile() async {
         guard let fileInfo else { return }
         do {
+            guard await SourceManager.shared.ensureLocalSourceForImport() else {
+                showImportFailAlert = true
+                return
+            }
             try await LocalFileManager.shared.uploadFile(
                 from: fileInfo.url,
                 mangaId: selectedMangaId.isEmpty ? nil : selectedMangaId,
@@ -695,10 +743,10 @@ private struct PresentationDetentHandler<Content: View & Sendable>: View {
     @Binding var fullyPresented: Bool
     @ViewBuilder let content: Content
 
-    @State private var detents: Set<PresentationDetent> = [.height(220)]
-    @State private var detent: PresentationDetent = .height(220)
+    @State private var detents: Set<PresentationDetent> = [.height(340)]
+    @State private var detent: PresentationDetent = .height(340)
 
-    private let defaultDetent = PresentationDetent.height(220)
+    private let defaultDetent = PresentationDetent.height(340)
 
     var body: some View {
         content

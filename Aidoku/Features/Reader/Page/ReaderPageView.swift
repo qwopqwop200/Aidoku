@@ -182,7 +182,11 @@ extension ReaderPageView {
         } else {
             nil
         }
-        return await imageRequest(url: url, context: context, source: source)
+        var request = await imageRequest(url: url, context: context, source: source)
+        if sourceKey?.hasPrefix(TemporarySharedImageSession.sourcePrefix) == true {
+            request.options.formUnion([.disableDiskCache, .disableMemoryCache])
+        }
+        return request
     }
 
     static func imageRequest(url: URL, context: PageContext? = nil, source: AidokuRunner.Source?) async -> ImageRequest {
@@ -215,6 +219,7 @@ extension ReaderPageView {
         return ImageRequest(
             urlRequest: urlRequest,
             processors: processors,
+            options: source?.key.hasPrefix(TemporarySharedImageSession.sourcePrefix) == true ? [.disableDiskCache, .disableMemoryCache] : [],
             userInfo: [.processesKey: usePageProcessor]
         )
     }

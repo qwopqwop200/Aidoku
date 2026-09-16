@@ -292,7 +292,7 @@
 "SELECTED" = "Odabrano";
 "NOT_FOUND" = "Nije pronađeno";
 "MOST_CHAPTERS_SLOWER" = "Većina poglavlja (sporije)";
-"PILLARBOX" = "Pillarbox";
+"PILLARBOX" = "Bočne margine";
 "PILLARBOX_AMOUNT" = "Količina pillarboxa";
 "PILLARBOX_ORIENTATION" = "Orijentacija pillarboxa";
 "ADD_TO_CATEGORY" = "Dodaj u kategoriju";
@@ -568,7 +568,7 @@
 "SORT_TIME_TO_READ" = "Vrijeme za čitanje";
 "SORT_AVERAGE_RATING" = "Prosječna ocjena";
 "STATUS_ENDED" = "Završilo";
-"FORMAT" = "Format";
+"FORMAT" = "Format datoteke";
 "FORMAT_IMAGE" = "Slika";
 "FORMAT_EPUB" = "EPUB";
 "FORMAT_PDF" = "PDF";
@@ -940,3 +940,149 @@
 "TRANSLATION_REASONING_XHIGH" = "Vrlo visoko";
 
 "TRANSLATION_REASONING_MAX" = "Maksimalno";
+
+"TRANSLATION_MANGA_TAGS" = "Prevedi oznake mange";
+"TRANSLATION_TAG_FILTER" = "Izvorni jezici oznaka";
+
+// Completed app localization
+"DOWNLOAD_INCOMPLETE" = "Nedovršeno preuzimanje";
+"CATEGORY_SEARCH" = "Pronađite u kategoriji";
+"LIBRARY_REFRESH_INTERRUPTED" = "Osvježavanje biblioteke prekinuto";
+"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Posljednje osvježavanje biblioteke prekinuto je prije nego što je dovršeno. Želite li nastaviti?";
+"DISABLE" = "Onemogući";
+"ENABLE" = "Omogući";
+"RESTART" = "Ponovno pokretanje";
+"HTML_ERROR" = "HTML pogreška";
+"JSON_ERROR" = "JSON pogreška";
+"SOURCE_CRASHED" = "Izvor se srušio";
+"EPUB_NAME" = "EPUB";
+"SUWAYOMI" = "Suwayomi";
+"SUWAYOMI_TAGLINE" = "Poslužitelj za čitanje manga";
+"SUWAYOMI_INFO" = "Suwayomi je poslužitelj za čitanje manga s vlastitim hostingom koji pokreće proširenja napravljena za Mihon (Tachiyomi). Trebat će vam postavljen i pokrenut Suwayomi poslužitelj kako biste koristili ovaj izvor.";
+"SUWAYOMI_SETUP" = "Postavljanje Suwayomi";
+"STATUS_LICENSED" = "Licenciran";
+"STATUS_PUBLISHING_FINISHED" = "Objavljivanje završeno";
+"AUTHOR_NAME" = "Ime autora";
+"ARTIST_NAME" = "Ime umjetnika";
+"INVALID_KEY" = "Nevažeći ključ";
+"CONTINUE_READING_ON_RESELECT" = "Dvaput dodirnite karticu Povijest za nastavak čitanja";
+"NEW_CHAPTER_NOTIFICATIONS" = "Obavijesti o novom poglavlju";
+"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Šaljite obavijesti kada se biblioteka osvježi u pozadini.";
+"1_NEW_CHAPTER_AVAILABLE" = "Dostupno novo poglavlje";
+"X_NEW_CHAPTERS_AVAILABLE" = "%d dostupna su nova poglavlja";
+"NEW_CHAPTERS_AVAILABLE" = "Dostupna su nova poglavlja";
+"X_SERIES_HAVE_NEW_CHAPTERS" = "%d serije imaju nova poglavlja";
+"TEXT_THEME" = "Tema";
+"TEXT_THEME_SEPIA" = "Sepija";
+"TEXT_THEME_PAPER" = "Papir";
+"TEXT_THEME_GRAY" = "Sivo";
+"DICTIONARY_LOOKUP" = "Traženje rječnika";
+"DICTIONARY_SETTINGS_TEXT" = "Omogućite traženje rječnika kako biste omogućili OCR obradu na slikama stranica za pretraživanje riječi u svim uvezenim Yomitan rječnicima.";
+"DICTIONARIES" = "Rječnici";
+"ABOUT_DICTIONARIES" = "O rječnicima";
+"ABOUT_DICTIONARIES_TEXT" = "Yomitan rječnici se mogu uvesti iz zip datoteka. Rječnike možete omogućiti ili onemogućiti, a redoslijed im se može promijeniti povlačenjem.";
+"LOOKUP_GESTURE" = "Gesta traženja";
+"SINGLE_TAP" = "Jednostruki dodir";
+"LONG_PRESS" = "Dugi pritisak";
+"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Dodirom na početak riječi aktivirat ćete skočni prozor. Ovo onemogućuje dvostruki dodir za zumiranje kada je omogućeno.";
+"LOOKUP_GESTURE_LONG_PRESS_INFO" = "Držanje na početku riječi će je istaknuti, a otpuštanje će aktivirati skočni prozor. Ovo onemogućuje brze radnje stranice kada je omogućeno.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Zaključano gestom traženja: jednim pritiskom.";
+"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Zaključano gestom traženja: dugi pritisak.";
+"DICTIONARY_TEXT_OVERLAY_MODE" = "Preklapanje OCR teksta";
+"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Prikazuje tekstualne okvire na regijama slike kada je pretraživanje aktivirano. To može biti od pomoći da se utvrdi koji je tekst ispravno prepoznao OCR.";
+"DICTIONARY_OVERLAY_PADDING" = "Ispuna sloja";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "Veličina teksta preklapanja";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Ograniči OCR jezike";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Kada je omogućeno, samo će poglavlja označena kao odabrani jezik(i) biti obrađena za OCR. Preporuča se odabrati samo one jezike za koje imate uvezene rječnike.";
+"DICTIONARY_OCR_LANGUAGES" = "OCR jezici";
+"DICTIONARY_POPUP" = "Skočni prozor rječnika";
+"DISPLAY_MODE" = "Način prikaza";
+"DEFAULT_DISPLAY_MODE" = "Zadano";
+"FULL_WIDTH" = "Puna širina";
+"DICTIONARY_POPUP_WIDTH" = "Širina skočnog prozora";
+"DICTIONARY_POPUP_HEIGHT" = "Visina skočnog prozora";
+"TERM_DICTIONARIES" = "Rječnici termina";
+"FREQUENCY_DICTIONARIES" = "Rječnici učestalosti riječi";
+"PITCH_DICTIONARIES" = "Rječnici tonskih naglasaka";
+"KANJI_DICTIONARIES" = "Kanji rječnici";
+"IMPORTING_DICTIONARY" = "Uvoz rječnika...";
+"IMPORT_ERROR" = "Pogreška uvoza";
+"REVISION" = "Revizija";
+"URL" = "URL";
+"ATTRIBUTION" = "Pripisivanje";
+"SOURCE_LANGUAGE" = "Izvorni jezik";
+"TARGET_LANGUAGE" = "Ciljni jezik";
+"TERM_COUNT" = "Broj pojmova u rječniku";
+"TERM_META_COUNT" = "Broj unosa metapodataka pojma";
+"KANJI_COUNT" = "Kanji grof";
+"KANJI_META_COUNT" = "Broj unosa kanji metapodataka";
+"TAG_COUNT" = "Broj oznaka";
+"MEDIA_COUNT" = "Broj medija";
+"IS_UPDATABLE" = "Može se ažurirati";
+"SIZE" = "Veličina";
+"REMOVE_DICTIONARY" = "Ukloni rječnik";
+"REMOVE_WORD" = "Ukloni Word";
+"VOCABULARY" = "Rječnik";
+"1_WORD" = "1 riječ";
+"%i_WORDS" = "%i riječi";
+"NO_VOCABULARY" = "Nema rječnika";
+"NO_VOCABULARY_TEXT" = "Ovdje će se pojaviti spremljeni vokabular.";
+"DEFINITION" = "Definicija";
+"VOCAB_CONTEXT" = "Kontekst";
+"VOCAB_SOURCE" = "Izvor";
+"CLEAR_VOCABULARY_LIST" = "Izbriši sav spremljeni vokabular";
+"CLEAR_VOCABULARY_LIST_TEXT" = "Ova radnja je nepovratna. Sav spremljeni vokabular bit će uklonjen.";
+"DICTIONARY_UPDATES" = "Ažuriranja";
+"UPDATE_NOW" = "Ažurirajte sada";
+"LAST_UPDATED_%@" = "Zadnje ažuriranje: %@";
+"MONTHLY" = "Mjesečno";
+"GET_RECOMMENDED_DICTIONARIES" = "Nabavite preporučene rječnike";
+"RECOMMENDED_DICTIONARIES" = "Preporučeni rječnici";
+"RECOMMENDED_DICTIONARIES_NOTE" = "Svi rječnici u nastavku su japansko-engleski. Za druge jezike možete provjeriti popis Wiktionary rječnika.";
+"RESTORE_MISSING_SOURCES" = "Vratiti nedostajuće izvore?";
+"RESTORE_MISSING_SOURCES_TEXT" = "Želite li potražiti i instalirati izvore koji nedostaju?";
+"INSTALL_SOURCES" = "Instalirajte izvore";
+"INSTALLING_SOURCES" = "Instaliranje izvora…";
+"SET_TRACK_CHAPTER_OFFSET" = "Postavite odmak poglavlja";
+"TRACK_CHAPTER_OFFSET_TEXT" = "Prilagodite automatska ažuriranja poglavlja za praćenje za ovaj naslov kada se brojevi poglavlja izvora razlikuju od brojeva poglavlja za praćenje.";
+"MIGRATE_CONFIRM_TEXT" = "Povijest čitanja za izvorne unose bit će uklonjena prilikom prelaska na drugi izvor.";
+"MIGRATE_WITH_HISTORY" = "Migrirajte i čuvajte povijest";
+"SELECT_PINNED_SOURCES" = "Odaberite Prikvačeni izvori";
+"SEARCH_MANUALLY" = "Tražite ručno";
+"DONT_MIGRATE" = "Nemojte migrirati";
+"SELECTED_%i_OF_%i" = "Odabrano (%i/%i)";
+"MIGRATE_%i_OF_%i" = "Migracija (%i/%i)";
+"SHOW_ENTRY" = "Pogledaj unos";
+"AUTO_SCROLL" = "Automatsko pomicanje";
+"AUTO_SCROLL_SPEED" = "Brzina automatskog pomicanja";
+"AUTO_SCROLL_POSITION" = "Položaj automatskog pomicanja";
+"POSITION_LEFT" = "lijevo";
+"POSITION_RIGHT" = "točno";
+"UPLOAD_FILE" = "Prenesi datoteku";
+"MIGRATE_CHAPTER_HISTORY" = "Migracija povijesti poglavlja";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "Premjestite povijest čitanja koja je preostala iz starijih verzija koja nije povezana s poglavljima u lokalnoj bazi podataka. To se obično događa automatski nakon ažuriranja. Ako nije završio, možete ga ponovo pokrenuti ovdje.";
+
+"TRANSLATION_SOURCE_LABELS" = "Prevedi izbornike i naslove odjeljaka izvora";
+
+// Local image import
+"IMPORT_PHOTO" = "Uvezi fotografije";
+"LOCAL_IMAGE_IMPORT_TEXT" = "Uvezite fotografije, slikovne datoteke ili CBZ ili ZIP arhivu za čitanje.";
+
+// Translated page export
+"SAVE_TRANSLATED_IMAGE" = "Spremi sliku s prijevodom";
+"TRANSLATED_IMAGE_SAVE_FAILED" = "Nije moguće izraditi prevedenu sliku. Pokušajte ponovno nakon dovršetka prijevoda.";
+
+"TRANSLATION_AUTHORS" = "Prevedi imena autora";
+
+"TRANSLATION_AUTHOR_FILTER" = "Izvorni jezici imena autora";
+"TRANSLATION_SOURCE_LABEL_FILTER" = "Izvorni jezici izbornika i odjeljaka izvora";
+
+// Shared image retention
+"SAVE_SHARED_IMAGES" = "Čuvajte zajedničke slike u lokalnim datotekama";
+"SAVE_SHARED_IMAGES_HELP" = "Kada je isključeno, zajedničke slike se otvaraju privremeno i brišu se kada se zatvore. Povijest čitanja i predmemorija OCR/prijevoda se ne spremaju.";
+
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "Prevedi velike popise filtara (više od 100 opcija)";
+
+"SETTING_INVALID_STEPPER_RANGE" = "Nevažeći brojčani raspon postavki.";
+
+"SETTING_MISSING_CONTENT_HANDLER" = "Nije moguće prikazati postavku: %@";

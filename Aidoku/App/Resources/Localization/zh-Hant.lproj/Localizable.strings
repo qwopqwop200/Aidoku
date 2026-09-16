@@ -968,3 +968,119 @@
 "TRANSLATION_REASONING_XHIGH" = "非常高";
 
 "TRANSLATION_REASONING_MAX" = "最大";
+
+"TRANSLATION_MANGA_TAGS" = "翻譯漫畫標籤";
+"TRANSLATION_TAG_FILTER" = "標籤原文語言";
+
+"TRANSLATION_SOURCE_LABELS" = "翻譯圖源選單與區塊標題";
+
+// Completed app localization
+"DOWNLOAD_INCOMPLETE" = "下載不完整";
+"LIBRARY_REFRESH_INTERRUPTED" = "庫刷新中斷";
+"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "上次庫刷新在完成之前被中斷。您想繼續嗎？";
+"DISABLE" = "停用";
+"ENABLE" = "啟用";
+"RESTART" = "重新啟動";
+"HTML_ERROR" = "HTML 錯誤";
+"JSON_ERROR" = "JSON 錯誤";
+"SOURCE_CRASHED" = "來源崩潰";
+"CONTINUE_READING_ON_RESELECT" = "雙擊「歷史記錄」標籤可繼續閱讀";
+"TEXT_THEME" = "主題";
+"TEXT_THEME_SEPIA" = "棕褐色";
+"TEXT_THEME_PAPER" = "紙";
+"TEXT_THEME_GRAY" = "灰色";
+"DICTIONARY_LOOKUP" = "字典查找";
+"DICTIONARY_SETTINGS_TEXT" = "啟用字典查找以允許對頁面圖像進行 OCR 處理，以在任何導入的讀谷詞典中搜尋單字。";
+"DICTIONARIES" = "字典";
+"ABOUT_DICTIONARIES" = "關於字典";
+"ABOUT_DICTIONARIES_TEXT" = "讀谷詞典可以從 zip 檔案匯入。您可以啟用或停用字典，並且可以透過拖曳來重新排序它們。";
+"LOOKUP_GESTURE" = "尋找手勢";
+"SINGLE_TAP" = "點選";
+"LONG_PRESS" = "長按";
+"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "點擊單字的開頭將啟動彈出視窗。啟用後，這會停用雙擊縮放。";
+"LOOKUP_GESTURE_LONG_PRESS_INFO" = "按住單字的開頭將突出顯示它，並鬆開將啟動彈出視窗。這會在啟用時停用頁面快速操作。";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "透過尋找手勢鎖定：點擊。";
+"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "透過尋找手勢鎖定：長按。";
+"DICTIONARY_TEXT_OVERLAY_MODE" = "OCR 文字疊加";
+"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "啟動查找時在影像區域顯示文字方塊。這有助於確定 OCR 正確識別了哪些文字。";
+"DICTIONARY_OVERLAY_PADDING" = "覆蓋填充";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "疊加文字大小";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "限制 OCR 語言";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "啟用後，只有標記為所選語言的章節才會進行 OCR 處理。建議僅選擇您為其匯入字典的語言。";
+"DICTIONARY_OCR_LANGUAGES" = "光學字元辨識語言";
+"DICTIONARY_POPUP" = "字典彈出窗口";
+"DISPLAY_MODE" = "顯示模式";
+"DEFAULT_DISPLAY_MODE" = "預設";
+"FULL_WIDTH" = "全寬";
+"DICTIONARY_POPUP_WIDTH" = "彈出寬度";
+"DICTIONARY_POPUP_HEIGHT" = "彈出高度";
+"TERM_DICTIONARIES" = "術語詞典";
+"FREQUENCY_DICTIONARIES" = "詞頻詞典";
+"PITCH_DICTIONARIES" = "音調重音詞典";
+"KANJI_DICTIONARIES" = "漢字詞典";
+"IMPORTING_DICTIONARY" = "正在導入字典...";
+"IMPORT_ERROR" = "導入錯誤";
+"REVISION" = "修訂版";
+"URL" = "網址";
+"ATTRIBUTION" = "歸因";
+"SOURCE_LANGUAGE" = "原始語言";
+"TARGET_LANGUAGE" = "目標語言";
+"TERM_COUNT" = "詞典術語數量";
+"TERM_META_COUNT" = "術語元資料條目數";
+"KANJI_COUNT" = "漢字計數";
+"KANJI_META_COUNT" = "漢字資料條目數";
+"TAG_COUNT" = "標籤計數";
+"MEDIA_COUNT" = "媒體數";
+"IS_UPDATABLE" = "可更新";
+"SIZE" = "尺寸";
+"REMOVE_DICTIONARY" = "刪除字典";
+"REMOVE_WORD" = "刪除單字";
+"VOCABULARY" = "詞彙";
+"1_WORD" = "1 個字";
+"%i_WORDS" = "%i字";
+"NO_VOCABULARY" = "沒有詞彙";
+"NO_VOCABULARY_TEXT" = "保存的詞彙將會出現在這裡。";
+"DEFINITION" = "定義";
+"VOCAB_CONTEXT" = "背景";
+"VOCAB_SOURCE" = "來源";
+"CLEAR_VOCABULARY_LIST" = "刪除所有已儲存的詞彙";
+"CLEAR_VOCABULARY_LIST_TEXT" = "此操作是不可逆轉的。所有保存的詞彙將會被刪除。";
+"DICTIONARY_UPDATES" = "更新";
+"UPDATE_NOW" = "立即更新";
+"LAST_UPDATED_%@" = "最後更新：%@";
+"MONTHLY" = "每月";
+"GET_RECOMMENDED_DICTIONARIES" = "取得推薦字典";
+"RECOMMENDED_DICTIONARIES" = "推薦字典";
+"RECOMMENDED_DICTIONARIES_NOTE" = "以下字典均為日英字典。對於其他語言，您可以查看維基詞典詞典清單。";
+"MIGRATE_WITH_HISTORY" = "遷移並保留歷史記錄";
+"AUTO_SCROLL" = "自動捲動";
+"AUTO_SCROLL_SPEED" = "自動滾動速度";
+"AUTO_SCROLL_POSITION" = "自動滾動位置";
+"POSITION_LEFT" = "左";
+"POSITION_RIGHT" = "右";
+"UPLOAD_FILE" = "上傳文件";
+"MIGRATE_CHAPTER_HISTORY" = "遷移章節歷史";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "遷移舊版本留下的未連結到本地資料庫中的章節的閱讀歷史記錄。這通常在更新後自動發生。如果未完成，您可以在此處再次運行。";
+
+// Local image import
+"IMPORT_PHOTO" = "匯入照片";
+"LOCAL_IMAGE_IMPORT_TEXT" = "匯入照片、圖片檔案或 CBZ、ZIP 壓縮檔以閱讀。";
+
+// Translated page export
+"SAVE_TRANSLATED_IMAGE" = "儲存含翻譯的圖片";
+"TRANSLATED_IMAGE_SAVE_FAILED" = "無法產生翻譯圖片。請等待翻譯完成後再試。";
+
+"TRANSLATION_AUTHORS" = "翻譯作者姓名";
+
+"TRANSLATION_AUTHOR_FILTER" = "作者姓名原文語言";
+"TRANSLATION_SOURCE_LABEL_FILTER" = "圖源選單與區塊原文語言";
+
+// Shared image retention
+"SAVE_SHARED_IMAGES" = "將共享映像保留在本機檔案中";
+"SAVE_SHARED_IMAGES_HELP" = "關閉此選項時，共享圖片僅暫時開啟，並在關閉閱讀器後刪除。閱讀紀錄和 OCR／翻譯快取也不會儲存。";
+
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "翻譯大量篩選項（超過100項）";
+
+"SETTING_INVALID_STEPPER_RANGE" = "數值設定範圍無效。";
+
+"SETTING_MISSING_CONTENT_HANDLER" = "無法顯示設定：%@";

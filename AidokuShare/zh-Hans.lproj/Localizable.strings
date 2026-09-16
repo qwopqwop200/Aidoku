@@ -1,0 +1,5 @@
+"IMPORT" = "导入";
+"DONE" = "完成";
+"FILE_IMPORT_FAIL_TEXT" = "文件导入失败。请确保该文件是包含图片的有效 CBZ 或 ZIP 存档文件。";
+"FORMAT_IMAGE" = "图片";
+"SHARED_IMAGES_SAVED" = "图片已保存。打开 Aidoku 即可自动导入到本地文件。";

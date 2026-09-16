@@ -100,6 +100,16 @@ struct ReaderTranslationBalloonMergerTests {
         #expect(result.first?.source == "明日の予定は？")
         #expect(result.first?.id == "right")
     }
+    @Test func narrowWhiteNeckDoesNotTurnTwoLobesIntoOneTextBlock() throws {
+        let result = ReaderTranslationBalloonMerger.apply(columns, image: try image([
+            CGRect(x: 145, y: 135, width: 100, height: 130),
+            CGRect(x: 196, y: 135, width: 2, height: 50),
+            CGRect(x: 196, y: 210, width: 2, height: 55)
+        ]))
+        #expect(result.map(\.id) == columns.map(\.id))
+        #expect(result.map(\.source) == columns.map(\.source))
+    }
+
     @Test func separateBalloonsAndOpenBackgroundDoNotJoin() throws {
         #expect(ReaderTranslationBalloonMerger.apply(columns, image: try image([])).count == 2)
         #expect(ReaderTranslationBalloonMerger.apply(columns, image: try image([

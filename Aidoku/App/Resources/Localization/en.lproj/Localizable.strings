@@ -1023,3 +1023,36 @@
 "TRANSLATION_REASONING_XHIGH" = "Very High";
 
 "TRANSLATION_REASONING_MAX" = "Maximum";
+
+"TRANSLATION_MANGA_TAGS" = "Translate Manga Tags";
+"TRANSLATION_TAG_FILTER" = "Tag Source Languages";
+
+// App localization coverage
+"UPLOAD_FILE" = "Upload File";
+"MIGRATE_CHAPTER_HISTORY" = "Migrate Chapter History";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "Migrate reading history left over from older versions that is not linked to chapters in the local database. This normally happens automatically after an update. If it did not finish, you can run it again here.";
+
+"TRANSLATION_SOURCE_LABELS" = "Translate Source Menus and Section Titles";
+
+// Local image import
+"IMPORT_PHOTO" = "Import Photos";
+"LOCAL_IMAGE_IMPORT_TEXT" = "Import photos, image files, or a CBZ or ZIP archive to read.";
+
+// Translated page export
+"SAVE_TRANSLATED_IMAGE" = "Save Image with Translation";
+"TRANSLATED_IMAGE_SAVE_FAILED" = "Could not render the translated image. Wait for translation to finish and try again.";
+
+"TRANSLATION_AUTHORS" = "Translate Author Names";
+
+"TRANSLATION_AUTHOR_FILTER" = "Author Name Languages";
+"TRANSLATION_SOURCE_LABEL_FILTER" = "Source Menu and Section Languages";
+
+// Shared image retention
+"SAVE_SHARED_IMAGES" = "Keep Shared Images in Local Files";
+"SAVE_SHARED_IMAGES_HELP" = "When off, shared images open temporarily and are deleted when closed. Reading history and OCR/translation caches are not saved.";
+
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "Translate Large Filter Lists (Over 100 Options)";
+
+"SETTING_INVALID_STEPPER_RANGE" = "Invalid numeric setting range.";
+
+"SETTING_MISSING_CONTENT_HANDLER" = "Unable to display setting: %@";

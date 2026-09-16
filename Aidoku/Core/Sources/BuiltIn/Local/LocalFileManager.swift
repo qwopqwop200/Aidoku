@@ -8,6 +8,8 @@
 import AidokuRunner
 import CoreData
 import Foundation
+import ImageIO
+import UIKit
 import ZIPFoundation
 
 /// Manages local files stored in the documents directory for the local files source.
@@ -40,12 +42,35 @@ actor LocalFileManager {
 }
 
 extension LocalFileManager {
+    /// Import an archive received through Open In without requiring the import form.
+    func importSharedArchive(from url: URL) async throws -> AidokuRunner.Manga {
+        guard url.isFileURL, Self.allowedFileExtensions.contains(url.pathExtension.lowercased()),
+              loadImportFileInfo(url: url) != nil else {
+            throw LocalFileManagerError.invalidFileType
+        }
+        guard await SourceManager.shared.ensureLocalSourceForImport() else {
+            throw LocalFileManagerError.fileCopyFailed
+        }
+        try await uploadFile(from: url)
+        let mangaId = url.deletingPathExtension().lastPathComponent.normalized
+        guard var manga = await LocalFileDataManager.shared.fetchLocalSeries(id: mangaId) else {
+            throw LocalFileManagerError.fileCopyFailed
+        }
+        manga.chapters = await LocalFileDataManager.shared.fetchChapters(mangaId: mangaId)
+        await MangaManager.shared.addToLibrary(manga: manga, chapters: manga.chapters ?? [])
+        return manga
+    }
+
     // get info about a file to be imported
     func loadImportFileInfo(url: URL) -> ImportFileInfo? {
         // if the given url comes from an imported file that isn't copied, we need to do this
         let accessGranted = url.startAccessingSecurityScopedResource()
         defer {
             if accessGranted { url.stopAccessingSecurityScopedResource() }
+        }
+
+        if let source = CGImageSourceCreateWithURL(url as CFURL, nil), CGImageSourceGetCount(source) > 0 {
+            return prepareImageImport(from: [url], name: url.lastPathComponent)
         }
 
         // ensure the file is one we can parse
@@ -85,7 +110,7 @@ extension LocalFileManager {
 
         // extract the first three images for preview
         let previewImages = pageEntries
-            .filter { LocalFileManager.allowedImageExtensions.contains($0.path.lowercased()) }
+            .filter { LocalFileManager.allowedImageExtensions.contains($0.path.pathExtension().lowercased()) }
             .prefix(3)
             .compactMap { entry -> PlatformImage? in
                 var imageData = Data()
@@ -117,6 +142,62 @@ extension LocalFileManager {
             comicInfo: ComicInfo.load(from: url)
         )
     }
+}
+
+extension LocalFileManager {
+    // Keep selection order; process one image at a time to avoid holding every full-resolution photo in memory.
+    func prepareImageImport(from urls: [URL], name: String) -> ImportFileInfo? {
+        guard !urls.isEmpty else { return nil }
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let temporaryFile = TemporaryLocalImageFile(directory: directory)
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let archiveURL = directory.appendingPathComponent(UUID().uuidString + ".cbz")
+            let archive = try Archive(url: archiveURL, accessMode: .create)
+            var previews: [PlatformImage] = []
+            for (index, url) in urls.enumerated() {
+                let accessGranted = url.startAccessingSecurityScopedResource()
+                defer { if accessGranted { url.stopAccessingSecurityScopedResource() } }
+                try autoreleasepool {
+                    guard let image = PlatformImage(contentsOfFile: url.path) else {
+                        throw LocalFileManagerError.invalidFileType
+                    }
+                    // Drawing applies EXIF orientation consistently for reading and OCR.
+                    let format = UIGraphicsImageRendererFormat()
+                    format.scale = 1
+                    let normalized = UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
+                        image.draw(in: CGRect(origin: .zero, size: image.size))
+                    }
+                    guard let png = normalized.pngData() else { throw LocalFileManagerError.invalidFileType }
+                    let pageName = String(format: "%08d.png", index + 1)
+                    let pageURL = directory.appendingPathComponent(pageName)
+                    try png.write(to: pageURL)
+                    try archive.addEntry(with: pageName, fileURL: pageURL)
+                    try FileManager.default.removeItem(at: pageURL)
+                    if previews.count < 3 {
+                        let scale = min(1, 400 / max(image.size.width, image.size.height))
+                        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+                        previews.append(UIGraphicsImageRenderer(size: size, format: format).image { _ in
+                            normalized.draw(in: CGRect(origin: .zero, size: size))
+                        })
+                    }
+                }
+            }
+            return ImportFileInfo(
+                url: archiveURL,
+                previewImages: previews,
+                name: name,
+                pageCount: urls.count,
+                fileType: .image,
+                comicInfo: nil,
+                temporaryImageFile: temporaryFile
+            )
+        } catch {
+            LogManager.logger.error("Failed to prepare local images: \(error)")
+            return nil
+        }
+    }
+
 }
 
 extension LocalFileManager {
@@ -230,6 +311,8 @@ extension LocalFileManager {
         // if the url isn't in the documents directory, we need to copy it there
         var url = url
         var shouldRemoveUrl = false
+        var temporaryDirectory: URL?
+        defer { temporaryDirectory?.removeItem() }
         if !url.path.contains(documentsDirectory.path) {
             // if the given url comes from an imported file that isn't copied, we need to do this
             let accessGranted = url.startAccessingSecurityScopedResource()
@@ -238,9 +321,12 @@ extension LocalFileManager {
             }
 
             // create a temporary url to copy file to
-            let tempUrl = FileManager.default.temporaryDirectory.appendingPathComponent(url.lastPathComponent)
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            temporaryDirectory = directory
+            let tempUrl = directory.appendingPathComponent(url.lastPathComponent)
             // copy url to temp folder
             do {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 try FileManager.default.copyItem(at: url, to: tempUrl)
             } catch {
                 throw LocalFileManagerError.fileCopyFailed
@@ -369,7 +455,7 @@ extension LocalFileManager {
             }
         } else if mangaId == nil {
             // copy first page image to use as cover image
-            let firstImageEntry = pageEntries.first(where: { LocalFileManager.allowedImageExtensions.contains($0.path.lowercased()) })
+            let firstImageEntry = pageEntries.first(where: { LocalFileManager.allowedImageExtensions.contains($0.path.pathExtension().lowercased()) })
             if let firstImageEntry {
                 let coverExt = (firstImageEntry.path as NSString).pathExtension
                 let coverFileName = "cover.\(coverExt)"

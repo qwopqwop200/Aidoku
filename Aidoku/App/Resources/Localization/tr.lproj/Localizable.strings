@@ -350,7 +350,7 @@
 "REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Öğe kütüphaneden kaldırılıyor";
 "REMOVING_%i_ITEMS_FROM_LIBRARY" = "Kütüphaneden %i öğe kaldırılıyor";
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "Öğe %@ Kategorisinden Kaldırılıyor";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "%@ Kategorisinden %i Öğe Kaldırılıyor";
+"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "%2$@ Kategorisinden %1$i Öğe Kaldırılıyor";
 "REFRESHING_LIBRARY" = "Kütüphane yenileniyor…";
 "FILTERS" = "Filtreler";
 "ENABLE_PERMISSION" = "İzin ver";
@@ -966,3 +966,123 @@
 "TRANSLATION_REASONING_XHIGH" = "Çok Yüksek";
 
 "TRANSLATION_REASONING_MAX" = "Maksimum";
+
+"TRANSLATION_MANGA_TAGS" = "Manga Etiketlerini Çevir";
+"TRANSLATION_TAG_FILTER" = "Etiket Kaynak Dilleri";
+
+"TRANSLATION_SOURCE_LABELS" = "Kaynak Menülerini ve Bölüm Başlıklarını Çevir";
+
+// Completed app localization
+"DOWNLOAD_INCOMPLETE" = "Eksik İndirme";
+"LIBRARY_REFRESH_INTERRUPTED" = "Kütüphane Yenileme Kesintiye Uğradı";
+"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Son kitaplık yenilemesi tamamlanmadan kesintiye uğradı. Devam etmek ister misiniz?";
+"DISABLE" = "Devre dışı bırak";
+"ENABLE" = "Etkinleştir";
+"RESTART" = "Yeniden başlat";
+"HTML_ERROR" = "HTML Hatası";
+"JSON_ERROR" = "JSON Hatası";
+"SOURCE_CRASHED" = "Kaynak Çöktü";
+"CONTINUE_READING_ON_RESELECT" = "Okumaya devam etmek için Geçmiş sekmesine iki kez dokunun";
+"TEXT_THEME" = "Tema";
+"TEXT_THEME_SEPIA" = "Sepya";
+"TEXT_THEME_PAPER" = "Kağıt";
+"TEXT_THEME_GRAY" = "Gri";
+"DICTIONARY_LOOKUP" = "Sözlük Arama";
+"DICTIONARY_SETTINGS_TEXT" = "İçe aktarılan Yomitan sözlüklerindeki kelimeleri aramak için sayfa görselleri üzerinde OCR işleminin yapılmasına izin vermek için Sözlük Arama'yı etkinleştirin.";
+"DICTIONARIES" = "Sözlükler";
+"ABOUT_DICTIONARIES" = "Sözlükler Hakkında";
+"ABOUT_DICTIONARIES_TEXT" = "Yomitan sözlükleri zip dosyalarından içe aktarılabilir. Sözlükleri etkinleştirebilir veya devre dışı bırakabilirsiniz ve sürükleyerek yeniden sıralayabilirsiniz.";
+"LOOKUP_GESTURE" = "Arama Hareketi";
+"SINGLE_TAP" = "Tek Dokunuş";
+"LONG_PRESS" = "Uzun Basış";
+"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Bir kelimenin başına dokunmak açılır pencereyi etkinleştirecektir. Bu, etkinleştirildiğinde yakınlaştırmak için çift dokunmayı devre dışı bırakır.";
+"LOOKUP_GESTURE_LONG_PRESS_INFO" = "Bir kelimenin başlangıcını basılı tutmak onu vurgulayacak ve bırakmak, açılır pencereyi etkinleştirecektir. Bu, etkinleştirildiğinde sayfa hızlı işlemlerini devre dışı bırakır.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Arama Hareketiyle Kilitlendi: Tek Basma.";
+"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Arama Hareketiyle Kilitlendi: Uzun Basma.";
+"DICTIONARY_TEXT_OVERLAY_MODE" = "OCR Metin Yerleşimi";
+"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Bir arama etkinleştirildiğinde görüntü bölgelerinde metin kutularını gösterir. Bu, hangi metnin OCR tarafından düzgün şekilde tanındığını belirlemenize yardımcı olabilir.";
+"DICTIONARY_OVERLAY_PADDING" = "Kaplama Dolgusu";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "Kaplama Metin Boyutu";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "OCR Dillerini Kısıtla";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Etkinleştirildiğinde, OCR için yalnızca seçilen dil(ler) olarak işaretlenen bölümler işlenecektir. Yalnızca sözlüklerini içe aktardığınız dilleri seçmeniz önerilir.";
+"DICTIONARY_OCR_LANGUAGES" = "OCR Dilleri";
+"DICTIONARY_POPUP" = "Sözlük Açılır Penceresi";
+"DISPLAY_MODE" = "Ekran Modu";
+"DEFAULT_DISPLAY_MODE" = "Varsayılan";
+"FULL_WIDTH" = "Tam Genişlik";
+"DICTIONARY_POPUP_WIDTH" = "Açılır Pencere Genişliği";
+"DICTIONARY_POPUP_HEIGHT" = "Açılır Pencere Yüksekliği";
+"TERM_DICTIONARIES" = "Dönem Sözlükleri";
+"FREQUENCY_DICTIONARIES" = "Kelime sıklığı sözlükleri";
+"PITCH_DICTIONARIES" = "Konuşma aksanı sözlükleri";
+"KANJI_DICTIONARIES" = "Kanji Sözlükleri";
+"IMPORTING_DICTIONARY" = "Sözlük içe aktarılıyor…";
+"IMPORT_ERROR" = "İçe Aktarma Hatası";
+"REVISION" = "Revizyon";
+"URL" = "URL'si";
+"ATTRIBUTION" = "İlişkilendirme";
+"SOURCE_LANGUAGE" = "Kaynak Dil";
+"TARGET_LANGUAGE" = "Hedef Dil";
+"TERM_COUNT" = "Sözlük terimlerinin sayısı";
+"TERM_META_COUNT" = "Terim meta veri girişi sayısı";
+"KANJI_COUNT" = "Kanji Sayısı";
+"KANJI_META_COUNT" = "Kanji meta veri girişi sayısı";
+"TAG_COUNT" = "Etiket Sayısı";
+"MEDIA_COUNT" = "Medya Sayısı";
+"IS_UPDATABLE" = "Güncellenebilir mi";
+"SIZE" = "Boyut";
+"REMOVE_DICTIONARY" = "Sözlüğü Kaldır";
+"REMOVE_WORD" = "Kelimeyi Kaldır";
+"VOCABULARY" = "Kelime Bilgisi";
+"1_WORD" = "1 kelime";
+"%i_WORDS" = "%i kelimeler";
+"NO_VOCABULARY" = "Kelime Bilgisi Yok";
+"NO_VOCABULARY_TEXT" = "Kaydedilen kelime dağarcığı burada görünecektir.";
+"DEFINITION" = "Tanım";
+"VOCAB_CONTEXT" = "Bağlam";
+"VOCAB_SOURCE" = "Kaynak";
+"CLEAR_VOCABULARY_LIST" = "Kaydedilen tüm kelimeleri sil";
+"CLEAR_VOCABULARY_LIST_TEXT" = "Bu eylem geri döndürülemez. Kaydedilen tüm kelimeler kaldırılacak.";
+"DICTIONARY_UPDATES" = "Güncellemeler";
+"UPDATE_NOW" = "Şimdi Güncelle";
+"LAST_UPDATED_%@" = "Son güncelleme: %@";
+"MONTHLY" = "Aylık";
+"GET_RECOMMENDED_DICTIONARIES" = "Önerilen Sözlükleri Alın";
+"RECOMMENDED_DICTIONARIES" = "Önerilen Sözlükler";
+"RECOMMENDED_DICTIONARIES_NOTE" = "Aşağıdaki Sözlüklerin tümü Japonca-İngilizce dilidir. Diğer diller için Vikisözlük sözlüklerinin listesini kontrol edebilirsiniz.";
+"RESTORE_MISSING_SOURCES" = "Eksik Kaynaklar Geri Yüklensin mi?";
+"RESTORE_MISSING_SOURCES_TEXT" = "Eksik kaynakları arayıp yüklemek ister misiniz?";
+"INSTALL_SOURCES" = "Kaynakları Yükle";
+"INSTALLING_SOURCES" = "Kaynaklar yükleniyor…";
+"MIGRATE_WITH_HISTORY" = "Geçmişi Taşı ve Sakla";
+"AUTO_SCROLL" = "Otomatik Kaydırma";
+"AUTO_SCROLL_SPEED" = "Otomatik Kaydırma Hızı";
+"AUTO_SCROLL_POSITION" = "Otomatik Kaydırma Konumu";
+"POSITION_LEFT" = "Sol";
+"POSITION_RIGHT" = "Sağ";
+"UPLOAD_FILE" = "Dosya Yükle";
+"MIGRATE_CHAPTER_HISTORY" = "Bölüm Geçmişini Taşı";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "Yerel veritabanındaki bölümlerle bağlantısı olmayan eski sürümlerden kalan okuma geçmişini taşıyın. Bu normalde bir güncellemeden sonra otomatik olarak gerçekleşir. Eğer bitmediyse buradan tekrar çalıştırabilirsiniz.";
+
+// Local image import
+"IMPORT_PHOTO" = "Fotoğrafları içe aktar";
+"LOCAL_IMAGE_IMPORT_TEXT" = "Okumak için fotoğrafları, görüntü dosyalarını veya CBZ ya da ZIP arşivini içe aktarın.";
+
+// Translated page export
+"SAVE_TRANSLATED_IMAGE" = "Görseli çeviriyle kaydet";
+"TRANSLATED_IMAGE_SAVE_FAILED" = "Çevrilmiş görsel oluşturulamadı. Çeviri tamamlandıktan sonra tekrar deneyin.";
+
+"TRANSLATION_AUTHORS" = "Yazar Adlarını Çevir";
+
+"TRANSLATION_AUTHOR_FILTER" = "Yazar Adlarının Kaynak Dilleri";
+"TRANSLATION_SOURCE_LABEL_FILTER" = "Kaynak Menü ve Bölüm Dilleri";
+
+// Shared image retention
+"SAVE_SHARED_IMAGES" = "Paylaşılan Görselleri Yerel Dosyalarda Tutun";
+"SAVE_SHARED_IMAGES_HELP" = "Kapalıyken paylaşılan görseller geçici olarak açılır ve kapatıldığında silinir. Okuma geçmişi ve OCR/çeviri önbellekleri kaydedilmez.";
+
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "Büyük Filtre Listelerini Çevir (100’den Fazla Seçenek)";
+
+"SETTING_INVALID_STEPPER_RANGE" = "Geçersiz sayısal ayar aralığı.";
+
+"SETTING_MISSING_CONTENT_HANDLER" = "Ayar görüntülenemiyor: %@";

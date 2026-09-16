@@ -9,6 +9,33 @@ struct ReaderJapaneseSFXFilterTests {
         [ReaderTranslationRegion(id: "sfx", rect: CGRect(x: 0.7, y: 0.7, width: 0.15, height: 0.12), source: "ドン")]
     }
 
+    @Test func isolatedCornerPixelDoesNotHideEnclosedSpeech() throws {
+        let size = 128
+        var pixels = [UInt8](repeating: 0, count: size * size)
+        // Keep the enclosed component below the existing one-third-page flood budget.
+        for y in 28..<104 { for x in 28..<96 { pixels[y * size + x] = 255 } }
+        for y in 37...39 { for x in 37...39 { pixels[y * size + x] = 0 } }
+        pixels[38 * size + 38] = 255
+        let image = try #require(pixels.withUnsafeMutableBytes { bytes -> CGImage? in
+            CGContext(data: bytes.baseAddress, width: size, height: size, bitsPerComponent: 8,
+                bytesPerRow: size, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: 0)?.makeImage()
+        })
+        let input = ReaderTranslationEnclosedBackground.Input(id: "speech", text: "みやー",
+            rect: CGRect(x: 40, y: 40, width: 40, height: 50))
+        let dimensions = CGSize(width: size, height: size)
+        #expect(ReaderTranslationEnclosedBackground.enclosedRegionGroups(in: image,
+            candidateInputs: [input], coordinateSize: dimensions).isEmpty)
+        #expect(ReaderTranslationEnclosedBackground.enclosedRegionGroups(in: image,
+            candidateInputs: [input], coordinateSize: dimensions, checkingAlternateSeeds: true) == [["speech"]])
+        pixels = [UInt8](repeating: 255, count: size * size)
+        let open = try #require(pixels.withUnsafeMutableBytes { bytes -> CGImage? in
+            CGContext(data: bytes.baseAddress, width: size, height: size, bitsPerComponent: 8,
+                bytesPerRow: size, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: 0)?.makeImage()
+        })
+        #expect(ReaderTranslationEnclosedBackground.enclosedRegionGroups(in: open,
+            candidateInputs: [input], coordinateSize: dimensions, checkingAlternateSeeds: true).isEmpty)
+    }
+
     @Test func dictionaryAndNormalization() {
         #expect(ReaderJapaneseSFXFilter.candidates.count == 14946)
         #expect(ReaderJapaneseSFXFilter.candidates.contains("ドン"))
@@ -16,7 +43,7 @@ struct ReaderJapaneseSFXFilterTests {
         #expect(ReaderJapaneseSFXFilter.normalized("どん！") == "ドン")
         #expect(ReaderJapaneseSFXFilter.normalized("ドーン") != "ドン")
         #expect(ReaderJapaneseSFXFilter.normalized("キャ") != "キヤ")
-        #expect(ReaderJapaneseSFXFilter.speechSensitiveCandidates.count == 1676)
+        #expect(ReaderJapaneseSFXFilter.speechSensitiveCandidates.count == 1677)
         #expect(ReaderJapaneseSFXFilter.speechSensitiveCandidates.contains("ウワア"))
     }
 
@@ -45,7 +72,7 @@ struct ReaderJapaneseSFXFilterTests {
     }
 
     @Test func speechSensitiveExclamationsSurviveEvenWithoutAnEnclosedBalloon() {
-        for text in ["うわあ", "よー", "フン！", "いや…"] {
+        for text in ["うわあ", "よー", "フン！", "いや…", "なっ", "なっ…"] {
             var input = regions
             input[3] = ReaderTranslationRegion(id: "speech", rect: regions[3].rect, source: text, confidence: 0.99)
             input[3].sfxEnclosedBackground = false

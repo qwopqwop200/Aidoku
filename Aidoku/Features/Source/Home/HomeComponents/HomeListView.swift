@@ -184,7 +184,7 @@ struct HomeListView: View {
 
                                 if tagCount > 0 {
                                     ForEach(tags.prefix(tagCount), id: \.self) { tag in
-                                        LabelView(text: tag)
+                                        LabelView(text: tag, translatesTag: true)
                                     }
                                 }
 
@@ -196,7 +196,7 @@ struct HomeListView: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 4) {
                                 ForEach(tags, id: \.self) { tag in
-                                    LabelView(text: tag)
+                                    LabelView(text: tag, translatesTag: true)
                                 }
                             }
                             .padding(.vertical, 2)

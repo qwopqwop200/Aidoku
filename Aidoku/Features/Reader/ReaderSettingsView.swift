@@ -602,7 +602,10 @@ extension ReaderSettingsView {
                     key: "Reader.textFontFamily",
                     title: NSLocalizedString("TEXT_FONT_FAMILY"),
                     notification: .init("Reader.textFontFamily"),
-                    value: .select(.init(values: Self.availableFonts))
+                    value: .select(.init(
+                        values: Self.availableFonts,
+                        titles: Self.availableFonts.map { $0 == "System" ? NSLocalizedString("READER_BG_COLOR_SYSTEM") : $0 }
+                    ))
                 )
             )
             SettingView(

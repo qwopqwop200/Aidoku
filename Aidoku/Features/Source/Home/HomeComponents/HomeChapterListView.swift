@@ -118,11 +118,11 @@ struct HomeChapterListView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(entry.manga.title)
+                    TranslatedTitleText(entry.manga.title, kind: .manga)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
-                    Text(entry.chapter.formattedTitle())
+                    TranslatedTitleText(entry.chapter.formattedTitle(), kind: .chapter, translating: entry.chapter.title ?? "")
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
 

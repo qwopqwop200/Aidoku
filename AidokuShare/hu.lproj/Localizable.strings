@@ -1,0 +1,5 @@
+"IMPORT" = "Importálás";
+"DONE" = "Kész";
+"FILE_IMPORT_FAIL_TEXT" = "Nem sikerült importálni a fájlt. Kérjük, győződjön meg arról, hogy érvényes CBZ vagy ZIP archívum, amely képeket tartalmaz.";
+"FORMAT_IMAGE" = "Kép";
+"SHARED_IMAGES_SAVED" = "A képek mentve. Nyissa meg az Aidokut a helyi fájlok közé történő automatikus importáláshoz.";

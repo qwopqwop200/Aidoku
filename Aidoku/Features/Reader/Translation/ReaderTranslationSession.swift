@@ -550,7 +550,7 @@ final class ReaderTranslationSession {
                 do {
                     let key = item.key
                     let diskKey = ReaderTranslationCacheIdentity.translation(page: key, settings: settings)
-                    let diskGeneration = await diskCache?.currentGeneration() ?? 0
+                    let diskGeneration = await diskCache?.currentGeneration(settings: settings) ?? 0
                     let stored = try? await diskCache?.translatedRegions(page: item.key, settings: settings)
                     let regions: [ReaderTranslationRegion]
                     if let stored {

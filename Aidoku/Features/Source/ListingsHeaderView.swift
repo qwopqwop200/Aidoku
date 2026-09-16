@@ -79,7 +79,13 @@ struct ListingsHeaderView: View {
                     Button {
                         selectedListing = offset
                     } label: {
-                        let label = Text(option)
+                        let label = Group {
+                            if source.features.providesHome && offset == 0 {
+                                Text(option)
+                            } else {
+                                TranslatedTitleText(option, kind: .sourceLabel)
+                            }
+                        }
                             .padding(.horizontal, 13)
                             .padding(.vertical, 8)
                             .font(.footnote.weight(.medium))

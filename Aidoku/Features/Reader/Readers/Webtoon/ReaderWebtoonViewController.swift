@@ -460,7 +460,8 @@ extension ReaderWebtoonViewController: UIContextMenuInteractionDelegate {
                 }
             }
 
-            return UIMenu(title: "", children: [shareAction, saveToPhotosAction, reloadAction])
+            let saveTranslatedAction = ReaderTranslationImageExporter.saveAction(page: node.translationPage, presenter: self)
+            return UIMenu(title: "", children: [shareAction, saveToPhotosAction, saveTranslatedAction, reloadAction])
         })
     }
 

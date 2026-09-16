@@ -17,6 +17,7 @@ struct SortFilterView: View {
     private let options: [String]
     private let defaultValue: AidokuRunner.Filter.SortDefault?
 
+    @State private var translatedLabels: [String: String] = [:]
     @State private var selectedOption: Int
     @State private var ascending: Bool
 
@@ -61,7 +62,7 @@ struct SortFilterView: View {
                     }
                 } label: {
                     HStack {
-                        Text(option)
+                        Text(translatedLabels[option] ?? option)
                         if selectedOption == index {
                             Image(systemName: ascending ? "chevron.up" : "chevron.down")
                         }
@@ -74,15 +75,16 @@ struct SortFilterView: View {
                     if selectedOption >= options.count {
                         NSLocalizedString("INVALID")
                     } else if let title = filter.title {
-                        "\(title): \(options[selectedOption])"
+                        "\(translatedLabels[title] ?? title): \(translatedLabels[options[selectedOption]] ?? options[selectedOption])"
                     } else {
-                        options[selectedOption]
+                        translatedLabels[options[selectedOption]] ?? options[selectedOption]
                     }
                 }(),
                 active: active,
                 chevron: true
             )
         }
+        .modifier(SourceMenuTranslationModifier(originals: options, labels: $translatedLabels, limitsOptions: true, filterTitle: filter.title))
         .onChange(of: selectedOption) { _ in
             updateFilter()
         }
@@ -127,6 +129,7 @@ struct SortFilterView: View {
 }
 
 struct SortFilterGroupView: View {
+    @State private var translatedLabels: [String: String] = [:]
     let filter: AidokuRunner.Filter
 
     let canAscend: Bool
@@ -169,7 +172,7 @@ struct SortFilterGroupView: View {
                     }
                 }
             } label: {
-                Text(option)
+                Text(translatedLabels[option] ?? option)
                     .lineLimit(1)
             }
             .buttonStyle(SortButtonStyle(state: {
@@ -182,6 +185,7 @@ struct SortFilterGroupView: View {
             .padding([.trailing, .bottom], 8)
         }
         .padding(.top, 2)
+        .modifier(SourceMenuTranslationModifier(originals: options, labels: $translatedLabels, limitsOptions: true))
     }
 }
 

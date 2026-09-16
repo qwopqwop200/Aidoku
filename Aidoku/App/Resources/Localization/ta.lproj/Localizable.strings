@@ -927,3 +927,139 @@
 "TRANSLATION_REASONING_XHIGH" = "மிக உயர்ந்தது";
 
 "TRANSLATION_REASONING_MAX" = "அதிகபட்சம்";
+
+"TRANSLATION_MANGA_TAGS" = "மங்கா குறிச்சொற்களை மொழிபெயர்";
+"TRANSLATION_TAG_FILTER" = "குறிச்சொற்களின் மூல மொழிகள்";
+
+"TRANSLATION_SOURCE_LABELS" = "மூல மெனுக்கள் மற்றும் பிரிவுத் தலைப்புகளை மொழிபெயர்";
+
+// Completed app localization
+"DOWNLOAD_INCOMPLETE" = "முழுமையற்ற பதிவிறக்கம்";
+"LIBRARY_REFRESH_INTERRUPTED" = "நூலகத்தைப் புதுப்பித்தல் தடைபட்டது";
+"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "நூலகத்தின் கடைசிப் புதுப்பிப்பு முடிவதற்குள் குறுக்கிடப்பட்டது. நீங்கள் மீண்டும் தொடங்க விரும்புகிறீர்களா?";
+"DISABLE" = "முடக்கு";
+"ENABLE" = "இயக்கு";
+"RESTART" = "மறுதொடக்கம்";
+"HTML_ERROR" = "HTML பிழை";
+"JSON_ERROR" = "JSON பிழை";
+"SOURCE_CRASHED" = "ஆதாரம் செயலிழந்தது";
+"EPUB_NAME" = "EPUB";
+"SUWAYOMI" = "Suwayomi";
+"SUWAYOMI_TAGLINE" = "மங்கா ரீடர் சர்வர்";
+"SUWAYOMI_INFO" = "Suwayomi என்பது சுய-ஹோஸ்ட் செய்யப்பட்ட மங்கா ரீடர் சர்வர் ஆகும், இது மிஹோனுக்காக (தச்சியோமி) கட்டமைக்கப்பட்ட நீட்டிப்புகளை இயக்குகிறது. இந்த மூலத்தைப் பயன்படுத்த உங்களுக்கு Suwayomi சேவையகத்தை அமைத்து இயக்க வேண்டும்.";
+"SUWAYOMI_SETUP" = "Suwayomi அமைவு";
+"STATUS_LICENSED" = "உரிமம் பெற்றது";
+"STATUS_PUBLISHING_FINISHED" = "வெளியீடு முடிந்தது";
+"AUTHOR_NAME" = "ஆசிரியர் பெயர்";
+"ARTIST_NAME" = "கலைஞர் பெயர்";
+"INVALID_KEY" = "தவறான விசை";
+"CONTINUE_READING_ON_RESELECT" = "மீண்டும் படிக்க வரலாறு தாவலில் இருமுறை தட்டவும்";
+"NEW_CHAPTER_NOTIFICATIONS" = "புதிய அத்தியாய அறிவிப்புகள்";
+"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "பின்னணியில் நூலகம் புதுப்பிக்கப்படும்போது அறிவிப்புகளை அனுப்பவும்.";
+"1_NEW_CHAPTER_AVAILABLE" = "புதிய அத்தியாயம் கிடைக்கிறது";
+"X_NEW_CHAPTERS_AVAILABLE" = "%d புதிய அத்தியாயங்கள் உள்ளன";
+"NEW_CHAPTERS_AVAILABLE" = "புதிய அத்தியாயங்கள் கிடைக்கும்";
+"X_SERIES_HAVE_NEW_CHAPTERS" = "%d தொடரில் புதிய அத்தியாயங்கள் உள்ளன";
+"TEXT_THEME" = "தீம்";
+"TEXT_THEME_SEPIA" = "செபியா";
+"TEXT_THEME_PAPER" = "காகிதம்";
+"TEXT_THEME_GRAY" = "சாம்பல்";
+"DICTIONARY_LOOKUP" = "அகராதி தேடல்";
+"DICTIONARY_SETTINGS_TEXT" = "இறக்குமதி செய்யப்பட்ட Yomitan அகராதிகளில் சொற்களைத் தேட, பக்கப் படங்களில் OCR செயலாக்கத்தை அனுமதிக்க, அகராதி தேடலை இயக்கவும்.";
+"DICTIONARIES" = "அகராதிகள்";
+"ABOUT_DICTIONARIES" = "அகராதிகளைப் பற்றி";
+"ABOUT_DICTIONARIES_TEXT" = "யோமிடன் அகராதிகளை ஜிப் கோப்புகளிலிருந்து இறக்குமதி செய்யலாம். நீங்கள் அகராதிகளை இயக்கலாம் அல்லது முடக்கலாம், மேலும் அவற்றை இழுப்பதன் மூலம் மறுவரிசைப்படுத்தலாம்.";
+"LOOKUP_GESTURE" = "தேடுதல் சைகை";
+"SINGLE_TAP" = "ஒற்றை தட்டு";
+"LONG_PRESS" = "லாங் பிரஸ்";
+"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "ஒரு வார்த்தையின் தொடக்கத்தில் தட்டினால் பாப்அப் செயல்படுத்தப்படும். இது இயக்கப்பட்டிருக்கும் போது பெரிதாக்க இருமுறை தட்டுவதை முடக்குகிறது.";
+"LOOKUP_GESTURE_LONG_PRESS_INFO" = "ஒரு வார்த்தையின் தொடக்கத்தில் அழுத்திப் பிடித்திருப்பது அதை முன்னிலைப்படுத்தும், மேலும் வெளியிடுவது பாப்அப்பைச் செயல்படுத்தும். இது இயக்கப்பட்டிருக்கும் போது பக்க விரைவான செயல்களை முடக்குகிறது.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "லுக்அப் சைகை மூலம் பூட்டப்பட்டது: சிங்கிள் பிரஸ்.";
+"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "தேடுதல் சைகையால் பூட்டப்பட்டது: நீண்ட நேரம் அழுத்தவும்.";
+"DICTIONARY_TEXT_OVERLAY_MODE" = "OCR உரை மேலடுக்கு";
+"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "தேடுதல் செயல்படுத்தப்படும் போது படப் பகுதிகளில் உரைப் பெட்டிகளைக் காட்டுகிறது. OCR ஆல் எந்த உரை சரியாக அங்கீகரிக்கப்பட்டுள்ளது என்பதை தீர்மானிக்க இது உதவியாக இருக்கும்.";
+"DICTIONARY_OVERLAY_PADDING" = "மேலடுக்கு திணிப்பு";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "மேலடுக்கு உரை அளவு";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "OCR மொழிகளைக் கட்டுப்படுத்துங்கள்";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "இயக்கப்பட்டால், தேர்ந்தெடுக்கப்பட்ட மொழி(கள்) எனக் குறிக்கப்பட்ட அத்தியாயங்கள் மட்டுமே OCRக்கு செயலாக்கப்படும். நீங்கள் அகராதிகளை இறக்குமதி செய்துள்ள மொழிகளை மட்டும் தேர்ந்தெடுக்க பரிந்துரைக்கப்படுகிறது.";
+"DICTIONARY_OCR_LANGUAGES" = "OCR மொழிகள்";
+"DICTIONARY_POPUP" = "அகராதி பாப்அப்";
+"DISPLAY_MODE" = "காட்சி முறை";
+"DEFAULT_DISPLAY_MODE" = "இயல்புநிலை";
+"FULL_WIDTH" = "முழு அகலம்";
+"DICTIONARY_POPUP_WIDTH" = "பாப்அப் அகலம்";
+"DICTIONARY_POPUP_HEIGHT" = "பாப்அப் உயரம்";
+"TERM_DICTIONARIES" = "கால அகராதிகள்";
+"FREQUENCY_DICTIONARIES" = "சொல் அதிர்வெண் அகராதிகள்";
+"PITCH_DICTIONARIES" = "சுருதி உச்சரிப்பு அகராதிகள்";
+"KANJI_DICTIONARIES" = "காஞ்சி அகராதிகள்";
+"IMPORTING_DICTIONARY" = "அகராதியை இறக்குமதி செய்கிறது…";
+"IMPORT_ERROR" = "இறக்குமதி பிழை";
+"REVISION" = "திருத்தம்";
+"URL" = "URL";
+"ATTRIBUTION" = "பண்புக்கூறு";
+"SOURCE_LANGUAGE" = "மூல மொழி";
+"TARGET_LANGUAGE" = "இலக்கு மொழி";
+"TERM_COUNT" = "அகராதி சொற்களின் எண்ணிக்கை";
+"TERM_META_COUNT" = "கால மெட்டாடேட்டா உள்ளீடுகளின் எண்ணிக்கை";
+"KANJI_COUNT" = "காஞ்சி கவுண்ட்";
+"KANJI_META_COUNT" = "காஞ்சி மெட்டாடேட்டா உள்ளீடுகளின் எண்ணிக்கை";
+"TAG_COUNT" = "குறிச்சொல் எண்ணிக்கை";
+"MEDIA_COUNT" = "மீடியா எண்ணிக்கை";
+"IS_UPDATABLE" = "புதுப்பிக்கத்தக்கது";
+"SIZE" = "அளவு";
+"REMOVE_DICTIONARY" = "அகராதியை அகற்று";
+"REMOVE_WORD" = "வார்த்தையை அகற்று";
+"VOCABULARY" = "சொல்லகராதி";
+"1_WORD" = "1 வார்த்தை";
+"%i_WORDS" = "%i வார்த்தைகள்";
+"NO_VOCABULARY" = "சொல்லகராதி இல்லை";
+"NO_VOCABULARY_TEXT" = "சேமிக்கப்பட்ட சொற்களஞ்சியம் இங்கே தோன்றும்.";
+"DEFINITION" = "வரையறை";
+"VOCAB_CONTEXT" = "சூழல்";
+"VOCAB_SOURCE" = "ஆதாரம்";
+"CLEAR_VOCABULARY_LIST" = "சேமிக்கப்பட்ட அனைத்து சொற்களஞ்சியத்தையும் நீக்கவும்";
+"CLEAR_VOCABULARY_LIST_TEXT" = "இந்த நடவடிக்கை மீள முடியாதது. சேமிக்கப்பட்ட அனைத்து சொற்களஞ்சியங்களும் அகற்றப்படும்.";
+"DICTIONARY_UPDATES" = "புதுப்பிப்புகள்";
+"UPDATE_NOW" = "இப்போது புதுப்பிக்கவும்";
+"LAST_UPDATED_%@" = "கடைசியாக புதுப்பிக்கப்பட்டது: %@";
+"MONTHLY" = "மாதாந்திர";
+"GET_RECOMMENDED_DICTIONARIES" = "பரிந்துரைக்கப்பட்ட அகராதிகளைப் பெறுங்கள்";
+"RECOMMENDED_DICTIONARIES" = "பரிந்துரைக்கப்பட்ட அகராதிகள்";
+"RECOMMENDED_DICTIONARIES_NOTE" = "கீழே உள்ள அகராதிகள் அனைத்தும் ஜப்பானிய-ஆங்கில மொழி. மற்ற மொழிகளுக்கு, விக்சனரி அகராதிகளின் பட்டியலை நீங்கள் பார்க்கலாம்.";
+"RESTORE_MISSING_SOURCES" = "விடுபட்ட ஆதாரங்களை மீட்டெடுக்கவா?";
+"RESTORE_MISSING_SOURCES_TEXT" = "விடுபட்ட ஆதாரங்களைத் தேடி நிறுவ விரும்புகிறீர்களா?";
+"INSTALL_SOURCES" = "ஆதாரங்களை நிறுவவும்";
+"INSTALLING_SOURCES" = "ஆதாரங்களை நிறுவுகிறது…";
+"MIGRATE_WITH_HISTORY" = "இடம்பெயர்ந்து வரலாற்றை வைத்திருங்கள்";
+"AUTO_SCROLL" = "ஆட்டோ ஸ்க்ரோல்";
+"AUTO_SCROLL_SPEED" = "ஆட்டோ ஸ்க்ரோல் வேகம்";
+"AUTO_SCROLL_POSITION" = "தானாக உருட்டும் நிலை";
+"POSITION_LEFT" = "விட்டு";
+"POSITION_RIGHT" = "சரி";
+"UPLOAD_FILE" = "கோப்பை பதிவேற்றவும்";
+"MIGRATE_CHAPTER_HISTORY" = "அத்தியாய வரலாற்றை நகர்த்தவும்";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "உள்ளூர் தரவுத்தளத்தில் உள்ள அத்தியாயங்களுடன் இணைக்கப்படாத பழைய பதிப்புகளிலிருந்து மீதமுள்ள வாசிப்பு வரலாற்றை நகர்த்தவும். புதுப்பித்தலுக்குப் பிறகு இது தானாகவே நடக்கும். அது முடிவடையவில்லை என்றால், அதை மீண்டும் இங்கே இயக்கலாம்.";
+
+// Local image import
+"IMPORT_PHOTO" = "புகைப்படங்களை இறக்குமதி செய்";
+"LOCAL_IMAGE_IMPORT_TEXT" = "படிக்க புகைப்படங்கள், படக் கோப்புகள் அல்லது CBZ அல்லது ZIP காப்பகத்தை இறக்குமதி செய்யவும்.";
+
+// Translated page export
+"SAVE_TRANSLATED_IMAGE" = "மொழிபெயர்ப்புடன் படத்தைச் சேமி";
+"TRANSLATED_IMAGE_SAVE_FAILED" = "மொழிபெயர்க்கப்பட்ட படத்தை உருவாக்க முடியவில்லை. மொழிபெயர்ப்பு முடிந்ததும் மீண்டும் முயற்சிக்கவும்.";
+
+"TRANSLATION_AUTHORS" = "ஆசிரியர் பெயர்களை மொழிபெயர்";
+
+"TRANSLATION_AUTHOR_FILTER" = "ஆசிரியர் பெயர்களின் மூல மொழிகள்";
+"TRANSLATION_SOURCE_LABEL_FILTER" = "மூல மெனுக்கள் மற்றும் பிரிவுகளின் மொழிகள்";
+
+// Shared image retention
+"SAVE_SHARED_IMAGES" = "பகிரப்பட்ட படங்களை உள்ளூர் கோப்புகளில் வைத்திருங்கள்";
+"SAVE_SHARED_IMAGES_HELP" = "முடக்கப்பட்டிருக்கும் போது, பகிரப்பட்ட படங்கள் தற்காலிகமாகத் திறக்கப்பட்டு, மூடப்படும்போது நீக்கப்படும். படித்த வரலாறு மற்றும் OCR/மொழிபெயர்ப்பு தற்காலிகச் சேமிப்புகள் சேமிக்கப்படவில்லை.";
+
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "பெரிய வடிகட்டி பட்டியல்களை மொழிபெயர் (100-க்கும் மேற்பட்ட விருப்பங்கள்)";
+
+"SETTING_INVALID_STEPPER_RANGE" = "தவறான எண் அமைப்பு வரம்பு.";
+
+"SETTING_MISSING_CONTENT_HANDLER" = "அமைப்பைக் காட்ட முடியவில்லை: %@";

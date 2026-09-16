@@ -33,10 +33,24 @@ struct ReaderTranslationSettingsView: View {
                     .accessibilityIdentifier("translation.chapterTitles")
                 titleLanguageFilterLink("TRANSLATION_CHAPTER_TITLE_FILTER", selection: persistedSettings.chapterTitleSourceLanguages,
                                         accessibilityPrefix: "translation.chapterTitleFilter")
+                Toggle(NSLocalizedString("TRANSLATION_AUTHORS"), isOn: persistedSettings.translateAuthors)
+                    .accessibilityIdentifier("translation.authors")
+                titleLanguageFilterLink("TRANSLATION_AUTHOR_FILTER", selection: persistedSettings.authorSourceLanguages,
+                                        accessibilityPrefix: "translation.authorFilter")
+                Toggle(NSLocalizedString("TRANSLATION_SOURCE_LABELS"), isOn: persistedSettings.translateSourceLabels)
+                    .accessibilityIdentifier("translation.sourceLabels")
+                titleLanguageFilterLink("TRANSLATION_SOURCE_LABEL_FILTER", selection: persistedSettings.sourceLabelSourceLanguages,
+                                        accessibilityPrefix: "translation.sourceLabelFilter")
+                Toggle(NSLocalizedString("TRANSLATION_MANGA_TAGS"), isOn: persistedSettings.translateMangaTags)
+                    .accessibilityIdentifier("translation.mangaTags")
+                titleLanguageFilterLink("TRANSLATION_TAG_FILTER", selection: persistedSettings.mangaTagSourceLanguages,
+                                        accessibilityPrefix: "translation.tagFilter")
                 Toggle(NSLocalizedString("TRANSLATION_MANGA_DESCRIPTIONS"), isOn: persistedSettings.translateMangaDescriptions)
                     .accessibilityIdentifier("translation.mangaDescriptions")
                 titleLanguageFilterLink("TRANSLATION_DESCRIPTION_FILTER", selection: persistedSettings.mangaDescriptionSourceLanguages,
                                         accessibilityPrefix: "translation.descriptionFilter")
+                Toggle(NSLocalizedString("TRANSLATION_LARGE_FILTER_OPTIONS"), isOn: persistedSettings.translateLargeFilterOptions)
+                    .accessibilityIdentifier("translation.largeFilterOptions")
             } footer: {
                 Text(NSLocalizedString("TRANSLATION_TITLES_HELP"))
             }

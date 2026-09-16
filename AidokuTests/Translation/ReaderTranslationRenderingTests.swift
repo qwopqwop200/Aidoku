@@ -419,6 +419,19 @@ struct ReaderTranslationRenderingTests {
             fontSize: result.maximumFontSize))
     }
 
+    @Test func koreanEightPointBalloonGetsGuardedEnlargement() {
+        // comic-0082: the tall balloon has space, despite its 8 pt strict fit.
+        let rect = CGRect(x: 191.1, y: 230.69, width: 50.94, height: 83.17)
+        let original = BrowserOverlayCardLayout(rect: rect, maximumFontSize: 8,
+            contentInsets: UIEdgeInsets(top: 4, left: 4, bottom: 4, right: 4))
+        let result = BrowserOverlayLayoutPlanner.fittingFinalHorizontalFont(original,
+            variants: [.plain("좋은 아침, 몸은 괜찮니?", vertical: false)],
+            settings: ReaderTranslationSettings.defaultOverlay, occupied: [], reservedSources: [])
+        #expect(result.rect == rect)
+        #expect(result.maximumFontSize > 8 && result.maximumFontSize <= 12)
+        #expect(result.smallTextReference != nil)
+    }
+
     @Test func smallCaptionRecoversPaddingWithoutBreakingNames() {
         let rect = CGRect(x: 16, y: 337, width: 64.6579, height: 12)
         let original = BrowserOverlayCardLayout(rect: rect, maximumFontSize: 5,

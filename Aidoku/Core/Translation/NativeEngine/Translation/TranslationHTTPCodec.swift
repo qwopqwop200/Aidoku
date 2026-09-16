@@ -28,7 +28,8 @@ enum TranslationHTTPCodec {
         For each supplied segment, return a JSON boolean is_sfx. Set true only when the whole segment
         is clearly standalone sound-effect or mimetic lettering representing a sound, action, or state.
         Preserve dialogue, narration, names, ordinary replies, meaningful spoken exclamations, and
-        mixed dialogue-plus-SFX segments by setting false. Shortness, repetition, capitalization, or
+        mixed dialogue-plus-SFX segments by setting false. Furigana/ruby readings are not sound effects.
+        Shortness, repetition, capitalization, or
         a dictionary-like sound spelling alone is insufficient. If ambiguous, set false and translate.
         For true, copy the original segment text unchanged into text. Do not drop IDs or return blanks.
         This classification/output rule takes precedence over general instructions to translate every
@@ -49,7 +50,17 @@ enum TranslationHTTPCodec {
         let schema = responseSchema(segmentIDs: request.segments.map(\.id), filtersSFX: filtersSFX)
         // Some compatible servers do not feed response_format/text.format into
         // the model prompt. The wire schema and the textual contract must agree.
-        let instructions = configuration.instructions + (request.imageJPEG == nil ? "" : "\n\n" + imageInstructions) +
+        let contextInstructions = request.context.isEmpty ? "" : """
+
+        Context is nearby OCR, not extra output. Use it for references, names, and tone
+        without assuming a shared speaker or inventing facts.
+        """
+        let koreanInstructions = request.targetLanguage == "ko" ? """
+
+        Use natural Korean with consistent names and speech levels. Preserve meaning;
+        let the renderer wrap lines instead of copying OCR line breaks.
+        """ : ""
+        let instructions = configuration.instructions + contextInstructions + koreanInstructions + (request.imageJPEG == nil ? "" : "\n\n" + imageInstructions) +
             (filtersSFX ? "\n\n" + sfxInstructions(hasImage: request.imageJPEG != nil) : "") + """
 
 

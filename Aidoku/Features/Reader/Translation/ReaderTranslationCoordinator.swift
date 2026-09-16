@@ -8,10 +8,12 @@ protocol ReaderTranslationOwner: AnyObject {
     var translationChapterKey: String { get }
     var translationCurrentPageIndex: Int { get }
     var translationReadsRightToLeft: Bool { get }
+    var translationPersistsCache: Bool { get }
 }
 
 extension ReaderTranslationOwner {
     var translationReadsRightToLeft: Bool { false }
+    var translationPersistsCache: Bool { true }
     var translationCurrentPageIndex: Int {
         guard let key = translationVisiblePages.first?.sourcePage?.translationCacheKey else { return 0 }
         return translationUpcomingPages.firstIndex { $0.translationCacheKey == key } ?? 0
@@ -19,6 +21,7 @@ extension ReaderTranslationOwner {
 }
 
 extension ReaderViewController: ReaderTranslationOwner {
+    var translationPersistsCache: Bool { !isTemporaryImageSession }
     var translationReadsRightToLeft: Bool { readingMode == .rtl }
     var translationVisiblePages: [ReaderTranslationPage] { reader?.translationPages() ?? [] }
     var translationChapterKey: String { chapter.key }
@@ -27,7 +30,7 @@ extension ReaderViewController: ReaderTranslationOwner {
 @MainActor
 final class ReaderTranslationCoordinator {
     private weak var owner: (any ReaderTranslationOwner)?
-    private let preloader = ReaderTranslationPreloader(diskCache: .shared)
+    private let preloader: ReaderTranslationPreloader
     private let layoutPreparer = ReaderTranslationLayoutPreparer()
     private lazy var button = UIBarButtonItem(image: UIImage(systemName: "character.bubble"), style: .plain, target: self, action: #selector(toggle))
     private var observers: [NSObjectProtocol] = []
@@ -46,6 +49,8 @@ final class ReaderTranslationCoordinator {
         readSettings: @escaping () -> ReaderTranslationSettings = { ReaderTranslationSettings() },
         setEnabled: @escaping (Bool) -> Void = { ReaderTranslationSettings.setAutomaticTranslation($0) }
     ) {
+        let persistsCache = owner.translationPersistsCache
+        self.preloader = ReaderTranslationPreloader(diskCache: persistsCache ? .shared : nil)
         self.owner = owner
         self.readSettings = readSettings
         self.setEnabled = setEnabled
@@ -55,9 +60,9 @@ final class ReaderTranslationCoordinator {
             },
             cancelProcessing: { [preloader] in preloader.cancel() },
             cancelProcessingForPage: { [preloader] page in preloader.cancel(preservingRecognitionFor: page) },
-            diskCache: .shared, renderCache: .shared,
+            diskCache: persistsCache ? .shared : nil, renderCache: persistsCache ? .shared : nil,
             prepareLayout: { [weak owner, layoutPreparer] page, regions, settings in
-                guard let visible = owner?.translationVisiblePages.first, let imageView = visible.imageView,
+                guard persistsCache, let visible = owner?.translationVisiblePages.first, let imageView = visible.imageView,
                       let window = imageView.window, imageView.bounds.width > 0, imageView.bounds.height > 0 else { throw CancellationError() }
                 try await layoutPreparer.prepare(
                     page: page, regions: regions, settings: settings,

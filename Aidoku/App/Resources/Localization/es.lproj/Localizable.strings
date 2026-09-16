@@ -337,7 +337,7 @@
 "SKIPPING_CHAPTERS" = "Se omiten %i capítulos, ya sea que falten en la fuente o se hayan filtrado";
 "DELETE_DOWNLOAD_AFTER_READING" = "Eliminar la descarga después de leerla";
 "NO_SCANLATOR" = "Sin scanlator";
-"SCANLATOR" = "Scanlator";
+"SCANLATOR" = "equipo de escaneo";
 "DONE" = "Hecho";
 "INVALID" = "Invalido";
 "ENABLE_PERMISSION" = "Activar permiso";
@@ -966,3 +966,123 @@
 "TRANSLATION_REASONING_XHIGH" = "muy alto";
 
 "TRANSLATION_REASONING_MAX" = "Máximo";
+
+"TRANSLATION_MANGA_TAGS" = "Traducir etiquetas del manga";
+"TRANSLATION_TAG_FILTER" = "Idiomas de origen de las etiquetas";
+
+// Completed app localization
+"DOWNLOAD_INCOMPLETE" = "Descarga incompleta";
+"LIBRARY_REFRESH_INTERRUPTED" = "Actualización de biblioteca interrumpida";
+"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "La última actualización de la biblioteca se interrumpió antes de completarse. ¿Quieres reanudar?";
+"DISABLE" = "Desactivar";
+"ENABLE" = "Habilitar";
+"RESTART" = "Reiniciar";
+"HTML_ERROR" = "Error HTML";
+"JSON_ERROR" = "Error JSON";
+"SOURCE_CRASHED" = "Fuente bloqueada";
+"CONTINUE_READING_ON_RESELECT" = "Toca dos veces la pestaña Historial para reanudar la lectura.";
+"TEXT_THEME" = "Tema";
+"TEXT_THEME_SEPIA" = "sepia";
+"TEXT_THEME_PAPER" = "papel";
+"TEXT_THEME_GRAY" = "gris";
+"DICTIONARY_LOOKUP" = "Búsqueda de diccionario";
+"DICTIONARY_SETTINGS_TEXT" = "Habilite la búsqueda de diccionario para permitir el procesamiento OCR en imágenes de páginas para buscar palabras en cualquier diccionario Yomitan importado.";
+"DICTIONARIES" = "Diccionarios";
+"ABOUT_DICTIONARIES" = "Acerca de los diccionarios";
+"ABOUT_DICTIONARIES_TEXT" = "Los diccionarios Yomitan se pueden importar desde archivos zip. Puede habilitar o deshabilitar diccionarios y se pueden reordenar arrastrándolos.";
+"LOOKUP_GESTURE" = "Gesto de búsqueda";
+"SINGLE_TAP" = "Un solo toque";
+"LONG_PRESS" = "Pulsación larga";
+"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Al tocar el comienzo de una palabra se activará la ventana emergente. Esto desactiva el doble toque para hacer zoom cuando está habilitado.";
+"LOOKUP_GESTURE_LONG_PRESS_INFO" = "Mantener presionado el comienzo de una palabra la resaltará y soltarla activará la ventana emergente. Esto deshabilita las acciones rápidas de la página cuando está habilitado.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Bloqueado por gesto de búsqueda: pulsación única.";
+"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Bloqueado por gesto de búsqueda: pulsación larga.";
+"DICTIONARY_TEXT_OVERLAY_MODE" = "Superposición de texto OCR";
+"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Muestra cuadros de texto en regiones de imágenes cuando se activa una búsqueda. Esto puede resultar útil para determinar qué texto ha sido reconocido correctamente por OCR.";
+"DICTIONARY_OVERLAY_PADDING" = "Relleno superpuesto";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "Tamaño del texto superpuesto";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Restringir idiomas de OCR";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Cuando está habilitado, solo los capítulos marcados como los idiomas seleccionados se procesarán para OCR. Se recomienda seleccionar sólo los idiomas para los que ha importado los diccionarios.";
+"DICTIONARY_OCR_LANGUAGES" = "Idiomas OCR";
+"DICTIONARY_POPUP" = "Ventana emergente de diccionario";
+"DISPLAY_MODE" = "Modo de visualización";
+"DEFAULT_DISPLAY_MODE" = "Predeterminado";
+"FULL_WIDTH" = "Ancho completo";
+"DICTIONARY_POPUP_WIDTH" = "Ancho de ventana emergente";
+"DICTIONARY_POPUP_HEIGHT" = "Altura emergente";
+"TERM_DICTIONARIES" = "Diccionarios de términos";
+"FREQUENCY_DICTIONARIES" = "Diccionarios de frecuencia de palabras";
+"PITCH_DICTIONARIES" = "Diccionarios de acento tonal";
+"KANJI_DICTIONARIES" = "Diccionarios Kanji";
+"IMPORTING_DICTIONARY" = "Importando diccionario…";
+"IMPORT_ERROR" = "Error de importación";
+"REVISION" = "Revisión";
+"URL" = "URL";
+"ATTRIBUTION" = "Atribución";
+"SOURCE_LANGUAGE" = "Idioma de origen";
+"TARGET_LANGUAGE" = "Idioma de destino";
+"TERM_COUNT" = "Número de términos del diccionario";
+"TERM_META_COUNT" = "Número de entradas de metadatos de términos";
+"KANJI_COUNT" = "Conteo de kanjis";
+"KANJI_META_COUNT" = "Número de entradas de metadatos kanji";
+"TAG_COUNT" = "Recuento de etiquetas";
+"MEDIA_COUNT" = "Recuento de medios";
+"IS_UPDATABLE" = "Es actualizable";
+"SIZE" = "Tamaño";
+"REMOVE_DICTIONARY" = "Eliminar diccionario";
+"REMOVE_WORD" = "Quitar palabra";
+"VOCABULARY" = "Vocabulario";
+"1_WORD" = "1 palabra";
+"%i_WORDS" = "Palabras %i";
+"NO_VOCABULARY" = "Sin vocabulario";
+"NO_VOCABULARY_TEXT" = "El vocabulario guardado aparecerá aquí.";
+"DEFINITION" = "Definición";
+"VOCAB_CONTEXT" = "Contexto";
+"VOCAB_SOURCE" = "Fuente";
+"CLEAR_VOCABULARY_LIST" = "Eliminar todo el vocabulario guardado";
+"CLEAR_VOCABULARY_LIST_TEXT" = "Esta acción es irreversible. Se eliminará todo el vocabulario guardado.";
+"DICTIONARY_UPDATES" = "Actualizaciones";
+"UPDATE_NOW" = "Actualizar ahora";
+"LAST_UPDATED_%@" = "Última actualización: %@";
+"MONTHLY" = "Mensual";
+"GET_RECOMMENDED_DICTIONARIES" = "Obtenga diccionarios recomendados";
+"RECOMMENDED_DICTIONARIES" = "Diccionarios recomendados";
+"RECOMMENDED_DICTIONARIES_NOTE" = "Los diccionarios a continuación están todos en idioma japonés-inglés. Para otros idiomas, puede consultar la lista de diccionarios de Wikcionario.";
+"RESTORE_MISSING_SOURCES" = "¿Restaurar fuentes faltantes?";
+"RESTORE_MISSING_SOURCES_TEXT" = "¿Le gustaría buscar e instalar fuentes faltantes?";
+"INSTALL_SOURCES" = "Instalar fuentes";
+"INSTALLING_SOURCES" = "Instalando fuentes…";
+"MIGRATE_WITH_HISTORY" = "Migrar y conservar el historial";
+"AUTO_SCROLL" = "Desplazamiento automático";
+"AUTO_SCROLL_SPEED" = "Velocidad de desplazamiento automático";
+"AUTO_SCROLL_POSITION" = "Posición de desplazamiento automático";
+"POSITION_LEFT" = "Izquierda";
+"POSITION_RIGHT" = "Derecha";
+"UPLOAD_FILE" = "Cargar archivo";
+"MIGRATE_CHAPTER_HISTORY" = "Migrar el historial del capítulo";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "Migre el historial de lectura sobrante de versiones anteriores que no esté vinculado a capítulos en la base de datos local. Normalmente, esto sucede automáticamente después de una actualización. Si no finalizó, puedes ejecutarlo nuevamente aquí.";
+
+"TRANSLATION_SOURCE_LABELS" = "Traducir menús y títulos de secciones de la fuente";
+
+// Local image import
+"IMPORT_PHOTO" = "Importar fotos";
+"LOCAL_IMAGE_IMPORT_TEXT" = "Importa fotos, archivos de imagen o un archivo CBZ o ZIP para leer.";
+
+// Translated page export
+"SAVE_TRANSLATED_IMAGE" = "Guardar imagen con traducción";
+"TRANSLATED_IMAGE_SAVE_FAILED" = "No se pudo crear la imagen traducida. Inténtalo de nuevo cuando termine la traducción.";
+
+"TRANSLATION_AUTHORS" = "Traducir nombres de autores";
+
+"TRANSLATION_AUTHOR_FILTER" = "Idiomas de los nombres de autores";
+"TRANSLATION_SOURCE_LABEL_FILTER" = "Idiomas de los menús y secciones de la fuente";
+
+// Shared image retention
+"SAVE_SHARED_IMAGES" = "Mantenga las imágenes compartidas en archivos locales";
+"SAVE_SHARED_IMAGES_HELP" = "Cuando está desactivado, las imágenes compartidas se abren temporalmente y se eliminan cuando se cierran. El historial de lectura y los cachés de traducción/OCR no se guardan.";
+
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "Traducir listas de filtros grandes (más de 100 opciones)";
+
+"SETTING_INVALID_STEPPER_RANGE" = "Rango de configuración numérica no válida.";
+
+"SETTING_MISSING_CONTENT_HANDLER" = "No se puede mostrar la configuración: %@";

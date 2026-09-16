@@ -53,7 +53,7 @@ enum ReaderJapaneseSFXImageEvidence {
                 candidateInputs: inputs.map {
                     .init(id: $0.id, text: $0.source, rect: CGRect(x: $0.rect.minX * size.width,
                         y: $0.rect.minY * size.height, width: $0.rect.width * size.width, height: $0.rect.height * size.height))
-                }, coordinateSize: size)
+                }, coordinateSize: size, checkingAlternateSeeds: true)
             guard !Task.isCancelled else { return regions }
             evidence = Evidence(inputs: inputs, protectedIDs: Set(groups.flatMap { $0 }))
             lock.lock()

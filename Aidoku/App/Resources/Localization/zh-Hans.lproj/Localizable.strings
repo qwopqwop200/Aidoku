@@ -555,7 +555,6 @@
 "NO_RESULTS_FOR_%@" = "“%@”没有结果";
 "NO_RESULTS_TEXT" = "检查拼写或尝试新的搜索。";
 "BACKUP_%@" = "备份 %@";
-"UPDATE_AFTER_READING" = "阅读后更新";
 "CREATE_BACKUP" = "创建备份";
 "LIBRARY_ENTRIES" = "书架条目";
 "SENSITIVE_SETTINGS" = "敏感设置";
@@ -1047,3 +1046,43 @@
 "TRANSLATION_REASONING_XHIGH" = "非常高";
 
 "TRANSLATION_REASONING_MAX" = "最大";
+
+"TRANSLATION_MANGA_TAGS" = "翻译漫画标签";
+"TRANSLATION_TAG_FILTER" = "标签原文语言";
+
+"TRANSLATION_SOURCE_LABELS" = "翻译图源菜单和分区标题";
+
+// Completed app localization
+"TEXT_THEME" = "主题";
+"TEXT_THEME_SEPIA" = "棕褐色";
+"TEXT_THEME_PAPER" = "纸";
+"TEXT_THEME_GRAY" = "灰色";
+"AUTO_SCROLL_POSITION" = "自动滚动位置";
+"POSITION_LEFT" = "左";
+"POSITION_RIGHT" = "右";
+"UPLOAD_FILE" = "上传文件";
+"MIGRATE_CHAPTER_HISTORY" = "迁移章节历史";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "迁移旧版本留下的未链接到本地数据库中的章节的阅读历史记录。这通常在更新后自动发生。如果未完成，您可以在此处再次运行。";
+
+// Local image import
+"IMPORT_PHOTO" = "导入照片";
+"LOCAL_IMAGE_IMPORT_TEXT" = "导入照片、图像文件或 CBZ、ZIP 压缩包以阅读。";
+
+// Translated page export
+"SAVE_TRANSLATED_IMAGE" = "保存含翻译的图片";
+"TRANSLATED_IMAGE_SAVE_FAILED" = "无法生成翻译图片。请等待翻译完成后重试。";
+
+"TRANSLATION_AUTHORS" = "翻译作者姓名";
+
+"TRANSLATION_AUTHOR_FILTER" = "作者姓名原文语言";
+"TRANSLATION_SOURCE_LABEL_FILTER" = "图源菜单和分区原文语言";
+
+// Shared image retention
+"SAVE_SHARED_IMAGES" = "将共享图像保留在本地文件中";
+"SAVE_SHARED_IMAGES_HELP" = "关闭此选项时，共享图片仅临时打开，并在关闭阅读器后删除。阅读历史记录和 OCR/翻译缓存也不会保存。";
+
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "翻译大量筛选项（超过100项）";
+
+"SETTING_INVALID_STEPPER_RANGE" = "数值设置范围无效。";
+
+"SETTING_MISSING_CONTENT_HANDLER" = "无法显示设置：%@";

@@ -324,7 +324,7 @@ extension AidokuRunner.Chapter {
         }
         // scanlator
         if let scanlators, !scanlators.isEmpty {
-            components.append(scanlators.joined(separator: ", "))
+            components.append(scanlators.map { ChapterLanguageDisplay.localized($0, acceptsCode: false) }.joined(separator: ", "))
         }
         // language (if source has multiple enabled)
         if
@@ -332,7 +332,7 @@ extension AidokuRunner.Chapter {
             let languageCount = UserDefaults.standard.array(forKey: "\(sourceKey).languages")?.count,
             languageCount > 1
         {
-            components.append(language)
+            components.append(ChapterLanguageDisplay.localized(language))
         }
         return components.isEmpty ? nil : components.joined(separator: " • ")
     }

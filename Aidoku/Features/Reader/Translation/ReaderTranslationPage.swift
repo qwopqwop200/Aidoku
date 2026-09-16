@@ -18,6 +18,7 @@ final class ReaderTranslationPage {
     private var recognizedRegions: [ReaderTranslationRegion]?
     private var lastSettings: ReaderTranslationSettings?
     private var completedTranslation = false
+    private var isExportingTranslation = false
     private(set) var regions: [ReaderTranslationRegion] = []
     private var generation = UUID()
     private var task: Task<[ReaderTranslationRegion], Error>?
@@ -191,6 +192,24 @@ final class ReaderTranslationPage {
         return result.count
     }
 
+    var canExportTranslation: Bool {
+        !isExportingTranslation && completedTranslation && analyzedImage != nil && analyzedImage === imageView?.image &&
+            regions.contains { !($0.translation?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true) }
+    }
+
+    func exportTranslatedImage(host: UIView) async throws -> UIImage {
+        guard canExportTranslation, let imageView, let image = imageView.image, let settings = lastSettings else {
+            throw ReaderTranslationImageExporter.ExportError.unavailable
+        }
+        isExportingTranslation = true
+        defer { isExportingTranslation = false }
+        // Freeze the tapped page, including its already-cropped regions, before any await.
+        return try await ReaderTranslationImageExporter.render(
+            image: image, regions: regions, settings: settings, viewport: imageView.bounds.size,
+            aspectFit: imageView.contentMode == .scaleAspectFit, host: host
+        )
+    }
+
     func hasCompletedTranslation(settings: ReaderTranslationSettings) -> Bool {
         completedTranslation && analyzedImage != nil && analyzedImage === imageView?.image &&
             lastSettings?.hasSameTranslation(as: settings) == true
@@ -234,7 +253,7 @@ final class ReaderTranslationPage {
             renderLookupTask?.cancel()
             renderLookupKey = key
             renderLookupTask = Task { [weak self] in
-                let diskGeneration = await renderCache.disk.currentGeneration()
+                let diskGeneration = await renderCache.disk.currentGeneration(settings: settings)
                 let pageIdentity = ReaderTranslationCacheIdentity.translation(page: sourcePage.translationCacheKey, settings: settings)
                 let cached = await renderCache.load(key)
                 guard !Task.isCancelled, let self, generation == issued, imageView.image === image, renderLookupKey == key else { return }

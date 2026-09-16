@@ -105,7 +105,11 @@ struct ReaderMangaQualityValidationTests {
                 scrollHeight:x.scrollHeight,clientHeight:x.clientHeight};
             })
             """)
-            let report: [String: Any] = ["ocrSeconds": ocrSeconds, "totalSeconds": Date().timeIntervalSince(started),
+            let wrapMilliseconds = try await overlay.webView.evaluateJavaScript(
+                "Number(document.querySelector('[data-aidoku-image-ocr-overlay=\"root\"]')?.dataset.koreanWrapMilliseconds || 0)"
+            )
+            let report: [String: Any] = ["koreanWrapMilliseconds": wrapMilliseconds,
+                                       "ocrSeconds": ocrSeconds, "totalSeconds": Date().timeIntervalSince(started),
                                        "regions": regions.count, "replayed": replay != nil, "dom": audit]
             try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
                 .write(to: output.appendingPathComponent(name + "-audit.json"))
@@ -119,9 +123,98 @@ struct ReaderMangaQualityValidationTests {
                 }
             }
             try snapshot.pngData()?.write(to: output.appendingPathComponent(name + "-translated.png"))
+            if config.benchmarkKoreanWrap == true {
+                let benchmark = try await benchmarkKoreanWrap(on: overlay.webView, regions: translated,
+                    imageSize: source.size, size: size, settings: settings,
+                    replacements: config.scriptReplacements.map { folder.appendingPathComponent($0) },
+                    output: output.appendingPathComponent(name))
+                try JSONSerialization.data(withJSONObject: benchmark, options: [.prettyPrinted, .sortedKeys])
+                    .write(to: output.appendingPathComponent(name + "-wrap-benchmark.json"))
+            }
             overlay.removeFromSuperview()
         }
         await ReaderOCRService.shared.purge()
+    }
+
+    // Same WKWebView, payload and process for both variants. Exclude navigation,
+    // image decoding and the 50 ms diagnostic poll from this isolated JS cost.
+    private func benchmarkKoreanWrap(on webView: WKWebView, regions: [ReaderTranslationRegion],
+                                    imageSize: CGSize, size: CGSize,
+                                    settings: ReaderTranslationSettings, replacements: URL?,
+                                    output: URL) async throws -> [[String: Any]] {
+        let script = BrowserPageImageOverlayRenderer.renderScript
+        let begin = try #require(script.range(of: "// Repair existing Korean emergency breaks"))
+        let end = try #require(script.range(of: "measurementNode.remove();", range: begin.upperBound..<script.endIndex))
+        var baseline = script
+        baseline.removeSubrange(begin.lowerBound..<end.lowerBound)
+        baseline = baseline.replacingOccurrences(of: "const koreanWrapMeasure = document.createElement('canvas').getContext('2d');", with: "")
+        var candidate = script
+        if let replacements {
+            baseline = script
+            let changes = try JSONDecoder().decode([[String: String]].self, from: Data(contentsOf: replacements))
+            for change in changes {
+                let old = try #require(change["old"]), new = try #require(change["new"])
+                #expect(candidate.contains(old))
+                candidate = candidate.replacingOccurrences(of: old, with: new)
+            }
+        }
+        let encoded = try await BrowserPageImageOverlayRenderer.prepareLayoutData(
+            items: ReaderTranslationRegion.overlayItems(regions, imageSize: imageSize), imageSize: imageSize,
+            sourceRect: CGRect(origin: .zero, size: size), settings: settings.overlay,
+            targetLanguage: settings.targetLanguage, viewport: size)
+        let payload = try JSONSerialization.jsonObject(with: encoded)
+        if replacements != nil { try encoded.write(to: output.appendingPathExtension("layout.json")) }
+        var measurements: [[String: Any]] = []
+        for iteration in 0..<5 {
+            let variants = iteration.isMultiple(of: 2) ? [false, true] : [true, false]
+            for enabled in variants {
+                let source = enabled ? candidate : baseline
+                let timed = "const began = performance.now(); const outcome = (() => {\n" + source +
+                    "\n})(); return {milliseconds: performance.now() - began, status: outcome.status};"
+                let result = try await webView.callAsyncJavaScript(timed, arguments: [
+                    "items": payload, "appearance": ["opacity": settings.overlay.opacity,
+                        "preserveSourceTextColor": settings.overlay.preserveSourceTextColor,
+                        "preserveSourceBackgroundColor": settings.overlay.preserveSourceBackgroundColor,
+                        "minimumReadableFontSize": BrowserOverlayLayoutPlanner.minimumRenderedFontSize],
+                    "revision": "1", "session": UUID().uuidString
+                ], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
+                let row = try #require(result as? [String: Any])
+                #expect(row["status"] as? String == "committed")
+                if iteration == 0, replacements != nil {
+                    let label = enabled ? "candidate" : "baseline"
+                    let audit = try await webView.evaluateJavaScript("""
+                    Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).map(node => {
+                      const style=getComputedStyle(node), r=node.getBoundingClientRect(), lines=[];
+                      const range=document.createRange();let offset=0;
+                      for (const c of node.textContent) {
+                        range.setStart(node.firstChild,offset);offset+=c.length;range.setEnd(node.firstChild,offset);
+                        const boxes=Array.from(range.getClientRects()).filter(r=>r.width>0&&r.height>0);
+                        const box=boxes[boxes.length-1];if(!box)continue;
+                        let line=lines.find(l=>Math.abs(l.y-box.y)<1);
+                        if(!line){line={y:box.y,text:'',offsets:[]};lines.push(line);}
+                        line.text+=c;line.offsets.push(offset-c.length);
+                      }
+                      return {id:node.dataset.aidokuRegion,text:node.textContent,
+                        font:parseFloat(style.fontSize),padding:style.padding,
+                        rect:[r.x,r.y,r.width,r.height],lines,
+                        overflow:node.scrollWidth>node.clientWidth+1||node.scrollHeight>node.clientHeight+1};
+                    })
+                    """)
+                    try JSONSerialization.data(withJSONObject: audit, options: [.prettyPrinted, .sortedKeys])
+                        .write(to: output.appendingPathExtension(label + ".json"))
+                    let snapshot: UIImage = try await withCheckedThrowingContinuation { continuation in
+                        webView.takeSnapshot(with: nil) { image, error in
+                            if let image { continuation.resume(returning: image) }
+                            else { continuation.resume(throwing: error ?? CancellationError()) }
+                        }
+                    }
+                    try snapshot.pngData()?.write(to: output.appendingPathExtension(label + ".png"))
+                }
+                if iteration > 0 { measurements.append(["enabled": enabled, "iteration": iteration,
+                    "milliseconds": row["milliseconds"] ?? -1]) }
+            }
+        }
+        return measurements
     }
 
     private struct Configuration: Decodable {
@@ -134,6 +227,8 @@ struct ReaderMangaQualityValidationTests {
         let targetLanguage: String?
         let ocrOnly: Bool?
         let replayDirectory: String?
+        let benchmarkKoreanWrap: Bool?
+        let scriptReplacements: String?
         let reasoningEffort: OpenAIReasoningEffort?
     }
 

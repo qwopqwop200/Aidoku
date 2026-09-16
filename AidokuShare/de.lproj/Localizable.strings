@@ -1,0 +1,5 @@
+"IMPORT" = "Importieren";
+"DONE" = "Fertig";
+"FILE_IMPORT_FAIL_TEXT" = "Datei konnte nicht importiert werden. Bitte stellen Sie sicher, dass es sich um ein gültiges CBZ- oder ZIP-Archiv handelt, das Bilder enthält.";
+"FORMAT_IMAGE" = "Bild";
+"SHARED_IMAGES_SAVED" = "Bilder gespeichert. Öffne Aidoku, um sie automatisch in die lokalen Dateien zu importieren.";

@@ -375,7 +375,7 @@ private struct FilterListView: View {
                             )
 
                         case .note(let text):
-                            Text(text)
+                            TranslatedTitleText(text, kind: .sourceLabel)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .multilineTextAlignment(.leading)
                                 .padding(.horizontal)
@@ -450,7 +450,7 @@ private struct FilterListView: View {
 
     private func titleView(_ title: String?, searchId: String? = nil) -> some View {
         HStack {
-            Text(title ?? "")
+            TranslatedTitleText(title ?? "", kind: .sourceLabel)
                 .font(.title3.weight(.semibold))
             Spacer()
             if let searchId {

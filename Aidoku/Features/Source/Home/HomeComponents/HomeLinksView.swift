@@ -61,7 +61,13 @@ struct HomeLinksView: View {
                             }
                         }
                     } label: {
-                        Text(link.title)
+                        Group {
+                            if case .manga = link.value {
+                                TranslatedTitleText(link.title, kind: .manga)
+                            } else {
+                                TranslatedTitleText(link.title, kind: .sourceLabel)
+                            }
+                        }
                     }
                     .buttonStyle(ListButtonStyle())
 

@@ -1,0 +1,5 @@
+"IMPORT" = "Importi";
+"DONE" = "U krye";
+"FILE_IMPORT_FAIL_TEXT" = "Importimi i skedarit dështoi. Sigurohuni që të jetë një arkiv i vlefshëm CBZ ose ZIP që përmban imazhe.";
+"FORMAT_IMAGE" = "Imazhi";
+"SHARED_IMAGES_SAVED" = "Imazhet u ruajtën. Hapni Aidoku për t’i importuar automatikisht në skedarët lokalë.";

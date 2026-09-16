@@ -1,9 +1,59 @@
 import Testing
 import Foundation
+import SwiftUI
+import UIKit
 @testable import Aidoku
 
 @Suite(.serialized) @MainActor
 struct MangaDescriptionTranslationTests {
+    @Test func repairsEscapedLineBreaksWithoutDamagingURLs() {
+        let text = #"Japanese title: title /n타입: artistcg /n페이지: 349\nSeries: original"#
+        #expect(MangaDescriptionTranslation.normalizedLineBreaks(text) == "Japanese title: title\n타입: artistcg\n페이지: 349\nSeries: original")
+        let url = "https://example.org/news/name?q=/new"
+        #expect(MangaDescriptionTranslation.normalizedLineBreaks(url) == url)
+        #expect(MangaDescriptionTranslation.normalizedLineBreaks("First\n\nSecond") == "First\n\nSecond")
+    }
+
+    @Test func modelCannotCollapseSourceLinesAndRestartKeepsLayout() async throws {
+        let fixture = DescriptionFixture()
+        var settings = ReaderTranslationSettings()
+        settings.translateMangaDescriptions = true
+        settings.mangaDescriptionSourceLanguages = []
+        settings.targetLanguage = "ko"
+        let original = "Japanese title: Alley Sister /nType: artistcg /nPages: 349 /nSeries: original"
+        let client = DescriptionClient()
+        let result = await MangaDescriptionTranslation.translate(original, settings: settings,
+            service: ReaderTranslationService(client: client), diskCache: fixture.disk)
+        #expect(result == Array(repeating: "번역된 설명", count: 4).joined(separator: "\n"))
+        #expect(await client.requests.flatMap(\.segments).count == 4)
+        let offline = DescriptionClient(fails: true)
+        #expect(await MangaDescriptionTranslation.translate(original, settings: settings,
+            service: ReaderTranslationService(client: offline), diskCache: ReaderTranslationDiskCache(directory: fixture.root)) == result)
+        #expect(await offline.requests.isEmpty)
+    }
+
+    @Test func expandedAndCollapsedMarkdownRenderLineBreaks() throws {
+        let text = "일본어 제목: 골목길의 시스터\n형식: artistcg\n페이지: 349\n시리즈: 오리지널"
+        for expanded in [false, true] {
+            let controller = UIHostingController(rootView: ExpandableTextView(text: text, expanded: .constant(expanded))
+                .environmentObject(NavigationCoordinator(rootViewController: nil)))
+            let flat = UIHostingController(rootView: ExpandableTextView(text: text.replacingOccurrences(of: "\n", with: " "),
+                expanded: .constant(expanded)).environmentObject(NavigationCoordinator(rootViewController: nil)))
+            let size = CGSize(width: 700, height: 1000)
+            let height = controller.sizeThatFits(in: size).height
+            #expect(height > flat.sizeThatFits(in: size).height + 30)
+            controller.view.frame = CGRect(x: 0, y: 0, width: 700, height: height)
+            controller.view.backgroundColor = .systemBackground
+            controller.view.layoutIfNeeded()
+            let image = UIGraphicsImageRenderer(size: controller.view.bounds.size).image { _ in
+                controller.view.drawHierarchy(in: controller.view.bounds, afterScreenUpdates: true)
+            }
+            let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("description-lines-\(expanded ? "expanded" : "collapsed").png")
+            try image.pngData()?.write(to: path)
+        }
+    }
+
     @Test func preferencesPersistIndependently() throws {
         let suite = "description-settings-" + UUID().uuidString
         let defaults = try #require(UserDefaults(suiteName: suite))

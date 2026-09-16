@@ -83,12 +83,12 @@ struct HomeBigScrollerView: View {
                                         .lineLimit(3)
                                         .multilineTextAlignment(.leading)
                                     if let authors = entry.authors, !authors.isEmpty {
-                                        Text(authors.joined(separator: ", "))
+                                        TranslatedTitleText(authors.joined(separator: ", "), kind: .author)
                                             .foregroundStyle(.secondary)
                                             .lineLimit(1)
                                     }
                                     if let description = entry.description {
-                                        Text(description)
+                                        TranslatedTitleText(description, kind: .description)
                                             .foregroundStyle(.secondary)
                                             .font(.callout)
                                             .lineLimit(3)
@@ -120,7 +120,7 @@ struct HomeBigScrollerView: View {
 
                                         if tagCount > 0 {
                                             ForEach(tags.prefix(tagCount), id: \.self) { tag in
-                                                LabelView(text: tag)
+                                                LabelView(text: tag, translatesTag: true)
                                             }
                                         }
 

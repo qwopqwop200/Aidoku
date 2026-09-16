@@ -13,6 +13,7 @@ struct FilterLabelView: View {
     var active = false
     var chevron = true
     var icon: String?
+    var translationKind: TitleTranslationKind?
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -31,7 +32,13 @@ struct FilterLabelView: View {
                 FilterBadgeView(count: badgeCount)
             }
 
-            Text(name)
+            Group {
+                if let translationKind {
+                    TranslatedTitleText(name, kind: translationKind)
+                } else {
+                    Text(name)
+                }
+            }
                 .opacity(highlighted ? 1 : 0.6)
                 .foregroundColor(highlighted && colorScheme == .light ? .accentColor : .primary)
 

@@ -123,7 +123,7 @@
 "SOURCE_LISTS" = "Daftar Sumber";
 "SOURCE_LIST_ADDED" = "Daftar Sumber Ditambahkan";
 "SOURCE_LIST_ADD_TEXT" = "Masukkan URL daftar sumber";
-"BACKUPS" = "Backups";
+"BACKUPS" = "Cadangan";
 "BACKUP_NAME" = "Nama Cadangan";
 "RENAME_BACKUP_TEXT" = "Masukkan nama baru untuk cadangan Anda";
 "CORRUPTED_BACKUP" = "Cadangan yang Rusak";
@@ -201,7 +201,7 @@
 "SEARCH" = "Cari";
 "APPEARANCE_DARK" = "Gelap";
 "AUTH_TO_DISABLE" = "Otentikasi untuk menonaktifkan.";
-"GITHUB_REPO" = "GitHub Repository";
+"GITHUB_REPO" = "Repositori GitHub";
 "USE_SYSTEM_APPEARANCE" = "Gunakan Tampilan Sistem";
 "REMOVE_ALL_MANGA_HISTORY" = "Hapus Semua Riwayat Manga";
 "VIEW_HISTORY" = "Lihat Riwayat";
@@ -315,7 +315,7 @@
 "EXTERNAL_SOURCES" = "Sumber Eksternal";
 "NO_RESULTS" = "Tidak ada hasil";
 "NO_EXTERNAL_SOURCES" = "Tidak ada sumber eksternal";
-"NO_EXTERNAL_SOURCES_INFO" = "Configure source lists in the settings tab to install external sources.";
+"NO_EXTERNAL_SOURCES_INFO" = "Konfigurasikan daftar sumber di tab pengaturan untuk menginstal sumber eksternal.";
 "NO_AVAILABLE_SOURCES" = "Tidak ada sumber yang tersedia";
 "NO_AVAILABLE_SOURCES_INFO" = "Sesuaikan filter Anda untuk melihat lebih banyak sumber eksternal.";
 "ALL_SOURCES_INSTALLED" = "Semua Sumber Telah Diinstal";
@@ -383,7 +383,7 @@
 "SORT_FOLDER_NAME" = "Nama Folder";
 "SORT_BOOKS_COUNT" = "Jumlah Buku";
 "SORT_RANDOM" = "Acak";
-"GENRE" = "Genre";
+"GENRE" = "Genre manga";
 "TAG" = "Tag";
 "PUBLISHER" = "Penerbit";
 "AGE_RATING" = "Peringkat Usia";
@@ -569,7 +569,7 @@
 "SORT_TIME_TO_READ" = "Waktu untuk Membaca";
 "SORT_AVERAGE_RATING" = "Rating Rata-Rata";
 "STATUS_ENDED" = "Sudah berakhir";
-"FORMAT" = "Format";
+"FORMAT" = "Format berkas";
 "FORMAT_IMAGE" = "Gambar";
 "FORMAT_EPUB" = "EPUB";
 "FORMAT_PDF" = "PDF";
@@ -1033,7 +1033,7 @@
 
 "TRANSLATION_REASONING_NONE" = "Tidak ada";
 
-"TRANSLATION_REASONING_MINIMAL" = "Minimal";
+"TRANSLATION_REASONING_MINIMAL" = "Upaya penalaran minimal";
 
 "TRANSLATION_REASONING_LOW" = "Rendah";
 
@@ -1044,3 +1044,43 @@
 "TRANSLATION_REASONING_XHIGH" = "Sangat Tinggi";
 
 "TRANSLATION_REASONING_MAX" = "Maksimal";
+
+"TRANSLATION_MANGA_TAGS" = "Terjemahkan Tag Manga";
+"TRANSLATION_TAG_FILTER" = "Bahasa Sumber Tag";
+
+// Completed app localization
+"TEXT_THEME" = "Tema";
+"TEXT_THEME_SEPIA" = "sepia";
+"TEXT_THEME_PAPER" = "Kertas";
+"TEXT_THEME_GRAY" = "Abu-abu";
+"AUTO_SCROLL_POSITION" = "Posisi Gulir Otomatis";
+"POSITION_LEFT" = "Kiri";
+"POSITION_RIGHT" = "Benar";
+"UPLOAD_FILE" = "Unggah Berkas";
+"MIGRATE_CHAPTER_HISTORY" = "Migrasikan Riwayat Bab";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "Migrasikan riwayat bacaan yang tersisa dari versi lama yang tidak tertaut ke bab di database lokal. Ini biasanya terjadi secara otomatis setelah pembaruan. Jika belum selesai, Anda dapat menjalankannya kembali di sini.";
+
+"TRANSLATION_SOURCE_LABELS" = "Terjemahkan Menu dan Judul Bagian Sumber";
+
+// Local image import
+"IMPORT_PHOTO" = "Impor foto";
+"LOCAL_IMAGE_IMPORT_TEXT" = "Impor foto, berkas gambar, atau arsip CBZ atau ZIP untuk dibaca.";
+
+// Translated page export
+"SAVE_TRANSLATED_IMAGE" = "Simpan gambar dengan terjemahan";
+"TRANSLATED_IMAGE_SAVE_FAILED" = "Gagal membuat gambar terjemahan. Coba lagi setelah terjemahan selesai.";
+
+"TRANSLATION_AUTHORS" = "Terjemahkan Nama Pengarang";
+
+"TRANSLATION_AUTHOR_FILTER" = "Bahasa Sumber Nama Pengarang";
+"TRANSLATION_SOURCE_LABEL_FILTER" = "Bahasa Menu dan Bagian Sumber";
+
+// Shared image retention
+"SAVE_SHARED_IMAGES" = "Simpan Gambar yang Dibagikan di File Lokal";
+"SAVE_SHARED_IMAGES_HELP" = "Jika tidak aktif, gambar yang dibagikan akan dibuka sementara dan dihapus saat ditutup. Riwayat membaca dan cache OCR/terjemahan tidak disimpan.";
+
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "Terjemahkan Daftar Filter Besar (Lebih dari 100 Opsi)";
+
+"SETTING_INVALID_STEPPER_RANGE" = "Rentang pengaturan numerik tidak valid.";
+
+"SETTING_MISSING_CONTENT_HANDLER" = "Tidak dapat menampilkan pengaturan: %@";

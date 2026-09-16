@@ -67,6 +67,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func sceneDidBecomeActive(_ scene: UIScene) {
         contentHideView.removeFromSuperview()
+        UIApplication.shared.appDelegate?.importPendingSharedImages()
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {

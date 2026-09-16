@@ -1330,7 +1330,10 @@ extension ReaderPagedViewController: UIContextMenuInteractionDelegate {
                 }
             }
 
-            var actions = [shareAction, saveToPhotosAction, reloadAction]
+            let translationPage = self.pageViewControllers.compactMap(\.pageView)
+                .first(where: { $0.imageView === pageView })?.translationPage
+            let saveTranslatedAction = ReaderTranslationImageExporter.saveAction(page: translationPage, presenter: self)
+            var actions = [shareAction, saveToPhotosAction, saveTranslatedAction, reloadAction]
 
             if self.usesDoublePages {
                 for (index, pageViewController) in self.pageViewControllers.enumerated() {

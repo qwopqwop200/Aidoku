@@ -1,0 +1,5 @@
+"IMPORT" = "Importera";
+"DONE" = "Klar";
+"FILE_IMPORT_FAIL_TEXT" = "Kunde ej importera fil. Se till att det är en giltig CBZ- eller ZIP-fil som innehåller bilder.";
+"FORMAT_IMAGE" = "Bild";
+"SHARED_IMAGES_SAVED" = "Bilderna har sparats. Öppna Aidoku för att automatiskt importera dem till lokala filer.";

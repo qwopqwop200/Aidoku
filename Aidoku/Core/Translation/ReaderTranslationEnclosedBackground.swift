@@ -6,7 +6,7 @@ enum ReaderTranslationEnclosedBackground {
     struct Input { let id: String; let text: String; let rect: CGRect }
     static func enclosedRegionGroups(in image: CGImage,
                                     candidateInputs candidates: [Input],
-                                    coordinateSize: CGSize) -> [[String]] {
+                                    coordinateSize: CGSize, checkingAlternateSeeds: Bool = false) -> [[String]] {
         guard coordinateSize.width > 0, coordinateSize.height > 0,
               coordinateSize.width.isFinite, coordinateSize.height.isFinite else { return [] }
         guard !candidates.isEmpty else { return [] }
@@ -32,7 +32,7 @@ enum ReaderTranslationEnclosedBackground {
                               y: input.rect.minY / coordinateSize.height * CGFloat(height),
                               width: input.rect.width / coordinateSize.width * CGFloat(width),
                               height: input.rect.height / coordinateSize.height * CGFloat(height))
-            if let component = enclosed(rect, pixels: pixels, width: width, height: height) { groups[component, default: []].append(input.id) }
+            if let component = enclosed(rect, pixels: pixels, width: width, height: height, checkingAlternateSeeds: checkingAlternateSeeds) { groups[component, default: []].append(input.id) }
         }
         return groups.keys.sorted().map { groups[$0]! }
     }
@@ -64,7 +64,7 @@ enum ReaderTranslationEnclosedBackground {
         return clearRows >= 47
     }
 
-    private static func enclosed(_ rect: CGRect, pixels: [UInt8], width: Int, height: Int) -> Int? {
+    private static func enclosed(_ rect: CGRect, pixels: [UInt8], width: Int, height: Int, checkingAlternateSeeds: Bool) -> Int? {
         guard rect.minX.isFinite, rect.minY.isFinite, rect.maxX.isFinite, rect.maxY.isFinite,
               rect.width > 0, rect.height > 0, rect.minX >= 0, rect.minY >= 0,
               rect.maxX < CGFloat(width), rect.maxY < CGFloat(height) else { return nil }
@@ -78,26 +78,40 @@ enum ReaderTranslationEnclosedBackground {
         // Require background all around the lettering, not a small white hole
         // inside one glyph. An open/missing balloon boundary always abstains.
         guard let seed = perimeter.first(where: { pixels[$0] >= 235 }) else { return nil }
-        var seen = [Bool](repeating: false, count: pixels.count)
-        var queue = [seed]
-        seen[seed] = true
-        var cursor = 0, minX = width, maxX = 0, minY = height, maxY = 0
-        let budget = min(pixels.count / 3, max(256, (x1 - x0) * (y1 - y0) * 12))
-        while cursor < queue.count {
-            guard !Task.isCancelled, queue.count <= budget else { return nil }
-            let point = queue[cursor]; cursor += 1
-            let x = point % width, y = point / width
-            guard x > 0, y > 0, x < width - 1, y < height - 1 else { return nil }
-            minX = min(minX, x); maxX = max(maxX, x)
-            minY = min(minY, y); maxY = max(maxY, y)
-            for next in [point - 1, point + 1, point - width, point + width] where !seen[next] && pixels[next] >= 235 {
-                seen[next] = true
-                queue.append(next)
+        let middleX = (x0 + x1) / 2, middleY = (y0 + y1) / 2
+        let seeds = checkingAlternateSeeds
+            ? [seed, middleY * width + x0, middleY * width + x1,
+               y0 * width + middleX, y1 * width + middleX] : [seed]
+        // All attempts share the original flood budget. A bad corner seed must
+        // not multiply page work or count as evidence against enclosed speech.
+        var remaining = min(pixels.count / 3, max(256, (x1 - x0) * (y1 - y0) * 12))
+        var attempted = Set<Int>()
+        for seed in seeds where pixels[seed] >= 235 && !attempted.contains(seed) {
+            guard remaining > 0, !Task.isCancelled else { return nil }
+            var seen = [Bool](repeating: false, count: pixels.count)
+            var queue = [seed]
+            seen[seed] = true; remaining -= 1
+            var cursor = 0, minX = width, maxX = 0, minY = height, maxY = 0
+            var touchesEdge = false
+            while cursor < queue.count {
+                guard !Task.isCancelled else { return nil }
+                let point = queue[cursor]; cursor += 1
+                let x = point % width, y = point / width
+                if x == 0 || y == 0 || x == width - 1 || y == height - 1 { touchesEdge = true; break }
+                minX = min(minX, x); maxX = max(maxX, x)
+                minY = min(minY, y); maxY = max(maxY, y)
+                for next in [point - 1, point + 1, point - width, point + width] where !seen[next] && pixels[next] >= 235 {
+                    guard remaining > 0 else { return nil }
+                    remaining -= 1; seen[next] = true; queue.append(next)
+                }
             }
+            for candidate in seeds where seen[candidate] { attempted.insert(candidate) }
+            guard !touchesEdge,
+                  perimeter.filter({ seen[$0] }).count * 5 >= perimeter.count * 4,
+                  minX < x0, maxX > x1, minY < y0, maxY > y1,
+                  maxX - minX < width * 3 / 4, maxY - minY < height * 3 / 4 else { continue }
+            return queue.min()
         }
-        guard perimeter.filter({ seen[$0] }).count * 5 >= perimeter.count * 4,
-              minX < x0, maxX > x1, minY < y0, maxY > y1,
-              maxX - minX < width * 3 / 4, maxY - minY < height * 3 / 4 else { return nil }
-        return queue.min()
+        return nil
     }
 }

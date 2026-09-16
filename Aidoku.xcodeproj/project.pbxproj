@@ -18,6 +18,8 @@
 		FBBCB31D2E08D6B000ED5CAB /* Gifu in Frameworks */ = {isa = PBXBuildFile; productRef = FBBCB31C2E08D6B000ED5CAB /* Gifu */; };
 		FBE53F0C29CC015E00899601 /* AsyncDisplayKit in Frameworks */ = {isa = PBXBuildFile; productRef = FBE53F0B29CC015E00899601 /* AsyncDisplayKit */; };
 		FBFDF5F82DF799180064F603 /* AidokuRunner in Frameworks */ = {isa = PBXBuildFile; productRef = FBFDF5F72DF799180064F603 /* AidokuRunner */; };
+		A1D0C000000000000000000C = { isa = PBXBuildFile; fileRef = A1D0C0000000000000000002; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A1D0C0000000000000000010 = { isa = PBXBuildFile; fileRef = A1D0C000000000000000000F; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,12 +30,19 @@
 			remoteGlobalIDString = FB1B4834277CE1920056D02C;
 			remoteInfo = "Aidoku (iOS)";
 		};
+		A1D0C000000000000000000E = { isa = PBXContainerItemProxy; containerPortal = FB1B4826277CE18D0056D02C; proxyType = 1; remoteGlobalIDString = A1D0C0000000000000000001; remoteInfo = AidokuShare; };
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A1D0C000000000000000000B = { isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (A1D0C000000000000000000C, ); name = "Embed App Extensions"; runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		FB1B4835277CE1920056D02C /* Aidoku.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Aidoku.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FB4EEBDF27A4F5C1005081A3 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS15.2.sdk/System/Library/Frameworks/CloudKit.framework; sourceTree = DEVELOPER_DIR; };
 		FBB44E722EC635620032EFBB /* AidokuTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AidokuTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1D0C0000000000000000002 = { isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AidokuShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1D0C000000000000000000F = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Aidoku/Core/Sources/BuiltIn/Local/SharedImageInbox.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -45,11 +54,13 @@
 			);
 			target = FB1B4834277CE1920056D02C /* Aidoku */;
 		};
+		A1D0C0000000000000000004 = { isa = PBXFileSystemSynchronizedBuildFileExceptionSet; membershipExceptions = (Info.plist, AidokuShare.entitlements, ); target = A1D0C0000000000000000001; };
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		FB77CD38303A838B00DF3DA3 /* Aidoku */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (FB77CE44303A838C00DF3DA3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Aidoku; sourceTree = "<group>"; };
 		FBB44E732EC635620032EFBB /* AidokuTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = AidokuTests; sourceTree = "<group>"; };
+		A1D0C0000000000000000003 = { isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A1D0C0000000000000000004, ); explicitFileTypes = {}; explicitFolders = (); path = AidokuShare; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,12 +89,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1D0C0000000000000000006 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		FB1B4825277CE18D0056D02C = {
 			isa = PBXGroup;
 			children = (
+				A1D0C0000000000000000003,
+				A1D0C000000000000000000F,
 				FB77CD38303A838B00DF3DA3 /* Aidoku */,
 				FBB44E732EC635620032EFBB /* AidokuTests */,
 				FB1B4836277CE1920056D02C /* Products */,
@@ -97,6 +111,7 @@
 		FB1B4836277CE1920056D02C /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				A1D0C0000000000000000002,
 				FB1B4835277CE1920056D02C /* Aidoku.app */,
 				FBB44E722EC635620032EFBB /* AidokuTests.xctest */,
 			);
@@ -129,10 +144,12 @@
 				FB1B4832277CE1920056D02C /* Frameworks */,
 				FB1B4833277CE1920056D02C /* Resources */,
 				FBED233627C3C4D70095D0C0 /* ShellScript */,
+				A1D0C000000000000000000B,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A1D0C000000000000000000D,
 			);
 			fileSystemSynchronizedGroups = (
 				FB77CD38303A838B00DF3DA3 /* Aidoku */,
@@ -177,6 +194,7 @@
 			productReference = FBB44E722EC635620032EFBB /* AidokuTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		A1D0C0000000000000000001 = { isa = PBXNativeTarget; buildConfigurationList = A1D0C0000000000000000008; buildPhases = (A1D0C0000000000000000005, A1D0C0000000000000000006, A1D0C0000000000000000007, ); buildRules = (); dependencies = (); fileSystemSynchronizedGroups = (A1D0C0000000000000000003, ); name = AidokuShare; productName = AidokuShare; productReference = A1D0C0000000000000000002; productType = "com.apple.product-type.app-extension"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -261,6 +279,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				A1D0C0000000000000000001,
 				FB1B4834277CE1920056D02C /* Aidoku */,
 				FBB44E712EC635620032EFBB /* AidokuTests */,
 			);
@@ -282,6 +301,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1D0C0000000000000000007 = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
@@ -320,6 +340,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1D0C0000000000000000005 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A1D0C0000000000000000010, ); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -328,6 +349,7 @@
 			target = FB1B4834277CE1920056D02C /* Aidoku */;
 			targetProxy = FBB44E762EC635620032EFBB /* PBXContainerItemProxy */;
 		};
+		A1D0C000000000000000000D = { isa = PBXTargetDependency; target = A1D0C0000000000000000001; targetProxy = A1D0C000000000000000000E; };
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -605,6 +627,8 @@
 			};
 			name = Release;
 		};
+		A1D0C0000000000000000009 = { isa = XCBuildConfiguration; baseConfigurationReferenceAnchor = FB77CD38303A838B00DF3DA3; baseConfigurationReferenceRelativePath = Aidoku.xcconfig; buildSettings = { APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = AidokuShare/AidokuShare.entitlements; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 3; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = AidokuShare/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 15.0; MARKETING_VERSION = 0.9; PRODUCT_BUNDLE_IDENTIFIER = "$(APP_ID_PREFIX).$(APP_ID_SUFFIX).Share"; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", ); }; name = Debug; };
+		A1D0C000000000000000000A = { isa = XCBuildConfiguration; baseConfigurationReferenceAnchor = FB77CD38303A838B00DF3DA3; baseConfigurationReferenceRelativePath = Aidoku.xcconfig; buildSettings = { APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = AidokuShare/AidokuShare.entitlements; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 3; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = AidokuShare/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 15.0; MARKETING_VERSION = 0.9; PRODUCT_BUNDLE_IDENTIFIER = "$(APP_ID_PREFIX).$(APP_ID_SUFFIX).Share"; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", ); }; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -635,6 +659,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		A1D0C0000000000000000008 = { isa = XCConfigurationList; buildConfigurations = (A1D0C0000000000000000009, A1D0C000000000000000000A, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */

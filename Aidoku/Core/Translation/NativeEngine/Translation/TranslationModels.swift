@@ -539,7 +539,7 @@ struct RemoteTranslationConfiguration: Hashable, Sendable {
 /// Every field that can change translation semantics is stored directly.
 /// Deliberately avoid lossy hashes here: cache equality must remain exact.
 struct TranslationCacheKey: Codable, Hashable, Sendable {
-    static let schemaVersion = 1
+    static let schemaVersion = 2
 
     let imageDigest: String?
     let sfxPolicy: String?
