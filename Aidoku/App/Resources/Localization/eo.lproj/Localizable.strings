@@ -1084,3 +1084,6 @@
 "SETTING_INVALID_STEPPER_RANGE" = "Nevalida numera agorda intervalo.";
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Ne eblas montri agordon: %@";
+
+// Bundled upscaling models
+"BUNDLED_UPSCALING_MODELS_HELP" = "Kvin inkluzivitaj modeloj povas esti instalitaj eksterrete. Instalu modelon, tiam frapetu ĝin en Ebligita Modelo. MangaJaNai estas por nigrablankaj paĝoj ĉirkaŭ 1200 pikseloj altaj; koloraj paĝoj restas senŝanĝaj.";

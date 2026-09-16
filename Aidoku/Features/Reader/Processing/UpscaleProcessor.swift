@@ -10,26 +10,28 @@ import UIKit
 import Vision
 
 struct UpscaleProcessor: ImageProcessing {
+    private let modelFile = ModelManager.shared.getEnabledModelFileName()
+    private let maxHeight = UserDefaults.standard.integer(forKey: "Reader.upscaleMaxHeight")
+
     var identifier: String {
-        "com.github.Aidoku/Aidoku/upscale"
+        "com.github.Aidoku/Aidoku/upscale-v2/\(modelFile ?? "none")/\(maxHeight)"
     }
 
     func process(_ image: PlatformImage) -> PlatformImage? {
         guard let cgImage = image.cgImage else { return image }
 
         // ensure an upscaling model is enabled
-        guard ModelManager.shared.getEnabledModelFileName() != nil else {
+        guard let modelFile else {
             return image
         }
 
         // ensure image is smaller than max height
-        let maxHeight = UserDefaults.standard.integer(forKey: "Reader.upscaleMaxHeight")
         guard cgImage.height < maxHeight else { return image }
 
         return BlockingTask {
             let model: ImageProcessingModel
             do {
-                guard let imageModel = try await ModelManager.shared.getEnabledModel() else {
+                guard let imageModel = try await ModelManager.shared.getModel(fileName: modelFile) else {
                     throw ProcessorError.invalidModel
                 }
                 model = imageModel

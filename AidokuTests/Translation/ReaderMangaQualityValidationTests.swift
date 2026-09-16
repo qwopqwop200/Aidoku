@@ -24,11 +24,14 @@ struct ReaderMangaQualityValidationTests {
         settings.custom.apiProtocol = .chatCompletions
         settings.model = config.model
         if let targetLanguage = config.targetLanguage { settings.targetLanguage = targetLanguage }
-        settings.maximumConcurrentRequests = 2
+        settings.maximumConcurrentRequests = config.maximumConcurrentRequests ?? 2
+        settings.includePageImage = config.includePageImage ?? false
+        settings.filterSFXWithLLM = config.filterSFXWithLLM ?? false
+        settings.rightToLeftPanelOrder = config.rightToLeftPanelOrder ?? false
         if let effort = config.reasoningEffort { settings.reasoningEffort = effort }
         if let instructions = config.instructions { settings.instructions = instructions }
         let translator = ReaderTranslationService(client: RemoteTranslationClient(
-            credentialStore: QualityCredential(value: config.apiKey)
+            credentialStore: QualityCredential(value: try config.runtimeCredential(folder: folder))
         ))
         let output = folder.appendingPathComponent(config.label)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
@@ -73,16 +76,26 @@ struct ReaderMangaQualityValidationTests {
                     .write(to: output.appendingPathComponent(name + "-timing.json"))
                 continue
             }
+            let firstDisplay = FirstDisplayProbe(controller: controller, source: source, settings: settings, started: started)
+            let prepared = ReaderTranslationImagePreparation.apply(regions, image: source, settings: settings)
             let translated: [ReaderTranslationRegion]
             do {
-                if let replay { translated = replay } else { translated = try await translator.translate(regions: regions, settings: settings) }
+                if let replay { translated = replay } else {
+                    let progress: ReaderTranslationService.Progress?
+                    if config.measureFirstDisplay == true {
+                        progress = { snapshot in try await firstDisplay.show(snapshot) }
+                    } else { progress = nil }
+                    translated = try await translator.translate(regions: prepared, settings: settings, image: source, onProgress: progress)
+                }
             } catch {
                 // Diagnose every real image even if one provider request fails.
                 Issue.record(error)
+                firstDisplay.finish()
                 continue
             }
             #expect(translated.count == regions.count)
             #expect(translated.allSatisfy { $0.translation != nil })
+            firstDisplay.finish()
             let records = translated.map(ReaderTranslationStoredRegion.init)
             try encoder.encode(records).write(to: output.appendingPathComponent(name + "-regions.json"))
             let size = CGSize(width: 430, height: 430 * source.size.height / source.size.width)
@@ -110,7 +123,9 @@ struct ReaderMangaQualityValidationTests {
             )
             let report: [String: Any] = ["koreanWrapMilliseconds": wrapMilliseconds,
                                        "ocrSeconds": ocrSeconds, "totalSeconds": Date().timeIntervalSince(started),
-                                       "regions": regions.count, "replayed": replay != nil, "dom": audit]
+                                       "regions": regions.count, "replayed": replay != nil, "dom": audit,
+                                       "firstDisplaySeconds": firstDisplay.firstSeconds ?? NSNull(),
+                                       "includePageImage": settings.includePageImage, "filterSFXWithLLM": settings.filterSFXWithLLM]
             try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
                 .write(to: output.appendingPathComponent(name + "-audit.json"))
             _ = try await overlay.webView.callAsyncJavaScript(
@@ -220,7 +235,20 @@ struct ReaderMangaQualityValidationTests {
     private struct Configuration: Decodable {
         let baseURL: String
         let model: String
-        let apiKey: String
+        let apiKey: String?
+        let credentialFile: String?
+        let maximumConcurrentRequests: Int?
+        let includePageImage: Bool?
+        let filterSFXWithLLM: Bool?
+        let rightToLeftPanelOrder: Bool?
+        let measureFirstDisplay: Bool?
+        func runtimeCredential(folder: URL) throws -> String {
+            if let credentialFile {
+                return try String(contentsOf: folder.appendingPathComponent(credentialFile), encoding: .utf8)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            return apiKey ?? ""
+        }
         let label: String
         let fixtures: [String]
         let instructions: String?
@@ -230,6 +258,43 @@ struct ReaderMangaQualityValidationTests {
         let benchmarkKoreanWrap: Bool?
         let scriptReplacements: String?
         let reasoningEffort: OpenAIReasoningEffort?
+    }
+
+    @MainActor
+    private final class FirstDisplayProbe {
+        let overlay: ReaderTranslationOverlayView
+        let source: UIImage
+        let settings: ReaderTranslationSettings
+        let started: Date
+        var firstSeconds: Double?
+        var rendering = false
+        init(controller: UIViewController, source: UIImage, settings: ReaderTranslationSettings, started: Date) {
+            self.source = source; self.settings = settings; self.started = started
+            overlay = ReaderTranslationOverlayView(frame: CGRect(x: 0, y: 0, width: 430,
+                height: 430 * source.size.height / source.size.width))
+            controller.view.addSubview(overlay)
+        }
+        func show(_ regions: [ReaderTranslationRegion]) async throws {
+            guard firstSeconds == nil, !rendering, regions.contains(where: {
+                guard let translated = $0.translation, translated != $0.source, !translated.isEmpty else { return false }
+                return settings.targetLanguage != "ko" || translated.unicodeScalars.contains { (0xAC00...0xD7A3).contains($0.value) }
+            }) else { return }
+            rendering = true
+            overlay.update(regions: regions, imageSize: source.size, aspectFit: false, settings: settings, image: source)
+            for _ in 0..<1500 {
+                overlay.layoutIfNeeded()
+                if overlay.lastDiagnostic?.outcome == .committed {
+                    _ = try await overlay.webView.callAsyncJavaScript(
+                        "await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+                        arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
+                    firstSeconds = Date().timeIntervalSince(started)
+                    return
+                }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            throw URLError(.timedOut)
+        }
+        func finish() { overlay.cancelWork(); overlay.removeFromSuperview() }
     }
 
     private struct QualityCredential: TranslationCredentialProviding {

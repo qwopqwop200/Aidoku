@@ -50,6 +50,26 @@ struct ReaderSmallTextDOMGuardTests {
                         minimumAcceptedFont: 8)
     }
 
+    @Test func tinyUnspacedKoreanCanWrapWithoutMovingItsCard() async throws {
+        // Actual integrated comic-0303 bottom-right song, same API output and
+        // card dimensions with fixed 2 px padding. Only the guarded font proposal changes.
+        let baseline: [String: Any] = [
+            "id": "song", "text": "버스데~이이이이이이이이", "x": 294.956299,
+            "y": 391.289551, "width": 80.71875, "height": 201.921875,
+            "fontSize": 7.0, "lineHeight": 8.353515625, "paddingTop": 2.0,
+            "paddingRight": 2.0, "paddingBottom": 2.0, "paddingLeft": 2.0,
+            "vertical": false, "fontScript": "korean", "wrappingScript": "korean", "lightSurface": true
+        ]
+        var candidate = baseline
+        candidate["fontSize"] = 12.0; candidate["lineHeight"] = 14.3203125
+        candidate["smallTextReference"] = [
+            "fontSize": 7.0, "padding": [2.0, 2.0, 2.0, 2.0], "additionalLines": 20,
+            "exclusionRects": [], "allowsEmergencyWordBreak": true
+        ] as [String: Any]
+        try await check(["baseline": baseline, "candidate": candidate], shouldAccept: true,
+                        minimumAcceptedFont: 9)
+    }
+
     private func check(_ fixture: [String: Any], shouldAccept: Bool, minimumAcceptedFont: Double? = nil) async throws {
         var baseline = try #require(fixture["baseline"] as? [String: Any])
         var candidate = try #require(fixture["candidate"] as? [String: Any])

@@ -3,3 +3,5 @@
 "FILE_IMPORT_FAIL_TEXT" = "Falha ao importar o arquivo. Certifique-se de que seja um arquivo CBZ ou ZIP válido que contenha imagens.";
 "FORMAT_IMAGE" = "Imagem";
 "SHARED_IMAGES_SAVED" = "Imagens guardadas. Abra o Aidoku para as importar automaticamente para os ficheiros locais.";
+
+"SHARED_IMAGE_IMPORT_FAILED" = "Não foi possível ler a imagem partilhada. Tente outra imagem.";

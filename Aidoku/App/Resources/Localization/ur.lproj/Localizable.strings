@@ -1080,3 +1080,6 @@
 "SETTING_INVALID_STEPPER_RANGE" = "غلط عددی ترتیب کی حد۔";
 
 "SETTING_MISSING_CONTENT_HANDLER" = "ترتیب ظاہر کرنے سے قاصر: %@";
+
+// Bundled upscaling models
+"BUNDLED_UPSCALING_MODELS_HELP" = "پانچ شامل ماڈلز کو آف لائن انسٹال کیا جا سکتا ہے۔ ایک ماڈل انسٹال کریں، پھر اسے فعال ماڈل میں تھپتھپائیں۔ MangaJaNai تقریباً 1200 پکسلز لمبے سیاہ اور سفید صفحات کے لیے ہے۔ رنگین صفحات غیر تبدیل شدہ رہتے ہیں۔";

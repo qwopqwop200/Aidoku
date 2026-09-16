@@ -3,22 +3,21 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>Aidoku</string>
+	<string>$(SHARE_EXTENSION_DISPLAY_NAME)</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>
 		<dict>
 			<key>NSExtensionActivationRule</key>
-			<dict>
-				<key>NSExtensionActivationSupportsImageWithMaxCount</key>
-				<integer>1000</integer>
-			</dict>
+			<string>SUBQUERY(extensionItems, $item, SUBQUERY($item.attachments, $attachment, ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.image").@count &gt; 0).@count &gt; 0</string>
 		</dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.share-services</string>
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).ShareViewController</string>
 	</dict>
+	<key>SHARED_IMAGE_URL_SCHEME</key>
+	<string>$(SHARED_IMAGE_URL_SCHEME)</string>
 	<key>SHARED_IMAGE_APP_GROUP</key>
 	<string>$(SHARED_IMAGE_APP_GROUP)</string>
 </dict>

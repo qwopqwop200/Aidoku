@@ -1084,3 +1084,6 @@
 "SETTING_INVALID_STEPPER_RANGE" = "Ugyldig numerisk innstillingsområde.";
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Kan ikke vise innstilling: %@";
+
+// Bundled upscaling models
+"BUNDLED_UPSCALING_MODELS_HELP" = "Fem inkluderte modeller kan installeres offline. Installer en modell, og trykk deretter på den i Aktivert modell. MangaJaNai er for svart-hvitt-sider rundt 1200 piksler høye; fargesider forblir uendret.";

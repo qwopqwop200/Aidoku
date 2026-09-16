@@ -1,8 +1,9 @@
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
+import UIKit
 
-/// Disk-only handoff: the extension never decodes full-size photos or touches the app database.
+/// Prefer file/data handoff; decode only when the host exposes a UIImage object.
 struct SharedImageInbox {
     enum InboxError: Error { case unavailable, invalidImages }
 
@@ -27,34 +28,19 @@ struct SharedImageInbox {
     }
 
     func enqueue(providers: [NSItemProvider]) async throws {
-        guard !providers.isEmpty else { throw InboxError.invalidImages }
+        // Hosts can include captions and links alongside the selected image.
+        let providers = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        guard !providers.isEmpty, providers.count <= 1000 else { throw InboxError.invalidImages }
         let id = UUID().uuidString
         let staging = root.appendingPathComponent("." + id, isDirectory: true)
         try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: staging) }
         var files: [String] = []
         for (index, provider) in providers.enumerated() {
-            guard let type = provider.registeredTypeIdentifiers.first(where: {
-                UTType($0)?.conforms(to: .image) == true
-            }) else { throw InboxError.invalidImages }
-            let ext = UTType(type)?.preferredFilenameExtension ?? "image"
-            let filename = String(format: "%08d", index + 1) + "." + ext
+            let filename = String(format: "%08d", index + 1) + ".image"
             let destination = staging.appendingPathComponent(filename)
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                provider.loadFileRepresentation(forTypeIdentifier: type) { url, error in
-                    guard let url else {
-                        continuation.resume(throwing: error ?? InboxError.invalidImages)
-                        return
-                    }
-                    do {
-                        try FileManager.default.copyItem(at: url, to: destination)
-                        guard let source = CGImageSourceCreateWithURL(destination as CFURL, nil),
-                              CGImageSourceGetCount(source) > 0 else { throw InboxError.invalidImages }
-                        continuation.resume()
-                    } catch { continuation.resume(throwing: error) }
-                }
-            }
+            try await Self.copyImage(from: provider, to: destination)
             files.append(filename)
         }
         let suggestedName = providers.first?.suggestedName ?? NSLocalizedString("FORMAT_IMAGE", comment: "")
@@ -64,6 +50,44 @@ struct SharedImageInbox {
         try JSONEncoder().encode(manifest).write(to: staging.appendingPathComponent("manifest.json"), options: .atomic)
         // The app sees only complete batches, even when sharing and foregrounding overlap.
         try FileManager.default.moveItem(at: staging, to: root.appendingPathComponent(id, isDirectory: true))
+    }
+
+    private static func copyImage(from provider: NSItemProvider, to destination: URL) async throws {
+        var types = provider.registeredTypeIdentifiers.filter { UTType($0)?.conforms(to: .image) == true }
+        if !types.contains(UTType.image.identifier) { types.append(UTType.image.identifier) }
+        var lastError: Error = InboxError.invalidImages
+        for type in types {
+            for representation in 0..<3 {
+                try? FileManager.default.removeItem(at: destination)
+                do {
+                    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                        let complete: (Any?, Error?) -> Void = { item, error in
+                            do {
+                                if let url = item as? URL {
+                                    let access = url.startAccessingSecurityScopedResource()
+                                    defer { if access { url.stopAccessingSecurityScopedResource() } }
+                                    try FileManager.default.copyItem(at: url, to: destination)
+                                } else if let data = item as? Data {
+                                    try data.write(to: destination, options: .atomic)
+                                } else if let image = item as? UIImage, let data = image.pngData() {
+                                    try data.write(to: destination, options: .atomic)
+                                } else { throw error ?? InboxError.invalidImages }
+                                guard let source = CGImageSourceCreateWithURL(destination as CFURL, nil),
+                                      CGImageSourceGetCount(source) > 0 else { throw InboxError.invalidImages }
+                                continuation.resume()
+                            } catch { continuation.resume(throwing: error) }
+                        }
+                        switch representation {
+                        case 0: provider.loadFileRepresentation(forTypeIdentifier: type) { complete($0, $1) }
+                        case 1: provider.loadDataRepresentation(forTypeIdentifier: type) { complete($0, $1) }
+                        default: provider.loadItem(forTypeIdentifier: type, options: nil) { complete($0, $1) }
+                        }
+                    }
+                    return
+                } catch { lastError = error }
+            }
+        }
+        throw lastError
     }
 
     func pendingBatches() throws -> [Batch] {

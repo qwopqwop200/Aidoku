@@ -1056,3 +1056,6 @@
 "SETTING_INVALID_STEPPER_RANGE" = "Invalid numeric setting range.";
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Unable to display setting: %@";
+
+// Bundled upscaling models
+"BUNDLED_UPSCALING_MODELS_HELP" = "Five included models can be installed offline. Install a model, then tap it in Enabled Model. MangaJaNai is for black-and-white pages around 1200 pixels tall; color pages stay unchanged.";

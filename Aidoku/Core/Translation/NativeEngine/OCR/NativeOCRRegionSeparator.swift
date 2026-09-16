@@ -38,16 +38,23 @@ struct NativeOCRRegionSeparator {
         guard !Task.isCancelled, orientation != .unknown, !a.isEmpty, !b.isEmpty,
               [a.minX, a.minY, a.maxX, a.maxY, b.minX, b.minY, b.maxX, b.maxY].allSatisfy(\.isFinite)
         else { return false }
-        let vertical = orientation == .vertical
+        let verticalWriting = orientation == .vertical
+        let columnOverlap = min(a.maxX, b.maxX) - max(a.minX, b.minX)
+        let sameColumnContinuation = verticalWriting
+            && (a.maxY <= b.minY || b.maxY <= a.minY)
+            && columnOverlap >= min(a.width, b.width) * 0.8
+        // A vertical sentence can be split down its reading axis. Its gap has
+        // horizontal panel rules, not vertical column rules.
+        let vertical = verticalWriting && !sameColumnContinuation
         let first = vertical ? (a.minX < b.minX ? a : b) : (a.minY < b.minY ? a : b)
         let last = first == a ? b : a
-        let font = vertical ? min(a.width, b.width) : min(a.height, b.height)
+        let font = verticalWriting ? min(a.width, b.width) : min(a.height, b.height)
         let gapStart = vertical ? first.maxX : first.maxY
         let gapEnd = vertical ? last.minX : last.minY
         let crossStart = vertical ? max(a.minY, b.minY) : max(a.minX, b.minX)
         let crossEnd = vertical ? min(a.maxY, b.maxY) : min(a.maxX, b.maxX)
-        guard font > 0, gapEnd - gapStart >= 2, gapEnd - gapStart <= font * 0.9,
-              crossEnd - crossStart >= font * 2 else { return false }
+        guard font > 0, gapEnd - gapStart >= 2, gapEnd - gapStart <= font * (sameColumnContinuation ? 1.1 : 0.9),
+              crossEnd - crossStart >= font * (sameColumnContinuation ? 0.6 : 2) else { return false }
         let primaryScale = vertical ? sx : sy, crossScale = vertical ? sy : sx
         let pLimit = vertical ? width : height, cLimit = vertical ? height : width
         let start = Int(max(0, min(CGFloat(pLimit - 1), ceil(gapStart * primaryScale) + 1)))

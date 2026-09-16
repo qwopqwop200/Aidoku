@@ -94,7 +94,10 @@ struct HomeScrollerView: View {
                                         .multilineTextAlignment(.leading)
 
                                     if let subtitle = entry.subtitle {
-                                        Text(subtitle)
+                                        TranslatedTitleText(
+                                            subtitle,
+                                            kind: entry.subtitleTranslationKind
+                                        )
                                             .foregroundStyle(.secondary)
                                             .font(.footnote)
                                             .lineLimit(1)
@@ -284,5 +287,14 @@ struct PlaceholderMangaScroller: View {
             .scrollTargetLayoutPlease()
         }
         .scrollViewAlignedPlease()
+    }
+}
+
+extension HomeComponent.Value.Link {
+    var subtitleTranslationKind: TitleTranslationKind {
+        if case .manga = value {
+            return .description
+        }
+        return .sourceLabel
     }
 }

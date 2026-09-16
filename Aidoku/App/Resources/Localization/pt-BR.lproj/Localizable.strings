@@ -1086,3 +1086,6 @@
 "SETTING_INVALID_STEPPER_RANGE" = "Faixa de configuração numérica inválida.";
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Não é possível exibir a configuração: %@";
+
+// Bundled upscaling models
+"BUNDLED_UPSCALING_MODELS_HELP" = "Cinco modelos incluídos podem ser instalados offline. Instale um modelo e toque nele em Modelo habilitado. MangaJaNai é para páginas em preto e branco com cerca de 1200 pixels de altura; as páginas coloridas permanecem inalteradas.";

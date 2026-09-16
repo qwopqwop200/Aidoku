@@ -1064,3 +1064,6 @@
 "SETTING_INVALID_STEPPER_RANGE" = "Masafa ya mipangilio ya nambari si sahihi.";
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Haiwezi kuonyesha mpangilio: %@";
+
+// Bundled upscaling models
+"BUNDLED_UPSCALING_MODELS_HELP" = "Miundo mitano iliyojumuishwa inaweza kusakinishwa nje ya mtandao. Sakinisha modeli, kisha uigonge katika Muundo Uliowezeshwa. MangaJaNai ni ya kurasa nyeusi-na-nyeupe karibu na urefu wa pikseli 1200; kurasa za rangi hukaa bila kubadilika.";

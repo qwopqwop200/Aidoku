@@ -65,6 +65,35 @@ struct NativeOCRRegionSeparatorTests {
         #expect(!separator.separates(left, left.offsetBy(dx: 5, dy: 0), orientation: .vertical))
     }
 
+    @Test func horizontalFrameSeparatesVerticalContinuationAcrossPanels() {
+        let upper = CGRect(x: 40, y: 10, width: 20, height: 40)
+        let lower = CGRect(x: 40, y: 66, width: 20, height: 50)
+        let separator = map { _, y in (56...58).contains(y) ? 0 : nil }
+        #expect(separator.separates(upper, lower, orientation: .vertical))
+        #expect(separator.separates(lower, upper, orientation: .vertical))
+        let lines = [upper, lower].enumerated().map { index, box in
+            NativeCoreMLOCRLine(polygon: [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
+                CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)],
+                text: index == 0 ? "強盗みたい" : "あったかな", score: 0.99, orientation: .vertical)
+        }
+        #expect(NativeOCRTextLineMerger.merge(lines, imageWidth: 140, imageHeight: 140).count == 1)
+        let guarded = NativeOCRTextLineMerger.merge(lines, imageWidth: 140, imageHeight: 140,
+            separationCheck: { separator.separates($0, $1, orientation: $2) })
+        #expect(guarded.map(\.text) == lines.map(\.text))
+    }
+
+    @Test func verticalContinuationWithoutFullBrightSidedRuleStaysConnected() {
+        let upper = CGRect(x: 40, y: 10, width: 20, height: 40)
+        let lower = CGRect(x: 40, y: 66, width: 20, height: 50)
+        let blank = map { _, _ in nil }
+        let stroke = map { x, y in y == 56 && x < 47 ? 0 : nil }
+        let broad = map { _, y in (51...64).contains(y) ? 0 : nil }
+        let dark = map(background: 0) { _, _ in nil }
+        for separator in [blank, stroke, broad, dark] {
+            #expect(!separator.separates(upper, lower, orientation: .vertical))
+        }
+    }
+
     @Test func cancelledQueryDoesNotAddSeparationEvidence() async {
         let separator = map { x, _ in x == 25 ? 0 : nil }
         let first = left, second = right

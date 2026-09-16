@@ -1086,3 +1086,6 @@
 "SETTING_INVALID_STEPPER_RANGE" = "Ongeldig numeriek instelbereik.";
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Kan instelling niet weergeven: %@";
+
+// Bundled upscaling models
+"BUNDLED_UPSCALING_MODELS_HELP" = "Vijf meegeleverde modellen kunnen offline worden geïnstalleerd. Installeer een model en tik erop in Ingeschakeld model. MangaJaNai is voor zwart-witpagina's van ongeveer 1200 pixels hoog; kleurenpagina's blijven ongewijzigd.";

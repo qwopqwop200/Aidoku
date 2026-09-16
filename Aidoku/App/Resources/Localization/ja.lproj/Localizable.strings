@@ -1076,3 +1076,6 @@
 "SETTING_INVALID_STEPPER_RANGE" = "数値の設定範囲が無効です。";
 
 "SETTING_MISSING_CONTENT_HANDLER" = "設定を表示できません: %@";
+
+// Bundled upscaling models
+"BUNDLED_UPSCALING_MODELS_HELP" = "同梱の5つのモデルはオフラインでインストールできます。インストール後、「有効なモデル」でモデルをタップしてください。MangaJaNaiは高さ約1200ピクセルの白黒ページ向けで、カラーページは元のまま表示されます。";

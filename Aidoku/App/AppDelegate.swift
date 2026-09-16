@@ -493,7 +493,8 @@ extension AppDelegate {
     }
 
     func handleUrl(url: URL) {
-        if url.scheme == "aidoku" { // aidoku://
+        if url.scheme == "aidoku" || url.scheme?.lowercased() ==
+            (Bundle.main.object(forInfoDictionaryKey: "SHARED_IMAGE_URL_SCHEME") as? String)?.lowercased() {
             if url.host == "importSharedImages" {
                 importPendingSharedImages()
             } else if url.host == "addSourceList" { // addSourceList?url=
@@ -646,7 +647,8 @@ extension AppDelegate {
     }
 
     func importPendingSharedImages() {
-        guard !importingSharedImages else { return }
+        guard !importingSharedImages,
+              let presenter = Self.sharedImagePresenter(in: UIApplication.shared.firstKeyWindow) else { return }
         importingSharedImages = true
         Task {
             defer { importingSharedImages = false }
@@ -659,12 +661,11 @@ extension AppDelegate {
                         from: batches.flatMap(\.images), name: batches[0].title
                     ) else { throw LocalFileManagerError.invalidFileType }
                     let temporary = try TemporarySharedImageSession(fileInfo: info)
-                    guard navigationController != nil else { return }
                     for batch in batches { try inbox.remove(batch) }
                     presentSharedImageReader(ReaderViewController(
                         source: temporary.source, manga: temporary.manga, chapter: temporary.chapter,
                         startPage: 1, temporaryImageSession: temporary
-                    ))
+                    ), from: presenter)
                     return
                 }
                 guard await SourceManager.shared.ensureLocalSourceForImport() else { return }
@@ -693,7 +694,7 @@ extension AppDelegate {
                    let source = await SourceManager.shared.source(for: LocalSourceRunner.sourceKey) {
                     manga.chapters = await LocalFileDataManager.shared.fetchChapters(mangaId: lastMangaID)
                     if let chapter = manga.chapters?.first {
-                        presentSharedImageReader(ReaderViewController(source: source, manga: manga, chapter: chapter, startPage: 1))
+                        presentSharedImageReader(ReaderViewController(source: source, manga: manga, chapter: chapter, startPage: 1), from: presenter)
                     }
                 }
             } catch SharedImageInbox.InboxError.unavailable {
@@ -705,14 +706,23 @@ extension AppDelegate {
         }
     }
 
-    private func presentSharedImageReader(_ reader: ReaderViewController) {
-        guard let navigationController else { return }
+    // The Settings tab is a SwiftUI hosting controller on iPhone, not a navigation controller.
+    static func sharedImagePresenter(in window: UIWindow?) -> UIViewController? {
+        guard let root = window?.rootViewController, root.viewIfLoaded?.window != nil else { return nil }
+        return root
+    }
+
+    private func presentSharedImageReader(_ reader: ReaderViewController, from presenter: UIViewController) {
         let controller = ReaderNavigationController(readerViewController: reader)
+        Self.presentSharedImageController(controller, from: presenter)
+    }
+
+    static func presentSharedImageController(_ controller: UIViewController, from presenter: UIViewController) {
         controller.modalPresentationStyle = .fullScreen
-        if navigationController.presentedViewController != nil {
-            navigationController.dismiss(animated: false) { navigationController.present(controller, animated: true) }
+        if presenter.presentedViewController != nil {
+            presenter.dismiss(animated: false) { presenter.present(controller, animated: true) }
         } else {
-            navigationController.present(controller, animated: true)
+            presenter.present(controller, animated: true)
         }
     }
 

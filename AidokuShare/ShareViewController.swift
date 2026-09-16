@@ -49,7 +49,9 @@ final class ShareViewController: UIViewController {
                 }
                 status.text = NSLocalizedString("SHARED_IMAGES_SAVED", comment: "")
             } catch {
-                status.text = NSLocalizedString("FILE_IMPORT_FAIL_TEXT", comment: "")
+                let failure = error as NSError
+                status.text = NSLocalizedString("SHARED_IMAGE_IMPORT_FAILED", comment: "")
+                    + "\n(\(failure.domain): \(failure.code))"
             }
             progress.stopAnimating()
             done.isHidden = false
@@ -57,7 +59,8 @@ final class ShareViewController: UIViewController {
     }
 
     private func openContainingApp() async -> Bool {
-        guard let url = URL(string: "aidoku://importSharedImages") else { return false }
+        guard let scheme = Bundle.main.object(forInfoDictionaryKey: "SHARED_IMAGE_URL_SCHEME") as? String,
+              let url = URL(string: "\(scheme)://importSharedImages") else { return false }
         // Share extensions do not have a guaranteed launch API. Prefer the extension
         // context, then use the responder application's modern URL API on supported OSes.
         // Keep the inbox intact if the OS refuses, so the selection is never lost.

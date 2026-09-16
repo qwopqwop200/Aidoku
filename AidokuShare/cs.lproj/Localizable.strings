@@ -3,3 +3,5 @@
 "FILE_IMPORT_FAIL_TEXT" = "Import souboru se nezdařil. Ujistěte se, že se jedná o platný archiv CBZ nebo ZIP, který obsahuje obrázky.";
 "FORMAT_IMAGE" = "Obrázek";
 "SHARED_IMAGES_SAVED" = "Obrázky byly uloženy. Otevřete Aidoku a automaticky se importují do místních souborů.";
+
+"SHARED_IMAGE_IMPORT_FAILED" = "Sdílený obrázek nelze přečíst. Zkuste prosím jiný obrázek.";

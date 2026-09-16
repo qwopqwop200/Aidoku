@@ -21,3 +21,11 @@ OTHER_SWIFT_FLAGS = $(inherited) -DCANONICAL_BUILD
 
 // Shared image inbox used by the app and its Share extension.
 SHARED_IMAGE_APP_GROUP = group.$(APP_ID_PREFIX).$(APP_ID_SUFFIX)
+
+// Route extension handoff to the matching installation when multiple builds coexist.
+SHARED_IMAGE_URL_SCHEME = $(APP_ID_PREFIX).$(APP_ID_SUFFIX).shared
+
+SHARE_EXTENSION_DISPLAY_NAME = Aidoku
+
+// Optional access group for installations explicitly sharing translation credentials.
+TRANSLATION_KEYCHAIN_ACCESS_GROUP =

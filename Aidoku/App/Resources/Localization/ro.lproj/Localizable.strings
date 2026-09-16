@@ -1084,3 +1084,6 @@
 "SETTING_INVALID_STEPPER_RANGE" = "Interval de setare numerică nevalid.";
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Nu se poate afișa setarea: %@";
+
+// Bundled upscaling models
+"BUNDLED_UPSCALING_MODELS_HELP" = "Cinci modele incluse pot fi instalate offline. Instalați un model, apoi atingeți-l în Model activat. MangaJaNai este pentru pagini alb-negru cu o înălțime de aproximativ 1200 de pixeli; paginile color rămân neschimbate.";

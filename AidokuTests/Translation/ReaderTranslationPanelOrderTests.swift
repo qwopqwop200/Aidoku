@@ -34,6 +34,27 @@ struct ReaderTranslationPanelOrderTests {
     @Test func diagonalNarrationWithoutCommonBandKeepsOrder() {
         #expect(ranks([input(0.1, 0.24), input(0.7, 0.01), input(0.3, 0.65)]) == [0, 1, 2])
     }
+    @Test func separatedBandsWithinOnePanelEachReceiveRTLOrder() {
+        let boxes: [ReaderTranslationPanelOrder.Input] = [
+            .init(rect: CGRect(x: 0.1, y: 0.02, width: 0.1, height: 0.1), isVertical: true),
+            .init(rect: CGRect(x: 0.7, y: 0.02, width: 0.1, height: 0.1), isVertical: true),
+            .init(rect: CGRect(x: 0.1, y: 0.28, width: 0.1, height: 0.1), isVertical: true),
+            .init(rect: CGRect(x: 0.7, y: 0.28, width: 0.1, height: 0.1), isVertical: true),
+            input(0.3, 0.65)
+        ]
+        #expect(ranks(boxes) == [1, 0, 3, 2, 4])
+    }
+
+    @Test func bandOrderingKeepsIsolatedDiagonalTextInItsDetectorSlot() {
+        let boxes: [ReaderTranslationPanelOrder.Input] = [
+            .init(rect: CGRect(x: 0.1, y: 0.28, width: 0.1, height: 0.1), isVertical: true),
+            .init(rect: CGRect(x: 0.1, y: 0.02, width: 0.1, height: 0.1), isVertical: true),
+            .init(rect: CGRect(x: 0.7, y: 0.02, width: 0.1, height: 0.1), isVertical: true),
+            input(0.3, 0.65)
+        ]
+        #expect(ranks(boxes) == [0, 2, 1, 3])
+    }
+
     @Test func invalidCoordinatesAndPixelBuffersKeepOrder() {
         #expect(ranks([input(-0.1, 0.1), input(0.7, 0.1), input(0.3, 0.65)]) == [0, 1, 2])
         #expect(ranks([input(0.1, 0.1), input(0.7, 0.1)], pixels: []) == [0, 1])

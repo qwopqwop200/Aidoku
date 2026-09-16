@@ -3,3 +3,5 @@
 "FILE_IMPORT_FAIL_TEXT" = "파일을 가져오는 데에 실패했습니다. 선택한 파일이 올바른 CBZ 또는 ZIP 파일인지 확인해 주세요.";
 "FORMAT_IMAGE" = "이미지";
 "SHARED_IMAGES_SAVED" = "이미지를 저장했습니다. Aidoku를 열면 로컬 파일에 자동으로 가져옵니다.";
+
+"SHARED_IMAGE_IMPORT_FAILED" = "공유 이미지를 읽지 못했습니다. 다른 이미지로 다시 시도해 주세요.";

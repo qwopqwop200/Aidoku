@@ -78,6 +78,13 @@ struct ReaderSourceTextColorTests {
           whiteOnWhite: aidokuReadableSourceColor([255,255,255], true, 0.84),
           whiteOnDark: aidokuReadableSourceColor([255,255,255], false, 0.84),
           lowContrast: aidokuReadableSourceColor([160,160,160], true, 0.2),
+          pinkAdjusted: aidokuReadableSourceColor([219,100,144], true, 0.84),
+          pinkContrast: aidokuSourceColorContrast(
+            aidokuReadableSourceColor([219,100,144], true, 0.84), true, 0.84),
+          purplePanelAdjusted: aidokuReadableSourceColor([165,127,174], true, 0.84, [255,254,255]),
+          purplePanelContrast: aidokuSourceColorContrast(
+            aidokuReadableSourceColor([165,127,174], true, 0.84, [255,254,255]), true, 0.84, [255,254,255]),
+          paleYellowFallback: aidokuReadableSourceColor([255,255,224], true, 0.2),
           translucent: aidokuEstimateTextColor(new Uint8Array(16 * 16 * 4), 16, 16)
         };
         """, arguments: [:], in: nil, contentWorld: .page) as? [String: Any]
@@ -87,11 +94,26 @@ struct ReaderSourceTextColorTests {
             let actual = try #require(values[key] as? [Int], "Missing estimate for \(key)")
             #expect(zip(actual, expected).allSatisfy { abs($0 - $1) <= 8 })
         }
-        for key in ["blank", "art", "mixed", "whiteOnWhite", "lowContrast", "translucent"] {
+        for key in ["blank", "art", "mixed", "whiteOnWhite", "lowContrast", "translucent", "paleYellowFallback"] {
             #expect(values[key] is NSNull, "Expected conservative fallback for \(key)")
         }
         #expect(values["redOnWhite"] as? [Int] == [176, 32, 48])
         #expect(values["whiteOnDark"] as? [Int] == [255, 255, 255])
+        // Actual pink/purple comic ink must keep its hue when the default
+        // palette would otherwise discard it for insufficient contrast.
+        for (key, source, contrastKey) in [
+            ("pinkAdjusted", [219, 100, 144], "pinkContrast"),
+            ("purplePanelAdjusted", [165, 127, 174], "purplePanelContrast")
+        ] {
+            let actual = try #require(values[key] as? [Int])
+            let contrast = try #require(values[contrastKey] as? Double)
+            #expect(contrast >= 4.5)
+            #expect(actual != source)
+            #expect(zip(actual, source).allSatisfy { $0 <= $1 && Double($0) >= Double($1) * 0.5 - 1 })
+            // Uniform channel scaling retains chromatic ordering and ratio.
+            let ratios = zip(actual, source).map { Double($0) / Double($1) }
+            #expect((ratios.max() ?? 0) - (ratios.min() ?? 0) < 0.02)
+        }
     }
 
     @Test func liveToggleRestoresPaletteAndReusesSourceSample() async throws {
@@ -197,25 +219,45 @@ struct ReaderSourceTextColorTests {
             defer { overlay.cancelWork(); host.isHidden = true }
             var settings = freshSettings(); settings.targetLanguage = fixture.target
             var revision: UInt64 = 0
+            var baselineLayout: [[String: Any]]?
             for (mode, text, panel) in [("off", false, false), ("text", true, false), ("panel", false, true), ("both", true, true)] {
                 settings.overlay.preserveSourceTextColor = text
                 settings.overlay.preserveSourceBackgroundColor = panel
+                let renderStarted = Date()
                 overlay.update(regions: regions, imageSize: source.size, aspectFit: false, settings: settings, image: source)
                 try await wait(overlay, after: revision)
                 revision = try #require(overlay.lastDiagnostic?.revision)
+                let renderMilliseconds = Date().timeIntervalSince(renderStarted) * 1_000
                 let name = fixture.name + "-" + mode
                 let audit = try await overlay.webView.evaluateJavaScript("""
                 (() => { const root = document.querySelector('[data-aidoku-image-ocr-overlay="root"]');
                   return {stats: {...root.dataset}, dom: Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'))
                     .map(n => ({id:n.dataset.aidokuRegion, text:n.textContent, color:getComputedStyle(n).color,
-                                state:n.dataset.sourceTextColor, background:getComputedStyle(n).backgroundColor,
-                                panel:n.dataset.sourceBackgroundColor}))}; })()
+                                state:n.dataset.sourceTextColor, adjusted:n.dataset.sourceTextColorAdjusted,
+                                background:getComputedStyle(n).backgroundColor,
+                                panel:n.dataset.sourceBackgroundColor, fontSize:getComputedStyle(n).fontSize,
+                                x:n.offsetLeft, y:n.offsetTop, width:n.offsetWidth, height:n.offsetHeight,
+                                scrollWidth:n.scrollWidth, scrollHeight:n.scrollHeight}))}; })()
                 """)
-                let report = try #require(audit as? [String: Any])
+                var report = try #require(audit as? [String: Any])
+                report["renderMilliseconds"] = renderMilliseconds
+                report["mode"] = mode
                 let rows = try #require(report["dom"] as? [[String: Any]])
-                if text { #expect(rows.contains { $0["state"] as? String == "preserved" }) }
-                if panel { #expect(rows.contains { $0["panel"] as? String == "preserved" }) }
-                try JSONSerialization.data(withJSONObject: audit, options: [.prettyPrinted, .sortedKeys])
+                // Ambiguous art/gradients may legitimately abstain. A larger
+                // number of preserved estimates is not a quality assertion.
+                let layoutKeys = ["id", "text", "fontSize", "x", "y", "width", "height"]
+                let layout = rows.map { row in row.filter { layoutKeys.contains($0.key) } }
+                if let baselineLayout {
+                    #expect(NSArray(array: layout).isEqual(to: baselineLayout),
+                            "Color options changed text or layout for \(fixture.name)")
+                } else { baselineLayout = layout }
+                #expect(!rows.isEmpty || regions.isEmpty)
+                if !text { #expect(rows.allSatisfy { $0["state"] as? String == "fallback" }) }
+                if !panel { #expect(rows.allSatisfy { $0["panel"] as? String == "fallback" }) }
+                let stats = try #require(report["stats"] as? [String: String])
+                if !text && !panel { #expect(stats["sourceColorPixels"] == "0") }
+                #expect(renderMilliseconds.isFinite && renderMilliseconds >= 0)
+                try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
                     .write(to: output.appendingPathComponent(name + ".json"))
                 _ = try await overlay.webView.callAsyncJavaScript(
                     "await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",

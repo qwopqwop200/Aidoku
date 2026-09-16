@@ -577,11 +577,11 @@ enum ReaderTranslationCacheIdentity {
     static func ocr(page: String, settings: ReaderTranslationSettings) -> String {
         // OCR entries contain merged regions. A merger change must also
         // invalidate derived translations/layouts instead of replaying old boxes.
-        encoded(["reader-ocr-v38-sfx-seeds", page, encoded(settings.ocrConfiguration)])
+        encoded(["reader-ocr-v41-cross-panel-separator", page, encoded(settings.ocrConfiguration)])
     }
     static func translation(page: String, settings: ReaderTranslationSettings) -> String {
         let previous = unfilteredTranslation(page: page, settings: settings)
-        let base = settings.rightToLeftPanelOrder ? encoded([previous, "rtl-panel-order-v4-hierarchical-traversal"]) : previous
+        let base = settings.rightToLeftPanelOrder ? encoded([previous, "rtl-panel-order-v5-separated-bands"]) : previous
         guard let filter = ReaderTranslationLanguageFilter.identity(settings: settings) else { return base }
         return encoded([base] + filter)
     }
@@ -603,7 +603,7 @@ enum ReaderTranslationCacheIdentity {
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
         return encoded([
-            "reader-render-v15-korean-small-text", translation(page: page, settings: settings), encoded(settings.overlay),
+            "reader-render-v17-chroma-emergency-wrap", translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
             ProcessInfo.processInfo.operatingSystemVersionString
         ])

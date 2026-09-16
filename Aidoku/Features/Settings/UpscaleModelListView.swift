@@ -70,6 +70,8 @@ struct UpscaleModelListView: View {
                         }
                     } header: {
                         Text(NSLocalizedString("AVAILABLE_MODELS"))
+                    } footer: {
+                        Text(NSLocalizedString("BUNDLED_UPSCALING_MODELS_HELP"))
                     }
                 } else if failedToLoad {
                     Section {
@@ -99,6 +101,8 @@ struct UpscaleModelListView: View {
         .task {
             enabledModel = ModelManager.shared.getEnabledModelFileName()
             models = await ModelManager.shared.getInstalledModels()
+            availableModels = await ModelManager.shared.getAvailableModels(includeRemote: false) ?? []
+            loading = false
             if let fetchedModels = await ModelManager.shared.getAvailableModels() {
                 availableModels = fetchedModels
             } else {
@@ -115,6 +119,12 @@ struct UpscaleModelListView: View {
             VStack(alignment: .leading) {
                 Text(model.name ?? model.file)
                     .foregroundStyle(.primary)
+                if let summary = model.localizedInfo?.components(separatedBy: "\n").first {
+                    Text(summary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if let size = model.size {
                     HStack {
                         Image(systemName: "externaldrive.fill")
@@ -125,7 +135,7 @@ struct UpscaleModelListView: View {
                 }
             }
             Spacer()
-            if let info = model.info {
+            if let info = model.localizedInfo {
                 Button {
                     modelInfo = info
                     showModelInfoAlert = true

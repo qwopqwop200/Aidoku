@@ -1084,3 +1084,6 @@
 "SETTING_INVALID_STEPPER_RANGE" = "טווח הגדרות מספרי לא חוקי.";
 
 "SETTING_MISSING_CONTENT_HANDLER" = "לא ניתן להציג את ההגדרה: %@";
+
+// Bundled upscaling models
+"BUNDLED_UPSCALING_MODELS_HELP" = "ניתן להתקין חמישה דגמים כלולים במצב לא מקוון. התקן דגם ולאחר מכן הקש עליו ב-דגם מופעל. MangaJaNai מיועד לדפים בשחור-לבן בגובה של כ-1200 פיקסלים; דפי צבע נשארים ללא שינוי.";

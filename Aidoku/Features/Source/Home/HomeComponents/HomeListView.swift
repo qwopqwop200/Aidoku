@@ -170,7 +170,7 @@ struct HomeListView: View {
                     .multilineTextAlignment(.leading)
 
                 if let subtitle = entry.subtitle {
-                    Text(subtitle)
+                    TranslatedTitleText(subtitle, kind: entry.subtitleTranslationKind)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }

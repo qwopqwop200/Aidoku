@@ -5,6 +5,50 @@ import UniformTypeIdentifiers
 
 @MainActor
 struct SharedImageInboxTests {
+    @Test func acceptsObjectAndDataRepresentationsAfterBrokenPreferredType() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 12, height: 16)).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 12, height: 16))
+        }
+        let data = try #require(image.pngData())
+        let provider = NSItemProvider()
+        provider.registerDataRepresentation(forTypeIdentifier: UTType.jpeg.identifier, visibility: .all) { completion in
+            completion(Data("broken preferred representation".utf8), nil)
+            return nil
+        }
+        provider.registerDataRepresentation(forTypeIdentifier: UTType.png.identifier, visibility: .all) { completion in
+            completion(data, nil)
+            return nil
+        }
+        let inbox = SharedImageInbox(root: root)
+        try await inbox.enqueue(providers: [provider, NSItemProvider(object: image)])
+        let batch = try #require(inbox.pendingBatches().first)
+        #expect(batch.images.count == 2)
+        for url in batch.images { #expect(UIImage(contentsOfFile: url.path) != nil) }
+        let prepared = await LocalFileManager.shared.prepareImageImport(from: batch.images, name: "Object images")
+        #expect(prepared?.pageCount == 2)
+    }
+
+    @Test func embeddedExtensionAcceptsImagesWithCaptionsAndLinks() throws {
+        let plugins = try #require(Bundle.main.builtInPlugInsURL)
+        let bundle = try #require(Bundle(url: plugins.appendingPathComponent("AidokuShare.appex")))
+        let configuration = try #require(bundle.infoDictionary?["NSExtension"] as? [String: Any])
+        let attributes = try #require(configuration["NSExtensionAttributes"] as? [String: Any])
+        let rule = NSPredicate(format: try #require(attributes["NSExtensionActivationRule"] as? String))
+        for (types, expected) in [
+            ([["public.png"]], true),
+            ([["public.plain-text"], ["public.jpeg"], ["public.url"]], true),
+            ([["public.url"]], false),
+            ([["public.plain-text"]], false),
+            ([], false)
+        ] {
+            let input: [String: Any] = ["extensionItems": [["attachments": types.map { ["registeredTypeIdentifiers": $0] }]]]
+            #expect(rule.evaluate(with: input) == expected)
+        }
+    }
+
     private func provider(file: URL, name: String) -> NSItemProvider {
         let provider = NSItemProvider()
         provider.suggestedName = name
@@ -30,7 +74,11 @@ struct SharedImageInboxTests {
             urls.append(url)
         }
         let inboxRoot = root.appendingPathComponent("inbox")
-        try await SharedImageInbox(root: inboxRoot).enqueue(providers: urls.map { provider(file: $0, name: "Shared page") })
+        let images = urls.map { provider(file: $0, name: "Shared page") }
+        // Social apps can share a caption and a link together with the actual images.
+        try await SharedImageInbox(root: inboxRoot).enqueue(providers:
+            [NSItemProvider(object: "caption" as NSString), images[0],
+             NSItemProvider(object: NSURL(string: "https://example.com/post")!), images[1]])
         let reopenedInbox = SharedImageInbox(root: inboxRoot)
         let batches = try reopenedInbox.pendingBatches()
         #expect(batches.count == 1)

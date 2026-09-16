@@ -127,8 +127,25 @@ enum BrowserSourceTextColor {
       const contrast = bg => (Math.max(text, bg) + 0.05) / (Math.min(text, bg) + 0.05);
       return Math.min(...backgrounds.map(contrast));
     };
-    const aidokuReadableSourceColor = (color, light, opacity, panel = null) =>
-      aidokuSourceColorContrast(color, light, opacity, panel) >= 4.5 ? color : null;
+    const aidokuReadableSourceColor = (color, light, opacity, panel = null) => {
+      if (aidokuSourceColorContrast(color, light, opacity, panel) >= 4.5) return color;
+      if (!Array.isArray(color) || color.length !== 3 ||
+          !color.every(v => Number.isFinite(v) && v >= 0 && v <= 255) ||
+          Math.max(...color) - Math.min(...color) < 24) return null;
+      // Keep the estimated hue; only correct luminance when the source ink
+      // would otherwise be replaced with the generic monochrome palette.
+      const endpoint = light ? 0 : 255;
+      const blend = amount => color.map(v => Math.round(v + (endpoint - v) * amount));
+      let low = 0, high = 0.5, best = blend(high);
+      if (aidokuSourceColorContrast(best, light, opacity, panel) < 4.5) return null;
+      for (let step = 0; step < 8; step++) {
+        const middle = (low + high) / 2, candidate = blend(middle);
+        if (aidokuSourceColorContrast(candidate, light, opacity, panel) >= 4.5) {
+          high = middle; best = candidate;
+        } else { low = middle; }
+      }
+      return best;
+    };
     const aidokuPanelForeground = (panel, opacity) => {
       if (!panel) return null;
       const dark = [17, 18, 23], white = [255, 255, 255];

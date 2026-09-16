@@ -6,7 +6,7 @@ import UIKit
 
 @Suite(.serialized)
 struct ReaderTranslationDiskCacheTests {
-    @Test(arguments: ["reader-render-v3-source-coverage", "reader-render-v4-visible-source-bands", "reader-render-v5-normal-font-floor", "reader-render-v6-korean-balanced-wrap", "reader-render-v7-resolved-font", "reader-render-v8-source-ink", "reader-render-v9-small-text", "reader-render-v9-word-safe-small-text", "reader-render-v10-fragment-line-profile", "reader-render-v11-balloon-contained-type"])
+    @Test(arguments: ["reader-render-v16-contrast-preserved-chroma", "reader-render-v15-korean-small-text", "reader-render-v3-source-coverage", "reader-render-v4-visible-source-bands", "reader-render-v5-normal-font-floor", "reader-render-v6-korean-balanced-wrap", "reader-render-v7-resolved-font", "reader-render-v8-source-ink", "reader-render-v9-small-text", "reader-render-v9-word-safe-small-text", "reader-render-v10-fragment-line-profile", "reader-render-v11-balloon-contained-type"])
     func earlierLayoutsCannotBeReusedAfterRendererRevision(revision: String) async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }

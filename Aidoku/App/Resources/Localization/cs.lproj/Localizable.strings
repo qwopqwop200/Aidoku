@@ -1084,3 +1084,6 @@
 "SETTING_INVALID_STEPPER_RANGE" = "Neplatný číselný rozsah nastavení.";
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Nelze zobrazit nastavení: %@";
+
+// Bundled upscaling models
+"BUNDLED_UPSCALING_MODELS_HELP" = "Pět zahrnutých modelů lze nainstalovat offline. Nainstalujte model a poté na něj klepněte v Povolený model. MangaJaNai je pro černobílé stránky vysoké přibližně 1200 pixelů; barevné stránky zůstávají beze změny.";

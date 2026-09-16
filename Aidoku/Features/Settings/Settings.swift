@@ -66,6 +66,14 @@ enum Settings {
                 ))
             ),
             .init(
+                title: NSLocalizedString("IMPORT"),
+                value: .page(.init(
+                    items: importSettings,
+                    inlineTitle: true,
+                    icon: .system(name: "square.and.arrow.down", color: "orange")
+                ))
+            ),
+            .init(
                 title: NSLocalizedString("READER"),
                 value: .page(.init(
                     items: readerSettings,
@@ -392,12 +400,15 @@ extension Settings {
         }
     }()
 
-    private static let readerSettings: [Setting] = [
+    private static let importSettings: [Setting] = [
         .init(value: .group(.init(items: [
             .init(key: AppSettings.reader.saveSharedImages.key,
                   title: NSLocalizedString("SAVE_SHARED_IMAGES"),
                   value: .toggle(.init(subtitle: NSLocalizedString("SAVE_SHARED_IMAGES_HELP"))))
         ]))),
+    ]
+
+    private static let readerSettings: [Setting] = [
         .init(value: .group(.init(items: [
             .init(
                 key: "Reader.readingMode",

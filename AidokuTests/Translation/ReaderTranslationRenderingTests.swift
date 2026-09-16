@@ -403,6 +403,28 @@ struct ReaderTranslationRenderingTests {
         #expect(exact.maximumFontSize == 5)
     }
 
+    @Test func emergencyKoreanWordRecoveryKeepsTheFixedCardAndReadableWordsProtected() {
+        let text = "버스데~이이이이이이이이"
+        let variant = BrowserOverlayDisplayVariant.plain(text, vertical: false)
+        #expect(variant.allowsEmergencyKoreanWordBreak(at: 7))
+        #expect(!variant.allowsEmergencyKoreanWordBreak(at: 8))
+        #expect(!BrowserOverlayDisplayVariant.plain("그것을 당연하게 생각했다", vertical: false)
+            .allowsEmergencyKoreanWordBreak(at: 7))
+        #expect(!BrowserOverlayDisplayVariant.plain("안녕하세요", vertical: false)
+            .allowsEmergencyKoreanWordBreak(at: 7))
+        #expect(!BrowserOverlayDisplayVariant.plain("longunbrokentext", vertical: false)
+            .allowsEmergencyKoreanWordBreak(at: 7))
+        let rect = CGRect(x: 294.956299, y: 391.289551, width: 80.71875, height: 201.921875)
+        let original = BrowserOverlayCardLayout(rect: rect, maximumFontSize: 7,
+            contentInsets: UIEdgeInsets(top: 2, left: 2, bottom: 2, right: 2))
+        let result = BrowserOverlayLayoutPlanner.fittingFinalHorizontalFont(original,
+            variants: [variant], settings: ReaderTranslationSettings.defaultOverlay,
+            occupied: [], reservedSources: [])
+        #expect(result.rect == original.rect)
+        #expect(result.maximumFontSize >= 9)
+        #expect(result.smallTextReference?.allowsEmergencyWordBreak == true)
+    }
+
     @Test func smallDialogueCanUseOneMoreLineWithoutMovingItsCard() {
         // Actual Cuckoo Chinese-to-Korean card from the frozen real-image audit.
         let rect = CGRect(x: 148.07875, y: 575.7375, width: 49.48, height: 38.5125)

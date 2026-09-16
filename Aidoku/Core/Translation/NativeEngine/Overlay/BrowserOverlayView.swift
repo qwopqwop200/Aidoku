@@ -424,6 +424,7 @@ final class BrowserPageImageOverlayRenderer {
                 "fontSize": layout.maximumFontSize,
                 "smallTextReference": layout.smallTextReference.map { reference -> [String: Any] in
                     ["fontSize": reference.fontSize, "additionalLines": reference.additionalLines,
+                     "allowsEmergencyWordBreak": reference.allowsEmergencyWordBreak,
                      "fallbackFontSize": reference.fallbackFontSize ?? reference.fontSize,
                      "fallbackPadding": [reference.fallbackInsets?.top ?? reference.insets.top,
                                          reference.fallbackInsets?.right ?? reference.insets.right,
@@ -812,6 +813,8 @@ final class BrowserPageImageOverlayRenderer {
           ? aidokuReadableSourceColor(sampled?.foreground, lightSurface, opacity, sampledBackground) : null;
         const foreground = readableColor ? readableColor.join(',') : (lightSurface ? '17,18,23' : '255,255,255');
         node.dataset.sourceTextColor = readableColor ? 'preserved' : 'fallback';
+        node.dataset.sourceTextColorAdjusted = String(Boolean(readableColor && sampled?.foreground &&
+          readableColor.some((value, channel) => value !== sampled.foreground[channel])));
         node.dataset.sourceBackgroundColor = sampledBackground ? 'preserved' : 'fallback';
         Object.assign(node.style, {
           position: 'absolute',
@@ -963,7 +966,10 @@ final class BrowserPageImageOverlayRenderer {
             const acceptable = (maximum, allowance, requireContainedGlyphs = true) => {
               const candidateFont = fitMeasuredFont(maximum), candidate = lineProfile();
               const adds = (a, b) => a.some(offset => !b.includes(offset));
-              const protectsWords = !vertical && (wrappingScript === 'korean' || wrappingScript === 'word');
+              const allowsEmergencyWordBreak = reference.fontSize < 8 &&
+                reference.allowsEmergencyWordBreak === true && wrappingScript === 'korean';
+              const protectsWords = !vertical && !allowsEmergencyWordBreak &&
+                (wrappingScript === 'korean' || wrappingScript === 'word');
               const hitsObstacle = candidate && candidate.ink.some(a => exclusions.some(b =>
                 Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0]) > 0.5 &&
                 Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]) > 0.5));
@@ -3328,6 +3334,16 @@ struct BrowserOverlayDisplayVariant: Equatable, Hashable {
         )
     }
 
+    /// A whole Korean utterance must not stay microscopic merely because
+    /// shrinking it made one long token fit on a single line. The final DOM
+    /// guard still owns glyph containment, obstacles and punctuation.
+    func allowsEmergencyKoreanWordBreak(at referenceFont: CGFloat) -> Bool {
+        let text = displayText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !vertical && referenceFont < 8 && text.count >= 10 && text.count <= 180 &&
+            !text.contains(where: \.isWhitespace) &&
+            BrowserOverlayTextFlow.wrappingScript(for: text) == .korean
+    }
+
     func lineBreakMode(
         availableWidth: CGFloat?,
         fontSize: CGFloat,
@@ -3757,6 +3773,7 @@ struct BrowserOverlayFontReference: Equatable {
     var exclusionRects: [CGRect] = []
     var fallbackFontSize: CGFloat? = nil
     var fallbackInsets: UIEdgeInsets? = nil
+    var allowsEmergencyWordBreak: Bool = false
 }
 
 struct BrowserOverlayCardLayout: Equatable {
@@ -5464,7 +5481,8 @@ struct BrowserOverlayLayoutPlanner {
         if best.maximumFontSize > referenceFont {
             best.smallTextReference = BrowserOverlayFontReference(fontSize: referenceFont, insets: old,
                 additionalLines: extraLines, exclusionRects: hasCollision ? occupied + reservedSources : [],
-                fallbackFontSize: fallback.maximumFontSize, fallbackInsets: fallback.contentInsets)
+                fallbackFontSize: fallback.maximumFontSize, fallbackInsets: fallback.contentInsets,
+                allowsEmergencyWordBreak: variants.allSatisfy { $0.allowsEmergencyKoreanWordBreak(at: referenceFont) })
         }
         return best
     }
@@ -5729,6 +5747,7 @@ struct BrowserOverlayLayoutPlanner {
                     measurementCache: measurementCache).height
                 let lineHeight = UIFont.systemFont(ofSize: reference, weight: .bold).lineHeight
                 return (max(1, Int(ceil(max(0, height - 1) / lineHeight))),
+                    !variant.allowsEmergencyKoreanWordBreak(at: reference) &&
                     variant.minimumUnbrokenWidth(fontSize: reference,
                         measurementCache: measurementCache) <= usableWidth + 0.5)
             }

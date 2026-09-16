@@ -3,3 +3,5 @@
 "FILE_IMPORT_FAIL_TEXT" = "Malsukcesis importi dosieron. Bonvolu certigi, ke ĝi estas valida CBZ aŭ ZIP-arkivo kiu enhavas bildojn.";
 "FORMAT_IMAGE" = "Bildo";
 "SHARED_IMAGES_SAVED" = "Bildoj konservitaj. Malfermu Aidoku por aŭtomate importi ilin en lokajn dosierojn.";
+
+"SHARED_IMAGE_IMPORT_FAILED" = "Ne eblas legi la komunan bildon. Bonvolu provi alian bildon.";

@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>AidokuTranslationKeychainAccessGroup</key>
+	<string>$(TRANSLATION_KEYCHAIN_ACCESS_GROUP)</string>
+	<key>SHARED_IMAGE_URL_SCHEME</key>
+	<string>$(SHARED_IMAGE_URL_SCHEME)</string>
 	<key>SHARED_IMAGE_APP_GROUP</key>
 	<string>$(SHARED_IMAGE_APP_GROUP)</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
@@ -77,6 +81,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>aidoku</string>
+				<string>$(SHARED_IMAGE_URL_SCHEME)</string>
 			</array>
 		</dict>
 	</array>

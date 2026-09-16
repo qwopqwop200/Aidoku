@@ -140,13 +140,32 @@ enum ReaderTranslationPanelOrder {
         // slot swaps can undo a nested split or strand text in another panel.
         let order = leaves.flatMap { ids -> [Int] in
             guard ids.count >= 2, ids.allSatisfy({ inputs[$0].isVertical }) else { return ids }
-            let commonTop = ids.map { boxes[$0].minY }.max() ?? 0
-            let commonBottom = ids.map { boxes[$0].maxY }.min() ?? 0
-            let maximumHeight = ids.map { boxes[$0].height }.max() ?? 0
-            guard commonBottom - commonTop >= maximumHeight * 0.25 else { return ids }
-            let leftToRight = ids.sorted { boxes[$0].minX < boxes[$1].minX }
-            guard zip(leftToRight, leftToRight.dropFirst()).allSatisfy({ boxes[$0.0].maxX <= boxes[$0.1].minX }) else { return ids }
-            return Array(leftToRight.reversed())
+            // Partition at complete vertical whitespace between detected text blocks.
+            // Never let a lower balloon prevent RTL ordering in the upper band.
+            let topToBottom = ids.sorted { boxes[$0].minY < boxes[$1].minY }
+            var bands: [[Int]] = []
+            var bottom: CGFloat = -.infinity
+            for id in topToBottom {
+                if bands.isEmpty || boxes[id].minY > bottom {
+                    bands.append([id])
+                    bottom = boxes[id].maxY
+                } else {
+                    bands[bands.count - 1].append(id)
+                    bottom = max(bottom, boxes[id].maxY)
+                }
+            }
+            var ordered = ids
+            for band in bands where band.count >= 2 {
+                let slots = ids.indices.filter { band.contains(ids[$0]) }
+                let commonTop = band.map { boxes[$0].minY }.max() ?? 0
+                let commonBottom = band.map { boxes[$0].maxY }.min() ?? 0
+                let maximumHeight = band.map { boxes[$0].height }.max() ?? 0
+                guard commonBottom - commonTop >= maximumHeight * 0.25 else { continue }
+                let leftToRight = band.sorted { boxes[$0].minX < boxes[$1].minX }
+                guard zip(leftToRight, leftToRight.dropFirst()).allSatisfy({ boxes[$0.0].maxX <= boxes[$0.1].minX }) else { continue }
+                for (slot, id) in zip(slots, leftToRight.reversed()) { ordered[slot] = id }
+            }
+            return ordered
         }
         var ranks = unchanged
         for (rank, id) in order.enumerated() { ranks[id] = rank }

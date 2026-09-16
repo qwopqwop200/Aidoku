@@ -1084,3 +1084,6 @@
 "SETTING_INVALID_STEPPER_RANGE" = "數值設定範圍無效。";
 
 "SETTING_MISSING_CONTENT_HANDLER" = "無法顯示設定：%@";
+
+// Bundled upscaling models
+"BUNDLED_UPSCALING_MODELS_HELP" = "內建的5個模型皆可離線安裝。安裝模型後，在「已啟用的模型」中點選。MangaJaNai 適用於高度約1200像素的黑白頁面；彩色頁面保持原樣。";
