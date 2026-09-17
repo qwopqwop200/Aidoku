@@ -355,6 +355,7 @@ final class BrowserPageImageOverlayRenderer {
                 BrowserOverlayLayoutPlanner.relaxingCardPositions(
                 concreteLayouts,
                 sources: sourceRects,
+                sourceVerticals: segments.map(\.sourceVertical),
                 viewport: viewport,
                 placementBounds: sourceRect,
                 preferredRects: intrinsicLayouts.map(\.rect),
@@ -400,6 +401,10 @@ final class BrowserPageImageOverlayRenderer {
                 "id": String(segment.item.stableRegionID ?? UInt64(index)),
                 "sourceColorEligible": segment.content.hasTranslation && settings.mode == .translateOnly &&
                     settings.textPlacement == .replace,
+                "sourceCleanupLexical": BrowserSourceInkCleanup.hasColoredCleanupText(segment.item.sourceText),
+                "allowsAutomaticFontRecovery": settings.fontSizing == .autoFit &&
+                    settings.mode == .translateOnly && settings.textPlacement == .replace &&
+                    settings.expansionPolicy == .panelConstrained,
                 "sourceCleanup": segment.content.hasTranslation && settings.mode == .translateOnly &&
                     settings.textPlacement == .replace &&
                     (settings.colorMode == .white || (settings.colorMode == .automatic && segment.sourceVertical)),
@@ -690,18 +695,79 @@ final class BrowserPageImageOverlayRenderer {
     mount.appendChild(measurementHost);
     // Inspect native-resolution source crops; downsampling can hide thin panel rules.
     // Mask canvases belong to this revision's root and disappear on clear/re-render.
+    let coloredCleanupBudget = 262144;
+    const coloredCleanupAudit = [];
+    const sourceColorCache = new Map();
+    const cachedSourceSample = item => {
+      if (!sourceColorCache.has(item)) sourceColorCache.set(item,
+        item.sourceColorEligible ? sourceColors.sample(item.sourceBounds) : null);
+      return sourceColorCache.get(item);
+    };
     let cleanupBudget = 2000000;
     let cleanupPixels = 0, cleanupCount = 0;
+        const cleanedDenseSourceItems = new Set();
     const cleanupStarted = performance.now();
     const sourceImage = document.getElementById('reader-source-image');
     const sourceColors = aidokuSourceColorSampler(sourceImage,
       Boolean(appearance?.preserveSourceTextColor || appearance?.preserveSourceBackgroundColor));
-    const cleanupCanvas = document.createElement('canvas');
+    function aidokuCleanupContentGeometry(rect,naturalWidth,naturalHeight,style) {
+      if (!rect || ![rect.x,rect.y,rect.width,rect.height,naturalWidth,naturalHeight].every(Number.isFinite) ||
+          rect.width<=0 || rect.height<=0 || naturalWidth<=0 || naturalHeight<=0 || style.transform!=='none') return null;
+      for(const field of ['borderLeftWidth','borderTopWidth','borderRightWidth','borderBottomWidth',
+        'paddingLeft','paddingTop','paddingRight','paddingBottom']) if(parseFloat(style[field]||'0')!==0) return null;
+      const box=[rect.x,rect.y,rect.width,rect.height],fit=style.objectFit;
+      if(fit==='fill')return {frame:box,clip:box};
+      if(fit!=='contain'&&fit!=='cover')return null;
+      const position=String(style.objectPosition||'50% 50%').trim().split(/\\s+/);
+      if(position.length!==2)return null;
+      const offset=(token,space,axis)=>{
+        const keywords=axis===0?{left:0,center:.5,right:1}:{top:0,center:.5,bottom:1};
+        if(Object.prototype.hasOwnProperty.call(keywords,token))return space*keywords[token];
+        if(/^-?(?:\\d+\\.?\\d*|\\.\\d+)%$/.test(token)){const fraction=parseFloat(token)/100;return fraction>=0&&fraction<=1?space*fraction:NaN;}
+        if(/^-?(?:\\d+\\.?\\d*|\\.\\d+)px$/.test(token))return parseFloat(token);
+        return NaN;
+      };
+      const scale=fit==='contain'?Math.min(rect.width/naturalWidth,rect.height/naturalHeight):Math.max(rect.width/naturalWidth,rect.height/naturalHeight);
+      const width=naturalWidth*scale,height=naturalHeight*scale,x=offset(position[0],rect.width-width,0),y=offset(position[1],rect.height-height,1);
+      if(!Number.isFinite(x)||!Number.isFinite(y))return null;
+      return {frame:[rect.x+x,rect.y+y,width,height],clip:box};
+    }
+    function aidokuCleanupClip(geometry,x,y,width,height) {
+      if(!geometry)return 'none';
+      const b=geometry.clip,left=Math.max(0,b[0]-x),top=Math.max(0,b[1]-y),right=Math.max(0,x+width-b[0]-b[2]),bottom=Math.max(0,y+height-b[1]-b[3]);
+      if(left>=width||right>=width||top>=height||bottom>=height)return 'inset(50%)';
+      return left||top||right||bottom?`inset(${top}px ${right}px ${bottom}px ${left}px)`:'none';
+    }
+
+    const cleanupImageGeometry = (() => {
+      if(!sourceImage)return null;
+      try { return aidokuCleanupContentGeometry(sourceImage.getBoundingClientRect(),sourceImage.naturalWidth,sourceImage.naturalHeight,getComputedStyle(sourceImage)); }
+      catch (_) { return null; }
+    })();
+    const cleanupCacheState = globalThis.__aidokuSourceCleanupV1 ||= {images:new WeakMap(),last:null};
+        const cleanupCacheStore = cleanupCacheState.images;
+        let cleanupCache = sourceImage ? cleanupCacheStore.get(sourceImage) : null;
+        const cleanupSourceKey = sourceImage ? [sourceImage.currentSrc || sourceImage.src, sourceImage.naturalWidth, sourceImage.naturalHeight].join('|') : '';
+        if (sourceImage && (!cleanupCache || cleanupCache.source !== cleanupSourceKey)) {
+          cleanupCache = {source:cleanupSourceKey,entries:new Map(),pixels:0};
+          cleanupCacheStore.set(sourceImage,cleanupCache);
+          sourceImage.addEventListener('load', () => cleanupCacheStore.delete(sourceImage), {once:true});
+        }
+        // Keep pixel buffers for only the most recently rendered source image.
+        if(cleanupCacheState.last !== cleanupCache) {
+          if(cleanupCacheState.last) { cleanupCacheState.last.entries.clear();cleanupCacheState.last.pixels=0; }
+          cleanupCacheState.last=cleanupCache;
+        }
+        const cleanupCanvas = document.createElement('canvas');
     const cleanupContext = cleanupCanvas.getContext('2d', {willReadFrequently: true});
     const appendSourceCleanup = item => {
-      if (!item.sourceCleanup || opacity <= 0 || !sourceImage?.complete ||
+      const coloredGate = Boolean(item.sourceCleanupLexical && item.sourceColorEligible);
+      const cleanupPalette = coloredGate && item.sourceColorEligible ? cachedSourceSample(item) : null;
+      const cleanupBG = cleanupPalette?.background;
+      const coloredEligible = Boolean(cleanupBG && (Math.max(...cleanupBG)-Math.min(...cleanupBG)>12 || Math.max(...cleanupBG)<220 || cleanupPalette?.stroke));
+      if ((!item.sourceCleanup && !coloredEligible) || opacity <= 0 || !sourceImage?.complete ||
           !sourceImage.naturalWidth || !cleanupContext) return;
-      const b = item.sourceBounds, frame = item.sourceFrame;
+      const b = item.sourceBounds, frame = cleanupImageGeometry?.frame || item.sourceFrame;
       if (!Array.isArray(b) || !Array.isArray(frame) || b.length !== 4 || frame.length !== 4 ||
           !b.every(Number.isFinite) || !frame.every(Number.isFinite) ||
           b[2] <= 0 || b[3] <= 0 || frame[2] <= 0 || frame[3] <= 0) return;
@@ -714,30 +780,53 @@ final class BrowserPageImageOverlayRenderer {
           w < 14 || h < 14 || pixels > 262144 || pixels > cleanupBudget) return;
       cleanupBudget -= pixels;
       try {
-        cleanupCanvas.width = w; cleanupCanvas.height = h;
-        cleanupContext.drawImage(sourceImage, x - 2, y - 2, w, h, 0, 0, w, h);
-        const rgba = cleanupContext.getImageData(0, 0, w, h).data;
-        const mask = aidokuSourceInkMask(rgba, w, h, Boolean(item.sourceVertical));
-        if (!mask) return;
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        const context = canvas.getContext('2d');
-        if (!context) return;
-        const output = context.createImageData(w, h);
-        for (let i = 0; i < mask.length; i++) {
-          if (!mask[i]) continue;
-          const p = i * 4;
-          output.data[p] = output.data[p + 1] = output.data[p + 2] = 255;
-          output.data[p + 3] = mask[i]; cleanupPixels++;
-        }
-        context.putImageData(output, 0, 0);
+        const coloredAllowed = Boolean(coloredEligible && pixels <= 131072 && pixels <= coloredCleanupBudget);
+            const cacheKey = JSON.stringify([x,y,w,h,Boolean(item.sourceCleanup),Boolean(item.sourceVertical),coloredAllowed,cleanupPalette]);
+            let prepared = cleanupCache?.entries.get(cacheKey);
+            if (!prepared) {
+              cleanupCanvas.width = w; cleanupCanvas.height = h;
+              cleanupContext.drawImage(sourceImage, x - 2, y - 2, w, h, 0, 0, w, h);
+              const rgba = cleanupContext.getImageData(0, 0, w, h).data;
+              let mask = item.sourceCleanup ? aidokuSourceInkMask(rgba,w,h,Boolean(item.sourceVertical)) : null;
+              let restorationRGB=[255,255,255], audit=null;
+              if (coloredAllowed) {
+                const colored=aidokuColoredSourceInkMask({width:w,height:h,rgba,palette:cleanupPalette});
+                audit={reason:colored.reason,erased:colored.erased||0};
+                if (colored.mask) { mask=Uint8Array.from(colored.mask,value=>value?255:0);restorationRGB=colored.fill; }
+              }
+              let output=null,count=0;
+              if (mask) {
+                output=cleanupContext.createImageData(w,h);
+                for(let i=0;i<mask.length;i++) {
+                  if(!mask[i])continue;
+                  const p=i*4;output.data[p]=restorationRGB[0];output.data[p+1]=restorationRGB[1];output.data[p+2]=restorationRGB[2];output.data[p+3]=mask[i];count++;
+                }
+              }
+              prepared={output,count,dense:Boolean(mask?.denseSurfaceRecovered),audit};
+              // Bound retained pixel data to the existing per-page inspection budget.
+              if(cleanupCache && cleanupCache.entries.size<256 && cleanupCache.pixels+pixels<=2000000) {
+                cleanupCache.entries.set(cacheKey,prepared);cleanupCache.pixels+=pixels;
+              }
+            }
+            if(coloredAllowed) {
+              coloredCleanupBudget-=pixels;
+              if(prepared.audit)coloredCleanupAudit.push({id:String(item.id),pixels,...prepared.audit});
+            }
+            if(!prepared.output)return;
+            if(prepared.dense)cleanedDenseSourceItems.add(item);
+            const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+            const context=canvas.getContext('2d');if(!context)return;
+            cleanupPixels+=prepared.count;
+            context.putImageData(prepared.output,0,0);
         canvas.setAttribute('data-aidoku-image-ocr-overlay', 'source-cleanup');
         Object.assign(canvas.style, {
           position: 'absolute', zIndex: '1', pointerEvents: 'none',
           left: `${frame[0] + (x - 2) / iw * frame[2] + scrollX}px`,
           top: `${frame[1] + (y - 2) / ih * frame[3] + scrollY}px`,
           width: `${w / iw * frame[2]}px`, height: `${h / ih * frame[3]}px`,
-          opacity: String(Math.min(1, Math.max(0, opacity)))
+          clipPath: aidokuCleanupClip(cleanupImageGeometry,frame[0]+(x-2)/iw*frame[2],frame[1]+(y-2)/ih*frame[3],w/iw*frame[2],h/ih*frame[3]),
+          // Background translucency must not leave recognized source ink visible.
+          opacity: '1'
         });
         root.appendChild(canvas); cleanupCount++;
       } catch (_) {
@@ -750,6 +839,8 @@ final class BrowserPageImageOverlayRenderer {
     root.dataset.cleanupCount = String(cleanupCount);
     root.dataset.cleanupPixels = String(cleanupPixels);
     root.dataset.cleanupMilliseconds = String(performance.now() - cleanupStarted);
+    root.dataset.coloredCleanupAudit = JSON.stringify(coloredCleanupAudit);
+    root.dataset.coloredCleanupBudgetUsed = String(262144-coloredCleanupBudget);
     let renderedItemCount = 0;
     let refinementCharacterBudget = 16384;
     // Reserve the original allowance for emergency-size captions, regardless
@@ -760,7 +851,46 @@ final class BrowserPageImageOverlayRenderer {
     }, 0);
     let readableRefinementBudget = Math.min(2048, Math.max(0, refinementCharacterBudget - emergencyCharacters));
     let koreanWrapCharacterBudget = 2048;
-    const koreanWrapMeasure = document.createElement('canvas').getContext('2d');
+    let readableParagraphBudget = 512;
+    let paragraphSourcePixelBudget = 262144;
+    let paragraphSourceLookupBudget = 524288;
+    // Bound paragraph growth using the original image, independently of erasure.
+    function paragraphSafePixels(rgba, w, h) {
+      const n=w*h;
+      if(n>131072 || rgba.length!==n*4) return null;
+      const blocked=new Uint8Array(n), seen=new Uint8Array(n), queue=new Int32Array(n);
+      let white=0,colored=0;
+      for(let i=0;i<n;i++) {
+        const p=i*4,lo=Math.min(rgba[p],rgba[p+1],rgba[p+2]),hi=Math.max(rgba[p],rgba[p+1],rgba[p+2]);
+        if(rgba[p+3]!==255)return null;
+        if(lo>=245 && hi-lo<=10)white++;
+        else blocked[i]=1;
+        if(hi-lo>20)colored++;
+      }
+      if(white/n<0.5 || colored/n>0.02)return null;
+      const safe=new Uint8Array(n);safe.fill(1);
+      for(let seed=0;seed<n;seed++) {
+        if(!blocked[seed]||seen[seed])continue;
+        let head=0,tail=1,edge=false,minX=w,minY=h,maxX=0,maxY=0;
+        queue[0]=seed;seen[seed]=1;
+        while(head<tail){
+          const i=queue[head++],x=i%w,y=Math.floor(i/w);
+          if(x===0||y===0||x===w-1||y===h-1)edge=true;
+          minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
+          for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+            const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=w||yy>=h)continue;
+            const j=yy*w+xx;if(blocked[j]&&!seen[j]){seen[j]=1;queue[tail++]=j;}
+          }
+        }
+        const cw=maxX-minX+1,ch=maxY-minY+1;
+        if(edge||tail>n*.25||cw>w*.8||ch>h*.8)
+          for(let j=0;j<tail;j++)safe[queue[j]]=0;
+      }
+      return safe;
+    }
+
+    let paragraphRecoveryProbeBudget = 512;
+        const koreanWrapMeasure = document.createElement('canvas').getContext('2d');
     try {
       for (const item of items) {
         if (!item || typeof item !== 'object') {
@@ -801,7 +931,7 @@ final class BrowserPageImageOverlayRenderer {
         const paddingBottom = finiteNumber(item.paddingBottom, 'padding bottom');
         const paddingLeft = finiteNumber(item.paddingLeft, 'padding left');
         if (fontSize < minimumFontSize) continue;
-        const sampled = item.sourceColorEligible ? sourceColors.sample(item.sourceBounds) : null;
+        const sampled = cachedSourceSample(item);
         const panelCandidate = appearance?.preserveSourceBackgroundColor ? sampled?.background : null;
         const panelForeground = aidokuPanelForeground(panelCandidate, opacity);
         const sampledBackground = panelForeground ? panelCandidate : null;
@@ -812,6 +942,48 @@ final class BrowserPageImageOverlayRenderer {
         const readableColor = appearance?.preserveSourceTextColor
           ? aidokuReadableSourceColor(sampled?.foreground, lightSurface, opacity, sampledBackground) : null;
         const foreground = readableColor ? readableColor.join(',') : (lightSurface ? '17,18,23' : '255,255,255');
+        // Preserving source ink must preserve its RGB, including light lettering.
+        // A thin contrasting edge supplies definition on a different/translucent
+        // reader surface without silently recoloring the fill or enabling panel color.
+        const sampledStroke = sampled?.stroke;
+        const sourceStroke = appearance?.preserveSourceTextColor && Array.isArray(sampledStroke) &&
+          sampledStroke.length === 3 && sampledStroke.every(v => Number.isFinite(v) && v >= 0 && v <= 255)
+          ? sampledStroke : null;
+        const sourceTextOutline = Boolean(sourceStroke || (readableColor &&
+          aidokuSourceColorContrast(readableColor, lightSurface, opacity, sampledBackground) < 3));
+        // At low opacity the panel polarity may disagree with the source ink.
+        // Contrast the edge against the preserved fill, not against the panel.
+        const outlineColor = sourceStroke ? sourceStroke.join(',') : (sourceTextOutline
+          ? aidokuPanelForeground(readableColor, 1).join(',') : '');
+        // Strengthen low-contrast neutral lettering without crowding tiny glyphs.
+        const readabilityWidthAssist = Boolean(appearance?.preserveSourceTextColor &&
+          !appearance?.preserveSourceBackgroundColor && !sourceStroke && readableColor && opacity > 0 &&
+          fontSize >= 9 && Math.max(...readableColor) - Math.min(...readableColor) <= 12 &&
+          aidokuSourceColorContrast(readableColor, lightSurface, opacity, sampledBackground) < 3);
+        const preservedTextShadow = 'none';
+        // Fade the continuous edge as the source fill approaches sufficient
+        // contrast. Paint the unchanged fill last so the edge cannot eat its ink.
+        const sourceInkEdgeStrength = sourceTextOutline
+          ? Math.min(1, Math.max(0, (3 - aidokuSourceColorContrast(
+              readableColor, lightSurface, opacity, sampledBackground)) / 2)) : 0;
+        // A measured source band is the outer half of the CSS stroke after fill is painted.
+        const measuredStrokeRatio = Number(sampled?.widthEvidence?.relativeToGlyph);
+        const sourceStrokeEm = Number.isFinite(measuredStrokeRatio) && measuredStrokeRatio > 0
+          ? Math.min(0.24, Math.max(0.035, 2 * measuredStrokeRatio)) : 0.10;
+        const sourceInkStroke = sourceStroke
+          ? `min(1.5px, ${sourceStrokeEm}em) rgb(${outlineColor})`
+          : (readabilityWidthAssist ? `min(1.5px, 0.14em) rgb(${outlineColor})` : (sourceTextOutline ? `min(1px, ${0.10 * sourceInkEdgeStrength}em) rgb(${outlineColor})` : '0px transparent'));
+        node.dataset.sourceSampledStrokeRGB = Array.isArray(sampledStroke) ? sampledStroke.join(',') : '';
+        node.dataset.sourceAppliedStrokeRGB = sourceTextOutline ? outlineColor : '';
+        node.dataset.sourceStrokeColor = sourceStroke ? 'preserved' : (readabilityWidthAssist ? 'readability-assist' : (sourceTextOutline ? 'contrast-fallback' : 'none'));
+        node.dataset.sourceReadabilityAssist = String(readabilityWidthAssist);
+        node.dataset.sourceReadabilityAssistOrigin = readabilityWidthAssist ? 'existing-contrast-edge-width' : '';
+        node.dataset.sourceStrokeConfidence = String(sampled?.confidence?.stroke ?? '');
+        node.dataset.sourceSampledTextRGB = sampled?.foreground?.join(',') || '';
+        node.dataset.sourceAppliedTextRGB = foreground;
+        node.dataset.sourceSampledBackgroundRGB = sampled?.background?.join(',') || '';
+        node.dataset.sourceAppliedBackgroundRGB = surface;
+        node.dataset.sourceTextOutline = String(sourceTextOutline);
         node.dataset.sourceTextColor = readableColor ? 'preserved' : 'fallback';
         node.dataset.sourceTextColorAdjusted = String(Boolean(readableColor && sampled?.foreground &&
           readableColor.some((value, channel) => value !== sampled.foreground[channel])));
@@ -839,14 +1011,17 @@ final class BrowserPageImageOverlayRenderer {
           fontSize: `${fontSize}px`,
           lineHeight: `${Math.max(fontSize, lineHeight)}px`,
           letterSpacing: '-0.012em', textAlign: 'center',
-          textShadow: sampledBackground ? 'none' : lightSurface
+          // Even a zero-width stroke changes WebKit rasterization. Leave the
+          // original style untouched when source-ink contrast needs no edge.
+          ...(sourceTextOutline ? {webkitTextStroke: sourceInkStroke, paintOrder: 'stroke fill'} : {}),
+          textShadow: readableColor ? preservedTextShadow : sampledBackground ? 'none' : lightSurface
             ? '0 1px 0 rgba(255,255,255,0.75)'
             : '0 1px 2px rgba(0,0,0,0.95),0 0 1px rgba(0,0,0,0.90)',
           boxShadow: 'none',
-          backdropFilter: sampledBackground ? 'blur(2px)' : lightSurface
+          backdropFilter: cleanedDenseSourceItems.has(item) ? 'none' : sampledBackground ? 'blur(2px)' : lightSurface
             ? 'blur(2px) saturate(0.6)'
             : 'blur(3px) saturate(0.75)',
-          webkitBackdropFilter: sampledBackground ? 'blur(2px)' : lightSurface
+          webkitBackdropFilter: cleanedDenseSourceItems.has(item) ? 'none' : sampledBackground ? 'blur(2px)' : lightSurface
             ? 'blur(2px) saturate(0.6)'
             : 'blur(3px) saturate(0.75)',
           webkitTextSizeAdjust: 'none', textSizeAdjust: 'none',
@@ -942,9 +1117,57 @@ final class BrowserPageImageOverlayRenderer {
           }
           const badStarts = starts.filter(x => /^[、。，．,.！？!?…‥）)\\]」』】》〉:;]$/u.test(x.character)).map(x => x.offset);
           const badEnds = ends.filter(x => /^[（(\\[「『【《〈]$/u.test(x.character)).map(x => x.offset);
-          return {lines: rows.length, breaks, badStarts, badEnds, ink};
+          const isolated = starts.flatMap((start, row) =>
+                ends[row]?.offset === start.offset ? [start.offset] : []);
+              const hangulIsolated = starts.filter((start, row) => {
+                const end = ends[row];
+                if (!end) return false;
+                const visible = text.data.slice(start.offset, end.offset + end.character.length)
+                  .normalize('NFC').replace(/[\\p{P}\\p{Z}\\s]/gu, '');
+                return /^[\\p{Script=Hangul}]$/u.test(visible);
+              }).length;
+              return {lines: rows.length, breaks, badStarts, badEnds, ink, isolated, hangulIsolated};
         };
-        const reference = item.smallTextReference;
+        // Reflow roomy paragraphs within their existing card using measured free height.
+            let paragraphBaseline = null;
+            let reference = item.smallTextReference;
+            let refinementMaximum = fontSize;
+            const paragraphUsableWidth = width - paddingLeft - paddingRight;
+            const paragraphUsableHeight = height - paddingTop - paddingBottom;
+            if (item.allowsAutomaticFontRecovery && !reference && !vertical && wrappingScript === 'korean' &&
+            fontSize >= 9 && fontSize < 12 && displayedText.length <= paragraphRecoveryProbeBudget &&
+                ((displayedText.length >= 40 && displayedText.length <= 180 &&
+                  displayedText.trim().split(/\\s+/u).length >= 8 && paragraphUsableWidth >= fontSize * 12) ||
+                 (item.sourceVertical === true && fontSize <= 11.5 &&
+                  displayedText.length >= 5 && displayedText.length <= 32 &&
+                  displayedText.trim().split(/\\s+/u).length >= 2)) &&
+                !/[\\r\\n]/u.test(displayedText) &&
+                displayedText.length <= refinementCharacterBudget && displayedText.length <= readableRefinementBudget) {
+              paragraphRecoveryProbeBudget -= displayedText.length;
+              const originalFont = fitMeasuredFont(fontSize);
+              if (originalFont >= 9) {
+                const profile = lineProfile();
+                const usedHeight = profile ? profile.lines * originalFont * lineHeightRatio : Infinity;
+                if (profile && profile.lines >= 2 && usedHeight <= paragraphUsableHeight * 0.5 &&
+                    paragraphUsableHeight - usedHeight >= 2 * 12 * lineHeightRatio) {
+                  paragraphBaseline = profile;
+                  const exclusions = items.filter(other => other !== item).flatMap(other => {
+                    const result = [[Number(other.x), Number(other.y), Number(other.width), Number(other.height)]];
+                    const b = other.sourceBounds, f = other.sourceFrame;
+                    if (Array.isArray(b) && Array.isArray(f) && b.length === 4 && f.length === 4 &&
+                        b.every(Number.isFinite) && f.every(Number.isFinite)) result.push([
+                      f[0] + b[0] * f[2], f[1] + b[1] * f[3], b[2] * f[2], b[3] * f[3]]);
+                    return result.filter(r => r.every(Number.isFinite) && r[2] > 0 && r[3] > 0);
+                  });
+                  reference = {fontSize: originalFont,
+                    padding: [paddingTop, paddingRight, paddingBottom, paddingLeft],
+                    additionalLines: Math.min(displayedText.length <= 32 ? 2 : 3, Math.floor((paragraphUsableHeight - usedHeight) / (12 * lineHeightRatio))),
+                    exclusionRects: exclusions, paragraphRecovery: true};
+                  refinementMaximum = 12;
+                  node.dataset.fixedParagraphRecovery = 'proposed';
+                }
+              }
+            }
         const hasReference = reference && Number.isFinite(reference.fontSize) &&
           Array.isArray(reference.padding) && reference.padding.length === 4 && reference.padding.every(Number.isFinite);
         const refinementStarted = performance.now();
@@ -958,7 +1181,7 @@ final class BrowserPageImageOverlayRenderer {
             refinementCharacterBudget -= displayedText.length;
             if (!emergency) readableRefinementBudget -= displayedText.length;
           }
-          const baseline = canProfile ? lineProfile() : null;
+          const baseline = canProfile ? (paragraphBaseline || lineProfile()) : null;
           if (baseline) {
             setPadding([paddingTop, paddingRight, paddingBottom, paddingLeft]);
             const exclusions = Array.isArray(reference.exclusionRects) ? reference.exclusionRects : [];
@@ -978,16 +1201,17 @@ final class BrowserPageImageOverlayRenderer {
                 a[0] + a[2] > x + width + 0.5 || a[1] + a[3] > y + height + 0.5);
               return candidate && contentFits() && candidateFont >= baselineFont + 0.5 &&
                 candidate.lines <= baseline.lines + allowance && !hitsObstacle &&
+                    (!reference.paragraphRecovery || (!adds(candidate.isolated, baseline.isolated) && candidate.hangulIsolated <= baseline.hangulIsolated)) &&
                 (!requireContainedGlyphs || !escapesCard) &&
                 !(protectsWords && adds(candidate.breaks, baseline.breaks)) &&
                 !adds(candidate.badStarts, baseline.badStarts) && !adds(candidate.badEnds, baseline.badEnds);
             };
-            let accepted = acceptable(fontSize, extraLines);
+            let accepted = acceptable(refinementMaximum, extraLines);
             // A maximal fit can touch a nearby source or strand punctuation even
             // when a slightly smaller readable size is safe. Bounded descending
             // probes retain the old proposal if none passes every actual-DOM guard.
             if (!accepted && extraLines > 1) {
-              const upper = Math.min(fontSize, parseFloat(node.style.fontSize));
+              const upper = Math.min(refinementMaximum, parseFloat(node.style.fontSize));
               for (let step = 1; step <= 8 && !accepted; step += 1) {
                 const size = Math.floor((upper - step * 0.5) * 4) / 4;
                 if (size < Math.max(8, baselineFont + 0.5)) break;
@@ -996,7 +1220,7 @@ final class BrowserPageImageOverlayRenderer {
             }
             // The text may move within its existing envelope when a small
             // neighbouring source blocks the centre. Never move the card itself.
-            if (!accepted && !vertical && exclusions.length > 0 && extraLines > 1) {
+            if (!accepted && !reference.paragraphRecovery && !vertical && exclusions.length > 0 && extraLines > 1) {
               const originalPadding = [paddingTop, paddingRight, paddingBottom, paddingLeft];
               for (const shift of [-6, 6, -12, 12]) {
                 if (Math.abs(shift) > height * 0.2) continue;
@@ -1030,6 +1254,7 @@ final class BrowserPageImageOverlayRenderer {
             } else { node.dataset.smallTextRefinement = 'accepted'; }
           } else { node.dataset.smallTextRefinement = 'retained-baseline'; }
         } else { fitMeasuredFont(fontSize); }
+            if (reference?.paragraphRecovery) node.dataset.fixedParagraphRecovery = node.dataset.smallTextRefinement;
         if (hasReference) root.dataset.smallTextRefinementMilliseconds = String(
           Number(root.dataset.smallTextRefinementMilliseconds || 0) + performance.now() - refinementStarted);
         // Repair existing Korean emergency breaks inside the same card. Two
@@ -1078,6 +1303,130 @@ final class BrowserPageImageOverlayRenderer {
         }
         root.dataset.koreanWrapMilliseconds = String(
           Number(root.dataset.koreanWrapMilliseconds || 0) + performance.now() - koreanWrapStarted);
+        // Repair isolated closing punctuation in short Korean responses inside
+        // the existing card. Keep the font and reject new word breaks or edge hits.
+        if (!vertical && wrappingScript === 'korean' && displayedText.length <= 8 &&
+            !/\\s/u.test(displayedText)) {
+          const original = lineProfile();
+          if (original && original.badStarts.length > 0) {
+            const savedPadding = node.style.padding;
+            const savedWordBreak = node.style.wordBreak;
+            const savedLineBreak = node.style.lineBreak;
+            const savedOverflowWrap = node.style.overflowWrap;
+            for (const target of [node, measurementNode]) {
+              target.style.paddingLeft = `${Math.min(1, parseFloat(target.style.paddingLeft || 0))}px`;
+              target.style.paddingRight = `${Math.min(1, parseFloat(target.style.paddingRight || 0))}px`;
+              target.style.wordBreak = 'normal';
+              target.style.lineBreak = 'strict';
+              target.style.overflowWrap = 'normal';
+            }
+            const candidate = lineProfile();
+            const exclusions = Array.isArray(reference?.exclusionRects) ? reference.exclusionRects : [];
+            const violates = profile => profile.ink.some(a =>
+              a[0] < x + 0.9 || a[1] < y - 0.5 ||
+              a[0] + a[2] > x + width - 0.9 || a[1] + a[3] > y + height + 0.5 ||
+              exclusions.some(b => Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0]) > 0.5 &&
+                Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]) > 0.5));
+            const accepted = candidate && contentFits() && candidate.lines <= original.lines &&
+              candidate.badStarts.length < original.badStarts.length &&
+              candidate.badEnds.length <= original.badEnds.length &&
+              candidate.breaks.every(offset => original.breaks.includes(offset)) && !violates(candidate);
+            if (accepted) node.dataset.koreanPunctuationRepair = 'accepted';
+            else for (const target of [node, measurementNode]) {
+              target.style.padding = savedPadding;
+              target.style.wordBreak = savedWordBreak;
+              target.style.lineBreak = savedLineBreak;
+              target.style.overflowWrap = savedOverflowWrap;
+            }
+          }
+        }
+        // Preserve word and punctuation repairs while recovering readable paragraphs.
+        // Same card, padding, alignment and neighboring cards; at most nine font probes.
+        const paragraphStart = performance.now();
+        const paragraphOriginalFont = parseFloat(node.style.fontSize);
+        if (item.allowsAutomaticFontRecovery && !vertical && wrappingScript === 'korean' && paragraphOriginalFont < 8 &&
+            displayedText.length >= 20 && displayedText.length <= 140 &&
+            displayedText.length <= readableParagraphBudget && (/[가-힣]{5}/u.test(displayedText) || displayedText.trim().split(/\\s+/u).length >= 4)) {
+          readableParagraphBudget -= displayedText.length;
+          const original = lineProfile();
+          const exclusions = items.filter(other => other !== item).flatMap(other => {
+            const result = [[Number(other.x), Number(other.y), Number(other.width), Number(other.height)]];
+            const b = other.sourceBounds, f = other.sourceFrame;
+            if (Array.isArray(b) && Array.isArray(f)) result.push([
+              f[0] + b[0] * f[2], f[1] + b[1] * f[3], b[2] * f[2], b[3] * f[3]]);
+            return result;
+          });
+          if (Array.isArray(reference?.exclusionRects)) exclusions.push(...reference.exclusionRects);
+          const safeSplits = profile => profile.breaks.every((offset, index, all) => {
+            if (original.breaks.includes(offset)) return true;
+            const left = displayedText.slice(0, offset).match(/[가-힣]+$/u)?.[0] || '';
+            const right = displayedText.slice(offset).match(/^[가-힣]+/u)?.[0] || '';
+            if (left.length + right.length < 5) return false;
+            const previous = all[index - 1] ?? 0, next = all[index + 1] ?? displayedText.length;
+            return Math.min(left.length, offset - previous) >= 2 &&
+              Math.min(right.length, next - offset) >= 2;
+          });
+          let paragraphSourceCache;
+          const sourceAllows = profile => {
+            if (paragraphSourceCache === undefined) {
+              paragraphSourceCache = null;
+              const started = performance.now();
+              const b = item.sourceBounds, f = item.sourceFrame;
+              if (sourceImage?.complete && sourceImage.naturalWidth && cleanupContext &&
+                  Array.isArray(b) && Array.isArray(f) && b.length === 4 && f.length === 4 &&
+                  b.every(Number.isFinite) && f.every(Number.isFinite) && f[2] > 0 && f[3] > 0) {
+                const iw=sourceImage.naturalWidth, ih=sourceImage.naturalHeight;
+                const sx=iw/f[2], sy=ih/f[3];
+                const left=Math.max(0,Math.floor(Math.min(b[0]*iw,(x-f[0])*sx)-3*sx));
+                const top=Math.max(0,Math.floor(Math.min(b[1]*ih,(y-f[1])*sy)-3*sy));
+                const right=Math.min(iw,Math.ceil(Math.max((b[0]+b[2])*iw,(x+width-f[0])*sx)+3*sx));
+                const bottom=Math.min(ih,Math.ceil(Math.max((b[1]+b[3])*ih,(y+height-f[1])*sy)+3*sy));
+                const w=right-left,h=bottom-top,n=w*h;
+                if(w>=14&&h>=14&&n<=131072&&n<=paragraphSourcePixelBudget) {
+                  paragraphSourcePixelBudget-=n;
+                  root.dataset.readableParagraphSourcePixels=String(Number(root.dataset.readableParagraphSourcePixels||0)+n);
+                  try {
+                    cleanupCanvas.width=w;cleanupCanvas.height=h;
+                    cleanupContext.drawImage(sourceImage,left,top,w,h,0,0,w,h);
+                    const rgba=cleanupContext.getImageData(0,0,w,h).data;
+                    const safe=paragraphSafePixels(rgba,w,h);
+                    if(safe)paragraphSourceCache={safe,w,h,left,top,sx,sy,frame:f};
+                  } catch (_) {}
+                }
+              }
+              root.dataset.readableParagraphSourceMilliseconds=String(Number(root.dataset.readableParagraphSourceMilliseconds||0)+performance.now()-started);
+            }
+            const c=paragraphSourceCache;if(!c)return false;
+            for(const a of profile.ink) {
+              const l=Math.floor((a[0]-c.frame[0])*c.sx)-c.left;
+              const t=Math.floor((a[1]-c.frame[1])*c.sy)-c.top;
+              const r=Math.ceil((a[0]+a[2]-c.frame[0])*c.sx)-c.left;
+              const b=Math.ceil((a[1]+a[3]-c.frame[1])*c.sy)-c.top;
+              const count=(r-l)*(b-t);
+              if(l<0||t<0||r>c.w||b>c.h||count<0||count>paragraphSourceLookupBudget)return false;
+              paragraphSourceLookupBudget-=count;
+              for(let yy=t;yy<b;yy++)for(let xx=l;xx<r;xx++)if(!c.safe[yy*c.w+xx])return false;
+            }
+            return true;
+          };
+          let accepted = false;
+          if (original) for (let size = 10; size >= Math.max(8, paragraphOriginalFont + 0.75); size -= 0.25) {
+            applyMeasuredFontSize(size);
+            const profile = lineProfile();
+            const safe = profile && contentFits() &&
+              profile.badStarts.length <= original.badStarts.length &&
+              profile.badEnds.length <= original.badEnds.length && safeSplits(profile) && profile.hangulIsolated <= original.hangulIsolated && (/[가-힣]{5}/u.test(displayedText) || profile.breaks.every(offset => original.breaks.includes(offset))) &&
+              profile.ink.every(a => a[0] >= x + 0.9 && a[1] >= y + 0.9 &&
+                a[0] + a[2] <= x + width - 0.9 && a[1] + a[3] <= y + height - 0.9 &&
+                !exclusions.some(b => Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0]) > 0.25 &&
+                  Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]) > 0.25));
+            if (safe && sourceAllows(profile)) { accepted = true; node.dataset.readableParagraph = 'accepted'; break; }
+          }
+          if (!accepted) applyMeasuredFontSize(paragraphOriginalFont);
+        }
+        root.dataset.readableParagraphMilliseconds = String(
+          Number(root.dataset.readableParagraphMilliseconds || 0) + performance.now() - paragraphStart);
+
         measurementNode.remove();
         renderedItemCount += 1;
       }
@@ -2679,6 +3028,7 @@ final class BrowserOverlayView: UIView {
                 BrowserOverlayLayoutPlanner.relaxingCardPositions(
                 concreteLayouts,
                 sources: sourceRects,
+                sourceVerticals: segments.map(\.sourceVertical),
                 viewport: bounds.size,
                 placementBounds: sourceRect,
                 preferredRects: intrinsicLayouts.map(\.rect),
@@ -3961,6 +4311,7 @@ struct BrowserOverlayLayoutPlanner {
         let final = relaxingCardPositions(
             concrete,
             sources: sources,
+            sourceVerticals: sourceVerticals,
             viewport: viewport,
             placementBounds: placementBounds,
             preferredRects: intrinsicLayouts.map(\.rect),
@@ -4013,6 +4364,7 @@ struct BrowserOverlayLayoutPlanner {
     static func relaxingCardPositions(
         _ layouts: [BrowserOverlayCardLayout],
         sources: [CGRect],
+        sourceVerticals: [Bool]? = nil,
         viewport: CGSize,
         placementBounds: CGRect? = nil,
         preferredRects: [CGRect]? = nil,
@@ -4041,6 +4393,7 @@ struct BrowserOverlayLayoutPlanner {
         let jointlyPacked = jointlyPackingOverlappingClusters(
             layouts,
             sources: sources,
+            sourceVerticals: sourceVerticals,
             viewport: viewport,
             placementBounds: effectivePlacementBounds,
             preferredRects: effectivePreferredRects,
@@ -4235,6 +4588,7 @@ struct BrowserOverlayLayoutPlanner {
     private static func jointlyPackingOverlappingClusters(
         _ layouts: [BrowserOverlayCardLayout],
         sources: [CGRect],
+        sourceVerticals: [Bool]?,
         viewport: CGSize,
         placementBounds: CGRect,
         preferredRects: [CGRect],
@@ -4415,6 +4769,8 @@ struct BrowserOverlayLayoutPlanner {
             // neighboring cards share the horizontal displacement.
             guard let sourceBand = horizontallyPackedSourceBand(
                 cluster: cluster,
+                sources: sources,
+                sourceVerticals: sourceVerticals,
                 layouts: result,
                 preferredRects: preferredRects,
                 placementBounds: placementBounds,
@@ -4438,6 +4794,8 @@ struct BrowserOverlayLayoutPlanner {
     /// taller than it is wide, but still needs to move together horizontally.
     private static func horizontallyPackedSourceBand(
         cluster: [Int],
+        sources: [CGRect],
+        sourceVerticals: [Bool]?,
         layouts: [BrowserOverlayCardLayout],
         preferredRects: [CGRect],
         placementBounds: CGRect,
@@ -4449,6 +4807,53 @@ struct BrowserOverlayLayoutPlanner {
         let spacing: CGFloat = 0.5
         func overlapsVertically(_ left: CGRect, _ right: CGRect) -> Bool {
             min(left.maxY, right.maxY) - max(left.minY, right.minY) > 0.25
+        }
+
+        // Only a source cluster classified as horizontal in one source column
+        // can be a stack of caption lines. Unknown or mixed writing directions
+        // retain the existing column-packing behavior.
+        var horizontalCaptionColumn = sourceVerticals.map { orientations in
+            orientations.count == sources.count && order.allSatisfy {
+                !orientations[$0]
+            }
+        } ?? false
+        if horizontalCaptionColumn {
+            for (position, index) in order.enumerated() {
+                for previous in order[..<position] {
+                    let narrowerWidth = min(sources[index].width, sources[previous].width)
+                    let overlapWidth = min(sources[index].maxX, sources[previous].maxX) -
+                        max(sources[index].minX, sources[previous].minX)
+                    if narrowerWidth <= 0 || overlapWidth < narrowerWidth * 0.75 {
+                        horizontalCaptionColumn = false
+                        break
+                    }
+                }
+                if !horizontalCaptionColumn { break }
+            }
+        }
+        if horizontalCaptionColumn {
+            // Minimum height or insets can make distinct original lines touch.
+            // Do not turn their padded envelopes into side-by-side columns.
+            for (position, index) in order.enumerated() {
+                let proposed = CGRect(
+                    x: preferredRects[index].minX,
+                    y: preferredRects[index].minY,
+                    width: layouts[index].rect.width,
+                    height: layouts[index].rect.height
+                )
+                for previous in order[..<position] {
+                    let previousProposed = CGRect(
+                        x: preferredRects[previous].minX,
+                        y: preferredRects[previous].minY,
+                        width: layouts[previous].rect.width,
+                        height: layouts[previous].rect.height
+                    )
+                    if overlapsVertically(proposed, previousProposed),
+                       !overlapsVertically(sources[index], sources[previous]) {
+                        return nil
+                    }
+                }
+            }
         }
 
         var row: [Int: CGRect] = [:]

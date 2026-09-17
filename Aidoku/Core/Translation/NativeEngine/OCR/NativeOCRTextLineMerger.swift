@@ -186,12 +186,12 @@ enum NativeOCRTextLineMerger {
 
     /// Pronouns over unrelated Han text can supply the intended referent (e.g.
     /// 世界《わたし》). Preserve that evidence without making another OCR region.
-    /// Ordinary readings of 私/俺/僕/君 remain suppressed. Geometry and grouping
-    /// continue to use the original body text; annotations are applied last.
+    /// Ordinary readings of 私/俺/僕/君 and homophones such as 気味 remain suppressed.
+    /// Geometry and grouping use the original body text; annotations are applied last.
     private static func semanticRubyAnnotations(in lines: [Line], retained: [Line]) -> [SemanticRuby] {
         let spellings: [String: [String]] = [
             "わたし": ["私"], "おれ": ["俺"], "ぼく": ["僕"],
-            "あなた": ["貴方", "貴女", "彼方"], "きみ": ["君"]
+            "あなた": ["貴方", "貴女", "彼方"], "きみ": ["君", "気味"]
         ]
         let kept = Set(retained.map(\.index))
         let readings = lines.filter { !kept.contains($0.index) && spellings[$0.text] != nil }
@@ -700,6 +700,17 @@ enum NativeOCRTextLineMerger {
                        orientation: .horizontal,
                        maximumGap: regularHorizontal.contains(IndexPair(left, right)) ? 0.85 : 0.4
                    ) {
+                    let ordered = [leftGeometry.line, rightGeometry.line].sorted { $0.box.minX < $1.box.minX }
+                    let font = min(ordered[0].box.height, ordered[1].box.height)
+                    let isNewOverlapEdge = ordered[0].box.maxX - ordered[1].box.minX > font * 0.15
+                        && horizontalLatinOverlap(ordered[0], ordered[1]) != nil
+                        && overlappingCharacterCount(ordered[0], ordered[1], orientation: .horizontal) == nil
+                    if isNewOverlapEdge {
+                        let nearby = spatialIndex.indices(intersecting: ordered[0].box.union(ordered[1].box)
+                            .insetBy(dx: -font * 3, dy: -font * 2)).map { geometries[$0].line }
+                        if conflictsWithIndependentHorizontalOwners(ordered[0], ordered[1], nearby: nearby)
+                            || separationCheck?(ordered[0].box, ordered[1].box, .horizontal) == true { continue }
+                    }
                     candidates.append(candidate)
                 }
             }
@@ -923,6 +934,7 @@ enum NativeOCRTextLineMerger {
             guard overlappingJoin(
                 ordered[0], ordered[1], orientation: orientation
             ) != nil || (orientation == .horizontal && paddedCJKNeighbours(ordered[0], ordered[1]))
+                || (orientation == .horizontal && horizontalLatinOverlap(ordered[0], ordered[1]) != nil)
                 || (orientation == .vertical && paddedVerticalNeighbours(ordered[0], ordered[1])) else { return nil }
         }
         return Candidate(
@@ -950,6 +962,71 @@ enum NativeOCRTextLineMerger {
               abs(a.midX - b.midX) <= font * 0.25,
               overlapRatio(a.minX, a.maxX, b.minX, b.maxX) >= 0.8 else { return false }
         return true
+    }
+
+    // Consult ownership evidence only for newly admitted overlap edges.
+    private static func conflictsWithIndependentHorizontalOwners(
+        _ left: Line, _ right: Line, nearby: [Line]
+    ) -> Bool {
+        let a = left.box, b = right.box, font = min(a.height, b.height)
+        func horizontalLatin(_ line: Line) -> Bool {
+            let letters = line.text.unicodeScalars.filter { CharacterSet.letters.contains($0) }
+            return line.orientation == .horizontal && !letters.isEmpty && letters.allSatisfy(isLatin)
+        }
+        let others = nearby.filter { $0.index != left.index && $0.index != right.index && horizontalLatin($0) }
+        let center = (a.midY + b.midY) / 2
+        // Three independently detected neighbouring labels in one row are
+        // ambiguous without ownership evidence; abstain instead of inventing a phrase.
+        if others.contains(where: { line in
+            let c = line.box
+            return max(c.height, font) <= min(c.height, font) * 2
+                && abs(c.midY - center) <= font * 0.4
+                && (c.midX < a.minX || c.midX > b.maxX)
+                && min(abs(c.maxX - a.minX), abs(c.minX - b.maxX)) <= font * 3
+        }) { return true }
+        // Two adjacent independently wrapped columns must not be bridged just
+        // because one pair of rows happens to share a baseline.
+        func hasExclusiveContinuation(_ own: CGRect, other: CGRect) -> Bool {
+            others.contains { line in
+                let c = line.box
+                let dy = abs(c.midY - own.midY)
+                let ownOverlap = max(0, min(c.maxX, own.maxX) - max(c.minX, own.minX))
+                let otherOverlap = max(0, min(c.maxX, other.maxX) - max(c.minX, other.minX))
+                return max(c.height, own.height) <= min(c.height, own.height) * 1.5
+                    && dy >= min(c.height, own.height) * 0.7 && dy <= max(c.height, own.height) * 2
+                    && ownOverlap >= min(c.width, own.width) * 0.65
+                    && otherOverlap <= c.width * 0.2
+            }
+        }
+        return hasExclusiveContinuation(a, other: b) && hasExclusiveContinuation(b, other: a)
+    }
+
+    // Distinguish detector padding from one shared source glyph.
+    private static func horizontalLatinOverlap(_ left: Line, _ right: Line) -> Int? {
+        guard left.orientation == .horizontal, right.orientation == .horizontal,
+              !left.clippedByTile, !right.clippedByTile else { return nil }
+        let a = left.box, b = right.box, font = min(a.height, b.height)
+        let x = left.text, y = right.text
+        let letters = (x + y).unicodeScalars.filter { CharacterSet.letters.contains($0) }
+        guard !letters.isEmpty, letters.allSatisfy(isLatin), x.count >= 2, y.count >= 2,
+              max(a.height, b.height) <= font * 1.25,
+              abs(a.midY - b.midY) <= font * 0.2,
+              overlapRatio(a.minY, a.maxY, b.minY, b.maxY) >= 0.8,
+              a.minX < b.minX, a.maxX < b.maxX, a.maxX > b.minX else { return nil }
+        let overlap = a.maxX - b.minX
+        let ax = a.width / CGFloat(x.count), bx = b.width / CGFloat(y.count)
+        guard min(ax, bx) > 0, max(ax, bx) <= min(ax, bx) * 1.6 else { return nil }
+        // Less than half a source glyph cannot justify deleting any character.
+        if overlap <= min(ax, bx) * 0.35 { return 0 }
+        // A trailing word and an isolated re-read suffix must share one glyph area.
+        let words = x.split(whereSeparator: { $0.isWhitespace })
+        let next = Array(y)
+        guard let word = words.last, word.count >= 3,
+              word.allSatisfy({ $0.isLetter }), next.count >= 3,
+              next[0] == word.last, next[1].isWhitespace,
+              next.dropFirst(2).contains(where: { $0.isLetter }),
+              abs(overlap - (ax + bx) / 2) <= (ax + bx) / 2 * 0.25 else { return nil }
+        return 1
     }
 
     private static func paddedCJKNeighbours(_ left: Line, _ right: Line) -> Bool {
@@ -1186,6 +1263,9 @@ enum NativeOCRTextLineMerger {
     ) -> OverlappingJoin? {
         if let count = overlappingCharacterCount(left, right, orientation: orientation) {
             return OverlappingJoin(prefixCount: count)
+        }
+        if orientation == .horizontal, horizontalLatinOverlap(left, right) == 1 {
+            return OverlappingJoin(prefixCount: 1)
         }
         // A clipped crop may read the beginning of an ellipsis as a middle dot.
         // Only the crop ending at the tile edge can surrender that punctuation;

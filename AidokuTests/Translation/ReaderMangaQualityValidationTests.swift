@@ -25,16 +25,25 @@ struct ReaderMangaQualityValidationTests {
         settings.model = config.model
         if let targetLanguage = config.targetLanguage { settings.targetLanguage = targetLanguage }
         settings.maximumConcurrentRequests = config.maximumConcurrentRequests ?? 2
+        if let value = config.preserveSourceTextColor { settings.overlay.preserveSourceTextColor = value }
+        if let value = config.preserveSourceBackgroundColor { settings.overlay.preserveSourceBackgroundColor = value }
+        if let value = config.filterJapaneseSFX { settings.filterJapaneseSFX = value }
+        if let value = config.filterJapaneseSFXContext { settings.filterJapaneseSFXContext = value }
         settings.includePageImage = config.includePageImage ?? false
         settings.filterSFXWithLLM = config.filterSFXWithLLM ?? false
         settings.rightToLeftPanelOrder = config.rightToLeftPanelOrder ?? false
         if let effort = config.reasoningEffort { settings.reasoningEffort = effort }
         if let instructions = config.instructions { settings.instructions = instructions }
-        let translator = ReaderTranslationService(client: RemoteTranslationClient(
-            credentialStore: QualityCredential(value: try config.runtimeCredential(folder: folder))
-        ))
         let output = folder.appendingPathComponent(config.label)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        let responseAudit = QualityTranslationAuditTransport(
+            base: BoundedURLSessionTransport(),
+            outputDirectory: config.recordTranslationResponses == true ? output : nil
+        )
+        let translator = ReaderTranslationService(client: RemoteTranslationClient(
+            credentialStore: QualityCredential(value: try config.runtimeCredential(folder: folder)),
+            transport: config.recordTranslationResponses == true ? responseAudit : BoundedURLSessionTransport()
+        ))
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene: scene)
         let controller = UIViewController()
@@ -48,6 +57,8 @@ struct ReaderMangaQualityValidationTests {
                 ? try #require(input.cropping(to: CGRect(x: 0, y: 465, width: 1290, height: 1866))) : input
             let source = UIImage(cgImage: pixels)
             let name = URL(fileURLWithPath: fixture).deletingPathExtension().lastPathComponent
+            await responseAudit.reset()
+            await responseAudit.setPageID(name)
             try source.pngData()?.write(to: output.appendingPathComponent(name + "-source.png"))
             let started = Date()
             let replay: [ReaderTranslationRegion]?
@@ -63,7 +74,12 @@ struct ReaderMangaQualityValidationTests {
                 )
             }
             let ocrSeconds = Date().timeIntervalSince(started)
-            #expect(!regions.isEmpty)
+            if let expectedCount = config.expectedOCRRegionCounts?[name] {
+                // Manually reviewed text-free illustrations are useful false-positive controls.
+                #expect(regions.count == expectedCount)
+            } else {
+                #expect(!regions.isEmpty)
+            }
             // Keep the evidence even when a live provider fails or times out.
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -91,6 +107,9 @@ struct ReaderMangaQualityValidationTests {
                 // Diagnose every real image even if one provider request fails.
                 Issue.record(error)
                 firstDisplay.finish()
+                if config.recordTranslationResponses == true {
+                    try await responseAudit.flush(to: output.appendingPathComponent(name + "-responses.json"))
+                }
                 continue
             }
             #expect(translated.count == regions.count)
@@ -103,10 +122,12 @@ struct ReaderMangaQualityValidationTests {
             controller.view.addSubview(overlay)
             overlay.update(regions: translated, imageSize: source.size, aspectFit: false, settings: settings,
                            image: source)
+            let expectedEmpty = ReaderTranslationRegion.overlayItems(translated, imageSize: source.size).isEmpty
             var committed = false
             for _ in 0..<600 {
                 overlay.layoutIfNeeded()
-                if overlay.lastDiagnostic?.outcome == .committed { committed = true; break }
+                if overlay.lastDiagnostic?.outcome == .committed ||
+                    (expectedEmpty && overlay.lastDiagnostic?.outcome == .cleared) { committed = true; break }
                 try await Task.sleep(for: .milliseconds(50))
             }
             #expect(committed)
@@ -114,7 +135,16 @@ struct ReaderMangaQualityValidationTests {
             Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).map(x => {
               const s=getComputedStyle(x);return {text:x.textContent,x:parseFloat(s.left),y:parseFloat(s.top),
                 width:parseFloat(s.width),height:parseFloat(s.height),fontSize:parseFloat(s.fontSize),
-                border:s.borderWidth,shadow:s.boxShadow,scrollWidth:x.scrollWidth,clientWidth:x.clientWidth,
+                border:s.borderWidth,shadow:s.boxShadow,color:s.color,backgroundColor:s.backgroundColor,
+                backgroundImage:s.backgroundImage,textShadow:s.textShadow,textStroke:s.webkitTextStroke,
+                sourceTextColor:x.dataset.sourceTextColor,sourceTextColorAdjusted:x.dataset.sourceTextColorAdjusted,
+                sourceBackgroundColor:x.dataset.sourceBackgroundColor,
+                sourceSampledTextRGB:x.dataset.sourceSampledTextRGB,sourceAppliedTextRGB:x.dataset.sourceAppliedTextRGB,
+                sourceSampledBackgroundRGB:x.dataset.sourceSampledBackgroundRGB,sourceAppliedBackgroundRGB:x.dataset.sourceAppliedBackgroundRGB,
+                sourceTextOutline:x.dataset.sourceTextOutline,
+                sourceSampledStrokeRGB:x.dataset.sourceSampledStrokeRGB,sourceAppliedStrokeRGB:x.dataset.sourceAppliedStrokeRGB,
+                sourceStrokeColor:x.dataset.sourceStrokeColor,sourceStrokeConfidence:x.dataset.sourceStrokeConfidence,
+                scrollWidth:x.scrollWidth,clientWidth:x.clientWidth,
                 scrollHeight:x.scrollHeight,clientHeight:x.clientHeight};
             })
             """)
@@ -123,7 +153,7 @@ struct ReaderMangaQualityValidationTests {
             )
             let report: [String: Any] = ["koreanWrapMilliseconds": wrapMilliseconds,
                                        "ocrSeconds": ocrSeconds, "totalSeconds": Date().timeIntervalSince(started),
-                                       "regions": regions.count, "replayed": replay != nil, "dom": audit,
+                                       "regions": regions.count, "replayed": replay != nil, "dom": audit, "displayExpected": !expectedEmpty,
                                        "firstDisplaySeconds": firstDisplay.firstSeconds ?? NSNull(),
                                        "includePageImage": settings.includePageImage, "filterSFXWithLLM": settings.filterSFXWithLLM]
             try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
@@ -138,6 +168,9 @@ struct ReaderMangaQualityValidationTests {
                 }
             }
             try snapshot.pngData()?.write(to: output.appendingPathComponent(name + "-translated.png"))
+            if config.recordTranslationResponses == true {
+                try await responseAudit.flush(to: output.appendingPathComponent(name + "-responses.json"))
+            }
             if config.benchmarkKoreanWrap == true {
                 let benchmark = try await benchmarkKoreanWrap(on: overlay.webView, regions: translated,
                     imageSize: source.size, size: size, settings: settings,
@@ -173,28 +206,51 @@ struct ReaderMangaQualityValidationTests {
                 candidate = candidate.replacingOccurrences(of: old, with: new)
             }
         }
+        let componentNativeStarted = Date()
         let encoded = try await BrowserPageImageOverlayRenderer.prepareLayoutData(
             items: ReaderTranslationRegion.overlayItems(regions, imageSize: imageSize), imageSize: imageSize,
             sourceRect: CGRect(origin: .zero, size: size), settings: settings.overlay,
             targetLanguage: settings.targetLanguage, viewport: size)
-        let payload = try JSONSerialization.jsonObject(with: encoded)
+        let componentNativeMilliseconds = Date().timeIntervalSince(componentNativeStarted) * 1000
+        var payload = try #require(JSONSerialization.jsonObject(with: encoded) as? [[String: Any]])
+        // Offline cleanup candidates may inspect the already recognized source.
+        // Stable IDs retain the input-region index even when unchanged text is omitted.
+        for index in payload.indices {
+            guard let id = payload[index]["id"] as? String,
+                  let regionIndex = Int(id), regions.indices.contains(regionIndex)
+            else { continue }
+            payload[index]["sourceOriginalText"] = regions[regionIndex].source
+        }
         if replacements != nil { try encoded.write(to: output.appendingPathExtension("layout.json")) }
         var measurements: [[String: Any]] = []
+        var firstInvocation: [String: Any]?
+        let benchmarkWorld = WKContentWorld.world(name: "aidoku-fixed-component-" + UUID().uuidString)
         for iteration in 0..<5 {
             let variants = iteration.isMultiple(of: 2) ? [false, true] : [true, false]
             for enabled in variants {
                 let source = enabled ? candidate : baseline
-                let timed = "const began = performance.now(); const outcome = (() => {\n" + source +
-                    "\n})(); return {milliseconds: performance.now() - began, status: outcome.status};"
+                let timed = "const sourceCacheGlobalsBefore = Object.getOwnPropertyNames(globalThis).filter(key => key.startsWith('__aidokuSourceTextColors')).length; " +
+                    "const began = performance.now(); const outcome = (() => {\n" + source +
+                    "\n})(); const syncMilliseconds = performance.now() - began; " +
+                    "const componentRoot = document.querySelector('[data-aidoku-image-ocr-overlay=\"root\"]'); " +
+                    "const metric = key => componentRoot?.dataset[key] === undefined ? null : Number(componentRoot.dataset[key]); " +
+                    "return {milliseconds: syncMilliseconds, status: outcome.status, sourceCacheGlobalsBefore, " +
+                    "cleanupMilliseconds: metric('cleanupMilliseconds'), koreanWrapMilliseconds: metric('koreanWrapMilliseconds'), " +
+                    "smallTextRefinementMilliseconds: metric('smallTextRefinementMilliseconds'), " +
+                    "sourceColorCacheHits: metric('sourceColorCacheHits'), sourceColorSamples: metric('sourceColorSamples')};"
                 let result = try await webView.callAsyncJavaScript(timed, arguments: [
                     "items": payload, "appearance": ["opacity": settings.overlay.opacity,
                         "preserveSourceTextColor": settings.overlay.preserveSourceTextColor,
                         "preserveSourceBackgroundColor": settings.overlay.preserveSourceBackgroundColor,
                         "minimumReadableFontSize": BrowserOverlayLayoutPlanner.minimumRenderedFontSize],
                     "revision": "1", "session": UUID().uuidString
-                ], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
+                ], in: nil, contentWorld: benchmarkWorld)
                 let row = try #require(result as? [String: Any])
-                #expect(row["status"] as? String == "committed")
+                if firstInvocation == nil {
+                    #expect((row["sourceCacheGlobalsBefore"] as? NSNumber)?.intValue == 0)
+                    firstInvocation = row
+                }
+                #expect(row["status"] as? String == (ReaderTranslationRegion.overlayItems(regions, imageSize: imageSize).isEmpty ? "cleared" : "committed"))
                 if iteration == 0, replacements != nil {
                     let label = enabled ? "candidate" : "baseline"
                     let audit = try await webView.evaluateJavaScript("""
@@ -211,6 +267,13 @@ struct ReaderMangaQualityValidationTests {
                       }
                       return {id:node.dataset.aidokuRegion,text:node.textContent,
                         font:parseFloat(style.fontSize),padding:style.padding,
+                        color:style.color,backgroundColor:style.backgroundColor,textShadow:style.textShadow,
+                        textStrokeWidth:style.webkitTextStrokeWidth,textStrokeColor:style.webkitTextStrokeColor,
+                        paintOrder:style.paintOrder,
+                        sourceSampledStrokeRGB:node.dataset.sourceSampledStrokeRGB,sourceAppliedStrokeRGB:node.dataset.sourceAppliedStrokeRGB,
+                        sourceStrokeColor:node.dataset.sourceStrokeColor,sourceStrokeConfidence:node.dataset.sourceStrokeConfidence,
+                        sourceCardProbe:node.dataset.sourceCardProbe,sourceCardProbeRects:node.dataset.sourceCardProbeRects,
+                        sourceCardProbeBounds:node.dataset.sourceCardProbeBounds,
                         rect:[r.x,r.y,r.width,r.height],lines,
                         overflow:node.scrollWidth>node.clientWidth+1||node.scrollHeight>node.clientHeight+1};
                     })
@@ -226,7 +289,17 @@ struct ReaderMangaQualityValidationTests {
                     try snapshot.pngData()?.write(to: output.appendingPathExtension(label + ".png"))
                 }
                 if iteration > 0 { measurements.append(["enabled": enabled, "iteration": iteration,
-                    "milliseconds": row["milliseconds"] ?? -1]) }
+                    "milliseconds": row["milliseconds"] ?? -1,
+                    "cleanupMilliseconds": row["cleanupMilliseconds"] ?? NSNull(),
+                    "koreanWrapMilliseconds": row["koreanWrapMilliseconds"] ?? NSNull(),
+                    "smallTextRefinementMilliseconds": row["smallTextRefinementMilliseconds"] ?? NSNull(),
+                    "nativeLayoutMillisecondsOncePerPage": componentNativeMilliseconds,
+                    "firstInvocationMillisecondsOncePerPage": firstInvocation?["milliseconds"] ?? NSNull(),
+                    "firstInvocationCleanupMillisecondsOncePerPage": firstInvocation?["cleanupMilliseconds"] ?? NSNull(),
+                    "firstInvocationSourceColorCacheHitsOncePerPage": firstInvocation?["sourceColorCacheHits"] ?? NSNull(),
+                    "firstInvocationSourceColorSamplesOncePerPage": firstInvocation?["sourceColorSamples"] ?? NSNull(),
+                    "firstInvocationSourceCacheGlobalsBeforeOncePerPage": firstInvocation?["sourceCacheGlobalsBefore"] ?? NSNull(),
+                    "benchmarkIsolatedSourceCacheWorld": true]) }
             }
         }
         return measurements
@@ -238,10 +311,15 @@ struct ReaderMangaQualityValidationTests {
         let apiKey: String?
         let credentialFile: String?
         let maximumConcurrentRequests: Int?
+        let preserveSourceTextColor: Bool?
+        let preserveSourceBackgroundColor: Bool?
+        let filterJapaneseSFX: Bool?
+        let filterJapaneseSFXContext: Bool?
         let includePageImage: Bool?
         let filterSFXWithLLM: Bool?
         let rightToLeftPanelOrder: Bool?
         let measureFirstDisplay: Bool?
+        let recordTranslationResponses: Bool?
         func runtimeCredential(folder: URL) throws -> String {
             if let credentialFile {
                 return try String(contentsOf: folder.appendingPathComponent(credentialFile), encoding: .utf8)
@@ -251,6 +329,7 @@ struct ReaderMangaQualityValidationTests {
         }
         let label: String
         let fixtures: [String]
+        let expectedOCRRegionCounts: [String: Int]?
         let instructions: String?
         let targetLanguage: String?
         let ocrOnly: Bool?

@@ -23,6 +23,24 @@ struct NativeCoreMLRecognizedRegion: Equatable, Sendable {
     let confidence: Double
 }
 
+/// Explicit in-memory diagnostic events for an existing recognition pass.
+/// Nothing is logged or persisted automatically. A test harness may opt in to
+/// inspect rejection causes without rerunning the detector or recognizer.
+@available(iOS 18.0, *)
+enum NativeCoreMLRecognitionAuditEvent: Sendable {
+    /// Every detector polygon admitted to this recognizer, before crop planning.
+    case requested(requestID: String, region: NativeCoreMLRecognitionRegion)
+    /// Includes empty/low-confidence decodes and cache hits before acceptance.
+    case decoded(
+        requestID: String,
+        region: NativeCoreMLRecognitionRegion,
+        text: String,
+        confidence: Double,
+        threshold: Double,
+        cacheHit: Bool
+    )
+}
+
 @available(iOS 18.0, *)
 struct NativeCoreMLRecognitionDiagnostics: Equatable, Sendable {
     let requestID: String
@@ -1088,6 +1106,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
     private let dynamicWidthEnabled: Bool
     private let maximumRecognitionWidth: Int
     private let recognitionCropCache: NativeCoreMLRecognitionCropCache
+    private let auditObserver: (@Sendable (NativeCoreMLRecognitionAuditEvent) -> Void)?
     private var storedDiagnostics: NativeCoreMLRecognitionDiagnostics?
 
     var lastDiagnostics: NativeCoreMLRecognitionDiagnostics? {
@@ -1108,8 +1127,10 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
             NativeCoreMLRecognizer.supportsIdleLongWidthPreparation,
         recognitionCacheCapacity: Int =
             NativeCoreMLRecognizer.defaultRecognitionCacheCapacity,
-        maximumRecognitionWidth: Int = 2_000
+        maximumRecognitionWidth: Int = 2_000,
+        auditObserver: (@Sendable (NativeCoreMLRecognitionAuditEvent) -> Void)? = nil
     ) {
+        self.auditObserver = auditObserver
         dynamicWidthEnabled = modelResourceName.hasSuffix("-RecWidths")
         self.maximumRecognitionWidth = maximumRecognitionWidth
         let residentModelLimit = idleLongWidthPreparationEnabled ? 3 : 2
@@ -1175,8 +1196,10 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         predictor: any NativeCoreMLRecognitionPredicting,
         dictionary: [String],
         idleLongWidthPreparationEnabled: Bool = false,
-        recognitionCacheCapacity: Int = 0
+        recognitionCacheCapacity: Int = 0,
+        auditObserver: (@Sendable (NativeCoreMLRecognitionAuditEvent) -> Void)? = nil
     ) throws {
+        self.auditObserver = auditObserver
         dynamicWidthEnabled = false
         maximumRecognitionWidth = 2_000
         guard dictionary.count == Self.expectedDictionaryCharacterCount
@@ -1353,6 +1376,9 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                     issuedGeneration,
                     cancellationCheck: cancellationCheck
                 )
+                if let auditObserver {
+                    auditObserver(.requested(requestID: requestID, region: region))
+                }
                 let preprocessingStarted = Self.nowMilliseconds()
                 let plan = NativeCoreMLRecognitionPreprocessor.plan(
                     polygon: region.polygon,
@@ -1460,6 +1486,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                 for preparedChunk in preparedWindow.chunks {
                     let step = try await recognizePreparedChunk(
                         preparedChunk,
+                        requestID: requestID,
                         threshold: threshold,
                         predictor: resourceAccess.resources.predictor,
                         dictionary: resourceAccess.resources.dictionary,
@@ -1689,6 +1716,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
     /// deliberately serial; only CPU crop preparation is globally concurrent.
     private func recognizePreparedChunk(
         _ chunk: NativeCoreMLPreparedRegionChunk,
+        requestID: String,
         threshold: Double,
         predictor: any NativeCoreMLRecognitionPredicting,
         dictionary: [String],
@@ -1735,6 +1763,13 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                 continue
             }
             cacheHitRegions += 1
+            if let auditObserver {
+                auditObserver(.decoded(
+                    requestID: requestID, region: preparedWork.work.region,
+                    text: cached.text, confidence: cached.confidence,
+                    threshold: threshold, cacheHit: true
+                ))
+            }
             if !cached.text.isEmpty, cached.confidence >= threshold {
                 recognizedRegions.append(NativeCoreMLRecognizedRegion(
                     sourceIndex: preparedWork.work.region.sourceIndex,
@@ -1874,6 +1909,13 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                     for: preparedWork.fingerprint,
                     ifCurrent: recognitionCacheEpoch
                 )
+                if let auditObserver {
+                    auditObserver(.decoded(
+                        requestID: requestID, region: preparedWork.work.region,
+                        text: decoded.text, confidence: decoded.confidence,
+                        threshold: threshold, cacheHit: false
+                    ))
+                }
                 if !decoded.text.isEmpty,
                    decoded.confidence >= threshold {
                     recognizedRegions.append(

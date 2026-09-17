@@ -40,7 +40,8 @@ struct DownloadsView: View {
                                     ? NSLocalizedString("1_CHAPTER")
                                     : String(format: NSLocalizedString("%i_CHAPTERS"), totalChapters)
                             )
-                            .lowercased()
+                            .lowercased() + " • " + String(format: NSLocalizedString("%i_PAGES"),
+                                viewModel.downloadedManga.reduce(0) { $0 + $1.pageCount })
                         )
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -170,6 +171,7 @@ private struct DownloadedMangaRow: View {
         )
         .lowercased()
         components.append(chapterText)
+        components.append(String(format: NSLocalizedString("%i_PAGES"), manga.pageCount))
 
         // Add size
         components.append(manga.formattedSize)

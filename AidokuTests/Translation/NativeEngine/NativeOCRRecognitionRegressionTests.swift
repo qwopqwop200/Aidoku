@@ -5,6 +5,53 @@ import Testing
 @testable import Aidoku
 
 struct NativeOCRRecognitionRegressionTests {
+    @Test func optInAuditIncludesRejectedAndEmptyDecodesWithoutExtraPrediction() async throws {
+        let width = 32
+        let height = 60
+        var bytes = [UInt8](repeating: 255, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width { bytes[(y * width + x) * 4 + 2] = UInt8(y / 20) }
+        }
+        let frame = try #require(NativeOCRRGBAFrame(width: width, height: height, bytes: bytes))
+        let regions = (0..<3).map { index in
+            NativeCoreMLRecognitionRegion(sourceIndex: index, polygon: [
+                CGPoint(x: 0, y: index * 20), CGPoint(x: 20, y: index * 20),
+                CGPoint(x: 20, y: index * 20 + 4), CGPoint(x: 0, y: index * 20 + 4)
+            ])
+        }
+        var dictionary = (0..<NativeCoreMLRecognizer.expectedDictionaryCharacterCount).map { "line-\($0)" }
+        dictionary[1] = "" // An empty decode must remain observable, never accepted.
+        let predictor = OCRPixelPredictor()
+        let audit = OCRRecognitionAuditRecorder()
+        let recognizer = try NativeCoreMLRecognizer(
+            predictor: predictor, dictionary: dictionary, recognitionCacheCapacity: 8,
+            auditObserver: { audit.append($0) }
+        )
+        let rejected = try await recognizer.recognize(
+            frame: frame, regions: regions, requestID: "audit-rejected", confidenceThreshold: 0.95
+        )
+        #expect(rejected.regions.isEmpty)
+        #expect(audit.requestedCount == 3)
+        #expect(audit.decodedTexts.sorted() == ["", "line-0", "line-2"])
+        #expect(audit.decodedCount == 3)
+        #expect(audit.cacheHitCount == 0)
+        #expect(audit.requestIDs == Set(["audit-rejected"]))
+        #expect(audit.thresholds == [0.95, 0.95, 0.95])
+        let predictionCount = predictor.predictionCount
+        audit.removeAll()
+        let accepted = try await recognizer.recognize(
+            frame: frame, regions: regions, requestID: "audit-cached", confidenceThreshold: 0.75
+        )
+        #expect(accepted.regions.map(\.text) == ["line-0", "line-2"])
+        #expect(predictor.predictionCount == predictionCount)
+        #expect(accepted.diagnostics.predictedRegions == 0)
+        #expect(audit.requestedCount == 3)
+        #expect(audit.decodedCount == 3)
+        #expect(audit.cacheHitCount == 3)
+        #expect(audit.requestIDs == Set(["audit-cached"]))
+        #expect(audit.thresholds == [0.75, 0.75, 0.75])
+    }
+
     @Test func mixedWidthWindowsPreservePixelsOrderPaddingAndCacheIdentity() async throws {
         let width = 128
         let height = 500
@@ -80,4 +127,32 @@ private final class OCRPixelPredictor: NativeCoreMLRecognitionPredicting, @unche
     }
 
     func purgeResources() async {}
+}
+
+/// Test-only sink: no files, console output, or source image storage.
+private final class OCRRecognitionAuditRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var events: [NativeCoreMLRecognitionAuditEvent] = []
+    func append(_ event: NativeCoreMLRecognitionAuditEvent) { lock.withLock { events.append(event) } }
+    func removeAll() { lock.withLock { events.removeAll() } }
+    private var snapshot: [NativeCoreMLRecognitionAuditEvent] { lock.withLock { events } }
+    var requestedCount: Int { snapshot.filter { if case .requested = $0 { true } else { false } }.count }
+    var decodedCount: Int { snapshot.filter { if case .decoded = $0 { true } else { false } }.count }
+    var decodedTexts: [String] {
+        snapshot.compactMap { if case let .decoded(_, _, text, _, _, _) = $0 { text } else { nil } }
+    }
+    var cacheHitCount: Int {
+        snapshot.filter { if case .decoded(_, _, _, _, _, true) = $0 { true } else { false } }.count
+    }
+    var thresholds: [Double] {
+        snapshot.compactMap { if case let .decoded(_, _, _, _, threshold, _) = $0 { threshold } else { nil } }
+    }
+    var requestIDs: Set<String> {
+        Set(snapshot.map {
+            switch $0 {
+            case let .requested(requestID, _): requestID
+            case let .decoded(requestID, _, _, _, _, _): requestID
+            }
+        })
+    }
 }

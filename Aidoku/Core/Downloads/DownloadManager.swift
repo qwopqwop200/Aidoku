@@ -371,6 +371,7 @@ extension DownloadManager {
 
                 let totalSize = await calculateDirectorySize(mangaDirectory, includingHidden: true)
                 let chapterCount = chapterDirectories.count
+                let pageCount = chapterDirectories.reduce(0) { $0 + DownloadedChapterFile.pageCount(in: $1) }
 
                 // Try to load metadata from the manga directory first
                 let firstComicInfo = findComicInfo(in: mangaDirectory)
@@ -380,7 +381,8 @@ extension DownloadManager {
                 let mangaMetadata = if let firstComicInfo {
                     (
                         title: firstComicInfo.series,
-                        coverUrl: mangaDirectory.appendingPathComponent("cover.png").absoluteString,
+                        coverUrl: mangaDirectory.appendingPathComponent("cover.png").exists
+                            ? mangaDirectory.appendingPathComponent("cover.png").absoluteString : nil,
                         isInLibrary: await withCheckedContinuation { continuation in
                             CoreDataManager.shared.container.performBackgroundTask { context in
                                 let isInLibrary = CoreDataManager.shared.hasLibraryManga(
@@ -439,9 +441,11 @@ extension DownloadManager {
                     mangaId: mangaMetadata.actualMangaId, // Use the actual manga ID, not directory name
                     directoryMangaId: mangaId, // Keep directory name for file access
                     title: mangaMetadata.title,
-                    coverUrl: mangaMetadata.coverUrl,
+                    coverUrl: mangaDirectory.appendingPathComponent("cover.png").exists
+                        ? mangaDirectory.appendingPathComponent("cover.png").absoluteString : mangaMetadata.coverUrl,
                     totalSize: totalSize,
                     chapterCount: chapterCount,
+                    pageCount: pageCount,
                     isInLibrary: mangaMetadata.isInLibrary
                 )
 
@@ -532,57 +536,14 @@ extension DownloadManager {
 
     /// Load chapter metadata from chapter directory.
     private func getComicInfo(in directory: URL) -> ComicInfo? {
-        do {
-            if directory.pathExtension == "cbz" {
-                return ComicInfo.load(from: directory)
-            }
-
-            guard directory.isDirectory else { return nil }
-
-            let xmlURL = directory.appendingPathComponent("ComicInfo.xml")
-            if xmlURL.exists {
-                let data = try Data(contentsOf: xmlURL)
-                if
-                    let string = String(data: data, encoding: .utf8),
-                    let comicInfo = ComicInfo.load(xmlString: string)
-                {
-                    return comicInfo
-                }
-            }
-
-            return nil
-        } catch {
-            LogManager.logger.error("Failed to load chapter metadata: \(error)")
-            return nil
-        }
+        DownloadedChapterFile.comicInfo(in: directory)
     }
 
-    /// Load metadata from manga directory.
+    /// Read each chapter's metadata, including compressed and failed downloads.
     private func findComicInfo(in directory: URL) -> ComicInfo? {
-        // check for ComicInfo.xml in any subdirectory
-        for subdirectory in directory.contents where subdirectory.isDirectory || subdirectory.pathExtension == "cbz" {
-            do {
-                if directory.pathExtension == "cbz" {
-                    if let comicInfo = ComicInfo.load(from: directory) {
-                        return comicInfo
-                    }
-                } else {
-                    let xmlURL = subdirectory.appendingPathComponent("ComicInfo.xml")
-                    if xmlURL.exists {
-                        let data = try Data(contentsOf: xmlURL)
-                        if
-                            let string = String(data: data, encoding: .utf8),
-                            let comicInfo = ComicInfo.load(xmlString: string)
-                        {
-                            return comicInfo
-                        }
-                    }
-                }
-            } catch {
-                LogManager.logger.error("Failed to load manga metadata from ComicInfo.xml: \(error)")
-            }
+        for chapter in directory.contentsIncludingHidden.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            if let info = DownloadedChapterFile.comicInfo(in: chapter) { return info }
         }
-
         return nil
     }
 

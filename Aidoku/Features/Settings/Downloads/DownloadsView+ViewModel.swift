@@ -104,16 +104,8 @@ extension DownloadsView.ViewModel {
     private func areMangaListsEqual(_ lhs: [DownloadedMangaInfo], _ rhs: [DownloadedMangaInfo]) -> Bool {
         guard lhs.count == rhs.count else { return false }
 
-        // Quick comparison by ID and key properties
-        for (old, new) in zip(lhs, rhs) {
-            if old.id != new.id ||
-               old.totalSize != new.totalSize ||
-               old.chapterCount != new.chapterCount ||
-               old.isInLibrary != new.isInLibrary {
-                return false
-            }
-        }
-        return true
+        // Include metadata and page counts so repaired covers/titles refresh too.
+        return lhs == rhs
     }
 
     /// Debounced update to prevent excessive refreshes

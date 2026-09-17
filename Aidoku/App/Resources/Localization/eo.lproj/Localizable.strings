@@ -22,7 +22,7 @@
 
 // Library
 "LIBRARY" = "Biblioteko";
-"LIBRARY_SEARCH" = "Serĉi bibliotekon";
+"LIBRARY_SEARCH" = "Serĉi en biblioteko";
 "LIBRARY_EMPTY" = "Biblioteko malplenas";
 "ADD_TO_LIBRARY" = "Enmeti en bibliotekon";
 "MANGA_INFO" = "Informoj pri komikso";
@@ -55,14 +55,14 @@
 "VOLUME_X" = "Volumo %g";
 "CHAPTER_X" = "Ĉapitro %g";
 "SELECT_ALL" = "Elekti ĉion";
-"SOURCE_ORDER" = "Fonta ordo";
+"SOURCE_ORDER" = "Ordo donita de la fonto";
 "MISSING_SOURCE" = "Mankanta fonto";
 "VOL_X" = "Vol.%g";
 "CH_X" = "Ĉ.%g";
-"READ" = "Legi";
+"READ" = "Legita";
 "VOL_SPACE_X" = "Vol. %g";
 "CH_SPACE_X" = "Ĉ. %g";
-"UNREAD" = "Mallegi";
+"UNREAD" = "Nelegita";
 "MARK" = "Marki";
 "NO_CHAPTERS" = "Neniu ĉapitro";
 "START_READING" = "Eklegi";
@@ -92,8 +92,8 @@
 "READER" = "Legilo";
 "OPEN_READER_VIEW" = "Malfermi legilan vidon";
 "USE_SYSTEM_APPEARANCE" = "Uzi sisteman etoson";
-"EVERY_12_HOURS" = "Ĉiuduontage";
-"EVERY_2_DAYS" = "Ĉiudutage";
+"EVERY_12_HOURS" = "Ĉiujn 12 horojn";
+"EVERY_2_DAYS" = "Ĉiujn 2 tagojn";
 "SOURCE_LISTS" = "Fontolistoj";
 "LOG_SERVER" = "Protokolservilo";
 "EXPORT_LOGS" = "Elporti protokolojn";
@@ -123,8 +123,8 @@
 "GENERAL" = "Ĝenerala";
 "PAGE_X_OF_X" = "Paĝo %i el %i";
 "EXPERIMENTAL" = "Eksperimenta";
-"LINK_COPIED" = "Link Copiato";
-"LINK_COPIED_TEXT" = "Il link è stato copiato negli appunti.";
+"LINK_COPIED" = "Ligilo kopiita";
+"LINK_COPIED_TEXT" = "La ligilo estis kopiita al la tondujo.";
 
 // History
 "HISTORY" = "Historio";
@@ -165,14 +165,14 @@
 "MANGA" = "Japana komikso";
 "MANHUA" = "Ĉina komikso";
 "TYPE_COLON_%@" = "Speco: %@";
-"LOGOUT" = "Adiaŭi";
+"LOGOUT" = "Elsaluti";
 "STATUS" = "Stato";
 "%i_OF_%i" = "%i de %i";
 "STATUS_COLON_%@" = "Stato: %@";
 "LIGHT_NOVEL" = "Leĝera romano";
 "OPTIONS" = "Opcioj";
 "%i_CHAPTERS" = "%i ĉapitroj";
-"SHARE" = "Dividi";
+"SHARE" = "Kunhavigi";
 
 "TRANSLATION_TITLE" = "OCR & Tradukado";
 
@@ -192,15 +192,15 @@
 
 "TRANSLATION_OCR_WORKING" = "Rekonante tekston sur aparato...";
 
-"TRANSLATION_HELP" = "La tradukikono ŝaltas aŭ malŝaltas tradukon. Paĝoj estas preparitaj en ĉi tiu ordo: nuna, sekva, antaŭa, du antaŭe, du malantaŭe, daŭrante ĝis ambaŭ finoj de la ĉapitro. Finitaj OCR, tradukoj kaj teksta aranĝo estas reuzitaj post fermo de la leganto aŭ rekomenco de la apo. Forlasi la leganton nuligas nefinitan laboron.";
+"TRANSLATION_HELP" = "La tradukikono ŝaltas aŭ malŝaltas tradukon. Unue estas preparataj la videblaj paĝoj, poste la proksimaj. La preparado sekvas vian legopozicion. Konservitaj OCR-rezultoj, tradukoj kaj teksta aranĝo povas esti reuzataj post remalfermo de la legilo aŭ rekomenco de la apo. Provizore malfermitaj kunhavigitaj bildoj ne konservas ĉi tiun kaŝmemoron. Forlasi la legilon nuligas nefinitan laboron.";
 
-"TRANSLATION_PRIVACY" = "OCR funkcias en via aparato. Tradukado sendas agnoskitan tekston kaj viajn instrukciojn al la elektita provizanto. Se Inkluzivi Paĝan Bildon en Tradukado estas ebligita, la origina paĝa bildo ankaŭ estas alŝutita. API-kostoj dependas de via provizanto. Ŝlosiloj restas en Ŝlosilĉeno. OCR, tradukoj kaj teksta aranĝo estas konservitaj en protektita aplikaĵa stokado ekskludita de sekurkopioj.";
+"TRANSLATION_PRIVACY" = "OCR funkcias en via aparato. Tradukado sendas rekonitan tekston kaj viajn instrukciojn al la elektita provizanto. Se Inkluzivi Paĝan Bildon en Tradukado estas ebligita, la origina paĝa bildo ankaŭ estas alŝutita. API-kostoj dependas de via provizanto. API-ŝlosiloj estas konservataj en Keychain. OCR, tradukoj kaj teksta aranĝo estas konservitaj en protektita aplikaĵa stokado ekskludita de sekurkopioj.";
 
 "TRANSLATION_KEY_REPLACE" = "Anstataŭigi konservitan API-ŝlosilon (laŭvola)";
 
 "TRANSLATION_KEY" = "API-ŝlosilo";
 
-"TRANSLATION_KEY_SAVED" = "API-ŝlosilo konservita en Ŝlosilĉeno";
+"TRANSLATION_KEY_SAVED" = "API-ŝlosilo konservita en Keychain";
 
 "TRANSLATION_KEY_DELETE" = "Forigu API-Ŝlosilon";
 
@@ -216,17 +216,17 @@
 
 "TRANSLATION_AUTO" = "Detekti Aŭtomate";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 postulas iOS 18 aŭ poste. Mezumo estas la defaŭlta; Malgranda uzas malpli da memoro. Tiny havas pli malgrandan sign-vortaron. Ĉi tiuj modeloj ne subtenas korean OCR. Korea traduka eligo estas subtenata.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 postulas iOS 18 aŭ pli novan version. Meza estas la defaŭlta modelo. Malgranda uzas malpli da memoro; Eta havas malpli grandan signovortaron. Tiuj modeloj ne rekonas korean tekston, sed tradukado al la korea estas subtenata.";
 
 "TRANSLATION_INSTRUCTIONS" = "Instrukcioj pri tradukado";
 
 "TRANSLATION_RESET_PROMPT" = "Restarigu la defaŭltajn tradukajn instrukciojn";
 
-"TRANSLATION_CLEAR_CACHE" = "Forigi Traduka Kaŝmemoro";
+"TRANSLATION_CLEAR_CACHE" = "Malplenigi tradukan kaŝmemoron";
 
 "TRANSLATION_CACHE_CLEARED" = "Traduka kaŝmemoro malplenigita.";
 
-"TRANSLATION_NOTICES" = "OCR & Tradukaj Licencoj";
+"TRANSLATION_NOTICES" = "Permesiloj por OCR kaj tradukado";
 
 "TRANSLATION_ADVANCED" = "Tradukaj Opcioj";
 
@@ -236,37 +236,37 @@
 
 "TRANSLATION_CONCURRENCY" = "Samtempaj Petoj";
 
-"TRANSLATION_DETECTOR_SIZE" = "Detektilo Maksimuma Flanko";
+"TRANSLATION_DETECTOR_SIZE" = "Maksimuma bilda flanko por tekstdetekto";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "Maksimuma Larĝo de rekonilo";
+"TRANSLATION_RECOGNIZER_SIZE" = "Maksimuma bilda larĝo por tekstrekono";
 
-"TRANSLATION_CONFIDENCE" = "OCR-Konfido";
+"TRANSLATION_CONFIDENCE" = "Minimuma OCR-konfido";
 
 "TRANSLATION_SURFACE" = "Fona Koloro";
 
 "TRANSLATION_WHITE" = "Blanka";
 
-"TRANSLATION_DARK" = "Mallumo";
+"TRANSLATION_DARK" = "Malhela";
 
 "TRANSLATION_OPACITY" = "Fona Opakeco";
 
-"TRANSLATION_EXPANSION" = "Skatolo Ekspansio";
+"TRANSLATION_EXPANSION" = "Vastigo de tekstokadro";
 
-"TRANSLATION_PANEL_BOUNDS" = "Ene de Bilda Panelo";
+"TRANSLATION_PANEL_BOUNDS" = "Ene de la bildaj limoj";
 
-"TRANSLATION_SOURCE_BOUNDS" = "Ene de Originala Skatolo";
+"TRANSLATION_SOURCE_BOUNDS" = "Ene de la originala tekstokadro";
 
 "TRANSLATION_UNRESTRICTED" = "Senlima";
 
 "TRANSLATION_FONT_SIZE" = "Tiparo Grandeco";
 
-"TRANSLATION_AUTO_FIT" = "Fit Aŭtomate";
+"TRANSLATION_AUTO_FIT" = "Adapti aŭtomate";
 
 "TRANSLATION_FIXED" = "Fiksa tiparo grandeco";
 
-"TRANSLATION_OVERLAY" = "Traduko Overlay";
+"TRANSLATION_OVERLAY" = "Traduka supermetaĵo";
 
-"TRANSLATION_OVERLAY_HELP" = "Anstataŭigas tekston super ĝia fonta skatolo uzante kolizio-konscian aranĝon kaj skript-specifan envolvadon. Montraj ŝanĝoj reuzas ekzistantan OCR.";
+"TRANSLATION_OVERLAY_HELP" = "Anstataŭigas tekston super ĝia originala kadro per aranĝo, kiu evitas interkovrojn kaj dividas liniojn laŭ la skribsistemo. Ŝanĝoj de la aspekto reuzas la ekzistantajn OCR-rezultojn.";
 
 "TRANSLATION_PROVIDER" = "Traduka provizanto";
 
@@ -274,11 +274,11 @@
 
 "TRANSLATION_API_FORMAT" = "API Formato";
 
-"TRANSLATION_CUSTOM_HELP" = "Enigu HTTPS-bazan URL aŭ plenan API-finpunkton kaj modelon subtenata de via servilo. Ĉiu servila URL havas sian propran konservitan ŝlosilon; ŝanĝi la URL forigas ajnan ŝlosilon, kiun vi enigas. Respondoj kaj Babilejo-Kompletigoj uzas strukturitan JSON-eligon.";
+"TRANSLATION_CUSTOM_HELP" = "Enigu HTTPS-bazan URL aŭ plenan API-finpunkton kaj modelon subtenatan de via servilo. Ĉiu servila URL havas sian propran konservitan ŝlosilon; ŝanĝi la URL forigas ajnan ŝlosilon, kiun vi enigas. Responses kaj Chat Completions uzas strukturitan JSON-eligon.";
 
 "TRANSLATION_AUTOMATIC" = "Aŭtomata Tradukado";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Kontrolu la konservitajn API-agordojn unufoje en la fono kiam la aplikaĵo malfermiĝas aŭ API-agordoj ŝanĝiĝas. Tradukado komenciĝas post sukceso. Malsukcesa kontrolo paŭzas tradukon sen ŝanĝi vian aŭtomatan tradukpreferon. Remalfermu la apon aŭ provu la API-konekton denove por reprovi. Paĝŝanĝoj kaj ON/OFF reuzas la ĉekrezulton. Rezona klopodo uzas vian konservitan agordon.";
+"TRANSLATION_AUTOMATIC_HELP" = "Aŭtomate tradukas paĝojn en la legilo uzante viajn konservitajn API-agordojn kaj rezonadan nivelon. Neniu aparta konektotesto okazas antaŭ la komenco de tradukado. Tradukeraroj ne malŝaltas ĉi tiun agordon. Uzu la API-konektoteston por permane kontroli viajn agordojn.";
 
 "TRANSLATION_TEST" = "Testu API-Konekton";
 
@@ -298,27 +298,27 @@
 
 "TRANSLATION_CACHE_USED" = "Stokado Uzita";
 
-"TRANSLATION_CACHE_HELP" = "Konservu OCR, paĝtradukojn, tradukojn de mangao kaj ĉapitraj titoloj, priskribojn de mangao kaj tekstan aranĝon aŭtomate. Paĝaj bildoj restas nur en apudpaĝa memoro. La malplej ĵus uzataj rezultoj estas forigitaj kiam la elektita limo estas atingita. Defaŭlte: 1 GB. Maksimumo: 100 GB. Ŝanĝoj validas aŭtomate; malaltigi la limon forigas la malplej ĵus uzatajn rezultojn ĝis la kaŝmemoro konvenas.";
+"TRANSLATION_CACHE_HELP" = "Konservu OCR-rezultojn, paĝtradukojn, tradukojn de mangaaj kaj ĉapitraj titoloj, mangaajn priskribojn kaj tekstan aranĝon aŭtomate. Bildoj de la nuna kaj proksimaj paĝoj estas konservataj nur en memoro. La rezultoj plej longe ne uzitaj estas forigitaj kiam la elektita limo estas atingita. Defaŭlte: 1 GB. Maksimume: 100 GB. Ŝanĝoj validas aŭtomate; malaltigo de la limo forigas la rezultojn plej longe ne uzitajn ĝis la kaŝmemoro restas ene de la limo.";
 
-"TRANSLATION_SOURCE_FILTER" = "Traduka Fonta Filtrilo";
+"TRANSLATION_SOURCE_FILTER" = "Filtrilo de fontlingvoj";
 
 "TRANSLATION_FILTER_ALL" = "Ĉiuj Detektitaj Lingvoj";
 
-"TRANSLATION_FILTER_HELP" = "Elektu la originalajn lingvojn por traduki. Neelektita aŭ necerta teksto restas senŝanĝa. Elektu Ĉiuj Detektitaj Lingvoj por forigi la filtrilon.";
+"TRANSLATION_FILTER_HELP" = "Elektu la fontlingvojn por traduki. Teksto en neelektitaj lingvoj aŭ kun necerte identigita lingvo restas senŝanĝa. Elektu Ĉiuj Detektitaj Lingvoj por forigi la filtrilon.";
 
 "TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Nur teksto identigita kiel la elektita originala lingvo estas tradukita. Lingvoj sen sur-aparata detekto restas nefiltritaj.";
 
-"HTTPS_BYPASS" = "HTTPS-Blokanta Preterpaso";
+"HTTPS_BYPASS" = "Preterpaso de HTTPS-blokado";
 
 "HTTPS_BYPASS_HELP" = "Uzu TLS-fragmentiĝon kaj ĉifritan DNS (Cloudflare) por fontpetoj, bildoj, elŝutoj kaj fontaj interretaj vidoj. Validas por novaj konektoj. IP-blokoj kaj limigoj truditaj de la retejo ne estas preterpasitaj.";
 
-"HTTPS_BYPASS_TEST" = "Testa Konekto";
+"HTTPS_BYPASS_TEST" = "Testi konekton";
 
 "HTTPS_BYPASS_TEST_HELP" = "Testas ĉi tiun HTTPS-adreson per la pretervojo, eĉ kiam la ŝaltilo estas malŝaltita. Respondo konfirmas konekteblecon, ne ke ISP-bloko ĉeestis.";
 
 "HTTPS_BYPASS_INVALID_URL" = "Enigu HTTPS-URL sen uzantnomo aŭ pasvorto.";
 
-"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d ricevis · TLS-fragmentiĝo aplikita";
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d ricevita · TLS-fragmentiĝo aplikita";
 
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d ricevita · TLS-fragmentiĝo ne konfirmita";
 
@@ -332,23 +332,23 @@
 
 "TRANSLATION_TITLES_HELP" = "Uzas vian tradukan API kaj cellingvon sendepende de aŭtomata paĝa tradukado. Malŝaltu por montri originalajn titolojn kaj priskribojn. Originaloj restas videblaj dum ŝarĝo aŭ se tradukado malsukcesas.";
 
-"TRANSLATION_MANGA_TITLE_FILTER" = "Mangao Titolo Lingvoj";
+"TRANSLATION_MANGA_TITLE_FILTER" = "Lingvoj de mangatitoloj";
 
-"TRANSLATION_CHAPTER_TITLE_FILTER" = "Ĉapitro Titolo Lingvoj";
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "Lingvoj de ĉapitrotitoloj";
 
 "TRANSLATION_PAGE_SOURCE" = "Paĝa Fonta Lingvo";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Aŭtomate detektu la fontlingvon de ĉiu titolo kaj traduku nur la elektitajn lingvojn. Ĉiuj lingvoj forigas la lingvan limigon. Paĝo kaj aliaj titolaj fontlingvaj agordoj ne influas ĉi tiun elekton.";
+"TRANSLATION_TITLE_FILTER_HELP" = "Aŭtomate detektas la fontlingvon de ĉiu titolo kaj tradukas nur la elektitajn lingvojn. La opcio Ĉiuj Detektitaj Lingvoj forigas la lingvan limigon. La fontlingvaj agordoj por paĝoj kaj aliaj specoj de titoloj ne influas ĉi tiun elekton.";
 
-"TRANSLATION_MANGA_DESCRIPTIONS" = "Traduku Mangaaj Priskriboj";
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Traduki mangaajn priskribojn";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Mangaaj priskribaj lingvoj";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Aŭtomate detektu la fontlingvon kaj traduku nur la elektitajn lingvojn. Ĉiuj lingvoj forigas la limigon. Paĝo, Mangao-titolo, ĉapitro-titolo kaj priskribaj filtriloj funkcias sendepende.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Aŭtomate detektas la fontlingvon kaj tradukas nur la elektitajn lingvojn. La opcio Ĉiuj Detektitaj Lingvoj forigas la limigon. Filtriloj por paĝoj, mangatitoloj, ĉapitrotitoloj kaj priskriboj funkcias sendepende.";
 
 "TRANSLATION_SFX_FILTER" = "SFX-Filtrado (Nur la japana)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Lasu verŝajnajn japanajn sonefektojn netradukitaj. Uzu lokan vortaron kaj konservativan aranĝkontrolojn. Teksto kiu ne povas esti memfide identigita kiel sonefekto ankoraŭ estas tradukita.";
+"TRANSLATION_SFX_FILTER_HELP" = "Lasas verŝajnajn japanajn sonefektojn netradukitaj. Uzas lokan vortaron kaj konservativajn kontrolojn de la aranĝo. Teksto, kiun ne eblas fidinde identigi kiel sonefekton, ankoraŭ estas tradukata.";
 
 "TRANSLATION_SFX_CONTEXT_FILTER" = "Inkluzivi Kuntekst-Bezonatajn Enskribojn (Nur la Japana)";
 
@@ -364,15 +364,15 @@
 
 "TRANSLATION_LLM_SFX" = "Filtrado de LLM SFX (Ĉiuj lingvoj)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Klasifiku sonefektojn en la tradukpeto. Povas esti kombinita kun la japana loka filtrilo: sonefika decido de ambaŭ filtriloj lasas la originalon senŝanĝa. Kongrua kun sendado de la paĝa bildo.";
+"TRANSLATION_LLM_SFX_HELP" = "Klasifikas sonefektojn en la tradukpeto. Kombinebla kun la loka filtrilo por la japana: se iu el la filtriloj klasifikas tekston kiel sonefekton, la originala teksto restas netradukita. Uzebla ankaŭ dum sendado de la paĝa bildo.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Sen bilda enigo, limigita vida kaj aranĝa kunteksto povas redukti SFX-klasifikan precizecon.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Konservu Originalan Panelan Koloron";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Konservi la originalan fonkoloron de teksto";
 
 "TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Kongruu la tradukpanelon al la fono ĉirkaŭ la originala teksto. Uzu la defaŭltan panelon kiam necerta aŭ nelegebla. Via opakeco ankoraŭ validas.";
 
-"TRANSLATION_CUSTOM_PROVIDER" = "Propra OpenAI";
+"TRANSLATION_CUSTOM_PROVIDER" = "Propra (kongrua kun OpenAI)";
 
 "TRANSLATION_OCR_MEDIUM" = "Meza";
 
@@ -402,22 +402,22 @@
 "EDIT" = "Redakti";
 "INVALID" = "Nevalida";
 "RESET" = "Restarigi";
-"CLEAR" = "Klara";
-"PAUSE" = "Paŭzo";
-"RESUME" = "Rekomenci";
+"CLEAR" = "Forigi";
+"PAUSE" = "Paŭzigi";
+"RESUME" = "Daŭrigi";
 "WARNING" = "Averto";
 "ENABLE_PERMISSION" = "Ebligu Permeson";
 "PHOTOS_ACCESS_DENIED_TEXT" = "Aliro antaŭe estis malakceptita. Bonvolu permesi Aidoku-aliron al viaj Fotoj por konservi bildojn al via Fotilrulo. Vi povas ebligi aliron en privatecaj agordoj.";
 "CONTENT" = "Enhavo";
 "%@_EXPERIMENTAL" = "%@ (Eksperimenta)";
 "DOWNLOADING" = "Elŝutante";
-"DOWNLOAD_QUEUE" = "Elŝuta Queue";
+"DOWNLOAD_QUEUE" = "Elŝuta atendovico";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "Ĉu vi certas, ke vi ŝatus forigi ĉiujn elŝutojn?";
 "REMOVE_DOWNLOADS_CONFIRM" = "Ĉu forigi ĉiujn elektitajn elŝutojn?";
 "NO_WIFI_ALERT_TITLE" = "Neniu Wi-Fi";
 "NO_WIFI_ALERT_MESSAGE" = "Vi devas esti konektita al Wi-Fi por elŝuti ĉi tiun enhavon. Bonvolu konekti al Wifi kaj provi denove.";
 "DOWNLOAD_ANYWAY_MESSAGE" = "Vi ne estas nuntempe sur Wi-Fi. Ĉu elŝuti ĉiukaze?";
-"PROCESSING_QUEUE" = "Prilaboranta atendovico...";
+"PROCESSING_QUEUE" = "Prilaborante atendovicon…";
 "DOWNLOADING_PAUSED" = "Elŝuto paŭzita";
 "PAUSED" = "Paŭzita";
 "CANCEL_ALL_DOWNLOADS" = "Nuligi Ĉiujn Elŝutojn";
@@ -426,16 +426,16 @@
 "NO_DOWNLOADS_TEXT" = "Elŝutita enhavo aperos ĉi tie.";
 "DOWNLOADED_CHAPTERS" = "Elŝutitaj Ĉapitroj";
 "DOWNLOAD_INCOMPLETE" = "Nekompleta Elŝuto";
-"TOTAL_DOWNLOADS" = "Sumaj Elŝutoj";
-"%i_SERIES" = "%i serio";
+"TOTAL_DOWNLOADS" = "Suma grando de elŝutoj";
+"%i_SERIES" = "%i serioj";
 "IN_LIBRARY" = "En Biblioteko";
-"VIEW_SERIES" = "Vidu Seriojn";
-"VIEW_FILES" = "Vidi Dosieroj";
+"VIEW_SERIES" = "Vidi serion";
+"VIEW_FILES" = "Vidi dosierojn";
 "COMPRESS_DOWNLOADS" = "Kunpremi Elŝutojn";
 "PARALLEL_DOWNLOADS" = "Paralelaj Elŝutoj";
 "BACKGROUND_DOWNLOADING" = "Fona Elŝuto";
-"METADATA_DETECTED" = "Heredaĵo Metadatumoj Detektita";
-"METADATA_DETECTED_TEXT" = "Heredaj JSON-metadatumoj estos migritaj al ComicInfo.xml-dosieroj.";
+"METADATA_DETECTED" = "Malnovformataj metadatumoj detektitaj";
+"METADATA_DETECTED_TEXT" = "Malnovformataj JSON-metadatumoj estos transigitaj al dosieroj ComicInfo.xml.";
 "CATEGORY_SEARCH" = "Trovu en Kategorio";
 "LIBRARY_ADD_CONTENT" = "Aldonu enhavon de la foliuma langeto.";
 "LIBRARY_ADJUST_FILTERS" = "Alĝustigu viajn filtrilojn por vidi pli da enhavo.";
@@ -449,8 +449,8 @@
 "FILTER_SEPARATOR" = ", ";
 "IS_TRACKING" = "Spurado";
 "FILTER_HAS_UNREAD" = "Nelegita";
-"FILTER_STARTED" = "Komenciĝis";
-"ASCENDING" = "Ascendenta";
+"FILTER_STARTED" = "Komencita";
+"ASCENDING" = "Kreskanta";
 "DESCENDING" = "Malkreskanta";
 "OLDEST_FIRST" = "Plej malnova Unue";
 "NEWEST_FIRST" = "Plej Nova Unue";
@@ -471,7 +471,7 @@
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Ĉu forigi el Biblioteko?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Forigi ĉi tiun serion el via biblioteko ankaŭ forigos ĉiujn ligitajn spurilojn. Ĉu vi certas, ke vi volas daŭrigi?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Biblioteko Refreŝiĝo Interrompita";
-"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "La lasta bibliotekrefreŝiĝo estis interrompita antaŭ ol ĝi estis kompletigita. Ĉu vi ŝatus rekomenci?";
+"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "La lasta aktualigo de la biblioteko estis interrompita antaŭ ĝia fino. Ĉu vi ŝatus daŭrigi?";
 "CATEGORY" = "Kategorio";
 "UNCATEGORIZED" = "Nekategoriita";
 "CATEGORY_NAME" = "Kategoria Nomo";
@@ -487,11 +487,11 @@
 "CLEAR_FILTERS" = "Forigi Filtrilojn";
 "SHOW_UNCATEGORIZED_CATEGORY" = "Montri Nekategoriitan Kategorion";
 "BROWSE_NO_SOURCES_TEXT_NEW" = "Aldonu fonton per la plus-butono.";
-"ADDING_SOURCES_GUIDE_BUTTON" = "Aldono de Fontoj Gvidilo";
+"ADDING_SOURCES_GUIDE_BUTTON" = "Gvidilo por aldoni fontojn";
 "DISABLE" = "Malebligu";
 "ENABLE" = "Ebligu";
 "EDIT_SOURCES" = "Redakti Fontojn";
-"CONTENT_RATING" = "Enhavo Taksado";
+"CONTENT_RATING" = "Klasifiko de enhavo";
 "SAFE" = "Sekura";
 "CONTAINS_NSFW" = "Enhavas NSFW";
 "PRIMARILY_NSFW" = "Ĉefe NSFW";
@@ -500,7 +500,7 @@
 "MISSING_SOURCE_LIST" = "Mankas Fonta Listo";
 "MISSING_SOURCE_LIST_INFO" = "Ĉi tiu ekstera fonto ne estas disponebla en iuj agorditaj fontlistoj. Ĉi tio signifas, ke ĝi ne ricevos ĝisdatigojn kaj eble rompiĝos estonte.";
 "BASE_URL" = "Baza URL";
-"BUILD" = "Konstruu";
+"BUILD" = "Kompilaĵo";
 "SEE_ALL" = "Vidu Ĉion";
 "HOME" = "Hejmo";
 "FILTERS" = "Filtriloj";
@@ -526,7 +526,7 @@
 "UNKNOWN_ERROR" = "Nekonata Eraro";
 "SOURCE_CRASHED" = "Fonto Kraŝita";
 "ADD_SOURCE" = "Aldonu Fonton";
-"IMPORT_SOURCE" = "Import Fonto";
+"IMPORT_SOURCE" = "Importi fonton";
 "BUILT_IN_SOURCES" = "Enkonstruitaj Fontoj";
 "EXTERNAL_SOURCES" = "Eksteraj Fontoj";
 "NO_RESULTS" = "Neniuj rezultoj";
@@ -546,7 +546,7 @@
 "INCOGNITO_FILTERS_NOTICE" = "Modifitaj filtriloj ne daŭras en Inkognita Reĝimo.";
 "LOCAL_FILES" = "Lokaj Dosieroj";
 "LOCAL_FILES_TAGLINE" = "Legu el lokaj dosieroj";
-"LOCAL_FILES_INFO" = "La fonto de lokaj dosieroj permesas al vi alŝuti kaj administri vian propran legbibliotekon rekte ene de Aidoku.";
+"LOCAL_FILES_INFO" = "La fonto de lokaj dosieroj permesas al vi importi dosierojn kaj administri vian propran legbibliotekon rekte en Aidoku.";
 "LOCAL_FILES_SETUP" = "Agordo de Lokaj Dosieroj";
 "IMPORT" = "Importi";
 "IMPORT_FILE" = "Importi dosieron";
@@ -558,9 +558,9 @@
 "SERIES" = "Serio";
 "NEW_SERIES" = "Nova Serio";
 "NEW_SERIES_TEXT" = "Kreu novan serion por ĉi tiu dosiero";
-"SELECT_SERIES" = "Elektu Seriojn";
+"SELECT_SERIES" = "Elekti serion";
 "VOLUME_CHAPTER_INVALID_ERROR" = "Ĉapitro kun ĉi tiu agordo jam ekzistas.";
-"VOLUME_CHAPTER_EMPTY_ERROR" = "Volumo kaj/aŭ ĉapitronumero estas postulata.";
+"VOLUME_CHAPTER_EMPTY_ERROR" = "Necesas volumnumero kaj/aŭ ĉapitronumero.";
 "SERIES_TITLE_UNIQUE_ERROR" = "Serio kun ĉi tiu titolo jam ekzistas.";
 "SERIES_TITLE_EMPTY_ERROR" = "Titolo devas esti provizita por nova serio.";
 "CREATE_NEW_SERIES_INFO" = "Nova serio estos kreita sur la sekva paĝo, aŭ vi povas elekti ekzistantan serion por aldoni ĉi tiun dosieron.";
@@ -585,22 +585,22 @@
 "MIRRORS" = "Spegulserviloj";
 "MIRRORS_INFO" = "Pliaj URL-oj por provi uzi kiel baza URL se la ĉefa malsukcesas konektiĝi.";
 "SERVER_ERROR" = "Servila Eraro";
-"SERVER_ERROR_CONNECTION" = "Ne eblas konektiĝi al la donita servilo. Certigu, ke servila petskribo funkcias kaj ke la URL estas ĝuste enigita.";
+"SERVER_ERROR_CONNECTION" = "Ne eblas konektiĝi al la donita servilo. Certigu, ke la servilo funkcias kaj ke la URL estas ĝuste enigita.";
 "SERVER_ERROR_AUTHENTICATION" = "Ne eblas ensaluti. Certigu, ke viaj akreditaĵoj estas ĝuste enmetitaj.";
 "OTHER_SETTINGS" = "Aliaj Agordoj";
 "DISPLAY_DEFAULT" = "Defaŭlte";
 "DISPLAY_CHAPTER" = "Ĉapitro";
-"DISPLAY_VOLUME" = "Volumo nombro";
+"DISPLAY_VOLUME" = "Volumo";
 "USE_CHAPTERS" = "Uzu Ĉapitrojn";
 "USE_CHAPTERS_TEXT" = "Traktu librojn kiel ĉapitrojn anstataŭ volumojn";
 "%@_BOOKS" = "%@ Libroj";
 "1_BOOK" = "1 Libro";
-"ON_DECK" = "Sur Ferdeko";
+"ON_DECK" = "Sekve legotaj";
 "KEEP_READING" = "Daŭre Legu";
 "RECENTLY_ADDED_BOOKS" = "Lastatempe Aldonitaj Libroj";
-"RECENTLY_ADDED_SERIES" = "Lastatempe Aldonita Serio";
-"RECENTLY_UPDATED_SERIES" = "Lastatempe Ĝisdatigita Serio";
-"RECENTLY_READ_BOOKS" = "Lastatempe Legis Librojn";
+"RECENTLY_ADDED_SERIES" = "Lastatempe aldonitaj serioj";
+"RECENTLY_UPDATED_SERIES" = "Lastatempe ĝisdatigitaj serioj";
+"RECENTLY_READ_BOOKS" = "Lastatempe legitaj libroj";
 "ANY" = "Ajna";
 "AUTHOR" = "Aŭtoro";
 "ARTIST" = "Artisto";
@@ -610,12 +610,12 @@
 "SORT_DATE_READ" = "Dato Legita";
 "SORT_RELEASE_DATE" = "Eldondato";
 "SORT_FOLDER_NAME" = "Dosierujo Nomo";
-"SORT_BOOKS_COUNT" = "Libroj Kalkulas";
+"SORT_BOOKS_COUNT" = "Nombro de libroj";
 "SORT_RANDOM" = "Hazarda";
 "GENRE" = "Ĝenro";
 "TAG" = "Etikedo";
 "PUBLISHER" = "Eldonisto";
-"AGE_RATING" = "Aĝa Taksado";
+"AGE_RATING" = "Aĝa klasifiko";
 "RELEASE_DATE" = "Eldondato";
 "SHARING_LABEL" = "Kundivida Etikedo";
 "NOT_LOGGED_IN" = "Ne ensalutinta";
@@ -653,32 +653,32 @@
 "INVALID_KEY" = "Nevalida Ŝlosilo";
 "STATUS_ONGOING" = "Daŭranta";
 "STATUS_HIATUS" = "Hiato";
-"SUGGESTIVE" = "Sugesta";
+"SUGGESTIVE" = "Sekse sugesta";
 "NSFW" = "NSFW";
 "MISSING_SOURCE_TEXT" = "La originala fonto ŝajnas manki por ĉi tiu Mangao. Bonvolu reelŝuti ĝin aŭ forigi ĉi tiun titolon el via biblioteko.";
 "SCANLATOR" = "Skanlatoro";
 "NO_SCANLATOR" = "Neniu skanlatoro";
 "LOCKED" = "Ŝlosita";
-"TOGGLE_LOCK" = "Ŝlosu Ŝlosilon";
+"TOGGLE_LOCK" = "Ŝanĝi ŝlosstaton";
 "REFRESH_DETAILS" = "Refreŝigi Detalojn";
 "VOLUME" = "Volumo";
-"MARK_PREVIOUS" = "Mark Antaŭa";
+"MARK_PREVIOUS" = "Marki ĉiujn antaŭajn ĉapitrojn";
 "PREVIOUS_COLON" = "Antaŭa:";
 "NEXT_COLON" = "Sekva:";
 "FINISHED_COLON" = "Finita:";
-"CURRENT_COLON" = "Aktualo:";
+"CURRENT_COLON" = "Aktuala:";
 "NO_NEXT_CHAPTER" = "Ne estas sekva ĉapitro";
 "NO_PREVIOUS_CHAPTER" = "Ne estas antaŭa ĉapitro";
-"SKIPPING_CHAPTERS" = "Preterpasante %i ĉapitrojn, aŭ la fonto mankas ilin aŭ ili estas filtritaj";
-"READER_SETTINGS" = "Leganto-Agordoj";
+"SKIPPING_CHAPTERS" = "Preterpasante %i ĉapitrojn: aŭ ili mankas en la fonto aŭ ili estas elfiltritaj";
+"READER_SETTINGS" = "Agordoj de legilo";
 "SAVE_TO_PHOTOS" = "Konservu al Fotoj";
 "OPEN_WEBSITE" = "Malfermu Retejon";
 "SET_COVER_IMAGE" = "Agordu Kovrilbildon";
-"UPLOAD_CUSTOM_COVER" = "Alŝutu Propra Kovrilo";
+"UPLOAD_CUSTOM_COVER" = "Elekti propran kovrilon";
 "RESET_COVER" = "Restarigi Kovrilon";
-"%@_AGO" = "%@ antaŭ";
+"%@_AGO" = "antaŭ %@";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "Ĉi tio forigos la historion de ĉi tiu ĉapitro. Ĉu vi certas, ke vi volas daŭrigi?";
-"REMOVE_ALL_MANGA_HISTORY" = "Forigi Ĉian Mangaan Historion";
+"REMOVE_ALL_MANGA_HISTORY" = "Forigi la tutan historion de ĉi tiu mangao";
 "AUTH_FOR_HISTORY" = "Aŭtentikiĝu por vidi historion de legado.";
 "NO_HISTORY" = "Neniu Historio";
 "NO_HISTORY_TEXT" = "Leghistorio aperos ĉi tie.";
@@ -700,7 +700,7 @@
 "LOGIN_BASIC_TEXT" = "Ĉiuj akreditaĵoj enmetitaj estos donitaj rekte al la fonto. Ne ensalutu al iu ajn fonto, kiun vi ne fidas.";
 "LOGIN_WEBVIEW_WARNING" = "Ensaluti per interreta vido?";
 "LOGIN_WEBVIEW_WARNING_TEXT" = "Ĉiuj kuketoj fiksitaj en la prezentita retvido estos donitaj al la fonto. Ne ensalutu al iu ajn fonto, kiun vi ne fidas.";
-"REFRESH_LOGIN" = "Refreŝigi Ensalutu";
+"REFRESH_LOGIN" = "Refreŝigi ensaluton";
 "LOGIN_METHOD" = "Ensaluta Metodo";
 "BASIC" = "Baza";
 "AUTH_TO_ENABLE" = "Aŭtentikigi por ebligi.";
@@ -709,24 +709,24 @@
 "ICLOUD_SYNC" = "iCloud Sinkronigi";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud Sync estas eksperimenta funkcio. Ebligi aŭ malŝalti ĝin povas kaŭzi perdon de datumoj.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud Sync disponeblas nur kiam instalite per TestFlight.";
-"INCOGNITO_MODE_TEXT" = "Paŭzigas legadon de historio kiam ĝi estas ebligita";
+"INCOGNITO_MODE_TEXT" = "Paŭzigas registradon de leghistorio kiam ebligita";
 "LAYOUT" = "Aranĝo";
 "STANDARD" = "Normo";
 "COMPACT" = "Kompakta";
-"CUSTOM" = "Kutimo";
-"PORTRAIT_ROWS" = "Portretaj Vicoj";
-"LANDSCAPE_ROWS" = "Pejzaĝaj Vicoj";
-"RESUME_LAST_OPENED_CHAPTER" = "Rekomencu la Lastan Malfermitan Ĉapitron";
-"CONTINUE_READING_ON_RESELECT" = "Duoble frapetu la langeton Historio por rekomenci legadon";
+"CUSTOM" = "Propra";
+"PORTRAIT_ROWS" = "Kolumnoj en vertikala formato";
+"LANDSCAPE_ROWS" = "Kolumnoj en horizontala formato";
+"RESUME_LAST_OPENED_CHAPTER" = "Daŭrigi la lastan malfermitan ĉapitron";
+"CONTINUE_READING_ON_RESELECT" = "Duobla frapeto sur la langeto Historio daŭrigas la legadon";
 "UNREAD_CHAPTER_BADGES" = "Nelegitaj Ĉapitroinsignoj";
 "DOWNLOADED_CHAPTER_BADGES" = "Elŝutitaj Ĉapitro-Insignoj";
 "PIN_TITLES" = "Alpinglu mangaajn titolojn";
 "PIN_DISABLED" = "Alpinglado malebligita";
 "PIN_UPDATED_CHAPTERS" = "Ĝisdatigitaj Ĉapitroj";
 "LIBRARY_UPDATING" = "Biblioteko Ĝisdatigo";
-"UPDATE_INTERVAL" = "Ĝisdatigi Intervalo";
+"UPDATE_INTERVAL" = "Ĝisdatiga intervalo";
 "SKIP_TITLES" = "Preterpasi Titolojn";
-"ONLY_UPDATE_ON_WIFI" = "Nur Ĝisdatigo pri Wi-Fi";
+"ONLY_UPDATE_ON_WIFI" = "Ĝisdatigi nur per Wi-Fi";
 "ONLY_DOWNLOAD_ON_WIFI" = "Elŝutu nur per Wi-Fi";
 "EXCLUDED_CATEGORIES" = "Ekskluditaj Kategorioj";
 "REFRESH_METADATA" = "Refreŝigi Metadatumojn";
@@ -737,28 +737,28 @@
 "1_NEW_CHAPTER_AVAILABLE" = "Nova ĉapitro disponebla";
 "X_NEW_CHAPTERS_AVAILABLE" = "%d novaj ĉapitroj haveblaj";
 "NEW_CHAPTERS_AVAILABLE" = "Disponeblaj novaj ĉapitroj";
-"X_SERIES_HAVE_NEW_CHAPTERS" = "%d-serio havas novajn ĉapitrojn";
+"X_SERIES_HAVE_NEW_CHAPTERS" = "%d serioj havas novajn ĉapitrojn";
 "DELETE_DOWNLOAD_AFTER_READING" = "Forigi Elŝuton Post Legado";
 "EVERY_6_HOURS" = "Ĉiujn 6 horojn";
 "WITH_UNREAD_CHAPTERS" = "Kun nelegitaj ĉapitroj";
 "WITH_COMPLETED_STATUS" = "Kun finita statuso";
-"THAT_HAVENT_BEEN_READ" = "Tio ne estis legita";
+"THAT_HAVENT_BEEN_READ" = "Sen ĉapitroj markitaj kiel legitaj";
 "NO_RESULTS_FOR_%@" = "Neniuj Rezultoj por \"%@\"";
 "NO_RESULTS_TEXT" = "Kontrolu la literumon aŭ provu novan serĉon.";
 "LEARN_MORE" = "Lernu pli…";
-"INSIGHTS" = "Legante komprenojn";
-"STREAKS" = "Legaj strioj";
-"STATS" = "Statoj";
-"CURRENT_STREAK" = "Nuna legado";
-"NO_CURRENT_STREAK" = "Neniu aktuala legado";
-"NO_CURRENT_STREAK_TEXT" = "Legu ĉiutage por krei strion.";
-"LONGEST_STREAK" = "Plej longa legado";
+"INSIGHTS" = "Legaj statistikoj";
+"STREAKS" = "Sinsekvaj legotagoj";
+"STATS" = "Statistikoj";
+"CURRENT_STREAK" = "Nuna sinsekvo de legotagoj";
+"NO_CURRENT_STREAK" = "Neniu nuna sinsekvo de legotagoj";
+"NO_CURRENT_STREAK_TEXT" = "Legu ĉiutage por plilongigi la sinsekvon de legotagoj.";
+"LONGEST_STREAK" = "Plej longa sinsekvo de legotagoj";
 "DAYS" = "Tagoj";
 "CHAPTER_PLURAL" = "Ĉapitroj";
 "CHAPTER_SINGULAR" = "Ĉapitro";
 "PAGE_PLURAL" = "Paĝoj";
 "PAGE_SINGULAR" = "Paĝo";
-"SERIES_PLURAL" = "Serio";
+"SERIES_PLURAL" = "Serioj";
 "SERIES_SINGULAR" = "Serio";
 "HOUR_PLURAL" = "Horoj";
 "HOUR_SINGULAR" = "Horo";
@@ -775,76 +775,76 @@
 "UNAVAILABLE_SOURCE_LISTS" = "Nedisponeblaj Font-Listoj";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Okazis eraro dum venigado de la supraj fontlistoj.";
 "COPY_URL" = "Kopiu URL";
-"LEGACY_SOURCE_LIST" = "Hereda Fonta Listo";
-"LEGACY_SOURCE_LIST_WARNING" = "Averto: Heredaĵa Fonta Listo";
-"LEGACY_SOURCE_LIST_WARNING_INFO" = "Vi nuntempe havas heredan fontliston agordita. Ĉi tiu formato estas malmoderna kaj ĉesos funkcii en estonta versio de Aidoku. Kvankam ĝi ankoraŭ funkcios nuntempe, oni rekomendas al vi trovi anstataŭaĵon kaj agordi ĝin en Agordoj > Fontaj Listoj.";
+"LEGACY_SOURCE_LIST" = "Malnovformata fontlisto";
+"LEGACY_SOURCE_LIST_WARNING" = "Averto: malnovformata fontlisto";
+"LEGACY_SOURCE_LIST_WARNING_INFO" = "Vi nuntempe havas agorditan malnovformatan fontliston. Ĉi tiu formato estas malmoderna kaj ĉesos funkcii en estonta versio de Aidoku. Kvankam ĝi ankoraŭ funkcias nuntempe, estas rekomendinde trovi anstataŭaĵon kaj agordi ĝin en Agordoj > Fontolistoj.";
 "UPSCALING" = "Altskalo";
-"UPSCALE_IMAGES" = "Altnivelaj Bildoj";
+"UPSCALE_IMAGES" = "Pligrandigi bildan distingivon";
 "UPSCALING_MODELS" = "Altskalaj Modeloj";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Maksimuma Bilda Alteco";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Bildoj pli grandaj ol la maksimuma bilda alteco ne estos plialtigitaj.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "La distingivo de bildoj pli altaj ol la maksimuma bilda alteco ne estos pligrandigita.";
 "ENABLED_MODEL" = "Ebligita Modelo";
 "AVAILABLE_MODELS" = "Disponeblaj Modeloj";
 "NO_AVAILABLE_MODELS" = "Neniuj Disponeblaj Modeloj";
 "NO_AVAILABLE_MODELS_TEXT" = "Malsukcesis alporti disponeblajn modelojn. Kontrolu vian retan konekton kaj certigu, ke via aplikaĵo funkcias la plej lastan version.";
 "MODEL_INFO" = "Modelaj Informoj";
-"LOCK_HISTORY_TAB" = "Ŝlosu Historio Tab";
-"DOWNSAMPLE_IMAGES" = "Subprova Bildoj";
+"LOCK_HISTORY_TAB" = "Ŝlosi la langeton Historio";
+"DOWNSAMPLE_IMAGES" = "Malgrandigi bildan distingivon";
 "CROP_BORDERS" = "Tondi bildlimojn";
 "DISABLE_QUICK_ACTIONS" = "Malebligu Rapidajn Agojn";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Malebligu Duoble Frapetan Zomon";
 "LIVE_TEXT" = "Viva Teksto";
-"HIDE_BARS_ON_SWIPE" = "Kaŝi Barojn sur Svingo";
+"HIDE_BARS_ON_SWIPE" = "Kaŝi ilobretojn ĉe fingroglito";
 "READER_BG_COLOR" = "Fona Koloro";
 "READER_BG_COLOR_SYSTEM" = "Sistemo";
 "READER_BG_COLOR_AUTO" = "Aŭtomata";
 "READER_BG_COLOR_WHITE" = "Blanka";
 "READER_BG_COLOR_BLACK" = "Nigra";
-"TAP_ZONES" = "Frapu Zonojn";
+"TAP_ZONES" = "Frapetaj zonoj";
 "ZONE_LEFT_RIGHT" = "Maldekstre kaj Dekstre";
 "ZONE_L_SHAPED" = "L-forma";
 "ZONE_KINDLE" = "Kindle";
 "ZONE_EDGE" = "Rando";
 "DISABLED" = "Malebligita";
-"INVERT_TAP_ZONES" = "Inverti Tap-Zonojn";
+"INVERT_TAP_ZONES" = "Inversigi frapetajn zonojn";
 "ANIMATE_PAGE_TRANSITIONS" = "Animaci Paĝajn Transirojn";
-"TEXT_READER" = "Teksto-Leganto";
-"TEXT_READER_STYLE" = "Stilo de Leganto";
+"TEXT_READER" = "Teksta legilo";
+"TEXT_READER_STYLE" = "Stilo de legilo";
 "TEXT_READER_PAGED" = "Paĝigita legado";
 "TEXT_READER_SCROLL" = "Rulumo";
 "TEXT_FONT_FAMILY" = "Tiparo";
 "TEXT_FONT_SIZE" = "Tiparo Grandeco";
 "TEXT_LINE_SPACING" = "Linia interspaco";
-"TEXT_HORIZONTAL_PADDING" = "Horizontala randoj";
+"TEXT_HORIZONTAL_PADDING" = "Horizontalaj marĝenoj";
 "TEXT_THEME" = "Temo";
 "TEXT_THEME_SEPIA" = "Sepio";
 "TEXT_THEME_PAPER" = "Papero";
 "TEXT_THEME_GRAY" = "Griza";
-"DICTIONARY_LOOKUP" = "Vortaro Serĉo";
+"DICTIONARY_LOOKUP" = "Vortarserĉo";
 "DICTIONARY_SETTINGS_TEXT" = "Ebligu Vortarserĉon por permesi OCR-traktadon sur paĝaj bildoj por serĉi vortojn en iuj importitaj Yomitan-vortaroj.";
 "DICTIONARIES" = "Vortaroj";
 "ABOUT_DICTIONARIES" = "Pri Vortaroj";
 "ABOUT_DICTIONARIES_TEXT" = "Yomitan-vortaroj povas esti importitaj el zip-dosieroj. Vi povas ebligi aŭ malŝalti vortarojn, kaj ili povas esti reordigeblaj per trenado.";
 "LOOKUP_GESTURE" = "Serĉa Gesto";
 "SINGLE_TAP" = "Unuopa Frapeto";
-"LONG_PRESS" = "Longa Gazetaro";
+"LONG_PRESS" = "Longa premo";
 "LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Frapante la komencon de vorto aktivigos la ŝprucfenestron. Ĉi tio malŝaltas duoblan frapeton por zomi kiam ĝi estas ebligita.";
 "LOOKUP_GESTURE_LONG_PRESS_INFO" = "Premante la komencon de vorto reliefigos ĝin, kaj ellasante aktivigos la ŝprucfenestron. Ĉi tio malŝaltas paĝajn rapidajn agojn kiam ĝi estas ebligita.";
-"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Ŝlosita per Serĉa Gesto: Ununura Gazetaro.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Ŝlosita per serĉa gesto: unuopa frapeto.";
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Ŝlosita per Serĉgesto: Longa Premo.";
-"DICTIONARY_TEXT_OVERLAY_MODE" = "OCR Teksto Overlay";
+"DICTIONARY_TEXT_OVERLAY_MODE" = "OCR-teksta supermetaĵo";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Montras tekstkestojn sur bildregionoj kiam serĉo estas aktivigita. Ĉi tio povas esti helpema por determini kiu teksto estis rekonita ĝuste de OCR.";
-"DICTIONARY_OVERLAY_PADDING" = "Overlay Remburaĵo";
-"DICTIONARY_OVERLAY_TEXT_SCALE" = "Overlay Teksto Grandeco";
+"DICTIONARY_OVERLAY_PADDING" = "Interna marĝeno de supermetaĵo";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "Tekstgrandeco de supermetaĵo";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Limigi OCR-lingvojn";
-"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Kiam ĝi estas ebligita, nur ĉapitroj markitaj kiel la elektita(j) lingvo(j) estos procesitaj por OCR. Oni rekomendas elekti nur la lingvojn, por kiuj vi havas vortarojn importitaj.";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Kiam ebligita, nur ĉapitroj markitaj per la elektitaj lingvoj estos prilaborataj per OCR. Oni rekomendas elekti nur la lingvojn, por kiuj vi importis vortarojn.";
 "DICTIONARY_OCR_LANGUAGES" = "OCR-lingvoj";
-"DICTIONARY_POPUP" = "Vortaro Ŝprucfenestro";
+"DICTIONARY_POPUP" = "Vortara ŝprucfenestro";
 "DISPLAY_MODE" = "Montra Reĝimo";
 "DEFAULT_DISPLAY_MODE" = "Defaŭlte";
 "FULL_WIDTH" = "Plena Larĝo";
-"DICTIONARY_POPUP_WIDTH" = "Popup Larĝo";
-"DICTIONARY_POPUP_HEIGHT" = "Popup Alteco";
+"DICTIONARY_POPUP_WIDTH" = "Larĝo de ŝprucfenestro";
+"DICTIONARY_POPUP_HEIGHT" = "Alto de ŝprucfenestro";
 "TERM_DICTIONARIES" = "Terminaj Vortaroj";
 "FREQUENCY_DICTIONARIES" = "Vortfrekvencaj vortaroj";
 "PITCH_DICTIONARIES" = "Tonalakcentaj vortaroj";
@@ -857,11 +857,11 @@
 "SOURCE_LANGUAGE" = "Fontlingvo";
 "TARGET_LANGUAGE" = "Cellingvo";
 "TERM_COUNT" = "Nombro de vortaraj terminoj";
-"TERM_META_COUNT" = "Nombro de terminoj metadatenoj";
+"TERM_META_COUNT" = "Nombro de terminaj metadatumaj enskriboj";
 "KANJI_COUNT" = "Kanji-kalkulo";
-"KANJI_META_COUNT" = "Nombro da kanji metadatenoj eniroj";
+"KANJI_META_COUNT" = "Nombro de kanĵiaj metadatumaj enskriboj";
 "TAG_COUNT" = "Etikedkalkulo";
-"MEDIA_COUNT" = "Media Nombro";
+"MEDIA_COUNT" = "Nombro de aŭdvidaj dosieroj";
 "IS_UPDATABLE" = "Estas Ĝisdatigebla";
 "SIZE" = "Grandeco";
 "REMOVE_DICTIONARY" = "Forigi Vortaron";
@@ -882,8 +882,8 @@
 "MONTHLY" = "Monata";
 "GET_RECOMMENDED_DICTIONARIES" = "Akiru Rekomenditajn Vortarojn";
 "RECOMMENDED_DICTIONARIES" = "Rekomenditaj Vortaroj";
-"RECOMMENDED_DICTIONARIES_NOTE" = "La ĉi-subaj vortaroj estas ĉiuj japana-angla lingvo. Por aliaj lingvoj, vi povas kontroli la liston de Vikivortaraj vortaroj.";
-"CORRUPTED_BACKUP" = "Koruptita Rezervo";
+"RECOMMENDED_DICTIONARIES_NOTE" = "La ĉi-subaj vortaroj estas ĉiuj japanaj-anglaj vortaroj. Por aliaj lingvoj, kontrolu la liston de Vikivortaraj vortaroj.";
+"CORRUPTED_BACKUP" = "Difektita savkopio";
 "CORRUPTED_BACKUP_TEXT" = "Ĉi tiu sekurkopio ŝajnas havi miskonfiguritajn datumojn. Alinomado ne eblas.";
 "BACKUP_INFO" = "Longe premu sekurkopion por eksporti ĝin, aŭ glitu maldekstren por forigi.";
 "MISSING_SOURCES" = "Mankas Fontoj";
@@ -894,36 +894,36 @@
 "INSTALLING_SOURCES" = "Instalante fontojn...";
 "RESTORE_BACKUP" = "Ĉu restarigi al ĉi tiu sekurkopio?";
 "RESTORE_BACKUP_TEXT" = "Ĉiuj aktualaj datumoj estos forigitaj kaj anstataŭigitaj per la datumoj de ĉi tiu sekurkopio.";
-"BACKUP_IMPORT_SUCCESS" = "Rezervo Importita";
+"BACKUP_IMPORT_SUCCESS" = "Savkopio importita";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Por restarigi ĉi tiun sekurkopion, trovu ĝin en la paĝo pri sekurkopioj en agordoj.";
 "BACKUP_IMPORT_FAIL_TEXT" = "Malsukcesis konservi sekurkopion. Bonvolu certigi, ke via sekurkopio estas en la taŭga formato.";
 "SOURCE_IMPORT_FAIL_TEXT" = "Malsukcesis importi fonton. Bonvolu certigi, ke via aix-dosiero estas valida.";
 "FILE_IMPORT_FAIL_TEXT" = "Malsukcesis importi dosieron. Bonvolu certigi, ke ĝi estas valida CBZ aŭ ZIP-arkivo kiu enhavas bildojn.";
-"BACKUP_%@" = "Rezerva %@";
+"BACKUP_%@" = "Savkopio %@";
 "RESTORE" = "Restarigi";
-"CREATE_BACKUP" = "Krei Rezervon";
-"IMPORT_BACKUP" = "Importu Rezervon";
+"CREATE_BACKUP" = "Krei savkopion";
+"IMPORT_BACKUP" = "Importi savkopion";
 "LIBRARY_ENTRIES" = "Enskriboj pri Mangao-biblioteko";
 "SENSITIVE_SETTINGS" = "Sentemaj Agordoj";
 "NAME" = "Nomo";
 "DATE" = "Dato";
-"BACKUP_INFO_TITLE" = "Rezervaj Informoj";
-"AUTOMATIC_BACKUPS" = "Aŭtomataj Rezervoj";
-"BACKUP_INTERVAL" = "Rezerva Intervalo";
+"BACKUP_INFO_TITLE" = "Informoj pri savkopio";
+"AUTOMATIC_BACKUPS" = "Aŭtomataj savkopioj";
+"BACKUP_INTERVAL" = "Intervalo de savkopiado";
 "AUTO" = "Aŭtomate";
 "LAST_BACKED_UP_%@" = "Laste aŭtomate kopiita: %@";
 "READING_SESSIONS" = "Legaj Sesioj";
 "RESET_TEXT" = "Ĉi tiu ago estas neinversigebla. Ĉiuj datumoj, agordoj kaj kaŝmemoroj estos forigitaj kaj restarigitaj.";
 "CLEAR_NETWORK_CACHE" = "Malplenigi Retan Kaŝmemoron";
 "CLEAR_NETWORK_CACHE_TEXT" = "Ĉi tiu ago estas neinversigebla. Enmemorigitaj retpetoj kaj bildoj estos forigitaj.";
-"CLEAR_READ_HISTORY" = "Klarigi Legi Historion";
+"CLEAR_READ_HISTORY" = "Forigi leghistorion";
 "CLEAR_READ_HISTORY_TEXT" = "Ĉi tiu ago estas neinversigebla. Ĉiu legita historio estos forigita.";
-"CLEAR_EXCLUDING_LIBRARY" = "Klarigi Legi Historion Ekskludante Bibliotekon";
-"CLEAR_EXCLUDING_LIBRARY_TEXT" = "Ĉi tiu ago estas neinversigebla. Ĉiu legita historio krom la biblioteko estos forigita.";
+"CLEAR_EXCLUDING_LIBRARY" = "Forigi leghistorion ekster la biblioteko";
+"CLEAR_EXCLUDING_LIBRARY_TEXT" = "Ĉi tiu ago estas neinversigebla. La tuta leghistorio de titoloj ekster la biblioteko estos forigita.";
 "RESET_SETTINGS" = "Restarigi Agordojn";
-"RESET_SETTINGS_TEXT" = "Ĉi tiu ago estas neinversigebla. Ĉiuj aplikaĵoj kaj fontaj agordoj estos rekomencigitaj.";
+"RESET_SETTINGS_TEXT" = "Ĉi tiu ago estas neinversigebla. Ĉiuj agordoj de la aplikaĵo kaj de fontoj estos restarigitaj.";
 "CLEAR_SOURCE_CACHE" = "Malplenigi Fontan Kaŝmemoron";
-"CLEAR_SOURCE_CACHE_TEXT" = "Kaŝmemoritaj retaj datumoj por la fonta(j) URL(j) estos forigitaj. Ĉi tio povas rezultigi provizore pliigitajn ŝarĝtempojn.";
+"CLEAR_SOURCE_CACHE_TEXT" = "Forigas kuketojn kaj retejajn datumojn por la URL-oj de ĉi tiu fonto, kune kun la kaŝmemorita fontenhavo. Vi eble devos denove ensaluti, kaj ŝargado povas provizore daŭri pli longe.";
 "AUTH_TO_OPEN" = "Aŭtentikigi por malfermi.";
 "AUTH_FOR_LIBRARY" = "Aŭtentikigi por vidi bibliotekon.";
 "SET_AS_WIDE_PAGE" = "Agordu kiel Larĝan Paĝon";
@@ -938,50 +938,50 @@
 "REVERSE_SPLIT_ORDER" = "Inversu la ordon de dividitaj paĝoj";
 "MULTI_LANGUAGE" = "Plurlingva";
 "TRACKING" = "Spurado";
-"TRACKERS" = "Spuristoj";
+"TRACKERS" = "Spuriloj";
 "START_TRACKING" = "Komencu Spuradon";
 "SCORE" = "Poentaro";
 "TRACK_READING" = "Legado";
 "TRACK_PLANNING" = "Planado";
 "TRACK_COMPLETED" = "Kompletigita";
 "TRACK_PAUSED" = "Paŭzita";
-"TRACK_DROPPED" = "Faligita";
+"TRACK_DROPPED" = "Forlasita";
 "TRACK_REREADING" = "Relegado";
-"STARTED" = "Komenciĝis";
-"FINISHED" = "Finita";
+"STARTED" = "Dato de eklegado";
+"FINISHED" = "Dato de finlegado";
 "STOP_TRACKING" = "Ĉesu Spuradon";
-"SET_TRACK_CHAPTER_OFFSET" = "Agordu Ĉapitron Offset";
-"TRACK_CHAPTER_OFFSET_TEXT" = "Alĝustigu aŭtomatajn ĉapitrajn ĝisdatigojn por ĉi tiu titolo kiam fontaj ĉapitroj diferencas de spuraj ĉapitroj.";
-"TITLE_DISPLAY_MODE" = "Titolo Display Mode";
+"SET_TRACK_CHAPTER_OFFSET" = "Agordi ĉapitronumeran deŝovon";
+"TRACK_CHAPTER_OFFSET_TEXT" = "Alĝustigu aŭtomatajn ĝisdatigojn de ĉapitronumeroj ĉe la spurilo por ĉi tiu titolo, kiam la ĉapitronumeroj de la fonto diferencas de tiuj de la spurilo.";
+"TITLE_DISPLAY_MODE" = "Titola montra reĝimo";
 "STATUS_NOT_PUBLISHED" = "Ne Eldonita";
-"ONESHOT" = "Unu-pafo";
+"ONESHOT" = "Memstara rakonto";
 "OEL" = "OEL";
-"COMIC" = "Komika";
+"COMIC" = "Bildstrio";
 "BOOK" = "Libro";
-"TRACK" = "Trako";
+"TRACK" = "Spuri";
 "VIEW_ON_WEBSITE" = "Vidi Sur Retejo";
-"CLEAR_TRACKED_MANGA" = "Klara Spurita Mangao";
-"CLEAR_TRACKED_MANGA_TEXT" = "Ĉi tiu ago estas neinversigebla. Spurado por ĉiuj spuriloj aldonitaj al Mangao estos forigita.";
+"CLEAR_TRACKED_MANGA" = "Forigi spurajn ligilojn";
+"CLEAR_TRACKED_MANGA_TEXT" = "Ĉi tiu ago estas neinversigebla. Ĉiuj ligiloj inter mangaoj kaj spuriloj estos forigitaj.";
 "SEARCH_OPTIONS" = "Serĉaj Opcioj";
 "SHOW_NSFW_RESULTS" = "Montru NSFW-Rezultojn";
 "UPDATE_AFTER_READING" = "Ĝisdatigo Post Legado";
 "UPDATE_AFTER_READING_INFO" = "Post legi ĉapitron, ĝisdatigu la spurilon por kongrui kun la nun legata ĉapitro kaj/aŭ volumo.";
 "AUTO_SYNC_HISTORY" = "Aŭtomate Sinkronigi Historion";
-"AUTO_SYNC_HISTORY_INFO" = "Kiam pli nova ĉapitro kaj/aŭ volumo estas detektita sur la spurilo, ĝisdatigu la lokan historion por kongrui.";
+"AUTO_SYNC_HISTORY_INFO" = "Kiam la spurservo registras plian legoprogreson en ĉapitroj kaj/aŭ volumoj, ĝisdatigas la lokan legohistorion por kongrui.";
 "SYNC_WITH_TRACKER" = "Sinkronigi kun Spurilo";
-"SYNC_WITH_TRACKER_INFO_%i" = "%i-ĉapitroj estis deciditaj esti jam legitaj de la spuristo. Ĉu vi ŝatus marki ĉi tiujn ĉapitrojn kiel legitajn?";
-"SYNC_WITH_TRACKER_INFO_1" = "1 ĉapitro estis decidita esti jam legita de la spuristo. Ĉu vi ŝatus marki ĉi tiun ĉapitron kiel legita?";
-"UNAVAILABLE_TRACKER_ITEM" = "Nedisponebla Spurilo";
-"UNAVAILABLE_TRACKER_ITEM_INFO" = "Ĉi tiu ligita spurilo estas asociita kun spurilo, kiu ne plu disponeblas. Vi devus aŭ forigi ĉi tiun objekton aŭ denove ensaluti al la rilata spurilo.";
-"ENHANCED_TRACKERS" = "Plibonigitaj Spuristoj";
+"SYNC_WITH_TRACKER_INFO_%i" = "La spurilo indikas, ke %i ĉapitroj jam estas legitaj. Ĉu vi volas marki tiujn ĉapitrojn kiel legitajn?";
+"SYNC_WITH_TRACKER_INFO_1" = "La spurilo indikas, ke 1 ĉapitro jam estas legita. Ĉu vi volas marki tiun ĉapitron kiel legitan?";
+"UNAVAILABLE_TRACKER_ITEM" = "Nedisponebla spurila ero";
+"UNAVAILABLE_TRACKER_ITEM_INFO" = "Ĉi tiu ligita spurila ero rilatas al spurilo, kiu ne plu disponeblas. Forigu ĉi tiun eron aŭ denove ensalutu al la rilata spurilo.";
+"ENHANCED_TRACKERS" = "Plibonigitaj spuriloj";
 "ENHANCED_TRACKERS_INFO" = "Plibonigitaj spuriloj povas aŭtomate ligi al eroj aldonitaj al via biblioteko de subtenataj fontoj, spurante dudirektan legadhistorion.";
-"ENHANCED_TRACKERS_TOGGLE_INFO" = "Malŝalti spuradon por fonto forigos ĉiujn ligitajn spurilojn, kaj ebligi aŭtomate ligos ĉiujn erojn en via biblioteko.";
+"ENHANCED_TRACKERS_TOGGLE_INFO" = "Malŝalti spuradon por fonto forigas la ligilojn al spurservoj nur por tiu fonto. Ŝalti ĝin aŭtomate ligas la bibliotekajn erojn el tiu fonto.";
 "TRACKER_LOGOUT_INFO" = "Elsaluti forigos ligitajn spurajn informojn de ĉi tiu spurilo por ĉiuj serioj.";
 "CACHE_SIZE_%@" = "Kaŝmemorgrandeco: %@";
 "SUPPORT_VIA_KOFI" = "Subteno per Ko-Fi";
 "SORT_UNREAD_CHAPTERS" = "Nelegitaj Ĉapitroj";
 "SET_AS_SINGLE_PAGE" = "Agordu kiel Ununura Paĝo";
-"UNSET_AS_SINGLE_PAGE" = "Malŝargi kiel Unupaĝo";
+"UNSET_AS_SINGLE_PAGE" = "Forigi la agordon de unuopa paĝo";
 "RELOAD" = "Reŝargi";
 "RELOAD_FAILED" = "Reŝargi Malsukcesis";
 "RELOAD_FAILED_TEXT" = "Malsukcesis reŝargi la bildon. Bonvolu provi denove.";
@@ -999,7 +999,7 @@
 "SELECT" = "Elektu";
 "ADD" = "Aldoni";
 "SKIP_DUPLICATE_CHAPTERS" = "Preterpasi Duplikatajn Ĉapitrojn";
-"MARK_DUPLICATE_CHAPTERS" = "Marku Duoblaj Ĉapitroj kiel Legita";
+"MARK_DUPLICATE_CHAPTERS" = "Marki duplikatajn ĉapitrojn kiel legitajn";
 "MIGRATE_SOURCES" = "Migri Fontojn";
 "SYNC_LOCAL_HISTORY" = "Sinkronigi Lokan Historion";
 "MIGRATE" = "Migri";
@@ -1018,33 +1018,33 @@
 "SELECTED_%i_OF_%i" = "Elektita (%i/%i)";
 "MIGRATE_%i_OF_%i" = "Migri (%i/%i)";
 "SHOW_ENTRY" = "Vidu eniron";
-"SOURCE_BREAKING_CHANGE" = "Fonto Rompanta Ŝanĝo";
-"SOURCE_BREAKING_CHANGE_TEXT" = "Ĉi tiu fonto havis rompiĝan ŝanĝon kaj postulas migradon por konservi vian bibliotekon kaj historion.";
+"SOURCE_BREAKING_CHANGE" = "Nekongrua ŝanĝo de fonto";
+"SOURCE_BREAKING_CHANGE_TEXT" = "Ĉi tiu fonto havas ŝanĝon nekongruan kun la antaŭa versio. Migrado necesas por konservi vian bibliotekon kaj historion.";
 "UPLOAD_DATE" = "Dato de Alŝuto";
-"ALL_CHAPTERS_READ" = "Ĉiuj Ĉapitroj Legu";
+"ALL_CHAPTERS_READ" = "Ĉiuj ĉapitroj legitaj";
 "ALL_CHAPTERS_LOCKED" = "Ĉiuj Ĉapitroj Ŝlositaj";
 "DEFAULT_READING_MODE" = "Defaŭlta Legado-Reĝimo";
-"PILLARBOX" = "Pilarkesto";
-"PILLARBOX_AMOUNT" = "Pillarbox Kvanto";
-"PILLARBOX_ORIENTATION" = "Pillarbox Orientiĝo";
-"PILLARBOX_ORIENTATION_INFO" = "Pillarbox Orientiĝo determinas por kiuj orientiĝoj pillarboxing estu ebligita.";
+"PILLARBOX" = "Flankaj marĝenoj";
+"PILLARBOX_AMOUNT" = "Larĝo de flankaj marĝenoj";
+"PILLARBOX_ORIENTATION" = "Ekranorientiĝo por flankaj marĝenoj";
+"PILLARBOX_ORIENTATION_INFO" = "Elektu la ekranorientiĝojn, en kiuj flankaj marĝenoj estu montrataj.";
 "AUTO_SCROLL" = "Aŭtomata Rulumo";
 "AUTO_SCROLL_SPEED" = "Aŭtomata Ruluma Rapido";
-"AUTO_SCROLL_POSITION" = "Aŭtomata Ruluma Pozicio";
+"AUTO_SCROLL_POSITION" = "Pozicio de la aŭtomatruluma butono";
 "POSITION_LEFT" = "Maldekstre";
-"POSITION_RIGHT" = "Ĝuste";
+"POSITION_RIGHT" = "Dekstre";
 "BOTH" = "Ambaŭ";
 "%@_TRACKER_LOGIN_NEEDED" = "%@ Ensaluto Bezonata";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "Via %@-ĵetono eksvalidiĝis, do la rilata spurilo ĉesos funkcii ĝis vi re-ensalutu en agordoj.";
-"BACKUP_ERROR" = "Rezerva Restariga Eraro";
+"BACKUP_ERROR" = "Eraro dum restarigo de savkopio";
 "BACKUP_ERROR_TEXT" = "Eraro estis renkontita dum restarigo: %@. La sekurkopio povas esti nevalida.";
 "READER_ORIENTATION" = "Orientiĝo";
-"FOLLOW_DEVICE" = "Sekvu Aparato";
+"FOLLOW_DEVICE" = "Sekvi la orientiĝon de la aparato";
 "FOCUS_ITEM_LEFT" = "Fokusu objekton maldekstre";
 "FOCUS_ITEM_RIGHT" = "Fokusu objekton dekstren";
-"FOCUS_ITEM_ABOVE" = "Fokuso aĵo supre";
-"FOCUS_ITEM_BELOW" = "Fokusa objekto sube";
-"FOCUS_ITEM_NEXT" = "Foku la sekvan eron";
+"FOCUS_ITEM_ABOVE" = "Fokusi la supran eron";
+"FOCUS_ITEM_BELOW" = "Fokusi la suban eron";
+"FOCUS_ITEM_NEXT" = "Fokusi la sekvan eron";
 "FOCUS_ITEM_PREV" = "Fokusu antaŭan eron";
 "OPEN_FOCUS_ITEM" = "Malfermu fokusitan objekton";
 "RESET_FOCUS" = "Restarigi fokuson";
@@ -1054,11 +1054,11 @@
 "CHAPTER_BACKWARD" = "Ĉapitro malantaŭen";
 "OPEN_CHAPTER_LIST" = "Malfermu liston de ĉapitroj";
 "TOGGLE_BARS" = "Montri aŭ kaŝi ilobretojn";
-"CLOSE_READER" = "Fermu leganton";
+"CLOSE_READER" = "Fermi legilon";
 "TOGGLE_PAGE_OFFSET" = "Ŝaltu paĝan ofseton";
-"UPLOAD_FILE" = "Alŝutu Dosieron";
+"UPLOAD_FILE" = "Importi dosieron";
 "MIGRATE_CHAPTER_HISTORY" = "Migri Ĉapitrohistorion";
-"MIGRATE_CHAPTER_HISTORY_TEXT" = "Migru legohistorion postlasitan de pli malnovaj versioj, kiuj ne estas ligitaj al ĉapitroj en la loka datumbazo. Ĉi tio kutime okazas aŭtomate post ĝisdatigo. Se ĝi ne finiĝis, vi povas ruli ĝin denove ĉi tie.";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "Migru leghistorion postlasitan de pli malnovaj versioj kaj ankoraŭ ne ligitan al ĉapitroj en la loka datumbazo. Ĉi tio normale okazas aŭtomate post ĝisdatigo. Se ĝi ne finiĝis, vi povas ruli ĝin denove ĉi tie.";
 
 "TRANSLATION_SOURCE_LABELS" = "Traduki fontajn menuojn kaj sekciajn titolojn";
 
@@ -1076,8 +1076,8 @@
 "TRANSLATION_SOURCE_LABEL_FILTER" = "Fontlingvoj de fontaj menuoj kaj sekcioj";
 
 // Shared image retention
-"SAVE_SHARED_IMAGES" = "Konservu Komunajn Bildojn en Lokaj Dosieroj";
-"SAVE_SHARED_IMAGES_HELP" = "Kiam estas malŝaltita, komunaj bildoj malfermiĝas provizore kaj estas forigitaj kiam fermite. Leghistorio kaj OCR/tradukaj kaŝmemoroj ne estas konservitaj.";
+"SAVE_SHARED_IMAGES" = "Konservi kunhavigitajn bildojn en lokaj dosieroj";
+"SAVE_SHARED_IMAGES_HELP" = "Kiam la opcio estas malŝaltita, kunhavigitaj bildoj malfermiĝas provizore kaj estas forigitaj post fermo. Leghistorio kaj OCR/tradukaj kaŝmemoroj ne estas konservataj.";
 
 "TRANSLATION_LARGE_FILTER_OPTIONS" = "Traduki grandajn filtrolistojn (pli ol 100 opcioj)";
 

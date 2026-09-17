@@ -3,7 +3,7 @@
 
 // General
 "CONTINUE" = "مُتابعة";
-"CANCEL" = "‬إلغاء";
+"CANCEL" = "إلغاء";
 "OK" = "موافق";
 "UNKNOWN" = "غير معْروف";
 "UNAVAILABLE" = "غير متاح";
@@ -57,7 +57,7 @@
 "SUGGESTIVE" = "إيحائي";
 "NSFW" = "NSFW";
 "MORE" = "المزيد";
-"SOURCE_ORDER" = "ترتيب المصدر";
+"SOURCE_ORDER" = "ترتيب الفصول في المصدر";
 "MISSING_SOURCE" = "المصدر مفقود";
 "MISSING_SOURCE_TEXT" = "يبدو أن المصدر الأصلي لهذه المانجا مفقود. يرجى إعادة تنزيله أو إزالة هذا العنوان من مكتبتك.";
 "LINK_COPIED" = "تم نسخ الرابط";
@@ -71,7 +71,7 @@
 "READ" = "مقروء";
 "UNREAD" = "غير مقروء";
 "MARK_ALL" = "تمييز الكل";
-"MARK_PREVIOUS" = "تمييز السابق كـ";
+"MARK_PREVIOUS" = "تمييز جميع الفصول السابقة";
 "MARK_READ" = "تمييز كمقروء";
 "MARK_UNREAD" = "تمييز كغير مقروء";
 "READER_SETTINGS" = "إعدادات القارئ";
@@ -92,7 +92,7 @@
 // Settings
 "SETTINGS" = "الإعدادات";
 "ABOUT" = "عن التطبيق";
-"GITHUB_REPO" = "GitHub صفحة";
+"GITHUB_REPO" = "مستودع GitHub";
 "DISCORD_SERVER" = "خادم الديسكورد";
 "SUPPPORT_DEVELOPMENT" = "ادعم التطوير";
 "GENERAL" = "عام";
@@ -105,11 +105,11 @@
 "LANDSCAPE" = "أفقي";
 "READER" = "القارئ";
 "OPEN_READER_VIEW" = "فتح وضع القارئ";
-"UNREAD_CHAPTER_BADGES" = "شارات الفصل غير المقروء";
-"SOURCE_LISTS" = "قائمة المصادر";
+"UNREAD_CHAPTER_BADGES" = "شارات الفصول غير المقروءة";
+"SOURCE_LISTS" = "قوائم المصادر";
 "SOURCE_LIST_ADDED" = "تم إضافة قائمة المصادر";
 "SOURCE_LIST_ADDED_TEXT" = "يمكنك الآن تصفح المصادر الخارجية من تبويب تصفح.";
-"DOWNSAMPLE_IMAGES" = "خفض جودة الصور";
+"DOWNSAMPLE_IMAGES" = "تقليل دقة الصور";
 "BACKUPS" = "النسخ الإحتياطية";
 "BACKUP_NAME" = "اسم النسخة الاحتياطية";
 "RENAME_BACKUP" = "إعادة تسمية النسخة الإحتياطية";
@@ -121,8 +121,8 @@
 "RESTORE_BACKUP_TEXT" = "ستتم إزالة جميع البيانات الحالية واستبدالها ببيانات هذه النسخة الاحتياطية.";
 "BACKUP_IMPORT_SUCCESS" = "تم استيراد النسخة الاحتياطية بنجاح";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "لاستعادة هذه النسخة الاحتياطية، ابحث عنها في صفحة النسخ الإحتياطية في الإعدادات.";
-"IMPORT_FAIL" = "فشلت عملية استيراد النسخة الاحتياطية";
-"BACKUP_IMPORT_FAIL_TEXT" = "فشلت عملية حفظ النسخة الاحتياطية. يرجى التأكد من أن نسختك الاحتياطية سليمة.";
+"IMPORT_FAIL" = "فشل الاستيراد";
+"BACKUP_IMPORT_FAIL_TEXT" = "فشل حفظ النسخة الاحتياطية. يرجى التأكد من أن نسختك الاحتياطية بالتنسيق الصحيح.";
 "EXPORT" = "تصدير";
 "RESTORE" = "استعادة";
 "ADVANCED" = "متقدم";
@@ -137,7 +137,7 @@
 
 // Downloads
 "DOWNLOAD" = "تحميل";
-"DOWNLOADED" = "التنزيلات";
+"DOWNLOADED" = "تم التنزيل";
 "CLEAR" = "مسح";
 "CANCEL_DOWNLOAD" = "إلغاء التنزيل";
 "REMOVE_ALL_DOWNLOADS" = "حذف جميع التحميلات";
@@ -148,18 +148,18 @@
 "ALL" = "الكل";
 "NONE" = "لا شيء";
 "CATEGORY_ADD" = "إضافة تصنيف";
-"CATEGORY_ADD_TEXT" = "أدخل عنوان التصنيف الجديد التي تريد إنشائه.";
+"CATEGORY_ADD_TEXT" = "أدخل اسم الفئة الجديدة التي تريد إنشاءها.";
 "DEFAULT_CATEGORY" = "التصنيف الافتراضي";
 "ALWAYS_ASK" = "اسأل دائماً";
 "LANGUAGES" = "اللغات";
-"BUILD" = "بناء";
+"BUILD" = "رقم البناء";
 "STATUS_CANCELLED" = "مُلغى";
 "SELECT_CHAPTERS" = "اختر فصول";
 "SELECT_ALL" = "تحديد الكل";
 
 // History
-"HISTORY" = "التاريخ";
-"VIEW_HISTORY" = "عرض التاريخ";
+"HISTORY" = "سجل القراءة";
+"VIEW_HISTORY" = "عرض سجل القراءة";
 "INCOGNITO_MODE" = "وضع التصفح الخفي";
 "RESET_SETTINGS" = "إعادة تعيين الإعدادات";
 "CATEGORY_EMPTY" = "التصنيف فارغ";
@@ -167,17 +167,17 @@
 "FILTER_BY" = "تصفية حسب";
 "CATEGORIES" = "التصنيفات";
 "EDIT_CATEGORIES" = "تحرير الفئات";
-"INCOGNITO_MODE_TEXT" = "يوقف تاريخ القراءة مؤقتاً عند تفعيله";
+"INCOGNITO_MODE_TEXT" = "يوقف تسجيل سجل القراءة مؤقتًا عند تفعيله";
 "DESELECT_ALL" = "إلغاء تحديد الكل";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "سيؤدي هذا إلى إزالة تاريخ القراءة لهذا الفصل. هل أنت متأكد من أنك تريد المتابعة؟";
-"DOWNLOAD_QUEUE" = "قائمة الانتظار";
+"DOWNLOAD_QUEUE" = "قائمة انتظار التنزيلات";
 "CHAPTERS" = "فصول";
-"VOL_X" = "المجلد ‮‭%g";
-"VOLUME_X" = "مجلد ‭%g";
-"CHAPTER_X" = "فصل ‭%g";
-"CH_X" = "الفصل ‭%g";
-"VOL_SPACE_X" = "المجلد. ‭%g";
-"CH_SPACE_X" = "الفصل. ‭%g";
+"VOL_X" = "المجلد %g";
+"VOLUME_X" = "المجلد %g";
+"CHAPTER_X" = "الفصل %g";
+"CH_X" = "الفصل %g";
+"VOL_SPACE_X" = "المجلد %g";
+"CH_SPACE_X" = "الفصل %g";
 "MARK" = "تمييز كـ";
 "PREVIOUS_COLON" = "السابق:";
 "NEXT_COLON" = "التالي:";
@@ -185,18 +185,18 @@
 "NO_PREVIOUS_CHAPTER" = "لا يوجد فصل سابق";
 "FINISHED_COLON" = "انتهيت من قراءة:";
 "NO_NEXT_CHAPTER" = "لا يوجد فصل تالٍ";
-"%@_AGO" = "منذ ‭%@";
-"PAGE_X" = "الصفحة ‭%i";
-"REMOVE_ALL_MANGA_HISTORY" = "إزالة كل تاريخ قراءة المانجا";
+"%@_AGO" = "منذ %@";
+"PAGE_X" = "الصفحة %i";
+"REMOVE_ALL_MANGA_HISTORY" = "حذف سجل القراءة بالكامل لهذه المانجا";
 "AUTH_FOR_HISTORY" = "قم بالمصادقة لعرض تاريخ القراءة.";
-"HISTORY_LOCKED" = "التاريخ مقفل.";
+"HISTORY_LOCKED" = "سجل القراءة مقفل.";
 "AUTH_TO_ENABLE" = "قم بالمصادقة للتمكين.";
 "AUTH_TO_DISABLE" = "قم بالمصادقة للتعطيل.";
 "LIBRARY_UPDATING" = "تحديث المكتبة";
 "UPDATE_INTERVAL" = "الفاصل الزمني للتحديث";
 "SKIP_TITLES" = "تخطي العناوين";
 "ONLY_UPDATE_ON_WIFI" = "التحديث فقط من خلال شبكة الواي فاي";
-"EXCLUDED_CATEGORIES" = "التصنيفات المستثناه";
+"EXCLUDED_CATEGORIES" = "الفئات المستثناة";
 "REFRESH_METADATA" = "تحديث البيانات الوصفية";
 "NEVER" = "أبداً";
 "DAILY" = "يومياً";
@@ -205,7 +205,7 @@
 "WEEKLY" = "أسبوعياً";
 "WITH_UNREAD_CHAPTERS" = "مع فصول غير مقروءة";
 "WITH_COMPLETED_STATUS" = "مع الحالة \"مكتمل\"";
-"THAT_HAVENT_BEEN_READ" = "التي لم تتم قراءتها بعد";
+"THAT_HAVENT_BEEN_READ" = "التي لا تحتوي على فصول معلّمة كمقروءة";
 "SOURCE_LIST_URL" = "عنوان URL لقائمة المصادر";
 "SOURCE_LIST_ADD_TEXT" = "أدخل عنوان URL لقائمة المصادر";
 "SOURCE_LIST_ADD" = "أضف قائمة مصادر";
@@ -215,12 +215,12 @@
 "MISSING_SOURCES" = "مصادر مفقودة";
 "MISSING_SOURCES_TEXT" = "قد تحتوي النسخة الاحتياطية المستعادة على بيانات من المصادر التالية، والتي لم يتم تثبيتها حاليًا:";
 "LOGS" = "السجلات";
-"LOGGING" = "تقييد السجلات";
+"LOGGING" = "تسجيل الأحداث";
 "LOG_SERVER" = "خادم السجل";
 "EXPORT_LOGS" = "تصدير السجلات";
 "DISPLAY_LOGS" = "عرض السجلات";
 "RESET_SETTINGS_TEXT" = "هذا الإجراء لا رجعة فيه. ستتم إعادة تعيين جميع إعدادات التطبيق والمصدر.";
-"PAGE_X_OF_X" = "صفحة ‪‪‎%i من ‎%i";
+"PAGE_X_OF_X" = "الصفحة %i من %i";
 "AUTH_TO_OPEN" = "قم بالمصادقة للفتح.";
 "LOCKED_CATEGORIES" = "التصنيفات المقفلة";
 "AUTH_FOR_LIBRARY" = "قم بالمصادقة لعرض المكتبة.";
@@ -236,21 +236,21 @@
 "PAGE_LAYOUT" = "تخطيط الصفحة";
 "DOUBLE_PAGE" = "صفحة مزدوجة";
 "MULTI_LANGUAGE" = "متعدد اللغات";
-"PAGED" = "الصفحة";
+"PAGED" = "عرض بالصفحات";
 "LOGOUT" = "تسجيل الخروج";
 "LOGOUT_FROM_%@" = "تسجيل الخروج من %@؟";
-"VOLUMES" = "العدد";
-"STARTED" = "بدأتْ";
+"VOLUMES" = "مجلدات";
+"STARTED" = "تاريخ بدء القراءة";
 "STATUS" = "الحالة";
 "TRACK_REREADING" = "إعادة القراءة";
 "SCORE" = "التقييم";
 "TRACK_PAUSED" = "متوقف مؤقتا";
 "TRACK_DROPPED" = "متروك";
-"START_TRACKING" = "بدأ التتبع";
+"START_TRACKING" = "بدء التتبع";
 "STOP_TRACKING" = "إيقاف التتبع";
-"FINISHED" = "منتهي";
-"TRACK_READING" = "قراءة";
-"TRACK_PLANNING" = "تخطيط";
+"FINISHED" = "تاريخ انتهاء القراءة";
+"TRACK_READING" = "قيد القراءة";
+"TRACK_PLANNING" = "مخطط لقراءته";
 "TRACKERS" = "المتتبعات";
 "ONESHOT" = "ون شوت / عدد فردي";
 "STATUS_NOT_PUBLISHED" = "لم تنشر بعد";
@@ -259,12 +259,12 @@
 "MANHUA" = "مانها";
 "LIGHT_NOVEL" = "رواية خفيفة";
 "STATUS_COLON_%@" = "الحالة: %@";
-"TRACK" = "متتبع";
+"TRACK" = "تتبع";
 "TYPE_COLON_%@" = "النوع: %@";
 "VIEW_ON_WEBSITE" = "عرض على الموقع";
-"CLEAR_TRACKED_MANGA" = "مسح المانجا المتتبعة";
-"CLEAR_TRACKED_MANGA_TEXT" = "هذا الإجراء لا رجعة فيه. ستتم إزالة التتبع لجميع أدوات التتبع المضافة إلى المانجا.";
-"REMOVE_ALL_DOWNLOADS_CONFIRM" = "هل أنت متأكد ترغب في حذف جميع التحميلات؟";
+"CLEAR_TRACKED_MANGA" = "مسح روابط تتبع المانجا";
+"CLEAR_TRACKED_MANGA_TEXT" = "هذا الإجراء لا رجعة فيه. ستتم إزالة جميع روابط خدمات التتبع المضافة إلى المانجا.";
+"REMOVE_ALL_DOWNLOADS_CONFIRM" = "هل أنت متأكد أنك تريد حذف جميع التنزيلات؟";
 "CACHE_SIZE_%@" = "حجم ذاكرة التخزين المؤقت: %@";
 "SUPPORT_VIA_KOFI" = "الدعم عبر كوفاي";
 "SORT_UNREAD_CHAPTERS" = "فصول غير مقروءة";
@@ -286,14 +286,14 @@
 "RENAME_CATEGORY_INFO" = "أدخل اسمًا جديدًا لهذه الفئة.";
 "RENAME_CATEGORY_FAIL" = "فشلت إعادة تسمية الفئة";
 "RENAME_CATEGORY" = "إعادة تسمية الفئة";
-"%i_CHAPTERS" = "%i فصل";
+"%i_CHAPTERS" = "%i فصلًا";
 "FAILED_CHAPTER_LOAD_INFO" = "قد لا تكون متصلًا بالإنترنت أو قد يكون المصدر يواجه بعض المشاكل.";
 "%i_PAGES_LEFT" = "%i صفحات متبقية";
 "ONE_PAGE_LEFT" = "صفحة واحدة متبقية";
 "SORT_LAST_UPDATED" = "آخر التحديثات";
 "SORT_TOTAL_CHAPTERS" = "إجمالي الفصول";
 "WEBTOON" = "ويبتون";
-"SYNC_LOCAL_HISTORY" = "مزامنة التاريخ المحلي";
+"SYNC_LOCAL_HISTORY" = "مزامنة سجل القراءة المحلي";
 "MIGRATE" = "ترحيل";
 "AVAILABLE" = "متاح";
 "FIRST_ALTERNATIVE" = "البديل الأول";
@@ -302,64 +302,64 @@
 "UPCOMING" = "قادم";
 "REMOVE_FROM_CATEGORY" = "أزل من الفئة";
 "FAILED_CHAPTER_LOAD" = "فشل تحميل الفصل";
-"MOST_CHAPTERS_SLOWER" = "معظم الفصول (أبطأ)";
+"MOST_CHAPTERS_SLOWER" = "أكبر عدد من الفصول (أبطأ)";
 "RENAME_CATEGORY_FAIL_INFO" = "يجب أن يكون اسم الفئة فريدًا.";
 "ALL_CHAPTERS_READ" = "جميع الفصول مقروءة";
-"IS_TRACKING" = "تتبع";
+"IS_TRACKING" = "قيد التتبع";
 "DEFAULT_READING_MODE" = "وضع القراءة الافتراضي";
-"PILLARBOX" = "عمود";
+"PILLARBOX" = "هوامش جانبية";
 "BOTH" = "كلاهما";
-"PILLARBOX_AMOUNT" = "عدد الأعمدة";
-"PILLARBOX_ORIENTATION" = "إتجاه الأعمدة";
-"PILLARBOX_ORIENTATION_INFO" = "إتجاه العمود يحدد الإتجاهات التي ينبغي تمكين التوجيه بها.";
+"PILLARBOX_AMOUNT" = "عرض الهوامش الجانبية";
+"PILLARBOX_ORIENTATION" = "اتجاه الشاشة للهوامش";
+"PILLARBOX_ORIENTATION_INFO" = "اختر اتجاهات الشاشة التي تظهر فيها الهوامش الجانبية.";
 "COPY" = "نسخ";
 "COVER" = "غلاف";
 "REORDER" = "إعادة الترتيب";
 "PIN" = "ثبت";
-"UNPIN" = "إزالة التثبيت";
+"UNPIN" = "إلغاء التثبيت في الأعلى";
 "CROP_BORDERS" = "اقتصاص الحدود";
-"SKIPPING_CHAPTERS" = "تخطي فصول %i، إما أن المصدر مفقود أو تمت تصفيته";
-"RESUME" = "إستئناف";
-"NO_WIFI_ALERT_TITLE" = "لا يوجد شبكة اتصال";
+"SKIPPING_CHAPTERS" = "يجري تخطي %i فصلًا لأنها غير موجودة في المصدر أو استُبعدت بالتصفية";
+"RESUME" = "استئناف";
+"NO_WIFI_ALERT_TITLE" = "لا يوجد اتصال Wi-Fi";
 "NO_WIFI_ALERT_MESSAGE" = "يجب أن تكون متصل بشبكة Wi-Fi لتنزيل هذا المحتوى. يُرجى الاتصال بشبكة Wi-Fi والمحاولة مرة أخرى.";
 "MANGA_UPDATES" = "تحديثات المانجا";
 "NO_UPDATES" = "لا يوجد تحديثات";
-"PAUSE" = "إيقاف";
+"PAUSE" = "إيقاف مؤقت";
 "WARNING" = "تحذير";
 "DOWNLOAD_ANYWAY_MESSAGE" = "أنت غير متصل بشبكة Wi-Fi حاليًا. متابعة التنزيل على أي حال؟";
 "DELETE_DOWNLOAD_AFTER_READING" = "حذف التنزيل بعد القراءة";
-"ONLY_DOWNLOAD_ON_WIFI" = "التنزيل فقط عبر شبكة الWiFi";
+"ONLY_DOWNLOAD_ON_WIFI" = "التنزيل عبر Wi-Fi فقط";
 "READER_BG_COLOR" = "لون الخلفية";
 "READER_BG_COLOR_SYSTEM" = "النظام";
 "READER_BG_COLOR_WHITE" = "ابيض";
 "READER_BG_COLOR_BLACK" = "اسود";
-"SCANLATOR" = "الماسح و المترجم";
+"SCANLATOR" = "فريق الترجمة";
 "BACKUP_ERROR_TEXT" = "حدث خطأ أثناء الاستعادة: %@. قد تكون النسخة الاحتياطية غير صالحة.";
 "BACKUP_ERROR" = "خطأ في استعادة النسخة الاحتياطية";
-"NO_SCANLATOR" = "لا يوجد ماسح مترجم";
+"NO_SCANLATOR" = "لا يوجد فريق ترجمة";
 "%lld_PLUS_MORE" = "+%lld المزيد";
 "ENABLE_PERMISSION" = "تفعيل الصلاحيات";
-"PHOTOS_ACCESS_DENIED_TEXT" = "تم رفض الوصول مسبقًا. يجب السماح لـ Aidoku بالوصول إلى الوسائط لحفظ الصور في البوم الكاميرا الخاص بك. يمكنك تمكين الوصول من إعدادات الخصوصية.";
+"PHOTOS_ACCESS_DENIED_TEXT" = "تم رفض الوصول سابقًا. يرجى السماح لـ Aidoku بالوصول إلى الصور لحفظ الصور في مكتبة الصور. يمكنك تمكين الوصول من إعدادات الخصوصية.";
 "CLEAR_EXCLUDING_LIBRARY" = "مسح سجل القراءة باستثناء المكتبة";
-"CLEAR_EXCLUDING_LIBRARY_TEXT" = "هذا الإجراء لا رجعة فيه. سيتم حذف جميع سجلات القراءة، باستثناء المكتبة.";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "إزالة %i عناصر من الفئة %@";
+"CLEAR_EXCLUDING_LIBRARY_TEXT" = "هذا الإجراء لا رجعة فيه. سيُحذف سجل قراءة جميع العناوين غير الموجودة في المكتبة.";
+"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "إزالة %i عنصرًا من الفئة %@";
 "OPEN_WEBSITE" = "افتح الموقع";
-"FOLLOW_DEVICE" = "متابعة الجهاز";
+"FOLLOW_DEVICE" = "اتباع اتجاه الجهاز";
 "MARK_DUPLICATE_CHAPTERS" = "وضع علامة على الفصول المكررة كمقروءة";
-"READER_ORIENTATION" = "توجيه";
+"READER_ORIENTATION" = "اتجاه الشاشة";
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "إزالة العنصر من الفئة %@";
 "DONE" = "تمّ";
 "INVALID" = "غير صالح";
 "CONTENT" = "محتوى";
 "%@_EXPERIMENTAL" = "%@ (تجريبي)";
 "REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "حذف عنصر من المكتبة";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "إزالة عناصر %i من المكتبة";
+"REMOVING_%i_ITEMS_FROM_LIBRARY" = "إزالة %i عنصرًا من المكتبة";
 "BROWSE_NO_SOURCES_TEXT_NEW" = "أضف مصدرًا باستخدام زر الاضافة.";
 "BASE_URL" = "عنوان URL الأساسي";
 "SEE_ALL" = "عرض الكل";
 "HOME" = "الرئيسية";
-"FILTERS" = "التصفيات";
-"APPLY" = "تقديم";
+"FILTERS" = "عوامل التصفية";
+"APPLY" = "تطبيق";
 "SOURCE_SETTINGS" = "إعدادات المصدر";
 "RESET_SETTINGS_CONFIRM_%@" = "هل أنت متأكد أنك تريد إعادة ضبط كافة الإعدادات لـ %@؟";
 "CANCEL_CONFIRM" = "هل أنت متأكد من أنك تريد الإلغاء؟";
@@ -385,19 +385,19 @@
 "NO_AVAILABLE_SOURCES_INFO" = "قم بتعديل المرشحات لعرض المزيد من المصادر الخارجية.";
 "ALL_SOURCES_INSTALLED" = "تم تثبيت جميع المصادر";
 "ALL_SOURCES_INSTALLED_INFO" = "لا توجد مصادر خارجية متبقية للتثبيت.";
-"LOCAL_FILES_INFO" = "يتيح لك المصدر المحلي رفع وإدارة مكتبتك الخاصة للقراءة مباشرة داخل Aidoku.";
+"LOCAL_FILES_INFO" = "يتيح لك مصدر الملفات المحلية استيراد مكتبة القراءة الخاصة بك وإدارتها مباشرة داخل Aidoku.";
 "LOCAL_FILES_SETUP" = "إعداد المصدر المحلي";
 "LOCAL_FILES" = "الملفات المحلية";
 "LOCAL_FILES_TAGLINE" = "قم بالقراءة من الملفات المحلية";
 "IMPORT" = "استيراد";
 "IMPORT_FILE" = "استيراد ملف";
-"NO_DOWNLOADS" = "لايوجد تحميلات";
+"NO_DOWNLOADS" = "لا توجد تنزيلات";
 "NO_DOWNLOADS_TEXT" = "المحتوى الذي تم تنزيله سيظهر هنا";
-"DOWNLOADED_CHAPTERS" = "الأجزاء المحملة";
-"TOTAL_DOWNLOADS" = "إجمالي التنزيلات";
+"DOWNLOADED_CHAPTERS" = "الفصول المنزّلة";
+"TOTAL_DOWNLOADS" = "إجمالي حجم التنزيلات";
 "IN_LIBRARY" = "في المكتبة";
-"VIEW_SERIES" = "عرض المسلسل";
-"%i_SERIES" = "سلسلة %i";
+"VIEW_SERIES" = "عرض السلسلة";
+"%i_SERIES" = "%i سلسلة";
 "REFRESHING_LIBRARY" = "جاري تحديث المكتبة…";
 "CONTENT_RATING" = "تقييم المحتوى";
 "SAFE" = "آمن";
@@ -408,11 +408,11 @@
 
 "TRANSLATION_TRANSLATE" = "ترجمة الصفحات المرئية";
 
-"TRANSLATION_RECOGNIZE" = "التعرف على النص (غير متصل)";
+"TRANSLATION_RECOGNIZE" = "التعرف على النص (دون اتصال)";
 
 "TRANSLATION_ORIGINAL" = "عرض الأصل";
 
-"TRANSLATION_TEXT" = "النص المعترف به والمترجم";
+"TRANSLATION_TEXT" = "النص المتعرّف عليه والمترجم";
 
 "TRANSLATION_NO_IMAGE" = "انتظر حتى يتم تحميل صفحة الصورة، ثم حاول مرة أخرى.";
 
@@ -420,11 +420,11 @@
 
 "TRANSLATION_WORKING" = "التعرف والترجمة...";
 
-"TRANSLATION_OCR_WORKING" = "جارٍ التعرف على النص الموجود على الجهاز...";
+"TRANSLATION_OCR_WORKING" = "جارٍ التعرف على النص محليًا على الجهاز…";
 
-"TRANSLATION_HELP" = "يقوم رمز الترجمة بتشغيل الترجمة أو إيقاف تشغيلها. يتم إعداد الصفحات بهذا الترتيب: الحالية، التالية، السابقة، اثنتان للأمام، اثنتان خلف، والاستمرار في طرفي الفصل. تتم إعادة استخدام تقنية التعرف الضوئي على الحروف (OCR) المكتملة والترجمات وتخطيط النص بعد إغلاق القارئ أو إعادة تشغيل التطبيق. ترك القارئ يلغي العمل غير المكتمل.";
+"TRANSLATION_HELP" = "يشغّل رمز الترجمة الترجمة أو يوقفها. تُجهّز الصفحات المرئية أولًا، ثم الصفحات القريبة، وتتبع عملية التجهيز موضع قراءتك. يمكن إعادة استخدام نتائج OCR والترجمات وتخطيط النص المحفوظة بعد إعادة فتح القارئ أو تشغيل التطبيق. لا تحفظ الصور المشتركة المؤقتة هذه الذاكرة المؤقتة. يؤدي الخروج من القارئ إلى إلغاء العمل غير المكتمل.";
 
-"TRANSLATION_PRIVACY" = "يعمل التعرف الضوئي على الحروف (OCR) على جهازك. تقوم الترجمة بإرسال النص الذي تم التعرف عليه والتعليمات الخاصة بك إلى المزود المحدد. إذا تم تمكين تضمين صورة الصفحة في الترجمة، فسيتم أيضًا تحميل صورة الصفحة الأصلية. تعتمد رسوم واجهة برمجة التطبيقات (API) على مزود الخدمة الخاص بك. تبقى المفاتيح في سلسلة المفاتيح. يتم حفظ التعرف الضوئي على الحروف والترجمات وتخطيط النص في مساحة تخزين التطبيقات المحمية المستبعدة من النسخ الاحتياطية.";
+"TRANSLATION_PRIVACY" = "يعمل التعرف الضوئي على الحروف (OCR) على جهازك. تقوم الترجمة بإرسال النص الذي تم التعرف عليه والتعليمات الخاصة بك إلى المزود المحدد. إذا تم تمكين تضمين صورة الصفحة في الترجمة، فسيتم أيضًا رفع صورة الصفحة الأصلية. تعتمد رسوم واجهة برمجة التطبيقات (API) على مزود الخدمة الخاص بك. تبقى المفاتيح في سلسلة المفاتيح. يتم حفظ التعرف الضوئي على الحروف والترجمات وتخطيط النص في مساحة تخزين التطبيقات المحمية المستبعدة من النسخ الاحتياطية.";
 
 "TRANSLATION_KEY_REPLACE" = "استبدال مفتاح API المحفوظ (اختياري)";
 
@@ -446,7 +446,7 @@
 
 "TRANSLATION_AUTO" = "كشف تلقائيا";
 
-"TRANSLATION_OCR_HELP" = "يتطلب PP-OCRv6 نظام التشغيل iOS 18 أو إصدارًا أحدث. الوسيط هو الإعداد الافتراضي؛ صغير يستخدم ذاكرة أقل. يحتوي Tiny على قاموس أحرف أصغر. هذه الطرازات لا تدعم تقنية التعرف الضوئي على الحروف (OCR) الكورية. ويدعم إخراج الترجمة الكورية.";
+"TRANSLATION_OCR_HELP" = "يتطلب PP-OCRv6 نظام iOS 18 أو أحدث. النموذج الافتراضي هو «متوسط». يستخدم «صغير» ذاكرة أقل، ويحتوي «صغير جدًا» على قاموس أحرف أصغر. لا تدعم هذه النماذج التعرف على النص الكوري. الترجمة إلى الكورية مدعومة.";
 
 "TRANSLATION_INSTRUCTIONS" = "تعليمات الترجمة";
 
@@ -456,47 +456,47 @@
 
 "TRANSLATION_CACHE_CLEARED" = "تم مسح ذاكرة التخزين المؤقت للترجمة.";
 
-"TRANSLATION_NOTICES" = "التعرف الضوئي على الحروف وتراخيص الترجمة";
+"TRANSLATION_NOTICES" = "تراخيص التعرف الضوئي على الحروف والترجمة";
 
 "TRANSLATION_ADVANCED" = "خيارات الترجمة";
 
-"TRANSLATION_REASONING" = "جهد المنطق";
+"TRANSLATION_REASONING" = "مستوى الاستدلال";
 
-"TRANSLATION_MODEL_DEFAULT" = "النموذج الافتراضي";
+"TRANSLATION_MODEL_DEFAULT" = "الإعداد الافتراضي للنموذج";
 
 "TRANSLATION_CONCURRENCY" = "الطلبات المتزامنة";
 
-"TRANSLATION_DETECTOR_SIZE" = "كاشف الجانب الأقصى";
+"TRANSLATION_DETECTOR_SIZE" = "الحد الأقصى لطول ضلع صورة الكشف";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "أقصى عرض لأداة التعرف";
+"TRANSLATION_RECOGNIZER_SIZE" = "الحد الأقصى لعرض صورة التعرف";
 
-"TRANSLATION_CONFIDENCE" = "ثقة التعرف الضوئي على الحروف";
+"TRANSLATION_CONFIDENCE" = "الحد الأدنى لثقة OCR";
 
 "TRANSLATION_SURFACE" = "لون الخلفية";
 
 "TRANSLATION_WHITE" = "أبيض";
 
-"TRANSLATION_DARK" = "الظلام";
+"TRANSLATION_DARK" = "داكن";
 
 "TRANSLATION_OPACITY" = "عتامة الخلفية";
 
-"TRANSLATION_EXPANSION" = "توسيع الصندوق";
+"TRANSLATION_EXPANSION" = "توسيع إطار النص";
 
-"TRANSLATION_PANEL_BOUNDS" = "ضمن لوحة الصور";
+"TRANSLATION_PANEL_BOUNDS" = "ضمن حدود الصورة";
 
-"TRANSLATION_SOURCE_BOUNDS" = "داخل الصندوق الأصلي";
+"TRANSLATION_SOURCE_BOUNDS" = "داخل إطار النص الأصلي";
 
 "TRANSLATION_UNRESTRICTED" = "غير مقيد";
 
 "TRANSLATION_FONT_SIZE" = "حجم الخط";
 
-"TRANSLATION_AUTO_FIT" = "تناسب تلقائيا";
+"TRANSLATION_AUTO_FIT" = "ملاءمة تلقائية";
 
 "TRANSLATION_FIXED" = "حجم الخط ثابت";
 
 "TRANSLATION_OVERLAY" = "تراكب الترجمة";
 
-"TRANSLATION_OVERLAY_HELP" = "يستبدل النص الموجود في المربع المصدر الخاص به باستخدام تخطيط مدرك للتصادم والتفاف خاص بالبرنامج النصي. تعمل تغييرات العرض على إعادة استخدام تقنية التعرف الضوئي على الحروف (OCR) الموجودة.";
+"TRANSLATION_OVERLAY_HELP" = "يستبدل النص داخل إطاره الأصلي بتخطيط يتجنب التداخل ويلف الأسطر بما يناسب نظام الكتابة. تعيد تغييرات العرض استخدام نتائج التعرف الضوئي على الحروف الحالية.";
 
 "TRANSLATION_PROVIDER" = "مزود الترجمة";
 
@@ -504,11 +504,11 @@
 
 "TRANSLATION_API_FORMAT" = "تنسيق واجهة برمجة التطبيقات";
 
-"TRANSLATION_CUSTOM_HELP" = "أدخل عنوان URL الأساسي لـ HTTPS أو نقطة نهاية API كاملة ونموذجًا يدعمه خادمك. يحتوي كل عنوان URL للخادم على مفتاح محفوظ خاص به؛ يؤدي تغيير عنوان URL إلى مسح أي مفتاح تدخله. تستخدم الردود وإكمالات الدردشة مخرجات JSON المنظمة.";
+"TRANSLATION_CUSTOM_HELP" = "أدخل عنوان URL الأساسي لـ HTTPS أو نقطة نهاية API كاملة ونموذجًا يدعمه خادمك. يحتوي كل عنوان URL للخادم على مفتاح محفوظ خاص به؛ يؤدي تغيير عنوان URL إلى مسح أي مفتاح تدخله. تستخدم Responses وChat Completions مخرجات JSON المنظمة.";
 
-"TRANSLATION_AUTOMATIC" = "الترجمة الآلية";
+"TRANSLATION_AUTOMATIC" = "الترجمة التلقائية";
 
-"TRANSLATION_AUTOMATIC_HELP" = "تحقق من إعدادات واجهة برمجة التطبيقات المحفوظة مرة واحدة في الخلفية عند فتح التطبيق أو تغيير إعدادات واجهة برمجة التطبيقات. تبدأ الترجمة بعد النجاح. يؤدي التحقق الفاشل إلى إيقاف الترجمة مؤقتًا دون تغيير تفضيلات الترجمة التلقائية. أعد فتح التطبيق أو اختبر اتصال واجهة برمجة التطبيقات (API) مرة أخرى لإعادة المحاولة. تغييرات الصفحة وتشغيل/إيقاف إعادة استخدام نتيجة الاختيار. يستخدم جهد التفكير الإعداد المحفوظ الخاص بك.";
+"TRANSLATION_AUTOMATIC_HELP" = "يترجم صفحات القارئ تلقائيًا باستخدام إعدادات API ومستوى الاستدلال المحفوظين. لا يُجرى اختبار اتصال منفصل قبل بدء الترجمة. فشل الترجمة لا يعطّل هذا الإعداد. استخدم «اختبار اتصال API» للتحقق من إعداداتك يدويًا.";
 
 "TRANSLATION_TEST" = "اختبار اتصال API";
 
@@ -526,35 +526,35 @@
 
 "TRANSLATION_CACHE_LIMIT" = "الحد الأقصى للتخزين";
 
-"TRANSLATION_CACHE_USED" = "التخزين المستخدمة";
+"TRANSLATION_CACHE_USED" = "مساحة التخزين المستخدمة";
 
-"TRANSLATION_CACHE_HELP" = "احفظ التعرف الضوئي على الحروف وترجمات الصفحات وترجمات المانجا وعناوين الفصول وأوصاف المانجا وتخطيط النص تلقائيًا. تبقى صور الصفحة في ذاكرة الصفحة القريبة فقط. تتم إزالة النتائج الأقل استخدامًا مؤخرًا عند الوصول إلى الحد المحدد. الافتراضي: 1 جيجا بايت. الحد الأقصى: 100 جيجابايت. يتم تطبيق التغييرات تلقائيًا؛ يؤدي خفض الحد إلى إزالة النتائج الأقل استخدامًا مؤخرًا حتى يتم احتواء ذاكرة التخزين المؤقت.";
+"TRANSLATION_CACHE_HELP" = "يحفظ تلقائيًا نتائج OCR وترجمات الصفحات وعناوين المانجا والفصول وأوصاف المانجا وتخطيط النص. تبقى صور الصفحة الحالية والصفحات القريبة في الذاكرة فقط. عند بلوغ الحد المحدد، تُحذف النتائج التي مضى أطول وقت على آخر استخدام لها. الافتراضي: 1 جيجابايت. الحد الأقصى: 100 جيجابايت. تُطبق التغييرات تلقائيًا؛ عند خفض الحد، تُحذف النتائج بدءًا من الأقدم استخدامًا حتى تصبح الذاكرة المؤقتة ضمن الحد.";
 
-"TRANSLATION_SOURCE_FILTER" = "تصفية مصدر الترجمة";
+"TRANSLATION_SOURCE_FILTER" = "تصفية لغات النص الأصلي";
 
 "TRANSLATION_FILTER_ALL" = "جميع اللغات المكتشفة";
 
-"TRANSLATION_FILTER_HELP" = "حدد اللغات الأصلية للترجمة. يبقى النص غير المحدد أو غير المؤكد دون تغيير. اختر كافة اللغات المكتشفة لإزالة عامل التصفية.";
+"TRANSLATION_FILTER_HELP" = "حدد لغات النص الأصلي التي تريد ترجمتها. يبقى النص بلغة غير محددة أو غير مؤكدة دون تغيير. اختر جميع اللغات المكتشفة لإزالة عامل التصفية.";
 
-"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "تتم ترجمة النص المحدد على أنه اللغة الأصلية المحددة فقط. تظل اللغات التي لم يتم اكتشافها على الجهاز بدون تصفية.";
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "يُترجم فقط النص الذي يُتعرّف عليه بوصفه باللغة الأصلية المحددة. لا تُطبّق التصفية على اللغات التي لا يدعم الجهاز اكتشافها محليًا.";
 
 "HTTPS_BYPASS" = "تجاوز حظر HTTPS";
 
 "HTTPS_BYPASS_HELP" = "استخدم تجزئة TLS ونظام DNS المشفر (Cloudflare) لطلبات المصدر والصور والتنزيلات وطرق عرض الويب المصدر. ينطبق على الاتصالات الجديدة. لا يتم تجاوز حجب IP والقيود التي يفرضها الموقع.";
 
-"HTTPS_BYPASS_TEST" = "اتصال الاختبار";
+"HTTPS_BYPASS_TEST" = "اختبار الاتصال";
 
-"HTTPS_BYPASS_TEST_HELP" = "يختبر عنوان HTTPS هذا من خلال التجاوز، حتى عندما يكون المفتاح في وضع إيقاف التشغيل. تؤكد الاستجابة الاتصال، وليس وجود كتلة ISP.";
+"HTTPS_BYPASS_TEST_HELP" = "يختبر عنوان HTTPS هذا عبر مسار التجاوز حتى عند إيقاف الخيار. تؤكد الاستجابة نجاح الاتصال فقط، ولا تثبت وجود حظر من مزود خدمة الإنترنت.";
 
 "HTTPS_BYPASS_INVALID_URL" = "أدخل عنوان URL HTTPS بدون اسم مستخدم أو كلمة مرور.";
 
-"HTTPS_BYPASS_TEST_RESULT" = "تلقى HTTP %d · تم تطبيق تجزئة TLS";
+"HTTPS_BYPASS_TEST_RESULT" = "تم استلام HTTP %d · تم تطبيق تجزئة TLS";
 
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "تم استلام HTTP %d · لم يتم تأكيد تجزئة TLS";
 
 "HTTPS_BYPASS_TEST_FAILED" = "تعذر الاتصال عبر تجاوز HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "فشلت الترجمة. إظهار نص التعرف الضوئي على الحروف. يرجى التحقق من الاتصال الخاص بك.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "فشلت الترجمة. يُعرض نص OCR حاليًا. يرجى التحقق من الاتصال.";
 
 "TRANSLATION_MANGA_TITLES" = "ترجمة عناوين المانجا";
 
@@ -568,19 +568,19 @@
 
 "TRANSLATION_PAGE_SOURCE" = "لغة مصدر الصفحة";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "اكتشاف اللغة المصدر لكل عنوان تلقائيًا وترجمة اللغات المحددة فقط. جميع اللغات تزيل قيود اللغة. لا تؤثر الصفحة وإعدادات لغة مصدر العنوان الأخرى على هذا التحديد.";
+"TRANSLATION_TITLE_FILTER_HELP" = "يكتشف لغة كل عنوان تلقائيًا ويترجم العناوين باللغات المحددة فقط. يزيل خيار جميع اللغات المكتشفة قيد اللغة. لا تؤثر إعدادات لغة الصفحات أو أنواع العناوين الأخرى في هذا الاختيار.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "ترجمة أوصاف المانجا";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "لغات وصف المانجا";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "اكتشاف اللغة المصدر تلقائيًا وترجمة اللغات المحددة فقط. جميع اللغات تزيل القيد. تعمل مرشحات الصفحة وعنوان المانجا وعنوان الفصل والوصف بشكل مستقل.";
+"TRANSLATION_METADATA_FILTER_HELP" = "يكتشف لغة النص الأصلي تلقائيًا ويترجم اللغات المحددة فقط. يزيل خيار جميع اللغات المكتشفة هذا القيد. تعمل عوامل تصفية الصفحات وعناوين المانجا وعناوين الفصول والأوصاف بشكل مستقل.";
 
 "TRANSLATION_SFX_FILTER" = "تصفية المؤثرات الصوتية (باللغة اليابانية فقط)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "اترك المؤثرات الصوتية اليابانية المحتملة غير مترجمة. استخدم القاموس المحلي وفحوصات التخطيط المحافظة. النص الذي لا يمكن تعريفه بثقة على أنه تأثير صوتي يظل مترجمًا.";
+"TRANSLATION_SFX_FILTER_HELP" = "يترك النص الذي يُرجح أنه مؤثر صوتي ياباني دون ترجمة، باستخدام قاموس محلي وفحوصات حذرة للتخطيط. يظل النص الذي لا يمكن تحديده بثقة كمؤثر صوتي خاضعًا للترجمة.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "تضمين الإدخالات المطلوبة للسياق (باللغة اليابانية فقط)";
+"TRANSLATION_SFX_CONTEXT_FILTER" = "تضمين الإدخالات التي تتطلب سياقًا (اليابانية فقط)";
 
 "TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "ينطبق أثناء تمكين تصفية المؤثرات الصوتية. يقوم أيضًا بتصفية الإدخالات التي تم وضع علامة عليها على أنها تتطلب سياقًا باستخدام مطابقات القاموس وحجم النص والتخطيط القريب. لا يوجد LLM يقوم بتحليل السياق، لذلك يمكن أيضًا استبعاد الحوار.";
 
@@ -590,25 +590,25 @@
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "الحفاظ على لون النص الأصلي";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "تقدير لون النص الأصلي بدون نموذج إضافي. استخدم اللون الافتراضي عندما تكون غير متأكد أو عندما يكون التباين منخفضًا جدًا.";
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "يُقدّر لون النص الأصلي دون نموذج إضافي. يُستخدم اللون الافتراضي إذا كان التقدير غير مؤكد أو كان التباين منخفضًا جدًا.";
 
-"TRANSLATION_LLM_SFX" = "تصفية LLM SFX (جميع اللغات)";
+"TRANSLATION_LLM_SFX" = "تصفية المؤثرات الصوتية باستخدام LLM (جميع اللغات)";
 
 "TRANSLATION_LLM_SFX_HELP" = "تصنيف المؤثرات الصوتية في طلب الترجمة. يمكن دمجه مع المرشح المحلي الياباني: قرار التأثير الصوتي من أي مرشح يترك الأصل دون تغيير. متوافق مع إرسال صورة الصفحة.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "بدون إدخال الصورة، قد يؤدي السياق المرئي والتخطيطي المحدود إلى تقليل دقة تصنيف المؤثرات الصوتية.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "الحفاظ على لون اللوحة الأصلي";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "الحفاظ على لون خلفية النص الأصلي";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "قم بمطابقة لوحة الترجمة مع الخلفية المحيطة بالنص الأصلي. استخدم اللوحة الافتراضية عندما تكون غير مؤكدة أو غير قابلة للقراءة. لا يزال إعداد العتامة ساريًا.";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "يطابق لون خلفية الترجمة مع الخلفية المحيطة بالنص الأصلي. تُستخدم الخلفية الافتراضية إذا كان التقدير غير مؤكد أو كانت القراءة صعبة. يظل إعداد العتامة الذي اخترته ساريًا.";
 
-"TRANSLATION_CUSTOM_PROVIDER" = "مخصص OpenAI";
+"TRANSLATION_CUSTOM_PROVIDER" = "مخصص (متوافق مع OpenAI)";
 
 "TRANSLATION_OCR_MEDIUM" = "متوسط";
 
 "TRANSLATION_OCR_SMALL" = "صغير";
 
-"TRANSLATION_OCR_TINY" = "صغير";
+"TRANSLATION_OCR_TINY" = "صغير جدًا";
 
 "TRANSLATION_REASONING_NONE" = "لا شيء";
 
@@ -618,9 +618,9 @@
 
 "TRANSLATION_REASONING_MEDIUM" = "متوسط";
 
-"TRANSLATION_REASONING_HIGH" = "عالية";
+"TRANSLATION_REASONING_HIGH" = "مرتفع";
 
-"TRANSLATION_REASONING_XHIGH" = "عالية جدًا";
+"TRANSLATION_REASONING_XHIGH" = "مرتفع جدًا";
 
 "TRANSLATION_REASONING_MAX" = "الحد الأقصى";
 
@@ -630,8 +630,8 @@
 // Completed app localization
 "EDIT" = "تحرير";
 "DOWNLOADING" = "جارٍ التنزيل";
-"PROCESSING_QUEUE" = "قائمة انتظار المعالجة...";
-"DOWNLOADING_PAUSED" = "التحميل متوقف";
+"PROCESSING_QUEUE" = "جارٍ معالجة قائمة الانتظار…";
+"DOWNLOADING_PAUSED" = "تم إيقاف التنزيل مؤقتًا";
 "PAUSED" = "متوقف مؤقتًا";
 "CANCEL_ALL_DOWNLOADS" = "إلغاء كافة التنزيلات";
 "DOWNLOADS" = "التنزيلات";
@@ -639,7 +639,7 @@
 "VIEW_FILES" = "عرض الملفات";
 "COMPRESS_DOWNLOADS" = "ضغط التنزيلات";
 "PARALLEL_DOWNLOADS" = "التنزيلات الموازية";
-"BACKGROUND_DOWNLOADING" = "تحميل الخلفية";
+"BACKGROUND_DOWNLOADING" = "التنزيل في الخلفية";
 "METADATA_DETECTED" = "تم اكتشاف بيانات التعريف القديمة";
 "METADATA_DETECTED_TEXT" = "سيتم ترحيل البيانات التعريفية القديمة لـ JSON إلى ملفات ComicInfo.xml.";
 "CATEGORY_SEARCH" = "البحث في الفئة";
@@ -650,7 +650,7 @@
 "NOT_%@" = "ليس %@";
 "FILTER_SEPARATOR" = ", ";
 "FILTER_HAS_UNREAD" = "غير مقروءة";
-"FILTER_STARTED" = "بدأت";
+"FILTER_STARTED" = "بدأت قراءتها";
 "ASCENDING" = "تصاعدي";
 "DESCENDING" = "تنازلي";
 "OLDEST_FIRST" = "الأقدم أولاً";
@@ -664,7 +664,7 @@
 "REFRESH_NO_WIFI_TEXT" = "تم تمكين الإعداد للتحديث عبر Wi-Fi فقط. اتصل بشبكة Wi-Fi لتحديث مكتبتك.";
 "REFRESH_ANYWAYS" = "تحديث على أي حال";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "هل تريد الإزالة من المكتبة؟";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "ستؤدي إزالة هذه السلسلة من مكتبتك أيضًا إلى إزالة جميع أدوات التتبع المرتبطة. هل أنت متأكد أنك تريد المتابعة؟";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "ستؤدي إزالة هذه السلسلة من مكتبتك أيضًا إلى إزالة جميع روابطها بخدمات التتبع. هل أنت متأكد أنك تريد المتابعة؟";
 "LIBRARY_REFRESH_INTERRUPTED" = "تمت مقاطعة تحديث المكتبة";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "تمت مقاطعة التحديث الأخير للمكتبة قبل اكتماله. هل ترغب في الاستئناف؟";
 "CATEGORY" = "الفئة";
@@ -677,16 +677,16 @@
 "DISABLE" = "تعطيل";
 "ENABLE" = "تمكين";
 "EDIT_SOURCES" = "تحرير المصادر";
-"CONTAINS_NSFW" = "يحتوي على NSFW";
-"PRIMARILY_NSFW" = "في المقام الأول NSFW";
+"CONTAINS_NSFW" = "يتضمن محتوى للبالغين";
+"PRIMARILY_NSFW" = "محتوى للبالغين في الغالب";
 "REMOVE_LOCAL_SOURCE" = "هل تريد إزالة المصدر المحلي؟";
 "REMOVE_LOCAL_SOURCE_TEXT" = "سيؤدي هذا إلى إزالة كافة الملفات المحلية المستوردة.";
-"MISSING_SOURCE_LIST" = "قائمة المصادر المفقودة";
+"MISSING_SOURCE_LIST" = "قائمة المصادر مفقودة";
 "MISSING_SOURCE_LIST_INFO" = "هذا المصدر الخارجي غير متوفر في أي قوائم مصادر تم تكوينها. هذا يعني أنه لن يتلقى تحديثات وقد يتعطل في المستقبل.";
 "RESTART" = "إعادة التشغيل";
 "HTML_ERROR" = "خطأ HTML";
 "JSON_ERROR" = "خطأ JSON";
-"SOURCE_CRASHED" = "تحطمت المصدر";
+"SOURCE_CRASHED" = "تعطّل المصدر";
 "SAVE" = "حفظ";
 "SAVED_SEARCHES" = "عمليات البحث المحفوظة";
 "NAME_SAVED_SEARCH" = "قم بتسمية هذا البحث المحفوظ";
@@ -710,11 +710,11 @@
 "SERIES_TITLE_EMPTY_ERROR" = "يجب توفير عنوان لسلسلة جديدة.";
 "CREATE_NEW_SERIES_INFO" = "سيتم إنشاء سلسلة جديدة في الصفحة التالية، أو يمكنك تحديد سلسلة موجودة لإضافة هذا الملف إليها.";
 "ADD_TO_OTHER_SERIES_INFO" = "سيتم إضافة الملف إلى السلسلة المحددة.";
-"%i_PAGES" = "صفحات %i";
+"%i_PAGES" = "%i صفحة";
 "1_PAGE" = "1 صفحة";
-"CBZ_NAME" = "أرشيف الكتاب الهزلي المضغوط";
+"CBZ_NAME" = "أرشيف ZIP للقصص المصورة";
 "ZIP_NAME" = "أرشيف مضغوط";
-"EPUB_NAME" = "نشر إلكتروني";
+"EPUB_NAME" = "EPUB";
 "KOMGA" = "كومجا";
 "KOMGA_TAGLINE" = "خادم الوسائط المستضاف ذاتيًا";
 "KOMGA_INFO" = "Komga هو خادم وسائط مستضاف ذاتيًا للقصص المصورة والمانجا. ستحتاج إلى إعداد خادم Komga وتشغيله حتى تتمكن من استخدام هذا المصدر.";
@@ -735,16 +735,16 @@
 "OTHER_SETTINGS" = "إعدادات أخرى";
 "DISPLAY_DEFAULT" = "الافتراضي";
 "DISPLAY_CHAPTER" = "الفصل";
-"DISPLAY_VOLUME" = "رقم الحجم";
+"DISPLAY_VOLUME" = "المجلد";
 "USE_CHAPTERS" = "استخدام الفصول";
 "USE_CHAPTERS_TEXT" = "تعامل مع الكتب كفصول بدلاً من المجلدات";
-"%@_BOOKS" = "كتب %@";
+"%@_BOOKS" = "%@ كتاب";
 "1_BOOK" = "1 كتاب";
-"ON_DECK" = "على سطح السفينة";
+"ON_DECK" = "للقراءة التالية";
 "KEEP_READING" = "استمر في القراءة";
 "RECENTLY_ADDED_BOOKS" = "الكتب المضافة حديثا";
-"RECENTLY_ADDED_SERIES" = "السلسلة المضافة مؤخرًا";
-"RECENTLY_UPDATED_SERIES" = "سلسلة تم تحديثها مؤخرًا";
+"RECENTLY_ADDED_SERIES" = "السلاسل المضافة مؤخرًا";
+"RECENTLY_UPDATED_SERIES" = "السلاسل المحدّثة مؤخرًا";
 "RECENTLY_READ_BOOKS" = "الكتب التي قرأتها مؤخرًا";
 "ANY" = "أي";
 "AUTHOR" = "المؤلف";
@@ -779,8 +779,8 @@
 "STATUS_ENDED" = "انتهى";
 "FORMAT" = "التنسيق";
 "FORMAT_IMAGE" = "صورة";
-"FORMAT_EPUB" = "نشر إلكتروني";
-"FORMAT_PDF" = "قوات الدفاع الشعبي";
+"FORMAT_EPUB" = "EPUB";
+"FORMAT_PDF" = "PDF";
 "FORMAT_ARCHIVE" = "أرشيف";
 "LOGIN_VIA_OIDC" = "تسجيل الدخول عبر OIDC";
 "API_KEY" = "مفتاح واجهة برمجة التطبيقات";
@@ -799,11 +799,11 @@
 "LOCKED" = "مغلق";
 "TOGGLE_LOCK" = "تبديل القفل";
 "REFRESH_DETAILS" = "تحديث التفاصيل";
-"VOLUME" = "الحجم";
+"VOLUME" = "مجلد";
 "SET_COVER_IMAGE" = "تعيين صورة الغلاف";
-"UPLOAD_CUSTOM_COVER" = "تحميل الغلاف المخصص";
-"RESET_COVER" = "إعادة تعيين الغطاء";
-"NO_HISTORY" = "لا يوجد تاريخ";
+"UPLOAD_CUSTOM_COVER" = "اختيار غلاف مخصص";
+"RESET_COVER" = "إعادة تعيين الغلاف";
+"NO_HISTORY" = "لا يوجد سجل قراءة";
 "NO_HISTORY_TEXT" = "سيظهر سجل القراءة هنا.";
 "RECENTLY_SEARCHED" = "بحثت مؤخرا";
 "NO_RECENT_SEARCHES" = "لا توجد عمليات بحث حديثة";
@@ -828,39 +828,39 @@
 "STANDARD" = "قياسي";
 "COMPACT" = "مدمج";
 "CUSTOM" = "مخصص";
-"PORTRAIT_ROWS" = "صفوف عمودية";
-"LANDSCAPE_ROWS" = "صفوف المناظر الطبيعية";
+"PORTRAIT_ROWS" = "عدد الأعمدة في الوضع العمودي";
+"LANDSCAPE_ROWS" = "عدد الأعمدة في الوضع الأفقي";
 "RESUME_LAST_OPENED_CHAPTER" = "استئناف الفصل الأخير الذي تم فتحه";
 "CONTINUE_READING_ON_RESELECT" = "انقر نقرًا مزدوجًا فوق علامة التبويب \"السجل\" لاستئناف القراءة";
-"DOWNLOADED_CHAPTER_BADGES" = "تم تنزيل شارات الفصل";
+"DOWNLOADED_CHAPTER_BADGES" = "شارات الفصول المنزّلة";
 "PIN_TITLES" = "تثبيت عناوين المانجا";
 "PIN_DISABLED" = "تم تعطيل التثبيت";
 "PIN_UPDATED_CHAPTERS" = "الفصول المحدثة";
-"BACKGROUND_REFRESH" = "تحديث الخلفية";
+"BACKGROUND_REFRESH" = "التحديث في الخلفية";
 "BACKGROUND_REFRESH_TEXT" = "عند بدء تحديث المكتبة يدويًا، اسمح بإكتمال التحديث حتى إذا كان التطبيق في الخلفية.";
 "NEW_CHAPTER_NOTIFICATIONS" = "إشعارات الفصل الجديد";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "إرسال إشعارات عند تحديث المكتبة في الخلفية.";
 "1_NEW_CHAPTER_AVAILABLE" = "فصل جديد متاح";
 "X_NEW_CHAPTERS_AVAILABLE" = "%d فصول جديدة متاحة";
 "NEW_CHAPTERS_AVAILABLE" = "فصول جديدة متاحة";
-"X_SERIES_HAVE_NEW_CHAPTERS" = "تحتوي سلسلة %d على فصول جديدة";
+"X_SERIES_HAVE_NEW_CHAPTERS" = "تتوفر فصول جديدة في %d سلسلة";
 "EVERY_6_HOURS" = "كل 6 ساعات";
 "NO_RESULTS_FOR_%@" = "لا توجد نتائج لـ \"%@\"";
 "NO_RESULTS_TEXT" = "قم بالتدقيق الإملائي أو حاول إجراء بحث جديد.";
 "LEARN_MORE" = "تعرف على المزيد…";
-"INSIGHTS" = "قراءة رؤى";
-"STREAKS" = "خطوط القراءة";
+"INSIGHTS" = "إحصاءات القراءة";
+"STREAKS" = "أيام القراءة المتتالية";
 "STATS" = "احصائيات";
 "CURRENT_STREAK" = "سلسلة القراءة الحالية";
-"NO_CURRENT_STREAK" = "لا يوجد خط القراءة الحالي";
-"NO_CURRENT_STREAK_TEXT" = "اقرأ كل يوم لبناء خط.";
+"NO_CURRENT_STREAK" = "لا توجد سلسلة قراءة حالية";
+"NO_CURRENT_STREAK_TEXT" = "اقرأ كل يوم للحفاظ على سلسلة من أيام القراءة المتتالية.";
 "LONGEST_STREAK" = "أطول سلسلة قراءة";
 "DAYS" = "أيام";
 "CHAPTER_PLURAL" = "فصول";
 "CHAPTER_SINGULAR" = "الفصل";
 "PAGE_PLURAL" = "الصفحات";
 "PAGE_SINGULAR" = "الصفحة";
-"SERIES_PLURAL" = "سلسلة";
+"SERIES_PLURAL" = "سلاسل";
 "SERIES_SINGULAR" = "سلسلة";
 "HOUR_PLURAL" = "ساعات";
 "HOUR_SINGULAR" = "ساعة";
@@ -873,11 +873,11 @@
 "LEGACY_SOURCE_LIST" = "قائمة المصادر القديمة";
 "LEGACY_SOURCE_LIST_WARNING" = "تحذير: قائمة المصادر القديمة";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "لديك حاليًا قائمة مصادر قديمة تم تكوينها. هذا التنسيق قديم وسيتوقف عن العمل في الإصدار المستقبلي من Aidoku. على الرغم من أنه سيظل يعمل في الوقت الحالي، فمن المستحسن أن تجد بديلاً وتهيئته في الإعدادات > قوائم المصدر.";
-"UPSCALING" = "الارتقاء";
-"UPSCALE_IMAGES" = "صور راقية";
-"UPSCALING_MODELS" = "نماذج الارتقاء";
+"UPSCALING" = "رفع دقة الصور";
+"UPSCALE_IMAGES" = "رفع دقة الصور";
+"UPSCALING_MODELS" = "نماذج رفع دقة الصور";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "الحد الأقصى لارتفاع الصورة";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "لن تتم ترقية الصور الأكبر من الحد الأقصى لارتفاع الصورة.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "لن تُرفع دقة الصور التي يتجاوز ارتفاعها الحد الأقصى المحدد.";
 "ENABLED_MODEL" = "النموذج الممكّن";
 "AVAILABLE_MODELS" = "النماذج المتاحة";
 "NO_AVAILABLE_MODELS" = "لا توجد نماذج متاحة";
@@ -886,25 +886,25 @@
 "DISABLE_QUICK_ACTIONS" = "تعطيل الإجراءات السريعة";
 "DISABLE_DOUBLE_TAP_ZOOM" = "قم بتعطيل التكبير بالنقر المزدوج";
 "LIVE_TEXT" = "النص المباشر";
-"HIDE_BARS_ON_SWIPE" = "إخفاء القضبان عند السحب";
+"HIDE_BARS_ON_SWIPE" = "إخفاء أشرطة الأدوات عند السحب";
 "READER_BG_COLOR_AUTO" = "تلقائي";
-"TAP_ZONES" = "انقر فوق المناطق";
+"TAP_ZONES" = "مناطق النقر";
 "ZONE_LEFT_RIGHT" = "اليسار واليمين";
 "ZONE_L_SHAPED" = "على شكل حرف L";
-"ZONE_KINDLE" = "أوقد";
+"ZONE_KINDLE" = "Kindle";
 "ZONE_EDGE" = "الحافة";
 "DISABLED" = "معطل";
 "INVERT_TAP_ZONES" = "عكس مناطق النقر";
 "ANIMATE_PAGE_TRANSITIONS" = "تحريك انتقالات الصفحة";
 "TEXT_READER" = "قارئ النص";
 "TEXT_READER_STYLE" = "نمط القارئ";
-"TEXT_READER_PAGED" = "القراءة المرقّمة";
-"TEXT_READER_SCROLL" = "قم بالتمرير";
+"TEXT_READER_PAGED" = "عرض بالصفحات";
+"TEXT_READER_SCROLL" = "تمرير";
 "TEXT_FONT_FAMILY" = "الخط";
 "TEXT_FONT_SIZE" = "حجم الخط";
 "TEXT_LINE_SPACING" = "تباعد الأسطر";
 "TEXT_HORIZONTAL_PADDING" = "الهوامش الأفقية";
-"TEXT_THEME" = "الموضوع";
+"TEXT_THEME" = "السمة";
 "TEXT_THEME_SEPIA" = "بني داكن";
 "TEXT_THEME_PAPER" = "ورق";
 "TEXT_THEME_GRAY" = "رمادي";
@@ -913,17 +913,17 @@
 "DICTIONARIES" = "القواميس";
 "ABOUT_DICTIONARIES" = "حول القواميس";
 "ABOUT_DICTIONARIES_TEXT" = "يمكن استيراد قواميس Yomitan من ملفات مضغوطة. يمكنك تمكين القواميس أو تعطيلها، ويمكن إعادة ترتيبها عن طريق السحب.";
-"LOOKUP_GESTURE" = "لفتة البحث";
+"LOOKUP_GESTURE" = "إيماءة البحث";
 "SINGLE_TAP" = "نقرة واحدة";
 "LONG_PRESS" = "الضغط لفترة طويلة";
 "LOOKUP_GESTURE_SINGLE_TAP_INFO" = "سيؤدي النقر على بداية الكلمة إلى تنشيط النافذة المنبثقة. يؤدي هذا إلى تعطيل النقر المزدوج للتكبير عند التمكين.";
 "LOOKUP_GESTURE_LONG_PRESS_INFO" = "سيؤدي الضغط باستمرار على بداية الكلمة إلى إبرازها، وسيؤدي تحريرها إلى تنشيط النافذة المنبثقة. يؤدي هذا إلى تعطيل الإجراءات السريعة للصفحة عند تمكينها.";
-"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "مؤمن بإيماءة البحث: ضغطة واحدة.";
-"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "مؤمن بإيماءة البحث: الضغط لفترة طويلة.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "غير قابل للتغيير بسبب إيماءة البحث: نقرة واحدة.";
+"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "غير قابل للتغيير بسبب إيماءة البحث: الضغط لفترة طويلة.";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "تراكب نص التعرف الضوئي على الحروف";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "إظهار مربعات النص في مناطق الصورة عند تنشيط البحث. قد يكون هذا مفيدًا في تحديد النص الذي تم التعرف عليه بشكل صحيح بواسطة تقنية التعرف الضوئي على الحروف (OCR).";
-"DICTIONARY_OVERLAY_PADDING" = "تراكب الحشو";
-"DICTIONARY_OVERLAY_TEXT_SCALE" = "تراكب حجم النص";
+"DICTIONARY_OVERLAY_PADDING" = "الهوامش الداخلية لطبقة النص";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "حجم نص الطبقة";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES" = "تقييد لغات التعرف الضوئي على الحروف";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "عند التمكين، ستتم معالجة الفصول التي تم وضع علامة عليها باعتبارها اللغة (اللغات) المحددة فقط للتعرف الضوئي على الحروف. يوصى بتحديد اللغات التي قمت باستيراد القواميس لها فقط.";
 "DICTIONARY_OCR_LANGUAGES" = "لغات التعرف الضوئي على الحروف";
@@ -934,8 +934,8 @@
 "DICTIONARY_POPUP_WIDTH" = "عرض النافذة المنبثقة";
 "DICTIONARY_POPUP_HEIGHT" = "ارتفاع النافذة المنبثقة";
 "TERM_DICTIONARIES" = "قواميس المصطلحات";
-"FREQUENCY_DICTIONARIES" = "قواميس تردد الكلمات";
-"PITCH_DICTIONARIES" = "قواميس لهجة الملعب";
+"FREQUENCY_DICTIONARIES" = "قواميس تواتر الكلمات";
+"PITCH_DICTIONARIES" = "قواميس النبر النغمي";
 "KANJI_DICTIONARIES" = "قواميس كانجي";
 "IMPORTING_DICTIONARY" = "جارٍ استيراد القاموس...";
 "IMPORT_ERROR" = "خطأ في الاستيراد";
@@ -956,8 +956,8 @@
 "REMOVE_WORD" = "إزالة الكلمة";
 "VOCABULARY" = "المفردات";
 "1_WORD" = "1 كلمة";
-"%i_WORDS" = "كلمات %i";
-"NO_VOCABULARY" = "لا المفردات";
+"%i_WORDS" = "%i كلمة";
+"NO_VOCABULARY" = "لا توجد مفردات";
 "NO_VOCABULARY_TEXT" = "سوف تظهر المفردات المحفوظة هنا.";
 "DEFINITION" = "التعريف";
 "VOCAB_CONTEXT" = "السياق";
@@ -990,8 +990,8 @@
 "AUTO" = "تلقائي";
 "LAST_BACKED_UP_%@" = "آخر نسخة احتياطية تلقائيًا: %@";
 "READING_SESSIONS" = "جلسات القراءة";
-"CLEAR_SOURCE_CACHE" = "مسح ذاكرة التخزين المؤقت المصدر";
-"CLEAR_SOURCE_CACHE_TEXT" = "سيتم مسح بيانات الشبكة المخزنة مؤقتًا لعنوان (عناوين) url المصدر. قد يؤدي هذا إلى زيادة أوقات التحميل مؤقتًا.";
+"CLEAR_SOURCE_CACHE" = "مسح ذاكرة التخزين المؤقت للمصدر";
+"CLEAR_SOURCE_CACHE_TEXT" = "يمسح ملفات تعريف الارتباط وبيانات المواقع الخاصة بعناوين هذا المصدر، بالإضافة إلى محتواه المخزن مؤقتًا. قد تحتاج إلى تسجيل الدخول مجددًا، وقد يستغرق التحميل وقتًا أطول مؤقتًا.";
 "PAGE_OFFSET" = "إزاحة الصفحة";
 "SPLIT_WIDE_IMAGES" = "تقسيم الصور الواسعة";
 "REVERSE_SPLIT_ORDER" = "عكس ترتيب الصفحات المقسمة";
@@ -1001,23 +1001,23 @@
 "TRACK_CHAPTER_OFFSET_TEXT" = "اضبط تحديثات فصول المتعقب التلقائية لهذا العنوان عندما تختلف أرقام فصول المصدر عن أرقام فصول المتتبع.";
 "TITLE_DISPLAY_MODE" = "وضع عرض العنوان";
 "OEL" = "OEL";
-"COMIC" = "هزلية";
+"COMIC" = "قصص مصورة";
 "BOOK" = "كتاب";
 "SEARCH_OPTIONS" = "خيارات البحث";
 "SHOW_NSFW_RESULTS" = "عرض نتائج NSFW";
 "UPDATE_AFTER_READING" = "التحديث بعد القراءة";
 "UPDATE_AFTER_READING_INFO" = "بعد قراءة الفصل، قم بتحديث المتتبع ليتوافق مع الفصل و/أو المجلد المقروء حاليًا.";
-"AUTO_SYNC_HISTORY" = "مزامنة التاريخ تلقائيا";
-"AUTO_SYNC_HISTORY_INFO" = "عند اكتشاف فصل و/أو مجلد أحدث على جهاز التعقب، قم بتحديث التاريخ المحلي ليطابقه.";
-"SYNC_WITH_TRACKER" = "مزامنة مع المقتفي";
-"SYNC_WITH_TRACKER_INFO_%i" = "تم تحديد فصول %i ليتم قراءتها بالفعل بواسطة المتتبع. هل ترغب في وضع علامة على هذه الفصول كمقروءة؟";
-"SYNC_WITH_TRACKER_INFO_1" = "تم تحديد فصل واحد ليتم قراءته بالفعل بواسطة المتتبع. هل ترغب في وضع علامة على هذا الفصل كمقروء؟";
+"AUTO_SYNC_HISTORY" = "مزامنة سجل القراءة تلقائيًا";
+"AUTO_SYNC_HISTORY_INFO" = "عندما تسجّل خدمة التتبع تقدمًا إضافيًا في قراءة الفصول و/أو المجلدات، يتم تحديث سجل القراءة المحلي ليطابقه.";
+"SYNC_WITH_TRACKER" = "المزامنة مع خدمة التتبع";
+"SYNC_WITH_TRACKER_INFO_%i" = "وفقًا لخدمة التتبع، تمت قراءة %i فصلًا بالفعل. هل ترغب في وضع علامة على هذه الفصول كمقروءة؟";
+"SYNC_WITH_TRACKER_INFO_1" = "وفقًا لخدمة التتبع، تمت قراءة فصل واحد بالفعل. هل ترغب في وضع علامة على هذا الفصل كمقروء؟";
 "UNAVAILABLE_TRACKER_ITEM" = "عنصر تعقب غير متوفر";
 "UNAVAILABLE_TRACKER_ITEM_INFO" = "يرتبط عنصر التعقب المرتبط هذا بمتتبع لم يعد متوفرًا. يجب عليك إما إزالة هذا العنصر أو تسجيل الدخول إلى المتتبع المرتبط مرة أخرى.";
-"ENHANCED_TRACKERS" = "أجهزة التتبع المحسنة";
-"ENHANCED_TRACKERS_INFO" = "يمكن لأجهزة التتبع المحسنة الارتباط تلقائيًا بالعناصر المضافة إلى مكتبتك من المصادر المدعومة، وتتبع سجل القراءة في اتجاهين.";
-"ENHANCED_TRACKERS_TOGGLE_INFO" = "سيؤدي تعطيل التتبع لمصدر ما إلى إزالة جميع أدوات التتبع المرتبطة، وسيؤدي التمكين تلقائيًا إلى ربط جميع العناصر الموجودة في مكتبتك.";
-"TRACKER_LOGOUT_INFO" = "سيؤدي تسجيل الخروج إلى إزالة معلومات التتبع المرتبطة من جهاز التتبع هذا لجميع السلاسل.";
+"ENHANCED_TRACKERS" = "خدمات التتبع المحسّنة";
+"ENHANCED_TRACKERS_INFO" = "يمكن لخدمات التتبع المحسّنة الربط تلقائيًا بالعناصر المضافة إلى مكتبتك من المصادر المدعومة، ومزامنة سجل القراءة في الاتجاهين.";
+"ENHANCED_TRACKERS_TOGGLE_INFO" = "يؤدي تعطيل التتبع لمصدر إلى إزالة روابط التتبع الخاصة بذلك المصدر. ويؤدي تمكينه إلى ربط عناصر المكتبة التابعة لذلك المصدر تلقائيًا.";
+"TRACKER_LOGOUT_INFO" = "سيؤدي تسجيل الخروج إلى إزالة معلومات التتبع المرتبطة بهذه الخدمة لجميع السلاسل.";
 "SET_AS_SINGLE_PAGE" = "تعيين كصفحة واحدة";
 "UNSET_AS_SINGLE_PAGE" = "إلغاء التعيين كصفحة واحدة";
 "RELOAD_FAILED" = "فشل إعادة التحميل";
@@ -1025,21 +1025,21 @@
 "CONTINUOUS_WITH_GAPS" = "مستمر مع الفجوات";
 "ADD" = "أضف";
 "MIGRATE_CONFIRM_TEXT" = "ستتم إزالة سجل القراءة للإدخالات الأصلية عند الترحيل إلى مصدر مختلف.";
-"MIGRATE_WITH_HISTORY" = "الهجرة والحفاظ على التاريخ";
+"MIGRATE_WITH_HISTORY" = "الترحيل مع الاحتفاظ بسجل القراءة";
 "SELECT_PINNED_SOURCES" = "حدد المصادر المثبتة";
 "SEARCH_MANUALLY" = "البحث يدويا";
-"DONT_MIGRATE" = "لا تهاجر";
+"DONT_MIGRATE" = "عدم الترحيل";
 "SELECTED_%i_OF_%i" = "محدد (%i/%i)";
 "MIGRATE_%i_OF_%i" = "الترحيل (%i/%i)";
 "SHOW_ENTRY" = "عرض الإدخال";
-"SOURCE_BREAKING_CHANGE" = "تغيير كسر المصدر";
+"SOURCE_BREAKING_CHANGE" = "تغيير غير متوافق في المصدر";
 "SOURCE_BREAKING_CHANGE_TEXT" = "تعرض هذا المصدر لتغيير جذري ويتطلب الترحيل للاحتفاظ بمكتبتك وتاريخك.";
 "ALL_CHAPTERS_LOCKED" = "جميع الفصول مغلقة";
 "AUTO_SCROLL" = "التمرير التلقائي";
 "AUTO_SCROLL_SPEED" = "سرعة التمرير التلقائي";
-"AUTO_SCROLL_POSITION" = "موقف التمرير التلقائي";
+"AUTO_SCROLL_POSITION" = "موضع زر التمرير التلقائي";
 "POSITION_LEFT" = "اليسار";
-"POSITION_RIGHT" = "صحيح";
+"POSITION_RIGHT" = "اليمين";
 "%@_TRACKER_LOGIN_NEEDED" = "%@ مطلوب تسجيل الدخول";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "انتهت صلاحية رمز %@ الخاص بك، لذا سيتوقف المتتبع المرتبط عن العمل حتى تقوم بإعادة تسجيل الدخول في الإعدادات.";
 "FOCUS_ITEM_LEFT" = "تركيز العنصر على اليسار";
@@ -1052,15 +1052,15 @@
 "RESET_FOCUS" = "إعادة ضبط التركيز";
 "TURN_PAGE_LEFT" = "اقلب الصفحة إلى اليسار";
 "TURN_PAGE_RIGHT" = "اقلب الصفحة لليمين";
-"CHAPTER_FORWARD" = "الفصل إلى الأمام";
-"CHAPTER_BACKWARD" = "الفصل إلى الوراء";
-"OPEN_CHAPTER_LIST" = "فتح قائمة الفصل";
+"CHAPTER_FORWARD" = "الانتقال إلى الفصل التالي";
+"CHAPTER_BACKWARD" = "الانتقال إلى الفصل السابق";
+"OPEN_CHAPTER_LIST" = "فتح قائمة الفصول";
 "TOGGLE_BARS" = "إظهار أو إخفاء أشرطة الأدوات";
 "CLOSE_READER" = "إغلاق القارئ";
 "TOGGLE_PAGE_OFFSET" = "تبديل إزاحة الصفحة";
-"UPLOAD_FILE" = "تحميل الملف";
-"MIGRATE_CHAPTER_HISTORY" = "ترحيل تاريخ الفصل";
-"MIGRATE_CHAPTER_HISTORY_TEXT" = "ترحيل محفوظات القراءة المتبقية من الإصدارات القديمة غير المرتبطة بالفصول الموجودة في قاعدة البيانات المحلية. يحدث هذا عادةً تلقائيًا بعد التحديث. إذا لم ينته، ​​يمكنك تشغيله مرة أخرى هنا.";
+"UPLOAD_FILE" = "استيراد ملف";
+"MIGRATE_CHAPTER_HISTORY" = "ترحيل سجل قراءة الفصول";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "ترحيل سجل القراءة المتبقي من الإصدارات القديمة وغير المرتبط بالفصول في قاعدة البيانات المحلية. يحدث هذا عادةً تلقائيًا بعد التحديث. إذا لم يكتمل، يمكنك تشغيله مرة أخرى هنا.";
 
 "TRANSLATION_SOURCE_LABELS" = "ترجمة قوائم المصدر وعناوين الأقسام";
 
@@ -1081,7 +1081,7 @@
 "SAVE_SHARED_IMAGES" = "احتفظ بالصور المشتركة في الملفات المحلية";
 "SAVE_SHARED_IMAGES_HELP" = "عند إيقاف التشغيل، يتم فتح الصور المشتركة مؤقتًا ويتم حذفها عند إغلاقها. لا يتم حفظ سجل القراءة وذاكرات التخزين المؤقت للتعرف الضوئي على الحروف/الترجمة.";
 
-"TRANSLATION_LARGE_FILTER_OPTIONS" = "ترجمة قوائم التصفية الكبيرة (أكثر من 100 خيارًا)";
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "ترجمة قوائم التصفية الكبيرة (أكثر من 100 خيار)";
 
 "SETTING_INVALID_STEPPER_RANGE" = "نطاق الإعداد الرقمي غير صالح.";
 

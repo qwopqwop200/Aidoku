@@ -6,7 +6,7 @@ import UIKit
 
 @Suite(.serialized)
 struct ReaderTranslationDiskCacheTests {
-    @Test(arguments: ["reader-render-v16-contrast-preserved-chroma", "reader-render-v15-korean-small-text", "reader-render-v3-source-coverage", "reader-render-v4-visible-source-bands", "reader-render-v5-normal-font-floor", "reader-render-v6-korean-balanced-wrap", "reader-render-v7-resolved-font", "reader-render-v8-source-ink", "reader-render-v9-small-text", "reader-render-v9-word-safe-small-text", "reader-render-v10-fragment-line-profile", "reader-render-v11-balloon-contained-type"])
+    @Test(arguments: ["reader-render-v32-neutral-readable-edge", "reader-render-v31-readable-source-role-coverage", "reader-render-v30-readable-paragraph-ink-coverage", "reader-render-v29-source-role-cleanup-geometry", "reader-render-v28-short-paragraph-guard", "reader-render-v27-readable-palette-ink", "reader-render-v26-horizontal-caption-anchors", "reader-render-v24-readable-paragraph-contours", "reader-render-v25-source-anchored-captions", "reader-render-v23-source-stroke-opaque-ink", "reader-render-v21-korean-punctuation", "reader-render-v22-korean-orphans", "reader-render-v20-readable-source-colors", "reader-render-v19-faithful-source-colors", "reader-render-v18-neutral-ink-fringe", "reader-render-v17-chroma-emergency-wrap", "reader-render-v16-contrast-preserved-chroma", "reader-render-v15-korean-small-text", "reader-render-v3-source-coverage", "reader-render-v4-visible-source-bands", "reader-render-v5-normal-font-floor", "reader-render-v6-korean-balanced-wrap", "reader-render-v7-resolved-font", "reader-render-v8-source-ink", "reader-render-v9-small-text", "reader-render-v9-word-safe-small-text", "reader-render-v10-fragment-line-profile", "reader-render-v11-balloon-contained-type"])
     func earlierLayoutsCannotBeReusedAfterRendererRevision(revision: String) async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -30,10 +30,11 @@ struct ReaderTranslationDiskCacheTests {
         #expect(try await cache.data(for: currentKey, kind: .layout) == nil)
     }
 
-    @Test func earlierMergedRubyRegionsCannotBeReused() {
+    @Test(arguments: ["reader-ocr-v42-phonetic-kimi", "reader-ocr-v41-cross-panel-separator", "reader-ocr-v43-centered-phrases", "reader-ocr-v44-leaf-reading-bands"])
+    func earlierMergedRubyRegionsCannotBeReused(revision: String) {
         let settings = ReaderTranslationSettings()
         let oldKey = ReaderTranslationCacheIdentity.encoded([
-            "reader-ocr-v15-image-separators", "page", ReaderTranslationCacheIdentity.encoded(settings.ocrConfiguration)
+            revision, "page", ReaderTranslationCacheIdentity.encoded(settings.ocrConfiguration)
         ])
         #expect(oldKey != ReaderTranslationCacheIdentity.ocr(page: "page", settings: settings))
     }

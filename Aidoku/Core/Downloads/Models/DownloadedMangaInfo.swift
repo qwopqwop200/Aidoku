@@ -18,6 +18,7 @@ struct DownloadedMangaInfo: Identifiable, Hashable {
     let coverUrl: String?        // from CoreData if available
     let totalSize: Int64
     let chapterCount: Int
+    let pageCount: Int
     let isInLibrary: Bool
 
     var mangaIdentifier: MangaIdentifier {
@@ -42,6 +43,7 @@ struct DownloadedMangaInfo: Identifiable, Hashable {
         coverUrl: String? = nil,
         totalSize: Int64,
         chapterCount: Int,
+        pageCount: Int = 0,
         isInLibrary: Bool
     ) {
         self.id = "\(sourceId)_\(mangaId)"
@@ -52,6 +54,7 @@ struct DownloadedMangaInfo: Identifiable, Hashable {
         self.coverUrl = coverUrl
         self.totalSize = totalSize
         self.chapterCount = chapterCount
+        self.pageCount = pageCount
         self.isInLibrary = isInLibrary
     }
 

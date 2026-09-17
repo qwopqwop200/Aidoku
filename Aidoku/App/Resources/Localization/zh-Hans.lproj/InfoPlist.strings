@@ -2,4 +2,4 @@
 
 // Completed app localization
 "CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "当 Aidoku 的地址位于您的本地网络上时，它会连接到您的自定义翻译服务器。";
+"NSLocalNetworkUsageDescription" = "当自定义翻译服务器位于您的本地网络中时，Aidoku 会连接到该服务器。";

@@ -45,7 +45,7 @@
 "CATEGORIES" = "分类";
 "EDIT_CATEGORIES" = "编辑分类";
 "CATEGORY_ADD" = "添加分类";
-"CATEGORY_ADD_TEXT" = "请输入要创建的新类别标题。";
+"CATEGORY_ADD_TEXT" = "请输入新分类的名称。";
 "DEFAULT_CATEGORY" = "默认分类";
 "ALWAYS_ASK" = "始终询问";
 
@@ -67,7 +67,7 @@
 "LANGUAGES" = "语言";
 "INFO" = "信息";
 "VERSION" = "版本";
-"BUILD" = "编译";
+"BUILD" = "构建版本";
 "BUTTON_FILTER" = "筛选";
 "LIST_HEADER" = "列表";
 "LIST_ALL" = "全部";
@@ -75,15 +75,15 @@
 // Manga
 "UNTITLED" = "无标题";
 "STATUS_ONGOING" = "连载中";
-"STATUS_CANCELLED" = "已取消";
+"STATUS_CANCELLED" = "连载中止";
 "STATUS_COMPLETED" = "已完结";
-"STATUS_HIATUS" = "暂停";
-"SUGGESTIVE" = "建议";
+"STATUS_HIATUS" = "休刊";
+"SUGGESTIVE" = "含性暗示";
 "NSFW" = "NSFW";
 "MORE" = "更多";
-"SOURCE_ORDER" = "来源顺序";
-"MISSING_SOURCE" = "缺少来源";
-"MISSING_SOURCE_TEXT" = "此漫画来源不可用。请重新下载或从您的库中删除。";
+"SOURCE_ORDER" = "图源顺序";
+"MISSING_SOURCE" = "缺少图源";
+"MISSING_SOURCE_TEXT" = "找不到此漫画原来的图源。请重新安装图源，或从书架中移除此作品。";
 "SELECT_CHAPTERS" = "选择章节";
 "SELECT_ALL" = "全选";
 "DESELECT_ALL" = "取消全选";
@@ -105,11 +105,11 @@
 "UNREAD" = "未读";
 "MARK" = "标记";
 "MARK_ALL" = "标记全部";
-"MARK_PREVIOUS" = "标记上一章";
+"MARK_PREVIOUS" = "标记之前的章节";
 "MARK_READ" = "标记为已读";
 "MARK_UNREAD" = "标记为未读";
-"PREVIOUS_COLON" = "上一页：";
-"NEXT_COLON" = "下一页：";
+"PREVIOUS_COLON" = "上一章：";
+"NEXT_COLON" = "下一章：";
 "FINISHED_COLON" = "完成：";
 "CURRENT_COLON" = "当前：";
 "NO_NEXT_CHAPTER" = "没有下一章";
@@ -128,7 +128,7 @@
 // History
 "HISTORY" = "历史";
 "%@_AGO" = "%@前";
-"REMOVE_ALL_MANGA_HISTORY" = "删除所有漫画历史";
+"REMOVE_ALL_MANGA_HISTORY" = "清除此漫画的所有阅读历史";
 "HISTORY_LOCKED" = "历史已锁定。";
 "VIEW_HISTORY" = "查看历史";
 "AUTH_FOR_HISTORY" = "需要认证才能查看阅读历史。";
@@ -145,7 +145,7 @@
 "SUPPPORT_DEVELOPMENT" = "支持开发";
 "GENERAL" = "通用";
 "ICLOUD_SYNC" = "iCloud 同步";
-"INCOGNITO_MODE" = "隐身模式";
+"INCOGNITO_MODE" = "无痕模式";
 "INCOGNITO_MODE_TEXT" = "启用时暂停记录阅读历史";
 "APPEARANCE" = "外观";
 "APPEARANCE_LIGHT" = "浅色";
@@ -159,7 +159,7 @@
 "PIN_UNREAD" = "未读";
 "LIBRARY_UPDATING" = "书架更新";
 "UPDATE_INTERVAL" = "更新间隔";
-"SKIP_TITLES" = "跳过标题";
+"SKIP_TITLES" = "跳过作品";
 "ONLY_UPDATE_ON_WIFI" = "仅在 Wi-Fi 更新";
 "EXCLUDED_CATEGORIES" = "排除类别";
 "REFRESH_METADATA" = "刷新元数据";
@@ -170,17 +170,17 @@
 "WEEKLY" = "每周";
 "WITH_UNREAD_CHAPTERS" = "有未读章节";
 "WITH_COMPLETED_STATUS" = "完结状态";
-"THAT_HAVENT_BEEN_READ" = "尚未阅读";
-"SOURCE_LISTS" = "来源列表";
-"SOURCE_LIST_ADDED" = "已添加来源列表";
-"SOURCE_LIST_ADDED_TEXT" = "你可在浏览页中查看外部来源。";
-"SOURCE_LIST_URL" = "来源列表网址";
-"SOURCE_LIST_ADD" = "添加来源列表";
-"SOURCE_LIST_ADD_TEXT" = "输入来源列表网址";
-"SOURCE_LIST_ADD_FAIL" = "添加来源列表失败";
-"SOURCE_LIST_ADD_FAIL_TEXT" = "提供来源列表网址无效或已被添加。";
+"THAT_HAVENT_BEEN_READ" = "没有章节标记为已读的作品";
+"SOURCE_LISTS" = "图源列表";
+"SOURCE_LIST_ADDED" = "已添加图源列表";
+"SOURCE_LIST_ADDED_TEXT" = "现在可以在“浏览”标签页中查看外部图源。";
+"SOURCE_LIST_URL" = "图源列表网址";
+"SOURCE_LIST_ADD" = "添加图源列表";
+"SOURCE_LIST_ADD_TEXT" = "输入图源列表网址";
+"SOURCE_LIST_ADD_FAIL" = "添加图源列表失败";
+"SOURCE_LIST_ADD_FAIL_TEXT" = "提供的图源列表网址无效或已添加。";
 "LOCK_HISTORY_TAB" = "锁定历史标签";
-"DOWNSAMPLE_IMAGES" = "降低图片品质";
+"DOWNSAMPLE_IMAGES" = "降低图片分辨率";
 "BACKUPS" = "备份";
 "BACKUP_NAME" = "备份名称";
 "RENAME_BACKUP" = "重命名备份";
@@ -190,7 +190,7 @@
 "BACKUP_INFO" = "长按备份以导出它，或向左滑动以删除。";
 "MISSING_SOURCES" = "图源缺失";
 "RESTORE_MISSING_SOURCES" = "恢复缺失图源？";
-"RESTORE_MISSING_SOURCES_TEXT" = "是否要搜索已恢复的图源列表并安装找到的图源？";
+"RESTORE_MISSING_SOURCES_TEXT" = "是否搜索并安装缺失的图源？";
 "INSTALL_SOURCES" = "安装图源";
 "INSTALLING_SOURCES" = "正在安装图源…";
 "MISSING_SOURCES_TEXT" = "恢复的备份可能包含来自以下图源的数据，但这些图源当前未安装：";
@@ -223,12 +223,12 @@
 "AUTH_TO_DISABLE" = "需要认证才能禁用。";
 "PAGE_X_OF_X" = "第 %i 页，共 %i 页";
 "LIBRARY_LOCKED" = "书架已锁定。";
-"CATEGORY_LOCKED" = "类别已锁定。";
+"CATEGORY_LOCKED" = "分类已锁定。";
 "VIEW_LIBRARY" = "查看书架";
-"CATEGORY_EMPTY" = "类别为空";
-"AUTH_TO_OPEN" = "授权以打开。";
-"LOCKED_CATEGORIES" = "已锁定类别";
-"AUTH_FOR_LIBRARY" = "授权以查看书架。";
+"CATEGORY_EMPTY" = "分类为空";
+"AUTH_TO_OPEN" = "通过身份验证后打开。";
+"LOCKED_CATEGORIES" = "已锁定的分类";
+"AUTH_FOR_LIBRARY" = "通过身份验证后查看书架。";
 "LOCK_LIBRARY" = "锁定书架";
 "PAGES_TO_PRELOAD" = "预加载页数";
 "PAGE_LAYOUT" = "页面布局";
@@ -243,22 +243,22 @@
 "MULTI_LANGUAGE" = "多语言";
 "TRACKERS" = "追踪器";
 "UPDATE_AFTER_READING" = "阅读后自动更新进度";
-"UPDATE_AFTER_READING_INFO" = "阅读一章后，更新跟踪器以匹配当前读取的章节和（或）卷。";
+"UPDATE_AFTER_READING_INFO" = "读完章节后，将追踪器的阅读进度更新为当前读到的章节或卷数。";
 "AUTO_SYNC_HISTORY" = "自动从追踪器同步";
-"AUTO_SYNC_HISTORY_INFO" = "在追踪器上检测到较新的章节和（或）卷时，自动更新匹配的本地历史记录。";
-"LOGOUT" = "退出";
-"LOGOUT_FROM_%@" = "从 %@ 注销？";
+"AUTO_SYNC_HISTORY_INFO" = "当追踪器上的已读章节或卷数高于本地记录时，将本地阅读历史更新为相同进度。";
+"LOGOUT" = "退出登录";
+"LOGOUT_FROM_%@" = "从 %@ 退出登录？";
 "STATUS" = "状态";
-"STARTED" = "开始";
-"TRACK_PLANNING" = "计划";
+"STARTED" = "开始阅读日期";
+"TRACK_PLANNING" = "计划阅读";
 "START_TRACKING" = "开始追踪";
 "STOP_TRACKING" = "停止追踪";
 "TRACK_DROPPED" = "放弃";
 "SCORE" = "评分";
 "TRACK_PAUSED" = "暂停";
-"FINISHED" = "完结";
-"TRACK_READING" = "阅读";
-"TRACK_REREADING" = "重读";
+"FINISHED" = "读完日期";
+"TRACK_READING" = "阅读中";
+"TRACK_REREADING" = "重读中";
 "ONESHOT" = "短篇";
 "STATUS_NOT_PUBLISHED" = "未出版";
 "MANHWA" = "韩漫";
@@ -268,8 +268,8 @@
 "TRACK" = "追踪";
 "TYPE_COLON_%@" = "类型：%@";
 "STATUS_COLON_%@" = "状态：%@";
-"CLEAR_TRACKED_MANGA" = "清除追踪漫画";
-"CLEAR_TRACKED_MANGA_TEXT" = "此操作无法撤销。所有添加到漫画的追踪记录都将被删除。";
+"CLEAR_TRACKED_MANGA" = "清除所有追踪关联";
+"CLEAR_TRACKED_MANGA_TEXT" = "此操作无法撤销。将移除所有漫画与追踪器的关联信息。";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "你确定要删除所有下载吗？";
 "CACHE_SIZE_%@" = "缓存大小：%@";
 "SUPPORT_VIA_KOFI" = "通过 Ko-Fi 支持";
@@ -281,7 +281,7 @@
 "ONE_PAGE_LEFT" = "剩余 1 页";
 "FAILED_CHAPTER_LOAD" = "加载章节失败";
 "SORT_TOTAL_CHAPTERS" = "总章节数";
-"SORT_UNREAD_CHAPTERS" = "未读章节";
+"SORT_UNREAD_CHAPTERS" = "未读章节数";
 "SET_AS_SINGLE_PAGE" = "作为单独页面显示";
 "FAILED_CHAPTER_LOAD_INFO" = "您可能处于离线状态，或图源可能存在问题。";
 "%i_PAGES_LEFT" = "剩余 %i 页";
@@ -303,7 +303,7 @@
 "NOT_FOUND" = "未找到";
 "MOST_CHAPTERS_SLOWER" = "最多章节（较慢）";
 "MIGRATE_%i_ITEMS?" = "迁移%i个项目？";
-"RENAME_CATEGORY_INFO" = "为此类别输入新名称。";
+"RENAME_CATEGORY_INFO" = "请输入此分类的新名称。";
 "RENAME_CATEGORY_FAIL" = "重命名分类失败";
 "SKIP_DUPLICATE_CHAPTERS" = "跳过重复章节";
 "RENAME_CATEGORY" = "重命名分类";
@@ -311,17 +311,17 @@
 "%i_OF_%i" = "%i / %i";
 "WEBTOON" = "条漫";
 "AVAILABLE" = "可用";
-"FIRST_ALTERNATIVE" = "第一个选择";
+"FIRST_ALTERNATIVE" = "首个可用的替代图源";
 "RENAME_CATEGORY_FAIL_INFO" = "分类名称必须唯一。";
 "UPLOAD_DATE" = "上传日期";
 "IS_TRACKING" = "追踪";
 "ALL_CHAPTERS_READ" = "所有章节已读";
 "DEFAULT_READING_MODE" = "默认阅读模式";
-"PILLARBOX_AMOUNT" = "填充比例";
-"BOTH" = "全部";
-"PILLARBOX" = "黑边";
-"PILLARBOX_ORIENTATION" = "填充方向";
-"PILLARBOX_ORIENTATION_INFO" = "填充方向决定哪些方向添加填充。";
+"PILLARBOX_AMOUNT" = "左右留白大小";
+"BOTH" = "两者";
+"PILLARBOX" = "左右留白";
+"PILLARBOX_ORIENTATION" = "应用留白的屏幕方向";
+"PILLARBOX_ORIENTATION_INFO" = "选择在哪些屏幕方向下启用左右留白。";
 "COVER" = "封面";
 "CROP_BORDERS" = "裁剪边缘";
 "REORDER" = "重新排序";
@@ -331,7 +331,7 @@
 "%@_TRACKER_LOGIN_NEEDED" = "需要 %@ 登录";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "您的 %@ 令牌已过期，因此该追踪器将停止工作，直到您在设置中重新登录。";
 "BACKUP_ERROR" = "备份恢复错误";
-"BACKUP_ERROR_TEXT" = "恢复 %@ 时遇到错误。备份可能无效。";
+"BACKUP_ERROR_TEXT" = "恢复时发生错误：%@。备份可能无效。";
 "PAUSE" = "暂停";
 "RESUME" = "继续";
 "WARNING" = "警告";
@@ -347,12 +347,12 @@
 // Manga Updates
 "MANGA_UPDATES" = "更新";
 "NO_UPDATES" = "没有更新";
-"%lld_PLUS_MORE" = "+%lld 更多";
+"%lld_PLUS_MORE" = "另有 %lld 章";
 "DELETE_DOWNLOAD_AFTER_READING" = "阅读后删除下载";
 "SKIPPING_CHAPTERS" = "跳过 %i 个章节，可能是来源缺少这些章节或已被筛选掉";
 "SCANLATOR" = "汉化组";
 "NO_SCANLATOR" = "无汉化组";
-"CLEAR_EXCLUDING_LIBRARY_TEXT" = "此操作无法撤销。除书架外的所有阅读历史都被删除。";
+"CLEAR_EXCLUDING_LIBRARY_TEXT" = "此操作无法撤销。将删除不在书架中的作品的所有阅读历史。";
 "CLEAR_EXCLUDING_LIBRARY" = "清除书架外阅读历史";
 "ENABLE_PERMISSION" = "启用权限";
 "PHOTOS_ACCESS_DENIED_TEXT" = "此前访问被拒绝。请授予Aidoku访问照片权限，以便将图片保存到您的照片。您可以在隐私设置中开启此权限。";
@@ -363,7 +363,7 @@
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "从分类%@删除项目";
 "REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "正在将 %i 部作品从分类“%@”中移除";
 "DONE" = "完成";
-"INVALID" = "失效";
+"INVALID" = "无效";
 "BROWSE_NO_SOURCES_TEXT_NEW" = "使用加号按钮添加图源。";
 "SEE_ALL" = "查看全部";
 "HOME" = "主页";
@@ -372,15 +372,15 @@
 "SOURCE_SETTINGS" = "图源设置";
 "CANCEL_CONFIRM" = "你确定要取消吗？";
 "RESET_SETTINGS_CONFIRM_%@" = "你确定要重置%@的所有设置吗？";
-"BASE_URL" = "默认网址";
+"BASE_URL" = "基础 URL";
 "CANCEL_CONFIRM_TEXT" = "你的更改将被放弃。";
 "DISCARD_CHANGES" = "放弃更改";
 "INVALID_URL" = "无效网址";
 "INVALID_URL_TEXT" = "此图源的 URL 无效。";
-"MORE_BARBUTTON" = "更多信息";
+"MORE_BARBUTTON" = "更多";
 "RETRY" = "重试";
 "NO_RESULT" = "没有结果";
-"UNIMPLEMENTED" = "未实施";
+"UNIMPLEMENTED" = "未实现";
 "NETWORK_ERROR" = "网络错误";
 "DECODING_ERROR" = "解码错误";
 "UNKNOWN_ERROR" = "未知错误";
@@ -397,7 +397,7 @@
 "ALL_SOURCES_INSTALLED_INFO" = "没有其他外部图源可以安装。";
 "IMPORT" = "导入";
 "LOCAL_FILES" = "本地文件";
-"LOCAL_FILES_SETUP" = "本地来源设置";
+"LOCAL_FILES_SETUP" = "本地文件设置";
 "IMPORT_FILE" = "导入文件";
 "LOCAL_FILE_IMPORT" = "本地文件导入";
 "LOCAL_FILE_IMPORT_TEXT" = "导入包含图片的CBZ或ZIP文件进行阅读。";
@@ -407,24 +407,24 @@
 "SERIES" = "系列";
 "NEW_SERIES" = "新系列";
 "NEW_SERIES_TEXT" = "为该文件创建一个新系列";
-"SOURCE_NAME_INFO" = "在浏览选项卡中显示来源名称。";
-"SOURCE_NAME_UNIQUE_ERROR" = "请选择一个唯一的来源名称。";
+"SOURCE_NAME_INFO" = "此图源在“浏览”标签页中显示的名称。";
+"SOURCE_NAME_UNIQUE_ERROR" = "请选择一个不重复的图源名称。";
 "SERVER_URL" = "服务器网址";
-"SERVER_URL_INFO" = "要连接的服务器的网址。";
+"SERVER_URL_INFO" = "要连接的服务器的基础 URL。";
 "SELECT_SERIES" = "选择系列";
 "VOLUME_CHAPTER_INVALID_ERROR" = "具有此配置的章节已存在。";
 "VOLUME_CHAPTER_EMPTY_ERROR" = "需要卷号和/或章节号。";
-"SERIES_TITLE_UNIQUE_ERROR" = "这个标题系列已经存在。";
+"SERIES_TITLE_UNIQUE_ERROR" = "已存在同名的系列。";
 "SERIES_TITLE_EMPTY_ERROR" = "必须为新系列提供标题。";
 "CREATE_NEW_SERIES_INFO" = "下一页将创建一个新系列，你也可以选择一个现有系列来添加该文件。";
 "ADD_TO_OTHER_SERIES_INFO" = "该文件将被添加到所选系列中。";
-"%i_PAGES" = "%i页数";
+"%i_PAGES" = "%i 页";
 "1_PAGE" = "1 页";
 "CBZ_NAME" = "漫画书 Zip 压缩包";
 "ZIP_NAME" = "Zip 压缩包";
 "KOMGA_TAGLINE" = "自托管媒体服务器";
 "KOMGA_INFO" = "Komga 是一个用于漫画的自托管媒体服务器。您需要配置并运行 Komga 服务器才能使用此图源。";
-"SOURCE_NAME" = "来源名称";
+"SOURCE_NAME" = "图源名称";
 "KOMGA" = "Komga";
 "DEMO_KOMGA_SERVER" = "演示 Komga 服务器";
 "SERVER_ERROR" = "服务器错误";
@@ -440,13 +440,13 @@
 "RECENTLY_UPDATED_SERIES" = "最近更新系列";
 "ANY" = "任意";
 "AUTHOR" = "作者";
-"ARTIST" = "艺术家";
+"ARTIST" = "画师";
 "SORT" = "排序";
 "SORT_NAME" = "名称";
 "SORT_DATE_UPDATED" = "更新日期";
 "SORT_RELEASE_DATE" = "发行日期";
 "SORT_FOLDER_NAME" = "文件夹名称";
-"SORT_BOOKS_COUNT" = "作品数量";
+"SORT_BOOKS_COUNT" = "书籍数量";
 "SORT_RANDOM" = "随机";
 "GENRE" = "类型";
 "TAG" = "标签";
@@ -459,30 +459,30 @@
 "LOCKED" = "锁定";
 "VOLUME" = "卷数";
 "LOGIN" = "登录";
-"USERNAME" = "账号";
+"USERNAME" = "用户名";
 "EMAIL" = "邮箱";
 "PASSWORD" = "密码";
 "LOGIN_FAILED" = "登录失败";
-"LOGIN_FAILED_TEXT" = "登录来源失败。请确保你的凭据输入正确。";
+"LOGIN_FAILED_TEXT" = "无法登录图源。请确认输入的登录信息正确。";
 "LOGIN_WEBVIEW_WARNING" = "通过网页登录？";
-"LOGIN_WEBVIEW_WARNING_TEXT" = "在显示的网页中设置的所有Cookie都将提供给来源。请勿登录您不信任的任何来源。";
-"UNAVAILABLE_SOURCE_LISTS" = "不可用来源列表";
+"LOGIN_WEBVIEW_WARNING_TEXT" = "此网页中设置的所有 Cookie 都会提供给图源。请勿登录不信任的图源。";
+"UNAVAILABLE_SOURCE_LISTS" = "不可用的图源列表";
 "COPY_URL" = "复制网址";
 "SOURCE_IMPORT_FAIL_TEXT" = "导入图源失败。请确保您的aix文件有效。";
 "ADD" = "添加";
 "ALL_CHAPTERS_LOCKED" = "所有章节锁定";
 "DEMO_KOMGA_SERVER_INFO" = "你可以使用邮箱 `demo@komga.org` 和密码 `komga-demo` 登录演示 Komga 服务器。";
-"SERVER_URL_UNIQUE_ERROR" = "已存在配置有该服务器的来源。";
+"SERVER_URL_UNIQUE_ERROR" = "已存在使用该服务器的图源。";
 "SORT_DATE_READ" = "阅读日期";
 "SHARING_LABEL" = "共享标签";
-"LOGOUT_CONFIRM" = "你确定要注销吗？";
+"LOGOUT_CONFIRM" = "确定要退出登录吗？";
 "RECENTLY_READ_BOOKS" = "最近阅读图书";
-"LOGIN_BASIC_TEXT" = "输入的任何凭据都将直接提供给来源。请勿登录你不信任的任何来源。";
+"LOGIN_BASIC_TEXT" = "输入的登录信息会直接提供给图源。请勿登录不信任的图源。";
 "FILE_IMPORT_FAIL_TEXT" = "文件导入失败。请确保该文件是包含图片的有效 CBZ 或 ZIP 存档文件。";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "获取上述图源列表时发生错误。";
-"SOURCE_BREAKING_CHANGE" = "图源重大变更";
-"SOURCE_BREAKING_CHANGE_TEXT" = "此图源发生了重大变更，需要迁移才能保留您的书库和阅读历史。";
-"LOCAL_FILES_INFO" = "本地图源允许你在Aidoku中直接上传和管理你自己的阅读库。";
+"SOURCE_BREAKING_CHANGE" = "图源不兼容变更";
+"SOURCE_BREAKING_CHANGE_TEXT" = "此图源发生了不兼容变更，需要迁移才能保留书架和阅读历史。";
+"LOCAL_FILES_INFO" = "本地图源允许你在 Aidoku 中直接导入文件并管理自己的阅读库。";
 "LOCAL_FILES_TAGLINE" = "读取本地文件";
 "REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "从书架删除项目";
 "REMOVING_%i_ITEMS_FROM_LIBRARY" = "从书架删除 %i 项目";
@@ -496,10 +496,10 @@
 "TOGGLE_LOCK" = "切换锁定";
 "COMIC" = "漫画";
 "BOOK" = "图书";
-"OEL" = "其他";
+"OEL" = "英语原创漫画";
 "CONTENT" = "内容";
 "%@_EXPERIMENTAL" = "%@（实验性）";
-"UPSCALE_IMAGES" = "超分辨率图像";
+"UPSCALE_IMAGES" = "对图片进行超分辨率处理";
 "UPSCALING_MODELS" = "超分辨率模型";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "最大图片高度";
 "UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "大于最大图片高度的图片将不会进行放大处理。";
@@ -514,7 +514,7 @@
 "NO_DOWNLOADS" = "无下载内容";
 "NO_DOWNLOADS_TEXT" = "下载内容将显示在此处。";
 "DOWNLOADED_CHAPTERS" = "已下载章节";
-"TOTAL_DOWNLOADS" = "总下载数";
+"TOTAL_DOWNLOADS" = "下载总大小";
 "%i_SERIES" = "%i 系列";
 "IN_LIBRARY" = "在书架";
 "VIEW_SERIES" = "查看系列";
@@ -526,7 +526,7 @@
 "DISABLED" = "已禁用";
 "ANIMATE_PAGE_TRANSITIONS" = "页面过渡动画";
 "SET_COVER_IMAGE" = "设为封面";
-"UPLOAD_CUSTOM_COVER" = "上传自定义封面";
+"UPLOAD_CUSTOM_COVER" = "选择自定义封面";
 "RESET_COVER" = "重置封面";
 "TURN_PAGE_LEFT" = "向左翻页";
 "TURN_PAGE_RIGHT" = "向右翻页";
@@ -543,12 +543,12 @@
 "FOCUS_ITEM_PREV" = "聚焦上一个项目";
 "OPEN_FOCUS_ITEM" = "打开聚焦项目";
 "RESET_FOCUS" = "重置焦点";
-"CHAPTER_FORWARD" = "章节向前";
-"CHAPTER_BACKWARD" = "章节后退";
+"CHAPTER_FORWARD" = "下一章";
+"CHAPTER_BACKWARD" = "上一章";
 "CLEAR_SOURCE_CACHE" = "清除图源缓存";
-"CLEAR_SOURCE_CACHE_TEXT" = "图源网址的缓存网络数据将被清除。这可能导致短期内加载时间增加。";
-"RANGE_FROM" = "从";
-"RANGE_TO" = "到";
+"CLEAR_SOURCE_CACHE_TEXT" = "清除此图源网址的 Cookie、网站数据和缓存的图源内容。您可能需要重新登录，加载时间也可能暂时增加。";
+"RANGE_FROM" = "最小值";
+"RANGE_TO" = "最大值";
 "INVERT_TAP_ZONES" = "反转点击区域";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud 同步是一项实验性功能。启用或禁用它可能会触发数据丢失。";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud 同步仅通过 TestFlight 安装时可用。";
@@ -564,17 +564,17 @@
 "BACKUP_INFO_TITLE" = "备份信息";
 "LEARN_MORE" = "了解更多…";
 "CONTENT_RATING" = "内容评级";
-"SAFE" = "安全";
-"CONTAINS_NSFW" = "包含 NSFW";
-"PRIMARILY_NSFW" = "主要 NSFW";
+"SAFE" = "全年龄";
+"CONTAINS_NSFW" = "包含成人内容";
+"PRIMARILY_NSFW" = "主要为成人内容";
 "KAVITA_TAGLINE" = "自托管数字图书馆";
-"KAVITA_INFO" = "Kavita 是一个自托管的漫画媒体服务器。您需要设置并运行 Kavita 服务器才能使用此资源。";
+"KAVITA_INFO" = "Kavita 是一个自托管的漫画媒体服务器。您需要设置并运行 Kavita 服务器才能使用此图源。";
 "KAVITA_SETUP" = "Kavita 设置";
 "DEMO_KAVITA_SERVER" = "演示 Kavita 服务器";
 "DEMO_KAVITA_SERVER_INFO" = "您可以使用用户名 `demouser` 和密码 `Demouser64` 登录到演示 Kavita 服务器。";
 "MORE_IN_%@" = "更多 %@";
-"SORT_CHAPTER_ADDED" = "章节已添加";
-"SORT_TIME_TO_READ" = "阅读时间";
+"SORT_CHAPTER_ADDED" = "章节添加日期";
+"SORT_TIME_TO_READ" = "预计阅读时长";
 "SORT_AVERAGE_RATING" = "平均评分";
 "STATUS_ENDED" = "结束";
 "FORMAT" = "格式";
@@ -603,9 +603,9 @@
 "RECENTLY_SEARCHED" = "最近搜索";
 "NO_RECENT_SEARCHES" = "暂无搜索历史";
 "NO_RECENT_SEARCHES_TEXT" = "您最近的搜索将显示在这里。";
-"SOURCES" = "来源";
+"SOURCES" = "图源";
 "BACKGROUND_REFRESH" = "后台刷新";
-"BACKGROUND_REFRESH_TEXT" = "在手动启动库刷新时，即使应用进入后台，也允许刷新完成。";
+"BACKGROUND_REFRESH_TEXT" = "手动启动书架刷新后，即使应用切换至后台，也允许刷新完成。";
 "EVERY_6_HOURS" = "每 6 小时";
 "AUTOMATIC_BACKUPS" = "自动备份";
 "BACKUP_INTERVAL" = "备份间隔";
@@ -620,7 +620,7 @@
 "LIBRARY_ADD_CONTENT" = "从浏览标签添加内容。";
 "LIBRARY_ADJUST_FILTERS" = "调整您的筛选器以查看更多内容。";
 "FILTER_HAS_UNREAD" = "未读";
-"FILTER_STARTED" = "开始";
+"FILTER_STARTED" = "已开始阅读";
 "ASCENDING" = "升序";
 "DESCENDING" = "降序";
 "OLDEST_FIRST" = "最早优先";
@@ -635,9 +635,9 @@
 "INSIGHTS" = "阅读分析";
 "STREAKS" = "连续记录";
 "STATS" = "统计";
-"CURRENT_STREAK" = "当前趋势";
-"NO_CURRENT_STREAK" = "无当前趋势";
-"NO_CURRENT_STREAK_TEXT" = "每天阅读积累阅读记录。";
+"CURRENT_STREAK" = "当前连续阅读天数";
+"NO_CURRENT_STREAK" = "暂无连续阅读记录";
+"NO_CURRENT_STREAK_TEXT" = "每天阅读，积累连续阅读记录。";
 "LONGEST_STREAK" = "最长连续阅读天数";
 "DAYS" = "天";
 "CHAPTER_PLURAL" = "章节";
@@ -655,10 +655,10 @@
 "PARALLEL_DOWNLOADS" = "并行下载";
 "PIN_DISABLED" = "禁用";
 "PIN_UPDATED_CHAPTERS" = "更新章节";
-"PIN_TITLES" = "置顶标题";
-"CATEGORY" = "类别";
+"PIN_TITLES" = "置顶作品";
+"CATEGORY" = "分类";
 "MISSING_SOURCE_LIST" = "图源列表缺失";
-"MISSING_SOURCE_LIST_INFO" = "此外部图源缺少图源列表配置，无法自动更新，可能在未来失效。";
+"MISSING_SOURCE_LIST_INFO" = "此外部图源不在任何已配置的图源列表中，因此无法接收更新，将来可能无法使用。";
 "REFRESH_LOGIN" = "刷新登录";
 "LEGACY_SOURCE_LIST" = "旧版图源列表";
 "LEGACY_SOURCE_LIST_WARNING" = "警告：旧版图源列表";
@@ -668,7 +668,7 @@
 "SYNC_WITH_TRACKER" = "与追踪器同步";
 "SYNC_WITH_TRACKER_INFO_%i" = "追踪器检测到 %i 个章节已阅读。您要将这些章节标记为已读吗？";
 "UNAVAILABLE_TRACKER_ITEM" = "追踪项目不可用";
-"UNAVAILABLE_TRACKER_ITEM_INFO" = "此关联的追踪器项目已不再可用。您应该移除此项目或重新登录关联的追踪器。";
+"UNAVAILABLE_TRACKER_ITEM_INFO" = "此关联项所使用的追踪器已无法使用。请移除此关联项，或重新登录对应的追踪器。";
 "FILTER_SEPARATOR" = ",";
 "EDIT" = "编辑";
 "UNCATEGORIZED" = "未分类";
@@ -687,9 +687,9 @@
 "MIRRORS" = "镜像源";
 "MIRRORS_INFO" = "当主连接失败时，将尝试使用的备用基础 URL。";
 "ENHANCED_TRACKERS" = "增强型追踪器";
-"ENHANCED_TRACKERS_INFO" = "增强型追踪器可自动关联从支持的图源添加到书库的作品，并实现双向阅读历史同步。";
-"ENHANCED_TRACKERS_TOGGLE_INFO" = "禁用图源的追踪功能将移除所有已关联的追踪器，而启用后将自动关联您书库中的所有作品。";
-"TRACKER_LOGOUT_INFO" = "退出登录将移除此追踪器中所有作品的已关联追踪信息。";
+"ENHANCED_TRACKERS_INFO" = "增强型追踪器可自动关联从支持的图源添加到书架的作品，并双向同步阅读历史。";
+"ENHANCED_TRACKERS_TOGGLE_INFO" = "禁用某个图源的追踪功能会移除其所有追踪关联；启用后会自动关联书架中该图源的作品。";
+"TRACKER_LOGOUT_INFO" = "退出登录后，会移除所有作品与此追踪器关联的追踪信息。";
 "TEXT_READER" = "文本阅读器";
 "TEXT_READER_STYLE" = "阅读器风格";
 "TEXT_READER_PAGED" = "分页";
@@ -697,16 +697,16 @@
 "TEXT_FONT_FAMILY" = "字体";
 "TEXT_FONT_SIZE" = "字体大小";
 "TEXT_LINE_SPACING" = "行距";
-"TEXT_HORIZONTAL_PADDING" = "水平填充";
+"TEXT_HORIZONTAL_PADDING" = "左右边距";
 "RESUME_LAST_OPENED_CHAPTER" = "续读上次章节";
 "PAGE_OFFSET" = "页面偏移";
 "UNSET_AS_SINGLE_PAGE" = "取消设为单页";
 "TOGGLE_PAGE_OFFSET" = "切换页面偏移";
 "REFRESH_NO_WIFI" = "未连接 Wi-Fi";
-"REFRESH_NO_WIFI_TEXT" = "已开启「仅在Wi-Fi 更新」，书库需连接 Wi-Fi 后方可刷新。";
+"REFRESH_NO_WIFI_TEXT" = "已启用“仅在 Wi-Fi 更新”，连接 Wi-Fi 后才能刷新书架。";
 "REFRESH_ANYWAYS" = "强制刷新";
-"REMOVE_FROM_LIBRARY_CONFIRM" = "从书库移除？";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "从书库中移除此作品也将移除所有已关联的追踪器。确定要继续吗？";
+"REMOVE_FROM_LIBRARY_CONFIRM" = "从书架移除？";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "从书架中移除此作品也会移除所有已关联的追踪器。确定要继续吗？";
 "INCOGNITO_FILTERS_NOTICE" = "修改后的过滤器在无痕模式下不会保留。";
 "API_KEY" = "API 密钥";
 "OIDC" = "OIDC";
@@ -719,8 +719,8 @@
 "STANDARD" = "标准";
 "COMPACT" = "紧凑";
 "CUSTOM" = "自定义";
-"PORTRAIT_ROWS" = "竖屏行数";
-"LANDSCAPE_ROWS" = "横屏行数";
+"PORTRAIT_ROWS" = "竖屏列数";
+"LANDSCAPE_ROWS" = "横屏列数";
 "DISABLE_DOUBLE_TAP_ZOOM" = "禁用双击缩放";
 "CONTINUOUS_WITH_GAPS" = "连续滚动（带间距）";
 "SYNC_WITH_TRACKER_INFO_1" = "追踪器检测到 1 个章节已阅读。您要将此章节标记为已读吗？";
@@ -735,22 +735,22 @@
 "MIGRATE_%i_OF_%i" = "迁移 (%i/%i)";
 "SHOW_ENTRY" = "查看作品";
 "NEW_CHAPTER_NOTIFICATIONS" = "新章节通知";
-"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "书库后台刷新时发送通知。";
+"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "书架在后台刷新时发送通知。";
 "1_NEW_CHAPTER_AVAILABLE" = "新章节已更新";
 "X_NEW_CHAPTERS_AVAILABLE" = "%d 个新章节已更新";
 "NEW_CHAPTERS_AVAILABLE" = "新章节已更新";
 "X_SERIES_HAVE_NEW_CHAPTERS" = "%d 部作品有新章节";
 "EPUB_NAME" = "EPUB";
 "SUWAYOMI" = "Suwayomi";
-"SUWAYOMI_TAGLINE" = "漫画源服务器";
+"SUWAYOMI_TAGLINE" = "漫画阅读器服务器";
 "SUWAYOMI_INFO" = "Suwayomi 是一款自托管漫画阅读器服务器，支持运行为 Mihon（Tachiyomi）开发的插件。您需要先搭建并运行 Suwayomi 服务器，才能使用此图源。";
 "SUWAYOMI_SETUP" = "Suwayomi 设置";
 "STATUS_LICENSED" = "已授权";
 "STATUS_PUBLISHING_FINISHED" = "已出版完毕";
 "AUTHOR_NAME" = "作者姓名";
-"ARTIST_NAME" = "艺术家姓名";
+"ARTIST_NAME" = "画师姓名";
 "INVALID_KEY" = "密钥无效";
-"CONTINUE_READING_ON_RESELECT" = "双击历史标签页恢复浏览位置";
+"CONTINUE_READING_ON_RESELECT" = "双击历史标签页继续阅读";
 "DICTIONARY_LOOKUP" = "词典查询";
 "DICTIONARY_SETTINGS_TEXT" = "开启后，应用将 OCR 识别漫画页面，并允许在导入的 Yomitan 词典中查询词语。";
 "DICTIONARIES" = "词典";
@@ -761,8 +761,8 @@
 "LONG_PRESS" = "长按";
 "LOOKUP_GESTURE_SINGLE_TAP_INFO" = "点击词语开头可激活弹窗。启用时将禁用双击缩放。";
 "LOOKUP_GESTURE_LONG_PRESS_INFO" = "长按词语开头高亮，松开弹窗。启用时将禁用页面快捷操作。";
-"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "通过查找手势锁定：单击。";
-"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "通过查找手势锁定：长按。";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "“查询手势”已设为“单击”，因此无法更改。";
+"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "“查询手势”已设为“长按”，因此无法更改。";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "OCR 文字叠加层";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "激活查询时，在图像区域显示文本框。这有助于判断哪些文本已被 OCR 正确识别。";
 "DICTIONARY_OVERLAY_PADDING" = "覆盖层内边距";
@@ -773,7 +773,7 @@
 "DICTIONARY_POPUP" = "词典弹窗";
 "DISPLAY_MODE" = "显示模式";
 "DEFAULT_DISPLAY_MODE" = "默认";
-"FULL_WIDTH" = "适应宽度";
+"FULL_WIDTH" = "全宽";
 "DICTIONARY_POPUP_WIDTH" = "弹窗宽度";
 "DICTIONARY_POPUP_HEIGHT" = "弹窗高度";
 "TERM_DICTIONARIES" = "词条词典";
@@ -827,13 +827,13 @@
 "AUTO_SCROLL" = "自动滚动";
 "AUTO_SCROLL_SPEED" = "自动滚动速度";
 
-"TRANSLATION_TITLE" = "光学字符识别和翻译";
+"TRANSLATION_TITLE" = "OCR 与翻译";
 
 "TRANSLATION_TRANSLATE" = "翻译可见页面";
 
 "TRANSLATION_RECOGNIZE" = "识别文本（离线）";
 
-"TRANSLATION_ORIGINAL" = "显示原件";
+"TRANSLATION_ORIGINAL" = "显示原图";
 
 "TRANSLATION_TEXT" = "识别和翻译的文本";
 
@@ -841,13 +841,13 @@
 
 "TRANSLATION_NO_TEXT" = "没有识别出任何文字。尝试其他 OCR 模型或更清晰的图像。";
 
-"TRANSLATION_WORKING" = "识别和翻译...";
+"TRANSLATION_WORKING" = "正在识别和翻译…";
 
-"TRANSLATION_OCR_WORKING" = "正在识别设备上的文本...";
+"TRANSLATION_OCR_WORKING" = "正在设备上识别文字…";
 
-"TRANSLATION_HELP" = "翻译图标可打开或关闭翻译。页面按以下顺序准备：当前、下一页、上一页、前面两页、后面两页，继续到章节的两端。关闭阅读器或重新启动应用程序后，可以重复使用已完成的 OCR、翻译和文本布局。离开读者就取消了未完成的工作。";
+"TRANSLATION_HELP" = "点击翻译图标可开启或关闭翻译。优先处理可见页面，再处理附近页面，处理范围随当前阅读位置调整。重新打开阅读器或重启应用后，可复用已保存的 OCR 结果、翻译和文字排版。临时打开的共享图片不会保存此缓存。退出阅读器会取消未完成的任务。";
 
-"TRANSLATION_PRIVACY" = "OCR 在您的设备上运行。 Translation 将识别的文本和您的说明发送给选定的提供商。如果启用在翻译中包含页面图像，则还会上传原始页面图像。 API 费用取决于您的提供商。钥匙留在钥匙串中。 OCR、翻译和文本布局保存在受保护的应用程序存储中，不包含在备份中。";
+"TRANSLATION_PRIVACY" = "OCR 在设备上运行。翻译时会将识别出的文字和翻译指令发送给所选服务商。启用“在翻译中包含页面图像”后，还会上传原始页面图像。API 费用取决于服务商。API 密钥保存在钥匙串中。OCR 结果、翻译和文字排版保存在受保护的应用存储空间中，不包含在备份内。";
 
 "TRANSLATION_KEY_REPLACE" = "替换已保存的 API 密钥（可选）";
 
@@ -857,9 +857,9 @@
 
 "TRANSLATION_KEY_DELETE" = "删除 API 密钥";
 
-"TRANSLATION_MODEL" = "型号编号";
+"TRANSLATION_MODEL" = "模型 ID";
 
-"TRANSLATION_GET_KEY" = "打开 OpenAI API 密钥";
+"TRANSLATION_GET_KEY" = "打开 OpenAI API 密钥管理";
 
 "TRANSLATION_LANGUAGE" = "语言";
 
@@ -869,7 +869,7 @@
 
 "TRANSLATION_AUTO" = "自动检测";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 需要 iOS 18 或更高版本。中为默认值；小使用较少的内存。 Tiny 的字符字典较小。这些型号不支持韩语 OCR。支持韩语翻译输出。";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 需要 iOS 18 或更高版本。默认使用中型模型，小型模型占用的内存更少，超小型模型的字符字典更小。这些模型不支持识别韩语文字，但支持翻译成韩语。";
 
 "TRANSLATION_INSTRUCTIONS" = "翻译指令";
 
@@ -885,29 +885,29 @@
 
 "TRANSLATION_REASONING" = "推理强度";
 
-"TRANSLATION_MODEL_DEFAULT" = "型号默认";
+"TRANSLATION_MODEL_DEFAULT" = "模型默认值";
 
-"TRANSLATION_CONCURRENCY" = "并发请求";
+"TRANSLATION_CONCURRENCY" = "并发请求数";
 
 "TRANSLATION_DETECTOR_SIZE" = "检测图像最大边长";
 
 "TRANSLATION_RECOGNIZER_SIZE" = "识别图像最大宽度";
 
-"TRANSLATION_CONFIDENCE" = "OCR 置信度";
+"TRANSLATION_CONFIDENCE" = "OCR 最低置信度";
 
 "TRANSLATION_SURFACE" = "背景颜色";
 
 "TRANSLATION_WHITE" = "白色";
 
-"TRANSLATION_DARK" = "黑暗";
+"TRANSLATION_DARK" = "深色";
 
 "TRANSLATION_OPACITY" = "背景不透明度";
 
-"TRANSLATION_EXPANSION" = "盒子扩展";
+"TRANSLATION_EXPANSION" = "文字框扩展范围";
 
-"TRANSLATION_PANEL_BOUNDS" = "在图像面板内";
+"TRANSLATION_PANEL_BOUNDS" = "图片范围内";
 
-"TRANSLATION_SOURCE_BOUNDS" = "原盒内";
+"TRANSLATION_SOURCE_BOUNDS" = "原文框内";
 
 "TRANSLATION_UNRESTRICTED" = "无限制";
 
@@ -919,7 +919,7 @@
 
 "TRANSLATION_OVERLAY" = "翻译叠加";
 
-"TRANSLATION_OVERLAY_HELP" = "使用碰撞感知布局和特定于脚本的换行替换源框中的文本。显示更改重用现有 OCR。";
+"TRANSLATION_OVERLAY_HELP" = "在原文位置叠加译文，避免文字重叠，并按文字系统自动换行。更改显示设置时会复用已有的 OCR 结果。";
 
 "TRANSLATION_PROVIDER" = "翻译提供商";
 
@@ -927,21 +927,21 @@
 
 "TRANSLATION_API_FORMAT" = "API格式";
 
-"TRANSLATION_CUSTOM_HELP" = "输入 HTTPS 基本 URL 或完整 API 端点以及您的服务器支持的模型。每个服务器 URL 都有自己保存的密钥；更改 URL 会清除您输入的任何键。响应和聊天完成使用结构化 JSON 输出。";
+"TRANSLATION_CUSTOM_HELP" = "请输入 HTTPS 基础 URL 或完整的 API 接口地址，以及服务器支持的模型。每个服务器地址分别保存 API 密钥；更改地址会清空正在输入的密钥。Responses 和 Chat Completions 均使用结构化 JSON 输出。";
 
 "TRANSLATION_AUTOMATIC" = "自动翻译";
 
-"TRANSLATION_AUTOMATIC_HELP" = "当应用程序打开或 API 设置更改时，请在后台检查保存的 API 设置。成功后开始翻译。失败的检查会暂停翻译，但不会更改您的自动翻译首选项。重新打开应用程序或再次测试 API 连接以重试。页面更改和ON/OFF重复使用检查结果。推理工作使用您保存的设置。";
+"TRANSLATION_AUTOMATIC_HELP" = "使用已保存的 API 设置和推理强度，自动翻译阅读器中的页面。翻译会直接开始，不会单独测试连接。翻译失败不会关闭此设置。可使用“测试API连接”手动检查设置。";
 
 "TRANSLATION_TEST" = "测试API连接";
 
-"TRANSLATION_TEST_RUNNING" = "测试连接...";
+"TRANSLATION_TEST_RUNNING" = "正在测试连接…";
 
 "TRANSLATION_TEST_SUCCESS" = "连接成功";
 
 "TRANSLATION_TEST_FAILURE" = "连接失败";
 
-"TRANSLATION_TEST_HELP" = "使用此形式的值翻译一个短句子。将密钥留空以使用该服务器保存的密钥。更改会自动保存。";
+"TRANSLATION_TEST_HELP" = "使用当前表单中的设置翻译一个短句。密钥留空时会使用该服务器已保存的密钥。更改会自动保存。";
 
 "SEARCH_SUGGESTIONS" = "搜索建议";
 
@@ -951,31 +951,31 @@
 
 "TRANSLATION_CACHE_USED" = "已用存储空间";
 
-"TRANSLATION_CACHE_HELP" = "自动保存 OCR、页面翻译、漫画和章节标题翻译、漫画描述和文本布局。页面图像仅保留在附近页面内存中。当达到选定的限制时，最近最少使用的结果将被删除。默认值：1 GB。最大：100 GB。更改自动应用；降低限制会删除最近最少使用的结果，直到缓存适合为止。";
+"TRANSLATION_CACHE_HELP" = "自动保存 OCR 结果、页面译文、漫画和章节标题译文、漫画简介译文及文字排版。页面图像仅保留在当前及附近页面的内存中。达到容量上限时，优先删除最久未使用的结果。默认上限为 1 GB，最高为 100 GB。更改自动生效；降低上限时会删除最久未使用的结果，直到符合容量限制。";
 
-"TRANSLATION_SOURCE_FILTER" = "翻译源过滤器";
+"TRANSLATION_SOURCE_FILTER" = "原文语言筛选";
 
 "TRANSLATION_FILTER_ALL" = "所有检测到的语言";
 
-"TRANSLATION_FILTER_HELP" = "选择要翻译的原始语言。未选择或不确定的文本保持不变。选择所有检测到的语言以删除过滤器。";
+"TRANSLATION_FILTER_HELP" = "选择要翻译的原文语言。未选中的语言或无法确定语言的文字会保留原样。选择“所有检测到的语言”可取消筛选。";
 
-"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "仅翻译被识别为所选原始语言的文本。没有设备上检测的语言仍然不会被过滤。";
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "只翻译识别为所选原文语言的文字。对于设备端语言检测不支持的语言，不应用筛选。";
 
-"HTTPS_BYPASS" = "HTTPS 阻塞绕过";
+"HTTPS_BYPASS" = "绕过 HTTPS 封锁";
 
-"HTTPS_BYPASS_HELP" = "对源请求、图像、下载和源 Web 视图使用 TLS 分段和加密 DNS (Cloudflare)。适用于新连接。无法绕过网站施加的 IP 封锁和限制。";
+"HTTPS_BYPASS_HELP" = "对图源请求、图片、下载和图源网页使用 TLS 分段及加密 DNS（Cloudflare）。仅对新连接生效。无法绕过 IP 封锁或网站自身的访问限制。";
 
 "HTTPS_BYPASS_TEST" = "测试连接";
 
-"HTTPS_BYPASS_TEST_HELP" = "即使交换机关闭，也会通过旁路测试此 HTTPS 地址。响应确认连接，而不是存在 ISP 阻止。";
+"HTTPS_BYPASS_TEST_HELP" = "即使功能开关已关闭，也会通过绕过路径测试此 HTTPS 地址。收到响应仅表示连接成功，不代表存在运营商封锁。";
 
 "HTTPS_BYPASS_INVALID_URL" = "输入不带用户名或密码的 HTTPS URL。";
 
 "HTTPS_BYPASS_TEST_RESULT" = "收到 HTTP %d · 应用了 TLS 分段";
 
-"HTTPS_BYPASS_TEST_UNCONFIRMED" = "收到 HTTP %d · TLS 碎片未确认";
+"HTTPS_BYPASS_TEST_UNCONFIRMED" = "收到 HTTP %d · 未确认 TLS 分段";
 
-"HTTPS_BYPASS_TEST_FAILED" = "无法通过 HTTPS 旁路连接。";
+"HTTPS_BYPASS_TEST_FAILED" = "无法通过 HTTPS 封锁绕过功能连接。";
 
 "TRANSLATION_CONNECTION_FAILED_NOTICE" = "翻译失败。显示 OCR 文本。请检查您的连接。";
 
@@ -983,49 +983,49 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "翻译章节标题";
 
-"TRANSLATION_TITLES_HELP" = "使用独立于自动页面翻译的翻译 API 和目标语言。关闭以显示原始标题和说明。加载时或翻译失败时，原件仍然可见。";
+"TRANSLATION_TITLES_HELP" = "使用已设置的翻译 API 和目标语言，独立于页面自动翻译运行。关闭后显示原始标题和简介。翻译加载中或失败时仍显示原文。";
 
-"TRANSLATION_MANGA_TITLE_FILTER" = "漫画标题语言";
+"TRANSLATION_MANGA_TITLE_FILTER" = "漫画标题原文语言";
 
-"TRANSLATION_CHAPTER_TITLE_FILTER" = "章节标题 语言";
+"TRANSLATION_CHAPTER_TITLE_FILTER" = "章节标题原文语言";
 
-"TRANSLATION_PAGE_SOURCE" = "页面源语言";
+"TRANSLATION_PAGE_SOURCE" = "页面原文语言";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "自动检测每个标题的源语言并仅翻译选定的语言。所有语言消除了语言限制。页面和其他标题源语言设置不会影响此选择。";
+"TRANSLATION_TITLE_FILTER_HELP" = "自动检测每个标题的原文语言，只翻译选中的语言。选择“所有检测到的语言”可取消语言限制。页面和其他类型标题的原文语言设置不会影响此选项。";
 
-"TRANSLATION_MANGA_DESCRIPTIONS" = "翻译漫画描述";
+"TRANSLATION_MANGA_DESCRIPTIONS" = "翻译漫画简介";
 
-"TRANSLATION_DESCRIPTION_FILTER" = "漫画简介翻译语言";
+"TRANSLATION_DESCRIPTION_FILTER" = "漫画简介原文语言";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "自动检测源语言并仅翻译选定的语言。所有语言都消除了限制。页面、漫画标题、章节标题和描述过滤器独立工作。";
+"TRANSLATION_METADATA_FILTER_HELP" = "自动检测原文语言，只翻译选中的语言。选择“所有检测到的语言”可取消语言限制。页面、漫画标题、章节标题和简介的语言筛选各自独立。";
 
-"TRANSLATION_SFX_FILTER" = "SFX 过滤（仅限日语）";
+"TRANSLATION_SFX_FILTER" = "音效文字过滤（仅限日语）";
 
-"TRANSLATION_SFX_FILTER_HELP" = "保留可能的日语音效不翻译。使用本地字典和保守的布局检查。无法自信地识别为声音效果的文本仍会被翻译。";
+"TRANSLATION_SFX_FILTER_HELP" = "保留疑似日语音效文字的原文，不进行翻译。使用本地字典和谨慎的排版判断条件；无法确定为音效的文字仍会翻译。";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "包括上下文所需的条目（仅限日语）";
+"TRANSLATION_SFX_CONTEXT_FILTER" = "同时过滤需要上下文判断的条目（仅限日语）";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "在启用 SFX 过滤时适用。还可以使用字典匹配、文本大小和附近布局来过滤标记为需要上下文的条目。没有法学硕士分析上下文，因此对话也可能被排除在外。";
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "仅在启用音效过滤时生效。对于标记为需要结合上下文判断的条目，也会根据字典匹配、文字大小和周围排版进行过滤。此功能不会使用大语言模型（LLM）分析上下文，因此可能误排除对话。";
 
 "TRANSLATION_INCLUDE_IMAGE" = "在翻译中包含页面图像";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "发送包含场景和表达式上下文的 OCR 文本的原始页面。图像说明会自动附加。需要支持图像的模型，可能会增加数据使用量和 API 成本。";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "将原始页面图像与 OCR 文字一起发送，为翻译提供场景和表情信息。图像相关指令会自动附加。需要支持图像输入的模型，可能增加流量和 API 费用。";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "保留原始文本颜色";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "无需额外模型即可估计原始文本颜色。当不确定或对比度太低时，请使用默认颜色。";
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "无需额外模型即可估计原文字色。无法确定颜色或对比度过低时，自动使用默认颜色。";
 
-"TRANSLATION_LLM_SFX" = "LLM SFX 过滤（所有语言）";
+"TRANSLATION_LLM_SFX" = "LLM 音效文字过滤（所有语言）";
 
-"TRANSLATION_LLM_SFX_HELP" = "对翻译请求中的音效进行分类。可以与日本本地滤波器结合使用：任一滤波器的音效决定都保持原始效果不变。兼容发送页面图片。";
+"TRANSLATION_LLM_SFX_HELP" = "在翻译请求中同时判断音效。可与日语本地过滤器配合使用：任一过滤器判定为音效时，均保留原文。可同时发送页面图像。";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "如果没有图像输入，有限的视觉和布局上下文可能会降低 SFX 分类的准确性。";
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "不提供图片时，可供判断的画面和排版信息有限，音效文字识别的准确率可能降低。";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "保留原始面板颜色";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "保留原文背景色";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "将翻译面板与原文周围的背景相匹配。当不确定或不可读时，使用默认面板。您的不透明度设置仍然适用。";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "让译文背景与原文周围的背景色一致。无法确定颜色或文字难以辨认时，使用默认背景。不透明度仍遵循您的设置。";
 
-"TRANSLATION_CUSTOM_PROVIDER" = "定制 OpenAI";
+"TRANSLATION_CUSTOM_PROVIDER" = "自定义（兼容 OpenAI）";
 
 "TRANSLATION_OCR_MEDIUM" = "中型";
 
@@ -1057,10 +1057,10 @@
 "TEXT_THEME_SEPIA" = "棕褐色";
 "TEXT_THEME_PAPER" = "纸";
 "TEXT_THEME_GRAY" = "灰色";
-"AUTO_SCROLL_POSITION" = "自动滚动位置";
+"AUTO_SCROLL_POSITION" = "自动滚动按钮位置";
 "POSITION_LEFT" = "左";
 "POSITION_RIGHT" = "右";
-"UPLOAD_FILE" = "上传文件";
+"UPLOAD_FILE" = "导入文件";
 "MIGRATE_CHAPTER_HISTORY" = "迁移章节历史";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "迁移旧版本留下的未链接到本地数据库中的章节的阅读历史记录。这通常在更新后自动发生。如果未完成，您可以在此处再次运行。";
 
@@ -1090,4 +1090,4 @@
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "内置的5个模型均可离线安装。安装模型后，在“已启用模型”中点按选择。MangaJaNai 适用于高度约1200像素的黑白页面；彩色页面保持原样。";
 
-"DOWNLOAD_TRANSLATED" = "翻译后下载";
+"DOWNLOAD_TRANSLATED" = "下载并翻译";

@@ -264,11 +264,13 @@ extension SettingsTrackingView {
                 tracker = TrackerManager.komga
             } else if sourceKey.hasPrefix(KavitaSourceRunner.sourceKeyPrefix) {
                 tracker = TrackerManager.kavita
+            } else if sourceKey.hasPrefix(SuwayomiSourceRunner.sourceKeyPrefix) {
+                tracker = TrackerManager.suwayomi
             } else {
                 return
             }
             if enabled {
-                // enable tracking for all items in library
+                // enable tracking for library items from this source
                 let libraryManga = await CoreDataManager.shared.container.performBackgroundTask { context in
                     let manga = CoreDataManager.shared.getLibraryManga(sourceKey: sourceKey, context: context)
                     return manga.compactMap { $0.manga?.toNewManga() }
@@ -289,7 +291,7 @@ extension SettingsTrackingView {
                     }
                 }
             } else {
-                // remove existing linked trackers on all items
+                // remove existing tracker links for this source
                 do {
                     try await tracker.removeTrackItems(sourceKey: sourceKey)
                 } catch {

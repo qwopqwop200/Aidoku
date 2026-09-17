@@ -14,12 +14,12 @@
 "SHARE" = "Shpërndaje";
 "WARNING" = "Paralajmërim";
 "DOWNLOAD" = "Shkarko";
-"DOWNLOADED" = "Shkarkume";
+"DOWNLOADED" = "Të shkarkuara";
 "DOWNLOAD_QUEUE" = "Radha e shkarkimit";
 "REMOVE_DOWNLOAD" = "Hiqe shkarkimin";
 "REMOVE_ALL_DOWNLOADS" = "Hiqi krejt shkarkimet";
 "REMOVE_DOWNLOADS" = "Hiqi shkarkimet";
-"PAUSE" = "Pauze";
+"PAUSE" = "Pauzë";
 "RESUME" = "Rifillo";
 "COPY" = "Kopjo";
 "CANCEL_DOWNLOAD" = "Anulo shkarkimin";
@@ -35,13 +35,13 @@
 "EXPORT_LOGS" = "Eksporto Regjistrat";
 "DISPLAY_LOGS" = "Shfaq Regjistrat";
 "ADVANCED" = "Avancuar";
-"RESET_TEXT" = "Kjo veprim është e pakthyeshme. Të gjitha të dhënat, cilësimet dhe cache-t do të fshihen dhe rivendosen.";
+"RESET_TEXT" = "Ky veprim është i pakthyeshëm. Të gjitha të dhënat, cilësimet dhe cache-t do të fshihen dhe rivendosen.";
 "CLEAR_NETWORK_CACHE" = "Pastro Cache-n e Rrjetit";
-"CLEAR_NETWORK_CACHE_TEXT" = "Kjo veprim është e pakthyeshme. Kërkesat dhe imazhet e cache-t të rrjetit do të fshihen.";
+"CLEAR_NETWORK_CACHE_TEXT" = "Ky veprim është i pakthyeshëm. Kërkesat dhe imazhet e cache-t të rrjetit do të fshihen.";
 "CLEAR_READ_HISTORY" = "Pastro Historinë e Leximit";
-"CLEAR_READ_HISTORY_TEXT" = "Kjo veprim është e pakthyeshme. E gjithë historia e leximit do të hiqet.";
+"CLEAR_READ_HISTORY_TEXT" = "Ky veprim është i pakthyeshëm. E gjithë historia e leximit do të hiqet.";
 "RESET_SETTINGS" = "Rivendos Cilësimet";
-"RESET_SETTINGS_TEXT" = "Kjo veprim është e pakthyeshme. Të gjitha cilësimet e aplikacionit dhe burimeve do të rivendosen.";
+"RESET_SETTINGS_TEXT" = "Ky veprim është i pakthyeshëm. Të gjitha cilësimet e aplikacionit dhe burimeve do të rivendosen.";
 "PAGE_X_OF_X" = "Faqja %i nga %i";
 "LIBRARY_LOCKED" = "Biblioteka është e bllokuar.";
 "CATEGORY_LOCKED" = "Kategoria është e bllokuar.";
@@ -56,7 +56,7 @@
 "SET_AS_NORMAL_PAGE" = "Vendos si Faqe Normale";
 "PAGES_TO_PRELOAD" = "Faqet për të Parangarkuar";
 "SINGLE_PAGE" = "Faqe e Vetme";
-"PAGED" = "Faqe";
+"PAGED" = "Lexim në faqe";
 "PAGE_LAYOUT" = "Rregullimi i Faqes";
 "DOUBLE_PAGE" = "Faqe e Dyfishtë";
 "MULTI_LANGUAGE" = "Shumëgjuhëshe";
@@ -65,24 +65,24 @@
 "LOGOUT_FROM_%@" = "Dil nga %@?";
 "STATUS" = "Statusi";
 "VOLUMES" = "Vëllimet";
-"STARTED" = "Filluar";
+"STARTED" = "Data e fillimit";
 "TRACK_REREADING" = "Rilexim";
 "START_TRACKING" = "Fillo Gjurmimin";
-"SCORE" = "Rezultati";
+"SCORE" = "Vlerësimi";
 "TRACK_PAUSED" = "Pauzuar";
-"FINISHED" = "Përfunduar";
+"FINISHED" = "Data e përfundimit";
 "TRACK_READING" = "Duke Lexuar";
 "TRACK_PLANNING" = "Duke Planifikuar";
 "TRACK_DROPPED" = "Braktisur";
 "STOP_TRACKING" = "Ndalo Gjurmimin";
-"ONESHOT" = "Një goditje";
+"ONESHOT" = "Tregim i pavarur";
 "STATUS_NOT_PUBLISHED" = "Nuk është Publikuar";
-"TRACK" = "Gjurmë";
+"TRACK" = "Ndiq";
 "STATUS_COLON_%@" = "Statusi: %@";
 "TYPE_COLON_%@" = "Lloji: %@";
 "VIEW_ON_WEBSITE" = "Shiko në Uebfaqe";
-"CLEAR_TRACKED_MANGA" = "Pastro Mangat e Gjurmura";
-"CLEAR_TRACKED_MANGA_TEXT" = "Kjo veprim është e pakthyeshme. Gjurmimi për të gjithë gjurmuesit e shtuar në manga do të hiqet.";
+"CLEAR_TRACKED_MANGA" = "Hiq lidhjet me shërbimet e ndjekjes";
+"CLEAR_TRACKED_MANGA_TEXT" = "Ky veprim është i pakthyeshëm. Të gjitha lidhjet e mangave me shërbimet e ndjekjes do të hiqen.";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "A jeni të sigurt që dëshironi të hiqni të gjitha shkarkimet?";
 "CACHE_SIZE_%@" = "Madhësia e Cache-t: %@";
 "SUPPORT_VIA_KOFI" = "Mbështet përmes Ko-Fi";
@@ -109,7 +109,7 @@
 "SELECTED" = "Zgjedhur";
 "AVAILABLE" = "Disponueshëm";
 "NOT_FOUND" = "Nuk u Gjet";
-"MOST_CHAPTERS_SLOWER" = "Shumica e kapitujve më ngadalë";
+"MOST_CHAPTERS_SLOWER" = "Numri më i madh i kapitujve (më ngadalë)";
 "FIRST_ALTERNATIVE" = "Alternativa e Parë";
 "MIGRATE_%i_ITEMS?" = "Migro %i artikuj?";
 "MIGRATE_ONE_ITEM?" = "Migro një artikull?";
@@ -117,8 +117,8 @@
 "IS_TRACKING" = "Gjurmimi";
 "ALL_CHAPTERS_READ" = "Të gjithë kapitujt e lexuar";
 "DEFAULT_READING_MODE" = "Mënyra Standarde e Leximit";
-"PILLARBOX" = "Kufijtë anësore";
-"PILLARBOX_AMOUNT" = "Sasia e Pillarbox";
+"PILLARBOX" = "Margjinat anësore";
+"PILLARBOX_AMOUNT" = "Gjerësia e margjinave anësore";
 "BACKUP_ERROR_TEXT" = "Një gabim u has gjatë rikthimit: %@. Kopja rezervë mund të jetë e pavlefshme.";
 "REMOVE_DOWNLOADS_CONFIRM" = "Hiqi të gjitha shkarkimet e zgjedhura?";
 "NO_WIFI_ALERT_TITLE" = "Pa Wi-Fi";
@@ -131,7 +131,7 @@
 "READER_SETTINGS" = "Cilësimet e Lexuesit";
 "PAGE_X" = "Faqja %i";
 "APPEARANCE" = "Pamja";
-"INCOGNITO_MODE" = "Mënyra Inkognito";
+"INCOGNITO_MODE" = "Modaliteti i fshehtë";
 "PIN_UNREAD" = "Pa Lexuar";
 "RESTORE_BACKUP_TEXT" = "Të gjitha të dhënat aktuale do të hiqen dhe do të zëvendësohen me të dhënat nga kjo kopje rezervë.";
 "BACKUP_IMPORT_SUCCESS" = "Kopja Rezervë u Importua";
@@ -147,11 +147,11 @@
 "SELECT" = "Zgjidh";
 "ADD_TO_CATEGORY" = "Shto në Kategori";
 "MIGRATE" = "Migro";
-"PILLARBOX_ORIENTATION" = "Orientimi i Pillarbox";
+"PILLARBOX_ORIENTATION" = "Orientimet për margjinat anësore";
 "BOTH" = "Të dyja";
-"PILLARBOX_ORIENTATION_INFO" = "Orientimi përcakton për cilat orientime duhet të aktivizohet pillarboxing.";
-"BACKUP_ERROR" = "Gabim në Kopjen Rezervë";
-"ADD_TO_CATEGORIES" = "Shto në Kategoriat";
+"PILLARBOX_ORIENTATION_INFO" = "Zgjidhni orientimet e ekranit ku do të shfaqen margjinat anësore.";
+"BACKUP_ERROR" = "Gabim gjatë rikthimit të kopjes rezervë";
+"ADD_TO_CATEGORIES" = "Shto në kategori";
 "DOWNLOAD_ANYWAY_MESSAGE" = "Aktualisht nuk jeni në Wi-Fi. Shkarko gjithsesi?";
 "LIBRARY" = "Bibliotekë";
 "LIBRARY_SEARCH" = "Kërko në Bibliotekë";
@@ -176,7 +176,7 @@
 "ALWAYS_ASK" = "Gjithmonë Pyesni";
 "BROWSE" = "Shfleto";
 "BROWSE_NO_SOURCES" = "Pa burime";
-"ADDING_SOURCES_GUIDE_BUTTON" = "Butoni i Udhëzimeve për Shtimin e Burimeve";
+"ADDING_SOURCES_GUIDE_BUTTON" = "Udhëzues për shtimin e burimeve";
 "UPDATES" = "Përditësime";
 "INSTALLED" = "Instaluar";
 "EXTERNAL" = "I jashtëm";
@@ -200,12 +200,12 @@
 "STATUS_CANCELLED" = "Anuluar";
 "STATUS_COMPLETED" = "Përfunduar";
 "STATUS_HIATUS" = "Pezull";
-"SUGGESTIVE" = "Sugjeruese";
+"SUGGESTIVE" = "Me nënkuptime seksuale";
 "NSFW" = "Jo për publik të gjerë (NSFW)";
 "MORE" = "më shumë";
-"SOURCE_ORDER" = "Rendi i Burimeve";
+"SOURCE_ORDER" = "Rendi i dhënë nga burimi";
 "MISSING_SOURCE" = "Burimi Mungon";
-"MISSING_SOURCE_TEXT" = "Burimi origjinal mungon për këtë manga. Ju lutemi ri-shkarkoni ose hiqeni nga biblioteka.";
+"MISSING_SOURCE_TEXT" = "Burimi origjinal për këtë manga duket se mungon. Shkarkoni sërish burimin ose hiqeni këtë titull nga biblioteka.";
 "SELECT_CHAPTERS" = "Zgjidhni Kapitujt";
 "SELECT_ALL" = "Zgjidh të gjitha";
 "DESELECT_ALL" = "Hiq të gjitha zgjedhjet";
@@ -227,12 +227,12 @@
 "UNREAD" = "Pa Lexuar";
 "MARK" = "Shëno";
 "MARK_ALL" = "Shëno të Gjitha";
-"MARK_PREVIOUS" = "Shëno të Mëparshmet";
+"MARK_PREVIOUS" = "Shëno kapitujt e mëparshëm";
 "MARK_READ" = "Shëno si Lexuar";
 "MARK_UNREAD" = "Shëno si Pa Lexuar";
 "PREVIOUS_COLON" = "E Mëparshme:";
 "NO_PREVIOUS_CHAPTER" = "Nuk ka kapitull të mëparshëm";
-"SKIPPING_CHAPTERS" = "Duke anashkaluar %i kapituj, ose burimi mungon ose janë filtruar";
+"SKIPPING_CHAPTERS" = "Po anashkalohen %i kapituj, sepse mungojnë te burimi ose janë përjashtuar nga filtrat";
 "READING_MODE" = "Mënyra e Leximit";
 "DEFAULT" = "Standarde";
 "LTR" = "Majtas në Djathtas";
@@ -245,7 +245,7 @@
 "HISTORY" = "Historia";
 "%@_AGO" = "%@ më parë";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "Kjo do të heqë historinë për këtë kapitull. A jeni të sigurt që doni të vazhdoni?";
-"REMOVE_ALL_MANGA_HISTORY" = "Hiq të gjithë historinë e mangave";
+"REMOVE_ALL_MANGA_HISTORY" = "Hiq të gjithë historinë e kësaj mange";
 "HISTORY_LOCKED" = "Historia është e bllokuar.";
 "VIEW_HISTORY" = "Shiko Historinë";
 "AUTH_FOR_HISTORY" = "Autentifikohu për të parë historinë e leximit.";
@@ -267,8 +267,8 @@
 "APPEARANCE_LIGHT" = "E Ndritshme";
 "APPEARANCE_DARK" = "E Errët";
 "USE_SYSTEM_APPEARANCE" = "Përdor Pamjen e Sistemit";
-"PORTRAIT" = "Portret";
-"LANDSCAPE" = "Peizazh";
+"PORTRAIT" = "Vertikalisht";
+"LANDSCAPE" = "Horizontalisht";
 "READER" = "Lexuesi";
 "OPEN_READER_VIEW" = "Hap Pamjen e Lexuesit";
 "UNREAD_CHAPTER_BADGES" = "Distinktivët e Kapitujve të Palexuar";
@@ -287,7 +287,7 @@
 "WEEKLY" = "Çdo javë";
 "WITH_UNREAD_CHAPTERS" = "Me kapituj të palexuar";
 "WITH_COMPLETED_STATUS" = "Me status të përfunduar";
-"THAT_HAVENT_BEEN_READ" = "Që nuk janë lexuar";
+"THAT_HAVENT_BEEN_READ" = "Pa kapituj të shënuar si të lexuar";
 "SOURCE_LISTS" = "Listat e Burimeve";
 "SOURCE_LIST_ADDED" = "Lista e Burimeve u Shtua";
 "SOURCE_LIST_ADDED_TEXT" = "Tani mund të shfletoni burime të jashtme në skedën e Shfletimit.";
@@ -297,7 +297,7 @@
 "SOURCE_LIST_ADD_FAIL" = "Dështoi Shtimi i Listës së Burimeve";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "URL-ja e dhënë e listës së burimeve është e pavlefshme ose tashmë është shtuar.";
 "LOCK_HISTORY_TAB" = "Blloko Skedën e Historisë";
-"DOWNSAMPLE_IMAGES" = "Ul Cilësinë e Imazheve";
+"DOWNSAMPLE_IMAGES" = "Ul rezolucionin e imazheve";
 "CROP_BORDERS" = "Prij Kufijtë";
 "READER_BG_COLOR" = "Ngjyra e Sfondit";
 "READER_BG_COLOR_SYSTEM" = "Sistemi";
@@ -313,8 +313,8 @@
 "MISSING_SOURCES" = "Burimet Mungojnë";
 "LIGHT_NOVEL" = "Light Novel";
 "BUILD" = "Numri i ndërtimit";
-"SCANLATOR" = "Ekipi i skanimit";
-"NO_SCANLATOR" = "Pa scanlator";
+"SCANLATOR" = "Ekipi i skanimit dhe përkthimit";
+"NO_SCANLATOR" = "Pa ekip skanimi dhe përkthimi";
 
 "TRANSLATION_TITLE" = "OCR & Përkthim";
 
@@ -334,13 +334,13 @@
 
 "TRANSLATION_OCR_WORKING" = "Teksti në pajisje po njihet…";
 
-"TRANSLATION_HELP" = "Ikona e përkthimit aktivizon ose çaktivizon përkthimin. Faqet përgatiten në këtë mënyrë: aktuale, vijuese, e mëparshme, dy përpara, dy prapa, duke vazhduar në të dy skajet e kapitullit. OCR e përfunduar, përkthimet dhe faqosja e tekstit ripërdoren pas mbylljes së lexuesit ose rinisjes së aplikacionit. Lënia e lexuesit anulon punën e papërfunduar.";
+"TRANSLATION_HELP" = "Ikona e përkthimit aktivizon ose çaktivizon përkthimin. Fillimisht përgatiten faqet e dukshme, pastaj faqet pranë tyre. Përgatitja ndjek pozicionin tuaj të leximit. Rezultatet e ruajtura të OCR-së, përkthimet dhe faqosja e tekstit mund të ripërdoren pas rihapjes së lexuesit ose rinisjes së aplikacionit. Imazhet e shpërndara që hapen përkohësisht nuk e ruajnë këtë memorie të përkohshme. Dalja nga lexuesi anulon përpunimin e papërfunduar.";
 
-"TRANSLATION_PRIVACY" = "OCR funksionon në pajisjen tuaj. Përkthimi dërgon tekstin e njohur dhe udhëzimet tuaja te ofruesi i zgjedhur. Nëse aktivizohet Include Page Image in Translation, ngarkohet edhe imazhi origjinal i faqes. Tarifat e API varen nga ofruesi juaj. Çelësat qëndrojnë në Keychain. OCR, përkthimet dhe faqosja e tekstit ruhen në hapësirën e mbrojtur të aplikacionit të përjashtuar nga kopjet rezervë.";
+"TRANSLATION_PRIVACY" = "OCR funksionon në pajisjen tuaj. Përkthimi dërgon tekstin e njohur dhe udhëzimet tuaja te ofruesi i zgjedhur. Nëse aktivizohet përfshirja e imazhit të faqes në përkthim, ngarkohet edhe imazhi origjinal i faqes. Tarifat e API varen nga ofruesi juaj. Çelësat qëndrojnë në Keychain. OCR, përkthimet dhe faqosja e tekstit ruhen në hapësirën e mbrojtur të aplikacionit të përjashtuar nga kopjet rezervë.";
 
 "TRANSLATION_KEY_REPLACE" = "Zëvendëso çelësin e ruajtur API (opsionale)";
 
-"TRANSLATION_KEY" = "Tasti API";
+"TRANSLATION_KEY" = "Çelësi API";
 
 "TRANSLATION_KEY_SAVED" = "Çelësi API i ruajtur në Keychain";
 
@@ -358,31 +358,31 @@
 
 "TRANSLATION_AUTO" = "Zbulo automatikisht";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 kërkon iOS 18 ose më vonë. Medium është i paracaktuar; Small përdor më pak memorie. Tiny ka një fjalor më të vogël të karaktereve. Këto modele nuk mbështesin OCR Koreane. Prodhimi i përkthimit koreanisht mbështetet.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 kërkon iOS 18 ose një version më të ri. Modeli i paracaktuar është E mesme. I vogël përdor më pak memorie dhe Shumë i vogël ka një fjalor më të kufizuar karakteresh. Modelet nuk njohin tekstin korean, por përkthimi në koreanisht mbështetet.";
 
 "TRANSLATION_INSTRUCTIONS" = "Udhëzime përkthimi";
 
 "TRANSLATION_RESET_PROMPT" = "Rikthe udhëzimet e përkthimit të parazgjedhur";
 
-"TRANSLATION_CLEAR_CACHE" = "Pastro memorien e përkthimit";
+"TRANSLATION_CLEAR_CACHE" = "Pastro memorien e përkohshme të përkthimit";
 
-"TRANSLATION_CACHE_CLEARED" = "Memoria e memories së përkthimit u pastrua.";
+"TRANSLATION_CACHE_CLEARED" = "Memoria e përkohshme e përkthimit u pastrua.";
 
-"TRANSLATION_NOTICES" = "OCR & Licencat e Përkthimit";
+"TRANSLATION_NOTICES" = "Licencat për OCR dhe përkthimin";
 
 "TRANSLATION_ADVANCED" = "Opsionet e përkthimit";
 
 "TRANSLATION_REASONING" = "Përpjekje për arsyetim";
 
-"TRANSLATION_MODEL_DEFAULT" = "Modeli i parazgjedhur";
+"TRANSLATION_MODEL_DEFAULT" = "Vlera e paracaktuar e modelit";
 
 "TRANSLATION_CONCURRENCY" = "Kërkesat e njëkohshme";
 
-"TRANSLATION_DETECTOR_SIZE" = "Ana maksimale e detektorit";
+"TRANSLATION_DETECTOR_SIZE" = "Gjatësia maksimale e brinjës për zbulimin e tekstit";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "Gjerësia maksimale e njohësit";
+"TRANSLATION_RECOGNIZER_SIZE" = "Gjerësia maksimale e imazhit për njohjen e tekstit";
 
-"TRANSLATION_CONFIDENCE" = "Besimi OCR";
+"TRANSLATION_CONFIDENCE" = "Pragu minimal i besueshmërisë së OCR-së";
 
 "TRANSLATION_SURFACE" = "Ngjyra e sfondit";
 
@@ -392,11 +392,11 @@
 
 "TRANSLATION_OPACITY" = "Opaciteti i sfondit";
 
-"TRANSLATION_EXPANSION" = "Zgjerimi i kutisë";
+"TRANSLATION_EXPANSION" = "Zgjerimi i kornizës së tekstit";
 
-"TRANSLATION_PANEL_BOUNDS" = "Brenda panelit të imazhit";
+"TRANSLATION_PANEL_BOUNDS" = "Brenda kufijve të imazhit";
 
-"TRANSLATION_SOURCE_BOUNDS" = "Brenda kutisë origjinale";
+"TRANSLATION_SOURCE_BOUNDS" = "Brenda kornizës origjinale të tekstit";
 
 "TRANSLATION_UNRESTRICTED" = "I pakufizuar";
 
@@ -408,7 +408,7 @@
 
 "TRANSLATION_OVERLAY" = "Mbivendosja e përkthimit";
 
-"TRANSLATION_OVERLAY_HELP" = "Zëvendëson tekstin mbi kutinë e tij burimore duke përdorur paraqitjen e vetëdijshme për përplasje dhe mbështjelljen specifike të skriptit. Ndryshimet e ekranit ripërdor OCR ekzistuese.";
+"TRANSLATION_OVERLAY_HELP" = "Zëvendëson tekstin në kornizën origjinale, duke shmangur mbivendosjet dhe duke përshtatur ndarjen e rreshtave me sistemin e shkrimit. Ndryshimet e paraqitjes ripërdorin rezultatet ekzistuese të OCR-së.";
 
 "TRANSLATION_PROVIDER" = "Ofruesi i Përkthimit";
 
@@ -416,11 +416,11 @@
 
 "TRANSLATION_API_FORMAT" = "Formati API";
 
-"TRANSLATION_CUSTOM_HELP" = "Fut një URL bazë HTTPS ose pikën fundore të plotë të API-së dhe një model të mbështetur nga serveri yt. Çdo URL e serverit ka çelësin e vet të ruajtur; ndryshimi i URL-së fshin çdo çelës që po futni. Përgjigjet dhe plotësimet e bisedës përdorin dalje të strukturuar JSON.";
+"TRANSLATION_CUSTOM_HELP" = "Fut një URL bazë HTTPS ose pikën fundore të plotë të API-së dhe një model të mbështetur nga serveri yt. Çdo URL e serverit ka çelësin e vet të ruajtur; ndryshimi i URL-së fshin çdo çelës që po futni. Responses dhe Chat Completions përdorin dalje të strukturuar JSON.";
 
 "TRANSLATION_AUTOMATIC" = "Përkthim automatik";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Kontrolloni cilësimet e ruajtura të API-së një herë në sfond kur hapet aplikacioni ose kur ndryshojnë cilësimet e API. Përkthimi fillon pas suksesit. Një kontroll i dështuar e ndalon përkthimin pa ndryshuar preferencën tuaj të përkthimit automatik. Rihap aplikacionin ose provo sërish lidhjen API për të riprovuar. Ndryshimet e faqes dhe ON/OFF ripërdorni rezultatin e kontrollit. Përpjekja e arsyetimit përdor cilësimin tuaj të ruajtur.";
+"TRANSLATION_AUTOMATIC_HELP" = "Përkthen automatikisht faqet në lexues duke përdorur cilësimet e ruajtura të API-së dhe nivelin e arsyetimit. Nuk kryhet një test i veçantë i lidhjes para fillimit të përkthimit. Dështimet e përkthimit nuk e çaktivizojnë këtë cilësim. Përdorni testin e lidhjes API për t’i kontrolluar cilësimet manualisht.";
 
 "TRANSLATION_TEST" = "Testoni lidhjen API";
 
@@ -440,13 +440,13 @@
 
 "TRANSLATION_CACHE_USED" = "Magazinimi i përdorur";
 
-"TRANSLATION_CACHE_HELP" = "Ruani automatikisht OCR, përkthimet e faqeve, përkthimet e mangave dhe të titujve të kapitujve, përshkrimet e mangave dhe paraqitjen e tekstit. Imazhet e faqeve qëndrojnë vetëm në memorien e faqeve aty pranë. Rezultatet më pak të përdorura së fundi hiqen kur arrihet kufiri i zgjedhur. Parazgjedhja: 1 GB. Maksimumi: 100 GB. Ndryshimet zbatohen automatikisht; ulja e kufirit heq rezultatet më pak të përdorura së fundi derisa të përshtatet cache.";
+"TRANSLATION_CACHE_HELP" = "Ruan automatikisht rezultatet e OCR-së, përkthimet e faqeve, titujve të mangave dhe kapitujve, përshkrimet e mangave dhe faqosjen e tekstit. Imazhet ruhen vetëm në memorien operative për faqen aktuale dhe faqet pranë saj. Kur arrihet kufiri i zgjedhur, hiqen fillimisht rezultatet që kanë më shumë kohë pa u përdorur. Vlera e paracaktuar: 1 GB. Maksimumi: 100 GB. Ndryshimet zbatohen automatikisht; ulja e kufirit heq këto rezultate derisa madhësia e memories së përkohshme të jetë brenda kufirit.";
 
-"TRANSLATION_SOURCE_FILTER" = "Filtri i burimit të përkthimit";
+"TRANSLATION_SOURCE_FILTER" = "Filtri i gjuhëve burimore";
 
 "TRANSLATION_FILTER_ALL" = "Të gjitha gjuhët e zbuluara";
 
-"TRANSLATION_FILTER_HELP" = "Zgjidhni gjuhët origjinale për të përkthyer. Teksti i pazgjedhur ose i pasigurt mbetet i pandryshuar. Zgjidhni të gjitha gjuhët e zbuluara për të hequr filtrin.";
+"TRANSLATION_FILTER_HELP" = "Zgjidhni gjuhët burimore për t’u përkthyer. Teksti në gjuhët e pazgjedhura ose me gjuhë të paidentifikuar me siguri mbetet i pandryshuar. Zgjidhni Të gjitha gjuhët e zbuluara për të hequr filtrin.";
 
 "TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Përkthehet vetëm teksti i identifikuar si gjuha origjinale e zgjedhur. Gjuhët pa zbulimin në pajisje mbeten të pafiltruara.";
 
@@ -480,19 +480,19 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Gjuha e burimit të faqes";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Zbuloni automatikisht gjuhën burimore të secilit titull dhe përktheni vetëm gjuhët e zgjedhura. Të gjitha gjuhët heq kufizimin gjuhësor. Faqja dhe cilësimet e tjera të gjuhës burimore të titullit nuk ndikojnë në këtë përzgjedhje.";
+"TRANSLATION_TITLE_FILTER_HELP" = "Zbulon automatikisht gjuhën burimore të secilit titull dhe përkthen vetëm gjuhët e zgjedhura. Opsioni Të gjitha gjuhët e zbuluara heq kufizimin gjuhësor. Cilësimet e gjuhës burimore për faqet dhe llojet e tjera të titujve nuk ndikojnë në këtë zgjedhje.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Përkthe përshkrimet e Mangës";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Gjuhët e përshkrimit manga";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Zbuloni automatikisht gjuhën burimore dhe përktheni vetëm gjuhët e zgjedhura. Të gjitha gjuhët heq kufizimin. Faqe, titulli manga, titulli i kapitullit dhe filtrat e përshkrimit funksionojnë në mënyrë të pavarur.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Zbulon automatikisht gjuhën burimore dhe përkthen vetëm gjuhët e zgjedhura. Opsioni Të gjitha gjuhët e zbuluara heq kufizimin. Filtrat për faqet, titujt e mangave, titujt e kapitujve dhe përshkrimet funksionojnë në mënyrë të pavarur.";
 
 "TRANSLATION_SFX_FILTER" = "Filtrimi SFX (vetëm japonezisht)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Lërini efektet e mundshme zanore japoneze të papërkthyera. Përdorni një fjalor lokal dhe kontrolle konservatore të paraqitjes. Teksti që nuk mund të identifikohet me siguri si një efekt zanor është ende i përkthyer.";
+"TRANSLATION_SFX_FILTER_HELP" = "Lë të papërkthyera tekstet që ka të ngjarë të jenë efekte zanore japoneze. Përdor një fjalor lokal dhe kontrolle të kujdesshme të paraqitjes. Teksti që nuk identifikohet me siguri si efekt zanor vazhdon të përkthehet.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Përfshi hyrjet e kërkuara nga konteksti (vetëm japoneze)";
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Përfshi zërat që kërkojnë kontekst (vetëm japonisht)";
 
 "TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Zbatohet ndërsa filtrimi SFX është i aktivizuar. Gjithashtu filtron hyrjet e shënuara si që kërkojnë kontekst duke përdorur përputhjet e fjalorit, madhësinë e tekstit dhe paraqitjen aty pranë. Asnjë LLM nuk analizon kontekstin, kështu që dialogu gjithashtu mund të përjashtohet.";
 
@@ -502,25 +502,25 @@
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Ruani ngjyrën origjinale të tekstit";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Vlerësoni ngjyrën origjinale të tekstit pa një model shtesë. Përdorni ngjyrën e paracaktuar kur është e pasigurt ose kur kontrasti është shumë i ulët.";
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Vlerëson ngjyrën origjinale të tekstit pa një model shtesë. Përdor ngjyrën e paracaktuar kur vlerësimi është i pasigurt ose kontrasti është shumë i ulët.";
 
 "TRANSLATION_LLM_SFX" = "Filtrimi LLM SFX (Të gjitha gjuhët)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Klasifikoni efektet zanore në kërkesën për përkthim. Mund të kombinohet me filtrin lokal japonez: një vendim me efekt zëri nga cilido filtër e lë origjinalin të pandryshuar. E përputhshme me dërgimin e imazhit të faqes.";
+"TRANSLATION_LLM_SFX_HELP" = "Klasifikon efektet zanore gjatë kërkesës për përkthim. Mund të kombinohet me filtrin lokal për japonishten: nëse cilido filtër e klasifikon tekstin si efekt zanor, origjinali mbetet i pandryshuar. Mund të përdoret edhe kur dërgohet imazhi i faqes.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Pa futjen e imazhit, konteksti i kufizuar vizual dhe i paraqitjes mund të zvogëlojë saktësinë e klasifikimit SFX.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Ruani ngjyrën origjinale të panelit";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Ruaj ngjyrën origjinale të sfondit të tekstit";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Përputhni panelin e përkthimit me sfondin rreth tekstit origjinal. Përdorni panelin e paracaktuar kur është i pasigurt ose i palexueshëm. Cilësimi yt i errësirës vazhdon të zbatohet.";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Përshtat sfondin e përkthimit me sfondin përreth tekstit origjinal. Përdor sfondin e paracaktuar kur vlerësimi është i pasigurt ose teksti është i palexueshëm. Cilësimi i opacitetit vazhdon të zbatohet.";
 
-"TRANSLATION_CUSTOM_PROVIDER" = "OpenAI me porosi";
+"TRANSLATION_CUSTOM_PROVIDER" = "I personalizuar (i përputhshëm me OpenAI)";
 
 "TRANSLATION_OCR_MEDIUM" = "E mesme";
 
 "TRANSLATION_OCR_SMALL" = "I vogël";
 
-"TRANSLATION_OCR_TINY" = "I vogel";
+"TRANSLATION_OCR_TINY" = "Shumë i vogël";
 
 "TRANSLATION_REASONING_NONE" = "Asnjë";
 
@@ -546,12 +546,12 @@
 "EDIT" = "Redakto";
 "INVALID" = "E pavlefshme";
 "ENABLE_PERMISSION" = "Aktivizo Lejen";
-"PHOTOS_ACCESS_DENIED_TEXT" = "Qasja ishte refuzuar më parë. Ju lutemi, lejoni Aidoku qasjen te \"Fotografitë\" tuaja për të ruajtur imazhet në \"Camer Roll\". Mund ta aktivizoni aksesin te cilësimet e privatësisë.";
-"CONTENT" = "përmbajtja";
+"PHOTOS_ACCESS_DENIED_TEXT" = "Qasja ishte refuzuar më parë. Lejojeni Aidoku të ketë qasje te Fotografitë për të ruajtur imazhe në bibliotekën tuaj të fotografive. Mund ta aktivizoni qasjen te cilësimet e privatësisë.";
+"CONTENT" = "Përmbajtja";
 "%@_EXPERIMENTAL" = "%@ (Eksperimentale)";
 "DOWNLOADING" = "Po shkarkohet";
 "PROCESSING_QUEUE" = "Radha po përpunohet…";
-"DOWNLOADING_PAUSED" = "Shkarkimi u ndërpre";
+"DOWNLOADING_PAUSED" = "Shkarkimi është në pauzë";
 "PAUSED" = "Në pauzë";
 "CANCEL_ALL_DOWNLOADS" = "Anulo të gjitha shkarkimet";
 "DOWNLOADS" = "Shkarkimet";
@@ -559,16 +559,16 @@
 "NO_DOWNLOADS_TEXT" = "Përmbajtja e shkarkuar do të shfaqet këtu.";
 "DOWNLOADED_CHAPTERS" = "Kapitujt e shkarkuar";
 "DOWNLOAD_INCOMPLETE" = "Shkarkim jo i plotë";
-"TOTAL_DOWNLOADS" = "Shkarkimet totale";
-"%i_SERIES" = "Seria %i";
+"TOTAL_DOWNLOADS" = "Madhësia totale e shkarkimeve";
+"%i_SERIES" = "%i seri";
 "IN_LIBRARY" = "Në Bibliotekë";
-"VIEW_SERIES" = "Shiko Seritë";
+"VIEW_SERIES" = "Shiko serinë";
 "VIEW_FILES" = "Shiko skedarët";
 "COMPRESS_DOWNLOADS" = "Kompresoni Shkarkimet";
 "PARALLEL_DOWNLOADS" = "Shkarkime paralele";
-"BACKGROUND_DOWNLOADING" = "Shkarkimi i sfondit";
-"METADATA_DETECTED" = "U zbuluan të dhënat e trashëgimisë";
-"METADATA_DETECTED_TEXT" = "Të dhënat meta të JSON të trashëgimisë do të migrohen te skedarët ComicInfo.xml.";
+"BACKGROUND_DOWNLOADING" = "Shkarkimi në sfond";
+"METADATA_DETECTED" = "U zbuluan metadata të formatit të vjetër";
+"METADATA_DETECTED_TEXT" = "Metadatat JSON të formatit të vjetër do të migrohen në skedarë ComicInfo.xml.";
 "CATEGORY_SEARCH" = "Gjeni në kategori";
 "LIBRARY_ADD_CONTENT" = "Shto përmbajtje nga skeda e shfletimit.";
 "LIBRARY_ADJUST_FILTERS" = "Rregulloni filtrat tuaj për të parë më shumë përmbajtje.";
@@ -577,19 +577,19 @@
 "NOT_%@" = "Jo %@";
 "FILTER_SEPARATOR" = ", ";
 "FILTER_HAS_UNREAD" = "Të palexuara";
-"FILTER_STARTED" = "Filloi";
+"FILTER_STARTED" = "Të filluara";
 "ASCENDING" = "Në ngjitje";
-"DESCENDING" = "Duke zbritur";
-"OLDEST_FIRST" = "I pari më i vjetër";
+"DESCENDING" = "Në zbritje";
+"OLDEST_FIRST" = "Më të vjetrat në fillim";
 "NEWEST_FIRST" = "Më të rejat e para";
 "HIGHEST_FIRST" = "Më i larti i pari";
-"LOWEST_FIRST" = "E para më e ulët";
+"LOWEST_FIRST" = "Më të ulëtat në fillim";
 "LAYOUT_GRID" = "Rrjeti";
 "LAYOUT_LIST" = "Lista";
 "REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Po hiqet artikulli nga biblioteka";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "Heqja e artikujve %i nga Biblioteka";
+"REMOVING_%i_ITEMS_FROM_LIBRARY" = "Po hiqen %i artikuj nga biblioteka";
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "Duke hequr artikullin nga kategoria %@";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Heqja e artikujve %i nga kategoria %@";
+"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Po hiqen %i artikuj nga kategoria %@";
 "REFRESHING_LIBRARY" = "Po rifreskohet biblioteka jote e mangas…";
 "PROCESSING_ENTRIES" = "Regjistrimet po përpunohen…";
 "REFRESH_NO_WIFI" = "Nuk është i lidhur me Wi-Fi";
@@ -601,7 +601,7 @@
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Rifreskimi i fundit i bibliotekës u ndërpre përpara se të përfundonte. Dëshironi të rifilloni?";
 "CATEGORY" = "Kategoria";
 "UNCATEGORIZED" = "E pakategorizuar";
-"FILTER_GROUPS" = "Filtro Grupet";
+"FILTER_GROUPS" = "Grupe filtrash";
 "CREATE_FILTER_GROUP" = "Krijo grup filtri";
 "EDIT_FILTER_GROUP" = "Redakto grupin e filtrit";
 "CLEAR_FILTERS" = "Pastro filtrat";
@@ -620,11 +620,11 @@
 "MISSING_SOURCE_LIST_INFO" = "Ky burim i jashtëm nuk disponohet në asnjë listë burimesh të konfiguruara. Kjo do të thotë se nuk do të marrë përditësime dhe mund të prishet në të ardhmen.";
 "BASE_URL" = "URL-ja bazë";
 "SEE_ALL" = "Shih të gjitha";
-"HOME" = "Shtëpi";
+"HOME" = "Kreu";
 "FILTERS" = "Filtrat";
 "APPLY" = "Aplikoni";
 "RANGE_FROM" = "Nga";
-"RANGE_TO" = "për të";
+"RANGE_TO" = "Deri në";
 "SOURCE_SETTINGS" = "Cilësimet e burimit";
 "RESET_SETTINGS_CONFIRM_%@" = "Jeni i sigurt që dëshironi të rivendosni të gjitha cilësimet për %@?";
 "CANCEL_CONFIRM" = "Je i sigurt që dëshiron ta anulosh?";
@@ -644,7 +644,7 @@
 "UNKNOWN_ERROR" = "Gabim i panjohur";
 "SOURCE_CRASHED" = "Burimi u rrëzua";
 "ADD_SOURCE" = "Shto Burimin";
-"IMPORT_SOURCE" = "Burimi i importit";
+"IMPORT_SOURCE" = "Importo burimin";
 "BUILT_IN_SOURCES" = "Burimet e integruara";
 "EXTERNAL_SOURCES" = "Burimet e jashtme";
 "NO_RESULTS" = "Nuk ka rezultate";
@@ -661,12 +661,12 @@
 "SAVED_SEARCH_NAME" = "Emri";
 "SAVE_SEARCH_FAIL" = "Ruajtja dështoi";
 "SAVE_SEARCH_FAIL_INFO" = "Një kërkim ekzistues i ruajtur me këtë emër ekziston tashmë. Ju lutemi zgjidhni një emër unik.";
-"INCOGNITO_FILTERS_NOTICE" = "Filtrat e modifikuar nuk vazhdojnë në \"Modalitetin e fshehtë\".";
+"INCOGNITO_FILTERS_NOTICE" = "Ndryshimet e filtrave nuk ruhen në modalitetin e fshehtë.";
 "LOCAL_FILES" = "Skedarët lokalë";
 "LOCAL_FILES_TAGLINE" = "Lexoni nga skedarët lokalë";
-"LOCAL_FILES_INFO" = "Burimi lokal i skedarëve ju lejon të ngarkoni dhe menaxhoni bibliotekën tuaj të leximit direkt brenda Aidoku.";
+"LOCAL_FILES_INFO" = "Burimi i skedarëve lokalë ju lejon të importoni skedarë dhe të menaxhoni bibliotekën tuaj të leximit drejtpërdrejt në Aidoku.";
 "LOCAL_FILES_SETUP" = "Konfigurimi i skedarëve lokalë";
-"IMPORT" = "Importi";
+"IMPORT" = "Importo";
 "IMPORT_FILE" = "Importo skedarin";
 "LOCAL_FILE_IMPORT" = "Importimi i skedarëve lokalë";
 "LOCAL_FILE_IMPORT_TEXT" = "Importoni një skedar CBZ ose ZIP që përmban imazhe për t'u lexuar.";
@@ -676,21 +676,21 @@
 "SERIES" = "Seria";
 "NEW_SERIES" = "Seria e Re";
 "NEW_SERIES_TEXT" = "Krijo një seri të re për këtë skedar";
-"SELECT_SERIES" = "Zgjidhni Seritë";
+"SELECT_SERIES" = "Zgjidhni serinë";
 "VOLUME_CHAPTER_INVALID_ERROR" = "Një kapitull me këtë konfigurim ekziston tashmë.";
 "VOLUME_CHAPTER_EMPTY_ERROR" = "Kërkohet një numër vëllimi dhe/ose kapitulli.";
 "SERIES_TITLE_UNIQUE_ERROR" = "Një seri me këtë titull ekziston tashmë.";
 "SERIES_TITLE_EMPTY_ERROR" = "Duhet të jepet një titull për një seri të re.";
 "CREATE_NEW_SERIES_INFO" = "Një seri e re do të krijohet në faqen tjetër, ose mund të zgjidhni një seri ekzistuese për të shtuar këtë skedar.";
 "ADD_TO_OTHER_SERIES_INFO" = "Skedari do t'i shtohet serisë së zgjedhur.";
-"%i_PAGES" = "faqet %i";
+"%i_PAGES" = "%i faqe";
 "1_PAGE" = "1 faqe";
 "CBZ_NAME" = "Arkivi Zip i Librit Komik";
 "ZIP_NAME" = "Arkivi Zip";
 "EPUB_NAME" = "EPUB";
 "KOMGA" = "Komga";
-"KOMGA_TAGLINE" = "Serveri i medias i vetë-pritur";
-"KOMGA_INFO" = "Komga është një server mediatik i vetë-pritur për komike dhe manga. Për të përdorur këtë burim, do t'ju duhet një server Komga të konfiguruar dhe të funksionojë.";
+"KOMGA_TAGLINE" = "Server mediatik i vetëhostuar";
+"KOMGA_INFO" = "Komga është një server mediatik i vetëhostuar për komike dhe manga. Për të përdorur këtë burim, ju duhet një server Komga i konfiguruar dhe në funksionim.";
 "KOMGA_SETUP" = "Konfigurimi i Komga";
 "DEMO_KOMGA_SERVER" = "Serveri Demo Komga";
 "DEMO_KOMGA_SERVER_INFO" = "Ju mund të identifikoheni në serverin demo Komga duke përdorur emailin `demo@komga.org` dhe fjalëkalimin `komga-demo`.";
@@ -703,17 +703,17 @@
 "MIRRORS" = "Serverët pasqyrë";
 "MIRRORS_INFO" = "URL shtesë për t'u përdorur si URL bazë nëse ajo kryesore dështon të lidhet.";
 "SERVER_ERROR" = "Gabim serveri";
-"SERVER_ERROR_CONNECTION" = "Nuk mund të lidhet me serverin e dhënë. Sigurohuni që një shembull i serverit po funksionon dhe URL-ja është futur saktë.";
+"SERVER_ERROR_CONNECTION" = "Nuk mund të lidhet me serverin e dhënë. Sigurohuni që serveri po funksionon dhe URL-ja është futur saktë.";
 "SERVER_ERROR_AUTHENTICATION" = "Nuk mund të identifikoheni. Sigurohuni që kredencialet tuaja të jenë futur saktë.";
 "OTHER_SETTINGS" = "Cilësimet e tjera";
 "DISPLAY_DEFAULT" = "E paracaktuar";
 "DISPLAY_CHAPTER" = "Kapitulli";
-"DISPLAY_VOLUME" = "Numri i volumit";
+"DISPLAY_VOLUME" = "Vëllimi";
 "USE_CHAPTERS" = "Përdorni Kapitujt";
 "USE_CHAPTERS_TEXT" = "Trajtoni librat si kapituj në vend të vëllimeve";
 "%@_BOOKS" = "%@ Libra";
 "1_BOOK" = "1 Libër";
-"ON_DECK" = "Në kuvertë";
+"ON_DECK" = "Për t’u lexuar më pas";
 "KEEP_READING" = "Vazhdoni të lexoni";
 "RECENTLY_ADDED_BOOKS" = "Librat e shtuar së fundmi";
 "RECENTLY_ADDED_SERIES" = "Seritë e shtuara së fundmi";
@@ -741,7 +741,7 @@
 "INVALID_SERVER_URL" = "URL e pavlefshme e serverit";
 "KAVITA" = "Kavita";
 "KAVITA_TAGLINE" = "Bibliotekë dixhitale e vetë-strehuar";
-"KAVITA_INFO" = "Kavita është një server mediatik i vetë-pritur për komike dhe manga. Për të përdorur këtë burim, do t'ju duhet një server Kavita i konfiguruar dhe funksionuar.";
+"KAVITA_INFO" = "Kavita është një server mediatik i vetëhostuar për komike dhe manga. Për të përdorur këtë burim, ju duhet një server Kavita i konfiguruar dhe në funksionim.";
 "KAVITA_SETUP" = "Konfigurimi i Kavita";
 "DEMO_KAVITA_SERVER" = "Server Demo Kavita";
 "DEMO_KAVITA_SERVER_INFO" = "Ju mund të identifikoheni në serverin demo Kavita duke përdorur emrin e përdoruesit `demouser` dhe fjalëkalimin `Demouser64`.";
@@ -762,7 +762,7 @@
 "API_KEY_LOGIN_INFO" = "Sigurimi manual i një çelësi API për hyrje do të anashkalojë metodat e tjera të hyrjes. Mund ta lini bosh për të përdorur metoda të tjera identifikimi.";
 "SUWAYOMI" = "Suwayomi";
 "SUWAYOMI_TAGLINE" = "Serveri i lexuesit manga";
-"SUWAYOMI_INFO" = "Suwayomi është një server i vetë-pritur lexues manga që drejton shtesat e ndërtuara për Mihon (Tachiyomi). Për të përdorur këtë burim, do t'ju duhet një server Suwayomi i konfiguruar dhe funksionuar.";
+"SUWAYOMI_INFO" = "Suwayomi është një server i vetëhostuar për leximin e mangave që ekzekuton shtesa të krijuara për Mihon (Tachiyomi). Për të përdorur këtë burim, ju duhet një server Suwayomi i konfiguruar dhe në funksionim.";
 "SUWAYOMI_SETUP" = "Konfigurimi i Suwayomi";
 "STATUS_LICENSED" = "I licencuar";
 "STATUS_PUBLISHING_FINISHED" = "Botimi përfundoi";
@@ -775,8 +775,8 @@
 "VOLUME" = "Vëllimi";
 "OPEN_WEBSITE" = "Hap faqen e internetit";
 "SET_COVER_IMAGE" = "Cakto imazhin e kopertinës";
-"UPLOAD_CUSTOM_COVER" = "Ngarko kopertinën e personalizuar";
-"RESET_COVER" = "Rivendos kapakun";
+"UPLOAD_CUSTOM_COVER" = "Zgjidh kopertinën e personalizuar";
+"RESET_COVER" = "Rivendos kopertinën";
 "NO_HISTORY" = "Asnjë Histori";
 "NO_HISTORY_TEXT" = "Historia e leximit do të shfaqet këtu.";
 "RECENTLY_SEARCHED" = "Kërkuar së fundi";
@@ -801,40 +801,40 @@
 "LAYOUT" = "Paraqitja";
 "STANDARD" = "Standard";
 "COMPACT" = "Kompakt";
-"CUSTOM" = "Me porosi";
-"PORTRAIT_ROWS" = "Rreshtat e portreteve";
-"LANDSCAPE_ROWS" = "Rreshtat e peizazhit";
+"CUSTOM" = "E personalizuar";
+"PORTRAIT_ROWS" = "Numri i kolonave në orientim vertikal";
+"LANDSCAPE_ROWS" = "Numri i kolonave në orientim horizontal";
 "RESUME_LAST_OPENED_CHAPTER" = "Rifillo kapitullin e hapur së fundi";
 "CONTINUE_READING_ON_RESELECT" = "Prekni dy herë skedën Historia për të rifilluar leximin";
 "DOWNLOADED_CHAPTER_BADGES" = "Shenjat e kapitullit të shkarkuar";
-"PIN_TITLES" = "Pin titujt manga";
-"PIN_DISABLED" = "Gozhdimi është çaktivizuar";
+"PIN_TITLES" = "Fikso titujt";
+"PIN_DISABLED" = "Çaktivizuar";
 "PIN_UPDATED_CHAPTERS" = "Kapitujt e përditësuar";
-"BACKGROUND_REFRESH" = "Rifreskimi i sfondit";
+"BACKGROUND_REFRESH" = "Rifreskimi në sfond";
 "BACKGROUND_REFRESH_TEXT" = "Kur filloni një rifreskim të bibliotekës manualisht, lejoni që rifreskimi të përfundojë edhe nëse aplikacioni është në sfond.";
 "NEW_CHAPTER_NOTIFICATIONS" = "Njoftimet për kapitullin e ri";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Dërgoni njoftime kur biblioteka rifreskohet në sfond.";
 "1_NEW_CHAPTER_AVAILABLE" = "Kapitulli i ri në dispozicion";
 "X_NEW_CHAPTERS_AVAILABLE" = "%d kapituj të rinj në dispozicion";
 "NEW_CHAPTERS_AVAILABLE" = "Kapitujt e rinj në dispozicion";
-"X_SERIES_HAVE_NEW_CHAPTERS" = "Seritë %d kanë kapituj të rinj";
+"X_SERIES_HAVE_NEW_CHAPTERS" = "%d seri kanë kapituj të rinj";
 "EVERY_6_HOURS" = "Çdo 6 orë";
 "NO_RESULTS_FOR_%@" = "Nuk ka rezultate për \"%@\"";
 "NO_RESULTS_TEXT" = "Kontrolloni drejtshkrimin ose provoni një kërkim të ri.";
 "LEARN_MORE" = "Mësoni më shumë…";
-"INSIGHTS" = "Leximi i njohurive";
-"STREAKS" = "Vija leximi";
+"INSIGHTS" = "Statistikat e leximit";
+"STREAKS" = "Ditë leximi radhazi";
 "STATS" = "Statistikat";
 "CURRENT_STREAK" = "Vargu aktual i leximit";
-"NO_CURRENT_STREAK" = "Nuk ka brez aktual leximi";
-"NO_CURRENT_STREAK_TEXT" = "Lexoni çdo ditë për të ndërtuar një brez.";
+"NO_CURRENT_STREAK" = "Nuk ka varg aktual leximi";
+"NO_CURRENT_STREAK_TEXT" = "Lexoni çdo ditë për të krijuar një varg ditësh leximi radhazi.";
 "LONGEST_STREAK" = "Vargu më i gjatë i leximit";
 "DAYS" = "Ditët";
 "CHAPTER_PLURAL" = "Kapitujt";
 "CHAPTER_SINGULAR" = "Kapitulli";
 "PAGE_PLURAL" = "Faqet";
 "PAGE_SINGULAR" = "Faqe";
-"SERIES_PLURAL" = "Seria";
+"SERIES_PLURAL" = "Seri";
 "SERIES_SINGULAR" = "Seria";
 "HOUR_PLURAL" = "orët";
 "HOUR_SINGULAR" = "Ora";
@@ -844,14 +844,14 @@
 "UNAVAILABLE_SOURCE_LISTS" = "Listat e burimeve të padisponueshme";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Ndodhi një gabim gjatë marrjes së listave të burimeve të mësipërme.";
 "COPY_URL" = "Kopjo URL";
-"LEGACY_SOURCE_LIST" = "Lista e burimeve të trashëgimisë";
-"LEGACY_SOURCE_LIST_WARNING" = "Paralajmërim: Lista e burimeve të trashëgimisë";
-"LEGACY_SOURCE_LIST_WARNING_INFO" = "Aktualisht keni të konfiguruar një listë burimesh të trashëguara. Ky format është i vjetëruar dhe do të ndalojë së punuari në një version të ardhshëm të Aidoku. Ndërkohë që do të funksionojë ende për momentin, rekomandohet që të gjeni një zëvendësim dhe ta konfiguroni atë te Cilësimet > Listat e burimeve.";
+"LEGACY_SOURCE_LIST" = "Listë burimesh në format të vjetër";
+"LEGACY_SOURCE_LIST_WARNING" = "Paralajmërim: listë burimesh në format të vjetër";
+"LEGACY_SOURCE_LIST_WARNING_INFO" = "Aktualisht keni të konfiguruar një listë burimesh në format të vjetër. Ky format është i vjetëruar dhe do të ndalojë së funksionuari në një version të ardhshëm të Aidoku. Edhe pse ende funksionon, rekomandohet të gjeni një zëvendësim dhe ta konfiguroni te Cilësimet > Listat e Burimeve.";
 "UPSCALING" = "Rritja e shkallës";
-"UPSCALE_IMAGES" = "Imazhe të pasura";
+"UPSCALE_IMAGES" = "Rrit rezolucionin e imazheve";
 "UPSCALING_MODELS" = "Modele të rritjes së shkallës";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Lartësia maksimale e imazhit";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Imazhet më të mëdha se lartësia maksimale e imazhit nuk do të përmirësohen.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Imazheve më të larta se kufiri maksimal nuk do t’u rritet rezolucioni.";
 "ENABLED_MODEL" = "Modeli i aktivizuar";
 "AVAILABLE_MODELS" = "Modelet e disponueshme";
 "NO_AVAILABLE_MODELS" = "Nuk ka modele të disponueshme";
@@ -862,29 +862,29 @@
 "LIVE_TEXT" = "Tekst i drejtpërdrejtë";
 "HIDE_BARS_ON_SWIPE" = "Fshih shiritat në rrëshqitje";
 "READER_BG_COLOR_AUTO" = "Automatik";
-"TAP_ZONES" = "Prekni Zonat";
+"TAP_ZONES" = "Zonat e prekjes";
 "ZONE_LEFT_RIGHT" = "Majtas dhe djathtas";
 "ZONE_L_SHAPED" = "në formë L-je";
-"ZONE_KINDLE" = "Ndizni";
+"ZONE_KINDLE" = "Kindle";
 "ZONE_EDGE" = "Buzë";
-"DISABLED" = "I paaftë";
+"DISABLED" = "Çaktivizuar";
 "INVERT_TAP_ZONES" = "Inverto Zonat e Prekjes";
 "ANIMATE_PAGE_TRANSITIONS" = "Animoni tranzicionet e faqeve";
 "TEXT_READER" = "Lexues teksti";
 "TEXT_READER_STYLE" = "Stili i lexuesit";
 "TEXT_READER_PAGED" = "Lexim në faqe";
-"TEXT_READER_SCROLL" = "Lëvizni";
+"TEXT_READER_SCROLL" = "Lëvizje";
 "TEXT_FONT_FAMILY" = "Fonti";
 "TEXT_FONT_SIZE" = "Madhësia e shkronjave";
-"TEXT_LINE_SPACING" = "Hapësira e vijës";
+"TEXT_LINE_SPACING" = "Hapësira ndërmjet rreshtave";
 "TEXT_HORIZONTAL_PADDING" = "Kufijtë horizontale";
 "TEXT_THEME" = "Tema";
 "TEXT_THEME_SEPIA" = "Sepia";
 "TEXT_THEME_PAPER" = "Letër";
 "TEXT_THEME_GRAY" = "Gri";
-"DICTIONARY_LOOKUP" = "Kërkimi i fjalorit";
-"DICTIONARY_SETTINGS_TEXT" = "Aktivizo \"Kërkimin e fjalorit\" për të lejuar përpunimin OCR në imazhet e faqeve për të kërkuar fjalë në çdo fjalor Yomitan të importuar.";
-"DICTIONARIES" = "fjalorë";
+"DICTIONARY_LOOKUP" = "Kërkim në fjalor";
+"DICTIONARY_SETTINGS_TEXT" = "Aktivizoni kërkimin në fjalor që OCR të njohë tekstin në imazhet e faqeve dhe të mundësojë kërkimin e fjalëve në fjalorët Yomitan të importuar.";
+"DICTIONARIES" = "Fjalorë";
 "ABOUT_DICTIONARIES" = "Rreth fjalorëve";
 "ABOUT_DICTIONARIES_TEXT" = "Fjalorët Yomitan mund të importohen nga skedarët zip. Mund të aktivizoni ose çaktivizoni fjalorët dhe ata mund të rirenditen duke zvarritur.";
 "LOOKUP_GESTURE" = "Gjesti i kërkimit";
@@ -892,16 +892,16 @@
 "LONG_PRESS" = "Shtypja e gjatë";
 "LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Prekja në fillimin e një fjale do të aktivizojë dritaren kërcyese. Kjo çaktivizon prekjen e dyfishtë për të zmadhuar kur aktivizohet.";
 "LOOKUP_GESTURE_LONG_PRESS_INFO" = "Mbajtja e shtypur në fillimin e një fjale do ta nxjerrë në pah atë dhe lëshimi do të aktivizojë dritaren kërcyese. Kjo çaktivizon veprimet e shpejta të faqes kur aktivizohet.";
-"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Bllokuar nga gjesti i kërkimit: Shtypja e vetme.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "E bllokuar nga gjesti i kërkimit: trokitje e vetme.";
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "E kyçur nga gjesti i kërkimit: Shtyp gjatë.";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "Mbivendosja e tekstit OCR";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Shfaq kutitë e tekstit në rajonet e imazhit kur aktivizohet një kërkim. Kjo mund të jetë e dobishme për të përcaktuar se cili tekst është njohur siç duhet nga OCR.";
-"DICTIONARY_OVERLAY_PADDING" = "Mbushje mbivendosjeje";
-"DICTIONARY_OVERLAY_TEXT_SCALE" = "Madhësia e mbivendosjes së tekstit";
+"DICTIONARY_OVERLAY_PADDING" = "Margjinat e brendshme të shtresës së tekstit";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "Madhësia e tekstit të mbivendosur";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Kufizoni gjuhët OCR";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Kur aktivizohet, vetëm kapitujt e shënuar si gjuhë(t) e zgjedhura do të përpunohen për OCR. Rekomandohet të zgjidhni vetëm gjuhët për të cilat keni fjalorë të importuar.";
 "DICTIONARY_OCR_LANGUAGES" = "Gjuhët OCR";
-"DICTIONARY_POPUP" = "Fjalori që shfaqet";
+"DICTIONARY_POPUP" = "Dritarja e fjalorit";
 "DISPLAY_MODE" = "Modaliteti i shfaqjes";
 "DEFAULT_DISPLAY_MODE" = "E paracaktuar";
 "FULL_WIDTH" = "Gjerësia e plotë";
@@ -920,18 +920,18 @@
 "TARGET_LANGUAGE" = "Gjuha e synuar";
 "TERM_COUNT" = "Numri i termave të fjalorit";
 "TERM_META_COUNT" = "Numri i hyrjeve të meta të dhënave të termit";
-"KANJI_COUNT" = "Konti Kanji";
+"KANJI_COUNT" = "Numri i kanjive";
 "KANJI_META_COUNT" = "Numri i hyrjeve të meta të dhënave kanji";
 "TAG_COUNT" = "Numri i etiketave";
 "MEDIA_COUNT" = "Numërimi i mediave";
 "IS_UPDATABLE" = "Është i përditësueshëm";
 "SIZE" = "Madhësia";
 "REMOVE_DICTIONARY" = "Hiq fjalorin";
-"REMOVE_WORD" = "Hiq Word";
-"VOCABULARY" = "Fjalori";
+"REMOVE_WORD" = "Hiq fjalën";
+"VOCABULARY" = "Fjalori personal";
 "1_WORD" = "1 fjalë";
 "%i_WORDS" = "%i fjalë";
-"NO_VOCABULARY" = "Nuk ka fjalor";
+"NO_VOCABULARY" = "Nuk ka fjalë të ruajtura";
 "NO_VOCABULARY_TEXT" = "Fjalori i ruajtur do të shfaqet këtu.";
 "DEFINITION" = "Përkufizimi";
 "VOCAB_CONTEXT" = "Konteksti";
@@ -944,30 +944,30 @@
 "MONTHLY" = "Mujore";
 "GET_RECOMMENDED_DICTIONARIES" = "Merrni fjalorë të rekomanduar";
 "RECOMMENDED_DICTIONARIES" = "Fjalorë të rekomanduar";
-"RECOMMENDED_DICTIONARIES_NOTE" = "Fjalorët e mëposhtëm janë të gjithë gjuha japoneze-anglisht. Për gjuhë të tjera, mund të kontrolloni listën e fjalorëve të Wiktionary.";
+"RECOMMENDED_DICTIONARIES_NOTE" = "Të gjithë fjalorët më poshtë janë japonisht–anglisht. Për gjuhë të tjera, shikoni listën e fjalorëve Wiktionary.";
 "RESTORE_MISSING_SOURCES" = "Të rivendosen burimet që mungojnë?";
 "RESTORE_MISSING_SOURCES_TEXT" = "Dëshironi të kërkoni dhe instaloni burime që mungojnë?";
 "INSTALL_SOURCES" = "Instaloni Burimet";
 "INSTALLING_SOURCES" = "Po instalon burimet…";
 "SOURCE_IMPORT_FAIL_TEXT" = "Importimi i burimit dështoi. Ju lutemi sigurohuni që skedari juaj aix është i vlefshëm.";
 "FILE_IMPORT_FAIL_TEXT" = "Importimi i skedarit dështoi. Sigurohuni që të jetë një arkiv i vlefshëm CBZ ose ZIP që përmban imazhe.";
-"BACKUP_%@" = "Rezervimi %@";
+"BACKUP_%@" = "Kopje rezervë %@";
 "CREATE_BACKUP" = "Krijo kopje rezervë";
 "IMPORT_BACKUP" = "Importo kopje rezervë";
 "LIBRARY_ENTRIES" = "Regjistrimet e bibliotekës Manga";
 "SENSITIVE_SETTINGS" = "Cilësimet e ndjeshme";
 "NAME" = "Emri";
 "DATE" = "Data";
-"BACKUP_INFO_TITLE" = "Informacioni rezervë";
-"AUTOMATIC_BACKUPS" = "Rezervimet automatike";
-"BACKUP_INTERVAL" = "Intervali rezervë";
+"BACKUP_INFO_TITLE" = "Informacioni i kopjes rezervë";
+"AUTOMATIC_BACKUPS" = "Kopje rezervë automatike";
+"BACKUP_INTERVAL" = "Intervali i kopjeve rezervë";
 "AUTO" = "Auto";
-"LAST_BACKED_UP_%@" = "Rezervimi i fundit automatikisht: %@";
+"LAST_BACKED_UP_%@" = "Kopja e fundit rezervë automatike: %@";
 "READING_SESSIONS" = "Sesione leximi";
 "CLEAR_EXCLUDING_LIBRARY" = "Pastro historinë e leximit duke përjashtuar bibliotekën";
-"CLEAR_EXCLUDING_LIBRARY_TEXT" = "Ky veprim është i pakthyeshëm. I gjithë historiku i leximit me përjashtim të bibliotekës do të hiqet.";
-"CLEAR_SOURCE_CACHE" = "Pastro memorien e burimit";
-"CLEAR_SOURCE_CACHE_TEXT" = "Të dhënat e rrjetit të ruajtura në memorie për URL-në(at) e burimit do të pastrohen. Kjo mund të rezultojë në rritje të përkohshme të kohës së ngarkimit.";
+"CLEAR_EXCLUDING_LIBRARY_TEXT" = "Ky veprim është i pakthyeshëm. Do të hiqet e gjithë historia e leximit për titujt që nuk janë në bibliotekë.";
+"CLEAR_SOURCE_CACHE" = "Pastro memorien e përkohshme të burimit";
+"CLEAR_SOURCE_CACHE_TEXT" = "Fshin cookies dhe të dhënat e faqeve të internetit për URL-të e këtij burimi, bashkë me përmbajtjen e burimit të ruajtur në memorien e përkohshme. Mund t’ju duhet të identifikoheni sërish dhe ngarkimi mund të zgjasë përkohësisht më shumë.";
 "PAGE_OFFSET" = "Kompensimi i faqes";
 "SPLIT_WIDE_IMAGES" = "Ndarja e imazheve të gjera";
 "REVERSE_SPLIT_ORDER" = "Kthejeni rendin e faqeve të ndara";
@@ -984,18 +984,18 @@
 "UPDATE_AFTER_READING" = "Përditëso pas leximit";
 "UPDATE_AFTER_READING_INFO" = "Pas leximit të një kapitulli, përditësoni gjurmuesin që të përputhet me kapitullin dhe/ose vëllimin e lexuar aktualisht.";
 "AUTO_SYNC_HISTORY" = "Sinkronizoni automatikisht historinë";
-"AUTO_SYNC_HISTORY_INFO" = "Kur zbulohet një kapitull dhe/ose vëllim më i ri në gjurmues, përditësoni historikun lokal që të përputhet.";
+"AUTO_SYNC_HISTORY_INFO" = "Kur shërbimi i ndjekjes tregon një kapitull dhe/ose vëllim më të avancuar si të lexuar, përditësohet historia lokale për t’u përputhur.";
 "SYNC_WITH_TRACKER" = "Sinkronizoni me gjurmuesin";
-"SYNC_WITH_TRACKER_INFO_%i" = "Kapitujt %i u përcaktuan të lexoheshin tashmë nga gjurmuesi. Dëshironi t'i shënoni këta kapituj si të lexuar?";
-"SYNC_WITH_TRACKER_INFO_1" = "1 kapitull u përcaktua të lexohej tashmë nga gjurmuesi. Dëshironi ta shënoni këtë kapitull si të lexuar?";
+"SYNC_WITH_TRACKER_INFO_%i" = "Sipas shërbimit të ndjekjes, %i kapituj janë lexuar tashmë. Dëshironi t’i shënoni si të lexuar?";
+"SYNC_WITH_TRACKER_INFO_1" = "Sipas shërbimit të ndjekjes, 1 kapitull është lexuar tashmë. Dëshironi ta shënoni si të lexuar?";
 "UNAVAILABLE_TRACKER_ITEM" = "Artikulli gjurmues i padisponueshëm";
 "UNAVAILABLE_TRACKER_ITEM_INFO" = "Ky artikull gjurmues i lidhur është i lidhur me një gjurmues që nuk disponohet më. Ju ose duhet ta hiqni këtë artikull ose të identifikoheni përsëri në gjurmuesin e lidhur.";
 "ENHANCED_TRACKERS" = "Gjurmuesit e përmirësuar";
 "ENHANCED_TRACKERS_INFO" = "Gjurmuesit e përmirësuar mund të lidhen automatikisht me artikujt e shtuar në bibliotekën tuaj nga burimet e mbështetura, duke gjurmuar historinë e leximit të dyanshëm.";
-"ENHANCED_TRACKERS_TOGGLE_INFO" = "Çaktivizimi i gjurmimit për një burim do të heqë të gjithë gjurmuesit e lidhur dhe aktivizimi do të lidhë automatikisht të gjithë artikujt në bibliotekën tuaj.";
+"ENHANCED_TRACKERS_TOGGLE_INFO" = "Çaktivizimi i ndjekjes për një burim heq lidhjet me shërbimet e ndjekjes vetëm për atë burim. Aktivizimi lidh automatikisht artikujt e bibliotekës që vijnë nga ai burim.";
 "TRACKER_LOGOUT_INFO" = "Dalja do të heqë informacionin e lidhur të gjurmimit nga ky gjurmues për të gjitha seritë.";
 "SET_AS_SINGLE_PAGE" = "Cakto si Faqe të vetme";
-"UNSET_AS_SINGLE_PAGE" = "Zhvendos si faqe të vetme";
+"UNSET_AS_SINGLE_PAGE" = "Hiq cilësimin si faqe e vetme";
 "RELOAD_FAILED" = "Ringarkimi dështoi";
 "RELOAD_FAILED_TEXT" = "Ringarkimi i imazhit dështoi. Ju lutemi provoni përsëri.";
 "CONTINUOUS_WITH_GAPS" = "E vazhdueshme me Boshllëqe";
@@ -1003,24 +1003,24 @@
 "MARK_DUPLICATE_CHAPTERS" = "Shënoni kapitujt e dyfishtë si të lexuar";
 "MIGRATE_CONFIRM_TEXT" = "Historia e leximit për hyrjet origjinale do të hiqet kur të migroni në një burim tjetër.";
 "MIGRATE_WITH_HISTORY" = "Migroni dhe mbani histori";
-"SELECT_PINNED_SOURCES" = "Zgjidhni Burimet e Gozhduara";
+"SELECT_PINNED_SOURCES" = "Zgjidhni burimet e fiksuara";
 "SEARCH_MANUALLY" = "Kërkoni manualisht";
 "DONT_MIGRATE" = "Mos migroni";
 "SELECTED_%i_OF_%i" = "Zgjedhur (%i/%i)";
 "MIGRATE_%i_OF_%i" = "Migrimi (%i/%i)";
 "SHOW_ENTRY" = "Shiko hyrjen";
-"SOURCE_BREAKING_CHANGE" = "Burimi Breaking Ndryshimi";
-"SOURCE_BREAKING_CHANGE_TEXT" = "Ky burim pati një ndryshim të madh dhe kërkon migrim për të mbajtur bibliotekën dhe historinë tuaj.";
+"SOURCE_BREAKING_CHANGE" = "Ndryshim i burimit që prish përputhshmërinë";
+"SOURCE_BREAKING_CHANGE_TEXT" = "Ky burim ka pësuar një ndryshim që prish përputhshmërinë. Për të ruajtur bibliotekën dhe historinë tuaj, nevojitet migrimi.";
 "ALL_CHAPTERS_LOCKED" = "Të gjithë kapitujt e kyçur";
 "AUTO_SCROLL" = "Lëvizja automatike";
 "AUTO_SCROLL_SPEED" = "Shpejtësia automatike e lëvizjes";
-"AUTO_SCROLL_POSITION" = "Pozicioni i lëvizjes automatike";
+"AUTO_SCROLL_POSITION" = "Pozicioni i kontrollit të lëvizjes automatike";
 "POSITION_LEFT" = "Majtas";
-"POSITION_RIGHT" = "E drejta";
+"POSITION_RIGHT" = "Djathtas";
 "%@_TRACKER_LOGIN_NEEDED" = "Kërkohet hyrje në %@";
-"%@_TRACKER_LOGIN_NEEDED_TEXT" = "Shenja juaj %@ ka skaduar, kështu që gjurmuesi shoqërues do të ndalojë së punuari derisa të identifikoheni sërish te cilësimet.";
+"%@_TRACKER_LOGIN_NEEDED_TEXT" = "Tokeni juaj i hyrjes për %@ ka skaduar. Shërbimi përkatës i ndjekjes nuk do të funksionojë derisa të identifikoheni sërish në të përmes cilësimeve.";
 "READER_ORIENTATION" = "Orientimi";
-"FOLLOW_DEVICE" = "Ndiqni pajisjen";
+"FOLLOW_DEVICE" = "Ndiq orientimin e pajisjes";
 "FOCUS_ITEM_LEFT" = "Përqendroni artikullin në të majtë";
 "FOCUS_ITEM_RIGHT" = "Përqendroni artikullin në të djathtë";
 "FOCUS_ITEM_ABOVE" = "Fokusoni artikullin më lart";
@@ -1035,9 +1035,9 @@
 "CHAPTER_BACKWARD" = "Kapitulli prapa";
 "OPEN_CHAPTER_LIST" = "Hapni listën e kapitujve";
 "TOGGLE_BARS" = "Shfaq ose fshih shiritat e veglave";
-"CLOSE_READER" = "Lexuesi i ngushtë";
+"CLOSE_READER" = "Mbyll lexuesin";
 "TOGGLE_PAGE_OFFSET" = "Ndrysho kompensimin e faqes";
-"UPLOAD_FILE" = "Ngarko skedarin";
+"UPLOAD_FILE" = "Importo skedarin";
 "MIGRATE_CHAPTER_HISTORY" = "Migrimi i Historisë së Kapitullit";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Migroni historinë e leximit të mbetur nga versionet më të vjetra që nuk janë të lidhura me kapitujt në bazën e të dhënave lokale. Kjo zakonisht ndodh automatikisht pas një përditësimi. Nëse nuk ka përfunduar, mund ta ekzekutoni përsëri këtu.";
 
@@ -1055,12 +1055,12 @@
 "TRANSLATION_SOURCE_LABEL_FILTER" = "Gjuhët e menuve dhe seksioneve të burimit";
 
 // Shared image retention
-"SAVE_SHARED_IMAGES" = "Mbani imazhe të përbashkëta në skedarët lokalë";
-"SAVE_SHARED_IMAGES_HELP" = "Kur çaktivizohen, imazhet e përbashkëta hapen përkohësisht dhe fshihen kur mbyllen. Historia e leximit dhe memoria e fshehtë e OCR/përkthimit nuk ruhen.";
+"SAVE_SHARED_IMAGES" = "Ruaj imazhet e shpërndara në skedarët lokalë";
+"SAVE_SHARED_IMAGES_HELP" = "Kur ky cilësim është i çaktivizuar, imazhet e shpërndara hapen përkohësisht dhe fshihen kur mbyllen. Historia e leximit dhe rezultatet e OCR-së dhe përkthimit në memorien e përkohshme nuk ruhen.";
 
 "TRANSLATION_LARGE_FILTER_OPTIONS" = "Përkthe listat e mëdha të filtrave (mbi 100 opsione)";
 
-"SETTING_INVALID_STEPPER_RANGE" = "Gama e cilësimeve numerike të pavlefshme.";
+"SETTING_INVALID_STEPPER_RANGE" = "Interval i pavlefshëm për cilësimin numerik.";
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Nuk mund të shfaqet cilësimi: %@";
 

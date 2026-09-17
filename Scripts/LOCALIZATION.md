@@ -25,8 +25,13 @@ terms are allowed; the English-copy check is a heuristic, not a language detecto
 positional arguments such as `%2$@` and `%1$i` when a translation changes word
 order. Never swap unnumbered placeholders of different types.
 
-The validator checks structure, not translation quality or layout. New coverage
-was filled with machine translation and targeted manual corrections, including
-Korean settings, reading statistics, and dictionary terminology. Native-speaker
-review and device layout checks remain useful for all languages. Dynamic source
-content and third-party source translations are outside these app resource tables.
+The validator checks structure, not translation quality or layout. Initial coverage
+included machine translation; the entry-by-entry wording review and its evidence
+are recorded in `Documentation/LocalizationReview-2026-09-17.md` and the linked
+language-group reports. Agent review is not native-speaker certification or a
+device layout check. Dynamic source content and third-party source translations
+are outside these app resource tables.
+
+The subsequent full-table recheck is recorded in `Documentation/LocalizationRecheck-2026-09-17.md`, with a separate before/after ledger and final table hashes.
+
+The third independent reassigned-agent audit is in `Documentation/LocalizationRound3-2026-09-17.md`; it records additional implementation-backed wording corrections and the Suwayomi runtime mismatch corrected in the implementation follow-up.

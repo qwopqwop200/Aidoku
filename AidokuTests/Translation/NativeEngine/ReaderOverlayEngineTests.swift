@@ -47,6 +47,74 @@ private final class BrowserTestNavigationWaiter: NSObject,
 
 @Suite(.serialized)
 struct ReaderOverlayEngineTests {
+
+    @Test
+    func separateHorizontalSourceLinesDoNotBecomeASideBySideBand() {
+        let sources = [
+            CGRect(x: 207.9453125, y: 118.25, width: 191.8203125, height: 9.7421875),
+            CGRect(x: 207.9453125, y: 131.6875, width: 204.921875, height: 9.0703125)
+        ]
+        let preferred = [
+            CGRect(x: 207.9453125, y: 115.62109375, width: 191.8203125, height: 15),
+            CGRect(x: 207.9453125, y: 128.72265625, width: 204.921875, height: 15)
+        ]
+        let layouts = preferred.map {
+            BrowserOverlayCardLayout(rect: $0, maximumFontSize: 8, contentInsets: .zero)
+        }
+        let result = BrowserOverlayLayoutPlanner.relaxingCardPositions(
+            layouts, sources: sources, sourceVerticals: [false, false],
+            viewport: CGSize(width: 430, height: 241.875),
+            preferredRects: preferred, allowsDetachedPlacements: [true, true]
+        )
+        #expect(result.count == 2)
+        for index in result.indices {
+            // Original failure moved one caption 175px over a house illustration.
+            #expect(abs(result[index].rect.midX - sources[index].midX) <= 1)
+            let intersection = result[index].rect.intersection(sources[index])
+            #expect(!intersection.isNull)
+            #expect(intersection.width * intersection.height >= sources[index].width * sources[index].height * 0.99)
+            #expect(result[index].rect.size == layouts[index].rect.size)
+            #expect(result[index].maximumFontSize == layouts[index].maximumFontSize)
+        }
+        let intersection = result[0].rect.intersection(result[1].rect)
+        #expect(intersection.isNull || intersection.width <= 0.25 || intersection.height <= 0.25)
+    }
+
+    @Test
+    func mixedSourceCaptionKeepsLegacyPlacementInsteadOfExposingOriginal() {
+        // Actual 0356 sources16/17 are vertical; source20 is horizontal.
+        // Broad source-Y veto moved20 down15.25px onto the hat and exposed クライ.
+        let sources = [
+            CGRect(x: 29.29440389, y: 256.32603406, width: 11.50851582, height: 36.09489051),
+            CGRect(x: 56.49635036, y: 256.84914842, width: 30.86374696, height: 35.57177616),
+            CGRect(x: 85.26763990, y: 279.34306569, width: 29.29440389, height: 13.60097324)
+        ]
+        let preferred = [
+            CGRect(x: 17.04866180, y: 256.32603406, width: 36, height: 36.09489051),
+            CGRect(x: 50.72822384, y: 256.84914842, width: 42.4, height: 35.57177616),
+            CGRect(x: 85.26763990, y: 279.34306569, width: 29.29440389, height: 13.60097324)
+        ]
+        let layouts = preferred.map {
+            BrowserOverlayCardLayout(rect: $0, maximumFontSize: 8, contentInsets: .zero)
+        }
+        func solve(_ orientations: [Bool]?) -> [BrowserOverlayCardLayout] {
+            BrowserOverlayLayoutPlanner.relaxingCardPositions(
+                layouts, sources: sources, sourceVerticals: orientations,
+                viewport: CGSize(width: 430, height: 700), preferredRects: preferred,
+                allowsDetachedPlacements: [true, true, true]
+            )
+        }
+        let legacy = solve(nil)
+        let mixed = solve([true, true, false])
+        let unknown = solve([])
+        #expect(mixed.count == legacy.count)
+        for index in legacy.indices {
+            #expect(mixed[index].rect == legacy[index].rect)
+            #expect(unknown[index].rect == legacy[index].rect)
+            #expect(mixed[index].maximumFontSize == legacy[index].maximumFontSize)
+        }
+    }
+
     @MainActor
     @Test func pageImageOverlayUsesSafeTextAndPageCoordinateRendering() {
         let script = BrowserPageImageOverlayRenderer.renderScript

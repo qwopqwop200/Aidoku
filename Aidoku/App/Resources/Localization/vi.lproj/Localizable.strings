@@ -117,21 +117,21 @@
 "NO_NEXT_CHAPTER" = "Không có chương kế tiếp";
 "NO_PREVIOUS_CHAPTER" = "Không có chương trước";
 "READER_SETTINGS" = "Cài đặt trình đọc";
-"READING_MODE" = "Hướng đọc";
+"READING_MODE" = "Chế độ đọc";
 "DEFAULT" = "Mặc định";
 "LTR" = "Trái sang phải";
 "RTL" = "Phải sang trái";
 "VERTICAL" = "Dọc";
-"VERTICAL_SCROLL" = "Kéo cuộn";
+"VERTICAL_SCROLL" = "Cuộn dọc";
 "EXPERIMENTAL" = "Đang thử nghiệm";
-"INFINITE_VERTICAL_SCROLL" = "Cuộn vô hạn";
+"INFINITE_VERTICAL_SCROLL" = "Cuộn dọc vô hạn";
 "SAVE_TO_PHOTOS" = "Lưu về Ảnh";
 
 // History
 "HISTORY" = "Lịch sử";
 "%@_AGO" = "%@ trước";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "Lịch sử chương này sẽ bị xoá. Bạn có chắc muốn tiếp tục không?";
-"REMOVE_ALL_MANGA_HISTORY" = "Xoá toàn bộ lịch sử đọc";
+"REMOVE_ALL_MANGA_HISTORY" = "Xóa toàn bộ lịch sử của truyện này";
 "HISTORY_LOCKED" = "Lịch sử bị khoá.";
 "VIEW_HISTORY" = "Xem lịch sử đọc";
 "AUTH_FOR_HISTORY" = "Xác minh để xem lịch sử đọc.";
@@ -175,28 +175,28 @@
 "WEEKLY" = "Hàng tuần";
 "WITH_UNREAD_CHAPTERS" = "Có chương chưa đọc";
 "WITH_COMPLETED_STATUS" = "Đã hoàn thành";
-"THAT_HAVENT_BEEN_READ" = "Chưa đọc bao giờ";
+"THAT_HAVENT_BEEN_READ" = "Không có chương nào được đánh dấu đã đọc";
 "SOURCE_LISTS" = "Danh sách nguồn";
 "SOURCE_LIST_ADDED" = "Đã thêm danh sách nguồn";
-"SOURCE_LIST_ADDED_TEXT" = "Bây giờ có thể thêm nguồn bên ngoài từ mục Duyệt.";
+"SOURCE_LIST_ADDED_TEXT" = "Bây giờ bạn có thể duyệt các nguồn bên ngoài trong mục Duyệt.";
 "SOURCE_LIST_URL" = "URL của danh sách nguồn";
 "SOURCE_LIST_ADD" = "Thêm danh sách nguồn";
 "SOURCE_LIST_ADD_TEXT" = "Nhập URL của danh sách nguồn";
 "SOURCE_LIST_ADD_FAIL" = "Không thể thêm danh sách nguồn";
-"SOURCE_LIST_ADD_FAIL_TEXT" = "Danh sách nguồn không hợp lệ hoặc đã được thêm trước đó.";
+"SOURCE_LIST_ADD_FAIL_TEXT" = "URL danh sách nguồn đã nhập không hợp lệ hoặc đã được thêm trước đó.";
 "LOCK_HISTORY_TAB" = "Khoá Lịch sử đọc";
-"DOWNSAMPLE_IMAGES" = "Giảm chất lượng ảnh";
+"DOWNSAMPLE_IMAGES" = "Giảm độ phân giải ảnh";
 "BACKUPS" = "Sao lưu";
 "BACKUP_NAME" = "Tên bản sao lưu";
 "RENAME_BACKUP" = "Đổi tên bản sao lưu";
 "RENAME_BACKUP_TEXT" = "Nhập tên mới cho bản sao lưu";
 "CORRUPTED_BACKUP" = "Bản sao lưu bị hỏng";
-"CORRUPTED_BACKUP_TEXT" = "Không thể đổi tên bản sao lưu này vì dữ liệu đã bị hỏng.";
+"CORRUPTED_BACKUP_TEXT" = "Dữ liệu trong bản sao lưu này có vẻ được cấu hình không đúng. Không thể đổi tên bản sao lưu.";
 "BACKUP_INFO" = "Nhấn giữ một bản sao lưu để xuất nó, hoặc kéo từ phải qua để xoá.";
 "RESTORE_BACKUP" = "Khôi phục bản sao lưu này?";
 "RESTORE_BACKUP_TEXT" = "Mọi dữ liệu hiện có sẽ bị ghi đè lên bởi bản sao lưu này.";
 "BACKUP_IMPORT_SUCCESS" = "Đã thêm bản sao lưu";
-"BACKUP_IMPORT_SUCCESS_TEXT" = "Để quay về bản sao lưu này, tìm bản sao lưu ở trong mục Cài đặt.";
+"BACKUP_IMPORT_SUCCESS_TEXT" = "Để khôi phục từ bản sao lưu này, hãy tìm nó trong trang Sao lưu ở mục Cài đặt.";
 "IMPORT_FAIL" = "Không thể nhập";
 "BACKUP_IMPORT_FAIL_TEXT" = "Không thể thêm bản sao lưu. Hãy đảm bảo bản sao lưu có định dạng phù hợp.";
 "EXPORT" = "Xuất";
@@ -204,19 +204,19 @@
 "LOGS" = "Nhật ký";
 "LOGGING" = "Ghi Nhật ký";
 "LOG_SERVER" = "Máy chủ nhật ký";
-"EXPORT_LOGS" = "Lưu nhật ký";
+"EXPORT_LOGS" = "Xuất nhật ký";
 "DISPLAY_LOGS" = "Hiển thị nhật ký";
 "ADVANCED" = "Nâng cao";
 "RESET_TEXT" = "Hành động này không thể hoàn tác. Tất cả mọi dữ liệu, cài đặt và bộ nhớ đệm sẽ bị xoá.";
 "CLEAR_NETWORK_CACHE" = "Xoá bộ nhớ đệm mạng";
-"CLEAR_NETWORK_CACHE_TEXT" = "Hành động này không thể hoàn tác. Ảnh và bộ nhớ đệm mạng sẽ bị xoá.";
+"CLEAR_NETWORK_CACHE_TEXT" = "Hành động này không thể hoàn tác. Các yêu cầu mạng và hình ảnh đã lưu trong bộ nhớ đệm sẽ bị xóa.";
 "CLEAR_READ_HISTORY" = "Xoá lịch sử đọc";
 "CLEAR_READ_HISTORY_TEXT" = "Hành động này không thể hoàn tác. Lịch sử đọc sẽ bị xoá.";
 "RESET_SETTINGS" = "Đặt lại tất cả cài đặt";
 "RESET_SETTINGS_TEXT" = "Hành động này không thể hoàn tác. Các cài đặt nguồn và cài đặt ứng dụng sẽ quay lại mặc định.";
 "PAGE_X" = "Trang %i";
 "MISSING_SOURCES" = "Nguồn bị thiếu";
-"MISSING_SOURCES_TEXT" = "Bản sao lưu này có dữ liệu từ các nguồn chưa cài đặt sau:";
+"MISSING_SOURCES_TEXT" = "Bản sao lưu đã khôi phục có thể chứa dữ liệu từ các nguồn sau hiện chưa được cài đặt:";
 "PAGE_X_OF_X" = "Trang %i/%i";
 "VIEW_LIBRARY" = "Xem Thư viện";
 "CATEGORY_EMPTY" = "Danh mục Trống";
@@ -231,7 +231,7 @@
 "SET_AS_NORMAL_PAGE" = "Đặt thành trang bình thường";
 "SINGLE_PAGE" = "Trang đơn";
 "PAGED" = "Phân trang";
-"PAGE_LAYOUT" = "Sắp xếp Trang";
+"PAGE_LAYOUT" = "Bố cục trang";
 "DOUBLE_PAGE" = "Trang đôi";
 "SET_AS_WIDE_PAGE" = "Đặt thành trang rộng";
 "MULTI_LANGUAGE" = "Đa ngôn ngữ";
@@ -240,23 +240,23 @@
 "LOGOUT_FROM_%@" = "Đăng xuất khỏi %@?";
 "VOLUMES" = "Tập";
 "STATUS" = "Tình trạng";
-"STARTED" = "Bắt đầu";
+"STARTED" = "Ngày bắt đầu đọc";
 "TRACK_PLANNING" = "Sẽ đọc";
 "START_TRACKING" = "Bắt đầu theo dõi";
 "STOP_TRACKING" = "Ngưng theo dõi";
-"TRACK_PAUSED" = "Ngưng đọc";
-"FINISHED" = "Đã xong";
+"TRACK_PAUSED" = "Tạm ngưng đọc";
+"FINISHED" = "Ngày đọc xong";
 "TRACK_READING" = "Đang đọc";
 "TRACK_DROPPED" = "Đã bỏ";
 "MANHWA" = "Manhwa (Hàn)";
 "ONESHOT" = "One-shot";
-"STATUS_NOT_PUBLISHED" = "Không phát hành";
+"STATUS_NOT_PUBLISHED" = "Chưa xuất bản";
 "MANHUA" = "Manhua (Trung)";
 "TRACK" = "Theo dõi";
 "TYPE_COLON_%@" = "Thể loại: %@";
 "STATUS_COLON_%@" = "Tình trạng: %@";
 "VIEW_ON_WEBSITE" = "Xem trên website";
-"CLEAR_TRACKED_MANGA" = "Xóa manga được theo dõi";
+"CLEAR_TRACKED_MANGA" = "Xóa tất cả liên kết theo dõi";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "Bạn có chắc muốn xóa tất cả bản tải về?";
 "CACHE_SIZE_%@" = "Dung lượng cache: %@";
 "SUPPORT_VIA_KOFI" = "Ủng hộ qua Ko-Fi";
@@ -264,7 +264,7 @@
 "SCORE" = "Điểm";
 "TRACK_REREADING" = "Đang đọc lại";
 "MANGA" = "Manga";
-"CLEAR_TRACKED_MANGA_TEXT" = "Hành động này không thể phục hồi. Việc theo dõi cho tất cả manga sẽ bị gỡ bỏ.";
+"CLEAR_TRACKED_MANGA_TEXT" = "Hành động này không thể hoàn tác. Tất cả liên kết giữa truyện và trình theo dõi sẽ bị xóa.";
 "FAILED_CHAPTER_LOAD_INFO" = "Bạn đang không kết nối internet hoặc nguồn truyện đang có vấn đề.";
 "SELECT" = "Chọn";
 "ADD_TO_CATEGORY" = "Thêm vào danh mục";
@@ -314,10 +314,10 @@
 "NO_WIFI_ALERT_MESSAGE" = "Bạn cần kết nối với Wi-Fi để tải về nội dung này. Vui lòng kết nối với Wi-Fi và thử lại.";
 "DOWNLOAD_ANYWAY_MESSAGE" = "Bạn hiện không sử dụng Wi-Fi. Vẫn tải về?";
 "DESTINATION" = "Đích đến";
-"MOST_CHAPTERS_SLOWER" = "Tất cả chương (chậm)";
+"MOST_CHAPTERS_SLOWER" = "Nhiều chương nhất (chậm hơn)";
 "MIGRATE_ONE_ITEM?" = "Chuyển đổi 1 mục này?";
 "MIGRATE_%i_ITEMS?" = "Chuyển đổi %i mục này?";
-"FIRST_ALTERNATIVE" = "Lựa chọn đầu";
+"FIRST_ALTERNATIVE" = "Nguồn thay thế đầu tiên";
 "%lld_PLUS_MORE" = "+%lld nữa";
 "READER_BG_COLOR" = "Màu nền";
 "READER_BG_COLOR_SYSTEM" = "Hệ thống";
@@ -327,26 +327,26 @@
 "UPLOAD_DATE" = "Ngày tải lên";
 "IS_TRACKING" = "Theo dõi";
 "ALL_CHAPTERS_READ" = "Đã đọc xong tất cả các chương";
-"PILLARBOX_AMOUNT" = "Độ rộng viền hai bên";
-"PILLARBOX" = "Viền đen hai bên";
-"PILLARBOX_ORIENTATION" = "Hướng hiển thị viền hai bên";
-"PILLARBOX_ORIENTATION_INFO" = "Hướng hiển thị viền hai bên sẽ quyết định hướng màn hình nào sẽ kích hoạt tính năng này.";
+"PILLARBOX_AMOUNT" = "Độ rộng khoảng trống hai bên";
+"PILLARBOX" = "Khoảng trống hai bên";
+"PILLARBOX_ORIENTATION" = "Hướng màn hình áp dụng khoảng trống";
+"PILLARBOX_ORIENTATION_INFO" = "Chọn hướng màn hình sẽ áp dụng khoảng trống hai bên.";
 "BACKUP_ERROR" = "Khôi phục sao lưu bị lỗi";
 "ONLY_DOWNLOAD_ON_WIFI" = "Chỉ tải về bằng Wi-Fi";
 "BOTH" = "Cả hai";
 "DELETE_DOWNLOAD_AFTER_READING" = "Xóa tải về sau khi đọc xong";
-"SKIPPING_CHAPTERS" = "Bỏ qua %i chương vì nguồn bị thiếu hoặc đã bị lọc bỏ";
+"SKIPPING_CHAPTERS" = "Bỏ qua %i chương vì nguồn không có các chương đó hoặc chúng đã bị lọc bỏ";
 "ENABLE_PERMISSION" = "Bật quyền truy cập";
 "PHOTOS_ACCESS_DENIED_TEXT" = "Quyền truy cập đã bị từ chối trước đó. Vui lòng cho phép Aidoku truy cập vào thư viện ảnh của bạn để lưu ảnh vào Cuộn camera. Bạn có thể bật quyền truy cập trong phần cài đặt quyền riêng tư.";
 "OPEN_WEBSITE" = "Mở trang web";
-"CLEAR_EXCLUDING_LIBRARY_TEXT" = "Hành động này không thể hoàn tác. Mọi lịch sử đọc ngoại trừ thư viện sẽ bị xóa.";
-"NO_SCANLATOR" = "Không có dịch thuật";
-"SCANLATOR" = "Dịch thuật";
+"CLEAR_EXCLUDING_LIBRARY_TEXT" = "Hành động này không thể hoàn tác. Toàn bộ lịch sử đọc của các truyện không có trong thư viện sẽ bị xóa.";
+"NO_SCANLATOR" = "Không có nhóm dịch";
+"SCANLATOR" = "Nhóm dịch";
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "Đang xóa mục khỏi danh mục %@";
 "REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Đang xóa %i mục khỏi danh mục %@";
-"CLEAR_EXCLUDING_LIBRARY" = "Xóa Lịch sử Đọc ngoại trừ Thư viện";
+"CLEAR_EXCLUDING_LIBRARY" = "Xóa lịch sử của truyện ngoài thư viện";
 "READER_ORIENTATION" = "Hướng màn hình";
-"FOLLOW_DEVICE" = "Theo dõi thiết bị";
+"FOLLOW_DEVICE" = "Theo hướng thiết bị";
 "MARK_DUPLICATE_CHAPTERS" = "Đánh dấu các chương trùng lặp là đã đọc";
 "DONE" = "Xong";
 "INVALID" = "Không hợp lệ";
@@ -355,7 +355,7 @@
 "NO_DOWNLOADS" = "Tải về trống";
 "NO_DOWNLOADS_TEXT" = "Nội dung tải về sẽ hiển thị ở đây.";
 "DOWNLOADED_CHAPTERS" = "Các chương đã tải về";
-"TOTAL_DOWNLOADS" = "Tổng mục Tải về";
+"TOTAL_DOWNLOADS" = "Tổng dung lượng tải về";
 "IN_LIBRARY" = "Trong Thư viện";
 "REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Xóa mục khỏi Thư viện";
 "REFRESHING_LIBRARY" = "Đang làm mới Thư viện…";
@@ -372,7 +372,7 @@
 "CANCEL_CONFIRM_TEXT" = "Những thay đổi của bạn sẽ bị hủy bỏ.";
 "DISCARD_CHANGES" = "Hủy bỏ thay đổi";
 "INVALID_URL" = "URL không hợp lệ";
-"MORE_BARBUTTON" = "Thêm";
+"MORE_BARBUTTON" = "Xem thêm";
 "RETRY" = "Thử lại";
 "NO_RESULT" = "Không có kết quả";
 "NETWORK_ERROR" = "Lỗi mạng";
@@ -413,7 +413,7 @@
 "SORT_RANDOM" = "Ngẫu nhiên";
 "GENRE" = "Thể loại";
 "TAG" = "Thẻ";
-"PUBLISHER" = "Nhà phát hành";
+"PUBLISHER" = "Nhà xuất bản";
 "AGE_RATING" = "Độ tuổi giới hạn";
 "RELEASE_DATE" = "Ngày phát hành";
 "NOT_LOGGED_IN" = "Chưa đăng nhập";
@@ -425,16 +425,16 @@
 "DEMO_KAVITA_SERVER" = "Máy chủ Kavita demo";
 "DEMO_KAVITA_SERVER_INFO" = "Bạn có thể đăng nhập vào máy chủ demo Kavita bằng tên người dùng `demouser` và mật khẩu `Demouser64`.";
 "MORE_IN_%@" = "Xem thêm tại %@";
-"SORT_CHAPTER_ADDED" = "Chương đã thêm";
+"SORT_CHAPTER_ADDED" = "Ngày thêm chương";
 "SORT_AVERAGE_RATING" = "Đánh giá trung bình";
 "STATUS_ENDED" = "Đã kết thúc";
 "FORMAT_IMAGE" = "Ảnh";
 "FORMAT_EPUB" = "EPUB";
 "FORMAT_PDF" = "PDF";
-"FORMAT_ARCHIVE" = "Lưu trữ";
+"FORMAT_ARCHIVE" = "Tệp nén";
 "LOGIN_VIA_OIDC" = "Đăng nhập qua OIDC";
 "SET_COVER_IMAGE" = "Đặt ảnh bìa";
-"UPLOAD_CUSTOM_COVER" = "Tải lên bìa tùy chỉnh";
+"UPLOAD_CUSTOM_COVER" = "Chọn ảnh bìa tùy chỉnh";
 "LOGIN" = "Đăng nhập";
 "LOGOUT_CONFIRM" = "Bạn chắc chắn muốn đăng xuất?";
 "USERNAME" = "Tên đăng nhập";
@@ -451,7 +451,7 @@
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Chiều cao ảnh tối đa";
 "ZONE_LEFT_RIGHT" = "Trái và Phải";
 "ZONE_L_SHAPED" = "Hình chữ L";
-"ZONE_EDGE" = "Góc";
+"ZONE_EDGE" = "Cạnh";
 "DISABLED" = "Tắt";
 "ANIMATE_PAGE_TRANSITIONS" = "Hoạt ảnh chuyển trang";
 "FILE_IMPORT_FAIL_TEXT" = "Không thể nhập tệp. Vui lòng đảm bảo đó là tệp CBZ hoặc ZIP hợp lệ có chứa hình ảnh.";
@@ -472,7 +472,7 @@
 "UPDATE_AFTER_READING" = "Cập nhật sau khi đọc";
 "UPDATE_AFTER_READING_INFO" = "Sau khi đọc một chương, cập nhật trình theo dõi để khớp với chương hoặc/và tập đang đọc.";
 "AUTO_SYNC_HISTORY" = "Tự động đồng bộ hóa lịch sử";
-"AUTO_SYNC_HISTORY_INFO" = "Khi một chương mới hoặc/và tập được bộ theo dõi phát hiện, cập nhật để khớp lịch sử cục bộ.";
+"AUTO_SYNC_HISTORY_INFO" = "Khi trình theo dõi ghi nhận tiến độ đọc chương hoặc tập mới hơn, lịch sử trên thiết bị sẽ được cập nhật cho khớp.";
 "SET_AS_SINGLE_PAGE" = "Đặt làm Trang đơn";
 "RELOAD_FAILED" = "Tải lại không thành công";
 "RELOAD_FAILED_TEXT" = "Không tải lại được hình ảnh. Vui lòng thử lại.";
@@ -485,7 +485,7 @@
 "ZONE_KINDLE" = "Kindle";
 "DISPLAY_VOLUME" = "Tập";
 "FORMAT" = "Định dạng";
-"SAFE" = "An toàn";
+"SAFE" = "Nội dung thông thường";
 "DOWNLOADING" = "Đang tải";
 "PAUSED" = "Đã tạm dừng";
 "DOWNLOADS" = "Các mục Tải về";
@@ -499,13 +499,13 @@
 "DESCENDING" = "Giảm dần";
 "READER_BG_COLOR_AUTO" = "Tự động";
 "FILTER_SEPARATOR" = ", ";
-"INSIGHTS" = "Thông tin chi tiết";
-"STREAKS" = "Chuỗi";
+"INSIGHTS" = "Phân tích hoạt động đọc";
+"STREAKS" = "Chuỗi ngày đọc liên tiếp";
 "STATS" = "Thống kê";
-"CURRENT_STREAK" = "Chuỗi Hiện tại";
-"NO_CURRENT_STREAK" = "Chưa có Chuỗi nào";
+"CURRENT_STREAK" = "Chuỗi ngày đọc hiện tại";
+"NO_CURRENT_STREAK" = "Hiện chưa có chuỗi ngày đọc";
 "NO_CURRENT_STREAK_TEXT" = "Duy trì đọc hàng ngày để tạo chuỗi.";
-"LONGEST_STREAK" = "Chuỗi dài nhất";
+"LONGEST_STREAK" = "Chuỗi ngày đọc dài nhất";
 "DAYS" = "Ngày";
 "CHAPTER_PLURAL" = "Chương";
 "CHAPTER_SINGULAR" = "Chương";
@@ -548,17 +548,17 @@
 "UNIMPLEMENTED" = "Chưa được triển khai";
 "DECODING_ERROR" = "Lỗi giải mã";
 "IMPORT_SOURCE" = "Nhập nguồn";
-"BUILT_IN_SOURCES" = "Nguồn tích hơp";
+"BUILT_IN_SOURCES" = "Nguồn tích hợp";
 "EXTERNAL_SOURCES" = "Nguồn bên ngoài";
 "NO_EXTERNAL_SOURCES" = "Không có nguồn bên ngoài";
 "ALL_SOURCES_INSTALLED_INFO" = "Không tìm thấy nguồn bên ngoài mới để cài đặt.";
 "NO_EXTERNAL_SOURCES_INFO" = "Thiết lập danh sách nguồn trong mục Cài đặt để cài đặt thêm nguồn bên ngoài.";
 "SENSITIVE_SETTINGS" = "Cài đặt nhạy cảm";
-"KOMGA_TAGLINE" = "Máy chủ nội dung cá nhân";
+"KOMGA_TAGLINE" = "Máy chủ nội dung tự lưu trữ";
 "KOMGA_INFO" = "Komga là máy chủ nội dung tự lưu trữ dành cho truyện tranh và manga. Bạn cần thiết lập và chạy máy chủ Komga để sử dụng nguồn này.";
-"DEMO_KOMGA_SERVER_INFO" = "Bạn có thể đăng nhập vào máy chủ Komga dùng thử bằng email`demo@komga.org` và mật khẩu`komga-demo`.";
+"DEMO_KOMGA_SERVER_INFO" = "Bạn có thể đăng nhập vào máy chủ Komga dùng thử bằng email `demo@komga.org` và mật khẩu `komga-demo`.";
 "SOURCE_NAME" = "Tên nguồn";
-"SOURCE_NAME_UNIQUE_ERROR" = "Vui lòng chọn một tên nguồn duy nhất.";
+"SOURCE_NAME_UNIQUE_ERROR" = "Vui lòng chọn tên nguồn không trùng với tên đã có.";
 "SERVER_URL_INFO" = "URL cơ sở của máy chủ để kết nối.";
 "SERVER_URL_UNIQUE_ERROR" = "Nguồn được cấu hình với máy chủ đó đã tồn tại.";
 "LOCKED" = "Đã khóa";
@@ -580,8 +580,8 @@
 "CLOSE_READER" = "Đóng trình đọc";
 "TURN_PAGE_LEFT" = "Lật trang bên trái";
 "TURN_PAGE_RIGHT" = "Lật trang bên phải";
-"SOURCE_BREAKING_CHANGE_TEXT" = "Nguồn này đã có thay đổi lớn và cần phải chuyển đổi dữ liệu để duy trì thư viện và lịch sử.";
-"SOURCE_BREAKING_CHANGE" = "Nguồn có thay đổi lớn";
+"SOURCE_BREAKING_CHANGE_TEXT" = "Nguồn này có thay đổi không tương thích. Bạn cần chuyển dữ liệu để giữ lại thư viện và lịch sử đọc.";
+"SOURCE_BREAKING_CHANGE" = "Thay đổi không tương thích của nguồn";
 "FOCUS_ITEM_LEFT" = "Chuyển tiêu điểm sang trái";
 "FOCUS_ITEM_RIGHT" = "Chuyển tiêu điểm sang phải";
 "FOCUS_ITEM_ABOVE" = "Chuyển tiêu điểm sang phía trên";
@@ -589,7 +589,7 @@
 "FOCUS_ITEM_NEXT" = "Chuyển tiêu điểm sang mục kế tiếp";
 "FOCUS_ITEM_PREV" = "Chuyển tiêu điểm sang mục trước đó";
 "RESET_FOCUS" = "Đặt lại tiêu điểm";
-"OPEN_FOCUS_ITEM" = "Mở mục tiêu điểm";
+"OPEN_FOCUS_ITEM" = "Mở mục đang có tiêu điểm";
 "CHAPTER_BACKWARD" = "Chương trước đó";
 "TOGGLE_BARS" = "Bật/tắt thanh công cụ";
 "OLDEST_FIRST" = "Cũ nhất trước";
@@ -600,14 +600,14 @@
 "AND_MORE" = "và các mục khác";
 "LOCAL_FILES" = "Tệp trên máy";
 "LOCAL_FILES_TAGLINE" = "Đọc từ tệp trên máy";
-"LOCAL_FILES_INFO" = "Với nguồn tệp trên máy, bạn có thể tự thêm và quản lý kho sách cá nhân ngay trên Aidoku.";
+"LOCAL_FILES_INFO" = "Nguồn tệp trên máy cho phép bạn nhập và quản lý thư viện đọc cá nhân ngay trong Aidoku.";
 "LOCAL_FILES_SETUP" = "Thiết lập tệp trên máy";
 "LOCAL_FILE_IMPORT" = "Nhập tệp trên máy";
 "VOLUME_CHAPTER_INVALID_ERROR" = "Đã có một chương với thiết lập tương tự.";
 "VOLUME_CHAPTER_EMPTY_ERROR" = "Yêu cầu nhập số tập và/hoặc số chương.";
 "READING_SESSIONS" = "Phiên đọc";
 "CLEAR_SOURCE_CACHE" = "Dọn bộ nhớ đệm của nguồn";
-"CLEAR_SOURCE_CACHE_TEXT" = "Bộ nhớ đệm từ các URL nguồn sẽ được dọn sạch. Khi dọn xong, ứng dụng có thể sẽ tải chậm hơn một chút trong thời gian đầu.";
+"CLEAR_SOURCE_CACHE_TEXT" = "Xóa cookie và dữ liệu trang web của các URL thuộc nguồn này, cùng nội dung nguồn đã lưu trong bộ nhớ đệm. Bạn có thể cần đăng nhập lại và thời gian tải có thể tạm thời lâu hơn.";
 "LIVE_TEXT" = "Nhận diện văn bản";
 "LIBRARY_ADJUST_FILTERS" = "Điều chỉnh bộ lọc để xem thêm nội dung.";
 "REMOVE_FILTER" = "Gỡ bộ lọc";
@@ -623,21 +623,21 @@
 "ON_DECK" = "Sắp đọc";
 "SORT_BOOKS_COUNT" = "Số lượng sách";
 "SHARING_LABEL" = "Nhãn chia sẻ";
-"KAVITA_INFO" = "Kavita là một máy chủ quản lý truyện tranh và manga. Bạn cần có máy chủ Kavita đang hoạt động để sử dụng nguồn này.";
+"KAVITA_INFO" = "Kavita là máy chủ nội dung tự lưu trữ dành cho truyện tranh và manga. Bạn cần thiết lập và chạy máy chủ Kavita để sử dụng nguồn này.";
 "SORT_TIME_TO_READ" = "Thời gian đọc";
 "TOGGLE_LOCK" = "Bật/tắt khóa";
 "BACKGROUND_REFRESH" = "Làm mới trong nền";
 "PIN_UPDATED_CHAPTERS" = "Chương vừa cập nhật";
 "PIN_TITLES" = "Ghim truyện";
 "BACKGROUND_REFRESH_TEXT" = "Khi bắt đầu làm mới thư viện theo cách thủ công, cho phép quá trình hoàn tất ngay cả khi ứng dụng đang chạy nền.";
-"ALL_TIME" = "Tất cả";
+"ALL_TIME" = "Toàn bộ thời gian";
 "RESET_COVER" = "Đặt lại ảnh bìa";
 "NO_RECENT_SEARCHES" = "Không có tìm kiếm gần đây";
 "NO_RECENT_SEARCHES_TEXT" = "Các tìm kiếm gần đây sẽ xuất hiện tại đây.";
 "LOGIN_FAILED_TEXT" = "Không thể đăng nhập vào nguồn này. Vui lòng kiểm tra lại thông tin tài khoản.";
 "LOGIN_BASIC_TEXT" = "Thông tin đăng nhập sẽ được cung cấp trực tiếp cho nguồn. Vui lòng không đăng nhập vào những nguồn thiếu tin cậy.";
 "LOGIN_WEBVIEW_WARNING_TEXT" = "Mọi cookie được thiết lập trong web view này sẽ được cung cấp cho nguồn. Vui lòng không đăng nhập vào những nguồn thiếu tin cậy.";
-"DOWNLOADED_CHAPTER_BADGES" = "Biểu tượng Chương tải về";
+"DOWNLOADED_CHAPTER_BADGES" = "Huy hiệu số chương đã tải về";
 "UNAVAILABLE_SOURCE_LISTS" = "Danh sách nguồn không khả dụng";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Đã xảy ra lỗi khi lấy danh sách nguồn trên.";
 "UPSCALING" = "Nâng độ phân giải";
@@ -655,18 +655,18 @@
 "VOLUME" = "Tập";
 "EDIT" = "Chỉnh sửa";
 "SAVE" = "Lưu";
-"REFRESH_NO_WIFI" = "Không có kết nối mạng";
+"REFRESH_NO_WIFI" = "Chưa kết nối Wi-Fi";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Xóa khỏi thư viện?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Việc xóa loạt phim này khỏi thư viện cũng sẽ xóa tất cả các trình theo dõi được liên kết. Bạn có chắc chắn muốn tiếp tục không?";
-"CATEGORY" = "Thể loại";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Xóa bộ truyện này khỏi thư viện cũng sẽ xóa tất cả liên kết theo dõi của truyện. Bạn có chắc chắn muốn tiếp tục không?";
+"CATEGORY" = "Danh mục";
 "UNCATEGORIZED" = "Chưa được phân loại";
-"FILTER_GROUPS" = "Lọc nhóm";
+"FILTER_GROUPS" = "Nhóm bộ lọc";
 "CLEAR_FILTERS" = "Xóa bộ lọc";
 "SHOW_UNCATEGORIZED_CATEGORY" = "Hiển thị danh mục chưa được phân loại";
 "MISSING_SOURCE_LIST" = "Danh sách nguồn bị thiếu";
 "MISSING_SOURCE_LIST_INFO" = "Nguồn bên ngoài này không có trong bất kỳ danh sách nguồn nào đã được cấu hình. Điều này có nghĩa là nó sẽ không nhận được bản cập nhật và có thể bị lỗi trong tương lai.";
 "SAVED_SEARCHES" = "Tìm kiếm đã lưu";
-"NAME_SAVED_SEARCH" = "Tên tìm kiếm đã lưu";
+"NAME_SAVED_SEARCH" = "Đặt tên tìm kiếm đã lưu";
 "SAVED_SEARCH_NAME" = "Tên";
 "SAVE_SEARCH_FAIL" = "Lưu không thành công";
 "SAVE_SEARCH_FAIL_INFO" = "Đã có một tìm kiếm được lưu lại với tên này. Vui lòng chọn tên khác.";
@@ -678,10 +678,10 @@
 "STANDARD" = "Tiêu chuẩn";
 "COMPACT" = "Nhỏ gọn";
 "CUSTOM" = "Tùy chỉnh";
-"PORTRAIT_ROWS" = "Hàng dọc";
+"PORTRAIT_ROWS" = "Số cột khi xoay dọc";
 "RESUME_LAST_OPENED_CHAPTER" = "Tiếp tục chương cuối cùng đã mở";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Tắt tính năng nhấn đúp để thu phóng";
-"HIDE_BARS_ON_SWIPE" = "Ẩn thanh thông báo khi vuốt";
+"HIDE_BARS_ON_SWIPE" = "Ẩn các thanh điều khiển khi vuốt";
 "TEXT_READER" = "Trình đọc văn bản";
 "TEXT_READER_STYLE" = "Kiểu đọc";
 "TEXT_READER_SCROLL" = "Cuộn";
@@ -711,25 +711,25 @@
 
 "TRANSLATION_NO_TEXT" = "Không có văn bản nào được nhận dạng. Hãy thử một mô hình OCR khác hoặc một hình ảnh rõ ràng hơn.";
 
-"TRANSLATION_WORKING" = "Nhận biết và dịch…";
+"TRANSLATION_WORKING" = "Đang nhận dạng và dịch…";
 
 "TRANSLATION_OCR_WORKING" = "Đang nhận dạng văn bản trên thiết bị…";
 
-"TRANSLATION_HELP" = "Biểu tượng dịch sẽ bật hoặc tắt dịch. Các trang được chuẩn bị theo thứ tự sau: hiện tại, tiếp theo, trước đó, hai trang phía trước, hai trang phía sau, tiếp tục cho đến cả hai đầu của chương. OCR đã hoàn thành, bản dịch và bố cục văn bản sẽ được sử dụng lại sau khi đóng trình đọc hoặc khởi động lại ứng dụng. Để người đọc hủy bỏ công việc còn dang dở.";
+"TRANSLATION_HELP" = "Biểu tượng dịch bật hoặc tắt tính năng dịch. Các trang đang hiển thị được chuẩn bị trước, sau đó đến các trang lân cận. Việc chuẩn bị thay đổi theo vị trí đọc của bạn. Kết quả OCR, bản dịch và bố cục văn bản đã lưu có thể được dùng lại sau khi mở lại trình đọc hoặc khởi động lại ứng dụng. Ảnh được chia sẻ và mở tạm thời không lưu bộ nhớ đệm này. Thoát trình đọc sẽ hủy các tác vụ chưa hoàn tất.";
 
-"TRANSLATION_PRIVACY" = "OCR chạy trên thiết bị của bạn. Bản dịch sẽ gửi văn bản được nhận dạng và hướng dẫn của bạn đến nhà cung cấp đã chọn. Nếu Bao gồm hình ảnh trang trong bản dịch được bật thì hình ảnh trang gốc cũng được tải lên. Phí API tùy thuộc vào nhà cung cấp của bạn. Chìa khóa vẫn ở trong Móc khóa. OCR, bản dịch và bố cục văn bản được lưu trong bộ lưu trữ ứng dụng được bảo vệ, loại trừ khỏi bản sao lưu.";
+"TRANSLATION_PRIVACY" = "OCR chạy trên thiết bị của bạn. Bản dịch sẽ gửi văn bản được nhận dạng và hướng dẫn của bạn đến nhà cung cấp đã chọn. Nếu Bao gồm hình ảnh trang trong bản dịch được bật thì hình ảnh trang gốc cũng được tải lên. Phí API tùy thuộc vào nhà cung cấp của bạn. Khóa API được lưu trong Keychain. OCR, bản dịch và bố cục văn bản được lưu trong bộ lưu trữ ứng dụng được bảo vệ, loại trừ khỏi bản sao lưu.";
 
 "TRANSLATION_KEY_REPLACE" = "Thay thế khóa API đã lưu (tùy chọn)";
 
 "TRANSLATION_KEY" = "Khóa API";
 
-"TRANSLATION_KEY_SAVED" = "Khóa API được lưu trong Chuỗi khóa";
+"TRANSLATION_KEY_SAVED" = "Khóa API được lưu trong Keychain";
 
 "TRANSLATION_KEY_DELETE" = "Xóa khóa API";
 
-"TRANSLATION_MODEL" = "Mã mẫu";
+"TRANSLATION_MODEL" = "ID mô hình";
 
-"TRANSLATION_GET_KEY" = "Mở khóa API OpenAI";
+"TRANSLATION_GET_KEY" = "Mở trang quản lý khóa API OpenAI";
 
 "TRANSLATION_LANGUAGE" = "Ngôn ngữ";
 
@@ -739,7 +739,7 @@
 
 "TRANSLATION_AUTO" = "Tự động phát hiện";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 yêu cầu iOS 18 trở lên. Phương tiện là mặc định; Nhỏ sử dụng ít bộ nhớ hơn. Tiny có một từ điển ký tự nhỏ hơn. Những mẫu này không hỗ trợ OCR của Hàn Quốc. Đầu ra bản dịch tiếng Hàn được hỗ trợ.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 yêu cầu iOS 18 trở lên. Mô hình mặc định là Trung bình. Nhỏ dùng ít bộ nhớ hơn và Rất nhỏ có từ điển ký tự hạn chế hơn. Các mô hình này không nhận dạng văn bản tiếng Hàn, nhưng vẫn hỗ trợ dịch sang tiếng Hàn.";
 
 "TRANSLATION_INSTRUCTIONS" = "Hướng dẫn dịch thuật";
 
@@ -753,31 +753,31 @@
 
 "TRANSLATION_ADVANCED" = "Tùy chọn dịch";
 
-"TRANSLATION_REASONING" = "Nỗ lực lý luận";
+"TRANSLATION_REASONING" = "Mức độ suy luận";
 
-"TRANSLATION_MODEL_DEFAULT" = "Mặc định mẫu";
+"TRANSLATION_MODEL_DEFAULT" = "Mặc định của mô hình";
 
-"TRANSLATION_CONCURRENCY" = "Yêu cầu đồng thời";
+"TRANSLATION_CONCURRENCY" = "Số yêu cầu đồng thời";
 
-"TRANSLATION_DETECTOR_SIZE" = "Phía tối đa của máy dò";
+"TRANSLATION_DETECTOR_SIZE" = "Độ dài cạnh tối đa của ảnh đầu vào bộ phát hiện";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "Chiều rộng tối đa của bộ nhận dạng";
+"TRANSLATION_RECOGNIZER_SIZE" = "Chiều rộng tối đa của ảnh đầu vào bộ nhận dạng";
 
-"TRANSLATION_CONFIDENCE" = "Độ tin cậy của OCR";
+"TRANSLATION_CONFIDENCE" = "Ngưỡng độ tin cậy tối thiểu của OCR";
 
 "TRANSLATION_SURFACE" = "Màu nền";
 
-"TRANSLATION_WHITE" = "trắng";
+"TRANSLATION_WHITE" = "Trắng";
 
 "TRANSLATION_DARK" = "Tối";
 
-"TRANSLATION_OPACITY" = "Độ mờ nền";
+"TRANSLATION_OPACITY" = "Độ không trong suốt của nền";
 
-"TRANSLATION_EXPANSION" = "Mở rộng hộp";
+"TRANSLATION_EXPANSION" = "Mở rộng khung văn bản";
 
-"TRANSLATION_PANEL_BOUNDS" = "Trong bảng hình ảnh";
+"TRANSLATION_PANEL_BOUNDS" = "Trong giới hạn ảnh";
 
-"TRANSLATION_SOURCE_BOUNDS" = "Trong Hộp Ban Đầu";
+"TRANSLATION_SOURCE_BOUNDS" = "Trong khung văn bản gốc";
 
 "TRANSLATION_UNRESTRICTED" = "Không hạn chế";
 
@@ -789,7 +789,7 @@
 
 "TRANSLATION_OVERLAY" = "Lớp phủ dịch";
 
-"TRANSLATION_OVERLAY_HELP" = "Thay thế văn bản trên hộp nguồn bằng cách sử dụng bố cục nhận biết va chạm và gói theo tập lệnh cụ thể. Hiển thị các thay đổi sử dụng lại OCR hiện có.";
+"TRANSLATION_OVERLAY_HELP" = "Thay văn bản trong khung gốc bằng bản dịch, với bố cục tránh chồng lấn và ngắt dòng phù hợp với hệ chữ viết. Các thay đổi hiển thị sử dụng lại kết quả OCR hiện có.";
 
 "TRANSLATION_PROVIDER" = "Nhà cung cấp dịch thuật";
 
@@ -797,11 +797,11 @@
 
 "TRANSLATION_API_FORMAT" = "Định dạng API";
 
-"TRANSLATION_CUSTOM_HELP" = "Nhập URL cơ sở HTTPS hoặc điểm cuối API đầy đủ và mô hình được máy chủ của bạn hỗ trợ. Mỗi URL máy chủ có khóa lưu riêng; việc thay đổi URL sẽ xóa mọi khóa bạn đang nhập. Phản hồi và Hoàn thành cuộc trò chuyện sử dụng kết quả JSON có cấu trúc.";
+"TRANSLATION_CUSTOM_HELP" = "Nhập URL cơ sở HTTPS hoặc điểm cuối API đầy đủ và mô hình được máy chủ của bạn hỗ trợ. Mỗi URL máy chủ có khóa lưu riêng; việc thay đổi URL sẽ xóa mọi khóa bạn đang nhập. Responses và Chat Completions sử dụng kết quả JSON có cấu trúc.";
 
 "TRANSLATION_AUTOMATIC" = "Dịch tự động";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Kiểm tra cài đặt API đã lưu một lần ở chế độ nền khi ứng dụng mở ra hoặc cài đặt API thay đổi. Quá trình dịch bắt đầu sau khi thành công. Kiểm tra không thành công sẽ tạm dừng dịch mà không thay đổi tùy chọn dịch tự động của bạn. Hãy mở lại ứng dụng hoặc kiểm tra lại kết nối API để thử lại. Thay đổi trang và BẬT/TẮT sử dụng lại kết quả kiểm tra. Nỗ lực lý luận sử dụng cài đặt đã lưu của bạn.";
+"TRANSLATION_AUTOMATIC_HELP" = "Tự động dịch các trang trong trình đọc bằng cài đặt API và mức độ suy luận đã lưu. Không chạy kiểm tra kết nối riêng trước khi bắt đầu dịch. Lỗi dịch không làm tắt cài đặt này. Dùng Kiểm tra kết nối API để kiểm tra cài đặt thủ công.";
 
 "TRANSLATION_TEST" = "Kiểm tra kết nối API";
 
@@ -811,7 +811,7 @@
 
 "TRANSLATION_TEST_FAILURE" = "Kết nối không thành công";
 
-"TRANSLATION_TEST_HELP" = "Dịch một câu ngắn bằng cách sử dụng các giá trị ở dạng này. Để trống khóa để sử dụng khóa đã lưu của máy chủ này. Các thay đổi được lưu tự động.";
+"TRANSLATION_TEST_HELP" = "Dịch một câu ngắn bằng các giá trị trong biểu mẫu này. Để trống khóa để dùng khóa đã lưu của máy chủ này. Các thay đổi được lưu tự động.";
 
 "SEARCH_SUGGESTIONS" = "Đề xuất tìm kiếm";
 
@@ -819,25 +819,25 @@
 
 "TRANSLATION_CACHE_LIMIT" = "Dung lượng tối đa";
 
-"TRANSLATION_CACHE_USED" = "Bộ nhớ đã sử dụng";
+"TRANSLATION_CACHE_USED" = "Dung lượng đã sử dụng";
 
-"TRANSLATION_CACHE_HELP" = "Tự động lưu OCR, bản dịch trang, bản dịch tiêu đề manga và chương, mô tả manga và bố cục văn bản. Hình ảnh trang chỉ lưu lại trong bộ nhớ trang lân cận. Các kết quả ít được sử dụng gần đây nhất sẽ bị xóa khi đạt đến giới hạn đã chọn. Mặc định: 1GB. Tối đa: 100 GB. Các thay đổi được áp dụng tự động; việc giảm giới hạn sẽ loại bỏ các kết quả ít được sử dụng gần đây nhất cho đến khi vừa bộ nhớ đệm.";
+"TRANSLATION_CACHE_HELP" = "Tự động lưu kết quả OCR, bản dịch trang, bản dịch tên manga và chương, bản dịch mô tả manga và bố cục văn bản. Ảnh trang chỉ được giữ tạm trong bộ nhớ dành cho trang hiện tại và các trang lân cận. Khi đạt giới hạn đã chọn, kết quả lâu nhất chưa được sử dụng sẽ bị xóa trước. Mặc định: 1 GB. Tối đa: 100 GB. Thay đổi được áp dụng tự động; giảm giới hạn sẽ xóa kết quả lâu nhất chưa được sử dụng cho đến khi bộ nhớ đệm nằm trong giới hạn.";
 
-"TRANSLATION_SOURCE_FILTER" = "Bộ lọc nguồn dịch";
+"TRANSLATION_SOURCE_FILTER" = "Bộ lọc ngôn ngữ gốc cần dịch";
 
 "TRANSLATION_FILTER_ALL" = "Tất cả ngôn ngữ được phát hiện";
 
-"TRANSLATION_FILTER_HELP" = "Chọn ngôn ngữ gốc để dịch. Văn bản không được chọn hoặc không chắc chắn sẽ không thay đổi. Chọn Tất cả ngôn ngữ được phát hiện để xóa bộ lọc.";
+"TRANSLATION_FILTER_HELP" = "Chọn các ngôn ngữ gốc cần dịch. Văn bản thuộc ngôn ngữ không được chọn hoặc không xác định được ngôn ngữ sẽ được giữ nguyên. Chọn Tất cả ngôn ngữ được phát hiện để bỏ bộ lọc.";
 
-"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Chỉ văn bản được xác định là ngôn ngữ gốc đã chọn mới được dịch. Những ngôn ngữ không được phát hiện trên thiết bị vẫn không được lọc.";
+"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Chỉ dịch văn bản được xác định là thuộc ngôn ngữ gốc đã chọn. Không áp dụng bộ lọc cho những ngôn ngữ mà tính năng nhận diện trên thiết bị không hỗ trợ.";
 
 "HTTPS_BYPASS" = "Bỏ qua chặn HTTPS";
 
-"HTTPS_BYPASS_HELP" = "Sử dụng phân mảnh TLS và DNS được mã hóa (Cloudflare) cho các yêu cầu nguồn, hình ảnh, nội dung tải xuống và lượt xem web nguồn. Áp dụng cho các kết nối mới. Việc chặn IP và các hạn chế do trang web áp đặt sẽ không bị bỏ qua.";
+"HTTPS_BYPASS_HELP" = "Sử dụng phân mảnh TLS và DNS mã hóa (Cloudflare) cho các yêu cầu đến nguồn, hình ảnh, nội dung tải xuống và trang web của nguồn mở trong ứng dụng. Áp dụng cho kết nối mới. Không vượt qua được việc chặn IP hay các hạn chế do chính trang web áp đặt.";
 
 "HTTPS_BYPASS_TEST" = "Kiểm tra kết nối";
 
-"HTTPS_BYPASS_TEST_HELP" = "Kiểm tra địa chỉ HTTPS này thông qua đường vòng, ngay cả khi nút chuyển tắt. Phản hồi xác nhận kết nối chứ không phải có khối ISP.";
+"HTTPS_BYPASS_TEST_HELP" = "Kiểm tra địa chỉ HTTPS này bằng cơ chế vượt chặn, ngay cả khi công tắc đang tắt. Phản hồi xác nhận kết nối thành công, không chứng minh rằng trước đó nhà cung cấp Internet đã chặn kết nối.";
 
 "HTTPS_BYPASS_INVALID_URL" = "Nhập URL HTTPS không có tên người dùng hoặc mật khẩu.";
 
@@ -845,7 +845,7 @@
 
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "Đã nhận được HTTP %d · Phân mảnh TLS chưa được xác nhận";
 
-"HTTPS_BYPASS_TEST_FAILED" = "Không thể kết nối thông qua đường vòng HTTPS.";
+"HTTPS_BYPASS_TEST_FAILED" = "Không thể kết nối qua cơ chế vượt chặn HTTPS.";
 
 "TRANSLATION_CONNECTION_FAILED_NOTICE" = "Bản dịch không thành công. Hiển thị văn bản OCR. Vui lòng kiểm tra kết nối của bạn.";
 
@@ -861,49 +861,49 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Ngôn ngữ nguồn trang";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Tự động phát hiện ngôn ngữ nguồn của từng tiêu đề và chỉ dịch các ngôn ngữ đã chọn. Tất cả các ngôn ngữ loại bỏ hạn chế ngôn ngữ. Cài đặt trang và ngôn ngữ nguồn tiêu đề khác không ảnh hưởng đến lựa chọn này.";
+"TRANSLATION_TITLE_FILTER_HELP" = "Tự động phát hiện ngôn ngữ gốc của từng tiêu đề và chỉ dịch các ngôn ngữ đã chọn. Chọn «Tất cả ngôn ngữ được phát hiện» để bỏ giới hạn ngôn ngữ. Cài đặt ngôn ngữ gốc của trang và của các loại tiêu đề khác không ảnh hưởng đến lựa chọn này.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Dịch mô tả Manga";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Ngôn ngữ mô tả manga";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Tự động phát hiện ngôn ngữ nguồn và chỉ dịch các ngôn ngữ đã chọn. Tất cả các ngôn ngữ loại bỏ hạn chế. Các bộ lọc trang, tiêu đề manga, tiêu đề chương và mô tả hoạt động độc lập.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Tự động phát hiện ngôn ngữ nguồn và chỉ dịch các ngôn ngữ đã chọn. Tất cả ngôn ngữ được phát hiện loại bỏ hạn chế. Các bộ lọc trang, tiêu đề manga, tiêu đề chương và mô tả hoạt động độc lập.";
 
 "TRANSLATION_SFX_FILTER" = "Lọc SFX (Chỉ tiếng Nhật)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Để nguyên các hiệu ứng âm thanh tiếng Nhật có thể không được dịch. Sử dụng từ điển cục bộ và kiểm tra bố cục thận trọng. Văn bản không thể chắc chắn được xác định là hiệu ứng âm thanh vẫn được dịch.";
+"TRANSLATION_SFX_FILTER_HELP" = "Giữ nguyên những đoạn có khả năng là từ tượng thanh tiếng Nhật bằng từ điển trên thiết bị và kiểm tra bố cục thận trọng. Văn bản không được xác định chắc chắn là từ tượng thanh vẫn được dịch.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Bao gồm các mục nhập bắt buộc theo ngữ cảnh (Chỉ tiếng Nhật)";
+"TRANSLATION_SFX_CONTEXT_FILTER" = "Bao gồm các mục cần xét ngữ cảnh (Chỉ tiếng Nhật)";
 
 "TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Áp dụng khi Lọc SFX được bật. Đồng thời lọc các mục được đánh dấu là yêu cầu ngữ cảnh bằng cách sử dụng kết quả khớp từ điển, kích thước văn bản và bố cục lân cận. Không có LLM nào phân tích bối cảnh nên đối thoại cũng có thể bị loại trừ.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Bao gồm hình ảnh trang trong bản dịch";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Gửi trang gốc có văn bản OCR cho bối cảnh cảnh và biểu cảm. Hướng dẫn bằng hình ảnh được tự động thêm vào. Yêu cầu mô hình hỗ trợ hình ảnh và có thể tăng mức sử dụng dữ liệu và chi phí API.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Gửi ảnh trang gốc cùng văn bản OCR để cung cấp thông tin về cảnh và biểu cảm. Chỉ dẫn xử lý hình ảnh sẽ được tự động thêm vào. Cần mô hình hỗ trợ hình ảnh và có thể làm tăng lượng dữ liệu sử dụng cũng như chi phí API.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Giữ nguyên màu văn bản gốc";
 
 "TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Ước tính màu văn bản gốc mà không cần mô hình bổ sung. Sử dụng màu mặc định khi không chắc chắn hoặc khi độ tương phản quá thấp.";
 
-"TRANSLATION_LLM_SFX" = "Lọc LLM SFX (Tất cả ngôn ngữ)";
+"TRANSLATION_LLM_SFX" = "Lọc từ tượng thanh bằng LLM (Tất cả ngôn ngữ)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Phân loại hiệu ứng âm thanh trong yêu cầu dịch thuật. Có thể kết hợp với bộ lọc cục bộ của Nhật Bản: quyết định về hiệu ứng âm thanh từ một trong hai bộ lọc sẽ không thay đổi bản gốc. Tương thích với việc gửi hình ảnh trang.";
+"TRANSLATION_LLM_SFX_HELP" = "Phân loại từ tượng thanh trong yêu cầu dịch. Có thể kết hợp với bộ lọc tiếng Nhật trên thiết bị: nếu một trong hai bộ lọc xác định văn bản là từ tượng thanh, văn bản gốc sẽ được giữ nguyên. Có thể dùng cùng tùy chọn gửi ảnh trang.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Nếu không có hình ảnh đầu vào, bối cảnh bố cục và hình ảnh bị hạn chế có thể làm giảm độ chính xác của phân loại SFX.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Giữ nguyên màu bảng gốc";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Giữ màu nền gốc của khung dịch";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Khớp bảng dịch với nền xung quanh văn bản gốc. Sử dụng bảng mặc định khi không chắc chắn hoặc không thể đọc được. Cài đặt độ mờ của bạn vẫn được áp dụng.";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Điều chỉnh màu nền khung dịch theo nền quanh văn bản gốc. Dùng màu nền mặc định khi không xác định được màu hoặc khi chữ khó đọc. Cài đặt độ không trong suốt của bạn vẫn được áp dụng.";
 
-"TRANSLATION_CUSTOM_PROVIDER" = "OpenAI tùy chỉnh";
+"TRANSLATION_CUSTOM_PROVIDER" = "Tùy chỉnh (Tương thích OpenAI)";
 
 "TRANSLATION_OCR_MEDIUM" = "Trung bình";
 
-"TRANSLATION_OCR_SMALL" = "nhỏ";
+"TRANSLATION_OCR_SMALL" = "Nhỏ";
 
-"TRANSLATION_OCR_TINY" = "nhỏ bé";
+"TRANSLATION_OCR_TINY" = "Rất nhỏ";
 
-"TRANSLATION_REASONING_NONE" = "không có";
+"TRANSLATION_REASONING_NONE" = "Không có";
 
 "TRANSLATION_REASONING_MINIMAL" = "Tối thiểu";
 
@@ -938,7 +938,7 @@
 "JSON_ERROR" = "Lỗi JSON";
 "SOURCE_CRASHED" = "Nguồn bị lỗi";
 "NAME_SAVED_SEARCH_INFO" = "Việc lưu tìm kiếm này sẽ lưu trữ các bộ lọc và văn bản tìm kiếm hiện được định cấu hình.";
-"INCOGNITO_FILTERS_NOTICE" = "Các bộ lọc đã sửa đổi không tồn tại ở Chế độ ẩn danh.";
+"INCOGNITO_FILTERS_NOTICE" = "Các thay đổi đối với bộ lọc sẽ không được lưu trong Chế độ ẩn danh.";
 "EPUB_NAME" = "EPUB";
 "MIRRORS" = "Máy chủ nhân bản";
 "MIRRORS_INFO" = "Các URL bổ sung để thử sử dụng làm URL cơ sở nếu URL chính không kết nối được.";
@@ -951,25 +951,25 @@
 "STATUS_LICENSED" = "Được cấp phép";
 "STATUS_PUBLISHING_FINISHED" = "Xuất bản đã hoàn tất";
 "AUTHOR_NAME" = "Tên tác giả";
-"ARTIST_NAME" = "Tên nghệ sĩ";
+"ARTIST_NAME" = "Tên họa sĩ";
 "INVALID_KEY" = "Khóa không hợp lệ";
 "REFRESH_DETAILS" = "Làm mới chi tiết";
 "REFRESH_LOGIN" = "Làm mới đăng nhập";
-"LANDSCAPE_ROWS" = "Hàng cảnh";
+"LANDSCAPE_ROWS" = "Số cột khi xoay ngang";
 "CONTINUE_READING_ON_RESELECT" = "Nhấn đúp vào tab Lịch sử để tiếp tục đọc";
 "NEW_CHAPTER_NOTIFICATIONS" = "Thông báo chương mới";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Gửi thông báo khi thư viện được làm mới ở chế độ nền.";
 "1_NEW_CHAPTER_AVAILABLE" = "Đã có chương mới";
-"X_NEW_CHAPTERS_AVAILABLE" = "%d có chương mới";
+"X_NEW_CHAPTERS_AVAILABLE" = "Có %d chương mới";
 "NEW_CHAPTERS_AVAILABLE" = "Chương mới có sẵn";
-"X_SERIES_HAVE_NEW_CHAPTERS" = "Dòng %d có chương mới";
-"LEGACY_SOURCE_LIST" = "Danh sách nguồn kế thừa";
+"X_SERIES_HAVE_NEW_CHAPTERS" = "%d bộ truyện có chương mới";
+"LEGACY_SOURCE_LIST" = "Danh sách nguồn định dạng cũ";
 "LEGACY_SOURCE_LIST_WARNING" = "Cảnh báo: Danh sách nguồn cũ";
-"LEGACY_SOURCE_LIST_WARNING_INFO" = "Bạn hiện đã định cấu hình danh sách nguồn kế thừa. Định dạng này đã lỗi thời và sẽ ngừng hoạt động trong phiên bản Aidoku trong tương lai. Mặc dù hiện tại nó vẫn hoạt động nhưng bạn nên tìm một giải pháp thay thế và định cấu hình nó trong Cài đặt > Danh sách nguồn.";
+"LEGACY_SOURCE_LIST_WARNING_INFO" = "Bạn hiện đã định cấu hình danh sách nguồn định dạng cũ. Định dạng này đã lỗi thời và sẽ ngừng hoạt động trong phiên bản Aidoku trong tương lai. Mặc dù hiện tại nó vẫn hoạt động nhưng bạn nên tìm một giải pháp thay thế và định cấu hình nó trong Cài đặt > Danh sách nguồn.";
 "TEXT_READER_PAGED" = "Đọc theo trang";
 "TEXT_HORIZONTAL_PADDING" = "Lề ngang";
-"TEXT_THEME" = "chủ đề";
-"TEXT_THEME_SEPIA" = "màu nâu đỏ";
+"TEXT_THEME" = "Chủ đề";
+"TEXT_THEME_SEPIA" = "Nâu đỏ";
 "TEXT_THEME_PAPER" = "Giấy";
 "TEXT_THEME_GRAY" = "Màu xám";
 "DICTIONARY_LOOKUP" = "Tra cứu từ điển";
@@ -977,7 +977,7 @@
 "DICTIONARIES" = "Từ điển";
 "ABOUT_DICTIONARIES" = "Giới thiệu về từ điển";
 "ABOUT_DICTIONARIES_TEXT" = "Từ điển Yomitan có thể được nhập từ tệp zip. Bạn có thể bật hoặc tắt từ điển và có thể sắp xếp lại chúng bằng cách kéo.";
-"LOOKUP_GESTURE" = "Tra cứu cử chỉ";
+"LOOKUP_GESTURE" = "Cử chỉ tra cứu";
 "SINGLE_TAP" = "Nhấn một lần";
 "LONG_PRESS" = "Nhấn và giữ";
 "LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Nhấn vào đầu một từ sẽ kích hoạt cửa sổ bật lên. Điều này vô hiệu hóa thao tác nhấn đúp để thu phóng khi được bật.";
@@ -986,7 +986,7 @@
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Bị khóa bằng cử chỉ tra cứu: Nhấn và giữ.";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "Lớp phủ văn bản OCR";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Hiển thị hộp văn bản trên vùng hình ảnh khi kích hoạt tra cứu. Điều này có thể hữu ích để xác định văn bản nào đã được OCR nhận dạng chính xác.";
-"DICTIONARY_OVERLAY_PADDING" = "Lớp đệm lớp phủ";
+"DICTIONARY_OVERLAY_PADDING" = "Khoảng đệm của lớp phủ";
 "DICTIONARY_OVERLAY_TEXT_SCALE" = "Kích thước văn bản lớp phủ";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Hạn chế ngôn ngữ OCR";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Khi được bật, chỉ các chương được đánh dấu là (các) ngôn ngữ đã chọn mới được xử lý cho OCR. Bạn chỉ nên chọn ngôn ngữ mà bạn đã nhập từ điển.";
@@ -998,19 +998,19 @@
 "DICTIONARY_POPUP_WIDTH" = "Chiều rộng cửa sổ bật lên";
 "DICTIONARY_POPUP_HEIGHT" = "Chiều cao cửa sổ bật lên";
 "TERM_DICTIONARIES" = "Từ điển thuật ngữ";
-"FREQUENCY_DICTIONARIES" = "Từ điển tần số từ";
-"PITCH_DICTIONARIES" = "Từ điển cao độ giọng";
+"FREQUENCY_DICTIONARIES" = "Từ điển tần suất từ";
+"PITCH_DICTIONARIES" = "Từ điển trọng âm cao độ";
 "KANJI_DICTIONARIES" = "Từ Điển Kanji";
 "IMPORTING_DICTIONARY" = "Đang nhập từ điển…";
 "IMPORT_ERROR" = "Lỗi nhập";
-"REVISION" = "Sửa đổi";
+"REVISION" = "Phiên bản sửa đổi";
 "URL" = "URL";
 "ATTRIBUTION" = "Ghi công";
 "SOURCE_LANGUAGE" = "Ngôn ngữ nguồn";
 "TARGET_LANGUAGE" = "Ngôn ngữ mục tiêu";
-"TERM_COUNT" = "Số lượng từ điển";
+"TERM_COUNT" = "Số mục từ";
 "TERM_META_COUNT" = "Số mục nhập siêu dữ liệu thuật ngữ";
-"KANJI_COUNT" = "Đếm Kanji";
+"KANJI_COUNT" = "Số chữ kanji";
 "KANJI_META_COUNT" = "Số mục siêu dữ liệu kanji";
 "TAG_COUNT" = "Số lượng thẻ";
 "MEDIA_COUNT" = "Số lượng phương tiện";
@@ -1018,36 +1018,36 @@
 "SIZE" = "Kích thước";
 "REMOVE_DICTIONARY" = "Xóa từ điển";
 "REMOVE_WORD" = "Xóa từ";
-"VOCABULARY" = "từ vựng";
+"VOCABULARY" = "Từ vựng";
 "1_WORD" = "1 từ";
 "%i_WORDS" = "%i từ";
 "NO_VOCABULARY" = "Không có từ vựng";
 "NO_VOCABULARY_TEXT" = "Từ vựng đã lưu sẽ xuất hiện ở đây.";
 "DEFINITION" = "Định nghĩa";
-"VOCAB_CONTEXT" = "Bối cảnh";
+"VOCAB_CONTEXT" = "Ngữ cảnh";
 "VOCAB_SOURCE" = "Nguồn";
 "CLEAR_VOCABULARY_LIST" = "Xóa tất cả từ vựng đã lưu";
 "CLEAR_VOCABULARY_LIST_TEXT" = "Hành động này là không thể đảo ngược. Tất cả từ vựng đã lưu sẽ bị xóa.";
 "DICTIONARY_UPDATES" = "Cập nhật";
 "UPDATE_NOW" = "Cập nhật ngay";
 "LAST_UPDATED_%@" = "Cập nhật lần cuối: %@";
-"MONTHLY" = "hàng tháng";
+"MONTHLY" = "Hàng tháng";
 "GET_RECOMMENDED_DICTIONARIES" = "Nhận từ điển được đề xuất";
 "RECOMMENDED_DICTIONARIES" = "Từ điển được đề xuất";
 "RECOMMENDED_DICTIONARIES_NOTE" = "Các từ điển dưới đây đều là ngôn ngữ Nhật-Anh. Đối với các ngôn ngữ khác, bạn có thể kiểm tra danh sách từ điển Wiktionary.";
 "RESTORE_MISSING_SOURCES" = "Khôi phục nguồn bị thiếu?";
 "RESTORE_MISSING_SOURCES_TEXT" = "Bạn có muốn tìm kiếm và cài đặt các nguồn còn thiếu không?";
-"INSTALL_SOURCES" = "Nguồn cài đặt";
+"INSTALL_SOURCES" = "Cài đặt nguồn";
 "INSTALLING_SOURCES" = "Đang cài đặt nguồn…";
-"SET_TRACK_CHAPTER_OFFSET" = "Đặt bù chương";
-"TRACK_CHAPTER_OFFSET_TEXT" = "Điều chỉnh cập nhật chương trình theo dõi tự động cho tiêu đề này khi số chương nguồn khác với số chương trình theo dõi.";
+"SET_TRACK_CHAPTER_OFFSET" = "Đặt độ lệch số chương";
+"TRACK_CHAPTER_OFFSET_TEXT" = "Điều chỉnh số chương tự động cập nhật lên trình theo dõi cho truyện này khi số chương của nguồn khác với số chương trên trình theo dõi.";
 "UNAVAILABLE_TRACKER_ITEM" = "Mục theo dõi không có sẵn";
 "UNAVAILABLE_TRACKER_ITEM_INFO" = "Mục theo dõi được liên kết này được liên kết với một trình theo dõi không còn khả dụng. Bạn nên xóa mục này hoặc đăng nhập lại vào trình theo dõi được liên kết.";
 "ENHANCED_TRACKERS" = "Trình theo dõi nâng cao";
 "ENHANCED_TRACKERS_INFO" = "Trình theo dõi nâng cao có thể tự động liên kết tới các mục được thêm vào thư viện của bạn từ các nguồn được hỗ trợ, theo dõi lịch sử đọc hai chiều.";
-"ENHANCED_TRACKERS_TOGGLE_INFO" = "Việc tắt tính năng theo dõi cho một nguồn sẽ xóa tất cả các trình theo dõi được liên kết và việc bật sẽ tự động liên kết tất cả các mục trong thư viện của bạn.";
+"ENHANCED_TRACKERS_TOGGLE_INFO" = "Tắt theo dõi cho một nguồn sẽ xóa tất cả liên kết theo dõi của nguồn đó. Bật lại sẽ tự động liên kết tất cả truyện thuộc nguồn đó trong thư viện.";
 "TRACKER_LOGOUT_INFO" = "Việc đăng xuất sẽ xóa thông tin theo dõi được liên kết khỏi trình theo dõi này cho tất cả các bộ.";
-"UNSET_AS_SINGLE_PAGE" = "Bỏ đặt thành một trang";
+"UNSET_AS_SINGLE_PAGE" = "Bỏ thiết lập trang đơn";
 "CONTINUOUS_WITH_GAPS" = "Liên tục có khoảng trống";
 "MIGRATE_CONFIRM_TEXT" = "Lịch sử đọc các mục gốc sẽ bị xóa khi di chuyển sang nguồn khác.";
 "MIGRATE_WITH_HISTORY" = "Di chuyển và lưu giữ lịch sử";
@@ -1057,10 +1057,10 @@
 "SHOW_ENTRY" = "Xem mục nhập";
 "AUTO_SCROLL" = "Tự động cuộn";
 "AUTO_SCROLL_SPEED" = "Tốc độ cuộn tự động";
-"AUTO_SCROLL_POSITION" = "Vị trí cuộn tự động";
-"POSITION_LEFT" = "trái";
-"POSITION_RIGHT" = "Đúng";
-"UPLOAD_FILE" = "Tải tệp lên";
+"AUTO_SCROLL_POSITION" = "Vị trí nút cuộn tự động";
+"POSITION_LEFT" = "Trái";
+"POSITION_RIGHT" = "Phải";
+"UPLOAD_FILE" = "Nhập tệp";
 "MIGRATE_CHAPTER_HISTORY" = "Di chuyển lịch sử chương";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Di chuyển lịch sử đọc còn sót lại từ các phiên bản cũ hơn không được liên kết với các chương trong cơ sở dữ liệu cục bộ. Điều này thường xảy ra tự động sau khi cập nhật. Nếu nó chưa hoàn thành, bạn có thể chạy lại ở đây.";
 
@@ -1078,7 +1078,7 @@
 "TRANSLATION_SOURCE_LABEL_FILTER" = "Ngôn ngữ menu và mục của nguồn";
 
 // Shared image retention
-"SAVE_SHARED_IMAGES" = "Giữ hình ảnh được chia sẻ trong tệp cục bộ";
+"SAVE_SHARED_IMAGES" = "Giữ ảnh được chia sẻ trong Tệp trên máy";
 "SAVE_SHARED_IMAGES_HELP" = "Khi tắt, hình ảnh được chia sẻ sẽ tạm thời mở và bị xóa khi đóng. Lịch sử đọc và bộ đệm OCR/bản dịch không được lưu.";
 
 "TRANSLATION_LARGE_FILTER_OPTIONS" = "Dịch danh sách bộ lọc lớn (hơn 100 tùy chọn)";
@@ -1090,4 +1090,4 @@
 // Bundled upscaling models
 "BUNDLED_UPSCALING_MODELS_HELP" = "Năm mô hình đi kèm có thể được cài đặt ngoại tuyến. Cài đặt một mô hình, sau đó nhấn vào mô hình đó trong Mô hình đang bật. MangaJaNai dành cho các trang đen trắng có chiều cao khoảng 1200 pixel; các trang màu không thay đổi.";
 
-"DOWNLOAD_TRANSLATED" = "Tải xuống bản dịch";
+"DOWNLOAD_TRANSLATED" = "Tải xuống kèm bản dịch";

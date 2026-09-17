@@ -7,6 +7,27 @@ import UIKit
 @testable import Aidoku
 
 struct NativeOCRTextLineMergerTests {
+    @Test func ordinaryKimiHomophoneDoesNotBecomeSemanticPronoun() {
+        // The everyday reading of 気味 must not acquire the referent "you".
+        // Real detector geometry from a development work; held-out works are
+        // evaluated independently in the corpus replay.
+        for scale: CGFloat in [0.5, 1, 2] {
+            func row(_ text: String, _ points: [[CGFloat]]) -> NativeCoreMLOCRLine {
+                NativeCoreMLOCRLine(
+                    polygon: points.map { CGPoint(x: $0[0] * scale, y: $0[1] * scale) },
+                    text: text, score: 0.99, orientation: .vertical, orientationIsEstimated: true)
+            }
+            let body = row("気味わりー", [[398, 64], [432, 64], [434, 209], [399, 209]])
+            let ruby = row("きみ", [[427, 70], [445, 70], [445, 122], [427, 122]])
+            let plain = merge([body], width: Int(822 * scale), height: Int(1200 * scale))
+            for input in [[body, ruby], [ruby, body]] {
+                let result = merge(input, width: Int(822 * scale), height: Int(1200 * scale))
+                #expect(result.map(\.text) == ["気味わりー"])
+                #expect(result.first?.boundingRect == plain.first?.boundingRect)
+            }
+        }
+    }
+
     @Test func semanticPronounRubyPreservesReferentWithoutAnotherRegion() {
         // comic-1185: 世界 carries わたし, not the ordinary reading せかい.
         for scale: CGFloat in [0.5, 1, 2] {
@@ -343,12 +364,18 @@ NativeCoreMLOCRLine(polygon: [CGPoint(x: 675, y: 435), CGPoint(x: 688, y: 438), 
     }
 
     @Test func duplicateTilesStraddlingDeskewThresholdStayDeduplicated() {
-        let input = [CGFloat(0.099), 0.101].map { angle in
-            NativeCoreMLOCRLine(polygon: [CGPoint(x: 0, y: 0), CGPoint(x: 120, y: 0),
-                CGPoint(x: 120, y: 20), CGPoint(x: 0, y: 20)].map {
-                    CGPoint(x: 100 + $0.x * cos(angle) - $0.y * sin(angle),
-                            y: 100 + $0.x * sin(angle) + $0.y * cos(angle))
-                }, text: "A shared line", score: 0.95, orientation: .horizontal)
+        let angles: [CGFloat] = [0.099, 0.101]
+        let corners: [CGPoint] = [CGPoint(x: 0, y: 0), CGPoint(x: 120, y: 0),
+                                  CGPoint(x: 120, y: 20), CGPoint(x: 0, y: 20)]
+        let input: [NativeCoreMLOCRLine] = angles.map { angle in
+            let cosine: CGFloat = cos(angle)
+            let sine: CGFloat = sin(angle)
+            let polygon: [CGPoint] = corners.map { point in
+                let x: CGFloat = 100 + point.x * cosine - point.y * sine
+                let y: CGFloat = 100 + point.x * sine + point.y * cosine
+                return CGPoint(x: x, y: y)
+            }
+            return NativeCoreMLOCRLine(polygon: polygon, text: "A shared line", score: 0.95, orientation: .horizontal)
         }
         for order in [input, Array(input.reversed())] {
             #expect(merge(order, width: 1000, height: 1000).map(\.text) == ["A shared line"])
@@ -356,12 +383,20 @@ NativeCoreMLOCRLine(polygon: [CGPoint(x: 675, y: 435), CGPoint(x: 688, y: 438), 
     }
 
     @Test func localBaselineGroupsDoNotDependOnDetectorEnumeration() {
-        let input = [CGFloat(0.11), 0.17, 0.23].enumerated().map { index, angle in
-            NativeCoreMLOCRLine(polygon: [CGPoint(x: 0, y: 0), CGPoint(x: 120, y: 0),
-                CGPoint(x: 120, y: 20), CGPoint(x: 0, y: 20)].map {
-                    CGPoint(x: 100 + $0.x * cos(angle) - $0.y * sin(angle),
-                            y: 100 + CGFloat(index) * 24 + $0.x * sin(angle) + $0.y * cos(angle))
-                }, text: ["第一行", "第二行", "第三行"][index], score: 0.95, orientation: .horizontal)
+        let angles: [CGFloat] = [0.11, 0.17, 0.23]
+        let texts: [String] = ["第一行", "第二行", "第三行"]
+        let corners: [CGPoint] = [CGPoint(x: 0, y: 0), CGPoint(x: 120, y: 0),
+                                  CGPoint(x: 120, y: 20), CGPoint(x: 0, y: 20)]
+        let input: [NativeCoreMLOCRLine] = angles.enumerated().map { index, angle in
+            let cosine: CGFloat = cos(angle)
+            let sine: CGFloat = sin(angle)
+            let offsetY: CGFloat = 100 + CGFloat(index) * 24
+            let polygon: [CGPoint] = corners.map { point in
+                let x: CGFloat = 100 + point.x * cosine - point.y * sine
+                let y: CGFloat = offsetY + point.x * sine + point.y * cosine
+                return CGPoint(x: x, y: y)
+            }
+            return NativeCoreMLOCRLine(polygon: polygon, text: texts[index], score: 0.95, orientation: .horizontal)
         }
         let expected = Set(merge(input, width: 1000, height: 1000).map(\.text))
         for order in [Array(input.reversed()), [input[1], input[0], input[2]], [input[2], input[0], input[1]]] {
