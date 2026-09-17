@@ -502,7 +502,7 @@
 "RELOAD_FAILED" = "Ponovno učitavanje nije uspjelo";
 "RELOAD_FAILED_TEXT" = "Ponovno učitavanje slike nije uspjelo. Pokušaj ponovo.";
 "SOURCE_IMPORT_FAIL_TEXT" = "Uvoz izvora nije uspio. Osiguraj da je aix datoteka valjana.";
-"FILE_IMPORT_FAIL_TEXT" = "Uvoz datoteke nije uspio. Osiguraj da se radi o valjanoj CBZ ili ZIP arhivi koja sadrži slike.";
+"FILE_IMPORT_FAIL_TEXT" = "Uvoz datoteke nije uspio. Provjerite je li to čitljiva slikovna datoteka ili valjana CBZ ili ZIP arhiva koja sadrži slike.";
 "ADD" = "Dodaj";
 "MARK_DUPLICATE_CHAPTERS" = "Označi dupla poglavlja kao pročitana";
 "SOURCE_BREAKING_CHANGE_TEXT" = "Ovaj izvor je imao promjenu koja uzrokuje nekompatibilnost i zahtijeva migraciju kako bi se tvoja biblioteka i povijest sačuvali.";
@@ -714,7 +714,7 @@
 "UNSET_AS_SINGLE_PAGE" = "Poništi postavku pojedinačne stranice";
 "CONTINUOUS_WITH_GAPS" = "Kontinuirano s prazninama";
 "TOGGLE_PAGE_OFFSET" = "Uključi/Isključi pomak stranice";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Uklanjanjem ove serije iz tvoje biblioteke uklonit ćeš i sve povezane alate praćenja. Sigurno želiš nastaviti?";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Uklanjanjem ove serije iz biblioteke uklonit ćeš i njezine veze s alatima praćenja. Sigurno želiš nastaviti?";
 "ENHANCED_TRACKERS_INFO" = "Poboljšani alati praćenja mogu se automatski povezati sa stavkama koje su dodane u tvoju biblioteku iz podržanih izvora, prateći povijest čitanja u oba smjera.";
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Isključivanje praćenja za izvor uklanja veze sa servisima za praćenje samo za taj izvor. Uključivanje automatski povezuje stavke iz tog izvora u tvojoj biblioteci.";
 "TRACKER_LOGOUT_INFO" = "Odjavom će se ukloniti povezani podaci praćenja iz ovog alata praćenja za sve serije.";
@@ -845,7 +845,7 @@
 
 "TRANSLATION_CACHE_USED" = "Iskorištena pohrana";
 
-"TRANSLATION_CACHE_HELP" = "Automatski sprema rezultate OCR-a, prijevode stranica, naslova manga i poglavlja, opisa manga te raspored teksta. Slike trenutačne i obližnjih stranica čuvaju se samo u radnoj memoriji. Kada se dosegne odabrano ograničenje, uklanjaju se rezultati koji najdulje nisu korišteni. Zadano: 1 GB. Maksimalno: 100 GB. Promjene se primjenjuju automatski; smanjenje ograničenja uklanja najdulje nekorištene rezultate dok predmemorija ne stane unutar ograničenja.";
+"TRANSLATION_CACHE_HELP" = "Automatski sprema rezultate OCR-a, prijevode stranica, naslova manga i poglavlja, imena autora, oznaka, opisa manga, izbornika i naslova odjeljaka izvora te raspored teksta. Slike trenutačne i obližnjih stranica čuvaju se samo u radnoj memoriji. Kada se dosegne odabrano ograničenje, uklanjaju se rezultati koji najdulje nisu korišteni. Zadano: 1 GB. Maksimalno: 100 GB. Promjene se primjenjuju automatski; smanjenje ograničenja uklanja najdulje nekorištene rezultate dok predmemorija ne stane unutar ograničenja.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filtar izvornih jezika";
 
@@ -877,7 +877,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Prevedite naslove poglavlja";
 
-"TRANSLATION_TITLES_HELP" = "Koristi vaš API za prijevod i ciljani jezik neovisno o automatskom prijevodu stranice. Isključite za prikaz originalnih naslova i opisa. Izvornici ostaju vidljivi tijekom učitavanja ili ako prijevod ne uspije.";
+"TRANSLATION_TITLES_HELP" = "Koristi vaš API za prijevod i ciljani jezik neovisno o automatskom prijevodu stranica. Isključite pojedinu opciju za prikaz njezina izvornog teksta. Izvornici ostaju vidljivi tijekom učitavanja ili ako prijevod ne uspije.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Jezici naslova mange";
 
@@ -891,7 +891,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Jezici za opis mange";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Automatski prepoznaje izvorni jezik i prevodi samo odabrane jezike. Opcija Svi otkriveni jezici uklanja ograničenje. Filtri za stranice, naslove manga, naslove poglavlja i opise rade neovisno.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Automatski prepoznaje izvorni jezik i prevodi samo odabrane jezike. Opcija Svi otkriveni jezici uklanja ograničenje. Jezični filtar svake stavke neovisan je o jezičnim postavkama stranica i drugih stavki.";
 
 "TRANSLATION_SFX_FILTER" = "SFX filtriranje (samo na japanskom)";
 
@@ -1091,3 +1091,9 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Pet uključenih modela može se instalirati izvan mreže. Instalirajte model, zatim ga dodirnite u Uključen model. MangaJaNai je za crno-bijele stranice visine oko 1200 piksela; stranice u boji ostaju nepromijenjene.";
 
 "DOWNLOAD_TRANSLATED" = "Preuzmi s prijevodom";
+
+"TRANSLATION_LLM_BACKGROUND" = "Preskoči natpise u pozadini (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "AI za prijevod ostavlja sporedne znakove, plakate i natpise u pozadini nepromijenjenima. Dijalog, pripovijedanje i tekst čija klasifikacija nije sigurna prevode se. Ne šalju se dodatni zahtjevi, ali obrada može trajati dulje. Bez slike stranice klasifikacija je manje pouzdana.";
+
+"TRANSLATION_STATE_ON" = "Uključeno";
+"TRANSLATION_STATE_OFF" = "Isključeno";

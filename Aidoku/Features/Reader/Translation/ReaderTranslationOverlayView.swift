@@ -80,6 +80,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     private var snapshotTask: Task<Void, Never>?
     private var snapshotGeneration = UUID()
     var onCacheGeometryChanged: (() -> Void)?
+    var onRenderCommitted: (() -> Void)?
     var canCacheRendering: Bool { snapshotTarget != nil }
     private(set) var lastDiagnostic: BrowserPageImageOverlayDiagnostic?
     private(set) var didStoreSnapshot = false
@@ -107,6 +108,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 recoveryTask?.cancel(); recoveryTask = nil
                 ReaderTranslationDiagnostics.record("visible_render_committed", count: diagnostic.renderedItemCount)
                 captureCompletedRender(revision: diagnostic.revision)
+                onRenderCommitted?()
             }
         }
         loadDocument()
@@ -128,6 +130,21 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         backgroundTask?.cancel(); backgroundTask = nil
         renderer.cancelPendingRender()
         webView.stopLoading()
+    }
+
+    /// Export owns a separate, serialized view. Release page pixels between
+    /// exports; a fresh document also discards export-only DOM mutations.
+    func resetForExportReuse() {
+        cancelWork()
+        onRenderCommitted = nil
+        snapshotTarget = nil
+        preparedImage = nil
+        imageDataURL = nil
+        items = []
+        imageSize = .zero
+        renderedSize = .zero
+        dirty = true
+        loadDocument()
     }
 
     func update(

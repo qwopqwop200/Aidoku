@@ -174,8 +174,30 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
     static let maximumGlossaryEntries = 100
     static let maximumGlossaryBytes = 64 * 1024
 
-    var imageJPEG: Data? = nil
+    var imageJPEG: Data? = nil { didSet { preparedImageDataURL = nil } }
+    // Shared String storage across batches; omitted from persisted/wire models.
+    var preparedImageDataURL: String? = nil
+    private enum CodingKeys: String, CodingKey {
+        case imageJPEG, filtersSFX, filtersBackground, sourceLanguage, targetLanguage, segments, context, glossary
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.imageJPEG == rhs.imageJPEG && lhs.filtersSFX == rhs.filtersSFX && lhs.filtersBackground == rhs.filtersBackground
+            && lhs.sourceLanguage == rhs.sourceLanguage && lhs.targetLanguage == rhs.targetLanguage
+            && lhs.segments == rhs.segments && lhs.context == rhs.context && lhs.glossary == rhs.glossary
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(imageJPEG); hasher.combine(filtersSFX); hasher.combine(filtersBackground)
+        hasher.combine(sourceLanguage); hasher.combine(targetLanguage)
+        hasher.combine(segments); hasher.combine(context); hasher.combine(glossary)
+    }
+
+    mutating func prepareImageRepresentation() {
+        preparedImageDataURL = imageJPEG.map { "data:image/jpeg;base64," + $0.base64EncodedString() }
+    }
     var filtersSFX: Bool? = nil
+    var filtersBackground: Bool? = nil
 
     let sourceLanguage: String
     let targetLanguage: String
@@ -543,6 +565,7 @@ struct TranslationCacheKey: Codable, Hashable, Sendable {
 
     let imageDigest: String?
     let sfxPolicy: String?
+    let backgroundPolicy: String?
     let version: Int
     let provider: RemoteTranslationProvider
     let apiProtocol: RemoteTranslationProtocol
@@ -565,7 +588,8 @@ struct TranslationCacheKey: Codable, Hashable, Sendable {
     ) {
         let canonicalRequest =
             request.canonicalizedForTranslationSemantics().request
-        sfxPolicy = request.filtersSFX == true ? "llm-sfx-v1" : nil
+        backgroundPolicy = request.filtersBackground == true ? TranslationHTTPCodec.backgroundPolicy : nil
+        sfxPolicy = request.filtersSFX == true ? TranslationHTTPCodec.sfxPolicy : nil
         imageDigest = request.imageJPEG.map { SHA256.hash(data: $0).map { String(format: "%02x", $0) }.joined() }
         version = Self.schemaVersion
         provider = configuration.provider
@@ -685,7 +709,9 @@ extension RemoteTranslationRequest {
             glossary: glossary
         )
         canonical.imageJPEG = imageJPEG
+        canonical.preparedImageDataURL = preparedImageDataURL
         canonical.filtersSFX = filtersSFX
+        canonical.filtersBackground = filtersBackground
         return CanonicalRemoteTranslationRequest(request: canonical, callerSegmentIDs: segments.map(\.id))
     }
 }

@@ -273,7 +273,11 @@ private final class NativeCoreMLModelPredictor:
             admissionCheck: @escaping @Sendable () throws -> Void = {}
         ) async throws -> ModelAccess? {
             try admissionCheck()
+            let headroom = ReaderTranslationSession.processAvailableMemory()
+            let residentLimit = headroom < 2 * 1_024 * 1_024 * 1_024 ? min(2, maximumResidentModels) : maximumResidentModels
             let modelKey = storageKey(for: variant)
+            if !allowsEviction, headroom < 2 * 1_024 * 1_024 * 1_024 { return nil }
+            trimResidents(to: residentLimit, preserving: modelKey)
             if let model = models[modelKey] {
                 try admissionCheck()
                 if allowsEviction {
@@ -288,14 +292,17 @@ private final class NativeCoreMLModelPredictor:
                 )
             }
             let reservedSlots = min(
-                maximumResidentModels,
+                residentLimit,
                 max(0, minimumFreeResidentSlots)
             )
-            let nonEvictingLimit = maximumResidentModels - reservedSlots
+            let nonEvictingLimit = residentLimit - reservedSlots
             if !allowsEviction, models.count >= nonEvictingLimit {
                 return nil
             }
 
+            // Release an old handle before loading its replacement, rather than
+            // briefly holding the full resident set plus a new model runtime.
+            if allowsEviction { trimResidents(to: max(0, residentLimit - 1), preserving: modelKey) }
             let issuedRevision = revision
             let asset = self.asset
             let usesDynamicModel = self.usesDynamicModel
@@ -347,7 +354,7 @@ private final class NativeCoreMLModelPredictor:
                 // resident set therefore remains at its configured cap while
                 // a shared preparation task is in flight.
                 if allowsEviction,
-                   models.count >= maximumResidentModels,
+                   models.count >= residentLimit,
                    let oldestVariant = recency.first {
                     models[oldestVariant] = nil
                     preparedVariants.remove(oldestVariant)
@@ -386,6 +393,17 @@ private final class NativeCoreMLModelPredictor:
                 revision: issuedRevision,
                 isPrepared: false
             )
+        }
+
+        private func trimResidents(to limit: Int, preserving key: NativeCoreMLRecognitionModelVariant) {
+            while models.count > limit {
+                guard let victim = recency.first(where: { $0 != key && speculativeVariants.contains($0) })
+                    ?? recency.first(where: { $0 != key }) else { return }
+                models[victim] = nil
+                preparedVariants.remove(victim)
+                speculativeVariants.remove(victim)
+                recency.removeAll { $0 == victim }
+            }
         }
 
         func markPrepared(
@@ -781,7 +799,7 @@ struct NativeCoreMLRecognitionModelVariant: Equatable, Hashable, Sendable {
 
     init?(width: Int, batchSize: Int) {
         guard let bucket = NativeCoreMLRecognitionBucket(width: width),
-              batchSize == 1 || batchSize == 4
+              (1...Self.maximumBatchSize).contains(batchSize)
         else {
             return nil
         }
@@ -1197,10 +1215,11 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         dictionary: [String],
         idleLongWidthPreparationEnabled: Bool = false,
         recognitionCacheCapacity: Int = 0,
+        dynamicWidth: Bool = false,
         auditObserver: (@Sendable (NativeCoreMLRecognitionAuditEvent) -> Void)? = nil
     ) throws {
         self.auditObserver = auditObserver
-        dynamicWidthEnabled = false
+        dynamicWidthEnabled = dynamicWidth
         maximumRecognitionWidth = 2_000
         guard dictionary.count == Self.expectedDictionaryCharacterCount
         else {
@@ -1256,7 +1275,8 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         // while both preserving the actual function and reserving capacity for
         // the next unseen width. Do no work there rather than evicting the
         // just-used sparse-page b1 function.
-        guard idlePreparationEnabled else { return }
+        guard idlePreparationEnabled,
+              ReaderTranslationSession.processAvailableMemory() >= 2 * 1_024 * 1_024 * 1_024 else { return }
         let preparationToken = preparationRevision.token()
         let resourceAccess = try await resourceStore.load(admissionCheck: {
             try self.preparationRevision.requireCurrent(preparationToken)
@@ -1422,12 +1442,9 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                 return $0.region.sourceIndex < $1.region.sourceIndex
             }
 
-            // Once a 320/640 width group contains at least four regions, keep
-            // that whole group on its
-            // batch-four function. A final one-to-three-region remainder pads
-            // only the model input slots and decodes only real regions. This
-            // avoids loading both b1 and b4 for common 5-7 line groups while
-            // one-to-three total regions and every dynamic-width region stay b1.
+            // Dynamic models accept every batch size from one through four,
+            // so each chunk uses only its real crops. Static functions keep
+            // padded tails to avoid loading a second model function.
             var plannedChunks: [NativeCoreMLPlannedRegionChunk] = []
             plannedChunks.reserveCapacity(plannedRegions.count)
             var groupStart = 0
@@ -1438,8 +1455,8 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                       plannedRegions[groupEnd].plan.bucket.width == width {
                     groupEnd += 1
                 }
-                let usesBatchFour = groupEnd - groupStart >= 4
-                    && (dynamicWidthEnabled || width <= 640)
+                let usesBatchFour = dynamicWidthEnabled
+                    || (groupEnd - groupStart >= 4 && width <= 640)
                 var chunkStart = groupStart
                 while chunkStart < groupEnd {
                     let remaining = groupEnd - chunkStart
@@ -1449,7 +1466,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                     )
                     plannedChunks.append(NativeCoreMLPlannedRegionChunk(
                         works: chunk,
-                        modelBatchSize: usesBatchFour ? 4 : 1,
+                        modelBatchSize: dynamicWidthEnabled ? chunk.count : (usesBatchFour ? 4 : 1),
                     ))
                     chunkStart += chunkSize
                 }
@@ -1727,7 +1744,9 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         let preparedWorks = chunk.works
         let requestedModelBatchSize = chunk.modelBatchSize
         precondition(
-            requestedModelBatchSize == 1 || requestedModelBatchSize == 4
+            dynamicWidthEnabled
+                ? (1...NativeCoreMLRecognitionModelVariant.maximumBatchSize).contains(requestedModelBatchSize)
+                : (requestedModelBatchSize == 1 || requestedModelBatchSize == 4)
         )
         var preprocessingMilliseconds = 0.0
         guard !preparedWorks.isEmpty else {
@@ -1796,18 +1815,22 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
             )
         }
 
-        // Preserve the established padded batch-four policy when every crop
-        // missed. If cache hits leave fewer than four real crops, use batch
-        // one rather than running a four-slot model mostly on duplicates.
-        let modelBatchSize = cacheHitRegions == 0
-            ? requestedModelBatchSize
-            : (uncachedWorks.count >= 4
-                && uncachedWorks[0].tensor.bucket.width <= 640 ? 4 : 1)
+        // Dynamic models batch only cache misses. Static functions retain
+        // their existing padding and partial-cache-hit loading policy.
+        let modelBatchSize: Int
+        if dynamicWidthEnabled {
+            modelBatchSize = uncachedWorks.count
+        } else if cacheHitRegions == 0 {
+            modelBatchSize = requestedModelBatchSize
+        } else {
+            modelBatchSize = uncachedWorks.count >= 4
+                && uncachedWorks[0].tensor.bucket.width <= 640 ? 4 : 1
+        }
         let predictionGroups: [[NativeCoreMLPreparedRegionWork]]
-        if modelBatchSize == 4,
+        if modelBatchSize > 1,
            NativeCoreMLRecognitionModelVariant(
                bucket: uncachedWorks[0].tensor.bucket,
-               batchSize: 4
+               batchSize: modelBatchSize
            ) != nil {
             predictionGroups = [uncachedWorks]
         } else {
@@ -2111,7 +2134,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
             throw NativeCoreMLRecognizerError.modelInputCreationFailed
         }
         guard tensors.count <= variant.batchSize,
-              variant.batchSize == 4 || tensors.count == 1
+              variant.batchSize == 4 || tensors.count == variant.batchSize
         else {
             throw NativeCoreMLRecognizerError.modelInputCreationFailed
         }
@@ -2373,6 +2396,12 @@ enum NativeCoreMLRecognitionPreprocessor {
         let sourceMaximumY = Double(frame.height - 1)
         let homography = plan.homography
         var valid = true
+        // Each column uses the same normalized crop coordinate on all 48
+        // rows. Keep the scalar operation order, but calculate it only once.
+        let columnCoordinates = (0..<plan.resizedWidth).map { column in
+            let orientedX = (Double(column) + 0.5) * orientedWidth / resizedWidth - 0.5
+            return min(max(orientedX / (plan.rotatedCounterClockwise ? cropHeight : cropWidth), 0), 1)
+        }
 
         // This remains the exact scalar Paddle/OpenCV sampling contract, but
         // all CGPoint construction and nested per-channel closures are removed.
@@ -2390,23 +2419,12 @@ enum NativeCoreMLRecognitionPreprocessor {
                     let orientedY =
                         (Double(row) + 0.5) * orientedHeight
                         / Double(targetHeight) - 0.5
+                    let rowCoordinate = plan.rotatedCounterClockwise
+                        ? min(max((Double(plan.cropWidth - 1) - orientedY) / cropWidth, 0), 1)
+                        : min(max(orientedY / cropHeight, 0), 1)
                     for column in 0..<plan.resizedWidth {
-                        let orientedX =
-                            (Double(column) + 0.5) * orientedWidth
-                            / resizedWidth - 0.5
-                        let warpedX: Double
-                        let warpedY: Double
-                        if plan.rotatedCounterClockwise {
-                            // Equivalent to OpenCV ROTATE_90_COUNTERCLOCKWISE
-                            // after perspective correction.
-                            warpedX = Double(plan.cropWidth - 1) - orientedY
-                            warpedY = orientedX
-                        } else {
-                            warpedX = orientedX
-                            warpedY = orientedY
-                        }
-                        let u = min(max(warpedX / cropWidth, 0), 1)
-                        let v = min(max(warpedY / cropHeight, 0), 1)
+                        let u = plan.rotatedCounterClockwise ? rowCoordinate : columnCoordinates[column]
+                        let v = plan.rotatedCounterClockwise ? columnCoordinates[column] : rowCoordinate
                         let denominator = homography.g * u
                             + homography.h * v + 1
                         guard denominator.isFinite,

@@ -40,9 +40,16 @@ final class ReaderPagePrefetcher {
                 !url.isFileURL
             else { continue }
             requests.append(await ReaderPageView.imageRequest(url: url, context: page.context, source: source))
+            guard !Task.isCancelled, generation == self.generation else { return }
+            // Start early without increasing the prefetcher's concurrency or
+            // decoding any images. Request modification can itself suspend.
+            if requests.count == 2 {
+                prefetcher.startPrefetching(with: requests)
+                requests.removeAll(keepingCapacity: true)
+            }
         }
 
-        guard !requests.isEmpty, generation == self.generation else { return }
+        guard !Task.isCancelled, !requests.isEmpty, generation == self.generation else { return }
         prefetcher.startPrefetching(with: requests)
     }
 

@@ -7,6 +7,9 @@ import Foundation
 /// Horizontal lettering retains its within-panel order. Callers
 /// must use the reader's explicit direction, never the OCR/source language.
 enum ReaderTranslationPanelOrder {
+    // Shared by persisted OCR evidence and translation identity.
+    static let cacheVersion = "rtl-panel-order-v5-separated-bands"
+
     struct Input: Sendable {
         let rect: CGRect // Normalized top-left image coordinates.
         let isVertical: Bool

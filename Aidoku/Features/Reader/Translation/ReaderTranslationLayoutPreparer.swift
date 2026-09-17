@@ -50,21 +50,35 @@ final class ReaderTranslationLayoutPreparer {
         [BrowserOverlayItem], CGSize, CGRect, IPhoneOverlaySettings, String, CGSize
     ) async throws -> Data
     private let loader = ReaderTranslationImageLoader()
+    private let imageBudget: TranslationImageWorkBudget
     private let renderCache: ReaderTranslationRenderCache
     private let layoutPreparation: LayoutPreparation
 
-    init(renderCache: ReaderTranslationRenderCache? = nil, layoutPreparation: @escaping LayoutPreparation = {
+    init(renderCache: ReaderTranslationRenderCache? = nil, imageBudget: TranslationImageWorkBudget = .shared, layoutPreparation: @escaping LayoutPreparation = {
         try await BrowserPageImageOverlayRenderer.prepareLayoutData(
             items: $0, imageSize: $1, sourceRect: $2, settings: $3, targetLanguage: $4, viewport: $5
         )
     }) {
         self.renderCache = renderCache ?? .shared
+        self.imageBudget = imageBudget
         self.layoutPreparation = layoutPreparation
     }
 
     func prepare(page: Page, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
                  geometry: ReaderTranslationLayoutGeometry, window: UIWindow? = nil) async throws {
         guard !regions.isEmpty, geometry.viewport.width > 0, geometry.viewport.height > 0 else { return }
+        // Admit before loading pixels and hold admission through WebKit capture.
+        // Network-only translation may continue, but OCR/download image work
+        // cannot accumulate alongside a speculative full-page renderer.
+        try await imageBudget.withPermit(priority: .prefetch) {
+            try await self.prepareAdmitted(page: page, regions: regions, settings: settings,
+                                           geometry: geometry, window: window)
+        }
+    }
+
+    private func prepareAdmitted(page: Page, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
+                                 geometry: ReaderTranslationLayoutGeometry, window: UIWindow?) async throws {
+        try Task.checkCancellation()
         let loader = loader
         let cache = renderCache.disk
         let operation = Task.detached(priority: .utility) { try await loader.load(page) }

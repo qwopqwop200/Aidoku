@@ -57,6 +57,10 @@ struct BrowserPageImageOverlayDiagnostic: Equatable, Sendable {
 /// Serialize CPU-heavy layout away from UIKit. Only immutable data crosses back.
 private actor BrowserPageImageOverlayLayoutWorker {
     static let shared = BrowserPageImageOverlayLayoutWorker()
+    // Progressive batches revisit the same text/font/width measurements.
+    // Actor confinement permits reuse of the existing bounded, exact-key cache.
+    private let measurementCache = BrowserOverlayTextMeasurementCache()
+
     func payload(
         items: [BrowserOverlayItem], imageSize: CGSize, sourceRect: CGRect,
         settings: IPhoneOverlaySettings, targetLanguage: String, viewport: CGSize
@@ -65,7 +69,8 @@ private actor BrowserPageImageOverlayLayoutWorker {
         return try autoreleasepool {
             let payload = BrowserPageImageOverlayRenderer.layoutPayload(
                 items: items, imageSize: imageSize, sourceRect: sourceRect,
-                settings: settings, targetLanguage: targetLanguage, viewport: viewport
+                settings: settings, targetLanguage: targetLanguage, viewport: viewport,
+                measurementCache: measurementCache
             )
             try Task.checkCancellation()
             return try JSONSerialization.data(withJSONObject: payload)
@@ -1702,6 +1707,47 @@ final class BrowserOverlayTextMeasurementCache {
         let fontSize: CGFloat
     }
 
+    private struct MeasurementStringKey: Hashable {
+        let variant: BrowserOverlayDisplayVariant
+        let fontSize: CGFloat
+        let primaryBreakMode: Int
+        let secondaryBreakMode: Int
+    }
+
+    private let reusesMeasurementStrings: Bool
+    private var measurementStrings: [MeasurementStringKey: NSAttributedString] = [:]
+    private(set) var measurementStringHits = 0
+
+    init(reusesMeasurementStrings: Bool = true) {
+        self.reusesMeasurementStrings = reusesMeasurementStrings
+    }
+
+    // Width affects measurement attributes only through the wrapping mode.
+    // Reuse immutable attributes across widths without reusing measured bounds.
+    func measurementString(for variant: BrowserOverlayDisplayVariant, width: CGFloat,
+                           fontSize: CGFloat, calculate: () -> NSAttributedString) -> NSAttributedString {
+        guard reusesMeasurementStrings else { return calculate() }
+        let secondaryMode: Int
+        if case .originalAndTranslation = variant.content {
+            secondaryMode = variant.lineBreakMode(availableWidth: width, fontSize: max(7, fontSize * 0.64),
+                                                  measurementCache: self).rawValue
+        } else {
+            secondaryMode = -1
+        }
+        let key = MeasurementStringKey(variant: variant, fontSize: fontSize,
+            primaryBreakMode: variant.lineBreakMode(availableWidth: width, fontSize: fontSize,
+                                                   measurementCache: self).rawValue,
+            secondaryBreakMode: secondaryMode)
+        if let cached = measurementStrings[key] {
+            measurementStringHits += 1
+            return cached
+        }
+        let value = NSAttributedString(attributedString: calculate())
+        if measurementStrings.count >= 256 { measurementStrings.removeAll(keepingCapacity: true) }
+        measurementStrings[key] = value
+        return value
+    }
+
     private static let maximumEntryCount = 2_048
     private var sizes: [SizeKey: CGSize] = [:]
     private var unbrokenWidths: [UnbrokenWidthKey: CGFloat] = [:]
@@ -1765,6 +1811,8 @@ final class BrowserOverlayTextMeasurementCache {
     func removeAll() {
         sizes.removeAll(keepingCapacity: true)
         unbrokenWidths.removeAll(keepingCapacity: true)
+        measurementStrings.removeAll(keepingCapacity: true)
+        measurementStringHits = 0
         beginPass()
     }
 
@@ -3606,11 +3654,12 @@ struct BrowserOverlayDisplayVariant: Equatable, Hashable {
     ) -> CGSize {
         guard width > 0, fontSize > 0 else { return .zero }
         let calculate = { () -> CGSize in
-            let measured = attributedString(
-                fontSize: fontSize,
-                availableWidth: width,
-                measurementCache: measurementCache
-            ).boundingRect(
+            let makeString = {
+                attributedString(fontSize: fontSize, availableWidth: width, measurementCache: measurementCache)
+            }
+            let string = measurementCache?.measurementString(for: self, width: width, fontSize: fontSize,
+                                                              calculate: makeString) ?? makeString()
+            let measured = string.boundingRect(
                 with: CGSize(
                     width: width,
                     height: .greatestFiniteMagnitude
@@ -4189,24 +4238,21 @@ struct BrowserOverlayLayoutPlanner {
             let area: CGFloat
         }
         func score(_ rects: [CGRect]) -> Score {
+            let geometry = rects.map(BrowserOverlayCollisionGeometry.init)
+            let areas = rects.map { $0.width * $0.height }
             var pairs = 0
             var area: CGFloat = 0
             for left in rects.indices {
-                for right in rects.indices where right > left {
-                    let overlap = rects[left].intersection(rects[right])
-                    let smallerArea = min(
-                        rects[left].width * rects[left].height,
-                        rects[right].width * rects[right].height
-                    )
-                    guard !overlap.isNull,
-                          overlap.width > 0.25,
-                          overlap.height > 0.25,
+                for right in (left + 1)..<rects.count {
+                    let overlap = geometry[left].overlapArea(with: geometry[right], minimumExtent: 0.25)
+                    let smallerArea = min(areas[left], areas[right])
+                    guard overlap > 0,
                           smallerArea > 0,
-                          overlap.width * overlap.height >=
+                          overlap >=
                             smallerArea * 0.5
                     else { continue }
                     pairs += 1
-                    area += overlap.width * overlap.height
+                    area += overlap
                 }
             }
             return Score(pairs: pairs, area: area)
@@ -4220,6 +4266,7 @@ struct BrowserOverlayLayoutPlanner {
 
         var rects = horizontalLayouts.map(\.rect)
         var selected = Set<Int>()
+        let candidateIndices = verticalLayouts.keys.sorted()
         var currentScore = score(rects)
         guard currentScore.pairs > 0 else { return [] }
 
@@ -4230,7 +4277,7 @@ struct BrowserOverlayLayoutPlanner {
         while true {
             var bestIndex: Int?
             var bestScore = currentScore
-            for index in verticalLayouts.keys.sorted()
+            for index in candidateIndices
             where !selected.contains(index) {
                 guard rects.indices.contains(index),
                       let alternative = verticalLayouts[index]?.rect,
@@ -4937,7 +4984,7 @@ struct BrowserOverlayLayoutPlanner {
               // Reject that fallback instead of hiding the leading translation
               // beyond the viewport merely to achieve zero pairwise overlap.
               rects.allSatisfy({ placementBounds.contains($0) }),
-              overlapScore(rects, external: external).pairs == 0
+              !BrowserOverlayCollisionGeometry.hasOverlap(in: rects, external: external)
         else { return nil }
         return row
     }
@@ -5002,26 +5049,22 @@ struct BrowserOverlayLayoutPlanner {
         _ rects: [CGRect],
         external: [CGRect] = []
     ) -> (pairs: Int, area: CGFloat) {
+        let geometry = rects.map(BrowserOverlayCollisionGeometry.init)
+        let obstacles = external.map(BrowserOverlayCollisionGeometry.init)
         var pairs = 0
         var area: CGFloat = 0
-        for left in rects.indices {
-            for right in rects.indices where right > left {
-                let overlap = rects[left].intersection(rects[right])
-                guard !overlap.isNull,
-                      overlap.width > 0.25,
-                      overlap.height > 0.25
-                else { continue }
+        for left in geometry.indices {
+            for right in (left + 1)..<geometry.count {
+                let overlap = geometry[left].overlapArea(with: geometry[right], minimumExtent: 0.25)
+                guard overlap > 0 else { continue }
                 pairs += 1
-                area += overlap.width * overlap.height
+                area += overlap
             }
-            for obstacle in external {
-                let overlap = rects[left].intersection(obstacle)
-                guard !overlap.isNull,
-                      overlap.width > 0.25,
-                      overlap.height > 0.25
-                else { continue }
+            for obstacle in obstacles {
+                let overlap = geometry[left].overlapArea(with: obstacle, minimumExtent: 0.25)
+                guard overlap > 0 else { continue }
                 pairs += 1
-                area += overlap.width * overlap.height
+                area += overlap
             }
         }
         return (pairs, area)
@@ -5030,7 +5073,7 @@ struct BrowserOverlayLayoutPlanner {
     private static func hasAnyCardOverlap(
         _ layouts: [BrowserOverlayCardLayout]
     ) -> Bool {
-        overlapScore(layouts.map(\.rect)).pairs > 0
+        BrowserOverlayCollisionGeometry.hasOverlap(in: layouts.map(\.rect))
     }
 
     private static func overlapClusters(_ rects: [CGRect]) -> [[Int]] {

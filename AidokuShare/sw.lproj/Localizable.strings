@@ -2,6 +2,6 @@
 "DONE" = "Imekamilika";
 "FILE_IMPORT_FAIL_TEXT" = "Imeshindwa kuingiza faili. Hakikisha ni faili halali ya CBZ au ZIP yenye picha.";
 "FORMAT_IMAGE" = "Picha";
-"SHARED_IMAGES_SAVED" = "Picha zimehifadhiwa. Fungua Aidoku ili kuziingiza kiotomatiki kwenye Faili za Ndani.";
+"SHARED_IMAGES_SAVED" = "Picha zimehifadhiwa. Fungua Aidoku ili uzisome.";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "Imeshindwa kusoma picha iliyoshirikiwa. Tafadhali jaribu picha nyingine.";

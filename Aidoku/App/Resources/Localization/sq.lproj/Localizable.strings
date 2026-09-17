@@ -440,7 +440,7 @@
 
 "TRANSLATION_CACHE_USED" = "Magazinimi i përdorur";
 
-"TRANSLATION_CACHE_HELP" = "Ruan automatikisht rezultatet e OCR-së, përkthimet e faqeve, titujve të mangave dhe kapitujve, përshkrimet e mangave dhe faqosjen e tekstit. Imazhet ruhen vetëm në memorien operative për faqen aktuale dhe faqet pranë saj. Kur arrihet kufiri i zgjedhur, hiqen fillimisht rezultatet që kanë më shumë kohë pa u përdorur. Vlera e paracaktuar: 1 GB. Maksimumi: 100 GB. Ndryshimet zbatohen automatikisht; ulja e kufirit heq këto rezultate derisa madhësia e memories së përkohshme të jetë brenda kufirit.";
+"TRANSLATION_CACHE_HELP" = "Ruan automatikisht rezultatet e OCR-së, përkthimet e faqeve, përkthimet e titujve të mangave dhe kapitujve, emrave të autorëve, etiketave, përshkrimeve të mangave, menyve të burimeve dhe titujve të seksioneve, si dhe faqosjen e tekstit. Imazhet ruhen vetëm në memorien operative për faqen aktuale dhe faqet pranë saj. Kur arrihet kufiri i zgjedhur, hiqen fillimisht rezultatet që kanë më shumë kohë pa u përdorur. Vlera e paracaktuar: 1 GB. Maksimumi: 100 GB. Ndryshimet zbatohen automatikisht; ulja e kufirit heq këto rezultate derisa madhësia e memories së përkohshme të jetë brenda kufirit.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filtri i gjuhëve burimore";
 
@@ -472,7 +472,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Përkthe titujt e kapitujve";
 
-"TRANSLATION_TITLES_HELP" = "Përdor API-në tuaj të përkthimit dhe gjuhën e synuar pavarësisht nga përkthimi automatik i faqeve. Çaktivizoje për të shfaqur titujt dhe përshkrimet origjinale. Origjinalet mbeten të dukshme gjatë ngarkimit ose nëse përkthimi dështon.";
+"TRANSLATION_TITLES_HELP" = "Përdor API-në e përkthimit dhe gjuhën e synuar në mënyrë të pavarur nga përkthimi automatik i faqeve. Çaktivizoni një opsion për të shfaqur tekstin e tij origjinal. Origjinalet mbeten të dukshme gjatë ngarkimit ose nëse përkthimi dështon.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Gjuhët e Titullit Manga";
 
@@ -486,7 +486,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Gjuhët e përshkrimit manga";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Zbulon automatikisht gjuhën burimore dhe përkthen vetëm gjuhët e zgjedhura. Opsioni Të gjitha gjuhët e zbuluara heq kufizimin. Filtrat për faqet, titujt e mangave, titujt e kapitujve dhe përshkrimet funksionojnë në mënyrë të pavarur.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Zbulon automatikisht gjuhën burimore dhe përkthen vetëm gjuhët e zgjedhura. Opsioni Të gjitha gjuhët e zbuluara heq kufizimin. Filtri i gjuhës së çdo elementi është i pavarur nga cilësimet e gjuhës së faqeve dhe elementeve të tjera.";
 
 "TRANSLATION_SFX_FILTER" = "Filtrimi SFX (vetëm japonezisht)";
 
@@ -596,7 +596,7 @@
 "REFRESH_NO_WIFI_TEXT" = "Cilësimi për të përditësuar vetëm nëpërmjet Wi-Fi është aktivizuar. Lidhu me Wi-Fi për të rifreskuar bibliotekën tënde.";
 "REFRESH_ANYWAYS" = "Rifresko gjithsesi";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Të hiqet nga biblioteka?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Heqja e kësaj serie nga biblioteka juaj do të heqë gjithashtu të gjithë gjurmuesit e lidhur. Je i sigurt që dëshiron të vazhdosh?";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Heqja e kësaj serie nga biblioteka juaj do të heqë gjithashtu lidhjet e saj me shërbimet e gjurmimit. Je i sigurt që dëshiron të vazhdosh?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Rifreskimi i bibliotekës u ndërpre";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Rifreskimi i fundit i bibliotekës u ndërpre përpara se të përfundonte. Dëshironi të rifilloni?";
 "CATEGORY" = "Kategoria";
@@ -950,7 +950,7 @@
 "INSTALL_SOURCES" = "Instaloni Burimet";
 "INSTALLING_SOURCES" = "Po instalon burimet…";
 "SOURCE_IMPORT_FAIL_TEXT" = "Importimi i burimit dështoi. Ju lutemi sigurohuni që skedari juaj aix është i vlefshëm.";
-"FILE_IMPORT_FAIL_TEXT" = "Importimi i skedarit dështoi. Sigurohuni që të jetë një arkiv i vlefshëm CBZ ose ZIP që përmban imazhe.";
+"FILE_IMPORT_FAIL_TEXT" = "Importimi i skedarit dështoi. Sigurohuni që të jetë një skedar imazhi i lexueshëm ose një arkiv i vlefshëm CBZ ose ZIP që përmban imazhe.";
 "BACKUP_%@" = "Kopje rezervë %@";
 "CREATE_BACKUP" = "Krijo kopje rezervë";
 "IMPORT_BACKUP" = "Importo kopje rezervë";
@@ -1068,3 +1068,9 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Pesë modele të përfshira mund të instalohen jashtë linje. Instaloni një model dhe më pas prekni në Modeli i aktivizuar. MangaJaNai është për faqe bardh e zi rreth 1200 piksele të larta; faqet me ngjyra mbeten të pandryshuara.";
 
 "DOWNLOAD_TRANSLATED" = "Shkarko me përkthim";
+
+"TRANSLATION_LLM_BACKGROUND" = "Anashkalo shkrimet në sfond (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "Inteligjenca artificiale e përkthimit lë të pandryshuara tabelat, posterat dhe shkrimet dytësore në sfond. Dialogu, rrëfimi dhe teksti me klasifikim të pasigurt përkthehen. Nuk dërgohet kërkesë shtesë, por përpunimi mund të zgjasë më shumë. Klasifikimi është më pak i besueshëm pa imazhin e faqes.";
+
+"TRANSLATION_STATE_ON" = "Aktiv";
+"TRANSLATION_STATE_OFF" = "Joaktiv";

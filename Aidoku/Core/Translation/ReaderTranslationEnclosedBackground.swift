@@ -3,10 +3,16 @@ import Foundation
 
 /// Bounded light-background components used only for conservative column merging.
 enum ReaderTranslationEnclosedBackground {
+    private struct Component {
+        let count: Int
+        let minimumPoint: Int
+        let minX: Int, maxX: Int, minY: Int, maxY: Int
+    }
     struct Input { let id: String; let text: String; let rect: CGRect }
     static func enclosedRegionGroups(in image: CGImage,
                                     candidateInputs candidates: [Input],
-                                    coordinateSize: CGSize, checkingAlternateSeeds: Bool = false) -> [[String]] {
+                                    coordinateSize: CGSize, checkingAlternateSeeds: Bool = false,
+                                    reusingCompletedComponents: Bool = true) -> [[String]] {
         guard coordinateSize.width > 0, coordinateSize.height > 0,
               coordinateSize.width.isFinite, coordinateSize.height.isFinite else { return [] }
         guard !candidates.isEmpty else { return [] }
@@ -25,6 +31,8 @@ enum ReaderTranslationEnclosedBackground {
             return true
         }
         guard rendered else { return [] }
+        var labels = [Int](repeating: -1, count: reusingCompletedComponents ? pixels.count : 0)
+        var components: [Component] = []
         var groups: [Int: [String]] = [:]
         for input in candidates.prefix(64) {
             guard !Task.isCancelled else { return [] }
@@ -32,7 +40,7 @@ enum ReaderTranslationEnclosedBackground {
                               y: input.rect.minY / coordinateSize.height * CGFloat(height),
                               width: input.rect.width / coordinateSize.width * CGFloat(width),
                               height: input.rect.height / coordinateSize.height * CGFloat(height))
-            if let component = enclosed(rect, pixels: pixels, width: width, height: height, checkingAlternateSeeds: checkingAlternateSeeds) { groups[component, default: []].append(input.id) }
+            if let component = enclosed(rect, pixels: pixels, width: width, height: height, checkingAlternateSeeds: checkingAlternateSeeds, labels: &labels, components: &components) { groups[component, default: []].append(input.id) }
         }
         return groups.keys.sorted().map { groups[$0]! }
     }
@@ -64,7 +72,7 @@ enum ReaderTranslationEnclosedBackground {
         return clearRows >= 47
     }
 
-    private static func enclosed(_ rect: CGRect, pixels: [UInt8], width: Int, height: Int, checkingAlternateSeeds: Bool) -> Int? {
+    private static func enclosed(_ rect: CGRect, pixels: [UInt8], width: Int, height: Int, checkingAlternateSeeds: Bool, labels: inout [Int], components: inout [Component]) -> Int? {
         guard rect.minX.isFinite, rect.minY.isFinite, rect.maxX.isFinite, rect.maxY.isFinite,
               rect.width > 0, rect.height > 0, rect.minX >= 0, rect.minY >= 0,
               rect.maxX < CGFloat(width), rect.maxY < CGFloat(height) else { return nil }
@@ -88,6 +96,19 @@ enum ReaderTranslationEnclosedBackground {
         var attempted = Set<Int>()
         for seed in seeds where pixels[seed] >= 235 && !attempted.contains(seed) {
             guard remaining > 0, !Task.isCancelled else { return nil }
+            // Only completed, edge-free floods are reusable. Charge the same
+            // node budget and recheck this region's perimeter and geometry.
+            if !labels.isEmpty, labels[seed] >= 0 {
+                let label = labels[seed], component = components[label]
+                guard remaining >= component.count else { return nil }
+                remaining -= component.count
+                for candidate in seeds where labels[candidate] == label { attempted.insert(candidate) }
+                guard perimeter.filter({ labels[$0] == label }).count * 5 >= perimeter.count * 4,
+                      component.minX < x0, component.maxX > x1, component.minY < y0, component.maxY > y1,
+                      component.maxX - component.minX < width * 3 / 4,
+                      component.maxY - component.minY < height * 3 / 4 else { continue }
+                return component.minimumPoint
+            }
             var seen = [Bool](repeating: false, count: pixels.count)
             var queue = [seed]
             seen[seed] = true; remaining -= 1
@@ -104,6 +125,12 @@ enum ReaderTranslationEnclosedBackground {
                     guard remaining > 0 else { return nil }
                     remaining -= 1; seen[next] = true; queue.append(next)
                 }
+            }
+            if !touchesEdge, !labels.isEmpty {
+                let label = components.count
+                components.append(Component(count: queue.count, minimumPoint: queue.min()!,
+                    minX: minX, maxX: maxX, minY: minY, maxY: maxY))
+                for point in queue { labels[point] = label }
             }
             for candidate in seeds where seen[candidate] { attempted.insert(candidate) }
             guard !touchesEdge,

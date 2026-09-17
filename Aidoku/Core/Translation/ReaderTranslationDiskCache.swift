@@ -32,6 +32,30 @@ actor ReaderTranslationDiskCache {
     private var generation: UInt64 = 0
     private let tracksSavedSettings: Bool
     private var activePolicy: ReaderTranslationCachePolicy?
+    private var pendingTouches: [String] = []
+    private var touchFlushTask: Task<Void, Never>?
+
+    deinit { touchFlushTask?.cancel() }
+
+    private func recordRead(_ name: String) throws {
+        pendingTouches.removeAll { $0 == name }
+        pendingTouches.append(name)
+        if pendingTouches.count >= 32 { try flushAccesses(); return }
+        guard touchFlushTask == nil else { return }
+        touchFlushTask = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: 250_000_000) } catch { return }
+            try? await self?.flushAccesses()
+        }
+    }
+
+    /// Reads coalesce metadata writes; content durability remains unchanged.
+    /// Flush before mutations/eviction so in-process LRU order stays exact.
+    func flushAccesses() throws {
+        touchFlushTask?.cancel(); touchFlushTask = nil
+        guard !pendingTouches.isEmpty, let database else { pendingTouches.removeAll(); return }
+        try database.touch(pendingTouches)
+        pendingTouches.removeAll()
+    }
 
     init(directory: URL, byteLimit: Int64 = defaultBytes, tracksSavedSettings: Bool = false) {
         self.directory = directory
@@ -77,6 +101,8 @@ actor ReaderTranslationDiskCache {
     func clear() throws {
         generation &+= 1
         activePolicy = nil
+        touchFlushTask?.cancel(); touchFlushTask = nil
+        pendingTouches.removeAll()
         database = nil
         if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
     }
@@ -97,12 +123,13 @@ actor ReaderTranslationDiskCache {
             try database?.delete(name)
             return nil
         }
-        try database?.touch(name)
+        try recordRead(name)
         return unpacked
     }
 
     func markUsed(_ key: String, kind: Kind) throws {
         try prepare()
+        try flushAccesses()
         try database?.touch(fileName(key, kind: kind))
     }
 
@@ -119,6 +146,7 @@ actor ReaderTranslationDiskCache {
         let name = fileName(key, kind: kind)
         let packed = ReaderTranslationCacheCodec.pack(data)
         guard Int64(packed.count) <= byteLimit, let database else { return }
+        try flushAccesses()
         try database.store(packed, name: name)
         try trim()
     }
@@ -140,7 +168,7 @@ actor ReaderTranslationDiskCache {
             try database?.delete(name)
             return nil
         }
-        try database?.touch(name)
+        try recordRead(name)
         return regions
     }
 
@@ -170,6 +198,7 @@ actor ReaderTranslationDiskCache {
         }
         let archive = try ReaderTranslationRegionArchive(regions)
         guard Int64(archive.base.count + archive.variant.count) <= byteLimit else { return }
+        try flushAccesses()
         try database?.store(archive.variant, name: fileName(key, kind: kind), base: archive.base)
         try trim()
     }
@@ -229,6 +258,7 @@ actor ReaderTranslationDiskCache {
     }
 
     private func trim() throws {
+        try flushAccesses()
         guard let database else { return }
         if byteLimit < ReaderCacheDatabase.minimumBytes {
             self.database = nil
@@ -361,6 +391,19 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
             if result == SQLITE_DONE { return nil }
             guard result == SQLITE_ROW else { throw failure() }
             return (String(cString: sqlite3_column_text(pointer, 0)), blob(pointer, column: 1))
+        }
+    }
+
+    func touch(_ names: [String]) throws {
+        // Keep the common newest-only read free of transaction/journal writes.
+        guard names.count > 1 else { if let name = names.first { try touch(name) }; return }
+        try execute("BEGIN IMMEDIATE")
+        do {
+            for name in names { try touch(name) }
+            try execute("COMMIT")
+        } catch {
+            try? execute("ROLLBACK")
+            throw error
         }
     }
 
@@ -527,6 +570,8 @@ struct ReaderTranslationStoredRegion: Codable {
     let singleColumn: Bool?
     let sourceImageAspectRatio: Double?
     let sfxEnclosedBackground: Bool?
+    let translationOrder: Int?
+    let translationOrderVersion: String?
     let reuseKey: TranslationCacheKey?
     let reuseSegment: String?
 
@@ -536,6 +581,8 @@ struct ReaderTranslationStoredRegion: Codable {
         singleColumn = value.sourceSingleVerticalColumn
         sourceImageAspectRatio = value.sourceImageAspectRatio
         sfxEnclosedBackground = value.sfxEnclosedBackground
+        translationOrder = value.translationOrder
+        translationOrderVersion = value.translationOrderVersion
         reuseKey = value.translationReuseIdentity?.cacheKey; reuseSegment = value.translationReuseIdentity?.segmentID
     }
     var region: ReaderTranslationRegion {
@@ -544,6 +591,8 @@ struct ReaderTranslationStoredRegion: Codable {
                                              sourceSingleVerticalColumn: singleColumn)
         region.sourceImageAspectRatio = sourceImageAspectRatio
         region.sfxEnclosedBackground = sfxEnclosedBackground
+        region.translationOrder = translationOrder
+        region.translationOrderVersion = translationOrderVersion
         if let reuseKey, let reuseSegment { region.translationReuseIdentity = .init(cacheKey: reuseKey, segmentID: reuseSegment) }
         return region
     }
@@ -579,11 +628,11 @@ enum ReaderTranslationCacheIdentity {
     static func ocr(page: String, settings: ReaderTranslationSettings) -> String {
         // OCR entries contain merged regions. A merger change must also
         // invalidate derived translations/layouts instead of replaying old boxes.
-        encoded(["reader-ocr-v45-latin-overlap-ownership", page, encoded(settings.ocrConfiguration)])
+        encoded(["reader-ocr-v46-translucent-balloon-columns", page, encoded(settings.ocrConfiguration)])
     }
     static func translation(page: String, settings: ReaderTranslationSettings) -> String {
         let previous = unfilteredTranslation(page: page, settings: settings)
-        let base = settings.rightToLeftPanelOrder ? encoded([previous, "rtl-panel-order-v5-separated-bands"]) : previous
+        let base = settings.rightToLeftPanelOrder ? encoded([previous, ReaderTranslationPanelOrder.cacheVersion]) : previous
         guard let filter = ReaderTranslationLanguageFilter.identity(settings: settings) else { return base }
         return encoded([base] + filter)
     }
@@ -593,7 +642,7 @@ enum ReaderTranslationCacheIdentity {
             "reader-translation-v2-neighbor-context", ocr(page: page, settings: settings), config.provider.rawValue, config.apiProtocol.rawValue,
             config.baseURL, config.model, config.credentialAccount, String(config.credentialGeneration), config.reasoningEffort.rawValue,
             config.instructions, settings.sourceLanguage, settings.targetLanguage
-        ] + (settings.includePageImage ? ["page-image-v1"] : []) + (settings.filterSFXWithLLM ? ["llm-sfx-v1"] : []))
+        ] + (settings.includePageImage ? ["page-image-v1"] : []) + (settings.filterSFXWithLLM ? [TranslationHTTPCodec.sfxPolicy] : []) + (settings.filterBackgroundWithLLM ? [TranslationHTTPCodec.backgroundPolicy] : []))
     }
     // Every geometry/appearance input must be included to reject stale pixels after a reader change.
     // swiftlint:disable:next function_parameter_count
@@ -605,7 +654,7 @@ enum ReaderTranslationCacheIdentity {
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
         return encoded([
-            "reader-render-v33-dense-ink-cleanup-cache", translation(page: page, settings: settings), encoded(settings.overlay),
+            "reader-render-v34-outline-aware-color-margin", translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
             ProcessInfo.processInfo.operatingSystemVersionString
         ])

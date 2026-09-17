@@ -6,6 +6,23 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct MangaDescriptionTranslationTests {
+    @Test func cachedParagraphSurvivesAnotherParagraphFailingOffline() async {
+        let fixture = DescriptionFixture()
+        var settings = ReaderTranslationSettings()
+        settings.translateMangaDescriptions = true
+        settings.mangaDescriptionSourceLanguages = []
+        settings.targetLanguage = "ko"
+        let cached = "A detective travels around the world."
+        let missing = "Another story has never been translated."
+        #expect(await MangaDescriptionTranslation.translate(cached, settings: settings,
+            service: ReaderTranslationService(client: DescriptionClient()), diskCache: fixture.disk) == "번역된 설명")
+        let offline = DescriptionClient(fails: true)
+        let result = await MangaDescriptionTranslation.translate(missing + "\n\n" + cached, settings: settings,
+            service: ReaderTranslationService(client: offline), diskCache: ReaderTranslationDiskCache(directory: fixture.root))
+        #expect(result == missing + "\n\n번역된 설명")
+        #expect(await offline.requests.count == 1)
+    }
+
     @Test func repairsEscapedLineBreaksWithoutDamagingURLs() {
         let text = #"Japanese title: title /n타입: artistcg /n페이지: 349\nSeries: original"#
         #expect(MangaDescriptionTranslation.normalizedLineBreaks(text) == "Japanese title: title\n타입: artistcg\n페이지: 349\nSeries: original")

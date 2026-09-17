@@ -494,7 +494,7 @@
 "DISABLED" = "비활성화";
 "ANIMATE_PAGE_TRANSITIONS" = "페이지 전환 애니메이션 켜기";
 "SOURCE_IMPORT_FAIL_TEXT" = "소스를 가져오는 데에 실패했습니다. 선택한 aix 파일을 확인해 주세요.";
-"FILE_IMPORT_FAIL_TEXT" = "파일을 가져오지 못했습니다. 이미지가 포함된 올바른 CBZ 또는 ZIP 파일인지 확인하세요.";
+"FILE_IMPORT_FAIL_TEXT" = "파일을 가져오지 못했습니다. 읽을 수 있는 이미지 파일이거나 이미지가 포함된 올바른 CBZ 또는 ZIP 파일인지 확인하세요.";
 "CLEAR_EXCLUDING_LIBRARY" = "라이브러리 외 읽기 기록 지우기";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "라이브러리에 없는 작품의 읽기 기록을 모두 삭제합니다. 이 작업은 되돌릴 수 없습니다.";
 "CLEAR_SOURCE_CACHE" = "소스 캐시 지우기";
@@ -603,7 +603,7 @@
 
 "TRANSLATION_CACHE_USED" = "사용 중인 용량";
 
-"TRANSLATION_CACHE_HELP" = "OCR·페이지 번역·만화 및 챕터 제목·만화 설명 번역·텍스트 배치 정보를 자동 저장합니다. 페이지 이미지는 현재·주변 페이지의 메모리에만 보관합니다. 용량이 차면 가장 오래 사용하지 않은 결과부터 삭제합니다. 기본 1GB, 최대 100GB이며 변경 사항은 자동으로 적용됩니다. 한도를 줄이면 가장 오래 사용하지 않은 결과부터 삭제해 용량을 맞춥니다.";
+"TRANSLATION_CACHE_HELP" = "OCR·페이지 번역·만화 및 챕터 제목·작가명·태그·만화 설명·소스 메뉴 및 섹션 제목 번역·텍스트 배치 정보를 자동 저장합니다. 페이지 이미지는 현재·주변 페이지의 메모리에만 보관합니다. 용량이 차면 가장 오래 사용하지 않은 결과부터 삭제합니다. 기본 1GB, 최대 100GB이며 변경 사항은 자동으로 적용됩니다. 한도를 줄이면 가장 오래 사용하지 않은 결과부터 삭제해 용량을 맞춥니다.";
 
 // Source-language filtering
 "TRANSLATION_SOURCE_FILTER" = "번역 대상 원문 언어";
@@ -625,7 +625,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "챕터 제목 번역";
 
-"TRANSLATION_TITLES_HELP" = "기존 번역 API와 대상 언어를 사용합니다. 페이지 자동 번역과 별도로 동작하며, 끄면 원래 제목과 설명이 표시됩니다. 번역 중이거나 실패하면 원문을 표시합니다.";
+"TRANSLATION_TITLES_HELP" = "기존 번역 API와 대상 언어를 사용합니다. 페이지 자동 번역과 별도로 동작하며, 각 항목을 끄면 해당 원문이 표시됩니다. 번역 중이거나 실패하면 원문을 표시합니다.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "만화 제목 원문 언어";
 
@@ -639,7 +639,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "만화 설명 원문 언어";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "원문 언어를 자동 감지해 선택한 언어만 번역합니다. ‘모든 감지 언어’를 선택하면 언어 제한 없이 번역합니다. 페이지·만화 제목·챕터 제목·설명의 언어 필터는 각각 독립적으로 동작합니다.";
+"TRANSLATION_METADATA_FILTER_HELP" = "원문 언어를 자동 감지해 선택한 언어만 번역합니다. ‘모든 감지 언어’를 선택하면 언어 제한 없이 번역합니다. 각 항목의 언어 필터는 페이지와 다른 항목의 언어 설정에 영향을 받지 않습니다.";
 
 "TRANSLATION_SFX_FILTER" = "효과음 필터링 (일본어 한정)";
 "TRANSLATION_SFX_FILTER_HELP" = "일본어 효과음으로 추정되는 글자를 번역하지 않고 원문으로 유지합니다. 기기 내 사전과 보수적인 배치 조건을 사용하며, 불확실한 글자는 번역합니다.";
@@ -654,7 +654,7 @@
 "TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "추가 모델 없이 원문 색을 추정합니다. 색이 불확실하거나 배경과 구분하기 어려우면 기본 글자색을 사용합니다.";
 
 "TRANSLATION_LLM_SFX" = "LLM 효과음 필터링 (모든 언어)";
-"TRANSLATION_LLM_SFX_HELP" = "번역 요청에서 효과음 여부도 함께 판단합니다. 일본어 로컬 필터와 함께 켤 수 있으며, 둘 중 하나라도 효과음으로 판정하면 원문으로 남깁니다. 이미지 함께 보내기 설정과 함께 사용할 수 있습니다.";
+"TRANSLATION_LLM_SFX_HELP" = "번역 요청에서 효과음 여부도 함께 판단합니다. 일본어 로컬 필터와 함께 켤 수 있으며, 둘 중 하나라도 효과음으로 판정하면 원문으로 남깁니다. 이미지 첨부 설정과 함께 사용할 수 있습니다.";
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "이미지가 입력되지 않으면 장면·배치 확인이 어려워 효과음 판정 정확도가 낮아질 수 있습니다.";
 "TRANSLATION_SOURCE_BACKGROUND_COLOR" = "원문 배경색 유지";
 "TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "원문 글자 주변의 배경색을 번역 패널에 적용합니다. 불확실하거나 글자가 잘 보이지 않으면 기본 패널을 사용합니다. 설정한 불투명도는 유지됩니다.";
@@ -1021,3 +1021,10 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "포함된 5개 모델은 인터넷 없이 설치할 수 있습니다. 모델을 설치한 뒤 ‘활성화된 모델’에서 선택하세요. MangaJaNai는 원본 높이 약 1200px의 흑백 페이지용이며, 컬러 페이지는 원본으로 표시합니다.";
 
 "DOWNLOAD_TRANSLATED" = "번역하며 내려받기";
+
+"TRANSLATION_LLM_BACKGROUND" = "배경 글자 번역 생략 (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "번역 AI가 중요하지 않은 간판·포스터·배경 글자를 판단하여 원문을 유지합니다. 대사와 상황 설명은 번역하며, 불확실하면 생략하지 않습니다. 추가 요청은 없지만 처리 시간이 늘 수 있습니다. 페이지 이미지가 없으면 판단 정확도가 낮아집니다.";
+
+"TRANSLATION_STATE_ON" = "켜짐";
+
+"TRANSLATION_STATE_OFF" = "꺼짐";

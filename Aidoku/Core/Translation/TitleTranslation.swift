@@ -49,6 +49,7 @@ enum TitleTranslation {
             result.instructions += extraInstructions
         }
         result.filterSFXWithLLM = false
+        result.filterBackgroundWithLLM = false
         result.filterJapaneseSFX = false
         result.filterJapaneseSFXContext = false
         result.rightToLeftPanelOrder = false

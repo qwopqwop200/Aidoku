@@ -2,6 +2,6 @@
 "DONE" = "Xong";
 "FILE_IMPORT_FAIL_TEXT" = "Không thể nhập tệp. Vui lòng đảm bảo đó là tệp CBZ hoặc ZIP hợp lệ có chứa hình ảnh.";
 "FORMAT_IMAGE" = "Ảnh";
-"SHARED_IMAGES_SAVED" = "Đã lưu ảnh. Mở Aidoku để tự động nhập ảnh vào mục Tệp trên máy.";
+"SHARED_IMAGES_SAVED" = "Đã lưu ảnh. Mở Aidoku để đọc.";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "Không thể đọc hình ảnh được chia sẻ. Vui lòng thử hình ảnh khác.";

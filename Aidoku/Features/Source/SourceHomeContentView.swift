@@ -15,29 +15,17 @@ struct SourceHomeContentView: View {
     @Binding var headerListingSelection: Int // used only for listing header
 
     @State private var home: Home?
-    @State private var listingHome: Home? // Home-like layout for current listing
-    @State private var entries: [AidokuRunner.Manga] = []
+    @StateObject private var listingModel: SourceListingViewModel
 
     @State private var hasLoaded = false
     @State private var loading = true
     @State private var homeFullyLoaded = false
+    @State private var homeGeneration = 0
     @State private var listingSelection = 0
-    @State private var page = 1
-    @State private var hasMore = false
-    @State private var bookmarkedItems: Set<String> = .init()
-
     @State private var error: Error?
 
     @State private var loadTask: Task<(), Never>?
     @State private var loadListingTask: Task<(), Never>?
-
-    enum ListingLoadState {
-        case loading
-        case notLoading
-        case allLoaded
-    }
-
-    @State private var listingLoadState: ListingLoadState = .loading
 
     @StateObject private var path: NavigationCoordinator
 
@@ -57,6 +45,10 @@ struct SourceHomeContentView: View {
         headerListingSelection: Binding<Int>
     ) {
         self.source = source
+        self._listingModel = StateObject(wrappedValue: SourceListingViewModel(
+            getPage: { try await source.getMangaList(listing: $0, page: $1) },
+            getHome: { try await source.getListingHome(listing: $0) }
+        ))
         self._listings = listings
         self._headerListingSelection = headerListingSelection
         self._path = StateObject(wrappedValue: NavigationCoordinator(rootViewController: holdingViewController))
@@ -68,7 +60,7 @@ struct SourceHomeContentView: View {
                 VStack {}.id(0) // indicator to scroll to the top
 
                 Group {
-                    if loading {
+                    if loading || listingModel.loadingInitial {
                         // loading skeleton
                         loadingView().transition(.opacity)
                     } else if let home, listingSelection == 0 {
@@ -76,7 +68,7 @@ struct SourceHomeContentView: View {
                         homeView(for: home, partial: !homeFullyLoaded)
                     } else if listingSelection > 0 || !source.features.providesHome, let listing = currentListing {
                         // listing page - check if source provides custom Home-like layout
-                        if let listingHome {
+                        if let listingHome = listingModel.home {
                             homeView(for: listingHome, partial: false)
                                 .transition(.opacity)
                         } else {
@@ -84,19 +76,16 @@ struct SourceHomeContentView: View {
                             Group {
                                 switch listing.kind {
                                     case .default:
-                                        HomeGridView(source: source, entries: entries, bookmarkedItems: $bookmarkedItems) {
-                                            if hasMore && listingLoadState != .loading {
-                                                await loadEntries()
-                                            }
+                                        HomeGridView(source: source, entries: listingModel.entries, bookmarkedItems: $listingModel.bookmarkedItems) {
+                                            await listingModel.loadMore()
                                         }
                                     case .list:
                                         HomeListView(
                                             source: source,
-                                            component: .init(title: nil, value: .mangaList(entries: entries.map { $0.intoLink() }))
+                                            component: .init(title: nil, value: .mangaList(entries: listingModel.entries.map { $0.intoLink() })),
+                                            bookmarkedItems: $listingModel.bookmarkedItems
                                         ) {
-                                            if hasMore && listingLoadState != .loading {
-                                                await loadEntries()
-                                            }
+                                            await listingModel.loadMore()
                                         }
                                         .id(listingSelection) // Force recreation on listing change
                                         .padding(.bottom)
@@ -109,14 +98,20 @@ struct SourceHomeContentView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .opacity(error != nil ? 0 : 1)
+                .opacity((error ?? listingModel.error) != nil ? 0 : 1)
             }
             .overlay {
-                if let error {
+                if let error = error ?? listingModel.error {
                     ErrorView(
                         error: error,
                         restart: { try await source.restart() },
-                        retry: { await reload() }
+                        retry: {
+                            if listingModel.error != nil {
+                                await listingModel.loadMore()
+                            } else {
+                                await reload()
+                            }
+                        }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .transition(.opacity)
@@ -136,42 +131,21 @@ struct SourceHomeContentView: View {
             // immediately rather than having a slight delay
             .onChange(of: headerListingSelection) { value in
                 loadListingTask?.cancel()
+                listingModel.cancel()
+                withAnimation(.easeOut(duration: 0.2)) {
+                    reader.scrollTo(0)
+                    listingSelection = value
+                    error = nil
+                }
                 loadListingTask = Task {
-                    withAnimation {
-                        error = nil
-                    }
-
-                    // todo: there's a slight delay here if we're already scrolled to the top
-                    await animate(duration: 0.2) {
-                        reader.scrollTo(0)
-                    }
-
                     if value != 0 || !source.features.providesHome {
-                        // load listing
-                        // Always set listing selection and pass the new value
-                        await animate(duration: 0.2, options: .easeOut) {
-                            listingSelection = value
-                            loading = true  // Show loading when switching
-                        }
-                        await loadListing(setListingSelection: value)
+                        await loadListing()
+                    } else if home == nil {
+                        loading = true
+                        homeFullyLoaded = false
+                        await loadHome()
                     } else {
-                        // switch to home
-                        await animate(duration: 0.2, options: .easeOut) {
-                            loading = false
-                            entries = []
-                            listingHome = nil
-                        }
-                        withAnimation(.easeIn(duration: 0.2)) {
-                            listingSelection = value
-                        }
-
-                        if home == nil {
-                            loading = true
-                            homeFullyLoaded = false
-                            await loadHome()
-                        } else {
-                            loading = false
-                        }
+                        loading = false
                     }
                 }
             }
@@ -182,9 +156,10 @@ struct SourceHomeContentView: View {
             if listingSelection > maxListings {
                 headerListingSelection = 0
             } else if !source.features.providesHome || (source.features.providesHome && listingSelection > 0) {
-                // otherwise, reload current listing
-                Task {
-                    await reload()
+                // Initial discovery or a changed listing needs a load. A refresh already
+                // loading this listing must not issue the same first-page request twice.
+                if listingModel.currentListing != currentListing {
+                    Task { await loadListing() }
                 }
             }
         }
@@ -252,6 +227,7 @@ struct SourceHomeContentView: View {
 
     func reload(initial: Bool = false) async {
         loadListingTask?.cancel()
+        listingModel.cancel()
         if error != nil {
             withAnimation {
                 loading = true
@@ -276,8 +252,11 @@ struct SourceHomeContentView: View {
     }
 
     func loadHome() async {
+        homeGeneration += 1
+        let requestGeneration = homeGeneration
         await source.partialHomePublisher?.sink { @Sendable partialHome in
             Task { @MainActor in
+                guard homeGeneration == requestGeneration else { return }
                 withAnimation {
                     self.home = partialHome
                     if headerListingSelection == 0 {
@@ -288,6 +267,8 @@ struct SourceHomeContentView: View {
         }
         do {
             let home = try await source.getHome()
+            guard homeGeneration == requestGeneration else { return }
+            try Task.checkCancellation()
             withAnimation {
                 self.home = home
             }
@@ -310,12 +291,15 @@ struct SourceHomeContentView: View {
                 UserDefaults.standard.set(result, forKey: storedComponentsKey)
             }
         } catch {
-            self.home = nil
-            withAnimation {
-                self.error = error
+            guard homeGeneration == requestGeneration else { return }
+            if !Task.isCancelled, headerListingSelection == 0 {
+                self.home = nil
+                withAnimation { self.error = error }
             }
         }
+        guard homeGeneration == requestGeneration else { return }
         await source.partialHomePublisher?.removeSink()
+        guard !Task.isCancelled, homeGeneration == requestGeneration else { return }
 
         withAnimation {
             if headerListingSelection == 0 {
@@ -325,133 +309,9 @@ struct SourceHomeContentView: View {
         }
     }
 
-    func loadListing(setListingSelection: Int? = nil) async {
-        page = 1
-        listingHome = nil  // Clear previous listing home when loading new listing
-        await loadEntries(initial: true, setListingSelection: setListingSelection)
-    }
-
-    func loadEntries(initial: Bool = false, setListingSelection: Int? = nil) async {
-        do {
-            guard let listing = listing(for: setListingSelection ?? listingSelection)
-            else { return }
-
-            listingLoadState = .loading
-
-            // Try to get Home-like layout first
-            if initial {
-                if let home = try await source.getListingHome(listing: listing) {
-                    // Source provides custom Home-like layout for this listing
-                    listingHome = home
-
-                    // fade out existing items and show new Home-like layout
-                    await animate(duration: 0.2, options: .easeOut) {
-                        entries = []
-                    }
-
-                    // switch the listing selection, if specified
-                    if let setListingSelection {
-                        await animate(duration: 0.1, options: .easeInOut) {
-                            listingSelection = setListingSelection
-                        }
-                    }
-
-                    await animate(duration: 0.2, options: .easeIn) {
-                        loading = false
-                    }
-
-                    listingLoadState = .allLoaded
-                    return
-                } else {
-                    // No custom layout, use default pagination
-                    listingHome = nil
-                }
-            } else if listingHome != nil {
-                // If we have a listing home (Home-like layout), we shouldn't paginate
-                // This prevents loading more when scrolling in Home-like view
-                return
-            }
-
-            var resultsLoaded = false
-
-            // start loading listing items
-            let resultTask = Task {
-                let result = try await source.getMangaList(listing: listing, page: page)
-                resultsLoaded = true
-                return result
-            }
-
-            hasMore = false
-
-            // fade out existing items
-            if initial && !entries.isEmpty {
-                await animate(duration: 0.2, options: .easeOut) {
-                    entries = []
-                }
-            }
-
-            // switch the listing selection, if specified
-            if let setListingSelection {
-                await animate(duration: 0.1, options: .easeInOut) {
-                    listingSelection = setListingSelection
-                }
-            }
-
-            // show loading view if results aren't done loading yet after animations
-            if initial, !resultsLoaded {
-                await animate(duration: 0.2, options: .easeIn) {
-                    loading = true
-                }
-            }
-
-            // load new results
-            let result = try await resultTask.value
-
-            guard !Task.isCancelled else { return }
-
-            hasMore = result.hasNextPage
-            listingLoadState = hasMore ? .notLoading : .allLoaded
-            page += 1
-
-            // load bookmark icons for stuff that's in our library
-            let bookmarkedKeys: [String] = await CoreDataManager.shared.container.performBackgroundTask { context in
-                var keys: [String] = []
-                for manga in result.entries where CoreDataManager.shared.hasLibraryManga(
-                    mangaId: manga.identifier,
-                    context: context
-                ) {
-                    keys.append(manga.key)
-                }
-                return keys
-            }
-            bookmarkedItems.formUnion(bookmarkedKeys)
-
-            // hide loading view
-            if loading {
-                await animate(duration: 0.2, options: .easeIn) {
-                    loading = false
-                }
-            }
-
-            guard !Task.isCancelled else { return }
-
-            if initial {
-                withAnimation(.easeIn(duration: 0.2)) {
-                    entries = result.entries
-                }
-            } else {
-                // append to existing entries
-                withAnimation(.easeIn(duration: 0.2)) {
-                    entries += result.entries
-                }
-            }
-        } catch {
-            guard !Task.isCancelled else { return }
-
-            loading = false
-            withAnimation {
-                self.error = error
-            }
-        }
+    func loadListing() async {
+        guard !Task.isCancelled, let listing = currentListing else { return }
+        loading = false
+        await listingModel.reload(listing: listing)
     }
 }

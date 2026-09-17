@@ -303,7 +303,7 @@ extension SourceViewController {
         Task {
             let mangaCount = await viewModel.manga.count
             let hasMore = await viewModel.hasMore
-            if indexPath.row == mangaCount - 1 && hasMore {
+            if mangaCount > 0 && indexPath.item >= max(0, mangaCount - 12) && hasMore {
                 await viewModel.loadNextMangaPage()
                 await updateDataSource()
             }

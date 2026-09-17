@@ -9,6 +9,7 @@ actor SourceNetwork {
     static let shared = SourceNetwork()
     static let enabledKey = "Network.httpsBypass"
     private let bypassEnabled: @Sendable () -> Bool
+    private let directSession: URLSession
     private let proxy = HTTPSBypassProxy()
     private var startup: Task<NWEndpoint, Error>?
     private var proxiedSession: URLSession?
@@ -19,7 +20,10 @@ actor SourceNetwork {
         return DataLoader(configuration: config)
     }()
 
-    init(enabled: @escaping @Sendable () -> Bool = { SourceNetwork.isEnabled }) { bypassEnabled = enabled }
+    init(enabled: @escaping @Sendable () -> Bool = { SourceNetwork.isEnabled }, directSession: URLSession = .shared) {
+        bypassEnabled = enabled
+        self.directSession = directSession
+    }
 
     deinit { proxy.stop(); proxiedSession?.invalidateAndCancel() }
 
@@ -52,7 +56,7 @@ actor SourceNetwork {
     }
 
     func session() async throws -> URLSession {
-        guard bypassEnabled() else { return .shared }
+        guard bypassEnabled() else { return directSession }
         if let proxiedSession { return proxiedSession }
         let config = try await configuration(bypass: true)
         if let proxiedSession { return proxiedSession }

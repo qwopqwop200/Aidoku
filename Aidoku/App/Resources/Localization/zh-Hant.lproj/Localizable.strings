@@ -574,7 +574,7 @@
 "ANIMATE_PAGE_TRANSITIONS" = "頁面轉場動畫";
 "TAP_ZONES" = "觸控區域";
 "SOURCE_IMPORT_FAIL_TEXT" = "來源匯入失敗。請確保你的 aix 檔案是有效的。";
-"FILE_IMPORT_FAIL_TEXT" = "檔案匯入失敗，請確保這是一個有效且含有圖片的 CBZ 或 ZIP 壓縮檔。";
+"FILE_IMPORT_FAIL_TEXT" = "檔案匯入失敗。請確保檔案是可讀取的圖片，或包含圖片的有效 CBZ 或 ZIP 壓縮檔。";
 "COMIC" = "漫畫";
 "BOOK" = "書";
 "SORT_BOOKS_COUNT" = "書本數量";
@@ -701,7 +701,7 @@
 "REFRESH_NO_WIFI_TEXT" = "已啟用「只在使用Wi-Fi時更新」，因此必須連接 Wi-Fi 才能重新整理書庫。";
 "REFRESH_ANYWAYS" = "強制刷新";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "從書庫移除？";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "從您的書庫移除此作品也會移除所有連結的追蹤器。您確定要繼續嗎？";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "從書庫移除此作品也會移除此作品與追蹤器的連結。您確定要繼續嗎？";
 "INCOGNITO_FILTERS_NOTICE" = "修改過的過濾條件不會在無痕模式中保留。";
 "EPUB_NAME" = "EPUB";
 "API_KEY" = "API 金鑰";
@@ -873,7 +873,7 @@
 
 "TRANSLATION_CACHE_USED" = "已用儲存空間";
 
-"TRANSLATION_CACHE_HELP" = "自動儲存 OCR 結果、頁面譯文、漫畫與章節標題譯文、漫畫簡介譯文及文字排版。頁面圖片僅保留在目前及附近頁面的記憶體中。達到容量上限時，優先刪除最久未使用的結果。預設上限為 1 GB，最高為 100 GB。變更自動生效；降低上限時會刪除最久未使用的結果，直到符合容量限制。";
+"TRANSLATION_CACHE_HELP" = "自動儲存 OCR 結果、頁面譯文、漫畫與章節標題、作者姓名、標籤、漫畫簡介、來源選單與區塊標題的譯文及文字排版。頁面圖片僅保留在目前及附近頁面的記憶體中。達到容量上限時，優先刪除最久未使用的結果。預設上限為 1 GB，最高為 100 GB。變更自動生效；降低上限時會刪除最久未使用的結果，直到符合容量限制。";
 
 "TRANSLATION_SOURCE_FILTER" = "原文語言篩選";
 
@@ -905,7 +905,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "翻譯章節標題";
 
-"TRANSLATION_TITLES_HELP" = "使用已設定的翻譯 API 與目標語言，獨立於頁面自動翻譯運作。關閉後顯示原始標題與簡介。翻譯載入中或失敗時仍顯示原文。";
+"TRANSLATION_TITLES_HELP" = "使用已設定的翻譯 API 與目標語言，獨立於頁面自動翻譯運作。關閉某個選項後，會顯示該項的原文。翻譯載入中或失敗時仍顯示原文。";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "漫畫標題原文語言";
 
@@ -919,7 +919,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "漫畫簡介原文語言";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "自動偵測原文語言，只翻譯選取的語言。選擇「所有偵測到的語言」可取消語言限制。頁面、漫畫標題、章節標題與簡介的語言篩選各自獨立。";
+"TRANSLATION_METADATA_FILTER_HELP" = "自動偵測原文語言，只翻譯選取的語言。選擇「所有偵測到的語言」可取消語言限制。每一項的語言篩選均獨立於頁面與其他項目的語言設定。";
 
 "TRANSLATION_SFX_FILTER" = "音效文字過濾（僅限日文）";
 
@@ -939,7 +939,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM 音效文字過濾（所有語言）";
 
-"TRANSLATION_LLM_SFX_HELP" = "在翻譯請求中同時判斷音效。可與日文本機過濾器搭配使用：任一過濾器判定為音效時，均保留原文。可同時傳送頁面圖片。";
+"TRANSLATION_LLM_SFX_HELP" = "在翻譯請求中同時判斷音效。可與日文本機過濾器搭配使用：任一過濾器判定為音效時，均保留原文。可與「在翻譯中包含頁面圖像」同時啟用。";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "未提供圖片時，可供判斷的畫面與排版資訊有限，音效文字辨識的準確率可能降低。";
 
@@ -1089,3 +1089,10 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "內建的5個模型皆可離線安裝。安裝模型後，在「已啟用的模型」中點選。MangaJaNai 適用於高度約1200像素的黑白頁面；彩色頁面保持原樣。";
 
 "DOWNLOAD_TRANSLATED" = "下載並翻譯";
+
+"TRANSLATION_LLM_BACKGROUND" = "略過背景文字（LLM）";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "翻譯 AI 會保留無關緊要的招牌、海報及背景文字的原文。對話、旁白與無法判定的文字仍會翻譯。不會額外傳送請求，但處理時間可能增加。未提供頁面圖片時，分類判斷的可靠性會降低。";
+
+"TRANSLATION_STATE_ON" = "開啟";
+
+"TRANSLATION_STATE_OFF" = "關閉";

@@ -585,7 +585,7 @@ enum BrowserSourceTextColor {
       const stats = {pixels: 0, hits: 0, samples: 0, milliseconds: 0};
       if (!enabled || !image?.complete || !image.naturalWidth) return {sample: () => null, stats};
       // Image-object identity invalidates estimates when the page or split crop changes.
-      const caches = globalThis.__aidokuSourceTextColorsV7 ||= new WeakMap();
+      const caches = globalThis.__aidokuSourceTextColorsV8 ||= new WeakMap();
       let cache = caches.get(image);
       if (!cache) { cache = new Map(); caches.set(image, cache); }
       let canvas, context, budget = 393216, unavailable = false;
@@ -596,11 +596,16 @@ enum BrowserSourceTextColor {
         const key = bounds.join(',');
         if (cache.has(key)) { stats.hits++; return cache.get(key); }
         const iw = image.naturalWidth, ih = image.naturalHeight;
-        // Small margin keeps tight OCR glyphs away from the component boundary.
-        const x = Math.max(0, Math.floor(bounds[0] * iw) - 2);
-        const y = Math.max(0, Math.floor(bounds[1] * ih) - 2);
-        const sw = Math.min(iw, Math.ceil((bounds[0] + bounds[2]) * iw) + 2) - x;
-        const sh = Math.min(ih, Math.ceil((bounds[1] + bounds[3]) * ih) + 2) - y;
+        // Tight OCR boxes can end inside a white glyph outline. Two source
+        // pixels then sample the halo as the panel, especially after reduction.
+        // Include half a glyph width of surrounding surface, with a small cap
+        // so neighbouring balloons/art cannot dominate the sample.
+        const verticalColumn = bounds[3] * ih >= bounds[2] * iw * 1.5;
+        const margin = verticalColumn ? Math.max(4, Math.min(16, Math.ceil(bounds[2] * iw * 0.5))) : 2;
+        const x = Math.max(0, Math.floor(bounds[0] * iw) - margin);
+        const y = Math.max(0, Math.floor(bounds[1] * ih) - margin);
+        const sw = Math.min(iw, Math.ceil((bounds[0] + bounds[2]) * iw) + margin) - x;
+        const sh = Math.min(ih, Math.ceil((bounds[1] + bounds[3]) * ih) + margin) - y;
         const scale = Math.min(1, 192 / Math.max(sw, sh), Math.sqrt(24576 / (sw * sh)));
         const w = Math.max(1, Math.floor(sw * scale)), h = Math.max(1, Math.floor(sh * scale));
         if (w * h > budget) return null;

@@ -6,6 +6,40 @@ import WebKit
 
 @Suite(.serialized)
 struct ReaderTranslationRenderSpeedTests {
+    @Test @MainActor func repeatedLayoutMeasurementsPreserveCompletePayload() async throws {
+        let size = CGSize(width: 800, height: 1200)
+        let viewport = CGSize(width: 390, height: 780)
+        let source = CGRect(x: 0, y: 0, width: 390, height: 585)
+        let items = (0..<12).map { index in
+            BrowserOverlayItem(rect: CGRect(x: 40 + index % 3 * 250, y: 40 + index / 3 * 260, width: 170, height: 180),
+                sourceText: "同じ文字をもう一度測定する必要はない", translatedText: "같은 글자를 다시 측정할 필요는 없지요. \(index)",
+                confidence: 1, sourceOrientation: .vertical)
+        }
+        let cache = BrowserOverlayTextMeasurementCache()
+        var freshTime = 0.0, reusedTime = 0.0
+        for pass in 0..<8 {
+            var settings = ReaderTranslationSettings.defaultOverlay
+            if pass % 3 == 1 { settings.mode = .originalAndTranslation }
+            let selected = Array(items.prefix(pass < 4 ? 3 + pass * 3 : 12))
+            let start = ProcessInfo.processInfo.systemUptime
+            let fresh = BrowserPageImageOverlayRenderer.layoutPayload(items: selected, imageSize: size, sourceRect: source,
+                settings: settings, targetLanguage: "ko", viewport: viewport)
+            freshTime += ProcessInfo.processInfo.systemUptime - start
+            let reusedStart = ProcessInfo.processInfo.systemUptime
+            let reused = BrowserPageImageOverlayRenderer.layoutPayload(items: selected, imageSize: size, sourceRect: source,
+                settings: settings, targetLanguage: "ko", viewport: viewport, measurementCache: cache)
+            reusedTime += ProcessInfo.processInfo.systemUptime - reusedStart
+            let expected = try JSONSerialization.data(withJSONObject: fresh, options: [.sortedKeys])
+            #expect(try JSONSerialization.data(withJSONObject: reused, options: [.sortedKeys]) == expected)
+            let worker = try await BrowserPageImageOverlayRenderer.prepareLayoutData(items: selected, imageSize: size,
+                sourceRect: source, settings: settings, targetLanguage: "ko", viewport: viewport)
+            let object = try JSONSerialization.jsonObject(with: worker)
+            #expect(try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) == expected)
+        }
+        #expect(cache.passHits > 0)
+        print("LAYOUT_REUSE_BENCH fresh_ms=\(freshTime * 1000) reused_ms=\(reusedTime * 1000)")
+    }
+
     @Test func preparedCollisionEdgesMatchCoreGraphics() {
         var rects: [CGRect] = (0..<600).map { index in
             let x = CGFloat(index * 73 % 390) / 1.7 - 12
@@ -28,6 +62,44 @@ struct ReaderTranslationRenderSpeedTests {
                         ? intersection.width * intersection.height : 0
                     #expect(geometry[left].overlapArea(with: geometry[right], minimumExtent: threshold) == expected)
                 }
+            }
+        }
+    }
+
+    @Test func earlyOverlapDetectionMatchesExhaustiveCoreGraphics() {
+        func reference(_ rects: [CGRect], external: [CGRect]) -> Bool {
+            var pairs = 0
+            func overlaps(_ a: CGRect, _ b: CGRect) -> Bool {
+                let intersection = a.intersection(b)
+                return !intersection.isNull && intersection.width > 0.25 && intersection.height > 0.25
+            }
+            for left in rects.indices {
+                for right in rects.indices where right > left {
+                    if overlaps(rects[left], rects[right]) { pairs += 1 }
+                }
+                for obstacle in external {
+                    if overlaps(rects[left], obstacle) { pairs += 1 }
+                }
+            }
+            return pairs > 0
+        }
+        var cases: [[CGRect]] = [[], [.zero], [.null, .infinite],
+            [CGRect(x: 15, y: 30, width: -12, height: -18), .zero]]
+        for count in [1, 2, 8, 50] {
+            for stride in [3, 35, 150] {
+                cases.append((0..<count).map { index in
+                    CGRect(x: CGFloat(index * stride), y: CGFloat(index % 3 * 17), width: 30, height: 45)
+                })
+            }
+        }
+        for delta: CGFloat in [0, 0.2499, 0.25, 0.2501] {
+            cases.append([CGRect(x: 0, y: 0, width: 100, height: 100),
+                          CGRect(x: 100 - delta, y: 100 - delta, width: 100, height: 100)])
+        }
+        for rects in cases {
+            for external in [[], [CGRect(x: 10, y: 10, width: 10, height: 10)], Array(rects.prefix(2))] {
+                #expect(BrowserOverlayCollisionGeometry.hasOverlap(in: rects, external: external)
+                        == reference(rects, external: external))
             }
         }
     }

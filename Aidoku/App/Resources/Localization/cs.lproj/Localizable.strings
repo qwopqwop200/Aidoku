@@ -444,7 +444,7 @@
 
 "TRANSLATION_CACHE_USED" = "Použité úložiště";
 
-"TRANSLATION_CACHE_HELP" = "Automaticky ukládá výsledky OCR, překlady stránek, názvů mangy a kapitol, popisů mangy a rozložení textu. Obrázky stránek zůstávají pouze v operační paměti pro aktuální a okolní stránky. Po dosažení limitu se odstraní výsledky, které nebyly nejdéle použity. Výchozí: 1 GB. Maximum: 100 GB. Změny se použijí automaticky; při snížení limitu se nejdéle nepoužité výsledky odstraňují, dokud se mezipaměť nevejde do limitu.";
+"TRANSLATION_CACHE_HELP" = "Automaticky ukládá výsledky OCR, překlady stránek, názvů mangy a kapitol, jmen autorů, štítků, popisů mangy, nabídek a názvů sekcí zdrojů a rozložení textu. Obrázky stránek zůstávají pouze v operační paměti pro aktuální a okolní stránky. Po dosažení limitu se odstraní výsledky, které nebyly nejdéle použity. Výchozí: 1 GB. Maximum: 100 GB. Změny se použijí automaticky; při snížení limitu se nejdéle nepoužité výsledky odstraňují, dokud se mezipaměť nevejde do limitu.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filtr zdrojových jazyků překladu";
 
@@ -476,7 +476,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Překládat názvy kapitol";
 
-"TRANSLATION_TITLES_HELP" = "Používá vaše překladové API a cílový jazyk nezávisle na automatickém překladu stránek. Vypnutím zobrazíte původní názvy a popisy. Originály zůstávají viditelné při načítání nebo v případě selhání překladu.";
+"TRANSLATION_TITLES_HELP" = "Používá vaše překladové API a cílový jazyk nezávisle na automatickém překladu stránek. Vypnutím příslušné volby zobrazíte původní text dané položky. Originály zůstávají viditelné při načítání nebo v případě selhání překladu.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Jazyky názvů mangy";
 
@@ -490,7 +490,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Jazyky popisů mangy";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Automaticky detekovat zdrojový jazyk a překládat pouze vybrané jazyky. Všechny zjištěné jazyky toto omezení odstraní. Filtry stránky, názvu manga, názvu kapitoly a popisu fungují nezávisle.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Automaticky určí zdrojový jazyk a přeloží pouze vybrané jazyky. Volba Všechny zjištěné jazyky ruší omezení. Jazykový filtr každé položky je nezávislý na nastavení jazyka stránek a ostatních položek.";
 
 "TRANSLATION_SFX_FILTER" = "Filtrování SFX (pouze japonština)";
 
@@ -601,7 +601,7 @@
 "REFRESH_NO_WIFI_TEXT" = "Nastavení aktualizace pouze přes Wi-Fi je povoleno. Připojte se k Wi-Fi a obnovte svou knihovnu.";
 "REFRESH_ANYWAYS" = "Každopádně obnovit";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Odebrat z knihovny?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Odstraněním této série z knihovny odstraníte také všechny propojené sledovače. Opravdu chcete pokračovat?";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Odstraněním této série z knihovny odstraníte také její propojení se sledovači. Opravdu chcete pokračovat?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Obnovení knihovny bylo přerušeno";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Poslední aktualizace knihovny byla přerušena před dokončením. Chcete pokračovat?";
 "CATEGORY" = "Kategorie";
@@ -911,7 +911,7 @@
 "LONG_PRESS" = "Dlouhé stisknutí";
 "LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Klepnutím na začátek slova aktivujete vyskakovací okno. Pokud je tato možnost povolena, zakáže se přiblížení dvojitým klepnutím.";
 "LOOKUP_GESTURE_LONG_PRESS_INFO" = "Podržením prstu na začátku slova je zvýrazníte a uvolněním otevřete vyskakovací okno. V tomto režimu jsou rychlé akce stránky zakázány.";
-"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Uzamčeno vyhledávacím gestem: Jedno stisknutí.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Uzamčeno vyhledávacím gestem: jedno klepnutí.";
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Uzamčeno vyhledávacím gestem: Dlouhé stisknutí.";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "Překrytí textu OCR";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Zobrazuje textová pole v oblastech obrázku, když je aktivováno vyhledávání. To může být užitečné pro určení, který text byl správně rozpoznán OCR.";
@@ -969,7 +969,7 @@
 "INSTALL_SOURCES" = "Instalovat zdroje";
 "INSTALLING_SOURCES" = "Instalace zdrojů…";
 "SOURCE_IMPORT_FAIL_TEXT" = "Import zdroje se nezdařil. Ujistěte se, že váš soubor aix je platný.";
-"FILE_IMPORT_FAIL_TEXT" = "Import souboru se nezdařil. Ujistěte se, že se jedná o platný archiv CBZ nebo ZIP, který obsahuje obrázky.";
+"FILE_IMPORT_FAIL_TEXT" = "Import souboru se nezdařil. Ujistěte se, že jde o čitelný soubor obrázku nebo platný archiv CBZ či ZIP obsahující obrázky.";
 "BACKUP_%@" = "Záloha %@";
 "CREATE_BACKUP" = "Vytvořit zálohu";
 "IMPORT_BACKUP" = "Importovat zálohu";
@@ -1089,3 +1089,9 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Pět přiložených modelů lze nainstalovat bez připojení k internetu. Nainstalujte model a poté jej vyberte v části „Povolený model“. MangaJaNai je určen pro černobílé stránky vysoké přibližně 1200 pixelů; barevné stránky zůstávají beze změny.";
 
 "DOWNLOAD_TRANSLATED" = "Stáhnout s překladem";
+
+"TRANSLATION_LLM_BACKGROUND" = "Nepřekládat nápisy v pozadí (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "Překladová AI ponechává vedlejší cedule, plakáty a nápisy v pozadí beze změny. Dialogy, vyprávění a text s nejistou klasifikací se překládají. Neposílají se žádné další požadavky, ale zpracování může trvat déle. Bez obrázku stránky je klasifikace méně spolehlivá.";
+
+"TRANSLATION_STATE_ON" = "Zapnuto";
+"TRANSLATION_STATE_OFF" = "Vypnuto";

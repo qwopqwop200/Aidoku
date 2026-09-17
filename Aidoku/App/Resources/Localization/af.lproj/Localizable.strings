@@ -65,7 +65,7 @@
 "UNTITLED" = "Titelloos";
 "STATUS_ONGOING" = "Lopend";
 "STATUS_CANCELLED" = "Gekanselleer";
-"STATUS_COMPLETED" = "Gevoltooi";
+"STATUS_COMPLETED" = "Voltooi";
 "SUGGESTIVE" = "Suggestief";
 "NSFW" = "NSFW";
 "SOURCE_ORDER" = "Volgorde volgens die bron";
@@ -334,7 +334,7 @@
 
 "TRANSLATION_CACHE_USED" = "Berging gebruik";
 
-"TRANSLATION_CACHE_HELP" = "Stoor OCR, bladsyvertalings, vertalings van manga- en hoofstuktitels, mangabeskrywings en teksuitleg outomaties. Bladsybeelde word slegs vir die huidige bladsy en nabygeleë bladsye in die geheue gehou. Wanneer die bergingslimiet bereik word, word die resultate wat die langste laas gebruik is eerste verwyder. Verstek: 1 GB. Maksimum: 100 GB. Veranderinge word outomaties toegepas. As die limiet verlaag word, word hierdie ouer resultate verwyder totdat die kas binne die limiet is.";
+"TRANSLATION_CACHE_HELP" = "Stoor OCR, bladsyvertalings, vertalings van manga- en hoofstuktitels, outeurname, etikette, mangabeskrywings, bronkieslyste en afdelingtitels en teksuitleg outomaties. Bladsybeelde word slegs vir die huidige bladsy en nabygeleë bladsye in die geheue gehou. Wanneer die bergingslimiet bereik word, word die resultate wat die langste laas gebruik is eerste verwyder. Verstek: 1 GB. Maksimum: 100 GB. Veranderinge word outomaties toegepas. As die limiet verlaag word, word hierdie ouer resultate verwyder totdat die kas binne die limiet is.";
 
 "TRANSLATION_SOURCE_FILTER" = "Brontaalfilter vir vertaling";
 
@@ -366,7 +366,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Vertaal hoofstuktitels";
 
-"TRANSLATION_TITLES_HELP" = "Gebruik jou vertaling-API en teikentaal onafhanklik van outomatiese bladsyvertaling. Skakel af om oorspronklike titels en beskrywings te wys. Oorspronklikes bly sigbaar tydens laai of as vertaling misluk.";
+"TRANSLATION_TITLES_HELP" = "Gebruik jou vertaal-API en teikentaal onafhanklik van outomatiese bladsyvertaling. Skakel ’n opsie af om die betrokke oorspronklike teks te wys. Die oorspronklike teks bly sigbaar tydens laai of as vertaling misluk.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Manga-titeltale";
 
@@ -380,7 +380,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Tale van mangabeskrywings";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Bespeur die brontaal outomaties en vertaal slegs die geselekteerde tale. Alle bespeurde tale verwyder die beperking. Bladsy-, mangatitel-, hoofstuktitel- en beskrywingfilters werk onafhanklik.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Bespeur die brontaal outomaties en vertaal slegs die geselekteerde tale. Alle bespeurde tale verwyder die beperking. Elke item se taalfilter is onafhanklik van die taalinstellings vir bladsye en ander items.";
 
 "TRANSLATION_SFX_FILTER" = "SFX-filtrering (slegs Japannees)";
 
@@ -498,7 +498,7 @@
 "REFRESH_NO_WIFI_TEXT" = "Die instelling om slegs oor Wi-Fi op te dateer is geaktiveer. Koppel aan Wi-Fi om jou biblioteek te verfris.";
 "REFRESH_ANYWAYS" = "Verfris in elk geval";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Verwyder uit biblioteek?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "As jy hierdie reeks uit jou biblioteek verwyder, word alle gekoppelde naspoorders ook verwyder. Is jy seker jy wil voortgaan?";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "As jy hierdie reeks uit jou biblioteek verwyder, word die reeks se skakels na naspoorders ook verwyder. Is jy seker jy wil voortgaan?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Biblioteekverversing onderbreek";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Die laaste biblioteekverversing is onderbreek voordat dit voltooi is. Wil jy hervat?";
 "CATEGORY" = "Kategorie";
@@ -879,7 +879,7 @@
 "INSTALL_SOURCES" = "Installeer Bronne";
 "INSTALLING_SOURCES" = "Installeer tans bronne …";
 "SOURCE_IMPORT_FAIL_TEXT" = "Kon nie bron invoer nie. Maak asseblief seker dat jou aix-lêer geldig is.";
-"FILE_IMPORT_FAIL_TEXT" = "Kon nie lêer invoer nie. Maak asseblief seker dat dit 'n geldige CBZ- of zip-argief is wat beelde bevat.";
+"FILE_IMPORT_FAIL_TEXT" = "Kon nie die lêer invoer nie. Maak seker dat dit ’n leesbare beeldlêer of ’n geldige CBZ- of ZIP-argief met beelde is.";
 "BACKUP_%@" = "Rugsteun %@";
 "CREATE_BACKUP" = "Skep rugsteun";
 "IMPORT_BACKUP" = "Voer rugsteun in";
@@ -1089,3 +1089,10 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Vyf ingeslote modelle kan vanlyn geïnstalleer word. Installeer ’n model en tik dan daarop onder Geaktiveerde model. MangaJaNai is vir swart-en-wit bladsye van ongeveer 1200 pixels hoog; kleurbladsye bly onveranderd.";
 
 "DOWNLOAD_TRANSLATED" = "Laai met vertaling af";
+
+"TRANSLATION_LLM_BACKGROUND" = "Slaan agtergrondteks oor (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "Die vertaal-KI laat terloopse tekens, plakkate en agtergrondteks onveranderd. Dialoog, vertelteks en teks waarvan die rol onseker is, word vertaal. Geen ekstra versoek word gestuur nie, maar verwerking kan langer neem. Klassifikasie is minder betroubaar sonder ’n bladsybeeld.";
+
+"TRANSLATION_STATE_ON" = "Aan";
+
+"TRANSLATION_STATE_OFF" = "Af";

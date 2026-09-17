@@ -5,6 +5,29 @@ import CoreGraphics
 
 @Suite(.serialized)
 struct ReaderTranslationConcurrencyTests {
+    @Test func cachedBatchOutsideConcurrencyWindowSurvivesProviderFailure() async throws {
+        let client = CacheFailureProbe()
+        let cache = try TranslationCache(configuration: .init(diskEnabled: false, maxSizeMiB: 10))
+        let service = TranslationService(client: client, cache: cache)
+        let configuration = settings(concurrency: 1).configuration
+        let cached = ReaderTranslationService.plans(regions: regions(prefix: "cached", count: 2),
+                                                    settings: settings(concurrency: 1))[0].request
+        let missing = ReaderTranslationService.plans(regions: regions(prefix: "missing", count: 1),
+                                                     settings: settings(concurrency: 1))[0].request
+        _ = try await service.translate(cached, configuration: configuration)
+        await client.fail()
+        let progress = CacheBatchProgress()
+        await #expect(throws: RemoteTranslationError.self) {
+            try await BoundedTranslationBatchExecutor.translate(
+                [missing, cached], configuration: configuration, service: service,
+                maximumConcurrentRequests: 1,
+                onBatchCompleted: { index, _ in await progress.append(index) }
+            )
+        }
+        #expect(await progress.indices == [1])
+        #expect(await client.calls == 2)
+    }
+
     @Test func readerHonorsConcurrencyAboveSixteen() async throws {
         let client = ConcurrencyProbe()
         let service = ReaderTranslationService(client: client)
@@ -190,4 +213,21 @@ private actor PermitRecorder {
         order.append(name)
         while blocked && !released { try await Task.sleep(for: .milliseconds(5)) }
     }
+}
+
+private actor CacheFailureProbe: RemoteTranslating {
+    private var failing = false
+    var calls = 0
+    func fail() { failing = true }
+    func translate(_ request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration) async throws -> RemoteTranslationBatchResult {
+        calls += 1
+        if failing { throw RemoteTranslationError.missingCredential }
+        return .init(translations: request.segments.map { .init(id: $0.id, text: "cached translation") },
+                     source: .network, providerRequestID: nil)
+    }
+}
+
+private actor CacheBatchProgress {
+    var indices: [Int] = []
+    func append(_ index: Int) { indices.append(index) }
 }

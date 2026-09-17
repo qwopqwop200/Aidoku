@@ -519,7 +519,7 @@
 "DISABLED" = "Désactivé";
 "ANIMATE_PAGE_TRANSITIONS" = "Animer les transitions de page";
 "SOURCE_IMPORT_FAIL_TEXT" = "Échec de l’importation de la source. Assurez-vous que votre fichier .aix est valide.";
-"FILE_IMPORT_FAIL_TEXT" = "Échec de l’importation du fichier. Assurez-vous qu’il s’agit d’une archive CBZ ou ZIP valide contenant des images.";
+"FILE_IMPORT_FAIL_TEXT" = "Échec de l’importation du fichier. Assurez-vous qu’il s’agit d’un fichier image lisible ou d’une archive CBZ ou ZIP valide contenant des images.";
 "NAME" = "Nom";
 "DATE" = "Date";
 "CLEAR_SOURCE_CACHE_TEXT" = "Efface les cookies et les données des sites associés aux URL de cette source, ainsi que le contenu de la source mis en cache. Vous devrez peut-être vous reconnecter et le chargement pourra temporairement prendre plus de temps.";
@@ -907,7 +907,7 @@
 
 "TRANSLATION_CACHE_USED" = "Stockage utilisé";
 
-"TRANSLATION_CACHE_HELP" = "Enregistre automatiquement les résultats OCR, les traductions de pages, de titres de mangas et de chapitres, les descriptions de mangas et la mise en page du texte. Les images de la page actuelle et des pages proches sont conservées uniquement en mémoire vive. Les résultats utilisés le moins récemment sont supprimés lorsque la limite choisie est atteinte. Par défaut : 1 Go. Maximum : 100 Go. Les modifications s’appliquent automatiquement ; réduire la limite supprime les résultats utilisés le moins récemment jusqu’à ce que le cache respecte cette limite.";
+"TRANSLATION_CACHE_HELP" = "Enregistre automatiquement les résultats OCR, les traductions de pages, de titres de mangas et de chapitres, de noms d’auteurs, de tags, de descriptions de mangas, de menus des sources et de titres de sections, ainsi que la mise en page du texte. Les images de la page actuelle et des pages proches sont conservées uniquement en mémoire vive. Les résultats utilisés le moins récemment sont supprimés lorsque la limite choisie est atteinte. Par défaut : 1 Go. Maximum : 100 Go. Les modifications s’appliquent automatiquement ; réduire la limite supprime les résultats utilisés le moins récemment jusqu’à ce que le cache respecte cette limite.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filtre des langues sources";
 
@@ -939,7 +939,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Traduire les titres des chapitres";
 
-"TRANSLATION_TITLES_HELP" = "Utilise votre API de traduction et votre langue cible indépendamment de la traduction automatique des pages. Désactivez-la pour afficher les titres et les descriptions originaux. Les originaux restent visibles pendant le chargement ou si la traduction échoue.";
+"TRANSLATION_TITLES_HELP" = "Utilise votre API de traduction et votre langue cible indépendamment de la traduction automatique des pages. Désactivez une option pour afficher le texte original correspondant. Les originaux restent visibles pendant le chargement ou si la traduction échoue.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Langues des titres du manga";
 
@@ -953,7 +953,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Langues des descriptions de mangas";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Détecte automatiquement la langue source et traduit uniquement les langues sélectionnées. « Toutes les langues détectées » supprime la restriction. Les filtres des pages, des titres de mangas, des titres de chapitres et des descriptions fonctionnent indépendamment.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Détecte automatiquement la langue source et traduit uniquement les langues sélectionnées. « Toutes les langues détectées » supprime la restriction. Le filtre de langue de chaque élément est indépendant des réglages de langue des pages et des autres éléments.";
 
 "TRANSLATION_SFX_FILTER" = "Filtrage SFX (japonais uniquement)";
 
@@ -1092,3 +1092,9 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Les cinq modèles inclus peuvent être installés hors ligne. Installez un modèle, puis sélectionnez-le dans « Modèle activé ». MangaJaNai est conçu pour les pages en noir et blanc d’environ 1200 pixels de haut ; les pages en couleur restent inchangées.";
 
 "DOWNLOAD_TRANSLATED" = "Télécharger avec traduction";
+
+"TRANSLATION_LLM_BACKGROUND" = "Ignorer les textes d’arrière-plan (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "L’IA de traduction laisse inchangés les textes accessoires des panneaux, des affiches et de l’arrière-plan. Les dialogues, la narration et les textes incertains sont traduits. Aucune requête supplémentaire n’est effectuée, mais le traitement peut prendre plus de temps. La classification est moins fiable sans image de la page.";
+
+"TRANSLATION_STATE_ON" = "Activée";
+"TRANSLATION_STATE_OFF" = "Désactivée";

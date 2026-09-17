@@ -258,11 +258,11 @@
 
 "TRANSLATION_UNRESTRICTED" = "Senlima";
 
-"TRANSLATION_FONT_SIZE" = "Tiparo Grandeco";
+"TRANSLATION_FONT_SIZE" = "Tipargrandeco";
 
 "TRANSLATION_AUTO_FIT" = "Adapti aŭtomate";
 
-"TRANSLATION_FIXED" = "Fiksa tiparo grandeco";
+"TRANSLATION_FIXED" = "Fiksa tipargrandeco";
 
 "TRANSLATION_OVERLAY" = "Traduka supermetaĵo";
 
@@ -298,7 +298,7 @@
 
 "TRANSLATION_CACHE_USED" = "Stokado Uzita";
 
-"TRANSLATION_CACHE_HELP" = "Konservu OCR-rezultojn, paĝtradukojn, tradukojn de mangaaj kaj ĉapitraj titoloj, mangaajn priskribojn kaj tekstan aranĝon aŭtomate. Bildoj de la nuna kaj proksimaj paĝoj estas konservataj nur en memoro. La rezultoj plej longe ne uzitaj estas forigitaj kiam la elektita limo estas atingita. Defaŭlte: 1 GB. Maksimume: 100 GB. Ŝanĝoj validas aŭtomate; malaltigo de la limo forigas la rezultojn plej longe ne uzitajn ĝis la kaŝmemoro restas ene de la limo.";
+"TRANSLATION_CACHE_HELP" = "Konservu OCR-rezultojn, paĝtradukojn, tradukojn de mangaaj kaj ĉapitraj titoloj, aŭtoraj nomoj, etikedoj, mangaaj priskriboj, fontaj menuoj kaj sekciaj titoloj kaj tekstan aranĝon aŭtomate. Bildoj de la nuna kaj proksimaj paĝoj estas konservataj nur en memoro. La rezultoj plej longe ne uzitaj estas forigitaj kiam la elektita limo estas atingita. Defaŭlte: 1 GB. Maksimume: 100 GB. Ŝanĝoj validas aŭtomate; malaltigo de la limo forigas la rezultojn plej longe ne uzitajn ĝis la kaŝmemoro restas ene de la limo.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filtrilo de fontlingvoj";
 
@@ -330,7 +330,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Traduku Ĉapitrotitolojn";
 
-"TRANSLATION_TITLES_HELP" = "Uzas vian tradukan API kaj cellingvon sendepende de aŭtomata paĝa tradukado. Malŝaltu por montri originalajn titolojn kaj priskribojn. Originaloj restas videblaj dum ŝarĝo aŭ se tradukado malsukcesas.";
+"TRANSLATION_TITLES_HELP" = "Uzas vian tradukan API kaj cellingvon sendepende de aŭtomata paĝtradukado. Malŝaltu opcion por montri la koncernan originalan tekston. La originala teksto restas videbla dum ŝargado aŭ se tradukado malsukcesas.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Lingvoj de mangatitoloj";
 
@@ -344,7 +344,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Mangaaj priskribaj lingvoj";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Aŭtomate detektas la fontlingvon kaj tradukas nur la elektitajn lingvojn. La opcio Ĉiuj Detektitaj Lingvoj forigas la limigon. Filtriloj por paĝoj, mangatitoloj, ĉapitrotitoloj kaj priskriboj funkcias sendepende.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Aŭtomate detektas la fontlingvon kaj tradukas nur la elektitajn lingvojn. Ĉiuj Detektitaj Lingvoj forigas la limigon. La lingvofiltrilo de ĉiu ero estas sendependa de la lingvaj agordoj por paĝoj kaj aliaj eroj.";
 
 "TRANSLATION_SFX_FILTER" = "SFX-Filtrado (Nur la japana)";
 
@@ -469,7 +469,7 @@
 "REFRESH_NO_WIFI_TEXT" = "La agordo ĝisdatigi nur per Wi-Fi estas ebligita. Konektiĝu al Wi-Fi por refreŝigi vian bibliotekon.";
 "REFRESH_ANYWAYS" = "Refreŝigi Ĉiuokaze";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Ĉu forigi el Biblioteko?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Forigi ĉi tiun serion el via biblioteko ankaŭ forigos ĉiujn ligitajn spurilojn. Ĉu vi certas, ke vi volas daŭrigi?";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Forigo de ĉi tiu serio el via biblioteko ankaŭ forigos ĝiajn ligilojn al spuriloj. Ĉu vi certas, ke vi volas daŭrigi?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Biblioteko Refreŝiĝo Interrompita";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "La lasta aktualigo de la biblioteko estis interrompita antaŭ ĝia fino. Ĉu vi ŝatus daŭrigi?";
 "CATEGORY" = "Kategorio";
@@ -543,7 +543,7 @@
 "SAVED_SEARCH_NAME" = "Nomo";
 "SAVE_SEARCH_FAIL" = "Konservi Malsukcesis";
 "SAVE_SEARCH_FAIL_INFO" = "Ekzistanta konservita serĉo kun ĉi tiu nomo jam ekzistas. Bonvolu elekti unikan nomon.";
-"INCOGNITO_FILTERS_NOTICE" = "Modifitaj filtriloj ne daŭras en Inkognita Reĝimo.";
+"INCOGNITO_FILTERS_NOTICE" = "Ŝanĝitaj filtriloj ne estas konservataj en Privata reĝimo.";
 "LOCAL_FILES" = "Lokaj Dosieroj";
 "LOCAL_FILES_TAGLINE" = "Legu el lokaj dosieroj";
 "LOCAL_FILES_INFO" = "La fonto de lokaj dosieroj permesas al vi importi dosierojn kaj administri vian propran legbibliotekon rekte en Aidoku.";
@@ -552,7 +552,7 @@
 "IMPORT_FILE" = "Importi dosieron";
 "LOCAL_FILE_IMPORT" = "Loka Dosiera Importo";
 "LOCAL_FILE_IMPORT_TEXT" = "Importu CBZ aŭ ZIP-dosieron enhavantan bildojn por legi.";
-"CHAPTER_TITLE" = "Ĉapitro Titolo";
+"CHAPTER_TITLE" = "Ĉapitrotitolo";
 "SERIES_TITLE" = "Seriotitolo";
 "DESCRIPTION" = "Priskribo";
 "SERIES" = "Serio";
@@ -609,7 +609,7 @@
 "SORT_DATE_UPDATED" = "Dato Ĝisdatigita";
 "SORT_DATE_READ" = "Dato Legita";
 "SORT_RELEASE_DATE" = "Eldondato";
-"SORT_FOLDER_NAME" = "Dosierujo Nomo";
+"SORT_FOLDER_NAME" = "Dosierujnomo";
 "SORT_BOOKS_COUNT" = "Nombro de libroj";
 "SORT_RANDOM" = "Hazarda";
 "GENRE" = "Ĝenro";
@@ -813,7 +813,7 @@
 "TEXT_READER_PAGED" = "Paĝigita legado";
 "TEXT_READER_SCROLL" = "Rulumo";
 "TEXT_FONT_FAMILY" = "Tiparo";
-"TEXT_FONT_SIZE" = "Tiparo Grandeco";
+"TEXT_FONT_SIZE" = "Tipargrandeco";
 "TEXT_LINE_SPACING" = "Linia interspaco";
 "TEXT_HORIZONTAL_PADDING" = "Horizontalaj marĝenoj";
 "TEXT_THEME" = "Temo";
@@ -898,7 +898,7 @@
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Por restarigi ĉi tiun sekurkopion, trovu ĝin en la paĝo pri sekurkopioj en agordoj.";
 "BACKUP_IMPORT_FAIL_TEXT" = "Malsukcesis konservi sekurkopion. Bonvolu certigi, ke via sekurkopio estas en la taŭga formato.";
 "SOURCE_IMPORT_FAIL_TEXT" = "Malsukcesis importi fonton. Bonvolu certigi, ke via aix-dosiero estas valida.";
-"FILE_IMPORT_FAIL_TEXT" = "Malsukcesis importi dosieron. Bonvolu certigi, ke ĝi estas valida CBZ aŭ ZIP-arkivo kiu enhavas bildojn.";
+"FILE_IMPORT_FAIL_TEXT" = "Malsukcesis importi la dosieron. Certigu, ke ĝi estas legebla bilddosiero aŭ valida CBZ- aŭ ZIP-arkivo enhavanta bildojn.";
 "BACKUP_%@" = "Savkopio %@";
 "RESTORE" = "Restarigi";
 "CREATE_BACKUP" = "Krei savkopion";
@@ -1089,3 +1089,10 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Kvin inkluzivitaj modeloj povas esti instalitaj eksterrete. Instalu modelon, tiam frapetu ĝin en Ebligita Modelo. MangaJaNai estas por nigrablankaj paĝoj ĉirkaŭ 1200 pikseloj altaj; koloraj paĝoj restas senŝanĝaj.";
 
 "DOWNLOAD_TRANSLATED" = "Elŝuti kun traduko";
+
+"TRANSLATION_LLM_BACKGROUND" = "Preterpasi fonajn surskribojn (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "La traduka AI lasas flankajn ŝildojn, afiŝojn kaj fonajn surskribojn senŝanĝaj. Dialogo, rakonta teksto kaj teksto kun necerta rolo estas tradukataj. Neniu plia peto estas farata, sed la prilaborado povas daŭri pli longe. Klasifikado estas malpli fidinda sen paĝa bildo.";
+
+"TRANSLATION_STATE_ON" = "Ŝaltita";
+
+"TRANSLATION_STATE_OFF" = "Malŝaltita";

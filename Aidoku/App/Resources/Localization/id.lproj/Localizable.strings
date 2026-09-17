@@ -456,7 +456,7 @@
 "INVERT_TAP_ZONES" = "Balik Zona Ketuk";
 "ANIMATE_PAGE_TRANSITIONS" = "Animasi Transisi Halaman";
 "SOURCE_IMPORT_FAIL_TEXT" = "Gagal mengimpor sumber. Pastikan file aix Anda valid.";
-"FILE_IMPORT_FAIL_TEXT" = "Gagal mengimpor file. Pastikan file tersebut adalah arsip CBZ atau ZIP yang valid yang berisi gambar.";
+"FILE_IMPORT_FAIL_TEXT" = "Gagal mengimpor berkas. Pastikan berkas tersebut adalah gambar yang dapat dibaca atau arsip CBZ atau ZIP yang valid dan berisi gambar.";
 "BACKUP_%@" = "Cadangan %@";
 "CREATE_BACKUP" = "Buat Cadangan";
 "LIBRARY_ENTRIES" = "Entri Perpustakaan";
@@ -693,7 +693,7 @@
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Menonaktifkan pelacakan untuk suatu sumber akan menghapus semua tautan pelacak untuk sumber tersebut. Mengaktifkannya akan secara otomatis menautkan semua seri dari sumber tersebut di perpustakaan Anda.";
 "TRACKER_LOGOUT_INFO" = "Keluar akan menghapus info pelacakan yang tertaut dari pelacak ini untuk semua seri.";
 "REFRESH_NO_WIFI" = "Tidak Terhubung ke Wi-Fi";
-"REFRESH_NO_WIFI_TEXT" = "Pengaturan \"Hanya Perbarui saat Wi-Fi\" diaktifkan, sehingga pustaka tidak dapat disegarkan hingga koneksi Wi-Fi tersedia.";
+"REFRESH_NO_WIFI_TEXT" = "Pengaturan \"Hanya Perbarui di Wi-Fi\" diaktifkan, sehingga pustaka tidak dapat disegarkan hingga koneksi Wi-Fi tersedia.";
 "REFRESH_ANYWAYS" = "Tetap Segarkan";
 "API_KEY" = "Kunci API";
 "OIDC" = "OIDC";
@@ -949,7 +949,7 @@
 
 "TRANSLATION_CACHE_USED" = "Penyimpanan Digunakan";
 
-"TRANSLATION_CACHE_HELP" = "Simpan hasil OCR, terjemahan halaman, terjemahan judul manga dan bab, deskripsi manga, serta tata letak teks secara otomatis. Gambar halaman saat ini dan halaman di sekitarnya hanya disimpan di memori. Saat batas tercapai, hasil yang paling lama tidak digunakan akan dihapus terlebih dahulu. Bawaan: 1 GB. Maksimum: 100 GB. Perubahan berlaku otomatis; menurunkan batas akan menghapus hasil yang paling lama tidak digunakan hingga ukuran cache sesuai batas.";
+"TRANSLATION_CACHE_HELP" = "Simpan hasil OCR, terjemahan halaman, terjemahan judul manga dan bab, nama penulis, tag, deskripsi manga, menu sumber dan judul bagian, serta tata letak teks secara otomatis. Gambar halaman saat ini dan halaman di sekitarnya hanya disimpan di memori. Saat batas tercapai, hasil yang paling lama tidak digunakan akan dihapus terlebih dahulu. Bawaan: 1 GB. Maksimum: 100 GB. Perubahan berlaku otomatis; menurunkan batas akan menghapus hasil yang paling lama tidak digunakan hingga ukuran cache sesuai batas.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filter Bahasa Sumber Terjemahan";
 
@@ -981,7 +981,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Terjemahkan Judul Bab";
 
-"TRANSLATION_TITLES_HELP" = "Menggunakan API terjemahan dan bahasa target Anda secara terpisah dari terjemahan halaman otomatis. Nonaktifkan untuk menampilkan judul dan deskripsi asli. Judul dan deskripsi asli tetap terlihat saat memuat atau jika terjemahan gagal.";
+"TRANSLATION_TITLES_HELP" = "Menggunakan API terjemahan dan bahasa target Anda secara terpisah dari terjemahan halaman otomatis. Nonaktifkan suatu opsi untuk menampilkan teks aslinya. Judul dan deskripsi asli tetap terlihat saat memuat atau jika terjemahan gagal.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Bahasa Judul Manga";
 
@@ -995,7 +995,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Bahasa Deskripsi Manga";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Deteksi bahasa sumber secara otomatis dan terjemahkan hanya bahasa yang dipilih. Semua Bahasa Terdeteksi menghilangkan batasan tersebut. Filter halaman, judul manga, judul bab, dan deskripsi bekerja secara independen.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Deteksi bahasa sumber secara otomatis dan terjemahkan hanya bahasa yang dipilih. Semua Bahasa Terdeteksi menghilangkan batasan tersebut. Filter bahasa setiap item tidak bergantung pada pengaturan bahasa halaman maupun item lainnya.";
 
 "TRANSLATION_SFX_FILTER" = "Pemfilteran SFX (Khusus Bahasa Jepang)";
 
@@ -1089,3 +1089,9 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Lima model yang disertakan dapat diinstal secara offline. Instal model, lalu ketuk di Model yang Diaktifkan. MangaJaNai ditujukan untuk halaman hitam-putih dengan tinggi sekitar 1200 piksel; halaman berwarna tetap tidak berubah.";
 
 "DOWNLOAD_TRANSLATED" = "Unduh dengan terjemahan";
+
+"TRANSLATION_LLM_BACKGROUND" = "Lewati Teks Latar Belakang (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "AI penerjemah membiarkan tulisan pada papan, poster, dan latar belakang yang tidak penting tetap tidak berubah. Dialog, narasi, dan teks yang tidak pasti tetap diterjemahkan. Tidak ada permintaan tambahan, tetapi pemrosesan mungkin memerlukan waktu lebih lama. Klasifikasi kurang andal tanpa gambar halaman.";
+
+"TRANSLATION_STATE_ON" = "Aktif";
+"TRANSLATION_STATE_OFF" = "Nonaktif";

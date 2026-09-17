@@ -1,7 +1,7 @@
 "IMPORT" = "Importera";
 "DONE" = "Klar";
-"FILE_IMPORT_FAIL_TEXT" = "Kunde ej importera fil. Se till att det är en giltig CBZ- eller ZIP-fil som innehåller bilder.";
+"FILE_IMPORT_FAIL_TEXT" = "Kunde inte importera filen. Kontrollera att det är en läsbar bildfil eller ett giltigt CBZ- eller ZIP-arkiv med bilder.";
 "FORMAT_IMAGE" = "Bild";
-"SHARED_IMAGES_SAVED" = "Bilderna har sparats. Öppna Aidoku för att automatiskt importera dem till lokala filer.";
+"SHARED_IMAGES_SAVED" = "Bilderna har sparats. Öppna Aidoku för att läsa dem.";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "Det gick inte att läsa den delade bilden. Försök med en annan bild.";

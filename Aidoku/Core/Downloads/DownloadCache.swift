@@ -11,41 +11,81 @@ import Foundation
 // TODO: should probably be reloaded every once in a while so we can recheck filesystem for user modifications
 @MainActor
 class DownloadCache {
-    struct Directory {
+    struct Directory: Sendable {
         var url: URL
         var subdirectories: [String: Directory] = [:]
     }
 
     private var rootDirectory = Directory(url: DownloadManager.directory)
     private var loaded = false
+    private var touchedManga = Set<String>()
+    private var scanGeneration = UUID()
+    private var scan: Task<Directory, Never>?
 
-    // create cache from filesystem
-    private func load() {
-        for sourceDirectory in DownloadManager.directory.contents where sourceDirectory.isDirectory {
-            rootDirectory.subdirectories[sourceDirectory.lastPathComponent] = Directory(url: sourceDirectory)
-            for mangaDirectory in sourceDirectory.contents where mangaDirectory.isDirectory {
-                var chapterDirectories: [String: Directory] = [:]
-                for chapterFileOrDirectory in mangaDirectory.contents {
-                    let key = if chapterFileOrDirectory.pathExtension.isEmpty {
-                        chapterFileOrDirectory.lastPathComponent
-                    } else {
-                        chapterFileOrDirectory.deletingPathExtension().lastPathComponent
-                    }
-                    chapterDirectories[key] = Directory(url: chapterFileOrDirectory)
+    init() {
+        let directory = DownloadManager.directory
+        let generation = scanGeneration
+        let work = Task.detached(priority: .utility) { Self.scanDirectory(directory) }
+        scan = work
+        Task { [weak self] in
+            let snapshot = await work.value
+            guard let self, scanGeneration == generation else { return }
+            for (sourceKey, source) in snapshot.subdirectories {
+                if rootDirectory.subdirectories[sourceKey] == nil {
+                    rootDirectory.subdirectories[sourceKey] = Directory(url: source.url)
                 }
-                rootDirectory
-                    .subdirectories[sourceDirectory.lastPathComponent]?
-                    .subdirectories[mangaDirectory.lastPathComponent] = Directory(
-                        url: mangaDirectory,
-                        subdirectories: chapterDirectories
-                    )
+                for (mangaKey, manga) in source.subdirectories where !touchedManga.contains(manga.url.path) {
+                    rootDirectory.subdirectories[sourceKey]?.subdirectories[mangaKey] = manga
+                }
             }
+            loaded = true
+            touchedManga.removeAll()
+            scan = nil
         }
-        loaded = true
+    }
+
+    deinit { scan?.cancel() }
+
+    private nonisolated static func scanManga(_ directory: URL) -> Directory {
+        var result = Directory(url: directory)
+        for chapter in directory.contents {
+            if Task.isCancelled { break }
+            let key = chapter.pathExtension.isEmpty ? chapter.lastPathComponent : chapter.deletingPathExtension().lastPathComponent
+            result.subdirectories[key] = Directory(url: chapter)
+        }
+        return result
+    }
+
+    private nonisolated static func scanDirectory(_ directory: URL) -> Directory {
+        var result = Directory(url: directory)
+        for source in directory.contents where source.isDirectory {
+            if Task.isCancelled { break }
+            var entry = Directory(url: source)
+            for manga in source.contents where manga.isDirectory {
+                if Task.isCancelled { break }
+                entry.subdirectories[manga.lastPathComponent] = scanManga(manga)
+            }
+            result.subdirectories[source.lastPathComponent] = entry
+        }
+        return result
+    }
+
+    // Synchronous UI lookups never trigger a scan of the entire download tree.
+    // Until background discovery finishes, inspect just the requested manga.
+    private func loadIfNeeded(_ manga: MangaIdentifier) {
+        let url = directory(for: manga)
+        guard !loaded, touchedManga.insert(url.path).inserted else { return }
+        let sourceKey = manga.sourceKey.directoryName
+        if rootDirectory.subdirectories[sourceKey] == nil {
+            rootDirectory.subdirectories[sourceKey] = Directory(url: directory(sourceKey: manga.sourceKey))
+        }
+        rootDirectory.subdirectories[sourceKey]?.subdirectories[manga.mangaKey.directoryName] = Self.scanManga(url)
     }
 
     // add chapter to directory cache
     func add(chapter: ChapterIdentifier) {
+        loadIfNeeded(chapter.mangaIdentifier)
+        if !loaded { touchedManga.insert(directory(for: chapter.mangaIdentifier).path) }
         let sourceDirectory = rootDirectory.subdirectories[chapter.sourceKey.directoryName]
         let sourceDirectoryURL = DownloadManager.directory.appendingSafePathComponent(chapter.sourceKey)
         if sourceDirectory == nil {
@@ -71,17 +111,25 @@ class DownloadCache {
     }
 
     func remove(manga: MangaIdentifier) {
+        if !loaded { touchedManga.insert(directory(for: manga).path) }
         rootDirectory.subdirectories[manga.sourceKey.directoryName]?
             .subdirectories[manga.mangaKey.directoryName] = nil
     }
 
     func remove(chapter: ChapterIdentifier) {
+        loadIfNeeded(chapter.mangaIdentifier)
+        if !loaded { touchedManga.insert(directory(for: chapter.mangaIdentifier).path) }
         rootDirectory.subdirectories[chapter.sourceKey.directoryName]?
             .subdirectories[chapter.mangaKey.directoryName]?
             .subdirectories[chapter.chapterKey.directoryName] = nil
     }
 
     func removeAll() {
+        scanGeneration = UUID()
+        scan?.cancel(); scan = nil
+        rootDirectory = Directory(url: DownloadManager.directory)
+        touchedManga.removeAll()
+        loaded = true
         DownloadManager.directory.removeItem()
     }
 }
@@ -89,7 +137,7 @@ class DownloadCache {
 extension DownloadCache {
     // check if a chapter has a download directory
     func isChapterDownloaded(identifier: ChapterIdentifier) -> Bool {
-        if !loaded { load() }
+        loadIfNeeded(identifier.mangaIdentifier)
         guard
             let sourceDirectory = rootDirectory.subdirectories[identifier.sourceKey.directoryName],
             let mangaDirectory = sourceDirectory.subdirectories[identifier.mangaKey.directoryName]
@@ -101,7 +149,7 @@ extension DownloadCache {
 
     // check if any chapter subdirectories exist
     func hasDownloadedChapter(from identifier: MangaIdentifier) -> Bool {
-        if !loaded { load() }
+        loadIfNeeded(identifier)
         guard
             let sourceDirectory = rootDirectory.subdirectories[identifier.sourceKey.directoryName],
             let mangaDirectory = sourceDirectory.subdirectories[identifier.mangaKey.directoryName]

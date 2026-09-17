@@ -4,6 +4,113 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationOverlapTests {
+    @Test func visibleOCRAppearsWhileTranslationIsStillWaiting() async throws {
+        let recorder = OverlapRecorder(blockedAPI: 0)
+        let preloader = preloader(recorder)
+        let session = session(preloader)
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 100, height: 100)).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 100, height: 100))
+        }
+        let imageView = UIImageView(image: image)
+        let visible = ReaderTranslationPage(imageView: imageView)
+        visible.sourcePage = page(0)
+        let value = settings
+        defer { session.close(); preloader.cancel() }
+        session.update(items: [.init(page(0))], visible: [visible], context: "chapter")
+        session.enable(settings: value)
+        try await waitUntil { await recorder.api == [0] && !visible.regions.isEmpty }
+        #expect(visible.regions.first?.source == "Text")
+        #expect(visible.regions.first?.translation == nil)
+        #expect(!imageView.subviews.isEmpty)
+        #expect(!visible.hasCompletedTranslation(settings: value))
+        #expect(await recorder.completed.isEmpty)
+        await recorder.release()
+        try await waitUntil { visible.hasCompletedTranslation(settings: value) }
+        #expect(visible.regions.first?.translation == "translated")
+    }
+
+    @Test func compressedLookaheadDownloadsDuringCurrentOCRWithoutDecodingAnotherPage() async throws {
+        let recorder = OverlapRecorder(blockedOCR: 0)
+        let preloader = ReaderTranslationPreloader(
+            translator: { regions, _, _ in try await recorder.translate(regions) },
+            recognizer: { page, _ in try await recorder.recognize(page.index) },
+            dataPrefetcher: { page in await recorder.prefetch(page.index) })
+        preloader.nextPage = { _ in page(1) }
+        let work = Task { try await preloader.translate(page(0), settings: settings) }
+        defer { preloader.cancel(); work.cancel() }
+        try await waitUntil {
+            let downloaded = await recorder.prefetched
+            let recognized = await recorder.ocr
+            return downloaded == [1] && recognized == [0]
+        }
+        #expect(await recorder.api.isEmpty)
+        #expect(await recorder.ocr == [0])
+        await recorder.release()
+        _ = try await work.value
+        try await waitUntil { await recorder.ocr == [0, 1] }
+        #expect(await recorder.prefetched == [1])
+    }
+
+    @Test func cachedOCRDoesNotRedownloadLookaheadImage() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let disk = ReaderTranslationDiskCache(directory: root)
+        defer { try? FileManager.default.removeItem(at: root) }
+        var value = settings
+        value.rightToLeftPanelOrder = false
+        value.filterJapaneseSFX = false
+        value.includePageImage = false
+        let key = ReaderTranslationCacheIdentity.ocr(page: page(1).translationCacheKey, settings: value)
+        try await disk.storeRegions([OverlapRecorder.region(1)], for: key, kind: .ocr,
+                                    generation: await disk.currentGeneration(settings: value))
+        let recorder = OverlapRecorder()
+        let preloader = ReaderTranslationPreloader(diskCache: disk,
+            translator: { regions, _, _ in try await recorder.translate(regions) },
+            recognizer: { page, _ in try await recorder.recognize(page.index) },
+            dataPrefetcher: { page in await recorder.prefetch(page.index) })
+        preloader.nextPage = { _ in page(1) }
+        defer { preloader.cancel() }
+        _ = try await preloader.translate(page(0), settings: value)
+        preloader.nextPage = nil
+        _ = try await preloader.translate(page(1), settings: value)
+        #expect(await recorder.prefetched.isEmpty)
+        #expect(await recorder.ocr == [0])
+        #expect(await recorder.completed == [0, 1])
+    }
+
+    @Test func cancellingReaderCancelsCompressedLookaheadDownload() async throws {
+        let recorder = OverlapRecorder(blockedOCR: 0)
+        let preloader = ReaderTranslationPreloader(
+            translator: { regions, _, _ in regions },
+            recognizer: { page, _ in try await recorder.recognize(page.index) },
+            dataPrefetcher: { page in try await recorder.blockedPrefetch(page.index) })
+        preloader.nextPage = { _ in page(1) }
+        let work = Task { try await preloader.translate(page(0), settings: settings) }
+        defer { preloader.cancel(); work.cancel() }
+        try await waitUntil { await recorder.prefetched == [1] }
+        preloader.cancel()
+        await #expect(throws: CancellationError.self) { try await work.value }
+        try await waitUntil { await recorder.cancelledData == [1] }
+        #expect(await recorder.ocr.allSatisfy { $0 == 0 })
+    }
+
+    @Test func lowMemorySkipsSpeculativeDownloadAndOCRButDemandCanRecover() async throws {
+        let recorder = OverlapRecorder()
+        let preloader = ReaderTranslationPreloader(
+            translator: { regions, _, _ in try await recorder.translate(regions) },
+            recognizer: { page, _ in try await recorder.recognize(page.index) },
+            dataPrefetcher: { page in await recorder.prefetch(page.index) },
+            availableMemory: { 0 })
+        preloader.nextPage = { _ in page(1) }
+        defer { preloader.cancel() }
+        _ = try await preloader.translate(page(0), settings: settings)
+        preloader.nextPage = nil
+        _ = try await preloader.translate(page(1), settings: settings)
+        #expect(await recorder.prefetched.isEmpty)
+        #expect(await recorder.ocr == [0, 1])
+        #expect(await recorder.completed == [0, 1])
+    }
+
     @Test func turningToLookaheadPromotesItsOCRInsteadOfRestartingIt() async throws {
         let recorder = OverlapRecorder(blockedOCR: 1, blockedAPI: 0)
         let preloader = preloader(recorder)
@@ -155,6 +262,14 @@ struct ReaderTranslationOverlapTests {
 }
 
 private actor OverlapRecorder {
+    var prefetched: [Int] = []
+    var cancelledData: [Int] = []
+    func prefetch(_ index: Int) { prefetched.append(index) }
+    func blockedPrefetch(_ index: Int) async throws {
+        prefetched.append(index)
+        do { while true { try await Task.sleep(for: .milliseconds(5)) } }
+        catch { cancelledData.append(index); throw error }
+    }
     var ocr: [Int] = []
     var api: [Int] = []
     var completed: [Int] = []

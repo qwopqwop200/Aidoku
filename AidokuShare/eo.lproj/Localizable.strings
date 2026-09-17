@@ -1,7 +1,7 @@
 "IMPORT" = "Importi";
 "DONE" = "Farita";
-"FILE_IMPORT_FAIL_TEXT" = "Malsukcesis importi dosieron. Bonvolu certigi, ke ĝi estas valida CBZ aŭ ZIP-arkivo kiu enhavas bildojn.";
+"FILE_IMPORT_FAIL_TEXT" = "Malsukcesis importi la dosieron. Certigu, ke ĝi estas legebla bilddosiero aŭ valida CBZ- aŭ ZIP-arkivo enhavanta bildojn.";
 "FORMAT_IMAGE" = "Bildo";
-"SHARED_IMAGES_SAVED" = "Bildoj konservitaj. Malfermu Aidoku por aŭtomate importi ilin en lokajn dosierojn.";
+"SHARED_IMAGES_SAVED" = "Bildoj konservitaj. Malfermu Aidoku por legi ilin.";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "Ne eblas legi la kunhavigitan bildon. Bonvolu provi alian bildon.";

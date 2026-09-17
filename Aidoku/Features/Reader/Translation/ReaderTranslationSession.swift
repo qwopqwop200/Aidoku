@@ -37,8 +37,11 @@ final class ReaderTranslationSession {
     private let diskCache: ReaderTranslationDiskCache?
     private let renderCache: ReaderTranslationRenderCache?
     private let prepareLayout: ((Page, [ReaderTranslationRegion], ReaderTranslationSettings) async throws -> Void)?
+    private let overlapsLayoutWithTranslation: Bool
     private var finished: Set<String> = []
     private let availableMemory: () -> UInt64
+    private let reclaimMemory: () async -> Void
+    private var attemptedMemoryReclaim = false
     private var memoryRetryTask: Task<Void, Never>?
     private var memoryNotBefore = Date.distantPast
 
@@ -80,7 +83,9 @@ final class ReaderTranslationSession {
         diskCache: ReaderTranslationDiskCache? = nil,
         renderCache: ReaderTranslationRenderCache? = nil,
         prepareLayout: ((Page, [ReaderTranslationRegion], ReaderTranslationSettings) async throws -> Void)? = nil,
+        overlapsLayoutWithTranslation: Bool = true,
         availableMemory: @escaping () -> UInt64 = { ReaderTranslationSession.processAvailableMemory() },
+        reclaimMemory: @escaping () async -> Void = { await TranslationImageWorkBudget.reclaimIdleResources() },
         cache: ReaderTranslationSessionCache? = nil
     ) {
         self.validate = validate
@@ -90,7 +95,9 @@ final class ReaderTranslationSession {
         self.diskCache = diskCache
         self.renderCache = renderCache
         self.prepareLayout = prepareLayout
+        self.overlapsLayoutWithTranslation = overlapsLayoutWithTranslation
         self.availableMemory = availableMemory
+        self.reclaimMemory = reclaimMemory
         self.cache = cache ?? ReaderTranslationSessionCache()
     }
 
@@ -182,9 +189,7 @@ final class ReaderTranslationSession {
         for key in freshKeys {
             attempted.remove(key)
             retryCounts.removeValue(forKey: key)
-            if ocrFallbacks.removeValue(forKey: key) != nil {
-                visible.filter { $0.sourcePage?.translationCacheKey == key }.forEach { $0.showOriginal() }
-            }
+            // Keep the OCR preview visible while renewed demand retries translation.
         }
         demandedVisibleKeys = visibleKeys
         if currentPosition != anchor || self.items.count != items.count {
@@ -258,6 +263,21 @@ final class ReaderTranslationSession {
                 if !(error is CancellationError) { onFailure?(error) }
             }
         }
+    }
+
+    /// A user retry preserves successful translations and the partial OCR preview.
+    func retryVisibleFailures() {
+        guard let settings else { return }
+        if state == .off { enable(settings: settings); return }
+        guard state == .on else { return }
+        for page in visible where !page.hasCompletedTranslation(settings: settings) {
+            guard let key = page.sourcePage?.translationCacheKey, key != activeKey else { continue }
+            retryTasks.removeValue(forKey: key)?.cancel()
+            retryCounts.removeValue(forKey: key)
+            attempted.remove(key)
+        }
+        didReportTranslationFailure = false
+        drain()
     }
 
     func disable(reason: String = "off", preservingVisibleRendering: Bool = false) {
@@ -342,6 +362,7 @@ final class ReaderTranslationSession {
     private func stopWorker(preservingRecognitionFor page: Page? = nil) {
         memoryRetryTask?.cancel()
         memoryRetryTask = nil
+        attemptedMemoryReclaim = false
         for (key, task) in retryTasks {
             task.cancel()
             attempted.remove(key)
@@ -369,8 +390,20 @@ final class ReaderTranslationSession {
     private func scheduleMemoryRetry() {
         guard state == .on, memoryRetryTask == nil else { return }
         memoryRetryTask = Task { [weak self] in
+            guard let self else { return }
+            if worker == nil, availableMemory() < TranslationImageWorkBudget.minimumHeadroom,
+               !attemptedMemoryReclaim {
+                attemptedMemoryReclaim = true
+                cancelLayout(clearQueue: true)
+                cancelProcessing()
+                let visibleIDs = Set(visible.map(ObjectIdentifier.init))
+                knownPages.allObjects.filter { !visibleIDs.contains(ObjectIdentifier($0)) }.forEach { $0.releaseOverlay() }
+                renderCache?.clearMemory()
+                preparedLayouts.removeAll()
+                await reclaimMemory()
+            }
             do { try await Task.sleep(nanoseconds: 2_000_000_000) } catch { return }
-            guard !Task.isCancelled, let self, state == .on else { return }
+            guard !Task.isCancelled, state == .on else { return }
             memoryRetryTask = nil
             drain()
             drainLayout()
@@ -378,18 +411,18 @@ final class ReaderTranslationSession {
     }
 
     private var canStartHeavyWork: Bool {
-        Date() >= memoryNotBefore && availableMemory() >= 1_280 * 1_024 * 1_024
+        Date() >= memoryNotBefore && availableMemory() >= TranslationImageWorkBudget.minimumHeadroom
     }
 
     private func drainLayout() {
-        guard state == .on, worker == nil, layoutTask == nil, let prepareLayout, let settings, !layoutQueue.isEmpty else { return }
+        guard state == .on, (overlapsLayoutWithTranslation || worker == nil), layoutTask == nil, let prepareLayout, let settings, !layoutQueue.isEmpty else { return }
         guard canStartHeavyWork else { scheduleMemoryRetry(); return }
         let issued = layoutGeneration
         layoutTask = Task(priority: .utility) { [weak self] in
             guard let self else { return }
             while state == .on, layoutGeneration == issued, !Task.isCancelled,
                   let item = items.prefix(5).first(where: { layoutQueue[$0.key] != nil }) {
-                guard canStartHeavyWork, worker == nil else {
+                guard canStartHeavyWork, overlapsLayoutWithTranslation || worker == nil else {
                     layoutTask = nil
                     scheduleMemoryRetry()
                     return
@@ -405,6 +438,8 @@ final class ReaderTranslationSession {
                             guard layoutGeneration == issued, !Task.isCancelled else { return }
                             preparedLayouts.insert(item.key)
                             ReaderTranslationDiagnostics.record("render_finished", page: item.position + 1)
+                        } catch is CancellationError {
+                            ReaderTranslationDiagnostics.record("render_cancelled", page: item.position + 1)
                         } catch {
                             ReaderTranslationDiagnostics.record("render_failed", page: item.position + 1, code: (error as NSError).code)
                         }
@@ -460,9 +495,12 @@ final class ReaderTranslationSession {
     private func publishProgress(_ regions: [ReaderTranslationRegion], key: String, generation: UUID) throws {
         try Task.checkCancellation()
         guard state == .on, workGeneration == generation, activeKey == key else { throw CancellationError() }
-        // Keep the original image until there is translated text to paint.
-        guard regions.contains(where: { $0.translation?.isEmpty == false }) else { return }
+        // A retry's OCR-only preview must not erase translations already recovered.
+        if ocrFallbacks[key]?.contains(where: { $0.translation?.isEmpty == false }) == true,
+           !regions.contains(where: { $0.translation?.isEmpty == false }) { return }
+        // OCR is useful immediately; translation updates replace this preview.
         activeRegions = regions
+        ocrFallbacks.removeValue(forKey: key)
         displayPreparedPages()
     }
 
@@ -563,7 +601,13 @@ final class ReaderTranslationSession {
                             scheduleMemoryRetry()
                             return
                         }
-                        cancelLayout(clearQueue: false)
+                        attemptedMemoryReclaim = false
+                        // Offscreen API waits can overlap the one prepared renderer.
+                        // Its image work shares admission with OCR; visible demand
+                        // still preempts an obsolete speculative snapshot.
+                        if !overlapsLayoutWithTranslation || visible.contains(where: {
+                            $0.sourcePage?.translationCacheKey == item.key
+                        }) { cancelLayout(clearQueue: false) }
                         ReaderTranslationDiagnostics.record("translation_start", page: item.position + 1)
                         regions = try await process(item.page, settings) { [weak self] regions in
                             try await self?.publishProgress(regions, key: key, generation: issued)
@@ -603,13 +647,9 @@ final class ReaderTranslationSession {
                     }
                     ReaderTranslationDiagnostics.record("page_failed", page: item.position + 1, code: code)
                     attempted.insert(item.key)
-                    // Retry before publishing OCR or reporting failure. Incomplete
-                    // fallback regions never enter the completed translation caches.
-                    if scheduleTransientRetry(error, key: item.key) {
-                        activeKey = nil
-                        activeRegions = nil
-                        continue
-                    }
+                    // Retain OCR and successful batches from the first failure,
+                    // including while the provider is being retried.
+                    // Partial pages must never enter the completed translation caches.
                     if let fallback = error as? ReaderTranslationOCRFallback {
                         ocrFallbacks[item.key] = fallback.regions
                         // Bound transient OCR fallback storage to nearby pages.
@@ -618,8 +658,18 @@ final class ReaderTranslationSession {
                         ocrFallbacks = ocrFallbacks.filter { keep.contains($0.key) }
                         displayPreparedPages()
                     }
-                    if error is ReaderTranslationOCRFallback || error is RemoteTranslationError || error is TranslationCredentialStoreError {
-                        if !didReportTranslationFailure { onFailure?(error); didReportTranslationFailure = true }
+                    if scheduleTransientRetry(error, key: item.key) {
+                        activeKey = nil
+                        activeRegions = nil
+                        continue
+                    }
+                    let isVisibleFailure = visible.isEmpty || visible.contains { $0.sourcePage?.translationCacheKey == item.key }
+                    let isTranslationFailure = error is ReaderTranslationOCRFallback || error is RemoteTranslationError
+                        || error is TranslationCredentialStoreError || error is URLError
+                    // An offscreen prefetch failure must not consume the visible page's notice.
+                    if isVisibleFailure, isTranslationFailure, !didReportTranslationFailure {
+                        onFailure?(error)
+                        didReportTranslationFailure = true
                     }
                     // A broken image must not stop preparation of the remaining chapter.
                 }

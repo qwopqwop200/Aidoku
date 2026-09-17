@@ -235,7 +235,7 @@ struct ReaderSourceTextColorTests {
                   let binary = '';
                   for (let i = 0; i < bytes.length; i += 8192)
                     binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-                  const cache = globalThis.__aidokuSourceTextColorsV7?.get(image);
+                  const cache = globalThis.__aidokuSourceTextColorsV8?.get(image);
                   const samples = cache ? Array.from(cache, ([key, sample]) =>
                     ({sourceBounds:key.split(',').map(Number), sample, provenance:'actual renderer sampler cache'})) : [];
                   return {width:canvas.width, height:canvas.height, rgbaBase64:btoa(binary),
@@ -378,7 +378,7 @@ struct ReaderSourceTextColorTests {
         ];
         samples.forEach((sample,index) => cache.set([index / 10,0,0.09,1].join(','),
           {background:[11,11,11],stroke:null,confidence:{stroke:0},...sample}));
-        globalThis.__aidokuSourceTextColorsV7 = new WeakMap([[image,cache]]);
+        globalThis.__aidokuSourceTextColorsV8 = new WeakMap([[image,cache]]);
         """, arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
         let fonts: [Double] = [9, 12, 5, 8.99, 12, 12]
         let items: [[String: Any]] = fonts.enumerated().map { index, font in
@@ -541,7 +541,57 @@ struct ReaderSourceTextColorTests {
         }
     }
 
+    @Test func tightOutlinedColumnsKeepTheObservedGrayPanel() async throws {
+        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 200, height: 400))
+        web.loadHTMLString("<html><body></body></html>", baseURL: nil)
+        for _ in 0..<100 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+        let result = try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
+        const values = [];
+        for (const gray of [128, 195]) {
+          const canvas = document.createElement('canvas'); canvas.width = 120; canvas.height = 360;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = `rgb(${gray},${gray},${gray})`; ctx.fillRect(0,0,120,360);
+          ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 5; ctx.fillStyle = '#08080a';
+          Array.from('いらないってばっ').forEach((letter,i) => {
+            ctx.strokeText(letter,60,45+i*36); ctx.fillText(letter,60,45+i*36);
+          });
+          const image = new Image(); image.src = canvas.toDataURL(); await image.decode();
+          values.push(aidokuSourceColorSampler(image,true).sample([49/120,18/360,22/120,284/360]));
+        }
+        return values;
+        """, arguments: [:], in: nil, contentWorld: .page)
+        let samples = try #require(result as? [[String: Any]])
+        #expect(samples.count == 2)
+        for (sample, gray) in zip(samples, [128, 195]) {
+            let background = try #require(sample["background"] as? [Int])
+            #expect(background.allSatisfy { abs($0 - gray) <= 4 })
+        }
+    }
+
     private nonisolated static var directory: URL { URL.documentsDirectory.appendingPathComponent("MangaQuality") }
+
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: directory.appendingPathComponent("user-source-color.png").path)))
+    func capturedOutlinedGrayBalloonKeepsItsBackground() async throws {
+        let source = try Data(contentsOf: Self.directory.appendingPathComponent("user-source-color.png"))
+        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 430, height: 932))
+        web.loadHTMLString("<html><body></body></html>", baseURL: nil)
+        for _ in 0..<100 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+        let result = try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
+        const image = new Image(); image.src = 'data:image/png;base64,' + encoded; await image.decode();
+        const sampler = aidokuSourceColorSampler(image,true);
+        return [[1067,26],[1072,23],[1075,20],[1077,16]].map(([x,w]) =>
+          sampler.sample([x/image.naturalWidth,677/image.naturalHeight,w/image.naturalWidth,271/image.naturalHeight]));
+        """, arguments: ["encoded": source.base64EncodedString()], in: nil, contentWorld: .page)
+        let samples = try #require(result as? [[String: Any]])
+        #expect(samples.count == 4)
+        for sample in samples {
+            let background = try #require(sample["background"] as? [Int])
+            #expect(zip(background, [195, 195, 199]).allSatisfy { abs($0 - $1) <= 4 })
+        }
+        try JSONSerialization.data(withJSONObject: samples, options: [.prettyPrinted, .sortedKeys])
+            .write(to: Self.directory.appendingPathComponent("user-source-color-samples.json"))
+    }
 
     @Test(.enabled(if: FileManager.default.fileExists(atPath: directory.appendingPathComponent("source-color-replay.json").path)))
     func realPageReplayExportsBeforeAndAfter() async throws {

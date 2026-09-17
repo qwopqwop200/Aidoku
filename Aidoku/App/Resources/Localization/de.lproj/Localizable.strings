@@ -627,7 +627,7 @@
 
 "TRANSLATION_CACHE_USED" = "Verwendeter Speicher";
 
-"TRANSLATION_CACHE_HELP" = "OCR, Seitenübersetzungen, Übersetzungen von Manga- und Kapiteltiteln, Manga-Beschreibungen und Textlayout werden automatisch gespeichert. Seitenbilder werden nur für die aktuelle Seite und benachbarte Seiten im Arbeitsspeicher gehalten. Bei Erreichen der Speichergrenze werden zuerst die Ergebnisse entfernt, deren letzte Verwendung am längsten zurückliegt. Standard: 1 GB. Maximum: 100 GB. Änderungen werden automatisch angewendet. Beim Senken der Grenze werden diese älteren Ergebnisse entfernt, bis der Cache innerhalb der Grenze liegt.";
+"TRANSLATION_CACHE_HELP" = "OCR, Seitenübersetzungen, Übersetzungen von Manga- und Kapiteltiteln, Autorennamen, Tags, Manga-Beschreibungen, Quellmenüs und Abschnittstiteln und Textlayout werden automatisch gespeichert. Seitenbilder werden nur für die aktuelle Seite und benachbarte Seiten im Arbeitsspeicher gehalten. Bei Erreichen der Speichergrenze werden zuerst die Ergebnisse entfernt, deren letzte Verwendung am längsten zurückliegt. Standard: 1 GB. Maximum: 100 GB. Änderungen werden automatisch angewendet. Beim Senken der Grenze werden diese älteren Ergebnisse entfernt, bis der Cache innerhalb der Grenze liegt.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filter für Ausgangssprachen";
 
@@ -659,7 +659,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Kapiteltitel übersetzen";
 
-"TRANSLATION_TITLES_HELP" = "Verwendet Ihre Übersetzungs-API und Zielsprache unabhängig von der automatischen Seitenübersetzung. Deaktivieren Sie diese Option, um Originaltitel und -beschreibungen anzuzeigen. Die Originale bleiben beim Laden oder bei fehlgeschlagener Übersetzung sichtbar.";
+"TRANSLATION_TITLES_HELP" = "Verwendet deine Übersetzungs-API und Zielsprache unabhängig von der automatischen Seitenübersetzung. Deaktiviere eine Option, um den jeweiligen Originaltext anzuzeigen. Die Originale bleiben beim Laden oder bei fehlgeschlagener Übersetzung sichtbar.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Manga-Titelsprachen";
 
@@ -673,7 +673,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Manga-Beschreibungssprachen";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Erkennt die Ausgangssprache automatisch und übersetzt nur die ausgewählten Sprachen. „Alle erkannten Sprachen“ hebt die Einschränkung auf. Die Filter für Seiten, Manga-Titel, Kapiteltitel und Beschreibungen arbeiten unabhängig voneinander.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Erkennt die Ausgangssprache automatisch und übersetzt nur die ausgewählten Sprachen. „Alle erkannten Sprachen“ hebt die Einschränkung auf. Der Sprachfilter jedes Eintrags ist unabhängig von den Spracheinstellungen für Seiten und andere Einträge.";
 
 "TRANSLATION_SFX_FILTER" = "SFX-Filterung (nur Japanisch)";
 
@@ -730,10 +730,10 @@
 "DOWNLOAD_INCOMPLETE" = "Unvollständiger Download";
 "CATEGORY_SEARCH" = "In der Kategorie suchen";
 "REFRESH_NO_WIFI" = "Nicht mit WLAN verbunden";
-"REFRESH_NO_WIFI_TEXT" = "Die Einstellung „Nur über WLAN aktualisieren“ ist aktiviert. Verbinde dich mit einem WLAN, um deine Bibliothek zu aktualisieren.";
+"REFRESH_NO_WIFI_TEXT" = "Die Einstellung „Nur mit WLAN aktualisieren“ ist aktiviert. Verbinde dich mit einem WLAN, um deine Bibliothek zu aktualisieren.";
 "REFRESH_ANYWAYS" = "Trotzdem aktualisieren";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Aus Bibliothek entfernen?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Wenn du diese Serie aus deiner Bibliothek entfernst, werden auch alle verknüpften Tracker entfernt. Möchtest du fortfahren?";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Wenn du diese Serie aus deiner Bibliothek entfernst, werden auch ihre Verknüpfungen mit Trackern entfernt. Möchtest du fortfahren?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Aktualisierung der Bibliothek unterbrochen";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Die letzte Bibliotheksaktualisierung wurde unterbrochen, bevor sie abgeschlossen war. Möchtest du sie fortsetzen?";
 "SHOW_UNCATEGORIZED_CATEGORY" = "Nicht kategorisierte Kategorie anzeigen";
@@ -985,7 +985,7 @@
 "INSTALL_SOURCES" = "Quellen installieren";
 "INSTALLING_SOURCES" = "Quellen werden installiert…";
 "SOURCE_IMPORT_FAIL_TEXT" = "Quelle konnte nicht importiert werden. Bitte stellen Sie sicher, dass Ihre AIX-Datei gültig ist.";
-"FILE_IMPORT_FAIL_TEXT" = "Die Datei konnte nicht importiert werden. Bitte stelle sicher, dass es sich um ein gültiges CBZ- oder ZIP-Archiv mit Bildern handelt.";
+"FILE_IMPORT_FAIL_TEXT" = "Die Datei konnte nicht importiert werden. Bitte stelle sicher, dass es sich um eine lesbare Bilddatei oder ein gültiges CBZ- oder ZIP-Archiv mit Bildern handelt.";
 "BACKUP_%@" = "Sicherung %@";
 "IMPORT_BACKUP" = "Backup importieren";
 "LIBRARY_ENTRIES" = "Bibliothekseinträge";
@@ -1091,3 +1091,10 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Die fünf enthaltenen Modelle lassen sich offline installieren. Installiere ein Modell und tippe anschließend unter „Aktiviertes Modell“ darauf. MangaJaNai ist für Schwarz-Weiß-Seiten mit etwa 1200 Pixeln Höhe gedacht; Farbseiten bleiben unverändert.";
 
 "DOWNLOAD_TRANSLATED" = "Mit Übersetzung herunterladen";
+
+"TRANSLATION_LLM_BACKGROUND" = "Hintergrundbeschriftungen überspringen (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "Die Übersetzungs-KI lässt beiläufige Schilder, Plakate und Hintergrundbeschriftungen unverändert. Dialoge, Erzähltext und nicht eindeutig zugeordneter Text werden übersetzt. Es wird keine zusätzliche Anfrage gestellt, die Verarbeitung kann jedoch länger dauern. Ohne Seitenbild ist die Einordnung weniger zuverlässig.";
+
+"TRANSLATION_STATE_ON" = "Ein";
+
+"TRANSLATION_STATE_OFF" = "Aus";

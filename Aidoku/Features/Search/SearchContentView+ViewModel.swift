@@ -32,6 +32,8 @@ extension SearchContentView {
         static let maxHistoryEntries = 20
 
         private var searchQuery: String = ""
+        private var generation = 0
+        private var searchIsDebouncing = false
         private var searchTask: Task<Void, Never>?
 
         var resultsIsEmpty: Bool {
@@ -51,23 +53,35 @@ extension SearchContentView.ViewModel {
         }
 
         if query.isEmpty {
+            generation += 1
             searchTask?.cancel()
+            searchIsDebouncing = false
+            results = []
             searchQuery = ""
             isLoading = false
             return
         }
 
-        guard searchQuery != query else { return }
+        guard searchQuery != query || (!delay && searchIsDebouncing) else { return }
+        generation += 1
+        let requestGeneration = generation
         searchTask?.cancel()
+        searchQuery = query
+        searchIsDebouncing = delay
+        results = []
         isLoading = true
         searchTask = Task {
             if delay {
-                try? await Task.sleep(nanoseconds: 3_000_000_000) // wait 1s
+                try? await Task.sleep(nanoseconds: 250_000_000)
             }
-            guard !Task.isCancelled else { return }
-            searchQuery = query
-            await fetchData(query: query)
+            guard !Task.isCancelled, generation == requestGeneration else { return }
+            searchIsDebouncing = false
+            await appendFetchedData(query: query, sources: filteredSources(), generation: requestGeneration)
         }
+    }
+
+    func waitForSearch() async {
+        await searchTask?.value
     }
 
     func clearHistory() {
@@ -89,9 +103,14 @@ extension SearchContentView.ViewModel {
     func updateFilters(_ filters: [FilterValue]) {
         self.filters = filters
         if !searchQuery.isEmpty {
+            generation += 1
+            let requestGeneration = generation
+            let query = searchQuery
             searchTask?.cancel()
+            searchIsDebouncing = false
+            isLoading = true
             searchTask = Task {
-                isLoading = true
+                guard !Task.isCancelled, generation == requestGeneration else { return }
 
                 let filteredSources: [AidokuRunner.Source] = filteredSources()
 
@@ -104,7 +123,7 @@ extension SearchContentView.ViewModel {
                 let newSources = filteredSources.filter { source in
                     !results.contains(where: { $0.source.key == source.key })
                 }
-                await appendFetchedData(query: searchQuery, sources: newSources)
+                await appendFetchedData(query: query, sources: newSources, generation: requestGeneration)
             }
         }
     }
@@ -171,16 +190,11 @@ extension SearchContentView.ViewModel {
         }
     }
 
-    private func fetchData(query: String) async {
-        results = []
-
-        guard !query.isEmpty else { return }
-
-        let sources = filteredSources()
-        await appendFetchedData(query: query, sources: sources)
-    }
-
-    private func appendFetchedData(query: String, sources: [AidokuRunner.Source]) async {
+    private func appendFetchedData(
+        query: String,
+        sources: [AidokuRunner.Source],
+        generation requestGeneration: Int
+    ) async {
         // sources freeze if we run too many tasks concurrently, so we limit it
         let maxConcurrentTasks = 3
 
@@ -195,6 +209,10 @@ extension SearchContentView.ViewModel {
 
             var index = maxConcurrentTasks
             while let (source, result) = await group.next() {
+                guard !Task.isCancelled, generation == requestGeneration else {
+                    group.cancelAll()
+                    return
+                }
                 if index < sources.count {
                     // once a task completes, we can start a new one if there are still sources left
                     let source = sources[index]
@@ -210,6 +228,7 @@ extension SearchContentView.ViewModel {
             }
         }
 
+        guard !Task.isCancelled, generation == requestGeneration else { return }
         isLoading = false
     }
 }

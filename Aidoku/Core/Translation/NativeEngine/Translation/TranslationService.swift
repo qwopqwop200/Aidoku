@@ -252,6 +252,30 @@ actor TranslationService {
         self.providerRequestLimiter = providerRequestLimiter
     }
 
+    /// Reads matching translations without entering provider admission.
+    func cachedResult(
+        _ request: RemoteTranslationRequest,
+        configuration: RemoteTranslationConfiguration
+    ) async throws -> RemoteTranslationBatchResult? {
+        try Task.checkCancellation()
+        try request.validate()
+        let canonical = request.canonicalizedForTranslationSemantics()
+        let key = TranslationCacheKey(configuration: configuration,
+                                      endpoint: try configuration.validatedEndpoint(), request: canonical.request)
+        while true {
+            try Task.checkCancellation()
+            let admittedGeneration = purgeGeneration
+            if let purgeTask { try await purgeTask.value; continue }
+            let lookup = await cache.lookup(for: key)
+            try Task.checkCancellation()
+            guard admittedGeneration == purgeGeneration, purgeTask == nil else { continue }
+            guard let cached = lookup.value else { return nil }
+            return try canonical.restoringCallerSegmentIDs(in: RemoteTranslationBatchResult(
+                translations: cached.translations, source: cached.source, providerRequestID: nil
+            ))
+        }
+    }
+
     func translate(
         _ request: RemoteTranslationRequest,
         configuration: RemoteTranslationConfiguration,
@@ -557,7 +581,8 @@ actor TranslationService {
         request: RemoteTranslationRequest,
         configuration: RemoteTranslationConfiguration,
         providerRequestLimiter: TranslationProviderRequestLimiter?,
-        priority: TranslationRequestPriority
+        priority: TranslationRequestPriority,
+        allowsParallelSplit: Bool = true
     ) async throws -> RemoteTranslationBatchResult {
         var attempt = 0
         while true {
@@ -619,17 +644,40 @@ actor TranslationService {
                     try Task.checkCancellation()
                     ReaderTranslationDiagnostics.record("api_batch_split", count: request.segments.count)
                     let middle = request.segments.count / 2
-                    var recovered: [RemoteTranslatedSegment] = []
-                    for segments in [Array(request.segments[..<middle]), Array(request.segments[middle...])] {
-                        try Task.checkCancellation()
+                    let parts = [Array(request.segments[..<middle]), Array(request.segments[middle...])].map { segments in
                         var part = RemoteTranslationRequest(sourceLanguage: request.sourceLanguage,
                             targetLanguage: request.targetLanguage, segments: segments,
                             context: request.context, glossary: request.glossary)
                         part.imageJPEG = request.imageJPEG
+                        part.preparedImageDataURL = request.preparedImageDataURL
                         part.filtersSFX = request.filtersSFX
-                        let result = try await requestProvider(client: client, request: part, configuration: configuration,
-                            providerRequestLimiter: providerRequestLimiter, priority: priority)
-                        recovered.append(contentsOf: result.translations)
+                        part.filtersBackground = request.filtersBackground
+                        return part
+                    }
+                    let recovered: [RemoteTranslatedSegment]
+                    if allowsParallelSplit, providerRequestLimiter != nil {
+                        // Only the first repair branches concurrently. Descendants
+                        // are serial so malformed responses cannot grow a task tree.
+                        recovered = try await withThrowingTaskGroup(of: (Int, [RemoteTranslatedSegment]).self) { group in
+                            for (index, part) in parts.enumerated() {
+                                group.addTask {
+                                    let value = try await requestProvider(client: client, request: part, configuration: configuration,
+                                        providerRequestLimiter: providerRequestLimiter, priority: priority, allowsParallelSplit: false)
+                                    return (index, value.translations)
+                                }
+                            }
+                            var values = [[RemoteTranslatedSegment]](repeating: [], count: parts.count)
+                            for try await (index, translations) in group { values[index] = translations }
+                            return values.flatMap { $0 }
+                        }
+                    } else {
+                        var values: [RemoteTranslatedSegment] = []
+                        for part in parts {
+                            let value = try await requestProvider(client: client, request: part, configuration: configuration,
+                                providerRequestLimiter: providerRequestLimiter, priority: priority, allowsParallelSplit: false)
+                            values.append(contentsOf: value.translations)
+                        }
+                        recovered = values
                     }
                     return RemoteTranslationBatchResult(translations: recovered, source: .network, providerRequestID: nil)
                 }
@@ -788,7 +836,18 @@ enum BoundedTranslationBatchExecutor {
             ),
             requests.count
         )
-        let submissionOrder = requests.indices.sorted { left, right in
+        // Publish every cache hit before any fallible provider request can cancel
+        // its siblings, including batches outside the current concurrency window.
+        var cachedResults = Array<RemoteTranslationBatchResult?>(repeating: nil, count: requests.count)
+        if usesCache {
+            for index in requests.indices {
+                if let result = try await service.cachedResult(requests[index], configuration: configuration) {
+                    cachedResults[index] = result
+                    try await onBatchCompleted?(index, result)
+                }
+            }
+        }
+        let submissionOrder = requests.indices.filter { cachedResults[$0] == nil }.sorted { left, right in
             let leftCount = requests[left].segments.count
             let rightCount = requests[right].segments.count
             if leftCount != rightCount {
@@ -812,12 +871,9 @@ enum BoundedTranslationBatchExecutor {
             defer { group.cancelAll() }
             var nextSubmission = 0
             var active = 0
-            var completedCount = 0
+            var completedCount = cachedResults.compactMap { $0 }.count
             var pendingProgress: IndexedBatchResult?
-            var orderedResults = Array<RemoteTranslationBatchResult?>(
-                repeating: nil,
-                count: requests.count
-            )
+            var orderedResults = cachedResults
             // Wake on promotion even when both speculative API batches are slow.
             if case .promotable(let promotion) = priority {
                 group.addTask {

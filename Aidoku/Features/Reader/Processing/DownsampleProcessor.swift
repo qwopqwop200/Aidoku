@@ -43,31 +43,16 @@ struct DownsampleProcessor: ImageProcessing {
             height: CGFloat(round(image.size.height * scale))
         )
 
-        var data = image.pngData()
-        if data == nil {
-            data = image.jpegData(compressionQuality: 1)
-            if data == nil {
-                return nil
+        // Resample the processed pixels directly. Encoding the full image as PNG
+        // first duplicates a large page and performs a needless encode/decode cycle.
+        return autoreleasepool {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = scaleFactor
+            format.preferredRange = .standard
+            format.opaque = false
+            return UIGraphicsImageRenderer(size: finalSize, format: format).image { _ in
+                image.draw(in: CGRect(origin: .zero, size: finalSize))
             }
         }
-
-        let imageSourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
-        guard let imageSource = CGImageSourceCreateWithData(data! as CFData, imageSourceOptions) else {
-            return nil
-        }
-
-        let maxDimension = round(max(finalSize.width, finalSize.height) * scaleFactor)
-        let options = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxDimension
-        ] as [CFString: Any] as CFDictionary
-
-        guard let output = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options) else {
-            return nil
-        }
-
-        return PlatformImage(cgImage: output, scale: scaleFactor, orientation: image.imageOrientation)
     }
 }

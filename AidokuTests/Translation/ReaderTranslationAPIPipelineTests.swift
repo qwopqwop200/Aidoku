@@ -4,6 +4,31 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationAPIPipelineTests {
+    @Test func failedAPIPreservesPartialTranslationWithoutCompletingDiskCache() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let disk = ReaderTranslationDiskCache(directory: root)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let preloader = ReaderTranslationPreloader(diskCache: disk, translator: { regions, _, progress in
+            var partial = regions
+            partial[0].translation = "캐시된 번역"
+            try await progress?(partial)
+            throw RemoteTranslationError.missingCredential
+        }, recognizer: { _, _ in [APIPipelineRecorder.region(0), APIPipelineRecorder.region(1)] },
+           availableMemory: { UInt64.max })
+        defer { preloader.cancel() }
+        let value = settings()
+        do {
+            _ = try await preloader.translate(page(0), settings: value)
+            Issue.record("Expected provider failure")
+        } catch let fallback as ReaderTranslationOCRFallback {
+            #expect(fallback.regions[0].translation == "캐시된 번역")
+            #expect(fallback.regions[1].translation == nil)
+            #expect(fallback.underlying is RemoteTranslationError)
+        }
+        let key = ReaderTranslationCacheIdentity.translation(page: page(0).translationCacheKey, settings: value)
+        #expect(try await disk.contains(key, kind: .translation) == false)
+    }
+
     @Test func nextPageAPIOverlapsBlockedCurrentPageAndLookaheadStaysBounded() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let disk = ReaderTranslationDiskCache(directory: root)

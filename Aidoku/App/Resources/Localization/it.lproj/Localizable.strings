@@ -512,7 +512,7 @@
 
 "TRANSLATION_HELP" = "L’icona di traduzione attiva o disattiva la traduzione. Vengono preparate prima le pagine visibili, poi quelle vicine. La preparazione segue la tua posizione di lettura. I risultati OCR, le traduzioni e il layout del testo salvati possono essere riutilizzati dopo aver riaperto il lettore o riavviato l’app. Le immagini condivise temporanee non salvano questa cache. Uscire dal lettore annulla il lavoro non completato.";
 
-"TRANSLATION_PRIVACY" = "L'OCR viene eseguito sul tuo dispositivo. La traduzione invia il testo riconosciuto e le istruzioni al fornitore selezionato. Se Includi immagine pagina nella traduzione è abilitato, viene caricata anche l'immagine della pagina originale. I costi API dipendono dal tuo provider. Le chiavi rimangono nel portachiavi. OCR, traduzioni e layout del testo vengono salvati nell'archivio protetto dell'app escluso dai backup.";
+"TRANSLATION_PRIVACY" = "L'OCR viene eseguito sul tuo dispositivo. La traduzione invia il testo riconosciuto e le istruzioni al fornitore selezionato. Se «Includi l'immagine della pagina nella traduzione» è abilitato, viene caricata anche l'immagine della pagina originale. I costi API dipendono dal tuo provider. Le chiavi rimangono nel portachiavi. OCR, traduzioni e layout del testo vengono salvati nell'archivio protetto dell'app escluso dai backup.";
 
 "TRANSLATION_KEY_REPLACE" = "Sostituisci la chiave API salvata (facoltativo)";
 
@@ -616,7 +616,7 @@
 
 "TRANSLATION_CACHE_USED" = "Spazio di archiviazione utilizzato";
 
-"TRANSLATION_CACHE_HELP" = "Salva automaticamente i risultati OCR, le traduzioni delle pagine, dei titoli di manga e capitoli, le descrizioni dei manga e la disposizione del testo. Le immagini vengono mantenute solo in memoria per la pagina attuale e quelle vicine. Al raggiungimento del limite selezionato vengono rimossi i risultati non utilizzati da più tempo. Limite predefinito: 1 GB. Massimo: 100 GB. Le modifiche si applicano automaticamente; riducendo il limite vengono rimossi i risultati non utilizzati da più tempo finché la cache non rientra nel limite.";
+"TRANSLATION_CACHE_HELP" = "Salva automaticamente i risultati OCR, le traduzioni delle pagine, dei titoli di manga e capitoli, dei nomi degli autori, dei tag, delle descrizioni dei manga, dei menu delle fonti e dei titoli delle sezioni, oltre alla disposizione del testo. Le immagini vengono mantenute solo in memoria per la pagina attuale e quelle vicine. Al raggiungimento del limite selezionato vengono rimossi i risultati non utilizzati da più tempo. Limite predefinito: 1 GB. Massimo: 100 GB. Le modifiche si applicano automaticamente; riducendo il limite vengono rimossi i risultati non utilizzati da più tempo finché la cache non rientra nel limite.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filtro delle lingue di origine";
 
@@ -648,7 +648,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Traduci i titoli dei capitoli";
 
-"TRANSLATION_TITLES_HELP" = "Utilizza l'API di traduzione e la lingua di destinazione indipendentemente dalla traduzione automatica della pagina. Disattiva per mostrare titoli e descrizioni originali. Gli originali rimangono visibili durante il caricamento o se la traduzione fallisce.";
+"TRANSLATION_TITLES_HELP" = "Utilizza l’API di traduzione e la lingua di destinazione indipendentemente dalla traduzione automatica delle pagine. Disattiva un’opzione per mostrare il testo originale corrispondente. Gli originali rimangono visibili durante il caricamento o se la traduzione fallisce.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Lingue dei titoli dei manga";
 
@@ -662,7 +662,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Lingue delle descrizioni dei manga";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Rileva automaticamente la lingua di origine e traduce solo le lingue selezionate. L’opzione Tutte le lingue rilevate rimuove la restrizione. I filtri delle pagine, dei titoli dei manga, dei titoli dei capitoli e delle descrizioni funzionano in modo indipendente.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Rileva automaticamente la lingua di origine e traduce solo le lingue selezionate. L’opzione Tutte le lingue rilevate rimuove la restrizione. Il filtro della lingua di ogni elemento è indipendente dalle impostazioni della lingua delle pagine e degli altri elementi.";
 
 "TRANSLATION_SFX_FILTER" = "Filtraggio SFX (solo giapponese)";
 
@@ -978,7 +978,7 @@
 "INSTALL_SOURCES" = "Installa fonti";
 "INSTALLING_SOURCES" = "Installazione delle fonti…";
 "SOURCE_IMPORT_FAIL_TEXT" = "Impossibile importare la fonte. Assicurati che il file .aix sia valido.";
-"FILE_IMPORT_FAIL_TEXT" = "Impossibile importare il file. Assicurati che sia un archivio CBZ o ZIP valido che contenga immagini.";
+"FILE_IMPORT_FAIL_TEXT" = "Impossibile importare il file. Assicurati che sia un file immagine leggibile o un archivio CBZ o ZIP valido contenente immagini.";
 "BACKUP_%@" = "Backup %@";
 "LIBRARY_ENTRIES" = "Elementi della Raccolta";
 "SENSITIVE_SETTINGS" = "Impostazioni sensibili";
@@ -1091,3 +1091,9 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "I cinque modelli inclusi possono essere installati offline. Installa un modello, poi selezionalo in «Modello abilitato». MangaJaNai è pensato per pagine in bianco e nero alte circa 1200 pixel; le pagine a colori rimangono invariate.";
 
 "DOWNLOAD_TRANSLATED" = "Scarica con traduzione";
+
+"TRANSLATION_LLM_BACKGROUND" = "Ignora le scritte di sfondo (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "L’IA di traduzione lascia invariate le scritte secondarie su cartelli, poster e sfondi. I dialoghi, la narrazione e i testi incerti vengono tradotti. Non vengono effettuate richieste aggiuntive, ma l’elaborazione potrebbe richiedere più tempo. La classificazione è meno affidabile senza un’immagine della pagina.";
+
+"TRANSLATION_STATE_ON" = "Attivata";
+"TRANSLATION_STATE_OFF" = "Disattivata";

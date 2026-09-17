@@ -5,6 +5,66 @@ import Testing
 @testable import Aidoku
 
 struct NativeOCRRecognitionRegressionTests {
+    @Test(arguments: 1...7)
+    func dynamicBatchesPreservePixelsOrderAndPartialCacheHits(count: Int) async throws {
+        let width = 32, height = 180
+        var bytes = [UInt8](repeating: 255, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width { bytes[(y * width + x) * 4 + 2] = UInt8(y / 20) }
+        }
+        let frame = try #require(NativeOCRRGBAFrame(width: width, height: height, bytes: bytes))
+        let regions = (0..<count).map { index in
+            NativeCoreMLRecognitionRegion(sourceIndex: index, polygon: [
+                CGPoint(x: 0, y: index * 20), CGPoint(x: 8, y: index * 20),
+                CGPoint(x: 8, y: index * 20 + 4), CGPoint(x: 0, y: index * 20 + 4)
+            ])
+        }
+        let predictor = OCRPixelPredictor()
+        let recognizer = try NativeCoreMLRecognizer(
+            predictor: predictor,
+            dictionary: (0..<NativeCoreMLRecognizer.expectedDictionaryCharacterCount).map { "line-\($0)" },
+            recognitionCacheCapacity: 128,
+            dynamicWidth: true
+        )
+        // Preload just one crop so the next request exercises partial hits
+        // inside batches of two, three, and four as well as singleton tails.
+        _ = try await recognizer.recognize(frame: frame, regions: [regions[0]])
+        let result = try await recognizer.recognize(frame: frame, regions: Array(regions.reversed()))
+        #expect(result.regions.map(\.sourceIndex) == Array(0..<count))
+        #expect(result.regions.map(\.text) == (0..<count).map { "line-\($0)" })
+        #expect(result.diagnostics.cacheHitRegions == 1)
+        #expect(result.diagnostics.predictedRegions == count - 1)
+        #expect(predictor.maximumActivePredictions == 1)
+        let batchSizes = result.diagnostics.modelFunctionSequence.compactMap { $0.last?.wholeNumberValue }
+        #expect(batchSizes.reduce(0, +) == count - 1)
+        let cached = try await recognizer.recognize(frame: frame, regions: regions)
+        #expect(cached.regions == result.regions)
+        #expect(cached.diagnostics.predictedRegions == 0)
+        await recognizer.purgeResources()
+    }
+
+    @Test func precomputedSamplingCoordinatesPreserveEveryFloatBit() throws {
+        let width = 128, height = 192
+        var bytes = [UInt8](repeating: 0, count: width * height * 4)
+        for index in bytes.indices {
+            bytes[index] = UInt8((index * 37 + index / 17) % 256)
+        }
+        let frame = try #require(NativeOCRRGBAFrame(width: width, height: height, bytes: bytes))
+        for index in 0..<24 {
+            let x = CGFloat(index % 4 * 7 - 9), y = CGFloat(index % 5 * 11 - 8)
+            let w = CGFloat(10 + index * 13 % 100), h = CGFloat(12 + index * 29 % 170)
+            let polygon = [CGPoint(x: x, y: y), CGPoint(x: x + w, y: y + 2),
+                           CGPoint(x: x + w - 3, y: y + h), CGPoint(x: x + 1, y: y + h - 2)]
+            let actual = try #require(NativeCoreMLRecognitionPreprocessor.prepare(frame: frame, polygon: polygon))
+            #if DEBUG
+            let reference = try #require(NativeCoreMLRecognitionPreprocessor.prepareReferenceForTesting(frame: frame, polygon: polygon))
+            #expect(actual.resizedWidth == reference.resizedWidth)
+            #expect(actual.rotatedCounterClockwise == reference.rotatedCounterClockwise)
+            #expect(actual.values.map { $0.bitPattern } == reference.values.map { $0.bitPattern })
+            #endif
+        }
+    }
+
     @Test func optInAuditIncludesRejectedAndEmptyDecodesWithoutExtraPrediction() async throws {
         let width = 32
         let height = 60

@@ -292,6 +292,19 @@ extension DownloadManager {
         await queue.queue
     }
 
+    func setWifiAvailable(_ available: Bool) async {
+        await queue.setWifiAvailable(available)
+        invalidateDownloadedMangaCache()
+    }
+
+    func applicationDidEnterBackground() async {
+        await queue.applicationDidEnterBackground()
+    }
+
+    func applicationDidBecomeActive() async {
+        await queue.applicationDidBecomeActive()
+    }
+
     func pauseDownloads() async {
         await queue.pause()
         NotificationCenter.default.post(name: .downloadsPaused, object: nil)

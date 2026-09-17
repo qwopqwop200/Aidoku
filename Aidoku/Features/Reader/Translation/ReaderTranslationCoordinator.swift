@@ -27,6 +27,22 @@ extension ReaderViewController: ReaderTranslationOwner {
     var translationChapterKey: String { chapter.key }
 }
 
+// Only isolated adjacent turns use the shorter debounce. Keep startup, jumps,
+// scrubbing and rapid reversals conservative without retaining any page images.
+struct ReaderTranslationNavigationDebounce {
+    private var previous: (chapter: String, index: Int, time: TimeInterval)?
+
+    mutating func reset() { previous = nil }
+
+    mutating func delay(chapter: String, index: Int, now: TimeInterval) -> UInt64 {
+        defer { previous = (chapter, index, now) }
+        guard let previous, previous.chapter == chapter,
+              abs(index - previous.index) == 1,
+              now - previous.time >= 0.7 else { return 350_000_000 }
+        return 180_000_000
+    }
+}
+
 @MainActor
 final class ReaderTranslationCoordinator {
     private weak var owner: (any ReaderTranslationOwner)?
@@ -34,11 +50,14 @@ final class ReaderTranslationCoordinator {
     private let layoutPreparer = ReaderTranslationLayoutPreparer()
     private lazy var button = UIBarButtonItem(image: UIImage(systemName: "character.bubble"), style: .plain, target: self, action: #selector(toggle))
     private var observers: [NSObjectProtocol] = []
+    private var failureNotice: UIView?
+    private var failureNoticeTask: Task<Void, Never>?
     private var isVisible = false
     private var synchronizationTask: Task<Void, Never>?
     private var memoryRecoveryTask: Task<Void, Never>?
     private var navigationIdentity: String?
     private var isScrubbing = false
+    private var navigationDebounce = ReaderTranslationNavigationDebounce()
     private let session: ReaderTranslationSession
     private let readSettings: () -> ReaderTranslationSettings
     private let setEnabled: (Bool) -> Void
@@ -74,12 +93,12 @@ final class ReaderTranslationCoordinator {
         self.session.onStateChanged = { [weak self] state in
             self?.button.image = UIImage(systemName: state == .on ? "character.bubble.fill" : "character.bubble")
             self?.button.tintColor = state == .on ? .systemGreen : .secondaryLabel
-            self?.button.accessibilityValue = state == .on ? "ON" : "OFF"
+            self?.button.accessibilityValue = NSLocalizedString(state == .on ? "TRANSLATION_STATE_ON" : "TRANSLATION_STATE_OFF")
         }
         self.session.onFailure = { [weak self] error in
             guard let self else { return }
-            // Automatic recovery is silent; keep failure details available to accessibility.
             button.accessibilityHint = error.localizedDescription
+            showFailureNotice(error)
         }
         for name in [ReaderTranslationSettings.changed, ReaderTranslationPage.imageChanged, UIApplication.didBecomeActiveNotification] {
             observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
@@ -111,9 +130,67 @@ final class ReaderTranslationCoordinator {
     }
 
     deinit {
+        failureNoticeTask?.cancel()
         memoryRecoveryTask?.cancel()
         synchronizationTask?.cancel()
         observers.forEach { NotificationCenter.default.removeObserver($0) }
+    }
+
+    private func dismissFailureNotice() {
+        failureNoticeTask?.cancel()
+        failureNoticeTask = nil
+        failureNotice?.removeFromSuperview()
+        failureNotice = nil
+    }
+
+    private func showFailureNotice(_ error: Error) {
+        guard isVisible, let host = (owner as? UIViewController)?.viewIfLoaded,
+              host.window != nil else { return }
+        dismissFailureNotice()
+        let notice = UIVisualEffectView(effect: UIBlurEffect(style: .systemMaterial))
+        notice.accessibilityIdentifier = "reader.translation.failure"
+        notice.layer.cornerRadius = 12
+        notice.clipsToBounds = true
+        let label = UILabel()
+        label.font = .preferredFont(forTextStyle: .footnote)
+        label.adjustsFontForContentSizeCategory = true
+        label.numberOfLines = 3
+        label.text = error is ReaderTranslationOCRFallback
+            ? NSLocalizedString("TRANSLATION_CONNECTION_FAILED_NOTICE")
+            : NSLocalizedString("TRANSLATION_TITLE") + ": " + error.localizedDescription
+        let retry = UIButton(type: .system)
+        retry.setTitle(NSLocalizedString("RETRY"), for: .normal)
+        retry.accessibilityIdentifier = "reader.translation.retry"
+        retry.setContentCompressionResistancePriority(.required, for: .horizontal)
+        retry.addAction(UIAction { [weak self] _ in
+            guard let self else { return }
+            dismissFailureNotice()
+            button.accessibilityHint = nil
+            session.retryVisibleFailures()
+        }, for: .touchUpInside)
+        let stack = UIStackView(arrangedSubviews: [label, retry])
+        stack.spacing = 12
+        stack.alignment = .center
+        notice.contentView.addSubview(stack)
+        host.addSubview(notice)
+        notice.translatesAutoresizingMaskIntoConstraints = false
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            notice.leadingAnchor.constraint(equalTo: host.safeAreaLayoutGuide.leadingAnchor, constant: 16),
+            notice.trailingAnchor.constraint(equalTo: host.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            notice.topAnchor.constraint(equalTo: host.safeAreaLayoutGuide.topAnchor, constant: 12),
+            stack.leadingAnchor.constraint(equalTo: notice.contentView.leadingAnchor, constant: 12),
+            stack.trailingAnchor.constraint(equalTo: notice.contentView.trailingAnchor, constant: -12),
+            stack.topAnchor.constraint(equalTo: notice.contentView.topAnchor, constant: 8),
+            stack.bottomAnchor.constraint(equalTo: notice.contentView.bottomAnchor, constant: -8),
+            retry.heightAnchor.constraint(greaterThanOrEqualToConstant: 44)
+        ])
+        failureNotice = notice
+        UIAccessibility.post(notification: .announcement, argument: label.text)
+        failureNoticeTask = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: 8_000_000_000) } catch { return }
+            self?.dismissFailureNotice()
+        }
     }
 
     func install() {
@@ -129,6 +206,7 @@ final class ReaderTranslationCoordinator {
     }
 
     @objc func toggle() {
+        dismissFailureNotice()
         if session.state != .off || readSettings().automaticallyTranslate {
             synchronizationTask?.cancel()
             synchronizationTask = nil
@@ -142,11 +220,22 @@ final class ReaderTranslationCoordinator {
     }
 
     func resume() { isVisible = true; visiblePagesDidChange() }
-    func suspend() { isVisible = false; session.disable(reason: "reader_left") }
+    func suspend() {
+        dismissFailureNotice()
+        isVisible = false
+        synchronizationTask?.cancel()
+        synchronizationTask = nil
+        navigationDebounce.reset()
+        navigationIdentity = nil
+        session.disable(reason: "reader_left")
+    }
     func cancel(reason: String = "cancelled") { session.suspendWorkForResourcePressure() }
     func close() {
+        dismissFailureNotice()
         memoryRecoveryTask?.cancel()
         memoryRecoveryTask = nil
+        synchronizationTask?.cancel()
+        synchronizationTask = nil
         isVisible = false
         session.close()
         // The selected OCR models remain warm across readers. Memory pressure
@@ -155,6 +244,7 @@ final class ReaderTranslationCoordinator {
 
     func sliderInteractionBegan() {
         isScrubbing = true
+        navigationDebounce.reset()
         synchronizationTask?.cancel()
         synchronizationTask = nil
         session.pauseForPageTurn()
@@ -162,6 +252,7 @@ final class ReaderTranslationCoordinator {
 
     func sliderInteractionEnded() {
         isScrubbing = false
+        navigationDebounce.reset()
         navigationIdentity = nil
         visiblePagesDidChange()
     }
@@ -170,7 +261,12 @@ final class ReaderTranslationCoordinator {
         guard isVisible, let owner else { return }
         let identity = owner.translationChapterKey + ":" + String(owner.translationCurrentPageIndex)
         let moved = navigationIdentity != identity
+        var delay: UInt64 = 80_000_000
         if moved {
+            dismissFailureNotice()
+            delay = navigationDebounce.delay(chapter: owner.translationChapterKey,
+                                             index: owner.translationCurrentPageIndex,
+                                             now: ProcessInfo.processInfo.systemUptime)
             navigationIdentity = identity
             let pages = owner.translationUpcomingPages
             let index = owner.translationCurrentPageIndex
@@ -183,7 +279,7 @@ final class ReaderTranslationCoordinator {
         session.refreshVisiblePages(owner.translationVisiblePages)
         guard !isScrubbing, synchronizationTask == nil else { return }
         synchronizationTask = Task { [weak self] in
-            do { try await Task.sleep(nanoseconds: moved ? 350_000_000 : 80_000_000) }
+            do { try await Task.sleep(nanoseconds: delay) }
             catch { return }
             guard !Task.isCancelled, let self else { return }
             synchronizationTask = nil

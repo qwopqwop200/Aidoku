@@ -35,6 +35,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var provider: RemoteTranslationProvider = .openAI
     var automaticallyTranslate = true
     var includePageImage = false
+    var filterBackgroundWithLLM = false
     var filterSFXWithLLM = false
     var filterJapaneseSFX = false
     var filterJapaneseSFXContext = false
@@ -105,6 +106,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         automaticallyTranslate = defaults.object(forKey: Self.keyPrefix + "automatic") as? Bool ?? automaticallyTranslate
         includePageImage = defaults.bool(forKey: Self.keyPrefix + "includePageImage")
         filterSFXWithLLM = defaults.bool(forKey: Self.keyPrefix + "filterSFXWithLLM")
+        filterBackgroundWithLLM = defaults.bool(forKey: Self.keyPrefix + "filterBackgroundWithLLM")
         filterJapaneseSFX = defaults.bool(forKey: Self.keyPrefix + "filterJapaneseSFX")
         filterJapaneseSFXContext = defaults.bool(forKey: Self.keyPrefix + "filterJapaneseSFXContext")
         translateMangaTitles = defaults.bool(forKey: Self.keyPrefix + "mangaTitles")
@@ -249,6 +251,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         defaults.set(provider.rawValue, forKey: Self.keyPrefix + "provider")
         defaults.set(includePageImage, forKey: Self.keyPrefix + "includePageImage")
         defaults.set(filterSFXWithLLM, forKey: Self.keyPrefix + "filterSFXWithLLM")
+        defaults.set(filterBackgroundWithLLM, forKey: Self.keyPrefix + "filterBackgroundWithLLM")
         defaults.set(automaticallyTranslate, forKey: Self.keyPrefix + "automatic")
         defaults.set(filterJapaneseSFX, forKey: Self.keyPrefix + "filterJapaneseSFX")
         defaults.set(filterJapaneseSFXContext, forKey: Self.keyPrefix + "filterJapaneseSFXContext")

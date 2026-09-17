@@ -5,6 +5,37 @@ import UIKit
 @testable import Aidoku
 
 struct TranslationHTTPCodecTests {
+    @Test(arguments: [false, true])
+    func editorialTitlePolicyInvalidatesOldFilteredResponses(withImage: Bool) throws {
+        var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", sourceText: "星の旅人")
+        request.filtersBackground = true
+        request.filtersSFX = true
+        if withImage { request.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9]) }
+        let configuration = RemoteTranslationConfiguration(provider: .custom, apiProtocol: .responses,
+            baseURL: "https://translator.example", model: "test", credentialAccount: "test")
+        let body = try TranslationHTTPCodec.requestBody(configuration: configuration, request: request)
+        let root = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let instructions = try #require(root["instructions"] as? String)
+        #expect(instructions.contains("Cover titles, chapter headings, subtitles, credits and editorial captions are not SFX"))
+        #expect(instructions.contains("A cover illustration is not an in-scene poster"))
+        let key = TranslationCacheKey(configuration: configuration,
+            endpoint: try configuration.validatedEndpoint(), request: request)
+        // An old all-original classification must miss even when model/settings are unchanged.
+        let encoded = try JSONEncoder().encode(key)
+        var old = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        old["backgroundPolicy"] = "llm-background-v2-role"
+        old["sfxPolicy"] = "llm-sfx-v4-editorial-titles"
+        let oldKey = try JSONDecoder().decode(TranslationCacheKey.self,
+            from: JSONSerialization.data(withJSONObject: old))
+        #expect(key != oldKey)
+        old["backgroundPolicy"] = TranslationHTTPCodec.backgroundPolicy
+        let oldSFXKey = try JSONDecoder().decode(TranslationCacheKey.self,
+            from: JSONSerialization.data(withJSONObject: old))
+        #expect(key != oldSFXKey)
+        #expect(instructions.contains("classify BEFORE translating"))
+        #expect(instructions.contains(withImage ? "Small, thin, unobtrusive handwritten effects" : "No image is attached"))
+    }
+
     @Test func pageImageEncodingResizesAndProducesJPEG() throws {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
@@ -104,11 +135,13 @@ struct TranslationHTTPCodecTests {
         #expect(instructions.contains("Return only a JSON object"))
     }
 
-    @Test func firstMalformedBatchSplitsImmediatelyAndRestoresCallerIDs() async throws {
+    @Test(arguments: [false, true])
+    func firstMalformedBatchSplitsImmediatelyAndRestoresCallerIDs(parallel: Bool) async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
         let client = MalformedBatchClient()
-        let service = TranslationService(client: client, cache: try TranslationCache(storageRootURL: root))
+        let service = TranslationService(client: client, cache: try TranslationCache(storageRootURL: root),
+            providerRequestLimiter: parallel ? TranslationProviderRequestLimiter(maximumConcurrentRequests: 2) : nil)
         var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",
             segments: (0..<4).map { .init(id: "bubble-\($0)", text: "文\($0)") }, context: ["文脈"])
         request.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9])
@@ -116,7 +149,14 @@ struct TranslationHTTPCodecTests {
         #expect(result.translations.map(\.id) == request.segments.map(\.id))
         #expect(result.translations.map(\.text) == request.segments.map { "번역 " + $0.text })
         let calls = await client.sizes
-        #expect(calls == [4, 2, 1, 1, 2, 1, 1])
+        if parallel {
+            #expect(calls.first == 4)
+            #expect(calls.sorted() == [1, 1, 1, 1, 2, 2, 4])
+            #expect(await client.peak == 2)
+        } else {
+            #expect(calls == [4, 2, 1, 1, 2, 1, 1])
+            #expect(await client.peak == 1)
+        }
         #expect(await client.contexts.allSatisfy { $0 == ["文脈"] })
         #expect(await client.images.allSatisfy { $0 == request.imageJPEG })
     }
@@ -494,6 +534,8 @@ struct TranslationHTTPCodecTests {
 }
 
 private actor MalformedBatchClient: RemoteTranslating {
+    var active = 0
+    var peak = 0
     var sizes: [Int] = []
     var contexts: [[String]] = []
     var images: [Data?] = []
@@ -501,6 +543,10 @@ private actor MalformedBatchClient: RemoteTranslating {
     init(refuses: Bool = false) { self.refuses = refuses }
     func translate(_ request: RemoteTranslationRequest,
                    configuration: RemoteTranslationConfiguration) async throws -> RemoteTranslationBatchResult {
+        active += 1
+        peak = max(peak, active)
+        defer { active -= 1 }
+        try await Task.sleep(for: .milliseconds(10))
         sizes.append(request.segments.count)
         contexts.append(request.context)
         images.append(request.imageJPEG)

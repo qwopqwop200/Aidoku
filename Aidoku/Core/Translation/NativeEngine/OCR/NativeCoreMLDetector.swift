@@ -1438,6 +1438,7 @@ enum NativeCoreMLDetectionPreprocessor {
     static func prepare(
         frame: NativeOCRRGBAFrame,
         canvas: NativeCoreMLDetectionCanvas = .square,
+        useBoundedMemory: Bool = true,
         cancellationCheck: () throws -> Void = {}
     ) throws -> NativeCoreMLDetectionPreparedTensor {
         try cancellationCheck()
@@ -1450,6 +1451,15 @@ enum NativeCoreMLDetectionPreprocessor {
               dimensions.height <= canvas.height
         else {
             throw NativeCoreMLDetectorError.modelInputCreationFailed
+        }
+        // Every source size previously built its own GPU resize/normalization
+        // graph below the 4 MP cutoff. Its full-resolution intermediates and
+        // runtime caches survive individual pages and even model eviction.
+        // Sample directly into the bounded canvas for ALL page sizes; retain
+        // full-resolution RGBA only for the unchanged recognition crops.
+        if useBoundedMemory {
+            return try prepareBounded(frame: frame, canvas: canvas, dimensions: dimensions,
+                                      cancellationCheck: cancellationCheck)
         }
         let inputTensorStarted = nowMilliseconds()
         let contiguousRGBA = makeContiguousRGBA(frame: frame)
@@ -1534,6 +1544,51 @@ enum NativeCoreMLDetectionPreprocessor {
             inputTensorCreationMilliseconds: inputTensorElapsed,
             tensorGraphMilliseconds: tensorGraphElapsed
         )
+    }
+
+    static func prepareBounded(
+        frame: NativeOCRRGBAFrame, canvas: NativeCoreMLDetectionCanvas,
+        dimensions: (width: Int, height: Int), cancellationCheck: () throws -> Void = {}
+    ) throws -> NativeCoreMLDetectionPreparedTensor {
+        guard dimensions.width > 0, dimensions.height > 0,
+              dimensions.width <= canvas.width, dimensions.height <= canvas.height else {
+            throw NativeCoreMLDetectorError.modelInputCreationFailed
+        }
+        let started = nowMilliseconds()
+        let plane = canvas.width * canvas.height
+        var values = [Float](repeating: 0, count: plane * 3)
+        let scaleX = Float(frame.width) / Float(dimensions.width)
+        let scaleY = Float(frame.height) / Float(dimensions.height)
+        try frame.bytes.withUnsafeBufferPointer { source in
+            try values.withUnsafeMutableBufferPointer { target in
+                for y in 0..<dimensions.height {
+                    try cancellationCheck()
+                    try Task.checkCancellation()
+                    let sourceY = min(Float(frame.height - 1), max(0, (Float(y) + 0.5) * scaleY - 0.5))
+                    let y0 = Int(sourceY), y1 = min(y0 + 1, frame.height - 1)
+                    let fy = sourceY - Float(y0)
+                    for x in 0..<dimensions.width {
+                        let sourceX = min(Float(frame.width - 1), max(0, (Float(x) + 0.5) * scaleX - 0.5))
+                        let x0 = Int(sourceX), x1 = min(x0 + 1, frame.width - 1)
+                        let fx = sourceX - Float(x0)
+                        for channel in 0..<3 {
+                            let offset = 2 - channel // detector uses BGR
+                            let a = Float(source[y0 * frame.bytesPerRow + x0 * 4 + offset])
+                            let b = Float(source[y0 * frame.bytesPerRow + x1 * 4 + offset])
+                            let c = Float(source[y1 * frame.bytesPerRow + x0 * 4 + offset])
+                            let d = Float(source[y1 * frame.bytesPerRow + x1 * 4 + offset])
+                            let pixel = (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy
+                            target[channel * plane + y * canvas.width + x] =
+                                (pixel / 255 - channelMean[channel]) / channelStandardDeviation[channel]
+                        }
+                    }
+                }
+            }
+        }
+        let input = MLTensor(shape: canvas.inputShape, scalars: values)
+        return NativeCoreMLDetectionPreparedTensor(input: input, canvas: canvas,
+            resizedWidth: dimensions.width, resizedHeight: dimensions.height,
+            inputTensorCreationMilliseconds: nowMilliseconds() - started, tensorGraphMilliseconds: 0)
     }
 
     private static func makeContiguousRGBA(

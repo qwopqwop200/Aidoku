@@ -39,20 +39,6 @@ class SourceSearchViewController: MangaCollectionViewController {
         super.init()
     }
 
-    override func configure() {
-        super.configure()
-
-        errorView.onRetry = { [weak self] in
-            guard let self else { return }
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            self.viewModel.loadManga(
-                searchText: self.searchText,
-                filters: self.enabledFilters,
-                force: true
-            )
-        }
-    }
-
     override func observe() {
         super.observe()
 
@@ -77,12 +63,11 @@ class SourceSearchViewController: MangaCollectionViewController {
         viewModel.$error
             .sink { [weak self] error in
                 guard let self else { return }
-                if let error {
-                    self.errorView.setError(error)
-                    self.errorView.show()
+                // Search failures leave an empty result list, without an error overlay.
+                // A failed next page keeps the results that have already loaded.
+                self.errorView.hide(animated: false)
+                if error != nil && self.viewModel.entries.isEmpty {
                     self.clearEntries()
-                } else {
-                    self.errorView.hide()
                 }
             }
             .store(in: &cancellables)
@@ -134,7 +119,7 @@ extension SourceSearchViewController {
     ) {
         let mangaCount = viewModel.entries.count
         let hasMore = viewModel.hasMore
-        if indexPath.row == mangaCount - 1 && hasMore {
+        if viewModel.error == nil && mangaCount > 0 && indexPath.item >= max(0, mangaCount - SourcePrefetchPolicy.threshold(for: collectionView)) && hasMore {
             Task {
                 await viewModel.loadMore(searchText: searchText, filters: enabledFilters)
             }
@@ -157,7 +142,7 @@ extension SourceSearchViewController {
         viewModel.loadManga(
             searchText: searchText,
             filters: enabledFilters,
-            force: true
+            force: viewModel.error != nil
         )
     }
 

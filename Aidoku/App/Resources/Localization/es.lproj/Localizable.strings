@@ -564,7 +564,7 @@
 "UPDATE_AFTER_READING_INFO" = "Después de leer un capítulo, actualizar el rastreador para que coincida con el capítulo y/o volumen leído actualmente.";
 "DEMO_KOMGA_SERVER_INFO" = "Puedes iniciar sesión en el servidor de demostración de Komga utilizando el correo electrónico \"demo@komga.org\" y la contraseña \"komga-demo\".";
 "DEMO_KAVITA_SERVER_INFO" = "Puedes iniciar sesión en el servidor de demostración de Kavita utilizando el nombre de usuario \"demouser\" y la contraseña \"Demouser64\".";
-"FILE_IMPORT_FAIL_TEXT" = "Error al importar el archivo. Asegúrate de que sea un archivo CBZ o ZIP válido que contenga imágenes.";
+"FILE_IMPORT_FAIL_TEXT" = "Error al importar el archivo. Asegúrate de que sea un archivo de imagen legible o un archivo CBZ o ZIP válido que contenga imágenes.";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "Tu token %@ ha expirado, por lo que el rastreador asociado dejará de funcionar hasta que vuelvas a iniciar sesión en la configuración.";
 "HIGHEST_FIRST" = "Más alto primero";
 "LOWEST_FIRST" = "Más bajo primero";
@@ -695,10 +695,10 @@
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Desactivar el seguimiento de una fuente elimina todos sus vínculos de seguimiento. Activarlo vincula automáticamente los títulos de esa fuente que estén en tu biblioteca.";
 "TRACKER_LOGOUT_INFO" = "Al cerrar sesión se eliminará la información vinculada a este servicio de seguimiento para todas las series.";
 "REFRESH_NO_WIFI" = "No conectado a la Wi-Fi";
-"REFRESH_NO_WIFI_TEXT" = "La opción \"Actualizar solo con Wi-Fi\" está activada, por lo que la biblioteca no se puede actualizar hasta que haya una conexión Wi-Fi disponible.";
+"REFRESH_NO_WIFI_TEXT" = "La opción \"Solo actualizar con Wi-Fi\" está activada, por lo que la biblioteca no se puede actualizar hasta que haya una conexión Wi-Fi disponible.";
 "REFRESH_ANYWAYS" = "Actualizar de todos modos";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "¿Eliminar de la biblioteca?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Si eliminas esta serie de tu biblioteca, también se eliminarán todos los seguimientos vinculados. ¿Seguro que quieres proceder?";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Si eliminas esta serie de tu biblioteca, también se eliminarán sus vínculos con los servicios de seguimiento. ¿Seguro que quieres continuar?";
 "INCOGNITO_FILTERS_NOTICE" = "Los filtros modificados no se conservan en el modo incógnito.";
 "API_KEY" = "Clave API";
 "BASIC_LOGIN" = "Inicio de sesión básico";
@@ -871,7 +871,7 @@
 
 "TRANSLATION_CACHE_USED" = "Almacenamiento utilizado";
 
-"TRANSLATION_CACHE_HELP" = "Guarda automáticamente los resultados del OCR, las traducciones de páginas, títulos de manga y capítulos, las descripciones de manga y la distribución del texto. Las imágenes solo se conservan en memoria para la página actual y las páginas cercanas. Al alcanzar el límite seleccionado, se eliminan los resultados que llevan más tiempo sin usarse. Valor predeterminado: 1 GB. Máximo: 100 GB. Los cambios se aplican automáticamente; al reducir el límite, se eliminan los resultados que llevan más tiempo sin usarse hasta que la caché quede dentro del límite.";
+"TRANSLATION_CACHE_HELP" = "Guarda automáticamente los resultados del OCR, las traducciones de páginas, títulos de manga y capítulos, nombres de autores, etiquetas, descripciones de manga, menús de fuentes y títulos de secciones, así como la distribución del texto. Las imágenes solo se conservan en memoria para la página actual y las páginas cercanas. Al alcanzar el límite seleccionado, se eliminan los resultados que llevan más tiempo sin usarse. Valor predeterminado: 1 GB. Máximo: 100 GB. Los cambios se aplican automáticamente; al reducir el límite, se eliminan los resultados que llevan más tiempo sin usarse hasta que la caché quede dentro del límite.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filtro de idiomas de origen";
 
@@ -903,7 +903,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Traducir títulos de capítulos";
 
-"TRANSLATION_TITLES_HELP" = "Utiliza su API de traducción y el idioma de destino independientemente de la traducción automática de la página. Desactívelo para mostrar títulos y descripciones originales. Los originales permanecen visibles mientras se cargan o si falla la traducción.";
+"TRANSLATION_TITLES_HELP" = "Utiliza tu API de traducción y el idioma de destino independientemente de la traducción automática de páginas. Desactiva una opción para mostrar el texto original correspondiente. Los originales permanecen visibles durante la carga o si falla la traducción.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Idiomas del título del manga";
 
@@ -917,7 +917,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Idiomas de las descripciones de manga";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Detecta automáticamente el idioma de origen y traduce solo los idiomas seleccionados. Todos los idiomas detectados elimina la restricción. Los filtros de página, título de manga, título de capítulo y descripción funcionan de forma independiente.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Detecta automáticamente el idioma de origen y traduce solo los idiomas seleccionados. Todos los idiomas detectados elimina la restricción. El filtro de idioma de cada elemento es independiente de los ajustes de idioma de las páginas y de los demás elementos.";
 
 "TRANSLATION_SFX_FILTER" = "Filtrado SFX (solo japonés)";
 
@@ -995,7 +995,7 @@
 "LONG_PRESS" = "Pulsación larga";
 "LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Al tocar el comienzo de una palabra se activará la ventana emergente. Esto desactiva el doble toque para hacer zoom cuando está habilitado.";
 "LOOKUP_GESTURE_LONG_PRESS_INFO" = "Mantener presionado el comienzo de una palabra la resaltará y soltarla activará la ventana emergente. Esto deshabilita las acciones rápidas de la página cuando está habilitado.";
-"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Bloqueado por gesto de búsqueda: pulsación única.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Bloqueado por gesto de búsqueda: Un solo toque.";
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Bloqueado por gesto de búsqueda: pulsación larga.";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "Superposición de texto OCR";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Muestra cuadros de texto en regiones de imágenes cuando se activa una búsqueda. Esto puede resultar útil para determinar qué texto ha sido reconocido correctamente por OCR.";
@@ -1091,3 +1091,9 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Los cinco modelos incluidos se pueden instalar sin conexión. Instala un modelo y selecciónalo en «Modelo activado». MangaJaNai está diseñado para páginas en blanco y negro de unos 1200 píxeles de alto; las páginas en color no se modifican.";
 
 "DOWNLOAD_TRANSLATED" = "Descargar con traducción";
+
+"TRANSLATION_LLM_BACKGROUND" = "Omitir textos de fondo (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "La IA de traducción deja sin cambios los letreros, carteles y textos de fondo secundarios. Los diálogos, la narración y los textos dudosos se traducen. No se realiza ninguna solicitud adicional, pero el procesamiento puede tardar más. La clasificación es menos fiable sin una imagen de la página.";
+
+"TRANSLATION_STATE_ON" = "Activada";
+"TRANSLATION_STATE_OFF" = "Desactivada";

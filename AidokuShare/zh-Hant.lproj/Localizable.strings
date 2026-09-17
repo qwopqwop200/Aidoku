@@ -2,6 +2,6 @@
 "DONE" = "完成";
 "FILE_IMPORT_FAIL_TEXT" = "檔案匯入失敗，請確保這是一個有效且含有圖片的 CBZ 或 ZIP 壓縮檔。";
 "FORMAT_IMAGE" = "圖片";
-"SHARED_IMAGES_SAVED" = "圖片已儲存。開啟 Aidoku 即可自動匯入本機檔案。";
+"SHARED_IMAGES_SAVED" = "圖片已儲存。開啟 Aidoku 即可閱讀。";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "無法讀取分享的圖片。請嘗試其他圖片。";

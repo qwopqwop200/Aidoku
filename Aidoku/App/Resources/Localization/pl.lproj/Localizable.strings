@@ -475,7 +475,7 @@
 
 "TRANSLATION_CACHE_USED" = "Zajęte miejsce";
 
-"TRANSLATION_CACHE_HELP" = "Automatycznie zapisuje wyniki OCR, tłumaczenia stron, tytułów mang i rozdziałów, opisów mang oraz układ tekstu. Obrazy stron pozostają wyłącznie w pamięci operacyjnej dla bieżącej i pobliskich stron. Po osiągnięciu limitu usuwane są wyniki, z których najdłużej nie korzystano. Domyślnie: 1 GB. Maksymalnie: 100 GB. Zmiany są stosowane automatycznie; zmniejszenie limitu usuwa najdawniej używane wyniki, aż pamięć podręczna zmieści się w limicie.";
+"TRANSLATION_CACHE_HELP" = "Automatycznie zapisuje wyniki OCR, tłumaczenia stron, tytułów mang i rozdziałów, imion i nazwisk autorów, tagów, opisów mang, menu i tytułów sekcji źródeł oraz układ tekstu. Obrazy stron pozostają wyłącznie w pamięci operacyjnej dla bieżącej i pobliskich stron. Po osiągnięciu limitu usuwane są wyniki, z których najdłużej nie korzystano. Domyślnie: 1 GB. Maksymalnie: 100 GB. Zmiany są stosowane automatycznie; zmniejszenie limitu usuwa najdawniej używane wyniki, aż pamięć podręczna zmieści się w limicie.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filtr języków źródłowych tłumaczenia";
 
@@ -507,7 +507,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Przetłumacz tytuły rozdziałów";
 
-"TRANSLATION_TITLES_HELP" = "Korzysta z interfejsu API tłumaczenia i języka docelowego niezależnie od automatycznego tłumaczenia stron. Wyłącz, aby wyświetlać oryginalne tytuły i opisy. Oryginały pozostają widoczne podczas ładowania lub w przypadku niepowodzenia tłumaczenia.";
+"TRANSLATION_TITLES_HELP" = "Korzysta z Twojego API tłumaczenia i języka docelowego niezależnie od automatycznego tłumaczenia stron. Wyłącz daną opcję, aby wyświetlać jej oryginalny tekst. Oryginały pozostają widoczne podczas ładowania lub w przypadku niepowodzenia tłumaczenia.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Języki tytułów mangi";
 
@@ -521,7 +521,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Języki opisu mangi";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Automatycznie wykrywaj język źródłowy i tłumacz tylko wybrane języki. Opcja Wszystkie wykryte języki usuwa ograniczenie. Filtry strony, tytułu mangi, tytułu rozdziału i opisu działają niezależnie.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Automatycznie wykrywa język źródłowy i tłumaczy tylko wybrane języki. Opcja Wszystkie wykryte języki usuwa ograniczenie. Filtr języka każdego elementu działa niezależnie od ustawień języka stron i innych elementów.";
 
 "TRANSLATION_SFX_FILTER" = "Filtrowanie SFX (tylko język japoński)";
 
@@ -617,7 +617,7 @@
 "REFRESH_NO_WIFI_TEXT" = "Opcja aktualizacji tylko przez Wi-Fi jest włączona. Połącz się z Wi-Fi, aby odświeżyć swoją bibliotekę.";
 "REFRESH_ANYWAYS" = "Odśwież mimo wszystko";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Usunąć z biblioteki?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Usunięcie tej serii z biblioteki spowoduje również usunięcie wszystkich połączonych modułów śledzących. Czy na pewno chcesz kontynuować?";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Usunięcie tej serii z biblioteki usunie również jej powiązania z modułami śledzącymi. Czy na pewno chcesz kontynuować?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Odświeżanie biblioteki zostało przerwane";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Ostatnie odświeżenie biblioteki zostało przerwane przed jego ukończeniem. Czy chcesz wznowić?";
 "CATEGORY" = "Kategoria";
@@ -913,7 +913,7 @@
 "LONG_PRESS" = "Długie naciśnięcie";
 "LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Dotknięcie początku słowa otwiera wyskakujące okno. W tym trybie powiększanie podwójnym dotknięciem jest wyłączone.";
 "LOOKUP_GESTURE_LONG_PRESS_INFO" = "Przytrzymanie palca na początku słowa podświetla je, a zwolnienie otwiera wyskakujące okno. W tym trybie szybkie akcje strony są wyłączone.";
-"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Zablokowany przez gest wyszukiwania: pojedyncze naciśnięcie.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Zablokowane przez gest wyszukiwania: pojedyncze dotknięcie.";
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Zablokowany przez gest wyszukiwania: długie naciśnięcie.";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "Nakładka tekstowa OCR";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Wyświetla pola tekstowe w obszarach obrazu, gdy włączone jest wyszukiwanie. Może to być pomocne w ustaleniu, który tekst został poprawnie rozpoznany przez OCR.";
@@ -971,7 +971,7 @@
 "INSTALL_SOURCES" = "Zainstaluj źródła";
 "INSTALLING_SOURCES" = "Instaluję źródła…";
 "SOURCE_IMPORT_FAIL_TEXT" = "Nie udało się zaimportować źródła. Upewnij się, że plik aix jest prawidłowy.";
-"FILE_IMPORT_FAIL_TEXT" = "Nie udało się zaimportować pliku. Upewnij się, że jest to prawidłowe archiwum CBZ lub ZIP zawierające obrazy.";
+"FILE_IMPORT_FAIL_TEXT" = "Nie udało się zaimportować pliku. Upewnij się, że jest to plik obrazu, który można odczytać, lub prawidłowe archiwum CBZ albo ZIP zawierające obrazy.";
 "BACKUP_%@" = "Kopia zapasowa %@";
 "CREATE_BACKUP" = "Utwórz kopię zapasową";
 "IMPORT_BACKUP" = "Importuj kopię zapasową";
@@ -1089,3 +1089,9 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Pięć dołączonych modeli można zainstalować bez połączenia z internetem. Zainstaluj model, a następnie wybierz go w sekcji „Włączony model”. MangaJaNai jest przeznaczony do stron czarno-białych o wysokości około 1200 pikseli; kolorowe strony pozostają bez zmian.";
 
 "DOWNLOAD_TRANSLATED" = "Pobierz z tłumaczeniem";
+
+"TRANSLATION_LLM_BACKGROUND" = "Pomijaj napisy w tle (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "AI tłumacząca pozostawia bez zmian poboczne szyldy, plakaty i napisy w tle. Dialogi, narracja i tekst o niepewnej klasyfikacji są tłumaczone. Nie są wysyłane dodatkowe żądania, ale przetwarzanie może potrwać dłużej. Klasyfikacja jest mniej wiarygodna bez obrazu strony.";
+
+"TRANSLATION_STATE_ON" = "Włączone";
+"TRANSLATION_STATE_OFF" = "Wyłączone";

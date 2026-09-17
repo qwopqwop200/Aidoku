@@ -21,22 +21,34 @@ enum ReaderTranslationBalloonMerger {
                 rect: CGRect(x: $0.rect.minX * width, y: $0.rect.minY * height,
                              width: $0.rect.width * width, height: $0.rect.height * height)) },
             coordinateSize: CGSize(width: width, height: height))
-        // Closed-component evidence is strongest. Only use the bridge fallback
-        // for a remaining single column immediately beside an existing block.
-        let claimed = Set(groups.filter { $0.count >= 2 }.flatMap { $0 })
-        let ordered = candidates.filter { !claimed.contains($0.id) }.sorted { $0.rect.midX > $1.rect.midX }
+        // Closed-component evidence is strongest. Translucent balloons can
+        // expose artwork behind one column and break that white component.
+        // A clear gutter can still connect aligned, similarly sized columns.
+        let enclosedCandidates = Set(groups.flatMap { $0 })
+        // A connected component may span multiple balloon lobes and fail the
+        // geometry checks below. Do not reserve its columns before validation:
+        // doing so prevents a valid neighbouring pair from using the bridge.
+        let ordered = candidates.sorted { $0.rect.midX > $1.rect.midX }
         var bridgeClaimed = Set<String>()
         for (right, left) in zip(ordered, ordered.dropFirst()) {
             guard !bridgeClaimed.contains(right.id), !bridgeClaimed.contains(left.id),
-                  (right.sourceSingleVerticalColumn == false && left.sourceSingleVerticalColumn == true) ||
-                    (right.sourceSingleVerticalColumn == true && left.sourceSingleVerticalColumn == false),
                   min(right.source.count, left.source.count) >= 3 else { continue }
             let small = min(right.rect.width, left.rect.width), large = max(right.rect.width, left.rect.width)
             let gap = right.rect.minX - left.rect.maxX
             let overlap = min(right.rect.maxY, left.rect.maxY) - max(right.rect.minY, left.rect.minY)
             let box = right.rect.union(left.rect)
-            guard large >= small * 1.8, large <= small * 3.5, gap >= -small * 0.2, gap <= small * 0.65,
-                  overlap >= min(right.rect.height, left.rect.height) * 0.5,
+            let mixedBlock = ((right.sourceSingleVerticalColumn == false && left.sourceSingleVerticalColumn == true) ||
+                (right.sourceSingleVerticalColumn == true && left.sourceSingleVerticalColumn == false)) &&
+                large >= small * 1.8 && large <= small * 3.5 && gap <= small * 0.65 &&
+                overlap >= min(right.rect.height, left.rect.height) * 0.5
+            let alignedColumns = right.sourceSingleVerticalColumn != false && left.sourceSingleVerticalColumn != false &&
+                (enclosedCandidates.contains(right.id) || enclosedCandidates.contains(left.id)) &&
+                large <= small * 1.6 && gap <= small * 1.2 &&
+                // Leading vertical ellipses can be omitted by recognition,
+                // leaving the first lexical column one or two glyphs lower.
+                abs(right.rect.minY - left.rect.minY) * height <= small * width * 1.75 &&
+                overlap >= min(right.rect.height, left.rect.height) * 0.75
+            guard gap >= -small * 0.2, mixedBlock || alignedColumns,
                   !regions.contains(where: { $0.id != right.id && $0.id != left.id && $0.rect.intersects(box) }) else { continue }
             func pixels(_ rect: CGRect) -> CGRect { CGRect(x: rect.minX * width, y: rect.minY * height, width: rect.width * width, height: rect.height * height) }
             if ReaderTranslationEnclosedBackground.hasClearVerticalBridge(in: image, left: pixels(left.rect), right: pixels(right.rect)) {
@@ -44,7 +56,9 @@ enum ReaderTranslationBalloonMerger {
             }
         }
         var replacements: [String: ReaderTranslationRegion] = [:], removed = Set<String>()
+        var consumed = Set<String>()
         for ids in groups where (2...4).contains(ids.count) {
+            guard consumed.isDisjoint(with: ids) else { continue }
             let members = candidates.filter { ids.contains($0.id) }.sorted { $0.rect.midX > $1.rect.midX }
             guard let first = members.first, let smallest = members.map({ $0.rect.width }).min(), smallest > 0,
                   members.allSatisfy({ $0.rect.width <= smallest * ($0.sourceSingleVerticalColumn == false ? 3.5 : 1.6) }) else { continue }
@@ -70,6 +84,7 @@ enum ReaderTranslationBalloonMerger {
             // did not include. Lettering or an overlapping balloon can split
             // the white component even though the outer rectangle looks close.
             guard !regions.contains(where: { !ids.contains($0.id) && $0.rect.intersects(box) }) else { continue }
+            consumed.formUnion(ids)
             let anchor = regions.first { ids.contains($0.id) }!
             var joined = ReaderTranslationRegion(id: anchor.id, rect: box,
                 source: members.map(\.source).joined(), confidence: members.map(\.confidence).min() ?? 1,

@@ -607,7 +607,7 @@
 "FOCUS_ITEM_NEXT" = "Focar o próximo elemento";
 "FOCUS_ITEM_PREV" = "Focar o elemento anterior";
 "REFRESH_NO_WIFI" = "Não conectado ao Wi-Fi";
-"REFRESH_NO_WIFI_TEXT" = "A opção \"Apenas Atualizar com Wi-Fi\" está ativada, a biblioteca não pode ser atualizada até uma ligação Wi-Fi estar disponível.";
+"REFRESH_NO_WIFI_TEXT" = "A opção \"Apenas Atualizar no Wi-Fi\" está ativada, a biblioteca não pode ser atualizada até uma ligação Wi-Fi estar disponível.";
 
 "TRANSLATION_TITLE" = "OCR e tradução";
 
@@ -733,7 +733,7 @@
 
 "TRANSLATION_CACHE_USED" = "Armazenamento usado";
 
-"TRANSLATION_CACHE_HELP" = "Guarda automaticamente os resultados de OCR, as traduções de páginas, títulos de manga e capítulos, as descrições de manga e a disposição do texto. As imagens são mantidas apenas em memória para a página atual e as páginas próximas. Ao atingir o limite selecionado, são removidos os resultados que não são usados há mais tempo. Predefinição: 1 GB. Máximo: 100 GB. As alterações são aplicadas automaticamente; reduzir o limite remove os resultados que não são usados há mais tempo até a cache caber no limite.";
+"TRANSLATION_CACHE_HELP" = "Guarda automaticamente os resultados de OCR, as traduções de páginas, títulos de manga e capítulos, nomes de autores, etiquetas, descrições de manga, menus das fontes e títulos de secções, bem como a disposição do texto. As imagens são mantidas apenas em memória para a página atual e as páginas próximas. Ao atingir o limite selecionado, são removidos os resultados que não são usados há mais tempo. Predefinição: 1 GB. Máximo: 100 GB. As alterações são aplicadas automaticamente; reduzir o limite remove os resultados que não são usados há mais tempo até a cache caber no limite.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filtro de idiomas de origem";
 
@@ -765,7 +765,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Traduzir títulos de capítulos";
 
-"TRANSLATION_TITLES_HELP" = "Usa sua API de tradução e idioma de destino independentemente da tradução automática de páginas. Desligue para mostrar títulos e descrições originais. Os originais permanecem visíveis durante o carregamento ou se a tradução falhar.";
+"TRANSLATION_TITLES_HELP" = "Usa a sua API de tradução e o idioma de destino independentemente da tradução automática de páginas. Desative uma opção para mostrar o texto original correspondente. Os originais permanecem visíveis durante o carregamento ou se a tradução falhar.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Idiomas dos títulos de manga";
 
@@ -779,7 +779,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Idiomas de descrição de mangá";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Deteta automaticamente o idioma de origem e traduz apenas os idiomas selecionados. A opção Todos os idiomas detetados remove a restrição. Os filtros das páginas, dos títulos de manga, dos títulos dos capítulos e das descrições funcionam de forma independente.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Deteta automaticamente o idioma de origem e traduz apenas os idiomas selecionados. A opção Todos os idiomas detetados remove a restrição. O filtro de idioma de cada elemento é independente das definições de idioma das páginas e dos outros elementos.";
 
 "TRANSLATION_SFX_FILTER" = "Filtragem SFX (somente em japonês)";
 
@@ -1000,7 +1000,7 @@
 "INSTALL_SOURCES" = "Instalar fontes";
 "INSTALLING_SOURCES" = "Instalando fontes…";
 "SOURCE_IMPORT_FAIL_TEXT" = "Não foi possível importar a fonte. Certifique-se de que o ficheiro .aix é válido.";
-"FILE_IMPORT_FAIL_TEXT" = "Não foi possível importar o ficheiro. Certifique-se de que é um arquivo CBZ ou ZIP válido que contém imagens.";
+"FILE_IMPORT_FAIL_TEXT" = "Não foi possível importar o ficheiro. Certifique-se de que é um ficheiro de imagem legível ou um arquivo CBZ ou ZIP válido que contém imagens.";
 "SENSITIVE_SETTINGS" = "Configurações sensíveis";
 "BACKUP_INFO_TITLE" = "Informações de backup";
 "LAST_BACKED_UP_%@" = "Último backup automático: %@";
@@ -1089,3 +1089,9 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Cinco modelos incluídos podem ser instalados offline. Instale um modelo e toque nele em Modelo ativado. MangaJaNai é para páginas em preto e branco com cerca de 1200 pixels de altura; as páginas coloridas permanecem inalteradas.";
 
 "DOWNLOAD_TRANSLATED" = "Descarregar com tradução";
+
+"TRANSLATION_LLM_BACKGROUND" = "Ignorar texto de fundo (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "A IA de tradução deixa inalterado o texto secundário em placas, cartazes e fundos. Os diálogos, a narração e o texto incerto são traduzidos. Não é feito nenhum pedido adicional, mas o processamento pode demorar mais. A classificação é menos fiável sem uma imagem da página.";
+
+"TRANSLATION_STATE_ON" = "Ativada";
+"TRANSLATION_STATE_OFF" = "Desativada";

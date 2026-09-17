@@ -25,6 +25,20 @@ actor SourceViewModel {
     @MainActor
     private var savedSelectedFilters: [FilterBase]?
     private var searchTask: Task<(), any Error>?
+    private var generation = 0
+    private var loadingGeneration: Int?
+    private let pageLoader: (@Sendable (Int) async throws -> MangaPageResult)?
+
+    init(pageLoader: (@Sendable (Int) async throws -> MangaPageResult)? = nil) {
+        self.pageLoader = pageLoader
+    }
+
+    private func invalidatePages() {
+        generation += 1
+        loadingGeneration = nil
+        searchTask?.cancel()
+        searchTask = nil
+    }
 
     func loadListings() async {
         guard let source = source else { return }
@@ -46,32 +60,44 @@ actor SourceViewModel {
     }
 
     func loadNextMangaPage() async {
-        guard let source = source else { return }
-        if currentPage == nil {
-            manga = []
+        guard source != nil || pageLoader != nil,
+              loadingGeneration != generation, currentPage == nil || hasMore else { return }
+        let requestGeneration = generation
+        loadingGeneration = requestGeneration
+        defer {
+            if generation == requestGeneration { loadingGeneration = nil }
         }
         let page = (currentPage ?? 0) + 1
         let result: MangaPageResult?
-        if let currentListing = currentListing {
+        if let pageLoader {
+            result = try? await pageLoader(page)
+        } else if let source, let currentListing = currentListing {
             // load current listing
             result = try? await source.getMangaListing(listing: currentListing, page: page)
-        } else if let titleQuery = titleQuery {
+        } else if let source, let titleQuery = titleQuery {
             // load search results
             if let searchTask = searchTask { // ensure active search task wasn't cancelled
                 guard !searchTask.isCancelled else { return }
             }
             result = try? await source.fetchSearchManga(query: titleQuery, filters: selectedFilters.filters, page: page)
-        } else {
+        } else if let source {
             // load regular manga list
             result = try? await source.getMangaList(filters: selectedFilters.filters, page: page)
+        } else {
+            return
         }
-        let mangaInfo = result?.manga.map { $0.toInfo() } ?? []
+        guard !Task.isCancelled, generation == requestGeneration, let result else { return }
+        // A failed request must not consume the page or mark the listing exhausted.
+        if currentPage == nil { manga = [] }
+        var ids = Set(manga.map(\.id))
+        let mangaInfo = result.manga.map { $0.toInfo() }.filter { ids.insert($0.id).inserted }
         currentPage = page
-        hasMore = result?.hasNextPage ?? false
+        hasMore = result.hasNextPage
         manga.append(contentsOf: mangaInfo)
     }
 
     func search(titleQuery: String?) async -> Bool {
+        invalidatePages()
         manga = []
         currentPage = nil
         hasMore = true
@@ -164,6 +190,7 @@ actor SourceViewModel {
 extension SourceViewModel {
 
     func setSource(_ source: Source?) {
+        invalidatePages()
         self.source = source
     }
 
@@ -172,10 +199,13 @@ extension SourceViewModel {
     }
 
     func setCurrentPage(_ currentPage: Int?) {
+        invalidatePages()
+        if currentPage == nil { hasMore = true }
         self.currentPage = currentPage
     }
 
     func setCurrentListing(_ currentListing: Int?) {
+        invalidatePages()
         if let currentListing = currentListing {
             self.currentListing = listings[currentListing]
         } else {
@@ -184,6 +214,7 @@ extension SourceViewModel {
     }
 
     func setTitleQuery(_ titleQuery: String?) {
+        invalidatePages()
         self.titleQuery = titleQuery
     }
 

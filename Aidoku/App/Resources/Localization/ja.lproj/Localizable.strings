@@ -459,10 +459,10 @@
 "REFRESHING_LIBRARY" = "ライブラリを更新中…";
 "PROCESSING_ENTRIES" = "項目を処理中…";
 "REFRESH_NO_WIFI" = "Wi-Fiに接続されていません";
-"REFRESH_NO_WIFI_TEXT" = "「Wi-Fi接続時のみ更新」が有効になっているため、Wi-Fiに接続されるまでライブラリを更新できません。";
+"REFRESH_NO_WIFI_TEXT" = "「Wi-Fiでのみ更新する」が有効になっているため、Wi-Fiに接続されるまでライブラリを更新できません。";
 "REFRESH_ANYWAYS" = "それでも更新";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "ライブラリから削除しますか？";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "この作品をライブラリから削除すると、リンクされているすべてのトラッカーも削除されます。本当に続行しますか？";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "この作品をライブラリから削除すると、この作品とトラッカーの連携も解除されます。本当に続行しますか？";
 "CATEGORY" = "本棚";
 "UNCATEGORIZED" = "未分類";
 "FILTER_GROUPS" = "フィルターグループ";
@@ -725,7 +725,7 @@
 "GET_RECOMMENDED_DICTIONARIES" = "おすすめの辞書を取得";
 "RECOMMENDED_DICTIONARIES" = "おすすめの辞書";
 "SOURCE_IMPORT_FAIL_TEXT" = "ソースのインポートに失敗しました。aixファイルが有効であることを確認してください。";
-"FILE_IMPORT_FAIL_TEXT" = "ファイルのインポートに失敗しました。画像が含まれる有効なCBZまたはZIPアーカイブであることを確認してください。";
+"FILE_IMPORT_FAIL_TEXT" = "ファイルのインポートに失敗しました。読み取り可能な画像ファイル、または画像を含む有効なCBZ・ZIPアーカイブであることを確認してください。";
 "BACKUP_%@" = "バックアップ %@";
 "CREATE_BACKUP" = "バックアップを作成";
 "IMPORT_BACKUP" = "バックアップをインポート";
@@ -835,7 +835,7 @@
 "TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "追加モデルを使わずに原文の文字色を推定します。推定が不確かな場合や背景とのコントラストが低い場合は標準の文字色を使います。";
 
 "TRANSLATION_LLM_SFX" = "LLM効果音フィルタリング（全言語）";
-"TRANSLATION_LLM_SFX_HELP" = "翻訳リクエストで効果音も判定します。日本語ローカルフィルターと併用でき、どちらかが効果音と判定すれば原文のまま残します。ページ画像の送信と併用できます。";
+"TRANSLATION_LLM_SFX_HELP" = "翻訳リクエストで効果音も判定します。日本語ローカルフィルターと併用でき、どちらかが効果音と判定すれば原文のまま残します。「翻訳にページ画像を添付」と併用できます。";
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "画像が入力されない場合、文脈や配置を確認しにくいため、効果音の判定精度が下がることがあります。";
 "TRANSLATION_SOURCE_BACKGROUND_COLOR" = "原文の背景色を維持";
 "TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "原文の文字周辺の背景色を翻訳パネルに適用します。推定が不確か、または読みにくい場合は標準のパネルを使います。設定した不透明度は維持されます。";
@@ -964,7 +964,7 @@
 
 "TRANSLATION_CACHE_USED" = "使用容量";
 
-"TRANSLATION_CACHE_HELP" = "OCR・ページ翻訳・漫画と章のタイトル翻訳・漫画の説明文の翻訳・テキスト配置を自動保存します。ページ画像は現在と周辺ページのメモリにのみ保持されます。容量が上限に達すると、最後に使用してから最も時間が経った結果から削除します。初期値は1GB、最大は100GBです。変更は自動適用され、上限を下げると容量内に収まるまで、最も長く使用していない結果から削除します。";
+"TRANSLATION_CACHE_HELP" = "OCR・ページ翻訳・漫画と章のタイトル・作者名・タグ・漫画の説明文・ソースのメニューとセクション名の翻訳・テキスト配置を自動保存します。ページ画像は現在と周辺ページのメモリにのみ保持されます。容量が上限に達すると、最後に使用してから最も時間が経った結果から削除します。初期値は1GB、最大は100GBです。変更は自動適用され、上限を下げると容量内に収まるまで、最も長く使用していない結果から削除します。";
 
 "TRANSLATION_SOURCE_FILTER" = "翻訳対象の原文言語";
 
@@ -996,7 +996,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "章のタイトルを翻訳";
 
-"TRANSLATION_TITLES_HELP" = "ページの自動翻訳とは独立して動作し、設定済みの翻訳APIと翻訳先言語を使用します。オフにすると元のタイトルと説明文を表示します。翻訳の読み込み中や失敗時には原文を表示します。";
+"TRANSLATION_TITLES_HELP" = "ページの自動翻訳とは独立して動作し、設定済みの翻訳APIと翻訳先言語を使用します。各項目をオフにすると、その項目の原文を表示します。翻訳の読み込み中や失敗時にも原文を表示します。";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "漫画タイトルの原文言語";
 
@@ -1010,7 +1010,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "漫画の説明文の原文言語";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "原文言語を自動検出し、選択した言語だけを翻訳します。「検出したすべての言語」を選ぶと言語の制限を解除します。ページ、漫画タイトル、章タイトル、説明文のフィルターはそれぞれ独立して動作します。";
+"TRANSLATION_METADATA_FILTER_HELP" = "原文言語を自動検出し、選択した言語だけを翻訳します。「検出したすべての言語」を選ぶと言語の制限を解除します。各項目の言語フィルターは、ページや他の項目の言語設定とは独立して動作します。";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "カスタム（OpenAI互換）";
 
@@ -1081,3 +1081,10 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "同梱の5つのモデルはオフラインでインストールできます。インストール後、「有効なモデル」でモデルをタップしてください。MangaJaNaiは高さ約1200ピクセルの白黒ページ向けで、カラーページは元のまま表示されます。";
 
 "DOWNLOAD_TRANSLATED" = "翻訳付きでダウンロード";
+
+"TRANSLATION_LLM_BACKGROUND" = "背景の文字を翻訳しない（LLM）";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "翻訳AIが重要でない看板やポスターなどの文字を判定し、原文を残します。会話や状況説明、不確かな文字は翻訳します。追加のリクエストはありませんが、処理時間が延びる場合があります。ページ画像がない場合、判定の精度は低下します。";
+
+"TRANSLATION_STATE_ON" = "オン";
+
+"TRANSLATION_STATE_OFF" = "オフ";

@@ -1433,7 +1433,13 @@ enum NativeOCRTextLineMerger {
 
     private static func deduplicateLines(_ lines: [Line]) -> [Line] {
         guard lines.count > 1 else { return lines }
-        let ordered = lines.sorted(by: duplicateRepresentativePrecedes)
+        // Unicode normalization is linear in text length. Compute each sort
+        // key once, preserving the original comparator and tie-breaking order.
+        let coverage = lines.map { compactText($0.text).count }
+        let ordered = lines.indices.sorted {
+            duplicateRepresentativePrecedes(lines[$0], lines[$1],
+                leftCoverage: coverage[$0], rightCoverage: coverage[$1])
+        }.map { lines[$0] }
         let spatialIndex = NativeOCRSpatialIndex(boxes: ordered.map(\.box))
         var suppressed: Set<Int> = []
         var retained: [Line] = []
@@ -1582,9 +1588,6 @@ enum NativeOCRTextLineMerger {
         guard fragment.orientationHint == .unknown || fragment.orientation == full.orientation,
               full.orientation != .vertical || full.singleVerticalColumn,
               !full.clippedByTile else { return false }
-        let content = overlapComparisonGlyphs(full.text)
-        let part = overlapComparisonGlyphs(fragment.text)
-        guard !part.isEmpty, part.count < content.count, part.count <= 256, content.count <= 4_096 else { return false }
         let along = full.orientation
         let across: Orientation = along == .horizontal ? .vertical : .horizontal
         let a = primaryInterval(full.box, orientation: along)
@@ -1596,6 +1599,12 @@ enum NativeOCRTextLineMerger {
               abs((ac.0 + ac.1) - (bc.0 + bc.1)) / 2 <= font * 0.35,
               intersectionArea(full.box, fragment.box) / boxArea(fragment.box) >= 0.75,
               a.1 - a.0 >= (b.1 - b.0) * 1.15 else { return false }
+
+        // Most neighbouring boxes fail geometry. Normalize Unicode only for
+        // pairs that can actually describe a partial detection.
+        let content = overlapComparisonGlyphs(full.text)
+        let part = overlapComparisonGlyphs(fragment.text)
+        guard !part.isEmpty, part.count < content.count, part.count <= 256, content.count <= 4_096 else { return false }
 
         // Mismatching tiny glyphs are discarded only with explicit evidence
         // that this detection was cut by an interior tile boundary.
@@ -1688,10 +1697,10 @@ enum NativeOCRTextLineMerger {
 
     private static func duplicateRepresentativePrecedes(
         _ left: Line,
-        _ right: Line
+        _ right: Line,
+        leftCoverage: Int,
+        rightCoverage: Int
     ) -> Bool {
-        let leftCoverage = compactText(left.text).count
-        let rightCoverage = compactText(right.text).count
         if leftCoverage != rightCoverage { return leftCoverage > rightCoverage }
         if left.confidence != right.confidence {
             return left.confidence > right.confidence

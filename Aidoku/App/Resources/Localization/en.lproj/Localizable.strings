@@ -675,7 +675,7 @@
 "IMPORT_FAIL" = "Import Failed";
 "BACKUP_IMPORT_FAIL_TEXT" = "Failed to save backup. Please ensure that your backup is in the proper format.";
 "SOURCE_IMPORT_FAIL_TEXT" = "Failed to import source. Please ensure that your aix file is valid.";
-"FILE_IMPORT_FAIL_TEXT" = "Failed to import file. Please ensure it is a valid CBZ or ZIP archive that contains images.";
+"FILE_IMPORT_FAIL_TEXT" = "Failed to import file. Please ensure it is a readable image file or a valid CBZ or ZIP archive containing images.";
 "BACKUP_%@" = "Backup %@";
 "EXPORT" = "Export";
 "RESTORE" = "Restore";
@@ -946,7 +946,7 @@
 
 "TRANSLATION_CACHE_USED" = "Storage Used";
 
-"TRANSLATION_CACHE_HELP" = "Save OCR, page translations, manga and chapter title translations, manga descriptions, and text layout automatically. Page images are kept only in memory for the current and nearby pages. The least recently used results are removed when the selected limit is reached. Default: 1 GB. Maximum: 100 GB. Changes apply automatically; lowering the limit removes the least recently used results until the cache fits.";
+"TRANSLATION_CACHE_HELP" = "Save OCR, page translations, translations of manga and chapter titles, author names, tags, manga descriptions, source menus and section titles, and text layout automatically. Page images are kept only in memory for the current and nearby pages. The least recently used results are removed when the selected limit is reached. Default: 1 GB. Maximum: 100 GB. Changes apply automatically; lowering the limit removes the least recently used results until the cache fits.";
 
 // Source-language filtering
 "TRANSLATION_SOURCE_FILTER" = "Translation Source Language Filter";
@@ -968,7 +968,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Translate Chapter Titles";
 
-"TRANSLATION_TITLES_HELP" = "Uses your translation API and target language independently of automatic page translation. Turn off to show original titles and descriptions. Originals remain visible while loading or if translation fails.";
+"TRANSLATION_TITLES_HELP" = "Uses your translation API and target language independently of automatic page translation. Turn off an option to show its original text. Originals remain visible while loading or if translation fails.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Manga Title Languages";
 
@@ -982,7 +982,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Manga Description Languages";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Automatically detect the source language and translate only the selected languages. All Detected Languages removes the restriction. Page, manga title, chapter title, and description filters work independently.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Automatically detect the source language and translate only the selected languages. All Detected Languages removes the restriction. Each item’s language filter is independent of page and other item language settings.";
 
 "TRANSLATION_SFX_FILTER" = "SFX Filtering (Japanese Only)";
 "TRANSLATION_SFX_FILTER_HELP" = "Leave likely Japanese sound effects untranslated. Use a local dictionary and conservative layout checks. Text that cannot confidently be identified as a sound effect is still translated.";
@@ -997,9 +997,9 @@
 "TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Estimate the original text color without an additional model. Use the default color when uncertain or when contrast is too low.";
 
 "TRANSLATION_LLM_SFX" = "LLM SFX Filtering (All Languages)";
-"TRANSLATION_LLM_SFX_HELP" = "Classify sound effects in the translation request. Can be combined with the Japanese local filter: a sound-effect decision from either filter leaves the original unchanged. Compatible with sending the page image.";
+"TRANSLATION_LLM_SFX_HELP" = "Classify sound effects in the translation request. Can be combined with the Japanese local filter: a sound-effect decision from either filter leaves the original unchanged. Compatible with Include Page Image in Translation.";
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Without image input, limited visual and layout context may reduce SFX classification accuracy.";
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Preserve Original Panel Color";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Preserve Original Background Color";
 "TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Match the translation panel to the background around the original text. Use the default panel when uncertain or unreadable. Your opacity setting still applies.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Custom (OpenAI-Compatible)";
@@ -1061,3 +1061,10 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Five included models can be installed offline. Install a model, then tap it in Enabled Model. MangaJaNai is for black-and-white pages around 1200 pixels tall; color pages stay unchanged.";
 
 "DOWNLOAD_TRANSLATED" = "Download with Translation";
+
+"TRANSLATION_LLM_BACKGROUND" = "Skip Background Lettering (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "The translation AI leaves incidental signs, posters, and background lettering unchanged. Dialogue, narration, and uncertain text are translated. No extra request is made, but processing may take longer. Classification is less reliable without a page image.";
+
+"TRANSLATION_STATE_ON" = "On";
+
+"TRANSLATION_STATE_OFF" = "Off";

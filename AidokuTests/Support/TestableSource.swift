@@ -25,6 +25,9 @@ extension AidokuRunner.Source {
 actor TestableSourceStorage {
     var nextDescriptor: Int32 = 0
     var processedContexts: [PageContext?] = []
+    private var liveDescriptors = Set<Int32>()
+    func liveCount() -> Int { liveDescriptors.count }
+    func remove(_ value: Int32) { liveDescriptors.remove(value) }
 
     func getContexts() -> [PageContext?] {
         processedContexts
@@ -36,14 +39,20 @@ actor TestableSourceStorage {
 
     func store() -> Int32 {
         nextDescriptor += 1
+        liveDescriptors.insert(nextDescriptor)
         return nextDescriptor
     }
 }
 
 final class TestableSourceRunner: AidokuRunner.Runner {
-    let features: AidokuRunner.SourceFeatures = .init(processesPages: true)
+    let features: AidokuRunner.SourceFeatures
 
     let storage = TestableSourceStorage()
+    let failsProcessing: Bool
+    init(failsProcessing: Bool = false, processesPages: Bool = true) {
+        self.failsProcessing = failsProcessing
+        features = .init(processesPages: processesPages)
+    }
 
     func getSearchMangaList(query: String?, page: Int, filters: [AidokuRunner.FilterValue]) async throws -> AidokuRunner.MangaPageResult {
         .init(entries: [], hasNextPage: false)
@@ -59,6 +68,7 @@ final class TestableSourceRunner: AidokuRunner.Runner {
 
     func processPageImage(response: Response, context: PageContext?) async throws -> PlatformImage? {
         await storage.process(context)
+        if failsProcessing { throw CancellationError() }
         return nil
     }
 
@@ -66,6 +76,7 @@ final class TestableSourceRunner: AidokuRunner.Runner {
         await storage.store()
     }
 
-    func remove(value _: Int32) async throws {
+    func remove(value: Int32) async throws {
+        await storage.remove(value)
     }
 }

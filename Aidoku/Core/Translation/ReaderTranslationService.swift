@@ -11,6 +11,7 @@ struct ReaderTranslationRegion: Equatable, Sendable {
     var confidence: Double = 1
     var sourceImageAspectRatio: Double? = nil
     var translationOrder: Int? = nil
+    var translationOrderVersion: String? = nil
     var sourceOrientation: BrowserOCRSourceOrientation = .unknown
     var sourceSingleVerticalColumn: Bool?
     var translationReuseIdentity: NativeTranslationReuseIdentity?
@@ -213,7 +214,7 @@ actor ReaderTranslationService {
             let bounds = [Double(rect.minX), Double(rect.minY), Double(rect.width), Double(rect.height)]
             return NativeTranslationBatchCandidate(inputIndex: $0.offset,
                 segment: .init(id: $0.element.id, text: $0.element.source,
-                    bounds: settings.filterSFXWithLLM && bounds.allSatisfy { $0.isFinite && (0...1).contains($0) } ? bounds : nil))
+                    bounds: (settings.filterSFXWithLLM || settings.filterBackgroundWithLLM) && bounds.allSatisfy { $0.isFinite && (0...1).contains($0) } ? bounds : nil))
         }
         let ranks = regions.compactMap(\.translationOrder)
         if settings.rightToLeftPanelOrder, ranks.count == regions.count, Set(ranks).count == ranks.count {
@@ -225,6 +226,7 @@ actor ReaderTranslationService {
         return plans.map { plan in
             var request = plan.request
             request.filtersSFX = settings.filterSFXWithLLM ? true : nil
+            request.filtersBackground = settings.filterBackgroundWithLLM ? true : nil
             return NativeTranslationBatchPlan(request: request, inputIndicesBySegmentID: plan.inputIndicesBySegmentID)
         }
     }
@@ -239,20 +241,28 @@ actor ReaderTranslationService {
     typealias Progress = @Sendable ([ReaderTranslationRegion]) async throws -> Void
 
     func translate(
-        regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings, image: UIImage? = nil, onProgress: Progress? = nil,
+        regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings, image: UIImage? = nil,
+        preparedImageJPEG: Data? = nil, onProgress: Progress? = nil,
         priority: TranslationRequestPriority = .foreground
     ) async throws -> [ReaderTranslationRegion] {
         try Task.checkCancellation()
         let regions = ReaderTranslationLanguageFilter.apply(regions, settings: settings)
         guard !regions.isEmpty else { try await onProgress?([]); return [] }
         let service = try translationService()
-        let concurrency = max(1, min(BoundedTranslationBatchExecutor.allowedMaximumConcurrentRequests, settings.maximumConcurrentRequests))
+        let concurrency = max(1, min(settings.includePageImage ? 2 : BoundedTranslationBatchExecutor.allowedMaximumConcurrentRequests,
+                                     settings.maximumConcurrentRequests))
         await limiter.setMaximumConcurrentRequests(concurrency)
         try Task.checkCancellation()
-        let imageJPEG = try settings.includePageImage ? image.map(ReaderTranslationImagePreparation.translationJPEG) : nil
+        let imageJPEG = try settings.includePageImage
+            ? (preparedImageJPEG ?? image.map(ReaderTranslationImagePreparation.translationJPEG)) : nil
+        guard !settings.includePageImage || imageJPEG != nil else {
+            throw RemoteTranslationError.invalidRequest("Page image attachment is enabled, but no page image was provided.")
+        }
+        let imageDataURL = imageJPEG.map { "data:image/jpeg;base64," + $0.base64EncodedString() }
         let plans = Self.plans(regions: regions, settings: settings).map { plan in
             var request = plan.request
             request.imageJPEG = imageJPEG
+            request.preparedImageDataURL = imageDataURL
             return NativeTranslationBatchPlan(request: request, inputIndicesBySegmentID: plan.inputIndicesBySegmentID)
         }
         let progress = try ReaderTranslationProgress(regions: regions, plans: plans, configuration: settings.configuration)

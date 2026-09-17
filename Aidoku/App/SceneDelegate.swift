@@ -68,9 +68,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func sceneDidBecomeActive(_ scene: UIScene) {
         contentHideView.removeFromSuperview()
         UIApplication.shared.appDelegate?.importPendingSharedImages()
+        Task { await DownloadManager.shared.applicationDidBecomeActive() }
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {
+        if !UIApplication.shared.connectedScenes.contains(where: { $0.activationState == .foregroundActive }) {
+            Task { await DownloadManager.shared.applicationDidEnterBackground() }
+        }
         if AppSettings.general.incognitoMode.get() {
             (scene as? UIWindowScene)?.windows.first?.addSubview(contentHideView)
         }

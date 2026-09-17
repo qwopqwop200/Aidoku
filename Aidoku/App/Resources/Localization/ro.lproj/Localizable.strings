@@ -27,7 +27,7 @@
 "LIBRARY" = "Bibliotecă";
 "LIBRARY_SEARCH" = "Găsește în bibliotecă";
 "LIBRARY_EMPTY" = "Bibliotecă goală";
-"ADD_TO_LIBRARY" = "Adaugați la bibliotecă";
+"ADD_TO_LIBRARY" = "Adăugați la bibliotecă";
 "REMOVE_FROM_LIBRARY" = "Eliminați din bibliotecă";
 "MANGA_INFO" = "Informații Manga";
 "SORT_BY" = "Sortează după";
@@ -448,7 +448,7 @@
 
 "TRANSLATION_CACHE_USED" = "Spațiu de stocare utilizat";
 
-"TRANSLATION_CACHE_HELP" = "Salvează automat rezultatele OCR, traducerile paginilor, ale titlurilor manga și capitolelor, descrierile manga și aranjarea textului. Imaginile sunt păstrate doar în memorie pentru pagina curentă și cele din apropiere. Când se atinge limita selectată, sunt eliminate rezultatele neutilizate de cel mai mult timp. Implicit: 1 GB. Maxim: 100 GB. Modificările se aplică automat; reducerea limitei elimină rezultatele neutilizate de cel mai mult timp până când memoria cache se încadrează în limită.";
+"TRANSLATION_CACHE_HELP" = "Salvează automat rezultatele OCR, traducerile paginilor, ale titlurilor manga și capitolelor, ale numelor autorilor, etichetelor, descrierilor manga, meniurilor surselor și titlurilor secțiunilor, precum și aranjarea textului. Imaginile sunt păstrate doar în memorie pentru pagina curentă și cele din apropiere. Când se atinge limita selectată, sunt eliminate rezultatele neutilizate de cel mai mult timp. Implicit: 1 GB. Maxim: 100 GB. Modificările se aplică automat; reducerea limitei elimină rezultatele neutilizate de cel mai mult timp până când memoria cache se încadrează în limită.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filtru pentru limbile sursă";
 
@@ -480,7 +480,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Traduceți titlurile capitolelor";
 
-"TRANSLATION_TITLES_HELP" = "Utilizează API-ul de traducere și limba țintă independent de traducerea automată a paginii. Dezactivați pentru a afișa titlurile și descrierile originale. Originalele rămân vizibile în timpul încărcării sau dacă traducerea eșuează.";
+"TRANSLATION_TITLES_HELP" = "Utilizează API-ul de traducere și limba țintă independent de traducerea automată a paginilor. Dezactivați o opțiune pentru a afișa textul original corespunzător. Originalele rămân vizibile în timpul încărcării sau dacă traducerea eșuează.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Limbi pentru titluri manga";
 
@@ -494,7 +494,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Limbile descrierilor manga";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Detectează automat limba sursă și traduce numai limbile selectate. Opțiunea Toate limbile detectate elimină restricția. Filtrele pentru pagini, titluri manga, titluri de capitole și descrieri funcționează independent.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Detectează automat limba sursă și traduce numai limbile selectate. Opțiunea Toate limbile detectate elimină restricția. Filtrul de limbă al fiecărui element este independent de setările de limbă ale paginilor și ale celorlalte elemente.";
 
 "TRANSLATION_SFX_FILTER" = "Filtrare SFX (numai în japoneză)";
 
@@ -601,7 +601,7 @@
 "REFRESH_NO_WIFI_TEXT" = "Setarea de actualizare numai prin Wi-Fi este activată. Conectați-vă la Wi-Fi pentru a vă reîmprospăta biblioteca.";
 "REFRESH_ANYWAYS" = "Actualizează oricum";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Eliminați din Bibliotecă?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Eliminarea acestei serii din bibliotecă va elimina și toate instrumentele de urmărire conectate. Sunteți sigur că doriți să continuați?";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Eliminarea acestei serii din bibliotecă va elimina și legăturile sale cu serviciile de urmărire. Sigur doriți să continuați?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Reîmprospătarea bibliotecii a fost întreruptă";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Ultima reîmprospătare a bibliotecii a fost întreruptă înainte de a fi finalizată. Doriți să reluați?";
 "CATEGORY" = "Categorie";
@@ -969,7 +969,7 @@
 "INSTALL_SOURCES" = "Instalați surse";
 "INSTALLING_SOURCES" = "Se instalează sursele...";
 "SOURCE_IMPORT_FAIL_TEXT" = "Nu s-a putut importa sursa. Vă rugăm să vă asigurați că fișierul dvs. aix este valid.";
-"FILE_IMPORT_FAIL_TEXT" = "Nu s-a putut importa fișierul. Asigurați-vă că este o arhivă CBZ sau ZIP validă care conține imagini.";
+"FILE_IMPORT_FAIL_TEXT" = "Nu s-a putut importa fișierul. Asigurați-vă că este un fișier imagine care poate fi citit sau o arhivă CBZ ori ZIP validă care conține imagini.";
 "BACKUP_%@" = "Copie de rezervă %@";
 "CREATE_BACKUP" = "Creați o copie de rezervă";
 "IMPORT_BACKUP" = "Importă o copie de rezervă";
@@ -1089,3 +1089,9 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Cinci modele incluse pot fi instalate offline. Instalați un model, apoi atingeți-l în Model activat. MangaJaNai este pentru pagini alb-negru cu o înălțime de aproximativ 1200 de pixeli; paginile color rămân neschimbate.";
 
 "DOWNLOAD_TRANSLATED" = "Descarcă cu traducere";
+
+"TRANSLATION_LLM_BACKGROUND" = "Omite textele din fundal (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "IA de traducere lasă neschimbate textele secundare de pe indicatoare, afișe și din fundal. Dialogurile, narațiunea și textele incerte sunt traduse. Nu se face nicio cerere suplimentară, dar procesarea poate dura mai mult. Clasificarea este mai puțin fiabilă fără o imagine a paginii.";
+
+"TRANSLATION_STATE_ON" = "Activată";
+"TRANSLATION_STATE_OFF" = "Dezactivată";

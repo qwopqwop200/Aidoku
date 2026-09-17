@@ -2,6 +2,18 @@ import UIKit
 
 /// Reader direction is supplied by the reader, never inferred from OCR language.
 enum ReaderTranslationImagePreparation {
+    static func needsPanelOrder(_ regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings) -> Bool {
+        guard settings.rightToLeftPanelOrder, regions.count > 1 else { return false }
+        guard regions.allSatisfy({ $0.translationOrderVersion == ReaderTranslationPanelOrder.cacheVersion }) else { return true }
+        // Old, partially written, or malformed evidence must be recalculated.
+        let ranks = regions.compactMap(\.translationOrder)
+        return ranks.count != regions.count || Set(ranks) != Set(regions.indices)
+    }
+
+    static func needsImage(_ regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings) -> Bool {
+        needsPanelOrder(regions, settings: settings) || ReaderJapaneseSFXImageEvidence.requiresSampling(regions, settings: settings)
+    }
+
     static func translationJPEG(_ image: UIImage) throws -> Data {
         guard image.size.width > 0, image.size.height > 0 else {
             throw RemoteTranslationError.invalidRequest("The page image is empty.")
@@ -26,7 +38,8 @@ enum ReaderTranslationImagePreparation {
     static func apply(_ regions: [ReaderTranslationRegion], image: UIImage,
                       settings: ReaderTranslationSettings) -> [ReaderTranslationRegion] {
         let needsSFX = ReaderJapaneseSFXImageEvidence.requiresSampling(regions, settings: settings)
-        guard needsSFX || (settings.rightToLeftPanelOrder && regions.count > 1) else { return regions }
+        let needsOrder = needsPanelOrder(regions, settings: settings)
+        guard needsSFX || needsOrder else { return regions }
         let pixels: CGImage?
         if image.imageOrientation == .up { pixels = image.cgImage } else {
             let format = UIGraphicsImageRendererFormat()
@@ -35,12 +48,13 @@ enum ReaderTranslationImagePreparation {
         }
         guard let pixels else { return regions }
         let prepared = needsSFX ? ReaderJapaneseSFXImageEvidence.apply(regions, image: image, pixels: pixels, settings: settings) : regions
-        guard settings.rightToLeftPanelOrder, prepared.count > 1 else { return prepared }
+        guard needsOrder else { return prepared }
         let ranks = ReaderTranslationPanelOrder.rightToLeftRanks(image: pixels,
             inputs: prepared.map { .init(rect: $0.rect, isVertical: $0.sourceOrientation == .vertical) })
         return zip(prepared, ranks).map { region, rank in
             var result = region
             result.translationOrder = rank
+            result.translationOrderVersion = ReaderTranslationPanelOrder.cacheVersion
             return result
         }
     }

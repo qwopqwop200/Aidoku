@@ -23,4 +23,25 @@ struct BrowserOverlayCollisionGeometry {
         guard height > minimumExtent else { return 0 }
         return width * height
     }
+
+    /// Boolean callers need no total score: one qualifying intersection is
+    /// enough. Preserve the same extent threshold as the full packing score.
+    static func hasOverlap(in rects: [CGRect], external: [CGRect] = []) -> Bool {
+        let geometry = rects.map(Self.init)
+        let obstacles = external.map(Self.init)
+        for left in geometry.indices {
+            for right in (left + 1)..<geometry.count {
+                if geometry[left].overlapArea(with: geometry[right], minimumExtent: 0.25) > 0 {
+                    return true
+                }
+            }
+            for obstacle in obstacles {
+                if geometry[left].overlapArea(with: obstacle, minimumExtent: 0.25) > 0 {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
 }

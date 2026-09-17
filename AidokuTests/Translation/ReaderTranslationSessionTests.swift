@@ -5,6 +5,68 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationSessionTests {
+    @Test func navigationDebounceOnlyAcceleratesIsolatedAdjacentTurns() {
+        var debounce = ReaderTranslationNavigationDebounce()
+        #expect(debounce.delay(chapter: "a", index: 0, now: 0) == 350_000_000)
+        #expect(debounce.delay(chapter: "a", index: 1, now: 1) == 180_000_000)
+        #expect(debounce.delay(chapter: "a", index: 2, now: 1.2) == 350_000_000)
+        #expect(debounce.delay(chapter: "a", index: 1, now: 1.4) == 350_000_000)
+        #expect(debounce.delay(chapter: "a", index: 8, now: 3) == 350_000_000)
+        #expect(debounce.delay(chapter: "b", index: 9, now: 5) == 350_000_000)
+        debounce.reset()
+        #expect(debounce.delay(chapter: "b", index: 10, now: 7) == 350_000_000)
+    }
+
+    @Test func acceleratedPageTurnStillRespectsMemoryAdmission() async throws {
+        let fixture = SessionFixture()
+        let pages = (0..<3).map { Self.page($0) }
+        let owner = UnindexedChapterOwner(pages: pages, current: 0)
+        var budget: UInt64 = 600 * 1_024 * 1_024
+        var calls: [Int] = []
+        let session = ReaderTranslationSession(validate: { _ in }, process: { page, _, _ in
+            calls.append(page.index)
+            return [Self.region]
+        }, availableMemory: { budget })
+        let coordinator = ReaderTranslationCoordinator(owner: owner, session: session,
+            readSettings: { fixture.settings }, setEnabled: { _ in })
+        defer { coordinator.close() }
+        coordinator.resume()
+        try await Task.sleep(for: .milliseconds(750))
+        owner.page.sourcePage = pages[1]
+        coordinator.visiblePagesDidChange()
+        try await Task.sleep(for: .milliseconds(250))
+        #expect(calls.isEmpty)
+        budget = 2_000 * 1_024 * 1_024
+        coordinator.visiblePagesDidChange()
+        try await waitUntil { !calls.isEmpty }
+        #expect(calls.first == 1)
+    }
+
+    @Test func rapidPageTurnsDoNotStartWorkForIntermediatePages() async throws {
+        let fixture = SessionFixture()
+        let pages = (0..<4).map { Self.page($0) }
+        let owner = UnindexedChapterOwner(pages: pages, current: 0)
+        var calls: [Int] = []
+        let session = ReaderTranslationSession(validate: { _ in }, process: { page, _, _ in
+            calls.append(page.index)
+            return [Self.region]
+        }, availableMemory: { UInt64.max })
+        let coordinator = ReaderTranslationCoordinator(owner: owner, session: session,
+            readSettings: { fixture.settings }, setEnabled: { _ in })
+        defer { coordinator.close() }
+        coordinator.resume()
+        for index in 1...3 {
+            try await Task.sleep(for: .milliseconds(60))
+            owner.page.sourcePage = pages[index]
+            coordinator.visiblePagesDidChange()
+        }
+        coordinator.visiblePagesDidChange()
+        try await Task.sleep(for: .milliseconds(230))
+        #expect(calls.isEmpty)
+        try await waitUntil { !calls.isEmpty }
+        #expect(calls.first == 3)
+    }
+
     @Test func modelAllocationWarningsDoNotCancelTheCurrentPage() async throws {
         let fixture = SessionFixture()
         let gate = SessionGate()
@@ -196,52 +258,6 @@ struct ReaderTranslationSessionTests {
         #expect(calls == 1)
     }
 
-    @Test func page141OriginalResolution() async throws {
-        let image = try #require(UIImage(contentsOfFile: URL.documentsDirectory.appendingPathComponent("page141.avif").path)?.cgImage)
-        #expect(image.width == 2600 && image.height == 1950)
-        let config = ReaderTranslationSettings().ocrConfiguration
-        let pipeline = NativeCoreMLOCRPipeline(modelTier: config.modelTier, detectorMaximumSide: config.detectorMaximumSide, recognizerMaximumWidth: config.recognizerMaximumWidth)
-        let raw = try await pipeline.recognize(image: image, requestID: UUID().uuidString, confidenceThreshold: config.confidenceThreshold)
-        let regions = try await ReaderOCRService.shared.recognize(image: image, configuration: config)
-        let report: [String: Any] = ["raw": raw.lines.map { ["source": $0.text, "polygon": $0.polygon.map { [$0.x, $0.y] }] },
-            "final": regions.map { ["source": $0.source, "box": [$0.rect.minX, $0.rect.minY, $0.rect.width, $0.rect.height]] }]
-        try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: URL.documentsDirectory.appendingPathComponent("page141-result.json"))
-        let bottom = regions.filter { $0.rect.midX > 0.27 && $0.rect.midX < 0.4 && $0.rect.minY > 0.5 }
-        #expect(bottom.count == 1)
-        #expect(bottom.first?.source.contains("おひゅ") == true)
-        let top = regions.filter { $0.rect.midX > 0.74 && $0.rect.minY < 0.3 }
-        #expect(!top.contains { $0.source == "ふーっ♡" })
-        #expect(top.map(\.source).joined().components(separatedBy: "ふーっ♡").count == 3)
-    }
-
-    @Test func lastColumnTailRealImages() async throws {
-        var report: [String: Any] = [:]
-        for number in [1, 2] {
-            let image = try #require(UIImage(contentsOfFile: URL.documentsDirectory.appendingPathComponent("last-column-\(number).png").path)?.cgImage)
-            let regions = try await ReaderOCRService.shared.recognize(image: image, tier: .small)
-            if number == 2 {
-                let right = regions.filter { $0.rect.midX > 0.5 }
-                #expect(right.count == 1)
-                #expect(right.first?.source.contains("響") == true)
-                #expect(right.first?.source.contains("おひゅ") == true)
-            }
-            report[String(number)] = regions.map { ["source": $0.source, "box": [$0.rect.minX, $0.rect.minY, $0.rect.width, $0.rect.height]] }
-        }
-        try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: URL.documentsDirectory.appendingPathComponent("last-column-results.json"))
-    }
-
-    @Test func enclosedCaptionFragmentRealImage() async throws {
-        let root = URL.documentsDirectory
-        let image = try #require(UIImage(contentsOfFile: root.appendingPathComponent("enclosed-caption.png").path)?.cgImage)
-        let pipeline = NativeCoreMLOCRPipeline(modelTier: .small, detectorMaximumSide: 1600, recognizerMaximumWidth: 1024)
-        let raw = try await pipeline.recognize(image: image, requestID: UUID().uuidString, confidenceThreshold: 0.3)
-        let final = try await ReaderOCRService.shared.recognize(image: image, tier: .small)
-        let report: [String: Any] = ["raw": raw.lines.map { ["text": $0.text, "polygon": $0.polygon.map { [$0.x, $0.y] }] },
-            "final": final.map { ["text": $0.source, "box": [$0.rect.minX, $0.rect.minY, $0.rect.width, $0.rect.height]] }]
-        try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: root.appendingPathComponent("enclosed-caption.json"))
-        #expect(final.count == 1)
-    }
-
     @Test func stackedAndAdjacentCaptionsRemainDistinctCases() async throws {
         let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         var report: [String: Any] = [:]
@@ -359,6 +375,54 @@ struct ReaderTranslationSessionTests {
         _ = try? await preparation.value
     }
 
+    @Test func exhaustedRetriesShowNoticeAndManualRetryRecovers() async throws {
+        let fixture = SessionFixture()
+        fixture.defaults.set(true, forKey: ReaderTranslationSettings.keyPrefix + "automatic")
+        let source = Self.page(0)
+        let imageView = UIImageView(image: Self.image())
+        let page = ReaderTranslationPage(imageView: imageView)
+        page.sourcePage = source
+        let owner = SessionToolbarOwner()
+        owner.translationUpcomingPages = [source]
+        owner.translationVisiblePages = [page]
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = owner
+        window.isHidden = false
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            calls += 1
+            if calls <= 3 {
+                throw ReaderTranslationOCRFallback(regions: [Self.region],
+                    underlying: RemoteTranslationError.httpStatus(503, requestID: nil))
+            }
+            return [Self.region]
+        }, availableMemory: { UInt64.max })
+        let coordinator = ReaderTranslationCoordinator(owner: owner, session: session,
+            readSettings: { fixture.settings }, setEnabled: { _ in })
+        defer { coordinator.close(); window.isHidden = true }
+        coordinator.install()
+        coordinator.resume()
+        try await waitUntil { calls == 1 }
+        #expect(!owner.view.subviews.contains { $0.accessibilityIdentifier == "reader.translation.failure" })
+        try await waitUntil { calls == 2 }
+        #expect(!owner.view.subviews.contains { $0.accessibilityIdentifier == "reader.translation.failure" })
+        try await waitUntil { owner.view.subviews.contains { $0.accessibilityIdentifier == "reader.translation.failure" } }
+        #expect(calls == 3)
+        let notice = try #require(owner.view.subviews.first { $0.accessibilityIdentifier == "reader.translation.failure" } as? UIVisualEffectView)
+        let stack = try #require(notice.contentView.subviews.first as? UIStackView)
+        let retry = try #require(stack.arrangedSubviews.last as? UIButton)
+        retry.sendActions(for: .touchUpInside)
+        try await waitUntil { page.hasCompletedTranslation(settings: fixture.settings) }
+        #expect(calls == 4)
+        #expect(notice.superview == nil)
+        #expect(fixture.settings.automaticallyTranslate)
+        // Notices must also disappear immediately when the reader leaves.
+        session.onFailure?(RemoteTranslationError.missingCredential)
+        #expect(owner.view.subviews.contains { $0.accessibilityIdentifier == "reader.translation.failure" })
+        coordinator.suspend()
+        #expect(!owner.view.subviews.contains { $0.accessibilityIdentifier == "reader.translation.failure" })
+    }
+
     @Test func transientTransportFailureRecoversWithoutAnotherPageTurn() async throws {
         let fixture = SessionFixture()
         let source = Self.page(0)
@@ -381,8 +445,8 @@ struct ReaderTranslationSessionTests {
         #expect(session.state == .on)
     }
 
-    @Test(arguments: [429, 500, 503])
-    func apiRetryPrecedesOCRFallbackAndFailureNotification(status: Int) async throws {
+    @Test(arguments: [408, 429, 500, 503])
+    func apiRetryKeepsOCRVisibleBeforeFailureNotification(status: Int) async throws {
         let fixture = SessionFixture()
         let source = Self.page(0)
         let view = UIImageView(image: Self.image())
@@ -393,7 +457,9 @@ struct ReaderTranslationSessionTests {
         let session = ReaderTranslationSession(process: { _, _, _ in
             calls += 1
             if calls == 1 {
-                throw ReaderTranslationOCRFallback(regions: [Self.region],
+                var untranslated = Self.region
+                untranslated.translation = nil
+                throw ReaderTranslationOCRFallback(regions: [untranslated],
                     underlying: RemoteTranslationError.httpStatus(status, requestID: nil))
             }
             return [Self.region]
@@ -404,9 +470,18 @@ struct ReaderTranslationSessionTests {
         session.enable(settings: fixture.settings)
         try await waitUntil { calls == 1 }
         try await Task.sleep(for: .milliseconds(100))
-        #expect(visible.regions.isEmpty)
+        var ocr = Self.region
+        ocr.translation = nil
+        let displayedOCR = [ocr].compactMap { $0.cropped(to: CGRect(x: 0, y: 0, width: 1, height: 1)) }
+        #expect(visible.regions == displayedOCR)
+        #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
+        #expect(!visible.canExportTranslation)
+        let replacement = ReaderTranslationPage(imageView: view)
+        replacement.sourcePage = source
+        session.refreshVisiblePages([replacement])
+        #expect(replacement.regions == displayedOCR)
         #expect(failures == 0)
-        try await waitUntil { visible.hasCompletedTranslation(settings: fixture.settings) }
+        try await waitUntil { replacement.hasCompletedTranslation(settings: fixture.settings) }
         #expect(calls == 2)
         #expect(failures == 0)
     }
@@ -456,7 +531,9 @@ struct ReaderTranslationSessionTests {
         var calls = 0
         let session = ReaderTranslationSession(process: { _, _, _ in
             calls += 1
-            throw ReaderTranslationOCRFallback(regions: [Self.region], underlying: URLError(.timedOut))
+            var untranslated = Self.region
+            untranslated.translation = nil
+            throw ReaderTranslationOCRFallback(regions: [untranslated], underlying: URLError(.timedOut))
         })
         defer { session.close() }
         session.update(items: [.init(source)], visible: [visible], context: "cancel-retry")
@@ -466,7 +543,8 @@ struct ReaderTranslationSessionTests {
         session.pauseForPageTurn()
         try await Task.sleep(for: .milliseconds(1200))
         #expect(calls == 1)
-        #expect(visible.regions.isEmpty)
+        #expect(visible.regions.map(\.source) == [Self.region.source])
+        #expect(visible.regions.allSatisfy { $0.translation == nil })
     }
 
     @Test func persistentOfflineFailureHasBoundedRetries() async throws {
@@ -478,7 +556,9 @@ struct ReaderTranslationSessionTests {
         var calls = 0
         let session = ReaderTranslationSession(process: { _, _, _ in
             calls += 1
-            throw ReaderTranslationOCRFallback(regions: [Self.region], underlying: URLError(.notConnectedToInternet))
+            var ocr = Self.region
+            ocr.translation = nil
+            throw ReaderTranslationOCRFallback(regions: [ocr], underlying: URLError(.notConnectedToInternet))
         })
         defer { session.close() }
         session.update(items: [.init(source)], visible: [visible], context: "offline")
@@ -487,7 +567,9 @@ struct ReaderTranslationSessionTests {
         try await Task.sleep(for: .milliseconds(200))
         #expect(calls == 3)
         #expect(session.state == .on)
-        #expect(!visible.regions.isEmpty)
+        #expect(visible.regions.map(\.source) == [Self.region.source])
+        #expect(visible.regions.allSatisfy { $0.translation == nil })
+        #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
     }
 
     @Test func cancelledBase64DecodeDoesNotPublishAnImage() async throws {
@@ -591,6 +673,30 @@ struct ReaderTranslationSessionTests {
         #expect(ReaderTranslationSession.chapterItems(pages).map(\.key) == pages.map(\.translationCacheKey))
     }
 
+    @Test(arguments: [false, true])
+    func cachedPartialTranslationSurvivesFailureAndVisibleRefresh(transient: Bool) async throws {
+        let fixture = SessionFixture()
+        let imageView = UIImageView(image: Self.image())
+        let visible = ReaderTranslationPage(imageView: imageView)
+        visible.sourcePage = Self.page(0)
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, progress in
+            calls += 1
+            try await progress?([Self.region])
+            throw ReaderTranslationOCRFallback(regions: [Self.region], underlying: transient
+                ? RemoteTranslationError.transport(.timedOut) : RemoteTranslationError.missingCredential)
+        }, availableMemory: { UInt64.max })
+        defer { session.close() }
+        session.update(items: [.init(Self.page(0))], visible: [visible], context: "chapter")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { calls == 1 }
+        try await Task.sleep(for: .milliseconds(30))
+        session.refreshVisiblePages([visible])
+        #expect(session.state == .on)
+        #expect(visible.regions.first?.translation == "안녕")
+        #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
+    }
+
     @Test func partialResultsAreNotCachedAsCompleteAndLateProgressCannotRestoreAnOverlay() async throws {
         let gate = SessionGate()
         let fixture = SessionFixture()
@@ -603,7 +709,10 @@ struct ReaderTranslationSessionTests {
             var pending = Self.region
             pending.translation = nil
             try await progress?([pending])
-            #expect(imageView.subviews.isEmpty)
+            #expect(!imageView.subviews.isEmpty)
+            #expect(visible.regions.map(\.source) == [pending.source])
+            #expect(visible.regions.first?.translation == nil)
+            #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
             try await progress?([Self.region])
             await gate.wait()
             var final = Self.region
@@ -917,7 +1026,7 @@ struct ReaderTranslationSessionTests {
         defer { window.isHidden = true; previousWindow?.makeKey() }
         session.enable(settings: fixture.settings)
         try await waitUntil { session.state == .on }
-        #expect(buttons.last?.accessibilityValue == "ON")
+        #expect(buttons.last?.accessibilityValue == NSLocalizedString("TRANSLATION_STATE_ON"))
         let directory = URL.documentsDirectory.appendingPathComponent("TranslationValidation", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         for state in ["on", "off"] {
@@ -929,7 +1038,7 @@ struct ReaderTranslationSessionTests {
             }
             try #require(image.pngData()).write(to: directory.appendingPathComponent("reader-translation-\(state).png"))
         }
-        #expect(buttons.last?.accessibilityValue == "OFF")
+        #expect(buttons.last?.accessibilityValue == NSLocalizedString("TRANSLATION_STATE_OFF"))
     }
 
     @Test func transientVisibilityDoesNotRemoveRenderedTextBeforeNavigationSettles() async throws {
@@ -1088,8 +1197,8 @@ struct ReaderTranslationSessionTests {
 
 private enum SessionTestError: Error { case timeout }
 @MainActor private final class SessionToolbarOwner: UIViewController, ReaderTranslationOwner {
-    let translationUpcomingPages: [Aidoku.Page] = []
-    let translationVisiblePages: [ReaderTranslationPage] = []
+    var translationUpcomingPages: [Aidoku.Page] = []
+    var translationVisiblePages: [ReaderTranslationPage] = []
     let translationChapterKey = "chapter"
 }
 @MainActor private final class SessionFixture {

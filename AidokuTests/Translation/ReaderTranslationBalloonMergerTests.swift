@@ -100,6 +100,22 @@ struct ReaderTranslationBalloonMergerTests {
         #expect(result.first?.source == "明日の予定は？")
         #expect(result.first?.id == "right")
     }
+    @Test func alignedColumnsOnTranslucentBalloonUseTheClearBridge() throws {
+        let context = try #require(CGContext(data: nil, width: 400, height: 400,
+            bitsPerComponent: 8, bytesPerRow: 400, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: 0))
+        context.setFillColor(gray: 0.4, alpha: 1)
+        context.fill(CGRect(x: 0, y: 0, width: 400, height: 400))
+        context.setFillColor(gray: 1, alpha: 1)
+        context.fill(CGRect(x: 145, y: 135, width: 100, height: 130))
+        // Artwork visible through one column breaks the white flood component,
+        // while the actual inter-column gutter remains inside the balloon.
+        context.setFillColor(gray: 0.8, alpha: 1)
+        context.fill(CGRect(x: 203, y: 145, width: 35, height: 45))
+        let result = ReaderTranslationBalloonMerger.apply(columns, image: try #require(context.makeImage()))
+        #expect(result.count == 1)
+        #expect(result.first?.source == "明日の予定は？")
+        #expect(result.first?.id == "right")
+    }
     @Test func narrowWhiteNeckDoesNotTurnTwoLobesIntoOneTextBlock() throws {
         let result = ReaderTranslationBalloonMerger.apply(columns, image: try image([
             CGRect(x: 145, y: 135, width: 100, height: 130),
@@ -108,6 +124,32 @@ struct ReaderTranslationBalloonMergerTests {
         ]))
         #expect(result.map(\.id) == columns.map(\.id))
         #expect(result.map(\.source) == columns.map(\.source))
+    }
+
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("MangaQuality/user-merge.png").path)))
+    func capturedTranslucentBalloonJoinsOffsetLexicalColumns() throws {
+        let image = try #require(UIImage(contentsOfFile: URL.documentsDirectory.appendingPathComponent("MangaQuality/user-merge.png").path)?.cgImage)
+        // Actual detector boxes: the leading ellipsis of the right column was
+        // not recognized, shifting its lexical top 71 px below the left one.
+        let regions = [
+            ReaderTranslationRegion(id: "left", rect: CGRect(x: 266/1290.0, y: 780/1824.0, width: 50/1290.0, height: 292/1824.0),
+                source: "困ちいないよ", sourceOrientation: .vertical, sourceSingleVerticalColumn: true),
+            ReaderTranslationRegion(id: "right", rect: CGRect(x: 318/1290.0, y: 851/1824.0, width: 47/1290.0, height: 393/1824.0),
+                source: "確かに足は不自由だけど", sourceOrientation: .vertical, sourceSingleVerticalColumn: true)
+        ]
+        let result = ReaderTranslationBalloonMerger.apply(regions, image: image)
+        #expect(result.count == 1)
+        #expect(result.first?.source == "確かに足は不自由だけど困ちいないよ")
+        #expect(result.first?.id == "left")
+        // The lower lobe shares a flood component with the left column but
+        // fails the text-block checks. It must not reserve that column.
+        let lowerLobe = ReaderTranslationRegion(id: "lower-lobe",
+            rect: CGRect(x: 116/1290.0, y: 992/1824.0, width: 93/1290.0, height: 351/1824.0),
+            source: "私はあまりヒトと関わりたくないんだっ", sourceOrientation: .vertical, sourceSingleVerticalColumn: false)
+        let full = ReaderTranslationBalloonMerger.apply(regions + [lowerLobe], image: image)
+        #expect(full.count == 2)
+        #expect(full.first?.source == "確かに足は不自由だけど困ちいないよ")
+        #expect(full.last?.source == lowerLobe.source)
     }
 
     @Test func separateBalloonsAndOpenBackgroundDoNotJoin() throws {

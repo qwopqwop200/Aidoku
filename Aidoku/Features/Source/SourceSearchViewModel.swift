@@ -7,10 +7,12 @@
 
 import AidokuRunner
 import SwiftUI
+import CoreData
 
 @MainActor
 class SourceSearchViewModel: ObservableObject {
-    private let source: AidokuRunner.Source
+    private let getPage: (String, Int, [FilterValue]) async throws -> AidokuRunner.MangaPageResult
+    private let getBookmarks: ([AidokuRunner.Manga]) async -> Set<String>
 
     @Published var entries: [AidokuRunner.Manga] = []
     @Published var error: Error?
@@ -22,12 +24,41 @@ class SourceSearchViewModel: ObservableObject {
     private(set) var hasMore = true
     private(set) var nextPage = 1
 
-    private var currentSearch: String = "_"
+    private var currentSearch: String?
+    private var generation = 0
+    private var loadingSearch = false
+    private var searchIsDebouncing = false
     private var searchTask: Task<(), Never>?
     private var loadMoreTask: Task<(), Never>?
 
     init(source: AidokuRunner.Source) {
-        self.source = source
+        getPage = { query, page, filters in
+            try await source.getSearchMangaList(query: query, page: page, filters: filters)
+        }
+        getBookmarks = Self.loadBookmarks
+    }
+
+    static func loadBookmarks(_ entries: [AidokuRunner.Manga]) async -> Set<String> {
+        await CoreDataManager.shared.container.performBackgroundTask { context in
+            var keys = Set<String>()
+            for (source, manga) in Dictionary(grouping: entries, by: \.sourceKey) {
+                let request = NSFetchRequest<NSDictionary>(entityName: "LibraryManga")
+                request.resultType = .dictionaryResultType
+                request.propertiesToFetch = ["manga.id"]
+                request.predicate = NSPredicate(format: "manga.sourceId == %@ AND manga.id IN %@", source, manga.map(\.key))
+                let results = (try? context.fetch(request)) ?? []
+                keys.formUnion(results.compactMap { $0["manga.id"] as? String })
+            }
+            return keys
+        }
+    }
+
+    init(
+        getPage: @escaping (String, Int, [FilterValue]) async throws -> AidokuRunner.MangaPageResult,
+        getBookmarks: @escaping ([AidokuRunner.Manga]) async -> Set<String>
+    ) {
+        self.getPage = getPage
+        self.getBookmarks = getBookmarks
     }
 
     func onAppear(searchText: String, filters: [FilterValue]) {
@@ -46,79 +77,92 @@ class SourceSearchViewModel: ObservableObject {
         delay: Bool = false,
         force: Bool = false
     ) {
-        guard force || currentSearch != searchText else { return }
+        guard force || currentSearch != searchText || (!delay && searchIsDebouncing) else { return }
+        generation += 1
+        let requestGeneration = generation
+        loadingSearch = true
+        searchIsDebouncing = delay
         error = nil
+        hasMore = true
         nextPage = 1
         currentSearch = searchText
         searchTask?.cancel()
         loadMoreTask?.cancel()
+        loadMoreTask = nil
         searchTask = Task {
             if delay {
-                // delay for one second
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                // Coalesce typing without adding a full second to every search.
+                try? await Task.sleep(nanoseconds: 250_000_000)
             }
             guard !Task.isCancelled else { return }
+            searchIsDebouncing = false
             do {
-                let result = try await source.getSearchMangaList(
-                    query: searchText,
-                    page: 1,
-                    filters: filters
-                )
+                var page = 1
+                var result = try await getPage(searchText, page, filters)
                 guard !Task.isCancelled else { return }
-                await loadBookmarks(entries: result.entries)
+                while result.entries.isEmpty && result.hasNextPage {
+                    page += 1
+                    result = try await getPage(searchText, page, filters)
+                    guard !Task.isCancelled else { return }
+                }
+                let bookmarks = await getBookmarks(result.entries)
+                guard !Task.isCancelled, generation == requestGeneration else { return }
+                bookmarkedItems = bookmarks
                 hasMore = result.hasNextPage
-                entries = result.entries
-                nextPage = 2
+                var keys = Set<String>()
+                entries = result.entries.filter { keys.insert($0.key).inserted }
+                nextPage = page + 1
                 shouldScrollToTop = true
             } catch {
+                guard !Task.isCancelled, generation == requestGeneration else { return }
+                // A failed replacement search must not display the previous query's results.
+                entries = []
+                bookmarkedItems = []
                 self.error = error
+                hasMore = false
             }
+            loadingSearch = false
             loadingInitial = false
         }
     }
 
     func loadMore(searchText: String, filters: [FilterValue]) async {
-        await loadMoreTask?.value
-        guard hasMore else { return }
-        loadMoreTask = Task {
-            await searchTask?.value
-            guard !Task.isCancelled else { return }
+        // Coalesce cell callbacks instead of queuing another page behind each callback.
+        if let loadMoreTask {
+            await loadMoreTask.value
+            return
+        }
+        guard !loadingSearch, hasMore, currentSearch == searchText else { return }
+        error = nil
+        let requestGeneration = generation
+        let task = Task { @MainActor in
+            defer {
+                if generation == requestGeneration { loadMoreTask = nil }
+            }
             do {
-                let result = try await source.getSearchMangaList(
-                    query: searchText,
-                    page: nextPage,
-                    filters: filters
-                )
-                guard !Task.isCancelled else { return }
-                await loadBookmarks(entries: result.entries)
-                hasMore = result.hasNextPage
+                repeat {
+                    let result = try await getPage(searchText, nextPage, filters)
+                    guard !Task.isCancelled, generation == requestGeneration else { return }
+                    let bookmarks = await getBookmarks(result.entries)
+                    guard !Task.isCancelled, generation == requestGeneration else { return }
+                    bookmarkedItems.formUnion(bookmarks)
+                    hasMore = result.hasNextPage
+                    nextPage += 1
 
-                // ensure no duplicate entries
-                var hashValues = Set(entries.map { $0.hashValue })
-                let newEntries = result.entries.filter { hashValues.insert($0.hashValue).inserted }
-                entries += newEntries
-
-                nextPage += 1
-                if result.entries.isEmpty && hasMore {
-                    await loadMore(searchText: searchText, filters: filters)
-                }
+                    var keys = Set(entries.map(\.key))
+                    let newEntries = result.entries.filter { keys.insert($0.key).inserted }
+                    if !newEntries.isEmpty {
+                        entries += newEntries
+                        break
+                    }
+                    // Empty/duplicate-only pages must advance without awaiting this same task.
+                } while hasMore
             } catch {
+                guard !Task.isCancelled, generation == requestGeneration else { return }
                 self.error = error
             }
         }
-    }
-
-    func loadBookmarks(entries: [AidokuRunner.Manga]) async {
-        let bookmarkedKeys: [String] = await CoreDataManager.shared.container.performBackgroundTask { context in
-            var keys: [String] = []
-            for manga in entries where CoreDataManager.shared.hasLibraryManga(
-                mangaId: manga.identifier,
-                context: context
-            ) {
-                keys.append(manga.key)
-            }
-            return keys
-        }
-        bookmarkedItems.formUnion(bookmarkedKeys)
+        loadMoreTask = task
+        await task.value
     }
 }

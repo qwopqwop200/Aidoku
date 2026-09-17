@@ -14,13 +14,15 @@ actor QualityTranslationAuditTransport: TranslationHTTPTransport {
         let id: String
         let text: String?
         let is_sfx: Classification
+        let textRole: String?
 
-        private enum CodingKeys: String, CodingKey { case id, text, is_sfx, classification }
+        private enum CodingKeys: String, CodingKey { case id, text, is_sfx, classification, text_role }
         func encode(to encoder: any Encoder) throws {
             var values = encoder.container(keyedBy: CodingKeys.self)
             try values.encode(id, forKey: .id)
             try values.encodeIfPresent(text, forKey: .text)
             try values.encode(is_sfx, forKey: .classification)
+            try values.encodeIfPresent(textRole, forKey: .text_role)
             switch is_sfx {
             case .true: try values.encode(true, forKey: .is_sfx)
             case .false: try values.encode(false, forKey: .is_sfx)
@@ -138,7 +140,7 @@ actor QualityTranslationAuditTransport: TranslationHTTPTransport {
             } else {
                 flag = .invalid
             }
-            return Translation(id: redact(id), text: (item["text"] as? String).map(redact), is_sfx: flag)
+            return Translation(id: redact(id), text: (item["text"] as? String).map(redact), is_sfx: flag, textRole: (item["text_role"] as? String).map(redact))
         }
         let rawUsage = root["usage"] as? [String: Any] ?? [:]
         var usage: [String: Double] = [:]

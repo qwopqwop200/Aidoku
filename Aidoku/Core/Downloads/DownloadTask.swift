@@ -26,10 +26,12 @@ actor DownloadTask: Identifiable {
     let id: String
 
     private let cache: DownloadCache
+    private let network: SourceNetwork
     private var downloads: [Download]
     private weak var delegate: DownloadTaskDelegate?
 
     private var worker: Task<Void, Never>?
+    private var warmedPages: (chapter: ChapterIdentifier, task: Task<[Page], Never>)?
 
     private var currentPage: Int = 0
     private var failedPages: Int = 0
@@ -48,10 +50,13 @@ actor DownloadTask: Identifiable {
         case pageProcessorFailed
     }
 
-    init(id: String, cache: DownloadCache, downloads: [Download]) {
+    init(id: String, cache: DownloadCache, downloads: [Download], network: SourceNetwork = .shared,
+         delegate: DownloadTaskDelegate? = nil) {
         self.id = id
+        self.network = network
         self.cache = cache
         self.downloads = downloads
+        self.delegate = delegate
     }
 
     func setDelegate(delegate: DownloadTaskDelegate?) {
@@ -61,13 +66,19 @@ actor DownloadTask: Identifiable {
     func resume() {
         guard !running else { return }
         running = true
-        Task {
+        let previousWorker = worker
+        worker = Task {
+            // A cancelled render/network operation must finish unwinding before
+            // a replacement touches the same chapter files and counters.
+            await previousWorker?.value
+            guard !Task.isCancelled, running else { return }
             await next()
         }
     }
 
     func pause() async {
         worker?.cancel()
+        warmedPages?.task.cancel(); warmedPages = nil
         running = false
         for (i, download) in downloads.enumerated() where download.status == .queued || download.status == .downloading {
             downloads[i].status = .paused
@@ -78,6 +89,7 @@ actor DownloadTask: Identifiable {
     }
 
     func cancel(manga: MangaIdentifier? = nil, chapter: ChapterIdentifier? = nil) {
+        warmedPages?.task.cancel(); warmedPages = nil
         if let chapter {
             guard let index = downloads.firstIndex(where: { $0.chapterIdentifier == chapter }) else { return }
             worker?.cancel()
@@ -168,7 +180,7 @@ actor DownloadTask: Identifiable {
 
 extension DownloadTask {
     private func next() async {
-        guard running else { return }
+        guard running, !Task.isCancelled else { return }
 
         // done with all downloads
         if downloads.isEmpty {
@@ -182,6 +194,7 @@ extension DownloadTask {
             let download = downloads.first,
             let source = await SourceManager.shared.source(for: download.chapterIdentifier.sourceKey)
         {
+            guard running, !Task.isCancelled else { return }
             // if chapter already downloaded, skip
             let directory = cache.directory(for: download.chapterIdentifier)
             guard !directory.exists && !directory.appendingPathExtension("cbz").exists else {
@@ -197,10 +210,9 @@ extension DownloadTask {
                 return await next()
             }
 
-            worker = Task {
-                await self.download(from: source)
-            }
+            await self.download(from: source)
         } else {
+            guard running, !Task.isCancelled else { return }
             // source not found, skip this download
             downloads.removeFirst()
             await next()
@@ -223,6 +235,7 @@ extension DownloadTask {
         let page: NetworkPage
         let data: Data?
         let targetPath: URL?
+        var stagedFile: URL? = nil
     }
 
     // perform download
@@ -246,16 +259,12 @@ extension DownloadTask {
         tmpDirectory.createDirectory()
 
         if pages.isEmpty {
-            let language = download.chapter.language ?? source.languages.first
-            let loadedPages = ((try? await source.getPageList(
-                manga: download.manga,
-                chapter: download.chapter
-            )) ?? []).map {
-                $0.toOld(
-                    sourceId: source.key,
-                    chapterId: download.chapterIdentifier.chapterKey,
-                    language: language
-                )
+            let loadedPages: [Page]
+            if let warmedPages, warmedPages.chapter == download.chapterIdentifier {
+                loadedPages = await warmedPages.task.value
+                self.warmedPages = nil
+            } else {
+                loadedPages = await Self.loadPages(download, source: source)
             }
             guard !Task.isCancelled, running, downloads.first == download else { return }
             pages = loadedPages
@@ -263,6 +272,7 @@ extension DownloadTask {
         }
 
         var networkPages: [NetworkPage] = []
+        var descriptions: [(Page, URL)] = []
 
         for (i, page) in pages.enumerated() {
             guard !Task.isCancelled, running, downloads.first == download else { return }
@@ -283,7 +293,7 @@ extension DownloadTask {
                     if let base64 = page.base64, let data = Data(base64Encoded: base64) {
                         let output = try await translatedData(data, settings: translationSettings)
                         try Task.checkCancellation()
-                        try output.write(to: targetPath.appendingPathExtension("png"), options: .atomic)
+                        try output.write(to: targetPath.appendingPathExtension(DownloadImageTranslator.fileExtension(for: output)), options: .atomic)
                     } else if let text = page.text, let data = text.data(using: .utf8) {
                         guard translationSettings == nil else { throw DownloadError.pageProcessorFailed }
                         try data.write(to: targetPath.appendingPathExtension("txt"))
@@ -291,7 +301,7 @@ extension DownloadTask {
                         guard let data = image.pngData() else { throw DownloadError.pageProcessorFailed }
                         let output = try await translatedData(data, settings: translationSettings)
                         try Task.checkCancellation()
-                        try output.write(to: targetPath.appendingPathExtension("png"), options: .atomic)
+                        try output.write(to: targetPath.appendingPathExtension(DownloadImageTranslator.fileExtension(for: output)), options: .atomic)
                     } else {
                         throw DownloadError.pageProcessorFailed
                     }
@@ -307,149 +317,125 @@ extension DownloadTask {
                 }
             }
 
-            if page.hasDescription {
-                var description = page.description
-                if description == nil {
-                    description = try? await source.getPageDescription(page: page.toNew())
-                }
-                if let description {
-                    let data = description.data(using: .utf8)
-                    try? data?.write(to: targetPath.appendingPathExtension("desc.txt"))
-                }
-            }
+            if page.hasDescription { descriptions.append((page, targetPath)) }
         }
 
-        if translationSettings == nil && AppSettings.downloads.parallel.get() {
-            // download pages from the network concurrently
-            await withTaskGroup(of: PageDownloadResult.self) { taskGroup in
-                let groupSize = max(1, min(source.config?.maximumParallelRequests ?? Self.maxConcurrentPageTasks, Self.maxConcurrentPageTasks))
-                for pageGroup in networkPages.chunked(into: groupSize) {
-                    for page in pageGroup {
-                        taskGroup.addTask {
-                            await self.downloadPage(page, source: source, tmpDirectory: tmpDirectory)
-                        }
-                    }
-                    for await result in taskGroup {
-                        guard !Task.isCancelled, running, downloads.first == download, tmpDirectory.exists else {
-                            taskGroup.cancelAll()
-                            // download was cancelled, stop processing
-                            return
-                        }
-                        var writeFailed = false
-                        if let data = result.data, let path = result.targetPath {
-                            do {
-                                try data.write(to: path)
-                            } catch {
-                                writeFailed = true
-                                LogManager.logger.error("Error writing downloaded image: \(error)")
-                            }
-                        }
-                        await self.incrementProgress(
-                            for: download.chapterIdentifier,
-                            failedPage: result.data == nil || writeFailed ? result.page.pageNumber : nil
-                        )
-                    }
+        // Keep compressed files in the bounded queue, never decoded images. A
+        // completed request immediately opens a slot; a slow retry cannot stall
+        // every page in a fixed-size batch. Heavy image work remains serial;
+        // at most two translated pages can overlap their text-only API waits.
+        await withTaskGroup(of: PageDownloadResult.self) { group in
+            let ceiling = translationSettings == nil ? Self.maxConcurrentPageTasks : 2
+            let limit = AppSettings.downloads.parallel.get()
+                ? max(1, min(source.config?.maximumParallelRequests ?? ceiling, ceiling)) : 1
+            var next = networkPages.makeIterator()
+            for _ in 0..<limit {
+                if let page = next.next() {
+                    group.addTask { await self.downloadPage(page, source: source, tmpDirectory: tmpDirectory, translationSettings: translationSettings) }
                 }
             }
-        } else {
-            // download pages from the network serially
-            for page in networkPages {
-                let result = await self.downloadPage(page, source: source, tmpDirectory: tmpDirectory, translationSettings: translationSettings)
+            while let result = await group.next() {
                 guard !Task.isCancelled, running, downloads.first == download, tmpDirectory.exists else {
-                    // download was cancelled, stop processing
+                    group.cancelAll()
+                    result.stagedFile?.removeItem()
+                    // Join and clean files created by requests that raced cancellation.
+                    for await abandoned in group { abandoned.stagedFile?.removeItem() }
                     return
                 }
-                var writeFailed = false
-                if let data = result.data, let path = result.targetPath {
-                    do {
+                var failed = false
+                do {
+                    defer { result.stagedFile?.removeItem() }
+                    guard let path = result.targetPath else { throw DownloadError.pageProcessorFailed }
+                    if let file = result.stagedFile {
+                        try FileManager.default.moveItem(at: file, to: path)
+                    } else if let data = result.data {
                         try data.write(to: path)
-                    } catch {
-                        writeFailed = true
-                        LogManager.logger.error("Error writing downloaded image: \(error)")
-                    }
+                    } else { throw DownloadError.pageProcessorFailed }
+                } catch {
+                    failed = true
+                    LogManager.logger.error("Error saving downloaded page: \(error)")
                 }
-                await self.incrementProgress(
-                    for: download.chapterIdentifier,
-                    failedPage: result.data == nil || writeFailed ? page.pageNumber : nil
-                )
+                guard !Task.isCancelled, running, downloads.first == download else {
+                    group.cancelAll()
+                    for await abandoned in group { abandoned.stagedFile?.removeItem() }
+                    return
+                }
+                // Refill before publishing progress to keep transport slots busy.
+                if let page = next.next() {
+                    group.addTask { await self.downloadPage(page, source: source, tmpDirectory: tmpDirectory, translationSettings: translationSettings) }
+                }
+                await incrementProgress(for: download.chapterIdentifier, failedPage: failed ? result.page.pageNumber : nil)
             }
         }
 
-        // handle completion of the current download
-        if !Task.isCancelled, running, downloads.first == download, networkPages.isEmpty && currentPage == pages.count {
+        // Metadata must finish before chapter promotion, but must not delay
+        // the first image request. Descriptions use one bounded source request.
+        for (page, target) in descriptions {
+            guard !Task.isCancelled, running, downloads.first == download else { return }
+            var description = page.description
+            if description == nil { description = try? await source.getPageDescription(page: page.toNew()) }
+            guard !Task.isCancelled, running, downloads.first == download else { return }
+            if let data = description?.data(using: .utf8) { try? data.write(to: target.appendingPathExtension("desc.txt")) }
+        }
+        if !Task.isCancelled, running, downloads.first == download, currentPage == pages.count {
             await handleChapterDownloadFinish(download: download)
         }
     }
 
-    // fetch a single page's data
-    private func downloadPage(
-        _ page: NetworkPage,
-        source: AidokuRunner.Source,
-        tmpDirectory: URL, translationSettings: ReaderTranslationSettings? = nil
-    ) async -> PageDownloadResult {
-        let urlRequest = await source.getModifiedImageRequest(
-            url: page.url,
-            context: page.context
-        )
-
-        let result = await self.fetchPageData(for: urlRequest, tmpDirectory: tmpDirectory)
-
-        var resultData: Data?
-        var resultPath: URL?
-
-        if source.features.processesPages {
-            let image = result.flatMap { PlatformImage(data: $0.0) } ?? .mangaPlaceholder
-            do {
-                let pageInterceptor = PageInterceptorProcessor(source: source, pageContext: page.context)
-                let container = ImageContainer(image: image, data: result?.0)
-                let request = ImageRequest(
-                    urlRequest: urlRequest,
-                    userInfo: [.processesKey: true]
-                )
-                let newImage = try await pageInterceptor.processAsync(
-                    container,
-                    context: .init(
-                        request: request,
-                        response: .init(
-                            container: container,
-                            request: request,
-                            urlResponse: result?.1 ?? (request.url ?? request.urlRequest?.url).flatMap {
-                                HTTPURLResponse(
-                                    url: $0,
-                                    statusCode: 404,
-                                    httpVersion: nil,
-                                    headerFields: nil
-                                )
-                            }
-                        ),
-                        isCompleted: true
-                    )
-                )
-                guard let newImage else {
-                    throw DownloadError.pageProcessorFailed
+    // Every producer returns a file, including sources that transform images.
+    // This bounds queued decoded output even when translation is much slower.
+    func downloadPage(_ page: NetworkPage, source: AidokuRunner.Source, tmpDirectory: URL,
+                              translationSettings: ReaderTranslationSettings? = nil) async -> PageDownloadResult {
+        let request = await source.getModifiedImageRequest(url: page.url, context: page.context)
+        let network = self.network
+        let fetched = await fetchPageResource(for: request, tmpDirectory: tmpDirectory,
+            fetch: { try await network.download(for: request) }, cleanup: { $0.removeItem() })
+        guard fetched != nil || source.features.processesPages else { return .init(page: page, data: nil, targetPath: nil) }
+        defer { fetched?.0.removeItem() }
+        let staged = tmpDirectory.appendingPathComponent(".incoming-\(page.pageNumber)-\(UUID().uuidString)")
+        do {
+            try Task.checkCancellation()
+            guard tmpDirectory.exists else { throw CancellationError() }
+            var fileExtension: String
+            if source.features.processesPages {
+                let data = try fetched.map { try Data(contentsOf: $0.0, options: .mappedIfSafe) }
+                let response = fetched?.1 ?? HTTPURLResponse(url: page.url, statusCode: 404, httpVersion: nil, headerFields: nil)
+                try await TranslationImageWorkBudget.shared.withPermit(priority: .prefetch,
+                    decodedBytes: data.map(TranslationImageWorkBudget.decodedBytes) ?? 0) {
+                    let image = data.flatMap { PlatformImage(data: $0) } ?? .mangaPlaceholder
+                    let container = ImageContainer(image: image, data: data)
+                    let imageRequest = ImageRequest(urlRequest: request, userInfo: [.processesKey: true])
+                    let processor = PageInterceptorProcessor(source: source, pageContext: page.context)
+                    guard let result = try await processor.processAsync(container, context: .init(request: imageRequest,
+                        response: .init(container: container, request: imageRequest, urlResponse: response), isCompleted: true)) else {
+                        throw DownloadError.pageProcessorFailed
+                    }
+                    try Task.checkCancellation()
+                    try autoreleasepool {
+                        guard let encoded = result.pngData() else { throw DownloadError.pageProcessorFailed }
+                        try encoded.write(to: staged, options: .atomic)
+                    }
                 }
-                resultData = newImage.pngData()
-                resultPath = page.targetPath.appendingPathExtension("png")
-            } catch {
-                LogManager.logger.error("Error processing image: \(error)")
+                fileExtension = "png"
+            } else {
+                guard let (file, response) = fetched else { throw DownloadError.pageProcessorFailed }
+                try FileManager.default.moveItem(at: file, to: staged)
+                fileExtension = guessFileExtension(response: response, defaultValue: "png")
             }
-        } else if let (data, res) = result {
-            let fileExtention = self.guessFileExtension(response: res, defaultValue: "png")
-            resultData = data
-            resultPath = page.targetPath.appendingPathExtension(fileExtention)
-        }
-
-        if let translationSettings, let data = resultData {
-            do {
-                resultData = try await translatedData(data, settings: translationSettings)
-                resultPath = page.targetPath.appendingPathExtension("png")
-            } catch {
-                LogManager.logger.error("Error translating downloaded page: \(error)")
-                resultData = nil
-                resultPath = nil
+            if let translationSettings {
+                let input = try Data(contentsOf: staged, options: .mappedIfSafe)
+                let output = try await DownloadImageTranslator.translate(input, settings: translationSettings)
+                try Task.checkCancellation()
+                try output.write(to: staged, options: .atomic)
+                if output.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]) { fileExtension = "png" }
             }
+            try Task.checkCancellation()
+            return .init(page: page, data: nil, targetPath: page.targetPath.appendingPathExtension(fileExtension), stagedFile: staged)
+        } catch {
+            staged.removeItem()
+            if !(error is CancellationError) { LogManager.logger.error("Error processing downloaded page: \(error)") }
+            return .init(page: page, data: nil, targetPath: nil)
         }
-        return .init(page: page, data: resultData, targetPath: resultPath)
     }
 
     private func translatedData(_ data: Data, settings: ReaderTranslationSettings?) async throws -> Data {
@@ -457,16 +443,22 @@ extension DownloadTask {
         return try await DownloadImageTranslator.translate(data, settings: settings)
     }
 
-    // fetch page data, retrying on any non-2xx HTTP response or network error
-    private func fetchPageData(for urlRequest: URLRequest, tmpDirectory: URL) async -> (Data, URLResponse)? {
+    // Retry policy is identical for file-backed and data-backed responses.
+    private func fetchPageResource<Payload: Sendable>(
+        for urlRequest: URLRequest, tmpDirectory: URL,
+        fetch: @Sendable () async throws -> (Payload, URLResponse),
+        cleanup: @Sendable (Payload) -> Void
+    ) async -> (Payload, URLResponse)? {
         var attempt = 0
-        while true {
-            let result = try? await SourceNetwork.shared.data(for: urlRequest)
+        while !Task.isCancelled {
+            let result = try? await fetch()
 
             // response was okay, bail out
-            if let result, self.isSuccessResponse(result.1) {
+            if let result, self.isSuccessResponse(result.1), !Task.isCancelled {
                 return result
             }
+            if let result { cleanup(result.0) }
+            guard !Task.isCancelled else { return nil }
 
             let statusCode = (result?.1 as? HTTPURLResponse)?.statusCode
 
@@ -502,6 +494,7 @@ extension DownloadTask {
 
             attempt += 1
         }
+        return nil
     }
 
     private func incrementProgress(for id: ChapterIdentifier, failedPage: Int? = nil) async {
@@ -518,13 +511,27 @@ extension DownloadTask {
             failedPages += 1
             failedPageNumbers.append(failedPage)
         }
-        if currentPage == pages.count {
-            await handleChapterDownloadFinish(download: download)
-        }
+    }
+
+    private static func loadPages(_ download: Download, source: AidokuRunner.Source) async -> [Page] {
+        guard !Task.isCancelled else { return [] }
+        let pages = (try? await source.getPageList(manga: download.manga, chapter: download.chapter)) ?? []
+        guard !Task.isCancelled else { return [] }
+        return pages.map { $0.toOld(sourceId: source.key, chapterId: download.chapterIdentifier.chapterKey,
+                                   language: download.chapter.language ?? source.languages.first) }
     }
 
     private func handleChapterDownloadFinish(download: Download) async {
         let tmpDirectory = cache.tmpDirectory(for: download.chapterIdentifier)
+        // Overlap only lightweight next-chapter metadata with finalization.
+        // Pixel downloads wait for the existing bounded queue to own the chapter.
+        if downloads.count > 1, warmedPages == nil,
+           let source = await SourceManager.shared.source(for: download.chapterIdentifier.sourceKey),
+           (source.config?.maximumParallelRequests ?? Self.maxConcurrentPageTasks) > 1 {
+            let next = downloads[1]
+            warmedPages = (next.chapterIdentifier, Task { await Self.loadPages(next, source: source) })
+        }
+
 
         if pages.isEmpty || (failedPages == pages.count && download.translatesImages != true) {
             // the entire chapter failed to download, skip adding to cache and cancel

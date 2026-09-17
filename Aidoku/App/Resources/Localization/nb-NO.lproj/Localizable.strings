@@ -312,7 +312,7 @@
 
 "TRANSLATION_CACHE_USED" = "Brukt lagringsplass";
 
-"TRANSLATION_CACHE_HELP" = "Lagrer OCR, sideoversettelser, oversettelser av manga- og kapitteltitler, mangabeskrivelser og tekstoppsett automatisk. Sidebilder beholdes bare i minnet for gjeldende side og nærliggende sider. Når lagringsgrensen nås, fjernes resultatene som ikke har vært brukt på lengst tid først. Standard: 1 GB. Maksimum: 100 GB. Endringer brukes automatisk. Hvis grensen senkes, fjernes disse eldre resultatene til hurtigbufferen er innenfor grensen.";
+"TRANSLATION_CACHE_HELP" = "Lagrer OCR, sideoversettelser, oversettelser av manga- og kapitteltitler, forfatternavn, etiketter, mangabeskrivelser, kildemenyer og seksjonstitler og tekstoppsett automatisk. Sidebilder beholdes bare i minnet for gjeldende side og nærliggende sider. Når lagringsgrensen nås, fjernes resultatene som ikke har vært brukt på lengst tid først. Standard: 1 GB. Maksimum: 100 GB. Endringer brukes automatisk. Hvis grensen senkes, fjernes disse eldre resultatene til hurtigbufferen er innenfor grensen.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filter for kildespråk";
 
@@ -344,7 +344,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Oversett kapitteltitler";
 
-"TRANSLATION_TITLES_HELP" = "Bruker oversettelses-API og målspråk uavhengig av automatisk sideoversettelse. Slå av for å vise originale titler og beskrivelser. Originalene forblir synlige under innlasting eller hvis oversettelsen mislykkes.";
+"TRANSLATION_TITLES_HELP" = "Bruker oversettelses-API-et og målspråket ditt uavhengig av automatisk sideoversettelse. Slå av et alternativ for å vise den tilhørende originalteksten. Originalteksten forblir synlig under innlasting eller hvis oversettelsen mislykkes.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Språk for mangatitler";
 
@@ -358,7 +358,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Språk for mangabeskrivelser";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Oppdag kildespråket automatisk og oversett kun de valgte språkene. Alle oppdagede språk fjerner begrensningen. Side-, mangatittel-, kapitteltittel- og beskrivelsesfiltre fungerer uavhengig.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Gjenkjenner kildespråket automatisk og oversetter bare de valgte språkene. Alle oppdagede språk fjerner begrensningen. Hvert elements språkfilter er uavhengig av språkinnstillingene for sider og andre elementer.";
 
 "TRANSLATION_SFX_FILTER" = "SFX-filtrering (kun japansk)";
 
@@ -480,7 +480,7 @@
 "REFRESH_NO_WIFI_TEXT" = "Innstillingen for å oppdatere kun over Wi-Fi er aktivert. Koble til Wi-Fi for å oppdatere biblioteket ditt.";
 "REFRESH_ANYWAYS" = "Oppdater uansett";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Vil du fjerne fra biblioteket?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Fjerning av denne serien fra biblioteket ditt vil også fjerne alle tilknyttede sporere. Er du sikker på at du vil fortsette?";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Hvis du fjerner denne serien fra biblioteket, fjernes også seriens koblinger til sporingstjenester. Er du sikker på at du vil fortsette?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Bibliotekets oppdatering avbrutt";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Den siste bibliotekoppdateringen ble avbrutt før den ble fullført. Vil du fortsette?";
 "CATEGORY" = "Kategori";
@@ -910,7 +910,7 @@
 "IMPORT_FAIL" = "Import mislyktes";
 "BACKUP_IMPORT_FAIL_TEXT" = "Kunne ikke lagre sikkerhetskopien. Sørg for at sikkerhetskopien er i riktig format.";
 "SOURCE_IMPORT_FAIL_TEXT" = "Kunne ikke importere kilden. Sørg for at aix-filen din er gyldig.";
-"FILE_IMPORT_FAIL_TEXT" = "Kunne ikke importere filen. Sørg for at det er et gyldig CBZ- eller ZIP-arkiv som inneholder bilder.";
+"FILE_IMPORT_FAIL_TEXT" = "Kunne ikke importere filen. Kontroller at det er en lesbar bildefil eller et gyldig CBZ- eller ZIP-arkiv med bilder.";
 "BACKUP_%@" = "Sikkerhetskopi %@";
 "CREATE_BACKUP" = "Lag sikkerhetskopi";
 "IMPORT_BACKUP" = "Importer sikkerhetskopi";
@@ -1089,3 +1089,10 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Fem inkluderte modeller kan installeres offline. Installer en modell, og trykk deretter på den i Aktivert modell. MangaJaNai er for svart-hvitt-sider rundt 1200 piksler høye; fargesider forblir uendret.";
 
 "DOWNLOAD_TRANSLATED" = "Last ned med oversettelse";
+
+"TRANSLATION_LLM_BACKGROUND" = "Hopp over bakgrunnstekst (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "Oversettelses-AI-en lar tilfeldige skilt, plakater og bakgrunnstekst stå uendret. Dialog, fortellertekst og tekst med usikker rolle blir oversatt. Ingen ekstra forespørsel sendes, men behandlingen kan ta lengre tid. Klassifiseringen er mindre pålitelig uten et sidebilde.";
+
+"TRANSLATION_STATE_ON" = "På";
+
+"TRANSLATION_STATE_OFF" = "Av";

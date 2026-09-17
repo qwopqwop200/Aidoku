@@ -478,7 +478,7 @@
 "LOGOUT_CONFIRM" = "确定要退出登录吗？";
 "RECENTLY_READ_BOOKS" = "最近阅读图书";
 "LOGIN_BASIC_TEXT" = "输入的登录信息会直接提供给图源。请勿登录不信任的图源。";
-"FILE_IMPORT_FAIL_TEXT" = "文件导入失败。请确保该文件是包含图片的有效 CBZ 或 ZIP 存档文件。";
+"FILE_IMPORT_FAIL_TEXT" = "文件导入失败。请确保文件是可读取的图片，或包含图片的有效 CBZ 或 ZIP 压缩包。";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "获取上述图源列表时发生错误。";
 "SOURCE_BREAKING_CHANGE" = "图源不兼容变更";
 "SOURCE_BREAKING_CHANGE_TEXT" = "此图源发生了不兼容变更，需要迁移才能保留书架和阅读历史。";
@@ -706,7 +706,7 @@
 "REFRESH_NO_WIFI_TEXT" = "已启用“仅在 Wi-Fi 更新”，连接 Wi-Fi 后才能刷新书架。";
 "REFRESH_ANYWAYS" = "强制刷新";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "从书架移除？";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "从书架中移除此作品也会移除所有已关联的追踪器。确定要继续吗？";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "从书架中移除此作品也会移除此作品与追踪器的关联。确定要继续吗？";
 "INCOGNITO_FILTERS_NOTICE" = "修改后的过滤器在无痕模式下不会保留。";
 "API_KEY" = "API 密钥";
 "OIDC" = "OIDC";
@@ -951,7 +951,7 @@
 
 "TRANSLATION_CACHE_USED" = "已用存储空间";
 
-"TRANSLATION_CACHE_HELP" = "自动保存 OCR 结果、页面译文、漫画和章节标题译文、漫画简介译文及文字排版。页面图像仅保留在当前及附近页面的内存中。达到容量上限时，优先删除最久未使用的结果。默认上限为 1 GB，最高为 100 GB。更改自动生效；降低上限时会删除最久未使用的结果，直到符合容量限制。";
+"TRANSLATION_CACHE_HELP" = "自动保存 OCR 结果、页面译文、漫画和章节标题、作者姓名、标签、漫画简介、图源菜单和分区标题的译文及文字排版。页面图像仅保留在当前及附近页面的内存中。达到容量上限时，优先删除最久未使用的结果。默认上限为 1 GB，最高为 100 GB。更改自动生效；降低上限时会删除最久未使用的结果，直到符合容量限制。";
 
 "TRANSLATION_SOURCE_FILTER" = "原文语言筛选";
 
@@ -983,7 +983,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "翻译章节标题";
 
-"TRANSLATION_TITLES_HELP" = "使用已设置的翻译 API 和目标语言，独立于页面自动翻译运行。关闭后显示原始标题和简介。翻译加载中或失败时仍显示原文。";
+"TRANSLATION_TITLES_HELP" = "使用已设置的翻译 API 和目标语言，独立于页面自动翻译运行。关闭某个选项后，会显示该项的原文。翻译加载中或失败时仍显示原文。";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "漫画标题原文语言";
 
@@ -997,7 +997,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "漫画简介原文语言";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "自动检测原文语言，只翻译选中的语言。选择“所有检测到的语言”可取消语言限制。页面、漫画标题、章节标题和简介的语言筛选各自独立。";
+"TRANSLATION_METADATA_FILTER_HELP" = "自动检测原文语言，只翻译选中的语言。选择“所有检测到的语言”可取消语言限制。每一项的语言筛选均独立于页面和其他项的语言设置。";
 
 "TRANSLATION_SFX_FILTER" = "音效文字过滤（仅限日语）";
 
@@ -1017,7 +1017,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM 音效文字过滤（所有语言）";
 
-"TRANSLATION_LLM_SFX_HELP" = "在翻译请求中同时判断音效。可与日语本地过滤器配合使用：任一过滤器判定为音效时，均保留原文。可同时发送页面图像。";
+"TRANSLATION_LLM_SFX_HELP" = "在翻译请求中同时判断音效。可与日语本地过滤器配合使用：任一过滤器判定为音效时，均保留原文。可与“在翻译中包含页面图像”同时启用。";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "不提供图片时，可供判断的画面和排版信息有限，音效文字识别的准确率可能降低。";
 
@@ -1091,3 +1091,10 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "内置的5个模型均可离线安装。安装模型后，在“已启用模型”中点按选择。MangaJaNai 适用于高度约1200像素的黑白页面；彩色页面保持原样。";
 
 "DOWNLOAD_TRANSLATED" = "下载并翻译";
+
+"TRANSLATION_LLM_BACKGROUND" = "跳过背景文字（LLM）";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "翻译 AI 会保留无关紧要的标牌、海报及背景文字的原文。对话、旁白和无法确定的文字仍会翻译。不会额外发送请求，但处理时间可能增加。未提供页面图像时，分类判断的可靠性会降低。";
+
+"TRANSLATION_STATE_ON" = "开启";
+
+"TRANSLATION_STATE_OFF" = "关闭";

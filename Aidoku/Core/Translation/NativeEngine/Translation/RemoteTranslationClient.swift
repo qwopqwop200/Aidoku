@@ -323,7 +323,8 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             from: body,
             protocol: configuration.apiProtocol,
             expectedSegmentIDs: request.segments.map(\.id),
-            sfxSourceTexts: request.filtersSFX == true ? Dictionary(uniqueKeysWithValues: request.segments.map { ($0.id, $0.text) }) : nil
+            sfxSourceTexts: request.filtersSFX == true ? Dictionary(uniqueKeysWithValues: request.segments.map { ($0.id, $0.text) }) : nil,
+            backgroundSourceTexts: request.filtersBackground == true ? Dictionary(uniqueKeysWithValues: request.segments.map { ($0.id, $0.text) }) : nil
         )
         TranslationPerformanceDiagnostics.clientPhaseCompleted(
             phase: "parse",

@@ -37,7 +37,10 @@ final class ReaderTranslationPage {
         imageView: UIImageView,
         recognize: @escaping Recognizer = { image, configuration in
             guard #available(iOS 18.0, *) else { return [] }
-            return try await ReaderOCRService.shared.recognize(image: image, configuration: configuration)
+            return try await TranslationImageWorkBudget.shared.withPermit(
+                decodedBytes: UInt64(image.bytesPerRow) * UInt64(image.height)) {
+                try await ReaderOCRService.shared.recognize(image: image, configuration: configuration)
+            }
         },
         translate: Translator? = nil,
         progressiveTranslate: ProgressiveTranslator? = nil
@@ -161,6 +164,7 @@ final class ReaderTranslationPage {
             } onCancel: { filteringTask.cancel() }
             try Task.checkCancellation()
             if translate && !eligible.isEmpty {
+                try publish(eligible, image: image, settings: settings, generation: issued, renderOverlay: renderOverlay)
                 if let translateRegions { return try await translateRegions(eligible, settings) }
                 let progress: ReaderTranslationService.Progress = { [weak self] partial in
                     try Task.checkCancellation()

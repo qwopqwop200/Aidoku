@@ -461,7 +461,7 @@
 "READER_BG_COLOR_WHITE" = "Vit";
 "READER_BG_COLOR_BLACK" = "Svart";
 "SOURCE_IMPORT_FAIL_TEXT" = "Kunde ej importera källa. Se till att din aix-fil är giltig.";
-"FILE_IMPORT_FAIL_TEXT" = "Kunde ej importera fil. Se till att det är en giltig CBZ- eller ZIP-fil som innehåller bilder.";
+"FILE_IMPORT_FAIL_TEXT" = "Kunde inte importera filen. Kontrollera att det är en läsbar bildfil eller ett giltigt CBZ- eller ZIP-arkiv med bilder.";
 "CLEAR_EXCLUDING_LIBRARY" = "Radera läshistoriken förutom biblioteket";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "Denna åtgärd går inte att ångra. All läshistorik för titlar som inte finns i biblioteket kommer att raderas.";
 "TRACK_COMPLETED" = "Klar";
@@ -693,10 +693,10 @@
 "HIDE_BARS_ON_SWIPE" = "Dölj verktygsfält vid svepning";
 "TEXT_READER_PAGED" = "Sidad";
 "REFRESH_NO_WIFI" = "Inte ansluten till Wi-fi";
-"REFRESH_NO_WIFI_TEXT" = "Inställningen \"Uppdatera endast via Wi-Fi\" är på, så biblioteket kan inte laddas om tills du är ansluten till ett Wi-Fi nätverk.";
+"REFRESH_NO_WIFI_TEXT" = "Inställningen ”Uppdatera endast med Wi-Fi” är aktiverad. Anslut till Wi-Fi för att uppdatera biblioteket.";
 "REFRESH_ANYWAYS" = "Ladda om ändå";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Ta bort från biblioteket?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Om du tar bort denna serie från ditt bibliotek kommer du även att ta bort alla länkade trackers. Är du säker på att du vill fortsätta?";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Om du tar bort denna serie från ditt bibliotek tas även seriens länkar till trackers bort. Är du säker på att du vill fortsätta?";
 "INCOGNITO_FILTERS_NOTICE" = "Ändrade filter sparas inte i inkognitoläget.";
 "API_KEY" = "API-nyckel";
 "OIDC" = "OIDC";
@@ -853,7 +853,7 @@
 
 "TRANSLATION_CACHE_USED" = "Använt lagringsutrymme";
 
-"TRANSLATION_CACHE_HELP" = "Sparar OCR, sidöversättningar, översättningar av manga- och kapiteltitlar, mangabeskrivningar och textlayout automatiskt. Sidbilder behålls endast i minnet för den aktuella sidan och närliggande sidor. När lagringsgränsen nås tas de resultat som inte använts på längst tid bort först. Standard: 1 GB. Max: 100 GB. Ändringar tillämpas automatiskt. Om gränsen sänks tas dessa äldre resultat bort tills cachen ryms inom gränsen.";
+"TRANSLATION_CACHE_HELP" = "Sparar OCR, sidöversättningar, översättningar av manga- och kapiteltitlar, författarnamn, taggar, mangabeskrivningar, källmenyer och avsnittsrubriker och textlayout automatiskt. Sidbilder behålls endast i minnet för den aktuella sidan och närliggande sidor. När lagringsgränsen nås tas de resultat som inte använts på längst tid bort först. Standard: 1 GB. Max: 100 GB. Ändringar tillämpas automatiskt. Om gränsen sänks tas dessa äldre resultat bort tills cachen ryms inom gränsen.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filter för källspråk";
 
@@ -885,7 +885,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Översätt kapiteltitlar";
 
-"TRANSLATION_TITLES_HELP" = "Använder ditt översättnings-API och målspråk oberoende av automatisk sidöversättning. Stäng av för att visa originaltitlar och beskrivningar. Originalen förblir synliga när de laddas eller om översättningen misslyckas.";
+"TRANSLATION_TITLES_HELP" = "Använder ditt översättnings-API och målspråk oberoende av automatisk sidöversättning. Stäng av ett alternativ för att visa motsvarande originaltext. Originaltexten förblir synlig under inläsning eller om översättningen misslyckas.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Språk för mangatitlar";
 
@@ -899,7 +899,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Språk för mangabeskrivningar";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Identifierar källspråket automatiskt och översätter endast de valda språken. Alla upptäckta språk tar bort begränsningen. Filtren för sidor, mangatitlar, kapiteltitlar och beskrivningar fungerar oberoende av varandra.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Identifierar källspråket automatiskt och översätter endast de valda språken. Alla upptäckta språk tar bort begränsningen. Varje posts språkfilter är oberoende av språkinställningarna för sidor och andra poster.";
 
 "TRANSLATION_SFX_FILTER" = "SFX-filtrering (endast japanska)";
 
@@ -1089,3 +1089,10 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Fem inkluderade modeller kan installeras offline. Installera en modell och tryck sedan på den i Aktiverad modell. MangaJaNai är för svartvita sidor runt 1200 pixlar höga; färgsidor förblir oförändrade.";
 
 "DOWNLOAD_TRANSLATED" = "Ladda ned med översättning";
+
+"TRANSLATION_LLM_BACKGROUND" = "Hoppa över bakgrundstext (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "Översättnings-AI:n lämnar oväsentliga skyltar, affischer och bakgrundstext oförändrade. Dialog, berättartext och text vars roll är osäker översätts. Ingen extra förfrågan görs, men bearbetningen kan ta längre tid. Klassificeringen är mindre tillförlitlig utan en sidbild.";
+
+"TRANSLATION_STATE_ON" = "På";
+
+"TRANSLATION_STATE_OFF" = "Av";

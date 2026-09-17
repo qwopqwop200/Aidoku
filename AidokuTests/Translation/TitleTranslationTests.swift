@@ -5,6 +5,35 @@ import CoreGraphics
 
 @Suite(.serialized) @MainActor
 struct TitleTranslationTests {
+    @Test func cachedMetadataSurvivesOtherItemsFailingOffline() async {
+        let fixture = TitleCacheFixture()
+        var settings = ReaderTranslationSettings()
+        settings.targetLanguage = "ko"
+        settings.translateMangaTitles = true
+        settings.translateChapterTitles = true
+        settings.translateAuthors = true
+        settings.translateMangaTags = true
+        settings.translateSourceLabels = true
+        settings.mangaTitleSourceLanguages = []
+        settings.chapterTitleSourceLanguages = []
+        settings.authorSourceLanguages = []
+        settings.mangaTagSourceLanguages = []
+        settings.sourceLabelSourceLanguages = []
+        let online = ReaderTranslationService(client: TitleTestClient())
+        let offline = TitleTestClient(fail: true)
+        let failingService = ReaderTranslationService(client: offline)
+        for kind: TitleTranslationKind in [.manga, .chapter, .author, .tag, .sourceLabel] {
+            let original = "The Lost Adventure"
+            #expect(await TitleTranslation.translate(original, kind: kind, settings: settings,
+                service: online, diskCache: fixture.disk) == "일본어 제목")
+            let result = await SourceMenuTranslation.translate(["A Missing Story", original], settings: settings, kind: kind,
+                service: failingService, diskCache: ReaderTranslationDiskCache(directory: fixture.root))
+            #expect(result[original] == "일본어 제목")
+            #expect(result["A Missing Story"] == "A Missing Story")
+        }
+        #expect(await offline.requests.count == 5)
+    }
+
     @Test func tagsPersistAndReuseCacheAcrossSourceIndependentRequests() async throws {
         let suite = "tag-tests-" + UUID().uuidString
         let defaults = try #require(UserDefaults(suiteName: suite))

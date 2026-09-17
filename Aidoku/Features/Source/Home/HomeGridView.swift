@@ -84,13 +84,13 @@ struct HomeGridView: View {
         ) {
             ForEach(entries.indices, id: \.self) { index in
                 mangaGridItem(entry: entries[index])
+                    .onAppear {
+                        if index >= max(0, entries.count - 12) { requestMore() }
+                    }
             }
             loadMoreView
         }
         .padding([.horizontal, .bottom])
-        .onChange(of: entries) { _ in
-            loadingMore = false
-        }
         .onReceive(NotificationCenter.default.publisher(for: .orientationDidChange)) { _ in
             columns = Self.getColumns()
         }
@@ -166,18 +166,25 @@ struct HomeGridView: View {
         }
     }
 
+    private func requestMore() {
+        guard !loadingMore, let loadMore else { return }
+        loadingMore = true
+        Task {
+            defer { loadingMore = false }
+            await loadMore()
+        }
+    }
+
     @ViewBuilder
     var loadMoreView: some View {
-        if !loadingMore, !entries.isEmpty, let loadMore {
-            Spacer()
-                .onAppear {
+        if !entries.isEmpty, loadMore != nil {
+            Color.clear.frame(height: 1)
+                .task(id: entries.count) {
+                    guard !loadingMore, let loadMore else { return }
                     loadingMore = true
-                    Task {
-                        await loadMore()
-                    }
+                    defer { loadingMore = false }
+                    await loadMore()
                 }
-        } else {
-            EmptyView()
         }
     }
 

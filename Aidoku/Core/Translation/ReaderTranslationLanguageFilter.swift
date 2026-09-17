@@ -49,7 +49,8 @@ enum ReaderTranslationLanguageFilter {
     /// classifier also keep the permissive fallback.
     static func identity(settings: ReaderTranslationSettings) -> [String]? {
         var language = languageIdentity(settings: settings)
-        if settings.filterSFXWithLLM { language = (language ?? []) + ["llm-sfx-v1"] }
+        if settings.filterBackgroundWithLLM { language = (language ?? []) + [TranslationHTTPCodec.backgroundPolicy] }
+        if settings.filterSFXWithLLM { language = (language ?? []) + [TranslationHTTPCodec.sfxPolicy] }
         guard settings.filterJapaneseSFX else { return language }
         return (language ?? []) + [ReaderJapaneseSFXFilter.version] +
             (settings.filterJapaneseSFXContext ? [ReaderJapaneseSFXFilter.contextVersion] : [])

@@ -209,19 +209,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             }
 
             networkObserverId = await Reachability.shared.registerConnectionTypeObserver { connectionType in
-                switch connectionType {
-                    case .wifi:
-                        if AppSettings.downloads.downloadOnlyOnWifi.get() {
-                            Task {
-                                await DownloadManager.shared.resumeDownloads()
-                            }
-                        }
-                    case .cellular, .none:
-                        if AppSettings.downloads.downloadOnlyOnWifi.get() {
-                            Task {
-                                await DownloadManager.shared.pauseDownloads()
-                            }
-                        }
+                Task {
+                    await DownloadManager.shared.setWifiAvailable(connectionType == .wifi)
                 }
             }
 
@@ -280,6 +269,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         options: UIScene.ConnectionOptions
     ) -> UISceneConfiguration {
         UISceneConfiguration(name: "Default Configuration", sessionRole: connectingSceneSession.role)
+    }
+
+    func applicationDidReceiveMemoryWarning(_ application: UIApplication) {
+        ImagePipeline.shared.configuration.imageCache?.removeAll()
+        ReaderTranslationRenderCache.shared.clearMemory()
+        ReaderTranslationImageExporter.clearIdleRenderer()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

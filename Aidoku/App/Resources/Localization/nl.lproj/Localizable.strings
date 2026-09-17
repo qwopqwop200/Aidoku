@@ -501,7 +501,7 @@
 
 "TRANSLATION_CACHE_USED" = "Gebruikte opslag";
 
-"TRANSLATION_CACHE_HELP" = "Slaat OCR-resultaten, paginavertalingen, vertalingen van manga- en hoofdstuktitels, mangabeschrijvingen en tekstopmaak automatisch op. Alleen afbeeldingen van de huidige en nabijgelegen pagina’s blijven in het werkgeheugen. Bij het bereiken van de opslaglimiet worden eerst de resultaten verwijderd die het langst niet zijn gebruikt. Standaard: 1 GB. Maximum: 100 GB. Wijzigingen worden automatisch toegepast. Bij het verlagen van de limiet worden deze resultaten verwijderd totdat de cache binnen de limiet past.";
+"TRANSLATION_CACHE_HELP" = "Slaat OCR-resultaten, paginavertalingen, vertalingen van manga- en hoofdstuktitels, auteursnamen, tags, mangabeschrijvingen, bronmenu’s en sectietitels en tekstopmaak automatisch op. Alleen afbeeldingen van de huidige en nabijgelegen pagina’s blijven in het werkgeheugen. Bij het bereiken van de opslaglimiet worden eerst de resultaten verwijderd die het langst niet zijn gebruikt. Standaard: 1 GB. Maximum: 100 GB. Wijzigingen worden automatisch toegepast. Bij het verlagen van de limiet worden deze resultaten verwijderd totdat de cache binnen de limiet past.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filter op brontaal";
 
@@ -533,7 +533,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Vertaal hoofdstuktitels";
 
-"TRANSLATION_TITLES_HELP" = "Gebruikt uw vertaal-API en doeltaal, onafhankelijk van automatische paginavertaling. Schakel uit om originele titels en beschrijvingen weer te geven. Originelen blijven zichtbaar tijdens het laden of als de vertaling mislukt.";
+"TRANSLATION_TITLES_HELP" = "Gebruikt je vertaal-API en doeltaal, onafhankelijk van automatische paginavertaling. Schakel een optie uit om de bijbehorende oorspronkelijke tekst weer te geven. De oorspronkelijke tekst blijft zichtbaar tijdens het laden of als de vertaling mislukt.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Manga-titeltalen";
 
@@ -547,7 +547,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Manga-beschrijvingstalen";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Detecteer automatisch de brontaal en vertaal alleen de geselecteerde talen. Alle gedetecteerde talen heft de beperking op. Pagina-, mangatitel-, hoofdstuktitel- en beschrijvingsfilters werken onafhankelijk.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Detecteert automatisch de brontaal en vertaalt alleen de geselecteerde talen. Alle gedetecteerde talen heft de beperking op. Het taalfilter van elk onderdeel is onafhankelijk van de taalinstellingen voor pagina’s en andere onderdelen.";
 
 "TRANSLATION_SFX_FILTER" = "SFX-filtering (alleen Japans)";
 
@@ -650,7 +650,7 @@
 "REFRESH_NO_WIFI_TEXT" = "De instelling om alleen via Wi-Fi te updaten is ingeschakeld. Maak verbinding met wifi om uw bibliotheek te vernieuwen.";
 "REFRESH_ANYWAYS" = "Hoe dan ook vernieuwen";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Verwijderen uit bibliotheek?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Als u deze serie uit uw bibliotheek verwijdert, worden ook alle gekoppelde trackers verwijderd. Weet u zeker dat u verder wilt gaan?";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Als je deze serie uit je bibliotheek verwijdert, worden ook de koppelingen van deze serie met trackers verwijderd. Weet je zeker dat je wilt doorgaan?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Bibliotheekvernieuwing onderbroken";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "De laatste bibliotheekvernieuwing werd onderbroken voordat deze was voltooid. Wilt u hervatten?";
 "CATEGORY" = "Categorie";
@@ -978,7 +978,7 @@
 "INSTALL_SOURCES" = "Installeer bronnen";
 "INSTALLING_SOURCES" = "Bronnen installeren…";
 "SOURCE_IMPORT_FAIL_TEXT" = "Kan de bron niet importeren. Zorg ervoor dat uw aix-bestand geldig is.";
-"FILE_IMPORT_FAIL_TEXT" = "Kan bestand niet importeren. Zorg ervoor dat het een geldig CBZ- of ZIP-archief is dat afbeeldingen bevat.";
+"FILE_IMPORT_FAIL_TEXT" = "Kan bestand niet importeren. Zorg ervoor dat het een leesbaar afbeeldingsbestand of een geldig CBZ- of ZIP-archief met afbeeldingen is.";
 "BACKUP_%@" = "Back-up %@";
 "CREATE_BACKUP" = "Maak een back-up";
 "IMPORT_BACKUP" = "Back-up importeren";
@@ -1091,3 +1091,10 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Vijf meegeleverde modellen kunnen offline worden geïnstalleerd. Installeer een model en tik erop in Ingeschakeld model. MangaJaNai is voor zwart-witpagina's van ongeveer 1200 pixels hoog; kleurenpagina's blijven ongewijzigd.";
 
 "DOWNLOAD_TRANSLATED" = "Downloaden met vertaling";
+
+"TRANSLATION_LLM_BACKGROUND" = "Achtergrondtekst overslaan (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "De vertaal-AI laat bijkomstige borden, posters en achtergrondtekst ongewijzigd. Dialoog, verteltekst en tekst waarvan de rol onzeker is, worden vertaald. Er wordt geen extra verzoek verstuurd, maar de verwerking kan langer duren. Zonder pagina-afbeelding is de classificatie minder betrouwbaar.";
+
+"TRANSLATION_STATE_ON" = "Aan";
+
+"TRANSLATION_STATE_OFF" = "Uit";

@@ -5,6 +5,31 @@ import WebKit
 @MainActor
 enum ReaderTranslationImageExporter {
     enum ExportError: Error { case unavailable, renderFailed }
+    private static let gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
+    private static var idleOverlay: ReaderTranslationOverlayView?
+    private static var eviction: Task<Void, Never>?
+    private static var warningObserver: NSObjectProtocol?
+
+    static func clearIdleRenderer() {
+        eviction?.cancel(); eviction = nil
+        idleOverlay?.cancelWork(); idleOverlay = nil
+    }
+
+    private static func release(_ overlay: ReaderTranslationOverlayView) {
+        overlay.removeFromSuperview()
+        guard overlay.contentTerminationCount == 0,
+              ReaderTranslationSession.processAvailableMemory() >= TranslationImageWorkBudget.minimumHeadroom else {
+            overlay.cancelWork()
+            return
+        }
+        overlay.resetForExportReuse()
+        idleOverlay = overlay
+        eviction?.cancel()
+        eviction = Task { @MainActor in
+            do { try await Task.sleep(nanoseconds: 2_000_000_000) } catch { return }
+            clearIdleRenderer()
+        }
+    }
 
     // Full pages, including tall webtoons, stay within a bounded bitmap allocation.
     static func outputSize(for image: UIImage) -> CGSize {
@@ -18,22 +43,55 @@ enum ReaderTranslationImageExporter {
     }
 
     static func render(image: UIImage, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
-                       viewport: CGSize, aspectFit: Bool, host: UIView) async throws -> UIImage {
+                       viewport: CGSize, aspectFit: Bool, host: UIView, hasImagePermit: Bool = false) async throws -> UIImage {
+        if !hasImagePermit {
+            let bytes = image.cgImage.map { UInt64($0.bytesPerRow) * UInt64($0.height) } ?? 0
+            return try await TranslationImageWorkBudget.shared.withPermit(decodedBytes: bytes) {
+                try await render(image: image, regions: regions, settings: settings, viewport: viewport,
+                                 aspectFit: aspectFit, host: host, hasImagePermit: true)
+            }
+        }
+        return try await gate.withPermit {
+            try await renderSerial(image: image, regions: regions, settings: settings,
+                                   viewport: viewport, aspectFit: aspectFit, host: host)
+        }
+    }
+
+    private static func renderSerial(image: UIImage, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
+                                     viewport: CGSize, aspectFit: Bool, host: UIView) async throws -> UIImage {
         guard viewport.width > 0, viewport.height > 0, host.window != nil else { throw ExportError.unavailable }
-        let overlay = ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: viewport))
+        if warningObserver == nil {
+            warningObserver = NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification,
+                object: nil, queue: .main) { _ in Task { @MainActor in clearIdleRenderer() } }
+        }
+        eviction?.cancel(); eviction = nil
+        let overlay = idleOverlay ?? ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: viewport))
+        idleOverlay = nil
+        overlay.frame = CGRect(origin: .zero, size: viewport)
         // A separate renderer avoids changing the reader's zoom, cached rendering, or visible DOM.
         host.insertSubview(overlay, at: 0)
-        defer { overlay.cancelWork(); overlay.removeFromSuperview() }
+        var completed = false
+        defer {
+            if completed { release(overlay) }
+            else { overlay.cancelWork(); overlay.removeFromSuperview() }
+        }
+        let events = AsyncStream<Bool>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        overlay.onRenderCommitted = { events.continuation.yield(true) }
+        let timeout = Task {
+            do { try await Task.sleep(nanoseconds: 20_000_000_000) } catch { return }
+            events.continuation.yield(false)
+        }
+        defer { timeout.cancel(); overlay.onRenderCommitted = nil; events.continuation.finish() }
         var exportSettings = settings
         exportSettings.overlay.visible = true
         overlay.update(regions: regions, imageSize: image.size, aspectFit: aspectFit, settings: exportSettings, image: image)
-        let deadline = Date().addingTimeInterval(20)
-        while overlay.lastDiagnostic?.outcome != .committed {
-            try Task.checkCancellation()
-            guard Date() < deadline, !overlay.hasExhaustedRecovery else { throw ExportError.renderFailed }
-            overlay.layoutIfNeeded()
-            try await Task.sleep(nanoseconds: 30_000_000)
-        }
+        overlay.layoutIfNeeded()
+        let ready = await withTaskCancellationHandler {
+            var iterator = events.stream.makeAsyncIterator()
+            return await iterator.next() ?? false
+        } onCancel: { events.continuation.finish() }
+        try Task.checkCancellation()
+        guard ready, !overlay.hasExhaustedRecovery else { throw ExportError.renderFailed }
         // WKWebView snapshots can spread backdrop-filter blur beyond the card,
         // including over translated glyphs. Bake only the bounded backdrop crops
         // with Core Image, and capture typography with all backdrop filters off.
@@ -62,6 +120,7 @@ enum ReaderTranslationImageExporter {
             try composite(image: image, typography: typography, layers: layers, displayRect: rect, size: size)
         }.value
         try Task.checkCancellation()
+        completed = true
         return result
     }
 

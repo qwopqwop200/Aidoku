@@ -110,6 +110,9 @@ struct HomeListView: View {
                                     for: entries[offset],
                                     position: offset
                                 )
+                                .onAppear {
+                                    if offset >= max(0, entries.count - 12) { requestMore() }
+                                }
                             }
                             loadMoreView
                         }
@@ -121,7 +124,6 @@ struct HomeListView: View {
                     }
                 }
                 .onChange(of: entries) { _ in
-                    loadingMore = false
                     Task {
                         if !loadedBookmarks {
                             await loadBookmarked()
@@ -133,17 +135,24 @@ struct HomeListView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private func requestMore() {
+        guard !loadingMore, let loadMore else { return }
+        loadingMore = true
+        Task {
+            defer { loadingMore = false }
+            await loadMore()
+        }
+    }
+
     @ViewBuilder
     var loadMoreView: some View {
-        if loadingMore {
-            EmptyView()
-        } else {
-            Spacer()
-                .onAppear {
+        if !entries.isEmpty, loadMore != nil {
+            Color.clear.frame(height: 1)
+                .task(id: entries.count) {
+                    guard !loadingMore, let loadMore else { return }
                     loadingMore = true
-                    Task {
-                        await loadMore?()
-                    }
+                    defer { loadingMore = false }
+                    await loadMore()
                 }
         }
     }

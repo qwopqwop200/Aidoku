@@ -72,11 +72,16 @@ struct PageInterceptorProcessor: ImageProcessing {
             image: imageDescriptor
         )
 
-        let result = try await source.processPageImage(response: response, context: pageContext)
-
-        try await source.remove(value: imageDescriptor)
-
-        return result
+        do {
+            let result = try await source.processPageImage(response: response, context: pageContext)
+            try await source.remove(value: imageDescriptor)
+            return result
+        } catch {
+            // Cleanup must outlive caller cancellation, but must finish before returning.
+            // Preserve the original processing error if removing the handle also fails.
+            await Task.detached { try? await source.remove(value: imageDescriptor) }.value
+            throw error
+        }
     }
 
     func processWithoutImage(request: ImageRequest) throws -> ImageContainer {

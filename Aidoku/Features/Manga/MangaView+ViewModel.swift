@@ -375,9 +375,10 @@ extension MangaView.ViewModel {
         chapterLangFilter = filters.language
         chapterScanlatorFilter = filters.scanlators ?? []
 
-        await loadBookmarked()
-        await loadHistory()
+        async let history: Void = loadHistory()
         await fetchData()
+        await history
+        updateReadButton()
     }
 
     // fetches manga data, from coredata if in library or from source if not
@@ -386,6 +387,7 @@ extension MangaView.ViewModel {
         let inLibrary = await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
             CoreDataManager.shared.hasLibraryManga(mangaId: mangaId, context: context)
         }
+        bookmarked = inLibrary
         if inLibrary {
             // load data from db
             let chapters = await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in

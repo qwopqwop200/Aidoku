@@ -53,7 +53,11 @@ struct NativeOCRSpatialIndex {
                 pending.append(node.left)
                 pending.append(node.right)
             } else {
-                result.append(contentsOf: node.items.filter { boxes[$0].intersects(bounds) })
+                // Keep traversal/item order without allocating a temporary
+                // filtered array for every visited leaf.
+                for item in node.items where boxes[item].intersects(bounds) {
+                    result.append(item)
+                }
             }
         }
         return result

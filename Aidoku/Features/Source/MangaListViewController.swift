@@ -13,10 +13,23 @@ class MangaListViewController: MangaCollectionViewController {
 
     var getEntries: ((Int) async throws -> AidokuRunner.MangaPageResult)?
 
-    private var hashValues: Set<Int> = []
     private var loaded = false
-    private var nextPage = 1
-    private var hasMore = true
+    private lazy var pageModel = SourceListingViewModel(getPage: { [weak self] _, page in
+        guard let getEntries = self?.getEntries else {
+            return .init(entries: [], hasNextPage: false)
+        }
+        return try await getEntries(page)
+    })
+
+    override var entries: [AidokuRunner.Manga] {
+        get { pageModel.entries }
+        set { pageModel.entries = newValue }
+    }
+
+    override var bookmarkedItems: Set<String> {
+        get { pageModel.bookmarkedItems }
+        set { pageModel.bookmarkedItems = newValue }
+    }
 
     init(
         source: AidokuRunner.Source,
@@ -33,6 +46,9 @@ class MangaListViewController: MangaCollectionViewController {
     override func configure() {
         super.configure()
         navigationItem.largeTitleDisplayMode = .never
+        errorView.onRetry = { [weak self] in
+            await self?.pageModel.loadMore()
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -40,39 +56,31 @@ class MangaListViewController: MangaCollectionViewController {
         guard !loaded else { return }
         loaded = true
         Task {
-            await loadEntries()
+            await pageModel.reload(listing: .init(id: "", name: title ?? ""))
             hideLoadingView()
         }
     }
-}
 
-extension MangaListViewController {
-    func loadEntries() async {
-        do {
-            errorView.hide()
-
-            let result = try await getEntries?(nextPage)
-            guard let result else { return }
-
-            let newBookmarks = await CoreDataManager.shared.container.performBackgroundTask { context in
-                var items: Set<String> = []
-                for manga in result.entries where CoreDataManager.shared.hasLibraryManga(
-                    mangaId: manga.identifier,
-                    context: context
-                ) {
-                    items.insert(manga.key)
-                }
-                return items
+    override func observe() {
+        super.observe()
+        pageModel.$entries.sink { [weak self] _ in
+            Task { @MainActor [weak self] in self?.updateDataSource() }
+        }.store(in: &cancellables)
+        pageModel.$error.sink { [weak self] error in
+            guard let self else { return }
+            if let error {
+                errorView.setError(error)
+                errorView.show()
+            } else {
+                errorView.hide()
             }
-            bookmarkedItems.formUnion(newBookmarks)
+        }.store(in: &cancellables)
+    }
 
-            hasMore = result.hasNextPage
-            entries += result.entries.filter { hashValues.insert($0.hashValue).inserted }
-            nextPage += 1
-            updateDataSource()
-        } catch {
-            errorView.setError(error)
-            errorView.show()
+    @objc override func refresh(_ control: UIRefreshControl) {
+        Task {
+            await pageModel.reload(listing: .init(id: "", name: title ?? ""))
+            control.endRefreshing()
         }
     }
 }
@@ -84,9 +92,9 @@ extension MangaListViewController {
         willDisplay cell: UICollectionViewCell,
         forItemAt indexPath: IndexPath
     ) {
-        if indexPath.row == entries.count - 1 && hasMore {
+        if !entries.isEmpty && indexPath.item >= max(0, entries.count - SourcePrefetchPolicy.threshold(for: collectionView)) && pageModel.hasMore {
             Task {
-                await loadEntries()
+                await pageModel.loadMore()
             }
         }
     }

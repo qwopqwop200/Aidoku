@@ -543,7 +543,7 @@ extension LocalFileImportView.ContentView {
                     Text(NSLocalizedString("SERIES_TITLE")).fontWeight(.medium)
 
                     TextFieldWrapper(hasError: !nameValid || nameEmpty) {
-                        TextField(NSLocalizedString(NSLocalizedString("SERIES_TITLE")), text: $seriesName)
+                        TextField(NSLocalizedString("SERIES_TITLE"), text: $seriesName)
                             .autocorrectionDisabled()
                         if !seriesName.isEmpty {
                             ClearFieldButton {

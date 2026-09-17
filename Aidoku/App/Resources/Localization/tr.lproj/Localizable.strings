@@ -705,7 +705,7 @@
 "%@_BOOKS" = "%@ Kitap";
 "1_BOOK" = "1 Kitap";
 "ON_DECK" = "Sırada";
-"FILE_IMPORT_FAIL_TEXT" = "Dosya içeri aktarılamadı. Lütfen resim içeren geçerli bir CBZ veya ZIP arşivi olduğundan emin olun.";
+"FILE_IMPORT_FAIL_TEXT" = "Dosya içe aktarılamadı. Lütfen okunabilir bir görüntü dosyası veya görüntü içeren geçerli bir CBZ ya da ZIP arşivi olduğundan emin olun.";
 "BACKUP_%@" = "Yedek %@";
 "CREATE_BACKUP" = "Yedek Oluştur";
 "IMPORT_BACKUP" = "Yedeği İçeri Aktar";
@@ -767,7 +767,7 @@
 
 "TRANSLATION_HELP" = "Çeviri simgesi çeviriyi açar veya kapatır. Önce görünür sayfalar, ardından yakındaki sayfalar hazırlanır. Hazırlık, okuma konumunuza göre ilerler. Kaydedilen OCR sonuçları, çeviriler ve metin düzeni, okuyucu yeniden açıldığında veya uygulama yeniden başlatıldığında tekrar kullanılabilir. Geçici olarak paylaşılan görseller bu önbelleği kaydetmez. Okuyucudan çıkınca tamamlanmamış işler iptal edilir.";
 
-"TRANSLATION_PRIVACY" = "OCR cihazınızda çalışır. Çeviri, tanınan metni ve talimatlarınızı seçilen sağlayıcıya gönderir. Çeviriye Sayfa Resmini Ekle seçeneği etkinse orijinal sayfa resmi de yüklenir. API ücretleri sağlayıcınıza bağlıdır. Anahtarlar Anahtarlıkta kalır. OCR, çeviriler ve metin düzeni, yedeklemelerin dışında tutulan korumalı uygulama depolama alanına kaydedilir.";
+"TRANSLATION_PRIVACY" = "OCR cihazınızda çalışır. Çeviri, tanınan metni ve talimatlarınızı seçilen sağlayıcıya gönderir. Sayfa Resmini Çeviriye Ekle seçeneği etkinse orijinal sayfa resmi de yüklenir. API ücretleri sağlayıcınıza bağlıdır. Anahtarlar Anahtarlıkta kalır. OCR, çeviriler ve metin düzeni, yedeklemelerin dışında tutulan korumalı uygulama depolama alanına kaydedilir.";
 
 "TRANSLATION_KEY_REPLACE" = "Kaydedilen API anahtarını değiştirin (isteğe bağlı)";
 
@@ -871,7 +871,7 @@
 
 "TRANSLATION_CACHE_USED" = "Kullanılan Depolama";
 
-"TRANSLATION_CACHE_HELP" = "OCR sonuçlarını, sayfa çevirilerini, manga ve bölüm başlığı çevirilerini, manga açıklamalarını ve metin düzenini otomatik kaydeder. Yalnızca mevcut sayfanın ve yakın sayfaların görüntüleri bellekte tutulur. Seçilen sınıra ulaşıldığında, son kullanımının üzerinden en uzun süre geçen sonuçlar silinir. Varsayılan: 1 GB. Maksimum: 100 GB. Değişiklikler otomatik uygulanır; sınır düşürüldüğünde önbellek sınıra uyana kadar sonuçlar aynı sırayla silinir.";
+"TRANSLATION_CACHE_HELP" = "OCR sonuçlarını, sayfa çevirilerini, manga ve bölüm başlıklarının, yazar adlarının, etiketlerin, manga açıklamalarının, kaynak menülerinin ve bölüm başlıklarının çevirilerini ve metin düzenini otomatik kaydeder. Yalnızca mevcut sayfanın ve yakın sayfaların görüntüleri bellekte tutulur. Seçilen sınıra ulaşıldığında, son kullanımının üzerinden en uzun süre geçen sonuçlar silinir. Varsayılan: 1 GB. Maksimum: 100 GB. Değişiklikler otomatik uygulanır; sınır düşürüldüğünde önbellek sınıra uyana kadar sonuçlar aynı sırayla silinir.";
 
 "TRANSLATION_SOURCE_FILTER" = "Kaynak Dil Filtresi";
 
@@ -903,7 +903,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Bölüm Başlıklarını Çevir";
 
-"TRANSLATION_TITLES_HELP" = "Otomatik sayfa çevirisinden bağımsız olarak çeviri API'nizi ve hedef dilinizi kullanır. Orijinal başlıkları ve açıklamaları göstermek için kapatın. Yükleme sırasında veya çeviri başarısız olduğunda orijinaller görünür durumda kalır.";
+"TRANSLATION_TITLES_HELP" = "Otomatik sayfa çevirisinden bağımsız olarak çeviri API’nizi ve hedef dilinizi kullanır. İlgili özgün metni göstermek için o seçeneği kapatın. Yükleme sırasında veya çeviri başarısız olduğunda özgün metinler görünür kalır.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Manga Başlık Dilleri";
 
@@ -917,7 +917,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Manga Açıklama Dilleri";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Kaynak dili otomatik olarak algılayın ve yalnızca seçilen dilleri çevirin. Algılanan Tüm Diller kısıtlamayı kaldırır. Sayfa, manga başlığı, bölüm başlığı ve açıklama filtreleri bağımsız olarak çalışır.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Kaynak dili otomatik algılar ve yalnızca seçilen dilleri çevirir. Algılanan Tüm Diller kısıtlamayı kaldırır. Her öğenin dil filtresi, sayfa ve diğer öğelerin dil ayarlarından bağımsızdır.";
 
 "TRANSLATION_SFX_FILTER" = "SFX Filtreleme (Yalnızca Japonca)";
 
@@ -1091,3 +1091,9 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Dahil edilen beş model çevrimdışı olarak kurulabilir. Bir model yükleyin ve ardından Etkinleştirilen Model'de ona dokunun. MangaJaNai, yaklaşık 1200 piksel yüksekliğinde siyah beyaz sayfalar içindir; renkli sayfalar değişmeden kalır.";
 
 "DOWNLOAD_TRANSLATED" = "Çevirerek indir";
+
+"TRANSLATION_LLM_BACKGROUND" = "Arka Plandaki Yazıları Atla (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "Çeviri yapay zekâsı, arka plandaki tali tabela, poster ve yazıları değiştirmeden bırakır. Diyalog, anlatım ve sınıflandırılması belirsiz metinler çevrilir. Ek istek gönderilmez, ancak işleme daha uzun sürebilir. Sayfa görüntüsü olmadan sınıflandırma daha az güvenilirdir.";
+
+"TRANSLATION_STATE_ON" = "Açık";
+"TRANSLATION_STATE_OFF" = "Kapalı";

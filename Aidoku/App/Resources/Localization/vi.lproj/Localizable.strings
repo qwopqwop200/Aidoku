@@ -454,7 +454,7 @@
 "ZONE_EDGE" = "Cạnh";
 "DISABLED" = "Tắt";
 "ANIMATE_PAGE_TRANSITIONS" = "Hoạt ảnh chuyển trang";
-"FILE_IMPORT_FAIL_TEXT" = "Không thể nhập tệp. Vui lòng đảm bảo đó là tệp CBZ hoặc ZIP hợp lệ có chứa hình ảnh.";
+"FILE_IMPORT_FAIL_TEXT" = "Không thể nhập tệp. Vui lòng đảm bảo đó là tệp ảnh có thể đọc được hoặc tệp CBZ hay ZIP hợp lệ có chứa hình ảnh.";
 "BACKUP_%@" = "Sao lưu %@";
 "CREATE_BACKUP" = "Tạo sao lưu";
 "NAME" = "Tên";
@@ -821,7 +821,7 @@
 
 "TRANSLATION_CACHE_USED" = "Dung lượng đã sử dụng";
 
-"TRANSLATION_CACHE_HELP" = "Tự động lưu kết quả OCR, bản dịch trang, bản dịch tên manga và chương, bản dịch mô tả manga và bố cục văn bản. Ảnh trang chỉ được giữ tạm trong bộ nhớ dành cho trang hiện tại và các trang lân cận. Khi đạt giới hạn đã chọn, kết quả lâu nhất chưa được sử dụng sẽ bị xóa trước. Mặc định: 1 GB. Tối đa: 100 GB. Thay đổi được áp dụng tự động; giảm giới hạn sẽ xóa kết quả lâu nhất chưa được sử dụng cho đến khi bộ nhớ đệm nằm trong giới hạn.";
+"TRANSLATION_CACHE_HELP" = "Tự động lưu kết quả OCR, bản dịch trang, bản dịch tên manga và chương, tên tác giả, thẻ, mô tả manga, menu và tiêu đề mục của nguồn, cùng bố cục văn bản. Ảnh trang chỉ được giữ tạm trong bộ nhớ dành cho trang hiện tại và các trang lân cận. Khi đạt giới hạn đã chọn, kết quả lâu nhất chưa được sử dụng sẽ bị xóa trước. Mặc định: 1 GB. Tối đa: 100 GB. Thay đổi được áp dụng tự động; giảm giới hạn sẽ xóa kết quả lâu nhất chưa được sử dụng cho đến khi bộ nhớ đệm nằm trong giới hạn.";
 
 "TRANSLATION_SOURCE_FILTER" = "Bộ lọc ngôn ngữ gốc cần dịch";
 
@@ -853,7 +853,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Dịch tiêu đề chương";
 
-"TRANSLATION_TITLES_HELP" = "Sử dụng API dịch và ngôn ngữ đích của bạn độc lập với dịch trang tự động. Tắt để hiển thị tiêu đề và mô tả gốc. Bản gốc vẫn hiển thị trong khi tải hoặc nếu bản dịch không thành công.";
+"TRANSLATION_TITLES_HELP" = "Sử dụng API dịch và ngôn ngữ đích của bạn độc lập với dịch trang tự động. Tắt một tùy chọn để hiển thị văn bản gốc của mục đó. Bản gốc vẫn hiển thị trong khi tải hoặc nếu bản dịch không thành công.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Ngôn ngữ tiêu đề manga";
 
@@ -867,7 +867,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Ngôn ngữ mô tả manga";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Tự động phát hiện ngôn ngữ nguồn và chỉ dịch các ngôn ngữ đã chọn. Tất cả ngôn ngữ được phát hiện loại bỏ hạn chế. Các bộ lọc trang, tiêu đề manga, tiêu đề chương và mô tả hoạt động độc lập.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Tự động phát hiện ngôn ngữ gốc và chỉ dịch các ngôn ngữ đã chọn. Chọn «Tất cả ngôn ngữ được phát hiện» để bỏ giới hạn ngôn ngữ. Bộ lọc ngôn ngữ của mỗi mục hoạt động độc lập với cài đặt ngôn ngữ của trang và các mục khác.";
 
 "TRANSLATION_SFX_FILTER" = "Lọc SFX (Chỉ tiếng Nhật)";
 
@@ -887,7 +887,7 @@
 
 "TRANSLATION_LLM_SFX" = "Lọc từ tượng thanh bằng LLM (Tất cả ngôn ngữ)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Phân loại từ tượng thanh trong yêu cầu dịch. Có thể kết hợp với bộ lọc tiếng Nhật trên thiết bị: nếu một trong hai bộ lọc xác định văn bản là từ tượng thanh, văn bản gốc sẽ được giữ nguyên. Có thể dùng cùng tùy chọn gửi ảnh trang.";
+"TRANSLATION_LLM_SFX_HELP" = "Phân loại từ tượng thanh trong yêu cầu dịch. Có thể kết hợp với bộ lọc tiếng Nhật trên thiết bị: nếu một trong hai bộ lọc xác định văn bản là từ tượng thanh, văn bản gốc sẽ được giữ nguyên. Có thể dùng cùng tùy chọn «Bao gồm hình ảnh trang trong bản dịch».";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Nếu không có hình ảnh đầu vào, bối cảnh bố cục và hình ảnh bị hạn chế có thể làm giảm độ chính xác của phân loại SFX.";
 
@@ -1091,3 +1091,10 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Năm mô hình đi kèm có thể được cài đặt ngoại tuyến. Cài đặt một mô hình, sau đó nhấn vào mô hình đó trong Mô hình đang bật. MangaJaNai dành cho các trang đen trắng có chiều cao khoảng 1200 pixel; các trang màu không thay đổi.";
 
 "DOWNLOAD_TRANSLATED" = "Tải xuống kèm bản dịch";
+
+"TRANSLATION_LLM_BACKGROUND" = "Bỏ qua chữ trong nền (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "AI dịch giữ nguyên chữ trên biển hiệu, áp phích và trong nền không quan trọng. Lời thoại, lời dẫn chuyện và văn bản chưa xác định chắc chắn vẫn được dịch. Không gửi thêm yêu cầu, nhưng thời gian xử lý có thể lâu hơn. Việc phân loại kém tin cậy hơn khi không có ảnh trang.";
+
+"TRANSLATION_STATE_ON" = "Bật";
+
+"TRANSLATION_STATE_OFF" = "Tắt";

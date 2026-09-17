@@ -147,7 +147,7 @@
 
 "TRANSLATION_CACHE_USED" = "Hifadhi Imetumika";
 
-"TRANSLATION_CACHE_HELP" = "Hifadhi matokeo ya OCR, tafsiri za kurasa, majina ya manga na sura, maelezo ya manga na mpangilio wa maandishi kiotomatiki. Picha za ukurasa wa sasa na kurasa zilizo karibu huhifadhiwa kwenye kumbukumbu ya muda pekee. Kikomo kinapofikiwa, matokeo yaliyokaa muda mrefu zaidi bila kutumiwa huondolewa kwanza. Chaguomsingi: GB 1. Upeo: GB 100. Mabadiliko yanatumika kiotomatiki; kupunguza kikomo huondoa matokeo yaliyokaa muda mrefu zaidi bila kutumiwa mpaka akiba iwe ndani ya kikomo.";
+"TRANSLATION_CACHE_HELP" = "Hifadhi matokeo ya OCR, tafsiri za kurasa, majina ya manga na sura, majina ya waandishi, lebo, maelezo ya manga, menyu za chanzo na vichwa vya sehemu, pamoja na mpangilio wa maandishi kiotomatiki. Picha za ukurasa wa sasa na kurasa zilizo karibu huhifadhiwa kwenye kumbukumbu ya muda pekee. Kikomo kinapofikiwa, matokeo yaliyokaa muda mrefu zaidi bila kutumiwa huondolewa kwanza. Chaguomsingi: GB 1. Upeo: GB 100. Mabadiliko yanatumika kiotomatiki; kupunguza kikomo huondoa matokeo yaliyokaa muda mrefu zaidi bila kutumiwa mpaka akiba iwe ndani ya kikomo.";
 
 "TRANSLATION_SOURCE_FILTER" = "Kichujio cha Lugha Asilia za Kutafsiri";
 
@@ -179,7 +179,7 @@
 
 "TRANSLATION_CHAPTER_TITLES" = "Tafsiri Vichwa vya Sura";
 
-"TRANSLATION_TITLES_HELP" = "Hutumia API yako ya tafsiri na lugha lengwa kwa kujitegemea, bila kutegemea tafsiri ya kurasa ya kiotomatiki. Zima ili kuonyesha majina na maelezo asilia. Yaliyomo asilia hubaki kuonekana wakati wa kupakia au tafsiri ikishindwa.";
+"TRANSLATION_TITLES_HELP" = "Hutumia API yako ya tafsiri na lugha lengwa kwa kujitegemea, bila kutegemea tafsiri ya kurasa ya kiotomatiki. Zima chaguo ili kuonyesha maandishi yake asilia. Yaliyomo asilia hubaki kuonekana wakati wa kupakia au tafsiri ikishindwa.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Lugha za Kichwa cha Manga";
 
@@ -193,7 +193,7 @@
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Lugha za Maelezo ya Manga";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Gundua lugha asili kiotomatiki na utafsiri lugha ulizochagua pekee. Lugha Zote Zilizogunduliwa huondoa kizuizi. Ukurasa, kichwa cha manga, kichwa cha sura, na vichujio vya maelezo hufanya kazi kivyake.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Gundua lugha asili kiotomatiki na utafsiri lugha ulizochagua pekee. Lugha Zote Zilizogunduliwa huondoa kizuizi. Kichujio cha lugha cha kila kipengee hakitegemei mipangilio ya lugha ya ukurasa au ya vipengee vingine.";
 
 "TRANSLATION_SFX_FILTER" = "Uchujaji wa SFX (Kijapani Pekee)";
 
@@ -779,7 +779,7 @@
 "LONG_PRESS" = "Bonyeza kwa Muda Mrefu";
 "LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Kugonga mwanzo wa neno kutawezesha dirisha ibukizi. Hii inalemaza kugusa mara mbili ili kukuza inapowashwa.";
 "LOOKUP_GESTURE_LONG_PRESS_INFO" = "Kushikilia mwanzo wa neno kutaliangazia, na kutoa kutawezesha dirisha ibukizi. Hii inalemaza vitendo vya haraka vya ukurasa inapowezeshwa.";
-"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Imefungwa kwa Ishara ya Kutafuta: Bonyeza Moja.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Imefungwa kwa Ishara ya Kutafuta: Gonga Moja.";
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Imefungwa kwa Ishara ya Kutafuta: Bonyeza kwa Muda Mrefu.";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "Uwekeleaji wa Maandishi ya OCR";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Inaonyesha visanduku vya maandishi kwenye maeneo ya picha wakati utafutaji umewashwa. Hii inaweza kusaidia kuamua ni maandishi gani ambayo yametambuliwa vizuri na OCR.";
@@ -852,7 +852,7 @@
 "IMPORT_FAIL" = "Imeshindwa Kuingiza";
 "BACKUP_IMPORT_FAIL_TEXT" = "Imeshindwa kuhifadhi nakala. Tafadhali hakikisha kuwa nakala yako iko katika umbizo sahihi.";
 "SOURCE_IMPORT_FAIL_TEXT" = "Imeshindwa kuleta chanzo. Tafadhali hakikisha kuwa faili yako ya aix ni halali.";
-"FILE_IMPORT_FAIL_TEXT" = "Imeshindwa kuingiza faili. Hakikisha ni faili halali ya CBZ au ZIP yenye picha.";
+"FILE_IMPORT_FAIL_TEXT" = "Imeshindwa kuingiza faili. Hakikisha ni faili ya picha inayoweza kusomwa au faili halali ya CBZ au ZIP yenye picha.";
 "BACKUP_%@" = "Hifadhi nakala ya %@";
 "EXPORT" = "Hamisha";
 "RESTORE" = "Rejesha";
@@ -1069,3 +1069,9 @@
 "BUNDLED_UPSCALING_MODELS_HELP" = "Modeli tano zilizojumuishwa zinaweza kusakinishwa nje ya mtandao. Sakinisha modeli, kisha uiguse katika Modeli Iliyowezeshwa. MangaJaNai ni ya kurasa nyeusi na nyeupe zenye urefu wa karibu pikseli 1200; kurasa za rangi hubaki bila kubadilika.";
 
 "DOWNLOAD_TRANSLATED" = "Pakua pamoja na tafsiri";
+
+"TRANSLATION_LLM_BACKGROUND" = "Ruka Maandishi ya Mandharinyuma (LLM)";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "AI ya tafsiri huacha bila kubadilisha maandishi kwenye ishara, mabango na mandharinyuma yasiyo muhimu. Mazungumzo, masimulizi na maandishi yasiyo na uhakika hutafsiriwa. Hakuna ombi la ziada linalotumwa, lakini uchakataji unaweza kuchukua muda mrefu zaidi. Uainishaji hauaminiki sana bila picha ya ukurasa.";
+
+"TRANSLATION_STATE_ON" = "Imewashwa";
+"TRANSLATION_STATE_OFF" = "Imezimwa";

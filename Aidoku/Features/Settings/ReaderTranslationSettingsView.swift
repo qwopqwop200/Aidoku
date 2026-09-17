@@ -132,10 +132,13 @@ struct ReaderTranslationSettingsView: View {
                 Toggle(NSLocalizedString("TRANSLATION_LLM_SFX"), isOn: persistedSettings.filterSFXWithLLM)
                     .accessibilityIdentifier("translation.filterSFXWithLLM")
             } footer: {
-                Text(NSLocalizedString("TRANSLATION_LLM_SFX_HELP"))
-                if !settings.includePageImage {
-                    Text(NSLocalizedString("TRANSLATION_LLM_SFX_NO_IMAGE"))
-                }
+                Text(NSLocalizedString("TRANSLATION_LLM_SFX_HELP") + "\n\n" + NSLocalizedString("TRANSLATION_LLM_SFX_NO_IMAGE"))
+            }
+            Section {
+                Toggle(NSLocalizedString("TRANSLATION_LLM_BACKGROUND"), isOn: persistedSettings.filterBackgroundWithLLM)
+                    .accessibilityIdentifier("translation.filterBackgroundWithLLM")
+            } footer: {
+                Text(NSLocalizedString("TRANSLATION_LLM_BACKGROUND_HELP"))
             }
             Section {
                 Toggle(NSLocalizedString("TRANSLATION_INCLUDE_IMAGE"), isOn: persistedSettings.includePageImage)
