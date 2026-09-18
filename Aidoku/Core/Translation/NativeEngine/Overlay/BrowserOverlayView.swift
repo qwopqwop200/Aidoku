@@ -407,13 +407,13 @@ final class BrowserPageImageOverlayRenderer {
                 "sourceTextOnly": !segment.content.hasTranslation,
                 "sourceColorEligible": settings.mode == .translateOnly &&
                     settings.textPlacement == .replace,
-                "sourcePanelRestorationEligible": segment.content.hasTranslation && settings.mode == .translateOnly &&
+                "sourcePanelRestorationEligible": settings.mode == .translateOnly &&
                     settings.textPlacement == .replace,
                 "sourceCleanupLexical": BrowserSourceInkCleanup.hasColoredCleanupText(segment.item.sourceText),
                 "allowsAutomaticFontRecovery": settings.fontSizing == .autoFit &&
                     settings.mode == .translateOnly && settings.textPlacement == .replace &&
                     settings.expansionPolicy == .panelConstrained,
-                "sourceCleanup": segment.content.hasTranslation && settings.mode == .translateOnly &&
+                "sourceCleanup": settings.mode == .translateOnly &&
                     settings.textPlacement == .replace &&
                     (settings.colorMode == .white || (settings.colorMode == .automatic && segment.sourceVertical)),
                 "sourceBounds": [segment.item.rect.minX / imageSize.width, segment.item.rect.minY / imageSize.height,
@@ -838,7 +838,6 @@ final class BrowserPageImageOverlayRenderer {
     };
     const appendSourceCleanup = item => {
       // Colored cleanup must obey the same translation boundary as white cleanup.
-      if (item.sourceTextOnly) return;
       const coloredGate = Boolean(item.sourceCleanupLexical && item.sourceColorEligible);
       const cleanupPalette = coloredGate && item.sourceColorEligible ? cachedSourceSample(item) : null;
       const cleanupBG = cleanupPalette?.background;
@@ -916,47 +915,39 @@ final class BrowserPageImageOverlayRenderer {
       }
     };
     const blurredSourcePanels = new Set();
-    let sourceBlurPixelBudget = 65536;
+    let sourceBlurPixelBudget = 262144;
+    let remainingSourceBlurs=items.filter(item=>item.sourcePanelRestorationEligible&&item.sourceColorEligible).length;
     const appendSourceBlur = item => {
-      if (!item.sourcePanelRestorationEligible || !item.sourceColorEligible ||
-          item.sourceTextOnly || opacity <= 0) return;
-      const frame=cleanupImageGeometry?.frame || item.sourceFrame;
-      if(!Array.isArray(frame)||frame.length!==4||!frame.every(Number.isFinite)||frame[2]<=0||frame[3]<=0)return;
-      const regions=[item.sourceBounds,...(item.auxiliaryInkRects||[]).slice(0,32)];
-      for(const b of regions){
-        if(!Array.isArray(b)||b.length!==4||!b.every(Number.isFinite)||b[2]<=0||b[3]<=0)continue;
-        const left=Math.max(0,b[0]),top=Math.max(0,b[1]),right=Math.min(1,b[0]+b[2]),bottom=Math.min(1,b[1]+b[3]);
-        if(right<=left||bottom<=top)continue;
-        const x=frame[0]+left*frame[2],y=frame[1]+top*frame[3],w=(right-left)*frame[2],h=(bottom-top)*frame[3];
-        const blur=document.createElement('div'),radius=Math.min(24,Math.max(8,Math.min(w,h)*.18));
-        blur.setAttribute('data-aidoku-image-ocr-overlay','source-blur');
-        blur.dataset.aidokuRegion=String(item.id);
-        // Blur only the source lettering beneath the replacement. This does not
-        // need readable canvas pixels, a reliable palette, or restoration budget.
-        Object.assign(blur.style,{position:'absolute',zIndex:'1',pointerEvents:'none',
-          left:`${x+scrollX}px`,top:`${y+scrollY}px`,width:`${w}px`,height:`${h}px`,
-          backgroundColor:'transparent',backdropFilter:`blur(${radius}px)`,webkitBackdropFilter:`blur(${radius}px)`,
-          clipPath:aidokuCleanupClip(cleanupImageGeometry,x,y,w,h)});
-        // A tiny raster low-pass survives WKWebView snapshots, where a CSS
-        // backdrop filter alone may disappear. It never reads canvas pixels.
-        if(sourceImage?.complete&&sourceImage.naturalWidth>0&&sourceImage.naturalHeight>0){
-          const cw=Math.max(1,Math.min(32,Math.ceil(w/(radius*2)))),ch=Math.max(1,Math.min(32,Math.ceil(h/(radius*2))));
-          if(cw*ch<=sourceBlurPixelBudget){
-            const softened=document.createElement('canvas');softened.width=cw;softened.height=ch;
-            const ctx=softened.getContext('2d');
-            if(ctx){
-              try {
-                ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-                ctx.drawImage(sourceImage,left*sourceImage.naturalWidth,top*sourceImage.naturalHeight,
-                  (right-left)*sourceImage.naturalWidth,(bottom-top)*sourceImage.naturalHeight,0,0,cw,ch);
-                Object.assign(softened.style,{display:'block',width:'100%',height:'100%',imageRendering:'auto'});
-                blur.appendChild(softened);sourceBlurPixelBudget-=cw*ch;
-              }catch(_){ /* Retain the live backdrop fallback when the image is unavailable. */ }
-            }
-          }
+      if (!item.sourcePanelRestorationEligible || !item.sourceColorEligible || opacity<=0 || !sourceImage?.complete) return;
+      const frame=cleanupImageGeometry?.frame || item.sourceFrame,b=item.sourceBounds;
+      if(!Array.isArray(frame)||!Array.isArray(b)||![...frame,...b].every(Number.isFinite)||b[2]<=0||b[3]<=0)return;
+      const iw=sourceImage.naturalWidth,ih=sourceImage.naturalHeight,pad=item.sourceVertical?128:16;
+      const x=Math.max(0,Math.floor(b[0]*iw)-pad),y=Math.max(0,Math.floor(b[1]*ih)-pad);
+      const sw=Math.min(iw,Math.ceil((b[0]+b[2])*iw)+pad)-x,sh=Math.min(ih,Math.ceil((b[1]+b[3])*ih)+pad)-y;
+      const scale=Math.min(1,Math.sqrt(Math.min(131072,Math.floor(sourceBlurPixelBudget/Math.max(1,remainingSourceBlurs--)))/(sw*sh)));
+      const w=Math.floor(sw*scale),h=Math.floor(sh*scale);if(w<8||h<8)return;
+      const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)return;
+      sourceBlurPixelBudget-=w*h;
+      try{
+        ctx.drawImage(sourceImage,x,y,sw,sh,0,0,w,h);
+        const softened=aidokuSoftenSourceGlyphs(ctx.getImageData(0,0,w,h).data,w,h,
+          [(b[0]*iw-x)*w/sw,(b[1]*ih-y)*h/sh,b[2]*iw*w/sw,b[3]*ih*h/sh],cachedSourceSample(item),item.sourceVertical);
+        if(!softened)return;
+        if(softened.inferredForeground&&!cachedSourceSample(item)?.foreground){
+          sourceColorCache.set(item,{...cachedSourceSample(item),foreground:softened.inferredForeground,
+            background:softened.inferredBackground||cachedSourceSample(item)?.background,
+            confidence:{...cachedSourceSample(item)?.confidence,foreground:.8}});
         }
-        root.appendChild(blur);blurredSourcePanels.add(item);
-      }
+        const output=ctx.createImageData(w,h);output.data.set(softened.rgba);ctx.putImageData(output,0,0);
+        canvas.setAttribute('data-aidoku-image-ocr-overlay','source-blur');canvas.dataset.aidokuRegion=String(item.id);
+        canvas.dataset.components=String(softened.components);canvas.dataset.paintedPixels=String(softened.painted);
+        Object.assign(canvas.style,{position:'absolute',zIndex:'1',pointerEvents:'none',
+          left:`${frame[0]+x/iw*frame[2]+scrollX}px`,top:`${frame[1]+y/ih*frame[3]+scrollY}px`,
+          width:`${sw/iw*frame[2]}px`,height:`${sh/ih*frame[3]}px`,
+          clipPath:aidokuCleanupClip(cleanupImageGeometry,frame[0]+x/iw*frame[2],frame[1]+y/ih*frame[3],sw/iw*frame[2],sh/ih*frame[3])});
+        root.appendChild(canvas);blurredSourcePanels.add(item);
+      }catch(_){ /* Unknown source pixels never authorize a rectangular paint-over. */ }
     };
     for (const item of items) {
       if (item && typeof item === 'object' && !appendRestoredSourcePanel(item)) {
@@ -964,7 +955,7 @@ final class BrowserPageImageOverlayRenderer {
         appendSourceBlur(item);
       }
     }
-    root.dataset.sourceBlurPixels = String(65536-sourceBlurPixelBudget);
+    root.dataset.sourceBlurPixels = String(262144-sourceBlurPixelBudget);
     root.dataset.panelRestorationAudit = JSON.stringify(panelRestorationAudit);
     root.dataset.panelRestorationPixels = String(393216-panelRestorationBudget);
     root.dataset.cleanupCount = String(cleanupCount);
@@ -1672,6 +1663,38 @@ final class BrowserPageImageOverlayRenderer {
     root.dataset.sourceColorMilliseconds = String(sourceColors.stats.milliseconds + translatedSourceColors.stats.milliseconds);
     if (rootAtCommit) rootAtCommit.replaceWith(root);
     else mount.appendChild(root);
+    // If pixel ownership cannot be established, soften only the measured text
+    // footprint. Never fall back to an opaque rectangle spanning the OCR column.
+    let readabilityPixels=65536;
+    for(const item of items){
+      if(!item.sourcePanelRestorationEligible||!item.sourceColorEligible||opacity<=0||
+          restoredSourcePanels.has(item)||blurredSourcePanels.has(item)||!sourceImage?.complete)continue;
+      const node=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).find(n=>n.dataset.aidokuRegion===String(item.id));
+      const frame=cleanupImageGeometry?.frame||item.sourceFrame;if(!node||!frame||frame[2]<=0||frame[3]<=0)continue;
+      const range=document.createRange();range.selectNodeContents(node);const r=range.getBoundingClientRect();
+      const pad=8,left=Math.max(frame[0],r.left-pad),top=Math.max(frame[1],r.top-pad),right=Math.min(frame[0]+frame[2],r.right+pad),bottom=Math.min(frame[1]+frame[3],r.bottom+pad);
+      const w=right-left,h=bottom-top;if(w<=0||h<=0)continue;
+      const scale=Math.min(1,128/Math.max(w,h)),cw=Math.max(2,Math.ceil(w*scale)),ch=Math.max(2,Math.ceil(h*scale));
+      if(cw*ch>readabilityPixels)continue;
+      try{
+        const tiny=document.createElement('canvas');tiny.width=Math.max(2,Math.ceil(w/12));tiny.height=Math.max(2,Math.ceil(h/12));
+        const tc=tiny.getContext('2d');if(!tc)continue;
+        tc.drawImage(sourceImage,(left-frame[0])/frame[2]*sourceImage.naturalWidth,(top-frame[1])/frame[3]*sourceImage.naturalHeight,
+          w/frame[2]*sourceImage.naturalWidth,h/frame[3]*sourceImage.naturalHeight,0,0,tiny.width,tiny.height);
+        const canvas=document.createElement('canvas');canvas.width=cw;canvas.height=ch;const ctx=canvas.getContext('2d');if(!ctx)continue;
+        ctx.drawImage(tiny,0,0,cw,ch);ctx.globalCompositeOperation='destination-in';
+        for(const horizontal of [true,false]){
+          const g=ctx.createLinearGradient(0,0,horizontal?cw:0,horizontal?0:ch);
+          g.addColorStop(0,'transparent');g.addColorStop(.18,'black');g.addColorStop(.82,'black');g.addColorStop(1,'transparent');
+          ctx.fillStyle=g;ctx.fillRect(0,0,cw,ch);
+        }
+        canvas.setAttribute('data-aidoku-image-ocr-overlay','source-readability-blur');canvas.dataset.aidokuRegion=String(item.id);
+        Object.assign(canvas.style,{position:'absolute',zIndex:'1',pointerEvents:'none',left:`${left+scrollX}px`,top:`${top+scrollY}px`,width:`${w}px`,height:`${h}px`,
+          clipPath:aidokuCleanupClip(cleanupImageGeometry,left,top,w,h)});
+        root.appendChild(canvas);readabilityPixels-=cw*ch;node.dataset.sourceBackgroundColor='readability-blur';
+      }catch(_){ /* Keep unknown pixels untouched. */ }
+    }
+    root.dataset.readabilityBlurPixels=String(65536-readabilityPixels);
     return {
       status: 'committed', revision: String(revision),
       itemCount: renderedItemCount

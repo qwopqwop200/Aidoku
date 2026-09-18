@@ -8,7 +8,7 @@ import WebKit
 struct ReaderSourcePanelRestorationTests {
     private nonisolated static var directory: URL { URL.documentsDirectory.appendingPathComponent("MangaQuality") }
 
-    @Test func restorationRequiresTranslatedReplacement() throws {
+    @Test func restorationRequiresReplacementDisplay() throws {
         var settings = ReaderTranslationSettings.defaultOverlay
         func eligible(_ translation: String?) throws -> Bool {
             let item = BrowserOverlayItem(rect: CGRect(x: 30, y: 30, width: 80, height: 200),
@@ -18,7 +18,7 @@ struct ReaderSourcePanelRestorationTests {
                 settings: settings, targetLanguage: "ko", viewport: CGSize(width: 300, height: 400)).first)
             return payload["sourcePanelRestorationEligible"] as? Bool == true
         }
-        #expect(try eligible(nil) == false)
+        #expect(try eligible(nil) == true)
         #expect(try eligible("시험이랍니다") == true)
         settings.mode = .originalAndTranslation
         #expect(try eligible("시험이랍니다") == false)
@@ -63,6 +63,29 @@ struct ReaderSourcePanelRestorationTests {
         #expect(audit["changedOutside"] as? Int == 0)
         #expect(audit["remainingInk"] as? Int == 0)
         for key in ["alphaRejected", "roundedAlphaAccepted", "translucentRejected", "darkRejected", "budgetRejected"] { #expect(audit[key] as? Bool == true) }
+    }
+
+    @Test func coloredCaptionKeepsItsPanelAndRemovesInkWithMissingPalette() async throws {
+        let web = WKWebView()
+        web.loadHTMLString("<html></html>", baseURL: nil)
+        for _ in 0..<200 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+        let raw = try await web.callAsyncJavaScript(BrowserSourcePanelRestoration.script + """
+        const w=180,h=90,p=new Uint8ClampedArray(w*h*4),ink=[];
+        for(let i=0;i<w*h;i++)p.set([0,0,0,255],i*4);
+        for(let y=14;y<76;y++)for(let x=14;x<164;x++)p.set([255,222,70,255],(y*w+x)*4);
+        for(let x=24;x<145;x+=34)for(let y=28;y<60;y++)for(let xx=x;xx<x+22;xx++)if(xx<x+5||y<33||y>=55){
+          const i=y*w+xx;p.set([0,0,0,255],i*4);ink.push(i);
+        }
+        const before=p.slice(),out=aidokuSoftenSourceGlyphs(p,w,h,[10,10,160,70],{background:[0,0,0]},false);
+        return {accepted:!!out,flat:out?.flatCaption,
+          clean:!!out&&ink.every(i=>out.rgba[i*4+3]===255&&out.rgba[i*4]>245&&out.rgba[i*4+1]>210&&out.rgba[i*4+2]<80),
+          border:!!out&&Array.from({length:w},(_,x)=>x).every(i=>out.rgba[i*4+3]===0),
+          unchanged:p.every((v,i)=>v===before[i]),foreground:out?.inferredForeground};
+        """, arguments: [:], in: nil, contentWorld: .page)
+        let result = try #require(raw as? [String: Any])
+        for key in ["accepted", "flat", "clean", "border", "unchanged"] { #expect(result[key] as? Bool == true, "\(key)") }
+        let foreground = try #require(result["foreground"] as? [Int])
+        #expect(foreground.allSatisfy { $0 < 40 })
     }
 
     @Test func observedInkColorsRestoreOnLightAndDarkBackgrounds() async throws {

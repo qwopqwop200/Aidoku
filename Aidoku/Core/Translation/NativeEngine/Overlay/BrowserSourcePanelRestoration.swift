@@ -284,5 +284,123 @@ enum BrowserSourcePanelRestoration {
           for(let i=0;i<n;i++)if(!protectedInk[i]&&!drawingSurface?.[i])layoutSafe[i]=1;
           return {rgba:output,layoutSafe,erased:tail,components:accepted.length,radius,companions,preservedPixels,preservedCore};
         }
+    function aidokuSoftenSourceGlyphs(rgba,w,h,b,palette,vertical) {
+      const n=w*h;if(!Number.isInteger(w)||!Number.isInteger(h)||w<8||h<8||n>131072||!rgba||rgba.length!==n*4||
+        !Array.isArray(b)||b.length!==4||!b.every(Number.isFinite)||b[0]<0||b[1]<0||b[2]<=0||b[3]<=0||b[0]+b[2]>w||b[1]+b[3]>h)return null;
+      for(let i=3;i<rgba.length;i+=4)if(rgba[i]<254)return null;
+      const raw=new Uint8Array(n),seen=new Uint8Array(n),mask=new Uint8Array(n),q=new Int32Array(n),sizes=[];
+      const fg=palette?.foreground;
+      const distance=(r,g,bl,c)=>c?Math.max(Math.abs(r-c[0]),Math.abs(g-c[1]),Math.abs(bl-c[2])):999;
+      for(let i=0;i<n;i++){
+        const r=rgba[i*4],g=rgba[i*4+1],bl=rgba[i*4+2],hi=Math.max(r,g,bl),lo=Math.min(r,g,bl);
+        if(rgba[i*4+3]<254)continue;
+        if(hi<110)raw[i]=1;
+        else if(lo>215)raw[i]=2;
+        else if(hi-lo>90&&lo<150){
+          const hue=hi===r?((g-bl)/(hi-lo)+6)%6:hi===g?(bl-r)/(hi-lo)+2:(r-g)/(hi-lo)+4;
+          raw[i]=3+Math.floor(hue);
+        }else if(fg&&distance(r,g,bl,fg)<35)raw[i]=9;
+      }
+      const maxGlyph=Math.min(Math.max(b[2],b[3])*.6,Math.min(b[2],b[3])*2);
+      for(let start=0;start<n;start++){
+        if(!raw[start]||seen[start])continue;
+        let head=0,tail=1,x0=w,y0=h,x1=0,y1=0;q[0]=start;seen[start]=1;
+        while(head<tail){const i=q[head++],x=i%w,y=i/w|0;x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);
+          for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
+            const j=yy*w+xx;if(raw[j]===raw[start]&&!seen[j]){seen[j]=1;q[tail++]=j;}
+          }
+        }
+        const cx=(x0+x1)/2,cy=(y0+y1)/2,cw=x1-x0+1,ch=y1-y0+1;
+        if(tail<2||x0<2||y0<2||x1>w-3||y1>h-3||x0<b[0]-2||x1>b[0]+b[2]+2||y0<b[1]-2||y1>b[1]+b[3]+2||cx<b[0]||cx>b[0]+b[2]||cy<b[1]||cy>b[1]+b[3]||
+          Math.max(cw,ch)>maxGlyph||tail>n*.12||tail/(cw*ch)>.94)continue;
+        for(let k=0;k<tail;k++)mask[q[k]]=1;sizes.push(Math.min(cw,ch));
+      }
+      if(!sizes.length)return null;
+      sizes.sort((a,b)=>a-b);const glyph=Math.max(sizes[Math.floor(sizes.length*.75)],Math.min(b[2],b[3])*.6);
+      const histogram=new Map();let samples=0;
+      for(let y=Math.ceil(b[1]);y<Math.min(h,Math.floor(b[1]+b[3]));y++)for(let x=Math.ceil(b[0]);x<Math.min(w,Math.floor(b[0]+b[2]));x++){
+        const i=(y*w+x)*4,key=(rgba[i]>>4)*256+(rgba[i+1]>>4)*16+(rgba[i+2]>>4);histogram.set(key,(histogram.get(key)||0)+1);samples++;
+      }
+      const peaks=[...histogram].sort((a,b)=>b[1]-a[1]);
+      const flatCaption=!vertical&&peaks.length>1&&(peaks[0][1]+peaks[1][1])/samples>.72;
+      const halo=flatCaption?Math.max(2,Math.min(5,Math.ceil(glyph*.12))):Math.max(3,Math.min(8,Math.ceil(glyph*.12)));
+      const feather=flatCaption?2:6;
+      const d=new Uint8Array(n);let tail=0;
+      for(let i=0;i<n;i++)if(mask[i])q[tail++]=i;
+      for(let head=0;head<tail;head++){
+        const i=q[head],x=i%w,y=i/w|0;if(d[i]>=halo+feather)continue;
+        for(let yy=Math.max(1,y-1);yy<=Math.min(h-2,y+1);yy++)for(let xx=Math.max(1,x-1);xx<=Math.min(w-2,x+1);xx++){
+          const j=yy*w+xx;if(mask[j])continue;mask[j]=1;d[j]=d[i]+1;q[tail++]=j;
+        }
+      }
+      // Fill from nearby unmasked pixels, then smooth only the owned glyph mask.
+      // Outside that feathered mask the original illustration is untouched.
+      const filled=new Uint8Array(n),rgb=new Float32Array(n*3);let end=0;
+      for(let i=0;i<n;i++)if(!mask[i]){filled[i]=1;for(let c=0;c<3;c++)rgb[i*3+c]=rgba[i*4+c];}
+      for(let i=0;i<n;i++)if(mask[i]){
+        const x=i%w,y=i/w|0;
+        if((x>0&&!mask[i-1])||(x<w-1&&!mask[i+1])||(y>0&&!mask[i-w])||(y<h-1&&!mask[i+w]))q[end++]=i;
+      }
+      const queued=new Uint8Array(n);for(let k=0;k<end;k++)queued[q[k]]=1;
+      for(let head=0;head<end;head++){
+        const i=q[head],x=i%w,y=i/w|0,neighbors=[];
+        if(x>0)neighbors.push(i-1);if(x<w-1)neighbors.push(i+1);if(y>0)neighbors.push(i-w);if(y<h-1)neighbors.push(i+w);
+        const donors=neighbors.filter(j=>filled[j]);if(!donors.length)continue;
+        for(let c=0;c<3;c++)rgb[i*3+c]=donors.reduce((s,j)=>s+rgb[j*3+c],0)/donors.length;filled[i]=1;
+        for(const j of neighbors)if(mask[j]&&!queued[j]){queued[j]=1;q[end++]=j;}
+      }
+      for(let pass=0;pass<64;pass++)for(let k=0;k<end;k++){
+        const i=q[k],x=i%w,y=i/w|0;if(x<1||x>=w-1||y<1||y>=h-1)continue;
+        for(let c=0;c<3;c++)rgb[i*3+c]=(rgb[(i-1)*3+c]+rgb[(i+1)*3+c]+rgb[(i-w)*3+c]+rgb[(i+w)*3+c])/4;
+      }
+      if(!flatCaption){
+        // Smooth the locally reconstructed background, never the original ink.
+        // The output is still restricted to a feathered glyph mask.
+        const scratch=new Float32Array(n*3),radius=Math.max(2,Math.min(8,Math.round(glyph*.12))),diameter=radius*2+1;
+        for(let pass=0;pass<3;pass++){
+          for(let y=0;y<h;y++)for(let c=0;c<3;c++){
+            let sum=0;for(let dx=-radius;dx<=radius;dx++)sum+=rgb[(y*w+Math.max(0,Math.min(w-1,dx)))*3+c];
+            for(let x=0;x<w;x++){scratch[(y*w+x)*3+c]=sum/diameter;sum+=rgb[(y*w+Math.min(w-1,x+radius+1))*3+c]-rgb[(y*w+Math.max(0,x-radius))*3+c];}
+          }
+          for(let x=0;x<w;x++)for(let c=0;c<3;c++){
+            let sum=0;for(let dy=-radius;dy<=radius;dy++)sum+=scratch[(Math.max(0,Math.min(h-1,dy))*w+x)*3+c];
+            for(let y=0;y<h;y++){rgb[(y*w+x)*3+c]=sum/diameter;sum+=scratch[(Math.min(h-1,y+radius+1)*w+x)*3+c]-scratch[(Math.max(0,y-radius)*w+x)*3+c];}
+          }
+        }
+      }
+      const out=new Uint8ClampedArray(n*4);let painted=0;
+      for(let i=0;i<n;i++)if(mask[i]&&filled[i]){
+        let a=d[i]<=halo?1:Math.max(0,(halo+feather-d[i])/feather);
+        const edge=Math.min(i%w,i/w|0,w-1-i%w,h-1-(i/w|0));a*=Math.min(1,edge/feather);
+        a=a*a*(3-2*a);if(!a)continue;
+        for(let c=0;c<3;c++)out[i*4+c]=rgb[i*3+c];out[i*4+3]=Math.round(255*a);painted++;
+      }
+      let inferredForeground=null,inferredBackground=null;
+      if(flatCaption){
+        const sum=[0,0,0];let count=0;for(let i=0;i<n;i++)if(mask[i]&&d[i]===0){for(let c=0;c<3;c++)sum[c]+=rgba[i*4+c];count++;}
+        if(count)inferredForeground=sum.map(v=>Math.round(v/count));
+        if(inferredForeground){
+          const key=peaks.slice(0,2).sort((a,b)=>{
+            const color=k=>[(k>>8)*16+8,((k>>4)&15)*16+8,(k&15)*16+8];
+            const dist=k=>color(k).reduce((sum,v,c)=>sum+Math.abs(v-inferredForeground[c]),0);
+            return dist(b[0])-dist(a[0]);
+          })[0][0];
+          const total=[0,0,0];let number=0;
+          for(let i=0;i<n;i++)if((rgba[i*4]>>4)*256+(rgba[i*4+1]>>4)*16+(rgba[i*4+2]>>4)===key){for(let c=0;c<3;c++)total[c]+=rgba[i*4+c];number++;}
+          if(number)inferredBackground=total.map(v=>Math.round(v/number));
+        }
+      }
+      if(flatCaption&&inferredBackground){
+        let x0=w,y0=h,x1=0,y1=0;
+        for(let y=Math.ceil(b[1]);y<Math.min(h,b[1]+b[3]);y++)for(let x=Math.ceil(b[0]);x<Math.min(w,b[0]+b[2]);x++){
+          const i=(y*w+x)*4;if(distance(rgba[i],rgba[i+1],rgba[i+2],inferredBackground)<24){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}
+        }
+        for(let i=0;i<n;i++)if(out[i*4+3]){
+          const x=i%w,y=i/w|0;if(x<x0||x>x1||y<y0||y>y1){out[i*4+3]=0;continue;}
+          for(let c=0;c<3;c++)out[i*4+c]=inferredBackground[c];
+        }
+      }
+      return {rgba:out,painted,components:sizes.length,inferredForeground,inferredBackground,flatCaption};
+    }
     """
 }

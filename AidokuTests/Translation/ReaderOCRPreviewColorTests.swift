@@ -57,17 +57,16 @@ struct ReaderOCRPreviewColorTests {
             const style=getComputedStyle(node);return {panel:style.backgroundColor,veil:style.backgroundImage,
             blur:style.webkitBackdropFilter,stroke:parseFloat(style.webkitTextStrokeWidth)>0,
             state:node.dataset.sourceBackgroundColor,text:node.textContent,
-            sourceBlur:Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-blur"]')).map(n=>({filter:getComputedStyle(n).webkitBackdropFilter,z:Number(getComputedStyle(n).zIndex),width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height,raster:n.querySelectorAll("canvas").length})),textZ:Number(style.zIndex)};})()
+            sourceBlur:Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-blur"],[data-aidoku-image-ocr-overlay="source-readability-blur"]')).map(n=>({filter:getComputedStyle(n).webkitBackdropFilter,z:Number(getComputedStyle(n).zIndex),width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height,raster:n.tagName==="CANVAS"?1:n.querySelectorAll("canvas").length})),textZ:Number(style.zIndex)};})()
             """) as? [String: Any])
             #expect(audit["panel"] as? String == "rgba(0, 0, 0, 0)")
             #expect(audit["veil"] as? String == "none")
             #expect(audit["blur"] as? String == "none")
             #expect(audit["stroke"] as? Bool == true)
-            #expect(audit["state"] as? String == (translated ? "blurred" : "unresolved-transparent"))
+            #expect(audit["state"] as? String == (failure == "missing" ? "unresolved-transparent" : "readability-blur"))
             let blurs = try #require(audit["sourceBlur"] as? [[String: Any]])
-            #expect(blurs.count == (translated ? 1 : 0))
+            #expect(blurs.count == (failure == "missing" ? 0 : 1))
             if let blur = blurs.first {
-                #expect((blur["filter"] as? String)?.hasPrefix("blur(") == true)
                 #expect((blur["z"] as? Int ?? 0) < (audit["textZ"] as? Int ?? 0))
                 #expect((blur["width"] as? Double ?? 0) > 0)
                 #expect((blur["height"] as? Double ?? 0) > 0)
@@ -77,7 +76,7 @@ struct ReaderOCRPreviewColorTests {
         }
     }
 
-    @Test(arguments: ["ja", "ko"], [false, true])
+    @Test(arguments: ["ocr", "ja", "ko"], [false, true])
     func largeOutlinedColumnsRestoreSpatialBackgroundWithinBudget(language: String, colored: Bool) async throws {
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 600, height: 600))
         web.loadHTMLString("<html><body style='margin:0'></body></html>", baseURL: nil)
@@ -105,11 +104,11 @@ struct ReaderOCRPreviewColorTests {
         settings.preserveSourceBackgroundColor = true
         settings.opacity = 1
         let item = BrowserOverlayItem(rect: CGRect(x: 130, y: 130, width: 335, height: 335),
-            sourceText: "ああああああ", translatedText: language == "ja" ? "背景を残す" : "배경 유지",
+            sourceText: "ああああああ", translatedText: language == "ocr" ? nil : language == "ja" ? "背景を残す" : "배경 유지",
             confidence: 1, sourceOrientation: .vertical)
         let payload = BrowserPageImageOverlayRenderer.layoutPayload(items: [item],
             imageSize: CGSize(width: 600, height: 600), sourceRect: CGRect(x: 0, y: 0, width: 600, height: 600),
-            settings: settings, targetLanguage: language, viewport: CGSize(width: 600, height: 600))
+            settings: settings, targetLanguage: language == "ocr" ? "ja" : language, viewport: CGSize(width: 600, height: 600))
         var diagnosticPanel = BrowserSourcePanelRestoration.script
         var failureStage = 0
         while let range = diagnosticPanel.range(of: "return null;") {
@@ -133,7 +132,7 @@ struct ReaderOCRPreviewColorTests {
           font:parseFloat(style.fontSize)>0,text:node.textContent,details:JSON.stringify({audit,data:node.dataset,failures:globalThis.panelFailures})};})()
         """) as? [String: Any])
         for key in ["transparent", "restored", "bounded", "font"] { #expect(result[key] as? Bool == true, "\(key): \(result["details"] ?? "")") }
-        #expect(result["text"] as? String == (language == "ja" ? "背景を残す" : "배경 유지"))
+        #expect(result["text"] as? String == (language == "ocr" ? "ああああああ" : language == "ja" ? "背景を残す" : "배경 유지"))
     }
 
     @Test func previewAndTranslationSampleIndependentlyOnce() async throws {
@@ -165,7 +164,7 @@ struct ReaderOCRPreviewColorTests {
         func render(_ revision: Int, _ translation: String?) async throws -> [String: String] {
             let item = try payload(translation)
             #expect(item["sourceColorEligible"] as? Bool == true)
-            if translation == nil { #expect(item["sourceCleanup"] as? Bool == false) }
+            if translation == nil { #expect(item["sourceCleanup"] as? Bool == true) }
             _ = try await web.callAsyncJavaScript(BrowserPageImageOverlayRenderer.renderScript,
                 arguments: ["revision": String(revision), "session": "preview-color", "items": [item],
                     "appearance": ["minimumReadableFontSize": 1, "opacity": 1,
@@ -190,7 +189,7 @@ struct ReaderOCRPreviewColorTests {
         #expect(preview["content"] == "HELLO")
         #expect(translated["visible"] == "1")
         #expect(translated["content"] == "안녕")
-        #expect(preview["surface"] == "original")
+        #expect(preview["surface"] == "restored")
         #expect(preview["samples"] == "1")
         #expect(translated["samples"] == "1")
         #expect(translated["hits"] == "0")
@@ -252,9 +251,9 @@ struct ReaderOCRPreviewColorTests {
         }
         #expect(appearances[0]["text"] == "あああ")
         #expect(appearances[1]["text"] == "번역된 글자")
-        for (index, appearance) in appearances.enumerated() {
+        for appearance in appearances {
             #expect(appearance["opacity"] == "1")
-            #expect(appearance["surface"] == (index == 0 ? "original" : "blurred"))
+            #expect(appearance["surface"] == "blurred")
             #expect(appearance["background"] == "none")
         }
         #expect(appearances[0]["color"] == appearances[1]["color"])
