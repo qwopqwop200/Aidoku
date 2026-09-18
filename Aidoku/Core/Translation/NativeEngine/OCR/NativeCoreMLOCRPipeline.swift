@@ -496,12 +496,14 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
         image: CGImage,
         requestID: String,
         confidenceThreshold: Double,
+        detectorConfiguration: NativeCoreMLDBPostprocessConfiguration? = nil,
         recognitionScope: CGRect? = nil
     ) async throws -> NativeCoreMLOCRResult {
         try await recognize(
             image: image,
             requestID: requestID,
             confidenceThreshold: confidenceThreshold,
+            detectorConfiguration: detectorConfiguration,
             recognitionScopes: recognitionScope.map { [$0] }
         )
     }
@@ -510,12 +512,14 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
         frame: NativeOCRRGBAFrame,
         requestID: String,
         confidenceThreshold: Double,
+        detectorConfiguration: NativeCoreMLDBPostprocessConfiguration? = nil,
         recognitionScope: CGRect? = nil
     ) async throws -> NativeCoreMLOCRResult {
         try await recognize(
             frame: frame,
             requestID: requestID,
             confidenceThreshold: confidenceThreshold,
+            detectorConfiguration: detectorConfiguration,
             recognitionScopes: recognitionScope.map { [$0] }
         )
     }
@@ -529,6 +533,7 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
         image: CGImage,
         requestID: String,
         confidenceThreshold: Double,
+        detectorConfiguration: NativeCoreMLDBPostprocessConfiguration? = nil,
         recognitionScopes: [CGRect]?
     ) async throws -> NativeCoreMLOCRResult {
         try await performRecognition(
@@ -536,6 +541,7 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
             image: image,
             requestID: requestID,
             confidenceThreshold: confidenceThreshold,
+            detectorConfiguration: detectorConfiguration,
             recognitionScopes: recognitionScopes
         )
     }
@@ -546,6 +552,7 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
         frame: NativeOCRRGBAFrame,
         requestID: String,
         confidenceThreshold: Double,
+        detectorConfiguration: NativeCoreMLDBPostprocessConfiguration? = nil,
         recognitionScopes: [CGRect]?,
         stageHandler: (@Sendable (NativeCoreMLOCRStage) -> Void)? = nil
     ) async throws -> NativeCoreMLOCRResult {
@@ -554,6 +561,7 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
             image: nil,
             requestID: requestID,
             confidenceThreshold: confidenceThreshold,
+            detectorConfiguration: detectorConfiguration,
             recognitionScopes: recognitionScopes,
             stageHandler: stageHandler
         )
@@ -564,6 +572,7 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
         image: CGImage?,
         requestID: String,
         confidenceThreshold: Double,
+        detectorConfiguration: NativeCoreMLDBPostprocessConfiguration?,
         recognitionScopes: [CGRect]?,
         stageHandler: (@Sendable (NativeCoreMLOCRStage) -> Void)? = nil
     ) async throws -> NativeCoreMLOCRResult {
@@ -615,7 +624,7 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
             let detection = try await detector.detect(
                 frame: frame,
                 requestID: requestID,
-                configuration: postprocessConfiguration,
+                configuration: detectorConfiguration ?? postprocessConfiguration,
                 // The detector model still receives the complete frame. Its
                 // CPU output materialization and recognition admission may be
                 // limited to dirty scopes for a partial refresh.

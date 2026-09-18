@@ -48,6 +48,7 @@ final class ReaderTranslationPreloader {
     private var currentDemand: (work: PreparedPage, lease: DemandLease)?
     private var generation = UUID()
     var nextPage: ((Page) -> Page?)?
+    var onPrepared: (@MainActor @Sendable (Page, [ReaderTranslationRegion], ReaderTranslationSettings) -> Void)?
 
     init(
         diskCache: ReaderTranslationDiskCache? = nil,
@@ -162,6 +163,7 @@ final class ReaderTranslationPreloader {
         _ work: PreparedPage, page: Page, settings: ReaderTranslationSettings, speculative: Bool
     ) -> Task<[ReaderTranslationRegion]?, Error> {
         let translate = translator
+        let onPrepared = onPrepared
         let imageAdmission = Self.imagePreparationGate
         return Task.detached(priority: speculative ? .utility : .userInitiated) { [diskCache, loader] in
             let diskGeneration = await diskCache?.currentGeneration(settings: settings) ?? 0
@@ -181,7 +183,7 @@ final class ReaderTranslationPreloader {
                         result = try await translate(eligible, settings) { try await work.progress.publish($0) }
                     } else {
                         let imageJPEG: Data?
-                        if settings.includePageImage {
+                        if settings.shouldAttachPageImage {
                             imageJPEG = try await imageAdmission.withPermit(priority: .promotable(work.promotion)) {
                                 let image = try await loader.load(page)
                                 try Task.checkCancellation()
@@ -213,6 +215,10 @@ final class ReaderTranslationPreloader {
             if speculative {
                 // A fully translated lookahead survives leaving before the session consumes it.
                 try? await diskCache?.storeRegions(result, for: work.key, kind: .translation, generation: diskGeneration)
+                try Task.checkCancellation()
+                // Hand completed lookahead to the renderer immediately, even if
+                // the current page's provider request has not finished yet.
+                await onPrepared?(page, result, settings)
             }
             return result
         }
@@ -247,7 +253,7 @@ final class ReaderTranslationPreloader {
             // Prepared text has no image allocation. Do not queue it behind an
             // unrelated, potentially non-interruptible OCR inference. Image-context
             // requests keep the normal barrier before their later image load.
-            if let cachedOCR, !settings.includePageImage,
+            if let cachedOCR, !settings.shouldAttachPageImage,
                !ReaderTranslationImagePreparation.needsImage(cachedOCR, settings: settings) {
                 try Task.checkCancellation()
                 return cachedOCR
@@ -255,7 +261,7 @@ final class ReaderTranslationPreloader {
             if skipTranslated {
                 // Best effort: source interception/decode fallback remains in load().
                 let needsImage = cachedOCR.map {
-                    settings.includePageImage || ReaderTranslationImagePreparation.needsImage($0, settings: settings)
+                    settings.shouldAttachPageImage || ReaderTranslationImagePreparation.needsImage($0, settings: settings)
                 } ?? true
                 if needsImage {
                     if let dataPrefetcher { try? await dataPrefetcher(page) }
@@ -297,6 +303,7 @@ final class ReaderTranslationPreloader {
                 var phaseStart = ProcessInfo.processInfo.systemUptime
                 let image = try await loader.load(page)
                 if settings.rightToLeftPanelOrder || settings.filterJapaneseSFX { evidenceImage = image }
+                try? await diskCache?.storeImageSize(image.size, page: page.translationCacheKey, generation: diskGeneration)
                 TranslationPerformanceDiagnostics.clientPhaseCompleted(
                     phase: "reader_image_load", segmentCount: 0,
                     elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: phaseStart)

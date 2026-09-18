@@ -18,6 +18,61 @@ struct ReaderOCRConfiguration: Equatable, Codable, Sendable {
     var detectorMaximumSide = 1_600
     var recognizerMaximumWidth = 1_600
     var confidenceThreshold = 0.75
+    var detectorPixelThreshold: Double
+    var detectorConfidenceThreshold: Double
+    var detectorMinimumBoxSide: Double
+
+    init(
+        modelTier: IPhoneOCRModelTier = .medium,
+        detectorMaximumSide: Int = 1_600,
+        recognizerMaximumWidth: Int = 1_600,
+        confidenceThreshold: Double = 0.75,
+        detectorPixelThreshold: Double? = nil,
+        detectorConfidenceThreshold: Double? = nil,
+        detectorMinimumBoxSide: Double = 3
+    ) {
+        self.modelTier = modelTier
+        self.detectorMaximumSide = detectorMaximumSide
+        self.recognizerMaximumWidth = recognizerMaximumWidth
+        self.confidenceThreshold = confidenceThreshold
+        self.detectorPixelThreshold = detectorPixelThreshold ?? (modelTier == .tiny ? 0.2 : 0.3)
+        self.detectorConfidenceThreshold = detectorConfidenceThreshold ?? (modelTier == .tiny ? 0.4 : 0.6)
+        self.detectorMinimumBoxSide = detectorMinimumBoxSide
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case modelTier, detectorMaximumSide, recognizerMaximumWidth, confidenceThreshold
+        case detectorPixelThreshold, detectorConfidenceThreshold, detectorMinimumBoxSide
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        // Older saved OCR settings lack detector thresholds or minimum size. Preserve
+        // every existing preference and use that model's original defaults.
+        self.init(
+            modelTier: try values.decode(IPhoneOCRModelTier.self, forKey: .modelTier),
+            detectorMaximumSide: try values.decode(Int.self, forKey: .detectorMaximumSide),
+            recognizerMaximumWidth: try values.decode(Int.self, forKey: .recognizerMaximumWidth),
+            confidenceThreshold: try values.decode(Double.self, forKey: .confidenceThreshold),
+            detectorPixelThreshold: try values.decodeIfPresent(Double.self, forKey: .detectorPixelThreshold),
+            detectorConfidenceThreshold: try values.decodeIfPresent(Double.self, forKey: .detectorConfidenceThreshold),
+            detectorMinimumBoxSide: try values.decodeIfPresent(Double.self, forKey: .detectorMinimumBoxSide) ?? 3
+        )
+    }
+
+    @available(iOS 18.0, *)
+    var detectorPostprocessConfiguration: NativeCoreMLDBPostprocessConfiguration {
+        let base = NativeCoreMLOCRModelProfile.profile(for: modelTier).postprocessConfiguration
+        // Autosaved drafts can bypass validate(); never feed invalid values
+        // into the detector's preconditions.
+        return NativeCoreMLDBPostprocessConfiguration(
+            threshold: detectorPixelThreshold.isFinite ? min(max(detectorPixelThreshold, 0), 1) : base.threshold,
+            boxThreshold: detectorConfidenceThreshold.isFinite ? min(max(detectorConfidenceThreshold, 0), 1) : base.boxThreshold,
+            unclipRatio: base.unclipRatio,
+            maximumCandidates: base.maximumCandidates,
+            minimumBoxSide: detectorMinimumBoxSide.isFinite ? min(max(detectorMinimumBoxSide, 0), 20) : base.minimumBoxSide
+        )
+    }
 }
 
 struct ReaderCustomTranslationSettings: Equatable, Codable, Sendable {
@@ -35,6 +90,9 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var provider: RemoteTranslationProvider = .openAI
     var automaticallyTranslate = true
     var includePageImage = false
+    var shouldAttachPageImage: Bool {
+        includePageImage && TranslationImageSupport.shared.status(for: configuration) != .unsupported
+    }
     var filterBackgroundWithLLM = false
     var filterSFXWithLLM = false
     var filterJapaneseSFX = false
@@ -141,7 +199,8 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         translationSourceLanguages = ReaderTranslationLanguageFilter.normalized(
             defaults.stringArray(forKey: Self.keyPrefix + "translationSourceLanguages") ?? []
         ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
-        modelTier = defaults.string(forKey: Self.keyPrefix + "modelTier").flatMap(IPhoneOCRModelTier.init) ?? modelTier
+        let storedModelTier = defaults.string(forKey: Self.keyPrefix + "modelTier").flatMap(IPhoneOCRModelTier.init) ?? modelTier
+        ocr = ReaderOCRConfiguration(modelTier: storedModelTier)
         if let data = defaults.data(forKey: Self.keyPrefix + "overlay"),
            let value = try? JSONDecoder().decode(IPhoneOverlaySettings.self, from: data) { overlay = value }
         overlay.enforceSourceReplacement()
@@ -167,7 +226,8 @@ struct ReaderTranslationSettings: Equatable, Sendable {
             credentialGeneration: credentialGeneration,
             instructions: instructions,
             reasoningEffort: reasoningEffort,
-            timeout: 120
+            // Model defaults may enable reasoning too; only explicit none uses the shorter wait.
+            timeout: reasoningEffort == .none ? 120 : 300
         )
     }
 
@@ -194,6 +254,9 @@ struct ReaderTranslationSettings: Equatable, Sendable {
               [800, 1_200, 1_600, 2_000].contains(ocr.detectorMaximumSide),
               [800, 1_200, 1_600, 2_000].contains(ocr.recognizerMaximumWidth),
               ocr.confidenceThreshold.isFinite, (0...1).contains(ocr.confidenceThreshold),
+              ocr.detectorPixelThreshold.isFinite, (0...1).contains(ocr.detectorPixelThreshold),
+              ocr.detectorConfidenceThreshold.isFinite, (0...1).contains(ocr.detectorConfidenceThreshold),
+              ocr.detectorMinimumBoxSide.isFinite, (0...20).contains(ocr.detectorMinimumBoxSide),
               (1...64).contains(maximumConcurrentRequests), ReaderTranslationDiskCache.limitChoices.contains(cacheLimitBytes)
         else { throw RemoteTranslationError.invalidRequest("Invalid OCR or overlay setting.") }
         guard [translationSourceLanguages, mangaTitleSourceLanguages, chapterTitleSourceLanguages, mangaDescriptionSourceLanguages, mangaTagSourceLanguages, sourceLabelSourceLanguages, authorSourceLanguages].allSatisfy({ languages in

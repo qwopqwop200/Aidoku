@@ -96,27 +96,17 @@ enum NativeCoreMLRecognizerError: Error, Equatable, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .modelResourceMissing:
-            "The bundled PP-OCRv6 Core ML model is missing."
-        case let .modelLoadFailed(message):
-            "The bundled PP-OCRv6 Core ML model could not be loaded: \(message)"
-        case .dictionaryResourceMissing:
-            "The bundled PP-OCRv6 character dictionary is missing."
-        case let .dictionaryMalformed(line):
-            "The PP-OCRv6 character dictionary is malformed at line \(line)."
-        case let .dictionaryCharacterCount(expected, actual):
-            "The PP-OCRv6 dictionary has \(actual) entries; expected \(expected)."
-        case .imageConversionFailed:
-            "The source image could not be converted to RGBA pixels."
-        case .modelInputCreationFailed:
-            "The PP-OCRv6 Core ML input tensor could not be created."
-        case .modelOutputMissing:
-            "The PP-OCRv6 Core ML output tensor is missing."
-        case let .modelOutputShape(expected, actual):
-            "The PP-OCRv6 output shape is \(actual); expected \(expected)."
-        case .unsupportedModelOutputType:
-            "The PP-OCRv6 Core ML output uses an unsupported numeric type."
-        case let .predictionFailed(message):
-            "PP-OCRv6 Core ML prediction failed: \(message)"
+            NSLocalizedString("OCR_ERROR_MODEL_MISSING")
+        case .modelLoadFailed:
+            NSLocalizedString("OCR_ERROR_MODEL_LOAD")
+        case .dictionaryResourceMissing, .dictionaryMalformed, .dictionaryCharacterCount:
+            NSLocalizedString("OCR_ERROR_DICTIONARY")
+        case .imageConversionFailed, .modelInputCreationFailed:
+            NSLocalizedString("OCR_ERROR_IMAGE")
+        case .modelOutputMissing, .modelOutputShape, .unsupportedModelOutputType:
+            NSLocalizedString("OCR_ERROR_OUTPUT")
+        case .predictionFailed:
+            NSLocalizedString("OCR_ERROR_PREDICTION")
         }
     }
 }

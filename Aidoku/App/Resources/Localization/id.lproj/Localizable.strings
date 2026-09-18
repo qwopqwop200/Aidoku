@@ -434,7 +434,7 @@
 "UPSCALE_IMAGES" = "Tingkatkan Resolusi Gambar";
 "UPSCALING_MODELS" = "Model Peningkatan Resolusi";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Tinggi Gambar Maksimum";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Gambar yang lebih tinggi dari batas maksimum tidak akan ditingkatkan resolusinya.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Gambar dengan tinggi yang sama dengan atau melebihi batas maksimum tidak akan ditingkatkan resolusinya.";
 "ENABLED_MODEL" = "Model yang Diaktifkan";
 "AVAILABLE_MODELS" = "Model yang Tersedia";
 "NO_AVAILABLE_MODELS" = "Tidak ada model yang tersedia";
@@ -845,7 +845,7 @@
 
 "TRANSLATION_HELP" = "Ikon terjemahan mengaktifkan atau menonaktifkan terjemahan. Halaman yang terlihat dipersiapkan terlebih dahulu, lalu halaman di sekitarnya. Persiapan mengikuti posisi baca Anda. Hasil OCR, terjemahan, dan tata letak teks yang tersimpan dapat digunakan kembali setelah membuka ulang pembaca atau memulai ulang aplikasi. Gambar yang dibagikan dan dibuka sementara tidak menyimpan cache ini. Keluar dari pembaca akan membatalkan pekerjaan yang belum selesai.";
 
-"TRANSLATION_PRIVACY" = "OCR berjalan di perangkat Anda. Terjemahan mengirimkan teks yang dikenali dan instruksi Anda ke penyedia yang dipilih. Jika Sertakan Gambar Halaman dalam Terjemahan diaktifkan, gambar halaman asli juga diunggah. Biaya API bergantung pada penyedia Anda. Kunci API disimpan di Keychain. OCR, terjemahan, dan tata letak teks disimpan di penyimpanan aplikasi terlindungi dan tidak termasuk dalam cadangan.";
+"TRANSLATION_PRIVACY" = "OCR berjalan di perangkat Anda. Terjemahan mengirimkan teks yang dikenali dan instruksi Anda ke penyedia yang dipilih. Jika Sertakan Gambar Halaman dalam Terjemahan diaktifkan, gambar halaman yang telah diproses juga dapat diunggah. Jika input gambar tidak didukung, terjemahan dilanjutkan hanya dengan teks. Biaya API bergantung pada penyedia Anda. Kunci API disimpan di Keychain. OCR, terjemahan, dan tata letak teks disimpan di penyimpanan aplikasi terlindungi dan tidak termasuk dalam cadangan.";
 
 "TRANSLATION_KEY_REPLACE" = "Ganti kunci API yang disimpan (opsional)";
 
@@ -891,7 +891,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Lebar Maksimum Pengenal";
 
-"TRANSLATION_CONFIDENCE" = "Ambang Keyakinan Minimum OCR";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Ambang Piksel Deteksi OCR";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Keyakinan Minimum Area Deteksi OCR";
+"TRANSLATION_CONFIDENCE" = "Keyakinan Minimum Pengenalan OCR";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "Ambang piksel memilih piksel teks. Keyakinan deteksi menyaring area teks. Keyakinan pengenalan menyaring teks yang dibaca dari setiap area. Nilai yang lebih rendah menerima lebih banyak hasil yang tidak pasti.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Ukuran Minimum Deteksi OCR";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Panjang minimum sisi pendek calon area teks, diukur dalam piksel peta deteksi. Default: 3 px. Nilai yang lebih rendah dapat mendeteksi teks yang lebih kecil, tetapi juga lebih banyak derau.";
 
 "TRANSLATION_SURFACE" = "Warna Latar Belakang";
 
@@ -975,13 +980,13 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Tidak dapat terhubung melalui bypass HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Terjemahan gagal. Menampilkan teks OCR. Silakan periksa koneksi Anda.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Terjemahan gagal. Teks OCR ditampilkan. Periksa pengaturan dan koneksi Anda.";
 
 "TRANSLATION_MANGA_TITLES" = "Terjemahkan Judul Manga";
 
 "TRANSLATION_CHAPTER_TITLES" = "Terjemahkan Judul Bab";
 
-"TRANSLATION_TITLES_HELP" = "Menggunakan API terjemahan dan bahasa target Anda secara terpisah dari terjemahan halaman otomatis. Nonaktifkan suatu opsi untuk menampilkan teks aslinya. Judul dan deskripsi asli tetap terlihat saat memuat atau jika terjemahan gagal.";
+"TRANSLATION_TITLES_HELP" = "Menggunakan API terjemahan dan bahasa target Anda secara terpisah dari terjemahan halaman otomatis. Nonaktifkan suatu opsi untuk menampilkan teks aslinya. Teks asli tetap terlihat saat memuat atau jika terjemahan gagal.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Bahasa Judul Manga";
 
@@ -1007,7 +1012,8 @@
 
 "TRANSLATION_INCLUDE_IMAGE" = "Sertakan Gambar Halaman dalam Terjemahan";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Kirim halaman asli dengan teks OCR untuk konteks adegan dan ekspresi. Instruksi gambar ditambahkan secara otomatis. Memerlukan model yang mendukung gambar dan dapat meningkatkan penggunaan data dan biaya API.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Kirim gambar halaman bersama teks OCR untuk memberikan konteks adegan. Jika input gambar tidak didukung, terjemahan otomatis dilanjutkan hanya dengan teks. Melampirkan gambar dapat meningkatkan penggunaan data dan biaya API.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Input gambar tidak didukung. Terjemahan dilanjutkan tanpa gambar.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Pertahankan Warna Teks Asli";
 
@@ -1015,11 +1021,11 @@
 
 "TRANSLATION_LLM_SFX" = "Penyaringan LLM SFX (Semua Bahasa)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Mengenali efek suara dalam permintaan terjemahan. Dapat digabungkan dengan filter bahasa Jepang di perangkat: jika salah satu filter mengenali teks sebagai efek suara, teks asli dibiarkan tanpa terjemahan. Dapat digunakan bersama pengiriman gambar halaman.";
+"TRANSLATION_LLM_SFX_HELP" = "Mengklasifikasikan efek suara dalam permintaan terjemahan yang sama dan membiarkannya tidak berubah. Jika gambar halaman disertakan, AI juga melewati fragmen OCR yang tidak jelas, kecuali gambar menunjukkan bahwa fragmen tersebut merupakan teks bermakna. Dialog, narasi, judul, dan kredit tetap diterjemahkan. Dapat digabungkan dengan filter bahasa Jepang di perangkat: teks yang ditandai oleh salah satu filter dibiarkan tidak berubah. Klasifikasi kurang andal tanpa gambar halaman.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Tanpa masukan gambar, konteks visual dan tata letak yang terbatas dapat mengurangi akurasi klasifikasi SFX.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Pertahankan Warna Panel Asli";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Pertahankan Warna Latar Belakang Asli";
 
 "TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Sesuaikan warna panel terjemahan dengan latar belakang di sekitar teks asli. Gunakan panel bawaan jika warna tidak dapat dipastikan atau teks tidak terbaca. Pengaturan opasitas Anda tetap berlaku.";
 
@@ -1091,7 +1097,71 @@
 "DOWNLOAD_TRANSLATED" = "Unduh dengan terjemahan";
 
 "TRANSLATION_LLM_BACKGROUND" = "Lewati Teks Latar Belakang (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "AI penerjemah membiarkan tulisan pada papan, poster, dan latar belakang yang tidak penting tetap tidak berubah. Dialog, narasi, dan teks yang tidak pasti tetap diterjemahkan. Tidak ada permintaan tambahan, tetapi pemrosesan mungkin memerlukan waktu lebih lama. Klasifikasi kurang andal tanpa gambar halaman.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "AI penerjemah membiarkan tulisan pada papan biasa, poster, dan benda dalam adegan tetap tidak berubah, meskipun terkait dengan adegan atau disebut dalam dialog. Dialog, narasi, judul, kredit, tulisan yang penting bagi alur cerita, dan teks yang perannya tidak pasti tetap diterjemahkan. Tidak ada permintaan tambahan, tetapi pemrosesan mungkin memerlukan waktu lebih lama. Klasifikasi kurang andal tanpa gambar halaman.";
 
 "TRANSLATION_STATE_ON" = "Aktif";
 "TRANSLATION_STATE_OFF" = "Nonaktif";
+
+"UPSCALE_MODEL_SWINUNET_INFO" = "Ilustrasi; mempertahankan garis asli. FP32.";
+
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Ilustrasi dan sampul berwarna; model ringan untuk detail.";
+
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Gambar umum dan karya seni dengan beragam gaya; penajaman yang lebih kuat.";
+
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga, dan halaman berwarna.";
+
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Khusus manga hitam-putih, disesuaikan untuk halaman asli dengan tinggi sekitar 1200 piksel. Halaman berwarna dibiarkan tidak berubah.";
+
+"TRANSLATION_ERROR_CONFIGURATION" = "Pengaturan terjemahan tidak valid. Periksa URL server, model, dan pengaturan lainnya.";
+
+"TRANSLATION_ERROR_REQUEST" = "Teks, gambar, atau pengaturan bahasa tidak dapat digunakan untuk terjemahan.";
+
+"TRANSLATION_ERROR_RESPONSE" = "Server terjemahan mengembalikan respons yang tidak valid. Coba lagi atau periksa pengaturan model.";
+
+"TRANSLATION_ERROR_KEY_REQUIRED" = "Kunci API terjemahan diperlukan.";
+
+"TRANSLATION_ERROR_KEY_ACCESS" = "Kunci API terjemahan tidak dapat dibaca dari Keychain.";
+
+"TRANSLATION_ERROR_ENDPOINT" = "Titik akhir terjemahan tidak diizinkan oleh kebijakan keamanan.";
+
+"TRANSLATION_ERROR_REDIRECT" = "Pengalihan titik akhir terjemahan ditolak.";
+
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "Respons terjemahan melampaui batas ukuran.";
+
+"TRANSLATION_ERROR_HTTP" = "Server terjemahan mengembalikan HTTP %d.";
+
+"TRANSLATION_ERROR_HTTP_REQUEST" = "Server terjemahan mengembalikan HTTP %d (ID permintaan: %@).";
+
+"TRANSLATION_ERROR_NETWORK_CODE" = "Permintaan terjemahan gagal (kesalahan %d).";
+
+"TRANSLATION_ERROR_CONNECTION" = "API terjemahan tidak dapat dijangkau. Periksa koneksi jaringan, titik akhir API, dan status server, lalu coba lagi.";
+
+"TRANSLATION_ERROR_REFUSED" = "Penyedia terjemahan menolak permintaan.";
+
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "Pengenal yang digunakan untuk menyimpan kunci API tidak valid.";
+
+"TRANSLATION_ERROR_KEY_INVALID" = "Kunci API kosong, terlalu besar, atau berisi karakter yang tidak didukung.";
+
+"TRANSLATION_ERROR_KEY_MISSING" = "Tidak ada kunci API yang disimpan untuk penyedia ini.";
+
+"TRANSLATION_ERROR_KEY_ENCODING" = "Kunci API yang disimpan tidak dapat didekode.";
+
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Operasi Keychain gagal dengan status %d.";
+
+"OCR_ERROR_MODEL_MISSING" = "Model PP-OCRv6 yang diperlukan tidak ditemukan.";
+
+"OCR_ERROR_MODEL_LOAD" = "Model PP-OCRv6 tidak dapat dimuat.";
+
+"OCR_ERROR_DICTIONARY" = "Kamus karakter PP-OCRv6 tidak ditemukan atau tidak valid.";
+
+"OCR_ERROR_IMAGE" = "Gambar tidak dapat disiapkan untuk pengenalan teks.";
+
+"OCR_ERROR_OUTPUT" = "Model PP-OCRv6 mengembalikan keluaran yang tidak valid atau tidak didukung.";
+
+"OCR_ERROR_PREDICTION" = "Pengenalan teks PP-OCRv6 gagal. Coba lagi dengan gambar atau model OCR lain.";
+
+"TRANSLATION_ERROR_CACHE_SIZE" = "Ukuran cache terjemahan berada di luar rentang yang didukung.";
+
+"TRANSLATION_ERROR_CACHE_STORAGE" = "Penyimpanan cache terjemahan tidak valid atau tidak tersedia.";
+
+"TRANSLATION_ERROR_CACHE_SAVE" = "Cache terjemahan tidak dapat disimpan.";

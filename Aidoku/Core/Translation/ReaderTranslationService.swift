@@ -15,6 +15,7 @@ struct ReaderTranslationRegion: Equatable, Sendable {
     var sourceOrientation: BrowserOCRSourceOrientation = .unknown
     var sourceSingleVerticalColumn: Bool?
     var translationReuseIdentity: NativeTranslationReuseIdentity?
+    var auxiliaryInkRects: [CGRect] = [] // Normalized suppressed-ruby ink; not layout bounds.
     var sfxEnclosedBackground: Bool? = nil // Positive evidence protects text; nil means not sampled.
 
     /// If translation adds no information, preserve the original lettering.
@@ -40,7 +41,9 @@ struct ReaderTranslationRegion: Equatable, Sendable {
             sourceText: source, translatedText: translation, confidence: confidence,
             sourceOrientation: sourceOrientation, sourceSingleVerticalColumn: sourceSingleVerticalColumn,
             translationReuseIdentity: translationReuseIdentity,
-            sourcePolygon: polygon.map { CGPoint(x: $0.x * imageSize.width, y: $0.y * imageSize.height) }
+            sourcePolygon: polygon.map { CGPoint(x: $0.x * imageSize.width, y: $0.y * imageSize.height) },
+            auxiliaryInkRects: auxiliaryInkRects.map { CGRect(x: $0.minX * imageSize.width, y: $0.minY * imageSize.height,
+                width: $0.width * imageSize.width, height: $0.height * imageSize.height) }
         )
     }
 }
@@ -103,7 +106,8 @@ actor ReaderOCRService {
         ReaderTranslationDiagnostics.record("ocr_begin")
         let result = try await pipeline.recognize(
             image: image, requestID: UUID().uuidString,
-            confidenceThreshold: configuration.confidenceThreshold
+            confidenceThreshold: configuration.confidenceThreshold,
+            detectorConfiguration: configuration.detectorPostprocessConfiguration
         )
         try Task.checkCancellation()
         ReaderTranslationDiagnostics.record("ocr_end", count: result.lines.count)
@@ -165,7 +169,11 @@ actor ReaderOCRService {
                 source: source,
                 polygon: line.poly.map { CGPoint(x: $0.x / imageBounds.width, y: $0.y / imageBounds.height) },
                 confidence: line.score, sourceImageAspectRatio: Double(image.width) / Double(image.height), sourceOrientation: line.sourceOrientation,
-                sourceSingleVerticalColumn: line.singleVerticalColumn
+                sourceSingleVerticalColumn: line.singleVerticalColumn,
+                auxiliaryInkRects: line.auxiliaryInkRects.map { $0.intersection(imageBounds) }.filter { !$0.isNull && !$0.isEmpty }.map {
+                    CGRect(x: $0.minX / imageBounds.width, y: $0.minY / imageBounds.height,
+                           width: $0.width / imageBounds.width, height: $0.height / imageBounds.height)
+                }
             )
         }
         let balloonStart = ProcessInfo.processInfo.systemUptime
@@ -191,6 +199,75 @@ actor ReaderTranslationService {
     private let client: RemoteTranslating
     private var service: TranslationService?
     private let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 16)
+
+    private var activeReaders: Set<UUID> = []
+    private var metadataGeneration: UInt64 = 0
+    private var metadataTasks: [UUID: Task<[ReaderTranslationRegion], Error>] = [:]
+    private var metadataWaiters: [UUID: CheckedContinuation<Void, Error>] = [:]
+
+    // Pause before reader OCR/debounce starts, and retain the pause between pages.
+    // Multiple reader owners cannot accidentally resume each other's metadata work.
+    func setReaderActive(_ active: Bool, owner: UUID) {
+        if active {
+            guard activeReaders.insert(owner).inserted else { return }
+            metadataGeneration &+= 1
+            for task in metadataTasks.values { task.cancel() }
+        } else {
+            activeReaders.remove(owner)
+            guard activeReaders.isEmpty else { return }
+            let waiters = metadataWaiters
+            metadataWaiters.removeAll()
+            for waiter in waiters.values { waiter.resume() }
+        }
+    }
+
+    private func waitForMetadataAdmission() async throws {
+        while !activeReaders.isEmpty {
+            try Task.checkCancellation()
+            let id = UUID()
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                    if Task.isCancelled { continuation.resume(throwing: CancellationError()) }
+                    else { metadataWaiters[id] = continuation }
+                }
+            } onCancel: {
+                Task { await self.cancelMetadataWaiter(id) }
+            }
+        }
+        try Task.checkCancellation()
+    }
+
+    private func cancelMetadataWaiter(_ id: UUID) {
+        metadataWaiters.removeValue(forKey: id)?.resume(throwing: CancellationError())
+    }
+
+    func translateMetadata(
+        regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
+        priority: MetadataTranslationPriority = .mangaTitle
+    ) async throws -> [ReaderTranslationRegion] {
+        while true {
+            try await waitForMetadataAdmission()
+            guard activeReaders.isEmpty else { continue }
+            let generation = metadataGeneration
+            let id = UUID()
+            let task = Task { try await self.translate(regions: regions, settings: settings, priority: .metadata(priority)) }
+            metadataTasks[id] = task
+            do {
+                let result = try await withTaskCancellationHandler {
+                    try await task.value
+                } onCancel: { task.cancel() }
+                metadataTasks.removeValue(forKey: id)
+                try Task.checkCancellation()
+                return result
+            } catch {
+                metadataTasks.removeValue(forKey: id)
+                try Task.checkCancellation()
+                // Only reader preemption retries. A disappearing/cancelled caller
+                // exits immediately, and ordinary provider failures are preserved.
+                guard task.isCancelled, generation != metadataGeneration else { throw error }
+            }
+        }
+    }
 
     init(client: RemoteTranslating = RemoteTranslationClient()) {
         self.client = client
@@ -253,9 +330,10 @@ actor ReaderTranslationService {
                                      settings.maximumConcurrentRequests))
         await limiter.setMaximumConcurrentRequests(concurrency)
         try Task.checkCancellation()
-        let imageJPEG = try settings.includePageImage
+        let attachesImage = settings.shouldAttachPageImage
+        let imageJPEG = try attachesImage
             ? (preparedImageJPEG ?? image.map(ReaderTranslationImagePreparation.translationJPEG)) : nil
-        guard !settings.includePageImage || imageJPEG != nil else {
+        guard !attachesImage || imageJPEG != nil else {
             throw RemoteTranslationError.invalidRequest("Page image attachment is enabled, but no page image was provided.")
         }
         let imageDataURL = imageJPEG.map { "data:image/jpeg;base64," + $0.base64EncodedString() }

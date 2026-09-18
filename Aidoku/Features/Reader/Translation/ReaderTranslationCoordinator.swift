@@ -5,6 +5,7 @@ protocol ReaderTranslationOwner: AnyObject {
     var navigationItem: UINavigationItem { get }
     var translationUpcomingPages: [Page] { get }
     var translationVisiblePages: [ReaderTranslationPage] { get }
+    var translationPreviewPages: [ReaderTranslationPage] { get }
     var translationChapterKey: String { get }
     var translationCurrentPageIndex: Int { get }
     var translationReadsRightToLeft: Bool { get }
@@ -12,6 +13,7 @@ protocol ReaderTranslationOwner: AnyObject {
 }
 
 extension ReaderTranslationOwner {
+    var translationPreviewPages: [ReaderTranslationPage] { [] }
     var translationReadsRightToLeft: Bool { false }
     var translationPersistsCache: Bool { true }
     var translationCurrentPageIndex: Int {
@@ -24,6 +26,7 @@ extension ReaderViewController: ReaderTranslationOwner {
     var translationPersistsCache: Bool { !isTemporaryImageSession }
     var translationReadsRightToLeft: Bool { readingMode == .rtl }
     var translationVisiblePages: [ReaderTranslationPage] { reader?.translationPages() ?? [] }
+    var translationPreviewPages: [ReaderTranslationPage] { reader?.translationPreviewPages() ?? [] }
     var translationChapterKey: String { chapter.key }
 }
 
@@ -52,6 +55,9 @@ final class ReaderTranslationCoordinator {
     private var observers: [NSObjectProtocol] = []
     private var failureNotice: UIView?
     private var failureNoticeTask: Task<Void, Never>?
+    private let metadataOwner = UUID()
+    private var metadataActivityTask: Task<Void, Never>?
+    private var metadataPaused = false
     private var isVisible = false
     private var synchronizationTask: Task<Void, Never>?
     private var memoryRecoveryTask: Task<Void, Never>?
@@ -87,9 +93,17 @@ final class ReaderTranslationCoordinator {
                     page: page, regions: regions, settings: settings,
                     geometry: ReaderTranslationLayoutGeometry(page: visible, imageView: imageView), window: window
                 )
+            },
+            prepareTextLayout: { [weak owner, layoutPreparer] page, regions, settings in
+                guard persistsCache, let visible = owner?.translationVisiblePages.first, let imageView = visible.imageView else { return }
+                try await layoutPreparer.prepareTextOnly(page: page, regions: regions, settings: settings,
+                    geometry: ReaderTranslationLayoutGeometry(page: visible, imageView: imageView))
             }
         )
         preloader.nextPage = { [weak session = self.session] page in session?.nextPageForRecognition(after: page) }
+        preloader.onPrepared = { [weak session = self.session] page, regions, settings in
+            session?.receivePrepared(page, regions: regions, settings: settings)
+        }
         self.session.onStateChanged = { [weak self] state in
             self?.button.image = UIImage(systemName: state == .on ? "character.bubble.fill" : "character.bubble")
             self?.button.tintColor = state == .on ? .systemGreen : .secondaryLabel
@@ -130,6 +144,12 @@ final class ReaderTranslationCoordinator {
     }
 
     deinit {
+        let previous = metadataActivityTask
+        let owner = metadataOwner
+        Task {
+            await previous?.value
+            await ReaderTranslationService.shared.setReaderActive(false, owner: owner)
+        }
         failureNoticeTask?.cancel()
         memoryRecoveryTask?.cancel()
         synchronizationTask?.cancel()
@@ -205,6 +225,17 @@ final class ReaderTranslationCoordinator {
         owner.navigationItem.rightBarButtonItems = items
     }
 
+    private func updateMetadataActivity(active: Bool) {
+        guard metadataPaused != active else { return }
+        metadataPaused = active
+        let previous = metadataActivityTask
+        let owner = metadataOwner
+        metadataActivityTask = Task {
+            await previous?.value
+            await ReaderTranslationService.shared.setReaderActive(active, owner: owner)
+        }
+    }
+
     @objc func toggle() {
         dismissFailureNotice()
         if session.state != .off || readSettings().automaticallyTranslate {
@@ -212,6 +243,7 @@ final class ReaderTranslationCoordinator {
             synchronizationTask = nil
             session.disable(preservingVisibleRendering: true)
             setEnabled(false)
+            updateMetadataActivity(active: false)
         } else {
             button.accessibilityHint = nil
             setEnabled(true)
@@ -223,6 +255,7 @@ final class ReaderTranslationCoordinator {
     func suspend() {
         dismissFailureNotice()
         isVisible = false
+        updateMetadataActivity(active: false)
         synchronizationTask?.cancel()
         synchronizationTask = nil
         navigationDebounce.reset()
@@ -237,6 +270,7 @@ final class ReaderTranslationCoordinator {
         synchronizationTask?.cancel()
         synchronizationTask = nil
         isVisible = false
+        updateMetadataActivity(active: false)
         session.close()
         // The selected OCR models remain warm across readers. Memory pressure
         // and OCR configuration changes are the resource-release boundaries.
@@ -259,6 +293,7 @@ final class ReaderTranslationCoordinator {
 
     func visiblePagesDidChange() {
         guard isVisible, let owner else { return }
+        updateMetadataActivity(active: readSettings().automaticallyTranslate)
         let identity = owner.translationChapterKey + ":" + String(owner.translationCurrentPageIndex)
         let moved = navigationIdentity != identity
         var delay: UInt64 = 80_000_000
@@ -276,7 +311,8 @@ final class ReaderTranslationCoordinator {
             synchronizationTask = nil
         }
         // Existing results can display immediately without starting OCR.
-        session.refreshVisiblePages(owner.translationVisiblePages)
+        session.refreshVisiblePages(owner.translationVisiblePages,
+            previews: readSettings().automaticallyTranslate ? owner.translationPreviewPages : [])
         guard !isScrubbing, synchronizationTask == nil else { return }
         synchronizationTask = Task { [weak self] in
             do { try await Task.sleep(nanoseconds: delay) }
@@ -290,6 +326,7 @@ final class ReaderTranslationCoordinator {
     private func synchronizeVisiblePages() {
         guard #available(iOS 18.0, *), let owner, isVisible, UIApplication.shared.applicationState == .active else { return }
         let visible = owner.translationVisiblePages
+        session.refreshVisiblePages(visible, previews: readSettings().automaticallyTranslate ? owner.translationPreviewPages : [])
         let pages = owner.translationUpcomingPages
         let renderContext = visible.first.flatMap { page in
             page.imageView.map { ReaderTranslationLayoutGeometry(page: page, imageView: $0).context }

@@ -9,10 +9,12 @@ final class ReaderTranslationAPIValidator {
         let configuration: RemoteTranslationConfiguration
         let sourceLanguage: String
         let targetLanguage: String
+        let includePageImage: Bool
         init(_ settings: ReaderTranslationSettings) {
             configuration = settings.configuration
             sourceLanguage = settings.sourceLanguage
             targetLanguage = settings.targetLanguage
+            includePageImage = settings.includePageImage
         }
     }
     private let client: any RemoteTranslating
@@ -91,10 +93,22 @@ final class ReaderTranslationAPIValidator {
         case "zh-Hans", "zh-Hant": sample = "连接测试"
         default: sample = "Hello, world!"
         }
-        let request = RemoteTranslationRequest(
+        var request = RemoteTranslationRequest(
             sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage,
             segments: [.init(id: "connection-test", text: sample)]
         )
+        if settings.includePageImage {
+            // Exercise the same image request format without uploading a user page.
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            format.opaque = true
+            let size = CGSize(width: 32, height: 32)
+            let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+                UIColor.white.setFill()
+                context.fill(CGRect(origin: .zero, size: size))
+            }
+            request.imageJPEG = try ReaderTranslationImagePreparation.translationJPEG(image)
+        }
         let response = try await client.translate(request, configuration: settings.configuration)
         try Task.checkCancellation()
         guard response.translations.count == 1,

@@ -30,21 +30,37 @@ extension ReaderTranslationRegion {
 /// Small session working set. Durable storage belongs to ReaderTranslationDiskCache.
 @MainActor
 final class ReaderTranslationSessionCache {
-    private final class Regions: NSObject {
-        let values: [ReaderTranslationRegion]
-        init(_ values: [ReaderTranslationRegion]) { self.values = values }
+    static let byteLimit = 4 * 1_024 * 1_024
+    private struct Entry {
+        let regions: [ReaderTranslationRegion]
+        let cost: Int
     }
-    private let values = NSCache<NSString, Regions>()
+    private var values: [String: Entry] = [:]
+    private var order: [String] = []
+    private(set) var bytes = 0
 
-    init() {
-        values.totalCostLimit = 16 * 1_024 * 1_024
-        values.countLimit = 128 // Empty OCR results also consume keys and wrapper objects.
-    }
-    func contains(_ key: String) -> Bool { values.object(forKey: key as NSString) != nil }
-    func store(_ regions: [ReaderTranslationRegion], for key: String) throws {
+    func contains(_ key: String) -> Bool { values[key] != nil }
+    func store(_ regions: [ReaderTranslationRegion], for key: String, evict: Bool = true) throws {
         let cost = regions.reduce(128 + key.utf8.count) { $0 + $1.source.utf8.count + ($1.translation?.utf8.count ?? 0) + 512 + $1.polygon.count * 16 }
-        values.setObject(Regions(regions), forKey: key as NSString, cost: cost)
+        if !evict, bytes + cost > Self.byteLimit || values.count >= 64 { return }
+        remove(key)
+        guard cost <= Self.byteLimit else { return }
+        while bytes + cost > Self.byteLimit || values.count >= 64, let oldest = order.first { remove(oldest) }
+        values[key] = Entry(regions: regions, cost: cost)
+        order.append(key)
+        bytes += cost
     }
-    func regions(for key: String) -> [ReaderTranslationRegion]? { values.object(forKey: key as NSString)?.values }
-    func clear() { values.removeAllObjects() }
+    func regions(for key: String) -> [ReaderTranslationRegion]? {
+        guard let entry = values[key] else { return nil }
+        order.removeAll { $0 == key }; order.append(key)
+        return entry.regions
+    }
+    func retainPages(_ keys: Set<String>) {
+        for key in Array(values.keys) where !keys.contains(key) { remove(key) }
+    }
+    private func remove(_ key: String) {
+        if let entry = values.removeValue(forKey: key) { bytes -= entry.cost }
+        order.removeAll { $0 == key }
+    }
+    func clear() { values.removeAll(); order.removeAll(); bytes = 0 }
 }

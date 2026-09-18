@@ -194,7 +194,7 @@
 
 "TRANSLATION_HELP" = "La tradukikono ŝaltas aŭ malŝaltas tradukon. Unue estas preparataj la videblaj paĝoj, poste la proksimaj. La preparado sekvas vian legopozicion. Konservitaj OCR-rezultoj, tradukoj kaj teksta aranĝo povas esti reuzataj post remalfermo de la legilo aŭ rekomenco de la apo. Provizore malfermitaj kunhavigitaj bildoj ne konservas ĉi tiun kaŝmemoron. Forlasi la legilon nuligas nefinitan laboron.";
 
-"TRANSLATION_PRIVACY" = "OCR funkcias en via aparato. Tradukado sendas rekonitan tekston kaj viajn instrukciojn al la elektita provizanto. Se Inkluzivi Paĝan Bildon en Tradukado estas ebligita, la origina paĝa bildo ankaŭ estas alŝutita. API-kostoj dependas de via provizanto. API-ŝlosiloj estas konservataj en Keychain. OCR, tradukoj kaj teksta aranĝo estas konservitaj en protektita aplikaĵa stokado ekskludita de sekurkopioj.";
+"TRANSLATION_PRIVACY" = "OCR funkcias en via aparato. Tradukado sendas rekonitan tekston kaj viajn instrukciojn al la elektita provizanto. Se Inkluzivi Paĝan Bildon en Tradukado estas ebligita, paĝbildo adaptita por prilaborado ankaŭ povas esti alŝutita. Se bilda enigo ne estas subtenata, tradukado daŭras nur per teksto. API-kostoj dependas de via provizanto. API-ŝlosiloj estas konservataj en Keychain. OCR, tradukoj kaj teksta aranĝo estas konservitaj en protektita aplikaĵa stokado ekskludita de sekurkopioj.";
 
 "TRANSLATION_KEY_REPLACE" = "Anstataŭigi konservitan API-ŝlosilon (laŭvola)";
 
@@ -240,7 +240,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Maksimuma bilda larĝo por tekstrekono";
 
-"TRANSLATION_CONFIDENCE" = "Minimuma OCR-konfido";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Piksela sojlo por OCR-detekto";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Minimuma fidindeco de OCR-regiona detekto";
+"TRANSLATION_CONFIDENCE" = "Minimuma fidindeco de OCR-tekstorekono";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "La piksela sojlo elektas tekstajn pikselojn. La detekta fidindeco filtras tekstajn regionojn. La rekona fidindeco filtras la tekston legitan el ĉiu regiono. Pli malaltaj valoroj akceptas pli da necertaj rezultoj.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minimuma grandeco por OCR-detekto";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Minimuma longo de la mallonga flanko de eblaj tekstaj regionoj, mezurita en pikseloj de la detekta mapo. Defaŭlto: 3 px. Pli malaltaj valoroj povas detekti pli etan tekston, sed ankaŭ pli da bilda bruo.";
 
 "TRANSLATION_SURFACE" = "Fona Koloro";
 
@@ -298,7 +303,7 @@
 
 "TRANSLATION_CACHE_USED" = "Stokado Uzita";
 
-"TRANSLATION_CACHE_HELP" = "Konservu OCR-rezultojn, paĝtradukojn, tradukojn de mangaaj kaj ĉapitraj titoloj, aŭtoraj nomoj, etikedoj, mangaaj priskriboj, fontaj menuoj kaj sekciaj titoloj kaj tekstan aranĝon aŭtomate. Bildoj de la nuna kaj proksimaj paĝoj estas konservataj nur en memoro. La rezultoj plej longe ne uzitaj estas forigitaj kiam la elektita limo estas atingita. Defaŭlte: 1 GB. Maksimume: 100 GB. Ŝanĝoj validas aŭtomate; malaltigo de la limo forigas la rezultojn plej longe ne uzitajn ĝis la kaŝmemoro restas ene de la limo.";
+"TRANSLATION_CACHE_HELP" = "Aŭtomate konservas OCR-rezultojn, paĝtradukojn, tradukojn de mangaaj kaj ĉapitraj titoloj, aŭtoraj nomoj, etikedoj, mangaaj priskriboj, fontaj menuoj kaj sekciaj titoloj, kaj tekstan aranĝon. Bildoj de la nuna kaj proksimaj paĝoj estas konservataj nur en memoro. La rezultoj plej longe ne uzitaj estas forigitaj kiam la elektita limo estas atingita. Defaŭlte: 1 GB. Maksimume: 100 GB. Ŝanĝoj validas aŭtomate; malaltigo de la limo forigas la rezultojn plej longe ne uzitajn ĝis la kaŝmemoro restas ene de la limo.";
 
 "TRANSLATION_SOURCE_FILTER" = "Filtrilo de fontlingvoj";
 
@@ -324,7 +329,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Ne eblis konekti per HTTPS-pretervojo.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Tradukado malsukcesis. Montrante OCR-tekston. Bonvolu kontroli vian konekton.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Tradukado malsukcesis. La OCR-teksto estas montrata. Kontrolu viajn agordojn kaj konekton.";
 
 "TRANSLATION_MANGA_TITLES" = "Traduku Mangao-Titolojn";
 
@@ -356,21 +361,22 @@
 
 "TRANSLATION_INCLUDE_IMAGE" = "Inkluzivi Paĝan Bildon en Tradukado";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Sendu la originalan paĝon kun OCR-teksto por sceno kaj esprima kunteksto. Bildaj instrukcioj estas almetitaj aŭtomate. Postulas modelon kiu subtenas bildojn kaj povas pliigi datuman uzadon kaj API-koston.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Sendas la paĝbildon kune kun la OCR-teksto por doni scenan kuntekston. Se bilda enigo ne estas subtenata, tradukado aŭtomate daŭras nur per teksto. Aldonado de bildoj povas pliigi datumuzon kaj API-koston.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Bilda enigo ne estas subtenata. Tradukado daŭras sen bildoj.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Konservu Originalan Teksto-Koloron";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Taksi la originalan tekstokoloron sen plia modelo. Uzu la defaŭltan koloron kiam necerta aŭ kiam kontrasto estas tro malalta.";
+"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Taksas la originalan tekstokoloron sen plia modelo. La defaŭlta koloro estas uzata kiam la takso estas necerta aŭ la kontrasto estas tro malalta.";
 
 "TRANSLATION_LLM_SFX" = "Filtrado de LLM SFX (Ĉiuj lingvoj)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Klasifikas sonefektojn en la tradukpeto. Kombinebla kun la loka filtrilo por la japana: se iu el la filtriloj klasifikas tekston kiel sonefekton, la originala teksto restas netradukita. Uzebla ankaŭ dum sendado de la paĝa bildo.";
+"TRANSLATION_LLM_SFX_HELP" = "Klasifikas sonefektojn en la sama tradukpeto kaj lasas ilin senŝanĝaj. Kun paĝa bildo, la AI ankaŭ preterlasas neklarajn OCR-fragmentojn, krom se la bildo montras, ke ili estas senchava teksto. Dialogo, rakonta teksto, titoloj kaj mencioj de kreintoj estas konservataj por tradukado. Kombinebla kun la loka filtrilo por la japana: teksto markita de iu el la filtriloj restas senŝanĝa. Klasifikado estas malpli fidinda sen paĝa bildo.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Sen bilda enigo, limigita vida kaj aranĝa kunteksto povas redukti SFX-klasifikan precizecon.";
 
 "TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Konservi la originalan fonkoloron de teksto";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Kongruu la tradukpanelon al la fono ĉirkaŭ la originala teksto. Uzu la defaŭltan panelon kiam necerta aŭ nelegebla. Via opakeco ankoraŭ validas.";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Adaptas la fonon de la tradukpanelo al la fono ĉirkaŭ la originala teksto. La defaŭlta panelo estas uzata kiam la takso estas necerta aŭ la teksto estus nelegebla. La agordo de opakeco plu validas.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Propra (kongrua kun OpenAI)";
 
@@ -782,7 +788,7 @@
 "UPSCALE_IMAGES" = "Pligrandigi bildan distingivon";
 "UPSCALING_MODELS" = "Altskalaj Modeloj";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Maksimuma Bilda Alteco";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "La distingivo de bildoj pli altaj ol la maksimuma bilda alteco ne estos pligrandigita.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Bildoj, kies alto egalas aŭ superas la maksimuman bildalton, ne estas pligrandigataj.";
 "ENABLED_MODEL" = "Ebligita Modelo";
 "AVAILABLE_MODELS" = "Disponeblaj Modeloj";
 "NO_AVAILABLE_MODELS" = "Neniuj Disponeblaj Modeloj";
@@ -1091,8 +1097,72 @@
 "DOWNLOAD_TRANSLATED" = "Elŝuti kun traduko";
 
 "TRANSLATION_LLM_BACKGROUND" = "Preterpasi fonajn surskribojn (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "La traduka AI lasas flankajn ŝildojn, afiŝojn kaj fonajn surskribojn senŝanĝaj. Dialogo, rakonta teksto kaj teksto kun necerta rolo estas tradukataj. Neniu plia peto estas farata, sed la prilaborado povas daŭri pli longe. Klasifikado estas malpli fidinda sen paĝa bildo.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "La traduka AI lasas ordinarajn ŝildojn, afiŝojn kaj surskribojn sur objektoj en la sceno senŝanĝaj, eĉ kiam ili rilatas al la sceno aŭ estas menciataj en dialogo. Dialogo, rakonta teksto, titoloj, mencioj de kreintoj, skribaĵoj decidaj por la intrigo kaj teksto kun necerta rolo estas tradukataj. Neniu plia peto estas farata, sed la prilaborado povas daŭri pli longe. Klasifikado estas malpli fidinda sen paĝa bildo.";
 
 "TRANSLATION_STATE_ON" = "Ŝaltita";
 
 "TRANSLATION_STATE_OFF" = "Malŝaltita";
+
+"UPSCALE_MODEL_SWINUNET_INFO" = "Por ilustraĵoj; konservas la originalajn konturliniojn. FP32.";
+
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Por koloraj ilustraĵoj kaj kovriloj; malpeza modelo por plibonigi detalojn.";
+
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Por ĝeneralaj bildoj kaj diversaj desegnostiloj; pli forta akrigo.";
+
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Por animeoj, mangaoj kaj koloraj paĝoj.";
+
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Nur por nigrablankaj mangaoj, adaptita al originalaj paĝoj proksimume 1200 pikselojn altaj. Koloraj paĝoj restas senŝanĝaj.";
+
+"TRANSLATION_ERROR_CONFIGURATION" = "La tradukaj agordoj estas nevalidaj. Kontrolu la servilan URL, la modelon kaj la aliajn agordojn.";
+
+"TRANSLATION_ERROR_REQUEST" = "La teksto, bildo aŭ lingvaj agordoj ne povis esti uzataj por tradukado.";
+
+"TRANSLATION_ERROR_RESPONSE" = "La tradukservilo liveris nevalidan respondon. Provu denove aŭ kontrolu la modelajn agordojn.";
+
+"TRANSLATION_ERROR_KEY_REQUIRED" = "API-ŝlosilo por tradukado estas bezonata.";
+
+"TRANSLATION_ERROR_KEY_ACCESS" = "Ne eblis legi la API-ŝlosilon por tradukado el Keychain.";
+
+"TRANSLATION_ERROR_ENDPOINT" = "La API-finpunkto por tradukado ne estas permesata de la sekureca politiko.";
+
+"TRANSLATION_ERROR_REDIRECT" = "La alidirekto de la API-finpunkto por tradukado estis rifuzita.";
+
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "La tradukrespondo superis sian grandolimon.";
+
+"TRANSLATION_ERROR_HTTP" = "La tradukservilo liveris HTTP %d.";
+
+"TRANSLATION_ERROR_HTTP_REQUEST" = "La tradukservilo liveris HTTP %d (peta identigilo: %@).";
+
+"TRANSLATION_ERROR_NETWORK_CODE" = "La tradukpeto malsukcesis (eraro %d).";
+
+"TRANSLATION_ERROR_CONNECTION" = "Ne eblis atingi la tradukan API. Kontrolu vian retkonekton, la API-finpunkton kaj la staton de la servilo, kaj poste provu denove.";
+
+"TRANSLATION_ERROR_REFUSED" = "La tradukprovizanto rifuzis la peton.";
+
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "La identigilo uzata por konservi la API-ŝlosilon estas nevalida.";
+
+"TRANSLATION_ERROR_KEY_INVALID" = "La API-ŝlosilo estas malplena, tro granda aŭ enhavas nesubtenatajn signojn.";
+
+"TRANSLATION_ERROR_KEY_MISSING" = "Neniu API-ŝlosilo estas konservita por ĉi tiu provizanto.";
+
+"TRANSLATION_ERROR_KEY_ENCODING" = "Ne eblis malkodi la konservitan API-ŝlosilon.";
+
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "La operacio de Keychain malsukcesis kun stato %d.";
+
+"OCR_ERROR_MODEL_MISSING" = "Bezonata PP-OCRv6-modelo mankas.";
+
+"OCR_ERROR_MODEL_LOAD" = "Ne eblis ŝargi PP-OCRv6-modelon.";
+
+"OCR_ERROR_DICTIONARY" = "La signovortaro de PP-OCRv6 mankas aŭ estas nevalida.";
+
+"OCR_ERROR_IMAGE" = "Ne eblis prepari la bildon por tekstrekono.";
+
+"OCR_ERROR_OUTPUT" = "La PP-OCRv6-modelo liveris nevalidan aŭ nesubtenatan eligon.";
+
+"OCR_ERROR_PREDICTION" = "Tekstrekono per PP-OCRv6 malsukcesis. Provu denove kun alia bildo aŭ OCR-modelo.";
+
+"TRANSLATION_ERROR_CACHE_SIZE" = "La grandeco de la traduka kaŝmemoro estas ekster la subtenata intervalo.";
+
+"TRANSLATION_ERROR_CACHE_STORAGE" = "La konservejo por la traduka kaŝmemoro estas nevalida aŭ nedisponebla.";
+
+"TRANSLATION_ERROR_CACHE_SAVE" = "Ne eblis konservi la tradukan kaŝmemoron.";

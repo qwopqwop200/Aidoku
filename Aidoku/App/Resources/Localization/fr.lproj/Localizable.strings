@@ -508,7 +508,7 @@
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Une erreur s’est produite lors de la récupération des listes de sources ci-dessus.";
 "COPY_URL" = "Copier l'URL";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Hauteur maximale de l’image";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Les images dont la hauteur dépasse la hauteur maximale ne seront pas agrandies.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Les images dont la hauteur est supérieure ou égale à la hauteur maximale ne seront pas agrandies.";
 "ENABLED_MODEL" = "Modèle activé";
 "AVAILABLE_MODELS" = "Modèles disponibles";
 "NO_AVAILABLE_MODELS" = "Aucun modèle disponible";
@@ -803,7 +803,7 @@
 
 "TRANSLATION_HELP" = "L’icône de traduction active ou désactive la traduction. Les pages visibles sont préparées en premier, puis les pages proches. La préparation suit votre position de lecture. Les résultats OCR, les traductions et la mise en page du texte enregistrés peuvent être réutilisés après la réouverture du lecteur ou le redémarrage de l’application. Les images partagées temporaires n’enregistrent pas ce cache. Quitter le lecteur annule le travail inachevé.";
 
-"TRANSLATION_PRIVACY" = "L’OCR s’exécute sur votre appareil. La traduction envoie le texte reconnu et vos instructions au fournisseur sélectionné. Si « Inclure l’image de la page dans la traduction » est activé, l’image originale de la page est également envoyée. Les frais d’API dépendent de votre fournisseur. Les clés restent dans le trousseau. Les résultats OCR, les traductions et la mise en page du texte sont enregistrés dans l’espace de stockage protégé de l’application, exclu des sauvegardes.";
+"TRANSLATION_PRIVACY" = "L’OCR s’exécute sur votre appareil. La traduction envoie le texte reconnu et vos instructions au fournisseur sélectionné. Si « Inclure l’image de la page dans la traduction » est activé, une version traitée de l’image de la page peut également être envoyée. Si les images ne sont pas prises en charge en entrée, la traduction continue avec le texte seul. Les frais d’API dépendent de votre fournisseur. Les clés restent dans le trousseau. Les résultats OCR, les traductions et la mise en page du texte sont enregistrés dans l’espace de stockage protégé de l’application, exclu des sauvegardes.";
 
 "TRANSLATION_KEY_REPLACE" = "Remplacer la clé API enregistrée (facultatif)";
 
@@ -849,7 +849,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Largeur maximale pour la reconnaissance du texte";
 
-"TRANSLATION_CONFIDENCE" = "Seuil de confiance OCR";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Seuil des pixels de détection OCR";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Confiance minimale des zones détectées par OCR";
+"TRANSLATION_CONFIDENCE" = "Confiance minimale de reconnaissance OCR";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "Le seuil des pixels sélectionne les pixels de texte. La confiance de détection filtre les zones de texte. La confiance de reconnaissance filtre le texte lu dans chaque zone. Des valeurs plus faibles acceptent davantage de résultats incertains.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Taille minimale de détection OCR";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Longueur minimale du côté court des zones de texte candidates, en pixels de la carte de détection. Par défaut : 3 px. Une valeur plus faible peut détecter du texte plus petit, mais aussi davantage de bruit.";
 
 "TRANSLATION_SURFACE" = "Couleur d'arrière-plan";
 
@@ -933,7 +938,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Impossible de se connecter via le contournement HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "La traduction a échoué. Affichage du texte OCR. Veuillez vérifier votre connexion.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "La traduction a échoué. Le texte OCR est affiché. Vérifiez les paramètres et la connexion.";
 
 "TRANSLATION_MANGA_TITLES" = "Traduire des titres de mangas";
 
@@ -965,7 +970,8 @@
 
 "TRANSLATION_INCLUDE_IMAGE" = "Inclure l'image de la page dans la traduction";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Envoie la page originale avec le texte OCR pour fournir le contexte de la scène et des expressions. Les instructions relatives aux images sont ajoutées automatiquement. Nécessite un modèle prenant en charge les images et peut augmenter la consommation de données et le coût de l’API.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Envoie l’image de la page avec le texte OCR pour fournir le contexte de la scène. Si les images ne sont pas prises en charge, la traduction continue automatiquement avec le texte seul. Joindre des images peut augmenter la consommation de données et le coût de l’API.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Les images ne sont pas prises en charge en entrée. La traduction continue sans images.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Conserver la couleur du texte d'origine";
 
@@ -973,7 +979,7 @@
 
 "TRANSLATION_LLM_SFX" = "Filtrage des onomatopées par LLM (toutes les langues)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Identifie les effets sonores lors de la demande de traduction. Peut être combiné avec le filtre local japonais : dès que l’un des deux filtres identifie un effet sonore, le texte d’origine est conservé. Compatible avec l’envoi de l’image de la page.";
+"TRANSLATION_LLM_SFX_HELP" = "Identifie les effets sonores dans la même demande de traduction et les laisse inchangés. Avec une image de la page, l’IA ignore aussi les fragments OCR ambigus, sauf si l’image confirme qu’ils correspondent à un texte porteur de sens. Les dialogues, la narration, les titres et les crédits sont conservés parmi les textes à traduire. Peut être combiné avec le filtre local japonais : le texte signalé par l’un ou l’autre des filtres reste inchangé. La classification est moins fiable sans image de la page.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Sans image, le contexte visuel et la disposition du texte sont moins bien connus, ce qui peut réduire la précision de la classification des onomatopées.";
 
@@ -1094,7 +1100,39 @@
 "DOWNLOAD_TRANSLATED" = "Télécharger avec traduction";
 
 "TRANSLATION_LLM_BACKGROUND" = "Ignorer les textes d’arrière-plan (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "L’IA de traduction laisse inchangés les textes accessoires des panneaux, des affiches et de l’arrière-plan. Les dialogues, la narration et les textes incertains sont traduits. Aucune requête supplémentaire n’est effectuée, mais le traitement peut prendre plus de temps. La classification est moins fiable sans image de la page.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "L’IA de traduction laisse inchangés les textes des panneaux ordinaires, des affiches et des objets de la scène, même lorsqu’ils sont liés à celle-ci ou mentionnés dans les dialogues. Les dialogues, la narration, les titres, les crédits, les écrits essentiels à l’intrigue et les textes dont le rôle est incertain sont traduits. Aucune requête supplémentaire n’est effectuée, mais le traitement peut prendre plus de temps. La classification est moins fiable sans image de la page.";
 
 "TRANSLATION_STATE_ON" = "Activée";
 "TRANSLATION_STATE_OFF" = "Désactivée";
+"UPSCALE_MODEL_SWINUNET_INFO" = "Illustrations ; préserve le tracé d’origine. FP32.";
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Illustrations et couvertures en couleur ; modèle léger pour les détails.";
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Images générales et illustrations de styles variés ; accentuation renforcée de la netteté.";
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, mangas et pages en couleur.";
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Mangas en noir et blanc uniquement, modèle adapté aux pages originales d’environ 1200 pixels de haut. Les pages en couleur restent inchangées.";
+"TRANSLATION_ERROR_CONFIGURATION" = "Les paramètres de traduction ne sont pas valides. Vérifiez l’URL du serveur, le modèle et les autres paramètres.";
+"TRANSLATION_ERROR_REQUEST" = "Le texte, l’image ou les paramètres de langue n’ont pas pu être utilisés pour la traduction.";
+"TRANSLATION_ERROR_RESPONSE" = "Le serveur de traduction a renvoyé une réponse non valide. Réessayez ou vérifiez les paramètres du modèle.";
+"TRANSLATION_ERROR_KEY_REQUIRED" = "Une clé API de traduction est requise.";
+"TRANSLATION_ERROR_KEY_ACCESS" = "Impossible de lire la clé API de traduction dans le trousseau.";
+"TRANSLATION_ERROR_ENDPOINT" = "Le point de terminaison de traduction n’est pas autorisé par la politique de sécurité.";
+"TRANSLATION_ERROR_REDIRECT" = "La redirection du point de terminaison de traduction a été refusée.";
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "La réponse de traduction a dépassé la taille maximale autorisée.";
+"TRANSLATION_ERROR_HTTP" = "Le serveur de traduction a renvoyé le code HTTP %d.";
+"TRANSLATION_ERROR_HTTP_REQUEST" = "Le serveur de traduction a renvoyé le code HTTP %d (ID de requête: %@).";
+"TRANSLATION_ERROR_NETWORK_CODE" = "La demande de traduction a échoué (erreur %d).";
+"TRANSLATION_ERROR_CONNECTION" = "Impossible de joindre l’API de traduction. Vérifiez votre connexion réseau, le point de terminaison de l’API et l’état du serveur, puis réessayez.";
+"TRANSLATION_ERROR_REFUSED" = "Le fournisseur de traduction a refusé la demande.";
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "L’identifiant utilisé pour enregistrer la clé API n’est pas valide.";
+"TRANSLATION_ERROR_KEY_INVALID" = "La clé API est vide, trop longue ou contient des caractères non pris en charge.";
+"TRANSLATION_ERROR_KEY_MISSING" = "Aucune clé API n’est enregistrée pour ce fournisseur.";
+"TRANSLATION_ERROR_KEY_ENCODING" = "Impossible de décoder la clé API enregistrée.";
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "L’opération du trousseau a échoué avec le code d’état %d.";
+"OCR_ERROR_MODEL_MISSING" = "Un modèle PP-OCRv6 requis est manquant.";
+"OCR_ERROR_MODEL_LOAD" = "Impossible de charger un modèle PP-OCRv6.";
+"OCR_ERROR_DICTIONARY" = "Le dictionnaire de caractères PP-OCRv6 est manquant ou non valide.";
+"OCR_ERROR_IMAGE" = "Impossible de préparer l’image pour la reconnaissance du texte.";
+"OCR_ERROR_OUTPUT" = "Le modèle PP-OCRv6 a renvoyé une sortie non valide ou non prise en charge.";
+"OCR_ERROR_PREDICTION" = "La reconnaissance du texte PP-OCRv6 a échoué. Réessayez avec une autre image ou un autre modèle OCR.";
+"TRANSLATION_ERROR_CACHE_SIZE" = "La taille du cache de traduction est hors des limites prises en charge.";
+"TRANSLATION_ERROR_CACHE_STORAGE" = "L’espace de stockage du cache de traduction est non valide ou indisponible.";
+"TRANSLATION_ERROR_CACHE_SAVE" = "Impossible d’enregistrer le cache de traduction.";

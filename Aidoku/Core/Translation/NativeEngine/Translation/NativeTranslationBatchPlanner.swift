@@ -11,18 +11,9 @@ struct NativeTranslationBatchPlan: Hashable, Sendable {
     let inputIndicesBySegmentID: [String: Int]
 }
 
-/// Creates stable, reading-order translation chunks for the containing browser
-/// translation service. A small leading request lowers time-to-first-overlay;
-/// content-defined tail batches amortize provider latency without depending on
-/// tracker IDs that can reset between otherwise identical frames.
+/// Keeps a page in one reading-order request to minimize full-page completion
+/// time. Only the request's segment and source-byte limits split a large page.
 enum NativeTranslationBatchPlanner {
-    static let leadingMinimumSegments = 2
-    static let leadingMaximumSegments = 4
-    static let tailMinimumStableSegments = 32
-    static let tailMaximumSegments = RemoteTranslationRequest.maximumSegments
-    private static let leadingBoundaryMask: UInt64 = 0b11
-    private static let tailBoundaryMask: UInt64 = 0b1111
-
     static func makeBatches(
         candidates: [NativeTranslationBatchCandidate],
         sourceLanguage: String,
@@ -38,23 +29,13 @@ enum NativeTranslationBatchPlanner {
             .map { candidates[$0] }
         var batches: [NativeTranslationBatchPlan] = []
         var cursor = 0
-        var isLeadingBatch = true
 
         while cursor < admissible.count {
             let selectionStart = cursor
             var selection: [NativeTranslationBatchCandidate] = []
             var sourceBytes = 0
-            let minimumSegments = isLeadingBatch
-                ? leadingMinimumSegments
-                : tailMinimumStableSegments
-            let maximumSegments = isLeadingBatch
-                ? leadingMaximumSegments
-                : tailMaximumSegments
-            let boundaryMask = isLeadingBatch
-                ? leadingBoundaryMask
-                : tailBoundaryMask
             while cursor < admissible.count,
-                  selection.count < maximumSegments
+                  selection.count < RemoteTranslationRequest.maximumSegments
             {
                 let candidate = admissible[cursor]
                 let nextBytes =
@@ -65,14 +46,6 @@ enum NativeTranslationBatchPlanner {
                 selection.append(candidate)
                 sourceBytes = nextBytes
                 cursor += 1
-                if selection.count >= minimumSegments,
-                   isStableBoundaryAnchor(
-                       sourceText: candidate.segment.text,
-                       mask: boundaryMask
-                   )
-                {
-                    break
-                }
             }
             guard !selection.isEmpty else {
                 // `admissibleSegmentIndices` already rejects an individually
@@ -97,7 +70,6 @@ enum NativeTranslationBatchPlanner {
                     }
                 )
             ))
-            isLeadingBatch = false
         }
         return batches
     }
@@ -117,19 +89,5 @@ enum NativeTranslationBatchPlanner {
             result.append("\(label) OCR utterance (context only): \(text)")
         }
         return result
-    }
-
-    /// Deliberately hashes source content rather than tracker identity. Identical
-    /// OCR in a newly numbered frame therefore retains the same batch shape.
-    private static func isStableBoundaryAnchor(
-        sourceText: String,
-        mask: UInt64
-    ) -> Bool {
-        var hash: UInt64 = 14_695_981_039_346_656_037
-        for byte in sourceText.utf8 {
-            hash ^= UInt64(byte)
-            hash &*= 1_099_511_628_211
-        }
-        return hash & mask == 0
     }
 }

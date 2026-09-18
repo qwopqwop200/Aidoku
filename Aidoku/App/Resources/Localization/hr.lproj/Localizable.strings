@@ -476,10 +476,10 @@
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Dogodila se greška prilikom dohvaćanja gore navedenih popisa izvora.";
 "COPY_URL" = "Kopiraj URL";
 "UPSCALING" = "Povećavanje";
-"UPSCALE_IMAGES" = "Povećaj slike";
+"UPSCALE_IMAGES" = "Povećaj rezoluciju slika";
 "UPSCALING_MODELS" = "Modeli za povećavanje rezolucije";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Maksimalna visina slika";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Slikama višim od zadane maksimalne visine neće se povećavati rezolucija.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Slikama čija je visina jednaka zadanoj maksimalnoj visini ili je premašuje neće se povećavati rezolucija.";
 "ENABLED_MODEL" = "Uključen model";
 "AVAILABLE_MODELS" = "Dostupni modeli";
 "NO_AVAILABLE_MODELS" = "Nema dostupnih modela";
@@ -741,7 +741,7 @@
 
 "TRANSLATION_HELP" = "Ikona prijevoda uključuje ili isključuje prevođenje. Najprije se pripremaju vidljive stranice, a zatim obližnje. Priprema prati tvoj položaj u čitanju. Spremljeni rezultati OCR-a, prijevodi i raspored teksta mogu se ponovno koristiti nakon ponovnog otvaranja čitača ili pokretanja aplikacije. Privremene dijeljene slike ne spremaju tu predmemoriju. Izlazak iz čitača otkazuje nedovršenu obradu.";
 
-"TRANSLATION_PRIVACY" = "OCR radi na vašem uređaju. Prijevod šalje prepoznati tekst i vaše upute odabranom pružatelju usluga. Ako je uključena opcija Uključi sliku stranice u prijevod, učitava se i originalna slika stranice. Cijene API-ja ovise o vašem pružatelju usluga. API ključevi pohranjuju se u Keychain. OCR, prijevodi i raspored teksta spremaju se u zaštićenu pohranu aplikacije isključenu iz sigurnosnih kopija.";
+"TRANSLATION_PRIVACY" = "OCR radi na vašem uređaju. Prijevod šalje prepoznati tekst i vaše upute odabranom pružatelju usluga. Ako je uključena opcija Uključi sliku stranice u prijevod, može se poslati i obrađena slika stranice. Ako unos slika nije podržan, prijevod se nastavlja samo s tekstom. Cijene API-ja ovise o vašem pružatelju usluga. API ključevi pohranjuju se u Keychain. OCR, prijevodi i raspored teksta spremaju se u zaštićenu pohranu aplikacije isključenu iz sigurnosnih kopija.";
 
 "TRANSLATION_KEY_REPLACE" = "Zamijeni spremljeni API ključ (izborno)";
 
@@ -787,7 +787,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Najveća širina slike za prepoznavanje teksta";
 
-"TRANSLATION_CONFIDENCE" = "Minimalna pouzdanost OCR-a";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Prag piksela za otkrivanje OCR-om";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Minimalna pouzdanost otkrivanja područja OCR-om";
+"TRANSLATION_CONFIDENCE" = "Minimalna pouzdanost prepoznavanja OCR-om";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "Prag piksela odabire piksele teksta. Pouzdanost otkrivanja filtrira područja teksta. Pouzdanost prepoznavanja filtrira tekst pročitan iz svakog područja. Niže vrijednosti prihvaćaju više nesigurnih rezultata.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minimalna veličina otkrivanja OCR-om";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Minimalna duljina kraće stranice mogućih područja teksta, u pikselima karte otkrivanja. Zadano: 3 px. Niže vrijednosti mogu otkriti manji tekst, ali i više šuma.";
 
 "TRANSLATION_SURFACE" = "Boja pozadine";
 
@@ -871,7 +876,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Nije moguće povezati se putem HTTPS premosnice.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Prijevod nije uspio. Prikazuje se OCR tekst. Provjerite vezu.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Prijevod nije uspio. Prikazuje se tekst prepoznat OCR-om. Provjerite postavke i vezu.";
 
 "TRANSLATION_MANGA_TITLES" = "Prevedite naslove manga";
 
@@ -899,11 +904,12 @@
 
 "TRANSLATION_SFX_CONTEXT_FILTER" = "Uključi unose koji zahtijevaju kontekst (samo japanski)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Primjenjuje se dok je SFX filtriranje omogućeno. Također filtrira unose koji su označeni kao zahtijevajući kontekst pomoću podudaranja iz rječnika, veličine teksta i obližnjeg izgleda. Nijedan LLM ne analizira kontekst, tako da dijalog također može biti isključen.";
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Primjenjuje se dok je SFX filtriranje omogućeno. Filtrira i unose označene kao one koji zahtijevaju kontekst na temelju podudaranja s rječnikom, veličine teksta i rasporeda okolnog teksta. LLM ne analizira kontekst pa i dijalog može biti isključen.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Uključi sliku stranice u prijevod";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Pošaljite izvornu stranicu s OCR tekstom za kontekst scene i izraza. Upute za slike dodaju se automatski. Zahtijeva model koji podržava slike i može povećati potrošnju podataka i troškove API-ja.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Šalje sliku stranice uz OCR tekst radi konteksta scene. Ako unos slika nije podržan, prijevod se automatski nastavlja samo s tekstom. Prilaganje slika može povećati potrošnju podataka i troškove API-ja.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Unos slika nije podržan. Prijevod se nastavlja bez slika.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Sačuvaj izvornu boju teksta";
 
@@ -911,7 +917,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM SFX filtriranje (svi jezici)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Razvrstava zvučne efekte u zahtjevu za prijevod. Može se kombinirati s lokalnim filtrom za japanski: ako bilo koji filtar prepozna tekst kao zvučni efekt, izvornik ostaje nepromijenjen. Može se koristiti i pri slanju slike stranice.";
+"TRANSLATION_LLM_SFX_HELP" = "Razvrstava zvučne efekte u istom zahtjevu za prijevod i ostavlja ih nepromijenjenima. Ako je priložena slika stranice, AI preskače i nejasne fragmente OCR-a, osim ako slika potvrđuje da je riječ o smislenom tekstu. Dijalog, pripovijedanje, naslovi i podaci o autorima zadržavaju se za prijevod. Može se kombinirati s lokalnim filtrom za japanski: tekst koji označi barem jedan filtar ostaje nepromijenjen. Bez slike stranice klasifikacija je manje pouzdana.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Bez unosa slike, ograničen vizualni kontekst i kontekst izgleda mogu smanjiti točnost SFX klasifikacije.";
 
@@ -1093,7 +1099,44 @@
 "DOWNLOAD_TRANSLATED" = "Preuzmi s prijevodom";
 
 "TRANSLATION_LLM_BACKGROUND" = "Preskoči natpise u pozadini (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "AI za prijevod ostavlja sporedne znakove, plakate i natpise u pozadini nepromijenjenima. Dijalog, pripovijedanje i tekst čija klasifikacija nije sigurna prevode se. Ne šalju se dodatni zahtjevi, ali obrada može trajati dulje. Bez slike stranice klasifikacija je manje pouzdana.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "AI za prijevod ostavlja obične natpise na pločama, plakatima i predmetima u prikazanom prizoru nepromijenjenima, čak i kada su povezani s događajima u prizoru ili se spominju u dijalogu. Dijalog, pripovijedanje, naslovi, podaci o autorima, pisani tekst ključan za radnju i tekst čija uloga nije sigurna prevode se. Ne šalju se dodatni zahtjevi, ali obrada može trajati dulje. Bez slike stranice klasifikacija je manje pouzdana.";
 
 "TRANSLATION_STATE_ON" = "Uključeno";
 "TRANSLATION_STATE_OFF" = "Isključeno";
+
+"UPSCALE_MODEL_SWINUNET_INFO" = "Ilustracije; čuva izvorne linije crteža. FP32.";
+
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Ilustracije u boji i naslovnice; lagani model za prikaz detalja.";
+
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Opće slike i crteži različitih stilova; jače izoštravanje.";
+
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga i stranice u boji.";
+
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Samo crno-bijela manga; prilagođeno izvornim stranicama visine oko 1200 piksela. Stranice u boji ostaju nepromijenjene.";
+"TRANSLATION_ERROR_CONFIGURATION" = "Postavke prijevoda nisu valjane. Provjerite URL poslužitelja, model i ostale postavke.";
+"TRANSLATION_ERROR_REQUEST" = "Tekst, slika ili jezične postavke ne mogu se koristiti za prijevod.";
+"TRANSLATION_ERROR_RESPONSE" = "Poslužitelj za prijevod vratio je nevaljan odgovor. Pokušajte ponovno ili provjerite postavke modela.";
+"TRANSLATION_ERROR_KEY_REQUIRED" = "Za prijevod je potreban API ključ.";
+"TRANSLATION_ERROR_KEY_ACCESS" = "API ključ za prijevod nije moguće pročitati iz Keychaina.";
+"TRANSLATION_ERROR_ENDPOINT" = "Krajnja točka API-ja za prijevod nije dopuštena sigurnosnim pravilima.";
+"TRANSLATION_ERROR_REDIRECT" = "Preusmjeravanje krajnje točke API-ja za prijevod je odbijeno.";
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "Odgovor poslužitelja za prijevod premašio je dopuštenu veličinu.";
+"TRANSLATION_ERROR_HTTP" = "Poslužitelj za prijevod vratio je HTTP %d.";
+"TRANSLATION_ERROR_HTTP_REQUEST" = "Poslužitelj za prijevod vratio je HTTP %d (ID zahtjeva: %@).";
+"TRANSLATION_ERROR_NETWORK_CODE" = "Zahtjev za prijevod nije uspio (pogreška %d).";
+"TRANSLATION_ERROR_CONNECTION" = "Nije moguće povezati se s API-jem za prijevod. Provjerite mrežnu vezu, krajnju točku API-ja i stanje poslužitelja pa pokušajte ponovno.";
+"TRANSLATION_ERROR_REFUSED" = "Pružatelj usluge prijevoda odbio je zahtjev.";
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "Identifikator koji se koristi za pohranu API ključa nije valjan.";
+"TRANSLATION_ERROR_KEY_INVALID" = "API ključ je prazan, predugačak ili sadrži nepodržane znakove.";
+"TRANSLATION_ERROR_KEY_MISSING" = "Za ovog pružatelja usluge nije spremljen API ključ.";
+"TRANSLATION_ERROR_KEY_ENCODING" = "Spremljeni API ključ nije moguće dekodirati.";
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Operacija s Keychainom nije uspjela uz kod statusa %d.";
+"OCR_ERROR_MODEL_MISSING" = "Nedostaje potreban model PP-OCRv6.";
+"OCR_ERROR_MODEL_LOAD" = "Nije moguće učitati model PP-OCRv6.";
+"OCR_ERROR_DICTIONARY" = "Rječnik znakova za PP-OCRv6 nedostaje ili nije valjan.";
+"OCR_ERROR_IMAGE" = "Nije moguće pripremiti sliku za prepoznavanje teksta.";
+"OCR_ERROR_OUTPUT" = "Model PP-OCRv6 vratio je nevaljan ili nepodržan izlaz.";
+"OCR_ERROR_PREDICTION" = "Prepoznavanje teksta s pomoću PP-OCRv6 nije uspjelo. Pokušajte s drugom slikom ili OCR modelom.";
+"TRANSLATION_ERROR_CACHE_SIZE" = "Veličina predmemorije prijevoda izvan je podržanog raspona.";
+"TRANSLATION_ERROR_CACHE_STORAGE" = "Pohrana predmemorije prijevoda nije valjana ili nije dostupna.";
+"TRANSLATION_ERROR_CACHE_SAVE" = "Predmemoriju prijevoda nije moguće spremiti.";

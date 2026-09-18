@@ -3,6 +3,101 @@ import Foundation
 import XCTest
 @testable import Aidoku
 final class NativeCoreMLDetectorSafetyTests: XCTestCase {
+    func testPipelinePassesThresholdChangesWithoutRecreatingModels() async throws {
+        let frame = try XCTUnwrap(NativeOCRRGBAFrame(width: 16, height: 16, bytes: [UInt8](repeating: 255, count: 16 * 16 * 4)))
+        let context = try XCTUnwrap(CGContext(data: nil, width: 16, height: 16, bitsPerComponent: 8,
+                                            bytesPerRow: 64, space: CGColorSpaceCreateDeviceRGB(),
+                                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        let image = try XCTUnwrap(context.makeImage())
+        let pipeline = NativeCoreMLOCRPipeline(detector: ThresholdProbeDetector(),
+                                              postprocessConfiguration: .tiny, frameConverter: { _ in frame })
+        let custom = ReaderOCRConfiguration(detectorPixelThreshold: 0.45, detectorConfidenceThreshold: 0.8, detectorMinimumBoxSide: 7)
+            .detectorPostprocessConfiguration
+        let operations: [() async throws -> NativeCoreMLOCRResult] = [
+            { try await pipeline.recognize(image: image, requestID: "image", confidenceThreshold: 0.75,
+                                           detectorConfiguration: custom) },
+            { try await pipeline.recognize(frame: frame, requestID: "frame", confidenceThreshold: 0.75,
+                                           detectorConfiguration: custom) },
+            { try await pipeline.recognize(image: image, requestID: "image-scopes", confidenceThreshold: 0.75,
+                                           detectorConfiguration: custom, recognitionScopes: [.zero]) },
+            { try await pipeline.recognize(frame: frame, requestID: "frame-scopes", confidenceThreshold: 0.75,
+                                           detectorConfiguration: custom, recognitionScopes: [.zero]) },
+            { try await pipeline.recognize(frame: frame, requestID: "default", confidenceThreshold: 0.75) }
+        ]
+        for (index, operation) in operations.enumerated() {
+            do {
+                _ = try await operation()
+                XCTFail("Expected the detector probe to capture this request")
+            } catch let probe as ThresholdProbeResult {
+                XCTAssertEqual(probe.configuration, index == 4 ? .tiny : custom)
+            }
+        }
+    }
+
+    func testMinimumDetectionSizeUsesMapPixelsAndCanRecoverSmallText() throws {
+        let map = rectangularMap(width: 32, height: 32,
+                                 rectangle: CGRect(x: 4, y: 4, width: 12, height: 3), foreground: 0.9)
+        var settings = ReaderOCRConfiguration()
+        for scale in [1, 10] {
+            settings.detectorMinimumBoxSide = 3
+            let original = try NativeCoreMLDBPostprocessor.decode(map: map, sourceWidth: 32 * scale, sourceHeight: 32 * scale,
+                                                                 configuration: settings.detectorPostprocessConfiguration)
+            XCTAssertTrue(original.boxes.isEmpty)
+            settings.detectorMinimumBoxSide = 2
+            let relaxed = try NativeCoreMLDBPostprocessor.decode(map: map, sourceWidth: 32 * scale, sourceHeight: 32 * scale,
+                                                                configuration: settings.detectorPostprocessConfiguration)
+            XCTAssertEqual(relaxed.boxes.count, 1)
+        }
+    }
+
+    func testMinimumDetectionSizeAlsoControlsExpandedBoxGate() throws {
+        let map = rectangularMap(width: 32, height: 32,
+                                 rectangle: CGRect(x: 4, y: 4, width: 3, height: 3), foreground: 0.9)
+        for minimum in [1.0, 2.0] {
+            let settings = ReaderOCRConfiguration(detectorMinimumBoxSide: minimum)
+            let result = try NativeCoreMLDBPostprocessor.decode(map: map, sourceWidth: 32, sourceHeight: 32,
+                                                               configuration: settings.detectorPostprocessConfiguration)
+            // Both candidates have a short side of 2. Expansion reaches 3.5;
+            // the expanded gate retains its original minimum + 2 relationship.
+            XCTAssertEqual(result.boxes.count, minimum == 1 ? 1 : 0)
+        }
+    }
+
+    func testMinimumDetectionSizeAppliesToWeakSplitParts() throws {
+        var pixels = [Float](repeating: 0, count: 64 * 100)
+        fill(&pixels, mapWidth: 64, rectangle: CGRect(x: 4, y: 4, width: 10, height: 50), value: 0.95)
+        fill(&pixels, mapWidth: 64, rectangle: CGRect(x: 20, y: 35, width: 10, height: 50), value: 0.95)
+        fill(&pixels, mapWidth: 64, rectangle: CGRect(x: 13, y: 40, width: 8, height: 1), value: 0.95)
+        let map = NativeCoreMLDetectionMap(width: 64, height: 100, values: pixels)
+        for minimum in [3.0, 20.0] {
+            let settings = ReaderOCRConfiguration(detectorMinimumBoxSide: minimum)
+            let result = try NativeCoreMLDBPostprocessor.decode(map: map, sourceWidth: 64, sourceHeight: 100,
+                                                               configuration: settings.detectorPostprocessConfiguration,
+                                                               allowsWeakBridgeSplit: true)
+            XCTAssertEqual(result.boxes.count, minimum == 3 ? 2 : 0)
+        }
+    }
+
+    func testUserPixelAndRegionThresholdsFilterDifferentStages() throws {
+        let map = rectangularMap(width: 32, height: 32,
+                                 rectangle: CGRect(x: 4, y: 4, width: 12, height: 8), foreground: 0.5)
+        func decode(_ settings: ReaderOCRConfiguration) throws -> NativeCoreMLDBPostprocessResult {
+            try NativeCoreMLDBPostprocessor.decode(map: map, sourceWidth: 32, sourceHeight: 32,
+                                                  configuration: settings.detectorPostprocessConfiguration)
+        }
+        var settings = ReaderOCRConfiguration()
+        let rejectedRegion = try decode(settings)
+        XCTAssertEqual(rejectedRegion.candidateComponents, 1)
+        XCTAssertTrue(rejectedRegion.boxes.isEmpty)
+        settings.detectorConfidenceThreshold = 0.45
+        XCTAssertEqual(try decode(settings).boxes.count, 1)
+        settings.detectorPixelThreshold = 0.55
+        let rejectedPixels = try decode(settings)
+        XCTAssertEqual(rejectedPixels.candidateComponents, 0)
+        XCTAssertTrue(rejectedPixels.boxes.isEmpty)
+        XCTAssertEqual(settings.confidenceThreshold, 0.75)
+    }
+
     func testDBPostprocessFindsScoresAndUnclipsRectangle() throws {
         let map = rectangularMap(
             width: 64,
@@ -183,10 +278,20 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
     }
 }
 
-import CoreGraphics
-import Foundation
-import XCTest
-@testable import Aidoku
+private struct ThresholdProbeResult: Error {
+    let configuration: NativeCoreMLDBPostprocessConfiguration
+}
+
+private final class ThresholdProbeDetector: NativeCoreMLDetecting {
+    func detect(frame: NativeOCRRGBAFrame, requestID: String, configuration: NativeCoreMLDBPostprocessConfiguration,
+                cancellationCheck: @escaping @Sendable () throws -> Void) async throws -> NativeCoreMLDetectionResult {
+        try cancellationCheck()
+        throw ThresholdProbeResult(configuration: configuration)
+    }
+    func cancelCurrent() {}
+    func purgeResources() async {}
+}
+
 extension NativeCoreMLDetectorSafetyTests {
     func bridgeMap(extra: Bool = false) -> NativeCoreMLDetectionMap {
         var v = [Float](repeating: 0, count: 140 * 210)

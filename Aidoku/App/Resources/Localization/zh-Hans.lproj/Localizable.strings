@@ -502,7 +502,7 @@
 "UPSCALE_IMAGES" = "对图片进行超分辨率处理";
 "UPSCALING_MODELS" = "超分辨率模型";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "最大图片高度";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "大于最大图片高度的图片将不会进行放大处理。";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "高度达到或超过上限的图片不会进行超分辨率处理。";
 "ENABLED_MODEL" = "已启用模型";
 "AVAILABLE_MODELS" = "可用模型";
 "NO_AVAILABLE_MODELS" = "无可用模型";
@@ -847,7 +847,7 @@
 
 "TRANSLATION_HELP" = "点击翻译图标可开启或关闭翻译。优先处理可见页面，再处理附近页面，处理范围随当前阅读位置调整。重新打开阅读器或重启应用后，可复用已保存的 OCR 结果、翻译和文字排版。临时打开的共享图片不会保存此缓存。退出阅读器会取消未完成的任务。";
 
-"TRANSLATION_PRIVACY" = "OCR 在设备上运行。翻译时会将识别出的文字和翻译指令发送给所选服务商。启用“在翻译中包含页面图像”后，还会上传原始页面图像。API 费用取决于服务商。API 密钥保存在钥匙串中。OCR 结果、翻译和文字排版保存在受保护的应用存储空间中，不包含在备份内。";
+"TRANSLATION_PRIVACY" = "OCR 在设备上运行。翻译时会将识别出的文字和翻译指令发送给所选服务商。启用“在翻译中包含页面图像”后，还可能上传经过处理的页面图像。如果不支持图像输入，将仅使用文本继续翻译。API 费用取决于服务商。API 密钥保存在钥匙串中。OCR 结果、翻译和文字排版保存在受保护的应用存储空间中，不包含在备份内。";
 
 "TRANSLATION_KEY_REPLACE" = "替换已保存的 API 密钥（可选）";
 
@@ -893,7 +893,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "识别图像最大宽度";
 
-"TRANSLATION_CONFIDENCE" = "OCR 最低置信度";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "OCR 检测像素阈值";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "OCR 检测区域最低置信度";
+"TRANSLATION_CONFIDENCE" = "OCR 文字识别最低置信度";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "像素阈值用于选择文字候选像素。检测置信度用于筛选文字区域，识别置信度用于筛选各区域中读出的文字。降低数值会保留更多不确定的结果。";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "OCR 最小检测尺寸";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "文字候选区域的最小短边长度，以检测图中的像素为单位。默认值为 3px。降低数值可以检测更小的文字，但也可能增加噪点。";
 
 "TRANSLATION_SURFACE" = "背景颜色";
 
@@ -977,7 +982,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "无法通过 HTTPS 封锁绕过功能连接。";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "翻译失败。显示 OCR 文本。请检查您的连接。";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "翻译失败，正在显示 OCR 识别的原文。请检查设置和连接。";
 
 "TRANSLATION_MANGA_TITLES" = "翻译漫画标题";
 
@@ -1009,7 +1014,8 @@
 
 "TRANSLATION_INCLUDE_IMAGE" = "在翻译中包含页面图像";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "将原始页面图像与 OCR 文字一起发送，为翻译提供场景和表情信息。图像相关指令会自动附加。需要支持图像输入的模型，可能增加流量和 API 费用。";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "将页面图像与 OCR 文本一起发送，为翻译提供场景上下文。如果不支持图像输入，将自动仅使用文本继续翻译。附加图像可能增加流量和 API 费用。";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "不支持图像输入，将不附加图像继续翻译。";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "保留原始文本颜色";
 
@@ -1017,7 +1023,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM 音效文字过滤（所有语言）";
 
-"TRANSLATION_LLM_SFX_HELP" = "在翻译请求中同时判断音效。可与日语本地过滤器配合使用：任一过滤器判定为音效时，均保留原文。可与“在翻译中包含页面图像”同时启用。";
+"TRANSLATION_LLM_SFX_HELP" = "在同一次翻译请求中判断音效文字，并保留其原文。提供页面图像时，AI 还会跳过不清晰的 OCR 片段，除非图像能确认它们是有意义的文字。对话、旁白、标题和署名信息仍会翻译。可与日语本地过滤器配合使用：任一过滤器判定为应排除的文字均保留原样。未提供页面图像时，分类判断的可靠性会降低。";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "不提供图片时，可供判断的画面和排版信息有限，音效文字识别的准确率可能降低。";
 
@@ -1093,8 +1099,42 @@
 "DOWNLOAD_TRANSLATED" = "下载并翻译";
 
 "TRANSLATION_LLM_BACKGROUND" = "跳过背景文字（LLM）";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "翻译 AI 会保留无关紧要的标牌、海报及背景文字的原文。对话、旁白和无法确定的文字仍会翻译。不会额外发送请求，但处理时间可能增加。未提供页面图像时，分类判断的可靠性会降低。";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "翻译 AI 会保留场景中普通标牌、海报及物体上文字的原文，即使这些文字与场景内容有关或在对话中被提及也不翻译。对话、旁白、标题、署名信息、对情节至关重要的文字，以及无法确定作用的文字仍会翻译。不会额外发送请求，但处理时间可能增加。未提供页面图像时，分类判断的可靠性会降低。";
 
 "TRANSLATION_STATE_ON" = "开启";
 
 "TRANSLATION_STATE_OFF" = "关闭";
+
+// Translation errors and upscaling model descriptions
+"UPSCALE_MODEL_SWINUNET_INFO" = "适用于插画，保留原始线条。FP32。";
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "适用于彩色插画和封面的轻量级细节增强模型。";
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "适用于普通图片及多种画风，锐化效果更强。";
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "适用于动画、漫画和彩色页面。";
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "仅适用于黑白漫画，针对原始高度约为 1200 像素的页面进行了调整。彩色页面保持原样。";
+"TRANSLATION_ERROR_CONFIGURATION" = "翻译设置无效。请检查服务器地址、模型及其他设置。";
+"TRANSLATION_ERROR_REQUEST" = "无法使用当前文本、图像或语言设置进行翻译。";
+"TRANSLATION_ERROR_RESPONSE" = "翻译服务器返回了无效响应。请重试或检查模型设置。";
+"TRANSLATION_ERROR_KEY_REQUIRED" = "需要提供翻译 API 密钥。";
+"TRANSLATION_ERROR_KEY_ACCESS" = "无法从钥匙串读取翻译 API 密钥。";
+"TRANSLATION_ERROR_ENDPOINT" = "安全策略不允许使用此翻译 API 接口地址。";
+"TRANSLATION_ERROR_REDIRECT" = "翻译 API 接口的重定向被拒绝。";
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "翻译响应超出了大小限制。";
+"TRANSLATION_ERROR_HTTP" = "翻译服务器返回了 HTTP 状态码 %d。";
+"TRANSLATION_ERROR_HTTP_REQUEST" = "翻译服务器返回了 HTTP 状态码 %d（请求 ID：%@）。";
+"TRANSLATION_ERROR_NETWORK_CODE" = "翻译请求失败（错误 %d）。";
+"TRANSLATION_ERROR_CONNECTION" = "无法连接到翻译 API。请检查网络连接、API 接口地址和服务器状态，然后重试。";
+"TRANSLATION_ERROR_REFUSED" = "翻译服务商拒绝了请求。";
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "用于存储 API 密钥的标识符无效。";
+"TRANSLATION_ERROR_KEY_INVALID" = "API 密钥为空、过长或包含不支持的字符。";
+"TRANSLATION_ERROR_KEY_MISSING" = "未保存此服务商的 API 密钥。";
+"TRANSLATION_ERROR_KEY_ENCODING" = "无法解码已保存的 API 密钥。";
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "钥匙串操作失败（状态码 %d）。";
+"OCR_ERROR_MODEL_MISSING" = "缺少所需的 PP-OCRv6 模型。";
+"OCR_ERROR_MODEL_LOAD" = "无法加载 PP-OCRv6 模型。";
+"OCR_ERROR_DICTIONARY" = "PP-OCRv6 字符字典缺失或无效。";
+"OCR_ERROR_IMAGE" = "无法准备用于文字识别的图像。";
+"OCR_ERROR_OUTPUT" = "PP-OCRv6 模型返回了无效或不受支持的输出。";
+"OCR_ERROR_PREDICTION" = "PP-OCRv6 文字识别失败。请使用其他图像或 OCR 模型重试。";
+"TRANSLATION_ERROR_CACHE_SIZE" = "翻译缓存大小超出了支持的范围。";
+"TRANSLATION_ERROR_CACHE_STORAGE" = "翻译缓存存储空间无效或不可用。";
+"TRANSLATION_ERROR_CACHE_SAVE" = "无法保存翻译缓存。";

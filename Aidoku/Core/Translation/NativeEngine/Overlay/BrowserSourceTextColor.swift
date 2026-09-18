@@ -581,14 +581,142 @@ enum BrowserSourceTextColor {
       const whiteContrast = aidokuSourceColorContrast(white, false, opacity, panel);
       return darkContrast >= whiteContrast ? dark : white;
     };
-    const aidokuSourceColorSampler = (image, enabled) => {
+    // Ink topology can identify a white halo while losing a translucent panel,
+    // or mistake connected halos for a white panel. Verify the surface outside
+    // the OCR box independently, on both sides of the text. Never borrow one
+    // neighbouring artwork patch or change the observed foreground/stroke.
+    const aidokuRecoverSourcePanel = (rgba, width, height, inner, result) => {
+      // Panel preservation is independent of ink recognition. Low-contrast or
+      // merged OCR can lose the foreground while both exterior surfaces agree.
+      if (!result || !inner) return result;
+      const vertical = inner[3] >= inner[2];
+      const sides = [[], []];
+      const rows = new Map();
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+        // Ignore the immediate antialiased halo and the far crop boundary.
+        const along = vertical ? y : x, across = vertical ? x : y;
+        const start = vertical ? inner[1] : inner[0];
+        const end = start + (vertical ? inner[3] : inner[2]);
+        const near = vertical ? inner[0] : inner[1];
+        const far = near + (vertical ? inner[2] : inner[3]);
+        if (along < start || along >= end) continue;
+        const side = across >= 1 && across < near - 2 ? 0 :
+          across > far + 2 && across < (vertical ? width : height) - 1 ? 1 : -1;
+        if (side < 0) continue;
+        const p = (y * width + x) * 4;
+        if (rgba[p + 3] < 250) return result;
+        const rgb = [rgba[p], rgba[p + 1], rgba[p + 2]];
+        sides[side].push(rgb);
+        if (!rows.has(along)) rows.set(along, [[], []]);
+        rows.get(along)[side].push(rgb);
+      }
+      if (sides.some(side => side.length < 8)) return result;
+      const pixels = sides.flat();
+      const median = values => values.sort((a,b) => a-b)[Math.floor(values.length / 2)];
+      let candidate = [0,1,2].map(c => median(pixels.map(rgb => rgb[c])));
+      const distance = (a,b) => Math.max(...a.map((v,c) => Math.abs(v-b[c])));
+      const support = sides.map(side => side.filter(rgb => distance(rgb,candidate) <= 18).length / side.length);
+      let confidence = Math.min(...support);
+      if (confidence < 0.6 || (support[0] + support[1]) / 2 < 0.75) {
+        // A translucent balloon may vary along the column. Agreement across
+        // the text at the same height still proves a shared backing surface.
+        const paired = [];
+        for (const row of rows.values()) {
+          if (row.some(side => side.length < 2)) continue;
+          const rgb = row.map(side => [0,1,2].map(c => median(side.map(p => p[c]))));
+          if (distance(rgb[0],rgb[1]) <= 18) paired.push(rgb[0],rgb[1]);
+        }
+        confidence = paired.length / (rows.size * 2);
+        if (confidence < 0.5) return result;
+        // Both edges agree, but their brightness varies down a translucent
+        // balloon. A median collapses that gradient to its bright half and
+        // recreates a white card; average only these corroborated row pairs.
+        candidate = [0,1,2].map(c => Math.round(paired.reduce((sum,rgb) => sum+rgb[c],0) / paired.length));
+      }
+      if (result.background && distance(result.background,candidate) <= 8) return result;
+      // Only correct missing surfaces or bright halos, not intentional coloured
+      // text backing whose exterior can legitimately be another colour.
+      if (result.background && Math.min(...result.background) < 235) return result;
+      return {...result, background:candidate, confidence:{...result.confidence,
+        background:confidence, panelReason:'matching observed surfaces on opposite sides of OCR'}};
+    };
+    // Recover only repeated colored interiors enclosed by observed white ink.
+    const aidokuRecoverOutlinedColor = (rgba,w,h,result) => {
+     if(result?.foreground && (result.confidence?.foreground||0)>=.6)return null;
+     const n=w*h;
+     if(!Number.isInteger(w)||!Number.isInteger(h)||w<8||h<8||n>24576||!rgba||rgba.length!==n*4)return null;
+     for(let i=3;i<rgba.length;i+=4)if(rgba[i]<250)return null;
+     const seen=new Uint8Array(n),queue=new Int32Array(n),groups=[];
+     const white=i=>Math.min(rgba[4*i],rgba[4*i+1],rgba[4*i+2])>=230;
+     const distance=(a,b)=>Math.max(...a.map((v,c)=>Math.abs(v-b[c])));
+     for(let s=0;s<n;s++){
+      if(seen[s]||white(s))continue;
+      let head=0,tail=1,edge=false,x0=w,y0=h,x1=0,y1=0;seen[s]=1;queue[0]=s;
+      while(head<tail){const i=queue[head++],x=i%w,y=i/w|0;x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);edge||=!x||!y||x===w-1||y===h-1;
+       for(const j of [x?i-1:-1,x+1<w?i+1:-1,y?i-w:-1,y+1<h?i+w:-1])if(j>=0&&!seen[j]&&!white(j)){seen[j]=1;queue[tail++]=j;}
+      }
+      if(edge||tail<3||tail>n*.12||x1-x0>w*.75||y1-y0>h*.4||
+      (tail>12&&tail/((x1-x0+1)*(y1-y0+1))>.9))continue;
+      const bins=new Map(),edgeSum=[0,0,0];let edgeCount=0;
+      for(let k=0;k<tail;k++){const i=queue[k],rgb=[rgba[4*i],rgba[4*i+1],rgba[4*i+2]];
+       const x=i%w,y=i/w|0;
+       for(const j of [x?i-1:-1,x+1<w?i+1:-1,y?i-w:-1,y+1<h?i+w:-1])if(j>=0&&white(j)){edgeCount++;for(let c=0;c<3;c++)edgeSum[c]+=rgba[4*j+c];}
+       if(Math.max(...rgb)-Math.min(...rgb)<40)continue;
+       const key=rgb.map(v=>v>>4).join(',');let b=bins.get(key);if(!b){b={count:0,sum:[0,0,0]};bins.set(key,b);}b.count++;rgb.forEach((v,c)=>b.sum[c]+=v);
+      }
+      const top=[...bins.values()].sort((a,b)=>b.count-a.count)[0];if(!top||top.count<2||top.count<tail*.15)continue;
+      const rgb=top.sum.map(v=>v/top.count);
+      if(result?.background&&distance(rgb,result.background)<48)continue;
+      if(edgeCount>=4)groups.push({rgb,count:top.count,stroke:edgeSum.map(v=>v/edgeCount)});
+      if(groups.length>=128)return null;
+     }
+     let best=[];for(const g of groups){const same=groups.filter(v=>distance(v.rgb,g.rgb)<=28);if(same.length>best.length)best=same;}
+     if(best.length<3||best.length<groups.length*.8)return null;
+     const count=best.reduce((s,g)=>s+g.count,0),foreground=[0,1,2].map(c=>Math.round(best.reduce((s,g)=>s+g.rgb[c]*g.count,0)/count));
+     return {foreground,stroke:[0,1,2].map(c=>Math.round(best.reduce((s,g)=>s+g.stroke[c]*g.count,0)/count)),confidence:.75,components:best.length};
+    };
+    // A non-flat illustration has no single validated panel RGB. Retain an
+    // observed, low-frequency surface for display only; it must never become
+    // evidence for erasing source ink or accepting a flat-panel restoration.
+    const aidokuObservedSourceSurface = (rgba, w, h, inner, palette) => {
+      if (!Array.isArray(inner) || inner.length!==4 || !inner.every(Number.isFinite) || inner[2]<=0 || inner[3]<=0 ||
+          !Number.isInteger(w) || !Number.isInteger(h) || w<1 || h<1 || !rgba || rgba.length !== w*h*4 || w*h > 24576) return null;
+      const vertical = inner[3] >= inner[2], bands = Array.from({length:6}, () => []);
+      const distance = (a,b) => Math.max(...a.map((v,c) => Math.abs(v-b[c])));
+      for (let y=0;y<h;y++) for (let x=0;x<w;x++) {
+        const p=(y*w+x)*4;
+        if (rgba[p+3] < 250) return null;
+        const along=vertical?y:x, across=vertical?x:y;
+        const start=vertical?inner[1]:inner[0], length=vertical?inner[3]:inner[2];
+        const near=vertical?inner[0]:inner[1], far=near+(vertical?inner[2]:inner[3]);
+        if (along<start || along>=start+length || (across>=near-1 && across<=far+1)) continue;
+        const rgb=[rgba[p],rgba[p+1],rgba[p+2]];
+        if ([palette?.foreground,palette?.stroke].some(color => color && distance(rgb,color)<28)) continue;
+        bands[Math.min(5,Math.floor((along-start)*6/length))].push(rgb);
+      }
+      const median = values => values.sort((a,b)=>a-b)[Math.floor(values.length/2)];
+      const stops = bands.map(values => values.length>=4 ? [0,1,2].map(c=>median(values.map(v=>v[c]))) : null);
+      if (stops.filter(Boolean).length<3) return null;
+      const observed=stops.filter(Boolean),color=[0,1,2].map(c=>median(observed.map(v=>v[c])));
+      for(let i=0;i<stops.length;i++) if(!stops[i]) {
+        let nearest=0;
+        for(let j=0;j<stops.length;j++) if(stops[j] && (!stops[nearest] || Math.abs(j-i)<Math.abs(nearest-i)))nearest=j;
+        stops[i]=stops[nearest];
+      }
+      return {color,stops,vertical};
+    };
+    const aidokuSourceColorSampler = (image, enabled, phase = 'ocr', budget = {pixels:393216, detailPixels:98304}) => {
       const stats = {pixels: 0, hits: 0, samples: 0, milliseconds: 0};
       if (!enabled || !image?.complete || !image.naturalWidth) return {sample: () => null, stats};
       // Image-object identity invalidates estimates when the page or split crop changes.
-      const caches = globalThis.__aidokuSourceTextColorsV8 ||= new WeakMap();
+      // OCR and translated text each sample the original image once. Revisions
+      // within the same phase reuse their own palette, without sampling overlays.
+      const caches = phase === 'translation'
+        ? (globalThis.__aidokuTranslatedSourceTextColorsV12 ||= new WeakMap())
+        : (globalThis.__aidokuSourceTextColorsV12 ||= new WeakMap());
       let cache = caches.get(image);
       if (!cache) { cache = new Map(); caches.set(image, cache); }
-      let canvas, context, budget = 393216, unavailable = false;
+      let canvas, context, unavailable = false;
       return {stats, sample: bounds => {
         if (unavailable || !Array.isArray(bounds) || bounds.length !== 4 || !bounds.every(Number.isFinite) ||
             bounds[0] < 0 || bounds[1] < 0 || bounds[2] <= 0 || bounds[3] <= 0 ||
@@ -608,8 +736,8 @@ enum BrowserSourceTextColor {
         const sh = Math.min(ih, Math.ceil((bounds[1] + bounds[3]) * ih) + margin) - y;
         const scale = Math.min(1, 192 / Math.max(sw, sh), Math.sqrt(24576 / (sw * sh)));
         const w = Math.max(1, Math.floor(sw * scale)), h = Math.max(1, Math.floor(sh * scale));
-        if (w * h > budget) return null;
-        budget -= w * h; stats.pixels += w * h; stats.samples++;
+        if (w * h > budget.pixels) return null;
+        budget.pixels -= w * h; stats.pixels += w * h; stats.samples++;
         let result = null;
         const started = performance.now();
         try {
@@ -617,8 +745,42 @@ enum BrowserSourceTextColor {
           if (!context) { unavailable = true; return null; }
           canvas.width = w; canvas.height = h;
           context.drawImage(image, x, y, sw, sh, 0, 0, w, h);
-          result = aidokuEstimateSourceColors(context.getImageData(0, 0, w, h).data, w, h);
+          const rgba = context.getImageData(0, 0, w, h).data;
+          result = aidokuEstimateSourceColors(rgba, w, h);
+          result = aidokuRecoverSourcePanel(rgba, w, h,
+            [(bounds[0]*iw-x)*w/sw, (bounds[1]*ih-y)*h/sh, bounds[2]*iw*w/sw, bounds[3]*ih*h/sh], result);
           if (result?.widthEvidence) result.widthEvidence.sampleScale = scale;
+          // Long columns can downsample a colored fill into its white outline.
+          // Retry at most three small native-detail strips, sharing the original
+          // per-page pixel budget. Require independent agreeing observations.
+          if (verticalColumn && scale<.65 && (!result?.foreground || result.confidence?.foreground<.6)) {
+            const candidates=[];
+            for(const fraction of [0,.5,1]) {
+              const stripHeight=Math.min(sh,192),stripY=y+fraction*(sh-stripHeight);
+              const stripScale=Math.min(1,Math.sqrt(24576/(sw*stripHeight)));
+              const cw=Math.floor(sw*stripScale),ch=Math.floor(stripHeight*stripScale),pixels=cw*ch;
+              if(cw<8 || ch<8 || pixels>budget.pixels || pixels>budget.detailPixels)break;
+              budget.pixels-=pixels;budget.detailPixels-=pixels;stats.pixels+=pixels;
+              canvas.width=cw;canvas.height=ch;
+              context.drawImage(image,x,stripY,sw,stripHeight,0,0,cw,ch);
+              const candidate=aidokuRecoverOutlinedColor(context.getImageData(0,0,cw,ch).data,cw,ch,result);
+              if(candidate)candidates.push(candidate);
+              if(candidates.length>=2 && Math.max(...candidates[0].foreground.map((v,i)=>
+                Math.abs(v-candidates[candidates.length-1].foreground[i])))<=28)break;
+            }
+            const agreeing=candidates.filter(c=>candidates.filter(other=>
+              Math.max(...c.foreground.map((v,i)=>Math.abs(v-other.foreground[i])))<=28).length>=2);
+            if(agreeing.length>=2) {
+              const average=key=>[0,1,2].map(c=>Math.round(agreeing.reduce((sum,v)=>sum+v[key][c],0)/agreeing.length));
+              result={...result,foreground:average('foreground'),stroke:average('stroke'),outline:average('stroke'),
+                confidence:{...result?.confidence,foreground:.75,stroke:.75,
+                  reason:'matching colored glyph interiors inside observed white outlines in independent strips'}};
+            }
+          }
+          if (result && (!result.background || result.confidence?.background<.5)) {
+            result.surface=aidokuObservedSourceSurface(rgba,w,h,
+              [(bounds[0]*iw-x)*w/sw,(bounds[1]*ih-y)*h/sh,bounds[2]*iw*w/sw,bounds[3]*ih*h/sh],result);
+          }
         } catch (_) { unavailable = true; }
         finally { stats.milliseconds += performance.now() - started; }
         if (cache.size >= 256) cache.delete(cache.keys().next().value);

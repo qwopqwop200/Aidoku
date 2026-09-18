@@ -168,6 +168,11 @@ struct ReaderMangaQualityValidationTests {
                 }
             }
             try snapshot.pngData()?.write(to: output.appendingPathComponent(name + "-translated.png"))
+            // WebKit's GPU snapshot can omit the source-image layer on dark
+            // pages. Use the production compositor for a complete visual audit.
+            let exported = try await ReaderTranslationImageExporter.render(image: source, regions: translated,
+                settings: settings, viewport: size, aspectFit: false, host: controller.view)
+            try exported.pngData()?.write(to: output.appendingPathComponent(name + "-exported.png"))
             if config.recordTranslationResponses == true {
                 try await responseAudit.flush(to: output.appendingPathComponent(name + "-responses.json"))
             }

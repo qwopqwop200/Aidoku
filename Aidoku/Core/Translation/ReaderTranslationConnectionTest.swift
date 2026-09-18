@@ -56,14 +56,16 @@ final class ReaderTranslationConnectionTest: ObservableObject {
     nonisolated static func translate(
         settings: ReaderTranslationSettings, apiKey: String,
         savedCredentials: any TranslationCredentialProviding = KeychainTranslationCredentialStore(),
-        transport: any TranslationHTTPTransport = BoundedURLSessionTransport()
+        transport: any TranslationHTTPTransport = BoundedURLSessionTransport(),
+        imageSupport: TranslationImageSupport = .shared
     ) async throws -> String {
         let credentials = TestCredentials(
             account: settings.selectedCredentialAccount,
             draft: apiKey.trimmingCharacters(in: .whitespacesAndNewlines), saved: savedCredentials
         )
         return try await ReaderTranslationAPIValidator.probe(
-            settings, client: RemoteTranslationClient(credentialStore: credentials, transport: transport)
+            settings, client: RemoteTranslationClient(credentialStore: credentials, transport: transport,
+                imageSupport: imageSupport, rechecksImageSupport: true)
         )
     }
 

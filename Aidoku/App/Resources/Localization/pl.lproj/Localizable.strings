@@ -371,7 +371,7 @@
 
 "TRANSLATION_HELP" = "Ikona tłumaczenia włącza lub wyłącza tłumaczenie. Najpierw przygotowywane są widoczne strony, a następnie pobliskie. Przygotowanie podąża za bieżącym miejscem czytania. Zapisane wyniki OCR, tłumaczenia i układ tekstu mogą być ponownie wykorzystane po otwarciu czytnika lub ponownym uruchomieniu aplikacji. Tymczasowo udostępnione obrazy nie zapisują tej pamięci podręcznej. Wyjście z czytnika anuluje niezakończone zadania.";
 
-"TRANSLATION_PRIVACY" = "OCR działa na Twoim urządzeniu. Tłumaczenie wysyła rozpoznany tekst i Twoje instrukcje do wybranego dostawcy. Jeśli włączona jest opcja Dołącz obraz strony do tłumaczenia, przesyłany jest także oryginalny obraz strony. Opłaty za interfejs API zależą od dostawcy. Klucze pozostają w pęku kluczy. OCR, tłumaczenia i układ tekstu są zapisywane w chronionym magazynie aplikacji, wyłączonym z kopii zapasowych.";
+"TRANSLATION_PRIVACY" = "OCR działa na Twoim urządzeniu. Tłumaczenie wysyła rozpoznany tekst i Twoje instrukcje do wybranego dostawcy. Jeśli włączona jest opcja Dołącz obraz strony do tłumaczenia, może być przesyłany także przetworzony obraz strony. Jeśli obrazy nie są obsługiwane jako dane wejściowe, tłumaczenie jest kontynuowane tylko na podstawie tekstu. Opłaty za interfejs API zależą od dostawcy. Klucze pozostają w pęku kluczy. OCR, tłumaczenia i układ tekstu są zapisywane w chronionym magazynie aplikacji, wyłączonym z kopii zapasowych.";
 
 "TRANSLATION_KEY_REPLACE" = "Zamień zapisany klucz API (opcjonalnie)";
 
@@ -417,7 +417,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Maksymalna szerokość modułu rozpoznawania";
 
-"TRANSLATION_CONFIDENCE" = "Minimalna pewność OCR";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Próg pikseli wykrywania OCR";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Minimalna pewność wykrywania obszarów OCR";
+"TRANSLATION_CONFIDENCE" = "Minimalna pewność rozpoznawania OCR";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "Próg pikseli wybiera piksele tekstu. Pewność wykrywania filtruje obszary tekstu. Pewność rozpoznawania filtruje tekst odczytany z każdego obszaru. Niższe wartości dopuszczają więcej niepewnych wyników.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minimalny rozmiar wykrywania OCR";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Minimalna długość krótszego boku potencjalnych obszarów tekstu, w pikselach mapy wykrywania. Domyślnie: 3 px. Niższe wartości pozwalają wykrywać mniejszy tekst, ale mogą też uwzględniać więcej szumu.";
 
 "TRANSLATION_SURFACE" = "Kolor tła";
 
@@ -501,7 +506,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Nie można połączyć się z użyciem obejścia blokowania HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Tłumaczenie nie powiodło się. Wyświetlanie tekstu OCR. Sprawdź swoje połączenie.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Tłumaczenie nie powiodło się. Wyświetlany jest tekst rozpoznany przez OCR. Sprawdź ustawienia i połączenie.";
 
 "TRANSLATION_MANGA_TITLES" = "Tłumacz tytuły mang";
 
@@ -533,7 +538,8 @@
 
 "TRANSLATION_INCLUDE_IMAGE" = "Dołącz obraz strony do tłumaczenia";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Wysyła oryginalną stronę razem z tekstem OCR, aby uwzględnić scenę i mimikę postaci. Instrukcje dotyczące obrazu są dołączane automatycznie. Wymaga modelu obsługującego obrazy. Może zwiększyć zużycie danych i koszty API.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Wysyła obraz strony wraz z tekstem OCR, aby dostarczyć kontekst sceny. Jeśli obrazy nie są obsługiwane, tłumaczenie jest automatycznie kontynuowane tylko na podstawie tekstu. Dołączanie obrazów może zwiększyć zużycie danych i koszty API.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Obrazy nie są obsługiwane jako dane wejściowe. Tłumaczenie jest kontynuowane bez obrazów.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Zachowaj oryginalny kolor tekstu";
 
@@ -541,7 +547,7 @@
 
 "TRANSLATION_LLM_SFX" = "Filtrowanie SFX LLM (wszystkie języki)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Klasyfikuje efekty dźwiękowe w żądaniu tłumaczenia. Można połączyć z lokalnym filtrem japońskim: jeśli choć jeden z filtrów uzna tekst za efekt dźwiękowy, oryginał pozostanie bez zmian. Działa również przy wysyłaniu obrazu strony.";
+"TRANSLATION_LLM_SFX_HELP" = "Klasyfikuje efekty dźwiękowe w tym samym żądaniu tłumaczenia i pozostawia je bez zmian. Gdy przesyłany jest obraz strony, AI pomija także niejasne fragmenty OCR, chyba że obraz potwierdza, że zawierają one sensowny tekst. Dialogi, narracja, tytuły i informacje o twórcach pozostają przeznaczone do tłumaczenia. Można połączyć z lokalnym filtrem japońskim: tekst oznaczony przez choć jeden filtr pozostaje bez zmian. Klasyfikacja jest mniej wiarygodna bez obrazu strony.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Bez obrazu wejściowego ograniczony kontekst wizualny i układ może zmniejszyć dokładność klasyfikacji SFX.";
 
@@ -872,7 +878,7 @@
 "UPSCALE_IMAGES" = "Zwiększaj rozdzielczość obrazów";
 "UPSCALING_MODELS" = "Modele zwiększania rozdzielczości";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Maksymalna wysokość obrazu";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Obrazy większe niż maksymalna wysokość obrazu nie zostaną przeskalowane.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Rozdzielczość obrazów, których wysokość jest równa ustawionemu maksimum lub je przekracza, nie będzie zwiększana.";
 "ENABLED_MODEL" = "Włączony model";
 "AVAILABLE_MODELS" = "Dostępne modele";
 "NO_AVAILABLE_MODELS" = "Brak dostępnych modeli";
@@ -1091,7 +1097,44 @@
 "DOWNLOAD_TRANSLATED" = "Pobierz z tłumaczeniem";
 
 "TRANSLATION_LLM_BACKGROUND" = "Pomijaj napisy w tle (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "AI tłumacząca pozostawia bez zmian poboczne szyldy, plakaty i napisy w tle. Dialogi, narracja i tekst o niepewnej klasyfikacji są tłumaczone. Nie są wysyłane dodatkowe żądania, ale przetwarzanie może potrwać dłużej. Klasyfikacja jest mniej wiarygodna bez obrazu strony.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "AI tłumacząca pozostawia bez zmian zwykłe szyldy, plakaty i napisy na przedmiotach w przedstawionej scenie, nawet jeśli są związane z jej treścią lub wspomniane w dialogu. Dialogi, narracja, tytuły, informacje o twórcach, tekst pisany kluczowy dla fabuły oraz tekst o niepewnej roli są tłumaczone. Nie są wysyłane dodatkowe żądania, ale przetwarzanie może potrwać dłużej. Klasyfikacja jest mniej wiarygodna bez obrazu strony.";
 
 "TRANSLATION_STATE_ON" = "Włączone";
 "TRANSLATION_STATE_OFF" = "Wyłączone";
+
+"UPSCALE_MODEL_SWINUNET_INFO" = "Ilustracje; zachowuje oryginalne linie rysunku. FP32.";
+
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Kolorowe ilustracje i okładki; lekki model do odwzorowywania szczegółów.";
+
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Obrazy ogólnego przeznaczenia i grafiki w różnych stylach; silniejsze wyostrzanie.";
+
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga i kolorowe strony.";
+
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Tylko czarno-biała manga; model dostosowany do oryginalnych stron o wysokości około 1200 pikseli. Kolorowe strony pozostają bez zmian.";
+"TRANSLATION_ERROR_CONFIGURATION" = "Ustawienia tłumaczenia są nieprawidłowe. Sprawdź adres URL serwera, model i pozostałe ustawienia.";
+"TRANSLATION_ERROR_REQUEST" = "Nie można użyć tekstu, obrazu lub ustawień języka do tłumaczenia.";
+"TRANSLATION_ERROR_RESPONSE" = "Serwer tłumaczeń zwrócił nieprawidłową odpowiedź. Spróbuj ponownie lub sprawdź ustawienia modelu.";
+"TRANSLATION_ERROR_KEY_REQUIRED" = "Wymagany jest klucz API do tłumaczenia.";
+"TRANSLATION_ERROR_KEY_ACCESS" = "Nie udało się odczytać klucza API do tłumaczenia z pęku kluczy.";
+"TRANSLATION_ERROR_ENDPOINT" = "Punkt końcowy API tłumaczenia jest niedozwolony przez zasady bezpieczeństwa.";
+"TRANSLATION_ERROR_REDIRECT" = "Przekierowanie punktu końcowego API tłumaczenia zostało odrzucone.";
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "Odpowiedź serwera tłumaczeń przekroczyła dopuszczalny rozmiar.";
+"TRANSLATION_ERROR_HTTP" = "Serwer tłumaczeń zwrócił HTTP %d.";
+"TRANSLATION_ERROR_HTTP_REQUEST" = "Serwer tłumaczeń zwrócił HTTP %d (ID żądania: %@).";
+"TRANSLATION_ERROR_NETWORK_CODE" = "Żądanie tłumaczenia nie powiodło się (błąd %d).";
+"TRANSLATION_ERROR_CONNECTION" = "Nie udało się połączyć z API tłumaczenia. Sprawdź połączenie sieciowe, punkt końcowy API i stan serwera, a następnie spróbuj ponownie.";
+"TRANSLATION_ERROR_REFUSED" = "Dostawca tłumaczeń odrzucił żądanie.";
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "Identyfikator używany do przechowywania klucza API jest nieprawidłowy.";
+"TRANSLATION_ERROR_KEY_INVALID" = "Klucz API jest pusty, zbyt długi lub zawiera nieobsługiwane znaki.";
+"TRANSLATION_ERROR_KEY_MISSING" = "Nie zapisano klucza API dla tego dostawcy.";
+"TRANSLATION_ERROR_KEY_ENCODING" = "Nie udało się zdekodować zapisanego klucza API.";
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Operacja na pęku kluczy nie powiodła się (kod stanu %d).";
+"OCR_ERROR_MODEL_MISSING" = "Brakuje wymaganego modelu PP-OCRv6.";
+"OCR_ERROR_MODEL_LOAD" = "Nie udało się wczytać modelu PP-OCRv6.";
+"OCR_ERROR_DICTIONARY" = "Słownik znaków PP-OCRv6 nie istnieje lub jest nieprawidłowy.";
+"OCR_ERROR_IMAGE" = "Nie udało się przygotować obrazu do rozpoznawania tekstu.";
+"OCR_ERROR_OUTPUT" = "Model PP-OCRv6 zwrócił nieprawidłowy lub nieobsługiwany wynik.";
+"OCR_ERROR_PREDICTION" = "Rozpoznawanie tekstu przez PP-OCRv6 nie powiodło się. Spróbuj ponownie z innym obrazem lub modelem OCR.";
+"TRANSLATION_ERROR_CACHE_SIZE" = "Rozmiar pamięci podręcznej tłumaczeń wykracza poza obsługiwany zakres.";
+"TRANSLATION_ERROR_CACHE_STORAGE" = "Miejsce przechowywania pamięci podręcznej tłumaczeń jest nieprawidłowe lub niedostępne.";
+"TRANSLATION_ERROR_CACHE_SAVE" = "Nie udało się zapisać pamięci podręcznej tłumaczeń.";

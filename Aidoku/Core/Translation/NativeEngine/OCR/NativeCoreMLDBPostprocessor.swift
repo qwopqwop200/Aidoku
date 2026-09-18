@@ -43,21 +43,25 @@ struct NativeCoreMLDBPostprocessConfiguration: Equatable, Sendable {
     let boxThreshold: Double
     let unclipRatio: Double
     let maximumCandidates: Int
+    let minimumBoxSide: Double
 
     init(
         threshold: Double,
         boxThreshold: Double,
         unclipRatio: Double,
-        maximumCandidates: Int
+        maximumCandidates: Int,
+        minimumBoxSide: Double = 3
     ) {
         precondition((0 ... 1).contains(threshold))
         precondition((0 ... 1).contains(boxThreshold))
         precondition(unclipRatio > 0 && unclipRatio.isFinite)
         precondition(maximumCandidates > 0)
+        precondition(minimumBoxSide.isFinite && minimumBoxSide >= 0)
         self.threshold = threshold
         self.boxThreshold = boxThreshold
         self.unclipRatio = unclipRatio
         self.maximumCandidates = maximumCandidates
+        self.minimumBoxSide = minimumBoxSide
     }
 }
 
@@ -96,13 +100,11 @@ struct NativeCoreMLDetectionMapGeometry: Equatable, Sendable {
 /// than the lower values embedded in the upstream inference YAML.
 @available(iOS 18.0, *)
 enum NativeCoreMLDBPostprocessor {
-    private static let minimumBoxSide = 3.0
-
     // Split a rejected weakly connected component once, with row-bounded
     // hull storage and cancellable scans. Callers opt in for validated models.
     private static func splitWeakBridge(
         _ spans: [ForegroundSpan], map: NativeCoreMLDetectionMap,
-        threshold: Double, cancellationCheck: () throws -> Void
+        threshold: Double, minimumBoxSide: Double, cancellationCheck: () throws -> Void
     ) throws -> [(MinimumRectangle, Double, Int?)]? {
         guard !spans.isEmpty else { return nil }
         var x0 = map.width, x1 = -1, y0 = map.height, y1 = -1
@@ -326,7 +328,7 @@ enum NativeCoreMLDBPostprocessor {
                     emptyMinimum: map.width
                 )
                 guard let minimum = minimumRectangle(points: hullCandidates),
-                      minimum.minimumSide >= minimumBoxSide
+                      minimum.minimumSide >= configuration.minimumBoxSide
                 else {
                     continue
                 }
@@ -338,6 +340,7 @@ enum NativeCoreMLDBPostprocessor {
                           boxes.count + 2 <= configuration.maximumCandidates,
                           let split = try splitWeakBridge(
                               queue, map: map, threshold: configuration.boxThreshold,
+                              minimumBoxSide: configuration.minimumBoxSide,
                               cancellationCheck: cancellationCheck
                           ) {
                     parts = split
@@ -349,7 +352,7 @@ enum NativeCoreMLDBPostprocessor {
                     try cancellationCheck()
                     guard let expanded = minimum.expanded(
                         unclipRatio: configuration.unclipRatio
-                    ), expanded.minimumSide >= minimumBoxSide + 2
+                    ), expanded.minimumSide >= configuration.minimumBoxSide + 2
                     else {
                         continue
                     }

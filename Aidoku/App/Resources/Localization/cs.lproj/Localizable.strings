@@ -340,7 +340,7 @@
 
 "TRANSLATION_HELP" = "Ikona překladu zapíná nebo vypíná překlad. Nejprve se připravují viditelné stránky a poté okolní stránky. Příprava se přizpůsobuje aktuálnímu místu čtení. Uložené výsledky OCR, překlady a rozložení textu lze znovu využít po otevření čtečky nebo restartování aplikace. U dočasně sdílených obrázků se tato mezipaměť neukládá. Opuštěním čtečky se nedokončená práce zruší.";
 
-"TRANSLATION_PRIVACY" = "OCR běží na vašem zařízení. Překlad odešle rozpoznaný text a vaše pokyny vybranému poskytovateli. Pokud je povolena možnost Zahrnout obrázek stránky do překladu, nahraje se také původní obrázek stránky. Poplatky za API závisí na vašem poskytovateli. Klíče zůstávají v Keychain. OCR, překlady a rozvržení textu jsou uloženy v chráněném úložišti aplikací vyloučeném ze záloh.";
+"TRANSLATION_PRIVACY" = "OCR běží na vašem zařízení. Překlad odešle rozpoznaný text a vaše pokyny vybranému poskytovateli. Pokud je povolena možnost Zahrnout obrázek stránky do překladu, může se nahrát také zpracovaný obrázek stránky. Pokud obrázky na vstupu nejsou podporovány, překlad pokračuje pouze s textem. Poplatky za API závisí na vašem poskytovateli. Klíče zůstávají v Keychain. OCR, překlady a rozvržení textu jsou uloženy v chráněném úložišti aplikací vyloučeném ze záloh.";
 
 "TRANSLATION_KEY_REPLACE" = "Nahradit uložený klíč API (volitelné)";
 
@@ -386,7 +386,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Maximální šířka rozpoznávače";
 
-"TRANSLATION_CONFIDENCE" = "Minimální spolehlivost OCR";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Práh pixelů detekce OCR";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Minimální jistota detekce oblastí OCR";
+"TRANSLATION_CONFIDENCE" = "Minimální jistota rozpoznávání OCR";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "Práh pixelů vybírá pixely textu. Jistota detekce filtruje textové oblasti. Jistota rozpoznávání filtruje text přečtený z každé oblasti. Nižší hodnoty přijímají více nejistých výsledků.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minimální velikost detekce OCR";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Minimální délka kratší strany možných textových oblastí v pixelech detekční mapy. Výchozí hodnota: 3 px. Nižší hodnoty mohou odhalit menší text, ale také více šumu.";
 
 "TRANSLATION_SURFACE" = "Barva pozadí";
 
@@ -470,7 +475,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Nepodařilo se připojit s obcházením blokování HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Překlad se nezdařil. Zobrazuje se text OCR. Zkontrolujte připojení.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Překlad se nezdařil. Zobrazuje se text rozpoznaný pomocí OCR. Zkontrolujte nastavení a připojení.";
 
 "TRANSLATION_MANGA_TITLES" = "Překládat názvy mangy";
 
@@ -502,7 +507,8 @@
 
 "TRANSLATION_INCLUDE_IMAGE" = "Zahrnout obrázek stránky do překladu";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Odešle původní stránku spolu s textem OCR pro zohlednění scény a výrazů postav. Pokyny k obrázku se připojí automaticky. Vyžaduje model s podporou obrázků. Může zvýšit spotřebu dat a cenu API.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Odešle obrázek stránky spolu s textem OCR pro kontext scény. Pokud obrázky na vstupu nejsou podporovány, překlad automaticky pokračuje pouze s textem. Přikládání obrázků může zvýšit spotřebu dat a náklady na API.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Obrázky na vstupu nejsou podporovány. Překlad pokračuje bez obrázků.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Zachovat původní barvu textu";
 
@@ -510,7 +516,7 @@
 
 "TRANSLATION_LLM_SFX" = "Filtrování SFX LLM (všechny jazyky)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Klasifikuje zvukové efekty v požadavku na překlad. Lze kombinovat s místním japonským filtrem: pokud alespoň jeden filtr označí text jako zvukový efekt, originál zůstane beze změny. Funguje i při odesílání obrázku stránky.";
+"TRANSLATION_LLM_SFX_HELP" = "Klasifikuje zvukové efekty v témže požadavku na překlad a ponechá je beze změny. Pokud je přiložen obrázek stránky, AI také vynechá nejasné úryvky OCR, ledaže obrázek potvrdí, že jde o smysluplný text. Dialogy, vyprávění, názvy a údaje o tvůrcích zůstávají určeny k překladu. Lze kombinovat s místním japonským filtrem: text označený alespoň jedním filtrem zůstane beze změny. Bez obrázku stránky je klasifikace méně spolehlivá.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Bez zadání obrázku může omezený vizuální kontext a kontext rozvržení snížit přesnost klasifikace SFX.";
 
@@ -866,7 +872,7 @@
 "UPSCALE_IMAGES" = "Zvyšovat rozlišení obrázků";
 "UPSCALING_MODELS" = "Modely pro zvýšení rozlišení";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Maximální výška obrázku";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Obrázky vyšší než nastavená maximální výška se nebudou převádět do vyššího rozlišení.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Obrázky, jejichž výška dosahuje nastaveného maxima nebo je překračuje, se nebudou převádět do vyššího rozlišení.";
 "ENABLED_MODEL" = "Povolený model";
 "AVAILABLE_MODELS" = "Dostupné modely";
 "NO_AVAILABLE_MODELS" = "Žádné dostupné modely";
@@ -1091,7 +1097,44 @@
 "DOWNLOAD_TRANSLATED" = "Stáhnout s překladem";
 
 "TRANSLATION_LLM_BACKGROUND" = "Nepřekládat nápisy v pozadí (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "Překladová AI ponechává vedlejší cedule, plakáty a nápisy v pozadí beze změny. Dialogy, vyprávění a text s nejistou klasifikací se překládají. Neposílají se žádné další požadavky, ale zpracování může trvat déle. Bez obrázku stránky je klasifikace méně spolehlivá.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "Překladová AI ponechává běžné cedule, plakáty a nápisy na předmětech ve vyobrazené scéně beze změny, i když souvisejí s děním ve scéně nebo jsou zmíněny v dialogu. Dialogy, vyprávění, názvy, údaje o tvůrcích, písemný text klíčový pro děj a text s nejistou rolí se překládají. Neposílají se žádné další požadavky, ale zpracování může trvat déle. Bez obrázku stránky je klasifikace méně spolehlivá.";
 
 "TRANSLATION_STATE_ON" = "Zapnuto";
 "TRANSLATION_STATE_OFF" = "Vypnuto";
+
+"UPSCALE_MODEL_SWINUNET_INFO" = "Ilustrace; zachovává původní linie kresby. FP32.";
+
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Barevné ilustrace a obálky; úsporný model pro vykreslení detailů.";
+
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Obecné obrázky a kresby v různých stylech; silnější doostření.";
+
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga a barevné stránky.";
+
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Pouze černobílá manga; model je přizpůsoben původním stránkám vysokým přibližně 1200 pixelů. Barevné stránky zůstávají beze změny.";
+"TRANSLATION_ERROR_CONFIGURATION" = "Nastavení překladu je neplatné. Zkontrolujte adresu URL serveru, model a další nastavení.";
+"TRANSLATION_ERROR_REQUEST" = "Text, obrázek nebo jazyková nastavení nelze použít k překladu.";
+"TRANSLATION_ERROR_RESPONSE" = "Překladový server vrátil neplatnou odpověď. Zkuste to znovu nebo zkontrolujte nastavení modelu.";
+"TRANSLATION_ERROR_KEY_REQUIRED" = "Je vyžadován klíč překladového API.";
+"TRANSLATION_ERROR_KEY_ACCESS" = "Klíč překladového API se nepodařilo přečíst z Klíčenky.";
+"TRANSLATION_ERROR_ENDPOINT" = "Koncový bod překladového API není povolen zásadami zabezpečení.";
+"TRANSLATION_ERROR_REDIRECT" = "Přesměrování koncového bodu překladového API bylo odmítnuto.";
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "Odpověď překladového serveru překročila povolenou velikost.";
+"TRANSLATION_ERROR_HTTP" = "Překladový server vrátil HTTP %d.";
+"TRANSLATION_ERROR_HTTP_REQUEST" = "Překladový server vrátil HTTP %d (ID požadavku: %@).";
+"TRANSLATION_ERROR_NETWORK_CODE" = "Požadavek na překlad selhal (chyba %d).";
+"TRANSLATION_ERROR_CONNECTION" = "K překladovému API se nepodařilo připojit. Zkontrolujte připojení k síti, koncový bod API a stav serveru a zkuste to znovu.";
+"TRANSLATION_ERROR_REFUSED" = "Poskytovatel překladu odmítl požadavek.";
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "Identifikátor používaný k uložení klíče API je neplatný.";
+"TRANSLATION_ERROR_KEY_INVALID" = "Klíč API je prázdný, příliš dlouhý nebo obsahuje nepodporované znaky.";
+"TRANSLATION_ERROR_KEY_MISSING" = "Pro tohoto poskytovatele není uložen žádný klíč API.";
+"TRANSLATION_ERROR_KEY_ENCODING" = "Uložený klíč API se nepodařilo dekódovat.";
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Operace s Klíčenkou selhala se stavovým kódem %d.";
+"OCR_ERROR_MODEL_MISSING" = "Chybí požadovaný model PP-OCRv6.";
+"OCR_ERROR_MODEL_LOAD" = "Model PP-OCRv6 se nepodařilo načíst.";
+"OCR_ERROR_DICTIONARY" = "Slovník znaků PP-OCRv6 chybí nebo je neplatný.";
+"OCR_ERROR_IMAGE" = "Obrázek se nepodařilo připravit k rozpoznávání textu.";
+"OCR_ERROR_OUTPUT" = "Model PP-OCRv6 vrátil neplatný nebo nepodporovaný výstup.";
+"OCR_ERROR_PREDICTION" = "Rozpoznávání textu pomocí PP-OCRv6 selhalo. Zkuste jiný obrázek nebo model OCR.";
+"TRANSLATION_ERROR_CACHE_SIZE" = "Velikost mezipaměti překladu je mimo podporovaný rozsah.";
+"TRANSLATION_ERROR_CACHE_STORAGE" = "Úložiště mezipaměti překladu je neplatné nebo nedostupné.";
+"TRANSLATION_ERROR_CACHE_SAVE" = "Mezipaměť překladu se nepodařilo uložit.";

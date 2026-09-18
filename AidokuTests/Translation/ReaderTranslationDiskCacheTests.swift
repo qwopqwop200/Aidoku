@@ -6,6 +6,26 @@ import UIKit
 
 @Suite(.serialized)
 struct ReaderTranslationDiskCacheTests {
+    @Test func reopeningRemovesLegacyRastersAndPreservesDurableWork() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        for kind in [ReaderTranslationDiskCache.Kind.ocr, .translation, .layout] {
+            try await disk.store(Data("saved work".utf8), for: "keep", kind: kind, generation: 0)
+        }
+        try databaseExecute(root, "INSERT INTO cache(name,data,accessed) VALUES('snapshot-old.cache',zeroblob(4000000),0)")
+        let before = try await disk.statistics().bytes
+        let reopened = ReaderTranslationDiskCache(directory: root)
+        let after = try await reopened.statistics()
+        #expect(after.bytes < before / 10)
+        #expect(after.entries == 3)
+        for kind in [ReaderTranslationDiskCache.Kind.ocr, .translation, .layout] {
+            #expect(try await reopened.data(for: "keep", kind: kind) == Data("saved work".utf8))
+        }
+        try await reopened.store(noise(100_000), for: "new", kind: .snapshot, generation: 0)
+        #expect(try await !reopened.contains("new", kind: .snapshot))
+    }
+
     @Test(arguments: ["reader-render-v32-neutral-readable-edge", "reader-render-v31-readable-source-role-coverage", "reader-render-v30-readable-paragraph-ink-coverage", "reader-render-v29-source-role-cleanup-geometry", "reader-render-v28-short-paragraph-guard", "reader-render-v27-readable-palette-ink", "reader-render-v26-horizontal-caption-anchors", "reader-render-v24-readable-paragraph-contours", "reader-render-v25-source-anchored-captions", "reader-render-v23-source-stroke-opaque-ink", "reader-render-v21-korean-punctuation", "reader-render-v22-korean-orphans", "reader-render-v20-readable-source-colors", "reader-render-v19-faithful-source-colors", "reader-render-v18-neutral-ink-fringe", "reader-render-v17-chroma-emergency-wrap", "reader-render-v16-contrast-preserved-chroma", "reader-render-v15-korean-small-text", "reader-render-v3-source-coverage", "reader-render-v4-visible-source-bands", "reader-render-v5-normal-font-floor", "reader-render-v6-korean-balanced-wrap", "reader-render-v7-resolved-font", "reader-render-v8-source-ink", "reader-render-v9-small-text", "reader-render-v9-word-safe-small-text", "reader-render-v10-fragment-line-profile", "reader-render-v11-balloon-contained-type"])
     func earlierLayoutsCannotBeReusedAfterRendererRevision(revision: String) async throws {
         let root = directory()
@@ -533,7 +553,8 @@ struct ReaderTranslationDiskCacheTests {
         print("CACHE_NORMALIZED variants=\(variants) realPages=\(pages.count) entries=\(after.entries) oldPayload=\(before.payloadBytes) newPayload=\(after.payloadBytes) oldAllocated=\(before.bytes) newAllocated=\(after.bytes) migratedAllocated=\(migrated.bytes)")
     }
 
-    @Test(arguments: ["model", "language", "prompt", "credentials", "provider", "filter"])
+    @Test(arguments: ["model", "language", "prompt", "credentials", "provider", "filter",
+                      "ocrPixel", "ocrRegion", "ocrRecognition", "ocrMinimumSize"])
     func changingTranslationSettingsDeletesOldResultsButKeepsOCR(change: String) async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -553,6 +574,10 @@ struct ReaderTranslationDiskCacheTests {
         case "prompt": settings.instructions += " Translate differently."
         case "credentials": settings.credentialGeneration += 1
         case "provider": settings.provider = .custom; settings.custom.baseURL = "https://example.invalid/v1"; settings.model = "custom-model"
+        case "ocrPixel": settings.ocr.detectorPixelThreshold = 0.25
+        case "ocrRegion": settings.ocr.detectorConfidenceThreshold = 0.55
+        case "ocrRecognition": settings.ocr.confidenceThreshold = 0.8
+        case "ocrMinimumSize": settings.ocr.detectorMinimumBoxSide = 2
         default: settings.translationSourceLanguages = ["ja"]
         }
         try await cache.synchronizeSettings(settings)
@@ -594,13 +619,123 @@ struct ReaderTranslationDiskCacheTests {
         settings.rightToLeftPanelOrder = true // A chapter's reading direction is not a global model switch.
         try await cache.synchronizeSettings(settings)
         #expect(await cache.currentGeneration(settings: settings) == generation)
-        #expect(try await cache.statistics().entries == 3)
+        #expect(try await cache.statistics().entries == 4) // OCR, translation, metadata and layout; no persisted raster.
         settings.overlay.opacity = 0.5
         try await cache.synchronizeSettings(settings)
-        #expect(try await cache.statistics().entries == 2)
+        #expect(try await cache.statistics().entries == 3)
         #expect(try await cache.contains("keep", kind: .translation))
+        #expect(try await cache.contains("keep", kind: .metadata))
         #expect(try await cache.contains("keep", kind: .ocr))
         #expect(try await cache.contains("keep", kind: .layout) == false)
+    }
+
+    @Test(arguments: ["ocrPixel", "ocrRegion", "ocrRecognition", "ocrMinimumSize", "ocrModel", "ocrResolution", "pageFilter"])
+    func pageSettingsPreserveMetadataAndItsPendingWriters(change: String) async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        let original = settings
+        try await cache.synchronizeSettings(settings)
+        let pageGeneration = await cache.currentGeneration(settings: settings)
+        let metadataGeneration = await cache.currentGeneration(settings: settings, kind: .metadata)
+        let metadata = [ReaderTranslationRegion(id: "title", rect: .zero, source: "Title", translation: "제목")]
+        try await cache.storeRegions(metadata, for: "title", kind: .metadata, generation: metadataGeneration)
+        try await cache.store(Data("page".utf8), for: "page", kind: .translation, generation: pageGeneration)
+        switch change {
+        case "ocrPixel": settings.ocr.detectorPixelThreshold = 0.25
+        case "ocrRegion": settings.ocr.detectorConfidenceThreshold = 0.55
+        case "ocrRecognition": settings.ocr.confidenceThreshold = 0.8
+        case "ocrMinimumSize": settings.ocr.detectorMinimumBoxSide = 2
+        case "ocrModel": settings.ocr.modelTier = .tiny
+        case "ocrResolution": settings.ocr.detectorMaximumSide = 1280; settings.ocr.recognizerMaximumWidth = 1280
+        default: settings.translationSourceLanguages = ["ja"]
+        }
+        try await cache.synchronizeSettings(settings)
+        #expect(try await cache.regions(for: "title", kind: .metadata) == metadata)
+        #expect(try await !cache.contains("page", kind: .translation))
+        #expect(await cache.currentGeneration(settings: original, kind: .metadata) == metadataGeneration)
+        try await cache.storeRegions(metadata, for: "in-flight", kind: .metadata, generation: metadataGeneration)
+        let queued = await cache.currentGeneration(settings: original, kind: .metadata)
+        try await cache.store(Data("queued".utf8), for: "queued", kind: .metadata, generation: queued)
+        try await cache.store(Data("late".utf8), for: "late", kind: .translation, generation: pageGeneration)
+        #expect(try await cache.statistics().entries == 3)
+        let reopened = ReaderTranslationDiskCache(directory: root)
+        try await reopened.synchronizeSettings(settings)
+        #expect(try await reopened.regions(for: "in-flight", kind: .metadata) == metadata)
+        #expect(try await reopened.data(for: "queued", kind: .metadata) == Data("queued".utf8))
+    }
+
+    @Test(arguments: ["model", "target", "prompt", "credentials", "metadataFilter", "clear"])
+    func metadataInvalidationRejectsPendingWritersWithoutClearingUnrelatedPages(change: String) async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        let original = settings
+        try await cache.synchronizeSettings(settings)
+        let generation = await cache.currentGeneration(settings: settings, kind: .metadata)
+        for kind in ReaderTranslationDiskCache.Kind.allCases {
+            try await cache.store(Data("value".utf8), for: "old", kind: kind, generation: generation)
+        }
+        switch change {
+        case "model": settings.model = "different-model"
+        case "target": settings.targetLanguage = "en"
+        case "prompt": settings.instructions += " Use formal language."
+        case "credentials": settings.credentialGeneration += 1
+        case "metadataFilter": settings.authorSourceLanguages = ["ja"]; settings.sourceLabelSourceLanguages = ["en"]
+        default: try await cache.clear()
+        }
+        try await cache.synchronizeSettings(settings)
+        #expect(try await !cache.contains("old", kind: .metadata))
+        #expect(try await cache.contains("old", kind: .translation) == (change == "metadataFilter"))
+        #expect(try await cache.contains("old", kind: .ocr) == (change != "clear"))
+        try await cache.store(Data("late".utf8), for: "late", kind: .metadata, generation: generation)
+        #expect(try await !cache.contains("late", kind: .metadata))
+        if change != "clear" {
+            let queued = await cache.currentGeneration(settings: original, kind: .metadata)
+            try await cache.storeRegions([.init(id: "title", rect: .zero, source: "Old")],
+                for: "queued", kind: .metadata, generation: queued)
+            #expect(try await !cache.contains("queued", kind: .metadata))
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func legacyMetadataMovesBeforePageInvalidationPreservingStorage(normalized: Bool) async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        let regions = [ReaderTranslationRegion(id: "title", rect: .zero, source: "Old title", translation: "기존 제목")]
+        if normalized {
+            try await cache.storeRegions(regions, for: "legacy", kind: .translation, generation: 0)
+        } else {
+            try await cache.store(JSONEncoder().encode(regions.map(ReaderTranslationStoredRegion.init)),
+                for: "legacy", kind: .translation, generation: 0)
+        }
+        let page = [ReaderTranslationRegion(id: "title", rect: CGRect(x: 0, y: 0, width: 0.2, height: 0.1), source: "Page")]
+        try await cache.storeRegions(page, for: "page", kind: .translation, generation: 0)
+        try databaseExecute(root, "DELETE FROM cache_policy WHERE name='metadata-kind-v1'; INSERT INTO cache_policy(name,value) VALUES('translation','old-policy'); UPDATE cache SET accessed=42")
+        let before = try await cache.statistics()
+        let reopened = ReaderTranslationDiskCache(directory: root)
+        let after = try await reopened.statistics()
+        #expect(after.entries == before.entries && after.payloadBytes == before.payloadBytes)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM cache WHERE accessed=42") == 2)
+        #expect(try await !reopened.contains("legacy", kind: .translation))
+        #expect(try await reopened.regions(for: "legacy", kind: .metadata) == regions)
+        #expect(try await reopened.regions(for: "page", kind: .translation) == page)
+        var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        settings.ocr.detectorMinimumBoxSide = 2
+        try await reopened.synchronizeSettings(settings)
+        #expect(try await !reopened.contains("page", kind: .translation))
+        #expect(try await reopened.regions(for: "legacy", kind: .metadata) == regions)
+        try await reopened.compact()
+        let again = ReaderTranslationDiskCache(directory: root)
+        try await again.synchronizeSettings(settings)
+        #expect(try await again.regions(for: "legacy", kind: .metadata) == regions)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_links") == 1)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_bases") == 1)
+        #expect(try databaseInteger(root, "SELECT bytes FROM totals") == databaseInteger(root,
+            "SELECT COALESCE((SELECT SUM(length(data)) FROM cache),0)+COALESCE((SELECT SUM(length(data)) FROM region_bases),0)"))
     }
 
     private func databaseExecute(_ root: URL, _ sql: String) throws {

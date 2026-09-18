@@ -548,7 +548,7 @@
 "UPSCALE_IMAGES" = "Upscale Images";
 "UPSCALING_MODELS" = "Upscaling Models";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Maximum Image Height";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Images taller than the maximum image height won't be upscaled.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Images at or above the maximum image height won't be upscaled.";
 "ENABLED_MODEL" = "Enabled Model";
 "AVAILABLE_MODELS" = "Available Models";
 "NO_AVAILABLE_MODELS" = "No Available Models";
@@ -883,7 +883,7 @@
 "TRANSLATION_WORKING" = "Recognizing and translating…";
 "TRANSLATION_OCR_WORKING" = "Recognizing text on device…";
 "TRANSLATION_HELP" = "The translation icon turns translation on or off. Visible pages are prepared first, then nearby pages. Preparation follows your reading position. Saved OCR, translations and text layout can be reused after reopening the reader or restarting the app. Temporary shared images do not save this cache. Leaving the reader cancels unfinished work.";
-"TRANSLATION_PRIVACY" = "OCR runs on your device. Translation sends recognized text and your instructions to the selected provider. If Include Page Image in Translation is enabled, the original page image is also uploaded. API charges depend on your provider. Keys stay in Keychain. OCR, translations and text layout are saved in protected app storage excluded from backups.";
+"TRANSLATION_PRIVACY" = "OCR runs on your device. Translation sends recognized text and your instructions to the selected provider. If Include Page Image in Translation is enabled, a processed page image may also be uploaded. If image input is unsupported, translation continues with text only. API charges depend on your provider. Keys stay in Keychain. OCR, translations and text layout are saved in protected app storage excluded from backups.";
 "TRANSLATION_KEY_REPLACE" = "Replace saved API key (optional)";
 "TRANSLATION_KEY" = "API key";
 "TRANSLATION_KEY_SAVED" = "API key saved in Keychain";
@@ -908,7 +908,12 @@
 "TRANSLATION_CONCURRENCY" = "Concurrent Requests";
 "TRANSLATION_DETECTOR_SIZE" = "Detector Maximum Side";
 "TRANSLATION_RECOGNIZER_SIZE" = "Recognizer Maximum Width";
-"TRANSLATION_CONFIDENCE" = "Minimum OCR Confidence";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "OCR Detection Pixel Threshold";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Minimum OCR Detection Region Confidence";
+"TRANSLATION_CONFIDENCE" = "Minimum OCR Recognition Confidence";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "The pixel threshold selects text pixels. Detection confidence filters text regions. Recognition confidence filters the text read from each region. Lower values accept more uncertain results.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minimum OCR Detection Size";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Minimum short-side length of text candidates, measured in detection-map pixels. Default: 3 px. Lower values can detect smaller text but may also include more noise.";
 "TRANSLATION_SURFACE" = "Background Color";
 "TRANSLATION_WHITE" = "White";
 "TRANSLATION_DARK" = "Dark";
@@ -962,7 +967,7 @@
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d received · TLS fragmentation not confirmed";
 "HTTPS_BYPASS_TEST_FAILED" = "Could not connect through HTTPS bypass.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Translation failed. Showing OCR text. Please check your connection.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Translation failed. Showing OCR text. Check your settings and connection.";
 
 "TRANSLATION_MANGA_TITLES" = "Translate Manga Titles";
 
@@ -991,13 +996,14 @@
 "TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Applies while SFX Filtering is enabled. Also filters entries marked as requiring context using dictionary matches, text size, and nearby layout. No LLM analyzes the context, so dialogue may also be excluded.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Include Page Image in Translation";
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Send the original page with OCR text for scene and expression context. Image instructions are appended automatically. Requires a model that supports images and may increase data usage and API cost.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Send the page image with OCR text to provide scene context. If image input is unsupported, translation automatically continues with text only. Attaching images may increase data usage and API cost.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Image input is not supported. Translation continues without images.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Preserve Original Text Color";
 "TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Estimate the original text color without an additional model. Use the default color when uncertain or when contrast is too low.";
 
 "TRANSLATION_LLM_SFX" = "LLM SFX Filtering (All Languages)";
-"TRANSLATION_LLM_SFX_HELP" = "Classify sound effects in the translation request. Can be combined with the Japanese local filter: a sound-effect decision from either filter leaves the original unchanged. Compatible with Include Page Image in Translation.";
+"TRANSLATION_LLM_SFX_HELP" = "Classify sound effects in the same translation request and leave them unchanged. With a page image, the AI also skips unclear OCR fragments unless the image establishes meaningful text. Dialogue, narration, titles, and credits are preserved for translation. Can be combined with the Japanese local filter: text flagged by either filter is left unchanged. Classification is less reliable without a page image.";
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Without image input, limited visual and layout context may reduce SFX classification accuracy.";
 "TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Preserve Original Background Color";
 "TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Match the translation panel to the background around the original text. Use the default panel when uncertain or unreadable. Your opacity setting still applies.";
@@ -1063,8 +1069,47 @@
 "DOWNLOAD_TRANSLATED" = "Download with Translation";
 
 "TRANSLATION_LLM_BACKGROUND" = "Skip Background Lettering (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "The translation AI leaves incidental signs, posters, and background lettering unchanged. Dialogue, narration, and uncertain text are translated. No extra request is made, but processing may take longer. Classification is less reliable without a page image.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "The translation AI leaves ordinary signs, posters, and lettering on objects in the scene unchanged, even when related to the scene or mentioned in dialogue. Dialogue, narration, titles, credits, plot-critical writing, and text whose role is uncertain are translated. No extra request is made, but processing may take longer. Classification is less reliable without a page image.";
 
 "TRANSLATION_STATE_ON" = "On";
 
 "TRANSLATION_STATE_OFF" = "Off";
+
+"UPSCALE_MODEL_SWINUNET_INFO" = "Illustrations; preserves original linework. FP32.";
+
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Color illustrations and covers; lightweight detail model.";
+
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "General images and mixed artwork; stronger sharpening.";
+
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga and color pages.";
+
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Black-and-white manga only, tuned for original pages about 1200 pixels tall. Color pages are left unchanged.";
+
+// Localized OCR and translation errors
+"TRANSLATION_ERROR_CONFIGURATION" = "The translation settings are invalid. Check the server URL, model, and other settings.";
+"TRANSLATION_ERROR_REQUEST" = "The text, image, or language settings could not be used for translation.";
+"TRANSLATION_ERROR_RESPONSE" = "The translation server returned an invalid response. Try again or check the model settings.";
+"TRANSLATION_ERROR_KEY_REQUIRED" = "A translation API key is required.";
+"TRANSLATION_ERROR_KEY_ACCESS" = "The translation API key could not be read from Keychain.";
+"TRANSLATION_ERROR_ENDPOINT" = "The translation endpoint is not allowed by the security policy.";
+"TRANSLATION_ERROR_REDIRECT" = "The translation endpoint redirect was rejected.";
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "The translation response exceeded its size limit.";
+"TRANSLATION_ERROR_HTTP" = "The translation server returned HTTP %d.";
+"TRANSLATION_ERROR_HTTP_REQUEST" = "The translation server returned HTTP %d (request ID: %@).";
+"TRANSLATION_ERROR_NETWORK_CODE" = "The translation request failed (error %d).";
+"TRANSLATION_ERROR_CONNECTION" = "The translation API could not be reached. Check your network connection, API endpoint, and server status, then try again.";
+"TRANSLATION_ERROR_REFUSED" = "The translation provider refused the request.";
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "The identifier used to store the API key is invalid.";
+"TRANSLATION_ERROR_KEY_INVALID" = "The API key is blank, too large, or contains unsupported characters.";
+"TRANSLATION_ERROR_KEY_MISSING" = "No API key is saved for this provider.";
+"TRANSLATION_ERROR_KEY_ENCODING" = "The saved API key could not be decoded.";
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Keychain operation failed with status %d.";
+"OCR_ERROR_MODEL_MISSING" = "A required PP-OCRv6 model is missing.";
+"OCR_ERROR_MODEL_LOAD" = "A PP-OCRv6 model could not be loaded.";
+"OCR_ERROR_DICTIONARY" = "The PP-OCRv6 character dictionary is missing or invalid.";
+"OCR_ERROR_IMAGE" = "The image could not be prepared for text recognition.";
+"OCR_ERROR_OUTPUT" = "The PP-OCRv6 model returned invalid or unsupported output.";
+"OCR_ERROR_PREDICTION" = "PP-OCRv6 text recognition failed. Try again with another image or OCR model.";
+"TRANSLATION_ERROR_CACHE_SIZE" = "The translation cache size is outside the supported range.";
+"TRANSLATION_ERROR_CACHE_STORAGE" = "The translation cache storage is invalid or unavailable.";
+"TRANSLATION_ERROR_CACHE_SAVE" = "The translation cache could not be saved.";

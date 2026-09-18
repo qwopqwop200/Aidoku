@@ -513,9 +513,9 @@
 
 "TRANSLATION_TEXT" = "Erkannter und übersetzter Text";
 
-"TRANSLATION_NO_IMAGE" = "Warten Sie, bis eine Bildseite geladen ist, und versuchen Sie es dann erneut.";
+"TRANSLATION_NO_IMAGE" = "Warte, bis eine Bildseite geladen ist, und versuche es dann erneut.";
 
-"TRANSLATION_NO_TEXT" = "Es wurde kein Text erkannt. Probieren Sie ein anderes OCR-Modell oder ein klareres Bild aus.";
+"TRANSLATION_NO_TEXT" = "Es wurde kein Text erkannt. Probiere ein anderes OCR-Modell oder ein klareres Bild aus.";
 
 "TRANSLATION_WORKING" = "Erkennen und Übersetzen…";
 
@@ -523,7 +523,7 @@
 
 "TRANSLATION_HELP" = "Das Übersetzungssymbol schaltet die Übersetzung ein oder aus. Zuerst werden sichtbare Seiten vorbereitet, danach benachbarte Seiten. Die Vorbereitung richtet sich nach deiner Leseposition. Gespeicherte OCR-Ergebnisse, Übersetzungen und Textlayouts können nach dem erneuten Öffnen des Readers oder einem Neustart der App wiederverwendet werden. Bei vorübergehend geöffneten geteilten Bildern wird dieser Cache nicht gespeichert. Beim Verlassen des Readers werden nicht abgeschlossene Arbeiten abgebrochen.";
 
-"TRANSLATION_PRIVACY" = "OCR läuft auf Ihrem Gerät. Die Übersetzung sendet erkannten Text und Ihre Anweisungen an den ausgewählten Anbieter. Wenn „Seitenbild in Übersetzung einbeziehen“ aktiviert ist, wird auch das Originalseitenbild hochgeladen. Die API-Gebühren hängen von Ihrem Anbieter ab. Schlüssel bleiben im Schlüsselbund. OCR, Übersetzungen und Textlayout werden im geschützten App-Speicher gespeichert und von Backups ausgeschlossen.";
+"TRANSLATION_PRIVACY" = "OCR läuft auf deinem Gerät. Die Übersetzung sendet erkannten Text und deine Anweisungen an den ausgewählten Anbieter. Wenn „Seitenbild in Übersetzung einbeziehen“ aktiviert ist, kann auch ein für die Verarbeitung aufbereitetes Seitenbild hochgeladen werden. Werden Bildeingaben nicht unterstützt, wird nur mit Text weiterübersetzt. Die API-Gebühren hängen von deinem Anbieter ab. Schlüssel bleiben im Schlüsselbund. OCR, Übersetzungen und Textlayout werden im geschützten App-Speicher gespeichert und von Backups ausgeschlossen.";
 
 "TRANSLATION_KEY_REPLACE" = "Gespeicherten API-Schlüssel ersetzen (optional)";
 
@@ -569,7 +569,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Maximale Breite für die Texterkennung";
 
-"TRANSLATION_CONFIDENCE" = "Mindestkonfidenz für OCR";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "OCR-Pixelschwelle für die Erkennung von Textbereichen";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Mindestkonfidenz erkannter OCR-Textbereiche";
+"TRANSLATION_CONFIDENCE" = "Mindestkonfidenz der OCR-Texterkennung";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "Die Pixelschwelle wählt Textpixel aus. Die Bereichskonfidenz filtert Textbereiche. Die Erkennungskonfidenz filtert den aus jedem Bereich gelesenen Text. Niedrigere Werte lassen mehr unsichere Ergebnisse zu.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Mindestgröße für die OCR-Textdetektion";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Mindestlänge der kurzen Seite möglicher Textbereiche, gemessen in Pixeln der Detektionskarte. Standard: 3 px. Niedrigere Werte können kleinere Schrift erkennen, aber auch mehr Bildrauschen erfassen.";
 
 "TRANSLATION_SURFACE" = "Hintergrundfarbe";
 
@@ -617,7 +622,7 @@
 
 "TRANSLATION_TEST_FAILURE" = "Verbindung fehlgeschlagen";
 
-"TRANSLATION_TEST_HELP" = "Übersetzt einen kurzen Satz mit den Werten in diesem Formular. Lassen Sie den Schlüssel leer, um den gespeicherten Schlüssel dieses Servers zu verwenden. Änderungen werden automatisch gespeichert.";
+"TRANSLATION_TEST_HELP" = "Übersetzt einen kurzen Satz mit den Werten in diesem Formular. Lass das Schlüsselfeld leer, um den gespeicherten Schlüssel dieses Servers zu verwenden. Änderungen werden automatisch gespeichert.";
 
 "SEARCH_SUGGESTIONS" = "Suchvorschläge";
 
@@ -653,7 +658,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Es konnte keine Verbindung über die HTTPS-Umgehung hergestellt werden.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Die Übersetzung ist fehlgeschlagen. OCR-Text wird angezeigt. Bitte überprüfen Sie Ihre Verbindung.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Die Übersetzung ist fehlgeschlagen. OCR-Text wird angezeigt. Prüfe Einstellungen und Verbindung.";
 
 "TRANSLATION_MANGA_TITLES" = "Manga-Titel übersetzen";
 
@@ -685,7 +690,8 @@
 
 "TRANSLATION_INCLUDE_IMAGE" = "Seitenbild in Übersetzung einbeziehen";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Sendet die Originalseite zusammen mit dem OCR-Text, damit Szene und Gesichtsausdrücke als Kontext dienen. Bildanweisungen werden automatisch ergänzt. Erfordert ein Modell mit Bildunterstützung und kann Datenverbrauch sowie API-Kosten erhöhen.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Sendet das Seitenbild zusammen mit dem OCR-Text als Szenenkontext. Werden Bildeingaben nicht unterstützt, wird automatisch nur mit Text weiterübersetzt. Bilder können den Datenverbrauch und die API-Kosten erhöhen.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Bildeingaben werden nicht unterstützt. Die Übersetzung wird ohne Bilder fortgesetzt.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Originaltextfarbe beibehalten";
 
@@ -693,7 +699,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM SFX-Filterung (alle Sprachen)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Erkennt Soundeffekte innerhalb der Übersetzungsanfrage. Kombinierbar mit dem lokalen Filter für Japanisch: Sobald einer der Filter Text als Soundeffekt einstuft, bleibt der Originaltext erhalten. Kann zusammen mit dem Seitenbild verwendet werden.";
+"TRANSLATION_LLM_SFX_HELP" = "Erkennt Soundeffekte in derselben Übersetzungsanfrage und lässt sie unverändert. Mit einem Seitenbild überspringt die KI auch unklare OCR-Fragmente, sofern das Bild sie nicht als sinnvollen Text erkennen lässt. Dialoge, Erzähltext, Titel und Urheberangaben bleiben zur Übersetzung erhalten. Kombinierbar mit dem lokalen Filter für Japanisch: Text, den einer der Filter markiert, bleibt unverändert. Ohne Seitenbild ist die Einordnung weniger zuverlässig.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Ohne Bildeingabe kann ein eingeschränkter visueller und Layout-Kontext die Genauigkeit der SFX-Klassifizierung beeinträchtigen.";
 
@@ -900,7 +906,7 @@
 "UPSCALE_IMAGES" = "Bilder hochskalieren";
 "UPSCALING_MODELS" = "Upscaling-Modelle";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Maximale Bildhöhe";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Bilder, die größer als die maximale Bildhöhe sind, werden nicht hochskaliert.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Bilder, deren Höhe die maximale Bildhöhe erreicht oder überschreitet, werden nicht hochskaliert.";
 "ENABLED_MODEL" = "Aktiviertes Modell";
 "AVAILABLE_MODELS" = "Verfügbare Modelle";
 "NO_AVAILABLE_MODELS" = "Keine verfügbaren Modelle";
@@ -1093,8 +1099,72 @@
 "DOWNLOAD_TRANSLATED" = "Mit Übersetzung herunterladen";
 
 "TRANSLATION_LLM_BACKGROUND" = "Hintergrundbeschriftungen überspringen (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "Die Übersetzungs-KI lässt beiläufige Schilder, Plakate und Hintergrundbeschriftungen unverändert. Dialoge, Erzähltext und nicht eindeutig zugeordneter Text werden übersetzt. Es wird keine zusätzliche Anfrage gestellt, die Verarbeitung kann jedoch länger dauern. Ohne Seitenbild ist die Einordnung weniger zuverlässig.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "Die Übersetzungs-KI lässt gewöhnliche Schilder, Plakate und Beschriftungen auf Gegenständen in der Szene unverändert, auch wenn sie mit der Szene zusammenhängen oder im Dialog erwähnt werden. Dialoge, Erzähltext, Titel, Urheberangaben, für die Handlung entscheidende Schrift und Text mit unklarer Rolle werden übersetzt. Es wird keine zusätzliche Anfrage gestellt, die Verarbeitung kann jedoch länger dauern. Ohne Seitenbild ist die Einordnung weniger zuverlässig.";
 
 "TRANSLATION_STATE_ON" = "Ein";
 
 "TRANSLATION_STATE_OFF" = "Aus";
+
+"UPSCALE_MODEL_SWINUNET_INFO" = "Für Illustrationen; bewahrt die ursprüngliche Linienführung. FP32.";
+
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Für Farbillustrationen und Cover; leichtgewichtiges Modell zur Detailverbesserung.";
+
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Für allgemeine Bilder und verschiedene Zeichenstile; stärkere Schärfung.";
+
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Für Anime, Manga und Farbseiten.";
+
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Nur für Schwarz-Weiß-Manga, abgestimmt auf Originalseiten mit etwa 1200 Pixeln Höhe. Farbseiten bleiben unverändert.";
+
+"TRANSLATION_ERROR_CONFIGURATION" = "Die Übersetzungseinstellungen sind ungültig. Prüfe die Server-URL, das Modell und die übrigen Einstellungen.";
+
+"TRANSLATION_ERROR_REQUEST" = "Der Text, das Bild oder die Spracheinstellungen konnten nicht für die Übersetzung verwendet werden.";
+
+"TRANSLATION_ERROR_RESPONSE" = "Der Übersetzungsserver hat eine ungültige Antwort zurückgegeben. Versuche es erneut oder prüfe die Modelleinstellungen.";
+
+"TRANSLATION_ERROR_KEY_REQUIRED" = "Ein API-Schlüssel für die Übersetzung ist erforderlich.";
+
+"TRANSLATION_ERROR_KEY_ACCESS" = "Der API-Schlüssel für die Übersetzung konnte nicht aus dem Schlüsselbund gelesen werden.";
+
+"TRANSLATION_ERROR_ENDPOINT" = "Der API-Endpunkt für die Übersetzung ist durch die Sicherheitsrichtlinie nicht zugelassen.";
+
+"TRANSLATION_ERROR_REDIRECT" = "Die Weiterleitung des API-Endpunkts für die Übersetzung wurde abgelehnt.";
+
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "Die Übersetzungsantwort hat die zulässige Größe überschritten.";
+
+"TRANSLATION_ERROR_HTTP" = "Der Übersetzungsserver hat HTTP %d zurückgegeben.";
+
+"TRANSLATION_ERROR_HTTP_REQUEST" = "Der Übersetzungsserver hat HTTP %d zurückgegeben (Anfrage-ID: %@).";
+
+"TRANSLATION_ERROR_NETWORK_CODE" = "Die Übersetzungsanfrage ist fehlgeschlagen (Fehler %d).";
+
+"TRANSLATION_ERROR_CONNECTION" = "Die Übersetzungs-API konnte nicht erreicht werden. Prüfe deine Netzwerkverbindung, den API-Endpunkt und den Serverstatus und versuche es erneut.";
+
+"TRANSLATION_ERROR_REFUSED" = "Der Übersetzungsanbieter hat die Anfrage abgelehnt.";
+
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "Die Kennung zum Speichern des API-Schlüssels ist ungültig.";
+
+"TRANSLATION_ERROR_KEY_INVALID" = "Der API-Schlüssel ist leer, zu groß oder enthält nicht unterstützte Zeichen.";
+
+"TRANSLATION_ERROR_KEY_MISSING" = "Für diesen Anbieter ist kein API-Schlüssel gespeichert.";
+
+"TRANSLATION_ERROR_KEY_ENCODING" = "Der gespeicherte API-Schlüssel konnte nicht dekodiert werden.";
+
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Die Schlüsselbundoperation ist mit Status %d fehlgeschlagen.";
+
+"OCR_ERROR_MODEL_MISSING" = "Ein erforderliches PP-OCRv6-Modell fehlt.";
+
+"OCR_ERROR_MODEL_LOAD" = "Ein PP-OCRv6-Modell konnte nicht geladen werden.";
+
+"OCR_ERROR_DICTIONARY" = "Das Zeichenwörterbuch von PP-OCRv6 fehlt oder ist ungültig.";
+
+"OCR_ERROR_IMAGE" = "Das Bild konnte nicht für die Texterkennung vorbereitet werden.";
+
+"OCR_ERROR_OUTPUT" = "Das PP-OCRv6-Modell hat eine ungültige oder nicht unterstützte Ausgabe zurückgegeben.";
+
+"OCR_ERROR_PREDICTION" = "Die Texterkennung mit PP-OCRv6 ist fehlgeschlagen. Versuche es mit einem anderen Bild oder OCR-Modell erneut.";
+
+"TRANSLATION_ERROR_CACHE_SIZE" = "Die Größe des Übersetzungscaches liegt außerhalb des unterstützten Bereichs.";
+
+"TRANSLATION_ERROR_CACHE_STORAGE" = "Der Speicher für den Übersetzungscache ist ungültig oder nicht verfügbar.";
+
+"TRANSLATION_ERROR_CACHE_SAVE" = "Der Übersetzungscache konnte nicht gespeichert werden.";

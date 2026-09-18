@@ -404,7 +404,10 @@ final class BrowserPageImageOverlayRenderer {
             }
             let payload: [String: Any] = [
                 "id": String(segment.item.stableRegionID ?? UInt64(index)),
-                "sourceColorEligible": segment.content.hasTranslation && settings.mode == .translateOnly &&
+                "sourceTextOnly": !segment.content.hasTranslation,
+                "sourceColorEligible": settings.mode == .translateOnly &&
+                    settings.textPlacement == .replace,
+                "sourcePanelRestorationEligible": segment.content.hasTranslation && settings.mode == .translateOnly &&
                     settings.textPlacement == .replace,
                 "sourceCleanupLexical": BrowserSourceInkCleanup.hasColoredCleanupText(segment.item.sourceText),
                 "allowsAutomaticFontRecovery": settings.fontSizing == .autoFit &&
@@ -415,6 +418,10 @@ final class BrowserPageImageOverlayRenderer {
                     (settings.colorMode == .white || (settings.colorMode == .automatic && segment.sourceVertical)),
                 "sourceBounds": [segment.item.rect.minX / imageSize.width, segment.item.rect.minY / imageSize.height,
                                  segment.item.rect.width / imageSize.width, segment.item.rect.height / imageSize.height],
+                "auxiliaryInkRects": segment.item.auxiliaryInkRects.map {
+                    [$0.minX / imageSize.width, $0.minY / imageSize.height, $0.width / imageSize.width, $0.height / imageSize.height]
+                },
+                "sourceSingleColumn": segment.item.sourceSingleVerticalColumn == true,
                 "sourceFrame": [sourceRect.minX, sourceRect.minY, sourceRect.width, sourceRect.height],
                 "sourceVertical": segment.sourceVertical,
                 "x": layout.rect.minX,
@@ -627,7 +634,7 @@ final class BrowserPageImageOverlayRenderer {
     return { status: 'cleared', revision: String(revision), itemCount: 0 };
     """
 
-    static let renderScript = BrowserSourceInkCleanup.script + BrowserSourceTextColor.script + """
+    static let renderScript = BrowserSourceInkCleanup.script + BrowserSourceTextColor.script + BrowserSourcePanelRestoration.script + """
     const revisionNumber = Number(revision);
     if (!Number.isFinite(revisionNumber)) {
       throw new TypeError('invalid overlay revision');
@@ -705,7 +712,7 @@ final class BrowserPageImageOverlayRenderer {
     const sourceColorCache = new Map();
     const cachedSourceSample = item => {
       if (!sourceColorCache.has(item)) sourceColorCache.set(item,
-        item.sourceColorEligible ? sourceColors.sample(item.sourceBounds) : null);
+        item.sourceColorEligible ? (item.sourceTextOnly === false ? translatedSourceColors : sourceColors).sample(item.sourceBounds) : null);
       return sourceColorCache.get(item);
     };
     let cleanupBudget = 2000000;
@@ -713,8 +720,11 @@ final class BrowserPageImageOverlayRenderer {
         const cleanedDenseSourceItems = new Set();
     const cleanupStarted = performance.now();
     const sourceImage = document.getElementById('reader-source-image');
+    const sourceColorBudget = {pixels:393216, detailPixels:98304};
     const sourceColors = aidokuSourceColorSampler(sourceImage,
-      Boolean(appearance?.preserveSourceTextColor || appearance?.preserveSourceBackgroundColor));
+      Boolean(appearance?.preserveSourceTextColor || appearance?.preserveSourceBackgroundColor), 'ocr', sourceColorBudget);
+    const translatedSourceColors = aidokuSourceColorSampler(sourceImage,
+      Boolean(appearance?.preserveSourceTextColor || appearance?.preserveSourceBackgroundColor), 'translation', sourceColorBudget);
     function aidokuCleanupContentGeometry(rect,naturalWidth,naturalHeight,style) {
       if (!rect || ![rect.x,rect.y,rect.width,rect.height,naturalWidth,naturalHeight].every(Number.isFinite) ||
           rect.width<=0 || rect.height<=0 || naturalWidth<=0 || naturalHeight<=0 || style.transform!=='none') return null;
@@ -765,11 +775,78 @@ final class BrowserPageImageOverlayRenderer {
         }
         const cleanupCanvas = document.createElement('canvas');
     const cleanupContext = cleanupCanvas.getContext('2d', {willReadFrequently: true});
+    const restoredSourcePanels = new Set();
+    const restoredPanelGeometry = new Map();
+    let restoredPanelLookupBudget = 1048576;
+    let panelRestorationBudget = 393216;
+    let remainingPanelRestorations = items.filter(item => item.sourcePanelRestorationEligible && item.sourceColorEligible).length;
+    const panelRestorationAudit = [];
+    const appendRestoredSourcePanel = item => {
+      if (!appearance?.preserveSourceBackgroundColor || !item.sourcePanelRestorationEligible ||
+          !item.sourceColorEligible || opacity <= 0 || !sourceImage?.complete || !cleanupContext) return false;
+      // Reserve a fair share for later balloons; the last caption must not lose
+      // all restoration work simply because earlier regions consumed the page cap.
+      const allowance=Math.min(131072,Math.floor(panelRestorationBudget/Math.max(1,remainingPanelRestorations--)));
+      const b=item.sourceBounds,frame=cleanupImageGeometry?.frame || item.sourceFrame,palette=cachedSourceSample(item);
+      if(!Array.isArray(b)||!Array.isArray(frame)||b.length!==4||frame.length!==4||
+          ![...b,...frame].every(Number.isFinite)||b[2]<=0||b[3]<=0||frame[2]<=0||frame[3]<=0)return false;
+      const iw=sourceImage.naturalWidth,ih=sourceImage.naturalHeight,pad=24;
+      const auxiliary=(item.auxiliaryInkRects||[]).slice(0,32).filter(r=>Array.isArray(r)&&r.length===4&&r.every(Number.isFinite)&&r[2]>0&&r[3]>0);
+      const leadingRule=Boolean(item.sourceVertical&&item.sourceSingleColumn&&palette?.stroke);
+      const topPadding=leadingRule?pad+Math.min(120,b[2]*iw*3):pad;
+      const x=Math.max(0,Math.floor(Math.min(b[0],...auxiliary.map(r=>r[0]))*iw)-pad);
+      const y=Math.max(0,Math.floor(Math.min(b[1],...auxiliary.map(r=>r[1]))*ih)-topPadding);
+      const right=Math.min(iw,Math.ceil(Math.max(b[0]+b[2],...auxiliary.map(r=>r[0]+r[2]))*iw)+pad);
+      const bottom=Math.min(ih,Math.ceil(Math.max(b[1]+b[3],...auxiliary.map(r=>r[1]+r[3]))*ih)+pad);
+      const sourceWidth=right-x,sourceHeight=bottom-y;
+      // Fit slightly oversized merged columns into the existing pixel budget.
+      // Do not discard their spatial background merely because padding crosses the cap.
+      const scale=Math.min(1,Math.sqrt(allowance/(sourceWidth*sourceHeight)));
+      if(scale<0.75)return false;
+      const w=Math.floor(sourceWidth*scale),h=Math.floor(sourceHeight*scale),pixels=w*h;
+      const sx=w/sourceWidth,sy=h/sourceHeight;
+      if(w<8||h<8||pixels>panelRestorationBudget)return false;
+      panelRestorationBudget-=pixels;
+      try {
+        const key=JSON.stringify(['spatial-panel-v12',x,y,sourceWidth,sourceHeight,w,h,b,palette,auxiliary,leadingRule,Boolean(item.sourceVertical)]);
+        let prepared=cleanupCache?.entries.get(key);
+        if(!prepared){
+          cleanupCanvas.width=w;cleanupCanvas.height=h;
+          cleanupContext.drawImage(sourceImage,x,y,sourceWidth,sourceHeight,0,0,w,h);
+          const restored=aidokuRestoreSourcePanel(cleanupContext.getImageData(0,0,w,h).data,w,h,
+            [(b[0]*iw-x)*sx,(b[1]*ih-y)*sy,b[2]*iw*sx,b[3]*ih*sy],palette,
+            {auxiliary:auxiliary.map(r=>[(r[0]*iw-x)*sx,(r[1]*ih-y)*sy,r[2]*iw*sx,r[3]*ih*sy]),leadingRule,vertical:Boolean(item.sourceVertical)});
+          prepared={restored};
+          if(cleanupCache&&cleanupCache.entries.size<256&&cleanupCache.pixels+pixels<=2000000){
+            cleanupCache.entries.set(key,prepared);cleanupCache.pixels+=pixels;
+          }
+        }
+        const result=prepared.restored;
+        panelRestorationAudit.push({id:String(item.id),pixels,sourcePixels:sourceWidth*sourceHeight,scale,accepted:Boolean(result),erased:result?.erased||0,companions:result?.companions||0,preservedPixels:result?.preservedPixels||0,preservedCore:result?.preservedCore||0});
+        if(!result)return false;
+        const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+        const context=canvas.getContext('2d');if(!context)return false;
+        const output=context.createImageData(w,h);output.data.set(result.rgba);context.putImageData(output,0,0);
+        canvas.setAttribute('data-aidoku-image-ocr-overlay','source-panel-restoration');
+        Object.assign(canvas.style,{position:'absolute',zIndex:'1',pointerEvents:'none',
+          left:`${frame[0]+x/iw*frame[2]+scrollX}px`,top:`${frame[1]+y/ih*frame[3]+scrollY}px`,
+          width:`${sourceWidth/iw*frame[2]}px`,height:`${sourceHeight/ih*frame[3]}px`,
+          clipPath:aidokuCleanupClip(cleanupImageGeometry,frame[0]+x/iw*frame[2],frame[1]+y/ih*frame[3],sourceWidth/iw*frame[2],sourceHeight/ih*frame[3])});
+        root.appendChild(canvas);restoredSourcePanels.add(item);
+        restoredPanelGeometry.set(item,{safe:result.layoutSafe,w,h,x,y,frame,iw,ih,sx,sy});return true;
+      } catch (_) { return false; }
+    };
     const appendSourceCleanup = item => {
+      // Colored cleanup must obey the same translation boundary as white cleanup.
+      if (item.sourceTextOnly) return;
       const coloredGate = Boolean(item.sourceCleanupLexical && item.sourceColorEligible);
       const cleanupPalette = coloredGate && item.sourceColorEligible ? cachedSourceSample(item) : null;
       const cleanupBG = cleanupPalette?.background;
       const coloredEligible = Boolean(cleanupBG && (Math.max(...cleanupBG)-Math.min(...cleanupBG)>12 || Math.max(...cleanupBG)<220 || cleanupPalette?.stroke));
+      // Off-white/gray balloons can fail the white mask without reaching the
+      // colored gate. Retry only failed white masks under the same flatness and
+      // pixel budgets; a successful white cleanup does not spend this allowance.
+      const neutralFallbackEligible = Boolean(item.sourceCleanup && cleanupBG && Math.max(...cleanupBG) < 250);
       if ((!item.sourceCleanup && !coloredEligible) || opacity <= 0 || !sourceImage?.complete ||
           !sourceImage.naturalWidth || !cleanupContext) return;
       const b = item.sourceBounds, frame = cleanupImageGeometry?.frame || item.sourceFrame;
@@ -785,7 +862,7 @@ final class BrowserPageImageOverlayRenderer {
           w < 14 || h < 14 || pixels > 262144 || pixels > cleanupBudget) return;
       cleanupBudget -= pixels;
       try {
-        const coloredAllowed = Boolean(coloredEligible && pixels <= 131072 && pixels <= coloredCleanupBudget);
+        const coloredAllowed = Boolean((coloredEligible || neutralFallbackEligible) && pixels <= 131072 && pixels <= coloredCleanupBudget);
             const cacheKey = JSON.stringify([x,y,w,h,Boolean(item.sourceCleanup),Boolean(item.sourceVertical),coloredAllowed,cleanupPalette]);
             let prepared = cleanupCache?.entries.get(cacheKey);
             if (!prepared) {
@@ -794,9 +871,9 @@ final class BrowserPageImageOverlayRenderer {
               const rgba = cleanupContext.getImageData(0, 0, w, h).data;
               let mask = item.sourceCleanup ? aidokuSourceInkMask(rgba,w,h,Boolean(item.sourceVertical)) : null;
               let restorationRGB=[255,255,255], audit=null;
-              if (coloredAllowed) {
+              if (coloredAllowed && (coloredEligible || !mask)) {
                 const colored=aidokuColoredSourceInkMask({width:w,height:h,rgba,palette:cleanupPalette});
-                audit={reason:colored.reason,erased:colored.erased||0};
+                audit={reason:colored.reason,erased:colored.erased||0,haloAdded:colored.haloAdded||0};
                 if (colored.mask) { mask=Uint8Array.from(colored.mask,value=>value?255:0);restorationRGB=colored.fill; }
               }
               let output=null,count=0;
@@ -813,7 +890,7 @@ final class BrowserPageImageOverlayRenderer {
                 cleanupCache.entries.set(cacheKey,prepared);cleanupCache.pixels+=pixels;
               }
             }
-            if(coloredAllowed) {
+            if(coloredAllowed && prepared.audit) {
               coloredCleanupBudget-=pixels;
               if(prepared.audit)coloredCleanupAudit.push({id:String(item.id),pixels,...prepared.audit});
             }
@@ -838,9 +915,58 @@ final class BrowserPageImageOverlayRenderer {
         // Missing/tainted pixels are not evidence; rendering still succeeds.
       }
     };
+    const blurredSourcePanels = new Set();
+    let sourceBlurPixelBudget = 65536;
+    const appendSourceBlur = item => {
+      if (!item.sourcePanelRestorationEligible || !item.sourceColorEligible ||
+          item.sourceTextOnly || opacity <= 0) return;
+      const frame=cleanupImageGeometry?.frame || item.sourceFrame;
+      if(!Array.isArray(frame)||frame.length!==4||!frame.every(Number.isFinite)||frame[2]<=0||frame[3]<=0)return;
+      const regions=[item.sourceBounds,...(item.auxiliaryInkRects||[]).slice(0,32)];
+      for(const b of regions){
+        if(!Array.isArray(b)||b.length!==4||!b.every(Number.isFinite)||b[2]<=0||b[3]<=0)continue;
+        const left=Math.max(0,b[0]),top=Math.max(0,b[1]),right=Math.min(1,b[0]+b[2]),bottom=Math.min(1,b[1]+b[3]);
+        if(right<=left||bottom<=top)continue;
+        const x=frame[0]+left*frame[2],y=frame[1]+top*frame[3],w=(right-left)*frame[2],h=(bottom-top)*frame[3];
+        const blur=document.createElement('div'),radius=Math.min(24,Math.max(8,Math.min(w,h)*.18));
+        blur.setAttribute('data-aidoku-image-ocr-overlay','source-blur');
+        blur.dataset.aidokuRegion=String(item.id);
+        // Blur only the source lettering beneath the replacement. This does not
+        // need readable canvas pixels, a reliable palette, or restoration budget.
+        Object.assign(blur.style,{position:'absolute',zIndex:'1',pointerEvents:'none',
+          left:`${x+scrollX}px`,top:`${y+scrollY}px`,width:`${w}px`,height:`${h}px`,
+          backgroundColor:'transparent',backdropFilter:`blur(${radius}px)`,webkitBackdropFilter:`blur(${radius}px)`,
+          clipPath:aidokuCleanupClip(cleanupImageGeometry,x,y,w,h)});
+        // A tiny raster low-pass survives WKWebView snapshots, where a CSS
+        // backdrop filter alone may disappear. It never reads canvas pixels.
+        if(sourceImage?.complete&&sourceImage.naturalWidth>0&&sourceImage.naturalHeight>0){
+          const cw=Math.max(1,Math.min(32,Math.ceil(w/(radius*2)))),ch=Math.max(1,Math.min(32,Math.ceil(h/(radius*2))));
+          if(cw*ch<=sourceBlurPixelBudget){
+            const softened=document.createElement('canvas');softened.width=cw;softened.height=ch;
+            const ctx=softened.getContext('2d');
+            if(ctx){
+              try {
+                ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+                ctx.drawImage(sourceImage,left*sourceImage.naturalWidth,top*sourceImage.naturalHeight,
+                  (right-left)*sourceImage.naturalWidth,(bottom-top)*sourceImage.naturalHeight,0,0,cw,ch);
+                Object.assign(softened.style,{display:'block',width:'100%',height:'100%',imageRendering:'auto'});
+                blur.appendChild(softened);sourceBlurPixelBudget-=cw*ch;
+              }catch(_){ /* Retain the live backdrop fallback when the image is unavailable. */ }
+            }
+          }
+        }
+        root.appendChild(blur);blurredSourcePanels.add(item);
+      }
+    };
     for (const item of items) {
-      if (item && typeof item === 'object') appendSourceCleanup(item);
+      if (item && typeof item === 'object' && !appendRestoredSourcePanel(item)) {
+        appendSourceCleanup(item);
+        appendSourceBlur(item);
+      }
     }
+    root.dataset.sourceBlurPixels = String(65536-sourceBlurPixelBudget);
+    root.dataset.panelRestorationAudit = JSON.stringify(panelRestorationAudit);
+    root.dataset.panelRestorationPixels = String(393216-panelRestorationBudget);
     root.dataset.cleanupCount = String(cleanupCount);
     root.dataset.cleanupPixels = String(cleanupPixels);
     root.dataset.cleanupMilliseconds = String(performance.now() - cleanupStarted);
@@ -937,11 +1063,20 @@ final class BrowserPageImageOverlayRenderer {
         const paddingLeft = finiteNumber(item.paddingLeft, 'padding left');
         if (fontSize < minimumFontSize) continue;
         const sampled = cachedSourceSample(item);
-        const panelCandidate = appearance?.preserveSourceBackgroundColor ? sampled?.background : null;
+        const sampledSurface = appearance?.preserveSourceBackgroundColor ? sampled?.surface : null;
+        const panelCandidate = appearance?.preserveSourceBackgroundColor
+          ? (sampledSurface?.color || (sampled?.confidence?.background >= 0.5 ? sampled.background : null)) : null;
         const panelForeground = aidokuPanelForeground(panelCandidate, opacity);
         const sampledBackground = panelForeground ? panelCandidate : null;
+        // An unavailable source sample is not evidence for a white panel.
+        // Keep the original pixels visible when preservation cannot resolve a surface.
+        const preserveOriginalBackground = Boolean(appearance?.preserveSourceBackgroundColor && item.sourceColorEligible);
+        const unresolvedSourceBackground = preserveOriginalBackground && !sampledBackground;
         const lightSurface = panelForeground ? panelForeground[0] !== 255 : Boolean(item.lightSurface);
         const surface = sampledBackground ? sampledBackground.join(',') : (lightSurface ? '255,254,249' : '7,9,13');
+        const surfaceGradient = sampledSurface && sampledBackground
+          ? `linear-gradient(to ${sampledSurface.vertical ? 'bottom' : 'right'},${sampledSurface.stops.map((rgb,i)=>
+              `rgba(${rgb.join(',')},${opacity}) ${i*100/(sampledSurface.stops.length-1)}%`).join(',')})` : null;
         const veil = lightSurface ? '255,255,255' : '7,9,13';
         const veilAlpha = lightSurface ? 0.42 : 0.64;
         const readableColor = appearance?.preserveSourceTextColor
@@ -954,12 +1089,12 @@ final class BrowserPageImageOverlayRenderer {
         const sourceStroke = appearance?.preserveSourceTextColor && Array.isArray(sampledStroke) &&
           sampledStroke.length === 3 && sampledStroke.every(v => Number.isFinite(v) && v >= 0 && v <= 255)
           ? sampledStroke : null;
-        const sourceTextOutline = Boolean(sourceStroke || (readableColor &&
+        const sourceTextOutline = Boolean(unresolvedSourceBackground || sourceStroke || (readableColor &&
           aidokuSourceColorContrast(readableColor, lightSurface, opacity, sampledBackground) < 3));
         // At low opacity the panel polarity may disagree with the source ink.
         // Contrast the edge against the preserved fill, not against the panel.
         const outlineColor = sourceStroke ? sourceStroke.join(',') : (sourceTextOutline
-          ? aidokuPanelForeground(readableColor, 1).join(',') : '');
+          ? aidokuPanelForeground(readableColor || foreground.split(',').map(Number), 1).join(',') : '');
         // Strengthen low-contrast neutral lettering without crowding tiny glyphs.
         const readabilityWidthAssist = Boolean(appearance?.preserveSourceTextColor &&
           !appearance?.preserveSourceBackgroundColor && !sourceStroke && readableColor && opacity > 0 &&
@@ -968,7 +1103,7 @@ final class BrowserPageImageOverlayRenderer {
         const preservedTextShadow = 'none';
         // Fade the continuous edge as the source fill approaches sufficient
         // contrast. Paint the unchanged fill last so the edge cannot eat its ink.
-        const sourceInkEdgeStrength = sourceTextOutline
+        const sourceInkEdgeStrength = unresolvedSourceBackground ? 1 : sourceTextOutline
           ? Math.min(1, Math.max(0, (3 - aidokuSourceColorContrast(
               readableColor, lightSurface, opacity, sampledBackground)) / 2)) : 0;
         // A measured source band is the outer half of the CSS stroke after fill is painted.
@@ -987,12 +1122,13 @@ final class BrowserPageImageOverlayRenderer {
         node.dataset.sourceSampledTextRGB = sampled?.foreground?.join(',') || '';
         node.dataset.sourceAppliedTextRGB = foreground;
         node.dataset.sourceSampledBackgroundRGB = sampled?.background?.join(',') || '';
-        node.dataset.sourceAppliedBackgroundRGB = surface;
+        node.dataset.sourceAppliedBackgroundRGB = preserveOriginalBackground ? '' : surface;
         node.dataset.sourceTextOutline = String(sourceTextOutline);
         node.dataset.sourceTextColor = readableColor ? 'preserved' : 'fallback';
         node.dataset.sourceTextColorAdjusted = String(Boolean(readableColor && sampled?.foreground &&
           readableColor.some((value, channel) => value !== sampled.foreground[channel])));
-        node.dataset.sourceBackgroundColor = sampledBackground ? 'preserved' : 'fallback';
+        node.dataset.sourceBackgroundColor = unresolvedSourceBackground ? 'unresolved-transparent' : preserveOriginalBackground ? 'original' : surfaceGradient ? 'observed-surface' : sampledBackground ? 'preserved' : 'fallback';
+        node.dataset.sourceBackgroundStops = sampledSurface ? JSON.stringify(sampledSurface.stops) : '';
         Object.assign(node.style, {
           position: 'absolute',
           zIndex: '2',
@@ -1006,10 +1142,10 @@ final class BrowserPageImageOverlayRenderer {
             `${paddingBottom}px ${paddingLeft}px`,
           margin: '0', borderRadius: '6px',
           border: '0',
-          backgroundColor: `rgba(${surface},${opacity})`,
-          backgroundImage: sampledBackground ? 'none' :
+          backgroundColor: surfaceGradient ? 'transparent' : `rgba(${surface},${opacity})`,
+          backgroundImage: surfaceGradient || (sampledBackground ? 'none' :
             `linear-gradient(rgba(${veil},${veilAlpha}),` +
-            `rgba(${veil},${veilAlpha}))`,
+            `rgba(${veil},${veilAlpha}))`),
           color: `rgb(${foreground})`,
           fontFamily,
           fontWeight: vertical ? '800' : '700',
@@ -1045,6 +1181,16 @@ final class BrowserPageImageOverlayRenderer {
           writingMode: vertical ? 'vertical-rl' : 'horizontal-tb',
           textOrientation: 'mixed'
         });
+        // A successful RGB estimate does not describe the picture showing through
+        // a translucent balloon. Keep spatial pixels, even when restoration fails.
+        if (restoredSourcePanels.has(item) || preserveOriginalBackground) {
+          node.style.backgroundColor = 'transparent';
+          node.style.backgroundImage = 'none';
+          node.style.backdropFilter = 'none';
+          node.style.webkitBackdropFilter = 'none';
+          if (restoredSourcePanels.has(item)) node.dataset.sourceBackgroundColor = 'restored';
+          else if (blurredSourcePanels.has(item)) node.dataset.sourceBackgroundColor = 'blurred';
+        }
         root.appendChild(node);
         const measurementNode = node.cloneNode(true);
         measurementNode.removeAttribute('id');
@@ -1432,6 +1578,63 @@ final class BrowserPageImageOverlayRenderer {
         root.dataset.readableParagraphMilliseconds = String(
           Number(root.dataset.readableParagraphMilliseconds || 0) + performance.now() - paragraphStart);
 
+        // Transparent restored panels must fit the actual balloon surface,
+        // not just the former rectangular card. Shrink only when measured
+        // glyph boxes cross surviving ink or leave the reconstructed crop.
+        const panelGeometry=restoredPanelGeometry.get(item);
+        if(panelGeometry?.safe&&!vertical&&displayedText.length<=180){
+          const c=panelGeometry,initial=parseFloat(node.style.fontSize);
+          const onSurface=profile=>{
+            if(!profile||!contentFits())return false;
+            for(const a of profile.ink){
+              const l=Math.floor(((a[0]-c.frame[0])*c.iw/c.frame[2]-c.x)*c.sx);
+              const t=Math.floor(((a[1]-c.frame[1])*c.ih/c.frame[3]-c.y)*c.sy);
+              const r=Math.ceil(((a[0]+a[2]-c.frame[0])*c.iw/c.frame[2]-c.x)*c.sx);
+              const b=Math.ceil(((a[1]+a[3]-c.frame[1])*c.ih/c.frame[3]-c.y)*c.sy);
+              const count=(r-l)*(b-t);
+              if(l<0||t<0||r>c.w||b>c.h||count<0||count>restoredPanelLookupBudget)return false;
+              restoredPanelLookupBudget-=count;
+              for(let yy=t;yy<b;yy++)for(let xx=l;xx<r;xx++)if(!c.safe[yy*c.w+xx])return false;
+            }
+            return true;
+          };
+          let fits=onSurface(lineProfile());
+          node.dataset.sourcePanelInitialFont=String(initial);
+          if(!fits){
+            // Concave balloons can have ample room on one side at the same
+            // readable size. Reflow away from the surviving edge before shrinking.
+            const savedPadding=node.style.padding;
+            const style=getComputedStyle(measurementNode);
+            const pads=[style.paddingTop,style.paddingRight,style.paddingBottom,style.paddingLeft].map(parseFloat);
+            outer:for(let step=1;step<=3&&restoredPanelLookupBudget>0;step++){
+              for(const side of [1,3,2,0]){
+                const candidate=pads.slice();candidate[side]+=step*.12*(side%2?width:height);
+                setPadding(candidate);
+                if(onSurface(lineProfile())){fits=true;node.dataset.sourcePanelReflow='inside';break outer;}
+              }
+            }
+            if(!fits){node.style.padding=savedPadding;measurementNode.style.padding=savedPadding;}
+          }
+          if(!fits){
+            const floor=Math.max(minimumFontSize,initial*.6);
+            for(let step=1;step<=12&&restoredPanelLookupBudget>0;step++){
+              const candidate=initial-step*.5;if(candidate<floor)break;
+              applyMeasuredFontSize(candidate);
+              const savedPadding=node.style.padding,style=getComputedStyle(measurementNode);
+              const pads=[style.paddingTop,style.paddingRight,style.paddingBottom,style.paddingLeft].map(parseFloat);
+              for(const side of [1,3]){
+                const adjusted=pads.slice();adjusted[side]+=width*.24;setPadding(adjusted);
+                if(onSurface(lineProfile())){fits=true;node.dataset.sourcePanelReflow='inside';break;}
+              }
+              if(fits)break;
+              node.style.padding=savedPadding;measurementNode.style.padding=savedPadding;
+              if(onSurface(lineProfile())){fits=true;break;}
+            }
+            if(!fits)applyMeasuredFontSize(initial);
+          }
+          node.dataset.sourcePanelTextFit=fits?'inside':'unresolved';
+          node.dataset.sourcePanelFinalFont=String(parseFloat(node.style.fontSize));
+        }
         measurementNode.remove();
         renderedItemCount += 1;
       }
@@ -1463,10 +1666,10 @@ final class BrowserPageImageOverlayRenderer {
     }
     globalThis[watermarkKey] = revisionNumber;
     globalThis[sessionKey] = sessionValue;
-    root.dataset.sourceColorPixels = String(sourceColors.stats.pixels);
-    root.dataset.sourceColorCacheHits = String(sourceColors.stats.hits);
-    root.dataset.sourceColorSamples = String(sourceColors.stats.samples);
-    root.dataset.sourceColorMilliseconds = String(sourceColors.stats.milliseconds);
+    root.dataset.sourceColorPixels = String(sourceColors.stats.pixels + translatedSourceColors.stats.pixels);
+    root.dataset.sourceColorCacheHits = String(sourceColors.stats.hits + translatedSourceColors.stats.hits);
+    root.dataset.sourceColorSamples = String(sourceColors.stats.samples + translatedSourceColors.stats.samples);
+    root.dataset.sourceColorMilliseconds = String(sourceColors.stats.milliseconds + translatedSourceColors.stats.milliseconds);
     if (rootAtCommit) rootAtCommit.replaceWith(root);
     else mount.appendChild(root);
     return {
@@ -1483,6 +1686,7 @@ struct BrowserOverlayItem: Equatable, Sendable {
     let stableRegionID: UInt64?
     let rect: CGRect
     let sourcePolygon: [CGPoint]
+    let auxiliaryInkRects: [CGRect]
     let sourceText: String
     let translatedText: String?
     let confidence: Double
@@ -1499,11 +1703,13 @@ struct BrowserOverlayItem: Equatable, Sendable {
         sourceOrientation: BrowserOCRSourceOrientation = .unknown,
         sourceSingleVerticalColumn: Bool? = nil,
         translationReuseIdentity: NativeTranslationReuseIdentity? = nil,
-        sourcePolygon: [CGPoint] = []
+        sourcePolygon: [CGPoint] = [],
+        auxiliaryInkRects: [CGRect] = []
     ) {
         self.stableRegionID = stableRegionID
         self.rect = rect
         self.sourcePolygon = sourcePolygon
+        self.auxiliaryInkRects = auxiliaryInkRects
         self.sourceText = sourceText
         self.translatedText = translatedText
         self.confidence = confidence
@@ -1594,7 +1800,8 @@ struct BrowserOverlayVisibility {
                     sourceOrientation: item.sourceOrientation,
                     sourceSingleVerticalColumn:
                         item.sourceSingleVerticalColumn,
-                    translationReuseIdentity: item.translationReuseIdentity
+                    translationReuseIdentity: item.translationReuseIdentity,
+                    sourcePolygon: item.sourcePolygon, auxiliaryInkRects: item.auxiliaryInkRects
                 )
             } else {
                 visibleItem = item
@@ -4823,6 +5030,22 @@ struct BrowserOverlayLayoutPlanner {
                 placementBounds: placementBounds,
                 external: external
             ) else { continue }
+            // A caption stack can share a cluster with nearby credit columns.
+            // The row-order fallback must not replace a collision-free, small
+            // vertical nudge with a much longer sideways move. Keep its legacy
+            // reading-order repair for vertical manga columns.
+            if let sourceVerticals, sourceVerticals.count == sources.count,
+               cluster.allSatisfy({ !sourceVerticals[$0] }),
+               !BrowserOverlayCollisionGeometry.hasOverlap(in: cluster.map { result[$0].rect }, external: external) {
+                func movement(_ rect: CGRect, at index: Int) -> CGFloat {
+                    let dx = rect.midX - preferredRects[index].midX
+                    let dy = rect.midY - preferredRects[index].midY
+                    return dx * dx + dy * dy
+                }
+                let currentMovement = cluster.reduce(CGFloat.zero) { $0 + movement(result[$1].rect, at: $1) }
+                let rowMovement = sourceBand.reduce(CGFloat.zero) { $0 + movement($1.value, at: $1.key) }
+                if rowMovement > currentMovement + 0.25 { continue }
+            }
             for (index, rect) in sourceBand {
                 result[index] = BrowserOverlayCardLayout(
                     rect: rect,

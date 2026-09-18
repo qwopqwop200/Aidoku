@@ -75,7 +75,10 @@ struct ReaderLLMSFXTests {
         #expect(!ReaderTranslationRegion.overlayItems(output, imageSize: CGSize(width: 100, height: 100)).contains { $0.sourceText == "南館2F" })
         let captured = await transport.captured
         #expect(captured.count == (try ReaderTranslationService.requests(regions: input, settings: settings)).count)
-        #expect(captured.allSatisfy { $0.hasBounds && $0.image == withImage && $0.instructions.contains(withImage ? "Match normalized bbox" : "Coordinates alone cannot establish") })
+        let coordinateInstruction = withImage
+            ? (sfx ? "normalized from the top left" : "using its normalized bbox")
+            : (sfx ? "Do not infer" : "a guessed scene cannot establish a physical sign")
+        #expect(captured.allSatisfy { $0.hasBounds && $0.image == withImage && $0.instructions.contains(coordinateInstruction) })
         let off = ReaderTranslationSettings(defaults: defaults)
         #expect(!off.filterBackgroundWithLLM)
         try settings.autosave(defaults: defaults)
@@ -201,7 +204,7 @@ struct ReaderLLMSFXTests {
                 #expect(result.first?.text == (role == "background" ? "看板" : "번역"))
             }
         }
-        #expect(TranslationHTTPCodec.backgroundInstructions(hasImage: true).contains("Being readable or scene-relevant is NOT an exception"))
+        #expect(TranslationHTTPCodec.backgroundInstructions(hasImage: true).contains("Relevance alone is not a plot clue."))
     }
 
     @Test func persistenceCacheIdentityAndCanonicalGeometry() throws {
@@ -317,7 +320,8 @@ private actor SFXTransport: TranslationHTTPTransport {
         let instructions = try #require(isResponses ? root["instructions"] as? String : messages.first?["content"] as? String)
         let content = try #require(messages.last?["content"])
         let parts = content as? [[String: Any]]
-        let text = try #require(content as? String ?? parts?.first?["text"] as? String)
+        let textPart = parts?.first { ["text", "input_text"].contains($0["type"] as? String ?? "") }
+        let text = try #require(content as? String ?? textPart?["text"] as? String)
         let source = try #require(JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
         let segments = try #require(source["segments"] as? [[String: Any]])
         let values = try segments.map { item -> [String: Any] in

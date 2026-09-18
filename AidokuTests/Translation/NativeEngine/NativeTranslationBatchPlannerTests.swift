@@ -74,10 +74,10 @@ final class NativeTranslationBatchPlannerTests: XCTestCase {
         XCTAssertTrue(explicit.allSatisfy { $0.request.context == ["explicit context"] })
     }
 
-    func testStableFrameLeadingBatchAndTailPreserveReadingOrderAndCaps()
+    func testPagesStayInOneRequestUntilHardLimitsPreservingReadingOrder()
         throws
     {
-        let cases = [1, 4, 5, 16, 64, 65, 100, 129]
+        let cases = [0, 1, 3, 4, 5, 16, 64, 65, 100, 129]
 
         for count in cases {
             let plans = makePlans(count: count)
@@ -85,30 +85,9 @@ final class NativeTranslationBatchPlannerTests: XCTestCase {
                 plans.flatMap { $0.request.segments.map(\.id) },
                 (0..<count).map { "segment-\($0)" }
             )
-            if let leading = plans.first {
-                XCTAssertLessThanOrEqual(
-                    leading.request.segments.count,
-                    NativeTranslationBatchPlanner.leadingMaximumSegments
-                )
-                if count >= NativeTranslationBatchPlanner.leadingMinimumSegments {
-                    XCTAssertGreaterThanOrEqual(
-                        leading.request.segments.count,
-                        NativeTranslationBatchPlanner.leadingMinimumSegments
-                    )
-                }
-            }
-            for (index, plan) in plans.dropFirst().enumerated() {
-                XCTAssertLessThanOrEqual(
-                    plan.request.segments.count,
-                    NativeTranslationBatchPlanner.tailMaximumSegments
-                )
-                if index < plans.dropFirst().count - 1 {
-                    XCTAssertGreaterThanOrEqual(
-                        plan.request.segments.count,
-                        NativeTranslationBatchPlanner.tailMinimumStableSegments
-                    )
-                }
-            }
+            let limit = RemoteTranslationRequest.maximumSegments
+            XCTAssertEqual(plans.count, (count + limit - 1) / limit)
+            XCTAssertTrue(plans.dropLast().allSatisfy { $0.request.segments.count == limit })
             for plan in plans {
                 try plan.request.validate()
             }
@@ -122,6 +101,7 @@ final class NativeTranslationBatchPlannerTests: XCTestCase {
         )
         let plans = makePlans(count: 9, text: maximumSegment)
 
+        XCTAssertEqual(plans.map { $0.request.segments.count }, [8, 1])
         XCTAssertEqual(plans.flatMap { $0.request.segments }.count, 9)
         for plan in plans {
             XCTAssertLessThanOrEqual(
@@ -191,7 +171,7 @@ final class NativeTranslationBatchPlannerTests: XCTestCase {
         let configuration = RemoteTranslationConfiguration.openAI(
             model: "gpt-5-mini"
         )
-        let original = makePlans(count: 16)
+        let original = makePlans(count: 70)
 
         let first = try await coordinator.translateLatestBatches(
             original.map(\.request),
@@ -214,11 +194,11 @@ final class NativeTranslationBatchPlannerTests: XCTestCase {
             "identical frame hit the network"
         )
 
-        var changedCandidates = makeCandidates(count: 16)
-        changedCandidates[13] = NativeTranslationBatchCandidate(
-            inputIndex: 13,
+        var changedCandidates = makeCandidates(count: 70)
+        changedCandidates[67] = NativeTranslationBatchCandidate(
+            inputIndex: 67,
             segment: RemoteTranslationSegment(
-                id: "segment-13",
+                id: "segment-67",
                 text: "changed-tail"
             )
         )
@@ -294,7 +274,7 @@ final class NativeTranslationBatchPlannerTests: XCTestCase {
         )
     }
 
-    func testTrackerIDResetDoesNotChangeHybridBatchBoundaries() throws {
+    func testTrackerIDResetDoesNotChangeBatchBoundaries() throws {
         let original = makePlans(count: 129)
         let renumbered = makePlans(candidates: (0..<129).map { index in
             NativeTranslationBatchCandidate(

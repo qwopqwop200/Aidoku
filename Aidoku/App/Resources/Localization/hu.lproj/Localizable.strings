@@ -344,7 +344,7 @@
 
 "TRANSLATION_HELP" = "A fordítás ikonja be- vagy kikapcsolja a fordítást. Először a látható oldalak készülnek elő, majd a közeliek. Az előkészítés követi az olvasási pozíciót. A mentett OCR-eredmények, fordítások és szövegelrendezések az olvasó újbóli megnyitása vagy az alkalmazás újraindítása után is felhasználhatók. Az ideiglenesen megnyitott megosztott képek nem mentik ezt a gyorsítótárat. Az olvasó elhagyása megszakítja a befejezetlen feldolgozást.";
 
-"TRANSLATION_PRIVACY" = "Az OCR az eszközön fut. A fordítás elküldi a felismert szöveget és az utasításait a kiválasztott szolgáltatónak. Ha az Oldalkép belefoglalása a fordításba beállítás aktív, az eredeti oldalkép is feltöltésre kerül. Az API-költségek a szolgáltatótól függenek. A kulcsok a Kulcskarikában maradnak. Az OCR-eredmények, a fordítások és a szövegelrendezés az alkalmazás védett, biztonsági mentésekből kizárt tárhelyén kerülnek mentésre.";
+"TRANSLATION_PRIVACY" = "Az OCR az eszközön fut. A fordítás elküldi a felismert szöveget és az utasításait a kiválasztott szolgáltatónak. Ha az Oldalkép belefoglalása a fordításba beállítás aktív, az oldal feldolgozott képe is feltöltésre kerülhet. Ha a képbemenet nem támogatott, a fordítás csak szöveggel folytatódik. Az API-költségek a szolgáltatótól függenek. A kulcsok a Kulcskarikában maradnak. Az OCR-eredmények, a fordítások és a szövegelrendezés az alkalmazás védett, biztonsági mentésekből kizárt tárhelyén kerülnek mentésre.";
 
 "TRANSLATION_KEY_REPLACE" = "Mentett API-kulcs cseréje (opcionális)";
 
@@ -390,7 +390,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "A szövegfelismeréshez használt kép maximális szélessége";
 
-"TRANSLATION_CONFIDENCE" = "Minimális OCR-megbízhatóság";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "OCR-szövegészlelés pixelküszöbe";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "OCR-szövegterületek észlelésének minimális megbízhatósága";
+"TRANSLATION_CONFIDENCE" = "OCR-szövegfelismerés minimális megbízhatósága";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "A pixelküszöb kiválasztja a szöveg képpontjait. Az észlelés megbízhatósága a szövegterületeket szűri. A felismerés megbízhatósága az egyes területekről kiolvasott szöveget szűri. Alacsonyabb értékek több bizonytalan eredményt engednek át.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "OCR-észlelés minimális mérete";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "A lehetséges szövegterületek rövidebb oldalának minimális hossza, az észlelési térkép képpontjaiban. Alapérték: 3 px. Az alacsonyabb értékek kisebb szöveget, de több képzajt is észlelhetnek.";
 
 "TRANSLATION_SURFACE" = "Háttérszín";
 
@@ -474,7 +479,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Nem sikerült csatlakozni HTTPS bypass-on keresztül.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "A fordítás nem sikerült. OCR szöveg megjelenítése. Kérjük, ellenőrizze a kapcsolatot.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "A fordítás nem sikerült. Az OCR-rel felismert szöveg látható. Ellenőrizze a beállításokat és a kapcsolatot.";
 
 "TRANSLATION_MANGA_TITLES" = "Manga címek fordítása";
 
@@ -506,7 +511,8 @@
 
 "TRANSLATION_INCLUDE_IMAGE" = "Oldalkép belefoglalása a fordításba";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Küldje el az eredeti oldalt OCR-szöveggel a jelenet és a kifejezés kontextusához. A képre vonatkozó utasítások automatikusan hozzá vannak csatolva. Olyan modellt igényel, amely támogatja a képeket, és növelheti az adathasználatot és az API-költségeket.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Az oldal képét az OCR-szöveggel együtt küldi el a jelenet kontextusához. Ha a képbemenet nem támogatott, a fordítás automatikusan csak szöveggel folytatódik. A képek csatolása növelheti az adatforgalmat és az API-költséget.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "A képbemenet nem támogatott. A fordítás képek nélkül folytatódik.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Az eredeti szöveg színének megőrzése";
 
@@ -514,7 +520,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM SFX szűrés (minden nyelven)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Osztályozza a hanghatásokat a fordítási kérelemben. Kombinálható a japán lokális szűrővel: bármelyik szűrő hangeffektus-döntése az eredetit változatlanul hagyja. Kompatibilis az oldalkép elküldésével.";
+"TRANSLATION_LLM_SFX_HELP" = "Ugyanabban a fordítási kérésben osztályozza a hangeffektusokat, és változatlanul hagyja őket. Oldalkép esetén a mesterséges intelligencia a nem egyértelmű OCR-töredékeket is kihagyja, kivéve, ha a kép alapján értelmes szövegről van szó. A párbeszéd, az elbeszélés, a címek és az alkotói adatok továbbra is fordításra kerülnek. Kombinálható a japán helyi szűrővel: a bármelyik szűrő által megjelölt szöveg változatlan marad. Oldalkép nélkül a besorolás kevésbé megbízható.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Képbevitel nélkül a korlátozott vizuális és elrendezési környezet csökkentheti az SFX osztályozási pontosságot.";
 
@@ -761,7 +767,7 @@
 "UPSCALE_IMAGES" = "Képek felskálázása";
 "UPSCALING_MODELS" = "Felskálázási modellek";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Maximális képmagasság";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "A maximális képmagasságnál nagyobb képek nem lesznek felskálázva.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Azok a képek nem lesznek felskálázva, amelyek magassága eléri vagy meghaladja a megadott maximumot.";
 "ENABLED_MODEL" = "Engedélyezett modell";
 "AVAILABLE_MODELS" = "Elérhető modellek";
 "NO_AVAILABLE_MODELS" = "Nincsenek elérhető modellek";
@@ -1079,7 +1085,7 @@
 "SAVE_SHARED_IMAGES" = "Tartsa a megosztott képeket a helyi fájlokban";
 "SAVE_SHARED_IMAGES_HELP" = "Kikapcsolt állapotban a megosztott képek ideiglenesen megnyílnak, bezáráskor pedig törlődnek. Az olvasási előzmények és az OCR/fordítási gyorsítótárak nem kerülnek mentésre.";
 
-"TRANSLATION_LARGE_FILTER_OPTIONS" = "Nagy szűrőlisták fordítása (100-nél több lehetőség)";
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "Nagy szűrőlisták fordítása (100-nál több lehetőség)";
 
 "SETTING_INVALID_STEPPER_RANGE" = "Érvénytelen numerikus beállítási tartomány.";
 
@@ -1091,7 +1097,71 @@
 "DOWNLOAD_TRANSLATED" = "Letöltés fordítással";
 
 "TRANSLATION_LLM_BACKGROUND" = "Háttérfeliratok kihagyása (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "A fordító mesterséges intelligencia változatlanul hagyja a háttérben megjelenő mellékes táblákat, plakátokat és feliratokat. A párbeszédet, az elbeszélést és a bizonytalanul besorolt szöveget lefordítja. Nem küld további kérést, de a feldolgozás hosszabb ideig tarthat. Oldalkép nélkül a besorolás kevésbé megbízható.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "A fordító mesterséges intelligencia változatlanul hagyja a jelenetben látható szokásos táblákat, plakátokat és a tárgyakon lévő feliratokat, akkor is, ha kapcsolódnak a jelenethez vagy megemlítik őket a párbeszédben. Lefordítja a párbeszédet, az elbeszélést, a címeket, az alkotói adatokat, a cselekmény szempontjából kulcsfontosságú írott szövegeket és a bizonytalan szerepű szövegeket. Nem küld további kérést, de a feldolgozás hosszabb ideig tarthat. Oldalkép nélkül a besorolás kevésbé megbízható.";
 
 "TRANSLATION_STATE_ON" = "Bekapcsolva";
 "TRANSLATION_STATE_OFF" = "Kikapcsolva";
+
+"UPSCALE_MODEL_SWINUNET_INFO" = "Illusztrációkhoz; megőrzi az eredeti vonalvezetést. FP32.";
+
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Színes illusztrációkhoz és borítókhoz; kis erőforrásigényű modell a részletek javításához.";
+
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Általános képekhez és vegyes grafikákhoz; erősebb élesítés.";
+
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Animéhez, mangához és színes oldalakhoz.";
+
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Csak fekete-fehér mangához, körülbelül 1200 képpont magas eredeti oldalakra hangolva. A színes oldalak változatlanok maradnak.";
+
+"TRANSLATION_ERROR_CONFIGURATION" = "Érvénytelen fordítási beállítások. Ellenőrizze a szerver URL-címét, a modellt és a többi beállítást.";
+
+"TRANSLATION_ERROR_REQUEST" = "A szöveg, a kép vagy a nyelvi beállítások nem voltak használhatók a fordításhoz.";
+
+"TRANSLATION_ERROR_RESPONSE" = "A fordítószerver érvénytelen választ adott. Próbálja újra, vagy ellenőrizze a modell beállításait.";
+
+"TRANSLATION_ERROR_KEY_REQUIRED" = "A fordításhoz API-kulcs szükséges.";
+
+"TRANSLATION_ERROR_KEY_ACCESS" = "A fordítási API-kulcs nem olvasható ki a Kulcskarikából.";
+
+"TRANSLATION_ERROR_ENDPOINT" = "A biztonsági házirend nem engedélyezi a fordítási végpontot.";
+
+"TRANSLATION_ERROR_REDIRECT" = "A fordítási végpont átirányítása elutasítva.";
+
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "A fordítási válasz túllépte a méretkorlátot.";
+
+"TRANSLATION_ERROR_HTTP" = "A fordítószerver HTTP %d kódot adott vissza.";
+
+"TRANSLATION_ERROR_HTTP_REQUEST" = "A fordítószerver HTTP %d kódot adott vissza (kérésazonosító: %@).";
+
+"TRANSLATION_ERROR_NETWORK_CODE" = "A fordítási kérés sikertelen (hibakód: %d).";
+
+"TRANSLATION_ERROR_CONNECTION" = "A fordítási API nem érhető el. Ellenőrizze a hálózati kapcsolatot, az API-végpontot és a szerver állapotát, majd próbálja újra.";
+
+"TRANSLATION_ERROR_REFUSED" = "A fordításszolgáltató elutasította a kérést.";
+
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "Az API-kulcs tárolásához használt azonosító érvénytelen.";
+
+"TRANSLATION_ERROR_KEY_INVALID" = "Az API-kulcs üres, túl nagy, vagy nem támogatott karaktereket tartalmaz.";
+
+"TRANSLATION_ERROR_KEY_MISSING" = "Ehhez a szolgáltatóhoz nincs mentett API-kulcs.";
+
+"TRANSLATION_ERROR_KEY_ENCODING" = "A mentett API-kulcs nem dekódolható.";
+
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "A Kulcskarika-művelet sikertelen, állapotkód: %d.";
+
+"OCR_ERROR_MODEL_MISSING" = "Egy szükséges PP-OCRv6 modell hiányzik.";
+
+"OCR_ERROR_MODEL_LOAD" = "Egy PP-OCRv6 modell nem tölthető be.";
+
+"OCR_ERROR_DICTIONARY" = "A PP-OCRv6 karakterszótára hiányzik vagy érvénytelen.";
+
+"OCR_ERROR_IMAGE" = "A kép nem készíthető elő szövegfelismerésre.";
+
+"OCR_ERROR_OUTPUT" = "A PP-OCRv6 modell érvénytelen vagy nem támogatott kimenetet adott.";
+
+"OCR_ERROR_PREDICTION" = "A PP-OCRv6 szövegfelismerés sikertelen. Próbálja újra másik képpel vagy OCR-modellel.";
+
+"TRANSLATION_ERROR_CACHE_SIZE" = "A fordítási gyorsítótár mérete kívül esik a támogatott tartományon.";
+
+"TRANSLATION_ERROR_CACHE_STORAGE" = "A fordítási gyorsítótár tárhelye érvénytelen vagy nem érhető el.";
+
+"TRANSLATION_ERROR_CACHE_SAVE" = "A fordítási gyorsítótár nem menthető.";

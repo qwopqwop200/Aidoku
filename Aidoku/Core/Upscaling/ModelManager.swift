@@ -24,7 +24,36 @@ struct ModelInfo: Codable {
     var infoKO: String?
 
     var localizedInfo: String? {
-        if Locale.preferredLanguages.first?.hasPrefix("ko") == true, let infoKO { return infoKO }
+        localizedInfo(bundle: .main)
+    }
+
+    func localizedInfo(bundle: Bundle) -> String? {
+        // Translate bundled descriptions while preserving attribution and license text verbatim.
+        let summary: String?
+        switch bundledResource == nil ? "" : file {
+        case "SwinUNetV3Art2x.mlpackage":
+            summary = Foundation.NSLocalizedString("UPSCALE_MODEL_SWINUNET_INFO", bundle: bundle, comment: "")
+        case "IllustrationJaNaiV3-FDATM.mlpackage":
+            summary = Foundation.NSLocalizedString("UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO", bundle: bundle, comment: "")
+        case "UltraSharpV2Lite.mlpackage":
+            summary = Foundation.NSLocalizedString("UPSCALE_MODEL_ULTRASHARP_INFO", bundle: bundle, comment: "")
+        case "AnimeSharpV4.mlpackage":
+            summary = Foundation.NSLocalizedString("UPSCALE_MODEL_ANIMESHARP_INFO", bundle: bundle, comment: "")
+        case "MangaJaNaiV1-4x1200p.mlpackage":
+            summary = Foundation.NSLocalizedString("UPSCALE_MODEL_MANGAJANAI_INFO", bundle: bundle, comment: "")
+        default:
+            summary = nil
+        }
+        if let summary, !summary.hasPrefix("UPSCALE_MODEL_") {
+            let attribution = info.flatMap { text in
+                text.range(of: "\n\n").map { String(text[$0.lowerBound...]) }
+            } ?? ""
+            return summary + attribution
+        }
+        let language = bundle.bundleURL.pathExtension == "lproj"
+            ? bundle.bundleURL.deletingPathExtension().lastPathComponent
+            : bundle.preferredLocalizations.first
+        if language?.hasPrefix("ko") == true, let infoKO { return infoKO }
         return info
     }
 }

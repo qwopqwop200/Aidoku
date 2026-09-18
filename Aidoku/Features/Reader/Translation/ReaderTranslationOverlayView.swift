@@ -81,6 +81,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     private var snapshotGeneration = UUID()
     var onCacheGeometryChanged: (() -> Void)?
     var onRenderCommitted: (() -> Void)?
+    var onSnapshotStored: ((UIImage) -> Void)?
     var canCacheRendering: Bool { snapshotTarget != nil }
     private(set) var lastDiagnostic: BrowserPageImageOverlayDiagnostic?
     private(set) var didStoreSnapshot = false
@@ -270,7 +271,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 let configuration = WKSnapshotConfiguration()
                 // Bound bitmap memory for unusually tall webtoon pages.
                 let scale = max(1, traitCollection.displayScale)
-                configuration.snapshotWidth = NSNumber(value: Double(min(size.width, sqrt(12_000_000 * size.width / size.height) / scale)))
+                configuration.snapshotWidth = NSNumber(value: Double(min(size.width, sqrt(4_000_000 * size.width / size.height) / scale)))
                 let snapshot: UIImage = try await withCheckedThrowingContinuation { continuation in
                     webView.takeSnapshot(with: configuration) { image, error in
                         if let image { continuation.resume(returning: image) } else {
@@ -280,11 +281,14 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 }
                 try Task.checkCancellation()
                 guard snapshotGeneration == issued, lastDiagnostic?.revision == revision, bounds.size == size else { return }
-                // Keep completed pixels only while the page belongs to the
-                // reader's nearby working set. No image encoding or disk write.
+                // Disk encoding is bounded and scheduled by the cache. Visible
+                // readers can release WebKit as soon as the bitmap is retained.
                 Task(priority: .utility) { [weak self] in
                     await target.cache.store(snapshot, key: target.key, pageIdentity: target.pageIdentity, diskGeneration: target.diskGeneration)
-                    if let self, snapshotGeneration == issued { didStoreSnapshot = true }
+                    if let self, snapshotGeneration == issued {
+                        didStoreSnapshot = true
+                        if let cached = target.cache.cachedImage(for: target.key) { onSnapshotStored?(cached) }
+                    }
                 }
             } catch { /* Snapshot caching is optional; the live translated page stays visible. */ }
         }

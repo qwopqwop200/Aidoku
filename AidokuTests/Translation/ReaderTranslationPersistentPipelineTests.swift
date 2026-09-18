@@ -1,9 +1,127 @@
+import AidokuRunner
 import Testing
 import UIKit
 @testable import Aidoku
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationPersistentPipelineTests {
+    @Test func pagedReaderExposesLaidOutNeighborsBeforeTransition() throws {
+        let pager = ReaderPagedViewController(source: nil,
+            manga: .init(sourceKey: "preview-test", key: UUID().uuidString, title: "Preview"),
+            temporaryPageStore: ReaderTemporaryPageStore())
+        pager.loadViewIfNeeded()
+        pager.view.frame = CGRect(x: 0, y: 0, width: 390, height: 800)
+        pager.view.layoutIfNeeded()
+        let uiPager = try #require(pager.children.compactMap { $0 as? UIPageViewController }.first)
+        let fixture = PersistentFixture()
+        let controllers = (0..<3).map { index in
+            let controller = ReaderPageViewController(type: .page, delegate: nil, temporaryPageStore: ReaderTemporaryPageStore())
+            controller.pageView?.setPageImage(Self.image())
+            controller.pageView?.translationPage.sourcePage = fixture.page(index)
+            return controller
+        }
+        pager.pageViewControllers = controllers
+        uiPager.setViewControllers([controllers[1]], direction: .forward, animated: false)
+        let previews = pager.translationPreviewPages()
+        #expect(previews.count == 2)
+        #expect(previews.map { $0.sourcePage?.index } == [0, 2])
+        #expect(previews.allSatisfy { ($0.imageView?.bounds.width ?? 0) > 0 && ($0.imageView?.bounds.height ?? 0) > 0 })
+        #expect(pager.translationPages().first === controllers[1].pageView?.translationPage)
+    }
+
+    @Test func neighboringCompositesAreMountedBeforeDraggingAndSurviveCancelledSwipe() async throws {
+        let fixture = PersistentFixture()
+        let pages = (0..<3).map { fixture.page($0) }
+        for page in pages {
+            let key = ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: fixture.settings)
+            try await fixture.disk.storeRegions([Self.region], for: key, kind: .translation, generation: 0)
+        }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.keyWindow, window = UIWindow(windowScene: scene)
+        let root = UIViewController()
+        window.rootViewController = root; window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        let scroll = UIScrollView(frame: CGRect(x: 0, y: 0, width: 390, height: 800))
+        scroll.contentSize = CGSize(width: 1170, height: 800)
+        scroll.contentOffset.x = 390
+        root.view.addSubview(scroll)
+        let controllers = pages.enumerated().map { index, page in
+            let controller = ReaderPageViewController(type: .page, delegate: nil, temporaryPageStore: ReaderTemporaryPageStore())
+            root.addChild(controller)
+            controller.view.frame = CGRect(x: CGFloat(index) * 390, y: 0, width: 390, height: 800)
+            scroll.addSubview(controller.view); controller.didMove(toParent: root)
+            controller.pageView?.setPageImage(page.image)
+            controller.view.layoutIfNeeded()
+            controller.pageView?.fixImageSize(); controller.pageView?.layoutIfNeeded()
+            controller.pageView?.translationPage.sourcePage = page
+            return controller
+        }
+        let readers = try controllers.map { try #require($0.pageView?.translationPage) }
+        let imageView = try #require(controllers[1].pageView?.imageView)
+        let cache = ReaderTranslationRenderCache(disk: fixture.disk)
+        let preparer = ReaderTranslationLayoutPreparer(renderCache: cache)
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in calls += 1; return [] }, diskCache: fixture.disk,
+            renderCache: cache, prepareLayout: { page, regions, settings in
+                try await preparer.prepare(page: page, regions: regions, settings: settings,
+                    geometry: .init(page: readers[1], imageView: imageView), window: window)
+            })
+        defer { session.close() }
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [readers[1]], context: "swipe", currentPageIndex: 1)
+        session.refreshVisiblePages([readers[1]], previews: [readers[0], readers[2]])
+        session.enable(settings: fixture.settings)
+        try await waitUntil { readers.allSatisfy(\.isUsingCachedRendering) }
+        let incoming = try #require(controllers[2].pageView?.imageView.subviews.first)
+        #expect(incoming.accessibilityIdentifier == "reader.translation.cachedOverlay")
+        #expect(calls == 0)
+        // Expose a quarter of the next page without a page-index change or a
+        // didFinishAnimating callback. It must already contain translated pixels.
+        scroll.contentOffset.x = 487.5
+        scroll.layoutIfNeeded()
+        #expect(controllers[2].pageView?.imageView.subviews.first === incoming)
+        #expect(readers[2].isUsingCachedRendering)
+        #expect(controllers.allSatisfy { $0.pageView?.imageView.subviews.contains { $0 is ReaderTranslationOverlayView } == false })
+        let screenshot = UIGraphicsImageRenderer(bounds: scroll.bounds).image { _ in
+            scroll.drawHierarchy(in: scroll.bounds, afterScreenUpdates: true)
+        }
+        let directory = URL.documentsDirectory.appendingPathComponent("TranslationValidation", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try #require(screenshot.pngData()).write(to: directory.appendingPathComponent("swipe-preview-quarter.png"))
+        scroll.contentOffset.x = 390 // Cancel the gesture.
+        session.refreshVisiblePages([readers[1]], previews: [readers[0], readers[2]])
+        #expect(controllers[2].pageView?.imageView.subviews.first === incoming)
+        session.pauseForPageTurn(preservingRecognitionFor: pages[2])
+        session.refreshVisiblePages([readers[2]], previews: [readers[1]])
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [readers[2]], context: "swipe", currentPageIndex: 2)
+        #expect(readers[2].isUsingCachedRendering)
+        #expect(controllers[2].pageView?.imageView.subviews.first === incoming)
+        #expect(calls == 0)
+    }
+
+    @Test func previewCacheMissDoesNotStartWebKitOrCancelPrerender() async throws {
+        let fixture = PersistentFixture()
+        let cache = ReaderTranslationRenderCache(disk: fixture.disk)
+        let view = UIImageView(image: Self.image())
+        view.frame = CGRect(x: 0, y: 0, width: 320, height: 480)
+        let page = ReaderTranslationPage(imageView: view)
+        page.sourcePage = fixture.page(1); page.renderCache = cache
+        let key = ReaderTranslationCacheIdentity.render(page: fixture.page(1).translationCacheKey, settings: fixture.settings,
+            imageSize: Self.image().size, viewport: view.bounds.size, scale: view.traitCollection.displayScale,
+            aspectFit: false, crop: CGRect(x: 0, y: 0, width: 1, height: 1), dark: view.traitCollection.userInterfaceStyle == .dark)
+        let gate = PersistentLayoutGate()
+        var wasCancelled = false
+        let task = Task { try await cache.prepare(key) { await gate.wait(); wasCancelled = Task.isCancelled } }
+        defer { task.cancel(); page.reset(); Task { await gate.release() } }
+        try await waitUntil { await gate.started }
+        page.displayPreparedSnapshot([Self.region], settings: fixture.settings)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(view.subviews.isEmpty)
+        #expect(!page.hasCompletedTranslation(settings: fixture.settings))
+        await gate.release()
+        try await task.value
+        #expect(!wasCancelled)
+    }
+
     @Test func failedTranslationDisplaysOCRAndKeepsToggleOn() async throws {
         let fixture = PersistentFixture()
         let sourcePage = fixture.page(0)
@@ -29,7 +147,7 @@ struct ReaderTranslationPersistentPipelineTests {
     }
 
     @Test func preparationFansOutToBothChapterEndsAndReprioritizes() {
-        let pages = (0..<8).map { Page(sourceId: "test", chapterId: "chapter", index: $0) }
+        let pages = (0..<8).map { Aidoku.Page(sourceId: "test", chapterId: "chapter", index: $0) }
         let items = pages.map(ReaderTranslationSession.Item.init)
         #expect(ReaderTranslationSession.ordered(items, anchor: 3).map(\.page.index) == [3, 4, 2, 5, 1, 6, 0, 7])
         #expect(ReaderTranslationSession.ordered(items, anchor: 0).map(\.page.index) == Array(0..<8))
@@ -121,6 +239,8 @@ struct ReaderTranslationPersistentPipelineTests {
             imageView.layoutIfNeeded()
             return cache.cachedImage(for: key) != nil
         }
+        try await waitUntil { page.isUsingCachedRendering }
+        #expect(!imageView.subviews.contains { $0 is ReaderTranslationOverlayView })
         #expect(try await fixture.disk.data(for: key, kind: .layout) != nil)
         page.releaseOverlay()
         let began = ProcessInfo.processInfo.systemUptime
@@ -263,6 +383,15 @@ struct ReaderTranslationPersistentPipelineTests {
             reader.imageView.drawHierarchy(in: reader.imageView.bounds, afterScreenUpdates: true)
         }
         try #require(snapshot.pngData()).write(to: directory.appendingPathComponent("unseen-prefetched-page.png"))
+        // A cold reader reuses text/layout instructions and redraws the page.
+        cache.clearMemory()
+        reader.translationPage.reset()
+        let reopenedCache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: fixture.root))
+        reader.translationPage.renderCache = reopenedCache
+        reader.translationPage.displayPrepared([Self.region], settings: fixture.settings)
+        try await waitUntil { reader.imageView.subviews.contains { $0 is ReaderTranslationOverlayView } }
+        #expect(reader.translationPage.hasCompletedTranslation(settings: fixture.settings))
+        #expect(calls == [0, 1])
         session.disable()
         session.enable(settings: fixture.settings)
         try await waitUntil { session.state == .on && reader.translationPage.hasCompletedTranslation(settings: fixture.settings) }
@@ -308,7 +437,9 @@ struct ReaderTranslationPersistentPipelineTests {
         #expect(cache.cachedImage(for: "pixels-1") != nil)
         #expect(cache.cachedImage(for: "pixels-9") == nil)
         session.update(items: items, visible: [], context: "chapter", currentPageIndex: 9)
-        try await waitUntil { cache.cachedImage(for: "pixels-9") != nil }
+        // The nearest bitmap now becomes ready before farther translations.
+        // Wait for both independent milestones before asserting total calls.
+        try await waitUntil { cache.cachedImage(for: "pixels-9") != nil && translated.count == 10 }
         #expect(cache.cachedImage(for: "pixels-1") == nil)
         #expect(translated.count == 10)
         cache.clearMemory()
@@ -411,8 +542,8 @@ private actor PersistentLayoutGate {
     let suite = "persistent-settings-" + UUID().uuidString
     lazy var disk = ReaderTranslationDiskCache(directory: root)
     var settings: ReaderTranslationSettings { ReaderTranslationSettings(defaults: UserDefaults(suiteName: suite)!) }
-    func page(_ index: Int) -> Page {
-        Page(sourceId: "cache-test", chapterId: "chapter", index: index, image: ReaderTranslationPersistentPipelineTests.image())
+    func page(_ index: Int) -> Aidoku.Page {
+        Aidoku.Page(sourceId: "cache-test", chapterId: "chapter", index: index, image: ReaderTranslationPersistentPipelineTests.image())
     }
     deinit {
         try? FileManager.default.removeItem(at: root)

@@ -33,31 +33,35 @@ enum RemoteTranslationError: Error, Equatable, LocalizedError, Sendable {
     case refused
 
     var errorDescription: String? {
+        // Keep diagnostic payloads in the error for logging; user-facing text is localized.
         switch self {
-        case let .invalidConfiguration(message),
-             let .invalidRequest(message),
-             let .invalidResponse(message):
-            return message
+        case .invalidConfiguration:
+            return NSLocalizedString("TRANSLATION_ERROR_CONFIGURATION")
+        case .invalidRequest:
+            return NSLocalizedString("TRANSLATION_ERROR_REQUEST")
+        case .invalidResponse:
+            return NSLocalizedString("TRANSLATION_ERROR_RESPONSE")
         case .missingCredential:
-            return "A translation API key is required."
+            return NSLocalizedString("TRANSLATION_ERROR_KEY_REQUIRED")
         case .credentialAccessFailed:
-            return "The translation API key could not be read from Keychain."
+            return NSLocalizedString("TRANSLATION_ERROR_KEY_ACCESS")
         case .insecureEndpoint:
-            return "The translation endpoint is not allowed by the security policy."
+            return NSLocalizedString("TRANSLATION_ERROR_ENDPOINT")
         case .redirectRejected:
-            return "The translation endpoint redirect was rejected."
+            return NSLocalizedString("TRANSLATION_ERROR_REDIRECT")
         case .responseTooLarge:
-            return "The translation response exceeded its size limit."
+            return NSLocalizedString("TRANSLATION_ERROR_RESPONSE_SIZE")
         case let .httpStatus(status, requestID):
-            return requestID.map {
-                "The translation server returned HTTP \(status) (request \($0))."
-            } ?? "The translation server returned HTTP \(status)."
+            if let requestID {
+                return String(format: NSLocalizedString("TRANSLATION_ERROR_HTTP_REQUEST"), status, requestID)
+            }
+            return String(format: NSLocalizedString("TRANSLATION_ERROR_HTTP"), status)
         case let .transport(code):
-            return "The translation request failed (\(code.rawValue))."
+            return String(format: NSLocalizedString("TRANSLATION_ERROR_NETWORK_CODE"), code.rawValue)
         case .privateTailnetUnavailable:
-            return "The translation API could not be reached. Check your network connection, API endpoint, and server status, then try again."
+            return NSLocalizedString("TRANSLATION_ERROR_CONNECTION")
         case .refused:
-            return "The translation provider refused the request."
+            return NSLocalizedString("TRANSLATION_ERROR_REFUSED")
         }
     }
 }
@@ -564,6 +568,7 @@ struct TranslationCacheKey: Codable, Hashable, Sendable {
     static let schemaVersion = 2
 
     let imageDigest: String?
+    let imageSupportRevision: Int?
     let sfxPolicy: String?
     let backgroundPolicy: String?
     let version: Int
@@ -588,9 +593,14 @@ struct TranslationCacheKey: Codable, Hashable, Sendable {
     ) {
         let canonicalRequest =
             request.canonicalizedForTranslationSemantics().request
-        backgroundPolicy = request.filtersBackground == true ? TranslationHTTPCodec.backgroundPolicy : nil
-        sfxPolicy = request.filtersSFX == true ? TranslationHTTPCodec.sfxPolicy : nil
+        backgroundPolicy = request.filtersBackground == true
+            ? (request.imageJPEG == nil ? TranslationHTTPCodec.textOnlyBackgroundPolicy : TranslationHTTPCodec.backgroundPolicy)
+            : nil
+        sfxPolicy = request.filtersSFX == true
+            ? (request.imageJPEG == nil ? TranslationHTTPCodec.textOnlySFXPolicy : TranslationHTTPCodec.sfxPolicy)
+            : nil
         imageDigest = request.imageJPEG.map { SHA256.hash(data: $0).map { String(format: "%02x", $0) }.joined() }
+        imageSupportRevision = request.imageJPEG == nil ? nil : TranslationImageSupport.shared.revision(for: configuration)
         version = Self.schemaVersion
         provider = configuration.provider
         apiProtocol = configuration.apiProtocol

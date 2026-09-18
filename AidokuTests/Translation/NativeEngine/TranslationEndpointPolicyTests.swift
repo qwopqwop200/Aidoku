@@ -9,7 +9,7 @@ struct TranslationEndpointPolicyTests {
 
         #expect(
             message
-                == "The translation API could not be reached. Check your network connection, API endpoint, and server status, then try again."
+                == NSLocalizedString("TRANSLATION_ERROR_CONNECTION")
         )
         #expect(!message.localizedCaseInsensitiveContains("tailscale"))
         #expect(!message.localizedCaseInsensitiveContains("vpn"))

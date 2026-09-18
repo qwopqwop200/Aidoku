@@ -397,7 +397,7 @@
 
 "TRANSLATION_HELP" = "Het vertaalpictogram schakelt vertaling in of uit. Zichtbare pagina’s worden eerst voorbereid, daarna nabijgelegen pagina’s. De voorbereiding volgt je leespositie. Opgeslagen OCR-resultaten, vertalingen en tekstopmaak kunnen worden hergebruikt nadat je de lezer opnieuw opent of de app opnieuw start. Tijdelijk geopende gedeelde afbeeldingen slaan deze cache niet op. Als je de lezer verlaat, wordt onvoltooid werk geannuleerd.";
 
-"TRANSLATION_PRIVACY" = "OCR wordt uitgevoerd op uw apparaat. Voor vertaling worden de herkende tekst en uw instructies naar de geselecteerde aanbieder gestuurd. Als Pagina-afbeelding opnemen in vertaling is ingeschakeld, wordt ook de oorspronkelijke pagina-afbeelding geüpload. API-kosten zijn afhankelijk van uw aanbieder. Sleutels blijven in Sleutelhanger. OCR-resultaten, vertalingen en tekstopmaak worden opgeslagen in beveiligde app-opslag die is uitgesloten van back-ups.";
+"TRANSLATION_PRIVACY" = "OCR wordt uitgevoerd op uw apparaat. Voor vertaling worden de herkende tekst en uw instructies naar de geselecteerde aanbieder gestuurd. Als Pagina-afbeelding opnemen in vertaling is ingeschakeld, kan ook een voor verwerking aangepaste pagina-afbeelding worden geüpload. Als afbeeldingsinvoer niet wordt ondersteund, gaat de vertaling verder met alleen tekst. API-kosten zijn afhankelijk van uw aanbieder. Sleutels blijven in Sleutelhanger. OCR-resultaten, vertalingen en tekstopmaak worden opgeslagen in beveiligde app-opslag die is uitgesloten van back-ups.";
 
 "TRANSLATION_KEY_REPLACE" = "Vervang opgeslagen API-sleutel (optioneel)";
 
@@ -443,7 +443,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Maximale breedte voor tekstherkenning";
 
-"TRANSLATION_CONFIDENCE" = "Minimale OCR-betrouwbaarheid";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Pixeldrempel voor OCR-detectie";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Minimale betrouwbaarheid van gedetecteerde OCR-gebieden";
+"TRANSLATION_CONFIDENCE" = "Minimale betrouwbaarheid van OCR-herkenning";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "De pixeldrempel selecteert tekstpixels. De detectiebetrouwbaarheid filtert tekstgebieden. De herkenningsbetrouwbaarheid filtert de tekst die uit elk gebied is gelezen. Lagere waarden laten meer onzekere resultaten toe.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minimale OCR-detectiegrootte";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Minimale lengte van de korte zijde van mogelijke tekstgebieden, in pixels van de detectiekaart. Standaard: 3 px. Lagere waarden kunnen kleinere tekst detecteren, maar ook meer ruis meenemen.";
 
 "TRANSLATION_SURFACE" = "Achtergrondkleur";
 
@@ -527,7 +532,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Kan geen verbinding maken via HTTPS-bypass.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Vertaling mislukt. De OCR-tekst wordt weergegeven. Controleer je verbinding.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "De vertaling is mislukt. De OCR-tekst wordt weergegeven. Controleer je instellingen en verbinding.";
 
 "TRANSLATION_MANGA_TITLES" = "Vertaal mangatitels";
 
@@ -559,7 +564,8 @@
 
 "TRANSLATION_INCLUDE_IMAGE" = "Pagina-afbeelding opnemen in vertaling";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Verzend de originele pagina met OCR-tekst voor scène- en expressiecontext. Afbeeldingsinstructies worden automatisch toegevoegd. Vereist een model dat afbeeldingen ondersteunt en kan het datagebruik en de API-kosten verhogen.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Stuurt de pagina-afbeelding samen met de OCR-tekst om context uit de scène te bieden. Als afbeeldingen niet worden ondersteund, gaat de vertaling automatisch verder met alleen tekst. Afbeeldingen kunnen het dataverbruik en de API-kosten verhogen.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Afbeeldingsinvoer wordt niet ondersteund. De vertaling gaat verder zonder afbeeldingen.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Behoud de originele tekstkleur";
 
@@ -567,7 +573,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM SFX-filtering (alle talen)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Herkent geluidseffecten tijdens het vertaalverzoek. Kan worden gecombineerd met het lokale filter voor Japans: zodra een van beide filters tekst als geluidseffect aanmerkt, blijft de oorspronkelijke tekst behouden. Kan tegelijk met het versturen van de pagina-afbeelding worden gebruikt.";
+"TRANSLATION_LLM_SFX_HELP" = "Herkent geluidseffecten in hetzelfde vertaalverzoek en laat ze ongewijzigd. Met een pagina-afbeelding slaat de AI ook onduidelijke OCR-fragmenten over, tenzij de afbeelding aantoont dat het om betekenisvolle tekst gaat. Dialoog, verteltekst, titels en makersvermeldingen blijven behouden om te worden vertaald. Kan worden gecombineerd met het lokale filter voor Japans: tekst die door een van beide filters wordt gemarkeerd, blijft ongewijzigd. Zonder pagina-afbeelding is de classificatie minder betrouwbaar.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Zonder beeldinvoer kan een beperkte visuele en lay-outcontext de nauwkeurigheid van de SFX-classificatie verminderen.";
 
@@ -879,7 +885,7 @@
 "UPSCALE_IMAGES" = "Afbeeldingen opschalen";
 "UPSCALING_MODELS" = "Opschalingsmodellen";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Maximale beeldhoogte";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Afbeeldingen die groter zijn dan de maximale afbeeldingshoogte worden niet opgeschaald.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Afbeeldingen waarvan de hoogte gelijk is aan of groter is dan de maximale afbeeldingshoogte, worden niet opgeschaald.";
 "ENABLED_MODEL" = "Ingeschakeld model";
 "AVAILABLE_MODELS" = "Beschikbare modellen";
 "NO_AVAILABLE_MODELS" = "Geen beschikbare modellen";
@@ -1093,8 +1099,72 @@
 "DOWNLOAD_TRANSLATED" = "Downloaden met vertaling";
 
 "TRANSLATION_LLM_BACKGROUND" = "Achtergrondtekst overslaan (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "De vertaal-AI laat bijkomstige borden, posters en achtergrondtekst ongewijzigd. Dialoog, verteltekst en tekst waarvan de rol onzeker is, worden vertaald. Er wordt geen extra verzoek verstuurd, maar de verwerking kan langer duren. Zonder pagina-afbeelding is de classificatie minder betrouwbaar.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "De vertaal-AI laat gewone borden, posters en tekst op voorwerpen in de scène ongewijzigd, ook als ze verband houden met de scène of in dialoog worden genoemd. Dialoog, verteltekst, titels, makersvermeldingen, geschreven tekst die cruciaal is voor het verhaal en tekst waarvan de rol onzeker is, worden vertaald. Er wordt geen extra verzoek verstuurd, maar de verwerking kan langer duren. Zonder pagina-afbeelding is de classificatie minder betrouwbaar.";
 
 "TRANSLATION_STATE_ON" = "Aan";
 
 "TRANSLATION_STATE_OFF" = "Uit";
+
+"UPSCALE_MODEL_SWINUNET_INFO" = "Voor illustraties; behoudt het oorspronkelijke lijnwerk. FP32.";
+
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Voor kleurenillustraties en omslagen; lichtgewicht model voor detailverbetering.";
+
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Voor algemene afbeeldingen en uiteenlopende tekenstijlen; sterkere verscherping.";
+
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Voor anime, manga en kleurenpagina’s.";
+
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Alleen voor zwart-witmanga, afgestemd op oorspronkelijke pagina’s van ongeveer 1200 pixels hoog. Kleurenpagina’s blijven ongewijzigd.";
+
+"TRANSLATION_ERROR_CONFIGURATION" = "De vertaalinstellingen zijn ongeldig. Controleer de server-URL, het model en de overige instellingen.";
+
+"TRANSLATION_ERROR_REQUEST" = "De tekst, afbeelding of taalinstellingen konden niet voor vertaling worden gebruikt.";
+
+"TRANSLATION_ERROR_RESPONSE" = "De vertaalserver heeft een ongeldig antwoord teruggestuurd. Probeer het opnieuw of controleer de modelinstellingen.";
+
+"TRANSLATION_ERROR_KEY_REQUIRED" = "Een API-sleutel voor vertaling is vereist.";
+
+"TRANSLATION_ERROR_KEY_ACCESS" = "De API-sleutel voor vertaling kon niet uit Sleutelhanger worden gelezen.";
+
+"TRANSLATION_ERROR_ENDPOINT" = "Het API-eindpunt voor vertaling is niet toegestaan door het beveiligingsbeleid.";
+
+"TRANSLATION_ERROR_REDIRECT" = "De omleiding van het API-eindpunt voor vertaling is geweigerd.";
+
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "Het vertaalantwoord heeft de maximale grootte overschreden.";
+
+"TRANSLATION_ERROR_HTTP" = "De vertaalserver heeft HTTP %d teruggestuurd.";
+
+"TRANSLATION_ERROR_HTTP_REQUEST" = "De vertaalserver heeft HTTP %d teruggestuurd (verzoek-ID: %@).";
+
+"TRANSLATION_ERROR_NETWORK_CODE" = "Het vertaalverzoek is mislukt (fout %d).";
+
+"TRANSLATION_ERROR_CONNECTION" = "De vertaal-API kon niet worden bereikt. Controleer je netwerkverbinding, het API-eindpunt en de serverstatus en probeer het opnieuw.";
+
+"TRANSLATION_ERROR_REFUSED" = "De vertaalaanbieder heeft het verzoek geweigerd.";
+
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "De identificatiecode die wordt gebruikt om de API-sleutel op te slaan, is ongeldig.";
+
+"TRANSLATION_ERROR_KEY_INVALID" = "De API-sleutel is leeg, te groot of bevat niet-ondersteunde tekens.";
+
+"TRANSLATION_ERROR_KEY_MISSING" = "Er is geen API-sleutel opgeslagen voor deze aanbieder.";
+
+"TRANSLATION_ERROR_KEY_ENCODING" = "De opgeslagen API-sleutel kon niet worden gedecodeerd.";
+
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "De Sleutelhanger-bewerking is mislukt met status %d.";
+
+"OCR_ERROR_MODEL_MISSING" = "Een vereist PP-OCRv6-model ontbreekt.";
+
+"OCR_ERROR_MODEL_LOAD" = "Een PP-OCRv6-model kon niet worden geladen.";
+
+"OCR_ERROR_DICTIONARY" = "Het tekenwoordenboek van PP-OCRv6 ontbreekt of is ongeldig.";
+
+"OCR_ERROR_IMAGE" = "De afbeelding kon niet worden voorbereid voor tekstherkenning.";
+
+"OCR_ERROR_OUTPUT" = "Het PP-OCRv6-model heeft ongeldige of niet-ondersteunde uitvoer teruggestuurd.";
+
+"OCR_ERROR_PREDICTION" = "Tekstherkenning met PP-OCRv6 is mislukt. Probeer het opnieuw met een andere afbeelding of een ander OCR-model.";
+
+"TRANSLATION_ERROR_CACHE_SIZE" = "De grootte van de vertaalcache valt buiten het ondersteunde bereik.";
+
+"TRANSLATION_ERROR_CACHE_STORAGE" = "De opslag voor de vertaalcache is ongeldig of niet beschikbaar.";
+
+"TRANSLATION_ERROR_CACHE_SAVE" = "De vertaalcache kon niet worden opgeslagen.";

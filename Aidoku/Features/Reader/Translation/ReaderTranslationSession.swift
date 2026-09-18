@@ -37,6 +37,11 @@ final class ReaderTranslationSession {
     private let diskCache: ReaderTranslationDiskCache?
     private let renderCache: ReaderTranslationRenderCache?
     private let prepareLayout: ((Page, [ReaderTranslationRegion], ReaderTranslationSettings) async throws -> Void)?
+    private let prepareTextLayout: ((Page, [ReaderTranslationRegion], ReaderTranslationSettings) async throws -> Void)?
+    private var textWarmTask: Task<Void, Never>?
+    private var textWarmGeneration = UUID()
+    private var warmedTextWindow: [String] = []
+    static let textWindowCount = 33
     private let overlapsLayoutWithTranslation: Bool
     private var finished: Set<String> = []
     private let availableMemory: () -> UInt64
@@ -48,6 +53,7 @@ final class ReaderTranslationSession {
     private var settings: ReaderTranslationSettings?
     private var items: [Item] = []
     private var visible: [ReaderTranslationPage] = []
+    private var previews: [ReaderTranslationPage] = []
     private let knownPages = NSHashTable<ReaderTranslationPage>.weakObjects()
     private var attempted: Set<String> = []
     private var demandedVisibleKeys: Set<String> = []
@@ -83,6 +89,7 @@ final class ReaderTranslationSession {
         diskCache: ReaderTranslationDiskCache? = nil,
         renderCache: ReaderTranslationRenderCache? = nil,
         prepareLayout: ((Page, [ReaderTranslationRegion], ReaderTranslationSettings) async throws -> Void)? = nil,
+        prepareTextLayout: ((Page, [ReaderTranslationRegion], ReaderTranslationSettings) async throws -> Void)? = nil,
         overlapsLayoutWithTranslation: Bool = true,
         availableMemory: @escaping () -> UInt64 = { ReaderTranslationSession.processAvailableMemory() },
         reclaimMemory: @escaping () async -> Void = { await TranslationImageWorkBudget.reclaimIdleResources() },
@@ -95,6 +102,7 @@ final class ReaderTranslationSession {
         self.diskCache = diskCache
         self.renderCache = renderCache
         self.prepareLayout = prepareLayout
+        self.prepareTextLayout = prepareTextLayout
         self.overlapsLayoutWithTranslation = overlapsLayoutWithTranslation
         self.availableMemory = availableMemory
         self.reclaimMemory = reclaimMemory
@@ -102,18 +110,19 @@ final class ReaderTranslationSession {
     }
 
     deinit {
-        probeTask?.cancel(); worker?.cancel(); layoutTask?.cancel(); visibleCacheTask?.cancel(); memoryRetryTask?.cancel()
+        probeTask?.cancel(); worker?.cancel(); layoutTask?.cancel(); visibleCacheTask?.cancel(); memoryRetryTask?.cancel(); textWarmTask?.cancel()
         retryTasks.values.forEach { $0.cancel() }
     }
 
-    func refreshVisiblePages(_ pages: [ReaderTranslationPage]) {
+    func refreshVisiblePages(_ pages: [ReaderTranslationPage], previews: [ReaderTranslationPage] = []) {
         // Keep only the incoming and outgoing sets during animation. A transient
         // empty callback must not erase the outgoing page or retain an entire swipe history.
         guard !pages.isEmpty else { return }
-        let retained = Set((visible + pages).map(ObjectIdentifier.init))
+        self.previews = Array(previews.prefix(2))
+        let retained = Set((visible + pages + self.previews).map(ObjectIdentifier.init))
         knownPages.allObjects.filter { !retained.contains(ObjectIdentifier($0)) }.forEach { $0.releaseOverlay() }
         visible = pages
-        pages.forEach { $0.renderCache = renderCache; knownPages.add($0) }
+        (pages + self.previews).forEach { $0.renderCache = renderCache; knownPages.add($0) }
         if state == .on {
             displayPreparedPages()
             restoreVisibleDiskCache()
@@ -171,11 +180,12 @@ final class ReaderTranslationSession {
             self.context = context
         }
         if let renderContext, self.renderContext != renderContext {
+            cancelTextWarm()
             cancelLayout(clearQueue: true)
             preparedLayouts.removeAll()
             self.renderContext = renderContext
         }
-        let visibleIDs = Set(visible.map(ObjectIdentifier.init))
+        let visibleIDs = Set((visible + previews).map(ObjectIdentifier.init))
         knownPages.allObjects.filter { !visibleIDs.contains(ObjectIdentifier($0)) }.forEach { $0.releaseOverlay() }
         let visibleKeys = Set(visible.compactMap { $0.sourcePage?.translationCacheKey })
         let anchor = currentPageIndex ?? items.first(where: { visibleKeys.contains($0.key) })?.position ?? items.first?.position ?? 0
@@ -216,7 +226,7 @@ final class ReaderTranslationSession {
 
     func enable(settings: ReaderTranslationSettings) {
         if let previous = self.settings, previous.hasSameTranslation(as: settings), state != .off {
-            if previous.overlay != settings.overlay { cancelLayout(clearQueue: true); preparedLayouts.removeAll() }
+            if previous.overlay != settings.overlay { cancelTextWarm(); cancelLayout(clearQueue: true); preparedLayouts.removeAll() }
             if previous.maximumConcurrentRequests != settings.maximumConcurrentRequests { stopWorker() }
             self.settings = settings
             if state == .on { displayPreparedPages(); drain(); enqueuePreparedLayouts(); drainLayout() }
@@ -318,6 +328,7 @@ final class ReaderTranslationSession {
         }
         ReaderTranslationDiagnostics.record("memory_warning_trim", page: (currentPosition ?? -1) + 1)
         memoryNotBefore = Date().addingTimeInterval(3)
+        cancelTextWarm()
         cancelLayout(clearQueue: true)
         cache.clear()
         cancelVisibleCacheRestore()
@@ -352,6 +363,7 @@ final class ReaderTranslationSession {
         disable(reason: "reader_closed")
         items = []
         visible = []
+        previews = []
         knownPages.removeAllObjects()
         ocrFallbacks.removeAll()
         cache.clear()
@@ -360,6 +372,7 @@ final class ReaderTranslationSession {
     }
 
     private func stopWorker(preservingRecognitionFor page: Page? = nil) {
+        cancelTextWarm()
         memoryRetryTask?.cancel()
         memoryRetryTask = nil
         attemptedMemoryReclaim = false
@@ -414,6 +427,50 @@ final class ReaderTranslationSession {
         Date() >= memoryNotBefore && availableMemory() >= TranslationImageWorkBudget.minimumHeadroom
     }
 
+    private func cancelTextWarm() {
+        textWarmGeneration = UUID()
+        textWarmTask?.cancel(); textWarmTask = nil
+        warmedTextWindow = []
+    }
+
+    /// Compact cache reads never call the image loader, OCR or provider. Scan a
+    /// much wider window than raster preparation, one record at a time.
+    private func warmTextCache() {
+        guard state == .on, let settings, let diskCache, textWarmTask == nil,
+              Date() >= memoryNotBefore, availableMemory() >= 128 * 1_024 * 1_024 else { return }
+        let window = Array(items.prefix(Self.textWindowCount))
+        let keys = window.map(\.key)
+        guard warmedTextWindow != keys else { return }
+        warmedTextWindow = keys
+        cache.retainPages(Set(keys))
+        let issued = textWarmGeneration
+        textWarmTask = Task(priority: .utility) { [weak self] in
+            guard let self else { return }
+            defer { if textWarmGeneration == issued { textWarmTask = nil } }
+            for item in window {
+                guard !Task.isCancelled, textWarmGeneration == issued, availableMemory() >= 128 * 1_024 * 1_024 else { return }
+                if !cache.contains(item.key), let regions = try? await diskCache.translatedRegions(page: item.key, settings: settings) {
+                    guard !Task.isCancelled, textWarmGeneration == issued else { return }
+                    try? cache.store(regions, for: item.key, evict: false)
+                    if (visible + previews).contains(where: { $0.sourcePage?.translationCacheKey == item.key }) { displayPreparedPages() }
+                }
+                await Task.yield()
+            }
+            enqueuePreparedLayouts()
+            drainLayout()
+            guard let prepareTextLayout else { return }
+            for item in window {
+                guard !Task.isCancelled, textWarmGeneration == issued, availableMemory() >= 256 * 1_024 * 1_024 else { return }
+                let identity = ReaderTranslationCacheIdentity.translation(page: item.key, settings: settings)
+                // Nearby full snapshots already prepare their own layouts.
+                guard renderCache?.shouldKeepImage(for: identity) == false,
+                      let regions = cache.regions(for: item.key) else { continue }
+                try? await prepareTextLayout(item.page, regions, settings)
+                await Task.yield()
+            }
+        }
+    }
+
     private func drainLayout() {
         guard state == .on, (overlapsLayoutWithTranslation || worker == nil), layoutTask == nil, let prepareLayout, let settings, !layoutQueue.isEmpty else { return }
         guard canStartHeavyWork else { scheduleMemoryRetry(); return }
@@ -431,12 +488,14 @@ final class ReaderTranslationSession {
                 if !isVisible {
                     var regions = cache.regions(for: item.key)
                     if regions == nil { regions = try? await diskCache?.translatedRegions(page: item.key, settings: settings) }
+                    guard layoutGeneration == issued, !Task.isCancelled else { return }
                     if let regions {
                         do {
                             ReaderTranslationDiagnostics.record("render_start", page: item.position + 1, count: regions.count)
                             try await prepareLayout(item.page, regions, settings)
                             guard layoutGeneration == issued, !Task.isCancelled else { return }
                             preparedLayouts.insert(item.key)
+                            displayPreparedPages()
                             ReaderTranslationDiagnostics.record("render_finished", page: item.position + 1)
                         } catch is CancellationError {
                             ReaderTranslationDiagnostics.record("render_cancelled", page: item.position + 1)
@@ -455,13 +514,24 @@ final class ReaderTranslationSession {
     private func enqueuePreparedLayouts() {
         guard prepareLayout != nil, let settings else { return }
         let visibleKeys = Set(visible.compactMap { $0.sourcePage?.translationCacheKey })
-        for item in items.prefix(5) where !visibleKeys.contains(item.key) &&
-            (finished.contains(item.key) || cache.contains(item.key)) {
+        // Probe compact disk records independently of the translation worker.
+        // A cached next page must not wait behind the visible page's API request.
+        for item in items.prefix(5) where !visibleKeys.contains(item.key) {
             let identity = ReaderTranslationCacheIdentity.translation(page: item.key, settings: settings)
             if !preparedLayouts.contains(item.key) || renderCache?.needsImage(for: identity) == true {
                 layoutQueue[item.key] = item
             }
         }
+    }
+
+    func receivePrepared(_ page: Page, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings) {
+        guard !Task.isCancelled, state == .on, self.settings?.hasSameTranslation(as: settings) == true,
+              items.prefix(5).contains(where: { $0.key == page.translationCacheKey }) else { return }
+        try? cache.store(regions, for: page.translationCacheKey)
+        finished.insert(page.translationCacheKey)
+        displayPreparedPages()
+        enqueuePreparedLayouts()
+        drainLayout()
     }
 
     private func displayPreparedPages() {
@@ -490,6 +560,16 @@ final class ReaderTranslationSession {
                 page.displayPrepared(activeRegions, settings: settings, completed: false)
             }
         }
+        // The bitmap is mounted before UIKit exposes a neighboring page. These
+        // views never start their own WebKit/OCR/API work, and cancelled swipes
+        // leave the already composed preview attached.
+        if Date() >= memoryNotBefore {
+            let visibleIDs = Set(visible.map(ObjectIdentifier.init))
+            for page in previews where !visibleIDs.contains(ObjectIdentifier(page)) {
+                guard let key = page.sourcePage?.translationCacheKey, let regions = cache.regions(for: key) else { continue }
+                page.displayPreparedSnapshot(regions, settings: settings)
+            }
+        }
     }
 
     private func publishProgress(_ regions: [ReaderTranslationRegion], key: String, generation: UUID) throws {
@@ -502,6 +582,9 @@ final class ReaderTranslationSession {
         activeRegions = regions
         ocrFallbacks.removeValue(forKey: key)
         displayPreparedPages()
+        // OCR has released image admission before publishing. Warm saved next
+        // pages during the API wait without getting ahead of visible-page OCR.
+        drainLayout()
     }
 
     private func nextItem() -> Item? {
@@ -577,6 +660,7 @@ final class ReaderTranslationSession {
     }
 
     private func drain() {
+        warmTextCache()
         guard state == .on, worker == nil, let settings, nextItem() != nil else { return }
         let issued = workGeneration
         worker = Task { [weak self] in
@@ -633,7 +717,9 @@ final class ReaderTranslationSession {
                     }
                     guard workGeneration == issued, !Task.isCancelled else { return }
                     if prepareLayout != nil, items.prefix(5).contains(where: { $0.key == item.key }), !visible.contains(where: { $0.sourcePage?.translationCacheKey == item.key }) {
-                        layoutQueue[item.key] = item
+                        // Cache warming may have completed this render while the
+                        // translation worker was reading the same disk record.
+                        enqueuePreparedLayouts()
                         drainLayout()
                     }
                 } catch {

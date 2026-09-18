@@ -5,6 +5,88 @@ import CoreGraphics
 
 @Suite(.serialized) @MainActor
 struct TitleTranslationTests {
+    @Test func allMetadataReusesDiskCacheAfterOCRSettingsChangeWithoutNetwork() async throws {
+        let fixture = TitleCacheFixture()
+        var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        settings.targetLanguage = "ko"
+        settings.translateMangaTitles = true
+        settings.translateChapterTitles = true
+        settings.translateAuthors = true
+        settings.translateMangaTags = true
+        settings.translateSourceLabels = true
+        settings.translateMangaDescriptions = true
+        settings.mangaTitleSourceLanguages = []
+        settings.chapterTitleSourceLanguages = []
+        settings.authorSourceLanguages = []
+        settings.mangaTagSourceLanguages = []
+        settings.sourceLabelSourceLanguages = []
+        settings.mangaDescriptionSourceLanguages = []
+        try await fixture.disk.synchronizeSettings(settings)
+        let online = TitleTestClient()
+        for kind in TitleTranslationKind.allCases {
+            #expect(await TitleTranslation.translate("The Lost Adventure \(kind.rawValue)", kind: kind, settings: settings,
+                service: ReaderTranslationService(client: online), diskCache: fixture.disk) == "일본어 제목")
+        }
+        #expect(await online.requests.count == 6)
+        settings.ocr.detectorPixelThreshold = 0.25
+        settings.ocr.detectorConfidenceThreshold = 0.5
+        settings.ocr.confidenceThreshold = 0.8
+        settings.ocr.detectorMinimumBoxSide = 2
+        let reopened = ReaderTranslationDiskCache(directory: fixture.root)
+        try await reopened.synchronizeSettings(settings)
+        let offline = TitleTestClient(fail: true)
+        for kind in TitleTranslationKind.allCases {
+            #expect(await TitleTranslation.translate("The Lost Adventure \(kind.rawValue)", kind: kind, settings: settings,
+                service: ReaderTranslationService(client: offline), diskCache: reopened) == "일본어 제목")
+        }
+        #expect(await offline.requests.isEmpty)
+        #expect(try await reopened.statistics().entries == 6)
+    }
+
+    @Test func metadataTranslatesWithoutAnImageWhenPageAttachmentsAreEnabled() async throws {
+        let fixture = TitleCacheFixture()
+        let client = TitleTestClient()
+        let service = ReaderTranslationService(client: client)
+        var settings = ReaderTranslationSettings()
+        settings.includePageImage = true
+        settings.targetLanguage = "ko"
+        settings.translateMangaTitles = true
+        settings.translateChapterTitles = true
+        settings.translateAuthors = true
+        settings.translateMangaTags = true
+        settings.translateSourceLabels = true
+        settings.translateMangaDescriptions = true
+        settings.mangaTitleSourceLanguages = []
+        settings.chapterTitleSourceLanguages = []
+        settings.authorSourceLanguages = []
+        settings.mangaTagSourceLanguages = []
+        settings.sourceLabelSourceLanguages = []
+        settings.mangaDescriptionSourceLanguages = []
+
+        for kind: TitleTranslationKind in [.manga, .chapter, .author, .tag, .sourceLabel, .description] {
+            let original = "The Lost Adventure \(kind.rawValue)"
+            let result = await TitleTranslation.translate(original, kind: kind, settings: settings,
+                service: service, diskCache: fixture.disk)
+            #expect(result == "일본어 제목")
+        }
+        let menu = await SourceMenuTranslation.translate(["School Life"], settings: settings, kind: .tag,
+            service: service, diskCache: fixture.disk)
+        #expect(menu["School Life"] == "일본어 제목")
+        let synopsis = await MangaDescriptionTranslation.translate("A detective travels.\n\nAn adventure begins.",
+            settings: settings, service: service, diskCache: fixture.disk)
+        #expect(synopsis == "일본어 제목\n\n일본어 제목")
+        let requests = await client.requests
+        #expect(requests.count == 9)
+        #expect(requests.allSatisfy { $0.imageJPEG == nil && $0.preparedImageDataURL == nil })
+        #expect(settings.includePageImage)
+        // A reader page must still require its image when the option is enabled.
+        await #expect(throws: RemoteTranslationError.self) {
+            _ = try await service.translate(regions: [.init(id: "page", rect: .zero, source: "これは日本語です")],
+                settings: settings)
+        }
+        #expect(await client.requests.count == 9)
+    }
+
     @Test func cachedMetadataSurvivesOtherItemsFailingOffline() async {
         let fixture = TitleCacheFixture()
         var settings = ReaderTranslationSettings()

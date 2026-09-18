@@ -66,16 +66,12 @@ enum TranslationCacheError: Error, Equatable, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case let .invalidSizeMiB(value):
-            return "Cache size \(value) MiB is outside the supported 1...1024 MiB range."
-        case .invalidStorageRoot:
-            return "The translation cache storage root is invalid."
-        case .unsafeStorageObject:
-            return "The translation cache contains an unsafe filesystem object."
-        case .encodingFailure:
-            return "A translation cache entry could not be encoded."
-        case .persistenceFailure:
-            return "The translation cache could not be persisted."
+        case .invalidSizeMiB:
+            NSLocalizedString("TRANSLATION_ERROR_CACHE_SIZE")
+        case .invalidStorageRoot, .unsafeStorageObject:
+            NSLocalizedString("TRANSLATION_ERROR_CACHE_STORAGE")
+        case .encodingFailure, .persistenceFailure:
+            NSLocalizedString("TRANSLATION_ERROR_CACHE_SAVE")
         }
     }
 }

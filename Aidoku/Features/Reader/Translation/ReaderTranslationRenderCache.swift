@@ -1,12 +1,24 @@
 import UIKit
 
-/// Only current/nearby pages retain decoded pixels. Disk stores the compact
-/// OCR, translation and layout instructions used to recreate these images.
+/// Only current/nearby pages retain decoded pixels. Text/layout data has a
+/// separate small budget. Only compact layout instructions persist on disk.
 @MainActor
 final class ReaderTranslationRenderCache {
     static let shared = ReaderTranslationRenderCache(disk: .shared)
     let disk: ReaderTranslationDiskCache
-    private let images = NSCache<NSString, UIImage>()
+    private struct Bitmap {
+        let image: UIImage
+        let bytes: Int
+    }
+    nonisolated static let bitmapByteLimit = 32 * 1_024 * 1_024
+    private var images: [String: Bitmap] = [:]
+    private var imageOrder: [String] = []
+    private(set) var bitmapBytes = 0
+    nonisolated static let layoutByteLimit = 2 * 1_024 * 1_024
+    private var layouts: [String: Data] = [:]
+    private var layoutOrder: [String] = []
+    private(set) var layoutBytes = 0
+
     private var generation = UUID()
     private struct Preparation {
         let id = UUID()
@@ -18,22 +30,56 @@ final class ReaderTranslationRenderCache {
 
     init(disk: ReaderTranslationDiskCache) {
         self.disk = disk
-        images.totalCostLimit = 64 * 1_024 * 1_024
-        images.countLimit = 10 // Five pages, up to two crops/viewport variants each.
     }
 
     deinit { preparations.values.forEach { $0.task.cancel() } }
 
     func cachedImage(for key: String) -> UIImage? {
-        images.object(forKey: key as NSString)
+        guard let entry = images[key] else { return nil }
+        imageOrder.removeAll { $0 == key }
+        imageOrder.append(key)
+        return entry.image
     }
 
-    func load(_ key: String) async -> UIImage? {
+    func cachedLayout(for key: String) -> Data? {
+        guard let data = layouts[key] else { return nil }
+        layoutOrder.removeAll { $0 == key }; layoutOrder.append(key)
+        return data
+    }
+
+    private func retainLayout(_ data: Data, key: String) {
+        guard data.count <= Self.layoutByteLimit else { return }
+        if let old = layouts.removeValue(forKey: key) { layoutBytes -= old.count }
+        layoutOrder.removeAll { $0 == key }
+        while layoutBytes + data.count > Self.layoutByteLimit || layouts.count >= 66, let oldest = layoutOrder.first {
+            if let old = layouts.removeValue(forKey: oldest) { layoutBytes -= old.count }
+            layoutOrder.removeFirst()
+        }
+        layouts[key] = data; layoutBytes += data.count; layoutOrder.append(key)
+    }
+
+    func layoutData(for key: String) async -> Data? {
+        if let data = cachedLayout(for: key) { return data }
+        let issued = generation
+        guard let data = try? await disk.data(for: key, kind: .layout), !Task.isCancelled, generation == issued,
+              (try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]) != nil else { return nil }
+        retainLayout(data, key: key)
+        return data
+    }
+
+    func storeLayout(_ data: Data, key: String, diskGeneration: UInt64) async {
+        let issued = generation
+        guard !Task.isCancelled, await disk.currentGeneration() == diskGeneration, generation == issued else { return }
+        retainLayout(data, key: key)
+        try? await disk.store(data, for: key, kind: .layout, generation: diskGeneration)
+    }
+
+    func load(_ key: String, pageIdentity: String? = nil, cancelPreparation: Bool = true) async -> UIImage? {
         guard !Task.isCancelled else { return nil }
         if let image = cachedImage(for: key) { return image }
-        // A visible page must not wait for a speculative WebKit snapshot (up to
-        // 30 seconds). Cancel that preparation and let the caller render live.
-        preparations[key]?.task.cancel()
+        if cancelPreparation { preparations[key]?.task.cancel() }
+        // Rebuild cold renders from durable text/layout data, without duplicating
+        // the source artwork as a multi-megabyte PNG for every rendered variant.
         return nil
     }
 
@@ -51,12 +97,26 @@ final class ReaderTranslationRenderCache {
         let issued = generation
         guard !Task.isCancelled, await disk.currentGeneration() == diskGeneration, generation == issued,
               shouldKeepImage(for: pageIdentity) else { return }
-        let cost = image.cgImage.map { $0.bytesPerRow * $0.height } ?? 0
-        guard cost <= images.totalCostLimit else { return }
-        images.setObject(image, forKey: key as NSString, cost: cost)
+        retain(image, key: key, pageIdentity: pageIdentity)
+    }
+
+    private func removeImage(_ key: String) {
+        if let value = images.removeValue(forKey: key) { bitmapBytes -= value.bytes }
+        imageOrder.removeAll { $0 == key }
+    }
+
+    private func retain(_ image: UIImage, key: String, pageIdentity: String) {
+        guard let pixels = image.cgImage else { return }
+        let cost = pixels.bytesPerRow * pixels.height
+        guard cost <= Self.bitmapByteLimit else { return }
+        removeImage(key)
+        while bitmapBytes + cost > Self.bitmapByteLimit, let oldest = imageOrder.first { removeImage(oldest) }
+        images[key] = Bitmap(image: image, bytes: cost)
+        bitmapBytes += cost
+        imageOrder.append(key)
         var keys = variants[pageIdentity, default: []].filter { $0 != key }
         keys.insert(key, at: 0)
-        for obsolete in keys.dropFirst(2) { images.removeObject(forKey: obsolete as NSString) }
+        for obsolete in keys.dropFirst(2) { removeImage(obsolete) }
         variants[pageIdentity] = Array(keys.prefix(2))
     }
 
@@ -69,9 +129,9 @@ final class ReaderTranslationRenderCache {
     }
 
     func setNearbyPages(pageKeys: [String], settings: ReaderTranslationSettings) {
-        nearbyPages = Set(pageKeys.prefix(5).map { ReaderTranslationCacheIdentity.translation(page: $0, settings: settings) })
+        nearbyPages = Set(pageKeys.prefix(3).map { ReaderTranslationCacheIdentity.translation(page: $0, settings: settings) })
         for page in Array(variants.keys) where !shouldKeepImage(for: page) {
-            for key in variants.removeValue(forKey: page) ?? [] { images.removeObject(forKey: key as NSString) }
+            for key in variants.removeValue(forKey: page) ?? [] { removeImage(key) }
         }
     }
 
@@ -80,7 +140,8 @@ final class ReaderTranslationRenderCache {
         nearbyPages = [] // Late snapshots cannot refill memory after leaving the reader.
         preparations.values.forEach { $0.task.cancel() }
         preparations.removeAll()
-        images.removeAllObjects()
+        images.removeAll(); imageOrder.removeAll(); bitmapBytes = 0
+        layouts.removeAll(); layoutOrder.removeAll(); layoutBytes = 0
         variants.removeAll()
     }
 }

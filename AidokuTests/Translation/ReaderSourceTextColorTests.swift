@@ -235,7 +235,7 @@ struct ReaderSourceTextColorTests {
                   let binary = '';
                   for (let i = 0; i < bytes.length; i += 8192)
                     binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-                  const cache = globalThis.__aidokuSourceTextColorsV8?.get(image);
+                  const cache = globalThis.__aidokuSourceTextColorsV12?.get(image);
                   const samples = cache ? Array.from(cache, ([key, sample]) =>
                     ({sourceBounds:key.split(',').map(Number), sample, provenance:'actual renderer sampler cache'})) : [];
                   return {width:canvas.width, height:canvas.height, rgbaBase64:btoa(binary),
@@ -377,8 +377,8 @@ struct ReaderSourceTextColorTests {
             widthEvidence:{relativeToGlyph:0.05},confidence:{stroke:0.9}}
         ];
         samples.forEach((sample,index) => cache.set([index / 10,0,0.09,1].join(','),
-          {background:[11,11,11],stroke:null,confidence:{stroke:0},...sample}));
-        globalThis.__aidokuSourceTextColorsV8 = new WeakMap([[image,cache]]);
+          {background:[11,11,11],stroke:null,...sample,confidence:{background:1,stroke:0,...sample.confidence}}));
+        globalThis.__aidokuSourceTextColorsV12 = new WeakMap([[image,cache]]);
         """, arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
         let fonts: [Double] = [9, 12, 5, 8.99, 12, 12]
         let items: [[String: Any]] = fonts.enumerated().map { index, font in
@@ -510,7 +510,7 @@ struct ReaderSourceTextColorTests {
                 sampledRGB:n.dataset.sourceSampledTextRGB, appliedRGB:n.dataset.sourceAppliedTextRGB,
                 text:n.dataset.sourceTextColor, panel:n.dataset.sourceBackgroundColor}; })()
             """) as? [String: String])
-            #expect(audit["panel"] == (panel ? "preserved" : "fallback"))
+            #expect(audit["panel"] == (panel ? "restored" : "fallback"))
             #expect(audit["text"] == (text ? "preserved" : "fallback"))
             if text {
                 let sampledRGB = try #require(audit["sampledRGB"])
@@ -531,7 +531,7 @@ struct ReaderSourceTextColorTests {
                 #expect(strokeWidth == 0)
             }
             if panel {
-                #expect(audit["background"] == "rgba(24, 40, 64, 0.84)")
+                #expect(audit["background"] == "rgba(0, 0, 0, 0)")
                 #expect(audit["veil"] == "none")
                 #expect(audit["color"] != "rgb(17, 18, 23)")
             } else {
@@ -570,6 +570,62 @@ struct ReaderSourceTextColorTests {
     }
 
     private nonisolated static var directory: URL { URL.documentsDirectory.appendingPathComponent("MangaQuality") }
+
+    @Test func panelRecoveryRequiresMatchingSurfacesAcrossText() async throws {
+        let web = WKWebView()
+        web.loadHTMLString("<html><body></body></html>", baseURL: nil)
+        for _ in 0..<100 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+        let result = try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
+        const sample = (left,right,background=null,foreground=[12,12,12]) => {
+          const rgba = new Uint8ClampedArray(60*100*4);
+          for(let y=0;y<100;y++)for(let x=0;x<60;x++) {
+            const v=x<20?left:x>=40?right:255, p=(y*60+x)*4;
+            rgba.set([v,v,v,255],p);
+          }
+          return aidokuRecoverSourcePanel(rgba,60,100,[20,10,20,80],
+            {foreground,background,stroke:[255,255,255],confidence:{}});
+        };
+        return {shared:sample(128,128),halo:sample(200,200,[255,252,255]),
+          artwork:sample(40,200),colored:sample(200,200,[24,40,64]),
+          noInk:sample(195,195,null,null),noInkHalo:sample(195,195,[255,255,255],null),
+          noInkArtwork:sample(40,200,null,null)};
+        """, arguments: [:], in: nil, contentWorld: .page)
+        let rows = try #require(result as? [String: [String: Any]])
+        #expect(rows["shared"]?["background"] as? [Int] == [128, 128, 128])
+        #expect(rows["shared"]?["foreground"] as? [Int] == [12, 12, 12])
+        #expect(rows["shared"]?["stroke"] as? [Int] == [255, 255, 255])
+        #expect(rows["halo"]?["background"] as? [Int] == [200, 200, 200])
+        #expect(rows["colored"]?["background"] as? [Int] == [24, 40, 64])
+        #expect(rows["artwork"]?["background"] is NSNull)
+        #expect(rows["noInk"]?["background"] as? [Int] == [195, 195, 195])
+        #expect(rows["noInkHalo"]?["background"] as? [Int] == [195, 195, 195])
+        #expect(rows["noInk"]?["foreground"] is NSNull)
+        #expect(rows["noInkArtwork"]?["background"] is NSNull)
+    }
+
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: directory.appendingPathComponent("white-panel-page2.png").path)))
+    func capturedTranslucentPanelsDoNotBecomeWhite() async throws {
+        let web = WKWebView()
+        web.loadHTMLString("<html><body></body></html>", baseURL: nil)
+        for _ in 0..<100 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+        for (name, box, expected) in [
+            ("page2", [1000, 365, 70, 350], [130, 131, 136]),
+            ("page15", [1070, 320, 28, 127], [207, 202, 206]),
+            ("page15", [157, 988, 85, 272], [224, 222, 226])
+        ] {
+            let source = try Data(contentsOf: Self.directory.appendingPathComponent("white-panel-\(name).png"))
+            let result = try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
+            const image = new Image(); image.src = 'data:image/png;base64,' + encoded; await image.decode();
+            return aidokuSourceColorSampler(image,true).sample(
+              [box[0]/image.naturalWidth,box[1]/image.naturalHeight,box[2]/image.naturalWidth,box[3]/image.naturalHeight]);
+            """, arguments: ["encoded": source.base64EncodedString(), "box": box], in: nil, contentWorld: .page)
+            let row = try #require(result as? [String: Any])
+            let background = try #require(row["background"] as? [Int])
+            #expect(zip(background,expected).allSatisfy { abs($0-$1) <= 8 })
+            let foreground = try #require(row["foreground"] as? [Int])
+            #expect(foreground.allSatisfy { $0 < 50 })
+        }
+    }
 
     @Test(.enabled(if: FileManager.default.fileExists(atPath: directory.appendingPathComponent("user-source-color.png").path)))
     func capturedOutlinedGrayBalloonKeepsItsBackground() async throws {
@@ -659,6 +715,77 @@ struct ReaderSourceTextColorTests {
                     }
                 }
                 try snapshot.pngData()?.write(to: output.appendingPathComponent(name + ".png"))
+            }
+        }
+    }
+
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: directory.appendingPathComponent("panel-surface-replay.json").path)))
+    func panelSurfaceReplayComparesSameSettingsAndLayout() async throws {
+        struct Fixture: Decodable { let image: String; let regions: String; let name: String; let target: String }
+        let fixtures = try JSONDecoder().decode([Fixture].self, from: Data(contentsOf:
+            Self.directory.appendingPathComponent("panel-surface-replay.json")))
+        let baseline = try String(contentsOf: Self.directory.appendingPathComponent("baseline-source-colors.js"), encoding: .utf8)
+        let output = Self.directory.appendingPathComponent("panel-surface-results")
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        for fixture in fixtures {
+            let imageData = try Data(contentsOf: Self.directory.appendingPathComponent(fixture.image))
+            let image = try #require(UIImage(data: imageData))
+            let regions = try JSONDecoder().decode([ReaderTranslationStoredRegion].self,
+                from: Data(contentsOf: Self.directory.appendingPathComponent(fixture.regions))).map(\.region)
+            let size = CGSize(width: 430, height: 430 * image.size.height / image.size.width)
+            let (host, overlay) = try makeOverlay(size: size)
+            defer { overlay.cancelWork(); host.isHidden = true }
+            overlay.cancelWork()
+            overlay.removeFromSuperview()
+            let web = WKWebView(frame: CGRect(origin: .zero, size: size))
+            web.scrollView.contentInsetAdjustmentBehavior = .never
+            host.rootViewController?.view.addSubview(web)
+            web.loadHTMLString("""
+            <meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0}img{display:block;width:100%}</style>
+            <img id="reader-source-image" src="data:image/png;base64,\(imageData.base64EncodedString())">
+            """, baseURL: nil)
+            for _ in 0..<200 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+            _ = try await web.callAsyncJavaScript("await document.getElementById('reader-source-image').decode()",
+                arguments: [:], in: nil, contentWorld: .page)
+            var settings = ReaderTranslationSettings.defaultOverlay
+            settings.opacity = 1
+            settings.preserveSourceTextColor = true
+            settings.preserveSourceBackgroundColor = true
+            var beforeLayout: [[String: Any]]?
+            for mode in ["before", "after"] {
+                let renderer = BrowserPageImageOverlayRenderer { web, script, arguments in
+                    let script = mode == "before" ? script.replacingOccurrences(of: BrowserSourceTextColor.script, with: baseline) : script
+                    return try await BrowserPageImageOverlayRenderer.evaluateJavaScript(web, script, arguments)
+                }
+                renderer.render(on: web, items: ReaderTranslationRegion.overlayItems(regions, imageSize: image.size),
+                    imageSize: image.size, sourceRect: CGRect(origin: .zero, size: size), settings: settings, targetLanguage: fixture.target)
+                for _ in 0..<600 where renderer.lastDiagnostic == nil { try await Task.sleep(for: .milliseconds(20)) }
+                #expect(renderer.lastDiagnostic?.outcome == .committed)
+                let audit = try await web.evaluateJavaScript("""
+                (()=>({root:{...document.querySelector('[data-aidoku-image-ocr-overlay="root"]').dataset},
+                  items:[...document.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')].map(n=>({
+                    ...n.dataset,text:n.textContent,background:getComputedStyle(n).backgroundColor,
+                    x:n.offsetLeft,y:n.offsetTop,width:n.offsetWidth,height:n.offsetHeight}))}))()
+                """)
+                let report = try #require(audit as? [String: Any])
+                let rows = try #require(report["items"] as? [[String: Any]])
+                let keys = ["aidokuRegion", "text", "x", "y", "width", "height"]
+                let layout = rows.map { row in row.filter { keys.contains($0.key) } }
+                if let beforeLayout {
+                    #expect(NSArray(array: layout).isEqual(to: beforeLayout), "Panel recovery changed layout for \(fixture.name)")
+                } else { beforeLayout = layout }
+                try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted,.sortedKeys])
+                    .write(to: output.appendingPathComponent("\(fixture.name)-\(mode).json"))
+                _ = try await web.callAsyncJavaScript("await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))",
+                    arguments: [:], in: nil, contentWorld: .page)
+                let snapshot: UIImage = try await withCheckedThrowingContinuation { continuation in
+                    web.takeSnapshot(with: nil) { image,error in
+                        if let image { continuation.resume(returning: image) }
+                        else { continuation.resume(throwing: error ?? URLError(.cannotDecodeContentData)) }
+                    }
+                }
+                try snapshot.pngData()?.write(to: output.appendingPathComponent("\(fixture.name)-\(mode).png"))
+                renderer.cancelPendingRender()
             }
         }
     }

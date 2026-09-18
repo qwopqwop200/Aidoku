@@ -5,6 +5,77 @@ import UIKit
 @testable import Aidoku
 
 struct TranslationHTTPCodecTests {
+
+    @Test(arguments: [false, true], [false, true])
+    func backgroundEvidenceUsesActualImageAndContext(withImage: Bool, withContext: Bool) throws {
+        var request = RemoteTranslationRequest(sourceLanguage: "en", targetLanguage: "ko", sourceText: "Entrance",
+            context: withContext ? ["The sign marks the entrance."] : [])
+        request.filtersBackground = true
+        if withImage { request.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9]) }
+        for apiProtocol in [RemoteTranslationProtocol.chatCompletions, .responses] {
+            let config = RemoteTranslationConfiguration(provider: .custom, apiProtocol: apiProtocol,
+                baseURL: "https://translator.example", model: "test", credentialAccount: "test")
+            for enabled in [true, false] {
+                request.filtersBackground = enabled
+                let body = try TranslationHTTPCodec.requestBody(configuration: config, request: request)
+                let root = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+                let instructions: String
+                if apiProtocol == .responses {
+                    instructions = try #require(root["instructions"] as? String)
+                } else {
+                    let messages = try #require(root["messages"] as? [[String: Any]])
+                    instructions = try #require(messages.first?["content"] as? String)
+                }
+                #expect(instructions.contains("Background cannot be established") == (enabled && !withImage && !withContext))
+                #expect(instructions.contains("Text-only decision gate") == (enabled && !withImage && withContext))
+            }
+        }
+    }
+
+    @Test(arguments: [false, true], [false, true])
+    func backgroundRevisionInvalidatesBothModesOnlyWhenEnabled(withImage: Bool, enabled: Bool) throws {
+        var request = RemoteTranslationRequest(sourceLanguage: "en", targetLanguage: "ko", sourceText: "Entrance")
+        request.filtersBackground = enabled
+        if withImage { request.imageJPEG = Data([1]) }
+        let config = RemoteTranslationConfiguration.openAI(model: "test")
+        let key = TranslationCacheKey(configuration: config, endpoint: try config.validatedEndpoint(), request: request)
+        var previous = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(key)) as? [String: Any])
+        if enabled {
+            previous["backgroundPolicy"] = withImage ? "llm-background-v3-editorial-titles" : "llm-background-text-v1-text-evidence"
+        }
+        let old = try JSONDecoder().decode(TranslationCacheKey.self, from: JSONSerialization.data(withJSONObject: previous))
+        #expect((key != old) == enabled)
+    }
+
+    @Test(arguments: [false, true], [false, true])
+    func textOnlyBackgroundPolicyInvalidatesOnlyBackgroundTextCache(withImage: Bool, filtersBackground: Bool) throws {
+        var request = RemoteTranslationRequest(sourceLanguage: "en", targetLanguage: "ko", sourceText: "Please come in.")
+        request.filtersBackground = filtersBackground
+        if withImage { request.imageJPEG = Data([1]) }
+        let config = RemoteTranslationConfiguration.openAI(model: "test")
+        let key = TranslationCacheKey(configuration: config, endpoint: try config.validatedEndpoint(), request: request)
+        var previous = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(key)) as? [String: Any])
+        if filtersBackground { previous["backgroundPolicy"] = TranslationHTTPCodec.backgroundPolicy }
+        let oldKey = try JSONDecoder().decode(TranslationCacheKey.self, from: JSONSerialization.data(withJSONObject: previous))
+        #expect((key != oldKey) == (filtersBackground && !withImage))
+    }
+
+    @Test(arguments: [false, true], [false, true])
+    func textOnlyPolicyInvalidatesOnlyTextSFXCache(withImage: Bool, filtersSFX: Bool) throws {
+        var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", sourceText: "おはよう")
+        request.filtersSFX = filtersSFX
+        request.filtersBackground = true
+        if withImage { request.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9]) }
+        let config = RemoteTranslationConfiguration(provider: .custom, apiProtocol: .responses,
+            baseURL: "https://translator.example", model: "test", credentialAccount: "test")
+        let key = TranslationCacheKey(configuration: config, endpoint: try config.validatedEndpoint(), request: request)
+        var old = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(key)) as? [String: Any])
+        if filtersSFX { old["sfxPolicy"] = "llm-sfx-v26-normal-text-protection" }
+        let oldKey = try JSONDecoder().decode(TranslationCacheKey.self, from: JSONSerialization.data(withJSONObject: old))
+        // Only text-only SFX semantics changed. Keep image and SFX-disabled cache identities reusable.
+        #expect((key != oldKey) == (filtersSFX && !withImage))
+    }
+
     @Test(arguments: [false, true])
     func editorialTitlePolicyInvalidatesOldFilteredResponses(withImage: Bool) throws {
         var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", sourceText: "星の旅人")
@@ -16,8 +87,19 @@ struct TranslationHTTPCodecTests {
         let body = try TranslationHTTPCodec.requestBody(configuration: configuration, request: request)
         let root = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
         let instructions = try #require(root["instructions"] as? String)
-        #expect(instructions.contains("Cover titles, chapter headings, subtitles, credits and editorial captions are not SFX"))
-        #expect(instructions.contains("A cover illustration is not an in-scene poster"))
+        #expect(instructions.contains(withImage
+            ? "Cover titles, chapter headings, subtitles"
+            : "Cover titles, chapter headings, subtitles, credits and editorial captions are not SFX"))
+        if withImage {
+            #expect(instructions.contains(TranslationHTTPCodec.imageEditorialPriorityInstructions))
+        }
+        let format = try #require((root["text"] as? [String: Any])?["format"] as? [String: Any])
+        let schema = try #require(format["schema"] as? [String: Any])
+        let array = try #require((schema["properties"] as? [String: Any])?["translations"] as? [String: Any])
+        let item = try #require(array["items"] as? [String: Any])
+        let flag = try #require((item["properties"] as? [String: Any])?["is_sfx"] as? [String: Any])
+        // A text-only request must not acquire instructions that rely on visual classification.
+        #expect((flag["description"] as? String != nil) == withImage)
         let key = TranslationCacheKey(configuration: configuration,
             endpoint: try configuration.validatedEndpoint(), request: request)
         // An old all-original classification must miss even when model/settings are unchanged.
@@ -28,12 +110,71 @@ struct TranslationHTTPCodecTests {
         let oldKey = try JSONDecoder().decode(TranslationCacheKey.self,
             from: JSONSerialization.data(withJSONObject: old))
         #expect(key != oldKey)
-        old["backgroundPolicy"] = TranslationHTTPCodec.backgroundPolicy
-        let oldSFXKey = try JSONDecoder().decode(TranslationCacheKey.self,
-            from: JSONSerialization.data(withJSONObject: old))
-        #expect(key != oldSFXKey)
+        old["backgroundPolicy"] = key.backgroundPolicy
+        // Previously translated effects must be reclassified with the current visual policy.
+        for policy in ["llm-sfx-v4-editorial-titles", "llm-sfx-v5-small-mimetics", "llm-sfx-v14-classifier-first", "llm-sfx-v15-editorial-priority", "llm-sfx-v16-visual-role-first", "llm-sfx-v17-visual-function", "llm-sfx-v18-visual-decision-order", "llm-sfx-v20-schema-grounding", "llm-sfx-v22-image-first"] {
+            old["sfxPolicy"] = policy
+            let oldSFXKey = try JSONDecoder().decode(TranslationCacheKey.self,
+                from: JSONSerialization.data(withJSONObject: old))
+            #expect(key != oldSFXKey)
+        }
+        #expect(instructions.contains(withImage
+            ? "Translation preferences apply ONLY to admitted non-SFX text"
+            : "classify BEFORE translating"))
+        #expect(instructions.contains(withImage ? "An image is attached" : "No image is attached"))
+    }
+
+    @Test(arguments: [RemoteTranslationProtocol.responses, .chatCompletions], [false, true])
+    func visualSFXContractRespectsIndependentBackgroundSetting(
+        apiProtocol: RemoteTranslationProtocol, filtersBackground: Bool
+    ) throws {
+        var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", sourceText: "茶")
+        request.filtersSFX = true
+        request.filtersBackground = filtersBackground
+        request.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9])
+        let configuration = RemoteTranslationConfiguration(provider: .custom, apiProtocol: apiProtocol,
+            baseURL: "https://translator.example", model: "vision", credentialAccount: "test")
+        let root = try #require(JSONSerialization.jsonObject(with:
+            TranslationHTTPCodec.requestBody(configuration: configuration, request: request)) as? [String: Any])
+        let instructions: String
+        let schema: [String: Any]
+        if apiProtocol == .responses {
+            instructions = try #require(root["instructions"] as? String)
+            let format = try #require((root["text"] as? [String: Any])?["format"] as? [String: Any])
+            schema = try #require(format["schema"] as? [String: Any])
+        } else {
+            instructions = try #require((root["messages"] as? [[String: Any]])?.first?["content"] as? String)
+            let format = try #require((root["response_format"] as? [String: Any])?["json_schema"] as? [String: Any])
+            schema = try #require(format["schema"] as? [String: Any])
+        }
+        let array = try #require((schema["properties"] as? [String: Any])?["translations"] as? [String: Any])
+        let item = try #require(array["items"] as? [String: Any])
+        let keys = try #require(item["required"] as? [String])
+        #expect(keys.contains("is_sfx"))
+        #expect(keys.contains("text_role") == filtersBackground)
+        let flag = try #require((item["properties"] as? [String: Any])?["is_sfx"] as? [String: Any])
+        #expect(flag["type"] as? String == "boolean")
+        #expect(flag["description"] as? String != nil)
         #expect(instructions.contains("classify BEFORE translating"))
-        #expect(instructions.contains(withImage ? "Small, thin, unobtrusive handwritten effects" : "No image is attached"))
+        #expect(instructions.contains(filtersBackground
+            ? "Physical signs are background and keep their original text."
+            : "translate them because background filtering is disabled."))
+    }
+
+    @Test(arguments: [("茶", "차"), ("中", "안에"), ("「レ", "레")])
+    func dictionaryLookingEffectsPreserveSourceWithoutBlacklistingDialogue(example: (String, String)) throws {
+        let (source, translation) = example
+        let envelope = String(decoding: try JSONSerialization.data(withJSONObject: ["translations": [
+            ["id": "effect", "is_sfx": true, "text": translation],
+            ["id": "dialogue", "is_sfx": false, "text": translation]
+        ]]), as: UTF8.self)
+        let response = try JSONSerialization.data(withJSONObject: [
+            "choices": [["index": 0, "finish_reason": "stop", "message": ["content": envelope]]]
+        ])
+        let parsed = try TranslationHTTPCodec.responseTranslations(from: response, protocol: .chatCompletions,
+            expectedSegmentIDs: ["effect", "dialogue"], sfxSourceTexts: ["effect": source, "dialogue": source])
+        #expect(parsed.first { $0.id == "effect" }?.text == source)
+        #expect(parsed.first { $0.id == "dialogue" }?.text == translation)
     }
 
     @Test func pageImageEncodingResizesAndProducesJPEG() throws {
@@ -50,9 +191,10 @@ struct TranslationHTTPCodecTests {
         #expect(data.prefix(2) == Data([0xff, 0xd8]))
     }
 
-    @Test(arguments: [RemoteTranslationProtocol.responses, .chatCompletions])
-    func imagePayloadAndInstructionsAreConditional(apiProtocol: RemoteTranslationProtocol) throws {
+    @Test(arguments: [RemoteTranslationProtocol.responses, .chatCompletions], [false, true])
+    func imagePayloadAndInstructionsAreConditional(apiProtocol: RemoteTranslationProtocol, filtersSFX: Bool) throws {
         var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", sourceText: "こんにちは")
+        request.filtersSFX = filtersSFX
         let configuration = RemoteTranslationConfiguration(provider: .custom, apiProtocol: apiProtocol,
             baseURL: "https://translator.example", model: "vision", credentialAccount: "test", instructions: "Custom instruct")
         let textBody = try TranslationHTTPCodec.requestBody(configuration: configuration, request: request)
@@ -70,18 +212,22 @@ struct TranslationHTTPCodecTests {
         if apiProtocol == .responses {
             content = try #require((root["input"] as? [[String: Any]])?.first?["content"] as? [[String: Any]])
             instructions = try #require(root["instructions"] as? String)
-            #expect(content.last?["type"] as? String == "input_image")
-            #expect(content.last?["image_url"] as? String == "data:image/jpeg;base64,/9j/2Q==")
+            let imagePart = filtersSFX ? content.first : content.last
+            #expect(imagePart?["type"] as? String == "input_image")
+            #expect(imagePart?["image_url"] as? String == "data:image/jpeg;base64,/9j/2Q==")
         } else {
             let messages = try #require(root["messages"] as? [[String: Any]])
             content = try #require(messages.last?["content"] as? [[String: Any]])
             instructions = try #require(messages.first?["content"] as? String)
-            #expect(content.last?["type"] as? String == "image_url")
-            #expect((content.last?["image_url"] as? [String: Any])?["url"] as? String == "data:image/jpeg;base64,/9j/2Q==")
+            let imagePart = filtersSFX ? content.first : content.last
+            #expect(imagePart?["type"] as? String == "image_url")
+            #expect((imagePart?["image_url"] as? [String: Any])?["url"] as? String == "data:image/jpeg;base64,/9j/2Q==")
         }
         #expect(content.count == 2)
-        #expect(instructions.hasPrefix("Custom instruct"))
-        #expect(instructions.contains(TranslationHTTPCodec.imageInstructions))
+        #expect(instructions.hasPrefix("Custom instruct") == !filtersSFX)
+        #expect(instructions.contains(filtersSFX
+            ? TranslationHTTPCodec.imageEditorialPriorityInstructions
+            : TranslationHTTPCodec.imageInstructions))
         #expect(configuration.instructions == "Custom instruct")
         request.imageJPEG = Data([1, 2, 3])
         #expect(TranslationCacheKey(configuration: configuration, endpoint: endpoint, request: request) != imageKey)

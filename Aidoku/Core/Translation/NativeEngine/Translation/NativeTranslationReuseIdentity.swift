@@ -63,6 +63,7 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
             cacheKey.segments.first(where: { $0.id == segmentID })?.bounds ==
                 expected.cacheKey.segments.first(where: { $0.id == expected.segmentID })?.bounds &&
             cacheKey.imageDigest == expected.cacheKey.imageDigest &&
+            cacheKey.imageSupportRevision == expected.cacheKey.imageSupportRevision &&
             cacheKey.sfxPolicy == expected.cacheKey.sfxPolicy &&
             cacheKey.version == expected.cacheKey.version &&
             cacheKey.provider == expected.cacheKey.provider &&
@@ -86,6 +87,7 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
         as expected: NativeTranslationReuseIdentity
     ) -> Bool {
         cacheKey.imageDigest == expected.cacheKey.imageDigest &&
+            cacheKey.imageSupportRevision == expected.cacheKey.imageSupportRevision &&
             cacheKey.sfxPolicy == expected.cacheKey.sfxPolicy &&
             cacheKey.version == expected.cacheKey.version &&
             cacheKey.provider == expected.cacheKey.provider &&
@@ -149,7 +151,8 @@ enum NativeProgressiveTranslationOverlay {
                     completed?.identity ??
                     (canKeepExisting
                         ? item.translationReuseIdentity
-                        : nil)
+                        : nil),
+                sourcePolygon: item.sourcePolygon, auxiliaryInkRects: item.auxiliaryInkRects
             )
         }
     }

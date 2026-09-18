@@ -3,6 +3,27 @@ import UIKit
 @testable import Aidoku
 
 struct ReaderTranslationBalloonMergerTests {
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("gray-merge-source.png").path)))
+    func capturedGrayBalloonKeepsAllThreeColumnsTogether() async throws {
+        let folder = URL.documentsDirectory
+        let screenshot = try #require(UIImage(contentsOfFile: folder.appendingPathComponent("gray-merge-source.png").path)?.cgImage)
+        let image = screenshot
+        let configuration = ReaderOCRConfiguration(confidenceThreshold: 0.2)
+        let pipeline = NativeCoreMLOCRPipeline(modelTier: configuration.modelTier,
+            detectorMaximumSide: configuration.detectorMaximumSide, recognizerMaximumWidth: configuration.recognizerMaximumWidth)
+        let native = try await pipeline.recognize(image: image, requestID: UUID().uuidString, confidenceThreshold: configuration.confidenceThreshold)
+        let raw: [[String: Any]] = native.lines.map { ["text": $0.text, "polygon": $0.polygon.map { [$0.x, $0.y] }, "orientation": String(describing: $0.orientation), "score": $0.score] }
+        try JSONSerialization.data(withJSONObject: raw, options: .prettyPrinted).write(to: folder.appendingPathComponent("gray-merge-raw.json"))
+        await pipeline.purgeResources()
+        let regions = try await ReaderOCRService.shared.recognize(image: image, configuration: configuration)
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(regions.map(ReaderTranslationStoredRegion.init)).write(to: folder.appendingPathComponent("gray-merge-regions.json"))
+        let leftBalloon = regions.filter { $0.rect.midX < 0.3 && $0.rect.midY < 0.4 }
+        #expect(leftBalloon.count == 1)
+        #expect(leftBalloon.first?.source == "もうここには来ないんだから気にしなくていい")
+        #expect(regions.count == 3)
+    }
+
     @Test func overlappingTailRequiresOriginalLastColumnEvidence() throws {
         let format = UIGraphicsImageRendererFormat(); format.scale = 1
         let image = try #require(UIGraphicsImageRenderer(size: CGSize(width: 300, height: 400), format: format).image { ctx in

@@ -5,7 +5,7 @@ import SQLite3
 /// Durable, byte-bounded LRU for OCR, translations and layout instructions.
 /// File I/O, metadata decoding and eviction run on this actor, never on UIKit.
 actor ReaderTranslationDiskCache {
-    enum Kind: String, CaseIterable, Sendable { case ocr, translation, layout }
+    enum Kind: String, CaseIterable, Sendable { case ocr, translation, metadata, layout, snapshot }
     struct Statistics: Sendable {
         let bytes: Int64
         let payloadBytes: Int64
@@ -30,6 +30,7 @@ actor ReaderTranslationDiskCache {
     private var byteLimit: Int64
     private var database: ReaderCacheDatabase?
     private var generation: UInt64 = 0
+    private var metadataGeneration: UInt64 = 0
     private let tracksSavedSettings: Bool
     private var activePolicy: ReaderTranslationCachePolicy?
     private var pendingTouches: [String] = []
@@ -63,13 +64,22 @@ actor ReaderTranslationDiskCache {
         self.byteLimit = min(Self.maximumBytes, max(0, byteLimit))
     }
 
-    func currentGeneration(settings: ReaderTranslationSettings? = nil) -> UInt64 {
+    func currentGeneration(settings: ReaderTranslationSettings? = nil, kind: Kind = .translation) -> UInt64 {
         if tracksSavedSettings { try? prepare() }
+        let generation = storageGeneration(for: kind)
         // A queued request may still carry the old model even after invalidation.
-        if let settings, let activePolicy, ReaderTranslationCachePolicy(settings) != activePolicy {
-            return generation &- 1
+        if let settings, let activePolicy {
+            let requested = ReaderTranslationCachePolicy(settings)
+            let matches = kind == .metadata
+                ? requested.metadata == activePolicy.metadata
+                : requested.translation == activePolicy.translation && requested.layout == activePolicy.layout
+            if !matches { return generation &- 1 }
         }
         return generation
+    }
+
+    private func storageGeneration(for kind: Kind) -> UInt64 {
+        kind == .metadata ? metadataGeneration : generation
     }
 
     func refreshSavedSettings() throws { try prepare() }
@@ -81,7 +91,9 @@ actor ReaderTranslationDiskCache {
 
     private func applyPolicy(_ policy: ReaderTranslationCachePolicy) throws {
         guard activePolicy != policy, let database else { return }
-        if try database.applyPolicy(policy) { generation &+= 1 }
+        let changed = try database.applyPolicy(policy)
+        if changed.page { generation &+= 1 }
+        if changed.metadata { metadataGeneration &+= 1 }
         activePolicy = policy
     }
 
@@ -100,6 +112,7 @@ actor ReaderTranslationDiskCache {
 
     func clear() throws {
         generation &+= 1
+        metadataGeneration &+= 1
         activePolicy = nil
         touchFlushTask?.cancel(); touchFlushTask = nil
         pendingTouches.removeAll()
@@ -133,6 +146,18 @@ actor ReaderTranslationDiskCache {
         try database?.touch(fileName(key, kind: kind))
     }
 
+    func storeImageSize(_ size: CGSize, page: String, generation: UInt64) throws {
+        guard size.width > 0, size.height > 0, size.width.isFinite, size.height.isFinite else { return }
+        try store(JSONEncoder().encode(size), for: "processed-image-size-v1-" + page, kind: .layout, generation: generation)
+    }
+
+    func imageSize(page: String) throws -> CGSize? {
+        guard let data = try data(for: "processed-image-size-v1-" + page, kind: .layout),
+              let size = try? JSONDecoder().decode(CGSize.self, from: data),
+              size.width > 0, size.height > 0, size.width.isFinite, size.height.isFinite else { return nil }
+        return size
+    }
+
     func contains(_ key: String, kind: Kind) throws -> Bool {
         try prepare()
         return try database?.exists(fileName(key, kind: kind)) ?? false
@@ -142,7 +167,8 @@ actor ReaderTranslationDiskCache {
     func store(_ data: Data, for key: String, kind: Kind, generation expected: UInt64) throws {
         try Task.checkCancellation()
         try prepare()
-        guard generation == expected else { return }
+        guard storageGeneration(for: kind) == expected else { return }
+        guard kind != .snapshot else { return }
         let name = fileName(key, kind: kind)
         let packed = ReaderTranslationCacheCodec.pack(data)
         guard Int64(packed.count) <= byteLimit, let database else { return }
@@ -191,7 +217,7 @@ actor ReaderTranslationDiskCache {
     func storeRegions(_ regions: [ReaderTranslationRegion], for key: String, kind: Kind, generation: UInt64) throws {
         try Task.checkCancellation()
         try prepare()
-        guard self.generation == generation else { return }
+        guard storageGeneration(for: kind) == generation else { return }
         if regions.isEmpty {
             try store(Data("[]".utf8), for: key, kind: kind, generation: generation)
             return
@@ -251,6 +277,10 @@ actor ReaderTranslationDiskCache {
         try root.setResourceValues(values)
         let opened = try ReaderCacheDatabase(url: directory.appendingPathComponent("cache.sqlite"))
         try opened.importLegacy(directory: directory, byteLimit: byteLimit)
+        try opened.separateLegacyMetadata()
+        // Old full-page PNGs duplicate the original artwork. Retain all OCR,
+        // translations and layouts so reopening never requires another API call.
+        try opened.execute("DELETE FROM cache WHERE name GLOB 'snapshot-*'")
         database = opened
         activePolicy = nil
         if tracksSavedSettings { try applyPolicy(ReaderTranslationCachePolicy(ReaderTranslationSettings())) }
@@ -308,6 +338,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         try execute("PRAGMA cache_size=-2048")
         try execute("CREATE TABLE IF NOT EXISTS cache (name TEXT PRIMARY KEY, data BLOB NOT NULL, accessed INTEGER NOT NULL) WITHOUT ROWID")
         try execute("CREATE INDEX IF NOT EXISTS cache_lru ON cache(accessed, name)")
+        try execute("DROP INDEX IF EXISTS cache_snapshot_lru")
         try execute("CREATE TABLE IF NOT EXISTS totals (entries INTEGER NOT NULL, bytes INTEGER NOT NULL)")
         try execute("INSERT INTO totals SELECT 0, 0 WHERE NOT EXISTS (SELECT 1 FROM totals)")
         try execute("CREATE TRIGGER IF NOT EXISTS cache_insert AFTER INSERT ON cache BEGIN UPDATE totals SET entries=entries+1, bytes=bytes+length(new.data); END")
@@ -386,7 +417,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     }
 
     func nextLegacyRegion(after name: String) throws -> (name: String, data: Data)? {
-        try statement("SELECT name,data FROM cache WHERE name>? AND (name LIKE 'ocr-%' OR name LIKE 'translation-%') AND NOT EXISTS (SELECT 1 FROM region_links WHERE region_links.name=cache.name) ORDER BY name LIMIT 1", name: name) { pointer in
+        try statement("SELECT name,data FROM cache WHERE name>? AND (name LIKE 'ocr-%' OR name LIKE 'translation-%' OR name LIKE 'metadata-%') AND NOT EXISTS (SELECT 1 FROM region_links WHERE region_links.name=cache.name) ORDER BY name LIMIT 1", name: name) { pointer in
             let result = sqlite3_step(pointer)
             if result == SQLITE_DONE { return nil }
             guard result == SQLITE_ROW else { throw failure() }
@@ -462,9 +493,53 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         }
     }
 
+    /// Old metadata entries used the page namespace, but always contained one
+    /// zero-sized "title" region. Move one row at a time, preserving bytes, bases
+    /// and LRU order. Per-row commits make an interrupted upgrade resumable.
+    func separateLegacyMetadata() throws {
+        guard try integer("SELECT COUNT(*) FROM cache_policy WHERE name='metadata-kind-v1'") == 0 else { return }
+        var cursor = "translation-"
+        while let name = try statement("SELECT name FROM cache WHERE name>? AND name<'translation.' ORDER BY name LIMIT 1", name: cursor, body: { pointer -> String? in
+            let result = sqlite3_step(pointer)
+            if result == SQLITE_DONE { return nil }
+            guard result == SQLITE_ROW else { throw failure() }
+            return String(cString: sqlite3_column_text(pointer, 0))
+        }) {
+            try Task.checkCancellation()
+            cursor = name
+            guard let payload = try payload(name),
+                  let raw = try? ReaderTranslationCacheCodec.unpack(payload.base ?? payload.data),
+                  let regions = try? JSONDecoder().decode([ReaderTranslationStoredRegion].self, from: raw),
+                  regions.count == 1, regions[0].id == "title", regions[0].rect == .zero else { continue }
+            let destination = "metadata-" + name.dropFirst("translation-".count)
+            try execute("BEGIN IMMEDIATE")
+            do {
+                if try !exists(destination) {
+                    // Copy the link before deleting the old parent so its shared
+                    // base remains referenced throughout the transaction.
+                    for sql in [
+                        "INSERT INTO cache(name,data,accessed) SELECT ?,data,accessed FROM cache WHERE name=?",
+                        "INSERT INTO region_links(name,base) SELECT ?,base FROM region_links WHERE name=?"
+                    ] {
+                        try statement(sql, name: destination) { pointer in
+                            guard sqlite3_bind_text(pointer, 2, name, -1, transient) == SQLITE_OK else { throw failure() }
+                            try step(pointer)
+                        }
+                    }
+                }
+                try delete(name)
+                try execute("COMMIT")
+            } catch {
+                try? execute("ROLLBACK")
+                throw error
+            }
+        }
+        try execute("INSERT INTO cache_policy(name,value) VALUES('metadata-kind-v1','1')")
+    }
+
     /// The initial policy adopts existing records. Subsequent settings changes
     /// remove all obsolete translations/layouts, including their unreferenced bases.
-    func applyPolicy(_ policy: ReaderTranslationCachePolicy) throws -> Bool {
+    func applyPolicy(_ policy: ReaderTranslationCachePolicy) throws -> (page: Bool, metadata: Bool) {
         try execute("BEGIN IMMEDIATE")
         do {
             func previous(_ key: String) throws -> String? {
@@ -477,17 +552,21 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
             }
             let oldTranslation = try previous("translation")
             let oldLayout = try previous("layout")
+            let oldMetadata = try previous("metadata")
             let translationChanged = oldTranslation != nil && oldTranslation != policy.translation
             let layoutChanged = oldLayout != nil && oldLayout != policy.layout
+            let metadataChanged = oldMetadata != nil && oldMetadata != policy.metadata
             if translationChanged {
-                try execute("DELETE FROM cache WHERE name LIKE 'translation-%' OR name LIKE 'layout-%'")
+                try execute("DELETE FROM cache WHERE name LIKE 'translation-%' OR name LIKE 'layout-%' OR name LIKE 'snapshot-%'")
             } else if layoutChanged {
-                try execute("DELETE FROM cache WHERE name LIKE 'layout-%'")
+                try execute("DELETE FROM cache WHERE name LIKE 'layout-%' OR name LIKE 'snapshot-%'")
             }
+            if metadataChanged { try execute("DELETE FROM cache WHERE name LIKE 'metadata-%'") }
             try statement("INSERT INTO cache_policy(name,value) VALUES('translation',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", name: policy.translation, body: step)
             try statement("INSERT INTO cache_policy(name,value) VALUES('layout',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", name: policy.layout, body: step)
+            try statement("INSERT INTO cache_policy(name,value) VALUES('metadata',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", name: policy.metadata, body: step)
             try execute("COMMIT")
-            return translationChanged || layoutChanged
+            return (translationChanged || layoutChanged, metadataChanged)
         } catch {
             try? execute("ROLLBACK")
             throw error
@@ -535,7 +614,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
                 guard name.hasSuffix(".cache") else { continue }
                 let values = try file.resourceValues(forKeys: keys)
                 guard values.isRegularFile == true, values.isSymbolicLink != true else { continue }
-                if name.hasPrefix("render-") || name.hasPrefix("renderIndex-") {
+                if name.hasPrefix("render-") || name.hasPrefix("renderIndex-") || name.hasPrefix("snapshot-") {
                     try FileManager.default.removeItem(at: file)
                     continue
                 }
@@ -568,6 +647,7 @@ struct ReaderTranslationStoredRegion: Codable {
     let confidence: Double
     let orientation: String
     let singleColumn: Bool?
+    let auxiliaryInkRects: [CGRect]?
     let sourceImageAspectRatio: Double?
     let sfxEnclosedBackground: Bool?
     let translationOrder: Int?
@@ -579,6 +659,7 @@ struct ReaderTranslationStoredRegion: Codable {
         id = value.id; rect = value.rect; source = value.source; translation = value.translation
         polygon = value.polygon; confidence = value.confidence; orientation = value.sourceOrientation.rawValue
         singleColumn = value.sourceSingleVerticalColumn
+        auxiliaryInkRects = value.auxiliaryInkRects.isEmpty ? nil : value.auxiliaryInkRects
         sourceImageAspectRatio = value.sourceImageAspectRatio
         sfxEnclosedBackground = value.sfxEnclosedBackground
         translationOrder = value.translationOrder
@@ -589,6 +670,7 @@ struct ReaderTranslationStoredRegion: Codable {
         var region = ReaderTranslationRegion(id: id, rect: rect, source: source, translation: translation, polygon: polygon,
                                              confidence: confidence, sourceOrientation: .init(tolerantRawValue: orientation),
                                              sourceSingleVerticalColumn: singleColumn)
+        region.auxiliaryInkRects = auxiliaryInkRects ?? []
         region.sourceImageAspectRatio = sourceImageAspectRatio
         region.sfxEnclosedBackground = sfxEnclosedBackground
         region.translationOrder = translationOrder
@@ -601,18 +683,16 @@ struct ReaderTranslationStoredRegion: Codable {
 /// Persistent global settings only: chapter direction and viewport variants may coexist.
 private struct ReaderTranslationCachePolicy: Equatable {
     let translation: String
+    let metadata: String
     let layout: String
 
     init(_ settings: ReaderTranslationSettings) {
         var persisted = settings
         persisted.rightToLeftPanelOrder = false
-        translation = ReaderTranslationCacheIdentity.encoded([
-            ReaderTranslationCacheIdentity.translation(page: "cache-policy", settings: persisted),
-            ReaderTranslationCacheIdentity.encoded(settings.mangaTitleSourceLanguages.sorted()),
-            ReaderTranslationCacheIdentity.encoded(settings.chapterTitleSourceLanguages.sorted()),
-            ReaderTranslationCacheIdentity.encoded(settings.mangaDescriptionSourceLanguages.sorted()),
-            ReaderTranslationCacheIdentity.encoded(settings.mangaTagSourceLanguages.sorted())
-        ])
+        translation = ReaderTranslationCacheIdentity.translation(page: "cache-policy", settings: persisted)
+        metadata = ReaderTranslationCacheIdentity.encoded(TitleTranslationKind.allCases.map {
+            TitleTranslation.cacheKey("cache-policy", kind: $0, settings: settings)
+        })
         layout = ReaderTranslationCacheIdentity.encoded(settings.overlay)
     }
 }
@@ -628,7 +708,7 @@ enum ReaderTranslationCacheIdentity {
     static func ocr(page: String, settings: ReaderTranslationSettings) -> String {
         // OCR entries contain merged regions. A merger change must also
         // invalidate derived translations/layouts instead of replaying old boxes.
-        encoded(["reader-ocr-v46-translucent-balloon-columns", page, encoded(settings.ocrConfiguration)])
+        encoded(["reader-ocr-v49-independent-stacked-columns", page, encoded(settings.ocrConfiguration)])
     }
     static func translation(page: String, settings: ReaderTranslationSettings) -> String {
         let previous = unfilteredTranslation(page: page, settings: settings)
@@ -642,7 +722,7 @@ enum ReaderTranslationCacheIdentity {
             "reader-translation-v2-neighbor-context", ocr(page: page, settings: settings), config.provider.rawValue, config.apiProtocol.rawValue,
             config.baseURL, config.model, config.credentialAccount, String(config.credentialGeneration), config.reasoningEffort.rawValue,
             config.instructions, settings.sourceLanguage, settings.targetLanguage
-        ] + (settings.includePageImage ? ["page-image-v1"] : []) + (settings.filterSFXWithLLM ? [TranslationHTTPCodec.sfxPolicy] : []) + (settings.filterBackgroundWithLLM ? [TranslationHTTPCodec.backgroundPolicy] : []))
+        ] + (settings.includePageImage ? ["page-image-v2-auto-fallback", String(TranslationImageSupport.shared.revision(for: config))] : []) + (settings.filterSFXWithLLM ? [settings.shouldAttachPageImage ? TranslationHTTPCodec.sfxPolicy : TranslationHTTPCodec.textOnlySFXPolicy] : []) + (settings.filterBackgroundWithLLM ? [settings.shouldAttachPageImage ? TranslationHTTPCodec.backgroundPolicy : TranslationHTTPCodec.textOnlyBackgroundPolicy] : []))
     }
     // Every geometry/appearance input must be included to reject stale pixels after a reader change.
     // swiftlint:disable:next function_parameter_count
@@ -654,7 +734,7 @@ enum ReaderTranslationCacheIdentity {
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
         return encoded([
-            "reader-render-v34-outline-aware-color-margin", translation(page: page, settings: settings), encoded(settings.overlay),
+            "reader-render-v56-source-blur-fallback", translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
             ProcessInfo.processInfo.operatingSystemVersionString
         ])

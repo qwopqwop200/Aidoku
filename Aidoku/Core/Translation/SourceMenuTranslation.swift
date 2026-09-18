@@ -48,12 +48,14 @@ struct SourceMenuTranslationModifier: ViewModifier {
                     ? SourceMenuTranslation.labelsToTranslate(options: originals,
                         includeLargeLists: settings.translateLargeFilterOptions)
                     : originals
-                var translated = await SourceMenuTranslation.translate(requested, settings: settings, kind: optionKind)
-                if let filterTitle {
-                    let headings = await SourceMenuTranslation.translate([filterTitle], settings: settings)
-                    translated.merge(headings) { _, heading in heading }
-                }
+                // Submit and display the section heading before its potentially
+                // large tag/option list; queue priority alone cannot fix a late submission.
+                let headings = await SourceMenuTranslation.translate([filterTitle].compactMap { $0 }, settings: settings)
                 guard !Task.isCancelled else { return }
+                labels.merge(headings) { _, heading in heading }
+                var translated = await SourceMenuTranslation.translate(requested, settings: settings, kind: optionKind)
+                guard !Task.isCancelled else { return }
+                translated.merge(headings) { _, heading in heading }
                 labels = translated
             }
             .onReceive(NotificationCenter.default.publisher(for: ReaderTranslationSettings.changed)) { _ in

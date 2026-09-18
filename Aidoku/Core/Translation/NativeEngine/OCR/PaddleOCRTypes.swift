@@ -20,6 +20,8 @@ struct PaddleOCRLine: Codable, Equatable, Sendable {
     /// runtime omitting the field: a multi-column vertical region must never
     /// be squeezed into one source-width column by the renderer.
     let singleVerticalColumn: Bool?
+    /// Suppressed readings still own ink, independently of body/layout geometry.
+    let auxiliaryInkRects: [CGRect]
 
     private enum CodingKeys: String, CodingKey {
         case poly
@@ -27,6 +29,7 @@ struct PaddleOCRLine: Codable, Equatable, Sendable {
         case score
         case orientation
         case singleVerticalColumn
+        case auxiliaryInkRects
     }
 
     init(
@@ -34,13 +37,15 @@ struct PaddleOCRLine: Codable, Equatable, Sendable {
         text: String,
         score: Double,
         orientationRaw: String?,
-        singleVerticalColumn: Bool? = nil
+        singleVerticalColumn: Bool? = nil,
+        auxiliaryInkRects: [CGRect] = []
     ) {
         self.poly = poly
         self.text = text
         self.score = score
         self.orientationRaw = orientationRaw
         self.singleVerticalColumn = singleVerticalColumn
+        self.auxiliaryInkRects = auxiliaryInkRects
     }
 
     init(from decoder: any Decoder) throws {
@@ -52,6 +57,7 @@ struct PaddleOCRLine: Codable, Equatable, Sendable {
             String.self,
             forKey: .orientation
         )
+        auxiliaryInkRects = try container.decodeIfPresent([CGRect].self, forKey: .auxiliaryInkRects) ?? []
         singleVerticalColumn = try container.decodeIfPresent(
             Bool.self,
             forKey: .singleVerticalColumn
@@ -60,6 +66,7 @@ struct PaddleOCRLine: Codable, Equatable, Sendable {
 
     func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        if !auxiliaryInkRects.isEmpty { try container.encode(auxiliaryInkRects, forKey: .auxiliaryInkRects) }
         try container.encode(poly, forKey: .poly)
         try container.encode(text, forKey: .text)
         try container.encode(score, forKey: .score)

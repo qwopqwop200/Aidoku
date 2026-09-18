@@ -359,30 +359,15 @@ enum NativeCoreMLDetectorError: Error, Equatable, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .modelResourceMissing:
-            "The bundled PP-OCRv6 detector Core ML model is missing."
-        case let .modelLoadFailed(message):
-            "The PP-OCRv6 detector Core ML model could not be loaded: \(message)"
-        case .imageConversionFailed:
-            "The detector source image could not be converted to RGBA pixels."
-        case .modelInputCreationFailed:
-            "The PP-OCRv6 detector input tensor could not be created."
-        case .modelOutputMissing:
-            "The PP-OCRv6 detector output tensor is missing."
-        case let .modelOutputShape(expected, actual):
-            "The PP-OCRv6 detector output shape is \(actual); expected \(expected)."
-        case let .unsupportedInputShape(
-            sourceWidth,
-            sourceHeight,
-            resizedWidth,
-            resizedHeight
-        ):
-            "The PP-OCRv6 detector source \(sourceWidth)x\(sourceHeight) "
-                + "requires an exact \(resizedWidth)x\(resizedHeight) model "
-                + "function that is not bundled."
-        case .unsupportedModelOutputType:
-            "The PP-OCRv6 detector output uses an unsupported numeric type."
-        case let .predictionFailed(message):
-            "PP-OCRv6 detector prediction failed: \(message)"
+            NSLocalizedString("OCR_ERROR_MODEL_MISSING")
+        case .modelLoadFailed:
+            NSLocalizedString("OCR_ERROR_MODEL_LOAD")
+        case .imageConversionFailed, .modelInputCreationFailed, .unsupportedInputShape:
+            NSLocalizedString("OCR_ERROR_IMAGE")
+        case .modelOutputMissing, .modelOutputShape, .unsupportedModelOutputType:
+            NSLocalizedString("OCR_ERROR_OUTPUT")
+        case .predictionFailed:
+            NSLocalizedString("OCR_ERROR_PREDICTION")
         }
     }
 }

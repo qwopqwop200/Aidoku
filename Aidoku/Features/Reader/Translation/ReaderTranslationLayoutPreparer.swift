@@ -67,6 +67,21 @@ final class ReaderTranslationLayoutPreparer {
     func prepare(page: Page, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
                  geometry: ReaderTranslationLayoutGeometry, window: UIWindow? = nil) async throws {
         guard !regions.isEmpty, geometry.viewport.width > 0, geometry.viewport.height > 0 else { return }
+        let identity = ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: settings)
+        guard renderCache.shouldKeepImage(for: identity) else {
+            try await prepareTextOnly(page: page, regions: regions, settings: settings, geometry: geometry)
+            return
+        }
+        // A persisted snapshot needs neither source-image decoding nor WebKit.
+        if window != nil, let imageSize = try? await renderCache.disk.imageSize(page: page.translationCacheKey) {
+            var restored = true
+            for crop in crops(geometry) {
+                let size = CGSize(width: imageSize.width * crop.width, height: imageSize.height * crop.height)
+                let key = renderKey(page, settings, geometry, size, crop)
+                if await renderCache.load(key, pageIdentity: identity) == nil { restored = false; break }
+            }
+            if restored { return }
+        }
         // Admit before loading pixels and hold admission through WebKit capture.
         // Network-only translation may continue, but OCR/download image work
         // cannot accumulate alongside a speculative full-page renderer.
@@ -74,6 +89,40 @@ final class ReaderTranslationLayoutPreparer {
             try await self.prepareAdmitted(page: page, regions: regions, settings: settings,
                                            geometry: geometry, window: window)
         }
+    }
+
+    /// Uses the processed image's saved dimensions, never the image itself.
+    /// Unknown geometry is a cheap miss; nearby/visible rendering records it.
+    func prepareTextOnly(page: Page, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
+                         geometry: ReaderTranslationLayoutGeometry) async throws {
+        guard !regions.isEmpty, geometry.viewport.width > 0, geometry.viewport.height > 0,
+              let imageSize = try await renderCache.disk.imageSize(page: page.translationCacheKey) else { return }
+        let generation = await renderCache.disk.currentGeneration(settings: settings)
+        for crop in crops(geometry) {
+            try Task.checkCancellation()
+            let size = CGSize(width: imageSize.width * crop.width, height: imageSize.height * crop.height)
+            let viewport = geometry.viewport(for: size)
+            let key = renderKey(page, settings, geometry, size, crop)
+            if await renderCache.layoutData(for: key) != nil { continue }
+            let displayed = regions.compactMap { $0.cropped(to: crop) }
+            let items = ReaderTranslationRegion.overlayItems(displayed, imageSize: size)
+            let sourceRect = ReaderTranslationGeometry.displayRect(CGRect(x: 0, y: 0, width: 1, height: 1), imageSize: size,
+                bounds: CGRect(origin: .zero, size: viewport), aspectFit: geometry.aspectFit)
+            let data = try await layoutPreparation(items, size, sourceRect, settings.overlay, settings.targetLanguage, viewport)
+            try Task.checkCancellation()
+            await renderCache.storeLayout(data, key: key, diskGeneration: generation)
+        }
+    }
+
+    private func crops(_ geometry: ReaderTranslationLayoutGeometry) -> [CGRect] {
+        let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
+        return geometry.crop == unit ? [unit] : [CGRect(x: 0, y: 0, width: 0.5, height: 1), CGRect(x: 0.5, y: 0, width: 0.5, height: 1)]
+    }
+
+    private func renderKey(_ page: Page, _ settings: ReaderTranslationSettings, _ geometry: ReaderTranslationLayoutGeometry,
+                           _ size: CGSize, _ crop: CGRect) -> String {
+        ReaderTranslationCacheIdentity.render(page: page.translationCacheKey, settings: settings, imageSize: size,
+            viewport: geometry.viewport(for: size), scale: geometry.scale, aspectFit: geometry.aspectFit, crop: crop, dark: geometry.dark)
     }
 
     private func prepareAdmitted(page: Page, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
@@ -84,6 +133,7 @@ final class ReaderTranslationLayoutPreparer {
         let operation = Task.detached(priority: .utility) { try await loader.load(page) }
         let image = try await withTaskCancellationHandler { try await operation.value } onCancel: { operation.cancel() }
         let generation = await cache.currentGeneration(settings: settings)
+        try? await cache.storeImageSize(image.size, page: page.translationCacheKey, generation: generation)
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
         let crops = geometry.crop == unit ? [unit] : [CGRect(x: 0, y: 0, width: 0.5, height: 1), CGRect(x: 0.5, y: 0, width: 0.5, height: 1)]
         for crop in crops {
@@ -102,8 +152,7 @@ final class ReaderTranslationLayoutPreparer {
                 // encoded and loaded into WebKit. The renderer joins this exact
                 // task, so a slow layout can never start a duplicate calculation.
                 let layout = Task { () throws -> Data in
-                    if let data = try? await cache.data(for: key, kind: .layout),
-                       (try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]) != nil { return data }
+                    if let data = await renderCache.layoutData(for: key) { return data }
                     let layoutStart = ProcessInfo.processInfo.systemUptime
                     let sourceRect = ReaderTranslationGeometry.displayRect(unit, imageSize: size, bounds: CGRect(origin: .zero, size: viewport),
                                                                            aspectFit: geometry.aspectFit)
@@ -113,7 +162,7 @@ final class ReaderTranslationLayoutPreparer {
                         elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - layoutStart) * 1_000
                     )
                     try Task.checkCancellation()
-                    try? await cache.store(data, for: key, kind: .layout, generation: generation)
+                    await renderCache.storeLayout(data, key: key, diskGeneration: generation)
                     return data
                 }
                 defer { layout.cancel() }

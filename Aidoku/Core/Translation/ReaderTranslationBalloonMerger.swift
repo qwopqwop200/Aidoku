@@ -90,6 +90,7 @@ enum ReaderTranslationBalloonMerger {
                 source: members.map(\.source).joined(), confidence: members.map(\.confidence).min() ?? 1,
                 sourceImageAspectRatio: Double(width / height), sourceOrientation: .vertical,
                 sourceSingleVerticalColumn: false)
+            joined.auxiliaryInkRects = members.flatMap(\.auxiliaryInkRects)
             joined.polygon = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
                               CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)]
             replacements[anchor.id] = joined
@@ -124,6 +125,7 @@ enum ReaderTranslationBalloonMerger {
                 var joined = ReaderTranslationRegion(id: head.id, rect: union, source: result[index].source + tail.source,
                     confidence: min(result[index].confidence, tail.confidence), sourceImageAspectRatio: Double(width / height),
                     sourceOrientation: .vertical, sourceSingleVerticalColumn: false)
+                joined.auxiliaryInkRects = result[index].auxiliaryInkRects + tail.auxiliaryInkRects
                 joined.polygon = [CGPoint(x: union.minX, y: union.minY), CGPoint(x: union.maxX, y: union.minY),
                                   CGPoint(x: union.maxX, y: union.maxY), CGPoint(x: union.minX, y: union.maxY)]
                 result[index] = joined

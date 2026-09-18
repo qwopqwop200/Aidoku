@@ -1133,6 +1133,9 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
                 loadPage(at: page)
             }
         }
+        // The incoming view is already exposed during an interactive drag.
+        // Bind cached composite pixels now, without changing translation demand.
+        delegate?.translationVisibilityDidChange()
     }
 }
 
@@ -1503,6 +1506,29 @@ extension ReaderPagedViewController {
 }
 
 extension ReaderPagedViewController {
+    func translationPreviewPages() -> [ReaderTranslationPage] {
+        guard #available(iOS 18.0, *), isViewLoaded else { return [] }
+        let visible = visiblePageControllers()
+        let indices = visible.compactMap { pageViewControllers.firstIndex(of: $0) }
+        guard let first = indices.min(), let last = indices.max() else { return [] }
+        let neighbors = [first - 1, last + 1].filter { pageViewControllers.indices.contains($0) }
+        return neighbors.compactMap { index in
+            let controller = pageViewControllers[index]
+            guard case .page = controller.type else { return nil }
+            loadPage(at: pageIndex(from: index))
+            controller.loadViewIfNeeded()
+            if controller.view.superview == nil {
+                controller.view.frame = pageViewController.view.bounds
+                controller.view.overrideUserInterfaceStyle = traitCollection.userInterfaceStyle
+                controller.view.setNeedsLayout()
+            }
+            controller.view.layoutIfNeeded()
+            controller.pageView?.fixImageSize()
+            controller.pageView?.layoutIfNeeded()
+            return controller.pageView?.translationPage
+        }
+    }
+
     func translationPages() -> [ReaderTranslationPage] {
         guard #available(iOS 18.0, *) else { return [] }
         return visiblePageControllers().compactMap { $0.pageView?.translationPage }

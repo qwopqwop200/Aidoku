@@ -9,6 +9,7 @@ struct ReaderTranslationSettingsView: View {
     @State private var clearingCache = false
     @StateObject private var connectionTest = ReaderTranslationConnectionTest()
     @State private var pendingChange: Task<Void, Never>?
+    @State private var imageSupportStatus: TranslationImageSupport.Status = .unknown
 
     private let languages: [(String, String)] = [
         ("ko", "한국어"), ("en", "English"), ("ja", "日本語"), ("zh-Hans", "简体中文"),
@@ -110,14 +111,39 @@ struct ReaderTranslationSettingsView: View {
                 Picker(NSLocalizedString("TRANSLATION_RECOGNIZER_SIZE"), selection: persistedSettings.ocr.recognizerMaximumWidth) {
                     ForEach([800, 1_200, 1_600, 2_000], id: \.self) { Text(String($0)).tag($0) }
                 }
-                HStack {
-                    Text(NSLocalizedString("TRANSLATION_CONFIDENCE"))
-                    Spacer()
-                    Text(settings.ocr.confidenceThreshold, format: .percent.precision(.fractionLength(0))).foregroundStyle(.secondary)
+                ocrThresholdSlider(
+                    title: NSLocalizedString("TRANSLATION_DETECTOR_PIXEL_THRESHOLD"),
+                    value: persistedSettings.ocr.detectorPixelThreshold,
+                    identifier: "translation.detectorPixelThreshold"
+                )
+                ocrThresholdSlider(
+                    title: NSLocalizedString("TRANSLATION_DETECTOR_CONFIDENCE"),
+                    value: persistedSettings.ocr.detectorConfidenceThreshold,
+                    identifier: "translation.detectorConfidence"
+                )
+                ocrThresholdSlider(
+                    title: NSLocalizedString("TRANSLATION_CONFIDENCE"),
+                    value: persistedSettings.ocr.confidenceThreshold,
+                    identifier: "translation.recognitionConfidence"
+                )
+                VStack(alignment: .leading) {
+                    HStack {
+                        Text(NSLocalizedString("TRANSLATION_DETECTOR_MINIMUM_SIZE"))
+                        Spacer()
+                        Text(settings.ocr.detectorMinimumBoxSide.formatted(.number.precision(.fractionLength(0))) + " px")
+                            .foregroundStyle(.secondary)
+                            .fixedSize()
+                    }
+                    Slider(value: persistedSettings.ocr.detectorMinimumBoxSide, in: 0...20, step: 1)
+                        .accessibilityLabel(NSLocalizedString("TRANSLATION_DETECTOR_MINIMUM_SIZE"))
+                        .accessibilityValue(settings.ocr.detectorMinimumBoxSide.formatted(.number.precision(.fractionLength(0))) + " px")
+                        .accessibilityIdentifier("translation.detectorMinimumSize")
+                    Text(NSLocalizedString("TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP"))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
-                Slider(value: persistedSettings.ocr.confidenceThreshold, in: 0...1, step: 0.05)
             } footer: {
-                Text(NSLocalizedString("TRANSLATION_OCR_HELP"))
+                Text(NSLocalizedString("TRANSLATION_OCR_HELP") + "\n\n" + NSLocalizedString("TRANSLATION_OCR_CONFIDENCE_HELP"))
             }
             Section {
                 Toggle(NSLocalizedString("TRANSLATION_SFX_FILTER"), isOn: persistedSettings.filterJapaneseSFX)
@@ -143,6 +169,7 @@ struct ReaderTranslationSettingsView: View {
             Section {
                 Toggle(NSLocalizedString("TRANSLATION_INCLUDE_IMAGE"), isOn: persistedSettings.includePageImage)
                     .accessibilityIdentifier("translation.includePageImage")
+                imageSupportNotice
             } footer: {
                 Text(NSLocalizedString("TRANSLATION_INCLUDE_IMAGE_HELP"))
             }
@@ -166,13 +193,17 @@ struct ReaderTranslationSettingsView: View {
         }
         .navigationTitle(NSLocalizedString("TRANSLATION_TITLE"))
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear(perform: refreshCredential)
+        .onAppear { refreshCredential(); refreshImageSupport() }
+        .onReceive(NotificationCenter.default.publisher(for: TranslationImageSupport.changed)) { _ in
+            refreshImageSupport()
+        }
         .task { cachedBytes = (try? await ReaderTranslationDiskCache.shared.statistics().bytes) ?? 0 }
         .onDisappear {
             publishPendingChange()
             connectionTest.reset()
         }
-        .onChange(of: settings.configuration) { _ in connectionTest.reset() }
+        .onChange(of: settings.configuration) { _ in connectionTest.reset(); refreshImageSupport() }
+        .onChange(of: settings.includePageImage) { _ in connectionTest.reset() }
         .onChange(of: settings.sourceLanguage) { _ in connectionTest.reset() }
         .onChange(of: settings.targetLanguage) { _ in connectionTest.reset() }
         .onChange(of: apiKey) { _ in connectionTest.reset() }
@@ -182,6 +213,22 @@ struct ReaderTranslationSettingsView: View {
             Button(NSLocalizedString("OK"), role: .cancel) { message = nil }
         } message: {
             Text(message ?? "")
+        }
+    }
+
+    private func ocrThresholdSlider(title: String, value: Binding<Double>, identifier: String) -> some View {
+        VStack(alignment: .leading) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(value.wrappedValue, format: .percent.precision(.fractionLength(0)))
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+            }
+            Slider(value: value, in: 0...1, step: 0.05)
+                .accessibilityLabel(title)
+                .accessibilityValue(value.wrappedValue.formatted(.percent.precision(.fractionLength(0))))
+                .accessibilityIdentifier(identifier)
         }
     }
 
@@ -322,6 +369,7 @@ struct ReaderTranslationSettingsView: View {
                 Label(NSLocalizedString("TRANSLATION_TEST_SUCCESS"), systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
                 Text(translated).font(.footnote).textSelection(.enabled)
+                imageSupportNotice
             }
             .accessibilityIdentifier("translation.test.success")
         case .failure(let error):
@@ -336,6 +384,19 @@ struct ReaderTranslationSettingsView: View {
         }
         Text(NSLocalizedString("TRANSLATION_TEST_HELP"))
             .font(.footnote).foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private var imageSupportNotice: some View {
+        if imageSupportStatus == .unsupported {
+            Label(NSLocalizedString("TRANSLATION_IMAGE_UNSUPPORTED"), systemImage: "photo.badge.exclamationmark")
+                .font(.footnote).foregroundStyle(.secondary)
+                .accessibilityIdentifier("translation.imageUnsupported")
+        }
+    }
+
+    private func refreshImageSupport() {
+        imageSupportStatus = TranslationImageSupport.shared.status(for: settings.configuration)
     }
 
     private func testConnection() {

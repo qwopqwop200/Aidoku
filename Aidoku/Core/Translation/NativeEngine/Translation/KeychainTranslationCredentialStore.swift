@@ -51,15 +51,15 @@ enum TranslationCredentialStoreError: Error, Equatable, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidAccount:
-            return "The credential account is invalid."
+            return NSLocalizedString("TRANSLATION_ERROR_KEY_ACCOUNT")
         case .invalidSecret:
-            return "The API key is blank, too large, or contains unsafe characters."
+            return NSLocalizedString("TRANSLATION_ERROR_KEY_INVALID")
         case .notFound:
-            return "No API key is saved for this provider."
+            return NSLocalizedString("TRANSLATION_ERROR_KEY_MISSING")
         case .invalidEncoding:
-            return "The saved API key has an invalid encoding."
+            return NSLocalizedString("TRANSLATION_ERROR_KEY_ENCODING")
         case let .keychainStatus(status):
-            return "Keychain operation failed with status \(status)."
+            return String(format: NSLocalizedString("TRANSLATION_ERROR_KEYCHAIN_STATUS"), status)
         }
     }
 }

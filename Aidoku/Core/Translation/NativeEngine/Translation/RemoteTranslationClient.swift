@@ -109,14 +109,21 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
     private let credentialStore: TranslationCredentialProviding
     private let transport: TranslationHTTPTransport
     private let protocolPreferences = CustomProtocolPreferenceRegistry()
+    private let imageSupport: TranslationImageSupport
+    private let rechecksImageSupport: Bool
+    private struct UnsupportedImageInput: Error {}
 
     init(
         credentialStore: TranslationCredentialProviding =
             KeychainTranslationCredentialStore(),
-        transport: TranslationHTTPTransport = BoundedURLSessionTransport()
+        transport: TranslationHTTPTransport = BoundedURLSessionTransport(),
+        imageSupport: TranslationImageSupport = .shared,
+        rechecksImageSupport: Bool = false
     ) {
         self.credentialStore = credentialStore
         self.transport = transport
+        self.imageSupport = imageSupport
+        self.rechecksImageSupport = rechecksImageSupport
     }
 
     func translate(
@@ -125,6 +132,28 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
     ) async throws -> RemoteTranslationBatchResult {
         try Task.checkCancellation()
         try request.validate()
+        var effectiveRequest = request
+        if !rechecksImageSupport, imageSupport.status(for: configuration) == .unsupported {
+            effectiveRequest.imageJPEG = nil
+        }
+        do {
+            let result = try await translateUsingSupportedProtocol(effectiveRequest, configuration: configuration)
+            if effectiveRequest.imageJPEG != nil {
+                imageSupport.record(.supported, for: configuration)
+            }
+            return result
+        } catch is UnsupportedImageInput {
+            try Task.checkCancellation()
+            imageSupport.record(.unsupported, for: configuration)
+            effectiveRequest.imageJPEG = nil // Also clears the prepared base64 data URL.
+            return try await translateUsingSupportedProtocol(effectiveRequest, configuration: configuration)
+        }
+    }
+
+    private func translateUsingSupportedProtocol(
+        _ request: RemoteTranslationRequest,
+        configuration: RemoteTranslationConfiguration
+    ) async throws -> RemoteTranslationBatchResult {
         guard configuration.provider == .custom else {
             return try await translateOnce(
                 request,
@@ -202,6 +231,10 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                     apiProtocol: alternateProtocol
                 )
                 return result
+            } catch is UnsupportedImageInput {
+                // The endpoint exists; only its image input was rejected.
+                await protocolPreferences.reportSuccess(key: key, apiProtocol: alternateProtocol)
+                throw UnsupportedImageInput()
             } catch {
                 await protocolPreferences.finishProbeFailure(
                     key: key,
@@ -209,6 +242,12 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                 )
                 throw error
             }
+        } catch is UnsupportedImageInput {
+            await protocolPreferences.reportSuccess(key: key, apiProtocol: preferredProtocol)
+            throw UnsupportedImageInput()
+        } catch {
+            await protocolPreferences.finishProbeFailure(key: key, token: probeToken)
+            throw error
         }
     }
 
@@ -310,6 +349,10 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             response.value(forHTTPHeaderField: "x-request-id")
         )
         guard (200...299).contains(response.statusCode) else {
+            if request.imageJPEG != nil,
+               TranslationImageSupport.isUnsupportedResponse(status: response.statusCode, body: body) {
+                throw UnsupportedImageInput()
+            }
             throw RemoteTranslationError.httpStatus(
                 response.statusCode,
                 requestID: requestID

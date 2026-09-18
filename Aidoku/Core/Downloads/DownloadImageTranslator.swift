@@ -49,7 +49,7 @@ enum DownloadImageTranslator {
         guard let pixels = image.cgImage else { throw ReaderTranslationImageExporter.ExportError.unavailable }
         let recognized = try await ReaderOCRService.shared.recognize(image: pixels, configuration: settings.ocrConfiguration)
         let regions = ReaderTranslationImagePreparation.apply(recognized, image: image, settings: settings)
-        let jpeg = try settings.includePageImage ? ReaderTranslationImagePreparation.translationJPEG(image) : nil
+        let jpeg = try settings.shouldAttachPageImage ? ReaderTranslationImagePreparation.translationJPEG(image) : nil
         return Prepared(regions: regions, imageJPEG: jpeg)
     }
 

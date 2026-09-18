@@ -659,7 +659,7 @@
 "UPSCALE_IMAGES" = "Görsel Çözünürlüğünü Artır";
 "UPSCALING_MODELS" = "Çözünürlük Artırma Modelleri";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Maksimum Görsel Yüksekliği";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Yüksekliği belirlenen en fazla değeri aşan görsellerin çözünürlüğü artırılmaz.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Yüksekliği belirlenen en fazla değere eşit veya bu değerin üzerinde olan görsellerin çözünürlüğü artırılmaz.";
 "ENABLED_MODEL" = "Etkinleştirilen Model";
 "AVAILABLE_MODELS" = "Mevcut Modeller";
 "NO_AVAILABLE_MODELS" = "Mevcut Model Yok";
@@ -765,9 +765,9 @@
 
 "TRANSLATION_OCR_WORKING" = "Metin cihaz üzerinde tanınıyor…";
 
-"TRANSLATION_HELP" = "Çeviri simgesi çeviriyi açar veya kapatır. Önce görünür sayfalar, ardından yakındaki sayfalar hazırlanır. Hazırlık, okuma konumunuza göre ilerler. Kaydedilen OCR sonuçları, çeviriler ve metin düzeni, okuyucu yeniden açıldığında veya uygulama yeniden başlatıldığında tekrar kullanılabilir. Geçici olarak paylaşılan görseller bu önbelleği kaydetmez. Okuyucudan çıkınca tamamlanmamış işler iptal edilir.";
+"TRANSLATION_HELP" = "Çeviri simgesi çeviriyi açar veya kapatır. Önce görünür sayfalar, ardından yakındaki sayfalar hazırlanır. Hazırlık, okuma konumunuza göre ilerler. Kaydedilen OCR sonuçları, çeviriler ve metin düzeni, okuyucu yeniden açıldığında veya uygulama yeniden başlatıldığında tekrar kullanılabilir. Geçici olarak açılan paylaşılan görseller için bu önbellek kaydedilmez. Okuyucudan çıkınca tamamlanmamış işler iptal edilir.";
 
-"TRANSLATION_PRIVACY" = "OCR cihazınızda çalışır. Çeviri, tanınan metni ve talimatlarınızı seçilen sağlayıcıya gönderir. Sayfa Resmini Çeviriye Ekle seçeneği etkinse orijinal sayfa resmi de yüklenir. API ücretleri sağlayıcınıza bağlıdır. Anahtarlar Anahtarlıkta kalır. OCR, çeviriler ve metin düzeni, yedeklemelerin dışında tutulan korumalı uygulama depolama alanına kaydedilir.";
+"TRANSLATION_PRIVACY" = "OCR cihazınızda çalışır. Çeviri, tanınan metni ve talimatlarınızı seçilen sağlayıcıya gönderir. Sayfa Resmini Çeviriye Ekle seçeneği etkinse işlenmiş bir sayfa görseli de yüklenebilir. Görsel girişi desteklenmiyorsa çeviri yalnızca metinle devam eder. API ücretleri sağlayıcınıza bağlıdır. Anahtarlar Anahtarlıkta kalır. OCR, çeviriler ve metin düzeni, yedeklemelerin dışında tutulan korumalı uygulama depolama alanına kaydedilir.";
 
 "TRANSLATION_KEY_REPLACE" = "Kaydedilen API anahtarını değiştirin (isteğe bağlı)";
 
@@ -813,7 +813,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Tanıma Görüntüsünün En Fazla Genişliği";
 
-"TRANSLATION_CONFIDENCE" = "Minimum OCR Güven Eşiği";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "OCR Algılama Piksel Eşiği";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "OCR Bölge Algılama İçin Minimum Güven";
+"TRANSLATION_CONFIDENCE" = "OCR Metin Tanıma İçin Minimum Güven";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "Piksel eşiği metin piksellerini seçer. Algılama güveni metin bölgelerini filtreler. Tanıma güveni her bölgeden okunan metni filtreler. Daha düşük değerler daha fazla belirsiz sonucu kabul eder.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minimum OCR Algılama Boyutu";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Olası metin bölgelerinin kısa kenarının, algılama haritası pikselleriyle ölçülen minimum uzunluğu. Varsayılan: 3 px. Daha düşük değerler daha küçük metni algılayabilir, ancak daha fazla görüntü gürültüsü de içerebilir.";
 
 "TRANSLATION_SURFACE" = "Arka Plan Rengi";
 
@@ -897,7 +902,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "HTTPS Engelini Aşma üzerinden bağlantı kurulamadı.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Çeviri başarısız oldu. OCR metni gösteriliyor. Lütfen bağlantınızı kontrol edin.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Çeviri başarısız oldu. OCR ile tanınan metin gösteriliyor. Ayarları ve bağlantınızı kontrol edin.";
 
 "TRANSLATION_MANGA_TITLES" = "Manga Başlıklarını Çevir";
 
@@ -929,7 +934,8 @@
 
 "TRANSLATION_INCLUDE_IMAGE" = "Sayfa Resmini Çeviriye Ekle";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Sahne ve ifade bağlamı için orijinal sayfayı OCR metniyle birlikte gönderin. Resim talimatları otomatik olarak eklenir. Görüntüleri destekleyen bir model gerektirir ve veri kullanımını ve API maliyetini artırabilir.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Sahne bağlamını sağlamak için sayfa görselini OCR metniyle birlikte gönderir. Görsel girişi desteklenmiyorsa çeviri otomatik olarak yalnızca metinle devam eder. Görsel eklemek veri kullanımını ve API maliyetini artırabilir.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Görsel girişi desteklenmiyor. Çeviri görseller olmadan devam eder.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Orijinal Metin Rengini Koru";
 
@@ -937,7 +943,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM ile SFX Filtreleme (Tüm Diller)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Çeviri isteğinde ses efektlerini de sınıflandırır. Japonca yerel filtreyle birlikte kullanılabilir: Filtrelerden biri metni ses efekti olarak sınıflandırırsa özgün metin çevrilmeden bırakılır. Sayfa görüntüsü gönderimiyle birlikte kullanılabilir.";
+"TRANSLATION_LLM_SFX_HELP" = "Ses efektlerini aynı çeviri isteğinde sınıflandırır ve değiştirmeden bırakır. Sayfa görüntüsü varsa yapay zekâ, görüntü anlamlı bir metin olduğunu doğrulamadıkça belirsiz OCR parçalarını da atlar. Diyalog, anlatım, başlıklar ve emeği geçenlere ilişkin bilgiler çeviri kapsamında kalır. Japonca yerel filtreyle birlikte kullanılabilir: filtrelerden birinin işaretlediği metin değiştirilmeden bırakılır. Sayfa görüntüsü olmadan sınıflandırma daha az güvenilirdir.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Görüntü girişi olmadan sınırlı görsel ve düzen bağlamı, SFX sınıflandırma doğruluğunu azaltabilir.";
 
@@ -1093,7 +1099,71 @@
 "DOWNLOAD_TRANSLATED" = "Çevirerek indir";
 
 "TRANSLATION_LLM_BACKGROUND" = "Arka Plandaki Yazıları Atla (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "Çeviri yapay zekâsı, arka plandaki tali tabela, poster ve yazıları değiştirmeden bırakır. Diyalog, anlatım ve sınıflandırılması belirsiz metinler çevrilir. Ek istek gönderilmez, ancak işleme daha uzun sürebilir. Sayfa görüntüsü olmadan sınıflandırma daha az güvenilirdir.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "Çeviri yapay zekâsı, sahneyle ilgili olsalar veya diyalogda anılsalar bile sıradan tabelaları, posterleri ve sahnedeki nesnelerin üzerindeki yazıları değiştirmeden bırakır. Diyaloglar, anlatım, başlıklar, emeği geçenlere ilişkin bilgiler, olay örgüsü açısından kritik yazılar ve rolü belirsiz metinler çevrilir. Ek istek gönderilmez, ancak işleme daha uzun sürebilir. Sayfa görüntüsü olmadan sınıflandırma daha az güvenilirdir.";
 
 "TRANSLATION_STATE_ON" = "Açık";
 "TRANSLATION_STATE_OFF" = "Kapalı";
+
+"UPSCALE_MODEL_SWINUNET_INFO" = "İllüstrasyonlar için; özgün çizgileri korur. FP32.";
+
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Renkli illüstrasyonlar ve kapaklar için; ayrıntıları iyileştiren hafif model.";
+
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Genel görüntüler ve çeşitli çizimler için; daha güçlü keskinleştirme.";
+
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga ve renkli sayfalar için.";
+
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Yalnızca siyah beyaz manga için, yaklaşık 1200 piksel yüksekliğindeki özgün sayfalara göre ayarlanmıştır. Renkli sayfalar değiştirilmeden bırakılır.";
+
+"TRANSLATION_ERROR_CONFIGURATION" = "Çeviri ayarları geçersiz. Sunucu URL’sini, modeli ve diğer ayarları kontrol edin.";
+
+"TRANSLATION_ERROR_REQUEST" = "Metin, görüntü veya dil ayarları çeviri için kullanılamadı.";
+
+"TRANSLATION_ERROR_RESPONSE" = "Çeviri sunucusu geçersiz yanıt döndürdü. Tekrar deneyin veya model ayarlarını kontrol edin.";
+
+"TRANSLATION_ERROR_KEY_REQUIRED" = "Çeviri için API anahtarı gerekli.";
+
+"TRANSLATION_ERROR_KEY_ACCESS" = "Çeviri API anahtarı Anahtar Zinciri’nden okunamadı.";
+
+"TRANSLATION_ERROR_ENDPOINT" = "Güvenlik ilkesi çeviri uç noktasına izin vermiyor.";
+
+"TRANSLATION_ERROR_REDIRECT" = "Çeviri uç noktasının yönlendirmesi reddedildi.";
+
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "Çeviri yanıtı boyut sınırını aştı.";
+
+"TRANSLATION_ERROR_HTTP" = "Çeviri sunucusu HTTP %d döndürdü.";
+
+"TRANSLATION_ERROR_HTTP_REQUEST" = "Çeviri sunucusu HTTP %d döndürdü (istek kimliği: %@).";
+
+"TRANSLATION_ERROR_NETWORK_CODE" = "Çeviri isteği başarısız oldu (hata %d).";
+
+"TRANSLATION_ERROR_CONNECTION" = "Çeviri API’sine ulaşılamadı. Ağ bağlantınızı, API uç noktasını ve sunucu durumunu kontrol edip tekrar deneyin.";
+
+"TRANSLATION_ERROR_REFUSED" = "Çeviri sağlayıcısı isteği reddetti.";
+
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "API anahtarını saklamak için kullanılan tanımlayıcı geçersiz.";
+
+"TRANSLATION_ERROR_KEY_INVALID" = "API anahtarı boş, çok büyük veya desteklenmeyen karakterler içeriyor.";
+
+"TRANSLATION_ERROR_KEY_MISSING" = "Bu sağlayıcı için kayıtlı API anahtarı yok.";
+
+"TRANSLATION_ERROR_KEY_ENCODING" = "Kayıtlı API anahtarının kodlaması çözülemedi.";
+
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Anahtar Zinciri işlemi %d durum koduyla başarısız oldu.";
+
+"OCR_ERROR_MODEL_MISSING" = "Gerekli bir PP-OCRv6 modeli eksik.";
+
+"OCR_ERROR_MODEL_LOAD" = "Bir PP-OCRv6 modeli yüklenemedi.";
+
+"OCR_ERROR_DICTIONARY" = "PP-OCRv6 karakter sözlüğü eksik veya geçersiz.";
+
+"OCR_ERROR_IMAGE" = "Görüntü metin tanıma için hazırlanamadı.";
+
+"OCR_ERROR_OUTPUT" = "PP-OCRv6 modeli geçersiz veya desteklenmeyen çıktı döndürdü.";
+
+"OCR_ERROR_PREDICTION" = "PP-OCRv6 metin tanıma başarısız oldu. Başka bir görüntü veya OCR modeliyle tekrar deneyin.";
+
+"TRANSLATION_ERROR_CACHE_SIZE" = "Çeviri önbelleği boyutu desteklenen aralığın dışında.";
+
+"TRANSLATION_ERROR_CACHE_STORAGE" = "Çeviri önbelleğinin depolama alanı geçersiz veya kullanılamıyor.";
+
+"TRANSLATION_ERROR_CACHE_SAVE" = "Çeviri önbelleği kaydedilemedi.";

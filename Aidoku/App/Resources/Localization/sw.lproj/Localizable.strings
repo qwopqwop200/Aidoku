@@ -43,7 +43,7 @@
 
 "TRANSLATION_HELP" = "Aikoni ya tafsiri huwasha au kuzima tafsiri. Kurasa zinazoonekana huandaliwa kwanza, kisha kurasa zilizo karibu. Maandalizi hufuata nafasi yako ya kusoma. Matokeo ya OCR, tafsiri na mpangilio wa maandishi yaliyohifadhiwa yanaweza kutumiwa tena baada ya kufungua kisomaji au kuanzisha programu upya. Picha zilizoshirikiwa zinazofunguliwa kwa muda hazihifadhi akiba hii. Kuondoka kwenye kisomaji kunaghairi kazi ambayo haijakamilika.";
 
-"TRANSLATION_PRIVACY" = "OCR inaendeshwa kwenye kifaa chako. Tafsiri hutuma maandishi yanayotambuliwa na maagizo yako kwa mtoaji aliyechaguliwa. Ikiwa Jumuisha Picha ya Ukurasa katika Tafsiri imewezeshwa, picha asili ya ukurasa pia itapakiwa. Gharama za API hutegemea mtoaji wako. Funguo hukaa kwenye Keychain. OCR, tafsiri na mpangilio wa maandishi huhifadhiwa katika hifadhi ya programu iliyolindwa bila kujumuishwa kwenye hifadhi rudufu.";
+"TRANSLATION_PRIVACY" = "OCR inaendeshwa kwenye kifaa chako. Tafsiri hutuma maandishi yanayotambuliwa na maagizo yako kwa mtoaji aliyechaguliwa. Ikiwa Jumuisha Picha ya Ukurasa katika Tafsiri imewezeshwa, picha ya ukurasa iliyochakatwa inaweza pia kupakiwa. Ikiwa picha hazitumiki kama ingizo, tafsiri itaendelea kwa maandishi pekee. Gharama za API hutegemea mtoaji wako. Funguo hukaa kwenye Keychain. OCR, tafsiri na mpangilio wa maandishi huhifadhiwa katika hifadhi ya programu iliyolindwa bila kujumuishwa kwenye hifadhi rudufu.";
 
 "TRANSLATION_KEY_REPLACE" = "Badilisha ufunguo wa API uliohifadhiwa (si lazima)";
 
@@ -89,7 +89,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Upana wa Juu wa Kitambuzi";
 
-"TRANSLATION_CONFIDENCE" = "Kiwango cha Chini cha Uhakika wa OCR";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Kizingiti cha pikseli za ugunduzi wa OCR";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Uhakika wa chini wa ugunduzi wa maeneo ya OCR";
+"TRANSLATION_CONFIDENCE" = "Uhakika wa chini wa utambuzi wa maandishi ya OCR";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "Kizingiti cha pikseli huchagua pikseli za maandishi. Uhakika wa ugunduzi huchuja maeneo ya maandishi. Uhakika wa utambuzi huchuja maandishi yaliyosomwa kutoka kila eneo. Thamani za chini hukubali matokeo mengi zaidi yasiyo na uhakika.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Ukubwa wa chini wa ugunduzi wa OCR";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Urefu wa chini wa upande mfupi wa maeneo yanayoweza kuwa na maandishi, ukipimwa kwa pikseli za ramani ya ugunduzi. Chaguo-msingi: 3 px. Thamani za chini zinaweza kugundua maandishi madogo zaidi, lakini pia kujumuisha kelele zaidi za picha.";
 
 "TRANSLATION_SURFACE" = "Rangi ya Mandharinyuma";
 
@@ -173,7 +178,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Haikuweza kuunganisha kupitia HTTPS bypass.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Tafsiri imeshindwa. Inaonyesha maandishi ya OCR. Tafadhali angalia muunganisho wako.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Tafsiri imeshindwa. Maandishi yaliyotambuliwa kwa OCR yanaonyeshwa. Angalia mipangilio na muunganisho wako.";
 
 "TRANSLATION_MANGA_TITLES" = "Tafsiri Majina ya Manga";
 
@@ -205,7 +210,8 @@
 
 "TRANSLATION_INCLUDE_IMAGE" = "Jumuisha Picha ya Ukurasa katika Tafsiri";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Tuma picha asilia ya ukurasa pamoja na maandishi ya OCR ili kutoa muktadha wa tukio na hisia za wahusika. Maagizo ya picha huongezwa kiotomatiki. Inahitaji modeli inayokubali picha na huenda ikaongeza matumizi ya data na gharama ya API.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Hutuma picha ya ukurasa pamoja na maandishi ya OCR ili kutoa muktadha wa tukio. Ikiwa picha hazitumiki kama ingizo, tafsiri itaendelea kiotomatiki kwa maandishi pekee. Kuambatisha picha kunaweza kuongeza matumizi ya data na gharama ya API.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Picha hazitumiki kama ingizo. Tafsiri itaendelea bila picha.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Hifadhi Rangi Asilia ya Maandishi";
 
@@ -213,11 +219,11 @@
 
 "TRANSLATION_LLM_SFX" = "Uchujaji wa LLM SFX (Lugha Zote)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Ainisha madoido ya sauti katika ombi la tafsiri. Inaweza kuunganishwa na kichujio cha Kijapani kilicho kwenye kifaa: kichujio chochote kikitambua maandishi kama madoido ya sauti, maandishi asilia hubaki bila kubadilika. Inaweza kutumiwa pamoja na kutuma picha ya ukurasa.";
+"TRANSLATION_LLM_SFX_HELP" = "Ainisha maandishi ya madoido ya sauti katika ombi lilelile la tafsiri na uyaache bila kubadilika. Ikiwa picha ya ukurasa ipo, AI pia huruka vipande vya OCR visivyoeleweka isipokuwa picha ithibitishe kuwa ni maandishi yenye maana. Mazungumzo, masimulizi, vichwa na majina ya wachangiaji bado hutafsiriwa. Inaweza kuunganishwa na kichujio cha Kijapani kilicho kwenye kifaa: maandishi yaliyowekewa alama na kichujio chochote huachwa bila kubadilika. Uainishaji hauaminiki sana bila picha ya ukurasa.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Bila ingizo la picha, muktadha mdogo wa mwonekano na mpangilio unaweza kupunguza usahihi wa uainishaji wa SFX.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Hifadhi Rangi ya Paneli Asili";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Hifadhi Rangi Asilia ya Mandharinyuma";
 
 "TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Linganisha rangi ya kidirisha cha tafsiri na mandharinyuma yanayozunguka maandishi asilia. Tumia kidirisha chaguomsingi ikiwa rangi haina uhakika au maandishi hayasomeki. Kiwango chako cha kutopitisha mwanga bado kinatumika.";
 
@@ -731,7 +737,7 @@
 "UPSCALE_IMAGES" = "Ongeza Azimio la Picha";
 "UPSCALING_MODELS" = "Modeli za Kuongeza Azimio";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Urefu wa Juu wa Picha";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Picha zenye urefu unaozidi kiwango cha juu hazitaongezwa azimio.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Picha zenye urefu unaolingana na au kuzidi kikomo cha juu hazitaongezwa azimio.";
 "ENABLED_MODEL" = "Modeli Iliyowezeshwa";
 "AVAILABLE_MODELS" = "Modeli Zinazopatikana";
 "NO_AVAILABLE_MODELS" = "Hakuna Modeli Zinazopatikana";
@@ -1071,7 +1077,71 @@
 "DOWNLOAD_TRANSLATED" = "Pakua pamoja na tafsiri";
 
 "TRANSLATION_LLM_BACKGROUND" = "Ruka Maandishi ya Mandharinyuma (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "AI ya tafsiri huacha bila kubadilisha maandishi kwenye ishara, mabango na mandharinyuma yasiyo muhimu. Mazungumzo, masimulizi na maandishi yasiyo na uhakika hutafsiriwa. Hakuna ombi la ziada linalotumwa, lakini uchakataji unaweza kuchukua muda mrefu zaidi. Uainishaji hauaminiki sana bila picha ya ukurasa.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "AI ya tafsiri huacha maandishi kwenye vibao vya kawaida, mabango na vitu vilivyo katika tukio bila kubadilika, hata kama maudhui yake yanahusiana na tukio hilo au yanatajwa katika mazungumzo. Mazungumzo, masimulizi, vichwa, majina ya wachangiaji, maandishi muhimu kwa maendeleo ya hadithi na maandishi ambayo jukumu lake halijulikani kwa uhakika hutafsiriwa. Hakuna ombi la ziada linalotumwa, lakini uchakataji unaweza kuchukua muda mrefu zaidi. Uainishaji hauaminiki sana bila picha ya ukurasa.";
 
 "TRANSLATION_STATE_ON" = "Imewashwa";
 "TRANSLATION_STATE_OFF" = "Imezimwa";
+
+"UPSCALE_MODEL_SWINUNET_INFO" = "Michoro; huhifadhi mistari asilia. FP32.";
+
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Michoro ya rangi na majalada; modeli nyepesi ya kuboresha maelezo madogo.";
+
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Picha za kawaida na michoro ya mitindo mbalimbali; huongeza ukali wa picha zaidi.";
+
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga na kurasa za rangi.";
+
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Manga nyeusi na nyeupe pekee, imerekebishwa kwa kurasa asilia zenye urefu wa karibu pikseli 1200. Kurasa za rangi huachwa bila kubadilika.";
+
+"TRANSLATION_ERROR_CONFIGURATION" = "Mipangilio ya tafsiri si halali. Angalia URL ya seva, modeli na mipangilio mingine.";
+
+"TRANSLATION_ERROR_REQUEST" = "Maandishi, picha au mipangilio ya lugha haikuweza kutumiwa kutafsiri.";
+
+"TRANSLATION_ERROR_RESPONSE" = "Seva ya tafsiri imerejesha jibu lisilo halali. Jaribu tena au angalia mipangilio ya modeli.";
+
+"TRANSLATION_ERROR_KEY_REQUIRED" = "Ufunguo wa API ya tafsiri unahitajika.";
+
+"TRANSLATION_ERROR_KEY_ACCESS" = "Ufunguo wa API ya tafsiri haukuweza kusomwa kutoka Keychain.";
+
+"TRANSLATION_ERROR_ENDPOINT" = "Anwani ya API ya tafsiri hairuhusiwi na sera ya usalama.";
+
+"TRANSLATION_ERROR_REDIRECT" = "Uelekezaji upya wa anwani ya API ya tafsiri umekataliwa.";
+
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "Jibu la tafsiri limezidi kikomo cha ukubwa.";
+
+"TRANSLATION_ERROR_HTTP" = "Seva ya tafsiri imerejesha HTTP %d.";
+
+"TRANSLATION_ERROR_HTTP_REQUEST" = "Seva ya tafsiri imerejesha HTTP %d (kitambulisho cha ombi: %@).";
+
+"TRANSLATION_ERROR_NETWORK_CODE" = "Ombi la tafsiri limeshindwa (hitilafu %d).";
+
+"TRANSLATION_ERROR_CONNECTION" = "API ya tafsiri haikuweza kufikiwa. Angalia muunganisho wa mtandao, anwani ya API na hali ya seva, kisha ujaribu tena.";
+
+"TRANSLATION_ERROR_REFUSED" = "Mtoa huduma ya tafsiri amekataa ombi.";
+
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "Kitambulisho kinachotumiwa kuhifadhi ufunguo wa API si halali.";
+
+"TRANSLATION_ERROR_KEY_INVALID" = "Ufunguo wa API hauna kitu, ni mkubwa mno au una herufi zisizotumika.";
+
+"TRANSLATION_ERROR_KEY_MISSING" = "Hakuna ufunguo wa API uliohifadhiwa kwa mtoa huduma huyu.";
+
+"TRANSLATION_ERROR_KEY_ENCODING" = "Ufunguo wa API uliohifadhiwa haukuweza kusimbuliwa.";
+
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Operesheni ya Keychain imeshindwa kwa msimbo wa hali %d.";
+
+"OCR_ERROR_MODEL_MISSING" = "Modeli inayohitajika ya PP-OCRv6 haipo.";
+
+"OCR_ERROR_MODEL_LOAD" = "Modeli ya PP-OCRv6 haikuweza kupakiwa.";
+
+"OCR_ERROR_DICTIONARY" = "Kamusi ya herufi ya PP-OCRv6 haipo au si halali.";
+
+"OCR_ERROR_IMAGE" = "Picha haikuweza kuandaliwa kwa utambuzi wa maandishi.";
+
+"OCR_ERROR_OUTPUT" = "Modeli ya PP-OCRv6 imerejesha matokeo yasiyo halali au yasiyotumika.";
+
+"OCR_ERROR_PREDICTION" = "Utambuzi wa maandishi wa PP-OCRv6 umeshindwa. Jaribu tena kwa picha au modeli nyingine ya OCR.";
+
+"TRANSLATION_ERROR_CACHE_SIZE" = "Ukubwa wa akiba ya tafsiri uko nje ya masafa yanayotumika.";
+
+"TRANSLATION_ERROR_CACHE_STORAGE" = "Hifadhi ya akiba ya tafsiri si halali au haipatikani.";
+
+"TRANSLATION_ERROR_CACHE_SAVE" = "Akiba ya tafsiri haikuweza kuhifadhiwa.";

@@ -336,7 +336,7 @@
 
 "TRANSLATION_HELP" = "Ikona e përkthimit aktivizon ose çaktivizon përkthimin. Fillimisht përgatiten faqet e dukshme, pastaj faqet pranë tyre. Përgatitja ndjek pozicionin tuaj të leximit. Rezultatet e ruajtura të OCR-së, përkthimet dhe faqosja e tekstit mund të ripërdoren pas rihapjes së lexuesit ose rinisjes së aplikacionit. Imazhet e shpërndara që hapen përkohësisht nuk e ruajnë këtë memorie të përkohshme. Dalja nga lexuesi anulon përpunimin e papërfunduar.";
 
-"TRANSLATION_PRIVACY" = "OCR funksionon në pajisjen tuaj. Përkthimi dërgon tekstin e njohur dhe udhëzimet tuaja te ofruesi i zgjedhur. Nëse aktivizohet përfshirja e imazhit të faqes në përkthim, ngarkohet edhe imazhi origjinal i faqes. Tarifat e API varen nga ofruesi juaj. Çelësat qëndrojnë në Keychain. OCR, përkthimet dhe faqosja e tekstit ruhen në hapësirën e mbrojtur të aplikacionit të përjashtuar nga kopjet rezervë.";
+"TRANSLATION_PRIVACY" = "OCR funksionon në pajisjen tuaj. Përkthimi dërgon tekstin e njohur dhe udhëzimet tuaja te ofruesi i zgjedhur. Nëse aktivizohet përfshirja e imazhit të faqes në përkthim, mund të ngarkohet edhe një imazh i përpunuar i faqes. Nëse imazhet nuk mbështeten si hyrje, përkthimi vazhdon vetëm me tekst. Tarifat e API varen nga ofruesi juaj. Çelësat qëndrojnë në Keychain. OCR, përkthimet dhe faqosja e tekstit ruhen në hapësirën e mbrojtur të aplikacionit të përjashtuar nga kopjet rezervë.";
 
 "TRANSLATION_KEY_REPLACE" = "Zëvendëso çelësin e ruajtur API (opsionale)";
 
@@ -358,7 +358,7 @@
 
 "TRANSLATION_AUTO" = "Zbulo automatikisht";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 kërkon iOS 18 ose një version më të ri. Modeli i paracaktuar është E mesme. I vogël përdor më pak memorie dhe Shumë i vogël ka një fjalor më të kufizuar karakteresh. Modelet nuk njohin tekstin korean, por përkthimi në koreanisht mbështetet.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 kërkon iOS 18 ose një version më të ri. Modeli i paracaktuar është I mesëm. I vogël përdor më pak memorie dhe Shumë i vogël ka një fjalor më të kufizuar karakteresh. Modelet nuk njohin tekstin korean, por përkthimi në koreanisht mbështetet.";
 
 "TRANSLATION_INSTRUCTIONS" = "Udhëzime përkthimi";
 
@@ -382,7 +382,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Gjerësia maksimale e imazhit për njohjen e tekstit";
 
-"TRANSLATION_CONFIDENCE" = "Pragu minimal i besueshmërisë së OCR-së";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Pragu i pikselëve për zbulimin OCR";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Besueshmëria minimale e zonave të zbuluara me OCR";
+"TRANSLATION_CONFIDENCE" = "Besueshmëria minimale e njohjes OCR";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "Pragu i pikselëve zgjedh pikselët e tekstit. Besueshmëria e zbulimit filtron zonat e tekstit. Besueshmëria e njohjes filtron tekstin e lexuar nga çdo zonë. Vlerat më të ulëta pranojnë më shumë rezultate të pasigurta.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Madhësia minimale e zbulimit OCR";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Gjatësia minimale e anës së shkurtër të zonave të mundshme të tekstit, në pikselë të hartës së zbulimit. Parazgjedhja: 3 px. Vlerat më të ulëta mund të zbulojnë tekst më të vogël, por edhe më shumë zhurmë.";
 
 "TRANSLATION_SURFACE" = "Ngjyra e sfondit";
 
@@ -466,7 +471,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Nuk mund të lidhej përmes anashkalimit HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Përkthimi dështoi. Po shfaq tekstin OCR. Ju lutemi kontrolloni lidhjen tuaj.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Përkthimi dështoi. Po shfaqet teksti i njohur nga OCR. Kontrolloni cilësimet dhe lidhjen.";
 
 "TRANSLATION_MANGA_TITLES" = "Përkthe tituj Manga";
 
@@ -498,7 +503,8 @@
 
 "TRANSLATION_INCLUDE_IMAGE" = "Përfshi imazhin e faqes në përkthim";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Dërgoni faqen origjinale me tekst OCR për kontekstin e skenës dhe shprehjes. Udhëzimet e imazhit shtohen automatikisht. Kërkon një model që mbështet imazhet dhe mund të rrisë përdorimin e të dhënave dhe koston e API-së.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Dërgon imazhin e faqes bashkë me tekstin OCR për të dhënë kontekstin e skenës. Nëse imazhet nuk mbështeten si hyrje, përkthimi vazhdon automatikisht vetëm me tekst. Bashkëngjitja e imazheve mund të rrisë përdorimin e të dhënave dhe koston e API-së.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Futja e imazheve nuk mbështetet. Përkthimi vazhdon pa imazhe.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Ruani ngjyrën origjinale të tekstit";
 
@@ -506,7 +512,7 @@
 
 "TRANSLATION_LLM_SFX" = "Filtrimi LLM SFX (Të gjitha gjuhët)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Klasifikon efektet zanore gjatë kërkesës për përkthim. Mund të kombinohet me filtrin lokal për japonishten: nëse cilido filtër e klasifikon tekstin si efekt zanor, origjinali mbetet i pandryshuar. Mund të përdoret edhe kur dërgohet imazhi i faqes.";
+"TRANSLATION_LLM_SFX_HELP" = "Klasifikon efektet zanore në të njëjtën kërkesë për përkthim dhe i lë të pandryshuara. Kur ka imazh të faqes, inteligjenca artificiale anashkalon edhe fragmentet e paqarta OCR, përveç rasteve kur imazhi vërteton se janë tekst me kuptim. Dialogu, rrëfimi, titujt dhe të dhënat e kontribuesve mbeten për t’u përkthyer. Mund të kombinohet me filtrin lokal për japonishten: teksti i shënuar nga cilido filtër lihet i pandryshuar. Klasifikimi është më pak i besueshëm pa imazhin e faqes.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Pa futjen e imazhit, konteksti i kufizuar vizual dhe i paraqitjes mund të zvogëlojë saktësinë e klasifikimit SFX.";
 
@@ -516,7 +522,7 @@
 
 "TRANSLATION_CUSTOM_PROVIDER" = "I personalizuar (i përputhshëm me OpenAI)";
 
-"TRANSLATION_OCR_MEDIUM" = "E mesme";
+"TRANSLATION_OCR_MEDIUM" = "I mesëm";
 
 "TRANSLATION_OCR_SMALL" = "I vogël";
 
@@ -851,7 +857,7 @@
 "UPSCALE_IMAGES" = "Rrit rezolucionin e imazheve";
 "UPSCALING_MODELS" = "Modele të rritjes së shkallës";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Lartësia maksimale e imazhit";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Imazheve më të larta se kufiri maksimal nuk do t’u rritet rezolucioni.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Imazheve me lartësi të barabartë ose më të madhe se kufiri maksimal nuk do t’u rritet rezolucioni.";
 "ENABLED_MODEL" = "Modeli i aktivizuar";
 "AVAILABLE_MODELS" = "Modelet e disponueshme";
 "NO_AVAILABLE_MODELS" = "Nuk ka modele të disponueshme";
@@ -1070,7 +1076,71 @@
 "DOWNLOAD_TRANSLATED" = "Shkarko me përkthim";
 
 "TRANSLATION_LLM_BACKGROUND" = "Anashkalo shkrimet në sfond (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "Inteligjenca artificiale e përkthimit lë të pandryshuara tabelat, posterat dhe shkrimet dytësore në sfond. Dialogu, rrëfimi dhe teksti me klasifikim të pasigurt përkthehen. Nuk dërgohet kërkesë shtesë, por përpunimi mund të zgjasë më shumë. Klasifikimi është më pak i besueshëm pa imazhin e faqes.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "Inteligjenca artificiale e përkthimit lë të pandryshuara tabelat e zakonshme, posterat dhe shkrimet mbi objektet në skenë, edhe kur lidhen me skenën ose përmenden në dialog. Dialogu, rrëfimi, titujt, të dhënat e kontribuesve, shkrimet vendimtare për rrjedhën e ngjarjeve dhe teksti me rol të pasigurt përkthehen. Nuk dërgohet kërkesë shtesë, por përpunimi mund të zgjasë më shumë. Klasifikimi është më pak i besueshëm pa imazhin e faqes.";
 
 "TRANSLATION_STATE_ON" = "Aktiv";
 "TRANSLATION_STATE_OFF" = "Joaktiv";
+
+"UPSCALE_MODEL_SWINUNET_INFO" = "Për ilustrime; ruan vijat origjinale të vizatimit. FP32.";
+
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Për ilustrime me ngjyra dhe kopertina; model i lehtë për përmirësimin e detajeve.";
+
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Për imazhe të përgjithshme dhe vepra artistike të llojeve të ndryshme; mprehje më e fortë.";
+
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Për anime, manga dhe faqe me ngjyra.";
+
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Vetëm për manga bardh e zi, i përshtatur për faqe origjinale rreth 1200 pikselë të larta. Faqet me ngjyra mbeten të pandryshuara.";
+
+"TRANSLATION_ERROR_CONFIGURATION" = "Cilësimet e përkthimit janë të pavlefshme. Kontrolloni URL-në e serverit, modelin dhe cilësimet e tjera.";
+
+"TRANSLATION_ERROR_REQUEST" = "Teksti, imazhi ose cilësimet e gjuhës nuk mund të përdoreshin për përkthim.";
+
+"TRANSLATION_ERROR_RESPONSE" = "Serveri i përkthimit ktheu një përgjigje të pavlefshme. Provoni përsëri ose kontrolloni cilësimet e modelit.";
+
+"TRANSLATION_ERROR_KEY_REQUIRED" = "Kërkohet një çelës API për përkthimin.";
+
+"TRANSLATION_ERROR_KEY_ACCESS" = "Çelësi API i përkthimit nuk mund të lexohej nga Keychain.";
+
+"TRANSLATION_ERROR_ENDPOINT" = "Pika fundore e përkthimit nuk lejohet nga politika e sigurisë.";
+
+"TRANSLATION_ERROR_REDIRECT" = "Ridrejtimi i pikës fundore të përkthimit u refuzua.";
+
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "Përgjigjja e përkthimit tejkaloi kufirin e madhësisë.";
+
+"TRANSLATION_ERROR_HTTP" = "Serveri i përkthimit ktheu HTTP %d.";
+
+"TRANSLATION_ERROR_HTTP_REQUEST" = "Serveri i përkthimit ktheu HTTP %d (ID e kërkesës: %@).";
+
+"TRANSLATION_ERROR_NETWORK_CODE" = "Kërkesa për përkthim dështoi (gabimi %d).";
+
+"TRANSLATION_ERROR_CONNECTION" = "Nuk u arrit lidhja me API-në e përkthimit. Kontrolloni lidhjen e rrjetit, pikën fundore të API-së dhe gjendjen e serverit, pastaj provoni përsëri.";
+
+"TRANSLATION_ERROR_REFUSED" = "Ofruesi i përkthimit e refuzoi kërkesën.";
+
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "Identifikuesi i përdorur për të ruajtur çelësin API është i pavlefshëm.";
+
+"TRANSLATION_ERROR_KEY_INVALID" = "Çelësi API është bosh, tepër i madh ose përmban karaktere të pambështetura.";
+
+"TRANSLATION_ERROR_KEY_MISSING" = "Nuk ka çelës API të ruajtur për këtë ofrues.";
+
+"TRANSLATION_ERROR_KEY_ENCODING" = "Çelësi API i ruajtur nuk mund të dekodohej.";
+
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Veprimi në Keychain dështoi me kodin e gjendjes %d.";
+
+"OCR_ERROR_MODEL_MISSING" = "Mungon një model i nevojshëm PP-OCRv6.";
+
+"OCR_ERROR_MODEL_LOAD" = "Një model PP-OCRv6 nuk mund të ngarkohej.";
+
+"OCR_ERROR_DICTIONARY" = "Fjalori i karaktereve PP-OCRv6 mungon ose është i pavlefshëm.";
+
+"OCR_ERROR_IMAGE" = "Imazhi nuk mund të përgatitej për njohjen e tekstit.";
+
+"OCR_ERROR_OUTPUT" = "Modeli PP-OCRv6 ktheu rezultat të pavlefshëm ose të pambështetur.";
+
+"OCR_ERROR_PREDICTION" = "Njohja e tekstit me PP-OCRv6 dështoi. Provoni përsëri me një imazh ose model tjetër OCR.";
+
+"TRANSLATION_ERROR_CACHE_SIZE" = "Madhësia e memories së përkohshme të përkthimit është jashtë intervalit të mbështetur.";
+
+"TRANSLATION_ERROR_CACHE_STORAGE" = "Hapësira e ruajtjes së memories së përkohshme të përkthimit është e pavlefshme ose e padisponueshme.";
+
+"TRANSLATION_ERROR_CACHE_SAVE" = "Memoria e përkohshme e përkthimit nuk mund të ruhej.";

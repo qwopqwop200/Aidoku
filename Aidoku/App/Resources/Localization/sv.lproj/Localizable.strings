@@ -590,7 +590,7 @@
 "UPSCALE_IMAGES" = "Uppskala bilder";
 "UPSCALING_MODELS" = "Uppskalningsmodeller";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Max bildhöjd";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Bilder som är större än den maximala bildhöjden kommer ej uppskalas.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Bilder vars höjd är lika med eller större än den maximala bildhöjden skalas inte upp.";
 "ENABLED_MODEL" = "Aktiverad modell";
 "AVAILABLE_MODELS" = "Tillgängliga modeller";
 "NO_AVAILABLE_MODELS" = "Inga modeller tillgängliga";
@@ -749,7 +749,7 @@
 
 "TRANSLATION_HELP" = "Översättningsikonen aktiverar eller inaktiverar översättning. Synliga sidor förbereds först, sedan närliggande sidor. Förberedelserna följer din läsposition. Sparade OCR-resultat, översättningar och textlayout kan återanvändas när du öppnar läsaren igen eller startar om appen. Delade bilder som öppnas tillfälligt sparar inte denna cache. När du lämnar läsaren avbryts oavslutat arbete.";
 
-"TRANSLATION_PRIVACY" = "OCR körs på din enhet. Översättningen skickar igenkänd text och dina instruktioner till den valda leverantören. Om Inkludera sidbild i översättning är aktiverat laddas även den ursprungliga sidbilden upp. API-avgifter beror på leverantören. Nycklarna sparas i Nyckelring. OCR-resultat, översättningar och textlayout sparas i skyddad applagring som inte ingår i säkerhetskopior.";
+"TRANSLATION_PRIVACY" = "OCR körs på din enhet. Översättningen skickar igenkänd text och dina instruktioner till den valda leverantören. Om Inkludera sidbild i översättning är aktiverat kan även en sidbild som anpassats för bearbetning laddas upp. Om bilder inte stöds som indata fortsätter översättningen med enbart text. API-avgifter beror på leverantören. Nycklarna sparas i Nyckelring. OCR-resultat, översättningar och textlayout sparas i skyddad applagring som inte ingår i säkerhetskopior.";
 
 "TRANSLATION_KEY_REPLACE" = "Ersätt sparad API-nyckel (valfritt)";
 
@@ -795,7 +795,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Maximal bredd för textigenkänning";
 
-"TRANSLATION_CONFIDENCE" = "Lägsta OCR-konfidens";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Pixeltröskel för OCR-detektering";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Lägsta konfidens för detekterade OCR-områden";
+"TRANSLATION_CONFIDENCE" = "Lägsta konfidens för OCR-textigenkänning";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "Pixeltröskeln väljer textpixlar. Detekteringskonfidensen filtrerar textområden. Igenkänningskonfidensen filtrerar texten som lästs från varje område. Lägre värden godtar fler osäkra resultat.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minsta storlek för OCR-detektering";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Minsta längd på kortsidan av möjliga textområden, mätt i pixlar på detekteringskartan. Standard: 3 px. Lägre värden kan upptäcka mindre text, men även mer brus.";
 
 "TRANSLATION_SURFACE" = "Bakgrundsfärg";
 
@@ -879,7 +884,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Kunde inte ansluta via HTTPS-bypass.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Översättning misslyckades. Visar OCR-text. Kontrollera din anslutning.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Översättningen misslyckades. OCR-texten visas. Kontrollera inställningarna och anslutningen.";
 
 "TRANSLATION_MANGA_TITLES" = "Översätt mangatitlar";
 
@@ -911,7 +916,8 @@
 
 "TRANSLATION_INCLUDE_IMAGE" = "Inkludera sidbild i översättning";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Skicka originalsidan med OCR-text för scen- och uttryckssammanhang. Bildinstruktioner läggs till automatiskt. Kräver en modell som stöder bilder och kan öka dataanvändning och API-kostnad.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Skickar sidbilden tillsammans med OCR-texten för att ge scenens sammanhang. Om bilder inte stöds som indata fortsätter översättningen automatiskt med enbart text. Bilder kan öka dataanvändningen och API-kostnaden.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Bilder stöds inte som indata. Översättningen fortsätter utan bilder.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Bevara originaltextfärg";
 
@@ -919,7 +925,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM SFX-filtrering (alla språk)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Identifierar ljudeffekter i översättningsbegäran. Kan kombineras med det lokala filtret för japanska: Om något av filtren klassificerar texten som en ljudeffekt behålls originaltexten. Kan användas samtidigt som sidbilden skickas.";
+"TRANSLATION_LLM_SFX_HELP" = "Identifierar ljudeffekter i samma översättningsbegäran och lämnar dem oförändrade. Med en sidbild hoppar AI:n även över otydliga OCR-fragment, om inte bilden visar att de är meningsfull text. Dialog, berättartext, titlar och upphovsuppgifter behålls för översättning. Kan kombineras med det lokala filtret för japanska: text som markeras av något av filtren lämnas oförändrad. Klassificeringen är mindre tillförlitlig utan en sidbild.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Utan bildinmatning kan begränsad visuell och layoutkontext minska SFX-klassificeringsnoggrannheten.";
 
@@ -1091,8 +1097,72 @@
 "DOWNLOAD_TRANSLATED" = "Ladda ned med översättning";
 
 "TRANSLATION_LLM_BACKGROUND" = "Hoppa över bakgrundstext (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "Översättnings-AI:n lämnar oväsentliga skyltar, affischer och bakgrundstext oförändrade. Dialog, berättartext och text vars roll är osäker översätts. Ingen extra förfrågan görs, men bearbetningen kan ta längre tid. Klassificeringen är mindre tillförlitlig utan en sidbild.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "Översättnings-AI:n lämnar vanliga skyltar, affischer och text på föremål i scenen oförändrade, även när de har anknytning till scenen eller nämns i dialog. Dialog, berättartext, titlar, upphovsuppgifter, skrift som är avgörande för handlingen och text vars roll är osäker översätts. Ingen extra förfrågan görs, men bearbetningen kan ta längre tid. Klassificeringen är mindre tillförlitlig utan en sidbild.";
 
 "TRANSLATION_STATE_ON" = "På";
 
 "TRANSLATION_STATE_OFF" = "Av";
+
+"UPSCALE_MODEL_SWINUNET_INFO" = "För illustrationer; bevarar det ursprungliga linjearbetet. FP32.";
+
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "För färgillustrationer och omslag; lättviktsmodell för detaljförbättring.";
+
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "För allmänna bilder och varierande teckningsstilar; kraftigare skärpning.";
+
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "För anime, manga och färgsidor.";
+
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Endast för svartvit manga, anpassad för originalsidor som är cirka 1200 pixlar höga. Färgsidor lämnas oförändrade.";
+
+"TRANSLATION_ERROR_CONFIGURATION" = "Översättningsinställningarna är ogiltiga. Kontrollera serverns URL, modellen och övriga inställningar.";
+
+"TRANSLATION_ERROR_REQUEST" = "Texten, bilden eller språkinställningarna kunde inte användas för översättning.";
+
+"TRANSLATION_ERROR_RESPONSE" = "Översättningsservern returnerade ett ogiltigt svar. Försök igen eller kontrollera modellinställningarna.";
+
+"TRANSLATION_ERROR_KEY_REQUIRED" = "En API-nyckel för översättning krävs.";
+
+"TRANSLATION_ERROR_KEY_ACCESS" = "API-nyckeln för översättning kunde inte läsas från Nyckelring.";
+
+"TRANSLATION_ERROR_ENDPOINT" = "API-slutpunkten för översättning tillåts inte av säkerhetspolicyn.";
+
+"TRANSLATION_ERROR_REDIRECT" = "Omdirigeringen av API-slutpunkten för översättning avvisades.";
+
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "Översättningssvaret överskred storleksgränsen.";
+
+"TRANSLATION_ERROR_HTTP" = "Översättningsservern returnerade HTTP %d.";
+
+"TRANSLATION_ERROR_HTTP_REQUEST" = "Översättningsservern returnerade HTTP %d (begärans-ID: %@).";
+
+"TRANSLATION_ERROR_NETWORK_CODE" = "Översättningsbegäran misslyckades (fel %d).";
+
+"TRANSLATION_ERROR_CONNECTION" = "Det gick inte att nå översättnings-API:et. Kontrollera nätverksanslutningen, API-slutpunkten och serverstatusen och försök sedan igen.";
+
+"TRANSLATION_ERROR_REFUSED" = "Översättningsleverantören nekade begäran.";
+
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "Identifieraren som används för att spara API-nyckeln är ogiltig.";
+
+"TRANSLATION_ERROR_KEY_INVALID" = "API-nyckeln är tom, för stor eller innehåller tecken som inte stöds.";
+
+"TRANSLATION_ERROR_KEY_MISSING" = "Ingen API-nyckel har sparats för denna leverantör.";
+
+"TRANSLATION_ERROR_KEY_ENCODING" = "Den sparade API-nyckeln kunde inte avkodas.";
+
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Åtgärden i Nyckelring misslyckades med status %d.";
+
+"OCR_ERROR_MODEL_MISSING" = "En nödvändig PP-OCRv6-modell saknas.";
+
+"OCR_ERROR_MODEL_LOAD" = "En PP-OCRv6-modell kunde inte läsas in.";
+
+"OCR_ERROR_DICTIONARY" = "Teckenordboken för PP-OCRv6 saknas eller är ogiltig.";
+
+"OCR_ERROR_IMAGE" = "Bilden kunde inte förberedas för textigenkänning.";
+
+"OCR_ERROR_OUTPUT" = "PP-OCRv6-modellen returnerade ogiltig utdata eller utdata som inte stöds.";
+
+"OCR_ERROR_PREDICTION" = "Textigenkänningen med PP-OCRv6 misslyckades. Försök igen med en annan bild eller OCR-modell.";
+
+"TRANSLATION_ERROR_CACHE_SIZE" = "Översättningscachens storlek ligger utanför det intervall som stöds.";
+
+"TRANSLATION_ERROR_CACHE_STORAGE" = "Lagringen för översättningscachen är ogiltig eller otillgänglig.";
+
+"TRANSLATION_ERROR_CACHE_SAVE" = "Översättningscachen kunde inte sparas.";

@@ -7,6 +7,54 @@ import UIKit
 @testable import Aidoku
 
 struct NativeOCRTextLineMergerTests {
+    @Test(arguments: [0.5, 1.0, 2.0])
+    func stackedBalloonColumnsKeepIndependentReadingOrder(scale: Double) {
+        // Real comic-0474 detector polygons: a 25px gap previously attached
+        // the lower lobe's left column to the upper lobe's middle column.
+        func line(_ text: String, _ points: [[Double]]) -> NativeCoreMLOCRLine {
+            NativeCoreMLOCRLine(polygon: points.map { CGPoint(x: $0[0] * scale, y: $0[1] * scale) },
+                text: text, score: 0.99, orientation: .vertical, orientationIsEstimated: true)
+        }
+        let rows = [
+            line("挑戦者も少なく", [[625,770],[650,770],[652,924],[627,924]]),
+            line("謎が多いせいか", [[656,768],[687,768],[687,927],[656,927]]),
+            line("誘いの霧は", [[691,768],[717,768],[717,883],[691,883]]),
+            line("曖昧なんだがな", [[654,952],[680,952],[680,1109],[654,1109]]),
+            line("難易度設定が", [[687,951],[713,951],[713,1085],[687,1085]])
+        ]
+        for input in [rows, Array(rows.reversed()), [rows[3], rows[1], rows[4], rows[0], rows[2]]] {
+            let result = merge(input, width: Int(822 * scale), height: Int(1200 * scale))
+            #expect(Set(result.map(\.text)) == ["誘いの霧は謎が多いせいか挑戦者も少なく", "難易度設定が曖昧なんだがな"])
+        }
+        // Without separately owned neighbours, preserve genuine interrupted columns.
+        let continuation = merge([rows[1], rows[3]], width: Int(822 * scale), height: Int(1200 * scale))
+        #expect(continuation.map(\.text) == ["謎が多いせいか曖昧なんだがな"])
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0])
+    func wideDetectorMarginDoesNotSplitAdjacentJapaneseColumns(scale: Double) {
+        func column(_ text: String, _ points: [[Double]]) -> NativeCoreMLOCRLine {
+            NativeCoreMLOCRLine(polygon: points.map { CGPoint(x: $0[0] * scale, y: $0[1] * scale) },
+                text: text, score: 0.99, orientation: .vertical, orientationIsEstimated: true)
+        }
+        // Original page 16 detections: the last column's margin overlaps
+        // 28 pixels of the middle column despite a 36-pixel glyph advance.
+        let last = column("気にしなくていい", [[132, 221], [207, 221], [205, 510], [131, 510]])
+        let middle = column("来ないんだから", [[181, 228], [229, 228], [228, 474], [179, 474]])
+        let first = column("もうここには", [[225, 229], [265, 229], [265, 433], [225, 433]])
+        for input in [[last, middle, first], [first, middle, last]] {
+            let result = merge(input, width: Int(1200 * scale), height: Int(1694 * scale))
+            #expect(result.map(\.text) == ["もうここには来ないんだから気にしなくていい"])
+            #expect(result.first?.singleVerticalColumn == false)
+        }
+        let vetoed = NativeOCRTextLineMerger.merge([last, middle], imageWidth: Int(1200 * scale),
+            imageHeight: Int(1694 * scale), separationCheck: { _, _, _ in true })
+        #expect(vetoed.count == 2)
+        // Same geometry with smaller glyph advance is not evidence of padding.
+        let dense = column("ここには別の小さな文字が書いてある", [[132, 221], [207, 221], [205, 510], [131, 510]])
+        #expect(merge([dense, middle], width: Int(1200 * scale), height: Int(1694 * scale)).count == 2)
+    }
+
     @Test func ordinaryKimiHomophoneDoesNotBecomeSemanticPronoun() {
         // The everyday reading of 気味 must not acquire the referent "you".
         // Real detector geometry from a development work; held-out works are

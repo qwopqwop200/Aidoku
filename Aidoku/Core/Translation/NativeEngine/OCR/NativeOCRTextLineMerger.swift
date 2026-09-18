@@ -160,6 +160,7 @@ enum NativeOCRTextLineMerger {
         }
         let filtered = inheritHorizontalInlineGlyphs(suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(suppressSlantedVerticalRuby(lines))))
         let semanticRuby = semanticRubyAnnotations(in: lines, retained: filtered)
+        let rubyInk = suppressedRubyInk(in: lines, retained: filtered)
         let merged = mergeConservativeTextLines(
             filtered,
             imageWidth: CGFloat(imageWidth),
@@ -173,10 +174,28 @@ enum NativeOCRTextLineMerger {
                 text: applyingSemanticRuby(semanticRuby, to: line),
                 score: line.confidence,
                 orientationRaw: line.orientation.source.rawValue,
-                singleVerticalColumn: line.singleVerticalColumn
+                singleVerticalColumn: line.singleVerticalColumn,
+                auxiliaryInkRects: rubyInk.filter { line.box.contains($0.parent) }.map(\.reading)
             ))
         }
         return (merged + retained).sorted { $0.index < $1.index }.map(\.line)
+    }
+
+    // Retain only readings attributed to exactly one surviving body. Suppression
+    // affects transcription, never ownership of pixels that must be removed.
+    private static func suppressedRubyInk(in lines: [Line], retained: [Line]) -> [(parent: CGRect, reading: CGRect)] {
+        let kept = Set(retained.map(\.index))
+        let spatial = NativeOCRSpatialIndex(boxes: retained.map(\.box))
+        return lines.filter { !kept.contains($0.index) }.compactMap { reading in
+            let candidates = spatial.indices(intersecting: reading.box.insetBy(
+                dx: -reading.box.width, dy: -reading.box.height)).filter { index in
+                let pair = [retained[index], reading]
+                return !suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(suppressSlantedVerticalRuby(pair)))
+                    .contains { $0.index == reading.index }
+            }
+            guard candidates.count == 1, let index = candidates.first else { return nil }
+            return (retained[index].box, reading.box)
+        }
     }
 
     private struct SemanticRuby {
@@ -542,6 +561,8 @@ enum NativeOCRTextLineMerger {
             for right in spatialIndex.indices(intersecting: searchBounds(visualLines[left])) where right > left {
                 guard !captionGutters.contains(IndexPair(left, right)),
                       !areIndependentQuotedLanguages(geometries[left], geometries[right]) else { continue }
+                if crossesIndependentVerticalBlocks(visualLines[left], visualLines[right], lines: visualLines,
+                    spatialIndex: spatialIndex) { continue }
                 if geometries[left].orientation == .vertical, geometries[right].orientation == .vertical,
                    ReaderTranslationBalloonMerger.separatesVerticalUtterances(geometries[left].line.text, box: geometries[left].box,
                        geometries[right].line.text, box: geometries[right].box) { continue }
@@ -676,6 +697,8 @@ enum NativeOCRTextLineMerger {
                 let rightGeometry = geometries[right]
                 if leftGeometry.supportsVertical,
                    rightGeometry.supportsVertical,
+                   !crossesIndependentVerticalBlocks(leftGeometry.line, rightGeometry.line, lines: lines,
+                       spatialIndex: spatialIndex),
                    let candidate = mergeCandidate(
                        leftGeometry,
                        rightGeometry,
@@ -866,6 +889,42 @@ enum NativeOCRTextLineMerger {
             result.insert(IndexPair(middle, after.second))
         }
         return result
+    }
+
+    /// A short same-column gap is not a continuation when both fragments have
+    /// their own top-aligned neighbouring columns (stacked balloon lobes).
+    private static func crossesIndependentVerticalBlocks(
+        _ a: Line, _ b: Line, lines: [Line], spatialIndex: NativeOCRSpatialIndex
+    ) -> Bool {
+        guard a.orientation == .vertical, b.orientation == .vertical,
+              a.singleVerticalColumn, b.singleVerticalColumn else { return false }
+        let top = a.box.minY < b.box.minY ? a : b
+        let bottom = a.box.minY < b.box.minY ? b : a
+        let font = min(top.box.width, bottom.box.width)
+        let gap = bottom.box.minY - top.box.maxY
+        guard font > 0, gap >= font * 0.6, gap <= font * 1.1,
+              max(top.box.width, bottom.box.width) <= font * 1.6,
+              overlapRatio(top.box.minX, top.box.maxX, bottom.box.minX, bottom.box.maxX) >= 0.8,
+              abs(top.box.midX - bottom.box.midX) <= font * 0.25 else { return false }
+        func neighbours(_ line: Line) -> Set<Int> {
+            let search = line.box.insetBy(dx: -font * 2, dy: -font)
+            return Set(spatialIndex.indices(intersecting: search).compactMap { index in
+                let other = lines[index]
+                let small = min(line.box.width, other.box.width)
+                guard other.index != a.index, other.index != b.index,
+                      other.orientation == .vertical, other.singleVerticalColumn,
+                      other.text.count >= 3, small > 0,
+                      max(line.box.width, other.box.width) <= small * 1.4,
+                      abs(line.box.minY - other.box.minY) <= small * 0.75,
+                      overlapRatio(line.box.minY, line.box.maxY, other.box.minY, other.box.maxY) >= 0.75,
+                      abs(line.box.midX - other.box.midX) >= small * 0.8,
+                      separatedIntervalGap(line.box.minX, line.box.maxX, other.box.minX, other.box.maxX) <= small * 0.8
+                else { return nil }
+                return other.index
+            })
+        }
+        let upperNeighbours = neighbours(top), lowerNeighbours = neighbours(bottom)
+        return !upperNeighbours.isEmpty && !lowerNeighbours.isEmpty && upperNeighbours.isDisjoint(with: lowerNeighbours)
     }
 
     // Resolve interrupted columns before joining adjacent columns into a box.
@@ -1910,9 +1969,37 @@ enum NativeOCRTextLineMerger {
             right.box.minX, right.box.maxX
         )
         return verticalOverlap >= mangaVerticalAdjacentColumnOverlapRatio
-            && horizontalOverlap < maximumNewLinePrimaryOverlapRatio
+            && (horizontalOverlap < maximumNewLinePrimaryOverlapRatio
+                || paddedAdjacentVerticalColumns(left, right))
             && columnGap < smallerFont * mangaVerticalColumnGapInFontSizes
             && minimumRegionAlignmentDelta(left, right) <= smallerFont * 1.25
+    }
+
+    /// A wide detector margin can cover half of the neighbouring column even
+    /// though both columns have the same glyph advance. Only recover long,
+    /// upright, top-aligned Japanese columns with distinct glyph-sized centers;
+    /// actual same-column fragments still follow the rules above.
+    private static func paddedAdjacentVerticalColumns(_ a: RegionGeometry, _ b: RegionGeometry) -> Bool {
+        func advance(_ line: Line) -> CGFloat? {
+            let characters = line.text.unicodeScalars
+            guard line.singleVerticalColumn, characters.count >= 5,
+                  characters.allSatisfy({ (0x3041...0x30FF).contains($0.value)
+                      || (0x3400...0x9FFF).contains($0.value) || $0.value == 0x3005 }),
+                  line.polygon.count == 4,
+                  min(abs(line.polygon[1].x - line.polygon[0].x),
+                      abs(line.polygon[2].x - line.polygon[3].x)) >= line.box.width * 0.8
+            else { return nil }
+            return line.box.height / CGFloat(characters.count)
+        }
+        guard let first = advance(a.line), let second = advance(b.line) else { return false }
+        let small = min(first, second), large = max(first, second)
+        let distance = abs(a.centerX - b.centerX)
+        let widths = [a.box.width / first, b.box.width / second]
+        return small > 0 && large <= small * 1.25
+            && widths.max()! >= 1.8 && widths.max()! <= 2.3 && widths.min()! <= 1.6
+            && distance >= large * 0.85 && distance <= small * 1.5
+            && abs(a.box.minY - b.box.minY) <= small * 0.5
+            && overlapRatio(a.box.minY, a.box.maxY, b.box.minY, b.box.maxY) >= 0.85
     }
 
     private static func isTallWrappedLatinContinuation(

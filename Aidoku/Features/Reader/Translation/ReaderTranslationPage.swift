@@ -26,6 +26,7 @@ final class ReaderTranslationPage {
     private var cachedOverlay: ReaderTranslationCachedPageView?
     private var renderLookupTask: Task<Void, Never>?
     private var renderLookupKey: String?
+    private var previewRegions: [ReaderTranslationRegion]?
     var isUsingCachedRendering: Bool { cachedOverlay != nil }
     private let recognize: Recognizer
     private let translateRegions: Translator?
@@ -78,6 +79,7 @@ final class ReaderTranslationPage {
 
     func reset() {
         cancel()
+        previewRegions = nil
         regions = []
         recognizedImage = nil
         recognizedConfiguration = nil
@@ -220,6 +222,7 @@ final class ReaderTranslationPage {
     }
 
     func showCompletedTranslation(settings: ReaderTranslationSettings) {
+        previewRegions = nil
         guard hasCompletedTranslation(settings: settings) else { return }
         if (overlay == nil && cachedOverlay == nil) || lastSettings?.overlay != settings.overlay ||
             (renderCache != nil && overlay?.canCacheRendering == false), !regions.isEmpty, let image = imageView?.image {
@@ -259,7 +262,7 @@ final class ReaderTranslationPage {
             renderLookupTask = Task { [weak self] in
                 let diskGeneration = await renderCache.disk.currentGeneration(settings: settings)
                 let pageIdentity = ReaderTranslationCacheIdentity.translation(page: sourcePage.translationCacheKey, settings: settings)
-                let cached = await renderCache.load(key)
+                let cached = await renderCache.load(key, pageIdentity: pageIdentity)
                 guard !Task.isCancelled, let self, generation == issued, imageView.image === image, renderLookupKey == key else { return }
                 renderLookupTask = nil
                 guard imageView.bounds.size == viewport, (imageView.traitCollection.userInterfaceStyle == .dark) == dark else {
@@ -273,9 +276,17 @@ final class ReaderTranslationPage {
                     let target = ReaderTranslationSnapshotTarget(
                         cache: renderCache, key: key, pageIdentity: pageIdentity,
                         diskGeneration: diskGeneration, viewport: imageView.bounds.size,
-                        dark: imageView.traitCollection.userInterfaceStyle == .dark
+                        dark: imageView.traitCollection.userInterfaceStyle == .dark,
+                        preparedLayout: renderCache.cachedLayout(for: key).map { data in Task { data } }
                     )
                     displayLive(result, image: image, settings: settings, target: target)
+                }
+                let crop = sourcePage.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
+                // Split images round to whole pixels; reversing their crop can
+                // invent a different full-page width. Only record exact sizes.
+                if crop == CGRect(x: 0, y: 0, width: 1, height: 1) {
+                    try? await renderCache.disk.storeImageSize(image.size,
+                        page: sourcePage.translationCacheKey, generation: diskGeneration)
                 }
             }
             return
@@ -296,6 +307,14 @@ final class ReaderTranslationPage {
             imageView.insertSubview(overlay, at: 0)
         }
         self.overlay = overlay
+        let issued = generation
+        overlay.onSnapshotStored = { [weak self, weak overlay, weak imageView] snapshot in
+            guard let self, let overlay, self.overlay === overlay, generation == issued,
+                  imageView?.image === image, completedTranslation, lastSettings == settings,
+                  let target, imageView?.bounds.size == target.viewport,
+                  (imageView?.traitCollection.userInterfaceStyle == .dark) == target.dark else { return }
+            displaySnapshot(snapshot, source: image, settings: settings)
+        }
         overlay.onCacheGeometryChanged = { [weak self] in
             guard let self, self.imageView?.image === image else { return }
             try? publish(regions, image: image, settings: settings, generation: generation)
@@ -322,13 +341,18 @@ final class ReaderTranslationPage {
         canvas.onGeometryChanged = { [weak self, weak canvas, weak imageView] in
             guard let self, let canvas, cachedOverlay === canvas, imageView?.image === source else { return }
             releaseOverlay()
-            try? publish(regions, image: source, settings: settings, generation: generation)
+            if let previewRegions {
+                displayPreparedSnapshot(previewRegions, settings: settings)
+            } else {
+                try? publish(regions, image: source, settings: settings, generation: generation)
+            }
         }
         cachedOverlay = canvas
         imageView.insertSubview(canvas, at: 0)
     }
 
     func displayPrepared(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings, completed: Bool = true) {
+        previewRegions = nil
         guard let image = imageView?.image else { return }
         if hasCompletedTranslation(settings: settings) {
             showCompletedTranslation(settings: settings)
@@ -345,9 +369,65 @@ final class ReaderTranslationPage {
         try? publish(displayed, image: image, settings: settings, generation: generation)
     }
 
+    /// Attach a finished composite to an adjacent reader view before a swipe.
+    /// A cache miss leaves the source alone; only the session's bounded renderer
+    /// may create missing pixels. Never create a WebKit view per preload page.
+    func displayPreparedSnapshot(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings) {
+        guard let imageView, let image = imageView.image, let sourcePage, let renderCache,
+              imageView.bounds.width > 0, imageView.bounds.height > 0 else { return }
+        if isUsingCachedRendering, analyzedImage === image, lastSettings == settings { return }
+        let viewport = imageView.bounds.size
+        let dark = imageView.traitCollection.userInterfaceStyle == .dark
+        let crop = sourcePage.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
+        let key = ReaderTranslationCacheIdentity.render(page: sourcePage.translationCacheKey, settings: settings,
+            imageSize: image.size, viewport: viewport, scale: imageView.traitCollection.displayScale,
+            aspectFit: imageView.contentMode == .scaleAspectFit, crop: crop, dark: dark)
+        if let snapshot = renderCache.cachedImage(for: key) {
+            acceptPreview(snapshot, result: result, image: image, crop: crop, settings: settings)
+            return
+        }
+        guard renderLookupKey != key || renderLookupTask == nil else { return }
+        renderLookupTask?.cancel()
+        renderLookupKey = key
+        let issued = generation
+        let identity = ReaderTranslationCacheIdentity.translation(page: sourcePage.translationCacheKey, settings: settings)
+        renderLookupTask = Task { [weak self, weak imageView] in
+            let snapshot = await renderCache.load(key, pageIdentity: identity, cancelPreparation: false)
+            guard !Task.isCancelled, let self, let imageView, generation == issued,
+                  imageView.image === image, renderLookupKey == key else { return }
+            renderLookupTask = nil
+            guard let snapshot, imageView.bounds.size == viewport,
+                  (imageView.traitCollection.userInterfaceStyle == .dark) == dark else { return }
+            acceptPreview(snapshot, result: result, image: image, crop: crop, settings: settings)
+        }
+    }
+
+    private func acceptPreview(_ snapshot: UIImage, result: [ReaderTranslationRegion], image: UIImage,
+                               crop: CGRect, settings: ReaderTranslationSettings) {
+        cancel()
+        previewRegions = result
+        regions = result.compactMap { $0.cropped(to: crop) }
+        analyzedImage = image
+        analyzedConfiguration = settings.ocrConfiguration
+        lastSettings = settings
+        completedTranslation = true
+        displaySnapshot(snapshot, source: image, settings: settings)
+    }
+
     func applySettings(_ settings: ReaderTranslationSettings) {
         cancel()
         guard let old = lastSettings, let image = imageView?.image, analyzedImage === image else { return }
+        if let previewRegions {
+            releaseOverlay()
+            if old.hasSameTranslation(as: settings), settings.automaticallyTranslate {
+                displayPreparedSnapshot(previewRegions, settings: settings)
+            } else {
+                self.previewRegions = nil
+                completedTranslation = false
+                lastSettings = settings
+            }
+            return
+        }
         guard old.ocrConfiguration == settings.ocrConfiguration else { reset(); return }
         if old.rightToLeftPanelOrder != settings.rightToLeftPanelOrder || old.sourceLanguage != settings.sourceLanguage ||
             ReaderTranslationLanguageFilter.identity(settings: old) != ReaderTranslationLanguageFilter.identity(settings: settings) {

@@ -5,6 +5,89 @@ import CoreGraphics
 
 @Suite(.serialized)
 struct ReaderTranslationConcurrencyTests {
+    @Test func ordinaryPageTranslatesAllDialogueInOneProviderRequest() async throws {
+        let client = ConcurrencyProbe()
+        await client.release()
+        let service = ReaderTranslationService(client: client)
+        let input = regions(prefix: "page", count: 16)
+        let translated = try await service.translate(regions: input, settings: settings(concurrency: 8))
+        #expect(await client.calls == 1)
+        #expect(translated.map(\.id) == input.map(\.id))
+        #expect(translated.compactMap(\.translation) == input.map { "translated " + $0.source })
+    }
+
+    @Test func providerQueueHonorsAllMetadataPrioritiesAfterPages() async throws {
+        let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
+        let recorder = PermitRecorder()
+        let blocker = Task { try await limiter.withPermit { try await recorder.enter("active", blocked: true) } }
+        defer { blocker.cancel() }
+        try await waitUntil { await recorder.order == ["active"] }
+        let priorities: [(String, TranslationRequestPriority)] = [
+            ("tag", .metadata(.tag)), ("author", .metadata(.author)),
+            ("description", .metadata(.description)), ("title", .metadata(.mangaTitle)),
+            ("section", .metadata(.sourceMenuTitle)), ("prefetch", .prefetch), ("page", .foreground)
+        ]
+        var tasks: [Task<Void, Error>] = []
+        defer { tasks.forEach { $0.cancel() } }
+        for (index, entry) in priorities.enumerated() {
+            tasks.append(Task { try await limiter.withPermit(priority: entry.1) { try await recorder.enter(entry.0) } })
+            try await waitUntil { await limiter.queuedRequestCount == index + 1 }
+        }
+        await recorder.release()
+        try await blocker.value
+        for task in tasks { try await task.value }
+        #expect(await recorder.order == ["active", "page", "prefetch", "section", "title", "description", "author", "tag"])
+        #expect(TitleTranslationKind.sourceLabel.priority == .sourceMenuTitle)
+        #expect(TitleTranslationKind.manga.priority == .mangaTitle)
+        #expect(TitleTranslationKind.chapter.priority == .mangaTitle)
+        #expect(TitleTranslationKind.description.priority == .description)
+        #expect(TitleTranslationKind.author.priority == .author)
+        #expect(TitleTranslationKind.tag.priority == .tag)
+    }
+
+    @Test func readerPreemptsActiveAndQueuedMetadataThenResumesAfterLastReaderLeaves() async throws {
+        let client = ConcurrencyProbe()
+        let service = ReaderTranslationService(client: client)
+        let value = settings(concurrency: 1)
+        let owner = UUID()
+        let otherOwner = UUID()
+        let metadata = Task { try await service.translateMetadata(regions: regions(prefix: "metadata", count: 1), settings: value) }
+        defer { metadata.cancel() }
+        try await waitUntil { await client.active == 1 }
+        let queued = Task { try await service.translateMetadata(regions: regions(prefix: "queued", count: 1), settings: value) }
+        defer { queued.cancel() }
+        await service.setReaderActive(true, owner: owner)
+        await service.setReaderActive(true, owner: otherOwner)
+        try await waitUntil { await client.active == 0 }
+        let page = Task { try await service.translate(regions: regions(prefix: "page", count: 1), settings: value) }
+        defer { page.cancel() }
+        try await waitUntil { await client.active == 1 }
+        await client.release()
+        #expect(try await page.value.first?.translation == "translated page text 0")
+        #expect(await client.calls == 2)
+        await service.setReaderActive(false, owner: owner)
+        #expect(await client.calls == 2)
+        await service.setReaderActive(false, owner: otherOwner)
+        #expect(try await metadata.value.first?.translation == "translated metadata text 0")
+        #expect(try await queued.value.first?.translation == "translated queued text 0")
+        #expect(await client.calls == 4)
+        #expect(await client.peak == 1)
+    }
+
+    @Test func cancelledMetadataWaitingForReaderNeverReachesProvider() async throws {
+        let client = ConcurrencyProbe()
+        let service = ReaderTranslationService(client: client)
+        let owner = UUID()
+        await service.setReaderActive(true, owner: owner)
+        let metadata = Task {
+            try await service.translateMetadata(regions: regions(prefix: "cancelled", count: 1), settings: settings(concurrency: 1))
+        }
+        metadata.cancel()
+        await #expect(throws: CancellationError.self) { try await metadata.value }
+        await service.setReaderActive(false, owner: owner)
+        #expect(await client.calls == 0)
+    }
+
     @Test func cachedBatchOutsideConcurrencyWindowSurvivesProviderFailure() async throws {
         let client = CacheFailureProbe()
         let cache = try TranslationCache(configuration: .init(diskEnabled: false, maxSizeMiB: 10))
@@ -192,9 +275,11 @@ struct ReaderTranslationConcurrencyTests {
 private actor ConcurrencyProbe: RemoteTranslating {
     var active = 0
     var peak = 0
+    var calls = 0
     private var released = false
     func release() { released = true }
     func translate(_ request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration) async throws -> RemoteTranslationBatchResult {
+        calls += 1
         active += 1
         peak = max(peak, active)
         defer { active -= 1 }

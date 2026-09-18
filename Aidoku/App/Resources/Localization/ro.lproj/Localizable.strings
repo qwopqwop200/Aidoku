@@ -344,7 +344,7 @@
 
 "TRANSLATION_HELP" = "Pictograma de traducere activează sau dezactivează traducerea. Sunt pregătite mai întâi paginile vizibile, apoi cele din apropiere. Pregătirea urmează poziția curentă de lectură. Rezultatele OCR, traducerile și aranjarea textului salvate pot fi reutilizate după redeschiderea cititorului sau repornirea aplicației. Imaginile partajate temporar nu salvează acest cache. Ieșirea din cititor anulează procesarea neterminată.";
 
-"TRANSLATION_PRIVACY" = "OCR rulează pe dispozitivul dvs. Traducerea trimite textul recunoscut și instrucțiunile dvs. furnizorului selectat. Dacă opțiunea „Includeți imaginea paginii în traducere” este activată, este încărcată și imaginea originală a paginii. Costurile API depind de furnizor. Cheile rămân în Keychain. Rezultatele OCR, traducerile și aranjarea textului sunt salvate în spațiul protejat al aplicației, exclus din copiile de rezervă.";
+"TRANSLATION_PRIVACY" = "OCR rulează pe dispozitivul dvs. Traducerea trimite textul recunoscut și instrucțiunile dvs. furnizorului selectat. Dacă opțiunea „Includeți imaginea paginii în traducere” este activată, poate fi trimisă și o versiune prelucrată a imaginii paginii. Dacă imaginile nu sunt acceptate ca date de intrare, traducerea continuă doar cu text. Costurile API depind de furnizor. Cheile rămân în Keychain. Rezultatele OCR, traducerile și aranjarea textului sunt salvate în spațiul protejat al aplicației, exclus din copiile de rezervă.";
 
 "TRANSLATION_KEY_REPLACE" = "Înlocuiți cheia API salvată (opțional)";
 
@@ -390,7 +390,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Lățimea maximă a imaginii pentru recunoașterea textului";
 
-"TRANSLATION_CONFIDENCE" = "Prag minim de încredere OCR";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Prag de pixeli pentru detectarea OCR";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Încredere minimă în regiunile detectate prin OCR";
+"TRANSLATION_CONFIDENCE" = "Încredere minimă în recunoașterea OCR";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "Pragul de pixeli selectează pixelii de text. Încrederea în detectare filtrează regiunile de text. Încrederea în recunoaștere filtrează textul citit din fiecare regiune. Valorile mai mici acceptă mai multe rezultate incerte.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Dimensiune minimă de detectare OCR";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Lungimea minimă a laturii scurte a regiunilor candidate de text, în pixeli ai hărții de detectare. Implicit: 3 px. Valorile mai mici pot detecta text mai mic, dar și mai mult zgomot.";
 
 "TRANSLATION_SURFACE" = "Culoare de fundal";
 
@@ -474,7 +479,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Nu s-a putut conecta prin ocolire HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Traducerea a eșuat. Se afișează textul OCR. Vă rugăm să vă verificați conexiunea.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Traducerea a eșuat. Se afișează textul recunoscut prin OCR. Verificați setările și conexiunea.";
 
 "TRANSLATION_MANGA_TITLES" = "Traduceți Titluri Manga";
 
@@ -502,11 +507,12 @@
 
 "TRANSLATION_SFX_CONTEXT_FILTER" = "Include intrările care necesită context (doar japoneză)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Se aplică în timp ce filtrarea SFX este activată. De asemenea, filtrează intrările marcate ca necesitând context utilizând potriviri din dicționar, dimensiunea textului și aspectul din apropiere. Niciun LLM nu analizează contextul, astfel încât dialogul poate fi, de asemenea, exclus.";
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Se aplică în timp ce filtrarea SFX este activată. Filtrează și intrările marcate ca necesitând context, folosind potriviri din dicționar, dimensiunea textului și aranjarea textului din apropiere. Niciun LLM nu analizează contextul, astfel încât pot fi excluse și dialoguri.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Includeți imaginea paginii în traducere";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Trimiteți pagina originală cu text OCR pentru contextul scenei și al expresiei. Instrucțiunile de imagine sunt atașate automat. Necesită un model care acceptă imagini și poate crește utilizarea datelor și costul API.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Trimite imaginea paginii împreună cu textul OCR pentru a oferi contextul scenei. Dacă imaginile nu sunt acceptate ca date de intrare, traducerea continuă automat doar cu text. Atașarea imaginilor poate crește consumul de date și costul API.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Introducerea imaginilor nu este acceptată. Traducerea continuă fără imagini.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Păstrați culoarea originală a textului";
 
@@ -514,7 +520,7 @@
 
 "TRANSLATION_LLM_SFX" = "Filtrare LLM SFX (toate limbile)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Clasifică efectele sonore în cererea de traducere. Poate fi combinat cu filtrul local pentru japoneză: dacă oricare dintre cele două filtre identifică textul ca efect sonor, originalul rămâne neschimbat. Este compatibil cu trimiterea imaginii paginii.";
+"TRANSLATION_LLM_SFX_HELP" = "Clasifică efectele sonore în aceeași cerere de traducere și le lasă neschimbate. Dacă este inclusă imaginea paginii, IA omite și fragmentele OCR neclare, cu excepția cazurilor în care imaginea confirmă existența unui text cu sens. Dialogurile, narațiunea, titlurile și creditele sunt păstrate pentru traducere. Se poate combina cu filtrul local pentru japoneză: textul semnalat de oricare dintre filtre rămâne neschimbat. Clasificarea este mai puțin fiabilă fără o imagine a paginii.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Fără imagine, informațiile vizuale și cele despre aranjarea textului sunt limitate, ceea ce poate reduce precizia clasificării efectelor sonore.";
 
@@ -866,7 +872,7 @@
 "UPSCALE_IMAGES" = "Mărește rezoluția imaginilor";
 "UPSCALING_MODELS" = "Modele de upscaling";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Înălțimea maximă a imaginii";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Imaginile cu o înălțime peste limita maximă nu vor avea rezoluția mărită.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Imaginile cu o înălțime egală cu sau mai mare decât limita maximă nu vor avea rezoluția mărită.";
 "ENABLED_MODEL" = "Model activat";
 "AVAILABLE_MODELS" = "Modele disponibile";
 "NO_AVAILABLE_MODELS" = "Nu există modele disponibile";
@@ -1091,7 +1097,39 @@
 "DOWNLOAD_TRANSLATED" = "Descarcă cu traducere";
 
 "TRANSLATION_LLM_BACKGROUND" = "Omite textele din fundal (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "IA de traducere lasă neschimbate textele secundare de pe indicatoare, afișe și din fundal. Dialogurile, narațiunea și textele incerte sunt traduse. Nu se face nicio cerere suplimentară, dar procesarea poate dura mai mult. Clasificarea este mai puțin fiabilă fără o imagine a paginii.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "IA de traducere lasă neschimbate textele de pe indicatoarele obișnuite, afișe și obiectele din scenă, chiar dacă au legătură cu scena sau sunt menționate în dialoguri. Sunt traduse dialogurile, narațiunea, titlurile, creditele, textele esențiale pentru intrigă și textele al căror rol este incert. Nu se face nicio cerere suplimentară, dar procesarea poate dura mai mult. Clasificarea este mai puțin fiabilă fără o imagine a paginii.";
 
 "TRANSLATION_STATE_ON" = "Activată";
 "TRANSLATION_STATE_OFF" = "Dezactivată";
+"UPSCALE_MODEL_SWINUNET_INFO" = "Ilustrații; păstrează liniile desenului original. FP32.";
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Ilustrații și coperte color; model ușor pentru detalii.";
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Imagini generale și ilustrații în stiluri variate; accentuare mai puternică a clarității.";
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga și pagini color.";
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Doar manga alb-negru, optimizat pentru pagini originale cu o înălțime de aproximativ 1200 de pixeli. Paginile color rămân neschimbate.";
+"TRANSLATION_ERROR_CONFIGURATION" = "Setările de traducere nu sunt valide. Verificați adresa URL a serverului, modelul și celelalte setări.";
+"TRANSLATION_ERROR_REQUEST" = "Textul, imaginea sau setările de limbă nu au putut fi folosite pentru traducere.";
+"TRANSLATION_ERROR_RESPONSE" = "Serverul de traducere a returnat un răspuns nevalid. Încercați din nou sau verificați setările modelului.";
+"TRANSLATION_ERROR_KEY_REQUIRED" = "Este necesară o cheie API de traducere.";
+"TRANSLATION_ERROR_KEY_ACCESS" = "Cheia API de traducere nu a putut fi citită din Keychain.";
+"TRANSLATION_ERROR_ENDPOINT" = "Punctul final al API-ului de traducere nu este permis de politica de securitate.";
+"TRANSLATION_ERROR_REDIRECT" = "Redirecționarea punctului final al API-ului de traducere a fost respinsă.";
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "Răspunsul traducerii a depășit limita de dimensiune.";
+"TRANSLATION_ERROR_HTTP" = "Serverul de traducere a returnat codul HTTP %d.";
+"TRANSLATION_ERROR_HTTP_REQUEST" = "Serverul de traducere a returnat codul HTTP %d (ID cerere: %@).";
+"TRANSLATION_ERROR_NETWORK_CODE" = "Cererea de traducere a eșuat (eroarea %d).";
+"TRANSLATION_ERROR_CONNECTION" = "API-ul de traducere nu a putut fi contactat. Verificați conexiunea la rețea, punctul final al API-ului și starea serverului, apoi încercați din nou.";
+"TRANSLATION_ERROR_REFUSED" = "Furnizorul de traducere a refuzat cererea.";
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "Identificatorul folosit pentru salvarea cheii API nu este valid.";
+"TRANSLATION_ERROR_KEY_INVALID" = "Cheia API este goală, prea lungă sau conține caractere neacceptate.";
+"TRANSLATION_ERROR_KEY_MISSING" = "Nu există nicio cheie API salvată pentru acest furnizor.";
+"TRANSLATION_ERROR_KEY_ENCODING" = "Cheia API salvată nu a putut fi decodată.";
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Operația Keychain a eșuat cu codul de stare %d.";
+"OCR_ERROR_MODEL_MISSING" = "Lipsește un model PP-OCRv6 necesar.";
+"OCR_ERROR_MODEL_LOAD" = "Un model PP-OCRv6 nu a putut fi încărcat.";
+"OCR_ERROR_DICTIONARY" = "Dicționarul de caractere PP-OCRv6 lipsește sau nu este valid.";
+"OCR_ERROR_IMAGE" = "Imaginea nu a putut fi pregătită pentru recunoașterea textului.";
+"OCR_ERROR_OUTPUT" = "Modelul PP-OCRv6 a returnat un rezultat nevalid sau neacceptat.";
+"OCR_ERROR_PREDICTION" = "Recunoașterea textului PP-OCRv6 a eșuat. Încercați din nou cu altă imagine sau alt model OCR.";
+"TRANSLATION_ERROR_CACHE_SIZE" = "Dimensiunea memoriei cache de traducere este în afara intervalului acceptat.";
+"TRANSLATION_ERROR_CACHE_STORAGE" = "Spațiul de stocare pentru memoria cache de traducere este nevalid sau indisponibil.";
+"TRANSLATION_ERROR_CACHE_SAVE" = "Memoria cache de traducere nu a putut fi salvată.";

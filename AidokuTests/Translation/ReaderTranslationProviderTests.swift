@@ -14,6 +14,9 @@ struct ReaderTranslationProviderTests {
         settings.instructions = ""
         settings.automaticallyTranslate = false
         settings.ocr.confidenceThreshold = 0.75
+        settings.ocr.detectorPixelThreshold = 0.25
+        settings.ocr.detectorConfidenceThreshold = 0.55
+        settings.ocr.detectorMinimumBoxSide = 2
         settings.overlay.opacity = 0.5
         settings.translationSourceLanguages = ["ja"]
         try settings.autosave(defaults: fixture.defaults, credentialStore: fixture.keys)
@@ -22,9 +25,97 @@ struct ReaderTranslationProviderTests {
         #expect(restored.instructions.isEmpty)
         #expect(!restored.automaticallyTranslate)
         #expect(restored.ocr.confidenceThreshold == 0.75)
+        #expect(restored.ocr.detectorPixelThreshold == 0.25)
+        #expect(restored.ocr.detectorConfidenceThreshold == 0.55)
+        #expect(restored.ocr.detectorMinimumBoxSide == 2)
         #expect(restored.overlay.opacity == 0.5)
         #expect(restored.translationSourceLanguages == ["ja"])
         #expect(throws: RemoteTranslationError.self) { try restored.validate() }
+    }
+
+    @Test(arguments: IPhoneOCRModelTier.allCases)
+    func legacyOCRSettingsPreservePreferencesAndModelThresholds(tier: IPhoneOCRModelTier) throws {
+        let fixture = ProviderSettingsFixture()
+        defer { fixture.cleanUp() }
+        let legacy = """
+        {"modelTier":"\(tier.rawValue)","detectorMaximumSide":800,"recognizerMaximumWidth":1200,"confidenceThreshold":0.85}
+        """
+        fixture.defaults.set(tier.rawValue, forKey: ReaderTranslationSettings.keyPrefix + "modelTier")
+        fixture.defaults.set(Data(legacy.utf8), forKey: ReaderTranslationSettings.keyPrefix + "ocr")
+        let restored = ReaderTranslationSettings(defaults: fixture.defaults)
+        #expect(restored.ocr.modelTier == tier)
+        #expect(restored.ocr.detectorMaximumSide == 800)
+        #expect(restored.ocr.recognizerMaximumWidth == 1_200)
+        #expect(restored.ocr.confidenceThreshold == 0.85)
+        let original = NativeCoreMLOCRModelProfile.profile(for: tier).postprocessConfiguration
+        #expect(restored.ocr.detectorPostprocessConfiguration == original)
+        #expect(ReaderOCRConfiguration(modelTier: tier).detectorPostprocessConfiguration == original)
+        try restored.autosave(defaults: fixture.defaults, credentialStore: fixture.keys)
+        #expect(ReaderTranslationSettings(defaults: fixture.defaults).ocr == restored.ocr)
+    }
+
+    @Test(arguments: IPhoneOCRModelTier.allCases)
+    func legacyModelOnlySettingUsesOriginalDetectorThresholds(tier: IPhoneOCRModelTier) {
+        let fixture = ProviderSettingsFixture()
+        defer { fixture.cleanUp() }
+        fixture.defaults.set(tier.rawValue, forKey: ReaderTranslationSettings.keyPrefix + "modelTier")
+        let restored = ReaderTranslationSettings(defaults: fixture.defaults)
+        #expect(restored.ocr.modelTier == tier)
+        #expect(restored.ocr.detectorPostprocessConfiguration == NativeCoreMLOCRModelProfile.profile(for: tier).postprocessConfiguration)
+    }
+
+    @Test(arguments: [-0.05, 1.05, Double.nan, Double.infinity])
+    func invalidDetectorThresholdsCannotBeSaved(value: Double) throws {
+        let fixture = ProviderSettingsFixture()
+        defer { fixture.cleanUp() }
+        for field in [\ReaderOCRConfiguration.detectorPixelThreshold, \.detectorConfidenceThreshold] {
+            var settings = ReaderTranslationSettings(defaults: fixture.defaults)
+            settings.ocr[keyPath: field] = value
+            #expect(throws: RemoteTranslationError.self) { try settings.validate() }
+            let safe = settings.ocr.detectorPostprocessConfiguration
+            #expect((0...1).contains(safe.threshold))
+            #expect((0...1).contains(safe.boxThreshold))
+        }
+    }
+
+    @Test func detectorSettingsWithoutMinimumSizePreserveSavedThresholds() throws {
+        let fixture = ProviderSettingsFixture()
+        defer { fixture.cleanUp() }
+        let legacy = """
+        {"modelTier":"tiny","detectorMaximumSide":800,"recognizerMaximumWidth":1200,"confidenceThreshold":0.85,
+         "detectorPixelThreshold":0.35,"detectorConfidenceThreshold":0.65}
+        """
+        fixture.defaults.set(Data(legacy.utf8), forKey: ReaderTranslationSettings.keyPrefix + "ocr")
+        let settings = ReaderTranslationSettings(defaults: fixture.defaults)
+        #expect(settings.ocr == ReaderOCRConfiguration(modelTier: .tiny, detectorMaximumSide: 800,
+                    recognizerMaximumWidth: 1_200, confidenceThreshold: 0.85,
+                    detectorPixelThreshold: 0.35, detectorConfidenceThreshold: 0.65, detectorMinimumBoxSide: 3))
+    }
+
+    @Test(arguments: [-1.0, 21.0, Double.nan, Double.infinity])
+    func invalidMinimumDetectorSizeCannotBeSaved(value: Double) {
+        let fixture = ProviderSettingsFixture()
+        defer { fixture.cleanUp() }
+        var settings = ReaderTranslationSettings(defaults: fixture.defaults)
+        settings.ocr.detectorMinimumBoxSide = value
+        #expect(throws: RemoteTranslationError.self) { try settings.validate() }
+        #expect((0...20).contains(settings.ocr.detectorPostprocessConfiguration.minimumBoxSide))
+    }
+
+    @Test func detectorThresholdChangesInvalidateOCRAndTranslationReuse() {
+        let fixture = ProviderSettingsFixture()
+        defer { fixture.cleanUp() }
+        let settings = ReaderTranslationSettings(defaults: fixture.defaults)
+        let ocrKey = ReaderTranslationCacheIdentity.ocr(page: "page", settings: settings)
+        let translationKey = ReaderTranslationCacheIdentity.translation(page: "page", settings: settings)
+        for field in [\ReaderOCRConfiguration.detectorPixelThreshold, \.detectorConfidenceThreshold, \.detectorMinimumBoxSide] {
+            var changed = settings
+            changed.ocr[keyPath: field] += 0.05
+            #expect(!settings.hasSameTranslation(as: changed))
+            #expect(ReaderTranslationCacheIdentity.ocr(page: "page", settings: changed) != ocrKey)
+            #expect(ReaderTranslationCacheIdentity.translation(page: "page", settings: changed) != translationKey)
+            #expect(changed.ocr.confidenceThreshold == settings.ocr.confidenceThreshold)
+        }
     }
 
     @Test func autosaveRetainsCredentialGenerationAndServerIsolation() throws {

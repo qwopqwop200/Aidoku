@@ -164,6 +164,50 @@ enum BrowserSourceInkCleanup {
       return cleaned;
     };
 
+    // A capped Chebyshev distance transform follows the original mask without
+    // recursively growing newly repaired pixels. Work and scratch space are O(n).
+    // The caller must first prove the unmasked surface is flat.
+    function aidokuRecoverInkHalo(rgba, width, height, mask, foreground, background, stroke, protectedInk) {
+      const count = width * height, distance = new Uint8Array(count);
+      for (let i = 0; i < count; i++) distance[i] = mask[i] ? 0 : 3;
+      for (let y = 1; y < height; y++) for (let x = 1; x < width - 1; x++) {
+        const i = y * width + x;
+        distance[i] = Math.min(distance[i], 1 + Math.min(
+          distance[i - 1], distance[i - width - 1], distance[i - width], distance[i - width + 1]));
+      }
+      for (let y = height - 2; y >= 0; y--) for (let x = width - 2; x > 0; x--) {
+        const i = y * width + x;
+        distance[i] = Math.min(distance[i], 1 + Math.min(
+          distance[i + 1], distance[i + width - 1], distance[i + width], distance[i + width + 1]));
+      }
+      const alignedWith = color => {
+        if (!color) return () => false;
+        const d = color.map((value, channel) => value - background[channel]);
+        const norm = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+        return i => {
+          if (norm < 64) return false;
+          const z = i * 4, a0 = rgba[z] - background[0],
+            a1 = rgba[z + 1] - background[1], a2 = rgba[z + 2] - background[2];
+          const t = (a0 * d[0] + a1 * d[1] + a2 * d[2]) / norm;
+          return t >= -.02 && t <= 1.05 && Math.max(
+            Math.abs(a0 - t * d[0]), Math.abs(a1 - t * d[1]), Math.abs(a2 - t * d[2])) <= 5;
+        };
+      };
+      const followsFill = alignedWith(foreground), followsStroke = alignedWith(stroke);
+      let added = 0;
+      for (let y = 3; y < height - 3; y++) for (let x = 3; x < width - 3; x++) {
+        const i = y * width + x;
+        if (distance[i] === 0 || distance[i] > 2) continue;
+        const up = i - width, down = i + width;
+        if (protectedInk[up - 1] || protectedInk[up] || protectedInk[up + 1] ||
+            protectedInk[i - 1] || protectedInk[i] || protectedInk[i + 1] ||
+            protectedInk[down - 1] || protectedInk[down] || protectedInk[down + 1]) continue;
+        if (!followsFill(i) && !followsStroke(i)) continue;
+        mask[i] = 1; added++;
+      }
+      return added;
+    }
+
     function aidokuColoredSourceInkMask(a){
     const w=a.width,h=a.height,n=w*h,p=a.rgba,sourceFG=a.palette?.foreground,bg=a.palette?.background,sourceStroke=a.palette?.stroke;
     const outlineInterior=Boolean(sourceFG&&bg&&sourceStroke&&Math.max(...sourceFG.map((v,k)=>Math.abs(v-bg[k])))<48&&Math.max(...sourceStroke.map((v,k)=>Math.abs(v-bg[k])))>55),fg=outlineInterior?sourceStroke:sourceFG,stroke=outlineInterior?null:sourceStroke;
@@ -234,8 +278,15 @@ enum BrowserSourceInkCleanup {
       mask[i]=1;fringeAdded++;
      }
     }
+    // Repair detached antialias islands only on an already authorized flat
+    // surface. Real ink, long rules and crop-connected art remain protected.
+    const acceptedSet=new Set(accepted),haloProtection=new Uint8Array(n);
+    for(const c of comps)if(!acceptedSet.has(c)&&
+      (c.edge||c.core>0||c.pixels.length>12||Math.max(c.w,c.h)>median*.5))
+      for(const z of c.pixels)haloProtection[z]=1;
+    const haloAdded=aidokuRecoverInkHalo(p,w,h,mask,sourceFG,fill,sourceStroke,haloProtection);
     let erased=0;for(let i=0;i<n;i++)if(mask[i])erased++;
-    return{reason:'accepted',mask,fill,erased,strokeAdded,outlineInterior,enclosedFill,fringeAdded,accepted:accepted.map(c=>({box:[c.x,c.y,c.w,c.h],pixels:c.pixels.length})),rejected:comps.filter(c=>!accepted.includes(c)).map(c=>({box:[c.x,c.y,c.w,c.h],pixels:c.pixels.length})),solid:clean/total,rim:rimClean/rimTotal};
+    return{reason:'accepted',mask,fill,erased,strokeAdded,outlineInterior,enclosedFill,fringeAdded,haloAdded,accepted:accepted.map(c=>({box:[c.x,c.y,c.w,c.h],pixels:c.pixels.length})),rejected:comps.filter(c=>!accepted.includes(c)).map(c=>({box:[c.x,c.y,c.w,c.h],pixels:c.pixels.length})),solid:clean/total,rim:rimClean/rimTotal};
     }
     """
 }

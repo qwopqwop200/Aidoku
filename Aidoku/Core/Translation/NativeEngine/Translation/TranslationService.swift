@@ -98,16 +98,34 @@ enum TranslationPerformanceDiagnostics {
     }
 }
 
+enum MetadataTranslationPriority: Int, Sendable {
+    case sourceMenuTitle = 2
+    case mangaTitle
+    case description
+    case author
+    case tag
+}
+
 enum TranslationRequestPriority: Sendable {
     case foreground
     case prefetch
+    case metadata(MetadataTranslationPriority)
     case promotable(TranslationRequestPromotion)
 
     var isForeground: Bool {
         switch self {
         case .foreground: true
-        case .prefetch: false
+        case .prefetch, .metadata: false
         case .promotable(let promotion): promotion.isForeground
+        }
+    }
+
+    var schedulingRank: Int {
+        switch self {
+        case .foreground: 0
+        case .prefetch: 1
+        case .promotable(let promotion): promotion.isForeground ? 0 : 1
+        case .metadata(let priority): priority.rawValue
         }
     }
 }
@@ -140,8 +158,8 @@ final class TranslationRequestPromotion: @unchecked Sendable {
     deinit { continuation.finish() }
 }
 
-/// Visible work precedes queued prefetches; each priority remains FIFO.
-/// Both priorities share the configured total request cap.
+/// Page work precedes metadata; each priority remains FIFO.
+/// All priorities share the configured total request cap.
 actor TranslationProviderRequestLimiter {
     private struct Waiter {
         let id: UUID
@@ -210,7 +228,11 @@ actor TranslationProviderRequestLimiter {
     private func admitWaiters() {
         // Lowering a live limit lets existing requests drain before admitting more.
         while activeRequests < maximumConcurrentRequests, !waiters.isEmpty {
-            let index = waiters.firstIndex { $0.priority.isForeground } ?? 0
+            let index = waiters.indices.min {
+                let left = waiters[$0].priority.schedulingRank
+                let right = waiters[$1].priority.schedulingRank
+                return left == right ? $0 < $1 : left < right
+            } ?? 0
             activeRequests += 1
             waiters.remove(at: index).continuation.resume()
         }

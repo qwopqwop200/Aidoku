@@ -658,7 +658,7 @@
 
 "TRANSLATION_HELP" = "O ícone de tradução ativa ou desativa a tradução. As páginas visíveis são preparadas primeiro, seguidas das páginas próximas. A preparação acompanha sua posição de leitura. Os resultados de OCR, as traduções e a disposição do texto salvos podem ser reutilizados ao reabrir o leitor ou reiniciar o aplicativo. As imagens compartilhadas temporárias não salvam esse cache. Sair do leitor cancela o trabalho não concluído.";
 
-"TRANSLATION_PRIVACY" = "O OCR é executado no seu dispositivo. A tradução envia o texto reconhecido e suas instruções ao provedor selecionado. Se a opção Incluir imagem da página na tradução estiver ativada, a imagem original da página também é enviada. Os custos da API dependem do provedor. As chaves são armazenadas no Keychain. Os resultados de OCR, as traduções e a disposição do texto são salvos no armazenamento protegido do aplicativo, excluído dos backups.";
+"TRANSLATION_PRIVACY" = "O OCR é executado no seu dispositivo. A tradução envia o texto reconhecido e suas instruções ao provedor selecionado. Se a opção Incluir imagem da página na tradução estiver ativada, também pode ser enviada uma versão processada da imagem da página. Se não houver suporte a imagens como entrada, a tradução continua apenas com texto. Os custos da API dependem do provedor. As chaves são armazenadas no Keychain. Os resultados de OCR, as traduções e a disposição do texto são salvos no armazenamento protegido do aplicativo, excluído dos backups.";
 
 "TRANSLATION_KEY_REPLACE" = "Substitua a chave de API salva (opcional)";
 
@@ -704,7 +704,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Largura Máxima do Reconhecedor";
 
-"TRANSLATION_CONFIDENCE" = "Limiar de confiança do OCR";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Limiar de pixels da detecção OCR";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Confiança mínima das regiões detectadas por OCR";
+"TRANSLATION_CONFIDENCE" = "Confiança mínima do reconhecimento OCR";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "O limiar de pixels seleciona os pixels de texto. A confiança da detecção filtra as regiões de texto. A confiança do reconhecimento filtra o texto lido em cada região. Valores mais baixos aceitam mais resultados incertos.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Tamanho mínimo de detecção OCR";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Comprimento mínimo do lado mais curto das regiões candidatas a texto, em pixels do mapa de detecção. Padrão: 3 px. Valores mais baixos podem detectar textos menores, mas também mais ruído.";
 
 "TRANSLATION_SURFACE" = "Cor de fundo";
 
@@ -730,7 +735,7 @@
 
 "TRANSLATION_OVERLAY" = "Sobreposição de tradução";
 
-"TRANSLATION_OVERLAY_HELP" = "Substitui o texto na caixa original com uma disposição que evita sobreposições e quebras de linha adaptadas ao sistema de escrita. As alterações de exibição reutilizam o OCR existente.";
+"TRANSLATION_OVERLAY_HELP" = "Substitui o texto na caixa original com uma disposição que evita sobreposições e adapta as quebras de linha ao sistema de escrita. As alterações de exibição reutilizam o OCR existente.";
 
 "TRANSLATION_PROVIDER" = "Provedor de tradução";
 
@@ -788,7 +793,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Não foi possível conectar através do bypass HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "A tradução falhou. Mostrando texto OCR. Por favor, verifique sua conexão.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "A tradução falhou. O texto reconhecido por OCR está sendo exibido. Verifique as configurações e a conexão.";
 
 "TRANSLATION_MANGA_TITLES" = "Traduzir títulos de mangá";
 
@@ -816,11 +821,12 @@
 
 "TRANSLATION_SFX_CONTEXT_FILTER" = "Incluir entradas que exigem contexto (somente japonês)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Aplica-se enquanto a Filtragem SFX está habilitada. Também filtra entradas marcadas como exigindo contexto usando correspondências de dicionário, tamanho do texto e layout próximo. Nenhum LLM analisa o contexto, portanto o diálogo também pode ser excluído.";
+"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Aplica-se enquanto a filtragem SFX está habilitada. Também filtra entradas marcadas como exigindo contexto, usando correspondências no dicionário, o tamanho do texto e a disposição do texto próximo. Nenhum LLM analisa o contexto, portanto os diálogos também podem ser excluídos.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Incluir imagem da página na tradução";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Envia a página original com o texto OCR para fornecer contexto sobre a cena e as expressões. As instruções relativas às imagens são adicionadas automaticamente. Requer um modelo que suporte imagens e pode aumentar o consumo de dados e o custo da API.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Envia a imagem da página com o texto OCR para fornecer o contexto da cena. Se a entrada de imagens não for compatível, a tradução continua automaticamente apenas com texto. Anexar imagens pode aumentar o uso de dados e o custo da API.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Não há suporte a imagens como entrada. A tradução continua sem imagens.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Preservar a cor do texto original";
 
@@ -828,7 +834,7 @@
 
 "TRANSLATION_LLM_SFX" = "Filtragem LLM SFX (todos os idiomas)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Classifica os efeitos sonoros na solicitação de tradução. Pode ser combinado com o filtro local de japonês: se qualquer um dos filtros identificar um texto como efeito sonoro, o original fica inalterado. É compatível com o envio da imagem da página.";
+"TRANSLATION_LLM_SFX_HELP" = "Classifica os efeitos sonoros na mesma solicitação de tradução e os deixa inalterados. Com uma imagem da página, a IA também ignora fragmentos de OCR pouco claros, a menos que a imagem confirme que contêm texto com sentido. Os diálogos, a narração, os títulos e os créditos são mantidos para tradução. Pode ser combinado com o filtro local de japonês: o texto sinalizado por qualquer um dos filtros fica inalterado. A classificação é menos confiável sem uma imagem da página.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Sem entrada de imagem, o contexto visual e de layout limitado pode reduzir a precisão da classificação SFX.";
 
@@ -917,7 +923,7 @@
 "UPSCALE_IMAGES" = "Aumentar a resolução das imagens";
 "UPSCALING_MODELS" = "Modelos de upscaling";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Altura máxima da imagem";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "As imagens cuja altura exceda o limite máximo não terão a resolução aumentada.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "As imagens cuja altura seja igual ou superior ao limite máximo não terão a resolução aumentada.";
 "ENABLED_MODEL" = "Modelo habilitado";
 "AVAILABLE_MODELS" = "Modelos Disponíveis";
 "NO_AVAILABLE_MODELS" = "Nenhum modelo disponível";
@@ -1093,7 +1099,39 @@
 "DOWNLOAD_TRANSLATED" = "Baixar com tradução";
 
 "TRANSLATION_LLM_BACKGROUND" = "Ignorar texto de fundo (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "A IA de tradução deixa inalterado o texto secundário em placas, cartazes e fundos. Os diálogos, a narração e o texto incerto são traduzidos. Não é feita nenhuma solicitação adicional, mas o processamento pode demorar mais. A classificação é menos confiável sem uma imagem da página.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "A IA de tradução deixa inalterados os textos das placas comuns, dos cartazes e dos objetos da cena, mesmo quando estão relacionados à cena ou são mencionados nos diálogos. São traduzidos os diálogos, a narração, os títulos, os créditos, os textos essenciais para o enredo e os textos cuja função é incerta. Não é feita nenhuma solicitação adicional, mas o processamento pode demorar mais. A classificação é menos confiável sem uma imagem da página.";
 
 "TRANSLATION_STATE_ON" = "Ativada";
 "TRANSLATION_STATE_OFF" = "Desativada";
+"UPSCALE_MODEL_SWINUNET_INFO" = "Ilustrações; preserva o traço original. FP32.";
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Ilustrações e capas coloridas; modelo leve para os detalhes.";
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Imagens gerais e ilustrações de estilos variados; maior realce da nitidez.";
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, mangá e páginas coloridas.";
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Somente mangá em preto e branco, otimizado para páginas originais com cerca de 1200 pixels de altura. As páginas coloridas permanecem inalteradas.";
+"TRANSLATION_ERROR_CONFIGURATION" = "As configurações de tradução são inválidas. Verifique o URL do servidor, o modelo e as demais configurações.";
+"TRANSLATION_ERROR_REQUEST" = "Não foi possível usar o texto, a imagem ou as configurações de idioma para a tradução.";
+"TRANSLATION_ERROR_RESPONSE" = "O servidor de tradução retornou uma resposta inválida. Tente novamente ou verifique as configurações do modelo.";
+"TRANSLATION_ERROR_KEY_REQUIRED" = "É necessária uma chave de API de tradução.";
+"TRANSLATION_ERROR_KEY_ACCESS" = "Não foi possível ler a chave de API de tradução no Keychain.";
+"TRANSLATION_ERROR_ENDPOINT" = "O endpoint de tradução não é permitido pela política de segurança.";
+"TRANSLATION_ERROR_REDIRECT" = "O redirecionamento do endpoint de tradução foi rejeitado.";
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "A resposta de tradução excedeu o limite de tamanho.";
+"TRANSLATION_ERROR_HTTP" = "O servidor de tradução retornou o código HTTP %d.";
+"TRANSLATION_ERROR_HTTP_REQUEST" = "O servidor de tradução retornou o código HTTP %d (ID da solicitação: %@).";
+"TRANSLATION_ERROR_NETWORK_CODE" = "A solicitação de tradução falhou (erro %d).";
+"TRANSLATION_ERROR_CONNECTION" = "Não foi possível acessar a API de tradução. Verifique a conexão de rede, o endpoint da API e o status do servidor e tente novamente.";
+"TRANSLATION_ERROR_REFUSED" = "O provedor de tradução recusou a solicitação.";
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "O identificador usado para salvar a chave de API é inválido.";
+"TRANSLATION_ERROR_KEY_INVALID" = "A chave de API está vazia, é longa demais ou contém caracteres não compatíveis.";
+"TRANSLATION_ERROR_KEY_MISSING" = "Não há nenhuma chave de API salva para este provedor.";
+"TRANSLATION_ERROR_KEY_ENCODING" = "Não foi possível decodificar a chave de API salva.";
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "A operação do Keychain falhou com o código de status %d.";
+"OCR_ERROR_MODEL_MISSING" = "Um modelo PP-OCRv6 necessário está ausente.";
+"OCR_ERROR_MODEL_LOAD" = "Não foi possível carregar um modelo PP-OCRv6.";
+"OCR_ERROR_DICTIONARY" = "O dicionário de caracteres do PP-OCRv6 está ausente ou é inválido.";
+"OCR_ERROR_IMAGE" = "Não foi possível preparar a imagem para o reconhecimento de texto.";
+"OCR_ERROR_OUTPUT" = "O modelo PP-OCRv6 retornou um resultado inválido ou não compatível.";
+"OCR_ERROR_PREDICTION" = "O reconhecimento de texto do PP-OCRv6 falhou. Tente novamente com outra imagem ou outro modelo OCR.";
+"TRANSLATION_ERROR_CACHE_SIZE" = "O tamanho do cache de tradução está fora do intervalo compatível.";
+"TRANSLATION_ERROR_CACHE_STORAGE" = "O armazenamento do cache de tradução é inválido ou está indisponível.";
+"TRANSLATION_ERROR_CACHE_SAVE" = "Não foi possível salvar o cache de tradução.";

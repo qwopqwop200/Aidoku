@@ -638,7 +638,7 @@
 "UPSCALE_IMAGES" = "画像をアップスケール";
 "UPSCALING_MODELS" = "アップスケールモデル";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "最大画像高さ";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "最大画像高さを超える画像はアップスケールされません。";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "最大画像高さ以上の画像はアップスケールされません。";
 "ENABLED_MODEL" = "有効なモデル";
 "AVAILABLE_MODELS" = "利用可能なモデル";
 "NO_AVAILABLE_MODELS" = "利用可能なモデルがありません";
@@ -829,13 +829,14 @@
 "TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "効果音フィルタリングが有効な場合に適用されます。文脈確認が必要な項目も、辞書との一致、文字サイズ、周囲の配置で判定します。LLMによる文脈解析は行わないため、セリフも除外される場合があります。";
 
 "TRANSLATION_INCLUDE_IMAGE" = "翻訳にページ画像を添付";
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "元のページをOCRテキストとともにAPIへ送り、場面や表情を翻訳の参考にします。画像専用の指示を自動追加します。画像対応モデルが必要で、通信量やAPI料金が増える場合があります。";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "ページ画像をOCRテキストと一緒に送り、場面の文脈を翻訳に利用します。画像入力に対応していない場合は、自動的にテキストのみで翻訳を続けます。画像の添付により通信量やAPI料金が増える場合があります。";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "画像入力には対応していません。画像を添付せずに翻訳を続けます。";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "原文の文字色を維持";
 "TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "追加モデルを使わずに原文の文字色を推定します。推定が不確かな場合や背景とのコントラストが低い場合は標準の文字色を使います。";
 
 "TRANSLATION_LLM_SFX" = "LLM効果音フィルタリング（全言語）";
-"TRANSLATION_LLM_SFX_HELP" = "翻訳リクエストで効果音も判定します。日本語ローカルフィルターと併用でき、どちらかが効果音と判定すれば原文のまま残します。「翻訳にページ画像を添付」と併用できます。";
+"TRANSLATION_LLM_SFX_HELP" = "同じ翻訳リクエスト内で効果音を判定し、原文のまま残します。ページ画像がある場合、意味のある文字だと画像から確認できない不明瞭なOCRの断片も翻訳せずに残します。セリフ・ナレーション・タイトル・クレジットは翻訳対象として保持します。日本語ローカルフィルターと併用でき、どちらかが除外対象と判定した文字は原文のまま残します。ページ画像がない場合、分類の信頼性は低下します。";
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "画像が入力されない場合、文脈や配置を確認しにくいため、効果音の判定精度が下がることがあります。";
 "TRANSLATION_SOURCE_BACKGROUND_COLOR" = "原文の背景色を維持";
 "TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "原文の文字周辺の背景色を翻訳パネルに適用します。推定が不確か、または読みにくい場合は標準のパネルを使います。設定した不透明度は維持されます。";
@@ -860,7 +861,7 @@
 
 "TRANSLATION_HELP" = "翻訳アイコンで翻訳のオン・オフを切り替えます。表示中のページを優先し、その後に周辺のページを処理します。処理する範囲は現在の読書位置に合わせて変わります。保存済みのOCR・翻訳・テキスト配置は、リーダーを開き直したりアプリを再起動したりしても再利用できます。一時的に開いた共有画像では、このキャッシュを保存しません。リーダーを閉じると、未完了の作業はキャンセルされます。";
 
-"TRANSLATION_PRIVACY" = "OCRは端末上で実行されます。翻訳時には、認識したテキストと翻訳指示を選択したプロバイダーに送信します。「翻訳にページ画像を添付」が有効な場合は、元のページ画像もアップロードされます。API料金はプロバイダーによって異なります。APIキーはKeychainに保存されます。OCR・翻訳・テキスト配置は、バックアップ対象外の保護されたアプリ領域に保存されます。";
+"TRANSLATION_PRIVACY" = "OCRは端末上で実行されます。翻訳時には、認識したテキストと翻訳指示を選択したプロバイダーに送信します。「翻訳にページ画像を添付」が有効な場合は、送信用に処理したページ画像もアップロードされることがあります。画像入力に対応していない場合は、テキストのみで翻訳を続けます。API料金はプロバイダーによって異なります。APIキーはKeychainに保存されます。OCR・翻訳・テキスト配置は、バックアップ対象外の保護されたアプリ領域に保存されます。";
 
 "TRANSLATION_KEY_REPLACE" = "保存済みAPIキーを置き換える（任意）";
 
@@ -906,7 +907,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "認識画像の最大幅";
 
-"TRANSLATION_CONFIDENCE" = "OCRの最低信頼度";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "OCR検出ピクセルのしきい値";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "OCR検出領域の最低信頼度";
+"TRANSLATION_CONFIDENCE" = "OCR文字認識の最低信頼度";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "ピクセルのしきい値は文字の候補となるピクセルを選びます。検出信頼度は文字領域を、認識信頼度は各領域から読み取った文字列を絞り込みます。値を下げると、不確かな結果も多く含まれます。";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "OCRの最小検出サイズ";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "検出マップのピクセル単位で測定した文字候補の短辺の最小長です。既定値は3pxです。値を下げると小さな文字を検出できますが、ノイズも増える場合があります。";
 
 "TRANSLATION_SURFACE" = "背景色";
 
@@ -990,7 +996,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "HTTPS バイパス経由で接続できませんでした。";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "翻訳に失敗しました。 OCRテキストを表示しています。接続を確認してください。";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "翻訳に失敗したため、OCRで認識した原文を表示しています。設定と接続を確認してください。";
 
 "TRANSLATION_MANGA_TITLES" = "マンガのタイトルを翻訳する";
 
@@ -1083,8 +1089,42 @@
 "DOWNLOAD_TRANSLATED" = "翻訳付きでダウンロード";
 
 "TRANSLATION_LLM_BACKGROUND" = "背景の文字を翻訳しない（LLM）";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "翻訳AIが重要でない看板やポスターなどの文字を判定し、原文を残します。会話や状況説明、不確かな文字は翻訳します。追加のリクエストはありませんが、処理時間が延びる場合があります。ページ画像がない場合、判定の精度は低下します。";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "翻訳AIは、場面の内容に関係していたりセリフで言及されていたりしても、場面内の通常の看板・ポスター・物に書かれた文字を原文のまま残します。セリフ・ナレーション・タイトル・クレジット・物語の展開に重要な文章・役割が不確かな文字は翻訳します。追加のリクエストはありませんが、処理時間が延びる場合があります。ページ画像がない場合、分類の信頼性は低下します。";
 
 "TRANSLATION_STATE_ON" = "オン";
 
 "TRANSLATION_STATE_OFF" = "オフ";
+
+// Translation errors and upscaling model descriptions
+"UPSCALE_MODEL_SWINUNET_INFO" = "イラスト向け。元の線画を保持します。FP32。";
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "カラーイラストや表紙向けの、細部を鮮明にする軽量モデル。";
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "一般的な画像や多様な画風向け。シャープネスを強めます。";
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "アニメ・漫画・カラーページ向け。";
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "白黒漫画専用で、元の高さが約1200ピクセルのページ向けに調整されています。カラーページは変更しません。";
+"TRANSLATION_ERROR_CONFIGURATION" = "翻訳設定が無効です。サーバーURL、モデル、その他の設定を確認してください。";
+"TRANSLATION_ERROR_REQUEST" = "現在のテキスト、画像、または言語設定では翻訳できません。";
+"TRANSLATION_ERROR_RESPONSE" = "翻訳サーバーが無効な応答を返しました。再試行するか、モデル設定を確認してください。";
+"TRANSLATION_ERROR_KEY_REQUIRED" = "翻訳APIキーが必要です。";
+"TRANSLATION_ERROR_KEY_ACCESS" = "Keychainから翻訳APIキーを読み取れませんでした。";
+"TRANSLATION_ERROR_ENDPOINT" = "この翻訳APIエンドポイントはセキュリティポリシーで許可されていません。";
+"TRANSLATION_ERROR_REDIRECT" = "翻訳APIエンドポイントのリダイレクトが拒否されました。";
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "翻訳の応答がサイズ制限を超えました。";
+"TRANSLATION_ERROR_HTTP" = "翻訳サーバーがHTTPステータスコード%dを返しました。";
+"TRANSLATION_ERROR_HTTP_REQUEST" = "翻訳サーバーがHTTPステータスコード%dを返しました（リクエストID: %@）。";
+"TRANSLATION_ERROR_NETWORK_CODE" = "翻訳リクエストに失敗しました（エラー%d）。";
+"TRANSLATION_ERROR_CONNECTION" = "翻訳APIに接続できませんでした。ネットワーク接続、APIエンドポイント、サーバーの状態を確認してから再試行してください。";
+"TRANSLATION_ERROR_REFUSED" = "翻訳プロバイダーがリクエストを拒否しました。";
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "APIキーの保存に使用する識別子が無効です。";
+"TRANSLATION_ERROR_KEY_INVALID" = "APIキーが空欄、長すぎる、または未対応の文字を含んでいます。";
+"TRANSLATION_ERROR_KEY_MISSING" = "このプロバイダーのAPIキーは保存されていません。";
+"TRANSLATION_ERROR_KEY_ENCODING" = "保存済みのAPIキーをデコードできませんでした。";
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Keychainの操作に失敗しました（ステータスコード%d）。";
+"OCR_ERROR_MODEL_MISSING" = "必要なPP-OCRv6モデルがありません。";
+"OCR_ERROR_MODEL_LOAD" = "PP-OCRv6モデルを読み込めませんでした。";
+"OCR_ERROR_DICTIONARY" = "PP-OCRv6の文字辞書が見つからないか、無効です。";
+"OCR_ERROR_IMAGE" = "文字認識用の画像を準備できませんでした。";
+"OCR_ERROR_OUTPUT" = "PP-OCRv6モデルが無効または未対応の出力を返しました。";
+"OCR_ERROR_PREDICTION" = "PP-OCRv6の文字認識に失敗しました。別の画像またはOCRモデルで再試行してください。";
+"TRANSLATION_ERROR_CACHE_SIZE" = "翻訳キャッシュのサイズが対応範囲外です。";
+"TRANSLATION_ERROR_CACHE_STORAGE" = "翻訳キャッシュの保存領域が無効か、利用できません。";
+"TRANSLATION_ERROR_CACHE_SAVE" = "翻訳キャッシュを保存できませんでした。";

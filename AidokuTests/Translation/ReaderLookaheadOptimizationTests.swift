@@ -6,6 +6,188 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderLookaheadOptimizationTests {
+    @Test func wideTextWindowWarmsWithoutImagesOrOCRUnderHeavyWorkPressure() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let settings = ReaderTranslationSettings()
+        let pages = (0..<45).map { Page(sourceId: "text-window", chapterId: root.lastPathComponent, index: $0,
+                                       imageURL: "file:///must-not-load-this-image.png") }
+        for page in pages {
+            let key = ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: settings)
+            try await disk.storeRegions([ReaderTranslationPersistentPipelineTests.region], for: key, kind: .translation, generation: 0)
+        }
+        let cache = ReaderTranslationSessionCache()
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in calls += 1; return [] }, diskCache: disk,
+            availableMemory: { 512 * 1_024 * 1_024 }, cache: cache)
+        defer { session.close() }
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [], context: "text-window")
+        session.enable(settings: settings)
+        try await waitUntil { cache.contains(pages[32].translationCacheKey) }
+        #expect(!cache.contains(pages[33].translationCacheKey))
+        #expect(calls == 0)
+        #expect(cache.bytes <= ReaderTranslationSessionCache.byteLimit)
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [], context: "text-window", currentPageIndex: 44)
+        try await waitUntil { cache.contains(pages[44].translationCacheKey) }
+        #expect(!cache.contains(pages[0].translationCacheKey))
+        #expect(calls == 0)
+    }
+
+    @Test func textLayoutUsesSavedDimensionsWithoutDecodingSource() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let cache = ReaderTranslationRenderCache(disk: disk)
+        let settings = ReaderTranslationSettings()
+        let page = Page(sourceId: "layout-only", chapterId: "test", index: 8, imageURL: "file:///must-not-load.png")
+        let size = CGSize(width: 620, height: 903)
+        try await disk.storeImageSize(size, page: page.translationCacheKey, generation: 0)
+        cache.setNearbyPages(pageKeys: ["other-page"], settings: settings)
+        let view = UIImageView(frame: CGRect(x: 0, y: 0, width: 390, height: 800))
+        view.contentMode = .scaleAspectFit
+        let reader = ReaderTranslationPage(imageView: view)
+        reader.sourcePage = page
+        let geometry = ReaderTranslationLayoutGeometry(page: reader, imageView: view)
+        let preparer = ReaderTranslationLayoutPreparer(renderCache: cache,
+            imageBudget: TranslationImageWorkBudget(availableMemory: { 0 }))
+        try await preparer.prepare(page: page, regions: [ReaderTranslationPersistentPipelineTests.region], settings: settings, geometry: geometry)
+        let key = ReaderTranslationCacheIdentity.render(page: page.translationCacheKey, settings: settings, imageSize: size,
+            viewport: geometry.viewport(for: size), scale: geometry.scale, aspectFit: true,
+            crop: CGRect(x: 0, y: 0, width: 1, height: 1), dark: geometry.dark)
+        let data = try #require(cache.cachedLayout(for: key))
+        #expect((try JSONSerialization.jsonObject(with: data) as? [[String: Any]])?.isEmpty == false)
+        #expect(cache.bitmapBytes == 0)
+        let hit = ReaderTranslationLayoutPreparer(renderCache: cache, layoutPreparation: { _, _, _, _, _, _ in
+            Issue.record("A cached text layout must not be measured again")
+            throw URLError(.unknown)
+        })
+        try await hit.prepareTextOnly(page: page, regions: [ReaderTranslationPersistentPipelineTests.region], settings: settings, geometry: geometry)
+        #expect(cache.bitmapBytes == 0)
+    }
+
+    @Test func renderedPagesStayInMemoryWithoutDuplicatingArtworkOnDisk() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let cache = ReaderTranslationRenderCache(disk: disk)
+        let source = ReaderTranslationPersistentPipelineTests.image()
+        await cache.storeLayout(Data("[]".utf8), key: "snapshot", diskGeneration: 0)
+        await cache.store(source, key: "snapshot", pageIdentity: "page", diskGeneration: 0)
+        #expect(cache.cachedImage(for: "snapshot") === source)
+        #expect(try await !disk.contains("snapshot", kind: .snapshot))
+        cache.clearMemory()
+        let reopened = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+        #expect(await reopened.load("snapshot") == nil)
+        #expect(await reopened.layoutData(for: "snapshot") == Data("[]".utf8))
+    }
+
+    @Test func bitmapAndTextCachesHaveHardByteBounds() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 2048, height: 2048), format: format).image { context in
+            UIColor.white.setFill(); context.fill(CGRect(x: 0, y: 0, width: 2048, height: 2048))
+        }
+        for index in 0..<12 {
+            await cache.store(image, key: "image-\(index)", pageIdentity: "page-\(index)", diskGeneration: 0)
+            #expect(cache.bitmapBytes <= ReaderTranslationRenderCache.bitmapByteLimit)
+        }
+        #expect(cache.cachedImage(for: "image-0") == nil)
+        #expect(cache.cachedImage(for: "image-11") != nil)
+        for index in 0..<40 {
+            await cache.storeLayout(Data(repeating: 32, count: 100_000), key: "layout-\(index)", diskGeneration: 0)
+            #expect(cache.layoutBytes <= ReaderTranslationRenderCache.layoutByteLimit)
+        }
+        #expect(cache.cachedLayout(for: "layout-0") == nil)
+        #expect(cache.cachedLayout(for: "layout-39") != nil)
+        let text = ReaderTranslationSessionCache()
+        var region = ReaderTranslationPersistentPipelineTests.region
+        region.translation = String(repeating: "가", count: 100_000)
+        for index in 0..<40 {
+            try text.store([region], for: String(index))
+            #expect(text.bytes <= ReaderTranslationSessionCache.byteLimit)
+        }
+        #expect(!text.contains("0"))
+        #expect(text.contains("39"))
+        cache.clearMemory(); text.clear()
+        #expect(cache.bitmapBytes == 0)
+        #expect(cache.layoutBytes == 0)
+        #expect(text.bytes == 0)
+    }
+
+    @Test func preparedLookaheadRespectsMemoryPressureAndOffState() async throws {
+        let pages = (0..<2).map { Page(sourceId: "render-admission", chapterId: "test", index: $0) }
+        var memory = UInt64.max
+        var layouts: [Int] = []
+        let settings = ReaderTranslationSettings()
+        let session = ReaderTranslationSession(process: { _, _, _ in [] },
+            prepareLayout: { page, _, _ in layouts.append(page.index) }, availableMemory: { memory })
+        defer { session.close() }
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [], context: "test")
+        memory = 0
+        session.enable(settings: settings)
+        session.receivePrepared(pages[1], regions: [ReaderTranslationPersistentPipelineTests.region], settings: settings)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(layouts.isEmpty)
+        session.disable()
+        memory = .max
+        session.receivePrepared(pages[1], regions: [ReaderTranslationPersistentPipelineTests.region], settings: settings)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(layouts.isEmpty)
+    }
+
+    @Test(arguments: [false, true])
+    func nextPageRendersWhileVisibleTranslationIsWaiting(cached: Bool) async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let defaults = try #require(UserDefaults(suiteName: root.lastPathComponent))
+        defer {
+            defaults.removePersistentDomain(forName: root.lastPathComponent)
+            try? FileManager.default.removeItem(at: root)
+        }
+        var settings = ReaderTranslationSettings(defaults: defaults)
+        settings.maximumConcurrentRequests = 2
+        settings.includePageImage = false
+        settings.rightToLeftPanelOrder = false
+        settings.filterJapaneseSFX = false
+        settings.filterJapaneseSFXContext = false
+        settings.translationSourceLanguages = []
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let pages = (0..<2).map { Page(sourceId: "early-render", chapterId: root.lastPathComponent, index: $0) }
+        if cached {
+            let key = ReaderTranslationCacheIdentity.translation(page: pages[1].translationCacheKey, settings: settings)
+            let generation = await disk.currentGeneration(settings: settings)
+            try await disk.storeRegions([ReaderTranslationPersistentPipelineTests.region], for: key, kind: .translation, generation: generation)
+        }
+        let gate = LookaheadTestGate()
+        let preloader = ReaderTranslationPreloader(diskCache: disk, translator: { regions, _, _ in
+            if regions.first?.id == "0" { await gate.wait() }
+            return regions.map { var region = $0; region.translation = "미리 준비한 번역"; return region }
+        }, recognizer: { page, _ in
+            let region = ReaderTranslationRegion(id: String(page.index), rect: CGRect(x: 0.1, y: 0.1, width: 0.7, height: 0.1),
+                                                 source: "HELLO WORLD", sourceOrientation: .horizontal)
+            return [region]
+        }, availableMemory: { .max })
+        var layouts: [Int] = []
+        let imageView = UIImageView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        let visible = ReaderTranslationPage(imageView: imageView)
+        visible.sourcePage = pages[0]
+        let session = ReaderTranslationSession(process: { page, settings, progress in
+            try await preloader.translate(page, settings: settings, onProgress: progress)
+        }, cancelProcessing: { preloader.cancel() }, diskCache: disk,
+            prepareLayout: { page, _, _ in layouts.append(page.index) }, availableMemory: { .max })
+        preloader.nextPage = { [weak session] in session?.nextPageForRecognition(after: $0) }
+        preloader.onPrepared = { [weak session] in session?.receivePrepared($0, regions: $1, settings: $2) }
+        defer { session.close(); Task { await gate.release() } }
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [visible], context: "early-render")
+        session.enable(settings: settings)
+        try await waitUntil { await gate.started }
+        try await waitUntil { layouts.contains(1) }
+        #expect(!visible.hasCompletedTranslation(settings: settings))
+        #expect(layouts == [1])
+    }
+
     @Test(arguments: [false, true])
     func nextLayoutDoesNotWaitForFartherTranslation(overlap: Bool) async throws {
         let gate = LookaheadTestGate()
@@ -36,7 +218,10 @@ struct ReaderLookaheadOptimizationTests {
         let page = Page(sourceId: "lookahead-budget", chapterId: "test", index: 0,
                         imageURL: "file:///this-image-must-not-be-loaded.png")
         let reader = ReaderTranslationPage(imageView: imageView); reader.sourcePage = page
-        let preparer = ReaderTranslationLayoutPreparer(imageBudget: budget)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let preparer = ReaderTranslationLayoutPreparer(
+            renderCache: ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root)), imageBudget: budget)
         let geometry = ReaderTranslationLayoutGeometry(page: reader, imageView: imageView)
         var finished = false
         let task = Task {

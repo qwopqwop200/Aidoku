@@ -643,7 +643,7 @@
 "UPSCALING" = "Nâng độ phân giải";
 "UPSCALE_IMAGES" = "Nâng độ phân giải ảnh";
 "UPSCALING_MODELS" = "Mô hình nâng độ phân giải ảnh";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Các ảnh vượt quá chiều cao tối đa sẽ không được nâng độ phân giải.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Ảnh có chiều cao bằng hoặc lớn hơn giới hạn tối đa sẽ không được nâng độ phân giải.";
 "ENABLED_MODEL" = "Mô hình đang bật";
 "AVAILABLE_MODELS" = "Mô hình khả dụng";
 "NO_AVAILABLE_MODELS" = "Không có Mô hình khả dụng nào";
@@ -717,7 +717,7 @@
 
 "TRANSLATION_HELP" = "Biểu tượng dịch bật hoặc tắt tính năng dịch. Các trang đang hiển thị được chuẩn bị trước, sau đó đến các trang lân cận. Việc chuẩn bị thay đổi theo vị trí đọc của bạn. Kết quả OCR, bản dịch và bố cục văn bản đã lưu có thể được dùng lại sau khi mở lại trình đọc hoặc khởi động lại ứng dụng. Ảnh được chia sẻ và mở tạm thời không lưu bộ nhớ đệm này. Thoát trình đọc sẽ hủy các tác vụ chưa hoàn tất.";
 
-"TRANSLATION_PRIVACY" = "OCR chạy trên thiết bị của bạn. Bản dịch sẽ gửi văn bản được nhận dạng và hướng dẫn của bạn đến nhà cung cấp đã chọn. Nếu Bao gồm hình ảnh trang trong bản dịch được bật thì hình ảnh trang gốc cũng được tải lên. Phí API tùy thuộc vào nhà cung cấp của bạn. Khóa API được lưu trong Keychain. OCR, bản dịch và bố cục văn bản được lưu trong bộ lưu trữ ứng dụng được bảo vệ, loại trừ khỏi bản sao lưu.";
+"TRANSLATION_PRIVACY" = "OCR chạy trên thiết bị của bạn. Bản dịch sẽ gửi văn bản được nhận dạng và hướng dẫn của bạn đến nhà cung cấp đã chọn. Nếu Bao gồm hình ảnh trang trong bản dịch được bật, hình ảnh trang đã qua xử lý cũng có thể được tải lên. Nếu không hỗ trợ hình ảnh đầu vào, quá trình dịch sẽ tiếp tục chỉ với văn bản. Phí API tùy thuộc vào nhà cung cấp của bạn. Khóa API được lưu trong Keychain. OCR, bản dịch và bố cục văn bản được lưu trong bộ lưu trữ ứng dụng được bảo vệ, loại trừ khỏi bản sao lưu.";
 
 "TRANSLATION_KEY_REPLACE" = "Thay thế khóa API đã lưu (tùy chọn)";
 
@@ -763,7 +763,12 @@
 
 "TRANSLATION_RECOGNIZER_SIZE" = "Chiều rộng tối đa của ảnh đầu vào bộ nhận dạng";
 
-"TRANSLATION_CONFIDENCE" = "Ngưỡng độ tin cậy tối thiểu của OCR";
+"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Ngưỡng điểm ảnh phát hiện OCR";
+"TRANSLATION_DETECTOR_CONFIDENCE" = "Độ tin cậy tối thiểu của vùng phát hiện OCR";
+"TRANSLATION_CONFIDENCE" = "Độ tin cậy tối thiểu khi nhận dạng OCR";
+"TRANSLATION_OCR_CONFIDENCE_HELP" = "Ngưỡng điểm ảnh chọn các điểm ảnh văn bản. Độ tin cậy phát hiện lọc các vùng văn bản. Độ tin cậy nhận dạng lọc văn bản đọc được từ mỗi vùng. Giá trị thấp hơn chấp nhận nhiều kết quả không chắc chắn hơn.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Kích thước phát hiện OCR tối thiểu";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Độ dài tối thiểu của cạnh ngắn của các vùng có thể chứa văn bản, tính bằng điểm ảnh trên bản đồ phát hiện. Mặc định: 3 px. Giá trị thấp hơn có thể phát hiện chữ nhỏ hơn nhưng cũng có thể nhận thêm nhiễu.";
 
 "TRANSLATION_SURFACE" = "Màu nền";
 
@@ -847,7 +852,7 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Không thể kết nối qua cơ chế vượt chặn HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Bản dịch không thành công. Hiển thị văn bản OCR. Vui lòng kiểm tra kết nối của bạn.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Dịch không thành công. Văn bản nhận dạng bằng OCR đang được hiển thị. Kiểm tra cài đặt và kết nối.";
 
 "TRANSLATION_MANGA_TITLES" = "Dịch Tiêu Đề Manga";
 
@@ -879,7 +884,8 @@
 
 "TRANSLATION_INCLUDE_IMAGE" = "Bao gồm hình ảnh trang trong bản dịch";
 
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Gửi ảnh trang gốc cùng văn bản OCR để cung cấp thông tin về cảnh và biểu cảm. Chỉ dẫn xử lý hình ảnh sẽ được tự động thêm vào. Cần mô hình hỗ trợ hình ảnh và có thể làm tăng lượng dữ liệu sử dụng cũng như chi phí API.";
+"TRANSLATION_INCLUDE_IMAGE_HELP" = "Gửi hình ảnh trang cùng văn bản OCR để cung cấp bối cảnh truyện. Nếu không hỗ trợ hình ảnh đầu vào, quá trình dịch sẽ tự động tiếp tục chỉ với văn bản. Việc đính kèm hình ảnh có thể làm tăng mức sử dụng dữ liệu và chi phí API.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Không hỗ trợ hình ảnh đầu vào. Quá trình dịch sẽ tiếp tục mà không đính kèm hình ảnh.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Giữ nguyên màu văn bản gốc";
 
@@ -887,11 +893,11 @@
 
 "TRANSLATION_LLM_SFX" = "Lọc từ tượng thanh bằng LLM (Tất cả ngôn ngữ)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Phân loại từ tượng thanh trong yêu cầu dịch. Có thể kết hợp với bộ lọc tiếng Nhật trên thiết bị: nếu một trong hai bộ lọc xác định văn bản là từ tượng thanh, văn bản gốc sẽ được giữ nguyên. Có thể dùng cùng tùy chọn «Bao gồm hình ảnh trang trong bản dịch».";
+"TRANSLATION_LLM_SFX_HELP" = "Phân loại từ tượng thanh trong cùng yêu cầu dịch và giữ nguyên chúng. Khi có ảnh trang, AI cũng bỏ qua các mảnh văn bản OCR không rõ ràng, trừ khi hình ảnh xác nhận đó là văn bản có nghĩa. Lời thoại, lời dẫn chuyện, tiêu đề và phần ghi tên người đóng góp vẫn được dịch. Có thể kết hợp với bộ lọc tiếng Nhật trên thiết bị: văn bản bị một trong hai bộ lọc đánh dấu sẽ được giữ nguyên. Việc phân loại kém tin cậy hơn khi không có ảnh trang.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Nếu không có hình ảnh đầu vào, bối cảnh bố cục và hình ảnh bị hạn chế có thể làm giảm độ chính xác của phân loại SFX.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Giữ màu nền gốc của khung dịch";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Giữ màu nền gốc";
 
 "TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Điều chỉnh màu nền khung dịch theo nền quanh văn bản gốc. Dùng màu nền mặc định khi không xác định được màu hoặc khi chữ khó đọc. Cài đặt độ không trong suốt của bạn vẫn được áp dụng.";
 
@@ -1093,8 +1099,72 @@
 "DOWNLOAD_TRANSLATED" = "Tải xuống kèm bản dịch";
 
 "TRANSLATION_LLM_BACKGROUND" = "Bỏ qua chữ trong nền (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "AI dịch giữ nguyên chữ trên biển hiệu, áp phích và trong nền không quan trọng. Lời thoại, lời dẫn chuyện và văn bản chưa xác định chắc chắn vẫn được dịch. Không gửi thêm yêu cầu, nhưng thời gian xử lý có thể lâu hơn. Việc phân loại kém tin cậy hơn khi không có ảnh trang.";
+"TRANSLATION_LLM_BACKGROUND_HELP" = "AI dịch giữ nguyên chữ trên các biển hiệu thông thường, áp phích và đồ vật trong cảnh, ngay cả khi nội dung liên quan đến cảnh đó hoặc được nhắc đến trong lời thoại. Lời thoại, lời dẫn chuyện, tiêu đề, phần ghi tên người đóng góp, văn bản quan trọng đối với cốt truyện và văn bản chưa xác định chắc chắn vai trò vẫn được dịch. Không gửi thêm yêu cầu, nhưng thời gian xử lý có thể lâu hơn. Việc phân loại kém tin cậy hơn khi không có ảnh trang.";
 
 "TRANSLATION_STATE_ON" = "Bật";
 
 "TRANSLATION_STATE_OFF" = "Tắt";
+
+"UPSCALE_MODEL_SWINUNET_INFO" = "Ảnh minh họa; giữ nét vẽ gốc. FP32.";
+
+"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Ảnh minh họa và bìa màu; mô hình nhẹ giúp tăng chi tiết.";
+
+"UPSCALE_MODEL_ULTRASHARP_INFO" = "Ảnh thông thường và tranh thuộc nhiều phong cách; tăng độ sắc nét mạnh hơn.";
+
+"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga và trang màu.";
+
+"UPSCALE_MODEL_MANGAJANAI_INFO" = "Chỉ dành cho manga đen trắng, được tinh chỉnh cho trang gốc cao khoảng 1200 điểm ảnh. Trang màu được giữ nguyên.";
+
+"TRANSLATION_ERROR_CONFIGURATION" = "Cài đặt dịch không hợp lệ. Kiểm tra URL máy chủ, mô hình và các cài đặt khác.";
+
+"TRANSLATION_ERROR_REQUEST" = "Không thể sử dụng văn bản, hình ảnh hoặc cài đặt ngôn ngữ để dịch.";
+
+"TRANSLATION_ERROR_RESPONSE" = "Máy chủ dịch trả về phản hồi không hợp lệ. Thử lại hoặc kiểm tra cài đặt mô hình.";
+
+"TRANSLATION_ERROR_KEY_REQUIRED" = "Cần có khóa API dịch.";
+
+"TRANSLATION_ERROR_KEY_ACCESS" = "Không thể đọc khóa API dịch từ Keychain.";
+
+"TRANSLATION_ERROR_ENDPOINT" = "Chính sách bảo mật không cho phép điểm cuối dịch này.";
+
+"TRANSLATION_ERROR_REDIRECT" = "Chuyển hướng của điểm cuối dịch đã bị từ chối.";
+
+"TRANSLATION_ERROR_RESPONSE_SIZE" = "Phản hồi dịch vượt quá giới hạn kích thước.";
+
+"TRANSLATION_ERROR_HTTP" = "Máy chủ dịch trả về HTTP %d.";
+
+"TRANSLATION_ERROR_HTTP_REQUEST" = "Máy chủ dịch trả về HTTP %d (ID yêu cầu: %@).";
+
+"TRANSLATION_ERROR_NETWORK_CODE" = "Yêu cầu dịch không thành công (lỗi %d).";
+
+"TRANSLATION_ERROR_CONNECTION" = "Không thể kết nối với API dịch. Kiểm tra kết nối mạng, điểm cuối API và trạng thái máy chủ, rồi thử lại.";
+
+"TRANSLATION_ERROR_REFUSED" = "Nhà cung cấp dịch từ chối yêu cầu.";
+
+"TRANSLATION_ERROR_KEY_ACCOUNT" = "Mã định danh dùng để lưu khóa API không hợp lệ.";
+
+"TRANSLATION_ERROR_KEY_INVALID" = "Khóa API bị trống, quá lớn hoặc chứa ký tự không được hỗ trợ.";
+
+"TRANSLATION_ERROR_KEY_MISSING" = "Chưa lưu khóa API cho nhà cung cấp này.";
+
+"TRANSLATION_ERROR_KEY_ENCODING" = "Không thể giải mã khóa API đã lưu.";
+
+"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Thao tác Keychain không thành công với mã trạng thái %d.";
+
+"OCR_ERROR_MODEL_MISSING" = "Thiếu một mô hình PP-OCRv6 bắt buộc.";
+
+"OCR_ERROR_MODEL_LOAD" = "Không thể tải mô hình PP-OCRv6.";
+
+"OCR_ERROR_DICTIONARY" = "Từ điển ký tự PP-OCRv6 bị thiếu hoặc không hợp lệ.";
+
+"OCR_ERROR_IMAGE" = "Không thể chuẩn bị hình ảnh để nhận dạng văn bản.";
+
+"OCR_ERROR_OUTPUT" = "Mô hình PP-OCRv6 trả về kết quả không hợp lệ hoặc không được hỗ trợ.";
+
+"OCR_ERROR_PREDICTION" = "Nhận dạng văn bản PP-OCRv6 không thành công. Thử lại với hình ảnh hoặc mô hình OCR khác.";
+
+"TRANSLATION_ERROR_CACHE_SIZE" = "Kích thước bộ nhớ đệm dịch nằm ngoài phạm vi được hỗ trợ.";
+
+"TRANSLATION_ERROR_CACHE_STORAGE" = "Nơi lưu bộ nhớ đệm dịch không hợp lệ hoặc không khả dụng.";
+
+"TRANSLATION_ERROR_CACHE_SAVE" = "Không thể lưu bộ nhớ đệm dịch.";

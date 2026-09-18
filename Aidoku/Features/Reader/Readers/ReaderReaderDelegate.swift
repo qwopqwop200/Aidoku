@@ -22,10 +22,12 @@ protocol ReaderReaderDelegate: UIViewController {
     func sliderStopped(value: CGFloat)
     func setChapter(_ chapter: AidokuRunner.Chapter, startPage: Int)
     func translationPages() -> [ReaderTranslationPage]
+    func translationPreviewPages() -> [ReaderTranslationPage]
 }
 
 extension ReaderReaderDelegate {
     func translationPages() -> [ReaderTranslationPage] { [] }
+    func translationPreviewPages() -> [ReaderTranslationPage] { [] }
 
     func toggleOffset() {
         // do nothing by default
