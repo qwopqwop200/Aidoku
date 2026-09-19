@@ -1,4 +1,0 @@
-module wasm3_support {
-    umbrella "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/wasm3-support/include"
-    export *
-}
