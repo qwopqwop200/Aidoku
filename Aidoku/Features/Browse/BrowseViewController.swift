@@ -597,7 +597,7 @@ extension BrowseViewController {
     func updateExternalSources() {
         var snapshot = dataSource.snapshot()
 
-        snapshot.deleteSections([.updates, .external])
+        snapshot.deleteSections([.updates, .external].filter { snapshot.indexOfSection($0) != nil })
         if !viewModel.updatesSources.isEmpty {
             if snapshot.indexOfSection(.pinned) != nil {
                 snapshot.insertSections([.updates], beforeSection: .pinned)
@@ -711,9 +711,11 @@ extension BrowseViewController: @MainActor SourceCellDelegate {
             cell.getButton.buttonState = .fail
             return
         }
+        let sourceId = cell.info?.sourceId
         cell.getButton.buttonState = .downloading
         Task {
             let installedSource = await SourceManager.shared.importSource(from: url)
+            guard cell.info?.sourceId == sourceId else { return }
             cell.getButton.buttonState = installedSource == nil ? .fail : .get
         }
     }

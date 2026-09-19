@@ -1135,3 +1135,5 @@
 "TRANSLATION_ERROR_CACHE_SIZE" = "La dimensione della cache di traduzione non rientra nell’intervallo supportato.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Lo spazio di archiviazione della cache di traduzione non è valido o non è disponibile.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "Impossibile salvare la cache di traduzione.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Le modifiche alla sincronizzazione iCloud si applicano dopo aver chiuso completamente e riaperto Aidoku. Fino ad allora resta attiva l’impostazione attuale.";

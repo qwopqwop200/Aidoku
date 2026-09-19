@@ -145,17 +145,8 @@ struct HomeBigScrollerView: View {
                 .onDisappear {
                     autoScrollPaused = true
                 }
-                .task {
-                    if !loadedBookmarks {
-                        await loadBookmarked()
-                    }
-                }
-                .onChange(of: entries) { _ in
-                    Task {
-                        if !loadedBookmarks {
-                            await loadBookmarked()
-                        }
-                    }
+                .task(id: entries) {
+                    await loadBookmarked()
                 }
             }
         }
@@ -163,7 +154,7 @@ struct HomeBigScrollerView: View {
 
     func loadBookmarked() async {
         guard !entries.isEmpty else { return }
-        bookmarkedItems = await CoreDataManager.shared.container.performBackgroundTask { context in
+        let bookmarks = await CoreDataManager.shared.container.performBackgroundTask { context in
             var keys: Set<String> = .init()
             for entry in entries where CoreDataManager.shared.hasLibraryManga(
                 mangaId: entry.identifier,
@@ -173,6 +164,8 @@ struct HomeBigScrollerView: View {
             }
             return keys
         }
+        guard !Task.isCancelled else { return }
+        bookmarkedItems = bookmarks
         loadedBookmarks = true
     }
 

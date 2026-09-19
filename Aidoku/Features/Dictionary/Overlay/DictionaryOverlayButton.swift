@@ -163,19 +163,19 @@ final class DictionaryOverlayButton: UIButton {
         layoutManager.addTextContainer(container)
         layoutManager.ensureLayout(for: container)
 
-        let nsDisplay = displayText as NSString
         var sourceIndex = 0
         var hits: [LocalCharHit] = []
 
-        for displayIndex in 0..<nsDisplay.length {
+        // OCR hits use Swift characters. UTF-16 code units split supplementary
+        // kanji and combining sequences, shifting every subsequent lookup.
+        for characterIndex in displayText.indices {
             if sourceIndex >= sourceHits.count { break }
-
-            let char = nsDisplay.substring(with: NSRange(location: displayIndex, length: 1))
-            if char == "\n" || char == "\r" {
-                continue
-            }
-
-            let charRange = NSRange(location: displayIndex, length: 1)
+            let character = displayText[characterIndex]
+            if character.isNewline { continue }
+            let sourceHit = sourceHits[sourceIndex]
+            sourceIndex += 1
+            let nextIndex = displayText.index(after: characterIndex)
+            let charRange = NSRange(characterIndex..<nextIndex, in: displayText)
             let glyphRange = layoutManager.glyphRange(forCharacterRange: charRange, actualCharacterRange: nil)
             var rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: container)
             if rect.isNull || rect.isEmpty { continue }
@@ -185,8 +185,7 @@ final class DictionaryOverlayButton: UIButton {
             rect = rect.insetBy(dx: -1, dy: -1).intersection(bounds)
             guard rect.width > 0, rect.height > 0 else { continue }
 
-            hits.append(.init(text: sourceHits[sourceIndex].text, rect: rect))
-            sourceIndex += 1
+            hits.append(.init(text: sourceHit.text, rect: rect))
         }
 
         return hits

@@ -13,7 +13,7 @@ class ReaderTextViewController: BaseViewController {
     let viewModel: ReaderTextViewModel
 
     var readingMode: ReadingMode = .rtl
-    var delegate: (any ReaderHoldingDelegate)?
+    weak var delegate: (any ReaderHoldingDelegate)?
 
     // MARK: - Multi-chapter section tracking for infinite scroll
 
@@ -37,6 +37,7 @@ class ReaderTextViewController: BaseViewController {
     /// The chapter after the last loaded section (for the bottom transition).
     private var nextChapter: AidokuRunner.Chapter?
 
+    private var chapterGeneration = UUID()
     private var isLoadingChapter = false
     private var loadingNext = false
     private var loadingPrevious = false
@@ -475,11 +476,17 @@ extension ReaderTextViewController {
     // MARK: - Initial Chapter Load
 
     func loadInitialChapter(_ chapter: AidokuRunner.Chapter, restorePosition: Bool = true) async {
+        let generation = UUID()
+        chapterGeneration = generation
+        loadingNext = false
+        loadingPrevious = false
+        pendingScrollRestore = false
         isLoadingChapter = true
         hasReachedEnd = false
         self.chapter = chapter
 
         await viewModel.loadPages(chapter: chapter)
+        guard chapterGeneration == generation, !Task.isCancelled else { return }
         delegate?.setPages(viewModel.pages)
 
         await MainActor.run {
@@ -517,7 +524,9 @@ extension ReaderTextViewController {
                 pendingScrollRestore = true
                 Task { @MainActor [weak self] in
                     guard let self else { return }
-                    if let savedProgress = await self.loadReadingProgress(for: chapter.key) {
+                    let progress = await self.loadReadingProgress(for: chapter.key)
+                    guard self.chapterGeneration == generation else { return }
+                    if let savedProgress = progress, savedProgress.isFinite, !self.sections.isEmpty {
                         self.updateEstimatedPageCount()
                         let sectionHeight = self.sectionContentHeight(at: 0)
                         let screenHeight = self.scrollView.frame.size.height
@@ -547,26 +556,26 @@ extension ReaderTextViewController {
 
     /// Remove all sections and their views from the stack.
     private func removeAllSections() {
-        for section in sections {
-            for hc in section.hostingControllers {
-                hc.view.removeFromSuperview()
-                hc.removeFromParent()
-            }
-            section.transitionView?.removeFromSuperview()
+        for child in children {
+            child.willMove(toParent: nil)
+            child.view.removeFromSuperview()
+            child.removeFromParent()
         }
+        for view in contentStackView.arrangedSubviews { view.removeFromSuperview() }
         sections.removeAll()
     }
 
     // MARK: - Infinite Scroll: Append Next Chapter
 
     private func appendNextChapter() {
-        guard let nextCh = nextChapter, !loadingNext else { return }
+        guard let nextCh = nextChapter, !loadingNext, !sections.contains(where: { $0.chapter == nextCh }) else { return }
         loadingNext = true
+        let generation = chapterGeneration
 
         Task {
             // Preload the next chapter's pages
-            await viewModel.preload(chapter: nextCh)
-            let newPages = viewModel.preloadedPages
+            let newPages = await viewModel.preload(chapter: nextCh)
+            guard chapterGeneration == generation, !Task.isCancelled else { return }
             guard !newPages.isEmpty else {
                 loadingNext = false
                 return
@@ -616,14 +625,7 @@ extension ReaderTextViewController {
                     hostingControllers: newHCs
                 ))
 
-                // Update chapter navigation pointers
-                // Tell the delegate about the new chapter so it can update its internal state
-                delegate?.setChapter(nextCh)
-                nextChapter = delegate?.getNextChapter()
-                // Switch back to the original current chapter in the delegate
-                if let currentCh = chapter {
-                    delegate?.setChapter(currentCh)
-                }
+                nextChapter = delegate?.getNextChapter(after: nextCh)
 
                 // Update the bottom boundary transition view
                 updateBoundaryTransitionViews()
@@ -637,12 +639,13 @@ extension ReaderTextViewController {
     // MARK: - Infinite Scroll: Prepend Previous Chapter
 
     private func prependPreviousChapter() {
-        guard let prevCh = previousChapter, !loadingPrevious else { return }
+        guard let prevCh = previousChapter, !loadingPrevious, !sections.contains(where: { $0.chapter == prevCh }) else { return }
         loadingPrevious = true
+        let generation = chapterGeneration
 
         Task {
-            await viewModel.preload(chapter: prevCh)
-            let newPages = viewModel.preloadedPages
+            let newPages = await viewModel.preload(chapter: prevCh)
+            guard chapterGeneration == generation, !Task.isCancelled else { return }
             guard !newPages.isEmpty else {
                 loadingPrevious = false
                 return
@@ -698,12 +701,7 @@ extension ReaderTextViewController {
                 )
                 sections.insert(newSection, at: 0)
 
-                // Update chapter navigation pointers
-                delegate?.setChapter(prevCh)
-                previousChapter = delegate?.getPreviousChapter()
-                if let currentCh = chapter {
-                    delegate?.setChapter(currentCh)
-                }
+                previousChapter = delegate?.getPreviousChapter(before: prevCh)
 
                 updateBoundaryTransitionViews()
                 view.layoutIfNeeded()
@@ -728,10 +726,6 @@ extension ReaderTextViewController {
 
         chapter = sectionChapter
         delegate?.setChapter(sectionChapter)
-
-        // Refresh navigation pointers
-        previousChapter = delegate?.getPreviousChapter()
-        nextChapter = delegate?.getNextChapter()
 
         hasReachedEnd = false
         lastReportedPage = 0
@@ -834,7 +828,7 @@ extension ReaderTextViewController: ReaderReaderDelegate {
 // MARK: - Scroll View Delegate
 extension ReaderTextViewController: UIScrollViewDelegate {
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        guard !isSliding, !pendingScrollRestore, !isReportingProgress else { return }
+        guard !isLoadingChapter, !isSliding, !pendingScrollRestore, !isReportingProgress else { return }
 
         // Detect if current chapter changed due to scrolling
         updateCurrentChapterFromScroll()

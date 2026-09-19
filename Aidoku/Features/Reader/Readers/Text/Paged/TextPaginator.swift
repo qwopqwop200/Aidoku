@@ -405,10 +405,8 @@ class TextPaginator {
             currentLocation = adjustedRange.location + adjustedRange.length
             pageIndex += 1
 
-            // Safety check to prevent infinite loops
-            if pageIndex > 10000 {
-                break
-            }
+            // A positive character range advances toward fullLength. An arbitrary
+            // page-count cap would silently discard the end of long books.
         }
 
         // Ensure we have at least one page

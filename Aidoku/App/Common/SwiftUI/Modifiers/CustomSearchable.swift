@@ -58,7 +58,7 @@ private struct CustomSearchBar: UIViewControllerRepresentable {
     let onBookmarkPress: (() -> Void)?
 
     class Coordinator: NSObject, UISearchBarDelegate, UISearchResultsUpdating {
-        let parent: CustomSearchBar
+        var parent: CustomSearchBar
 
         init(_ parent: CustomSearchBar) {
             self.parent = parent
@@ -117,6 +117,7 @@ private struct CustomSearchBar: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ controller: NavSearchBarWrapper, context: Context) {
+        context.coordinator.parent = self
         controller.searchController.searchBar.text = searchText
         controller.searchController.searchBar.autocorrectionType = autocorrectionDisabled ? .no : .yes
         if controller.shouldShow != enabled {

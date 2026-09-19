@@ -253,7 +253,7 @@ extension KavitaVolume {
             guard !isEpub else { return nil }
             let chapterNumber = Float(chapter.number) ?? 0
             let noVolume = number < 0 || number >= 100000
-            let noChapter = chapterNumber < 0 || chapterNumber >= 100000
+            let noChapter = !chapterNumber.isFinite || chapterNumber < 0 || chapterNumber >= 100000
             return .init(
                 key: "\(chapter.id)",
                 title: (chapter.titleName?.isEmpty ?? true) ? nil : chapter.titleName,

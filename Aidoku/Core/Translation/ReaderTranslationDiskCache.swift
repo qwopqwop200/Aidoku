@@ -708,7 +708,7 @@ enum ReaderTranslationCacheIdentity {
     static func ocr(page: String, settings: ReaderTranslationSettings) -> String {
         // OCR entries contain merged regions. A merger change must also
         // invalidate derived translations/layouts instead of replaying old boxes.
-        encoded(["reader-ocr-v49-independent-stacked-columns", page, encoded(settings.ocrConfiguration)])
+        encoded(["reader-ocr-v50-deskew-column-veto", page, encoded(settings.ocrConfiguration)])
     }
     static func translation(page: String, settings: ReaderTranslationSettings) -> String {
         let previous = unfilteredTranslation(page: page, settings: settings)

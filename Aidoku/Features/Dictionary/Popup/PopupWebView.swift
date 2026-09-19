@@ -24,7 +24,7 @@ struct SelectionData {
 }
 
 class AudioHandler: NSObject, WKURLSchemeHandler {
-    private var tasks = Set<ObjectIdentifier>()
+    private var tasks: [ObjectIdentifier: Task<Void, Never>] = [:]
 
     func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
         guard let requestUrl = task.request.url,
@@ -36,15 +36,13 @@ class AudioHandler: NSObject, WKURLSchemeHandler {
         }
 
         let taskId = ObjectIdentifier(task)
-        tasks.insert(taskId)
-
-        Task {
+        tasks[taskId] = Task {
             do {
                 let request = URLRequest(url: targetUrl, timeoutInterval: 4)
                 let (data, _) = try await URLSession.shared.data(for: request)
 
                 await MainActor.run {
-                    guard self.tasks.contains(taskId) else { return }
+                    guard self.tasks.removeValue(forKey: taskId) != nil else { return }
 
                     let response = HTTPURLResponse(
                         url: requestUrl,
@@ -61,7 +59,7 @@ class AudioHandler: NSObject, WKURLSchemeHandler {
                 }
             } catch {
                 await MainActor.run {
-                    guard self.tasks.contains(taskId) else { return }
+                    guard self.tasks.removeValue(forKey: taskId) != nil else { return }
                     task.didFailWithError(error)
                 }
             }
@@ -69,7 +67,7 @@ class AudioHandler: NSObject, WKURLSchemeHandler {
     }
 
     func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {
-        tasks.remove(ObjectIdentifier(task))
+        tasks.removeValue(forKey: ObjectIdentifier(task))?.cancel()
     }
 }
 
@@ -84,25 +82,22 @@ class ImageHandler: NSObject, WKURLSchemeHandler {
             return
         }
 
-        LookupEngine.shared.withMediaFile(dictName: dictionary, mediaPath: mediaPath) { data in
-            let mime = mimeType(for: mediaPath)
-            Task { @MainActor in
-                guard !data.isEmpty else {
-                    task.didFailWithError(URLError(.fileDoesNotExist))
-                    return
-                }
-
-                let response = URLResponse(
-                    url: requestUrl,
-                    mimeType: mime,
-                    expectedContentLength: data.count,
-                    textEncodingName: nil
-                )
-                task.didReceive(response)
-                task.didReceive(data)
-                task.didFinish()
-            }
+        // WebKit may retain the response buffer after this method returns.
+        // Keep owned bytes and finish synchronously so stop cannot precede callbacks.
+        let data = LookupEngine.shared.getMediaFile(dictName: dictionary, mediaPath: mediaPath)
+        guard !data.isEmpty else {
+            task.didFailWithError(URLError(.fileDoesNotExist))
+            return
         }
+        let response = URLResponse(
+            url: requestUrl,
+            mimeType: mimeType(for: mediaPath),
+            expectedContentLength: data.count,
+            textEncodingName: nil
+        )
+        task.didReceive(response)
+        task.didReceive(data)
+        task.didFinish()
     }
 
     func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
@@ -436,12 +431,14 @@ struct PopupWebView: UIViewRepresentable {
                 """
                 window.dictionaryStyles = dictionaryStyles;
                 window.entryCount = entryCount;
+                window.lookupEntries = lookupEntries;
                 window.renderPopup();
                 window.installContentHeightObserver?.();
                 """,
                 arguments: [
                     "dictionaryStyles": parent.dictionaryStyles,
-                    "entryCount": entries.count
+                    "entryCount": entries.count,
+                    "lookupEntries": entries
                 ],
                 in: nil,
                 in: .page,
@@ -463,11 +460,12 @@ struct PopupWebView: UIViewRepresentable {
             if message.name == "getEntries", let body = message.body as? [String: Any] {
                 let start = body["start"] as? Int ?? 0
                 let count = body["count"] as? Int ?? 0
-                return (Array(entries[start..<start + count]), nil)
+                guard start >= 0, start < entries.count, count > 0 else { return ([], nil) }
+                return (Array(entries[start..<start + min(count, entries.count - start)]), nil)
             }
             if message.name == "lookupRedirect", let query = message.body as? String {
                 entries = parent.onRedirect?(query) ?? []
-                return (entries.count, nil)
+                return (entries, nil)
             }
             if message.name == "kanjiRedirect", let kanji = message.body as? String {
                 return (parent.onKanjiRedirect?(kanji) ?? nil, nil)

@@ -66,26 +66,32 @@ extension UIScrollView {
 
 extension UIView {
     func forceNoClip() {
-        let originalClass: AnyClass = object_getClass(self)!
-        let subclassName = "\(originalClass)_ClipsToBoundsSwizzled_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
-        guard let subclass = objc_allocateClassPair(originalClass, subclassName, 0) else { return }
-
-        let setterSelector = #selector(setter: UIView.clipsToBounds)
-        let method = class_getInstanceMethod(UIView.self, setterSelector)!
-        let types = method_getTypeEncoding(method)
-
-        let imp: @convention(c) (UIView, Selector, Bool) -> Void = { view, selector, _ in
-            let superClass: AnyClass = class_getSuperclass(object_getClass(view))!
-            if let superSetter = class_getInstanceMethod(superClass, selector) {
-                let superIMP = method_getImplementation(superSetter)
-                typealias SetterType = @convention(c) (UIView, Selector, Bool) -> Void
-                let casted = unsafeBitCast(superIMP, to: SetterType.self)
-                casted(view, selector, false)
-            }
+        guard let originalClass = object_getClass(self) else { return }
+        let suffix = "_AidokuNoClip"
+        let originalName = NSStringFromClass(originalClass)
+        guard !originalName.hasSuffix(suffix) else {
+            clipsToBounds = false
+            return
         }
-
-        class_replaceMethod(subclass, setterSelector, unsafeBitCast(imp, to: IMP.self), types)
+        let subclassName = originalName + suffix
+        if let subclass = NSClassFromString(subclassName) {
+            object_setClass(self, subclass)
+            clipsToBounds = false
+            return
+        }
+        let selector = #selector(setter: UIView.clipsToBounds)
+        guard let method = class_getInstanceMethod(originalClass, selector),
+              let subclass = objc_allocateClassPair(originalClass, subclassName, 0) else { return }
+        // Capture the original setter once. Looking it up from the object's current
+        // class inside the replacement would recurse if a subclass is added later.
+        typealias Setter = @convention(c) (UIView, Selector, Bool) -> Void
+        let setter = unsafeBitCast(method_getImplementation(method), to: Setter.self)
+        let block: @convention(block) (UIView, Bool) -> Void = { view, _ in
+            setter(view, selector, false)
+        }
+        class_addMethod(subclass, selector, imp_implementationWithBlock(block), method_getTypeEncoding(method))
         objc_registerClassPair(subclass)
         object_setClass(self, subclass)
+        clipsToBounds = false
     }
 }

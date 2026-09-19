@@ -88,6 +88,7 @@ extension AniListApi {
             }
         }
 
+        if response.errors?.isEmpty == false { throw URLError(.badServerResponse) }
         return response
     }
 

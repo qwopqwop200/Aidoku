@@ -355,6 +355,7 @@ extension ReaderPagedViewController {
     func move(toPage page: Int, animated: Bool, resetGesture: Bool = true) {
         let page = min(max(page, 0), displayPageCount + 1)
         let vcIndex = page + (previousChapter != nil ? 1 : 0)
+        guard pageViewControllers.indices.contains(vcIndex) else { return }
         var targetViewController: UIViewController = pageViewControllers[vcIndex]
 
         let lastContentIndex = pageViewControllers.count - (nextChapter != nil ? 1 : 0) - 1
@@ -943,6 +944,7 @@ extension ReaderPagedViewController: ReaderReaderDelegate {
     func loadChapter(startPage: Int, isChapterChange: Bool = true) async {
         guard let chapter else { return }
         await viewModel.loadPages(chapter: chapter)
+        guard self.chapter == chapter, !Task.isCancelled else { return }
         delegate?.setPages(viewModel.pages)
         if !viewModel.pages.isEmpty {
             await MainActor.run {
@@ -1042,8 +1044,9 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
                 // preload previous
                 if let previousChapter = previousChapter {
                     Task {
-                        await viewModel.preload(chapter: previousChapter)
-                        if currentIndex > 0, let lastPage = viewModel.preloadedPages.last {
+                        let loaded = await viewModel.preload(chapter: previousChapter)
+                        guard self.previousChapter == previousChapter, !Task.isCancelled else { return }
+                        if currentIndex > 0, pageViewControllers.indices.contains(currentIndex - 1), let lastPage = loaded.last {
                             pageViewControllers[currentIndex - 1].setPage(
                                 lastPage,
                                 sourceId: viewModel.source?.key ?? viewModel.manga.sourceKey

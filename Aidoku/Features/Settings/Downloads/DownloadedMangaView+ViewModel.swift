@@ -139,7 +139,7 @@ extension DownloadedMangaView.ViewModel {
     }
 
     /// Update only changed chapters to preserve scroll position
-    private func updateChaptersSelectively(newChapters: [DownloadedChapterInfo]) {
+    func updateChaptersSelectively(newChapters: [DownloadedChapterInfo]) {
         let oldChapters = chapters
 
         // Quick equality check
@@ -156,7 +156,7 @@ extension DownloadedMangaView.ViewModel {
         guard lhs.count == rhs.count else { return false }
 
         for (old, new) in zip(lhs, rhs) {
-            if old.id != new.id || old.size != new.size {
+            if old != new {
                 return false
             }
         }
@@ -212,7 +212,7 @@ extension DownloadedMangaView.ViewModel {
     }
 
     /// Update manga library status without recreating the object
-    private func updateMangaLibraryStatus(to newStatus: Bool) {
+    func updateMangaLibraryStatus(to newStatus: Bool) {
         manga = DownloadedMangaInfo(
             sourceId: manga.sourceId,
             mangaId: manga.mangaId,
@@ -221,6 +221,7 @@ extension DownloadedMangaView.ViewModel {
             coverUrl: manga.coverUrl,
             totalSize: manga.totalSize,
             chapterCount: manga.chapterCount,
+            pageCount: manga.pageCount,
             isInLibrary: newStatus
         )
     }
@@ -246,6 +247,7 @@ extension DownloadedMangaView.ViewModel {
                 return true
             }),
             (.downloadsRemoved, { [weak self] notification in
+                if notification.object == nil { return true }
                 guard
                     let id = notification.object as? MangaIdentifier,
                     id == self?.manga.mangaIdentifier
@@ -330,6 +332,7 @@ extension DownloadedMangaView.ViewModel {
 
         // reading history
         NotificationCenter.default.publisher(for: .historyAdded)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] output in
                 guard
                     let self,
@@ -342,6 +345,7 @@ extension DownloadedMangaView.ViewModel {
             }
             .store(in: &cancellables)
         NotificationCenter.default.publisher(for: .historyRemoved)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] output in
                 guard let self else { return }
                 if let chapters = output.object as? [ChapterIdentifier] {
@@ -357,6 +361,7 @@ extension DownloadedMangaView.ViewModel {
             }
             .store(in: &cancellables)
         NotificationCenter.default.publisher(for: .historySet)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] output in
                 guard
                     let self,

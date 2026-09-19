@@ -227,8 +227,9 @@ extension ReaderPageView {
     func setPageImage(url: URL, context: PageContext? = nil, sourceId: String? = nil) async -> Bool {
         // remove text view if it exists
         if let textView {
+            textView.willMove(toParent: nil)
             textView.view.removeFromSuperview()
-            textView.didMove(toParent: nil)
+            textView.removeFromParent()
             self.textView = nil
         }
 
@@ -328,8 +329,9 @@ extension ReaderPageView {
     func setPageImage(base64: String, key: Int) async -> Bool {
         // remove text view if it exists
         if let textView {
+            textView.willMove(toParent: nil)
             textView.view.removeFromSuperview()
-            textView.didMove(toParent: nil)
+            textView.removeFromParent()
             self.textView = nil
         }
 
@@ -414,8 +416,9 @@ extension ReaderPageView {
 
         // remove text view if it exists
         if let textView {
+            textView.willMove(toParent: nil)
             textView.view.removeFromSuperview()
-            textView.didMove(toParent: nil)
+            textView.removeFromParent()
             self.textView = nil
         }
 
@@ -494,6 +497,12 @@ extension ReaderPageView {
 
     func setPageImage(_ image: UIImage?, gifData: Data? = nil) {
         guard !Task.isCancelled else { return }
+        if let textView {
+            textView.willMove(toParent: nil)
+            textView.view.removeFromSuperview()
+            textView.removeFromParent()
+            self.textView = nil
+        }
         if imageView.image !== image { translationPage.reset() }
         imageView.image = image
         if !isTranslationPreload { NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: translationPage) }

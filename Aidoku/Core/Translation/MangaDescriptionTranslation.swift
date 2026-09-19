@@ -73,7 +73,7 @@ struct TranslatedDescriptionView: View {
                 translation = result
                 translatedIdentity = requestedIdentity
             }
-            .onReceive(NotificationCenter.default.publisher(for: ReaderTranslationSettings.changed)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: ReaderTranslationSettings.changed).receive(on: DispatchQueue.main)) { _ in
                 translation = nil
                 revision = UUID()
             }

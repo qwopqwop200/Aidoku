@@ -1165,3 +1165,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Penyimpanan cache terjemahan tidak valid atau tidak tersedia.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Cache terjemahan tidak dapat disimpan.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Perubahan sinkronisasi iCloud berlaku setelah Anda menutup Aidoku sepenuhnya lalu membukanya kembali. Hingga saat itu, pengaturan sinkronisasi saat ini tetap aktif.";

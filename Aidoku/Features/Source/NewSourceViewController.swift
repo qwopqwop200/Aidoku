@@ -23,6 +23,7 @@ class NewSourceViewController: UIViewController {
     private var originalNavbarEdgeAppearance: UINavigationBarAppearance?
 
     private var cancellable: AnyCancellable?
+    private var layoutConstraints: [NSLayoutConstraint] = []
 
     private lazy var searchOverlayView = {
         let scrollView = UIView()
@@ -346,10 +347,12 @@ class NewSourceViewController: UIViewController {
     }
 
     private func constrain() {
+        NSLayoutConstraint.deactivate(layoutConstraints)
+        layoutConstraints.removeAll()
         searchOverlayView.translatesAutoresizingMaskIntoConstraints = false
         searchViewController.view.translatesAutoresizingMaskIntoConstraints = false
 
-        NSLayoutConstraint.activate([
+        layoutConstraints.append(contentsOf: [
             searchOverlayView.topAnchor.constraint(equalTo: view.topAnchor),
             searchOverlayView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             searchOverlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -368,7 +371,7 @@ class NewSourceViewController: UIViewController {
                 let searchBar = searchController.searchBar
                 listingHeaderController.view.translatesAutoresizingMaskIntoConstraints = false
 
-                NSLayoutConstraint.activate([
+                layoutConstraints.append(contentsOf: [
                     listingHeaderController.view.topAnchor.constraint(equalTo: searchBar.topAnchor),
                     listingHeaderController.view.bottomAnchor.constraint(equalTo: searchBar.bottomAnchor),
                     listingHeaderController.view.leadingAnchor.constraint(equalTo: searchBar.safeAreaLayoutGuide.leadingAnchor),
@@ -376,13 +379,14 @@ class NewSourceViewController: UIViewController {
                 ])
             }
 
-            NSLayoutConstraint.activate([
+            layoutConstraints.append(contentsOf: [
                 mainHostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
                 mainHostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
                 mainHostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
                 mainHostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor)
             ])
         }
+        NSLayoutConstraint.activate(layoutConstraints)
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -632,7 +636,7 @@ extension NewSourceViewController {
                 guard
                     let url = (try? await self.source.getBaseUrl()) ?? self.source.urls.first,
                     let scheme = url.scheme,
-                    scheme.hasPrefix("http")
+                    scheme == "http" || scheme == "https"
                 else {
                     let alert = UIAlertController(
                         title: NSLocalizedString("INVALID_URL"),

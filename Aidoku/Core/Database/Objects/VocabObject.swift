@@ -28,10 +28,10 @@ extension VocabObject {
         word = entry.word
         reading = entry.reading
         sentence = entry.sentence
-        clozeOffset = entry.clozeOffset.flatMap(Int16.init) ?? 0
+        clozeOffset = entry.clozeOffset.map { Int16(clamping: $0) } ?? 0
         clozeText = entry.clozeText
         localImageId = entry.localImageId
-        page = entry.page.flatMap(Int16.init) ?? 0
+        page = entry.page.map { Int16(clamping: $0) } ?? 0
         createdDate = entry.createdDate
     }
 }

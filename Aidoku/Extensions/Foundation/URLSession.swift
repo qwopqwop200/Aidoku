@@ -41,7 +41,7 @@ extension URLSession {
 extension URLSession {
     static func withTimeoutInterval(_ interval: TimeInterval) -> URLSession {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 15
+        config.timeoutIntervalForRequest = interval
         return URLSession(configuration: config)
     }
 }

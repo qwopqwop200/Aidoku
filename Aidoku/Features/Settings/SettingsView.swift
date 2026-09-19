@@ -413,7 +413,7 @@ extension SettingsView {
                         sections.append(.init(icon: pageSetting.icon, header: setting.title, paths: items))
                     }
                 } else {
-                    if setting.title.contains(searchText) {
+                    if setting.title.localizedCaseInsensitiveContains(searchText) {
                         groupItems.append(.init(
                             key: setting.key,
                             title: setting.title,

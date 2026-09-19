@@ -37,6 +37,7 @@ class SourceTableViewCell: UITableViewCell {
     let getButton = GetButtonView()
 
     private var imageTask: ImageTask?
+    private var iconGeneration = UUID()
 
     var buttonTitle: String? {
         get {
@@ -158,6 +159,8 @@ class SourceTableViewCell: UITableViewCell {
     override func prepareForReuse() {
         super.prepareForReuse()
         imageTask?.cancel()
+        iconGeneration = UUID()
+        getButton.buttonState = .get
         info = nil
         iconView.image = UIImage(named: "MangaPlaceholder")
     }
@@ -191,12 +194,12 @@ class SourceTableViewCell: UITableViewCell {
         selectionStyle = info.disabled || section == .updates ? .none : .default
 
         imageTask?.cancel()
+        iconGeneration = UUID()
+        iconView.image = UIImage(named: "MangaPlaceholder")
 
         // load icon
         if let iconUrl = info.iconUrl {
-            Task {
-                await loadIcon(url: iconUrl)
-            }
+            loadIcon(url: iconUrl)
         } else {
             switch info.sourceId {
                 case LocalSourceRunner.sourceKey:
@@ -213,7 +216,8 @@ class SourceTableViewCell: UITableViewCell {
         }
     }
 
-    private func loadIcon(url: URL) async {
+    private func loadIcon(url: URL) {
+        let generation = iconGeneration
         let request = ImageRequest(
             url: url,
             processors: [DownsampleProcessor(width: bounds.width)]
@@ -225,6 +229,7 @@ class SourceTableViewCell: UITableViewCell {
             switch result {
                 case .success(let response):
                     Task { @MainActor in
+                        guard self.iconGeneration == generation else { return }
                         if wasCached {
                             self.iconView.image = response.image
                         } else {
@@ -234,7 +239,7 @@ class SourceTableViewCell: UITableViewCell {
                         }
                     }
                 case .failure:
-                    imageTask = nil
+                    if iconGeneration == generation { imageTask = nil }
             }
         }
     }

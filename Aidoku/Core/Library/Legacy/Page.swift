@@ -50,14 +50,14 @@ struct Page: Hashable {
 
 extension Page {
     func toNew() -> AidokuRunner.Page {
-        let content: AidokuRunner.PageContent = if let imageURL, let url = URL(string: imageURL) {
+        let content: AidokuRunner.PageContent = if let zipURL, let url = URL(string: zipURL), let imageURL {
+            .zipFile(url: url, filePath: imageURL)
+        } else if let imageURL, let url = URL(string: imageURL) {
             .url(url: url, context: context)
         } else if let text {
             .text(text)
         } else if let image {
             .image(image)
-        } else if let zipURL, let url = URL(string: zipURL), let imageURL {
-            .zipFile(url: url, filePath: imageURL)
         } else {
             .text("Invalid URL")
         }

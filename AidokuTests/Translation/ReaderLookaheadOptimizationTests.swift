@@ -242,6 +242,7 @@ struct ReaderLookaheadOptimizationTests {
         struct Fixture: Decodable { let id: String; let image: String }
         let root = URL.documentsDirectory.appendingPathComponent("LookaheadDevice")
         let fixtures = try JSONDecoder().decode([Fixture].self, from: Data(contentsOf: root.appendingPathComponent("manifest.json")))
+        try #require(fixtures.count >= 3, "Lookahead comparison needs a current, next and farther page")
         var settings = ReaderTranslationSettings()
         settings.targetLanguage = "ko"; settings.sourceLanguage = "ja"
         settings.translationSourceLanguages = []; settings.maximumConcurrentRequests = 2

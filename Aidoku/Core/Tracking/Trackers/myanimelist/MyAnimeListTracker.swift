@@ -31,7 +31,7 @@ final class MyAnimeListTracker: OAuthTracker {
         // set status to reading if status doesn't already exist
         let status = await api.getMangaStatus(id: id)
         if status == nil {
-            await api.updateMangaStatus(
+            try await api.updateMangaStatus(
                 id: id,
                 status: MyAnimeListMangaStatus(
                     numChaptersRead: highestChapterRead.flatMap { Int(floor($0)) },
@@ -56,7 +56,7 @@ final class MyAnimeListTracker: OAuthTracker {
             status: update.status != nil ? getStatusString(status: update.status!) : nil,
             score: update.score
         )
-        await api.updateMangaStatus(id: id, status: status)
+        try await api.updateMangaStatus(id: id, status: status)
     }
 
     func getState(trackId: String) async throws -> TrackState {

@@ -14,6 +14,8 @@ struct FilterGroupCreateView: View {
     @State private var title: String = ""
     @State private var filters: [LibraryFilter] = []
     @State private var isValid = false
+    @State private var isSaving = false
+    @State private var saveError: String?
 
     @State private var categories: [String] = []
     @State private var sourceKeys: [String] = []
@@ -163,13 +165,22 @@ struct FilterGroupCreateView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     DoneButton {
+                        guard !isSaving else { return }
+                        isSaving = true
                         Task {
-                            await commit()
+                            if await commit() { dismiss() }
+                            isSaving = false
                         }
-                        dismiss()
                     }
-                    .disabled(!isValid)
+                    .disabled(!isValid || isSaving)
                 }
+            }
+            .alert(NSLocalizedString("UNKNOWN_ERROR"), isPresented: Binding(
+                get: { saveError != nil }, set: { if !$0 { saveError = nil } }
+            )) {
+                Button(NSLocalizedString("OK"), role: .cancel) { saveError = nil }
+            } message: {
+                Text(saveError ?? "")
             }
             .onChange(of: title) { _ in
                 checkValidity()
@@ -256,7 +267,7 @@ extension FilterGroupCreateView {
         guard
             !filters.isEmpty,
             !title.isEmpty,
-            title != "none",
+            title.lowercased() != "none",
             !allCategoryAndGroupTitles.contains(title)
         else {
             isValid = false
@@ -267,11 +278,12 @@ extension FilterGroupCreateView {
 }
 
 extension FilterGroupCreateView {
-    func commit() async {
-        guard isValid else { return }
+    func commit() async -> Bool {
+        guard isValid else { return false }
         guard let data = try? JSONEncoder().encode(filters) else {
             LogManager.logger.error("Failed to encode filters data")
-            return
+            saveError = NSLocalizedString("UNKNOWN_ERROR")
+            return false
         }
         let title = title.trim()
         if let editingGroupTitle {
@@ -281,16 +293,15 @@ extension FilterGroupCreateView {
                     request.predicate = NSPredicate(format: "title == %@", editingGroupTitle)
                     request.fetchLimit = 1
                     let result = try context.fetch(request)
-                    guard let category = result.first else {
-                        return
-                    }
+                    guard let category = result.first else { throw CocoaError(.validationMissingMandatoryProperty) }
                     category.title = title.isEmpty ? editingGroupTitle : title
                     category.data = data as NSObject
                     try context.save()
                 }
             } catch {
                 LogManager.logger.error("Failed to edit filter group: \(error)")
-                return
+                saveError = error.localizedDescription
+                return false
             }
         } else {
             do {
@@ -299,13 +310,14 @@ extension FilterGroupCreateView {
                     category.data = data as NSObject
                     try context.save()
                 }
-                NotificationCenter.default.post(name: .updateCategories, object: nil)
             } catch {
                 LogManager.logger.error("Failed to create filter group: \(error)")
-                return
+                saveError = error.localizedDescription
+                return false
             }
         }
         NotificationCenter.default.post(name: .updateCategories, object: nil)
+        return true
     }
 }
 

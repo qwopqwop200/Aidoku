@@ -12,6 +12,8 @@ import CoreData
 public class LibraryMangaObject: NSManagedObject {
     public override func awakeFromInsert() {
         super.awakeFromInsert()
+        // Core Data also calls this when rolling back a deleted, persisted object.
+        guard objectID.isTemporaryID else { return }
         let now = Date.now
         lastOpened = now
         lastUpdated = now.addingTimeInterval(-5)

@@ -44,7 +44,7 @@ actor BangumiApi {
         request.httpBody = body.percentEncoded()
 
         let response: OAuthResponse? = try? await URLSession.shared.object(from: request)
-        await oauth.setTokens(response)
+        if let response { await oauth.setTokens(response) }
         return response
     }
 
@@ -67,7 +67,7 @@ actor BangumiApi {
         request.httpBody = body.percentEncoded()
 
         let response: OAuthResponse? = try? await URLSession.shared.object(from: request)
-        await oauth.setTokens(response)
+        if let response { await oauth.setTokens(response) }
         return response
     }
 }

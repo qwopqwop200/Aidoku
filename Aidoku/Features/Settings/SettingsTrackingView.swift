@@ -165,6 +165,7 @@ struct SettingsTrackingView: View {
                             }
                         } catch {
                             LogManager.logger.error("Unable to log out from \(tracker.name) tracker: \(error)")
+                            return
                         }
                         NotificationCenter.default.post(name: .updateTrackers, object: nil)
                         // Remove all tracked items for this tracker
@@ -187,7 +188,7 @@ struct SettingsTrackingView: View {
             guard !loadedData else { return }
 
             for tracker in trackers {
-                guard let oauthTracker = tracker as? OAuthTracker else { return }
+                guard let oauthTracker = tracker as? OAuthTracker else { continue }
                 await oauthTracker.oauthClient.loadTokens()
                 let needsRelogin = await oauthTracker.oauthClient.tokens?.askedForRefresh == true
                 if needsRelogin {
@@ -281,9 +282,10 @@ extension SettingsTrackingView {
                     }
                     do {
                         let items = try await tracker.search(for: manga, includeNsfw: true)
+                        guard !UserDefaults.standard.bool(forKey: "\(sourceKey).disableTracking") else { return }
                         guard let item = items.first else {
                             LogManager.logger.error("Unable to find track item from tracker \(tracker.id)")
-                            return
+                            continue
                         }
                         await TrackerManager.shared.register(tracker: tracker, manga: manga, item: item)
                     } catch {

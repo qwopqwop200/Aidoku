@@ -9,6 +9,8 @@ import SwiftUI
 
 struct BackupCreateView: View {
     @State private var name = ""
+    @State private var isSaving = false
+    @State private var showSaveError = false
     @State private var libraryEntries = true
     @State private var chapters = true
     @State private var tracking = true
@@ -53,6 +55,13 @@ struct BackupCreateView: View {
                     Text(NSLocalizedString("SETTINGS"))
                 }
             }
+            .disabled(isSaving)
+            .interactiveDismissDisabled(isSaving)
+            .alert(NSLocalizedString("BACKUP_ERROR"), isPresented: $showSaveError) {
+                Button(NSLocalizedString("OK"), role: .cancel) {}
+            } message: {
+                Text(String(format: NSLocalizedString("BACKUP_ERROR_TEXT"), NSLocalizedString("CREATE_BACKUP")))
+            }
             .navigationTitle(NSLocalizedString("CREATE_BACKUP"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -63,8 +72,10 @@ struct BackupCreateView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     DoneButton {
+                        guard !isSaving else { return }
+                        isSaving = true
                         Task {
-                            await BackupManager.shared.saveNewBackup(
+                            let saved = await BackupManager.shared.saveNewBackup(
                                 name: name,
                                 options: .init(
                                     libraryEntries: libraryEntries,
@@ -80,8 +91,9 @@ struct BackupCreateView: View {
                                     sensitiveSettings: sensitiveSettings
                                 )
                             )
+                            isSaving = false
+                            if saved { dismiss() } else { showSaveError = true }
                         }
-                        dismiss()
                     }
                 }
             }

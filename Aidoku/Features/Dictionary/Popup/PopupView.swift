@@ -74,22 +74,26 @@ struct PopupLayout {
 
     var width: CGFloat {
         if isFullWidth {
-            return availableFrame.width - screenBorderPadding * 2
+            return max(0, availableFrame.width - screenBorderPadding * 2)
         }
 
         if isVertical {
-            return min(max(spaceLeft, spaceRight) - screenBorderPadding, maxWidth)
+            let sideWidth = max(spaceLeft, spaceRight) - screenBorderPadding
+            let availableWidth = max(0, availableFrame.width - screenBorderPadding * 2)
+            return min(sideWidth > 0 ? sideWidth : availableWidth, availableWidth, maxWidth)
         }
 
-        return min(availableFrame.width - screenBorderPadding * 2, maxWidth)
+        return max(0, min(availableFrame.width - screenBorderPadding * 2, maxWidth))
     }
 
     var height: CGFloat {
         if isVertical || isFullWidth {
-            return maxHeight
+            return max(0, min(maxHeight, availableFrame.height - screenBorderPadding * 2))
         }
 
-        return min(max(spaceAbove, spaceBelow) - screenBorderPadding, maxHeight)
+        let sideHeight = max(spaceAbove, spaceBelow) - screenBorderPadding
+        let availableHeight = max(0, availableFrame.height - screenBorderPadding * 2)
+        return min(sideHeight > 0 ? sideHeight : availableHeight, availableHeight, maxHeight)
     }
 
     var position: CGPoint {
@@ -97,7 +101,7 @@ struct PopupLayout {
         var y: CGFloat
 
         if isFullWidth {
-            x = width / 2 + screenBorderPadding
+            x = availableFrame.minX + width / 2 + screenBorderPadding
             y = availableFrame.maxY - height / 2 - screenBorderPadding
         } else {
             if isVertical {
@@ -557,7 +561,7 @@ struct PopupView: View {
             window.audioEnableAutoplay = false;
             window.audioPlaybackMode = "interrupt";
             window.cardFormatCount = \(userConfig.allowsMining ? 1 : 0);
-            window.validFormatFlags = [];
+            window.validFormatFlags = [true];
             window.isAnkiConnectReachable = false;
             window.excludedDictionaries = [];
             window.needsAudio = false;

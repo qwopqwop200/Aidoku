@@ -14,6 +14,7 @@ class MangaListCell: UICollectionViewCell {
     private var identifier: MangaIdentifier?
     private var url: String?
     private var imageTask: ImageTask?
+    private var imageGeneration = 0
 
     private var isEditing = false
 
@@ -159,6 +160,10 @@ class MangaListCell: UICollectionViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
+        imageGeneration += 1
+        identifier = nil
+        url = nil
+        coverImageView.stopAnimatingGIF()
         titleLabel.text = nil
         coverImageView.image = UIImage(named: "MangaPlaceholder")
         imageTask?.cancel()
@@ -255,6 +260,8 @@ extension MangaListCell {
     }
 
     func configure(with info: MangaInfo) {
+        bookmarkImageView.image = nil
+        tagScrollView.isHidden = true
         identifier = info.id
         titleLabel.text = info.title
         subtitleLabel.text = info.author
@@ -268,9 +275,14 @@ extension MangaListCell {
 
 extension MangaListCell {
     private func loadImage(url: URL?) async {
-        guard let url else { return }
-
-        if let imageTask, imageTask.state == .running {
+        imageGeneration += 1
+        let generation = imageGeneration
+        imageTask?.cancel()
+        imageTask = nil
+        guard let url else {
+            self.url = nil
+            self.coverImageView.stopAnimatingGIF()
+            self.coverImageView.image = UIImage(named: "MangaPlaceholder")
             return
         }
 
@@ -293,6 +305,7 @@ extension MangaListCell {
             }
         }
 
+        guard generation == imageGeneration, !Task.isCancelled else { return }
         self.url = (urlRequest.url ?? url).absoluteString
 
         var processors: [ImageProcessing] = [DownsampleProcessor(width: bounds.width)]
@@ -309,13 +322,14 @@ extension MangaListCell {
         cached = cached || ImagePipeline.shared.cache.containsCachedImage(for: request)
 
         imageTask = ImagePipeline.shared.loadImage(with: request) { [weak self] result in
-            guard let self else { return }
+            guard let self, generation == self.imageGeneration else { return }
             switch result {
                 case .success(let response):
                     if response.request.imageID != self.url {
                         return
                     }
                     Task { @MainActor in
+                        guard generation == self.imageGeneration else { return }
                         if cached {
                             self.coverImageView.image = response.image
                         } else {

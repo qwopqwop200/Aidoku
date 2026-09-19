@@ -1,15 +1,6 @@
 {
-  "originHash" : "2a03085cc27e6126636f23e5314c8863e452ac74984aadf2747627a82b4f8612",
+  "originHash" : "1661350be89f1a9fd5782c5f883e77a23b5552c7999b4e1709e1100df186bd8c",
   "pins" : [
-    {
-      "identity" : "aidokurunner",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Aidoku/AidokuRunner",
-      "state" : {
-        "branch" : "main",
-        "revision" : "cc4d06ff399e7169b9c647bccede7cb29bc805c6"
-      }
-    },
     {
       "identity" : "gifu",
       "kind" : "remoteSourceControl",
@@ -17,15 +8,6 @@
       "state" : {
         "revision" : "46434cd816f035271beb16d80f7bc91381cbd8e4",
         "version" : "3.5.1"
-      }
-    },
-    {
-      "identity" : "hoshidicts",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Manhhao/hoshidicts.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "bc62d2becc3c2dac0f6abd1cbaa1df11b1ea1acc"
       }
     },
     {
@@ -97,15 +79,6 @@
       "state" : {
         "revision" : "6a6475db9bf9f7e04731ab60053c3ca4934c1ac6",
         "version" : "3.1.1"
-      }
-    },
-    {
-      "identity" : "wasm3",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Skittyblock/Wasm3",
-      "state" : {
-        "branch" : "main",
-        "revision" : "6a64d8bfc6a235f1ee3f8b57f692494fbf72ed19"
       }
     },
     {

@@ -9,9 +9,10 @@ import Foundation
 
 extension Dictionary {
     func percentEncoded() -> Data? {
-        map { key, value in
-            let escapedKey = "\(key)".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-            let escapedValue = "\(value)".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+        return map { key, value in
+            let escapedKey = "\(key)".addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
+            let escapedValue = "\(value)".addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
             return escapedKey + "=" + escapedValue
         }
         .joined(separator: "&")

@@ -289,6 +289,31 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
         XCTAssertNil(merged[1].translationReuseIdentity)
     }
 
+    func testBackgroundFilterChangeInvalidatesProvisionalAndGeometryReuse() throws {
+        let configuration = makeConfiguration()
+        let request = makeRequest()
+        var filtered = request
+        filtered.filtersBackground = true
+        let original = try identity(configuration: configuration, request: request)
+        let updated = try identity(configuration: configuration, request: filtered)
+
+        XCTAssertFalse(original.canRemainVisibleWhileRefreshing(expected: updated))
+        XCTAssertFalse(updated.canRemainVisibleWhileRefreshing(expected: original))
+        XCTAssertFalse(original.hasSameTranslationConfiguration(as: updated))
+        XCTAssertFalse(updated.hasSameTranslationConfiguration(as: original))
+        let item = BrowserOverlayItem(
+            rect: .init(x: 0, y: 0, width: 100, height: 20),
+            sourceText: request.segments[0].text,
+            translatedText: "오래된 간판 번역", confidence: 1,
+            translationReuseIdentity: original
+        )
+        let merged = NativeProgressiveTranslationOverlay.merge(
+            items: [item], expectedIdentities: [0: updated], completedTranslations: [:]
+        )
+        XCTAssertNil(merged[0].translatedText)
+        XCTAssertNil(merged[0].translationReuseIdentity)
+    }
+
     private func identity(
         configuration: RemoteTranslationConfiguration,
         request: RemoteTranslationRequest,

@@ -68,7 +68,7 @@ class AnkiManager {
     func addNote(content: [String: String], context: MiningContext, formatId: UUID) async -> Bool {
         guard let expression = content["expression"] else { return false }
         let reading = content["reading"]
-        await VocabManager.shared.create(
+        return await VocabManager.shared.create(
             entry: .init(
                 chapterId: context.chapterId,
                 word: expression,
@@ -79,6 +79,5 @@ class AnkiManager {
                 page: context.page
             )
         )
-        return true
     }
 }

@@ -6,10 +6,12 @@
 //
 
 import Foundation
+import Wasm3
 
 actor SourceActor {
 
-    var source: Source
+    unowned let source: Source
+    private var initializationTask: Task<Void, Error>?
 
     enum SourceError: Error {
         case missingValue
@@ -19,11 +21,28 @@ actor SourceActor {
         self.source = source
     }
 
-    func initialize() throws {
-        try source.globalStore.vm.findFunction(name: "initialize").call()
+    func initialize() async throws {
+        if let initializationTask { return try await initializationTask.value }
+        let source = source // Keep the module alive while user-agent acquisition suspends.
+        let task = Task {
+            let userAgent = await UserAgentProvider.shared.getUserAgent()
+            source.netModule.userAgent = userAgent
+            let initialize: Function
+            do {
+                initialize = try source.globalStore.vm.findFunction(name: "initialize")
+            } catch Wasm3Error.functionLookupFailed {
+                return // Legacy sources may omit the optional initialization hook.
+            } catch Wasm3Error.missingFunction {
+                return
+            }
+            try initialize.call()
+        }
+        initializationTask = task
+        try await task.value
     }
 
-    func getMangaList(filters: [FilterBase], page: Int = 1) -> MangaPageResult {
+    func getMangaList(filters: [FilterBase], page: Int = 1) async throws -> MangaPageResult {
+        try await initialize()
         let filterDescriptor = source.globalStore.storeStdValue(filters)
 
         let pageResultDescriptor: Int32 = (try? source.globalStore.vm.findFunction(name: "get_manga_list")
@@ -36,7 +55,8 @@ actor SourceActor {
         return result
     }
 
-    func getMangaListing(listing: Listing, page: Int = 1) -> MangaPageResult {
+    func getMangaListing(listing: Listing, page: Int = 1) async throws -> MangaPageResult {
+        try await initialize()
         let listingDescriptor = source.globalStore.storeStdValue(listing)
 
         let pageResultDescriptor: Int32 = (try? source.globalStore.vm.findFunction(name: "get_manga_listing")
@@ -49,7 +69,8 @@ actor SourceActor {
         return result
     }
 
-    func getMangaDetails(manga: Manga) throws -> Manga {
+    func getMangaDetails(manga: Manga) async throws -> Manga {
+        try await initialize()
         let mangaDescriptor = source.globalStore.storeStdValue(manga)
 
         let resultMangaDescriptor: Int32 = (try? source.globalStore.vm.findFunction(name: "get_manga_details")
@@ -64,7 +85,8 @@ actor SourceActor {
         return manga
     }
 
-    func getChapterList(manga: Manga) -> [Chapter] {
+    func getChapterList(manga: Manga) async throws -> [Chapter] {
+        try await initialize()
         let mangaDescriptor = source.globalStore.storeStdValue(manga)
 
         source.globalStore.chapterCounter = 0
@@ -85,7 +107,8 @@ actor SourceActor {
         return chapters
     }
 
-    func getPageList(chapter: Chapter) -> [Page] {
+    func getPageList(chapter: Chapter) async throws -> [Page] {
+        try await initialize()
         let chapterDescriptor = source.globalStore.storeStdValue(chapter)
 
         let pageListDescriptor: Int32 = (try? source.globalStore.vm.findFunction(name: "get_page_list")
@@ -104,6 +127,7 @@ actor SourceActor {
     }
 
     func getImageRequest(url: String) async throws -> WasmRequestObject {
+        try await initialize()
         source.globalStore.requestsPointer += 1
         var request = WasmRequestObject(id: source.globalStore.requestsPointer)
         guard !url.isEmpty else { return request }
@@ -127,7 +151,8 @@ actor SourceActor {
         return request
     }
 
-    func handleUrl(url: String) throws -> DeepLink {
+    func handleUrl(url: String) async throws -> DeepLink {
+        try await initialize()
         let urlDescriptor = source.globalStore.storeStdValue(url)
 
         let deepLinkDescriptor: Int32 = (try? source.globalStore.vm.findFunction(name: "handle_url").call(urlDescriptor)) ?? -1
@@ -145,7 +170,8 @@ actor SourceActor {
         return deepLink
     }
 
-    func handleNotification(notification: String) {
+    func handleNotification(notification: String) async throws {
+        try await initialize()
         let notificationDescriptor = source.globalStore.storeStdValue(notification)
 
         try? source.globalStore.vm.findFunction(name: "handle_notification").call(notificationDescriptor)

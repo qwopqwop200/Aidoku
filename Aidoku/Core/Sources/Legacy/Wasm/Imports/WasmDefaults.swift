@@ -9,7 +9,7 @@ import Foundation
 
 class WasmDefaults {
 
-    var globalStore: WasmGlobalStore
+    unowned var globalStore: WasmGlobalStore
 
     init(globalStore: WasmGlobalStore) {
         self.globalStore = globalStore

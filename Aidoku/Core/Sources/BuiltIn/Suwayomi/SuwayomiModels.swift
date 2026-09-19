@@ -238,7 +238,7 @@ struct SuwayomiMangaNode: Decodable, Sendable {
             case "ONGOING": .ongoing
             case "COMPLETED", "PUBLISHING_FINISHED": .completed
             case "CANCELLED": .cancelled
-            case "HIATUS": .hiatus
+            case "HIATUS", "ON_HIATUS": .hiatus
             default: .unknown
         }
         let urlString = realUrl ?? url
@@ -260,7 +260,7 @@ struct SuwayomiMangaNode: Decodable, Sendable {
 
 extension Date {
     init?(suwayomiTimestamp: String) {
-        guard let value = Double(suwayomiTimestamp) else { return nil }
+        guard let value = Double(suwayomiTimestamp), value.isFinite else { return nil }
         self.init(timeIntervalSince1970: value > 10_000_000_000 ? value / 1000 : value)
     }
 }

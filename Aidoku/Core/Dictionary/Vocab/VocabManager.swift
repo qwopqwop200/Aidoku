@@ -29,13 +29,17 @@ extension VocabManager {
         CoreDataManager.shared.hasVocab(word: word, reading: reading, context: context)
     }
 
-    func create(entry: VocabEntry) {
+    @discardableResult
+    func create(entry: VocabEntry) -> Bool {
         CoreDataManager.shared.createVocab(entry: entry, context: context)
         do {
             try context.save()
             NotificationCenter.default.post(name: .dictionaryVocabChanged, object: nil)
+            return true
         } catch {
+            context.rollback()
             LogManager.logger.error("Failed to create vocab entry: \(error)")
+            return false
         }
     }
 
@@ -49,6 +53,7 @@ extension VocabManager {
             try context.save()
             NotificationCenter.default.post(name: .dictionaryVocabChanged, object: nil)
         } catch {
+            context.rollback()
             LogManager.logger.error("Failed to delete vocab entry: \(error)")
         }
     }
@@ -59,6 +64,7 @@ extension VocabManager {
             try context.save()
             NotificationCenter.default.post(name: .dictionaryVocabChanged, object: nil)
         } catch {
+            context.rollback()
             LogManager.logger.error("Failed to clear vocab entries: \(error)")
         }
     }
@@ -74,6 +80,7 @@ extension VocabManager {
             try context.save()
             NotificationCenter.default.post(name: .dictionaryVocabChanged, object: nil)
         } catch {
+            context.rollback()
             LogManager.logger.error("Failed to update vocab entry: \(error)")
         }
     }

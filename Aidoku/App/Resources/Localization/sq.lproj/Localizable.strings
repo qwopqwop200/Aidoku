@@ -1144,3 +1144,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Hapësira e ruajtjes së memories së përkohshme të përkthimit është e pavlefshme ose e padisponueshme.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Memoria e përkohshme e përkthimit nuk mund të ruhej.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Ndryshimet e sinkronizimit iCloud zbatohen pasi ta mbyllni plotësisht dhe ta rihapni Aidoku. Deri atëherë, cilësimi aktual mbetet aktiv.";

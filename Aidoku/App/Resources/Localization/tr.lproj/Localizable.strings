@@ -1167,3 +1167,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Çeviri önbelleğinin depolama alanı geçersiz veya kullanılamıyor.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Çeviri önbelleği kaydedilemedi.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud eşzamanlama değişiklikleri, Aidoku tamamen kapatılıp yeniden açıldığında uygulanır. O zamana kadar mevcut ayar etkin kalır.";

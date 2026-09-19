@@ -45,6 +45,20 @@ import UIKit
         }
     }
 
+    @Test("Long books retain text beyond ten thousand pages")
+    func longBooksAreNotTruncated() {
+        var config = PaginationConfig()
+        config.fontSize = 40
+        config.lineSpacing = 0
+        config.paragraphSpacing = 0
+        config.horizontalPadding = 0
+        config.verticalPadding = 0
+        let markdown = String(repeating: "W", count: 10_005)
+        let pages = TextPaginator(config: config).paginate(markdown: markdown, pageSize: CGSize(width: 51, height: 51))
+        #expect(pages.count > 10_001)
+        #expect(pages.map { $0.attributedContent.string }.joined() == markdown)
+    }
+
     @Test("Empty markdown does not crash")
     func paginateEmptyMarkdown() {
         let paginator = TextPaginator()

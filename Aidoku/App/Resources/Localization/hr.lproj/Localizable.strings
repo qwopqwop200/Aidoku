@@ -1140,3 +1140,5 @@
 "TRANSLATION_ERROR_CACHE_SIZE" = "Veličina predmemorije prijevoda izvan je podržanog raspona.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Pohrana predmemorije prijevoda nije valjana ili nije dostupna.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "Predmemoriju prijevoda nije moguće spremiti.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Promjene iCloud sinkronizacije primjenjuju se nakon potpunog zatvaranja i ponovnog otvaranja aplikacije Aidoku. Do tada ostaje aktivna trenutačna postavka.";

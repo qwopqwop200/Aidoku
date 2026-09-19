@@ -37,7 +37,7 @@ actor MyAnimeListApi {
             "grant_type": "refresh_token"
         ].percentEncoded()
         let response: OAuthResponse? = try? await URLSession.shared.object(from: request)
-        await oauth.setTokens(response)
+        if let response { await oauth.setTokens(response) }
         return response
     }
 
@@ -56,7 +56,7 @@ actor MyAnimeListApi {
             // ensure we have a refresh token, otherwise we need to fully re-auth
             let reloginNeeded = await oauth.checkIfReloginNeeded(trackerName: "MyAnimeList")
             guard !reloginNeeded else {
-                return data
+                throw URLError(.userAuthenticationRequired)
             }
 
             // refresh access token
@@ -67,11 +67,14 @@ actor MyAnimeListApi {
                 if let newAuthorization {
                     var newRequest = urlRequest
                     newRequest.setValue(newAuthorization, forHTTPHeaderField: "Authorization")
-                    (data, _) = try await URLSession.shared.data(for: newRequest)
+                    (data, response) = try await URLSession.shared.data(for: newRequest)
                 }
             }
         }
 
+        guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
         return data
     }
 
@@ -115,12 +118,12 @@ extension MyAnimeListApi {
         return (try? await self.request(url: url) as MyAnimeListManga)?.myListStatus
     }
 
-    func updateMangaStatus(id: Int, status: MyAnimeListMangaStatus) async {
+    func updateMangaStatus(id: Int, status: MyAnimeListMangaStatus) async throws {
         guard let url = URL(string: baseApiUrl + "/manga/\(id)/my_list_status") else { return }
         var request = await oauth.authorizedRequest(for: url)
         request.httpMethod = "PATCH"
         request.httpBody = status.percentEncoded()
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        _ = try? await self.requestData(urlRequest: request)
+        _ = try await self.requestData(urlRequest: request)
     }
 }

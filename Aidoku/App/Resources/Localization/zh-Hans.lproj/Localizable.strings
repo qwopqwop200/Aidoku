@@ -1138,3 +1138,5 @@
 "TRANSLATION_ERROR_CACHE_SIZE" = "翻译缓存大小超出了支持的范围。";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "翻译缓存存储空间无效或不可用。";
 "TRANSLATION_ERROR_CACHE_SAVE" = "无法保存翻译缓存。";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud 同步的更改将在完全关闭并重新打开 Aidoku 后生效。在此之前，当前同步设置仍然有效。";

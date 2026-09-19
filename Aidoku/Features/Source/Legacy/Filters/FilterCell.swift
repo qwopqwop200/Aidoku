@@ -10,7 +10,7 @@ import UIKit
 class FilterCell: UIView {
 
     let filter: FilterBase
-    let parent: FilterCell?
+    weak var parent: FilterCell?
     var selectedFilters: SelectedFilters
 
     let titleLabel = UILabel()

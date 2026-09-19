@@ -496,7 +496,7 @@ struct ReaderTranslationRenderingTests {
         #expect(item.sourceText == region.source && item.translatedText == region.translation)
     }
 
-    @Test func sourceInkCleanupRequiresTranslatedLightReplacement() throws {
+    @Test func sourceInkCleanupRequiresLightReplacementAndPreservesOCRPreview() async throws {
         var settings = ReaderTranslationSettings.defaultOverlay
         let item = BrowserOverlayItem(rect: CGRect(x: 100, y: 200, width: 40, height: 90),
             sourceText: "こんにちは", translatedText: "안녕", confidence: 1,
@@ -516,7 +516,31 @@ struct ReaderTranslationRenderingTests {
         settings = ReaderTranslationSettings.defaultOverlay
         let untranslated = BrowserOverlayItem(rect: item.rect, sourceText: item.sourceText,
             translatedText: nil, confidence: 1, sourceOrientation: .vertical)
-        #expect(try payload(untranslated, settings)["sourceCleanup"] as? Bool == false)
+        let preview = try payload(untranslated, settings)
+        #expect(preview["sourceCleanup"] as? Bool == true)
+        #expect(preview["sourceTextOnly"] as? Bool == true)
+        #expect(preview["text"] as? String == untranslated.sourceText)
+        // OCR fallback itself is replacement text. Verify that authorizing ink
+        // cleanup does not suppress that readable source before translation.
+        let frame = CGRect(x: 0, y: 0, width: 390, height: 780)
+        let host = try window(frame: frame)
+        host.rootViewController = UIViewController()
+        let overlay = ReaderTranslationOverlayView(frame: frame)
+        host.rootViewController?.view.addSubview(overlay)
+        host.makeKeyAndVisible()
+        defer { overlay.cancelWork(); host.isHidden = true }
+        var configuration = fixtureSettings()
+        configuration.overlay = settings
+        overlay.update(regions: [.init(id: "ocr-preview", rect: CGRect(x: 0.2, y: 0.2, width: 0.2, height: 0.5),
+            source: untranslated.sourceText, sourceOrientation: .vertical)],
+            imageSize: frame.size, aspectFit: false, settings: configuration)
+        try await waitForRender(overlay)
+        let visibleText = try await overlay.webView.evaluateJavaScript(
+            "document.querySelector('[data-aidoku-image-ocr-overlay=\"item\"]')?.textContent") as? String
+        #expect(visibleText == untranslated.sourceText)
+        // There is no source bitmap in this fixture, so dark snapshot pixels
+        // can only come from the OCR fallback actually painting on screen.
+        try await export(overlay, image: nil, name: "ocr-preview-replacement.png")
     }
 
     // Opt-in real-image audit. Copy manifest.json and referenced images into the

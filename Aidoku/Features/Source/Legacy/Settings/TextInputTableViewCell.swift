@@ -45,6 +45,7 @@ class TextInputTableViewCell: UITableViewCell {
     }
 
     func configureTextField() {
+        cancellables.removeAll()
         placeholder = item?.placeholder
         textField.text = UserDefaults.standard.string(forKey: item?.key ?? "")
         if let value = item?.autocapitalizationType,

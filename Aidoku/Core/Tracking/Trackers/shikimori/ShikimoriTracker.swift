@@ -27,8 +27,8 @@ final class ShikimoriTracker: OAuthTracker {
         await api.register(trackId: trackId, highestChapterRead: highestChapterRead, earliestReadDate: earliestReadDate)
     }
 
-    func update(trackId: String, update: TrackUpdate) async {
-        await api.update(trackId: trackId, update: update)
+    func update(trackId: String, update: TrackUpdate) async throws {
+        try await api.update(trackId: trackId, update: update)
     }
 
     func getState(trackId: String) async -> TrackState {

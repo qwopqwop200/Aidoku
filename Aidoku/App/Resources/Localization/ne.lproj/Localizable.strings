@@ -1144,3 +1144,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "अनुवाद क्यासको भण्डारण अमान्य छ वा उपलब्ध छैन।";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "अनुवाद क्यास सुरक्षित गर्न सकिएन।";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud सिंकका परिवर्तनहरू Aidoku पूर्ण रूपमा बन्द गरेर फेरि खोल्दा लागू हुन्छन्। त्यतिन्जेल हालको सिंक सेटिङ सक्रिय रहन्छ।";

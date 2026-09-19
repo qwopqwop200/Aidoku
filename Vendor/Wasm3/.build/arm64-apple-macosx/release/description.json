@@ -1,0 +1,995 @@
+{
+  "builtTestProducts" : [
+    {
+      "binaryPath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.xctest/Contents/MacOS/Wasm3PackageTests",
+      "packagePath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3",
+      "productName" : "Wasm3PackageTests"
+    }
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.Wasm3-arm64-apple-macosx-release.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/sources",
+      "importPath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Environment.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Error.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Function.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Global.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/LinkedFunctionCache.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Memory.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Module.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Runtime.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Type.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Wasm3.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_api_libc.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_api_meta_wasi.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_api_tracer.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_api_uvwasi.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_api_wasi.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_bind.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_code.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_compile.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_core.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_env.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_exec.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_function.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_info.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_module.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_parse.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_support.build/yield.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "Wasm3",
+      "moduleOutputPath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Modules/Wasm3.swiftmodule",
+      "objects" : [
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Environment.swift.o",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Error.swift.o",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Function.swift.o",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Global.swift.o",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/LinkedFunctionCache.swift.o",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Memory.swift.o",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Module.swift.o",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Runtime.swift.o",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Type.swift.o",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Wasm3.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx12.0",
+        "-whole-module-optimization",
+        "-num-threads",
+        "14",
+        "-serialize-diagnostics",
+        "-O",
+        "-enable-testing",
+        "-j14",
+        "-DSWIFT_PACKAGE",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-Xcc",
+        "-fmodule-map-file=/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/module.modulemap",
+        "-Xcc",
+        "-I",
+        "-Xcc",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/wasm3-c/include",
+        "-Xcc",
+        "-fmodule-map-file=/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_support.build/module.modulemap",
+        "-Xcc",
+        "-I",
+        "-Xcc",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/wasm3-support/include",
+        "-module-cache-path",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/include/Wasm3-Swift.h",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "wasm3"
+      ],
+      "outputFileMapPath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Environment.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Error.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Function.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Global.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/LinkedFunctionCache.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Memory.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Module.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Runtime.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Type.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Wasm3.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Modules/Wasm3.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Environment.swift",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Error.swift",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Function.swift",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Global.swift",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/LinkedFunctionCache.swift",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Memory.swift",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Module.swift",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Runtime.swift",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Type.swift",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Wasm3.swift"
+      ],
+      "tempsPath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build",
+      "wholeModuleOptimization" : true
+    },
+    "C.Wasm3PackageTests-arm64-apple-macosx-release.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.build/sources",
+      "importPath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.derived/runner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Modules/Wasm3Tests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "Wasm3PackageTests",
+      "moduleOutputPath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Modules/Wasm3PackageTests.swiftmodule",
+      "objects" : [
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.build/runner.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx12.0",
+        "-whole-module-optimization",
+        "-num-threads",
+        "14",
+        "-serialize-diagnostics",
+        "-O",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j14",
+        "-DSWIFT_PACKAGE",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-Xcc",
+        "-fmodule-map-file=/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_support.build/module.modulemap",
+        "-Xcc",
+        "-I",
+        "-Xcc",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/wasm3-support/include",
+        "-Xcc",
+        "-fmodule-map-file=/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/module.modulemap",
+        "-Xcc",
+        "-I",
+        "-Xcc",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/wasm3-c/include",
+        "-module-cache-path",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.build/include/Wasm3PackageTests-Swift.h",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "wasm3"
+      ],
+      "outputFileMapPath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Modules/Wasm3PackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.derived/runner.swift"
+      ],
+      "tempsPath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.build",
+      "wholeModuleOptimization" : true
+    },
+    "C.Wasm3Tests-arm64-apple-macosx-release.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/sources",
+      "importPath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Tests/Wasm3Tests/CoreMemorySafetyTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Tests/Wasm3Tests/RuntimeLifetimeTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Modules/Wasm3.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "Wasm3Tests",
+      "moduleOutputPath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Modules/Wasm3Tests.swiftmodule",
+      "objects" : [
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/CoreMemorySafetyTests.swift.o",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/RuntimeLifetimeTests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-whole-module-optimization",
+        "-num-threads",
+        "14",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/index/store",
+        "-O",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j14",
+        "-DSWIFT_PACKAGE",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-Xcc",
+        "-fmodule-map-file=/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_support.build/module.modulemap",
+        "-Xcc",
+        "-I",
+        "-Xcc",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/wasm3-support/include",
+        "-Xcc",
+        "-fmodule-map-file=/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/module.modulemap",
+        "-Xcc",
+        "-I",
+        "-Xcc",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/wasm3-c/include",
+        "-module-cache-path",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "wasm3"
+      ],
+      "outputFileMapPath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/CoreMemorySafetyTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/RuntimeLifetimeTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Modules/Wasm3Tests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Tests/Wasm3Tests/CoreMemorySafetyTests.swift",
+        "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Tests/Wasm3Tests/RuntimeLifetimeTests.swift"
+      ],
+      "tempsPath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build",
+      "wholeModuleOptimization" : true
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "Wasm3" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "Wasm3",
+      "-package-name",
+      "wasm3",
+      "-c",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Environment.swift",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Error.swift",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Function.swift",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Global.swift",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/LinkedFunctionCache.swift",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Memory.swift",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Module.swift",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Runtime.swift",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Type.swift",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Wasm3.swift",
+      "-I",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Modules",
+      "-target",
+      "arm64-apple-macosx12.0",
+      "-whole-module-optimization",
+      "-num-threads",
+      "14",
+      "-serialize-diagnostics",
+      "-O",
+      "-enable-testing",
+      "-j14",
+      "-DSWIFT_PACKAGE",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-Xcc",
+      "-fmodule-map-file=/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/module.modulemap",
+      "-Xcc",
+      "-I",
+      "-Xcc",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/wasm3-c/include",
+      "-Xcc",
+      "-fmodule-map-file=/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_support.build/module.modulemap",
+      "-Xcc",
+      "-I",
+      "-Xcc",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/wasm3-support/include",
+      "-module-cache-path",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/include/Wasm3-Swift.h",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "wasm3",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "Wasm3PackageTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "Wasm3PackageTests",
+      "-package-name",
+      "wasm3",
+      "-c",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.derived/runner.swift",
+      "-I",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Modules",
+      "-target",
+      "arm64-apple-macosx12.0",
+      "-whole-module-optimization",
+      "-num-threads",
+      "14",
+      "-serialize-diagnostics",
+      "-O",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j14",
+      "-DSWIFT_PACKAGE",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-Xcc",
+      "-fmodule-map-file=/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_support.build/module.modulemap",
+      "-Xcc",
+      "-I",
+      "-Xcc",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/wasm3-support/include",
+      "-Xcc",
+      "-fmodule-map-file=/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/module.modulemap",
+      "-Xcc",
+      "-I",
+      "-Xcc",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/wasm3-c/include",
+      "-module-cache-path",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.build/include/Wasm3PackageTests-Swift.h",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "wasm3",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "Wasm3Tests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "Wasm3Tests",
+      "-package-name",
+      "wasm3",
+      "-c",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Tests/Wasm3Tests/CoreMemorySafetyTests.swift",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Tests/Wasm3Tests/RuntimeLifetimeTests.swift",
+      "-I",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-whole-module-optimization",
+      "-num-threads",
+      "14",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/index/store",
+      "-O",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j14",
+      "-DSWIFT_PACKAGE",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-Xcc",
+      "-fmodule-map-file=/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_support.build/module.modulemap",
+      "-Xcc",
+      "-I",
+      "-Xcc",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/wasm3-support/include",
+      "-Xcc",
+      "-fmodule-map-file=/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/module.modulemap",
+      "-Xcc",
+      "-I",
+      "-Xcc",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/wasm3-c/include",
+      "-module-cache-path",
+      "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "wasm3",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "Wasm3" : [
+      "wasm3_support",
+      "wasm3_c"
+    ],
+    "Wasm3PackageTests" : [
+      "Wasm3Tests",
+      "Wasm3",
+      "wasm3_support",
+      "wasm3_c"
+    ],
+    "Wasm3Tests" : [
+      "Wasm3",
+      "wasm3_support",
+      "wasm3_c"
+    ],
+    "wasm3_c" : [
+
+    ],
+    "wasm3_support" : [
+      "wasm3_c"
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.derived/runner.swift" : {
+      "inputs" : [
+
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Environment.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Error.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Function.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Global.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/LinkedFunctionCache.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Memory.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Module.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Runtime.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Type.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Wasm3.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/sources"
+    },
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.build/sources"
+    },
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Environment.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Error.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Function.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Global.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/LinkedFunctionCache.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Memory.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Module.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Runtime.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Type.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3.build/Wasm3.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/CoreMemorySafetyTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/RuntimeLifetimeTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_api_libc.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_api_meta_wasi.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_api_tracer.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_api_uvwasi.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_api_wasi.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_bind.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_code.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_compile.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_core.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_env.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_exec.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_function.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_info.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_module.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_c.build/m3_parse.c.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/wasm3_support.build/yield.c.o"
+        }
+      ],
+      "outputFilePath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3PackageTests.product/Objects.LinkFileList"
+    },
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Tests/Wasm3Tests/CoreMemorySafetyTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Tests/Wasm3Tests/RuntimeLifetimeTests.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/sources"
+    },
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

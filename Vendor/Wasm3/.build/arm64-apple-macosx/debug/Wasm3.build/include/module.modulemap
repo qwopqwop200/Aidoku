@@ -1,0 +1,3 @@
+module Wasm3 {
+    header "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/include/Wasm3-Swift.h"
+}

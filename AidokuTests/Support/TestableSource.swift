@@ -49,9 +49,9 @@ final class TestableSourceRunner: AidokuRunner.Runner {
 
     let storage = TestableSourceStorage()
     let failsProcessing: Bool
-    init(failsProcessing: Bool = false, processesPages: Bool = true) {
+    init(failsProcessing: Bool = false, processesPages: Bool = true, processesCovers: Bool = false) {
         self.failsProcessing = failsProcessing
-        features = .init(processesPages: processesPages)
+        features = .init(processesPages: processesPages, processesCovers: processesCovers)
     }
 
     func getSearchMangaList(query: String?, page: Int, filters: [AidokuRunner.FilterValue]) async throws -> AidokuRunner.MangaPageResult {
@@ -68,6 +68,11 @@ final class TestableSourceRunner: AidokuRunner.Runner {
 
     func processPageImage(response: Response, context: PageContext?) async throws -> PlatformImage? {
         await storage.process(context)
+        if failsProcessing { throw CancellationError() }
+        return nil
+    }
+
+    func processCoverImage(response: Response) async throws -> PlatformImage? {
         if failsProcessing { throw CancellationError() }
         return nil
     }

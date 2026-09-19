@@ -421,11 +421,17 @@ extension AppDelegate {
             for item in items where item.lastUpdatedChapters.timeIntervalSince1970 == 21600 {
                 item.lastUpdatedChapters = item.lastUpdated
             }
+            do { try context.save() } catch {
+                LogManager.logger.error("Failed to persist migrated chapter update dates: \(error)")
+            }
         }
 
         // move all sources in old sources directory to the new one
         FileManager.default.moveFiles(in: SourceManager.oldDirectory, to: SourceManager.directory)
-        SourceManager.oldDirectory.removeItem()
+        // Failed moves (for example insufficient storage or duplicate names) remain recoverable.
+        if let remaining = try? FileManager.default.contentsOfDirectory(atPath: SourceManager.oldDirectory.path), remaining.isEmpty {
+            SourceManager.oldDirectory.removeItem()
+        }
         await SourceManager.shared.reloadSources()
 
         await hideLoadingIndicator()
@@ -524,7 +530,7 @@ extension AppDelegate {
                         .map { String($0).removingPercentEncoding ?? String($0) }
 
                     if !pathComponents.isEmpty { // /sourceId/mangaId
-                        let mangaKey = pathComponents[0].removingPercentEncoding ?? url.pathComponents[1]
+                        let mangaKey = pathComponents[0]
                         guard
                             let navigationController,
                             let manga = try? await source.getMangaUpdate(
@@ -535,7 +541,7 @@ extension AppDelegate {
                         else {
                             return
                         }
-                        let chapterKey = pathComponents[safe: 1]?.removingPercentEncoding ?? pathComponents[safe: 1]
+                        let chapterKey = pathComponents[safe: 1]
                         let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
                         let action = components?.queryItems?.first(where: { $0.name == "action" })?.value.flatMap(MangaView.OpenAction.init)
 
@@ -819,7 +825,7 @@ extension AppDelegate {
                                 )
                             }
                             var newMangaIds: [String: String] = [:]
-                            var newChapterIds: [String: String] = [:]
+                            var newChapterIds: [ChapterIdentifier: String] = [:]
                             if source.features.handlesNotifications {
                                 try? await source.handleNotification(notification: "system.startMigration")
                             }
@@ -830,13 +836,13 @@ extension AppDelegate {
                                 newMangaIds[oldId] = try? await source.handleMigration(kind: .manga, mangaKey: oldId, chapterKey: nil)
                             }
                             for (mangaId, oldId) in libraryChaptersIds {
-                                newChapterIds[oldId] = try? await source.handleMigration(kind: .chapter, mangaKey: mangaId, chapterKey: oldId)
+                                newChapterIds[.init(sourceKey: source.id, mangaKey: mangaId, chapterKey: oldId)] = try? await source.handleMigration(kind: .chapter, mangaKey: mangaId, chapterKey: oldId)
                             }
                             if source.features.handlesNotifications {
                                 try? await source.handleNotification(notification: "system.endMigration")
                             }
-                            for (mangaId, oldId) in historyChapterIds where newChapterIds[oldId] == nil  {
-                                newChapterIds[oldId] = try? await source.handleMigration(kind: .chapter, mangaKey: mangaId, chapterKey: oldId)
+                            for (mangaId, oldId) in historyChapterIds where newChapterIds[.init(sourceKey: source.id, mangaKey: mangaId, chapterKey: oldId)] == nil  {
+                                newChapterIds[.init(sourceKey: source.id, mangaKey: mangaId, chapterKey: oldId)] = try? await source.handleMigration(kind: .chapter, mangaKey: mangaId, chapterKey: oldId)
                             }
                             await CoreDataManager.shared.container.performBackgroundTask { [newMangaIds, newChapterIds] context in
                                 let libraryObjects = CoreDataManager.shared.getLibraryManga(sourceKey: source.id, context: context)
@@ -850,12 +856,14 @@ extension AppDelegate {
                                     object.manga?.id = newId
                                 }
                                 for object in chapterObjects {
+                                    let oldKey = ChapterIdentifier(sourceKey: source.id, mangaKey: object.mangaId, chapterKey: object.id)
                                     object.mangaId = newMangaIds[object.mangaId] ?? object.mangaId
-                                    object.id = newChapterIds[object.id] ?? object.id
+                                    object.id = newChapterIds[oldKey] ?? object.id
                                 }
                                 for object in historyObjects {
+                                    let oldKey = ChapterIdentifier(sourceKey: source.id, mangaKey: object.mangaId, chapterKey: object.chapterId)
                                     object.mangaId = newMangaIds[object.mangaId] ?? object.mangaId
-                                    object.chapterId = newChapterIds[object.chapterId] ?? object.chapterId
+                                    object.chapterId = newChapterIds[oldKey] ?? object.chapterId
                                 }
                                 do {
                                     try context.save()
@@ -905,12 +913,11 @@ extension AppDelegate {
                 if textFieldDisablesLastActionWhenEmpty && textFieldHandlers.count == 1 {
                     actions.last?.isEnabled = !(textField.text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
 
-                    NotificationCenter.default.addObserver(forName: UITextField.textDidChangeNotification, object: textField, queue: .main) { _ in
-                        Task { @MainActor in
-                            let text = textField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                            actions.last?.isEnabled = !text.isEmpty
-                        }
-                    }
+                    let lastAction = actions.last
+                    textField.addAction(UIAction { [weak textField, weak lastAction] _ in
+                        let text = textField?.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                        lastAction?.isEnabled = !text.isEmpty
+                    }, for: .editingChanged)
                 }
             }
         }
@@ -944,9 +951,12 @@ extension AppDelegate: @MainActor UNUserNotificationCenterDelegate {
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+        // C++ interoperability imports this Objective-C options callback as Int.
+        // Match the actual delegate witness so foreground notifications arrive.
+        withCompletionHandler completionHandler: @escaping @Sendable (Int) -> Void
     ) {
-        completionHandler([.banner, .sound, .list])
+        let options: UNNotificationPresentationOptions = [.banner, .sound, .list]
+        completionHandler(Int(options.rawValue))
     }
 
     func userNotificationCenter(

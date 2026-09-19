@@ -147,9 +147,9 @@ extension KomgaSearchCondition: Encodable {
                 try container.encode(ConditionValue(operator: exclude ? "isNot" : "is", value: status.rawValue), forKey: .seriesStatus)
             case .sharingLabel(let genre, let exclude):
                 if genre.isEmpty {
-                    try container.encode(ConditionValue<String>(operator: exclude ? "isNull" : "isNotNull"), forKey: .genre)
+                    try container.encode(ConditionValue<String>(operator: exclude ? "isNull" : "isNotNull"), forKey: .sharingLabel)
                 } else {
-                    try container.encode(ConditionValue(operator: exclude ? "isNot" : "is", value: genre), forKey: .genre)
+                    try container.encode(ConditionValue(operator: exclude ? "isNot" : "is", value: genre), forKey: .sharingLabel)
                 }
             case .tag(let tag, let exclude):
                 if tag.isEmpty {

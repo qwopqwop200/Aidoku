@@ -142,9 +142,9 @@ extension OldMangaCollectionViewController {
             case .custom:
                 let isLandscape = containerWidth > environment.container.contentSize.height
                 itemsPerRow = if isLandscape {
-                    AppSettings.appearance.customLandscapeRows.get()
+                    max(1, AppSettings.appearance.customLandscapeRows.get())
                 } else {
-                    AppSettings.appearance.customPortraitRows.get()
+                    max(1, AppSettings.appearance.customPortraitRows.get())
                 }
         }
 
@@ -364,20 +364,22 @@ extension OldMangaCollectionViewController {
     }
 
     @objc func arrowKeyPressed(_ sender: UIKeyCommand) {
+        guard collectionView.numberOfSections > 0, collectionView.numberOfItems(inSection: 0) > 0 else { return }
         guard let focusedIndexPath else {
             self.focusedIndexPath = IndexPath(item: 0, section: 0)
             return
         }
 
+        guard focusedIndexPath.section < collectionView.numberOfSections else { self.focusedIndexPath = nil; return }
         var position = focusedIndexPath.row
         var section = focusedIndexPath.section
         let itemsPerRow = if usesListLayout {
             1
         } else {
             if UIScreen.main.bounds.width > UIScreen.main.bounds.height {
-                AppSettings.appearance.customLandscapeRows.get()
+                max(1, AppSettings.appearance.customLandscapeRows.get())
             } else {
-                AppSettings.appearance.customPortraitRows.get()
+                max(1, AppSettings.appearance.customPortraitRows.get())
             }
         }
         switch sender.input {
@@ -404,7 +406,8 @@ extension OldMangaCollectionViewController {
             }
         }
 
-        position = min(position, collectionView.numberOfItems(inSection: section) - 1)
+        guard collectionView.numberOfItems(inSection: section) > 0 else { return }
+        position = max(0, min(position, collectionView.numberOfItems(inSection: section) - 1))
         let newFocusedndexPath = IndexPath(row: position, section: section)
 
         self.collectionView.scrollToItem(at: newFocusedndexPath, at: .centeredVertically, animated: true)

@@ -48,8 +48,8 @@ struct BackupManga: Codable, Hashable {
         editedKeys = Int(mangaObject.editedKeys)
     }
 
-    func toObject(context: NSManagedObjectContext) -> MangaObject {
-        let obj = MangaObject(context: context)
+    func toObject(context: NSManagedObjectContext, existing: MangaObject? = nil) -> MangaObject {
+        let obj = existing ?? MangaObject(context: context)
         obj.id = id
         obj.sourceId = sourceId
         obj.title = title

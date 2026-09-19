@@ -62,9 +62,10 @@ class UserDefaultsBool: ObservableObject {
 
     init(key: String, defaultValue: Bool = false) {
         self.key = key
-        self.value = UserDefaults.standard.bool(forKey: key)
+        self.value = UserDefaults.standard.object(forKey: key) == nil ? defaultValue : UserDefaults.standard.bool(forKey: key)
 
         cancellable = NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self else { return }
                 let newValue = UserDefaults.standard.bool(forKey: self.key)

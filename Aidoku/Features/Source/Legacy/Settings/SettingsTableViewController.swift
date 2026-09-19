@@ -16,14 +16,18 @@ class SettingsTableViewController: UITableViewController {
     var items: [SettingItem]
     var source: Source?
 
-    var requireObservers: [SettingItem] = []
 
-    private var cancellables: Set<AnyCancellable> = []
+    private final class CellObservation {
+        weak var owner: UIView?
+        let token: AnyCancellable
+        init(owner: UIView, token: AnyCancellable) { self.owner = owner; self.token = token }
+    }
+    private var observations: [CellObservation] = []
 
-    func addObserver(forName name: Notification.Name, object: Any? = nil, using block: @escaping (Notification) -> Void) {
-        NotificationCenter.default.publisher(for: name)
-            .sink(receiveValue: block)
-            .store(in: &cancellables)
+    func addObserver(forName name: Notification.Name, owner: UIView, using block: @escaping (Notification) -> Void) {
+        observations.removeAll { $0.owner == nil }
+        let token = NotificationCenter.default.publisher(for: name).sink(receiveValue: block)
+        observations.append(CellObservation(owner: owner, token: token))
     }
 
     init(items: [SettingItem] = [], source: Source? = nil, style: UITableView.Style = .insetGrouped) {
@@ -74,7 +78,8 @@ extension SettingsTableViewController {
         cell.detailTextLabel?.textColor = .secondaryLabel
         let switchView = UISwitch()
         switchView.defaultsKey = item.key ?? ""
-        switchView.handleChange { isOn in
+        switchView.handleChange { [weak self, weak switchView] isOn in
+            guard let switchView else { return }
             if item.authToDisable ?? false && !isOn {
                 let context = LAContext()
                 if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil) {
@@ -92,26 +97,26 @@ extension SettingsTableViewController {
                 }
             }
             if let notification = item.notification {
-                self.source?.performAction(key: notification)
+                self?.source?.performAction(key: notification)
                 NotificationCenter.default.post(name: Notification.Name(notification), object: item)
             }
         }
         if let requires = item.requires {
             switchView.isEnabled = UserDefaults.standard.bool(forKey: requires)
-            addObserver(forName: .init(requires)) { _ in
+            addObserver(forName: .init(requires), owner: switchView) { [weak switchView] _ in
                 Task { @MainActor in
+                    guard let switchView else { return }
                     switchView.isEnabled = UserDefaults.standard.bool(forKey: requires)
                 }
             }
-            requireObservers.append(item)
         } else if let requires = item.requiresFalse {
             switchView.isEnabled = !UserDefaults.standard.bool(forKey: requires)
-            addObserver(forName: .init(requires)) { _ in
+            addObserver(forName: .init(requires), owner: switchView) { [weak switchView] _ in
                 Task { @MainActor in
+                    guard let switchView else { return }
                     switchView.isEnabled = !UserDefaults.standard.bool(forKey: requires)
                 }
             }
-            requireObservers.append(item)
         } else {
             switchView.isEnabled = true
         }
@@ -129,37 +134,44 @@ extension SettingsTableViewController {
         cell.detailLabel.text = String(UserDefaults.standard.integer(forKey: item.key ?? ""))
 
         let stepperView = cell.stepperView
-        if let max = item.maximumValue {
-            stepperView.maximumValue = max
+        let minimum = item.minimumValue ?? 0
+        let maximum = item.maximumValue ?? 100
+        guard minimum.isFinite, maximum.isFinite, maximum > minimum else {
+            cell.detailLabel.text = NSLocalizedString("SETTING_INVALID_STEPPER_RANGE")
+            stepperView.isEnabled = false
+            return cell
         }
-        if let min = item.minimumValue {
-            stepperView.minimumValue = min
-        }
-        stepperView.stepValue = item.stepValue ?? 1
+        // Expand before moving the lower bound so entirely negative or positive
+        // ranges do not cross the control's current bounds during configuration.
+        stepperView.maximumValue = max(stepperView.maximumValue, maximum)
+        stepperView.minimumValue = minimum
+        stepperView.maximumValue = maximum
+        let requestedStep = item.stepValue ?? 1
+        stepperView.stepValue = requestedStep.isFinite && requestedStep > 0 ? requestedStep : 1
         stepperView.defaultsKey = item.key ?? ""
-        stepperView.handleChange { _ in
-            cell.detailLabel.text = String(UserDefaults.standard.integer(forKey: item.key ?? ""))
+        stepperView.handleChange { [weak self, weak cell] _ in
+            cell?.detailLabel.text = String(UserDefaults.standard.integer(forKey: item.key ?? ""))
             if let notification = item.notification {
-                self.source?.performAction(key: notification)
+                self?.source?.performAction(key: notification)
                 NotificationCenter.default.post(name: Notification.Name(notification), object: item)
             }
         }
         if let requires = item.requires {
             stepperView.isEnabled = UserDefaults.standard.bool(forKey: requires)
-            NotificationCenter.default.addObserver(forName: Notification.Name(requires), object: nil, queue: nil) { _ in
+            addObserver(forName: Notification.Name(requires), owner: cell) { [weak cell] _ in
                 Task { @MainActor in
-                    stepperView.isEnabled = UserDefaults.standard.bool(forKey: requires)
+                    guard let cell else { return }
+                    cell.stepperView.isEnabled = UserDefaults.standard.bool(forKey: requires)
                 }
             }
-            requireObservers.append(item)
         } else if let requires = item.requiresFalse {
             stepperView.isEnabled = !UserDefaults.standard.bool(forKey: requires)
-            NotificationCenter.default.addObserver(forName: Notification.Name(requires), object: nil, queue: nil) { _ in
+            addObserver(forName: Notification.Name(requires), owner: cell) { [weak cell] _ in
                 Task { @MainActor in
-                    stepperView.isEnabled = !UserDefaults.standard.bool(forKey: requires)
+                    guard let cell else { return }
+                    cell.stepperView.isEnabled = !UserDefaults.standard.bool(forKey: requires)
                 }
             }
-            requireObservers.append(item)
         } else {
             stepperView.isEnabled = true
         }
@@ -182,15 +194,16 @@ extension SettingsTableViewController {
             if let key = item.key {
                 if let value = UserDefaults.standard.string(forKey: key),
                    let index = item.values?.firstIndex(of: value) {
-                    cell.detailTextLabel?.text = item.titles?[index] ?? item.values?[index]
+                    cell.detailTextLabel?.text = item.titles.flatMap { $0.indices.contains(index) ? $0[index] : nil } ?? item.values?[index]
                 }
-                addObserver(forName: .init(key)) { _ in
-                    Task { @MainActor in
+                addObserver(forName: .init(key), owner: cell) { [weak cell] _ in
+                Task { @MainActor in
+                    guard let cell else { return }
                         if
                             let value = UserDefaults.standard.string(forKey: key),
                             let index = item.values?.firstIndex(of: value)
                         {
-                            cell.detailTextLabel?.text = item.titles?[index] ?? item.values?[index]
+                            cell.detailTextLabel?.text = item.titles.flatMap { $0.indices.contains(index) ? $0[index] : nil } ?? item.values?[index]
                         }
                     }
                 }
@@ -199,23 +212,23 @@ extension SettingsTableViewController {
             if let requires = item.requires {
                 cell.textLabel?.textColor = UserDefaults.standard.bool(forKey: requires) ? .label : .secondaryLabel
                 cell.selectionStyle = UserDefaults.standard.bool(forKey: requires) ? .default : .none
-                addObserver(forName: .init(requires)) { _ in
-                    Task { @MainActor in
+                addObserver(forName: .init(requires), owner: cell) { [weak cell] _ in
+                Task { @MainActor in
+                    guard let cell else { return }
                         cell.textLabel?.textColor = UserDefaults.standard.bool(forKey: requires) ? .label : .secondaryLabel
                         cell.selectionStyle = UserDefaults.standard.bool(forKey: requires) ? .default : .none
                     }
                 }
-                requireObservers.append(item)
             } else if let requires = item.requiresFalse {
                 cell.textLabel?.textColor = !UserDefaults.standard.bool(forKey: requires) ? .label : .secondaryLabel
                 cell.selectionStyle = !UserDefaults.standard.bool(forKey: requires) ? .default : .none
-                addObserver(forName: .init(requires)) { _ in
-                    Task { @MainActor in
+                addObserver(forName: .init(requires), owner: cell) { [weak cell] _ in
+                Task { @MainActor in
+                    guard let cell else { return }
                         cell.textLabel?.textColor = !UserDefaults.standard.bool(forKey: requires) ? .label : .secondaryLabel
                         cell.selectionStyle = !UserDefaults.standard.bool(forKey: requires) ? .default : .none
                     }
                 }
-                requireObservers.append(item)
             } else {
                 cell.selectionStyle = .default
             }
@@ -228,15 +241,16 @@ extension SettingsTableViewController {
             if item.type == "multi-single-select", let key = item.key {
                 if let value = UserDefaults.standard.stringArray(forKey: item.key ?? "")?.first,
                    let index = item.values?.firstIndex(of: value) {
-                    cell.detailTextLabel?.text = item.titles?[index] ?? item.values?[index]
+                    cell.detailTextLabel?.text = item.titles.flatMap { $0.indices.contains(index) ? $0[index] : nil } ?? item.values?[index]
                 }
-                addObserver(forName: .init(key)) { _ in
-                    Task { @MainActor in
+                addObserver(forName: .init(key), owner: cell) { [weak cell] _ in
+                Task { @MainActor in
+                    guard let cell else { return }
                         if
                             let value = UserDefaults.standard.stringArray(forKey: item.key ?? "")?.first,
                             let index = item.values?.firstIndex(of: value)
                         {
-                            cell.detailTextLabel?.text = item.titles?[index] ?? item.values?[index]
+                            cell.detailTextLabel?.text = item.titles.flatMap { $0.indices.contains(index) ? $0[index] : nil } ?? item.values?[index]
                         }
                     }
                 }
@@ -245,23 +259,23 @@ extension SettingsTableViewController {
             if let requires = item.requires {
                 cell.textLabel?.textColor = UserDefaults.standard.bool(forKey: requires) ? .label : .secondaryLabel
                 cell.selectionStyle = UserDefaults.standard.bool(forKey: requires) ? .default : .none
-                addObserver(forName: .init(requires)) { _ in
-                    Task { @MainActor in
+                addObserver(forName: .init(requires), owner: cell) { [weak cell] _ in
+                Task { @MainActor in
+                    guard let cell else { return }
                         cell.textLabel?.textColor = UserDefaults.standard.bool(forKey: requires) ? .label : .secondaryLabel
                         cell.selectionStyle = UserDefaults.standard.bool(forKey: requires) ? .default : .none
                     }
                 }
-                requireObservers.append(item)
             } else if let requires = item.requiresFalse {
                 cell.textLabel?.textColor = !UserDefaults.standard.bool(forKey: requires) ? .label : .secondaryLabel
                 cell.selectionStyle = !UserDefaults.standard.bool(forKey: requires) ? .default : .none
-                addObserver(forName: .init(requires)) { _ in
-                    Task { @MainActor in
+                addObserver(forName: .init(requires), owner: cell) { [weak cell] _ in
+                Task { @MainActor in
+                    guard let cell else { return }
                         cell.textLabel?.textColor = !UserDefaults.standard.bool(forKey: requires) ? .label : .secondaryLabel
                         cell.selectionStyle = !UserDefaults.standard.bool(forKey: requires) ? .default : .none
                     }
                 }
-                requireObservers.append(item)
             } else {
                 cell.selectionStyle = .default
             }
@@ -289,11 +303,11 @@ extension SettingsTableViewController {
             return cell
 
         case "text":
-            cell = TextInputTableViewCell(reuseIdentifier: "TextInputTableViewCell")
+            cell = TextInputTableViewCell(source: source, reuseIdentifier: "TextInputTableViewCell")
             (cell as? TextInputTableViewCell)?.item = item
 
         case "segment":
-            cell = SegmentTableViewCell(item: item, reuseIdentifier: nil)
+            cell = SegmentTableViewCell(source: source, item: item, reuseIdentifier: nil)
 
         default:
             cell = tableView.dequeueReusableCell(withIdentifier: "UITableViewCell", for: indexPath)

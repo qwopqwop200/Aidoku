@@ -64,6 +64,7 @@ extension LocalFileImportView {
         @State private var loadingFile = false
         @State private var loadingImport = false
         @State private var importing = false
+        @State private var savingImport = false
         @State private var showImportFailAlert = false
         @State private var showSeriesConfigurePage = false
         @State private var showImagePicker = false
@@ -123,7 +124,7 @@ extension LocalFileImportView.ContentView {
                                 Text(NSLocalizedString("IMPORT")).bold()
                             }
                         }
-                        .disabled(!volumeChapterValid || volumeChapterEmpty)
+                        .disabled(savingImport || !volumeChapterValid || volumeChapterEmpty)
                     }
                 }
             }
@@ -449,11 +450,11 @@ extension LocalFileImportView.ContentView {
             ?? LocalFileNameParser.getMangaChapterNumber(from: fileInfo.name)
             ?? 1
         Task {
-            let hasSeries = await LocalFileDataManager.shared.hasSeries(id: seriesName.percentEncoded())
+            let hasSeries = await LocalFileDataManager.shared.hasSeries(id: seriesName.normalized)
             nameEmpty = selectedMangaId.isEmpty ? seriesName.isEmpty : false
             nameValid = !hasSeries
             if hasSeries {
-                selectedMangaId = seriesName
+                selectedMangaId = seriesName.normalized
                 selectedMangaTitle = seriesName
             }
         }
@@ -482,7 +483,7 @@ extension LocalFileImportView.ContentView {
         if selectedMangaId.isEmpty {
             nameEmpty = seriesName.isEmpty
             Task {
-                nameValid = !(await LocalFileDataManager.shared.hasSeries(id: seriesName.percentEncoded()))
+                nameValid = !(await LocalFileDataManager.shared.hasSeries(id: seriesName.normalized))
             }
         } else {
             nameEmpty = false
@@ -491,7 +492,9 @@ extension LocalFileImportView.ContentView {
     }
 
     func importFile() async {
-        guard let fileInfo else { return }
+        guard let fileInfo, !savingImport else { return }
+        savingImport = true
+        defer { savingImport = false }
         do {
             guard await SourceManager.shared.ensureLocalSourceForImport() else {
                 showImportFailAlert = true
@@ -603,7 +606,7 @@ extension LocalFileImportView.ContentView {
                 } label: {
                     Text(NSLocalizedString("IMPORT")).bold()
                 }
-                .disabled(!nameValid || !volumeChapterValid || nameEmpty || volumeChapterEmpty)
+                .disabled(savingImport || !nameValid || !volumeChapterValid || nameEmpty || volumeChapterEmpty)
             }
         }
         .navigationTitle(NSLocalizedString("NEW_SERIES"))
@@ -635,7 +638,7 @@ extension LocalFileImportView.ContentView {
 
                     ForEach(series, id: \.self) { item in
                         seriesView(
-                            id: item.name,
+                            id: item.id,
                             imageUrl: item.coverUrl,
                             title: item.name,
                             subtitle: {
@@ -657,6 +660,7 @@ extension LocalFileImportView.ContentView {
                 searchTask?.cancel()
                 searchTask = Task {
                     let results = await LocalFileDataManager.shared.fetchLocalSeriesInfo(query: searchText)
+                    guard !Task.isCancelled else { return }
                     withAnimation {
                         series = results
                     }

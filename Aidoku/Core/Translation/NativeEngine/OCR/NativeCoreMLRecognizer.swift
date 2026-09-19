@@ -2340,18 +2340,24 @@ enum NativeCoreMLRecognitionPreprocessor {
         let widthBottom = distance(quad.bottomLeft, quad.bottomRight)
         let heightLeft = distance(quad.topLeft, quad.bottomLeft)
         let heightRight = distance(quad.topRight, quad.bottomRight)
-        let cropWidth = max(1, Int(floor(max(widthTop, widthBottom))))
-        let cropHeight = max(1, Int(floor(max(heightLeft, heightRight))))
+        let width = max(widthTop, widthBottom)
+        let height = max(heightLeft, heightRight)
+        // Finite input points can still produce overflowing distances or
+        // dimensions outside Int's range. Reject before converting geometry.
+        guard width.isFinite, height.isFinite,
+              width < Double(Int.max), height < Double(Int.max) else { return nil }
+        let cropWidth = max(1, Int(floor(width)))
+        let cropHeight = max(1, Int(floor(height)))
         guard cropWidth > 1, cropHeight > 1 else { return nil }
 
         let rotated = Double(cropHeight) / Double(cropWidth) >= 1.5
         let orientedWidth = rotated ? cropHeight : cropWidth
         let orientedHeight = rotated ? cropWidth : cropHeight
         let ratio = Double(orientedWidth) / Double(max(1, orientedHeight))
-        let desiredWidth = min(
-            maximumTargetWidth,
-            max(1, Int(ceil(Double(targetHeight) * ratio)))
-        )
+        let desiredWidth = Int(min(
+            Double(maximumTargetWidth),
+            max(1, ceil(Double(targetHeight) * ratio))
+        ))
         let bucket = NativeCoreMLRecognitionBucket.containing(
             desiredWidth: desiredWidth,
             dynamicWidth: dynamicWidth,

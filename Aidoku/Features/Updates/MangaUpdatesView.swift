@@ -135,8 +135,9 @@ struct MangaUpdatesView: View {
 
 extension MangaUpdatesView {
     private func loadNewEntries() async {
-        let newUpdates = await CoreDataManager.shared.container.performBackgroundTask { [offset] context in
-            CoreDataManager.shared.getRecentMangaUpdates(limit: limit, offset: offset, context: context).compactMap {
+        let (newUpdates, fetchedCount) = await CoreDataManager.shared.container.performBackgroundTask { [offset] context in
+            let rows = CoreDataManager.shared.getRecentMangaUpdates(limit: limit, offset: offset, context: context)
+            let updates: [UpdateInfo] = rows.compactMap {
                 if let mangaObj = CoreDataManager.shared.getManga(
                     mangaId: $0.identifier.mangaIdentifier,
                     context: context
@@ -153,12 +154,17 @@ extension MangaUpdatesView {
                     return nil
                 }
             }
+            return (updates, rows.count)
         }
+        guard !Task.isCancelled else { return }
+        offset += fetchedCount
         guard !newUpdates.isEmpty else {
-            reachedEnd = true
+            reachedEnd = fetchedCount < limit
             loadingMore = false
-            withAnimation {
-                hasNoUpdates = entries.isEmpty
+            if !reachedEnd {
+                await loadNewEntries()
+            } else {
+                withAnimation { hasNoUpdates = entries.isEmpty }
             }
             return
         }
@@ -198,8 +204,7 @@ extension MangaUpdatesView {
 
         guard !Task.isCancelled else { return }
 
-        offset += limit
-        reachedEnd = newUpdates.count < limit
+        reachedEnd = fetchedCount < limit
 
         withAnimation {
             entries = newEntries
@@ -241,12 +246,29 @@ extension MangaUpdatesView {
         }
 
         Task {
-            await CoreDataManager.shared.container.performBackgroundTask { context in
+            await loadingTask?.value
+            let removed = await CoreDataManager.shared.container.performBackgroundTask { context in
                 CoreDataManager.shared.removeMangaUpdates(
                     updates: updates,
                     context: context
                 )
-                try? context.save()
+                do {
+                    try context.save()
+                    return true
+                } catch {
+                    context.rollback()
+                    return false
+                }
+            }
+            if removed {
+                offset = max(0, offset - updates.count)
+            } else {
+                entries = []
+                offset = 0
+                reachedEnd = false
+                hasNoUpdates = false
+                loadingMore = true
+                await loadNewEntries()
             }
         }
     }

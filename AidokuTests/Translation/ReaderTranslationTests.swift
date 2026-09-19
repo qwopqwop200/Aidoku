@@ -33,12 +33,23 @@ struct ReaderTranslationTests {
     }
 
     @Test func largeChaptersAreBatchedWithoutLosingIDsOrUTF8Text() throws {
-        let settings = ReaderTranslationSettings()
+        let suite = "ReaderTranslationBatchTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var settings = ReaderTranslationSettings(defaults: defaults)
+        settings.sourceLanguage = "auto"
+        settings.translationSourceLanguages = []
+        let sourceText = String(repeating: "猫", count: 2_000)
         let regions = (0..<100).map { index in
-            ReaderTranslationRegion(id: "line-\(index)", rect: .zero, source: String(repeating: "猫", count: 1_000))
+            ReaderTranslationRegion(id: "line-\(index)", rect: .zero, source: sourceText)
         }
         let requests = try ReaderTranslationService.requests(regions: regions, settings: settings)
         #expect(requests.count > 3)
+        let capacity = min(RemoteTranslationRequest.maximumSegments,
+                           RemoteTranslationRequest.maximumSourceBytes / sourceText.utf8.count)
+        #expect(requests.count == (regions.count + capacity - 1) / capacity)
+        #expect(requests.dropLast().allSatisfy { $0.segments.count == capacity })
+        #expect(requests.allSatisfy { $0.segments.count <= RemoteTranslationRequest.maximumSegments })
         #expect(requests.flatMap(\.segments).map(\.id) == regions.map(\.id))
         #expect(requests.flatMap(\.segments).map(\.text) == regions.map(\.source))
         #expect(requests.allSatisfy { $0.segments.reduce(0) { $0 + $1.text.utf8.count } <= RemoteTranslationRequest.maximumSourceBytes })

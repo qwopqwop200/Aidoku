@@ -7,6 +7,7 @@
 
 import BackgroundTasks
 import Foundation
+import CoreData
 import UIKit
 
 actor BackupManager {
@@ -20,6 +21,7 @@ actor BackupManager {
 
     private static let backupTaskIdentifier = (Bundle.main.bundleIdentifier ?? "") + ".backup"
     private static let maxAutoBackups = 4
+    private var isCreatingAutoBackup = false
 
     private static let excludedSettings: Set<String> = [
         AppSettings.browse.sourceLists.key, // stored separately
@@ -47,24 +49,31 @@ actor BackupManager {
         "Dictionary"
     ]
 
-    func save(backup: Backup, url: URL? = nil) {
-        Self.directory.createDirectory()
+    @discardableResult
+    func save(backup: Backup, url: URL? = nil) -> Bool {
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .binary
-        if let plist = try? encoder.encode(backup) {
-            if let url = url {
-                try? plist.write(to: url)
+        do {
+            let target: URL
+            if let url {
+                target = url
             } else {
+                try FileManager.default.createDirectory(at: Self.directory, withIntermediateDirectories: true)
                 let dateFormatter = DateFormatter()
                 dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-                let path = Self.directory.appendingPathComponent("aidoku_\(dateFormatter.string(from: backup.date)).aib")
-                try? plist.write(to: path)
+                target = Self.directory.appendingPathComponent("aidoku_\(dateFormatter.string(from: backup.date))_\(UUID().uuidString).aib")
             }
+            try encoder.encode(backup).write(to: target, options: .atomic)
             NotificationCenter.default.post(name: .updateBackupList, object: nil)
+            return true
+        } catch {
+            LogManager.logger.error("Could not save backup: \(error.localizedDescription)")
+            return false
         }
     }
 
-    func saveNewBackup(name: String = "", options: BackupOptions) async {
+    @discardableResult
+    func saveNewBackup(name: String = "", options: BackupOptions) async -> Bool {
         save(backup: await createBackup(name: name, options: options))
     }
 
@@ -107,66 +116,66 @@ actor BackupManager {
     }
 
     func createBackup(name: String = "", options: BackupOptions) async -> Backup {
-        let sourceLists: [String] = if options.sourceLists {
+        let sourceLists: [String]? = if options.sourceLists {
             await SourceManager.shared.getSourceListURLs().map { $0.absoluteString }
         } else {
-            []
+            nil
         }
         return await CoreDataManager.shared.container.performBackgroundTask { context in
-            let library: [BackupLibraryManga] = if options.libraryEntries {
+            let library: [BackupLibraryManga]? = if options.libraryEntries {
                 CoreDataManager.shared.getLibraryManga(context: context).map {
                     BackupLibraryManga(libraryObject: $0, skipCategories: !options.categories)
                 }
             } else {
-                []
+                nil
             }
-            let history: [BackupHistory] = if options.history {
+            let history: [BackupHistory]? = if options.history {
                 CoreDataManager.shared.getHistory(context: context).map {
                     BackupHistory(historyObject: $0)
                 }
             } else {
-                []
+                nil
             }
-            let manga: [BackupManga] = if options.libraryEntries {
+            let manga: [BackupManga]? = if options.libraryEntries {
                 CoreDataManager.shared.getManga(context: context).map {
                     BackupManga(mangaObject: $0)
                 }
             } else {
-                []
+                nil
             }
-            let chapters: [BackupChapter] = if options.chapters {
+            let chapters: [BackupChapter]? = if options.chapters {
                 CoreDataManager.shared.getChapters(context: context).map {
                     BackupChapter(chapterObject: $0)
                 }
             } else {
-                []
+                nil
             }
-            let trackItems: [BackupTrackItem] = if options.tracking {
+            let trackItems: [BackupTrackItem]? = if options.tracking {
                 CoreDataManager.shared.getTracks(context: context).compactMap {
                     BackupTrackItem(trackObject: $0)
                 }
             } else {
-                []
+                nil
             }
-            let sessionItems: [BackupReadingSession] = if options.readingSessions {
+            let sessionItems: [BackupReadingSession]? = if options.readingSessions {
                 CoreDataManager.shared.getSessions(context: context).compactMap(BackupReadingSession.init)
             } else {
-                []
+                nil
             }
-            let vocabulary: [BackupVocabEntry] = if options.vocabulary {
+            let vocabulary: [BackupVocabEntry]? = if options.vocabulary {
                 CoreDataManager.shared.getVocab(context: context).compactMap(BackupVocabEntry.init)
             } else {
-                []
+                nil
             }
-            let updateItems: [BackupUpdate] = if options.updates {
+            let updateItems: [BackupUpdate]? = if options.updates {
                 CoreDataManager.shared.getUpdates(context: context).compactMap(BackupUpdate.init)
             } else {
-                []
+                nil
             }
-            let categories: [BackupCategory] = if options.categories {
+            let categories: [BackupCategory]? = if options.categories {
                 CoreDataManager.shared.getCategories(context: context).compactMap(BackupCategory.init)
             } else {
-                []
+                nil
             }
             let sources: [BackupSource] = CoreDataManager.shared.getSources(context: context).compactMap(BackupSource.init)
 
@@ -242,8 +251,7 @@ actor BackupManager {
     func renameBackup(url: URL, name: String?) -> Bool {
         guard var backup = Backup.load(from: url) else { return false }
         backup.name = name?.isEmpty ?? true ? nil : name
-        save(backup: backup, url: url)
-        return true
+        return save(backup: backup, url: url)
     }
 
     func removeBackup(url: URL) {
@@ -281,10 +289,145 @@ extension BackupManager {
         }
     }
 
+    /// Stage a restore in one context. The caller commits only after every section succeeds.
+    nonisolated static func restoreDatabase(from backup: Backup, context: NSManagedObjectContext) throws {
+        func valid16(_ values: Int?...) -> Bool {
+            values.allSatisfy { $0 == nil || Int16(exactly: $0!) != nil }
+        }
+        guard (backup.manga ?? []).allSatisfy({
+            valid16($0.status, $0.nsfw, $0.viewer, $0.chapterFlags) && Int32(exactly: $0.editedKeys ?? 0) != nil
+        }) else { throw BackupError.manga }
+        guard (backup.categories ?? []).allSatisfy({ valid16($0.sort) }) else { throw BackupError.categories }
+        guard (backup.chapters ?? []).allSatisfy({ valid16($0.sourceOrder) }) else { throw BackupError.chapters }
+        guard (backup.history ?? []).allSatisfy({
+            valid16($0.progress, $0.total) && ($0.scrollPosition?.isFinite ?? true)
+        }) else { throw BackupError.history }
+        guard (backup.readingSessions ?? []).allSatisfy({ valid16($0.pagesRead) }) else { throw BackupError.sessions }
+        guard (backup.trackItems ?? []).allSatisfy({ valid16($0.chapterOffset) }) else { throw BackupError.track }
+        guard (backup.vocabulary ?? []).allSatisfy({ valid16($0.page, $0.clozeOffset) }) else { throw BackupError.vocabulary }
+
+        func index<T, K: Hashable>(_ rows: [T], key: (T) -> K) -> [K: T] {
+            Dictionary(rows.map { (key($0), $0) }, uniquingKeysWith: { first, _ in first })
+        }
+        func delete<T: NSManagedObject>(_ request: NSFetchRequest<T>) throws {
+            for row in try context.fetch(request) { context.delete(row) }
+        }
+        var manga = index(try context.fetch(MangaObject.fetchRequest()), key: { $0.identifier })
+        if let items = backup.manga {
+            // Metadata is shared by downloads, history and unselected sections. Update it in place.
+            for item in items {
+                let key = MangaIdentifier(sourceKey: item.sourceId, mangaKey: item.id)
+                manga[key] = item.toObject(context: context, existing: manga[key])
+            }
+        }
+        var categories = index(try context.fetch(CategoryObject.fetchRequest()), key: { $0.title ?? "" })
+        if let items = backup.categories {
+            let titles = Set(items.map { $0.title ?? "" })
+            for (title, row) in categories where !titles.contains(title) {
+                context.delete(row)
+                categories.removeValue(forKey: title)
+            }
+            for item in items {
+                let title = item.title ?? ""
+                categories[title] = item.toObject(context: context, existing: categories[title])
+            }
+        }
+        if let items = backup.library {
+            var library = index(try context.fetch(LibraryMangaObject.fetchRequest()), key: {
+                $0.manga?.identifier ?? MangaIdentifier(sourceKey: "", mangaKey: "")
+            })
+            let keys = Set(items.map(\.identifier))
+            for (key, row) in library where !keys.contains(key) { context.delete(row) }
+            for item in items {
+                guard let parent = manga[item.identifier] else { throw BackupError.library }
+                let row = item.toObject(context: context, existing: library[item.identifier])
+                row.manga = parent
+                if let titles = item.categories {
+                    row.categories = NSSet(array: titles.compactMap { categories[$0] })
+                }
+                library[item.identifier] = row
+            }
+        }
+        var history = index(try context.fetch(HistoryObject.fetchRequest()), key: { $0.identifier })
+        if let items = backup.history {
+            let keys = Set(items.map { ChapterIdentifier(sourceKey: $0.sourceId, mangaKey: $0.mangaId, chapterKey: $0.chapterId) })
+            for (key, row) in history where !keys.contains(key) {
+                // Sessions cascade from history. An unselected section must survive a partial restore.
+                if backup.readingSessions == nil && (row.sessions?.count ?? 0) > 0 { continue }
+                context.delete(row)
+                history.removeValue(forKey: key)
+            }
+            for item in items {
+                let key = ChapterIdentifier(sourceKey: item.sourceId, mangaKey: item.mangaId, chapterKey: item.chapterId)
+                history[key] = item.toObject(context: context, existing: history[key])
+            }
+        }
+        var chapters = index(try context.fetch(ChapterObject.fetchRequest()), key: { $0.identifier })
+        if let items = backup.chapters {
+            let keys = Set(items.map { ChapterIdentifier(sourceKey: $0.sourceId, mangaKey: $0.mangaId, chapterKey: $0.id) })
+            for (key, row) in chapters where !keys.contains(key) {
+                if row.fileInfo != nil || (backup.updates == nil && row.mangaUpdate != nil) { continue }
+                context.delete(row)
+                chapters.removeValue(forKey: key)
+            }
+            for item in items {
+                let key = ChapterIdentifier(sourceKey: item.sourceId, mangaKey: item.mangaId, chapterKey: item.id)
+                chapters[key] = item.toObject(context: context, existing: chapters[key])
+            }
+        }
+        // Relink both restored and retained records, including history-only restores.
+        for (key, row) in chapters {
+            row.manga = manga[key.mangaIdentifier]
+            row.history = history[key]
+        }
+        if let items = backup.readingSessions {
+            try delete(ReadingSessionObject.fetchRequest())
+            for item in items where item.endDate > item.startDate && item.pagesRead > 0 {
+                let row = item.toObject(context: context)
+                row.history = history[item.identifier] ?? CoreDataManager.shared.getOrCreateHistory(chapterId: item.identifier, context: context)
+            }
+        }
+        if let items = backup.updates {
+            try delete(MangaUpdateObject.fetchRequest())
+            for item in items {
+                let row = item.toObject(context: context)
+                row.chapter = chapters[.init(sourceKey: item.sourceId, mangaKey: item.mangaId, chapterKey: item.chapterId)]
+            }
+        }
+        if let items = backup.trackItems {
+            try delete(TrackObject.fetchRequest())
+            for item in items { _ = item.toObject(context: context) }
+        }
+        if let items = backup.vocabulary {
+            // Images stay on this device; preserve links for matching vocabulary entries.
+            let existing = try context.fetch(VocabObject.fetchRequest())
+            let images = Dictionary(existing.compactMap { row -> (BackupVocabEntry, String)? in
+                guard let entry = BackupVocabEntry(row), let image = row.localImageId else { return nil }
+                return (entry, image)
+            }, uniquingKeysWith: { first, _ in first })
+            existing.forEach(context.delete)
+            for item in items {
+                let row = item.toObject(context: context)
+                row.localImageId = images[item]
+            }
+        }
+        if let items = backup.sources {
+            let sources = index(try context.fetch(SourceObject.fetchRequest()), key: { $0.id ?? "" })
+            for item in items where item.config != nil {
+                guard item.apiVersion != nil else { throw BackupError.sources }
+                if let existing = sources[item.id] {
+                    existing.apiVersion = item.apiVersion
+                    existing.customSource = item.config as NSObject?
+                } else {
+                    _ = item.toObject(context: context)
+                }
+            }
+        }
+    }
+
     func restore(from url: URL) async -> Bool {
         guard let backup = Backup.load(from: url) else { return false }
-        await doRestore(from: backup)
-        return true
+        return await doRestore(from: backup)
     }
 
     @discardableResult
@@ -295,286 +438,36 @@ extension BackupManager {
             UIApplication.shared.isIdleTimerDisabled = true
         }
 
-        let sourceListsTask = Task {
-            await SourceManager.shared.waitForSourceListsLoad()
-            // restore source lists
-            guard let sourceLists = backup.sourceLists else { return }
-            await SourceManager.shared.clearSourceLists()
-            for sourceList in sourceLists {
-                guard let sourceListURL = URL(string: sourceList) else { continue }
-                _ = await SourceManager.shared.addSourceList(url: sourceListURL, allowUnavailable: true)
-            }
-        }
-
-        let mangaTask = Task {
-            if let backupManga = backup.manga {
-                let result = await CoreDataManager.shared.container.performBackgroundTask { context in
-                    CoreDataManager.shared.clearManga(context: context)
-                    for item in backupManga {
-                        _ = item.toObject(context: context)
-                    }
-                    do {
-                        try context.save()
-                        return true
-                    } catch {
-                        return false
-                    }
-                }
-                if !result {
-                    throw BackupError.manga
-                }
-            }
-        }
-        let categoriesTask = Task {
-            if let backupCategories = backup.categories {
-                let result = await CoreDataManager.shared.container.performBackgroundTask { context in
-                    CoreDataManager.shared.clearCategories(context: context)
-                    for category in backupCategories {
-                        _ = category.toObject(context: context)
-                    }
-                    do {
-                        try context.save()
-                        return true
-                    } catch {
-                        return false
-                    }
-                }
-                if !result {
-                    throw BackupError.categories
-                }
-            }
-        }
-        let libraryTask = Task {
-            try await mangaTask.value
-            try await categoriesTask.value
-            if let backupLibrary = backup.library {
-                let result = await CoreDataManager.shared.container.performBackgroundTask { context in
-                    CoreDataManager.shared.clearLibrary(context: context)
-                    let mangaByKey = Dictionary(
-                        CoreDataManager.shared.getManga(context: context).map {
-                            ($0.identifier, $0)
-                        },
-                        uniquingKeysWith: { first, _ in first }
-                    )
-                    let categoryByTitle = Dictionary(
-                        CoreDataManager.shared.getCategories(context: context).compactMap { category in
-                            category.title.map { ($0, category) }
-                        },
-                        uniquingKeysWith: { first, _ in first }
-                    )
-                    for libraryBackupItem in backupLibrary {
-                        let libraryObject = libraryBackupItem.toObject(context: context)
-                        if let manga = mangaByKey[libraryBackupItem.identifier] {
-                            libraryObject.manga = manga
-                            if let categories = libraryBackupItem.categories, !categories.isEmpty {
-                                libraryObject.categories = NSSet(array: categories.compactMap { categoryByTitle[$0] })
-                            }
-                        }
-                    }
-                    do {
-                        try context.save()
-                        return true
-                    } catch {
-                        return false
-                    }
-                }
-                if !result {
-                    throw BackupError.library
-                }
-            }
-        }
-        let historyTask = Task {
-            if let backupHistory = backup.history {
-                let result = await CoreDataManager.shared.container.performBackgroundTask { context in
-                    CoreDataManager.shared.clearHistory(context: context)
-                    for item in backupHistory {
-                        _ = item.toObject(context: context)
-                    }
-                    do {
-                        try context.save()
-                        return true
-                    } catch {
-                        return false
-                    }
-                }
-                if !result {
-                    throw BackupError.history
-                }
-            }
-        }
-        let chaptersTask = Task {
-            try await historyTask.value // need to link chapters with history
-            try await libraryTask.value // need to make sure manga objects aren't being modified
-            if let backupChapters = backup.chapters {
-                let result = await CoreDataManager.shared.container.performBackgroundTask { context in
-                    CoreDataManager.shared.clearChapters(context: context)
-                    let mangaByKey = Dictionary(
-                        CoreDataManager.shared.getManga(context: context).map {
-                            ($0.identifier, $0)
-                        },
-                        uniquingKeysWith: { first, _ in first }
-                    )
-                    let historyByKey = Dictionary(
-                        CoreDataManager.shared.getHistory(context: context).map {
-                            ($0.identifier, $0)
-                        },
-                        uniquingKeysWith: { first, _ in first }
-                    )
-                    for backupChapter in backupChapters {
-                        let chapter = backupChapter.toObject(context: context)
-                        chapter.manga = mangaByKey[chapter.identifier.mangaIdentifier]
-                        chapter.history = historyByKey[chapter.identifier]
-                    }
-                    do {
-                        try context.save()
-                        return true
-                    } catch {
-                        return false
-                    }
-                }
-                if !result {
-                    throw BackupError.chapters
-                }
-            }
-        }
-        let updatesTask = Task {
-            try await chaptersTask.value // need to link updates with chapters
-            if let backupUpdates = backup.updates {
-                let result = await CoreDataManager.shared.container.performBackgroundTask { context in
-                    CoreDataManager.shared.clearUpdates(context: context)
-                    let chaptersByKey = Dictionary(
-                        CoreDataManager.shared.getChapters(context: context).map {
-                            ($0.identifier, $0)
-                        },
-                        uniquingKeysWith: { first, _ in first }
-                    )
-                    for backupUpdate in backupUpdates {
-                        let update = backupUpdate.toObject(context: context)
-                        update.chapter = chaptersByKey[update.identifier]
-                    }
-                    do {
-                        try context.save()
-                        return true
-                    } catch {
-                        return false
-                    }
-                }
-                if !result {
-                    throw BackupError.updates
-                }
-            }
-        }
-        let sessionsTask = Task {
-            try await chaptersTask.value // need to link sessions with history, after being updated by chapters
-            if let backupSessions = backup.readingSessions {
-                let result = await CoreDataManager.shared.container.performBackgroundTask { context in
-                    CoreDataManager.shared.clearSessions(context: context)
-                    let historyByKey = Dictionary(
-                        CoreDataManager.shared.getHistory(context: context).map {
-                            ($0.identifier, $0)
-                        },
-                        uniquingKeysWith: { first, _ in first }
-                    )
-                    for backupSession in backupSessions {
-                        // ensure data is valid
-                        guard backupSession.endDate > backupSession.startDate && backupSession.pagesRead > 0 else {
-                            continue
-                        }
-                        let session = backupSession.toObject(context: context)
-                        session.history = historyByKey[backupSession.identifier]
-                    }
-                    do {
-                        try context.save()
-                        return true
-                    } catch {
-                        return false
-                    }
-                }
-                if !result {
-                    throw BackupError.sessions
-                }
-            }
-        }
-        let vocabTask = Task {
-            if let vocabItems = backup.vocabulary {
-                let result = await CoreDataManager.shared.container.performBackgroundTask { context in
-                    CoreDataManager.shared.clearVocab(context: context)
-                    for item in vocabItems {
-                        _ = item.toObject(context: context)
-                    }
-                    do {
-                        try context.save()
-                        return true
-                    } catch {
-                        return false
-                    }
-                }
-                if !result {
-                    throw BackupError.vocabulary
-                }
-            }
-        }
-        let trackTask = Task {
-            if let backupTrackItems = backup.trackItems {
-                let result = await CoreDataManager.shared.container.performBackgroundTask { context in
-                    CoreDataManager.shared.clearTracks(context: context)
-                    for item in backupTrackItems {
-                        _ = item.toObject(context: context)
-                    }
-                    do {
-                        try context.save()
-                        return true
-                    } catch {
-                        return false
-                    }
-                }
-                if !result {
-                    throw BackupError.track
-                }
-            }
-        }
-        let sourceTask = Task {
-            await sourceListsTask.value
-            if let sourceItems = backup.sources {
-                let (result, needsRefresh) = await CoreDataManager.shared.container.performBackgroundTask { context in
-                    var needsRefresh = false
-                    for item in sourceItems {
-                        guard item.config != nil else { continue }
-                        CoreDataManager.shared.removeSource(key: item.id, context: context)
-                        _ = item.toObject(context: context)
-                        needsRefresh = true
-                    }
-                    do {
-                        try context.save()
-                        return (true, needsRefresh)
-                    } catch {
-                        return (false, false)
-                    }
-                }
-                if !result {
-                    throw BackupError.sources
-                }
-                if needsRefresh {
-                    await SourceManager.shared.reloadSources()
-                }
-            }
-        }
-
         var backupError: Error?
-
-        // wait for db changes to finish
         do {
-            try await updatesTask.value
-            try await sessionsTask.value
-            try await vocabTask.value
-            try await trackTask.value
-            try await sourceTask.value
+            try await CoreDataManager.shared.container.performBackgroundTask { context in
+                do {
+                    try Self.restoreDatabase(from: backup, context: context)
+                    try context.save()
+                } catch {
+                    context.rollback()
+                    throw error
+                }
+            }
+            if let sourceLists = backup.sourceLists {
+                await SourceManager.shared.waitForSourceListsLoad()
+                await SourceManager.shared.clearSourceLists()
+                for sourceList in sourceLists {
+                    guard let url = URL(string: sourceList) else { continue }
+                    _ = await SourceManager.shared.addSourceList(url: url, allowUnavailable: true)
+                }
+            }
+            if backup.sources?.contains(where: { $0.config != nil }) == true {
+                await SourceManager.shared.reloadSources()
+            }
         } catch {
             backupError = error
         }
 
         // Restore application and currently installed source settings as part of the initial restore.
-        await restoreSettings(from: backup)
+        if backupError == nil {
+            await restoreSettings(from: backup)
+        }
 
         await Task { @MainActor in
             await UIApplication.shared.appDelegate?.hideLoadingIndicator()
@@ -731,9 +624,8 @@ extension BackupManager {
             guard let self, let task = task as? BGProcessingTask else { return }
 
             Task { @Sendable in
-                await self.createAutoBackup()
-
-                task.setTaskCompleted(success: true)
+                let success = await self.createAutoBackup()
+                task.setTaskCompleted(success: success)
             }
         }
 #endif
@@ -782,8 +674,11 @@ extension BackupManager {
         }
     }
 
-    private func createAutoBackup() async {
-        guard AppSettings.backups.autoBackups.enabled.get() else { return }
+    @discardableResult
+    private func createAutoBackup() async -> Bool {
+        guard AppSettings.backups.autoBackups.enabled.get(), !isCreatingAutoBackup else { return false }
+        isCreatingAutoBackup = true
+        defer { isCreatingAutoBackup = false }
 
         let libraryEntries = AppSettings.backups.autoBackups.libraryEntries.get()
         let history = AppSettings.backups.autoBackups.history.get()
@@ -797,7 +692,7 @@ extension BackupManager {
         let sourceLists = AppSettings.backups.autoBackups.sourceLists.get()
         let sensitiveSettings = AppSettings.backups.autoBackups.sensitiveSettings.get()
 
-        await self.saveNewBackup(
+        let saved = await self.saveNewBackup(
             options: .init(
                 automatic: true,
                 libraryEntries: libraryEntries,
@@ -814,11 +709,14 @@ extension BackupManager {
             )
         )
 
+        guard saved else { return false }
+
         // update last auto backup time
         AppSettings.backups.autoBackups.lastBackup.set(Date.now)
 
         cleanUpAutoBackups()
         scheduleAutoBackup() // schedule the next one
+        return true
     }
 
     // ensure we keep only the latest maxAutoBackups automatic backups

@@ -50,7 +50,9 @@ class DownloadCache {
         var result = Directory(url: directory)
         for chapter in directory.contents {
             if Task.isCancelled { break }
-            let key = chapter.pathExtension.isEmpty ? chapter.lastPathComponent : chapter.deletingPathExtension().lastPathComponent
+            guard !chapter.lastPathComponent.hasPrefix("."),
+                  chapter.isDirectory || chapter.pathExtension.lowercased() == "cbz" else { continue }
+            let key = chapter.isDirectory ? chapter.lastPathComponent : chapter.deletingPathExtension().lastPathComponent
             result.subdirectories[key] = Directory(url: chapter)
         }
         return result

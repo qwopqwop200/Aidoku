@@ -93,16 +93,13 @@ struct FilterGroupsView: View {
     }
 
     func onDelete(at offsets: IndexSet) {
+        let titles = offsets.compactMap { groups.indices.contains($0) ? groups[$0].title : nil }
         Task {
-            var removedOffsets: IndexSet = []
-            for offset in offsets {
-                let group = groups[offset]
-                let success = await self.removeGroup(title: group.title)
-                if success {
-                    removedOffsets.insert(offset)
-                }
+            var removedTitles: Set<String> = []
+            for title in titles {
+                if await removeGroup(title: title) { removedTitles.insert(title) }
             }
-            groups.remove(atOffsets: removedOffsets)
+            groups.removeAll { removedTitles.contains($0.title) }
             NotificationCenter.default.post(name: .updateCategories, object: nil)
         }
     }

@@ -33,7 +33,7 @@ public class ChapterObject: NSManagedObject {
         thumbnail = chapter.thumbnail
         locked = chapter.locked
         if let sourceOrder {
-            self.sourceOrder = Int16(sourceOrder)
+            self.sourceOrder = Int16(clamping: sourceOrder)
         }
     }
 

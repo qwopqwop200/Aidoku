@@ -363,6 +363,33 @@ NativeCoreMLOCRLine(polygon: [CGPoint(x: 675, y: 435), CGPoint(x: 688, y: 438), 
         }
     }
 
+    @Test func rotatedParagraphRetainsPageSpaceSeparatorVeto() {
+        for slope: CGFloat in [-0.25, 0.25] {
+            let input = (0..<2).map { index in
+                let y = CGFloat(index) * 28
+                let polygon = [CGPoint(x: 0, y: y), CGPoint(x: 120, y: y),
+                               CGPoint(x: 120, y: y + 24), CGPoint(x: 0, y: y + 24)].map {
+                    CGPoint(x: 400 + $0.x * cos(slope) - $0.y * sin(slope),
+                            y: 300 + $0.x * sin(slope) + $0.y * cos(slope))
+                }
+                return NativeCoreMLOCRLine(polygon: polygon, text: ["第一行", "第二行"][index],
+                                          score: 0.98, orientation: .horizontal)
+            }
+            #expect(merge(input, width: 1200, height: 1660).count == 1)
+            var checkedPageCoordinates = false
+            let output = NativeOCRTextLineMerger.merge(input, imageWidth: 1200, imageHeight: 1660,
+                separationCheck: { a, b, orientation in
+                    checkedPageCoordinates = true
+                    #expect(a.minX > 350 && b.minX > 350)
+                    #expect(a.minY > 250 && b.minY > 250)
+                    #expect(orientation == .horizontal)
+                    return true
+                })
+            #expect(checkedPageCoordinates)
+            #expect(Set(output.map(\.text)) == ["第一行", "第二行"])
+        }
+    }
+
     @Test func overlappingTilesWithDifferentWordSpacesKeepOnePhysicalLine() {
         let input = [line("On Azarday, 3 Pinkmoon", 100, 100, 280, 40, score: 0.995),
                      line("OnAzarday, 3 Pinkmoon", 99, 99, 282, 42, score: 0.979)]

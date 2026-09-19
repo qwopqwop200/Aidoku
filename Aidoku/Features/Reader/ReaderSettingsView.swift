@@ -161,7 +161,7 @@ struct ReaderSettingsView: View {
                     }
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .readerReadingMode)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .init("Reader.readingMode.\(mangaId)"))) { _ in
                 readingMode = UserDefaults.standard.string(forKey: "Reader.readingMode.\(mangaId)").flatMap(ReadingMode.init)
             }
             .onReceive(NotificationCenter.default.publisher(for: .readerTapZones)) { _ in

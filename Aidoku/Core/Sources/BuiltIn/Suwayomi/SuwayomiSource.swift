@@ -38,7 +38,7 @@ extension AidokuRunner.Source {
                 ),
                 .init(
                     id: "artist",
-                    title: NSLocalizedString("AUTHOR"),
+                    title: NSLocalizedString("ARTIST"),
                     value: .text(placeholder: NSLocalizedString("ARTIST_NAME"))
                 )
             ],
@@ -334,6 +334,11 @@ actor SuwayomiSourceRunner: Runner {
             return false
         }
 
+        // A server can change authentication modes between logins. Do not let
+        // an older cookie override the newly accepted token/basic credentials.
+        for suffix in ["cookie", "token", "refreshToken"] {
+            UserDefaults.standard.removeObject(forKey: "\(sourceKey).\(suffix)")
+        }
         if let cookie = response.cookie {
             UserDefaults.standard.setValue(cookie, forKey: "\(sourceKey).cookie")
         }

@@ -16,6 +16,7 @@ private struct ScrollVisibilityReportingView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: ContentView, context: Context) {
+        uiView.action = action
         if trigger {
             uiView.check()
             trigger = false
@@ -25,7 +26,7 @@ private struct ScrollVisibilityReportingView: UIViewRepresentable {
     class ContentView: UIView {
         var action: ((Bool) -> Void)
 
-        private var storedScrollView: UIScrollView?
+        private weak var storedScrollView: UIScrollView?
 
         init(action: @escaping ((Bool) -> Void)) {
             self.action = action

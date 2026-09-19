@@ -24,10 +24,12 @@ struct DownsampleProcessor: ImageProcessing {
     }
 
     var identifier: String {
-        "com.github.Aidoku/Aidoku/downsample?s=\(size)"
+        "com.github.Aidoku/Aidoku/downsample-v2?s=\(size)&scale=\(scaleFactor)"
     }
 
     func process(_ image: PlatformImage) -> PlatformImage? {
+        guard size.width > 0, size.height > 0, !size.width.isNaN, !size.height.isNaN,
+              image.size.width > 0, image.size.height > 0 else { return image }
         let scaleHor = size.width / image.size.width
         let scaleVert = size.height / image.size.height
         let scale = min(scaleHor, scaleVert)
@@ -39,8 +41,8 @@ struct DownsampleProcessor: ImageProcessing {
         }
 
         let finalSize = CGSize(
-            width: CGFloat(round(image.size.width * scale)),
-            height: CGFloat(round(image.size.height * scale))
+            width: max(1 / scaleFactor, round(image.size.width * scale * scaleFactor) / scaleFactor),
+            height: max(1 / scaleFactor, round(image.size.height * scale * scaleFactor) / scaleFactor)
         )
 
         // Resample the processed pixels directly. Encoding the full image as PNG

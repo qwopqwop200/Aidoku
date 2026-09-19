@@ -251,6 +251,12 @@ struct MangaDetailsHeaderView: View {
         .onChange(of: nextChapter) { _ in
             updateReadButtonText()
         }
+        .onChange(of: chapterTitleDisplayMode) { _ in
+            updateReadButtonText()
+        }
+        .onChange(of: initialDataLoaded) { _ in
+            updateReadButtonText()
+        }
         .onChange(of: readingInProgress) { _ in
             updateReadButtonText()
         }
@@ -487,7 +493,7 @@ struct MangaDetailsHeaderView: View {
             } else {
                 title = NSLocalizedString("NO_CHAPTERS_AVAILABLE")
             }
-            readButtonDisabled = false
+            readButtonDisabled = nextChapter == nil
         }
         readButtonText = title
     }

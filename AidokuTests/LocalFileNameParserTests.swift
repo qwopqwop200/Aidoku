@@ -10,6 +10,12 @@ import Testing
 
 // https://github.com/Kareadita/Kavita/blob/develop/API.Tests/Parsing/MangaParsingTests.cs
 @Suite struct LocalFileNameParserTests {
+    @Test func duplicateMarkersAfterExtendedGraphemesUseUTF16Offsets() {
+        let title = String(repeating: "👨‍👩‍👧‍👦", count: 20)
+        #expect(LocalFileNameParser.parseMangaVolume(from: title + " Vol 1 - Vol 2") == "1")
+        #expect(LocalFileNameParser.parseMangaChapter(from: title + " Ch 1 - Ch 2") == "1")
+    }
+
     @Test(
         "Manga volumes",
         arguments: [

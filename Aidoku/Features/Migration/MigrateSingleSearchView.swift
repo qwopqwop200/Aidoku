@@ -113,6 +113,8 @@ struct MigrateSingleSearchView: View {
             hidesSearchBarWhenScrolling: false,
             onSubmit: {
                 if query.isEmpty {
+                    searchTask?.cancel()
+                    isLoading = false
                     results = []
                 } else {
                     search()
@@ -212,6 +214,7 @@ extension MigrateSingleSearchView {
                 }
                 var index = maxConcurrentTasks
                 for await (source, result) in group {
+                    guard !Task.isCancelled else { group.cancelAll(); break }
                     if index < targetSources.count {
                         // once a task completes, we can start a new one if there are still sources left
                         let source = targetSources[index]

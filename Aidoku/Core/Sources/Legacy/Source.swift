@@ -131,16 +131,18 @@ class Source: Identifiable {
     }
 
     var printFunction: (Int32, Int32) -> Void {
-        { string, length in
+        { [weak self] string, length in
+            guard let self else { return }
             LogManager.logger.log(self.globalStore.readString(offset: string, length: length) ?? "")
         }
     }
 
     // needed for assemblyscript
     var abort: (Int32, Int32, Int32, Int32) -> Void {
-        { msg, fileName, line, column in
-            let messageLength = self.globalStore.readBytes(offset: msg - 4, length: 1)?.first ?? 0
-            let fileLength = self.globalStore.readBytes(offset: fileName - 4, length: 1)?.first ?? 0
+        { [weak self] msg, fileName, line, column in
+            guard let self else { return }
+            let messageLength = self.globalStore.readBytes(offset: msg &- 4, length: 1)?.first ?? 0
+            let fileLength = self.globalStore.readBytes(offset: fileName &- 4, length: 1)?.first ?? 0
 
             let message = self.globalStore.readString(offset: msg, length: Int32(messageLength))
             let file = self.globalStore.readString(offset: fileName, length: Int32(fileLength))
@@ -309,7 +311,6 @@ extension Source {
 
     func initialize() {
         Task {
-            netModule.userAgent = await UserAgentProvider.shared.getUserAgent()
             try? await actor.initialize()
         }
     }
@@ -317,15 +318,15 @@ extension Source {
     func fetchSearchManga(query: String, filters: [FilterBase] = [], page: Int = 1) async throws -> MangaPageResult {
         var newFilters = filters
         newFilters.append(TitleFilter(value: query))
-        return await actor.getMangaList(filters: newFilters, page: page)
+        return try await actor.getMangaList(filters: newFilters, page: page)
     }
 
     func getMangaList(filters: [FilterBase], page: Int = 1) async throws -> MangaPageResult {
-        await actor.getMangaList(filters: filters, page: page)
+        try await actor.getMangaList(filters: filters, page: page)
     }
 
     func getMangaListing(listing: Listing, page: Int = 1) async throws -> MangaPageResult {
-        await actor.getMangaListing(listing: listing, page: page)
+        try try await actor.getMangaListing(listing: listing, page: page)
     }
 
     func getMangaDetails(manga: Manga) async throws -> Manga {
@@ -333,11 +334,11 @@ extension Source {
     }
 
     func getChapterList(manga: Manga) async throws -> [Chapter] {
-        await actor.getChapterList(manga: manga)
+        try await actor.getChapterList(manga: manga)
     }
 
     func getPageList(chapter: Chapter, skipDownloadedCheck: Bool = false) async throws -> [Page] {
-        await actor.getPageList(chapter: chapter)
+        try await actor.getPageList(chapter: chapter)
     }
 
     struct ImageRequest: Sendable {
@@ -370,7 +371,11 @@ extension Source {
 
     func performAction(key: String) {
         Task {
-            await actor.handleNotification(notification: key)
+            do {
+                try await actor.handleNotification(notification: key)
+            } catch {
+                LogManager.logger.error("[\(id)] Source action failed: \(error)")
+            }
         }
     }
 }

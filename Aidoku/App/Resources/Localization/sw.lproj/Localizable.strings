@@ -1145,3 +1145,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Hifadhi ya akiba ya tafsiri si halali au haipatikani.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Akiba ya tafsiri haikuweza kuhifadhiwa.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Mabadiliko ya usawazishaji wa iCloud yanaanza kutumika baada ya kufunga Aidoku kabisa na kuifungua tena. Hadi wakati huo, mpangilio wa sasa unaendelea kutumika.";

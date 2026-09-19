@@ -121,7 +121,8 @@ extension CoreDataManager {
         }
     }
 
-    func removeHistory(chapterIds: [ChapterIdentifier]) async {
+    @discardableResult
+    func removeHistory(chapterIds: [ChapterIdentifier]) async -> Bool {
         await container.performBackgroundTask { context in
             do {
                 for chapterId in chapterIds {
@@ -133,8 +134,11 @@ extension CoreDataManager {
                     }
                 }
                 try context.save()
+                return true
             } catch {
+                context.rollback()
                 LogManager.logger.error("CoreDataManager.removeHistory(sourceId:mangaId:chapterIds:): \(error.localizedDescription)")
+                return false
             }
         }
     }
@@ -182,13 +186,16 @@ extension CoreDataManager {
 
             let inLibrary = self.hasLibraryManga(mangaId: mangaId, context: context)
 
-            for history in objects {
-                // remove duplicate read history objects for the same chapter
-                if historyDict[history.chapterId] != nil {
+            var keptHistory: [String: HistoryObject] = [:]
+            for history in objects.sorted(by: { ($0.dateRead ?? .distantPast) > ($1.dateRead ?? .distantPast) }) {
+                // Keep the newest progress and preserve sessions attached to older duplicates.
+                if let keeper = keptHistory[history.chapterId] {
                     needsSave = true
+                    Self.mergeDuplicateRelationships(from: history, into: keeper)
                     context.delete(history)
                     continue
                 }
+                keptHistory[history.chapterId] = history
                 // link history to chapter if link is missing
                 if inLibrary && history.chapter == nil {
                     if let chapter = self.getChapter(
@@ -245,10 +252,10 @@ extension CoreDataManager {
             chapterId: chapterId,
             context: context
         )
-        historyObject.progress = Int16(progress)
+        historyObject.progress = Int16(clamping: progress)
         historyObject.dateRead = dateRead ?? Date()
         if let totalPages {
-            historyObject.total = Int16(totalPages)
+            historyObject.total = Int16(clamping: totalPages)
         }
         if let scrollPosition {
             historyObject.scrollPosition = NSNumber(value: scrollPosition)

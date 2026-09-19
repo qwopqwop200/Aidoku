@@ -46,36 +46,39 @@ class WasmGlobalStore {
 
 // MARK: - Memory R/W
 extension WasmGlobalStore {
-
-//    func readString(offset: Int, length: Int) -> String? {
-//        try? vm.runtime.memory().readString(offset: UInt32(offset), length: UInt32(length))
-//    }
+    // Wasm3's range helper adds UInt32 values without checking overflow, and its
+    // typed reader checks element counts as bytes. Validate byte spans here.
+    private func validSpan(offset: Int32, bytes: UInt64) -> Bool {
+        UInt64(UInt32(bitPattern: offset)) + bytes <= UInt64(UInt32.max)
+    }
 
     func readString(offset: Int32, length: Int32) -> String? {
-        try? vm.runtime.memory().readString(offset: UInt32(offset), length: UInt32(length))
+        guard let data = readData(offset: offset, length: length) else { return nil }
+        return String(data: data, encoding: .utf8) ?? ""
     }
 
     func readData(offset: Int32, length: Int32) -> Data? {
-        try? vm.runtime.memory().readData(offset: UInt32(offset), length: UInt32(length))
+        guard validSpan(offset: offset, bytes: UInt64(UInt32(bitPattern: length))) else { return nil }
+        return try? vm.runtime.memory().readData(offset: UInt32(bitPattern: offset), length: UInt32(bitPattern: length))
     }
 
-    func readValues<T: WasmType>(offset: Int32, length: Int32) -> [T]? {
-        try? vm.runtime.memory().readValues(offset: UInt32(offset), length: UInt32(length))
+    func readValues<T: WasmType & FixedWidthInteger>(offset: Int32, length: Int32) -> [T]? {
+        let count = UInt64(UInt32(bitPattern: length))
+        let bytes = count * UInt64(MemoryLayout<T>.stride)
+        guard validSpan(offset: offset, bytes: bytes),
+              let data = try? vm.runtime.memory().readData(offset: UInt32(bitPattern: offset), length: UInt32(bytes))
+        else { return nil }
+        return data.withUnsafeBytes { buffer in
+            (0..<Int(count)).map { buffer.loadUnaligned(fromByteOffset: $0 * MemoryLayout<T>.stride, as: T.self) }
+        }
     }
 
     func readBytes(offset: Int32, length: Int32) -> [UInt8]? {
-        try? vm.runtime.memory().readBytes(offset: UInt32(offset), length: UInt32(length))
+        readData(offset: offset, length: length).map { Array($0) }
     }
-
-//    func write<T: WasmType & FixedWidthInteger>(value: T, offset: Int32) {
-//        try? vm.runtime.memory().write(values: [value], offset: UInt32(offset))
-//    }
 
     func write(bytes: [UInt8], offset: Int32) {
-        try? vm.runtime.memory().write(bytes: bytes, offset: UInt32(offset))
+        guard validSpan(offset: offset, bytes: UInt64(bytes.count)) else { return }
+        try? vm.runtime.memory().write(bytes: bytes, offset: UInt32(bitPattern: offset))
     }
-
-//    func write(data: Data, offset: Int32) {
-//        try? vm.runtime.memory().write(data: data, offset: UInt32(offset))
-//    }
 }

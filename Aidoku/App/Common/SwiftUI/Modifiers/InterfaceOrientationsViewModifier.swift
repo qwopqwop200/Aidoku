@@ -127,8 +127,8 @@ public class InterfaceOrientationCoordinator: ObservableObject {
         self.allowOverridingDefaultOrientations = allowOverridingDefaultOrientations
 
         NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)
-            .sink { _ in
-                self.resolveOrientations()
+            .sink { [weak self] _ in
+                self?.resolveOrientations()
             }
             .store(in: &cancellables)
 

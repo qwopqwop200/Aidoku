@@ -125,6 +125,8 @@ extension AddToCategoryViewController {
                     cell.accessoryType = .none
                 }
             }
+            cell.selectionStyle = .default
+            cell.textLabel?.textColor = .label
             if self.disabledCategories.contains(category) {
                 cell.selectionStyle = .none
                 cell.textLabel?.textColor = .secondaryLabel

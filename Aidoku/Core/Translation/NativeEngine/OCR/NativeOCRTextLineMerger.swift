@@ -666,10 +666,22 @@ enum NativeOCRTextLineMerger {
             if members.count == 1 {
                 result.append(lines[seed])
             } else {
+                // The image-evidence callback consumes page coordinates.
+                // Deskewing must retain its veto, with local boxes transformed
+                // back before asking about a panel boundary.
+                func pageBounds(_ box: CGRect) -> CGRect {
+                    boundingBox(rectanglePolygon(box).map { point in
+                        CGPoint(x: point.x * cos(baseline) - point.y * sin(baseline) + origin.x,
+                                y: point.x * sin(baseline) + point.y * cos(baseline) + origin.y)
+                    })
+                }
                 result += mergeConservativeTextLines(
                     members.map { rotated(lines[$0], inverse: false) },
                     imageWidth: imageWidth, imageHeight: imageHeight,
-                    recognizedLatinWords: recognizedLatinWords, deskew: false
+                    recognizedLatinWords: recognizedLatinWords, deskew: false,
+                    separationCheck: { a, b, orientation in
+                        separationCheck?(pageBounds(a), pageBounds(b), orientation) ?? false
+                    }
                 ).map { rotated($0, inverse: true) }
             }
         }

@@ -1165,3 +1165,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "अनुवाद कैश का भंडारण अमान्य है या उपलब्ध नहीं है।";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "अनुवाद कैश सहेजा नहीं जा सका।";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud सिंक में बदलाव Aidoku को पूरी तरह बंद करके दोबारा खोलने पर लागू होंगे। तब तक मौजूदा सिंक सेटिंग सक्रिय रहेगी।";

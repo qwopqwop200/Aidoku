@@ -118,17 +118,8 @@ struct HomeListView: View {
                         }
                     }
                 }
-                .task {
-                    if !loadedBookmarks {
-                        await loadBookmarked()
-                    }
-                }
-                .onChange(of: entries) { _ in
-                    Task {
-                        if !loadedBookmarks {
-                            await loadBookmarked()
-                        }
-                    }
+                .task(id: entries) {
+                    await loadBookmarked()
                 }
             }
         }
@@ -257,7 +248,7 @@ struct HomeListView: View {
 
     func loadBookmarked() async {
         guard !entries.isEmpty, usesBookmarksState else { return }
-        bookmarkedItemsState = await CoreDataManager.shared.container.performBackgroundTask { context in
+        let bookmarks = await CoreDataManager.shared.container.performBackgroundTask { context in
             var keys: Set<String> = .init()
             for entry in entries {
                 let mangaId: MangaIdentifier? = switch entry.value {
@@ -275,6 +266,8 @@ struct HomeListView: View {
             }
             return keys
         }
+        guard !Task.isCancelled else { return }
+        bookmarkedItemsState = bookmarks
         loadedBookmarks = true
     }
 

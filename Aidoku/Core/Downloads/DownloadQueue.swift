@@ -209,6 +209,9 @@ actor DownloadQueue {
         } else {
             // no longer in queue but the tmp download directory still exists, so we should remove it
             cache.tmpDirectory(for: chapter).removeItem()
+            if let download = queue[chapter.sourceKey]?.first(where: { $0.chapterIdentifier == chapter }) {
+                await downloadCancelled(download: download)
+            }
         }
         saveQueueState()
     }
@@ -223,10 +226,8 @@ actor DownloadQueue {
             } else {
                 cache.tmpDirectory(for: chapter).removeItem()
             }
-            if let queueItem = queue[chapter.sourceKey]?.firstIndex(where: {
-                $0.chapterIdentifier == chapter
-            }) {
-                queue[chapter.sourceKey]?.remove(at: queueItem)
+            if let download = queue[chapter.sourceKey]?.first(where: { $0.chapterIdentifier == chapter }) {
+                await downloadCancelled(download: download)
             }
         }
         NotificationCenter.default.post(name: .downloadsCancelled, object: chapters)
@@ -245,6 +246,8 @@ actor DownloadQueue {
                 }
                 .forEach { $0.removeItem() }
         }
+        let cancelled = queue[manga.sourceKey]?.filter { $0.mangaIdentifier == manga } ?? []
+        for download in cancelled { await downloadCancelled(download: download) }
         saveQueueState()
     }
 
@@ -254,7 +257,11 @@ actor DownloadQueue {
         for task in tasks {
             await task.value.cancel()
         }
+        for download in queue.values.joined() {
+            cache.tmpDirectory(for: download.chapterIdentifier).removeItem()
+        }
         queue = [:]
+        progressBlocks.removeAll()
         finishBackgroundTaskIfEmpty()
         NotificationCenter.default.post(name: .downloadsCancelled, object: nil)
         saveQueueState()
@@ -361,6 +368,7 @@ extension DownloadQueue: DownloadTaskDelegate {
     func taskPaused(task _: DownloadTask) async {}
 
     func taskFinished(task: DownloadTask) async {
+        guard tasks[task.id] === task else { return }
         tasks.removeValue(forKey: task.id)
         queue.removeValue(forKey: task.id)
         finishBackgroundTaskIfEmpty()

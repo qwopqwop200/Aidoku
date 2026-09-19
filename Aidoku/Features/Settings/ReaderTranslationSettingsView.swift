@@ -456,7 +456,12 @@ struct ReaderTranslationSettingsView: View {
                 Text(NSLocalizedString("TRANSLATION_FIXED")).tag(IPhoneOverlayFontSizing.fixed)
             }
             if settings.overlay.fontSizing == .fixed {
-                Stepper("\(settings.overlay.fixedFontSizePoints) pt", value: persistedSettings.overlay.fixedFontSizePoints, in: 8...64)
+                HStack {
+                    Text("\(settings.overlay.fixedFontSizePoints) pt")
+                    Spacer()
+                    SettingStepper(value: persistedSettings.overlay.fixedFontSizePoints, in: 8...64,
+                                   accessibilityLabel: NSLocalizedString("TRANSLATION_FONT_SIZE"))
+                }
             }
         } header: {
             Text(NSLocalizedString("TRANSLATION_OVERLAY"))

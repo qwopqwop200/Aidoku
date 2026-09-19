@@ -54,6 +54,7 @@ struct DictionaryListView: View {
                     Button(NSLocalizedString("UPDATE_NOW")) {
                         DictionaryManager.shared.updateDictionaries()
                     }
+                    .disabled(dictionaryManager.isImporting || dictionaryManager.isUpdating)
                 } header: {
                     Text(NSLocalizedString("DICTIONARY_UPDATES"))
                 } footer: {
@@ -286,7 +287,7 @@ private struct DictionaryInfoView: View {
                 }
                 Section {
                     Button(NSLocalizedString("REMOVE_DICTIONARY"), role: .destructive) {
-                        DictionaryManager.shared.deleteDictionary(indexSet: dictionary.index, type: dictionary.type)
+                        DictionaryManager.shared.deleteDictionary(path: dictionary.info.path, type: dictionary.type)
                         NotificationCenter.default.post(name: .dictionaryDictionariesChanged, object: nil)
                         dismiss()
                     }

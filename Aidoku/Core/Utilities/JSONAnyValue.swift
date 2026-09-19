@@ -65,19 +65,10 @@ extension JSONAnyValue: Codable {
             intArrayValue = nil
             stringArrayValue = nil
             objectValue = nil
-        } else if let float = try? container.decode(Float.self) {
-            type = .double
-            boolValue = nil
-            intValue = Int(float)
-            doubleValue = Double(float)
-            stringValue = nil
-            intArrayValue = nil
-            stringArrayValue = nil
-            objectValue = nil
         } else if let double = try? container.decode(Double.self) {
             type = .double
             boolValue = nil
-            intValue = Int(double)
+            intValue = Int(exactly: double.rounded(.towardZero))
             doubleValue = double
             stringValue = nil
             intArrayValue = nil
@@ -134,7 +125,7 @@ extension JSONAnyValue: Codable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         switch type {
-            case .null: break
+            case .null: try container.encodeNil()
             case .int: try container.encode(intValue)
             case .string: try container.encode(stringValue)
             case .bool: try container.encode(boolValue)
@@ -160,7 +151,7 @@ extension JSONAnyValue {
     }
 
     static func double(_ value: Double) -> JSONAnyValue {
-        .init(type: .double, intValue: Int(value), doubleValue: value)
+        .init(type: .double, intValue: Int(exactly: value.rounded(.towardZero)), doubleValue: value)
     }
 
     static func bool(_ value: Bool) -> JSONAnyValue {

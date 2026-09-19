@@ -1166,3 +1166,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Lagringsplassen for hurtigbufferen for oversettelse er ugyldig eller utilgjengelig.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Hurtigbufferen for oversettelse kunne ikke lagres.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Endringer i iCloud-synkronisering trer i kraft når du lukker Aidoku helt og åpner appen igjen. Frem til da gjelder den nåværende innstillingen.";

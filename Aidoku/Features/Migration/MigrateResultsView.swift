@@ -115,7 +115,7 @@ struct MigrateResultsView: View {
 
 extension MigrateResultsView {
     func remove(manga: AidokuRunner.Manga) {
-        selectedSeries.removeAll { $0.key == manga.key }
+        selectedSeries.removeAll { $0.identifier == manga.identifier }
         let key = manga.identifier
         newChapters.removeValue(forKey: key)
         migratedManga.removeValue(forKey: key)
@@ -183,6 +183,8 @@ extension MigrateResultsView {
                     index += 1
                 }
 
+                guard !Task.isCancelled else { group.cancelAll(); break }
+                guard selectedSeries.contains(where: { $0.identifier == key }) else { continue }
                 // handle result
                 await MainActor.run {
                     if let result {

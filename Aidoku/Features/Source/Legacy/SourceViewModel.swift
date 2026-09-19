@@ -206,7 +206,7 @@ extension SourceViewModel {
 
     func setCurrentListing(_ currentListing: Int?) {
         invalidatePages()
-        if let currentListing = currentListing {
+        if let currentListing, listings.indices.contains(currentListing) {
             self.currentListing = listings[currentListing]
         } else {
             self.currentListing = nil

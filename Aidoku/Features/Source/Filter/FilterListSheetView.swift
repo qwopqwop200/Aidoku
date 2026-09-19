@@ -110,7 +110,7 @@ struct FilterListSheetView: View {
     var commonToolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Button(NSLocalizedString("CANCEL")) {
-                if newEnabledFilters == enabledFilters {
+                if newEnabledFilters == enabledFilters && newSearch == nil {
                     dismiss()
                 } else {
                     showConfirm = true
@@ -526,39 +526,11 @@ private struct FilterListView: View {
             }
         }
         .padding(.horizontal)
-        .onChange(of: from[filter.id]) { value in
-            let error = if let value {
-                if let min, value < min {
-                    true
-                } else if let toValue = to[filter.id], value > toValue {
-                    true
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-            hasError[filter.id + ".from"] = error
-            if !error {
-                updateRangeFilter(id: filter.id)
-            }
+        .onChange(of: from[filter.id]) { _ in
+            validateRange(filter: filter, minimum: min, maximum: max)
         }
-        .onChange(of: to[filter.id]) { value in
-            let error = if let value {
-                if let max, value > max {
-                    true
-                } else if let fromValue = from[filter.id], value < fromValue {
-                    true
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-            hasError[filter.id + ".to"] = error
-            if !error {
-                updateRangeFilter(id: filter.id)
-            }
+        .onChange(of: to[filter.id]) { _ in
+            validateRange(filter: filter, minimum: min, maximum: max)
         }
     }
 }
@@ -685,6 +657,21 @@ extension FilterListView {
                 enabledFilters.append(filterValue)
             }
         }
+    }
+
+    private func validateRange(filter: AidokuRunner.Filter, minimum: Float?, maximum: Float?) {
+        let lower = from[filter.id]
+        let upper = to[filter.id]
+        func outsideBounds(_ value: Float?) -> Bool {
+            guard let value else { return false }
+            return !value.isFinite || minimum.map { value < $0 } == true || maximum.map { value > $0 } == true
+        }
+        let reversed = lower.flatMap { lower in upper.map { lower > $0 } } ?? false
+        let lowerError = outsideBounds(lower) || reversed
+        let upperError = outsideBounds(upper) || reversed
+        hasError[filter.id + ".from"] = lowerError
+        hasError[filter.id + ".to"] = upperError
+        if !lowerError && !upperError { updateRangeFilter(id: filter.id) }
     }
 
     private func updateRangeFilter(id: String) {

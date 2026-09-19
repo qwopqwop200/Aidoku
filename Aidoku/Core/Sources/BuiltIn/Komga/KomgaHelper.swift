@@ -69,15 +69,12 @@ struct KomgaHelper: Sendable {
         allBaseUrls.append(mainUrl)
         allBaseUrls.append(contentsOf: mirrors.filter { $0 != lastWorkingMirror })
 
-        let session = if !mirrors.isEmpty {
-            URLSession(configuration: {
-                let config = URLSessionConfiguration.default
-                config.timeoutIntervalForRequest = 5 // time out requests after 5s so we can try next mirror
-                return config
-            }())
-        } else {
-            URLSession.shared
+        guard let config = try? await SourceNetwork.shared.configuration() else {
+            throw SourceError.networkError
         }
+        if !mirrors.isEmpty { config.timeoutIntervalForRequest = 5 }
+        let session = URLSession(configuration: config)
+        defer { session.finishTasksAndInvalidate() }
 
         func doRequest(baseUrl: URL) async throws(SourceError) -> T {
             guard let url = URL(string: path, relativeTo: baseUrl) else {
@@ -92,6 +89,8 @@ struct KomgaHelper: Sendable {
                 encoder.dateEncodingStrategy = .custom({ date, encoder in
                     var container = encoder.singleValueContainer()
                     let formatter = DateFormatter()
+                    formatter.locale = Locale(identifier: "en_US_POSIX")
+                    formatter.timeZone = TimeZone(secondsFromGMT: 0)
                     formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
                     try container.encode(formatter.string(from: date))
                 })
@@ -132,6 +131,7 @@ struct KomgaHelper: Sendable {
         }
 
         for (idx, baseUrl) in allBaseUrls.enumerated() {
+            guard !Task.isCancelled else { throw SourceError.networkError }
             do {
                 let result = try await doRequest(baseUrl: baseUrl)
                 lastWorkingMirror = baseUrl == mainUrl ? nil : baseUrl

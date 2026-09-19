@@ -968,7 +968,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
                     issuedGeneration,
                     cancellationCheck: cancellationCheck
                 )
-                return try NativeCoreMLDetectionPreprocessor.prepare(
+                return try await NativeCoreMLDetectionPreprocessor.prepare(
                     frame: frame,
                     canvas: canvas,
                     cancellationCheck: {
@@ -1425,7 +1425,7 @@ enum NativeCoreMLDetectionPreprocessor {
         canvas: NativeCoreMLDetectionCanvas = .square,
         useBoundedMemory: Bool = true,
         cancellationCheck: () throws -> Void = {}
-    ) throws -> NativeCoreMLDetectionPreparedTensor {
+    ) async throws -> NativeCoreMLDetectionPreparedTensor {
         try cancellationCheck()
         let dimensions = resizeDimensions(
             sourceWidth: frame.width,
@@ -1443,7 +1443,7 @@ enum NativeCoreMLDetectionPreprocessor {
         // Sample directly into the bounded canvas for ALL page sizes; retain
         // full-resolution RGBA only for the unchanged recognition crops.
         if useBoundedMemory {
-            return try prepareBounded(frame: frame, canvas: canvas, dimensions: dimensions,
+            return try await prepareBounded(frame: frame, canvas: canvas, dimensions: dimensions,
                                       cancellationCheck: cancellationCheck)
         }
         let inputTensorStarted = nowMilliseconds()
@@ -1534,7 +1534,7 @@ enum NativeCoreMLDetectionPreprocessor {
     static func prepareBounded(
         frame: NativeOCRRGBAFrame, canvas: NativeCoreMLDetectionCanvas,
         dimensions: (width: Int, height: Int), cancellationCheck: () throws -> Void = {}
-    ) throws -> NativeCoreMLDetectionPreparedTensor {
+    ) async throws -> NativeCoreMLDetectionPreparedTensor {
         guard dimensions.width > 0, dimensions.height > 0,
               dimensions.width <= canvas.width, dimensions.height <= canvas.height else {
             throw NativeCoreMLDetectorError.modelInputCreationFailed
@@ -1542,20 +1542,20 @@ enum NativeCoreMLDetectionPreprocessor {
         let started = nowMilliseconds()
         let plane = canvas.width * canvas.height
         var values = [Float](repeating: 0, count: plane * 3)
-        let scaleX = Float(frame.width) / Float(dimensions.width)
-        let scaleY = Float(frame.height) / Float(dimensions.height)
+        let sourceXs = await resizeCoordinates(sourceLength: frame.width, targetLength: dimensions.width, resizesOtherAxis: frame.height != dimensions.height)
+        try cancellationCheck()
+        try Task.checkCancellation()
+        let sourceYs = await resizeCoordinates(sourceLength: frame.height, targetLength: dimensions.height, vertical: true, resizesOtherAxis: frame.width != dimensions.width)
+        try cancellationCheck()
+        try Task.checkCancellation()
         try frame.bytes.withUnsafeBufferPointer { source in
             try values.withUnsafeMutableBufferPointer { target in
                 for y in 0..<dimensions.height {
                     try cancellationCheck()
                     try Task.checkCancellation()
-                    let sourceY = min(Float(frame.height - 1), max(0, (Float(y) + 0.5) * scaleY - 0.5))
-                    let y0 = Int(sourceY), y1 = min(y0 + 1, frame.height - 1)
-                    let fy = sourceY - Float(y0)
+                    let (y0, y1, fy) = sourceYs[y]
                     for x in 0..<dimensions.width {
-                        let sourceX = min(Float(frame.width - 1), max(0, (Float(x) + 0.5) * scaleX - 0.5))
-                        let x0 = Int(sourceX), x1 = min(x0 + 1, frame.width - 1)
-                        let fx = sourceX - Float(x0)
+                        let (x0, x1, fx) = sourceXs[x]
                         for channel in 0..<3 {
                             let offset = 2 - channel // detector uses BGR
                             let a = Float(source[y0 * frame.bytesPerRow + x0 * 4 + offset])
@@ -1574,6 +1574,40 @@ enum NativeCoreMLDetectionPreprocessor {
         return NativeCoreMLDetectionPreparedTensor(input: input, canvas: canvas,
             resizedWidth: dimensions.width, resizedHeight: dimensions.height,
             inputTensorCreationMilliseconds: nowMilliseconds() - started, tensorGraphMilliseconds: 0)
+    }
+
+    /// Native one-dimensional ramps preserve the resize backend's exact
+    /// half-pixel rounding without allocating full-resolution Float images.
+    /// Match whether one or both axes resize: Core ML selects different
+    /// coordinate kernels for these cases. Two constant rows/columns (three
+    /// after resizing) preserve this distinction with only linear storage.
+    /// A parity ramp carries the fractional weight separately: subtracting
+    /// the integer part of a large coordinate loses several Float ULPs.
+    private static func resizeCoordinates(
+        sourceLength: Int, targetLength: Int, vertical: Bool = false, resizesOtherAxis: Bool = false
+    ) async -> [(Int, Int, Float)] {
+        if sourceLength == targetLength {
+            return (0..<targetLength).map { ($0, $0, 0) }
+        }
+        let positions = (0..<sourceLength).map(Float.init)
+        let parity = (0..<sourceLength).map { Float($0 % 2) }
+        let scalars = vertical
+            ? (positions + parity + parity).flatMap { [$0, $0] }
+            : positions + positions + parity + parity + parity + parity
+        let orthogonalSize = resizesOtherAxis ? 3 : 2
+        let coordinates = withMLTensorComputePolicy(.cpuOnly) {
+            MLTensor(shape: vertical ? [1, 3, sourceLength, 2] : [1, 3, 2, sourceLength],
+                     scalars: scalars)
+                .resized(to: vertical ? (targetLength, orthogonalSize) : (orthogonalSize, targetLength),
+                         method: .bilinear(alignCorners: false))
+        }
+        let values = await coordinates.shapedArray(of: Float.self).scalars
+        return (0..<targetLength).map { index in
+            let offset = vertical ? index * orthogonalSize : index
+            let lower = min(sourceLength - 1, max(0, Int(values[offset])))
+            let weight = values[targetLength * orthogonalSize + offset]
+            return (lower, min(lower + 1, sourceLength - 1), lower.isMultiple(of: 2) ? weight : 1 - weight)
+        }
     }
 
     private static func makeContiguousRGBA(

@@ -32,7 +32,7 @@ extension CoreDataManager {
         let session = ReadingSessionObject(context: context)
         session.startDate = data.startDate
         session.endDate = data.endDate
-        session.pagesRead = Int16(data.pagesRead)
+        session.pagesRead = Int16(clamping: data.pagesRead)
         session.history = historyObject
     }
 
@@ -220,7 +220,7 @@ extension CoreDataManager {
 
         for (key, totalPagesRead) in chapterMonthSessions {
             let isRead: Bool
-            if let totalPageCount = key.totalPageCount {
+            if let totalPageCount = key.totalPageCount, totalPageCount > 0 {
                 // if history has total page count, check that we've read enough pages to complete the chapter
                 isRead = totalPagesRead >= totalPageCount
             } else {

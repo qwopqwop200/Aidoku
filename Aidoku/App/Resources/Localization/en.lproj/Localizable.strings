@@ -1113,3 +1113,5 @@
 "TRANSLATION_ERROR_CACHE_SIZE" = "The translation cache size is outside the supported range.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "The translation cache storage is invalid or unavailable.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "The translation cache could not be saved.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Changes to iCloud Sync take effect the next time you fully close and reopen Aidoku. Until then, the current sync setting remains active.";

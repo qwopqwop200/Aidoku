@@ -339,7 +339,7 @@ extension LocalFileNameParser {
         // Find the second volume marker after the first volume number
         if let secondVolumeMatch = volumeNumberRegex.firstMatch(in: filename, range: NSRange(volumeNumberEnd..<filename.endIndex, in: filename)) {
             // Truncate the filename at the second volume marker
-            let truncateIndex = filename.index(filename.startIndex, offsetBy: secondVolumeMatch.range.location)
+            guard let truncateIndex = Range(secondVolumeMatch.range, in: filename)?.lowerBound else { return filename }
             return filename[..<truncateIndex].trimmingCharacters(in: [" ", "-", "_"])
         }
 
@@ -372,7 +372,7 @@ extension LocalFileNameParser {
         // Find the second chapter marker after the first chapter number
         if let secondChapterMatch = chapterNumberRegex.firstMatch(in: filename, range: NSRange(chapterNumberEnd..<filename.endIndex, in: filename)) {
             // Truncate the filename at the second chapter marker
-            let truncateIndex = filename.index(filename.startIndex, offsetBy: secondChapterMatch.range.location)
+            guard let truncateIndex = Range(secondChapterMatch.range, in: filename)?.lowerBound else { return filename }
             return filename[..<truncateIndex].trimmingCharacters(in: [" ", "-", "_"])
         }
 

@@ -616,17 +616,18 @@ extension SettingView {
             Text(setting.title)
                 .lineLimit(1)
             Spacer()
-            if value.maximumValue >= value.minimumValue {
+            if value.maximumValue.isFinite, value.minimumValue.isFinite,
+               value.maximumValue >= value.minimumValue,
+               (value.stepValue ?? 1).isFinite, (value.stepValue ?? 1) > 0 {
                 Text(String(format: "%g", doubleBinding))
                     .foregroundStyle(Color.secondaryLabel)
                     .lineLimit(1)
-                Stepper(
-                    "",
+                SettingStepper(
                     value: $doubleBinding,
                     in: value.minimumValue...value.maximumValue,
-                    step: value.stepValue ?? 1
+                    step: value.stepValue ?? 1,
+                    accessibilityLabel: setting.title
                 )
-                .labelsHidden()
             } else {
                 Text(NSLocalizedString("SETTING_INVALID_STEPPER_RANGE"))
             }
@@ -818,7 +819,7 @@ extension SettingView {
                     .lineLimit(1)
             }
         }
-        .disabled(disabled)
+        .disabled(disabled || loginLoading)
         .alert(setting.title, isPresented: $showLoginAlert) {
             // todo: if useEmail is true, we could verify that the email entered is valid before enabling the log in button
             let useEmail = value.useEmail ?? false
@@ -1156,17 +1157,18 @@ extension SettingView {
                     parameters["client_id"] = clientId
                 }
 
-                let bodyString = parameters.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
-                request.httpBody = bodyString.data(using: .utf8)
+                request.httpBody = parameters.percentEncoded()
 
-                let task = URLSession.shared.dataTask(with: request) { data, _, error in
+                let task = URLSession.shared.dataTask(with: request) { data, response, error in
                     if let error {
                         LogManager.logger.error("Error requesting access token: \(error.localizedDescription)")
                         return
                     }
 
-                    guard let data else {
-                        LogManager.logger.error("No data received from access token request")
+                    guard let response = response as? HTTPURLResponse,
+                          (200..<300).contains(response.statusCode), let data, !data.isEmpty else {
+                        LogManager.logger.error("Access token request returned an invalid response")
+                        Task { @MainActor in showLoginFailAlert = true }
                         return
                     }
 

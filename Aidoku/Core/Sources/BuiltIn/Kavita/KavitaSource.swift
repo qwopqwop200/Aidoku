@@ -222,6 +222,7 @@ actor KavitaSourceRunner: Runner {
 
         baseUrl = lastWorkingMirrorCopy ?? baseUrl
 
+        guard chapter.pages >= 0 else { throw SourceError.message("Invalid page count") }
         return (0..<chapter.pages).compactMap { page in
             let path = "api/Reader/image?chapterId=\(chapter.id)&page=\(page)&apiKey=\(apiKey)&extractPdf=true"
             return URL(string: path, relativeTo: baseUrl).flatMap {
@@ -569,11 +570,10 @@ actor KavitaSourceRunner: Runner {
             let enabled: Bool
             let providerName: String
         }
-        let session = URLSession(configuration: {
-            let config = URLSessionConfiguration.default
-            config.timeoutIntervalForRequest = 5 // time out requests after 5s
-            return config
-        }())
+        let config = try await SourceNetwork.shared.configuration()
+        config.timeoutIntervalForRequest = 5
+        let session = URLSession(configuration: config)
+        defer { session.finishTasksAndInvalidate() }
         let response: OIDCResponse? = try? await session.object(from: oidcCheckUrl)
         guard let response else { return settings }
 
@@ -893,7 +893,7 @@ extension KavitaSourceRunner {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        return try? await URLSession.shared.object(from: request)
+        return try? await SourceNetwork.shared.object(from: request)
     }
 
     static func getLoginResponse(server: URL, apiKey: String) async -> LoginResponse? {
@@ -909,12 +909,16 @@ extension KavitaSourceRunner {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        return try? await URLSession.shared.object(from: request)
+        return try? await SourceNetwork.shared.object(from: request)
     }
 
     static func getLoginResponse(server: URL, cookies: [HTTPCookie]) async -> LoginResponse? {
         guard
-            let cookie = cookies.first(where: { $0.name == ".AspNetCore.Cookies" }),
+            let cookie = cookies.first(where: {
+                let domain = $0.domain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+                let host = server.host?.lowercased() ?? ""
+                return $0.name == ".AspNetCore.Cookies" && (host == domain || host.hasSuffix("." + domain))
+            }),
             let accountUrl = URL(string: "api/account", relativeTo: server)
         else {
             return nil
@@ -927,7 +931,7 @@ extension KavitaSourceRunner {
             request.setValue(value, forHTTPHeaderField: key)
         }
 
-        var response: LoginResponse? = try? await URLSession.shared.object(from: request)
+        var response: LoginResponse? = try? await SourceNetwork.shared.object(from: request)
         response?.cookie = request.value(forHTTPHeaderField: "Cookie")
         return response
     }

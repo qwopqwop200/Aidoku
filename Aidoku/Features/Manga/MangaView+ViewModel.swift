@@ -427,8 +427,6 @@ extension MangaView.ViewModel {
                 }
             } catch {
                 withAnimation {
-                    self.manga.chapters = []
-                    self.chapters = []
                     self.error = error
                 }
             }
@@ -603,8 +601,6 @@ extension MangaView.ViewModel {
             await syncTrackerProgress()
         } catch {
             withAnimation {
-                self.manga.chapters = []
-                self.chapters = []
                 self.error = error
             }
         }
@@ -743,7 +739,7 @@ extension MangaView.ViewModel {
         } else if let download = notification.object as? Download {
             chapter = download.chapterIdentifier
         }
-        if let chapter {
+        if let chapter, chapter.mangaIdentifier == manga.identifier {
             downloadProgress.removeValue(forKey: chapter.chapterKey)
             downloadStatus[chapter.chapterKey] = DownloadManager.shared.getDownloadStatus(for: chapter)
             if let chapterIndex = otherDownloadedChapters.firstIndex(where: { $0.key == chapter.chapterKey }) {
@@ -756,7 +752,7 @@ extension MangaView.ViewModel {
 
     private func removeDownloads(_ notification: Notification) {
         if let chapters = notification.object as? [ChapterIdentifier] {
-            for chapter in chapters {
+            for chapter in chapters where chapter.mangaIdentifier == manga.identifier {
                 downloadProgress.removeValue(forKey: chapter.chapterKey)
                 downloadStatus[chapter.chapterKey] = DownloadStatus.none
             }

@@ -30,6 +30,8 @@ struct CollectionView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: UICollectionViewController, context: Context) {
+        context.coordinator.parent = self
+        uiViewController.collectionView.setCollectionViewLayout(layout, animated: false)
         uiViewController.collectionView.reloadData()
     }
 
@@ -80,8 +82,8 @@ extension CollectionView {
             heightDimension: .fractionalHeight(1)
         ))
 
-        let itemsPerPage = min(itemsPerPage, totalItems)
-        let viewHeight = CGFloat(itemsPerPage) * itemHeight + CGFloat(itemsPerPage - 1) * spacing
+        let itemsPerPage = max(0, min(itemsPerPage, totalItems))
+        let viewHeight = CGFloat(itemsPerPage) * itemHeight + CGFloat(max(0, itemsPerPage - 1)) * spacing
 
         let getSection: (NSCollectionLayoutEnvironment) -> NSCollectionLayoutSection = { environment in
             let columnsToFit = floor(environment.container.effectiveContentSize.width / 340)
@@ -92,7 +94,7 @@ extension CollectionView {
                     heightDimension: .absolute(viewHeight)
                 ),
                 subitem: item,
-                count: itemsPerPage
+                count: max(1, itemsPerPage)
             )
             regularGroup.interItemSpacing = .fixed(spacing)
             regularGroup.edgeSpacing = .init(leading: .none, top: .none, trailing: .none, bottom: .none)

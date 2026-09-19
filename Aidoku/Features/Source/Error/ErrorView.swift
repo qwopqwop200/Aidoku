@@ -49,8 +49,10 @@ struct ErrorView: View {
                                 }
                             }
                         default:
-                            EmptyView()
+                            retryButton(action: retry)
                     }
+                } else {
+                    retryButton(action: retry)
                 }
             }
         }

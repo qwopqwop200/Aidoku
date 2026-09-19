@@ -1165,3 +1165,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "A fordítási gyorsítótár tárhelye érvénytelen vagy nem érhető el.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "A fordítási gyorsítótár nem menthető.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Az iCloud-szinkronizálás módosításai az Aidoku teljes bezárása és újbóli megnyitása után lépnek érvénybe. Addig a jelenlegi beállítás marad aktív.";

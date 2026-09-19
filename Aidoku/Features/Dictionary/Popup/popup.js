@@ -969,9 +969,10 @@ function renderStructuredContent(parent, node, language = null, dictName = null,
             } else {
                 const i = node.href.indexOf('?');
                 const query = i < 0 ? null : new URLSearchParams(node.href.slice(i + 1)).get('query');
-                const count = query ? await webkit.messageHandlers.lookupRedirect.postMessage(query) : 0;
-                if (count > 0) {
-                    redirect(count);
+                const generation = renderGeneration;
+                const entries = query ? await webkit.messageHandlers.lookupRedirect.postMessage(query) : [];
+                if (generation === renderGeneration && entries.length > 0) {
+                    redirect(entries);
                 }
             }
         };
@@ -1511,10 +1512,12 @@ async function checkDuplicates(entryIndex) {
         return;
     }
 
+    const generation = renderGeneration;
     const results = await webkit.messageHandlers.duplicateCheck.postMessage({
         '{expression}': entry.expression,
         '{reading}': entry.reading
     });
+    if (generation !== renderGeneration) return;
     getButtonSlots('mine', entryIndex).forEach(slot => {
         const i = Number(slot.dataset.slotIndex);
         const isDuplicate = results?.[i] === true;
@@ -1709,11 +1712,13 @@ function createGlossarySection(dictName, contents, isFirst, entryIdx) {
 const backStack = [];
 const forwardStack = [];
 
-function redirect(count) {
+let renderGeneration = 0;
+
+function redirect(entries) {
     backStack.push(snapshot());
     forwardStack.length = 0;
-    window.lookupEntries = undefined;
-    window.entryCount = count;
+    window.lookupEntries = entries;
+    window.entryCount = entries.length;
     audioUrls = {};
     selectedDictionaries = {};
     document.getElementById('entries-container').innerHTML = '';
@@ -1770,6 +1775,8 @@ function buildKanjiEntry(data) {
 }
 
 function redirectKanji(data) {
+    renderGeneration++;
+    masonryObserver?.disconnect();
     backStack.push(snapshot());
     forwardStack.length = 0;
     window.lookupEntries = undefined;
@@ -1799,15 +1806,23 @@ function snapshot() {
 }
 
 function restore(s) {
+    renderGeneration++;
+    masonryObserver?.disconnect();
     const container = document.getElementById('entries-container');
     container.replaceChildren(...s.nodes);
     window.lookupEntries = s.lookupEntries;
     window.entryCount = s.entryCount;
+    let rendering = Promise.resolve();
+    if (s.entryCount) {
+        container.replaceChildren();
+        rendering = window.renderPopup();
+    }
+    const generation = renderGeneration;
     audioUrls = {};
     selectedDictionaries = {};
     requestAnimationFrame(reportButtonRects);
-    requestAnimationFrame(() => {
-        document.scrollingElement.scrollTop = s.scrollTop;
+    rendering.then(() => {
+        if (generation === renderGeneration) document.scrollingElement.scrollTop = s.scrollTop;
     });
 }
 
@@ -1875,19 +1890,23 @@ window.addEventListener('resize', () => {
 document.addEventListener('toggle', () => requestAnimationFrame(reportButtonRects), true);
 
 window.renderPopup = function() {
+    const generation = ++renderGeneration;
+    masonryObserver?.disconnect();
     const container = document.getElementById('entries-container');
     if (!window.entryCount) {
         return;
     }
 
-    (async () => {
+    const rendering = (async () => {
         for (let idx = 0; idx < window.entryCount; idx++) {
+            if (generation !== renderGeneration) return;
             window.lookupEntries ??= [];
             if (!window.lookupEntries[idx]) {
                 const entries = await webkit.messageHandlers.getEntries.postMessage({
                     start: idx,
                     count: Math.min(4, window.entryCount - idx)
                 });
+                if (generation !== renderGeneration) return;
                 entries.forEach((entry, offset) => {
                     window.lookupEntries[idx + offset] = entry;
                 });
@@ -1936,6 +1955,7 @@ window.renderPopup = function() {
                 if (idx === 0) {
                     scheduleMasonry();
                     await new Promise(r => requestAnimationFrame(r));
+                    if (generation !== renderGeneration) return;
                 }
             }
             observeMasonry(glossarySections);
@@ -1945,6 +1965,7 @@ window.renderPopup = function() {
             }
         }
 
+        if (generation !== renderGeneration) return;
         container.querySelectorAll('.glossary-content ruby').forEach(ruby => {
             ruby.childNodes.forEach(node => {
                 if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
@@ -2021,15 +2042,16 @@ window.renderPopup = function() {
     }
 
     if (container.clickAttached) {
-        return;
+        return rendering;
     }
     container.clickAttached = true;
     container.addEventListener('click', (e) => {
         const target = e.target?.nodeType === Node.TEXT_NODE ? e.target.parentElement : e.target;
         const kanjiTarget = target?.closest('.kanji-char');
         if (kanjiTarget) {
+            const generation = renderGeneration;
             webkit.messageHandlers.kanjiRedirect.postMessage(kanjiTarget.textContent).then(data => {
-                if (data) {
+                if (data && generation === renderGeneration) {
                     redirectKanji(data);
                 }
             });
@@ -2048,4 +2070,5 @@ window.renderPopup = function() {
             return;
         }
     });
+    return rendering;
 };

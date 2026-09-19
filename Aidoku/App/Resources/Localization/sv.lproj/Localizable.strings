@@ -1166,3 +1166,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Lagringen för översättningscachen är ogiltig eller otillgänglig.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Översättningscachen kunde inte sparas.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Ändringar av iCloud-synkronisering gäller när du stänger Aidoku helt och öppnar appen igen. Tills dess används den nuvarande inställningen.";

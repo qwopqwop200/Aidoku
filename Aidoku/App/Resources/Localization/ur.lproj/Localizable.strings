@@ -1161,3 +1161,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "ترجمے کی کیش کا اسٹوریج درست نہیں ہے یا دستیاب نہیں ہے۔";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "ترجمے کی کیش محفوظ نہیں ہو سکی۔";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud کی مطابقت پذیری میں تبدیلیاں Aidoku کو مکمل طور پر بند کرکے دوبارہ کھولنے پر نافذ ہوں گی۔ تب تک موجودہ ترتیب فعال رہے گی۔";

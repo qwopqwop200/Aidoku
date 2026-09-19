@@ -25,6 +25,85 @@ struct ReaderTranslationImageExportTests {
         return settings
     }
 
+    @Test func exportExtractsEverySourceRepairBeyondTypographyBounds() async throws {
+        let window = try host()
+        defer { window.isHidden = true }
+        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
+        try #require(window.rootViewController?.view).addSubview(webView)
+        webView.loadHTMLString("<html><meta name=viewport content=width=device-width><body style=margin:0></body></html>", baseURL: nil)
+        let deadline = Date().addingTimeInterval(10)
+        while webView.isLoading || webView.url == nil {
+            try #require(Date() < deadline)
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        _ = try await webView.callAsyncJavaScript("""
+        const source = new Image();
+        source.id = 'reader-source-image';
+        const pixel = document.createElement('canvas');
+        pixel.width = pixel.height = 1;
+        source.src = pixel.toDataURL();
+        document.body.append(source);
+        await source.decode();
+        for (const [index, kind] of ['source-cleanup', 'source-panel-restoration',
+             'source-blur', 'source-readability-blur'].entries()) {
+          const layer = document.createElement('canvas');
+          layer.width = layer.height = 20;
+          layer.setAttribute('data-aidoku-image-ocr-overlay', kind);
+          layer.style.cssText = `position:absolute;left:${index * 30}px;top:400px;width:20px;height:20px;opacity:0.5`;
+          layer.getContext('2d').fillRect(0, 0, 20, 20);
+          document.body.append(layer);
+        }
+        const text = document.createElement('div');
+        text.setAttribute('data-aidoku-image-ocr-overlay', 'item');
+        text.style.cssText = 'position:absolute;left:150px;top:50px;width:80px;height:30px';
+        text.textContent = 'Translation';
+        document.body.append(text);
+        """, arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
+        let raw = try #require(try await webView.callAsyncJavaScript(
+            ReaderTranslationImageExporter.prepareExportScript, arguments: [:],
+            in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? String)
+        let payload = try #require(JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [String: Any])
+        let masks = try #require(payload["masks"] as? [[String: Any]])
+        #expect(masks.count == 4)
+        for mask in masks {
+            let frame = try #require(mask["frame"] as? [Double])
+            #expect(frame[1] == 400)
+            #expect((mask["png"] as? String)?.hasPrefix("data:image/png;base64,") == true)
+        }
+        let visibleRepairs = try await webView.evaluateJavaScript("""
+        [...document.querySelectorAll('canvas[data-aidoku-image-ocr-overlay]')]
+          .filter(node => getComputedStyle(node).visibility !== 'hidden').length
+        """) as? Int
+        #expect(visibleRepairs == 0)
+        let bounds = webView.bounds
+        let pdfConfiguration = WKPDFConfiguration()
+        pdfConfiguration.rect = bounds
+        let typography: Data = try await withCheckedThrowingContinuation { continuation in
+            webView.createPDF(configuration: pdfConfiguration) { continuation.resume(with: $0) }
+        }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let original = UIGraphicsImageRenderer(size: bounds.size, format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(bounds)
+        }
+        let layers = try JSONDecoder().decode(ReaderTranslationImageExporter.ExportLayers.self, from: Data(raw.utf8))
+        let output = try ReaderTranslationImageExporter.composite(image: original, typography: typography,
+            layers: layers, displayRect: bounds, size: bounds.size)
+        let pixels = try pixelData(output)
+        for index in 0..<4 {
+            let offset = (410 * Int(bounds.width) + index * 30 + 10) * 4
+            // A single 50% black repair over white is gray. Missing layers are
+            // white; accidentally including them in the PDF darkens them twice.
+            #expect((120...135).contains(Int(pixels[offset])))
+            #expect((120...135).contains(Int(pixels[offset + 1])))
+            #expect((120...135).contains(Int(pixels[offset + 2])))
+        }
+        #expect(pixels[(450 * Int(bounds.width) + 10) * 4] > 245)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try #require(output.pngData()).write(to: folder.appendingPathComponent("all-source-repairs-composite.png"))
+    }
+
     @Test func fullPageIncludesTranslationWithoutLetterboxingOrUI() async throws {
         let window = try host()
         defer { window.isHidden = true }

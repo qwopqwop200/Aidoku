@@ -71,8 +71,9 @@ struct HomeGridView: View {
                 }
         }
 
-        let idealWidth = UIScreen.main.bounds.size.width / CGFloat(itemsPerRow)
-        return (0..<itemsPerRow).map { _ in
+        let columns = max(1, itemsPerRow)
+        let idealWidth = UIScreen.main.bounds.size.width / CGFloat(columns)
+        return (0..<columns).map { _ in
             GridItem(.flexible(minimum: idealWidth / 2), spacing: spacing)
         }
     }

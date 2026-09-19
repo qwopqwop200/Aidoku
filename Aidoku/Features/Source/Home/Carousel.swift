@@ -50,16 +50,17 @@ struct Carousel<Data: RandomAccessCollection, Content: View>: UIViewRepresentabl
         collectionView.carouselDataSource = context.coordinator
         collectionView.isScrollEnabled = data.count > 1
         if let autoScrollInterval, data.count > 1 {
-            collectionView.isAutoScrollEnabled = true
             collectionView.autoScrollInterval = autoScrollInterval
+            collectionView.isAutoScrollEnabled = true
         }
         return collectionView
     }
 
     func updateUIView(_ uiView: CarouselCollectionView, context: Context) {
-        if autoScrollInterval != nil {
-            uiView.isAutoScrollEnabled = !autoScrollPaused
-        }
+        context.coordinator.parent = self
+        uiView.isScrollEnabled = data.count > 1
+        uiView.autoScrollInterval = autoScrollInterval ?? 0
+        uiView.isAutoScrollEnabled = autoScrollInterval != nil && !autoScrollPaused && data.count > 1
         uiView.reloadData()
     }
 
@@ -85,7 +86,7 @@ struct Carousel<Data: RandomAccessCollection, Content: View>: UIViewRepresentabl
                 withReuseIdentifier: "UIHostingCollectionViewCell",
                 for: fakeIndexPath
             ) as! UIHostingCollectionViewCell<Content>
-            cell.configure(with: parent.content(index, parent.data[index as! Data.Index]))
+            cell.configure(with: parent.content(index, parent.data[parent.data.index(parent.data.startIndex, offsetBy: index)]))
             return cell
             // swiftlint:enable force_cast
         }
@@ -294,7 +295,7 @@ class CarouselCollectionView: UICollectionView {
         let page = fakeCurrentPage
         if page == 0 {
             setFakePage(fakeNumberOfItems - 2)
-        } else if page == fakeNumberOfItems {
+        } else if page == fakeNumberOfItems - 1 {
             setFakePage(1)
         }
     }
@@ -302,7 +303,7 @@ class CarouselCollectionView: UICollectionView {
     // MARK: Autoscrolling
 
     private func scheduleTimer(delay: TimeInterval = 0) {
-        guard isAutoScrollEnabled else { return }
+        guard isAutoScrollEnabled, autoScrollInterval > 0, numberOfItems > 1 else { return }
         autoScrollTimer?.invalidate()
         autoScrollTimer = Timer.scheduledTimer(
             withTimeInterval: autoScrollInterval + delay,
@@ -343,9 +344,10 @@ extension CarouselCollectionView: UIScrollViewDelegate, UICollectionViewDelegate
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard numberOfItems > 0 else { return }
         loopItems()
         scheduleTimer()
-        carouselDataSource?.pageDidChange(fakeCurrentPage % numberOfItems)
+        carouselDataSource?.pageDidChange(getRealIndex(IndexPath(item: fakeCurrentPage, section: 0)))
     }
 
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {

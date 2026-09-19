@@ -125,7 +125,7 @@ extension TextRecognizer {
             let members = column.members.sorted { lhs, rhs in
                 let a = observations[lhs].boundingRect
                 let b = observations[rhs].boundingRect
-                if abs(a.midY - b.midY) > 0.004 { return a.midY < b.midY }
+                if abs(a.midY - b.midY) > 0.004 { return a.midY > b.midY }
                 return a.midX > b.midX
             }
             ordered.append(contentsOf: members)
@@ -140,7 +140,7 @@ extension TextRecognizer {
         }
 
         var rows: [Row] = []
-        let sortedByY = indices.sorted { observations[$0].boundingRect.midY < observations[$1].boundingRect.midY }
+        let sortedByY = indices.sorted { observations[$0].boundingRect.midY > observations[$1].boundingRect.midY }
 
         for idx in sortedByY {
             let y = observations[idx].boundingRect.midY
@@ -159,7 +159,7 @@ extension TextRecognizer {
             }
         }
 
-        rows.sort { $0.centerY < $1.centerY }
+        rows.sort { $0.centerY > $1.centerY }
 
         var ordered: [Int] = []
         for row in rows {
@@ -169,7 +169,7 @@ extension TextRecognizer {
                 if abs(a.midX - b.midX) > 0.004 {
                     return leftToRight ? (a.midX < b.midX) : (a.midX > b.midX)
                 }
-                return a.midY < b.midY
+                return a.midY > b.midY
             }
             ordered.append(contentsOf: members)
         }

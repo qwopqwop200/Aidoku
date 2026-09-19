@@ -9,7 +9,7 @@ import Foundation
 
 class WasmJson {
 
-    var globalStore: WasmGlobalStore
+    unowned var globalStore: WasmGlobalStore
 
     init(globalStore: WasmGlobalStore) {
         self.globalStore = globalStore

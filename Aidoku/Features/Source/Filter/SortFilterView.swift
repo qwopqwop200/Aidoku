@@ -72,7 +72,7 @@ struct SortFilterView: View {
         } label: {
             FilterLabelView(
                 name: {
-                    if selectedOption >= options.count {
+                    if !options.indices.contains(selectedOption) {
                         NSLocalizedString("INVALID")
                     } else if let title = filter.title {
                         "\(translatedLabels[title] ?? title): \(translatedLabels[options[selectedOption]] ?? options[selectedOption])"

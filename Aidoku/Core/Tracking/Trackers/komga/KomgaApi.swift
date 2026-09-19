@@ -70,7 +70,10 @@ actor KomgaApi {
         request.httpBody = try? JSONEncoder().encode(KomgaReadProgressUpdate(lastBookNumberSortRead: Float(lastReadVolume)))
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        _ = try await URLSession.shared.data(for: request)
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
     }
 
     func updateReadProgress(
@@ -115,7 +118,10 @@ actor KomgaApi {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
 
-        _ = try await URLSession.shared.data(for: request)
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
     }
 
     func getSeriesReadProgress(sourceKey: String, seriesId: String) async throws -> [String: ChapterReadProgress] {

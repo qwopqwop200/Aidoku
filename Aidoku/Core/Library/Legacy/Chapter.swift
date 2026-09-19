@@ -79,7 +79,7 @@ extension Chapter: Hashable {
 
 extension Chapter: Equatable {
     static func == (lhs: Chapter, rhs: Chapter) -> Bool {
-        lhs.hashValue == rhs.hashValue
+        lhs.sourceId == rhs.sourceId && lhs.mangaId == rhs.mangaId && lhs.id == rhs.id
     }
 }
 

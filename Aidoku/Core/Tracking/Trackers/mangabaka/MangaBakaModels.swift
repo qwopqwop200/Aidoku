@@ -168,9 +168,9 @@ struct MangaBakaLibraryEntry: Codable {
         }
         if let finishDate {
             if finishDate.hasPrefix("1969-12-31") || finishDate.hasPrefix("1970-01-01") {
-                try container.encodeNil(forKey: .startDate)
+                try container.encodeNil(forKey: .finishDate)
             } else {
-                try container.encode(finishDate, forKey: .startDate)
+                try container.encode(finishDate, forKey: .finishDate)
             }
         }
     }

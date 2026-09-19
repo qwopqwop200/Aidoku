@@ -8,6 +8,8 @@
 import AidokuRunner
 import Foundation
 
+struct KavitaEmptyResponse: Decodable {}
+
 struct KavitaHelper: Sendable {
     let sourceKey: String
 
@@ -43,7 +45,7 @@ struct KavitaHelper: Sendable {
     }
 
     func getMirrors() -> [URL] {
-        UserDefaults.standard.stringArray(forKey: "\(sourceKey).mirrors")?.compactMap(URL.init) ?? []
+        UserDefaults.standard.stringArray(forKey: "\(sourceKey).mirrors")?.compactMap { $0.urlWithTrailingSlash() } ?? []
     }
 
     func request<T: Decodable>(
@@ -101,6 +103,13 @@ struct KavitaHelper: Sendable {
             }
             if response.statusCode == 401 {
                 return nil
+            }
+
+            guard (200..<300).contains(response.statusCode) else {
+                throw SourceError.message("HTTP \(response.statusCode)")
+            }
+            if T.self == KavitaEmptyResponse.self, let value = KavitaEmptyResponse() as? T {
+                return value
             }
 
             let decoder = JSONDecoder()
@@ -186,7 +195,7 @@ struct KavitaHelper: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let response: TokenRefresh? = try? await URLSession.shared.object(from: request)
+        let response: TokenRefresh? = try? await SourceNetwork.shared.object(from: request)
         guard let response else {
             return try await refreshApiKey() // maybe refresh token expired(?)
         }
@@ -213,7 +222,7 @@ struct KavitaHelper: Sendable {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let response: KavitaSourceRunner.LoginResponse? = try? await URLSession.shared.object(from: request)
+        let response: KavitaSourceRunner.LoginResponse? = try? await SourceNetwork.shared.object(from: request)
         guard let response else { return false }
 
         UserDefaults.standard.set(response.token, forKey: "\(sourceKey).token")

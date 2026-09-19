@@ -138,7 +138,6 @@ class DictionaryManager {
         .compactMap {
             let values = try $0.resourceValues(forKeys: [.isDirectoryKey])
             guard values.isDirectory == true else {
-                try? FileManager.default.removeItem(at: $0)
                 return nil
             }
             guard
@@ -147,7 +146,6 @@ class DictionaryManager {
                 let data = try? Data(contentsOf: url),
                 let index = try? JSONDecoder().decode(DictionaryIndex.self, from: data)
                     else {
-                try? FileManager.default.removeItem(at: $0)
                 return nil
             }
             let result = DictionaryInfo(index: index, path: $0)
@@ -265,11 +263,12 @@ class DictionaryManager {
     //    }
 
     func importDictionary(from urls: [URL]) async {
-        guard let dictionariesDir = try? Self.getDictionariesDirectory() else { return }
+        guard !isImporting, !isUpdating,
+              let dictionariesDir = try? Self.getDictionariesDirectory() else { return }
 
         isImporting = true
 
-        Task.detached {
+        await Task.detached {
             var imported: [String] = []
             var failed: [String] = []
 
@@ -286,48 +285,43 @@ class DictionaryManager {
                     }
                 }
 
-                let importResult = dictionary_importer.import(
-                    std.string(url.path(percentEncoded: false)),
-                    std.string(FileManager.default.temporaryDirectory.path(percentEncoded: false))
-                )
-
-                if importResult.success {
+                do {
+                    let tempRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+                    try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
+                    defer { try? FileManager.default.removeItem(at: tempRoot) }
+                    try DictionaryFileOperations.validateArchive(at: url)
+                    let importResult = dictionary_importer.import(
+                        std.string(url.path(percentEncoded: false)),
+                        std.string(tempRoot.path(percentEncoded: false))
+                    )
+                    guard importResult.success else { throw CocoaError(.fileReadCorruptFile) }
                     let title = String(importResult.title)
-                    let temp = FileManager.default.temporaryDirectory
-                        .appendingPathComponent(String(title))
-                    defer { try? FileManager.default.removeItem(at: temp) }
-
+                    try DictionaryFileOperations.validateTitle(title)
+                    let temp = tempRoot.appendingPathComponent(title)
                     let counts = importResult.summary.counts
-                    if counts.terms.total > 0 {
-                        let destination = dictionariesDir.appendingPathComponent(DictionaryType.term.rawValue).appendingPathComponent(title)
-                        try? FileManager.default.copyItem(at: temp, to: destination)
-                    }
-                    if counts.termMeta[std.string("freq")] != nil {
-                        let destination = dictionariesDir.appendingPathComponent(DictionaryType.frequency.rawValue).appendingPathComponent(title)
-                        try? FileManager.default.copyItem(at: temp, to: destination)
-                    }
-                    if counts.termMeta[std.string("pitch")] != nil || counts.termMeta[std.string("ipa")] != nil {
-                        let destination = dictionariesDir.appendingPathComponent(DictionaryType.pitch.rawValue).appendingPathComponent(title)
-                        try? FileManager.default.copyItem(at: temp, to: destination)
-                    }
-                    if counts.kanji.total > 0 {
-                        let destination = dictionariesDir.appendingPathComponent(DictionaryType.kanji.rawValue).appendingPathComponent(title)
-                        try? FileManager.default.copyItem(at: temp, to: destination)
+                    var types: [DictionaryType] = []
+                    if counts.terms.total > 0 { types.append(.term) }
+                    if counts.termMeta[std.string("freq")] != nil { types.append(.frequency) }
+                    if counts.termMeta[std.string("pitch")] != nil || counts.termMeta[std.string("ipa")] != nil { types.append(.pitch) }
+                    if counts.kanji.total > 0 { types.append(.kanji) }
+                    guard !types.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
+                    for type in types {
+                        let destination = dictionariesDir.appendingPathComponent(type.rawValue).appendingPathComponent(title)
+                        try DictionaryFileOperations.install(from: temp, to: destination)
                     }
                     imported.append(current)
-                } else {
-                    failed.append(current)
+                } catch {
+                    failed.append("\(current): \(error.localizedDescription)")
                 }
             }
 
             await MainActor.run { [imported, failed] in
                 self.isImporting = false
 
-                if !imported.isEmpty {
-                    self.loadDictionaries()
-                    self.saveDictionaryConfig()
-                    self.rebuildLookupQuery()
-                }
+                // A multi-category archive may have committed one category before a later failure.
+                self.loadDictionaries()
+                self.saveDictionaryConfig()
+                self.rebuildLookupQuery()
 
                 if imported.isEmpty {
                     self.showError("failed to import dictionary")
@@ -335,10 +329,11 @@ class DictionaryManager {
                     self.showError("some dictionaries could not be imported:\n\(failed.joined(separator: "\n"))")
                 }
             }
-        }
+        }.value
     }
 
     func updateDictionaries(showErrors: Bool = true, session: URLSession = .shared) {
+        guard !isImporting, !isUpdating else { return }
         let dictionaries = updatableDictionaries
         isUpdating = true
         Task.detached {
@@ -370,7 +365,7 @@ class DictionaryManager {
                                 //                                let wasCollapsed = self.collapsedDictionaries.contains(old)
                                 let wasCategory = type == .term ? self.termDictionaries[currentIndex].category : .none
                                 self.deleteDictionary(indexSet: IndexSet(integer: currentIndex), type: type)
-                                let importedIndex = self.getDictionaryIndex(title: new, type: type)!
+                                guard let importedIndex = self.getDictionaryIndex(title: new, type: type) else { return }
                                 self.setDictionaryEnabled(index: importedIndex, enabled: wasEnabled, type: type)
                                 let newId = type == .term ? self.termDictionaries[importedIndex].id : nil
                                 self.moveDictionary(from: IndexSet(integer: importedIndex), to: currentIndex, type: type)
@@ -405,6 +400,7 @@ class DictionaryManager {
     }
 
     func downloadDictionary(indexUrl: String, type: DictionaryType) async -> Bool {
+        guard !isImporting, !isUpdating else { return false }
         isImporting = true
 
         return await Task.detached {
@@ -447,7 +443,8 @@ class DictionaryManager {
             return targetDictionaries.first(where: { $0.index.indexUrl == indexUrl })?.index
         }.value
 
-        let (data, _) = try await session.data(from: URL(string: indexUrl)!)
+        let (data, response) = try await session.data(from: DictionaryFileOperations.remoteURL(indexUrl))
+        try DictionaryFileOperations.validateResponse(response)
         let remoteIndex = try JSONDecoder().decode(DictionaryIndex.self, from: data)
 
         if existingIndex?.revision == remoteIndex.revision {
@@ -465,10 +462,11 @@ class DictionaryManager {
             }
         }
 
-        guard let downloadUrl = remoteIndex.downloadUrl else { return nil }
+        guard let downloadUrl = remoteIndex.downloadUrl else { throw URLError(.badURL) }
 
-        let (temp, _) = try await session.download(from: URL(string: downloadUrl)!)
+        let (temp, downloadResponse) = try await session.download(from: DictionaryFileOperations.remoteURL(downloadUrl))
         tempFiles.append(temp)
+        try DictionaryFileOperations.validateResponse(downloadResponse)
 
         await MainActor.run {
             self.currentImport = "Importing \(remoteIndex.title)"
@@ -479,6 +477,7 @@ class DictionaryManager {
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         tempFiles.append(tempDir)
 
+        try DictionaryFileOperations.validateArchive(at: temp)
         let importResult = dictionary_importer.import(
             std.string(temp.path(percentEncoded: false)),
             std.string(tempDir.path(percentEncoded: false))
@@ -489,16 +488,13 @@ class DictionaryManager {
         }
 
         let new = String(importResult.title)
-        let old = existingIndex?.title
+        try DictionaryFileOperations.validateTitle(new)
         let tempPath = tempDir.appendingPathComponent(new)
         let destPath = try await Self.getDictionariesDirectory()
             .appendingPathComponent(type.rawValue)
             .appendingPathComponent(new)
 
-        if new == old {
-            try? FileManager.default.removeItem(at: destPath)
-        }
-        try FileManager.default.moveItem(at: tempPath, to: destPath)
+        try DictionaryFileOperations.install(from: tempPath, to: destPath)
 
         return importResult
     }
@@ -583,35 +579,70 @@ extension DictionaryManager {
         }
     }
 
+    func deleteDictionary(path: URL, type: DictionaryType) {
+        let dictionaries = switch type {
+            case .term: termDictionaries
+            case .frequency: frequencyDictionaries
+            case .pitch: pitchDictionaries
+            case .kanji: kanjiDictionaries
+        }
+        guard let index = dictionaries.firstIndex(where: { $0.path == path }) else { return }
+        deleteDictionary(indexSet: IndexSet(integer: index), type: type)
+    }
+
     func deleteDictionary(indexSet: IndexSet, type: DictionaryType) {
         switch type {
             case .term:
-                for index in indexSet {
+                for index in indexSet.reversed() {
+                    guard termDictionaries.indices.contains(index) else { continue }
                     let dictionary = termDictionaries[index]
-                    try? FileManager.default.removeItem(at: dictionary.path)
+                    do {
+                        try FileManager.default.removeItem(at: dictionary.path)
+                    } catch {
+                        showError(error.localizedDescription)
+                        continue
+                    }
                     termDictionaries.remove(at: index)
-                    updatableDictionaries.removeAll { $0.0.index.title == dictionary.index.title }
+                    updatableDictionaries.removeAll { $0.0.path == dictionary.path && $0.1 == type }
                 }
             case .frequency:
-                for index in indexSet {
+                for index in indexSet.reversed() {
+                    guard frequencyDictionaries.indices.contains(index) else { continue }
                     let dictionary = frequencyDictionaries[index]
-                    try? FileManager.default.removeItem(at: dictionary.path)
+                    do {
+                        try FileManager.default.removeItem(at: dictionary.path)
+                    } catch {
+                        showError(error.localizedDescription)
+                        continue
+                    }
                     frequencyDictionaries.remove(at: index)
-                    updatableDictionaries.removeAll { $0.0.index.title == dictionary.index.title }
+                    updatableDictionaries.removeAll { $0.0.path == dictionary.path && $0.1 == type }
                 }
             case .pitch:
-                for index in indexSet {
+                for index in indexSet.reversed() {
+                    guard pitchDictionaries.indices.contains(index) else { continue }
                     let dictionary = pitchDictionaries[index]
-                    try? FileManager.default.removeItem(at: dictionary.path)
+                    do {
+                        try FileManager.default.removeItem(at: dictionary.path)
+                    } catch {
+                        showError(error.localizedDescription)
+                        continue
+                    }
                     pitchDictionaries.remove(at: index)
-                    updatableDictionaries.removeAll { $0.0.index.title == dictionary.index.title }
+                    updatableDictionaries.removeAll { $0.0.path == dictionary.path && $0.1 == type }
                 }
             case .kanji:
-                for index in indexSet {
+                for index in indexSet.reversed() {
+                    guard kanjiDictionaries.indices.contains(index) else { continue }
                     let dictionary = kanjiDictionaries[index]
-                    try? FileManager.default.removeItem(at: dictionary.path)
+                    do {
+                        try FileManager.default.removeItem(at: dictionary.path)
+                    } catch {
+                        showError(error.localizedDescription)
+                        continue
+                    }
                     kanjiDictionaries.remove(at: index)
-                    updatableDictionaries.removeAll { $0.0.index.title == dictionary.index.title }
+                    updatableDictionaries.removeAll { $0.0.path == dictionary.path && $0.1 == type }
                 }
         }
         updateOrder(type: type)

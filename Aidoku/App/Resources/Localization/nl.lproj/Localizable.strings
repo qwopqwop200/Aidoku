@@ -1168,3 +1168,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "De opslag voor de vertaalcache is ongeldig of niet beschikbaar.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "De vertaalcache kon niet worden opgeslagen.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Wijzigingen aan iCloud-synchronisatie worden toegepast nadat je Aidoku volledig sluit en opnieuw opent. Tot dan blijft de huidige instelling actief.";

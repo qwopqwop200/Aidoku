@@ -124,7 +124,7 @@ enum ReaderTranslationImageExporter {
         return result
     }
 
-    private struct ExportLayers: Decodable, Sendable {
+    struct ExportLayers: Decodable, Sendable {
         struct Mask: Decodable, Sendable {
             let frame: [CGFloat]
             let opacity: CGFloat
@@ -141,7 +141,7 @@ enum ReaderTranslationImageExporter {
         let paintBounds: [[CGFloat]]
     }
 
-    private static let prepareExportScript = #"""
+    static let prepareExportScript = #"""
     await document.fonts.ready;
     const source = document.getElementById('reader-source-image');
     if (!source) throw new Error('Missing export background');
@@ -150,7 +150,12 @@ enum ReaderTranslationImageExporter {
       const r = node.getBoundingClientRect();
       return [r.x, r.y, r.width, r.height];
     };
-    const masks = [...document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-cleanup"]')].map(node => ({
+    // Every source-pixel repair belongs to the image composite. PDF typography
+    // is clipped to text/card bounds, which need not contain the original ink.
+    const sourceLayers = [...document.querySelectorAll([
+      'source-cleanup', 'source-panel-restoration', 'source-blur', 'source-readability-blur'
+    ].map(kind => `[data-aidoku-image-ocr-overlay="${kind}"]`).join(','))];
+    const masks = sourceLayers.map(node => ({
       frame: frame(node), opacity: Number(getComputedStyle(node).opacity), png: node.toDataURL('image/png')
     }));
     const surfaces = [];
@@ -175,7 +180,7 @@ enum ReaderTranslationImageExporter {
       node.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
     }
     source.style.visibility = 'hidden';
-    for (const node of document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-cleanup"]')) {
+    for (const node of sourceLayers) {
       node.style.visibility = 'hidden';
     }
     await Promise.race([
@@ -185,7 +190,7 @@ enum ReaderTranslationImageExporter {
     return JSON.stringify({masks, surfaces, paintBounds});
     """#
 
-    private nonisolated static func composite(image: UIImage, typography: Data, layers: ExportLayers,
+    nonisolated static func composite(image: UIImage, typography: Data, layers: ExportLayers,
                                              displayRect: CGRect, size: CGSize) throws -> UIImage {
         let scale = size.width / displayRect.width
         let scaleY = size.height / displayRect.height

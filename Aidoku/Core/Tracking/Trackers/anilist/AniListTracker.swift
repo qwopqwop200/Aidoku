@@ -212,6 +212,7 @@ final class AniListTracker: OAuthTracker {
             expiresIn: Int(params["expires_in"] ?? "0")
         )
 
+        await oauthClient.setTokens(oauth)
         token = oauth.accessToken
         UserDefaults.standard.set(try? JSONEncoder().encode(oauth), forKey: "Tracker.\(id).oauth")
     }

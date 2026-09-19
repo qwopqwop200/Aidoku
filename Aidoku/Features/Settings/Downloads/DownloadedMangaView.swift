@@ -221,7 +221,14 @@ struct DownloadedMangaView: View {
                     activityItems: [url],
                     applicationActivities: nil
                 )
-                guard let sourceView = path.rootViewController?.view else { return }
+                let temporary = url.standardizedFileURL.path.hasPrefix(FileManager.default.temporaryDirectory.standardizedFileURL.path + "/")
+                activityViewController.completionWithItemsHandler = { _, _, _, _ in
+                    if temporary { url.removeItem() }
+                }
+                guard let sourceView = path.rootViewController?.view else {
+                    if temporary { url.removeItem() }
+                    return
+                }
                 activityViewController.popoverPresentationController?.sourceView = sourceView
                 // manually positioned in top right of screen, near the right navigation bar button
                 activityViewController.popoverPresentationController?.sourceRect = CGRect(

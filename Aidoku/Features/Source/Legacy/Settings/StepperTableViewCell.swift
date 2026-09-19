@@ -10,7 +10,8 @@ import UIKit
 class StepperTableViewCell: UITableViewCell {
     let titleLabel = UILabel()
     let detailLabel = UILabel()
-    let stepperView = UIStepper()
+    let stepperLease = SettingStepperLease()
+    var stepperView: UIStepper { stepperLease.control }
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)

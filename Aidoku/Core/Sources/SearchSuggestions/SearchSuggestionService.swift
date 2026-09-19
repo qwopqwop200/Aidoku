@@ -152,10 +152,17 @@ actor SearchSuggestionHTTPClient {
 /// Shared across search screens so reopening one cannot reset an API's rate limit.
 actor SearchSuggestionRequestThrottle {
     static let shared = SearchSuggestionRequestThrottle()
-    private var nextRequests: [URL: TimeInterval] = [:]
+    private var nextRequests: [String: TimeInterval] = [:]
+
+    private func origin(for url: URL) -> String {
+        let scheme = url.scheme?.lowercased() ?? "https"
+        let port = url.port ?? (scheme == "https" ? 443 : 80)
+        return "\(scheme)://\(url.host?.lowercased() ?? ""):\(port)"
+    }
 
     func wait(for url: URL, milliseconds: Int) async throws {
-        while let next = nextRequests[url], next > ProcessInfo.processInfo.systemUptime {
+        let key = origin(for: url)
+        while let next = nextRequests[key], next > ProcessInfo.processInfo.systemUptime {
             try await Task.sleep(nanoseconds: UInt64(max(0, next - ProcessInfo.processInfo.systemUptime) * 1_000_000_000))
             try Task.checkCancellation()
         }
@@ -164,12 +171,14 @@ actor SearchSuggestionRequestThrottle {
             nextRequests = nextRequests.filter { $0.value > ProcessInfo.processInfo.systemUptime }
         }
         if milliseconds > 0 {
-            nextRequests[url] = ProcessInfo.processInfo.systemUptime + Double(min(milliseconds, 60_000)) / 1000
+            nextRequests[key] = ProcessInfo.processInfo.systemUptime + Double(min(milliseconds, 60_000)) / 1000
         }
     }
 
     func deferRequests(for url: URL, seconds: Double) {
-        let next = ProcessInfo.processInfo.systemUptime + max(1, min(seconds, 300))
-        nextRequests[url] = max(nextRequests[url] ?? 0, next)
+        let key = origin(for: url)
+        let interval = seconds.isFinite ? max(1, min(seconds, 300)) : 60
+        let next = ProcessInfo.processInfo.systemUptime + interval
+        nextRequests[key] = max(nextRequests[key] ?? 0, next)
     }
 }

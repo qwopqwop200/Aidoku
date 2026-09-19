@@ -157,7 +157,7 @@ struct TrackerView: View {
             stateUpdated = true
         }
         .onChange(of: statusOption) { newValue in
-            let new = info.supportedStatuses.count > newValue ?? 100 ? info.supportedStatuses[newValue!] : nil
+            let new = newValue.flatMap { info.supportedStatuses[safe: $0] }
             guard state?.status != new else { return }
             if new == .completed || new == .dropped {
                 finishReadDate = Date()
@@ -246,6 +246,9 @@ struct TrackerView: View {
                         }
                     } catch {
                         LogManager.logger.error("Failed to update tracker \(tracker.id): \(error)")
+                        UIApplication.shared.appDelegate?.presentAlert(
+                            title: NSLocalizedString("UNKNOWN_ERROR"), message: error.localizedDescription
+                        )
                     }
                 }
             }

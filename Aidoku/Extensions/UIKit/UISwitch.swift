@@ -8,17 +8,15 @@
 import UIKit
 
 extension UISwitch {
-    private static var _defaultsKey = [String: String?]()
-    private static var _handlers = [String: (Bool) -> Void]()
+    private static var defaultsKeyAssociation: UInt8 = 0
+    private static var handlerAssociation: UInt8 = 0
 
     var defaultsKey: String? {
         get {
-            let tmpAddress = String(format: "%p", unsafeBitCast(self, to: Int.self))
-            return Self._defaultsKey[tmpAddress] ?? nil
+            objc_getAssociatedObject(self, &Self.defaultsKeyAssociation) as? String
         }
         set {
-            let tmpAddress = String(format: "%p", unsafeBitCast(self, to: Int.self))
-            Self._defaultsKey[tmpAddress] = newValue
+            objc_setAssociatedObject(self, &Self.defaultsKeyAssociation, newValue, .OBJC_ASSOCIATION_COPY_NONATOMIC)
             addTarget(self, action: #selector(toggleDefaultsSetting), for: .valueChanged)
             if let key = newValue {
                 isOn = UserDefaults.standard.bool(forKey: key)
@@ -30,8 +28,8 @@ extension UISwitch {
     }
 
     @objc func handleChange(_ handler: @escaping (Bool) -> Void) {
-        let tmpAddress = String(format: "%p", unsafeBitCast(self, to: Int.self))
-        Self._handlers[tmpAddress] = handler
+        objc_setAssociatedObject(self, &Self.handlerAssociation, handler, .OBJC_ASSOCIATION_COPY_NONATOMIC)
+        addTarget(self, action: #selector(notifyHandler), for: .valueChanged)
     }
 
     @objc func toggleDefaultsSetting() {
@@ -41,8 +39,7 @@ extension UISwitch {
     }
 
     @objc func notifyHandler() {
-        let tmpAddress = String(format: "%p", unsafeBitCast(self, to: Int.self))
-        if let handler = Self._handlers[tmpAddress] {
+        if let handler = objc_getAssociatedObject(self, &Self.handlerAssociation) as? (Bool) -> Void {
             handler(isOn)
         }
         if let key = defaultsKey {

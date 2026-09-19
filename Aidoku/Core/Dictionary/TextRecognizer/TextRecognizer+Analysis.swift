@@ -34,7 +34,7 @@ extension TextRecognizer {
                 guard
                     let candidate = observation.topCandidates(1).first,
                     case let characters = recognizedCharacters(from: candidate),
-                    case let text = characters.map(\.text).joined().trimmingCharacters(in: .whitespacesAndNewlines),
+                    case let text = characters.map(\.text).joined(),
                     !text.isEmpty, !characters.isEmpty
                         else {
                     return nil
@@ -85,6 +85,9 @@ extension TextRecognizer {
             guard let box = candidate.boundingBox(for: range) else { continue }
             characters.append(.init(text: String(char), boundingRect: box.boundingBox.cgRect))
         }
+        // Keep text offsets and character hit boxes aligned after trimming OCR padding.
+        while characters.first?.text.allSatisfy(\.isWhitespace) == true { characters.removeFirst() }
+        while characters.last?.text.allSatisfy(\.isWhitespace) == true { characters.removeLast() }
         return characters
     }
 }

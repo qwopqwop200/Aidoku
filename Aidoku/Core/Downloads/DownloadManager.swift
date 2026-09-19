@@ -77,7 +77,7 @@ actor DownloadManager {
                     guard !url.lastPathComponent.hasPrefix(".") else {
                         return nil
                     }
-                    if LocalFileManager.allowedTextExtensions.contains(url.pathExtension) {
+                    if LocalFileManager.allowedTextExtensions.contains(url.pathExtension.lowercased()) {
                         // add description file to list
                         if url.lastPathComponent.hasSuffix("desc.txt") {
                             descriptionFiles.append(url)
@@ -87,7 +87,7 @@ actor DownloadManager {
                         let text: String? = try? String(contentsOf: url)
                         guard let text else { return nil }
                         return AidokuRunner.Page(content: .text(text))
-                    } else if LocalFileManager.allowedImageExtensions.contains(url.pathExtension) {
+                    } else if LocalFileManager.allowedImageExtensions.contains(url.pathExtension.lowercased()) {
                         // load file as image
                         return AidokuRunner.Page(content: .url(url: url, context: nil))
                     } else {
@@ -106,7 +106,7 @@ actor DownloadManager {
                         .flatMap({ Int($0) }),
                     index > 0,
                     index <= pages.count
-                else { break }
+                else { continue }
                 pages[index - 1].hasDescription = true
                 pages[index - 1].description = try? String(contentsOf: descriptionFile)
             }
@@ -162,11 +162,13 @@ actor DownloadManager {
             return chapterFile
         }
         // otherwise we can compress it ourselves
-        let tmpFile = FileManager.default.temporaryDirectory.appendingPathComponent(chapterFile.lastPathComponent)
+        let tmpFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString + "-" + chapterFile.lastPathComponent)
         do {
             try FileManager.default.zipItem(at: chapterDirectory, to: tmpFile, shouldKeepParent: false)
             return tmpFile
         } catch {
+            tmpFile.removeItem()
             return nil
         }
     }
@@ -225,6 +227,7 @@ extension DownloadManager {
 
     /// Remove downloads for specified chapters.
     func delete(chapters: [ChapterIdentifier]) async {
+        await queue.cancelDownloads(for: chapters)
         for chapter in chapters {
             let directory = cache.directory(for: chapter)
             let archiveURL = directory.appendingPathExtension("cbz")
@@ -277,7 +280,10 @@ extension DownloadManager {
 
     /// Remove all downloads.
     func deleteAll() async {
+        await queue.cancelAll()
         await cache.removeAll()
+        invalidateDownloadedMangaCache()
+        NotificationCenter.default.post(name: .downloadsRemoved, object: nil)
     }
 }
 
@@ -500,7 +506,7 @@ extension DownloadManager {
             let chapterId = if failed {
                 String(chapterDirectory.lastPathComponent.dropFirst(DownloadCache.tmpDirectoryPrefix.count))
             } else {
-                chapterDirectory.deletingPathExtension().lastPathComponent
+                chapterDirectory.isDirectory ? chapterDirectory.lastPathComponent : chapterDirectory.deletingPathExtension().lastPathComponent
             }
             let size = await calculateDirectorySize(chapterDirectory)
 
@@ -638,6 +644,7 @@ extension DownloadManager {
             for mangaDirectory in sourceDirectory.contents where mangaDirectory.isDirectory {
                 let mangaMetadataUrl = mangaDirectory.appendingPathComponent(".manga_metadata.json")
                 var seriesTitle: String?
+                var migrationSucceeded = true
                 if mangaMetadataUrl.exists {
                     if
                         let data = try? Data(contentsOf: mangaMetadataUrl),
@@ -650,10 +657,10 @@ extension DownloadManager {
                             let thumbnailBase64 = metadata.thumbnailBase64,
                             let imageData = Data(base64Encoded: thumbnailBase64)
                         {
-                            try? imageData.write(to: mangaDirectory.appendingPathComponent("cover.png"))
+                            do { try imageData.write(to: mangaDirectory.appendingPathComponent("cover.png"), options: .atomic) }
+                            catch { migrationSucceeded = false }
                         }
-                    }
-                    mangaMetadataUrl.removeItem()
+                    } else { migrationSucceeded = false }
                 }
                 for chapterDirectory in mangaDirectory.contents where chapterDirectory.isDirectory {
                     let chapterMetadataUrl = chapterDirectory.appendingPathComponent(".metadata.json")
@@ -666,14 +673,17 @@ extension DownloadManager {
                                 title: metadata.title,
                                 series: seriesTitle,
                                 number: metadata.chapterNumber.flatMap { String($0) },
-                                volume: metadata.volumeNumber.flatMap { Int(floor($0)) }
+                                volume: metadata.volumeNumber.flatMap { Int(exactly: $0.rounded(.down)) }
                             ).export()
-                            guard let data = xml.data(using: .utf8) else { continue }
-                            try? data.write(to: chapterDirectory.appendingPathComponent("ComicInfo.xml"))
-                        }
-                        chapterMetadataUrl.removeItem()
+                            guard let data = xml.data(using: .utf8) else { migrationSucceeded = false; continue }
+                            do {
+                                try data.write(to: chapterDirectory.appendingPathComponent("ComicInfo.xml"), options: .atomic)
+                                chapterMetadataUrl.removeItem()
+                            } catch { migrationSucceeded = false }
+                        } else { migrationSucceeded = false }
                     }
                 }
+                if migrationSucceeded { mangaMetadataUrl.removeItem() }
             }
         }
         invalidateDownloadedMangaCache()

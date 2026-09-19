@@ -225,7 +225,11 @@ struct ReaderTranslationOverlapTests {
         session.enable(settings: settings)
         try await waitUntil { await recorder.api == [0] }
         try await Task.sleep(for: .milliseconds(40))
-        #expect(await recorder.ocr == [0])
+        // Disk restoration can finish before lookahead selection, letting page 2
+        // start immediately. Cached page 1 must never run OCR or an API request.
+        let beforeRelease = await recorder.ocr
+        #expect(beforeRelease == [0] || beforeRelease == [0, 2])
+        #expect(await recorder.api == [0])
         await recorder.release()
         try await waitUntil { await recorder.completed == [0, 2] }
         #expect(await recorder.ocr == [0, 2])

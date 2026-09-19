@@ -53,13 +53,13 @@ extension CustomSourceConfig {
 
         func decodeString() throws -> String {
             let length: UInt64 = try decodeVarInt(data, currentIndex: &currentIndex)
-            let endIndex = currentIndex.advanced(by: Int(truncatingIfNeeded: length))
-            guard endIndex <= data.endIndex && endIndex >= currentIndex else {
+            guard currentIndex <= data.endIndex, length <= UInt64(data.endIndex - currentIndex) else {
                 throw DecodingError.dataCorrupted(DecodingError.Context(
                     codingPath: [],
                     debugDescription: "Invalid string length")
                 )
             }
+            let endIndex = currentIndex + Int(length)
             let stringData = data[currentIndex..<endIndex]
             currentIndex = endIndex
             return String(data: stringData, encoding: .utf8) ?? ""

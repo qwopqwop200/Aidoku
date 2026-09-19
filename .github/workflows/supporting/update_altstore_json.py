@@ -4,6 +4,9 @@ import requests
 import zipfile
 import plistlib
 import io
+import os
+import tempfile
+from pathlib import Path
 from datetime import datetime
 
 bundle_id = "app.aidoku.Aidoku"
@@ -17,18 +20,19 @@ def fetch_latest_release(repo):
         "Accept": "application/vnd.github+json",
     }
     try:
-        response = requests.get(api_url, headers=headers)
+        response = requests.get(api_url, headers=headers, timeout=(10, 60))
         response.raise_for_status()
         releases = response.json()
         if len(releases) == 0:
             raise ValueError("No release found.")
 
-        sorted_releases = sorted(releases, key=lambda release: datetime.strptime(release["published_at"], "%Y-%m-%dT%H:%M:%SZ"), reverse=True) # Sort from newest to oldest
-        filtered_sorted_releases = list(filter(lambda release: release["draft"] == False and release["prerelease"] == False, sorted_releases)) # filter out drafts and prereleases
-        if len(filtered_sorted_releases) == 0:
-            raise ValueError("An error occured while sorting and filtering releases.")
-
-        return filtered_sorted_releases[0]
+        stable = [release for release in releases
+                  if not release.get("draft", False) and not release.get("prerelease", False)
+                  and release.get("published_at")]
+        if not stable:
+            raise ValueError("No published stable release found.")
+        return max(stable, key=lambda release: datetime.strptime(
+            release["published_at"], "%Y-%m-%dT%H:%M:%SZ"))
     except requests.RequestException as e:
         print(f"Error fetching releases: {e}")
         raise
@@ -78,121 +82,67 @@ def get_ipa_version_and_build(ipa_path):
 
 def update_json_file(json_file, repo):
     latest_release = fetch_latest_release(repo)
-    try:
-        with open(json_file, "r") as file:
-            data = json.load(file)
-    except json.JSONDecodeError as e:
-        print(f"Error reading JSON file: {e}")
-        raise
+    source = Path(json_file)
+    with source.open(encoding="utf-8") as file:
+        data = json.load(file)
+    apps = data.get("apps")
+    if not isinstance(apps, list) or not apps:
+        raise ValueError("AltStore source has no apps.")
+    app = next((item for item in apps if item.get("bundleIdentifier") == bundle_id), None)
+    if app is None:
+        if len(apps) != 1:
+            raise ValueError("Aidoku app is absent from the source.")
+        app = apps[0]
+    assets = latest_release.get("assets", [])
+    asset = next((item for item in assets if item.get("name", "").endswith(".ipa")), None)
+    if asset is None:
+        raise ValueError("Release has no IPA asset.")
 
-    if "apps" not in data:
-        print(f"There is no \"apps\" key in {json_file}.")
-        raise
-
-    apps_data = data["apps"]
-    if len(apps_data) == 0:
-        print(f"There is no data for \"apps\" key in {json_file}.")
-        raise
-
-    app = apps_data[0]
-    if "versions" not in app:
-        app["versions"] = []
-
-    if "assets" not in latest_release:
-        print("There is no \"assets\" key in latest release JSON. It may mean there are no assets other than source code tarball and zipball.")
-        raise
-
-    assets = latest_release["assets"]
-    if len(assets) == 0:
-        print("There are no assets other than source code tarball and zipball in latest release JSON.")
-        raise
-
-    asset_to_use = None
-    for asset in assets:
-        if asset["name"].endswith(".ipa"):
-            asset_to_use = asset
-            break
- 
-    if asset_to_use is None:
-        print(".ipa file is not found in assets")
-        raise
-
+    # Read the bundle version, rather than guessing identity from the release tag.
+    # A disk-backed temporary file keeps large archives out of resident memory.
+    with tempfile.TemporaryFile() as ipa:
+        with requests.get(asset["browser_download_url"], stream=True, timeout=(10, 60)) as response:
+            response.raise_for_status()
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                if chunk:
+                    ipa.write(chunk)
+        ipa.seek(0)
+        version, build = get_ipa_version_and_build(ipa)
+    if not isinstance(version, str) or not version or not isinstance(build, str) or not build:
+        raise ValueError("IPA is missing its version or build number.")
+    versions = app.setdefault("versions", [])
+    if any(item.get("version") == version and item.get("buildVersion") == build for item in versions):
+        print("No need to update JSON")
+        return
+    description = latest_release.get("body") or ""
+    phrase = "Aidoku Release Information"
+    if phrase in description:
+        description = description.split(phrase, 1)[1].strip()
+    date = datetime.strptime(latest_release["published_at"], "%Y-%m-%dT%H:%M:%SZ")
     data["featuredApps"] = [bundle_id]
     app["bundleIdentifier"] = bundle_id
-    tag = latest_release["tag_name"]
-    full_version = tag.lstrip('v')
-    version = re.search(r"(\d+\.\d+(\.\d+)?)", full_version).group(1)
-    version_entry_exists = any(item["version"] == version for item in app["versions"])
-    if not version_entry_exists:
-        version_date = latest_release["published_at"]
-        date_obj = datetime.strptime(version_date, "%Y-%m-%dT%H:%M:%SZ")
-        version_date = date_obj.strftime("%Y-%m-%d")
-
-        description = latest_release["body"]
-        keypharse = "Aidoku Release Information"
-        if keypharse in description:
-            description = description.split(keypharse, 1)[1].strip()
-
-        description = markdown_to_plain_text(description)
-
-        download_url = asset_to_use["browser_download_url"]
-        size = asset_to_use["size"]
-
-        # download ipa and read version/build number from it
-        ipa_response = requests.get(download_url)
-        ipa_response.raise_for_status()
-        with open("temp.ipa", "wb") as ipa_file:
-            ipa_file.write(ipa_response.content)
-        version, build = get_ipa_version_and_build("temp.ipa")
-
-        version_entry = {
-            "version": version,
-            "date": version_date,
-            "localizedDescription": description,
-            "downloadURL": download_url,
-            "size": size,
-            "minOSVersion": minimum_ios_version,
-            "buildVersion": build
-        }
-        app["versions"].insert(0, version_entry)
-
-# If news update is wanted
-###
-#    if "news" not in data:
-#        data["news"] = []
-#
-#    news_identifier = f"release-{full_version}"
-#    news_entry_exists = any(item["identifier"] == news_identifier for item in data["news"])
-#    if not news_entry_exists:
-#        date_string = date_obj.strftime("%Y/%m/%d")
-#        news_entry = {
-#            "appID": bundle_id,
-#            "caption": f"New version of Aidoku just got released!",
-#            "date": latest_release["published_at"],
-#            "identifier": news_identifier,
-#            "notify": True,
-#            "tintColor": "ff375f",
-#            "title": f"v{full_version}",
-#            "url": f"https://github.com/{repo}/releases/tag/{tag}"
-#        }
-#        data["news"].insert(0, news_entry)
-#
-#    if not version_entry_exists and not news_entry_exists:
-###
-
-# If news update is NOT wanted
-###
-    if not version_entry_exists:
-###
-        try:
-            with open(json_file, "w") as file:
-                json.dump(data, file, indent=2)
-            print("JSON file updated successfully.")
-        except IOError as e:
-            print(f"Error writing to JSON file: {e}")
-            raise
-    else:
-        print("No need to update JSON")
+    versions.insert(0, {
+        "version": version,
+        "date": date.strftime("%Y-%m-%d"),
+        "localizedDescription": markdown_to_plain_text(description),
+        "downloadURL": asset["browser_download_url"],
+        "size": asset["size"],
+        "minOSVersion": minimum_ios_version,
+        "buildVersion": build,
+    })
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=source.parent,
+                                         prefix=".altstore-", suffix=".json", delete=False) as file:
+            temporary = file.name
+            json.dump(data, file, indent=2)
+            file.flush()
+            os.fsync(file.fileno())
+        os.replace(temporary, source)
+    finally:
+        if temporary is not None and os.path.exists(temporary):
+            os.unlink(temporary)
+    print("JSON file updated successfully.")
 
 def main():
     try:

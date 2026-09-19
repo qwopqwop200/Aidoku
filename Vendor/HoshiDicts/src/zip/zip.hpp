@@ -1,0 +1,41 @@
+#pragma once
+
+#include <cstdint>
+#include <filesystem>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "../memory/memory.hpp"
+
+struct ZipEntry {
+  std::string name;
+  uint16_t compression_method;
+  uint32_t crc32;
+  uint32_t compressed_size;
+  uint32_t uncompressed_size;
+  size_t data_offset;
+};
+
+struct Zip {
+  memory::mapped_file file;
+  std::vector<ZipEntry> entries;
+
+  Zip() = default;
+  Zip(const Zip&) = delete;
+  Zip& operator=(const Zip&) = delete;
+  ~Zip();
+  bool open(const std::filesystem::path& path);
+  int find(const std::string& name) const;
+  std::string read(int index) const;
+
+  struct MediaResult {
+    std::string path;
+    std::vector<char> blob;
+  };
+
+  std::optional<MediaResult> read_media(int index) const;
+
+ private:
+  bool parse_central_directory();
+};

@@ -1168,3 +1168,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Der Speicher für den Übersetzungscache ist ungültig oder nicht verfügbar.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Der Übersetzungscache konnte nicht gespeichert werden.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Änderungen an der iCloud-Synchronisierung gelten nach dem vollständigen Schließen und erneuten Öffnen von Aidoku. Bis dahin bleibt die aktuelle Einstellung aktiv.";

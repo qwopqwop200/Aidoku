@@ -227,7 +227,7 @@ class GroupFilter: Filter<Any?> {
     }
 
     override func copy(with zone: NSZone? = nil) -> Any {
-        GroupFilter(name: name, filters: filters)
+        GroupFilter(name: name, filters: filters.map { $0.copy(with: zone) as! FilterBase })
     }
 }
 

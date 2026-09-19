@@ -17,7 +17,7 @@ struct SourceHomeSkeletonView: View {
         self.source = source
         let components = UserDefaults.standard.array(forKey: "\(source.key).homeComponents") as? [Int]
         if let components {
-            self._components = .init(initialValue: components.chunked(into: 2))
+            self._components = .init(initialValue: components.chunked(into: 2).filter { $0.count == 2 }.map { [$0[0], max(0, min(30, $0[1]))] })
         } else {
             // fall back to default skeleton layout
             self._components = .init(initialValue: [[1, 0], [3, 5], [2, 0]])

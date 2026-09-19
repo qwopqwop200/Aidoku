@@ -95,7 +95,7 @@ class MangaCollectionViewController: BaseCollectionViewController {
             }
             if self.bookmarkedItems.insert(entry.key).inserted {
                 var snapshot = self.dataSource.snapshot()
-                snapshot.reloadItems([entry])
+                if snapshot.itemIdentifiers.contains(entry) { snapshot.reloadItems([entry]) }
                 self.dataSource.apply(snapshot)
             }
         }
@@ -111,7 +111,7 @@ class MangaCollectionViewController: BaseCollectionViewController {
             }
             if self.bookmarkedItems.remove(entry.key) != nil {
                 var snapshot = self.dataSource.snapshot()
-                snapshot.reloadItems([entry])
+                if snapshot.itemIdentifiers.contains(entry) { snapshot.reloadItems([entry]) }
                 self.dataSource.apply(snapshot)
             }
         }
@@ -289,7 +289,7 @@ extension MangaCollectionViewController {
                         // remove bookmark icon
                         self.bookmarkedItems.remove(entry.key)
                         var snapshot = self.dataSource.snapshot()
-                        snapshot.reloadItems([entry])
+                        if snapshot.itemIdentifiers.contains(entry) { snapshot.reloadItems([entry]) }
                         self.dataSource.apply(snapshot)
                         // remove from library
                         Task {
@@ -325,7 +325,7 @@ extension MangaCollectionViewController {
                             // add bookmark icon
                             self.bookmarkedItems.insert(entry.key)
                             var snapshot = self.dataSource.snapshot()
-                            snapshot.reloadItems([entry])
+                            if snapshot.itemIdentifiers.contains(entry) { snapshot.reloadItems([entry]) }
                             await self.dataSource.apply(snapshot)
 
                             // add to library

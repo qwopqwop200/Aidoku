@@ -34,7 +34,9 @@ final class CoreDataManager: @unchecked Sendable {
     private var lastHistoryToken: NSPersistentHistoryToken?
     private var didLoadHistoryToken = false
     private var lastHistoryPurge: Date?
-    private var usesCloudKitMirroring: Bool
+    // Store options are applied when loading the persistent store. Keep history
+    // retention aligned with that loaded configuration until the next launch.
+    private let usesCloudKitMirroring: Bool
 
     private static let historyTokenUrl = FileManager.default.applicationSupportDirectory
         .appendingPathComponent("historyToken.data")
@@ -63,16 +65,7 @@ final class CoreDataManager: @unchecked Sendable {
         }
         .store(in: &cancellables)
 
-        Publishers.Merge(
-            NotificationCenter.default.publisher(for: .init(AppSettings.general.icloudSync.key)),
-            NotificationCenter.default.publisher(for: NSNotification.Name.NSUbiquityIdentityDidChange)
-        )
-            .sink { [weak self] _ in
-                Task { @MainActor in
-                    self?.updateCloudConfiguration()
-                }
-            }
-            .store(in: &cancellables)
+
     }
 
     static func createContainer(usesCloudKitMirroring: Bool) -> NSPersistentCloudKitContainer {
@@ -163,21 +156,6 @@ final class CoreDataManager: @unchecked Sendable {
         }
     }
 
-    @MainActor
-    func updateCloudConfiguration() {
-        let usesCloudKitMirroring = Self.shouldUseiCloud
-        remoteHistoryQueue.addOperation { [weak self] in
-            self?.usesCloudKitMirroring = usesCloudKitMirroring
-        }
-
-        guard let cloudDescription = self.container.persistentStoreDescriptions.first else { return }
-        if usesCloudKitMirroring {
-            cloudDescription.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: CoreDataManager.containerID)
-        } else {
-            cloudDescription.cloudKitContainerOptions = nil
-        }
-    }
-
     // TODO: clean this up
     func migrateChapterHistory(progress: (@Sendable (Float) -> Void)? = nil) async {
         LogManager.logger.info("Beginning chapter history migration for 0.6")
@@ -227,6 +205,7 @@ extension CoreDataManager {
                     request = .fetchHistory(after: Date().addingTimeInterval(-Self.historyColdStartWindow))
                 }
                 request.fetchRequest = historyFetchRequest
+                guard let request = Self.scopedHistoryRequest(request, in: context) else { return }
 
                 var result = (try? context.execute(request)) as? NSPersistentHistoryResult
                 if result == nil && self.historyToken() != nil {
@@ -235,6 +214,7 @@ extension CoreDataManager {
                         after: Date().addingTimeInterval(-Self.historyColdStartWindow)
                     )
                     fallback.fetchRequest = historyFetchRequest
+                    guard let fallback = Self.scopedHistoryRequest(fallback, in: context) else { return }
                     result = (try? context.execute(fallback)) as? NSPersistentHistoryResult
                 }
                 guard
@@ -296,16 +276,32 @@ extension CoreDataManager {
         if let lastHistoryPurge, now.timeIntervalSince(lastHistoryPurge) < Self.historyPurgeInterval {
             return
         }
-        lastHistoryPurge = now
-
         let context = container.newBackgroundContext()
         context.performAndWait {
             do {
-                try context.execute(NSPersistentHistoryChangeRequest.deleteHistory(before: date))
+                guard let request = Self.scopedHistoryRequest(
+                    .deleteHistory(before: date), in: context
+                ) else { return }
+                try context.execute(request)
+                lastHistoryPurge = now
             } catch {
                 LogManager.logger.error("purgeHistory: \(error.localizedDescription)")
             }
         }
+    }
+
+    /// Use the loaded stores' options, not descriptions that can change after loading.
+    /// Local.sqlite intentionally does not record persistent history.
+    static func scopedHistoryRequest(
+        _ request: NSPersistentHistoryChangeRequest,
+        in context: NSManagedObjectContext
+    ) -> NSPersistentHistoryChangeRequest? {
+        let stores = context.persistentStoreCoordinator?.persistentStores.filter {
+            ($0.options?[NSPersistentHistoryTrackingKey] as? NSNumber)?.boolValue == true
+        } ?? []
+        guard !stores.isEmpty else { return nil }
+        request.affectedStores = stores
+        return request
     }
 
     private func historyToken() -> NSPersistentHistoryToken? {
@@ -386,20 +382,77 @@ extension CoreDataManager {
             )
         } else if let object = object as? TrackObject {
             request = TrackObject.fetchRequest()
-            request?.predicate = NSPredicate(format: "id == %@ AND trackerId == %@", object.id ?? "", object.trackerId ?? "")
+            request?.predicate = NSPredicate(format: "id == %@ AND trackerId == %@ AND sourceId == %@ AND mangaId == %@",
+                object.id ?? "", object.trackerId ?? "", object.sourceId ?? "", object.mangaId ?? "")
         } else {
             request = nil
         }
 
         guard let request = request else { return }
 
-        if (try? context.count(for: request)) ?? 0 > 1 {
-            guard let objects = try? context.fetch(request) else { return }
-            for object in objects.dropFirst(1) {
-                if let object = object as? NSManagedObject {
-                    context.delete(object)
+        guard let rows = try? context.fetch(request) as? [NSManagedObject], rows.count > 1 else { return }
+        let objects = rows.sorted { lhs, rhs in
+            if let left = lhs as? HistoryObject, let right = rhs as? HistoryObject {
+                return (left.dateRead ?? .distantPast) > (right.dateRead ?? .distantPast)
+            }
+            return lhs.objectID.uriRepresentation().absoluteString < rhs.objectID.uriRepresentation().absoluteString
+        }
+        guard let keeper = objects.first else { return }
+        for duplicate in objects.dropFirst() {
+            Self.mergeDuplicateRelationships(from: duplicate, into: keeper)
+            context.delete(duplicate)
+        }
+    }
+
+    /// Move inverse relationships before deletion so cascade rules cannot erase unique children.
+    nonisolated static func mergeDuplicateRelationships(from duplicate: NSManagedObject, into keeper: NSManagedObject) {
+        if let old = duplicate as? HistoryObject, let kept = keeper as? HistoryObject,
+           (old.dateRead ?? .distantPast) > (kept.dateRead ?? .distantPast) {
+            kept.dateRead = old.dateRead
+            kept.progress = old.progress
+            kept.completed = old.completed
+            kept.total = old.total
+            kept.scrollPosition = old.scrollPosition
+        }
+        for (name, attribute) in duplicate.entity.attributesByName where !(attribute is NSDerivedAttributeDescription) {
+            if let incoming = duplicate.value(forKey: name) {
+                if keeper.value(forKey: name) == nil {
+                    keeper.setValue(incoming, forKey: name)
+                } else if let date = incoming as? Date, let current = keeper.value(forKey: name) as? Date,
+                          duplicate is LibraryMangaObject {
+                    keeper.setValue(name == "dateAdded" ? min(date, current) : max(date, current), forKey: name)
+                }
+            }
+        }
+        for (name, relationship) in duplicate.entity.relationshipsByName {
+            if relationship.isToMany {
+                if relationship.isOrdered {
+                    let values = duplicate.mutableOrderedSetValue(forKey: name).array
+                    keeper.mutableOrderedSetValue(forKey: name).addObjects(from: values)
+                    duplicate.mutableOrderedSetValue(forKey: name).removeAllObjects()
+                } else {
+                    let values = duplicate.mutableSetValue(forKey: name).allObjects
+                    keeper.mutableSetValue(forKey: name).addObjects(from: values)
+                    duplicate.mutableSetValue(forKey: name).removeAllObjects()
+                }
+            } else if let child = duplicate.value(forKey: name) as? NSManagedObject {
+                if let existing = keeper.value(forKey: name) as? NSManagedObject, existing != child {
+                    // Both parents may already own duplicate children. Merge their
+                    // unique descendants before removing the duplicate cascade edge.
+                    let sameHistory = (child as? HistoryObject).flatMap { history in
+                        (existing as? HistoryObject).map { $0.identifier == history.identifier }
+                    } ?? false
+                    if relationship.deleteRule == .cascadeDeleteRule || sameHistory {
+                        mergeDuplicateRelationships(from: child, into: existing)
+                        duplicate.setValue(nil, forKey: name)
+                        duplicate.managedObjectContext?.delete(child)
+                    }
+                } else {
+                    keeper.setValue(child, forKey: name)
+                    duplicate.setValue(nil, forKey: name)
                 }
             }
         }
     }
+
 }

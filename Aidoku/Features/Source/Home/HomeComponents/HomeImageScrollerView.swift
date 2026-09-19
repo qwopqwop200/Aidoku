@@ -42,7 +42,7 @@ struct HomeImageScrollerView: View {
         self.autoScrollInterval = autoScrollInterval
         self.width = width.flatMap(CGFloat.init)
         self.height = height.flatMap(CGFloat.init)
-        if let autoScrollInterval {
+        if let autoScrollInterval, autoScrollInterval.isFinite, autoScrollInterval > 0, links.count > 1 {
             self._timer = State(initialValue: Timer.publish(every: autoScrollInterval, on: .main, in: .common).autoconnect().eraseToAnyPublisher())
         } else {
             self.timer = nil
@@ -122,7 +122,10 @@ struct HomeImageScrollerView: View {
                                 return
                             }
                             // delay the timer (by restarting it) whenever we scroll manually
-                            self.timer = timer.delay(for: 0, scheduler: RunLoop.main).eraseToAnyPublisher()
+                            if let autoScrollInterval, autoScrollInterval.isFinite, autoScrollInterval > 0 {
+                                self.timer = Timer.publish(every: autoScrollInterval, on: .main, in: .common)
+                                    .autoconnect().eraseToAnyPublisher()
+                            }
                         }
                         .onAppear {
                             timerPaused = false

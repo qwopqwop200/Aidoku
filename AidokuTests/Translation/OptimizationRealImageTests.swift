@@ -26,12 +26,12 @@ struct OptimizationRealImageTests {
             var baseline: [Float] = []
             let start = ContinuousClock.now
             do {
-                let original = try NativeCoreMLDetectionPreprocessor.prepare(frame: frame, useBoundedMemory: false)
+                let original = try await NativeCoreMLDetectionPreprocessor.prepare(frame: frame, useBoundedMemory: false)
                 baseline = await original.values()
             }
             let baselineMS = Self.milliseconds(start)
             let boundedStart = ContinuousClock.now
-            let bounded = try NativeCoreMLDetectionPreprocessor.prepareBounded(frame: frame, canvas: .square, dimensions: dimensions)
+            let bounded = try await NativeCoreMLDetectionPreprocessor.prepareBounded(frame: frame, canvas: .square, dimensions: dimensions)
             let actual = await bounded.values()
             let boundedMS = Self.milliseconds(boundedStart)
             let maximumError = zip(baseline, actual).reduce(Float(0)) { max($0, abs($1.0 - $1.1)) }

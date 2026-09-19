@@ -66,6 +66,24 @@ struct PerformanceOOMOptimizationTests {
         #expect(request.preparedImageDataURL == nil)
     }
 
+    @Test func boundedDetectorPreservesNonAlignedHighContrastSampling() async throws {
+        guard #available(iOS 18.0, *) else { return }
+        let width = 1281, height = 64
+        var bytes = [UInt8](repeating: 255, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width {
+                for channel in 0..<3 { bytes[(y * width + x) * 4 + channel] = x.isMultiple(of: 2) ? 0 : 255 }
+            }
+        }
+        let frame = try #require(NativeOCRRGBAFrame(width: width, height: height, bytes: bytes))
+        let canvas = try #require(NativeCoreMLDetectionCanvas(inputShape: [1, 3, height, 1312]))
+        let reference = try await NativeCoreMLDetectionPreprocessor.prepare(frame: frame, canvas: canvas, useBoundedMemory: false)
+        let bounded = try await NativeCoreMLDetectionPreprocessor.prepare(frame: frame, canvas: canvas)
+        let expected = await reference.values(), actual = await bounded.values()
+        let error = zip(expected, actual).reduce(Float(0)) { max($0, abs($1.0 - $1.1)) }
+        #expect(error < 0.001)
+    }
+
     @Test func boundedDetectorInputMatchesMLTensorResize() async throws {
         guard #available(iOS 18.0, *) else { return }
         // Deliberately non-aligned dimensions and row padding exercise the
@@ -81,8 +99,8 @@ struct PerformanceOOMOptimizationTests {
         let canvas = try #require(NativeCoreMLDetectionCanvas(inputShape: [1, 3, 192, 128]))
         let dimensions = try #require(NativeCoreMLDetectionPreprocessor.resizeDimensions(sourceWidth: width,
             sourceHeight: height, maximumSide: 192))
-        let reference = try NativeCoreMLDetectionPreprocessor.prepare(frame: frame, canvas: canvas, useBoundedMemory: false)
-        let bounded = try NativeCoreMLDetectionPreprocessor.prepareBounded(frame: frame, canvas: canvas, dimensions: dimensions)
+        let reference = try await NativeCoreMLDetectionPreprocessor.prepare(frame: frame, canvas: canvas, useBoundedMemory: false)
+        let bounded = try await NativeCoreMLDetectionPreprocessor.prepareBounded(frame: frame, canvas: canvas, dimensions: dimensions)
         let expected = await reference.values(), actual = await bounded.values()
         #expect(expected.count == actual.count)
         let error = zip(expected, actual).map { abs($0 - $1) }.max() ?? .infinity

@@ -29,6 +29,7 @@ extension OAuthResponse: Codable {
         refreshToken = try container.decodeIfPresent(String.self, forKey: .refreshToken)
         accessToken = try container.decodeIfPresent(String.self, forKey: .accessToken)
         expiresIn = try container.decodeIfPresent(Int.self, forKey: .expiresIn)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         askedForRefresh = try container.decodeIfPresent(Bool.self, forKey: .askedForRefresh) ?? false
     }
 
@@ -37,6 +38,7 @@ extension OAuthResponse: Codable {
         case refreshToken = "refresh_token"
         case accessToken = "access_token"
         case expiresIn = "expires_in"
+        case createdAt = "created_at"
 
         case askedForRefresh = "asked_for_refresh"
     }

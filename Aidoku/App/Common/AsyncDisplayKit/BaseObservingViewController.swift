@@ -12,7 +12,7 @@ class BaseObservingViewController: BaseViewController {
     var cancellables = Set<AnyCancellable>()
 
     func addObserver(forName name: Notification.Name, object: Any? = nil, using block: @escaping (Notification) -> Void) {
-        NotificationCenter.default.publisher(for: name)
+        NotificationCenter.default.publisher(for: name, object: object as AnyObject?)
             .sink(receiveValue: block)
             .store(in: &cancellables)
     }

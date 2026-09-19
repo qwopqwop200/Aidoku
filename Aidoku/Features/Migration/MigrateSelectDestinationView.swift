@@ -69,9 +69,8 @@ struct MigrateSelectDestinationView: View {
                 Button(NSLocalizedString("CONTINUE")) {
                     Task {
                         let allSources = await SourceManager.shared.getLoadedSources()
-                        var sources: [AidokuRunner.Source] = []
-                        for source in allSources where selectedSources.contains(where: { $0.sourceId == source.key }) {
-                            sources.append(source)
+                        let sources = selectedSources.compactMap { selected in
+                            allSources.first(where: { $0.key == selected.sourceId })
                         }
                         if selectedSeries.count == 1 {
                             path.push(MigrateSingleSearchView(
@@ -118,7 +117,7 @@ extension MigrateSelectDestinationView {
     }
 
     func delete(at indexSet: IndexSet) {
-        for index in indexSet {
+        for index in indexSet.sorted(by: >) {
             selectedSources.remove(at: index)
         }
     }

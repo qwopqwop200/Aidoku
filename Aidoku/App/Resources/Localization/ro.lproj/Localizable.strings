@@ -1133,3 +1133,5 @@
 "TRANSLATION_ERROR_CACHE_SIZE" = "Dimensiunea memoriei cache de traducere este în afara intervalului acceptat.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Spațiul de stocare pentru memoria cache de traducere este nevalid sau indisponibil.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "Memoria cache de traducere nu a putut fi salvată.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Modificările sincronizării iCloud se aplică după închiderea completă și redeschiderea Aidoku. Până atunci, setarea actuală rămâne activă.";

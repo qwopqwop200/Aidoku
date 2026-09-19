@@ -153,7 +153,7 @@ actor TrackerManager {
             let readLastChapter = if
                 chapterNum != nil,
                 let totalChapters = state.totalChapters,
-                let lastReadChapter = state.lastReadChapter
+                let lastReadChapter = update.lastReadChapter ?? state.lastReadChapter
             {
                 totalChapters == Int(floor(lastReadChapter))
             } else if (chapterNum == nil || displayMode == .volume) && update.lastReadVolume != nil {
@@ -168,7 +168,7 @@ actor TrackerManager {
                 update.status = .completed
             } else if state.status != .reading && state.status != .rereading {
                 // if there's no start date, and the status is planning or null, set it to current date
-                if state.startReadDate == nil && state.status == nil || state.status == .planning {
+                if state.startReadDate == nil && (state.status == nil || state.status == .planning) {
                     update.startReadDate = Date()
                 }
                 update.status = state.status == .completed ? .rereading : .reading
@@ -220,8 +220,10 @@ actor TrackerManager {
     }
 
     /// Register a new track item to a manga and save to the data store.
-    func register(tracker: Tracker, manga: AidokuRunner.Manga, item: TrackSearchItem) async {
+    @discardableResult
+    func register(tracker: Tracker, manga: AidokuRunner.Manga, item: TrackSearchItem) async -> Bool {
         let mangaId = manga.identifier
+        guard tracker.canRegister(mangaId: mangaId) else { return false }
         let (highestReadNumber, earliestReadDate) = await CoreDataManager.shared.container.performBackgroundTask { context in
             (
                 CoreDataManager.shared.getHighestReadNumber(
@@ -240,6 +242,7 @@ actor TrackerManager {
                 highestChapterRead: highestReadNumber,
                 earliestReadDate: earliestReadDate
             )
+            guard tracker.canRegister(mangaId: mangaId), !Task.isCancelled else { return false }
             let trackItem = TrackItem(
                 id: id ?? item.id,
                 trackerId: tracker.id,
@@ -247,7 +250,7 @@ actor TrackerManager {
                 title: item.title ?? manga.title,
                 chapterOffset: 0
             )
-            await TrackerManager.shared.saveTrackItem(item: trackItem)
+            try await TrackerManager.shared.saveTrackItem(item: trackItem)
 
             // Sync progress from tracker if enabled or is enhanced tracker
             if AppSettings.tracking.autoSyncFromTracker.get() || (tracker is EnhancedTracker) || (tracker is PageTracker) {
@@ -257,12 +260,14 @@ actor TrackerManager {
             }
         } catch {
             LogManager.logger.error("Failed to register tracker \(tracker.id): \(error)")
+            return false
         }
+        return true
     }
 
     /// Saves a TrackItem to the data store.
-    private func saveTrackItem(item: TrackItem) async {
-        await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
+    private func saveTrackItem(item: TrackItem) async throws {
+        try await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
             CoreDataManager.shared.createTrack(
                 id: item.id,
                 trackerId: item.trackerId,
@@ -274,7 +279,8 @@ actor TrackerManager {
             do {
                 try context.save()
             } catch {
-                LogManager.logger.error("TrackManager.saveTrackItem(item:): \(error)")
+                context.rollback()
+                throw error
             }
         }
         NotificationCenter.default.post(name: .updateTrackers, object: nil)
@@ -674,14 +680,18 @@ extension TrackerManager {
 
         if let pageUpdateTask {
             await pageUpdateTask.value
+            if trackingState.pendingPageUpdates.contains(where: { $0.failCount == 0 }) {
+                await processPendingUpdates()
+            }
             return
         }
 
+        let sent = trackingState.pendingPageUpdates
         pageUpdateTask = Task {
             var stillPending: [PageTrackUpdate] = []
             var successes = 0
 
-            for var update in trackingState.pendingPageUpdates {
+            for var update in sent {
                 guard let tracker = TrackerManager.getTracker(id: update.trackerId) as? PageTracker else {
                     continue // tracker no longer exists, remove the update
                 }
@@ -709,7 +719,9 @@ extension TrackerManager {
                 LogManager.logger.info("Processed \(successes) previously failed page tracker update\(successes > 1 ? "s" : "")")
             }
 
-            trackingState.pendingPageUpdates = stillPending
+            trackingState.pendingPageUpdates = PageTrackUpdate.reconcile(
+                pending: trackingState.pendingPageUpdates, sent: sent, failed: stillPending
+            )
             savePageTrackingState()
             pageUpdateTask = nil
         }

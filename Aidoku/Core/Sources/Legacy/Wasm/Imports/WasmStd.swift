@@ -10,7 +10,7 @@ import SwiftSoup
 
 class WasmStd: WasmImports {
 
-    var globalStore: WasmGlobalStore
+    unowned var globalStore: WasmGlobalStore
 
     enum ObjectType: Int {
         case null = 0
@@ -136,7 +136,8 @@ extension WasmStd {
 
     var create_date: (Float64) -> Int32 {
         { time in
-            self.globalStore.storeStdValue(time < 0 ? Date() : Date(timeIntervalSince1970: time))
+            guard time.isFinite else { return -1 }
+            return self.globalStore.storeStdValue(time < 0 ? Date() : Date(timeIntervalSince1970: time))
         }
     }
 }
@@ -206,7 +207,7 @@ extension WasmStd {
             if let int = value as? Int {
                 return Int64(int)
             } else if let float = value as? Float {
-                return Int64(float)
+                return Int64(exactly: float.rounded(.towardZero)) ?? -1
             } else if let int = Int(value as? String ?? "Error") {
                 return Int64(int)
             } else if let bool = value as? Bool {

@@ -703,7 +703,7 @@ extension LibraryViewController {
 
     @objc func removeSelectedFromLibrary() {
         let inCategory = viewModel.isInRealCategory
-        let selectedItems = collectionView.indexPathsForSelectedItems ?? []
+        let selectedItems = (collectionView.indexPathsForSelectedItems ?? []).compactMap { dataSource.itemIdentifier(for: $0) }
         confirmAction(
             actions: inCategory ? [
                 UIAlertAction(
@@ -711,7 +711,7 @@ extension LibraryViewController {
                     style: .destructive
                 ) { _ in
                     Task {
-                        let identifiers = selectedItems.compactMap { self.dataSource.itemIdentifier(for: $0) }
+                        let identifiers = selectedItems
                         await self.removeFromCategory(mangaInfo: identifiers)?.value
                         self.updateNavbarItems()
                         self.updateToolbar()
@@ -722,7 +722,7 @@ extension LibraryViewController {
             sourceItem: toolbarItems?.first
         ) {
             Task {
-                let identifiers = selectedItems.compactMap { self.dataSource.itemIdentifier(for: $0) }
+                let identifiers = selectedItems
                 await self.removeFromLibrary(mangaInfo: identifiers)?.value
                 self.updateNavbarItems()
                 self.updateToolbar()
@@ -1405,8 +1405,8 @@ extension LibraryViewController {
     ) -> UIContextMenuConfiguration? {
         guard let indexPath = indexPaths.first else { return nil }
 
-        let manga = mangaInfo(at: indexPath)
-        let mangaInfo = indexPaths.map(mangaInfo(at:))
+        guard let manga = dataSource.itemIdentifier(for: indexPath) else { return nil }
+        let mangaInfo = indexPaths.compactMap { dataSource.itemIdentifier(for: $0) }
 
         return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ -> UIMenu? in
             var actions: [UIMenuElement] = []
@@ -1690,7 +1690,7 @@ extension LibraryViewController {
 
             Task {
                 for manga in mangaInfo {
-                    await target.viewModel.addToCurrentCategory(manga: manga)
+                    await CoreDataManager.shared.addCategoriesToManga(mangaId: manga.id, categories: [currentCategory])
                 }
 
                 NotificationCenter.default.post(name: .updateMangaCategories, object: nil)
@@ -1701,9 +1701,9 @@ extension LibraryViewController {
             guard let self else { return }
 
             for manga in mangaInfo {
-                await self.viewModel.removeFromCurrentCategory(manga: manga)
+                await CoreDataManager.shared.removeCategoriesFromManga(mangaId: manga.id, categories: [currentCategory])
             }
-
+            await self.viewModel.loadLibrary()
             self.updateDataSource()
         }
     }

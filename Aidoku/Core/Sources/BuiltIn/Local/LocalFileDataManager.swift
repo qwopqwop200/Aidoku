@@ -93,6 +93,7 @@ extension LocalFileDataManager {
             let results = try context.fetch(request)
             return results.map {
                 LocalSeriesInfo(
+                    id: $0.id,
                     coverUrl: $0.cover ?? "",
                     name: $0.title,
                     chapterCount: $0.chapters?.count ?? 0
@@ -405,7 +406,7 @@ extension LocalFileDataManager {
         chapterObject.manga = mangaObject
         chapterObject.fileInfo = fileInfo
         // add to the top of the chapter list
-        chapterObject.sourceOrder = -Int16((mangaObject.chapters?.count ?? 0) + 1)
+        chapterObject.sourceOrder = Int16(clamping: -((mangaObject.chapters?.count ?? 0) + 1))
 
         mangaObject.addToChapters(chapterObject)
 

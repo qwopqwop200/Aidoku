@@ -33,6 +33,7 @@ class CategorySelectViewController: UITableViewController {
 
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "UITableViewCell")
 
+        navigationItem.rightBarButtonItem?.isEnabled = false
         Task {
             (categories, selectedCategories) = await CoreDataManager.shared.container.performBackgroundTask { context in
                 let categories = CoreDataManager.shared.getCategoryTitles(context: context)
@@ -52,6 +53,7 @@ class CategorySelectViewController: UITableViewController {
                 return (categories, selectedCategories)
             }
             tableView.reloadData()
+            navigationItem.rightBarButtonItem?.isEnabled = true
         }
     }
 

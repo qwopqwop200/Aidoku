@@ -83,6 +83,7 @@ class SettingSelectViewController: UITableViewController {
         super.viewWillAppear(animated)
         navigationController?.navigationBar.isHidden = false
 
+        cancellables.removeAll()
         NotificationCenter.default.publisher(for: .init("Reader.orientation"))
             .sink { [weak self] _ in
                 guard #available(iOS 16.0, *) else {
@@ -110,7 +111,11 @@ extension SettingSelectViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "UITableViewCell", for: indexPath)
 
         if indexPath.row < item.values?.count ?? 0 {
-            cell.textLabel?.text = item.titles?[indexPath.row] ?? item.values?[indexPath.row]
+            if let titles = item.titles, titles.indices.contains(indexPath.row) {
+                cell.textLabel?.text = titles[indexPath.row]
+            } else {
+                cell.textLabel?.text = item.values?[indexPath.row]
+            }
             cell.accessoryType = .none
             if multi {
                 if indexes.contains(indexPath.row) {
@@ -125,6 +130,7 @@ extension SettingSelectViewController {
     }
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        guard let itemValues = item.values, itemValues.indices.contains(indexPath.row) else { return }
         if multi && !forceSingle {
             if let cell = tableView.cellForRow(at: indexPath), let itemValues = item.values {
                 if cell.accessoryType == .checkmark {

@@ -1136,3 +1136,5 @@
 "TRANSLATION_ERROR_CACHE_SIZE" = "翻譯快取大小超出了支援的範圍。";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "翻譯快取儲存空間無效或無法使用。";
 "TRANSLATION_ERROR_CACHE_SAVE" = "無法儲存翻譯快取。";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud 同步的變更將在完全關閉並重新開啟 Aidoku 後生效。在此之前，目前的同步設定仍然有效。";

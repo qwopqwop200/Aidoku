@@ -75,16 +75,13 @@ struct CategoriesView: View {
     }
 
     func onDelete(at offsets: IndexSet) {
+        let titles = offsets.compactMap { categories.indices.contains($0) ? categories[$0] : nil }
         Task {
-            var removedOffsets: IndexSet = []
-            for offset in offsets {
-                let category = categories[offset]
-                let success = await self.removeCategory(title: category)
-                if success {
-                    removedOffsets.insert(offset)
-                }
+            var removedTitles: Set<String> = []
+            for title in titles {
+                if await removeCategory(title: title) { removedTitles.insert(title) }
             }
-            categories.remove(atOffsets: removedOffsets)
+            categories.removeAll { removedTitles.contains($0) }
             NotificationCenter.default.post(name: .updateCategories, object: nil)
         }
     }
@@ -167,15 +164,21 @@ extension CategoriesView {
     func addCategory(title: String) {
         if !title.isEmpty, title.lowercased() != "none", !categories.contains(title), !groupTitles.contains(title) {
             Task {
-                await CoreDataManager.shared.container.performBackgroundTask { context in
+                let saved = await CoreDataManager.shared.container.performBackgroundTask { context in
                     CoreDataManager.shared.createCategory(title: title, context: context)
                     do {
                         try context.save()
+                        return true
                     } catch {
                         LogManager.logger.error("Failed to save data when adding category: \(error)")
+                        return false
                     }
                 }
-                categories.append(title)
+                guard saved else {
+                    showRenameFailedAlert = true
+                    return
+                }
+                if !categories.contains(title) { categories.append(title) }
                 NotificationCenter.default.post(name: .updateCategories, object: nil)
             }
         }

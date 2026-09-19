@@ -20,8 +20,9 @@ struct GetButton: View {
 
     var body: some View {
         Button {
+            guard buttonState != .loading else { return }
+            buttonState = .loading
             Task {
-                buttonState = .loading
                 let success = await action()
                 buttonState = success ? .default : .error
             }
@@ -37,6 +38,7 @@ struct GetButton: View {
                     Text(NSLocalizedString("BUTTON_ERROR"))
             }
         }
+        .disabled(buttonState == .loading)
         .buttonStyle(.borderless)
         .font(.system(size: 15).weight(.bold))
         .padding(.vertical, 4)

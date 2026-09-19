@@ -16,6 +16,8 @@ public class HistoryObject: NSManagedObject {
 
     public override func awakeFromInsert() {
         super.awakeFromInsert()
+        // Core Data also calls this when rolling back a deleted, persisted object.
+        guard objectID.isTemporaryID else { return }
         dateRead = Date.distantPast
         progress = -1
         total = 0

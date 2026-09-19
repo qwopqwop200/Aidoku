@@ -233,13 +233,20 @@ struct ReaderTranslationRenderSpeedTests {
                                                         imageSize: image.size, viewport: imageView.bounds.size,
                                                         scale: geometry.scale, aspectFit: true,
                                                         crop: CGRect(x: 0, y: 0, width: 1, height: 1), dark: geometry.dark)
+        // Text-only preparation consumes dimensions recorded when OCR processed
+        // the page; a brand-new cache deliberately cannot infer them from pixels.
+        let generation = await disk.currentGeneration(settings: settings)
+        try await disk.storeImageSize(image.size, page: page.translationCacheKey, generation: generation)
         cache.setNearbyPages(pageKeys: ["some other page"], settings: settings)
         let preparer = ReaderTranslationLayoutPreparer(renderCache: cache)
         try await preparer.prepare(page: page, regions: regions, settings: settings, geometry: geometry, window: window)
         let saved = try #require(try await disk.data(for: key, kind: .layout))
         #expect(cache.cachedImage(for: key) == nil)
         #expect(window.subviews.allSatisfy { !($0 is ReaderTranslationOverlayView) })
-        #expect(try await disk.statistics().entries == 1)
+        #expect(try await disk.imageSize(page: page.translationCacheKey) == image.size)
+        #expect(try await disk.contains(key, kind: .layout))
+        #expect(try await disk.contains(key, kind: .snapshot) == false)
+        #expect(try await disk.statistics().entries == 2)
         cache.setNearbyPages(pageKeys: [page.translationCacheKey], settings: settings)
         let restored = ReaderTranslationLayoutPreparer(renderCache: cache) { _, _, _, _, _, _ in
             Issue.record("Revisiting must reuse the saved layout, without computing it again")
@@ -248,7 +255,10 @@ struct ReaderTranslationRenderSpeedTests {
         try await restored.prepare(page: page, regions: regions, settings: settings, geometry: geometry, window: window)
         #expect(cache.cachedImage(for: key) != nil)
         #expect(try await disk.data(for: key, kind: .layout) == saved)
-        #expect(try await disk.statistics().entries == 1)
+        #expect(try await disk.imageSize(page: page.translationCacheKey) == image.size)
+        #expect(try await disk.contains(key, kind: .layout))
+        #expect(try await disk.contains(key, kind: .snapshot) == false)
+        #expect(try await disk.statistics().entries == 2)
     }
 
 }

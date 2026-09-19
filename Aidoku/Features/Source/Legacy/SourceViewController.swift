@@ -160,6 +160,7 @@ class SourceViewController: OldMangaCollectionViewController {
                     context: context
                 )
             }
+            guard cell.identifier == info.id else { return }
             cell.showsBookmark = inLibrary
             await cell.loadImage(url: info.coverUrl)
         }
@@ -418,12 +419,9 @@ extension SourceViewController {
                     self.activityIndicator.stopAnimating()
                 }
             }
-            await viewModel.setManga(manga)
         }
 
         var snapshot = NSDiffableDataSourceSnapshot<Section, MangaInfo>()
-
-        await viewModel.setManga(manga)
 
         snapshot.appendSections([.regular])
         snapshot.appendItems(manga)
@@ -433,7 +431,7 @@ extension SourceViewController {
 
     func refreshCells(for mangaInfo: [MangaInfo]) {
         var snapshot = dataSource.snapshot()
-        snapshot.reconfigureItems(mangaInfo)
+        snapshot.reconfigureItems(mangaInfo.filter { snapshot.indexOfItem($0) != nil })
         dataSource.apply(snapshot)
     }
 }

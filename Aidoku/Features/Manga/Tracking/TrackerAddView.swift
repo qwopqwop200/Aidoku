@@ -34,6 +34,7 @@ struct TrackerAddView: View {
                         if tracker is EnhancedTracker {
                             isLoading = true
                             Task {
+                                defer { isLoading = false }
                                 let items = try? await tracker.search(for: manga, includeNsfw: true)
                                 guard let item = items?.first else {
                                     LogManager.logger.error("Unable to find track item from tracker \(tracker.id)")

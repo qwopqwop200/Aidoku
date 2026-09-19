@@ -8,11 +8,15 @@ import UIKit
 /// provider, or purge between pages: warm runtime growth must remain visible.
 @Suite(.serialized)
 struct ReaderContinuousMemoryTests {
-    @Test func changingSourceGraphMemory() async throws {
+    @Test(.enabled(if: FileManager.default.fileExists(atPath:
+        URL.documentsDirectory.appendingPathComponent("LookaheadDevice/comic-0001.png").path)))
+    func changingSourceGraphMemory() async throws {
         try await Self.changingSources(bounded: false)
     }
 
-    @Test func changingSourceBoundedMemory() async throws {
+    @Test(.enabled(if: FileManager.default.fileExists(atPath:
+        URL.documentsDirectory.appendingPathComponent("LookaheadDevice/comic-0001.png").path)))
+    func changingSourceBoundedMemory() async throws {
         try await Self.changingSources(bounded: true)
     }
 
@@ -45,7 +49,7 @@ struct ReaderContinuousMemoryTests {
             width: original.width - index * 3, height: original.height - index * 5)))
         let frame = try #require(NativeOCRCGImageAdapter.makeRGBAFrame(from: pixels))
         let canvas = try #require(NativeCoreMLDetectionCanvas.exact(sourceWidth: frame.width, sourceHeight: frame.height, maximumSide: 960))
-        let tensor = try NativeCoreMLDetectionPreprocessor.prepare(frame: frame, canvas: canvas, useBoundedMemory: bounded)
+        let tensor = try await NativeCoreMLDetectionPreprocessor.prepare(frame: frame, canvas: canvas, useBoundedMemory: bounded)
         let values = await tensor.values()
         #expect(values.count == canvas.width * canvas.height * 3)
         return CGSize(width: pixels.width, height: pixels.height)
@@ -57,6 +61,7 @@ struct ReaderContinuousMemoryTests {
         struct Fixture: Decodable { let id: String; let image: String }
         let root = URL.documentsDirectory.appendingPathComponent("LookaheadDevice")
         let fixtures = try JSONDecoder().decode([Fixture].self, from: Data(contentsOf: root.appendingPathComponent("manifest.json")))
+        try #require(!fixtures.isEmpty, "At least one real page fixture is required")
         let configuration = await MainActor.run { ReaderTranslationSettings().ocrConfiguration }
         let output = URL.documentsDirectory.appendingPathComponent("ReaderMemoryInvestigation")
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)

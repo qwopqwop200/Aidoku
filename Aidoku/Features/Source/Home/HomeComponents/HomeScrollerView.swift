@@ -195,17 +195,8 @@ struct HomeScrollerView: View {
                     .scrollTargetLayoutPlease()
                 }
                 .scrollViewAlignedPlease()
-                .task {
-                    if !loadedBookmarks {
-                        await loadBookmarked()
-                    }
-                }
-                .onChange(of: entries) { _ in
-                    Task {
-                        if !loadedBookmarks {
-                            await loadBookmarked()
-                        }
-                    }
+                .task(id: entries) {
+                    await loadBookmarked()
                 }
             }
         }
@@ -213,7 +204,7 @@ struct HomeScrollerView: View {
 
     func loadBookmarked() async {
         guard !entries.isEmpty else { return }
-        bookmarkedItems = await CoreDataManager.shared.container.performBackgroundTask { context in
+        let bookmarks = await CoreDataManager.shared.container.performBackgroundTask { context in
             var keys: Set<String> = .init()
             for entry in entries {
                 let mangaId: MangaIdentifier? = switch entry.value {
@@ -231,6 +222,8 @@ struct HomeScrollerView: View {
             }
             return keys
         }
+        guard !Task.isCancelled else { return }
+        bookmarkedItems = bookmarks
         loadedBookmarks = true
     }
 

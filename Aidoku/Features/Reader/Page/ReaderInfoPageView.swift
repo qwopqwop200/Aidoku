@@ -134,7 +134,11 @@ class ReaderInfoPageView: UIView {
     }
 
     func chapterDifference(higherChapterNumber: Float, lowerChapterNumber: Float) -> Int {
-        Int(floor(higherChapterNumber) - floor(lowerChapterNumber))
+        let difference = Double(floor(higherChapterNumber)) - Double(floor(lowerChapterNumber))
+        // Source-provided chapter numbers can be non-finite or outside integer range.
+        // An invalid gap cannot produce a meaningful skipped-chapters label.
+        guard difference.isFinite, difference > 0, difference <= Double(Int32.max) else { return 0 }
+        return Int(difference)
     }
 
     func updateLabelText() {
@@ -152,7 +156,7 @@ class ReaderInfoPageView: UIView {
                 let shouldSkipChapters = chapterDifference > 1
                 skippingChaptersView.isHidden = !shouldSkipChapters
                 if shouldSkipChapters {
-                    skippingChaptersLabel.text = String(format: NSLocalizedString("SKIPPING_CHAPTERS"), chapterDifference)
+                    skippingChaptersLabel.text = String(format: NSLocalizedString("SKIPPING_CHAPTERS"), chapterDifference - 1)
                 }
             } else {
                 skippingChaptersView.isHidden = true
@@ -172,7 +176,7 @@ class ReaderInfoPageView: UIView {
                 let shouldSkipChapters = chapterDifference > 1
                 skippingChaptersView.isHidden = !shouldSkipChapters
                 if shouldSkipChapters {
-                    skippingChaptersLabel.text = String(format: NSLocalizedString("SKIPPING_CHAPTERS"), chapterDifference)
+                    skippingChaptersLabel.text = String(format: NSLocalizedString("SKIPPING_CHAPTERS"), chapterDifference - 1)
                 }
             } else {
                 skippingChaptersView.isHidden = true

@@ -1138,3 +1138,5 @@
 "TRANSLATION_ERROR_CACHE_SIZE" = "Velikost mezipaměti překladu je mimo podporovaný rozsah.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Úložiště mezipaměti překladu je neplatné nebo nedostupné.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "Mezipaměť překladu se nepodařilo uložit.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Změny synchronizace iCloud se projeví po úplném zavření a opětovném otevření Aidoku. Do té doby zůstává aktivní současné nastavení.";

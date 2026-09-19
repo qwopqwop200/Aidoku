@@ -52,6 +52,14 @@ class WasmResponseObject: KVCObject {
         self.headers = headers ?? (response as? HTTPURLResponse)?.allHeaderFields
     }
 
+    func readData(count: Int) -> Data? {
+        guard let data, count > 0, bytesRead >= 0, bytesRead <= data.count,
+              count <= data.count - bytesRead else { return nil }
+        let chunk = data.subdata(in: bytesRead..<(bytesRead + count))
+        bytesRead += count
+        return chunk
+    }
+
     func valueByPropertyName(name: String) -> Any? {
         switch name {
             case "data": return data != nil ? [UInt8](data!) : []
@@ -86,7 +94,7 @@ struct WasmRequestObject: KVCObject {
 // MARK: - Net Module
 class WasmNet: WasmImports {
 
-    var globalStore: WasmGlobalStore
+    unowned var globalStore: WasmGlobalStore
 
     let semaphore = DispatchSemaphore(value: 0)
 
@@ -304,11 +312,8 @@ extension WasmNet {
             guard descriptor >= 0, size > 0 else { return }
 
             if let response = self.globalStore.requests[descriptor]?.response,
-               let data = response.data,
-               response.bytesRead + Int(size) <= data.count {
-                let result = Array(data.dropLast(data.count - Int(size) - response.bytesRead))
-                self.globalStore.write(bytes: result, offset: buffer)
-                self.globalStore.requests[descriptor]?.response?.bytesRead += Int(size)
+               let data = response.readData(count: Int(size)) {
+                self.globalStore.write(bytes: Array(data), offset: buffer)
             }
         }
     }

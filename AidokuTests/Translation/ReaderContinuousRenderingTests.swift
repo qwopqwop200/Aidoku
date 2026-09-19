@@ -23,6 +23,7 @@ struct ReaderContinuousRenderingTests {
         struct Fixture: Decodable { let id: String; let image: String }
         let root = URL.documentsDirectory.appendingPathComponent(rootName)
         let fixtures = try JSONDecoder().decode([Fixture].self, from: Data(contentsOf: root.appendingPathComponent("manifest.json")))
+        try #require(!fixtures.isEmpty, "Rendering memory investigation requires at least one fixture")
         let output = URL.documentsDirectory.appendingPathComponent("ReaderMemoryInvestigation")
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
@@ -31,7 +32,7 @@ struct ReaderContinuousRenderingTests {
         window.frame = scene.coordinateSpace.bounds
         window.rootViewController = UIViewController()
         window.makeKeyAndVisible()
-        defer { window.isHidden = true; previous?.makeKey() }
+        defer { window.isHidden = true; window.rootViewController = nil; previous?.makeKey() }
         let disk = ReaderTranslationDiskCache(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
         let cache = ReaderTranslationRenderCache(disk: disk)
         var settings = ReaderTranslationSettings()
@@ -59,7 +60,18 @@ struct ReaderContinuousRenderingTests {
             #expect(late[50] - early[50] < 128, "Sustained footprint growth exceeds 128 MiB")
         }
         cache.clearMemory()
+        // Drop the test-only persistent cache's SQLite handle and temporary files,
+        // then release the visible hierarchy before measuring post-exit recovery.
+        try await disk.clear()
+        window.isHidden = true
+        window.rootViewController = nil
+        previous?.makeKey()
         await ReaderOCRService.shared.purge()
+        try await Task.sleep(for: .milliseconds(500))
+        rows.append(["afterPurgeMiB": Self.footprintMiB(),
+                     "elapsedSeconds": ProcessInfo.processInfo.systemUptime - started])
+        try JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted, .sortedKeys])
+            .write(to: output.appendingPathComponent("\(outputName).json"), options: .atomic)
     }
 
     private static func render(_ url: URL, index: Int, settings: ReaderTranslationSettings,

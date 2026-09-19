@@ -11,7 +11,7 @@ import WebKit
 struct WebView: UIViewRepresentable {
     let url: URL
     let localStorageKeys: [String]
-    let webView: WKWebView
+    let sourceKey: String?
 
     @Binding var cookies: [String: String]
     @Binding var localStorage: [String: String]
@@ -30,20 +30,21 @@ struct WebView: UIViewRepresentable {
         self._cookies = cookies
         self._localStorage = localStorage
         self._reloadToggle = reloadToggle
-        let config = WKWebViewConfiguration()
-        if let key {
-            config.websiteDataStore = .forSource(key: key)
-        }
-        webView = WKWebView(frame: .zero, configuration: config)
+        self.sourceKey = key
     }
 
     func makeUIView(context: Context) -> WKWebView {
-        webView.loadSourceRequest(URLRequest(url: url))
+        let config = WKWebViewConfiguration()
+        if let sourceKey { config.websiteDataStore = .forSource(key: sourceKey) }
+        let webView = WKWebView(frame: .zero, configuration: config)
+        context.coordinator.startObserving(webView)
         webView.navigationDelegate = context.coordinator
+        webView.loadSourceRequest(URLRequest(url: url))
         return webView
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {
+        context.coordinator.parent = self
         if reloadToggle {
             reloadToggle = false
             uiView.reload()
@@ -62,23 +63,26 @@ struct WebView: UIViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate, WKHTTPCookieStoreObserver {
         var parent: WebView
 
-        private let cookieStore: WKHTTPCookieStore
+        private var cookieStore: WKHTTPCookieStore?
+        private weak var webView: WKWebView?
         private var isObservingCookies = false
 
         init(parent: WebView) {
             self.parent = parent
-            self.cookieStore = parent.webView.configuration.websiteDataStore.httpCookieStore
-
             super.init()
+        }
 
-            cookieStore.add(self)
+        func startObserving(_ webView: WKWebView) {
+            self.webView = webView
+            cookieStore = webView.configuration.websiteDataStore.httpCookieStore
+            cookieStore?.add(self)
             isObservingCookies = true
         }
 
         @MainActor
         func stopObservingCookies() {
             guard isObservingCookies else { return }
-            cookieStore.remove(self)
+            cookieStore?.remove(self)
             isObservingCookies = false
         }
 
@@ -94,11 +98,12 @@ struct WebView: UIViewRepresentable {
         }
 
         func cookiesDidChange(in cookieStore: WKHTTPCookieStore) {
+            guard let webView else { return }
             Task {
-                let cookies = await parent.webView.getCookies(for: parent.url.host)
+                let cookies = await webView.getCookies(for: parent.url.host)
                 parent.cookies = cookies
                 if !parent.localStorageKeys.isEmpty {
-                    let storage = await parent.webView.getLocalStorage(keys: parent.localStorageKeys)
+                    let storage = await webView.getLocalStorage(keys: parent.localStorageKeys)
                     parent.localStorage = storage
                 }
             }

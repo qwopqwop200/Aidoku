@@ -40,7 +40,7 @@ extension ShikimoriApi {
             "code": authCode
         ], boundary: boundary)
         let response: OAuthResponse? = try? await URLSession.shared.object(from: request)
-        await oauth.setTokens(response)
+        if let response { await oauth.setTokens(response) }
         return response
     }
 
@@ -60,7 +60,7 @@ extension ShikimoriApi {
             "grant_type": "refresh_token"
         ], boundary: boundary)
         let response: OAuthResponse? = try? await URLSession.shared.object(from: request)
-        await oauth.setTokens(response)
+        if let response { await oauth.setTokens(response) }
         return response
     }
 
@@ -101,7 +101,7 @@ extension ShikimoriApi {
         return String(rate.id)
     }
 
-    func update(trackId: String, update: TrackUpdate) async {
+    func update(trackId: String, update: TrackUpdate) async throws {
         var query: [String: String] = [:]
         if let status = update.status {
             query["user_rate[status]"] = getStatusFromTrack(status: status)
@@ -121,11 +121,7 @@ extension ShikimoriApi {
         var request = await authorizedRequest(for: url)
         request.httpMethod = "PATCH"
 
-        do {
-            try await requestData(urlRequest: request)
-        } catch {
-            LogManager.logger.error("Shikimori Tracker: error updating tracker for \(trackId)")
-        }
+        try await requestData(urlRequest: request)
     }
 
     func getState(_ trackId: String) async -> TrackState {
@@ -246,7 +242,7 @@ private extension ShikimoriApi {
             // ensure we have a refresh token, otherwise we need to fully re-auth
             let reloginNeeded = await oauth.checkIfReloginNeeded(trackerName: "Shikimori")
             guard !reloginNeeded else {
-                return data
+                throw URLError(.userAuthenticationRequired)
             }
 
             // refresh access token
@@ -258,11 +254,14 @@ private extension ShikimoriApi {
                     var retryRequest = urlRequest
                     retryRequest.setValue(newAuthorization, forHTTPHeaderField: "Authorization")
                     retryRequest.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-                    (data, _) = try await URLSession.shared.data(for: retryRequest)
+                    (data, response) = try await URLSession.shared.data(for: retryRequest)
                 }
             }
         }
 
+        guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
         return data
     }
 }

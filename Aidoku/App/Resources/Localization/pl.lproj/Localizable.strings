@@ -1138,3 +1138,5 @@
 "TRANSLATION_ERROR_CACHE_SIZE" = "Rozmiar pamięci podręcznej tłumaczeń wykracza poza obsługiwany zakres.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Miejsce przechowywania pamięci podręcznej tłumaczeń jest nieprawidłowe lub niedostępne.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "Nie udało się zapisać pamięci podręcznej tłumaczeń.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Zmiany synchronizacji iCloud zaczną obowiązywać po całkowitym zamknięciu i ponownym otwarciu Aidoku. Do tego czasu aktywne pozostaje obecne ustawienie.";

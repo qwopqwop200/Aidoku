@@ -144,13 +144,15 @@ window.hoshiSelection = {
             const range = document.createRange();
             let node;
             while (node = walker.nextNode()) {
-                for (let i = 0; i < node.textContent.length; i++) {
+                for (let i = 0; i < node.textContent.length;) {
+                    const character = String.fromCodePoint(node.textContent.codePointAt(i));
                     range.setStart(node, i);
-                    range.setEnd(node, i + 1);
+                    range.setEnd(node, i + character.length);
                     if (this.inCharRange(range, x, y)) {
                         range.collapse(true);
                         return range;
                     }
+                    i += character.length;
                 }
             }
             return document.caretRangeFromPoint(x, y);
@@ -175,16 +177,19 @@ window.hoshiSelection = {
         const text = node.textContent;
         const caret = range.startOffset;
 
-        for (const offset of [caret, caret - 1, caret + 1]) {
+        for (let offset of [caret, caret - 1, caret + 1]) {
             if (offset < 0 || offset >= text.length) {
                 continue;
             }
 
+            // DOM offsets use UTF-16; normalize a hit on a low surrogate to its whole character.
+            if (offset > 0 && /[\uDC00-\uDFFF]/.test(text[offset]) && /[\uD800-\uDBFF]/.test(text[offset - 1])) offset--;
+            const character = String.fromCodePoint(text.codePointAt(offset));
             const charRange = document.createRange();
             charRange.setStart(node, offset);
-            charRange.setEnd(node, offset + 1);
+            charRange.setEnd(node, offset + character.length);
             if (this.inCharRange(charRange, x, y)) {
-                if (this.isScanBoundary(text[offset])) {
+                if (this.isScanBoundary(character)) {
                     return null;
                 }
                 return { node, offset };
@@ -345,29 +350,31 @@ window.hoshiSelection = {
         const walker = this.createWalker(container);
 
         let text = '';
+        let characterCount = 0;
         let node = hit.node;
         let offset = hit.offset;
         let ranges = [];
 
         walker.currentNode = node;
-        while (text.length < maxLength && node) {
+        while (characterCount < maxLength && node) {
             const content = node.textContent;
             const start = offset;
 
-            while (offset < content.length && text.length < maxLength) {
-                const char = content[offset];
+            while (offset < content.length && characterCount < maxLength) {
+                const char = String.fromCodePoint(content.codePointAt(offset));
                 if (this.isScanBoundary(char)) {
                     break;
                 }
                 text += char;
-                offset++;
+                offset += char.length;
+                characterCount++;
             }
 
             if (offset > start) {
                 ranges.push({ node, start, end: offset });
             }
 
-            if (offset < content.length || text.length >= maxLength) {
+            if (offset < content.length || characterCount >= maxLength) {
                 break;
             }
 
@@ -407,7 +414,7 @@ window.hoshiSelection = {
         const first = this.selection.ranges[0];
         const range = document.createRange();
         range.setStart(first.node, first.start);
-        range.setEnd(first.node, first.start + 1);
+        range.setEnd(first.node, first.start + String.fromCodePoint(first.node.textContent.codePointAt(first.start)).length);
 
         const rects = Array.from(range.getClientRects());
         const rect = rects.find(rect => x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) ?? range.getBoundingClientRect();

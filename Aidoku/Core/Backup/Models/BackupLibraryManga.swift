@@ -37,8 +37,8 @@ struct BackupLibraryManga: Codable, Hashable {
         }
     }
 
-    func toObject(context: NSManagedObjectContext) -> LibraryMangaObject {
-        let obj = LibraryMangaObject(context: context)
+    func toObject(context: NSManagedObjectContext, existing: LibraryMangaObject? = nil) -> LibraryMangaObject {
+        let obj = existing ?? LibraryMangaObject(context: context)
         obj.lastOpened = lastOpened
         obj.lastUpdated = lastUpdated
         obj.lastUpdatedChapters = lastUpdatedChapters ?? lastUpdated

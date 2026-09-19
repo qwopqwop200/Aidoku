@@ -1,0 +1,19 @@
+{
+  "": {
+    "dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/Wasm3Tests.d",
+    "object": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/Wasm3Tests.o",
+    "swift-dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/primary.swiftdeps"
+  },
+  "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Tests/Wasm3Tests/CoreMemorySafetyTests.swift": {
+    "object": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/CoreMemorySafetyTests.swift.o",
+    "swiftmodule": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/CoreMemorySafetyTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/CoreMemorySafetyTests.swiftdeps",
+    "diagnostics": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/CoreMemorySafetyTests.dia"
+  },
+  "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Tests/Wasm3Tests/RuntimeLifetimeTests.swift": {
+    "object": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/RuntimeLifetimeTests.swift.o",
+    "swiftmodule": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/RuntimeLifetimeTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/RuntimeLifetimeTests.swiftdeps",
+    "diagnostics": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/release/Wasm3Tests.build/RuntimeLifetimeTests.dia"
+  }
+}

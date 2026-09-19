@@ -20,6 +20,9 @@ actor SourceManager {
 
     private var sourcesByKey: [String: AidokuRunner.Source] = [:]
     private var disabledSourceKeys: Set<String> = []
+    private var importingSourceKeys: Set<String> = []
+    private var clearingSources = false
+    private var importWaiters: [CheckedContinuation<Void, Never>] = []
     private var sourceLanguageCodes: Set<String> = []
 
     private var sourceListURLs: Set<URL>
@@ -149,10 +152,8 @@ extension SourceManager {
     }
 
     func startSourceListsReload(skipUpdateNotification: Bool = false) {
-        if let loadSourcesTask {
-            loadSourcesTask.cancel()
-            finishSourceListStreams()
-        }
+        loadSourceListsTask?.cancel()
+        finishSourceListStreams()
 
         sourceListLoadGeneration += 1
         sourceListLoadFinished = false
@@ -223,7 +224,11 @@ extension SourceManager {
             }
 
             for await (url, sourceList) in group {
-                guard generation == sourceListLoadGeneration else { return }
+                guard !Task.isCancelled, generation == sourceListLoadGeneration else {
+                    group.cancelAll()
+                    return
+                }
+                guard sourceListURLs.contains(url) else { continue }
 
                 if let sourceList {
                     sourceListStates[url] = .loaded(sourceList)
@@ -236,7 +241,7 @@ extension SourceManager {
             }
         }
 
-        guard generation == sourceListLoadGeneration else { return }
+        guard !Task.isCancelled, generation == sourceListLoadGeneration else { return }
 
         await loadSourceListLanguages()
 
@@ -485,12 +490,16 @@ extension SourceManager {
     func importSource(from url: URL) async -> AidokuRunner.Source? {
         // download and unzip source aix
         guard let temporaryDirectory = FileManager.default.createTemporaryDirectory() else { return nil }
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
         var secured = false
+        var downloadedFile: URL?
+        defer { if let downloadedFile { try? FileManager.default.removeItem(at: downloadedFile) } }
         var fileUrl = url
         if !fileUrl.isFileURL {
             do {
                 let (location, _) = try await SourceNetwork.shared.download(for: URLRequest.from(url))
                 fileUrl = location
+                downloadedFile = location
             } catch {
                 LogManager.logger.error("Failed to download source from \(url.absoluteString): \(error)")
                 return nil
@@ -542,14 +551,38 @@ extension SourceManager {
             return nil
         }
 
-        // move to final location
+        // Preserve the installed package until both initialization and persistence succeed.
+        guard !clearingSources, importingSourceKeys.insert(sourceKey).inserted else { return nil }
+        defer {
+            importingSourceKeys.remove(sourceKey)
+            let waiters = importWaiters
+            importWaiters = []
+            waiters.forEach { $0.resume() }
+        }
         Self.directory.createDirectory()
         let destination = Self.directory.appendingPathComponent(sourceKey)
-        if destination.exists {
-            try? FileManager.default.removeItem(at: destination)
+        let backup = Self.directory.appendingPathComponent(".import-backup-" + UUID().uuidString)
+        var backedUp = false
+        var movedPayload = false
+        var committed = false
+        defer {
+            if committed {
+                if backedUp { try? FileManager.default.removeItem(at: backup) }
+            } else {
+                if movedPayload { try? FileManager.default.removeItem(at: destination) }
+                if backedUp {
+                    do { try FileManager.default.moveItem(at: backup, to: destination) }
+                    catch { LogManager.logger.error("Failed to restore source package; backup retained: \(error)") }
+                }
+            }
         }
         do {
+            if destination.exists {
+                try FileManager.default.moveItem(at: destination, to: backup)
+                backedUp = true
+            }
             try FileManager.default.moveItem(at: payload, to: destination)
+            movedPayload = true
         } catch {
             LogManager.logger.error("Failed to unarchive source package: \(error)")
             return nil
@@ -573,13 +606,22 @@ extension SourceManager {
         }
 
         // remove old source version (on update) and add new version to coredata
-        let installedSource = sourcesByKey.removeValue(forKey: sourceKey)
+        let installedSource = sourcesByKey[sourceKey]
 
-        await CoreDataManager.shared.container.performBackgroundTask { [result] context in
+        let saved = await CoreDataManager.shared.container.performBackgroundTask { [result] context in
             CoreDataManager.shared.removeSource(key: sourceKey, context: context)
             CoreDataManager.shared.createSource(source: result, context: context)
-            try? context.save()
+            do {
+                try context.save()
+                return true
+            } catch {
+                context.rollback()
+                LogManager.logger.error("Failed to save imported source: \(error)")
+                return false
+            }
         }
+        guard saved else { return nil }
+        committed = true
 
         // if there was a breaking change, prompt for migration
         if
@@ -720,17 +762,37 @@ extension SourceManager {
         }
     }
 
+    private func waitForImports(sourceKey: String? = nil) async {
+        while clearingSources || (sourceKey.map({ importingSourceKeys.contains($0) }) ?? !importingSourceKeys.isEmpty) {
+            await withCheckedContinuation { importWaiters.append($0) }
+        }
+    }
+
     func clearSources() async {
+        await waitForImports()
+        clearingSources = true
+        defer {
+            clearingSources = false
+            let waiters = importWaiters
+            importWaiters = []
+            waiters.forEach { $0.resume() }
+        }
         UserDefaults.standard.set(true, forKey: Self.localDefaultRegistrationKey)
-        let objects: [SourceObjectData] = await CoreDataManager.shared.container.performBackgroundTask { context in
+        let savedObjects: [SourceObjectData]? = await CoreDataManager.shared.container.performBackgroundTask { context in
             let objects = CoreDataManager.shared.getSources(context: context).map { $0.toData() }
 
             CoreDataManager.shared.clearSources(context: context)
-            try? context.save()
-
-            return objects
+            do {
+                try context.save()
+                return objects
+            } catch {
+                context.rollback()
+                LogManager.logger.error("Failed to clear sources: \(error)")
+                return nil
+            }
         }
 
+        guard let objects = savedObjects else { return }
         var sourceKeys: [String] = []
         sourceKeys.reserveCapacity(objects.count)
 
@@ -752,12 +814,22 @@ extension SourceManager {
         AppSettings.browse.disabledSources.reset()
 
         sourcesByKey = [:]
+        disabledSourceKeys = []
+        sourceLanguageCodes = []
 
         await publishSourceState()
         notifySourcesUnloaded(keys: sourceKeys)
     }
 
     func remove(sourceKey: String, skipUpdateNotification: Bool = false) async {
+        await waitForImports(sourceKey: sourceKey)
+        importingSourceKeys.insert(sourceKey)
+        defer {
+            importingSourceKeys.remove(sourceKey)
+            let waiters = importWaiters
+            importWaiters = []
+            waiters.forEach { $0.resume() }
+        }
         if sourceKey == LocalSourceRunner.sourceKey {
             UserDefaults.standard.set(true, forKey: Self.localDefaultRegistrationKey)
         }
@@ -765,7 +837,12 @@ extension SourceManager {
             let data = CoreDataManager.shared.getSource(key: sourceKey, context: context)?.toData()
             if data != nil {
                 CoreDataManager.shared.removeSource(key: sourceKey, context: context)
-                try? context.save()
+                do { try context.save() }
+                catch {
+                    context.rollback()
+                    LogManager.logger.error("Failed to remove source: \(error)")
+                    return nil
+                }
             }
             return data
         }
@@ -792,7 +869,7 @@ extension SourceManager {
         let userDefaults = UserDefaults.standard
         let keys = userDefaults.dictionaryRepresentation().keys
 
-        for key in keys where key.hasPrefix(sourceKey) {
+        for key in keys where key == sourceKey || key.hasPrefix(sourceKey + ".") {
             userDefaults.removeObject(forKey: key)
         }
     }
@@ -939,6 +1016,11 @@ extension SourceManager {
     }
 
     func clearSourceLists() async {
+        loadSourceListsTask?.cancel()
+        loadSourceListsTask = nil
+        sourceListLoadGeneration += 1
+        sourceListLoadFinished = true
+        finishSourceListStreams()
         sourceListStates = [:]
         sourceListURLs = []
         sourceListLanguageCodes = []

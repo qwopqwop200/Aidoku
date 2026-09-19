@@ -117,52 +117,32 @@ extension CoreDataManager {
     ) -> [ChapterObject] {
         guard let manga = getManga(mangaId: mangaId, context: context) else { return [] }
 
-        var newChapters = Array(chapters.enumerated())
-
-        // update existing chapter objects
-        let chapterObjects = getChapters(mangaId: mangaId, context: context)
-        var chapterIds: Set<String> = Set()
-        for object in chapterObjects {
-            if let newChapter = newChapters.first(where: { $0.element.id == object.id }) {
-                let (inserted, _) = chapterIds.insert(object.id)
-                if !inserted {
-                    context.delete(object) // remove duplicates
-                }
-                let becameUnlocked = object.locked && !newChapter.element.locked
-                if becameUnlocked {
-                    context.delete(object) // treat unlocked chapters as new ones
-                } else {
-                    object.load(
-                        from: newChapter.element,
-                        mangaId: mangaId,
-                        sourceOrder: newChapter.offset
-                    )
-                    object.manga = manga
-                    newChapters.removeAll { $0.element.id == object.id }
-                }
-            } else {
+        // Index once: repeated first/removeAll scans made large catalog refreshes quadratic.
+        let incoming = Dictionary(chapters.enumerated().map { ($0.element.key, $0) }, uniquingKeysWith: { first, _ in first })
+        var existing: [String: ChapterObject] = [:]
+        var newChaptersCreated: [ChapterObject] = []
+        for object in getChapters(mangaId: mangaId, context: context) {
+            if let keeper = existing[object.id] {
+                if keeper.fileInfo == nil { keeper.fileInfo = object.fileInfo }
+                if keeper.history == nil { keeper.history = object.history }
+                if keeper.mangaUpdate == nil { keeper.mangaUpdate = object.mangaUpdate }
                 context.delete(object)
+                continue
             }
+            existing[object.id] = object
+            guard let chapter = incoming[object.id] else {
+                if object.fileInfo == nil { context.delete(object) }
+                continue
+            }
+            let becameUnlocked = object.locked && !chapter.element.locked
+            object.load(from: chapter.element, mangaId: mangaId, sourceOrder: chapter.offset)
+            object.manga = manga
+            if becameUnlocked { newChaptersCreated.append(object) }
         }
-
-        // create new chapter objects
-        var newChaptersCreated = [ChapterObject]()
-        for (offset, chapter) in newChapters where !hasChapter(
-            chapterId: .init(
-                sourceKey: mangaId.sourceKey,
-                mangaKey: mangaId.mangaKey,
-                chapterKey: chapter.id
-            ),
-            context: context
-        ) {
-            if let chapterObject = createChapter(
-                chapter,
-                mangaId: mangaId,
-                sourceOrder: offset,
-                mangaObject: manga,
-                context: context
-            ) {
-                newChaptersCreated.append(chapterObject)
+        var inserted: Set<String> = []
+        for (offset, chapter) in chapters.enumerated() where existing[chapter.key] == nil && inserted.insert(chapter.key).inserted {
+            if let object = createChapter(chapter, mangaId: mangaId, sourceOrder: offset, mangaObject: manga, context: context) {
+                newChaptersCreated.append(object)
             }
         }
         return newChaptersCreated

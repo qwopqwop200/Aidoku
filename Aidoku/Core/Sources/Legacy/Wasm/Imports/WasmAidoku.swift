@@ -9,7 +9,7 @@ import Foundation
 
 class WasmAidoku: WasmImports {
 
-    var globalStore: WasmGlobalStore
+    unowned var globalStore: WasmGlobalStore
 
     init(globalStore: WasmGlobalStore) {
         self.globalStore = globalStore
@@ -33,11 +33,12 @@ extension WasmAidoku {
     ) -> Int32 {
         // swiftlint:disable:next line_length
         { id, idLen, coverUrl, coverUrlLen, title, titleLen, author, authorLen, artist, artistLen, description, descriptionLen, url, urlLen, tags, tagStrLens, tagCount, status, nsfw, viewer in
-            guard idLen > 0 else { return -1 }
+            guard idLen > 0, tagCount >= 0 else { return -1 }
             if let mangaId = self.globalStore.readString(offset: id, length: idLen) {
                 var tagList: [String] = []
-                let tagStrings: [Int32] = self.globalStore.readValues(offset: tags, length: tagCount) ?? []
-                let tagStringLengths: [Int32] = self.globalStore.readValues(offset: tagStrLens, length: tagCount) ?? []
+                guard let tagStrings: [Int32] = self.globalStore.readValues(offset: tags, length: tagCount),
+                      let tagStringLengths: [Int32] = self.globalStore.readValues(offset: tagStrLens, length: tagCount)
+                else { return -1 }
                 for i in 0..<Int(tagCount) {
                     if let str = self.globalStore.readString(offset: tagStrings[i], length: tagStringLengths[i]) {
                         tagList.append(str)
@@ -100,9 +101,9 @@ extension WasmAidoku {
                     scanlator: scanlatorLen > 0 ? self.globalStore.readString(offset: scanlator, length: scanlatorLen) : nil,
                     url: urlLen > 0 ? self.globalStore.readString(offset: url, length: urlLen) : nil,
                     lang: langLen > 0 ? self.globalStore.readString(offset: lang, length: langLen) ?? "en" : "en",
-                    chapterNum: chapter >= 0 ? Float(chapter) : nil,
-                    volumeNum: volume >= 0 ? Float(volume) : nil,
-                    dateUploaded: dateUploaded > 0 ? Date(timeIntervalSince1970: TimeInterval(dateUploaded)) : nil,
+                    chapterNum: chapter.isFinite && chapter >= 0 ? Float(chapter) : nil,
+                    volumeNum: volume.isFinite && volume >= 0 ? Float(volume) : nil,
+                    dateUploaded: dateUploaded.isFinite && dateUploaded > 0 ? Date(timeIntervalSince1970: TimeInterval(dateUploaded)) : nil,
                     sourceOrder: self.globalStore.chapterCounter
                 )
                 self.globalStore.chapterCounter += 1
@@ -128,8 +129,8 @@ extension WasmAidoku {
     var create_deeplink: (Int32, Int32) -> Int32 {
         { manga, chapter in
             self.globalStore.storeStdValue(DeepLink(
-                manga: manga > 0 ? self.globalStore.readStdValue(manga) as? Manga : nil,
-                chapter: chapter > 0 ? self.globalStore.readStdValue(chapter) as? Chapter : nil
+                manga: manga >= 0 ? self.globalStore.readStdValue(manga) as? Manga : nil,
+                chapter: chapter >= 0 ? self.globalStore.readStdValue(chapter) as? Chapter : nil
             ))
         }
     }

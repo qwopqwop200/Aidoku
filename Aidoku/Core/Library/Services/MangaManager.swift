@@ -22,6 +22,7 @@ actor MangaManager {
 
     private var targetCategory: String?
     private var skipReachabilityCheck: Bool = false
+    private var nextAutomaticRefreshAttempt = Date.distantPast
 
     private static let maxConcurrentLibraryUpdateTasks = 10
 
@@ -355,7 +356,7 @@ extension MangaManager {
 #endif
             return
         }
-        let nextUpdateTime = lastUpdated + interval
+        let nextUpdateTime = max(lastUpdated + interval, nextAutomaticRefreshAttempt)
 
         if nextUpdateTime < Date.now {
             guard !AppSettings.flags.libraryRefreshInProgress.get() else { return }
@@ -417,6 +418,7 @@ extension MangaManager {
             // wait for already running library refresh
             await libraryRefreshTask?.value
         } else {
+            nextAutomaticRefreshAttempt = Date.now.addingTimeInterval(300)
             // spawn new library refresh
             AppSettings.flags.libraryRefreshInProgress.set(true)
             libraryRefreshTask = Task {
@@ -806,7 +808,7 @@ extension MangaManager {
                 for oldManga in batch {
                     group.addTask {
                         guard
-                            let details = newDetails[oldManga.key]
+                            let details = newDetails[oldManga.identifier]
                         else { return nil }
 
                         let newManga = details.0
@@ -845,14 +847,6 @@ extension MangaManager {
         to newManga: AidokuRunner.Manga,
         withChapters newChapters: [AidokuRunner.Chapter],
     ) async -> (AidokuRunner.Manga, AidokuRunner.Manga)? {
-        // migrate settings
-        if let readingMode = UserDefaults.standard.string(forKey: "Reader.readingMode.\(oldManga.identifier)") {
-            UserDefaults.standard.set(readingMode, forKey: "Reader.readingMode.\(newManga.identifier)")
-            if !copy {
-                UserDefaults.standard.removeObject(forKey: "Reader.readingMode.\(oldManga.identifier)")
-            }
-        }
-
         // add new item to library if copying
         if copy {
             let inLibrary = await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
@@ -871,7 +865,8 @@ extension MangaManager {
                     mangaId: newManga.identifier,
                     context: context
                 )
-                return true
+                do { try context.save() } catch { return false }
+                return storedNewManga.libraryObject != nil
             }
             if !inLibrary {
                 await MangaManager.shared.addToLibrary(
@@ -890,7 +885,7 @@ extension MangaManager {
                     var mangaObjectToUpdate: MangaObject?
 
                     // new is already in library
-                    if newManga.key != oldManga.key, let storedNewManga = CoreDataManager.shared.getManga(
+                    if newManga.identifier != oldManga.identifier, let storedNewManga = CoreDataManager.shared.getManga(
                         mangaId: newManga.identifier,
                         context: context
                     ) {
@@ -919,6 +914,7 @@ extension MangaManager {
                 )
 
                 var maxChapterRead = storedOldHistory
+                    .filter { $0.completed }
                     .compactMap { $0.chapter?.chapter != nil ? $0.chapter : nil }
                     .max { $0.chapter!.decimalValue < $1.chapter!.decimalValue }?
                     .chapter?.floatValue
@@ -926,6 +922,7 @@ extension MangaManager {
                 if maxChapterRead == nil || maxChapterRead == -1 {
                     // try finding max volume read instead, in case of no chapters
                     maxChapterRead = storedOldHistory
+                        .filter { $0.completed }
                         .compactMap { $0.chapter?.volume != nil ? $0.chapter : nil }
                         .max { $0.volume!.decimalValue < $1.volume!.decimalValue }?
                         .volume?.floatValue
@@ -1015,8 +1012,16 @@ extension MangaManager {
             }
         }
 
+        // migrate settings
+        if result != nil, let readingMode = UserDefaults.standard.string(forKey: "Reader.readingMode.\(oldManga.identifier)") {
+            UserDefaults.standard.set(readingMode, forKey: "Reader.readingMode.\(newManga.identifier)")
+            if !copy {
+                UserDefaults.standard.removeObject(forKey: "Reader.readingMode.\(oldManga.identifier)")
+            }
+        }
+
         // remove old item from library
-        if copy && forceRemoveFromLibrary {
+        if copy && forceRemoveFromLibrary && result != nil {
             await shared.removeFromLibrary(mangaId: oldManga.identifier)
         }
 
@@ -1028,13 +1033,13 @@ extension MangaManager {
         toSeries: [MangaIdentifier: AidokuRunner.Manga?],
         withChapters: [MangaIdentifier: [AidokuRunner.Chapter]],
         progressReport: (Int) -> Void
-    ) async -> [String: (AidokuRunner.Manga, [AidokuRunner.Chapter])] {
+    ) async -> [MangaIdentifier: (AidokuRunner.Manga, [AidokuRunner.Chapter])] {
         await withTaskGroup(
-            of: (String, AidokuRunner.Manga, [AidokuRunner.Chapter])?.self,
-            returning: [String: (AidokuRunner.Manga, [AidokuRunner.Chapter])].self
+            of: (MangaIdentifier, AidokuRunner.Manga, [AidokuRunner.Chapter])?.self,
+            returning: [MangaIdentifier: (AidokuRunner.Manga, [AidokuRunner.Chapter])].self
         ) { group in
             let batchSize = 5
-            var ret: [String: (AidokuRunner.Manga, [AidokuRunner.Chapter])] = [:]
+            var ret: [MangaIdentifier: (AidokuRunner.Manga, [AidokuRunner.Chapter])] = [:]
             var counter = 0
 
             for i in stride(from: 0, to: fromSeries.count, by: batchSize) {
@@ -1057,9 +1062,9 @@ extension MangaManager {
                         )
 
                         let mangaDetails = updatedManga ?? newManga
-                        let chapters = newChapters ?? updatedManga?.chapters ?? []
+                        guard let chapters = newChapters ?? updatedManga?.chapters else { return nil }
 
-                        return (oldManga.key, mangaDetails, chapters)
+                        return (oldManga.identifier, mangaDetails, chapters)
                     }
                 }
 

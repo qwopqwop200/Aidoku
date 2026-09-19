@@ -92,7 +92,7 @@ extension CoreDataManager {
         object.sourceId = mangaId.sourceKey
         object.mangaId = mangaId.mangaKey
         object.title = title
-        object.chapterOffset = Int16(chapterOffset)
+        object.chapterOffset = Int16(clamping: chapterOffset)
         return object
     }
 
@@ -107,7 +107,7 @@ extension CoreDataManager {
             mangaId: mangaId,
             context: context
         ) else { return }
-        object.chapterOffset = Int16(chapterOffset)
+        object.chapterOffset = Int16(clamping: chapterOffset)
     }
 
     /// Removes a track item.

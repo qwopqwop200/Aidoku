@@ -9,7 +9,7 @@ import MarkdownUI
 import SwiftUI
 
 struct MarkdownView: View {
-    @State private var markdownString: String
+    private let markdownString: String
     @State private var safariUrl: URL?
     @State private var showSafari = false
 

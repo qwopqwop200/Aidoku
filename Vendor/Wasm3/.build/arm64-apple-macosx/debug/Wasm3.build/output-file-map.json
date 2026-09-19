@@ -1,0 +1,75 @@
+{
+  "": {
+    "swift-dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/primary.swiftdeps"
+  },
+  "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Environment.swift": {
+    "dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Environment.d",
+    "object": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Environment.swift.o",
+    "swiftmodule": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Environment~partial.swiftmodule",
+    "swift-dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Environment.swiftdeps",
+    "diagnostics": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Environment.dia"
+  },
+  "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Error.swift": {
+    "dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Error.d",
+    "object": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Error.swift.o",
+    "swiftmodule": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Error~partial.swiftmodule",
+    "swift-dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Error.swiftdeps",
+    "diagnostics": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Error.dia"
+  },
+  "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Function.swift": {
+    "dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Function.d",
+    "object": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Function.swift.o",
+    "swiftmodule": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Function~partial.swiftmodule",
+    "swift-dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Function.swiftdeps",
+    "diagnostics": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Function.dia"
+  },
+  "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Global.swift": {
+    "dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Global.d",
+    "object": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Global.swift.o",
+    "swiftmodule": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Global~partial.swiftmodule",
+    "swift-dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Global.swiftdeps",
+    "diagnostics": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Global.dia"
+  },
+  "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/LinkedFunctionCache.swift": {
+    "dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/LinkedFunctionCache.d",
+    "object": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/LinkedFunctionCache.swift.o",
+    "swiftmodule": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/LinkedFunctionCache~partial.swiftmodule",
+    "swift-dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/LinkedFunctionCache.swiftdeps",
+    "diagnostics": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/LinkedFunctionCache.dia"
+  },
+  "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Memory.swift": {
+    "dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Memory.d",
+    "object": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Memory.swift.o",
+    "swiftmodule": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Memory~partial.swiftmodule",
+    "swift-dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Memory.swiftdeps",
+    "diagnostics": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Memory.dia"
+  },
+  "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Module.swift": {
+    "dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Module.d",
+    "object": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Module.swift.o",
+    "swiftmodule": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Module~partial.swiftmodule",
+    "swift-dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Module.swiftdeps",
+    "diagnostics": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Module.dia"
+  },
+  "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Runtime.swift": {
+    "dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Runtime.d",
+    "object": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Runtime.swift.o",
+    "swiftmodule": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Runtime~partial.swiftmodule",
+    "swift-dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Runtime.swiftdeps",
+    "diagnostics": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Runtime.dia"
+  },
+  "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Type.swift": {
+    "dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Type.d",
+    "object": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Type.swift.o",
+    "swiftmodule": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Type~partial.swiftmodule",
+    "swift-dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Type.swiftdeps",
+    "diagnostics": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Type.dia"
+  },
+  "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/Sources/Wasm3/Wasm3.swift": {
+    "dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Wasm3.d",
+    "object": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Wasm3.swift.o",
+    "swiftmodule": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Wasm3~partial.swiftmodule",
+    "swift-dependencies": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Wasm3.swiftdeps",
+    "diagnostics": "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Vendor/Wasm3/.build/arm64-apple-macosx/debug/Wasm3.build/Wasm3.dia"
+  }
+}

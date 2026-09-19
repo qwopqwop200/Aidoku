@@ -15,6 +15,8 @@ protocol ReaderHoldingDelegate: AnyObject {
 
     func getNextChapter() -> AidokuRunner.Chapter?
     func getPreviousChapter() -> AidokuRunner.Chapter?
+    func getNextChapter(after chapter: AidokuRunner.Chapter) -> AidokuRunner.Chapter?
+    func getPreviousChapter(before chapter: AidokuRunner.Chapter) -> AidokuRunner.Chapter?
     func setChapter(_ chapter: AidokuRunner.Chapter)
 
     func setCurrentPage(_ page: Int, position: Double?)
@@ -28,4 +30,6 @@ protocol ReaderHoldingDelegate: AnyObject {
 
 extension ReaderHoldingDelegate {
     func translationVisibilityDidChange() {}
+    func getNextChapter(after chapter: AidokuRunner.Chapter) -> AidokuRunner.Chapter? { nil }
+    func getPreviousChapter(before chapter: AidokuRunner.Chapter) -> AidokuRunner.Chapter? { nil }
 }

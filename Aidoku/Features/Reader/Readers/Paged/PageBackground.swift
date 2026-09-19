@@ -14,30 +14,31 @@ enum PageBackground {
     // https://github.com/mihonapp/mihon/blob/fc2c8c06a940392161cf5110e222edbedf9b7e47/core/common/src/main/kotlin/tachiyomi/core/common/util/system/ImageUtil.kt#L333
     // swiftlint:disable:next cyclomatic_complexity
     static func choose(for image: UIImage, isLandscape: Bool) -> PageBackground {
-        guard
-            let cgImage = image.cgImage,
-            let data = cgImage.dataProvider?.data,
-            let ptr = CFDataGetBytePtr(data)
-        else {
+        guard let cgImage = image.cgImage else { return .color(.white) }
+        // Normalize every input format (including grayscale and BGRA) into a
+        // bounded RGBA bitmap. Sampling raw provider bytes assumes a pixel layout
+        // UIImage does not promise and confuses point sizes with pixel sizes.
+        let sampleScale = min(1, 512 / CGFloat(max(cgImage.width, cgImage.height)))
+        let width = max(1, Int(CGFloat(cgImage.width) * sampleScale))
+        let height = max(1, Int(CGFloat(cgImage.height) * sampleScale))
+        guard width >= 50, height >= 50,
+              let context = CGContext(data: nil, width: width, height: height,
+                bitsPerComponent: 8, bytesPerRow: width * 4,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),
+              let ptr = context.data?.assumingMemoryBound(to: UInt8.self) else {
             return .color(.white)
         }
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
 
         @inline(__always)
         func colorAt(x: Int, y: Int) -> UIColor {
-            let bytesPerPixel = cgImage.bitsPerPixel / 8
-            let bytesPerRow = cgImage.bytesPerRow
-            let offset = y * bytesPerRow + x * bytesPerPixel
-            let r = ptr[offset]
-            let g = ptr[offset + 1]
-            let b = ptr[offset + 2]
-            let a = ptr[offset + 3]
-            return UIColor(red: CGFloat(r)/255, green: CGFloat(g)/255, blue: CGFloat(b)/255, alpha: CGFloat(a)/255)
-        }
-
-        let width = Int(image.size.width)
-        let height = Int(image.size.height)
-        guard width >= 50, height >= 50 else {
-            return .color(.white)
+            let offset = (min(height - 1, max(0, y)) * width + min(width - 1, max(0, x))) * 4
+            let alpha = CGFloat(ptr[offset + 3]) / 255
+            guard alpha > 0 else { return .clear }
+            return UIColor(red: CGFloat(ptr[offset]) / 255 / alpha,
+                green: CGFloat(ptr[offset + 1]) / 255 / alpha,
+                blue: CGFloat(ptr[offset + 2]) / 255 / alpha, alpha: alpha)
         }
 
         let top = 5

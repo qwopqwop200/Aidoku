@@ -52,6 +52,7 @@ class MangaGridCell: UICollectionViewCell {
 
     private var url: String?
     private var imageTask: ImageTask?
+    private var imageGeneration = 0
     var isEditing = false
 
     // shadow shown when in selection mode
@@ -181,6 +182,10 @@ class MangaGridCell: UICollectionViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
+        imageGeneration += 1
+        identifier = nil
+        url = nil
+        imageView.stopAnimatingGIF()
         titleLabel.text = nil
         imageView.image = UIImage(named: "MangaPlaceholder")
         imageTask?.cancel()
@@ -238,9 +243,14 @@ extension MangaGridCell {
 
 extension MangaGridCell {
     func loadImage(url: URL?) async {
-        guard let url else { return }
-
-        if let imageTask, imageTask.state == .running {
+        imageGeneration += 1
+        let generation = imageGeneration
+        imageTask?.cancel()
+        imageTask = nil
+        guard let url else {
+            self.url = nil
+            self.imageView.stopAnimatingGIF()
+            self.imageView.image = UIImage(named: "MangaPlaceholder")
             return
         }
 
@@ -263,6 +273,7 @@ extension MangaGridCell {
             }
         }
 
+        guard generation == imageGeneration, !Task.isCancelled else { return }
         self.url = (urlRequest.url ?? url).absoluteString
 
         var processors: [ImageProcessing] = [DownsampleProcessor(width: bounds.width)]
@@ -279,13 +290,14 @@ extension MangaGridCell {
         cached = cached || ImagePipeline.shared.cache.containsCachedImage(for: request)
 
         imageTask = ImagePipeline.shared.loadImage(with: request) { [weak self] result in
-            guard let self else { return }
+            guard let self, generation == self.imageGeneration else { return }
             switch result {
                 case .success(let response):
                     if response.request.imageID != self.url {
                         return
                     }
                     Task { @MainActor in
+                        guard generation == self.imageGeneration else { return }
                         if cached {
                             self.imageView.image = response.image
                         } else {

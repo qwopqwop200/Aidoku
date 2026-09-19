@@ -90,14 +90,14 @@ class MangaListSelectionHeader: UICollectionReusableView {
                     title: option,
                     image: lockedOptions.contains(i) ? UIImage(systemName: "lock.fill") : nil,
                     state: selectedOption == i ? .on : .off
-                ) { _ in
-                    self.setSelectedOption(i)
+                ) { [weak self] _ in
+                    self?.setSelectedOption(i)
                 }
             )
         }
         let menu = UIMenu(title: "", image: nil, identifier: nil, options: [], children: children)
         menuButton.menu = menu
-        if options.count > selectedOption {
+        if options.indices.contains(selectedOption) {
             menuButton.setTitle(options[selectedOption], for: .normal)
         } else {
             menuButton.setTitle("", for: .normal)

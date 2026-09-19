@@ -1165,3 +1165,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "אחסון מטמון התרגום אינו תקין או אינו זמין.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "לא ניתן לשמור את מטמון התרגום.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "שינויים בסנכרון iCloud ייכנסו לתוקף לאחר סגירה מלאה ופתיחה מחדש של Aidoku. עד אז, הגדרת הסנכרון הנוכחית תישאר פעילה.";

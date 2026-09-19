@@ -10,7 +10,7 @@ import UIKit
 class FilterStackView: UIStackView {
 
     let filters: [FilterBase]
-    let parent: FilterCell?
+    weak var parent: FilterCell?
     var selectedFilters: SelectedFilters
 
     var cells: [FilterCell] = []

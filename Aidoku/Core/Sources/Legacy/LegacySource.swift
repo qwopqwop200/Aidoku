@@ -107,6 +107,7 @@ final class LegacySourceRunner: AidokuRunner.Runner {
             throw SourceError.missingResult
         }
         var request = URLRequest(url: url)
+        request.httpMethod = sourceImageRequest.method?.stringValue ?? "GET"
         for (key, value) in sourceImageRequest.headers {
             request.setValue(value, forHTTPHeaderField: key)
         }
@@ -126,6 +127,6 @@ final class LegacySourceRunner: AidokuRunner.Runner {
     }
 
     func handleNotification(notification: String) async throws {
-        await source.actor.handleNotification(notification: notification)
+        try await source.actor.handleNotification(notification: notification)
     }
 }

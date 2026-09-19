@@ -1166,3 +1166,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Die berging vir die vertaalkas is ongeldig of onbeskikbaar.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Die vertaalkas kon nie gestoor word nie.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Veranderinge aan iCloud-sinchronisering geld nadat jy Aidoku heeltemal sluit en weer oopmaak. Tot dan bly die huidige sinchroniseringsinstelling aktief.";

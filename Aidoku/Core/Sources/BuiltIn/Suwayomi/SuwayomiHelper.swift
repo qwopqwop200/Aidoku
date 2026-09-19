@@ -93,16 +93,7 @@ struct SuwayomiHelper: Sendable {
             return false
         }
 
-        var components = URLComponents()
-        components.queryItems = [
-            URLQueryItem(name: "user", value: username),
-            URLQueryItem(name: "pass", value: password)
-        ]
-
-        var request = URLRequest(url: loginUrl)
-        request.httpMethod = "POST"
-        request.httpBody = components.percentEncodedQuery?.data(using: .utf8)
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        let request = Self.simpleLoginRequest(url: loginUrl, username: username, password: password)
 
         guard let config = try? await SourceNetwork.shared.configuration(.ephemeral) else { return false }
         let session = URLSession(
@@ -114,7 +105,7 @@ struct SuwayomiHelper: Sendable {
         guard
             let (_, response) = try? await session.data(for: request),
             let httpResponse = response as? HTTPURLResponse,
-            (200..<400).contains(httpResponse.statusCode)
+            Self.isSuccessfulSimpleLogin(httpResponse)
         else {
             return false
         }
@@ -287,26 +278,39 @@ extension SuwayomiHelper {
         return .init(cookie: nil, accessToken: nil, refreshToken: nil)
     }
 
+    // Suwayomi's SIMPLE_LOGIN endpoint expects form fields user/pass.
+    // A literal plus must not become a space when decoded as form-urlencoded.
+    static func simpleLoginRequest(url: URL, username: String, password: String) -> URLRequest {
+        var components = URLComponents()
+        components.queryItems = [
+            URLQueryItem(name: "user", value: username),
+            URLQueryItem(name: "pass", value: password)
+        ]
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.httpBody = components.percentEncodedQuery?
+            .replacingOccurrences(of: "+", with: "%2B").data(using: .utf8)
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        return request
+    }
+
+    static func isSuccessfulSimpleLogin(_ response: HTTPURLResponse) -> Bool {
+        // Failed credentials render the login page with HTTP 200 and can clear
+        // the session cookie; only the successful login redirects.
+        (300..<400).contains(response.statusCode)
+    }
+
     private static func checkSimpleLogin(server: URL, username: String, password: String) async -> LoginCheck? {
         guard let loginUrl = URL(string: "login.html", relativeTo: server) else {
             return nil
         }
 
-        var components = URLComponents()
-        components.queryItems = [
-            URLQueryItem(name: "user", value: username),
-            URLQueryItem(name: "password", value: password)
-        ]
-
-        var request = URLRequest(url: loginUrl)
-        request.httpMethod = "POST"
-        request.httpBody = components.percentEncodedQuery?.data(using: .utf8)
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        let request = simpleLoginRequest(url: loginUrl, username: username, password: password)
 
         let result = await send(request, followRedirects: false)
         guard
             let response = result.response,
-            (200..<400).contains(response.statusCode),
+            isSuccessfulSimpleLogin(response),
             let cookie = result.cookie
         else {
             return nil

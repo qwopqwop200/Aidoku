@@ -31,6 +31,7 @@ actor DownloadTask: Identifiable {
     private weak var delegate: DownloadTaskDelegate?
 
     private var worker: Task<Void, Never>?
+    private var controlGeneration = 0
     private var warmedPages: (chapter: ChapterIdentifier, task: Task<[Page], Never>)?
 
     private var currentPage: Int = 0
@@ -65,6 +66,7 @@ actor DownloadTask: Identifiable {
 
     func resume() {
         guard !running else { return }
+        controlGeneration += 1
         running = true
         let previousWorker = worker
         worker = Task {
@@ -77,6 +79,7 @@ actor DownloadTask: Identifiable {
     }
 
     func pause() async {
+        controlGeneration += 1
         worker?.cancel()
         warmedPages?.task.cancel(); warmedPages = nil
         running = false
@@ -88,88 +91,45 @@ actor DownloadTask: Identifiable {
         }
     }
 
-    func cancel(manga: MangaIdentifier? = nil, chapter: ChapterIdentifier? = nil) {
-        warmedPages?.task.cancel(); warmedPages = nil
-        if let chapter {
-            guard let index = downloads.firstIndex(where: { $0.chapterIdentifier == chapter }) else { return }
-            worker?.cancel()
-            // cancel specific chapter download
-            let wasRunning = running
-            running = false
-            downloads[index].status = .cancelled
-            if index == 0 {
+    func cancel(manga: MangaIdentifier? = nil, chapter: ChapterIdentifier? = nil) async {
+        let cancelled = downloads.filter {
+            if let chapter { return $0.chapterIdentifier == chapter }
+            if let manga { return $0.mangaIdentifier == manga }
+            return true
+        }
+        guard !cancelled.isEmpty || (manga == nil && chapter == nil) else { return }
+        let wasRunning = running
+        controlGeneration += 1
+        let generation = controlGeneration
+        let previousWorker = worker
+        previousWorker?.cancel()
+        warmedPages?.task.cancel()
+        warmedPages = nil
+        running = false
+        let cancelledCurrent = downloads.first.map { cancelled.contains($0) } ?? false
+        // Remove by identity before suspending; indices cannot survive delegate callbacks.
+        downloads.removeAll { cancelled.contains($0) }
+        let cancellation = Task {
+            await previousWorker?.value
+            for download in cancelled {
+                cache.tmpDirectory(for: download.chapterIdentifier).removeItem()
+            }
+            if cancelledCurrent {
                 pages = []
                 currentPage = 0
                 failedPages = 0
                 failedPageNumbers = []
             }
-            // remove chapter tmp download directory
-            let download = downloads[index]
-            Task {
-                cache.tmpDirectory(for: chapter).removeItem()
-                await delegate?.downloadCancelled(download: download)
-                downloads.removeAll { $0 == download }
-                if wasRunning {
-                    resume()
-                }
-            }
-        } else if let manga {
-            worker?.cancel()
-            let wasRunning = running
-            running = false
-            Task {
-                var cancelled: IndexSet = []
-                for i in downloads.indices where downloads[i].mangaIdentifier == manga {
-                    if i == 0 {
-                        pages = []
-                        currentPage = 0
-                        failedPages = 0
-                        failedPageNumbers = []
-                    }
-                    downloads[i].status = .cancelled
-                    await delegate?.downloadCancelled(download: downloads[i])
-                    cancelled.insert(i)
-                }
-                downloads.remove(atOffsets: cancelled)
-                cache.directory(for: manga)
-                    .contentsIncludingHidden
-                    .filter {
-                        $0.lastPathComponent.hasPrefix(DownloadCache.tmpDirectoryPrefix)
-                            && !cache.hasFailureMarker(inTmpDirectory: $0)
-                    }
-                    .forEach { $0.removeItem() }
-                if wasRunning {
-                    resume()
-                }
-            }
-        } else {
-            worker?.cancel()
-            // cancel all downloads in task
-            running = false
-            var manga: Set<MangaIdentifier> = []
-            for i in downloads.indices {
-                downloads[i].status = .cancelled
-                manga.insert(downloads[i].mangaIdentifier)
-            }
-            downloads.removeAll()
-            // remove cached tmp directories
-            Task {
-                for manga in manga {
-                    cache.directory(for: manga)
-                        .contentsIncludingHidden
-                        .filter {
-                            $0.lastPathComponent.hasPrefix(DownloadCache.tmpDirectoryPrefix)
-                                && !cache.hasFailureMarker(inTmpDirectory: $0)
-                        }
-                        .forEach { $0.removeItem() }
-                }
-                pages = []
-                currentPage = 0
-                failedPages = 0
-                failedPageNumbers = []
+            if manga == nil && chapter == nil {
                 await delegate?.taskCancelled(task: self)
+            } else {
+                for download in cancelled { await delegate?.downloadCancelled(download: download) }
+                if wasRunning, generation == controlGeneration { resume() }
             }
         }
+        // A concurrent resume must wait for cleanup, not just the old transport task.
+        worker = cancellation
+        await cancellation.value
     }
 
     func add(download: Download) {
@@ -214,7 +174,9 @@ extension DownloadTask {
         } else {
             guard running, !Task.isCancelled else { return }
             // source not found, skip this download
-            downloads.removeFirst()
+            let failed = downloads.removeFirst()
+            markFailed(tmpDirectory: cache.tmpDirectory(for: failed.chapterIdentifier))
+            await delegate?.downloadFailed(download: failed)
             await next()
         }
     }
@@ -564,11 +526,16 @@ extension DownloadTask {
 
                 let directory = cache.directory(for: download.chapterIdentifier)
 
-                try FileManager.default.moveItem(at: tmpDirectory, to: directory)
-
                 if AppSettings.downloads.compress.get() {
-                    try FileManager.default.zipItem(at: directory, to: directory.appendingPathExtension("cbz"), shouldKeepParent: false)
-                    directory.removeItem()
+                    let archive = tmpDirectory.appendingPathExtension("cbz")
+                    defer { archive.removeItem() }
+                    try FileManager.default.zipItem(at: tmpDirectory, to: archive, shouldKeepParent: false)
+                    try Task.checkCancellation()
+                    try FileManager.default.moveItem(at: archive, to: directory.appendingPathExtension("cbz"))
+                    tmpDirectory.removeItem()
+                } else {
+                    try Task.checkCancellation()
+                    try FileManager.default.moveItem(at: tmpDirectory, to: directory)
                 }
 
                 // save manga cover if not already present
@@ -588,7 +555,14 @@ extension DownloadTask {
 
                 await cache.add(chapter: download.chapterIdentifier)
             } catch {
+                guard !Task.isCancelled else { return }
                 LogManager.logger.error("Error moving temporary download directory (\(tmpDirectory)) to final location: \(error)")
+                markFailed(tmpDirectory: tmpDirectory)
+                if let index = downloads.firstIndex(of: download) {
+                    downloads[index].status = .failed
+                    let failed = downloads.remove(at: index)
+                    await delegate?.downloadFailed(download: failed)
+                }
             }
             if let downloadIndex = downloads.firstIndex(where: { $0 == download }) {
                 downloads[downloadIndex].status = .finished
@@ -643,7 +617,7 @@ extension DownloadTask {
         }
 
         // Retry-After: <delay-seconds>
-        if let seconds = TimeInterval(value) {
+        if let seconds = TimeInterval(value), seconds.isFinite {
             return min(Self.maxRetryDelay, max(0, seconds))
         }
 

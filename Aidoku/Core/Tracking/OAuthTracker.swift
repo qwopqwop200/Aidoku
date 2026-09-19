@@ -37,10 +37,12 @@ extension OAuthTracker {
         token != nil
     }
 
-    func logout() {
+    func logout() async {
         token = nil
+        await oauthClient.setTokens(nil)
         UserDefaults.standard.removeObject(forKey: "Tracker.\(id).oauth")
         UserDefaults.standard.removeObject(forKey: "Tracker.\(id).token")
+        UserDefaults.standard.removeObject(forKey: "Tracker.\(id).user_id")
     }
 
     func getAuthenticationUrl() async -> URL? {

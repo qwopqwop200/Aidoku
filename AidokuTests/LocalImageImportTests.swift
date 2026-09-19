@@ -6,6 +6,22 @@ import ZIPFoundation
 
 @MainActor
 struct LocalImageImportTests {
+    @Test func invalidDescriptionDoesNotHideLaterValidDescription() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        folder.createDirectory()
+        defer { folder.removeItem() }
+        let url = folder.appendingPathComponent("chapter.cbz")
+        let archive = try Archive(url: url, accessMode: .create)
+        for (name, content) in [("001.txt", "page"), ("000.desc.txt", "invalid"), ("001.desc.txt", "valid")] {
+            let file = folder.appendingPathComponent(name)
+            try Data(content.utf8).write(to: file)
+            try archive.addEntry(with: name, fileURL: file)
+        }
+        let pages = LocalFileManager.shared.readPages(from: url)
+        #expect(pages.count == 1)
+        #expect(pages.first?.description == "valid")
+    }
+
     @Test func defaultCoverUsesFirstImageAndPreservesChosenCover() throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

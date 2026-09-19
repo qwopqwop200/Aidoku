@@ -19,16 +19,28 @@ protocol PageTracker: Tracker {
     func getProgress(trackId: String, chapters: [AidokuRunner.Chapter]) async throws -> [String: ChapterReadProgress]
 }
 
-struct ChapterReadProgress: Codable {
+struct ChapterReadProgress: Codable, Equatable {
     let completed: Bool
     let page: Int
     var date: Date?
 }
 
-struct PageTrackUpdate: Codable {
+struct PageTrackUpdate: Codable, Equatable {
     let trackerId: String
     let trackId: String
     let chapterId: ChapterIdentifier
     let progress: ChapterReadProgress
     var failCount: Int = 0
+}
+
+
+extension PageTrackUpdate {
+    static func reconcile(pending: [Self], sent: [Self], failed: [Self]) -> [Self] {
+        pending.compactMap { update in
+            guard sent.contains(update) else { return update }
+            return failed.first {
+                $0.trackerId == update.trackerId && $0.trackId == update.trackId && $0.chapterId == update.chapterId
+            }
+        }
+    }
 }

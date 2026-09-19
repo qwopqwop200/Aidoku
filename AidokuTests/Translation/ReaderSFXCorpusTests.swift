@@ -22,7 +22,7 @@ struct ReaderSFXCorpusTests {
         settings.filterSFXWithLLM = false
         settings.rightToLeftPanelOrder = false
         settings.filterJapaneseSFX = true
-        if run.label != "baseline-v3" { #expect(ReaderJapaneseSFXFilter.speechSensitiveCandidates.count == 1676) }
+        if run.label != "baseline-v3" { #expect(ReaderJapaneseSFXFilter.speechSensitiveCandidates.count == 1677) }
         await ReaderOCRService.shared.purge()
         for (index, fixture) in run.fixtures.enumerated() {
             try Task.checkCancellation()

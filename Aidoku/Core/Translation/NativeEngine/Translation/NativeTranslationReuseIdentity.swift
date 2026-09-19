@@ -65,6 +65,7 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
             cacheKey.imageDigest == expected.cacheKey.imageDigest &&
             cacheKey.imageSupportRevision == expected.cacheKey.imageSupportRevision &&
             cacheKey.sfxPolicy == expected.cacheKey.sfxPolicy &&
+            cacheKey.backgroundPolicy == expected.cacheKey.backgroundPolicy &&
             cacheKey.version == expected.cacheKey.version &&
             cacheKey.provider == expected.cacheKey.provider &&
             cacheKey.apiProtocol == expected.cacheKey.apiProtocol &&
@@ -89,6 +90,7 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
         cacheKey.imageDigest == expected.cacheKey.imageDigest &&
             cacheKey.imageSupportRevision == expected.cacheKey.imageSupportRevision &&
             cacheKey.sfxPolicy == expected.cacheKey.sfxPolicy &&
+            cacheKey.backgroundPolicy == expected.cacheKey.backgroundPolicy &&
             cacheKey.version == expected.cacheKey.version &&
             cacheKey.provider == expected.cacheKey.provider &&
             cacheKey.apiProtocol == expected.cacheKey.apiProtocol &&

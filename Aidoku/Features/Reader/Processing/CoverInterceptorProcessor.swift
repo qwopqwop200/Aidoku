@@ -67,11 +67,15 @@ struct CoverInterceptorProcessor: ImageProcessing {
             image: imageDescriptor
         )
 
-        let result = try await source.processCoverImage(response: response)
-
-        try await source.remove(value: imageDescriptor)
-
-        return result
+        do {
+            let result = try await source.processCoverImage(response: response)
+            try await source.remove(value: imageDescriptor)
+            return result
+        } catch {
+            // Release runner-owned pixels even when the source throws or is cancelled.
+            await Task.detached { try? await source.remove(value: imageDescriptor) }.value
+            throw error
+        }
     }
 
     func processWithoutImage(request: ImageRequest) throws -> ImageContainer {

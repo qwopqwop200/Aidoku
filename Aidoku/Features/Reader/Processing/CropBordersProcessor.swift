@@ -12,25 +12,23 @@ import UIKit
 struct CropBordersProcessor: ImageProcessing {
 
     var identifier: String {
-        "com.github.Aidoku/Aidoku/cropBorders"
+        "com.github.Aidoku/Aidoku/cropBorders-v2"
     }
 
     private let whiteThreshold = 0xAA
     private let blackThreshold = 0x05
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
-    private let downscale = 0.4
 
     func process(_ image: PlatformImage) -> PlatformImage? {
         guard let cgImage = image.cgImage else { return image }
 
         return autoreleasepool {
-            let downsampledImage = downsampleImage(image)
-            guard let downsampledCGImage = downsampledImage.cgImage else { return image }
-            let newRect = createCropRect(downsampledCGImage, scale: downscale)
+            // Sample native pixels to preserve narrow strokes and asymmetric rotated borders.
+            let newRect = createCropRect(cgImage)
             guard !newRect.isEmpty else { return image }
 
             if let croppedImage = cgImage.cropping(to: newRect) {
-                return PlatformImage(cgImage: croppedImage)
+                return PlatformImage(cgImage: croppedImage, scale: image.scale, orientation: image.imageOrientation)
             } else {
                 return image
             }
@@ -38,63 +36,44 @@ struct CropBordersProcessor: ImageProcessing {
     }
 
     func createCropRect(_ cgImage: CGImage, scale: CGFloat = 1) -> CGRect {
+        guard scale.isFinite, scale > 0 else { return .zero }
         let height = cgImage.height
         let width = cgImage.width
-        let heightFloat = CGFloat(height)
-        let widthFloat = CGFloat(width)
 
-        guard
-            let context = createARGBBitmapContext(width: width, height: height),
-            let data = context.data?.assumingMemoryBound(to: UInt8.self)
-        else {
-            return CGRect.zero
-        }
-
-        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-
-        var lowX = widthFloat
-        var lowY = heightFloat
-        var highX: CGFloat = 0
-        var highY: CGFloat = 0
-
-        // Filter through data and look for non-transparent pixels.
-        for y in 0 ..< height {
-            let y = CGFloat(y)
-
-            for x in 0 ..< width {
-                let x = CGFloat(x)
-                let pixelIndex = (widthFloat * y + x) * 4 /* 4 for A, R, G, B */
-
-                // crop transparent
-                if data[Int(pixelIndex)] == 0 { continue }
-
-                // crop white
-                if
-                    data[Int(pixelIndex+1)] > whiteThreshold
-                    && data[Int(pixelIndex+2)] > whiteThreshold
-                    && data[Int(pixelIndex+3)] > whiteThreshold
-                {
-                    continue
+        var lowX = width
+        var lowY = height
+        var highX = -1
+        var highY = -1
+        // Native resolution preserves one-pixel strokes without a full-page RGBA
+        // allocation. At most 128 scanlines are decoded into scratch storage.
+        let stripHeight = min(128, height)
+        guard let context = createARGBBitmapContext(width: width, height: stripHeight),
+              let data = context.data?.assumingMemoryBound(to: UInt8.self) else { return .zero }
+        for originY in stride(from: 0, to: height, by: stripHeight) {
+            let rows = min(stripHeight, height - originY)
+            guard let strip = cgImage.cropping(to: CGRect(x: 0, y: originY, width: width, height: rows)) else { return .zero }
+            context.clear(CGRect(x: 0, y: 0, width: width, height: stripHeight))
+            context.draw(strip, in: CGRect(x: 0, y: stripHeight - rows, width: width, height: rows))
+            for y in 0..<rows {
+                for x in 0..<width {
+                    let offset = (y * width + x) * 4
+                    if data[offset] == 0 { continue }
+                    let red = data[offset + 1]
+                    let green = data[offset + 2]
+                    let blue = data[offset + 3]
+                    if red > whiteThreshold && green > whiteThreshold && blue > whiteThreshold { continue }
+                    if red < blackThreshold && green < blackThreshold && blue < blackThreshold { continue }
+                    lowX = min(x, lowX)
+                    highX = max(x, highX)
+                    lowY = min(originY + y, lowY)
+                    highY = max(originY + y, highY)
                 }
-
-                // crop black
-                if
-                    data[Int(pixelIndex+1)] < blackThreshold
-                    && data[Int(pixelIndex+2)] < blackThreshold
-                    && data[Int(pixelIndex+3)] < blackThreshold
-                {
-                    continue
-                }
-
-                lowX = min(x, lowX)
-                highX = max(x, highX)
-
-                lowY = min(y, lowY)
-                highY = max(y, highY)
             }
         }
 
-        return CGRect(x: lowX / scale, y: lowY / scale, width: (highX - lowX) / scale, height: (highY - lowY) / scale)
+        guard highX >= lowX, highY >= lowY else { return .zero }
+        return CGRect(x: CGFloat(lowX) / scale, y: CGFloat(lowY) / scale,
+            width: CGFloat(highX - lowX + 1) / scale, height: CGFloat(highY - lowY + 1) / scale)
     }
 
     func createARGBBitmapContext(width: Int, height: Int) -> CGContext? {
@@ -114,33 +93,4 @@ struct CropBordersProcessor: ImageProcessing {
         return context
     }
 
-    func downsampleImage(_ image: PlatformImage) -> PlatformImage {
-        guard let data = image.jpegData(compressionQuality: 0) else {
-            return image
-        }
-
-        let finalSize = CGSize(
-            width: CGFloat(round(image.size.width * downscale)),
-            height: CGFloat(round(image.size.height * downscale))
-        )
-
-        let imageSourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
-        guard let imageSource = CGImageSourceCreateWithData(data as CFData, imageSourceOptions) else {
-            return image
-        }
-
-        let maxDimension = round(max(finalSize.width, finalSize.height))
-        let options = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxDimension
-        ] as [CFString: Any] as CFDictionary
-
-        guard let output = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options) else {
-            return image
-        }
-
-        return PlatformImage(cgImage: output, scale: 1, orientation: image.imageOrientation)
-    }
 }

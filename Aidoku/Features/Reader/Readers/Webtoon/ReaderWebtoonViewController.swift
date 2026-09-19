@@ -31,6 +31,7 @@ class ReaderWebtoonViewController: ZoomableCollectionViewController {
     private lazy var pagesToPreload = UserDefaults.standard.integer(forKey: "Reader.pagesToPreload")
     private var loadingPrevious = false
     private var loadingNext = false
+    private var chapterGeneration = UUID()
 
     // The chapters currently shown in the reader view
     private var chapters: [AidokuRunner.Chapter] = []
@@ -85,6 +86,16 @@ class ReaderWebtoonViewController: ZoomableCollectionViewController {
 
     deinit {
         autoScrollDisplayLink?.invalidate()
+    }
+
+    /// Invalidate suspended chapter work when this reader is removed or closed.
+    func cancelPendingChapterLoads() {
+        chapterGeneration = UUID()
+        loadingNext = false
+        loadingPrevious = false
+        isScrolling = false
+        isZooming = false
+        stopAutoScroll()
     }
 
     override func configure() {
@@ -640,21 +651,25 @@ extension ReaderWebtoonViewController {
     /// Prepend the previous chapter's pages
     func prependPreviousChapter() async {
         guard let prevChapter = delegate?.getPreviousChapter() else { return }
-        await viewModel.preload(chapter: prevChapter)
+        guard !chapters.contains(prevChapter) else { return }
+        let issued = chapterGeneration
+        let loaded = await viewModel.preload(chapter: prevChapter)
 
         // check if pages failed to load
-        if viewModel.preloadedPages.isEmpty {
+        if loaded.isEmpty || issued != chapterGeneration || Task.isCancelled {
             return
         }
 
         // wait until zooming and scrolling stops
         while isZooming || isScrolling {
-            try? await Task.sleep(nanoseconds: 500_000_000)
+            do { try await Task.sleep(nanoseconds: 500_000_000) } catch { return }
+            guard issued == chapterGeneration else { return }
         }
 
         // queue remove last section if we have three already
 //        let removeLast = chapters.count >= 3
 
+        guard issued == chapterGeneration, !chapters.contains(prevChapter) else { return }
         chapters.insert(prevChapter, at: 0)
         pages.insert(
             [Page(
@@ -662,7 +677,7 @@ extension ReaderWebtoonViewController {
                 sourceId: viewModel.source?.key ?? viewModel.manga.sourceKey,
                 chapterId: prevChapter.key,
                 index: -1
-            )]  + viewModel.preloadedPages,
+            )] + loaded,
             at: 0
         )
 
@@ -694,23 +709,26 @@ extension ReaderWebtoonViewController {
     func appendNextChapter() async {
         guard let nextChapter = delegate?.getNextChapter() else { return }
         guard !chapters.contains(nextChapter) else { return }
-        await viewModel.preload(chapter: nextChapter)
+        let issued = chapterGeneration
+        let loaded = await viewModel.preload(chapter: nextChapter)
 
         // check if pages failed to load
-        if viewModel.preloadedPages.isEmpty {
+        if loaded.isEmpty || issued != chapterGeneration || Task.isCancelled {
             return
         }
 
         // wait until zooming and scrolling stops
         while isZooming || isScrolling {
-            try? await Task.sleep(nanoseconds: 500_000_000)
+            do { try await Task.sleep(nanoseconds: 500_000_000) } catch { return }
+            guard issued == chapterGeneration else { return }
         }
 
         // queue remove first section if we have three already
 //        let removeFirst = chapters.count >= 3
 
+        guard issued == chapterGeneration, !chapters.contains(nextChapter) else { return }
         chapters.append(nextChapter)
-        pages.append(viewModel.preloadedPages + [Page(
+        pages.append(loaded + [Page(
             type: .nextInfoPage,
             sourceId: viewModel.source?.key ?? viewModel.manga.sourceKey,
             chapterId: nextChapter.id,
@@ -865,12 +883,15 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
     }
 
     func setChapter(_ chapter: AidokuRunner.Chapter, startPage: Int) {
+        chapterGeneration = UUID()
+        let issued = chapterGeneration
         self.chapter = chapter
         updateDoubleTapZoomSetting()
         chapters = [chapter]
 
         Task {
             await viewModel.loadPages(chapter: chapter)
+            guard issued == chapterGeneration, !Task.isCancelled else { return }
             delegate?.setPages(viewModel.pages)
             if viewModel.pages.isEmpty {
                 pages = []
@@ -902,6 +923,7 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
             }
 
             await collectionNode.reloadData()
+            guard issued == chapterGeneration else { return }
             zoomView.adjustContentSize()
 
             // scroll to first page

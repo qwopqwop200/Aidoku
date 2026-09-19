@@ -18,7 +18,9 @@ struct SwiftUIWrapper<T: View>: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIHostingController<T> {
         UIHostingController(rootView: content())
     }
-    func updateUIViewController(_ uiViewController: UIHostingController<T>, context: Context) {}
+    func updateUIViewController(_ uiViewController: UIHostingController<T>, context: Context) {
+        uiViewController.rootView = content()
+    }
 }
 
 extension View {
@@ -189,9 +191,10 @@ extension View {
         if #available(iOS 17.0, *) {
             return self.onChange(of: value, initial: initial, action)
         } else {
-            return self.onChange(of: value) { newValue in
-                action(newValue, newValue)
+            return self.onChange(of: value) { [oldValue = value] newValue in
+                action(oldValue, newValue)
             }
+
         }
     }
 }

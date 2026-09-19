@@ -34,7 +34,7 @@ actor MangaBakaApi {
             "redirect_uri": "aidoku://mangabaka-auth"
         ].percentEncoded()
         let response: OAuthResponse? = try? await URLSession.shared.object(from: request)
-        await oauth.setTokens(response)
+        if let response { await oauth.setTokens(response) }
         return response
     }
 
@@ -53,7 +53,7 @@ actor MangaBakaApi {
             // ensure we have a refresh token, otherwise we need to fully re-auth
             let reloginNeeded = await oauth.checkIfReloginNeeded(trackerName: "MangaBaka")
             guard !reloginNeeded else {
-                return data
+                throw URLError(.userAuthenticationRequired)
             }
 
             // refresh access token
@@ -64,11 +64,14 @@ actor MangaBakaApi {
                 if let newAuthorization {
                     var newRequest = urlRequest
                     newRequest.setValue(newAuthorization, forHTTPHeaderField: "Authorization")
-                    (data, _) = try await URLSession.shared.data(for: newRequest)
+                    (data, response) = try await URLSession.shared.data(for: newRequest)
                 }
             }
         }
 
+        guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
         return data
     }
 

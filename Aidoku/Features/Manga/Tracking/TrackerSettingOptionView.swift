@@ -142,7 +142,7 @@ struct TrackerSettingOptionView: View {
                             }
                         }
                     } label: {
-                        Text(options[selectedOption ?? 0])
+                        Text(options[safe: selectedOption ?? 0] ?? options[0])
                             .font(.system(size: 14))
                             .lineLimit(1)
                             .foregroundColor(Color(.label))

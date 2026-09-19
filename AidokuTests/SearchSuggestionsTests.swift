@@ -22,6 +22,16 @@ struct SearchSuggestionsTests {
         ))
     }
 
+    @Test func throttleAppliesAcrossDifferentQueriesOnSameServer() async throws {
+        let throttle = SearchSuggestionRequestThrottle()
+        let first = URL(string: "https://suggestions.example/a.json?q=one")!
+        let second = URL(string: "https://suggestions.example/b.json?q=two")!
+        try await throttle.wait(for: first, milliseconds: 100)
+        let started = ProcessInfo.processInfo.systemUptime
+        try await throttle.wait(for: second, milliseconds: 0)
+        #expect(ProcessInfo.processInfo.systemUptime - started >= 0.08)
+    }
+
     @Test func loadsOnlyExplicitSourceConfiguration() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

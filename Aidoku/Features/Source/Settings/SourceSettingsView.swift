@@ -154,10 +154,12 @@ struct SourceSettingsView: View {
         await withCheckedContinuation { continuation in
             let store = WKWebsiteDataStore.default()
             store.fetchDataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes()) { records in
-                for record in records where source.urls.contains(where: { $0.domain == record.displayName }) {
-                    store.removeData(ofTypes: record.dataTypes, for: [record], completionHandler: {})
+                let matchingRecords = records.filter { record in
+                    source.urls.contains(where: { $0.domain == record.displayName })
                 }
-                continuation.resume()
+                store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), for: matchingRecords) {
+                    continuation.resume()
+                }
             }
         }
 

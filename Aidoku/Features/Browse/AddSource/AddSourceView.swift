@@ -96,9 +96,8 @@ struct AddSourceView: View {
                             ForEach(filteredSources, id: \.sourceId) { source in
                                 ExternalSourceTableCell(source: source, onInstall: {
                                     Task {
-                                        let index = externalSources.firstIndex(of: source)
-                                        if let index {
-                                            let allInstalled = await checkAllSourcesInstalled()
+                                        let allInstalled = await checkAllSourcesInstalled()
+                                        if let index = externalSources.firstIndex(where: { $0.sourceId == source.sourceId }) {
                                             withAnimation {
                                                 externalSources.remove(at: index)
                                                 if externalSources.isEmpty {

@@ -3919,6 +3919,21 @@ struct BrowserOverlayDisplayVariant: Equatable, Hashable {
         guard available.width > 0, available.height > 0 else {
             return false
         }
+        // The planner's vertical compatibility string has one explicit line per
+        // glyph. Measuring thousands of forced lines at unbounded height makes
+        // UIKit repeatedly shape the remaining string. Mandatory line advances
+        // alone can prove non-fit without changing fonts, geometry or the text.
+        // Ignore the first/last line extents, so this remains a lower bound.
+        if case let .plain(text) = content {
+            let minimumAdvance = vertical ? fontSize : UIFont.systemFont(ofSize: fontSize, weight: .bold).lineHeight
+            if minimumAdvance > 0 {
+                var forcedAdvance: CGFloat = 0
+                for scalar in text.unicodeScalars where scalar.value == 10 {
+                    forcedAdvance += minimumAdvance
+                    if forcedAdvance > available.height + 0.5 { return false }
+                }
+            }
+        }
         let measured = measuredSize(
             width: available.width,
             fontSize: fontSize,

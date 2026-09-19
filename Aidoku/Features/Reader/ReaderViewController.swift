@@ -31,6 +31,7 @@ class ReaderViewController: BaseObservingViewController {
 
     private var chapterList: [AidokuRunner.Chapter]
     private var chaptersToMark: [AidokuRunner.Chapter] = []
+    private var completedChapterKeys: Set<String> = []
     private var chaptersToRemoveDownload: [AidokuRunner.Chapter] = [] {
         didSet {
             // ensure chapters queued for deletion are persistent, in case of app termination
@@ -447,6 +448,9 @@ class ReaderViewController: BaseObservingViewController {
         super.viewWillDisappear(animated)
 
         (reader as? ReaderWebtoonViewController)?.stopAutoScroll()
+        if isBeingDismissed || navigationController?.isBeingDismissed == true {
+            (reader as? ReaderWebtoonViewController)?.cancelPendingChapterLoads()
+        }
 
         if !chaptersToRemoveDownload.isEmpty {
             Task {
@@ -504,7 +508,9 @@ extension ReaderViewController {
     func updateReadPosition(
         currentPage: Int? = nil,
         totalPages: Int? = nil,
-        chapter: AidokuRunner.Chapter? = nil
+        chapter: AidokuRunner.Chapter? = nil,
+        position: Double? = nil,
+        capturedSession: HistoryManager.ReadingSessionData? = nil
     ) async {
         let effectiveTotalPages = totalPages ?? toolbarView.totalPages ?? 0
         let effectiveCurrentPage = currentPage ?? self.currentPage
@@ -517,6 +523,8 @@ extension ReaderViewController {
             return
         }
 
+        let savedPosition = currentPage == nil ? currentPosition : position
+        let savedSession = currentPage == nil ? takeReadingSession() : capturedSession
         let currentPage = effectiveCurrentPage
         let chapter = chapter ?? self.chapter
 
@@ -538,24 +546,18 @@ extension ReaderViewController {
             chapterId: chapterId,
             chapter: chapter,
             progress: currentPage,
-            totalPages: totalPages,
-            scrollPosition: currentPosition,
+            totalPages: effectiveTotalPages,
+            scrollPosition: savedPosition,
             completed: completed
         )
-        await saveReadingSession(chapter: chapter)
+        if let savedSession { await HistoryManager.shared.addSession(chapterId: chapterId, data: savedSession) }
     }
 
-    private func saveReadingSession(chapter: AidokuRunner.Chapter? = nil) async {
-        guard !isTemporaryImageSession, let sessionStartDate else { return }
-        let pagesRead = sessionReadPages.count
-        if pagesRead > 0 && sessionLastInteraction != nil {
-            let chapter = chapter ?? self.chapter
-            await HistoryManager.shared.addSession(
-                chapterId: .init(sourceKey: manga.sourceKey, mangaKey: manga.key, chapterKey: chapter.key),
-                data: .init(startDate: sessionStartDate, endDate: .now, pagesRead: pagesRead)
-            )
-        }
+    private func takeReadingSession() -> HistoryManager.ReadingSessionData? {
+        guard !isTemporaryImageSession, let sessionStartDate else { return nil }
         self.sessionStartDate = nil
+        guard !sessionReadPages.isEmpty, sessionLastInteraction != nil else { return nil }
+        return .init(startDate: sessionStartDate, endDate: .now, pagesRead: sessionReadPages.count)
     }
 
     func loadChapterList() async {
@@ -678,6 +680,7 @@ extension ReaderViewController {
     }
 
     @objc func close() {
+        (reader as? ReaderWebtoonViewController)?.cancelPendingChapterLoads()
         translationCoordinator.close()
         Task {
             await temporaryPageStore.removeAll()
@@ -785,7 +788,7 @@ extension ReaderViewController {
         }
         if let pageController {
             if let webtoonReader = reader as? ReaderWebtoonViewController {
-                webtoonReader.stopAutoScroll()
+                webtoonReader.cancelPendingChapterLoads()
             }
             reader?.remove()
             pageController.delegate = self
@@ -964,7 +967,7 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
         return current.isEmpty ? nextScanlators.isEmpty : !current.isDisjoint(with: nextScanlators)
     }
 
-    private func findBestChapterMatch(from index: Int, step: Int) -> AidokuRunner.Chapter {
+    private func findBestChapterMatch(from index: Int, step: Int, relativeTo chapter: AidokuRunner.Chapter) -> AidokuRunner.Chapter {
         let firstCandidate = chapterList[index]
         let currentScanlators = Set(chapter.scanlators ?? [])
 
@@ -986,6 +989,14 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
     }
 
     func getNextChapter() -> AidokuRunner.Chapter? {
+        adjacentChapter(after: chapter, markDuplicates: true)
+    }
+
+    func getNextChapter(after chapter: AidokuRunner.Chapter) -> AidokuRunner.Chapter? {
+        adjacentChapter(after: chapter, markDuplicates: false)
+    }
+
+    private func adjacentChapter(after chapter: AidokuRunner.Chapter, markDuplicates shouldMark: Bool) -> AidokuRunner.Chapter? {
         guard
             var index = chapterList.firstIndex(of: chapter)
         else {
@@ -1011,11 +1022,11 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
                 if nextChapterInList == nil {
                     nextChapterInList = new
                 }
-                if markDuplicates && isDuplicate {
+                if shouldMark && markDuplicates && isDuplicate {
                     chaptersToMark.append(new)
                 }
                 if !isDuplicate {
-                    return skipDuplicates ? findBestChapterMatch(from: index, step: -1) : nextChapterInList
+                    return skipDuplicates ? findBestChapterMatch(from: index, step: -1, relativeTo: chapter) : nextChapterInList
                 } else if !skipDuplicates && !markDuplicates {
                     return new
                 }
@@ -1026,6 +1037,14 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
     }
 
     func getPreviousChapter() -> AidokuRunner.Chapter? {
+        adjacentChapter(before: chapter, markDuplicates: true)
+    }
+
+    func getPreviousChapter(before chapter: AidokuRunner.Chapter) -> AidokuRunner.Chapter? {
+        adjacentChapter(before: chapter, markDuplicates: false)
+    }
+
+    private func adjacentChapter(before chapter: AidokuRunner.Chapter, markDuplicates shouldMark: Bool) -> AidokuRunner.Chapter? {
         guard
             var index = chapterList.firstIndex(of: chapter)
         else {
@@ -1045,9 +1064,9 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
             if readable {
                 let isDuplicate = areDuplicates(new, chapter)
                 if !isDuplicate {
-                    return findBestChapterMatch(from: index, step: 1)
+                    return findBestChapterMatch(from: index, step: 1, relativeTo: chapter)
                 }
-                if markDuplicates {
+                if shouldMark && markDuplicates {
                     chaptersToMark.append(new)
                 }
             }
@@ -1062,13 +1081,17 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
 
         // store current history data since it will change when new chapter loads
         let currentPage = currentPage
-        let totalPages = toolbarView.totalPages
+        let totalPages = toolbarView.totalPages ?? 0
         let oldChapter = self.chapter
+        let position = currentPosition
+        let session = takeReadingSession()
+        sessionReadPages = []
+        sessionStartDate = Date.now
+        sessionLastInteraction = nil
+        currentPosition = nil
         Task {
-            await updateReadPosition(currentPage: currentPage, totalPages: totalPages, chapter: oldChapter)
-            sessionReadPages = [self.currentPage]
-            sessionStartDate = Date.now
-            sessionLastInteraction = nil
+            await updateReadPosition(currentPage: currentPage, totalPages: totalPages, chapter: oldChapter,
+                position: position, capturedSession: session)
         }
 
         self.chapter = chapter
@@ -1206,6 +1229,8 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
     func setCompleted() {
         guard !isTemporaryImageSession, !AppSettings.general.incognitoMode.get() else { return }
 
+        let chaptersToMark = chaptersToMark.filter { completedChapterKeys.insert($0.key).inserted }
+        guard !chaptersToMark.isEmpty else { return }
         Task { [chaptersToMark] in
             await HistoryManager.shared.addHistory(
                 mangaId: manga.identifier,
@@ -1213,7 +1238,7 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
             )
         }
 
-        if AppSettings.downloads.deleteDownloadAfterReading.get() {
+        if AppSettings.downloads.deleteDownloadAfterReading.get(), !chaptersToRemoveDownload.contains(chapter) {
             chaptersToRemoveDownload.append(chapter)
         }
     }

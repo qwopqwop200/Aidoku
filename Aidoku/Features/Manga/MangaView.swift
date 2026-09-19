@@ -73,7 +73,8 @@ struct MangaView: View {
                     .frame(maxWidth: .infinity)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
-                } else {
+                }
+                Group {
                     ForEach(viewModel.chapters.indices, id: \.self) { index in
                         let chapter = viewModel.chapters[index]
                         viewForChapter(chapter, index: index)
@@ -491,9 +492,8 @@ extension MangaView {
             if !last && !secondSection {
                 Menu(NSLocalizedString("MARK_PREVIOUS")) {
                     Button {
-                        let chapters = [AidokuRunner.Chapter](viewModel.chapters[
-                            index + 1..<viewModel.chapters.count
-                        ])
+                        guard let currentIndex = viewModel.chapters.firstIndex(where: { $0.key == chapter.key }) else { return }
+                        let chapters = Array(viewModel.chapters.dropFirst(currentIndex + 1))
                         Task {
                             await viewModel.markRead(chapters: chapters)
                         }
@@ -501,9 +501,8 @@ extension MangaView {
                         Label(NSLocalizedString("READ"), systemImage: "checkmark.circle")
                     }
                     Button {
-                        let chapters = [AidokuRunner.Chapter](viewModel.chapters[
-                            index + 1..<viewModel.chapters.count
-                        ])
+                        guard let currentIndex = viewModel.chapters.firstIndex(where: { $0.key == chapter.key }) else { return }
+                        let chapters = Array(viewModel.chapters.dropFirst(currentIndex + 1))
                         Task {
                             await viewModel.markUnread(chapters: chapters)
                         }
@@ -804,7 +803,17 @@ extension MangaView {
             activityItems: [item],
             applicationActivities: nil
         )
-        guard let sourceView = path.rootViewController?.view else { return }
+        let temporaryURL = (item as? URL).flatMap { url -> URL? in
+            let root = FileManager.default.temporaryDirectory.standardizedFileURL.path + "/"
+            return url.isFileURL && url.standardizedFileURL.path.hasPrefix(root) ? url : nil
+        }
+        activityViewController.completionWithItemsHandler = { _, _, _, _ in
+            if let temporaryURL { try? FileManager.default.removeItem(at: temporaryURL) }
+        }
+        guard let sourceView = path.rootViewController?.view else {
+            if let temporaryURL { try? FileManager.default.removeItem(at: temporaryURL) }
+            return
+        }
         activityViewController.popoverPresentationController?.sourceView = sourceView
         // manually positioned in top right of screen, near the right navigation bar button
         activityViewController.popoverPresentationController?.sourceRect = CGRect(

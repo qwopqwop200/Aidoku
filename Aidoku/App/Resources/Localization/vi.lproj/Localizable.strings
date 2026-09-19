@@ -1168,3 +1168,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Nơi lưu bộ nhớ đệm dịch không hợp lệ hoặc không khả dụng.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Không thể lưu bộ nhớ đệm dịch.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Thay đổi đồng bộ iCloud có hiệu lực khi bạn đóng hoàn toàn rồi mở lại Aidoku. Trước đó, cài đặt đồng bộ hiện tại vẫn được áp dụng.";

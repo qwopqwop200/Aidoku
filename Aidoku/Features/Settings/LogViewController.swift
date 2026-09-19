@@ -25,7 +25,7 @@ class LogViewController: UIViewController {
             action: #selector(clearLog)
         )
 
-        textView.attributedText = NSAttributedString(string: "Log is empty")
+        textView.attributedText = NSAttributedString(string: "")
         textView.font = UIFont(name: "Menlo", size: 12)
         textView.textColor = .label
         textView.isEditable = false
@@ -37,16 +37,37 @@ class LogViewController: UIViewController {
         textView.leadingAnchor.constraint(equalTo: view.leadingAnchor).isActive = true
         textView.trailingAnchor.constraint(equalTo: view.trailingAnchor).isActive = true
 
-        logTask = Task {
-            entries = await LogManager.logger.store.entries
-            loadLog()
-            let stream = await LogManager.logger.store.logStream()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        guard logTask == nil else { return }
+        logTask = Task { [weak self] in
+            let store = LogManager.logger.store
+            let (entries, stream) = await store.snapshotAndStream()
+            guard !Task.isCancelled else { return }
+            self?.entries = entries
+            self?.loadLog()
             for await entry in stream {
-                self.entries.append(entry)
-                self.logEntry(entry: entry)
+                guard !Task.isCancelled else { break }
+                self?.entries.append(entry)
+                if let self, self.entries.count > LogStore.maximumEntries {
+                    self.entries.removeFirst(max(self.entries.count - LogStore.maximumEntries, LogStore.maximumEntries / 10))
+                    self.loadLog()
+                } else {
+                    self?.logEntry(entry: entry)
+                }
             }
         }
     }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        logTask?.cancel()
+        logTask = nil
+    }
+
+    deinit { logTask?.cancel() }
 
     func loadLog() {
         textView.attributedText = NSMutableAttributedString()
@@ -55,7 +76,8 @@ class LogViewController: UIViewController {
 
     @MainActor
     func logEntry(entry: LogEntry) {
-        if let string = textView.attributedText.mutableCopy() as? NSMutableAttributedString {
+        let string = NSMutableAttributedString()
+        do {
             switch entry.type {
                 case .default:
                     break
@@ -70,7 +92,7 @@ class LogViewController: UIViewController {
             }
             string.append(NSAttributedString(string: entry.message + "\n", attributes: [.foregroundColor: UIColor.label]))
             string.addAttributes([.font: UIFont(name: "Menlo", size: 12) as Any], range: NSRange(location: 0, length: string.length))
-            textView.attributedText = string
+            textView.textStorage.append(string)
         }
     }
 

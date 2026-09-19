@@ -64,9 +64,7 @@ class ReaderPageViewController: BaseObservingViewController {
     var isInDoublePageController = false {
         didSet {
             loadPageBackground()
-            if isInDoublePageController {
-                zoomView?.zoomEnabled = false
-            }
+            zoomView?.zoomEnabled = didLoadPageSuccessfully && !isInDoublePageController
         }
     }
     var doublePageRestorationConstraints: [NSLayoutConstraint] = []

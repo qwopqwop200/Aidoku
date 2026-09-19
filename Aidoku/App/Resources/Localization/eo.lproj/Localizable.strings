@@ -1166,3 +1166,5 @@
 "TRANSLATION_ERROR_CACHE_STORAGE" = "La konservejo por la traduka kaŝmemoro estas nevalida aŭ nedisponebla.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Ne eblis konservi la tradukan kaŝmemoron.";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Ŝanĝoj al iCloud-sinkronigo ekvalidas post plena fermo kaj remalfermo de Aidoku. Ĝis tiam la nuna sinkroniga agordo restas aktiva.";

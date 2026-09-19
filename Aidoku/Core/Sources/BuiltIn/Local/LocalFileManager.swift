@@ -91,7 +91,8 @@ extension LocalFileManager {
         let pageEntries = archive
             .filter { entry in
                 let lastPathComponent = entry.path.lastPathComponent()
-                guard !lastPathComponent.hasPrefix(".") else {
+                guard entry.type == .file, !lastPathComponent.hasPrefix("."),
+                      !entry.path.split(separator: "/").contains(where: { $0 == "__MACOSX" || ($0 != "." && $0.hasPrefix(".")) }) else {
                     return false
                 }
                 let ext = entry.path.pathExtension().lowercased()
@@ -121,7 +122,13 @@ extension LocalFileManager {
                             imageData.append(data)
                         }
                     )
-                    return PlatformImage(data: imageData)
+                    guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),
+                          let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                            kCGImageSourceCreateThumbnailFromImageAlways: true,
+                            kCGImageSourceCreateThumbnailWithTransform: true,
+                            kCGImageSourceThumbnailMaxPixelSize: 400
+                          ] as CFDictionary) else { return nil }
+                    return PlatformImage(cgImage: thumbnail)
                 } catch {
                     return nil
                 }
@@ -227,7 +234,8 @@ extension LocalFileManager {
             .filter { entry in
                 // ignore hidden files
                 let lastPathComponent = entry.path.lastPathComponent()
-                guard !lastPathComponent.hasPrefix(".") else {
+                guard entry.type == .file, !lastPathComponent.hasPrefix("."),
+                      !entry.path.split(separator: "/").contains(where: { $0 == "__MACOSX" || ($0 != "." && $0.hasPrefix(".")) }) else {
                     return false
                 }
                 // ensure extension is allowed
@@ -258,7 +266,7 @@ extension LocalFileManager {
                     .flatMap({ Int($0) }),
                 index > 0,
                 index <= pages.count
-            else { break }
+            else { continue }
 
             do {
                 var descriptionData = Data()
@@ -378,7 +386,8 @@ extension LocalFileManager {
         let pageEntries = archive
             .filter { entry in
                 let lastPathComponent = entry.path.lastPathComponent()
-                guard !lastPathComponent.hasPrefix(".") else {
+                guard entry.type == .file, !lastPathComponent.hasPrefix("."),
+                      !entry.path.split(separator: "/").contains(where: { $0 == "__MACOSX" || ($0 != "." && $0.hasPrefix(".")) }) else {
                     return false
                 }
                 let ext = entry.path.pathExtension().lowercased()
@@ -469,10 +478,8 @@ extension LocalFileManager {
             let coverFileName = "cover.png"
             let newCoverURL = mangaFolder.appendingPathComponent(coverFileName)
             do {
-                if newCoverURL.exists {
-                    try fileManager.removeItem(at: newCoverURL)
-                }
-                try mangaCoverImage.pngData()?.write(to: newCoverURL)
+                guard let data = mangaCoverImage.pngData() else { throw LocalFileManagerError.fileCopyFailed }
+                try data.write(to: newCoverURL, options: .atomic)
                 coverURL = newCoverURL
             } catch {
                 throw LocalFileManagerError.fileCopyFailed
@@ -482,11 +489,7 @@ extension LocalFileManager {
         }
 
         // create the objects in db
-        let hasMangaObject = if let mangaId {
-            await LocalFileDataManager.shared.hasSeries(id: mangaId)
-        } else {
-            false
-        }
+        let hasMangaObject = await LocalFileDataManager.shared.hasSeries(id: resolvedMangaId)
         if !hasMangaObject {
             let cover = coverURL?.toAidokuImageUrl()?.absoluteString ?? {
                 // if no cover url, try finding one in the directory
@@ -530,13 +533,7 @@ extension LocalFileManager {
     func setCover(for mangaKey: String, image: PlatformImage) async -> String? {
         let mangaData = await LocalFileDataManager.shared.fetchLocalSeries(id: mangaKey)
 
-        // remove the cover image file if it exists
-        if let cover = mangaData?.cover, let url = URL(string: cover) {
-            let fileURL = url.toAidokuFileUrl() ?? url
-            if fileURL.isFileURL {
-                fileURL.removeItem()
-            }
-        }
+        let previousCover = mangaData?.cover.flatMap(URL.init(string:)).map { $0.toAidokuFileUrl() ?? $0 }
 
         // upload the new cover
         let fileManager = FileManager.default
@@ -545,12 +542,16 @@ extension LocalFileManager {
         let coverFileName = "cover.png"
         let newCoverURL = mangaFolder.appendingPathComponent(coverFileName)
         do {
-            try image.pngData()?.write(to: newCoverURL)
+            guard let data = image.pngData() else { return nil }
+            try data.write(to: newCoverURL, options: .atomic)
         } catch {
             LogManager.logger.error("Failed to write cover image for manga \(mangaKey): \(error)")
             return nil
         }
 
+        if let previousCover, previousCover.isFileURL, previousCover != newCoverURL {
+            previousCover.removeItem()
+        }
         // set cover image in coredata
         return await CoreDataManager.shared.setCover(
             mangaId: .init(sourceKey: LocalSourceRunner.sourceKey, mangaKey: mangaKey),

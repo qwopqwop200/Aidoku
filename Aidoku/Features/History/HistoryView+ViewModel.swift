@@ -238,6 +238,9 @@ extension HistoryView.ViewModel {
     // removes all history
     func clearHistory() {
         Task {
+            _ = await loadTask?.value
+            historyReloadGeneration += 1
+            loadTask = nil
             await CoreDataManager.shared.container.performBackgroundTask { context in
                 CoreDataManager.shared.clearHistory(context: context)
                 try? context.save()
@@ -316,17 +319,14 @@ extension HistoryView.ViewModel {
             let mangaIds = Array(missingMangaQueue.keys.prefix(maxConcurrentLoads))
             await withTaskGroup(of: Void.self) { group in
                 for mangaId in mangaIds {
-                    guard let chapterIds = missingMangaQueue[mangaId] else { continue }
+                    guard let chapterIds = missingMangaQueue.removeValue(forKey: mangaId) else { continue }
                     group.addTask {
                         await self.loadMangaAndChapters(mangaId: mangaId, chapterIds: chapterIds)
                     }
                 }
                 await group.waitForAll()
             }
-            // remove processed manga from queue
-            for mangaId in mangaIds {
-                missingMangaQueue.removeValue(forKey: mangaId)
-            }
+
         }
         mangaLoadTask = nil
     }
@@ -353,6 +353,7 @@ extension HistoryView.ViewModel {
                         self.chapterCache[key] = chapter
                     }
                 }
+                self.refilterHistory()
             }
         }
     }
@@ -451,6 +452,8 @@ extension HistoryView.ViewModel {
             newHistoryData[day] = newHistoryData[day]?.sorted { $0.date > $1.date }  // sort by date, most recent first
         }
 
+        await addMangaCacheItems(newMangaCacheItems)
+        await addChapterCacheItems(newChapterCacheItems)
         var newFilteredHistory = await filteredHistory
 
         // update data
@@ -461,8 +464,6 @@ extension HistoryView.ViewModel {
             )
         }
 
-        await addMangaCacheItems(newMangaCacheItems)
-        await addChapterCacheItems(newChapterCacheItems)
         await startMissingMangaQueueIfNeeded()
 
         await setHistoryData(newHistoryData)

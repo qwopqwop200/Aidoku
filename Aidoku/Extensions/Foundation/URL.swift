@@ -33,19 +33,25 @@ extension URL {
 extension URL {
     func toAidokuFileUrl() -> URL? {
         guard scheme == "aidoku-image" else { return nil }
-        let documentsDirectory = FileManager.default.documentDirectory
-        let path = host.map { $0 + self.path } ?? self.path
-        return documentsDirectory.appendingPathComponent(path)
+        let documents = FileManager.default.documentDirectory.standardizedFileURL.resolvingSymlinksInPath()
+        let relativePath = host.map { $0 + self.path } ?? self.path
+        let result = documents.appendingPathComponent(relativePath).standardizedFileURL.resolvingSymlinksInPath()
+        guard result.path.hasPrefix(documents.path + "/") else { return nil }
+        return result
     }
 
     func toAidokuImageUrl() -> URL? {
         guard isFileURL else { return nil }
-        // remove documents directory from the path
-        let documentsDirectory = FileManager.default.documentDirectory
-        guard path.hasPrefix(documentsDirectory.path) else { return nil }
-        let relativePath = String(path.dropFirst(documentsDirectory.path.count))
-        return URL(string: "aidoku-image://\(relativePath)")
+        let documents = FileManager.default.documentDirectory.standardizedFileURL.resolvingSymlinksInPath()
+        let file = standardizedFileURL.resolvingSymlinksInPath()
+        guard file.path.hasPrefix(documents.path + "/") else { return nil }
+        var components = URLComponents()
+        components.scheme = "aidoku-image"
+        components.host = ""
+        components.path = String(file.path.dropFirst(documents.path.count))
+        return components.url
     }
+
 }
 
 extension URL {

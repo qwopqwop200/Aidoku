@@ -269,11 +269,11 @@
 				FB171149296770CC00AD523D /* XCRemoteSwiftPackageReference "Nuke" */,
 				FBE53F0A29CC015E00899601 /* XCRemoteSwiftPackageReference "Texture" */,
 				FB662EDC2DA816CF00007514 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
-				FBFDF5F62DF799180064F603 /* XCRemoteSwiftPackageReference "AidokuRunner" */,
+				FBFDF5F62DF799180064F603 /* XCLocalSwiftPackageReference "AidokuRunner" */,
 				FBBCB31B2E08D6AF00ED5CAB /* XCRemoteSwiftPackageReference "Gifu" */,
 				FBAED40A2E3A762800B81E74 /* XCRemoteSwiftPackageReference "swiftui-introspect" */,
 				FB2C83972E43F074003CA85F /* XCRemoteSwiftPackageReference "SwiftSoup" */,
-				EE7A41EF2F5D20000044AF4C /* XCRemoteSwiftPackageReference "hoshidicts" */,
+				EE7A41EF2F5D20000044AF4C /* XCLocalSwiftPackageReference "HoshiDicts" */,
 			);
 			productRefGroup = FB1B4836277CE1920056D02C /* Products */;
 			projectDirPath = "";
@@ -662,15 +662,18 @@
 		A1D0C0000000000000000008 = { isa = XCConfigurationList; buildConfigurations = (A1D0C0000000000000000009, A1D0C000000000000000000A, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		EE7A41EF2F5D20000044AF4C /* XCRemoteSwiftPackageReference "hoshidicts" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Manhhao/hoshidicts.git";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		FBFDF5F62DF799180064F603 /* XCLocalSwiftPackageReference "AidokuRunner" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/AidokuRunner;
 		};
+		EE7A41EF2F5D20000044AF4C /* XCLocalSwiftPackageReference "HoshiDicts" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/HoshiDicts;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
 		FB171149296770CC00AD523D /* XCRemoteSwiftPackageReference "Nuke" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/kean/Nuke";
@@ -727,20 +730,13 @@
 				minimumVersion = 3.1.1;
 			};
 		};
-		FBFDF5F62DF799180064F603 /* XCRemoteSwiftPackageReference "AidokuRunner" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Aidoku/AidokuRunner";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
-		};
+
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		EE7A41CA2F5CF7710044AF4C /* CHoshiDicts */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = EE7A41EF2F5D20000044AF4C /* XCRemoteSwiftPackageReference "hoshidicts" */;
+			package = EE7A41EF2F5D20000044AF4C /* XCLocalSwiftPackageReference "HoshiDicts" */;
 			productName = CHoshiDicts;
 		};
 		FB17114A296770CC00AD523D /* NukeUI */ = {
@@ -784,7 +780,7 @@
 		};
 		FBFDF5F72DF799180064F603 /* AidokuRunner */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FBFDF5F62DF799180064F603 /* XCRemoteSwiftPackageReference "AidokuRunner" */;
+			package = FBFDF5F62DF799180064F603 /* XCLocalSwiftPackageReference "AidokuRunner" */;
 			productName = AidokuRunner;
 		};
 /* End XCSwiftPackageProductDependency section */

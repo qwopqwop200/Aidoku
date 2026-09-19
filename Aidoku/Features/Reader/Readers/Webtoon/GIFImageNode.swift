@@ -20,9 +20,14 @@ class GIFImageNode: ASControlNode {
         }
     }
 
+    private var imageGeneration = UUID()
+
     var image: UIImage? {
         didSet {
+            imageGeneration = UUID()
+            let generation = imageGeneration
             Task { @MainActor in
+                guard generation == imageGeneration else { return }
                 imageView?.image = image
                 NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: nil)
             }
@@ -61,6 +66,12 @@ class GIFImageNode: ASControlNode {
                 self?.storedInteractions = []
             }
             self?.imageView = gifView
+            // Texture can create the backing view after the preload image notification.
+            // Publish readiness again so visible-page translation binds to this view.
+            Task { @MainActor [weak self] in
+                guard self?.imageView === gifView else { return }
+                NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: nil)
+            }
             return gifView
         }
     }
@@ -77,8 +88,11 @@ class GIFImageNode: ASControlNode {
 
     func reset() {
         animatedData = nil
+        image = nil
+        let generation = imageGeneration
 
-        Task { @MainActor [weak imageView] in
+        Task { @MainActor [weak self] in
+            guard let self, generation == imageGeneration else { return }
             imageView?.stopAnimatingGIF()
             imageView?.image = nil
         }

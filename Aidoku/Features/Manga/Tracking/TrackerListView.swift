@@ -12,6 +12,7 @@ struct TrackerListView: View {
     let manga: AidokuRunner.Manga
 
     @State private var refresh = false
+    @State private var isLoading = true
     @State private var availableTrackers: [Tracker] = []
     @State private var trackItems: [TrackItem] = []
     @State private var trackerInfo: [String: TrackerInfo] = [:]
@@ -20,7 +21,7 @@ struct TrackerListView: View {
 
     var body: some View {
         VStack {
-            if availableTrackers.isEmpty {
+            if isLoading {
                 VStack {
                     ProgressView().progressViewStyle(.circular)
                 }
@@ -78,6 +79,7 @@ struct TrackerListView: View {
             loadTrackItems()
             withAnimation {
                 availableTrackers = trackers
+                isLoading = false
             }
         }
     }

@@ -1128,3 +1128,5 @@
 "TRANSLATION_ERROR_CACHE_SIZE" = "翻訳キャッシュのサイズが対応範囲外です。";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "翻訳キャッシュの保存領域が無効か、利用できません。";
 "TRANSLATION_ERROR_CACHE_SAVE" = "翻訳キャッシュを保存できませんでした。";
+
+"ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud同期の変更は、Aidokuを完全に終了してから開き直すと適用されます。それまでは現在の同期設定が有効です。";

@@ -98,8 +98,10 @@ class SourceErrorView: UIView {
                     button.isHidden = false
                 }
             } else {
-                button.isHidden = true
+                button.isHidden = false
             }
+        } else {
+            button.isHidden = true
         }
     }
 
@@ -137,6 +139,7 @@ class SourceErrorView: UIView {
             loadingIndicator.startAnimating()
             Task {
                 await onRetry()
+                loadingIndicator.stopAnimating()
                 loadingIndicator.isHidden = true
                 button.isHidden = false
             }

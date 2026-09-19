@@ -32,6 +32,7 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
     var ratio: CGFloat?
 
     private var pageLoadTask: Task<Void, Never>?
+    private var pageLoadGeneration = UUID()
     private var imageTask: ImageTask?
     private var imageProcessingTask: Task<UIImage?, Never>?
 
@@ -293,14 +294,17 @@ extension ReaderWebtoonPageNode {
     private func startPageLoad() {
         guard pageLoadTask == nil, image == nil, text == nil else { return }
 
+        pageLoadGeneration = UUID()
+        let issued = pageLoadGeneration
         pageLoadTask = Task { [weak self] in
             guard let self else { return }
             await self.loadPage()
-            self.pageLoadTask = nil
+            if self.pageLoadGeneration == issued { self.pageLoadTask = nil }
         }
     }
 
     private func cancelPageLoad() {
+        pageLoadGeneration = UUID()
         pageLoadTask?.cancel()
         pageLoadTask = nil
 
@@ -560,7 +564,10 @@ extension ReaderWebtoonPageNode {
     }
 
     private func clearDisplayedImage() {
-        Task { @MainActor [page = _translationPage] in page?.reset() }
+        Task { @MainActor [weak self, page = _translationPage] in
+            guard self?.image == nil else { return }
+            page?.reset()
+        }
         imageNode.reset()
         image = nil
     }
@@ -710,6 +717,7 @@ extension ReaderWebtoonPageNode {
     /// Reloads the current image by clearing its cache and re-fetching from the source
     @MainActor
     func reloadCurrentImage() async -> Bool {
+        cancelPageLoad()
         // Clear the cache for the current image
         clearCurrentImageCache()
 

@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import UIKit
 
@@ -142,7 +143,7 @@ struct TranslatedTitleText: View {
                 translated = original.replacingOccurrences(of: source, with: result)
                 translatedIdentity = requestIdentity
             }
-            .onReceive(NotificationCenter.default.publisher(for: ReaderTranslationSettings.changed)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: ReaderTranslationSettings.changed).receive(on: DispatchQueue.main)) { _ in
                 translated = nil
                 revision = UUID()
             }
@@ -154,6 +155,7 @@ final class TranslatedTitleLabel: UILabel {
     var kind: TitleTranslationKind = .manga
     private var original: String?
     private var translationTask: Task<Void, Never>?
+    private var settingsObserver: AnyCancellable?
     private var revision = UUID()
 
     override var text: String? {
@@ -166,19 +168,27 @@ final class TranslatedTitleLabel: UILabel {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        NotificationCenter.default.addObserver(self, selector: #selector(refreshTranslation),
-            name: ReaderTranslationSettings.changed, object: nil)
+        observeSettings()
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
-        NotificationCenter.default.addObserver(self, selector: #selector(refreshTranslation),
-            name: ReaderTranslationSettings.changed, object: nil)
+        observeSettings()
     }
 
     deinit { translationTask?.cancel() }
 
-    @objc private func refreshTranslation() {
+    private func observeSettings() {
+        // Settings can be persisted by background work. NotificationCenter otherwise
+        // delivers on that caller's thread, bypassing UILabel's MainActor isolation.
+        settingsObserver = NotificationCenter.default.publisher(for: ReaderTranslationSettings.changed)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                MainActor.assumeIsolated { self?.refreshTranslation() }
+            }
+    }
+
+    private func refreshTranslation() {
         translationTask?.cancel()
         revision = UUID()
         super.text = original

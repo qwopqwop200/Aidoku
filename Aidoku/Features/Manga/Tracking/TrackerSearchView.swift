@@ -110,10 +110,6 @@ struct TrackerSearchView: View {
             .animation(.default, value: results)
             .navigationBarTitleDisplayMode(.inline)
             .onChange(of: query) { _ in
-                guard !query.isEmpty else {
-                    results = []
-                    return
-                }
                 search(query: query, delay: true)
             }
             .onChange(of: includeNsfw) { _ in
@@ -139,21 +135,21 @@ struct TrackerSearchView: View {
                 }
             )
             .environment(\.autocorrectionDisabled, true)
-            .task {
-                do {
-                    results = try await tracker.search(for: manga, includeNsfw: includeNsfw)
-                } catch {
-                    LogManager.logger.error("Failed to search tracker \(tracker.id): \(error)")
-                }
-                withAnimation {
-                    loading = false
-                }
-            }
+            .task { search(query: query, delay: false) }
+            .onDisappear { searchTask?.cancel() }
         }
     }
 
     func search(query: String, delay: Bool) {
         searchTask?.cancel()
+        selectedItem = nil
+        guard !query.isEmpty else {
+            loading = false
+            searchError = nil
+            results = []
+            return
+        }
+        loading = true
         searchTask = Task {
             if delay {
                 try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 second delay
@@ -165,8 +161,13 @@ struct TrackerSearchView: View {
             }
 
             do {
-                results = try await tracker.search(title: query, includeNsfw: includeNsfw)
+                let fetched = try await tracker.search(title: query, includeNsfw: includeNsfw)
+                guard !Task.isCancelled else { return }
+                results = fetched
+                loading = false
             } catch {
+                guard !Task.isCancelled else { return }
+                loading = false
                 LogManager.logger.error("Failed to search tracker \(tracker.id): \(error)")
                 withAnimation {
                     searchError = error
@@ -185,9 +186,9 @@ struct TrackerSearchView: View {
         loading = true
 
         Task {
-            await TrackerManager.shared.register(tracker: tracker, manga: manga, item: result)
-
-            dismiss()
+            let saved = await TrackerManager.shared.register(tracker: tracker, manga: manga, item: result)
+            loading = false
+            if saved { dismiss() } else { searchError = URLError(.cannotWriteToFile) }
         }
     }
 }

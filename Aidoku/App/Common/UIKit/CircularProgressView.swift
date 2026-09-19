@@ -67,16 +67,19 @@ class CircularProgressView: UIView {
     }
 
     func setProgress(value: Float, withAnimation: Bool) {
-        guard value >= oldProgress, value <= 1 else { return }
+        guard value.isFinite, value >= 0, value <= 1 else { return }
+        if withAnimation, value < oldProgress { return }
 
         if withAnimation {
-            progressQueue.append(value)
+            // Only the latest pending progress matters; queued half-second animations otherwise lag minutes behind.
+            progressQueue = [value]
             startNextAnimationIfNeeded()
         } else {
+            progressQueue.removeAll()
+            progressLayer.removeAnimation(forKey: "animateProgress")
+            isAnimating = false
             progress = CGFloat(value)
             oldProgress = value
-            progressQueue.removeAll()
-            isAnimating = false
         }
     }
 

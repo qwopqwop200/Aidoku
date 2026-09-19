@@ -39,7 +39,8 @@ class ReaderPagedTextViewController: BaseObservingViewController {
     private var pages: [TextPage] = []
     private var currentPageIndex = 0
     private var currentCharacterOffset = 0  // Character offset for position restoration after repagination
-    private var isLoadingChapter = false  // Prevent race conditions
+    private var chapterGeneration = UUID()
+    private var isLoadingChapter = false
     private var lastPaginationSize: CGSize = .zero  // Track size to avoid repagination loops
 
     /// Fixed text insets used by child page view controllers.
@@ -497,11 +498,14 @@ class ReaderPagedTextViewController: BaseObservingViewController {
     // MARK: - Chapter Loading
 
     func loadChapter(_ chapter: AidokuRunner.Chapter, startPage: Int = 0) async {
+        let generation = UUID()
+        chapterGeneration = generation
         isLoadingChapter = true
         hasPaginated = false
         self.chapter = chapter
 
         await viewModel.loadPages(chapter: chapter)
+        guard chapterGeneration == generation, !Task.isCancelled else { return }
 
         guard !viewModel.pages.isEmpty else {
             isLoadingChapter = false
@@ -559,8 +563,8 @@ extension ReaderPagedTextViewController: ReaderReaderDelegate {
 
     func setChapter(_ chapter: AidokuRunner.Chapter, startPage: Int) {
 
-        // Prevent reloading if we're already loading
-        if isLoadingChapter {
+        // Coalesce the same request while allowing a newer chapter selection.
+        if isLoadingChapter && self.chapter == chapter {
             return
         }
 
@@ -574,7 +578,8 @@ extension ReaderPagedTextViewController: ReaderReaderDelegate {
 
         // Check if viewModel already has the page loaded (from ReaderViewController's initial load)
         // This prevents double-fetching the chapter
-        if !viewModel.pages.isEmpty {
+        if viewModel.chapter == chapter, !viewModel.pages.isEmpty {
+            chapterGeneration = UUID()
             self.chapter = chapter
             isLoadingChapter = true
             hasPaginated = false
@@ -596,8 +601,7 @@ extension ReaderPagedTextViewController: ReaderReaderDelegate {
         guard let previousChapter else { return }
         Task {
             // Preload to check whether the chapter has text pages.
-            await viewModel.preload(chapter: previousChapter)
-            let preloaded = viewModel.preloadedPages
+            let preloaded = await viewModel.preload(chapter: previousChapter)
             guard !preloaded.isEmpty else {
                 await MainActor.run { snapBackToTransitionPage() }
                 return
@@ -619,8 +623,7 @@ extension ReaderPagedTextViewController: ReaderReaderDelegate {
     func loadNextChapter() {
         guard let nextChapter else { return }
         Task {
-            await viewModel.preload(chapter: nextChapter)
-            let preloaded = viewModel.preloadedPages
+            let preloaded = await viewModel.preload(chapter: nextChapter)
             guard !preloaded.isEmpty else {
                 await MainActor.run { snapBackToTransitionPage() }
                 return

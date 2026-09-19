@@ -72,7 +72,7 @@ struct DownloadQueueView: View {
                                         .font(.callout)
                                         .lineLimit(1)
                                     let progress = self.progress[download.chapterIdentifier]
-                                    let value: Float = if let progress {
+                                    let value: Float = if let progress, progress.total > 0 {
                                         Float(progress.progress) / Float(progress.total)
                                     } else {
                                         0
@@ -191,7 +191,7 @@ struct DownloadQueueView: View {
                 for download in downloads {
                     let index = queue.firstIndex(where: { $0.sourceId == download.chapterIdentifier.sourceKey })
                     var downloads = index != nil ? self.queue[index!].downloads : []
-                    downloads.append(download)
+                    if !downloads.contains(download) { downloads.append(download) }
                     withAnimation {
                         if let index {
                             queue[index].downloads = downloads
@@ -210,7 +210,12 @@ struct DownloadQueueView: View {
                 guard let download = output.object as? Download else { return }
                 remove(download: download)
             }
-            .onReceive(NotificationCenter.default.publisher(for: .downloadsCancelled)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .downloadsCancelled)) { output in
+                if let chapters = output.object as? [ChapterIdentifier] {
+                    let removed = queue.flatMap(\.downloads).filter { chapters.contains($0.chapterIdentifier) }
+                    for download in removed { remove(download: download) }
+                    return
+                }
                 for (_, downloads) in queue {
                     Task {
                         for download in downloads {

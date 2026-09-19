@@ -59,17 +59,9 @@ struct SourceImageView: View {
             }
         }
         .processors(processors)
-        .onAppear {
-            guard imageRequest == nil else { return }
-            Task {
-                await loadImageRequest(url: imageUrl)
-            }
-        }
-        .onChange(of: imageUrl) { newValue in
+        .task(id: [source?.key ?? "", imageUrl]) {
             imageRequest = nil
-            Task {
-                await loadImageRequest(url: newValue)
-            }
+            await loadImageRequest(url: imageUrl)
         }
     }
 
@@ -83,8 +75,10 @@ struct SourceImageView: View {
             imageRequest = ImageRequest(url: url)
             return
         }
+        let request = await source.getModifiedImageRequest(url: url, context: nil)
+        guard !Task.isCancelled else { return }
         imageRequest = ImageRequest(
-            urlRequest: await source.getModifiedImageRequest(url: url, context: nil),
+            urlRequest: request,
             userInfo: [.processesKey: source.features.processesCovers]
         )
     }

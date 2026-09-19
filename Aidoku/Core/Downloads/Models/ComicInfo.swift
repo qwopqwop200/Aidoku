@@ -96,7 +96,7 @@ extension ComicInfo {
             series: manga.title,
             number: chapter.chapterNumber.flatMap { String(format: "%g", $0) },
             count: nil,
-            volume: chapter.volumeNumber.flatMap { Int($0) },
+            volume: chapter.volumeNumber.flatMap { Int(exactly: $0.rounded(.towardZero)) },
             summary: manga.description,
             notes: (try? JSONEncoder().encode(AidokuNotesData(
                 sourceKey: manga.sourceKey,

@@ -58,7 +58,7 @@ struct SourceMenuTranslationModifier: ViewModifier {
                 translated.merge(headings) { _, heading in heading }
                 labels = translated
             }
-            .onReceive(NotificationCenter.default.publisher(for: ReaderTranslationSettings.changed)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: ReaderTranslationSettings.changed).receive(on: DispatchQueue.main)) { _ in
                 labels = [:]
                 revision = UUID()
             }

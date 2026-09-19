@@ -4624,6 +4624,27 @@ struct ReaderOverlayEngineTests {
     }
 
     @Test @MainActor
+    func impossibleForcedLinesRejectWithoutShapingTheWholeResponse() {
+        let cache = BrowserOverlayTextMeasurementCache()
+        let text = BrowserOverlayTextFlow.verticalized(String(repeating: "가", count: 6_000))
+        let variant = BrowserOverlayDisplayVariant.plain(text, vertical: true)
+        #expect(!variant.fits(available: CGSize(width: 40, height: 250), fontSize: 5, measurementCache: cache))
+        #expect(cache.passStatistics.misses == 0)
+        // Check the conservative bound against the original exact measurement
+        // for both fitting and non-fitting strings, including explicit blank lines.
+        for vertical in [false, true] {
+            for sample in ["가", "가\n나", "가\n\n나", "가\n나\n다\n라"] {
+                let candidate = BrowserOverlayDisplayVariant.plain(sample, vertical: vertical)
+                for height in [CGFloat(4), 10, 20, 50] {
+                    let measured = candidate.measuredSize(width: 40, fontSize: 5)
+                    let expected = measured.width <= 40.5 && measured.height <= height + 0.5
+                    #expect(candidate.fits(available: CGSize(width: 40, height: height), fontSize: 5) == expected)
+                }
+            }
+        }
+    }
+
+    @Test @MainActor
     func unreadableConstrainedVerticalTranslationRemainsVisibleAndAnchored()
         throws
     {
