@@ -75,6 +75,8 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     private var imageSize = CGSize.zero
     private var aspectFit = true
     private var items: [BrowserOverlayItem] = []
+    private var regions: [ReaderTranslationRegion] = []
+    private var preparedLayout: Task<Data, Error>?
     private var settings = ReaderTranslationSettings()
     private var snapshotTarget: ReaderTranslationSnapshotTarget?
     private var snapshotTask: Task<Void, Never>?
@@ -142,6 +144,8 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         preparedImage = nil
         imageDataURL = nil
         items = []
+        regions = []
+        preparedLayout = nil
         imageSize = .zero
         renderedSize = .zero
         dirty = true
@@ -150,8 +154,11 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
 
     func update(
         regions: [ReaderTranslationRegion], imageSize: CGSize, aspectFit: Bool,
-        settings: ReaderTranslationSettings, image: UIImage? = nil, snapshotTarget: ReaderTranslationSnapshotTarget? = nil
+        settings: ReaderTranslationSettings, image: UIImage? = nil, snapshotTarget: ReaderTranslationSnapshotTarget? = nil,
+        preparedLayout: Task<Data, Error>? = nil
     ) {
+        self.regions = regions
+        self.preparedLayout = preparedLayout ?? snapshotTarget?.preparedLayout
         self.snapshotTarget = contentTerminationCount == 0 ? snapshotTarget : nil
         recoveryTask?.cancel(); recoveryTask = nil
         recoveryAttempts = 0
@@ -224,12 +231,12 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     override func layoutSubviews() {
         super.layoutSubviews()
         webView.frame = bounds
-        if let snapshotTarget, snapshotTarget.viewport != bounds.size || snapshotTarget.dark != (traitCollection.userInterfaceStyle == .dark) {
+        if let snapshotTarget, !ReaderTranslationGeometry.sameViewport(snapshotTarget.viewport, bounds.size) || snapshotTarget.dark != (traitCollection.userInterfaceStyle == .dark) {
             snapshotTask?.cancel()
             onCacheGeometryChanged?()
             return
         }
-        guard ready, bounds.width > 0, bounds.height > 0, dirty || renderedSize != bounds.size else { return }
+        guard ready, bounds.width > 0, bounds.height > 0, dirty || !ReaderTranslationGeometry.sameViewport(renderedSize, bounds.size) else { return }
         dirty = false
         renderedSize = bounds.size
         renderer.render(
@@ -240,7 +247,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
             ),
             settings: settings.overlay, targetLanguage: settings.targetLanguage,
             layoutCache: snapshotTarget?.cache.disk, layoutCacheKey: snapshotTarget?.key,
-            cacheGeneration: snapshotTarget?.diskGeneration, preparedLayout: snapshotTarget?.preparedLayout
+            cacheGeneration: snapshotTarget?.diskGeneration, preparedLayout: preparedLayout
         )
     }
 
@@ -257,40 +264,32 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         snapshotTask = Task { [weak self] in
             guard let self else { return }
             do {
-                _ = try await webView.callAsyncJavaScript(
-                    """
-                    await Promise.race([
-                      new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-                      new Promise(resolve => setTimeout(resolve, 150))
-                    ])
-                    """,
-                    arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld
+                guard let image = preparedImage, let host = window else { return }
+                // A DOM commit does not mean WebKit has painted tiles outside the
+                // screen. GPU snapshots of partially visible pages can permanently
+                // freeze untranslated lower regions when they replace the live view.
+                // Rasterize the whole document via the isolated PDF export renderer.
+                // Promote a live renderer's saved layout into the bounded memory
+                // cache; subsequent displays/captures need no disk read or unpack.
+                let layout = await target.cache.layoutData(for: target.key)
+                try Task.checkCancellation()
+                guard snapshotGeneration == issued, lastDiagnostic?.revision == revision, ReaderTranslationGeometry.sameViewport(bounds.size, size) else { return }
+                let snapshot = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+                    image: image, imageSize: imageSize, regions: regions, settings: settings,
+                    viewport: size, scale: traitCollection.displayScale, aspectFit: aspectFit,
+                    host: host, dark: target.dark,
+                    preparedLayout: layout.map { data in Task { data } } ?? preparedLayout
                 )
                 try Task.checkCancellation()
-                guard snapshotGeneration == issued, lastDiagnostic?.revision == revision, bounds.size == size else { return }
-                let configuration = WKSnapshotConfiguration()
-                // Bound bitmap memory for unusually tall webtoon pages.
-                let scale = max(1, traitCollection.displayScale)
-                configuration.snapshotWidth = NSNumber(value: Double(min(size.width, sqrt(4_000_000 * size.width / size.height) / scale)))
-                let snapshot: UIImage = try await withCheckedThrowingContinuation { continuation in
-                    webView.takeSnapshot(with: configuration) { image, error in
-                        if let image { continuation.resume(returning: image) } else {
-                            continuation.resume(throwing: error ?? CancellationError())
-                        }
-                    }
-                }
-                try Task.checkCancellation()
-                guard snapshotGeneration == issued, lastDiagnostic?.revision == revision, bounds.size == size else { return }
-                // Disk encoding is bounded and scheduled by the cache. Visible
-                // readers can release WebKit as soon as the bitmap is retained.
-                Task(priority: .utility) { [weak self] in
-                    await target.cache.store(snapshot, key: target.key, pageIdentity: target.pageIdentity, diskGeneration: target.diskGeneration)
-                    if let self, snapshotGeneration == issued {
-                        didStoreSnapshot = true
-                        if let cached = target.cache.cachedImage(for: target.key) { onSnapshotStored?(cached) }
-                    }
-                }
-            } catch { /* Snapshot caching is optional; the live translated page stays visible. */ }
+                guard snapshotGeneration == issued, lastDiagnostic?.revision == revision, ReaderTranslationGeometry.sameViewport(bounds.size, size) else { return }
+                await target.cache.store(snapshot, key: target.key, pageIdentity: target.pageIdentity, diskGeneration: target.diskGeneration)
+                guard !Task.isCancelled, snapshotGeneration == issued else { return }
+                didStoreSnapshot = true
+                if let cached = target.cache.cachedImage(for: target.key) { onSnapshotStored?(cached) }
+            } catch {
+                if !Task.isCancelled { ReaderTranslationDiagnostics.record("cache_snapshot_failed") }
+                // Keep the live translated page visible if optional caching fails.
+            }
         }
     }
 

@@ -253,6 +253,7 @@ final class ReaderTranslationPage {
                 dark: imageView.traitCollection.userInterfaceStyle == .dark
             )
             if let cached = renderCache.cachedImage(for: key) {
+                ReaderTranslationDiagnostics.record("visible_bitmap_hit", page: sourcePage.index + 1, count: result.count)
                 displaySnapshot(cached, source: image, settings: settings)
                 return
             }
@@ -265,7 +266,7 @@ final class ReaderTranslationPage {
                 let cached = await renderCache.load(key, pageIdentity: pageIdentity)
                 guard !Task.isCancelled, let self, generation == issued, imageView.image === image, renderLookupKey == key else { return }
                 renderLookupTask = nil
-                guard imageView.bounds.size == viewport, (imageView.traitCollection.userInterfaceStyle == .dark) == dark else {
+                guard ReaderTranslationGeometry.sameViewport(imageView.bounds.size, viewport), (imageView.traitCollection.userInterfaceStyle == .dark) == dark else {
                     renderLookupKey = nil
                     try? publish(result, image: image, settings: settings, generation: issued)
                     return
@@ -273,6 +274,7 @@ final class ReaderTranslationPage {
                 if let cached {
                     displaySnapshot(cached, source: image, settings: settings)
                 } else {
+                    ReaderTranslationDiagnostics.record("visible_bitmap_miss", page: sourcePage.index + 1, count: result.count)
                     let target = ReaderTranslationSnapshotTarget(
                         cache: renderCache, key: key, pageIdentity: pageIdentity,
                         diskGeneration: diskGeneration, viewport: imageView.bounds.size,
@@ -300,18 +302,27 @@ final class ReaderTranslationPage {
         cachedOverlay?.removeFromSuperview()
         cachedOverlay = nil
         let overlay = overlay ?? ReaderTranslationOverlayView()
+        // Reused overlays must follow the new image viewport too. Otherwise a
+        // geometry invalidation republishes the same stale bounds forever.
+        overlay.frame = imageView.bounds
         if overlay.superview == nil {
-            overlay.frame = imageView.bounds
             overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
             // Keep dictionary selection and Live Text controls above the translated image.
             imageView.insertSubview(overlay, at: 0)
         }
         self.overlay = overlay
+        ReaderTranslationDiagnostics.record("visible_live_attached", page: (sourcePage?.index ?? -2) + 1,
+                                            count: Int(imageView.bounds.width), code: Int(imageView.bounds.height))
+        overlay.onRenderCommitted = { [weak self, weak overlay] in
+            guard let self, self.overlay === overlay else { return }
+            ReaderTranslationDiagnostics.record("visible_live_committed", page: (sourcePage?.index ?? -2) + 1,
+                                                count: regions.count)
+        }
         let issued = generation
         overlay.onSnapshotStored = { [weak self, weak overlay, weak imageView] snapshot in
             guard let self, let overlay, self.overlay === overlay, generation == issued,
                   imageView?.image === image, completedTranslation, lastSettings == settings,
-                  let target, imageView?.bounds.size == target.viewport,
+                  let target, imageView.map { ReaderTranslationGeometry.sameViewport($0.bounds.size, target.viewport) } == true,
                   (imageView?.traitCollection.userInterfaceStyle == .dark) == target.dark else { return }
             displaySnapshot(snapshot, source: image, settings: settings)
         }
@@ -349,6 +360,8 @@ final class ReaderTranslationPage {
         }
         cachedOverlay = canvas
         imageView.insertSubview(canvas, at: 0)
+        ReaderTranslationDiagnostics.record("visible_bitmap_attached", page: (sourcePage?.index ?? -2) + 1,
+                                            count: Int(imageView.bounds.width), code: Int(imageView.bounds.height))
     }
 
     func displayPrepared(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings, completed: Bool = true) {
@@ -396,7 +409,7 @@ final class ReaderTranslationPage {
             guard !Task.isCancelled, let self, let imageView, generation == issued,
                   imageView.image === image, renderLookupKey == key else { return }
             renderLookupTask = nil
-            guard let snapshot, imageView.bounds.size == viewport,
+            guard let snapshot, ReaderTranslationGeometry.sameViewport(imageView.bounds.size, viewport),
                   (imageView.traitCollection.userInterfaceStyle == .dark) == dark else { return }
             acceptPreview(snapshot, result: result, image: image, crop: crop, settings: settings)
         }
@@ -461,7 +474,7 @@ final class ReaderTranslationPage {
     var onGeometryChanged: (() -> Void)?
     override func layoutSubviews() {
         super.layoutSubviews()
-        if bounds.size != initialSize { onGeometryChanged?() }
+        if !ReaderTranslationGeometry.sameViewport(bounds.size, initialSize) { onGeometryChanged?() }
     }
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)

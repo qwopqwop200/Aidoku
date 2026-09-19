@@ -49,6 +49,12 @@ struct ReaderTranslationRegion: Equatable, Sendable {
 }
 
 enum ReaderTranslationGeometry {
+    // UIView derives bounds from frame/center arithmetic. Fractional webtoon
+    // heights can differ by a few ULPs without any actual viewport change.
+    static func sameViewport(_ lhs: CGSize, _ rhs: CGSize) -> Bool {
+        abs(lhs.width - rhs.width) < 0.000_001 && abs(lhs.height - rhs.height) < 0.000_001
+    }
+
     static func displayRect(_ rect: CGRect, imageSize: CGSize, bounds: CGRect, aspectFit: Bool) -> CGRect {
         guard imageSize.width > 0, imageSize.height > 0 else { return .zero }
         var canvas = bounds

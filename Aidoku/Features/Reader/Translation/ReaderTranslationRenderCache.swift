@@ -9,8 +9,12 @@ final class ReaderTranslationRenderCache {
     private struct Bitmap {
         let image: UIImage
         let bytes: Int
+        let pageIdentity: String
     }
     nonisolated static let bitmapByteLimit = 32 * 1_024 * 1_024
+    private(set) var currentBitmapByteLimit = bitmapByteLimit
+    private(set) var nearbyPageCount = 3
+    private var nearbyOrder: [String] = []
     private var images: [String: Bitmap] = [:]
     private var imageOrder: [String] = []
     private(set) var bitmapBytes = 0
@@ -108,10 +112,19 @@ final class ReaderTranslationRenderCache {
     private func retain(_ image: UIImage, key: String, pageIdentity: String) {
         guard let pixels = image.cgImage else { return }
         let cost = pixels.bytesPerRow * pixels.height
-        guard cost <= Self.bitmapByteLimit else { return }
+        guard cost <= currentBitmapByteLimit else { return }
         removeImage(key)
-        while bitmapBytes + cost > Self.bitmapByteLimit, let oldest = imageOrder.first { removeImage(oldest) }
-        images[key] = Bitmap(image: image, bytes: cost)
+        // Never evict a nearer page just to retain speculative pixels farther away.
+        let rank = nearbyOrder.firstIndex(of: pageIdentity) ?? 0
+        while bitmapBytes + cost > currentBitmapByteLimit {
+            guard let victim = imageOrder.max(by: {
+                (nearbyOrder.firstIndex(of: images[$0]?.pageIdentity ?? "") ?? 0)
+                    < (nearbyOrder.firstIndex(of: images[$1]?.pageIdentity ?? "") ?? 0)
+            }), let entry = images[victim],
+            (nearbyOrder.firstIndex(of: entry.pageIdentity) ?? 0) >= rank else { return }
+            removeImage(victim)
+        }
+        images[key] = Bitmap(image: image, bytes: cost, pageIdentity: pageIdentity)
         bitmapBytes += cost
         imageOrder.append(key)
         var keys = variants[pageIdentity, default: []].filter { $0 != key }
@@ -128,10 +141,28 @@ final class ReaderTranslationRenderCache {
         shouldKeepImage(for: pageIdentity) && !variants[pageIdentity, default: []].contains { cachedImage(for: $0) != nil }
     }
 
-    func setNearbyPages(pageKeys: [String], settings: ReaderTranslationSettings) {
-        nearbyPages = Set(pageKeys.prefix(3).map { ReaderTranslationCacheIdentity.translation(page: $0, settings: settings) })
+    func setNearbyPages(pageKeys: [String], settings: ReaderTranslationSettings,
+                        availableMemory: UInt64 = ReaderTranslationSession.processAvailableMemory()) {
+        // Reserve OCR/decode headroom and use only a quarter of the excess.
+        // Include our existing pixels so allocations do not shrink their own budget.
+        let spare = availableMemory > TranslationImageWorkBudget.minimumHeadroom
+            ? availableMemory - TranslationImageWorkBudget.minimumHeadroom : 0
+        let allowance = min(UInt64(192 * 1_024 * 1_024), spare / 4 + UInt64(bitmapBytes) / 4)
+        currentBitmapByteLimit = max(Self.bitmapByteLimit, Int(allowance))
+        nearbyPageCount = max(3, min(7, currentBitmapByteLimit / (24 * 1_024 * 1_024)))
+        nearbyOrder = pageKeys.prefix(nearbyPageCount).map {
+            ReaderTranslationCacheIdentity.translation(page: $0, settings: settings)
+        }
+        nearbyPages = Set(nearbyOrder)
         for page in Array(variants.keys) where !shouldKeepImage(for: page) {
             for key in variants.removeValue(forKey: page) ?? [] { removeImage(key) }
+        }
+        // A falling memory budget evicts distant pages first.
+        while bitmapBytes > currentBitmapByteLimit,
+              let page = nearbyOrder.reversed().first(where: { identity in
+                  images.values.contains { $0.pageIdentity == identity }
+              }), let key = imageOrder.first(where: { images[$0]?.pageIdentity == page }) {
+            removeImage(key)
         }
     }
 

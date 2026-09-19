@@ -248,7 +248,7 @@ struct ReaderSourceTextColorTests {
             (() => { const n = document.querySelector('[data-aidoku-image-ocr-overlay="item"]');
               const s = getComputedStyle(n); return {
                 sampled:n.dataset.sourceSampledStrokeRGB, applied:n.dataset.sourceAppliedStrokeRGB,
-                state:n.dataset.sourceStrokeColor, stroke:s.webkitTextStrokeColor,
+                state:n.dataset.sourceStrokeColor, backgroundMode:n.dataset.sourceBackgroundColor, stroke:s.webkitTextStrokeColor,
                 width:s.webkitTextStrokeWidth, paintOrder:s.paintOrder,
                 sampledFill:n.dataset.sourceSampledTextRGB, appliedFill:n.dataset.sourceAppliedTextRGB
               }; })()
@@ -259,13 +259,19 @@ struct ReaderSourceTextColorTests {
                 let sampled = try #require(audit["sampled"])
                 let channels = sampled.split(separator: ",").compactMap { Int($0) }
                 #expect(channels.count == 3 && zip(channels, [96, 54, 28]).allSatisfy { abs($0 - $1) <= 16 })
-                #expect(audit["state"] == "preserved")
-                #expect(audit["applied"] == sampled)
-                #expect(audit["stroke"] == "rgb(\(channels.map(String.init).joined(separator: ", ")))")
                 #expect(audit["appliedFill"] == audit["sampledFill"])
                 let width = try #require(Double((audit["width"] ?? "").replacingOccurrences(of: "px", with: "")))
-                #expect(width > 0)
-                #expect(audit["paintOrder"]?.hasPrefix("stroke") == true)
+                if panel {
+                    #expect(audit["state"] == "none")
+                    #expect(audit["applied"] == "")
+                    #expect(width == 0)
+                } else {
+                    #expect(audit["state"] == "preserved")
+                    #expect(audit["applied"] == sampled)
+                    #expect(audit["stroke"] == "rgb(\(channels.map(String.init).joined(separator: ", ")))")
+                    #expect(width > 0)
+                    #expect(audit["paintOrder"]?.hasPrefix("stroke") == true)
+                }
             } else {
                 #expect(audit["state"] != "preserved")
                 #expect(audit["applied"] == nil || audit["applied"] == "")
@@ -328,7 +334,14 @@ struct ReaderSourceTextColorTests {
         let first = try await render(1)
         #expect(first["count"] as? Int == 1)
         #expect(first["blur"] as? String == "none")
+        _ = try await web.callAsyncJavaScript("globalThis.retiredCanvas=document.querySelector('[data-aidoku-image-ocr-overlay=\"root\"] canvas')", arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
         let second = try await render(2)
+        let released = try await web.callAsyncJavaScript("return retiredCanvas.width===0&&retiredCanvas.height===0", arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? Bool
+        #expect(released == true)
+        _ = try await web.callAsyncJavaScript(BrowserPageImageOverlayRenderer.clearScript,
+            arguments: ["revision": "1", "session": "cleanup-cache-test"], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
+        let stalePreserved = try await web.callAsyncJavaScript("return document.querySelector('[data-aidoku-image-ocr-overlay=\"root\"] canvas').width>0&&globalThis.__aidokuSourceCleanupV1.last.entries.size>0", arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? Bool
+        #expect(stalePreserved == true)
         #expect(first["canvas"] as? String == second["canvas"] as? String)
         #expect(first["reads"] as? Int == second["reads"] as? Int)
         #expect(second["entries"] as? Int == 1)
@@ -351,6 +364,28 @@ struct ReaderSourceTextColorTests {
         #expect(replaced["entries"] as? Int == 1)
         let pixels = try #require(replaced["pixels"] as? Int)
         #expect(pixels <= 2_000_000)
+        // Exercise the production insertion path with more retained RGBA data
+        // than its byte cap, including the extra one-byte safety mask.
+        let pressured = BrowserPageImageOverlayRenderer.renderScript.replacingOccurrences(
+            of: "const cleanupCanvas = document.createElement('canvas');",
+            with: """
+            for(let i=0;i<24;i++) storeCleanup('pressure-'+i,
+              {restored:{rgba:new Uint8ClampedArray(65536*4),layoutSafe:new Uint8Array(65536)}},65536);
+            const cleanupCanvas = document.createElement('canvas');
+            """)
+        _ = try await web.callAsyncJavaScript(pressured,
+            arguments: ["revision": "6", "session": "cleanup-cache-test", "items": [item],
+                "appearance": ["minimumReadableFontSize": 1, "opacity": 1]], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
+        let bounded = try await web.callAsyncJavaScript("""
+        const c=globalThis.__aidokuSourceCleanupV1.last;
+        const actual=[...c.entries.values()].reduce((n,e)=>n+(e.restored?.rgba?.byteLength||0)+(e.restored?.layoutSafe?.byteLength||0)+(e.output?.data?.byteLength||0),0);
+        return actual===c.bytes&&c.bytes<=4*1024*1024&&c.bytes>3*1024*1024&&!c.entries.has('pressure-0')&&c.entries.has('pressure-23');
+        """, arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? Bool
+        #expect(bounded == true)
+        _ = try await web.callAsyncJavaScript(BrowserPageImageOverlayRenderer.clearScript,
+            arguments: ["revision": "7", "session": "cleanup-cache-test"], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
+        let cleared = try await web.callAsyncJavaScript("return !globalThis.__aidokuSourceCleanupV1.last", arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? Bool
+        #expect(cleared == true)
     }
 
     @Test func neutralReadabilityEdgeUsesActualRendererWithoutChangingManualFonts() async throws {
@@ -425,7 +460,11 @@ struct ReaderSourceTextColorTests {
                     #expect((row["paintOrder"] as? String)?.hasPrefix("stroke") == true)
                 } else {
                     #expect(state != "readability-assist")
-                    if text && index == 5 {
+                    if panel {
+                        #expect(state == "none")
+                        #expect(row["appliedStroke"] as? String == "")
+                        #expect(width == 0)
+                    } else if text && index == 5 {
                         #expect(state == "preserved")
                         #expect(row["appliedStroke"] as? String == "96,54,28")
                         #expect(abs(width - 1.2) < 0.001)

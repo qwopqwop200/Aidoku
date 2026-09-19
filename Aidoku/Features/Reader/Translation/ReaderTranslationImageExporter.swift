@@ -57,9 +57,47 @@ enum ReaderTranslationImageExporter {
         }
     }
 
+    /// Capture every translated region, including tiles outside the screen. The
+    /// input is already decoded by the reader/preloader; do not reacquire its
+    /// image permit (the preloader holds it until this capture completes).
+    /// The export gate serializes the extra renderer and composite at 4 MP.
+    static func renderCacheSnapshot(
+        image: UIImage, imageSize: CGSize, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
+        viewport: CGSize, scale: CGFloat, aspectFit: Bool, host: UIView, dark: Bool,
+        preparedLayout: Task<Data, Error>?
+    ) async throws -> UIImage {
+        guard viewport.width > 0, viewport.height > 0 else { throw ExportError.unavailable }
+        let factor = min(max(1, scale), sqrt(4_000_000 / viewport.width / viewport.height))
+        let canvasSize = CGSize(width: max(1, floor(viewport.width * factor)), height: max(1, floor(viewport.height * factor)))
+        let rect = ReaderTranslationGeometry.displayRect(CGRect(x: 0, y: 0, width: 1, height: 1),
+            imageSize: imageSize, bounds: CGRect(origin: .zero, size: viewport), aspectFit: aspectFit)
+        let frame = CGRect(x: rect.minX * canvasSize.width / viewport.width,
+            y: rect.minY * canvasSize.height / viewport.height,
+            width: rect.width * canvasSize.width / viewport.width,
+            height: rect.height * canvasSize.height / viewport.height)
+        return try await gate.withPermit {
+            try Task.checkCancellation()
+            let page = try await renderSerial(image: image, regions: regions, settings: settings,
+                viewport: viewport, aspectFit: aspectFit, host: host, logicalImageSize: imageSize,
+                pixelSize: CGSize(width: max(1, floor(frame.width)), height: max(1, floor(frame.height))),
+                preparedLayout: preparedLayout, dark: dark)
+            try Task.checkCancellation()
+            if rect == CGRect(origin: .zero, size: viewport) { return page }
+            // Paged aspect-fit readers cache the entire viewport, including its
+            // transparent letterbox, rather than stretching the cropped page.
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            format.preferredRange = .standard
+            return UIGraphicsImageRenderer(size: canvasSize, format: format).image { _ in page.draw(in: frame) }
+        }
+    }
+
     private static func renderSerial(image: UIImage, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
-                                     viewport: CGSize, aspectFit: Bool, host: UIView) async throws -> UIImage {
-        guard viewport.width > 0, viewport.height > 0, host.window != nil else { throw ExportError.unavailable }
+                                     viewport: CGSize, aspectFit: Bool, host: UIView, logicalImageSize: CGSize? = nil,
+                                     pixelSize: CGSize? = nil, preparedLayout: Task<Data, Error>? = nil, dark: Bool? = nil) async throws -> UIImage {
+        try Task.checkCancellation()
+        guard viewport.width > 0, viewport.height > 0,
+              (host.window ?? (host as? UIWindow))?.windowScene != nil else { throw ExportError.unavailable }
         if warningObserver == nil {
             warningObserver = NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification,
                 object: nil, queue: .main) { _ in Task { @MainActor in clearIdleRenderer() } }
@@ -68,6 +106,7 @@ enum ReaderTranslationImageExporter {
         let overlay = idleOverlay ?? ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: viewport))
         idleOverlay = nil
         overlay.frame = CGRect(origin: .zero, size: viewport)
+        overlay.overrideUserInterfaceStyle = dark.map { $0 ? .dark : .light } ?? .unspecified
         // A separate renderer avoids changing the reader's zoom, cached rendering, or visible DOM.
         host.insertSubview(overlay, at: 0)
         var completed = false
@@ -84,7 +123,8 @@ enum ReaderTranslationImageExporter {
         defer { timeout.cancel(); overlay.onRenderCommitted = nil; events.continuation.finish() }
         var exportSettings = settings
         exportSettings.overlay.visible = true
-        overlay.update(regions: regions, imageSize: image.size, aspectFit: aspectFit, settings: exportSettings, image: image)
+        overlay.update(regions: regions, imageSize: logicalImageSize ?? image.size, aspectFit: aspectFit,
+                       settings: exportSettings, image: image, preparedLayout: preparedLayout)
         overlay.layoutIfNeeded()
         let ready = await withTaskCancellationHandler {
             var iterator = events.stream.makeAsyncIterator()
@@ -101,10 +141,10 @@ enum ReaderTranslationImageExporter {
         guard let json = payload as? String, let data = json.data(using: .utf8) else { throw ExportError.renderFailed }
         let layers = try JSONDecoder().decode(ExportLayers.self, from: data)
         let rect = ReaderTranslationGeometry.displayRect(
-            CGRect(x: 0, y: 0, width: 1, height: 1), imageSize: image.size,
+            CGRect(x: 0, y: 0, width: 1, height: 1), imageSize: logicalImageSize ?? image.size,
             bounds: CGRect(origin: .zero, size: viewport), aspectFit: aspectFit
         )
-        let size = outputSize(for: image)
+        let size = pixelSize ?? outputSize(for: image)
         // PDF paints DOM text without WebKit's on-screen GPU snapshot layers.
         // The reader may be occluded by the progress alert or scrolled offscreen.
         let configuration = WKPDFConfiguration()
@@ -159,7 +199,11 @@ enum ReaderTranslationImageExporter {
       frame: frame(node), opacity: Number(getComputedStyle(node).opacity), png: node.toDataURL('image/png')
     }));
     const surfaces = [];
-    const paintBounds = [];
+    // Readability plates are vector surfaces, not repaired source pixels. Keep
+    // them in the PDF and include their padding in the typography clipping union.
+    const paintBounds = [...document.querySelectorAll(
+      '[data-aidoku-image-ocr-overlay="source-readability-panel"]'
+    )].map(frame);
     for (const node of document.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')) {
       const style = getComputedStyle(node);
       const range = document.createRange();

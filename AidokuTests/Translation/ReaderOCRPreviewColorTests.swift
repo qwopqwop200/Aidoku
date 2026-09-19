@@ -7,7 +7,7 @@ import WebKit
 @MainActor
 struct ReaderOCRPreviewColorTests {
     @Test(arguments: ["missing", "transparent", "read-error", "low-confidence"])
-    func unresolvedPanelPreservesOriginalBackground(failure: String) async throws {
+    func unresolvedPanelUsesReadableCaptionWithoutBlurringArtwork(failure: String) async throws {
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 240, height: 120))
         web.loadHTMLString("<html><body style='margin:0;background:#584060'></body></html>", baseURL: nil)
         let deadline = Date().addingTimeInterval(20)
@@ -57,21 +57,26 @@ struct ReaderOCRPreviewColorTests {
             const style=getComputedStyle(node);return {panel:style.backgroundColor,veil:style.backgroundImage,
             blur:style.webkitBackdropFilter,stroke:parseFloat(style.webkitTextStrokeWidth)>0,
             state:node.dataset.sourceBackgroundColor,text:node.textContent,
+            plates:[...document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]')].map(n=>({
+              x:n.offsetLeft,y:n.offsetTop,w:n.offsetWidth,h:n.offsetHeight,color:getComputedStyle(n).backgroundColor,
+              z:Number(getComputedStyle(n).zIndex)})),
             sourceBlur:Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-blur"],[data-aidoku-image-ocr-overlay="source-readability-blur"]')).map(n=>({filter:getComputedStyle(n).webkitBackdropFilter,z:Number(getComputedStyle(n).zIndex),width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height,raster:n.tagName==="CANVAS"?1:n.querySelectorAll("canvas").length})),textZ:Number(style.zIndex)};})()
             """) as? [String: Any])
             #expect(audit["panel"] as? String == "rgba(0, 0, 0, 0)")
             #expect(audit["veil"] as? String == "none")
             #expect(audit["blur"] as? String == "none")
-            #expect(audit["stroke"] as? Bool == true)
-            #expect(audit["state"] as? String == (failure == "missing" ? "unresolved-transparent" : "readability-blur"))
+            #expect(audit["stroke"] as? Bool == false)
+            #expect(audit["state"] as? String == "readability-panel")
             let blurs = try #require(audit["sourceBlur"] as? [[String: Any]])
-            #expect(blurs.count == (failure == "missing" ? 0 : 1))
-            if let blur = blurs.first {
-                #expect((blur["z"] as? Int ?? 0) < (audit["textZ"] as? Int ?? 0))
-                #expect((blur["width"] as? Double ?? 0) > 0)
-                #expect((blur["height"] as? Double ?? 0) > 0)
-                #expect(blur["raster"] as? Int == (failure == "missing" ? 0 : 1))
-            }
+            #expect(blurs.isEmpty)
+            let plates = try #require(audit["plates"] as? [[String: Any]])
+            #expect(plates.count == 1)
+            let plate = try #require(plates.first)
+            #expect((plate["w"] as? Double ?? 0) > 0)
+            #expect((plate["h"] as? Double ?? 0) > 0)
+            #expect((plate["x"] as? Double ?? -1) >= 0)
+            #expect((plate["z"] as? Int ?? 0) < (audit["textZ"] as? Int ?? 0))
+            #expect(plate["color"] as? String != "rgba(0, 0, 0, 0)")
             #expect(audit["text"] as? String == (translated ? "안녕" : "HELLO"))
         }
     }
@@ -253,7 +258,7 @@ struct ReaderOCRPreviewColorTests {
         #expect(appearances[1]["text"] == "번역된 글자")
         for appearance in appearances {
             #expect(appearance["opacity"] == "1")
-            #expect(appearance["surface"] == "blurred")
+            #expect(appearance["surface"] == "readability-panel")
             #expect(appearance["background"] == "none")
         }
         #expect(appearances[0]["color"] == appearances[1]["color"])

@@ -5,6 +5,142 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationSessionTests {
+    @Test func chapterSweepPersistsDistantPagesWithoutEvictingNearbyText() async throws {
+        let fixture = SessionFixture()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let cache = ReaderTranslationSessionCache()
+        let pages = (0..<80).map { Aidoku.Page(sourceId: "sweep", chapterId: "chapter", index: $0,
+                                             imageURL: "file:///unused-\($0).png") }
+        var calls: [Int] = []
+        var rendered: [Int] = []
+        let session = ReaderTranslationSession(process: { page, _, _ in
+            calls.append(page.index)
+            return [Self.region]
+        }, diskCache: disk, prepareLayout: { page, _, _ in rendered.append(page.index) },
+           availableMemory: { UInt64.max }, cache: cache)
+        defer { session.close() }
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [], context: "sweep")
+        session.enable(settings: fixture.settings)
+        try await waitUntil {
+            (try? await disk.translatedRegions(page: pages[79].translationCacheKey, settings: fixture.settings)) != nil
+        }
+        #expect(calls == Array(0..<80))
+        #expect(cache.contains(pages[0].translationCacheKey))
+        #expect(!cache.contains(pages[79].translationCacheKey))
+        #expect(cache.bytes <= ReaderTranslationSessionCache.byteLimit)
+        #expect(rendered.allSatisfy { $0 < 5 })
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [], context: "sweep", currentPageIndex: 79)
+        session.enable(settings: fixture.settings)
+        try await waitUntil { cache.contains(pages[79].translationCacheKey) }
+        #expect(calls.count == 80, "A prepared distant page must reopen from disk without repeating OCR/API")
+    }
+
+    @Test func pageTurnCancelsDistantInFlightWorkAndStartsDestinationFirst() async throws {
+        let fixture = SessionFixture()
+        let pages = (0..<16).map { Aidoku.Page(sourceId: "sweep", chapterId: "chapter", index: $0) }
+        var calls: [Int] = []
+        var cancelled = false
+        let session = ReaderTranslationSession(process: { page, _, _ in
+            calls.append(page.index)
+            if page.index == 6, !cancelled {
+                do { try await Task.sleep(for: .seconds(30)) }
+                catch { cancelled = true; throw error }
+            }
+            return [Self.region]
+        }, availableMemory: { UInt64.max })
+        defer { session.close() }
+        let items = pages.map(ReaderTranslationSession.Item.init)
+        session.update(items: items, visible: [], context: "sweep")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { calls.last == 6 }
+        session.pauseForPageTurn(preservingRecognitionFor: pages[15])
+        session.update(items: items, visible: [], context: "sweep", currentPageIndex: 15)
+        try await waitUntil { cancelled && calls.count > 7 }
+        #expect(calls[7] == 15)
+    }
+
+    @Test func chapterSweepPausesForMemoryAndReprioritizesAfterNavigation() async throws {
+        let fixture = SessionFixture()
+        let pages = (0..<12).map { Aidoku.Page(sourceId: "sweep", chapterId: "chapter", index: $0) }
+        var budget = UInt64.max
+        var calls: [Int] = []
+        let session = ReaderTranslationSession(process: { page, _, _ in
+            calls.append(page.index)
+            if calls.count == 6 { budget = 0 }
+            return [Self.region]
+        }, availableMemory: { budget }, reclaimMemory: {})
+        defer { session.close() }
+        let items = pages.map(ReaderTranslationSession.Item.init)
+        session.update(items: items, visible: [], context: "sweep")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { calls.count == 6 }
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(calls == Array(0..<6))
+        session.pauseForPageTurn()
+        budget = UInt64.max
+        session.update(items: items, visible: [], context: "sweep", currentPageIndex: 11)
+        try await waitUntil { calls.count == 12 }
+        #expect(Array(calls.suffix(6)) == [11, 10, 9, 8, 7, 6])
+    }
+
+
+    @Test func scrollBurstCoalescesChapterWorkAndKeepsLatestDestination() async throws {
+        let fixture = SessionFixture()
+        let pages = (0..<4).map { Self.page($0) }
+        let owner = UnindexedChapterOwner(pages: pages, current: 0)
+        var settingsReads = 0
+        var calls: [Int] = []
+        let session = ReaderTranslationSession(validate: { _ in }, process: { page, _, _ in
+            calls.append(page.index)
+            return [Self.region]
+        }, availableMemory: { UInt64.max })
+        let coordinator = ReaderTranslationCoordinator(owner: owner, session: session, readSettings: {
+            settingsReads += 1
+            return fixture.settings
+        }, setEnabled: { _ in })
+        defer { coordinator.close() }
+        coordinator.resume()
+        let baseline = settingsReads
+        for index in 0..<600 {
+            owner.page.sourcePage = pages[index % pages.count]
+            coordinator.scrollVisibilityDidChange()
+        }
+        #expect(settingsReads == baseline, "Scroll callbacks must not synchronously load settings or refresh the chapter")
+        try await Task.sleep(for: .milliseconds(130))
+        #expect(settingsReads > baseline)
+        #expect(calls.isEmpty, "The destination still respects OCR navigation debounce")
+        let afterFirstRefresh = settingsReads
+        for _ in 0..<600 { coordinator.scrollVisibilityDidChange() }
+        try await Task.sleep(for: .milliseconds(130))
+        #expect(settingsReads == afterFirstRefresh, "An unchanged viewport must not refresh the chapter again")
+        try await waitUntil { !calls.isEmpty }
+        #expect(calls.first == 3)
+        coordinator.suspend()
+        let afterSuspend = settingsReads
+        coordinator.scrollVisibilityDidChange()
+        try await Task.sleep(for: .milliseconds(130))
+        #expect(settingsReads == afterSuspend)
+    }
+
+    @Test func closingReaderCancelsPendingScrollRefresh() async throws {
+        let fixture = SessionFixture()
+        let owner = UnindexedChapterOwner(pages: [Self.page(0)], current: 0)
+        var reads = 0
+        let session = ReaderTranslationSession(validate: { _ in }, process: { _, _, _ in [] })
+        let coordinator = ReaderTranslationCoordinator(owner: owner, session: session, readSettings: {
+            reads += 1
+            return fixture.settings
+        }, setEnabled: { _ in })
+        coordinator.resume()
+        coordinator.scrollVisibilityDidChange()
+        coordinator.close()
+        let baseline = reads
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(reads == baseline)
+    }
+
     @Test func navigationDebounceOnlyAcceleratesIsolatedAdjacentTurns() {
         var debounce = ReaderTranslationNavigationDebounce()
         #expect(debounce.delay(chapter: "a", index: 0, now: 0) == 350_000_000)
@@ -95,6 +231,47 @@ struct ReaderTranslationSessionTests {
         #expect(cancellations > baseline)
     }
 
+    @Test(arguments: [false, true])
+    func redisplayWaitsForTranslationCacheBeforeShowingOCR(cacheHit: Bool) async throws {
+        let fixture = SessionFixture()
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let disk = ReaderTranslationDiskCache(directory: directory)
+        let source = Self.page(0)
+        let view = UIImageView(image: Self.image())
+        let original = ReaderTranslationPage(imageView: view)
+        original.sourcePage = source
+        var ocr = Self.region
+        ocr.translation = nil
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            calls += 1
+            throw ReaderTranslationOCRFallback(regions: [ocr],
+                underlying: RemoteTranslationError.httpStatus(400, requestID: nil))
+        }, diskCache: disk, availableMemory: { UInt64.max })
+        defer { session.close() }
+        session.update(items: [.init(source)], visible: [original], context: "cache-order")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { !original.regions.isEmpty }
+        #expect(!original.hasCompletedTranslation(settings: fixture.settings))
+        if cacheHit {
+            let key = ReaderTranslationCacheIdentity.translation(page: source.translationCacheKey, settings: fixture.settings)
+            try await disk.storeRegions([Self.region], for: key, kind: .translation, generation: disk.currentGeneration())
+        }
+        let replacementView = UIImageView(image: Self.image())
+        let replacement = ReaderTranslationPage(imageView: replacementView)
+        replacement.sourcePage = source
+        session.refreshVisiblePages([replacement])
+        // The MainActor has not yielded to the disk read: neither retained OCR
+        // nor its overlay may be published before the translation lookup ends.
+        #expect(replacement.regions.isEmpty)
+        #expect(replacementView.subviews.isEmpty)
+        try await waitUntil { !replacement.regions.isEmpty }
+        #expect(replacement.hasCompletedTranslation(settings: fixture.settings) == cacheHit)
+        #expect(replacement.regions.first?.translation == (cacheHit ? Self.region.translation : nil))
+        #expect(calls == 1)
+    }
+
     @Test func memoryTrimRestoresSamePageAfterItsImageChanges() async throws {
         let fixture = SessionFixture()
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -167,7 +344,7 @@ struct ReaderTranslationSessionTests {
         #expect(session.state == .on)
     }
 
-    @Test func preparationWindowDoesNotDrainTheEntireChapter() async throws {
+    @Test func chapterSweepDoesNotRepeatCompletedPagesAfterNavigation() async throws {
         let fixture = SessionFixture()
         var indices: [Int] = []
         let session = ReaderTranslationSession(process: { page, _, _ in indices.append(page.index); return [Self.region] },
@@ -175,12 +352,12 @@ struct ReaderTranslationSessionTests {
         defer { session.close() }
         session.update(items: (0..<20).map { .init(Self.page($0)) }, visible: [], context: "bounded", currentPageIndex: 0)
         session.enable(settings: fixture.settings)
-        try await waitUntil { indices.count >= 5 }
+        try await waitUntil { indices.count == 20 }
         for _ in 0..<20 { await Task.yield() }
-        #expect(indices == [0, 1, 2, 3, 4])
+        #expect(indices == Array(0..<20))
         session.update(items: (0..<20).map { .init(Self.page($0)) }, visible: [], context: "bounded", currentPageIndex: 12)
         try await waitUntil { indices.contains(12) }
-        #expect(indices.count <= 10)
+        #expect(indices.count == 20)
     }
 
     @Test func visibleDiskCacheRestoresBeforeSettledUpdateWithoutOCR() async throws {
@@ -665,8 +842,8 @@ struct ReaderTranslationSessionTests {
         coordinator.install()
         coordinator.resume()
         defer { coordinator.close() }
-        try await waitUntil { prepared.count == 5 }
-        #expect(prepared == [3, 4, 2, 5, 1])
+        try await waitUntil { prepared.count == 8 }
+        #expect(prepared == [3, 4, 2, 5, 1, 6, 0, 7])
         #expect(session.state == .on)
         #expect(owner.translationVisiblePages.first?.hasCompletedTranslation(settings: fixture.settings) == true)
         // Ordering must not invalidate already persisted page identities.
@@ -800,16 +977,16 @@ struct ReaderTranslationSessionTests {
         #expect(session.state == .checking)
         #expect(indices.isEmpty)
         await gate.release()
-        try await waitUntil { indices.count == 5 }
+        try await waitUntil { indices.count == 8 }
         #expect(session.state == .on)
-        #expect(indices == [2, 3, 1, 4, 0])
+        #expect(indices == [2, 3, 1, 4, 0, 5, 6, 7])
         #expect(efforts.allSatisfy { $0 == .high })
         #expect(visible.regions.first?.translation == "안녕")
         session.disable()
         #expect(imageView.subviews.allSatisfy { $0.isHidden })
         session.enable(settings: settings)
         try await waitUntil { session.state == .on }
-        #expect(indices.count == 5)
+        #expect(indices.count == 8)
         #expect(imageView.subviews.contains { !$0.isHidden })
     }
 

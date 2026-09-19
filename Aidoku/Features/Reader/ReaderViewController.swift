@@ -1149,7 +1149,11 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
     var translationCurrentPageIndex: Int { max(0, currentPage - 1) }
 
     func translationVisibilityDidChange() {
-        translationCoordinator.visiblePagesDidChange()
+        if readingMode == .webtoon || readingMode == .continuous {
+            translationCoordinator.scrollVisibilityDidChange()
+        } else {
+            translationCoordinator.visiblePagesDidChange()
+        }
     }
 
     private func updateDescriptionButton(pages: ClosedRange<Int>) {

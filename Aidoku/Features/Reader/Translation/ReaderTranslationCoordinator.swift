@@ -60,8 +60,55 @@ final class ReaderTranslationCoordinator {
     private var metadataPaused = false
     private var isVisible = false
     private var synchronizationTask: Task<Void, Never>?
+    private var scrollVisibilityTask: Task<Void, Never>?
+    private var scrollVisibility: ScrollVisibility?
+
+    private struct ScrollVisibility: Equatable {
+        struct PageState: Equatable {
+            let page: ObjectIdentifier
+            let image: ObjectIdentifier?
+            let size: CGSize?
+            let sourceKey: String?
+            @MainActor init(_ page: ReaderTranslationPage) {
+                self.page = ObjectIdentifier(page)
+                image = page.imageView?.image.map(ObjectIdentifier.init)
+                size = page.imageView?.bounds.size
+                sourceKey = page.sourcePage?.translationCacheKey
+            }
+        }
+        let chapter: String
+        let index: Int
+        let pages: [PageState]
+        let previews: [PageState]
+    }
+
+    private func cancelScrollVisibility() {
+        scrollVisibilityTask?.cancel()
+        scrollVisibilityTask = nil
+        scrollVisibility = nil
+    }
+
+    /// Scroll callbacks run at display frequency. Read the latest viewport at a
+    /// bounded cadence, without rehashing/reordering the chapter on every frame.
+    /// Image/settings notifications still use the immediate restoration path.
+    func scrollVisibilityDidChange() {
+        guard isVisible, scrollVisibilityTask == nil else { return }
+        scrollVisibilityTask = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: 80_000_000) } catch { return }
+            guard let self, !Task.isCancelled, isVisible, let owner else { return }
+            scrollVisibilityTask = nil
+            let current = ScrollVisibility(chapter: owner.translationChapterKey,
+                index: owner.translationCurrentPageIndex,
+                pages: owner.translationVisiblePages.map(ScrollVisibility.PageState.init),
+                previews: owner.translationPreviewPages.map(ScrollVisibility.PageState.init))
+            guard current != scrollVisibility else { return }
+            scrollVisibility = current
+            visiblePagesDidChange()
+        }
+    }
     private var memoryRecoveryTask: Task<Void, Never>?
     private var navigationIdentity: String?
+    private var diagnosticVisibleKeys: [String] = []
     private var isScrubbing = false
     private var navigationDebounce = ReaderTranslationNavigationDebounce()
     private let session: ReaderTranslationSession
@@ -144,6 +191,7 @@ final class ReaderTranslationCoordinator {
     }
 
     deinit {
+        scrollVisibilityTask?.cancel()
         let previous = metadataActivityTask
         let owner = metadataOwner
         Task {
@@ -253,6 +301,7 @@ final class ReaderTranslationCoordinator {
 
     func resume() { isVisible = true; visiblePagesDidChange() }
     func suspend() {
+        cancelScrollVisibility()
         dismissFailureNotice()
         isVisible = false
         updateMetadataActivity(active: false)
@@ -264,6 +313,7 @@ final class ReaderTranslationCoordinator {
     }
     func cancel(reason: String = "cancelled") { session.suspendWorkForResourcePressure() }
     func close() {
+        cancelScrollVisibility()
         dismissFailureNotice()
         memoryRecoveryTask?.cancel()
         memoryRecoveryTask = nil
@@ -277,6 +327,7 @@ final class ReaderTranslationCoordinator {
     }
 
     func sliderInteractionBegan() {
+        cancelScrollVisibility()
         isScrubbing = true
         navigationDebounce.reset()
         synchronizationTask?.cancel()
@@ -326,6 +377,15 @@ final class ReaderTranslationCoordinator {
     private func synchronizeVisiblePages() {
         guard #available(iOS 18.0, *), let owner, isVisible, UIApplication.shared.applicationState == .active else { return }
         let visible = owner.translationVisiblePages
+        let visibleKeys = visible.compactMap { $0.sourcePage?.translationCacheKey }
+        if visibleKeys != diagnosticVisibleKeys {
+            diagnosticVisibleKeys = visibleKeys
+            ReaderTranslationDiagnostics.record("visible_window", page: owner.translationCurrentPageIndex + 1, count: visible.count)
+            for page in visible {
+                ReaderTranslationDiagnostics.record("visible_page", page: (page.sourcePage?.index ?? -2) + 1,
+                    count: Int(page.imageView?.bounds.width ?? 0), code: Int(page.imageView?.bounds.height ?? 0))
+            }
+        }
         session.refreshVisiblePages(visible, previews: readSettings().automaticallyTranslate ? owner.translationPreviewPages : [])
         let pages = owner.translationUpcomingPages
         let renderContext = visible.first.flatMap { page in

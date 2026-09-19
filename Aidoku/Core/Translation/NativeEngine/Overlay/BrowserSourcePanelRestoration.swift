@@ -2,6 +2,50 @@
 // Original pixels outside the glyph/outline mask are never painted over.
 enum BrowserSourcePanelRestoration {
     static let script = """
+        // Fit an RGB plane to unmasked donor pixels. Smooth gradients are safe;
+        // texture and illustration edges are not recoverable by diffusion. Sampling
+        // is bounded by the crop budget and never reads the page a second time.
+        function aidokuSourceSurfaceQuality(rgba,w,h,mask,blocked) {
+          const matrix=[[0,0,0],[0,0,0],[0,0,0]],rhs=[[0,0,0],[0,0,0],[0,0,0]];
+          let count=0;
+          const stride=Math.max(1,Math.ceil(Math.sqrt(w*h/4096)));
+          const isDonor=(x,y)=>{
+            const i=y*w+x;if(mask[i]||blocked[i])return false;
+            for(let yy=Math.max(0,y-4);yy<=Math.min(h-1,y+4);yy++)
+              for(let xx=Math.max(0,x-4);xx<=Math.min(w-1,x+4);xx++)if(mask[yy*w+xx])return true;
+            return false;
+          };
+          for(let y=1;y<h-1;y+=stride)for(let x=1;x<w-1;x+=stride){
+            const i=y*w+x;if(!isDonor(x,y))continue;
+            const a=[1,x/w,y/h];count++;
+            for(let j=0;j<3;j++){
+              for(let k=0;k<3;k++)matrix[j][k]+=a[j]*a[k];
+              for(let c=0;c<3;c++)rhs[c][j]+=a[j]*rgba[i*4+c];
+            }
+          }
+          if(count<24)return {safe:false,reason:'insufficient-donors',samples:count};
+          const coefficients=rhs.map(values=>{
+            const m=matrix.map((row,i)=>[...row,values[i]]);
+            for(let k=0;k<3;k++){
+              let pivot=k;for(let j=k+1;j<3;j++)if(Math.abs(m[j][k])>Math.abs(m[pivot][k]))pivot=j;
+              [m[k],m[pivot]]=[m[pivot],m[k]];
+              if(Math.abs(m[k][k])<1e-6)return null;
+              const d=m[k][k];for(let c=k;c<4;c++)m[k][c]/=d;
+              for(let j=0;j<3;j++)if(j!==k){const f=m[j][k];for(let c=k;c<4;c++)m[j][c]-=f*m[k][c];}
+            }
+            return m.map(row=>row[3]);
+          });
+          if(coefficients.some(c=>!c))return {safe:false,reason:'insufficient-geometry',samples:count};
+          let squared=0,outliers=0;
+          for(let y=1;y<h-1;y+=stride)for(let x=1;x<w-1;x+=stride){
+            const i=y*w+x;if(!isDonor(x,y))continue;
+            let error=0;
+            for(let c=0;c<3;c++)error=Math.max(error,Math.abs(rgba[i*4+c]-(coefficients[c][0]+coefficients[c][1]*x/w+coefficients[c][2]*y/h)));
+            squared+=error*error;if(error>22)outliers++;
+          }
+          const rmse=Math.sqrt(squared/count),fraction=outliers/count;
+          return {safe:rmse<=14&&fraction<=.08,reason:rmse<=14&&fraction<=.08?'smooth':'textured',samples:count,rmse,outliers:fraction,coefficients};
+        }
         function aidokuRestoreSourcePanel(rgba,w,h,b,palette,options={}) {
           const n=w*h;
           if(!Number.isInteger(w)||!Number.isInteger(h)||w<8||h<8||n>131072||
@@ -234,6 +278,21 @@ enum BrowserSourcePanelRestoration {
      if(Math.hypot(xx-(i%w),yy-(i/w|0))>1.1&&distance[i]>radius-2)continue;
      mask[j]=1;distance[j]=distance[i]+1;seedRadius[j]=seedRadius[i];queue[tail++]=j;
      }}
+     const surfaceQuality=options.readabilityGate?aidokuSourceSurfaceQuality(rgba,w,h,mask,donorBlocked):null;
+     if(surfaceQuality&&!surfaceQuality.safe)return null;
+     if(surfaceQuality){
+       const output=new Uint8ClampedArray(n*4),layoutSafe=new Uint8Array(n);
+       for(let i=0;i<n;i++){
+         if(!protectedInk[i]&&!drawingSurface?.[i])layoutSafe[i]=1;
+         if(!mask[i])continue;
+         const x=(i%w)/w,y=(i/w|0)/h;
+         for(let c=0;c<3;c++){
+           const a=surfaceQuality.coefficients[c];output[i*4+c]=a[0]+a[1]*x+a[2]*y;
+         }
+         output[i*4+3]=255;
+       }
+       return {rgba:output,layoutSafe,surfaceQuality,erased:tail,components:accepted.length,radius,companions,preservedPixels:0,preservedCore:0};
+     }
      const paintMask=mask.slice(),queued=new Uint8Array(n);let frontier=[];
      const neighbors=i=>[i-1,i+1,i-w,i+w];
      for(let k=0;k<tail;k++)if(neighbors(queue[k]).some(j=>!mask[j]&&(!donorBlocked[j]||paintMask[j]))){frontier.push(queue[k]);queued[queue[k]]=1;}
@@ -282,7 +341,7 @@ enum BrowserSourcePanelRestoration {
           // Gradients and translucent clothing are valid background, not
           // balloon edges. Only surviving ink constrains the text footprint.
           for(let i=0;i<n;i++)if(!protectedInk[i]&&!drawingSurface?.[i])layoutSafe[i]=1;
-          return {rgba:output,layoutSafe,erased:tail,components:accepted.length,radius,companions,preservedPixels,preservedCore};
+          return {rgba:output,layoutSafe,surfaceQuality,erased:tail,components:accepted.length,radius,companions,preservedPixels,preservedCore};
         }
     function aidokuSoftenSourceGlyphs(rgba,w,h,b,palette,vertical) {
       const n=w*h;if(!Number.isInteger(w)||!Number.isInteger(h)||w<8||h<8||n>131072||!rgba||rgba.length!==n*4||

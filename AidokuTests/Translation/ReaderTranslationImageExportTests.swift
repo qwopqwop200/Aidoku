@@ -25,6 +25,70 @@ struct ReaderTranslationImageExportTests {
         return settings
     }
 
+    @Test func cacheSnapshotPreservesTransparentLetterboxAndLogicalImageSize() async throws {
+        let window = try host()
+        defer { window.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        // The preloader may supply fewer source pixels than its logical page size.
+        let source = UIGraphicsImageRenderer(size: CGSize(width: 150, height: 200), format: format).image { context in
+            UIColor.green.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 150, height: 200))
+        }
+        let region = ReaderTranslationRegion(id: "letterbox", rect: CGRect(x: 0.25, y: 0.35, width: 0.5, height: 0.2),
+            source: "Hello", translation: "중앙 번역")
+        let output = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+            image: source, imageSize: CGSize(width: 600, height: 800), regions: [region], settings: settings(),
+            viewport: CGSize(width: 390, height: 700), scale: 2, aspectFit: true, host: window,
+            dark: false, preparedLayout: nil)
+        let cgImage = try #require(output.cgImage)
+        #expect(cgImage.width == 780 && cgImage.height == 1400)
+        let pixels = try pixelData(output)
+        // 390x520 page is centered at y=90; the first/last 180 pixel rows stay transparent.
+        for y in [0, 100, 1300, 1399] {
+            #expect(pixels[(y * cgImage.width + 390) * 4 + 3] == 0)
+        }
+        for y in [200, 1200] {
+            let offset = (y * cgImage.width + 390) * 4
+            #expect(pixels[offset] < 10 && pixels[offset + 1] > 240 && pixels[offset + 2] < 10)
+            #expect(pixels[offset + 3] == 255)
+        }
+    }
+
+    @Test func cacheSnapshotBoundsFourMillionPixelsAndPaintsTallPageBottom() async throws {
+        let window = try host()
+        defer { window.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let source = UIGraphicsImageRenderer(size: CGSize(width: 100, height: 600), format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 100, height: 600))
+        }
+        let region = ReaderTranslationRegion(id: "bottom", rect: CGRect(x: 0.15, y: 0.85, width: 0.7, height: 0.07),
+            source: "Bottom", translation: "화면 밖 아래쪽 번역")
+        let output = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+            image: source, imageSize: CGSize(width: 1000, height: 6000), regions: [region], settings: settings(),
+            viewport: CGSize(width: 1000, height: 6000), scale: 3, aspectFit: false, host: window,
+            dark: true, preparedLayout: nil)
+        let cgImage = try #require(output.cgImage)
+        #expect(cgImage.width * cgImage.height <= 4_000_000)
+        #expect(cgImage.width > 800 && cgImage.height > 4800)
+        let pixels = try pixelData(output)
+        var darkPixels = 0
+        for y in (cgImage.height * 4 / 5)..<cgImage.height {
+            for x in 0..<cgImage.width {
+                let offset = (y * cgImage.width + x) * 4
+                if pixels[offset] < 100 && pixels[offset + 1] < 100 && pixels[offset + 2] < 100 {
+                    darkPixels += 1
+                }
+            }
+        }
+        // Source is entirely white: lower-page dark pixels must come from the translated DOM.
+        #expect(darkPixels > 30)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try #require(output.pngData()).write(to: folder.appendingPathComponent("tall-cache-bottom.png"))
+    }
+
     @Test func exportExtractsEverySourceRepairBeyondTypographyBounds() async throws {
         let window = try host()
         defer { window.isHidden = true }
@@ -324,6 +388,13 @@ struct ReaderTranslationImageExportTests {
         try output.pngData()?.write(to: folder.appendingPathComponent("actual-export.png"))
         try expectSourcePixelsUnchanged(output, source, rows: 0..<200)
         try expectSourcePixelsUnchanged(output, source, rows: 1134..<1334)
+        let cached = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+            image: source, imageSize: source.size, regions: regions, settings: configuration,
+            viewport: CGSize(width: 390, height: 390 * source.size.height / source.size.width),
+            scale: 3, aspectFit: false, host: window, dark: false, preparedLayout: nil)
+        let pixels = try #require(cached.cgImage)
+        #expect(pixels.width * pixels.height <= 4_000_000)
+        try #require(cached.pngData()).write(to: folder.appendingPathComponent("actual-reader-cache.png"))
     }
 
     @Test func tallWebtoonIncludesBottomTranslation() async throws {

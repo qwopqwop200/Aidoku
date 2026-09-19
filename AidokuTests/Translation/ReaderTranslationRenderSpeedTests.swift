@@ -147,7 +147,7 @@ struct ReaderTranslationRenderSpeedTests {
     @Test @MainActor func offscreenWebKitLoadsWhileLayoutIsStillBlocked() async throws {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.keyWindow
-        let window = UIWindow(windowScene: scene)
+        let window = RenderCountingWindow(windowScene: scene)
         let controller = UIViewController()
         window.rootViewController = controller
         window.makeKeyAndVisible()
@@ -205,8 +205,13 @@ struct ReaderTranslationRenderSpeedTests {
         #expect(loadedOverlay?.lastDiagnostic == nil)
         await gate.release(payload)
         try await preparation.value
-        #expect(loadedOverlay?.didStoreSnapshot == true)
+        let key = ReaderTranslationCacheIdentity.render(page: page.translationCacheKey, settings: settings,
+            imageSize: image.size, viewport: viewport, scale: geometry.scale, aspectFit: true,
+            crop: CGRect(x: 0, y: 0, width: 1, height: 1), dark: geometry.dark)
+        #expect(cache.cachedImage(for: key) != nil)
+        #expect(window.overlayInsertions == 1, "Prerender must not render a live overlay before rendering its cache bitmap")
         #expect(await gate.calls == 1)
+        ReaderTranslationImageExporter.clearIdleRenderer()
     }
     @Test @MainActor func distantPageSavesOnlyLayoutAndBecomesAnImageWithoutRecalculating() async throws {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
@@ -254,6 +259,25 @@ struct ReaderTranslationRenderSpeedTests {
         }
         try await restored.prepare(page: page, regions: regions, settings: settings, geometry: geometry, window: window)
         #expect(cache.cachedImage(for: key) != nil)
+        var replayMilliseconds: [Double] = []
+        for _ in 0..<5 {
+            ReaderTranslationImageExporter.clearIdleRenderer()
+            let reopened = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+            let replay = ReaderTranslationLayoutPreparer(renderCache: reopened) { _, _, _, _, _, _ in
+                Issue.record("Disk layout replay must not recalculate typography")
+                throw URLError(.cannotDecodeContentData)
+            }
+            let start = ProcessInfo.processInfo.systemUptime
+            try await replay.prepare(page: page, regions: regions, settings: settings, geometry: geometry, window: window)
+            replayMilliseconds.append((ProcessInfo.processInfo.systemUptime - start) * 1000)
+            let bitmap = try #require(reopened.cachedImage(for: key))
+            #expect(bitmap.size.width > 0 && bitmap.size.height > 0)
+            #expect(reopened.cachedLayout(for: key) == saved)
+            let output = URL.documentsDirectory.appendingPathComponent("cache-replay.png")
+            try #require(bitmap.pngData()).write(to: output)
+        }
+        print("DISK_LAYOUT_REPLAY_MS=\(replayMilliseconds) median=\(replayMilliseconds.sorted()[2])")
+        ReaderTranslationImageExporter.clearIdleRenderer()
         #expect(try await disk.data(for: key, kind: .layout) == saved)
         #expect(try await disk.imageSize(page: page.translationCacheKey) == image.size)
         #expect(try await disk.contains(key, kind: .layout))
@@ -261,6 +285,74 @@ struct ReaderTranslationRenderSpeedTests {
         #expect(try await disk.statistics().entries == 2)
     }
 
+    /// Compare both paths in one binary so concurrent workspace changes and
+    /// separate build/run startup cannot masquerade as a cache speed improvement.
+    @Test @MainActor func cachedSnapshotSinglePassMatchesLegacyPixels() async throws {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.keyWindow
+        let window = RenderCountingWindow(windowScene: scene)
+        window.rootViewController = UIViewController(); window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey(); ReaderTranslationImageExporter.clearIdleRenderer() }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+        let viewport = CGSize(width: 320, height: 480)
+        let image = ReaderTranslationPersistentPipelineTests.image()
+        let regions = [ReaderTranslationPersistentPipelineTests.region]
+        var settings = ReaderTranslationSettings()
+        settings.overlay = ReaderTranslationSettings.defaultOverlay
+        let rect = ReaderTranslationGeometry.displayRect(CGRect(x: 0, y: 0, width: 1, height: 1),
+            imageSize: image.size, bounds: CGRect(origin: .zero, size: viewport), aspectFit: true)
+        let data = try await BrowserPageImageOverlayRenderer.prepareLayoutData(
+            items: ReaderTranslationRegion.overlayItems(regions, imageSize: image.size), imageSize: image.size,
+            sourceRect: rect, settings: settings.overlay, targetLanguage: settings.targetLanguage, viewport: viewport)
+        let prepared = Task<Data, Error> { data }
+        var legacyTimes: [Double] = [], directTimes: [Double] = []
+        for index in 0..<5 {
+            ReaderTranslationImageExporter.clearIdleRenderer()
+            let key = "legacy-\(index)"
+            await cache.storeLayout(data, key: key, diskGeneration: 0)
+            let overlay = ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: viewport))
+            overlay.overrideUserInterfaceStyle = .light
+            let legacyStart = ProcessInfo.processInfo.systemUptime
+            let initialInsertions = window.overlayInsertions
+            window.insertSubview(overlay, at: 0)
+            overlay.update(regions: regions, imageSize: image.size, aspectFit: true, settings: settings, image: image,
+                snapshotTarget: .init(cache: cache, key: key, pageIdentity: key, diskGeneration: 0,
+                    viewport: viewport, dark: false, preparedLayout: prepared))
+            let deadline = Date().addingTimeInterval(20)
+            while !overlay.didStoreSnapshot {
+                guard Date() < deadline else { overlay.cancelWork(); throw URLError(.timedOut) }
+                overlay.layoutIfNeeded()
+                try await Task.sleep(for: .milliseconds(25))
+            }
+            legacyTimes.append((ProcessInfo.processInfo.systemUptime - legacyStart) * 1000)
+            #expect(window.overlayInsertions - initialInsertions == 2)
+            let legacy = try #require(cache.cachedImage(for: key)?.cgImage)
+            overlay.cancelWork(); overlay.removeFromSuperview()
+            ReaderTranslationImageExporter.clearIdleRenderer()
+            let directStart = ProcessInfo.processInfo.systemUptime
+            let directInsertions = window.overlayInsertions
+            let direct = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+                image: image, imageSize: image.size, regions: regions, settings: settings,
+                viewport: viewport, scale: window.traitCollection.displayScale, aspectFit: true,
+                host: window, dark: false, preparedLayout: prepared)
+            directTimes.append((ProcessInfo.processInfo.systemUptime - directStart) * 1000)
+            #expect(window.overlayInsertions - directInsertions == 1)
+            let pixels = try #require(direct.cgImage)
+            #expect(legacy.width == pixels.width && legacy.height == pixels.height)
+            #expect(legacy.dataProvider?.data as Data? == pixels.dataProvider?.data as Data?)
+        }
+        print("SAME_BINARY_CACHE_RENDER_MS legacy=\(legacyTimes) direct=\(directTimes) legacyMedian=\(legacyTimes.sorted()[2]) directMedian=\(directTimes.sorted()[2])")
+    }
+}
+
+@MainActor private final class RenderCountingWindow: UIWindow {
+    var overlayInsertions = 0
+    override func didAddSubview(_ subview: UIView) {
+        super.didAddSubview(subview)
+        if subview is ReaderTranslationOverlayView { overlayInsertions += 1 }
+    }
 }
 
 private actor RenderLayoutGate {

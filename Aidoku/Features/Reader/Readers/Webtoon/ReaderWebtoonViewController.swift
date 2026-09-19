@@ -268,6 +268,12 @@ extension ReaderWebtoonViewController {
         resumeAutoScroll()
 
         let displayLink = CADisplayLink(target: self, selector: #selector(handleAutoScrollFrame(_:)))
+        let maximumFrameRate = Float((view.window?.screen ?? UIScreen.main).maximumFramesPerSecond)
+        displayLink.preferredFrameRateRange = CAFrameRateRange(
+            minimum: min(60, maximumFrameRate),
+            maximum: maximumFrameRate,
+            preferred: maximumFrameRate
+        )
         displayLink.add(to: .main, forMode: .common)
         autoScrollDisplayLink = displayLink
 

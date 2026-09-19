@@ -68,6 +68,7 @@ final class ReaderTranslationSession {
     private var worker: Task<Void, Never>?
     private var visibleCacheTask: Task<Void, Never>?
     private var visibleCacheKeys: Set<String> = []
+    private var pendingVisibleCacheKeys: Set<String> = []
     private var visibleCacheGeneration = UUID()
     private var activeKey: String?
     private var activeRegions: [ReaderTranslationRegion]?
@@ -124,8 +125,8 @@ final class ReaderTranslationSession {
         visible = pages
         (pages + self.previews).forEach { $0.renderCache = renderCache; knownPages.add($0) }
         if state == .on {
-            displayPreparedPages()
             restoreVisibleDiskCache()
+            displayPreparedPages()
         }
     }
 
@@ -134,6 +135,7 @@ final class ReaderTranslationSession {
         visibleCacheTask?.cancel()
         visibleCacheTask = nil
         visibleCacheKeys.removeAll()
+        pendingVisibleCacheKeys.removeAll()
     }
 
     // Cache-only demand bypasses the OCR navigation debounce. One cancellable
@@ -149,13 +151,18 @@ final class ReaderTranslationSession {
         let issued = visibleCacheGeneration
         let missing = keys.filter { !cache.contains($0) }.sorted()
         guard !missing.isEmpty else { return }
+        pendingVisibleCacheKeys = Set(missing)
         visibleCacheTask = Task { [weak self] in
             for key in missing {
                 guard !Task.isCancelled else { return }
                 let regions = try? await diskCache.translatedRegions(page: key, settings: settings)
                 guard !Task.isCancelled, let self, visibleCacheGeneration == issued,
                       state == .on, self.settings?.hasSameTranslation(as: settings) == true else { return }
-                guard let regions else { continue }
+                pendingVisibleCacheKeys.remove(key)
+                guard let regions else {
+                    displayPreparedPages()
+                    continue
+                }
                 try? cache.store(regions, for: key)
                 // Deliver the loaded value directly: cache admission is best effort.
                 for page in visible where page.sourcePage?.translationCacheKey == key {
@@ -210,6 +217,7 @@ final class ReaderTranslationSession {
         self.visible = visible
         visible.forEach { $0.renderCache = renderCache; knownPages.add($0) }
         if state == .on {
+            restoreVisibleDiskCache()
             displayPreparedPages()
             // Page turns must not wait for an offscreen page's slowest API batch.
             if let activeKey, !visibleKeys.contains(activeKey),
@@ -452,6 +460,10 @@ final class ReaderTranslationSession {
                 if !cache.contains(item.key), let regions = try? await diskCache.translatedRegions(page: item.key, settings: settings) {
                     guard !Task.isCancelled, textWarmGeneration == issued else { return }
                     try? cache.store(regions, for: item.key, evict: false)
+                    if items.prefix(preparationWindowCount).contains(where: { $0.key == item.key }) {
+                        enqueuePreparedLayouts()
+                        drainLayout()
+                    }
                     if (visible + previews).contains(where: { $0.sourcePage?.translationCacheKey == item.key }) { displayPreparedPages() }
                 }
                 await Task.yield()
@@ -471,6 +483,8 @@ final class ReaderTranslationSession {
         }
     }
 
+    private var preparationWindowCount: Int { renderCache?.nearbyPageCount ?? 5 }
+
     private func drainLayout() {
         guard state == .on, (overlapsLayoutWithTranslation || worker == nil), layoutTask == nil, let prepareLayout, let settings, !layoutQueue.isEmpty else { return }
         guard canStartHeavyWork else { scheduleMemoryRetry(); return }
@@ -478,7 +492,7 @@ final class ReaderTranslationSession {
         layoutTask = Task(priority: .utility) { [weak self] in
             guard let self else { return }
             while state == .on, layoutGeneration == issued, !Task.isCancelled,
-                  let item = items.prefix(5).first(where: { layoutQueue[$0.key] != nil }) {
+                  let item = items.prefix(preparationWindowCount).first(where: { layoutQueue[$0.key] != nil }) {
                 guard canStartHeavyWork, overlapsLayoutWithTranslation || worker == nil else {
                     layoutTask = nil
                     scheduleMemoryRetry()
@@ -516,7 +530,7 @@ final class ReaderTranslationSession {
         let visibleKeys = Set(visible.compactMap { $0.sourcePage?.translationCacheKey })
         // Probe compact disk records independently of the translation worker.
         // A cached next page must not wait behind the visible page's API request.
-        for item in items.prefix(5) where !visibleKeys.contains(item.key) {
+        for item in items.prefix(preparationWindowCount) where !visibleKeys.contains(item.key) {
             let identity = ReaderTranslationCacheIdentity.translation(page: item.key, settings: settings)
             if !preparedLayouts.contains(item.key) || renderCache?.needsImage(for: identity) == true {
                 layoutQueue[item.key] = item
@@ -526,8 +540,10 @@ final class ReaderTranslationSession {
 
     func receivePrepared(_ page: Page, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings) {
         guard !Task.isCancelled, state == .on, self.settings?.hasSameTranslation(as: settings) == true,
-              items.prefix(5).contains(where: { $0.key == page.translationCacheKey }) else { return }
-        try? cache.store(regions, for: page.translationCacheKey)
+              items.contains(where: { $0.key == page.translationCacheKey }) else { return }
+        if shouldKeepTextInMemory(page.translationCacheKey) {
+            try? cache.store(regions, for: page.translationCacheKey)
+        }
         finished.insert(page.translationCacheKey)
         displayPreparedPages()
         enqueuePreparedLayouts()
@@ -538,7 +554,7 @@ final class ReaderTranslationSession {
         guard state == .on, let settings else { return }
         let visibleKeys = visible.compactMap { $0.sourcePage?.translationCacheKey }
         let nearbyKeys = visibleKeys + items.map(\.key).filter { !visibleKeys.contains($0) }
-        renderCache?.setNearbyPages(pageKeys: nearbyKeys, settings: settings)
+        renderCache?.setNearbyPages(pageKeys: nearbyKeys, settings: settings, availableMemory: availableMemory())
         let identities = Set(visible.compactMap { $0.sourcePage?.translationCacheKey })
         if identities != touchedPages, let diskCache {
             touchedPages = identities
@@ -554,6 +570,10 @@ final class ReaderTranslationSession {
             guard let key = page.sourcePage?.translationCacheKey else { continue }
             if let regions = cache.regions(for: key) {
                 page.displayPrepared(regions, settings: settings)
+            } else if pendingVisibleCacheKeys.contains(key) {
+                // A disk translation may still win. Never flash an OCR preview
+                // while that lookup is unresolved, including progress callbacks.
+                continue
             } else if let fallback = ocrFallbacks[key] {
                 page.displayPrepared(fallback, settings: settings, completed: false)
             } else if key == activeKey, let activeRegions {
@@ -587,13 +607,20 @@ final class ReaderTranslationSession {
         drainLayout()
     }
 
+    // Sweep the entire chapter with one consumer. Only nearby compact text stays
+    // resident; distant completed pages live in the disk cache, not decoded images.
+    private func shouldKeepTextInMemory(_ key: String) -> Bool {
+        visible.contains { $0.sourcePage?.translationCacheKey == key }
+            || items.prefix(Self.textWindowCount).contains { $0.key == key }
+    }
+
     private func nextItem() -> Item? {
         let visibleKeys = Set(visible.compactMap { $0.sourcePage?.translationCacheKey })
         let isPending: (Item) -> Bool = { !self.attempted.contains($0.key) && !self.cache.contains($0.key) }
         let displayedKeys = Set(visible.filter { page in settings.map { page.hasCompletedTranslation(settings: $0) } == true }
             .compactMap { $0.sourcePage?.translationCacheKey })
         return items.first { visibleKeys.contains($0.key) && !displayedKeys.contains($0.key) && isPending($0) }
-            ?? items.prefix(5).first { !finished.contains($0.key) && isPending($0) }
+            ?? items.first { !finished.contains($0.key) && isPending($0) }
     }
 
     /// Called once current OCR is complete. The API may run while exactly one
@@ -601,7 +628,7 @@ final class ReaderTranslationSession {
     func nextPageForRecognition(after page: Page) -> Page? {
         guard state == .on, canStartHeavyWork else { return nil }
         let key = page.translationCacheKey
-        return items.prefix(5).first {
+        return items.first {
             $0.key != key && !finished.contains($0.key) && !attempted.contains($0.key) && !cache.contains($0.key)
         }?.page
     }
@@ -699,7 +726,7 @@ final class ReaderTranslationSession {
                     }
                     try Task.checkCancellation()
                     guard workGeneration == issued else { return }
-                    try cache.store(regions, for: item.key)
+                    if shouldKeepTextInMemory(item.key) { try cache.store(regions, for: item.key) }
                     finished.insert(item.key)
                     attempted.insert(item.key) // NSCache eviction must not spin the same completed demand.
                     ocrFallbacks.removeValue(forKey: item.key)
@@ -716,7 +743,7 @@ final class ReaderTranslationSession {
                         }
                     }
                     guard workGeneration == issued, !Task.isCancelled else { return }
-                    if prepareLayout != nil, items.prefix(5).contains(where: { $0.key == item.key }), !visible.contains(where: { $0.sourcePage?.translationCacheKey == item.key }) {
+                    if prepareLayout != nil, items.prefix(preparationWindowCount).contains(where: { $0.key == item.key }), !visible.contains(where: { $0.sourcePage?.translationCacheKey == item.key }) {
                         // Cache warming may have completed this render while the
                         // translation worker was reading the same disk record.
                         enqueuePreparedLayouts()

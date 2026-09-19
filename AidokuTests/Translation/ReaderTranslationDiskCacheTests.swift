@@ -377,6 +377,51 @@ struct ReaderTranslationDiskCacheTests {
         #expect(render.cachedImage(for: "late-render") == nil)
     }
 
+    @Test @MainActor func distantSnapshotCannotEvictNearestPages() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let render = ReaderTranslationRenderCache(disk: disk)
+        let settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        render.setNearbyPages(pageKeys: ["current", "next", "previous"], settings: settings,
+                              availableMemory: 1_280 * 1_024 * 1_024)
+        let context = try #require(CGContext(data: nil, width: 2048, height: 2048, bitsPerComponent: 8,
+            bytesPerRow: 2048 * 4, space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        let image = UIImage(cgImage: try #require(context.makeImage()))
+        for key in ["current", "next", "previous"] {
+            await render.store(image, key: key,
+                pageIdentity: ReaderTranslationCacheIdentity.translation(page: key, settings: settings), diskGeneration: 0)
+        }
+        #expect(render.cachedImage(for: "current") != nil)
+        #expect(render.cachedImage(for: "next") != nil)
+        #expect(render.cachedImage(for: "previous") == nil)
+        #expect(render.bitmapBytes <= render.currentBitmapByteLimit)
+    }
+
+    @Test @MainActor func bitmapWindowExpandsAndShrinksWithHeadroom() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let render = ReaderTranslationRenderCache(disk: disk)
+        let settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        let keys = (0..<9).map(String.init)
+        render.setNearbyPages(pageKeys: keys, settings: settings, availableMemory: 2_048 * 1_024 * 1_024)
+        #expect(render.nearbyPageCount == 7)
+        for key in keys.prefix(7) {
+            await render.store(ReaderTranslationPersistentPipelineTests.image(), key: key,
+                pageIdentity: ReaderTranslationCacheIdentity.translation(page: key, settings: settings), diskGeneration: 0)
+        }
+        #expect(render.cachedImage(for: "6") != nil)
+        render.setNearbyPages(pageKeys: keys, settings: settings, availableMemory: 1_280 * 1_024 * 1_024)
+        #expect(render.nearbyPageCount == 3)
+        #expect(render.cachedImage(for: "0") != nil)
+        #expect(render.cachedImage(for: "1") != nil)
+        #expect(render.cachedImage(for: "2") != nil)
+        #expect(render.cachedImage(for: "3") == nil)
+        #expect(render.bitmapBytes <= render.currentBitmapByteLimit)
+    }
+
     @Test func migrationRemovesOnlyLegacyImagesBeforeEnforcingTheMetadataQuota() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }

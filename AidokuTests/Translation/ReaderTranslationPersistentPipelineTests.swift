@@ -1,10 +1,103 @@
 import AidokuRunner
+import AsyncDisplayKit
 import Testing
 import UIKit
+import Vision
 @testable import Aidoku
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationPersistentPipelineTests {
+    @Test(.enabled(if: FileManager.default.fileExists(atPath:
+        URL.documentsDirectory.appendingPathComponent("ReportedCurrentPage/source.png").path)))
+    func reportedWebtoonCurrentPageRestoresAfterCancelledPrerenders() async throws {
+        let fixture = URL.documentsDirectory.appendingPathComponent("ReportedCurrentPage")
+        let source = try #require(UIImage(contentsOfFile: fixture.appendingPathComponent("source.png").path))
+        let regions = try JSONDecoder().decode([ReaderTranslationStoredRegion].self,
+            from: Data(contentsOf: fixture.appendingPathComponent("regions.json"))).map(\.region)
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.keyWindow
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 430, height: 932)
+        let store = ReaderTemporaryPageStore()
+        let controller = ReaderWebtoonViewController(source: nil,
+            manga: .init(sourceKey: "reported", key: "current", title: "Current page"), temporaryPageStore: store)
+        controller.readingMode = .webtoon
+        let chapter = AidokuRunner.Chapter(key: UUID().uuidString)
+        let pages = (0..<24).map { index in
+            var page = Page(sourceId: "reported", chapterId: chapter.key, index: index)
+            page.image = source
+            return page
+        }
+        controller.viewModel.preloadedChapter = chapter
+        controller.viewModel.preloadedPages = pages
+        let owner = CurrentWebtoonTestOwner(controller: controller, pages: pages)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let cache = ReaderTranslationRenderCache(disk: disk)
+        let preparer = ReaderTranslationLayoutPreparer(renderCache: cache)
+        var settings = ReaderTranslationSettings()
+        settings.overlay = try JSONDecoder().decode(IPhoneOverlaySettings.self,
+            from: Data(contentsOf: fixture.appendingPathComponent("overlay.json")))
+        settings.automaticallyTranslate = true; settings.overlay.visible = true
+        settings.targetLanguage = "ko"; settings.rightToLeftPanelOrder = false
+        for page in pages {
+            try await disk.storeRegions(regions,
+                for: ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: settings),
+                kind: .translation, generation: 0)
+        }
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in calls += 1; return regions },
+            diskCache: disk, renderCache: cache, prepareLayout: { page, regions, settings in
+                guard let visible = controller.translationPages().first, let view = visible.imageView else { return }
+                try await preparer.prepare(page: page, regions: regions, settings: settings,
+                    geometry: ReaderTranslationLayoutGeometry(page: visible, imageView: view), window: window)
+            }, availableMemory: { UInt64.max })
+        let coordinator = ReaderTranslationCoordinator(owner: owner, session: session,
+            readSettings: { settings }, setEnabled: { _ in })
+        window.rootViewController = controller; window.makeKeyAndVisible()
+        defer {
+            coordinator.close(); window.isHidden = true; window.rootViewController = nil; previous?.makeKey()
+            Task { await store.removeAll(); try? await disk.clear(); try? FileManager.default.removeItem(at: root) }
+        }
+        controller.setChapter(chapter, startPage: 1); coordinator.resume()
+        try await waitUntil { !controller.translationPages().isEmpty }
+        for destination in [1, 2, 3, 4, 5, 6, 5, 4, 3, 4, 5, 6] {
+            let path = IndexPath(item: destination + 1, section: 0)
+            let attributes = try #require(controller.collectionNode.collectionViewLayout.layoutAttributesForItem(at: path))
+            controller.scrollView.setContentOffset(CGPoint(x: 0, y: attributes.frame.minY - 100), animated: false)
+            controller.view.layoutIfNeeded(); coordinator.visiblePagesDidChange()
+            if let node = controller.collectionNode.nodeForItem(at: path) as? ReaderWebtoonPageNode,
+               let view = node.imageNode.imageView, view.image != nil, view.window === window,
+               view.convert(view.bounds, to: window).intersects(window.bounds) {
+                #expect(controller.translationPages().contains { $0.sourcePage?.index == destination },
+                        "A displayed webtoon image must remain a translation demand even before Texture visibility catches up")
+            }
+            try await Task.sleep(for: .milliseconds(230))
+        }
+        try await waitUntil {
+            controller.translationPages().contains { $0.sourcePage?.index == 6 && $0.isUsingCachedRendering }
+        }
+        #expect(calls == 0, "Already translated current page must not invoke OCR/provider")
+        let directory = URL.documentsDirectory.appendingPathComponent("AuditWebtoon")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let label = "mode-707-cached"
+        let screen = directory.appendingPathComponent(label + "-external-screen.png")
+        try? FileManager.default.removeItem(at: screen)
+        try await Task.sleep(for: .seconds(1))
+        try Data(label.utf8).write(to: directory.appendingPathComponent("capture-ready"), options: .atomic)
+        let deadline = Date().addingTimeInterval(40)
+        while !FileManager.default.fileExists(atPath: screen.path), Date() < deadline {
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        let pixels = try #require(UIImage(contentsOfFile: screen.path)?.cgImage)
+        let request = VNRecognizeTextRequest(); request.recognitionLanguages = ["ko-KR", "ja-JP"]
+        try VNImageRequestHandler(cgImage: pixels).perform([request])
+        let text = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+            .joined().filter { !$0.isWhitespace }
+        print("REPORTED_CURRENT_PAGE_SCREEN=\(text)")
+        #expect(text.contains("컨디션") && text.contains("눈동자"), "Current page must visibly contain cached Korean translations")
+    }
+
     @Test func pagedReaderExposesLaidOutNeighborsBeforeTransition() throws {
         let pager = ReaderPagedViewController(source: nil,
             manga: .init(sourceKey: "preview-test", key: UUID().uuidString, title: "Preview"),
@@ -211,6 +304,84 @@ struct ReaderTranslationPersistentPipelineTests {
         await ReaderOCRService.shared.purge()
     }
 
+    @Test func newlyVisibleWebtoonPageStartsProcessingWithoutAnchorChange() async throws {
+        let fixture = PersistentFixture()
+        let views = (0..<2).map { _ in UIImageView(image: Self.image()) }
+        let visible = views.enumerated().map { index, view in
+            let page = ReaderTranslationPage(imageView: view)
+            page.sourcePage = fixture.page(index)
+            return page
+        }
+        var processed: [Int] = []
+        let session = ReaderTranslationSession(validate: { _ in }, process: { page, _, _ in
+            processed.append(page.index)
+            return [Self.region]
+        }, availableMemory: { UInt64.max })
+        defer { session.close() }
+        session.update(items: [.init(fixture.page(0))], visible: [visible[0]], context: "webtoon", currentPageIndex: 0)
+        session.enable(settings: fixture.settings)
+        try await waitUntil { visible[0].hasCompletedTranslation(settings: fixture.settings) }
+        // The leading page remains current while the next page enters the viewport.
+        session.update(items: [fixture.page(0), fixture.page(1)].map(ReaderTranslationSession.Item.init),
+                       visible: visible, context: "webtoon", currentPageIndex: 0)
+        try await waitUntil { visible[1].hasCompletedTranslation(settings: fixture.settings) }
+        #expect(processed == [0, 1])
+        #expect(visible.allSatisfy { $0.regions.first?.translation == Self.region.translation })
+    }
+
+    @Test func fractionalWebtoonGeometryDoesNotRestartRendering() async throws {
+        let fixture = PersistentFixture()
+        let viewport = CGSize(width: 430, height: 430 * 1440 / 1020)
+        let overlay = ReaderTranslationOverlayView()
+        overlay.bounds.size = CGSize(width: viewport.width, height: viewport.height.nextUp)
+        var invalidations = 0
+        overlay.onCacheGeometryChanged = { invalidations += 1 }
+        overlay.update(regions: [Self.region], imageSize: Self.image().size, aspectFit: true,
+                       settings: fixture.settings,
+                       snapshotTarget: .init(cache: ReaderTranslationRenderCache(disk: fixture.disk),
+                                             key: "fractional", pageIdentity: "fractional", diskGeneration: 0,
+                                             viewport: viewport, dark: overlay.traitCollection.userInterfaceStyle == .dark))
+        for _ in 0..<5 { overlay.setNeedsLayout(); overlay.layoutIfNeeded() }
+        #expect(invalidations == 0)
+        overlay.bounds.size.height += 1
+        overlay.setNeedsLayout()
+        overlay.layoutIfNeeded()
+        #expect(invalidations == 1)
+    }
+
+    @Test func reusedWebtoonOverlayRecoversFromStaleViewport() async throws {
+        let fixture = PersistentFixture()
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.keyWindow
+        let window = UIWindow(windowScene: scene)
+        let controller = UIViewController()
+        window.rootViewController = controller
+        let imageView = UIImageView(image: Self.image())
+        imageView.frame = CGRect(x: 0, y: 100, width: 430, height: 430 * 1440 / 1020)
+        imageView.contentMode = .scaleAspectFit
+        controller.view.addSubview(imageView)
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        let page = ReaderTranslationPage(imageView: imageView)
+        page.sourcePage = fixture.page(0)
+        page.renderCache = ReaderTranslationRenderCache(disk: fixture.disk)
+        page.displayPrepared([Self.region], settings: fixture.settings)
+        try await waitUntil { imageView.subviews.contains { $0 is ReaderTranslationOverlayView } }
+        let overlay = try #require(imageView.subviews.compactMap { $0 as? ReaderTranslationOverlayView }.first)
+        // Simulate an existing cell overlay retaining its old viewport during reuse.
+        overlay.bounds.size = CGSize(width: 320, height: 450)
+        overlay.setNeedsLayout()
+        overlay.layoutIfNeeded()
+        try await waitUntil { page.isUsingCachedRendering }
+        #expect(ReaderTranslationGeometry.sameViewport(overlay.bounds.size, imageView.bounds.size))
+        let canvas = try #require(imageView.subviews.first)
+        canvas.bounds.size.height = canvas.bounds.height.nextUp
+        canvas.setNeedsLayout()
+        canvas.layoutIfNeeded()
+        #expect(page.isUsingCachedRendering)
+        page.reset()
+    }
+
     @Test(arguments: [false, true]) func nearbyBitmapIsInstantAndRestartReusesSavedLayout(dark: Bool) async throws {
         let fixture = PersistentFixture()
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
@@ -242,6 +413,7 @@ struct ReaderTranslationPersistentPipelineTests {
         try await waitUntil { page.isUsingCachedRendering }
         #expect(!imageView.subviews.contains { $0 is ReaderTranslationOverlayView })
         #expect(try await fixture.disk.data(for: key, kind: .layout) != nil)
+        #expect(cache.cachedLayout(for: key) != nil, "Visible rendering must promote its saved layout into memory")
         page.releaseOverlay()
         let began = ProcessInfo.processInfo.systemUptime
         page.showCompletedTranslation(settings: fixture.settings)
@@ -261,6 +433,7 @@ struct ReaderTranslationPersistentPipelineTests {
         #expect(reopenedCache.cachedImage(for: key) == nil)
         try await waitUntil { reopenedCache.cachedImage(for: key) != nil }
         #expect(try await reopenedCache.disk.data(for: key, kind: .layout) != nil)
+        #expect(reopenedCache.cachedLayout(for: key) != nil)
         restored.releaseOverlay()
         restored.showCompletedTranslation(settings: fixture.settings)
         #expect(restored.isUsingCachedRendering)
@@ -433,7 +606,7 @@ struct ReaderTranslationPersistentPipelineTests {
         let items = pages.map(ReaderTranslationSession.Item.init)
         session.update(items: items, visible: [], context: "chapter", currentPageIndex: 0)
         session.enable(settings: fixture.settings)
-        try await waitUntil { prepared.count == 5 }
+        try await waitUntil { prepared.count == cache.nearbyPageCount }
         #expect(cache.cachedImage(for: "pixels-1") != nil)
         #expect(cache.cachedImage(for: "pixels-9") == nil)
         session.update(items: items, visible: [], context: "chapter", currentPageIndex: 9)
@@ -548,5 +721,17 @@ private actor PersistentLayoutGate {
     deinit {
         try? FileManager.default.removeItem(at: root)
         UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
+    }
+}
+
+@MainActor private final class CurrentWebtoonTestOwner: ReaderTranslationOwner {
+    let controller: ReaderWebtoonViewController
+    let translationUpcomingPages: [Aidoku.Page]
+    let navigationItem = UINavigationItem()
+    var translationVisiblePages: [ReaderTranslationPage] { controller.translationPages() }
+    var translationChapterKey: String { "reported-current-page" }
+    var translationCurrentPageIndex: Int { max(0, controller.getCurrentPage() - 1) }
+    init(controller: ReaderWebtoonViewController, pages: [Aidoku.Page]) {
+        self.controller = controller; translationUpcomingPages = pages
     }
 }

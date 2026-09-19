@@ -72,7 +72,7 @@ final class ReaderTranslationLayoutPreparer {
             try await prepareTextOnly(page: page, regions: regions, settings: settings, geometry: geometry)
             return
         }
-        // A persisted snapshot needs neither source-image decoding nor WebKit.
+        // An already prepared bitmap needs neither source-image decoding nor WebKit.
         if window != nil, let imageSize = try? await renderCache.disk.imageSize(page: page.translationCacheKey) {
             var restored = true
             for crop in crops(geometry) {
@@ -176,28 +176,18 @@ final class ReaderTranslationLayoutPreparer {
                 }
                 let source = try await withTaskCancellationHandler { try await cropTask.value } onCancel: { cropTask.cancel() }
                 try Task.checkCancellation()
-                let overlay = ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: viewport))
                 let snapshotStart = ProcessInfo.processInfo.systemUptime
-                overlay.overrideUserInterfaceStyle = geometry.dark ? .dark : .light
-                overlay.accessibilityElementsHidden = true
-                // Behind the reader's opaque root view; never cover/intercept reading UI.
-                window.insertSubview(overlay, at: 0)
-                defer { overlay.cancelWork(); overlay.removeFromSuperview() }
-                overlay.update(regions: displayed, imageSize: size, aspectFit: geometry.aspectFit, settings: settings, image: source,
-                               snapshotTarget: .init(cache: renderCache, key: key, pageIdentity: identity, diskGeneration: generation,
-                                                     viewport: viewport, dark: geometry.dark, preparedLayout: layout))
-                let deadline = ProcessInfo.processInfo.systemUptime + 30
-                while !overlay.didStoreSnapshot {
-                    guard overlay.contentTerminationCount == 0 else { throw URLError(.cannotDecodeContentData) }
-                    try Task.checkCancellation()
-                    if case .failed = overlay.lastDiagnostic?.outcome {
-                        _ = try await layout.value
-                        throw URLError(.cannotDecodeContentData)
-                    }
-                    guard ProcessInfo.processInfo.systemUptime < deadline else { throw URLError(.timedOut) }
-                    overlay.layoutIfNeeded()
-                    try await Task.sleep(nanoseconds: 25_000_000)
-                }
+                // This page is offscreen: produce the final cache bitmap directly.
+                // Attaching a live overlay first would render the same source and
+                // translation twice, because its capture starts the PDF renderer.
+                // Keep the shared image permit and serialized full-page exporter.
+                let snapshot = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+                    image: source, imageSize: size, regions: displayed, settings: settings,
+                    viewport: viewport, scale: geometry.scale, aspectFit: geometry.aspectFit,
+                    host: window, dark: geometry.dark, preparedLayout: layout
+                )
+                try Task.checkCancellation()
+                await renderCache.store(snapshot, key: key, pageIdentity: identity, diskGeneration: generation)
                 TranslationPerformanceDiagnostics.clientPhaseCompleted(
                     phase: "reader_snapshot", segmentCount: items.count,
                     elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - snapshotStart) * 1_000

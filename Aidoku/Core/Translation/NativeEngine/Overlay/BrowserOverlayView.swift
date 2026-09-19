@@ -602,7 +602,24 @@ final class BrowserPageImageOverlayRenderer {
         )
     }
 
-    static let clearScript = """
+    // Explicitly release backing stores; detached canvases can otherwise wait
+    // for WebKit GC while the next page allocates its own decoded buffers.
+    static let releaseResourcesScript = """
+    function aidokuReleaseOverlayResources(root, dropCache = false) {
+      for (const canvas of root?.querySelectorAll('canvas') || []) {
+        canvas.width = 0; canvas.height = 0;
+      }
+      if (dropCache) {
+        const state = globalThis.__aidokuSourceCleanupV1;
+        if (state) {
+          if (state.last) { state.last.entries.clear(); state.last.pixels = 0; state.last.bytes = 0; }
+          state.last = null; state.images = new WeakMap();
+        }
+      }
+    }
+    """
+
+    static let clearScript = releaseResourcesScript + """
     const revisionNumber = Number(revision);
     if (!Number.isFinite(revisionNumber)) {
       throw new TypeError('invalid overlay revision');
@@ -630,11 +647,12 @@ final class BrowserPageImageOverlayRenderer {
     }
     globalThis[watermarkKey] = revisionNumber;
     globalThis[sessionKey] = sessionValue;
+    aidokuReleaseOverlayResources(existing, true);
     existing?.remove();
     return { status: 'cleared', revision: String(revision), itemCount: 0 };
     """
 
-    static let renderScript = BrowserSourceInkCleanup.script + BrowserSourceTextColor.script + BrowserSourcePanelRestoration.script + """
+    static let renderScript = releaseResourcesScript + BrowserSourceInkCleanup.script + BrowserSourceTextColor.script + BrowserSourcePanelRestoration.script + """
     const revisionNumber = Number(revision);
     if (!Number.isFinite(revisionNumber)) {
       throw new TypeError('invalid overlay revision');
@@ -666,6 +684,7 @@ final class BrowserPageImageOverlayRenderer {
     if (items.length === 0) {
       globalThis[watermarkKey] = revisionNumber;
       globalThis[sessionKey] = sessionValue;
+      aidokuReleaseOverlayResources(oldRoot, true);
       oldRoot?.remove();
       return { status: 'cleared', revision: String(revision), itemCount: 0 };
     }
@@ -763,16 +782,34 @@ final class BrowserPageImageOverlayRenderer {
         const cleanupCacheStore = cleanupCacheState.images;
         let cleanupCache = sourceImage ? cleanupCacheStore.get(sourceImage) : null;
         const cleanupSourceKey = sourceImage ? [sourceImage.currentSrc || sourceImage.src, sourceImage.naturalWidth, sourceImage.naturalHeight].join('|') : '';
-        if (sourceImage && (!cleanupCache || cleanupCache.source !== cleanupSourceKey)) {
-          cleanupCache = {source:cleanupSourceKey,entries:new Map(),pixels:0};
+        if (sourceImage && (!cleanupCache || !Number.isFinite(cleanupCache.bytes) || cleanupCache.source !== cleanupSourceKey)) {
+          cleanupCache = {source:cleanupSourceKey,entries:new Map(),pixels:0,bytes:0};
           cleanupCacheStore.set(sourceImage,cleanupCache);
           sourceImage.addEventListener('load', () => cleanupCacheStore.delete(sourceImage), {once:true});
         }
         // Keep pixel buffers for only the most recently rendered source image.
         if(cleanupCacheState.last !== cleanupCache) {
-          if(cleanupCacheState.last) { cleanupCacheState.last.entries.clear();cleanupCacheState.last.pixels=0; }
+          if(cleanupCacheState.last) { cleanupCacheState.last.entries.clear();cleanupCacheState.last.pixels=0;cleanupCacheState.last.bytes=0; }
           cleanupCacheState.last=cleanupCache;
         }
+    // Account actual retained RGBA and safety-mask bytes, not just crop pixels.
+    // Evict old settings/geometry variants before retaining a newer result.
+    const storeCleanup = (key, prepared, pixels) => {
+      if (!cleanupCache) return;
+      const bytes = (prepared.restored?.rgba?.byteLength || 0) +
+        (prepared.restored?.layoutSafe?.byteLength || 0) + (prepared.output?.data?.byteLength || 0);
+      const limit = 4 * 1024 * 1024;
+      if (bytes > limit || pixels > 2000000) return;
+      while (cleanupCache.entries.size && (cleanupCache.bytes + bytes > limit ||
+          cleanupCache.pixels + pixels > 2000000 || cleanupCache.entries.size >= 256)) {
+        const oldest = cleanupCache.entries.keys().next().value;
+        const entry = cleanupCache.entries.get(oldest);
+        cleanupCache.bytes -= entry.retainedBytes; cleanupCache.pixels -= entry.retainedPixels;
+        cleanupCache.entries.delete(oldest);
+      }
+      prepared.retainedBytes = bytes; prepared.retainedPixels = pixels;
+      cleanupCache.entries.set(key, prepared); cleanupCache.bytes += bytes; cleanupCache.pixels += pixels;
+    };
         const cleanupCanvas = document.createElement('canvas');
     const cleanupContext = cleanupCanvas.getContext('2d', {willReadFrequently: true});
     const restoredSourcePanels = new Set();
@@ -808,18 +845,16 @@ final class BrowserPageImageOverlayRenderer {
       if(w<8||h<8||pixels>panelRestorationBudget)return false;
       panelRestorationBudget-=pixels;
       try {
-        const key=JSON.stringify(['spatial-panel-v12',x,y,sourceWidth,sourceHeight,w,h,b,palette,auxiliary,leadingRule,Boolean(item.sourceVertical)]);
+        const key=JSON.stringify(['spatial-panel-v13-readability',x,y,sourceWidth,sourceHeight,w,h,b,palette,auxiliary,leadingRule,Boolean(item.sourceVertical)]);
         let prepared=cleanupCache?.entries.get(key);
         if(!prepared){
           cleanupCanvas.width=w;cleanupCanvas.height=h;
           cleanupContext.drawImage(sourceImage,x,y,sourceWidth,sourceHeight,0,0,w,h);
           const restored=aidokuRestoreSourcePanel(cleanupContext.getImageData(0,0,w,h).data,w,h,
             [(b[0]*iw-x)*sx,(b[1]*ih-y)*sy,b[2]*iw*sx,b[3]*ih*sy],palette,
-            {auxiliary:auxiliary.map(r=>[(r[0]*iw-x)*sx,(r[1]*ih-y)*sy,r[2]*iw*sx,r[3]*ih*sy]),leadingRule,vertical:Boolean(item.sourceVertical)});
+            {readabilityGate:true,auxiliary:auxiliary.map(r=>[(r[0]*iw-x)*sx,(r[1]*ih-y)*sy,r[2]*iw*sx,r[3]*ih*sy]),leadingRule,vertical:Boolean(item.sourceVertical)});
           prepared={restored};
-          if(cleanupCache&&cleanupCache.entries.size<256&&cleanupCache.pixels+pixels<=2000000){
-            cleanupCache.entries.set(key,prepared);cleanupCache.pixels+=pixels;
-          }
+          storeCleanup(key, prepared, pixels);
         }
         const result=prepared.restored;
         panelRestorationAudit.push({id:String(item.id),pixels,sourcePixels:sourceWidth*sourceHeight,scale,accepted:Boolean(result),erased:result?.erased||0,companions:result?.companions||0,preservedPixels:result?.preservedPixels||0,preservedCore:result?.preservedCore||0});
@@ -833,7 +868,7 @@ final class BrowserPageImageOverlayRenderer {
           width:`${sourceWidth/iw*frame[2]}px`,height:`${sourceHeight/ih*frame[3]}px`,
           clipPath:aidokuCleanupClip(cleanupImageGeometry,frame[0]+x/iw*frame[2],frame[1]+y/ih*frame[3],sourceWidth/iw*frame[2],sourceHeight/ih*frame[3])});
         root.appendChild(canvas);restoredSourcePanels.add(item);
-        restoredPanelGeometry.set(item,{safe:result.layoutSafe,w,h,x,y,frame,iw,ih,sx,sy});return true;
+        restoredPanelGeometry.set(item,{canvas,safe:result.layoutSafe,w,h,x,y,frame,iw,ih,sx,sy});return true;
       } catch (_) { return false; }
     };
     const appendSourceCleanup = item => {
@@ -885,9 +920,7 @@ final class BrowserPageImageOverlayRenderer {
               }
               prepared={output,count,dense:Boolean(mask?.denseSurfaceRecovered),audit};
               // Bound retained pixel data to the existing per-page inspection budget.
-              if(cleanupCache && cleanupCache.entries.size<256 && cleanupCache.pixels+pixels<=2000000) {
-                cleanupCache.entries.set(cacheKey,prepared);cleanupCache.pixels+=pixels;
-              }
+              storeCleanup(cacheKey, prepared, pixels);
             }
             if(coloredAllowed && prepared.audit) {
               coloredCleanupBudget-=pixels;
@@ -914,48 +947,12 @@ final class BrowserPageImageOverlayRenderer {
         // Missing/tainted pixels are not evidence; rendering still succeeds.
       }
     };
-    const blurredSourcePanels = new Set();
-    let sourceBlurPixelBudget = 262144;
-    let remainingSourceBlurs=items.filter(item=>item.sourcePanelRestorationEligible&&item.sourceColorEligible).length;
-    const appendSourceBlur = item => {
-      if (!item.sourcePanelRestorationEligible || !item.sourceColorEligible || opacity<=0 || !sourceImage?.complete) return;
-      const frame=cleanupImageGeometry?.frame || item.sourceFrame,b=item.sourceBounds;
-      if(!Array.isArray(frame)||!Array.isArray(b)||![...frame,...b].every(Number.isFinite)||b[2]<=0||b[3]<=0)return;
-      const iw=sourceImage.naturalWidth,ih=sourceImage.naturalHeight,pad=item.sourceVertical?128:16;
-      const x=Math.max(0,Math.floor(b[0]*iw)-pad),y=Math.max(0,Math.floor(b[1]*ih)-pad);
-      const sw=Math.min(iw,Math.ceil((b[0]+b[2])*iw)+pad)-x,sh=Math.min(ih,Math.ceil((b[1]+b[3])*ih)+pad)-y;
-      const scale=Math.min(1,Math.sqrt(Math.min(131072,Math.floor(sourceBlurPixelBudget/Math.max(1,remainingSourceBlurs--)))/(sw*sh)));
-      const w=Math.floor(sw*scale),h=Math.floor(sh*scale);if(w<8||h<8)return;
-      const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
-      const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)return;
-      sourceBlurPixelBudget-=w*h;
-      try{
-        ctx.drawImage(sourceImage,x,y,sw,sh,0,0,w,h);
-        const softened=aidokuSoftenSourceGlyphs(ctx.getImageData(0,0,w,h).data,w,h,
-          [(b[0]*iw-x)*w/sw,(b[1]*ih-y)*h/sh,b[2]*iw*w/sw,b[3]*ih*h/sh],cachedSourceSample(item),item.sourceVertical);
-        if(!softened)return;
-        if(softened.inferredForeground&&!cachedSourceSample(item)?.foreground){
-          sourceColorCache.set(item,{...cachedSourceSample(item),foreground:softened.inferredForeground,
-            background:softened.inferredBackground||cachedSourceSample(item)?.background,
-            confidence:{...cachedSourceSample(item)?.confidence,foreground:.8}});
-        }
-        const output=ctx.createImageData(w,h);output.data.set(softened.rgba);ctx.putImageData(output,0,0);
-        canvas.setAttribute('data-aidoku-image-ocr-overlay','source-blur');canvas.dataset.aidokuRegion=String(item.id);
-        canvas.dataset.components=String(softened.components);canvas.dataset.paintedPixels=String(softened.painted);
-        Object.assign(canvas.style,{position:'absolute',zIndex:'1',pointerEvents:'none',
-          left:`${frame[0]+x/iw*frame[2]+scrollX}px`,top:`${frame[1]+y/ih*frame[3]+scrollY}px`,
-          width:`${sw/iw*frame[2]}px`,height:`${sh/ih*frame[3]}px`,
-          clipPath:aidokuCleanupClip(cleanupImageGeometry,frame[0]+x/iw*frame[2],frame[1]+y/ih*frame[3],sw/iw*frame[2],sh/ih*frame[3])});
-        root.appendChild(canvas);blurredSourcePanels.add(item);
-      }catch(_){ /* Unknown source pixels never authorize a rectangular paint-over. */ }
-    };
     for (const item of items) {
-      if (item && typeof item === 'object' && !appendRestoredSourcePanel(item)) {
-        appendSourceCleanup(item);
-        appendSourceBlur(item);
-      }
+      if (!item || typeof item !== 'object') continue;
+      if (appendRestoredSourcePanel(item)) continue;
+      // Failure is a readable caption, not a speculative repair of illustration.
+      appendSourceCleanup(item);
     }
-    root.dataset.sourceBlurPixels = String(262144-sourceBlurPixelBudget);
     root.dataset.panelRestorationAudit = JSON.stringify(panelRestorationAudit);
     root.dataset.panelRestorationPixels = String(393216-panelRestorationBudget);
     root.dataset.cleanupCount = String(cleanupCount);
@@ -974,6 +971,7 @@ final class BrowserPageImageOverlayRenderer {
     let readableRefinementBudget = Math.min(2048, Math.max(0, refinementCharacterBudget - emergencyCharacters));
     let koreanWrapCharacterBudget = 2048;
     let readableParagraphBudget = 512;
+    let captionRecoveryCharacterBudget = 16384;
     let paragraphSourcePixelBudget = 262144;
     let paragraphSourceLookupBudget = 524288;
     // Bound paragraph growth using the original image, independently of erasure.
@@ -1042,9 +1040,9 @@ final class BrowserPageImageOverlayRenderer {
               ? "'Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR'," +
                 "-apple-system,BlinkMacSystemFont,sans-serif"
               : "-apple-system,BlinkMacSystemFont,sans-serif"));
-        const x = finiteNumber(item.x, 'x');
+        let x = finiteNumber(item.x, 'x');
         const y = finiteNumber(item.y, 'y');
-        const width = Math.max(1, finiteNumber(item.width, 'width'));
+        let width = Math.max(1, finiteNumber(item.width, 'width'));
         const height = Math.max(1, finiteNumber(item.height, 'height'));
         const fontSize = finiteNumber(item.fontSize, 'font size');
         const lineHeight = finiteNumber(item.lineHeight, 'line height');
@@ -1077,7 +1075,7 @@ final class BrowserPageImageOverlayRenderer {
         // A thin contrasting edge supplies definition on a different/translucent
         // reader surface without silently recoloring the fill or enabling panel color.
         const sampledStroke = sampled?.stroke;
-        const sourceStroke = appearance?.preserveSourceTextColor && Array.isArray(sampledStroke) &&
+        const sourceStroke = !preserveOriginalBackground && appearance?.preserveSourceTextColor && Array.isArray(sampledStroke) &&
           sampledStroke.length === 3 && sampledStroke.every(v => Number.isFinite(v) && v >= 0 && v <= 255)
           ? sampledStroke : null;
         const sourceTextOutline = Boolean(unresolvedSourceBackground || sourceStroke || (readableColor &&
@@ -1180,7 +1178,6 @@ final class BrowserPageImageOverlayRenderer {
           node.style.backdropFilter = 'none';
           node.style.webkitBackdropFilter = 'none';
           if (restoredSourcePanels.has(item)) node.dataset.sourceBackgroundColor = 'restored';
-          else if (blurredSourcePanels.has(item)) node.dataset.sourceBackgroundColor = 'blurred';
         }
         root.appendChild(node);
         const measurementNode = node.cloneNode(true);
@@ -1244,7 +1241,7 @@ final class BrowserPageImageOverlayRenderer {
             // following character; use the last non-empty glyph fragment instead.
             const fragments = Array.from(range.getClientRects()).filter(rect => rect.width > 0 && rect.height > 0);
             const box = fragments.length ? fragments[fragments.length - 1] : range.getBoundingClientRect();
-            ink.push([box.left - frame.left + Number(item.x), box.top - frame.top + Number(item.y), box.width, box.height]);
+            ink.push([box.left - frame.left + x, box.top - frame.top + y, box.width, box.height]);
             const axis = vertical ? box.right : box.top;
             let row = rows.findIndex(y => Math.abs(y - axis) <= tolerance);
             if (row < 0) { row = rows.length; rows.push(axis); starts[row] = {character, offset}; }
@@ -1268,7 +1265,11 @@ final class BrowserPageImageOverlayRenderer {
                   .normalize('NFC').replace(/[\\p{P}\\p{Z}\\s]/gu, '');
                 return /^[\\p{Script=Hangul}]$/u.test(visible);
               }).length;
-              return {lines: rows.length, breaks, badStarts, badEnds, ink, isolated, hangulIsolated};
+              const punctuationOnly = starts.filter((start, row) => {
+                const end = ends[row];
+                return end && /^[\\p{P}\\s]+$/u.test(text.data.slice(start.offset, end.offset + end.character.length));
+              }).length;
+              return {lines: rows.length, breaks, badStarts, badEnds, ink, isolated, hangulIsolated, punctuationOnly};
         };
         // Reflow roomy paragraphs within their existing card using measured free height.
             let paragraphBaseline = null;
@@ -1572,7 +1573,22 @@ final class BrowserPageImageOverlayRenderer {
         // Transparent restored panels must fit the actual balloon surface,
         // not just the former rectangular card. Shrink only when measured
         // glyph boxes cross surviving ink or leave the reconstructed crop.
+        const preRecoveryPadding=node.style.padding;
+        const preRecoveryFont=parseFloat(node.style.fontSize);
+        const preRecoveryProfile=preserveOriginalBackground?lineProfile():null;
+        if(preserveOriginalBackground&&item.allowsAutomaticFontRecovery&&
+            !vertical&&displayedText.length<=180){
+          const initial=parseFloat(node.style.fontSize);
+          // Restore dialogue to a readable size inside the already collision-
+          // checked card, without increasing its footprint or changing wording.
+          if(initial<10.5){
+            applyMeasuredFontSize(10.5);
+            if(!contentFits())applyMeasuredFontSize(initial);
+            else node.dataset.captionFontRecovery='accepted';
+          }
+        }
         const panelGeometry=restoredPanelGeometry.get(item);
+        let fitsRestoredSurface = null;
         if(panelGeometry?.safe&&!vertical&&displayedText.length<=180){
           const c=panelGeometry,initial=parseFloat(node.style.fontSize);
           const onSurface=profile=>{
@@ -1589,6 +1605,33 @@ final class BrowserPageImageOverlayRenderer {
             }
             return true;
           };
+          fitsRestoredSurface = onSurface;
+          // A vertical source column is not the balloon's usable width. Probe
+          // the already decoded, protected surface before sacrificing type size.
+          // Growth stays in this crop and cannot enter another planned caption.
+          if(item.allowsAutomaticFontRecovery&&wrappingScript==='korean'){
+            const savedX=x,savedWidth=width,savedPadding=node.style.padding;
+            const original=lineProfile();
+            const candidateWidth=Math.min(width*1.5,c.w/c.sx/c.iw*c.frame[2]-2);
+            if(candidateWidth>width+2){
+              const candidateX=Math.max(c.frame[0]+c.x/c.iw*c.frame[2]+1,
+                Math.min(x+(width-candidateWidth)/2,c.frame[0]+(c.x+c.w/c.sx)/c.iw*c.frame[2]-candidateWidth-1));
+              const collision=items.some(other=>other!==item&&
+                Math.min(candidateX+candidateWidth,Number(other.x)+Number(other.width))-Math.max(candidateX,Number(other.x))>.5&&
+                Math.min(y+height,Number(other.y)+Number(other.height))-Math.max(y,Number(other.y))>.5);
+              if(!collision){
+                x=candidateX;width=candidateWidth;
+                for(const n of [node,measurementNode]){n.style.left=`${x+scrollX}px`;n.style.width=`${width}px`;}
+                const profile=lineProfile();
+                if(profile&&onSurface(profile)&&(!original||profile.breaks.length<=original.breaks.length))
+                  node.dataset.sourcePanelReflow='expanded-inside';
+                else {
+                  x=savedX;width=savedWidth;
+                  for(const n of [node,measurementNode]){n.style.left=`${x+scrollX}px`;n.style.width=`${width}px`;n.style.padding=savedPadding;}
+                }
+              }
+            }
+          }
           let fits=onSurface(lineProfile());
           node.dataset.sourcePanelInitialFont=String(initial);
           if(!fits){
@@ -1623,14 +1666,71 @@ final class BrowserPageImageOverlayRenderer {
             }
             if(!fits)applyMeasuredFontSize(initial);
           }
-          node.dataset.sourcePanelTextFit=fits?'inside':'unresolved';
+          if(!fits){
+            // A clean background is insufficient if the translation crosses its
+            // surviving outline. Keep the safe repair and use a caption instead.
+            restoredSourcePanels.delete(item);
+          }
+          node.dataset.sourcePanelTextFit=fits?'inside':'caption';
           node.dataset.sourcePanelFinalFont=String(parseFloat(node.style.fontSize));
         }
+        if(node.dataset.captionFontRecovery==='accepted'&&preRecoveryProfile){
+          const profile=lineProfile();
+          if(!profile||profile.breaks.length>preRecoveryProfile.breaks.length||
+              profile.badStarts.length>preRecoveryProfile.badStarts.length||
+              profile.punctuationOnly>preRecoveryProfile.punctuationOnly||
+              profile.hangulIsolated>preRecoveryProfile.hangulIsolated){
+            applyMeasuredFontSize(preRecoveryFont);node.dataset.captionFontRecovery='retained-word-flow';
+          }
+        }
+        // Search intermediate sizes instead of choosing between an oversized
+        // 10.5 pt proposal and the original emergency font. Every accepted size
+        // preserves whole-word flow and the already validated source surface.
+        if (preserveOriginalBackground && item.allowsAutomaticFontRecovery && !vertical &&
+            wrappingScript === 'korean' && displayedText.length <= 180 &&
+            displayedText.length <= readableRefinementBudget) {
+          const originalSize = parseFloat(node.style.fontSize);
+          if (originalSize < 10.25) {
+            readableRefinementBudget -= displayedText.length;
+            const original = lineProfile();
+            let accepted = false;
+            const savedPadding = node.style.padding;
+            const paddings = [...new Set([savedPadding, preRecoveryPadding])];
+            if (original) recovery: for (let candidate = 10.5; candidate >= originalSize + 0.5; candidate -= 0.25) {
+              applyMeasuredFontSize(candidate);
+              for (const padding of paddings) {
+                node.style.padding = padding; measurementNode.style.padding = padding;
+                if (!contentFits()) continue;
+                if (displayedText.length > captionRecoveryCharacterBudget) break recovery;
+                captionRecoveryCharacterBudget -= displayedText.length;
+                const profile = lineProfile();
+                if (!profile || profile.breaks.some(offset => !original.breaks.includes(offset)) ||
+                    profile.badStarts.length > original.badStarts.length ||
+                    profile.badEnds.length > original.badEnds.length ||
+                    profile.punctuationOnly > original.punctuationOnly ||
+                    profile.hangulIsolated > original.hangulIsolated) continue;
+                if (restoredSourcePanels.has(item) && (!fitsRestoredSurface || !fitsRestoredSurface(profile))) continue;
+                accepted = true;
+                node.dataset.captionFontRecovery = 'measured-word-flow';
+                break recovery;
+              }
+            }
+            if (!accepted) {
+              applyMeasuredFontSize(originalSize);
+              node.style.padding = savedPadding; measurementNode.style.padding = savedPadding;
+            }
+          }
+        }
+        if(node.dataset.sourcePanelFinalFont)node.dataset.sourcePanelFinalFont=String(parseFloat(node.style.fontSize));
         measurementNode.remove();
         renderedItemCount += 1;
       }
+    } catch (error) {
+      aidokuReleaseOverlayResources(root);
+      throw error;
     } finally {
       measurementHost.remove();
+      cleanupCanvas.width = 0; cleanupCanvas.height = 0;
     }
 
     const acceptedAtCommit = Number(globalThis[watermarkKey] ?? -1);
@@ -1648,6 +1748,7 @@ final class BrowserPageImageOverlayRenderer {
       rootSessionAtCommit === sessionValue;
     if (sameSessionAtCommit &&
         (acceptedAtCommit > revisionNumber || revisionAtCommit > revisionNumber)) {
+      aidokuReleaseOverlayResources(root);
       return {
         status: 'stale', revision: String(revision),
         itemCount: rootAtCommit?.querySelectorAll(
@@ -1661,40 +1762,51 @@ final class BrowserPageImageOverlayRenderer {
     root.dataset.sourceColorCacheHits = String(sourceColors.stats.hits + translatedSourceColors.stats.hits);
     root.dataset.sourceColorSamples = String(sourceColors.stats.samples + translatedSourceColors.stats.samples);
     root.dataset.sourceColorMilliseconds = String(sourceColors.stats.milliseconds + translatedSourceColors.stats.milliseconds);
-    if (rootAtCommit) rootAtCommit.replaceWith(root);
-    else mount.appendChild(root);
-    // If pixel ownership cannot be established, soften only the measured text
-    // footprint. Never fall back to an opaque rectangle spanning the OCR column.
-    let readabilityPixels=65536;
+    root.dataset.cleanupCacheBytes = String(cleanupCache?.bytes || 0);
+    if (rootAtCommit) {
+      rootAtCommit.replaceWith(root);
+      aidokuReleaseOverlayResources(rootAtCommit);
+    } else mount.appendChild(root);
+    // Caption plates cover the translated text and any source ink that could
+    // not be removed safely. Safely reconstructed regions keep compact plates.
+    let readabilityPanels=0;
     for(const item of items){
-      if(!item.sourcePanelRestorationEligible||!item.sourceColorEligible||opacity<=0||
-          restoredSourcePanels.has(item)||blurredSourcePanels.has(item)||!sourceImage?.complete)continue;
+      if(!appearance?.preserveSourceBackgroundColor||!item.sourceColorEligible||opacity<=0||restoredSourcePanels.has(item))continue;
       const node=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).find(n=>n.dataset.aidokuRegion===String(item.id));
-      const frame=cleanupImageGeometry?.frame||item.sourceFrame;if(!node||!frame||frame[2]<=0||frame[3]<=0)continue;
+      if(!node)continue;
       const range=document.createRange();range.selectNodeContents(node);const r=range.getBoundingClientRect();
-      const pad=8,left=Math.max(frame[0],r.left-pad),top=Math.max(frame[1],r.top-pad),right=Math.min(frame[0]+frame[2],r.right+pad),bottom=Math.min(frame[1]+frame[3],r.bottom+pad);
-      const w=right-left,h=bottom-top;if(w<=0||h<=0)continue;
-      const scale=Math.min(1,128/Math.max(w,h)),cw=Math.max(2,Math.ceil(w*scale)),ch=Math.max(2,Math.ceil(h*scale));
-      if(cw*ch>readabilityPixels)continue;
-      try{
-        const tiny=document.createElement('canvas');tiny.width=Math.max(2,Math.ceil(w/12));tiny.height=Math.max(2,Math.ceil(h/12));
-        const tc=tiny.getContext('2d');if(!tc)continue;
-        tc.drawImage(sourceImage,(left-frame[0])/frame[2]*sourceImage.naturalWidth,(top-frame[1])/frame[3]*sourceImage.naturalHeight,
-          w/frame[2]*sourceImage.naturalWidth,h/frame[3]*sourceImage.naturalHeight,0,0,tiny.width,tiny.height);
-        const canvas=document.createElement('canvas');canvas.width=cw;canvas.height=ch;const ctx=canvas.getContext('2d');if(!ctx)continue;
-        ctx.drawImage(tiny,0,0,cw,ch);ctx.globalCompositeOperation='destination-in';
-        for(const horizontal of [true,false]){
-          const g=ctx.createLinearGradient(0,0,horizontal?cw:0,horizontal?0:ch);
-          g.addColorStop(0,'transparent');g.addColorStop(.18,'black');g.addColorStop(.82,'black');g.addColorStop(1,'transparent');
-          ctx.fillStyle=g;ctx.fillRect(0,0,cw,ch);
+      if(r.width<=0||r.height<=0)continue;
+      const sample=cachedSourceSample(item),ink=node.dataset.sourceAppliedTextRGB.split(',').map(Number);
+      const contrast=bg=>aidokuSourceColorContrast(ink,true,1,bg);
+      let background=sample?.surface?.color||(sample?.confidence?.background>=.5?sample.background:null);
+      if(!background||contrast(background)<3)background=contrast([255,255,255])>=contrast([20,22,26])?[255,255,255]:[20,22,26];
+      const pad=Math.max(3,Math.min(6,parseFloat(node.style.fontSize)*.3));
+      const frame=cleanupImageGeometry?.frame||item.sourceFrame;
+      let l=r.left-pad,t=r.top-pad,rr=r.right+pad,bb=r.bottom+pad;
+      // When no owned mask could erase the original, the plate must contain
+      // both languages' footprints. A tiny label on a long source column leaves
+      // competing source text above and below the translation.
+      if(frame&&!restoredPanelGeometry.has(item)){
+        const bounds=[item.sourceBounds,...(item.auxiliaryInkRects||[])];
+        for(const b of bounds){
+          if(!Array.isArray(b)||b.length!==4||!b.every(Number.isFinite))continue;
+          l=Math.min(l,frame[0]+b[0]*frame[2]-pad);t=Math.min(t,frame[1]+b[1]*frame[3]-pad);
+          rr=Math.max(rr,frame[0]+(b[0]+b[2])*frame[2]+pad);bb=Math.max(bb,frame[1]+(b[1]+b[3])*frame[3]+pad);
         }
-        canvas.setAttribute('data-aidoku-image-ocr-overlay','source-readability-blur');canvas.dataset.aidokuRegion=String(item.id);
-        Object.assign(canvas.style,{position:'absolute',zIndex:'1',pointerEvents:'none',left:`${left+scrollX}px`,top:`${top+scrollY}px`,width:`${w}px`,height:`${h}px`,
-          clipPath:aidokuCleanupClip(cleanupImageGeometry,left,top,w,h)});
-        root.appendChild(canvas);readabilityPixels-=cw*ch;node.dataset.sourceBackgroundColor='readability-blur';
-      }catch(_){ /* Keep unknown pixels untouched. */ }
+      }
+      const left=Math.max(frame?.[0]??0,l),top=Math.max(frame?.[1]??0,t);
+      const right=Math.min(frame?frame[0]+frame[2]:rr,rr),bottom=Math.min(frame?frame[1]+frame[3]:bb,bb);
+      const panel=document.createElement('div');
+      panel.setAttribute('data-aidoku-image-ocr-overlay','source-readability-panel');panel.dataset.aidokuRegion=String(item.id);
+      Object.assign(panel.style,{position:'absolute',zIndex:'1',pointerEvents:'none',
+        left:`${left+scrollX}px`,top:`${top+scrollY}px`,width:`${Math.max(1,right-left)}px`,height:`${Math.max(1,bottom-top)}px`,
+        backgroundColor:`rgba(${background.join(',')},${opacity})`,borderRadius:'3px'});
+      root.appendChild(panel);readabilityPanels++;
+      node.style.textShadow='none';node.style.removeProperty('-webkit-text-stroke');
+      node.dataset.sourceBackgroundColor='readability-panel';node.dataset.sourceAppliedBackgroundRGB=background.join(',');
+      node.dataset.sourceTextOutline='false';node.dataset.sourceStrokeColor='none';node.dataset.sourceAppliedStrokeRGB='';
     }
-    root.dataset.readabilityBlurPixels=String(65536-readabilityPixels);
+    root.dataset.readabilityPanels=String(readabilityPanels);
     return {
       status: 'committed', revision: String(revision),
       itemCount: renderedItemCount

@@ -734,7 +734,7 @@ enum ReaderTranslationCacheIdentity {
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
         return encoded([
-            "reader-render-v57-feathered-ocr-and-translation", translation(page: page, settings: settings), encoded(settings.overlay),
+            "reader-render-v59-measured-caption-recovery", translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
             ProcessInfo.processInfo.operatingSystemVersionString
         ])
