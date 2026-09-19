@@ -6,6 +6,45 @@ import UIKit
 
 @Suite(.serialized)
 struct ReaderTranslationDiskCacheTests {
+    @Test func compactPagesMigrateWithoutChangingSavedWorkOrLRU() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        let regions = [ReaderTranslationRegion(id: "one", rect: CGRect(x: 0.1, y: 0.2, width: 0.3, height: 0.2),
+            source: "Original 原文", translation: "보존할 번역", polygon: [CGPoint(x: 0.1, y: 0.2)],
+            confidence: 0.98, sourceOrientation: .vertical, sourceSingleVerticalColumn: true)]
+        for kind in [ReaderTranslationDiskCache.Kind.ocr, .translation, .metadata] {
+            try await cache.storeRegions(regions, for: "saved", kind: kind, generation: 0)
+        }
+        for index in 0..<100 {
+            try await cache.store(noise(1_200), for: "layout-\(index)", kind: .layout, generation: 0)
+        }
+        #expect(try databaseInteger(root, "PRAGMA page_size") == 1024)
+        // Recreate the shipped 4 KiB layout, including its overflow-page cost.
+        try databaseExecute(root, "PRAGMA page_size=4096; VACUUM")
+        #expect(try databaseInteger(root, "PRAGMA page_size") == 4096)
+        let before = try await cache.statistics()
+        let saved = try databaseContents(root)
+        let reopened = ReaderTranslationDiskCache(directory: root)
+        let after = try await reopened.statistics()
+        #expect(try databaseInteger(root, "PRAGMA page_size") == 1024)
+        #expect(after.bytes < before.bytes * 8 / 10)
+        #expect(after.entries == before.entries)
+        #expect(after.payloadBytes == before.payloadBytes)
+        // Includes exact packed bytes, timestamps, shared references and policy.
+        #expect(try databaseContents(root) == saved)
+        for kind in [ReaderTranslationDiskCache.Kind.ocr, .translation, .metadata] {
+            #expect(try await reopened.regions(for: "saved", kind: kind) == regions)
+        }
+        #expect(try await reopened.data(for: "layout-50", kind: .layout) == noise(1_200))
+        try await reopened.flushAccesses()
+        let again = ReaderTranslationDiskCache(directory: root)
+        #expect(try await again.statistics().entries == after.entries)
+        try await again.remove("saved", kind: .ocr)
+        #expect(try await again.regions(for: "saved", kind: .translation) == regions)
+        print("CACHE_PAGE_MIGRATION before=\(before.bytes) after=\(after.bytes) payload=\(after.payloadBytes)")
+    }
+
     @Test func reopeningRemovesLegacyRastersAndPreservesDurableWork() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -572,6 +611,8 @@ struct ReaderTranslationDiskCacheTests {
                 #expect(try await optimized.regions(for: name, kind: .translation) == translated)
             }
         }
+        // Model the shipped legacy storage, not a new compact-page database.
+        try databaseExecute(legacyRoot, "PRAGMA page_size=4096; VACUUM")
         let before = try await legacy.statistics()
         let after = try await optimized.statistics()
         #expect(after.entries == before.entries)
@@ -788,6 +829,28 @@ struct ReaderTranslationDiskCacheTests {
         #expect(sqlite3_open(root.appendingPathComponent("cache.sqlite").path, &handle) == SQLITE_OK)
         defer { sqlite3_close(handle) }
         #expect(sqlite3_exec(handle, sql, nil, nil, nil) == SQLITE_OK)
+    }
+
+    private func databaseContents(_ root: URL) throws -> [String] {
+        var handle: OpaquePointer?
+        #expect(sqlite3_open(root.appendingPathComponent("cache.sqlite").path, &handle) == SQLITE_OK)
+        defer { sqlite3_close(handle) }
+        var result: [String] = []
+        for query in [
+            "SELECT name || '|' || hex(data) || '|' || accessed FROM cache ORDER BY name",
+            "SELECT name || '|' || hex(data) FROM region_bases ORDER BY name",
+            "SELECT name || '|' || base FROM region_links ORDER BY name",
+            "SELECT name || '|' || value FROM cache_policy ORDER BY name",
+            "SELECT entries || '|' || bytes FROM totals"
+        ] {
+            var statement: OpaquePointer?
+            #expect(sqlite3_prepare_v2(handle, query, -1, &statement, nil) == SQLITE_OK)
+            defer { sqlite3_finalize(statement) }
+            while sqlite3_step(statement) == SQLITE_ROW {
+                result.append(String(cString: sqlite3_column_text(statement, 0)))
+            }
+        }
+        return result
     }
 
     private func databaseInteger(_ root: URL, _ sql: String) throws -> Int64 {

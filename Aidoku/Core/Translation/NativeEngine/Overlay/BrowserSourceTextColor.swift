@@ -566,6 +566,28 @@ enum BrowserSourceTextColor {
       const contrast = bg => (Math.max(text, bg) + 0.05) / (Math.min(text, bg) + 0.05);
       return Math.min(...backgrounds.map(contrast));
     };
+    // A caption is a replacement for the observed surface, not a contrast
+    // theme. Never turn a pale balloon black merely because its ink is blue.
+    const aidokuCaptionPalette = (sample, ink) => {
+      const valid = rgb => Array.isArray(rgb) && rgb.length === 3 &&
+        rgb.every(v => Number.isFinite(v) && v >= 0 && v <= 255);
+      const observed = valid(sample?.surface?.color) ? sample.surface.color :
+        (sample?.confidence?.background >= .5 && valid(sample?.background) ? sample.background : null);
+      const background = observed || [242, 240, 235];
+      let foreground = valid(ink) ? ink : [17, 18, 23];
+      const contrast = rgb => aidokuSourceColorContrast(rgb, true, 1, background);
+      if (contrast(foreground) < 4.5) {
+        const endpoint = contrast([0,0,0]) >= contrast([255,255,255]) ? 0 : 255;
+        let low = 0, high = 1;
+        const blend = t => foreground.map(v => Math.round(v + (endpoint-v)*t));
+        for (let i=0;i<12;i++) {
+          const mid=(low+high)/2;
+          if (contrast(blend(mid)) >= 4.5) high=mid; else low=mid;
+        }
+        foreground = blend(high);
+      }
+      return {background,foreground,observed:Boolean(observed)};
+    };
     const aidokuReadableSourceColor = (color, light, opacity, panel = null) => {
       if (!Array.isArray(color) || color.length !== 3 ||
           !color.every(v => Number.isFinite(v) && v >= 0 && v <= 255)) return null;
@@ -729,7 +751,7 @@ enum BrowserSourceTextColor {
         // Include half a glyph width of surrounding surface, with a small cap
         // so neighbouring balloons/art cannot dominate the sample.
         const verticalColumn = bounds[3] * ih >= bounds[2] * iw * 1.5;
-        const margin = verticalColumn ? Math.max(4, Math.min(16, Math.ceil(bounds[2] * iw * 0.5))) : 2;
+        const margin = verticalColumn ? Math.max(4, Math.min(16, Math.ceil(bounds[2] * iw * 0.5))) : 8;
         const x = Math.max(0, Math.floor(bounds[0] * iw) - margin);
         const y = Math.max(0, Math.floor(bounds[1] * ih) - margin);
         const sw = Math.min(iw, Math.ceil((bounds[0] + bounds[2]) * iw) + margin) - x;
@@ -777,9 +799,14 @@ enum BrowserSourceTextColor {
                   reason:'matching colored glyph interiors inside observed white outlines in independent strips'}};
             }
           }
-          if (result && (!result.background || result.confidence?.background<.5)) {
-            result.surface=aidokuObservedSourceSurface(rgba,w,h,
+          if (result) {
+            // Bright glyph halos can look like a confident white background.
+            // Observe the exterior independently before accepting that white.
+            const surface=aidokuObservedSourceSurface(rgba,w,h,
               [(bounds[0]*iw-x)*w/sw,(bounds[1]*ih-y)*h/sh,bounds[2]*iw*w/sw,bounds[3]*ih*h/sh],result);
+            if(surface && (!result.background || result.confidence?.background<.5 ||
+                (Math.min(...result.background)>=230 && Math.max(...surface.color)-Math.min(...surface.color)<35)))
+              result.surface=surface;
           }
         } catch (_) { unavailable = true; }
         finally { stats.milliseconds += performance.now() - started; }

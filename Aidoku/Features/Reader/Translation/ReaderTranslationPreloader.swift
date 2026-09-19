@@ -12,6 +12,7 @@ struct ReaderTranslationOCRFallback: Error {
 final class ReaderTranslationPreloader {
     typealias DataPrefetcher = @Sendable (Page) async throws -> Void
     typealias Recognizer = @Sendable (Page, ReaderTranslationSettings) async throws -> [ReaderTranslationRegion]
+    typealias PreparedTranslationStore = @Sendable ([ReaderTranslationRegion], String, UInt64) async -> Void
     private struct PreparedPage {
         let key: String
         let pageKey: String
@@ -43,6 +44,7 @@ final class ReaderTranslationPreloader {
     private let dataPrefetcher: DataPrefetcher?
     private let availableMemory: @Sendable () -> UInt64
     private let diskCache: ReaderTranslationDiskCache?
+    private let storePreparedTranslation: PreparedTranslationStore
     private var operation: Task<[ReaderTranslationRegion], Error>?
     private var preparedPage: PreparedPage?
     private var currentDemand: (work: PreparedPage, lease: DemandLease)?
@@ -55,13 +57,17 @@ final class ReaderTranslationPreloader {
         translator: ReaderTranslationPage.ProgressiveTranslator? = nil,
         recognizer: Recognizer? = nil,
         dataPrefetcher: DataPrefetcher? = nil,
-        availableMemory: @escaping @Sendable () -> UInt64 = { ReaderTranslationSession.processAvailableMemory() }
+        availableMemory: @escaping @Sendable () -> UInt64 = { ReaderTranslationSession.processAvailableMemory() },
+        storePreparedTranslation: PreparedTranslationStore? = nil
     ) {
         self.translator = translator
         self.diskCache = diskCache
         self.recognizer = recognizer
         self.dataPrefetcher = dataPrefetcher
         self.availableMemory = availableMemory
+        self.storePreparedTranslation = storePreparedTranslation ?? { regions, key, generation in
+            try? await diskCache?.storeRegions(regions, for: key, kind: .translation, generation: generation)
+        }
     }
 
     deinit { operation?.cancel(); preparedPage?.cancel() }
@@ -164,6 +170,7 @@ final class ReaderTranslationPreloader {
     ) -> Task<[ReaderTranslationRegion]?, Error> {
         let translate = translator
         let onPrepared = onPrepared
+        let storePreparedTranslation = storePreparedTranslation
         let imageAdmission = Self.imagePreparationGate
         return Task.detached(priority: speculative ? .utility : .userInitiated) { [diskCache, loader] in
             let diskGeneration = await diskCache?.currentGeneration(settings: settings) ?? 0
@@ -213,12 +220,15 @@ final class ReaderTranslationPreloader {
             }
             try Task.checkCancellation()
             if speculative {
-                // A fully translated lookahead survives leaving before the session consumes it.
-                try? await diskCache?.storeRegions(result, for: work.key, kind: .translation, generation: diskGeneration)
-                try Task.checkCancellation()
-                // Hand completed lookahead to the renderer immediately, even if
-                // the current page's provider request has not finished yet.
+                // Display completed text before persistence finishes. Keep the
+                // write independent of navigation cancellation, but join it here
+                // so this bounded lookahead cannot create a growing write queue.
+                let persistence = Task(priority: .utility) {
+                    await storePreparedTranslation(result, work.key, diskGeneration)
+                }
                 await onPrepared?(page, result, settings)
+                await persistence.value
+                try Task.checkCancellation()
             }
             return result
         }

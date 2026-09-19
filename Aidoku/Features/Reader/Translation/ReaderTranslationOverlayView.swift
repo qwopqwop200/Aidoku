@@ -10,10 +10,11 @@ struct ReaderTranslationSnapshotTarget {
     let cache: ReaderTranslationRenderCache
     let key: String
     let pageIdentity: String
-    let diskGeneration: UInt64
+    let diskGeneration: UInt64?
     let viewport: CGSize
     let dark: Bool
     var preparedLayout: Task<Data, Error>?
+    var pendingDiskGeneration: Task<UInt64, Never>? = nil
 }
 
 /// Bound only the WebKit background copy; OCR keeps its original coordinates and pixels.
@@ -247,7 +248,8 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
             ),
             settings: settings.overlay, targetLanguage: settings.targetLanguage,
             layoutCache: snapshotTarget?.cache.disk, layoutCacheKey: snapshotTarget?.key,
-            cacheGeneration: snapshotTarget?.diskGeneration, preparedLayout: preparedLayout
+            cacheGeneration: snapshotTarget?.diskGeneration,
+            cacheGenerationTask: snapshotTarget?.pendingDiskGeneration, preparedLayout: preparedLayout
         )
     }
 
@@ -282,7 +284,11 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 )
                 try Task.checkCancellation()
                 guard snapshotGeneration == issued, lastDiagnostic?.revision == revision, ReaderTranslationGeometry.sameViewport(bounds.size, size) else { return }
-                await target.cache.store(snapshot, key: target.key, pageIdentity: target.pageIdentity, diskGeneration: target.diskGeneration)
+                let diskGeneration: UInt64?
+                if let ready = target.diskGeneration { diskGeneration = ready }
+                else { diskGeneration = await target.pendingDiskGeneration?.value }
+                guard let diskGeneration, !Task.isCancelled, snapshotGeneration == issued else { return }
+                await target.cache.store(snapshot, key: target.key, pageIdentity: target.pageIdentity, diskGeneration: diskGeneration)
                 guard !Task.isCancelled, snapshotGeneration == issued else { return }
                 didStoreSnapshot = true
                 if let cached = target.cache.cachedImage(for: target.key) { onSnapshotStored?(cached) }

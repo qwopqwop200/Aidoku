@@ -373,15 +373,14 @@ actor ReaderTranslationService {
 }
 
 /// Applies the original progressive identity policy without sharing mutable batches between page requests.
-private actor ReaderTranslationProgress {
-    private let regions: [ReaderTranslationRegion]
-    private let plans: [NativeTranslationBatchPlan]
+actor ReaderTranslationProgress {
+    private var regions: [ReaderTranslationRegion]
+    private let inputIndices: [[String: Int]]
     private let expected: [Int: NativeTranslationReuseIdentity]
-    private var completed: [Int: NativeTranslationReuseValue] = [:]
 
     init(regions: [ReaderTranslationRegion], plans: [NativeTranslationBatchPlan], configuration: RemoteTranslationConfiguration) throws {
         self.regions = regions
-        self.plans = plans
+        self.inputIndices = plans.map(\.inputIndicesBySegmentID)
         var expected: [Int: NativeTranslationReuseIdentity] = [:]
         for plan in plans {
             for (id, identity) in try NativeTranslationReuseIdentity.identitiesBySegmentID(configuration: configuration, request: plan.request) {
@@ -389,25 +388,31 @@ private actor ReaderTranslationProgress {
             }
         }
         self.expected = expected
+        // Validate existing display-only reuse once. Subsequent batches only
+        // replace their own regions, retaining OCR geometry without rebuilding
+        // two full overlay arrays on every progressive publication.
+        for index in regions.indices {
+            guard let old = regions[index].translationReuseIdentity,
+                  let identity = expected[index], regions[index].translation != nil,
+                  old == identity || old.canRemainVisibleWhileRefreshing(expected: identity) else {
+                self.regions[index].translation = nil
+                self.regions[index].translationReuseIdentity = nil
+                continue
+            }
+        }
     }
 
     func complete(index: Int, result: RemoteTranslationBatchResult) -> [ReaderTranslationRegion] {
         for segment in result.translations {
-            if let inputIndex = plans[index].inputIndicesBySegmentID[segment.id], let identity = expected[inputIndex] {
-                completed[inputIndex] = NativeTranslationReuseValue(identity: identity, translatedText: segment.text)
+            if let inputIndex = inputIndices[index][segment.id], let identity = expected[inputIndex] {
+                regions[inputIndex].translation = segment.text
+                regions[inputIndex].translationReuseIdentity = identity
             }
         }
-        return snapshot()
+        return regions
     }
 
     func snapshot() -> [ReaderTranslationRegion] {
-        let items = regions.enumerated().map { $0.element.overlayItem(index: $0.offset, imageSize: CGSize(width: 1, height: 1)) }
-        let merged = NativeProgressiveTranslationOverlay.merge(items: items, expectedIdentities: expected, completedTranslations: completed)
-        return zip(regions, merged).compactMap { region, item in
-            var value = region
-            value.translation = item.translatedText
-            value.translationReuseIdentity = item.translationReuseIdentity
-            return value
-        }
+        regions
     }
 }

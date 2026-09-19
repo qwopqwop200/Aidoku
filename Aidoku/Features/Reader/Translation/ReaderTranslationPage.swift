@@ -260,36 +260,30 @@ final class ReaderTranslationPage {
             if renderLookupKey == key, renderLookupTask != nil { return }
             renderLookupTask?.cancel()
             renderLookupKey = key
+            // Source encoding/WebKit startup can run while the cache actor is
+            // busy. Generation is required for persistence, not attaching UI.
+            let diskGeneration = Task { await renderCache.disk.currentGeneration(settings: settings) }
+            let pageIdentity = ReaderTranslationCacheIdentity.translation(page: sourcePage.translationCacheKey, settings: settings)
+            renderCache.cancelPreparation(for: key)
+            ReaderTranslationDiagnostics.record("visible_bitmap_miss", page: sourcePage.index + 1, count: result.count)
+            let target = ReaderTranslationSnapshotTarget(
+                cache: renderCache, key: key, pageIdentity: pageIdentity,
+                diskGeneration: nil, viewport: viewport, dark: dark,
+                preparedLayout: renderCache.cachedLayout(for: key).map { data in Task { data } },
+                pendingDiskGeneration: diskGeneration
+            )
+            displayLive(result, image: image, settings: settings, target: target)
             renderLookupTask = Task { [weak self] in
-                let diskGeneration = await renderCache.disk.currentGeneration(settings: settings)
-                let pageIdentity = ReaderTranslationCacheIdentity.translation(page: sourcePage.translationCacheKey, settings: settings)
-                let cached = await renderCache.load(key, pageIdentity: pageIdentity)
+                let storedGeneration = await diskGeneration.value
                 guard !Task.isCancelled, let self, generation == issued, imageView.image === image, renderLookupKey == key else { return }
-                renderLookupTask = nil
-                guard ReaderTranslationGeometry.sameViewport(imageView.bounds.size, viewport), (imageView.traitCollection.userInterfaceStyle == .dark) == dark else {
-                    renderLookupKey = nil
-                    try? publish(result, image: image, settings: settings, generation: issued)
-                    return
-                }
-                if let cached {
-                    displaySnapshot(cached, source: image, settings: settings)
-                } else {
-                    ReaderTranslationDiagnostics.record("visible_bitmap_miss", page: sourcePage.index + 1, count: result.count)
-                    let target = ReaderTranslationSnapshotTarget(
-                        cache: renderCache, key: key, pageIdentity: pageIdentity,
-                        diskGeneration: diskGeneration, viewport: imageView.bounds.size,
-                        dark: imageView.traitCollection.userInterfaceStyle == .dark,
-                        preparedLayout: renderCache.cachedLayout(for: key).map { data in Task { data } }
-                    )
-                    displayLive(result, image: image, settings: settings, target: target)
-                }
                 let crop = sourcePage.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
                 // Split images round to whole pixels; reversing their crop can
                 // invent a different full-page width. Only record exact sizes.
                 if crop == CGRect(x: 0, y: 0, width: 1, height: 1) {
                     try? await renderCache.disk.storeImageSize(image.size,
-                        page: sourcePage.translationCacheKey, generation: diskGeneration)
+                        page: sourcePage.translationCacheKey, generation: storedGeneration)
                 }
+                if renderLookupKey == key { renderLookupTask = nil }
             }
             return
         }
@@ -385,7 +379,7 @@ final class ReaderTranslationPage {
     /// Attach a finished composite to an adjacent reader view before a swipe.
     /// A cache miss leaves the source alone; only the session's bounded renderer
     /// may create missing pixels. Never create a WebKit view per preload page.
-    func displayPreparedSnapshot(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings) {
+    func displayPreparedSnapshot(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings, memoryOnly: Bool = false) {
         guard let imageView, let image = imageView.image, let sourcePage, let renderCache,
               imageView.bounds.width > 0, imageView.bounds.height > 0 else { return }
         if isUsingCachedRendering, analyzedImage === image, lastSettings == settings { return }
@@ -399,6 +393,7 @@ final class ReaderTranslationPage {
             acceptPreview(snapshot, result: result, image: image, crop: crop, settings: settings)
             return
         }
+        guard !memoryOnly else { return }
         guard renderLookupKey != key || renderLookupTask == nil else { return }
         renderLookupTask?.cancel()
         renderLookupKey = key

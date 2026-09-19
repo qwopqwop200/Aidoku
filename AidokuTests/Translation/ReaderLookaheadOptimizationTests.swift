@@ -6,6 +6,46 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderLookaheadOptimizationTests {
+    @Test(arguments: [false, true])
+    func cachedNavigationPreparesBeforeDebounceWithoutStartingOCR(lowMemory: Bool) async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let settings = ReaderTranslationSettings()
+        let pages = (0..<12).map { Page(sourceId: "fast-scroll", chapterId: root.lastPathComponent, index: $0) }
+        let generation = await disk.currentGeneration(settings: settings)
+        let key = ReaderTranslationCacheIdentity.translation(page: pages[9].translationCacheKey, settings: settings)
+        try await disk.storeRegions([ReaderTranslationPersistentPipelineTests.region], for: key,
+                                    kind: .translation, generation: generation)
+        let cache = ReaderTranslationSessionCache()
+        var calls = 0
+        var layouts: [Int] = []
+        let session = ReaderTranslationSession(process: { _, _, _ in calls += 1; return [] }, diskCache: disk,
+            prepareLayout: { page, _, _ in layouts.append(page.index) },
+            availableMemory: { lowMemory ? 256 * 1_024 * 1_024 : .max }, cache: cache)
+        defer { session.close() }
+        session.enable(settings: settings)
+        // Jump outside the old raster window. Never deliver the debounced update:
+        // cached lookahead must progress even while navigation remains paused.
+        session.pauseForPageTurn(preservingRecognitionFor: pages[8])
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [], context: "fast-scroll",
+                       currentPageIndex: 8, processUncachedPages: false)
+        try await waitUntil { cache.contains(pages[9].translationCacheKey) }
+        if lowMemory {
+            try await Task.sleep(for: .milliseconds(100))
+            #expect(layouts.isEmpty)
+        } else {
+            try await waitUntil { layouts.contains(9) }
+        }
+        #expect(calls == 0)
+        #expect(session.nextPageForRecognition(after: pages[8]) == nil)
+        if !lowMemory {
+            session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [], context: "fast-scroll",
+                           currentPageIndex: 8)
+            try await waitUntil { calls > 0 }
+        }
+    }
+
     @Test func wideTextWindowWarmsWithoutImagesOrOCRUnderHeavyWorkPressure() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -186,6 +226,55 @@ struct ReaderLookaheadOptimizationTests {
         try await waitUntil { layouts.contains(1) }
         #expect(!visible.hasCompletedTranslation(settings: settings))
         #expect(layouts == [1])
+    }
+
+    @Test func completedLookaheadDisplaysBeforePersistenceAndStillSavesAfterCancellation() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let defaults = try #require(UserDefaults(suiteName: root.lastPathComponent))
+        defer { defaults.removePersistentDomain(forName: root.lastPathComponent); try? FileManager.default.removeItem(at: root) }
+        var settings = ReaderTranslationSettings(defaults: defaults)
+        settings.maximumConcurrentRequests = 2
+        settings.includePageImage = false; settings.rightToLeftPanelOrder = false
+        settings.filterJapaneseSFX = false; settings.filterJapaneseSFXContext = false
+        settings.translationSourceLanguages = []
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let demandGate = LookaheadTestGate(), writeGate = LookaheadTestGate()
+        let pages = (0..<2).map { Page(sourceId: "display-before-save", chapterId: root.lastPathComponent, index: $0) }
+        let preloader = ReaderTranslationPreloader(diskCache: disk, translator: { regions, _, _ in
+            if regions.first?.id == "0" { await demandGate.wait() }
+            return regions.map { var value = $0; value.translation = "준비된 번역"; return value }
+        }, recognizer: { page, _ in
+            [ReaderTranslationRegion(id: String(page.index), rect: CGRect(x: 0.1, y: 0.1, width: 0.7, height: 0.1),
+                source: "HELLO WORLD", sourceOrientation: .horizontal)]
+        }, availableMemory: { .max }, storePreparedTranslation: { regions, key, generation in
+            await writeGate.wait()
+            try? await disk.storeRegions(regions, for: key, kind: .translation, generation: generation)
+        })
+        preloader.nextPage = { $0.index == 0 ? pages[1] : nil }
+        let textCache = ReaderTranslationSessionCache()
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            Issue.record("Delivery of completed lookahead must not start OCR/API work"); return []
+        }, availableMemory: { 0 }, cache: textCache)
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [], context: "display-before-save")
+        session.enable(settings: settings)
+        try await waitUntil { session.state == .on }
+        preloader.onPrepared = { [weak session] in session?.receivePrepared($0, regions: $1, settings: $2) }
+        let demand = Task { try await preloader.translate(pages[0], settings: settings) }
+        defer {
+            preloader.cancel(); demand.cancel(); session.close()
+            Task { await writeGate.release(); await demandGate.release() }
+        }
+        try await waitUntil { await writeGate.started }
+        try await waitUntil { textCache.contains(pages[1].translationCacheKey) }
+        #expect(textCache.regions(for: pages[1].translationCacheKey)?.first?.translation == "준비된 번역")
+        let key = ReaderTranslationCacheIdentity.translation(page: pages[1].translationCacheKey, settings: settings)
+        #expect(try await !disk.contains(key, kind: .translation))
+        preloader.cancel()
+        await writeGate.release()
+        try await waitUntil { (try? await disk.contains(key, kind: .translation)) == true }
+        #expect(try await disk.regions(for: key, kind: .translation)?.first?.translation == "준비된 번역")
+        await demandGate.release()
+        _ = try? await demand.value
     }
 
     @Test(arguments: [false, true])

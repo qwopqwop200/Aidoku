@@ -144,6 +144,37 @@ struct ReaderTranslationRenderSpeedTests {
         #expect(renderer.lastDiagnostic?.outcome == .committed)
     }
 
+    @Test @MainActor func renderCommitsBeforeCacheGenerationAndLayoutPersistence() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let gate = RenderLayoutGate()
+        let generation = Task<UInt64, Never> { _ = try? await gate.value(); return 0 }
+        defer { generation.cancel(); Task { await gate.release(Data()) } }
+        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        let renderer = BrowserPageImageOverlayRenderer { _, _, arguments in
+            let persisted = try await disk.contains("visible-layout", kind: .layout)
+            #expect(!persisted,
+                    "Disk persistence must follow, not precede, screen rendering")
+            return ["status": "committed", "revision": arguments["revision"] ?? "", "itemCount": 0]
+        }
+        renderer.render(on: webView, items: [], imageSize: webView.bounds.size, sourceRect: webView.bounds,
+            settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko",
+            layoutCache: disk, layoutCacheKey: "visible-layout", cacheGenerationTask: generation)
+        let deadline = Date().addingTimeInterval(3)
+        while renderer.lastDiagnostic?.outcome != .committed {
+            guard Date() < deadline else { throw URLError(.timedOut) }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(try await !disk.contains("visible-layout", kind: .layout))
+        await gate.release(Data())
+        while try await !disk.contains("visible-layout", kind: .layout) {
+            guard Date() < deadline else { throw URLError(.timedOut) }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(renderer.lastDiagnostic?.outcome == .committed)
+    }
+
     @Test @MainActor func offscreenWebKitLoadsWhileLayoutIsStillBlocked() async throws {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.keyWindow

@@ -75,6 +75,30 @@ struct ReaderAdaptiveRenderingTests {
         #expect(result["text"] as? String == text)
     }
 
+    @Test func captionPaletteKeepsSourceSurfaceInsteadOfChoosingBlackForBlueInk() async throws {
+        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 430, height: 260))
+        web.loadHTMLString("<meta name='viewport' content='width=device-width,initial-scale=1'><body style='margin:0;background:#eee'>", baseURL: nil)
+        for _ in 0..<200 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+        let result = try #require(try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
+        const cases=[
+          {sample:{background:[246,242,237],confidence:{background:1}},ink:[0,158,225],bg:[246,242,237]},
+          {sample:null,ink:[0,158,225],bg:[242,240,235]},
+          {sample:{surface:{color:[245,239,231]},background:[10,10,10],confidence:{background:1}},ink:[170,210,235],bg:[245,239,231]},
+          {sample:{background:[25,28,32],confidence:{background:1}},ink:[0,50,80],bg:[25,28,32]},
+          {sample:{background:[255,245,180],confidence:{background:1}},ink:[120,35,45],bg:[255,245,180]}
+        ];
+        return cases.map(c=>{
+          const p=aidokuCaptionPalette(c.sample,c.ink);
+          return {surface:p.background.every((v,i)=>v===c.bg[i]),
+            readable:aidokuSourceColorContrast(p.foreground,true,1,p.background)>=4.5,
+            unchanged:aidokuSourceColorContrast(c.ink,true,1,c.bg)<4.5||p.foreground.every((v,i)=>v===c.ink[i]),
+            blueOrder:c.ink[2]>c.ink[0]?p.foreground[2]>p.foreground[0]:true};
+        });
+        """, arguments: [:], in: nil, contentWorld: .page) as? [[String: Bool]])
+        #expect(result.count == 5)
+        for row in result { for (key, passed) in row { #expect(passed, "\(key)") } }
+    }
+
     @Test func captionPlatePaddingSurvivesImageExport() async throws {
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 300, height: 300))
         web.loadHTMLString("<html><body style='margin:0'></body></html>", baseURL: nil)
@@ -252,7 +276,12 @@ struct ReaderAdaptiveRenderingTests {
                     font:getComputedStyle(n).fontSize,stroke:getComputedStyle(n).webkitTextStrokeWidth})),
                   blur:document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-blur"],[data-aidoku-image-ocr-overlay="source-readability-blur"]').length}))()
                 """) as? [String: Any])
-                if mode == "after" { #expect(audit["blur"] as? Int == 0) }
+                if mode == "after" {
+                    #expect(audit["blur"] as? Int == 0)
+                    for node in try #require(audit["items"] as? [[String: Any]]) {
+                        #expect(node["stroke"] as? String == "0px", "Preserved backgrounds must not outline Korean glyphs")
+                    }
+                }
                 try JSONSerialization.data(withJSONObject: audit, options: [.prettyPrinted, .sortedKeys]).write(to: output.appendingPathComponent("\(fixture.name)-\(mode).json"))
                 _ = try await web.callAsyncJavaScript("await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))", arguments: [:], in: nil, contentWorld: .page)
                 let image = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<UIImage, Error>) in

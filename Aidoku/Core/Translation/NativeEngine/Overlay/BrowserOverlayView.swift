@@ -125,6 +125,7 @@ final class BrowserPageImageOverlayRenderer {
         layoutCache: ReaderTranslationDiskCache? = nil,
         layoutCacheKey: String? = nil,
         cacheGeneration: UInt64? = nil,
+        cacheGenerationTask: Task<UInt64, Never>? = nil,
         preparedLayout: Task<Data, Error>? = nil,
         completion: ((BrowserPageImageOverlayDiagnostic) -> Void)? = nil
     ) {
@@ -136,6 +137,7 @@ final class BrowserPageImageOverlayRenderer {
             guard let self else { return }
             do {
                 var encoded: Data?
+                var generatedLayout = false
                 if let preparedLayout {
                     // The offscreen preparer owns this task's cancellation.
                     // Image/WebKit startup runs concurrently with its CPU work.
@@ -148,9 +150,7 @@ final class BrowserPageImageOverlayRenderer {
                 if encoded == nil {
                     encoded = try await Self.prepareLayoutData(items: items, imageSize: imageSize, sourceRect: sourceRect,
                                                               settings: settings, targetLanguage: targetLanguage, viewport: viewport)
-                    if let layoutCache, let layoutCacheKey, let cacheGeneration, let encoded {
-                        try? await layoutCache.store(encoded, for: layoutCacheKey, kind: .layout, generation: cacheGeneration)
-                    }
+                    generatedLayout = true
                 }
                 try Task.checkCancellation()
                 guard revision == currentRevision else { throw CancellationError() }
@@ -169,6 +169,16 @@ final class BrowserPageImageOverlayRenderer {
                     "revision": String(currentRevision), "session": sessionIdentifier
                 ])
                 publish(Self.diagnostic(operation: .render, revision: currentRevision, rawResult: rawResult), completion: completion)
+                // Rendering must not wait for optional layout persistence or a
+                // queued cache-generation read. Join storage only after display.
+                if generatedLayout, let layoutCache, let layoutCacheKey {
+                    let storageGeneration: UInt64?
+                    if let cacheGeneration { storageGeneration = cacheGeneration }
+                    else { storageGeneration = await cacheGenerationTask?.value }
+                    if let storageGeneration, !Task.isCancelled, revision == currentRevision {
+                        try? await layoutCache.store(encoded, for: layoutCacheKey, kind: .layout, generation: storageGeneration)
+                    }
+                }
             } catch is CancellationError {
                 publish(.init(operation: .render, revision: currentRevision, outcome: .stale, renderedItemCount: 0), completion: completion)
             } catch {
@@ -1771,22 +1781,39 @@ final class BrowserPageImageOverlayRenderer {
     // not be removed safely. Safely reconstructed regions keep compact plates.
     let readabilityPanels=0;
     for(const item of items){
-      if(!appearance?.preserveSourceBackgroundColor||!item.sourceColorEligible||opacity<=0||restoredSourcePanels.has(item))continue;
+      if(!appearance?.preserveSourceBackgroundColor||!item.sourceColorEligible||opacity<=0)continue;
       const node=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).find(n=>n.dataset.aidokuRegion===String(item.id));
       if(!node)continue;
+      const sourceSample=cachedSourceSample(item);
+      const outlinedSource=Array.isArray(sourceSample?.stroke)&&sourceSample.stroke.length===3&&
+        Array.isArray(sourceSample?.foreground)&&Math.max(...sourceSample.foreground)-Math.min(...sourceSample.foreground)>40;
+      // Readability styling applies to restored surfaces too, not only plates.
+      // Solid outlined source lettering becomes crowded when reshaped as Korean.
+      node.style.webkitTextStrokeWidth='0px';node.style.webkitTextStrokeColor='transparent';
+      node.style.paintOrder='normal';node.style.textShadow='none';
+      node.dataset.sourceTextOutline='false';node.dataset.sourceStrokeColor='none';node.dataset.sourceAppliedStrokeRGB='';
+      if(restoredSourcePanels.has(item)&&!outlinedSource){
+        const palette=aidokuCaptionPalette(cachedSourceSample(item),node.dataset.sourceAppliedTextRGB.split(',').map(Number));
+        if(palette.observed){
+          node.style.color=`rgb(${palette.foreground.join(',')})`;node.dataset.sourceAppliedTextRGB=palette.foreground.join(',');
+          continue;
+        }
+      }
       const range=document.createRange();range.selectNodeContents(node);const r=range.getBoundingClientRect();
       if(r.width<=0||r.height<=0)continue;
       const sample=cachedSourceSample(item),ink=node.dataset.sourceAppliedTextRGB.split(',').map(Number);
-      const contrast=bg=>aidokuSourceColorContrast(ink,true,1,bg);
-      let background=sample?.surface?.color||(sample?.confidence?.background>=.5?sample.background:null);
-      if(!background||contrast(background)<3)background=contrast([255,255,255])>=contrast([20,22,26])?[255,255,255]:[20,22,26];
+      const palette=aidokuCaptionPalette(sample,ink),background=palette.background;
+      node.style.color=`rgb(${palette.foreground.join(',')})`;
+      node.dataset.sourceAppliedTextRGB=palette.foreground.join(',');
+      node.dataset.captionSurface=palette.observed?'observed':'paper-fallback';
+      if(palette.foreground.some((v,i)=>v!==ink[i]))node.dataset.sourceTextColorAdjusted='true';
       const pad=Math.max(3,Math.min(6,parseFloat(node.style.fontSize)*.3));
       const frame=cleanupImageGeometry?.frame||item.sourceFrame;
       let l=r.left-pad,t=r.top-pad,rr=r.right+pad,bb=r.bottom+pad;
       // When no owned mask could erase the original, the plate must contain
       // both languages' footprints. A tiny label on a long source column leaves
       // competing source text above and below the translation.
-      if(frame&&!restoredPanelGeometry.has(item)){
+      if(frame&&(outlinedSource||!restoredPanelGeometry.has(item))){
         const bounds=[item.sourceBounds,...(item.auxiliaryInkRects||[])];
         for(const b of bounds){
           if(!Array.isArray(b)||b.length!==4||!b.every(Number.isFinite))continue;

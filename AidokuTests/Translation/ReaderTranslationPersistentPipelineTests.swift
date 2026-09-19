@@ -307,6 +307,9 @@ struct ReaderTranslationPersistentPipelineTests {
     @Test func newlyVisibleWebtoonPageStartsProcessingWithoutAnchorChange() async throws {
         let fixture = PersistentFixture()
         let views = (0..<2).map { _ in UIImageView(image: Self.image()) }
+        // ReaderTranslationPage deliberately holds its view weakly. A Release
+        // build can otherwise end these unattached views' lifetimes after map().
+        defer { withExtendedLifetime(views) {} }
         let visible = views.enumerated().map { index, view in
             let page = ReaderTranslationPage(imageView: view)
             page.sourcePage = fixture.page(index)
@@ -672,7 +675,8 @@ struct ReaderTranslationPersistentPipelineTests {
         }
         try await waitUntil { await gate.started }
         page.displayPrepared([Self.region], settings: fixture.settings)
-        try await waitUntil { view.subviews.contains { $0 is ReaderTranslationOverlayView } }
+        #expect(view.subviews.contains { $0 is ReaderTranslationOverlayView },
+                "Visible WebKit startup must not wait for disk generation or an asynchronous bitmap lookup")
         #expect(!page.isUsingCachedRendering)
         await gate.release()
         _ = try? await work.value

@@ -281,6 +281,7 @@ actor ReaderTranslationDiskCache {
         // Old full-page PNGs duplicate the original artwork. Retain all OCR,
         // translations and layouts so reopening never requires another API call.
         try opened.execute("DELETE FROM cache WHERE name GLOB 'snapshot-*'")
+        try opened.optimizePageSize()
         database = opened
         activePolicy = nil
         if tracksSavedSettings { try applyPolicy(ReaderTranslationCachePolicy(ReaderTranslationSettings())) }
@@ -331,6 +332,9 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
             throw error
         }
         sqlite3_busy_timeout(handle, 5_000)
+        // Compact text/layout BLOBs waste overflow pages in 4 KiB WITHOUT ROWID
+        // tables. New databases use 1 KiB pages; existing ones migrate below.
+        try execute("PRAGMA page_size=1024")
         try execute("PRAGMA foreign_keys=ON")
         try execute("PRAGMA auto_vacuum=FULL")
         try execute("PRAGMA journal_mode=DELETE")
@@ -355,6 +359,21 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     }
 
     deinit { sqlite3_close(handle) }
+
+    func optimizePageSize() throws {
+        let previous = try integer("PRAGMA page_size")
+        guard previous != 1024 else { return }
+        try execute("PRAGMA page_size=1024")
+        do {
+            // SQLite rebuilds atomically and preserves every key, BLOB, policy,
+            // link and LRU timestamp. Its page cache remains bounded at 2 MiB.
+            try execute("VACUUM")
+        } catch {
+            // Disk pressure or a busy reader must not turn saved work into a
+            // cache miss. Keep using the original database and retry on reopen.
+            try execute("PRAGMA page_size=\(previous)")
+        }
+    }
 
     private func failure() -> NSError {
         NSError(domain: "ReaderTranslationDiskCache.SQLite", code: Int(sqlite3_errcode(handle)),
@@ -734,7 +753,7 @@ enum ReaderTranslationCacheIdentity {
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
         return encoded([
-            "reader-render-v59-measured-caption-recovery", translation(page: page, settings: settings), encoded(settings.overlay),
+            "reader-render-v61-calm-source-panels", translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
             ProcessInfo.processInfo.operatingSystemVersionString
         ])

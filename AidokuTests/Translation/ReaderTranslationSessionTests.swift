@@ -124,6 +124,36 @@ struct ReaderTranslationSessionTests {
         #expect(settingsReads == afterSuspend)
     }
 
+    @Test func rapidNavigationStartsCachedLookaheadBeforeOCRDebounce() async throws {
+        let fixture = SessionFixture()
+        fixture.defaults.set(true, forKey: ReaderTranslationSettings.keyPrefix + "automatic")
+        let settings = fixture.settings
+        let pages = (0..<12).map { Self.page($0) }
+        let owner = UnindexedChapterOwner(pages: pages, current: 0)
+        let cache = ReaderTranslationSessionCache()
+        try cache.store([Self.region], for: pages[9].translationCacheKey)
+        var prepared: [Int] = []
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in calls += 1; return [] },
+            prepareLayout: { page, _, _ in prepared.append(page.index) },
+            availableMemory: { .max }, cache: cache)
+        let coordinator = ReaderTranslationCoordinator(owner: owner, session: session,
+            readSettings: { settings }, setEnabled: { _ in })
+        defer { coordinator.close() }
+        session.enable(settings: settings)
+        coordinator.resume()
+        owner.page.sourcePage = pages[8]
+        let start = ProcessInfo.processInfo.systemUptime
+        coordinator.visiblePagesDidChange()
+        let deadline = start + 0.25
+        while !prepared.contains(9), ProcessInfo.processInfo.systemUptime < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(prepared.contains(9), "Cached lookahead must start before the 350ms OCR debounce")
+        #expect(calls == 0, "Cache-only navigation must not start OCR or API work")
+        print("FAST_SCROLL_CACHED_LOOKAHEAD_MS \( (ProcessInfo.processInfo.systemUptime - start) * 1000)")
+    }
+
     @Test func closingReaderCancelsPendingScrollRefresh() async throws {
         let fixture = SessionFixture()
         let owner = UnindexedChapterOwner(pages: [Self.page(0)], current: 0)
@@ -1363,6 +1393,67 @@ struct ReaderTranslationSessionTests {
                                              withAttributes: [.font: UIFont.systemFont(ofSize: 44), .foregroundColor: UIColor.black])
         }
     }
+    @Test(arguments: [false, true])
+    func readyBitmapDisplaysSynchronouslyDuringNavigation(scroll: Bool) async throws {
+        let fixture = SessionFixture()
+        fixture.defaults.set(true, forKey: ReaderTranslationSettings.keyPrefix + "automatic")
+        let settings = fixture.settings
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let renderCache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+        let textCache = ReaderTranslationSessionCache()
+        var heavyWork = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in heavyWork += 1; return [] },
+            renderCache: renderCache, availableMemory: { 0 }, cache: textCache)
+        let owner = SessionToolbarOwner()
+        let coordinator = ReaderTranslationCoordinator(owner: owner, session: session,
+            readSettings: { settings }, setEnabled: { _ in })
+        defer { coordinator.close() }
+        session.enable(settings: settings)
+        try await waitUntil { session.state == .on }
+        let source = Self.page(0), image = Self.image()
+        let view = UIImageView(image: image)
+        view.bounds.size = CGSize(width: 320, height: 480)
+        view.contentMode = .scaleAspectFit
+        let page = ReaderTranslationPage(imageView: view)
+        page.sourcePage = source
+        let snapshot = UIGraphicsImageRenderer(size: view.bounds.size).image { context in
+            UIColor.white.setFill(); context.fill(view.bounds)
+            ("즉시 표시된 번역" as NSString).draw(at: CGPoint(x: 20, y: 80),
+                withAttributes: [.font: UIFont.systemFont(ofSize: 24), .foregroundColor: UIColor.black])
+        }
+        try textCache.store([Self.region], for: source.translationCacheKey)
+        renderCache.setNearbyPages(pageKeys: [source.translationCacheKey], settings: settings, availableMemory: .max)
+        let key = ReaderTranslationCacheIdentity.render(page: source.translationCacheKey, settings: settings,
+            imageSize: image.size, viewport: view.bounds.size, scale: view.traitCollection.displayScale,
+            aspectFit: true, crop: CGRect(x: 0, y: 0, width: 1, height: 1),
+            dark: view.traitCollection.userInterfaceStyle == .dark)
+        await renderCache.store(snapshot, key: key,
+            pageIdentity: ReaderTranslationCacheIdentity.translation(page: source.translationCacheKey, settings: settings), diskGeneration: 0)
+        coordinator.resume() // Leave the normal delayed synchronization pending.
+        owner.translationUpcomingPages = [source]; owner.translationVisiblePages = [page]
+        let start = ProcessInfo.processInfo.systemUptime
+        if scroll { coordinator.scrollVisibilityDidChange() } else { coordinator.visiblePagesDidChange() }
+        // No suspension/yield: the cached pixels must already be mounted.
+        #expect(page.isUsingCachedRendering)
+        #expect((view.subviews.first as? UIImageView)?.image === snapshot)
+        #expect(!view.subviews.contains { $0 is ReaderTranslationOverlayView })
+        #expect(heavyWork == 0)
+        print("READY_BITMAP_SYNC_MS scroll=\(scroll) ms=\((ProcessInfo.processInfo.systemUptime - start) * 1000)")
+        // A scroll fast-path miss must leave the source alone, even while the
+        // 80ms coalesced refresh is pending and the heavy-work budget is zero.
+        if scroll {
+            let missing = Self.page(1)
+            let missingView = UIImageView(image: image); missingView.frame = view.frame
+            let missingPage = ReaderTranslationPage(imageView: missingView); missingPage.sourcePage = missing
+            try textCache.store([Self.region], for: missing.translationCacheKey)
+            owner.translationVisiblePages = [missingPage]
+            coordinator.scrollVisibilityDidChange()
+            #expect(missingView.subviews.isEmpty)
+            #expect(heavyWork == 0)
+        }
+    }
+
     private func waitUntil(_ condition: () async -> Bool) async throws {
         let deadline = Date().addingTimeInterval(8)
         while !(await condition()) {

@@ -92,7 +92,11 @@ final class ReaderTranslationCoordinator {
     /// bounded cadence, without rehashing/reordering the chapter on every frame.
     /// Image/settings notifications still use the immediate restoration path.
     func scrollVisibilityDidChange() {
-        guard isVisible, scrollVisibilityTask == nil else { return }
+        guard isVisible else { return }
+        // Already rendered pages need no navigation debounce or image admission.
+        // Keep the expensive visibility/queue refresh on the existing cadence.
+        if let owner { session.displayCachedVisiblePages(owner.translationVisiblePages) }
+        guard scrollVisibilityTask == nil else { return }
         scrollVisibilityTask = Task { [weak self] in
             do { try await Task.sleep(nanoseconds: 80_000_000) } catch { return }
             guard let self, !Task.isCancelled, isVisible, let owner else { return }
@@ -364,6 +368,20 @@ final class ReaderTranslationCoordinator {
         // Existing results can display immediately without starting OCR.
         session.refreshVisiblePages(owner.translationVisiblePages,
             previews: readSettings().automaticallyTranslate ? owner.translationPreviewPages : [])
+        // Cache-only preparation follows navigation immediately. Otherwise rapid
+        // scrolling keeps cancelling lookahead and postponing its restart by 350ms.
+        // OCR/provider work stays paused until the navigation debounce expires.
+        if moved, !isScrubbing, session.state == .on, !owner.translationVisiblePages.isEmpty,
+           readSettings().automaticallyTranslate {
+            let visible = owner.translationVisiblePages
+            let context = visible.first.flatMap { page in
+                page.imageView.map { ReaderTranslationLayoutGeometry(page: page, imageView: $0).context }
+            }
+            session.update(items: ReaderTranslationSession.chapterItems(owner.translationUpcomingPages),
+                visible: visible, context: owner.translationChapterKey,
+                currentPageIndex: owner.translationCurrentPageIndex, renderContext: context,
+                processUncachedPages: false)
+        }
         guard !isScrubbing, synchronizationTask == nil else { return }
         synchronizationTask = Task { [weak self] in
             do { try await Task.sleep(nanoseconds: delay) }

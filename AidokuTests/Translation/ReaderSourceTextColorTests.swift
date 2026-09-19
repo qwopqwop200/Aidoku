@@ -246,7 +246,12 @@ struct ReaderSourceTextColorTests {
             }
             let audit = try #require(try await overlay.webView.evaluateJavaScript("""
             (() => { const n = document.querySelector('[data-aidoku-image-ocr-overlay="item"]');
-              const s = getComputedStyle(n); return {
+              const s = getComputedStyle(n);
+              const luminance=rgb=>rgb.split(',').map(Number).reduce((sum,v,i)=>{
+                const c=v/255;return sum+(c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4))*[.2126,.7152,.0722][i];},0);
+              const a=luminance(n.dataset.sourceAppliedTextRGB||'0,0,0');
+              const b=luminance(n.dataset.sourceAppliedBackgroundRGB||n.dataset.sourceSampledBackgroundRGB||'255,255,255');
+              return {contrast:String((Math.max(a,b)+.05)/(Math.min(a,b)+.05)),
                 sampled:n.dataset.sourceSampledStrokeRGB, applied:n.dataset.sourceAppliedStrokeRGB,
                 state:n.dataset.sourceStrokeColor, backgroundMode:n.dataset.sourceBackgroundColor, stroke:s.webkitTextStrokeColor,
                 width:s.webkitTextStrokeWidth, paintOrder:s.paintOrder,
@@ -259,7 +264,11 @@ struct ReaderSourceTextColorTests {
                 let sampled = try #require(audit["sampled"])
                 let channels = sampled.split(separator: ",").compactMap { Int($0) }
                 #expect(channels.count == 3 && zip(channels, [96, 54, 28]).allSatisfy { abs($0 - $1) <= 16 })
-                #expect(audit["appliedFill"] == audit["sampledFill"])
+                if panel {
+                    #expect((Double(audit["contrast"] ?? "") ?? 0) >= 4.5)
+                } else {
+                    #expect(audit["appliedFill"] == audit["sampledFill"])
+                }
                 let width = try #require(Double((audit["width"] ?? "").replacingOccurrences(of: "px", with: "")))
                 if panel {
                     #expect(audit["state"] == "none")

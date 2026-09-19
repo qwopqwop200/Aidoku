@@ -79,6 +79,7 @@ final class ReaderTranslationSession {
     private var renderContext = ""
     private var touchedPages: Set<String> = []
     private var currentPosition: Int?
+    private var navigationPaused = false
     var onStateChanged: ((State) -> Void)?
     var onFailure: ((Error) -> Void)?
 
@@ -113,6 +114,19 @@ final class ReaderTranslationSession {
     deinit {
         probeTask?.cancel(); worker?.cancel(); layoutTask?.cancel(); visibleCacheTask?.cancel(); memoryRetryTask?.cancel(); textWarmTask?.cancel()
         retryTasks.values.forEach { $0.cancel() }
+    }
+
+    /// Display-frequency fast path: mount only existing bitmaps. Cache misses
+    /// must not start disk reads, WebKit, OCR, or change the scheduling window.
+    func displayCachedVisiblePages(_ pages: [ReaderTranslationPage]) {
+        guard state == .on, let settings, let renderCache else { return }
+        for page in pages {
+            guard let key = page.sourcePage?.translationCacheKey,
+                  let regions = cache.regions(for: key) else { continue }
+            page.renderCache = renderCache
+            knownPages.add(page)
+            page.displayPreparedSnapshot(regions, settings: settings, memoryOnly: true)
+        }
     }
 
     func refreshVisiblePages(_ pages: [ReaderTranslationPage], previews: [ReaderTranslationPage] = []) {
@@ -174,7 +188,8 @@ final class ReaderTranslationSession {
         }
     }
 
-    func update(items: [Item], visible: [ReaderTranslationPage], context: String, currentPageIndex: Int? = nil, renderContext: String? = nil) {
+    func update(items: [Item], visible: [ReaderTranslationPage], context: String, currentPageIndex: Int? = nil, renderContext: String? = nil, processUncachedPages: Bool = true) {
+        navigationPaused = !processUncachedPages
         if self.context != context {
             stopWorker()
             cancelLayout(clearQueue: true)
@@ -319,6 +334,7 @@ final class ReaderTranslationSession {
     /// Cancel obsolete work while navigation settles, retaining the destination's
     /// lookahead. A nil destination (slider scrubbing) discards all pending work.
     func pauseForPageTurn(preservingRecognitionFor page: Page? = nil) {
+        navigationPaused = true
         cancelVisibleCacheRestore()
         stopWorker(preservingRecognitionFor: page)
         cancelLayout(clearQueue: true)
@@ -626,7 +642,7 @@ final class ReaderTranslationSession {
     /// Called once current OCR is complete. The API may run while exactly one
     /// following page is recognized and translated, using the live reader priority order.
     func nextPageForRecognition(after page: Page) -> Page? {
-        guard state == .on, canStartHeavyWork else { return nil }
+        guard state == .on, !navigationPaused, canStartHeavyWork else { return nil }
         let key = page.translationCacheKey
         return items.first {
             $0.key != key && !finished.contains($0.key) && !attempted.contains($0.key) && !cache.contains($0.key)
@@ -688,7 +704,7 @@ final class ReaderTranslationSession {
 
     private func drain() {
         warmTextCache()
-        guard state == .on, worker == nil, let settings, nextItem() != nil else { return }
+        guard state == .on, !navigationPaused, worker == nil, let settings, nextItem() != nil else { return }
         let issued = workGeneration
         worker = Task { [weak self] in
             guard let self else { return }

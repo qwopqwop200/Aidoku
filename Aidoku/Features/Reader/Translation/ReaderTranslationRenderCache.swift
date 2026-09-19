@@ -87,6 +87,10 @@ final class ReaderTranslationRenderCache {
         return nil
     }
 
+    func cancelPreparation(for key: String) {
+        preparations[key]?.task.cancel()
+    }
+
     func prepare(_ key: String, operation: @escaping @MainActor () async throws -> Void) async throws {
         if let existing = preparations[key] { try await existing.task.value; return }
         let entry = Preparation(task: Task { try await operation() })
