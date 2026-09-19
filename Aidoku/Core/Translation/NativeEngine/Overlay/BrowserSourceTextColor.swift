@@ -45,11 +45,19 @@ enum BrowserSourceTextColor {
      }
      return result;
     };
-    const aidokuEstimateSourceColors = (rgba, width, height, preferredSurfaceKey = null, exteriorSurface = null) => {
+    const aidokuEstimateSourceColors = (rgba, width, height, preferredSurfaceKey = null, exteriorSurface = null, inner = null, trustedSurface = false) => {
       const count = width * height;
       if (!Number.isInteger(width) || !Number.isInteger(height) || width < 8 || height < 8 ||
           count > 24576 || !rgba || rgba.length !== count * 4) return null;
       const distance = (a, b) => Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2]));
+      const validInner = Array.isArray(inner) && inner.length === 4 && inner.every(Number.isFinite) &&
+        inner[0] >= 0 && inner[1] >= 0 && inner[2] > 0 && inner[3] > 0 &&
+        inner[0] + inner[2] <= width + 0.5 && inner[1] + inner[3] <= height + 0.5;
+      const inkPadding = validInner ? Math.max(2, Math.min(6, Math.ceil(Math.min(inner[2], inner[3]) * 0.12))) : 0;
+      const inInkDomain = (x, y) => !validInner ||
+        (x >= inner[0] - inkPadding && x < inner[0] + inner[2] + inkPadding &&
+         y >= inner[1] - inkPadding && y < inner[1] + inner[3] + inkPadding);
+      const binInkCount = bin => validInner ? (bin.inkCount || 0) : bin[0];
       const bins = new Map(), rim = new Map();
       const keyAt = p => (rgba[p] >> 4) * 256 + (rgba[p + 1] >> 4) * 16 + (rgba[p + 2] >> 4);
       let rimCount = 0;
@@ -60,6 +68,7 @@ enum BrowserSourceTextColor {
         let bin = bins.get(key);
         if (!bin) { bin = [0, 0, 0, 0]; bins.set(key, bin); }
         bin[0]++; for (let c = 0; c < 3; c++) bin[c + 1] += rgba[p + c];
+        if (inInkDomain(x, y)) bin.inkCount = (bin.inkCount || 0) + 1;
         if (x < 2 || y < 2 || x >= width - 2 || y >= height - 2) {
           rim.set(key, (rim.get(key) || 0) + 1); rimCount++;
         }
@@ -80,8 +89,9 @@ enum BrowserSourceTextColor {
         if (backgroundDistance(bin) <= 32) {
           backgroundCount += bin[0]; backgroundRim += rim.get(key) || 0;
         } else if (backgroundDistance(bin) >= 60) {
-          candidateCount += bin[0];
-          if (!winner || bin[0] > winner[0]) winner = bin;
+          const support = binInkCount(bin);
+          candidateCount += support;
+          if (support > 0 && (!winner || support > binInkCount(winner))) winner = bin;
         }
       }
       const colors = {foreground: null, background: background.map(Math.round), stroke: null, outline: null,
@@ -94,7 +104,7 @@ enum BrowserSourceTextColor {
           if (backgroundDistance(bin) >= 60 && (dominantKey === null || bin[0] > bins.get(dominantKey)[0])) dominantKey = key;
         }
         if (dominantKey === null) return result;
-        const competing = aidokuEstimateSourceColors(rgba, width, height, dominantKey, background);
+        const competing = aidokuEstimateSourceColors(rgba, width, height, dominantKey, background, inner);
         if (!competing?.foreground) return result;
         if (competing.background && distance(competing.background, mean(bins.get(dominantKey))) > 32) return result;
         competing.confidence.reason = 'competing interior surface with validated ink; ' + competing.confidence.reason;
@@ -104,12 +114,12 @@ enum BrowserSourceTextColor {
       if (!winner || candidateCount < Math.max(6, count * 0.004)) return resolveSurface(colors);
       // Antialiasing blends ink toward the background. Use the distant tail
       // rather than the most frequent gray edge as the ink-color seed.
-      const inkBins = [...bins.values()].filter(bin => backgroundDistance(bin) >= 60)
+      const inkBins = [...bins.values()].filter(bin => backgroundDistance(bin) >= 60 && binInkCount(bin) > 0)
         .sort((a, b) => backgroundDistance(b) - backgroundDistance(a));
       const tailTarget = Math.max(6, candidateCount * 0.12), tailSum = [0, 0, 0];
       let tailCount = 0;
       for (const bin of inkBins) {
-        const take = Math.min(bin[0], tailTarget - tailCount), rgb = mean(bin);
+        const take = Math.min(binInkCount(bin), tailTarget - tailCount), rgb = mean(bin);
         for (let c = 0; c < 3; c++) tailSum[c] += rgb[c] * take;
         tailCount += take;
         if (tailCount >= tailTarget) break;
@@ -138,7 +148,7 @@ enum BrowserSourceTextColor {
           flag = grayClassification[red];
           if (!flag) { flag = classifyRGB(red, green, blue); grayClassification[red] = flag; }
         } else flag = classifyRGB(red, green, blue);
-        if (flag < 2) continue;
+        if (flag < 2 || !inInkDomain(i % width, Math.floor(i / width))) continue;
         mask[i] = 1; aligned++;
         if (flag === 3) { core[i] = 1; selected++; }
       }
@@ -278,8 +288,8 @@ enum BrowserSourceTextColor {
           confidence: {foreground: Math.min(0.9, 0.5 + strokeOwners.size * 0.08), background: 0,
             stroke: Math.min(0.9, 0.5 + strokeOwners.size * 0.08), reason: 'observed glyph fill and following halo; no validated flat exterior surface'}};
       };
-      let broadlySupportedSurface = false;
-      if (preferredSurfaceKey !== null) {
+      let broadlySupportedSurface = Boolean(trustedSurface);
+      if (preferredSurfaceKey !== null && !broadlySupportedSurface) {
         let surfacePixels = 0;
         for (const bin of bins.values()) if (backgroundDistance(bin) <= 24) surfacePixels += bin[0];
         broadlySupportedSurface = surfacePixels > count / 2 && retained >= aligned * 0.35 && coreCount >= 3;
@@ -656,9 +666,27 @@ enum BrowserSourceTextColor {
         candidate = [0,1,2].map(c => Math.round(paired.reduce((sum,rgb) => sum+rgb[c],0) / paired.length));
       }
       if (result.background && distance(result.background,candidate) <= 8) return result;
-      // Only correct missing surfaces or bright halos, not intentional coloured
-      // text backing whose exterior can legitimately be another colour.
-      if (result.background && Math.min(...result.background) < 235) return result;
+      // A colored backing inside the OCR box may legitimately differ from its
+      // exterior. Preserve it unless the observed side surface strongly
+      // contradicts it and also dominates the OCR box itself.
+      if (result.background && Math.min(...result.background) < 235) {
+        const sideSupport = color => Math.min(...sides.map(side =>
+          side.filter(rgb => distance(rgb,color) <= 18).length / side.length));
+        const innerSupport = color => {
+          const x0=Math.max(0,Math.floor(inner[0])),y0=Math.max(0,Math.floor(inner[1]));
+          const x1=Math.min(width,Math.ceil(inner[0]+inner[2])),y1=Math.min(height,Math.ceil(inner[1]+inner[3]));
+          let matched=0,total=0;
+          for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
+            const p=(y*width+x)*4,rgb=[rgba[p],rgba[p+1],rgba[p+2]];
+            total++;if(distance(rgb,color)<=18)matched++;
+          }
+          return matched/Math.max(1,total);
+        };
+        const existingSide=sideSupport(result.background),existingInner=innerSupport(result.background);
+        const candidateInner=innerSupport(candidate);
+        if (!(confidence >= 0.75 && existingSide <= 0.25 &&
+              candidateInner >= Math.max(0.25, existingInner + 0.15))) return result;
+      }
       return {...result, background:candidate, confidence:{...result.confidence,
         background:confidence, panelReason:'matching observed surfaces on opposite sides of OCR'}};
     };
@@ -727,6 +755,36 @@ enum BrowserSourceTextColor {
       }
       return {color,stops,vertical};
     };
+    const aidokuSourceSurfaceSeed = (rgba, width, height, inner) => {
+      if (!Array.isArray(inner) || inner.length !== 4 || !inner.every(Number.isFinite) ||
+          !Number.isInteger(width) || !Number.isInteger(height) || width < 4 || height < 4 ||
+          !rgba || rgba.length !== width * height * 4 || width * height > 24576) return null;
+      const x0=Math.max(0,Math.floor(inner[0])),y0=Math.max(0,Math.floor(inner[1]));
+      const x1=Math.min(width,Math.ceil(inner[0]+inner[2])),y1=Math.min(height,Math.ceil(inner[1]+inner[3]));
+      if(x1-x0<4||y1-y0<4)return null;
+      const ring=Math.max(1,Math.min(4,Math.ceil(Math.min(x1-x0,y1-y0)*0.12)));
+      const bins=new Map(),sideBins=Array.from({length:4},()=>new Map()),sideTotals=[0,0,0,0];
+      let samples=0;
+      const addSide=(side,key)=>{sideTotals[side]++;const map=sideBins[side];map.set(key,(map.get(key)||0)+1);};
+      for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
+        const left=x<x0+ring,right=x>=x1-ring,top=y<y0+ring,bottom=y>=y1-ring;
+        if(!left&&!right&&!top&&!bottom)continue;
+        const p=(y*width+x)*4;if(rgba[p+3]<250)return null;
+        const key=(rgba[p]>>4)*256+(rgba[p+1]>>4)*16+(rgba[p+2]>>4);
+        let bin=bins.get(key);if(!bin){bin=[0,0,0,0];bins.set(key,bin);}
+        bin[0]++;bin[1]+=rgba[p];bin[2]+=rgba[p+1];bin[3]+=rgba[p+2];samples++;
+        if(left)addSide(0,key);if(right)addSide(1,key);if(top)addSide(2,key);if(bottom)addSide(3,key);
+      }
+      let key=null,bin=null;
+      for(const [candidate,value] of bins)if(!bin||value[0]>bin[0]){key=candidate;bin=value;}
+      if(!bin||bin[0]<Math.max(6,samples*0.38))return null;
+      const agreeingSides=sideBins.reduce((count,map,index)=>count+
+        (sideTotals[index]>=2&&(map.get(key)||0)/sideTotals[index]>=0.35?1:0),0);
+      if(agreeingSides<2)return null;
+      const color=[Math.round(bin[1]/bin[0]),Math.round(bin[2]/bin[0]),Math.round(bin[3]/bin[0])];
+      const confidence=Math.min(0.9,Math.max(bin[0]/samples,agreeingSides>=3?0.7:0.55));
+      return {key,color,confidence};
+    };
     const aidokuSourceColorSampler = (image, enabled, phase = 'ocr', budget = {pixels:393216, detailPixels:98304}) => {
       const stats = {pixels: 0, hits: 0, samples: 0, milliseconds: 0};
       if (!enabled || !image?.complete || !image.naturalWidth) return {sample: () => null, stats};
@@ -756,7 +814,7 @@ enum BrowserSourceTextColor {
         const y = Math.max(0, Math.floor(bounds[1] * ih) - margin);
         const sw = Math.min(iw, Math.ceil((bounds[0] + bounds[2]) * iw) + margin) - x;
         const sh = Math.min(ih, Math.ceil((bounds[1] + bounds[3]) * ih) + margin) - y;
-        const scale = Math.min(1, 192 / Math.max(sw, sh), Math.sqrt(24576 / (sw * sh)));
+        const scale = Math.min(1, (verticalColumn ? 256 : 192) / Math.max(sw, sh), Math.sqrt(24576 / (sw * sh)));
         const w = Math.max(1, Math.floor(sw * scale)), h = Math.max(1, Math.floor(sh * scale));
         if (w * h > budget.pixels) return null;
         budget.pixels -= w * h; stats.pixels += w * h; stats.samples++;
@@ -768,9 +826,20 @@ enum BrowserSourceTextColor {
           canvas.width = w; canvas.height = h;
           context.drawImage(image, x, y, sw, sh, 0, 0, w, h);
           const rgba = context.getImageData(0, 0, w, h).data;
-          result = aidokuEstimateSourceColors(rgba, w, h);
-          result = aidokuRecoverSourcePanel(rgba, w, h,
-            [(bounds[0]*iw-x)*w/sw, (bounds[1]*ih-y)*h/sh, bounds[2]*iw*w/sw, bounds[3]*ih*h/sh], result);
+          const inner=[(bounds[0]*iw-x)*w/sw, (bounds[1]*ih-y)*h/sh,
+            bounds[2]*iw*w/sw, bounds[3]*ih*h/sh];
+          const surfaceSeed=aidokuSourceSurfaceSeed(rgba,w,h,inner);
+          result = aidokuEstimateSourceColors(rgba, w, h, surfaceSeed?.key ?? null, surfaceSeed?.color ?? null,
+            inner, Boolean(surfaceSeed));
+          if(result&&surfaceSeed&&Array.isArray(result.background)){
+            const delta=Math.max(...result.background.map((v,c)=>Math.abs(v-surfaceSeed.color[c])));
+            if(delta<=24){
+              result.background=surfaceSeed.color;
+              result.confidence.background=Math.max(result.confidence?.background||0,surfaceSeed.confidence);
+              result.confidence.panelReason='dominant observed surface on OCR-box perimeter';
+            }
+          }
+          result = aidokuRecoverSourcePanel(rgba, w, h, inner, result);
           if (result?.widthEvidence) result.widthEvidence.sampleScale = scale;
           // Long columns can downsample a colored fill into its white outline.
           // Retry at most three small native-detail strips, sharing the original
