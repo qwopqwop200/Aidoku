@@ -74,6 +74,7 @@ final class ReaderTranslationSession {
     private var activeRegions: [ReaderTranslationRegion]?
     private var layoutQueue: [String: Item] = [:]
     private var layoutTask: Task<Void, Never>?
+    private var activeLayoutKey: String?
     private var layoutGeneration = UUID()
     private var preparedLayouts: Set<String> = []
     private var renderContext = ""
@@ -213,7 +214,7 @@ final class ReaderTranslationSession {
         let anchor = currentPageIndex ?? items.first(where: { visibleKeys.contains($0.key) })?.position ?? items.first?.position ?? 0
         if currentPosition != anchor {
             stopWorker(preservingRecognitionFor: items.first { $0.position == anchor }?.page)
-            cancelLayout(clearQueue: true)
+            retainUsefulLayout(in: Self.ordered(items, anchor: anchor, visibleKeys: visibleKeys))
         }
         // Visibility can arrive after the page-index callback (or change within a
         // spread). Track demand independently of refreshVisiblePages, which runs first.
@@ -337,7 +338,11 @@ final class ReaderTranslationSession {
         navigationPaused = true
         cancelVisibleCacheRestore()
         stopWorker(preservingRecognitionFor: page)
-        cancelLayout(clearQueue: true)
+        if let key = page?.translationCacheKey, let destination = items.first(where: { $0.key == key }) {
+            retainUsefulLayout(in: Self.ordered(items, anchor: destination.position))
+        } else {
+            cancelLayout(clearQueue: true)
+        }
     }
 
     /// A warning can be emitted for the model's temporary allocation even with
@@ -417,10 +422,28 @@ final class ReaderTranslationSession {
         activeRegions = nil
     }
 
+    private func retainUsefulLayout(in orderedItems: [Item]) {
+        let keys = Set(orderedItems.prefix(preparationWindowCount).map(\.key))
+        guard let activeLayoutKey, keys.contains(activeLayoutKey) else {
+            cancelLayout(clearQueue: true)
+            return
+        }
+        layoutQueue = layoutQueue.filter { keys.contains($0.key) }
+    }
+
+    func sourceImageDidLoad(_ page: Page) {
+        guard state == .on else { return }
+        let key = page.translationCacheKey
+        guard items.prefix(preparationWindowCount).contains(where: { $0.key == key }) else { return }
+        enqueuePreparedLayouts()
+        drainLayout()
+    }
+
     private func cancelLayout(clearQueue: Bool) {
         layoutGeneration = UUID()
         layoutTask?.cancel()
         layoutTask = nil
+        activeLayoutKey = nil
         if clearQueue { layoutQueue.removeAll() }
     }
 
@@ -521,6 +544,7 @@ final class ReaderTranslationSession {
                     guard layoutGeneration == issued, !Task.isCancelled else { return }
                     if let regions {
                         do {
+                            activeLayoutKey = item.key
                             ReaderTranslationDiagnostics.record("render_start", page: item.position + 1, count: regions.count)
                             try await prepareLayout(item.page, regions, settings)
                             guard layoutGeneration == issued, !Task.isCancelled else { return }
@@ -535,6 +559,7 @@ final class ReaderTranslationSession {
                     }
                 }
                 guard layoutGeneration == issued, !Task.isCancelled else { return }
+                activeLayoutKey = nil
                 layoutQueue.removeValue(forKey: item.key)
             }
             if layoutGeneration == issued { layoutTask = nil }

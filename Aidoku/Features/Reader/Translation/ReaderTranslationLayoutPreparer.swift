@@ -49,6 +49,22 @@ final class ReaderTranslationLayoutPreparer {
     typealias LayoutPreparation = @Sendable (
         [BrowserOverlayItem], CGSize, CGRect, IPhoneOverlaySettings, String, CGSize
     ) async throws -> Data
+    // Borrow reader-owned processed pixels without extending their lifetime.
+    private let loadedImages = NSMapTable<NSString, UIImage>(keyOptions: .strongMemory, valueOptions: .weakMemory)
+    private var loadedImageKeys: [String] = []
+    func sourceDidLoad(_ image: UIImage, page: Page) {
+        let key = page.translationCacheKey
+        loadedImageKeys.removeAll { $0 == key }
+        loadedImageKeys.append(key)
+        loadedImages.setObject(image, forKey: key as NSString)
+        while loadedImageKeys.count > 8 {
+            loadedImages.removeObject(forKey: loadedImageKeys.removeFirst() as NSString)
+        }
+    }
+    func loadedImage(for page: Page) -> UIImage? {
+        loadedImages.object(forKey: page.translationCacheKey as NSString)
+    }
+
     private let loader = ReaderTranslationImageLoader()
     private let imageBudget: TranslationImageWorkBudget
     private let renderCache: ReaderTranslationRenderCache
@@ -128,10 +144,15 @@ final class ReaderTranslationLayoutPreparer {
     private func prepareAdmitted(page: Page, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
                                  geometry: ReaderTranslationLayoutGeometry, window: UIWindow?) async throws {
         try Task.checkCancellation()
-        let loader = loader
         let cache = renderCache.disk
-        let operation = Task.detached(priority: .utility) { try await loader.load(page) }
-        let image = try await withTaskCancellationHandler { try await operation.value } onCancel: { operation.cancel() }
+        let image: UIImage
+        if let loaded = loadedImage(for: page) {
+            image = loaded
+        } else {
+            let loader = loader
+            let operation = Task.detached(priority: .utility) { try await loader.load(page) }
+            image = try await withTaskCancellationHandler { try await operation.value } onCancel: { operation.cancel() }
+        }
         let generation = await cache.currentGeneration(settings: settings)
         try? await cache.storeImageSize(image.size, page: page.translationCacheKey, generation: generation)
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)

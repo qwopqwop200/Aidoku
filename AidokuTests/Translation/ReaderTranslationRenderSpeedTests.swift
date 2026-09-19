@@ -6,6 +6,48 @@ import WebKit
 
 @Suite(.serialized)
 struct ReaderTranslationRenderSpeedTests {
+    @Test(arguments: [false, true]) @MainActor
+    func loadedReaderImageIsComposedBeforePageEntersWindow(webtoon: Bool) async throws {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.keyWindow
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = UIViewController()
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey(); ReaderTranslationImageExporter.clearIdleRenderer() }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+        let image = ReaderTranslationPersistentPipelineTests.image()
+        let page = Page(sourceId: "borrowed-raster", chapterId: root.lastPathComponent, index: 1,
+                        imageURL: "file:///must-not-reload-decoded-reader-image.png")
+        let view = UIImageView(image: image)
+        view.contentMode = webtoon ? .scaleToFill : .scaleAspectFit
+        view.bounds.size = webtoon ? CGSize(width: 320, height: 320 * image.size.height / image.size.width)
+                                  : CGSize(width: 320, height: 480)
+        let reader = ReaderTranslationPage(imageView: view)
+        reader.sourcePage = page; reader.renderCache = cache
+        let geometry = ReaderTranslationLayoutGeometry(page: reader, imageView: view)
+        let settings = ReaderTranslationSettings()
+        let regions = [ReaderTranslationPersistentPipelineTests.region]
+        let preparer = ReaderTranslationLayoutPreparer(renderCache: cache,
+            imageBudget: TranslationImageWorkBudget(availableMemory: { .max }))
+        preparer.sourceDidLoad(image, page: page)
+        let start = ProcessInfo.processInfo.systemUptime
+        try await preparer.prepare(page: page, regions: regions, settings: settings, geometry: geometry, window: window)
+        let renderMS = (ProcessInfo.processInfo.systemUptime - start) * 1000
+        #expect(view.window == nil, "Composition must finish before the target view is visible")
+        let attach = ProcessInfo.processInfo.systemUptime
+        reader.displayPreparedSnapshot(regions, settings: settings, memoryOnly: true)
+        #expect(reader.isUsingCachedRendering)
+        #expect(!view.subviews.contains { $0 is ReaderTranslationOverlayView })
+        let attachMS = (ProcessInfo.processInfo.systemUptime - attach) * 1000
+        window.rootViewController?.view.addSubview(view)
+        let bitmap = try #require((view.subviews.first as? UIImageView)?.image)
+        let artifact = URL.documentsDirectory.appendingPathComponent("prerender-before-visible-\(webtoon).png")
+        try #require(bitmap.pngData()).write(to: artifact)
+        print("PRERENDER_BEFORE_VISIBLE webtoon=\(webtoon) render_ms=\(renderMS) attach_ms=\(attachMS)")
+    }
+
     @Test @MainActor func repeatedLayoutMeasurementsPreserveCompletePayload() async throws {
         let size = CGSize(width: 800, height: 1200)
         let viewport = CGSize(width: 390, height: 780)

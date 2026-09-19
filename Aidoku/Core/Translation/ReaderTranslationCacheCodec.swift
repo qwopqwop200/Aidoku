@@ -2,10 +2,22 @@ import Foundation
 
 enum ReaderTranslationCacheCodec {
     private static let magic = Data("ATZ1".utf8)
+    private static let zlibMagic = Data("ATZ2".utf8)
 
-    static func isPacked(_ data: Data) -> Bool { data.starts(with: magic) }
+    static func isPacked(_ data: Data) -> Bool { data.starts(with: magic) || data.starts(with: zlibMagic) }
 
     static func pack(_ data: Data) -> Data {
+        guard !isPacked(data) else { return data }
+        let legacy = packSharedBase(data)
+        guard data.count >= 128,
+              let compressed = try? (data as NSData).compressed(using: .zlib) as Data,
+              compressed.count + zlibMagic.count < legacy.count else { return legacy }
+        return zlibMagic + compressed
+    }
+
+    // Shared-base IDs hash these bytes. Retain their canonical encoding so new
+    // variants continue sharing existing bases instead of duplicating them.
+    static func packSharedBase(_ data: Data) -> Data {
         guard data.count >= 512, !isPacked(data),
               let compressed = try? (data as NSData).compressed(using: .lzfse) as Data,
               compressed.count + magic.count < data.count else { return data }
@@ -14,7 +26,14 @@ enum ReaderTranslationCacheCodec {
 
     static func unpack(_ data: Data) throws -> Data {
         guard isPacked(data) else { return data } // Existing v1 JSON remains readable.
-        return try (Data(data.dropFirst(magic.count)) as NSData).decompressed(using: .lzfse) as Data
+        let algorithm: NSData.CompressionAlgorithm = data.starts(with: zlibMagic) ? .zlib : .lzfse
+        return try (Data(data.dropFirst(magic.count)) as NSData).decompressed(using: algorithm) as Data
+    }
+
+    static func repack(_ data: Data) throws -> Data {
+        guard !data.starts(with: zlibMagic) else { return data }
+        let candidate = pack(try unpack(data))
+        return candidate.count < data.count ? candidate : data
     }
 
 }
@@ -65,7 +84,7 @@ struct ReaderTranslationRegionArchive {
             region.translationReuseIdentity = nil
             return ReaderTranslationStoredRegion(region)
         }
-        base = ReaderTranslationCacheCodec.pack(try encoder.encode(source))
+        base = ReaderTranslationCacheCodec.packSharedBase(try encoder.encode(source))
         // Empty arrays are the canonical all-nil representation for OCR-only pages.
         let translations = regions.map(\.translation)
         variant = ReaderTranslationCacheCodec.pack(try encoder.encode(Variant(

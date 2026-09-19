@@ -257,6 +257,24 @@ actor ReaderTranslationDiskCache {
                 guard self.database === database else { return }
             }
         }
+        // Existing variants/layouts upgrade in the background. Each UPDATE is
+        // atomic and leaves source-base IDs, links and exact LRU order intact.
+        if try database.integer("SELECT COUNT(*) FROM cache_policy WHERE name='payload-compression-v2'") == 0 {
+            cursor = ""
+            while let row = try database.nextCompressionCandidate(after: cursor) {
+                try Task.checkCancellation()
+                cursor = row.name
+                if let packed = try? ReaderTranslationCacheCodec.repack(row.data), packed != row.data {
+                    try database.replacePackedData(packed, name: row.name)
+                }
+                processed += 1
+                if processed.isMultiple(of: 32) {
+                    await Task.yield()
+                    guard self.database === database else { return }
+                }
+            }
+            try database.execute("INSERT OR IGNORE INTO cache_policy(name,value) VALUES('payload-compression-v2','1')")
+        }
         try trim()
     }
 
@@ -441,6 +459,23 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
             if result == SQLITE_DONE { return nil }
             guard result == SQLITE_ROW else { throw failure() }
             return (String(cString: sqlite3_column_text(pointer, 0)), blob(pointer, column: 1))
+        }
+    }
+
+    func nextCompressionCandidate(after name: String) throws -> (name: String, data: Data)? {
+        try statement("SELECT name,data FROM cache WHERE name>? ORDER BY name LIMIT 1", name: name) { pointer in
+            let result = sqlite3_step(pointer)
+            if result == SQLITE_DONE { return nil }
+            guard result == SQLITE_ROW else { throw failure() }
+            return (String(cString: sqlite3_column_text(pointer, 0)), blob(pointer, column: 1))
+        }
+    }
+
+    func replacePackedData(_ data: Data, name: String) throws {
+        try statement("UPDATE cache SET data=?2 WHERE name=?1", name: name) { pointer in
+            let result = data.withUnsafeBytes { sqlite3_bind_blob(pointer, 2, $0.baseAddress, Int32($0.count), transient) }
+            guard result == SQLITE_OK else { throw failure() }
+            try step(pointer)
         }
     }
 

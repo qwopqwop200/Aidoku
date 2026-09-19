@@ -2,6 +2,15 @@ import UIKit
 
 @MainActor
 final class ReaderTranslationPage {
+    static let sourceImageReady = Notification.Name("Reader.translation.sourceImageReady")
+    struct LoadedSource {
+        let page: Page
+        let image: UIImage
+    }
+    static func sourceDidLoad(_ image: UIImage, page: Page) {
+        guard page.translationSourceRect == nil || page.translationSourceRect == CGRect(x: 0, y: 0, width: 1, height: 1) else { return }
+        NotificationCenter.default.post(name: sourceImageReady, object: LoadedSource(page: page, image: image))
+    }
     static let imageChanged = Notification.Name("Reader.translation.imageChanged")
     typealias Recognizer = @Sendable (CGImage, ReaderOCRConfiguration) async throws -> [ReaderTranslationRegion]
     typealias Translator = @Sendable ([ReaderTranslationRegion], ReaderTranslationSettings) async throws -> [ReaderTranslationRegion]

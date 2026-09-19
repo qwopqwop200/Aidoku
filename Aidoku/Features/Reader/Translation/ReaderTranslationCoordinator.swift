@@ -165,6 +165,16 @@ final class ReaderTranslationCoordinator {
             button.accessibilityHint = error.localizedDescription
             showFailureNotice(error)
         }
+        observers.append(NotificationCenter.default.addObserver(
+            forName: ReaderTranslationPage.sourceImageReady, object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let source = notification.object as? ReaderTranslationPage.LoadedSource else { return }
+            Task { @MainActor [weak self] in
+                guard let self, isVisible, !isScrubbing else { return }
+                self.layoutPreparer.sourceDidLoad(source.image, page: source.page)
+                self.session.sourceImageDidLoad(source.page)
+            }
+        })
         for name in [ReaderTranslationSettings.changed, ReaderTranslationPage.imageChanged, UIApplication.didBecomeActiveNotification] {
             observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in self?.visiblePagesDidChange() }

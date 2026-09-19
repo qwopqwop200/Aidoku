@@ -6,6 +6,55 @@ import UIKit
 
 @Suite(.serialized)
 struct ReaderTranslationDiskCacheTests {
+    @Test func compactCompressionPreservesResultsBasesAndLRUAndRetriesFailures() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        // Below the old 512-byte threshold, independent of encoder key order
+        // or OS-specific LZFSE compression heuristics.
+        let raw = Data(("[{\"text\":\"" + String(repeating: "무손실 번역 원문 ", count: 8) + "\"}]").utf8)
+        #expect(raw.count >= 128 && raw.count < 512)
+        let old = ReaderTranslationCacheCodec.packSharedBase(raw)
+        let packed = ReaderTranslationCacheCodec.pack(raw)
+        #expect(packed.count < old.count)
+        #expect(try ReaderTranslationCacheCodec.unpack(old) == raw)
+        #expect(try ReaderTranslationCacheCodec.unpack(packed) == raw)
+        try await cache.store(old, for: "old-layout", kind: .layout, generation: 0)
+        // store() already uses the new codec. Seed the historical bytes directly
+        // so the test exercises migration rather than an already-upgraded row.
+        let oldHex = old.map { String(format: "%02x", $0) }.joined()
+        try databaseExecute(root, "UPDATE cache SET data=X'\(oldHex)' WHERE name LIKE 'layout-%'")
+        let regions = [ReaderTranslationRegion(id: "one", rect: CGRect(x: 0.1, y: 0.2, width: 0.3, height: 0.4),
+            source: "Original", translation: "변하지 않는 번역")]
+        try await cache.storeRegions(regions, for: "saved", kind: .translation, generation: 0)
+        let before = try await cache.statistics()
+        let access = try databaseInteger(root, "SELECT SUM(accessed) FROM cache")
+        let baseCount = try databaseInteger(root, "SELECT COUNT(*) FROM region_bases")
+        // A failed write must preserve the old readable blob and allow retry.
+        try databaseExecute(root, "CREATE TRIGGER reject_repack BEFORE UPDATE OF data ON cache BEGIN SELECT RAISE(ABORT,'test'); END")
+        do {
+            try await cache.compact()
+            Issue.record("Expected an injected write failure")
+        } catch {}
+        #expect(try await cache.statistics().payloadBytes == before.payloadBytes)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM cache_policy WHERE name='payload-compression-v2'") == 0)
+        try databaseExecute(root, "DROP TRIGGER reject_repack")
+        try await cache.compact()
+        #expect(try await cache.statistics().payloadBytes < before.payloadBytes)
+        #expect(try databaseInteger(root, "SELECT SUM(accessed) FROM cache") == access)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_bases") == baseCount)
+        let completed = try databaseContents(root)
+        try await cache.compact()
+        #expect(try databaseContents(root) == completed)
+        let reopened = ReaderTranslationDiskCache(directory: root)
+        #expect(try await reopened.data(for: "old-layout", kind: .layout) == raw)
+        #expect(try await reopened.regions(for: "saved", kind: .translation) == regions)
+        try await reopened.storeRegions(regions, for: "second-variant", kind: .translation, generation: 0)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_bases") == baseCount)
+        try await reopened.store(Data("ATZ2invalid".utf8), for: "broken-v2", kind: .layout, generation: 0)
+        #expect(try await reopened.data(for: "broken-v2", kind: .layout) == nil)
+    }
+
     @Test func compactPagesMigrateWithoutChangingSavedWorkOrLRU() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -596,7 +645,7 @@ struct ReaderTranslationDiskCacheTests {
             let source = regions.map { value in
                 var value = value; value.translation = nil; value.translationReuseIdentity = nil; return value
             }
-            try await legacy.store(JSONEncoder().encode(source.map(ReaderTranslationStoredRegion.init)), for: key, kind: .ocr, generation: 0)
+            try await legacy.store(ReaderTranslationCacheCodec.packSharedBase(JSONEncoder().encode(source.map(ReaderTranslationStoredRegion.init))), for: key, kind: .ocr, generation: 0)
             try await optimized.storeRegions(source, for: key, kind: .ocr, generation: 0)
             // One actual Korean translation plus two simulated settings variants.
             for variant in 0..<variants {
@@ -606,7 +655,7 @@ struct ReaderTranslationDiskCacheTests {
                     return value
                 }
                 let name = key + "-\(variant)"
-                try await legacy.store(JSONEncoder().encode(translated.map(ReaderTranslationStoredRegion.init)), for: name, kind: .translation, generation: 0)
+                try await legacy.store(ReaderTranslationCacheCodec.packSharedBase(JSONEncoder().encode(translated.map(ReaderTranslationStoredRegion.init))), for: name, kind: .translation, generation: 0)
                 try await optimized.storeRegions(translated, for: name, kind: .translation, generation: 0)
                 #expect(try await optimized.regions(for: name, kind: .translation) == translated)
             }

@@ -505,6 +505,9 @@ extension ReaderPageView {
         }
         if imageView.image !== image { translationPage.reset() }
         imageView.image = image
+        if !isTranslationPreload, let image, let source = translationPage.sourcePage {
+            ReaderTranslationPage.sourceDidLoad(image, page: source)
+        }
         if !isTranslationPreload { NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: translationPage) }
         if let gifData, !isTranslationPreload {
             imageView.animate(withGIFData: gifData)

@@ -26,6 +26,11 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
         didSet {
             guard let image, image.size.width > 0 else { return }
             ratio = image.size.height / image.size.width
+            // Texture may preload pixels before creating an image view.
+            Task { @MainActor [weak self] in
+                guard let self, self.image === image else { return }
+                ReaderTranslationPage.sourceDidLoad(image, page: page)
+            }
         }
     }
     var text: String?

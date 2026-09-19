@@ -1,3 +1,4 @@
+import AsyncDisplayKit
 import Darwin
 import Foundation
 import Testing
@@ -6,6 +7,96 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderLookaheadOptimizationTests {
+    @Test(arguments: [1, 9, -1])
+    func navigationKeepsOnlyUsefulInFlightRaster(destination: Int) async throws {
+        let pages = (0..<12).map { Page(sourceId: "keep-raster", chapterId: "chapter", index: $0) }
+        let cache = ReaderTranslationSessionCache()
+        try cache.store([ReaderTranslationPersistentPipelineTests.region], for: pages[2].translationCacheKey)
+        let gate = LookaheadTestGate()
+        var completed = false, cancelled = false, finished = false
+        var starts = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            Issue.record("Cache-only navigation must not invoke OCR/API")
+            return []
+        }, prepareLayout: { _, _, _ in
+            starts += 1
+            defer { finished = true }
+            await gate.wait()
+            do { try Task.checkCancellation(); completed = true }
+            catch { cancelled = true; throw error }
+        }, availableMemory: { .max }, cache: cache)
+        defer { session.close(); Task { await gate.release() } }
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [], context: "chapter",
+                       currentPageIndex: 0, processUncachedPages: false)
+        session.enable(settings: ReaderTranslationSettings())
+        try await waitUntil { await gate.started }
+        session.pauseForPageTurn(preservingRecognitionFor: destination < 0 ? nil : pages[destination])
+        if destination >= 0 {
+            session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [], context: "chapter",
+                           currentPageIndex: destination, processUncachedPages: false)
+        }
+        await gate.release()
+        try await waitUntil { finished }
+        #expect(completed == (destination == 1))
+        #expect(cancelled == (destination != 1))
+        #expect(starts == 1, "Useful rendering must continue without restarting")
+    }
+
+    @Test func webtoonPreloadPublishesPixelsBeforeCreatingItsView() async throws {
+        let page = Page(sourceId: "preloaded-node", chapterId: "chapter", index: 1)
+        let node = ReaderWebtoonPageNode(source: nil, page: page, temporaryPageStore: ReaderTemporaryPageStore(),
+                                        pillarboxLayoutState: ReaderPillarboxLayoutState())
+        let image = ReaderTranslationPersistentPipelineTests.image()
+        var received = false
+        let observer = NotificationCenter.default.addObserver(forName: ReaderTranslationPage.sourceImageReady,
+            object: nil, queue: .main) { notification in
+                guard let source = notification.object as? ReaderTranslationPage.LoadedSource else { return }
+                if source.page.translationCacheKey == page.translationCacheKey, source.image === image { received = true }
+            }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        node.image = image
+        try await waitUntil { received }
+        #expect(!node.isNodeLoaded, "Image-ready delivery must not instantiate offscreen UIKit views")
+    }
+
+    @Test func imageReadyRetriesPrerenderWithoutWaitingForNavigation() async throws {
+        let pages = (0..<2).map { Page(sourceId: "image-ready", chapterId: "chapter", index: $0) }
+        let cache = ReaderTranslationSessionCache()
+        try cache.store([ReaderTranslationPersistentPipelineTests.region], for: pages[1].translationCacheKey)
+        var attempts = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            Issue.record("Image readiness must not start OCR/API")
+            return []
+        }, prepareLayout: { _, _, _ in
+            attempts += 1
+            if attempts == 1 { throw URLError(.fileDoesNotExist) }
+        }, availableMemory: { .max }, cache: cache)
+        defer { session.close() }
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [], context: "chapter",
+                       processUncachedPages: false)
+        session.enable(settings: ReaderTranslationSettings())
+        try await waitUntil { attempts == 1 }
+        session.sourceImageDidLoad(pages[1])
+        try await waitUntil { attempts == 2 }
+    }
+
+    @Test func loadedSourcesAreBorrowedAndBounded() {
+        let preparer = ReaderTranslationLayoutPreparer()
+        let page = Page(sourceId: "weak-source", chapterId: "test", index: 0)
+        autoreleasepool {
+            let image = ReaderTranslationPersistentPipelineTests.image()
+            preparer.sourceDidLoad(image, page: page)
+            #expect(preparer.loadedImage(for: page) === image)
+        }
+        #expect(preparer.loadedImage(for: page) == nil, "Reader releases must not be defeated by prerender metadata")
+        let held = ReaderTranslationPersistentPipelineTests.image()
+        preparer.sourceDidLoad(held, page: page)
+        for index in 1...8 {
+            preparer.sourceDidLoad(held, page: Page(sourceId: "weak-source", chapterId: "test", index: index))
+        }
+        #expect(preparer.loadedImage(for: page) == nil)
+    }
+
     @Test(arguments: [false, true])
     func cachedNavigationPreparesBeforeDebounceWithoutStartingOCR(lowMemory: Bool) async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
