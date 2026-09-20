@@ -48,10 +48,11 @@ enum ReaderTranslationEnclosedBackground {
     /// A tight gap between a multi-column block and its remaining column can
     /// stay inside a balloon whose outline is open or crossed by lettering.
     /// Require an almost entirely white bridge, rather than absence of a rule.
-    static func hasClearVerticalBridge(in image: CGImage, left: CGRect, right: CGRect) -> Bool {
+    static func hasClearVerticalBridge(in image: CGImage, left: CGRect, right: CGRect,
+                                       minimumOverlapInFontSizes: CGFloat = 2) -> Bool {
         let top = max(left.minY, right.minY), bottom = min(left.maxY, right.maxY)
         let font = min(left.width, right.width)
-        guard bottom - top > font * 2 else { return false }
+        guard bottom - top > font * minimumOverlapInFontSizes else { return false }
         let middle = (left.maxX + right.minX) / 2
         let sample = CGRect(x: middle - max(1, font * 0.06), y: top + font * 0.2,
             width: max(2, font * 0.12), height: bottom - top - font * 0.4).integral

@@ -547,9 +547,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 erfordert iOS 18 oder neuer. Mittel ist das Standardmodell. Klein benötigt weniger Speicher; Winzig hat ein kleineres Zeichenwörterbuch. Diese Modelle erkennen keinen koreanischen Text. Übersetzungen ins Koreanische werden unterstützt.";
 
-"TRANSLATION_INSTRUCTIONS" = "Übersetzungsanweisungen";
 
-"TRANSLATION_RESET_PROMPT" = "Standardanweisungen wiederherstellen";
 
 "TRANSLATION_CLEAR_CACHE" = "Übersetzungscache leeren";
 
@@ -680,13 +678,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Erkennt die Ausgangssprache automatisch und übersetzt nur die ausgewählten Sprachen. „Alle erkannten Sprachen“ hebt die Einschränkung auf. Der Sprachfilter jedes Eintrags ist unabhängig von den Spracheinstellungen für Seiten und andere Einträge.";
 
-"TRANSLATION_SFX_FILTER" = "SFX-Filterung (nur Japanisch)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Lässt wahrscheinliche japanische Soundeffekte unübersetzt. Dafür werden ein lokales Wörterbuch und vorsichtige Layoutprüfungen verwendet. Nicht sicher als Soundeffekt erkannter Text wird weiterhin übersetzt.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Kontextabhängige Einträge einbeziehen (nur Japanisch)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Gilt, während die SFX-Filterung aktiviert ist. Filtert außerdem Einträge, die als „Kontext erfordernd“ markiert sind, mithilfe von Wörterbuchübereinstimmungen, Textgröße und nahegelegenem Layout. Kein LLM analysiert den Kontext, daher kann auch der Dialog ausgeschlossen werden.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Seitenbild in Übersetzung einbeziehen";
 
@@ -699,7 +693,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM SFX-Filterung (alle Sprachen)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Erkennt Soundeffekte in derselben Übersetzungsanfrage und lässt sie unverändert. Mit einem Seitenbild überspringt die KI auch unklare OCR-Fragmente, sofern das Bild sie nicht als sinnvollen Text erkennen lässt. Dialoge, Erzähltext, Titel und Urheberangaben bleiben zur Übersetzung erhalten. Kombinierbar mit dem lokalen Filter für Japanisch: Text, den einer der Filter markiert, bleibt unverändert. Ohne Seitenbild ist die Einordnung weniger zuverlässig.";
+"TRANSLATION_LLM_SFX_HELP" = "Erkennt Soundeffekte in derselben Übersetzungsanfrage und lässt sie unverändert. Mit einem Seitenbild überspringt die KI auch unklare OCR-Fragmente, sofern das Bild sie nicht als sinnvollen Text erkennen lässt. Dialoge, Erzähltext, Titel und Urheberangaben bleiben zur Übersetzung erhalten. Ohne Seitenbild ist die Einordnung weniger zuverlässig.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Ohne Bildeingabe kann ein eingeschränkter visueller und Layout-Kontext die Genauigkeit der SFX-Klassifizierung beeinträchtigen.";
 
@@ -1170,3 +1164,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Der Übersetzungscache konnte nicht gespeichert werden.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Änderungen an der iCloud-Synchronisierung gelten nach dem vollständigen Schließen und erneuten Öffnen von Aidoku. Bis dahin bleibt die aktuelle Einstellung aktiv.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Originalfarben beibehalten";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Text- und Hintergrundfarbe gemeinsam beibehalten.";
+"TRANSLATION_INPAINTING" = "Hintergrundrekonstruktion";
+"TRANSLATION_INPAINTING_HELP" = "Entfernt Originaltext und erhält den Hintergrund. Bei unsicherer Maske oder Lesbarkeit werden Kästen verwendet. Erfordert Originalfarben.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Textfilter";
+
+"TRANSLATION_TARGETS" = "Übersetzte Inhalte";

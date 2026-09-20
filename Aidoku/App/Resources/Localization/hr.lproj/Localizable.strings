@@ -765,9 +765,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 zahtijeva iOS 18 ili noviji. Zadani model je Srednji. Mali koristi manje memorije, a Sitan ima manji rječnik znakova. Ovi modeli ne prepoznaju korejski tekst, ali podržan je prijevod na korejski.";
 
-"TRANSLATION_INSTRUCTIONS" = "Upute za prijevod";
 
-"TRANSLATION_RESET_PROMPT" = "Vratite zadane upute za prijevod";
 
 "TRANSLATION_CLEAR_CACHE" = "Očisti predmemoriju prijevoda";
 
@@ -898,13 +896,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Automatski prepoznaje izvorni jezik i prevodi samo odabrane jezike. Opcija Svi otkriveni jezici uklanja ograničenje. Jezični filtar svake stavke neovisan je o jezičnim postavkama stranica i drugih stavki.";
 
-"TRANSLATION_SFX_FILTER" = "SFX filtriranje (samo na japanskom)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Ostavlja vjerojatne japanske zvučne efekte neprevedenima. Koristi lokalni rječnik i konzervativne provjere rasporeda teksta. Tekst koji nije pouzdano prepoznat kao zvučni efekt i dalje se prevodi.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Uključi unose koji zahtijevaju kontekst (samo japanski)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Primjenjuje se dok je SFX filtriranje omogućeno. Filtrira i unose označene kao one koji zahtijevaju kontekst na temelju podudaranja s rječnikom, veličine teksta i rasporeda okolnog teksta. LLM ne analizira kontekst pa i dijalog može biti isključen.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Uključi sliku stranice u prijevod";
 
@@ -917,7 +911,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM SFX filtriranje (svi jezici)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Razvrstava zvučne efekte u istom zahtjevu za prijevod i ostavlja ih nepromijenjenima. Ako je priložena slika stranice, AI preskače i nejasne fragmente OCR-a, osim ako slika potvrđuje da je riječ o smislenom tekstu. Dijalog, pripovijedanje, naslovi i podaci o autorima zadržavaju se za prijevod. Može se kombinirati s lokalnim filtrom za japanski: tekst koji označi barem jedan filtar ostaje nepromijenjen. Bez slike stranice klasifikacija je manje pouzdana.";
+"TRANSLATION_LLM_SFX_HELP" = "Razvrstava zvučne efekte u istom zahtjevu za prijevod i ostavlja ih nepromijenjenima. Ako je priložena slika stranice, AI preskače i nejasne fragmente OCR-a, osim ako slika potvrđuje da je riječ o smislenom tekstu. Dijalog, pripovijedanje, naslovi i podaci o autorima zadržavaju se za prijevod. Bez slike stranice klasifikacija je manje pouzdana.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Bez unosa slike, ograničen vizualni kontekst i kontekst izgleda mogu smanjiti točnost SFX klasifikacije.";
 
@@ -1142,3 +1136,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Predmemoriju prijevoda nije moguće spremiti.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Promjene iCloud sinkronizacije primjenjuju se nakon potpunog zatvaranja i ponovnog otvaranja aplikacije Aidoku. Do tada ostaje aktivna trenutačna postavka.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Zadrži izvorne boje";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Zadrži boje teksta i pozadine zajedno.";
+"TRANSLATION_INPAINTING" = "Obnova pozadine";
+"TRANSLATION_INPAINTING_HELP" = "Briše izvorni tekst i čuva pozadinu. Koristi okvire ako maska ili čitljivost nisu pouzdane. Zahtijeva izvorne boje.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Filtriranje teksta";
+
+"TRANSLATION_TARGETS" = "Što prevoditi";

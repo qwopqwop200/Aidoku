@@ -26,13 +26,12 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
         didSet {
             guard let image, image.size.width > 0 else { return }
             ratio = image.size.height / image.size.width
-            // Texture may preload pixels before creating an image view.
-            Task { @MainActor [weak self] in
-                guard let self, self.image === image else { return }
-                ReaderTranslationPage.sourceDidLoad(image, page: page)
-            }
         }
     }
+    var prepareTranslationForDisplay: ReaderTranslationImagePreparer?
+    private var preparedTranslation: ReaderTranslationPreparedImage?
+    private var hasLoadFailure = false
+    private var lastTranslationLayoutSize = CGSize.zero
     var text: String?
     var ratio: CGFloat?
 
@@ -93,6 +92,22 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
         node.contentMode = .scaleToFill
         node.shouldAnimateSizeChanges = false
         node.isUserInteractionEnabled = false
+        node.onImageAssigned = { [weak self] imageView in
+            guard let self else { return false }
+            guard let image = imageView.image else {
+                self._translationPage?.reset()
+                return true
+            }
+            if let prepared = self.preparedTranslation {
+                guard prepared.isCurrent() else {
+                    self._translationPage?.reset()
+                    self.refreshPreparedImage(image)
+                    return false
+                }
+                self.translationPage?.displayLoadedImage(prepared)
+            }
+            return true
+        }
         return node
     }()
 
@@ -101,6 +116,13 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
     lazy var progressNode = ASCellNode(viewBlock: {
         CircularProgressView()
     })
+
+    private lazy var retryNode: ASButtonNode = {
+        let node = ASButtonNode()
+        node.setTitle(NSLocalizedString("RETRY"), with: .systemFont(ofSize: 17), with: .systemBlue, for: .normal)
+        node.addTarget(self, action: #selector(retryPageLoad), forControlEvents: .touchUpInside)
+        return node
+    }()
 
     init(
         source: AidokuRunner.Source?,
@@ -143,6 +165,11 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
     override func layout() {
         super.layout()
 
+        if lastTranslationLayoutSize != calculatedSize {
+            lastTranslationLayoutSize = calculatedSize
+            NotificationCenter.default.post(name: ReaderTranslationLayoutAwaiter.geometryChanged, object: self)
+        }
+
         if needsDictionaryOverlayRender {
             renderDictionaryOverlaysIfNeeded()
         }
@@ -160,6 +187,7 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
 
     override func didEnterVisibleState() {
         super.didEnterVisibleState()
+        imageTask?.priority = .high
         Task { @MainActor in NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: nil) }
         displayPage()
     }
@@ -171,6 +199,7 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
 
     override func didExitVisibleState() {
         super.didExitVisibleState()
+        imageTask?.priority = .low
         Task { @MainActor in NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: nil) }
     }
 
@@ -290,18 +319,19 @@ extension ReaderWebtoonPageNode {
                 )
             }
         } else {
+            let loadingNode: ASDisplayNode = hasLoadFailure ? retryNode : progressNode
             if pillarbox && isPillarboxOrientation() {
                 let percent = (100 - pillarboxAmount) / 100
                 let ratio = percent * (ratio ?? Self.defaultRatio)
 
                 return ASRatioLayoutSpec(
                     ratio: ratio,
-                    child: progressNode
+                    child: loadingNode
                 )
             } else {
                 return ASRatioLayoutSpec(
                     ratio: ratio ?? Self.defaultRatio,
-                    child: progressNode
+                    child: loadingNode
                 )
             }
         }
@@ -310,11 +340,11 @@ extension ReaderWebtoonPageNode {
 
 extension ReaderWebtoonPageNode {
     private func startPageLoad() {
-        guard pageLoadTask == nil, image == nil, text == nil else { return }
+        guard pageLoadTask == nil, image == nil, text == nil, !hasLoadFailure else { return }
 
         pageLoadGeneration = UUID()
         let issued = pageLoadGeneration
-        pageLoadTask = Task { [weak self] in
+        pageLoadTask = Task { @MainActor [weak self] in
             guard let self else { return }
             await self.loadPage()
             if self.pageLoadGeneration == issued { self.pageLoadTask = nil }
@@ -342,10 +372,7 @@ extension ReaderWebtoonPageNode {
         progressNode.isUserInteractionEnabled = false
 
         if let image = page.image {
-            self.image = image
-            if isNodeLoaded {
-                displayPage()
-            }
+            await prepareAndDisplayImage(image)
         } else if let zipURL = page.zipURL, let url = URL(string: zipURL), let filePath = page.imageURL {
             await loadImage(zipURL: url, filePath: filePath)
         } else if let urlString = page.imageURL, let url = URL(string: urlString) {
@@ -355,7 +382,7 @@ extension ReaderWebtoonPageNode {
         } else if let text = page.text {
             loadText(text)
         } else {
-            // TODO: show error
+            await showLoadFailure()
         }
     }
 
@@ -393,6 +420,7 @@ extension ReaderWebtoonPageNode {
         let request = ImageRequest(
             urlRequest: urlRequest,
             processors: processors,
+            priority: isVisible ? .high : .low,
             userInfo: [.processesKey: usePageProcessor]
         )
 
@@ -414,13 +442,7 @@ extension ReaderWebtoonPageNode {
         do {
             let response = try await imageTask.response
             guard !Task.isCancelled else { return }
-            image = response.image
-            if response.container.type == .gif, let data = response.container.data {
-                imageNode.animate(withGIFData: data)
-            }
-            if isNodeLoaded {
-                displayPage()
-            }
+            await prepareAndDisplayImage(response.image, gifData: response.container.type == .gif ? response.container.data : nil)
         } catch {
             guard !Task.isCancelled else { return }
 
@@ -437,13 +459,7 @@ extension ReaderWebtoonPageNode {
                             guard !Task.isCancelled else { return }
 
                             if let result {
-                                self.image = result.image
-                                if result.type == .gif, let data = result.data {
-                                    self.imageNode.animate(withGIFData: data)
-                                }
-                                if self.isNodeLoaded {
-                                    self.displayPage()
-                                }
+                                await prepareAndDisplayImage(result.image, gifData: result.type == .gif ? result.data : nil)
                                 return
                             }
                         }
@@ -452,8 +468,7 @@ extension ReaderWebtoonPageNode {
                     break
             }
 
-            // TODO: handle failure
-            await self.progressView.setProgress(value: 0, withAnimation: true)
+            await showLoadFailure()
         }
     }
 
@@ -473,10 +488,7 @@ extension ReaderWebtoonPageNode {
         // check cache
         if ImagePipeline.shared.cache.containsCachedImage(for: request) {
             let imageContainer = ImagePipeline.shared.cache.cachedImage(for: request)
-            image = imageContainer?.image
-            if isNodeLoaded {
-                displayPage()
-            }
+            await prepareAndDisplayImage(imageContainer?.image)
             return
         }
 
@@ -514,13 +526,14 @@ extension ReaderWebtoonPageNode {
         self.imageProcessingTask = processingTask
         let image = await processingTask.value
         self.imageProcessingTask = nil
-        guard !Task.isCancelled, let image else { return }
+        guard !Task.isCancelled else { return }
+        guard let image else {
+            await showLoadFailure()
+            return
+        }
 
         ImagePipeline.shared.cache.storeCachedImage(ImageContainer(image: image), for: request)
-        self.image = image
-        if isNodeLoaded {
-            displayPage()
-        }
+        await prepareAndDisplayImage(image)
     }
 
     private func loadImage(zipURL: URL, filePath: String) async {
@@ -528,9 +541,117 @@ extension ReaderWebtoonPageNode {
             from: zipURL,
             path: filePath
         ) else {
+            if !Task.isCancelled { await showLoadFailure() }
             return
         }
+        guard !Task.isCancelled else { return }
         await loadImage(url: extractedURL, context: nil)
+    }
+
+    @MainActor
+    func translationImageGeometry(for image: UIImage) -> ReaderTranslationImageGeometry? {
+        guard image.size.width > 0, image.size.height > 0 else { return nil }
+        var width = calculatedSize.width
+        if width <= 0 { width = delegate?.collectionNode.bounds.width ?? 0 }
+        if pillarbox && isPillarboxOrientation() { width *= (100 - pillarboxAmount) / 100 }
+        let traits = imageNode.imageView?.traitCollection ?? delegate?.traitCollection ?? UITraitCollection.current
+        return ReaderTranslationImageGeometry(
+            viewport: CGSize(width: width, height: width * image.size.height / image.size.width),
+            scale: traits.displayScale,
+            aspectFit: false,
+            dark: traits.userInterfaceStyle == .dark
+        )
+    }
+
+    @MainActor
+    @discardableResult
+    private func prepareAndDisplayImage(_ sourceImage: UIImage?, gifData: Data? = nil) async -> Bool {
+        guard !Task.isCancelled else { return false }
+        guard let sourceImage else {
+            showLoadFailure()
+            return false
+        }
+        let issued = pageLoadGeneration
+        do {
+            while true {
+                try Task.checkCancellation()
+                let prepared: ReaderTranslationPreparedImage?
+                if let prepareTranslationForDisplay {
+                    prepared = try await prepareTranslationForDisplay(sourceImage, page)
+                } else {
+                    prepared = try await delegate?.delegate?.prepareCachedTranslationForDisplay(image: sourceImage, page: page, geometry: { [weak self] in
+                        self?.translationImageGeometry(for: sourceImage)
+                    })
+                }
+                try Task.checkCancellation()
+                guard issued == pageLoadGeneration else { return false }
+                if prepared?.isCurrent() == false { continue }
+
+                // Keep decoded source pixels for OCR and save/share. The backing view
+                // receives them together with this source-aspect translated canvas.
+                _translationPage?.reset()
+                preparedTranslation = prepared
+                imageNode.animatedData = gifData
+                image = sourceImage
+                imageNode.image = sourceImage
+                if imageNode.imageView != nil, !imageNode.commitImage() { continue }
+                ReaderTranslationPage.sourceDidLoad(sourceImage, page: page)
+                if isNodeLoaded { displayPage() }
+                return true
+            }
+        } catch is CancellationError {
+            return false
+        } catch {
+            guard !Task.isCancelled, issued == pageLoadGeneration else { return false }
+            // A failed cached overlay does not invalidate the decoded source.
+            ReaderTranslationDiagnostics.record("loaded_presentation_fallback")
+            _translationPage?.reset()
+            preparedTranslation = nil
+            imageNode.animatedData = gifData
+            image = sourceImage
+            imageNode.image = sourceImage
+            if imageNode.imageView != nil { imageNode.commitImage() }
+            ReaderTranslationPage.sourceDidLoad(sourceImage, page: page)
+            if isNodeLoaded { displayPage() }
+            return true
+        }
+    }
+
+    @MainActor
+    private func refreshPreparedImage(_ image: UIImage) {
+        let issued = pageLoadGeneration
+        let finishingLoad = pageLoadTask
+        Task { @MainActor [weak self] in
+            await finishingLoad?.value
+            guard let self, issued == pageLoadGeneration, self.image === image,
+                  preparedTranslation?.isCurrent() == false else { return }
+            // A late Texture backing view can bind after rotation/settings changed.
+            // Retry from the retained decoded image; generation deduplicates callbacks.
+            pageLoadGeneration = UUID()
+            let refresh = pageLoadGeneration
+            pageLoadTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                await prepareAndDisplayImage(image, gifData: imageNode.animatedData)
+                if pageLoadGeneration == refresh { pageLoadTask = nil }
+            }
+        }
+    }
+
+    @MainActor
+    private func showLoadFailure() {
+        preparedTranslation = nil
+        image = nil
+        imageNode.reset()
+        _translationPage?.reset()
+        hasLoadFailure = true
+        progressNode.isHidden = true
+        transition()
+    }
+
+    @objc private func retryPageLoad() {
+        hasLoadFailure = false
+        startPageLoad()
+        transition()
     }
 
     private func loadText(_ text: String) {
@@ -586,6 +707,9 @@ extension ReaderWebtoonPageNode {
     }
 
     private func clearDisplayedImage() {
+        cancelPageLoad()
+        preparedTranslation = nil
+        hasLoadFailure = false
         Task { @MainActor [weak self, page = _translationPage] in
             guard self?.image == nil else { return }
             page?.reset()
@@ -756,7 +880,8 @@ extension ReaderWebtoonPageNode {
         text = nil
 
         // Reload the image using the original page data
-        await loadPage()
+        startPageLoad()
+        await pageLoadTask?.value
         return image != nil || text != nil
     }
 

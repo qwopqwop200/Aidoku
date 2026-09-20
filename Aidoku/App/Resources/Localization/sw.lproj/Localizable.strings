@@ -67,9 +67,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 inahitaji iOS 18 au toleo jipya zaidi. Kati ni modeli chaguomsingi. Ndogo hutumia kumbukumbu kidogo zaidi na Ndogo sana ina kamusi ndogo zaidi ya herufi. Modeli hizi hazitambui maandishi ya Kikorea, lakini tafsiri kwenda Kikorea inawezekana.";
 
-"TRANSLATION_INSTRUCTIONS" = "Maagizo ya tafsiri";
 
-"TRANSLATION_RESET_PROMPT" = "Rejesha maagizo chaguomsingi ya utafsiri";
 
 "TRANSLATION_CLEAR_CACHE" = "Futa Akiba ya Tafsiri";
 
@@ -200,13 +198,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Gundua lugha asili kiotomatiki na utafsiri lugha ulizochagua pekee. Lugha Zote Zilizogunduliwa huondoa kizuizi. Kichujio cha lugha cha kila kipengee hakitegemei mipangilio ya lugha ya ukurasa au ya vipengee vingine.";
 
-"TRANSLATION_SFX_FILTER" = "Uchujaji wa SFX (Kijapani Pekee)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Acha maandishi yanayoelekea kuwa madoido ya sauti ya Kijapani bila kutafsiriwa. Tumia kamusi iliyo kwenye kifaa na ukaguzi wa mpangilio wa tahadhari. Maandishi yasiyotambuliwa kwa uhakika kama madoido ya sauti bado yanatafsiriwa.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Jumuisha Maingizo Yanayohitaji Muktadha (Kijapani Pekee)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Inatumika wakati Uchujaji wa SFX umewashwa. Pia huchuja maingizo yaliyotiwa alama kuwa yanahitaji muktadha kwa kutumia ulinganifu wa kamusi, ukubwa wa maandishi na mpangilio ulio karibu. Hakuna LLM inayochanganua muktadha, kwa hivyo mazungumzo yanaweza pia kutengwa.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Jumuisha Picha ya Ukurasa katika Tafsiri";
 
@@ -219,7 +213,7 @@
 
 "TRANSLATION_LLM_SFX" = "Uchujaji wa LLM SFX (Lugha Zote)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Ainisha maandishi ya madoido ya sauti katika ombi lilelile la tafsiri na uyaache bila kubadilika. Ikiwa picha ya ukurasa ipo, AI pia huruka vipande vya OCR visivyoeleweka isipokuwa picha ithibitishe kuwa ni maandishi yenye maana. Mazungumzo, masimulizi, vichwa na majina ya wachangiaji bado hutafsiriwa. Inaweza kuunganishwa na kichujio cha Kijapani kilicho kwenye kifaa: maandishi yaliyowekewa alama na kichujio chochote huachwa bila kubadilika. Uainishaji hauaminiki sana bila picha ya ukurasa.";
+"TRANSLATION_LLM_SFX_HELP" = "Ainisha maandishi ya madoido ya sauti katika ombi lilelile la tafsiri na uyaache bila kubadilika. Ikiwa picha ya ukurasa ipo, AI pia huruka vipande vya OCR visivyoeleweka isipokuwa picha ithibitishe kuwa ni maandishi yenye maana. Mazungumzo, masimulizi, vichwa na majina ya wachangiaji bado hutafsiriwa. Uainishaji hauaminiki sana bila picha ya ukurasa.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Bila ingizo la picha, muktadha mdogo wa mwonekano na mpangilio unaweza kupunguza usahihi wa uainishaji wa SFX.";
 
@@ -1147,3 +1141,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Akiba ya tafsiri haikuweza kuhifadhiwa.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Mabadiliko ya usawazishaji wa iCloud yanaanza kutumika baada ya kufunga Aidoku kabisa na kuifungua tena. Hadi wakati huo, mpangilio wa sasa unaendelea kutumika.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Hifadhi rangi asili";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Hifadhi pamoja rangi za maandishi na mandharinyuma.";
+"TRANSLATION_INPAINTING" = "Urejeshaji wa mandharinyuma";
+"TRANSLATION_INPAINTING_HELP" = "Hufuta maandishi asili na kuhifadhi mandharinyuma. Hutumia visanduku ikiwa barakoa au usomekaji hauna uhakika. Inahitaji rangi asili.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Uchujaji wa maandishi";
+
+"TRANSLATION_TARGETS" = "Maudhui ya kutafsiri";

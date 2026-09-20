@@ -311,6 +311,8 @@ struct ReaderTranslationRenderSpeedTests {
                                                         imageSize: image.size, viewport: imageView.bounds.size,
                                                         scale: geometry.scale, aspectFit: true,
                                                         crop: CGRect(x: 0, y: 0, width: 1, height: 1), dark: geometry.dark)
+        let displayed = regions.compactMap { $0.cropped(to: CGRect(x: 0, y: 0, width: 1, height: 1)) }
+        let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: displayed)
         // Text-only preparation consumes dimensions recorded when OCR processed
         // the page; a brand-new cache deliberately cannot infer them from pixels.
         let generation = await disk.currentGeneration(settings: settings)
@@ -318,11 +320,11 @@ struct ReaderTranslationRenderSpeedTests {
         cache.setNearbyPages(pageKeys: ["some other page"], settings: settings)
         let preparer = ReaderTranslationLayoutPreparer(renderCache: cache)
         try await preparer.prepare(page: page, regions: regions, settings: settings, geometry: geometry, window: window)
-        let saved = try #require(try await disk.data(for: key, kind: .layout))
+        let saved = try #require(try await disk.data(for: layoutKey, kind: .layout))
         #expect(cache.cachedImage(for: key) == nil)
         #expect(window.subviews.allSatisfy { !($0 is ReaderTranslationOverlayView) })
         #expect(try await disk.imageSize(page: page.translationCacheKey) == image.size)
-        #expect(try await disk.contains(key, kind: .layout))
+        #expect(try await disk.contains(layoutKey, kind: .layout))
         #expect(try await disk.contains(key, kind: .snapshot) == false)
         #expect(try await disk.statistics().entries == 2)
         cache.setNearbyPages(pageKeys: [page.translationCacheKey], settings: settings)
@@ -345,17 +347,23 @@ struct ReaderTranslationRenderSpeedTests {
             replayMilliseconds.append((ProcessInfo.processInfo.systemUptime - start) * 1000)
             let bitmap = try #require(reopened.cachedImage(for: key))
             #expect(bitmap.size.width > 0 && bitmap.size.height > 0)
-            #expect(reopened.cachedLayout(for: key) == saved)
+            #expect(reopened.cachedLayout(for: layoutKey) == saved)
             let output = URL.documentsDirectory.appendingPathComponent("cache-replay.png")
             try #require(bitmap.pngData()).write(to: output)
         }
         print("DISK_LAYOUT_REPLAY_MS=\(replayMilliseconds) median=\(replayMilliseconds.sorted()[2])")
         ReaderTranslationImageExporter.clearIdleRenderer()
-        #expect(try await disk.data(for: key, kind: .layout) == saved)
+        #expect(try await disk.data(for: layoutKey, kind: .layout) == saved)
         #expect(try await disk.imageSize(page: page.translationCacheKey) == image.size)
-        #expect(try await disk.contains(key, kind: .layout))
+        #expect(try await disk.contains(layoutKey, kind: .layout))
         #expect(try await disk.contains(key, kind: .snapshot) == false)
-        #expect(try await disk.statistics().entries == 2)
+        let assetKey = ReaderTranslationRenderCache.renderAssetStorageKey(key)
+        let deadline = Date().addingTimeInterval(20)
+        while !(try await disk.contains(assetKey, kind: .layout)) {
+            guard Date() < deadline else { throw URLError(.timedOut) }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(try await disk.statistics().entries == 3, "The reusable overlay asset joins the layout and source-size records")
     }
 
     /// Compare both paths in one binary so concurrent workspace changes and
@@ -384,7 +392,7 @@ struct ReaderTranslationRenderSpeedTests {
         for index in 0..<5 {
             ReaderTranslationImageExporter.clearIdleRenderer()
             let key = "legacy-\(index)"
-            await cache.storeLayout(data, key: key, diskGeneration: 0)
+            await cache.storeLayout(data, key: ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: regions), diskGeneration: 0)
             let overlay = ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: viewport))
             overlay.overrideUserInterfaceStyle = .light
             let legacyStart = ProcessInfo.processInfo.systemUptime

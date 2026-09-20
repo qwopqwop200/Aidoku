@@ -43,10 +43,10 @@ struct ReaderLookaheadOptimizationTests {
     }
 
     @Test func webtoonPreloadPublishesPixelsBeforeCreatingItsView() async throws {
-        let page = Page(sourceId: "preloaded-node", chapterId: "chapter", index: 1)
+        let image = ReaderTranslationPersistentPipelineTests.image()
+        let page = Page(sourceId: "preloaded-node", chapterId: "chapter", index: 1, image: image)
         let node = ReaderWebtoonPageNode(source: nil, page: page, temporaryPageStore: ReaderTemporaryPageStore(),
                                         pillarboxLayoutState: ReaderPillarboxLayoutState())
-        let image = ReaderTranslationPersistentPipelineTests.image()
         var received = false
         let observer = NotificationCenter.default.addObserver(forName: ReaderTranslationPage.sourceImageReady,
             object: nil, queue: .main) { notification in
@@ -54,7 +54,7 @@ struct ReaderLookaheadOptimizationTests {
                 if source.page.translationCacheKey == page.translationCacheKey, source.image === image { received = true }
             }
         defer { NotificationCenter.default.removeObserver(observer) }
-        node.image = image
+        await node.loadPage()
         try await waitUntil { received }
         #expect(!node.isNodeLoaded, "Image-ready delivery must not instantiate offscreen UIKit views")
     }
@@ -186,7 +186,10 @@ struct ReaderLookaheadOptimizationTests {
         let key = ReaderTranslationCacheIdentity.render(page: page.translationCacheKey, settings: settings, imageSize: size,
             viewport: geometry.viewport(for: size), scale: geometry.scale, aspectFit: true,
             crop: CGRect(x: 0, y: 0, width: 1, height: 1), dark: geometry.dark)
-        let data = try #require(cache.cachedLayout(for: key))
+        let regions = [ReaderTranslationPersistentPipelineTests.region].compactMap {
+            $0.cropped(to: CGRect(x: 0, y: 0, width: 1, height: 1))
+        }
+        let data = try #require(cache.cachedLayout(for: ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: regions)))
         #expect((try JSONSerialization.jsonObject(with: data) as? [[String: Any]])?.isEmpty == false)
         #expect(cache.bitmapBytes == 0)
         let hit = ReaderTranslationLayoutPreparer(renderCache: cache, layoutPreparation: { _, _, _, _, _, _ in
@@ -281,8 +284,6 @@ struct ReaderLookaheadOptimizationTests {
         settings.maximumConcurrentRequests = 2
         settings.includePageImage = false
         settings.rightToLeftPanelOrder = false
-        settings.filterJapaneseSFX = false
-        settings.filterJapaneseSFXContext = false
         settings.translationSourceLanguages = []
         let disk = ReaderTranslationDiskCache(directory: root)
         let pages = (0..<2).map { Page(sourceId: "early-render", chapterId: root.lastPathComponent, index: $0) }
@@ -326,7 +327,6 @@ struct ReaderLookaheadOptimizationTests {
         var settings = ReaderTranslationSettings(defaults: defaults)
         settings.maximumConcurrentRequests = 2
         settings.includePageImage = false; settings.rightToLeftPanelOrder = false
-        settings.filterJapaneseSFX = false; settings.filterJapaneseSFXContext = false
         settings.translationSourceLanguages = []
         let disk = ReaderTranslationDiskCache(directory: root)
         let demandGate = LookaheadTestGate(), writeGate = LookaheadTestGate()
@@ -458,7 +458,7 @@ struct ReaderLookaheadOptimizationTests {
                     sourceImageAspectRatio: region.sourceImageAspectRatio, translationOrder: region.translationOrder,
                     translationOrderVersion: region.translationOrderVersion, sourceOrientation: region.sourceOrientation,
                     sourceSingleVerticalColumn: region.sourceSingleVerticalColumn,
-                    translationReuseIdentity: region.translationReuseIdentity, sfxEnclosedBackground: region.sfxEnclosedBackground)
+                    translationReuseIdentity: region.translationReuseIdentity)
             }
             #expect(!regions.isEmpty)
             let ocrMS = (ProcessInfo.processInfo.systemUptime - began) * 1000
@@ -490,7 +490,6 @@ struct ReaderLookaheadOptimizationTests {
         let translations = frozen
         settings.includePageImage = false
         settings.rightToLeftPanelOrder = false
-        settings.filterJapaneseSFX = false; settings.filterJapaneseSFXContext = false
         let benchmarkSettings = settings
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.keyWindow, window = UIWindow(windowScene: scene)

@@ -11,7 +11,7 @@ enum ReaderTranslationImagePreparation {
     }
 
     static func needsImage(_ regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings) -> Bool {
-        needsPanelOrder(regions, settings: settings) || ReaderJapaneseSFXImageEvidence.requiresSampling(regions, settings: settings)
+        needsPanelOrder(regions, settings: settings)
     }
 
     static func translationJPEG(_ image: UIImage) throws -> Data {
@@ -37,9 +37,7 @@ enum ReaderTranslationImagePreparation {
 
     static func apply(_ regions: [ReaderTranslationRegion], image: UIImage,
                       settings: ReaderTranslationSettings) -> [ReaderTranslationRegion] {
-        let needsSFX = ReaderJapaneseSFXImageEvidence.requiresSampling(regions, settings: settings)
-        let needsOrder = needsPanelOrder(regions, settings: settings)
-        guard needsSFX || needsOrder else { return regions }
+        guard needsPanelOrder(regions, settings: settings) else { return regions }
         let pixels: CGImage?
         if image.imageOrientation == .up { pixels = image.cgImage } else {
             let format = UIGraphicsImageRendererFormat()
@@ -47,11 +45,9 @@ enum ReaderTranslationImagePreparation {
             pixels = UIGraphicsImageRenderer(size: image.size, format: format).image { _ in image.draw(at: .zero) }.cgImage
         }
         guard let pixels else { return regions }
-        let prepared = needsSFX ? ReaderJapaneseSFXImageEvidence.apply(regions, image: image, pixels: pixels, settings: settings) : regions
-        guard needsOrder else { return prepared }
         let ranks = ReaderTranslationPanelOrder.rightToLeftRanks(image: pixels,
-            inputs: prepared.map { .init(rect: $0.rect, isVertical: $0.sourceOrientation == .vertical) })
-        return zip(prepared, ranks).map { region, rank in
+            inputs: regions.map { .init(rect: $0.rect, isVertical: $0.sourceOrientation == .vertical) })
+        return zip(regions, ranks).map { region, rank in
             var result = region
             result.translationOrder = rank
             result.translationOrderVersion = ReaderTranslationPanelOrder.cacheVersion

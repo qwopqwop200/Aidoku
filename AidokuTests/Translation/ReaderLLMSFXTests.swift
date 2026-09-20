@@ -16,7 +16,6 @@ struct ReaderLLMSFXTests {
         settings.custom.apiProtocol = apiProtocol
         settings.model = "test"
         settings.filterSFXWithLLM = true
-        settings.filterJapaneseSFX = true
         settings.includePageImage = withImage
         let dialogue = (0..<3).map { i in
             ReaderTranslationRegion(id: "d\(i)", rect: CGRect(x: 0.05, y: 0.1 + Double(i) * 0.2, width: 0.2, height: 0.025), source: "今日は晴れですね")
@@ -30,14 +29,15 @@ struct ReaderLLMSFXTests {
             UIColor.white.setFill(); c.fill(CGRect(x: 0, y: 0, width: 100, height: 100))
         }
         let output = try await service.translate(regions: input, settings: settings, image: image)
-        #expect(!output.contains { $0.id == "local" }) // Local OR LLM, never both required.
+        #expect(output.first { $0.id == "local" }?.translation == "번역") // Only the LLM decides whether this is an effect.
         #expect(output.first { $0.id == "llm" }?.translation == "BOOM")
         #expect(output.first { $0.id == "llm" }?.preservesOriginalText == true)
         #expect(!ReaderTranslationRegion.overlayItems(output, imageSize: image.size).contains { $0.sourceText == "BOOM" })
         #expect(output.filter { $0.id.hasPrefix("d") }.allSatisfy { $0.translation == "번역" })
         let captured = await transport.captured
         #expect(captured.count == (try ReaderTranslationService.requests(regions: input, settings: settings)).count)
-        #expect(captured.allSatisfy { !$0.texts.contains("ドン") && $0.sfx && $0.image == withImage })
+        #expect(captured.flatMap(\.texts).contains("ドン"))
+        #expect(captured.allSatisfy { $0.sfx && $0.image == withImage })
         #expect(captured.allSatisfy { $0.hasBounds == withImage })
         #expect(captured.allSatisfy { $0.instructions.contains(withImage ? "An image is attached" : "No image is attached") })
     }
@@ -109,7 +109,6 @@ struct ReaderLLMSFXTests {
         var settings = ReaderTranslationSettings()
         settings.filterBackgroundWithLLM = true
         settings.includePageImage = true
-        settings.filterJapaneseSFX = false
         let result = try await ReaderTranslationService().translate(regions: input, settings: settings, image: image)
         let evidence = result.map { ["id": $0.id, "source": $0.source, "translation": $0.translation ?? "", "preserved": $0.preservesOriginalText] as [String: Any] }
         try JSONSerialization.data(withJSONObject: evidence, options: [.prettyPrinted, .sortedKeys]).write(to: folder.appendingPathComponent("result.json"))
@@ -154,7 +153,6 @@ struct ReaderLLMSFXTests {
         settings.filterBackgroundWithLLM = true
         settings.filterSFXWithLLM = true
         settings.includePageImage = true
-        settings.filterJapaneseSFX = false
         let audit = QualityTranslationAuditTransport(base: BoundedURLSessionTransport(), outputDirectory: folder)
         let liveClient = RemoteTranslationClient(transport: audit)
         let result = try await ReaderTranslationService(client: liveClient).translate(regions: input, settings: settings, image: image)

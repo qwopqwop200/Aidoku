@@ -368,9 +368,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 necesită iOS 18 sau o versiune mai nouă. Modelul implicit este Mediu. Mic folosește mai puțină memorie, iar Foarte mic are un dicționar de caractere mai restrâns. Modelele nu recunosc textul coreean, dar traducerea în coreeană este disponibilă.";
 
-"TRANSLATION_INSTRUCTIONS" = "Instrucțiuni de traducere";
 
-"TRANSLATION_RESET_PROMPT" = "Restabiliți instrucțiunile implicite de traducere";
 
 "TRANSLATION_CLEAR_CACHE" = "Ștergeți memoria cache de traducere";
 
@@ -501,13 +499,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Detectează automat limba sursă și traduce numai limbile selectate. Opțiunea Toate limbile detectate elimină restricția. Filtrul de limbă al fiecărui element este independent de setările de limbă ale paginilor și ale celorlalte elemente.";
 
-"TRANSLATION_SFX_FILTER" = "Filtrare SFX (numai în japoneză)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Lasă netradus textul identificat drept posibil efect sonor japonez. Folosește un dicționar local și verificări prudente ale aranjării textului. Textul care nu poate fi identificat cu certitudine ca efect sonor este tradus în continuare.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Include intrările care necesită context (doar japoneză)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Se aplică în timp ce filtrarea SFX este activată. Filtrează și intrările marcate ca necesitând context, folosind potriviri din dicționar, dimensiunea textului și aranjarea textului din apropiere. Niciun LLM nu analizează contextul, astfel încât pot fi excluse și dialoguri.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Includeți imaginea paginii în traducere";
 
@@ -520,7 +514,7 @@
 
 "TRANSLATION_LLM_SFX" = "Filtrare LLM SFX (toate limbile)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Clasifică efectele sonore în aceeași cerere de traducere și le lasă neschimbate. Dacă este inclusă imaginea paginii, IA omite și fragmentele OCR neclare, cu excepția cazurilor în care imaginea confirmă existența unui text cu sens. Dialogurile, narațiunea, titlurile și creditele sunt păstrate pentru traducere. Se poate combina cu filtrul local pentru japoneză: textul semnalat de oricare dintre filtre rămâne neschimbat. Clasificarea este mai puțin fiabilă fără o imagine a paginii.";
+"TRANSLATION_LLM_SFX_HELP" = "Clasifică efectele sonore în aceeași cerere de traducere și le lasă neschimbate. Dacă este inclusă imaginea paginii, IA omite și fragmentele OCR neclare, cu excepția cazurilor în care imaginea confirmă existența unui text cu sens. Dialogurile, narațiunea, titlurile și creditele sunt păstrate pentru traducere. Clasificarea este mai puțin fiabilă fără o imagine a paginii.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Fără imagine, informațiile vizuale și cele despre aranjarea textului sunt limitate, ceea ce poate reduce precizia clasificării efectelor sonore.";
 
@@ -1135,3 +1129,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Memoria cache de traducere nu a putut fi salvată.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Modificările sincronizării iCloud se aplică după închiderea completă și redeschiderea Aidoku. Până atunci, setarea actuală rămâne activă.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Păstrează culorile originale";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Păstrează împreună culorile textului și fundalului.";
+"TRANSLATION_INPAINTING" = "Reconstrucția fundalului";
+"TRANSLATION_INPAINTING_HELP" = "Șterge textul original păstrând fundalul. Folosește casete dacă masca sau lizibilitatea sunt incerte. Necesită culorile originale.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Filtrarea textului";
+
+"TRANSLATION_TARGETS" = "Ce se traduce";

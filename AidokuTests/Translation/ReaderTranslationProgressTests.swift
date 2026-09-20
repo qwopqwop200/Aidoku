@@ -12,7 +12,6 @@ struct ReaderTranslationProgressTests {
                 rect: CGRect(x: 0.1, y: 0.2, width: 0.3, height: 0.1), source: "台詞\(index)")
             region.polygon = [.zero, CGPoint(x: 0.4, y: 0.3)]
             region.auxiliaryInkRects = [CGRect(x: 0.2, y: 0.1, width: 0.01, height: 0.02)]
-            region.sfxEnclosedBackground = true
             region.sourceOrientation = .vertical
             return region
         }

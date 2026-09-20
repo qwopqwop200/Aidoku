@@ -207,7 +207,7 @@ struct TitleTranslationTests {
             service: ReaderTranslationService(client: offline), diskCache: fixture.disk) == "일본어 제목")
         #expect(await offline.requests.isEmpty)
         let effective = TitleTranslation.effectiveSettings(settings, kind: .manga)
-        #expect(effective.instructions.contains("including English words"))
+        #expect(effective.configuration.instructions.contains("including English words"))
         #expect(TitleTranslation.effectiveSettings(effective, kind: .manga) == effective)
     }
 
@@ -266,7 +266,7 @@ struct TitleTranslationTests {
         #expect(await TitleTranslation.translate("ogami kazuki", kind: .author, settings: settings,
             service: ReaderTranslationService(client: offline), diskCache: ReaderTranslationDiskCache(directory: fixture.root)) == "일본어 제목")
         #expect(await offline.requests.isEmpty)
-        #expect(TitleTranslation.effectiveSettings(settings, kind: .author).instructions.contains("phonetic transliteration"))
+        #expect(TitleTranslation.effectiveSettings(settings, kind: .author).configuration.instructions.contains("phonetic transliteration"))
         settings.authorSourceLanguages = ["invalid"]
         #expect(throws: RemoteTranslationError.self) { try settings.save(defaults: defaults) }
     }

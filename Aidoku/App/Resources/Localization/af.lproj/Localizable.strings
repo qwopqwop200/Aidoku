@@ -254,9 +254,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 vereis iOS 18 of later. Medium is die verstekmodel. Klein gebruik minder geheue; Baie klein het 'n kleiner karakterwoordeboek. Koreaanse teksherkenning word nie ondersteun nie, maar vertaling na Koreaans word ondersteun.";
 
-"TRANSLATION_INSTRUCTIONS" = "Vertaalinstruksies";
 
-"TRANSLATION_RESET_PROMPT" = "Herstel die verstekvertaalinstruksies";
 
 "TRANSLATION_CLEAR_CACHE" = "Vee vertaalkas uit";
 
@@ -387,13 +385,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Bespeur die brontaal outomaties en vertaal slegs die geselekteerde tale. Alle bespeurde tale verwyder die beperking. Elke item se taalfilter is onafhanklik van die taalinstellings vir bladsye en ander items.";
 
-"TRANSLATION_SFX_FILTER" = "SFX-filtrering (slegs Japannees)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Laat teks wat waarskynlik Japannese klankeffekte is onvertaald, met behulp van ’n plaaslike woordeboek en versigtige uitlegkontroles. Teks wat nie met sekerheid as ’n klankeffek geïdentifiseer kan word nie, word steeds vertaal.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Sluit konteksafhanklike inskrywings in (slegs Japannees)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Van toepassing terwyl SFX-filtrering geaktiveer is. Filtreer ook inskrywings wat gemerk is as wat konteks vereis deur woordeboekpassings, teksgrootte en nabygeleë uitleg te gebruik. Geen LLM ontleed die konteks nie, dus kan dialoog ook uitgesluit word.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Sluit bladsybeeld by vertaling in";
 
@@ -406,7 +400,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM SFX-filtrering (alle tale)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Identifiseer klankeffekte in dieselfde vertaalversoek en laat dit onveranderd. Met ’n bladsybeeld slaan die KI ook onduidelike OCR-fragmente oor, tensy die beeld toon dat dit betekenisvolle teks is. Dialoog, vertelteks, titels en erkennings aan skeppers word behou om te vertaal. Kan met die plaaslike Japannese filter gekombineer word: teks wat deur enige van die twee filters gemerk word, bly onveranderd. Klassifikasie is minder betroubaar sonder ’n bladsybeeld.";
+"TRANSLATION_LLM_SFX_HELP" = "Identifiseer klankeffekte in dieselfde vertaalversoek en laat dit onveranderd. Met ’n bladsybeeld slaan die KI ook onduidelike OCR-fragmente oor, tensy die beeld toon dat dit betekenisvolle teks is. Dialoog, vertelteks, titels en erkennings aan skeppers word behou om te vertaal. Klassifikasie is minder betroubaar sonder ’n bladsybeeld.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Sonder beeldinvoer kan beperkte visuele en uitlegkonteks die akkuraatheid van SFX-klassifikasie verminder.";
 
@@ -1168,3 +1162,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Die vertaalkas kon nie gestoor word nie.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Veranderinge aan iCloud-sinchronisering geld nadat jy Aidoku heeltemal sluit en weer oopmaak. Tot dan bly die huidige sinchroniseringsinstelling aktief.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Behou oorspronklike kleure";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Behou die teks- en agtergrondkleure saam.";
+"TRANSLATION_INPAINTING" = "Agtergrondherstel";
+"TRANSLATION_INPAINTING_HELP" = "Vee oorspronklike teks uit en behou die agtergrond. Gebruik blokkies as maskers of leesbaarheid onseker is. Vereis oorspronklike kleure.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Teksfiltrering";
+
+"TRANSLATION_TARGETS" = "Wat om te vertaal";

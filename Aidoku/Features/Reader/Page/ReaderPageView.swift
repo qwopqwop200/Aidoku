@@ -40,7 +40,11 @@ class ReaderPageView: UIView {
     private var imageWidthConstraint: NSLayoutConstraint?
     private var imageHeightConstraint: NSLayoutConstraint?
     private var imageTask: ImageTask?
+    var imageLoadPriority: ImageRequest.Priority = .normal {
+        didSet { imageTask?.priority = imageLoadPriority }
+    }
     private var imageLoadGeneration = UUID()
+    private var lastTranslationLayoutSize = CGSize.zero
     private static let base64Gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private var sourceId: String?
     private var shouldShowLiveTextButton = false
@@ -58,7 +62,8 @@ class ReaderPageView: UIView {
         set { dictionaryOverlayController.onLookup = newValue }
     }
 
-    private var completion: ((Bool) -> Void)?
+    private var pageLoadTask: Task<Bool, Never>?
+    var prepareTranslationForDisplay: ReaderTranslationImagePreparer?
 
     // MARK: - Reload functionality properties
     private var currentPage: Page?
@@ -134,6 +139,11 @@ class ReaderPageView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
 
+        if lastTranslationLayoutSize != bounds.size {
+            lastTranslationLayoutSize = bounds.size
+            NotificationCenter.default.post(name: ReaderTranslationLayoutAwaiter.geometryChanged, object: self)
+        }
+
         if needsDictionaryOverlayRender {
             renderDictionaryOverlaysIfNeeded()
         }
@@ -143,6 +153,11 @@ class ReaderPageView: UIView {
 extension ReaderPageView {
     func setPage(_ page: Page, sourceId: String? = nil, skipProcessing: Bool = false) async -> Bool {
         guard !Task.isCancelled else { return false }
+        if currentPage == page, let pageLoadTask {
+            let succeeded = await pageLoadTask.value
+            return succeeded && !Task.isCancelled
+        }
+        releasePageResources()
         // Store current page data for reload functionality
         self.currentPage = page
         translationPage.sourcePage = page
@@ -150,8 +165,26 @@ extension ReaderPageView {
         if sourceId != nil {
             self.sourceId = sourceId
         }
-        cancelLiveTextAnalysis()
+        progressView.setProgress(value: 0, withAnimation: false)
+        progressView.isHidden = false
+        let issued = imageLoadGeneration
+        let loading = Task { [weak self] in
+            guard let self else { return false }
+            return await self.loadPage(page, skipProcessing: skipProcessing)
+        }
+        pageLoadTask = loading
+        let succeeded = await withTaskCancellationHandler {
+            await loading.value
+        } onCancel: { loading.cancel() }
+        if imageLoadGeneration == issued {
+            pageLoadTask = nil
+            progressView.isHidden = true
+        }
+        return succeeded
+    }
 
+    private func loadPage(_ page: Page, skipProcessing: Bool) async -> Bool {
+        guard !Task.isCancelled else { return false }
         if var image = page.image {
             if !skipProcessing {
                 if UserDefaults.standard.bool(forKey: "Reader.cropBorders") {
@@ -163,15 +196,13 @@ extension ReaderPageView {
                     image = UpscaleProcessor().process(image) ?? image
                 }
             }
-            setPageImage(image)
-            return true
+            return await prepareAndDisplayImage(image)
         } else if let zipURL = page.zipURL, let url = URL(string: zipURL), let filePath = page.imageURL {
             return await setPageImage(zipURL: url, filePath: filePath)
         } else if let urlString = page.imageURL, let url = URL(string: urlString) {
             if url.isFileURL, page.translationSourceRect != nil {
                 guard !Task.isCancelled, let image = UIImage(contentsOfFile: url.path) else { return false }
-                setPageImage(image)
-                return true
+                return await prepareAndDisplayImage(image)
             }
             return await setPageImage(url: url, context: page.context, sourceId: self.sourceId)
         } else if let base64 = page.base64 {
@@ -242,32 +273,7 @@ extension ReaderPageView {
             self.textView = nil
         }
 
-        let request: ImageRequest
-
-        if let imageTask {
-            switch imageTask.state {
-                case .running:
-                    if completion != nil {
-                        completion!(imageView.image != nil)
-                    }
-                    return await withCheckedContinuation({ continuation in
-                        self.completion = { success in
-                            self.completion = nil
-                            continuation.resume(returning: success)
-                        }
-                    })
-                case .completed:
-                    if imageView.image == nil {
-                        request = imageTask.request
-                    } else {
-                        return true
-                    }
-                case .cancelled:
-                    request = imageTask.request
-            }
-        } else {
-            request = await Self.imageRequest(url: url, context: context, sourceKey: sourceId)
-        }
+        let request = await Self.imageRequest(url: url, context: context, sourceKey: sourceId)
 
         // Store current image request for reload functionality
         self.currentImageRequest = request
@@ -282,8 +288,9 @@ extension ReaderPageView {
     }
 
     private func startImageTask(_ request: ImageRequest) async -> Bool {
-        imageLoadGeneration = UUID()
         let issued = imageLoadGeneration
+        var request = request
+        request.priority = imageLoadPriority
         let loading = ImagePipeline.shared.loadImage(
             with: request,
             progress: { [weak self] _, completed, total in
@@ -305,9 +312,7 @@ extension ReaderPageView {
                 try await loading.response
             } onCancel: { loading.cancel() }
             guard !Task.isCancelled, imageLoadGeneration == issued else { return false }
-            setPageImage(response.image, gifData: response.container.type == .gif ? response.container.data : nil)
-            completion?(true)
-            return true
+            return await prepareAndDisplayImage(response.image, gifData: response.container.type == .gif ? response.container.data : nil)
         } catch {
             guard !Task.isCancelled, imageLoadGeneration == issued else { return false }
             // we can still send to image processor even if the request failed
@@ -324,13 +329,10 @@ extension ReaderPageView {
                             result = nil
                     }
                     if let result, !Task.isCancelled, imageLoadGeneration == issued {
-                        setPageImage(result.image, gifData: result.type == .gif ? result.data : nil)
-                        completion?(true)
-                        return true
+                        return await prepareAndDisplayImage(result.image, gifData: result.type == .gif ? result.data : nil)
                     }
                 }
             }
-            completion?(false)
             return false
         }
     }
@@ -352,12 +354,12 @@ extension ReaderPageView {
 
         progressView.setProgress(value: 0, withAnimation: false)
         progressView.isHidden = false
-        defer { progressView.isHidden = true }
+        let issued = imageLoadGeneration
+        defer { if imageLoadGeneration == issued { progressView.isHidden = true } }
 
         if ImagePipeline.shared.cache.containsCachedImage(for: request) {
             let imageContainer = ImagePipeline.shared.cache.cachedImage(for: request)
-            setPageImage(imageContainer?.image)
-            return true
+            return await prepareAndDisplayImage(imageContainer?.image)
         }
 
         let gate = Self.base64Gate
@@ -399,9 +401,7 @@ extension ReaderPageView {
         guard !Task.isCancelled, let image else { return false }
 
         ImagePipeline.shared.cache.storeCachedImage(ImageContainer(image: image), for: request)
-        setPageImage(image)
-
-        return true
+        return await prepareAndDisplayImage(image)
     }
 
     func setPageImage(zipURL: URL, filePath: String) async -> Bool {
@@ -411,6 +411,7 @@ extension ReaderPageView {
         ) else {
             return false
         }
+        guard !Task.isCancelled else { return false }
 
         if filePath.lowercased().hasSuffix(".txt") {
             guard
@@ -435,6 +436,21 @@ extension ReaderPageView {
     }
 
     // match image constraints with image size
+    func translationImageGeometry(for image: UIImage) -> ReaderTranslationImageGeometry? {
+        guard image.size.width > 0, image.size.height > 0 else { return nil }
+        let fitHeight = image.size.height * (bounds.width / image.size.width) > bounds.height
+            || UIScreen.main.bounds.width > UIScreen.main.bounds.height
+        let viewport = fitHeight
+            ? CGSize(width: bounds.height * image.size.width / image.size.height, height: bounds.height)
+            : CGSize(width: bounds.width, height: bounds.width * image.size.height / image.size.width)
+        return ReaderTranslationImageGeometry(
+            viewport: viewport,
+            scale: imageView.traitCollection.displayScale,
+            aspectFit: imageView.contentMode == .scaleAspectFit,
+            dark: imageView.traitCollection.userInterfaceStyle == .dark
+        )
+    }
+
     func fixImageSize() {
         guard imageView.image != nil, imageView.image!.size.width > 0 else { return }
 
@@ -466,6 +482,7 @@ extension ReaderPageView {
     }
 
     func setPageText(text: String) {
+        guard !Task.isCancelled else { return }
         translationPage.reset()
         cancelDictionaryTextAnalysis()
         clearDictionaryOverlays()
@@ -504,7 +521,34 @@ extension ReaderPageView {
         }
     }
 
-    func setPageImage(_ image: UIImage?, gifData: Data? = nil) {
+    private func prepareAndDisplayImage(_ image: UIImage?, gifData: Data? = nil) async -> Bool {
+        guard let image, let page = currentPage, !Task.isCancelled else { return false }
+        let issued = imageLoadGeneration
+        do {
+            var prepared: ReaderTranslationPreparedImage?
+            if !isTranslationPreload, let prepareTranslationForDisplay {
+                repeat {
+                    prepared = try await prepareTranslationForDisplay(image, page)
+                    try Task.checkCancellation()
+                    guard issued == imageLoadGeneration else { return false }
+                } while prepared?.isCurrent() == false
+            }
+            guard !Task.isCancelled, issued == imageLoadGeneration else { return false }
+            setPageImage(image, gifData: gifData, prepared: prepared)
+            return true
+        } catch is CancellationError {
+            return false
+        } catch {
+            // Cached presentation is optional: a renderer failure must not turn
+            // an already decoded page into an image-download failure.
+            guard !Task.isCancelled, issued == imageLoadGeneration else { return false }
+            ReaderTranslationDiagnostics.record("loaded_presentation_fallback")
+            setPageImage(image, gifData: gifData)
+            return true
+        }
+    }
+
+    func setPageImage(_ image: UIImage?, gifData: Data? = nil, prepared: ReaderTranslationPreparedImage? = nil) {
         guard !Task.isCancelled else { return }
         if let textView {
             textView.willMove(toParent: nil)
@@ -514,14 +558,15 @@ extension ReaderPageView {
         }
         if imageView.image !== image { translationPage.reset() }
         imageView.image = image
+        fixImageSize()
+        if let prepared { translationPage.displayLoadedImage(prepared) }
         if !isTranslationPreload, let image, let source = translationPage.sourcePage {
             ReaderTranslationPage.sourceDidLoad(image, page: source)
         }
-        if !isTranslationPreload { NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: translationPage) }
+        if !isTranslationPreload { NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: imageView) }
         if let gifData, !isTranslationPreload {
             imageView.animate(withGIFData: gifData)
         }
-        fixImageSize()
         if !isTranslationPreload {
             startLiveTextAnalysis()
             scheduleDictionaryTextAnalysis()
@@ -530,22 +575,24 @@ extension ReaderPageView {
 
     func releasePageResources() {
         imageLoadGeneration = UUID()
+        pageLoadTask?.cancel()
+        pageLoadTask = nil
         imageTask?.cancel()
         imageTask = nil
-        let pending = completion
-        completion = nil
-        pending?(false)
         cancelLiveTextAnalysis()
         cancelDictionaryTextAnalysis()
+        clearDictionaryOverlays()
         translationPage.reset()
         translationPage.sourcePage = nil
         currentPage = nil
+        imageView.stopAnimatingGIF()
         imageView.image = nil
         currentImageRequest = nil
         progressView.isHidden = true
     }
 
     func cancelTranslationPreload() {
+        pageLoadTask?.cancel()
         imageTask?.cancel()
         translationPage.cancel()
     }
@@ -682,8 +729,7 @@ extension ReaderPageView {
         clearCurrentImageCache()
 
         // Clear the current image to show loading state
-        translationPage.reset()
-        imageView.image = nil
+        releasePageResources()
 
         // Reload the image using the original page data
         return await setPage(currentPage, sourceId: sourceId)

@@ -13,6 +13,7 @@ class GIFImageNode: ASControlNode {
     var imageView: GIFImageView?
     var animatedData: Data?
     var storedInteractions: [UIInteraction] = []
+    var onImageAssigned: (@MainActor (GIFImageView) -> Bool)?
 
     override var contentMode: UIView.ContentMode {
         didSet {
@@ -26,10 +27,9 @@ class GIFImageNode: ASControlNode {
         didSet {
             imageGeneration = UUID()
             let generation = imageGeneration
-            Task { @MainActor in
-                guard generation == imageGeneration else { return }
-                imageView?.image = image
-                NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: nil)
+            Task { @MainActor [weak self] in
+                guard let self, generation == imageGeneration else { return }
+                commitImage()
             }
         }
     }
@@ -50,14 +50,9 @@ class GIFImageNode: ASControlNode {
 
         setViewBlock { [weak self] in
             let gifView = GIFImageView()
-            gifView.image = self?.image
             gifView.isUserInteractionEnabled = true
             if let contentMode = self?.contentMode {
                 gifView.contentMode = contentMode
-            }
-            if let data = self?.animatedData {
-                gifView.animate(withGIFData: data)
-                self?.animatedData = nil
             }
             if let storedInteractions = self?.storedInteractions {
                 storedInteractions.forEach {
@@ -66,24 +61,32 @@ class GIFImageNode: ASControlNode {
                 self?.storedInteractions = []
             }
             self?.imageView = gifView
-            // Texture can create the backing view after the preload image notification.
-            // Publish readiness again so visible-page translation binds to this view.
+            // The view can appear after decoding. Install raw pixels and the prepared
+            // canvas in one main-actor turn before publishing readiness.
             Task { @MainActor [weak self] in
-                guard self?.imageView === gifView else { return }
-                NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: nil)
+                guard let self, imageView === gifView else { return }
+                commitImage()
             }
             return gifView
         }
     }
 
-    func animate(withGIFData data: Data) {
-        if let imageView {
-            Task { @MainActor in
-                imageView.animate(withGIFData: data)
-            }
-        } else {
-            animatedData = data
+    @MainActor
+    @discardableResult
+    func commitImage() -> Bool {
+        guard let imageView else { return false }
+        imageView.image = image
+        guard onImageAssigned?(imageView) != false else {
+            imageView.stopAnimatingGIF()
+            imageView.image = nil
+            return false
         }
+        if let animatedData, image != nil {
+            imageView.animate(withGIFData: animatedData)
+            self.animatedData = nil
+        }
+        NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: imageView)
+        return true
     }
 
     func reset() {

@@ -35,7 +35,7 @@ final class ReaderTranslationSession {
     private let cancelProcessingForPage: ((Page) -> Void)?
     private let cache: ReaderTranslationSessionCache
     private let diskCache: ReaderTranslationDiskCache?
-    private let renderCache: ReaderTranslationRenderCache?
+    let renderCache: ReaderTranslationRenderCache?
     private let prepareLayout: ((Page, [ReaderTranslationRegion], ReaderTranslationSettings) async throws -> Void)?
     private let prepareTextLayout: ((Page, [ReaderTranslationRegion], ReaderTranslationSettings) async throws -> Void)?
     private var textWarmTask: Task<Void, Never>?
@@ -244,7 +244,9 @@ final class ReaderTranslationSession {
             enqueuePreparedLayouts()
             drainLayout()
         } else {
-            visible.forEach { $0.hidePreparedTranslation() }
+            // The image loader may finish before the session's startup debounce.
+            // Its completed canvas is already valid and needs no provider probe.
+            visible.forEach { $0.hidePreparedTranslation(preservingLoadedPresentation: true) }
         }
     }
 
@@ -256,7 +258,8 @@ final class ReaderTranslationSession {
             if state == .on { displayPreparedPages(); drain(); enqueuePreparedLayouts(); drainLayout() }
             return
         }
-        disable(preservingVisibleRendering: self.settings?.hasSameTranslation(as: settings) == true)
+        disable(preservingVisibleRendering: self.settings?.hasSameTranslation(as: settings) == true,
+                preservingCachedPresentationFor: settings)
         if self.settings?.overlay != settings.overlay { preparedLayouts.removeAll() }
         if self.settings?.hasSameTranslation(as: settings) == false { cache.clear(); finished.removeAll(); preparedLayouts.removeAll() }
         self.settings = settings
@@ -293,7 +296,7 @@ final class ReaderTranslationSession {
                 drainLayout()
             } catch {
                 guard activation == issued else { return }
-                disable()
+                disable(preservingCachedPresentationFor: settings)
                 if !(error is CancellationError) { onFailure?(error) }
             }
         }
@@ -314,7 +317,8 @@ final class ReaderTranslationSession {
         drain()
     }
 
-    func disable(reason: String = "off", preservingVisibleRendering: Bool = false) {
+    func disable(reason: String = "off", preservingVisibleRendering: Bool = false,
+                 preservingCachedPresentationFor settings: ReaderTranslationSettings? = nil) {
         if state != .off { ReaderTranslationDiagnostics.record(reason, page: (currentPosition ?? -1) + 1) }
         activation = UUID()
         cancelVisibleCacheRestore()
@@ -325,6 +329,7 @@ final class ReaderTranslationSession {
         renderCache?.clearMemory()
         let visibleIDs = Set(visible.map(ObjectIdentifier.init))
         knownPages.allObjects.forEach {
+            if let settings, $0.hasLoadedCachedPresentation, $0.hasCompletedTranslation(settings: settings) { return }
             if preservingVisibleRendering, visibleIDs.contains(ObjectIdentifier($0)) { $0.hidePreparedTranslation() }
             else { $0.showOriginal() }
         }
@@ -385,7 +390,9 @@ final class ReaderTranslationSession {
         preparedLayouts.removeAll()
         renderCache?.clearMemory()
         let visibleIDs = Set(visible.map(ObjectIdentifier.init))
-        knownPages.allObjects.filter { state != .on || !visibleIDs.contains(ObjectIdentifier($0)) }.forEach { $0.releaseOverlay() }
+        knownPages.allObjects.filter {
+            !visibleIDs.contains(ObjectIdentifier($0)) || (state != .on && !$0.hasLoadedCachedPresentation)
+        }.forEach { $0.releaseOverlay() }
     }
 
     func close() {
@@ -542,6 +549,10 @@ final class ReaderTranslationSession {
                     var regions = cache.regions(for: item.key)
                     if regions == nil { regions = try? await diskCache?.translatedRegions(page: item.key, settings: settings) }
                     guard layoutGeneration == issued, !Task.isCancelled else { return }
+                    // A lookahead can publish to RAM while the disk lookup is
+                    // suspended, before its independent persistence finishes.
+                    // Recheck before removing the queue entry it just renewed.
+                    if regions == nil { regions = cache.regions(for: item.key) }
                     if let regions {
                         do {
                             activeLayoutKey = item.key
@@ -832,5 +843,26 @@ final class ReaderTranslationSession {
             }
             if workGeneration == issued { worker = nil; drainLayout() }
         }
+    }
+}
+
+extension ReaderTranslationSession {
+    /// Image loading can restore a completed translation before session startup.
+    /// This lookup never recognizes an image, probes a provider, or starts work.
+    func cachedRegions(for page: Page, settings: ReaderTranslationSettings) async throws -> [ReaderTranslationRegion]? {
+        try Task.checkCancellation()
+        let key = page.translationCacheKey
+        if self.settings?.hasSameTranslation(as: settings) == true, let regions = cache.regions(for: key) {
+            return regions
+        }
+        guard let diskCache else { return nil }
+        let generation = await diskCache.currentGeneration(settings: settings)
+        let regions = try? await diskCache.translatedRegions(page: key, settings: settings)
+        try Task.checkCancellation()
+        let current = await diskCache.currentGeneration(settings: settings)
+        try Task.checkCancellation()
+        guard generation == current, let regions else { return nil }
+        if self.settings?.hasSameTranslation(as: settings) == true { try? cache.store(regions, for: key) }
+        return regions
     }
 }

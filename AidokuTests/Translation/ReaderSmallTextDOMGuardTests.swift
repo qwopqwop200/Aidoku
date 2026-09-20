@@ -91,7 +91,7 @@ struct ReaderSmallTextDOMGuardTests {
         let renderer = BrowserPageImageOverlayRenderer { webView, script, arguments in
             var isolated = script
             if let begin = isolated.range(of: "// Repair existing Korean emergency breaks"),
-               let end = isolated.range(of: "measurementNode.remove();", range: begin.upperBound..<isolated.endIndex) {
+               let end = isolated.range(of: "if(node.dataset.sourcePanelFinalFont)", range: begin.upperBound..<isolated.endIndex) {
                 isolated.removeSubrange(begin.lowerBound..<end.lowerBound)
             }
             return try await BrowserPageImageOverlayRenderer.evaluateJavaScript(webView, isolated, arguments)

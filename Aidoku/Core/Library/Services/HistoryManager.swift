@@ -16,12 +16,14 @@ extension HistoryManager {
     func setProgress(
         chapterId: ChapterIdentifier,
         chapter: AidokuRunner.Chapter,
+        manga: AidokuRunner.Manga? = nil,
         progress: Int,
         totalPages: Int? = nil,
         scrollPosition: Double? = nil,
         completed: Bool
     ) async {
         let mangaId = chapterId.mangaIdentifier
+        let metadataGeneration = HistoryMetadataCache.shared.generation
         let saved = await CoreDataManager.shared.container.performBackgroundTask { context in
             CoreDataManager.shared.setRead(mangaId: mangaId, context: context)
             CoreDataManager.shared.setProgress(
@@ -33,6 +35,9 @@ extension HistoryManager {
             )
             do {
                 try context.save()
+                if let manga {
+                    HistoryMetadataCache.shared.store(manga: manga, chapters: [chapter], generation: metadataGeneration)
+                }
                 return true
             } catch {
                 context.rollback()
@@ -78,9 +83,11 @@ extension HistoryManager {
     func addHistory(
         mangaId: MangaIdentifier,
         chapters: [AidokuRunner.Chapter],
+        manga: AidokuRunner.Manga? = nil,
         date: Date = Date(),
         skipTracker: Tracker? = nil
     ) async {
+        let metadataGeneration = HistoryMetadataCache.shared.generation
         // mark each manga as read
         let success = await CoreDataManager.shared.container.performBackgroundTask { context in
             // mark chapters as read
@@ -99,6 +106,9 @@ extension HistoryManager {
                 )
                 do {
                     try context.save()
+                    if let manga {
+                        HistoryMetadataCache.shared.store(manga: manga, chapters: chapters, generation: metadataGeneration)
+                    }
                 } catch {
                     context.rollback()
                     LogManager.logger.error("HistoryManager.addHistory: \(error.localizedDescription)")

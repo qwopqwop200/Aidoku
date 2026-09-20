@@ -11,7 +11,6 @@ struct ReaderTranslationProviderTests {
         settings.provider = .custom
         settings.custom.baseURL = "https://"
         settings.model = ""
-        settings.instructions = ""
         settings.automaticallyTranslate = false
         settings.ocr.confidenceThreshold = 0.75
         settings.ocr.detectorPixelThreshold = 0.25
@@ -22,7 +21,7 @@ struct ReaderTranslationProviderTests {
         try settings.autosave(defaults: fixture.defaults, credentialStore: fixture.keys)
         let restored = ReaderTranslationSettings(defaults: fixture.defaults)
         #expect(restored.custom == settings.custom)
-        #expect(restored.instructions.isEmpty)
+        #expect(restored.configuration.instructions == RemoteTranslationConfiguration.defaultInstructions)
         #expect(!restored.automaticallyTranslate)
         #expect(restored.ocr.confidenceThreshold == 0.75)
         #expect(restored.ocr.detectorPixelThreshold == 0.25)
@@ -211,13 +210,12 @@ struct ReaderTranslationProviderTests {
         var settings = ReaderTranslationSettings(defaults: fixture.defaults)
         try settings.save(defaults: fixture.defaults, apiKey: "original-key", credentialStore: fixture.keys)
         let original = fixture.defaults.dictionaryRepresentation() as NSDictionary
-        settings.instructions = ""
+        settings.model = ""
         #expect(throws: RemoteTranslationError.self) {
             try settings.save(defaults: fixture.defaults, apiKey: "uncommitted-key", credentialStore: fixture.keys)
         }
         #expect(try fixture.keys.secret(for: "openai") == "original-key")
         #expect(fixture.defaults.dictionaryRepresentation() as NSDictionary == original)
-        settings.instructions = RemoteTranslationConfiguration.defaultInstructions
         settings.provider = .custom
         settings.model = "custom-model"
         settings.custom.baseURL = "http://192.168.1.10:8000/v1"

@@ -1,0 +1,25 @@
+name: Source Color Regressions
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/source-color.yml"
+      - "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift"
+      - "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift"
+      - "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift"
+      - "Scripts/tests/source-color-*.cjs"
+      - "Scripts/tests/fixtures/source-color-*.json"
+
+permissions:
+  contents: read
+
+jobs:
+  source-colors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Test production color estimation and sampling
+        run: |
+          node Scripts/tests/source-color-regression.cjs
+          node Scripts/tests/source-color-sampler-regression.cjs
+          node Scripts/tests/source-color-readability-regression.cjs

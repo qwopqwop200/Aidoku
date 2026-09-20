@@ -18,23 +18,27 @@ enum IPhoneOverlayMode: String, Codable, CaseIterable, Sendable {
 enum IPhoneOverlayColorMode: String, Codable, CaseIterable, Sendable {
     case white
     case dark
-    case automatic = "auto"
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        switch try container.decode(String.self) {
+        case "white", "auto": self = .white // Migrate the retired automatic palette.
+        case "dark": self = .dark
+        default:
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unknown overlay color mode")
+        }
+    }
+}
+
+enum IPhoneOverlayAppearance: String, CaseIterable, Sendable {
+    case source
+    case white
+    case dark
 }
 
 enum IPhoneOverlayTextPlacement: String, Codable, CaseIterable, Sendable {
     case replace
     case expanded
-}
-
-enum IPhoneOverlayExpansionPolicy: String, Codable, CaseIterable, Sendable {
-    case unrestricted
-    case sourceBounds
-    case panelConstrained
-}
-
-enum IPhoneOverlayFontSizing: String, Codable, CaseIterable, Sendable {
-    case autoFit
-    case fixed
 }
 
 enum IPhoneSubtitlePosition: String, Codable, CaseIterable, Sendable {
@@ -56,11 +60,31 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
     var colorMode: IPhoneOverlayColorMode
     var preserveSourceTextColor = false
     var preserveSourceBackgroundColor = false
+    var inpaintingEnabled = true
+    // Keep legacy fields decodable; the single UI control writes both atomically.
+    var preserveSourceColors: Bool {
+        get { preserveSourceTextColor && preserveSourceBackgroundColor }
+        set { preserveSourceTextColor = newValue; preserveSourceBackgroundColor = newValue }
+    }
+    var appearance: IPhoneOverlayAppearance {
+        get {
+            if preserveSourceColors { return .source }
+            switch colorMode {
+            case .white: return .white
+            case .dark: return .dark
+            }
+        }
+        set {
+            preserveSourceColors = newValue == .source
+            switch newValue {
+            case .source, .white: colorMode = .white
+            case .dark: colorMode = .dark
+            }
+        }
+    }
+    var usesSourceInpainting: Bool { inpaintingEnabled && preserveSourceColors }
     var opacity: Double
-    var fixedFontSizePoints: Int
     var textPlacement: IPhoneOverlayTextPlacement
-    var expansionPolicy: IPhoneOverlayExpansionPolicy
-    var fontSizing: IPhoneOverlayFontSizing
     var subtitlePosition: IPhoneSubtitlePosition
     var subtitleMaxLines: Int
     var subtitleContextSentences: Int
@@ -71,11 +95,9 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
         case colorMode
         case preserveSourceTextColor
         case preserveSourceBackgroundColor
+        case inpaintingEnabled
         case opacity
-        case fixedFontSizePoints
         case textPlacement
-        case expansionPolicy
-        case fontSizing
         case subtitlePosition
         case subtitleMaxLines
         case subtitleContextSentences
@@ -86,10 +108,7 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
         mode: IPhoneOverlayMode,
         colorMode: IPhoneOverlayColorMode,
         opacity: Double,
-        fixedFontSizePoints: Int,
         textPlacement: IPhoneOverlayTextPlacement,
-        expansionPolicy: IPhoneOverlayExpansionPolicy = .panelConstrained,
-        fontSizing: IPhoneOverlayFontSizing,
         subtitlePosition: IPhoneSubtitlePosition,
         subtitleMaxLines: Int,
         subtitleContextSentences: Int
@@ -98,16 +117,15 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
         self.mode = mode
         self.colorMode = colorMode
         self.opacity = opacity
-        self.fixedFontSizePoints = fixedFontSizePoints
         self.textPlacement = textPlacement
-        self.expansionPolicy = expansionPolicy
-        self.fontSizing = fontSizing
         self.subtitlePosition = subtitlePosition
         self.subtitleMaxLines = subtitleMaxLines
         self.subtitleContextSentences = subtitleContextSentences
     }
 
     init(from decoder: any Decoder) throws {
+        // Removed font-size and expansion preferences are deliberately ignored.
+        // Rendering always fits text automatically inside the image region.
         let container = try decoder.container(keyedBy: CodingKeys.self)
         visible = try container.decode(Bool.self, forKey: .visible)
         mode = try container.decode(IPhoneOverlayMode.self, forKey: .mode)
@@ -117,22 +135,11 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
         )
         preserveSourceTextColor = try container.decodeIfPresent(Bool.self, forKey: .preserveSourceTextColor) ?? false
         preserveSourceBackgroundColor = try container.decodeIfPresent(Bool.self, forKey: .preserveSourceBackgroundColor) ?? false
+        inpaintingEnabled = try container.decodeIfPresent(Bool.self, forKey: .inpaintingEnabled) ?? true
         opacity = try container.decode(Double.self, forKey: .opacity)
-        fixedFontSizePoints = try container.decode(
-            Int.self,
-            forKey: .fixedFontSizePoints
-        )
         textPlacement = try container.decode(
             IPhoneOverlayTextPlacement.self,
             forKey: .textPlacement
-        )
-        expansionPolicy = try container.decodeIfPresent(
-            IPhoneOverlayExpansionPolicy.self,
-            forKey: .expansionPolicy
-        ) ?? .panelConstrained
-        fontSizing = try container.decode(
-            IPhoneOverlayFontSizing.self,
-            forKey: .fontSizing
         )
         subtitlePosition = try container.decode(
             IPhoneSubtitlePosition.self,
@@ -153,6 +160,11 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
     /// The current iPhone product always renders translated text directly over
     /// its source bbox.
     mutating func enforceSourceReplacement() {
+        // Older installs could enable only one source-color channel. Promote
+        // either choice to the single source appearance exposed by settings.
+        if preserveSourceTextColor || preserveSourceBackgroundColor {
+            appearance = .source
+        }
         mode = .translateOnly
         textPlacement = .replace
         subtitlePosition = .bottom

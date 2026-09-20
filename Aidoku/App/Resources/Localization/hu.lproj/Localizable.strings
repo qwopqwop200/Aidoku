@@ -368,9 +368,7 @@
 
 "TRANSLATION_OCR_HELP" = "A PP-OCRv6 használatához iOS 18 vagy újabb verzió szükséges. Az alapértelmezett modell a Közepes. A Kicsi kevesebb memóriát használ, az Apró pedig kisebb karakterkészlettel rendelkezik. Ezek a modellek nem ismerik fel a koreai szöveget, de a koreaira fordítás támogatott.";
 
-"TRANSLATION_INSTRUCTIONS" = "Fordítási utasítások";
 
-"TRANSLATION_RESET_PROMPT" = "Állítsa vissza az alapértelmezett fordítási utasításokat";
 
 "TRANSLATION_CLEAR_CACHE" = "Törölje a fordítási gyorsítótárat";
 
@@ -501,13 +499,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Automatikusan felismeri a forrásnyelvet, és csak a kiválasztott nyelveket fordítja le. A Minden észlelt nyelv lehetőség megszünteti a korlátozást. Minden elem nyelvi szűrője független az oldalak és a többi elem nyelvi beállításaitól.";
 
-"TRANSLATION_SFX_FILTER" = "SFX szűrés (csak japán)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "A valószínűleg japán hangeffektusokat jelölő szöveget lefordítatlanul hagyja. Helyi szótárt és óvatos elrendezési ellenőrzéseket használ. A nem kellő bizonyossággal hangeffektusként azonosított szöveget továbbra is lefordítja.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Kontextust igénylő bejegyzések szűrése is (csak japán)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Akkor érvényes, ha az SFX szűrés engedélyezve van. Szűri a kontextust igénylőként megjelölt bejegyzéseket is a szótári egyezések, a szövegméret és a közeli elrendezés segítségével. Egyetlen LLM sem elemzi a kontextust, így a párbeszéd is kizárható.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Oldalkép belefoglalása a fordításba";
 
@@ -520,7 +514,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM SFX szűrés (minden nyelven)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Ugyanabban a fordítási kérésben osztályozza a hangeffektusokat, és változatlanul hagyja őket. Oldalkép esetén a mesterséges intelligencia a nem egyértelmű OCR-töredékeket is kihagyja, kivéve, ha a kép alapján értelmes szövegről van szó. A párbeszéd, az elbeszélés, a címek és az alkotói adatok továbbra is fordításra kerülnek. Kombinálható a japán helyi szűrővel: a bármelyik szűrő által megjelölt szöveg változatlan marad. Oldalkép nélkül a besorolás kevésbé megbízható.";
+"TRANSLATION_LLM_SFX_HELP" = "Ugyanabban a fordítási kérésben osztályozza a hangeffektusokat, és változatlanul hagyja őket. Oldalkép esetén a mesterséges intelligencia a nem egyértelmű OCR-töredékeket is kihagyja, kivéve, ha a kép alapján értelmes szövegről van szó. A párbeszéd, az elbeszélés, a címek és az alkotói adatok továbbra is fordításra kerülnek. Oldalkép nélkül a besorolás kevésbé megbízható.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Képbevitel nélkül a korlátozott vizuális és elrendezési környezet csökkentheti az SFX osztályozási pontosságot.";
 
@@ -1167,3 +1161,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "A fordítási gyorsítótár nem menthető.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Az iCloud-szinkronizálás módosításai az Aidoku teljes bezárása és újbóli megnyitása után lépnek érvénybe. Addig a jelenlegi beállítás marad aktív.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Eredeti színek megőrzése";
+"TRANSLATION_SOURCE_COLORS_HELP" = "A szöveg és a háttér színének együttes megőrzése.";
+"TRANSLATION_INPAINTING" = "Háttér helyreállítása";
+"TRANSLATION_INPAINTING_HELP" = "Törli az eredeti szöveget, megőrizve a hátteret. Bizonytalan maszk vagy olvashatóság esetén dobozokat használ. Eredeti színek szükségesek.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Szövegszűrés";
+
+"TRANSLATION_TARGETS" = "Fordítandó tartalom";

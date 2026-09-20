@@ -113,21 +113,6 @@ struct ReaderTranslationPreparedOCRCacheTests {
         #expect(!ReaderTranslationImagePreparation.needsImage(Array(regions.prefix(1)), settings: settings))
     }
 
-    @Test func cachedRanksDoNotSuppressMissingSFXImageEvidence() {
-        var settings = settings()
-        settings.filterJapaneseSFX = true
-        let values = (0..<3).map { index in
-            ReaderTranslationRegion(id: "dialogue-\(index)",
-                rect: CGRect(x: 0.05, y: 0.1 + Double(index) * 0.2, width: 0.2, height: 0.025), source: "今日は晴れですね")
-        } + [ReaderTranslationRegion(id: "sfx", rect: CGRect(x: 0.7, y: 0.7, width: 0.15, height: 0.12), source: "ドン")]
-        let ranked = ReaderTranslationImagePreparation.apply(values, image: image(), settings: self.settings())
-        #expect(!ReaderTranslationImagePreparation.needsPanelOrder(ranked, settings: settings))
-        #expect(ReaderTranslationImagePreparation.needsImage(ranked, settings: settings))
-        let sampled = ReaderTranslationImagePreparation.apply(ranked, image: image(), settings: settings)
-        #expect(sampled.last?.sfxEnclosedBackground != nil)
-        #expect(sampled.map(\.translationOrder) == ranked.map(\.translationOrder))
-    }
-
     private var regions: [ReaderTranslationRegion] {
         [.init(id: "left", rect: CGRect(x: 0.1, y: 0.1, width: 0.2, height: 0.3), source: "左の会話", sourceOrientation: .vertical),
          .init(id: "right", rect: CGRect(x: 0.65, y: 0.1, width: 0.2, height: 0.3), source: "右の会話", sourceOrientation: .vertical)]
@@ -136,8 +121,6 @@ struct ReaderTranslationPreparedOCRCacheTests {
         var value = ReaderTranslationSettings()
         value.rightToLeftPanelOrder = true
         value.sourceLanguage = "auto"
-        value.filterJapaneseSFX = false
-        value.filterJapaneseSFXContext = false
         value.translationSourceLanguages = []
         value.includePageImage = false
         return value

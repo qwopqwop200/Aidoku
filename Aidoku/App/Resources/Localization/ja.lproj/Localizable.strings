@@ -822,11 +822,7 @@
 "SOURCE_CRASHED" = "ソースがクラッシュしました";
 "DOWNLOAD_INCOMPLETE" = "不完全なダウンロード";
 
-"TRANSLATION_SFX_FILTER" = "効果音フィルタリング（日本語のみ）";
-"TRANSLATION_SFX_FILTER_HELP" = "日本語の効果音と思われる文字を翻訳せず原文のまま表示します。端末内の辞書と保守的な配置条件を使用し、不確かな文字は翻訳します。";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "文脈確認が必要な項目も除外（日本語のみ）";
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "効果音フィルタリングが有効な場合に適用されます。文脈確認が必要な項目も、辞書との一致、文字サイズ、周囲の配置で判定します。LLMによる文脈解析は行わないため、セリフも除外される場合があります。";
 
 "TRANSLATION_INCLUDE_IMAGE" = "翻訳にページ画像を添付";
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "ページ画像をOCRテキストと一緒に送り、場面の文脈を翻訳に利用します。画像入力に対応していない場合は、自動的にテキストのみで翻訳を続けます。画像の添付により通信量やAPI料金が増える場合があります。";
@@ -836,7 +832,7 @@
 "TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "追加モデルを使わずに原文の文字色を推定します。推定が不確かな場合や背景とのコントラストが低い場合は標準の文字色を使います。";
 
 "TRANSLATION_LLM_SFX" = "LLM効果音フィルタリング（全言語）";
-"TRANSLATION_LLM_SFX_HELP" = "同じ翻訳リクエスト内で効果音を判定し、原文のまま残します。ページ画像がある場合、意味のある文字だと画像から確認できない不明瞭なOCRの断片も翻訳せずに残します。セリフ・ナレーション・タイトル・クレジットは翻訳対象として保持します。日本語ローカルフィルターと併用でき、どちらかが除外対象と判定した文字は原文のまま残します。ページ画像がない場合、分類の信頼性は低下します。";
+"TRANSLATION_LLM_SFX_HELP" = "同じ翻訳リクエスト内で効果音を判定し、原文のまま残します。ページ画像がある場合、意味のある文字だと画像から確認できない不明瞭なOCRの断片も翻訳せずに残します。セリフ・ナレーション・タイトル・クレジットは翻訳対象として保持します。ページ画像がない場合、分類の信頼性は低下します。";
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "画像が入力されない場合、文脈や配置を確認しにくいため、効果音の判定精度が下がることがあります。";
 "TRANSLATION_SOURCE_BACKGROUND_COLOR" = "原文の背景色を維持";
 "TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "原文の文字周辺の背景色を翻訳パネルに適用します。推定が不確か、または読みにくい場合は標準のパネルを使います。設定した不透明度は維持されます。";
@@ -885,9 +881,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6にはiOS 18以降が必要です。標準は中型で、小型はメモリ使用量を抑えます。超小型は文字辞書の収録数が少なくなります。これらのモデルは韓国語のOCRに対応していませんが、韓国語への翻訳には対応しています。";
 
-"TRANSLATION_INSTRUCTIONS" = "翻訳指示";
 
-"TRANSLATION_RESET_PROMPT" = "翻訳指示を初期設定に戻す";
 
 "TRANSLATION_CLEAR_CACHE" = "翻訳キャッシュのクリア";
 
@@ -1130,3 +1124,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "翻訳キャッシュを保存できませんでした。";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud同期の変更は、Aidokuを完全に終了してから開き直すと適用されます。それまでは現在の同期設定が有効です。";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "原文の色を維持";
+"TRANSLATION_SOURCE_COLORS_HELP" = "原文の文字色と背景色をまとめて維持します。";
+"TRANSLATION_INPAINTING" = "インペインティング";
+"TRANSLATION_INPAINTING_HELP" = "背景を保ちながら原文の文字を消します。マスクや読みやすさに問題がある場合はボックス表示に戻ります。原文の色の維持が必要です。";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "テキストのフィルタリング";
+
+"TRANSLATION_TARGETS" = "翻訳する項目";

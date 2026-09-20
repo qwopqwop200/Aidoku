@@ -232,9 +232,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 krever iOS 18 eller nyere. Middels er standardmodellen. Liten bruker mindre minne, og Veldig liten har en mindre tegnordbok. Modellene gjenkjenner ikke koreansk tekst, men oversettelse til koreansk støttes.";
 
-"TRANSLATION_INSTRUCTIONS" = "Oversettelsesinstruksjoner";
 
-"TRANSLATION_RESET_PROMPT" = "Gjenopprett standard oversettelsesinstruksjoner";
 
 "TRANSLATION_CLEAR_CACHE" = "Tøm oversettelsesbufferen";
 
@@ -365,13 +363,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Gjenkjenner kildespråket automatisk og oversetter bare de valgte språkene. Alle oppdagede språk fjerner begrensningen. Hvert elements språkfilter er uavhengig av språkinnstillingene for sider og andre elementer.";
 
-"TRANSLATION_SFX_FILTER" = "SFX-filtrering (kun japansk)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Lar sannsynlige japanske lydeffekter stå uoversatt ved hjelp av en lokal ordbok og forsiktige kontroller av tekstens plassering. Tekst som ikke sikkert kan identifiseres som en lydeffekt, blir fortsatt oversatt.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Inkluder kontekstavhengige oppføringer (kun japansk)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Gjelder mens SFX-filtrering er aktivert. Filtrerer også oppføringer merket som krever kontekst ved hjelp av ordboktreff, tekststørrelse og nærliggende layout. Ingen LLM analyserer konteksten, så dialog kan også utelukkes.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Inkluder sidebilde i oversettelse";
 
@@ -384,7 +378,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM SFX-filtrering (alle språk)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Gjenkjenner lydeffekter i samme oversettelsesforespørsel og lar dem stå uendret. Med et sidebilde hopper KI-en også over uklare OCR-fragmenter, med mindre bildet viser at de er meningsfull tekst. Dialog, fortellertekst, titler og opplysninger om opphavspersoner beholdes for oversettelse. Kan kombineres med det lokale filteret for japansk: tekst som markeres av ett av filtrene, forblir uendret. Klassifiseringen er mindre pålitelig uten et sidebilde.";
+"TRANSLATION_LLM_SFX_HELP" = "Gjenkjenner lydeffekter i samme oversettelsesforespørsel og lar dem stå uendret. Med et sidebilde hopper KI-en også over uklare OCR-fragmenter, med mindre bildet viser at de er meningsfull tekst. Dialog, fortellertekst, titler og opplysninger om opphavspersoner beholdes for oversettelse. Klassifiseringen er mindre pålitelig uten et sidebilde.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Uten bildeinndata kan begrenset visuell og layoutkontekst redusere SFX-klassifiseringsnøyaktigheten.";
 
@@ -1168,3 +1162,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Hurtigbufferen for oversettelse kunne ikke lagres.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Endringer i iCloud-synkronisering trer i kraft når du lukker Aidoku helt og åpner appen igjen. Frem til da gjelder den nåværende innstillingen.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Behold originalfarger";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Behold tekst- og bakgrunnsfargene sammen.";
+"TRANSLATION_INPAINTING" = "Bakgrunnsrekonstruksjon";
+"TRANSLATION_INPAINTING_HELP" = "Fjerner originaltekst og bevarer bakgrunnen. Bruker bokser ved usikker maske eller lesbarhet. Krever originalfarger.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Tekstfiltrering";
+
+"TRANSLATION_TARGETS" = "Hva som skal oversettes";

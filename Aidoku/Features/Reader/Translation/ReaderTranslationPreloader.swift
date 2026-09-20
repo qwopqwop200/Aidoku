@@ -312,7 +312,7 @@ final class ReaderTranslationPreloader {
                 guard #available(iOS 18.0, *) else { return [] }
                 var phaseStart = ProcessInfo.processInfo.systemUptime
                 let image = try await loader.load(page)
-                if settings.rightToLeftPanelOrder || settings.filterJapaneseSFX { evidenceImage = image }
+                if settings.rightToLeftPanelOrder { evidenceImage = image }
                 try? await diskCache?.storeImageSize(image.size, page: page.translationCacheKey, generation: diskGeneration)
                 TranslationPerformanceDiagnostics.clientPhaseCompleted(
                     phase: "reader_image_load", segmentCount: 0,

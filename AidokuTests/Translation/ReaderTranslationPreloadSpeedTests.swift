@@ -22,8 +22,6 @@ struct ReaderTranslationPreloadSpeedTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         var settings = ReaderTranslationSettings(defaults: defaults)
         settings.rightToLeftPanelOrder = true
-        settings.filterJapaneseSFX = false
-        settings.filterJapaneseSFXContext = false
         settings.translationSourceLanguages = []
         settings.includePageImage = false
         var rows: [[String: Any]] = []

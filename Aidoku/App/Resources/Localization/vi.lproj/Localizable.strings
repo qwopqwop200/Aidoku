@@ -741,9 +741,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 yêu cầu iOS 18 trở lên. Mô hình mặc định là Trung bình. Nhỏ dùng ít bộ nhớ hơn và Rất nhỏ có từ điển ký tự hạn chế hơn. Các mô hình này không nhận dạng văn bản tiếng Hàn, nhưng vẫn hỗ trợ dịch sang tiếng Hàn.";
 
-"TRANSLATION_INSTRUCTIONS" = "Hướng dẫn dịch thuật";
 
-"TRANSLATION_RESET_PROMPT" = "Khôi phục hướng dẫn dịch mặc định";
 
 "TRANSLATION_CLEAR_CACHE" = "Xóa bộ đệm dịch";
 
@@ -874,13 +872,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Tự động phát hiện ngôn ngữ gốc và chỉ dịch các ngôn ngữ đã chọn. Chọn «Tất cả ngôn ngữ được phát hiện» để bỏ giới hạn ngôn ngữ. Bộ lọc ngôn ngữ của mỗi mục hoạt động độc lập với cài đặt ngôn ngữ của trang và các mục khác.";
 
-"TRANSLATION_SFX_FILTER" = "Lọc SFX (Chỉ tiếng Nhật)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Giữ nguyên những đoạn có khả năng là từ tượng thanh tiếng Nhật bằng từ điển trên thiết bị và kiểm tra bố cục thận trọng. Văn bản không được xác định chắc chắn là từ tượng thanh vẫn được dịch.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Bao gồm các mục cần xét ngữ cảnh (Chỉ tiếng Nhật)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Áp dụng khi Lọc SFX được bật. Đồng thời lọc các mục được đánh dấu là yêu cầu ngữ cảnh bằng cách sử dụng kết quả khớp từ điển, kích thước văn bản và bố cục lân cận. Không có LLM nào phân tích bối cảnh nên đối thoại cũng có thể bị loại trừ.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Bao gồm hình ảnh trang trong bản dịch";
 
@@ -893,7 +887,7 @@
 
 "TRANSLATION_LLM_SFX" = "Lọc từ tượng thanh bằng LLM (Tất cả ngôn ngữ)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Phân loại từ tượng thanh trong cùng yêu cầu dịch và giữ nguyên chúng. Khi có ảnh trang, AI cũng bỏ qua các mảnh văn bản OCR không rõ ràng, trừ khi hình ảnh xác nhận đó là văn bản có nghĩa. Lời thoại, lời dẫn chuyện, tiêu đề và phần ghi tên người đóng góp vẫn được dịch. Có thể kết hợp với bộ lọc tiếng Nhật trên thiết bị: văn bản bị một trong hai bộ lọc đánh dấu sẽ được giữ nguyên. Việc phân loại kém tin cậy hơn khi không có ảnh trang.";
+"TRANSLATION_LLM_SFX_HELP" = "Phân loại từ tượng thanh trong cùng yêu cầu dịch và giữ nguyên chúng. Khi có ảnh trang, AI cũng bỏ qua các mảnh văn bản OCR không rõ ràng, trừ khi hình ảnh xác nhận đó là văn bản có nghĩa. Lời thoại, lời dẫn chuyện, tiêu đề và phần ghi tên người đóng góp vẫn được dịch. Việc phân loại kém tin cậy hơn khi không có ảnh trang.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Nếu không có hình ảnh đầu vào, bối cảnh bố cục và hình ảnh bị hạn chế có thể làm giảm độ chính xác của phân loại SFX.";
 
@@ -1170,3 +1164,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Không thể lưu bộ nhớ đệm dịch.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Thay đổi đồng bộ iCloud có hiệu lực khi bạn đóng hoàn toàn rồi mở lại Aidoku. Trước đó, cài đặt đồng bộ hiện tại vẫn được áp dụng.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Giữ màu gốc";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Giữ đồng thời màu chữ và màu nền gốc.";
+"TRANSLATION_INPAINTING" = "Khôi phục nền";
+"TRANSLATION_INPAINTING_HELP" = "Xóa chữ gốc và giữ nền. Dùng hộp khi mặt nạ hoặc độ dễ đọc không đảm bảo. Cần bật giữ màu gốc.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Lọc văn bản";
+
+"TRANSLATION_TARGETS" = "Nội dung cần dịch";

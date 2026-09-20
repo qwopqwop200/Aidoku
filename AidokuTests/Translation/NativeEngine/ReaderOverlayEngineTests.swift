@@ -430,9 +430,7 @@ struct ReaderOverlayEngineTests {
     @Test func pageImageDOMOverlayUsesExistingCollisionAwareCardLayout() {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
-        settings.fontSizing = .autoFit
         settings.textPlacement = .replace
-        settings.expansionPolicy = .panelConstrained
         let sources = (0..<10).map { column in
             CGRect(
                 x: 20 + CGFloat(column) * 34,
@@ -597,9 +595,7 @@ struct ReaderOverlayEngineTests {
     {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
-        settings.fontSizing = .autoFit
         settings.textPlacement = .replace
-        settings.expansionPolicy = .panelConstrained
         let viewport = CGSize(width: 390, height: 715)
         let items = (0..<10).map { column in
             BrowserOverlayItem(
@@ -709,7 +705,7 @@ struct ReaderOverlayEngineTests {
             #expect(card["borderWidth"] as? String == "0px")
             #expect(card["boxShadow"] as? String == "none")
             #expect(card["backgroundImage"] as? String != "none")
-            #expect(card["textShadow"] as? String != "none")
+            #expect(card["textShadow"] as? String == "none")
             return CGRect(
                 x: x.doubleValue,
                 y: y.doubleValue,
@@ -738,9 +734,7 @@ struct ReaderOverlayEngineTests {
     {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
-        settings.fontSizing = .autoFit
         settings.textPlacement = .replace
-        settings.expansionPolicy = .panelConstrained
         let viewport = CGSize(width: 390, height: 715)
         let sourceText = "慣れないと……"
         let translationText = "익숙해지지 않으면……"
@@ -866,9 +860,7 @@ struct ReaderOverlayEngineTests {
     {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
-        settings.fontSizing = .autoFit
         settings.textPlacement = .replace
-        settings.expansionPolicy = .panelConstrained
         let viewport = CGSize(width: 390, height: 715)
         let fixtures: [(UInt64, CGRect, String, BrowserOCRSourceOrientation)] = [
             (
@@ -1287,7 +1279,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.fontSizing = .autoFit
         let overlay = BrowserOverlayView(
             frame: CGRect(x: 0, y: 0, width: 390, height: 715)
         )
@@ -1418,7 +1409,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.fontSizing = .autoFit
         let overlay = BrowserOverlayView(
             frame: CGRect(x: 0, y: 0, width: 390, height: 715)
         )
@@ -1517,7 +1507,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.fontSizing = .autoFit
         let overlay = BrowserOverlayView(
             frame: CGRect(x: 0, y: 0, width: 390, height: 715)
         )
@@ -1578,8 +1567,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.expansionPolicy = .panelConstrained
-        settings.fontSizing = .autoFit
         settings.colorMode = .white
         settings.opacity = 0.25
         let overlay = BrowserOverlayView(
@@ -1692,7 +1679,6 @@ struct ReaderOverlayEngineTests {
         settings.mode = .translateOnly
         settings.textPlacement = .replace
         settings.colorMode = .dark
-        settings.fontSizing = .autoFit
         let overlay = BrowserOverlayView(
             frame: CGRect(x: 0, y: 0, width: 390, height: 715)
         )
@@ -1778,8 +1764,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.expansionPolicy = .panelConstrained
-        settings.fontSizing = .autoFit
         settings.colorMode = .white
         settings.opacity = 0.25
         let overlay = BrowserOverlayView(
@@ -1955,7 +1939,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.fontSizing = .autoFit
         let overlay = BrowserOverlayView(
             frame: CGRect(x: 0, y: 0, width: 390, height: 715)
         )
@@ -2297,7 +2280,6 @@ struct ReaderOverlayEngineTests {
 
     @Test func narrowVerticalSourceGetsReadableHorizontalKoreanCard() {
         var settings = ReaderTranslationSettings.defaultOverlay
-        settings.fontSizing = .autoFit
         settings.textPlacement = .replace
         let source = CGRect(x: 220, y: 80, width: 24, height: 150)
         let plan = BrowserOverlayLayoutPlanner.plan(
@@ -2325,72 +2307,26 @@ struct ReaderOverlayEngineTests {
         #expect(plan.rect.maxY >= source.maxY)
     }
 
-    @Test func sourceBoundsPolicyKeepsUnreadableTranslationAnchored() {
-        var settings = ReaderTranslationSettings.defaultOverlay
-        settings.fontSizing = .autoFit
-        settings.expansionPolicy = .sourceBounds
+    @Test func longTranslationRemainsAttachedInsideTheImageRegion() {
         let source = CGRect(x: 220, y: 80, width: 24, height: 150)
+        let viewport = CGSize(width: 390, height: 715)
         let plan = BrowserOverlayLayoutPlanner.plan(
             source: source,
             text: String(repeating: "세로문장을인식합니다", count: 40),
             vertical: false,
-            settings: settings,
-            viewport: CGSize(width: 390, height: 715),
+            settings: ReaderTranslationSettings.defaultOverlay,
+            viewport: viewport,
             occupied: [],
             sourceVertical: true
         )
-
         #expect(!plan.rect.isNull)
-        #expect(plan.rect == source)
-        #expect(CGRect(x: 0, y: 0, width: 390, height: 715).contains(
-            plan.rect
-        ))
-    }
-
-    @Test func unrestrictedPolicyCanUseTheFullReadableEnvelope() {
-        var settings = ReaderTranslationSettings.defaultOverlay
-        settings.fontSizing = .autoFit
-        settings.expansionPolicy = .unrestricted
-        let source = CGRect(x: 220, y: 80, width: 24, height: 150)
-        let text = "세로문장을인식하고자유롭게확장합니다"
-        let unrestricted = BrowserOverlayLayoutPlanner.plan(
-            source: source,
-            text: text,
-            vertical: false,
-            settings: settings,
-            viewport: CGSize(width: 390, height: 715),
-            occupied: [],
-            sourceVertical: true
-        )
-        settings.expansionPolicy = .panelConstrained
-        let constrained = BrowserOverlayLayoutPlanner.plan(
-            source: source,
-            text: text,
-            vertical: false,
-            settings: settings,
-            viewport: CGSize(width: 390, height: 715),
-            occupied: [],
-            sourceVertical: true
-        )
-
-        #expect(unrestricted.rect.width > constrained.rect.width)
-        #expect(
-            constrained.maximumFontSize >=
-                BrowserOverlayLayoutPlanner.minimumReadableHorizontalFontSize
-        )
-        #expect(
-            constrained.rect.width - constrained.contentInsets.left -
-                constrained.contentInsets.right >=
-                constrained.maximumFontSize * 6
-        )
-        #expect(
-            unrestricted.maximumFontSize == constrained.maximumFontSize
-        )
+        #expect(plan.rect.intersects(source))
+        #expect(CGRect(origin: .zero, size: viewport).contains(plan.rect))
+        #expect(plan.maximumFontSize >= BrowserOverlayLayoutPlanner.minimumReadableHorizontalFontSize)
     }
 
     @Test func readableReplacementKeepsTheExactSourceRect() {
         var settings = ReaderTranslationSettings.defaultOverlay
-        settings.fontSizing = .autoFit
         settings.textPlacement = .replace
         let source = CGRect(x: 24, y: 90, width: 132, height: 32)
         let plan = BrowserOverlayLayoutPlanner.plan(
@@ -2411,7 +2347,6 @@ struct ReaderOverlayEngineTests {
 
     @Test func denseTwoColumnReplacementsDoNotExpandAcrossEachOther() {
         var settings = ReaderTranslationSettings.defaultOverlay
-        settings.fontSizing = .autoFit
         settings.textPlacement = .replace
         let sources = [
             CGRect(x: 20, y: 100, width: 142, height: 32),
@@ -2457,10 +2392,7 @@ struct ReaderOverlayEngineTests {
 
     @Test func largerConstrainedCardClaimsSpaceBeforeSmallerNeighbor() {
         var settings = ReaderTranslationSettings.defaultOverlay
-        settings.fontSizing = .fixed
-        settings.fixedFontSizePoints = 14
         settings.textPlacement = .replace
-        settings.expansionPolicy = .panelConstrained
         let viewport = CGSize(width: 210, height: 400)
         let sources = [
             CGRect(x: 110, y: 80, width: 20, height: 100),
@@ -2599,9 +2531,7 @@ struct ReaderOverlayEngineTests {
     func denseMangaColumnsContractUntilRenderedCardsDoNotOverlap() throws {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
-        settings.fontSizing = .autoFit
         settings.textPlacement = .replace
-        settings.expansionPolicy = .panelConstrained
         let sources = (0..<10).map { column in
             CGRect(
                 x: 20 + CGFloat(column) * 34,
@@ -2730,9 +2660,7 @@ struct ReaderOverlayEngineTests {
     {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
-        settings.fontSizing = .autoFit
         settings.textPlacement = .replace
-        settings.expansionPolicy = .panelConstrained
         let sources = (0..<4).map { index in
             CGRect(
                 x: 180 + CGFloat(index) * 6,
@@ -2868,9 +2796,7 @@ struct ReaderOverlayEngineTests {
     func detachedTranslationsStayInsideOffsetSourceImage() {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
-        settings.fontSizing = .autoFit
         settings.textPlacement = .replace
-        settings.expansionPolicy = .panelConstrained
         let imageSize = CGSize(width: 300, height: 450)
         let sourceRect = CGRect(x: 35, y: 360, width: 300, height: 450)
         let items = (0..<4).map { index in
@@ -3352,8 +3278,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.fontSizing = .autoFit
-        settings.expansionPolicy = .panelConstrained
         let payload = BrowserPageImageOverlayRenderer.layoutPayload(
             items: items,
             imageSize: CGSize(width: 430, height: 322.5),
@@ -3532,19 +3456,17 @@ struct ReaderOverlayEngineTests {
 
     @Test func longTranslationExpandsAroundItsSourceWithoutClippingScreen() {
         var settings = ReaderTranslationSettings.defaultOverlay
-        settings.fontSizing = .fixed
-        settings.fixedFontSizePoints = 24
         let source = CGRect(x: 120, y: 120, width: 42, height: 22)
         let plan = BrowserOverlayLayoutPlanner.plan(
             source: source,
-            text: "고정 글꼴도 배경이 함께 확장되어 잘리지 않습니다",
+            text: "자동 맞춤으로 배경이 함께 확장되어 잘리지 않습니다",
             vertical: false,
             settings: settings,
             viewport: CGSize(width: 390, height: 715),
             occupied: []
         )
 
-        #expect(plan.maximumFontSize == 24)
+        #expect(plan.maximumFontSize >= BrowserOverlayLayoutPlanner.minimumReadableHorizontalFontSize)
         #expect(plan.rect.width > source.width)
         #expect(plan.rect.height > source.height)
         #expect(plan.rect.minX >= 0)
@@ -3558,8 +3480,6 @@ struct ReaderOverlayEngineTests {
     func viewportWideUnbrokenTokenFallsBackToCharacterWrapping() throws {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
-        settings.fontSizing = .fixed
-        settings.fixedFontSizePoints = 24
         settings.textPlacement = .replace
         let translation = String(repeating: "AidokuReader", count: 24)
         let overlay = BrowserOverlayView(
@@ -3812,11 +3732,11 @@ struct ReaderOverlayEngineTests {
     }
 
     @Test @MainActor
-    func automaticPaletteMatchesDesktopHorizontalAndVerticalSurfaces() throws {
+    func whitePaletteIsIndependentOfSourceOrientation() throws {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.colorMode = .automatic
+        settings.colorMode = .white
         settings.opacity = 0.25
 
         func renderedCard(
@@ -3893,10 +3813,10 @@ struct ReaderOverlayEngineTests {
             alpha: &verticalAlpha
         ) == true)
 
-        #expect(abs(horizontalRed - (7 / 255)) < 0.001)
-        #expect(abs(horizontalGreen - (9 / 255)) < 0.001)
-        #expect(abs(horizontalBlue - (13 / 255)) < 0.001)
-        #expect(abs(horizontalAlpha - 0.73) < 0.001)
+        #expect(horizontalRed > 0.99)
+        #expect(horizontalGreen > 0.99)
+        #expect(horizontalBlue > 0.98)
+        #expect(abs(horizontalAlpha - 0.565) < 0.001)
         #expect(verticalRed > 0.99)
         #expect(verticalGreen > 0.99)
         #expect(verticalBlue > 0.98)
@@ -3912,7 +3832,7 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .originalAndTranslation
         settings.textPlacement = .replace
-        settings.colorMode = .automatic
+        settings.colorMode = .white
         settings.opacity = 0.25
         let source = "縦書き\n二列"
         let translation = "여러 줄 세로쓰기"
@@ -4016,7 +3936,7 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .expanded
-        settings.colorMode = .automatic
+        settings.colorMode = .white
         settings.opacity = 0.25
         let overlay = BrowserOverlayView(
             frame: CGRect(x: 0, y: 0, width: 390, height: 715)
@@ -4049,9 +3969,9 @@ struct ReaderOverlayEngineTests {
     }
 
     @Test @MainActor
-    func subtitleAndSidePanelUseTheAutomaticDarkDesktopPalette() throws {
+    func subtitleAndSidePanelUseTheDarkPalette() throws {
         var settings = ReaderTranslationSettings.defaultOverlay
-        settings.colorMode = .automatic
+        settings.colorMode = .dark
         settings.opacity = 0.25
         let item = BrowserOverlayItem(
             stableRegionID: 813,
@@ -4404,8 +4324,6 @@ struct ReaderOverlayEngineTests {
 
     @Test func replacementPlannerUsesUIKitMeasurementWithoutClipping() {
         var settings = ReaderTranslationSettings.defaultOverlay
-        settings.fontSizing = .fixed
-        settings.fixedFontSizePoints = 24
         settings.textPlacement = .replace
         let text = "Open the AidokuReader settings screen."
         let plan = BrowserOverlayLayoutPlanner.plan(
@@ -4431,7 +4349,6 @@ struct ReaderOverlayEngineTests {
 
     @Test func shortTranslationCanUseAReadableLargeAutoFont() {
         var settings = ReaderTranslationSettings.defaultOverlay
-        settings.fontSizing = .autoFit
         settings.textPlacement = .replace
         let plan = BrowserOverlayLayoutPlanner.plan(
             source: CGRect(x: 24, y: 90, width: 180, height: 56),
@@ -4450,7 +4367,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .expanded
-        settings.fontSizing = .autoFit
         let text = "설정 화면"
         let variant = BrowserOverlayDisplayVariant.plain(
             text,
@@ -4507,8 +4423,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.fontSizing = .fixed
-        settings.fixedFontSizePoints = 24
         let source = "縦書きの文章を認識"
         let overlay = BrowserOverlayView(
             frame: CGRect(x: 0, y: 0, width: 390, height: 715)
@@ -4557,7 +4471,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.fontSizing = .autoFit
         let imageSourceRect = CGRect(
             x: 420,
             y: 160,
@@ -4651,8 +4564,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.fontSizing = .autoFit
-        settings.expansionPolicy = .panelConstrained
         let sourceRect = CGRect(x: 185, y: 250, width: 40, height: 250)
         let overlay = BrowserOverlayView(
             frame: CGRect(x: 0, y: 0, width: 390, height: 715)
@@ -4703,7 +4614,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.fontSizing = .autoFit
         let fixtureScale: CGFloat = 390 / 1_290
         let fixtureRect = CGRect(
             x: 538 * fixtureScale,
@@ -4773,7 +4683,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.fontSizing = .autoFit
         let translation = "가로 번역은 그대로 표시합니다"
         let overlay = BrowserOverlayView(
             frame: CGRect(x: 0, y: 0, width: 390, height: 715)
@@ -4810,7 +4719,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.fontSizing = .autoFit
         let translation = "افتح شاشة الإعدادات"
         let overlay = BrowserOverlayView(
             frame: CGRect(x: 0, y: 0, width: 390, height: 715)
@@ -4846,7 +4754,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
         settings.textPlacement = .replace
-        settings.fontSizing = .autoFit
         let translation = "여러 OCR 줄은 가로 번역 정책을 유지합니다"
         let overlay = BrowserOverlayView(
             frame: CGRect(x: 0, y: 0, width: 390, height: 715)
@@ -4882,8 +4789,6 @@ struct ReaderOverlayEngineTests {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .originalAndTranslation
         settings.textPlacement = .replace
-        settings.fontSizing = .fixed
-        settings.fixedFontSizePoints = 24
         let source = "設定画面を開いてください"
         let translation = "설정 화면을 열어 주세요"
         let overlay = BrowserOverlayView(
@@ -4925,7 +4830,7 @@ struct ReaderOverlayEngineTests {
             ) as? UIFont
         )
         #expect(sourceFont.pointSize <= translationFont.pointSize * 0.65)
-        #expect(translationFont.pointSize == 24)
+        #expect(translationFont.pointSize >= BrowserOverlayLayoutPlanner.minimumRenderedFontSize)
         #expect(displayedTextFits(label))
     }
 
@@ -4951,7 +4856,6 @@ struct ReaderOverlayEngineTests {
         #expect(groups.allSatisfy { $0.segments.count == 3 })
 
         var settings = ReaderTranslationSettings.defaultOverlay
-        settings.fontSizing = .autoFit
         settings.textPlacement = .replace
         var occupied: [CGRect] = []
         var plans: [BrowserOverlayCardLayout] = []
@@ -4983,7 +4887,6 @@ struct ReaderOverlayEngineTests {
         )
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
-        settings.fontSizing = .autoFit
         settings.textPlacement = .replace
         let sourceItems = [
             BrowserOverlayItem(
@@ -5072,7 +4975,6 @@ struct ReaderOverlayEngineTests {
         )
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.mode = .translateOnly
-        settings.fontSizing = .autoFit
         settings.textPlacement = .replace
         let imageSize = CGSize(width: 390, height: 715)
         let items = (0..<3).map { index in
@@ -5159,7 +5061,6 @@ struct ReaderOverlayEngineTests {
     @Test @MainActor
     func positionedCollisionDependenciesExcludeDistantCards() {
         var settings = ReaderTranslationSettings.defaultOverlay
-        settings.expansionPolicy = .panelConstrained
         let intrinsic = BrowserOverlayCardLayout(
             rect: CGRect(x: 70, y: 90, width: 100, height: 60),
             maximumFontSize: 14,

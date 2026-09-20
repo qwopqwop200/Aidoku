@@ -3,6 +3,58 @@ import UIKit
 @testable import Aidoku
 
 struct ReaderTranslationBalloonMergerTests {
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("blue-merge-source.png").path)))
+    func capturedBlueBalloonJoinsShortStaggeredColumns() async throws {
+        let folder = URL.documentsDirectory
+        let image = try #require(UIImage(contentsOfFile: folder.appendingPathComponent("blue-merge-source.png").path)?.cgImage)
+        let configuration = ReaderOCRConfiguration()
+        let pipeline = NativeCoreMLOCRPipeline(modelTier: configuration.modelTier,
+            detectorMaximumSide: configuration.detectorMaximumSide, recognizerMaximumWidth: configuration.recognizerMaximumWidth)
+        let native = try await pipeline.recognize(image: image, requestID: UUID().uuidString,
+            confidenceThreshold: configuration.confidenceThreshold,
+            detectorConfiguration: configuration.detectorPostprocessConfiguration)
+        let raw: [[String: Any]] = native.lines.map { ["text": $0.text, "polygon": $0.polygon.map { [$0.x, $0.y] },
+            "orientation": String(describing: $0.orientation), "score": $0.score] }
+        try JSONSerialization.data(withJSONObject: raw, options: .prettyPrinted)
+            .write(to: folder.appendingPathComponent("blue-merge-raw.json"))
+        let geometric = NativeOCRTextLineMerger.merge(native.lines, imageWidth: image.width, imageHeight: image.height)
+        let geometry: [[String: Any]] = geometric.map { ["text": $0.text, "rect": [$0.boundingRect.minX,
+            $0.boundingRect.minY, $0.boundingRect.width, $0.boundingRect.height], "orientation": String(describing: $0.sourceOrientation)] }
+        try JSONSerialization.data(withJSONObject: geometry, options: .prettyPrinted)
+            .write(to: folder.appendingPathComponent("blue-merge-geometry.json"))
+        await pipeline.purgeResources()
+        let regions = try await ReaderOCRService.shared.recognize(image: image, configuration: configuration)
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(regions.map(ReaderTranslationStoredRegion.init))
+            .write(to: folder.appendingPathComponent("blue-merge-regions.json"))
+        let upper = regions.filter { $0.rect.midY * CGFloat(image.height) < 310 }
+        #expect(upper.count == 1)
+        #expect(upper.first?.source.contains("は") == true)
+        #expect(upper.first?.source.contains("ちょ") == true)
+        #expect(upper.first?.sourceSingleVerticalColumn == false)
+        #expect(regions.contains { $0.rect.minY * CGFloat(image.height) > 350 && $0.source.contains("ストロー") })
+        // The supplied translated screenshot has omitted leading dots and a
+        // short right-hand box. Reconstruct those visible glyph bounds on the
+        // original pixels; full-screenshot medium OCR above is a separate control.
+        func fragment(_ id: String, _ text: String, _ box: CGRect) -> ReaderTranslationRegion {
+            ReaderTranslationRegion(id: id, rect: CGRect(x: box.minX / CGFloat(image.width), y: box.minY / CGFloat(image.height),
+                width: box.width / CGFloat(image.width), height: box.height / CGFloat(image.height)), source: text,
+                sourceOrientation: .vertical, sourceSingleVerticalColumn: true)
+        }
+        let split = [fragment("reaction-left", "ちょ…っ", CGRect(x: 89, y: 138, width: 40, height: 145)),
+                     fragment("reaction-right", "は!?", CGRect(x: 137, y: 213, width: 40, height: 72))]
+            + regions.filter { $0.rect.minY * CGFloat(image.height) > 310 }
+        let repaired = ReaderTranslationBalloonMerger.apply(split, image: image)
+        #expect(repaired.count == split.count - 1)
+        #expect(repaired.first?.source == "は!?ちょ…っ")
+        #expect(repaired.first?.sourceSingleVerticalColumn == false)
+        #expect(Array(repaired.dropFirst()) == Array(split.dropFirst(2)))
+        try encoder.encode(split.map(ReaderTranslationStoredRegion.init))
+            .write(to: folder.appendingPathComponent("blue-merge-split.json"))
+        try encoder.encode(repaired.map(ReaderTranslationStoredRegion.init))
+            .write(to: folder.appendingPathComponent("blue-merge-repaired.json"))
+    }
+
     @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("gray-merge-source.png").path)))
     func capturedGrayBalloonKeepsAllThreeColumnsTogether() async throws {
         let folder = URL.documentsDirectory
@@ -22,6 +74,50 @@ struct ReaderTranslationBalloonMergerTests {
         #expect(leftBalloon.count == 1)
         #expect(leftBalloon.first?.source == "もうここには来ないんだから気にしなくていい")
         #expect(regions.count == 3)
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0])
+    func shortColouredReactionsNeedMatchingInkAlignmentAndClearGutter(scale: CGFloat) throws {
+        func rect(_ x: CGFloat, _ y: CGFloat, _ width: CGFloat, _ height: CGFloat) -> CGRect {
+            CGRect(x: x * scale, y: y * scale, width: width * scale, height: height * scale)
+        }
+        func page(rightColour: UIColor = .systemBlue, rule: Bool = false) throws -> CGImage {
+            let format = UIGraphicsImageRendererFormat(); format.scale = 1
+            return try #require(UIGraphicsImageRenderer(size: CGSize(width: 240 * scale, height: 300 * scale), format: format).image { ctx in
+                UIColor.white.setFill(); ctx.fill(rect(0, 0, 240, 300))
+                for y in stride(from: 60, through: 180, by: 12) {
+                    UIColor.systemBlue.setFill(); ctx.fill(rect(60, CGFloat(y), 18, 6))
+                }
+                for y in stride(from: 144, through: 192, by: 6) {
+                    rightColour.setFill(); ctx.fill(rect(108, CGFloat(y), 18, 3))
+                }
+                if rule { UIColor.black.setFill(); ctx.fill(rect(92, 135, 3, 70)) }
+            }.cgImage)
+        }
+        func region(_ id: String, _ text: String, _ box: CGRect) -> ReaderTranslationRegion {
+            ReaderTranslationRegion(id: id, rect: CGRect(x: box.minX / (240 * scale), y: box.minY / (300 * scale),
+                width: box.width / (240 * scale), height: box.height / (300 * scale)), source: text,
+                sourceOrientation: .vertical, sourceSingleVerticalColumn: true)
+        }
+        let left = region("left", "ちょ…っ", rect(55, 55, 30, 145))
+        let right = region("right", "は?", rect(102, 140, 30, 60))
+        let image = try page()
+        for input in [[left, right], [right, left]] {
+            let output = ReaderTranslationBalloonMerger.apply(input, image: image)
+            #expect(output.map(\.source) == ["は?ちょ…っ"])
+            #expect(output.first?.id == input.first?.id)
+            #expect(output.first?.sourceSingleVerticalColumn == false)
+        }
+        #expect(ReaderTranslationBalloonMerger.apply([left, right], image: try page(rule: true)).count == 2)
+        #expect(ReaderTranslationBalloonMerger.apply([left, right], image: try page(rightColour: .systemRed)).count == 2)
+        let plain = region("right", "はい", rect(102, 140, 30, 60))
+        #expect(ReaderTranslationBalloonMerger.apply([left, plain], image: image).count == 2)
+        let quoted = region("right", "「は?」", rect(102, 140, 30, 60))
+        #expect(ReaderTranslationBalloonMerger.apply([left, quoted], image: image).count == 2)
+        let shifted = region("right", "は?", rect(102, 165, 30, 60))
+        #expect(ReaderTranslationBalloonMerger.apply([left, shifted], image: image).count == 2)
+        let middle = ReaderTranslationRegion(id: "middle", rect: CGRect(x: 90 / 240.0, y: 145 / 300.0, width: 5 / 240.0, height: 50 / 300.0), source: "別")
+        #expect(ReaderTranslationBalloonMerger.apply([left, right, middle], image: image).count == 3)
     }
 
     @Test func overlappingTailRequiresOriginalLastColumnEvidence() throws {

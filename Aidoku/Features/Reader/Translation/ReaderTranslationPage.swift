@@ -37,6 +37,7 @@ final class ReaderTranslationPage {
     private var renderLookupKey: String?
     private var previewRegions: [ReaderTranslationRegion]?
     var isUsingCachedRendering: Bool { cachedOverlay != nil }
+    private(set) var hasLoadedCachedPresentation = false
     private let recognize: Recognizer
     private let translateRegions: Translator?
     private let progressiveTranslate: ProgressiveTranslator?
@@ -109,7 +110,8 @@ final class ReaderTranslationPage {
         renderLookupKey = nil
     }
 
-    func hidePreparedTranslation() {
+    func hidePreparedTranslation(preservingLoadedPresentation: Bool = false) {
+        if preservingLoadedPresentation, hasLoadedCachedPresentation { return }
         cancel()
         overlay?.isHidden = true
         cachedOverlay?.isHidden = true
@@ -121,6 +123,7 @@ final class ReaderTranslationPage {
     }
 
     func releaseOverlay() {
+        hasLoadedCachedPresentation = false
         renderLookupTask?.cancel()
         renderLookupTask = nil
         renderLookupKey = nil
@@ -278,7 +281,8 @@ final class ReaderTranslationPage {
             let target = ReaderTranslationSnapshotTarget(
                 cache: renderCache, key: key, pageIdentity: pageIdentity,
                 diskGeneration: nil, viewport: viewport, dark: dark,
-                preparedLayout: renderCache.cachedLayout(for: key).map { data in Task { data } },
+                preparedLayout: renderCache.cachedLayout(for: ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: result))
+                    .map { data in Task { data } },
                 pendingDiskGeneration: diskGeneration
             )
             displayLive(result, image: image, settings: settings, target: target)
@@ -301,6 +305,7 @@ final class ReaderTranslationPage {
 
     private func displayLive(_ result: [ReaderTranslationRegion], image: UIImage, settings: ReaderTranslationSettings,
                              target: ReaderTranslationSnapshotTarget?) {
+        hasLoadedCachedPresentation = false
         guard let imageView else { return }
         cachedOverlay?.removeFromSuperview()
         cachedOverlay = nil
@@ -329,8 +334,11 @@ final class ReaderTranslationPage {
                   (imageView?.traitCollection.userInterfaceStyle == .dark) == target.dark else { return }
             displaySnapshot(snapshot, source: image, settings: settings)
         }
-        overlay.onCacheGeometryChanged = { [weak self] in
-            guard let self, self.imageView?.image === image else { return }
+        overlay.onCacheGeometryChanged = { [weak self, weak overlay] in
+            guard let self, let overlay, self.overlay === overlay, self.imageView?.image === image else { return }
+            // Hidden presentations are rebuilt on demand after ON. A layout
+            // callback while OFF must not resurrect a visible renderer.
+            guard !overlay.isHidden else { releaseOverlay(); return }
             try? publish(regions, image: image, settings: settings, generation: generation)
         }
         overlay.isHidden = !settings.overlay.visible
@@ -341,7 +349,26 @@ final class ReaderTranslationPage {
         overlay.layoutIfNeeded()
     }
 
-    private func displaySnapshot(_ snapshot: UIImage, source: UIImage, settings: ReaderTranslationSettings) {
+    /// Called inside the loader's synchronous source + presentation commit.
+    func displayLoadedImage(_ prepared: ReaderTranslationPreparedImage) {
+        guard let source = imageView?.image, prepared.isCurrent() else { return }
+        if hasLoadedCachedPresentation, analyzedImage === source, cachedOverlay?.image === prepared.image,
+           lastSettings == prepared.settings {
+            cachedOverlay?.isHidden = !prepared.settings.overlay.visible
+            return
+        }
+        reset()
+        let crop = sourcePage?.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
+        regions = prepared.regions.compactMap { $0.cropped(to: crop) }
+        analyzedImage = source
+        analyzedConfiguration = prepared.settings.ocrConfiguration
+        lastSettings = prepared.settings
+        completedTranslation = true
+        displaySnapshot(prepared.image, source: source, settings: prepared.settings, sourceSized: true)
+        hasLoadedCachedPresentation = true
+    }
+
+    private func displaySnapshot(_ snapshot: UIImage, source: UIImage, settings: ReaderTranslationSettings, sourceSized: Bool = false) {
         guard let imageView else { return }
         releaseOverlay()
         let canvas = ReaderTranslationCachedPageView(image: snapshot)
@@ -349,11 +376,21 @@ final class ReaderTranslationPage {
         canvas.initialSize = imageView.bounds.size
         canvas.initialStyle = imageView.traitCollection.userInterfaceStyle
         canvas.initialScale = imageView.traitCollection.displayScale
+        if sourceSized { canvas.contentMode = imageView.contentMode }
         canvas.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         canvas.isHidden = !settings.overlay.visible
         canvas.accessibilityIdentifier = "reader.translation.cachedOverlay"
         canvas.onGeometryChanged = { [weak self, weak canvas, weak imageView] in
             guard let self, let canvas, cachedOverlay === canvas, imageView?.image === source else { return }
+            guard !canvas.isHidden else { releaseOverlay(); return }
+            // This bitmap contains the page itself, not a viewport/letterbox.
+            // The original and translated image keep the same content transform
+            // when a preloaded page joins the reader or its bounds change.
+            if sourceSized, imageView?.traitCollection.userInterfaceStyle == canvas.initialStyle {
+                canvas.initialSize = canvas.bounds.size
+                canvas.initialScale = canvas.traitCollection.displayScale
+                return
+            }
             releaseOverlay()
             if let previewRegions {
                 displayPreparedSnapshot(previewRegions, settings: settings)
@@ -378,6 +415,10 @@ final class ReaderTranslationPage {
         let displayed = result.compactMap { $0.cropped(to: rect) }
         if analyzedImage === image, regions == displayed, lastSettings == settings, completedTranslation == completed,
            overlay != nil || cachedOverlay != nil {
+            // OFF retains a hidden renderer. Identical OCR progress after ON
+            // still needs to restore visibility even though its content is current.
+            overlay?.isHidden = !settings.overlay.visible
+            cachedOverlay?.isHidden = !settings.overlay.visible
             return
         }
         cancel()
@@ -391,7 +432,10 @@ final class ReaderTranslationPage {
     func displayPreparedSnapshot(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings, memoryOnly: Bool = false) {
         guard let imageView, let image = imageView.image, let sourcePage, let renderCache,
               imageView.bounds.width > 0, imageView.bounds.height > 0 else { return }
-        if isUsingCachedRendering, analyzedImage === image, lastSettings == settings { return }
+        if isUsingCachedRendering, analyzedImage === image, lastSettings == settings {
+            cachedOverlay?.isHidden = !settings.overlay.visible
+            return
+        }
         let viewport = imageView.bounds.size
         let dark = imageView.traitCollection.userInterfaceStyle == .dark
         let crop = sourcePage.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)

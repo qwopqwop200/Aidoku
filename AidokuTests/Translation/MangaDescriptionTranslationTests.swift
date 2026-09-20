@@ -143,7 +143,7 @@ struct MangaDescriptionTranslationTests {
         settings.mangaDescriptionSourceLanguages = ["en"]
         #expect(TitleTranslation.cacheKey("synopsis", kind: .description, settings: settings) != key)
         let effective = TitleTranslation.effectiveSettings(settings, kind: .description)
-        #expect(effective.instructions.contains("Markdown"))
+        #expect(effective.configuration.instructions.contains("Markdown"))
         #expect(TitleTranslation.effectiveSettings(effective, kind: .description) == effective)
     }
 

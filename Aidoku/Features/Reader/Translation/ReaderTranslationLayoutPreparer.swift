@@ -119,14 +119,15 @@ final class ReaderTranslationLayoutPreparer {
             let size = CGSize(width: imageSize.width * crop.width, height: imageSize.height * crop.height)
             let viewport = geometry.viewport(for: size)
             let key = renderKey(page, settings, geometry, size, crop)
-            if await renderCache.layoutData(for: key) != nil { continue }
             let displayed = regions.compactMap { $0.cropped(to: crop) }
+            let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: displayed)
+            if await renderCache.layoutData(for: layoutKey) != nil { continue }
             let items = ReaderTranslationRegion.overlayItems(displayed, imageSize: size)
             let sourceRect = ReaderTranslationGeometry.displayRect(CGRect(x: 0, y: 0, width: 1, height: 1), imageSize: size,
                 bounds: CGRect(origin: .zero, size: viewport), aspectFit: geometry.aspectFit)
             let data = try await layoutPreparation(items, size, sourceRect, settings.overlay, settings.targetLanguage, viewport)
             try Task.checkCancellation()
-            await renderCache.storeLayout(data, key: key, diskGeneration: generation)
+            await renderCache.storeLayout(data, key: layoutKey, diskGeneration: generation)
         }
     }
 
@@ -167,13 +168,14 @@ final class ReaderTranslationLayoutPreparer {
             if renderCache.cachedImage(for: key) != nil { continue }
             let identity = ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: settings)
             let displayed = regions.compactMap { $0.cropped(to: crop) }
+            let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: displayed)
             try await renderCache.prepare(key) { [renderCache, layoutPreparation] in
                 let items = ReaderTranslationRegion.overlayItems(displayed, imageSize: size)
                 // Start layout immediately, while the source image is cropped,
                 // encoded and loaded into WebKit. The renderer joins this exact
                 // task, so a slow layout can never start a duplicate calculation.
                 let layout = Task { () throws -> Data in
-                    if let data = await renderCache.layoutData(for: key) { return data }
+                    if let data = await renderCache.layoutData(for: layoutKey) { return data }
                     let layoutStart = ProcessInfo.processInfo.systemUptime
                     let sourceRect = ReaderTranslationGeometry.displayRect(unit, imageSize: size, bounds: CGRect(origin: .zero, size: viewport),
                                                                            aspectFit: geometry.aspectFit)
@@ -183,7 +185,7 @@ final class ReaderTranslationLayoutPreparer {
                         elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - layoutStart) * 1_000
                     )
                     try Task.checkCancellation()
-                    await renderCache.storeLayout(data, key: key, diskGeneration: generation)
+                    await renderCache.storeLayout(data, key: layoutKey, diskGeneration: generation)
                     return data
                 }
                 defer { layout.cancel() }
@@ -193,9 +195,25 @@ final class ReaderTranslationLayoutPreparer {
                     return
                 }
                 let cropTask = Task.detached(priority: .utility) {
-                    try ReaderTranslationBackgroundImage.prepare(image, crop: crop)
+                    // The asset will later meet the reader's original decoded
+                    // crop, not WebKit's reduced background copy. Match the
+                    // reader's CGImage split before fingerprinting those pixels.
+                    let original: UIImage?
+                    if crop == unit {
+                        original = image
+                    } else if let pixels = image.cgImage,
+                              let cropped = pixels.cropping(to: CGRect(
+                                x: crop.minX * CGFloat(pixels.width), y: crop.minY * CGFloat(pixels.height),
+                                width: crop.width * CGFloat(pixels.width), height: crop.height * CGFloat(pixels.height))) {
+                        original = UIImage(cgImage: cropped, scale: image.scale, orientation: image.imageOrientation)
+                    } else {
+                        original = nil
+                    }
+                    let digest = original.flatMap(ReaderTranslationRenderAsset.digestSource)
+                    let source = try ReaderTranslationBackgroundImage.prepare(image, crop: crop)
+                    return (source, digest)
                 }
-                let source = try await withTaskCancellationHandler { try await cropTask.value } onCancel: { cropTask.cancel() }
+                let (source, sourceDigest) = try await withTaskCancellationHandler { try await cropTask.value } onCancel: { cropTask.cancel() }
                 try Task.checkCancellation()
                 let snapshotStart = ProcessInfo.processInfo.systemUptime
                 // This page is offscreen: produce the final cache bitmap directly.
@@ -205,7 +223,8 @@ final class ReaderTranslationLayoutPreparer {
                 let snapshot = try await ReaderTranslationImageExporter.renderCacheSnapshot(
                     image: source, imageSize: size, regions: displayed, settings: settings,
                     viewport: viewport, scale: geometry.scale, aspectFit: geometry.aspectFit,
-                    host: window, dark: geometry.dark, preparedLayout: layout
+                    host: window, dark: geometry.dark, preparedLayout: layout,
+                    assetCache: renderCache, assetKey: key, assetSourceDigest: sourceDigest
                 )
                 try Task.checkCancellation()
                 await renderCache.store(snapshot, key: key, pageIdentity: identity, diskGeneration: generation)

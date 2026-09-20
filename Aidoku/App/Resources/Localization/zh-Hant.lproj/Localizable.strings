@@ -793,9 +793,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 需要 iOS 18 或以上版本。預設使用中型模型，小型模型使用的記憶體較少，超小型模型的字元字典較小。這些模型不支援辨識韓文，但支援翻譯成韓文。";
 
-"TRANSLATION_INSTRUCTIONS" = "翻譯指令";
 
-"TRANSLATION_RESET_PROMPT" = "還原預設翻譯指令";
 
 "TRANSLATION_CLEAR_CACHE" = "清除翻譯快取";
 
@@ -926,13 +924,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "自動偵測原文語言，只翻譯選取的語言。選擇「所有偵測到的語言」可取消語言限制。每一項的語言篩選均獨立於頁面與其他項目的語言設定。";
 
-"TRANSLATION_SFX_FILTER" = "音效文字過濾（僅限日文）";
 
-"TRANSLATION_SFX_FILTER_HELP" = "保留疑似日文音效文字的原文，不進行翻譯。使用本機字典與謹慎的排版判斷條件；無法確定為音效的文字仍會翻譯。";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "同時過濾需要上下文判斷的項目（僅限日文）";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "僅在啟用音效過濾時生效。對於標示為需要結合上下文判斷的項目，也會依據字典比對、文字大小與周圍排版進行過濾。此功能不會使用大型語言模型（LLM）分析上下文，因此可能誤排除對話。";
 
 "TRANSLATION_INCLUDE_IMAGE" = "在翻譯中包含頁面圖像";
 
@@ -945,7 +939,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM 音效文字過濾（所有語言）";
 
-"TRANSLATION_LLM_SFX_HELP" = "在同一次翻譯請求中判斷音效文字，並保留其原文。提供頁面圖片時，AI 還會略過不清晰的 OCR 片段，除非圖片能確認它們是有意義的文字。對話、旁白、標題與署名資訊仍會翻譯。可與日文本機過濾器搭配使用：任一過濾器判定為應排除的文字均保留原樣。未提供頁面圖片時，分類判斷的可靠性會降低。";
+"TRANSLATION_LLM_SFX_HELP" = "在同一次翻譯請求中判斷音效文字，並保留其原文。提供頁面圖片時，AI 還會略過不清晰的 OCR 片段，除非圖片能確認它們是有意義的文字。對話、旁白、標題與署名資訊仍會翻譯。未提供頁面圖片時，分類判斷的可靠性會降低。";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "未提供圖片時，可供判斷的畫面與排版資訊有限，音效文字辨識的準確率可能降低。";
 
@@ -1138,3 +1132,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "無法儲存翻譯快取。";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud 同步的變更將在完全關閉並重新開啟 Aidoku 後生效。在此之前，目前的同步設定仍然有效。";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "保留原文顏色";
+"TRANSLATION_SOURCE_COLORS_HELP" = "同時保留原文文字和背景的顏色。";
+"TRANSLATION_INPAINTING" = "影像修補";
+"TRANSLATION_INPAINTING_HELP" = "保留背景並擦除原文文字。遮罩或可讀性不可靠時使用文字框。需啟用保留原文顏色。";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "文字篩選";
+
+"TRANSLATION_TARGETS" = "翻譯內容";

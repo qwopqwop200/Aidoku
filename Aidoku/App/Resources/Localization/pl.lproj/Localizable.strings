@@ -395,9 +395,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 wymaga iOS 18 lub nowszego. Domyślny model to Średni. Mały zużywa mniej pamięci, a Malutki ma mniejszy słownik znaków. Modele nie rozpoznają tekstu koreańskiego, ale tłumaczenie na koreański jest obsługiwane.";
 
-"TRANSLATION_INSTRUCTIONS" = "Instrukcje dotyczące tłumaczenia";
 
-"TRANSLATION_RESET_PROMPT" = "Przywróć domyślne instrukcje tłumaczenia";
 
 "TRANSLATION_CLEAR_CACHE" = "Wyczyść pamięć podręczną tłumaczeń";
 
@@ -528,13 +526,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Automatycznie wykrywa język źródłowy i tłumaczy tylko wybrane języki. Opcja Wszystkie wykryte języki usuwa ograniczenie. Filtr języka każdego elementu działa niezależnie od ustawień języka stron i innych elementów.";
 
-"TRANSLATION_SFX_FILTER" = "Filtrowanie SFX (tylko język japoński)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Pozostawia bez tłumaczenia tekst przypominający japońskie efekty dźwiękowe. Korzysta z lokalnego słownika i ostrożnej oceny układu tekstu. Tekst, którego nie można wiarygodnie uznać za efekt dźwiękowy, nadal jest tłumaczony.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Uwzględnij wpisy wymagające kontekstu (tylko japoński)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Działa po włączeniu filtrowania SFX. Filtruje także wpisy wymagające kontekstu na podstawie dopasowań słownikowych, rozmiaru tekstu i rozmieszczenia sąsiednich elementów. LLM nie analizuje kontekstu, więc również dialogi mogą zostać wykluczone.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Dołącz obraz strony do tłumaczenia";
 
@@ -547,7 +541,7 @@
 
 "TRANSLATION_LLM_SFX" = "Filtrowanie SFX LLM (wszystkie języki)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Klasyfikuje efekty dźwiękowe w tym samym żądaniu tłumaczenia i pozostawia je bez zmian. Gdy przesyłany jest obraz strony, AI pomija także niejasne fragmenty OCR, chyba że obraz potwierdza, że zawierają one sensowny tekst. Dialogi, narracja, tytuły i informacje o twórcach pozostają przeznaczone do tłumaczenia. Można połączyć z lokalnym filtrem japońskim: tekst oznaczony przez choć jeden filtr pozostaje bez zmian. Klasyfikacja jest mniej wiarygodna bez obrazu strony.";
+"TRANSLATION_LLM_SFX_HELP" = "Klasyfikuje efekty dźwiękowe w tym samym żądaniu tłumaczenia i pozostawia je bez zmian. Gdy przesyłany jest obraz strony, AI pomija także niejasne fragmenty OCR, chyba że obraz potwierdza, że zawierają one sensowny tekst. Dialogi, narracja, tytuły i informacje o twórcach pozostają przeznaczone do tłumaczenia. Klasyfikacja jest mniej wiarygodna bez obrazu strony.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Bez obrazu wejściowego ograniczony kontekst wizualny i układ może zmniejszyć dokładność klasyfikacji SFX.";
 
@@ -1140,3 +1134,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Nie udało się zapisać pamięci podręcznej tłumaczeń.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Zmiany synchronizacji iCloud zaczną obowiązywać po całkowitym zamknięciu i ponownym otwarciu Aidoku. Do tego czasu aktywne pozostaje obecne ustawienie.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Zachowaj oryginalne kolory";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Zachowaj jednocześnie kolory tekstu i tła.";
+"TRANSLATION_INPAINTING" = "Odtwarzanie tła";
+"TRANSLATION_INPAINTING_HELP" = "Usuwa oryginalny tekst, zachowując tło. Używa ramek przy niepewnej masce lub czytelności. Wymaga oryginalnych kolorów.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Filtrowanie tekstu";
+
+"TRANSLATION_TARGETS" = "Co tłumaczyć";

@@ -385,22 +385,7 @@ struct ReaderTranslationRenderingTests {
         #expect(BrowserOverlayLayoutPlanner.horizontalTextFits("누나 잘 지내?",
             available: CGSize(width: rect.width - 8, height: rect.height - 8),
             fontSize: result.maximumFontSize))
-        settings.fontSizing = .fixed
-        settings.fixedFontSizePoints = 5
-        let fixed = BrowserOverlayLayoutPlanner.resolvePositionedLayout(intrinsic,
-            source: rect, variants: variants, settings: settings,
-            viewport: CGSize(width: 390, height: 780), occupied: [],
-            sourceVertical: true, singleVerticalColumn: false, reservedSources: [])
-        #expect(fixed.rect == rect)
-        #expect(fixed.maximumFontSize == 5)
-        settings.fontSizing = .autoFit
-        settings.expansionPolicy = .sourceBounds
-        let exact = BrowserOverlayLayoutPlanner.resolvePositionedLayout(intrinsic,
-            source: rect, variants: variants, settings: settings,
-            viewport: CGSize(width: 390, height: 780), occupied: [],
-            sourceVertical: true, singleVerticalColumn: false, reservedSources: [])
-        #expect(exact.rect == rect)
-        #expect(exact.maximumFontSize == 5)
+
     }
 
     @Test func emergencyKoreanWordRecoveryKeepsTheFixedCardAndReadableWordsProtected() {

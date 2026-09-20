@@ -239,14 +239,14 @@ struct TranslationHTTPCodecTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         var settings = ReaderTranslationSettings(defaults: defaults)
         #expect(!settings.includePageImage)
-        let originalInstructions = settings.instructions
+        let originalInstructions = settings.configuration.instructions
         let key = ReaderTranslationCacheIdentity.translation(page: "page", settings: settings)
         let textSettings = settings
         settings.includePageImage = true
         #expect(!settings.hasSameTranslation(as: textSettings))
         try settings.autosave(defaults: defaults)
         #expect(ReaderTranslationSettings(defaults: defaults).includePageImage)
-        #expect(ReaderTranslationSettings(defaults: defaults).instructions == originalInstructions)
+        #expect(ReaderTranslationSettings(defaults: defaults).configuration.instructions == originalInstructions)
         #expect(ReaderTranslationCacheIdentity.translation(page: "page", settings: settings) != key)
         settings.includePageImage = false
         try settings.autosave(defaults: defaults)

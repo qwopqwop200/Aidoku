@@ -10,11 +10,19 @@ import CoreData
 extension CoreDataManager {
     /// Remove all history objects.
     func clearHistory(context: NSManagedObjectContext) {
+        HistoryMetadataCache.shared.clear()
+        // Invalidate again after this context's current save/rollback block, so
+        // a recovery racing the deletion cannot leave a late disk entry.
+        context.perform { HistoryMetadataCache.shared.clear() }
         clear(request: HistoryObject.fetchRequest(), context: context)
     }
 
     /// Remove all history objects from manga not in library
     func clearHistoryExcludingLibrary(context: NSManagedObjectContext) {
+        HistoryMetadataCache.shared.clear()
+        // Invalidate again after this context's current save/rollback block, so
+        // a recovery racing the deletion cannot leave a late disk entry.
+        context.perform { HistoryMetadataCache.shared.clear() }
         let request = HistoryObject.fetchRequest()
 
         let pairPredicates = self.getLibraryManga(context: context).compactMap { mangaObj -> NSCompoundPredicate? in
@@ -115,6 +123,8 @@ extension CoreDataManager {
 
     /// Removes history for manga.
     func removeHistory(mangaId: MangaIdentifier, context: NSManagedObjectContext) {
+        HistoryMetadataCache.shared.remove(mangaId: mangaId)
+        context.perform { HistoryMetadataCache.shared.remove(mangaId: mangaId) }
         let history = getHistoryForManga(mangaId: mangaId, context: context)
         for item in history {
             context.delete(item)
@@ -123,7 +133,8 @@ extension CoreDataManager {
 
     @discardableResult
     func removeHistory(chapterIds: [ChapterIdentifier]) async -> Bool {
-        await container.performBackgroundTask { context in
+        HistoryMetadataCache.shared.remove(chapterIds: chapterIds)
+        return await container.performBackgroundTask { context in
             do {
                 for chapterId in chapterIds {
                     if let object = self.getHistory(
@@ -134,6 +145,7 @@ extension CoreDataManager {
                     }
                 }
                 try context.save()
+                HistoryMetadataCache.shared.remove(chapterIds: chapterIds)
                 return true
             } catch {
                 context.rollback()

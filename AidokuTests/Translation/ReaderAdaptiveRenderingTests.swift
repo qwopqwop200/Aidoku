@@ -75,7 +75,75 @@ struct ReaderAdaptiveRenderingTests {
         #expect(result["text"] as? String == text)
     }
 
-    @Test func captionPaletteKeepsSourceSurfaceInsteadOfChoosingBlackForBlueInk() async throws {
+    @Test(arguments: ["room", "blocked", "manual", "newline", "edge", "tight"])
+    func captionReflowUsesSpaceWithoutSplittingWordsOrCrossingNeighbors(scenario: String) async throws {
+        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 240, height: 180))
+        web.loadHTMLString("<meta name='viewport' content='width=device-width,initial-scale=1'><body style='margin:0'>", baseURL: nil)
+        for _ in 0..<200 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+        var settings = ReaderTranslationSettings.defaultOverlay
+        settings.preserveSourceBackgroundColor = true
+        let text = scenario == "newline" ? "아저씨가\n기다리고 있어" : "아저씨가 기다리고 있어"
+        let item = BrowserOverlayItem(rect: CGRect(x: 30, y: 20, width: 27, height: 100),
+            sourceText: "原文", translatedText: text, confidence: 1, sourceOrientation: .vertical)
+        var payload = try #require(BrowserPageImageOverlayRenderer.layoutPayload(items: [item],
+            imageSize: CGSize(width: 240, height: 180), sourceRect: CGRect(x: 0, y: 0, width: 240, height: 180),
+            settings: settings, targetLanguage: "ko", viewport: CGSize(width: 240, height: 180)).first)
+        for (key, value) in ["x": scenario == "edge" ? 0 : 30, "y": 20, "width": 27, "height": 100,
+                            "fontSize": 9, "lineHeight": 11, "paddingLeft": 2, "paddingRight": 2,
+                            "paddingTop": 2, "paddingBottom": 2] { payload[key] = value }
+        payload["sourceBounds"] = [Double(scenario == "edge" ? 0 : scenario == "tight" ? 32 : 20)/240,
+                                   20.0/180, Double(scenario == "tight" ? 23 : 60)/240, 100.0/180]
+        payload["text"] = text
+        payload.removeValue(forKey: "smallTextReference")
+        payload["allowsAutomaticFontRecovery"] = scenario != "manual"
+        var items = [payload]
+        if scenario == "blocked" {
+            for (index, x) in [0, 60].enumerated() {
+                var obstacle = payload
+                obstacle["id"] = "obstacle-\(index)"; obstacle["x"] = x; obstacle["width"] = 27
+                obstacle["text"] = "옆 대사"; obstacle["allowsAutomaticFontRecovery"] = false
+                obstacle["sourceBounds"] = [Double(x)/240, 20.0/180, 27.0/240, 100.0/180]
+                items.append(obstacle)
+            }
+        }
+        var results: [[String: Any]] = []
+        for enabled in [false, true] {
+            let script = enabled ? BrowserPageImageOverlayRenderer.renderScript :
+                BrowserPageImageOverlayRenderer.renderScript.replacingOccurrences(
+                    of: "let captionReflowCharacterBudget = 8192;", with: "let captionReflowCharacterBudget = 0;")
+            _ = try await web.callAsyncJavaScript(script,
+                arguments: ["revision": enabled ? "2" : "1", "session": "caption-reflow", "items": items,
+                    "appearance": ["minimumReadableFontSize": 1, "opacity": 1, "preserveSourceBackgroundColor": true]],
+                in: nil, contentWorld: .page)
+            results.append(try #require(try await web.evaluateJavaScript("""
+            (()=>{const n=document.querySelector('[data-aidoku-image-ocr-overlay="item"]');
+              const p=document.querySelector('[data-aidoku-image-ocr-overlay="source-readability-panel"]');
+              const r=n.getBoundingClientRect(),b=p.getBoundingClientRect();
+              const range=document.createRange();range.selectNodeContents(n);const ink=range.getBoundingClientRect();
+              const plates=[...document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]')]
+                .map(p=>{const r=p.getBoundingClientRect();return [r.x,r.y,r.width,r.height];});
+              return {...n.dataset,text:n.textContent,width:r.width,left:r.left,right:r.right,plates:JSON.stringify(plates),
+                font:parseFloat(n.style.fontSize),contained:b.left<=ink.left+.5&&b.right>=ink.right-.5&&
+                  b.top<=ink.top+.5&&b.bottom>=ink.bottom-.5};})()
+            """) as? [String: Any]))
+        }
+        let before = results[0], after = results[1]
+        #expect(after["text"] as? String == text)
+        #expect(after["font"] as? Double == before["font"] as? Double)
+        #expect(after["contained"] as? Bool == true)
+        #expect(after["plates"] as? String == before["plates"] as? String)
+        if scenario == "room" || scenario == "edge" {
+            #expect(after["captionReflow"] as? String == "inside-fixed-box")
+            #expect(try #require(after["width"] as? Double) > #require(before["width"] as? Double))
+            #expect(try #require(after["left"] as? Double) >= 0)
+            #expect(try #require(after["right"] as? Double) <= 240)
+        } else {
+            #expect(after["width"] as? Double == before["width"] as? Double)
+            #expect(after["captionReflow"] == nil)
+        }
+    }
+
+    @Test func captionPaletteKeepsSourceSurfaceAndHonorsInkPreservation() async throws {
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 430, height: 260))
         web.loadHTMLString("<meta name='viewport' content='width=device-width,initial-scale=1'><body style='margin:0;background:#eee'>", baseURL: nil)
         for _ in 0..<200 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
@@ -85,17 +153,35 @@ struct ReaderAdaptiveRenderingTests {
           {sample:null,ink:[0,158,225],bg:[242,240,235]},
           {sample:{surface:{color:[245,239,231]},background:[10,10,10],confidence:{background:1}},ink:[170,210,235],bg:[245,239,231]},
           {sample:{background:[25,28,32],confidence:{background:1}},ink:[0,50,80],bg:[25,28,32]},
-          {sample:{background:[255,245,180],confidence:{background:1}},ink:[120,35,45],bg:[255,245,180]}
+          {sample:{background:[255,245,180],confidence:{background:1}},ink:[120,35,45],bg:[255,245,180]},
+          {sample:{foreground:[220,220,220],background:[255,255,255],confidence:{background:1}},
+            ink:[17,18,23],bg:[255,255,255],preserve:true,exactInk:[220,220,220]},
+          {sample:{foreground:[255,255,255],stroke:[96,54,28],background:[255,255,255],confidence:{background:1}},
+            ink:[255,255,255],bg:[255,255,255],preserve:true,exactInk:[255,255,255]},
+          {sample:{foreground:[225,190,205],background:[246,242,237],confidence:{background:1}},
+            ink:[225,190,205],bg:[246,242,237],preserve:true,exactInk:[225,190,205]},
+          {sample:{foreground:[220,220,220],background:[255,255,255],confidence:{background:1}},
+            ink:[220,220,220],bg:[255,255,255],preserve:false},
+          {sample:null,ink:[242,240,235],bg:[242,240,235],preserve:true},
+          {sample:{background:[25,28,32],stroke:[96,54,28],confidence:{background:1}},
+            ink:[25,28,32],bg:[25,28,32],preserve:true},
+          {sample:{foreground:[220,NaN,220],background:[255,255,255],confidence:{background:1}},
+            ink:[255,255,255],bg:[255,255,255],preserve:true}
         ];
         return cases.map(c=>{
-          const p=aidokuCaptionPalette(c.sample,c.ink);
+          const before=JSON.stringify(c),p=aidokuCaptionPalette(c.sample,c.ink,c.preserve);
           return {surface:p.background.every((v,i)=>v===c.bg[i]),
-            readable:aidokuSourceColorContrast(p.foreground,true,1,p.background)>=4.5,
-            unchanged:aidokuSourceColorContrast(c.ink,true,1,c.bg)<4.5||p.foreground.every((v,i)=>v===c.ink[i]),
-            blueOrder:c.ink[2]>c.ink[0]?p.foreground[2]>p.foreground[0]:true};
+            preservation:p.preserved===Boolean(c.exactInk),
+            readable:c.exactInk
+              ? p.foreground.every((v,i)=>v===c.exactInk[i])
+              : aidokuSourceColorContrast(p.foreground,true,1,p.background)>=4.5,
+            exact:!c.exactInk||p.foreground.every((v,i)=>v===c.exactInk[i]),
+            unchanged:Boolean(c.exactInk)||aidokuSourceColorContrast(c.ink,true,1,c.bg)<4.5||p.foreground.every((v,i)=>v===c.ink[i]),
+            blueOrder:Boolean(c.exactInk)||c.ink[2]<=c.ink[0]||p.foreground[2]>p.foreground[0],
+            inputUnchanged:JSON.stringify(c)===before};
         });
         """, arguments: [:], in: nil, contentWorld: .page) as? [[String: Bool]])
-        #expect(result.count == 5)
+        #expect(result.count == 12)
         for row in result { for (key, passed) in row { #expect(passed, "\(key)") } }
     }
 
@@ -253,7 +339,7 @@ struct ReaderAdaptiveRenderingTests {
             let regionsData = try Data(contentsOf: Self.directory.appendingPathComponent(fixture.regions))
             let regions = try JSONDecoder().decode([ReaderTranslationStoredRegion].self, from: regionsData).map(\.region)
             let size = CGSize(width: 430, height: 430 * source.size.height / source.size.width)
-            for mode in ["before", "after", "boxes"] {
+            for mode in ["before", "after", "boxes", "ocr"] {
                 let web = WKWebView(frame: CGRect(origin: .zero, size: size))
                 web.scrollView.contentInsetAdjustmentBehavior = .never
                 window.rootViewController?.view.addSubview(web)
@@ -266,7 +352,8 @@ struct ReaderAdaptiveRenderingTests {
                 let renderer = BrowserPageImageOverlayRenderer { web, script, arguments in
                     try await BrowserPageImageOverlayRenderer.evaluateJavaScript(web, mode == "before" ? baseline : script, arguments)
                 }
-                renderer.render(on: web, items: ReaderTranslationRegion.overlayItems(regions, imageSize: source.size), imageSize: source.size, sourceRect: CGRect(origin: .zero, size: size), settings: settings, targetLanguage: fixture.target)
+                let renderedRegions = mode == "ocr" ? regions.map { region in var copy = region; copy.translation = nil; return copy } : regions
+                renderer.render(on: web, items: ReaderTranslationRegion.overlayItems(renderedRegions, imageSize: source.size), imageSize: source.size, sourceRect: CGRect(origin: .zero, size: size), settings: settings, targetLanguage: fixture.target)
                 for _ in 0..<1000 where renderer.lastDiagnostic == nil { try await Task.sleep(for: .milliseconds(20)) }
                 #expect(renderer.lastDiagnostic?.outcome == .committed)
                 let audit = try #require(try await web.evaluateJavaScript("""
@@ -274,12 +361,71 @@ struct ReaderAdaptiveRenderingTests {
                   items:[...document.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')].map(n=>({
                     ...n.dataset,text:n.textContent,x:n.offsetLeft,y:n.offsetTop,width:n.offsetWidth,height:n.offsetHeight,
                     font:getComputedStyle(n).fontSize,stroke:getComputedStyle(n).webkitTextStrokeWidth})),
+                  plates:JSON.stringify([...document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]')]
+                    .map(n=>{const r=n.getBoundingClientRect();return [n.dataset.aidokuRegion,r.x,r.y,r.width,r.height];})),
                   blur:document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-blur"],[data-aidoku-image-ocr-overlay="source-readability-blur"]').length}))()
                 """) as? [String: Any])
-                if mode == "after" {
+                if mode == "after" || mode == "ocr" {
                     #expect(audit["blur"] as? Int == 0)
+                    if fixture.name.hasPrefix("halo-regression-") {
+                        #expect((audit["items"] as? [[String: Any]])?.count == regions.count)
+                    }
                     for node in try #require(audit["items"] as? [[String: Any]]) {
-                        #expect(node["stroke"] as? String == "0px", "Preserved backgrounds must not outline Korean glyphs")
+                        if node["sourceTextColor"] as? String == "preserved" {
+                            let changed = node["sourceAppliedTextRGB"] as? String != node["sourceSampledTextRGB"] as? String
+                            #expect(node["sourceTextColorAdjusted"] as? String == (changed ? "true" : "false"))
+                        }
+                        if fixture.name.hasPrefix("palette-accuracy-") {
+                            #expect(node["captionSurface"] as? String == "observed")
+                            #expect(node["sourceAppliedTextRGB"] as? String == node["sourceSampledTextRGB"] as? String,
+                                "Preserve neutral ink as well as chromatic ink")
+                            let rgb = (node["sourceAppliedBackgroundRGB"] as? String ?? "").split(separator: ",").compactMap { Int($0) }
+                            #expect(rgb.count == 3)
+                            if fixture.name.contains("translucent") {
+                                #expect(rgb.count == 3 && rgb[2] < 244, "Do not replace translucent backing with its brightest mode")
+                            }
+                            if fixture.name.contains("neutral") {
+                                let ink = (node["sourceAppliedTextRGB"] as? String ?? "").split(separator: ",").compactMap { Int($0) }
+                                if node["aidokuRegion"] as? String == "0" {
+                                    #expect(ink.count == 3 && ink[0] > ink[1] + 60 && ink[0] > ink[2] + 90,
+                                        "Downsampling must not wash the orange core into a pale halo tint")
+                                } else {
+                                    #expect(ink.count == 3 && ink.allSatisfy { $0 < 80 }, "Dark source ink must remain dark")
+                                }
+                            }
+                        }
+                        if fixture.name.hasPrefix("observed-") {
+                            #expect(node["captionSurface"] as? String == "observed")
+                            let rgb = (node["sourceAppliedBackgroundRGB"] as? String ?? "").split(separator: ",").compactMap { Int($0) }
+                            let ink = (node["sourceAppliedTextRGB"] as? String ?? "").split(separator: ",").compactMap { Int($0) }
+                            #expect(rgb.count == 3 && ink.count == 3)
+                            if node["text"] as? String == "성인향" {
+                                #expect(rgb.allSatisfy { $0 < 40 })
+                                #expect(ink.count == 3 && ink[0] > 180 && ink[1] > 150 && ink[2] < 150)
+                            } else if node["text"] as? String == "루나틱" {
+                                #expect(ink.allSatisfy { $0 < 40 })
+                            } else if fixture.name == "observed-art-strip" {
+                                #expect(rgb.contains { $0 < 210 }, "Do not invent a white panel over artwork")
+                            }
+                        }
+                        if fixture.name.hasPrefix("halo-regression-") {
+                            let rgb = (node["sourceAppliedBackgroundRGB"] as? String ?? "").split(separator: ",").compactMap { Int($0) }
+                            let ink = (node["sourceAppliedTextRGB"] as? String ?? "").split(separator: ",").compactMap { Int($0) }
+                            #expect(rgb.count == 3 && ink.count == 3)
+                            if fixture.name.contains("orange") {
+                                #expect(ink.count == 3 && ink[0] > 180 && ink[1] < 150 && ink[2] < 70, "Every orange source caption retains its chromatic ink")
+                            } else {
+                                #expect(rgb.contains { $0 < 200 }, "A white glyph halo is not a backing panel")
+                                let text = node["text"] as? String ?? ""
+                                if text.hasPrefix("それは") || text == "그렇게 생각했어." {
+                                    #expect(ink.count == 3 && ink[0] > ink[1] + 35 && ink[0] > ink[2] + 45,
+                                        "The orange caption over artwork must not become white or gray")
+                                }
+                            }
+                        }
+                        #expect(node["sourceStrokeColor"] as? String == "none")
+                        #expect(node["sourceAppliedStrokeRGB"] as? String == "")
+                        #expect(node["stroke"] as? String == "0px")
                     }
                 }
                 try JSONSerialization.data(withJSONObject: audit, options: [.prettyPrinted, .sortedKeys]).write(to: output.appendingPathComponent("\(fixture.name)-\(mode).json"))

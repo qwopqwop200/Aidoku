@@ -27,13 +27,10 @@ struct ReaderMangaQualityValidationTests {
         settings.maximumConcurrentRequests = config.maximumConcurrentRequests ?? 2
         if let value = config.preserveSourceTextColor { settings.overlay.preserveSourceTextColor = value }
         if let value = config.preserveSourceBackgroundColor { settings.overlay.preserveSourceBackgroundColor = value }
-        if let value = config.filterJapaneseSFX { settings.filterJapaneseSFX = value }
-        if let value = config.filterJapaneseSFXContext { settings.filterJapaneseSFXContext = value }
         settings.includePageImage = config.includePageImage ?? false
         settings.filterSFXWithLLM = config.filterSFXWithLLM ?? false
         settings.rightToLeftPanelOrder = config.rightToLeftPanelOrder ?? false
         if let effort = config.reasoningEffort { settings.reasoningEffort = effort }
-        if let instructions = config.instructions { settings.instructions = instructions }
         let output = folder.appendingPathComponent(config.label)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let responseAudit = QualityTranslationAuditTransport(
@@ -318,8 +315,6 @@ struct ReaderMangaQualityValidationTests {
         let maximumConcurrentRequests: Int?
         let preserveSourceTextColor: Bool?
         let preserveSourceBackgroundColor: Bool?
-        let filterJapaneseSFX: Bool?
-        let filterJapaneseSFXContext: Bool?
         let includePageImage: Bool?
         let filterSFXWithLLM: Bool?
         let rightToLeftPanelOrder: Bool?
@@ -335,7 +330,6 @@ struct ReaderMangaQualityValidationTests {
         let label: String
         let fixtures: [String]
         let expectedOCRRegionCounts: [String: Int]?
-        let instructions: String?
         let targetLanguage: String?
         let ocrOnly: Bool?
         let replayDirectory: String?

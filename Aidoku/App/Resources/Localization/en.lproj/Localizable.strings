@@ -895,8 +895,6 @@
 "TRANSLATION_SOURCE" = "Source Language";
 "TRANSLATION_AUTO" = "Detect Automatically";
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 requires iOS 18 or later. Medium is the default; Small uses less memory. Tiny has a smaller character dictionary. These models do not support Korean OCR. Korean translation output is supported.";
-"TRANSLATION_INSTRUCTIONS" = "Translation Instructions";
-"TRANSLATION_RESET_PROMPT" = "Restore Default Instructions";
 "TRANSLATION_CLEAR_CACHE" = "Clear Translation Cache";
 "TRANSLATION_CACHE_CLEARED" = "Translation cache cleared.";
 "TRANSLATION_NOTICES" = "OCR & Translation Licenses";
@@ -989,11 +987,7 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Automatically detect the source language and translate only the selected languages. All Detected Languages removes the restriction. Each item’s language filter is independent of page and other item language settings.";
 
-"TRANSLATION_SFX_FILTER" = "SFX Filtering (Japanese Only)";
-"TRANSLATION_SFX_FILTER_HELP" = "Leave likely Japanese sound effects untranslated. Use a local dictionary and conservative layout checks. Text that cannot confidently be identified as a sound effect is still translated.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Include Context-Required Entries (Japanese Only)";
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Applies while SFX Filtering is enabled. Also filters entries marked as requiring context using dictionary matches, text size, and nearby layout. No LLM analyzes the context, so dialogue may also be excluded.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Include Page Image in Translation";
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Send the page image with OCR text to provide scene context. If image input is unsupported, translation automatically continues with text only. Attaching images may increase data usage and API cost.";
@@ -1003,7 +997,7 @@
 "TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Estimate the original text color without an additional model. Use the default color when uncertain or when contrast is too low.";
 
 "TRANSLATION_LLM_SFX" = "LLM SFX Filtering (All Languages)";
-"TRANSLATION_LLM_SFX_HELP" = "Classify sound effects in the same translation request and leave them unchanged. With a page image, the AI also skips unclear OCR fragments unless the image establishes meaningful text. Dialogue, narration, titles, and credits are preserved for translation. Can be combined with the Japanese local filter: text flagged by either filter is left unchanged. Classification is less reliable without a page image.";
+"TRANSLATION_LLM_SFX_HELP" = "Classify sound effects in the same translation request and leave them unchanged. With a page image, the AI also skips unclear OCR fragments unless the image establishes meaningful text. Dialogue, narration, titles, and credits are preserved for translation. Classification is less reliable without a page image.";
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Without image input, limited visual and layout context may reduce SFX classification accuracy.";
 "TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Preserve Original Background Color";
 "TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Match the translation panel to the background around the original text. Use the default panel when uncertain or unreadable. Your opacity setting still applies.";
@@ -1115,3 +1109,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "The translation cache could not be saved.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Changes to iCloud Sync take effect the next time you fully close and reopen Aidoku. Until then, the current sync setting remains active.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Preserve original colors";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Keep the original text and background colors together.";
+"TRANSLATION_INPAINTING" = "Inpainting";
+"TRANSLATION_INPAINTING_HELP" = "Erase original lettering while preserving the background. Uses boxes when masks or readability are uncertain. Requires original colors.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Text Filtering";
+
+"TRANSLATION_TARGETS" = "What to Translate";

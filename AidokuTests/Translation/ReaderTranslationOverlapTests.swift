@@ -58,7 +58,6 @@ struct ReaderTranslationOverlapTests {
         defer { try? FileManager.default.removeItem(at: root) }
         var value = settings
         value.rightToLeftPanelOrder = false
-        value.filterJapaneseSFX = false
         value.includePageImage = false
         let key = ReaderTranslationCacheIdentity.ocr(page: page(1).translationCacheKey, settings: value)
         try await disk.storeRegions([OverlapRecorder.region(1)], for: key, kind: .ocr,

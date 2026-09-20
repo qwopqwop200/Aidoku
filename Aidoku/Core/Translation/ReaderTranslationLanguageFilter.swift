@@ -51,9 +51,7 @@ enum ReaderTranslationLanguageFilter {
         var language = languageIdentity(settings: settings)
         if settings.filterBackgroundWithLLM { language = (language ?? []) + [TranslationHTTPCodec.backgroundPolicy] }
         if settings.filterSFXWithLLM { language = (language ?? []) + [TranslationHTTPCodec.sfxPolicy] }
-        guard settings.filterJapaneseSFX else { return language }
-        return (language ?? []) + [ReaderJapaneseSFXFilter.version] +
-            (settings.filterJapaneseSFXContext ? [ReaderJapaneseSFXFilter.contextVersion] : [])
+        return language
     }
 
     private static func languageIdentity(settings: ReaderTranslationSettings) -> [String]? {
@@ -73,7 +71,7 @@ enum ReaderTranslationLanguageFilter {
             !isAlreadyTargetLanguage($0.source, target: settings.targetLanguage) &&
             AutomaticSourceLanguageDetector.allowsOCRText($0.source, configuredSourceLanguage: source, automaticLanguageFilter: languages)
         }
-        return ReaderJapaneseSFXFilter.apply(eligible, settings: settings)
+        return eligible
     }
 
     /// NaturalLanguage classification must not block reader gestures.

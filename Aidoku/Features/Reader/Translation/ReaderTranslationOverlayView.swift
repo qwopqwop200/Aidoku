@@ -247,7 +247,8 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 bounds: CGRect(origin: .zero, size: bounds.size), aspectFit: aspectFit
             ),
             settings: settings.overlay, targetLanguage: settings.targetLanguage,
-            layoutCache: snapshotTarget?.cache.disk, layoutCacheKey: snapshotTarget?.key,
+            layoutCache: snapshotTarget?.cache.disk,
+            layoutCacheKey: snapshotTarget.map { ReaderTranslationRenderCache.layoutKey(renderKey: $0.key, regions: regions) },
             cacheGeneration: snapshotTarget?.diskGeneration,
             cacheGenerationTask: snapshotTarget?.pendingDiskGeneration, preparedLayout: preparedLayout
         )
@@ -273,14 +274,15 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 // Rasterize the whole document via the isolated PDF export renderer.
                 // Promote a live renderer's saved layout into the bounded memory
                 // cache; subsequent displays/captures need no disk read or unpack.
-                let layout = await target.cache.layoutData(for: target.key)
+                let layout = await target.cache.layoutData(for: ReaderTranslationRenderCache.layoutKey(renderKey: target.key, regions: regions))
                 try Task.checkCancellation()
                 guard snapshotGeneration == issued, lastDiagnostic?.revision == revision, ReaderTranslationGeometry.sameViewport(bounds.size, size) else { return }
                 let snapshot = try await ReaderTranslationImageExporter.renderCacheSnapshot(
                     image: image, imageSize: imageSize, regions: regions, settings: settings,
                     viewport: size, scale: traitCollection.displayScale, aspectFit: aspectFit,
                     host: host, dark: target.dark,
-                    preparedLayout: layout.map { data in Task { data } } ?? preparedLayout
+                    preparedLayout: layout.map { data in Task { data } } ?? preparedLayout,
+                    assetCache: target.cache, assetKey: target.key
                 )
                 try Task.checkCancellation()
                 guard snapshotGeneration == issued, lastDiagnostic?.revision == revision, ReaderTranslationGeometry.sameViewport(bounds.size, size) else { return }

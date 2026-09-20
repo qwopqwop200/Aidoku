@@ -206,8 +206,6 @@ actor ReaderTranslationDiskCache {
         guard !settings.rightToLeftPanelOrder, ReaderTranslationLanguageFilter.identity(settings: settings) != nil,
               let cached = try regions(for: ReaderTranslationCacheIdentity.unfilteredTranslation(page: page, settings: settings),
                                        kind: .translation) else { return nil }
-        // Old translations have no visual evidence. Reuse raw OCR through image preparation first.
-        guard !ReaderJapaneseSFXImageEvidence.requiresSampling(cached, settings: settings) else { return nil }
         let filtered = ReaderTranslationLanguageFilter.apply(cached, settings: settings)
         try Task.checkCancellation()
         try storeRegions(filtered, for: key, kind: .translation, generation: generation)
@@ -274,6 +272,29 @@ actor ReaderTranslationDiskCache {
                 }
             }
             try database.execute("INSERT OR IGNORE INTO cache_policy(name,value) VALUES('payload-compression-v2','1')")
+        }
+        // Base names remain the hash of the canonical ATZ1 bytes. Only their
+        // stored payload changes, so existing links and future deduplication agree.
+        if try database.integer("SELECT COUNT(*) FROM cache_policy WHERE name='base-compression-v2'") == 0 {
+            cursor = ""
+            while let row = try database.nextBaseCompressionCandidate(after: cursor) {
+                try Task.checkCancellation()
+                cursor = row.name
+                if let packed = try? ReaderTranslationCacheCodec.repack(row.data), packed != row.data {
+                    try database.replacePackedBase(packed, name: row.name)
+                }
+                processed += 1
+                if processed.isMultiple(of: 32) {
+                    await Task.yield()
+                    guard self.database === database else { return }
+                }
+            }
+            try Task.checkCancellation()
+            // Shrinking BLOBs can leave space inside live B-tree pages that
+            // auto_vacuum cannot release. Rebuild once, before marking complete;
+            // SQLite keeps saved work intact and a failed rebuild retries later.
+            try database.execute("VACUUM")
+            try database.execute("INSERT OR IGNORE INTO cache_policy(name,value) VALUES('base-compression-v2','1')")
         }
         try trim()
     }
@@ -371,6 +392,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         try execute("CREATE TABLE IF NOT EXISTS region_links (name TEXT PRIMARY KEY REFERENCES cache(name) ON DELETE CASCADE, base TEXT NOT NULL REFERENCES region_bases(name)) WITHOUT ROWID")
         try execute("CREATE INDEX IF NOT EXISTS region_base_refs ON region_links(base)")
         try execute("CREATE TRIGGER IF NOT EXISTS region_base_insert AFTER INSERT ON region_bases BEGIN UPDATE totals SET bytes=bytes+length(new.data); END")
+        try execute("CREATE TRIGGER IF NOT EXISTS region_base_update AFTER UPDATE OF data ON region_bases BEGIN UPDATE totals SET bytes=bytes+length(new.data)-length(old.data); END")
         try execute("CREATE TRIGGER IF NOT EXISTS region_base_delete AFTER DELETE ON region_bases BEGIN UPDATE totals SET bytes=bytes-length(old.data); END")
         try execute("CREATE TRIGGER IF NOT EXISTS region_unlink AFTER DELETE ON region_links BEGIN DELETE FROM region_bases WHERE name=old.base AND NOT EXISTS (SELECT 1 FROM region_links WHERE base=old.base); END")
         try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: url.path)
@@ -471,6 +493,23 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         }
     }
 
+    func nextBaseCompressionCandidate(after name: String) throws -> (name: String, data: Data)? {
+        try statement("SELECT name,data FROM region_bases WHERE name>? ORDER BY name LIMIT 1", name: name) { pointer in
+            let result = sqlite3_step(pointer)
+            if result == SQLITE_DONE { return nil }
+            guard result == SQLITE_ROW else { throw failure() }
+            return (String(cString: sqlite3_column_text(pointer, 0)), blob(pointer, column: 1))
+        }
+    }
+
+    func replacePackedBase(_ data: Data, name: String) throws {
+        try statement("UPDATE region_bases SET data=?2 WHERE name=?1", name: name) { pointer in
+            let result = data.withUnsafeBytes { sqlite3_bind_blob(pointer, 2, $0.baseAddress, Int32($0.count), transient) }
+            guard result == SQLITE_OK else { throw failure() }
+            try step(pointer)
+        }
+    }
+
     func replacePackedData(_ data: Data, name: String) throws {
         try statement("UPDATE cache SET data=?2 WHERE name=?1", name: name) { pointer in
             let result = data.withUnsafeBytes { sqlite3_bind_blob(pointer, 2, $0.baseAddress, Int32($0.count), transient) }
@@ -516,8 +555,9 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
             }
             if let base {
                 let digest = ReaderTranslationCacheIdentity.digest(base)
+                let packedBase = try ReaderTranslationCacheCodec.repack(base)
                 try statement("INSERT OR IGNORE INTO region_bases(name,data) VALUES(?,?)", name: digest) { pointer in
-                    let result = base.withUnsafeBytes { sqlite3_bind_blob(pointer, 2, $0.baseAddress, Int32($0.count), transient) }
+                    let result = packedBase.withUnsafeBytes { sqlite3_bind_blob(pointer, 2, $0.baseAddress, Int32($0.count), transient) }
                     guard result == SQLITE_OK else { throw failure() }
                     try step(pointer)
                 }
@@ -703,7 +743,6 @@ struct ReaderTranslationStoredRegion: Codable {
     let singleColumn: Bool?
     let auxiliaryInkRects: [CGRect]?
     let sourceImageAspectRatio: Double?
-    let sfxEnclosedBackground: Bool?
     let translationOrder: Int?
     let translationOrderVersion: String?
     let reuseKey: TranslationCacheKey?
@@ -715,7 +754,6 @@ struct ReaderTranslationStoredRegion: Codable {
         singleColumn = value.sourceSingleVerticalColumn
         auxiliaryInkRects = value.auxiliaryInkRects.isEmpty ? nil : value.auxiliaryInkRects
         sourceImageAspectRatio = value.sourceImageAspectRatio
-        sfxEnclosedBackground = value.sfxEnclosedBackground
         translationOrder = value.translationOrder
         translationOrderVersion = value.translationOrderVersion
         reuseKey = value.translationReuseIdentity?.cacheKey; reuseSegment = value.translationReuseIdentity?.segmentID
@@ -726,7 +764,6 @@ struct ReaderTranslationStoredRegion: Codable {
                                              sourceSingleVerticalColumn: singleColumn)
         region.auxiliaryInkRects = auxiliaryInkRects ?? []
         region.sourceImageAspectRatio = sourceImageAspectRatio
-        region.sfxEnclosedBackground = sfxEnclosedBackground
         region.translationOrder = translationOrder
         region.translationOrderVersion = translationOrderVersion
         if let reuseKey, let reuseSegment { region.translationReuseIdentity = .init(cacheKey: reuseKey, segmentID: reuseSegment) }
@@ -762,7 +799,7 @@ enum ReaderTranslationCacheIdentity {
     static func ocr(page: String, settings: ReaderTranslationSettings) -> String {
         // OCR entries contain merged regions. A merger change must also
         // invalidate derived translations/layouts instead of replaying old boxes.
-        encoded(["reader-ocr-v50-deskew-column-veto", page, encoded(settings.ocrConfiguration)])
+        encoded(["reader-ocr-v51-short-staggered-reaction", page, encoded(settings.ocrConfiguration)])
     }
     static func translation(page: String, settings: ReaderTranslationSettings) -> String {
         let previous = unfilteredTranslation(page: page, settings: settings)
@@ -788,7 +825,7 @@ enum ReaderTranslationCacheIdentity {
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
         return encoded([
-            "reader-render-v61-calm-source-panels", translation(page: page, settings: settings), encoded(settings.overlay),
+            "reader-render-v73-panel-guided-inpainting", translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
             ProcessInfo.processInfo.operatingSystemVersionString
         ])

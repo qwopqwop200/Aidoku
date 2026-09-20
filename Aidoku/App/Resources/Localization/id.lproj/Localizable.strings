@@ -869,9 +869,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 memerlukan iOS 18 atau lebih baru. Model bawaan adalah Sedang. Kecil menggunakan lebih sedikit memori dan Sangat Kecil memiliki kamus karakter yang lebih terbatas. Model ini tidak mengenali teks Korea, tetapi terjemahan ke bahasa Korea didukung.";
 
-"TRANSLATION_INSTRUCTIONS" = "Instruksi terjemahan";
 
-"TRANSLATION_RESET_PROMPT" = "Kembalikan instruksi terjemahan default";
 
 "TRANSLATION_CLEAR_CACHE" = "Hapus Cache Terjemahan";
 
@@ -1002,13 +1000,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Deteksi bahasa sumber secara otomatis dan terjemahkan hanya bahasa yang dipilih. Semua Bahasa Terdeteksi menghilangkan batasan tersebut. Filter bahasa setiap item tidak bergantung pada pengaturan bahasa halaman maupun item lainnya.";
 
-"TRANSLATION_SFX_FILTER" = "Pemfilteran SFX (Khusus Bahasa Jepang)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Biarkan kemungkinan efek suara bahasa Jepang tidak diterjemahkan. Gunakan kamus lokal dan pemeriksaan tata letak yang konservatif. Teks yang tidak dapat diidentifikasi dengan pasti sebagai efek suara masih diterjemahkan.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Sertakan Entri yang Memerlukan Konteks (Khusus Bahasa Jepang)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Berlaku saat Pemfilteran SFX diaktifkan. Juga memfilter entri yang ditandai memerlukan konteks menggunakan kecocokan kamus, ukuran teks, dan tata letak terdekat. Tidak ada LLM yang menganalisis konteksnya, sehingga dialog juga dapat dikecualikan.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Sertakan Gambar Halaman dalam Terjemahan";
 
@@ -1021,7 +1015,7 @@
 
 "TRANSLATION_LLM_SFX" = "Penyaringan LLM SFX (Semua Bahasa)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Mengklasifikasikan efek suara dalam permintaan terjemahan yang sama dan membiarkannya tidak berubah. Jika gambar halaman disertakan, AI juga melewati fragmen OCR yang tidak jelas, kecuali gambar menunjukkan bahwa fragmen tersebut merupakan teks bermakna. Dialog, narasi, judul, dan kredit tetap diterjemahkan. Dapat digabungkan dengan filter bahasa Jepang di perangkat: teks yang ditandai oleh salah satu filter dibiarkan tidak berubah. Klasifikasi kurang andal tanpa gambar halaman.";
+"TRANSLATION_LLM_SFX_HELP" = "Mengklasifikasikan efek suara dalam permintaan terjemahan yang sama dan membiarkannya tidak berubah. Jika gambar halaman disertakan, AI juga melewati fragmen OCR yang tidak jelas, kecuali gambar menunjukkan bahwa fragmen tersebut merupakan teks bermakna. Dialog, narasi, judul, dan kredit tetap diterjemahkan. Klasifikasi kurang andal tanpa gambar halaman.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Tanpa masukan gambar, konteks visual dan tata letak yang terbatas dapat mengurangi akurasi klasifikasi SFX.";
 
@@ -1167,3 +1161,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Cache terjemahan tidak dapat disimpan.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Perubahan sinkronisasi iCloud berlaku setelah Anda menutup Aidoku sepenuhnya lalu membukanya kembali. Hingga saat itu, pengaturan sinkronisasi saat ini tetap aktif.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Pertahankan warna asli";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Pertahankan warna teks dan latar bersama-sama.";
+"TRANSLATION_INPAINTING" = "Pemulihan latar";
+"TRANSLATION_INPAINTING_HELP" = "Hapus teks asli dengan mempertahankan latar. Gunakan kotak jika masker atau keterbacaan tidak pasti. Memerlukan warna asli.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Penyaringan Teks";
+
+"TRANSLATION_TARGETS" = "Konten yang Diterjemahkan";

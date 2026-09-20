@@ -336,6 +336,8 @@ final class ReaderTranslationCoordinator {
         isVisible = false
         updateMetadataActivity(active: false)
         session.close()
+        owner = nil
+        NotificationCenter.default.post(name: ReaderTranslationLayoutAwaiter.invalidated, object: nil)
         // The selected OCR models remain warm across readers. Memory pressure
         // and OCR configuration changes are the resource-release boundaries.
     }
@@ -424,5 +426,118 @@ final class ReaderTranslationCoordinator {
         var settings = readSettings()
         settings.rightToLeftPanelOrder = owner.translationReadsRightToLeft
         if settings.automaticallyTranslate { session.enable(settings: settings) } else { session.disable(preservingVisibleRendering: true) }
+    }
+}
+
+extension ReaderTranslationCoordinator {
+    /// These observers belong to one render request. Turning translation off or
+    /// closing the reader cancels even a queued exporter, releasing its source.
+    private func performImagePreparation(
+        _ operation: @escaping @MainActor () async throws -> UIImage
+    ) async throws -> UIImage {
+        let rendering = Task { try await operation() }
+        let names = [ReaderTranslationSettings.changed, ReaderTranslationLayoutAwaiter.invalidated,
+                     UIApplication.willResignActiveNotification, UIApplication.didEnterBackgroundNotification]
+        let observers = names.map { name in
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in rendering.cancel() }
+        }
+        defer { observers.forEach { NotificationCenter.default.removeObserver($0) } }
+        return try await withTaskCancellationHandler { try await rendering.value } onCancel: { rendering.cancel() }
+    }
+
+    private func imagePreparationSettings() -> ReaderTranslationSettings? {
+        guard let owner else { return nil }
+        var settings = readSettings()
+        guard settings.automaticallyTranslate, settings.overlay.visible else { return nil }
+        settings.rightToLeftPanelOrder = owner.translationReadsRightToLeft
+        return settings
+    }
+
+    /// Return a finished source-aspect image before the loader exposes the source.
+    /// Warm render assets replay without a window; only legacy text-only entries
+    /// wait for a host, using layout/activation events instead of polling UIKit.
+    func prepareCachedImage(
+        image: UIImage, page: Page,
+        geometry: @escaping @MainActor () -> ReaderTranslationImageGeometry?
+    ) async throws -> ReaderTranslationPreparedImage? {
+        guard #available(iOS 18.0, *) else { return nil }
+        let pageKey = page.translationCacheKey
+        let crop = page.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
+        func renderKey(_ settings: ReaderTranslationSettings, _ geometry: ReaderTranslationImageGeometry) -> String {
+            ReaderTranslationCacheIdentity.render(page: pageKey, settings: settings, imageSize: image.size,
+                viewport: geometry.viewport, scale: geometry.scale, aspectFit: geometry.aspectFit, crop: crop, dark: geometry.dark)
+        }
+        while true {
+            try Task.checkCancellation()
+            guard owner != nil else { throw CancellationError() }
+            guard let settings = imagePreparationSettings() else { return nil }
+            let result = try await session.cachedRegions(for: page, settings: settings)
+            try Task.checkCancellation()
+            guard owner != nil else { throw CancellationError() }
+            guard imagePreparationSettings() == settings else { continue }
+            guard let result else { return nil }
+            let regions = result.compactMap { $0.cropped(to: crop) }
+            guard !regions.isEmpty else { return nil }
+            guard let current = geometry(), current.isValid else {
+                guard let host = (owner as? UIViewController)?.viewIfLoaded else {
+                    throw ReaderTranslationImageExporter.ExportError.unavailable
+                }
+                try await ReaderTranslationLayoutAwaiter.wait(in: host) { [weak self] in
+                    self?.imagePreparationSettings() != settings || geometry()?.isValid == true
+                }
+                continue
+            }
+            let key = renderKey(settings, current)
+            let host = (owner as? UIViewController)?.viewIfLoaded
+            let activeHost = UIApplication.shared.applicationState == .active && host?.window?.windowScene != nil ? host : nil
+            let cache = owner?.translationPersistsCache == true ? session.renderCache : nil
+            let rendered: UIImage
+            do {
+                rendered = try await performImagePreparation {
+                    try await ReaderTranslationImageExporter.renderLoadedImage(
+                        image: image, regions: regions, settings: settings, viewport: current.viewport,
+                        scale: current.scale, aspectFit: current.aspectFit, dark: current.dark,
+                        host: activeHost, cache: cache, key: key,
+                        pageIdentity: ReaderTranslationCacheIdentity.translation(page: pageKey, settings: settings)
+                    )
+                }
+            } catch is CancellationError {
+                try Task.checkCancellation()
+                guard owner != nil else { throw CancellationError() }
+                // A request event cancelled the child. Re-read settings so OFF
+                // can return the source immediately and background can use RAM.
+                continue
+            } catch ReaderTranslationImageExporter.ExportError.unavailable {
+                try Task.checkCancellation()
+                guard owner != nil else { throw CancellationError() }
+                if imagePreparationSettings() != settings || geometry() != current { continue }
+                // A warm asset does not need this condition. A cache miss asks
+                // for WebKit only after its attached, active host becomes ready.
+                guard let host else { throw ReaderTranslationImageExporter.ExportError.unavailable }
+                guard UIApplication.shared.applicationState != .active || host.window?.windowScene == nil else {
+                    throw ReaderTranslationImageExporter.ExportError.unavailable
+                }
+                try await ReaderTranslationLayoutAwaiter.wait(in: host) { [weak self, weak host] in
+                    guard self?.imagePreparationSettings() == settings, let latest = geometry(), latest.isValid,
+                          renderKey(settings, latest) == key else { return true }
+                    return host?.window?.windowScene != nil && UIApplication.shared.applicationState == .active
+                }
+                continue
+            } catch {
+                try Task.checkCancellation()
+                guard owner != nil else { throw CancellationError() }
+                if imagePreparationSettings() != settings || geometry() != current { continue }
+                throw error
+            }
+            try Task.checkCancellation()
+            guard owner != nil else { throw CancellationError() }
+            guard imagePreparationSettings() == settings, let latest = geometry(), latest.isValid,
+                  renderKey(settings, latest) == key else { continue }
+            return ReaderTranslationPreparedImage(image: rendered, regions: result, settings: settings,
+                isCurrent: { [weak self] in
+                    guard self?.imagePreparationSettings() == settings, let latest = geometry(), latest.isValid else { return false }
+                    return renderKey(settings, latest) == key
+                })
+        }
     }
 }

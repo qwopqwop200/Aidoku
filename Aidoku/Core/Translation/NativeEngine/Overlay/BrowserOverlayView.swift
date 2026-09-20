@@ -165,6 +165,7 @@ final class BrowserPageImageOverlayRenderer {
                     "appearance": ["opacity": min(1, max(0, settings.opacity)),
                                    "preserveSourceTextColor": settings.preserveSourceTextColor,
                                    "preserveSourceBackgroundColor": settings.preserveSourceBackgroundColor,
+                                   "inpaintingEnabled": settings.usesSourceInpainting,
                                    "minimumReadableFontSize": BrowserOverlayLayoutPlanner.minimumRenderedFontSize],
                     "revision": String(currentRevision), "session": sessionIdentifier
                 ])
@@ -420,12 +421,11 @@ final class BrowserPageImageOverlayRenderer {
                 "sourcePanelRestorationEligible": settings.mode == .translateOnly &&
                     settings.textPlacement == .replace,
                 "sourceCleanupLexical": BrowserSourceInkCleanup.hasColoredCleanupText(segment.item.sourceText),
-                "allowsAutomaticFontRecovery": settings.fontSizing == .autoFit &&
-                    settings.mode == .translateOnly && settings.textPlacement == .replace &&
-                    settings.expansionPolicy == .panelConstrained,
+                "allowsAutomaticFontRecovery": settings.mode == .translateOnly &&
+                    settings.textPlacement == .replace,
                 "sourceCleanup": settings.mode == .translateOnly &&
                     settings.textPlacement == .replace &&
-                    (settings.colorMode == .white || (settings.colorMode == .automatic && segment.sourceVertical)),
+                    settings.colorMode == .white,
                 "sourceBounds": [segment.item.rect.minX / imageSize.width, segment.item.rect.minY / imageSize.height,
                                  segment.item.rect.width / imageSize.width, segment.item.rect.height / imageSize.height],
                 "auxiliaryInkRects": segment.item.auxiliaryInkRects.map {
@@ -471,9 +471,7 @@ final class BrowserPageImageOverlayRenderer {
                 "paddingBottom": layout.contentInsets.bottom,
                 "paddingRight": layout.contentInsets.right,
                 "lightSurface":
-                    settings.colorMode == .white ||
-                    (settings.colorMode == .automatic &&
-                        segment.sourceVertical),
+                    settings.colorMode == .white,
                 "clipsText": !segment.content.hasTranslation ||
                     segment.content.displayed.vertical ||
                     segment.content.singleVerticalColumn ||
@@ -749,7 +747,7 @@ final class BrowserPageImageOverlayRenderer {
         const cleanedDenseSourceItems = new Set();
     const cleanupStarted = performance.now();
     const sourceImage = document.getElementById('reader-source-image');
-    const sourceColorBudget = {pixels:393216, detailPixels:98304};
+    const sourceColorBudget = {pixels:393216, detailPixels:98304, remainingSamples:items.filter(item=>item.sourceColorEligible).length};
     const sourceColors = aidokuSourceColorSampler(sourceImage,
       Boolean(appearance?.preserveSourceTextColor || appearance?.preserveSourceBackgroundColor), 'ocr', sourceColorBudget);
     const translatedSourceColors = aidokuSourceColorSampler(sourceImage,
@@ -807,7 +805,7 @@ final class BrowserPageImageOverlayRenderer {
     const storeCleanup = (key, prepared, pixels) => {
       if (!cleanupCache) return;
       const bytes = (prepared.restored?.rgba?.byteLength || 0) +
-        (prepared.restored?.layoutSafe?.byteLength || 0) + (prepared.output?.data?.byteLength || 0);
+        (prepared.restored?.layoutSafe?.byteLength || 0) + (prepared.luminance?.byteLength || 0) + (prepared.output?.data?.byteLength || 0);
       const limit = 4 * 1024 * 1024;
       if (bytes > limit || pixels > 2000000) return;
       while (cleanupCache.entries.size && (cleanupCache.bytes + bytes > limit ||
@@ -822,6 +820,8 @@ final class BrowserPageImageOverlayRenderer {
     };
         const cleanupCanvas = document.createElement('canvas');
     const cleanupContext = cleanupCanvas.getContext('2d', {willReadFrequently: true});
+    const inpaintingEnabled = Boolean(appearance?.inpaintingEnabled &&
+      appearance?.preserveSourceTextColor && appearance?.preserveSourceBackgroundColor);
     const restoredSourcePanels = new Set();
     const restoredPanelGeometry = new Map();
     let restoredPanelLookupBudget = 1048576;
@@ -829,7 +829,7 @@ final class BrowserPageImageOverlayRenderer {
     let remainingPanelRestorations = items.filter(item => item.sourcePanelRestorationEligible && item.sourceColorEligible).length;
     const panelRestorationAudit = [];
     const appendRestoredSourcePanel = item => {
-      if (!appearance?.preserveSourceBackgroundColor || !item.sourcePanelRestorationEligible ||
+      if (!inpaintingEnabled || !item.sourcePanelRestorationEligible ||
           !item.sourceColorEligible || opacity <= 0 || !sourceImage?.complete || !cleanupContext) return false;
       // Reserve a fair share for later balloons; the last caption must not lose
       // all restoration work simply because earlier regions consumed the page cap.
@@ -855,15 +855,27 @@ final class BrowserPageImageOverlayRenderer {
       if(w<8||h<8||pixels>panelRestorationBudget)return false;
       panelRestorationBudget-=pixels;
       try {
-        const key=JSON.stringify(['spatial-panel-v13-readability',x,y,sourceWidth,sourceHeight,w,h,b,palette,auxiliary,leadingRule,Boolean(item.sourceVertical)]);
+        const key=JSON.stringify(['spatial-panel-v16-panel-guided-inpainting',x,y,sourceWidth,sourceHeight,w,h,b,palette,auxiliary,leadingRule,Boolean(item.sourceVertical)]);
         let prepared=cleanupCache?.entries.get(key);
         if(!prepared){
           cleanupCanvas.width=w;cleanupCanvas.height=h;
           cleanupContext.drawImage(sourceImage,x,y,sourceWidth,sourceHeight,0,0,w,h);
-          const restored=aidokuRestoreSourcePanel(cleanupContext.getImageData(0,0,w,h).data,w,h,
+          const original=cleanupContext.getImageData(0,0,w,h).data;
+          const restored=aidokuRestoreSourcePanel(original,w,h,
             [(b[0]*iw-x)*sx,(b[1]*ih-y)*sy,b[2]*iw*sx,b[3]*ih*sy],palette,
-            {readabilityGate:true,auxiliary:auxiliary.map(r=>[(r[0]*iw-x)*sx,(r[1]*ih-y)*sy,r[2]*iw*sx,r[3]*ih*sy]),leadingRule,vertical:Boolean(item.sourceVertical)});
-          prepared={restored};
+            {readabilityGate:true,sampleScale:Math.min(sx,sy),auxiliary:auxiliary.map(r=>[(r[0]*iw-x)*sx,(r[1]*ih-y)*sy,r[2]*iw*sx,r[3]*ih*sy]),leadingRule,vertical:Boolean(item.sourceVertical)});
+          // Readability is checked against actual composited pixels, without
+          // changing the source foreground/background estimators.
+          let luminance=null;
+          if(restored){
+            luminance=new Uint8Array(pixels);
+            const linear=v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;};
+            for(let i=0;i<pixels;i++){
+              const data=restored.rgba[i*4+3]?restored.rgba:original;
+              luminance[i]=Math.round(255*(.2126*linear(data[i*4])+.7152*linear(data[i*4+1])+.0722*linear(data[i*4+2])));
+            }
+          }
+          prepared={restored,luminance};
           storeCleanup(key, prepared, pixels);
         }
         const result=prepared.restored;
@@ -878,7 +890,7 @@ final class BrowserPageImageOverlayRenderer {
           width:`${sourceWidth/iw*frame[2]}px`,height:`${sourceHeight/ih*frame[3]}px`,
           clipPath:aidokuCleanupClip(cleanupImageGeometry,frame[0]+x/iw*frame[2],frame[1]+y/ih*frame[3],sourceWidth/iw*frame[2],sourceHeight/ih*frame[3])});
         root.appendChild(canvas);restoredSourcePanels.add(item);
-        restoredPanelGeometry.set(item,{canvas,safe:result.layoutSafe,w,h,x,y,frame,iw,ih,sx,sy});return true;
+        restoredPanelGeometry.set(item,{canvas,safe:result.layoutSafe,luminance:prepared.luminance,w,h,x,y,frame,iw,ih,sx,sy});return true;
       } catch (_) { return false; }
     };
     const appendSourceCleanup = item => {
@@ -957,12 +969,8 @@ final class BrowserPageImageOverlayRenderer {
         // Missing/tainted pixels are not evidence; rendering still succeeds.
       }
     };
-    for (const item of items) {
-      if (!item || typeof item !== 'object') continue;
-      if (appendRestoredSourcePanel(item)) continue;
-      // Failure is a readable caption, not a speculative repair of illustration.
-      appendSourceCleanup(item);
-    }
+    // Optional restoration; failed ownership/surface checks retain boxes.
+    if(inpaintingEnabled)for(const item of items)appendRestoredSourcePanel(item);
     root.dataset.panelRestorationAudit = JSON.stringify(panelRestorationAudit);
     root.dataset.panelRestorationPixels = String(393216-panelRestorationBudget);
     root.dataset.cleanupCount = String(cleanupCount);
@@ -979,6 +987,8 @@ final class BrowserPageImageOverlayRenderer {
       return total + (item?.smallTextReference?.fontSize < 8 && length <= 512 ? length : 0);
     }, 0);
     let readableRefinementBudget = Math.min(2048, Math.max(0, refinementCharacterBudget - emergencyCharacters));
+    const captionTextReflows = new Map();
+    let captionReflowCharacterBudget = 8192;
     let koreanWrapCharacterBudget = 2048;
     let readableParagraphBudget = 512;
     let captionRecoveryCharacterBudget = 16384;
@@ -1079,46 +1089,19 @@ final class BrowserPageImageOverlayRenderer {
         const veil = lightSurface ? '255,255,255' : '7,9,13';
         const veilAlpha = lightSurface ? 0.42 : 0.64;
         const readableColor = appearance?.preserveSourceTextColor
-          ? aidokuReadableSourceColor(sampled?.foreground, lightSurface, opacity, sampledBackground) : null;
+          ? aidokuReadableSourceColor(aidokuSourceDisplayInk(sampled), lightSurface, opacity, sampledBackground) : null;
         const foreground = readableColor ? readableColor.join(',') : (lightSurface ? '17,18,23' : '255,255,255');
-        // Preserving source ink must preserve its RGB, including light lettering.
-        // A thin contrasting edge supplies definition on a different/translucent
-        // reader surface without silently recoloring the fill or enabling panel color.
+        // Source outlines remain sampling evidence only. Display uses a single
+        // readable fill: colored rings and synthetic halos crowd small glyphs.
         const sampledStroke = sampled?.stroke;
-        const sourceStroke = !preserveOriginalBackground && appearance?.preserveSourceTextColor && Array.isArray(sampledStroke) &&
-          sampledStroke.length === 3 && sampledStroke.every(v => Number.isFinite(v) && v >= 0 && v <= 255)
-          ? sampledStroke : null;
-        const sourceTextOutline = Boolean(unresolvedSourceBackground || sourceStroke || (readableColor &&
-          aidokuSourceColorContrast(readableColor, lightSurface, opacity, sampledBackground) < 3));
-        // At low opacity the panel polarity may disagree with the source ink.
-        // Contrast the edge against the preserved fill, not against the panel.
-        const outlineColor = sourceStroke ? sourceStroke.join(',') : (sourceTextOutline
-          ? aidokuPanelForeground(readableColor || foreground.split(',').map(Number), 1).join(',') : '');
-        // Strengthen low-contrast neutral lettering without crowding tiny glyphs.
-        const readabilityWidthAssist = Boolean(appearance?.preserveSourceTextColor &&
-          !appearance?.preserveSourceBackgroundColor && !sourceStroke && readableColor && opacity > 0 &&
-          fontSize >= 9 && Math.max(...readableColor) - Math.min(...readableColor) <= 12 &&
-          aidokuSourceColorContrast(readableColor, lightSurface, opacity, sampledBackground) < 3);
-        const preservedTextShadow = 'none';
-        // Fade the continuous edge as the source fill approaches sufficient
-        // contrast. Paint the unchanged fill last so the edge cannot eat its ink.
-        const sourceInkEdgeStrength = unresolvedSourceBackground ? 1 : sourceTextOutline
-          ? Math.min(1, Math.max(0, (3 - aidokuSourceColorContrast(
-              readableColor, lightSurface, opacity, sampledBackground)) / 2)) : 0;
-        // A measured source band is the outer half of the CSS stroke after fill is painted.
-        const measuredStrokeRatio = Number(sampled?.widthEvidence?.relativeToGlyph);
-        const sourceStrokeEm = Number.isFinite(measuredStrokeRatio) && measuredStrokeRatio > 0
-          ? Math.min(0.24, Math.max(0.035, 2 * measuredStrokeRatio)) : 0.10;
-        const sourceInkStroke = sourceStroke
-          ? `min(1.5px, ${sourceStrokeEm}em) rgb(${outlineColor})`
-          : (readabilityWidthAssist ? `min(1.5px, 0.14em) rgb(${outlineColor})` : (sourceTextOutline ? `min(1px, ${0.10 * sourceInkEdgeStrength}em) rgb(${outlineColor})` : '0px transparent'));
+        const sourceTextOutline = false;
         node.dataset.sourceSampledStrokeRGB = Array.isArray(sampledStroke) ? sampledStroke.join(',') : '';
-        node.dataset.sourceAppliedStrokeRGB = sourceTextOutline ? outlineColor : '';
-        node.dataset.sourceStrokeColor = sourceStroke ? 'preserved' : (readabilityWidthAssist ? 'readability-assist' : (sourceTextOutline ? 'contrast-fallback' : 'none'));
-        node.dataset.sourceReadabilityAssist = String(readabilityWidthAssist);
-        node.dataset.sourceReadabilityAssistOrigin = readabilityWidthAssist ? 'existing-contrast-edge-width' : '';
+        node.dataset.sourceAppliedStrokeRGB = '';
+        node.dataset.sourceStrokeColor = 'none';
+        node.dataset.sourceReadabilityAssist = 'false';
+        node.dataset.sourceReadabilityAssistOrigin = '';
         node.dataset.sourceStrokeConfidence = String(sampled?.confidence?.stroke ?? '');
-        node.dataset.sourceSampledTextRGB = sampled?.foreground?.join(',') || '';
+        node.dataset.sourceSampledTextRGB = (sampled?.foreground||sampled?.displayForeground)?.join(',') || '';
         node.dataset.sourceAppliedTextRGB = foreground;
         node.dataset.sourceSampledBackgroundRGB = sampled?.background?.join(',') || '';
         node.dataset.sourceAppliedBackgroundRGB = preserveOriginalBackground ? '' : surface;
@@ -1151,19 +1134,10 @@ final class BrowserPageImageOverlayRenderer {
           fontSize: `${fontSize}px`,
           lineHeight: `${Math.max(fontSize, lineHeight)}px`,
           letterSpacing: '-0.012em', textAlign: 'center',
-          // Even a zero-width stroke changes WebKit rasterization. Leave the
-          // original style untouched when source-ink contrast needs no edge.
-          ...(sourceTextOutline ? {webkitTextStroke: sourceInkStroke, paintOrder: 'stroke fill'} : {}),
-          textShadow: readableColor ? preservedTextShadow : sampledBackground ? 'none' : lightSurface
-            ? '0 1px 0 rgba(255,255,255,0.75)'
-            : '0 1px 2px rgba(0,0,0,0.95),0 0 1px rgba(0,0,0,0.90)',
+          webkitTextStroke: '0px transparent', paintOrder: 'normal',
+          textShadow: 'none',
           boxShadow: 'none',
-          backdropFilter: cleanedDenseSourceItems.has(item) ? 'none' : sampledBackground ? 'blur(2px)' : lightSurface
-            ? 'blur(2px) saturate(0.6)'
-            : 'blur(3px) saturate(0.75)',
-          webkitBackdropFilter: cleanedDenseSourceItems.has(item) ? 'none' : sampledBackground ? 'blur(2px)' : lightSurface
-            ? 'blur(2px) saturate(0.6)'
-            : 'blur(3px) saturate(0.75)',
+          backdropFilter: 'none', webkitBackdropFilter: 'none',
           webkitTextSizeAdjust: 'none', textSizeAdjust: 'none',
           contain: 'layout style',
           whiteSpace: 'pre-wrap', overflowWrap: 'anywhere',
@@ -1599,10 +1573,14 @@ final class BrowserPageImageOverlayRenderer {
         }
         const panelGeometry=restoredPanelGeometry.get(item);
         let fitsRestoredSurface = null;
-        if(panelGeometry?.safe&&!vertical&&displayedText.length<=180){
+        if(panelGeometry?.safe&&displayedText.length<=180){
           const c=panelGeometry,initial=parseFloat(node.style.fontSize);
+          const finalPalette=aidokuCaptionPalette(sampled,foreground.split(',').map(Number),true);
+          const linear=v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;};
+          const inkL=.2126*linear(finalPalette.foreground[0])+.7152*linear(finalPalette.foreground[1])+.0722*linear(finalPalette.foreground[2]);
           const onSurface=profile=>{
             if(!profile||!contentFits())return false;
+            let minimumContrast=Infinity;
             for(const a of profile.ink){
               const l=Math.floor(((a[0]-c.frame[0])*c.iw/c.frame[2]-c.x)*c.sx);
               const t=Math.floor(((a[1]-c.frame[1])*c.ih/c.frame[3]-c.y)*c.sy);
@@ -1611,76 +1589,27 @@ final class BrowserPageImageOverlayRenderer {
               const count=(r-l)*(b-t);
               if(l<0||t<0||r>c.w||b>c.h||count<0||count>restoredPanelLookupBudget)return false;
               restoredPanelLookupBudget-=count;
-              for(let yy=t;yy<b;yy++)for(let xx=l;xx<r;xx++)if(!c.safe[yy*c.w+xx])return false;
+              for(let yy=t;yy<b;yy++)for(let xx=l;xx<r;xx++){
+                const i=yy*c.w+xx;
+                if(!c.safe[i]||!c.luminance)return false;
+                const quantized=c.luminance[i]/255;
+                // Round toward the foreground for a conservative contrast bound.
+                const bg=quantized>=inkL?Math.max(inkL,quantized-1/510):Math.min(inkL,quantized+1/510);
+                const contrast=(Math.max(bg,inkL)+.05)/(Math.min(bg,inkL)+.05);
+                if(contrast<4.5)return false;
+                minimumContrast=Math.min(minimumContrast,contrast);
+              }
             }
+            if(!Number.isFinite(minimumContrast))return false;
+            node.dataset.sourcePanelMinimumContrast=String(minimumContrast);
             return true;
           };
           fitsRestoredSurface = onSurface;
-          // A vertical source column is not the balloon's usable width. Probe
-          // the already decoded, protected surface before sacrificing type size.
-          // Growth stays in this crop and cannot enter another planned caption.
-          if(item.allowsAutomaticFontRecovery&&wrappingScript==='korean'){
-            const savedX=x,savedWidth=width,savedPadding=node.style.padding;
-            const original=lineProfile();
-            const candidateWidth=Math.min(width*1.5,c.w/c.sx/c.iw*c.frame[2]-2);
-            if(candidateWidth>width+2){
-              const candidateX=Math.max(c.frame[0]+c.x/c.iw*c.frame[2]+1,
-                Math.min(x+(width-candidateWidth)/2,c.frame[0]+(c.x+c.w/c.sx)/c.iw*c.frame[2]-candidateWidth-1));
-              const collision=items.some(other=>other!==item&&
-                Math.min(candidateX+candidateWidth,Number(other.x)+Number(other.width))-Math.max(candidateX,Number(other.x))>.5&&
-                Math.min(y+height,Number(other.y)+Number(other.height))-Math.max(y,Number(other.y))>.5);
-              if(!collision){
-                x=candidateX;width=candidateWidth;
-                for(const n of [node,measurementNode]){n.style.left=`${x+scrollX}px`;n.style.width=`${width}px`;}
-                const profile=lineProfile();
-                if(profile&&onSurface(profile)&&(!original||profile.breaks.length<=original.breaks.length))
-                  node.dataset.sourcePanelReflow='expanded-inside';
-                else {
-                  x=savedX;width=savedWidth;
-                  for(const n of [node,measurementNode]){n.style.left=`${x+scrollX}px`;n.style.width=`${width}px`;n.style.padding=savedPadding;}
-                }
-              }
-            }
-          }
-          let fits=onSurface(lineProfile());
+          // Never shrink readable translation text merely to avoid a box.
+          // The final measured layout must fit at its normal reading size.
+          const fits=onSurface(lineProfile());
           node.dataset.sourcePanelInitialFont=String(initial);
-          if(!fits){
-            // Concave balloons can have ample room on one side at the same
-            // readable size. Reflow away from the surviving edge before shrinking.
-            const savedPadding=node.style.padding;
-            const style=getComputedStyle(measurementNode);
-            const pads=[style.paddingTop,style.paddingRight,style.paddingBottom,style.paddingLeft].map(parseFloat);
-            outer:for(let step=1;step<=3&&restoredPanelLookupBudget>0;step++){
-              for(const side of [1,3,2,0]){
-                const candidate=pads.slice();candidate[side]+=step*.12*(side%2?width:height);
-                setPadding(candidate);
-                if(onSurface(lineProfile())){fits=true;node.dataset.sourcePanelReflow='inside';break outer;}
-              }
-            }
-            if(!fits){node.style.padding=savedPadding;measurementNode.style.padding=savedPadding;}
-          }
-          if(!fits){
-            const floor=Math.max(minimumFontSize,initial*.6);
-            for(let step=1;step<=12&&restoredPanelLookupBudget>0;step++){
-              const candidate=initial-step*.5;if(candidate<floor)break;
-              applyMeasuredFontSize(candidate);
-              const savedPadding=node.style.padding,style=getComputedStyle(measurementNode);
-              const pads=[style.paddingTop,style.paddingRight,style.paddingBottom,style.paddingLeft].map(parseFloat);
-              for(const side of [1,3]){
-                const adjusted=pads.slice();adjusted[side]+=width*.24;setPadding(adjusted);
-                if(onSurface(lineProfile())){fits=true;node.dataset.sourcePanelReflow='inside';break;}
-              }
-              if(fits)break;
-              node.style.padding=savedPadding;measurementNode.style.padding=savedPadding;
-              if(onSurface(lineProfile())){fits=true;break;}
-            }
-            if(!fits)applyMeasuredFontSize(initial);
-          }
-          if(!fits){
-            // A clean background is insufficient if the translation crosses its
-            // surviving outline. Keep the safe repair and use a caption instead.
-            restoredSourcePanels.delete(item);
-          }
+          if(!fits)restoredSourcePanels.delete(item);
           node.dataset.sourcePanelTextFit=fits?'inside':'caption';
           node.dataset.sourcePanelFinalFont=String(parseFloat(node.style.fontSize));
         }
@@ -1719,7 +1648,6 @@ final class BrowserPageImageOverlayRenderer {
                     profile.badEnds.length > original.badEnds.length ||
                     profile.punctuationOnly > original.punctuationOnly ||
                     profile.hangulIsolated > original.hangulIsolated) continue;
-                if (restoredSourcePanels.has(item) && (!fitsRestoredSurface || !fitsRestoredSurface(profile))) continue;
                 accepted = true;
                 node.dataset.captionFontRecovery = 'measured-word-flow';
                 break recovery;
@@ -1731,6 +1659,64 @@ final class BrowserPageImageOverlayRenderer {
             }
           }
         }
+        if(panelGeometry){
+          const fits=Boolean(fitsRestoredSurface&&fitsRestoredSurface(lineProfile()));
+          if(fits)restoredSourcePanels.add(item);
+          else restoredSourcePanels.delete(item);
+          node.dataset.sourcePanelTextFit=fits?'inside':'caption';
+        }
+        // Defer text-only reflow until the existing algorithm has frozen the
+        // background box. These probes must never feed back into box geometry.
+        captionTextReflows.set(item, (box, pad) => {
+          if (!preserveOriginalBackground || opacity <= 0 || !item.allowsAutomaticFontRecovery ||
+              vertical || wrappingScript !== 'korean' || displayedText.length > 180 ||
+              /[\\r\\n]/u.test(displayedText) || displayedText.length * 4 > captionReflowCharacterBudget) return;
+          captionReflowCharacterBudget -= displayedText.length * 4;
+          root.appendChild(measurementNode);
+          measurementNode.style.visibility = 'hidden';
+          try {
+            const original = lineProfile();
+            if (!original || original.lines < 2) return;
+            const savedX = x, savedWidth = width, savedPadding = node.style.padding;
+            const style = getComputedStyle(node);
+            const usableWidth = width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+            const available = box.right - box.left - pad * 2;
+            if (available <= usableWidth + .5) return;
+            const obstacles = Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'))
+              .filter(other => other !== node).map(other => other.getBoundingClientRect());
+            for (const scale of [1, .67, .33]) {
+              width = usableWidth + (available - usableWidth) * scale;
+              x = box.left + (box.right - box.left - width) / 2;
+              for (const n of [node, measurementNode]) {
+                n.style.left = `${x+scrollX}px`; n.style.width = `${width}px`;
+                n.style.paddingLeft = '0px'; n.style.paddingRight = '0px';
+              }
+              const profile = lineProfile();
+              if (profile && contentFits() && profile.lines <= original.lines &&
+                  profile.breaks.every(offset => original.breaks.includes(offset)) &&
+                  profile.badStarts.length <= original.badStarts.length &&
+                  profile.badEnds.length <= original.badEnds.length &&
+                  profile.hangulIsolated <= original.hangulIsolated &&
+                  profile.punctuationOnly <= original.punctuationOnly &&
+                  profile.ink.every(r => r[0] >= box.left + pad - .5 && r[0]+r[2] <= box.right-pad+.5 &&
+                    r[1] >= box.top-.5 && r[1]+r[3] <= box.bottom+.5 &&
+                    !obstacles.some(o => Math.min(r[0]+r[2],o.right)-Math.max(r[0],o.left)>.5 &&
+                      Math.min(r[1]+r[3],o.bottom)-Math.max(r[1],o.top)>.5)) &&
+                  (profile.lines < original.lines || profile.breaks.length < original.breaks.length ||
+                    profile.hangulIsolated < original.hangulIsolated)) {
+                node.dataset.captionReflow = 'inside-fixed-box';
+                node.dataset.captionOriginalWidth = String(savedWidth);
+                node.dataset.captionOriginalLines = String(original.lines);
+                node.dataset.captionFinalLines = String(profile.lines);
+                return;
+              }
+              x = savedX; width = savedWidth;
+              for (const n of [node, measurementNode]) {
+                n.style.left = `${x+scrollX}px`; n.style.width = `${width}px`; n.style.padding = savedPadding;
+              }
+            }
+          } finally { measurementNode.remove(); }
+        });
         if(node.dataset.sourcePanelFinalFont)node.dataset.sourcePanelFinalFont=String(parseFloat(node.style.fontSize));
         measurementNode.remove();
         renderedItemCount += 1;
@@ -1777,43 +1763,43 @@ final class BrowserPageImageOverlayRenderer {
       rootAtCommit.replaceWith(root);
       aidokuReleaseOverlayResources(rootAtCommit);
     } else mount.appendChild(root);
-    // Caption plates cover the translated text and any source ink that could
-    // not be removed safely. Safely reconstructed regions keep compact plates.
+    // Verified, readable restorations keep their spatial background. Other
+    // captions use an opaque box covering the translated and original ink.
     let readabilityPanels=0;
     for(const item of items){
       if(!appearance?.preserveSourceBackgroundColor||!item.sourceColorEligible||opacity<=0)continue;
       const node=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).find(n=>n.dataset.aidokuRegion===String(item.id));
       if(!node)continue;
       const sourceSample=cachedSourceSample(item);
-      const outlinedSource=Array.isArray(sourceSample?.stroke)&&sourceSample.stroke.length===3&&
-        Array.isArray(sourceSample?.foreground)&&Math.max(...sourceSample.foreground)-Math.min(...sourceSample.foreground)>40;
-      // Readability styling applies to restored surfaces too, not only plates.
-      // Solid outlined source lettering becomes crowded when reshaped as Korean.
-      node.style.webkitTextStrokeWidth='0px';node.style.webkitTextStrokeColor='transparent';
-      node.style.paintOrder='normal';node.style.textShadow='none';
-      node.dataset.sourceTextOutline='false';node.dataset.sourceStrokeColor='none';node.dataset.sourceAppliedStrokeRGB='';
-      if(restoredSourcePanels.has(item)&&!outlinedSource){
-        const palette=aidokuCaptionPalette(cachedSourceSample(item),node.dataset.sourceAppliedTextRGB.split(',').map(Number));
-        if(palette.observed){
-          node.style.color=`rgb(${palette.foreground.join(',')})`;node.dataset.sourceAppliedTextRGB=palette.foreground.join(',');
-          continue;
-        }
-      }
-      const range=document.createRange();range.selectNodeContents(node);const r=range.getBoundingClientRect();
-      if(r.width<=0||r.height<=0)continue;
-      const sample=cachedSourceSample(item),ink=node.dataset.sourceAppliedTextRGB.split(',').map(Number);
-      const palette=aidokuCaptionPalette(sample,ink),background=palette.background;
+      const ink=node.dataset.sourceAppliedTextRGB.split(',').map(Number);
+      const palette=aidokuCaptionPalette(sourceSample,ink,Boolean(appearance?.preserveSourceTextColor));
       node.style.color=`rgb(${palette.foreground.join(',')})`;
       node.dataset.sourceAppliedTextRGB=palette.foreground.join(',');
+      node.dataset.sourceTextColor=palette.preserved?'preserved':'fallback';
+      node.dataset.sourceTextColorAdjusted=String(palette.preserved&&
+        palette.foreground.some((v,i)=>v!==(sourceSample.foreground||sourceSample.displayForeground)[i]));
       node.dataset.captionSurface=palette.observed?'observed':'paper-fallback';
-      if(palette.foreground.some((v,i)=>v!==ink[i]))node.dataset.sourceTextColorAdjusted='true';
+      node.style.textShadow='none';node.style.removeProperty('-webkit-text-stroke');
+      node.style.webkitTextStrokeWidth='0px';node.style.webkitTextStrokeColor='transparent';
+      node.style.paintOrder='normal';
+      node.dataset.sourceTextOutline='false';node.dataset.sourceStrokeColor='none';node.dataset.sourceAppliedStrokeRGB='';
+      if(inpaintingEnabled&&restoredSourcePanels.has(item)&&node.dataset.sourcePanelTextFit==='inside'){
+        node.dataset.sourceBackgroundColor='inpainted';
+        node.dataset.sourceAppliedBackgroundRGB='';
+        continue;
+      }
+      node.dataset.inpaintingFallback=inpaintingEnabled
+        ? (restoredPanelGeometry.has(item)?'readability':'mask-or-surface') : 'disabled';
+      const range=document.createRange();range.selectNodeContents(node);const r=range.getBoundingClientRect();
+      if(r.width<=0||r.height<=0)continue;
+      const background=palette.background;
       const pad=Math.max(3,Math.min(6,parseFloat(node.style.fontSize)*.3));
       const frame=cleanupImageGeometry?.frame||item.sourceFrame;
       let l=r.left-pad,t=r.top-pad,rr=r.right+pad,bb=r.bottom+pad;
       // When no owned mask could erase the original, the plate must contain
       // both languages' footprints. A tiny label on a long source column leaves
       // competing source text above and below the translation.
-      if(frame&&(outlinedSource||!restoredPanelGeometry.has(item))){
+      if(frame&&!restoredSourcePanels.has(item)){
         const bounds=[item.sourceBounds,...(item.auxiliaryInkRects||[])];
         for(const b of bounds){
           if(!Array.isArray(b)||b.length!==4||!b.every(Number.isFinite))continue;
@@ -1827,11 +1813,11 @@ final class BrowserPageImageOverlayRenderer {
       panel.setAttribute('data-aidoku-image-ocr-overlay','source-readability-panel');panel.dataset.aidokuRegion=String(item.id);
       Object.assign(panel.style,{position:'absolute',zIndex:'1',pointerEvents:'none',
         left:`${left+scrollX}px`,top:`${top+scrollY}px`,width:`${Math.max(1,right-left)}px`,height:`${Math.max(1,bottom-top)}px`,
-        backgroundColor:`rgba(${background.join(',')},${opacity})`,borderRadius:'3px'});
+        backgroundColor:`rgb(${background.join(',')})`,borderRadius:'3px'});
       root.appendChild(panel);readabilityPanels++;
-      node.style.textShadow='none';node.style.removeProperty('-webkit-text-stroke');
       node.dataset.sourceBackgroundColor='readability-panel';node.dataset.sourceAppliedBackgroundRGB=background.join(',');
-      node.dataset.sourceTextOutline='false';node.dataset.sourceStrokeColor='none';node.dataset.sourceAppliedStrokeRGB='';
+      // The panel above is final: only transparent text layout may change now.
+      captionTextReflows.get(item)?.({left,top,right,bottom},pad);
     }
     root.dataset.readabilityPanels=String(readabilityPanels);
     return {
@@ -5921,12 +5907,6 @@ struct BrowserOverlayLayoutPlanner {
             safeVariants.allSatisfy(\.vertical)
         if isExactVerticalReplacement
         {
-            let requestedMaximum: CGFloat
-            if settings.fontSizing == .fixed {
-                requestedMaximum = CGFloat(settings.fixedFontSizePoints)
-            } else {
-                requestedMaximum = maximumAutoFontSize
-            }
             let contentInsets = singleVerticalColumn
                 ? BrowserOverlayCardTextInsets.singleVerticalColumn
                 : BrowserOverlayCardTextInsets.regular
@@ -5934,9 +5914,7 @@ struct BrowserOverlayLayoutPlanner {
                 ? fittedSingleVerticalColumnFontSize(
                     variants: safeVariants,
                     size: clippedSource.size,
-                    maximum: settings.fontSizing == .fixed
-                        ? requestedMaximum
-                        : maximumAutoFontSize,
+                    maximum: maximumAutoFontSize,
                     measurementCache: measurementCache
                 )
                 : fittedSourceFontSize(
@@ -5944,9 +5922,7 @@ struct BrowserOverlayLayoutPlanner {
                     size: clippedSource.size,
                     minimumHorizontalUnits: 1,
                     minimum: minimumSingleVerticalColumnFontSize,
-                    maximum: settings.fontSizing == .fixed
-                        ? requestedMaximum
-                        : maximumAutoFontSize,
+                    maximum: maximumAutoFontSize,
                     contentInsets: contentInsets,
                     measurementCache: measurementCache
                 )
@@ -5997,70 +5973,10 @@ struct BrowserOverlayLayoutPlanner {
         )
         let isHorizontalTranslationOfVerticalSource =
             (sourceVertical ?? false) && containsHorizontal
-        if settings.expansionPolicy == .sourceBounds {
-            let maximumFontSize: CGFloat
-            if settings.fontSizing == .fixed {
-                maximumFontSize = CGFloat(settings.fixedFontSizePoints)
-            } else {
-                let fittedAtNormalScale = fittedSourceFontSize(
-                    variants: safeVariants,
-                    size: clippedSource.size,
-                    minimumHorizontalUnits: 1,
-                    minimum: minimumSingleVerticalColumnFontSize,
-                    maximum: maximumAutoFontSize,
-                    contentInsets: contentInsets,
-                    measurementCache: measurementCache
-                )
-                maximumFontSize = fittedAtNormalScale
-            }
-            let readableFloor = minimumReadableFontSize(
-                variants: safeVariants,
-                settings: settings
-            )
-            guard maximumFontSize + 0.001 >= readableFloor,
-                  variantsFit(
-                      safeVariants,
-                      size: clippedSource.size,
-                      fontSize: maximumFontSize,
-                      minimumHorizontalUnits: 1,
-                      contentInsets: contentInsets,
-                      measurementCache: measurementCache
-                  )
-            else {
-                // `sourceBounds` is an exact-geometry policy, not permission
-                // to suppress an OCR result. Keep the card on the source and
-                // use the emergency floor when complete fitting is impossible.
-                return BrowserOverlayCardLayout(
-                    rect: clippedSource,
-                    maximumFontSize: bestEffortFontSize(
-                        settings: settings,
-                        fittedFontSize: maximumFontSize
-                    ),
-                    contentInsets: contentInsets
-                )
-            }
-            return BrowserOverlayCardLayout(
-                rect: clippedSource,
-                maximumFontSize: maximumFontSize,
-                contentInsets: contentInsets
-            )
-        }
         // Six Hangul cells remain usable at the 5pt emergency floor while
         // avoiding the old eight-cell card that routinely crossed manga gutters.
-        let minimumHorizontalUnits: CGFloat
-        if isHorizontalTranslationOfVerticalSource {
-            // Restore the pre-panel-cap free expansion exactly: it reserved
-            // eight readable Hangul cells. The constrained policy alone uses
-            // the newer six-cell width to avoid crossing manga gutters.
-            minimumHorizontalUnits = settings.expansionPolicy == .unrestricted
-                ? 8 : 6
-        } else {
-            minimumHorizontalUnits = 1
-        }
-        // All three user-facing policies normally retain the original compact
-        // replacement-card geometry. Keep the old persisted/test-only
-        // `expanded` presentation compatible, but do not use it to implement
-        // the new `unrestricted` policy.
+        let minimumHorizontalUnits: CGFloat = isHorizontalTranslationOfVerticalSource ? 6 : 1
+        // Legacy expanded presentation remains readable when decoding older data.
         let usesLegacyExpandedPresentation = settings.textPlacement == .expanded
         let minimumExpandedSize = usesLegacyExpandedPresentation
             ? (safeVariants.allSatisfy(\.vertical)
@@ -6068,9 +5984,7 @@ struct BrowserOverlayLayoutPlanner {
                 : CGSize(width: 112, height: 36))
             : .zero
         let maximumEnvelopeWidth: CGFloat = {
-            guard settings.expansionPolicy == .panelConstrained,
-                  !usesLegacyExpandedPresentation,
-                  settings.fontSizing == .autoFit,
+            guard !usesLegacyExpandedPresentation,
                   isHorizontalTranslationOfVerticalSource
             else {
                 return viewport.width
@@ -6096,41 +6010,36 @@ struct BrowserOverlayLayoutPlanner {
         }()
 
         let maximumFontSize: CGFloat
-        if settings.fontSizing == .fixed {
-            maximumFontSize = CGFloat(settings.fixedFontSizePoints)
-        } else {
-            let fittedBase = usesLegacyExpandedPresentation
-                ? maximumAutoFontSize
-                : fittedSourceFontSize(
-                    variants: safeVariants,
-                    size: clippedSource.size,
-                    minimumHorizontalUnits: minimumHorizontalUnits,
-                    maximum: maximumAutoFontSize,
-                    contentInsets: contentInsets,
-                    measurementCache: measurementCache
-                )
-            let scaledMinimum = minimumReadableFontSize(
+        let fittedBase = usesLegacyExpandedPresentation
+            ? maximumAutoFontSize
+            : fittedSourceFontSize(
                 variants: safeVariants,
-                settings: settings
-            )
-            let desired = min(64, max(scaledMinimum, fittedBase))
-            maximumFontSize = fittedEnvelopeFontSize(
-                variants: safeVariants,
-                source: clippedSource,
-                minimumSize: minimumExpandedSize,
+                size: clippedSource.size,
                 minimumHorizontalUnits: minimumHorizontalUnits,
-                viewport: viewport,
-                maximumWidth: maximumEnvelopeWidth,
-                minimum: scaledMinimum,
-                maximum: desired,
+                maximum: maximumAutoFontSize,
                 contentInsets: contentInsets,
                 measurementCache: measurementCache
             )
-        }
+        let scaledMinimum = minimumReadableFontSize(
+            variants: safeVariants,
+            settings: settings
+        )
+        let desired = min(64, max(scaledMinimum, fittedBase))
+        maximumFontSize = fittedEnvelopeFontSize(
+            variants: safeVariants,
+            source: clippedSource,
+            minimumSize: minimumExpandedSize,
+            minimumHorizontalUnits: minimumHorizontalUnits,
+            viewport: viewport,
+            maximumWidth: maximumEnvelopeWidth,
+            minimum: scaledMinimum,
+            maximum: desired,
+            contentInsets: contentInsets,
+            measurementCache: measurementCache
+        )
 
         let requested: CGSize
         if !usesLegacyExpandedPresentation,
-           settings.expansionPolicy != .sourceBounds,
            variantsFit(
                safeVariants,
                size: clippedSource.size,
@@ -6268,9 +6177,7 @@ struct BrowserOverlayLayoutPlanner {
         reservedSources: [CGRect],
         measurementCache: BrowserOverlayTextMeasurementCache? = nil
     ) -> BrowserOverlayCardLayout {
-        guard settings.fontSizing == .autoFit,
-              settings.textPlacement == .replace,
-              settings.expansionPolicy == .panelConstrained,
+        guard settings.textPlacement == .replace,
               !variants.isEmpty,
               variants.allSatisfy({ if case .plain = $0.content { return true }; return false })
         else { return layout }
@@ -6370,10 +6277,8 @@ struct BrowserOverlayLayoutPlanner {
             // The source-derived ceiling can remain at the emergency floor
             // after horizontal text has gained a collision-free envelope.
             // Recover the normal floor only inside that existing envelope;
-            // never enlarge a card or override a fixed-size choice for this.
-            let restoresNormalFloor = settings.fontSizing == .autoFit
-                && settings.textPlacement == .replace
-                && settings.expansionPolicy == .panelConstrained
+            // never enlarge a card for this.
+            let restoresNormalFloor = settings.textPlacement == .replace
                 && !variants.isEmpty && variants.allSatisfy { !$0.vertical }
             let fittedCeiling = restoresNormalFloor
                 ? max(intrinsicLayout.maximumFontSize, minimumAutoFontSize)
@@ -6559,15 +6464,9 @@ struct BrowserOverlayLayoutPlanner {
         settings: IPhoneOverlaySettings,
         fittedFontSize: CGFloat? = nil
     ) -> CGFloat {
-        guard settings.fontSizing == .fixed else {
-            return max(
-                minimumRenderedFontSize,
-                fittedFontSize ?? minimumRenderedFontSize
-            )
-        }
         return max(
             minimumRenderedFontSize,
-            CGFloat(settings.fixedFontSizePoints)
+            fittedFontSize ?? minimumRenderedFontSize
         )
     }
 
@@ -6615,23 +6514,19 @@ struct BrowserOverlayLayoutPlanner {
             }
         }
         let fitted: CGFloat
-        if settings.fontSizing == .fixed {
-            fitted = ceiling
-        } else {
-            fitted = min(
-                ceiling,
-                fittedSourceFontSize(
-                    variants: variants,
-                    size: rect.size,
-                    minimumHorizontalUnits: 1,
-                    minimum: max(floor, referenceFont ?? floor),
-                    maximum: ceiling,
-                    contentInsets: contentInsets,
-                    measurementCache: measurementCache,
-                    additionalFit: preservesLineLayout
-                )
+        fitted = min(
+            ceiling,
+            fittedSourceFontSize(
+                variants: variants,
+                size: rect.size,
+                minimumHorizontalUnits: 1,
+                minimum: max(floor, referenceFont ?? floor),
+                maximum: ceiling,
+                contentInsets: contentInsets,
+                measurementCache: measurementCache,
+                additionalFit: preservesLineLayout
             )
-        }
+        )
         guard fitted + 0.001 >= floor,
               variantsFit(
                   variants,
@@ -6651,9 +6546,6 @@ struct BrowserOverlayLayoutPlanner {
         variants: [BrowserOverlayDisplayVariant],
         settings: IPhoneOverlaySettings
     ) -> CGFloat {
-        if settings.fontSizing == .fixed {
-            return CGFloat(settings.fixedFontSizePoints)
-        }
         return variants.contains(where: { !$0.vertical })
             ? minimumReadableHorizontalFontSize
             : minimumAutoFontSize
@@ -6733,7 +6625,7 @@ struct BrowserOverlayLayoutPlanner {
         {
             return false
         }
-        return settings.expansionPolicy != .sourceBounds
+        return true
     }
 
     private static func clippedSource(
@@ -7242,14 +7134,9 @@ private struct OverlayPalette {
 
     static func make(
         mode: IPhoneOverlayColorMode,
-        opacity: Double,
-        sourceIsVertical: Bool = false
+        opacity: Double
     ) -> Self {
-        // Automatic mode uses source orientation instead of the host appearance:
-        // horizontal cards use the dark surface, while source vertical cards
-        // use the light paper surface for consistent OCR styling.
-        let useLightSurface = mode == .white ||
-            (mode == .automatic && sourceIsVertical)
+        let useLightSurface = mode == .white
         let baseAlpha = min(max(opacity, 0), 1)
         if !useLightSurface {
             // CSS parity: rgba(7,9,13,opacity) with a second
@@ -7426,8 +7313,7 @@ private final class OverlayCardView: UIView, UIContextMenuInteractionDelegate {
 
         let palette = OverlayPalette.make(
             mode: settings.colorMode,
-            opacity: settings.opacity,
-            sourceIsVertical: content.source.vertical
+            opacity: settings.opacity
         )
         let isReplacement = settings.textPlacement == .replace
         let isFinalTranslationReplacement =
@@ -7491,7 +7377,6 @@ private final class OverlayCardView: UIView, UIContextMenuInteractionDelegate {
             // the source OCR orientation. A Korean translation of Japanese
             // vertical text is horizontal and therefore uses weight 700.
             weight: content.displayed.vertical ? .heavy : .bold,
-            automaticallyFits: settings.fontSizing == .autoFit,
             minimumScaleFactor: 0.42,
             minimumPointSize:
                 BrowserOverlayLayoutPlanner.minimumAutoFontSize,
@@ -7612,11 +7497,8 @@ private final class OverlaySubtitleView: UIView, UIContextMenuInteractionDelegat
         label.textColor = palette.foreground
         palette.applyTextShadow(to: label.layer)
         label.configure(
-            maximumPointSize: settings.fontSizing == .fixed
-                ? CGFloat(settings.fixedFontSizePoints)
-                : 18,
+            maximumPointSize: 18,
             weight: .semibold,
-            automaticallyFits: settings.fontSizing == .autoFit,
             minimumScaleFactor: 0.55
         )
         label.textAlignment = BrowserOverlayTextFlow.isRightToLeft(text)
@@ -7662,11 +7544,8 @@ private final class OverlaySubtitleView: UIView, UIContextMenuInteractionDelegat
         label.textColor = palette.foreground
         palette.applyTextShadow(to: label.layer)
         label.configure(
-            maximumPointSize: settings.fontSizing == .fixed
-                ? CGFloat(settings.fixedFontSizePoints)
-                : 18,
+            maximumPointSize: 18,
             weight: .semibold,
-            automaticallyFits: settings.fontSizing == .autoFit,
             minimumScaleFactor: 0.55
         )
         label.textAlignment = BrowserOverlayTextFlow.isRightToLeft(text)
@@ -7811,9 +7690,7 @@ private final class OverlaySidePanelView: UIView {
             )
             label.text = "\(index + 1). \(output)"
             label.font = .systemFont(
-                ofSize: settings.fontSizing == .fixed
-                    ? CGFloat(settings.fixedFontSizePoints)
-                    : 14,
+                ofSize: 14,
                 weight: .medium
             )
             label.numberOfLines = 0
@@ -7956,7 +7833,6 @@ private class OverlayFittingLabel: UILabel {
     private var maximumPointSize: CGFloat = 17
     private var minimumFittingScale: CGFloat = 0.5
     private var weight: UIFont.Weight = .regular
-    private var automaticallyFits = false
     private var explicitMinimumPointSize: CGFloat?
     private var displayVariant: BrowserOverlayDisplayVariant?
     private var verticalRawText: String?
@@ -7994,14 +7870,12 @@ private class OverlayFittingLabel: UILabel {
         textShadow: NSShadow? = nil,
         maximumPointSize: CGFloat,
         weight: UIFont.Weight,
-        automaticallyFits: Bool,
         minimumScaleFactor: CGFloat,
         minimumPointSize: CGFloat? = nil,
         measurementCache: BrowserOverlayTextMeasurementCache? = nil
     ) {
         self.maximumPointSize = maximumPointSize
         self.weight = weight
-        self.automaticallyFits = automaticallyFits
         minimumFittingScale = minimumScaleFactor
         explicitMinimumPointSize = minimumPointSize
         self.displayVariant = displayVariant
@@ -8033,10 +7907,6 @@ private class OverlayFittingLabel: UILabel {
         }
         let available = measurementBounds()
         guard available.width > 0, available.height > 0 else { return }
-        guard automaticallyFits else {
-            applyFont(pointSize: maximumPointSize)
-            return
-        }
 
         let minimumPointSize: CGFloat
         if verticalRawText != nil {

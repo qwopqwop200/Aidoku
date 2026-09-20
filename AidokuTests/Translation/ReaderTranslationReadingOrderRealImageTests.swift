@@ -18,8 +18,6 @@ struct ReaderTranslationReadingOrderRealImageTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         var settings = ReaderTranslationSettings(defaults: defaults)
         settings.rightToLeftPanelOrder = true
-        settings.filterJapaneseSFX = false
-        settings.filterJapaneseSFXContext = false
         for fixture in fixtures {
             let name = try #require(fixture["file"])
             let image = try #require(UIImage(contentsOfFile: folder.appendingPathComponent(name).path))

@@ -95,8 +95,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     }
     var filterBackgroundWithLLM = false
     var filterSFXWithLLM = false
-    var filterJapaneseSFX = false
-    var filterJapaneseSFXContext = false
     var translateMangaTitles = false
     var translateChapterTitles = false
     var translateAuthors = false
@@ -147,13 +145,13 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     }
     static let defaultOverlay = IPhoneOverlaySettings(
         visible: true, mode: .translateOnly, colorMode: .white, opacity: 0.84,
-        fixedFontSizePoints: 14, textPlacement: .replace, expansionPolicy: .panelConstrained,
-        fontSizing: .autoFit, subtitlePosition: .bottom, subtitleMaxLines: 2, subtitleContextSentences: 0
+        textPlacement: .replace, subtitlePosition: .bottom, subtitleMaxLines: 2, subtitleContextSentences: 0
     )
     var overlay = Self.defaultOverlay
     var ocr = ReaderOCRConfiguration()
     var maximumConcurrentRequests = 16
-    var instructions = RemoteTranslationConfiguration.defaultInstructions
+    // Internal context for metadata translation; never loaded from user preferences.
+    var metadataInstructions = ""
     var credentialGeneration: UInt64 = 0
     var cacheLimitBytes: Int64 = ReaderTranslationDiskCache.defaultBytes
 
@@ -165,8 +163,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         includePageImage = defaults.bool(forKey: Self.keyPrefix + "includePageImage")
         filterSFXWithLLM = defaults.bool(forKey: Self.keyPrefix + "filterSFXWithLLM")
         filterBackgroundWithLLM = defaults.bool(forKey: Self.keyPrefix + "filterBackgroundWithLLM")
-        filterJapaneseSFX = defaults.bool(forKey: Self.keyPrefix + "filterJapaneseSFX")
-        filterJapaneseSFXContext = defaults.bool(forKey: Self.keyPrefix + "filterJapaneseSFXContext")
         translateMangaTitles = defaults.bool(forKey: Self.keyPrefix + "mangaTitles")
         translateChapterTitles = defaults.bool(forKey: Self.keyPrefix + "chapterTitles")
         translateAuthors = defaults.bool(forKey: Self.keyPrefix + "authors")
@@ -210,7 +206,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         openAIReasoningEffort = defaults.string(forKey: Self.keyPrefix + "reasoningEffort")
             .flatMap(OpenAIReasoningEffort.init(rawValue:)) ?? openAIReasoningEffort
         maximumConcurrentRequests = defaults.object(forKey: Self.keyPrefix + "concurrency") as? Int ?? maximumConcurrentRequests
-        instructions = defaults.string(forKey: Self.keyPrefix + "instructions") ?? instructions
         credentialGeneration = UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration")))
         if let value = defaults.object(forKey: Self.keyPrefix + "cacheLimitBytes") as? NSNumber,
            ReaderTranslationDiskCache.limitChoices.contains(value.int64Value) { cacheLimitBytes = value.int64Value }
@@ -224,7 +219,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
             model: model.trimmingCharacters(in: .whitespacesAndNewlines),
             credentialAccount: selectedCredentialAccount,
             credentialGeneration: credentialGeneration,
-            instructions: instructions,
+            instructions: RemoteTranslationConfiguration.defaultInstructions + metadataInstructions,
             reasoningEffort: reasoningEffort,
             // Model defaults may enable reasoning too; only explicit none uses the shorter wait.
             timeout: reasoningEffort == .none ? 120 : 300
@@ -250,7 +245,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
 
     func validate() throws {
         guard overlay.opacity.isFinite, (0.2...1).contains(overlay.opacity),
-              (8...64).contains(overlay.fixedFontSizePoints),
               [800, 1_200, 1_600, 2_000].contains(ocr.detectorMaximumSide),
               [800, 1_200, 1_600, 2_000].contains(ocr.recognizerMaximumWidth),
               ocr.confidenceThreshold.isFinite, (0...1).contains(ocr.confidenceThreshold),
@@ -316,8 +310,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         defaults.set(filterSFXWithLLM, forKey: Self.keyPrefix + "filterSFXWithLLM")
         defaults.set(filterBackgroundWithLLM, forKey: Self.keyPrefix + "filterBackgroundWithLLM")
         defaults.set(automaticallyTranslate, forKey: Self.keyPrefix + "automatic")
-        defaults.set(filterJapaneseSFX, forKey: Self.keyPrefix + "filterJapaneseSFX")
-        defaults.set(filterJapaneseSFXContext, forKey: Self.keyPrefix + "filterJapaneseSFXContext")
         defaults.set(translateMangaTitles, forKey: Self.keyPrefix + "mangaTitles")
         defaults.set(translateChapterTitles, forKey: Self.keyPrefix + "chapterTitles")
         defaults.set(translateAuthors, forKey: Self.keyPrefix + "authors")
@@ -338,7 +330,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         defaults.set(sourceLanguage, forKey: Self.keyPrefix + "sourceLanguage")
         defaults.set(translationSourceLanguages.sorted(), forKey: Self.keyPrefix + "translationSourceLanguages")
         defaults.set(modelTier.rawValue, forKey: Self.keyPrefix + "modelTier")
-        defaults.set(instructions, forKey: Self.keyPrefix + "instructions")
         defaults.set(Int(clamping: generation), forKey: Self.keyPrefix + "credentialGeneration")
         let previousCacheLimit = defaults.object(forKey: Self.keyPrefix + "cacheLimitBytes") as? NSNumber
         defaults.set(cacheLimitBytes, forKey: Self.keyPrefix + "cacheLimitBytes")

@@ -337,12 +337,25 @@ extension HistoryView.ViewModel {
         let tempManga = AidokuRunner.Manga(sourceKey: mangaId.sourceKey, key: mangaId.mangaKey, title: "")
 
         let needsManga = mangaCache[mangaId] == nil
+        let generation = HistoryMetadataCache.shared.generation
 
         if let newManga = try? await source.getMangaUpdate(
             manga: tempManga,
             needsDetails: needsManga,
             needsChapters: true
         ) {
+            guard !Task.isCancelled, generation == HistoryMetadataCache.shared.generation else { return }
+            let resolvedManga = needsManga ? newManga : (mangaCache[mangaId] ?? newManga)
+            let resolvedChapters = (newManga.chapters ?? []).filter { chapterIds.contains($0.key) }
+            await CoreDataManager.shared.container.performBackgroundTask { context in
+                let existing = resolvedChapters.filter {
+                    CoreDataManager.shared.hasHistory(chapterId: .init(
+                        sourceKey: mangaId.sourceKey, mangaKey: mangaId.mangaKey, chapterKey: $0.key
+                    ), context: context)
+                }
+                HistoryMetadataCache.shared.store(manga: resolvedManga, chapters: existing, generation: generation)
+            }
+            guard !Task.isCancelled, generation == HistoryMetadataCache.shared.generation else { return }
             await MainActor.run {
                 if needsManga {
                     self.mangaCache[mangaId] = newManga
@@ -376,8 +389,8 @@ extension HistoryView.ViewModel {
         offset: Int,
         refreshingDays: Set<Int> = []
     ) async -> Int {
-        let historyObj = await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
-            CoreDataManager.shared.getRecentHistory(limit: limit, offset: offset, context: context)
+        let (historyObj, metadata) = await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
+            let history = CoreDataManager.shared.getRecentHistory(limit: limit, offset: offset, context: context)
                 .map {
                     HistoryInfo(
                         chapterId: .init(sourceKey: $0.sourceId, mangaKey: $0.mangaId, chapterKey: $0.chapterId),
@@ -387,53 +400,36 @@ extension HistoryView.ViewModel {
                         completed: $0.completed
                     )
                 }
+            return (history, HistoryMetadataBatch.load(chapterIds: history.map(\.chapterId), context: context, cache: .shared))
         }
 
         var modifiedDays = refreshingDays
 
         var newHistoryData = await historyData
-        var newMangaCacheItems: [MangaIdentifier: AidokuRunner.Manga] = [:]
-        var newChapterCacheItems: [ChapterIdentifier: AidokuRunner.Chapter] = [:]
+        var missingChapters: [ChapterIdentifier] = []
+        let endOfDay = Date.endOfDay()
+        let startOfDay = Date.startOfDay()
+        let calendar = Calendar.autoupdatingCurrent
 
         for obj in historyObj {
             let readDate = obj.dateRead ?? Date.distantPast
-            let endOfDay = Date.endOfDay()
             let isInFuture = readDate > endOfDay
             let endDate = if isInFuture {
                 // if the date is in the future, compare the difference to the start of the day instead of end
-                Date.startOfDay()
+                startOfDay
             } else {
                 endOfDay
             }
-            let days = Calendar.autoupdatingCurrent.dateComponents(
+            let days = calendar.dateComponents(
                 Set([Calendar.Component.day]),
                 from: readDate,
                 to: endDate
             ).day ?? 0
 
-            let (manga, chapter) = await CoreDataManager.shared.container.performBackgroundTask { context in
-                (
-                    CoreDataManager.shared.getManga(
-                        mangaId: obj.chapterId.mangaIdentifier,
-                        context: context
-                    )?.toNewManga(),
-                    CoreDataManager.shared.getChapter(
-                        chapterId: obj.chapterId,
-                        context: context
-                    )?.toNewChapter()
-                )
-            }
-
             let chapterId = obj.chapterId
-            let mangaId = chapterId.mangaIdentifier
-
-            // If manga or chapter is missing, add to queue for background loading
-            if manga == nil || chapter == nil {
-                await addToQueue(mangaId: mangaId, chapterKey: chapterId.chapterKey)
+            if metadata.manga[chapterId.mangaIdentifier] == nil || metadata.chapters[chapterId] == nil {
+                missingChapters.append(chapterId)
             }
-
-            if let manga { newMangaCacheItems[mangaId] = manga }
-            if let chapter { newChapterCacheItems[chapterId] = chapter }
 
             let newEntry = HistoryEntry(
                 chapterId: obj.chapterId,
@@ -452,8 +448,7 @@ extension HistoryView.ViewModel {
             newHistoryData[day] = newHistoryData[day]?.sorted { $0.date > $1.date }  // sort by date, most recent first
         }
 
-        await addMangaCacheItems(newMangaCacheItems)
-        await addChapterCacheItems(newChapterCacheItems)
+        await addMetadata(metadata, missingChapters: missingChapters)
         var newFilteredHistory = await filteredHistory
 
         // update data
@@ -515,15 +510,11 @@ extension HistoryView.ViewModel {
         offset += value
     }
 
-    private func addMangaCacheItems(_ newItems: [MangaIdentifier: AidokuRunner.Manga]) {
-        for (key, manga) in newItems {
-            mangaCache[key] = manga
-        }
-    }
-
-    private func addChapterCacheItems(_ newItems: [ChapterIdentifier: AidokuRunner.Chapter]) {
-        for (key, chapter) in newItems {
-            chapterCache[key] = chapter
+    private func addMetadata(_ metadata: HistoryMetadataBatch, missingChapters: [ChapterIdentifier]) {
+        mangaCache.merge(metadata.manga) { _, new in new }
+        chapterCache.merge(metadata.chapters) { _, new in new }
+        for chapterId in missingChapters {
+            addToQueue(mangaId: chapterId.mangaIdentifier, chapterKey: chapterId.chapterKey)
         }
     }
 

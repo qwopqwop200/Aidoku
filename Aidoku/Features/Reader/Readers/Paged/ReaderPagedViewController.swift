@@ -461,18 +461,23 @@ extension ReaderPagedViewController {
         // Rebase decoded images and in-flight loads on every completed navigation.
         // Visible controllers remain protected during UIKit's transition callback.
         let visible = Set(visiblePageControllers().map(ObjectIdentifier.init))
+        var visiblePages = Set<Int>()
         for (index, controller) in pageViewControllers.enumerated() {
+            let pageIndex = pageIndex(from: index)
+            let isVisible = visible.contains(ObjectIdentifier(controller)) || pageIndex == currentPage
+            controller.pageView?.imageLoadPriority = isVisible ? .high : .low
+            if isVisible { visiblePages.insert(pageIndex) }
             guard case .page = controller.type,
-                  !range.contains(pageIndex(from: index)),
+                  !range.contains(pageIndex),
                   !visible.contains(ObjectIdentifier(controller)) else { continue }
             controller.clearPage()
         }
         nextChapterPreloadTask?.cancel()
         nextChapterPreloadTask = nil
         pagePrefetcher.reset()
-        for i in range {
-            guard i > 0 else { continue }
-            guard i <= displayPageCount else { break }
+        for i in ReaderPageLoadOrder.indices(
+            in: range, pageCount: displayPageCount, currentPage: currentPage, visible: visiblePages
+        ) {
             loadPage(at: i)
         }
         // allow prefetching into the next chapter
@@ -705,10 +710,6 @@ extension ReaderPagedViewController {
 
         controller.onImageisWideImage = nil
         controller.clearPage()
-        if let image = stored[0].image {
-            controller.pageView?.imageView.image = image
-            controller.pageView?.fixImageSize()
-        }
         controller.setPage(stored[0], skipProcessing: true)
 
         let newVCs = stored.dropFirst().map { makePageController(preloadPage: $0, skipProcessing: true) }

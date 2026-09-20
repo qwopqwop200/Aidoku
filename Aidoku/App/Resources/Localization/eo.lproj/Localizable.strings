@@ -218,9 +218,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 postulas iOS 18 aŭ pli novan version. Meza estas la defaŭlta modelo. Malgranda uzas malpli da memoro; Eta havas malpli grandan signovortaron. Tiuj modeloj ne rekonas korean tekston, sed tradukado al la korea estas subtenata.";
 
-"TRANSLATION_INSTRUCTIONS" = "Instrukcioj pri tradukado";
 
-"TRANSLATION_RESET_PROMPT" = "Restarigu la defaŭltajn tradukajn instrukciojn";
 
 "TRANSLATION_CLEAR_CACHE" = "Malplenigi tradukan kaŝmemoron";
 
@@ -351,13 +349,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Aŭtomate detektas la fontlingvon kaj tradukas nur la elektitajn lingvojn. Ĉiuj Detektitaj Lingvoj forigas la limigon. La lingvofiltrilo de ĉiu ero estas sendependa de la lingvaj agordoj por paĝoj kaj aliaj eroj.";
 
-"TRANSLATION_SFX_FILTER" = "SFX-Filtrado (Nur la japana)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Lasas verŝajnajn japanajn sonefektojn netradukitaj. Uzas lokan vortaron kaj konservativajn kontrolojn de la aranĝo. Teksto, kiun ne eblas fidinde identigi kiel sonefekton, ankoraŭ estas tradukata.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Inkluzivi Kuntekst-Bezonatajn Enskribojn (Nur la Japana)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Aplikas dum SFX-Filtrado estas ebligita. Ankaŭ filtras enskribojn markitajn kiel postulantajn kuntekston uzante vortarajn kongruojn, tekstgrandecon kaj proksiman aranĝon. Neniu LLM analizas la kuntekston, do dialogo ankaŭ povas esti ekskludita.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Inkluzivi Paĝan Bildon en Tradukado";
 
@@ -370,7 +364,7 @@
 
 "TRANSLATION_LLM_SFX" = "Filtrado de LLM SFX (Ĉiuj lingvoj)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Klasifikas sonefektojn en la sama tradukpeto kaj lasas ilin senŝanĝaj. Kun paĝa bildo, la AI ankaŭ preterlasas neklarajn OCR-fragmentojn, krom se la bildo montras, ke ili estas senchava teksto. Dialogo, rakonta teksto, titoloj kaj mencioj de kreintoj estas konservataj por tradukado. Kombinebla kun la loka filtrilo por la japana: teksto markita de iu el la filtriloj restas senŝanĝa. Klasifikado estas malpli fidinda sen paĝa bildo.";
+"TRANSLATION_LLM_SFX_HELP" = "Klasifikas sonefektojn en la sama tradukpeto kaj lasas ilin senŝanĝaj. Kun paĝa bildo, la AI ankaŭ preterlasas neklarajn OCR-fragmentojn, krom se la bildo montras, ke ili estas senchava teksto. Dialogo, rakonta teksto, titoloj kaj mencioj de kreintoj estas konservataj por tradukado. Klasifikado estas malpli fidinda sen paĝa bildo.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Sen bilda enigo, limigita vida kaj aranĝa kunteksto povas redukti SFX-klasifikan precizecon.";
 
@@ -1168,3 +1162,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Ne eblis konservi la tradukan kaŝmemoron.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Ŝanĝoj al iCloud-sinkronigo ekvalidas post plena fermo kaj remalfermo de Aidoku. Ĝis tiam la nuna sinkroniga agordo restas aktiva.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Konservi originalajn kolorojn";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Konservi kune la kolorojn de teksto kaj fono.";
+"TRANSLATION_INPAINTING" = "Fona rekonstruo";
+"TRANSLATION_INPAINTING_HELP" = "Forigas originalan tekston konservante la fonon. Uzas kestojn ĉe necerta masko aŭ legebleco. Postulas originalajn kolorojn.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Teksta filtrado";
+
+"TRANSLATION_TARGETS" = "Kion traduki";

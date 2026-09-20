@@ -791,9 +791,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6, iOS 18 veya üstünü gerektirir. Varsayılan model Orta'dır. Küçük daha az bellek kullanır; Çok Küçük daha dar bir karakter sözlüğüne sahiptir. Bu modeller Korece metin tanımayı desteklemez, ancak Koreceye çeviri desteklenir.";
 
-"TRANSLATION_INSTRUCTIONS" = "Çeviri talimatları";
 
-"TRANSLATION_RESET_PROMPT" = "Varsayılan çeviri talimatlarını geri yükleyin";
 
 "TRANSLATION_CLEAR_CACHE" = "Çeviri Önbelleğini Temizle";
 
@@ -924,13 +922,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Kaynak dili otomatik algılar ve yalnızca seçilen dilleri çevirir. Algılanan Tüm Diller kısıtlamayı kaldırır. Her öğenin dil filtresi, sayfa ve diğer öğelerin dil ayarlarından bağımsızdır.";
 
-"TRANSLATION_SFX_FILTER" = "SFX Filtreleme (Yalnızca Japonca)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Japonca ses efekti olma olasılığı yüksek metinleri çevirmeden bırakır. Yerel sözlük ve temkinli yerleşim kontrolleri kullanır. Ses efekti olduğu güvenle belirlenemeyen metinler yine de çevrilir.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Bağlam Gerektiren Girdileri Dahil Et (Yalnızca Japonca)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "SFX Filtreleme etkinken geçerlidir. Ayrıca sözlük eşleşmelerini, metin boyutunu ve yakındaki düzeni kullanarak bağlam gerektiren olarak işaretlenen girişleri de filtreler. Hiçbir LLM bağlamı analiz etmez, dolayısıyla diyalog da hariç tutulabilir.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Sayfa Resmini Çeviriye Ekle";
 
@@ -943,7 +937,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM ile SFX Filtreleme (Tüm Diller)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Ses efektlerini aynı çeviri isteğinde sınıflandırır ve değiştirmeden bırakır. Sayfa görüntüsü varsa yapay zekâ, görüntü anlamlı bir metin olduğunu doğrulamadıkça belirsiz OCR parçalarını da atlar. Diyalog, anlatım, başlıklar ve emeği geçenlere ilişkin bilgiler çeviri kapsamında kalır. Japonca yerel filtreyle birlikte kullanılabilir: filtrelerden birinin işaretlediği metin değiştirilmeden bırakılır. Sayfa görüntüsü olmadan sınıflandırma daha az güvenilirdir.";
+"TRANSLATION_LLM_SFX_HELP" = "Ses efektlerini aynı çeviri isteğinde sınıflandırır ve değiştirmeden bırakır. Sayfa görüntüsü varsa yapay zekâ, görüntü anlamlı bir metin olduğunu doğrulamadıkça belirsiz OCR parçalarını da atlar. Diyalog, anlatım, başlıklar ve emeği geçenlere ilişkin bilgiler çeviri kapsamında kalır. Sayfa görüntüsü olmadan sınıflandırma daha az güvenilirdir.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Görüntü girişi olmadan sınırlı görsel ve düzen bağlamı, SFX sınıflandırma doğruluğunu azaltabilir.";
 
@@ -1169,3 +1163,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Çeviri önbelleği kaydedilemedi.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud eşzamanlama değişiklikleri, Aidoku tamamen kapatılıp yeniden açıldığında uygulanır. O zamana kadar mevcut ayar etkin kalır.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Özgün renkleri koru";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Metin ve arka plan renklerini birlikte korur.";
+"TRANSLATION_INPAINTING" = "Arka plan onarımı";
+"TRANSLATION_INPAINTING_HELP" = "Arka planı koruyarak özgün yazıyı siler. Maske veya okunabilirlik belirsizse kutular kullanır. Özgün renkleri gerektirir.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Metin Filtreleme";
+
+"TRANSLATION_TARGETS" = "Çevrilecek İçerik";

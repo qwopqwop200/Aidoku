@@ -545,6 +545,7 @@ extension ReaderViewController {
         await HistoryManager.shared.setProgress(
             chapterId: chapterId,
             chapter: chapter,
+            manga: manga,
             progress: currentPage,
             totalPages: effectiveTotalPages,
             scrollPosition: savedPosition,
@@ -1148,6 +1149,13 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
 
     var translationCurrentPageIndex: Int { max(0, currentPage - 1) }
 
+    func prepareCachedTranslationForDisplay(
+        image: UIImage, page: Page,
+        geometry: @escaping @MainActor () -> ReaderTranslationImageGeometry?
+    ) async throws -> ReaderTranslationPreparedImage? {
+        try await translationCoordinator.prepareCachedImage(image: image, page: page, geometry: geometry)
+    }
+
     func translationVisibilityDidChange() {
         if readingMode == .webtoon || readingMode == .continuous {
             translationCoordinator.scrollVisibilityDidChange()
@@ -1238,7 +1246,8 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
         Task { [chaptersToMark] in
             await HistoryManager.shared.addHistory(
                 mangaId: manga.identifier,
-                chapters: chaptersToMark
+                chapters: chaptersToMark,
+                manga: manga
             )
         }
 

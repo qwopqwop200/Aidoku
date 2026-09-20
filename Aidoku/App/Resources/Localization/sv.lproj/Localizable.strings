@@ -773,9 +773,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 kräver iOS 18 eller senare. Medium är standardmodellen. Liten använder mindre minne och Mycket liten har en mindre teckenuppsättning. Modellerna känner inte igen koreansk text, men översättning till koreanska stöds.";
 
-"TRANSLATION_INSTRUCTIONS" = "Översättningsinstruktioner";
 
-"TRANSLATION_RESET_PROMPT" = "Återställ standardöversättningsinstruktionerna";
 
 "TRANSLATION_CLEAR_CACHE" = "Rensa översättningscache";
 
@@ -906,13 +904,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Identifierar källspråket automatiskt och översätter endast de valda språken. Alla upptäckta språk tar bort begränsningen. Varje posts språkfilter är oberoende av språkinställningarna för sidor och andra poster.";
 
-"TRANSLATION_SFX_FILTER" = "SFX-filtrering (endast japanska)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Lämnar sannolika japanska ljudeffekter oöversatta med hjälp av en lokal ordbok och försiktiga layoutkontroller. Text som inte säkert kan identifieras som en ljudeffekt översätts fortfarande.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Inkludera kontextberoende poster (endast japanska)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Gäller när SFX-filtrering är aktiverat. Filtrerar även poster markerade som kräver sammanhang med hjälp av ordboksmatchningar, textstorlek och närliggande layout. Ingen LLM analyserar sammanhanget, så dialog kan också uteslutas.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Inkludera sidbild i översättning";
 
@@ -925,7 +919,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM SFX-filtrering (alla språk)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Identifierar ljudeffekter i samma översättningsbegäran och lämnar dem oförändrade. Med en sidbild hoppar AI:n även över otydliga OCR-fragment, om inte bilden visar att de är meningsfull text. Dialog, berättartext, titlar och upphovsuppgifter behålls för översättning. Kan kombineras med det lokala filtret för japanska: text som markeras av något av filtren lämnas oförändrad. Klassificeringen är mindre tillförlitlig utan en sidbild.";
+"TRANSLATION_LLM_SFX_HELP" = "Identifierar ljudeffekter i samma översättningsbegäran och lämnar dem oförändrade. Med en sidbild hoppar AI:n även över otydliga OCR-fragment, om inte bilden visar att de är meningsfull text. Dialog, berättartext, titlar och upphovsuppgifter behålls för översättning. Klassificeringen är mindre tillförlitlig utan en sidbild.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Utan bildinmatning kan begränsad visuell och layoutkontext minska SFX-klassificeringsnoggrannheten.";
 
@@ -1168,3 +1162,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Översättningscachen kunde inte sparas.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Ändringar av iCloud-synkronisering gäller när du stänger Aidoku helt och öppnar appen igen. Tills dess används den nuvarande inställningen.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Behåll originalfärger";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Behåll textens och bakgrundens färger tillsammans.";
+"TRANSLATION_INPAINTING" = "Bakgrundsrekonstruktion";
+"TRANSLATION_INPAINTING_HELP" = "Tar bort originaltext och bevarar bakgrunden. Använder rutor vid osäker mask eller läsbarhet. Kräver originalfärger.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Textfiltrering";
+
+"TRANSLATION_TARGETS" = "Vad som ska översättas";

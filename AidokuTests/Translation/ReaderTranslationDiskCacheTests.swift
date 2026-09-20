@@ -55,6 +55,53 @@ struct ReaderTranslationDiskCacheTests {
         #expect(try await reopened.data(for: "broken-v2", kind: .layout) == nil)
     }
 
+    @Test func sharedBaseCompressionPreservesIdentityAccountingAndRetries() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        let regions = [ReaderTranslationRegion(id: "base", rect: CGRect(x: 0.1, y: 0.2, width: 0.3, height: 0.4),
+            source: String(repeating: "원문 Original ", count: 8), translation: "보존할 번역")]
+        let archive = try ReaderTranslationRegionArchive(regions)
+        // Seed a valid historical uncompressed base under the canonical identity.
+        let raw = try ReaderTranslationCacheCodec.unpack(archive.base)
+        let packed = try ReaderTranslationCacheCodec.repack(raw)
+        #expect(packed.count < raw.count)
+        try await cache.storeRegions(regions, for: "first", kind: .translation, generation: 0)
+        let canonicalID = ReaderTranslationCacheIdentity.digest(archive.base)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_bases WHERE name='\(canonicalID)'") == 1)
+        let hex = raw.map { String(format: "%02x", $0) }.joined()
+        try databaseExecute(root, "UPDATE region_bases SET data=X'\(hex)'")
+        let before = try await cache.statistics()
+        let access = try databaseInteger(root, "SELECT SUM(accessed) FROM cache")
+        try databaseExecute(root, "CREATE TRIGGER reject_base_repack BEFORE UPDATE OF data ON region_bases BEGIN SELECT RAISE(ABORT,'test'); END")
+        do {
+            try await cache.compact()
+            Issue.record("Expected an injected base write failure")
+        } catch {}
+        #expect(try await cache.statistics().payloadBytes == before.payloadBytes)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM cache_policy WHERE name='base-compression-v2'") == 0)
+        try databaseExecute(root, "DROP TRIGGER reject_base_repack")
+        try await cache.compact()
+        #expect(try await cache.statistics().payloadBytes == before.payloadBytes - Int64(raw.count - packed.count))
+        #expect(try databaseInteger(root, "SELECT SUM(accessed) FROM cache") == access)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_links WHERE base='\(canonicalID)'") == 1)
+        let completed = try databaseContents(root)
+        try await cache.compact()
+        #expect(try databaseContents(root) == completed)
+        let reopened = ReaderTranslationDiskCache(directory: root)
+        #expect(try await reopened.regions(for: "first", kind: .translation) == regions)
+        try await reopened.storeRegions(regions, for: "second", kind: .translation, generation: 0)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_bases") == 1)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_links") == 2)
+        try await reopened.remove("first", kind: .translation)
+        #expect(try await reopened.regions(for: "second", kind: .translation) == regions)
+        #expect(try databaseInteger(root, "SELECT bytes FROM totals") == databaseInteger(root,
+            "SELECT (SELECT COALESCE(SUM(length(data)),0) FROM cache)+(SELECT COALESCE(SUM(length(data)),0) FROM region_bases)"))
+        try await reopened.remove("second", kind: .translation)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_bases") == 0)
+        #expect(try await reopened.statistics().payloadBytes == 0)
+    }
+
     @Test func compactPagesMigrateWithoutChangingSavedWorkOrLRU() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -114,7 +161,9 @@ struct ReaderTranslationDiskCacheTests {
         #expect(try await !reopened.contains("new", kind: .snapshot))
     }
 
-    @Test(arguments: ["reader-render-v32-neutral-readable-edge", "reader-render-v31-readable-source-role-coverage", "reader-render-v30-readable-paragraph-ink-coverage", "reader-render-v29-source-role-cleanup-geometry", "reader-render-v28-short-paragraph-guard", "reader-render-v27-readable-palette-ink", "reader-render-v26-horizontal-caption-anchors", "reader-render-v24-readable-paragraph-contours", "reader-render-v25-source-anchored-captions", "reader-render-v23-source-stroke-opaque-ink", "reader-render-v21-korean-punctuation", "reader-render-v22-korean-orphans", "reader-render-v20-readable-source-colors", "reader-render-v19-faithful-source-colors", "reader-render-v18-neutral-ink-fringe", "reader-render-v17-chroma-emergency-wrap", "reader-render-v16-contrast-preserved-chroma", "reader-render-v15-korean-small-text", "reader-render-v3-source-coverage", "reader-render-v4-visible-source-bands", "reader-render-v5-normal-font-floor", "reader-render-v6-korean-balanced-wrap", "reader-render-v7-resolved-font", "reader-render-v8-source-ink", "reader-render-v9-small-text", "reader-render-v9-word-safe-small-text", "reader-render-v10-fragment-line-profile", "reader-render-v11-balloon-contained-type"])
+    @Test(arguments: ["reader-render-v68-halo-surface-and-ink", "reader-render-v67-observed-panel-colors", "reader-render-v70-faithful-ink-interior-panel", "reader-render-v66-source-palette-text-box-reflow",
+            "reader-render-v65-outline-free-readable-ink",
+            "reader-render-v64-thin-source-outlines", "reader-render-v63-preserved-source-ink", "reader-render-v62-source-color-modes", "reader-render-v61-calm-source-panels", "reader-render-v32-neutral-readable-edge", "reader-render-v31-readable-source-role-coverage", "reader-render-v30-readable-paragraph-ink-coverage", "reader-render-v29-source-role-cleanup-geometry", "reader-render-v28-short-paragraph-guard", "reader-render-v27-readable-palette-ink", "reader-render-v26-horizontal-caption-anchors", "reader-render-v24-readable-paragraph-contours", "reader-render-v25-source-anchored-captions", "reader-render-v23-source-stroke-opaque-ink", "reader-render-v21-korean-punctuation", "reader-render-v22-korean-orphans", "reader-render-v20-readable-source-colors", "reader-render-v19-faithful-source-colors", "reader-render-v18-neutral-ink-fringe", "reader-render-v17-chroma-emergency-wrap", "reader-render-v16-contrast-preserved-chroma", "reader-render-v15-korean-small-text", "reader-render-v3-source-coverage", "reader-render-v4-visible-source-bands", "reader-render-v5-normal-font-floor", "reader-render-v6-korean-balanced-wrap", "reader-render-v7-resolved-font", "reader-render-v8-source-ink", "reader-render-v9-small-text", "reader-render-v9-word-safe-small-text", "reader-render-v10-fragment-line-profile", "reader-render-v11-balloon-contained-type"])
     func earlierLayoutsCannotBeReusedAfterRendererRevision(revision: String) async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -363,7 +412,7 @@ struct ReaderTranslationDiskCacheTests {
             case 0: changed.targetLanguage = "en"
             case 1: changed.model = "different-model"
             case 2: changed.reasoningEffort = .high
-            case 3: changed.instructions = "different prompt"
+            case 3: changed.metadataInstructions = "different prompt"
             default: changed.credentialGeneration += 1
             }
             #expect(ReaderTranslationCacheIdentity.translation(page: "page", settings: changed) != key)
@@ -552,7 +601,6 @@ struct ReaderTranslationDiskCacheTests {
             var region = ReaderTranslationRegion(id: segment.id, rect: CGRect(x: 0.1, y: 0.2, width: 0.3, height: 0.4),
                 source: segment.text, translation: "번역 " + segment.id, polygon: [CGPoint(x: 0.123456789, y: 0.987654321)])
             region.translationReuseIdentity = identities[segment.id]
-            region.sfxEnclosedBackground = false
             return region
         }
         let source = regions.map { value in
@@ -706,7 +754,7 @@ struct ReaderTranslationDiskCacheTests {
         switch change {
         case "model": settings.model = "new-model"
         case "language": settings.targetLanguage = "en"
-        case "prompt": settings.instructions += " Translate differently."
+        case "prompt": settings.metadataInstructions += " Translate differently."
         case "credentials": settings.credentialGeneration += 1
         case "provider": settings.provider = .custom; settings.custom.baseURL = "https://example.invalid/v1"; settings.model = "custom-model"
         case "ocrPixel": settings.ocr.detectorPixelThreshold = 0.25
@@ -801,7 +849,7 @@ struct ReaderTranslationDiskCacheTests {
         #expect(try await reopened.data(for: "queued", kind: .metadata) == Data("queued".utf8))
     }
 
-    @Test(arguments: ["model", "target", "prompt", "credentials", "metadataFilter", "clear"])
+    @Test(arguments: ["model", "target", "credentials", "metadataFilter", "clear"])
     func metadataInvalidationRejectsPendingWritersWithoutClearingUnrelatedPages(change: String) async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -816,7 +864,6 @@ struct ReaderTranslationDiskCacheTests {
         switch change {
         case "model": settings.model = "different-model"
         case "target": settings.targetLanguage = "en"
-        case "prompt": settings.instructions += " Use formal language."
         case "credentials": settings.credentialGeneration += 1
         case "metadataFilter": settings.authorSourceLanguages = ["ja"]; settings.sourceLabelSourceLanguages = ["en"]
         default: try await cache.clear()

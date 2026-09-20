@@ -346,6 +346,7 @@ struct HistoryView: View {
 }
 
 private struct HistoryEntryCell: View, @MainActor Equatable {
+    @ObservedObject private var sourceStore = SourceStore.shared
     let entry: HistoryEntry
 
     let manga: AidokuRunner.Manga?
@@ -361,6 +362,7 @@ private struct HistoryEntryCell: View, @MainActor Equatable {
         } label: {
             HStack(spacing: 12) {
                 MangaCoverView(
+                    source: sourceStore.source(for: entry.chapterId.sourceKey),
                     coverImage: manga?.cover ?? "",
                     width: Self.coverImageWidth,
                     height: Self.coverImageWidth * 3/2,

@@ -26,26 +26,22 @@ struct ReaderSourceTextColorTests {
         }
         let before = renderKey(settings)
         let translation = ReaderTranslationCacheIdentity.translation(page: "page", settings: settings)
-        settings.overlay.preserveSourceTextColor = true
+        settings.overlay.appearance = .source
         try settings.autosave(defaults: defaults)
-        #expect(ReaderTranslationSettings(defaults: defaults).overlay.preserveSourceTextColor)
+        #expect(ReaderTranslationSettings(defaults: defaults).overlay.appearance == .source)
         #expect(renderKey(settings) != before)
         #expect(ReaderTranslationCacheIdentity.translation(page: "page", settings: settings) == translation)
-        settings.overlay.preserveSourceTextColor = false
+        settings.overlay.appearance = .white
         try settings.autosave(defaults: defaults)
-        #expect(!ReaderTranslationSettings(defaults: defaults).overlay.preserveSourceTextColor)
+        #expect(!ReaderTranslationSettings(defaults: defaults).overlay.preserveSourceColors)
         #expect(renderKey(settings) == before)
         settings.overlay.preserveSourceBackgroundColor = true
         try settings.autosave(defaults: defaults)
-        let panelOnly = ReaderTranslationSettings(defaults: defaults)
-        #expect(panelOnly.overlay.preserveSourceBackgroundColor && !panelOnly.overlay.preserveSourceTextColor)
-        #expect(renderKey(settings) != before)
-        #expect(ReaderTranslationCacheIdentity.translation(page: "page", settings: settings) == translation)
-        settings.overlay.preserveSourceTextColor = true
-        #expect(renderKey(settings) != renderKey(panelOnly))
-        settings.overlay.preserveSourceBackgroundColor = false
-        try settings.autosave(defaults: defaults)
-        #expect(!ReaderTranslationSettings(defaults: defaults).overlay.preserveSourceBackgroundColor)
+        let migrated = ReaderTranslationSettings(defaults: defaults)
+        #expect(migrated.overlay.appearance == .source)
+        #expect(migrated.overlay.preserveSourceTextColor && migrated.overlay.preserveSourceBackgroundColor)
+        #expect(ReaderTranslationCacheIdentity.translation(page: "page", settings: migrated) == translation)
+
     }
 
     @Test func estimatesSolidInkAndRejectsAmbiguousPixels() async throws {
@@ -123,14 +119,12 @@ struct ReaderSourceTextColorTests {
         if let outlined = values["outlined"] as? [Int] {
             #expect(zip(outlined, [176, 32, 176]).allSatisfy { abs($0 - $1) <= 12 })
         } else { #expect(values["outlined"] is NSNull) }
-        // Source preservation must retain the actual RGB, including low-contrast
-        // and inverted ink. The renderer owns a contrast outline, not recoloring.
-        for (key, expected) in [
-            ("whiteOnWhite", [255, 255, 255]), ("lowContrast", [160, 160, 160]),
-            ("pinkAdjusted", [219, 100, 144]), ("purplePanelAdjusted", [165, 127, 174]),
-            ("paleYellowFallback", [255, 255, 224])
-        ] {
-            #expect(values[key] as? [Int] == expected)
+        #expect(values["whiteOnWhite"] as? [Int] == [255, 255, 255])
+        #expect(values["pinkAdjusted"] as? [Int] == [219,100,144])
+        #expect(values["purplePanelAdjusted"] as? [Int] == [165,127,174])
+        for key in ["lowContrast", "paleYellowFallback"] {
+            let rgb = try #require(values[key] as? [Int])
+            #expect(rgb.count == 3 && rgb.allSatisfy { (0...255).contains($0) })
         }
 
     }
@@ -235,7 +229,7 @@ struct ReaderSourceTextColorTests {
                   let binary = '';
                   for (let i = 0; i < bytes.length; i += 8192)
                     binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-                  const cache = globalThis.__aidokuSourceTextColorsV12?.get(image);
+                  const cache = globalThis.__aidokuSourceTextColorsV14?.get(image);
                   const samples = cache ? Array.from(cache, ([key, sample]) =>
                     ({sourceBounds:key.split(',').map(Number), sample, provenance:'actual renderer sampler cache'})) : [];
                   return {width:canvas.width, height:canvas.height, rgbaBase64:btoa(binary),
@@ -255,7 +249,8 @@ struct ReaderSourceTextColorTests {
                 sampled:n.dataset.sourceSampledStrokeRGB, applied:n.dataset.sourceAppliedStrokeRGB,
                 state:n.dataset.sourceStrokeColor, backgroundMode:n.dataset.sourceBackgroundColor, stroke:s.webkitTextStrokeColor,
                 width:s.webkitTextStrokeWidth, paintOrder:s.paintOrder,
-                sampledFill:n.dataset.sourceSampledTextRGB, appliedFill:n.dataset.sourceAppliedTextRGB
+                sampledFill:n.dataset.sourceSampledTextRGB, appliedFill:n.dataset.sourceAppliedTextRGB,
+                adjusted:n.dataset.sourceTextColorAdjusted
               }; })()
             """) as? [String: String])
             try JSONSerialization.data(withJSONObject: audit, options: [.prettyPrinted, .sortedKeys])
@@ -264,32 +259,18 @@ struct ReaderSourceTextColorTests {
                 let sampled = try #require(audit["sampled"])
                 let channels = sampled.split(separator: ",").compactMap { Int($0) }
                 #expect(channels.count == 3 && zip(channels, [96, 54, 28]).allSatisfy { abs($0 - $1) <= 16 })
-                if panel {
-                    #expect((Double(audit["contrast"] ?? "") ?? 0) >= 4.5)
-                } else {
-                    #expect(audit["appliedFill"] == audit["sampledFill"])
-                }
-                let width = try #require(Double((audit["width"] ?? "").replacingOccurrences(of: "px", with: "")))
-                if panel {
-                    #expect(audit["state"] == "none")
-                    #expect(audit["applied"] == "")
-                    #expect(width == 0)
-                } else {
-                    #expect(audit["state"] == "preserved")
-                    #expect(audit["applied"] == sampled)
-                    #expect(audit["stroke"] == "rgb(\(channels.map(String.init).joined(separator: ", ")))")
-                    #expect(width > 0)
-                    #expect(audit["paintOrder"]?.hasPrefix("stroke") == true)
-                }
-            } else {
-                #expect(audit["state"] != "preserved")
-                #expect(audit["applied"] == nil || audit["applied"] == "")
-                #expect(audit["width"] == "0px")
+                #expect(audit["appliedFill"] != audit["sampledFill"])
+                #expect(audit["adjusted"] == "true")
+                #expect((Double(audit["contrast"] ?? "") ?? 0) >= 4.5)
             }
+            #expect(audit["state"] == "none")
+            #expect(audit["applied"] == "")
+            #expect(audit["width"] == "0px")
+            #expect(audit["paintOrder"] == "normal")
         }
     }
 
-    @Test func cleanupCachePreservesPixelsAndInvalidatesOnSourceReload() async throws {
+    @Test func opaqueBoxesReuseColorSamplesAndInvalidateOnSourceReload() async throws {
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 400))
         web.loadHTMLString("<!doctype html><html><body></body></html>", baseURL: nil)
         let deadline = Date().addingTimeInterval(20)
@@ -317,7 +298,7 @@ struct ReaderSourceTextColorTests {
             "text": "한글", "vertical": false, "wrappingScript": "korean", "fontScript": "korean",
             "fontSize": 18, "lineHeight": 22, "paddingTop": 4, "paddingRight": 4,
             "paddingBottom": 4, "paddingLeft": 4, "lightSurface": true, "clipsText": false,
-            "allowsAutomaticFontRecovery": false, "sourceColorEligible": false,
+            "allowsAutomaticFontRecovery": false, "sourceColorEligible": true,
             "sourceCleanupLexical": true, "sourceCleanup": true, "sourceVertical": true,
             "sourceBounds": [10.0 / 120, 10.0 / 120, 100.0 / 120, 100.0 / 120],
             "sourceFrame": [0, 0, 120, 120]
@@ -327,7 +308,7 @@ struct ReaderSourceTextColorTests {
             _ = try await web.callAsyncJavaScript(BrowserPageImageOverlayRenderer.renderScript,
                 arguments: ["revision": String(revision), "session": "cleanup-cache-test", "items": [next],
                     "appearance": ["minimumReadableFontSize": 1, "opacity": 0.84,
-                        "preserveSourceTextColor": false, "preserveSourceBackgroundColor": false]],
+                        "preserveSourceTextColor": true, "preserveSourceBackgroundColor": true]],
                 in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
             let value = try await web.callAsyncJavaScript("""
             const root=document.querySelector('[data-aidoku-image-ocr-overlay="root"]');
@@ -336,29 +317,24 @@ struct ReaderSourceTextColorTests {
             const cache=globalThis.__aidokuSourceCleanupV1.last;
             return {reads:globalThis.cleanupReads,canvas:canvas?.toDataURL()||'',
               count:Number(root.dataset.cleanupCount),blur:getComputedStyle(node).webkitBackdropFilter,
-              pixels:cache.pixels,entries:cache.entries.size};
+              pixels:cache.pixels,entries:cache.entries.size,plates:Number(root.dataset.readabilityPanels)};
             """, arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
             return try #require(value as? [String: Any])
         }
         let first = try await render(1)
-        #expect(first["count"] as? Int == 1)
+        #expect(first["count"] as? Int == 0)
+        #expect(first["canvas"] as? String == "")
+        #expect(first["plates"] as? Int == 1)
         #expect(first["blur"] as? String == "none")
-        _ = try await web.callAsyncJavaScript("globalThis.retiredCanvas=document.querySelector('[data-aidoku-image-ocr-overlay=\"root\"] canvas')", arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
         let second = try await render(2)
-        let released = try await web.callAsyncJavaScript("return retiredCanvas.width===0&&retiredCanvas.height===0", arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? Bool
-        #expect(released == true)
-        _ = try await web.callAsyncJavaScript(BrowserPageImageOverlayRenderer.clearScript,
-            arguments: ["revision": "1", "session": "cleanup-cache-test"], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
-        let stalePreserved = try await web.callAsyncJavaScript("return document.querySelector('[data-aidoku-image-ocr-overlay=\"root\"] canvas').width>0&&globalThis.__aidokuSourceCleanupV1.last.entries.size>0", arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? Bool
-        #expect(stalePreserved == true)
-        #expect(first["canvas"] as? String == second["canvas"] as? String)
         #expect(first["reads"] as? Int == second["reads"] as? Int)
-        #expect(second["entries"] as? Int == 1)
+        #expect(second["entries"] as? Int == 0)
         let disabled = try await render(3, cleanup: false)
         #expect(disabled["count"] as? Int == 0)
-        let restored = try await render(4)
-        #expect(restored["canvas"] as? String == first["canvas"] as? String)
-        #expect(restored["reads"] as? Int == first["reads"] as? Int)
+        #expect(disabled["plates"] as? Int == 1)
+        let repeated = try await render(4)
+        #expect(repeated["canvas"] as? String == "")
+        #expect(repeated["reads"] as? Int == first["reads"] as? Int)
         _ = try await web.callAsyncJavaScript("""
         const canvas=document.createElement('canvas');canvas.width=120;canvas.height=120;
         const c=canvas.getContext('2d');c.fillStyle='white';c.fillRect(0,0,120,120);
@@ -370,7 +346,8 @@ struct ReaderSourceTextColorTests {
         let readsBefore = try #require(first["reads"] as? Int)
         let readsAfter = try #require(replaced["reads"] as? Int)
         #expect(readsAfter > readsBefore)
-        #expect(replaced["entries"] as? Int == 1)
+        #expect(replaced["entries"] as? Int == 0)
+        #expect(replaced["plates"] as? Int == 1)
         let pixels = try #require(replaced["pixels"] as? Int)
         #expect(pixels <= 2_000_000)
         // Exercise the production insertion path with more retained RGBA data
@@ -397,7 +374,7 @@ struct ReaderSourceTextColorTests {
         #expect(cleared == true)
     }
 
-    @Test func neutralReadabilityEdgeUsesActualRendererWithoutChangingManualFonts() async throws {
+    @Test func outlineFreeReadabilityKeepsManualFontsAndSourceSampling() async throws {
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
         web.loadHTMLString("<!doctype html><html><body></body></html>", baseURL: nil)
         let deadline = Date().addingTimeInterval(20)
@@ -418,13 +395,15 @@ struct ReaderSourceTextColorTests {
           {foreground:[251,251,251]}, {foreground:[251,251,251]},
           {foreground:[251,251,251]}, {foreground:[251,251,251]},
           {foreground:[255,220,0]}, {foreground:[251,251,251],stroke:[96,54,28],
-            widthEvidence:{relativeToGlyph:0.05},confidence:{stroke:0.9}}
+            widthEvidence:{relativeToGlyph:0.05},confidence:{stroke:0.9}},
+          {foreground:[220,220,220],background:[255,255,255]},
+          {foreground:null,background:[25,28,32],stroke:[96,54,28],confidence:{stroke:0.9}}
         ];
         samples.forEach((sample,index) => cache.set([index / 10,0,0.09,1].join(','),
           {background:[11,11,11],stroke:null,...sample,confidence:{background:1,stroke:0,...sample.confidence}}));
-        globalThis.__aidokuSourceTextColorsV12 = new WeakMap([[image,cache]]);
+        globalThis.__aidokuSourceTextColorsV14 = new WeakMap([[image,cache]]);
         """, arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
-        let fonts: [Double] = [9, 12, 5, 8.99, 12, 12]
+        let fonts: [Double] = [9, 12, 5, 8.99, 12, 12, 12, 12]
         let items: [[String: Any]] = fonts.enumerated().map { index, font in
             ["id": String(index), "x": 20, "y": 110 + index * 70,
              "width": 140, "height": 60, "text": "한글", "vertical": false,
@@ -444,11 +423,16 @@ struct ReaderSourceTextColorTests {
             let rows = try #require(try await web.callAsyncJavaScript("""
             return Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'), n => {
               const s = getComputedStyle(n);
+              const luminance=rgb=>rgb.split(',').map(Number).reduce((sum,v,i)=>{
+                const c=v/255;return sum+(c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4))*[.2126,.7152,.0722][i];},0);
+              const a=luminance(n.dataset.sourceAppliedTextRGB),b=luminance(n.dataset.sourceAppliedBackgroundRGB);
               return {id:n.dataset.aidokuRegion,state:n.dataset.sourceStrokeColor,
                 fill:n.dataset.sourceAppliedTextRGB,sampledFill:n.dataset.sourceSampledTextRGB,
                 sampledStroke:n.dataset.sourceSampledStrokeRGB,appliedStroke:n.dataset.sourceAppliedStrokeRGB,
                 width:parseFloat(s.webkitTextStrokeWidth),font:parseFloat(s.fontSize),
-                paintOrder:s.paintOrder,origin:n.dataset.sourceReadabilityAssistOrigin || ''};
+                paintOrder:s.paintOrder,origin:n.dataset.sourceReadabilityAssistOrigin || '',
+                adjusted:n.dataset.sourceTextColorAdjusted,textState:n.dataset.sourceTextColor,
+                contrast:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};
             });
             """, arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? [[String: Any]])
             #expect(rows.count == fonts.count)
@@ -459,27 +443,20 @@ struct ReaderSourceTextColorTests {
                 #expect(abs(font - fonts[index]) < 0.001, "Manual font must not be resized")
                 let width = try #require(row["width"] as? Double)
                 let state = row["state"] as? String
-                if text { #expect(row["fill"] as? String == row["sampledFill"] as? String) }
-                if text && !panel && index < 2 {
-                    #expect(state == "readability-assist")
-                    #expect(row["origin"] as? String == "existing-contrast-edge-width")
-                    #expect(row["sampledStroke"] as? String == "")
-                    #expect(row["appliedStroke"] as? String == "17,18,23")
-                    #expect(abs(width - (index == 0 ? 1.26 : 1.5)) < 0.001)
-                    #expect((row["paintOrder"] as? String)?.hasPrefix("stroke") == true)
+                if text && index != 7 {
+                    let changed = row["fill"] as? String != row["sampledFill"] as? String
+                    #expect(row["adjusted"] as? String == (changed ? "true" : "false"))
+                    #expect(row["textState"] as? String == "preserved")
                 } else {
-                    #expect(state != "readability-assist")
-                    if panel {
-                        #expect(state == "none")
-                        #expect(row["appliedStroke"] as? String == "")
-                        #expect(width == 0)
-                    } else if text && index == 5 {
-                        #expect(state == "preserved")
-                        #expect(row["appliedStroke"] as? String == "96,54,28")
-                        #expect(abs(width - 1.2) < 0.001)
-                    } else if !text { #expect(width == 0) }
-                    else if !panel { #expect(width <= 1) }
+                    #expect(row["textState"] as? String == "fallback")
                 }
+                if text && index == 4 { #expect(row["fill"] as? String == "255,220,0") }
+                else if panel && (!text || index == 7) { #expect((row["contrast"] as? Double ?? 0) >= 4.5) }
+                #expect(state == "none")
+                #expect(row["origin"] as? String == "")
+                #expect(row["appliedStroke"] as? String == "")
+                #expect(width == 0)
+                #expect(row["paintOrder"] as? String == "normal")
             }
         }
     }
@@ -530,7 +507,8 @@ struct ReaderSourceTextColorTests {
         ) as? String == "fallback")
     }
 
-    @Test func panelAndTextOptionsAreIndependentAndKeepDarkPanelsReadable() async throws {
+    @Test(arguments: [false, true])
+    func panelAndTextOptionsAreIndependentAndKeepDarkPanelsReadable(inpainting: Bool) async throws {
         let (host, overlay) = try makeOverlay(size: CGSize(width: 390, height: 260))
         defer { overlay.cancelWork(); host.isHidden = true }
         let format = UIGraphicsImageRendererFormat(); format.scale = 1
@@ -544,6 +522,7 @@ struct ReaderSourceTextColorTests {
         let region = ReaderTranslationRegion(id: "panel", rect: CGRect(x: 55/390.0, y: 60/260.0, width: 160/390.0, height: 65/260.0),
                                              source: "HELLO", translation: "안녕하세요")
         var settings = freshSettings()
+        settings.overlay.inpaintingEnabled = inpainting
         var revision: UInt64 = 0
         for (text, panel) in [(false, false), (true, false), (false, true), (true, true), (false, false)] {
             settings.overlay.preserveSourceTextColor = text
@@ -558,26 +537,16 @@ struct ReaderSourceTextColorTests {
                 sampledRGB:n.dataset.sourceSampledTextRGB, appliedRGB:n.dataset.sourceAppliedTextRGB,
                 text:n.dataset.sourceTextColor, panel:n.dataset.sourceBackgroundColor}; })()
             """) as? [String: String])
-            #expect(audit["panel"] == (panel ? "restored" : "fallback"))
+            #expect(audit["panel"] == (panel ? (text && inpainting ? "inpainted" : "readability-panel") : "fallback"))
             #expect(audit["text"] == (text ? "preserved" : "fallback"))
             if text {
                 let sampledRGB = try #require(audit["sampledRGB"])
-                #expect(audit["appliedRGB"] == sampledRGB)
                 let channels = sampledRGB.split(separator: ",").compactMap { Int($0) }
                 #expect(channels.count == 3 && channels.allSatisfy { abs($0 - 255) <= 8 })
-                #expect(audit["color"] == "rgb(\(channels.map(String.init).joined(separator: ", ")))")
+                #expect(audit["appliedRGB"] == sampledRGB)
             }
-            let strokeWidth = try #require(Double((audit["strokeWidth"] ?? "").replacingOccurrences(of: "px", with: "")))
-            if text && !panel {
-                // Exact white ink on the unchanged light surface needs a
-                // continuous edge painted behind the original-color fill.
-                #expect(strokeWidth > 0)
-                #expect(audit["paintOrder"]?.hasPrefix("stroke") == true)
-            } else {
-                // Dark preserved panels need no edge; disabling preservation
-                // again must also clear the previous text-only stroke.
-                #expect(strokeWidth == 0)
-            }
+            #expect(audit["strokeWidth"] == "0px")
+            #expect(audit["paintOrder"] == "normal")
             if panel {
                 #expect(audit["background"] == "rgba(0, 0, 0, 0)")
                 #expect(audit["veil"] == "none")
@@ -713,8 +682,12 @@ struct ReaderSourceTextColorTests {
             defer { overlay.cancelWork(); host.isHidden = true }
             var settings = freshSettings(); settings.targetLanguage = fixture.target
             var revision: UInt64 = 0
-            var baselineLayout: [[String: Any]]?
-            for (mode, text, panel) in [("off", false, false), ("text", true, false), ("panel", false, true), ("both", true, true)] {
+            var baselineContent: [[String: Any]]?
+            var layoutsByMode: [String: [[String: Any]]] = [:]
+            let modes = [("off", false, false), ("text", true, false), ("panel", false, true), ("both", true, true)]
+            // Revisit every setting after toggling away to detect stale layout/cache state.
+            for (index, selection) in (modes + modes).enumerated() {
+                let (mode, text, panel) = selection
                 settings.overlay.preserveSourceTextColor = text
                 settings.overlay.preserveSourceBackgroundColor = panel
                 let renderStarted = Date()
@@ -722,7 +695,7 @@ struct ReaderSourceTextColorTests {
                 try await wait(overlay, after: revision)
                 revision = try #require(overlay.lastDiagnostic?.revision)
                 let renderMilliseconds = Date().timeIntervalSince(renderStarted) * 1_000
-                let name = fixture.name + "-" + mode
+                let name = fixture.name + "-" + mode + (index >= modes.count ? "-repeat" : "")
                 let audit = try await overlay.webView.evaluateJavaScript("""
                 (() => { const root = document.querySelector('[data-aidoku-image-ocr-overlay="root"]');
                   return {stats: {...root.dataset}, dom: Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'))
@@ -741,10 +714,34 @@ struct ReaderSourceTextColorTests {
                 // number of preserved estimates is not a quality assertion.
                 let layoutKeys = ["id", "text", "fontSize", "x", "y", "width", "height"]
                 let layout = rows.map { row in row.filter { layoutKeys.contains($0.key) } }
-                if let baselineLayout {
-                    #expect(NSArray(array: layout).isEqual(to: baselineLayout),
-                            "Color options changed text or layout for \(fixture.name)")
-                } else { baselineLayout = layout }
+                // Background preservation intentionally recovers font size and reflows
+                // captions inside restored surfaces. Content is invariant across modes;
+                // geometry is invariant only when returning to the same mode.
+                let content = rows.map { row in row.filter { ["id", "text"].contains($0.key) } }
+                if let baselineContent {
+                    #expect(NSArray(array: content).isEqual(to: baselineContent),
+                            "Color options changed region identity or text for \(fixture.name)")
+                } else { baselineContent = content }
+                if let previousLayout = layoutsByMode[mode] {
+                    #expect(NSArray(array: layout).isEqual(to: previousLayout),
+                            "Returning to \(mode) changed layout for \(fixture.name)")
+                } else { layoutsByMode[mode] = layout }
+                for row in rows {
+                    let x = try #require(row["x"] as? Double)
+                    let y = try #require(row["y"] as? Double)
+                    let width = try #require(row["width"] as? Double)
+                    let height = try #require(row["height"] as? Double)
+                    let scrollWidth = try #require(row["scrollWidth"] as? Double)
+                    let scrollHeight = try #require(row["scrollHeight"] as? Double)
+                    let font = try #require(row["fontSize"] as? String)
+                    let fontSize = try #require(Double(font.replacingOccurrences(of: "px", with: "")))
+                    #expect(fontSize.isFinite && fontSize > 0)
+                    #expect(x.isFinite && y.isFinite && width > 0 && height > 0)
+                    #expect(x >= -1 && y >= -1 && x + width <= size.width + 1 && y + height <= size.height + 1,
+                            "Caption left the image in \(fixture.name)-\(mode)")
+                    #expect(scrollWidth <= width + 1 && scrollHeight <= height + 1,
+                            "Caption overflowed in \(fixture.name)-\(mode)")
+                }
                 #expect(!rows.isEmpty || regions.isEmpty)
                 if !text { #expect(rows.allSatisfy { $0["state"] as? String == "fallback" }) }
                 if !panel { #expect(rows.allSatisfy { $0["panel"] as? String == "fallback" }) }
@@ -768,11 +765,11 @@ struct ReaderSourceTextColorTests {
     }
 
     @Test(.enabled(if: FileManager.default.fileExists(atPath: directory.appendingPathComponent("panel-surface-replay.json").path)))
-    func panelSurfaceReplayComparesSameSettingsAndLayout() async throws {
+    func panelSurfaceReplayPreservesContentWhileReflowingBoxes() async throws {
         struct Fixture: Decodable { let image: String; let regions: String; let name: String; let target: String }
         let fixtures = try JSONDecoder().decode([Fixture].self, from: Data(contentsOf:
             Self.directory.appendingPathComponent("panel-surface-replay.json")))
-        let baseline = try String(contentsOf: Self.directory.appendingPathComponent("baseline-source-colors.js"), encoding: .utf8)
+        let baseline = try String(contentsOf: Self.directory.appendingPathComponent("baseline-renderer.js"), encoding: .utf8)
         let output = Self.directory.appendingPathComponent("panel-surface-results")
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         for fixture in fixtures {
@@ -802,7 +799,7 @@ struct ReaderSourceTextColorTests {
             var beforeLayout: [[String: Any]]?
             for mode in ["before", "after"] {
                 let renderer = BrowserPageImageOverlayRenderer { web, script, arguments in
-                    let script = mode == "before" ? script.replacingOccurrences(of: BrowserSourceTextColor.script, with: baseline) : script
+                    let script = mode == "before" && script == BrowserPageImageOverlayRenderer.renderScript ? baseline : script
                     return try await BrowserPageImageOverlayRenderer.evaluateJavaScript(web, script, arguments)
                 }
                 renderer.render(on: web, items: ReaderTranslationRegion.overlayItems(regions, imageSize: image.size),
@@ -817,11 +814,24 @@ struct ReaderSourceTextColorTests {
                 """)
                 let report = try #require(audit as? [String: Any])
                 let rows = try #require(report["items"] as? [[String: Any]])
-                let keys = ["aidokuRegion", "text", "x", "y", "width", "height"]
+                let keys = ["aidokuRegion", "text"]
                 let layout = rows.map { row in row.filter { keys.contains($0.key) } }
                 if let beforeLayout {
-                    #expect(NSArray(array: layout).isEqual(to: beforeLayout), "Panel recovery changed layout for \(fixture.name)")
+                    #expect(NSArray(array: layout).isEqual(to: beforeLayout), "Box reflow changed content for \(fixture.name)")
                 } else { beforeLayout = layout }
+                if mode == "after" {
+                    for row in rows {
+                        let x = try #require(row["x"] as? Double)
+                        let width = try #require(row["width"] as? Double)
+                        #expect(x >= -1 && x + width <= size.width + 1)
+                        if row["captionReflow"] != nil {
+                            #expect(row["captionReflow"] as? String == "inside-fixed-box")
+                            let oldLines = try #require(Int(row["captionOriginalLines"] as? String ?? ""))
+                            let newLines = try #require(Int(row["captionFinalLines"] as? String ?? ""))
+                            #expect(newLines <= oldLines)
+                        }
+                    }
+                }
                 try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted,.sortedKeys])
                     .write(to: output.appendingPathComponent("\(fixture.name)-\(mode).json"))
                 _ = try await web.callAsyncJavaScript("await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))",

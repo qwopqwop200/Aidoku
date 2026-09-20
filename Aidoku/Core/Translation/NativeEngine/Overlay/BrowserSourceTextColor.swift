@@ -45,7 +45,8 @@ enum BrowserSourceTextColor {
      }
      return result;
     };
-    const aidokuEstimateSourceColors = (rgba, width, height, preferredSurfaceKey = null, exteriorSurface = null) => {
+    const aidokuEstimateSourceColors = (rgba, width, height, preferredSurfaceKey = null, exteriorSurface = null,
+        inkSeed = null, minimumInkDistance = 60) => {
       const count = width * height;
       if (!Number.isInteger(width) || !Number.isInteger(height) || width < 8 || height < 8 ||
           count > 24576 || !rgba || rgba.length !== count * 4) return null;
@@ -79,7 +80,8 @@ enum BrowserSourceTextColor {
         }
         if (backgroundDistance(bin) <= 32) {
           backgroundCount += bin[0]; backgroundRim += rim.get(key) || 0;
-        } else if (backgroundDistance(bin) >= 60) {
+        }
+        if (backgroundDistance(bin) >= minimumInkDistance) {
           candidateCount += bin[0];
           if (!winner || bin[0] > winner[0]) winner = bin;
         }
@@ -88,6 +90,50 @@ enum BrowserSourceTextColor {
         widthEvidence: null, confidence: {foreground: 0, background: Math.min(1, solidRim / rimCount), stroke: 0,
           reason: 'dominant observed rim; no validated glyph yet'}};
       const resolveSurface = result => {
+        // A dark border or unrelated colored art can contaminate the distant
+        // tail before component validation rejects it. Retry actual observed
+        // color modes independently; never average different ink hues together.
+        // A seeded pass cannot recurse: at most four retries per surface,
+        // for the original rim and the single competing interior surface.
+        if (inkSeed !== null) return result;
+        // Uncertain nested panels/gradients need surface topology first. Ink
+        // retries are safe only against a broadly supported observed backing.
+        if (!result.foreground && solidCount >= count * 0.5 && solidRim >= rimCount * 0.5) {
+          const stableSurface = solidRim >= rimCount * 0.75 && solidCount >= count * 0.5;
+          const modes = [...bins.values()].filter(bin => bin[0] >= Math.max(3, count * 0.0005) &&
+            backgroundDistance(bin) >= (stableSurface ? 24 : 60)).sort((a, b) => b[0] - a[0]).slice(0, 32);
+          const seeds = [];
+          for (const mode of modes) {
+            let seed = mean(mode);
+            const vector = seed.map((v, c) => v - background[c]);
+            const squared = vector.reduce((sum, v) => sum + v * v, 0);
+            // Recover the solid end of this mode's antialias ramp without
+            // admitting a distant color on a different background/ink axis.
+            for (const bin of modes) {
+              const rgb = mean(bin), delta = rgb.map((v, c) => v - background[c]);
+              const t = delta.reduce((sum, v, c) => sum + v * vector[c], 0) / squared;
+              if (t >= 1 && bin[0] >= Math.max(3, mode[0] * 0.05) &&
+                  Math.max(...delta.map((v, c) => Math.abs(v - t * vector[c]))) <= 12 &&
+                  distance(rgb, background) > distance(seed, background)) seed = rgb;
+            }
+            if (seeds.some(previous => distance(previous, seed) < 24)) continue;
+            seeds.push(seed);
+            // Only a stable surface allows faint ink. Repeated validated glyphs
+            // are still required; relaxing RGB separation alone is not evidence.
+            const threshold = distance(seed, background) < 60 ? 24 : 60;
+            const candidate = aidokuEstimateSourceColors(rgba, width, height,
+              preferredSurfaceKey, exteriorSurface, seed, threshold);
+            // An independent backing may have been mistaken for an outer
+            // stroke. Let surface competition re-evaluate that topology;
+            // accepting its ink here can return an outline as the glyph fill.
+            if (candidate?.foreground && candidate.confidence.foreground >= 0.6 &&
+                (!candidate.background || distance(candidate.background, background) <= 32)) {
+              candidate.confidence.reason = 'independent observed ink mode; ' + candidate.confidence.reason;
+              return candidate;
+            }
+            if (seeds.length >= 4) break;
+          }
+        }
         if (preferredSurfaceKey !== null || result.foreground) return result;
         let dominantKey = null;
         for (const [key, bin] of bins) {
@@ -104,7 +150,7 @@ enum BrowserSourceTextColor {
       if (!winner || candidateCount < Math.max(6, count * 0.004)) return resolveSurface(colors);
       // Antialiasing blends ink toward the background. Use the distant tail
       // rather than the most frequent gray edge as the ink-color seed.
-      const inkBins = [...bins.values()].filter(bin => backgroundDistance(bin) >= 60)
+      const inkBins = [...bins.values()].filter(bin => backgroundDistance(bin) >= minimumInkDistance)
         .sort((a, b) => backgroundDistance(b) - backgroundDistance(a));
       const tailTarget = Math.max(6, candidateCount * 0.12), tailSum = [0, 0, 0];
       let tailCount = 0;
@@ -114,7 +160,7 @@ enum BrowserSourceTextColor {
         tailCount += take;
         if (tailCount >= tailTarget) break;
       }
-      const seedColor = tailSum.map(v => v / tailCount);
+      const seedColor = inkSeed || tailSum.map(v => v / tailCount);
       const direction = seedColor.map((v, c) => v - background[c]);
       const lengthSquared = direction.reduce((sum, v) => sum + v * v, 0);
       const mask = new Uint8Array(count), core = new Uint8Array(count);
@@ -124,7 +170,7 @@ enum BrowserSourceTextColor {
       const grayClassification = new Uint8Array(256);
       const classifyRGB = (red, green, blue) => {
         const r = red - background[0], g = green - background[1], b = blue - background[2];
-        if (Math.max(Math.abs(r), Math.abs(g), Math.abs(b)) < 60) return 1;
+        if (Math.max(Math.abs(r), Math.abs(g), Math.abs(b)) < minimumInkDistance) return 1;
         const t = (r * direction[0] + g * direction[1] + b * direction[2]) / lengthSquared;
         if (t < 0.15 || t > 1.2 || Math.max(Math.abs(r - t * direction[0]),
             Math.abs(g - t * direction[1]), Math.abs(b - t * direction[2])) > 24) return 1;
@@ -165,7 +211,8 @@ enum BrowserSourceTextColor {
         const boxWidth = maxX - minX + 1, boxHeight = maxY - minY + 1;
         // Exclude border art, specks and filled rectangles/panel rules.
         if (boundary || tail < 3 || boxWidth > width * 0.9 || boxHeight > height * 0.9 ||
-            (tail > 12 && tail / (boxWidth * boxHeight) > 0.9)) continue;
+            (minimumInkDistance < 60 && Math.max(boxWidth, boxHeight) < 5) ||
+            ((tail > 12 || minimumInkDistance < 60) && tail / (boxWidth * boxHeight) > 0.9)) continue;
         components++; retained += tail; componentHeights.push(boxHeight);
         for (let j=0;j<tail;j++) acceptedInk[queue[j]]=components;
         const boxArea = boxWidth * boxHeight;
@@ -548,52 +595,74 @@ enum BrowserSourceTextColor {
       return preferredSurfaceKey === null ? aidokuResolveDirectionalStrokeRole(rgba,width,height,resolved) : resolved;
     };
     const aidokuEstimateTextColor = (rgba, width, height) => aidokuEstimateSourceColors(rgba, width, height)?.foreground ?? null;
+    const aidokuSourceColorLuminance = rgb => rgb.reduce((sum, v, i) => {
+      const s = v / 255, linear = s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+      return sum + linear * [0.2126, 0.7152, 0.0722][i];
+    }, 0);
+    const aidokuLuminanceContrast = (text, low, high) => {
+      if (text >= low && text <= high) return 1;
+      const contrast = bg => (Math.max(text, bg) + 0.05) / (Math.min(text, bg) + 0.05);
+      return Math.min(contrast(low), contrast(high));
+    };
     const aidokuSourceColorContrast = (color, light, opacity, panel = null) => {
       if (!Array.isArray(color) || color.length !== 3 ||
           !color.every(v => Number.isFinite(v) && v >= 0 && v <= 255) || !Number.isFinite(opacity)) return 0;
-      const luminance = rgb => rgb.reduce((sum, v, i) => {
-        const s = v / 255, linear = s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-        return sum + linear * [0.2126, 0.7152, 0.0722][i];
-      }, 0);
       const surface = panel || (light ? [255, 254, 249] : [7, 9, 13]);
       const veil = light ? [255, 255, 255] : [7, 9, 13], alpha = panel ? 0 : (light ? 0.42 : 0.64);
-      const text = luminance(color), a = Math.min(1, Math.max(0, opacity));
+      const text = aidokuSourceColorLuminance(color), a = Math.min(1, Math.max(0, opacity));
       // Contrast against the whole possible background-luminance interval,
       // including the existing translucent surface and veil, not just white.
-      const backgrounds = [0, 255].map(base => luminance(surface.map((v, i) =>
+      const backgrounds = [0, 255].map(base => aidokuSourceColorLuminance(surface.map((v, i) =>
         veil[i] * alpha + (v * a + base * (1 - a)) * (1 - alpha))));
-      if (text >= backgrounds[0] && text <= backgrounds[1]) return 1;
-      const contrast = bg => (Math.max(text, bg) + 0.05) / (Math.min(text, bg) + 0.05);
-      return Math.min(...backgrounds.map(contrast));
+      return aidokuLuminanceContrast(text, backgrounds[0], backgrounds[1]);
     };
-    // A caption is a replacement for the observed surface, not a contrast
-    // theme. Never turn a pale balloon black merely because its ink is blue.
-    const aidokuCaptionPalette = (sample, ink) => {
+    // Keep an already readable color. Otherwise make the smallest luminance
+    // correction toward black/white instead of surrounding it with a harsh ring.
+    const aidokuAdjustInkForContrast = (color, contrast) => {
+      if (contrast(color) >= 4.5) return [...color];
+      const endpoint = contrast([0,0,0]) >= contrast([255,255,255]) ? 0 : 255;
+      const extreme = [endpoint,endpoint,endpoint];
+      if (contrast(extreme) < 4.5) return extreme;
+      let low = 0, high = 1;
+      const blend = t => color.map(v => Math.round(v + (endpoint-v)*t));
+      for (let i=0;i<12;i++) {
+        const mid=(low+high)/2;
+        if (contrast(blend(mid)) >= 4.5) high=mid; else low=mid;
+      }
+      return blend(high);
+    };
+    // Outline-free display keeps chromatic source ink. For white lettering
+    // defined by a colored outline, flatten the observed outline into the fill
+    // instead of inventing gray ink. Sampling roles remain unchanged.
+    const aidokuSourceDisplayInk = sample => {
+      const valid=rgb=>Array.isArray(rgb)&&rgb.length===3&&rgb.every(v=>Number.isFinite(v)&&v>=0&&v<=255);
+      const fg=sample?.foreground,stroke=sample?.stroke;
+      if(!valid(fg))return valid(sample?.displayForeground)?[...sample.displayForeground]:null;
+      const background=valid(sample?.surface?.color)?sample.surface.color:
+        valid(sample?.background)?sample.background:null;
+      if(Math.min(...fg)>=225 && valid(stroke) && (sample.confidence?.stroke||0)>=.55 &&
+          Math.max(...stroke)-Math.min(...stroke)>=40 && background &&
+          aidokuSourceColorContrast(stroke,true,1,background)>
+            aidokuSourceColorContrast(fg,true,1,background)) return [...stroke];
+      return [...fg];
+    };
+    // The background remains an observed surface, not an inverted contrast theme.
+    const aidokuCaptionPalette = (sample, ink, preserveSourceTextColor = false) => {
       const valid = rgb => Array.isArray(rgb) && rgb.length === 3 &&
         rgb.every(v => Number.isFinite(v) && v >= 0 && v <= 255);
       const observed = valid(sample?.surface?.color) ? sample.surface.color :
-        (sample?.confidence?.background >= .5 && valid(sample?.background) ? sample.background : null);
+        (valid(sample?.background) ? sample.background : null);
       const background = observed || [242, 240, 235];
-      let foreground = valid(ink) ? ink : [17, 18, 23];
-      const contrast = rgb => aidokuSourceColorContrast(rgb, true, 1, background);
-      if (contrast(foreground) < 4.5) {
-        const endpoint = contrast([0,0,0]) >= contrast([255,255,255]) ? 0 : 255;
-        let low = 0, high = 1;
-        const blend = t => foreground.map(v => Math.round(v + (endpoint-v)*t));
-        for (let i=0;i<12;i++) {
-          const mid=(low+high)/2;
-          if (contrast(blend(mid)) >= 4.5) high=mid; else low=mid;
-        }
-        foreground = blend(high);
-      }
-      return {background,foreground,observed:Boolean(observed)};
+      const preserved = preserveSourceTextColor && Boolean(aidokuSourceDisplayInk(sample));
+      const inkColor = preserved ? aidokuSourceDisplayInk(sample) : valid(ink) ? ink : [17,18,23];
+      const foreground = preserved ? inkColor :
+        aidokuAdjustInkForContrast(inkColor, rgb => aidokuSourceColorContrast(rgb, true, 1, background));
+      return {background,foreground,observed:Boolean(observed),preserved};
     };
     const aidokuReadableSourceColor = (color, light, opacity, panel = null) => {
       if (!Array.isArray(color) || color.length !== 3 ||
           !color.every(v => Number.isFinite(v) && v >= 0 && v <= 255)) return null;
-      // Preservation means keeping the source ink. The overlay can adjust its
-      // surface polarity or add a small contrast outline without recoloring it.
-      return color;
+      return [...color];
     };
     const aidokuPanelForeground = (panel, opacity) => {
       if (!Array.isArray(panel) || panel.length !== 3 ||
@@ -663,11 +732,17 @@ enum BrowserSourceTextColor {
         background:confidence, panelReason:'matching observed surfaces on opposite sides of OCR'}};
     };
     // Recover only repeated colored interiors enclosed by observed white ink.
-    const aidokuRecoverOutlinedColor = (rgba,w,h,result) => {
-     if(result?.foreground && (result.confidence?.foreground||0)>=.6)return null;
+    const aidokuRecoverOutlinedColor = (rgba,w,h,result,allowDark=false) => {
+     if(!allowDark && result?.foreground && (result.confidence?.foreground||0)>=.6)return null;
      const n=w*h;
      if(!Number.isInteger(w)||!Number.isInteger(h)||w<8||h<8||n>24576||!rgba||rgba.length!==n*4)return null;
      for(let i=3;i<rgba.length;i+=4)if(rgba[i]<250)return null;
+     if(allowDark&&w>h){
+       const transposed=new Uint8ClampedArray(rgba.length);
+       for(let y=0;y<h;y++)for(let x=0;x<w;x++)
+         for(let c=0;c<4;c++)transposed[(x*h+y)*4+c]=rgba[(y*w+x)*4+c];
+       rgba=transposed;[w,h]=[h,w];
+     }
      const seen=new Uint8Array(n),queue=new Int32Array(n),groups=[];
      const white=i=>Math.min(rgba[4*i],rgba[4*i+1],rgba[4*i+2])>=230;
      const distance=(a,b)=>Math.max(...a.map((v,c)=>Math.abs(v-b[c])));
@@ -683,7 +758,7 @@ enum BrowserSourceTextColor {
       for(let k=0;k<tail;k++){const i=queue[k],rgb=[rgba[4*i],rgba[4*i+1],rgba[4*i+2]];
        const x=i%w,y=i/w|0;
        for(const j of [x?i-1:-1,x+1<w?i+1:-1,y?i-w:-1,y+1<h?i+w:-1])if(j>=0&&white(j)){edgeCount++;for(let c=0;c<3;c++)edgeSum[c]+=rgba[4*j+c];}
-       if(Math.max(...rgb)-Math.min(...rgb)<40)continue;
+       if(Math.max(...rgb)-Math.min(...rgb)<40 && !(allowDark&&Math.max(...rgb)<80))continue;
        const key=rgb.map(v=>v>>4).join(',');let b=bins.get(key);if(!b){b={count:0,sum:[0,0,0]};bins.set(key,b);}b.count++;rgb.forEach((v,c)=>b.sum[c]+=v);
       }
       const top=[...bins.values()].sort((a,b)=>b.count-a.count)[0];if(!top||top.count<2||top.count<tail*.15)continue;
@@ -693,9 +768,12 @@ enum BrowserSourceTextColor {
       if(groups.length>=128)return null;
      }
      let best=[];for(const g of groups){const same=groups.filter(v=>distance(v.rgb,g.rgb)<=28);if(same.length>best.length)best=same;}
-     if(best.length<3||best.length<groups.length*.8)return null;
+     if(best.length<3)return null;
+     if(allowDark){
+       if(best.reduce((n,g)=>n+g.count,0)<groups.reduce((n,g)=>n+g.count,0)*.6)return null;
+     }else if(best.length<groups.length*.8)return null;
      const count=best.reduce((s,g)=>s+g.count,0),foreground=[0,1,2].map(c=>Math.round(best.reduce((s,g)=>s+g.rgb[c]*g.count,0)/count));
-     return {foreground,stroke:[0,1,2].map(c=>Math.round(best.reduce((s,g)=>s+g.stroke[c]*g.count,0)/count)),confidence:.75,components:best.length};
+     return {foreground,stroke:[0,1,2].map(c=>Math.round(best.reduce((s,g)=>s+g.stroke[c]*g.count,0)/count)),confidence:.75,components:best.length,fillPixels:count};
     };
     // A non-flat illustration has no single validated panel RGB. Retain an
     // observed, low-frequency surface for display only; it must never become
@@ -703,7 +781,7 @@ enum BrowserSourceTextColor {
     const aidokuObservedSourceSurface = (rgba, w, h, inner, palette) => {
       if (!Array.isArray(inner) || inner.length!==4 || !inner.every(Number.isFinite) || inner[2]<=0 || inner[3]<=0 ||
           !Number.isInteger(w) || !Number.isInteger(h) || w<1 || h<1 || !rgba || rgba.length !== w*h*4 || w*h > 24576) return null;
-      const vertical = inner[3] >= inner[2], bands = Array.from({length:6}, () => []);
+      const vertical = inner[3] >= inner[2], bands = Array.from({length:6}, () => [[], []]);
       const distance = (a,b) => Math.max(...a.map((v,c) => Math.abs(v-b[c])));
       for (let y=0;y<h;y++) for (let x=0;x<w;x++) {
         const p=(y*w+x)*4;
@@ -714,10 +792,20 @@ enum BrowserSourceTextColor {
         if (along<start || along>=start+length || (across>=near-1 && across<=far+1)) continue;
         const rgb=[rgba[p],rgba[p+1],rgba[p+2]];
         if ([palette?.foreground,palette?.stroke].some(color => color && distance(rgb,color)<28)) continue;
-        bands[Math.min(5,Math.floor((along-start)*6/length))].push(rgb);
+        const side = across < near - 1 ? 0 : 1;
+        bands[Math.min(5,Math.floor((along-start)*6/length))][side].push(rgb);
       }
       const median = values => values.sort((a,b)=>a-b)[Math.floor(values.length/2)];
-      const stops = bands.map(values => values.length>=4 ? [0,1,2].map(c=>median(values.map(v=>v[c]))) : null);
+      // Opposite sides must corroborate the surface. Pooling both sides makes
+      // a one-pixel crop imbalance choose unrelated artwork as the panel color.
+      const stops = bands.map(sides => {
+        if (sides.some(values => values.length < 4)) return null;
+        const colors = sides.map(values => [0,1,2].map(c => median(values.map(v => v[c]))));
+        if (distance(colors[0], colors[1]) > 18) return null;
+        if (sides.some((values, side) =>
+            values.filter(rgb => distance(rgb, colors[side]) <= 18).length < values.length * 0.6)) return null;
+        return colors[0].map((v, c) => Math.round((v + colors[1][c]) / 2));
+      });
       if (stops.filter(Boolean).length<3) return null;
       const observed=stops.filter(Boolean),color=[0,1,2].map(c=>median(observed.map(v=>v[c])));
       for(let i=0;i<stops.length;i++) if(!stops[i]) {
@@ -727,15 +815,145 @@ enum BrowserSourceTextColor {
       }
       return {color,stops,vertical};
     };
+    // Display-only estimate: an uncertain surface still needs an observed color.
+    // Do not confuse glyph-validation confidence with permission to paint a box.
+    const aidokuObservedCaptionPalette = (rgba,w,h,inner,result) => {
+      if(!rgba||rgba.length!==w*h*4||!Array.isArray(inner))return result;
+      const bins=new Map(),distance=(a,b)=>Math.max(...a.map((v,c)=>Math.abs(v-b[c])));
+      const valid=c=>Array.isArray(c)&&c.length===3&&c.every(Number.isFinite);
+      let insideCount=0,outsideCount=0;
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+        const p=(y*w+x)*4;if(rgba[p+3]<128)continue;
+        const rgb=[rgba[p],rgba[p+1],rgba[p+2]],key=rgb.map(v=>v>>5).join(',');
+        let bin=bins.get(key);if(!bin){bin={count:0,inside:0,outside:0,sum:[0,0,0]};bins.set(key,bin);}
+        const inside=x>=inner[0]&&y>=inner[1]&&x<inner[0]+inner[2]&&y<inner[1]+inner[3];
+        bin.count++;bin[inside?'inside':'outside']++;if(inside)insideCount++;else outsideCount++;
+        for(let c=0;c<3;c++)bin.sum[c]+=rgb[c];
+      }
+      const modes=[...bins.values()].map(b=>({...b,rgb:b.sum.map(v=>Math.round(v/b.count))}));
+      if(!modes.length)return result;
+      const ink=result?.foreground||result?.displayForeground,stroke=result?.stroke;
+      const surface=result?.surface?.color||result?.background;
+      const bright=c=>valid(c)&&Math.min(...c)>=230;
+      const exteriorSupport=c=>modes.reduce((n,b)=>n+(distance(b.rgb,c)<=32?b.outside:0),0)/Math.max(1,outsideCount);
+      // White glyph halos have interior support, but are not exposed backing.
+      const haloSurface=bright(surface)&&(result?.confidence?.background||0)<.5&&exteriorSupport(surface)<.25;
+      const supported=!haloSurface&&valid(surface)&&modes.reduce((n,b)=>n+(distance(b.rgb,surface)<=32?b.inside:0),0)>=Math.max(1,insideCount*.08);
+      if(supported)return result;
+      const candidates=modes.filter(b=>(!haloSurface||!bright(b.rgb)||exteriorSupport(b.rgb)>=.25)&&(!valid(ink)||distance(b.rgb,ink)>32)&&(!valid(stroke)||distance(b.rgb,stroke)>32));
+      // With known ink/halo roles, observe the exposed surface around them.
+      // Otherwise use the interior: an outer page margin is not a label's panel.
+      const score=b=>valid(ink)?b.outside+b.inside*.25:b.inside;
+      const ranked=(candidates.length?candidates:modes).sort((a,b)=>score(b)-score(a)||b.count-a.count);
+      const background=ranked[0].rgb;
+      let displayForeground=result?.displayForeground;
+      if(!valid(ink)){
+        const foreground=modes.filter(b=>b.inside>=Math.max(2,insideCount*.02)&&distance(b.rgb,background)>=48)
+          .sort((a,b)=>b.inside-a.inside)[0];
+        if(foreground)displayForeground=foreground.rgb;
+      }
+      return {...result,background,surface:null,displayForeground,
+        observedBackground:true,confidence:{...result?.confidence,background:0,
+          panelReason:'best available observed pixels; display only, no erasure'}};
+    };
+    // Estimate a single opaque caption from the exposed interior, not the
+    // brightest histogram mode. Remove ink and its immediate halo locally;
+    // globally rejecting white would also reject genuine white balloon paper.
+    // This is display-only evidence and never authorizes source restoration.
+    const aidokuInteriorCaptionSurface = (rgba,w,h,inner,result) => {
+      const backing=result?.surface?.color||result?.background;
+      const ink=result?.foreground||result?.displayForeground;
+      if(!backing||!ink||Math.min(...backing)<225||Math.min(...ink)>=220)return result;
+      const distance=(a,b)=>Math.max(...a.map((v,c)=>Math.abs(v-b[c])));
+      const mask=new Uint8Array(w*h),radius=2;
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++) {
+        const p=(y*w+x)*4;
+        if(rgba[p+3]<250||distance([rgba[p],rgba[p+1],rgba[p+2]],ink)>40)continue;
+        for(let yy=Math.max(0,y-radius);yy<=Math.min(h-1,y+radius);yy++)
+          for(let xx=Math.max(0,x-radius);xx<=Math.min(w-1,x+radius);xx++)mask[yy*w+xx]=1;
+      }
+      const pixels=[];let total=0;
+      for(let y=Math.max(0,Math.ceil(inner[1]));y<Math.min(h,inner[1]+inner[3]);y++)
+        for(let x=Math.max(0,Math.ceil(inner[0]));x<Math.min(w,inner[0]+inner[2]);x++) {
+          total++;const i=y*w+x,p=i*4;
+          if(mask[i]||rgba[p+3]<250)continue;
+          pixels.push([rgba[p],rgba[p+1],rgba[p+2]]);
+        }
+      if(pixels.length<32||pixels.length<total*.35)return result;
+      pixels.sort((a,b)=>a[0]+a[1]+a[2]-b[0]-b[1]-b[2]);
+      // Retain the spatial mixture, while suppressing isolated artwork edges.
+      const trim=Math.floor(pixels.length*.1),kept=pixels.slice(trim,pixels.length-trim);
+      const color=[0,1,2].map(c=>Math.round(kept.reduce((n,rgb)=>n+rgb[c],0)/kept.length));
+      // A genuinely flat white panel stays white. Only replace a bright mode
+      // when a substantial amount of the exposed interior contradicts it.
+      const disagreement=pixels.filter(rgb=>distance(rgb,backing)>18).length/pixels.length;
+      if(disagreement<.3||distance(color,backing)<5)return result;
+      return {...result,background:color,surface:null,observedBackground:true,
+        captionInterior:{color,coverage:pixels.length/Math.max(1,total),disagreement},
+        confidence:{...result.confidence,panelReason:'trimmed exposed interior excluding local ink and halo; display only'}};
+    };
+    // Thin chromatic strokes may leak through a one-pixel gap in their white
+    // halo. Require local enclosure, repeated positions and majority support;
+    // isolated skin/artwork or the inner half of a colored outline is rejected.
+    const aidokuRecoverHaloInk = (rgba,w,h,inner) => {
+      const bins=new Map(),vertical=inner[3]>=inner[2];
+      const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+      const white=i=>Math.min(rgba[i*4],rgba[i*4+1],rgba[i*4+2])>=220;
+      const distance=(a,b)=>Math.max(...a.map((v,c)=>Math.abs(v-b[c])));
+      const reach=Math.max(2,Math.min(6,Math.ceil(Math.min(inner[2],inner[3])*.2)));
+      for(let y=Math.max(0,Math.floor(inner[1]));y<Math.min(h,Math.ceil(inner[1]+inner[3]));y++)
+        for(let x=Math.max(0,Math.floor(inner[0]));x<Math.min(w,Math.ceil(inner[0]+inner[2]));x++) {
+          const i=y*w+x,rgb=[rgba[i*4],rgba[i*4+1],rgba[i*4+2]];
+          if(rgba[i*4+3]<250||Math.max(...rgb)-Math.min(...rgb)<40||white(i))continue;
+          const key=rgb.map(v=>v>>5).join(',');let bin=bins.get(key);
+          if(!bin){bin={count:0,kept:0,sum:[0,0,0],core:[],bands:new Set()};bins.set(key,bin);}
+          bin.count++;for(let c=0;c<3;c++)bin.sum[c]+=rgb[c];
+          let enclosed=0;
+          for(const [dx,dy] of dirs)for(let step=1;step<=reach;step++) {
+            const xx=x+dx*step,yy=y+dy*step;if(xx<0||yy<0||xx>=w||yy>=h)break;
+            const q=yy*w+xx;if(white(q)){enclosed++;break;}
+          }
+          if(enclosed>=5){bin.kept++;bin.core.push(rgb);bin.bands.add(Math.min(5,Math.max(0,Math.floor(((vertical?y:x)-(vertical?inner[1]:inner[0]))/(vertical?inner[3]:inner[2])*6))));}
+        }
+      const modes=[...bins.values()].map(b=>({...b,rgb:b.sum.map(v=>v/b.count)}));
+      let winner=null;
+      // Include antialiased tints of the same hue in the denominator. Otherwise
+      // a pale inner edge of a colored outline can masquerade as enclosed fill.
+      const hue=c=>{const lo=Math.min(...c),span=Math.max(...c)-lo;return c.map(v=>(v-lo)/Math.max(1,span));};
+      for(const seed of modes){
+        const same=modes.filter(b=>distance(hue(b.rgb),hue(seed.rgb))<=.18);
+        const count=same.reduce((n,b)=>n+b.count,0),kept=same.reduce((n,b)=>n+b.kept,0);
+        const bands=new Set(same.flatMap(b=>[...b.bands]));
+        if(kept<6||kept<count*.65||bands.size<3)continue;
+        if(!winner||kept>winner.kept) {
+          // White antialias fringes share the ink hue but dilute its RGB.
+          // Use the strongest observed interior third, after (not before)
+          // the enclosure and hue-majority checks that reject artwork.
+          const core=same.flatMap(b=>b.core).sort((a,b)=>
+            (Math.max(...b)-Math.min(...b))-(Math.max(...a)-Math.min(...a)));
+          const selected=core.slice(0,Math.max(3,Math.ceil(core.length/3)));
+          winner={kept,foreground:[0,1,2].map(c=>Math.round(selected.reduce((n,rgb)=>n+rgb[c],0)/selected.length))};
+        }
+      }
+      return winner;
+    };
     const aidokuSourceColorSampler = (image, enabled, phase = 'ocr', budget = {pixels:393216, detailPixels:98304}) => {
       const stats = {pixels: 0, hits: 0, samples: 0, milliseconds: 0};
       if (!enabled || !image?.complete || !image.naturalWidth) return {sample: () => null, stats};
-      // Image-object identity invalidates estimates when the page or split crop changes.
+      // A reused image element can load another page without changing identity.
+      const identities=(globalThis.__aidokuSourceColorImageIdentitiesV1 ||= new WeakMap());
+      const identity=[image.currentSrc||image.src||'',image.naturalWidth,image.naturalHeight];
+      const previous=identities.get(image);
+      if(previous && identity.some((value,index)=>value!==previous[index])) {
+        globalThis.__aidokuSourceTextColorsV14?.delete(image);
+        globalThis.__aidokuTranslatedSourceTextColorsV14?.delete(image);
+      }
+      identities.set(image,identity);
       // OCR and translated text each sample the original image once. Revisions
       // within the same phase reuse their own palette, without sampling overlays.
       const caches = phase === 'translation'
-        ? (globalThis.__aidokuTranslatedSourceTextColorsV12 ||= new WeakMap())
-        : (globalThis.__aidokuSourceTextColorsV12 ||= new WeakMap());
+        ? (globalThis.__aidokuTranslatedSourceTextColorsV14 ||= new WeakMap())
+        : (globalThis.__aidokuSourceTextColorsV14 ||= new WeakMap());
       let cache = caches.get(image);
       if (!cache) { cache = new Map(); caches.set(image, cache); }
       let canvas, context, unavailable = false;
@@ -745,19 +963,30 @@ enum BrowserSourceTextColor {
             bounds[0] + bounds[2] > 1.000001 || bounds[1] + bounds[3] > 1.000001) return null;
         const key = bounds.join(',');
         if (cache.has(key)) { stats.hits++; return cache.get(key); }
+        const detailLimit=Math.floor(budget.detailPixels/Math.max(1,budget.remainingSamples||1));
+        if(Number.isFinite(budget.remainingSamples))budget.remainingSamples=Math.max(0,budget.remainingSamples-1);
+        let detailSpent=0;
         const iw = image.naturalWidth, ih = image.naturalHeight;
         // Tight OCR boxes can end inside a white glyph outline. Two source
         // pixels then sample the halo as the panel, especially after reduction.
         // Include half a glyph width of surrounding surface, with a small cap
         // so neighbouring balloons/art cannot dominate the sample.
-        const verticalColumn = bounds[3] * ih >= bounds[2] * iw * 1.5;
-        const margin = verticalColumn ? Math.max(4, Math.min(16, Math.ceil(bounds[2] * iw * 0.5))) : 8;
+        const sourceWidth = bounds[2] * iw, sourceHeight = bounds[3] * ih;
+        const vertical = sourceHeight >= sourceWidth;
+        const longText = Math.max(sourceWidth, sourceHeight) >= Math.min(sourceWidth, sourceHeight) * 1.5;
+        const margin = Math.max(4, Math.min(16, Math.ceil(Math.min(sourceWidth, sourceHeight) * 0.5)));
         const x = Math.max(0, Math.floor(bounds[0] * iw) - margin);
         const y = Math.max(0, Math.floor(bounds[1] * ih) - margin);
         const sw = Math.min(iw, Math.ceil((bounds[0] + bounds[2]) * iw) + margin) - x;
         const sh = Math.min(ih, Math.ceil((bounds[1] + bounds[3]) * ih) + margin) - y;
-        const scale = Math.min(1, 192 / Math.max(sw, sh), Math.sqrt(24576 / (sw * sh)));
-        const w = Math.max(1, Math.floor(sw * scale)), h = Math.max(1, Math.floor(sh * scale));
+        // Bound the sampled area, not the longest side. A 64 x 1600 line
+        // reduced to 192 pixels tall loses almost all glyph/outline detail
+        // even though most of the 24576-pixel allowance remains unused.
+        const sampleLimit=Math.min(24576,Math.floor(budget.pixels/Math.max(1,(budget.remainingSamples||0)+1)));
+        if(sampleLimit<1)return null;
+        const scale = Math.min(1, Math.sqrt(sampleLimit / (sw * sh)));
+        const w = Math.min(sampleLimit,Math.max(1,Math.floor(sw*scale)));
+        const h = Math.min(Math.floor(sampleLimit/w),Math.max(1,Math.floor(sh*scale)));
         if (w * h > budget.pixels) return null;
         budget.pixels -= w * h; stats.pixels += w * h; stats.samples++;
         let result = null;
@@ -772,29 +1001,123 @@ enum BrowserSourceTextColor {
           result = aidokuRecoverSourcePanel(rgba, w, h,
             [(bounds[0]*iw-x)*w/sw, (bounds[1]*ih-y)*h/sh, bounds[2]*iw*w/sw, bounds[3]*ih*h/sh], result);
           if (result?.widthEvidence) result.widthEvidence.sampleScale = scale;
-          // Long columns can downsample a colored fill into its white outline.
+          // Long lines can downsample a colored fill into its white outline.
           // Retry at most three small native-detail strips, sharing the original
           // per-page pixel budget. Require independent agreeing observations.
-          if (verticalColumn && scale<.65 && (!result?.foreground || result.confidence?.foreground<.6)) {
-            const candidates=[];
-            for(const fraction of [0,.5,1]) {
-              const stripHeight=Math.min(sh,192),stripY=y+fraction*(sh-stripHeight);
-              const stripScale=Math.min(1,Math.sqrt(24576/(sw*stripHeight)));
-              const cw=Math.floor(sw*stripScale),ch=Math.floor(stripHeight*stripScale),pixels=cw*ch;
-              if(cw<8 || ch<8 || pixels>budget.pixels || pixels>budget.detailPixels)break;
-              budget.pixels-=pixels;budget.detailPixels-=pixels;stats.pixels+=pixels;
+          // A confident white silhouette can still be an aliased halo. Verify
+          // its enclosed colored interiors only on a separately observed dark
+          // surface; white panels can contain legitimate colored outline rings.
+          // A thin colored outline can disappear at one Canvas reduction ratio.
+          // Validate a second bounded raster before falling back to neutral ink.
+          const chromatic=c=>Array.isArray(c)&&Math.max(...c)-Math.min(...c)>=40;
+          const hasColor=chromatic(result?.foreground)||
+            (chromatic(result?.stroke)&&(result?.confidence?.stroke||0)>=.55);
+          if(!hasColor&&(!result?.foreground||Math.min(...result.foreground)>=225||
+              ((result?.confidence?.background||0)<.5&&(result?.confidence?.foreground||0)<=.7))) {
+            for(const factor of [.5,.75]) {
+              const cw=Math.floor(w*factor),ch=Math.floor(h*factor),pixels=cw*ch;
+              const reserved=Math.max(0,budget.remainingSamples||0)*64;
+              if(cw<8||ch<8||pixels>budget.pixels-reserved||pixels>budget.detailPixels||detailSpent+pixels>detailLimit)continue;
+              budget.pixels-=pixels;budget.detailPixels-=pixels;detailSpent+=pixels;stats.pixels+=pixels;
+              canvas.width=cw;canvas.height=ch;context.drawImage(image,x,y,sw,sh,0,0,cw,ch);
+              const candidate=aidokuEstimateSourceColors(context.getImageData(0,0,cw,ch).data,cw,ch);
+              if(!candidate?.foreground||(candidate.confidence?.foreground||0)<.6)continue;
+              if(!chromatic(candidate.foreground)&&!(Math.min(...candidate.foreground)>=225&&
+                  chromatic(candidate.stroke)&&(candidate.confidence?.stroke||0)>=.55))continue;
+              result={...result,foreground:candidate.foreground,stroke:candidate.stroke,outline:candidate.stroke,
+                widthEvidence:null,confidence:{...result?.confidence,foreground:candidate.confidence.foreground,
+                  stroke:candidate.confidence.stroke,reason:'validated chromatic glyphs at an independent reduction ratio'}};
+              break;
+            }
+          }
+          const verifyWhiteHalo = result?.foreground && (result.confidence?.foreground||0)>=.6 && Math.min(...result.foreground)>=230 &&
+            result.background && Math.min(...result.background)<245;
+          // Native-size short exclamations need the same enclosed-fill recovery;
+          // crop reduction is not a prerequisite for losing the colored interior.
+          const enclosedDark=aidokuRecoverOutlinedColor(rgba,w,h,result,true);
+          // A white counter in black lettering can look like a filled glyph.
+          // Let the independently observed light panel support the opposite role
+          // only when most dark pixels belong to repeated white-enclosed shapes.
+          // True white text has an exterior dark outline, which fails coverage.
+          let panelSupportedDark=false;
+          if(enclosedDark&&result?.background&&Math.min(...result.background)>=175&&
+              (result.confidence?.background||0)>=.5&&Math.max(...enclosedDark.foreground)<80){
+            let darkPixels=0;
+            for(let i=0;i<rgba.length;i+=4)if(Math.max(rgba[i],rgba[i+1],rgba[i+2])<80)darkPixels++;
+            panelSupportedDark=darkPixels>0&&enclosedDark.fillPixels>=darkPixels*.65;
+          }
+          if(enclosedDark&&Math.max(...enclosedDark.foreground)<80&&
+              (!result?.foreground||Math.min(...result.foreground)<225||panelSupportedDark)) {
+            result={...result,foreground:enclosedDark.foreground,stroke:enclosedDark.stroke,
+              outline:enclosedDark.stroke,confidence:{...result?.confidence,foreground:.75,stroke:.75,
+                reason:'repeated dark glyph interiors enclosed by white source outlines'}};
+          }
+          const protectedDarkInk=result?.foreground && (result.confidence?.foreground||0)>0 &&
+            Math.max(...result.foreground)<80 && Math.max(...result.foreground)-Math.min(...result.foreground)<24;
+          const localFill = aidokuRecoverOutlinedColor(rgba,w,h,verifyWhiteHalo?{...result,foreground:null}:result);
+          if(localFill && localFill.confidence>=.6 && !verifyWhiteHalo && !protectedDarkInk) result={...result,foreground:localFill.foreground,
+            stroke:localFill.stroke,outline:localFill.stroke,widthEvidence:null,
+            confidence:{...result?.confidence,foreground:localFill.confidence,stroke:localFill.confidence,
+              reason:'repeated colored interiors enclosed by source white outlines'}};
+          if (longText && !protectedDarkInk && (!result?.foreground || result.confidence?.foreground<.6 || verifyWhiteHalo || (scale<1 && result?.stroke && result?.foreground && Math.max(...result.foreground.map((v,i)=>Math.abs(v-result.stroke[i])))<80))) {
+            const candidates=[], nativeCandidates=[];
+            const detailPalette=verifyWhiteHalo?{...result,foreground:null}:result;
+            const stripLength=Math.min(192,Math.floor((vertical?sh:sw)/2),Math.floor((detailLimit-detailSpent)/(2*(vertical?sw:sh))));
+            for(const fraction of [0,1,.5]) {
+              const stripWidth=vertical?sw:stripLength,stripHeight=vertical?stripLength:sh;
+              const stripX=x+(vertical?0:fraction*(sw-stripWidth));
+              const stripY=y+(vertical?fraction*(sh-stripHeight):0);
+              const stripScale=Math.min(1,Math.sqrt(24576/(stripWidth*stripHeight)));
+              const cw=Math.floor(stripWidth*stripScale),ch=Math.floor(stripHeight*stripScale),pixels=cw*ch;
+              const reserved=Math.min(budget.pixels,Math.max(0,budget.remainingSamples||0)*64);
+              if(cw<8 || ch<8 || pixels>budget.pixels-reserved || pixels>budget.detailPixels || detailSpent+pixels>detailLimit)break;
+              budget.pixels-=pixels;budget.detailPixels-=pixels;detailSpent+=pixels;stats.pixels+=pixels;
               canvas.width=cw;canvas.height=ch;
-              context.drawImage(image,x,stripY,sw,stripHeight,0,0,cw,ch);
-              const candidate=aidokuRecoverOutlinedColor(context.getImageData(0,0,cw,ch).data,cw,ch,result);
+              context.drawImage(image,stripX,stripY,stripWidth,stripHeight,0,0,cw,ch);
+              let detail=context.getImageData(0,0,cw,ch).data;
+              // The enclosed-component filter uses a column's geometry.
+              // Transpose horizontal lines so the same evidence rules apply.
+              if(!vertical) {
+                const transposed=new Uint8ClampedArray(detail.length);
+                for(let yy=0;yy<ch;yy++)for(let xx=0;xx<cw;xx++) {
+                  const from=(yy*cw+xx)*4,to=(xx*ch+yy)*4;
+                  for(let c=0;c<4;c++)transposed[to+c]=detail[from+c];
+                }
+                detail=transposed;
+              }
+              const native=aidokuEstimateSourceColors(detail,vertical?cw:ch,vertical?ch:cw);
+              if(native?.foreground && native.confidence?.foreground>=.6) nativeCandidates.push(native);
+              let candidate=aidokuRecoverOutlinedColor(detail,vertical?cw:ch,vertical?ch:cw,detailPalette);
+              if(candidate && verifyWhiteHalo) {
+                // A white O with colored outlines has colored ink inside its
+                // counter too. Most candidate ink must actually be enclosed;
+                // a matching exterior outline contradicts the proposed fill.
+                let observed=0;
+                for(let p=0;p<detail.length;p+=4)if(Math.max(...candidate.foreground.map((v,c)=>Math.abs(detail[p+c]-v)))<=28)observed++;
+                if(!observed || candidate.fillPixels<observed*.7)candidate=null;
+              }
               if(candidate)candidates.push(candidate);
               if(candidates.length>=2 && Math.max(...candidates[0].foreground.map((v,i)=>
                 Math.abs(v-candidates[candidates.length-1].foreground[i])))<=28)break;
             }
             const agreeing=candidates.filter(c=>candidates.filter(other=>
               Math.max(...c.foreground.map((v,i)=>Math.abs(v-other.foreground[i])))<=28).length>=2);
+            if(!result?.foreground && nativeCandidates.length){
+              const best=[...nativeCandidates].sort((a,b)=>b.confidence.foreground-a.confidence.foreground)[0];
+              result={...result,displayForeground:best.foreground};
+            }
+            const nativeAgreement=nativeCandidates.filter(c=>(!verifyWhiteHalo||Math.min(...c.foreground)>=225)&&nativeCandidates.filter(other=>
+              Math.max(...c.foreground.map((v,i)=>Math.abs(v-other.foreground[i])))<=20).length>=2);
+            if(nativeAgreement.length>=2 && agreeing.length<2) {
+              const best=nativeAgreement.find(c=>c.stroke)||nativeAgreement[0];
+              result={...result,foreground:best.foreground,stroke:best.stroke||result?.stroke,outline:best.stroke||result?.stroke,
+                widthEvidence:best.widthEvidence,confidence:{...result?.confidence,
+                  foreground:best.confidence.foreground,stroke:best.stroke?best.confidence.stroke:result?.confidence?.stroke,
+                  reason:'agreeing native detail palettes preserve fill and outline roles'}};
+            }
             if(agreeing.length>=2) {
               const average=key=>[0,1,2].map(c=>Math.round(agreeing.reduce((sum,v)=>sum+v[key][c],0)/agreeing.length));
-              result={...result,foreground:average('foreground'),stroke:average('stroke'),outline:average('stroke'),
+              result={...result,foreground:average('foreground'),stroke:average('stroke'),outline:average('stroke'),widthEvidence:null,
                 confidence:{...result?.confidence,foreground:.75,stroke:.75,
                   reason:'matching colored glyph interiors inside observed white outlines in independent strips'}};
             }
@@ -808,6 +1131,19 @@ enum BrowserSourceTextColor {
                 (Math.min(...result.background)>=230 && Math.max(...surface.color)-Math.min(...surface.color)<35)))
               result.surface=surface;
           }
+          result=aidokuObservedCaptionPalette(rgba,w,h,
+            [(bounds[0]*iw-x)*w/sw,(bounds[1]*ih-y)*h/sh,bounds[2]*iw*w/sw,bounds[3]*ih*h/sh],result);
+          const displayed=aidokuSourceDisplayInk(result);
+          if(!chromatic(displayed)&&!(chromatic(result?.stroke)&&(result?.confidence?.stroke||0)>=.55)&&
+              (!result?.foreground||Math.min(...result.foreground)>=225||
+              (Math.max(...result.foreground)>40&&(result?.confidence?.background||0)<.5))) {
+            const recovered=aidokuRecoverHaloInk(rgba,w,h,
+              [(bounds[0]*iw-x)*w/sw,(bounds[1]*ih-y)*h/sh,bounds[2]*iw*w/sw,bounds[3]*ih*h/sh]);
+            if(recovered)result={...result,foreground:recovered.foreground,stroke:null,outline:null,widthEvidence:null,
+              confidence:{...result?.confidence,foreground:.7,stroke:0,reason:'repeated chromatic strokes locally enclosed by white source halos'}};
+          }
+          result=aidokuInteriorCaptionSurface(rgba,w,h,
+            [(bounds[0]*iw-x)*w/sw,(bounds[1]*ih-y)*h/sh,bounds[2]*iw*w/sw,bounds[3]*ih*h/sh],result);
         } catch (_) { unavailable = true; }
         finally { stats.milliseconds += performance.now() - started; }
         if (cache.size >= 256) cache.delete(cache.keys().next().value);

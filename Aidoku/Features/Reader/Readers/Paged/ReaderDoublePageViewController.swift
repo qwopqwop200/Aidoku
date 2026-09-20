@@ -75,6 +75,11 @@ class ReaderDoublePageViewController: BaseObservingViewController {
     }
 
     override func constrain() {
+        // Empty image views need a real width while cached translations prepare.
+        // Loaded image sizing takes precedence over this initial half-page layout.
+        let preferredWidth = pageStack.widthAnchor.constraint(equalTo: zoomView.widthAnchor)
+        preferredWidth.priority = UILayoutPriority(1)
+        preferredWidth.isActive = true
         NSLayoutConstraint.activate([
             zoomView.topAnchor.constraint(equalTo: view.topAnchor),
             zoomView.leftAnchor.constraint(equalTo: view.leftAnchor),

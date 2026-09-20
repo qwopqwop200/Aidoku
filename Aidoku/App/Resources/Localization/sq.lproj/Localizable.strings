@@ -360,9 +360,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 kërkon iOS 18 ose një version më të ri. Modeli i paracaktuar është I mesëm. I vogël përdor më pak memorie dhe Shumë i vogël ka një fjalor më të kufizuar karakteresh. Modelet nuk njohin tekstin korean, por përkthimi në koreanisht mbështetet.";
 
-"TRANSLATION_INSTRUCTIONS" = "Udhëzime përkthimi";
 
-"TRANSLATION_RESET_PROMPT" = "Rikthe udhëzimet e përkthimit të parazgjedhur";
 
 "TRANSLATION_CLEAR_CACHE" = "Pastro memorien e përkohshme të përkthimit";
 
@@ -493,13 +491,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Zbulon automatikisht gjuhën burimore dhe përkthen vetëm gjuhët e zgjedhura. Opsioni Të gjitha gjuhët e zbuluara heq kufizimin. Filtri i gjuhës së çdo elementi është i pavarur nga cilësimet e gjuhës së faqeve dhe elementeve të tjera.";
 
-"TRANSLATION_SFX_FILTER" = "Filtrimi SFX (vetëm japonezisht)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Lë të papërkthyera tekstet që ka të ngjarë të jenë efekte zanore japoneze. Përdor një fjalor lokal dhe kontrolle të kujdesshme të paraqitjes. Teksti që nuk identifikohet me siguri si efekt zanor vazhdon të përkthehet.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Përfshi zërat që kërkojnë kontekst (vetëm japonisht)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Zbatohet ndërsa filtrimi SFX është i aktivizuar. Gjithashtu filtron hyrjet e shënuara si që kërkojnë kontekst duke përdorur përputhjet e fjalorit, madhësinë e tekstit dhe paraqitjen aty pranë. Asnjë LLM nuk analizon kontekstin, kështu që dialogu gjithashtu mund të përjashtohet.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Përfshi imazhin e faqes në përkthim";
 
@@ -512,7 +506,7 @@
 
 "TRANSLATION_LLM_SFX" = "Filtrimi LLM SFX (Të gjitha gjuhët)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Klasifikon efektet zanore në të njëjtën kërkesë për përkthim dhe i lë të pandryshuara. Kur ka imazh të faqes, inteligjenca artificiale anashkalon edhe fragmentet e paqarta OCR, përveç rasteve kur imazhi vërteton se janë tekst me kuptim. Dialogu, rrëfimi, titujt dhe të dhënat e kontribuesve mbeten për t’u përkthyer. Mund të kombinohet me filtrin lokal për japonishten: teksti i shënuar nga cilido filtër lihet i pandryshuar. Klasifikimi është më pak i besueshëm pa imazhin e faqes.";
+"TRANSLATION_LLM_SFX_HELP" = "Klasifikon efektet zanore në të njëjtën kërkesë për përkthim dhe i lë të pandryshuara. Kur ka imazh të faqes, inteligjenca artificiale anashkalon edhe fragmentet e paqarta OCR, përveç rasteve kur imazhi vërteton se janë tekst me kuptim. Dialogu, rrëfimi, titujt dhe të dhënat e kontribuesve mbeten për t’u përkthyer. Klasifikimi është më pak i besueshëm pa imazhin e faqes.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Pa futjen e imazhit, konteksti i kufizuar vizual dhe i paraqitjes mund të zvogëlojë saktësinë e klasifikimit SFX.";
 
@@ -1146,3 +1140,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Memoria e përkohshme e përkthimit nuk mund të ruhej.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Ndryshimet e sinkronizimit iCloud zbatohen pasi ta mbyllni plotësisht dhe ta rihapni Aidoku. Deri atëherë, cilësimi aktual mbetet aktiv.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Ruaj ngjyrat origjinale";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Ruaj së bashku ngjyrat e tekstit dhe sfondit.";
+"TRANSLATION_INPAINTING" = "Rindërtimi i sfondit";
+"TRANSLATION_INPAINTING_HELP" = "Fshin tekstin origjinal duke ruajtur sfondin. Përdor kuti kur maska ose lexueshmëria janë të pasigurta. Kërkon ngjyrat origjinale.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Filtrimi i tekstit";
+
+"TRANSLATION_TARGETS" = "Çfarë të përkthehet";

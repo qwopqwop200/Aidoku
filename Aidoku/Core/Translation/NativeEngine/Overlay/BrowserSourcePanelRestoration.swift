@@ -85,6 +85,14 @@ enum BrowserSourcePanelRestoration {
           const matchedInk=!legacyDark&&separation>=24&&(palette.confidence?.foreground||0)>=.55;
           if(!legacyDark&&!matchedInk)return null;
           const inkTolerance=Math.max(10,Math.min(48,separation*.4));
+          // Use measured exterior halo thickness when available. Counter-area
+          // estimates do not measure the outer halo and retain the bounded fallback.
+          const evidence=palette.widthEvidence;
+          const measuredHalo=options.readabilityGate&&evidence?.method?.startsWith('outer stroke boundary')&&
+            (palette.confidence?.stroke||0)>=.6&&Number.isFinite(evidence.samplePixels)&&
+            Number.isFinite(evidence.sampleScale)&&evidence.sampleScale>0;
+          const radius=measuredHalo?Math.max(4,Math.min(12,Math.ceil(
+            evidence.samplePixels/evidence.sampleScale*(options.sampleScale||1))+2)):12;
           
      const p=rgba.slice(),raw=new Uint8Array(n),seen=new Uint8Array(n),mask=new Uint8Array(n),protectedInk=new Uint8Array(n),frameInk=new Uint8Array(n),queue=new Int32Array(n),seedRadius=new Uint8Array(n),accepted=[],isolatedBodyInk=[],readingCandidates=[],edgeFragments=[];
      const observedInk=matchedInk?new Uint8Array(n):null;
@@ -134,7 +142,7 @@ enum BrowserSourcePanelRestoration {
      if(!keep&&body&&tail===1&&x0>2&&y0>2&&x1<w-3&&y1<h-3)isolatedBodyInk.push(start);
      for(let k=0;k<tail;k++){
        (keep?mask:protectedInk)[queue[k]]=1;
-       if(keep)seedRadius[queue[k]]=ruby&&!body?6:12;
+       if(keep)seedRadius[queue[k]]=ruby&&!body?Math.min(6,radius):radius;
        if(!keep&&(x0<=2||y0<=2||x1>=w-3||y1>=h-3))frameInk[queue[k]]=1;
      }
      if(keep)accepted.push([x0,y0,x1,y1,tail,observedInk?observedCount:tail]);
@@ -235,7 +243,13 @@ enum BrowserSourcePanelRestoration {
      // raster fragments; a handful of one-pixel dots must not reject an
      // otherwise valid dense caption and bring its entire source text back.
      const substantialCoreCount=accepted.reduce((sum,c)=>sum+(c[5]>=2?c[5]:0),0);
-     if(substantialCoreCount>b[2]*b[3]*.3)return null;
+     // Dense Kanji can exceed the generic artwork-density limit. Repeated
+     // dark interiors with an independently detected light outline establish
+     // text ownership; illustration/protected-ink checks below still apply.
+     const outlinedDark=legacyDark&&palette.stroke&&Math.min(...palette.stroke)>=230&&
+       (palette.confidence?.foreground||0)>=.6&&(palette.confidence?.stroke||0)>=.6&&
+       palette.confidence?.reason==='repeated dark glyph interiors enclosed by white source outlines';
+     if(substantialCoreCount>b[2]*b[3]*(outlinedDark ? .42 : .3))return null;
      // Reject unresolved dark ink inside the OCR box, including intersecting art.
      let unresolved=0;
      for(let y=Math.floor(b[1]);y<Math.ceil(b[1]+b[3]);y++)for(let x=Math.floor(b[0]);x<Math.ceil(b[0]+b[2]);x++)
@@ -266,7 +280,6 @@ enum BrowserSourcePanelRestoration {
      // Include halos even when the color estimator mistakes them for paper.
      // Native-resolution dilation is bounded; 24 px crop padding keeps its
      // boundary samples outside the source outline rather than inside it.
-     const radius=12;
      for(let head=0;head<tail;head++){
      const i=queue[head],x=i%w,y=i/w|0;if(distance[i]>=seedRadius[i])continue;
      for(let yy=Math.max(1,y-1);yy<=Math.min(h-2,y+1);yy++)for(let xx=Math.max(1,x-1);xx<=Math.min(w-2,x+1);xx++){
@@ -280,7 +293,10 @@ enum BrowserSourcePanelRestoration {
      }}
      const surfaceQuality=options.readabilityGate?aidokuSourceSurfaceQuality(rgba,w,h,mask,donorBlocked):null;
      if(surfaceQuality&&!surfaceQuality.safe)return null;
-     if(surfaceQuality){
+     // A plane is suitable only for nearly uniform paper/gradients. On a
+     // translucent balloon, retain local donor colors through diffusion so
+     // smaller masks do not leave flat, glyph-shaped patches in the artwork.
+     if(surfaceQuality&&surfaceQuality.rmse<=3){
        const output=new Uint8ClampedArray(n*4),layoutSafe=new Uint8Array(n);
        for(let i=0;i<n;i++){
          if(!protectedInk[i]&&!drawingSurface?.[i])layoutSafe[i]=1;

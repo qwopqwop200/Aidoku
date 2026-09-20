@@ -827,9 +827,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 nécessite iOS 18 ou une version ultérieure. Moyen est le modèle par défaut. Petit utilise moins de mémoire et Minuscule possède un dictionnaire de caractères plus limité. Ces modèles ne reconnaissent pas le texte coréen, mais la traduction vers le coréen est prise en charge.";
 
-"TRANSLATION_INSTRUCTIONS" = "Instructions de traduction";
 
-"TRANSLATION_RESET_PROMPT" = "Restaurer les instructions par défaut";
 
 "TRANSLATION_CLEAR_CACHE" = "Vider le cache de traduction";
 
@@ -960,13 +958,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Détecte automatiquement la langue source et traduit uniquement les langues sélectionnées. « Toutes les langues détectées » supprime la restriction. Le filtre de langue de chaque élément est indépendant des réglages de langue des pages et des autres éléments.";
 
-"TRANSLATION_SFX_FILTER" = "Filtrage SFX (japonais uniquement)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Laisse les onomatopées japonaises probables sans traduction, en utilisant un dictionnaire local et des vérifications prudentes de la mise en page. Le texte qui ne peut pas être identifié avec certitude comme une onomatopée est tout de même traduit.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Inclure les entrées nécessitant du contexte (japonais uniquement)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "S'applique lorsque le filtrage SFX est activé. Filtre également les entrées marquées comme nécessitant un contexte à l'aide des correspondances de dictionnaire, de la taille du texte et de la mise en page à proximité. Aucun LLM n'analyse le contexte, le dialogue peut donc également être exclu.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Inclure l'image de la page dans la traduction";
 
@@ -979,7 +973,7 @@
 
 "TRANSLATION_LLM_SFX" = "Filtrage des onomatopées par LLM (toutes les langues)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Identifie les effets sonores dans la même demande de traduction et les laisse inchangés. Avec une image de la page, l’IA ignore aussi les fragments OCR ambigus, sauf si l’image confirme qu’ils correspondent à un texte porteur de sens. Les dialogues, la narration, les titres et les crédits sont conservés parmi les textes à traduire. Peut être combiné avec le filtre local japonais : le texte signalé par l’un ou l’autre des filtres reste inchangé. La classification est moins fiable sans image de la page.";
+"TRANSLATION_LLM_SFX_HELP" = "Identifie les effets sonores dans la même demande de traduction et les laisse inchangés. Avec une image de la page, l’IA ignore aussi les fragments OCR ambigus, sauf si l’image confirme qu’ils correspondent à un texte porteur de sens. Les dialogues, la narration, les titres et les crédits sont conservés parmi les textes à traduire. La classification est moins fiable sans image de la page.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Sans image, le contexte visuel et la disposition du texte sont moins bien connus, ce qui peut réduire la précision de la classification des onomatopées.";
 
@@ -1138,3 +1132,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Impossible d’enregistrer le cache de traduction.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Les modifications de la synchronisation iCloud prennent effet après la fermeture complète et la réouverture d’Aidoku. Le réglage actuel reste actif jusque-là.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Conserver les couleurs originales";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Conserver ensemble la couleur du texte et celle du fond.";
+"TRANSLATION_INPAINTING" = "Retouche du fond";
+"TRANSLATION_INPAINTING_HELP" = "Efface le texte original en préservant le fond. Utilise des cadres si le masque ou la lisibilité est incertain. Nécessite les couleurs originales.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Filtrage du texte";
+
+"TRANSLATION_TARGETS" = "Contenu à traduire";

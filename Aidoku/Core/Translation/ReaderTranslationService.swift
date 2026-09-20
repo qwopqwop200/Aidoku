@@ -16,7 +16,6 @@ struct ReaderTranslationRegion: Equatable, Sendable {
     var sourceSingleVerticalColumn: Bool?
     var translationReuseIdentity: NativeTranslationReuseIdentity?
     var auxiliaryInkRects: [CGRect] = [] // Normalized suppressed-ruby ink; not layout bounds.
-    var sfxEnclosedBackground: Bool? = nil // Positive evidence protects text; nil means not sampled.
 
     /// If translation adds no information, preserve the original lettering.
     /// This avoids opaque boxes over numbers, punctuation, unchanged names,

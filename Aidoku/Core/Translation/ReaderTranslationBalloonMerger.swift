@@ -1,8 +1,8 @@
 import CoreGraphics
 import Foundation
 
-/// Joins close, similarly sized vertical columns only when their surrounding
-/// white background belongs to the same bounded connected image component.
+/// Joins nearby vertical columns using enclosed background or conservative
+/// shared-ink and clear-gutter evidence for translucent speech balloons.
 enum ReaderTranslationBalloonMerger {
     struct SourceLine {
         let polygon: [CGPoint]
@@ -32,26 +32,36 @@ enum ReaderTranslationBalloonMerger {
         var bridgeClaimed = Set<String>()
         for (right, left) in zip(ordered, ordered.dropFirst()) {
             guard !bridgeClaimed.contains(right.id), !bridgeClaimed.contains(left.id),
-                  min(right.source.count, left.source.count) >= 3 else { continue }
+                  min(right.source.count, left.source.count) >= 2 else { continue }
             let small = min(right.rect.width, left.rect.width), large = max(right.rect.width, left.rect.width)
             let gap = right.rect.minX - left.rect.maxX
             let overlap = min(right.rect.maxY, left.rect.maxY) - max(right.rect.minY, left.rect.minY)
             let box = right.rect.union(left.rect)
-            let mixedBlock = ((right.sourceSingleVerticalColumn == false && left.sourceSingleVerticalColumn == true) ||
+            let longEnough = min(right.source.count, left.source.count) >= 3
+            let mixedBlock = longEnough && ((right.sourceSingleVerticalColumn == false && left.sourceSingleVerticalColumn == true) ||
                 (right.sourceSingleVerticalColumn == true && left.sourceSingleVerticalColumn == false)) &&
                 large >= small * 1.8 && large <= small * 3.5 && gap <= small * 0.65 &&
                 overlap >= min(right.rect.height, left.rect.height) * 0.5
-            let alignedColumns = right.sourceSingleVerticalColumn != false && left.sourceSingleVerticalColumn != false &&
+            let alignedColumns = longEnough && right.sourceSingleVerticalColumn != false && left.sourceSingleVerticalColumn != false &&
                 (enclosedCandidates.contains(right.id) || enclosedCandidates.contains(left.id)) &&
                 large <= small * 1.6 && gap <= small * 1.2 &&
                 // Leading vertical ellipses can be omitted by recognition,
                 // leaving the first lexical column one or two glyphs lower.
                 abs(right.rect.minY - left.rect.minY) * height <= small * width * 1.75 &&
                 overlap >= min(right.rect.height, left.rect.height) * 0.75
-            guard gap >= -small * 0.2, mixedBlock || alignedColumns,
-                  !regions.contains(where: { $0.id != right.id && $0.id != left.id && $0.rect.intersects(box) }) else { continue }
             func pixels(_ rect: CGRect) -> CGRect { CGRect(x: rect.minX * width, y: rect.minY * height, width: rect.width * width, height: rect.height * height) }
-            if ReaderTranslationEnclosedBackground.hasClearVerticalBridge(in: image, left: pixels(left.rect), right: pixels(right.rect)) {
+            let shortReaction = isShortStaggeredReaction(right, left, rightBox: pixels(right.rect), leftBox: pixels(left.rect))
+            guard gap >= -small * 0.2, mixedBlock || alignedColumns || shortReaction,
+                  !regions.contains(where: { $0.id != right.id && $0.id != left.id && $0.rect.intersects(box) }) else { continue }
+            // A missed leading pause leaves only one glyph plus punctuation.
+            // Its shared height can be less than two full detector widths.
+            let ordinaryBridge = (mixedBlock || alignedColumns) && ReaderTranslationEnclosedBackground.hasClearVerticalBridge(
+                in: image, left: pixels(left.rect), right: pixels(right.rect))
+            let reactionBridge = !ordinaryBridge && shortReaction &&
+                matchingOutlinedInk(in: image, first: pixels(right.rect), second: pixels(left.rect)) &&
+                ReaderTranslationEnclosedBackground.hasClearVerticalBridge(in: image, left: pixels(left.rect), right: pixels(right.rect),
+                    minimumOverlapInFontSizes: 1.25)
+            if ordinaryBridge || reactionBridge {
                 groups.append([right.id, left.id]); bridgeClaimed.formUnion([right.id, left.id])
             }
         }
@@ -97,6 +107,34 @@ enum ReaderTranslationBalloonMerger {
             removed.formUnion(ids.filter { $0 != anchor.id })
         }
         return regions.compactMap { removed.contains($0.id) ? nil : replacements[$0.id] ?? $0 }
+    }
+
+    /// Recover a short reaction beside a longer column when OCR omitted its
+    /// leading ellipsis. Requiring punctuation, Japanese text, equal glyph widths,
+    /// bottom alignment, matching coloured ink and a bright gutter avoids treating
+    /// arbitrary short captions or separate balloon lobes as one utterance.
+    private static func isShortStaggeredReaction(
+        _ right: ReaderTranslationRegion, _ left: ReaderTranslationRegion,
+        rightBox: CGRect, leftBox: CGRect
+    ) -> Bool {
+        guard right.sourceSingleVerticalColumn == true, left.sourceSingleVerticalColumn == true else { return false }
+        let rightIsShort = rightBox.height < leftBox.height
+        let short = rightIsShort ? right : left
+        let shortBox = rightIsShort ? rightBox : leftBox
+        let longBox = rightIsShort ? leftBox : rightBox
+        let font = min(rightBox.width, leftBox.width)
+        let text = short.source.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard font > 0, (2...4).contains(text.count),
+              text.contains(where: { "!?！？…‥".contains($0) }),
+              text.unicodeScalars.contains(where: { (0x3041...0x30FF).contains($0.value) || (0x3400...0x9FFF).contains($0.value) }),
+              !right.source.contains(where: { "「」『』“”".contains($0) }),
+              !left.source.contains(where: { "「」『』“”".contains($0) }),
+              max(rightBox.width, leftBox.width) <= font * 1.6,
+              rightBox.minX - leftBox.maxX <= font * 0.6,
+              shortBox.height <= font * 3, longBox.height >= shortBox.height * 1.4,
+              abs(rightBox.maxY - leftBox.maxY) <= font * 0.6 else { return false }
+        let overlap = min(rightBox.maxY, leftBox.maxY) - max(rightBox.minY, leftBox.minY)
+        return overlap >= shortBox.height * 0.85 && overlap > font * 1.25
     }
 
     /// A wrapped caption can end with a centered/edge-aligned single column

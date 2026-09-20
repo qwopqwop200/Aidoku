@@ -21,6 +21,22 @@ struct SourceImageView: View {
     var placeholder = "MangaPlaceholder"
 
     @State private var imageRequest: ImageRequest?
+    @State private var loadedRequestIdentity: [String]?
+
+    private var requestIdentity: [String] { [source?.key ?? "", imageUrl] }
+
+    // History covers and local files need no source callback. Supply their
+    // request on the first body evaluation so a memory hit needs no extra task.
+    var resolvedImageRequest: ImageRequest? {
+        let url = URL(string: imageUrl)
+        if let fileUrl = url?.toAidokuFileUrl() {
+            return ImageRequest(url: fileUrl)
+        }
+        if source == nil || url?.isFileURL == true {
+            return ImageRequest(url: url)
+        }
+        return loadedRequestIdentity == requestIdentity ? imageRequest : nil
+    }
 
     private var processors: [ImageProcessing] {
         var processors: [ImageProcessing] = []
@@ -35,7 +51,7 @@ struct SourceImageView: View {
 
     var body: some View {
         LazyImage(
-            request: imageRequest,
+            request: resolvedImageRequest,
             transaction: .init(animation: .default)
         ) { state in
             if state.imageContainer?.type == .gif, let data = state.imageContainer?.data {
@@ -59,8 +75,11 @@ struct SourceImageView: View {
             }
         }
         .processors(processors)
-        .task(id: [source?.key ?? "", imageUrl]) {
+        .task(id: requestIdentity) {
+            guard source != nil, let url = URL(string: imageUrl),
+                  !url.isFileURL, url.toAidokuFileUrl() == nil else { return }
             imageRequest = nil
+            loadedRequestIdentity = nil
             await loadImageRequest(url: imageUrl)
         }
     }
@@ -81,5 +100,6 @@ struct SourceImageView: View {
             urlRequest: request,
             userInfo: [.processesKey: source.features.processesCovers]
         )
+        loadedRequestIdentity = requestIdentity
     }
 }

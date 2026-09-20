@@ -21,8 +21,7 @@ extension ReaderTranslationRegion {
             source: source, translation: translation, confidence: confidence,
             sourceImageAspectRatio: sourceImageAspectRatio, translationOrder: translationOrder,
             translationOrderVersion: translationOrderVersion, sourceOrientation: sourceOrientation,
-            sourceSingleVerticalColumn: sourceSingleVerticalColumn, translationReuseIdentity: translationReuseIdentity,
-            sfxEnclosedBackground: sfxEnclosedBackground)
+            sourceSingleVerticalColumn: sourceSingleVerticalColumn, translationReuseIdentity: translationReuseIdentity)
         result.polygon = polygon.map { CGPoint(x: ($0.x - crop.minX) / crop.width, y: ($0.y - crop.minY) / crop.height) }
         result.auxiliaryInkRects = auxiliaryInkRects.compactMap { rect in
             let clipped = rect.intersection(crop)

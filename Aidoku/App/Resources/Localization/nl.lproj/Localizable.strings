@@ -421,9 +421,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 vereist iOS 18 of nieuwer. Middelgroot is het standaardmodel. Klein gebruikt minder geheugen en Zeer klein heeft een beperktere tekenset. Deze modellen herkennen geen Koreaanse tekst, maar vertalen naar het Koreaans wordt ondersteund.";
 
-"TRANSLATION_INSTRUCTIONS" = "Vertaalinstructies";
 
-"TRANSLATION_RESET_PROMPT" = "Herstel de standaard vertaalinstructies";
 
 "TRANSLATION_CLEAR_CACHE" = "Wis de vertaalcache";
 
@@ -554,13 +552,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Detecteert automatisch de brontaal en vertaalt alleen de geselecteerde talen. Alle gedetecteerde talen heft de beperking op. Het taalfilter van elk onderdeel is onafhankelijk van de taalinstellingen voor pagina’s en andere onderdelen.";
 
-"TRANSLATION_SFX_FILTER" = "SFX-filtering (alleen Japans)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Laat vermoedelijke Japanse geluidseffecten onvertaald met behulp van een lokaal woordenboek en voorzichtige controles van de lay-out. Tekst die niet met zekerheid als geluidseffect kan worden herkend, wordt wel vertaald.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Contextafhankelijke vermeldingen meenemen (alleen Japans)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Van toepassing terwijl SFX-filtering is ingeschakeld. Filtert ook vermeldingen die zijn gemarkeerd als context vereisend, met behulp van woordenboekovereenkomsten, tekstgrootte en nabijgelegen lay-out. Geen enkele LLM analyseert de context, dus dialoog kan ook worden uitgesloten.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Pagina-afbeelding opnemen in vertaling";
 
@@ -573,7 +567,7 @@
 
 "TRANSLATION_LLM_SFX" = "LLM SFX-filtering (alle talen)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Herkent geluidseffecten in hetzelfde vertaalverzoek en laat ze ongewijzigd. Met een pagina-afbeelding slaat de AI ook onduidelijke OCR-fragmenten over, tenzij de afbeelding aantoont dat het om betekenisvolle tekst gaat. Dialoog, verteltekst, titels en makersvermeldingen blijven behouden om te worden vertaald. Kan worden gecombineerd met het lokale filter voor Japans: tekst die door een van beide filters wordt gemarkeerd, blijft ongewijzigd. Zonder pagina-afbeelding is de classificatie minder betrouwbaar.";
+"TRANSLATION_LLM_SFX_HELP" = "Herkent geluidseffecten in hetzelfde vertaalverzoek en laat ze ongewijzigd. Met een pagina-afbeelding slaat de AI ook onduidelijke OCR-fragmenten over, tenzij de afbeelding aantoont dat het om betekenisvolle tekst gaat. Dialoog, verteltekst, titels en makersvermeldingen blijven behouden om te worden vertaald. Zonder pagina-afbeelding is de classificatie minder betrouwbaar.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Zonder beeldinvoer kan een beperkte visuele en lay-outcontext de nauwkeurigheid van de SFX-classificatie verminderen.";
 
@@ -1170,3 +1164,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "De vertaalcache kon niet worden opgeslagen.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Wijzigingen aan iCloud-synchronisatie worden toegepast nadat je Aidoku volledig sluit en opnieuw opent. Tot dan blijft de huidige instelling actief.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Originele kleuren behouden";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Behoud de tekst- en achtergrondkleuren samen.";
+"TRANSLATION_INPAINTING" = "Achtergrondherstel";
+"TRANSLATION_INPAINTING_HELP" = "Wist originele tekst met behoud van de achtergrond. Gebruikt vakken bij een onzeker masker of slechte leesbaarheid. Vereist originele kleuren.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Tekstfiltering";
+
+"TRANSLATION_TARGETS" = "Te vertalen inhoud";

@@ -409,14 +409,16 @@ struct ReaderTranslationPersistentPipelineTests {
                                                         imageSize: source.size, viewport: imageView.bounds.size,
                                                         scale: imageView.traitCollection.displayScale, aspectFit: true,
                                                         crop: CGRect(x: 0, y: 0, width: 1, height: 1), dark: dark)
+        let displayed = [Self.region].compactMap { $0.cropped(to: CGRect(x: 0, y: 0, width: 1, height: 1)) }
+        let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: displayed)
         try await waitUntil {
             imageView.layoutIfNeeded()
             return cache.cachedImage(for: key) != nil
         }
         try await waitUntil { page.isUsingCachedRendering }
         #expect(!imageView.subviews.contains { $0 is ReaderTranslationOverlayView })
-        #expect(try await fixture.disk.data(for: key, kind: .layout) != nil)
-        #expect(cache.cachedLayout(for: key) != nil, "Visible rendering must promote its saved layout into memory")
+        #expect(try await fixture.disk.data(for: layoutKey, kind: .layout) != nil)
+        #expect(cache.cachedLayout(for: layoutKey) != nil, "Visible rendering must promote its saved layout into memory")
         page.releaseOverlay()
         let began = ProcessInfo.processInfo.systemUptime
         page.showCompletedTranslation(settings: fixture.settings)
@@ -435,8 +437,8 @@ struct ReaderTranslationPersistentPipelineTests {
         restored.displayPrepared([Self.region], settings: fixture.settings)
         #expect(reopenedCache.cachedImage(for: key) == nil)
         try await waitUntil { reopenedCache.cachedImage(for: key) != nil }
-        #expect(try await reopenedCache.disk.data(for: key, kind: .layout) != nil)
-        #expect(reopenedCache.cachedLayout(for: key) != nil)
+        #expect(try await reopenedCache.disk.data(for: layoutKey, kind: .layout) != nil)
+        #expect(reopenedCache.cachedLayout(for: layoutKey) != nil)
         restored.releaseOverlay()
         restored.showCompletedTranslation(settings: fixture.settings)
         #expect(restored.isUsingCachedRendering)

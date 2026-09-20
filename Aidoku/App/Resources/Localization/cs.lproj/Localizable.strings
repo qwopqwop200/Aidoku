@@ -364,9 +364,7 @@
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 vyžaduje iOS 18 nebo novější. Výchozí model je Střední. Malý využívá méně paměti a Maličký má menší slovník znaků. Modely nepodporují rozpoznávání korejského textu, ale překlad do korejštiny je podporován.";
 
-"TRANSLATION_INSTRUCTIONS" = "Pokyny k překladu";
 
-"TRANSLATION_RESET_PROMPT" = "Obnovte výchozí pokyny pro překlad";
 
 "TRANSLATION_CLEAR_CACHE" = "Vymazat mezipaměť překladu";
 
@@ -497,13 +495,9 @@
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Automaticky určí zdrojový jazyk a přeloží pouze vybrané jazyky. Volba Všechny zjištěné jazyky ruší omezení. Jazykový filtr každé položky je nezávislý na nastavení jazyka stránek a ostatních položek.";
 
-"TRANSLATION_SFX_FILTER" = "Filtrování SFX (pouze japonština)";
 
-"TRANSLATION_SFX_FILTER_HELP" = "Ponechává pravděpodobné japonské zvukové efekty bez překladu. Používá místní slovník a opatrné vyhodnocení rozložení textu. Text, který nelze spolehlivě určit jako zvukový efekt, se stále překládá.";
 
-"TRANSLATION_SFX_CONTEXT_FILTER" = "Zahrnout položky vyžadující kontext (pouze japonština)";
 
-"TRANSLATION_SFX_CONTEXT_FILTER_HELP" = "Platí při zapnutém filtrování SFX. Filtruje také položky vyžadující kontext podle shod ve slovníku, velikosti textu a rozmístění okolních prvků. Kontext neanalyzuje LLM, takže mohou být vyloučeny i dialogy.";
 
 "TRANSLATION_INCLUDE_IMAGE" = "Zahrnout obrázek stránky do překladu";
 
@@ -516,7 +510,7 @@
 
 "TRANSLATION_LLM_SFX" = "Filtrování SFX LLM (všechny jazyky)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Klasifikuje zvukové efekty v témže požadavku na překlad a ponechá je beze změny. Pokud je přiložen obrázek stránky, AI také vynechá nejasné úryvky OCR, ledaže obrázek potvrdí, že jde o smysluplný text. Dialogy, vyprávění, názvy a údaje o tvůrcích zůstávají určeny k překladu. Lze kombinovat s místním japonským filtrem: text označený alespoň jedním filtrem zůstane beze změny. Bez obrázku stránky je klasifikace méně spolehlivá.";
+"TRANSLATION_LLM_SFX_HELP" = "Klasifikuje zvukové efekty v témže požadavku na překlad a ponechá je beze změny. Pokud je přiložen obrázek stránky, AI také vynechá nejasné úryvky OCR, ledaže obrázek potvrdí, že jde o smysluplný text. Dialogy, vyprávění, názvy a údaje o tvůrcích zůstávají určeny k překladu. Bez obrázku stránky je klasifikace méně spolehlivá.";
 
 "TRANSLATION_LLM_SFX_NO_IMAGE" = "Bez zadání obrázku může omezený vizuální kontext a kontext rozvržení snížit přesnost klasifikace SFX.";
 
@@ -1140,3 +1134,14 @@
 "TRANSLATION_ERROR_CACHE_SAVE" = "Mezipaměť překladu se nepodařilo uložit.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Změny synchronizace iCloud se projeví po úplném zavření a opětovném otevření Aidoku. Do té doby zůstává aktivní současné nastavení.";
+
+// Source-preserving inpainting
+"TRANSLATION_SOURCE_COLORS" = "Zachovat původní barvy";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Zachovat společně barvy textu a pozadí.";
+"TRANSLATION_INPAINTING" = "Obnova pozadí";
+"TRANSLATION_INPAINTING_HELP" = "Odstraní původní text a zachová pozadí. Při nejisté masce nebo čitelnosti použije rámečky. Vyžaduje původní barvy.";
+
+// Translation settings section
+"TRANSLATION_FILTERING" = "Filtrování textu";
+
+"TRANSLATION_TARGETS" = "Co překládat";

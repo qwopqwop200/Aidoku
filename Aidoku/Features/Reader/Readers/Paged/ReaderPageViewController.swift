@@ -93,6 +93,12 @@ class ReaderPageViewController: BaseObservingViewController {
                     fatalError("ReaderPageViewController with type page requires a temporary page store")
                 }
                 pageView = ReaderPageView(parent: self, temporaryPageStore: temporaryPageStore)
+                pageView?.prepareTranslationForDisplay = { [weak self] image, page in
+                    guard let self else { throw CancellationError() }
+                    return try await self.delegate?.prepareCachedTranslationForDisplay(image: image, page: page, geometry: { [weak self] in
+                        self?.pageView?.translationImageGeometry(for: image)
+                    })
+                }
         }
     }
 

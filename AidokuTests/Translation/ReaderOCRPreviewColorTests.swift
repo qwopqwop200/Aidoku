@@ -43,8 +43,8 @@ struct ReaderOCRPreviewColorTests {
                 _ = try await web.callAsyncJavaScript("""
                 const image=document.getElementById('reader-source-image');
                 const cache=new Map([[bounds.join(','), {background:[255,255,255],confidence:{background:0.1}}]]);
-                globalThis.__aidokuSourceTextColorsV12=new WeakMap([[image,cache]]);
-                globalThis.__aidokuTranslatedSourceTextColorsV12=new WeakMap([[image,cache]]);
+                globalThis.__aidokuSourceTextColorsV14=new WeakMap([[image,cache]]);
+                globalThis.__aidokuTranslatedSourceTextColorsV14=new WeakMap([[image,cache]]);
                 """, arguments: ["bounds": try #require(payload["sourceBounds"])], in: nil, contentWorld: .page)
             }
             _ = try await web.callAsyncJavaScript(BrowserPageImageOverlayRenderer.renderScript,
@@ -82,7 +82,7 @@ struct ReaderOCRPreviewColorTests {
     }
 
     @Test(arguments: ["ocr", "ja", "ko"], [false, true])
-    func largeOutlinedColumnsRestoreSpatialBackgroundWithinBudget(language: String, colored: Bool) async throws {
+    func largeOutlinedColumnsUseOpaqueBoxesWithinSamplingBudget(language: String, colored: Bool) async throws {
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 600, height: 600))
         web.loadHTMLString("<html><body style='margin:0'></body></html>", baseURL: nil)
         let deadline = Date().addingTimeInterval(20)
@@ -132,11 +132,12 @@ struct ReaderOCRPreviewColorTests {
         const node=root.querySelector('[data-aidoku-image-ocr-overlay="item"]'),style=getComputedStyle(node);
         const audit=JSON.parse(root.dataset.panelRestorationAudit);
         return {transparent:style.backgroundColor==='rgba(0, 0, 0, 0)'&&style.backgroundImage==='none',
-          restored:node.dataset.sourceBackgroundColor==='restored',
-          bounded:audit.length===1&&audit[0].accepted&&audit[0].sourcePixels>131072&&audit[0].pixels<=131072,
+          // Box rendering never erases or blurs either neutral or colored source ink.
+          presentation:node.dataset.sourceBackgroundColor==='readability-panel'&&root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]').length===1,
+          bounded:audit.length===0&&Number(root.dataset.panelRestorationPixels)===0&&Number(root.dataset.sourceColorPixels)<=393216,
           font:parseFloat(style.fontSize)>0,text:node.textContent,details:JSON.stringify({audit,data:node.dataset,failures:globalThis.panelFailures})};})()
         """) as? [String: Any])
-        for key in ["transparent", "restored", "bounded", "font"] { #expect(result[key] as? Bool == true, "\(key): \(result["details"] ?? "")") }
+        for key in ["transparent", "presentation", "bounded", "font"] { #expect(result[key] as? Bool == true, "\(key): \(result["details"] ?? "")") }
         #expect(result["text"] as? String == (language == "ocr" ? "ああああああ" : language == "ja" ? "背景を残す" : "배경 유지"))
     }
 
@@ -194,7 +195,7 @@ struct ReaderOCRPreviewColorTests {
         #expect(preview["content"] == "HELLO")
         #expect(translated["visible"] == "1")
         #expect(translated["content"] == "안녕")
-        #expect(preview["surface"] == "restored")
+        #expect(preview["surface"] == "readability-panel")
         #expect(preview["samples"] == "1")
         #expect(translated["samples"] == "1")
         #expect(translated["hits"] == "0")
@@ -233,7 +234,7 @@ struct ReaderOCRPreviewColorTests {
         #expect((stats["pixels"] as? Int ?? .max) <= 393216)
         #expect(stats["hits"] as? Int == 1)
 
-        // Exercise the display-only surface even when no flat panel can be proven.
+        // Exercise the display-only surface when reconstruction is unavailable.
         // The original OCR must remain a visible DOM text node, then be replaced.
         let script = BrowserPageImageOverlayRenderer.renderScript
             .replacingOccurrences(of: "const sampled = cachedSourceSample(item);", with: "const sampled = {...cachedSourceSample(item),background:null,surface:{color:[175,146,129],stops:[[239,207,176],[64,59,73]],vertical:true}};")
@@ -245,8 +246,11 @@ struct ReaderOCRPreviewColorTests {
         for (index, translation) in [nil, "번역된 글자"].enumerated() {
             let item = BrowserOverlayItem(rect: CGRect(x: 30, y: 15, width: 60, height: 680),
                 sourceText: "あああ", translatedText: translation, confidence: 1, sourceOrientation: .vertical)
-            let payload = BrowserPageImageOverlayRenderer.layoutPayload(items: [item], imageSize: CGSize(width: 120, height: 720),
+            var payload = BrowserPageImageOverlayRenderer.layoutPayload(items: [item], imageSize: CGSize(width: 120, height: 720),
                 sourceRect: CGRect(x: 0, y: 0, width: 120, height: 720), settings: settings, targetLanguage: "ko", viewport: CGSize(width: 120, height: 720))
+            // Smooth gradients can be restored; explicitly isolate the fallback
+            // caption path here. Restoration success has its own rendering tests.
+            for position in payload.indices { payload[position]["sourcePanelRestorationEligible"] = false }
             _ = try await web.callAsyncJavaScript(script, arguments: ["revision": index, "session": "surface-transition", "items": payload,
                 "appearance": ["opacity": 1, "minimumReadableFontSize": 1, "preserveSourceTextColor": true, "preserveSourceBackgroundColor": true]], in: nil, contentWorld: .page)
             appearances.append(try #require(try await web.evaluateJavaScript("""

@@ -465,6 +465,118 @@ struct ReaderTranslationSessionTests {
         #expect(calls == 1)
     }
 
+    @Test(arguments: [true, false])
+    func repeatedOffOnRestoresInFlightOCRPreview(applySettingsChange: Bool) async throws {
+        let fixture = SessionFixture()
+        fixture.defaults.set(true, forKey: ReaderTranslationSettings.keyPrefix + "automatic")
+        let view = UIImageView(image: Self.image())
+        let visible = ReaderTranslationPage(imageView: view)
+        visible.sourcePage = Self.page(0)
+        var ocr = Self.region
+        ocr.translation = nil
+        let preview = [ocr]
+        var progressCount = 0
+        let session = ReaderTranslationSession(process: { _, _, progress in
+            try await progress?(preview)
+            progressCount += 1
+            // Keep translation pending while the user rapidly toggles it.
+            try await Task.sleep(for: .seconds(30))
+            return [Self.region]
+        }, availableMemory: { UInt64.max })
+        defer { session.close() }
+        session.update(items: [.init(Self.page(0))], visible: [visible], context: "ocr-toggle")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { progressCount == 1 }
+        let overlay = try #require(view.subviews.first)
+        #expect(!overlay.isHidden)
+        for attempt in 1...4 {
+            session.disable(preservingVisibleRendering: true)
+            #expect(overlay.isHidden)
+            if applySettingsChange {
+                fixture.defaults.set(false, forKey: ReaderTranslationSettings.keyPrefix + "automatic")
+                visible.applySettings(fixture.settings)
+                fixture.defaults.set(true, forKey: ReaderTranslationSettings.keyPrefix + "automatic")
+                visible.applySettings(fixture.settings)
+            }
+            session.enable(settings: fixture.settings)
+            try await waitUntil { progressCount == attempt + 1 }
+            #expect(view.subviews.count == 1)
+            #expect(view.subviews.first === overlay)
+            #expect(!overlay.isHidden, "Identical OCR progress must reveal the retained renderer after OFF/ON")
+            #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
+            #expect(!visible.canExportTranslation)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func repeatedBitmapPresentationRestoresHiddenCanvas(loadedImage: Bool) async throws {
+        let fixture = SessionFixture()
+        let view = UIImageView(image: Self.image())
+        let page = ReaderTranslationPage(imageView: view)
+        page.sourcePage = Self.page(0)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { page.reset(); try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+        page.renderCache = cache
+        let settings = fixture.settings
+        let prepared = ReaderTranslationPreparedImage(image: Self.image(), regions: [Self.region], settings: settings)
+        if !loadedImage {
+            try await seedBitmap(prepared.image, page: page, view: view, cache: cache, settings: settings)
+        }
+        func display() {
+            if loadedImage { page.displayLoadedImage(prepared) }
+            else { page.displayPreparedSnapshot([Self.region], settings: settings, memoryOnly: true) }
+        }
+        display()
+        let canvas = try #require(view.subviews.first)
+        for _ in 0..<4 {
+            page.hidePreparedTranslation()
+            #expect(canvas.isHidden)
+            display()
+            #expect(view.subviews.first === canvas)
+            #expect(!canvas.isHidden)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func geometryChangeWhileHiddenDoesNotRevealTranslation(bitmap: Bool) async throws {
+        let fixture = SessionFixture()
+        let view = UIImageView(image: Self.image())
+        let page = ReaderTranslationPage(imageView: view)
+        page.sourcePage = Self.page(0)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { page.reset(); try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+        page.renderCache = cache
+        let settings = fixture.settings
+        if bitmap { try await seedBitmap(Self.image(), page: page, view: view, cache: cache, settings: settings) }
+        page.displayPrepared([Self.region], settings: settings)
+        #expect(page.isUsingCachedRendering == bitmap)
+        page.hidePreparedTranslation()
+        view.bounds.size = CGSize(width: 320, height: 480)
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+        for child in view.subviews { child.setNeedsLayout(); child.layoutIfNeeded() }
+        #expect(view.subviews.allSatisfy { $0.isHidden }, "Resizing while OFF must not publish a visible replacement")
+        page.showCompletedTranslation(settings: settings)
+        #expect(view.subviews.contains { !$0.isHidden })
+        #expect(page.hasCompletedTranslation(settings: settings))
+    }
+
+    private func seedBitmap(_ image: UIImage, page: ReaderTranslationPage, view: UIImageView,
+                            cache: ReaderTranslationRenderCache, settings: ReaderTranslationSettings) async throws {
+        let source = try #require(page.sourcePage)
+        let original = try #require(view.image)
+        cache.setNearbyPages(pageKeys: [source.translationCacheKey], settings: settings, availableMemory: .max)
+        let key = ReaderTranslationCacheIdentity.render(page: source.translationCacheKey, settings: settings,
+            imageSize: original.size, viewport: view.bounds.size, scale: view.traitCollection.displayScale,
+            aspectFit: view.contentMode == .scaleAspectFit, crop: CGRect(x: 0, y: 0, width: 1, height: 1),
+            dark: view.traitCollection.userInterfaceStyle == .dark)
+        await cache.store(image, key: key,
+            pageIdentity: ReaderTranslationCacheIdentity.translation(page: source.translationCacheKey, settings: settings),
+            diskGeneration: 0)
+    }
+
     @Test func stackedAndAdjacentCaptionsRemainDistinctCases() async throws {
         let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         var report: [String: Any] = [:]
