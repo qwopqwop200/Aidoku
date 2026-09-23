@@ -4,7 +4,7 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationOverlapTests {
-    @Test func visibleOCRAppearsWhileTranslationIsStillWaiting() async throws {
+    @Test func originalImageRemainsVisibleUntilTranslationCompletes() async throws {
         let recorder = OverlapRecorder(blockedAPI: 0)
         let preloader = preloader(recorder)
         let session = session(preloader)
@@ -19,15 +19,19 @@ struct ReaderTranslationOverlapTests {
         defer { session.close(); preloader.cancel() }
         session.update(items: [.init(page(0))], visible: [visible], context: "chapter")
         session.enable(settings: value)
-        try await waitUntil { await recorder.api == [0] && !visible.regions.isEmpty }
-        #expect(visible.regions.first?.source == "Text")
-        #expect(visible.regions.first?.translation == nil)
-        #expect(!imageView.subviews.isEmpty)
+        try await waitUntil { await recorder.api == [0] }
+        #expect(visible.regions.isEmpty)
+        #expect(imageView.image === image)
+        #expect(imageView.subviews.isEmpty)
         #expect(!visible.hasCompletedTranslation(settings: value))
+        #expect(!visible.canExportTranslation)
         #expect(await recorder.completed.isEmpty)
         await recorder.release()
         try await waitUntil { visible.hasCompletedTranslation(settings: value) }
+        #expect(visible.regions.first?.source == "Text")
         #expect(visible.regions.first?.translation == "translated")
+        #expect(!imageView.subviews.isEmpty)
+        #expect(visible.canExportTranslation)
     }
 
     @Test func compressedLookaheadDownloadsDuringCurrentOCRWithoutDecodingAnotherPage() async throws {

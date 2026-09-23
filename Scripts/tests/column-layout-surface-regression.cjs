@@ -10,7 +10,7 @@ const end = source.indexOf('    const inpaintingEnabled =', start);
 assert.ok(start > 0 && end > start);
 const code = source.slice(start, end);
 assert.ok(!code.includes('\\('), 'Unexpected Swift interpolation');
-function run({art = false, glyphs = false, gradient = false, image = true, palette = true} = {}) {
+function run({art = false, glyphs = false, gradient = false, strongGradient = false, fold = false, step = false, image = true, palette = true} = {}) {
   const items = [0, 1, 2].map(i => ({x:20+i*35,y:10,width:6,height:100,
     sourceBounds:[.1+i*.175,.05,.03,.5],sourceFrame:[0,0,200,200],
     columnLayout:{x:10+i*48,y:10,width:44,height:60,balancedColumn:true}}));
@@ -26,7 +26,10 @@ function run({art = false, glyphs = false, gradient = false, image = true, palet
         const known=items.some(i=>px>=i.x&&px<=i.x+i.width&&py>=i.y&&py<=i.y+i.height);
         const ink = (art && px>34 && px<45 && py>20 && py<60) || (glyphs && known);
         const v=ink?20:gradient?240+Math.round(py/200*10):255;
-        data.set([v,v,v,255],(y*w+x)*4);
+        const rgb=strongGradient?[210-60*(py/200)**2,180-90*(py/200)**2,130-40*(py/200)**2]:[v,v,v];
+        if(fold)for(let c=0;c<3;c++)rgb[c]-=60*Math.exp(-(((py-36)/12)**2));
+        if(step&&py>35)for(let c=0;c<3;c++)rgb[c]-=65;
+        data.set([...rgb,255],(y*w+x)*4);
       }
       return {data};
     }
@@ -39,7 +42,8 @@ function run({art = false, glyphs = false, gradient = false, image = true, palet
 }
 for(const [name,options,accepted] of [
   ['open whitespace',{},true],['known source ink',{glyphs:true},true],
-  ['smooth light gradient',{gradient:true},true],['art in a gutter',{art:true},false],
+  ['smooth light gradient',{gradient:true},true],
+  ['curved colored lighting',{strongGradient:true},true],['soft curtain fold',{strongGradient:true,fold:true},true],['hard colored boundary',{strongGradient:true,step:true},false],['art in a gutter',{art:true},false],
   ['unavailable source image',{image:false},false],['manual color mode',{palette:false},true]
 ]) {
   const result=run(options);
@@ -48,4 +52,4 @@ for(const [name,options,accepted] of [
   assert.equal(result.items[0].x,accepted?10:20,'ordinary placement retained on rejection');
   console.log(`PASS ${name}`);
 }
-console.log('6/6 column surface regressions passed');
+console.log('9/9 column surface regressions passed');

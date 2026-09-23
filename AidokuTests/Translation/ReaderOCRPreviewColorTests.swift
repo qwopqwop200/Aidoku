@@ -260,7 +260,11 @@ struct ReaderOCRPreviewColorTests {
                 "appearance": ["opacity": 1, "minimumReadableFontSize": 1, "preserveSourceTextColor": true, "preserveSourceBackgroundColor": true]], in: nil, contentWorld: .page)
             appearances.append(try #require(try await web.evaluateJavaScript("""
             (()=>{const n=document.querySelector('[data-aidoku-image-ocr-overlay="item"]'),s=getComputedStyle(n);
-            return {text:n.textContent,color:s.color,opacity:s.opacity,background:s.backgroundImage,surface:n.dataset.sourceBackgroundColor};})()
+            const p=document.querySelector('[data-aidoku-image-ocr-overlay="source-readability-panel"]');
+            return {text:n.textContent,color:s.color,opacity:s.opacity,background:s.backgroundImage,
+              surface:n.dataset.sourceBackgroundColor,sampled:n.dataset.sourceSampledTextRGB,
+              applied:n.dataset.sourceAppliedTextRGB,panel:p?getComputedStyle(p).backgroundColor:'',
+              adjusted:n.dataset.sourceTextColorAdjusted};})()
             """) as? [String: String]))
         }
         #expect(appearances[0]["text"] == "あああ")
@@ -270,7 +274,32 @@ struct ReaderOCRPreviewColorTests {
             #expect(appearance["surface"] == "readability-panel")
             #expect(appearance["background"] == "none")
         }
-        #expect(appearances[0]["color"] == appearances[1]["color"])
+        // Translation may darken the display ink to make outline-free text
+        // readable. The sampled source color must survive that adjustment.
+        let sampled = try #require(appearances[0]["sampled"])
+        #expect(!sampled.isEmpty)
+        #expect(sampled == appearances[1]["sampled"])
+        #expect(appearances[1]["adjusted"] == "true")
+        let ink = try #require(appearances[1]["applied"]).split(separator: ",").compactMap { Double($0) }
+        let displayedInk = try #require(appearances[1]["color"])
+            .components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap { Double($0) }
+        let panel = try #require(appearances[1]["panel"])
+            .components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap { Double($0) }
+        try #require(ink.count == 3 && panel.count == 3)
+        #expect(displayedInk == ink)
+        #expect(ink[0] > ink[1] && ink[1] > ink[2], "Keep the sampled red hue when improving contrast")
+        func luminance(_ rgb: [Double]) -> Double {
+            let linear = rgb.map { value in
+                let channel = value / 255
+                return channel <= 0.04045 ? channel / 12.92 : pow((channel + 0.055) / 1.055, 2.4)
+            }
+            return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722
+        }
+        let foregroundLuminance = luminance(ink)
+        let backgroundLuminance = luminance(panel)
+        let contrast = (max(foregroundLuminance, backgroundLuminance) + 0.05) /
+            (min(foregroundLuminance, backgroundLuminance) + 0.05)
+        #expect(contrast >= 4.5)
     }
 
     @Test func outlinedRecoveryRejectsAmbiguousColorsAndSolidArtwork() async throws {

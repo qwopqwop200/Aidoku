@@ -10,7 +10,7 @@ const colorSource = fs.readFileSync(path.join(__dirname,
   '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift'), 'utf8');
 const contrastScript = colorSource.slice(colorSource.indexOf('    const aidokuSourceColorLuminance ='),
   colorSource.indexOf('    // Outline-free display keeps chromatic source ink.'));
-const api = vm.runInNewContext(script + contrastScript + ';({balloonFonts:aidokuBalloonFontSizes,erasure:aidokuRestoredErasureCovers,residual:aidokuHasResidualLettering,artworkFonts:aidokuArtworkFontSizes,compact:aidokuCompactPanel,visible:aidokuVisiblePanelColors,adjust:aidokuAdjustInkForContrast,fonts:aidokuFontClusters,inks:aidokuInkClusters,lines:aidokuKoreanLines,fragments:aidokuKoreanFragments,improves:aidokuKoreanWrapImproves,frame:aidokuCaptionInkFrame,candidates:aidokuCohortFontCandidates,flowFits:aidokuFontFlowFits,anchor:aidokuSourceAnchorShift,backing:aidokuTextBackingRect,needsBacking:aidokuNeedsTextBacking,keepsContrast:aidokuTextBackingKeepsContrast,contrast:aidokuSourceColorContrast})');
+const api = vm.runInNewContext(script + contrastScript + ';({attached:aidokuHasAttachedLeadingInk,balloonFonts:aidokuBalloonFontSizes,erasure:aidokuRestoredErasureCovers,residual:aidokuHasResidualLettering,artworkFonts:aidokuArtworkFontSizes,compact:aidokuCompactPanel,visible:aidokuVisiblePanelColors,adjust:aidokuAdjustInkForContrast,fonts:aidokuFontClusters,inks:aidokuInkClusters,lines:aidokuKoreanLines,fragments:aidokuKoreanFragments,improves:aidokuKoreanWrapImproves,frame:aidokuCaptionInkFrame,candidates:aidokuCohortFontCandidates,flowFits:aidokuFontFlowFits,anchor:aidokuSourceAnchorShift,backing:aidokuTextBackingRect,needsBacking:aidokuNeedsTextBacking,keepsContrast:aidokuTextBackingKeepsContrast,contrast:aidokuSourceColorContrast})');
 const plain = x => JSON.parse(JSON.stringify(x));
 test('only a later panel with a different color needs a lettering backing', () => {
   const panels=[{rect:[0,0,50,50],color:'white'},{rect:[0,25,25,50],color:'purple'}];
@@ -384,4 +384,21 @@ test('narrow balloon reflow can add a word break without creating isolated Korea
   assert(!api.flowFits({...base,breaks:[3,5],hangulFragments:1},base,1));
   assert(!api.flowFits({...base,punctuationOnly:1},base,1));
   assert(!api.flowFits({...base,breaks:[2,3,5]},base,1));
+});
+
+
+test('clipped leading lettering attached to artwork keeps its erasure coverage', () => {
+  const f=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/source-erasure-leading-fringe.json')));
+  const safe=new Uint8Array(require('node:zlib').inflateSync(Buffer.from(f.safe,'base64')));
+  assert.equal(require('node:crypto').createHash('sha256').update(safe).digest('hex'),f.sha256);
+  assert(api.attached(safe,f.w,f.h,f.core,f.glyph));
+});
+
+test('smooth leading contours do not restore oversized panels', () => {
+  const w=100,h=120,core=[[20,20,30,80]],glyph=14;
+  for(const edge of [y=>65,y=>60+y*.08,y=>58+(y-60)**2*.0015,y=>66+Math.sin(y/30)*5]){
+    const safe=new Uint8Array(w*h).fill(1);
+    for(let y=0;y<h;y++)for(let x=Math.ceil(edge(y));x<w;x++)safe[y*w+x]=0;
+    assert(!api.attached(safe,w,h,core,glyph));
+  }
 });

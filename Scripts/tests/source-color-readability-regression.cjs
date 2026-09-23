@@ -99,6 +99,9 @@ vm.runInContext(decodeSwift(helpersMatch[1]) + typography + `
             const inpaintingEnabled = Boolean(appearance?.inpaintingEnabled && appearance?.preserveSourceTextColor && appearance?.preserveSourceBackgroundColor);
             const captionTextReflows = new Map();
             const artworkFirst = false;
+            const typographyEntries = [];
+            const measurementHost = {remove() {}};
+            const mount = {appendChild() {}};
             const typographyInkFrames = new Map(fixture.priorInk ? [[item, fixture.priorInk]] : []);
             const cleanedDenseSourceItems = new Set();
             const restoredSourcePanels = new Set(fixture.restored ? [item] : []);

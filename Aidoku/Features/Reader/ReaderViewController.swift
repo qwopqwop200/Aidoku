@@ -444,7 +444,6 @@ class ReaderViewController: BaseObservingViewController {
     }
 
     override func viewWillDisappear(_ animated: Bool) {
-        translationCoordinator.suspend()
         super.viewWillDisappear(animated)
 
         (reader as? ReaderWebtoonViewController)?.stopAutoScroll()
@@ -465,6 +464,13 @@ class ReaderViewController: BaseObservingViewController {
         Task {
             await updateReadPosition()
         }
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        // A pull-to-dismiss calls viewWillDisappear even when it is cancelled.
+        // Keep translation work and the displayed image until departure completes.
+        translationCoordinator.suspend()
     }
 
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {

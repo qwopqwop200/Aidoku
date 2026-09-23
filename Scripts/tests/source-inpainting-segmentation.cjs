@@ -75,7 +75,7 @@ for (const f of process.argv.includes('--measure-only') ? [] : owned) {
     const restored = restore(rgba, f.w, f.h, f.b, palette, options);
     const reference = restore(rgba, f.w, f.h, f.b, f.sourceInk, options);
     assert.ok(reference && restored, `${f.name}/${f.id}: observed ink remains usable`);
-    assert.deepEqual(restored.rgba, reference.rgba, 'same independently validated mask and background');
+    assert.deepEqual(restored.rgba, reference.rgba, `${f.name}/${f.id}: same independently validated mask and background`);
     assert.equal(JSON.stringify(palette), serialized, 'display roles remain untouched');
     assert.equal(hash(rgba), before, 'source stays immutable');
 }

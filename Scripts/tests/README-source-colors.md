@@ -641,3 +641,27 @@ The renderer and durable render cache identities advance so cached masks refresh
 The restoration uses original donor patches after subtracting the fitted backing gradient, with at most 192 donor candidates, 32,000 masked pixels, and 24 million search operations per attempt. Faint-letter recruitment cannot promote a textured ring into glyph ownership. High-contrast dot reconstruction requires two independent repeat directions and agreeing original samples near observed dots. Illustration-connected text and ambiguous irregular structure retain the existing rejection checks; these examples do not establish arbitrary artwork reconstruction.
 
 The exemplar approach is informed by [Criminisi et al., Region Filling and Object Removal by Exemplar-Based Image Inpainting](https://www.microsoft.com/en-us/research/publication/region-filling-and-object-removal-by-exemplar-based-inpainting/); the bounded texture-only implementation is not a full implementation of that paper.
+
+## Device panel incidents
+
+`node Scripts/tests/source-inpainting-panel-incidents.cjs` replays 26 native
+WebKit crops from four device pages with frozen OCR, source pixels and palettes.
+It checks at least 99.9% removal of observed source ink, immutable input and crop
+boundaries, including compressed interior islands and tinted fringe donors.
+Separate controls reject a colored scalloped contour and retain erasure coverage
+where source lettering overlaps protected illustration. These are development regressions, not a blind accuracy benchmark.
+
+`node Scripts/tests/column-layout-surface-regression.cjs` checks the bounded
+column whitespace gate against light/color gradients, hard boundaries and art.
+`ReaderPanelIncidentTests` provides opt-in full-page WKWebView replay from
+Documents/PanelIncidents, retaining native geometry, translated strings and
+DOM snapshots. Optional renderer.js is only for frozen before/after replay;
+remove it when validating the compiled production renderer. Optional fixture
+limits verify panel count and source anchoring. `erasedInkProbes` store normalized
+pixel positions, expected backing RGB and a tolerance, checking that missed ruby,
+punctuation and partly occluded leading columns stay erased in the final snapshot,
+not just in mask metadata.
+
+`typography-clusters-regression.cjs` also replays a native safe-mask capture of
+leading letters joined to adjacent artwork. Smooth straight, sloping and curved
+contours must not trigger that erasure guard or disable balloon font fitting.

@@ -232,7 +232,7 @@ final class ReaderTranslationCoordinator {
 
     static func localizedFailureDescription(_ error: Error) -> String {
         if let fallback = error as? ReaderTranslationOCRFallback {
-            return NSLocalizedString("TRANSLATION_CONNECTION_FAILED_NOTICE") + " " + fallback.underlying.localizedDescription
+            return fallback.underlying.localizedDescription
         }
         return error.localizedDescription
     }
@@ -249,9 +249,7 @@ final class ReaderTranslationCoordinator {
         label.font = .preferredFont(forTextStyle: .footnote)
         label.adjustsFontForContentSizeCategory = true
         label.numberOfLines = 3
-        label.text = error is ReaderTranslationOCRFallback
-            ? NSLocalizedString("TRANSLATION_CONNECTION_FAILED_NOTICE")
-            : NSLocalizedString("TRANSLATION_TITLE") + ": " + error.localizedDescription
+        label.text = NSLocalizedString("TRANSLATION_TITLE") + ": " + Self.localizedFailureDescription(error)
         let retry = UIButton(type: .system)
         retry.setTitle(NSLocalizedString("RETRY"), for: .normal)
         retry.accessibilityIdentifier = "reader.translation.retry"

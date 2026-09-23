@@ -215,10 +215,11 @@ struct ReaderTranslationPersistentPipelineTests {
         #expect(!wasCancelled)
     }
 
-    @Test func failedTranslationDisplaysOCRAndKeepsToggleOn() async throws {
+    @Test func failedTranslationKeepsOriginalAndToggleOn() async throws {
         let fixture = PersistentFixture()
         let sourcePage = fixture.page(0)
-        let view = UIImageView(image: Self.image())
+        let image = Self.image()
+        let view = UIImageView(image: image)
         let visible = ReaderTranslationPage(imageView: view)
         visible.sourcePage = sourcePage
         var raw = Self.region
@@ -234,9 +235,12 @@ struct ReaderTranslationPersistentPipelineTests {
         session.enable(settings: fixture.settings)
         try await waitUntil { notices == 1 }
         #expect(session.state == .on)
-        #expect(visible.regions.map(\.source) == [fallback.source])
-        #expect(visible.regions.allSatisfy { $0.translation == nil })
+        #expect(visible.regions.isEmpty)
+        #expect(view.image === image)
+        #expect(view.subviews.isEmpty)
         #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
+        #expect(!visible.canExportTranslation)
+        #expect(try await fixture.disk.translatedRegions(page: sourcePage.translationCacheKey, settings: fixture.settings) == nil)
     }
 
     @Test func preparationFansOutToBothChapterEndsAndReprioritizes() {

@@ -21,7 +21,7 @@ struct ReaderWebtoonLifecycleTests {
         let view = ReaderInfoPageView(type: .next)
         view.currentChapter = AidokuRunner.Chapter(key: "one", chapterNumber: 1)
         view.nextChapter = AidokuRunner.Chapter(key: "three", chapterNumber: 3)
-        #expect(view.skippingChaptersLabel.text == String(format: NSLocalizedString("SKIPPING_CHAPTERS"), 1))
+        #expect(view.skippingChaptersLabel.text == NSLocalizedString("SKIPPING_ONE_CHAPTER"))
     }
 
     @Test func deferredBackingViewPublishesReadyImage() async throws {

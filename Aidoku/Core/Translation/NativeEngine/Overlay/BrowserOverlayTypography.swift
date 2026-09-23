@@ -53,6 +53,43 @@ enum BrowserOverlayTypography {
       }
       return false;
     };
+    // Clipped leading letters can remain connected to an adjacent panel rule.
+    // Look for repeated glyph-sized inward protrusions along that rule. A
+    // straight/sloping/curved contour alone is not evidence of missed text.
+    const aidokuHasAttachedLeadingInk = (safe,w,h,core,glyph) => {
+      if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w*h>262144||safe?.length!==w*h||
+          !Number.isFinite(glyph)||glyph<=0||!Array.isArray(core))return true;
+      const radius=Math.max(4,Math.min(64,Math.ceil(glyph*.9))),depth=Math.max(2,glyph*.22);
+      let budget=w*h*2;
+      for(const r of core){
+        if(!Array.isArray(r)||r.length!==4||!r.every(Number.isFinite)||r[2]<=0||r[3]<=0)return true;
+        const edge=Math.max(0,Math.ceil(r[0]+r[2])),right=Math.min(w,Math.ceil(edge+glyph*1.5));
+        const top=Math.max(0,Math.floor(r[1])),bottom=Math.min(h,Math.ceil(r[1]+r[3]));
+        budget-=Math.max(0,bottom-top)*(Math.max(0,right-edge)+radius*2);
+        if(budget<0)return true;
+        const first=[];
+        for(let y=top;y<bottom;y++){
+          let x=edge;while(x<right&&safe[y*w+x])x++;
+          first.push(x);
+        }
+        const runs=[];let start=-1;
+        for(let y=0;y<=first.length;y++){
+          let before=0,after=0;
+          for(let k=Math.max(0,y-radius);k<y-1;k++)before=Math.max(before,first[k]);
+          for(let k=y+2;k<Math.min(first.length,y+radius+1);k++)after=Math.max(after,first[k]);
+          const protrudes=y<first.length&&first[y]-edge<=glyph&&Math.min(before,after)-first[y]>=depth;
+          if(protrudes&&start<0)start=y;
+          if(!protrudes&&start>=0){
+            const length=y-start;
+            if(length>=2&&length<=glyph*1.5)runs.push([start,y]);
+            start=-1;
+          }
+        }
+        for(let i=1;i<runs.length;i++)if(runs[i][0]-runs[i-1][1]<=glyph*2&&
+            runs[i][1]-runs[i][0]+runs[i-1][1]-runs[i-1][0]>=glyph*.5)return true;
+      }
+      return false;
+    };
     // A clean reconstruction can replace the erasure part of a card even if
     // translated text still needs an opaque backing. Certify the whole area
     // being released (including source-size fringes), never an extrapolation

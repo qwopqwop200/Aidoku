@@ -236,13 +236,14 @@ enum BrowserSourcePanelRestoration {
               }
               if(preservesPrimary){joint.secondaryInkPixels=Math.max(0,joint.erased-result.erased);result=joint;}
             }
+            const chromatic=usedPalette?.foreground&&Math.max(...usedPalette.foreground)-Math.min(...usedPalette.foreground)>=40;
             // WebKit downsamples the transparent patch separately from the
             // page. Without a sampling guard its alpha edge exposes the old
             // white outline, even when every native glyph pixel was erased.
             // Copy only matching original background into a two-pixel guard;
             // source ink and artwork are never reconstructed by this step.
-            if(options.readabilityGate&&usedPalette?.stroke&&usedPalette.background&&
-                distance(usedPalette.stroke,usedPalette.background)>=32){
+            if(options.readabilityGate&&usedPalette?.background&&(chromatic||usedPalette.stroke&&
+                distance(usedPalette.stroke,usedPalette.background)>=32)){
               const rgbaOut=result.rgba,guard=new Uint8Array(w*h);
               for(let pass=0;pass<2;pass++){
                 const pending=[];
@@ -262,6 +263,19 @@ enum BrowserSourcePanelRestoration {
             return {...result,method,...(options.slantedOwnership?
               {sourceForeground:usedPalette.foreground,sourceBackground:usedPalette.background}: {})};
           };
+          // Display-role rejection must not discard independently observed
+          // colored outline pixels. Neutral successful masks retain their
+          // existing ownership, including one-pixel antialiasing boundaries.
+          const observedStroke=palette?.sourceInk?.stroke;
+          const chromaticObservedStroke=options.vertical&&!options.slantedOwnership&&observedStroke&&
+            Math.max(...observedStroke)-Math.min(...observedStroke)>=40&&
+            Math.max(...observedStroke.map((v,c)=>Math.abs(v-palette.sourceInk.foreground[c])))<48&&
+            (palette.sourceInk.confidence?.stroke||0)>=.6;
+          if((options.connectedGlyphRecovery||chromaticObservedStroke)&&options.readabilityGate&&
+              palette?.sourceInk&&!palette.stroke&&observedStroke){
+            const observed=aidokuRestoreObservedSourcePanel(rgba,w,h,b,palette.sourceInk,options);
+            if(observed)return finish(observed,palette.sourceInk,'observed-ink-evidence');
+          }
           const original=aidokuRestoreObservedSourcePanel(rgba,w,h,b,palette,options);
           if(original)return finish(original,palette,original.surfaceQuality?.reason==='locally-smooth'?'local-diffusion':'observed-palette');
           if(!options.readabilityGate)return null;
@@ -269,10 +283,20 @@ enum BrowserSourcePanelRestoration {
             const observed=aidokuRestoreObservedSourcePanel(rgba,w,h,b,palette.sourceInk,options);
             if(observed)return finish(observed,palette.sourceInk,'observed-ink-evidence');
           }
+          const ink=palette?.sourceInk||palette;
+          if(options.vertical&&ink?.stroke&&Math.min(...ink.foreground)>230&&
+              Math.max(...ink.stroke)-Math.min(...ink.stroke)>=40&&(ink.confidence?.stroke||0)>=.6){
+            const outline={...ink,foreground:ink.stroke,stroke:ink.foreground};
+            const restored=aidokuRestoreObservedSourcePanel(rgba,w,h,b,outline,options);
+            if(restored)return finish(restored,outline,'observed-outline-ink');
+          }
           const flat=aidokuFlatInpaintingPalette(rgba,w,h,b);
-          if(!flat)return null;
-          const recovered=aidokuRestoreObservedSourcePanel(rgba,w,h,b,flat,{...options,compactMask:true,flatPalette:true});
-          return recovered?finish(recovered,flat,'flat-surface-palette'):null;
+          const recovered=flat?aidokuRestoreObservedSourcePanel(rgba,w,h,b,flat,{...options,compactMask:true,flatPalette:true}):null;
+          if(recovered)return finish(recovered,flat,'flat-surface-palette');
+          // Preserve every already successful mask. Connected-outline recovery
+          // is a bounded retry for rejected vertical captions only.
+          return !options.connectedGlyphRecovery&&options.vertical&&!options.slantedOwnership
+            ?aidokuRestoreSourcePanel(rgba,w,h,b,palette,{...options,connectedGlyphRecovery:true}):null;
         }
         // Small repeated marks on both sides of the OCR boundary are surface
         // texture, not disconnected punctuation. Require the same two-dimensional
@@ -478,6 +502,47 @@ enum BrowserSourcePanelRestoration {
           }
           return false;
         }
+        // Thick outlines can join several vertical characters into one long
+        // component. Repeated enclosed glyph interiors distinguish that run
+        // from a frame or illustration contour; length alone cannot do so.
+        function aidokuConnectedOutlineRun(rgba,w,b,palette,points,box) {
+          const [x0,y0,x1,y1]=box,height=y1-y0+1,width=x1-x0+1,cross=Math.min(b[2],width*1.25);
+          if(height<cross*1.6||width>cross*1.1||x0<b[0]-3||x1>b[0]+b[2]+3||
+              y0<b[1]-3||y1>b[1]+b[3]+3||points.length>width*height*.72||
+              (palette.confidence?.foreground||0)<.6)return false;
+          const localWidth=width+2,localHeight=height+2,n=localWidth*localHeight;
+          if(n>262144)return false;
+          const samples=[[],[],[]],stride=Math.max(1,Math.ceil(points.length/256));
+          for(let k=0;k<points.length;k+=stride)for(let c=0;c<3;c++)samples[c].push(rgba[points[k]*4+c]);
+          const edgeColor=samples.map(values=>values.sort((a,b)=>a-b)[values.length>>1]);
+          if(![palette.foreground,palette.stroke,palette.sourceInk?.foreground,palette.sourceInk?.stroke]
+              .some(color=>color&&Math.max(...color.map((v,c)=>Math.abs(v-edgeColor[c])))<=32))return false;
+          const wall=new Uint8Array(n),seen=new Uint8Array(n),queue=new Int32Array(n);
+          for(const i of points)wall[((i/w|0)-y0+1)*localWidth+i%w-x0+1]=1;
+          let holes=0,minY=Infinity,maxY=-Infinity;const bands=new Set();
+          for(let start=0;start<n;start++){
+            if(wall[start]||seen[start])continue;
+            let head=0,tail=1,l=localWidth,t=localHeight,r=0,bottom=0,edge=false,distinct=0;
+            queue[0]=start;seen[start]=1;
+            while(head<tail){
+              const i=queue[head++],x=i%localWidth,y=i/localWidth|0;
+              l=Math.min(l,x);r=Math.max(r,x);t=Math.min(t,y);bottom=Math.max(bottom,y);
+              if(x===0||y===0||x===localWidth-1||y===localHeight-1)edge=true;
+              else {
+                const p=((y+y0-1)*w+x+x0-1)*4;
+                if(Math.max(...edgeColor.map((v,c)=>Math.abs(v-rgba[p+c])))>=48)distinct++;
+              }
+              for(const [xx,yy] of [[x-1,y],[x+1,y],[x,y-1],[x,y+1]]){
+                if(xx<0||yy<0||xx>=localWidth||yy>=localHeight)continue;
+                const j=yy*localWidth+xx;if(wall[j]||seen[j])continue;seen[j]=1;queue[tail++]=j;
+              }
+            }
+            if(edge||tail<6||r-l<2||bottom-t<2||r-l>cross||bottom-t>cross*1.5||distinct<tail*.7)continue;
+            const cy=(t+bottom)/2;holes++;minY=Math.min(minY,cy);maxY=Math.max(maxY,cy);
+            bands.add(Math.floor(cy/Math.max(4,cross*.6)));
+          }
+          return holes>=2&&bands.size>=2&&maxY-minY>=height*.45;
+        }
         function aidokuRestoreObservedSourcePanel(rgba,w,h,b,palette,options={}) {
           const n=w*h;
           if(!Number.isInteger(w)||!Number.isInteger(h)||w<8||h<8||n>262144||
@@ -618,7 +683,7 @@ enum BrowserSourcePanelRestoration {
      }
      const retryPrevious=()=>faintBodyAdded||extendedHalo?
        aidokuRestoreObservedSourcePanel(rgba,w,h,b,palette,{...options,faintBody:false,outlineFringe:false}):null;
-     let companions=0;const texturePoints=[],textureComponents=[];
+     let companions=0,connectedOutlineRuns=0;const bodyRules=[];const texturePoints=[],textureComponents=[];
      for(let start=0;start<n;start++){
      if(!raw[start]||seen[start])continue;let head=0,tail=1,x0=w,y0=h,x1=0,y1=0;queue[0]=start;seen[start]=1;
      while(head<tail){const i=queue[head++],x=i%w,y=i/w|0;x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);
@@ -659,8 +724,24 @@ enum BrowserSourcePanelRestoration {
      const slantedWord=options.slantedOwnership&&body&&x0>=b[0]&&y0>=b[1]&&
        x1<b[0]+b[2]&&y1<b[1]+b[3]&&x1-x0<b[2]*.96&&y1-y0<b[3]*.96&&
        tail<(x1-x0+1)*(y1-y0+1)*.8;
+     const connectedOutline=options.connectedGlyphRecovery&&options.readabilityGate&&!options.slantedOwnership&&options.vertical&&body&&
+       b[3]>=b[2]*2.5&&y1-y0>=100&&x0>2&&y0>2&&x1<w-3&&y1<h-3&&
+       aidokuConnectedOutlineRun(p,w,b,palette,queue.subarray(0,tail),[x0,y0,x1,y1]);
      const keep=(!observedInk||observedCount>=Math.max(ruby?1:2,tail*.1))&&(tail>=2||(ruby&&tail===1))&&x0>2&&y0>2&&x1<w-3&&y1<h-3&&(body||ruby||rule)&&
-       (slantedWord||Math.max(x1-x0,y1-y0)<(rule?121:Math.min(100,Math.max(b[2],b[3])*.6)));
+       (slantedWord||connectedOutline||Math.max(x1-x0,y1-y0)<(rule?121:Math.min(100,Math.max(b[2],b[3])*.6)));
+     if(!keep&&body&&options.readabilityGate&&options.vertical&&!options.slantedOwnership&&
+         observedCount>=tail*.9&&palette.stroke&&(palette.confidence?.stroke||0)>=.6&&
+         Math.max(...foreground)-Math.min(...foreground)>=40&&
+         x0>=b[0]&&x1<b[0]+b[2]&&y0>=b[1]&&y1<b[1]+b[3]&&
+         x1-x0<=Math.max(6,b[2]*.045)&&y1-y0>=Math.max(100,(x1-x0)*10)&&y1-y0<=b[3]*.55){
+       let samples=0,outlined=0;
+       for(let yy=y0+3;yy<y1-2;yy++)for(const xx of [x0-3,x1+3]){
+         const i=(yy*w+xx)*4;samples++;
+         if(colorDistance([p[i],p[i+1],p[i+2]],palette.stroke)<=24)outlined++;
+       }
+       if(samples>20&&outlined>=samples*.9)bodyRules.push({box:[x0,y0,x1,y1],pixels:Array.from(queue.subarray(0,tail))});
+     }
+     if(keep&&connectedOutline)connectedOutlineRuns++;
      if(keep&&!body)companions++;
      if(!keep&&body&&tail===1&&x0>2&&y0>2&&x1<w-3&&y1<h-3)isolatedBodyInk.push(start);
      for(let k=0;k<tail;k++){
@@ -682,6 +763,16 @@ enum BrowserSourcePanelRestoration {
            y1<=Math.min(b[1]+b[3],r[1]+r[3]+Math.min(72,b[2]))&&
            x1-x0<=r[2]*.8&&y1-y0<=r[2]*.9))
        readingCandidates.push({x0,y0,x1,y1,owned:keep,pixels:Array.from(queue.subarray(0,tail))});
+     }
+     // An outlined em dash may be longer than the generic component limit.
+     // Require the same observed chromatic ink, a white/colored enclosing band,
+     // and a neighboring accepted glyph on its reading axis.
+     for(const rule of bodyRules){
+       const [x0,y0,x1,y1]=rule.box,cx=(x0+x1)/2;
+       if(!accepted.some(a=>a[4]>=8&&cx>=a[0]&&cx<=a[2]&&
+           (y0-a[3]>=0&&y0-a[3]<=24||a[1]-y1>=0&&a[1]-y1<=24)))continue;
+       for(const i of rule.pixels){mask[i]=1;protectedInk[i]=0;seedRadius[i]=radius;}
+       accepted.push([...rule.box,rule.pixels.length,rule.pixels.length]);
      }
      const hasPeriodicTexture=options.readabilityGate&&aidokuSourceHasPeriodicInk(texturePoints,w,h,b);
      const periodicInk=hasPeriodicTexture&&texturePoints.filter(i=>accepted.some(a=>a[4]>4&&i%w>=a[0]-12&&i%w<=a[2]+12&&(i/w|0)>=a[1]-12&&(i/w|0)<=a[3]+12)).length>=32;
@@ -824,6 +915,48 @@ enum BrowserSourcePanelRestoration {
        }
        for(const i of islands){mask[i]=1;protectedInk[i]=0;seedRadius[i]=radius;}
      }
+     // JPEG chroma subsampling makes small brown/purple fringes that no
+     // longer lie on the straight RGB ink-to-paper blend. Recruit only tiny
+     // unseeded islands around repeated, already owned vertical glyphs. The
+     // original mask is frozen during this check, so islands cannot chain
+     // across a drawing, and boundary-connected artwork remains protected.
+     if(options.readabilityGate&&options.vertical&&!options.slantedOwnership&&
+         b[3]>=b[2]&&accepted.length>=6){
+       const colors=[palette.foreground,palette.stroke].filter(c=>c&&Math.max(...c)-Math.min(...c)>=40);
+       const visited=new Uint8Array(n),islands=[];
+       for(let start=0;colors.length&&start<n;start++){
+         if(!protectedInk[start]||visited[start])continue;
+         let head=0,end=1;queue[0]=start;visited[start]=1;
+         while(head<end){
+           const i=queue[head++],x=i%w,y=i/w|0;
+           for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
+             const j=yy*w+xx;if(!protectedInk[j]||visited[j])continue;
+             visited[j]=1;queue[end++]=j;
+           }
+         }
+         if(end>96)continue;
+         let owned=true,offHue=0,tight=true;
+         for(let k=0;k<end&&owned;k++){
+           const i=queue[k],x=i%w,y=i/w|0,rgb=[p[i*4],p[i*4+1],p[i*4+2]];
+           if(raw[i]||frameInk[i]||drawingSurface?.[i]||x<b[0]||y<b[1]||x>=b[0]+b[2]||y>=b[1]+b[3]){owned=false;break;}
+           const lo=Math.min(...rgb),span=Math.max(...rgb)-lo;
+           if(span<12||!colors.some(color=>{
+             const low=Math.min(...color),range=Math.max(...color)-low;
+             return Math.max(...rgb.map((v,c)=>Math.abs((v-lo)/span-(color[c]-low)/range)))<=.28;
+           }))offHue++;
+           let nearby=false;
+           for(let yy=Math.max(0,y-radius);yy<=Math.min(h-1,y+radius)&&!nearby;yy++)
+             for(let xx=Math.max(0,x-radius);xx<=Math.min(w-1,x+radius);xx++)if(mask[yy*w+xx]){nearby=true;break;}
+           if(!nearby)owned=false;
+           let close=false;
+           for(let yy=Math.max(0,y-2);yy<=Math.min(h-1,y+2)&&!close;yy++)
+             for(let xx=Math.max(0,x-2);xx<=Math.min(w-1,x+2);xx++)if(mask[yy*w+xx]){close=true;break;}
+           tight&&=close&&accepted.some(a=>x>a[0]&&x<a[2]&&y>a[1]&&y<a[3]);
+         }
+         if(owned&&(offHue<=Math.min(4,end*.25)||end<=4&&tight))for(let k=0;k<end;k++)islands.push(queue[k]);
+       }
+       for(const i of islands){mask[i]=1;protectedInk[i]=0;seedRadius[i]=Math.min(radius,6);}
+     }
      const coreCount=mask.reduce((sum,v)=>sum+v,0);
      // Keep the original substantial-stroke density gate stable when adding
      // raster fragments; a handful of one-pixel dots must not reject an
@@ -835,7 +968,7 @@ enum BrowserSourcePanelRestoration {
      const outlinedDark=legacyDark&&palette.stroke&&Math.min(...palette.stroke)>=230&&
        (palette.confidence?.foreground||0)>=.6&&(palette.confidence?.stroke||0)>=.6&&
        palette.confidence?.reason==='repeated dark glyph interiors enclosed by white source outlines';
-     if(substantialCoreCount>b[2]*b[3]*(options.flatPalette ? .48 : outlinedDark ? .42 : .3))return retryPrevious();
+     if(substantialCoreCount>b[2]*b[3]*(options.flatPalette ? .48 : outlinedDark ? .42 : connectedOutlineRuns>0&&palette.stroke&&(palette.confidence?.stroke||0)>=.6 ? .48 : .3))return retryPrevious();
      // Reject unresolved dark ink inside the OCR box, including intersecting art.
      let unresolved=0;
      for(let y=Math.floor(b[1]);y<Math.ceil(b[1]+b[3]);y++)for(let x=Math.floor(b[0]);x<Math.ceil(b[0]+b[2]);x++)
@@ -894,7 +1027,7 @@ enum BrowserSourcePanelRestoration {
      // Dilation alone misses its center and then samples it as a white donor,
      // leaving the old letter's silhouette. Fill only enclosed, palette-matched
      // holes; any hole connected to the page or containing artwork is preserved.
-     if(options.slantedOwnership&&palette.stroke&&(palette.confidence?.stroke||0)>=.6&&
+     if((options.slantedOwnership||options.readabilityGate&&options.vertical&&Math.max(...foreground)-Math.min(...foreground)>=40)&&palette.stroke&&(palette.confidence?.stroke||0)>=.6&&
          colorDistance(palette.stroke,palette.background)>=20){
        const exterior=new Uint8Array(n);let end=0;
        const visit=i=>{if(!mask[i]&&!exterior[i]){exterior[i]=1;queue[end++]=i;}};
@@ -922,22 +1055,84 @@ enum BrowserSourcePanelRestoration {
      }
      // Connected drawing inside a textured OCR surface is not recoverable
      // from nearby paper. Do not let the drawing itself become missing donors.
+     // Chroma subsampling can leave a small interior island whose hue no
+     // longer matches the ink. Require a nearly closed border of already owned
+     // glyph pixels; never grow through connected drawing or a balloon edge.
+     if(options.readabilityGate&&options.vertical&&!options.slantedOwnership&&unresolved>0&&unresolved<=32&&
+         [palette.foreground,palette.stroke].some(c=>c&&Math.max(...c)-Math.min(...c)>=40)){
+       const pending=[],visited=new Uint8Array(n);
+       const outlined=palette.stroke&&(palette.confidence?.stroke||0)>=.6&&
+         Math.max(...palette.stroke)-Math.min(...palette.stroke)>=40;
+       for(let y=Math.ceil(b[1]);y<Math.floor(b[1]+b[3]);y++)for(let x=Math.ceil(b[0]);x<Math.floor(b[0]+b[2]);x++){
+         const start=y*w+x;if(visited[start]||!protectedInk[start]||raw[start]||frameInk[start]||drawingSurface?.[start])continue;
+         const island=[start];visited[start]=1;let valid=true,left=x,right=x,top=y,bottom=y;
+         for(let head=0;head<island.length;head++){
+           const i=island[head],cx=i%w,cy=i/w|0;
+           left=Math.min(left,cx);right=Math.max(right,cx);top=Math.min(top,cy);bottom=Math.max(bottom,cy);
+           if(raw[i]||frameInk[i]||drawingSurface?.[i]||cx<b[0]||cx>=b[0]+b[2]||cy<b[1]||cy>=b[1]+b[3])valid=false;
+           for(let yy=Math.max(0,cy-1);yy<=Math.min(h-1,cy+1);yy++)for(let xx=Math.max(0,cx-1);xx<=Math.min(w-1,cx+1);xx++){
+             const j=yy*w+xx;if(protectedInk[j]&&!visited[j]){visited[j]=1;island.push(j);}
+           }
+           if(island.length>32){valid=false;break;}
+         }
+         if(!valid||(!outlined&&island.length>4)||right-left>12||bottom-top>12)continue;
+         const own=new Set(island);let border=0,owned=0;
+         for(const i of island){const cx=i%w,cy=i/w|0;
+           for(let yy=cy-1;yy<=cy+1;yy++)for(let xx=cx-1;xx<=cx+1;xx++){
+             const j=yy*w+xx;if(own.has(j))continue;border++;
+             if(frameInk[j]||drawingSurface?.[j])valid=false;
+             if(mask[j])owned++;
+           }
+         }
+         if(valid&&border>0&&owned/border>=.9)pending.push(...island);
+       }
+       for(const i of pending){mask[i]=1;protectedInk[i]=0;unresolved--;}
+       if(pending.length){tail=0;for(let i=0;i<n;i++)if(mask[i])queue[tail++]=i;}
+     }
      let frameInterior=0,innerArea=0;
      for(let y=Math.ceil(b[1]+3);y<Math.floor(b[1]+b[3]-3);y++)for(let x=Math.ceil(b[0]+3);x<Math.floor(b[0]+b[2]-3);x++){
        innerArea++;if(frameInk[y*w+x])frameInterior++;
      }
+     // Keep source erasure independent from where the wider translation fits.
+     // Only a fully resolved body and owned ruby can release the old rectangle.
+     let sourceErasureVerified=unresolved===0&&frameInterior===0;
+     if(sourceErasureVerified)for(const r of auxiliary)
+       for(let y=Math.floor(r[1]);y<Math.ceil(r[1]+r[3]);y++)for(let x=Math.floor(r[0]);x<Math.ceil(r[0]+r[2]);x++)
+         if(protectedInk[y*w+x]||frameInk[y*w+x])sourceErasureVerified=false;
      // Texture outside a white balloon does not invalidate its isolated glyphs.
      // Reject periodic dots only when the final erasure would actually own them.
 
      if(hasPeriodicTexture&&!periodicInk&&texturePoints.reduce((sum,i)=>sum+mask[i],0)>Math.max(8,texturePoints.length*.05))return null;
      let surfaceQuality=options.readabilityGate?aidokuSourceSurfaceQuality(rgba,w,h,mask,donorBlocked):null;
+     // A flat-surface retry may miss a compressed, partially covered pixel
+     // beside owned lettering. Remove that local ink blend before diffusion,
+     // otherwise it becomes a tinted donor and recreates a faint silhouette.
+     if(options.flatPalette&&options.vertical&&!options.slantedOwnership&&surfaceQuality?.safe&&
+         surfaceQuality.rmse<=8&&Math.max(...foreground)-Math.min(...foreground)>=40){
+       const pending=[],planes=surfaceQuality.coefficients;
+       for(let y=Math.ceil(b[1]);y<Math.floor(b[1]+b[3]);y++)for(let x=Math.ceil(b[0]);x<Math.floor(b[0]+b[2]);x++){
+         const i=y*w+x;if(mask[i]||protectedInk[i]||drawingSurface?.[i])continue;
+         const bg=planes.map(a=>a[0]+a[1]*x/w+a[2]*y/h),rgb=Array.from(p.subarray(i*4,i*4+3));
+         const delta=foreground.map((v,c)=>v-bg[c]),length=delta.reduce((s,v)=>s+v*v,0);
+         if(length<1600||colorDistance(rgb,bg)<24)continue;
+         const t=delta.reduce((s,v,c)=>s+(rgb[c]-bg[c])*v,0)/length;
+         if(t<.1||t>=.95||colorDistance(rgb,bg.map((v,c)=>v+t*delta[c]))>18)continue;
+         let owned=0;for(let yy=y-1;yy<=y+1;yy++)for(let xx=x-1;xx<=x+1;xx++)if(mask[yy*w+xx])owned++;
+         if(owned>=3)pending.push(i);
+       }
+       for(const i of pending)mask[i]=1;
+       if(pending.length){
+         tail=0;for(let i=0;i<n;i++)if(mask[i])queue[tail++]=i;
+         surfaceQuality=aidokuSourceSurfaceQuality(rgba,w,h,mask,donorBlocked);
+       }
+     }
      if((periodicInk||surfaceQuality?.safe&&surfaceQuality.rmse>3)&&frameInterior===0){
        const repeated=aidokuSourcePeriodicFill(rgba,w,h,mask,donorBlocked,periodicInk,texturePoints);
        if(repeated){
          const layoutSafe=new Uint8Array(n);
          for(let i=0;i<n;i++)if(!protectedInk[i]&&!drawingSurface?.[i])layoutSafe[i]=1;
          return {...repeated,layoutSafe,surfaceQuality:{...surfaceQuality,reason:'periodic',vectors:repeated.vectors,
-           repetitionError:repeated.error},components:accepted.length,radius,companions,preservedPixels:0,preservedCore:0};
+           repetitionError:repeated.error},components:accepted.length,radius,companions,sourceErasureVerified,preservedPixels:0,preservedCore:0};
        }
      }
      if(periodicInk)return null;
@@ -989,7 +1184,7 @@ enum BrowserSourcePanelRestoration {
        const textured=aidokuSourceExemplarFill(rgba,w,h,mask,palette,surfaceQuality,protectedInk,textureComponents);
        if(textured){
          const layoutSafe=new Uint8Array(n);for(let i=0;i<n;i++)if(!protectedInk[i]&&!drawingSurface?.[i])layoutSafe[i]=1;
-         return {...textured,layoutSafe,surfaceQuality:{...surfaceQuality,reason:'exemplar-texture'},components:accepted.length,radius,companions,preservedPixels:0,preservedCore:0};
+         return {...textured,layoutSafe,surfaceQuality:{...surfaceQuality,reason:'exemplar-texture'},components:accepted.length,radius,companions,sourceErasureVerified,preservedPixels:0,preservedCore:0};
        }
      }
      // Give confirmed body lettering one extra crop pixel on clean, nearly
@@ -1037,7 +1232,7 @@ enum BrowserSourcePanelRestoration {
          }
          output[i*4+3]=255;
        }
-       return {rgba:output,layoutSafe,surfaceQuality,erased:tail,components:accepted.length,radius,companions,preservedPixels:0,preservedCore:0};
+       return {rgba:output,layoutSafe,surfaceQuality,erased:tail,components:accepted.length,radius,companions,sourceErasureVerified,preservedPixels:0,preservedCore:0};
      }
      const paintMask=mask.slice(),queued=new Uint8Array(n);let frontier=[];
      const neighbors=i=>[i-1,i+1,i-w,i+w];
@@ -1107,7 +1302,7 @@ enum BrowserSourcePanelRestoration {
           // Gradients and translucent clothing are valid background, not
           // balloon edges. Only surviving ink constrains the text footprint.
           for(let i=0;i<n;i++)if(!protectedInk[i]&&!drawingSurface?.[i])layoutSafe[i]=1;
-          return {rgba:output,layoutSafe,surfaceQuality,erased:tail,components:accepted.length,radius,companions,preservedPixels,preservedCore};
+          return {rgba:output,layoutSafe,surfaceQuality,erased:tail,components:accepted.length,radius,companions,sourceErasureVerified:sourceErasureVerified&&preservedCore===0&&preservedPixels===0,preservedPixels,preservedCore};
         }
     function aidokuSoftenSourceGlyphs(rgba,w,h,b,palette,vertical) {
       const n=w*h;if(!Number.isInteger(w)||!Number.isInteger(h)||w<8||h<8||n>131072||!rgba||rgba.length!==n*4||

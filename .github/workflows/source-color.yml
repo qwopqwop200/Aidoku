@@ -12,6 +12,7 @@ on:
       - "Scripts/tests/export-source-background-fixtures.py"
       - "Scripts/tests/source-inpainting-*.cjs"
       - "Scripts/tests/slanted-*.cjs"
+      - "Scripts/tests/column-layout-surface-regression.cjs"
       - "Scripts/tests/fixtures/source-color-*.json"
       - "Scripts/tests/fixtures/source-inpainting-*.json"
       - "Scripts/tests/fixtures/slanted-*.json"
@@ -39,6 +40,8 @@ jobs:
           node Scripts/tests/source-color-readability-regression.cjs
           node Scripts/tests/source-inpainting-regression.cjs
           node Scripts/tests/source-inpainting-segmentation.cjs
+          node Scripts/tests/source-inpainting-panel-incidents.cjs
+          node Scripts/tests/column-layout-surface-regression.cjs
           node Scripts/tests/source-inpainting-hard-cases.cjs
           node Scripts/tests/source-inpainting-textures.cjs
           node Scripts/tests/slanted-artwork-regression.cjs

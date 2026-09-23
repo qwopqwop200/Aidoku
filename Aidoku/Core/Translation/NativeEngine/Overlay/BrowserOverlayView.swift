@@ -901,14 +901,48 @@ final class BrowserPageImageOverlayRenderer {
           if(x<r.x||x>r.x+r.width||y<r.y||y>r.y+(r.inspectionHeight||r.height)||
             sources.some(b=>x>=b[0]-sourceMargin&&x<=b[0]+b[2]+sourceMargin&&y>=b[1]-sourceMargin&&y<=b[1]+b[3]+sourceMargin))continue;
           const p=(yy*w+xx)*4;
-          samples.push([pixels[p],pixels[p+1],pixels[p+2],pixels[p+3]]);
+          samples.push([pixels[p],pixels[p+1],pixels[p+2],pixels[p+3],xx/w,yy/h]);
         }
         if(samples.length<4){columnsSafe=false;break;}
         // Derive the surface from pixels even in white/manual color mode so
         // the same source page receives the same column layout in both modes.
         const bg=[0,1,2].map(c=>samples.map(p=>p[c]).sort((a,b)=>a-b)[Math.floor(samples.length/2)]);
         const obstructed=samples.filter(p=>p[3]<250||Math.max(...bg.map((v,c)=>Math.abs(v-p[c])))>24).length;
-        if(obstructed>Math.max(1,samples.length*.015)){columnsSafe=false;break;}
+        if(obstructed>Math.max(1,samples.length*.015)){
+          // A lighting gradient is still open space. Fit the exposed pixels,
+          // requiring the same sparse-outlier limit against a spatial surface.
+          // Hard edges and illustration keep the ordinary placement.
+          const features=p=>[1,p[4],p[5],p[5]*p[5]];
+          const terms=4,matrix=Array.from({length:terms},()=>Array(terms).fill(0));
+          const rhs=Array.from({length:3},()=>Array(terms).fill(0));
+          for(const p of samples){const a=features(p);
+            for(let j=0;j<terms;j++){for(let k=0;k<terms;k++)matrix[j][k]+=a[j]*a[k];
+              for(let c=0;c<3;c++)rhs[c][j]+=a[j]*p[c];}}
+          const planes=rhs.map(values=>{
+            const m=matrix.map((row,i)=>[...row,values[i]]);
+            for(let k=0;k<terms;k++){
+              let pivot=k;for(let j=k+1;j<terms;j++)if(Math.abs(m[j][k])>Math.abs(m[pivot][k]))pivot=j;
+              [m[k],m[pivot]]=[m[pivot],m[k]];
+              if(Math.abs(m[k][k])<1e-8)return null;
+              const divisor=m[k][k];for(let c=k;c<=terms;c++)m[k][c]/=divisor;
+              for(let j=0;j<terms;j++)if(j!==k){const factor=m[j][k];for(let c=k;c<=terms;c++)m[j][c]-=factor*m[k][c];}
+            }return m.map(row=>row[terms]);
+          });
+          const outliers=planes.some(p=>!p)?samples.length:samples.filter(p=>p[3]<250||
+            Math.max(...planes.map((a,c)=>Math.abs(p[c]-a.reduce((sum,v,i)=>sum+v*features(p)[i],0))))>14).length;
+          if(outliers>Math.max(1,samples.length*.015)){
+            // Soft folds need not follow one polynomial over the whole row.
+            // Independently exposed adjacent samples must still be smooth;
+            // never bridge the excluded original lettering or a hard contour.
+            const grid=new Map(samples.map(p=>[Math.round(p[5]*h)*w+Math.round(p[4]*w),p]));
+            let links=0,edges=0;
+            for(const [i,p] of grid)for(const j of [i%w<w-1?i+1:-1,i+w]){
+              const q=grid.get(j);if(!q)continue;links++;
+              if(p[3]<250||q[3]<250||Math.max(...[0,1,2].map(c=>Math.abs(p[c]-q[c])))>24)edges++;
+            }
+            if(links<samples.length*.5||edges>1){columnsSafe=false;break;}
+          }
+        }
         item.columnLayout.sourceErasureRGB=bg;
       }
       root.dataset.columnInspectionPixels=String(w*h);
@@ -920,6 +954,7 @@ final class BrowserPageImageOverlayRenderer {
     const restoredSourcePanels = new Set();
     const restoredPanelGeometry = new Map();
     let restoredPanelLookupBudget = 4194304;
+    let restoredExteriorPixelBudget = 1048576;
     const panelRestorationPixelLimit = 1572864;
     let panelRestorationBudget = panelRestorationPixelLimit;
     let rubyInspectionBudget = 262144;
@@ -1035,7 +1070,7 @@ final class BrowserPageImageOverlayRenderer {
       if(w<8||h<8||pixels>panelRestorationBudget)return false;
       panelRestorationBudget-=pixels;
       try {
-        const key=JSON.stringify(['spatial-panel-v30-inferred-ruby',x,y,sourceWidth,sourceHeight,w,h,b,palette,auxiliary,rubyExclusions,leadingRule,Boolean(item.sourceVertical)]);
+        const key=JSON.stringify(['spatial-panel-v31-observed-lettering',x,y,sourceWidth,sourceHeight,w,h,b,palette,auxiliary,rubyExclusions,leadingRule,Boolean(item.sourceVertical)]);
         let prepared=cleanupCache?.entries.get(key);
         if(!prepared){
           cleanupCanvas.width=w;cleanupCanvas.height=h;
@@ -1060,7 +1095,7 @@ final class BrowserPageImageOverlayRenderer {
           storeCleanup(key, prepared, pixels);
         }
         const result=prepared.restored;
-        panelRestorationAudit.push({id:String(item.id),pixels,sourcePixels:sourceWidth*sourceHeight,scale,accepted:Boolean(result),method:result?.method||'',surface:result?.surfaceQuality?.reason||'',erased:result?.erased||0,companions:result?.companions||0,preservedPixels:result?.preservedPixels||0,preservedCore:result?.preservedCore||0});
+        panelRestorationAudit.push({id:String(item.id),pixels,sourcePixels:sourceWidth*sourceHeight,scale,accepted:Boolean(result),method:result?.method||'',surface:result?.surfaceQuality?.reason||'',erased:result?.erased||0,companions:result?.companions||0,preservedPixels:result?.preservedPixels||0,preservedCore:result?.preservedCore||0,sourceErasureVerified:Boolean(result?.sourceErasureVerified)});
         if(!result)return false;
         const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
         const context=canvas.getContext('2d');if(!context)return false;
@@ -1072,7 +1107,7 @@ final class BrowserPageImageOverlayRenderer {
           clipPath:aidokuCleanupClip(cleanupImageGeometry,frame[0]+x/iw*frame[2],frame[1]+y/ih*frame[3],sourceWidth/iw*frame[2],sourceHeight/ih*frame[3])});
         root.appendChild(canvas);restoredSourcePanels.add(item);
         restoredPanelGeometry.set(item,{canvas,safe:result.layoutSafe,luminance:prepared.luminance,w,h,x,y,frame,iw,ih,sx,sy,
-          erasureComplete:result.erased>0&&result.preservedPixels===0&&result.preservedCore===0});return true;
+          surfaceQuality:result.surfaceQuality,sourceErasureVerified:result.sourceErasureVerified,erasureComplete:result.erased>0&&result.preservedPixels===0&&result.preservedCore===0});return true;
       } catch (_) { return false; }
     };
     const appendSourceCleanup = item => {
@@ -1934,39 +1969,93 @@ final class BrowserPageImageOverlayRenderer {
           }
         }
         const panelGeometry=restoredPanelGeometry.get(item);
-        let fitsRestoredSurface = null;
+        let fitsRestoredSurface = null, readableRestoredInk = null;
         if(panelGeometry?.safe&&displayedText.length<=180){
           const c=panelGeometry,initial=parseFloat(node.style.fontSize);
           const finalPalette=aidokuCaptionPalette(sampled,foreground.split(',').map(Number),true);
           const linear=v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;};
           const inkL=.2126*linear(finalPalette.foreground[0])+.7152*linear(finalPalette.foreground[1])+.0722*linear(finalPalette.foreground[2]);
-          const onSurface=(profile,foregroundL=inkL)=>{
-            if(!profile||!contentFits())return false;
-            let minimumContrast=Infinity;
+          let surfaceKey=null,surfaceRange=null;
+          const inspectSurface=(profile,allowExterior=false)=>{
+            if(!profile||!contentFits())return null;
+            const key=JSON.stringify([profile.ink,allowExterior]);
+            if(key===surfaceKey)return surfaceRange;
+            surfaceKey=key;surfaceRange=null;
+            let exterior=null;
+            // Erasure stays at native OCR geometry. Read-only surface sampling
+            // may extend to the final Korean glyphs; wider translation is not
+            // evidence that the original must be covered by a wider rectangle.
+            if(allowExterior&&c.surfaceQuality?.safe&&sourceImage?.complete&&cleanupContext){
+              const rects=profile.ink.map(a=>[(a[0]-c.frame[0])*c.iw/c.frame[2],
+                (a[1]-c.frame[1])*c.ih/c.frame[3],a[2]*c.iw/c.frame[2],a[3]*c.ih/c.frame[3]]);
+              const l=Math.floor(Math.min(...rects.map(r=>r[0]))),t=Math.floor(Math.min(...rects.map(r=>r[1])));
+              const r=Math.ceil(Math.max(...rects.map(r=>r[0]+r[2]))),b=Math.ceil(Math.max(...rects.map(r=>r[1]+r[3])));
+              const pixels=(r-l)*(b-t),margin=24*c.iw/c.frame[2];
+              if((l<c.x||t<c.y||r>c.x+c.w/c.sx||b>c.y+c.h/c.sy)&&
+                  l>=0&&t>=0&&r<=c.iw&&b<=c.ih&&l>=c.x-margin&&r<=c.x+c.w/c.sx+margin&&
+                  t>=c.y-margin&&b<=c.y+c.h/c.sy+margin&&pixels>0&&pixels<=Math.min(262144,restoredExteriorPixelBudget))try{
+                restoredExteriorPixelBudget-=pixels;
+                cleanupCanvas.width=r-l;cleanupCanvas.height=b-t;
+                cleanupContext.drawImage(sourceImage,l,t,r-l,b-t,0,0,r-l,b-t);
+                exterior={x:l,y:t,w:r-l,h:b-t,rgba:cleanupContext.getImageData(0,0,r-l,b-t).data};
+              }catch(_){}
+            }
+            let minimum=Infinity,maximum=-Infinity;
             for(const a of profile.ink){
               const l=Math.floor(((a[0]-c.frame[0])*c.iw/c.frame[2]-c.x)*c.sx);
               const t=Math.floor(((a[1]-c.frame[1])*c.ih/c.frame[3]-c.y)*c.sy);
               const r=Math.ceil(((a[0]+a[2]-c.frame[0])*c.iw/c.frame[2]-c.x)*c.sx);
               const b=Math.ceil(((a[1]+a[3]-c.frame[1])*c.ih/c.frame[3]-c.y)*c.sy);
               const count=(r-l)*(b-t);
-              if(l<0||t<0||r>c.w||b>c.h||count<0||count>restoredPanelLookupBudget)return false;
+              if((!exterior&&(l<0||t<0||r>c.w||b>c.h))||count<0||count>restoredPanelLookupBudget)return null;
               restoredPanelLookupBudget-=count;
               for(let yy=t;yy<b;yy++)for(let xx=l;xx<r;xx++){
-                const i=yy*c.w+xx;
-                if(!c.safe[i]||!c.luminance)return false;
-                const quantized=c.luminance[i]/255;
-                // Round toward the foreground for a conservative contrast bound.
-                const bg=quantized>=foregroundL?Math.max(foregroundL,quantized-1/510):Math.min(foregroundL,quantized+1/510);
-                const contrast=(Math.max(bg,foregroundL)+.05)/(Math.min(bg,foregroundL)+.05);
-                if(contrast<4.5)return false;
-                minimumContrast=Math.min(minimumContrast,contrast);
+                let luminance;
+                if(xx>=0&&yy>=0&&xx<c.w&&yy<c.h){
+                  const i=yy*c.w+xx;if(!c.safe[i]||!c.luminance)return null;
+                  luminance=c.luminance[i];
+                }else{
+                  if(!exterior)return null;
+                  const x=Math.floor(c.x+(xx+.5)/c.sx)-exterior.x,y=Math.floor(c.y+(yy+.5)/c.sy)-exterior.y;
+                  if(x<0||y<0||x>=exterior.w||y>=exterior.h)return null;
+                  const i=(y*exterior.w+x)*4,rgb=Array.from(exterior.rgba.subarray(i,i+3));
+                  const plane=c.surfaceQuality.coefficients.map(a=>a[0]+a[1]*xx/c.w+a[2]*yy/c.h);
+                  // Coordinated columns have already passed the independent
+                  // exposed-pixel gradient/edge gate across their full height.
+                  // Permit its 24 RGB lighting tolerance beyond the OCR crop;
+                  // ordinary balloons retain the stricter surface boundary.
+                  const tolerance=item.balancedColumn&&c.sourceErasureVerified?24:18;
+                  if(exterior.rgba[i+3]<254||Math.max(...rgb.map((v,c)=>Math.abs(v-plane[c])))>tolerance)return null;
+                  luminance=255*aidokuSourceColorLuminance(rgb);
+                }
+                minimum=Math.min(minimum,luminance);maximum=Math.max(maximum,luminance);
               }
             }
-            if(!Number.isFinite(minimumContrast))return false;
-            node.dataset.sourcePanelMinimumContrast=String(minimumContrast);
-            return true;
+            if(!Number.isFinite(minimum))return null;
+            // Keep half a quantization step of contrast headroom. Reuse these
+            // bounds when trying another ink color, without rereading pixels.
+            surfaceRange=[Math.max(0,(minimum-.5)/255),Math.min(1,(maximum+.5)/255)];
+            return surfaceRange;
           };
-          fitsRestoredSurface = onSurface;
+          const surfaceContrast=(range,foregroundL)=>{
+            if(!range)return 0;
+            const [lo,hi]=range;
+            return foregroundL<lo?(lo+.05)/(foregroundL+.05):foregroundL>hi?(foregroundL+.05)/(hi+.05):1;
+          };
+          const onSurface=(profile,foregroundL=inkL)=>{
+            const contrast=surfaceContrast(inspectSurface(profile),foregroundL);
+            if(contrast<4.5)return false;
+            node.dataset.sourcePanelMinimumContrast=String(contrast);return true;
+          };
+          fitsRestoredSurface=onSurface;
+          readableRestoredInk=(profile,ink)=>{
+            const range=inspectSurface(profile,true);if(!range)return null;
+            const contrast=rgb=>surfaceContrast(range,aidokuSourceColorLuminance(rgb));
+            const adjusted=aidokuAdjustInkForContrast(ink,contrast);
+            if(contrast(adjusted)<4.5)return null;
+            node.dataset.sourcePanelMinimumContrast=String(contrast(adjusted));
+            node.dataset.sourcePanelSurfaceLuminance=JSON.stringify(range);return adjusted;
+          };
           // Check the normal size first. A bounded artwork-protection pass
           // may later trade a little size for a verified balloon surface.
           const fits=onSurface(lineProfile());
@@ -2177,6 +2266,27 @@ final class BrowserPageImageOverlayRenderer {
                 restoreType(saved);applyMeasuredFontSize(originalSize);
               } finally {measurementNode.remove();}
             },
+            restoreReadableInk: () => {
+              if(!readableRestoredInk||!panelGeometry?.erasureComplete||opacity!==1)return false;
+              // Readable new glyphs alone do not prove that source glyphs over
+              // artwork elsewhere in the OCR box have all been removed.
+              if(!panelGeometry.sourceErasureVerified&&!restoredSourcePanels.has(item))return false;
+              const ink=node.dataset.sourceAppliedTextRGB?.split(',').map(Number);
+              if(ink?.length!==3||!ink.every(Number.isFinite))return false;
+              measurementNode.style.cssText=node.style.cssText;
+              measurementNode.replaceChildren(...Array.from(node.childNodes).map(child=>child.cloneNode(true)));
+              measurementNode.style.visibility='hidden';measurementHost.appendChild(measurementNode);
+              const saved={x,y,width,height};
+              x=parseFloat(node.style.left)-scrollX;y=parseFloat(node.style.top)-scrollY;
+              width=parseFloat(node.style.width);height=parseFloat(node.style.height);
+              try {
+                const adjusted=readableRestoredInk(lineProfile(),ink);if(!adjusted)return false;
+                node.style.color=`rgb(${adjusted.join(',')})`;
+                node.dataset.sourceAppliedTextRGB=adjusted.join(',');
+                node.dataset.sourceRestoredInkAdjusted=String(adjusted.some((v,c)=>v!==ink[c]));
+                node.dataset.sourcePanelTextFit='inside';restoredSourcePanels.add(item);return true;
+              } finally {({x,y,width,height}=saved);measurementNode.remove();}
+            },
             fitBalloon: () => {
               if(item.balancedColumn||item.rotation||wrappingScript!=='korean'||!fitsRestoredSurface||
                   /[\\r\\n]/u.test(displayedText)||displayedText.length>80)return false;
@@ -2213,7 +2323,13 @@ final class BrowserPageImageOverlayRenderer {
                 const liveRange=document.createRange();liveRange.selectNodeContents(node);
                 const liveOriginal=liveRange.getBoundingClientRect();
                 const cx=(box.left+box.right)/2,cy=(box.top+box.bottom)/2;
-                const availableHeight=2*Math.min(cy-p.top-2,p.bottom-cy-2);
+                // A certified erasure no longer makes a tall backing plate.
+                // Keep that original vertical room available to the font-fit
+                // search; every proposed glyph must still pass the pixel gate.
+                const sourceFrame=cleanupImageGeometry?.frame||item.sourceFrame,b=item.sourceBounds;
+                const top=sourceFrame&&b?Math.min(p.top,sourceFrame[1]+b[1]*sourceFrame[3]):p.top;
+                const bottom=sourceFrame&&b?Math.max(p.bottom,sourceFrame[1]+(b[1]+b[3])*sourceFrame[3]):p.bottom;
+                const availableHeight=2*Math.min(cy-top-2,bottom-cy-2);
                 const widths=[...new Set([1,.9,.8,.7,.6].map(scale=>Math.floor((box.right-box.left)*scale*4)/4))];
                 const ink=node.dataset.sourceAppliedTextRGB?.split(',').map(Number);
                 if(ink?.length!==3||!ink.every(Number.isFinite))return false;
@@ -2236,7 +2352,7 @@ final class BrowserPageImageOverlayRenderer {
                   const candidate=lineProfile();
                   if(!candidate||!contentFits()||!aidokuFontFlowFits(candidate,original,1)||candidate.lines>maxLines)continue;
                   const next=aidokuCaptionInkFrame(candidate.ink,size);
-                  if(!next||next.left<p.left||next.right>p.right||next.top<p.top||next.bottom>p.bottom)continue;
+                  if(!next||next.left<p.left||next.right>p.right||next.top<top||next.bottom>bottom)continue;
                   // The image's clean pixels are not the visible surface when
                   // another opaque layer still covers the proposed lettering.
                   if(otherBackgrounds.some(r=>next.left-1<r.right&&next.right+1>r.left&&
@@ -2460,6 +2576,8 @@ final class BrowserPageImageOverlayRenderer {
     // captions cover translated ink and any unerased source ink separately
     // when joining a tall source column would needlessly hide its surroundings.
     let readabilityPanels=0;
+    const typographyByID=new Map(typographyEntries.map(entry=>[String(entry.id),entry]));
+    mount.appendChild(measurementHost);
     for(const item of items){
       if(!appearance?.preserveSourceBackgroundColor||!item.sourceColorEligible||opacity<=0||item.rotation)continue;
       const node=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).find(n=>n.dataset.aidokuRegion===String(item.id));
@@ -2477,6 +2595,7 @@ final class BrowserPageImageOverlayRenderer {
       node.style.webkitTextStrokeWidth='0px';node.style.webkitTextStrokeColor='transparent';
       node.style.paintOrder='normal';
       node.dataset.sourceTextOutline='false';node.dataset.sourceStrokeColor='none';node.dataset.sourceAppliedStrokeRGB='';
+      if(inpaintingEnabled)typographyByID.get(String(item.id))?.restoreReadableInk();
       if(inpaintingEnabled&&restoredSourcePanels.has(item)&&node.dataset.sourcePanelTextFit==='inside'){
         node.dataset.sourceBackgroundColor='inpainted';
         node.dataset.sourceAppliedBackgroundRGB='';
@@ -2499,6 +2618,8 @@ final class BrowserPageImageOverlayRenderer {
       // When no owned mask could erase the original, the plate must contain
       // both languages' footprints. A tiny label on a long source column leaves
       // competing source text above and below the translation.
+      // Retain this temporary union through source anchoring. Its empty
+      // corners are trimmed after positioning and erasure certification.
       if(frame&&!restoredSourcePanels.has(item)){
         const bounds=[item.sourceBounds,...(item.auxiliaryInkRects||[])];
         for(const b of bounds){
@@ -2537,6 +2658,7 @@ final class BrowserPageImageOverlayRenderer {
       // The panel above is final: only transparent text layout may change now.
       captionTextReflows.get(item)?.({left,top,right,bottom},pad);
     }
+    measurementHost.remove();
     // The normal Korean reflow has now committed. Fit smaller type only after
     // that decision, preserving every accepted line break and source-erasure
     // footprint. A plate disappears only over an already verified restoration.
@@ -2564,6 +2686,10 @@ final class BrowserPageImageOverlayRenderer {
         const original=aidokuSourceColorContrast(entry.rgb,true,1,entry.background);
         const candidate=aidokuSourceColorContrast(group.rgb,true,1,entry.background);
         if(candidate+.05<Math.min(4.5,original))continue;
+        if(entry.node.dataset.sourceBackgroundColor==='inpainted'&&entry.node.dataset.sourcePanelSurfaceLuminance){
+          const range=JSON.parse(entry.node.dataset.sourcePanelSurfaceLuminance);
+          if(aidokuLuminanceContrast(aidokuSourceColorLuminance(group.rgb),...range)<4.5)continue;
+        }
         entry.node.style.color=`rgb(${group.rgb.join(',')})`;
         entry.node.dataset.sourceAppliedTextRGB=group.rgb.join(',');
         entry.node.dataset.inkCluster=group.rgb.join(',');
@@ -2661,6 +2787,9 @@ final class BrowserPageImageOverlayRenderer {
           const c=restoredPanelGeometry.get(item),id=String(item.id),node=nodes.get(id),panel=plates.get(id);
           if(!c?.erasureComplete||!node||!panel||item.balancedColumn||item.rotation||
               item.sourceTextOnly!==false||c.w*c.h>certificationBudget)continue;
+          // Body-mask completion cannot certify a wider former card: missed
+          // ruby and punctuation may sit outside the OCR body. Keep the full
+          // observed-margin certification before shrinking that footprint.
           const f=cleanupImageGeometry?.frame||item.sourceFrame;
           if(!Array.isArray(f)||f.length!==4||!f.every(Number.isFinite))continue;
           const pad=Math.max(typographyInkFrames.get(item)?.pad||0,Math.max(3,Math.min(6,parseFloat(node.style.fontSize)*.3)));
@@ -2679,7 +2808,18 @@ final class BrowserPageImageOverlayRenderer {
           const core=bounds.map(b=>[(b[0]*c.iw-c.x)*c.sx,(b[1]*c.ih-c.y)*c.sy,b[2]*c.iw*c.sx,b[3]*c.ih*c.sy]);
           certificationBudget-=c.w*c.h;
           const glyph=Math.max(4,(Number(item.sourceFontSize)||parseFloat(node.style.fontSize))*c.iw/c.frame[2]*c.sx);
-          if(!aidokuRestoredErasureCovers(c.safe,c.w,c.h,regions,glyph,core))continue;
+          // A multi-column vertical OCR box can omit a partly occluded first
+          // column attached to the artwork on its right. Repeated protruding
+          // strokes veto release, while smooth balloon contours still allow
+          // smaller lettering and removal of the old oversized panel.
+          if(item.sourceVertical&&!item.sourceSingleColumn&&
+              aidokuHasAttachedLeadingInk(c.safe,c.w,c.h,core,glyph))continue;
+          // A proven body can sit next to large connected artwork outside
+          // the source crop. It need not keep a blank card over that artwork,
+          // but small surviving ruby/punctuation still veto release.
+          const ownedBodyClear=c.sourceErasureVerified&&
+            !aidokuHasResidualLettering(c.safe,c.w,c.h,core,glyph);
+          if(!ownedBodyClear&&!aidokuRestoredErasureCovers(c.safe,c.w,c.h,regions,glyph,core))continue;
           certifiedErasure.add(item);
           node.dataset.sourceErasureRestored='true';
           node.dataset.sourceErasureReleased=JSON.stringify(coverage);

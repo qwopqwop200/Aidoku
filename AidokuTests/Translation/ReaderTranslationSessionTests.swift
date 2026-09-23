@@ -739,12 +739,18 @@ struct ReaderTranslationSessionTests {
         let label = try #require(stack.arrangedSubviews.first as? UILabel)
         #expect(label.text == NSLocalizedString("TRANSLATION_TITLE") + ": " +
             RemoteTranslationError.httpStatus(503, requestID: nil).localizedDescription)
+        let toggle = try #require(owner.navigationItem.rightBarButtonItems?.first {
+            $0.accessibilityIdentifier == "reader.translation.toggle"
+        })
+        #expect(toggle.accessibilityHint == RemoteTranslationError.httpStatus(503, requestID: nil).localizedDescription)
+        #expect(page.regions.isEmpty)
         #expect(imageView.subviews.isEmpty)
         let retry = try #require(stack.arrangedSubviews.last as? UIButton)
         retry.sendActions(for: .touchUpInside)
         try await waitUntil { page.hasCompletedTranslation(settings: fixture.settings) }
         #expect(calls == 4)
         #expect(notice.superview == nil)
+        #expect(toggle.accessibilityHint == nil)
         #expect(fixture.settings.automaticallyTranslate)
         // Notices must also disappear immediately when the reader leaves.
         session.onFailure?(RemoteTranslationError.missingCredential)
