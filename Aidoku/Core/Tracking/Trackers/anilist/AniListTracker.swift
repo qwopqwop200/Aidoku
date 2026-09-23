@@ -254,7 +254,7 @@ private extension AniListTracker {
 
     private func decodeDate(_ value: AniListDate?) -> Date? {
         if let day = value?.day, let month = value?.month, let year = value?.year {
-            return Calendar.current.date(from: DateComponents(year: year, month: month, day: day))
+            return Calendar(identifier: .gregorian).date(from: DateComponents(year: year, month: month, day: day))
         }
         return nil
     }

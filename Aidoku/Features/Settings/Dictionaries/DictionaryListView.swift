@@ -126,7 +126,7 @@ struct DictionaryListView: View {
         .sheet(isPresented: $showSafari) {
             SafariView(url: .constant(URL(string: "https://yomitan.wiki/dictionaries/")))
         }
-        .alert(NSLocalizedString("IMPORT_ERROR"), isPresented: $dictionaryManager.shouldShowError) {
+        .alert(NSLocalizedString("DICTIONARY_ERROR"), isPresented: $dictionaryManager.shouldShowError) {
             Button(NSLocalizedString("OK"), role: .cancel) {}
         } message: {
             Text(verbatim: dictionaryManager.errorMessage)
@@ -279,7 +279,10 @@ private struct DictionaryInfoView: View {
                             item(name: NSLocalizedString("MEDIA_COUNT"), value: "\(counts.media.total)")
                         }
                     }
-                    item(name: NSLocalizedString("IS_UPDATABLE"), value: "\(index.isUpdatable ?? false)")
+                    item(
+                        name: NSLocalizedString("IS_UPDATABLE"),
+                        value: index.isUpdatable == true ? NSLocalizedString("YES") : NSLocalizedString("NO")
+                    )
                     item(
                         name: NSLocalizedString("SIZE"),
                         value: dictionarySize.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "..."
@@ -337,13 +340,13 @@ private struct DictionaryRecommendedListView: View {
         (.term, [
             .init(
                 name: "JMdict",
-                description: "A comprehensive Japanese–English dictionary maintained by the Electronic Dictionary Research and Development Group.",
+                description: NSLocalizedString("RECOMMENDED_JMDICT_DESCRIPTION"),
                 indexUrl: "https://github.com/yomidevs/jmdict-yomitan/releases/latest/download/JMdict_english_without_proper_names.json",
                 homepageUrl: "https://github.com/yomidevs/jmdict-yomitan?tab=readme-ov-file#jmdict-for-yomitan"
             ),
             .init(
                 name: "JMnedict",
-                description: "A dictionary of Japanese proper names maintained by the Electronic Dictionary Research and Development Group.",
+                description: NSLocalizedString("RECOMMENDED_JMNEDICT_DESCRIPTION"),
                 indexUrl: "https://github.com/yomidevs/jmdict-yomitan/releases/latest/download/JMnedict.json",
                 homepageUrl: "https://github.com/yomidevs/jmdict-yomitan?tab=readme-ov-file#jmnedict-for-yomitan"
             )
@@ -351,7 +354,7 @@ private struct DictionaryRecommendedListView: View {
         (.frequency, [
             .init(
                 name: "Jiten",
-                description: "A frequency dictionary based on the corpus from the media stats database at https://jiten.moe.",
+                description: NSLocalizedString("RECOMMENDED_JITEN_DESCRIPTION"),
                 indexUrl: "https://api.jiten.moe/api/frequency-list/index",
                 homepageUrl: "https://jiten.moe/other"
             )

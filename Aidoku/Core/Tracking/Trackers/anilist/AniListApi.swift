@@ -108,7 +108,7 @@ private extension AniListApi {
             if date == Date(timeIntervalSince1970: 0) {
                 return AniListDate(year: 0, month: 0, day: 0)
             }
-            let components = Calendar.current.dateComponents([.day, .month, .year], from: date)
+            let components = Calendar(identifier: .gregorian).dateComponents([.day, .month, .year], from: date)
             return AniListDate(year: components.year, month: components.month, day: components.day)
         }
         return nil

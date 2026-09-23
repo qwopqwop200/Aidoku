@@ -105,33 +105,26 @@ class ReaderToolbarView: UIView {
     }
 
     func displayPage(_ page: Int) {
-        guard let totalPages = totalPages else {
-            return
-        }
-        var page = page
-        if page > totalPages {
-            page = totalPages
-        } else if page < 1 {
-            page = 1
-        }
-        currentPageLabel.text = String(format: NSLocalizedString("%i_OF_%i"), page, totalPages)
-        currentPageValue = page
+        currentPageValue = renderPageLabels(page: page)
     }
 
     func updatePageLabels() {
-        guard var currentPage = currentPage, let totalPages = totalPages else {
+        renderPageLabels(page: currentPage)
+        incognitoModeLabel.text = NSLocalizedString("INCOGNITO_MODE")
+    }
+
+    // Previewing a page must keep both labels in sync without committing reader progress.
+    @discardableResult
+    private func renderPageLabels(page: Int?) -> Int? {
+        guard let page, let totalPages, totalPages > 0 else {
             currentPageLabel.text = nil
             pagesLeftLabel.text = nil
-            return
+            return nil
         }
 
-        if currentPage > totalPages {
-            currentPage = totalPages
-        } else if currentPage < 1 {
-            currentPage = 1
-        }
-        let pagesLeft = totalPages - currentPage
-        currentPageLabel.text = String(format: NSLocalizedString("%i_OF_%i"), currentPage, totalPages)
+        let boundedPage = min(max(page, 1), totalPages)
+        let pagesLeft = totalPages - boundedPage
+        currentPageLabel.text = String(format: NSLocalizedString("PAGE_X_OF_X"), boundedPage, totalPages)
         if pagesLeft < 1 {
             pagesLeftLabel.text = nil
         } else {
@@ -139,7 +132,7 @@ class ReaderToolbarView: UIView {
                 ? NSLocalizedString("ONE_PAGE_LEFT")
                 : String(format: NSLocalizedString("%i_PAGES_LEFT"), pagesLeft)
         }
-        incognitoModeLabel.text = NSLocalizedString("INCOGNITO_MODE")
+        return boundedPage
     }
 
     func updateSliderPosition() {

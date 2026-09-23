@@ -59,7 +59,7 @@
 "LANGUAGES" = "زبانیں";
 "INFO" = "معلومات";
 "VERSION" = "ورژن";
-"BUILD" = "ساخت";
+"BUILD" = "بلڈ";
 "BUTTON_FILTER" = "فلٹر کریں";
 "ADDING_SOURCES_GUIDE_BUTTON" = "ذرائع شامل کرنے کی رہنمائی";
 "BUTTON_UPDATE" = "اپ ڈیٹ کریں";
@@ -675,7 +675,7 @@
 "READER" = "ریڈر";
 "OPEN_READER_VIEW" = "ریڈر ویو کھولیں۔";
 "RESUME_LAST_OPENED_CHAPTER" = "آخری کھولے گئے باب کا مطالعہ جاری رکھیں";
-"CONTINUE_READING_ON_RESELECT" = "پڑھنا دوبارہ شروع کرنے کے لیے ہسٹری ٹیب کو دو بار تھپتھپائیں۔";
+"CONTINUE_READING_ON_RESELECT" = "مطالعہ جاری رکھنے کے لیے سرگزشت کے ٹیب پر دوبارہ ٹیپ کریں";
 "UNREAD_CHAPTER_BADGES" = "بغیر پڑھے ہوئے باب کے بیجز";
 "DOWNLOADED_CHAPTER_BADGES" = "ڈاؤن لوڈ کردہ باب کے بیجز";
 "PIN_TITLES" = "مانگا کے عنوانات پن کریں";
@@ -919,7 +919,7 @@
 "PAGE_LAYOUT" = "صفحہ لے آؤٹ";
 "DOUBLE_PAGE" = "ڈبل پیج";
 "PAGE_OFFSET" = "صفحہ آفسیٹ";
-"SPLIT_WIDE_IMAGES" = "سپلٹ وائیڈ امیجز";
+"SPLIT_WIDE_IMAGES" = "چوڑی تصاویر تقسیم کریں";
 "REVERSE_SPLIT_ORDER" = "تقسیم شدہ صفحات کی ترتیب کو ریورس کریں۔";
 "MULTI_LANGUAGE" = "کثیر زبان";
 "TRACKING" = "ٹریکنگ";
@@ -953,8 +953,8 @@
 "STATUS_COLON_%@" = "حیثیت: %@";
 "TYPE_COLON_%@" = "قسم: %@";
 "VIEW_ON_WEBSITE" = "ویب سائٹ پر دیکھیں";
-"CLEAR_TRACKED_MANGA" = "مانگا کے ٹریکر لنکس ہٹائیں";
-"CLEAR_TRACKED_MANGA_TEXT" = "یہ عمل واپس نہیں کیا جا سکتا۔ مانگا میں شامل کیے گئے تمام ٹریکر لنکس ہٹا دیے جائیں گے۔";
+"CLEAR_TRACKED_MANGA" = "تمام ٹریکر لنکس ہٹائیں";
+"CLEAR_TRACKED_MANGA_TEXT" = "یہ عمل واپس نہیں کیا جا سکتا۔ تمام مانگا میں شامل کیے گئے تمام ٹریکر لنکس ہٹا دیے جائیں گے۔";
 "SEARCH_OPTIONS" = "تلاش کے اختیارات";
 "SHOW_NSFW_RESULTS" = "NSFW نتائج دکھائیں۔";
 "UPDATE_AFTER_READING" = "پڑھنے کے بعد اپ ڈیٹ کریں۔";
@@ -1056,7 +1056,7 @@
 "TOGGLE_PAGE_OFFSET" = "صفحہ آفسیٹ کو ٹوگل کریں۔";
 "UPLOAD_FILE" = "فائل درآمد کریں۔";
 "MIGRATE_CHAPTER_HISTORY" = "ابواب کے مطالعے کی سرگزشت منتقل کریں";
-"MIGRATE_CHAPTER_HISTORY_TEXT" = "پرانے ورژن سے بچ گئی پڑھنے کی تاریخ کو منتقل کریں جو مقامی ڈیٹا بیس میں ابواب سے منسلک نہیں ہے۔ یہ عام طور پر اپ ڈیٹ کے بعد خود بخود ہوتا ہے۔ اگر یہ ختم نہیں ہوا تو آپ اسے دوبارہ یہاں چلا سکتے ہیں۔";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "پرانے ورژن سے باقی رہ جانے والی مطالعے کی سرگزشت منتقل کریں جو مقامی ڈیٹا بیس میں ابواب سے منسلک نہیں ہے۔ یہ عام طور پر اپ ڈیٹ کے بعد خود بخود ہوتا ہے۔ اگر یہ مکمل نہ ہو تو آپ اسے یہاں دوبارہ چلا سکتے ہیں۔";
 
 // Local image import
 "IMPORT_PHOTO" = "تصاویر درآمد کریں";
@@ -1168,3 +1168,28 @@
 "TRANSLATION_FILTERING" = "متن کی فلٹرنگ";
 
 "TRANSLATION_TARGETS" = "کیا ترجمہ کرنا ہے";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "صفحات: %i / %i";
+"1_SERIES" = "1 سیریز";
+"SKIPPING_ONE_CHAPTER" = "1 باب کو چھوڑا جا رہا ہے کیونکہ وہ ماخذ میں موجود نہیں ہے یا اسے فلٹر کر دیا گیا ہے";
+"BACKUP_CREATE_ERROR_TEXT" = "بیک اپ نہیں بنایا جا سکا۔ براہ کرم دوبارہ کوشش کریں۔";
+"YES" = "ہاں";
+"NO" = "نہیں";
+"CHAPTERS_%i_OF_%i" = "ابواب: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "عنوان کو ٹریکنگ میں شامل نہیں کیا جا سکا۔ براہ کرم دوبارہ کوشش کریں۔";
+"SORT_READ_PROGRESS" = "پڑھنے کی پیش رفت";
+"SORT_RELEASE_YEAR" = "اشاعت کا سال";
+"SOURCE_INVALID_PAGE_COUNT" = "صفحات کی تعداد غلط ہے";
+"SOURCE_INVALID_GENRE_ID" = "صنف کی شناخت غلط ہے";
+"SOURCE_INVALID_LISTING" = "فہرست غلط ہے";
+"SOURCE_INVALID_LISTING_TYPE" = "فہرست کی قسم غلط ہے";
+"SOURCE_INVALID_ITEM_TYPE" = "آئٹم کی قسم غلط ہے";
+"DICTIONARY_ERROR" = "لغت کی خرابی";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "لغات کی ترتیبات محفوظ نہیں کی جا سکیں: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "منتخب لغات درآمد نہیں کی جا سکیں:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "کچھ لغات درآمد نہیں کی جا سکیں:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "لغت کی درآمد ناکام ہو گئی۔";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) کے زیر انتظام ایک جامع جاپانی–انگریزی لغت۔";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) کے زیر انتظام جاپانی اسمائے خاص کی لغت۔";
+"RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe کے میڈیا متون کے ذخیرے پر مبنی الفاظ کی تعدد والی لغت۔";

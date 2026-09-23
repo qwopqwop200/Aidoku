@@ -2,4 +2,4 @@
 
 // Completed app localization
 "CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "Aidoku เชื่อมต่อกับเซิร์ฟเวอร์แปลที่คุณกำหนดเองเมื่อที่อยู่ของเซิร์ฟเวอร์อยู่ในเครือข่ายภายในของคุณ";
+"NSLocalNetworkUsageDescription" = "Aidoku เชื่อมต่อกับเซิร์ฟเวอร์มังงะและเซิร์ฟเวอร์แปลที่คุณกำหนดเอง เมื่อที่อยู่ของเซิร์ฟเวอร์เหล่านั้นอยู่ในเครือข่ายภายในของคุณ";

@@ -178,11 +178,10 @@ final class ReaderTranslationPage {
             } onCancel: { filteringTask.cancel() }
             try Task.checkCancellation()
             if translate && !eligible.isEmpty {
-                try publish(eligible, image: image, settings: settings, generation: issued, renderOverlay: renderOverlay)
                 if let translateRegions { return try await translateRegions(eligible, settings) }
-                let progress: ReaderTranslationService.Progress = { [weak self] partial in
+                let progress: ReaderTranslationService.Progress = { [weak self] _ in
                     try Task.checkCancellation()
-                    try await self?.publish(partial, image: image, settings: settings, generation: issued, renderOverlay: renderOverlay)
+                    try await self?.validateProgress(image: image, generation: issued)
                 }
                 if let progressiveTranslate { return try await progressiveTranslate(eligible, settings, progress) }
                 return try await ReaderTranslationService.shared.translate(
@@ -254,7 +253,9 @@ final class ReaderTranslationPage {
         analyzedConfiguration = settings.ocrConfiguration
         lastSettings = settings
         guard renderOverlay else { return }
-        guard !result.isEmpty else { releaseOverlay(); return }
+        // OCR and partial batches have different geometry after SFX filtering.
+        // Leave the source image untouched until the whole translation is ready.
+        guard completedTranslation, !result.isEmpty else { releaseOverlay(); return }
         if completedTranslation, let renderCache, let sourcePage, imageView.bounds.width > 0, imageView.bounds.height > 0 {
             let viewport = imageView.bounds.size
             let dark = imageView.traitCollection.userInterfaceStyle == .dark
@@ -301,6 +302,10 @@ final class ReaderTranslationPage {
             return
         }
         displayLive(result, image: image, settings: settings, target: nil)
+    }
+
+    private func validateProgress(image: UIImage, generation issued: UUID) throws {
+        guard generation == issued, imageView?.image === image else { throw CancellationError() }
     }
 
     private func displayLive(_ result: [ReaderTranslationRegion], image: UIImage, settings: ReaderTranslationSettings,
@@ -405,6 +410,7 @@ final class ReaderTranslationPage {
     }
 
     func displayPrepared(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings, completed: Bool = true) {
+        guard completed else { return }
         previewRegions = nil
         guard let image = imageView?.image else { return }
         if hasCompletedTranslation(settings: settings) {
@@ -415,8 +421,8 @@ final class ReaderTranslationPage {
         let displayed = result.compactMap { $0.cropped(to: rect) }
         if analyzedImage === image, regions == displayed, lastSettings == settings, completedTranslation == completed,
            overlay != nil || cachedOverlay != nil {
-            // OFF retains a hidden renderer. Identical OCR progress after ON
-            // still needs to restore visibility even though its content is current.
+            // OFF retains a hidden renderer. Restore the completed presentation
+            // after ON even when its content has not changed.
             overlay?.isHidden = !settings.overlay.visible
             cachedOverlay?.isHidden = !settings.overlay.visible
             return

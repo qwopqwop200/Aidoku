@@ -2,4 +2,4 @@
 
 // Completed app localization
 "CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "Aidoku ភ្ជាប់ទៅម៉ាស៊ីនមេបកប្រែផ្ទាល់ខ្លួនរបស់អ្នក នៅពេលដែលអាសយដ្ឋានរបស់វានៅលើបណ្តាញមូលដ្ឋានរបស់អ្នក។";
+"NSLocalNetworkUsageDescription" = "Aidoku ភ្ជាប់ទៅម៉ាស៊ីនមេម៉ានហ្គា និងម៉ាស៊ីនមេបកប្រែផ្ទាល់ខ្លួនរបស់អ្នក នៅពេលអាសយដ្ឋានរបស់ម៉ាស៊ីនមេទាំងនោះស្ថិតនៅក្នុងបណ្តាញមូលដ្ឋានរបស់អ្នក។";

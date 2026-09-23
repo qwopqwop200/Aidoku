@@ -88,7 +88,7 @@ struct SettingStepper: UIViewRepresentable {
         let control = container.control
         context.coordinator.binding = $value
         control.accessibilityLabel = label
-        control.accessibilityValue = String(format: "%g", value)
+        control.accessibilityValue = String(format: "%g", locale: Locale.current, value)
         guard bounds.lowerBound.isFinite, bounds.upperBound.isFinite,
               step.isFinite, step > 0, bounds.lowerBound < bounds.upperBound else {
             // UIKit requires a non-empty native range. A single legal setting

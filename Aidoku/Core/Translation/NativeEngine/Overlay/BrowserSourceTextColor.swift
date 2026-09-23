@@ -636,6 +636,8 @@ enum BrowserSourceTextColor {
     // instead of inventing gray ink. Sampling roles remain unchanged.
     const aidokuSourceDisplayInk = sample => {
       const valid=rgb=>Array.isArray(rgb)&&rgb.length===3&&rgb.every(v=>Number.isFinite(v)&&v>=0&&v<=255);
+      if(valid(sample?.displayEvidence?.color))return [...sample.displayEvidence.color];
+      if(valid(sample?.lettering?.color))return [...sample.lettering.color];
       const fg=sample?.foreground,stroke=sample?.stroke;
       if(!valid(fg))return valid(sample?.displayForeground)?[...sample.displayForeground]:null;
       const background=valid(sample?.surface?.color)?sample.surface.color:
@@ -650,7 +652,8 @@ enum BrowserSourceTextColor {
     const aidokuCaptionPalette = (sample, ink, preserveSourceTextColor = false) => {
       const valid = rgb => Array.isArray(rgb) && rgb.length === 3 &&
         rgb.every(v => Number.isFinite(v) && v >= 0 && v <= 255);
-      const observed = valid(sample?.surface?.color) ? sample.surface.color :
+      const observed = valid(sample?.captionBackground) ? sample.captionBackground :
+        valid(sample?.surface?.color) ? sample.surface.color :
         (valid(sample?.background) ? sample.background : null);
       const background = observed || [242, 240, 235];
       const preserved = preserveSourceTextColor && Boolean(aidokuSourceDisplayInk(sample));
@@ -892,6 +895,137 @@ enum BrowserSourceTextColor {
         captionInterior:{color,coverage:pixels.length/Math.max(1,total),disagreement},
         confidence:{...result.confidence,panelReason:'trimmed exposed interior excluding local ink and halo; display only'}};
     };
+    // Estimate the displayed caption from exposed pixels INSIDE its OCR box.
+    // Rim colors may belong to page margins, button borders or neighboring art.
+    // This display-only field never changes source ink or restoration evidence.
+    const aidokuObservedCaptionBackground = (rgba,w,h,inner,result) => {
+      if(!result||!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w*h>24576||
+          !rgba||rgba.length!==w*h*4||!Array.isArray(inner)||inner.length!==4||
+          !inner.every(Number.isFinite)||inner[2]<=0||inner[3]<=0)return result;
+      let ink=aidokuSourceDisplayInk(result);
+      if(!ink)return result;
+      const distance=(a,b)=>Math.max(Math.abs(a[0]-b[0]),Math.abs(a[1]-b[1]),Math.abs(a[2]-b[2]));
+      // Display can flatten pale lettering to its colored outline. Independent
+      // native detail still identifies the physical fill; use that fill when
+      // excluding glyphs, rather than masking similarly colored artwork.
+      if(result.foreground&&result.stroke&&(result.confidence?.foreground||0)>=.8&&
+          result.confidence.reason==='agreeing native detail palettes preserve fill and outline roles'&&
+          distance(ink,result.stroke)<=24&&distance(result.foreground,result.stroke)>=48)
+        ink=result.foreground;
+      const vertical=inner[3]>=inner[2],start=inner[vertical?1:0],length=inner[vertical?3:2];
+      const collect=(tolerance,radius)=>{
+        const near=new Uint8Array(w*h),mask=new Uint8Array(w*h),dots=new Uint8Array(w*h),dotHalo=new Uint8Array(w*h);
+        let dotCount=0,dotInside=0,dotOutside=0,nearCount=0;
+        for(let i=0;i<w*h;i++) {
+          const p=i*4;if(rgba[p+3]<250)return null;
+          if(distance([rgba[p],rgba[p+1],rgba[p+2]],ink)<=tolerance){near[i]=1;nearCount++;}
+        }
+        // Color alone cannot distinguish a dark glyph from dark artwork.
+        // Preserve large connected surfaces that continue through crop edges;
+        // narrow, enclosed glyph components still receive their local halo.
+        const seen=new Uint8Array(w*h),queue=new Int32Array(w*h);
+        for(let seed=0;seed<w*h;seed++) {
+          if(!near[seed]||seen[seed])continue;
+          let read=0,count=1,edges=0,interior=0,x0=w,y0=h,x1=0,y1=0;queue[0]=seed;seen[seed]=1;
+          while(read<count){
+            const i=queue[read++],x=i%w,y=Math.floor(i/w);
+            x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);
+            if(x===0)edges|=1;if(x===w-1)edges|=2;if(y===0)edges|=4;if(y===h-1)edges|=8;
+            if(x>=inner[0]&&x<inner[0]+inner[2]&&y>=inner[1]&&y<inner[1]+inner[3])interior++;
+            for(const next of [x>0?i-1:-1,x<w-1?i+1:-1,y>0?i-w:-1,y<h-1?i+w:-1])
+              if(next>=0&&near[next]&&!seen[next]){seen[next]=1;queue[count++]=next;}
+          }
+          // Bright edge-connected pixels also contain white margins and glyph
+          // halos. Connectivity alone cannot recover their physical roles.
+          const surface=Math.max(...ink)<128&&interior>=Math.max(48,inner[2]*inner[3]*.1)&&
+            (edges&(edges-1))!==0;
+          const dot=count<=4&&x1-x0<=2&&y1-y0<=2;
+          if(dot){dotCount++;dotInside+=interior;dotOutside+=count-interior;}
+          const target=dot?dotHalo:mask;
+          for(let j=0;j<count;j++){
+            if(dot)dots[queue[j]]=1;
+            const x=queue[j]%w,y=Math.floor(queue[j]/w),p=queue[j]*4;
+            if(surface&&distance([rgba[p],rgba[p+1],rgba[p+2]],ink)>12)continue;
+            const reach=surface?Math.min(radius,1):radius;
+            for(let yy=Math.max(0,y-reach);yy<=Math.min(h-1,y+reach);yy++)
+              for(let xx=Math.max(0,x-reach);xx<=Math.min(w-1,x+reach);xx++)target[yy*w+xx]=1;
+          }
+        }
+        // Tiny marks are texture only when they repeat along both axes and
+        // continue outside the OCR box. Otherwise retain their ordinary ink mask.
+        // This avoids deleting halftone dots as if they were glyph strokes.
+        const area=inner[2]*inner[3],outside=Math.max(1,w*h-area);
+        const periodic=axis=>{
+          let best=0,worst=1;
+          for(let lag=2;lag<=8;lag++){
+            let hits=0,total=0;
+            for(let y=0;y<h-(axis?lag:0);y++)for(let x=0;x<w-(axis?0:lag);x++){
+              const i=y*w+x;if(!dots[i])continue;total++;if(dots[i+lag*(axis?w:1)])hits++;
+            }
+            const score=hits/Math.max(1,total);best=Math.max(best,score);worst=Math.min(worst,score);
+          }
+          return best>=.35&&best-worst>=.2;
+        };
+        const textured=Math.max(...ink)<96&&dotCount>=80&&dotInside>=32&&dotOutside>=40&&
+          dotInside+dotOutside>=nearCount*.8&&dotInside/Math.max(1,area)>=.03&&
+          dotInside/Math.max(1,area)<=.25&&dotOutside/outside>=dotInside/area*.5&&
+          dotOutside/outside<=dotInside/area*2.5&&periodic(0)&&periodic(1);
+        if(!textured)for(let i=0;i<w*h;i++)if(dotHalo[i])mask[i]=1;
+        const pixels=[],bands=new Set();let total=0;
+        for(let y=Math.max(0,Math.ceil(inner[1]));y<Math.min(h,inner[1]+inner[3]);y++)
+          for(let x=Math.max(0,Math.ceil(inner[0]));x<Math.min(w,inner[0]+inner[2]);x++) {
+            total++;const i=y*w+x,p=i*4;
+            if(mask[i])continue;
+            const band=Math.min(7,Math.floor(((vertical?y:x)-start)*8/length));
+            const rgb=[rgba[p],rgba[p+1],rgba[p+2]];rgb.band=band;pixels.push(rgb);bands.add(band);
+          }
+        return {pixels,bands,total,textured};
+      };
+      const enough=s=>s&&s.pixels.length>=24&&s.pixels.length>=s.total*.15&&s.bands.size>=4;
+      let samples=collect(40,2),narrowed=false;
+      if(!samples)return result;
+      // On dark low-contrast panels a broad color threshold can mask the
+      // surface itself. Retry only if broad exclusion leaves too little data.
+      if(!enough(samples)){samples=collect(12,1);narrowed=true;}
+      if(!enough(samples))return result;
+      const {pixels,bands,total,textured}=samples;
+      pixels.sort((a,b)=>a[0]+a[1]+a[2]-b[0]-b[1]-b[2]);
+      const trim=Math.floor(pixels.length*.1),kept=pixels.slice(trim,pixels.length-trim);
+      const bins=new Map();
+      for(const rgb of pixels){
+        const key=rgb.map(v=>v>>4).join(',');let bin=bins.get(key);
+        if(!bin){bin={count:0,sum:[0,0,0]};bins.set(key,bin);}
+        bin.count++;rgb.forEach((v,c)=>bin.sum[c]+=v);
+      }
+      const modes=[...bins.values()].sort((a,b)=>b.count-a.count).slice(0,8)
+        .map(b=>b.sum.map(v=>v/b.count));
+      let supported=[];
+      for(const mode of modes){const near=pixels.filter(rgb=>distance(rgb,mode)<=28);if(near.length>supported.length)supported=near;}
+      // A broad populated surface wins over small frame/artwork incursions.
+      // Without a dominant surface, retain a trimmed spatial mixture.
+      const range=Math.max(...[0,1,2].map(c=>{
+        const values=pixels.map(rgb=>rgb[c]).sort((a,b)=>a-b);
+        return values[Math.floor((values.length-1)*.9)]-values[Math.floor((values.length-1)*.1)];
+      }));
+      const mode=supported.length?[0,1,2].map(c=>supported.reduce((n,rgb)=>n+rgb[c],0)/supported.length):ink;
+      const brighter=pixels.filter(rgb=>{
+        const delta=rgb.map((v,c)=>v-mode[c]);
+        return Math.min(...delta)>=32&&Math.max(...delta)-Math.min(...delta)<=20;
+      });
+      // An additive light gradient preserves chroma while lifting all channels.
+      // Its lighter span is part of the panel, not an unrelated white border.
+      const lightGradient=Math.max(...mode)-Math.min(...mode)>=30&&brighter.length>=pixels.length*.15&&
+        new Set(brighter.map(rgb=>rgb.band)).size>=2;
+      const exposed=textured?pixels:range>64&&supported.length>=pixels.length*.45&&!lightGradient?supported:kept;
+      const color=[0,1,2].map(c=>Math.round(exposed.reduce((n,rgb)=>n+rgb[c],0)/exposed.length));
+      // Narrow exclusion is only evidence for a nearby, lighter surface.
+      // Otherwise it may expose alternate ink colors inside outlined glyphs.
+      if(distance(color,ink)<12||
+          (narrowed&&(Math.min(...color.map((v,c)=>v-ink[c]))<12||distance(color,ink)>80)))return result;
+      return {...result,captionBackground:color,
+        captionBackgroundEvidence:{color,coverage:pixels.length/Math.max(1,total),
+          reason:textured?'periodic halftone retained across OCR and surrounding pixels; display only':'trimmed exposed OCR interior excluding displayed ink and local halo; display only'}};
+    };
     // Thin chromatic strokes may leak through a one-pixel gap in their white
     // halo. Require local enclosure, repeated positions and majority support;
     // isolated skin/artwork or the inner half of a colored outline is rejected.
@@ -937,6 +1071,574 @@ enum BrowserSourceTextColor {
       }
       return winner;
     };
+    // Candidate glyph colors must form repeated, bounded strokes within the
+    // OCR region. Counters in a broad panel and frame-connected art are not ink.
+    // Display only: preserve erasure roles and reuse the existing bounded reads.
+    // At most 12 modes, six competing colors and 128 enclosure probes per pair.
+    const aidokuObservedGlyphPalette = (rgba,w,h,inner,hint=null) => {
+      if(!Number.isInteger(w)||!Number.isInteger(h)||w<8||h<8||w*h>24576||!rgba||rgba.length!==w*h*4||
+          !Array.isArray(inner)||inner.length!==4||!inner.every(Number.isFinite)||inner[2]<=0||inner[3]<=0)return null;
+      const n=w*h,dist=(a,b)=>Math.max(Math.abs(a[0]-b[0]),Math.abs(a[1]-b[1]),Math.abs(a[2]-b[2]));
+      const rgb=i=>[rgba[i*4],rgba[i*4+1],rgba[i*4+2]];
+      const inside=(x,y)=>x>=inner[0]&&x<inner[0]+inner[2]&&y>=inner[1]&&y<inner[1]+inner[3];
+      const bins=new Map();let area=0;
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+        const i=y*w+x;if(rgba[i*4+3]<250)return null;if(!inside(x,y))continue;area++;
+        const c=rgb(i),key=(c[0]>>4)*256+(c[1]>>4)*16+(c[2]>>4);let b=bins.get(key);
+        if(!b){b={count:0,sum:[0,0,0]};bins.set(key,b);}b.count++;for(let c=0;c<3;c++)b.sum[c]+=rgba[i*4+c];
+      }
+      const seeds=[];
+      for(const b of [...bins.values()].sort((a,b)=>b.count-a.count)){
+        if(b.count<Math.max(4,area*.002))continue;
+        const c=b.sum.map(v=>Math.round(v/b.count));if(seeds.some(s=>dist(s,c)<32))continue;
+        seeds.push(c);if(seeds.length>=12)break;
+      }
+      const candidates=[],queue=new Int32Array(n),vertical=inner[3]>=inner[2];
+      for(const color of seeds){
+        const mask=new Uint8Array(n),seen=new Uint8Array(n),core=[];
+        for(let i=0;i<n;i++)if(dist(rgb(i),color)<=24)mask[i]=1;
+        let total=0;for(let i=0;i<n;i++)if(mask[i]&&inside(i%w,Math.floor(i/w)))total++;
+        let retained=0,components=0,energy=0;const bands=new Set();
+        for(let start=0;start<n;start++){
+          if(!mask[start]||seen[start])continue;
+          let head=0,tail=1,x0=w,y0=h,x1=0,y1=0,edge=false,local=0;queue[0]=start;seen[start]=1;
+          while(head<tail){const i=queue[head++],x=i%w,y=Math.floor(i/w);x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);edge||=x===0||x===w-1||y===0||y===h-1;if(inside(x,y))local++;
+            for(const q of [x?i-1:-1,x+1<w?i+1:-1,y?i-w:-1,y+1<h?i+w:-1])if(q>=0&&mask[q]&&!seen[q]){seen[q]=1;queue[tail++]=q;}
+          }
+          const bw=x1-x0+1,bh=y1-y0+1,density=tail/(bw*bh);
+          if(edge||tail<3||local<tail*.85||bw>w*.9||bh>h*.9||density>.88||Math.max(bw,bh)<4)continue;
+          components++;retained+=local;
+          for(let k=0;k<tail;k++){
+            const i=queue[k],x=i%w,y=Math.floor(i/w);if(!inside(x,y))continue;
+            core.push(i);bands.add(Math.min(7,Math.max(0,Math.floor(((vertical?y:x)-(vertical?inner[1]:inner[0]))/Math.max(1,vertical?inner[3]:inner[2])*8))));
+            let e=0;for(const q of [x>=2?i-2:-1,x+2<w?i+2:-1,y>=2?i-2*w:-1,y+2<h?i+2*w:-1])
+              if(q>=0)e=Math.max(e,dist(rgb(i),rgb(q)));energy+=e;
+          }
+        }
+        if(components<3||bands.size<3||retained<Math.max(8,area*.004)||retained>area*.6)continue;
+        const average=energy/retained;if(average<12)continue;
+        candidates.push({color,pixels:retained,components,bands:bands.size,energy:average,coverage:retained/Math.max(1,total),core,score:retained*(.5+Math.min(1,average/80))});
+      }
+      candidates.sort((a,b)=>b.score-a.score);
+      const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+      for(const c of candidates.slice(0,6)){
+        c.enclosure=[];
+        for(const other of candidates.slice(0,6)){
+          if(c===other||dist(c.color,other.color)<48)continue;
+          let kept=0,total=0;const stride=Math.max(1,Math.ceil(c.core.length/128));
+          for(let k=0;k<c.core.length;k+=stride){
+            const i=c.core[k],x=i%w,y=Math.floor(i/w);let hit=0;
+            for(const [dx,dy] of dirs)for(let step=1;step<=5;step++){
+              const xx=x+dx*step,yy=y+dy*step;if(xx<0||xx>=w||yy<0||yy>=h)break;
+              const p=rgb(yy*w+xx);if(dist(p,other.color)<=24){hit++;break;}
+            }
+            total++;if(hit>=5)kept++;
+          }
+          c.enclosure.push({color:other.color,ratio:kept/Math.max(1,total)});
+        }
+      }
+      // Recover disconnected pale centers only beside already bounded glyphs.
+      // Median local peaks reject isolated highlights and never invent a color.
+      if(hint&&Math.min(...hint.foreground.map((v,i)=>v-hint.background[i]))>=32){
+        const direction=hint.foreground.map((v,i)=>v-hint.background[i]);
+        const squared=direction.reduce((sum,v)=>sum+v*v,0);
+        for(const c of candidates.filter(c=>dist(c.color,hint.foreground)<=32)){
+          const peaks=[],stride=Math.max(1,Math.ceil(c.core.length/128));
+          for(let k=0;k<c.core.length;k+=stride){
+            const i=c.core[k],x=i%w,y=Math.floor(i/w);let best=null,bestT=.8;
+            for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+              const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=w||yy>=h||!inside(xx,yy))continue;
+              const p=rgb(yy*w+xx),delta=p.map((v,j)=>v-hint.background[j]);
+              const t=delta.reduce((sum,v,j)=>sum+v*direction[j],0)/squared;
+              if(t>bestT&&delta.every((v,j)=>Math.abs(v-t*direction[j])<=16)){best=p;bestT=t;}
+            }
+            if(best)peaks.push(best);
+          }
+          if(peaks.length>=8)c.endpoint=[0,1,2].map(j=>peaks.map(p=>p[j]).sort((a,b)=>a-b)[Math.floor(peaks.length/2)]);
+        }
+      }
+      if(hint&&Math.max(...hint.foreground)<80&&Math.min(...hint.background)>=225){
+        const delta=hint.foreground.map((v,i)=>v-hint.background[i]),squared=delta.reduce((s,v)=>s+v*v,0);
+        for(const c of candidates.filter(c=>c.pixels<=64&&c.coverage<.5)){
+          const mix=c.color.map((v,i)=>v-hint.background[i]);
+          const t=mix.reduce((s,v,i)=>s+v*delta[i],0)/Math.max(1,squared);
+          if(t<.1||t>.8||mix.some((v,i)=>Math.abs(v-t*delta[i])>12))continue;
+          let supported=0;
+          for(const i of c.core){
+            const x=i%w,y=i/w|0;let found=false;
+            for(let yy=Math.max(0,y-2);yy<=Math.min(h-1,y+2);yy++)for(let xx=Math.max(0,x-2);xx<=Math.min(w-1,x+2);xx++)
+              if(inside(xx,yy)&&dist(rgb(yy*w+xx),hint.foreground)<=64)found=true;
+            if(found)supported++;
+          }
+          if(supported>=8&&supported>=c.core.length*.4)c.darkEndpoint=hint.foreground;
+        }
+      }
+      for(const c of candidates)delete c.core;
+      return candidates;
+    };
+    const aidokuResolveDisplayGlyphs = (result,glyphs) => {
+      const distance=(a,b)=>Math.max(...a.map((v,i)=>Math.abs(v-b[i])));
+      const valid=c=>Array.isArray(c)&&c.length===3;
+      const foreground=result?.foreground||result?.displayForeground;
+      const background=result?.surface?.color||result?.background,lettering=result?.lettering?.color;
+      if(!glyphs?.length)return foreground||null;
+      const match=(c,tolerance=32)=>valid(c)&&glyphs.find(g=>distance(g.color,c)<=tolerance);
+      const current=match(foreground),outlined=match(lettering,40);
+      const light=glyphs.filter(g=>Math.min(...g.color)>=175&&Math.max(...g.color)>=225).sort((a,b)=>b.pixels-a.pixels)[0];
+      const colorful=c=>Math.max(...c)-Math.min(...c)>=100;
+      // Sparse antialias bands can outnumber their brighter ink cores on a
+      // dark backing. Retain independently observed ink when bounded glyphs
+      // corroborate that same color ramp and the leading mode is the backing.
+      if(valid(foreground)&&valid(background)&&!result.stroke&&
+          (result.foreground?(result.confidence?.foreground||0)>=.7:!!result.displayForeground)&&
+          Math.min(...foreground.map((v,c)=>v-background[c]))>=32&&
+          aidokuSourceColorContrast(foreground,true,1,background)>=3&&
+          aidokuSourceColorContrast(glyphs[0].color,true,1,background)<2){
+        const direction=foreground.map((v,c)=>v-background[c]);
+        const squared=direction.reduce((sum,v)=>sum+v*v,0);
+        if(squared>=3600&&glyphs.some(g=>{
+          if(g.coverage<.08||g.bands<3||g.components<3)return false;
+          const delta=g.color.map((v,c)=>v-background[c]);
+          const t=delta.reduce((sum,v,c)=>sum+v*direction[c],0)/squared;
+          return t>=.5&&t<=1.2&&delta.every((v,c)=>Math.abs(v-t*direction[c])<=16);
+        })){
+          const endpoint=!result.foreground&&current?.endpoint;
+          if(endpoint&&endpoint.every((v,c)=>v>=foreground[c]))return endpoint;
+          return foreground;
+        }
+      }
+      // An independently observed dark inscription can sit inside bounded
+      // light counters. The enclosing candidate agrees with the local backing,
+      // while the inscription is enclosed in only that direction.
+      if(!result.foreground&&result.displayForeground&&current&&current.coverage>=.2&&valid(background)&&
+          distance(glyphs[0].color,background)<=24&&aidokuSourceColorContrast(current.color,true,1,background)>=3&&
+          (current.enclosure||[]).some(e=>distance(e.color,glyphs[0].color)<=24&&e.ratio>=.85)&&
+          (glyphs[0].enclosure||[]).some(e=>distance(e.color,current.color)<=24&&e.ratio<.2))return current.color;
+      // Use the directly observed saturated core when the initial estimate is
+      // weak and its blue/red endpoint was diluted by textured neighbors.
+      if(current&&current.coverage>=.4&&current.bands>=5&&current.energy>=120&&
+          colorful(foreground)&&(result.confidence?.foreground||0)<.7&&
+          distance(current.color,foreground)>16)return current.color;
+      if(result?.foreground&&current&&current.coverage>=.25&&current.bands>=3&&
+          (!outlined||outlined===current||outlined.coverage<.5||outlined.pixels<current.pixels)&&
+          (result.confidence?.foreground||0)>=.85&&valid(background)&&!result.stroke&&
+          Math.min(...foreground)>=175&&Math.max(...foreground)-Math.min(...foreground)<40&&
+          aidokuSourceColorContrast(foreground,true,1,background)>=
+            aidokuSourceColorContrast(glyphs[0].color,true,1,background)*2.5)return foreground;
+      // Agreement between two independently observed ink paths should survive
+      // a sparse component mask, including gray antialias cores and joined outlines.
+      if((result?.foreground||current?.coverage>=.5)&&valid(foreground)&&valid(lettering)&&distance(foreground,lettering)<=24&&
+          (current?.coverage>=.5||current?.coverage>=.2&&current.bands>=3&&distance(foreground,lettering)<=16||colorful(foreground)||
+            (Math.min(...lettering)>=40&&valid(background)&&Math.min(...background)>=225)))return foreground;
+      // A small amount of black artwork must not displace a much larger, bounded
+      // gray word merely because its source endpoint is darker.
+      const dominant=glyphs[0];
+      if(result?.foreground&&(result.confidence?.foreground||0)>=.5&&dominant.darkEndpoint&&
+          dominant.bands>=3)return dominant.darkEndpoint;
+      // A weak native estimate can select the low-energy interior of a sign.
+      // Repeated brighter components with stronger edges are its inscription.
+      if(!result?.foreground&&current&&dominant!==current&&current.coverage>=.65&&
+          dominant.coverage>=.65&&dominant.bands>=4&&Math.min(...dominant.color)>=175&&
+          dominant.energy>=current.energy*1.8&&distance(dominant.color,current.color)>=48){
+        const bright=glyphs.find(g=>g!==dominant&&g.coverage>=.25&&g.bands>=3&&
+          g.pixels>=dominant.pixels*.25&&g.energy>=dominant.energy*1.2&&
+          g.color.every((v,c)=>v>=dominant.color[c])&&distance(g.color,dominant.color)<=48);
+        return bright?dominant.color.map((v,c)=>Math.round((v+bright.color[c])/2)):dominant.color;
+      }
+
+      if(current&&dominant!==current&&dominant.coverage>=.75&&dominant.score>current.score*2.5&&
+          distance(dominant.color,foreground)<=96)return dominant.color;
+      const enclosedBy=(a,b)=>(a?.enclosure||[]).find(e=>distance(e.color,b.color)<=24)?.ratio||0;
+      // Thin glyph interiors can own few pixels while their thick halo dominates
+      // the component histogram. Independent foreground/stroke roles plus a
+      // one-way enclosure establish the interior without a majority-size test.
+      if(current&&light&&current!==light&&current.coverage>=.15&&current.pixels>=24&&
+          current.bands>=3&&(result.confidence?.foreground||0)>=.7&&valid(result.stroke)&&
+          distance(result.stroke,light.color)<=24&&enclosedBy(current,light)>=.85&&
+          enclosedBy(light,current)<=.15)return foreground;
+      const coloredCore=glyphs.find(g=>g.coverage>=.65&&g.bands>=3&&g.components>=3&&
+        Math.max(...g.color)-Math.min(...g.color)>=60&&light&&g.pixels>=light.pixels*.2&&
+        enclosedBy(g,light)>=.7&&enclosedBy(light,g)<=.15);
+      if(coloredCore&&valid(foreground)&&distance(coloredCore.color,foreground)<=48&&
+          (result.confidence?.foreground||0)>=.6)return coloredCore.color;
+      if(!result?.foreground&&outlined&&Math.max(...lettering)<80&&outlined.coverage>=.6&&
+          light&&enclosedBy(outlined,light)>=.6&&enclosedBy(light,outlined)<.15&&
+          outlined.energy>=100)return lettering;
+      // Glyph interiors retain their color inside a darker edge. Promoting a
+      // pale core needs contrast on the observed backing: the outline-free
+      // caption otherwise loses the dark edge that makes the source legible.
+      const core=glyphs.find(g=>g.coverage>=.2&&g.pixels>=glyphs[0].pixels*.5&&
+        glyphs.some(other=>other!==g&&other.coverage>=.25&&enclosedBy(g,other)>=.85&&
+          enclosedBy(g,other)-enclosedBy(other,g)>=.3));
+      if(core&&(Math.min(...core.color)<175||
+          (valid(background)&&aidokuSourceColorContrast(core.color,true,1,background)>=3))&&
+          (!light||Math.min(...core.color)<175||distance(core.color,light.color)<=24)&&
+          (!outlined||Math.max(...lettering)-Math.min(...lettering)<40||Math.min(...core.color)<175))return core.color;
+      // A defining colored outline is itself repeated, bounded ink and visibly
+      // surrounds the pale core; a panel has neither ownership nor this relation.
+      if(outlined&&colorful(lettering)&&outlined.coverage>=.6&&light&&
+          (!valid(background)||aidokuSourceColorContrast(lettering,true,1,background)>=1.75)&&
+          outlined.pixels>=light.pixels&&enclosedBy(light,outlined)>=.6&&
+          enclosedBy(outlined,light)<.3)return lettering;
+      // The defining outline must dominate the pale glyph core and belong to
+      // bounded ink. A surrounding panel or a thin subtitle shadow fails this.
+      if(outlined&&(outlined.coverage>=.5||colorful(lettering))&&
+          (!light||outlined.pixels>=light.pixels*1.8||
+            (colorful(lettering)&&current&&Math.min(...foreground)<175&&outlined.score>current.score*1.8))&&
+          (!valid(background)||aidokuSourceColorContrast(lettering,true,1,background)>=1.75)){
+        if(!colorful(lettering)&&current&&current.coverage>=.25&&Math.max(...foreground)<100&&distance(foreground,lettering)>25&&outlined.score<current.score)return foreground;
+        return lettering;
+      }
+      // A gray observed core need not be an antialias tint of black. Require
+      // poor ownership before using the separately observed dark endpoint.
+      if(current&&current.coverage<.25&&valid(lettering)&&(result.lettering?.pixels||0)>=32&&Math.max(...lettering)<100&&
+          Math.max(...foreground)<100&&valid(background)&&Math.min(...background)>=225)return lettering;
+      if(current&&current.coverage>=.4&&colorful(foreground)&&Math.min(...foreground)<150)return foreground;
+      // A thin pale glyph can have disconnected solid cores while its larger
+      // antialias band forms the repeated components. Do not replace a validated
+      // ink endpoint with a blend toward an independently supported backing.
+      if(valid(foreground)&&valid(background)&&
+          ((!result.stroke&&(result.confidence?.foreground||0)>=.8&&(result.confidence?.background||0)>=.75)||
+          (result.stroke&&Math.max(...foreground)-Math.min(...foreground)>=40&&distance(result.stroke,background)<=40&&
+            (result.confidence?.foreground||0)>=.75&&(result.confidence?.background||0)>=.5))){
+        const direction=foreground.map((v,c)=>v-background[c]);
+        const squared=direction.reduce((sum,v)=>sum+v*v,0);
+        const best=glyphs.find(g=>g.coverage>=.25);
+        if(best&&squared>=3600){
+          const delta=best.color.map((v,c)=>v-background[c]);
+          const t=delta.reduce((sum,v,c)=>sum+v*direction[c],0)/squared;
+          if(t>=.25&&t<.9&&delta.every((v,c)=>Math.abs(v-t*direction[c])<=12))return foreground;
+        }
+      }
+      if(current&&current.coverage>=.5){
+        if(Math.min(...foreground)>=175){
+          const interior=glyphs.find(g=>g.coverage>=.5&&g.pixels>=current.pixels*.2&&
+            (g.enclosure||[]).some(e=>distance(e.color,current.color)<=24&&e.ratio>=.6)&&
+            (current.enclosure||[]).some(e=>distance(e.color,g.color)<=24&&e.ratio<.3));
+          if(interior)return interior.color;
+        }
+        return foreground;
+      }
+      const reliableSurface=valid(background)&&(result?.confidence?.background||0)>=.75;
+      const backdropCounter=g=>valid(background)&&distance(g.color,background)<=24&&g.coverage<.5&&
+        glyphs.some(other=>other!==g&&other.coverage>=.6&&distance(other.color,background)>=80);
+      const eligible=g=>g.coverage>=(valid(foreground) ? .25 : .2)&&!backdropCounter(g)&&
+        (!reliableSurface||distance(g.color,background)>=80);
+      const best=glyphs.find(eligible);
+      if(!best)return foreground||null;
+      // A locally repeated backing or shadow cannot displace the observed pale
+      // interiors merely because it contributes more total pixels.
+      if(current&&current.coverage>=.35&&current.bands>=3&&valid(background)&&
+          distance(best.color,background)<=48&&distance(foreground,background)>=80&&
+          aidokuSourceColorContrast(foreground,true,1,background)>=3)return foreground;
+      // Prefer the sharp corroborated endpoint over a broad, low-energy tint
+      // on the same ink-to-paper ramp. Genuine dominant gray words were handled
+      // above; this fallback cannot invent an unseen darker color.
+      if(current&&current.pixels>=24&&current.bands>=3&&current.energy>=100&&
+          best.energy<current.energy*.6&&valid(background)){
+        const axis=foreground.map((v,c)=>v-background[c]),length=axis.reduce((s,v)=>s+v*v,0);
+        const delta=best.color.map((v,c)=>v-background[c]);
+        const t=delta.reduce((s,v,c)=>s+v*axis[c],0)/Math.max(1,length);
+        if(t>=.25&&t<=.85&&delta.every((v,c)=>Math.abs(v-t*axis[c])<=12))return foreground;
+      }
+      if(current&&distance(foreground,best.color)<=32)return foreground;
+      // A bright interior split into tiny cores by downsampling still has
+      // directional enclosure; the gray antialias fringe does not own it.
+      const enclosed=glyphs.find(g=>g.pixels>=best.pixels*.25&&Math.min(...g.color)>=175&&
+        (g.enclosure||[]).some(e=>distance(e.color,best.color)<=24&&e.ratio>=.6)&&
+        (best.enclosure||[]).some(e=>distance(e.color,g.color)<=24&&e.ratio<.3));
+      if(enclosed)return enclosed.color;
+      return best.color;
+    };
+    // For an outline-free caption, observe the ink that defines repeated pale
+    // glyphs. Opposing rays must meet the same color in several text bands,
+    // and that color must be concentrated inside OCR bounds, not in the art.
+    // This is display evidence only: never change fill/stroke erasure roles.
+    const aidokuObservedLetteringInk = (rgba,w,h,inner) => {
+      if(!Number.isInteger(w)||!Number.isInteger(h)||w<8||h<8||w*h>24576||!rgba||rgba.length!==w*h*4||
+          !Array.isArray(inner)||inner.length!==4||!inner.every(Number.isFinite)||inner[2]<=0||inner[3]<=0)return null;
+      for(let p=3;p<rgba.length;p+=4)if(rgba[p]<250)return null;
+      const distance=(a,b)=>Math.max(Math.abs(a[0]-b[0]),Math.abs(a[1]-b[1]),Math.abs(a[2]-b[2]));
+      const span=c=>Math.max(...c)-Math.min(...c);
+      const hue=c=>c.map(v=>(v-Math.min(...c))/Math.max(1,span(c)));
+      const pixel=i=>[rgba[i*4],rgba[i*4+1],rgba[i*4+2]];
+      const pale=i=>{const c=pixel(i);return Math.min(...c)>=190&&Math.max(...c)>=230&&span(c)<=70;};
+      const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+      const vertical=inner[3]>=inner[2],modes=new Map();
+      const alongStart=Math.max(0,vertical?inner[1]:inner[0]);
+      const alongEnd=Math.min(vertical?h:w,vertical?inner[1]+inner[3]:inner[0]+inner[2]);
+      const inside=(x,y)=>x>=inner[0]&&x<inner[0]+inner[2]&&y>=inner[1]&&y<inner[1]+inner[3];
+      for(let y=Math.max(1,Math.ceil(inner[1]));y<Math.min(h-1,inner[1]+inner[3]);y++)
+        for(let x=Math.max(1,Math.ceil(inner[0]));x<Math.min(w-1,inner[0]+inner[2]);x++) {
+          const i=y*w+x;if(!pale(i))continue;
+          const hits=dirs.map(([dx,dy])=>{
+            for(let step=1;step<=5;step++) {
+              const xx=x+dx*step,yy=y+dy*step;
+              if(xx<0||yy<0||xx>=w||yy>=h)break;
+              const rgb=pixel(yy*w+xx);
+              if(Math.min(...rgb)<185)return rgb;
+            }
+            return null;
+          });
+          for(let d=0;d<8;d+=2) {
+            const a=hits[d],b=hits[d+1];if(!a||!b||distance(a,b)>28)continue;
+            const near=hits.filter(c=>c&&distance(c,a)<=28);if(near.length<5)continue;
+            const rgb=near.reduce((best,c)=>Math.min(...c)<Math.min(...best)?c:best,a);
+            const key=rgb.map(v=>v>>5).join(',');
+            let mode=modes.get(key);
+            if(!mode){mode={rgb:[],bands:new Set(),points:[]};modes.set(key,mode);}
+            mode.rgb.push(rgb);mode.points.push(i);
+            mode.bands.add(Math.min(7,Math.floor(((vertical?y:x)-alongStart)*8/Math.max(1,alongEnd-alongStart))));
+            break;
+          }
+        }
+      const candidates=[];
+      for(const mode of [...modes.values()].sort((a,b)=>b.points.length-a.points.length).slice(0,4)) {
+        if(mode.points.length<8||mode.bands.size<3)continue;
+        // A single white slit inside a frame is not repeated lettering.
+        const remaining=new Set(mode.points);let components=0;
+        for(const start of mode.points) {
+          if(!remaining.delete(start))continue;
+          components++;const queue=[start];
+          for(let head=0;head<queue.length;head++) {
+            const i=queue[head],x=i%w,y=Math.floor(i/w);
+            for(const [dx,dy] of dirs) {
+              const xx=x+dx,yy=y+dy;
+              if(xx>=0&&xx<w&&yy>=0&&yy<h&&remaining.delete(yy*w+xx))queue.push(yy*w+xx);
+            }
+          }
+        }
+        if(components<3)continue;
+        const rgb=[0,1,2].map(c=>mode.rgb.map(p=>p[c]).sort((a,b)=>a-b)[Math.floor(mode.rgb.length/2)]);
+        let inkInside=0,inkOutside=0,insideCount=0,outsideCount=0;
+        for(let y=0;y<h;y++)for(let x=0;x<w;x++) {
+          const local=inside(x,y);if(local)insideCount++;else outsideCount++;
+          if(distance(pixel(y*w+x),rgb)<=28){if(local)inkInside++;else inkOutside++;}
+        }
+        const support=inkInside/Math.max(1,insideCount),exterior=inkOutside/Math.max(1,outsideCount);
+        if(outsideCount<8||support<.025||support>.55||exterior>support*.6||exterior>.16)continue;
+        // Antialias edges mix the ink with its pale fill or artwork. Recover
+        // a populated observed endpoint of the same hue, not an average tint.
+        const bins=new Map(),chromatic=span(rgb)>=40,seedHue=hue(rgb);
+        for(let y=Math.max(0,Math.ceil(inner[1]));y<Math.min(h,inner[1]+inner[3]);y++)
+          for(let x=Math.max(0,Math.ceil(inner[0]));x<Math.min(w,inner[0]+inner[2]);x++) {
+            const c=pixel(y*w+x);
+            if(chromatic ? span(c)<40||distance(hue(c),seedHue)>.18 : span(c)>24||Math.max(...c)>Math.max(...rgb))continue;
+            const key=c.map(v=>v>>4).join(',');let bin=bins.get(key);
+            if(!bin){bin={count:0,sum:[0,0,0]};bins.set(key,bin);}
+            bin.count++;c.forEach((v,i)=>bin.sum[i]+=v);
+          }
+        const endpoints=[...bins.values()].filter(b=>b.count>=Math.max(4,inkInside*.025))
+          .map(b=>b.sum.map(v=>Math.round(v/b.count)))
+          .sort((a,b)=>chromatic?span(b)-span(a):Math.max(...a)-Math.max(...b));
+        candidates.push({color:endpoints[0]||rgb,pixels:mode.points.length,bands:mode.bands.size,components,support,exterior});
+      }
+      return candidates.sort((a,b)=>b.pixels-a.pixels)[0]||null;
+    };
+    // Require a local fill -> stroke -> exterior transition. A broad backing
+    // can surround letters too, but is not a thin, repeated enclosing band.
+    const aidokuObservedStrokePalette = (rgba,w,h,inner,glyphs,display,result) => {
+      if(!Number.isInteger(w)||!Number.isInteger(h)||w<8||h<8||w*h>24576||!rgba||rgba.length!==w*h*4||
+          !Array.isArray(inner)||inner.length!==4||!inner.every(Number.isFinite)||inner[2]<=0||inner[3]<=0)return null;
+      const n=w*h,dist=(a,b)=>Math.max(Math.abs(a[0]-b[0]),Math.abs(a[1]-b[1]),Math.abs(a[2]-b[2]));
+      for(let i=3;i<rgba.length;i+=4)if(rgba[i]<250)return null;
+      // Independently agreeing native strips already resolved a band which
+      // disappeared in the reduced crop; do not replace its scale with this raster.
+      if(result?.stroke&&result.foreground&&dist(result.foreground,result.stroke)>=48&&
+          result.confidence?.reason==='matching colored glyph interiors inside observed white outlines in independent strips')
+        return {foreground:result.foreground,stroke:result.stroke,widthEvidence:result.widthEvidence};
+      if(result?.stroke&&result.foreground&&result.widthEvidence&&
+          (result.confidence?.foreground||0)>=.8&&Math.min(...result.foreground)>=175&&
+          Math.max(...result.stroke)<130&&
+          ((result.confidence.reason||'').includes('agreeing native detail')||(result.confidence.reason||'').includes('enclosed glyph fill')))
+        return {foreground:result.foreground,stroke:result.stroke,widthEvidence:result.widthEvidence};
+      // A white interior can share the page background. Independent repeated
+      // lettering still corroborates its colored enclosing band even when
+      // that band, rather than the white interior, supplies the display color.
+      if(result?.confidence?.reason==='enclosed glyph fill and distinct enclosing source stroke'&&
+          result.foreground&&Math.min(...result.foreground)>=225&&result.background&&Math.min(...result.background)>=225&&
+          result.stroke&&Math.max(...result.stroke)-Math.min(...result.stroke)>=40&&
+          result.widthEvidence?.samplePixels>=1&&result.widthEvidence.relativeToGlyph<=.3&&
+          result.lettering?.components>=3&&result.lettering.bands>=3&&result.lettering.exterior<.02&&
+          dist(result.lettering.color,result.stroke)<=24&&display&&dist(display,result.stroke)<=24)
+        return {foreground:result.foreground,stroke:result.stroke,widthEvidence:result.widthEvidence};
+      // Corroborated native/enclosed bands outrank a color from a reduced crop.
+      if(result?.stroke&&result.foreground&&result.background&&result.widthEvidence?.samplePixels>=1&&
+          result.widthEvidence.relativeToGlyph<=.3&&(result.confidence?.foreground||0)>=.8&&
+          result.lettering?.components>=3&&result.lettering.bands>=3&&
+          dist(result.lettering.color,result.stroke)<=24&&dist(result.foreground,result.stroke)>=48&&
+          ((result.confidence.reason==='agreeing native detail palettes preserve fill and outline roles'&&
+            Math.min(...result.foreground)>=225&&(result.confidence.background||0)>=.5)||
+           (result.confidence.reason==='enclosed glyph fill and distinct enclosing source stroke'&&
+            Math.max(...result.stroke)<130&&result.lettering.exterior<.02&&dist(result.foreground,result.background)>=48)||
+           ((result.confidence.reason||'').includes('observed glyph fill and following halo')&&
+            Math.min(...result.foreground)>=225&&dist(result.stroke,result.background)>=48&&
+            glyphs?.some(g=>g.coverage>=.6&&dist(g.color,result.foreground)<=24&&
+              (g.enclosure||[]).some(e=>dist(e.color,result.stroke)<=24&&e.ratio>=.7)))))
+        return {foreground:result.foreground,stroke:result.stroke,widthEvidence:result.widthEvidence};
+      if(!glyphs?.length)return null;
+      const rgb=i=>[rgba[i*4],rgba[i*4+1],rgba[i*4+2]];
+      const inside=(x,y)=>x>=inner[0]&&x<inner[0]+inner[2]&&y>=inner[1]&&y<inner[1]+inner[3];
+      const bins=new Map();
+      for(let i=0;i<n;i++) {if(!inside(i%w,Math.floor(i/w)))continue;const c=rgb(i),key=c.map(v=>v>>4).join(',');let b=bins.get(key);if(!b){b={n:0,sum:[0,0,0]};bins.set(key,b);}b.n++;c.forEach((v,j)=>b.sum[j]+=v);}
+      const seeds=[];
+      for(const b of [...bins.values()].sort((a,b)=>b.n-a.n)) {if(b.n<4)continue;const c=b.sum.map(v=>Math.round(v/b.n));if(seeds.some(s=>dist(s,c)<32))continue;seeds.push(c);if(seeds.length>=12)break;}
+      const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]],pairs=[];
+      for(const glyph of glyphs.slice(0,6)) {
+        const surroundedPale=Math.min(...glyph.color)>=225&&glyph.coverage>=.5&&
+          (glyph.enclosure||[]).some(e=>e.ratio>=.6&&glyphs.some(g=>dist(g.color,e.color)<=24&&g.coverage>=.5&&
+            !(g.enclosure||[]).some(back=>dist(back.color,glyph.color)<=24&&back.ratio>e.ratio-.3)));
+        // Display can flatten an outline into the text color. Keep the
+        // physical interior when ownership or directional enclosure supports it.
+        const enclosedByOwnedEdge=(glyph.enclosure||[]).some(e=>e.ratio>=.65&&
+          glyphs.some(g=>dist(g.color,e.color)<=24&&g.coverage>=.65));
+        if(glyph.coverage<.15)continue;
+        if(glyph.coverage<.5&&display&&dist(glyph.color,display)>24&&
+            (!result?.foreground||dist(glyph.color,result.foreground)>24)&&!enclosedByOwnedEdge)continue;
+        const supportedFill=surroundedPale||enclosedByOwnedEdge||glyph.coverage>=.5||
+          (result?.foreground&&dist(glyph.color,result.foreground)<=40);
+        if(display&&dist(glyph.color,display)>40&&!supportedFill)continue;
+        const fill=glyph.color,core=[],mask=new Uint8Array(n),seen=new Uint8Array(n),exteriorFill=new Uint8Array(n),queue=new Int32Array(n),heights=[];
+        for(let i=0;i<n;i++)if(dist(rgb(i),fill)<=20)mask[i]=1;
+        for(let start=0;start<n;start++){
+          if(!mask[start]||seen[start])continue;
+          let head=0,tail=1,x0=w,x1=0,y0=h,y1=0,edge=false,local=0;seen[start]=1;queue[0]=start;
+          while(head<tail){const i=queue[head++],x=i%w,y=Math.floor(i/w);x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);edge||=!x||!y||x===w-1||y===h-1;if(inside(x,y))local++;
+            for(const q of [x?i-1:-1,x+1<w?i+1:-1,y?i-w:-1,y+1<h?i+w:-1])if(q>=0&&mask[q]&&!seen[q]){seen[q]=1;queue[tail++]=q;}}
+          if(edge)for(let k=0;k<tail;k++)exteriorFill[queue[k]]=1;
+          if(edge||tail<3||local<tail*.85||tail/((x1-x0+1)*(y1-y0+1))>.9||Math.max(x1-x0,y1-y0)<3)continue;
+          heights.push(Math.max(x1-x0+1,y1-y0+1));for(let k=0;k<tail;k++)if(inside(queue[k]%w,Math.floor(queue[k]/w)))core.push(queue[k]);
+        }
+        if(heights.length<3||core.length<8)continue;
+        heights.sort((a,b)=>a-b);const size=heights[Math.floor(heights.length*.75)],reach=Math.min(16,Math.max(4,Math.ceil(size*.6)));
+        const stride=Math.max(1,Math.ceil(core.length/128));
+        const adjacent=new Map();
+        for(let k=0;k<core.length;k+=stride){const i=core[k],x=i%w,y=Math.floor(i/w);
+          for(const [dx,dy] of dirs)for(const step of [1,2]){const xx=x+dx*step,yy=y+dy*step;if(xx<0||xx>=w||yy<0||yy>=h)continue;
+            const c=rgb(yy*w+xx);if(dist(c,fill)<48)continue;const key=c.map(v=>v>>4).join(',');let b=adjacent.get(key);if(!b){b={n:0,sum:[0,0,0]};adjacent.set(key,b);}b.n++;c.forEach((v,j)=>b.sum[j]+=v);
+          }
+        }
+        const localSeeds=seeds.slice();
+        let added=0;for(const b of [...adjacent.values()].sort((a,b)=>b.n-a.n)) {if(b.n<4)continue;const c=b.sum.map(v=>Math.round(v/b.n));if(localSeeds.some(s=>dist(s,c)<24))continue;localSeeds.push(c);if(++added>=4)break;}
+        for(const stroke of localSeeds){
+          if(dist(fill,stroke)<48)continue;
+          // Dark text can share the exterior color. Only an independently owned
+          // enclosing edge permits re-entry into the boundary-connected fill.
+          // White counters in ordinary dark lettering must not invert its roles.
+          const rejoinsExterior=Math.min(...fill)<160&&glyph.coverage>=.15&&
+            glyphs.some(g=>dist(g.color,stroke)<=24&&g.coverage>=.7);
+          let rays=0,hits=0,exits=0,points=0,enclosed=0,backgroundExits=0;const bands=[],exitsByDirection=new Array(8).fill(0);
+          for(let k=0;k<core.length;k+=stride){const i=core[k],x=i%w,y=Math.floor(i/w);let localRays=0,localHits=0,localExits=0;
+            for(let di=0;di<dirs.length;di++){const [dx,dy]=dirs[di];let hit=0,exit=0,blocked=false;
+              for(let step=1;step<=reach;step++){
+                const xx=x+dx*step,yy=y+dy*step;if(xx<0||xx>=w||yy<0||yy>=h)break;
+                const c=rgb(yy*w+xx),df=dist(c,fill),ds=dist(c,stroke);
+                if(!hit){
+                  if(df<=24)continue;
+                  if(ds<=28&&df>=48){hit=step;continue;}
+                  // Allow only the antialias ramp between this pair.
+                  const v=stroke.map((v,j)=>v-fill[j]),d=c.map((v,j)=>v-fill[j]),t=d.reduce((s,v,j)=>s+v*(stroke[j]-fill[j]),0)/v.reduce((s,v)=>s+v*v,0);
+                  if(t>0&&t<1&&Math.max(...d.map((d,j)=>Math.abs(d-t*v[j])))<=24)continue;
+                  blocked=true;break;
+                } else if(ds>24){
+                  if(df<=40){if(exteriorFill[yy*w+xx]&&rejoinsExterior){exit=step;bands.push(step-hit);backgroundExits++;}break;}
+                  const xx2=xx+dx,yy2=yy+dy,xx3=xx+2*dx,yy3=yy+2*dy;
+                  const v=stroke.map((v,j)=>v-fill[j]),delta=c.map((v,j)=>v-fill[j]);
+                  const t=delta.reduce((s,v,j)=>s+v*(stroke[j]-fill[j]),0)/v.reduce((s,v)=>s+v*v,0);
+                  const offAxis=Math.max(...delta.map((d,j)=>Math.abs(d-t*v[j])));
+                  if(t>1.05&&offAxis<=24)break;
+                  if(t<-.12||offAxis>24){exit=step;bands.push(step-hit);break;}
+                  if(xx3>=0&&xx3<w&&yy3>=0&&yy3<h&&xx2>=0&&xx2<w&&yy2>=0&&yy2<h&&
+                    dist(c,rgb(yy2*w+xx2))<=8&&dist(c,rgb(yy3*w+xx3))<=8){exit=step;bands.push(step-hit);break;}
+                }
+              }
+              if(hit||blocked){localRays++;if(hit)localHits++;if(exit){localExits++;exitsByDirection[di]++;}}
+            }
+            rays+=localRays;hits+=localHits;exits+=localExits;points++;if(localHits>=5&&localExits>=2)enclosed++;
+          }
+          const hitRatio=hits/Math.max(1,rays),exitRatio=exits/Math.max(1,hits),coverage=enclosed/Math.max(1,points);
+          if(hitRatio<.8||exitRatio<.15||coverage<.3||bands.length<12)continue;
+          bands.sort((a,b)=>a-b);const band=bands[Math.floor(bands.length/2)],p90=bands[Math.floor(bands.length*.9)];
+          if((band<2&&(hitRatio<.97||(glyph.coverage<.8&&backgroundExits/Math.max(1,exits)<.6)))||band>size*.3||p90>size*.5)continue;
+          if(exitsByDirection[0]+exitsByDirection[1]<4||exitsByDirection[2]+exitsByDirection[3]<4)continue;
+          pairs.push({foreground:fill,stroke,band,glyphPixels:size,hitRatio,exitRatio,coverage,backgroundExits,exits,score:glyph.score*hitRatio*coverage});
+        }
+      }
+      const best=pairs.filter(p=>{
+        const surface=result?.captionBackground;
+        if(!surface||p.backgroundExits/Math.max(1,p.exits)>=.6)return true;
+        // A repeated narrow black band can meet a dark caption background.
+        // One-pixel fringes and broad backing regions do not establish it.
+        const closedDarkBand=Math.max(...p.stroke)<=32&&p.hitRatio>=.97&&p.band>=2&&p.coverage>=.3&&p.exitRatio>=.18;
+        if(closedDarkBand)return true;
+        // Without independent fill validation, a weak color difference from
+        // the local backing can be texture/antialiasing rather than a stroke.
+        // A white band can meet a white surface or a second outer outline.
+        // Require agreement with the separately observed physical fill/edge.
+        const closedWhiteBand=Math.min(...p.stroke)>=225&&p.hitRatio>=.97&&p.band>=2&&p.coverage>=.3&&Math.min(...p.foreground)<160&&
+          ((!result?.foreground)||(result.stroke&&dist(result.stroke,p.stroke)<=24&&dist(result.foreground,p.foreground)<=24));
+        if(dist(p.stroke,surface)<=40&&Math.min(...p.stroke)<245&&!closedWhiteBand&&!glyphs.some(g=>dist(g.color,p.foreground)<=24&&
+            (g.enclosure||[]).some(e=>dist(e.color,p.stroke)<=24&&e.ratio>=.5)))return false;
+        if(!(result.confidence?.foreground>0)&&dist(p.stroke,surface)<=40&&!closedWhiteBand)return false;
+        const vector=surface.map((v,c)=>v-p.foreground[c]),delta=p.stroke.map((v,c)=>v-p.foreground[c]);
+        const squared=vector.reduce((sum,v)=>sum+v*v,0);
+        const t=delta.reduce((sum,v,c)=>sum+v*vector[c],0)/Math.max(1,squared);
+        // A point on the ink/surface antialias ramp is not a third source color.
+        if(t>.12&&t<1.08&&Math.max(...delta.map((v,c)=>Math.abs(v-t*vector[c])))<=24&&!closedWhiteBand)return false;
+        return Math.min(...p.foreground)<160||dist(p.stroke,surface)>24;
+      }).sort((a,b)=>b.score-a.score)[0];
+      if(best)return best;
+      // A pale core can be flattened to its defining colored outline for display.
+      // Keep physical roles distinct when reciprocal enclosure strongly favors
+      // the pale interior and both colors own repeated bounded glyph components.
+      for(const fill of glyphs){
+        if(Math.min(...fill.color)<225||fill.coverage<.75)continue;
+        for(const edge of glyphs){
+          if(Math.max(...edge.color)-Math.min(...edge.color)<40||edge.coverage<.8||fill.pixels<edge.pixels*.4)continue;
+          const enclosed=(fill.enclosure||[]).find(e=>dist(e.color,edge.color)<=24)?.ratio||0;
+          const reverse=(edge.enclosure||[]).find(e=>dist(e.color,fill.color)<=24)?.ratio||0;
+          if(enclosed>=.6&&enclosed-reverse>=.3)
+            return {foreground:fill.color,stroke:edge.color,widthEvidence:null};
+        }
+      }
+
+      // Repeated enclosed colored interiors already establish their white edge.
+      // A nearly white exposed background cannot disprove that local topology.
+      if(result?.stroke && result.foreground && dist(result.foreground,result.stroke)>=48 && (result.confidence?.foreground||0)>=.6 &&
+          (result.confidence?.reason==='repeated colored interiors enclosed by source white outlines'||
+           (result.confidence?.reason==='repeated dark glyph interiors enclosed by white source outlines'&&
+            result.background&&dist(result.stroke,result.background)>12&&
+            (result.confidence?.background||0)>=.5&&((result.widthEvidence?.samplePixels||0)>=1||
+              (dist(result.stroke,result.background)>=24&&glyphs.some(g=>g.coverage>=.6&&dist(g.color,result.foreground)<=24&&
+                (g.enclosure||[]).some(e=>dist(e.color,result.stroke)<=24&&e.ratio>=.65)))))||
+           (result.confidence?.reason==='enclosed glyph fill and distinct enclosing source stroke'&&
+            display&&dist(display,result.foreground)<=32)))
+        return {foreground:result.foreground,stroke:result.stroke,widthEvidence:result.widthEvidence};
+      const evidence=result?.widthEvidence;
+      // A width estimate alone can describe a caption panel or nearby art.
+      // Retain it only with enclosure and exterior contrast, or independent
+      // native lettering agreement. This also supports subpixel source bands.
+      const ownedEdge=result?.stroke&&glyphs.some(g=>g.coverage>=.65&&dist(g.color,result.stroke)<=24);
+      const enclosingFill=result?.foreground&&result.stroke&&glyphs.find(g=>(g.coverage>=.25||(g.coverage>=.15&&ownedEdge))&&dist(g.color,result.foreground)<=32&&
+        (g.enclosure||[]).some(e=>dist(e.color,result.stroke)<=24&&e.ratio>=.65));
+      const distinctExterior=result?.background&&result.stroke&&dist(result.background,result.stroke)>=24;
+      const paleEndpoint=enclosingFill?.coverage>=.8&&result?.foreground&&
+        Math.max(...result.foreground)-Math.min(...result.foreground)>=40&&Math.min(...result.stroke)>=245;
+      const corroboratedNative=result?.foreground&&result.stroke&&result.confidence?.reason==='agreeing native detail palettes preserve fill and outline roles'&&
+        Math.min(...result.foreground)>=225&&Math.max(...result.stroke)<80&&
+        ((result.lettering?.components>=3&&result.lettering.bands>=3&&dist(result.lettering.color,result.stroke)<=40)||
+          (distinctExterior&&evidence?.relativeToGlyph<=.2));
+      if(result?.stroke && result.foreground && evidence?.samplePixels>=.5 &&
+          evidence.relativeToGlyph<=.3 && ((result.confidence?.foreground||0)>=.6||
+            (enclosingFill&&glyphs.some(g=>g.coverage>=.65&&dist(g.color,result.stroke)<=24))) &&
+          ((enclosingFill&&(distinctExterior||paleEndpoint))||corroboratedNative) &&
+          dist(result.foreground,result.stroke)>=48 &&
+          (evidence.method==='outer stroke boundary distance to validated ink; external Manhattan band'||
+           evidence.method==='alternative observed ink with glyph-following halo; exterior surface unverified'))
+        return {foreground:result.foreground,stroke:result.stroke,band:evidence.samplePixels,glyphPixels:evidence.glyphPixels,method:'validated full outer boundary'};
+      return null;
+    };
+
     const aidokuSourceColorSampler = (image, enabled, phase = 'ocr', budget = {pixels:393216, detailPixels:98304}) => {
       const stats = {pixels: 0, hits: 0, samples: 0, milliseconds: 0};
       if (!enabled || !image?.complete || !image.naturalWidth) return {sample: () => null, stats};
@@ -945,15 +1647,15 @@ enum BrowserSourceTextColor {
       const identity=[image.currentSrc||image.src||'',image.naturalWidth,image.naturalHeight];
       const previous=identities.get(image);
       if(previous && identity.some((value,index)=>value!==previous[index])) {
-        globalThis.__aidokuSourceTextColorsV14?.delete(image);
-        globalThis.__aidokuTranslatedSourceTextColorsV14?.delete(image);
+        globalThis.__aidokuSourceTextColorsV27?.delete(image);
+        globalThis.__aidokuTranslatedSourceTextColorsV27?.delete(image);
       }
       identities.set(image,identity);
       // OCR and translated text each sample the original image once. Revisions
       // within the same phase reuse their own palette, without sampling overlays.
       const caches = phase === 'translation'
-        ? (globalThis.__aidokuTranslatedSourceTextColorsV14 ||= new WeakMap())
-        : (globalThis.__aidokuSourceTextColorsV14 ||= new WeakMap());
+        ? (globalThis.__aidokuTranslatedSourceTextColorsV27 ||= new WeakMap())
+        : (globalThis.__aidokuSourceTextColorsV27 ||= new WeakMap());
       let cache = caches.get(image);
       if (!cache) { cache = new Map(); caches.set(image, cache); }
       let canvas, context, unavailable = false;
@@ -1001,6 +1703,9 @@ enum BrowserSourceTextColor {
           result = aidokuRecoverSourcePanel(rgba, w, h,
             [(bounds[0]*iw-x)*w/sw, (bounds[1]*ih-y)*h/sh, bounds[2]*iw*w/sw, bounds[3]*ih*h/sh], result);
           if (result?.widthEvidence) result.widthEvidence.sampleScale = scale;
+          const inner=[(bounds[0]*iw-x)*w/sw,(bounds[1]*ih-y)*h/sh,bounds[2]*iw*w/sw,bounds[3]*ih*h/sh];
+          let lettering=aidokuObservedLetteringInk(rgba,w,h,inner);
+          const nativeGlyphs=[];
           // Long lines can downsample a colored fill into its white outline.
           // Retry at most three small native-detail strips, sharing the original
           // per-page pixel budget. Require independent agreeing observations.
@@ -1059,8 +1764,11 @@ enum BrowserSourceTextColor {
             stroke:localFill.stroke,outline:localFill.stroke,widthEvidence:null,
             confidence:{...result?.confidence,foreground:localFill.confidence,stroke:localFill.confidence,
               reason:'repeated colored interiors enclosed by source white outlines'}};
-          if (longText && !protectedDarkInk && (!result?.foreground || result.confidence?.foreground<.6 || verifyWhiteHalo || (scale<1 && result?.stroke && result?.foreground && Math.max(...result.foreground.map((v,i)=>Math.abs(v-result.stroke[i])))<80))) {
-            const candidates=[], nativeCandidates=[];
+          const needsRoleDetails=!result?.foreground||result.confidence?.foreground<.6||verifyWhiteHalo||
+            (scale<1&&result?.stroke&&result?.foreground&&Math.max(...result.foreground.map((v,i)=>Math.abs(v-result.stroke[i])))<80);
+          const needsLetteringDetails=scale<1&&result?.foreground&&Math.max(...result.foreground)>=225&&Math.min(...result.foreground)>=180;
+          if (longText && !protectedDarkInk && (needsRoleDetails||needsLetteringDetails)) {
+            const candidates=[], nativeCandidates=[], letteringCandidates=[];
             const detailPalette=verifyWhiteHalo?{...result,foreground:null}:result;
             const stripLength=Math.min(192,Math.floor((vertical?sh:sw)/2),Math.floor((detailLimit-detailSpent)/(2*(vertical?sw:sh))));
             for(const fraction of [0,1,.5]) {
@@ -1075,6 +1783,17 @@ enum BrowserSourceTextColor {
               canvas.width=cw;canvas.height=ch;
               context.drawImage(image,stripX,stripY,stripWidth,stripHeight,0,0,cw,ch);
               let detail=context.getImageData(0,0,cw,ch).data;
+              if(fraction!==.5) {
+                const glyphs=aidokuObservedGlyphPalette(detail,cw,ch,
+                  [(bounds[0]*iw-stripX)*cw/stripWidth,(bounds[1]*ih-stripY)*ch/stripHeight,
+                    bounds[2]*iw*cw/stripWidth,bounds[3]*ih*ch/stripHeight]);
+                if(glyphs)nativeGlyphs.push(glyphs);
+                const observed=aidokuObservedLetteringInk(detail,cw,ch,
+                  [(bounds[0]*iw-stripX)*cw/stripWidth,(bounds[1]*ih-stripY)*ch/stripHeight,
+                    bounds[2]*iw*cw/stripWidth,bounds[3]*ih*ch/stripHeight]);
+                if(observed)letteringCandidates.push(observed);
+              }
+              if(!needsRoleDetails)continue;
               // The enclosed-component filter uses a column's geometry.
               // Transpose horizontal lines so the same evidence rules apply.
               if(!vertical) {
@@ -1100,6 +1819,11 @@ enum BrowserSourceTextColor {
               if(candidates.length>=2 && Math.max(...candidates[0].foreground.map((v,i)=>
                 Math.abs(v-candidates[candidates.length-1].foreground[i])))<=28)break;
             }
+            // Native strips retain thin outlines lost to crop reduction. Require
+            // independent agreeing observations, sharing the existing detail reads.
+            const matchingLettering=letteringCandidates.filter(c=>letteringCandidates.filter(other=>
+              Math.max(...c.color.map((v,i)=>Math.abs(v-other.color[i])))<=24).length>=2);
+            if(matchingLettering.length>=2)lettering=matchingLettering.sort((a,b)=>b.pixels-a.pixels)[0];
             const agreeing=candidates.filter(c=>candidates.filter(other=>
               Math.max(...c.foreground.map((v,i)=>Math.abs(v-other.foreground[i])))<=28).length>=2);
             if(!result?.foreground && nativeCandidates.length){
@@ -1142,8 +1866,45 @@ enum BrowserSourceTextColor {
             if(recovered)result={...result,foreground:recovered.foreground,stroke:null,outline:null,widthEvidence:null,
               confidence:{...result?.confidence,foreground:.7,stroke:0,reason:'repeated chromatic strokes locally enclosed by white source halos'}};
           }
+          if(lettering)result={...result,lettering};
+          const glyphs=aidokuObservedGlyphPalette(rgba,w,h,inner, result?.background&&(result?.foreground&&(result.confidence?.foreground||0)>=.5||!result?.foreground&&result?.displayForeground) ? {foreground:result.foreground||result.displayForeground,background:result.background} : null);
+          let display=aidokuResolveDisplayGlyphs(result,glyphs);
+          // Only agreeing native strips refine a pale antialiased core. Dark
+          // and chromatic source endpoints must not be diluted back into gray.
+          if(display&&Math.min(...display)>=160&&Math.max(...display)-Math.min(...display)<40&&nativeGlyphs.length>=2){
+            const supportedMain=(result?.confidence?.foreground||0)>=.85&&glyphs?.some(g=>g.coverage>=.75&&
+              Math.max(...g.color.map((v,c)=>Math.abs(v-display[c])))<=16);
+            const near=(a,b)=>Math.max(...a.map((v,i)=>Math.abs(v-b[i])));
+            const candidates=nativeGlyphs[0].filter(c=>c.coverage>=.35&&near(c.color,display)<=64&&
+              (!supportedMain||c.color.every((v,i)=>v>=display[i]-8))&&
+              nativeGlyphs[1].some(other=>other.coverage>=.35&&near(c.color,other.color)<=20));
+            if(candidates.length)display=candidates.sort((a,b)=>b.score-a.score)[0].color;
+          }
+          result={...result,displayEvidence:{color:display}};
           result=aidokuInteriorCaptionSurface(rgba,w,h,
             [(bounds[0]*iw-x)*w/sw,(bounds[1]*ih-y)*h/sh,bounds[2]*iw*w/sw,bounds[3]*ih*h/sh],result);
+          result=aidokuObservedCaptionBackground(rgba,w,h,inner,result);
+          // A display outline needs a distinct physical band. Erasure also
+          // needs the observed halo/antialias colors even when that band cannot
+          // be established. Keep this evidence independent of display roles.
+          const sourceInk=result?.foreground&&result.background?{
+            foreground:[...result.foreground],background:[...result.background],
+            stroke:result.stroke?[...result.stroke]:null,
+            widthEvidence:result.widthEvidence?{...result.widthEvidence}:null,
+            confidence:{...result.confidence}}:null;
+          const strokeEvidence=aidokuObservedStrokePalette(rgba,w,h,inner,glyphs,display,result);
+          // Keep display/background decisions above independent from erasure roles.
+          // Color rejection must not widen an already measured cleanup fringe.
+          result={...result,sourceInk,stroke:strokeEvidence?.stroke||null,outline:strokeEvidence?.stroke||null,
+            widthEvidence:strokeEvidence?(strokeEvidence.widthEvidence!==undefined?strokeEvidence.widthEvidence:
+              (result?.stroke&&Math.max(...result.stroke.map((v,c)=>Math.abs(v-strokeEvidence.stroke[c])))<=25?result.widthEvidence:{samplePixels:strokeEvidence.band,
+              relativeToGlyph:strokeEvidence.band/strokeEvidence.glyphPixels,
+              glyphPixels:strokeEvidence.glyphPixels,sampleScale:scale,
+              method:strokeEvidence.method||'bounded fill to stroke to exterior transitions'})):result?.widthEvidence,
+            confidence:{...result?.confidence,stroke:strokeEvidence ? .7 : 0,
+              strokeReason:strokeEvidence?'observed narrow enclosing band':'no independent enclosing band'}};
+          if(strokeEvidence)result.foreground=strokeEvidence.foreground;
+
         } catch (_) { unavailable = true; }
         finally { stats.milliseconds += performance.now() - started; }
         if (cache.size >= 256) cache.delete(cache.keys().next().value);

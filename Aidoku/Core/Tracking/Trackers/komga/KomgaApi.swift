@@ -39,11 +39,13 @@ actor KomgaApi {
 
         if useChapters {
             return .init(
+                progressUnit: .chapters,
                 lastReadChapter: data.lastReadContinuousNumberSort,
                 totalChapters: Int(floor(data.maxNumberSort)),
             )
         } else {
             return .init(
+                progressUnit: .volumes,
                 lastReadVolume: Int(floor(data.lastReadContinuousNumberSort)),
                 totalVolumes: Int(floor(data.maxNumberSort)),
             )

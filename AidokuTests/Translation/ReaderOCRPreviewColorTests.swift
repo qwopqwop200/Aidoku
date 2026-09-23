@@ -40,11 +40,16 @@ struct ReaderOCRPreviewColorTests {
                 settings: settings, targetLanguage: "ko", viewport: CGSize(width: 240, height: 120)).first)
             #expect(payload["sourceColorEligible"] as? Bool == true)
             if failure == "low-confidence" {
-                _ = try await web.callAsyncJavaScript("""
+                _ = try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
                 const image=document.getElementById('reader-source-image');
                 const cache=new Map([[bounds.join(','), {background:[255,255,255],confidence:{background:0.1}}]]);
-                globalThis.__aidokuSourceTextColorsV14=new WeakMap([[image,cache]]);
-                globalThis.__aidokuTranslatedSourceTextColorsV14=new WeakMap([[image,cache]]);
+                aidokuSourceColorSampler(image, true, 'ocr');
+                aidokuSourceColorSampler(image, true, 'translation');
+                for (const prefix of ['__aidokuSourceTextColorsV', '__aidokuTranslatedSourceTextColorsV']) {
+                  const cacheName=Object.keys(globalThis).find(key=>key.startsWith(prefix));
+                  if (!cacheName) throw new Error('Production source-color cache was not initialized');
+                  globalThis[cacheName].set(image,cache);
+                }
                 """, arguments: ["bounds": try #require(payload["sourceBounds"])], in: nil, contentWorld: .page)
             }
             _ = try await web.callAsyncJavaScript(BrowserPageImageOverlayRenderer.renderScript,

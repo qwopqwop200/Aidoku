@@ -738,7 +738,7 @@
 "PORTRAIT_ROWS" = "სვეტების რაოდენობა ვერტიკალურ რეჟიმში";
 "LANDSCAPE_ROWS" = "სვეტების რაოდენობა ჰორიზონტალურ რეჟიმში";
 "RESUME_LAST_OPENED_CHAPTER" = "ბოლოს გახსნილი თავის კითხვის გაგრძელება";
-"CONTINUE_READING_ON_RESELECT" = "კითხვის გასაგრძელებლად ორჯერ შეეხეთ ისტორიის ჩანართს";
+"CONTINUE_READING_ON_RESELECT" = "კითხვის გასაგრძელებლად ხელახლა შეეხეთ ისტორიის ჩანართს";
 "DOWNLOADED_CHAPTER_BADGES" = "ჩამოტვირთული თავების ნიშნები";
 "PIN_TITLES" = "სათაურების ჩამაგრება";
 "PIN_DISABLED" = "ჩამაგრება გამორთულია";
@@ -957,7 +957,7 @@
 "STATUS_COLON_%@" = "სტატუსი: %@";
 "TYPE_COLON_%@" = "ტიპი: %@";
 "VIEW_ON_WEBSITE" = "ნახვა საიტზე";
-"CLEAR_TRACKED_MANGA" = "მანგის ტრეკერებთან კავშირების წაშლა";
+"CLEAR_TRACKED_MANGA" = "ტრეკერებთან ყველა კავშირის წაშლა";
 "CLEAR_TRACKED_MANGA_TEXT" = "ეს ქმედება შეუქცევადია. მანგაზე დამატებული ტრეკერების ყველა კავშირი წაიშლება.";
 "SEARCH_OPTIONS" = "ძიების პარამეტრები";
 "SHOW_NSFW_RESULTS" = "NSFW შედეგების ჩვენება";
@@ -1172,3 +1172,28 @@
 "TRANSLATION_FILTERING" = "ტექსტის გაფილტვრა";
 
 "TRANSLATION_TARGETS" = "სათარგმნი შიგთავსი";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "გვერდები: %i / %i";
+"1_SERIES" = "1 სერია";
+"SKIPPING_ONE_CHAPTER" = "გამოტოვებულია 1 თავი, რადგან ის წყაროში არ არის ან ფილტრებით გამოირიცხა";
+"BACKUP_CREATE_ERROR_TEXT" = "სარეზერვო ასლის შექმნა ვერ მოხერხდა. გთხოვთ, სცადოთ ხელახლა.";
+"YES" = "დიახ";
+"NO" = "არა";
+"CHAPTERS_%i_OF_%i" = "თავები: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "ნაწარმოების თვალთვალში დამატება ვერ მოხერხდა. გთხოვთ, სცადოთ ხელახლა.";
+"SORT_READ_PROGRESS" = "კითხვის პროგრესი";
+"SORT_RELEASE_YEAR" = "გამოცემის წელი";
+"SOURCE_INVALID_PAGE_COUNT" = "გვერდების არასწორი რაოდენობა";
+"SOURCE_INVALID_GENRE_ID" = "ჟანრის არასწორი ID";
+"SOURCE_INVALID_LISTING" = "არასწორი სია";
+"SOURCE_INVALID_LISTING_TYPE" = "სიის არასწორი ტიპი";
+"SOURCE_INVALID_ITEM_TYPE" = "ელემენტის არასწორი ტიპი";
+"DICTIONARY_ERROR" = "ლექსიკონის შეცდომა";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "ლექსიკონების პარამეტრების შენახვა ვერ მოხერხდა: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "არჩეული ლექსიკონების იმპორტი ვერ მოხერხდა:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "ზოგიერთი ლექსიკონის იმპორტი ვერ მოხერხდა:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "ლექსიკონის იმპორტი ვერ მოხერხდა.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "ვრცელი იაპონურ-ინგლისური ლექსიკონი, რომელსაც უვლის Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "იაპონური საკუთარი სახელების ლექსიკონი, რომელსაც უვლის Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "სიხშირული ლექსიკონი, რომელიც ეფუძნება https://jiten.moe-ის მედიაკორპუსს.";

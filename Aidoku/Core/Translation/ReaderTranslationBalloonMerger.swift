@@ -11,7 +11,23 @@ enum ReaderTranslationBalloonMerger {
     }
 
     static func apply(_ regions: [ReaderTranslationRegion], image: CGImage, sourceLines: [SourceLine] = []) -> [ReaderTranslationRegion] {
-        let regions = joinStackedCaptionFragments(regions, image: image, sourceLines: sourceLines)
+        // The pixel bridge/lobe checks below use upright axes. Native OCR
+        // already groups rotated columns using their source quads; applying
+        // these upright rules again would replace that quad with an AABB.
+        let rotated = regions.filter { region in
+            BrowserOverlayRotation.geometry(polygon: region.polygon.map {
+                CGPoint(x: $0.x * CGFloat(image.width), y: $0.y * CGFloat(image.height))
+            }, singleVerticalColumn: region.sourceSingleVerticalColumn == true) != nil
+        }
+        if !rotated.isEmpty {
+            let ids = Set(rotated.map(\.id))
+            let order = Dictionary(regions.enumerated().map { ($0.element.id, $0.offset) }, uniquingKeysWith: min)
+            return (apply(regions.filter { !ids.contains($0.id) }, image: image, sourceLines: sourceLines) + rotated)
+                .sorted { order[$0.id, default: 0] < order[$1.id, default: 0] }
+        }
+        let regions = joinShortStaggeredReactions(
+            joinRepeatedKanaLeadIns(
+                joinStackedCaptionFragments(regions, image: image, sourceLines: sourceLines), image: image), image: image)
         let width = CGFloat(image.width), height = CGFloat(image.height)
         let candidates = regions.filter { $0.sourceOrientation == .vertical && $0.source.count >= 2 &&
             $0.rect.height * height >= $0.rect.width * width * 1.5 }
@@ -50,18 +66,10 @@ enum ReaderTranslationBalloonMerger {
                 abs(right.rect.minY - left.rect.minY) * height <= small * width * 1.75 &&
                 overlap >= min(right.rect.height, left.rect.height) * 0.75
             func pixels(_ rect: CGRect) -> CGRect { CGRect(x: rect.minX * width, y: rect.minY * height, width: rect.width * width, height: rect.height * height) }
-            let shortReaction = isShortStaggeredReaction(right, left, rightBox: pixels(right.rect), leftBox: pixels(left.rect))
-            guard gap >= -small * 0.2, mixedBlock || alignedColumns || shortReaction,
+            guard gap >= -small * 0.2, mixedBlock || alignedColumns,
                   !regions.contains(where: { $0.id != right.id && $0.id != left.id && $0.rect.intersects(box) }) else { continue }
-            // A missed leading pause leaves only one glyph plus punctuation.
-            // Its shared height can be less than two full detector widths.
-            let ordinaryBridge = (mixedBlock || alignedColumns) && ReaderTranslationEnclosedBackground.hasClearVerticalBridge(
-                in: image, left: pixels(left.rect), right: pixels(right.rect))
-            let reactionBridge = !ordinaryBridge && shortReaction &&
-                matchingOutlinedInk(in: image, first: pixels(right.rect), second: pixels(left.rect)) &&
-                ReaderTranslationEnclosedBackground.hasClearVerticalBridge(in: image, left: pixels(left.rect), right: pixels(right.rect),
-                    minimumOverlapInFontSizes: 1.25)
-            if ordinaryBridge || reactionBridge {
+            if ReaderTranslationEnclosedBackground.hasClearVerticalBridge(
+                in: image, left: pixels(left.rect), right: pixels(right.rect)) {
                 groups.append([right.id, left.id]); bridgeClaimed.formUnion([right.id, left.id])
             }
         }
@@ -101,12 +109,122 @@ enum ReaderTranslationBalloonMerger {
                 sourceImageAspectRatio: Double(width / height), sourceOrientation: .vertical,
                 sourceSingleVerticalColumn: false)
             joined.auxiliaryInkRects = members.flatMap(\.auxiliaryInkRects)
+            joined.auxiliaryInkPolygons = members.flatMap(\.auxiliaryInkPolygons)
             joined.polygon = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
                               CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)]
             replacements[anchor.id] = joined
             removed.formUnion(ids.filter { $0 != anchor.id })
         }
         return regions.compactMap { removed.contains($0.id) ? nil : replacements[$0.id] ?? $0 }
+    }
+
+    /// A single repeated kana (し / しかたない, う / うん) is usually
+    /// classified horizontal. Keep ruby and unrelated one-character captions
+    /// separate: require the exact repeated prefix, full-sized lettering, tight
+    /// top alignment and image evidence across the adjacent columns.
+    private static func joinRepeatedKanaLeadIns(_ input: [ReaderTranslationRegion], image: CGImage) -> [ReaderTranslationRegion] {
+        let width = CGFloat(image.width), height = CGFloat(image.height)
+        func pixels(_ rect: CGRect) -> CGRect {
+            CGRect(x: rect.minX * width, y: rect.minY * height, width: rect.width * width, height: rect.height * height)
+        }
+        let leads = input.filter {
+            $0.source.count == 1 && $0.source.unicodeScalars.allSatisfy {
+                (0x3041...0x3096).contains($0.value) || (0x30A1...0x30FA).contains($0.value)
+            }
+        }
+        guard !leads.isEmpty else { return input }
+        var replacements: [String: ReaderTranslationRegion] = [:], consumed = Set<String>()
+        for column in input where column.sourceOrientation == .vertical && column.sourceSingleVerticalColumn == true &&
+            column.source.count >= 2 && !consumed.contains(column.id) {
+            let left = pixels(column.rect)
+            for lead in leads where !consumed.contains(lead.id) && column.source.hasPrefix(lead.source) {
+                let right = pixels(lead.rect), font = min(left.width, right.width)
+                let box = column.rect.union(lead.rect)
+                guard font > 0, right.midX > left.midX,
+                      max(left.width, right.width) <= font * 1.6,
+                      right.height >= font * 0.8, right.height <= font * 1.6,
+                      left.height >= right.height * 1.5,
+                      abs(right.minY - left.minY) <= font * 0.35,
+                      right.minX - left.maxX >= -font * 0.2,
+                      right.minX - left.maxX <= font * 0.35,
+                      !input.contains(where: { $0.id != column.id && $0.id != lead.id && $0.rect.intersects(box) }),
+                      !differentOutlinedInk(in: image, first: left, second: right) else { continue }
+                let bridge = ReaderTranslationEnclosedBackground.hasClearVerticalBridge(
+                    in: image, left: left, right: right, minimumOverlapInFontSizes: 0.6)
+                // Touching OCR padding can cover the gutter with letter ink.
+                // Check the whole text block in a bounded crop so small balloons
+                // retain their outline instead of disappearing at page scale.
+                if !bridge {
+                    // With a genuine gap, dark pixels may be a separating rule.
+                    // Enclosure alone can reconnect around the ends of that rule.
+                    guard right.minX <= left.maxX else { continue }
+                    let union = left.union(right)
+                    let cropRect = union.insetBy(dx: -max(left.width, right.width) * 6,
+                        dy: -max(left.width, right.width) * 6)
+                        .intersection(CGRect(x: 0, y: 0, width: width, height: height)).integral
+                    guard let crop = image.cropping(to: cropRect),
+                          !ReaderTranslationEnclosedBackground.enclosedRegionGroups(in: crop,
+                            candidateInputs: [.init(id: column.id, text: lead.source + column.source,
+                                rect: union.offsetBy(dx: -cropRect.minX, dy: -cropRect.minY))],
+                            coordinateSize: CGSize(width: crop.width, height: crop.height),
+                            checkingAlternateSeeds: true).isEmpty else { continue }
+                }
+                let anchor = input.first { $0.id == column.id || $0.id == lead.id }!
+                var joined = ReaderTranslationRegion(id: anchor.id, rect: box, source: lead.source + column.source,
+                    confidence: min(lead.confidence, column.confidence), sourceImageAspectRatio: Double(width / height),
+                    sourceOrientation: .vertical, sourceSingleVerticalColumn: false)
+                joined.auxiliaryInkRects = lead.auxiliaryInkRects + column.auxiliaryInkRects
+                joined.auxiliaryInkPolygons = lead.auxiliaryInkPolygons + column.auxiliaryInkPolygons
+                joined.polygon = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
+                                  CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)]
+                replacements[anchor.id] = joined
+                consumed.formUnion([column.id, lead.id])
+                break
+            }
+        }
+        return input.compactMap { replacements[$0.id] ?? (consumed.contains($0.id) ? nil : $0) }
+    }
+
+    /// A short vertical reaction can contain a horizontal punctuation row (!?).
+    /// Its merged OCR region is then labelled horizontal. Recover only with a
+    /// longer vertical neighbour, matching ink and an unobstructed bright gutter;
+    /// never change the orientation of a region that remains separate.
+    private static func joinShortStaggeredReactions(_ input: [ReaderTranslationRegion], image: CGImage) -> [ReaderTranslationRegion] {
+        let width = CGFloat(image.width), height = CGFloat(image.height)
+        func pixels(_ rect: CGRect) -> CGRect {
+            CGRect(x: rect.minX * width, y: rect.minY * height, width: rect.width * width, height: rect.height * height)
+        }
+        let columns = input.filter { $0.sourceOrientation == .vertical && $0.sourceSingleVerticalColumn == true && $0.source.count >= 2 }
+        let reactions = input.filter { (2...4).contains($0.source.count) && $0.source.contains(where: { "!?！？…‥".contains($0) }) }
+        var replacements: [String: ReaderTranslationRegion] = [:], consumed = Set<String>()
+        for column in columns where !consumed.contains(column.id) {
+            for reaction in reactions where reaction.id != column.id && !consumed.contains(reaction.id) {
+                let members = [column, reaction].sorted { $0.rect.midX > $1.rect.midX }
+                let right = members[0], left = members[1]
+                let rightBox = pixels(right.rect), leftBox = pixels(left.rect)
+                let box = right.rect.union(left.rect)
+                guard isShortStaggeredReaction(right, left, rightBox: rightBox, leftBox: leftBox),
+                      rightBox.minX - leftBox.maxX >= -min(rightBox.width, leftBox.width) * 0.2,
+                      !separatesVerticalUtterances(right.source, box: rightBox, left.source, box: leftBox),
+                      !input.contains(where: { $0.id != column.id && $0.id != reaction.id && $0.rect.intersects(box) }),
+                      matchingOutlinedInk(in: image, first: rightBox, second: leftBox),
+                      ReaderTranslationEnclosedBackground.hasClearVerticalBridge(in: image, left: leftBox, right: rightBox,
+                          minimumOverlapInFontSizes: 1.25) else { continue }
+                let anchor = input.first { $0.id == column.id || $0.id == reaction.id }!
+                var joined = ReaderTranslationRegion(id: anchor.id, rect: box,
+                    source: members.map(\.source).joined(), confidence: members.map(\.confidence).min() ?? 1,
+                    sourceImageAspectRatio: Double(width / height), sourceOrientation: .vertical,
+                    sourceSingleVerticalColumn: false)
+                joined.auxiliaryInkRects = members.flatMap(\.auxiliaryInkRects)
+                joined.auxiliaryInkPolygons = members.flatMap(\.auxiliaryInkPolygons)
+                joined.polygon = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
+                                  CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)]
+                replacements[anchor.id] = joined
+                consumed.formUnion([column.id, reaction.id])
+                break
+            }
+        }
+        return input.compactMap { replacements[$0.id] ?? (consumed.contains($0.id) ? nil : $0) }
     }
 
     /// Recover a short reaction beside a longer column when OCR omitted its
@@ -117,14 +235,18 @@ enum ReaderTranslationBalloonMerger {
         _ right: ReaderTranslationRegion, _ left: ReaderTranslationRegion,
         rightBox: CGRect, leftBox: CGRect
     ) -> Bool {
-        guard right.sourceSingleVerticalColumn == true, left.sourceSingleVerticalColumn == true else { return false }
         let rightIsShort = rightBox.height < leftBox.height
         let short = rightIsShort ? right : left
+        let long = rightIsShort ? left : right
         let shortBox = rightIsShort ? rightBox : leftBox
         let longBox = rightIsShort ? leftBox : rightBox
         let font = min(rightBox.width, leftBox.width)
         let text = short.source.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard font > 0, (2...4).contains(text.count),
+        guard long.sourceOrientation == .vertical, long.sourceSingleVerticalColumn == true,
+              (short.sourceOrientation == .vertical && short.sourceSingleVerticalColumn == true) ||
+                (short.sourceOrientation == .horizontal && shortBox.height >= shortBox.width * 1.5),
+              font > 0, shortBox.height >= shortBox.width * 1.5, longBox.height >= longBox.width * 1.5,
+              (2...4).contains(text.count),
               text.contains(where: { "!?！？…‥".contains($0) }),
               text.unicodeScalars.contains(where: { (0x3041...0x30FF).contains($0.value) || (0x3400...0x9FFF).contains($0.value) }),
               !right.source.contains(where: { "「」『』“”".contains($0) }),
@@ -164,6 +286,7 @@ enum ReaderTranslationBalloonMerger {
                     confidence: min(result[index].confidence, tail.confidence), sourceImageAspectRatio: Double(width / height),
                     sourceOrientation: .vertical, sourceSingleVerticalColumn: false)
                 joined.auxiliaryInkRects = result[index].auxiliaryInkRects + tail.auxiliaryInkRects
+                joined.auxiliaryInkPolygons = result[index].auxiliaryInkPolygons + tail.auxiliaryInkPolygons
                 joined.polygon = [CGPoint(x: union.minX, y: union.minY), CGPoint(x: union.maxX, y: union.minY),
                                   CGPoint(x: union.maxX, y: union.maxY), CGPoint(x: union.minX, y: union.maxY)]
                 result[index] = joined

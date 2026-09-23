@@ -118,7 +118,7 @@ struct ReaderTranslationRenderingTests {
         #expect(overlay.lastDiagnostic?.renderedItemCount == 1)
     }
 
-    @Test func sessionPaintsFirstBatchBeforePreloaderFinishesThePage() async throws {
+    @Test func sessionKeepsOriginalUntilPreloaderFinishesThePage() async throws {
         let source = image()
         let imageView = UIImageView(image: source)
         imageView.frame = CGRect(x: 0, y: 0, width: 390, height: 700)
@@ -159,29 +159,21 @@ struct ReaderTranslationRenderingTests {
             try await Task.sleep(for: .milliseconds(10))
         }
         #expect(!page.hasCompletedTranslation(settings: settings))
-        let overlay = try #require(imageView.subviews.first as? ReaderTranslationOverlayView)
-        do {
-            try await waitForRender(overlay)
-            let texts = try await overlay.webView.evaluateJavaScript("""
-            Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).map(x => x.textContent)
-            """) as? [String]
-            #expect(texts?.first == "먼저 도착한 번역")
-            #expect(texts?.contains("나머지 번역") == false)
-            try await export(overlay, image: source, name: "first-batch-before-page-completion.png")
-        } catch {
-            await gate.release()
-            throw error
-        }
-        let revision = try #require(overlay.lastDiagnostic?.revision)
+        #expect(page.regions.isEmpty)
+        #expect(imageView.subviews.isEmpty)
+        #expect(imageView.image === source)
         await gate.release()
         while !page.hasCompletedTranslation(settings: settings) {
             if Date() > deadline { throw URLError(.timedOut) }
             try await Task.sleep(for: .milliseconds(10))
         }
-        #expect(imageView.subviews.first === overlay)
-        try await waitForRender(overlay, after: revision)
+        let overlay = try #require(imageView.subviews.first as? ReaderTranslationOverlayView)
+        if overlay.lastDiagnostic?.outcome != .committed { #expect(overlay.webView.isHidden) }
+        try await waitForRender(overlay)
+        #expect(!overlay.webView.isHidden)
         #expect(page.regions.allSatisfy { $0.translation != nil })
         #expect(overlay.lastDiagnostic?.renderedItemCount == page.regions.count)
+        try await export(overlay, image: source, name: "completed-page-without-ocr-preview.png")
         await ReaderOCRService.shared.purge()
     }
 
@@ -287,6 +279,71 @@ struct ReaderTranslationRenderingTests {
         try await export(overlay, image: nil, name: "dense-vertical-to-korean.png")
     }
 
+    @Test(arguments: [false, true])
+    func filteredTranslationAppearsOnlyAfterCompletion(fails: Bool) async throws {
+        let source = image()
+        let imageView = UIImageView(image: source)
+        imageView.frame = CGRect(x: 0, y: 0, width: 390, height: 700)
+        imageView.contentMode = .scaleAspectFit
+        let host = try window(frame: imageView.frame)
+        host.rootViewController = UIViewController()
+        host.rootViewController?.view.addSubview(imageView)
+        host.makeKeyAndVisible()
+        defer { host.isHidden = true }
+        let dialogue = ReaderTranslationRegion(id: "dialogue", rect: CGRect(x: 0.07, y: 0.10, width: 0.7, height: 0.10),
+            source: "HELLO WORLD")
+        let sfx = ReaderTranslationRegion(id: "sfx", rect: CGRect(x: 0.07, y: 0.60, width: 0.8, height: 0.15),
+            source: "OCR TEST PAGE")
+        let barrier = RenderingProgressBarrier()
+        let page = ReaderTranslationPage(imageView: imageView, recognize: { _, _ in [dialogue, sfx] },
+            progressiveTranslate: { regions, _, progress in
+                try await progress?(regions)
+                var partial = regions
+                partial[0].translation = "안녕, 세상!"
+                try await progress?(partial)
+                await barrier.wait()
+                if fails { throw RemoteTranslationError.httpStatus(400, requestID: nil) }
+                // The classifier keeps SFX artwork by returning its source text.
+                partial[1].translation = partial[1].source
+                return partial
+            })
+        defer { page.reset() }
+        let task = Task { try await page.process(translate: true, settings: fixtureSettings()) }
+        let deadline = Date().addingTimeInterval(10)
+        while !(await barrier.started) {
+            if Date() > deadline { task.cancel(); throw URLError(.timedOut) }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(page.regions.isEmpty)
+        #expect(imageView.subviews.isEmpty)
+        #expect(imageView.image === source)
+        await barrier.release()
+        if fails {
+            await #expect(throws: RemoteTranslationError.self) { try await task.value }
+            #expect(imageView.subviews.isEmpty)
+            #expect(page.regions.isEmpty)
+            #expect(imageView.image === source)
+            let original = UIGraphicsImageRenderer(bounds: imageView.bounds).image { _ in
+                imageView.drawHierarchy(in: imageView.bounds, afterScreenUpdates: true)
+            }
+            let directory = URL.documentsDirectory.appendingPathComponent("TranslationValidation", isDirectory: true)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try #require(original.pngData()).write(to: directory.appendingPathComponent("original-after-api-failure.png"))
+        } else {
+            #expect(try await task.value == 2)
+            let overlay = try #require(imageView.subviews.first as? ReaderTranslationOverlayView)
+            if overlay.lastDiagnostic?.outcome != .committed { #expect(overlay.webView.isHidden) }
+            try await waitForRender(overlay)
+            #expect(!overlay.webView.isHidden)
+            #expect(overlay.lastDiagnostic?.renderedItemCount == 1)
+            let texts = try await overlay.webView.evaluateJavaScript("""
+            Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).map(x => x.textContent)
+            """) as? [String]
+            #expect(texts == ["안녕, 세상!"])
+            try await export(overlay, image: source, name: "final-translation-with-filtered-sfx.png")
+        }
+    }
+
     @Test func partialTranslationCannotReappearAfterReset() async throws {
         let imageView = UIImageView(image: image())
         let barrier = RenderingProgressBarrier()
@@ -304,7 +361,8 @@ struct ReaderTranslationRenderingTests {
         while !(await barrier.started), Date() < deadline { await Task.yield() }
         let started = await barrier.started
         guard started else { task.cancel(); Issue.record("Fixture translation never reached the barrier"); return }
-        #expect(page.regions.count == 1)
+        #expect(page.regions.isEmpty)
+        #expect(imageView.subviews.isEmpty)
         page.reset()
         await barrier.release()
         await #expect(throws: CancellationError.self) { try await task.value }

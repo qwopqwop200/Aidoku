@@ -59,7 +59,7 @@ extension Page {
         } else if let image {
             .image(image)
         } else {
-            .text("Invalid URL")
+            .text(NSLocalizedString("INVALID_URL"))
         }
         return AidokuRunner.Page(
             content: content,

@@ -285,6 +285,49 @@ struct NativeCoreMLOCRResult: Equatable, Sendable {
 
 @available(iOS 18.0, *)
 enum NativeOCRScopeGeometry {
+    /// Clockwise quad with its upper cross-edge first. Sorting into left/right
+    /// halves turns a clockwise-leaning vertical crop upside down. Select an
+    /// actual edge instead, independent of the detector's starting vertex.
+    static func canonicalQuad(_ points: [CGPoint], vertical: Bool? = nil) -> [CGPoint]? {
+        guard points.count == 4, points.allSatisfy({ $0.x.isFinite && $0.y.isFinite }) else { return nil }
+        let center = CGPoint(x: points.reduce(0) { $0 + $1.x } / 4,
+                             y: points.reduce(0) { $0 + $1.y } / 4)
+        let ordered = points.sorted { atan2($0.y - center.y, $0.x - center.x) < atan2($1.y - center.y, $1.x - center.x) }
+        let lengths = (0..<4).map { hypot(ordered[($0 + 1) % 4].x - ordered[$0].x, ordered[($0 + 1) % 4].y - ordered[$0].y) }
+        guard let shortest = lengths.min(), let longest = lengths.max(), shortest > 0 else { return nil }
+        let candidates = (0..<4).filter { i in
+            let dx = ordered[(i + 1) % 4].x - ordered[i].x
+            guard dx > 0 else { return false }
+            guard let vertical, longest > shortest * 1.25 else { return true }
+            return vertical ? lengths[i] < (shortest + longest) / 2 : lengths[i] > (shortest + longest) / 2
+        }
+        guard let start = candidates.min(by: { a, b in
+            abs(ordered[(a + 1) % 4].y - ordered[a].y) / lengths[a]
+                < abs(ordered[(b + 1) % 4].y - ordered[b].y) / lengths[b]
+        }) else { return nil }
+        return (0..<4).map { ordered[(start + $0) % 4] }
+    }
+
+    static func isLatinWord(_ text: String) -> Bool {
+        let letters = text.unicodeScalars.filter { CharacterSet.letters.contains($0) }
+        return letters.count >= 2 && letters.allSatisfy { (65...90).contains($0.value) || (97...122).contains($0.value) }
+    }
+
+    static func alternateHorizontalQuad(_ points: [CGPoint]) -> [CGPoint]? {
+        guard let canonical = canonicalQuad(points) else { return nil }
+        let sorted = points.sorted { $0.x == $1.x ? $0.y < $1.y : $0.x < $1.x }
+        let left = Array(sorted.prefix(2)).sorted { $0.y < $1.y }
+        let right = Array(sorted.suffix(2)).sorted { $0.y < $1.y }
+        let alternate = [left[0], right[0], right[1], left[1]]
+        let width = hypot(alternate[1].x - alternate[0].x, alternate[1].y - alternate[0].y)
+        let height = hypot(alternate[3].x - alternate[0].x, alternate[3].y - alternate[0].y)
+        let a = atan2(alternate[1].y - alternate[0].y, alternate[1].x - alternate[0].x)
+        let b = atan2(canonical[1].y - canonical[0].y, canonical[1].x - canonical[0].x)
+        guard width >= height * 1.1, abs(a) >= .pi / 60, abs(a) <= 80 * .pi / 180,
+              abs(a - b) > .pi / 3 else { return nil }
+        return alternate
+    }
+
     static func bounds(for polygon: [CGPoint]) -> CGRect? {
         guard let minimumX = polygon.map(\.x).min(),
               let maximumX = polygon.map(\.x).max(),
@@ -659,7 +702,8 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
                 )
             }
 
-            let recognition: NativeCoreMLRecognitionResult?
+            var recognition: NativeCoreMLRecognitionResult?
+            var recoveredHorizontal = Set<Int>()
             if regions.isEmpty {
                 recognition = nil
             } else {
@@ -680,16 +724,48 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
                     throw CancellationError()
                 }
                 recognition = value
+                // A steep Latin baseline and a tilted Japanese vertical column
+                // can share the same quad. Retry only rejected ambiguous crops,
+                // once, with the other reading direction (at most 32 regions).
+                // Ambiguous Latin words also compare both crops: a reversed
+                // BEVERLY can otherwise decode confidently as only "VRL".
+                let accepted = Dictionary(uniqueKeysWithValues: value.regions.map { ($0.sourceIndex, $0) })
+                let alternate = regions.filter { region in
+                    accepted[region.sourceIndex].map { NativeOCRScopeGeometry.isLatinWord($0.text) } ?? true
+                }.compactMap { region -> NativeCoreMLRecognitionRegion? in
+                    guard let quad = NativeOCRScopeGeometry.alternateHorizontalQuad(region.polygon) else { return nil }
+                    return NativeCoreMLRecognitionRegion(sourceIndex: region.sourceIndex, polygon: quad, useProvidedOrder: true)
+                }
+                if !alternate.isEmpty {
+                    let recovery = try await recognizer.recognize(frame: frame, regions: Array(alternate.prefix(32)),
+                        requestID: requestID, confidenceThreshold: max(0.85, confidenceThreshold), cancellationCheck: cancellationCheck)
+                    try cancellationCheck()
+                    let additional = recovery.regions.filter { candidate in
+                        guard candidate.text.count >= 2, candidate.text.unicodeScalars.contains(where: { CharacterSet.letters.contains($0) }) else { return false }
+                        guard let previous = accepted[candidate.sourceIndex] else { return true }
+                        return candidate.confidence > previous.confidence + 0.01 ||
+                            candidate.confidence >= previous.confidence - 0.02 && candidate.text.count >= previous.text.count
+                    }
+                    recoveredHorizontal = Set(additional.map(\.sourceIndex))
+                    let selected = value.regions.filter { !recoveredHorizontal.contains($0.sourceIndex) } + additional
+                    recognition = NativeCoreMLRecognitionResult(requestID: requestID, regions: selected,
+                        diagnostics: value.diagnostics.addingRecovery(recovery.diagnostics, acceptedCount: selected.count))
+                }
             }
 
             let lines = (recognition?.regions ?? [])
                 .sorted { $0.sourceIndex < $1.sourceIndex }
                 .map { region in
-                    NativeCoreMLOCRLine(
-                        polygon: region.polygon,
+                    // Latin word classification already uses horizontal layout.
+                    // Its polygon must use the same baseline, even if the model
+                    // recognized it in a quarter-turned primary crop (SALE).
+                    let latinQuad = NativeOCRScopeGeometry.isLatinWord(region.text)
+                        ? NativeOCRScopeGeometry.alternateHorizontalQuad(region.polygon) : nil
+                    return NativeCoreMLOCRLine(
+                        polygon: recoveredHorizontal.contains(region.sourceIndex) ? region.polygon : (latinQuad ?? NativeOCRScopeGeometry.canonicalQuad(region.polygon) ?? region.polygon),
                         text: region.text,
                         score: region.confidence,
-                        orientation: Self.orientation(
+                        orientation: recoveredHorizontal.contains(region.sourceIndex) || latinQuad != nil ? .horizontal : Self.orientation(
                             for: region.polygon
                         ),
                         orientationIsEstimated: true

@@ -69,7 +69,7 @@ final class MyAnimeListTracker: OAuthTracker {
         guard let status = manga.myListStatus else { return TrackState() }
         return TrackState(
             score: status.score,
-            status: getStatus(statusString: status.status ?? ""),
+            status: status.isRereading == true ? .rereading : getStatus(statusString: status.status ?? ""),
             lastReadChapter: status.numChaptersRead != nil ? Float(status.numChaptersRead!) : nil,
             lastReadVolume: status.numVolumesRead,
             totalChapters: manga.numChapters == 0 ? nil : manga.numChapters,

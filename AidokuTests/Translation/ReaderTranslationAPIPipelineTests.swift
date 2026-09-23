@@ -1,9 +1,171 @@
 import Testing
 import UIKit
+import Nuke
 @testable import Aidoku
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationAPIPipelineTests {
+    @Test func distantSourceKeepsCompressedDiskDataWithoutRetainingDecodedPixels() async throws {
+        let dataCache = try DataCache(name: "handoff-images-" + UUID().uuidString)
+        defer { dataCache.removeAll() }
+        let pipeline = ImagePipeline {
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.protocolClasses = [HandoffImageURLProtocol.self]
+            configuration.urlCache = nil
+            $0.dataLoader = DataLoader(configuration: configuration)
+            $0.dataCache = dataCache
+            $0.dataCachePolicy = .storeOriginalData
+            $0.imageCache = ImageCache()
+        }
+        let loader = ReaderTranslationImageLoader(pipeline: pipeline)
+        let url = URL(string: "https://handoff-image.invalid/" + UUID().uuidString)!
+        let page = Page(sourceId: "", chapterId: "test", index: 40, imageURL: url.absoluteString)
+        let request = await ReaderPageView.imageRequest(url: url, sourceKey: page.sourceId)
+        try await loader.prefetchData(page)
+        #expect(pipeline.cache.cachedImage(for: request, caches: .memory) == nil)
+        #expect(try await loader.load(page, cacheInMemory: false).size.width == 1)
+        #expect(pipeline.cache.cachedImage(for: request, caches: .memory) == nil)
+        #expect(pipeline.cache.cachedData(for: request) != nil)
+        #expect(try await loader.load(page, cacheInMemory: true).size.width == 1)
+        #expect(pipeline.cache.cachedImage(for: request, caches: .memory) != nil)
+        #expect(HandoffImageURLProtocol.count(for: url) == 1, "Prefetch, distant OCR and visible image must share one download")
+    }
+
+    @Test func distantLookaheadIsCancelledUnderMemoryPressure() async throws {
+        let budget = HandoffMemoryBudget()
+        let recorder = APIPipelineRecorder(blocked: [0, 1])
+        let preloader = ReaderTranslationPreloader(
+            translator: { try await recorder.translate($0, settings: $1, progress: $2) },
+            recognizer: { page, _ in try await recorder.recognize(page.index) }, availableMemory: { budget.value })
+        preloader.nextPage = { _ in page(1) }
+        let first = Task { try await preloader.translate(page(0), settings: settings()) }
+        defer { preloader.cancel(); first.cancel() }
+        try await waitUntil { Set(await recorder.published) == [0, 1] }
+        budget.lower()
+        preloader.cancel(preservingRecognitionFor: page(20))
+        try await waitUntil { Set(await recorder.cancelled) == [0, 1] }
+        await #expect(throws: CancellationError.self) { try await first.value }
+    }
+
+    @Test func downloadedLookaheadSurvivesCancellationOfItsOCRBarrier() async throws {
+        let recorder = APIPipelineRecorder(blocked: [20], blockedOCR: [0])
+        let downloads = APIPipelineSnapshots()
+        let preloader = ReaderTranslationPreloader(
+            translator: { try await recorder.translate($0, settings: $1, progress: $2) },
+            recognizer: { page, _ in try await recorder.recognize(page.index) },
+            dataPrefetcher: { page in await downloads.append([APIPipelineRecorder.region(page.index)]) })
+        preloader.nextPage = { $0.index == 0 ? page(1) : nil }
+        let value = settings()
+        let first = Task { try await preloader.translate(page(0), settings: value) }
+        defer { preloader.cancel(); first.cancel() }
+        try await waitUntil {
+            let count = await downloads.values.count
+            let recognized = await recorder.ocr
+            return count == 1 && recognized == [0]
+        }
+        preloader.cancel(preservingRecognitionFor: page(20))
+        let destination = Task { try await preloader.translate(page(20), settings: value) }
+        defer { destination.cancel() }
+        try await waitUntil { await recorder.completed.contains(1) }
+        #expect(await recorder.ocr.filter { $0 == 1 }.count == 1)
+        #expect(await downloads.values.count == 1)
+        await recorder.release(20)
+        _ = try await destination.value
+        await #expect(throws: CancellationError.self) { try await first.value }
+    }
+
+    @Test func retainedDistantWorkIsDiscardedWhenTranslationSettingsChange() async throws {
+        let recorder = APIPipelineRecorder(blocked: [0, 1])
+        let preloader = preloader(recorder)
+        preloader.nextPage = { $0.index == 0 ? page(1) : nil }
+        let first = Task { try await preloader.translate(page(0), settings: settings()) }
+        defer { preloader.cancel(); first.cancel() }
+        try await waitUntil { Set(await recorder.published) == [0, 1] }
+        preloader.cancel(preservingRecognitionFor: page(20))
+        var changed = settings()
+        changed.targetLanguage = "en"
+        #expect(try await preloader.translate(page(20), settings: changed).first?.translation == "complete-en-20")
+        try await waitUntil { Set(await recorder.cancelled) == [0, 1] }
+        await #expect(throws: CancellationError.self) { try await first.value }
+    }
+
+    @Test func cachedTextLookaheadNeedsNoImageHeadroomOrDownload() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let disk = ReaderTranslationDiskCache(directory: root)
+        defer { try? FileManager.default.removeItem(at: root) }
+        var value = settings()
+        value.includePageImage = false
+        let key = ReaderTranslationCacheIdentity.ocr(page: page(1).translationCacheKey, settings: value)
+        try await disk.storeRegions([APIPipelineRecorder.region(1)], for: key, kind: .ocr,
+                                   generation: await disk.currentGeneration(settings: value))
+        let recorder = APIPipelineRecorder(blocked: [0])
+        let preloader = ReaderTranslationPreloader(diskCache: disk,
+            translator: { try await recorder.translate($0, settings: $1, progress: $2) },
+            recognizer: { page, _ in try await recorder.recognize(page.index) },
+            dataPrefetcher: { _ in Issue.record("Cached text must not download an image") },
+            availableMemory: { 512 * 1_024 * 1_024 })
+        preloader.nextPage = { _ in page(1) }
+        let first = Task { try await preloader.translate(page(0), settings: value) }
+        defer { preloader.cancel(); first.cancel() }
+        try await waitUntil { await recorder.completed == [1] }
+        #expect(await recorder.ocr == [0])
+        await recorder.release(0)
+        _ = try await first.value
+    }
+
+    @Test(arguments: [false, true])
+    func repeatedDemandAdoptsActiveOCRAndAPIWithoutRestarting(blockOCR: Bool) async throws {
+        let recorder = APIPipelineRecorder(blocked: [0], blockedOCR: blockOCR ? [0] : [])
+        let preloader = preloader(recorder)
+        let value = settings()
+        let first = Task { try await preloader.translate(page(0), settings: value) }
+        defer { preloader.cancel(); first.cancel() }
+        try await waitUntil { blockOCR ? await recorder.ocr == [0] : await recorder.published == [0] }
+        let snapshots = APIPipelineSnapshots()
+        let second = Task {
+            try await preloader.translate(page(0), settings: value) { await snapshots.append($0) }
+        }
+        defer { second.cancel() }
+        await recorder.releaseRecognition(0)
+        try await waitUntil { await snapshots.values.last?.first?.translation == "partial-ko-0" }
+        await recorder.release(0)
+        #expect(try await second.value.first?.translation == "complete-ko-0")
+        await #expect(throws: CancellationError.self) { try await first.value }
+        #expect(await recorder.ocr == [0])
+        #expect(await recorder.started == [0])
+        #expect(await recorder.cancelled.isEmpty)
+    }
+
+    @Test func distantStartedLookaheadFinishesIntoDiskAndIsNotRepeated() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let disk = ReaderTranslationDiskCache(directory: root)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let recorder = APIPipelineRecorder(blocked: [0, 1, 20])
+        let preloader = preloader(recorder, disk: disk)
+        preloader.nextPage = { $0.index == 0 ? page(1) : page(21) }
+        let value = settings()
+        let first = Task { try await preloader.translate(page(0), settings: value) }
+        defer { preloader.cancel(); first.cancel() }
+        try await waitUntil { Set(await recorder.published) == [0, 1] }
+        preloader.cancel(preservingRecognitionFor: page(20))
+        let destination = Task { try await preloader.translate(page(20), settings: value) }
+        defer { destination.cancel() }
+        try await waitUntil { await recorder.published.contains(20) }
+        #expect(await recorder.cancelled == [0])
+        #expect(await recorder.started == [0, 1, 20])
+        #expect(await recorder.maximumActive == 2)
+        await recorder.release(1)
+        let key = ReaderTranslationCacheIdentity.translation(page: page(1).translationCacheKey, settings: value)
+        try await waitUntil { (try? await disk.contains(key, kind: .translation)) == true }
+        preloader.nextPage = nil
+        await recorder.release(20)
+        _ = try await destination.value
+        _ = try await preloader.translate(page(1), settings: value)
+        #expect(await recorder.ocr.filter { $0 == 1 }.count == 1)
+        #expect(await recorder.started.filter { $0 == 1 }.count == 1)
+        await #expect(throws: CancellationError.self) { try await first.value }
+    }
+
     @Test func failedAPIPreservesPartialTranslationWithoutCompletingDiskCache() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let disk = ReaderTranslationDiskCache(directory: root)
@@ -79,7 +241,7 @@ struct ReaderTranslationAPIPipelineTests {
         #expect(try await second.value.first?.translation == "complete-ko-1")
     }
 
-    @Test func pageTurnPauseAndAnchorUpdatePreserveDestinationButDiscardSkippedLookahead() async throws {
+    @Test func pageTurnPauseAndAnchorUpdateKeepOneStartedLookahead() async throws {
         for destination in [1, 3] {
             let recorder = APIPipelineRecorder(blocked: [0, 1, 3])
             let preloader = preloader(recorder)
@@ -102,13 +264,14 @@ struct ReaderTranslationAPIPipelineTests {
             if destination == 1 {
                 #expect(await recorder.cancelled == [0])
             } else {
-                try await waitUntil { await recorder.cancelled.contains(1) }
+                #expect(await recorder.cancelled == [0])
             }
             session.update(items: items, visible: [], context: "chapter", currentPageIndex: destination)
             try await waitUntil { await recorder.started.contains(destination) }
             #expect(await recorder.started.filter { $0 == destination }.count == 1)
             #expect(await recorder.ocr.filter { $0 == destination }.count == 1)
-            if destination == 1 { #expect(await recorder.cancelled == [0]) }
+            #expect(await recorder.cancelled == [0])
+            #expect(await recorder.maximumActive == 2)
         }
     }
 
@@ -347,6 +510,31 @@ struct ReaderTranslationAPIPipelineTests {
             try await Task.sleep(for: .milliseconds(5))
         }
     }
+}
+
+private final class HandoffMemoryBudget: @unchecked Sendable {
+    private let lock = NSLock()
+    private var available = UInt64.max
+    var value: UInt64 { lock.withLock { available } }
+    func lower() { lock.withLock { available = 256 * 1_024 * 1_024 } }
+}
+
+private final class HandoffImageURLProtocol: URLProtocol {
+    private static let lock = NSLock()
+    private static var counts: [URL: Int] = [:]
+    static func count(for url: URL) -> Int { lock.withLock { counts[url, default: 0] } }
+    override class func canInit(with request: URLRequest) -> Bool { request.url?.host == "handoff-image.invalid" }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        let url = request.url!
+        Self.lock.withLock { Self.counts[url, default: 0] += 1 }
+        let data = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: url, statusCode: 200,
+            httpVersion: nil, headerFields: ["Content-Type": "image/png"])!, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: data)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
 }
 
 private actor APIPipelineSnapshots {

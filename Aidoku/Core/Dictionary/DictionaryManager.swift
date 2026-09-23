@@ -236,7 +236,7 @@ class DictionaryManager {
 
             try data.write(to: configURL, options: .atomic)
         } catch {
-            showError("Failed to save dictionary config: \(error.localizedDescription)")
+            showError(String(format: NSLocalizedString("DICTIONARY_CONFIG_SAVE_ERROR_%@"), error.localizedDescription))
         }
     }
 
@@ -263,7 +263,7 @@ class DictionaryManager {
     //    }
 
     func importDictionary(from urls: [URL]) async {
-        guard !isImporting, !isUpdating,
+        guard !urls.isEmpty, !isImporting, !isUpdating,
               let dictionariesDir = try? Self.getDictionariesDirectory() else { return }
 
         isImporting = true
@@ -324,9 +324,9 @@ class DictionaryManager {
                 self.rebuildLookupQuery()
 
                 if imported.isEmpty {
-                    self.showError("failed to import dictionary")
+                    self.showError(String(format: NSLocalizedString("DICTIONARY_IMPORT_ERRORS_%@"), failed.joined(separator: "\n")))
                 } else if !failed.isEmpty {
-                    self.showError("some dictionaries could not be imported:\n\(failed.joined(separator: "\n"))")
+                    self.showError(String(format: NSLocalizedString("DICTIONARY_PARTIAL_IMPORT_ERRORS_%@"), failed.joined(separator: "\n")))
                 }
             }
         }.value
@@ -484,7 +484,11 @@ class DictionaryManager {
         )
 
         if !importResult.success {
-            throw NSError(domain: Bundle.main.bundleIdentifier ?? "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Import failed"])
+            throw NSError(
+                domain: Bundle.main.bundleIdentifier ?? "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("DICTIONARY_IMPORT_FAILED")]
+            )
         }
 
         let new = String(importResult.title)
@@ -704,6 +708,7 @@ extension DictionaryManager {
     }
 
     private func showError(_ message: String) {
+        LogManager.logger.error("Dictionary operation failed: \(message)")
         errorMessage = message
         shouldShowError = true
     }

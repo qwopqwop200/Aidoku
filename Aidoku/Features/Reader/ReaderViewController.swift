@@ -611,7 +611,7 @@ extension ReaderViewController {
             } else if let volumeNum = chapter.volumeNumber {
                 String(format: NSLocalizedString("VOLUME_X"), volumeNum)
             } else {
-                chapter.title ?? ""
+                chapter.formattedTitle()
             }
 
         navigationItem.setTitle(upper: volume, lower: title,

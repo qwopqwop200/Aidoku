@@ -818,7 +818,7 @@
 "PORTRAIT_ROWS" = "Sloupce na výšku";
 "LANDSCAPE_ROWS" = "Sloupce na šířku";
 "RESUME_LAST_OPENED_CHAPTER" = "Obnovit naposledy otevřenou kapitolu";
-"CONTINUE_READING_ON_RESELECT" = "Poklepáním na kartu Historie obnovíte čtení";
+"CONTINUE_READING_ON_RESELECT" = "Dalším klepnutím na kartu Historie pokračovat ve čtení";
 "DOWNLOADED_CHAPTER_BADGES" = "Odznaky stažených kapitol";
 "PIN_TITLES" = "Připnout manga tituly";
 "PIN_DISABLED" = "Připnutí zakázáno";
@@ -1145,3 +1145,28 @@
 "TRANSLATION_FILTERING" = "Filtrování textu";
 
 "TRANSLATION_TARGETS" = "Co překládat";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Stránky: %i / %i";
+"1_SERIES" = "1 série";
+"SKIPPING_ONE_CHAPTER" = "Přeskakuje se 1 kapitola. Buď ve zdroji chybí, nebo byla odfiltrována.";
+"BACKUP_CREATE_ERROR_TEXT" = "Zálohu se nepodařilo vytvořit. Zkuste to prosím znovu.";
+"YES" = "Ano";
+"NO" = "Ne";
+"CHAPTERS_%i_OF_%i" = "Kapitoly: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Titul se nepodařilo přidat ke sledování. Zkuste to prosím znovu.";
+"SORT_READ_PROGRESS" = "Průběh čtení";
+"SORT_RELEASE_YEAR" = "Rok vydání";
+"SOURCE_INVALID_PAGE_COUNT" = "Neplatný počet stránek";
+"SOURCE_INVALID_GENRE_ID" = "Neplatné ID žánru";
+"SOURCE_INVALID_LISTING" = "Neplatný seznam";
+"SOURCE_INVALID_LISTING_TYPE" = "Neplatný typ seznamu";
+"SOURCE_INVALID_ITEM_TYPE" = "Neplatný typ položky";
+"DICTIONARY_ERROR" = "Chyba slovníku";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Nastavení slovníků se nepodařilo uložit: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Vybrané slovníky se nepodařilo importovat:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Některé slovníky se nepodařilo importovat:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Import slovníku selhal.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Obsáhlý japonsko-anglický slovník spravovaný skupinou Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Slovník japonských vlastních jmen spravovaný skupinou Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Frekvenční slovník založený na mediálním korpusu z https://jiten.moe.";

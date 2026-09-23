@@ -2,4 +2,4 @@
 
 // Completed app localization
 "CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "Aidoku, adresi yerel ağınızda olduğunda özel çeviri sunucunuza bağlanır.";
+"NSLocalNetworkUsageDescription" = "Aidoku, adresleri yerel ağınızda olduğunda manga sunucularına ve özel çeviri sunucunuza bağlanır.";

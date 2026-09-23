@@ -1,7 +1,7 @@
 "IMPORT" = "インポート";
 "DONE" = "完了";
-"FILE_IMPORT_FAIL_TEXT" = "ファイルのインポートに失敗しました。画像が含まれる有効なCBZまたはZIPアーカイブであることを確認してください。";
+"FILE_IMPORT_FAIL_TEXT" = "ファイルのインポートに失敗しました。読み取り可能な画像ファイル、または画像を含む有効なCBZ・ZIPアーカイブであることを確認してください。";
 "FORMAT_IMAGE" = "画像";
-"SHARED_IMAGES_SAVED" = "画像を保存しました。Aidokuを開くと読むことができます。";
+"SHARED_IMAGES_SAVED" = "保存しました。Aidokuを開くと読むことができます。";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "共有された画像を読み込めませんでした。別の画像でお試しください。";

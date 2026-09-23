@@ -38,6 +38,7 @@ actor SuwayomiApi {
         let response: SuwayomiTrackStateResponse = try await helper.request(body: Payload(variables: .init(mangaId: mangaId)))
 
         return .init(
+            progressUnit: .chapters,
             lastReadChapter: response.data.manga.latestReadChapter?.chapterNumber,
             totalChapters: response.data.manga.highestNumberedChapter?.chapterNumber.flatMap { Int(floor($0)) }
                 ?? response.data.manga.chapters.totalCount

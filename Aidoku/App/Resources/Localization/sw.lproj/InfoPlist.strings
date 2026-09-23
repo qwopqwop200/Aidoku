@@ -2,4 +2,4 @@
 
 // Completed app localization
 "CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "Aidoku inaunganishwa kwenye seva yako maalum ya utafsiri wakati anwani yake iko kwenye mtandao wako wa karibu.";
+"NSLocalNetworkUsageDescription" = "Aidoku huunganisha kwenye seva za manga na seva yako maalum ya tafsiri wakati anwani zake ziko kwenye mtandao wako wa ndani.";

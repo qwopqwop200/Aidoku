@@ -260,13 +260,13 @@
 "RELOAD" = "Ponovno učitaj";
 "%i_OF_%i" = "%i od %i";
 "WEBTOON" = "Webtoon";
-"%i_PAGES_LEFT" = "%i stranice(a) preostalo";
+"%i_PAGES_LEFT" = "Preostale stranice: %i";
 "ONE_PAGE_LEFT" = "Jedna stranica preostala";
 "FAILED_CHAPTER_LOAD_INFO" = "Možda si izvan mreže ili postoji problem s izvorom.";
 "SORT_TOTAL_CHAPTERS" = "Ukupno poglavlja";
 "REMOVE_FROM_CATEGORY" = "Ukloni iz kategorije";
 "PINNED" = "Prikvačeno";
-"%i_CHAPTERS" = "%i poglavlja";
+"%i_CHAPTERS" = "Poglavlja: %i";
 "1_CHAPTER" = "1 poglavlje";
 "UPCOMING" = "Nadolazeće";
 "VIEW_ON_WEBSITE" = "Prikaži na web stranici";
@@ -302,7 +302,7 @@
 "RENAME_CATEGORY_INFO" = "Unesi novo ime za ovu kategoriju.";
 "AVAILABLE" = "Dostupno";
 "FIRST_ALTERNATIVE" = "Prva alternativa";
-"MIGRATE_%i_ITEMS?" = "Premjestiti %i stavke(i)?";
+"MIGRATE_%i_ITEMS?" = "Migrirati odabrane stavke (broj: %i)?";
 "MIGRATE_ONE_ITEM?" = "Premjestiti jednu stavku?";
 "IS_TRACKING" = "Praćenje";
 "DEFAULT_READING_MODE" = "Zadani način čitanja";
@@ -334,7 +334,7 @@
 "MANGA_UPDATES" = "Aktualiziranja";
 "NO_UPDATES" = "Nema aktualiziranja";
 "%lld_PLUS_MORE" = "+%lld više";
-"SKIPPING_CHAPTERS" = "Preskaču se %i poglavlja jer nedostaju u izvoru ili su izdvojena filtrom";
+"SKIPPING_CHAPTERS" = "Preskaču se poglavlja koja nedostaju u izvoru ili su izdvojena filtrom (broj: %i)";
 "DELETE_DOWNLOAD_AFTER_READING" = "Izbriši preuzimanje nakon čitanja";
 "SCANLATOR" = "Prevoditelj";
 "NO_SCANLATOR" = "Nema prevoditelja";
@@ -354,7 +354,7 @@
 "NO_DOWNLOADS_TEXT" = "Preuzeti sadržaj će se pojaviti ovdje.";
 "DOWNLOADED_CHAPTERS" = "Preuzeta poglavlja";
 "TOTAL_DOWNLOADS" = "Ukupna veličina preuzimanja";
-"%i_SERIES" = "%i serije";
+"%i_SERIES" = "Serije: %i";
 "IN_LIBRARY" = "U biblioteci";
 "VIEW_SERIES" = "Prikaži seriju";
 "AUTHOR" = "Autor";
@@ -428,7 +428,7 @@
 "SERIES_TITLE_EMPTY_ERROR" = "Za novu seriju se mora navesti naslov.";
 "CREATE_NEW_SERIES_INFO" = "Nova serija će se stvoriti na sljedećoj stranici ili odaberi postojeću seriju kojoj ćeš dodati ovu datoteku.";
 "ADD_TO_OTHER_SERIES_INFO" = "Datoteka će se dodati odabranoj seriji.";
-"%i_PAGES" = "%i stranice(a)";
+"%i_PAGES" = "Stranice: %i";
 "1_PAGE" = "Jedna stranica";
 "CBZ_NAME" = "Zip arhiva stripa";
 "ZIP_NAME" = "Zip arhiva";
@@ -449,9 +449,9 @@
 "LOCKED" = "Zaključano";
 "TOGGLE_LOCK" = "Uklj./Isklj. lokot";
 "REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Uklanjanje stavke iz biblioteke";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "Uklanjaju se %i stavke iz biblioteke";
+"REMOVING_%i_ITEMS_FROM_LIBRARY" = "Uklanjanje iz biblioteke (broj stavki: %i)";
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "Uklanjanje stavke iz kategorije %@";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Uklanjaju se %i stavke(i) iz kategorije %@";
+"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Uklanjanje stavki (broj: %i) iz kategorije %@";
 "BROWSE_NO_SOURCES_TEXT_NEW" = "Dodaj izvor pomoću gumba plus.";
 "BASE_URL" = "Osnovni URL";
 "SEE_ALL" = "Pogledaj sve";
@@ -475,7 +475,7 @@
 "UNAVAILABLE_SOURCE_LISTS" = "Nedostupni popisi izvora";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Dogodila se greška prilikom dohvaćanja gore navedenih popisa izvora.";
 "COPY_URL" = "Kopiraj URL";
-"UPSCALING" = "Povećavanje";
+"UPSCALING" = "Povećavanje rezolucije";
 "UPSCALE_IMAGES" = "Povećaj rezoluciju slika";
 "UPSCALING_MODELS" = "Modeli za povećavanje rezolucije";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Maksimalna visina slika";
@@ -556,7 +556,7 @@
 "ON_DECK" = "Za čitanje";
 "TRACKING" = "Praćenje";
 "SAFE" = "Sigurno";
-"%@_BOOKS" = "%@ knjiga";
+"%@_BOOKS" = "Knjige: %@";
 "1_BOOK" = "1 knjiga";
 "KAVITA" = "Kavita";
 "KAVITA_TAGLINE" = "Samostalni hosting digitalne biblioteke";
@@ -707,7 +707,7 @@
 "IMPORT_BACKUP" = "Uvezi sigurnosnu kopiju";
 "PAGE_OFFSET" = "Odmak stranice";
 "SYNC_WITH_TRACKER" = "Sinkroniziraj s alatom praćenja";
-"SYNC_WITH_TRACKER_INFO_%i" = "Praćenje je utvrdilo da je %i poglavlja već pročitano. Želiš li označiti ta poglavlja kao pročitana?";
+"SYNC_WITH_TRACKER_INFO_%i" = "Broj već pročitanih poglavlja prema servisu za praćenje: %i. Želite li ih označiti kao pročitana?";
 "UNAVAILABLE_TRACKER_ITEM" = "Nedostupna stavka alata praćenja";
 "UNAVAILABLE_TRACKER_ITEM_INFO" = "Ova povezana stavka alata praćenja povezana je s alatom praćenja koji više nije dostupan. Ukloni ovu stavku ili se ponovo prijavi na povezani alat praćenja.";
 "ENHANCED_TRACKERS" = "Poboljšani alati praćenja";
@@ -814,7 +814,7 @@
 
 "TRANSLATION_FIXED" = "Fiksna veličina fonta";
 
-"TRANSLATION_OVERLAY" = "Prekrivanje prijevoda";
+"TRANSLATION_OVERLAY" = "Prijevod preko slike";
 
 "TRANSLATION_OVERLAY_HELP" = "Zamjenjuje tekst u izvornom okviru rasporedom koji izbjegava preklapanja i prelamanjem redaka prilagođenim pismu. Promjene prikaza ponovno koriste postojeće rezultate OCR-a.";
 
@@ -892,7 +892,7 @@
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Prevedite opise manga";
 
-"TRANSLATION_DESCRIPTION_FILTER" = "Jezici za opis mange";
+"TRANSLATION_DESCRIPTION_FILTER" = "Jezici opisa mange";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Automatski prepoznaje izvorni jezik i prevodi samo odabrane jezike. Opcija Svi otkriveni jezici uklanja ograničenje. Jezični filtar svake stavke neovisan je o jezičnim postavkama stranica i drugih stavki.";
 
@@ -965,13 +965,13 @@
 "AUTHOR_NAME" = "Ime autora";
 "ARTIST_NAME" = "Ime umjetnika";
 "INVALID_KEY" = "Nevažeći ključ";
-"CONTINUE_READING_ON_RESELECT" = "Dvaput dodirnite karticu Povijest za nastavak čitanja";
+"CONTINUE_READING_ON_RESELECT" = "Ponovno dodirni karticu Povijest za nastavak čitanja";
 "NEW_CHAPTER_NOTIFICATIONS" = "Obavijesti o novom poglavlju";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Šaljite obavijesti kada se biblioteka osvježi u pozadini.";
 "1_NEW_CHAPTER_AVAILABLE" = "Dostupno novo poglavlje";
-"X_NEW_CHAPTERS_AVAILABLE" = "%d dostupna su nova poglavlja";
+"X_NEW_CHAPTERS_AVAILABLE" = "Dostupna nova poglavlja: %d";
 "NEW_CHAPTERS_AVAILABLE" = "Dostupna su nova poglavlja";
-"X_SERIES_HAVE_NEW_CHAPTERS" = "%d serije imaju nova poglavlja";
+"X_SERIES_HAVE_NEW_CHAPTERS" = "Serije s novim poglavljima: %d";
 "TEXT_THEME" = "Tema";
 "TEXT_THEME_SEPIA" = "Sepija";
 "TEXT_THEME_PAPER" = "Papir";
@@ -1024,7 +1024,7 @@
 "REMOVE_WORD" = "Ukloni riječ";
 "VOCABULARY" = "Vokabular";
 "1_WORD" = "1 riječ";
-"%i_WORDS" = "%i riječi";
+"%i_WORDS" = "Riječi: %i";
 "NO_VOCABULARY" = "Nema spremljenih riječi";
 "NO_VOCABULARY_TEXT" = "Ovdje će se pojaviti spremljeni vokabular.";
 "DEFINITION" = "Definicija";
@@ -1147,3 +1147,28 @@
 "TRANSLATION_FILTERING" = "Filtriranje teksta";
 
 "TRANSLATION_TARGETS" = "Što prevoditi";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Stranice: %i / %i";
+"1_SERIES" = "1 serija";
+"SKIPPING_ONE_CHAPTER" = "Preskače se 1 poglavlje jer nedostaje u izvoru ili je izdvojeno filtrom";
+"BACKUP_CREATE_ERROR_TEXT" = "Sigurnosnu kopiju nije bilo moguće izraditi. Pokušajte ponovno.";
+"YES" = "Da";
+"NO" = "Ne";
+"CHAPTERS_%i_OF_%i" = "Poglavlja: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Naslov nije bilo moguće dodati u praćenje. Pokušajte ponovno.";
+"SORT_READ_PROGRESS" = "Napredak čitanja";
+"SORT_RELEASE_YEAR" = "Godina izdanja";
+"SOURCE_INVALID_PAGE_COUNT" = "Nevažeći broj stranica";
+"SOURCE_INVALID_GENRE_ID" = "Nevažeći ID žanra";
+"SOURCE_INVALID_LISTING" = "Nevažeći popis";
+"SOURCE_INVALID_LISTING_TYPE" = "Nevažeća vrsta popisa";
+"SOURCE_INVALID_ITEM_TYPE" = "Nevažeća vrsta stavke";
+"DICTIONARY_ERROR" = "Pogreška rječnika";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Nije moguće spremiti postavke rječnika: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Nije moguće uvesti odabrane rječnike:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Neke rječnike nije moguće uvesti:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Uvoz rječnika nije uspio.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Opsežan japansko-engleski rječnik koji održava Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Rječnik japanskih vlastitih imena koji održava Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Frekvencijski rječnik temeljen na medijskom korpusu s https://jiten.moe.";

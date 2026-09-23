@@ -2,4 +2,4 @@
 
 // Completed app localization
 "CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "Az Aidoku akkor csatlakozik az egyéni fordítószerverhez, ha annak címe a helyi hálózaton van.";
+"NSLocalNetworkUsageDescription" = "Az Aidoku a mangaszerverekhez és az egyéni fordítószerverhez csatlakozik, ha azok címei a helyi hálózaton vannak.";

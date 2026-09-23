@@ -490,7 +490,7 @@
 "DOWNLOADED_CHAPTERS" = "डाउनलोड किए गए अध्याय";
 "DOWNLOAD_INCOMPLETE" = "अधूरा डाउनलोड";
 "TOTAL_DOWNLOADS" = "डाउनलोड का कुल आकार";
-"%i_SERIES" = "%i श्रृंखला";
+"%i_SERIES" = "%i श्रृंखलाएँ";
 "IN_LIBRARY" = "लाइब्रेरी में";
 "VIEW_SERIES" = "श्रृंखला देखें";
 "VIEW_FILES" = "फ़ाइलें देखें";
@@ -755,7 +755,7 @@
 "PORTRAIT_ROWS" = "पोर्ट्रेट में कॉलम";
 "LANDSCAPE_ROWS" = "लैंडस्केप में कॉलम";
 "RESUME_LAST_OPENED_CHAPTER" = "अंतिम बार खोले गए अध्याय को पढ़ना जारी रखें";
-"CONTINUE_READING_ON_RESELECT" = "पढ़ना फिर से शुरू करने के लिए इतिहास टैब पर डबल-टैप करें";
+"CONTINUE_READING_ON_RESELECT" = "पढ़ना जारी रखने के लिए इतिहास टैब पर फिर टैप करें";
 "DOWNLOADED_CHAPTER_BADGES" = "डाउनलोड किए गए अध्यायों के बैज";
 "PIN_TITLES" = "मंगा शीर्षक पिन करें";
 "PIN_DISABLED" = "पिन करना अक्षम किया गया";
@@ -768,7 +768,7 @@
 "1_NEW_CHAPTER_AVAILABLE" = "नया अध्याय उपलब्ध है";
 "X_NEW_CHAPTERS_AVAILABLE" = "%d नए अध्याय उपलब्ध हैं";
 "NEW_CHAPTERS_AVAILABLE" = "नए अध्याय उपलब्ध हैं";
-"X_SERIES_HAVE_NEW_CHAPTERS" = "%d श्रृंखला में नए अध्याय हैं";
+"X_SERIES_HAVE_NEW_CHAPTERS" = "%d श्रृंखलाओं में नए अध्याय हैं";
 "DELETE_DOWNLOAD_AFTER_READING" = "पढ़ने के बाद डाउनलोड हटा दें";
 "EVERY_6_HOURS" = "हर 6 घंटे में";
 "NO_RESULTS_FOR_%@" = "\"%@\" के लिए कोई परिणाम नहीं";
@@ -786,7 +786,7 @@
 "CHAPTER_SINGULAR" = "अध्याय";
 "PAGE_PLURAL" = "पन्ने";
 "PAGE_SINGULAR" = "पेज";
-"SERIES_PLURAL" = "शृंखला";
+"SERIES_PLURAL" = "श्रृंखलाएँ";
 "SERIES_SINGULAR" = "शृंखला";
 "HOUR_PLURAL" = "घंटे";
 "HOUR_SINGULAR" = "घंटा";
@@ -827,9 +827,9 @@
 "DISABLED" = "अक्षम";
 "INVERT_TAP_ZONES" = "टैप जोन उलटा करें";
 "ANIMATE_PAGE_TRANSITIONS" = "पृष्ठ बदलते समय ऐनिमेशन दिखाएँ";
-"TEXT_READER" = "पाठ वाचक";
+"TEXT_READER" = "टेक्स्ट रीडर";
 "TEXT_READER_STYLE" = "पठन शैली";
-"TEXT_READER_PAGED" = "पृष्ठांकित वाचन";
+"TEXT_READER_PAGED" = "पृष्ठों में पढ़ें";
 "TEXT_READER_SCROLL" = "स्क्रॉल करें";
 "TEXT_FONT_FAMILY" = "फ़ॉन्ट";
 "TEXT_FONT_SIZE" = "फ़ॉन्ट आकार";
@@ -958,8 +958,8 @@
 "STATUS_COLON_%@" = "स्थिति: %@";
 "TYPE_COLON_%@" = "प्रकार: %@";
 "VIEW_ON_WEBSITE" = "वेबसाइट पर देखें";
-"CLEAR_TRACKED_MANGA" = "मंगा के ट्रैकर लिंक हटाएँ";
-"CLEAR_TRACKED_MANGA_TEXT" = "यह कार्रवाई वापस नहीं की जा सकती। मंगा में जोड़े गए सभी ट्रैकर लिंक हटा दिए जाएँगे।";
+"CLEAR_TRACKED_MANGA" = "सभी ट्रैकर लिंक हटाएँ";
+"CLEAR_TRACKED_MANGA_TEXT" = "यह कार्रवाई वापस नहीं की जा सकती। सभी मंगा में जोड़े गए सभी ट्रैकर लिंक हटा दिए जाएँगे।";
 "SEARCH_OPTIONS" = "खोज विकल्प";
 "SHOW_NSFW_RESULTS" = "एनएसएफडब्ल्यू परिणाम दिखाएँ";
 "UPDATE_AFTER_READING" = "पढ़ने के बाद अपडेट करें";
@@ -1172,3 +1172,28 @@
 "TRANSLATION_FILTERING" = "टेक्स्ट फ़िल्टरिंग";
 
 "TRANSLATION_TARGETS" = "क्या अनुवाद करना है";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "पृष्ठ: %i / %i";
+"1_SERIES" = "1 श्रृंखला";
+"SKIPPING_ONE_CHAPTER" = "1 अध्याय छोड़ा जा रहा है क्योंकि वह स्रोत में उपलब्ध नहीं है या फ़िल्टर करके हटा दिया गया है";
+"BACKUP_CREATE_ERROR_TEXT" = "बैकअप नहीं बनाया जा सका। कृपया फिर से प्रयास करें।";
+"YES" = "हाँ";
+"NO" = "नहीं";
+"CHAPTERS_%i_OF_%i" = "अध्याय: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "शीर्षक को ट्रैकिंग में नहीं जोड़ा जा सका। कृपया फिर से प्रयास करें।";
+"SORT_READ_PROGRESS" = "पढ़ने की प्रगति";
+"SORT_RELEASE_YEAR" = "प्रकाशन वर्ष";
+"SOURCE_INVALID_PAGE_COUNT" = "पृष्ठों की संख्या अमान्य है";
+"SOURCE_INVALID_GENRE_ID" = "शैली की ID अमान्य है";
+"SOURCE_INVALID_LISTING" = "सूची अमान्य है";
+"SOURCE_INVALID_LISTING_TYPE" = "सूची का प्रकार अमान्य है";
+"SOURCE_INVALID_ITEM_TYPE" = "आइटम का प्रकार अमान्य है";
+"DICTIONARY_ERROR" = "शब्दकोश त्रुटि";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "शब्दकोश की सेटिंग सहेजी नहीं जा सकीं: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "चुने गए शब्दकोश आयात नहीं किए जा सके:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "कुछ शब्दकोश आयात नहीं किए जा सके:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "शब्दकोश आयात विफल रहा।";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) द्वारा अनुरक्षित एक व्यापक जापानी–अंग्रेज़ी शब्दकोश।";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) द्वारा अनुरक्षित जापानी व्यक्तिवाचक संज्ञाओं का शब्दकोश।";
+"RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe के मीडिया पाठ-संग्रह पर आधारित शब्द आवृत्ति शब्दकोश।";

@@ -647,7 +647,7 @@ extension LocalFileImportView.ContentView {
                                 } else {
                                     String(format: NSLocalizedString("%i_CHAPTERS"), item.chapterCount)
                                 }
-                            }().lowercased()
+                            }()
                         )
                     }
                 }

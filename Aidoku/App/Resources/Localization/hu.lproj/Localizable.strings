@@ -710,7 +710,7 @@
 "PORTRAIT_ROWS" = "Oszlopok száma álló nézetben";
 "LANDSCAPE_ROWS" = "Oszlopok száma fekvő nézetben";
 "RESUME_LAST_OPENED_CHAPTER" = "Utoljára megnyitott fejezet folytatása";
-"CONTINUE_READING_ON_RESELECT" = "Az olvasás folytatásához koppintson duplán az Előzmények fülre";
+"CONTINUE_READING_ON_RESELECT" = "Az olvasás folytatásához koppintson újra az Előzmények fülre";
 "DOWNLOADED_CHAPTER_BADGES" = "Letöltött fejezetjelvények";
 "PIN_TITLES" = "Manga címek rögzítése";
 "PIN_DISABLED" = "Rögzítés letiltva";
@@ -744,7 +744,7 @@
 "SERIES_SINGULAR" = "sorozat";
 "HOUR_PLURAL" = "Órák";
 "HOUR_SINGULAR" = "Óra";
-"ALL_TIME" = "Minden idők";
+"ALL_TIME" = "Teljes időszak";
 "THIS_MONTH" = "Ebben a hónapban";
 "THIS_YEAR" = "Ebben az évben";
 "SOURCE_LIST_ADD" = "Forráslista hozzáadása";
@@ -813,8 +813,8 @@
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "A keresési gesztus miatt zárolva: hosszú érintés.";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "OCR-szöveg megjelenítése";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Szövegdobozokat jelenít meg a képterületeken, ha a keresés aktiválva van. Ez hasznos lehet annak meghatározásában, hogy az OCR melyik szöveget ismerte fel megfelelően.";
-"DICTIONARY_OVERLAY_PADDING" = "Szövegfedő margók";
-"DICTIONARY_OVERLAY_TEXT_SCALE" = "Fedőszöveg mérete";
+"DICTIONARY_OVERLAY_PADDING" = "A szövegfedvény belső margói";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "A szövegfedvény betűmérete";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Az OCR nyelvek korlátozása";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Ha engedélyezve van, csak a kiválasztott nyelvként megjelölt fejezetek kerülnek feldolgozásra az OCR-hez. Javasoljuk, hogy csak azokat a nyelveket válassza ki, amelyekhez importált szótárakat.";
 "DICTIONARY_OCR_LANGUAGES" = "OCR nyelvek";
@@ -1172,3 +1172,28 @@
 "TRANSLATION_FILTERING" = "Szövegszűrés";
 
 "TRANSLATION_TARGETS" = "Fordítandó tartalom";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Oldalak: %i / %i";
+"1_SERIES" = "1 sorozat";
+"SKIPPING_ONE_CHAPTER" = "1 fejezet kihagyva, mert hiányzik a forrásból, vagy ki lett szűrve";
+"BACKUP_CREATE_ERROR_TEXT" = "Nem sikerült létrehozni a biztonsági mentést. Próbálja újra.";
+"YES" = "Igen";
+"NO" = "Nem";
+"CHAPTERS_%i_OF_%i" = "Fejezetek: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Nem sikerült hozzáadni a művet a követéshez. Próbálja újra.";
+"SORT_READ_PROGRESS" = "Olvasási előrehaladás";
+"SORT_RELEASE_YEAR" = "Megjelenés éve";
+"SOURCE_INVALID_PAGE_COUNT" = "Érvénytelen oldalszám";
+"SOURCE_INVALID_GENRE_ID" = "Érvénytelen műfajazonosító";
+"SOURCE_INVALID_LISTING" = "Érvénytelen lista";
+"SOURCE_INVALID_LISTING_TYPE" = "Érvénytelen listatípus";
+"SOURCE_INVALID_ITEM_TYPE" = "Érvénytelen elemtípus";
+"DICTIONARY_ERROR" = "Szótárhiba";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Nem sikerült menteni a szótárbeállításokat: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Nem sikerült importálni a kiválasztott szótárakat:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Néhány szótárt nem sikerült importálni:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "A szótár importálása sikertelen.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Átfogó japán–angol szótár, amelyet az Electronic Dictionary Research and Development Group (EDRDG) tart karban.";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Japán tulajdonnevek szótára, amelyet az Electronic Dictionary Research and Development Group (EDRDG) tart karban.";
+"RECOMMENDED_JITEN_DESCRIPTION" = "A https://jiten.moe médiakorpuszán alapuló gyakorisági szótár.";

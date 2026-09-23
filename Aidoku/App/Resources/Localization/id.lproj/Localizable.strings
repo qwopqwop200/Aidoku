@@ -226,7 +226,7 @@
 "SOURCE_LIST_ADD_FAIL_TEXT" = "URL daftar sumber yang diberikan tidak valid atau telah ditambahkan.";
 "CLEAR_NETWORK_CACHE_TEXT" = "Tindakan ini tidak dapat dibatalkan. Permintaan jaringan dan gambar yang disimpan dalam cache akan dihapus.";
 "RESET_SETTINGS_TEXT" = "Tindakan ini tidak dapat dibatalkan. Semua pengaturan aplikasi dan sumber akan diatur ulang.";
-"DISPLAY_LOGS" = "Tampilkan Catatan";
+"DISPLAY_LOGS" = "Tampilkan Log";
 "RESET_TEXT" = "Tindakan ini tidak dapat dibatalkan. Semua data, pengaturan, dan cache akan dihapus dan disetel ulang.";
 "CLEAR_NETWORK_CACHE" = "Hapus Cache Jaringan";
 "CLEAR_READ_HISTORY" = "Hapus Riwayat Baca";
@@ -591,7 +591,7 @@
 "BACKGROUND_DOWNLOADING" = "Mengunduh di Latar Belakang";
 "METADATA_DETECTED" = "Metadata Lama Terdeteksi";
 "METADATA_DETECTED_TEXT" = "Metadata JSON lama akan dimigrasikan ke berkas ComicInfo.xml.";
-"LIBRARY_ADD_CONTENT" = "Tambahkan konten dari tab penelusuran.";
+"LIBRARY_ADD_CONTENT" = "Tambahkan konten dari tab Jelajahi.";
 "LIBRARY_ADJUST_FILTERS" = "Sesuaikan filter Anda untuk melihat lebih banyak konten.";
 "REMOVE_FILTER" = "Hapus Filter";
 "AND_MORE" = "dan lainnya";
@@ -618,7 +618,7 @@
 "SOURCES" = "Sumber";
 "DOWNLOADED_CHAPTER_BADGES" = "Lencana Bab yang Diunduh";
 "BACKGROUND_REFRESH" = "Penyegaran Latar Belakang";
-"BACKGROUND_REFRESH_TEXT" = "Saat memulai penyegaran pustaka secara manual, izinkan penyegaran selesai meskipun aplikasi berada di latar belakang.";
+"BACKGROUND_REFRESH_TEXT" = "Saat memulai penyegaran perpustakaan secara manual, izinkan penyegaran selesai meskipun aplikasi berada di latar belakang.";
 "EVERY_6_HOURS" = "Setiap 6 jam";
 "READER_BG_COLOR_AUTO" = "Otomatis";
 "AUTOMATIC_BACKUPS" = "Pencadangan Otomatis";
@@ -693,7 +693,7 @@
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Menonaktifkan pelacakan untuk suatu sumber akan menghapus semua tautan pelacak untuk sumber tersebut. Mengaktifkannya akan secara otomatis menautkan semua seri dari sumber tersebut di perpustakaan Anda.";
 "TRACKER_LOGOUT_INFO" = "Keluar akan menghapus info pelacakan yang tertaut dari pelacak ini untuk semua seri.";
 "REFRESH_NO_WIFI" = "Tidak Terhubung ke Wi-Fi";
-"REFRESH_NO_WIFI_TEXT" = "Pengaturan \"Hanya Perbarui di Wi-Fi\" diaktifkan, sehingga pustaka tidak dapat disegarkan hingga koneksi Wi-Fi tersedia.";
+"REFRESH_NO_WIFI_TEXT" = "Pengaturan \"Hanya Perbarui di Wi-Fi\" diaktifkan, sehingga perpustakaan tidak dapat disegarkan hingga koneksi Wi-Fi tersedia.";
 "REFRESH_ANYWAYS" = "Tetap Segarkan";
 "API_KEY" = "Kunci API";
 "OIDC" = "OIDC";
@@ -706,7 +706,7 @@
 "PAGE_OFFSET" = "Offset Halaman";
 "UNSET_AS_SINGLE_PAGE" = "Batalkan Pengaturan sebagai Halaman Tunggal";
 "TOGGLE_PAGE_OFFSET" = "Aktifkan/nonaktifkan offset halaman";
-"REMOVE_FROM_LIBRARY_CONFIRM" = "Hapus dari Pustaka?";
+"REMOVE_FROM_LIBRARY_CONFIRM" = "Hapus dari Perpustakaan?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Menghapus seri ini dari perpustakaan Anda juga akan menghapus semua tautan pelacaknya. Apakah Anda yakin ingin melanjutkan?";
 "INCOGNITO_FILTERS_NOTICE" = "Filter yang dimodifikasi tidak akan tersimpan di Mode Penyamaran.";
 "REFRESH_DETAILS" = "Segarkan Detail";
@@ -730,7 +730,7 @@
 "ARTIST_NAME" = "Nama seniman";
 "INVALID_KEY" = "Kunci Tidak Valid";
 "NEW_CHAPTER_NOTIFICATIONS" = "Notifikasi Bab Baru";
-"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Kirim notifikasi saat pustaka disegarkan di latar belakang.";
+"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Kirim notifikasi saat perpustakaan disegarkan di latar belakang.";
 "1_NEW_CHAPTER_AVAILABLE" = "Bab baru tersedia";
 "X_NEW_CHAPTERS_AVAILABLE" = "%d bab baru tersedia";
 "NEW_CHAPTERS_AVAILABLE" = "Bab Baru Tersedia";
@@ -745,15 +745,15 @@
 "MIGRATE_%i_OF_%i" = "Migrasi (%i/%i)";
 "SHOW_ENTRY" = "Tampilkan Entri";
 "DOWNLOAD_INCOMPLETE" = "Unduhan Tidak Lengkap";
-"LIBRARY_REFRESH_INTERRUPTED" = "Penyegaran Pustaka Terhenti";
-"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Penyegaran pustaka terakhir terhenti sebelum selesai. Apakah Anda ingin melanjutkan?";
+"LIBRARY_REFRESH_INTERRUPTED" = "Penyegaran Perpustakaan Terhenti";
+"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Penyegaran perpustakaan terakhir terhenti sebelum selesai. Apakah Anda ingin melanjutkan?";
 "DISABLE" = "Nonaktifkan";
 "ENABLE" = "Aktifkan";
 "RESTART" = "Mulai Ulang";
 "HTML_ERROR" = "Kesalahan HTML";
 "JSON_ERROR" = "Kesalahan JSON";
 "SOURCE_CRASHED" = "Sumber Mogok";
-"CONTINUE_READING_ON_RESELECT" = "Ketuk Ganda pada Tab Riwayat untuk Melanjutkan";
+"CONTINUE_READING_ON_RESELECT" = "Ketuk Lagi Tab Riwayat untuk Melanjutkan Membaca";
 "DICTIONARY_LOOKUP" = "Pencarian Kamus";
 "DICTIONARY_SETTINGS_TEXT" = "Aktifkan Pencarian Kamus untuk memungkinkan pemrosesan OCR pada gambar halaman demi mencari kata dalam kamus Yomitan yang telah diimpor.";
 "DICTIONARIES" = "Kamus";
@@ -1013,7 +1013,7 @@
 
 "TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Perkirakan warna teks asli tanpa model tambahan. Gunakan warna default bila tidak yakin atau bila kontras terlalu rendah.";
 
-"TRANSLATION_LLM_SFX" = "Penyaringan LLM SFX (Semua Bahasa)";
+"TRANSLATION_LLM_SFX" = "Penyaringan Efek Suara dengan LLM (Semua Bahasa)";
 
 "TRANSLATION_LLM_SFX_HELP" = "Mengklasifikasikan efek suara dalam permintaan terjemahan yang sama dan membiarkannya tidak berubah. Jika gambar halaman disertakan, AI juga melewati fragmen OCR yang tidak jelas, kecuali gambar menunjukkan bahwa fragmen tersebut merupakan teks bermakna. Dialog, narasi, judul, dan kredit tetap diterjemahkan. Klasifikasi kurang andal tanpa gambar halaman.";
 
@@ -1172,3 +1172,28 @@
 "TRANSLATION_FILTERING" = "Penyaringan Teks";
 
 "TRANSLATION_TARGETS" = "Konten yang Diterjemahkan";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Halaman: %i / %i";
+"1_SERIES" = "1 seri";
+"SKIPPING_ONE_CHAPTER" = "Melewatkan 1 bab karena tidak tersedia di sumber atau telah disaring";
+"BACKUP_CREATE_ERROR_TEXT" = "Cadangan tidak dapat dibuat. Silakan coba lagi.";
+"YES" = "Ya";
+"NO" = "Tidak";
+"CHAPTERS_%i_OF_%i" = "Bab: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Judul tidak dapat ditambahkan ke pelacakan. Silakan coba lagi.";
+"SORT_READ_PROGRESS" = "Progres membaca";
+"SORT_RELEASE_YEAR" = "Tahun terbit";
+"SOURCE_INVALID_PAGE_COUNT" = "Jumlah halaman tidak valid";
+"SOURCE_INVALID_GENRE_ID" = "ID genre tidak valid";
+"SOURCE_INVALID_LISTING" = "Daftar tidak valid";
+"SOURCE_INVALID_LISTING_TYPE" = "Jenis daftar tidak valid";
+"SOURCE_INVALID_ITEM_TYPE" = "Jenis item tidak valid";
+"DICTIONARY_ERROR" = "Kesalahan Kamus";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Tidak dapat menyimpan pengaturan kamus: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Tidak dapat mengimpor kamus yang dipilih:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Beberapa kamus tidak dapat diimpor:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Gagal mengimpor kamus.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Kamus Jepang–Inggris lengkap yang dikelola oleh Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Kamus nama diri Jepang yang dikelola oleh Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Kamus frekuensi berdasarkan korpus media di https://jiten.moe.";

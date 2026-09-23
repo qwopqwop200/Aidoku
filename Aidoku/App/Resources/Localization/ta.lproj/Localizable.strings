@@ -20,7 +20,7 @@
 "NO_WIFI_ALERT_MESSAGE" = "இந்த உள்ளடக்கத்தைப் பதிவிறக்க நீங்கள் வைஃபை உடன் இணைக்கப்பட வேண்டும். தயவுசெய்து வைஃபை உடன் இணைத்து மீண்டும் முயற்சிக்கவும்.";
 "DOWNLOAD_ANYWAY_MESSAGE" = "நீங்கள் தற்போது Wi-Fi உடன் இணைக்கப்படவில்லை. இருந்தாலும் பதிவிறக்கவா?";
 "LIBRARY" = "நூலகம்";
-"LIBRARY_SEARCH" = "நூலகத்தில் காண்க";
+"LIBRARY_SEARCH" = "நூலகத்தில் தேடவும்";
 "LIBRARY_EMPTY" = "நூலகம் காலியாக உள்ளது";
 "UNKNOWN" = "தெரியாத";
 "ADD_TO_LIBRARY" = "நூலகத்தில் சேர்க்கவும்";
@@ -186,15 +186,15 @@
 "STATUS_COLON_%@" = "நிலை: %@";
 "TYPE_COLON_%@" = "வகை: %@";
 "VIEW_ON_WEBSITE" = "இணையதளத்தில் காண்க";
-"CLEAR_TRACKED_MANGA" = "மங்கா கண்காணிப்பு இணைப்புகளை அகற்று";
-"CLEAR_TRACKED_MANGA_TEXT" = "இந்தச் செயலை மாற்ற முடியாது. மங்காவுடன் சேர்க்கப்பட்ட அனைத்து கண்காணிப்பு இணைப்புகளும் அகற்றப்படும்.";
+"CLEAR_TRACKED_MANGA" = "அனைத்து டிராக்கர் இணைப்புகளையும் அகற்று";
+"CLEAR_TRACKED_MANGA_TEXT" = "இந்தச் செயலை மாற்ற முடியாது. அனைத்து மங்காக்களிலும் சேர்க்கப்பட்ட அனைத்து டிராக்கர் இணைப்புகளும் அகற்றப்படும்.";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "எல்லா பதிவிறக்கங்களையும் அகற்ற விரும்புகிறீர்களா?";
 "CACHE_SIZE_%@" = "கேச் அளவு: %@";
 "SUPPORT_VIA_KOFI" = "கோ-ஃபை வழியாக உதவி";
 "SORT_UNREAD_CHAPTERS" = "படிக்காத அத்தியாயங்கள்";
 "RELOAD" = "மீண்டும் ஏற்றவும்";
 "%i_OF_%i" = "%i / %i";
-"%i_PAGES_LEFT" = "%i பக்கங்கள் எஞ்சியிருக்கிறது";
+"%i_PAGES_LEFT" = "%i பக்கங்கள் மீதமுள்ளன";
 "ONE_PAGE_LEFT" = "1 பக்கம் மீதமுள்ளது";
 "FAILED_CHAPTER_LOAD" = "அத்தியாயத்தை ஏற்றுவதில் தோல்வி";
 "SORT_LAST_UPDATED" = "கடைசியாக புதுப்பிக்கப்பட்டது";
@@ -238,7 +238,7 @@
 "VOLUME_X" = "தொகுதி %g";
 "CHAPTER_X" = "அத்தியாயம் %g";
 "VOL_X" = "தொகுதி.%g";
-"CH_X" = "Ch.%g";
+"CH_X" = "அத்.%g";
 "%lld_PLUS_MORE" = "+%lld மேலும்";
 "SKIP_TITLES" = "தலைப்புகளைத் தவிர்";
 "ONLY_UPDATE_ON_WIFI" = "வைஃபையில் மட்டுமே புதுப்பி";
@@ -339,7 +339,7 @@
 "NO_DOWNLOADS_TEXT" = "பதிவிறக்கம் செய்யப்பட்ட உள்ளடக்கம் இங்கே தோன்றும்.";
 "DOWNLOADED_CHAPTERS" = "பதிவிறக்கப்பட்ட அத்தியாயங்கள்";
 "TOTAL_DOWNLOADS" = "பதிவிறக்கங்களின் மொத்த அளவு";
-"%i_SERIES" = "%i தொடர்";
+"%i_SERIES" = "%i தொடர்கள்";
 "IN_LIBRARY" = "நூலகத்தில்";
 "VIEW_SERIES" = "தொடரைப் பார்க்கவும்";
 "VIEW_FILES" = "கோப்புகளைப் பார்க்கவும்";
@@ -959,7 +959,7 @@
 "1_NEW_CHAPTER_AVAILABLE" = "புதிய அத்தியாயம் கிடைக்கிறது";
 "X_NEW_CHAPTERS_AVAILABLE" = "%d புதிய அத்தியாயங்கள் உள்ளன";
 "NEW_CHAPTERS_AVAILABLE" = "புதிய அத்தியாயங்கள் கிடைக்கும்";
-"X_SERIES_HAVE_NEW_CHAPTERS" = "%d தொடரில் புதிய அத்தியாயங்கள் உள்ளன";
+"X_SERIES_HAVE_NEW_CHAPTERS" = "%d தொடர்களில் புதிய அத்தியாயங்கள் உள்ளன";
 "TEXT_THEME" = "தீம்";
 "TEXT_THEME_SEPIA" = "செபியா";
 "TEXT_THEME_PAPER" = "காகிதம்";
@@ -1151,3 +1151,28 @@
 "TRANSLATION_FILTERING" = "உரை வடிகட்டல்";
 
 "TRANSLATION_TARGETS" = "மொழிபெயர்க்க வேண்டியவை";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "பக்கங்கள்: %i / %i";
+"1_SERIES" = "1 தொடர்";
+"SKIPPING_ONE_CHAPTER" = "1 அத்தியாயம் மூலத்தில் இல்லை அல்லது வடிகட்டப்பட்டுள்ளது என்பதால் தவிர்க்கப்படுகிறது";
+"BACKUP_CREATE_ERROR_TEXT" = "காப்புப்பிரதியை உருவாக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.";
+"YES" = "ஆம்";
+"NO" = "இல்லை";
+"CHAPTERS_%i_OF_%i" = "அத்தியாயங்கள்: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "படைப்பைக் கண்காணிப்பில் சேர்க்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.";
+"SORT_READ_PROGRESS" = "வாசிப்பு முன்னேற்றம்";
+"SORT_RELEASE_YEAR" = "வெளியீட்டு ஆண்டு";
+"SOURCE_INVALID_PAGE_COUNT" = "பக்கங்களின் எண்ணிக்கை செல்லுபடியாகாது";
+"SOURCE_INVALID_GENRE_ID" = "வகை ID செல்லுபடியாகாது";
+"SOURCE_INVALID_LISTING" = "பட்டியல் செல்லுபடியாகாது";
+"SOURCE_INVALID_LISTING_TYPE" = "பட்டியல் வகை செல்லுபடியாகாது";
+"SOURCE_INVALID_ITEM_TYPE" = "உருப்படி வகை செல்லுபடியாகாது";
+"DICTIONARY_ERROR" = "அகராதிப் பிழை";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "அகராதி அமைப்புகளைச் சேமிக்க முடியவில்லை: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "தேர்ந்தெடுத்த அகராதிகளை இறக்குமதி செய்ய முடியவில்லை:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "சில அகராதிகளை இறக்குமதி செய்ய முடியவில்லை:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "அகராதி இறக்குமதி தோல்வியடைந்தது.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) பராமரிக்கும் விரிவான ஜப்பானிய–ஆங்கில அகராதி.";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) பராமரிக்கும் ஜப்பானிய சிறப்புப் பெயர் அகராதி.";
+"RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe தளத்தின் ஊடக உரைத்தொகுப்பை அடிப்படையாகக் கொண்ட சொல் நிகழ்வெண் அகராதி.";

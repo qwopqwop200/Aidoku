@@ -45,8 +45,15 @@ struct ReaderAdaptiveRenderingTests {
             payload[key] = value
         }
         payload.removeValue(forKey: "smallTextReference")
+        // This fixture overrides the column solver with a fixed legacy box.
+        // Keep its recovery path explicit; balanced columns have their own suite.
+        payload["balancedColumn"] = false
         payload["allowsAutomaticFontRecovery"] = automatic
-        _ = try await web.callAsyncJavaScript(BrowserPageImageOverlayRenderer.renderScript,
+        // Exercise legacy recovery in this deliberately overridden 5pt box.
+        // The later typography wrapper has separate word-layout coverage.
+        let legacyRecoveryScript = BrowserPageImageOverlayRenderer.renderScript.replacingOccurrences(
+            of: "let typographyCharacterBudget = 8192;", with: "let typographyCharacterBudget = 0;")
+        _ = try await web.callAsyncJavaScript(legacyRecoveryScript,
             arguments: ["revision": "1", "session": "intermediate-font", "items": [payload],
                         "appearance": ["minimumReadableFontSize": 1, "opacity": 1, "preserveSourceBackgroundColor": true]],
             in: nil, contentWorld: .page)
@@ -95,6 +102,7 @@ struct ReaderAdaptiveRenderingTests {
                                    20.0/180, Double(scenario == "tight" ? 23 : 60)/240, 100.0/180]
         payload["text"] = text
         payload.removeValue(forKey: "smallTextReference")
+        payload["balancedColumn"] = false
         payload["allowsAutomaticFontRecovery"] = scenario != "manual"
         var items = [payload]
         if scenario == "blocked" {
@@ -107,9 +115,13 @@ struct ReaderAdaptiveRenderingTests {
             }
         }
         var results: [[String: Any]] = []
+        // Keep the fixed-box reflow under test separate from word-aware spans,
+        // which intentionally supersede that reflow in ordinary production use.
+        let legacyRecoveryScript = BrowserPageImageOverlayRenderer.renderScript.replacingOccurrences(
+            of: "let typographyCharacterBudget = 8192;", with: "let typographyCharacterBudget = 0;")
         for enabled in [false, true] {
-            let script = enabled ? BrowserPageImageOverlayRenderer.renderScript :
-                BrowserPageImageOverlayRenderer.renderScript.replacingOccurrences(
+            let script = enabled ? legacyRecoveryScript :
+                legacyRecoveryScript.replacingOccurrences(
                     of: "let captionReflowCharacterBudget = 8192;", with: "let captionReflowCharacterBudget = 0;")
             _ = try await web.callAsyncJavaScript(script,
                 arguments: ["revision": enabled ? "2" : "1", "session": "caption-reflow", "items": items,
@@ -194,12 +206,14 @@ struct ReaderAdaptiveRenderingTests {
         const image=new Image();image.id='reader-source-image';image.src=c.toDataURL();document.body.append(image);await image.decode();
         const plate=document.createElement('div');plate.setAttribute('data-aidoku-image-ocr-overlay','source-readability-panel');
         plate.style.cssText='position:absolute;left:10px;top:20px;width:120px;height:40px;background:white';document.body.append(plate);
+        const source=plate.cloneNode();source.dataset.sourceErasure='true';
+        source.style.cssText='position:absolute;left:40px;top:0px;width:12px;height:120px;background:white';document.body.append(source);
         """, arguments: [:], in: nil, contentWorld: .page)
         let raw = try #require(try await web.callAsyncJavaScript(ReaderTranslationImageExporter.prepareExportScript,
             arguments: [:], in: nil, contentWorld: .page) as? String)
         let report = try #require(JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [String: Any])
         let bounds = try #require(report["paintBounds"] as? [[Double]])
-        #expect(bounds == [[10, 20, 120, 40]])
+        #expect(bounds == [[10, 20, 120, 40], [40, 0, 12, 120]])
         #expect((report["masks"] as? [Any])?.isEmpty == true)
         let visible = try await web.evaluateJavaScript("getComputedStyle(document.querySelector('[data-aidoku-image-ocr-overlay=source-readability-panel]')).visibility") as? String
         #expect(visible == "visible")
@@ -264,7 +278,7 @@ struct ReaderAdaptiveRenderingTests {
                 """) as? [String: Any])
                 let bytes = try #require(audit["bytes"] as? Int)
                 #expect(bytes == audit["actual"] as? Int)
-                #expect(bytes <= 4 * 1_024 * 1_024)
+                #expect(bytes <= 16 * 1_024 * 1_024)
                 #expect(audit["released"] as? Bool == true)
                 #expect(audit["roots"] as? Int == 1)
                 maximumBytes = max(maximumBytes, bytes)

@@ -623,7 +623,7 @@
 "NO_HISTORY_TEXT" = "Το ιστορικό ανάγνωσης θα εμφανιστεί εδώ.";
 "MANGA_UPDATES" = "Ενημερώσεις";
 "NO_UPDATES" = "Δεν υπάρχουν ενημερώσεις";
-"%lld_PLUS_MORE" = "+%lld περισσότερα";
+"%lld_PLUS_MORE" = "+%lld επιπλέον";
 "SEARCH" = "Αναζήτηση";
 "VIEW_MORE" = "Δείτε περισσότερα";
 "RECENTLY_SEARCHED" = "Πρόσφατη αναζήτηση";
@@ -673,7 +673,7 @@
 "READER" = "Αναγνώστης";
 "OPEN_READER_VIEW" = "Ανοίξτε την Προβολή Αναγνώστη";
 "RESUME_LAST_OPENED_CHAPTER" = "Συνέχιση κεφαλαίου που άνοιξε τελευταία";
-"CONTINUE_READING_ON_RESELECT" = "Πατήστε δύο φορές την καρτέλα Ιστορικό για να συνεχίσετε την ανάγνωση";
+"CONTINUE_READING_ON_RESELECT" = "Πατήστε ξανά την καρτέλα Ιστορικό για να συνεχίσετε την ανάγνωση";
 "UNREAD_CHAPTER_BADGES" = "Ενδείξεις μη αναγνωσμένων κεφαλαίων";
 "DOWNLOADED_CHAPTER_BADGES" = "Ενδείξεις ληφθέντων κεφαλαίων";
 "PIN_TITLES" = "Καρφιτσώστε τίτλους manga";
@@ -753,7 +753,7 @@
 "MODEL_INFO" = "Πληροφορίες μοντέλου";
 "LOCK_HISTORY_TAB" = "Κλείδωμα καρτέλας ιστορικού";
 "DOWNSAMPLE_IMAGES" = "Μείωση ανάλυσης εικόνων";
-"CROP_BORDERS" = "Περικοπή περιγραμμάτων εικόνας";
+"CROP_BORDERS" = "Περικοπή περιθωρίων";
 "DISABLE_QUICK_ACTIONS" = "Απενεργοποιήστε τις Γρήγορες Ενέργειες";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Απενεργοποιήστε το Ζουμ με διπλό πάτημα";
 "LIVE_TEXT" = "Ζωντανό κείμενο";
@@ -951,7 +951,7 @@
 "STATUS_COLON_%@" = "Κατάσταση: %@";
 "TYPE_COLON_%@" = "Τύπος: %@";
 "VIEW_ON_WEBSITE" = "Προβολή στον ιστότοπο";
-"CLEAR_TRACKED_MANGA" = "Εκκαθάριση συνδέσεων παρακολούθησης";
+"CLEAR_TRACKED_MANGA" = "Αφαίρεση όλων των συνδέσεων με υπηρεσίες παρακολούθησης";
 "CLEAR_TRACKED_MANGA_TEXT" = "Αυτή η ενέργεια είναι μη αναστρέψιμη. Θα αφαιρεθούν όλοι οι σύνδεσμοι με υπηρεσίες παρακολούθησης που έχουν προστεθεί στα manga.";
 "SEARCH_OPTIONS" = "Επιλογές αναζήτησης";
 "SHOW_NSFW_RESULTS" = "Εμφάνιση αποτελεσμάτων NSFW";
@@ -1168,3 +1168,28 @@
 "TRANSLATION_FILTERING" = "Φιλτράρισμα κειμένου";
 
 "TRANSLATION_TARGETS" = "Περιεχόμενο προς μετάφραση";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Σελίδες: %i / %i";
+"1_SERIES" = "1 σειρά";
+"SKIPPING_ONE_CHAPTER" = "Παράλειψη 1 κεφαλαίου επειδή λείπει από την πηγή ή έχει αποκλειστεί από τα φίλτρα";
+"BACKUP_CREATE_ERROR_TEXT" = "Δεν ήταν δυνατή η δημιουργία του αντιγράφου ασφαλείας. Δοκιμάστε ξανά.";
+"YES" = "Ναι";
+"NO" = "Όχι";
+"CHAPTERS_%i_OF_%i" = "Κεφάλαια: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Δεν ήταν δυνατή η προσθήκη του τίτλου για παρακολούθηση. Δοκιμάστε ξανά.";
+"SORT_READ_PROGRESS" = "Πρόοδος ανάγνωσης";
+"SORT_RELEASE_YEAR" = "Έτος κυκλοφορίας";
+"SOURCE_INVALID_PAGE_COUNT" = "Μη έγκυρος αριθμός σελίδων";
+"SOURCE_INVALID_GENRE_ID" = "Μη έγκυρο αναγνωριστικό είδους";
+"SOURCE_INVALID_LISTING" = "Μη έγκυρη λίστα";
+"SOURCE_INVALID_LISTING_TYPE" = "Μη έγκυρος τύπος λίστας";
+"SOURCE_INVALID_ITEM_TYPE" = "Μη έγκυρος τύπος στοιχείου";
+"DICTIONARY_ERROR" = "Σφάλμα λεξικού";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Δεν ήταν δυνατή η αποθήκευση των ρυθμίσεων των λεξικών: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Δεν ήταν δυνατή η εισαγωγή των επιλεγμένων λεξικών:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Δεν ήταν δυνατή η εισαγωγή ορισμένων λεξικών:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Η εισαγωγή του λεξικού απέτυχε.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Ένα ολοκληρωμένο ιαπωνικό-αγγλικό λεξικό που συντηρείται από την Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Ένα λεξικό ιαπωνικών κύριων ονομάτων που συντηρείται από την Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Ένα λεξικό συχνοτήτων βασισμένο στο σώμα κειμένων πολυμέσων του https://jiten.moe.";

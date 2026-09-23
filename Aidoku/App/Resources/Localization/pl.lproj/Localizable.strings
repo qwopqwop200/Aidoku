@@ -293,7 +293,7 @@
 "RENAME_CATEGORY_INFO" = "Wprowadź nową nazwę dla tej kategorii.";
 "SKIP_DUPLICATE_CHAPTERS" = "Pomijanie powtarzających się rozdziałów";
 "RENAME_CATEGORY" = "Zmień nazwę kategorii";
-"MIGRATE_%i_ITEMS?" = "Migrować %i elementów?";
+"MIGRATE_%i_ITEMS?" = "Migrować wybrane elementy (liczba: %i)?";
 "PINNED" = "Przypięte";
 "%i_CHAPTERS" = "Liczba rozdziałów: %i";
 "1_CHAPTER" = "1 Rozdział";
@@ -826,7 +826,7 @@
 "PORTRAIT_ROWS" = "Kolumny w orientacji pionowej";
 "LANDSCAPE_ROWS" = "Kolumny w orientacji poziomej";
 "RESUME_LAST_OPENED_CHAPTER" = "Wznów ostatnio otwarty rozdział";
-"CONTINUE_READING_ON_RESELECT" = "Kliknij dwukrotnie kartę Historia, aby wznowić czytanie";
+"CONTINUE_READING_ON_RESELECT" = "Dotknij ponownie karty Historia, aby wznowić czytanie";
 "DOWNLOADED_CHAPTER_BADGES" = "Oznaczenia pobranych rozdziałów";
 "PIN_TITLES" = "Przypinaj tytuły mang";
 "PIN_DISABLED" = "Przypinanie wyłączone";
@@ -868,7 +868,7 @@
 "LEGACY_SOURCE_LIST" = "Przestarzała lista źródeł";
 "LEGACY_SOURCE_LIST_WARNING" = "Ostrzeżenie: przestarzała lista źródeł";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Obecnie masz skonfigurowaną starszą listę źródeł. Ten format jest nieaktualny i przestanie działać w przyszłej wersji Aidoku. Chociaż na razie będzie to nadal działać, zaleca się znalezienie zamiennika i skonfigurowanie go w Ustawieniach> Listy źródeł.";
-"UPSCALING" = "Skalowanie";
+"UPSCALING" = "Zwiększanie rozdzielczości";
 "UPSCALE_IMAGES" = "Zwiększaj rozdzielczość obrazów";
 "UPSCALING_MODELS" = "Modele zwiększania rozdzielczości";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Maksymalna wysokość obrazu";
@@ -1145,3 +1145,28 @@
 "TRANSLATION_FILTERING" = "Filtrowanie tekstu";
 
 "TRANSLATION_TARGETS" = "Co tłumaczyć";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Strony: %i / %i";
+"1_SERIES" = "1 seria";
+"SKIPPING_ONE_CHAPTER" = "Pomijanie 1 rozdziału, ponieważ brakuje go w źródle lub został odfiltrowany";
+"BACKUP_CREATE_ERROR_TEXT" = "Nie udało się utworzyć kopii zapasowej. Spróbuj ponownie.";
+"YES" = "Tak";
+"NO" = "Nie";
+"CHAPTERS_%i_OF_%i" = "Rozdziały: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Nie udało się dodać tytułu do śledzenia. Spróbuj ponownie.";
+"SORT_READ_PROGRESS" = "Postęp czytania";
+"SORT_RELEASE_YEAR" = "Rok wydania";
+"SOURCE_INVALID_PAGE_COUNT" = "Nieprawidłowa liczba stron";
+"SOURCE_INVALID_GENRE_ID" = "Nieprawidłowy identyfikator gatunku";
+"SOURCE_INVALID_LISTING" = "Nieprawidłowa lista";
+"SOURCE_INVALID_LISTING_TYPE" = "Nieprawidłowy typ listy";
+"SOURCE_INVALID_ITEM_TYPE" = "Nieprawidłowy typ elementu";
+"DICTIONARY_ERROR" = "Błąd słownika";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Nie udało się zapisać ustawień słowników: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Nie udało się zaimportować wybranych słowników:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Nie udało się zaimportować niektórych słowników:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Import słownika nie powiódł się.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Kompleksowy słownik japońsko-angielski utrzymywany przez Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Słownik japońskich nazw własnych utrzymywany przez Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Słownik frekwencyjny oparty na korpusie mediów z https://jiten.moe.";

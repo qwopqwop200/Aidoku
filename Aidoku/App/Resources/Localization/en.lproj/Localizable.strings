@@ -344,7 +344,7 @@
 "MORE" = "more";
 "SOURCE_ORDER" = "Source Order";
 "MISSING_SOURCE" = "Missing Source";
-"MISSING_SOURCE_TEXT" = "The original source seems to be missing for this Manga. Please redownload it or remove this title from your library.";
+"MISSING_SOURCE_TEXT" = "The original source for this manga could not be found. Please reinstall the source or remove this title from your library.";
 "SELECT_CHAPTERS" = "Select Chapters";
 "SELECT_ALL" = "Select All";
 "DESELECT_ALL" = "Deselect All";
@@ -470,7 +470,7 @@
 "READER" = "Reader";
 "OPEN_READER_VIEW" = "Open Reader View";
 "RESUME_LAST_OPENED_CHAPTER" = "Resume Last Opened Chapter";
-"CONTINUE_READING_ON_RESELECT" = "History Tab Double Tap Resumes";
+"CONTINUE_READING_ON_RESELECT" = "Tap History Again to Resume Reading";
 "UNREAD_CHAPTER_BADGES" = "Unread Chapter Badges";
 "DOWNLOADED_CHAPTER_BADGES" = "Downloaded Chapter Badges";
 "PIN_TITLES" = "Pin Titles";
@@ -1120,3 +1120,28 @@
 "TRANSLATION_FILTERING" = "Text Filtering";
 
 "TRANSLATION_TARGETS" = "What to Translate";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Pages: %i / %i";
+"1_SERIES" = "1 series";
+"SKIPPING_ONE_CHAPTER" = "Skipping 1 chapter because it is missing from the source or has been filtered out";
+"BACKUP_CREATE_ERROR_TEXT" = "The backup could not be created. Please try again.";
+"YES" = "Yes";
+"NO" = "No";
+"CHAPTERS_%i_OF_%i" = "Chapters: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "The title could not be added to tracking. Please try again.";
+"SORT_READ_PROGRESS" = "Reading Progress";
+"SORT_RELEASE_YEAR" = "Release Year";
+"SOURCE_INVALID_PAGE_COUNT" = "Invalid page count";
+"SOURCE_INVALID_GENRE_ID" = "Invalid genre ID";
+"SOURCE_INVALID_LISTING" = "Invalid listing";
+"SOURCE_INVALID_LISTING_TYPE" = "Invalid listing type";
+"SOURCE_INVALID_ITEM_TYPE" = "Invalid item type";
+"DICTIONARY_ERROR" = "Dictionary Error";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Could not save dictionary settings: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Could not import the selected dictionaries:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Some dictionaries could not be imported:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Dictionary import failed.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "A comprehensive Japanese–English dictionary maintained by the Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "A Japanese proper-name dictionary maintained by the Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "A frequency dictionary based on the media corpus at https://jiten.moe.";

@@ -33,13 +33,17 @@ struct HistoryView: View {
         Group {
             if locked {
                 lockedView
-            } else if viewModel.filteredHistory.isEmpty && viewModel.loadingState == .complete {
-                UnavailableView(
-                    NSLocalizedString("NO_HISTORY"),
-                    systemImage: "book.fill",
-                    description: Text(NSLocalizedString("NO_HISTORY_TEXT"))
-                )
-                .ignoresSafeArea()
+            } else if viewModel.filteredHistory.values.allSatisfy({ $0.entries.isEmpty }) && viewModel.loadingState == .complete {
+                if searchText.isEmpty {
+                    UnavailableView(
+                        NSLocalizedString("NO_HISTORY"),
+                        systemImage: "book.fill",
+                        description: Text(NSLocalizedString("NO_HISTORY_TEXT"))
+                    )
+                    .ignoresSafeArea()
+                } else {
+                    UnavailableView.search(text: searchText)
+                }
             } else {
                 List(selection: $listSelection) {
                     let sections = viewModel.filteredHistory.values.sorted { $0.daysAgo < $1.daysAgo }
@@ -118,7 +122,7 @@ struct HistoryView: View {
         } message: {
             Text(NSLocalizedString("CLEAR_READ_HISTORY_TEXT"))
         }
-        .confirmationDialogOrAlert(NSLocalizedString("CLEAR_READ_HISTORY"), isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+        .confirmationDialogOrAlert(NSLocalizedString("REMOVE"), isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button(NSLocalizedString("REMOVE"), role: .destructive) {
                 if let entryToDelete {
                     Task {
@@ -134,7 +138,7 @@ struct HistoryView: View {
                 }
             }
         } message: {
-            Text(NSLocalizedString("CLEAR_READ_HISTORY_TEXT"))
+            EmptyView()
         }
         .onReceive(NotificationCenter.default.publisher(for: .historyLockTabSetting)) { _ in
             // update locked state when the setting changes

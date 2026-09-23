@@ -1,7 +1,7 @@
 "IMPORT" = "Importuj";
 "DONE" = "Gotowe";
-"FILE_IMPORT_FAIL_TEXT" = "Nie udało się zaimportować pliku. Upewnij się, że jest to prawidłowe archiwum CBZ lub ZIP zawierające obrazy.";
+"FILE_IMPORT_FAIL_TEXT" = "Nie udało się zaimportować pliku. Upewnij się, że jest to plik obrazu, który można odczytać, lub prawidłowe archiwum CBZ albo ZIP zawierające obrazy.";
 "FORMAT_IMAGE" = "Obraz";
-"SHARED_IMAGES_SAVED" = "Obrazy zapisane. Otwórz Aidoku, aby je przeczytać.";
+"SHARED_IMAGES_SAVED" = "Zapisywanie zakończone. Otwórz Aidoku, aby czytać.";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "Nie można odczytać udostępnionego obrazu. Spróbuj użyć innego obrazu.";

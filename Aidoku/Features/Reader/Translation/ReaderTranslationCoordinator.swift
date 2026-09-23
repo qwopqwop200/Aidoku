@@ -126,7 +126,12 @@ final class ReaderTranslationCoordinator {
         setEnabled: @escaping (Bool) -> Void = { ReaderTranslationSettings.setAutomaticTranslation($0) }
     ) {
         let persistsCache = owner.translationPersistsCache
-        self.preloader = ReaderTranslationPreloader(diskCache: persistsCache ? .shared : nil)
+        self.preloader = ReaderTranslationPreloader(diskCache: persistsCache ? .shared : nil, retainImage: { [weak owner] page in
+            guard let owner, let position = owner.translationUpcomingPages.firstIndex(where: {
+                $0.translationCacheKey == page.translationCacheKey
+            }) else { return false }
+            return abs(position - owner.translationCurrentPageIndex) <= 2
+        })
         self.owner = owner
         self.readSettings = readSettings
         self.setEnabled = setEnabled
@@ -162,7 +167,7 @@ final class ReaderTranslationCoordinator {
         }
         self.session.onFailure = { [weak self] error in
             guard let self else { return }
-            button.accessibilityHint = error.localizedDescription
+            button.accessibilityHint = Self.localizedFailureDescription(error)
             showFailureNotice(error)
         }
         observers.append(NotificationCenter.default.addObserver(
@@ -223,6 +228,13 @@ final class ReaderTranslationCoordinator {
         failureNoticeTask = nil
         failureNotice?.removeFromSuperview()
         failureNotice = nil
+    }
+
+    static func localizedFailureDescription(_ error: Error) -> String {
+        if let fallback = error as? ReaderTranslationOCRFallback {
+            return NSLocalizedString("TRANSLATION_CONNECTION_FAILED_NOTICE") + " " + fallback.underlying.localizedDescription
+        }
+        return error.localizedDescription
     }
 
     private func showFailureNotice(_ error: Error) {

@@ -2,4 +2,4 @@
 
 // Completed app localization
 "CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "Aidoku უერთდება თქვენს მორგებულ თარგმანის სერვერს, როდესაც მისი მისამართი თქვენს ლოკალურ ქსელშია.";
+"NSLocalNetworkUsageDescription" = "Aidoku უერთდება მანგას სერვერებსა და თქვენს მორგებულ თარგმანის სერვერს, როდესაც მათი მისამართები თქვენს ლოკალურ ქსელშია.";

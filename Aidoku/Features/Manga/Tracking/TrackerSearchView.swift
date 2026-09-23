@@ -188,7 +188,11 @@ struct TrackerSearchView: View {
         Task {
             let saved = await TrackerManager.shared.register(tracker: tracker, manga: manga, item: result)
             loading = false
-            if saved { dismiss() } else { searchError = URLError(.cannotWriteToFile) }
+            if saved {
+                dismiss()
+            } else {
+                searchError = SourceError.message("TRACKING_REGISTRATION_FAILED")
+            }
         }
     }
 }

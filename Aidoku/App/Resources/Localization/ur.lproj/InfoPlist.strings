@@ -2,4 +2,4 @@
 
 // Completed app localization
 "CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "Aidoku آپ کے حسب ضرورت ترجمہ سرور سے اس وقت جڑتا ہے جب اس کا پتہ آپ کے مقامی نیٹ ورک پر ہوتا ہے۔";
+"NSLocalNetworkUsageDescription" = "Aidoku مانگا سرورز اور آپ کے حسب ضرورت ترجمہ سرور سے اس وقت جڑتا ہے جب ان کے پتے آپ کے مقامی نیٹ ورک پر ہوں۔";

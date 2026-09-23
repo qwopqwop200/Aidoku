@@ -1,7 +1,7 @@
 "IMPORT" = "İçe aktar";
 "DONE" = "Bitti";
-"FILE_IMPORT_FAIL_TEXT" = "Dosya içeri aktarılamadı. Lütfen resim içeren geçerli bir CBZ veya ZIP arşivi olduğundan emin olun.";
+"FILE_IMPORT_FAIL_TEXT" = "Dosya içe aktarılamadı. Lütfen okunabilir bir görüntü dosyası veya görüntü içeren geçerli bir CBZ ya da ZIP arşivi olduğundan emin olun.";
 "FORMAT_IMAGE" = "Görsel";
-"SHARED_IMAGES_SAVED" = "Görseller kaydedildi. Okumak için Aidoku’yu açın.";
+"SHARED_IMAGES_SAVED" = "Kaydedildi. Okumak için Aidoku’yu açın.";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "Paylaşılan resim okunamıyor. Lütfen başka bir resim deneyin.";

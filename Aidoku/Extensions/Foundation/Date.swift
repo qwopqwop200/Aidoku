@@ -7,10 +7,19 @@
 
 import Foundation
 
+extension DateFormatter {
+    /// Tracker API dates use Gregorian years and ASCII digits regardless of device settings.
+    convenience init(fixedAPIFormat format: String) {
+        self.init()
+        locale = Locale(identifier: "en_US_POSIX")
+        calendar = Calendar(identifier: .gregorian)
+        dateFormat = format
+    }
+}
+
 extension Date {
     func dateString(format: String) -> String? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = format
+        let formatter = DateFormatter(fixedAPIFormat: format)
         return formatter.string(from: self)
     }
 }

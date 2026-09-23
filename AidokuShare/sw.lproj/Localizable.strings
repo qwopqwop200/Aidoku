@@ -1,7 +1,7 @@
 "IMPORT" = "Ingiza";
 "DONE" = "Imekamilika";
-"FILE_IMPORT_FAIL_TEXT" = "Imeshindwa kuingiza faili. Hakikisha ni faili halali ya CBZ au ZIP yenye picha.";
+"FILE_IMPORT_FAIL_TEXT" = "Imeshindwa kuingiza faili. Hakikisha ni faili ya picha inayoweza kusomwa au faili halali ya CBZ au ZIP yenye picha.";
 "FORMAT_IMAGE" = "Picha";
-"SHARED_IMAGES_SAVED" = "Picha zimehifadhiwa. Fungua Aidoku ili uzisome.";
+"SHARED_IMAGES_SAVED" = "Uhifadhi umekamilika. Fungua Aidoku ili kusoma.";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "Imeshindwa kusoma picha iliyoshirikiwa. Tafadhali jaribu picha nyingine.";

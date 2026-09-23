@@ -330,7 +330,7 @@
 "RESUME" = "Reprendre";
 "NO_WIFI_ALERT_TITLE" = "Pas de Wi-Fi";
 "ONLY_DOWNLOAD_ON_WIFI" = "Télécharger uniquement en Wi-Fi";
-"%lld_PLUS_MORE" = "+%lld autres";
+"%lld_PLUS_MORE" = "+%lld de plus";
 
 // Manga Updates
 "MANGA_UPDATES" = "Mises à jour";
@@ -760,7 +760,7 @@
 "HTML_ERROR" = "Erreur HTML";
 "JSON_ERROR" = "Erreur JSON";
 "SOURCE_CRASHED" = "La source a planté";
-"CONTINUE_READING_ON_RESELECT" = "Onglet Historique : appui double pour reprendre";
+"CONTINUE_READING_ON_RESELECT" = "Appuyer à nouveau sur Historique pour reprendre la lecture";
 "DICTIONARY_LOOKUP" = "Recherche dans le dictionnaire";
 "DICTIONARY_SETTINGS_TEXT" = "Activez la recherche dans le dictionnaire pour permettre le traitement OCR des images de pages afin de rechercher des mots dans les dictionnaires Yomitan importés.";
 "DICTIONARIES" = "Dictionnaires";
@@ -1143,3 +1143,28 @@
 "TRANSLATION_FILTERING" = "Filtrage du texte";
 
 "TRANSLATION_TARGETS" = "Contenu à traduire";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Pages : %i / %i";
+"1_SERIES" = "1 série";
+"SKIPPING_ONE_CHAPTER" = "1 chapitre ignoré : il est absent de la source ou exclu par les filtres";
+"BACKUP_CREATE_ERROR_TEXT" = "La sauvegarde n’a pas pu être créée. Veuillez réessayer.";
+"YES" = "Oui";
+"NO" = "Non";
+"CHAPTERS_%i_OF_%i" = "Chapitres : %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Le titre n’a pas pu être ajouté au suivi. Veuillez réessayer.";
+"SORT_READ_PROGRESS" = "Progression de lecture";
+"SORT_RELEASE_YEAR" = "Année de parution";
+"SOURCE_INVALID_PAGE_COUNT" = "Nombre de pages invalide";
+"SOURCE_INVALID_GENRE_ID" = "Identifiant de genre invalide";
+"SOURCE_INVALID_LISTING" = "Liste invalide";
+"SOURCE_INVALID_LISTING_TYPE" = "Type de liste invalide";
+"SOURCE_INVALID_ITEM_TYPE" = "Type d’élément invalide";
+"DICTIONARY_ERROR" = "Erreur de dictionnaire";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Impossible d’enregistrer les réglages des dictionnaires : %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Impossible d’importer les dictionnaires sélectionnés :\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Certains dictionnaires n’ont pas pu être importés :\n%@";
+"DICTIONARY_IMPORT_FAILED" = "L’importation du dictionnaire a échoué.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Un dictionnaire japonais–anglais complet maintenu par l’Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Un dictionnaire de noms propres japonais maintenu par l’Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Un dictionnaire de fréquences basé sur le corpus médiatique de https://jiten.moe.";

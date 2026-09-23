@@ -20,7 +20,7 @@ final class ShikimoriTracker: OAuthTracker {
     var oauthClient: OAuthClient { api.oauth }
 
     func getTrackerInfo() -> TrackerInfo {
-        .init(supportedStatuses: TrackStatus.defaultStatuses, scoreType: .tenPoint)
+        .init(supportedStatuses: TrackStatus.defaultStatuses, scoreType: .tenPoint, supportsReadingDates: false)
     }
 
     func register(trackId: String, highestChapterRead: Float?, earliestReadDate: Date?) async throws -> String? {

@@ -334,7 +334,7 @@
 "MANGA_UPDATES" = "Aggiornamenti";
 "NO_UPDATES" = "Nessun aggiornamento";
 "DELETE_DOWNLOAD_AFTER_READING" = "Rimuovi il file scaricato a capitolo finito";
-"%lld_PLUS_MORE" = "+%lld altri";
+"%lld_PLUS_MORE" = "+%lld in più";
 "SKIPPING_CHAPTERS" = "Salto %i capitoli, o mancano dalla fonte o sono stati filtrati";
 "SCANLATOR" = "Gruppo di scanlation";
 "NO_SCANLATOR" = "Nessun gruppo di scanlation";
@@ -680,7 +680,7 @@
 
 "TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Stima il colore del testo originale senza un modello aggiuntivo. Usa il colore predefinito se la stima è incerta o il contrasto è troppo basso.";
 
-"TRANSLATION_LLM_SFX" = "Filtraggio LLM SFX (tutte le lingue)";
+"TRANSLATION_LLM_SFX" = "Filtra gli effetti sonori con LLM (tutte le lingue)";
 
 "TRANSLATION_LLM_SFX_HELP" = "Classifica gli effetti sonori nella stessa richiesta di traduzione e li lascia invariati. Con un’immagine della pagina, l’IA ignora anche i frammenti OCR poco chiari, a meno che l’immagine non confermi la presenza di testo dotato di senso. Dialoghi, narrazione, titoli e crediti vengono mantenuti per la traduzione. La classificazione è meno affidabile senza un’immagine della pagina.";
 
@@ -843,15 +843,15 @@
 "PORTRAIT_ROWS" = "Colonne in orientamento verticale";
 "LANDSCAPE_ROWS" = "Colonne in orientamento orizzontale";
 "RESUME_LAST_OPENED_CHAPTER" = "Riprendi l'ultimo capitolo aperto";
-"CONTINUE_READING_ON_RESELECT" = "Tocca due volte la scheda Cronologia per riprendere la lettura";
+"CONTINUE_READING_ON_RESELECT" = "Tocca di nuovo Cronologia per riprendere la lettura";
 "DOWNLOADED_CHAPTER_BADGES" = "Badge dei capitoli scaricati";
 "PIN_TITLES" = "Fissa i titoli in cima";
 "PIN_DISABLED" = "Disabilitato";
 "PIN_UPDATED_CHAPTERS" = "Capitoli aggiornati";
 "BACKGROUND_REFRESH" = "Aggiornamento in background";
-"BACKGROUND_REFRESH_TEXT" = "Quando si avvia manualmente un aggiornamento della libreria, consentire il completamento dell'aggiornamento anche se l'app è in background.";
+"BACKGROUND_REFRESH_TEXT" = "Quando avvii manualmente un aggiornamento della Raccolta, permette di completarlo anche se l’app passa in background.";
 "NEW_CHAPTER_NOTIFICATIONS" = "Notifiche sui nuovi capitoli";
-"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Invia notifiche quando la libreria viene aggiornata in background.";
+"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Invia notifiche quando la Raccolta viene aggiornata in background.";
 "1_NEW_CHAPTER_AVAILABLE" = "Nuovo capitolo disponibile";
 "X_NEW_CHAPTERS_AVAILABLE" = "%d nuovi capitoli disponibili";
 "NEW_CHAPTERS_AVAILABLE" = "Nuovi capitoli disponibili";
@@ -1142,3 +1142,28 @@
 "TRANSLATION_FILTERING" = "Filtro del testo";
 
 "TRANSLATION_TARGETS" = "Contenuti da tradurre";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Pagine: %i / %i";
+"1_SERIES" = "1 serie";
+"SKIPPING_ONE_CHAPTER" = "Salto 1 capitolo perché manca dalla fonte o è stato filtrato";
+"BACKUP_CREATE_ERROR_TEXT" = "Impossibile creare il backup. Riprova.";
+"YES" = "Sì";
+"NO" = "No";
+"CHAPTERS_%i_OF_%i" = "Capitoli: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Impossibile aggiungere il titolo al tracciamento. Riprova.";
+"SORT_READ_PROGRESS" = "Avanzamento della lettura";
+"SORT_RELEASE_YEAR" = "Anno di pubblicazione";
+"SOURCE_INVALID_PAGE_COUNT" = "Numero di pagine non valido";
+"SOURCE_INVALID_GENRE_ID" = "ID del genere non valido";
+"SOURCE_INVALID_LISTING" = "Elenco non valido";
+"SOURCE_INVALID_LISTING_TYPE" = "Tipo di elenco non valido";
+"SOURCE_INVALID_ITEM_TYPE" = "Tipo di elemento non valido";
+"DICTIONARY_ERROR" = "Errore del dizionario";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Impossibile salvare le impostazioni dei dizionari: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Impossibile importare i dizionari selezionati:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Impossibile importare alcuni dizionari:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Importazione del dizionario non riuscita.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Un dizionario giapponese-inglese completo curato dall’Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Un dizionario di nomi propri giapponesi curato dall’Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Un dizionario di frequenza basato sul corpus multimediale di https://jiten.moe.";

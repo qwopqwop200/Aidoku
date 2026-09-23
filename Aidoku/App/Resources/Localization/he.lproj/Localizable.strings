@@ -236,7 +236,7 @@
 "TRACK" = "עקוב";
 "STATUS_COLON_%@" = "סטטוס: %@";
 "VIEW_ON_WEBSITE" = "צפייה באתר";
-"CLEAR_TRACKED_MANGA" = "נקה קישורים לשירותי מעקב";
+"CLEAR_TRACKED_MANGA" = "הסר את כל הקישורים לשירותי המעקב";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "האם אתה בטוח שברצונך להסיר את כל ההורדות?";
 "CACHE_SIZE_%@" = "גודל מטמון: %@";
 "SUPPORT_VIA_KOFI" = "תמיכה באמצעות Ko-Fi";
@@ -270,7 +270,7 @@
 "SOURCE_LIST_ADDED_TEXT" = "כעת תוכל לעיין במקורות חיצוניים בלשונית העיון.";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "כדי לשחזר לגיבוי זה, מצא אותו בדף הגיבויים בהגדרות.";
 "BACKUP_IMPORT_FAIL_TEXT" = "שמירת הגיבוי נכשלה. אנא ודא שהגיבוי שלך הוא בפורמט המתאים.";
-"CROP_BORDERS" = "חתוך את הגבולות";
+"CROP_BORDERS" = "חתוך שוליים";
 "ADVANCED" = "הגדרות מתקדמות";
 "RESET_TEXT" = "פעולה זו היא בלתי הפיכה. כל הנתונים, ההגדרות והמטמון ינוקו ויאופסו.";
 "CLEAR_READ_HISTORY_TEXT" = "פעולה זו היא בלתי הפיכה. כל היסטוריית הקריאה תוסר.";
@@ -554,7 +554,7 @@
 "METADATA_DETECTED" = "זוהו מטא נתונים מדור קודם";
 "METADATA_DETECTED_TEXT" = "מטא נתונים מדור קודם של JSON יועברו לקבצי ComicInfo.xml.";
 "CATEGORY_SEARCH" = "מצא בקטגוריה";
-"LIBRARY_ADD_CONTENT" = "הוסף תוכן מכרטיסיית הגלישה.";
+"LIBRARY_ADD_CONTENT" = "הוסף תוכן מכרטיסיית העיון.";
 "LIBRARY_ADJUST_FILTERS" = "התאם את המסננים שלך כדי לראות יותר תוכן.";
 "REMOVE_FILTER" = "הסר מסנן";
 "AND_MORE" = "ועוד פריטים";
@@ -800,7 +800,7 @@
 "PORTRAIT_ROWS" = "מספר עמודות במצב אנכי";
 "LANDSCAPE_ROWS" = "מספר עמודות במצב אופקי";
 "RESUME_LAST_OPENED_CHAPTER" = "המשך פרק שנפתח לאחרונה";
-"CONTINUE_READING_ON_RESELECT" = "הקש פעמיים על הכרטיסייה היסטוריה כדי לחדש את הקריאה";
+"CONTINUE_READING_ON_RESELECT" = "הקש שוב על כרטיסיית ההיסטוריה כדי להמשיך בקריאה";
 "DOWNLOADED_CHAPTER_BADGES" = "תגי פרקים שהורדו";
 "PIN_TITLES" = "הצמד כותרות מנגה";
 "PIN_DISABLED" = "ההצמדה מושבתת";
@@ -1172,3 +1172,28 @@
 "TRANSLATION_FILTERING" = "סינון טקסט";
 
 "TRANSLATION_TARGETS" = "מה לתרגם";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "עמודים: %i / %i";
+"1_SERIES" = "סדרה אחת";
+"SKIPPING_ONE_CHAPTER" = "מדלג על פרק אחד, משום שהוא חסר במקור או הוסר בסינון";
+"BACKUP_CREATE_ERROR_TEXT" = "לא ניתן היה ליצור את הגיבוי. יש לנסות שוב.";
+"YES" = "כן";
+"NO" = "לא";
+"CHAPTERS_%i_OF_%i" = "פרקים: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "לא ניתן היה להוסיף את הכותר למעקב. יש לנסות שוב.";
+"SORT_READ_PROGRESS" = "התקדמות הקריאה";
+"SORT_RELEASE_YEAR" = "שנת פרסום";
+"SOURCE_INVALID_PAGE_COUNT" = "מספר עמודים לא תקין";
+"SOURCE_INVALID_GENRE_ID" = "מזהה סוגה לא תקין";
+"SOURCE_INVALID_LISTING" = "רשימה לא תקינה";
+"SOURCE_INVALID_LISTING_TYPE" = "סוג רשימה לא תקין";
+"SOURCE_INVALID_ITEM_TYPE" = "סוג פריט לא תקין";
+"DICTIONARY_ERROR" = "שגיאת מילון";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "לא ניתן לשמור את הגדרות המילונים: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "לא ניתן לייבא את המילונים שנבחרו:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "לא ניתן לייבא חלק מהמילונים:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "ייבוא המילון נכשל.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "מילון יפני–אנגלי מקיף המתוחזק בידי קבוצת המחקר והפיתוח של מילונים אלקטרוניים (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "מילון שמות פרטיים ביפנית המתוחזק בידי קבוצת המחקר והפיתוח של מילונים אלקטרוניים (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "מילון תדירויות המבוסס על מאגר טקסטים ממדיה באתר https://jiten.moe.";

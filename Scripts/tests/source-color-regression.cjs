@@ -36,7 +36,8 @@ vm.runInContext(script[1].replace(/^    /gm, '') + `
         outlined: aidokuRecoverOutlinedColor,
         halo: aidokuRecoverHaloInk,
         interior: aidokuInteriorCaptionSurface,
-        surface: aidokuObservedSourceSurface
+        surface: aidokuObservedSourceSurface,
+        lettering: aidokuObservedLetteringInk
     };
 `, context, { filename: sourcePath });
 const production = context.sourceColor;
@@ -91,6 +92,19 @@ function palette(image, foreground, background) {
 }
 const cases = [];
 function test(name, run, baseline = false) { cases.push({ name, run, baseline }); }
+
+for (const name of ['blank', 'plain white glyphs', 'single frame', 'solid art']) {
+    test(`lettering display: ${name} cannot establish an outline color`, () => {
+        const image = raster(96, 160, [40, 50, 60]);
+        if (name === 'plain white glyphs') {
+            for (const y of [16, 60, 104]) glyph(image, 30, y, [255, 255, 255]);
+        } else if (name === 'single frame') {
+            rect(image, 30, 12, 12, 136, [180, 42, 59]);
+            rect(image, 34, 16, 4, 128, [255, 255, 255]);
+        } else if (name === 'solid art') rect(image, 30, 12, 30, 136, [180, 42, 59]);
+        assert.equal(production.lettering(image.rgba, 96, 160, [24, 8, 40, 144]), null);
+    });
+}
 
 test('display: white antialias fringe does not wash out enclosed orange ink', () => {
     const image=raster(128,128,[255,255,255]);

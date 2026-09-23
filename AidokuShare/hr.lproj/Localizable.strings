@@ -1,7 +1,7 @@
 "IMPORT" = "Uvezi";
 "DONE" = "Gotovo";
-"FILE_IMPORT_FAIL_TEXT" = "Uvoz datoteke nije uspio. Osiguraj da se radi o valjanoj CBZ ili ZIP arhivi koja sadrži slike.";
+"FILE_IMPORT_FAIL_TEXT" = "Uvoz datoteke nije uspio. Provjerite je li to čitljiva slikovna datoteka ili valjana CBZ ili ZIP arhiva koja sadrži slike.";
 "FORMAT_IMAGE" = "Slika";
-"SHARED_IMAGES_SAVED" = "Slike su spremljene. Otvorite Aidoku da biste ih čitali.";
+"SHARED_IMAGES_SAVED" = "Spremanje je dovršeno. Otvorite Aidoku za čitanje.";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "Nije moguće pročitati dijeljenu sliku. Pokušajte s drugom slikom.";

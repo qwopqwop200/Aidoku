@@ -1,0 +1,1519 @@
+{
+  "methodology": {
+    "corpus": "real-comics-20000",
+    "seed": 23092601,
+    "candidates": 129,
+    "selection": "At most 40 previously unseen works per split and format; seven source-diversity ranked and three seeded controls; one region per work within each format stratum. Excludes all work groups in original 116 source-color fixtures. 129 candidates represent 126 unique work groups; no development/holdout work overlap.",
+    "oracle": "Assistant source-image visual review before predictions; background swatches or representative spatial colors for gradients. Silver OCR boxes. Not human gold.",
+    "metric": "Maximum absolute sRGB channel error <=25; absent observed background is failure",
+    "split": "Existing work-disjoint development/holdout partition. Two holdout annotation errors were corrected after first predictions; final suite is a reviewed regression set, not untouched holdout. Algorithm was frozen after development and did not change during holdout audit.",
+    "excluded": [
+      {
+        "id": "b032",
+        "reason": "Merged name and dialogue boxes include intervening artwork"
+      },
+      {
+        "id": "b041",
+        "reason": "Diagonal sign OCR rectangle includes large black and gray surfaces"
+      },
+      {
+        "id": "b119",
+        "reason": "Merged name banner and separate dialogue panel"
+      },
+      {
+        "id": "b124",
+        "reason": "Diagonal object label rectangle includes distinct orange artwork and tan label"
+      },
+      {
+        "id": "b002",
+        "reason": "Menu text crosses several separate boards and foreground artwork"
+      },
+      {
+        "id": "b007",
+        "reason": "Lettering crosses white margin and character artwork"
+      },
+      {
+        "id": "b010",
+        "reason": "Large lettering spans foreground clothing, sky and fire"
+      },
+      {
+        "id": "b014",
+        "reason": "Watermark group spans pink and white sections"
+      },
+      {
+        "id": "b021",
+        "reason": "Decorative lettering spans detailed multicolor character artwork"
+      },
+      {
+        "id": "b029",
+        "reason": "Text over detailed grayscale and green artwork"
+      },
+      {
+        "id": "b031",
+        "reason": "Merged OCR group contains separate outlined menu buttons"
+      },
+      {
+        "id": "b037",
+        "reason": "Text crosses detailed variable character artwork"
+      },
+      {
+        "id": "b042",
+        "reason": "Tall group spans black panel and near-white gradient"
+      },
+      {
+        "id": "b051",
+        "reason": "Separated lettering merged across a character face and hair"
+      },
+      {
+        "id": "b065",
+        "reason": "Text spans multiple colored artwork surfaces"
+      },
+      {
+        "id": "b079",
+        "reason": "Signature crosses pink clothing and gray artwork"
+      },
+      {
+        "id": "b090",
+        "reason": "Caption crosses sky and dark character silhouette"
+      },
+      {
+        "id": "b098",
+        "reason": "Merged lines span black and striped white surfaces"
+      },
+      {
+        "id": "b099",
+        "reason": "Caption crosses white and black artwork"
+      },
+      {
+        "id": "b109",
+        "reason": "Merged vertical lines cross black character and white margin"
+      }
+    ],
+    "annotationCorrections": {
+      "b016": "Initial visual approximation 192 replaced by measured exposed checkerboard mean 209",
+      "b025": "Contact-sheet index corrected from white glyph halo (1) to gray background (0)",
+      "b034": "Contact-sheet index corrected from dark text (0) to red-brown background (1)",
+      "b095": "Flat label corrected to independently measured exposed gradient strip mean",
+      "b097": "Original merged group retained in ambiguous-original-b097.json; numeric regression uses existing p7 line bounds"
+    }
+  },
+  "fixtures": [
+    {
+      "id": "b000",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ338904.html",
+      "expectedBackground": [
+        250,
+        226,
+        143
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; representative spatial color across varying surface"
+    },
+    {
+      "id": "b001",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01139716.html",
+      "expectedBackground": [
+        72,
+        39,
+        8
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b003",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ273989.html",
+      "expectedBackground": [
+        157,
+        157,
+        119
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b004",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01515401.html",
+      "expectedBackground": [
+        202,
+        231,
+        248
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b005",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01515155.html",
+      "expectedBackground": [
+        205,
+        235,
+        235
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b006",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ105341.html",
+      "expectedBackground": [
+        5,
+        2,
+        3
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b008",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01062659.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b009",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01637767.html",
+      "expectedBackground": [
+        250,
+        222,
+        236
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b011",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:maronda369",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b012",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:gedatu_tyu2",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b013",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:yozakura_2929",
+      "expectedBackground": [
+        255,
+        210,
+        184
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b015",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:mi3roku6",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b016",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:mh200014",
+      "expectedBackground": [
+        209,
+        209,
+        209
+      ],
+      "surface": "varying",
+      "annotation": "Exposed checkerboard means from source rectangles [72,27,85,33] and [52,35,60,40]: 211.18 and 207.28; corrected initial contact-sheet approximation after development baseline"
+    },
+    {
+      "id": "b017",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:ShizueSan_Lunch",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b018",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:hirokokokoron",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b019",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:47_isarida",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b020",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ279611.html",
+      "expectedBackground": [
+        253,
+        1,
+        18
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b022",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01053688.html",
+      "expectedBackground": [
+        233,
+        212,
+        107
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b023",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01188167.html",
+      "expectedBackground": [
+        229,
+        210,
+        107
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b024",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ128951.html",
+      "expectedBackground": [
+        37,
+        37,
+        37
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b025",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01680501.html",
+      "expectedBackground": [
+        102,
+        102,
+        102
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b026",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01557013.html",
+      "expectedBackground": [
+        179,
+        179,
+        179
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b027",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01525733.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b028",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01688792.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b030",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://kittenstealth.itch.io/speared-by-heart",
+      "expectedBackground": [
+        215,
+        37,
+        1
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b033",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://saitoki.itch.io/hardship-of-a-vampire-the-ghosts-call",
+      "expectedBackground": [
+        37,
+        65,
+        94
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; representative spatial color across varying surface"
+    },
+    {
+      "id": "b034",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://nikkonator5000.itch.io/fire-on-the-mountain",
+      "expectedBackground": [
+        134,
+        61,
+        57
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 1"
+    },
+    {
+      "id": "b035",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://akuparagames.itch.io/cabernet",
+      "expectedBackground": [
+        104,
+        57,
+        52
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; representative spatial color across varying surface"
+    },
+    {
+      "id": "b036",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://delucat.itch.io/bloody-painter-dating-sim",
+      "expectedBackground": [
+        40,
+        42,
+        58
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b038",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://sourmiiiilk.itch.io/my-sweet-housemate",
+      "expectedBackground": [
+        255,
+        185,
+        192
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b039",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://mcryxstudios.itch.io/insomnia-jeff-the-killer",
+      "expectedBackground": [
+        4,
+        4,
+        3
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b040",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "来見沢善彦の愚行",
+      "expectedBackground": [
+        88,
+        70,
+        57
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b043",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "顔",
+      "expectedBackground": [
+        8,
+        8,
+        8
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b044",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "ウマ娘 プリティーダービー スターブロッサム",
+      "expectedBackground": [
+        35,
+        24,
+        22
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b045",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "あなた達それでも先生ですかっ！",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b046",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "ファイアーエムブレム 万紫千紅",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b047",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "奴隷遊戯DIDI",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b048",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "体目当てじゃダメですか/2026年7月期ブロンズルーキー賞",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b049",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "ビタースイートナイトシェード",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b050",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "Madder & Teal",
+      "expectedBackground": [
+        226,
+        65,
+        23
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b052",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "初戀標籤",
+      "expectedBackground": [
+        233,
+        223,
+        198
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; representative spatial color across varying surface"
+    },
+    {
+      "id": "b053",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "廢墟中的皇女",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b054",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "723遇見你",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b055",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "先育兒再戀愛",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b056",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "溫柔的入侵者",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b057",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "成為反派惡角的贊助者",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b058",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "詛咒少女的戀愛法則",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b059",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "劍尊歸來",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b060",
+      "split": "development",
+      "format": "visual_novel_dialogue_screenshot",
+      "evaluationGroup": "bad-end-theater",
+      "expectedBackground": [
+        28,
+        0,
+        24
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b061",
+      "split": "development",
+      "format": "visual_novel_dialogue_screenshot",
+      "evaluationGroup": "a-tavern-for-tea",
+      "expectedBackground": [
+        240,
+        224,
+        209
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b062",
+      "split": "development",
+      "format": "visual_novel_dialogue_screenshot",
+      "evaluationGroup": "starry-flowers",
+      "expectedBackground": [
+        240,
+        225,
+        239
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; representative spatial color across varying surface"
+    },
+    {
+      "id": "b063",
+      "split": "development",
+      "format": "visual_novel_dialogue_screenshot",
+      "evaluationGroup": "a-pet-shop-after-dark",
+      "expectedBackground": [
+        233,
+        233,
+        233
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b064",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://doppie.itch.io/narinig-mo-ba",
+      "expectedBackground": [
+        0,
+        94,
+        169
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b066",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://himeiro.itch.io/kleinv01-demo",
+      "expectedBackground": [
+        38,
+        73,
+        145
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b067",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://cointinuegames.itch.io/midnight-ramen-demo",
+      "expectedBackground": [
+        140,
+        89,
+        46
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b068",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://rae1347.itch.io/tender-lovin-cannibal",
+      "expectedBackground": [
+        133,
+        35,
+        51
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b069",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://madnessway.itch.io/corpse-party-bloodcovered-visual-novel",
+      "expectedBackground": [
+        44,
+        66,
+        137
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; representative spatial color across varying surface"
+    },
+    {
+      "id": "b070",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://highschoolstudios.itch.io/high-school-stories",
+      "expectedBackground": [
+        22,
+        81,
+        97
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b071",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://guaridagames.itch.io/kittengumi",
+      "expectedBackground": [
+        199,
+        203,
+        195
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b072",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://etherane.itch.io/hg",
+      "expectedBackground": [
+        232,
+        223,
+        216
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b073",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://akuparagames.itch.io/cabernet",
+      "expectedBackground": [
+        104,
+        53,
+        22
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b074",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ191320.html",
+      "expectedBackground": [
+        62,
+        63,
+        65
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b075",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01578282.html",
+      "expectedBackground": [
+        138,
+        234,
+        186
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b076",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01554433.html",
+      "expectedBackground": [
+        20,
+        18,
+        19
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b077",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01037516.html",
+      "expectedBackground": [
+        202,
+        73,
+        100
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b078",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01677841.html",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b080",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01534196.html",
+      "expectedBackground": [
+        48,
+        38,
+        37
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b081",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01036247.html",
+      "expectedBackground": [
+        254,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b082",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01090054.html",
+      "expectedBackground": [
+        147,
+        163,
+        174
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; representative spatial color across varying surface"
+    },
+    {
+      "id": "b083",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01694951.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b084",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:sukake90",
+      "expectedBackground": [
+        255,
+        251,
+        108
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b085",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:_sc_0401",
+      "expectedBackground": [
+        146,
+        151,
+        181
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; representative spatial color across varying surface"
+    },
+    {
+      "id": "b086",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:amk0525",
+      "expectedBackground": [
+        87,
+        87,
+        87
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b087",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:maedax_x",
+      "expectedBackground": [
+        255,
+        126,
+        169
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b088",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:lunaticmonster",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b089",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:torimomo_mi",
+      "expectedBackground": [
+        178,
+        178,
+        178
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b091",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:Agamalgam",
+      "expectedBackground": [
+        212,
+        212,
+        212
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b092",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:cocorow556",
+      "expectedBackground": [
+        232,
+        232,
+        232
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b093",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:akagire_ita",
+      "expectedBackground": [
+        254,
+        254,
+        254
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b094",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ408482.html",
+      "expectedBackground": [
+        221,
+        73,
+        120
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b095",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ299378.html",
+      "expectedBackground": [
+        68,
+        55,
+        60
+      ],
+      "surface": "varying",
+      "annotation": "Source background gradient measured from exposed left strip (26, 40, 30, 350); original bottom-dark swatch mislabeled as flat. Corrected during holdout audit."
+    },
+    {
+      "id": "b096",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01705427.html",
+      "expectedBackground": [
+        167,
+        167,
+        167
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b097-line",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01510004.html",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "Original coarse group mixed a white name tag with a black speech bubble. Use existing corpus line p7 for the speech bubble; audited after initial holdout predictions."
+    },
+    {
+      "id": "b100",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ405363.html",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b101",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01131426.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b102",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ313896.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b103",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ387020.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b104",
+      "split": "holdout",
+      "format": "game_cg",
+      "evaluationGroup": "https://viv8k.itch.io/ss-twilightrailway",
+      "expectedBackground": [
+        16,
+        5,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b105",
+      "split": "holdout",
+      "format": "game_cg",
+      "evaluationGroup": "https://kigyo.itch.io/locked",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b106",
+      "split": "holdout",
+      "format": "game_cg",
+      "evaluationGroup": "https://soyeah01.itch.io/bunkerman-blues",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b107",
+      "split": "holdout",
+      "format": "game_cg",
+      "evaluationGroup": "https://fluuen.itch.io/i-became-an-evil-witch-that-cursed-the-male-lead",
+      "expectedBackground": [
+        245,
+        217,
+        239
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b108",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "ピューと吹く！ジャガー",
+      "expectedBackground": [
+        196,
+        196,
+        196
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; representative spatial color across varying surface"
+    },
+    {
+      "id": "b110",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "BLACK SHEEP",
+      "expectedBackground": [
+        11,
+        11,
+        11
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b111",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "金剛伝説特霊課",
+      "expectedBackground": [
+        9,
+        9,
+        9
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b112",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "スケバンゴリラ",
+      "expectedBackground": [
+        108,
+        108,
+        108
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b113",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "こういうのがいい",
+      "expectedBackground": [
+        187,
+        184,
+        182
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b114",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "最強の剣聖と賢者のもとに転生した俺は無自覚無双する",
+      "expectedBackground": [
+        155,
+        151,
+        149
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 1"
+    },
+    {
+      "id": "b115",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "雲雀と鶴",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b116",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "蜜月大正浪漫譚",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b117",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "不完全傑作のすゝめ／26年5月期JUMP新世界漫画賞／週刊少年ジャンプ",
+      "expectedBackground": [
+        254,
+        254,
+        254
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b118",
+      "split": "holdout",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "恨意少女",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b120",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://kumakumaf.itch.io/sanbiki",
+      "expectedBackground": [
+        255,
+        205,
+        88
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b121",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://doksa.itch.io/amber-eyes",
+      "expectedBackground": [
+        144,
+        120,
+        89
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; representative spatial color across varying surface"
+    },
+    {
+      "id": "b122",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://studiowasp.itch.io/red-spider-vengeance",
+      "expectedBackground": [
+        183,
+        57,
+        55
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b123",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://p6ik.itch.io/hamiduki",
+      "expectedBackground": [
+        77,
+        60,
+        96
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b125",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://xenubinstudios.itch.io/carnival",
+      "expectedBackground": [
+        201,
+        173,
+        98
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b126",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://sourmiiiilk.itch.io/online-obsession",
+      "expectedBackground": [
+        198,
+        100,
+        165
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b127",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://ebihime.itch.io/lonely",
+      "expectedBackground": [
+        206,
+        148,
+        148
+      ],
+      "surface": "varying",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    },
+    {
+      "id": "b128",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://tymedust.itch.io/poetry-in-purgatory",
+      "expectedBackground": [
+        24,
+        22,
+        17
+      ],
+      "surface": "flat",
+      "annotation": "Source-only visual review of exposed background; observed background palette swatch 0"
+    }
+  ]
+}

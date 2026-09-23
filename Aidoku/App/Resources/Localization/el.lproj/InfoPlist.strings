@@ -2,4 +2,4 @@
 
 // Completed app localization
 "CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "Το Aidoku συνδέεται με τον προσαρμοσμένο διακομιστή μετάφρασης όταν η διεύθυνσή του βρίσκεται στο τοπικό σας δίκτυο.";
+"NSLocalNetworkUsageDescription" = "Το Aidoku συνδέεται με διακομιστές manga και τον προσαρμοσμένο διακομιστή μετάφρασής σας όταν οι διευθύνσεις τους βρίσκονται στο τοπικό σας δίκτυο.";

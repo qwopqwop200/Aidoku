@@ -2,6 +2,6 @@
 "DONE" = "Klaar";
 "FILE_IMPORT_FAIL_TEXT" = "Kon nie die lêer invoer nie. Maak seker dat dit ’n leesbare beeldlêer of ’n geldige CBZ- of ZIP-argief met beelde is.";
 "FORMAT_IMAGE" = "Beeld";
-"SHARED_IMAGES_SAVED" = "Beelde gestoor. Maak Aidoku oop om dit te lees.";
+"SHARED_IMAGES_SAVED" = "Suksesvol gestoor. Maak Aidoku oop om te lees.";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "Kan nie die gedeelde prent lees nie. Probeer asseblief 'n ander prent.";

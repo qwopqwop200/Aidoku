@@ -453,16 +453,6 @@ struct ReaderTranslationSettingsView: View {
                 Text(NSLocalizedString("TRANSLATION_DARK")).tag(IPhoneOverlayAppearance.dark)
             }
             .accessibilityIdentifier("translation.appearance")
-            Toggle(isOn: persistedSettings.overlay.inpaintingEnabled) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(NSLocalizedString("TRANSLATION_INPAINTING"))
-                    Text(NSLocalizedString("TRANSLATION_INPAINTING_HELP"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .disabled(!settings.overlay.preserveSourceColors)
-            .accessibilityIdentifier("translation.inpainting")
             HStack {
                 Text(NSLocalizedString("TRANSLATION_OPACITY"))
                 Spacer()

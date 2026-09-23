@@ -480,7 +480,7 @@
 "ALL_CHAPTERS_LOCKED" = "Все главы заблокированы";
 "OEL" = "OEL";
 "%@_EXPERIMENTAL" = "%@ (Экспериментальный)";
-"UPSCALING" = "Масштабирование";
+"UPSCALING" = "Увеличение разрешения";
 "NO_DOWNLOADS" = "Нет загрузок";
 "NO_DOWNLOADS_TEXT" = "Загруженное содержимое появится здесь.";
 "DOWNLOADED_CHAPTERS" = "Загруженные главы";
@@ -526,7 +526,7 @@
 "NAME" = "Название";
 "DATE" = "Дата";
 "BACKUP_INFO_TITLE" = "Информация о резервной копии";
-"CLEAR_SOURCE_CACHE" = "Очистить кэш источников";
+"CLEAR_SOURCE_CACHE" = "Очистить кэш источника";
 "CLEAR_SOURCE_CACHE_TEXT" = "Удаляет файлы cookie и данные сайтов для адресов этого источника, а также кэшированное содержимое источника. Может потребоваться повторный вход в учётную запись, а загрузка может временно занимать больше времени.";
 "UPDATE_AFTER_READING" = "Обновить после чтения";
 "SET_AS_SINGLE_PAGE" = "Отображать как отдельную страницу";
@@ -937,7 +937,7 @@
 "PORTRAIT_ROWS" = "Столбцы в вертикальной ориентации";
 "LANDSCAPE_ROWS" = "Столбцы в горизонтальной ориентации";
 "RESUME_LAST_OPENED_CHAPTER" = "Возобновить последнюю открытую главу";
-"CONTINUE_READING_ON_RESELECT" = "Дважды коснитесь вкладки «История», чтобы возобновить чтение.";
+"CONTINUE_READING_ON_RESELECT" = "Нажать «История» повторно, чтобы продолжить чтение";
 "PIN_TITLES" = "Закреплять произведения";
 "PIN_DISABLED" = "Закрепление отключено";
 "PIN_UPDATED_CHAPTERS" = "Обновленные главы";
@@ -1147,3 +1147,28 @@
 "TRANSLATION_FILTERING" = "Фильтрация текста";
 
 "TRANSLATION_TARGETS" = "Что переводить";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Страницы: %i / %i";
+"1_SERIES" = "1 серия";
+"SKIPPING_ONE_CHAPTER" = "Пропущена 1 глава. Она отсутствует в источнике или исключена фильтрами.";
+"BACKUP_CREATE_ERROR_TEXT" = "Не удалось создать резервную копию. Попробуйте ещё раз.";
+"YES" = "Да";
+"NO" = "Нет";
+"CHAPTERS_%i_OF_%i" = "Главы: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Не удалось добавить произведение в отслеживание. Попробуйте ещё раз.";
+"SORT_READ_PROGRESS" = "Прогресс чтения";
+"SORT_RELEASE_YEAR" = "Год выпуска";
+"SOURCE_INVALID_PAGE_COUNT" = "Недопустимое количество страниц";
+"SOURCE_INVALID_GENRE_ID" = "Недопустимый идентификатор жанра";
+"SOURCE_INVALID_LISTING" = "Недопустимый список";
+"SOURCE_INVALID_LISTING_TYPE" = "Недопустимый тип списка";
+"SOURCE_INVALID_ITEM_TYPE" = "Недопустимый тип элемента";
+"DICTIONARY_ERROR" = "Ошибка словаря";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Не удалось сохранить настройки словарей: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Не удалось импортировать выбранные словари:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Некоторые словари не удалось импортировать:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Не удалось импортировать словарь.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Полный японско-английский словарь, поддерживаемый группой Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Словарь японских имён собственных, поддерживаемый группой Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Частотный словарь на основе медиакорпуса https://jiten.moe.";

@@ -20,7 +20,7 @@ final class BangumiTracker: OAuthTracker {
     var oauthClient: OAuthClient { api.oauth }
 
     func getTrackerInfo() -> TrackerInfo {
-        .init(supportedStatuses: TrackStatus.defaultStatuses, scoreType: .tenPoint)
+        .init(supportedStatuses: TrackStatus.defaultStatuses, scoreType: .tenPoint, supportsReadingDates: false)
     }
 
     func register(trackId: String, highestChapterRead: Float?, earliestReadDate: Date?) async throws -> String? {
@@ -150,7 +150,7 @@ private extension BangumiTracker {
         } else if let name = subject.name, !name.isEmpty {
             return name
         } else {
-            return "Unknown Title"
+            return NSLocalizedString("UNTITLED")
         }
     }
 
@@ -194,7 +194,12 @@ private extension BangumiTracker {
         return .ongoing
     }
 
+}
+
+extension BangumiTracker {
     func getSubjectType(for subject: BangumiSubject) -> MediaType {
+        // Anime, music, games and live-action subjects cannot be classified as books.
+        guard subject.type == 1 else { return .unknown }
         // First check series and platform if available
         if let series = subject.series {
             if !series {
@@ -211,14 +216,7 @@ private extension BangumiTracker {
         }
 
         // Fall back to type-based classification
-        switch subject.type {
-            case 1: return .manga // Book
-            case 2: return .novel // Anime (but we use for manga context)
-            case 3: return .novel // Music
-            case 4: return .novel // Game
-            case 6: return .novel // Real
-            default: return .manga
-        }
+        return .manga
     }
 }
 

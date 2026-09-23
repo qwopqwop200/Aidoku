@@ -29,19 +29,25 @@ struct DownloadsView: View {
                     }
 
                     HStack {
-                        Text(String(format: NSLocalizedString("%i_SERIES"), viewModel.totalCount))
+                        Text(viewModel.totalCount == 1
+                            ? NSLocalizedString("1_SERIES")
+                            : String(format: NSLocalizedString("%i_SERIES"), viewModel.totalCount))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Spacer()
                         let totalChapters = viewModel.downloadedManga.reduce(0) { $0 + $1.chapterCount }
+                        let totalPages = viewModel.downloadedManga.reduce(0) { $0 + $1.pageCount }
                         Text(
                             (
                                 totalChapters == 1
                                     ? NSLocalizedString("1_CHAPTER")
                                     : String(format: NSLocalizedString("%i_CHAPTERS"), totalChapters)
                             )
-                            .lowercased() + " • " + String(format: NSLocalizedString("%i_PAGES"),
-                                viewModel.downloadedManga.reduce(0) { $0 + $1.pageCount })
+                            + " • " + (
+                                totalPages == 1
+                                    ? NSLocalizedString("1_PAGE")
+                                    : String(format: NSLocalizedString("%i_PAGES"), totalPages)
+                            )
                         )
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -169,9 +175,10 @@ private struct DownloadedMangaRow: View {
                 ? NSLocalizedString("1_CHAPTER")
                 : String(format: NSLocalizedString("%i_CHAPTERS"), manga.chapterCount)
         )
-        .lowercased()
         components.append(chapterText)
-        components.append(String(format: NSLocalizedString("%i_PAGES"), manga.pageCount))
+        components.append(manga.pageCount == 1
+            ? NSLocalizedString("1_PAGE")
+            : String(format: NSLocalizedString("%i_PAGES"), manga.pageCount))
 
         // Add size
         components.append(manga.formattedSize)

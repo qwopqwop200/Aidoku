@@ -17,5 +17,6 @@ struct ClearFieldButton: View {
             Image(systemName: "xmark.circle.fill")
         }
         .tint(Color.tertiaryLabel)
+        .accessibilityLabel(NSLocalizedString("CLEAR"))
     }
 }

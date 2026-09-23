@@ -37,6 +37,7 @@ actor KavitaApi {
         let latestChapter: KavitaVolume.Chapter? = try? await helper.request(path: "api/Tachiyomi/latest-chapter?seriesId=\(seriesId)")
 
         return .init(
+            progressUnit: .chapters,
             lastReadChapter: latestChapter.flatMap { chapter -> Float? in
                 guard let number = Float(chapter.number) else { return nil }
                 if number > 0 && number < 100000 {

@@ -411,7 +411,7 @@ extension DownloadQueue: DownloadTaskDelegate {
             if !paused, let task = bgTask as? BGContinuedProcessingTask {
                 task.updateTitle(
                     NSLocalizedString("DOWNLOADING"),
-                    subtitle: String(format: NSLocalizedString("%i_OF_%i"), completedDownloads, totalDownloads)
+                    subtitle: String(format: NSLocalizedString("CHAPTERS_%i_OF_%i"), completedDownloads, totalDownloads)
                 )
             }
         }

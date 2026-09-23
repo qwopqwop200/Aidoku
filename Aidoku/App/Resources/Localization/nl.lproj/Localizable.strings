@@ -306,7 +306,7 @@
 "TRACK" = "Volgen";
 "STATUS_COLON_%@" = "Status: %@";
 "TYPE_COLON_%@" = "Type: %@";
-"CLEAR_TRACKED_MANGA" = "Trackerkoppelingen verwijderen";
+"CLEAR_TRACKED_MANGA" = "Alle trackerkoppelingen verwijderen";
 "CACHE_SIZE_%@" = "Cachegrootte: %@";
 "%i_OF_%i" = "%i van %i";
 "WEBTOON" = "Webtoon";
@@ -833,7 +833,7 @@
 "PORTRAIT_ROWS" = "Kolommen in portretstand";
 "LANDSCAPE_ROWS" = "Kolommen in landschapsstand";
 "RESUME_LAST_OPENED_CHAPTER" = "Hervat het laatst geopende hoofdstuk";
-"CONTINUE_READING_ON_RESELECT" = "Dubbeltik op het tabblad Geschiedenis om het lezen te hervatten";
+"CONTINUE_READING_ON_RESELECT" = "Tik opnieuw op Geschiedenis om verder te lezen";
 "DOWNLOADED_CHAPTER_BADGES" = "Badges voor gedownloade hoofdstukken";
 "PIN_TITLES" = "Titels vastzetten";
 "PIN_DISABLED" = "Vastzetten uitgeschakeld";
@@ -1175,3 +1175,28 @@
 "TRANSLATION_FILTERING" = "Tekstfiltering";
 
 "TRANSLATION_TARGETS" = "Te vertalen inhoud";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Pagina’s: %i / %i";
+"1_SERIES" = "1 serie";
+"SKIPPING_ONE_CHAPTER" = "1 hoofdstuk wordt overgeslagen omdat het in de bron ontbreekt of eruit is gefilterd";
+"BACKUP_CREATE_ERROR_TEXT" = "De back-up kon niet worden gemaakt. Probeer het opnieuw.";
+"YES" = "Ja";
+"NO" = "Nee";
+"CHAPTERS_%i_OF_%i" = "Hoofdstukken: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "De titel kon niet aan de tracker worden toegevoegd. Probeer het opnieuw.";
+"SORT_READ_PROGRESS" = "Leesvoortgang";
+"SORT_RELEASE_YEAR" = "Publicatiejaar";
+"SOURCE_INVALID_PAGE_COUNT" = "Ongeldig aantal pagina’s";
+"SOURCE_INVALID_GENRE_ID" = "Ongeldige genre-ID";
+"SOURCE_INVALID_LISTING" = "Ongeldige lijst";
+"SOURCE_INVALID_LISTING_TYPE" = "Ongeldig lijsttype";
+"SOURCE_INVALID_ITEM_TYPE" = "Ongeldig itemtype";
+"DICTIONARY_ERROR" = "Woordenboekfout";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "De woordenboekinstellingen konden niet worden opgeslagen: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "De geselecteerde woordenboeken konden niet worden geïmporteerd:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Sommige woordenboeken konden niet worden geïmporteerd:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Het importeren van het woordenboek is mislukt.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Een uitgebreid Japans-Engels woordenboek, onderhouden door de Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Een woordenboek met Japanse eigennamen, onderhouden door de Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Een frequentiewoordenboek gebaseerd op het mediacorpus van https://jiten.moe.";

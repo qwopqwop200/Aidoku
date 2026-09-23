@@ -661,7 +661,7 @@
 "READER" = "റീഡർ";
 "OPEN_READER_VIEW" = "റീഡർ വ്യൂ തുറക്കുക";
 "RESUME_LAST_OPENED_CHAPTER" = "അവസാനം തുറന്ന അധ്യായത്തിന്റെ വായന തുടരുക";
-"CONTINUE_READING_ON_RESELECT" = "വായന പുനരാരംഭിക്കാൻ ചരിത്ര ടാബിൽ രണ്ടുതവണ ടാപ്പ് ചെയ്യുക";
+"CONTINUE_READING_ON_RESELECT" = "വായന തുടരാൻ ചരിത്ര ടാബിൽ വീണ്ടും ടാപ്പ് ചെയ്യുക";
 "UNREAD_CHAPTER_BADGES" = "വായിക്കാത്ത ചാപ്റ്റർ ബാഡ്ജുകൾ";
 "DOWNLOADED_CHAPTER_BADGES" = "ഡൗൺലോഡ് ചെയ്ത അധ്യായങ്ങളുടെ ബാഡ്ജുകൾ";
 "PIN_TITLES" = "മാംഗ ശീർഷകങ്ങൾ പിൻ ചെയ്യുക";
@@ -799,7 +799,7 @@
 "TERM_DICTIONARIES" = "ടേം നിഘണ്ടുക്കൾ";
 "FREQUENCY_DICTIONARIES" = "പദ ആവൃത്തി നിഘണ്ടുക്കൾ";
 "PITCH_DICTIONARIES" = "പിച്ച് ഉച്ചാരണ നിഘണ്ടുക്കൾ";
-"KANJI_DICTIONARIES" = "കഞ്ചി നിഘണ്ടുക്കൾ";
+"KANJI_DICTIONARIES" = "കാൻജി നിഘണ്ടുക്കൾ";
 "IMPORTING_DICTIONARY" = "നിഘണ്ടു ഇറക്കുമതി ചെയ്യുന്നു...";
 "IMPORT_ERROR" = "ഇറക്കുമതി പിശക്";
 "REVISION" = "പുനരവലോകനം";
@@ -809,8 +809,8 @@
 "TARGET_LANGUAGE" = "ലക്ഷ്യ ഭാഷ";
 "TERM_COUNT" = "നിഘണ്ടു പദങ്ങളുടെ എണ്ണം";
 "TERM_META_COUNT" = "ടേം മെറ്റാഡാറ്റ എൻട്രികളുടെ എണ്ണം";
-"KANJI_COUNT" = "കഞ്ചി കൗണ്ട്";
-"KANJI_META_COUNT" = "കാഞ്ചി മെറ്റാഡാറ്റ എൻട്രികളുടെ എണ്ണം";
+"KANJI_COUNT" = "കാൻജി അക്ഷരങ്ങളുടെ എണ്ണം";
+"KANJI_META_COUNT" = "കാൻജി മെറ്റാഡാറ്റ എൻട്രികളുടെ എണ്ണം";
 "TAG_COUNT" = "ടാഗ് എണ്ണം";
 "MEDIA_COUNT" = "മീഡിയ കൗണ്ട്";
 "IS_UPDATABLE" = "അപ്ഡേറ്റ് ചെയ്യാവുന്നതാണ്";
@@ -939,8 +939,8 @@
 "STATUS_COLON_%@" = "നില: %@";
 "TYPE_COLON_%@" = "തരം: %@";
 "VIEW_ON_WEBSITE" = "വെബ്സൈറ്റിൽ കാണുക";
-"CLEAR_TRACKED_MANGA" = "മാംഗയുടെ ട്രാക്കർ ലിങ്കുകൾ നീക്കുക";
-"CLEAR_TRACKED_MANGA_TEXT" = "ഈ പ്രവർത്തനം പഴയപടിയാക്കാനാകില്ല. മാംഗയിൽ ചേർത്ത എല്ലാ ട്രാക്കർ ലിങ്കുകളും നീക്കം ചെയ്യും.";
+"CLEAR_TRACKED_MANGA" = "എല്ലാ ട്രാക്കർ ലിങ്കുകളും നീക്കുക";
+"CLEAR_TRACKED_MANGA_TEXT" = "ഈ പ്രവർത്തനം പഴയപടിയാക്കാനാകില്ല. എല്ലാ മാംഗകളിലും ചേർത്തിട്ടുള്ള എല്ലാ ട്രാക്കർ ലിങ്കുകളും നീക്കം ചെയ്യും.";
 "SEARCH_OPTIONS" = "തിരയൽ ഓപ്ഷനുകൾ";
 "SHOW_NSFW_RESULTS" = "NSFW ഫലങ്ങൾ കാണിക്കുക";
 "UPDATE_AFTER_READING" = "വായിച്ചതിനുശേഷം അപ്ഡേറ്റ് ചെയ്യുക";
@@ -1154,3 +1154,28 @@
 "TRANSLATION_FILTERING" = "ടെക്സ്റ്റ് ഫിൽട്ടറിംഗ്";
 
 "TRANSLATION_TARGETS" = "വിവർത്തനം ചെയ്യേണ്ടവ";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "പേജുകൾ: %i / %i";
+"1_SERIES" = "1 സീരീസ്";
+"SKIPPING_ONE_CHAPTER" = "1 അധ്യായം ഒഴിവാക്കുന്നു; അത് ഉറവിടത്തിൽ ലഭ്യമല്ല അല്ലെങ്കിൽ ഫിൽട്ടർ ചെയ്ത് ഒഴിവാക്കിയിരിക്കുന്നു";
+"BACKUP_CREATE_ERROR_TEXT" = "ബാക്കപ്പ് സൃഷ്ടിക്കാനായില്ല. വീണ്ടും ശ്രമിക്കുക.";
+"YES" = "അതെ";
+"NO" = "അല്ല";
+"CHAPTERS_%i_OF_%i" = "അധ്യായങ്ങൾ: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "കൃതി ട്രാക്കിംഗിൽ ചേർക്കാനായില്ല. വീണ്ടും ശ്രമിക്കുക.";
+"SORT_READ_PROGRESS" = "വായനാ പുരോഗതി";
+"SORT_RELEASE_YEAR" = "പ്രസിദ്ധീകരണ വർഷം";
+"SOURCE_INVALID_PAGE_COUNT" = "പേജുകളുടെ എണ്ണം അസാധുവാണ്";
+"SOURCE_INVALID_GENRE_ID" = "വിഭാഗത്തിന്റെ ID അസാധുവാണ്";
+"SOURCE_INVALID_LISTING" = "പട്ടിക അസാധുവാണ്";
+"SOURCE_INVALID_LISTING_TYPE" = "പട്ടികയുടെ തരം അസാധുവാണ്";
+"SOURCE_INVALID_ITEM_TYPE" = "ഇനത്തിന്റെ തരം അസാധുവാണ്";
+"DICTIONARY_ERROR" = "നിഘണ്ടു പിശക്";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "നിഘണ്ടു ക്രമീകരണങ്ങൾ സംരക്ഷിക്കാനായില്ല: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "തിരഞ്ഞെടുത്ത നിഘണ്ടുക്കൾ ഇറക്കുമതി ചെയ്യാനായില്ല:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "ചില നിഘണ്ടുക്കൾ ഇറക്കുമതി ചെയ്യാനായില്ല:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "നിഘണ്ടു ഇറക്കുമതി പരാജയപ്പെട്ടു.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) പരിപാലിക്കുന്ന സമഗ്രമായ ജാപ്പനീസ്–ഇംഗ്ലീഷ് നിഘണ്ടു.";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) പരിപാലിക്കുന്ന ജാപ്പനീസ് വ്യക്തിനാമങ്ങളുടെ നിഘണ്ടു.";
+"RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe-യിലെ മാധ്യമ പാഠശേഖരത്തെ അടിസ്ഥാനമാക്കിയുള്ള പദ ആവൃത്തി നിഘണ്ടു.";

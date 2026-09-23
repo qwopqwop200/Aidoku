@@ -89,9 +89,9 @@ struct TrackerSettingOptionView: View {
                     } label: {
                         Text(
                             // swiftlint:disable:next empty_count
-                            "\(count == nil || count == 0 ? "-" : String(format: numberType == .int ? "%.0f" : "%.1f", count!))" +
+                            "\(count == nil || count == 0 ? "-" : String(format: numberType == .int ? "%.0f" : "%.1f", locale: Locale.current, count!))" +
                             " / " +
-                            "\(total == nil || total == 0 ? "-" : String(format: numberType == .int ? "%.0f" : "%.1f", total!))"
+                            "\(total == nil || total == 0 ? "-" : String(format: numberType == .int ? "%.0f" : "%.1f", locale: Locale.current, total!))"
                         )
                             .font(.system(size: 14))
                             .foregroundColor(Color(.label))

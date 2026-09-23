@@ -1,0 +1,2086 @@
+{
+  "methodology": {
+    "corpus": "real-comics-20000",
+    "seed": 23092603,
+    "candidates": 172,
+    "selection": "One line-preferred region per new work; at most 40 works per split/format considered, top 12 source-diversity scores and three seeded controls. All original and second-round candidate works excluded.",
+    "oracle": "Assistant source-only visual review, background swatches and inspected blank source strips. Silver OCR boxes. Not human gold.",
+    "metric": "Maximum absolute sRGB channel error <=25; absent observed background fails",
+    "split": "Existing work-disjoint development/holdout partition is diagnostic only. Two development and two holdout annotations audited after predictions; algorithm development used a holdout failure. Final suite is reviewed regression data, not untouched holdout accuracy.",
+    "excluded": [
+      {
+        "id": "r002",
+        "reason": "Lettering crosses separate dark and light objects"
+      },
+      {
+        "id": "r010",
+        "reason": "Word spans separate black and red panels"
+      },
+      {
+        "id": "r041",
+        "reason": "Narrow outlined text obscures underlying screentone; insufficient exposed reference"
+      },
+      {
+        "id": "r049",
+        "reason": "Caption crosses distinct black and light gray object surfaces"
+      },
+      {
+        "id": "r068",
+        "reason": "Narrow glyph halo over detailed building artwork"
+      },
+      {
+        "id": "r070",
+        "reason": "Narrow glyph halo over striped building artwork"
+      },
+      {
+        "id": "r071",
+        "reason": "Lettering crosses multiple line-art surfaces"
+      },
+      {
+        "id": "r072",
+        "reason": "Narrow text obscures detailed line-art surface"
+      },
+      {
+        "id": "r077",
+        "reason": "Effect spans white margin and halftone object"
+      },
+      {
+        "id": "r105",
+        "reason": "Rotated book title box spans separate cover artwork"
+      },
+      {
+        "id": "r107",
+        "reason": "Word spans separate pink and gray clothing"
+      },
+      {
+        "id": "r115",
+        "reason": "Glow and bright effects obscure the background reference"
+      },
+      {
+        "id": "r135",
+        "reason": "Caption spans blue panel, white balloon and striped artwork"
+      },
+      {
+        "id": "r145",
+        "reason": "Narrow text halo obscures building screentone"
+      },
+      {
+        "id": "r150",
+        "reason": "Letter boxes on magenta are separated by a different blue surface"
+      },
+      {
+        "id": "r152",
+        "reason": "Rotated price tag rectangle includes substantial dark object"
+      },
+      {
+        "id": "r154",
+        "reason": "Sound effect crosses black and white action artwork"
+      },
+      {
+        "id": "r063",
+        "reason": "Box crosses white artwork and black panel, no unique background reference; excluded after initial development predictions"
+      },
+      {
+        "id": "r106",
+        "reason": "Box includes cyan ribbon and separate crown surfaces; source audit after holdout predictions"
+      }
+    ],
+    "annotationCorrections": {
+      "r047": "After initial development replay, full-resolution source inspection showed the original darkest palette swatch described only the bottom of a spatial gradient. Replaced by a measured glyph-free vertical strip, not model output.",
+      "r063": "After initial development replay, source inspection showed the OCR box crossing white artwork and black panel; moved to ambiguous multi-surface exclusions.",
+      "r106": "Full-resolution source audit after holdout predictions confirmed the box spans a cyan ribbon and a separate purple/gold crown. Excluded from single-background scoring; source/failed prediction retained in the candidate ledger.",
+      "r137": "Contact-sheet swatch index error: white glyph halo index 1 corrected to the visible cream panel index 0 after holdout predictions."
+    }
+  },
+  "fixtures": [
+    {
+      "id": "r000",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ301654.html",
+      "expectedBackground": [
+        22,
+        163,
+        170
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r001",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01486854.html",
+      "expectedBackground": [
+        102,
+        69,
+        39
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r003",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ378836.html",
+      "expectedBackground": [
+        137,
+        137,
+        137
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r004",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01088136.html",
+      "expectedBackground": [
+        253,
+        208,
+        203
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r005",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01554679.html",
+      "expectedBackground": [
+        178,
+        219,
+        210
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r006",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ360621.html",
+      "expectedBackground": [
+        4,
+        1,
+        1
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r007",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ316160.html",
+      "expectedBackground": [
+        229,
+        181,
+        141
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r008",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01666601.html",
+      "expectedBackground": [
+        229,
+        227,
+        240
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r009",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01564407.html",
+      "expectedBackground": [
+        150,
+        149,
+        134
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r011",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01007885.html",
+      "expectedBackground": [
+        232,
+        243,
+        249
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r012",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ324602.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r013",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01138877.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r014",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01189724.html",
+      "expectedBackground": [
+        39,
+        43,
+        46
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r015",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:aoiichiko_77",
+      "expectedBackground": [
+        255,
+        195,
+        75
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r016",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:gohanoishii0715",
+      "expectedBackground": [
+        14,
+        76,
+        97
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r017",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:manabe822",
+      "expectedBackground": [
+        115,
+        124,
+        114
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r018",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:qk_ems",
+      "expectedBackground": [
+        230,
+        230,
+        230
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r019",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:onepiecebignews",
+      "expectedBackground": [
+        3,
+        3,
+        3
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r020",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:aconbwakame",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r021",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:natanakane",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r022",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:erizou",
+      "expectedBackground": [
+        255,
+        252,
+        218
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r023",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:tokunibetunisan",
+      "expectedBackground": [
+        230,
+        230,
+        230
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r024",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:burijittou",
+      "expectedBackground": [
+        255,
+        233,
+        222
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r025",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:Taro66678354",
+      "expectedBackground": [
+        255,
+        242,
+        215
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r026",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:onikutoomiso",
+      "expectedBackground": [
+        191,
+        191,
+        191
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r027",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:tooo7889",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r028",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:oddman0909",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r029",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:vol__vol2",
+      "expectedBackground": [
+        252,
+        252,
+        252
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r030",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01693785.html",
+      "expectedBackground": [
+        61,
+        115,
+        155
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r031",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ364086.html",
+      "expectedBackground": [
+        150,
+        150,
+        150
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r032",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01688517.html",
+      "expectedBackground": [
+        49,
+        37,
+        70
+      ],
+      "surface": "varying",
+      "annotation": "mean of inspected glyph-free source strip; crop pixel box (24, 29, 29, 156)"
+    },
+    {
+      "id": "r033",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01085248.html",
+      "expectedBackground": [
+        148,
+        234,
+        187
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r034",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01539337.html",
+      "expectedBackground": [
+        216,
+        216,
+        216
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r035",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01704676.html",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r036",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ439544.html",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r037",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01685234.html",
+      "expectedBackground": [
+        235,
+        235,
+        235
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r038",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01699245.html",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r039",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ430806.html",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r040",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01304249.html",
+      "expectedBackground": [
+        228,
+        228,
+        228
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r042",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ204701.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r043",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ199210.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r044",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01652439.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r045",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://fymm-game.itch.io/ddp",
+      "expectedBackground": [
+        0,
+        166,
+        184
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r046",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://littlesnakestudio.itch.io/houseofpetals",
+      "expectedBackground": [
+        2,
+        2,
+        173
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r047",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://ravenstar-games.itch.io/lost-in-limbo",
+      "expectedBackground": [
+        29,
+        20,
+        94
+      ],
+      "surface": "varying",
+      "annotation": "Mean RGB of inspected glyph-free left strip [25,24,30,68] in original crop; spatial gradient, not the darkest palette mode"
+    },
+    {
+      "id": "r048",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://ghostleif.itch.io/crimson-devotion",
+      "expectedBackground": [
+        39,
+        7,
+        9
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r050",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://roseverte.itch.io/cafe-0-the-sleeping-beast-remastered",
+      "expectedBackground": [
+        39,
+        46,
+        31
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r051",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://axetrax1.itch.io/job-hunting-9000-deluhx",
+      "expectedBackground": [
+        83,
+        83,
+        83
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r052",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://underbliss.itch.io/ebon-light",
+      "expectedBackground": [
+        37,
+        36,
+        41
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r053",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://ebihime.itch.io/my-darling-dark-elf",
+      "expectedBackground": [
+        213,
+        200,
+        251
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r054",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://mythridate.itch.io/danganronpa-lapse",
+      "expectedBackground": [
+        4,
+        4,
+        6
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r055",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://gbpatch.itch.io/our-life",
+      "expectedBackground": [
+        158,
+        241,
+        252
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r056",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://fluuen.itch.io/the-wolf-wears-red",
+      "expectedBackground": [
+        17,
+        17,
+        18
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r057",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://isattt.itch.io/gentle-fall",
+      "expectedBackground": [
+        55,
+        41,
+        35
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r058",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://lunahamu.itch.io/amaoto-to-nemu-no-yoru",
+      "expectedBackground": [
+        3,
+        8,
+        13
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r059",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://milkkylemon.itch.io/yukis-4p-2",
+      "expectedBackground": [
+        253,
+        244,
+        246
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r060",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "We Want To Talk About Kaguya",
+      "expectedBackground": [
+        203,
+        203,
+        203
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r061",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "怪しいおまわりさん",
+      "expectedBackground": [
+        124,
+        118,
+        115
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r062",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "世界を繋ぎ尽くすインターネット巫女",
+      "expectedBackground": [
+        1,
+        1,
+        1
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r064",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "インターハイ優勝校の補欠の話",
+      "expectedBackground": [
+        11,
+        11,
+        11
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r065",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "うぃーうぉんちゅー！ら しぇーず",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r066",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "イマジニスト/2026年7月期ブロンズルーキー賞",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r067",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "バドウ／ジャンプ＋漫画賞 2026年1-2月期",
+      "expectedBackground": [
+        134,
+        134,
+        134
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r069",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "あっ、悪魔ちゃん",
+      "expectedBackground": [
+        183,
+        183,
+        183
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 1"
+    },
+    {
+      "id": "r073",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "スライム聖女",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r074",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "俺だけ不遇スキルの異世界召喚叛逆記～最弱スキル【吸収】が全てを飲み込むまで～",
+      "expectedBackground": [
+        255,
+        255,
+        254
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r075",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "中了樂透頭獎也要上班",
+      "expectedBackground": [
+        66,
+        158,
+        206
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r076",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "黑化暴君偏執的愛沒有盡頭",
+      "expectedBackground": [
+        183,
+        183,
+        183
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r078",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "彭德爾頓小姐",
+      "expectedBackground": [
+        252,
+        253,
+        251
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r079",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "裝備仔",
+      "expectedBackground": [
+        254,
+        254,
+        254
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r080",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "第一人稱兄妹視角",
+      "expectedBackground": [
+        254,
+        255,
+        254
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r081",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "變成伯爵家的混混",
+      "expectedBackground": [
+        254,
+        253,
+        253
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r082",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "跳槽日記",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r083",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "哭吧，乞求也好",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r084",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "謝絕社內戀愛！",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r085",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "以燮的戀愛",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r086",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "戀愛評評理",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r087",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "公會裡的偶像大大",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r088",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "大公家的小媳婦不好惹",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r089",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "不良少年的初戀",
+      "expectedBackground": [
+        254,
+        254,
+        254
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r090",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://melcoteam.itch.io/aconite-beta",
+      "expectedBackground": [
+        4,
+        0,
+        216
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r091",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://varia.itch.io/transparent-girl",
+      "expectedBackground": [
+        17,
+        52,
+        99
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r092",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://socah.itch.io/deluge-sermon-for-the-dead",
+      "expectedBackground": [
+        26,
+        161,
+        215
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r093",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://plcma.itch.io/beyond-the-turquoise-stars",
+      "expectedBackground": [
+        57,
+        56,
+        90
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r094",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://miyakopubl.itch.io/catharsis",
+      "expectedBackground": [
+        57,
+        81,
+        169
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r095",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://alexisroyce.itch.io/may-i-take-your-order",
+      "expectedBackground": [
+        28,
+        6,
+        55
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r096",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://synstoria.itch.io/imperial-grace",
+      "expectedBackground": [
+        40,
+        3,
+        3
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r097",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://tamafry.itch.io/wolfskins-curse",
+      "expectedBackground": [
+        61,
+        39,
+        40
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r098",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://rossaredflyn.itch.io/teach-me-how-to-love",
+      "expectedBackground": [
+        40,
+        13,
+        20
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r099",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://coolom-games.itch.io/datingkillmulator",
+      "expectedBackground": [
+        73,
+        49,
+        36
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r100",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://thelastsecret.itch.io/the-last-secret",
+      "expectedBackground": [
+        25,
+        32,
+        34
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r101",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://studioclump.itch.io/stillwater",
+      "expectedBackground": [
+        72,
+        63,
+        53
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r102",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://p6ik.itch.io/yamedomo",
+      "expectedBackground": [
+        160,
+        112,
+        165
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r103",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://zeddyzi.itch.io/pine-point-insomniac",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r104",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://devourfish.itch.io/perfect-roommate",
+      "expectedBackground": [
+        24,
+        24,
+        19
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 3"
+    },
+    {
+      "id": "r108",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01515383.html",
+      "expectedBackground": [
+        255,
+        253,
+        228
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r109",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01034812.html",
+      "expectedBackground": [
+        250,
+        221,
+        213
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r110",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ285045.html",
+      "expectedBackground": [
+        227,
+        218,
+        203
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r111",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ359074.html",
+      "expectedBackground": [
+        255,
+        253,
+        254
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r112",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ309831.html",
+      "expectedBackground": [
+        254,
+        254,
+        254
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r113",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ139890.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r114",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ286215.html",
+      "expectedBackground": [
+        247,
+        247,
+        247
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r116",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ268383.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r117",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01682418.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r118",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ353316.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r119",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01616225.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r120",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:UNCO83_",
+      "expectedBackground": [
+        255,
+        238,
+        222
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r121",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:liar_383838",
+      "expectedBackground": [
+        236,
+        234,
+        232
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 2"
+    },
+    {
+      "id": "r122",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:makimadoka22",
+      "expectedBackground": [
+        1,
+        1,
+        1
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r123",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:yunamaro21",
+      "expectedBackground": [
+        3,
+        3,
+        3
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r124",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:cocopaaahn",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r125",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:taromarunnn",
+      "expectedBackground": [
+        243,
+        245,
+        173
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r126",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:RunnerSinnosuke",
+      "expectedBackground": [
+        252,
+        252,
+        252
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r127",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:nitorisasami",
+      "expectedBackground": [
+        240,
+        237,
+        232
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r128",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:100_ore",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r129",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:pandania0",
+      "expectedBackground": [
+        254,
+        254,
+        254
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r130",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:oji__04",
+      "expectedBackground": [
+        249,
+        250,
+        251
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r131",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:cheesesama24",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r132",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:sekibeti",
+      "expectedBackground": [
+        244,
+        244,
+        244
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r133",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:watabehitsuji",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r134",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:nagaibangoudane",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r136",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01526894.html",
+      "expectedBackground": [
+        92,
+        166,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r137",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01693106.html",
+      "expectedBackground": [
+        255,
+        241,
+        192
+      ],
+      "surface": "flat",
+      "annotation": "Source cream panel palette swatch 0; swatch 1 is the white glyph halo"
+    },
+    {
+      "id": "r138",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01180980.html",
+      "expectedBackground": [
+        141,
+        97,
+        155
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r139",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01516360.html",
+      "expectedBackground": [
+        151,
+        151,
+        151
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r140",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01546145.html",
+      "expectedBackground": [
+        32,
+        32,
+        32
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r141",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01476875.html",
+      "expectedBackground": [
+        169,
+        177,
+        186
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r142",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01481370.html",
+      "expectedBackground": [
+        188,
+        188,
+        188
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r143",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01239857.html",
+      "expectedBackground": [
+        253,
+        252,
+        252
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r144",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ349962.html",
+      "expectedBackground": [
+        245,
+        244,
+        236
+      ],
+      "surface": "varying",
+      "annotation": "representative spatial background color from source-only review"
+    },
+    {
+      "id": "r146",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01525864.html",
+      "expectedBackground": [
+        190,
+        190,
+        190
+      ],
+      "surface": "varying",
+      "annotation": "mean of inspected glyph-free source strip; crop pixel box (25, 24, 218, 30)"
+    },
+    {
+      "id": "r147",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01026610.html",
+      "expectedBackground": [
+        254,
+        254,
+        254
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r148",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01719883.html",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r149",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01166224.html",
+      "expectedBackground": [
+        158,
+        158,
+        158
+      ],
+      "surface": "varying",
+      "annotation": "mean of inspected glyph-free source strip; crop pixel box (25, 24, 30, 305)"
+    },
+    {
+      "id": "r151",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "都立逆十字病院",
+      "expectedBackground": [
+        136,
+        136,
+        136
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r153",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "すすめ！ジャンプへっぽこ探検隊！",
+      "expectedBackground": [
+        232,
+        232,
+        232
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r155",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "岩を砕く/2026年7月期ブロンズルーキー賞",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r156",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "にこにこ元気☆ハッピーちゃん",
+      "expectedBackground": [
+        13,
+        13,
+        13
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r157",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "きるる KILL ME",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r158",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "さよならミニスカート",
+      "expectedBackground": [
+        254,
+        254,
+        254
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r159",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "ウラのレポート／週刊少年ジャンプ新連載試し読み",
+      "expectedBackground": [
+        254,
+        254,
+        254
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r160",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "ニシトーキョーメタルブラザーズ",
+      "expectedBackground": [
+        254,
+        254,
+        254
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r161",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "あわいの焔刃",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r162",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "英雄少女と呪われの銀姫",
+      "expectedBackground": [
+        255,
+        254,
+        254
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r163",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "○と×",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r164",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "魔寄りの学校",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r165",
+      "split": "holdout",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "能不能喜歡黑木君",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r166",
+      "split": "holdout",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "可愛與刺青之間",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r167",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://hamiltonhour.itch.io/the-cookie-project",
+      "expectedBackground": [
+        170,
+        209,
+        227
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r168",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://snowflake-soft.itch.io/the-delusion-of-dream",
+      "expectedBackground": [
+        90,
+        133,
+        140
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r169",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://vinillust.itch.io/that-new-diner",
+      "expectedBackground": [
+        23,
+        23,
+        23
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r170",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://ekkoberry.itch.io/hot-cocoa-magic",
+      "expectedBackground": [
+        246,
+        241,
+        236
+      ],
+      "surface": "varying",
+      "annotation": "source background palette swatch 0"
+    },
+    {
+      "id": "r171",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://racheldrawsthis.itch.io/eloquent-countenance",
+      "expectedBackground": [
+        234,
+        234,
+        234
+      ],
+      "surface": "flat",
+      "annotation": "source background palette swatch 0"
+    }
+  ]
+}

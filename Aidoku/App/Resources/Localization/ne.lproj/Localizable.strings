@@ -98,8 +98,8 @@
 "WEBTOON" = "वेबटून";
 "%i_PAGES_LEFT" = "%i पृष्ठहरू बाँकी";
 "ONE_PAGE_LEFT" = "1 पृष्ठ बाँकी";
-"CLEAR_TRACKED_MANGA" = "माङ्गाका ट्र्याकर लिङ्कहरू हटाउनुहोस्";
-"CLEAR_TRACKED_MANGA_TEXT" = "यो कार्य उल्टाउन सकिँदैन। माङ्गामा थपिएका सबै ट्र्याकर लिङ्कहरू हटाइनेछन्।";
+"CLEAR_TRACKED_MANGA" = "सबै ट्र्याकर लिङ्कहरू हटाउनुहोस्";
+"CLEAR_TRACKED_MANGA_TEXT" = "यो कार्य उल्टाउन सकिँदैन। सबै मङ्गामा थपिएका सबै ट्र्याकर लिङ्कहरू हटाइनेछन्।";
 "PINNED" = "पिन गरिएको";
 "ADD_TO_CATEGORIES" = "वर्गहरूमा थप्नुहोस्";
 "MIGRATE_SOURCES" = "स्रोतहरू स्थानान्तरण गर्नुहोस्";
@@ -812,7 +812,7 @@
 "PORTRAIT_ROWS" = "पोर्ट्रेटमा स्तम्भहरू";
 "LANDSCAPE_ROWS" = "ल्यान्डस्केपमा स्तम्भहरू";
 "RESUME_LAST_OPENED_CHAPTER" = "अन्तिम पटक खोलिएको अध्याय पढ्न जारी राख्नुहोस्";
-"CONTINUE_READING_ON_RESELECT" = "पढ्न पुन: सुरु गर्न इतिहास ट्याबमा डबल-ट्याप गर्नुहोस्";
+"CONTINUE_READING_ON_RESELECT" = "पढ्न जारी राख्न इतिहास ट्याबमा फेरि ट्याप गर्नुहोस्";
 "DOWNLOADED_CHAPTER_BADGES" = "डाउनलोड गरिएका अध्याय ब्याजहरू";
 "PIN_TITLES" = "मंगा शीर्षकहरू पिन गर्नुहोस्";
 "PIN_DISABLED" = "पिनिङ असक्षम पारियो";
@@ -1151,3 +1151,28 @@
 "TRANSLATION_FILTERING" = "पाठ फिल्टरिङ";
 
 "TRANSLATION_TARGETS" = "के अनुवाद गर्ने";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "पृष्ठहरू: %i / %i";
+"1_SERIES" = "1 शृङ्खला";
+"SKIPPING_ONE_CHAPTER" = "1 अध्याय छोड्दै, किनकि त्यो स्रोतमा उपलब्ध छैन वा फिल्टर गरिएको छ";
+"BACKUP_CREATE_ERROR_TEXT" = "ब्याकअप सिर्जना गर्न सकिएन। कृपया फेरि प्रयास गर्नुहोस्।";
+"YES" = "हो";
+"NO" = "होइन";
+"CHAPTERS_%i_OF_%i" = "अध्यायहरू: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "शीर्षकलाई ट्र्याकिङमा थप्न सकिएन। कृपया फेरि प्रयास गर्नुहोस्।";
+"SORT_READ_PROGRESS" = "पढाइको प्रगति";
+"SORT_RELEASE_YEAR" = "प्रकाशन वर्ष";
+"SOURCE_INVALID_PAGE_COUNT" = "पृष्ठहरूको सङ्ख्या अमान्य छ";
+"SOURCE_INVALID_GENRE_ID" = "विधाको ID अमान्य छ";
+"SOURCE_INVALID_LISTING" = "सूची अमान्य छ";
+"SOURCE_INVALID_LISTING_TYPE" = "सूचीको प्रकार अमान्य छ";
+"SOURCE_INVALID_ITEM_TYPE" = "वस्तुको प्रकार अमान्य छ";
+"DICTIONARY_ERROR" = "शब्दकोश त्रुटि";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "शब्दकोशका सेटिङहरू सुरक्षित गर्न सकिएन: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "चयन गरिएका शब्दकोशहरू आयात गर्न सकिएन:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "केही शब्दकोशहरू आयात गर्न सकिएन:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "शब्दकोश आयात असफल भयो।";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) ले व्यवस्थापन गर्ने विस्तृत जापानी–अङ्ग्रेजी शब्दकोश।";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) ले व्यवस्थापन गर्ने जापानी व्यक्तिवाचक संज्ञाहरूको शब्दकोश।";
+"RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe को मिडिया पाठसङ्ग्रहमा आधारित शब्द आवृत्ति शब्दकोश।";

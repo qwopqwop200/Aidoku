@@ -727,7 +727,7 @@
 "PORTRAIT_ROWS" = "Kolomme in portretoriëntasie";
 "LANDSCAPE_ROWS" = "Kolomme in landskaporiëntasie";
 "RESUME_LAST_OPENED_CHAPTER" = "Hervat laas oopgemaakte hoofstuk";
-"CONTINUE_READING_ON_RESELECT" = "Dubbeltik op die Geskiedenis-oortjie om te hervat met lees";
+"CONTINUE_READING_ON_RESELECT" = "Tik weer op Geskiedenis om verder te lees";
 "DOWNLOADED_CHAPTER_BADGES" = "Kentekens vir afgelaaide hoofstukke";
 "PIN_TITLES" = "Speld manga-titels vas";
 "PIN_DISABLED" = "Vasspeld gedeaktiveer";
@@ -955,7 +955,7 @@
 "STATUS_COLON_%@" = "Status: %@";
 "TYPE_COLON_%@" = "Tipe: %@";
 "VIEW_ON_WEBSITE" = "Kyk op webwerf";
-"CLEAR_TRACKED_MANGA" = "Verwyder manga-nasporingskakels";
+"CLEAR_TRACKED_MANGA" = "Verwyder alle manga-nasporingskakels";
 "CLEAR_TRACKED_MANGA_TEXT" = "Hierdie aksie is onomkeerbaar. Alle skakels tussen manga en naspoorders sal verwyder word.";
 "SEARCH_OPTIONS" = "Soekopsies";
 "SHOW_NSFW_RESULTS" = "Wys NSFW-resultate";
@@ -1161,7 +1161,7 @@
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Die vertaalkas kon nie gestoor word nie.";
 
-"ICLOUD_SYNC_RESTART_REQUIRED" = "Veranderinge aan iCloud-sinchronisering geld nadat jy Aidoku heeltemal sluit en weer oopmaak. Tot dan bly die huidige sinchroniseringsinstelling aktief.";
+"ICLOUD_SYNC_RESTART_REQUIRED" = "Veranderinge aan iCloud-sinkronisering geld nadat jy Aidoku heeltemal sluit en weer oopmaak. Tot dan bly die huidige sinkroniseringsinstelling aktief.";
 
 // Source-preserving inpainting
 "TRANSLATION_SOURCE_COLORS" = "Behou oorspronklike kleure";
@@ -1173,3 +1173,28 @@
 "TRANSLATION_FILTERING" = "Teksfiltrering";
 
 "TRANSLATION_TARGETS" = "Wat om te vertaal";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Bladsye: %i / %i";
+"1_SERIES" = "1 reeks";
+"SKIPPING_ONE_CHAPTER" = "Slaan 1 hoofstuk oor: dit ontbreek by die bron of is uitgefiltreer";
+"BACKUP_CREATE_ERROR_TEXT" = "Die rugsteun kon nie geskep word nie. Probeer asseblief weer.";
+"YES" = "Ja";
+"NO" = "Nee";
+"CHAPTERS_%i_OF_%i" = "Hoofstukke: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Die titel kon nie vir nasporing geregistreer word nie. Probeer asseblief weer.";
+"SORT_READ_PROGRESS" = "Leesvordering";
+"SORT_RELEASE_YEAR" = "Publikasiejaar";
+"SOURCE_INVALID_PAGE_COUNT" = "Ongeldige bladsytelling";
+"SOURCE_INVALID_GENRE_ID" = "Ongeldige genre-ID";
+"SOURCE_INVALID_LISTING" = "Ongeldige lys";
+"SOURCE_INVALID_LISTING_TYPE" = "Ongeldige lystipe";
+"SOURCE_INVALID_ITEM_TYPE" = "Ongeldige itemtipe";
+"DICTIONARY_ERROR" = "Woordeboekfout";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Kon nie woordeboekinstellings stoor nie: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Kon nie die gekose woordeboeke invoer nie:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Sommige woordeboeke kon nie ingevoer word nie:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Woordeboekinvoer het misluk.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "’n Omvattende Japannees-Engelse woordeboek wat deur die Electronic Dictionary Research and Development Group (EDRDG) onderhou word.";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "’n Woordeboek van Japannese eiename wat deur die Electronic Dictionary Research and Development Group (EDRDG) onderhou word.";
+"RECOMMENDED_JITEN_DESCRIPTION" = "’n Frekwensiewoordeboek gebaseer op die mediakorpus by https://jiten.moe.";

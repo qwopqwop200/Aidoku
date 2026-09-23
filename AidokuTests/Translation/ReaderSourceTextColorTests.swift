@@ -229,7 +229,8 @@ struct ReaderSourceTextColorTests {
                   let binary = '';
                   for (let i = 0; i < bytes.length; i += 8192)
                     binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-                  const cache = globalThis.__aidokuSourceTextColorsV14?.get(image);
+                  const cache = Object.keys(globalThis).filter(key => key.startsWith('__aidokuSourceTextColorsV'))
+                    .map(key => globalThis[key]?.get(image)).find(Boolean);
                   const samples = cache ? Array.from(cache, ([key, sample]) =>
                     ({sourceBounds:key.split(',').map(Number), sample, provenance:'actual renderer sampler cache'})) : [];
                   return {width:canvas.width, height:canvas.height, rgbaBase64:btoa(binary),
@@ -355,7 +356,7 @@ struct ReaderSourceTextColorTests {
         let pressured = BrowserPageImageOverlayRenderer.renderScript.replacingOccurrences(
             of: "const cleanupCanvas = document.createElement('canvas');",
             with: """
-            for(let i=0;i<24;i++) storeCleanup('pressure-'+i,
+            for(let i=0;i<80;i++) storeCleanup('pressure-'+i,
               {restored:{rgba:new Uint8ClampedArray(65536*4),layoutSafe:new Uint8Array(65536)}},65536);
             const cleanupCanvas = document.createElement('canvas');
             """)
@@ -365,7 +366,7 @@ struct ReaderSourceTextColorTests {
         let bounded = try await web.callAsyncJavaScript("""
         const c=globalThis.__aidokuSourceCleanupV1.last;
         const actual=[...c.entries.values()].reduce((n,e)=>n+(e.restored?.rgba?.byteLength||0)+(e.restored?.layoutSafe?.byteLength||0)+(e.output?.data?.byteLength||0),0);
-        return actual===c.bytes&&c.bytes<=4*1024*1024&&c.bytes>3*1024*1024&&!c.entries.has('pressure-0')&&c.entries.has('pressure-23');
+        return actual===c.bytes&&c.bytes<=16*1024*1024&&c.bytes>15*1024*1024&&!c.entries.has('pressure-0')&&c.entries.has('pressure-79');
         """, arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? Bool
         #expect(bounded == true)
         _ = try await web.callAsyncJavaScript(BrowserPageImageOverlayRenderer.clearScript,
@@ -386,7 +387,7 @@ struct ReaderSourceTextColorTests {
         // font-raster-dependent extraction already covered by the tests above.
         // This runs the real renderScript and real WK computed styles, not a
         // second implementation of its eligibility expression.
-        _ = try await web.callAsyncJavaScript("""
+        _ = try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
         const canvas = document.createElement('canvas'); canvas.width = 100; canvas.height = 100;
         const image = new Image(); image.id = 'reader-source-image';
         image.src = canvas.toDataURL(); await image.decode(); document.body.appendChild(image);
@@ -401,7 +402,12 @@ struct ReaderSourceTextColorTests {
         ];
         samples.forEach((sample,index) => cache.set([index / 10,0,0.09,1].join(','),
           {background:[11,11,11],stroke:null,...sample,confidence:{background:1,stroke:0,...sample.confidence}}));
-        globalThis.__aidokuSourceTextColorsV14 = new WeakMap([[image,cache]]);
+        // Initialize the production namespace, so a cache version bump cannot
+        // silently turn this renderer fixture into an empty-image extraction.
+        aidokuSourceColorSampler(image, true);
+        const cacheName = Object.keys(globalThis).find(key => key.startsWith('__aidokuSourceTextColorsV'));
+        if (!cacheName) throw new Error('Production source-color cache was not initialized');
+        globalThis[cacheName].set(image, cache);
         """, arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
         let fonts: [Double] = [9, 12, 5, 8.99, 12, 12, 12, 12]
         let items: [[String: Any]] = fonts.enumerated().map { index, font in
@@ -846,6 +852,176 @@ struct ReaderSourceTextColorTests {
                 renderer.cancelPendingRender()
             }
         }
+    }
+
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: directory.appendingPathComponent("lettering-replay.json").path)))
+    func capturedLetteringUsesObservedInkInPreviewAndTranslation() async throws {
+        _ = try await replaySourceColorFixtures(manifest: "lettering-replay.json", outputName: "lettering-results",
+            baselineName: "lettering-baseline.js", enforceEveryColor: true)
+    }
+
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: directory.appendingPathComponent("color-diversity-replay.json").path)))
+    func datasetColorDiversityUsesSourceColorsInWebKit() async throws {
+        let counts = try await replaySourceColorFixtures(manifest: "color-diversity-replay.json", outputName: "color-diversity-results",
+            baselineName: "color-diversity-baseline.js", enforceEveryColor: false)
+        for phase in ["ocr", "ko"] {
+            let total = try #require(counts["total-after-" + phase])
+            let after = try #require(counts["after-" + phase])
+            let before = try #require(counts["before-" + phase])
+            #expect(total >= 96)
+            #expect(after >= before + 10, "Real source color matches must improve in \(phase)")
+            #expect(Double(after) / Double(total) >= 0.8)
+        }
+    }
+
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: directory.appendingPathComponent("color-expansion-replay.json").path)))
+    func expandedDatasetColorsPreservePreviousMatchesInWebKit() async throws {
+        let counts = try await replaySourceColorFixtures(manifest: "color-expansion-replay.json", outputName: "color-expansion-results",
+            baselineName: "color-expansion-baseline.js", enforceEveryColor: false)
+        for phase in ["ocr", "ko"] {
+            let total = try #require(counts["total-after-" + phase])
+            let after = try #require(counts["after-" + phase])
+            let before = try #require(counts["before-" + phase])
+            #expect(total >= 272)
+            #expect(after >= before + 5, "Expanded real-image colors must improve in \(phase)")
+            #expect(Double(after) / Double(total) >= 0.85)
+            #expect(counts["regressions-" + phase, default: 0] == 0)
+        }
+    }
+
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: directory.appendingPathComponent("color-round-three-replay.json").path)))
+    func darkUICoreColorsPreserveIndependentCandidatesInWebKit() async throws {
+        let counts = try await replaySourceColorFixtures(manifest: "color-round-three-replay.json", outputName: "color-round-three-results",
+            baselineName: "color-round-three-baseline.js", enforceEveryColor: false)
+        for phase in ["ocr", "ko"] {
+            let total = try #require(counts["total-after-" + phase])
+            let after = try #require(counts["after-" + phase])
+            let before = try #require(counts["before-" + phase])
+            #expect(total >= 190)
+            #expect(after >= before + 3, "Bounded glyph cores must improve real source colors in \(phase)")
+            #expect(Double(after) / Double(total) >= 0.85)
+            #expect(counts["regressions-" + phase, default: 0] == 0)
+        }
+    }
+
+    private func replaySourceColorFixtures(manifest: String, outputName: String, baselineName: String,
+                                          enforceEveryColor: Bool) async throws -> [String: Int] {
+        struct Region: Decodable {
+            let bounds: [Double]; let source: String; let expected: [Int]; let acceptedColors: [[Int]]?
+            let outlineFreeDisplayColors: [[Int]]?
+            let requireColorMatch: Bool?
+        }
+        struct Fixture: Decodable { let name: String; let image: String; let regions: [Region] }
+        let fixtures = try JSONDecoder().decode([Fixture].self, from: Data(contentsOf: Self.directory.appendingPathComponent(manifest)))
+        let output = Self.directory.appendingPathComponent(outputName)
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        let baselineURL = Self.directory.appendingPathComponent(baselineName)
+        let baseline = try? String(contentsOf: baselineURL, encoding: .utf8)
+        var counts: [String: Int] = [:]
+        for fixture in fixtures {
+            var previousMatches: [String: Bool] = [:]
+            let data = try Data(contentsOf: Self.directory.appendingPathComponent(fixture.image))
+            let image = try #require(UIImage(data: data))
+            let width = min(430, 700 * image.size.width / image.size.height)
+            let size = CGSize(width: width, height: width * image.size.height / image.size.width)
+            for before in baseline == nil ? [false] : [true, false] {
+                for translated in [false, true] {
+                    let web = WKWebView(frame: CGRect(origin: .zero, size: size))
+                    let (host, overlay) = try makeOverlay(size: size)
+                    overlay.cancelWork(); overlay.removeFromSuperview()
+                    web.scrollView.contentInsetAdjustmentBehavior = .never
+                    host.rootViewController?.view.addSubview(web)
+                    defer { host.isHidden = true }
+                    web.loadHTMLString("<html><head><meta name='viewport' content='width=device-width,initial-scale=1'></head><body style='margin:0'></body></html>", baseURL: nil)
+                    let deadline = Date().addingTimeInterval(20)
+                    while web.isLoading || web.url == nil {
+                        if Date() > deadline { throw URLError(.timedOut) }
+                        try await Task.sleep(for: .milliseconds(20))
+                    }
+                    _ = try await web.callAsyncJavaScript("""
+                    const image=new Image();image.id='reader-source-image';image.src='data:image/png;base64,'+encoded;
+                    await image.decode();image.style.width='\(width)px';image.style.height='auto';document.body.appendChild(image);
+                    """, arguments: ["encoded": data.base64EncodedString()], in: nil, contentWorld: .page)
+                    var settings = ReaderTranslationSettings.defaultOverlay
+                    settings.preserveSourceTextColor = true; settings.preserveSourceBackgroundColor = true
+                    settings.opacity = 1
+                    let items = fixture.regions.enumerated().map { index, region in
+                        BrowserOverlayItem(stableRegionID: UInt64(index), rect: CGRect(x: region.bounds[0] * image.size.width,
+                            y: region.bounds[1] * image.size.height, width: region.bounds[2] * image.size.width,
+                            height: region.bounds[3] * image.size.height), sourceText: region.source,
+                            translatedText: translated ? "원본 글자 색상 확인 \(index + 1)" : nil,
+                            confidence: 1, sourceOrientation: region.bounds[2] * image.size.width > region.bounds[3] * image.size.height ? .horizontal : .vertical)
+                    }
+                    let payload = BrowserPageImageOverlayRenderer.layoutPayload(items: items,
+                        imageSize: image.size, sourceRect: CGRect(origin: .zero, size: size), settings: settings,
+                        targetLanguage: translated ? "ko" : "ja", viewport: size)
+                    let script = before ? BrowserPageImageOverlayRenderer.renderScript.replacingOccurrences(
+                        of: BrowserSourceTextColor.script, with: try #require(baseline)) : BrowserPageImageOverlayRenderer.renderScript
+                    if before { #expect(script != BrowserPageImageOverlayRenderer.renderScript) }
+                    let started = Date()
+                    _ = try await web.callAsyncJavaScript(script,
+                        arguments: ["revision": "1", "session": "lettering-replay", "items": payload,
+                            "appearance": ["minimumReadableFontSize": 1, "opacity": 1,
+                                "preserveSourceTextColor": true, "preserveSourceBackgroundColor": true]],
+                        in: nil, contentWorld: .page)
+                    let report = try #require(try await web.evaluateJavaScript("""
+                    (()=>{const root=document.querySelector('[data-aidoku-image-ocr-overlay="root"]');
+                    return {stats:{...root.dataset},rows:[...root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')].map(n=>({
+                      id:n.dataset.aidokuRegion,color:n.dataset.sourceAppliedTextRGB.split(',').map(Number),sample:n.dataset.sourceSampledTextRGB,
+                      stroke:n.dataset.sourceSampledStrokeRGB,text:n.textContent,css:getComputedStyle(n).color,
+                      x:n.offsetLeft,y:n.offsetTop,width:n.offsetWidth,height:n.offsetHeight}))};})()
+                    """) as? [String: Any])
+                    var exported = report; exported["milliseconds"] = Date().timeIntervalSince(started) * 1_000
+                    let name = fixture.name + (before ? "-before" : "-after") + (translated ? "-ko" : "-ocr")
+                    try JSONSerialization.data(withJSONObject: exported, options: [.prettyPrinted,.sortedKeys])
+                        .write(to: output.appendingPathComponent(name + ".json"))
+                    let rows = try #require(report["rows"] as? [[String: Any]])
+                    #expect(rows.count == fixture.regions.count)
+                    var matches = 0
+                    for row in rows {
+                        let id = try #require(row["id"] as? String)
+                        let index = try #require(Int(id))
+                        let region = fixture.regions[index]
+                        let rgb = try #require(row["color"] as? [Int])
+                        let matched = (region.acceptedColors ?? [region.expected]).contains { expected in
+                            zip(rgb, expected).allSatisfy { abs($0 - $1) <= 25 }
+                        }
+                        if matched { matches += 1 }
+                        let comparisonKey = "\(index)-" + (translated ? "ko" : "ocr")
+                        if before {
+                            previousMatches[comparisonKey] = matched
+                        } else if previousMatches[comparisonKey] == true && !matched {
+                            counts["regressions-" + (translated ? "ko" : "ocr"), default: 0] += 1
+                        }
+                        if !before && (enforceEveryColor || region.requireColorMatch == true) {
+                            #expect(matched, "\(name): \(rgb) expected \(region.expected)")
+                        }
+                        if !before, let definingInk = region.outlineFreeDisplayColors {
+                            #expect(definingInk.contains { expected in
+                                zip(rgb, expected).allSatisfy { abs($0 - $1) <= 25 }
+                            }, "\(name): pale backing requires the source's defining dark ink")
+                        }
+                    }
+                    let key = (before ? "before" : "after") + (translated ? "-ko" : "-ocr")
+                    counts[key, default: 0] += matches
+                    counts["total-" + key, default: 0] += rows.count
+                    let stats = try #require(report["stats"] as? [String: String])
+                    #expect((Int(stats["sourceColorPixels"] ?? "") ?? Int.max) <= 393216)
+                    _ = try await web.callAsyncJavaScript("await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))",
+                        arguments: [:], in: nil, contentWorld: .page)
+                    let snapshot: UIImage = try await withCheckedThrowingContinuation { continuation in
+                        web.takeSnapshot(with: nil) { image, error in
+                            if let image { continuation.resume(returning: image) }
+                            else { continuation.resume(throwing: error ?? URLError(.cannotDecodeContentData)) }
+                        }
+                    }
+                    try snapshot.pngData()?.write(to: output.appendingPathComponent(name + ".png"))
+                }
+            }
+        }
+        try JSONSerialization.data(withJSONObject: counts, options: [.prettyPrinted, .sortedKeys])
+            .write(to: output.appendingPathComponent("summary.json"))
+        return counts
     }
 
     private func freshSettings() -> ReaderTranslationSettings {

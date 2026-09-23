@@ -742,6 +742,7 @@ struct ReaderTranslationStoredRegion: Codable {
     let orientation: String
     let singleColumn: Bool?
     let auxiliaryInkRects: [CGRect]?
+    let auxiliaryInkPolygons: [[CGPoint]]?
     let sourceImageAspectRatio: Double?
     let translationOrder: Int?
     let translationOrderVersion: String?
@@ -753,6 +754,7 @@ struct ReaderTranslationStoredRegion: Codable {
         polygon = value.polygon; confidence = value.confidence; orientation = value.sourceOrientation.rawValue
         singleColumn = value.sourceSingleVerticalColumn
         auxiliaryInkRects = value.auxiliaryInkRects.isEmpty ? nil : value.auxiliaryInkRects
+        auxiliaryInkPolygons = value.auxiliaryInkPolygons.isEmpty ? nil : value.auxiliaryInkPolygons
         sourceImageAspectRatio = value.sourceImageAspectRatio
         translationOrder = value.translationOrder
         translationOrderVersion = value.translationOrderVersion
@@ -763,6 +765,7 @@ struct ReaderTranslationStoredRegion: Codable {
                                              confidence: confidence, sourceOrientation: .init(tolerantRawValue: orientation),
                                              sourceSingleVerticalColumn: singleColumn)
         region.auxiliaryInkRects = auxiliaryInkRects ?? []
+        region.auxiliaryInkPolygons = auxiliaryInkPolygons ?? []
         region.sourceImageAspectRatio = sourceImageAspectRatio
         region.translationOrder = translationOrder
         region.translationOrderVersion = translationOrderVersion
@@ -799,7 +802,7 @@ enum ReaderTranslationCacheIdentity {
     static func ocr(page: String, settings: ReaderTranslationSettings) -> String {
         // OCR entries contain merged regions. A merger change must also
         // invalidate derived translations/layouts instead of replaying old boxes.
-        encoded(["reader-ocr-v51-short-staggered-reaction", page, encoded(settings.ocrConfiguration)])
+        encoded(["reader-ocr-v56-merged-rotation", page, encoded(settings.ocrConfiguration)])
     }
     static func translation(page: String, settings: ReaderTranslationSettings) -> String {
         let previous = unfilteredTranslation(page: page, settings: settings)
@@ -825,8 +828,9 @@ enum ReaderTranslationCacheIdentity {
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
         return encoded([
-            "reader-render-v73-panel-guided-inpainting", translation(page: page, settings: settings), encoded(settings.overlay),
+            "reader-render-v97-observed-texture", translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
+            "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit",
             ProcessInfo.processInfo.operatingSystemVersionString
         ])
     }

@@ -1,0 +1,1078 @@
+{
+  "methodology": {
+    "corpus": "real-comics-20000",
+    "input": "Referenced original RGBA crops in source-color-diversity.json; supplied silver OCR boxes",
+    "oracle": "Assistant visual review of exposed background swatches, frozen before background predictions. Not human gold. Varying surfaces use representative visible RGB, not hidden artwork reconstruction.",
+    "metric": "Maximum absolute sRGB channel error <= 25; no estimate is failure",
+    "selection": "82 source crops with visually identifiable flat or representative background from 96 existing work-disjoint text fixtures; ambiguous multi-surface artwork excluded before predictions.",
+    "split": "Original work-disjoint development/holdout preserved. Initial candidate used development only and matched 41/41 holdout backgrounds in Node. Subsequent WebKit validation exposed dense h083 coverage loss; its correction is now part of the reviewed regression set, not an untouched statistical holdout."
+  },
+  "fixtures": [
+    {
+      "id": "d000",
+      "expectedBackground": [
+        179,
+        69,
+        76
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ257512.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d001",
+      "expectedBackground": [
+        11,
+        9,
+        11
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01007933.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d002",
+      "expectedBackground": [
+        193,
+        221,
+        232
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01515240.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d004",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01680854.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d005",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01202722.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d006",
+      "expectedBackground": [
+        255,
+        230,
+        137
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:ayataross",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d007",
+      "expectedBackground": [
+        254,
+        248,
+        219
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:MIU00001882",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d008",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:sora00_hotaru",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d009",
+      "expectedBackground": [
+        198,
+        186,
+        173
+      ],
+      "surface": "varying",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:picoyukina",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d010",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:mikemo_mochi",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d011",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:k_pmaki",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d012",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "creator_webcomic",
+      "evaluationGroup": "another-piece-of-candy",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d014",
+      "expectedBackground": [
+        155,
+        216,
+        205
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01292288.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d015",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ258838.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d018",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01166355.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d019",
+      "expectedBackground": [
+        0,
+        124,
+        103
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://sweetsomestudio.itch.io/to-put-your-childhood-sweetheart-into-a-refrigerator",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d020",
+      "expectedBackground": [
+        200,
+        182,
+        155
+      ],
+      "surface": "varying",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://dancingengie.itch.io/adhd",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d022",
+      "expectedBackground": [
+        4,
+        3,
+        20
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://mysteryjamgames.itch.io/aim-to-capture",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d023",
+      "expectedBackground": [
+        33,
+        34,
+        44
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://devilinlovegames.itch.io/the-winter-wedding",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d024",
+      "expectedBackground": [
+        0,
+        0,
+        254
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "game_cg",
+      "evaluationGroup": "https://zakurosuke.itch.io/severedlove",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d025",
+      "expectedBackground": [
+        31,
+        25,
+        29
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "game_dialogue_screenshot",
+      "evaluationGroup": "little-boats-of-farewell",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d026",
+      "expectedBackground": [
+        75,
+        64,
+        78
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "game_dialogue_screenshot",
+      "evaluationGroup": "lilac-and-her-light",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d027",
+      "expectedBackground": [
+        168,
+        181,
+        194
+      ],
+      "surface": "varying",
+      "split": "development",
+      "format": "game_dialogue_screenshot",
+      "evaluationGroup": "treat-complete",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d028",
+      "expectedBackground": [
+        118,
+        107,
+        149
+      ],
+      "surface": "varying",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "ドリームパートナー",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d029",
+      "expectedBackground": [
+        151,
+        151,
+        151
+      ],
+      "surface": "varying",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "Oshi no Ko",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d030",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "どこよりも遠い場所にいる君へ",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d032",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "ひめごえ",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d033",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "manga",
+      "evaluationGroup": "Stray Sheep／ジャンプ＋漫画賞 2026年1-2月期",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d034",
+      "expectedBackground": [
+        255,
+        249,
+        238
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "重生毒后護唐門",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d035",
+      "expectedBackground": [
+        254,
+        236,
+        57
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "今天人家是女生",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d036",
+      "expectedBackground": [
+        141,
+        132,
+        113
+      ],
+      "surface": "varying",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "今日騎士",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d037",
+      "expectedBackground": [
+        0,
+        0,
+        0
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "異世界對社恐不太友善",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d039",
+      "expectedBackground": [
+        82,
+        82,
+        82
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "婚姻醜聞保衛戰",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d041",
+      "expectedBackground": [
+        254,
+        243,
+        249
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "visual_novel_dialogue_screenshot",
+      "evaluationGroup": "syrup-and-the-ultimate-sweet",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 1"
+    },
+    {
+      "id": "d043",
+      "expectedBackground": [
+        255,
+        249,
+        221
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "visual_novel_dialogue_screenshot",
+      "evaluationGroup": "magicalwitchbell",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d044",
+      "expectedBackground": [
+        69,
+        70,
+        107
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "visual_novel_dialogue_screenshot",
+      "evaluationGroup": "casting-hearts",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d045",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "visual_novel_dialogue_screenshot",
+      "evaluationGroup": "one-night-hot-springs",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d047",
+      "expectedBackground": [
+        168,
+        85,
+        69
+      ],
+      "surface": "varying",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://lemone2d.itch.io/countryhumans-dating-sim",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d048",
+      "expectedBackground": [
+        255,
+        227,
+        175
+      ],
+      "surface": "varying",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://honeybunny-of.itch.io/subjectluv",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 1"
+    },
+    {
+      "id": "d049",
+      "expectedBackground": [
+        71,
+        56,
+        53
+      ],
+      "surface": "flat",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://pushtdarlingx.itch.io/cafe-drop-demo",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "d051",
+      "expectedBackground": [
+        55,
+        55,
+        56
+      ],
+      "surface": "varying",
+      "split": "development",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://yorubox.itch.io/dont-pick-up-stray-aliens",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h052",
+      "expectedBackground": [
+        118,
+        86,
+        74
+      ],
+      "surface": "varying",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01438711.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h053",
+      "expectedBackground": [
+        183,
+        150,
+        101
+      ],
+      "surface": "varying",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ187307.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h054",
+      "expectedBackground": [
+        185,
+        118,
+        156
+      ],
+      "surface": "varying",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ410936.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h055",
+      "expectedBackground": [
+        19,
+        24,
+        39
+      ],
+      "surface": "varying",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ360958.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h056",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ333713.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h057",
+      "expectedBackground": [
+        235,
+        108,
+        151
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "artist_cg_illustration",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ284310.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h059",
+      "expectedBackground": [
+        243,
+        233,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:_matasaburo_",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h060",
+      "expectedBackground": [
+        248,
+        228,
+        161
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:ruuiruiruirui",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h061",
+      "expectedBackground": [
+        169,
+        254,
+        200
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:gojyobako",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 1"
+    },
+    {
+      "id": "h062",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:nakiringo",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h063",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "artist_sns_comic",
+      "evaluationGroup": "sns-creator:82_tbk",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h064",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01519340.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h065",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01692223.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h066",
+      "expectedBackground": [
+        255,
+        99,
+        110
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01694894.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h067",
+      "expectedBackground": [
+        253,
+        248,
+        229
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01693453.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h068",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01612836.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h069",
+      "expectedBackground": [
+        49,
+        36,
+        64
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "doujin_manga",
+      "evaluationGroup": "https://www.dlsite.com/home/work/=/product_id/RJ01489730.html",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h070",
+      "expectedBackground": [
+        241,
+        120,
+        155
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "game_cg",
+      "evaluationGroup": "https://linglyum.itch.io/loving-decays",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h072",
+      "expectedBackground": [
+        8,
+        14,
+        16
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "game_cg",
+      "evaluationGroup": "https://niceed.itch.io/lullaby-for-me",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h073",
+      "expectedBackground": [
+        102,
+        53,
+        22
+      ],
+      "surface": "varying",
+      "split": "holdout",
+      "format": "game_cg",
+      "evaluationGroup": "https://jul1xan-productions.itch.io/you-make-this-house-a-home",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h074",
+      "expectedBackground": [
+        19,
+        36,
+        42
+      ],
+      "surface": "varying",
+      "split": "holdout",
+      "format": "game_cg",
+      "evaluationGroup": "https://try-froggery.itch.io/myosotis",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h075",
+      "expectedBackground": [
+        26,
+        54,
+        57
+      ],
+      "surface": "varying",
+      "split": "holdout",
+      "format": "game_cg",
+      "evaluationGroup": "https://redspringstudio.itch.io/touchstarved",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h076",
+      "expectedBackground": [
+        126,
+        37,
+        83
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "game_dialogue_screenshot",
+      "evaluationGroup": "ghosts-in-the-garden",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h077",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "やめろ好きになってしまう",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h078",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "夫婦と16歳",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h079",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "つづら先輩は元カノだから",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h080",
+      "expectedBackground": [
+        254,
+        254,
+        254
+      ],
+      "surface": "varying",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "高みの鷹見さん",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h081",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "ヘル・ベジタブル/2026年4月期ブロンズルーキー賞",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h082",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "manga",
+      "evaluationGroup": "アナーキーな新学期！",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h083",
+      "expectedBackground": [
+        131,
+        149,
+        172
+      ],
+      "surface": "varying",
+      "split": "holdout",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "史詩級領地設計師",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 1"
+    },
+    {
+      "id": "h085",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "與新老公的復仇計畫",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h086",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "奈米魔神 第二季",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h087",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "中點遇到愛",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h088",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "vertical_comic_segment",
+      "evaluationGroup": "外送打手",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h089",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "visual_novel_dialogue_screenshot",
+      "evaluationGroup": "a-letter-of-challenge",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h090",
+      "expectedBackground": [
+        231,
+        225,
+        221
+      ],
+      "surface": "varying",
+      "split": "holdout",
+      "format": "visual_novel_dialogue_screenshot",
+      "evaluationGroup": "a-hero-and-a-garden",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h091",
+      "expectedBackground": [
+        246,
+        224,
+        229
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://teamsalvato.itch.io/ddlc",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 2"
+    },
+    {
+      "id": "h092",
+      "expectedBackground": [
+        255,
+        255,
+        255
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://ladyoph3lia.itch.io/loveangelsyndrome",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 1"
+    },
+    {
+      "id": "h093",
+      "expectedBackground": [
+        238,
+        192,
+        220
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://eric666o.itch.io/ranfren-not-lucid-swap",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h095",
+      "expectedBackground": [
+        193,
+        139,
+        73
+      ],
+      "surface": "flat",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://bebakk.itch.io/liminal-cowboy",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    },
+    {
+      "id": "h096",
+      "expectedBackground": [
+        234,
+        187,
+        196
+      ],
+      "surface": "varying",
+      "split": "holdout",
+      "format": "visual_novel_public_screenshot",
+      "evaluationGroup": "https://dhidhiand.itch.io/double-troubles-blossoming",
+      "annotation": "Visually selected exposed background swatch from original crop; source swatch 0"
+    }
+  ]
+}

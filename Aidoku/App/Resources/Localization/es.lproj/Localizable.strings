@@ -237,7 +237,7 @@
 "MULTI_LANGUAGE" = "Multi-lenguaje";
 "LOGOUT" = "Cerrar sesión";
 "LOGOUT_FROM_%@" = "¿Cerrar sesión de %@?";
-"TRACKERS" = "Rastreadores";
+"TRACKERS" = "Servicios de seguimiento";
 "VOLUMES" = "Volúmenes";
 "STARTED" = "Fecha de inicio";
 "STATUS" = "Estado";
@@ -561,11 +561,11 @@
 "SOURCE_IMPORT_FAIL_TEXT" = "No se pudo importar la fuente. Asegúrate de que el archivo .aix sea válido.";
 "LOGIN_FAILED_TEXT" = "No se pudo iniciar sesión en la fuente. Asegúrate de que tus credenciales sean correctas.";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "La sincronización de iCloud es una función experimental. Activarla o desactivarla podría provocar la pérdida de datos.";
-"UPDATE_AFTER_READING_INFO" = "Después de leer un capítulo, actualizar el rastreador para que coincida con el capítulo y/o volumen leído actualmente.";
+"UPDATE_AFTER_READING_INFO" = "Después de leer un capítulo, actualiza el servicio de seguimiento para reflejar el capítulo y/o volumen leído.";
 "DEMO_KOMGA_SERVER_INFO" = "Puedes iniciar sesión en el servidor de demostración de Komga utilizando el correo electrónico \"demo@komga.org\" y la contraseña \"komga-demo\".";
 "DEMO_KAVITA_SERVER_INFO" = "Puedes iniciar sesión en el servidor de demostración de Kavita utilizando el nombre de usuario \"demouser\" y la contraseña \"Demouser64\".";
 "FILE_IMPORT_FAIL_TEXT" = "Error al importar el archivo. Asegúrate de que sea un archivo de imagen legible o un archivo CBZ o ZIP válido que contenga imágenes.";
-"%@_TRACKER_LOGIN_NEEDED_TEXT" = "Tu token %@ ha expirado, por lo que el rastreador asociado dejará de funcionar hasta que vuelvas a iniciar sesión en la configuración.";
+"%@_TRACKER_LOGIN_NEEDED_TEXT" = "Tu token de %@ ha caducado. El servicio de seguimiento asociado dejará de funcionar hasta que vuelvas a iniciar sesión en Configuración.";
 "HIGHEST_FIRST" = "Más alto primero";
 "LOWEST_FIRST" = "Más bajo primero";
 "BROWSE_NO_SOURCES_TEXT_NEW" = "Añade una fuente con el botón más.";
@@ -686,11 +686,11 @@
 "TEXT_LINE_SPACING" = "Interlineado";
 "TEXT_HORIZONTAL_PADDING" = "Márgenes horizontales";
 "IMPORT_BACKUP" = "Importar copia de seguridad";
-"SYNC_WITH_TRACKER" = "Sinc. con Seguimiento";
+"SYNC_WITH_TRACKER" = "Sincronizar con el servicio de seguimiento";
 "SYNC_WITH_TRACKER_INFO_%i" = "Según el servicio de seguimiento, ya has leído %i capítulos. ¿Quieres marcarlos como leídos?";
 "UNAVAILABLE_TRACKER_ITEM" = "Ítem de seguimiento indisponible";
 "UNAVAILABLE_TRACKER_ITEM_INFO" = "Este elemento de seguimiento está vinculado a un servicio que ya no está disponible. Elimina el elemento o vuelve a iniciar sesión en el servicio asociado.";
-"ENHANCED_TRACKERS" = "Seguimientos Mejorados";
+"ENHANCED_TRACKERS" = "Servicios de seguimiento mejorados";
 "ENHANCED_TRACKERS_INFO" = "Los sistemas de seguimiento mejorados pueden auto‐vincularse con los elementos añadidos a tu biblioteca desde fuentes compatibles, lo que permite realizar un seguimiento del historial de lectura bidireccional.";
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Desactivar el seguimiento de una fuente elimina todos sus vínculos de seguimiento. Activarlo vincula automáticamente los títulos de esa fuente que estén en tu biblioteca.";
 "TRACKER_LOGOUT_INFO" = "Al cerrar sesión se eliminará la información vinculada a este servicio de seguimiento para todas las series.";
@@ -935,11 +935,11 @@
 
 "TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Estima el color del texto original sin un modelo adicional. Utiliza el color predeterminado si la estimación es incierta o el contraste es demasiado bajo.";
 
-"TRANSLATION_LLM_SFX" = "Filtrado LLM SFX (todos los idiomas)";
+"TRANSLATION_LLM_SFX" = "Filtrar efectos de sonido con LLM (todos los idiomas)";
 
 "TRANSLATION_LLM_SFX_HELP" = "Clasifica los efectos de sonido en la misma solicitud de traducción y los deja sin cambios. Si se incluye una imagen de la página, la IA también omite los fragmentos de OCR poco claros, salvo que la imagen confirme que contienen texto con sentido. Los diálogos, la narración, los títulos y los créditos se mantienen para su traducción. La clasificación es menos fiable sin una imagen de la página.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Sin entrada de imagen, el contexto visual y de diseño limitado puede reducir la precisión de la clasificación SFX.";
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Sin una imagen de la página, la falta de contexto visual y de distribución del texto puede reducir la precisión de la clasificación de los efectos de sonido.";
 
 "TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Conservar el color del fondo original";
 
@@ -980,7 +980,7 @@
 "HTML_ERROR" = "Error HTML";
 "JSON_ERROR" = "Error JSON";
 "SOURCE_CRASHED" = "La fuente dejó de funcionar";
-"CONTINUE_READING_ON_RESELECT" = "Toca dos veces la pestaña Historial para reanudar la lectura.";
+"CONTINUE_READING_ON_RESELECT" = "Tocar de nuevo Historial para reanudar la lectura";
 "TEXT_THEME" = "Tema";
 "TEXT_THEME_SEPIA" = "Sepia";
 "TEXT_THEME_PAPER" = "Papel";
@@ -1142,3 +1142,28 @@
 "TRANSLATION_FILTERING" = "Filtrado de texto";
 
 "TRANSLATION_TARGETS" = "Qué traducir";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Páginas: %i / %i";
+"1_SERIES" = "1 serie";
+"SKIPPING_ONE_CHAPTER" = "Se omite 1 capítulo porque falta en la fuente o se ha filtrado";
+"BACKUP_CREATE_ERROR_TEXT" = "No se pudo crear la copia de seguridad. Inténtalo de nuevo.";
+"YES" = "Sí";
+"NO" = "No";
+"CHAPTERS_%i_OF_%i" = "Capítulos: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "No se pudo añadir el título al seguimiento. Inténtalo de nuevo.";
+"SORT_READ_PROGRESS" = "Progreso de lectura";
+"SORT_RELEASE_YEAR" = "Año de publicación";
+"SOURCE_INVALID_PAGE_COUNT" = "Número de páginas no válido";
+"SOURCE_INVALID_GENRE_ID" = "ID de género no válido";
+"SOURCE_INVALID_LISTING" = "Lista no válida";
+"SOURCE_INVALID_LISTING_TYPE" = "Tipo de lista no válido";
+"SOURCE_INVALID_ITEM_TYPE" = "Tipo de elemento no válido";
+"DICTIONARY_ERROR" = "Error de diccionario";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "No se pudieron guardar los ajustes de los diccionarios: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "No se pudieron importar los diccionarios seleccionados:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "No se pudieron importar algunos diccionarios:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "No se pudo importar el diccionario.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Un completo diccionario japonés-inglés mantenido por Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Un diccionario de nombres propios japoneses mantenido por Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Un diccionario de frecuencias basado en el corpus multimedia de https://jiten.moe.";

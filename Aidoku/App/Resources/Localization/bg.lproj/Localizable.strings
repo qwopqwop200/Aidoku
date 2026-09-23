@@ -273,7 +273,7 @@
 "UPCOMING" = "Предстоящи";
 "CATEGORY_NAME" = "Име на категория";
 "FIRST_ALTERNATIVE" = "Първа алтернатива";
-"MIGRATE_%i_ITEMS?" = "Мигриране на %i обекти?";
+"MIGRATE_%i_ITEMS?" = "Мигриране на %i обекта?";
 "MIGRATE_ONE_ITEM?" = "Мигриране на 1 обект?";
 "UPLOAD_DATE" = "Дата на качване";
 "PILLARBOX" = "Странични полета";
@@ -606,9 +606,9 @@
 "LOWEST_FIRST" = "Първо най-ниското";
 "LAYOUT_GRID" = "Решетка";
 "LAYOUT_LIST" = "Списък";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "Премахване на %i елементи от библиотеката";
+"REMOVING_%i_ITEMS_FROM_LIBRARY" = "Премахване на %i елемента от библиотеката";
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "Премахване на елемент от категория %@";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Премахване на %i елементи от категория %@";
+"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Премахване на %i елемента от категория %@";
 "REFRESHING_LIBRARY" = "Опресняване на библиотеката ви с манга...";
 "PROCESSING_ENTRIES" = "Записите се обработват...";
 "REFRESH_NO_WIFI" = "Няма връзка с Wi-Fi";
@@ -824,7 +824,7 @@
 "PORTRAIT_ROWS" = "Колони във вертикална ориентация";
 "LANDSCAPE_ROWS" = "Колони в хоризонтална ориентация";
 "RESUME_LAST_OPENED_CHAPTER" = "Възобновяване на последната отворена глава";
-"CONTINUE_READING_ON_RESELECT" = "Докоснете два пъти раздела История, за да възобновите четенето";
+"CONTINUE_READING_ON_RESELECT" = "Повторно докосване на „История“ за продължаване на четенето";
 "DOWNLOADED_CHAPTER_BADGES" = "Значки за изтеглени глави";
 "PIN_TITLES" = "Закачете заглавия на манга";
 "PIN_DISABLED" = "Фиксирането е деактивирано";
@@ -866,7 +866,7 @@
 "LEGACY_SOURCE_LIST" = "Остарял списък с източници";
 "LEGACY_SOURCE_LIST_WARNING" = "Предупреждение: остарял списък с източници";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "В момента имате конфигуриран наследен списък с източници. Този формат е остарял и ще спре да работи в бъдеща версия на Aidoku. Въпреки че засега все още работи, препоръчваме ви да намерите заместител и да го конфигурирате в Настройки> Списъци с източници.";
-"UPSCALING" = "Премащабиране";
+"UPSCALING" = "Увеличаване на резолюцията";
 "UPSCALE_IMAGES" = "Увеличаване на резолюцията на изображенията";
 "UPSCALING_MODELS" = "Модели за увеличаване на резолюцията";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Максимална височина на изображението";
@@ -1145,3 +1145,28 @@
 "TRANSLATION_FILTERING" = "Филтриране на текст";
 
 "TRANSLATION_TARGETS" = "Какво да се превежда";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Страници: %i / %i";
+"1_SERIES" = "1 серия";
+"SKIPPING_ONE_CHAPTER" = "Пропуска се 1 глава, защото липсва в източника или е изключена от филтрите";
+"BACKUP_CREATE_ERROR_TEXT" = "Архивът не можа да бъде създаден. Моля, опитайте отново.";
+"YES" = "Да";
+"NO" = "Не";
+"CHAPTERS_%i_OF_%i" = "Глави: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Заглавието не можа да бъде добавено за проследяване. Моля, опитайте отново.";
+"SORT_READ_PROGRESS" = "Напредък на четенето";
+"SORT_RELEASE_YEAR" = "Година на издаване";
+"SOURCE_INVALID_PAGE_COUNT" = "Невалиден брой страници";
+"SOURCE_INVALID_GENRE_ID" = "Невалиден идентификатор на жанр";
+"SOURCE_INVALID_LISTING" = "Невалиден списък";
+"SOURCE_INVALID_LISTING_TYPE" = "Невалиден тип списък";
+"SOURCE_INVALID_ITEM_TYPE" = "Невалиден тип елемент";
+"DICTIONARY_ERROR" = "Грешка в речника";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Настройките на речниците не могат да бъдат запазени: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Избраните речници не могат да бъдат импортирани:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Някои речници не могат да бъдат импортирани:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Импортирането на речника е неуспешно.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Изчерпателен японско-английски речник, поддържан от Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Речник на японските собствени имена, поддържан от Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Честотен речник, базиран на медийния корпус на https://jiten.moe.";

@@ -439,9 +439,9 @@
 
 "TRANSLATION_CACHE" = "Cache jashtë linje";
 
-"TRANSLATION_CACHE_LIMIT" = "Magazinimi maksimal";
+"TRANSLATION_CACHE_LIMIT" = "Hapësira maksimale e ruajtjes";
 
-"TRANSLATION_CACHE_USED" = "Magazinimi i përdorur";
+"TRANSLATION_CACHE_USED" = "Hapësira e përdorur e ruajtjes";
 
 "TRANSLATION_CACHE_HELP" = "Ruan automatikisht rezultatet e OCR-së, përkthimet e faqeve, përkthimet e titujve të mangave dhe kapitujve, emrave të autorëve, etiketave, përshkrimeve të mangave, menyve të burimeve dhe titujve të seksioneve, si dhe faqosjen e tekstit. Imazhet ruhen vetëm në memorien operative për faqen aktuale dhe faqet pranë saj. Kur arrihet kufiri i zgjedhur, hiqen fillimisht rezultatet që kanë më shumë kohë pa u përdorur. Vlera e paracaktuar: 1 GB. Maksimumi: 100 GB. Ndryshimet zbatohen automatikisht; ulja e kufirit heq këto rezultate derisa madhësia e memories së përkohshme të jetë brenda kufirit.";
 
@@ -629,7 +629,7 @@
 "RESET_SETTINGS_CONFIRM_%@" = "Jeni i sigurt që dëshironi të rivendosni të gjitha cilësimet për %@?";
 "CANCEL_CONFIRM" = "Je i sigurt që dëshiron ta anulosh?";
 "CANCEL_CONFIRM_TEXT" = "Ndryshimet tuaja do të hidhen poshtë.";
-"DISCARD_CHANGES" = "Hidhni Ndryshimet";
+"DISCARD_CHANGES" = "Hidh poshtë ndryshimet";
 "INVALID_URL" = "URL e pavlefshme";
 "INVALID_URL_TEXT" = "URL-ja për këtë burim është e pavlefshme.";
 "MORE_BARBUTTON" = "Më shumë";
@@ -805,7 +805,7 @@
 "PORTRAIT_ROWS" = "Numri i kolonave në orientim vertikal";
 "LANDSCAPE_ROWS" = "Numri i kolonave në orientim horizontal";
 "RESUME_LAST_OPENED_CHAPTER" = "Rifillo kapitullin e hapur së fundi";
-"CONTINUE_READING_ON_RESELECT" = "Prekni dy herë skedën Historia për të rifilluar leximin";
+"CONTINUE_READING_ON_RESELECT" = "Prekni sërish skedën Historia për të rifilluar leximin";
 "DOWNLOADED_CHAPTER_BADGES" = "Shenjat e kapitullit të shkarkuar";
 "PIN_TITLES" = "Fikso titujt";
 "PIN_DISABLED" = "Çaktivizuar";
@@ -838,7 +838,7 @@
 "SERIES_SINGULAR" = "Seria";
 "HOUR_PLURAL" = "orët";
 "HOUR_SINGULAR" = "Ora";
-"ALL_TIME" = "Të gjitha kohërave";
+"ALL_TIME" = "E gjithë periudha";
 "THIS_MONTH" = "Këtë muaj";
 "THIS_YEAR" = "Këtë vit";
 "UNAVAILABLE_SOURCE_LISTS" = "Listat e burimeve të padisponueshme";
@@ -847,9 +847,9 @@
 "LEGACY_SOURCE_LIST" = "Listë burimesh në format të vjetër";
 "LEGACY_SOURCE_LIST_WARNING" = "Paralajmërim: listë burimesh në format të vjetër";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Aktualisht keni të konfiguruar një listë burimesh në format të vjetër. Ky format është i vjetëruar dhe do të ndalojë së funksionuari në një version të ardhshëm të Aidoku. Edhe pse ende funksionon, rekomandohet të gjeni një zëvendësim dhe ta konfiguroni te Cilësimet > Listat e Burimeve.";
-"UPSCALING" = "Rritja e shkallës";
+"UPSCALING" = "Rritja e rezolucionit";
 "UPSCALE_IMAGES" = "Rrit rezolucionin e imazheve";
-"UPSCALING_MODELS" = "Modele të rritjes së shkallës";
+"UPSCALING_MODELS" = "Modele për rritjen e rezolucionit";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Lartësia maksimale e imazhit";
 "UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Imazheve me lartësi të barabartë ose më të madhe se kufiri maksimal nuk do t’u rritet rezolucioni.";
 "ENABLED_MODEL" = "Modeli i aktivizuar";
@@ -909,7 +909,7 @@
 "DICTIONARY_POPUP_HEIGHT" = "Lartësia e dritares";
 "TERM_DICTIONARIES" = "Fjalorët e termave";
 "FREQUENCY_DICTIONARIES" = "Fjalorët e frekuencës së fjalëve";
-"PITCH_DICTIONARIES" = "Fjalorët e theksit të zërit";
+"PITCH_DICTIONARIES" = "Fjalorët e theksit tonal";
 "KANJI_DICTIONARIES" = "Fjalorët Kanji";
 "IMPORTING_DICTIONARY" = "Fjalori po importohet…";
 "IMPORT_ERROR" = "Gabim importi";
@@ -1151,3 +1151,28 @@
 "TRANSLATION_FILTERING" = "Filtrimi i tekstit";
 
 "TRANSLATION_TARGETS" = "Çfarë të përkthehet";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Faqe: %i / %i";
+"1_SERIES" = "1 seri";
+"SKIPPING_ONE_CHAPTER" = "Po anashkalohet 1 kapitull, sepse mungon te burimi ose është përjashtuar nga filtrat";
+"BACKUP_CREATE_ERROR_TEXT" = "Kopja rezervë nuk mund të krijohej. Ju lutemi, provoni përsëri.";
+"YES" = "Po";
+"NO" = "Jo";
+"CHAPTERS_%i_OF_%i" = "Kapituj: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Titulli nuk mund të shtohej për gjurmim. Ju lutemi, provoni përsëri.";
+"SORT_READ_PROGRESS" = "Përparimi i leximit";
+"SORT_RELEASE_YEAR" = "Viti i botimit";
+"SOURCE_INVALID_PAGE_COUNT" = "Numër i pavlefshëm faqesh";
+"SOURCE_INVALID_GENRE_ID" = "ID e pavlefshme e zhanrit";
+"SOURCE_INVALID_LISTING" = "Listë e pavlefshme";
+"SOURCE_INVALID_LISTING_TYPE" = "Lloj i pavlefshëm liste";
+"SOURCE_INVALID_ITEM_TYPE" = "Lloj i pavlefshëm elementi";
+"DICTIONARY_ERROR" = "Gabim fjalori";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Cilësimet e fjalorëve nuk mund të ruheshin: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Fjalorët e zgjedhur nuk mund të importoheshin:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Disa fjalorë nuk mund të importoheshin:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Importimi i fjalorit dështoi.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Një fjalor i plotë japonisht-anglisht i mirëmbajtur nga Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Një fjalor i emrave të përveçëm japonezë i mirëmbajtur nga Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Një fjalor frekuencash i bazuar në korpusin mediatik të https://jiten.moe.";

@@ -488,7 +488,7 @@
 "MISSING_SOURCE_LIST_INFO" = "Esta fonte externa não está disponível em nenhuma Lista configurada. Isto significa que não receberá nenhuma atualização e pode parar de funcionar no futuro.";
 "HOME" = "Início";
 "RANGE_FROM" = "De";
-"RANGE_TO" = "Para";
+"RANGE_TO" = "Até";
 "SOURCE_SETTINGS" = "Configurações de fontes";
 "RESET_SETTINGS_CONFIRM_%@" = "Tem a certeza de que pretende repor todas as definições de %@?";
 "NO_RESULT" = "Sem resultado";
@@ -797,11 +797,11 @@
 
 "TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Estima a cor do texto original sem um modelo adicional. Usa a cor predefinida quando a estimativa é incerta ou o contraste é demasiado baixo.";
 
-"TRANSLATION_LLM_SFX" = "Filtragem LLM SFX (todos os idiomas)";
+"TRANSLATION_LLM_SFX" = "Filtrar efeitos sonoros com LLM (todos os idiomas)";
 
 "TRANSLATION_LLM_SFX_HELP" = "Classifica os efeitos sonoros no mesmo pedido de tradução e deixa-os inalterados. Com uma imagem da página, a IA também ignora fragmentos de OCR pouco claros, a menos que a imagem confirme que contêm texto com sentido. Os diálogos, a narração, os títulos e os créditos são mantidos para tradução. A classificação é menos fiável sem uma imagem da página.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Sem entrada de imagem, o contexto visual e de layout limitado pode reduzir a precisão da classificação SFX.";
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Sem uma imagem da página, a falta de contexto visual e da disposição do texto pode reduzir a precisão da classificação dos efeitos sonoros.";
 
 "TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Preservar a cor do fundo original";
 
@@ -889,7 +889,7 @@
 "PORTRAIT_ROWS" = "Colunas na vertical";
 "LANDSCAPE_ROWS" = "Colunas na horizontal";
 "RESUME_LAST_OPENED_CHAPTER" = "Retomar o último capítulo aberto";
-"CONTINUE_READING_ON_RESELECT" = "Toque duas vezes no separador Histórico para retomar a leitura";
+"CONTINUE_READING_ON_RESELECT" = "Tocar novamente em Histórico para retomar a leitura";
 "DOWNLOADED_CHAPTER_BADGES" = "Indicadores de capítulos descarregados";
 "PIN_TITLES" = "Fixar títulos de mangá";
 "PIN_UPDATED_CHAPTERS" = "Capítulos atualizados";
@@ -1007,25 +1007,25 @@
 "READING_SESSIONS" = "Sessões de leitura";
 "CLEAR_EXCLUDING_LIBRARY" = "Limpar histórico de leitura, excluindo biblioteca";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "Esta ação é irreversível. Será removido todo o histórico de leitura dos títulos que não estão na biblioteca.";
-"CLEAR_SOURCE_CACHE" = "Limpar cache de origem";
+"CLEAR_SOURCE_CACHE" = "Limpar cache da fonte";
 "CLEAR_SOURCE_CACHE_TEXT" = "Limpa os cookies e os dados dos sites associados aos URLs desta fonte, bem como o conteúdo da fonte em cache. Poderá ser necessário iniciar sessão novamente e o carregamento poderá demorar mais temporariamente.";
 "PAGE_OFFSET" = "Deslocamento de página";
-"SPLIT_WIDE_IMAGES" = "Dividir imagens amplas";
+"SPLIT_WIDE_IMAGES" = "Dividir imagens largas";
 "REVERSE_SPLIT_ORDER" = "Inverta a ordem das páginas divididas";
 "TRACKING" = "Acompanhamento";
 "TITLE_DISPLAY_MODE" = "Modo de exibição de título";
 "OEL" = "OEL";
 "AUTO_SYNC_HISTORY" = "Sincronizar automaticamente o histórico";
 "AUTO_SYNC_HISTORY_INFO" = "Quando o serviço de acompanhamento indicar um capítulo e/ou volume mais avançado como lido, atualiza o histórico local para corresponder.";
-"SYNC_WITH_TRACKER" = "Sincronizar com rastreador";
+"SYNC_WITH_TRACKER" = "Sincronizar com o serviço de acompanhamento";
 "SYNC_WITH_TRACKER_INFO_%i" = "Segundo o serviço de acompanhamento, %i capítulos já foram lidos. Pretende marcá-los como lidos?";
 "SYNC_WITH_TRACKER_INFO_1" = "Segundo o serviço de acompanhamento, 1 capítulo já foi lido. Pretende marcá-lo como lido?";
-"UNAVAILABLE_TRACKER_ITEM" = "Item de rastreador indisponível";
-"UNAVAILABLE_TRACKER_ITEM_INFO" = "Este item de rastreador vinculado está associado a um rastreador que não está mais disponível. Você deve remover este item ou fazer login no rastreador associado novamente.";
-"ENHANCED_TRACKERS" = "Rastreadores aprimorados";
+"UNAVAILABLE_TRACKER_ITEM" = "Entrada de acompanhamento indisponível";
+"UNAVAILABLE_TRACKER_ITEM_INFO" = "Esta entrada está ligada a um serviço de acompanhamento que já não está disponível. Remova a entrada ou inicie novamente sessão no serviço associado.";
+"ENHANCED_TRACKERS" = "Serviços de acompanhamento melhorados";
 "ENHANCED_TRACKERS_INFO" = "Os serviços de acompanhamento melhorados podem ligar-se automaticamente aos títulos adicionados à biblioteca a partir das fontes compatíveis e sincronizar o histórico de leitura nos dois sentidos.";
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Desativar o acompanhamento de uma fonte remove todas as ligações de acompanhamento dessa fonte. Ativá-lo liga automaticamente os títulos dessa fonte presentes na biblioteca.";
-"TRACKER_LOGOUT_INFO" = "O logout removerá as informações de rastreamento vinculadas deste rastreador para todas as séries.";
+"TRACKER_LOGOUT_INFO" = "Terminar a sessão remove as informações de acompanhamento ligadas a este serviço para todas as séries.";
 "UNSET_AS_SINGLE_PAGE" = "Anular apresentação como página única";
 "RELOAD_FAILED" = "Falha ao recarregar";
 "RELOAD_FAILED_TEXT" = "Falha ao recarregar a imagem. Por favor, tente novamente.";
@@ -1046,8 +1046,8 @@
 "AUTO_SCROLL_POSITION" = "Posição do botão de deslocamento automático";
 "POSITION_LEFT" = "Esquerda";
 "POSITION_RIGHT" = "Direita";
-"%@_TRACKER_LOGIN_NEEDED" = "Login %@ necessário";
-"%@_TRACKER_LOGIN_NEEDED_TEXT" = "Seu token %@ expirou, então o rastreador associado irá parar de funcionar até que você faça login novamente nas configurações.";
+"%@_TRACKER_LOGIN_NEEDED" = "É necessário iniciar sessão em %@";
+"%@_TRACKER_LOGIN_NEEDED_TEXT" = "O seu token de %@ expirou. O serviço de acompanhamento associado deixará de funcionar até iniciar novamente sessão nas Configurações.";
 "FOLLOW_DEVICE" = "Seguir dispositivo";
 "OPEN_FOCUS_ITEM" = "Abrir item em foco";
 "RESET_FOCUS" = "Redefinir foco";
@@ -1086,7 +1086,7 @@
 "SETTING_MISSING_CONTENT_HANDLER" = "Não é possível exibir a configuração: %@";
 
 // Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Cinco modelos incluídos podem ser instalados offline. Instale um modelo e toque nele em Modelo ativado. MangaJaNai é para páginas em preto e branco com cerca de 1200 pixels de altura; as páginas coloridas permanecem inalteradas.";
+"BUNDLED_UPSCALING_MODELS_HELP" = "Os cinco modelos incluídos podem ser instalados sem ligação à Internet. Instale um modelo e selecione-o em «Modelo ativado». O MangaJaNai destina-se a páginas a preto e branco com cerca de 1200 píxeis de altura; as páginas a cores permanecem inalteradas.";
 
 "DOWNLOAD_TRANSLATED" = "Descarregar com tradução";
 
@@ -1140,3 +1140,28 @@
 "TRANSLATION_FILTERING" = "Filtragem de texto";
 
 "TRANSLATION_TARGETS" = "O que traduzir";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Páginas: %i / %i";
+"1_SERIES" = "1 série";
+"SKIPPING_ONE_CHAPTER" = "A ignorar 1 capítulo porque falta na fonte ou foi excluído pelos filtros";
+"BACKUP_CREATE_ERROR_TEXT" = "Não foi possível criar a cópia de segurança. Tente novamente.";
+"YES" = "Sim";
+"NO" = "Não";
+"CHAPTERS_%i_OF_%i" = "Capítulos: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Não foi possível adicionar o título ao acompanhamento. Tente novamente.";
+"SORT_READ_PROGRESS" = "Progresso de leitura";
+"SORT_RELEASE_YEAR" = "Ano de publicação";
+"SOURCE_INVALID_PAGE_COUNT" = "Número de páginas inválido";
+"SOURCE_INVALID_GENRE_ID" = "ID de género inválido";
+"SOURCE_INVALID_LISTING" = "Lista inválida";
+"SOURCE_INVALID_LISTING_TYPE" = "Tipo de lista inválido";
+"SOURCE_INVALID_ITEM_TYPE" = "Tipo de item inválido";
+"DICTIONARY_ERROR" = "Erro de dicionário";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Não foi possível guardar as definições dos dicionários: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Não foi possível importar os dicionários selecionados:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Não foi possível importar alguns dicionários:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "A importação do dicionário falhou.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Um dicionário japonês-inglês abrangente mantido pelo Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Um dicionário de nomes próprios japoneses mantido pelo Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Um dicionário de frequências baseado no corpus multimédia de https://jiten.moe.";

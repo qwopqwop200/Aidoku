@@ -11,7 +11,6 @@ actor ShikimoriApi {
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
     private let userAgent = "Aidoku"
-    private let dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"
 
     // Registered under Skitty's Shikimori account
     nonisolated let oauth = OAuthClient(
@@ -132,15 +131,15 @@ extension ShikimoriApi {
         else {
             return TrackState()
         }
-        return TrackState(
+        return makeState(from: rate)
+    }
+
+    func makeState(from rate: ShikimoriUserRate) -> TrackState {
+        TrackState(
             score: rate.score,
             status: getStatusFromString(status: rate.status),
             lastReadChapter: Float(rate.chapters),
-            lastReadVolume: rate.volumes,
-            startReadDate: rate.createdAt.date(format: dateFormat),
-            finishReadDate: getStatusFromString(status: rate.status) == .completed
-                ? rate.updatedAt.date(format: dateFormat)
-                : nil
+            lastReadVolume: rate.volumes
         )
     }
 

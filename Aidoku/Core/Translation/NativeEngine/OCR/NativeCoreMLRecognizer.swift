@@ -8,10 +8,12 @@ import Foundation
 struct NativeCoreMLRecognitionRegion: Equatable, Sendable {
     let sourceIndex: Int
     let polygon: [CGPoint]
+    let useProvidedOrder: Bool
 
-    init(sourceIndex: Int, polygon: [CGPoint]) {
+    init(sourceIndex: Int, polygon: [CGPoint], useProvidedOrder: Bool = false) {
         self.sourceIndex = sourceIndex
         self.polygon = polygon
+        self.useProvidedOrder = useProvidedOrder
     }
 }
 
@@ -70,6 +72,35 @@ struct NativeCoreMLRecognitionDiagnostics: Equatable, Sendable {
     let predictionMilliseconds: Double
     let decodingMilliseconds: Double
     let totalMilliseconds: Double
+
+    func addingRecovery(_ recovery: Self, acceptedCount: Int) -> Self {
+        Self(
+            requestID: requestID,
+            generation: generation,
+            backend: backend,
+            executionProvider: executionProvider,
+            computeUnits: computeUnits,
+            modelName: modelName,
+            inputFeatureName: inputFeatureName,
+            outputFeatureName: outputFeatureName,
+            inputShape: inputShape,
+            outputShape: outputShape,
+            requestedRegions: requestedRegions,
+            predictedRegions: predictedRegions + recovery.predictedRegions,
+            cacheHitRegions: cacheHitRegions + recovery.cacheHitRegions,
+            acceptedRegions: acceptedCount,
+            skippedInvalidRegions: skippedInvalidRegions + recovery.skippedInvalidRegions,
+            modelWasAlreadyLoaded: modelWasAlreadyLoaded,
+            modelLoadMilliseconds: modelLoadMilliseconds + recovery.modelLoadMilliseconds,
+            modelFunctionSequence: modelFunctionSequence + recovery.modelFunctionSequence,
+            modelFunctionLoadSequence: modelFunctionLoadSequence + recovery.modelFunctionLoadSequence,
+            modelFunctionLoads: modelFunctionLoads + recovery.modelFunctionLoads,
+            modelFunctionLoadMilliseconds: modelFunctionLoadMilliseconds + recovery.modelFunctionLoadMilliseconds,
+            preprocessingMilliseconds: preprocessingMilliseconds + recovery.preprocessingMilliseconds,
+            predictionMilliseconds: predictionMilliseconds + recovery.predictionMilliseconds,
+            decodingMilliseconds: decodingMilliseconds + recovery.decodingMilliseconds,
+            totalMilliseconds: totalMilliseconds + recovery.totalMilliseconds)
+    }
 }
 
 @available(iOS 18.0, *)
@@ -1393,7 +1424,8 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                 let plan = NativeCoreMLRecognitionPreprocessor.plan(
                     polygon: region.polygon,
                     dynamicWidth: dynamicWidthEnabled,
-                    maximumWidth: maximumRecognitionWidth
+                    maximumWidth: maximumRecognitionWidth,
+                    useProvidedOrder: region.useProvidedOrder
                 )
                 try requireCurrent(
                     issuedGeneration,
@@ -2331,9 +2363,10 @@ enum NativeCoreMLRecognitionPreprocessor {
     static func plan(
         polygon: [CGPoint],
         dynamicWidth: Bool = false,
-        maximumWidth: Int = 2_000
+        maximumWidth: Int = 2_000,
+        useProvidedOrder: Bool = false
     ) -> Plan? {
-        guard let quad = makeQuad(polygon),
+        guard let quad = makeQuad(polygon, useProvidedOrder: useProvidedOrder),
               let homography = makeHomography(quad)
         else { return nil }
         let widthTop = distance(quad.topLeft, quad.topRight)
@@ -2540,7 +2573,7 @@ enum NativeCoreMLRecognitionPreprocessor {
     }
 #endif
 
-    private static func makeQuad(_ polygon: [CGPoint]) -> Quad? {
+    private static func makeQuad(_ polygon: [CGPoint], useProvidedOrder: Bool = false) -> Quad? {
         let finite = polygon.filter {
             $0.x.isFinite && $0.y.isFinite
         }
@@ -2548,38 +2581,8 @@ enum NativeCoreMLRecognitionPreprocessor {
             return nil
         }
         if finite.count == 4 {
-            // Match PaddleOCR.js: split into the two left-most and two
-            // right-most points, then choose top/bottom by y.
-            let sorted = finite.sorted {
-                if abs($0.x - $1.x) > 0.000_001 {
-                    return $0.x < $1.x
-                }
-                return $0.y < $1.y
-            }
-            let leftTop: CGPoint
-            let leftBottom: CGPoint
-            if sorted[1].y > sorted[0].y {
-                leftTop = sorted[0]
-                leftBottom = sorted[1]
-            } else {
-                leftTop = sorted[1]
-                leftBottom = sorted[0]
-            }
-            let rightTop: CGPoint
-            let rightBottom: CGPoint
-            if sorted[3].y > sorted[2].y {
-                rightTop = sorted[2]
-                rightBottom = sorted[3]
-            } else {
-                rightTop = sorted[3]
-                rightBottom = sorted[2]
-            }
-            let quad = Quad(
-                topLeft: leftTop,
-                topRight: rightTop,
-                bottomRight: rightBottom,
-                bottomLeft: leftBottom
-            )
+            guard let p = useProvidedOrder ? finite : NativeOCRScopeGeometry.canonicalQuad(finite) else { return nil }
+            let quad = Quad(topLeft: p[0], topRight: p[1], bottomRight: p[2], bottomLeft: p[3])
             guard abs(signedArea(quad)) > 0.5 else { return nil }
             return quad
         }

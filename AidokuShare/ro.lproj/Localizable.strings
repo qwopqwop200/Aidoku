@@ -1,7 +1,7 @@
 "IMPORT" = "Import";
 "DONE" = "Gata";
-"FILE_IMPORT_FAIL_TEXT" = "Nu s-a putut importa fișierul. Asigurați-vă că este o arhivă CBZ sau ZIP validă care conține imagini.";
+"FILE_IMPORT_FAIL_TEXT" = "Nu s-a putut importa fișierul. Asigurați-vă că este un fișier imagine care poate fi citit sau o arhivă CBZ ori ZIP validă care conține imagini.";
 "FORMAT_IMAGE" = "Imagine";
-"SHARED_IMAGES_SAVED" = "Imagini salvate. Deschide Aidoku pentru a le citi.";
+"SHARED_IMAGES_SAVED" = "Salvare finalizată. Deschide Aidoku pentru a citi.";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "Nu se poate citi imaginea partajată. Vă rugăm să încercați o altă imagine.";

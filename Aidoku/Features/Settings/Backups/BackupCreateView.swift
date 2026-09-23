@@ -60,7 +60,7 @@ struct BackupCreateView: View {
             .alert(NSLocalizedString("BACKUP_ERROR"), isPresented: $showSaveError) {
                 Button(NSLocalizedString("OK"), role: .cancel) {}
             } message: {
-                Text(String(format: NSLocalizedString("BACKUP_ERROR_TEXT"), NSLocalizedString("CREATE_BACKUP")))
+                Text(NSLocalizedString("BACKUP_CREATE_ERROR_TEXT"))
             }
             .navigationTitle(NSLocalizedString("CREATE_BACKUP"))
             .navigationBarTitleDisplayMode(.inline)

@@ -154,7 +154,7 @@ enum NativeProgressiveTranslationOverlay {
                     (canKeepExisting
                         ? item.translationReuseIdentity
                         : nil),
-                sourcePolygon: item.sourcePolygon, auxiliaryInkRects: item.auxiliaryInkRects
+                sourcePolygon: item.sourcePolygon, auxiliaryInkRects: item.auxiliaryInkRects, auxiliaryInkPolygons: item.auxiliaryInkPolygons
             )
         }
     }

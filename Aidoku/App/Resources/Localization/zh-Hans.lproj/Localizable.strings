@@ -77,7 +77,7 @@
 "STATUS_ONGOING" = "连载中";
 "STATUS_CANCELLED" = "连载中止";
 "STATUS_COMPLETED" = "已完结";
-"STATUS_HIATUS" = "休刊";
+"STATUS_HIATUS" = "暂停连载";
 "SUGGESTIVE" = "含性暗示";
 "NSFW" = "NSFW";
 "MORE" = "更多";
@@ -515,7 +515,7 @@
 "NO_DOWNLOADS_TEXT" = "下载内容将显示在此处。";
 "DOWNLOADED_CHAPTERS" = "已下载章节";
 "TOTAL_DOWNLOADS" = "下载总大小";
-"%i_SERIES" = "%i 系列";
+"%i_SERIES" = "%i 部作品";
 "IN_LIBRARY" = "在书架";
 "VIEW_SERIES" = "查看系列";
 "TAP_ZONES" = "点击区域";
@@ -750,7 +750,7 @@
 "AUTHOR_NAME" = "作者姓名";
 "ARTIST_NAME" = "画师姓名";
 "INVALID_KEY" = "密钥无效";
-"CONTINUE_READING_ON_RESELECT" = "双击历史标签页继续阅读";
+"CONTINUE_READING_ON_RESELECT" = "再次点按已选中的历史标签页以继续阅读";
 "DICTIONARY_LOOKUP" = "词典查询";
 "DICTIONARY_SETTINGS_TEXT" = "开启后，应用将 OCR 识别漫画页面，并允许在导入的 Yomitan 词典中查询词语。";
 "DICTIONARIES" = "词典";
@@ -1145,3 +1145,28 @@
 "TRANSLATION_FILTERING" = "文本过滤";
 
 "TRANSLATION_TARGETS" = "翻译内容";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "%i / %i 页";
+"1_SERIES" = "1 部作品";
+"SKIPPING_ONE_CHAPTER" = "跳过 1 个章节，可能是来源缺少该章节或已被筛选掉";
+"BACKUP_CREATE_ERROR_TEXT" = "无法创建备份。请重试。";
+"YES" = "是";
+"NO" = "否";
+"CHAPTERS_%i_OF_%i" = "章节：%i / %i";
+"TRACKING_REGISTRATION_FAILED" = "无法将作品添加到追踪器。请重试。";
+"SORT_READ_PROGRESS" = "阅读进度";
+"SORT_RELEASE_YEAR" = "发行年份";
+"SOURCE_INVALID_PAGE_COUNT" = "页数无效";
+"SOURCE_INVALID_GENRE_ID" = "类型 ID 无效";
+"SOURCE_INVALID_LISTING" = "列表无效";
+"SOURCE_INVALID_LISTING_TYPE" = "列表类型无效";
+"SOURCE_INVALID_ITEM_TYPE" = "条目类型无效";
+"DICTIONARY_ERROR" = "词典错误";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "无法保存词典设置：%@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "无法导入所选词典：\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "部分词典无法导入：\n%@";
+"DICTIONARY_IMPORT_FAILED" = "词典导入失败。";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "由电子词典研究开发组（EDRDG）维护的综合日英词典。";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "由电子词典研究开发组（EDRDG）维护的日语专有名词词典。";
+"RECOMMENDED_JITEN_DESCRIPTION" = "基于 https://jiten.moe 媒体语料库的词频词典。";

@@ -237,7 +237,7 @@
 "MIGRATE_SOURCES" = "Мігрувати джерела";
 "MIGRATE_ONE_ITEM?" = "Мігрувати 1 елемент?";
 "SELECTED" = "Обрані";
-"MIGRATE_%i_ITEMS?" = "Мігрувати %i елементів?";
+"MIGRATE_%i_ITEMS?" = "Перенести вибрані елементи (кількість: %i)?";
 "UPLOAD_DATE" = "Дата завантаження";
 "TRACK_DROPPED" = "Покинуто";
 "STOP_TRACKING" = "Припинити відстеження";
@@ -478,9 +478,9 @@
 "TOGGLE_LOCK" = "Перемкнути блокування";
 "OEL" = "OEL";
 "%@_EXPERIMENTAL" = "%@ (Експериментальний)";
-"UPSCALING" = "Масштабування";
+"UPSCALING" = "Підвищення роздільної здатності";
 "UPSCALE_IMAGES" = "Підвищувати роздільну здатність зображень";
-"UPSCALING_MODELS" = "Моделі масштабування";
+"UPSCALING_MODELS" = "Моделі підвищення роздільної здатності";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Максимальна висота зображення";
 "UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Для зображень, висота яких дорівнює заданому максимуму або перевищує його, роздільна здатність не підвищується.";
 "ENABLED_MODEL" = "Увімкнена модель";
@@ -938,7 +938,7 @@
 "PORTRAIT_ROWS" = "Стовпці у вертикальній орієнтації";
 "LANDSCAPE_ROWS" = "Стовпці в горизонтальній орієнтації";
 "RESUME_LAST_OPENED_CHAPTER" = "Відновити останній відкритий розділ";
-"CONTINUE_READING_ON_RESELECT" = "Двічі торкніться вкладки «Історія», щоб продовжити читання";
+"CONTINUE_READING_ON_RESELECT" = "Торкнутися «Історія» ще раз, щоб продовжити читання";
 "NEW_CHAPTER_NOTIFICATIONS" = "Сповіщення про нові розділи";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Надсилати сповіщення під час фонового оновлення бібліотеки.";
 "1_NEW_CHAPTER_AVAILABLE" = "Доступний новий розділ";
@@ -1145,3 +1145,28 @@
 "TRANSLATION_FILTERING" = "Фільтрування тексту";
 
 "TRANSLATION_TARGETS" = "Що перекладати";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Сторінки: %i / %i";
+"1_SERIES" = "1 серія";
+"SKIPPING_ONE_CHAPTER" = "Пропущено 1 розділ. Він відсутній у джерелі або виключений фільтрами.";
+"BACKUP_CREATE_ERROR_TEXT" = "Не вдалося створити резервну копію. Спробуйте ще раз.";
+"YES" = "Так";
+"NO" = "Ні";
+"CHAPTERS_%i_OF_%i" = "Розділи: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Не вдалося додати твір до відстеження. Спробуйте ще раз.";
+"SORT_READ_PROGRESS" = "Прогрес читання";
+"SORT_RELEASE_YEAR" = "Рік випуску";
+"SOURCE_INVALID_PAGE_COUNT" = "Недійсна кількість сторінок";
+"SOURCE_INVALID_GENRE_ID" = "Недійсний ідентифікатор жанру";
+"SOURCE_INVALID_LISTING" = "Недійсний список";
+"SOURCE_INVALID_LISTING_TYPE" = "Недійсний тип списку";
+"SOURCE_INVALID_ITEM_TYPE" = "Недійсний тип елемента";
+"DICTIONARY_ERROR" = "Помилка словника";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Не вдалося зберегти налаштування словників: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Не вдалося імпортувати вибрані словники:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Деякі словники не вдалося імпортувати:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Не вдалося імпортувати словник.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Повний японсько-англійський словник, який підтримує група Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Словник японських власних назв, який підтримує група Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Частотний словник на основі медіакорпусу https://jiten.moe.";

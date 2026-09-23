@@ -160,6 +160,9 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
     /// The current iPhone product always renders translated text directly over
     /// its source bbox.
     mutating func enforceSourceReplacement() {
+        // Inpainting follows source appearance; the retired switch must not
+        // leave an installed user's source rendering permanently disabled.
+        inpaintingEnabled = true
         // Older installs could enable only one source-color channel. Promote
         // either choice to the single source appearance exposed by settings.
         if preserveSourceTextColor || preserveSourceBackgroundColor {

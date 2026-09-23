@@ -588,6 +588,7 @@ extension SettingView {
                 EmptyView()
             }
             .labelsHidden()
+            .accessibilityLabel(setting.title)
             .onChange(of: toggleValue) { newValue in
                 guard !disabled else { return }
                 if (value.authToDisable ?? false) && !newValue {
@@ -619,7 +620,7 @@ extension SettingView {
             if value.maximumValue.isFinite, value.minimumValue.isFinite,
                value.maximumValue >= value.minimumValue,
                (value.stepValue ?? 1).isFinite, (value.stepValue ?? 1) > 0 {
-                Text(String(format: "%g", doubleBinding))
+                Text(String(format: "%g", locale: Locale.current, doubleBinding))
                     .foregroundStyle(Color.secondaryLabel)
                     .lineLimit(1)
                 SettingStepper(
@@ -655,6 +656,7 @@ extension SettingView {
                 }
             }
             .pickerStyle(.segmented)
+            .accessibilityLabel(setting.title)
         }
         .disabled(disabled)
     }
@@ -999,6 +1001,7 @@ extension SettingView {
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
+                    .accessibilityLabel(NSLocalizedString("RELOAD"))
                 }
             }
             .navigationTitle(setting.title)
@@ -1412,6 +1415,7 @@ extension SettingView {
                             } label: {
                                 Image(systemName: "plus")
                             }
+                            .accessibilityLabel(NSLocalizedString("ADD"))
                         }
                     }
                 } label: {

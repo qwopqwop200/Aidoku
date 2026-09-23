@@ -263,7 +263,7 @@
 "LOGOUT" = "Çıkış Yap";
 "AUTH_FOR_LIBRARY" = "Kütüphaneyi görüntülemek için kimliğinizi doğrulayın.";
 "TRACK_REREADING" = "Tekrar Okunuyor";
-"CLEAR_TRACKED_MANGA" = "Manga Takip Bağlantılarını Temizle";
+"CLEAR_TRACKED_MANGA" = "Tüm Takip Bağlantılarını Kaldır";
 "CLEAR_TRACKED_MANGA_TEXT" = "Bu işlem geri alınamaz. Mangalara eklenen tüm takip hizmeti bağlantıları kaldırılacak.";
 "SUPPORT_VIA_KOFI" = "Ko-Fi İle Destek Ol";
 "%i_PAGES_LEFT" = "%i sayfa kaldı";
@@ -273,7 +273,7 @@
 "FAILED_CHAPTER_LOAD" = "Bölüm Yüklenemedi";
 "SORT_LAST_UPDATED" = "En Son Güncellenen";
 "WEBTOON" = "Webtoon";
-"REMOVE_FROM_CATEGORY" = "Kategoriden Sil";
+"REMOVE_FROM_CATEGORY" = "Kategoriden Kaldır";
 "SELECT" = "Seç";
 "ADD_TO_CATEGORIES" = "Kategorilere Ekle";
 "RENAME_CATEGORY_FAIL" = "Kategori Yeniden isimlendirilemedi";
@@ -448,7 +448,7 @@
 "EDIT" = "Düzenle";
 "CATEGORY_SEARCH" = "Kategoride Ara";
 "REFRESH_NO_WIFI" = "Wi-Fi'a Bağlı Değil";
-"REFRESH_NO_WIFI_TEXT" = "\"Yalnızca Wi-Fi ile Güncelle\" ayarı etkin olduğundan, bir Wi-Fi bağlantısı sağlanana kadar kitaplık yenilenemez.";
+"REFRESH_NO_WIFI_TEXT" = "\"Yalnızca Wi-Fi ile Güncelle\" ayarı etkin olduğundan, bir Wi-Fi bağlantısı sağlanana kadar kütüphane yenilenemez.";
 "REFRESH_ANYWAYS" = "Yine de Yenile";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Kütüphaneden Kaldırılsın mı?";
 "SAVE" = "Kaydet";
@@ -767,7 +767,7 @@
 
 "TRANSLATION_HELP" = "Çeviri simgesi çeviriyi açar veya kapatır. Önce görünür sayfalar, ardından yakındaki sayfalar hazırlanır. Hazırlık, okuma konumunuza göre ilerler. Kaydedilen OCR sonuçları, çeviriler ve metin düzeni, okuyucu yeniden açıldığında veya uygulama yeniden başlatıldığında tekrar kullanılabilir. Geçici olarak açılan paylaşılan görseller için bu önbellek kaydedilmez. Okuyucudan çıkınca tamamlanmamış işler iptal edilir.";
 
-"TRANSLATION_PRIVACY" = "OCR cihazınızda çalışır. Çeviri, tanınan metni ve talimatlarınızı seçilen sağlayıcıya gönderir. Sayfa Resmini Çeviriye Ekle seçeneği etkinse işlenmiş bir sayfa görseli de yüklenebilir. Görsel girişi desteklenmiyorsa çeviri yalnızca metinle devam eder. API ücretleri sağlayıcınıza bağlıdır. Anahtarlar Anahtarlıkta kalır. OCR, çeviriler ve metin düzeni, yedeklemelerin dışında tutulan korumalı uygulama depolama alanına kaydedilir.";
+"TRANSLATION_PRIVACY" = "OCR cihazınızda çalışır. Çeviri, tanınan metni ve talimatlarınızı seçilen sağlayıcıya gönderir. Sayfa Resmini Çeviriye Ekle seçeneği etkinse işlenmiş bir sayfa görseli de yüklenebilir. Görsel girişi desteklenmiyorsa çeviri yalnızca metinle devam eder. API ücretleri sağlayıcınıza bağlıdır. Anahtarlar Anahtar Zinciri’nde kalır. OCR, çeviriler ve metin düzeni, yedeklemelerin dışında tutulan korumalı uygulama depolama alanına kaydedilir.";
 
 "TRANSLATION_KEY_REPLACE" = "Kaydedilen API anahtarını değiştirin (isteğe bağlı)";
 
@@ -975,14 +975,14 @@
 // Completed app localization
 "DOWNLOAD_INCOMPLETE" = "Eksik İndirme";
 "LIBRARY_REFRESH_INTERRUPTED" = "Kütüphane Yenileme Kesintiye Uğradı";
-"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Son kitaplık yenilemesi tamamlanmadan kesintiye uğradı. Devam etmek ister misiniz?";
+"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Son kütüphane yenilemesi tamamlanmadan kesintiye uğradı. Devam etmek ister misiniz?";
 "DISABLE" = "Devre dışı bırak";
 "ENABLE" = "Etkinleştir";
 "RESTART" = "Yeniden başlat";
 "HTML_ERROR" = "HTML Hatası";
 "JSON_ERROR" = "JSON Hatası";
 "SOURCE_CRASHED" = "Kaynak Çöktü";
-"CONTINUE_READING_ON_RESELECT" = "Okumaya devam etmek için Geçmiş sekmesine iki kez dokunun";
+"CONTINUE_READING_ON_RESELECT" = "Okumaya Devam Etmek İçin Geçmiş Sekmesine Yeniden Dokun";
 "TEXT_THEME" = "Tema";
 "TEXT_THEME_SEPIA" = "Sepya";
 "TEXT_THEME_PAPER" = "Kağıt";
@@ -1174,3 +1174,28 @@
 "TRANSLATION_FILTERING" = "Metin Filtreleme";
 
 "TRANSLATION_TARGETS" = "Çevrilecek İçerik";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Sayfalar: %i / %i";
+"1_SERIES" = "1 seri";
+"SKIPPING_ONE_CHAPTER" = "Kaynakta bulunmadığı veya filtrelendiği için 1 bölüm atlanıyor";
+"BACKUP_CREATE_ERROR_TEXT" = "Yedek oluşturulamadı. Lütfen tekrar deneyin.";
+"YES" = "Evet";
+"NO" = "Hayır";
+"CHAPTERS_%i_OF_%i" = "Bölümler: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Eser takibe eklenemedi. Lütfen tekrar deneyin.";
+"SORT_READ_PROGRESS" = "Okuma ilerlemesi";
+"SORT_RELEASE_YEAR" = "Yayın yılı";
+"SOURCE_INVALID_PAGE_COUNT" = "Geçersiz sayfa sayısı";
+"SOURCE_INVALID_GENRE_ID" = "Geçersiz tür kimliği";
+"SOURCE_INVALID_LISTING" = "Geçersiz liste";
+"SOURCE_INVALID_LISTING_TYPE" = "Geçersiz liste türü";
+"SOURCE_INVALID_ITEM_TYPE" = "Geçersiz öğe türü";
+"DICTIONARY_ERROR" = "Sözlük Hatası";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Sözlük ayarları kaydedilemedi: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Seçilen sözlükler içe aktarılamadı:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Bazı sözlükler içe aktarılamadı:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Sözlük içe aktarılamadı.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) tarafından sürdürülen kapsamlı bir Japonca-İngilizce sözlük.";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) tarafından sürdürülen Japonca özel adlar sözlüğü.";
+"RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe medya derlemine dayalı bir sıklık sözlüğü.";

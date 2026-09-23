@@ -162,7 +162,7 @@
 // Manga
 "UNTITLED" = "無標題";
 "STATUS_CANCELLED" = "腰斬";
-"STATUS_HIATUS" = "休刊";
+"STATUS_HIATUS" = "暫停連載";
 "SUGGESTIVE" = "含性暗示";
 "DESELECT_ALL" = "取消全選";
 "NO_CHAPTERS" = "沒有章節";
@@ -984,7 +984,7 @@
 "HTML_ERROR" = "HTML 錯誤";
 "JSON_ERROR" = "JSON 錯誤";
 "SOURCE_CRASHED" = "來源崩潰";
-"CONTINUE_READING_ON_RESELECT" = "點兩下「閱讀記錄」分頁以繼續閱讀";
+"CONTINUE_READING_ON_RESELECT" = "再次點選已選取的閱讀記錄分頁以繼續閱讀";
 "TEXT_THEME" = "主題";
 "TEXT_THEME_SEPIA" = "棕褐色";
 "TEXT_THEME_PAPER" = "紙";
@@ -1143,3 +1143,28 @@
 "TRANSLATION_FILTERING" = "文字篩選";
 
 "TRANSLATION_TARGETS" = "翻譯內容";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "%i / %i 頁";
+"1_SERIES" = "1部作品";
+"SKIPPING_ONE_CHAPTER" = "略過1章，可能是因為來源缺少該章節或已被過濾掉";
+"BACKUP_CREATE_ERROR_TEXT" = "無法建立備份。請再試一次。";
+"YES" = "是";
+"NO" = "否";
+"CHAPTERS_%i_OF_%i" = "章節：%i / %i";
+"TRACKING_REGISTRATION_FAILED" = "無法將作品加入追蹤器。請再試一次。";
+"SORT_READ_PROGRESS" = "閱讀進度";
+"SORT_RELEASE_YEAR" = "發行年份";
+"SOURCE_INVALID_PAGE_COUNT" = "頁數無效";
+"SOURCE_INVALID_GENRE_ID" = "類型 ID 無效";
+"SOURCE_INVALID_LISTING" = "清單無效";
+"SOURCE_INVALID_LISTING_TYPE" = "清單類型無效";
+"SOURCE_INVALID_ITEM_TYPE" = "項目類型無效";
+"DICTIONARY_ERROR" = "詞典錯誤";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "無法儲存詞典設定：%@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "無法匯入所選詞典：\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "部分詞典無法匯入：\n%@";
+"DICTIONARY_IMPORT_FAILED" = "詞典匯入失敗。";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "由電子詞典研究開發組（EDRDG）維護的綜合日英詞典。";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "由電子詞典研究開發組（EDRDG）維護的日語專有名詞詞典。";
+"RECOMMENDED_JITEN_DESCRIPTION" = "以 https://jiten.moe 媒體語料庫為基礎的詞頻詞典。";

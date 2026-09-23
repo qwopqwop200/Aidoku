@@ -594,7 +594,7 @@
 "PORTRAIT_ROWS" = "縦向きの列数";
 "LANDSCAPE_ROWS" = "横向きの列数";
 "RESUME_LAST_OPENED_CHAPTER" = "最後に開いた章から再開";
-"CONTINUE_READING_ON_RESELECT" = "履歴タブをダブルタップして再開";
+"CONTINUE_READING_ON_RESELECT" = "選択中の履歴タブを再タップして読書を再開";
 "DOWNLOADED_CHAPTER_BADGES" = "ダウンロード済み章のバッジ";
 "PIN_TITLES" = "タイトルの固定";
 "PIN_DISABLED" = "無効";
@@ -1135,3 +1135,28 @@
 "TRANSLATION_FILTERING" = "テキストのフィルタリング";
 
 "TRANSLATION_TARGETS" = "翻訳する項目";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "%i / %i ページ";
+"1_SERIES" = "1作品";
+"SKIPPING_ONE_CHAPTER" = "ソースに存在しないか、フィルターで除外されているため、1章をスキップします";
+"BACKUP_CREATE_ERROR_TEXT" = "バックアップを作成できませんでした。もう一度お試しください。";
+"YES" = "はい";
+"NO" = "いいえ";
+"CHAPTERS_%i_OF_%i" = "章: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "作品をトラッカーに登録できませんでした。もう一度お試しください。";
+"SORT_READ_PROGRESS" = "読書の進捗";
+"SORT_RELEASE_YEAR" = "発売年";
+"SOURCE_INVALID_PAGE_COUNT" = "ページ数が無効です";
+"SOURCE_INVALID_GENRE_ID" = "ジャンルIDが無効です";
+"SOURCE_INVALID_LISTING" = "一覧が無効です";
+"SOURCE_INVALID_LISTING_TYPE" = "一覧の種類が無効です";
+"SOURCE_INVALID_ITEM_TYPE" = "項目の種類が無効です";
+"DICTIONARY_ERROR" = "辞書エラー";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "辞書の設定を保存できませんでした: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "選択した辞書をインポートできませんでした:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "一部の辞書をインポートできませんでした:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "辞書のインポートに失敗しました。";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "電子辞書研究開発グループ（EDRDG）が管理する総合的な日英辞書です。";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "電子辞書研究開発グループ（EDRDG）が管理する日本語の固有名詞辞書です。";
+"RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe のメディアコーパスに基づく頻度辞書です。";

@@ -16,6 +16,7 @@ struct ReaderTranslationRegion: Equatable, Sendable {
     var sourceSingleVerticalColumn: Bool?
     var translationReuseIdentity: NativeTranslationReuseIdentity?
     var auxiliaryInkRects: [CGRect] = [] // Normalized suppressed-ruby ink; not layout bounds.
+    var auxiliaryInkPolygons: [[CGPoint]] = []
 
     /// If translation adds no information, preserve the original lettering.
     /// This avoids opaque boxes over numbers, punctuation, unchanged names,
@@ -42,7 +43,8 @@ struct ReaderTranslationRegion: Equatable, Sendable {
             translationReuseIdentity: translationReuseIdentity,
             sourcePolygon: polygon.map { CGPoint(x: $0.x * imageSize.width, y: $0.y * imageSize.height) },
             auxiliaryInkRects: auxiliaryInkRects.map { CGRect(x: $0.minX * imageSize.width, y: $0.minY * imageSize.height,
-                width: $0.width * imageSize.width, height: $0.height * imageSize.height) }
+                width: $0.width * imageSize.width, height: $0.height * imageSize.height) },
+            auxiliaryInkPolygons: auxiliaryInkPolygons.map { $0.map { CGPoint(x: $0.x * imageSize.width, y: $0.y * imageSize.height) } }
         )
     }
 }
@@ -178,7 +180,8 @@ actor ReaderOCRService {
                 auxiliaryInkRects: line.auxiliaryInkRects.map { $0.intersection(imageBounds) }.filter { !$0.isNull && !$0.isEmpty }.map {
                     CGRect(x: $0.minX / imageBounds.width, y: $0.minY / imageBounds.height,
                            width: $0.width / imageBounds.width, height: $0.height / imageBounds.height)
-                }
+                },
+                auxiliaryInkPolygons: line.auxiliaryInkPolygons.map { $0.map { CGPoint(x: $0.x / imageBounds.width, y: $0.y / imageBounds.height) } }
             )
         }
         let balloonStart = ProcessInfo.processInfo.systemUptime

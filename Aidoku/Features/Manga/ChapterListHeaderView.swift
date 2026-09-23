@@ -72,9 +72,9 @@ struct ChapterListHeaderView: View {
                 if chapterCount == 0 {
                     NSLocalizedString("NO_CHAPTERS")
                 } else if chapterCount == 1 {
-                    NSLocalizedString("1_CHAPTER").lowercased()
+                    NSLocalizedString("1_CHAPTER")
                 } else {
-                    String(format: NSLocalizedString("%i_CHAPTERS"), chapterCount).lowercased()
+                    String(format: NSLocalizedString("%i_CHAPTERS"), chapterCount)
                 }
             } else {
                 NSLocalizedString("LOADING_ELLIPSIS")

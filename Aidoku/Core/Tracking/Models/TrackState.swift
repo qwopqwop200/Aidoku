@@ -9,6 +9,18 @@ import Foundation
 
 /// A structure containing tracking state data.
 struct TrackState: Sendable {
+    enum ProgressUnit: Sendable {
+        case chapters
+        case volumes
+        case both
+
+        var supportsChapters: Bool { self != .volumes }
+        var supportsVolumes: Bool { self != .chapters }
+    }
+
+    /// The progress fields this particular tracked work can update.
+    var progressUnit: ProgressUnit = .both
+
     /// An integer representing the rating score.
     var score: Int?
     /// The current reading status.

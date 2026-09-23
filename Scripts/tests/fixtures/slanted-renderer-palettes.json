@@ -1,0 +1,251 @@
+{
+  "description": "Palettes sampled by the actual WKWebView renderer from the frozen rotated PNGs at 430 CSS pixels. Pixel oracles remain independent in slanted-ruby-pixels.json.",
+  "cases": [
+    {
+      "id": "ruby-05--25",
+      "palette": {
+        "background": [
+          254,
+          254,
+          254
+        ],
+        "captionBackground": [
+          254,
+          254,
+          254
+        ],
+        "captionBackgroundEvidence": {
+          "color": [
+            254,
+            254,
+            254
+          ],
+          "coverage": 0.6227294803302574,
+          "reason": "trimmed exposed OCR interior excluding displayed ink and local halo; display only"
+        },
+        "confidence": {
+          "background": 0.9377022653721683,
+          "foreground": 0.75,
+          "reason": "repeated dark glyph interiors enclosed by white source outlines",
+          "stroke": 0,
+          "strokeReason": "no independent enclosing band"
+        },
+        "displayEvidence": {
+          "color": [
+            7,
+            7,
+            7
+          ]
+        },
+        "foreground": [
+          18,
+          18,
+          18
+        ],
+        "lettering": {
+          "bands": 7,
+          "color": [
+            7,
+            7,
+            7
+          ],
+          "components": 48,
+          "exterior": 0.01282051282051282,
+          "pixels": 108,
+          "support": 0.051141330743079166
+        },
+        "outline": null,
+        "sourceInk": {
+          "background": [
+            254,
+            254,
+            254
+          ],
+          "confidence": {
+            "background": 0.9377022653721683,
+            "foreground": 0.75,
+            "reason": "repeated dark glyph interiors enclosed by white source outlines",
+            "stroke": 0.75
+          },
+          "foreground": [
+            18,
+            18,
+            18
+          ],
+          "stroke": [
+            250,
+            250,
+            250
+          ],
+          "widthEvidence": null
+        },
+        "stroke": null,
+        "widthEvidence": null
+      }
+    },
+    {
+      "id": "ruby-05-+25",
+      "palette": {
+        "background": [
+          254,
+          254,
+          254
+        ],
+        "captionBackground": [
+          254,
+          254,
+          254
+        ],
+        "captionBackgroundEvidence": {
+          "color": [
+            254,
+            254,
+            254
+          ],
+          "coverage": 0.6217095677513356,
+          "reason": "trimmed exposed OCR interior excluding displayed ink and local halo; display only"
+        },
+        "confidence": {
+          "background": 0.9401294498381877,
+          "foreground": 0.75,
+          "reason": "repeated dark glyph interiors enclosed by white source outlines",
+          "stroke": 0,
+          "strokeReason": "no independent enclosing band"
+        },
+        "displayEvidence": {
+          "color": [
+            6,
+            6,
+            6
+          ]
+        },
+        "foreground": [
+          14,
+          14,
+          14
+        ],
+        "lettering": {
+          "bands": 7,
+          "color": [
+            6,
+            6,
+            6
+          ],
+          "components": 61,
+          "exterior": 0.01641025641025641,
+          "pixels": 103,
+          "support": 0.05216124332200097
+        },
+        "outline": null,
+        "sourceInk": {
+          "background": [
+            254,
+            254,
+            254
+          ],
+          "confidence": {
+            "background": 0.9401294498381877,
+            "foreground": 0.75,
+            "reason": "repeated dark glyph interiors enclosed by white source outlines",
+            "stroke": 0.75
+          },
+          "foreground": [
+            14,
+            14,
+            14
+          ],
+          "stroke": [
+            249,
+            249,
+            249
+          ],
+          "widthEvidence": null
+        },
+        "stroke": null,
+        "widthEvidence": null
+      }
+    },
+    {
+      "id": "ruby-05-+78",
+      "palette": {
+        "background": [
+          254,
+          254,
+          254
+        ],
+        "captionBackground": [
+          254,
+          254,
+          254
+        ],
+        "captionBackgroundEvidence": {
+          "color": [
+            254,
+            254,
+            254
+          ],
+          "coverage": 0.570329942942198,
+          "reason": "trimmed exposed OCR interior excluding displayed ink and local halo; display only"
+        },
+        "confidence": {
+          "background": 0.9066558441558441,
+          "foreground": 0.75,
+          "reason": "repeated dark glyph interiors enclosed by white source outlines",
+          "stroke": 0,
+          "strokeReason": "no independent enclosing band"
+        },
+        "displayEvidence": {
+          "color": [
+            6,
+            6,
+            6
+          ]
+        },
+        "foreground": [
+          16,
+          16,
+          16
+        ],
+        "lettering": {
+          "bands": 8,
+          "color": [
+            6,
+            6,
+            6
+          ],
+          "components": 69,
+          "exterior": 0.021332694151486097,
+          "pixels": 141,
+          "support": 0.063656660878194
+        },
+        "outline": null,
+        "sourceInk": {
+          "background": [
+            254,
+            254,
+            254
+          ],
+          "confidence": {
+            "background": 0.9066558441558441,
+            "foreground": 0.75,
+            "reason": "repeated dark glyph interiors enclosed by white source outlines",
+            "stroke": 0.75
+          },
+          "foreground": [
+            16,
+            16,
+            16
+          ],
+          "stroke": [
+            250,
+            250,
+            250
+          ],
+          "widthEvidence": null
+        },
+        "stroke": null,
+        "widthEvidence": null
+      }
+    }
+  ]
+}

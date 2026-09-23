@@ -262,7 +262,7 @@ struct ReaderTranslationSessionTests {
     }
 
     @Test(arguments: [false, true])
-    func redisplayWaitsForTranslationCacheBeforeShowingOCR(cacheHit: Bool) async throws {
+    func redisplayShowsOnlyCompletedTranslationCache(cacheHit: Bool) async throws {
         let fixture = SessionFixture()
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -282,7 +282,10 @@ struct ReaderTranslationSessionTests {
         defer { session.close() }
         session.update(items: [.init(source)], visible: [original], context: "cache-order")
         session.enable(settings: fixture.settings)
-        try await waitUntil { !original.regions.isEmpty }
+        try await waitUntil { calls == 1 }
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(original.regions.isEmpty)
+        #expect(view.subviews.isEmpty)
         #expect(!original.hasCompletedTranslation(settings: fixture.settings))
         if cacheHit {
             let key = ReaderTranslationCacheIdentity.translation(page: source.translationCacheKey, settings: fixture.settings)
@@ -296,7 +299,13 @@ struct ReaderTranslationSessionTests {
         // nor its overlay may be published before the translation lookup ends.
         #expect(replacement.regions.isEmpty)
         #expect(replacementView.subviews.isEmpty)
-        try await waitUntil { !replacement.regions.isEmpty }
+        if cacheHit {
+            try await waitUntil { replacement.hasCompletedTranslation(settings: fixture.settings) }
+        } else {
+            try await Task.sleep(for: .milliseconds(100))
+            #expect(replacement.regions.isEmpty)
+            #expect(replacementView.subviews.isEmpty)
+        }
         #expect(replacement.hasCompletedTranslation(settings: fixture.settings) == cacheHit)
         #expect(replacement.regions.first?.translation == (cacheHit ? Self.region.translation : nil))
         #expect(calls == 1)
@@ -466,7 +475,7 @@ struct ReaderTranslationSessionTests {
     }
 
     @Test(arguments: [true, false])
-    func repeatedOffOnRestoresInFlightOCRPreview(applySettingsChange: Bool) async throws {
+    func repeatedOffOnKeepsOriginalWhileTranslationIsPending(applySettingsChange: Bool) async throws {
         let fixture = SessionFixture()
         fixture.defaults.set(true, forKey: ReaderTranslationSettings.keyPrefix + "automatic")
         let view = UIImageView(image: Self.image())
@@ -487,11 +496,10 @@ struct ReaderTranslationSessionTests {
         session.update(items: [.init(Self.page(0))], visible: [visible], context: "ocr-toggle")
         session.enable(settings: fixture.settings)
         try await waitUntil { progressCount == 1 }
-        let overlay = try #require(view.subviews.first)
-        #expect(!overlay.isHidden)
+        #expect(view.subviews.isEmpty)
         for attempt in 1...4 {
             session.disable(preservingVisibleRendering: true)
-            #expect(overlay.isHidden)
+            #expect(view.subviews.isEmpty)
             if applySettingsChange {
                 fixture.defaults.set(false, forKey: ReaderTranslationSettings.keyPrefix + "automatic")
                 visible.applySettings(fixture.settings)
@@ -500,9 +508,8 @@ struct ReaderTranslationSessionTests {
             }
             session.enable(settings: fixture.settings)
             try await waitUntil { progressCount == attempt + 1 }
-            #expect(view.subviews.count == 1)
-            #expect(view.subviews.first === overlay)
-            #expect(!overlay.isHidden, "Identical OCR progress must reveal the retained renderer after OFF/ON")
+            #expect(view.subviews.isEmpty)
+            #expect(visible.regions.isEmpty)
             #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
             #expect(!visible.canExportTranslation)
         }
@@ -729,6 +736,10 @@ struct ReaderTranslationSessionTests {
         #expect(calls == 3)
         let notice = try #require(owner.view.subviews.first { $0.accessibilityIdentifier == "reader.translation.failure" } as? UIVisualEffectView)
         let stack = try #require(notice.contentView.subviews.first as? UIStackView)
+        let label = try #require(stack.arrangedSubviews.first as? UILabel)
+        #expect(label.text == NSLocalizedString("TRANSLATION_TITLE") + ": " +
+            RemoteTranslationError.httpStatus(503, requestID: nil).localizedDescription)
+        #expect(imageView.subviews.isEmpty)
         let retry = try #require(stack.arrangedSubviews.last as? UIButton)
         retry.sendActions(for: .touchUpInside)
         try await waitUntil { page.hasCompletedTranslation(settings: fixture.settings) }
@@ -765,7 +776,7 @@ struct ReaderTranslationSessionTests {
     }
 
     @Test(arguments: [408, 429, 500, 503])
-    func apiRetryKeepsOCRVisibleBeforeFailureNotification(status: Int) async throws {
+    func apiRetryKeepsOriginalBeforeFailureNotification(status: Int) async throws {
         let fixture = SessionFixture()
         let source = Self.page(0)
         let view = UIImageView(image: Self.image())
@@ -789,16 +800,15 @@ struct ReaderTranslationSessionTests {
         session.enable(settings: fixture.settings)
         try await waitUntil { calls == 1 }
         try await Task.sleep(for: .milliseconds(100))
-        var ocr = Self.region
-        ocr.translation = nil
-        let displayedOCR = [ocr].compactMap { $0.cropped(to: CGRect(x: 0, y: 0, width: 1, height: 1)) }
-        #expect(visible.regions == displayedOCR)
+        #expect(visible.regions.isEmpty)
+        #expect(view.subviews.isEmpty)
         #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
         #expect(!visible.canExportTranslation)
         let replacement = ReaderTranslationPage(imageView: view)
         replacement.sourcePage = source
         session.refreshVisiblePages([replacement])
-        #expect(replacement.regions == displayedOCR)
+        #expect(replacement.regions.isEmpty)
+        #expect(view.subviews.isEmpty)
         #expect(failures == 0)
         try await waitUntil { replacement.hasCompletedTranslation(settings: fixture.settings) }
         #expect(calls == 2)
@@ -862,8 +872,8 @@ struct ReaderTranslationSessionTests {
         session.pauseForPageTurn()
         try await Task.sleep(for: .milliseconds(1200))
         #expect(calls == 1)
-        #expect(visible.regions.map(\.source) == [Self.region.source])
-        #expect(visible.regions.allSatisfy { $0.translation == nil })
+        #expect(visible.regions.isEmpty)
+        #expect(view.subviews.isEmpty)
     }
 
     @Test func persistentOfflineFailureHasBoundedRetries() async throws {
@@ -886,8 +896,8 @@ struct ReaderTranslationSessionTests {
         try await Task.sleep(for: .milliseconds(200))
         #expect(calls == 3)
         #expect(session.state == .on)
-        #expect(visible.regions.map(\.source) == [Self.region.source])
-        #expect(visible.regions.allSatisfy { $0.translation == nil })
+        #expect(visible.regions.isEmpty)
+        #expect(view.subviews.isEmpty)
         #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
     }
 
@@ -993,7 +1003,7 @@ struct ReaderTranslationSessionTests {
     }
 
     @Test(arguments: [false, true])
-    func cachedPartialTranslationSurvivesFailureAndVisibleRefresh(transient: Bool) async throws {
+    func partialTranslationStaysHiddenAfterFailureAndVisibleRefresh(transient: Bool) async throws {
         let fixture = SessionFixture()
         let imageView = UIImageView(image: Self.image())
         let visible = ReaderTranslationPage(imageView: imageView)
@@ -1012,7 +1022,8 @@ struct ReaderTranslationSessionTests {
         try await Task.sleep(for: .milliseconds(30))
         session.refreshVisiblePages([visible])
         #expect(session.state == .on)
-        #expect(visible.regions.first?.translation == "안녕")
+        #expect(visible.regions.isEmpty)
+        #expect(imageView.subviews.isEmpty)
         #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
     }
 
@@ -1028,8 +1039,8 @@ struct ReaderTranslationSessionTests {
             var pending = Self.region
             pending.translation = nil
             try await progress?([pending])
-            #expect(!imageView.subviews.isEmpty)
-            #expect(visible.regions.map(\.source) == [pending.source])
+            #expect(imageView.subviews.isEmpty)
+            #expect(visible.regions.isEmpty)
             #expect(visible.regions.first?.translation == nil)
             #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
             try await progress?([Self.region])
@@ -1043,13 +1054,15 @@ struct ReaderTranslationSessionTests {
         session.update(items: [.init(Self.page(0))], visible: [visible], context: "chapter")
         session.enable(settings: fixture.settings)
         try await waitUntil { await gate.started }
-        #expect(visible.regions.first?.translation == "안녕")
+        #expect(visible.regions.isEmpty)
+        #expect(imageView.subviews.isEmpty)
         #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
         session.disable()
         await gate.release()
         try await Task.sleep(for: .milliseconds(30))
         #expect(imageView.subviews.isEmpty)
-        #expect(visible.regions.first?.translation == "안녕")
+        #expect(visible.regions.isEmpty)
+        #expect(imageView.subviews.isEmpty)
         session.enable(settings: fixture.settings)
         try await waitUntil { visible.hasCompletedTranslation(settings: fixture.settings) }
         #expect(calls == 2)

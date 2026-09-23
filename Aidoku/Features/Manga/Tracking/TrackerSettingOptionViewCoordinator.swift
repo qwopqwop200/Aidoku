@@ -31,6 +31,6 @@ class TrackerSettingOptionViewCoordinator: NSObject, UIPickerViewDelegate, UIPic
     }
 
     func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
-        row == 0 ? "-" : numberType == .int ? String(row) : String(format: "%g", Float(row) / 10)
+        row == 0 ? "-" : numberType == .int ? String(row) : String(format: "%g", locale: Locale.current, Float(row) / 10)
     }
 }

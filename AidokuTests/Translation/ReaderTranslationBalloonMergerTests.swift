@@ -3,6 +3,147 @@ import UIKit
 @testable import Aidoku
 
 struct ReaderTranslationBalloonMergerTests {
+    private struct DatasetFixture: Decodable {
+        let id: String
+        let expectedSources: [String]
+        let freshOCRSource: String?
+    }
+
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("DatasetMerge/fixtures.json").path)))
+    func datasetLeadInsPreserveRubyAndSeparateBalloons() throws {
+        let folder = URL.documentsDirectory.appendingPathComponent("DatasetMerge")
+        let fixtures = try JSONDecoder().decode([DatasetFixture].self, from: Data(contentsOf: folder.appendingPathComponent("fixtures.json")))
+        #expect(fixtures.count >= 10)
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        for fixture in fixtures {
+            let image = try #require(UIImage(contentsOfFile: folder.appendingPathComponent(fixture.id + ".png").path)?.cgImage)
+            let input = try JSONDecoder().decode([ReaderTranslationStoredRegion].self,
+                from: Data(contentsOf: folder.appendingPathComponent(fixture.id + "-input.json"))).map(\.region)
+            let output = ReaderTranslationBalloonMerger.apply(input, image: image)
+            #expect(output.map(\.source) == fixture.expectedSources, "Dataset page: \(fixture.id)")
+            try encoder.encode(output.map(ReaderTranslationStoredRegion.init))
+                .write(to: folder.appendingPathComponent(fixture.id + "-output.json"))
+        }
+    }
+
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("DatasetMerge/fixtures.json").path)))
+    func datasetLeadInsWithFreshOCR() async throws {
+        let folder = URL.documentsDirectory.appendingPathComponent("DatasetMerge")
+        let fixtures = try JSONDecoder().decode([DatasetFixture].self, from: Data(contentsOf: folder.appendingPathComponent("fixtures.json")))
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        for fixture in fixtures {
+            guard let expected = fixture.freshOCRSource else { continue }
+            let image = try #require(UIImage(contentsOfFile: folder.appendingPathComponent(fixture.id + ".png").path)?.cgImage)
+            let output = try await ReaderOCRService.shared.recognize(image: image, configuration: ReaderOCRConfiguration())
+            try encoder.encode(output.map(ReaderTranslationStoredRegion.init))
+                .write(to: folder.appendingPathComponent(fixture.id + "-fresh.json"))
+            #expect(output.contains { $0.source == expected && $0.sourceOrientation == .vertical && $0.sourceSingleVerticalColumn == false },
+                "Dataset page: \(fixture.id), expected: \(expected)")
+        }
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0], [false, true])
+    func repeatedKanaNeedsFullSizeAlignmentAndImageEvidence(scale: CGFloat, verticalLead: Bool) throws {
+        func region(_ id: String, _ text: String, _ rect: CGRect, lead: Bool = false) -> ReaderTranslationRegion {
+            ReaderTranslationRegion(id: id, rect: CGRect(x: rect.minX / 400, y: rect.minY / 400,
+                width: rect.width / 400, height: rect.height / 400), source: text,
+                confidence: lead ? 0.8 : 0.95, sourceOrientation: lead && !verticalLead ? .horizontal : .vertical,
+                sourceSingleVerticalColumn: !lead || verticalLead)
+        }
+        func page(rule: Bool = false) throws -> CGImage {
+            let format = UIGraphicsImageRendererFormat(); format.scale = 1
+            return try #require(UIGraphicsImageRenderer(size: CGSize(width: 400 * scale, height: 400 * scale), format: format).image { ctx in
+                ctx.cgContext.scaleBy(x: scale, y: scale)
+                UIColor.white.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 400, height: 400))
+                UIColor.black.setStroke(); ctx.cgContext.setLineWidth(3)
+                ctx.cgContext.strokeEllipse(in: CGRect(x: 130, y: 120, width: 140, height: 180))
+                if rule { UIColor.black.setFill(); ctx.fill(CGRect(x: 201, y: 130, width: 3, height: 150)) }
+            }.cgImage)
+        }
+        let column = region("body", "しかたない", CGRect(x: 174, y: 155, width: 24, height: 120))
+        let lead = region("lead", "し", CGRect(x: 206, y: 156, width: 24, height: 25), lead: true)
+        let image = try page()
+        for input in [[column, lead], [lead, column]] {
+            let output = ReaderTranslationBalloonMerger.apply(input, image: image)
+            #expect(output.map(\.source) == ["ししかたない"])
+            #expect(output.first?.id == input.first?.id)
+            #expect(output.first?.confidence == 0.8)
+            #expect(output.first?.rect == column.rect.union(lead.rect))
+            #expect(output.first?.sourceOrientation == .vertical)
+            #expect(output.first?.sourceSingleVerticalColumn == false)
+        }
+        #expect(ReaderTranslationBalloonMerger.apply([column, lead], image: try page(rule: true)) == [column, lead])
+        let rubyBody = region("body", "実は私", CGRect(x: 174, y: 155, width: 24, height: 120))
+        let ruby = region("ruby", "じ", CGRect(x: 206, y: 156, width: 24, height: 25), lead: true)
+        #expect(ReaderTranslationBalloonMerger.apply([rubyBody, ruby], image: image) == [rubyBody, ruby])
+        for invalid in [
+            region("lead", "し", CGRect(x: 206, y: 156, width: 10, height: 12), lead: true),
+            region("lead", "し", CGRect(x: 206, y: 195, width: 24, height: 25), lead: true),
+            region("lead", "し", CGRect(x: 240, y: 156, width: 24, height: 25), lead: true),
+            region("lead", "し", CGRect(x: 142, y: 156, width: 24, height: 25), lead: true)
+        ] {
+            #expect(ReaderTranslationBalloonMerger.apply([column, invalid], image: image) == [column, invalid])
+        }
+        let middle = region("middle", "別", CGRect(x: 198, y: 160, width: 8, height: 20))
+        #expect(ReaderTranslationBalloonMerger.apply([column, lead, middle], image: image) == [column, lead, middle])
+    }
+
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("zerodo-page22-cached.json").path)))
+    func originalCachedReactionPreservesUnrelatedRegions() throws {
+        let folder = URL.documentsDirectory
+        let image = try #require(UIImage(contentsOfFile: folder.appendingPathComponent("zerodo-page22.png").path)?.cgImage)
+        let regions = try JSONDecoder().decode([ReaderTranslationStoredRegion].self,
+            from: Data(contentsOf: folder.appendingPathComponent("zerodo-page22-cached.json"))).map(\.region)
+        let short = try #require(regions.first { $0.source == "は!?" })
+        #expect(short.sourceOrientation == .horizontal)
+        #expect(short.sourceSingleVerticalColumn == false)
+        for input in [regions, regions.reversed().map { $0 }] {
+            let result = ReaderTranslationBalloonMerger.apply(input, image: image)
+            let joined = try #require(result.first { $0.source == "は!?ちょ…つ" })
+            #expect(result.count == input.count - 1)
+            #expect(joined.sourceOrientation == .vertical)
+            #expect(joined.sourceSingleVerticalColumn == false)
+            let members = input.filter { $0.source == "は!?" || $0.source == "ちょ…つ" }
+            #expect(joined.id == members.first?.id)
+            #expect(joined.confidence == members.map(\.confidence).min())
+            #expect(joined.rect == members[0].rect.union(members[1].rect))
+            #expect(result.filter { $0.id != joined.id } == input.filter { !members.map(\.id).contains($0.id) })
+        }
+    }
+
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("zerodo-page22.png").path)),
+          arguments: [false, true])
+    func originalPageJoinsReactionWithHorizontalPunctuation(useDeviceSettings: Bool) async throws {
+        let folder = URL.documentsDirectory
+        let image = try #require(UIImage(contentsOfFile: folder.appendingPathComponent("zerodo-page22.png").path)?.cgImage)
+        let configuration = useDeviceSettings
+            ? ReaderOCRConfiguration(confidenceThreshold: 0.7, detectorPixelThreshold: 0.3, detectorConfidenceThreshold: 0.15)
+            : ReaderOCRConfiguration()
+        let name = useDeviceSettings ? "zerodo-device" : "zerodo-default"
+        let pipeline = NativeCoreMLOCRPipeline(modelTier: configuration.modelTier,
+            detectorMaximumSide: configuration.detectorMaximumSide, recognizerMaximumWidth: configuration.recognizerMaximumWidth)
+        let native = try await pipeline.recognize(image: image, requestID: UUID().uuidString,
+            confidenceThreshold: configuration.confidenceThreshold,
+            detectorConfiguration: configuration.detectorPostprocessConfiguration)
+        let raw: [[String: Any]] = native.lines.map { ["text": $0.text, "polygon": $0.polygon.map { [$0.x, $0.y] },
+            "orientation": String(describing: $0.orientation), "score": $0.score] }
+        try JSONSerialization.data(withJSONObject: raw, options: [.prettyPrinted, .sortedKeys])
+            .write(to: folder.appendingPathComponent(name + "-raw.json"))
+        await pipeline.purgeResources()
+        let regions = try await ReaderOCRService.shared.recognize(image: image, configuration: configuration)
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(regions.map(ReaderTranslationStoredRegion.init))
+            .write(to: folder.appendingPathComponent(name + "-regions.json"))
+        let reaction = regions.filter { $0.rect.midX < 0.16 && (0.64...0.77).contains($0.rect.midY) }
+        #expect(reaction.count == 1)
+        #expect(reaction.first?.source.hasPrefix("は!?") == true)
+        #expect(reaction.first?.source.contains("ちょ") == true)
+        #expect(reaction.first?.sourceOrientation == .vertical)
+        #expect(reaction.first?.sourceSingleVerticalColumn == false)
+        #expect(regions.contains { $0.rect.minY > 0.8 && $0.source.contains("ストロー") })
+        #expect(regions.contains { $0.rect.maxY < 0.2 && $0.source.contains("ストロー") })
+    }
+
     @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("blue-merge-source.png").path)))
     func capturedBlueBalloonJoinsShortStaggeredColumns() async throws {
         let folder = URL.documentsDirectory
@@ -76,8 +217,8 @@ struct ReaderTranslationBalloonMergerTests {
         #expect(regions.count == 3)
     }
 
-    @Test(arguments: [0.5, 1.0, 2.0])
-    func shortColouredReactionsNeedMatchingInkAlignmentAndClearGutter(scale: CGFloat) throws {
+    @Test(arguments: [0.5, 1.0, 2.0], [false, true])
+    func shortColouredReactionsNeedMatchingInkAlignmentAndClearGutter(scale: CGFloat, horizontalReaction: Bool) throws {
         func rect(_ x: CGFloat, _ y: CGFloat, _ width: CGFloat, _ height: CGFloat) -> CGRect {
             CGRect(x: x * scale, y: y * scale, width: width * scale, height: height * scale)
         }
@@ -95,9 +236,10 @@ struct ReaderTranslationBalloonMergerTests {
             }.cgImage)
         }
         func region(_ id: String, _ text: String, _ box: CGRect) -> ReaderTranslationRegion {
-            ReaderTranslationRegion(id: id, rect: CGRect(x: box.minX / (240 * scale), y: box.minY / (300 * scale),
+            let horizontal = id == "right" && horizontalReaction
+            return ReaderTranslationRegion(id: id, rect: CGRect(x: box.minX / (240 * scale), y: box.minY / (300 * scale),
                 width: box.width / (240 * scale), height: box.height / (300 * scale)), source: text,
-                sourceOrientation: .vertical, sourceSingleVerticalColumn: true)
+                sourceOrientation: horizontal ? .horizontal : .vertical, sourceSingleVerticalColumn: !horizontal)
         }
         let left = region("left", "ちょ…っ", rect(55, 55, 30, 145))
         let right = region("right", "は?", rect(102, 140, 30, 60))
@@ -115,7 +257,9 @@ struct ReaderTranslationBalloonMergerTests {
         let quoted = region("right", "「は?」", rect(102, 140, 30, 60))
         #expect(ReaderTranslationBalloonMerger.apply([left, quoted], image: image).count == 2)
         let shifted = region("right", "は?", rect(102, 165, 30, 60))
-        #expect(ReaderTranslationBalloonMerger.apply([left, shifted], image: image).count == 2)
+        #expect(ReaderTranslationBalloonMerger.apply([left, shifted], image: image) == [left, shifted])
+        let wide = region("right", "は?", rect(102, 180, 30, 20))
+        #expect(ReaderTranslationBalloonMerger.apply([left, wide], image: image) == [left, wide])
         let middle = ReaderTranslationRegion(id: "middle", rect: CGRect(x: 90 / 240.0, y: 145 / 300.0, width: 5 / 240.0, height: 50 / 300.0), source: "別")
         #expect(ReaderTranslationBalloonMerger.apply([left, right, middle], image: image).count == 3)
     }

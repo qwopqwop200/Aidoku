@@ -56,7 +56,7 @@ struct ReaderSourcePanelRestorationTests {
           translucentRejected:aidokuRestoreSourcePanel(translucent,w,h,[32,26,30,130],palette)===null,
           alphaRejected:aidokuRestoreSourcePanel(alpha,w,h,[32,26,30,130],palette)===null,
           darkRejected:aidokuRestoreSourcePanel(rgba,w,h,[32,26,30,130],{...palette,background:[20,20,20]})===null,
-          budgetRejected:aidokuRestoreSourcePanel(new Uint8ClampedArray(512*512*4),512,512,[24,24,60,300],palette)===null};
+          budgetRejected:aidokuRestoreSourcePanel(new Uint8ClampedArray(513*513*4).fill(255),513,513,[24,24,60,300],palette)===null};
         """, arguments: [:], in: nil, contentWorld: .page)
         let audit = try #require(result as? [String: Any])
         #expect(audit["accepted"] as? Bool == true)

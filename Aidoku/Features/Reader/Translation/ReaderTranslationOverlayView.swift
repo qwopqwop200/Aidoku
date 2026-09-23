@@ -104,12 +104,16 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.navigationDelegate = self
         webView.isUserInteractionEnabled = false
+        webView.isHidden = true
         addSubview(webView)
         renderer.onDiagnostic = { [weak self] diagnostic in
             guard let self else { return }
             lastDiagnostic = diagnostic
             if diagnostic.outcome == .committed {
                 recoveryTask?.cancel(); recoveryTask = nil
+                // Reveal only the committed layout, after background sampling,
+                // cleanup and typesetting have all completed.
+                webView.isHidden = false
                 ReaderTranslationDiagnostics.record("visible_render_committed", count: diagnostic.renderedItemCount)
                 captureCompletedRender(revision: diagnostic.revision)
                 onRenderCommitted?()
@@ -158,6 +162,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         settings: ReaderTranslationSettings, image: UIImage? = nil, snapshotTarget: ReaderTranslationSnapshotTarget? = nil,
         preparedLayout: Task<Data, Error>? = nil
     ) {
+        renderer.cancelPendingRender()
         self.regions = regions
         self.preparedLayout = preparedLayout ?? snapshotTarget?.preparedLayout
         self.snapshotTarget = contentTerminationCount == 0 ? snapshotTarget : nil
@@ -165,6 +170,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         recoveryAttempts = 0
         lastDiagnostic = nil
         scheduleRenderRecovery()
+        webView.isHidden = true
         didStoreSnapshot = false
         snapshotGeneration = UUID()
         snapshotTask?.cancel()
@@ -325,7 +331,6 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 guard !Task.isCancelled, backgroundRevision == revision, installed == true else { return }
                 backgroundTask = nil
                 ready = true
-                webView.isHidden = false
                 dirty = true
                 setNeedsLayout()
             } catch { /* The bounded render watchdog reloads a stalled document. */ }
@@ -375,6 +380,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
 
     private func loadDocument() {
         guard !hasExhaustedRecovery else { return }
+        webView.isHidden = true
         renderer.cancelPendingRender()
         lastDiagnostic = nil
         ready = false

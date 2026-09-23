@@ -40,8 +40,7 @@ extension String {
 //    }
 
     func date(format: String) -> Date? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = format
+        let formatter = DateFormatter(fixedAPIFormat: format)
         return formatter.date(from: self)
     }
 

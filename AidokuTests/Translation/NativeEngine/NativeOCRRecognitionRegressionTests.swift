@@ -5,6 +5,38 @@ import Testing
 @testable import Aidoku
 
 struct NativeOCRRecognitionRegressionTests {
+    @Test func rejectedSteepLatinHasABoundedAlternativeReadingAxis() throws {
+        // Original detector quad of the real -57-degree "intensity" fixture.
+        let polygon = [CGPoint(x: 255, y: 789), CGPoint(x: 391, y: 575),
+                       CGPoint(x: 465, y: 619), CGPoint(x: 329, y: 833)]
+        let alternative = try #require(NativeOCRScopeGeometry.alternateHorizontalQuad(polygon))
+        #expect(alternative == polygon)
+        let primary = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: polygon))
+        let recovered = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: alternative, useProvidedOrder: true))
+        #expect(primary.rotatedCounterClockwise)
+        #expect(!recovered.rotatedCounterClockwise)
+        #expect(NativeOCRScopeGeometry.alternateHorizontalQuad([
+            CGPoint(x: 516, y: 1259), CGPoint(x: 643, y: 1096),
+            CGPoint(x: 750, y: 1183), CGPoint(x: 623, y: 1346)]) != nil)
+        #expect(NativeOCRScopeGeometry.alternateHorizontalQuad([
+            CGPoint(x: 0, y: 0), CGPoint(x: 100, y: 0), CGPoint(x: 100, y: 20), CGPoint(x: 0, y: 20)]) == nil)
+    }
+
+    @Test(arguments: [-35.0, -25, -8, 8, 25, 35], [false, true])
+    func slantedTensorKeepsUprightCropAxes(degrees: Double, vertical: Bool) throws {
+        let w: CGFloat = vertical ? 32 : 180, h: CGFloat = vertical ? 180 : 32
+        let a = degrees * .pi / 180
+        let expected = [CGPoint(x: 0, y: 0), CGPoint(x: w, y: 0), CGPoint(x: w, y: h), CGPoint(x: 0, y: h)]
+            .map { CGPoint(x: 250 + $0.x * cos(a) - $0.y * sin(a), y: 250 + $0.x * sin(a) + $0.y * cos(a)) }
+        for offset in 0..<4 {
+            let polygon = (0..<4).map { expected[($0 + offset) % 4] }
+            #expect(NativeOCRScopeGeometry.canonicalQuad(polygon) == expected)
+            #expect(NativeOCRScopeGeometry.canonicalQuad(Array(polygon.reversed())) == expected)
+            let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: polygon))
+            #expect(plan.rotatedCounterClockwise == vertical)
+        }
+    }
+
     @Test(arguments: 1...7)
     func dynamicBatchesPreservePixelsOrderAndPartialCacheHits(count: Int) async throws {
         let width = 32, height = 180

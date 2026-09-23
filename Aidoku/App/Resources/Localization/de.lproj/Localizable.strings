@@ -296,7 +296,7 @@
 "STATUS_COLON_%@" = "Status: %@";
 "TRACK" = "Tracken";
 "TYPE_COLON_%@" = "Typ: %@";
-"CLEAR_TRACKED_MANGA" = "Tracker-Verknüpfungen entfernen";
+"CLEAR_TRACKED_MANGA" = "Alle Tracker-Verknüpfungen entfernen";
 "1_CHAPTER" = "1 Kapitel";
 "UPCOMING" = "Demnächst";
 "RENAME_CATEGORY_FAIL_INFO" = "Kategorienamen müssen eindeutig sein.";
@@ -857,7 +857,7 @@
 "PORTRAIT_ROWS" = "Spalten im Hochformat";
 "LANDSCAPE_ROWS" = "Spalten im Querformat";
 "RESUME_LAST_OPENED_CHAPTER" = "Zuletzt geöffnetes Kapitel fortsetzen";
-"CONTINUE_READING_ON_RESELECT" = "Doppeltippen Sie auf die Registerkarte „Verlauf“, um mit dem Lesen fortzufahren";
+"CONTINUE_READING_ON_RESELECT" = "Erneut auf „Verlauf“ tippen, um weiterzulesen";
 "DOWNLOADED_CHAPTER_BADGES" = "Markierungen für heruntergeladene Kapitel";
 "PIN_TITLES" = "Manga-Titel anheften";
 "PIN_DISABLED" = "Anheften deaktiviert";
@@ -1174,4 +1174,29 @@
 // Translation settings section
 "TRANSLATION_FILTERING" = "Textfilter";
 
-"TRANSLATION_TARGETS" = "Übersetzte Inhalte";
+"TRANSLATION_TARGETS" = "Zu übersetzende Inhalte";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Seiten: %i / %i";
+"1_SERIES" = "1 Serie";
+"SKIPPING_ONE_CHAPTER" = "1 Kapitel wird übersprungen, da es in der Quelle fehlt oder herausgefiltert wurde";
+"BACKUP_CREATE_ERROR_TEXT" = "Das Backup konnte nicht erstellt werden. Bitte versuche es erneut.";
+"YES" = "Ja";
+"NO" = "Nein";
+"CHAPTERS_%i_OF_%i" = "Kapitel: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Der Titel konnte nicht zum Tracking hinzugefügt werden. Bitte versuche es erneut.";
+"SORT_READ_PROGRESS" = "Lesefortschritt";
+"SORT_RELEASE_YEAR" = "Erscheinungsjahr";
+"SOURCE_INVALID_PAGE_COUNT" = "Ungültige Seitenanzahl";
+"SOURCE_INVALID_GENRE_ID" = "Ungültige Genre-ID";
+"SOURCE_INVALID_LISTING" = "Ungültige Liste";
+"SOURCE_INVALID_LISTING_TYPE" = "Ungültiger Listentyp";
+"SOURCE_INVALID_ITEM_TYPE" = "Ungültiger Eintragstyp";
+"DICTIONARY_ERROR" = "Wörterbuchfehler";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Wörterbucheinstellungen konnten nicht gespeichert werden: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Die ausgewählten Wörterbücher konnten nicht importiert werden:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Einige Wörterbücher konnten nicht importiert werden:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Wörterbuchimport fehlgeschlagen.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Ein umfassendes japanisch-englisches Wörterbuch, gepflegt von der Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Ein Wörterbuch japanischer Eigennamen, gepflegt von der Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Ein Häufigkeitswörterbuch auf Grundlage des Medienkorpus von https://jiten.moe.";

@@ -1,0 +1,2789 @@
+{
+  "description": "Frozen assistant-reviewed stroke references for 228 original source crops. Annotation and work-level development/confirmation split fixed before predictions. RGB maximum-channel error 25; absent estimates fail outlined cases; non-null estimates fail no-outline cases. Clearly visible primary outlines (including hollow and double-outline lettering) are scored; seven indistinct/illegible/continuous-glow cases retained unscored. Not human gold and not corpus-wide accuracy.",
+  "fixtures": [
+    {
+      "id": "x000",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "8e2d48b9276c3169a13410b317c3e66d5122fda4257d45960240963ed2a8f498",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x001",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "f96bcc6e9bb2b2c30e12bc6e9ce7edcf3c4c77c5070eeac9a656648f9fe4af4b",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x002",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "9146419fedf2dd61cb32aeb4ab790e7a145a6d70fcc4b784945b6458601c9258",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x003",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "4a8f9db7ba1bc5e8eb94ac7c4173b363df9a54fe30daab1ea1413747a46a4475",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x004",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "7f5069b59f0a2b40cf571e5824e6324d082405f74816f34ac072ddaa3010efa0",
+      "expectedStroke": null,
+      "scored": false,
+      "note": "Cropped low-resolution multicolor logo with ambiguous stroke."
+    },
+    {
+      "id": "x005",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "0807dc24f4edb0f439db3aceb2ff89f9de3e86ccc907fbb1e985e07c20446b25",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x006",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "a76c6a7ac6047e55bdc942f3829d22a3d7193e449345f80b1801f7dd98769cd7",
+      "expectedStroke": [
+        0,
+        0,
+        0
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x007",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "5d6e631e9094cc0ec24eeb67f340b09fd69c8d1b7c2d471e7e0a71235d9106d2",
+      "expectedStroke": [
+        255,
+        254,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x008",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "93273b242b7d7c4a561ff755bfa36eeefd370f2055c8bb293ce3960930e5002b",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x009",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "9c03cdb0b536c5d48fa5f934b1761a8e78f8e1883fff330fa100513df0b30e2c",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x010",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "dca8f56c880fe40a6503dcdc3b12e169867cca51b100359e38f56f8da122d567",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x011",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "1927fcfdfaa197fdbb0ab3364deb9936042f775d1a4a5133c5ce997ba746221e",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x012",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "2b7e92c788328c7d667a31e8e038f4cacd8d4459f908aab5f1d493e93b01226a",
+      "expectedStroke": [
+        250,
+        253,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x013",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "f2c19a8cf0b9add2b8663c527649fb872ada6655f7e5f49c1072c35533643575",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x014",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "6761f25fc4591d68663311c505df3e05d0e0b30003aa9622298e393021f1912b",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x015",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "3489c6d07e8cd9fe89d93d22221dc210603403c9fb1b53d842ccd4dd3b3e2234",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x016",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "84479455e3abf424a62c4be961ecfc25da02199eb0a20168edd1462de002d04f",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x017",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "dd1f50db2b9c948c368f6b4a5652ea348a7e137632d66b52ab59dd1a7c0ed093",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x018",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "1d6e1d152a78ae602f9a076e9ac8c97dacc9fe063baf7ea303f7486779ca74ab",
+      "expectedStroke": [
+        250,
+        235,
+        229
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x019",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "38a26cf0bc7cd3330283e600c44a7c98f391f0e5bd1a7862efe714803e2824e3",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x020",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "768822fe04ef8db8244b79c14b9ac261a66affe4b6de9093d040022d73150100",
+      "expectedStroke": [
+        255,
+        254,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x021",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "e1d053e95607caa8f0c0fb2b2ef066381e874316cb6c47ccb4418e7932a89585",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x022",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "3e3692cf0e22522cd0e66048ad8f762f5ab5dda703235f5449b2eceaa5e623f5",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x023",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "cc4c9c0fd84dd7d7af031006eb18d19f4f736e7073d01c261be4c7433c623aa5",
+      "expectedStroke": [
+        251,
+        255,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x024",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "4c68772d18eb1254015b61e88eb891c88675f8b5f4b9db09fcb076e64de20517",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x025",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "f9c18243803c78523b94964b5cb57bf30097f977f9b5b339dafce42dd77e54d4",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x026",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "d77b2a1969b4086b6e7e5c5ec8083365f911ec5c444572d0b6e9ad8343e6acf6",
+      "expectedStroke": [
+        0,
+        0,
+        0
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x027",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "6d087590cc9a39713efc942679f92a9d8db1a0c66f225063b9d259c1819924ce",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x028",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "f1a7638b09e952a7cc3463a44c99161593d1eda12c5775a22e3c89210df02326",
+      "expectedStroke": null,
+      "scored": false,
+      "note": "Unrecognizable decorative writing; OCR is not reliable."
+    },
+    {
+      "id": "x029",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "36bc80279bff433e7c1094c09b3eb3ad78e012c3ee07386a29e30a2b0b6e48eb",
+      "expectedStroke": [
+        22,
+        27,
+        41
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x030",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "0fdeb2d9d04e780602ea18ea6029c2e0d626f0eadb0c3311a96a6585d8860635",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x031",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "4c5fa197a820cd233a73a45535f16193ed40a1dce68c23ae8ab432b89c33fc48",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x032",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "ff6b31c2bcd160a6f823af3ec20c9f3bfedf3145ecd6f80f6923391d2c763f92",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x033",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "33b9ac0fb32cba2f1687fa88fccf9ca8e3289589613ed494de6f67bafa747548",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x034",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "7cde46eb487654aa909c72544a00fb19ac0885ef21a9a4b4cdcbc7e9261d5aee",
+      "expectedStroke": [
+        248,
+        253,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x035",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "7c64ef062b2a1453a5fd129594b33f00bbab30d9733869284b1cb19cd9530b96",
+      "expectedStroke": [
+        6,
+        6,
+        6
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x036",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "993776603d10d13cd1e03857bbf50dfea0272bd8bb6636a796f0db515b8b8d1f",
+      "expectedStroke": [
+        254,
+        254,
+        253
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x037",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "ff926cd7fe838a81d96c9f824443b061615826cab4ed12a061cb81950808162a",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x038",
+      "split": "stroke-expansion-development",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "477c1ae531ff9e9e37f1aa8e686a4428fcbd3e770a9c7bc3b5227b2a0fea26cf",
+      "expectedStroke": [
+        255,
+        255,
+        253
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x039",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_cg_illustration",
+      "pixelSHA256": "2721b9920f5b8899380897c7df7ad972c9e0989c7b3892dff64ccaa797390ea9",
+      "expectedStroke": [
+        104,
+        23,
+        44
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x040",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "aaf2f58fd79c59877ce60514c749b7d33b0696757435bdb7894c9f8094240239",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x041",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "b84ae5746e5052aee8f848c5aac335f38df0c4bc89e411f0a4da4e63d5369d2b",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x042",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "6ece97050e510121c2f2f281b0bba7db5a0076523b793e10bd61e46bf9c2b867",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x043",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "fbe26c5ef0fb45fef1630d427ee7b04e8a9f27b6ca74c52e09472d0188c26b9f",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x044",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "dd81ed578a63174ab492c052316bd639c67f7475fe0988471ec8fb39bf6804db",
+      "expectedStroke": null,
+      "scored": false,
+      "note": "Very faint hollow watermark; foreground and stroke roles ambiguous."
+    },
+    {
+      "id": "x045",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "89b53727d28da054636ea257aa68a2d483cc7b3891efb23eb246c83471e34cfc",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x046",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "9c22ba1e71d2b5dcf076daa625999e6a9faf218dd0378512452e404496497f34",
+      "expectedStroke": [
+        249,
+        249,
+        249
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x047",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "baf16a46e827d638fcc000c97e8fe7c19d6c95bee53efb75747540d286adf784",
+      "expectedStroke": [
+        255,
+        248,
+        228
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x048",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "41be39b05e18db9c7221565d96f497e032b52f63f1fe5c1c9828ad9c2df62094",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x049",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "6d238d9dfdf72dc9d911b1950bc321fe55ccd953393c29c4c3ffbd1071605b39",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x050",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "7be28af649ccb6464c0a2f46149f74aaec1db959196d662863de9c5acbc87054",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x051",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "ed2dbcc616ccd0182fa418610afd9f58fe60531704d56dbc443f958fe1f3bc98",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x052",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "898c8f608694962f75a6d59ff0eb7c7b611c16b54e7ec0fef400adefb3e3a2b4",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x053",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "2bcfe2c8872b7a79a6f59584fcb9101c804677e21389f77a4150ba86b9cc3bd4",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x054",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "d49c57c952e8c7ab20970c87b7ea3a8c65bbe6cfabed2a16ac3d6810e23e9b60",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x055",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "885f74752052c3f894f09d7b224304f7088d65646cab706328b5172c31fdecf5",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x056",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "9af2547b6b5c54f967f47e4874599b8a458cd20630db5af60c9445963bced4c7",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x057",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "0a25f5aa9d4836df74c154b5f5a098377bb8dbec7cc589a0448272aa801440a6",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x058",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "18a22ca3f336f3ea51ae149cd144ab97a92932622fcc3a9b6c4375ed5d6bcb96",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x059",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "807fe4c02bed629052ab9c748ee1e12a6ad50cddb9032b3a0a1185172a9eb9be",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x060",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "febf0c876ff55ae0c168d5ba00cbc0f2179235f34e96fa39dd495c4fed4319e8",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x061",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "b33e45226d1ceae3e7d80748f326d41c429c9d816e2e06df9088de2c1813de9e",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x062",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "9f0159f25728f3083f93c1c8f939f0aacc35cb70096d9d030556a8de813f70d5",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x063",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "9342021d0be46dc11501589683a7a559d7a5cd696930345bde7e9d63c5efc45f",
+      "expectedStroke": [
+        41,
+        36,
+        24
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x064",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "8cce1c4eca8560e3b819aafa243b2d7c1d67e64ee7f1190427b76d0096ae1ac3",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x065",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "a4201db151b44357704c2dc6877a947c5aa39c84368835239a57ad6b292badde",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x066",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "94946be89a182cd94c66519f13cffcfca8c6bf182ec3e3413ac4ed13e3560d27",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x067",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "000353aa5778056c1f76f3fdb95ab5c3b81a7a3ccf6bc820148c37074b8f85ce",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x068",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "1d047650ffa5af672ecf20b459031c87532f8ddfca39addfe6ed5f72b6f3caea",
+      "expectedStroke": [
+        254,
+        253,
+        249
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x069",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "cb89c4af21659cd3eadfe11384ca0d363c5116fab901db5372d9e1e57eae195a",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x070",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "57973d1395f145799997815b8eed54e95dfc276d6261fc7e4f10c264f4a990bf",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x071",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "f64ed547d5b4953ef7edcf9e5efffe895e6b4fc876a897ca6d1d0b6a62bdfe5d",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x072",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "123fd13e1601879d187e010d8e2da45862f516054710dd28145092ef270fea06",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x073",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "b5d3f2d207f52409b05784159b1b4b7a4cbadb65937f281459cdc1797c2f2e8e",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x074",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "8268155719ae9da9d02723513ed137fb3901343336a7f571bb79b5a9a9c58a76",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x075",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "37316318d0b0f80b47a340e4ef279580d1882fec7bd554f5a6364e0c09d912cd",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x076",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "5b4d27f01c1df8b99b766867efc991cb7ae7ca9687256731580417592aab1c45",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x077",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "d32d550d58fab5da56d7e8c112fdba3ef48fb6f65bac0fe827c6b580a0c0fb89",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x078",
+      "split": "stroke-expansion-development",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "a3e6cd421079bc1d459ef15c219df0178e4e07ca62cda8d32e307a36bedcc2e5",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x079",
+      "split": "stroke-expansion-confirmation",
+      "category": "artist_sns_comic",
+      "pixelSHA256": "d541df5cc4c62d8aa5c1dfb89ad70195a5b8932832c39f9dcc19bed3a92ac8ed",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x080",
+      "split": "stroke-expansion-development",
+      "category": "game_cg",
+      "pixelSHA256": "af5a4f903e3fdba44a4e04d20b9904ed410a5ba84ef235d720ff03d8a54d855a",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x081",
+      "split": "stroke-expansion-development",
+      "category": "game_cg",
+      "pixelSHA256": "c9a390f22dbc89e7c0d291b92c6229951878540fee48c917da290951770ea380",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x082",
+      "split": "stroke-expansion-development",
+      "category": "game_cg",
+      "pixelSHA256": "845152c2487496defbfb52c38539dd2b19358e4e4ffebd49b569f01a961664d9",
+      "expectedStroke": [
+        66,
+        72,
+        117
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x083",
+      "split": "stroke-expansion-confirmation",
+      "category": "game_cg",
+      "pixelSHA256": "842fc2ca7abfc3d57fa5856f4500d79374eb6441f6cc4bc481f49be1ae2762bc",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x084",
+      "split": "stroke-expansion-development",
+      "category": "game_cg",
+      "pixelSHA256": "1cebeab569d254e0dad81f0682757c32c04f583e319dd6fecbf8d8a3f1a474af",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x085",
+      "split": "stroke-expansion-development",
+      "category": "game_cg",
+      "pixelSHA256": "439c48b7247312d59bb1c806baed8c60d7eee4aa1ed6e5bd715a25d56e42cd1c",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x086",
+      "split": "stroke-expansion-development",
+      "category": "game_cg",
+      "pixelSHA256": "be2d9022eae41b480ef9c35c09210d6b683dbf5617b9fa3fd55e0436cacc0105",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x087",
+      "split": "stroke-expansion-confirmation",
+      "category": "game_cg",
+      "pixelSHA256": "baa9ef645e963c68a11c389b71a54aa997caa12143ea33215b0dbca4228290a5",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x088",
+      "split": "stroke-expansion-development",
+      "category": "game_cg",
+      "pixelSHA256": "297b176e3aa29b68a3b2ca3a4f465724f5811bc2e7d62ad1170ba01216083431",
+      "expectedStroke": null,
+      "scored": false,
+      "note": "Dark edge is indistinguishable from a one-sided shadow and black backing."
+    },
+    {
+      "id": "x089",
+      "split": "stroke-expansion-development",
+      "category": "game_cg",
+      "pixelSHA256": "01130ddeca2b39c2fa4d0b54e4948ea23980295fb337a7dbf83ea19793c0f10b",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x090",
+      "split": "stroke-expansion-development",
+      "category": "game_cg",
+      "pixelSHA256": "9013364fd93c935bb4f75985eb745759020c827137bbeb24022186beff3c858e",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x091",
+      "split": "stroke-expansion-confirmation",
+      "category": "game_cg",
+      "pixelSHA256": "425881287eccd7eec595c397b39692da45d845db7168ba27a57e4b3141eacb1f",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x092",
+      "split": "stroke-expansion-development",
+      "category": "game_cg",
+      "pixelSHA256": "51edc4485d59a1ca4021d7a152be90ad3c834935607af3282c3801e82c09778e",
+      "expectedStroke": [
+        40,
+        42,
+        36
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x093",
+      "split": "stroke-expansion-development",
+      "category": "game_cg",
+      "pixelSHA256": "23ffcaf5eb775d3f472fe24c04ac661d028705c9e2e949a836426e74980f79da",
+      "expectedStroke": [
+        242,
+        230,
+        240
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x094",
+      "split": "stroke-expansion-development",
+      "category": "game_cg",
+      "pixelSHA256": "f42213ff8db58d8742cfe9b1421128920b8020dce9ae87caacd3563ef79ce4cc",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x095",
+      "split": "stroke-expansion-confirmation",
+      "category": "game_cg",
+      "pixelSHA256": "0758baf24a0335fa93898214d36fdb78bd992e08d133a444e72aef1d3b5b7f23",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x096",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "95c663aca930d1cd012ca525e2f6a36ac01ac58f1e69b86d6948cacfb8891368",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x097",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "9af2be4f79437bdc226747a9d0af491622599aceb1a8d133a6808caf7529d79b",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x098",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "e931e33b2eb6d94d9e03900e062934f1bf234f3420838439b771b41732752f94",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x099",
+      "split": "stroke-expansion-confirmation",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "0bdf20b676013aee1577d6d156a51c6ac4695adcb6a92958adec373547ab5eae",
+      "expectedStroke": [
+        255,
+        255,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x100",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "5cf63a5a9e96f256367480b1ece742dd5ca3360df22ea8cd14f7dab79353d11c",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x101",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "54e87ef234ee16604b2955f1cb289a9eb196e4621c4c30451449781dbd78bd57",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x102",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "a94bfde87d4d7b4de4b81519324c2a7609599af8a4542b02fa3173b14079bbb2",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x103",
+      "split": "stroke-expansion-confirmation",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "6fc6614e4ab481e7ad8ac42c447532acf2e8c72b0e5ed2210e512b62160d5723",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x104",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "b81c8a0bcc97ca8ca4b5f8c64702f5b953ce57438d268913fbb45918c202b2ad",
+      "expectedStroke": [
+        26,
+        19,
+        23
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x105",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "d25c79bdfdb333b79dee5ceee66896a2fee5460929ddec49f74d859fab6eb646",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x106",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "a26eeb058a976a3c087f1d290c5695e29fd4ef6104216f305930b3f1e55228ff",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x107",
+      "split": "stroke-expansion-confirmation",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "4e043c84b3620147fe4b222e4abd4e56749aba349e225574235a8b5b160a5640",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x108",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "ec768c6bd40a212617776b3648eab8cba244a0dcb9b8305dcdfa29abfde635e5",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x109",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "6081148b074d81173d2ea1a54fd78ee86f244adc58c7ab997a841e951a3e1be4",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x110",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "abd8a4edda365e6c111e2bbfc329070c7901edf024b4eb31a31c80d876ba8281",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x111",
+      "split": "stroke-expansion-confirmation",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "9a05ba34660352dd9e4731909722d51c248ba538146e06c368e275ffad10036c",
+      "expectedStroke": [
+        60,
+        60,
+        59
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x112",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "fe2b1590b02bc1f120a3e838180edaf87c1319759f69aafb426de556604229c3",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x113",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "36e317682b5d8d8325442aa4a1274d893af4bc784099565be82f465c31325bbe",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x114",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "56412e8569117a5e654b8b30e241fb7cfcab339d95f5e0d9b041d19c2779fc83",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x115",
+      "split": "stroke-expansion-confirmation",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "de0840bea13e3ccdb64d1f60eb3f8e9ac1d4ce53f5349498d5c6bff025cf1ecb",
+      "expectedStroke": null,
+      "scored": false,
+      "note": "Illegible tiny blurred label."
+    },
+    {
+      "id": "x116",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "2b1cf92b19cd6d4fe2d84202b8a02d06ea4ec34de0df86c33e3eb8710e80f2b9",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x117",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "b99f6f218ac20da09a2a7b421ec0965c6bf81f52d5bf3e85cfd0923c2d9c15bd",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x118",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "f24baaf130a85cf6373aff072c91f94b17b0534b9dec7c241e96ba383d882eaa",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x119",
+      "split": "stroke-expansion-confirmation",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "179fa2bb3bdb8a8db899492732fa6daa08cd8affe0727cee32c3173ac0cbfd3e",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x120",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "f99bd303afa8e81e158865eb1c86329b2ad2ea73ddd06c571ace551b5ae0cd24",
+      "expectedStroke": [
+        255,
+        255,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x121",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "02500c1873c3f2bfc7e3cd7d12d3c09e08a9864627f64c6bb166b4efaf8ed262",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x122",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "a2681d202875507bd3da12450c0a1ba058779471f47af8ec1609ecc71336aed3",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x123",
+      "split": "stroke-expansion-confirmation",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "7bfeb9457f9445e443cd371e052f17c6d098cded66a3593a99a2664a7255b8ae",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x124",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "d45be8cc7f8e340b3f83b02d8c54ab5009e77802089fc2e8005acb9e641a0ed0",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x125",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "d95b145b1ae2093a334f965030aa0047f3297136589be4c7fb8fd23356e3bd19",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x126",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "ca620a0bdd003b02993c8788be43b35ceeb891692c45e2ec3bd831e04df37b22",
+      "expectedStroke": [
+        2,
+        1,
+        1
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x127",
+      "split": "stroke-expansion-confirmation",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "52f9179f4d10724a12bc816937fa18940fd0604a8d60744e15fbf091d66c2a06",
+      "expectedStroke": [
+        1,
+        1,
+        1
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x128",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "8bf936f2bdab167a02251f9da1c4e20777f8e695b370ff07c998e228b0bc6954",
+      "expectedStroke": null,
+      "scored": false,
+      "note": "Multicolored continuous glow, not a single-color outline."
+    },
+    {
+      "id": "x129",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "83e3044811172f26fc04b280c70aca05cc4abedd76af33d4a81793e158c244d1",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x130",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "55cd2bd6145c3ac2961f237133d42ab948b3a1536c468db5903d9e480b5ef52d",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x131",
+      "split": "stroke-expansion-confirmation",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "78858dbb60c7cc9538d2d5036c7e32258268b78c433539ccd43c8c543d643364",
+      "expectedStroke": [
+        7,
+        92,
+        124
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x132",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "6ab29d59e61dea02e37f5dd6512666386951179e01f612e0c1a2f7e7291eec33",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x133",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "620ad14373a6939b9b94ffd9b2396823fc16987d5d0f524a600e253d91605864",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x134",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "7611e6be521633bf8b90962ed1f29de38812d76a367b2a452be269a20fe297c1",
+      "expectedStroke": [
+        255,
+        252,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x135",
+      "split": "stroke-expansion-confirmation",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "22bcb14ea2a87be682cba749c8143d1f3491893a67b6bd7ec7ac54820df7fc77",
+      "expectedStroke": [
+        0,
+        0,
+        0
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x136",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "26374b45e9b80939eb8e5cad34479b9fba62b97b5bced22a9569cc31dfa770b8",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x137",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "9039d2072d2373ce22047c8af4d89fad1c0c92c822b81d8b5baaecdcb0d034eb",
+      "expectedStroke": [
+        255,
+        255,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x138",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "e129e8a48d12ae2345bade14e801f050e190928860d51ced9f16af67464df9ce",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x139",
+      "split": "stroke-expansion-confirmation",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "146a9934aa6757935c6782a05296995f249c46c76d0286d1da557c5cbaffb4e0",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x140",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "010c58a17c9b6edcde01e55d7f78932cdad2a0c8908701d567e8a2ff36d6979d",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x141",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "757bc86009959ca72356e31a5450dfab3f57a7f6eaa5b4ac1a5f4d3eaa6f8049",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x142",
+      "split": "stroke-expansion-development",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "774b09972c813c9e685ccc58dc9692846d2ab5e1fdb5f4e4eb0905d921fb7ef5",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x143",
+      "split": "stroke-expansion-confirmation",
+      "category": "visual_novel_public_screenshot",
+      "pixelSHA256": "5bd5460e3a1d6770f168d0f70a09d25b762470078af414276f9a8f0c83bd1aaa",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x144",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "26e7c46a66de93ee88b3cea73b2f448a7677a8fed279b80a238c6b818340e2c0",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x145",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "58ad32c6cecc26a765486d19515e54dad1589e28a3d49fb7f7823e06da86390c",
+      "expectedStroke": [
+        0,
+        0,
+        0
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x146",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "f633f856875611e067289b9cd9e692441779a65b132c51039d7435725cff92fb",
+      "expectedStroke": [
+        255,
+        253,
+        253
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x147",
+      "split": "stroke-expansion-confirmation",
+      "category": "doujin_manga",
+      "pixelSHA256": "5050fefebad5f756b0e6725f601a39c392f5393a5b8d84e4302f34537de83790",
+      "expectedStroke": [
+        255,
+        254,
+        254
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x148",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "fd361589858cf0d6c588efcda84a6003eb735ecc6abb11f9eb6ce48da4c17ece",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x149",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "e795493ace6a33bd1453ac6d9dc1cf8a675099a6529ece97f9d033105bcfccd6",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x150",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "345090409b24861f719c2ef073e49c9478afc2329f39fe966e4ba2b4f9e980d0",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x151",
+      "split": "stroke-expansion-confirmation",
+      "category": "doujin_manga",
+      "pixelSHA256": "e6f5e7bcdfe9cf5afba9bb4168ce0031e06716c0f05f84d1afda09305e9d23f5",
+      "expectedStroke": [
+        255,
+        255,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x152",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "5897449a3e8aacd36119044b791d25e6f78c034311933e6e974b45d3d27e8b08",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x153",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "e7ac412f137186c2b627503f89f90d786ca88a7b414b05a4d84935bdfcd524b3",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x154",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "b8856de4579db225b5db3faface47695d6355d7f7a5d1c274c6837dbb79eb1f6",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x155",
+      "split": "stroke-expansion-confirmation",
+      "category": "doujin_manga",
+      "pixelSHA256": "5836c3ba89768c523665c79ce532c09f5a05387dd2c3e885c227dfc3ce921d13",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x156",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "1510698dd7f6d6fdfd0380119130ba5620c4085aff598b1be6049f706180e49c",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x157",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "8cedcb23e2513c21526fcedad4f048523bd6bdb6ec89ee856552ad4d55051d59",
+      "expectedStroke": [
+        255,
+        255,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x158",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "f0831bd7907c0f81c80a363a7a655d9b730f036c7eaa398a4dc276f2ef1d2bc0",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x159",
+      "split": "stroke-expansion-confirmation",
+      "category": "doujin_manga",
+      "pixelSHA256": "c24ef376485775d3ca7255242a96f0aeb6584af6fb992c33bb6e53d0d50dad9c",
+      "expectedStroke": [
+        255,
+        255,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x160",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "ff6d7ca561b35f9c58c29036cbb22555512b93bc74280261dc7a304c92fa4c3f",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x161",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "5b8621d93fa1a3c826b8763dd966380c6b4fdf08ae1ff45fc925976ff356ff25",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x162",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "5cb45d264597f416fa9df5f8ef7087a6ca534480c419a87f99e781aed8441bf3",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x163",
+      "split": "stroke-expansion-confirmation",
+      "category": "doujin_manga",
+      "pixelSHA256": "6e6da209744f8cb34ca8ea105988b85160bfc7302bcace1e771521fe27c0919b",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x164",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "846a4e74d0ef730618233a6ed5549a04ee1a96fa7a7584a88da11a92c2dfdb8f",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x165",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "bc190efbdda265535b8ba261932373602286a38f8fdcbecf2529b8ef09abd5f6",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x166",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "51740bec3905270a9db449d658caa06579e87da7c1ddd6fb494d282c27bc8cbe",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x167",
+      "split": "stroke-expansion-confirmation",
+      "category": "doujin_manga",
+      "pixelSHA256": "1247c541839cca61d7ea77df82c12f5a211e63e55c88c21d10d8d2a35c3287c9",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x168",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "62762b18e901cc2592820caa763576f8528bbf6f511a10e73fd2494b490b400e",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x169",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "7e7d8de478fcc1f7d3e566be78b419a9df75a8f0c859b8304442b52c6e2f9240",
+      "expectedStroke": [
+        255,
+        255,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x170",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "9010a0dc48f072c75b8bb53698da0ec737ad39cd647ea248e80f8179387ae014",
+      "expectedStroke": [
+        249,
+        253,
+        252
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x171",
+      "split": "stroke-expansion-confirmation",
+      "category": "doujin_manga",
+      "pixelSHA256": "78cb55e89ad8f8d208e63c46c71f3649531f21e62c4ba05e680be1f3ef35b984",
+      "expectedStroke": [
+        1,
+        1,
+        1
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x172",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "7fcaa07ba1ae3e7b782256367e25bd0fc41fa389402f50f6fbf819a1190581b5",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x173",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "2341047f6a7237705f1116b51e444dce1153095a561aa15ca691a52e5df367e1",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x174",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "1dbfd4769108fc1894c84c9ac0ffb5347fe57860f2b5656d65a1c03045e3346f",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x175",
+      "split": "stroke-expansion-confirmation",
+      "category": "doujin_manga",
+      "pixelSHA256": "f9dd11827b79d16e9de8926f5cbf6139b19beee094951ca2e4dc92afab191787",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x176",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "85e625338515790142cbac3d516a0ba8483de882c90e28af08b09787dacbcd9c",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x177",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "9bcca064a8fb1ac377cfffbbab264cb11a51c40090929b4522688deb92dda77e",
+      "expectedStroke": [
+        254,
+        253,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x178",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "c69ccda1cd50f3f39c75cd5651ebef067167eaefaa4f295a418f8abff0d10dfa",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x179",
+      "split": "stroke-expansion-confirmation",
+      "category": "doujin_manga",
+      "pixelSHA256": "0b2529cccfe1df225360ca014a63de8e658d164dece84a54ef8758026e2d07ba",
+      "expectedStroke": [
+        179,
+        179,
+        179
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x180",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "4d2ffbf940922c20841b4d3f4f6b068e8def9c4eae250022f07d0ee2cb78ecde",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x181",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "731e12b8d6923e77751309a6185ad40c871aff1a66f76a8d10f528216dc469b0",
+      "expectedStroke": [
+        255,
+        255,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x182",
+      "split": "stroke-expansion-development",
+      "category": "doujin_manga",
+      "pixelSHA256": "60737bb9587d61a5990d8ff1569bc5b5830210c898536d9e58be3bd2739bad20",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x183",
+      "split": "stroke-expansion-confirmation",
+      "category": "doujin_manga",
+      "pixelSHA256": "70c868c1659c7bb1ed2b0f98887aea0938c52d6efb6a01515053d230960a45af",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x184",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "7594cfcf48c34b68bf8e8c43da86e172aef1a5fe1d3f5c9981b0816da5130f03",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x185",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "d51eb1689a8ca4a6f68d59ef5c7214145742458540ca6144e529f5a7354fd667",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x186",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "05d3559cef29a1749ff4b71fa63441ddbcda93fd839f57ed2e2d5c2db457a31f",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x187",
+      "split": "stroke-expansion-confirmation",
+      "category": "manga",
+      "pixelSHA256": "7ca4bc95e683226b06494ca1f190ffcd5bfe2f067e5f318c82c5d99707d0ae49",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x188",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "f4082424d5058018ac1e301c4df70e1b54bc3e7cadce7cfec5c3bf484f150575",
+      "expectedStroke": [
+        254,
+        254,
+        254
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x189",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "62c077aba4075f7f11ffcd62ab5d3c8e5628bbf65641beb1de8131430cfd56ca",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x190",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "9a3a9968da6b154f8e45e34477d7c99687be70708d1be29f51f25ff70a068db5",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x191",
+      "split": "stroke-expansion-confirmation",
+      "category": "manga",
+      "pixelSHA256": "48bf324f8a0f50d41f6c2f591b875c869df5faaa89fa4ecc87498d03aa4c346c",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x192",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "f72fc45e3db1404f0d3e2b234660bde9b95a4f0259ab7b616ed47a98fd9b38b7",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x193",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "c7bf8ce203e3c61a3a8d92f5bf579a6a8fcc3c54a2a342a65fe5dac6a3c2c176",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x194",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "80a8ff67726de55fec7bf3b4dc24580c8c4d9118d7178c48682b262811a74283",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x195",
+      "split": "stroke-expansion-confirmation",
+      "category": "manga",
+      "pixelSHA256": "21accc4202d420c392c9ded3757fb459152c35e300bf8d63ac3013613dd68136",
+      "expectedStroke": [
+        254,
+        254,
+        254
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x196",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "f7b0af53a89f8d8c97b90404872f04b83423078ff8ba14889c801b360c8cca67",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x197",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "31ef3701c4c252ca67f66942511f98bb06a55cf0c8530235ce2b77043aa7d8bd",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x198",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "896c8440e073e31fe2c0ef3c8e7a85c9ec4ac00e9bd0151aaf5500ae9ca7b5ae",
+      "expectedStroke": [
+        254,
+        254,
+        254
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x199",
+      "split": "stroke-expansion-confirmation",
+      "category": "manga",
+      "pixelSHA256": "bca616b86d382026e0d24660b22b8bf213355be3346c58bdb0c5f0cc3a99f2fd",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x200",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "4e3584cf04a43280919f2f7b7c223cf597510cdfe815149c5bc9889d579e10bd",
+      "expectedStroke": null,
+      "scored": false,
+      "note": "White ink on black hatching; a separate black stroke is not independently visible."
+    },
+    {
+      "id": "x201",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "3249405b07c7ebdf9ad3a4f1116ac5dc2d82a1780ba5bcc6c2f6c943857ded4b",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x202",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "f9c3551202136b129c0a56497ac77c64f2888fc7bca4480eafd17b6113a14c89",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x203",
+      "split": "stroke-expansion-confirmation",
+      "category": "manga",
+      "pixelSHA256": "3e23d5d362bc38a2b8df8c1a4b9da7b264b97f52e7c1af54dfe861a504f8aa87",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x204",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "44f2a4466bd26f0a820a4d39cff942c801a632f6782a6cd0da5f2e249d8cb95d",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x205",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "5f06dd90bcb2725fa7e6ea6be2f51037e15086cad2f63679a50149806e5f8d02",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x206",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "1f82f4a6c9083bffeb13880fbd4a78a2e8a22703fe9df412b2b001184df86b47",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x207",
+      "split": "stroke-expansion-confirmation",
+      "category": "manga",
+      "pixelSHA256": "ceec4106da45408c02824eada93de70d90203a9036dfd203547698e846351886",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x208",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "bde52e153f455b4da35373c40894a48904d9ba541a41ee42898e7e3fa247bbbe",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x209",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "dd2f17610509bcbdaf8f88713dcc5f8d40aaf46c49c50c4602d3645a8f24a992",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x210",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "c8e7ce45c2e555059b8ee2d081bf1b25759f9f1a36d3cc79376f99c5078d643a",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x211",
+      "split": "stroke-expansion-confirmation",
+      "category": "manga",
+      "pixelSHA256": "d9d05c56eea9bd899cdbb35491eb9e65a777f6997b3f3e5c1eaed22d301e4839",
+      "expectedStroke": [
+        255,
+        255,
+        255
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x212",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "00ba129142dc24e0ebd4c7b409a8777764873f426909b38c247c773e3e33664a",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x213",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "8ffeaad01b9664535b0a71dacf412e857c6ed36ea5aa82754b4ce7fc76cf6ccf",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x214",
+      "split": "stroke-expansion-development",
+      "category": "manga",
+      "pixelSHA256": "9fb49129332b460a861bf4d235287ec9156dd62ff4ed8a1533431b7a72ab247d",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x215",
+      "split": "stroke-expansion-confirmation",
+      "category": "manga",
+      "pixelSHA256": "4364db87ce4c422aa84045395fc90bf1f2a04615d034cab3a0dc22db68dab933",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x216",
+      "split": "stroke-expansion-development",
+      "category": "vertical_comic_segment",
+      "pixelSHA256": "bd9edef54070def27df4097273f4837977d0ced71f041e9ddf58dbb05f67c6dc",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x217",
+      "split": "stroke-expansion-development",
+      "category": "vertical_comic_segment",
+      "pixelSHA256": "64bbe1fd50488d3a0d630f525d95a453750b1d9580c917a13c83eb249f902e10",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x218",
+      "split": "stroke-expansion-development",
+      "category": "vertical_comic_segment",
+      "pixelSHA256": "566883e9a263fc43b91a2c1b7bbf156c56367f92ef119b4f6108632b1e3a25ef",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x219",
+      "split": "stroke-expansion-confirmation",
+      "category": "vertical_comic_segment",
+      "pixelSHA256": "d82eb12d463edf8f1ca0c7a1f723b1b894e979e2b5b903eead4bba64e594cd39",
+      "expectedStroke": [
+        0,
+        0,
+        0
+      ],
+      "scored": true,
+      "note": "Visible primary enclosing edge reviewed before predictions."
+    },
+    {
+      "id": "x220",
+      "split": "stroke-expansion-development",
+      "category": "vertical_comic_segment",
+      "pixelSHA256": "0d528cdfdc3ab9e8e5c363f7551dd2eff760ae04f73521a2e423028b4ade7dcd",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x221",
+      "split": "stroke-expansion-development",
+      "category": "vertical_comic_segment",
+      "pixelSHA256": "926453ff05b1d65750ace2d0583b1f3fdd3eb205b91b2e926447ed24a3578ac6",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x222",
+      "split": "stroke-expansion-development",
+      "category": "vertical_comic_segment",
+      "pixelSHA256": "8af5b29b7dfab57217cfd5e3b8b65109612b1b6aeab78278fa8fecee6c72cae8",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x223",
+      "split": "stroke-expansion-confirmation",
+      "category": "vertical_comic_segment",
+      "pixelSHA256": "a66ef5429a1744876e2b83bddd8d49379f8a44ab8e1cee3c257e356f4c56270e",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x224",
+      "split": "stroke-expansion-development",
+      "category": "vertical_comic_segment",
+      "pixelSHA256": "aea00eea1d638fc02cbe775c08b77193aa31baab336e4af0427e757edd209401",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x225",
+      "split": "stroke-expansion-development",
+      "category": "vertical_comic_segment",
+      "pixelSHA256": "09b50baed1bff23910744b8a5abbd9949b252b73cb49f25b58752e988d17d405",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x226",
+      "split": "stroke-expansion-development",
+      "category": "vertical_comic_segment",
+      "pixelSHA256": "6dcce2058ccce2578c138f0fcdf703f094af179da73a1d1796801e2e0d01d7a1",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    },
+    {
+      "id": "x227",
+      "split": "stroke-expansion-confirmation",
+      "category": "vertical_comic_segment",
+      "pixelSHA256": "08cda9f5a12ca1ecfbc7492a803931b76f0979a5d9ca3cce6cc57f93b1ccb72a",
+      "expectedStroke": null,
+      "scored": true,
+      "note": "No distinct glyph-following stroke; backing/frame/antialias pixels are not outlines."
+    }
+  ],
+  "selection": {
+    "seed": 23092607,
+    "excludedEvaluationGroups": [
+      ".A-ドットアリス-",
+      "723遇見你",
+      "BLACK SHEEP",
+      "Kaguya-sama: Love is War",
+      "Madder & Teal",
+      "Original Hinatazaka",
+      "Oshi no Ko",
+      "SKET DANCE",
+      "Stray Sheep／ジャンプ＋漫画賞 2026年1-2月期",
+      "THE MARSHAL KING",
+      "We Want To Talk About Kaguya",
+      "a-hero-and-a-garden",
+      "a-letter-of-challenge",
+      "a-pet-shop-after-dark",
+      "a-tavern-for-tea",
+      "another-piece-of-candy",
+      "bad-end-theater",
+      "by heart",
+      "casting-hearts",
+      "contract-demon",
+      "first-kiss-at-a-spooky-soiree",
+      "ghosts-in-the-garden",
+      "https://69gate.itch.io/touhougensokyo",
+      "https://actor-select-team.itch.io/actor-select",
+      "https://akuparagames.itch.io/cabernet",
+      "https://alexisroyce.itch.io/may-i-take-your-order",
+      "https://ant-san.itch.io/prinhero",
+      "https://arghbulous.itch.io/a-cup-of-eternity",
+      "https://ashstickyrice.itch.io/d3v0ur",
+      "https://astaysdev.itch.io/afterlight-stays",
+      "https://axetrax1.itch.io/job-hunting-9000-deluhx",
+      "https://bad-pet.itch.io/devil-express",
+      "https://batstudios47.itch.io/lightmyway",
+      "https://bebakk.itch.io/liminal-cowboy",
+      "https://blacktabbygames.itch.io/scarlet-hollow",
+      "https://bug-studio.itch.io/detective-time",
+      "https://chattercap.itch.io/mindmindmind",
+      "https://cinnamew.itch.io/dermimis",
+      "https://classof09.itch.io/demo",
+      "https://coffeedripstudios.itch.io/allele-origin",
+      "https://cointinuegames.itch.io/midnight-ramen-demo",
+      "https://coolom-games.itch.io/datingkillmulator",
+      "https://dancingengie.itch.io/adhd",
+      "https://deadline-co.itch.io/fools-paradise",
+      "https://deadline-co.itch.io/pig",
+      "https://delucat.itch.io/bloody-painter-dating-sim",
+      "https://devilinlovegames.itch.io/the-winter-wedding",
+      "https://devourfish.itch.io/perfect-roommate",
+      "https://dhidhiand.itch.io/double-troubles-blossoming",
+      "https://dino999z.itch.io/therapy-with-dr-albert-krueger",
+      "https://doksa.itch.io/amber-eyes",
+      "https://doppie.itch.io/narinig-mo-ba",
+      "https://drowsy-drake-studios.itch.io/cryptid-crush",
+      "https://ebihime.itch.io/lonely",
+      "https://ebihime.itch.io/my-darling-dark-elf",
+      "https://ekkoberry.itch.io/hot-cocoa-magic",
+      "https://ekkoberry.itch.io/just-kiss-him-already",
+      "https://elseth.itch.io/recurse",
+      "https://eric666o.itch.io/ranfren-not-lucid-swap",
+      "https://etherane.itch.io/hg",
+      "https://fluuen.itch.io/i-became-an-evil-witch-that-cursed-the-male-lead",
+      "https://fluuen.itch.io/the-wolf-wears-red",
+      "https://foxpancakes.itch.io/its-a-promise",
+      "https://galdra.itch.io/arcadia-fallen",
+      "https://gbpatch.itch.io/our-life",
+      "https://guaridagames.itch.io/kittengumi",
+      "https://hamiltonhour.itch.io/halloween-scrooge",
+      "https://hase-im-haus.itch.io/childhood-love",
+      "https://highschoolstudios.itch.io/high-school-stories",
+      "https://himeiro.itch.io/kleinv01-demo",
+      "https://honeybunny-of.itch.io/bound-inferno",
+      "https://honeybunny-of.itch.io/subjectluv",
+      "https://iorionstudio.itch.io/vampires-kiss-time-paradox",
+      "https://isattt.itch.io/gentle-fall",
+      "https://izuminokai.itch.io/lies",
+      "https://jul1xan-productions.itch.io/you-make-this-house-a-home",
+      "https://kigyo.itch.io/locked",
+      "https://kittenstealth.itch.io/speared-by-heart",
+      "https://klast-halc.itch.io/villainess-fate",
+      "https://kumakumaf.itch.io/sanbiki",
+      "https://ladyoph3lia.itch.io/loveangelsyndrome",
+      "https://lemone2d.itch.io/countryhumans-dating-sim",
+      "https://linglyum.itch.io/loving-decays",
+      "https://lunahamu.itch.io/amaoto-to-nemu-no-yoru",
+      "https://madnessway.itch.io/corpse-party-bloodcovered-visual-novel",
+      "https://mahoumaiden.itch.io/reflexia-prototype-ver",
+      "https://marysuegames.itch.io/cupids-kiss",
+      "https://mcryxstudios.itch.io/insomnia-jeff-the-killer",
+      "https://meowdy-nio.itch.io/i-can-fix-him",
+      "https://milkkylemon.itch.io/yukis-4p-2",
+      "https://mirage1607.itch.io/pantsu-hunter",
+      "https://mookichuu.itch.io/overdose",
+      "https://moonlustgames.itch.io/underheavenorhell",
+      "https://mushroomallow.itch.io/edda-cafe",
+      "https://mysteryjamgames.itch.io/aim-to-capture",
+      "https://mythridate.itch.io/danganronpa-lapse",
+      "https://niceed.itch.io/lullaby-for-me",
+      "https://night-asobu.itch.io/parasite-in-love",
+      "https://nightlightwrks.itch.io/bloom",
+      "https://nikita-kryukov.itch.io/milk-outside-a-bag-of-milk-outside-a-bag-of-milk",
+      "https://nikkonator5000.itch.io/fire-on-the-mountain",
+      "https://novalibraria.itch.io/inside-utopia",
+      "https://npckc.itch.io/tomato-clinic",
+      "https://ozoneinteractive.itch.io/canidae",
+      "https://p6ik.itch.io/hamiduki",
+      "https://p6ik.itch.io/yamedomo",
+      "https://pale-autumn-days.itch.io/kill-him-or-become-his-prey",
+      "https://prikarin.itch.io/killer-trait",
+      "https://pushtdarlingx.itch.io/cafe-drop-demo",
+      "https://racheldrawsthis.itch.io/married-in-red",
+      "https://rae1347.itch.io/tender-lovin-cannibal",
+      "https://ravenstar-games.itch.io/lost-in-limbo",
+      "https://redspringstudio.itch.io/touchstarved",
+      "https://ronkad.itch.io/welcome-dear-human",
+      "https://rosemilkstudio.itch.io/salvusariesdemo",
+      "https://rosesrot.itch.io/killer-chat-expanded",
+      "https://rossaredflyn.itch.io/teach-me-how-to-love",
+      "https://saitoki.itch.io/hardship-of-a-vampire-the-ghosts-call",
+      "https://soffis-mbm.itch.io/to-eat-a-god",
+      "https://sourmiiiilk.itch.io/my-sweet-housemate",
+      "https://sourmiiiilk.itch.io/online-obsession",
+      "https://soyeah01.itch.io/bunkerman-blues",
+      "https://spar0w.itch.io/bigbaddogs",
+      "https://spicaze.itch.io/silver-thread",
+      "https://steamknight.itch.io/neonnoir",
+      "https://studiochiffon.itch.io/softly-with-teeth-demo",
+      "https://studiowasp.itch.io/red-spider-vengeance",
+      "https://sweetsomestudio.itch.io/strange-tales-from-longchun-sacrifice",
+      "https://sweetsomestudio.itch.io/to-put-your-childhood-sweetheart-into-a-refrigerator",
+      "https://syllphana.itch.io/rotten-angel",
+      "https://syllphana.itch.io/sweetest-valentine",
+      "https://synstoria.itch.io/imperial-grace",
+      "https://tamafry.itch.io/wolfskins-curse",
+      "https://teamdd-official.itch.io/holostories",
+      "https://teamsalvato.itch.io/ddlc",
+      "https://tomyself.itch.io/interact-with-me",
+      "https://try-froggery.itch.io/myosotis",
+      "https://tymedust.itch.io/inversed",
+      "https://tymedust.itch.io/poetry-in-purgatory",
+      "https://vinillust.itch.io/that-new-diner",
+      "https://visualnoveler.itch.io/nezori",
+      "https://viv8k.itch.io/ss-twilightrailway",
+      "https://winkingcorvid.itch.io/love-limit",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01007933.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01024313.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01033154.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01036247.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01037516.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01053688.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01062659.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01068933.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01069026.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01072600.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01084934.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01086559.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01088136.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01090054.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01090161.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01106456.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01107518.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01131426.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01134951.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01139716.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01166355.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01167140.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01177875.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01188167.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01189724.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01202722.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01292288.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01320751.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01352790.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01438711.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01446381.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01465714.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01486854.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01489730.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01503764.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01510004.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01515155.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01515240.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01515383.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01515401.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01516360.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01519340.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01525733.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01529349.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01529612.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01531709.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01532190.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01532693.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01533281.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01534196.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01538430.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01542909.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01543232.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01554433.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01555986.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01557013.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01564407.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01578282.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01586672.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01599290.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01612836.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01615586.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01618100.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01618171.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01618625.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01637767.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01649432.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01652037.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01652748.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01657258.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01657335.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01677837.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01677841.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01678890.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01680501.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01680854.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01682412.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01685426.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01688792.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01690025.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01690978.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01692223.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01693453.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01693765.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01694154.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01694894.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01694951.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01700580.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01701500.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01702942.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01704858.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01705427.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01705451.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01705725.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ01712147.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ040095.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ105341.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ112820.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ128951.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ187307.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ191320.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ191784.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ200414.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ205808.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ221177.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ240463.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ249371.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ257512.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ258838.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ268383.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ273989.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ277170.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ279611.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ284310.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ285045.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ289446.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ296794.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ299378.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ301654.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ307294.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ313896.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ316160.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ333713.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ333951.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ336829.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ338904.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ344692.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ353316.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ356128.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ360958.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ361002.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ366058.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ367017.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ378836.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ384868.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ385431.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ387020.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ405357.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ405363.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ406698.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ408200.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ408482.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ409713.html",
+      "https://www.dlsite.com/home/work/=/product_id/RJ410936.html",
+      "https://xenubinstudios.itch.io/carnival",
+      "https://yanagimoto.itch.io/when-the-moon-still-smiling",
+      "https://yellow-chocobo.itch.io/pheonixs-tear",
+      "https://yorubox.itch.io/dont-pick-up-stray-aliens",
+      "https://yorubox.itch.io/mistbound",
+      "https://zakurosuke.itch.io/severedlove",
+      "https://zeddyzi.itch.io/pine-point-insomniac",
+      "lilac-and-her-light",
+      "little-boats-of-farewell",
+      "magicalwitchbell",
+      "one-night-hot-springs",
+      "sns-creator:47_isarida",
+      "sns-creator:82_tbk",
+      "sns-creator:Agamalgam",
+      "sns-creator:CANYON_2019",
+      "sns-creator:Geobubabi",
+      "sns-creator:MIU00001882",
+      "sns-creator:Sa_ku_ra147",
+      "sns-creator:ShizueSan_Lunch",
+      "sns-creator:Takesan_1113",
+      "sns-creator:Theodore_kr",
+      "sns-creator:_matasaburo_",
+      "sns-creator:_sc_0401",
+      "sns-creator:_sonolemon",
+      "sns-creator:akagire_ita",
+      "sns-creator:amayamacaroon",
+      "sns-creator:amk0525",
+      "sns-creator:amtk0601",
+      "sns-creator:anaya1ankou",
+      "sns-creator:ayataross",
+      "sns-creator:barbe_papa_",
+      "sns-creator:biri_EX",
+      "sns-creator:cheesesama24",
+      "sns-creator:cocopaaahn",
+      "sns-creator:cocorow556",
+      "sns-creator:erizou",
+      "sns-creator:fujiwarayu",
+      "sns-creator:gedatu_tyu2",
+      "sns-creator:ggggteketeke",
+      "sns-creator:gojyobako",
+      "sns-creator:ham555",
+      "sns-creator:hibiki_hibino",
+      "sns-creator:hirokokokoron",
+      "sns-creator:honma_nmn",
+      "sns-creator:inu_eat_inu",
+      "sns-creator:k_pmaki",
+      "sns-creator:key_goto_da",
+      "sns-creator:koube_neko",
+      "sns-creator:ktnrgmk",
+      "sns-creator:kyoru8_2021",
+      "sns-creator:lunaticmonster",
+      "sns-creator:maedax_x",
+      "sns-creator:majide_isudake",
+      "sns-creator:maronda369",
+      "sns-creator:mh200014",
+      "sns-creator:mi3roku6",
+      "sns-creator:michiko_fever",
+      "sns-creator:mikemo_mochi",
+      "sns-creator:nagaibangoudane",
+      "sns-creator:nakineiriko",
+      "sns-creator:nakiringo",
+      "sns-creator:natanakane",
+      "sns-creator:natsukoni81",
+      "sns-creator:ngnchiikawa",
+      "sns-creator:noritamage",
+      "sns-creator:omame_tofu1022",
+      "sns-creator:picoyukina",
+      "sns-creator:place_uso",
+      "sns-creator:poco__SG",
+      "sns-creator:ruuiruiruirui",
+      "sns-creator:sora00_hotaru",
+      "sns-creator:sourenhou",
+      "sns-creator:sukake90",
+      "sns-creator:sunamangakaku",
+      "sns-creator:tadanotoribird",
+      "sns-creator:tenpura_powder",
+      "sns-creator:three_kingdom_s",
+      "sns-creator:toraongood",
+      "sns-creator:torimomo_mi",
+      "sns-creator:toyopi_unravel",
+      "sns-creator:urwataru",
+      "sns-creator:wktk999",
+      "sns-creator:xtu_k",
+      "sns-creator:yagikunn1733",
+      "sns-creator:yajima_en",
+      "sns-creator:yashi09",
+      "sns-creator:yozakura_2929",
+      "sns-creator:yukiRPM",
+      "sns-creator:yunamaro21",
+      "sns-creator:yuuneko55",
+      "starry-flowers",
+      "syrup-and-the-ultimate-sweet",
+      "treat-complete",
+      "あなた達それでも先生ですかっ！",
+      "おかえり水平線",
+      "こういうのがいい",
+      "さいごのしれんとともに／26年7月期JUMP新世界漫画賞／週刊少年ジャンプ",
+      "つづら先輩は元カノだから",
+      "どこよりも遠い場所にいる君へ",
+      "ひめごえ",
+      "みんな〇んじゃえ",
+      "やめろ好きになってしまう",
+      "アナーキーな新学期！",
+      "ウマ娘 プリティーダービー スターブロッサム",
+      "シャドウハント／26年4月期JUMP新世界漫画賞／週刊少年ジャンプ",
+      "スイッチバッテリー",
+      "スケバンゴリラ",
+      "ストレイエデン",
+      "スライム聖女",
+      "ダンダダン",
+      "ツチノコ大作戦／26年5月期JUMP新世界漫画賞／週刊少年ジャンプ",
+      "ドリームパートナー",
+      "ドリーム・ホープ・クローバー／U23ジャンプ＋漫画賞",
+      "ニシトーキョーメタルブラザーズ",
+      "ビタースイートナイトシェード",
+      "ピューと吹く！ジャガー",
+      "ファイアーエムブレム 万紫千紅",
+      "ヘル・ベジタブル/2026年4月期ブロンズルーキー賞",
+      "メカマガハラ",
+      "メランコ・キリング",
+      "不完全傑作のすゝめ／26年5月期JUMP新世界漫画賞／週刊少年ジャンプ",
+      "不良純愛",
+      "世界を繋ぎ尽くすインターネット巫女",
+      "中點遇到愛",
+      "人斬り与四郎のその後／ジャンプ＋漫画賞 2026年3-4月期",
+      "今天人家是女生",
+      "今日騎士",
+      "以燮的戀愛",
+      "体目当てじゃダメですか/2026年7月期ブロンズルーキー賞",
+      "先育兒再戀愛",
+      "公會裡的偶像大大",
+      "出租中，頂加設計師",
+      "初戀標籤",
+      "劍尊歸來",
+      "厄介幽霊の恋愛指南",
+      "只想守護溫柔的你",
+      "史詩級領地設計師",
+      "外送打手",
+      "夫婦と16歳",
+      "奈米魔神 第二季",
+      "奴隷遊戯DIDI",
+      "好想被你騙",
+      "妻の名前を星に付けた人",
+      "婚姻醜聞保衛戰",
+      "少女的世界",
+      "廢墟中的皇女",
+      "恨意少女",
+      "戀愛評評理",
+      "成為反派惡角的贊助者",
+      "星耀劍士",
+      "最強の剣聖と賢者のもとに転生した俺は無自覚無双する",
+      "朱に染む",
+      "来見沢善彦の愚行",
+      "極權教師",
+      "母單脫單大作戰",
+      "渡御",
+      "溫柔的入侵者",
+      "無敵のスバル",
+      "異世界對社恐不太友善",
+      "私、メリーさん。/2026年5月期ブロンズルーキー賞",
+      "第一人稱兄妹視角",
+      "絕症天才暗黑騎士",
+      "続テルマエ・ロマエ",
+      "群脳教室",
+      "聖母の断罪",
+      "能不能喜歡黑木君",
+      "與新老公的復仇計畫",
+      "蜜月大正浪漫譚",
+      "裝備仔",
+      "詛咒少女的戀愛法則",
+      "読心貴族～男女比1：99世界の悪役令息～",
+      "謝絕社內戀愛！",
+      "貸マチョ屋",
+      "車輪の跡",
+      "重生毒后護唐門",
+      "金剛伝説特霊課",
+      "雲雀と鶴",
+      "顔",
+      "高みの鷹見さん",
+      "黑化暴君偏執的愛沒有盡頭"
+    ]
+  },
+  "annotationErrata": [
+    {
+      "id": "x034",
+      "before": [
+        125,
+        131,
+        134
+      ],
+      "after": [
+        248,
+        253,
+        255
+      ],
+      "reason": "Corrected swatch-index transcription to the originally reviewed white or black edge. No presence label, scoring status, crop or tolerance changed."
+    },
+    {
+      "id": "x035",
+      "before": [
+        72,
+        72,
+        72
+      ],
+      "after": [
+        6,
+        6,
+        6
+      ],
+      "reason": "Corrected swatch-index transcription to the originally reviewed white or black edge. No presence label, scoring status, crop or tolerance changed."
+    },
+    {
+      "id": "x134",
+      "before": [
+        58,
+        36,
+        26
+      ],
+      "after": [
+        255,
+        252,
+        255
+      ],
+      "reason": "Corrected swatch-index transcription to the originally reviewed white or black edge. No presence label, scoring status, crop or tolerance changed."
+    },
+    {
+      "id": "x159",
+      "before": [
+        229,
+        229,
+        229
+      ],
+      "after": [
+        255,
+        255,
+        255
+      ],
+      "reason": "Corrected swatch-index transcription to the originally reviewed white or black edge. No presence label, scoring status, crop or tolerance changed."
+    },
+    {
+      "id": "x219",
+      "before": [
+        87,
+        95,
+        97
+      ],
+      "after": [
+        0,
+        0,
+        0
+      ],
+      "reason": "Corrected swatch-index transcription to the originally reviewed white or black edge. No presence label, scoring status, crop or tolerance changed."
+    }
+  ]
+}

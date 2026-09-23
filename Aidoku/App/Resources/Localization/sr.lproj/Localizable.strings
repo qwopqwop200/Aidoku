@@ -112,7 +112,7 @@
 "SORT_UNREAD_CHAPTERS" = "Непрочитана поглавља";
 "RELOAD" = "Поново учитај";
 "%i_OF_%i" = "%i од %i";
-"%i_PAGES_LEFT" = "%i страница преостало";
+"%i_PAGES_LEFT" = "Преостале странице: %i";
 "ONE_PAGE_LEFT" = "1 страница преостала";
 "FAILED_CHAPTER_LOAD" = "Неуспело учитавање поглавља";
 "SORT_LAST_UPDATED" = "Последње ажурирано";
@@ -120,7 +120,7 @@
 "FAILED_CHAPTER_LOAD_INFO" = "Можда сте офлајн или извор има проблема.";
 "WEBTOON" = "Вебтун";
 "REMOVE_FROM_CATEGORY" = "Уклони из категорије";
-"%i_CHAPTERS" = "%i поглавља";
+"%i_CHAPTERS" = "Поглавља: %i";
 "1_CHAPTER" = "1 поглавље";
 "UPCOMING" = "Надолазеће";
 "ADD_TO_CATEGORIES" = "Додај у категорије";
@@ -324,7 +324,7 @@
 "MIGRATE" = "Мигрирај";
 "AVAILABLE" = "Доступно";
 "FIRST_ALTERNATIVE" = "Прва алтернатива";
-"MIGRATE_%i_ITEMS?" = "Мигрирај %i ставки?";
+"MIGRATE_%i_ITEMS?" = "Мигрирати изабране ставке (број: %i)?";
 "IS_TRACKING" = "Праћење";
 "ALL_CHAPTERS_READ" = "Сва поглавља прочитана";
 "PILLARBOX_ORIENTATION_INFO" = "Изаберите оријентације екрана у којима ће се приказивати бочне маргине.";
@@ -334,7 +334,7 @@
 "MANGA_UPDATES" = "Ажурирања";
 "NO_UPDATES" = "Нема ажурирања";
 "%lld_PLUS_MORE" = "+%lld више";
-"SKIPPING_CHAPTERS" = "Прескакање %i поглавља, или их извор нема или су филтрирана";
+"SKIPPING_CHAPTERS" = "Прескачу се поглавља која недостају у извору или су издвојена филтером (број: %i)";
 "DELETE_DOWNLOAD_AFTER_READING" = "Обриши преузето након читања";
 "NO_SCANLATOR" = "Нема скен-преводиоца";
 "SCANLATOR" = "Скен-преводилац";
@@ -583,7 +583,7 @@
 "DOWNLOADED_CHAPTERS" = "Преузета поглавља";
 "DOWNLOAD_INCOMPLETE" = "Непотпуно преузимање";
 "TOTAL_DOWNLOADS" = "Укупна величина преузимања";
-"%i_SERIES" = "%i серија";
+"%i_SERIES" = "Серије: %i";
 "IN_LIBRARY" = "У библиотеци";
 "VIEW_SERIES" = "Прикажи серију";
 "VIEW_FILES" = "Прикажи датотеке";
@@ -610,9 +610,9 @@
 "LAYOUT_GRID" = "Мрежа";
 "LAYOUT_LIST" = "Листа";
 "REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Уклањање ставке из библиотеке";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "Уклањање %i ставки из библиотеке";
+"REMOVING_%i_ITEMS_FROM_LIBRARY" = "Уклањање из библиотеке (број ставки: %i)";
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "Уклањање ставке из категорије %@";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Уклањање %i ставки из категорије %@";
+"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Уклањање ставки (број: %i) из категорије %@";
 "REFRESHING_LIBRARY" = "Освежавање библиотеке манга…";
 "PROCESSING_ENTRIES" = "Обрада уноса…";
 "REFRESH_NO_WIFI" = "Није повезан на Ви-Фи";
@@ -701,12 +701,12 @@
 "NEW_SERIES_TEXT" = "Направите нову серију за ову датотеку";
 "SELECT_SERIES" = "Изаберите серију";
 "VOLUME_CHAPTER_INVALID_ERROR" = "Поглавље са овом конфигурацијом већ постоји.";
-"VOLUME_CHAPTER_EMPTY_ERROR" = "Потребан је број свеске и/или поглавља.";
+"VOLUME_CHAPTER_EMPTY_ERROR" = "Потребан је број тома и/или поглавља.";
 "SERIES_TITLE_UNIQUE_ERROR" = "Серија са овим насловом већ постоји.";
 "SERIES_TITLE_EMPTY_ERROR" = "За нову серију мора бити наведен наслов.";
 "CREATE_NEW_SERIES_INFO" = "Нова серија ће бити креирана на следећој страници или можете изабрати постојећу серију у коју ћете додати ову датотеку.";
 "ADD_TO_OTHER_SERIES_INFO" = "Датотека ће бити додата изабраној серији.";
-"%i_PAGES" = "%i странице";
+"%i_PAGES" = "Странице: %i";
 "1_PAGE" = "1 страница";
 "CBZ_NAME" = "Зип архива стрипова";
 "ZIP_NAME" = "Зип архива";
@@ -734,7 +734,7 @@
 "DISPLAY_VOLUME" = "Том";
 "USE_CHAPTERS" = "Користите поглавља";
 "USE_CHAPTERS_TEXT" = "Третирајте књиге као поглавља уместо томова";
-"%@_BOOKS" = "%@ књига";
+"%@_BOOKS" = "Књиге: %@";
 "1_BOOK" = "1 књига";
 "ON_DECK" = "Следеће за читање";
 "KEEP_READING" = "Наставите да читате";
@@ -828,7 +828,7 @@
 "PORTRAIT_ROWS" = "Број колона у усправном приказу";
 "LANDSCAPE_ROWS" = "Број колона у положеном приказу";
 "RESUME_LAST_OPENED_CHAPTER" = "Настави последње отворено поглавље";
-"CONTINUE_READING_ON_RESELECT" = "Двапут додирните картицу Историја да бисте наставили читање";
+"CONTINUE_READING_ON_RESELECT" = "Поново додирни картицу Историја за наставак читања";
 "DOWNLOADED_CHAPTER_BADGES" = "Ознаке преузетих поглавља";
 "PIN_TITLES" = "Закачи наслове";
 "PIN_DISABLED" = "Качење је онемогућено";
@@ -838,9 +838,9 @@
 "NEW_CHAPTER_NOTIFICATIONS" = "Обавештења о новом поглављу";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Шаљите обавештења када се библиотека освежи у позадини.";
 "1_NEW_CHAPTER_AVAILABLE" = "Ново поглавље доступно";
-"X_NEW_CHAPTERS_AVAILABLE" = "%d Доступна су нова поглавља";
+"X_NEW_CHAPTERS_AVAILABLE" = "Доступна нова поглавља: %d";
 "NEW_CHAPTERS_AVAILABLE" = "Доступна су нова поглавља";
-"X_SERIES_HAVE_NEW_CHAPTERS" = "%d серија има нова поглавља";
+"X_SERIES_HAVE_NEW_CHAPTERS" = "Серије са новим поглављима: %d";
 "EVERY_6_HOURS" = "Сваких 6 сати";
 "NO_RESULTS_FOR_%@" = "Нема резултата за “%@”";
 "NO_RESULTS_TEXT" = "Проверите правопис или покушајте нову претрагу.";
@@ -861,7 +861,7 @@
 "SERIES_SINGULAR" = "Серија";
 "HOUR_PLURAL" = "Сати";
 "HOUR_SINGULAR" = "Сат";
-"ALL_TIME" = "За сва времена";
+"ALL_TIME" = "Цео период";
 "THIS_MONTH" = "Овог месеца";
 "THIS_YEAR" = "Ове године";
 "UNAVAILABLE_SOURCE_LISTS" = "Недоступне листе извора";
@@ -870,7 +870,7 @@
 "LEGACY_SOURCE_LIST" = "Листа извора у старом формату";
 "LEGACY_SOURCE_LIST_WARNING" = "Упозорење: листа извора у старом формату";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Тренутно имате подешену листу извора у старом формату. Овај формат је застарео и престаће да ради у будућој верзији Aidoku. Иако за сада и даље ради, препоручује се да пронађете замену и подесите је у Подешавања > Листе извора.";
-"UPSCALING" = "Повећање";
+"UPSCALING" = "Повећање резолуције";
 "UPSCALE_IMAGES" = "Повећај резолуцију слика";
 "UPSCALING_MODELS" = "Модели за повећање резолуције";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "Максимална висина слике";
@@ -917,10 +917,10 @@
 "LOOKUP_GESTURE_LONG_PRESS_INFO" = "Држањем на почетку речи ће се истаћи, а отпуштањем ће се активирати искачући прозор. Ово онемогућава брзе радње на страници када је омогућено.";
 "LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Закључано гестом тражења: један додир.";
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Закључано гестом тражења: дуги притисак.";
-"DICTIONARY_TEXT_OVERLAY_MODE" = "ОЦР преклапање текста";
+"DICTIONARY_TEXT_OVERLAY_MODE" = "Приказ OCR текста преко слике";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Приказује оквире за текст на регионима слике када је тражење активирано. Ово може бити од помоћи да се утврди који текст је правилно препознао ОЦР.";
 "DICTIONARY_OVERLAY_PADDING" = "Унутрашње маргине текстуалног слоја";
-"DICTIONARY_OVERLAY_TEXT_SCALE" = "Величина текста преклапања";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "Величина текста преко слике";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Ограничите ОЦР језике";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Када је омогућено, само поглавља означена као изабрани језик(и) биће обрађена за ОЦР. Препоручује се да изаберете само језике за које имате увезене речнике.";
 "DICTIONARY_OCR_LANGUAGES" = "ОЦР језици";
@@ -953,7 +953,7 @@
 "REMOVE_WORD" = "Уклони реч";
 "VOCABULARY" = "Вокабулар";
 "1_WORD" = "1 реч";
-"%i_WORDS" = "%i речи";
+"%i_WORDS" = "Речи: %i";
 "NO_VOCABULARY" = "Нема сачуваних речи";
 "NO_VOCABULARY_TEXT" = "Сачувани речник ће се појавити овде.";
 "DEFINITION" = "Дефиниција";
@@ -1009,7 +1009,7 @@
 "AUTO_SYNC_HISTORY" = "Аутоматски синхронизујте историју";
 "AUTO_SYNC_HISTORY_INFO" = "Када сервис за праћење забележи даљи напредак у читању поглавља и/или томова, локална историја читања се ажурира да би се с њим ускладила.";
 "SYNC_WITH_TRACKER" = "Синхронизуј са сервисом за праћење";
-"SYNC_WITH_TRACKER_INFO_%i" = "Према сервису за праћење, %i поглавља је већ прочитано. Желите ли да их означите као прочитана?";
+"SYNC_WITH_TRACKER_INFO_%i" = "Број већ прочитаних поглавља према сервису за праћење: %i. Желите ли да их означите као прочитана?";
 "SYNC_WITH_TRACKER_INFO_1" = "Према сервису за праћење, 1 поглавље је већ прочитано. Желите ли да га означите као прочитано?";
 "UNAVAILABLE_TRACKER_ITEM" = "Недоступна ставка за праћење";
 "UNAVAILABLE_TRACKER_ITEM_INFO" = "Ова повезана ставка припада сервису за праћење који више није доступан. Уклоните ставку или се поново пријавите на одговарајући сервис.";
@@ -1147,3 +1147,28 @@
 "TRANSLATION_FILTERING" = "Филтрирање текста";
 
 "TRANSLATION_TARGETS" = "Шта преводити";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Странице: %i / %i";
+"1_SERIES" = "1 серија";
+"SKIPPING_ONE_CHAPTER" = "Прескаче се 1 поглавље јер недостаје у извору или је издвојено филтером";
+"BACKUP_CREATE_ERROR_TEXT" = "Није могуће направити резервну копију. Покушајте поново.";
+"YES" = "Да";
+"NO" = "Не";
+"CHAPTERS_%i_OF_%i" = "Поглавља: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Није могуће додати наслов за праћење. Покушајте поново.";
+"SORT_READ_PROGRESS" = "Напредак читања";
+"SORT_RELEASE_YEAR" = "Година издања";
+"SOURCE_INVALID_PAGE_COUNT" = "Неважећи број страница";
+"SOURCE_INVALID_GENRE_ID" = "Неважећи ID жанра";
+"SOURCE_INVALID_LISTING" = "Неважећа листа";
+"SOURCE_INVALID_LISTING_TYPE" = "Неважећа врста листе";
+"SOURCE_INVALID_ITEM_TYPE" = "Неважећа врста ставке";
+"DICTIONARY_ERROR" = "Грешка речника";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Није могуће сачувати подешавања речника: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Није могуће увести изабране речнике:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Неке речнике није могуће увести:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Увоз речника није успео.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Обиман јапанско-енглески речник који одржава Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Речник јапанских властитих имена који одржава Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Фреквенцијски речник заснован на медијском корпусу са https://jiten.moe.";

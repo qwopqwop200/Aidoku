@@ -102,47 +102,58 @@ struct TrackerView: View {
                 }
             }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 104))], spacing: 12) {
-                TrackerSettingOptionView(
-                    NSLocalizedString("STATUS"),
-                    type: .menu,
-                    options: info.supportedStatuses.map { $0.toString() },
-                    selectedOption: $statusOption
-                )
-                TrackerSettingOptionView(
-                    NSLocalizedString("CHAPTERS"),
-                    type: .counter,
-                    count: $lastReadChapter,
-                    total: Binding.constant(state?.totalChapters != nil ? Float(state!.totalChapters!) : nil)
-                )
-                TrackerSettingOptionView(
-                    NSLocalizedString("VOLUMES"),
-                    type: .counter,
-                    count: $lastReadVolume,
-                    total: Binding.constant(state?.totalVolumes != nil ? Float(state!.totalVolumes!) : nil)
-                )
-                TrackerSettingOptionView(NSLocalizedString("STARTED"), type: .date, date: $startReadDate)
-                TrackerSettingOptionView(NSLocalizedString("FINISHED"), type: .date, date: $finishReadDate)
+                if !info.supportedStatuses.isEmpty {
+                    TrackerSettingOptionView(
+                        NSLocalizedString("STATUS"),
+                        type: .menu,
+                        options: info.supportedStatuses.map { $0.toString() },
+                        selectedOption: $statusOption
+                    )
+                }
+                if state?.progressUnit.supportsChapters == true {
+                    TrackerSettingOptionView(
+                        NSLocalizedString("CHAPTERS"),
+                        type: .counter,
+                        count: $lastReadChapter,
+                        total: Binding.constant(state?.totalChapters != nil ? Float(state!.totalChapters!) : nil)
+                    )
+                }
+                if state?.progressUnit.supportsVolumes == true {
+                    TrackerSettingOptionView(
+                        NSLocalizedString("VOLUMES"),
+                        type: .counter,
+                        count: $lastReadVolume,
+                        total: Binding.constant(state?.totalVolumes != nil ? Float(state!.totalVolumes!) : nil)
+                    )
+                }
+                if info.supportsReadingDates {
+                    TrackerSettingOptionView(NSLocalizedString("STARTED"), type: .date, date: $startReadDate)
+                    TrackerSettingOptionView(NSLocalizedString("FINISHED"), type: .date, date: $finishReadDate)
+                }
 
-                switch info.scoreType {
-                    case .tenPoint:
-                        TrackerSettingOptionView(NSLocalizedString("SCORE"), count: $score, total: Binding.constant(10))
-                    case .hundredPoint:
-                        TrackerSettingOptionView(NSLocalizedString("SCORE"), count: $score, total: Binding.constant(100))
-                    case .tenPointDecimal:
-                        TrackerSettingOptionView(NSLocalizedString("SCORE"), count: $score, total: Binding.constant(10), numberType: .float)
-                    case .optionList:
-                        TrackerSettingOptionView(
-                            NSLocalizedString("SCORE"),
-                            type: .menu,
-                            options: info.scoreOptions.map { $0.0 },
-                            selectedOption: $scoreOption
-                        )
+                if info.supportsScores {
+                    switch info.scoreType {
+                        case .tenPoint:
+                            TrackerSettingOptionView(NSLocalizedString("SCORE"), count: $score, total: Binding.constant(10))
+                        case .hundredPoint:
+                            TrackerSettingOptionView(NSLocalizedString("SCORE"), count: $score, total: Binding.constant(100))
+                        case .tenPointDecimal:
+                            TrackerSettingOptionView(NSLocalizedString("SCORE"), count: $score, total: Binding.constant(10), numberType: .float)
+                        case .optionList:
+                            TrackerSettingOptionView(
+                                NSLocalizedString("SCORE"),
+                                type: .menu,
+                                options: info.scoreOptions.map { $0.0 },
+                                selectedOption: $scoreOption
+                            )
+                    }
                 }
             }
         }
         .padding([.top, .horizontal])
         // handle state updates
         .onChange(of: score) { newValue in
+            guard info.supportsScores else { return }
             let new = newValue != nil ? info.scoreType == .tenPointDecimal ? Int(newValue! * 10) : Int(newValue!) : nil
             guard state?.score != new else { return }
             state?.score = new
@@ -150,6 +161,7 @@ struct TrackerView: View {
             stateUpdated = true
         }
         .onChange(of: scoreOption) { newValue in
+            guard info.supportsScores else { return }
             let new = newValue.flatMap { info.scoreOptions[safe: $0]?.1 }
             guard state?.score != new else { return }
             state?.score = new
@@ -157,9 +169,10 @@ struct TrackerView: View {
             stateUpdated = true
         }
         .onChange(of: statusOption) { newValue in
+            guard !info.supportedStatuses.isEmpty else { return }
             let new = newValue.flatMap { info.supportedStatuses[safe: $0] }
             guard state?.status != new else { return }
-            if new == .completed || new == .dropped {
+            if info.supportsReadingDates && (new == .completed || new == .dropped) {
                 finishReadDate = Date()
             }
             state?.status = new
@@ -167,12 +180,14 @@ struct TrackerView: View {
             stateUpdated = true
         }
         .onChange(of: lastReadChapter) { newValue in
+            guard state?.progressUnit.supportsChapters == true else { return }
             guard state?.lastReadChapter != newValue else { return }
             state?.lastReadChapter = newValue
             update.lastReadChapter = newValue
             stateUpdated = true
         }
         .onChange(of: lastReadVolume) { newValue in
+            guard state?.progressUnit.supportsVolumes == true else { return }
             let new = newValue != nil ? Int(floor(newValue!)) : nil
             guard state?.lastReadVolume != new else { return }
             state?.lastReadVolume = new
@@ -180,13 +195,13 @@ struct TrackerView: View {
             stateUpdated = true
         }
         .onChange(of: startReadDate) { newValue in
-            guard state?.startReadDate != newValue else { return }
+            guard info.supportsReadingDates, state?.startReadDate != newValue else { return }
             state?.startReadDate = newValue
             update.startReadDate = newValue == nil ? Date(timeIntervalSince1970: 0) : newValue
             stateUpdated = true
         }
         .onChange(of: finishReadDate) { newValue in
-            guard state?.finishReadDate != newValue else { return }
+            guard info.supportsReadingDates, state?.finishReadDate != newValue else { return }
             state?.finishReadDate = newValue
             update.finishReadDate = newValue == nil ? Date(timeIntervalSince1970: 0) : newValue
             stateUpdated = true

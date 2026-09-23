@@ -123,6 +123,71 @@ NativeCoreMLOCRLine(polygon: [CGPoint(x: 675, y: 435), CGPoint(x: 688, y: 438), 
         }
     }
 
+    @Test(arguments: [-35.0, -25, -8, 8, 25, 35])
+    func mergingRotatedColumnsKeepsTheOriginalAxes(degrees: Double) throws {
+        let angle = degrees * .pi / 180
+        func column(_ text: String, x: Double) -> NativeCoreMLOCRLine {
+            let corners = [CGPoint(x: x, y: 0), CGPoint(x: x + 28, y: 0),
+                           CGPoint(x: x + 28, y: 150), CGPoint(x: x, y: 150)]
+            return NativeCoreMLOCRLine(polygon: corners.map {
+                CGPoint(x: 300 + $0.x * cos(angle) - $0.y * sin(angle), y: 300 + $0.x * sin(angle) + $0.y * cos(angle))
+            }, text: text, score: 0.99, orientation: .vertical, orientationIsEstimated: true)
+        }
+        let result = merge([column("高級住宅だ", x: 38), column("僕達の家だ", x: 0)], width: 1000, height: 1000)
+        #expect(result.count == 1)
+        let polygon = try #require(result.first).poly.map { CGPoint(x: $0.x, y: $0.y) }
+        let geometry = try #require(BrowserOverlayRotation.geometry(polygon: polygon))
+        #expect(abs(geometry.radians - angle) < 0.001)
+    }
+
+    @Test(arguments: [-78.0, -55, -45, -25, 25, 45, 55, 78], [false, true])
+    func rotatedRubyRetainsItsOriginalQuad(degrees: Double, vertical: Bool) throws {
+        // Actual Haikyu horizontal name and Japanese vertical reading geometry,
+        // transformed together; full-size kana remains an independent control.
+        let a = CGFloat(degrees * .pi / 180)
+        func row(_ text: String, _ r: CGRect) -> NativeCoreMLOCRLine {
+            let points = [CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.minY),
+                          CGPoint(x: r.maxX, y: r.maxY), CGPoint(x: r.minX, y: r.maxY)]
+            return NativeCoreMLOCRLine(polygon: points.map { CGPoint(x: 400 + $0.x * cos(a) - $0.y * sin(a),
+                y: 400 + $0.x * sin(a) + $0.y * cos(a)) }, text: text, score: 0.98,
+                orientation: vertical ? .vertical : .horizontal, orientationIsEstimated: true)
+        }
+        let body = row(vertical ? "高級住宅" : "影山飛雄", vertical ? CGRect(x: 0, y: 0, width: 32, height: 150) : CGRect(x: 0, y: 0, width: 142, height: 42))
+        let ruby = row(vertical ? "じゅうたく" : "かげやま", vertical ? CGRect(x: 29, y: 72, width: 13, height: 52) : CGRect(x: 3, y: -9, width: 72, height: 16))
+        for input in [[body, ruby], [ruby, body]] {
+            let result = merge(input, width: 1000, height: 1000)
+            #expect(result.count == 1)
+            let merged = try #require(result.first)
+            #expect(merged.text == body.text)
+            #expect(merged.auxiliaryInkPolygons == [ruby.polygon])
+            let decoded = try JSONDecoder().decode(PaddleOCRLine.self, from: JSONEncoder().encode(merged))
+            #expect(decoded.auxiliaryInkPolygons == [ruby.polygon])
+        }
+        // Real DB detections may start on the long edge. Preserve their exact
+        // polygon while using the writing axis for ruby ownership.
+        for offset in 1...3 {
+            func shifted(_ line: NativeCoreMLOCRLine) -> NativeCoreMLOCRLine {
+                NativeCoreMLOCRLine(polygon: (0..<4).map { line.polygon[($0 + offset) % 4] },
+                    text: line.text, score: line.score, orientation: line.orientation, orientationIsEstimated: true)
+            }
+            let reading = shifted(ruby)
+            let result = merge([shifted(body), reading], width: 1000, height: 1000)
+            #expect(result.map(\.text) == [body.text])
+            #expect(result.first?.auxiliaryInkPolygons == [reading.polygon])
+        }
+        let fullSize = row("それ", vertical ? CGRect(x: 38, y: 72, width: 32, height: 68) : CGRect(x: 0, y: -50, width: 72, height: 42))
+        #expect(merge([body, fullSize], width: 1000, height: 1000).map(\.text).joined().contains("それ"))
+        let semanticBody = row("世界", vertical ? CGRect(x: 0, y: 0, width: 32, height: 100) : CGRect(x: 0, y: 0, width: 100, height: 42))
+        let semanticRuby = row("わたし", vertical ? CGRect(x: 29, y: 15, width: 13, height: 52) : CGRect(x: 3, y: -9, width: 60, height: 16))
+        #expect(merge([semanticBody, semanticRuby], width: 1000, height: 1000).map(\.text) == ["世界《わたし》"])
+        if vertical {
+            let single = row("に", CGRect(x: 29, y: 30, width: 10, height: 16))
+            let uncertain = NativeCoreMLOCRLine(polygon: single.polygon, text: single.text,
+                score: single.score, orientation: .unknown, orientationIsEstimated: true)
+            #expect(merge([body, uncertain], width: 1000, height: 1000).map(\.text) == [body.text])
+        }
+    }
+
     @Test func realComics3000RubyHandlesSingleKanaTiltAndIncompleteRecognition() {
         // Original medium-model detections, preserved at source resolution.
         // Work-level holdout comic-1605 was evaluated after freezing the rule.

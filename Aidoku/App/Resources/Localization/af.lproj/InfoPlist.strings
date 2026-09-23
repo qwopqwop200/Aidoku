@@ -2,4 +2,4 @@
 
 // Completed app localization
 "CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "Aidoku koppel aan jou persoonlike vertaalbediener wanneer sy adres op jou plaaslike netwerk is.";
+"NSLocalNetworkUsageDescription" = "Aidoku koppel aan mangabedieners en jou persoonlike vertaalbediener wanneer hul adresse op jou plaaslike netwerk is.";

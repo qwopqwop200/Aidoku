@@ -158,7 +158,7 @@ enum NativeOCRTextLineMerger {
                 retained.append((index, fallback([native])[0]))
             }
         }
-        let filtered = inheritHorizontalInlineGlyphs(suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(suppressSlantedVerticalRuby(lines))))
+        let filtered = inheritHorizontalInlineGlyphs(suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(suppressSlantedHorizontalRuby(suppressSlantedVerticalRuby(lines)))))
         let semanticRuby = semanticRubyAnnotations(in: lines, retained: filtered)
         let rubyInk = suppressedRubyInk(in: lines, retained: filtered)
         let merged = mergeConservativeTextLines(
@@ -175,7 +175,8 @@ enum NativeOCRTextLineMerger {
                 score: line.confidence,
                 orientationRaw: line.orientation.source.rawValue,
                 singleVerticalColumn: line.singleVerticalColumn,
-                auxiliaryInkRects: rubyInk.filter { line.box.contains($0.parent) }.map(\.reading)
+                auxiliaryInkRects: rubyInk.filter { line.box.contains($0.parent) }.map(\.reading),
+                auxiliaryInkPolygons: rubyInk.filter { line.box.contains($0.parent) }.map(\.polygon)
             ))
         }
         return (merged + retained).sorted { $0.index < $1.index }.map(\.line)
@@ -183,18 +184,18 @@ enum NativeOCRTextLineMerger {
 
     // Retain only readings attributed to exactly one surviving body. Suppression
     // affects transcription, never ownership of pixels that must be removed.
-    private static func suppressedRubyInk(in lines: [Line], retained: [Line]) -> [(parent: CGRect, reading: CGRect)] {
+    private static func suppressedRubyInk(in lines: [Line], retained: [Line]) -> [(parent: CGRect, reading: CGRect, polygon: [CGPoint])] {
         let kept = Set(retained.map(\.index))
         let spatial = NativeOCRSpatialIndex(boxes: retained.map(\.box))
         return lines.filter { !kept.contains($0.index) }.compactMap { reading in
             let candidates = spatial.indices(intersecting: reading.box.insetBy(
                 dx: -reading.box.width, dy: -reading.box.height)).filter { index in
                 let pair = [retained[index], reading]
-                return !suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(suppressSlantedVerticalRuby(pair)))
+                return !suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(suppressSlantedHorizontalRuby(suppressSlantedVerticalRuby(pair))))
                     .contains { $0.index == reading.index }
             }
             guard candidates.count == 1, let index = candidates.first else { return nil }
-            return (retained[index].box, reading.box)
+            return (retained[index].box, reading.box, reading.polygon)
         }
     }
 
@@ -223,15 +224,27 @@ enum NativeOCRTextLineMerger {
                 let parent = lines[index]
                 guard parent.index != reading.index, kept.contains(parent.index) else { return nil }
                 let pair = [parent, reading]
-                let keptPair = suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(pair))
+                let keptPair = suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(
+                    suppressSlantedHorizontalRuby(suppressSlantedVerticalRuby(pair))))
                 return keptPair.contains(where: { $0.index == reading.index }) ? nil : parent
             }
             guard candidates.count == 1, let parent = candidates.first else { continue }
             let chars = Array(parent.text)
             let vertical = parent.orientation == .vertical
             let length = vertical ? parent.box.height : parent.box.width
-            let position = ((vertical ? reading.box.midY : reading.box.midX) -
+            var position = ((vertical ? reading.box.midY : reading.box.midX) -
                 (vertical ? parent.box.minY : parent.box.minX)) / length * CGFloat(chars.count)
+            if parent.polygon.count == 4 {
+                let p = NativeOCRScopeGeometry.canonicalQuad(parent.polygon, vertical: vertical) ?? parent.polygon
+                let start = vertical ? CGPoint(x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2)
+                    : CGPoint(x: (p[0].x + p[3].x) / 2, y: (p[0].y + p[3].y) / 2)
+                let end = vertical ? CGPoint(x: (p[2].x + p[3].x) / 2, y: (p[2].y + p[3].y) / 2)
+                    : CGPoint(x: (p[1].x + p[2].x) / 2, y: (p[1].y + p[2].y) / 2)
+                let dx = end.x - start.x, dy = end.y - start.y, squared = dx * dx + dy * dy
+                if squared > 0 {
+                    position = ((reading.box.midX - start.x) * dx + (reading.box.midY - start.y) * dy) / squared * CGFloat(chars.count)
+                }
+            }
             func isHan(_ char: Character) -> Bool {
                 char.unicodeScalars.contains { (0x3400...0x4DBF).contains($0.value) ||
                     (0x4E00...0x9FFF).contains($0.value) || $0.value == 0x3005 }
@@ -313,17 +326,49 @@ enum NativeOCRTextLineMerger {
     /// only the geometry avoids inflated bounding boxes masquerading as large
     /// type. Full-size kana, different slopes, and semantic katakana readings
     /// retain the existing conservative behavior.
+    private static func suppressSlantedHorizontalRuby(_ lines: [Line]) -> [Line] {
+        func angle(_ line: Line) -> CGFloat? {
+            guard line.orientation == .horizontal, line.polygon.count == 4 else { return nil }
+            let p = NativeOCRScopeGeometry.canonicalQuad(line.polygon, vertical: false) ?? line.polygon, a = atan2(p[1].y - p[0].y, p[1].x - p[0].x)
+            let bottom = atan2(p[2].y - p[3].y, p[2].x - p[3].x)
+            guard abs(a) >= 0.04, abs(a) <= 80 * .pi / 180, abs(a - bottom) <= 0.08 else { return nil }
+            return a
+        }
+        let spatial = NativeOCRSpatialIndex(boxes: lines.map(\.box))
+        var removed = Set<Int>()
+        for parent in lines {
+            guard let tilt = angle(parent), parent.text.unicodeScalars.contains(where: { (0x3400...0x9FFF).contains($0.value) }) else { continue }
+            func aligned(_ line: Line) -> Line {
+                let points = line.polygon.map { CGPoint(x: $0.x * cos(tilt) + $0.y * sin(tilt),
+                                                       y: -$0.x * sin(tilt) + $0.y * cos(tilt)) }
+                return Line(index: line.index, text: line.text, confidence: line.confidence,
+                    box: boundingBox(points), polygon: rectanglePolygon(boundingBox(points)), orientationHint: line.orientationHint,
+                    orientation: line.orientation, singleVerticalColumn: line.singleVerticalColumn)
+            }
+            let body = aligned(parent)
+            for index in spatial.indices(intersecting: parent.box.insetBy(dx: -body.box.height, dy: -body.box.height)) {
+                let reading = lines[index]
+                guard reading.index != parent.index, let slope = angle(reading), abs(slope - tilt) <= 0.08 else { continue }
+                if !suppressSeparateHorizontalRuby([body, aligned(reading)]).contains(where: { $0.index == reading.index }) {
+                    removed.insert(reading.index)
+                }
+            }
+        }
+        return lines.filter { !removed.contains($0.index) }
+    }
+
     private static func suppressSlantedVerticalRuby(_ lines: [Line]) -> [Line] {
         func angle(_ line: Line) -> CGFloat? {
-            guard line.orientation == .vertical, line.polygon.count == 4 else { return nil }
-            let p = line.polygon
+            guard (line.orientation == .vertical || line.text.count == 1 && line.orientationHint == .unknown),
+                  line.polygon.count == 4 else { return nil }
+            let p = NativeOCRScopeGeometry.canonicalQuad(line.polygon, vertical: true) ?? line.polygon
             let dx = (p[2].x + p[3].x - p[0].x - p[1].x) / 2
             let dy = (p[2].y + p[3].y - p[0].y - p[1].y) / 2
             guard dy > 0 else { return nil }
             return atan2(dx, dy)
         }
         let parents = lines.filter { line in
-            guard let tilt = angle(line), abs(tilt) >= 0.04, abs(tilt) <= 0.35 else { return false }
+            guard let tilt = angle(line), abs(tilt) >= 0.04, abs(tilt) <= 80 * .pi / 180 else { return false }
             return line.text.unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) }
         }
         guard !parents.isEmpty else { return lines }
@@ -339,14 +384,14 @@ enum NativeOCRTextLineMerger {
                 }
                 // Line geometry is immutable; all text/identity stays original.
                 return Line(index: copy.index, text: copy.text, confidence: copy.confidence,
-                    box: boundingBox(points), polygon: points, orientationHint: copy.orientationHint,
+                    box: boundingBox(points), polygon: rectanglePolygon(boundingBox(points)), orientationHint: copy.orientationHint,
                     orientation: copy.orientation, singleVerticalColumn: copy.singleVerticalColumn)
             }
             let body = aligned(parent)
-            for index in spatial.indices(intersecting: parent.box.insetBy(dx: -body.box.width, dy: 0)) {
+            for index in spatial.indices(intersecting: parent.box.insetBy(dx: -body.box.width, dy: -body.box.width)) {
                 let reading = lines[index]
                 guard reading.index != parent.index, let slope = angle(reading),
-                      abs(slope - tilt) <= 0.08, (2...12).contains(reading.text.count),
+                      abs(slope - tilt) <= 0.08, (1...12).contains(reading.text.count),
                       reading.text.unicodeScalars.allSatisfy({ (0x3041...0x3096).contains($0.value) || $0.value == 0x30FC })
                 else { continue }
                 if !suppressSeparateVerticalRuby([body, aligned(reading)]).contains(where: { $0.index == reading.index }) {
@@ -1194,7 +1239,7 @@ enum NativeOCRTextLineMerger {
             return left.line.box.minY < right.line.box.minY
         }
         let box = unionBoxes(ordered.map { $0.line.box })
-        let polygon = rectanglePolygon(box)
+        let polygon = mergedSourcePolygon(ordered.map(\.line), fallback: box)
         let weightedCharacters = ordered.reduce(0) {
             $0 + max(1, $1.line.text.count)
         }
@@ -2304,11 +2349,36 @@ enum NativeOCRTextLineMerger {
             text: text,
             confidence: geometricAreaWeightedConfidence(ordered),
             box: box,
-            polygon: rectanglePolygon(box),
+            polygon: mergedSourcePolygon(ordered.map(\.line), fallback: box),
             orientationHint: orientation.source,
             orientation: orientation,
             singleVerticalColumn: orientation == .vertical && oneVerticalColumn
         )
+    }
+
+    /// Merging text cannot discard the detector axes: that would restore an
+    /// upright rectangle across the illustration on a rotated page.
+    private static func mergedSourcePolygon(_ lines: [Line], fallback: CGRect) -> [CGPoint] {
+        let angles: [CGFloat] = lines.compactMap { line in
+            guard line.polygon.count == 4 else { return nil }
+            let p = line.singleVerticalColumn
+                ? (NativeOCRScopeGeometry.canonicalQuad(line.polygon, vertical: true) ?? line.polygon)
+                : line.polygon
+            let tx = p[1].x - p[0].x, ty = p[1].y - p[0].y
+            let bx = p[2].x - p[3].x, by = p[2].y - p[3].y
+            let lx = p[3].x - p[0].x, ly = p[3].y - p[0].y
+            let rx = p[2].x - p[1].x, ry = p[2].y - p[1].y
+            let w = hypot(tx, ty) + hypot(bx, by), h = hypot(lx, ly) + hypot(rx, ry)
+            guard w > 2, h > 2 else { return nil }
+            return atan2((ty + by) * w - (lx + rx) * h, (tx + bx) * w + (ly + ry) * h)
+        }
+        guard angles.count == lines.count else { return rectanglePolygon(fallback) }
+        let angle = angles.reduce(0, +) / CGFloat(angles.count)
+        guard abs(angle) >= .pi / 60, abs(angle) <= 80 * .pi / 180,
+              angles.allSatisfy({ abs($0 - angle) <= 0.1 }) else { return rectanglePolygon(fallback) }
+        let c = cos(angle), s = sin(angle)
+        let local = lines.flatMap(\.polygon).map { CGPoint(x: $0.x * c + $0.y * s, y: -$0.x * s + $0.y * c) }
+        return rectanglePolygon(boundingBox(local)).map { CGPoint(x: $0.x * c - $0.y * s, y: $0.x * s + $0.y * c) }
     }
 
     private static func geometricAreaWeightedConfidence(

@@ -20,6 +20,8 @@ const sourcePath = option('--source', path.join(overlayDirectory, 'BrowserSource
 const overlayPath = option('--overlay', path.join(overlayDirectory, 'BrowserOverlayView.swift'));
 const source = fs.readFileSync(sourcePath, 'utf8');
 const overlay = fs.readFileSync(overlayPath, 'utf8');
+const typography = fs.readFileSync(path.join(overlayDirectory, 'BrowserOverlayTypography.swift'), 'utf8')
+    .split('static let script = #"""')[1].split('"""#')[0];
 const helpersMatch = source.match(/static let script = """\r?\n([\s\S]*?)\r?\n    """/);
 assert.ok(helpersMatch, 'production source-color helpers must be present');
 function between(text, start, end) {
@@ -83,7 +85,7 @@ function element() {
         } };
 }
 const context = vm.createContext({ console, performance });
-vm.runInContext(decodeSwift(helpersMatch[1]) + `
+vm.runInContext(decodeSwift(helpersMatch[1]) + typography + `
     globalThis.production = {
         contrast: aidokuSourceColorContrast,
         render: fixture => {
@@ -96,6 +98,8 @@ vm.runInContext(decodeSwift(helpersMatch[1]) + `
             const scrollX = 0, scrollY = 0, cleanupImageGeometry = null;
             const inpaintingEnabled = Boolean(appearance?.inpaintingEnabled && appearance?.preserveSourceTextColor && appearance?.preserveSourceBackgroundColor);
             const captionTextReflows = new Map();
+            const artworkFirst = false;
+            const typographyInkFrames = new Map(fixture.priorInk ? [[item, fixture.priorInk]] : []);
             const cleanedDenseSourceItems = new Set();
             const restoredSourcePanels = new Set(fixture.restored ? [item] : []);
             const restoredPanelGeometry = new Map(fixture.restored || fixture.restoredGeometry ? [[item, {}]] : []);
@@ -247,10 +251,23 @@ test('readable white fill on a dark box is not replaced by its darker colored ou
  const result=render({opacity:1,sample:sample([251,251,251],[11,11,11],[96,54,28])});
  preserved(result,[251,251,251]);readable(result,[11,11,11]);noOutline(result);
 });
+for (const color of [[220,90,6],[1,1,1]]) for (const panel of [[230,210,180],[42,38,42]]) {
+ test(`spatially observed lettering color remains stable on ${panel}: ${color}`,()=>{
+  const result=render({opacity:1,sample:sample([253,251,246],panel,color,
+    {lettering:{color,pixels:20,bands:4,components:6}})});
+  assert.deepEqual(rgb(result.node),color);noOutline(result);
+ });
+}
 test('uncertain source backing still supplies its observed RGB instead of invented white',()=>{
  const result=render({opacity:1,sample:sample([224,95,68],[203,182,162],null,{confidence:{foreground:.75,background:.32}})});
  assert.equal(result.node.dataset.sourceAppliedBackgroundRGB,'203,182,162');
  assert.equal(result.node.dataset.captionSurface,'observed');
+});
+test('lettering-only palette finishes the caption pass without a missing foreground',()=>{
+ const color=[38,31,47];
+ const result=render({opacity:1,sample:sample(null,[230,215,240],null,{lettering:{color}})});
+ assert.deepEqual(rgb(result.node),color);noOutline(result);
+ assert.equal(result.node.dataset.sourceTextColorAdjusted,'false');
 });
 for (const enabled of [false, true]) for (const text of [false, true]) for (const background of [false, true]) {
  test(`inpainting requires both colors: enabled=${enabled}, text=${text}, background=${background}`,()=>{
@@ -265,6 +282,66 @@ for(const restored of [false,true])test(`inpainting fallback retains readable bo
   appearance:{inpaintingEnabled:true,preserveSourceTextColor:true,preserveSourceBackgroundColor:true}});
  assert.equal(result.root.dataset.readabilityPanels,'1');
  assert.equal(result.node.dataset.sourceBackgroundColor,'readability-panel');
+});
+for (const erased of [false, true]) test(`long source coverage follows committed erasure: ${erased}`, () => {
+ const result = render({restoredGeometry:erased,inside:false,
+  item:{id:7,sourceColorEligible:true,lightSurface:true,balancedColumn:true,
+   sourceFrame:[0,0,400,300],sourceBounds:[.25,.02,.05,.9]},
+  appearance:{inpaintingEnabled:true,preserveSourceTextColor:true,preserveSourceBackgroundColor:true}});
+ const panel=result.children.find(n=>n.attributes['data-aidoku-image-ocr-overlay']==='source-readability-panel'&&!n.dataset.sourceErasure);
+ assert.ok(panel,'unreadable text still needs an opaque caption');
+ assert.equal(parseFloat(panel.style.height)<80,!erased,'compact caption is used only when separate erasure is safe');
+ const source=result.children.find(n=>n.dataset.sourceErasure==='true');
+ assert.equal(Boolean(source),!erased,'only an unerased source needs a separate erasure plate');
+ if(source){
+  assert.ok(parseFloat(source.style.height)>270);
+  assert.ok(parseFloat(source.style.width)<=30,'erasure retains the original margin without filling caption corners');
+ }
+});
+for (const erased of [false, true]) test(`ordinary artwork retains its source plate: restored=${erased}`, () => {
+ const result=render({restoredGeometry:erased,inside:false,
+  item:{id:7,sourceColorEligible:true,lightSurface:true,
+   sourceFrame:[0,0,400,300],sourceBounds:[.25,.02,.05,.9]},
+  appearance:{inpaintingEnabled:true,preserveSourceTextColor:true,preserveSourceBackgroundColor:true}});
+ const panel=result.children.find(n=>n.attributes['data-aidoku-image-ocr-overlay']==='source-readability-panel');
+ assert.ok(parseFloat(panel.style.height)>270);
+});
+test('large source lettering is never left unerased to reduce a caption background', () => {
+ const result=render({
+  item:{id:7,sourceColorEligible:true,sourceTextOnly:false,lightSurface:true,
+   sourceFrame:[0,0,400,300],sourceBounds:[.02,.02,.95,.95]},
+  appearance:{inpaintingEnabled:true,preserveSourceTextColor:true,preserveSourceBackgroundColor:true}});
+ const panel=result.children.find(n=>n.attributes['data-aidoku-image-ocr-overlay']==='source-readability-panel');
+ assert.ok(panel);
+ const rect=panel.getBoundingClientRect();
+ assert.ok(rect.width>=380 && rect.height>=285);
+ assert.equal(result.node.dataset.sourceArtworkPreserved,undefined);
+});
+for (const text of [false, true]) test(`manual palette keeps the original erasure after column movement: text=${text}`, () => {
+ const result=render({item:{id:7,sourceColorEligible:true,lightSurface:true,balancedColumn:true,
+   sourceErasureRGB:[248,250,249],sourceFrame:[0,0,400,300],sourceBounds:[.25,.02,.05,.9]},
+  appearance:{preserveSourceTextColor:text,preserveSourceBackgroundColor:false}});
+ const erasure=result.children.find(n=>n.dataset.sourceErasure==='true');
+ assert.ok(erasure,'moving a column must not leave its colored source behind');
+ assert.ok(parseFloat(erasure.style.left)<=100 && parseFloat(erasure.style.top)<=6);
+ assert.ok(parseFloat(erasure.style.width)>=20 && parseFloat(erasure.style.height)>=270);
+ assert.equal(erasure.style.backgroundColor,'rgb(248,250,249)');
+});
+test('font harmonization keeps the previous ink coverage and padding', () => {
+ const priorInk={left:10,top:10,right:210,bottom:100,pad:5.175};
+ const result=render({fontSize:13,priorInk,sample:sample([10,10,10],[255,255,255])});
+ const panel=result.children.find(n=>n.attributes['data-aidoku-image-ocr-overlay']==='source-readability-panel');
+ assert.ok(panel);
+ const rect=panel.getBoundingClientRect();
+ assert.ok(rect.left<=priorInk.left-priorInk.pad&&rect.top<=priorInk.top-priorInk.pad);
+ assert.ok(rect.right>=priorInk.right+priorInk.pad&&rect.bottom>=priorInk.bottom+priorInk.pad);
+});
+test('typography does not add a plate to a verified transparent restoration', () => {
+ const result=render({restored:true,inside:true,priorInk:{left:10,top:10,right:210,bottom:100,pad:6},
+  sample:sample([10,10,10],[255,255,255]),
+  appearance:{inpaintingEnabled:true,preserveSourceTextColor:true,preserveSourceBackgroundColor:true}});
+ assert.equal(result.root.dataset.readabilityPanels,'0');
+ assert.equal(result.node.dataset.sourceBackgroundColor,'inpainted');
 });
 const selected = tests.filter(value => value.name.includes(option('--filter', '')));
 assert.ok(selected.length, 'no readability tests matched');

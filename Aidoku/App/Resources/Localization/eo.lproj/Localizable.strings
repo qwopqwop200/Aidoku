@@ -345,7 +345,7 @@
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Traduki mangaajn priskribojn";
 
-"TRANSLATION_DESCRIPTION_FILTER" = "Mangaaj priskribaj lingvoj";
+"TRANSLATION_DESCRIPTION_FILTER" = "Lingvoj de mangaaj priskriboj";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Aŭtomate detektas la fontlingvon kaj tradukas nur la elektitajn lingvojn. Ĉiuj Detektitaj Lingvoj forigas la limigon. La lingvofiltrilo de ĉiu ero estas sendependa de la lingvaj agordoj por paĝoj kaj aliaj eroj.";
 
@@ -427,7 +427,7 @@
 "DOWNLOADED_CHAPTERS" = "Elŝutitaj Ĉapitroj";
 "DOWNLOAD_INCOMPLETE" = "Nekompleta Elŝuto";
 "TOTAL_DOWNLOADS" = "Suma grando de elŝutoj";
-"%i_SERIES" = "%i serioj";
+"%i_SERIES" = "Serioj: %i";
 "IN_LIBRARY" = "En Biblioteko";
 "VIEW_SERIES" = "Vidi serion";
 "VIEW_FILES" = "Vidi dosierojn";
@@ -565,7 +565,7 @@
 "SERIES_TITLE_EMPTY_ERROR" = "Titolo devas esti provizita por nova serio.";
 "CREATE_NEW_SERIES_INFO" = "Nova serio estos kreita sur la sekva paĝo, aŭ vi povas elekti ekzistantan serion por aldoni ĉi tiun dosieron.";
 "ADD_TO_OTHER_SERIES_INFO" = "La dosiero estos aldonita al la elektita serio.";
-"%i_PAGES" = "%i paĝoj";
+"%i_PAGES" = "Paĝoj: %i";
 "1_PAGE" = "1 paĝo";
 "CBZ_NAME" = "ZIP-arkivo de bildstrioj";
 "ZIP_NAME" = "Zip Arkivo";
@@ -717,7 +717,7 @@
 "PORTRAIT_ROWS" = "Kolumnoj en vertikala formato";
 "LANDSCAPE_ROWS" = "Kolumnoj en horizontala formato";
 "RESUME_LAST_OPENED_CHAPTER" = "Daŭrigi la lastan malfermitan ĉapitron";
-"CONTINUE_READING_ON_RESELECT" = "Duobla frapeto sur la langeto Historio daŭrigas la legadon";
+"CONTINUE_READING_ON_RESELECT" = "Frapetu la langeton Historio denove por daŭrigi la legadon";
 "UNREAD_CHAPTER_BADGES" = "Nelegitaj Ĉapitroinsignoj";
 "DOWNLOADED_CHAPTER_BADGES" = "Elŝutitaj Ĉapitro-Insignoj";
 "PIN_TITLES" = "Alpinglu mangaajn titolojn";
@@ -762,7 +762,7 @@
 "SERIES_SINGULAR" = "Serio";
 "HOUR_PLURAL" = "Horoj";
 "HOUR_SINGULAR" = "Horo";
-"ALL_TIME" = "Ĉiatempa";
+"ALL_TIME" = "La tuta periodo";
 "THIS_MONTH" = "Ĉi tiu monato";
 "THIS_YEAR" = "Ĉi-Jare";
 "SOURCE_LIST_ADDED" = "Fonta Listo Aldonita";
@@ -917,7 +917,7 @@
 "CLEAR_NETWORK_CACHE" = "Malplenigi Retan Kaŝmemoron";
 "CLEAR_NETWORK_CACHE_TEXT" = "Ĉi tiu ago estas neinversigebla. Enmemorigitaj retpetoj kaj bildoj estos forigitaj.";
 "CLEAR_READ_HISTORY" = "Forigi leghistorion";
-"CLEAR_READ_HISTORY_TEXT" = "Ĉi tiu ago estas neinversigebla. Ĉiu legita historio estos forigita.";
+"CLEAR_READ_HISTORY_TEXT" = "Ĉi tiu ago estas neinversigebla. La tuta leghistorio estos forigita.";
 "CLEAR_EXCLUDING_LIBRARY" = "Forigi leghistorion ekster la biblioteko";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "Ĉi tiu ago estas neinversigebla. La tuta leghistorio de titoloj ekster la biblioteko estos forigita.";
 "RESET_SETTINGS" = "Restarigi Agordojn";
@@ -989,7 +989,7 @@
 "ONE_PAGE_LEFT" = "1 paĝo restas";
 "FAILED_CHAPTER_LOAD" = "Malsukcesis Ŝarĝi Ĉapitron";
 "SORT_LAST_UPDATED" = "Laste Ĝisdatigita";
-"SORT_TOTAL_CHAPTERS" = "Tutaj Ĉapitroj";
+"SORT_TOTAL_CHAPTERS" = "Suma nombro de ĉapitroj";
 "FAILED_CHAPTER_LOAD_INFO" = "Vi eble estas eksterrete aŭ la fonto eble havas problemojn.";
 "WEBTOON" = "Webtoon";
 "CONTINUOUS_WITH_GAPS" = "Daŭra kun Interspacoj";
@@ -1055,7 +1055,7 @@
 "OPEN_CHAPTER_LIST" = "Malfermu liston de ĉapitroj";
 "TOGGLE_BARS" = "Montri aŭ kaŝi ilobretojn";
 "CLOSE_READER" = "Fermi legilon";
-"TOGGLE_PAGE_OFFSET" = "Ŝaltu paĝan ofseton";
+"TOGGLE_PAGE_OFFSET" = "Ŝalti aŭ malŝalti paĝan deŝovon";
 "UPLOAD_FILE" = "Importi dosieron";
 "MIGRATE_CHAPTER_HISTORY" = "Migri Ĉapitrohistorion";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Migru leghistorion postlasitan de pli malnovaj versioj kaj ankoraŭ ne ligitan al ĉapitroj en la loka datumbazo. Ĉi tio normale okazas aŭtomate post ĝisdatigo. Se ĝi ne finiĝis, vi povas ruli ĝin denove ĉi tie.";
@@ -1173,3 +1173,28 @@
 "TRANSLATION_FILTERING" = "Teksta filtrado";
 
 "TRANSLATION_TARGETS" = "Kion traduki";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Paĝoj: %i / %i";
+"1_SERIES" = "1 serio";
+"SKIPPING_ONE_CHAPTER" = "Preterpasante 1 ĉapitron: ĝi mankas en la fonto aŭ estas elfiltrita";
+"BACKUP_CREATE_ERROR_TEXT" = "La savkopio ne povis esti kreita. Bonvolu reprovi.";
+"YES" = "Jes";
+"NO" = "Ne";
+"CHAPTERS_%i_OF_%i" = "Ĉapitroj: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "La verko ne povis esti aldonita al la spurilo. Bonvolu reprovi.";
+"SORT_READ_PROGRESS" = "Legoprogreso";
+"SORT_RELEASE_YEAR" = "Eldonjaro";
+"SOURCE_INVALID_PAGE_COUNT" = "Nevalida nombro da paĝoj";
+"SOURCE_INVALID_GENRE_ID" = "Nevalida ĝenra identigilo";
+"SOURCE_INVALID_LISTING" = "Nevalida listo";
+"SOURCE_INVALID_LISTING_TYPE" = "Nevalida listotipo";
+"SOURCE_INVALID_ITEM_TYPE" = "Nevalida erotipo";
+"DICTIONARY_ERROR" = "Vortareraro";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Ne eblis konservi la vortarajn agordojn: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Ne eblis importi la elektitajn vortarojn:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Ne eblis importi kelkajn vortarojn:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "La importo de la vortaro malsukcesis.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Ampleksa japan-angla vortaro prizorgata de Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Vortaro de japanaj propraj nomoj prizorgata de Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Frekvenca vortaro bazita sur la amaskomunikila tekstaro ĉe https://jiten.moe.";

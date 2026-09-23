@@ -156,7 +156,9 @@ class ReaderInfoPageView: UIView {
                 let shouldSkipChapters = chapterDifference > 1
                 skippingChaptersView.isHidden = !shouldSkipChapters
                 if shouldSkipChapters {
-                    skippingChaptersLabel.text = String(format: NSLocalizedString("SKIPPING_CHAPTERS"), chapterDifference - 1)
+                    skippingChaptersLabel.text = chapterDifference == 2
+                        ? NSLocalizedString("SKIPPING_ONE_CHAPTER")
+                        : String(format: NSLocalizedString("SKIPPING_CHAPTERS"), chapterDifference - 1)
                 }
             } else {
                 skippingChaptersView.isHidden = true
@@ -176,7 +178,9 @@ class ReaderInfoPageView: UIView {
                 let shouldSkipChapters = chapterDifference > 1
                 skippingChaptersView.isHidden = !shouldSkipChapters
                 if shouldSkipChapters {
-                    skippingChaptersLabel.text = String(format: NSLocalizedString("SKIPPING_CHAPTERS"), chapterDifference - 1)
+                    skippingChaptersLabel.text = chapterDifference == 2
+                        ? NSLocalizedString("SKIPPING_ONE_CHAPTER")
+                        : String(format: NSLocalizedString("SKIPPING_CHAPTERS"), chapterDifference - 1)
                 }
             } else {
                 skippingChaptersView.isHidden = true

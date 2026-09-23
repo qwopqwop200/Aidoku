@@ -2,6 +2,6 @@
 "DONE" = "完成";
 "FILE_IMPORT_FAIL_TEXT" = "文件导入失败。请确保该文件是可读取的图片文件，或包含图片的有效 CBZ 或 ZIP 存档文件。";
 "FORMAT_IMAGE" = "图片";
-"SHARED_IMAGES_SAVED" = "图片已保存。打开 Aidoku 即可阅读。";
+"SHARED_IMAGES_SAVED" = "已保存。打开 Aidoku 即可阅读。";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "无法读取共享的图片。请尝试其他图片。";

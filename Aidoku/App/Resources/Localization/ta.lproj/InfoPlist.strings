@@ -2,4 +2,4 @@
 
 // Completed app localization
 "CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "Aidoku உங்கள் தனிப்பயன் மொழிபெயர்ப்பு சேவையகத்தின் முகவரி உங்கள் உள்ளூர் நெட்வொர்க்கில் இருக்கும்போது அதனுடன் இணைக்கிறது.";
+"NSLocalNetworkUsageDescription" = "மங்கா சேவையகங்கள் மற்றும் உங்கள் தனிப்பயன் மொழிபெயர்ப்பு சேவையகத்தின் முகவரிகள் உங்கள் உள்ளூர் நெட்வொர்க்கில் இருக்கும்போது Aidoku அவற்றுடன் இணைகிறது.";

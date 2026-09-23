@@ -18,7 +18,7 @@ final class SuwayomiTracker: EnhancedTracker, PageTracker {
     private let idSeparator: Character = "|"
 
     func getTrackerInfo() -> TrackerInfo {
-        .init(supportedStatuses: [], scoreType: .tenPoint, scoreOptions: [])
+        .init(supportedStatuses: [], scoreType: .tenPoint, scoreOptions: [], supportsReadingDates: false, supportsScores: false)
     }
 
     func register(trackId: String, highestChapterRead: Float?, earliestReadDate: Date?) async throws -> String? {

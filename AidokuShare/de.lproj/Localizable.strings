@@ -2,6 +2,6 @@
 "DONE" = "Fertig";
 "FILE_IMPORT_FAIL_TEXT" = "Die Datei konnte nicht importiert werden. Bitte stelle sicher, dass es sich um eine lesbare Bilddatei oder ein gültiges CBZ- oder ZIP-Archiv mit Bildern handelt.";
 "FORMAT_IMAGE" = "Bild";
-"SHARED_IMAGES_SAVED" = "Bilder gespeichert. Öffne Aidoku, um sie zu lesen.";
+"SHARED_IMAGES_SAVED" = "Gespeichert. Öffne Aidoku zum Lesen.";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "Das geteilte Bild konnte nicht gelesen werden. Bitte versuche es mit einem anderen Bild.";

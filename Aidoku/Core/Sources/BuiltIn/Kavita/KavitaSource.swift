@@ -52,8 +52,8 @@ extension AidokuRunner.Source {
                             NSLocalizedString("SORT_DATE_UPDATED"),
                             NSLocalizedString("SORT_CHAPTER_ADDED"),
                             NSLocalizedString("SORT_TIME_TO_READ"),
-                            NSLocalizedString("SORT_RELEASE_DATE"),
-                            NSLocalizedString("SORT_DATE_READ"),
+                            NSLocalizedString("SORT_RELEASE_YEAR"),
+                            NSLocalizedString("SORT_READ_PROGRESS"),
                             NSLocalizedString("SORT_AVERAGE_RATING"),
                             NSLocalizedString("SORT_RANDOM")
                         ],
@@ -222,7 +222,7 @@ actor KavitaSourceRunner: Runner {
 
         baseUrl = lastWorkingMirrorCopy ?? baseUrl
 
-        guard chapter.pages >= 0 else { throw SourceError.message("Invalid page count") }
+        guard chapter.pages >= 0 else { throw SourceError.message("SOURCE_INVALID_PAGE_COUNT") }
         return (0..<chapter.pages).compactMap { page in
             let path = "api/Reader/image?chapterId=\(chapter.id)&page=\(page)&apiKey=\(apiKey)&extractPdf=true"
             return URL(string: path, relativeTo: baseUrl).flatMap {
@@ -266,7 +266,7 @@ actor KavitaSourceRunner: Runner {
 
             case _ where listing.id.hasPrefix("morein-"):
                 guard let genreId = Int(listing.id[listing.id.index(listing.id.startIndex, offsetBy: 7)...]) else {
-                    throw SourceError.message("Invalid genre id")
+                    throw SourceError.message("SOURCE_INVALID_GENRE_ID")
                 }
                 let series = try await helper.getMoreIn(genreId: genreId, pageNum: page, lastWorkingMirror: &lastWorkingMirrorCopy)
                 baseUrl = lastWorkingMirrorCopy ?? baseUrl
@@ -310,7 +310,7 @@ actor KavitaSourceRunner: Runner {
                 )
 
             default:
-                throw SourceError.message("Invalid listing")
+                throw SourceError.message("SOURCE_INVALID_LISTING")
         }
     }
 
@@ -465,7 +465,7 @@ actor KavitaSourceRunner: Runner {
     }
 
     func getImageRequest(url: String, context: PageContext?) async throws -> URLRequest {
-        guard let url = URL(string: url) else { throw SourceError.message("Invalid URL") }
+        guard let url = URL(string: url) else { throw SourceError.message("INVALID_URL") }
         var request = URLRequest(url: url)
         request.setValue("image/*", forHTTPHeaderField: "Accept")
         return request

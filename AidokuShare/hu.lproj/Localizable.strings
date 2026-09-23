@@ -1,7 +1,7 @@
 "IMPORT" = "Importálás";
 "DONE" = "Kész";
-"FILE_IMPORT_FAIL_TEXT" = "Nem sikerült importálni a fájlt. Kérjük, győződjön meg arról, hogy érvényes CBZ vagy ZIP archívum, amely képeket tartalmaz.";
+"FILE_IMPORT_FAIL_TEXT" = "Nem sikerült importálni a fájlt. Ellenőrizze, hogy olvasható képfájl vagy képeket tartalmazó érvényes CBZ- vagy ZIP-archívum.";
 "FORMAT_IMAGE" = "Kép";
-"SHARED_IMAGES_SAVED" = "A képek mentve. Nyissa meg az Aidokut az olvasásukhoz.";
+"SHARED_IMAGES_SAVED" = "A mentés befejeződött. Nyissa meg az Aidokut az olvasáshoz.";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "A megosztott kép nem olvasható. Kérjük, próbálkozzon másik képpel.";

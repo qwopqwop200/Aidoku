@@ -147,9 +147,9 @@
 // Categories
 "ALL" = "الكل";
 "NONE" = "لا شيء";
-"CATEGORY_ADD" = "إضافة تصنيف";
+"CATEGORY_ADD" = "إضافة فئة";
 "CATEGORY_ADD_TEXT" = "أدخل اسم الفئة الجديدة التي تريد إنشاءها.";
-"DEFAULT_CATEGORY" = "التصنيف الافتراضي";
+"DEFAULT_CATEGORY" = "الفئة الافتراضية";
 "ALWAYS_ASK" = "اسأل دائماً";
 "LANGUAGES" = "اللغات";
 "BUILD" = "رقم البناء";
@@ -162,10 +162,10 @@
 "VIEW_HISTORY" = "عرض سجل القراءة";
 "INCOGNITO_MODE" = "وضع التصفح الخفي";
 "RESET_SETTINGS" = "إعادة تعيين الإعدادات";
-"CATEGORY_EMPTY" = "التصنيف فارغ";
+"CATEGORY_EMPTY" = "الفئة فارغة";
 "REMOVE_DOWNLOADS_CONFIRM" = "حذف كافة التنزيلات المحددة؟";
 "FILTER_BY" = "تصفية حسب";
-"CATEGORIES" = "التصنيفات";
+"CATEGORIES" = "الفئات";
 "EDIT_CATEGORIES" = "تحرير الفئات";
 "INCOGNITO_MODE_TEXT" = "يوقف تسجيل سجل القراءة مؤقتًا عند تفعيله";
 "DESELECT_ALL" = "إلغاء تحديد الكل";
@@ -222,12 +222,12 @@
 "RESET_SETTINGS_TEXT" = "هذا الإجراء لا رجعة فيه. ستتم إعادة تعيين جميع إعدادات التطبيق والمصدر.";
 "PAGE_X_OF_X" = "الصفحة %i من %i";
 "AUTH_TO_OPEN" = "قم بالمصادقة للفتح.";
-"LOCKED_CATEGORIES" = "التصنيفات المقفلة";
+"LOCKED_CATEGORIES" = "الفئات المقفلة";
 "AUTH_FOR_LIBRARY" = "قم بالمصادقة لعرض المكتبة.";
 "LOCK_LIBRARY" = "قفل المكتبة";
 "VIEW_LIBRARY" = "عرض المكتبة";
 "LIBRARY_LOCKED" = "المكتبة مقفلة.";
-"CATEGORY_LOCKED" = "التصنيف مقفل.";
+"CATEGORY_LOCKED" = "الفئة مقفلة.";
 "SET_AS_WIDE_PAGE" = "تعيين كصفحة واسعة";
 "AUTOMATIC" = "تلقائي";
 "SET_AS_NORMAL_PAGE" = "تعيين كصفحة عادية";
@@ -262,7 +262,7 @@
 "TRACK" = "تتبع";
 "TYPE_COLON_%@" = "النوع: %@";
 "VIEW_ON_WEBSITE" = "عرض على الموقع";
-"CLEAR_TRACKED_MANGA" = "مسح روابط تتبع المانجا";
+"CLEAR_TRACKED_MANGA" = "إزالة جميع روابط خدمات التتبع";
 "CLEAR_TRACKED_MANGA_TEXT" = "هذا الإجراء لا رجعة فيه. ستتم إزالة جميع روابط خدمات التتبع المضافة إلى المانجا.";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "هل أنت متأكد أنك تريد حذف جميع التنزيلات؟";
 "CACHE_SIZE_%@" = "حجم ذاكرة التخزين المؤقت: %@";
@@ -275,7 +275,7 @@
 "DESTINATION" = "وجهة";
 "SELECTED" = "محدد";
 "NOT_FOUND" = "غير موجود";
-"MIGRATE_%i_ITEMS?" = "ترحيل %i عنصر؟";
+"MIGRATE_%i_ITEMS?" = "هل تريد ترحيل العناصر؟ العدد: %i";
 "MIGRATE_ONE_ITEM?" = "ترحيل عنصر واحد؟";
 "UPLOAD_DATE" = "تاريخ الرفع";
 "SELECT" = "اختر";
@@ -286,9 +286,9 @@
 "RENAME_CATEGORY_INFO" = "أدخل اسمًا جديدًا لهذه الفئة.";
 "RENAME_CATEGORY_FAIL" = "فشلت إعادة تسمية الفئة";
 "RENAME_CATEGORY" = "إعادة تسمية الفئة";
-"%i_CHAPTERS" = "%i فصلًا";
+"%i_CHAPTERS" = "عدد الفصول: %i";
 "FAILED_CHAPTER_LOAD_INFO" = "قد لا تكون متصلًا بالإنترنت أو قد يكون المصدر يواجه بعض المشاكل.";
-"%i_PAGES_LEFT" = "%i صفحات متبقية";
+"%i_PAGES_LEFT" = "الصفحات المتبقية: %i";
 "ONE_PAGE_LEFT" = "صفحة واحدة متبقية";
 "SORT_LAST_UPDATED" = "آخر التحديثات";
 "SORT_TOTAL_CHAPTERS" = "إجمالي الفصول";
@@ -318,7 +318,7 @@
 "PIN" = "ثبت";
 "UNPIN" = "إلغاء التثبيت في الأعلى";
 "CROP_BORDERS" = "اقتصاص الحدود";
-"SKIPPING_CHAPTERS" = "يجري تخطي %i فصلًا لأنها غير موجودة في المصدر أو استُبعدت بالتصفية";
+"SKIPPING_CHAPTERS" = "يجري تخطي الفصول غير الموجودة في المصدر أو المستبعدة بالتصفية. العدد: %i";
 "RESUME" = "استئناف";
 "NO_WIFI_ALERT_TITLE" = "لا يوجد اتصال Wi-Fi";
 "NO_WIFI_ALERT_MESSAGE" = "يجب أن تكون متصل بشبكة Wi-Fi لتنزيل هذا المحتوى. يُرجى الاتصال بشبكة Wi-Fi والمحاولة مرة أخرى.";
@@ -342,7 +342,7 @@
 "PHOTOS_ACCESS_DENIED_TEXT" = "تم رفض الوصول سابقًا. يرجى السماح لـ Aidoku بالوصول إلى الصور لحفظ الصور في مكتبة الصور. يمكنك تمكين الوصول من إعدادات الخصوصية.";
 "CLEAR_EXCLUDING_LIBRARY" = "مسح سجل القراءة باستثناء المكتبة";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "هذا الإجراء لا رجعة فيه. سيُحذف سجل قراءة جميع العناوين غير الموجودة في المكتبة.";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "إزالة %i عنصرًا من الفئة %@";
+"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "إزالة عناصر من الفئة %2$@. العدد: %1$i";
 "OPEN_WEBSITE" = "افتح الموقع";
 "FOLLOW_DEVICE" = "اتباع اتجاه الجهاز";
 "MARK_DUPLICATE_CHAPTERS" = "وضع علامة على الفصول المكررة كمقروءة";
@@ -353,7 +353,7 @@
 "CONTENT" = "محتوى";
 "%@_EXPERIMENTAL" = "%@ (تجريبي)";
 "REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "حذف عنصر من المكتبة";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "إزالة %i عنصرًا من المكتبة";
+"REMOVING_%i_ITEMS_FROM_LIBRARY" = "إزالة عناصر من المكتبة. العدد: %i";
 "BROWSE_NO_SOURCES_TEXT_NEW" = "أضف مصدرًا باستخدام زر الاضافة.";
 "BASE_URL" = "عنوان URL الأساسي";
 "SEE_ALL" = "عرض الكل";
@@ -397,7 +397,7 @@
 "TOTAL_DOWNLOADS" = "إجمالي حجم التنزيلات";
 "IN_LIBRARY" = "في المكتبة";
 "VIEW_SERIES" = "عرض السلسلة";
-"%i_SERIES" = "%i سلسلة";
+"%i_SERIES" = "عدد السلاسل: %i";
 "REFRESHING_LIBRARY" = "جاري تحديث المكتبة…";
 "CONTENT_RATING" = "تقييم المحتوى";
 "SAFE" = "آمن";
@@ -694,7 +694,7 @@
 "SAVED_SEARCH_NAME" = "الاسم";
 "SAVE_SEARCH_FAIL" = "فشل الحفظ";
 "SAVE_SEARCH_FAIL_INFO" = "يوجد بالفعل بحث محفوظ موجود بهذا الاسم. الرجاء اختيار اسم فريد.";
-"INCOGNITO_FILTERS_NOTICE" = "لا تستمر المرشحات المعدلة في وضع التصفح المتخفي.";
+"INCOGNITO_FILTERS_NOTICE" = "لا تُحفظ التغييرات على عوامل التصفية في وضع التصفح الخفي.";
 "LOCAL_FILE_IMPORT" = "استيراد الملفات المحلية";
 "LOCAL_FILE_IMPORT_TEXT" = "قم باستيراد ملف CBZ أو ZIP يحتوي على صور لقراءتها.";
 "CHAPTER_TITLE" = "عنوان الفصل";
@@ -710,7 +710,7 @@
 "SERIES_TITLE_EMPTY_ERROR" = "يجب توفير عنوان لسلسلة جديدة.";
 "CREATE_NEW_SERIES_INFO" = "سيتم إنشاء سلسلة جديدة في الصفحة التالية، أو يمكنك تحديد سلسلة موجودة لإضافة هذا الملف إليها.";
 "ADD_TO_OTHER_SERIES_INFO" = "سيتم إضافة الملف إلى السلسلة المحددة.";
-"%i_PAGES" = "%i صفحة";
+"%i_PAGES" = "عدد الصفحات: %i";
 "1_PAGE" = "1 صفحة";
 "CBZ_NAME" = "أرشيف ZIP للقصص المصورة";
 "ZIP_NAME" = "أرشيف مضغوط";
@@ -831,7 +831,7 @@
 "PORTRAIT_ROWS" = "عدد الأعمدة في الوضع العمودي";
 "LANDSCAPE_ROWS" = "عدد الأعمدة في الوضع الأفقي";
 "RESUME_LAST_OPENED_CHAPTER" = "استئناف الفصل الأخير الذي تم فتحه";
-"CONTINUE_READING_ON_RESELECT" = "انقر نقرًا مزدوجًا فوق علامة التبويب \"السجل\" لاستئناف القراءة";
+"CONTINUE_READING_ON_RESELECT" = "اضغط على تبويب السجل مجددًا لاستئناف القراءة";
 "DOWNLOADED_CHAPTER_BADGES" = "شارات الفصول المنزّلة";
 "PIN_TITLES" = "تثبيت عناوين المانجا";
 "PIN_DISABLED" = "تم تعطيل التثبيت";
@@ -841,9 +841,9 @@
 "NEW_CHAPTER_NOTIFICATIONS" = "إشعارات الفصل الجديد";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "إرسال إشعارات عند تحديث المكتبة في الخلفية.";
 "1_NEW_CHAPTER_AVAILABLE" = "فصل جديد متاح";
-"X_NEW_CHAPTERS_AVAILABLE" = "%d فصول جديدة متاحة";
+"X_NEW_CHAPTERS_AVAILABLE" = "عدد الفصول الجديدة المتاحة: %d";
 "NEW_CHAPTERS_AVAILABLE" = "فصول جديدة متاحة";
-"X_SERIES_HAVE_NEW_CHAPTERS" = "تتوفر فصول جديدة في %d سلسلة";
+"X_SERIES_HAVE_NEW_CHAPTERS" = "عدد السلاسل التي تتوفر لها فصول جديدة: %d";
 "EVERY_6_HOURS" = "كل 6 ساعات";
 "NO_RESULTS_FOR_%@" = "لا توجد نتائج لـ \"%@\"";
 "NO_RESULTS_TEXT" = "قم بالتدقيق الإملائي أو حاول إجراء بحث جديد.";
@@ -872,7 +872,7 @@
 "COPY_URL" = "انسخ عنوان URL";
 "LEGACY_SOURCE_LIST" = "قائمة المصادر القديمة";
 "LEGACY_SOURCE_LIST_WARNING" = "تحذير: قائمة المصادر القديمة";
-"LEGACY_SOURCE_LIST_WARNING_INFO" = "لديك حاليًا قائمة مصادر قديمة تم تكوينها. هذا التنسيق قديم وسيتوقف عن العمل في الإصدار المستقبلي من Aidoku. على الرغم من أنه سيظل يعمل في الوقت الحالي، فمن المستحسن أن تجد بديلاً وتهيئته في الإعدادات > قوائم المصدر.";
+"LEGACY_SOURCE_LIST_WARNING_INFO" = "لديك حاليًا قائمة مصادر قديمة تم تكوينها. هذا التنسيق قديم وسيتوقف عن العمل في الإصدار المستقبلي من Aidoku. على الرغم من أنه سيظل يعمل في الوقت الحالي، فمن المستحسن أن تجد بديلاً وتهيئته في الإعدادات > قوائم المصادر.";
 "UPSCALING" = "رفع دقة الصور";
 "UPSCALE_IMAGES" = "رفع دقة الصور";
 "UPSCALING_MODELS" = "نماذج رفع دقة الصور";
@@ -956,7 +956,7 @@
 "REMOVE_WORD" = "إزالة الكلمة";
 "VOCABULARY" = "المفردات";
 "1_WORD" = "1 كلمة";
-"%i_WORDS" = "%i كلمة";
+"%i_WORDS" = "عدد الكلمات: %i";
 "NO_VOCABULARY" = "لا توجد مفردات";
 "NO_VOCABULARY_TEXT" = "سوف تظهر المفردات المحفوظة هنا.";
 "DEFINITION" = "التعريف";
@@ -1010,7 +1010,7 @@
 "AUTO_SYNC_HISTORY" = "مزامنة سجل القراءة تلقائيًا";
 "AUTO_SYNC_HISTORY_INFO" = "عندما تسجّل خدمة التتبع تقدمًا إضافيًا في قراءة الفصول و/أو المجلدات، يتم تحديث سجل القراءة المحلي ليطابقه.";
 "SYNC_WITH_TRACKER" = "المزامنة مع خدمة التتبع";
-"SYNC_WITH_TRACKER_INFO_%i" = "وفقًا لخدمة التتبع، تمت قراءة %i فصلًا بالفعل. هل ترغب في وضع علامة على هذه الفصول كمقروءة؟";
+"SYNC_WITH_TRACKER_INFO_%i" = "عدد الفصول المقروءة بالفعل وفقًا لخدمة التتبع: %i. هل ترغب في وضع علامة على هذه الفصول كمقروءة؟";
 "SYNC_WITH_TRACKER_INFO_1" = "وفقًا لخدمة التتبع، تمت قراءة فصل واحد بالفعل. هل ترغب في وضع علامة على هذا الفصل كمقروء؟";
 "UNAVAILABLE_TRACKER_ITEM" = "عنصر تعقب غير متوفر";
 "UNAVAILABLE_TRACKER_ITEM_INFO" = "يرتبط عنصر التعقب المرتبط هذا بمتتبع لم يعد متوفرًا. يجب عليك إما إزالة هذا العنصر أو تسجيل الدخول إلى المتتبع المرتبط مرة أخرى.";
@@ -1174,3 +1174,28 @@
 "TRANSLATION_FILTERING" = "تصفية النص";
 
 "TRANSLATION_TARGETS" = "ما تريد ترجمته";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "الصفحات: %i / %i";
+"1_SERIES" = "سلسلة واحدة";
+"SKIPPING_ONE_CHAPTER" = "يجري تخطي فصل واحد لأنه غير موجود في المصدر أو استُبعد بالتصفية";
+"BACKUP_CREATE_ERROR_TEXT" = "تعذر إنشاء النسخة الاحتياطية. يرجى المحاولة مرة أخرى.";
+"YES" = "نعم";
+"NO" = "لا";
+"CHAPTERS_%i_OF_%i" = "الفصول: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "تعذر تسجيل العمل للتتبع. يرجى المحاولة مرة أخرى.";
+"SORT_READ_PROGRESS" = "تقدم القراءة";
+"SORT_RELEASE_YEAR" = "سنة الإصدار";
+"SOURCE_INVALID_PAGE_COUNT" = "عدد الصفحات غير صالح";
+"SOURCE_INVALID_GENRE_ID" = "معرّف النوع غير صالح";
+"SOURCE_INVALID_LISTING" = "القائمة غير صالحة";
+"SOURCE_INVALID_LISTING_TYPE" = "نوع القائمة غير صالح";
+"SOURCE_INVALID_ITEM_TYPE" = "نوع العنصر غير صالح";
+"DICTIONARY_ERROR" = "خطأ في القاموس";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "تعذر حفظ إعدادات القواميس: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "تعذر استيراد القواميس المحددة:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "تعذر استيراد بعض القواميس:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "فشل استيراد القاموس.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "قاموس ياباني–إنجليزي شامل تتولى صيانته مجموعة البحث والتطوير في القواميس الإلكترونية (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "قاموس لأسماء الأعلام اليابانية تتولى صيانته مجموعة البحث والتطوير في القواميس الإلكترونية (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "قاموس لتكرار الكلمات يستند إلى مجموعة النصوص الإعلامية في https://jiten.moe.";

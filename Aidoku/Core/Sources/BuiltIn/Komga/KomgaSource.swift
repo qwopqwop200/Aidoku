@@ -680,7 +680,7 @@ extension KomgaSourceRunner {
                                 method = .POST
                                 body = .init(condition: .allOf([.readStatus(.read), .deleted(false)]))
                             default:
-                                throw SourceError.message("Invalid listing type")
+                                throw SourceError.message("SOURCE_INVALID_LISTING_TYPE")
                         }
 
                         var lastWorkingMirrorCopy = lastWorkingMirror
@@ -705,7 +705,7 @@ extension KomgaSourceRunner {
                                 path = "api/v1/series/updated?page=0&size=20&oneshot=false&deleted=false"
                                 method = .GET
                             default:
-                                throw SourceError.message("Invalid listing type")
+                                throw SourceError.message("SOURCE_INVALID_LISTING_TYPE")
                         }
 
                         var lastWorkingMirrorCopy = lastWorkingMirror
@@ -808,7 +808,7 @@ extension KomgaSourceRunner {
                                     .libraryId(libraryId)
                                 ]))
                             default:
-                                throw SourceError.message("Invalid listing type")
+                                throw SourceError.message("SOURCE_INVALID_LISTING_TYPE")
                         }
 
                         let res: KomgaPageResponse<[KomgaBook]> = try await helper.request(
@@ -832,7 +832,7 @@ extension KomgaSourceRunner {
                                 path = "api/v1/series/updated?library_id=\(libraryId)&page=0&size=20&oneshot=false&deleted=false"
                                 method = .GET
                             default:
-                                throw SourceError.message("Invalid listing type")
+                                throw SourceError.message("SOURCE_INVALID_LISTING_TYPE")
                         }
 
                         let res: KomgaPageResponse<[KomgaSeries]> = try await helper.request(
@@ -899,7 +899,7 @@ extension KomgaSourceRunner {
                             value: .manga(manga)
                         )
                     } else {
-                        throw SourceError.message("Invalid item type")
+                        throw SourceError.message("SOURCE_INVALID_ITEM_TYPE")
                     }
                     return (index, link)
                 }

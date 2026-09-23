@@ -2,4 +2,4 @@
 
 // Completed app localization
 "CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "Aidoku तपाईंको अनुकूलन अनुवाद सर्भरमा जडान हुन्छ जब यसको ठेगाना तपाईंको स्थानीय नेटवर्कमा हुन्छ।";
+"NSLocalNetworkUsageDescription" = "मङ्गा सर्भरहरू र तपाईंको अनुकूलन अनुवाद सर्भरका ठेगाना स्थानीय नेटवर्कमा हुँदा Aidoku तिनमा जडान हुन्छ।";

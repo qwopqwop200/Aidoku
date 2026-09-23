@@ -1,7 +1,7 @@
 "IMPORT" = "Importar";
 "DONE" = "Hecho";
-"FILE_IMPORT_FAIL_TEXT" = "Error al importar el archivo. Asegúrate de que sea un archivo CBZ o ZIP válido que contenga imágenes.";
+"FILE_IMPORT_FAIL_TEXT" = "Error al importar el archivo. Asegúrate de que sea un archivo de imagen legible o un archivo CBZ o ZIP válido que contenga imágenes.";
 "FORMAT_IMAGE" = "Imagen";
-"SHARED_IMAGES_SAVED" = "Imágenes guardadas. Abre Aidoku para leerlas.";
+"SHARED_IMAGES_SAVED" = "Guardado completado. Abre Aidoku para leer.";
 
 "SHARED_IMAGE_IMPORT_FAILED" = "No se pudo leer la imagen compartida. Prueba con otra imagen.";

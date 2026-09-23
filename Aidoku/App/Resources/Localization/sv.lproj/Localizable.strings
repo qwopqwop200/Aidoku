@@ -137,7 +137,7 @@
 "SELECT_ALL" = "Välj alla";
 "REMOVE_ALL_MANGA_HISTORY" = "Ta bort all historik för denna manga";
 "INFINITE_VERTICAL_SCROLL" = "Oändlig lodrät skrollning";
-"CLEAR_TRACKED_MANGA" = "Ta bort länkar till trackers";
+"CLEAR_TRACKED_MANGA" = "Ta bort alla länkar till trackers";
 "AUTH_TO_OPEN" = "Autentisera för att öppna.";
 "LANDSCAPE" = "Liggande";
 "RENAME_BACKUP" = "Döp om säkerhetskopia";
@@ -691,7 +691,7 @@
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Om du inaktiverar spårning för en källa tas trackerlänkarna för den källan bort. Om du aktiverar spårning länkas biblioteksobjekten från den källan automatiskt.";
 "TRACKER_LOGOUT_INFO" = "Att logga ut tar bort länkad tracking-info från den här trackern för alla serier.";
 "HIDE_BARS_ON_SWIPE" = "Dölj verktygsfält vid svepning";
-"TEXT_READER_PAGED" = "Sidad";
+"TEXT_READER_PAGED" = "Sidvis";
 "REFRESH_NO_WIFI" = "Inte ansluten till Wi-fi";
 "REFRESH_NO_WIFI_TEXT" = "Inställningen ”Uppdatera endast med Wi-Fi” är aktiverad. Anslut till Wi-Fi för att uppdatera biblioteket.";
 "REFRESH_ANYWAYS" = "Ladda om ändå";
@@ -974,7 +974,7 @@
 "AUTHOR_NAME" = "Författarens namn";
 "ARTIST_NAME" = "Tecknarens namn";
 "INVALID_KEY" = "Ogiltig nyckel";
-"CONTINUE_READING_ON_RESELECT" = "Dubbeltryck på fliken Historik för att fortsätta läsa";
+"CONTINUE_READING_ON_RESELECT" = "Tryck på Historik igen för att fortsätta läsa";
 "NEW_CHAPTER_NOTIFICATIONS" = "Nya kapitelmeddelanden";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Skicka meddelanden när biblioteket uppdateras i bakgrunden.";
 "1_NEW_CHAPTER_AVAILABLE" = "Nytt kapitel tillgängligt";
@@ -1173,3 +1173,28 @@
 "TRANSLATION_FILTERING" = "Textfiltrering";
 
 "TRANSLATION_TARGETS" = "Vad som ska översättas";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Sidor: %i / %i";
+"1_SERIES" = "1 serie";
+"SKIPPING_ONE_CHAPTER" = "Hoppar över 1 kapitel eftersom det saknas i källan eller har filtrerats ut";
+"BACKUP_CREATE_ERROR_TEXT" = "Säkerhetskopian kunde inte skapas. Försök igen.";
+"YES" = "Ja";
+"NO" = "Nej";
+"CHAPTERS_%i_OF_%i" = "Kapitel: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Titeln kunde inte läggas till för spårning. Försök igen.";
+"SORT_READ_PROGRESS" = "Läsförlopp";
+"SORT_RELEASE_YEAR" = "Utgivningsår";
+"SOURCE_INVALID_PAGE_COUNT" = "Ogiltigt sidantal";
+"SOURCE_INVALID_GENRE_ID" = "Ogiltigt genre-ID";
+"SOURCE_INVALID_LISTING" = "Ogiltig lista";
+"SOURCE_INVALID_LISTING_TYPE" = "Ogiltig listtyp";
+"SOURCE_INVALID_ITEM_TYPE" = "Ogiltig objekttyp";
+"DICTIONARY_ERROR" = "Ordboksfel";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Kunde inte spara ordboksinställningarna: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Kunde inte importera de valda ordböckerna:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Vissa ordböcker kunde inte importeras:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Importen av ordboken misslyckades.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "En omfattande japansk-engelsk ordbok som underhålls av Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "En ordbok över japanska egennamn som underhålls av Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "En frekvensordbok baserad på mediekorpusen på https://jiten.moe.";

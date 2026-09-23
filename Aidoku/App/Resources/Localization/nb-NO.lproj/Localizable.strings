@@ -309,7 +309,7 @@
 
 "SEARCH_SUGGESTIONS" = "Søkeforslag";
 
-"TRANSLATION_CACHE" = "Frakoblet buffer";
+"TRANSLATION_CACHE" = "Frakoblet hurtigbuffer";
 
 "TRANSLATION_CACHE_LIMIT" = "Maksimal lagring";
 
@@ -732,7 +732,7 @@
 "PORTRAIT_ROWS" = "Kolonner i stående retning";
 "LANDSCAPE_ROWS" = "Kolonner i liggende retning";
 "RESUME_LAST_OPENED_CHAPTER" = "Fortsett sist åpnede kapittel";
-"CONTINUE_READING_ON_RESELECT" = "Dobbelttrykk på Historikk-fanen for å fortsette lesingen";
+"CONTINUE_READING_ON_RESELECT" = "Trykk på Historikk igjen for å fortsette lesingen";
 "UNREAD_CHAPTER_BADGES" = "Merker for uleste kapitler";
 "DOWNLOADED_CHAPTER_BADGES" = "Merker for nedlastede kapitler";
 "PIN_TITLES" = "Fest titler";
@@ -974,7 +974,7 @@
 "BOOK" = "Bok";
 "TRACK" = "Spor";
 "VIEW_ON_WEBSITE" = "Se på nettsiden";
-"CLEAR_TRACKED_MANGA" = "Fjern koblinger til sporingstjenester";
+"CLEAR_TRACKED_MANGA" = "Fjern alle koblinger til sporingstjenester";
 "CLEAR_TRACKED_MANGA_TEXT" = "Denne handlingen kan ikke angres. Alle koblinger mellom manga og sporingstjenester vil bli fjernet.";
 "SEARCH_OPTIONS" = "Søkealternativer";
 "SHOW_NSFW_RESULTS" = "Vis NSFW-resultater";
@@ -1173,3 +1173,28 @@
 "TRANSLATION_FILTERING" = "Tekstfiltrering";
 
 "TRANSLATION_TARGETS" = "Hva som skal oversettes";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Sider: %i / %i";
+"1_SERIES" = "1 serie";
+"SKIPPING_ONE_CHAPTER" = "Hopper over 1 kapittel fordi det mangler i kilden eller er filtrert ut";
+"BACKUP_CREATE_ERROR_TEXT" = "Sikkerhetskopien kunne ikke opprettes. Prøv igjen.";
+"YES" = "Ja";
+"NO" = "Nei";
+"CHAPTERS_%i_OF_%i" = "Kapitler: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Tittelen kunne ikke legges til sporing. Prøv igjen.";
+"SORT_READ_PROGRESS" = "Lesefremdrift";
+"SORT_RELEASE_YEAR" = "Utgivelsesår";
+"SOURCE_INVALID_PAGE_COUNT" = "Ugyldig sideantall";
+"SOURCE_INVALID_GENRE_ID" = "Ugyldig sjanger-ID";
+"SOURCE_INVALID_LISTING" = "Ugyldig liste";
+"SOURCE_INVALID_LISTING_TYPE" = "Ugyldig listetype";
+"SOURCE_INVALID_ITEM_TYPE" = "Ugyldig elementtype";
+"DICTIONARY_ERROR" = "Ordbokfeil";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Kunne ikke lagre ordbokinnstillingene: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Kunne ikke importere de valgte ordbøkene:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Noen ordbøker kunne ikke importeres:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Import av ordbok mislyktes.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "En omfattende japansk-engelsk ordbok vedlikeholdt av Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "En ordbok over japanske egennavn vedlikeholdt av Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JITEN_DESCRIPTION" = "En frekvensordbok basert på mediekorpuset på https://jiten.moe.";

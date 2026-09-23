@@ -956,7 +956,7 @@
 "REFRESH_DETAILS" = "Làm mới chi tiết";
 "REFRESH_LOGIN" = "Làm mới đăng nhập";
 "LANDSCAPE_ROWS" = "Số cột khi xoay ngang";
-"CONTINUE_READING_ON_RESELECT" = "Nhấn đúp vào tab Lịch sử để tiếp tục đọc";
+"CONTINUE_READING_ON_RESELECT" = "Nhấn lại tab Lịch sử để tiếp tục đọc";
 "NEW_CHAPTER_NOTIFICATIONS" = "Thông báo chương mới";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Gửi thông báo khi thư viện được làm mới ở chế độ nền.";
 "1_NEW_CHAPTER_AVAILABLE" = "Đã có chương mới";
@@ -1175,3 +1175,28 @@
 "TRANSLATION_FILTERING" = "Lọc văn bản";
 
 "TRANSLATION_TARGETS" = "Nội dung cần dịch";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "Trang: %i / %i";
+"1_SERIES" = "1 bộ";
+"SKIPPING_ONE_CHAPTER" = "Bỏ qua 1 chương vì nguồn không có chương đó hoặc chương đó đã bị lọc bỏ";
+"BACKUP_CREATE_ERROR_TEXT" = "Không thể tạo bản sao lưu. Vui lòng thử lại.";
+"YES" = "Có";
+"NO" = "Không";
+"CHAPTERS_%i_OF_%i" = "Chương: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "Không thể thêm tác phẩm vào trình theo dõi. Vui lòng thử lại.";
+"SORT_READ_PROGRESS" = "Tiến độ đọc";
+"SORT_RELEASE_YEAR" = "Năm phát hành";
+"SOURCE_INVALID_PAGE_COUNT" = "Số trang không hợp lệ";
+"SOURCE_INVALID_GENRE_ID" = "ID thể loại không hợp lệ";
+"SOURCE_INVALID_LISTING" = "Danh sách không hợp lệ";
+"SOURCE_INVALID_LISTING_TYPE" = "Loại danh sách không hợp lệ";
+"SOURCE_INVALID_ITEM_TYPE" = "Loại mục không hợp lệ";
+"DICTIONARY_ERROR" = "Lỗi từ điển";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Không thể lưu cài đặt từ điển: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Không thể nhập các từ điển đã chọn:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Không thể nhập một số từ điển:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "Nhập từ điển thất bại.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "Từ điển Nhật–Anh toàn diện do Electronic Dictionary Research and Development Group (EDRDG) duy trì.";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Từ điển tên riêng tiếng Nhật do Electronic Dictionary Research and Development Group (EDRDG) duy trì.";
+"RECOMMENDED_JITEN_DESCRIPTION" = "Từ điển tần suất dựa trên ngữ liệu truyền thông tại https://jiten.moe.";

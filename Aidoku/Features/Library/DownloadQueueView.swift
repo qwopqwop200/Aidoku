@@ -80,7 +80,7 @@ struct DownloadQueueView: View {
                                     ProgressView(value: value)
                                         .progressViewStyle(.linear)
                                     if let progress {
-                                        Text(String(format: NSLocalizedString("%i_OF_%i"), progress.progress, progress.total))
+                                        Text(String(format: NSLocalizedString("PAGES_%i_OF_%i"), progress.progress, progress.total))
                                             .foregroundStyle(.secondary)
                                             .font(.footnote)
                                     }

@@ -2,4 +2,4 @@
 
 // Completed app localization
 "CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "يتصل Aidoku بخادم الترجمة المخصص الخاص بك عندما يكون عنوانه على شبكتك المحلية.";
+"NSLocalNetworkUsageDescription" = "يتصل Aidoku بخوادم المانجا وخادم الترجمة المخصص الخاص بك عندما تكون عناوينها على شبكتك المحلية.";

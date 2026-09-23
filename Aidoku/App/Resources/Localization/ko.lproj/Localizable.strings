@@ -96,7 +96,7 @@
 "EXPERIMENTAL" = "실험용";
 "INFINITE_VERTICAL_SCROLL" = "무한 세로 스크롤";
 "%@_AGO" = "%@ 전";
-"PAGE_X" = "페이지 %i";
+"PAGE_X" = "%i페이지";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "이 챕터의 기록이 제거됩니다. 정말 지우겠습니까?";
 
 // History
@@ -353,7 +353,7 @@
 "NO_DOWNLOADS_TEXT" = "내려받은 콘텐츠가 여기에 나타납니다.";
 "DOWNLOADED_CHAPTERS" = "내려받은 챕터";
 "TOTAL_DOWNLOADS" = "다운로드 총 용량";
-"%i_SERIES" = "%i 시리즈";
+"%i_SERIES" = "작품 %i개";
 "IN_LIBRARY" = "라이브러리에 있음";
 "VIEW_SERIES" = "시리즈 보기";
 "HOME" = "홈";
@@ -814,7 +814,7 @@
 "PORTRAIT_ROWS" = "세로 화면 열 수";
 "LANDSCAPE_ROWS" = "가로 화면 열 수";
 "RESUME_LAST_OPENED_CHAPTER" = "마지막으로 연 챕터 이어 읽기";
-"CONTINUE_READING_ON_RESELECT" = "기록 탭을 두 번 눌러 이어 읽기";
+"CONTINUE_READING_ON_RESELECT" = "선택된 기록 탭을 다시 눌러 이어 읽기";
 "DOWNLOADED_CHAPTER_BADGES" = "다운로드한 챕터 배지";
 "PIN_TITLES" = "작품 고정";
 "PIN_DISABLED" = "사용 안 함";
@@ -1075,3 +1075,28 @@
 "TRANSLATION_FILTERING" = "번역할 텍스트 필터링";
 
 "TRANSLATION_TARGETS" = "번역 대상";
+
+// Download page counts and single-series totals.
+"PAGES_%i_OF_%i" = "%i / %i페이지";
+"1_SERIES" = "작품 1개";
+"SKIPPING_ONE_CHAPTER" = "소스에 없거나 필터에서 제외된 챕터 1개를 건너뜁니다";
+"BACKUP_CREATE_ERROR_TEXT" = "백업을 만들지 못했습니다. 다시 시도해 주세요.";
+"YES" = "예";
+"NO" = "아니요";
+"CHAPTERS_%i_OF_%i" = "챕터: %i / %i";
+"TRACKING_REGISTRATION_FAILED" = "작품을 트래커에 등록하지 못했습니다. 다시 시도해 주세요.";
+"SORT_READ_PROGRESS" = "읽기 진행률";
+"SORT_RELEASE_YEAR" = "발행 연도";
+"SOURCE_INVALID_PAGE_COUNT" = "유효하지 않은 페이지 수";
+"SOURCE_INVALID_GENRE_ID" = "유효하지 않은 장르 ID";
+"SOURCE_INVALID_LISTING" = "유효하지 않은 목록";
+"SOURCE_INVALID_LISTING_TYPE" = "유효하지 않은 목록 유형";
+"SOURCE_INVALID_ITEM_TYPE" = "유효하지 않은 항목 유형";
+"DICTIONARY_ERROR" = "사전 오류";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "사전 설정을 저장하지 못했습니다: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "선택한 사전을 가져오지 못했습니다:\n%@";
+"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "일부 사전을 가져오지 못했습니다:\n%@";
+"DICTIONARY_IMPORT_FAILED" = "사전 가져오기에 실패했습니다.";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "전자 사전 연구 개발 그룹(EDRDG)이 관리하는 종합 일본어·영어 사전입니다.";
+"RECOMMENDED_JMNEDICT_DESCRIPTION" = "전자 사전 연구 개발 그룹(EDRDG)이 관리하는 일본어 고유명사 사전입니다.";
+"RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe의 미디어 말뭉치를 기반으로 한 빈도 사전입니다.";
