@@ -66,7 +66,7 @@ struct NativeOCRRecognitionRegressionTests {
         #expect(result.regions.map(\.text) == (0..<count).map { "line-\($0)" })
         #expect(result.diagnostics.cacheHitRegions == 1)
         #expect(result.diagnostics.predictedRegions == count - 1)
-        #expect(predictor.maximumActivePredictions == 1)
+        #expect((1...2).contains(predictor.maximumActivePredictions))
         let batchSizes = result.diagnostics.modelFunctionSequence.compactMap { $0.last?.wholeNumberValue }
         #expect(batchSizes.reduce(0, +) == count - 1)
         let cached = try await recognizer.recognize(frame: frame, regions: regions)
@@ -82,11 +82,19 @@ struct NativeOCRRecognitionRegressionTests {
             bytes[index] = UInt8((index * 37 + index / 17) % 256)
         }
         let frame = try #require(NativeOCRRGBAFrame(width: width, height: height, bytes: bytes))
-        for index in 0..<24 {
+        for index in 0..<48 {
             let x = CGFloat(index % 4 * 7 - 9), y = CGFloat(index % 5 * 11 - 8)
             let w = CGFloat(10 + index * 13 % 100), h = CGFloat(12 + index * 29 % 170)
-            let polygon = [CGPoint(x: x, y: y), CGPoint(x: x + w, y: y + 2),
-                           CGPoint(x: x + w - 3, y: y + h), CGPoint(x: x + 1, y: y + h - 2)]
+            // Odd indices >= 24 are axis-aligned rectangles and even ones are
+            // parallelograms: both have g == h == 0 and skip the division.
+            let polygon = index < 24
+                ? [CGPoint(x: x, y: y), CGPoint(x: x + w, y: y + 2),
+                   CGPoint(x: x + w - 3, y: y + h), CGPoint(x: x + 1, y: y + h - 2)]
+                : index.isMultiple(of: 2)
+                ? [CGPoint(x: x + 0.5, y: y + 0.25), CGPoint(x: x + w + 0.5, y: y + 3.25),
+                   CGPoint(x: x + w + 4.5, y: y + h + 3.25), CGPoint(x: x + 4.5, y: y + h + 0.25)]
+                : [CGPoint(x: x, y: y), CGPoint(x: x + w, y: y),
+                   CGPoint(x: x + w, y: y + h), CGPoint(x: x, y: y + h)]
             let actual = try #require(NativeCoreMLRecognitionPreprocessor.prepare(frame: frame, polygon: polygon))
             #if DEBUG
             let reference = try #require(NativeCoreMLRecognitionPreprocessor.prepareReferenceForTesting(frame: frame, polygon: polygon))
@@ -172,7 +180,8 @@ struct NativeOCRRecognitionRegressionTests {
         #expect(first.diagnostics.predictedRegions == 25)
         #expect(first.diagnostics.modelFunctionSequence == Array(repeating: "rec1280b1", count: 8)
                 + Array(repeating: "rec640b4", count: 2) + Array(repeating: "rec320b4", count: 3))
-        #expect(predictor.maximumActivePredictions == 1)
+        // Singleton rec1280b1 chunks share a window, so two predict at once.
+        #expect(predictor.maximumActivePredictions == 2)
         let calls = predictor.predictionCount
         let remapped = regions.map { NativeCoreMLRecognitionRegion(sourceIndex: $0.sourceIndex + 100, polygon: $0.polygon) }
         let second = try await recognizer.recognize(frame: frame, regions: remapped)
@@ -185,6 +194,64 @@ struct NativeOCRRecognitionRegressionTests {
         #expect(filtered.regions.isEmpty)
         #expect(filtered.diagnostics.cacheHitRegions == 25)
         #expect(predictor.predictionCount == calls)
+    }
+}
+
+extension NativeOCRRecognitionRegressionTests {
+    /// Two in-flight predictions must reproduce the serial pass exactly:
+    /// results, cache hits (including crops repeated across adjacent chunks),
+    /// function order, and the full audit event sequence.
+    @Test(arguments: [false, true])
+    func concurrentPredictionsMatchSerialOrderCacheAndAudit(dynamicWidth: Bool) async throws {
+        let width = 160, height = 600
+        var bytes = [UInt8](repeating: 255, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width { bytes[(y * width + x) * 4 + 2] = UInt8(y / 20) }
+        }
+        let frame = try #require(NativeOCRRGBAFrame(width: width, height: height, bytes: bytes))
+        // Mixed widths, with every third crop repeating its predecessor's
+        // pixels so a later chunk depends on an earlier chunk's insertions.
+        let regions = (0..<27).map { index -> NativeCoreMLRecognitionRegion in
+            let row = index.isMultiple(of: 3) && index > 0 ? index - 1 : index
+            let right = [8, 40, 100, 150][row % 4]
+            let y = row * 20
+            return NativeCoreMLRecognitionRegion(sourceIndex: index, polygon: [
+                CGPoint(x: 0, y: y), CGPoint(x: right, y: y),
+                CGPoint(x: right, y: y + 4), CGPoint(x: 0, y: y + 4)
+            ])
+        }.reversed()
+        func run(concurrency: Int) async throws -> (
+            [[NativeCoreMLRecognizedRegion]], [NativeCoreMLRecognitionDiagnostics], [String], Int
+        ) {
+            let predictor = OCRPixelPredictor()
+            let audit = OCRRecognitionAuditRecorder()
+            let recognizer = try NativeCoreMLRecognizer(
+                predictor: predictor,
+                dictionary: (0..<NativeCoreMLRecognizer.expectedDictionaryCharacterCount).map { "line-\($0)" },
+                recognitionCacheCapacity: 12,
+                dynamicWidth: dynamicWidth,
+                maximumConcurrentPredictions: concurrency,
+                auditObserver: { audit.append($0) }
+            )
+            var results: [[NativeCoreMLRecognizedRegion]] = []
+            var diagnostics: [NativeCoreMLRecognitionDiagnostics] = []
+            // A small cache also exercises eviction between passes.
+            for pass in [Array(regions), Array(regions.prefix(9)), Array(regions)] {
+                let result = try await recognizer.recognize(frame: frame, regions: pass)
+                results.append(result.regions)
+                diagnostics.append(result.diagnostics)
+            }
+            return (results, diagnostics, audit.sequence, predictor.maximumActivePredictions)
+        }
+        let serial = try await run(concurrency: 1)
+        let concurrent = try await run(concurrency: 2)
+        #expect(serial.3 == 1)
+        #expect(concurrent.0 == serial.0)
+        #expect(concurrent.1.map(\.predictedRegions) == serial.1.map(\.predictedRegions))
+        #expect(concurrent.1.map(\.cacheHitRegions) == serial.1.map(\.cacheHitRegions))
+        #expect(concurrent.1.map(\.modelFunctionSequence) == serial.1.map(\.modelFunctionSequence))
+        #expect(concurrent.2 == serial.2)
+        #expect(serial.1[0].cacheHitRegions > 0)
     }
 }
 
@@ -238,6 +305,16 @@ private final class OCRRecognitionAuditRecorder: @unchecked Sendable {
     }
     var thresholds: [Double] {
         snapshot.compactMap { if case let .decoded(_, _, _, _, threshold, _) = $0 { threshold } else { nil } }
+    }
+    /// Ordered, comparable rendering of every event.
+    var sequence: [String] {
+        snapshot.map {
+            switch $0 {
+            case let .requested(_, region): "req:\(region.sourceIndex)"
+            case let .decoded(_, region, text, confidence, _, cacheHit):
+                "dec:\(region.sourceIndex):\(text):\(confidence):\(cacheHit)"
+            }
+        }
     }
     var requestIDs: Set<String> {
         Set(snapshot.map {
