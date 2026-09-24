@@ -298,11 +298,15 @@ actor TranslationService {
         }
     }
 
+    /// `onPartial` receives provisional streamed segments (caller IDs) only
+    /// when this call starts the provider request; cache hits and joined
+    /// in-flight requests publish only the final result.
     func translate(
         _ request: RemoteTranslationRequest,
         configuration: RemoteTranslationConfiguration,
         usesCache: Bool = true,
-        priority: TranslationRequestPriority = .foreground
+        priority: TranslationRequestPriority = .foreground,
+        onPartial: RemoteTranslationPartialHandler? = nil
     ) async throws -> RemoteTranslationBatchResult {
         guard usesCache else {
             return try await translateLive(
@@ -395,7 +399,10 @@ actor TranslationService {
                     configuration: configuration,
                     cacheStorageGeneration: cacheStorageGeneration,
                     purgeAdmissionGeneration: purgeAdmissionGeneration,
-                    priority: priority
+                    priority: priority,
+                    onPartial: onPartial.map { handler in
+                        { @Sendable segments in handler(canonicalRequest.restoringCallerSegmentIDs(inPartial: segments)) }
+                    }
                 )
             }
             try Task.checkCancellation()
@@ -553,7 +560,8 @@ actor TranslationService {
         configuration: RemoteTranslationConfiguration,
         cacheStorageGeneration: UInt64,
         purgeAdmissionGeneration: UInt64,
-        priority: TranslationRequestPriority
+        priority: TranslationRequestPriority,
+        onPartial: RemoteTranslationPartialHandler?
     ) {
         guard purgeAdmissionGeneration == purgeGeneration,
               purgeTask == nil
@@ -575,7 +583,8 @@ actor TranslationService {
                     request: request,
                     configuration: configuration,
                     providerRequestLimiter: providerRequestLimiter,
-                    priority: priority
+                    priority: priority,
+                    onPartial: onPartial
                 )
                 await finish(
                     key: key,
@@ -604,7 +613,8 @@ actor TranslationService {
         configuration: RemoteTranslationConfiguration,
         providerRequestLimiter: TranslationProviderRequestLimiter?,
         priority: TranslationRequestPriority,
-        allowsParallelSplit: Bool = true
+        allowsParallelSplit: Bool = true,
+        onPartial: RemoteTranslationPartialHandler? = nil
     ) async throws -> RemoteTranslationBatchResult {
         var attempt = 0
         while true {
@@ -620,13 +630,15 @@ actor TranslationService {
                     result = try await providerRequestLimiter.withPermit(priority: priority) {
                         try await client.translate(
                             request,
-                            configuration: configuration
+                            configuration: configuration,
+                            onPartial: onPartial
                         )
                     }
                 } else {
                     result = try await client.translate(
                         request,
-                        configuration: configuration
+                        configuration: configuration,
+                        onPartial: onPartial
                     )
                 }
                 TranslationPerformanceDiagnostics
@@ -684,7 +696,8 @@ actor TranslationService {
                             for (index, part) in parts.enumerated() {
                                 group.addTask {
                                     let value = try await requestProvider(client: client, request: part, configuration: configuration,
-                                        providerRequestLimiter: providerRequestLimiter, priority: priority, allowsParallelSplit: false)
+                                        providerRequestLimiter: providerRequestLimiter, priority: priority, allowsParallelSplit: false,
+                                        onPartial: onPartial)
                                     return (index, value.translations)
                                 }
                             }
@@ -696,7 +709,8 @@ actor TranslationService {
                         var values: [RemoteTranslatedSegment] = []
                         for part in parts {
                             let value = try await requestProvider(client: client, request: part, configuration: configuration,
-                                providerRequestLimiter: providerRequestLimiter, priority: priority, allowsParallelSplit: false)
+                                providerRequestLimiter: providerRequestLimiter, priority: priority, allowsParallelSplit: false,
+                                        onPartial: onPartial)
                             values.append(contentsOf: value.translations)
                         }
                         recovered = values
@@ -817,6 +831,10 @@ enum BoundedTranslationBatchExecutor {
         _ index: Int,
         _ result: RemoteTranslationBatchResult
     ) async throws -> Void
+    /// Provisional streamed segments of batch `index`, delivered synchronously
+    /// from the network callback in response order. The completion handler
+    /// for the same index remains authoritative.
+    typealias BatchPartialHandler = @Sendable (_ index: Int, _ segments: [RemoteTranslatedSegment]) -> Void
 
     private struct IndexedBatchResult: Sendable {
         let index: Int
@@ -839,7 +857,8 @@ enum BoundedTranslationBatchExecutor {
         usesCache: Bool = true,
         maximumConcurrentRequests: Int = defaultMaximumConcurrentRequests,
         priority: TranslationRequestPriority = .foreground,
-        onBatchCompleted: BatchCompletionHandler? = nil
+        onBatchCompleted: BatchCompletionHandler? = nil,
+        onBatchPartial: BatchPartialHandler? = nil
     ) async throws -> [RemoteTranslationBatchResult] {
         let startedAt = ProcessInfo.processInfo.systemUptime
         let totalSegments = requests.reduce(into: 0) {
@@ -919,7 +938,8 @@ enum BoundedTranslationBatchExecutor {
                                 requests[index],
                                 configuration: configuration,
                                 usesCache: usesCache,
-                                priority: priority
+                                priority: priority,
+                                onPartial: onBatchPartial.map { handler in { @Sendable in handler(index, $0) } }
                             )
                         )
                     }

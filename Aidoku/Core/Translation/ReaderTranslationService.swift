@@ -412,10 +412,14 @@ actor ReaderTranslationService {
 
     typealias Progress = @Sendable ([ReaderTranslationRegion]) async throws -> Void
 
+    /// `onPartialProgress` (optional) receives snapshots that include
+    /// provisional streamed segments of unfinished batches. It never runs
+    /// after this call returns, and completed batches always win over it.
     func translate(
         regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings, image: UIImage? = nil,
         preparedImageJPEG: Data? = nil, onProgress: Progress? = nil,
-        priority: TranslationRequestPriority = .foreground
+        priority: TranslationRequestPriority = .foreground,
+        onPartialProgress: Progress? = nil
     ) async throws -> [ReaderTranslationRegion] {
         try Task.checkCancellation()
         let regions = ReaderTranslationLanguageFilter.apply(regions, settings: settings)
@@ -441,6 +445,29 @@ actor ReaderTranslationService {
         let progress = try ReaderTranslationProgress(regions: regions, plans: plans, configuration: settings.configuration)
         // Clear translations whose language/model/prompt identity no longer matches before publishing any batch.
         try await onProgress?(await progress.snapshot())
+        // Streamed segments arrive synchronously on the network queue. One
+        // ordered consumer applies them, so a partial never overtakes a later
+        // partial and never replaces a completed batch.
+        var partialConsumer: Task<Void, Never>?
+        var partialHandler: BoundedTranslationBatchExecutor.BatchPartialHandler?
+        var partialContinuation: AsyncStream<(Int, [RemoteTranslatedSegment])>.Continuation?
+        if let onPartialProgress {
+            let (stream, continuation) = AsyncStream<(Int, [RemoteTranslatedSegment])>.makeStream()
+            partialContinuation = continuation
+            partialHandler = { index, segments in continuation.yield((index, segments)) }
+            partialConsumer = Task {
+                for await (index, segments) in stream {
+                    guard !Task.isCancelled else { break }
+                    guard let snapshot = await progress.partial(index: index, segments: segments) else { continue }
+                    guard !Task.isCancelled else { break }
+                    try? await onPartialProgress(snapshot)
+                }
+            }
+        }
+        defer {
+            partialContinuation?.finish()
+            partialConsumer?.cancel()
+        }
         _ = try await BoundedTranslationBatchExecutor.translate(
             plans.map(\.request), configuration: settings.configuration, service: service,
             // The scheduler reserves foreground capacity until a lookahead is promoted.
@@ -450,8 +477,12 @@ actor ReaderTranslationService {
                 try Task.checkCancellation()
                 let snapshot = await progress.complete(index: index, result: result)
                 try await onProgress?(snapshot)
-            }
+            },
+            onBatchPartial: partialHandler
         )
+        partialContinuation?.finish()
+        partialConsumer?.cancel()
+        await partialConsumer?.value
         try Task.checkCancellation()
         return await progress.snapshot()
     }
@@ -491,7 +522,26 @@ actor ReaderTranslationProgress {
         }
     }
 
+    private var completedBatches = Set<Int>()
+
+    /// Applies provisional streamed segments of an unfinished batch. Returns
+    /// nil when nothing changed or the batch has already completed.
+    func partial(index: Int, segments: [RemoteTranslatedSegment]) -> [ReaderTranslationRegion]? {
+        guard inputIndices.indices.contains(index), !completedBatches.contains(index) else { return nil }
+        var changed = false
+        for segment in segments {
+            if let inputIndex = inputIndices[index][segment.id], let identity = expected[inputIndex],
+               regions[inputIndex].translation != segment.text || regions[inputIndex].translationReuseIdentity != identity {
+                regions[inputIndex].translation = segment.text
+                regions[inputIndex].translationReuseIdentity = identity
+                changed = true
+            }
+        }
+        return changed ? regions : nil
+    }
+
     func complete(index: Int, result: RemoteTranslationBatchResult) -> [ReaderTranslationRegion] {
+        completedBatches.insert(index)
         for segment in result.translations {
             if let inputIndex = inputIndices[index][segment.id], let identity = expected[inputIndex] {
                 regions[inputIndex].translation = segment.text

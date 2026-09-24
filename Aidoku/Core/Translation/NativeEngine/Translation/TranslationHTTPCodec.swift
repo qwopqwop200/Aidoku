@@ -162,9 +162,24 @@ enum TranslationHTTPCodec {
 
     static let maximumTranslationBytes = 512 * 1024
 
+    /// Chat Completions wire options. `.standard` is the portable
+    /// `response_format` request. `compactStreaming` is only used for custom
+    /// endpoints positively identified as vLLM: an exact, whitespace-free
+    /// grammar (`structured_outputs.regex`) replaces the JSON schema that some
+    /// proxies drop, output streams over SSE, and an optional generous
+    /// `max_tokens` ends runaway generations. The prompt text is unchanged.
+    struct ChatWireOptions: Equatable, Sendable {
+        var compactStructuredOutput = false
+        var stream = false
+        var maximumOutputTokens: Int?
+
+        static let standard = Self()
+    }
+
     static func requestBody(
         configuration: RemoteTranslationConfiguration,
-        request: RemoteTranslationRequest
+        request: RemoteTranslationRequest,
+        chatOptions: ChatWireOptions = .standard
     ) throws -> Data {
         try request.validate()
         let translationData = try encodedTranslationData(request)
@@ -290,15 +305,27 @@ enum TranslationHTTPCodec {
                     ],
                 ],
                 "temperature": 0,
-                "response_format": [
+            ]
+            if chatOptions.compactStructuredOutput {
+                chatRoot["structured_outputs"] = [
+                    "regex": try compactOutputPattern(
+                        segmentIDs: request.segments.map(\.id),
+                        filtersSFX: filtersSFX,
+                        filtersBackground: filtersBackground
+                    ),
+                ]
+            } else {
+                chatRoot["response_format"] = [
                     "type": "json_schema",
                     "json_schema": [
                         "name": "translation_batch",
                         "strict": true,
                         "schema": schema,
                     ],
-                ],
-            ]
+                ]
+            }
+            if chatOptions.stream { chatRoot["stream"] = true }
+            if let maximumOutputTokens = chatOptions.maximumOutputTokens { chatRoot["max_tokens"] = maximumOutputTokens }
             if configuration.reasoningEffort != .modelDefault { chatRoot["reasoning_effort"] = configuration.reasoningEffort.rawValue }
             root = chatRoot
         }
@@ -309,6 +336,49 @@ enum TranslationHTTPCodec {
             )
         }
         return try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
+    }
+
+    /// A JSON string with at least one character. Control characters must be
+    /// escaped exactly as JSON requires; every other scalar is literal.
+    private static let compactJSONStringPattern = #""([^"\\\x00-\x1f]|\\(["\\/bfnrt]|u[0-9a-fA-F]{4}))+""#
+    private static let textRolePattern = #""(dialogue|narration|story_text|sfx|background|unknown)""#
+
+    /// Whether `compactOutputPattern` can express these IDs literally.
+    static func supportsCompactOutput(segmentIDs: [String]) -> Bool {
+        !segmentIDs.isEmpty && segmentIDs.allSatisfy { id in
+            !id.isEmpty && id.unicodeScalars.allSatisfy {
+                ("0"..."9").contains($0) || ("A"..."Z").contains($0) || ("a"..."z").contains($0) ||
+                    $0 == "-" || $0 == "_" || $0 == "." || $0 == ":"
+            }
+        }
+    }
+
+    /// Exact whitespace-free grammar for the textual output contract: one
+    /// object per supplied ID in request order, keys in the order the prompt
+    /// lists them. It accepts only responses the envelope parser accepts
+    /// structurally, so indentation cannot consume output tokens.
+    static func compactOutputPattern(segmentIDs: [String], filtersSFX: Bool, filtersBackground: Bool) throws -> String {
+        guard supportsCompactOutput(segmentIDs: segmentIDs) else {
+            throw RemoteTranslationError.invalidRequest("segment IDs cannot be expressed in a compact output grammar")
+        }
+        let classification = (filtersSFX ? #","is_sfx":(true|false)"# : "") +
+            (filtersBackground ? #","text_role":"# + textRolePattern : "")
+        let items = segmentIDs.map { id in
+            #"\{"id":""# + id.replacingOccurrences(of: ".", with: #"\."#) + "\"" + classification +
+                #","text":"# + compactJSONStringPattern + #"\}"#
+        }
+        return #"\{"translations":\["# + items.joined(separator: ",") + #"\]\}"#
+    }
+
+    /// Safety cap for custom endpoints without reasoning: it only ends runaway
+    /// generations. Measured compact Korean output uses about 16 tokens per
+    /// segment (988 tokens for 64 segments); indented JSON about 23. The
+    /// per-segment floor and per-source-character allowance keep this far
+    /// above any legitimate answer, including long captions.
+    static func maximumOutputTokens(for request: RemoteTranslationRequest) -> Int {
+        request.segments.reduce(256) { total, segment in
+            total + 96 + 4 * segment.text.unicodeScalars.count
+        }
     }
 
     static func responseTranslations(
@@ -575,42 +645,15 @@ enum TranslationHTTPCodec {
 
         let expectedIDs = Set(expectedSegmentIDs)
         var accepted: [String: RemoteTranslatedSegment] = [:]
-        let expectedKeys = Set(["id", "text"] + (sfxSourceTexts == nil ? [] : ["is_sfx"]) + (backgroundSourceTexts == nil ? [] : ["text_role"]))
         for rawItem in translations {
-            guard let item = rawItem as? [String: Any],
-                  Set(item.keys) == expectedKeys,
-                  let id = item["id"] as? String,
-                  expectedIDs.contains(id),
-                  accepted[id] == nil,
-                  let text = item["text"] as? String,
-                  text.utf8.count <= maximumTranslationBytes,
-                  !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            else {
+            let segment = try validatedSegment(rawItem, expectedIDs: expectedIDs,
+                                               sfxSourceTexts: sfxSourceTexts, backgroundSourceTexts: backgroundSourceTexts)
+            guard accepted[segment.id] == nil else {
                 throw RemoteTranslationError.invalidResponse(
                     "structured translation contains an invalid segment"
                 )
             }
-            var isSFX: Bool?
-            if sfxSourceTexts != nil {
-                guard let flag = item["is_sfx"] as? NSNumber, CFGetTypeID(flag) == CFBooleanGetTypeID() else {
-                    throw RemoteTranslationError.invalidResponse("structured translation contains an invalid segment")
-                }
-                isSFX = flag.boolValue
-            }
-            var preservesBackground = false
-            if backgroundSourceTexts != nil {
-                guard let role = item["text_role"] as? String,
-                      ["dialogue", "narration", "story_text", "sfx", "background", "unknown"].contains(role) else {
-                    throw RemoteTranslationError.invalidResponse("invalid background classification")
-                }
-                preservesBackground = role == "background"
-                // Both fields express SFX classification when both filters are enabled.
-                // A positive role must not be lost to a contradictory boolean.
-                if role == "sfx", sfxSourceTexts != nil { isSFX = true }
-            }
-            let output = preservesBackground ? (backgroundSourceTexts?[id] ?? text) :
-                (isSFX == true ? (sfxSourceTexts?[id] ?? text) : text)
-            accepted[id] = RemoteTranslatedSegment(id: id, text: output, isSFX: isSFX)
+            accepted[segment.id] = segment
         }
         guard accepted.count == expectedSegmentIDs.count else {
             throw RemoteTranslationError.invalidResponse(
@@ -620,5 +663,101 @@ enum TranslationHTTPCodec {
         return expectedSegmentIDs.compactMap { id in
             accepted[id]
         }
+    }
+
+    /// Validates one `translations` item exactly as the complete envelope
+    /// parser does, including SFX/background source-text preservation.
+    private static func validatedSegment(
+        _ rawItem: Any,
+        expectedIDs: Set<String>,
+        sfxSourceTexts: [String: String]?,
+        backgroundSourceTexts: [String: String]?
+    ) throws -> RemoteTranslatedSegment {
+        let expectedKeys = Set(["id", "text"] + (sfxSourceTexts == nil ? [] : ["is_sfx"]) + (backgroundSourceTexts == nil ? [] : ["text_role"]))
+        guard let item = rawItem as? [String: Any],
+              Set(item.keys) == expectedKeys,
+              let id = item["id"] as? String,
+              expectedIDs.contains(id),
+              let text = item["text"] as? String,
+              text.utf8.count <= maximumTranslationBytes,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            throw RemoteTranslationError.invalidResponse(
+                "structured translation contains an invalid segment"
+            )
+        }
+        var isSFX: Bool?
+        if sfxSourceTexts != nil {
+            guard let flag = item["is_sfx"] as? NSNumber, CFGetTypeID(flag) == CFBooleanGetTypeID() else {
+                throw RemoteTranslationError.invalidResponse("structured translation contains an invalid segment")
+            }
+            isSFX = flag.boolValue
+        }
+        var preservesBackground = false
+        if backgroundSourceTexts != nil {
+            guard let role = item["text_role"] as? String,
+                  ["dialogue", "narration", "story_text", "sfx", "background", "unknown"].contains(role) else {
+                throw RemoteTranslationError.invalidResponse("invalid background classification")
+            }
+            preservesBackground = role == "background"
+            // Both fields express SFX classification when both filters are enabled.
+            // A positive role must not be lost to a contradictory boolean.
+            if role == "sfx", sfxSourceTexts != nil { isSFX = true }
+        }
+        let output = preservesBackground ? (backgroundSourceTexts?[id] ?? text) :
+            (isSFX == true ? (sfxSourceTexts?[id] ?? text) : text)
+        return RemoteTranslatedSegment(id: id, text: output, isSFX: isSFX)
+    }
+
+    /// Whether a successful standard Chat Completions body came from a vLLM
+    /// release that supports `structured_outputs` (introduced in 0.10.2; the
+    /// check requires 0.11+). Unknown servers keep the portable request.
+    static func identifiesStructuredOutputServer(responseBody: Data) -> Bool {
+        guard let root = try? JSONSerialization.jsonObject(with: responseBody) as? [String: Any],
+              let fingerprint = root["system_fingerprint"] as? String,
+              fingerprint.hasPrefix("vllm-") else { return false }
+        let version = fingerprint.dropFirst(5).split(separator: "-").first ?? ""
+        let parts = version.split(separator: ".").map { Int($0) }
+        guard parts.count >= 2, let major = parts[0], let minor = parts[1] else { return false }
+        return major > 0 || minor >= 11
+    }
+
+    /// Best-effort validation of one streamed item for progressive display.
+    /// Invalid items return nil; the final envelope remains authoritative.
+    static func streamedSegment(
+        fromItemJSON data: Data,
+        expectedSegmentIDs: Set<String>,
+        sfxSourceTexts: [String: String]? = nil,
+        backgroundSourceTexts: [String: String]? = nil
+    ) -> RemoteTranslatedSegment? {
+        guard let object = try? JSONSerialization.jsonObject(with: data) else { return nil }
+        return try? validatedSegment(object, expectedIDs: expectedSegmentIDs,
+                                     sfxSourceTexts: sfxSourceTexts, backgroundSourceTexts: backgroundSourceTexts)
+    }
+
+    /// Validates a complete Chat Completions SSE body with the same finish and
+    /// envelope rules as a non-streamed response.
+    static func streamedChatTranslations(
+        from body: Data,
+        expectedSegmentIDs: [String],
+        sfxSourceTexts: [String: String]? = nil,
+        backgroundSourceTexts: [String: String]? = nil
+    ) throws -> [RemoteTranslatedSegment] {
+        var decoder = ChatCompletionStreamDecoder()
+        _ = try decoder.consume(body)
+        _ = try decoder.finish()
+        if decoder.refused || decoder.finishReason == "content_filter" {
+            throw RemoteTranslationError.refused
+        }
+        if decoder.finishReason == "length" {
+            throw RemoteTranslationError.invalidResponse("the chat completion was truncated")
+        }
+        guard decoder.finishReason == "stop" else {
+            throw RemoteTranslationError.invalidResponse("the chat completion did not finish with text")
+        }
+        return try parseTranslationEnvelope(
+            decoder.content,
+            expectedSegmentIDs: expectedSegmentIDs, sfxSourceTexts: sfxSourceTexts, backgroundSourceTexts: backgroundSourceTexts
+        )
     }
 }

@@ -653,6 +653,17 @@ struct CanonicalRemoteTranslationRequest: Sendable {
         self.callerSegmentIDs = callerSegmentIDs
     }
 
+    /// Maps provisional streamed segments back to caller IDs, dropping any
+    /// segment whose canonical ID is not part of this request.
+    func restoringCallerSegmentIDs(inPartial segments: [RemoteTranslatedSegment]) -> [RemoteTranslatedSegment] {
+        let expectedCanonicalIDs = request.segments.map(\.id)
+        guard expectedCanonicalIDs.count == callerSegmentIDs.count else { return [] }
+        return segments.compactMap { segment in
+            guard let index = expectedCanonicalIDs.firstIndex(of: segment.id) else { return nil }
+            return RemoteTranslatedSegment(id: callerSegmentIDs[index], text: segment.text, isSFX: segment.isSFX)
+        }
+    }
+
     func restoringCallerSegmentIDs(
         in result: RemoteTranslationBatchResult
     ) throws -> RemoteTranslationBatchResult {

@@ -425,6 +425,7 @@ final class ReaderTranslationSession {
             ReaderTranslationDiagnostics.record("worker_cancelled", page: (items.first { $0.key == activeKey }?.position ?? -1) + 1)
         }
         workGeneration = UUID()
+        discardProvisionalTranslations()
         // Transfer destination ownership before parent cancellation can reach it.
         if let page, let cancelProcessingForPage { cancelProcessingForPage(page) } else { cancelProcessing() }
         worker?.cancel()
@@ -641,12 +642,27 @@ final class ReaderTranslationSession {
         }
     }
 
-    private func handleProgress(key: String, generation: UUID) throws {
+    private func handleProgress(key: String, generation: UUID, regions: [ReaderTranslationRegion] = []) throws {
         try Task.checkCancellation()
         guard state == .on, workGeneration == generation, activeKey == key else { throw CancellationError() }
-        // Progress only schedules cached neighbors; it never changes the visible
-        // page. OCR has released image admission before this callback.
+        // Only the visible page shows streamed translations; lookahead pages
+        // keep their source until the completed result is prepared.
+        if let settings, let page = visible.first(where: { $0.sourcePage?.translationCacheKey == key }) {
+            if provisionalPage !== page { provisionalPage?.discardProvisionalTranslation() }
+            provisionalPage = page
+            page.displayProvisional(regions, settings: settings)
+        }
+        // OCR has released image admission before this callback.
         drainLayout()
+    }
+
+    private weak var provisionalPage: ReaderTranslationPage?
+
+    /// Provisional text belongs to the running translation of that page; a
+    /// cancelled or failed run must not leave it on screen.
+    private func discardProvisionalTranslations() {
+        provisionalPage?.discardProvisionalTranslation()
+        provisionalPage = nil
     }
 
     // Sweep the entire chapter with one consumer. Only nearby compact text stays
@@ -808,8 +824,8 @@ final class ReaderTranslationSession {
                             $0.sourcePage?.translationCacheKey == item.key
                         }) { cancelLayout(clearQueue: false) }
                         ReaderTranslationDiagnostics.record("translation_start", page: item.position + 1)
-                        regions = try await process(item.page, settings) { [weak self] _ in
-                            try await self?.handleProgress(key: key, generation: issued)
+                        regions = try await process(item.page, settings) { [weak self] progress in
+                            try await self?.handleProgress(key: key, generation: issued, regions: progress)
                         }
                     }
                     try Task.checkCancellation()
@@ -834,7 +850,9 @@ final class ReaderTranslationSession {
                         drainLayout()
                     }
                 } catch {
+                    // A superseded worker's provisional state was discarded by stopWorker.
                     guard workGeneration == issued, !Task.isCancelled else { return }
+                    discardProvisionalTranslations()
                     let cause = (error as? ReaderTranslationOCRFallback)?.underlying ?? error
                     let code: Int
                     switch cause {

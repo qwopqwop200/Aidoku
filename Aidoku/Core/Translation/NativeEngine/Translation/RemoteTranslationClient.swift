@@ -1,11 +1,65 @@
 // OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 import Foundation
 
+/// Receives validated translations of a batch while its response streams.
+/// Calls arrive in response order, each segment ID at most once per request
+/// attempt. They are provisional: the final batch result is authoritative.
+typealias RemoteTranslationPartialHandler = @Sendable ([RemoteTranslatedSegment]) -> Void
+
 protocol RemoteTranslating: Sendable {
     func translate(
         _ request: RemoteTranslationRequest,
         configuration: RemoteTranslationConfiguration
     ) async throws -> RemoteTranslationBatchResult
+
+    func translate(
+        _ request: RemoteTranslationRequest,
+        configuration: RemoteTranslationConfiguration,
+        onPartial: RemoteTranslationPartialHandler?
+    ) async throws -> RemoteTranslationBatchResult
+}
+
+extension RemoteTranslating {
+    /// Non-streaming clients only publish their final result.
+    func translate(
+        _ request: RemoteTranslationRequest,
+        configuration: RemoteTranslationConfiguration,
+        onPartial: RemoteTranslationPartialHandler?
+    ) async throws -> RemoteTranslationBatchResult {
+        try await translate(request, configuration: configuration)
+    }
+}
+
+/// Per-endpoint record of whether a custom Chat Completions server accepts
+/// the compact streamed wire format. Only a server that identified itself as
+/// a recent vLLM in a successful standard response is tried; a rejection or
+/// an unverified malformed answer permanently returns it to the standard
+/// `response_format` request for this client.
+final class CompactChatOutputRegistry: @unchecked Sendable {
+    enum State: Equatable { case unknown, eligible, verified, unsupported }
+
+    private let lock = NSLock()
+    private var states: [String: State] = [:]
+
+    func state(for key: String) -> State {
+        lock.lock(); defer { lock.unlock() }
+        return states[key] ?? .unknown
+    }
+
+    func markEligible(_ key: String) {
+        lock.lock(); defer { lock.unlock() }
+        if (states[key] ?? .unknown) == .unknown { states[key] = .eligible }
+    }
+
+    func markVerified(_ key: String) {
+        lock.lock(); defer { lock.unlock() }
+        if states[key] == .eligible { states[key] = .verified }
+    }
+
+    func markUnsupported(_ key: String) {
+        lock.lock(); defer { lock.unlock() }
+        states[key] = .unsupported
+    }
 }
 
 private actor CustomProtocolPreferenceRegistry {
@@ -111,6 +165,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
     private let protocolPreferences = CustomProtocolPreferenceRegistry()
     private let imageSupport: TranslationImageSupport
     private let rechecksImageSupport: Bool
+    let compactOutput = CompactChatOutputRegistry()
     private struct UnsupportedImageInput: Error {}
 
     init(
@@ -130,6 +185,14 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         _ request: RemoteTranslationRequest,
         configuration: RemoteTranslationConfiguration
     ) async throws -> RemoteTranslationBatchResult {
+        try await translate(request, configuration: configuration, onPartial: nil)
+    }
+
+    func translate(
+        _ request: RemoteTranslationRequest,
+        configuration: RemoteTranslationConfiguration,
+        onPartial: RemoteTranslationPartialHandler?
+    ) async throws -> RemoteTranslationBatchResult {
         try Task.checkCancellation()
         try request.validate()
         var effectiveRequest = request
@@ -137,7 +200,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             effectiveRequest.imageJPEG = nil
         }
         do {
-            let result = try await translateUsingSupportedProtocol(effectiveRequest, configuration: configuration)
+            let result = try await translateUsingSupportedProtocol(effectiveRequest, configuration: configuration, onPartial: onPartial)
             if effectiveRequest.imageJPEG != nil {
                 imageSupport.record(.supported, for: configuration)
             }
@@ -146,18 +209,20 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             try Task.checkCancellation()
             imageSupport.record(.unsupported, for: configuration)
             effectiveRequest.imageJPEG = nil // Also clears the prepared base64 data URL.
-            return try await translateUsingSupportedProtocol(effectiveRequest, configuration: configuration)
+            return try await translateUsingSupportedProtocol(effectiveRequest, configuration: configuration, onPartial: onPartial)
         }
     }
 
     private func translateUsingSupportedProtocol(
         _ request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration
+        configuration: RemoteTranslationConfiguration,
+        onPartial: RemoteTranslationPartialHandler?
     ) async throws -> RemoteTranslationBatchResult {
         guard configuration.provider == .custom else {
             return try await translateOnce(
                 request,
-                configuration: configuration
+                configuration: configuration,
+                onPartial: onPartial
             )
         }
 
@@ -193,7 +258,8 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         do {
             let result = try await translateOnce(
                 request,
-                configuration: preferredConfiguration
+                configuration: preferredConfiguration,
+                onPartial: onPartial
             )
             await protocolPreferences.reportSuccess(
                 key: key,
@@ -224,7 +290,8 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             do {
                 let result = try await translateOnce(
                     request,
-                    configuration: alternateConfiguration
+                    configuration: alternateConfiguration,
+                    onPartial: onPartial
                 )
                 await protocolPreferences.reportSuccess(
                     key: key,
@@ -253,7 +320,8 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
 
     private func translateOnce(
         _ request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration
+        configuration: RemoteTranslationConfiguration,
+        onPartial: RemoteTranslationPartialHandler?
     ) async throws -> RemoteTranslationBatchResult {
         let segmentCount = request.segments.count
         let endpointStartedAt = ProcessInfo.processInfo.systemUptime
@@ -289,6 +357,121 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                 .elapsedMilliseconds(since: keychainStartedAt)
         )
 
+        let compactKey = endpoint.absoluteString
+        let compactState = compactOutput.state(for: compactKey)
+        if Self.usesCompactOutput(configuration: configuration, request: request, state: compactState) {
+            do {
+                let result = try await exchange(request, configuration: configuration, endpoint: endpoint, apiKey: apiKey,
+                                                chatOptions: Self.compactChatOptions(configuration: configuration, request: request),
+                                                onPartial: onPartial)
+                compactOutput.markVerified(compactKey)
+                return result.batch
+            } catch let error as RemoteTranslationError {
+                // Fall back once to the standard request when the server rejects
+                // the compact options, or when a server that has not yet produced
+                // a valid compact answer returns an unusable one.
+                let rejected: Bool
+                switch error {
+                case let .httpStatus(status, _): rejected = status == 400 || status == 422
+                case .invalidResponse: rejected = compactState == .eligible
+                default: rejected = false
+                }
+                guard rejected else { throw error }
+                compactOutput.markUnsupported(compactKey)
+                ReaderTranslationDiagnostics.record("api_compact_output_fallback", count: segmentCount)
+                try Task.checkCancellation()
+            }
+        }
+        let result = try await exchange(request, configuration: configuration, endpoint: endpoint, apiKey: apiKey,
+                                        chatOptions: .standard, onPartial: nil)
+        if result.identifiesStructuredOutputServer, configuration.provider == .custom,
+           configuration.apiProtocol == .chatCompletions {
+            compactOutput.markEligible(compactKey)
+        }
+        return result.batch
+    }
+
+    static func usesCompactOutput(
+        configuration: RemoteTranslationConfiguration,
+        request: RemoteTranslationRequest,
+        state: CompactChatOutputRegistry.State
+    ) -> Bool {
+        guard configuration.provider == .custom, configuration.apiProtocol == .chatCompletions,
+              state == .eligible || state == .verified else { return false }
+        return TranslationHTTPCodec.supportsCompactOutput(segmentIDs: request.segments.map(\.id))
+    }
+
+    static func compactChatOptions(
+        configuration: RemoteTranslationConfiguration,
+        request: RemoteTranslationRequest
+    ) -> TranslationHTTPCodec.ChatWireOptions {
+        TranslationHTTPCodec.ChatWireOptions(
+            compactStructuredOutput: true,
+            stream: true,
+            // Reasoning tokens count toward max_tokens; only cap direct answers.
+            maximumOutputTokens: configuration.reasoningEffort == .none
+                ? TranslationHTTPCodec.maximumOutputTokens(for: request) : nil
+        )
+    }
+
+    private struct ExchangeResult {
+        let batch: RemoteTranslationBatchResult
+        let identifiesStructuredOutputServer: Bool
+    }
+
+    /// Streamed partial output state. URLSession delivers body bytes on its
+    /// serial delegate queue; the lock only guards against observer reuse.
+    private final class PartialStreamState: @unchecked Sendable {
+        private let lock = NSLock()
+        private var decoder = ChatCompletionStreamDecoder()
+        private var scanner = StreamedTranslationItemScanner()
+        private var published = Set<String>()
+        private var failed = false
+        private let expectedIDs: Set<String>
+        private let sfxSourceTexts: [String: String]?
+        private let backgroundSourceTexts: [String: String]?
+        private let handler: RemoteTranslationPartialHandler
+
+        init(request: RemoteTranslationRequest, handler: @escaping RemoteTranslationPartialHandler) {
+            expectedIDs = Set(request.segments.map(\.id))
+            let sources = Dictionary(uniqueKeysWithValues: request.segments.map { ($0.id, $0.text) })
+            sfxSourceTexts = request.filtersSFX == true ? sources : nil
+            backgroundSourceTexts = request.filtersBackground == true ? sources : nil
+            self.handler = handler
+        }
+
+        func consume(_ data: Data) {
+            lock.lock()
+            var segments: [RemoteTranslatedSegment] = []
+            if !failed {
+                do {
+                    for delta in try decoder.consume(data) {
+                        for item in scanner.append(delta) {
+                            guard let segment = TranslationHTTPCodec.streamedSegment(
+                                fromItemJSON: item, expectedSegmentIDs: expectedIDs,
+                                sfxSourceTexts: sfxSourceTexts, backgroundSourceTexts: backgroundSourceTexts
+                            ), published.insert(segment.id).inserted else { continue }
+                            segments.append(segment)
+                        }
+                    }
+                } catch {
+                    failed = true // A non-SSE body; the final parse decides.
+                }
+            }
+            lock.unlock()
+            if !segments.isEmpty { handler(segments) }
+        }
+    }
+
+    private func exchange(
+        _ request: RemoteTranslationRequest,
+        configuration: RemoteTranslationConfiguration,
+        endpoint: URL,
+        apiKey: String,
+        chatOptions: TranslationHTTPCodec.ChatWireOptions,
+        onPartial: RemoteTranslationPartialHandler?
+    ) async throws -> ExchangeResult {
+        let segmentCount = request.segments.count
         let encodeStartedAt = ProcessInfo.processInfo.systemUptime
         var urlRequest = URLRequest(
             url: endpoint,
@@ -296,13 +479,15 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             timeoutInterval: configuration.timeout
         )
         urlRequest.httpMethod = "POST"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        urlRequest.setValue(chatOptions.stream ? "text/event-stream, application/json" : "application/json",
+                            forHTTPHeaderField: "Accept")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         urlRequest.setValue("Aidoku-iOS/1", forHTTPHeaderField: "User-Agent")
         urlRequest.httpBody = try TranslationHTTPCodec.requestBody(
             configuration: configuration,
-            request: request
+            request: request,
+            chatOptions: chatOptions
         )
         TranslationPerformanceDiagnostics.clientPhaseCompleted(
             phase: "encode",
@@ -311,12 +496,20 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                 .elapsedMilliseconds(since: encodeStartedAt)
         )
 
+        // SSE framing repeats per-chunk metadata around each token; the
+        // assembled content is still bounded by the envelope parser.
+        let maximumBodyBytes = chatOptions.stream
+            ? configuration.maximumResponseBytes.multipliedReportingOverflow(by: 8).partialValue
+            : configuration.maximumResponseBytes
+        let partialState = chatOptions.stream ? onPartial.map { PartialStreamState(request: request, handler: $0) } : nil
+        let bodyObserver: TranslationHTTPBodyObserver? = partialState.map { state in { data in state.consume(data) } }
         let transportResponse: TranslationHTTPResponse
         do {
             transportResponse = try await transport.data(
                 for: urlRequest,
-                maximumResponseBytes: configuration.maximumResponseBytes,
-                bypassesProxy: endpoint.scheme == "http"
+                maximumResponseBytes: maximumBodyBytes,
+                bypassesProxy: endpoint.scheme == "http",
+                onBodyData: bodyObserver
             )
         } catch is CancellationError {
             throw CancellationError()
@@ -358,17 +551,30 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                 requestID: requestID
             )
         }
-        guard body.count <= configuration.maximumResponseBytes else {
+        let isEventStream = chatOptions.stream && (response.value(forHTTPHeaderField: "Content-Type") ?? "")
+            .lowercased().contains("text/event-stream")
+        guard body.count <= (isEventStream ? maximumBodyBytes : configuration.maximumResponseBytes) else {
             throw RemoteTranslationError.responseTooLarge
         }
         let parseStartedAt = ProcessInfo.processInfo.systemUptime
-        let translations = try TranslationHTTPCodec.responseTranslations(
-            from: body,
-            protocol: configuration.apiProtocol,
-            expectedSegmentIDs: request.segments.map(\.id),
-            sfxSourceTexts: request.filtersSFX == true ? Dictionary(uniqueKeysWithValues: request.segments.map { ($0.id, $0.text) }) : nil,
-            backgroundSourceTexts: request.filtersBackground == true ? Dictionary(uniqueKeysWithValues: request.segments.map { ($0.id, $0.text) }) : nil
-        )
+        let sources = Dictionary(uniqueKeysWithValues: request.segments.map { ($0.id, $0.text) })
+        let translations: [RemoteTranslatedSegment]
+        if isEventStream {
+            translations = try TranslationHTTPCodec.streamedChatTranslations(
+                from: body,
+                expectedSegmentIDs: request.segments.map(\.id),
+                sfxSourceTexts: request.filtersSFX == true ? sources : nil,
+                backgroundSourceTexts: request.filtersBackground == true ? sources : nil
+            )
+        } else {
+            translations = try TranslationHTTPCodec.responseTranslations(
+                from: body,
+                protocol: configuration.apiProtocol,
+                expectedSegmentIDs: request.segments.map(\.id),
+                sfxSourceTexts: request.filtersSFX == true ? sources : nil,
+                backgroundSourceTexts: request.filtersBackground == true ? sources : nil
+            )
+        }
         TranslationPerformanceDiagnostics.clientPhaseCompleted(
             phase: "parse",
             segmentCount: segmentCount,
@@ -376,10 +582,14 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                 .elapsedMilliseconds(since: parseStartedAt)
         )
         try Task.checkCancellation()
-        return RemoteTranslationBatchResult(
-            translations: translations,
-            source: .network,
-            providerRequestID: requestID
+        return ExchangeResult(
+            batch: RemoteTranslationBatchResult(
+                translations: translations,
+                source: .network,
+                providerRequestID: requestID
+            ),
+            identifiesStructuredOutputServer: !chatOptions.compactStructuredOutput && !isEventStream &&
+                TranslationHTTPCodec.identifiesStructuredOutputServer(responseBody: body)
         )
     }
 

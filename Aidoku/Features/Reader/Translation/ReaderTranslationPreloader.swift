@@ -262,7 +262,10 @@ final class ReaderTranslationPreloader {
                         result = try await ReaderTranslationService.shared.translate(
                             regions: eligible, settings: settings, preparedImageJPEG: imageJPEG,
                             onProgress: { try await work.progress.publish($0) },
-                            priority: .promotable(work.promotion)
+                            priority: .promotable(work.promotion),
+                            // Streamed segments reach only the current observer (the
+                            // visible demand page); lookahead has none until adopted.
+                            onPartialProgress: { try await work.progress.publish($0) }
                         )
                     }
                 } catch {

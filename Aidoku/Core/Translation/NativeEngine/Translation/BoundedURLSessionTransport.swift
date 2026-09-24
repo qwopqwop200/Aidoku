@@ -31,12 +31,39 @@ struct TranslationHTTPResponse: @unchecked Sendable {
     }
 }
 
+/// Receives response body bytes as they arrive (2xx responses only), in
+/// order, before the complete response is returned.
+typealias TranslationHTTPBodyObserver = @Sendable (Data) -> Void
+
 protocol TranslationHTTPTransport: Sendable {
     func data(
         for request: URLRequest,
         maximumResponseBytes: Int,
         bypassesProxy: Bool
     ) async throws -> TranslationHTTPResponse
+
+    func data(
+        for request: URLRequest,
+        maximumResponseBytes: Int,
+        bypassesProxy: Bool,
+        onBodyData: TranslationHTTPBodyObserver?
+    ) async throws -> TranslationHTTPResponse
+}
+
+extension TranslationHTTPTransport {
+    /// Buffered transports deliver the complete body once.
+    func data(
+        for request: URLRequest,
+        maximumResponseBytes: Int,
+        bypassesProxy: Bool,
+        onBodyData: TranslationHTTPBodyObserver?
+    ) async throws -> TranslationHTTPResponse {
+        let response = try await data(for: request, maximumResponseBytes: maximumResponseBytes, bypassesProxy: bypassesProxy)
+        if let onBodyData, (200...299).contains(response.response.statusCode), !response.data.isEmpty {
+            onBodyData(response.data)
+        }
+        return response
+    }
 }
 
 /// URLSession's convenience `data(for:)` buffers the complete response before
@@ -52,6 +79,7 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
     private final class RequestState {
         let maximumResponseBytes: Int
         let continuation: CheckedContinuation<TranslationHTTPResponse, Error>
+        let onBodyData: TranslationHTTPBodyObserver?
         let startedAt: TimeInterval
         var response: HTTPURLResponse?
         var responseHeadersAt: TimeInterval?
@@ -61,10 +89,12 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
         init(
             maximumResponseBytes: Int,
             continuation: CheckedContinuation<TranslationHTTPResponse, Error>,
+            onBodyData: TranslationHTTPBodyObserver? = nil,
             startedAt: TimeInterval = ProcessInfo.processInfo.systemUptime
         ) {
             self.maximumResponseBytes = maximumResponseBytes
             self.continuation = continuation
+            self.onBodyData = onBodyData
             self.startedAt = startedAt
             data.reserveCapacity(min(maximumResponseBytes, 64 * 1024))
         }
@@ -158,6 +188,15 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
         maximumResponseBytes: Int,
         bypassesProxy: Bool
     ) async throws -> TranslationHTTPResponse {
+        try await data(for: request, maximumResponseBytes: maximumResponseBytes, bypassesProxy: bypassesProxy, onBodyData: nil)
+    }
+
+    func data(
+        for request: URLRequest,
+        maximumResponseBytes: Int,
+        bypassesProxy: Bool,
+        onBodyData: TranslationHTTPBodyObserver?
+    ) async throws -> TranslationHTTPResponse {
         guard maximumResponseBytes > 0 else {
             throw RemoteTranslationError.invalidConfiguration(
                 "response size limit must be positive"
@@ -177,7 +216,8 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
                 )
                 let state = RequestState(
                     maximumResponseBytes: maximumResponseBytes,
-                    continuation: continuation
+                    continuation: continuation,
+                    onBodyData: onBodyData
                 )
                 stateLock.lock()
                 states[key] = state
@@ -255,6 +295,7 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
     ) {
         let key = requestKey(session: session, task: dataTask)
         var oversizedState: RequestState?
+        var observer: TranslationHTTPBodyObserver?
 
         stateLock.lock()
         if let state = states[key] {
@@ -266,9 +307,14 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
                     state.firstBodyByteAt = ProcessInfo.processInfo.systemUptime
                 }
                 state.data.append(data)
+                if let status = state.response?.statusCode, (200...299).contains(status) {
+                    observer = state.onBodyData
+                }
             }
         }
         stateLock.unlock()
+        // The session delegate queue is serial, so observers see body order.
+        observer?(data)
 
         if let oversizedState {
             dataTask.cancel()
