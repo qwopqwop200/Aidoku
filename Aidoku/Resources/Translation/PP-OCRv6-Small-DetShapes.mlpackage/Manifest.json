@@ -1,18 +1,18 @@
 {
     "fileFormatVersion": "1.0.0",
     "itemInfoEntries": {
-        "2AB5B6D0-1CA1-ABE5-B19A-F6D3E2988F0F": {
-            "author": "com.microsoft.OnnxRuntime",
+        "6B1ADD8D-D878-4391-9BD3-0A843DF30AAB": {
+            "author": "com.apple.CoreML",
             "description": "CoreML Model Specification",
             "name": "model.mlmodel",
-            "path": "com.microsoft.OnnxRuntime/model.mlmodel"
+            "path": "com.apple.CoreML/model.mlmodel"
         },
-        "63CCA45A-FFB8-BD2A-3D01-2298743B475A": {
-            "author": "com.microsoft.OnnxRuntime",
+        "F24847B7-D35F-4980-807F-94AC32570298": {
+            "author": "com.apple.CoreML",
             "description": "CoreML Model Weights",
             "name": "weights",
-            "path": "com.microsoft.OnnxRuntime/weights"
+            "path": "com.apple.CoreML/weights"
         }
     },
-    "rootModelIdentifier": "2AB5B6D0-1CA1-ABE5-B19A-F6D3E2988F0F"
+    "rootModelIdentifier": "6B1ADD8D-D878-4391-9BD3-0A843DF30AAB"
 }
