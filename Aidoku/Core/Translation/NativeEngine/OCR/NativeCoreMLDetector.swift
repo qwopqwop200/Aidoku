@@ -388,12 +388,21 @@ protocol NativeCoreMLDetectionPredicting: AnyObject, Sendable {
         canvas: NativeCoreMLDetectionCanvas,
         cancellationCheck: @escaping @Sendable () throws -> Void
     ) async throws
+    /// Loads the shape-independent model without running a prediction.
+    func warmUpModel(
+        cancellationCheck: @escaping @Sendable () throws -> Void
+    ) async throws
     func purgeResources() async
 }
 
 @available(iOS 18.0, *)
 extension NativeCoreMLDetectionPredicting {
     var computeUnits: String { "all" }
+    func warmUpModel(
+        cancellationCheck: @escaping @Sendable () throws -> Void
+    ) async throws {
+        try cancellationCheck()
+    }
     func prepare(canvas: NativeCoreMLDetectionCanvas) async throws {}
     func prepare(
         canvas: NativeCoreMLDetectionCanvas,
@@ -655,6 +664,18 @@ private final class NativeCoreMLDetectorModelPredictor:
         )
     }
 
+    /// The detector is one dynamic-shape program: its load is independent of
+    /// the page canvas. Loading it early moves `MLModel.load` off the first
+    /// OCR frame without a speculative (possibly wrong-shape) prediction.
+    func warmUpModel(
+        cancellationCheck: @escaping @Sendable () throws -> Void
+    ) async throws {
+        _ = try await modelStore.model(
+            for: .square,
+            admissionCheck: cancellationCheck
+        )
+    }
+
     func purgeResources() async {
         await modelStore.purge()
     }
@@ -837,6 +858,27 @@ final class NativeCoreMLDetector: @unchecked Sendable {
         try preparationRevision.requireCurrent(preparationToken)
         try await resourceAccess.resources.predictor.prepare(
             canvas: canvas,
+            cancellationCheck: {
+                try self.preparationRevision.requireCurrent(preparationToken)
+            }
+        )
+        try preparationRevision.requireCurrent(preparationToken)
+    }
+
+    /// Loads the detector model only (no warm-up prediction). Shares the
+    /// preparation lifetime: `cancelPreparation()`/`purgeResources()` reject a
+    /// load that has not yet been admitted to the model store.
+    func warmUpModel() async throws {
+        let preparationToken = preparationRevision.token()
+        let resourceAccess = try await Task.detached(
+            priority: Task.currentPriority
+        ) { [self] in
+            try loadResources(cancellationCheck: {
+                try self.preparationRevision.requireCurrent(preparationToken)
+            })
+        }.value
+        try preparationRevision.requireCurrent(preparationToken)
+        try await resourceAccess.resources.predictor.warmUpModel(
             cancellationCheck: {
                 try self.preparationRevision.requireCurrent(preparationToken)
             }
@@ -1540,40 +1582,185 @@ enum NativeCoreMLDetectionPreprocessor {
             throw NativeCoreMLDetectorError.modelInputCreationFailed
         }
         let started = nowMilliseconds()
-        let plane = canvas.width * canvas.height
-        var values = [Float](repeating: 0, count: plane * 3)
         let sourceXs = await resizeCoordinates(sourceLength: frame.width, targetLength: dimensions.width, resizesOtherAxis: frame.height != dimensions.height)
         try cancellationCheck()
         try Task.checkCancellation()
         let sourceYs = await resizeCoordinates(sourceLength: frame.height, targetLength: dimensions.height, vertical: true, resizesOtherAxis: frame.width != dimensions.width)
         try cancellationCheck()
         try Task.checkCancellation()
-        try frame.bytes.withUnsafeBufferPointer { source in
-            try values.withUnsafeMutableBufferPointer { target in
-                for y in 0..<dimensions.height {
-                    try cancellationCheck()
-                    try Task.checkCancellation()
-                    let (y0, y1, fy) = sourceYs[y]
-                    for x in 0..<dimensions.width {
-                        let (x0, x1, fx) = sourceXs[x]
-                        for channel in 0..<3 {
-                            let offset = 2 - channel // detector uses BGR
-                            let a = Float(source[y0 * frame.bytesPerRow + x0 * 4 + offset])
-                            let b = Float(source[y0 * frame.bytesPerRow + x1 * 4 + offset])
-                            let c = Float(source[y1 * frame.bytesPerRow + x0 * 4 + offset])
-                            let d = Float(source[y1 * frame.bytesPerRow + x1 * 4 + offset])
-                            let pixel = (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy
-                            target[channel * plane + y * canvas.width + x] =
-                                (pixel / 255 - channelMean[channel]) / channelStandardDeviation[channel]
-                        }
-                    }
-                }
-            }
-        }
+        let values = try fillBoundedInput(
+            frame: frame, canvasWidth: canvas.width, canvasHeight: canvas.height,
+            width: dimensions.width, height: dimensions.height,
+            sourceXs: sourceXs, sourceYs: sourceYs, cancellationCheck: cancellationCheck
+        )
         let input = MLTensor(shape: canvas.inputShape, scalars: values)
         return NativeCoreMLDetectionPreparedTensor(input: input, canvas: canvas,
             resizedWidth: dimensions.width, resizedHeight: dimensions.height,
             inputTensorCreationMilliseconds: nowMilliseconds() - started, tensorGraphMilliseconds: 0)
+    }
+
+    /// Rows submitted to one `concurrentPerform` pass. Cancellation is observed
+    /// on the calling task between passes (GCD workers have no current Task).
+    private static let boundedRowsPerPass = 256
+    /// Rows written by one concurrent iteration. Every iteration owns a
+    /// disjoint row range in all three planes, so writes never overlap.
+    private static let boundedRowsPerBand = 16
+
+    /// Bilinear resize + BGR normalization into the planar canvas. Every
+    /// element uses exactly the same Float expression as the historical scalar
+    /// loop; rows are only distributed across cores, so the result is
+    /// bit-identical. Padding (resized image smaller than the canvas) is zeroed;
+    /// when the image covers the canvas every element is written exactly once
+    /// and the multi-megabyte zero-fill is skipped.
+    static func fillBoundedInput(
+        frame: NativeOCRRGBAFrame, canvasWidth: Int, canvasHeight: Int,
+        width: Int, height: Int,
+        sourceXs: [(Int, Int, Float)], sourceYs: [(Int, Int, Float)],
+        cancellationCheck: () throws -> Void = {}
+    ) throws -> [Float] {
+        guard width > 0, height > 0, width <= canvasWidth, height <= canvasHeight,
+              sourceXs.count >= width, sourceYs.count >= height,
+              frame.width > 0, frame.height > 0, frame.bytesPerRow >= frame.width * 4,
+              frame.bytes.count >= (frame.height - 1) * frame.bytesPerRow + frame.width * 4
+        else {
+            throw NativeCoreMLDetectorError.modelInputCreationFailed
+        }
+        for index in 0..<width {
+            let (x0, x1, _) = sourceXs[index]
+            guard x0 >= 0, x1 >= 0, x0 < frame.width, x1 < frame.width else {
+                throw NativeCoreMLDetectorError.modelInputCreationFailed
+            }
+        }
+        for index in 0..<height {
+            let (y0, y1, _) = sourceYs[index]
+            guard y0 >= 0, y1 >= 0, y0 < frame.height, y1 < frame.height else {
+                throw NativeCoreMLDetectorError.modelInputCreationFailed
+            }
+        }
+        let plane = canvasWidth * canvasHeight
+        let count = plane * 3
+        let coversCanvas = width == canvasWidth && height == canvasHeight
+        let mean0 = channelMean[0], mean1 = channelMean[1], mean2 = channelMean[2]
+        let deviation0 = channelStandardDeviation[0]
+        let deviation1 = channelStandardDeviation[1]
+        let deviation2 = channelStandardDeviation[2]
+        let bytesPerRow = frame.bytesPerRow
+        let leftOffsets = sourceXs.prefix(width).map { $0.0 * 4 }
+        let rightOffsets = sourceXs.prefix(width).map { $0.1 * 4 }
+        let xWeights = sourceXs.prefix(width).map { $0.2 }
+        let rows = Array(sourceYs.prefix(height))
+        return try [Float](unsafeUninitializedCapacity: count) { target, initializedCount in
+            guard let output = target.baseAddress else { return }
+            if !coversCanvas {
+                output.initialize(repeating: 0, count: count)
+            }
+            try frame.bytes.withUnsafeBufferPointer { sourceBuffer in
+            try leftOffsets.withUnsafeBufferPointer { leftBuffer in
+            try rightOffsets.withUnsafeBufferPointer { rightBuffer in
+            try xWeights.withUnsafeBufferPointer { weightBuffer in
+            try rows.withUnsafeBufferPointer { rowBuffer in
+                guard let source = sourceBuffer.baseAddress,
+                      let left = leftBuffer.baseAddress,
+                      let right = rightBuffer.baseAddress,
+                      let weights = weightBuffer.baseAddress,
+                      let sourceRows = rowBuffer.baseAddress
+                else { return }
+                var passStart = 0
+                while passStart < height {
+                    try cancellationCheck()
+                    try Task.checkCancellation()
+                    let passEnd = min(height, passStart + boundedRowsPerPass)
+                    let firstRow = passStart
+                    let bands = (passEnd - firstRow + boundedRowsPerBand - 1) / boundedRowsPerBand
+                    DispatchQueue.concurrentPerform(iterations: bands) { band in
+                        let bandStart = firstRow + band * boundedRowsPerBand
+                        let bandEnd = min(passEnd, bandStart + boundedRowsPerBand)
+                        for y in bandStart..<bandEnd {
+                            let (y0, y1, fy) = sourceRows[y]
+                            let top = source + y0 * bytesPerRow
+                            let bottom = source + y1 * bytesPerRow
+                            let blue = output + y * canvasWidth
+                            let green = blue + plane
+                            let red = green + plane
+                            for x in 0..<width {
+                                let x0 = left[x]
+                                let x1 = right[x]
+                                let fx = weights[x]
+                                // Detector uses BGR: channel c reads RGBA byte 2 - c.
+                                do {
+                                    let a = Float(top[x0 + 2])
+                                    let b = Float(top[x1 + 2])
+                                    let c = Float(bottom[x0 + 2])
+                                    let d = Float(bottom[x1 + 2])
+                                    let pixel = (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy
+                                    blue[x] = (pixel / 255 - mean0) / deviation0
+                                }
+                                do {
+                                    let a = Float(top[x0 + 1])
+                                    let b = Float(top[x1 + 1])
+                                    let c = Float(bottom[x0 + 1])
+                                    let d = Float(bottom[x1 + 1])
+                                    let pixel = (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy
+                                    green[x] = (pixel / 255 - mean1) / deviation1
+                                }
+                                do {
+                                    let a = Float(top[x0])
+                                    let b = Float(top[x1])
+                                    let c = Float(bottom[x0])
+                                    let d = Float(bottom[x1])
+                                    let pixel = (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy
+                                    red[x] = (pixel / 255 - mean2) / deviation2
+                                }
+                            }
+                        }
+                    }
+                    passStart = passEnd
+                }
+            }
+            }
+            }
+            }
+            }
+            initializedCount = count
+        }
+    }
+
+    private struct ResizeCoordinateKey: Hashable {
+        let sourceLength: Int
+        let targetLength: Int
+        let vertical: Bool
+        let resizesOtherAxis: Bool
+    }
+
+    /// Consecutive reader pages almost always share source and canvas sizes.
+    /// The ramps are a pure function of the key, so a tiny LRU replays the
+    /// exact CPU `MLTensor` result instead of building two tensor graphs per
+    /// page. Eight entries of at most 2,000 coordinates stay below 400 KB.
+    private static let resizeCoordinateCacheCapacity = 8
+    private static let resizeCoordinateCache = ResizeCoordinateCache()
+
+    private final class ResizeCoordinateCache: @unchecked Sendable {
+        private let lock = NSLock()
+        private var entries: [(key: ResizeCoordinateKey, value: [(Int, Int, Float)])] = []
+
+        func value(for key: ResizeCoordinateKey) -> [(Int, Int, Float)]? {
+            lock.lock()
+            defer { lock.unlock() }
+            guard let index = entries.firstIndex(where: { $0.key == key }) else { return nil }
+            let entry = entries.remove(at: index)
+            entries.append(entry)
+            return entry.value
+        }
+
+        func store(_ value: [(Int, Int, Float)], for key: ResizeCoordinateKey, capacity: Int) {
+            lock.lock()
+            defer { lock.unlock() }
+            entries.removeAll { $0.key == key }
+            entries.append((key, value))
+            if entries.count > capacity {
+                entries.removeFirst(entries.count - capacity)
+            }
+        }
     }
 
     /// Native one-dimensional ramps preserve the resize backend's exact
@@ -1583,7 +1770,25 @@ enum NativeCoreMLDetectionPreprocessor {
     /// after resizing) preserve this distinction with only linear storage.
     /// A parity ramp carries the fractional weight separately: subtracting
     /// the integer part of a large coordinate loses several Float ULPs.
-    private static func resizeCoordinates(
+    static func resizeCoordinates(
+        sourceLength: Int, targetLength: Int, vertical: Bool = false, resizesOtherAxis: Bool = false
+    ) async -> [(Int, Int, Float)] {
+        if sourceLength == targetLength {
+            return (0..<targetLength).map { ($0, $0, 0) }
+        }
+        let key = ResizeCoordinateKey(sourceLength: sourceLength, targetLength: targetLength,
+                                      vertical: vertical, resizesOtherAxis: resizesOtherAxis)
+        if let cached = resizeCoordinateCache.value(for: key) { return cached }
+        let computed = await computeResizeCoordinates(
+            sourceLength: sourceLength, targetLength: targetLength,
+            vertical: vertical, resizesOtherAxis: resizesOtherAxis
+        )
+        resizeCoordinateCache.store(computed, for: key, capacity: resizeCoordinateCacheCapacity)
+        return computed
+    }
+
+    /// Uncached ramp construction; exposed for cache identity tests.
+    static func computeResizeCoordinates(
         sourceLength: Int, targetLength: Int, vertical: Bool = false, resizesOtherAxis: Bool = false
     ) async -> [(Int, Int, Float)] {
         if sourceLength == targetLength {
@@ -1684,6 +1889,35 @@ enum NativeCoreMLDetectionOutput {
                 expected: expectedShape,
                 actual: output.shape
             )
+        }
+        // The production canvas is the exact resized size, so a full-map
+        // request covers the whole output. Materialize it directly instead of
+        // building a slice graph that copies the same values once more.
+        if region.x == 0, region.y == 0,
+           region.width == expectedShape[3],
+           region.height == expectedShape[2] {
+            let shaped = await output.shapedArray(of: Float.self)
+            return try shaped.withUnsafeShapedBufferPointer {
+                pointer,
+                shape,
+                strides in
+                guard shape == expectedShape,
+                      strides.count == 4,
+                      let baseAddress = pointer.baseAddress
+                else {
+                    throw NativeCoreMLDetectorError.modelOutputShape(
+                        expected: expectedShape,
+                        actual: shape
+                    )
+                }
+                return makeMap(
+                    pointer: baseAddress,
+                    width: region.width,
+                    height: region.height,
+                    rowStride: strides[2],
+                    columnStride: strides[3]
+                )
+            }
         }
         // Crop while the result is still an MLTensor. On a portrait capture
         // this avoids transferring the unused right side of the 1,920-square
@@ -1877,20 +2111,44 @@ enum NativeCoreMLDetectionOutput {
         return false
     }
 
-    private static func makeMap<Element: BinaryFloatingPoint>(
+    static func makeMap<Element: BinaryFloatingPoint>(
         pointer: UnsafePointer<Element>,
         width: Int,
         height: Int,
         rowStride: Int,
         columnStride: Int
     ) -> NativeCoreMLDetectionMap {
-        var values = [Float](repeating: 0, count: width * height)
-        for row in 0..<height {
-            for column in 0..<width {
-                values[row * width + column] = Float(
-                    pointer[row * rowStride + column * columnStride]
-                )
+        let count = width * height
+        let values = [Float](unsafeUninitializedCapacity: count) {
+            buffer,
+            initializedCount in
+            guard let destination = buffer.baseAddress else { return }
+            if Element.self == Float.self, columnStride == 1 {
+                // Same Float values, copied a row (or the whole map) at once.
+                let source = UnsafeRawPointer(pointer)
+                    .assumingMemoryBound(to: Float.self)
+                if rowStride == width {
+                    destination.initialize(from: source, count: count)
+                } else {
+                    for row in 0..<height {
+                        (destination + row * width).initialize(
+                            from: source + row * rowStride,
+                            count: width
+                        )
+                    }
+                }
+            } else {
+                for row in 0..<height {
+                    let sourceRow = pointer + row * rowStride
+                    let destinationRow = destination + row * width
+                    for column in 0..<width {
+                        destinationRow[column] = Float(
+                            sourceRow[column * columnStride]
+                        )
+                    }
+                }
             }
+            initializedCount = count
         }
         return NativeCoreMLDetectionMap(
             width: width,

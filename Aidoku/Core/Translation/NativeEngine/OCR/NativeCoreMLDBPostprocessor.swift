@@ -183,6 +183,35 @@ enum NativeCoreMLDBPostprocessor {
         return results
     }
 
+    /// Largest Float not above `threshold`. For every finite Float `value`,
+    /// `Double(value) > threshold` is exactly `value > cutoff`: a Float above
+    /// the cutoff is at least its successor, which exceeds `threshold` by
+    /// construction. NaN thresholds stay NaN and therefore reject everything.
+    static func foregroundCutoff(threshold: Double) -> Float {
+        var cutoff = Float(threshold)
+        if Double(cutoff) > threshold {
+            cutoff = cutoff.nextDown
+        }
+        return cutoff
+    }
+
+    /// 1 for finite values strictly above `threshold`, otherwise 0. Equivalent
+    /// to `value.isFinite && Double(value) > threshold` per element, but a
+    /// branch-free Float comparison over contiguous storage.
+    static func foregroundState(values: [Float], threshold: Double) -> [UInt8] {
+        let cutoff = foregroundCutoff(threshold: threshold)
+        let count = values.count
+        return [UInt8](unsafeUninitializedCapacity: count) { state, initializedCount in
+            values.withUnsafeBufferPointer { source in
+                for index in 0..<count {
+                    let value = source[index]
+                    state[index] = value > cutoff && value < .infinity ? 1 : 0
+                }
+            }
+            initializedCount = count
+        }
+    }
+
     private struct ForegroundSpan {
         let y: Int
         let left: Int
@@ -220,13 +249,10 @@ enum NativeCoreMLDBPostprocessor {
         // The old implementation kept equally sized `mask` and `visited`
         // arrays. A single byte of state preserves the exact threshold and
         // 8-connectivity semantics while halving the full-map scratch storage.
-        var state = [UInt8](repeating: 0, count: map.values.count)
-        for index in map.values.indices {
-            let value = map.values[index]
-            if value.isFinite, Double(value) > configuration.threshold {
-                state[index] = 1
-            }
-        }
+        var state = foregroundState(
+            values: map.values,
+            threshold: configuration.threshold
+        )
 
         // Queue horizontal runs rather than every foreground pixel. Dense text
         // components commonly collapse from thousands of queue entries to a
@@ -273,7 +299,9 @@ enum NativeCoreMLDBPostprocessor {
                     if cursor & 1_023 == 0 { try cancellationCheck() }
                     let span = queue[cursor]
                     cursor += 1
-                    for nextY in [span.y - 1, span.y + 1]
+                    // Same order as `[y - 1, y + 1]` without allocating an
+                    // array for every queued span.
+                    for nextY in stride(from: span.y - 1, through: span.y + 1, by: 2)
                     where nextY >= 0 && nextY < map.height {
                         var nextX = max(0, span.left - 1)
                         let scanEnd = min(map.width - 1, span.right + 1)

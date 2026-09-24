@@ -83,6 +83,9 @@ actor ReaderOCRService {
     private let gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private var pipeline: NativeCoreMLOCRPipeline?
     private var loadedConfiguration: ReaderOCRConfiguration?
+    private var pipelineEpoch: UInt64 = 0
+    private var warmUpTask: Task<Void, Never>?
+    private var warmUpID: UUID?
     private(set) var lastPhaseMilliseconds: [String: Double] = [:]
 
     func recognize(image: CGImage, tier: IPhoneOCRModelTier) async throws -> [ReaderTranslationRegion] {
@@ -95,19 +98,83 @@ actor ReaderOCRService {
         }
     }
 
+    private static func sameModels(_ lhs: ReaderOCRConfiguration?, _ rhs: ReaderOCRConfiguration) -> Bool {
+        lhs?.modelTier == rhs.modelTier && lhs?.detectorMaximumSide == rhs.detectorMaximumSide &&
+            lhs?.recognizerMaximumWidth == rhs.recognizerMaximumWidth
+    }
+
+    /// Callers hold `gate`: replacement awaits the old pipeline's purge.
+    private func currentPipeline(for configuration: ReaderOCRConfiguration) async -> NativeCoreMLOCRPipeline {
+        if let pipeline, Self.sameModels(loadedConfiguration, configuration) { return pipeline }
+        await pipeline?.purgeResources()
+        let created = NativeCoreMLOCRPipeline(
+            modelTier: configuration.modelTier, detectorMaximumSide: configuration.detectorMaximumSide,
+            recognizerMaximumWidth: configuration.recognizerMaximumWidth
+        )
+        pipeline = created
+        loadedConfiguration = configuration
+        pipelineEpoch &+= 1
+        return created
+    }
+
+    /// Loads the OCR models for `configuration` in the background so the first
+    /// page does not pay detector + recognizer model load. Idempotent (one
+    /// in-flight warm-up; resident models return immediately), low priority,
+    /// and it never holds `gate` while loading: real OCR coalesces with, and
+    /// escalates, the shared model loads. Skipped under memory pressure; it
+    /// loads only the models the first OCR frame would load anyway.
+    func warmUp(configuration: ReaderOCRConfiguration) {
+        guard warmUpTask == nil,
+              ReaderTranslationSession.processAvailableMemory() >= TranslationImageWorkBudget.minimumHeadroom
+        else { return }
+        let id = UUID()
+        warmUpID = id
+        warmUpTask = Task(priority: .utility) {
+            await self.performWarmUp(configuration: configuration)
+            self.finishWarmUp(id)
+        }
+    }
+
+    private func finishWarmUp(_ id: UUID) {
+        guard warmUpID == id else { return }
+        warmUpTask = nil
+        warmUpID = nil
+    }
+
+    func cancelWarmUp() {
+        warmUpTask?.cancel()
+        warmUpTask = nil
+        warmUpID = nil
+    }
+
+    private func performWarmUp(configuration: ReaderOCRConfiguration) async {
+        let target: NativeCoreMLOCRPipeline
+        if let pipeline, Self.sameModels(loadedConfiguration, configuration) {
+            target = pipeline
+        } else {
+            guard let created = try? await gate.withPermit({
+                await self.currentPipeline(for: configuration)
+            }) else { return }
+            target = created
+        }
+        let epoch = pipelineEpoch
+        guard !Task.isCancelled else { return }
+        do {
+            try await target.warmUp()
+            ReaderTranslationDiagnostics.record("ocr_warmup_end")
+        } catch {
+            ReaderTranslationDiagnostics.record("ocr_warmup_cancelled")
+        }
+        // A purge or configuration change during warm-up orphaned `target`;
+        // release anything it admitted instead of waiting for deallocation.
+        if epoch != pipelineEpoch || pipeline !== target {
+            await target.purgeResources()
+        }
+    }
+
     private func recognizeSerial(image: CGImage, configuration: ReaderOCRConfiguration) async throws -> [ReaderTranslationRegion] {
         try Task.checkCancellation()
-        if loadedConfiguration?.modelTier != configuration.modelTier ||
-            loadedConfiguration?.detectorMaximumSide != configuration.detectorMaximumSide ||
-            loadedConfiguration?.recognizerMaximumWidth != configuration.recognizerMaximumWidth {
-            await pipeline?.purgeResources()
-            pipeline = NativeCoreMLOCRPipeline(
-                modelTier: configuration.modelTier, detectorMaximumSide: configuration.detectorMaximumSide,
-                recognizerMaximumWidth: configuration.recognizerMaximumWidth
-            )
-            loadedConfiguration = configuration
-        }
-        guard let pipeline else { return [] }
+        let pipeline = await currentPipeline(for: configuration)
         // Pass the complete source once. The detector owns aspect-preserving
         // resize and maps detections back to original-image coordinates.
         ReaderTranslationDiagnostics.record("ocr_begin")
@@ -192,6 +259,7 @@ actor ReaderOCRService {
     }
 
     func purge() async {
+        cancelWarmUp()
         try? await gate.withPermit { await self.purgeSerial() }
     }
 
@@ -199,12 +267,14 @@ actor ReaderOCRService {
         await pipeline?.purgeResources()
         pipeline = nil
         loadedConfiguration = nil
+        pipelineEpoch &+= 1
     }
 }
 
 actor ReaderTranslationService {
-    static let shared = ReaderTranslationService()
+    static let shared = ReaderTranslationService(warmsOCROnReaderOpen: true)
     private let client: RemoteTranslating
+    private let warmsOCROnReaderOpen: Bool
     private var service: TranslationService?
     private let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 16)
 
@@ -215,18 +285,34 @@ actor ReaderTranslationService {
 
     // Pause before reader OCR/debounce starts, and retain the pause between pages.
     // Multiple reader owners cannot accidentally resume each other's metadata work.
+    // Readers mark themselves active only while automatic translation is on,
+    // so this is also the reader-open hook that warms the OCR models.
     func setReaderActive(_ active: Bool, owner: UUID) {
         if active {
             guard activeReaders.insert(owner).inserted else { return }
             metadataGeneration &+= 1
             for task in metadataTasks.values { task.cancel() }
+            if warmsOCROnReaderOpen { Self.requestOCRWarmUp() }
         } else {
             activeReaders.remove(owner)
             guard activeReaders.isEmpty else { return }
+            if warmsOCROnReaderOpen, #available(iOS 18.0, *) {
+                Task(priority: .utility) { await ReaderOCRService.shared.cancelWarmUp() }
+            }
             let waiters = metadataWaiters
             metadataWaiters.removeAll()
             for waiter in waiters.values { waiter.resume() }
         }
+    }
+
+    /// Off the main thread and low priority; the OCR service ignores the
+    /// request when models are resident, a warm-up is running, or memory is low.
+    private static func requestOCRWarmUp() {
+        guard #available(iOS 18.0, *) else { return }
+        let settings = ReaderTranslationSettings()
+        guard settings.automaticallyTranslate else { return }
+        let configuration = settings.ocrConfiguration
+        Task(priority: .utility) { await ReaderOCRService.shared.warmUp(configuration: configuration) }
     }
 
     private func waitForMetadataAdmission() async throws {
@@ -277,8 +363,9 @@ actor ReaderTranslationService {
         }
     }
 
-    init(client: RemoteTranslating = RemoteTranslationClient()) {
+    init(client: RemoteTranslating = RemoteTranslationClient(), warmsOCROnReaderOpen: Bool = false) {
         self.client = client
+        self.warmsOCROnReaderOpen = warmsOCROnReaderOpen
     }
 
     private func translationService() throws -> TranslationService {
