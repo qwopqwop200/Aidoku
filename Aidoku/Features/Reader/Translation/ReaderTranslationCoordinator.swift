@@ -112,6 +112,9 @@ final class ReaderTranslationCoordinator {
     }
     private var memoryRecoveryTask: Task<Void, Never>?
     private var navigationIdentity: String?
+    /// Reader open/resume has no navigation to settle; its first populated
+    /// viewport uses the short delay. Scrubbing and later jumps stay conservative.
+    private var initialSynchronizationPending = true
     private var diagnosticVisibleKeys: [String] = []
     private var isScrubbing = false
     private var navigationDebounce = ReaderTranslationNavigationDebounce()
@@ -333,6 +336,7 @@ final class ReaderTranslationCoordinator {
         synchronizationTask = nil
         navigationDebounce.reset()
         navigationIdentity = nil
+        initialSynchronizationPending = true
         session.disable(reason: "reader_left")
     }
     func cancel(reason: String = "cancelled") { session.suspendWorkForResourcePressure() }
@@ -379,6 +383,13 @@ final class ReaderTranslationCoordinator {
             delay = navigationDebounce.delay(chapter: owner.translationChapterKey,
                                              index: owner.translationCurrentPageIndex,
                                              now: ProcessInfo.processInfo.systemUptime)
+            if initialSynchronizationPending {
+                delay = 80_000_000
+                // A chapter whose pages are still loading has no position yet.
+                if !owner.translationVisiblePages.isEmpty || !owner.translationUpcomingPages.isEmpty {
+                    initialSynchronizationPending = false
+                }
+            }
             navigationIdentity = identity
             let pages = owner.translationUpcomingPages
             let index = owner.translationCurrentPageIndex

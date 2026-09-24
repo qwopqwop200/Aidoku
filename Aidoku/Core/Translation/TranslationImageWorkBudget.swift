@@ -16,17 +16,40 @@ final class TranslationImageWorkBudget: Sendable {
 
     enum AdmissionError: Error { case insufficientMemory, imageTooLarge }
 
-    /// Reclaim warm OCR runtimes as well as page caches. Waiting on headroom
-    /// without releasing these owners can otherwise stall indefinitely.
-    static func reclaimIdleResources() async {
+    /// Reclaim page caches first, then warm OCR runtimes only if headroom is
+    /// still short. Waiting on headroom without releasing these owners can
+    /// otherwise stall indefinitely, but reloading models that did not need to
+    /// be released costs the next page a cold OCR start.
+    @discardableResult
+    static func reclaimIdleResources(
+        requiredHeadroom: UInt64 = minimumHeadroom,
+        availableMemory: @Sendable () -> UInt64 = { ReaderTranslationSession.processAvailableMemory() }
+    ) async -> Bool {
+        await reclaimIdleResources(requiredHeadroom: requiredHeadroom, availableMemory: availableMemory, purgeCaches: {
+            await MainActor.run {
+                ImagePipeline.shared.configuration.imageCache?.removeAll()
+                ReaderTranslationRenderCache.shared.clearMemory()
+                ReaderTranslationImageExporter.clearIdleRenderer()
+            }
+        }, purgeModels: {
+            if #available(iOS 18.0, *) { await ReaderOCRService.shared.purge() }
+        })
+    }
+
+    /// Returns whether the OCR models were purged.
+    @discardableResult
+    static func reclaimIdleResources(
+        requiredHeadroom: UInt64,
+        availableMemory: @Sendable () -> UInt64,
+        purgeCaches: @Sendable () async -> Void,
+        purgeModels: @Sendable () async -> Void
+    ) async -> Bool {
         ReaderTranslationDiagnostics.record("memory_reclaim_begin")
-        await MainActor.run {
-            ImagePipeline.shared.configuration.imageCache?.removeAll()
-            ReaderTranslationRenderCache.shared.clearMemory()
-            ReaderTranslationImageExporter.clearIdleRenderer()
-        }
-        if #available(iOS 18.0, *) { await ReaderOCRService.shared.purge() }
-        ReaderTranslationDiagnostics.record("memory_reclaim_end")
+        defer { ReaderTranslationDiagnostics.record("memory_reclaim_end") }
+        await purgeCaches()
+        guard availableMemory() < requiredHeadroom else { return false }
+        await purgeModels()
+        return true
     }
 
     static func requiredHeadroom(decodedBytes: UInt64) -> UInt64 {
@@ -58,7 +81,7 @@ final class TranslationImageWorkBudget: Sendable {
     ) async throws -> Value {
         let required = Self.requiredHeadroom(decodedBytes: decodedBytes)
         guard required < ProcessInfo.processInfo.physicalMemory else { throw AdmissionError.imageTooLarge }
-        var trimmed = false
+        var purgedModels = false
         while true {
             try Task.checkCancellation()
             do {
@@ -67,9 +90,9 @@ final class TranslationImageWorkBudget: Sendable {
                     return try await operation()
                 }
             } catch AdmissionError.insufficientMemory {
-                if !trimmed {
-                    trimmed = true
-                    await Self.reclaimIdleResources()
+                // Caches go first; OCR models only once caches alone were insufficient.
+                if !purgedModels {
+                    purgedModels = await Self.reclaimIdleResources(requiredHeadroom: required, availableMemory: availableMemory)
                 }
                 // Release admission before waiting so a background download
                 // cannot hold the foreground reader's slot during pressure.

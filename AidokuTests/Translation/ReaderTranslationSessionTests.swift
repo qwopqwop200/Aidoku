@@ -221,8 +221,9 @@ struct ReaderTranslationSessionTests {
             readSettings: { fixture.settings }, setEnabled: { _ in })
         defer { coordinator.close() }
         coordinator.resume()
+        // The first turn precedes the short initial synchronization after open.
         for index in 1...3 {
-            try await Task.sleep(for: .milliseconds(60))
+            if index > 1 { try await Task.sleep(for: .milliseconds(60)) }
             owner.page.sourcePage = pages[index]
             coordinator.visiblePagesDidChange()
         }
