@@ -1811,8 +1811,9 @@ final class BrowserPageImageOverlayRenderer {
               const size = Math.max(Math.ceil(originalFont * 0.88 * 4) / 4, Math.floor(originalFont * ratio * 4) / 4);
               if (size < minimumFontSize) continue;
               applyMeasuredFontSize(size);
-              const candidate = lineProfile();
-              if (candidate && contentFits() && candidate.lines <= original.lines &&
+              // Both probes only read layout; test the cheap overflow first.
+              const candidate = contentFits() ? lineProfile() : null;
+              if (candidate && candidate.lines <= original.lines &&
                   candidate.badStarts.length <= original.badStarts.length &&
                   candidate.badEnds.length <= original.badEnds.length &&
                   candidate.breaks.every(offset => original.breaks.includes(offset)) &&
@@ -1936,8 +1937,8 @@ final class BrowserPageImageOverlayRenderer {
           let accepted = false;
           if (original) for (let size = 10; size >= Math.max(8, paragraphOriginalFont + 0.75); size -= 0.25) {
             applyMeasuredFontSize(size);
-            const profile = lineProfile();
-            const safe = profile && contentFits() &&
+            const profile = contentFits() ? lineProfile() : null;
+            const safe = profile &&
               profile.badStarts.length <= original.badStarts.length &&
               profile.badEnds.length <= original.badEnds.length && safeSplits(profile) && profile.hangulIsolated <= original.hangulIsolated && (/[가-힣]{5}/u.test(displayedText) || profile.breaks.every(offset => original.breaks.includes(offset))) &&
               profile.ink.every(a => a[0] >= x + 0.9 && a[1] >= y + 0.9 &&
@@ -2462,8 +2463,9 @@ final class BrowserPageImageOverlayRenderer {
                 }
                 for(const size of sizes){
                   applyMeasuredFontSize(size);
+                  if(!contentFits())continue;
                   const candidate=lineProfile(),next=aidokuCaptionInkFrame(candidate?.ink,size);
-                  if(!next||!contentFits()||!aidokuFontFlowFits(candidate,original)||candidate.lines!==original.lines||
+                  if(!next||!aidokuFontFlowFits(candidate,original)||candidate.lines!==original.lines||
                       next.left<box.left-.04||next.top<box.top-.04||next.right>box.right+.04||next.bottom>box.bottom+.04)continue;
                   let surface=false;
                   if(!shared&&panelGeometry?.erasureComplete&&!panelGeometry.residualLettering&&fitsRestoredSurface&&artworkSurfaceBudget>0){
@@ -3177,8 +3179,41 @@ final class BrowserOverlayTextMeasurementCache {
         let secondaryBreakMode: Int
     }
 
+    /// Two bounded generations: filling the current one retires the older
+    /// generation only, so recently used measurements survive eviction.
+    /// Values are pure functions of their keys; eviction never changes output.
+    private struct TwoGenerationCache<Key: Hashable, Value> {
+        let generationCapacity: Int
+        private var current: [Key: Value] = [:]
+        private var previous: [Key: Value] = [:]
+
+        init(generationCapacity: Int) { self.generationCapacity = generationCapacity }
+
+        var count: Int { current.count + previous.count }
+
+        mutating func value(for key: Key) -> Value? {
+            if let value = current[key] { return value }
+            guard let value = previous.removeValue(forKey: key) else { return nil }
+            insert(value, for: key)
+            return value
+        }
+
+        mutating func insert(_ value: Value, for key: Key) {
+            if current.count >= generationCapacity {
+                previous = current
+                current = Dictionary(minimumCapacity: generationCapacity)
+            }
+            current[key] = value
+        }
+
+        mutating func removeAll() {
+            current.removeAll(keepingCapacity: true)
+            previous.removeAll()
+        }
+    }
+
     private let reusesMeasurementStrings: Bool
-    private var measurementStrings: [MeasurementStringKey: NSAttributedString] = [:]
+    private var measurementStrings = TwoGenerationCache<MeasurementStringKey, NSAttributedString>(generationCapacity: 512)
     private(set) var measurementStringHits = 0
 
     init(reusesMeasurementStrings: Bool = true) {
@@ -3201,19 +3236,20 @@ final class BrowserOverlayTextMeasurementCache {
             primaryBreakMode: variant.lineBreakMode(availableWidth: width, fontSize: fontSize,
                                                    measurementCache: self).rawValue,
             secondaryBreakMode: secondaryMode)
-        if let cached = measurementStrings[key] {
+        if let cached = measurementStrings.value(for: key) {
             measurementStringHits += 1
             return cached
         }
         let value = NSAttributedString(attributedString: calculate())
-        if measurementStrings.count >= 256 { measurementStrings.removeAll(keepingCapacity: true) }
-        measurementStrings[key] = value
+        measurementStrings.insert(value, for: key)
         return value
     }
 
-    private static let maximumEntryCount = 2_048
-    private var sizes: [SizeKey: CGSize] = [:]
-    private var unbrokenWidths: [UnbrokenWidthKey: CGFloat] = [:]
+    // Measurements are cheap to rebuild compared with carrying an unbounded
+    // session history containing translated text: at most 16K entries live.
+    private var sizes = TwoGenerationCache<SizeKey, CGSize>(generationCapacity: 6_144)
+    private var unbrokenWidths = TwoGenerationCache<UnbrokenWidthKey, CGFloat>(generationCapacity: 2_048)
+    var entryCount: Int { sizes.count + unbrokenWidths.count }
     private(set) var passHits = 0
     private(set) var passMisses = 0
 
@@ -3240,13 +3276,12 @@ final class BrowserOverlayTextMeasurementCache {
             width: width,
             fontSize: fontSize
         )
-        if let cached = sizes[key] {
+        if let cached = sizes.value(for: key) {
             passHits += 1
             return cached
         }
         let measured = calculate()
-        makeRoomIfNeeded()
-        sizes[key] = measured
+        sizes.insert(measured, for: key)
         passMisses += 1
         return measured
     }
@@ -3260,35 +3295,22 @@ final class BrowserOverlayTextMeasurementCache {
             variant: variant,
             fontSize: fontSize
         )
-        if let cached = unbrokenWidths[key] {
+        if let cached = unbrokenWidths.value(for: key) {
             passHits += 1
             return cached
         }
         let measured = calculate()
-        makeRoomIfNeeded()
-        unbrokenWidths[key] = measured
+        unbrokenWidths.insert(measured, for: key)
         passMisses += 1
         return measured
     }
 
     func removeAll() {
-        sizes.removeAll(keepingCapacity: true)
-        unbrokenWidths.removeAll(keepingCapacity: true)
-        measurementStrings.removeAll(keepingCapacity: true)
+        sizes.removeAll()
+        unbrokenWidths.removeAll()
+        measurementStrings.removeAll()
         measurementStringHits = 0
         beginPass()
-    }
-
-    private func makeRoomIfNeeded() {
-        guard sizes.count + unbrokenWidths.count >=
-                Self.maximumEntryCount
-        else {
-            return
-        }
-        // Measurements are cheap to rebuild compared with carrying an
-        // unbounded session history containing translated text.
-        sizes.removeAll(keepingCapacity: true)
-        unbrokenWidths.removeAll(keepingCapacity: true)
     }
 }
 
