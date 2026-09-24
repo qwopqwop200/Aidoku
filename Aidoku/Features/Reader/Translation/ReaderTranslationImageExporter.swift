@@ -69,7 +69,8 @@ enum ReaderTranslationImageExporter {
     static func renderLoadedImage(
         image: UIImage, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
         viewport: CGSize, scale: CGFloat, aspectFit: Bool, dark: Bool,
-        host: UIView?, cache: ReaderTranslationRenderCache?, key: String, pageIdentity: String? = nil
+        host: UIView?, cache: ReaderTranslationRenderCache?, key: String, pageIdentity: String? = nil,
+        priority: TranslationRequestPriority = .foreground
     ) async throws -> UIImage {
         try Task.checkCancellation()
         guard viewport.width.isFinite, viewport.height.isFinite, viewport.width > 0, viewport.height > 0,
@@ -124,7 +125,7 @@ enum ReaderTranslationImageExporter {
         // The reader already owns decoded pixels. Reacquiring the shared OCR/
         // image permit here could deadlock against a preloader awaiting display.
         guard host != nil else { throw ExportError.unavailable }
-        return try await gate.withPermit { @MainActor in
+        return try await gate.withPermit(priority: priority) { @MainActor in
             try Task.checkCancellation()
             if let bitmapKey, let image = cache?.cachedImage(for: bitmapKey) { return image }
             // A prefetch may have completed while this request waited for
@@ -210,7 +211,8 @@ enum ReaderTranslationImageExporter {
             assetSourceDigest ?? (assetCache == nil ? nil : ReaderTranslationRenderAsset.digestSource(image))
         }
         defer { fingerprint.cancel() }
-        return try await gate.withPermit { @MainActor in
+        // Cache snapshots yield to a visible page waiting for its first presentation.
+        return try await gate.withPermit(priority: .prefetch) { @MainActor in
             try Task.checkCancellation()
             let sourceDigest = await withTaskCancellationHandler { await fingerprint.value } onCancel: { fingerprint.cancel() }
             let result = try await renderSerial(image: image, regions: regions, settings: settings,
@@ -257,11 +259,13 @@ enum ReaderTranslationImageExporter {
         }
         let events = AsyncStream<Bool>.makeStream(bufferingPolicy: .bufferingNewest(1))
         overlay.onRenderCommitted = { events.continuation.yield(true) }
+        // Regions without drawable items clear the document instead of committing.
+        overlay.onRenderCleared = { events.continuation.yield(true) }
         let timeout = Task {
             do { try await Task.sleep(nanoseconds: 20_000_000_000) } catch { return }
             events.continuation.yield(false)
         }
-        defer { timeout.cancel(); overlay.onRenderCommitted = nil; events.continuation.finish() }
+        defer { timeout.cancel(); overlay.onRenderCommitted = nil; overlay.onRenderCleared = nil; events.continuation.finish() }
         var exportSettings = settings
         exportSettings.overlay.visible = true
         overlay.update(regions: regions, imageSize: logicalImageSize ?? image.size, aspectFit: aspectFit,

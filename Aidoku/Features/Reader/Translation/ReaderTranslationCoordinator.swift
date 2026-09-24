@@ -116,6 +116,9 @@ final class ReaderTranslationCoordinator {
     /// viewport uses the short delay. Scrubbing and later jumps stay conservative.
     private var initialSynchronizationPending = true
     private var diagnosticVisibleKeys: [String] = []
+    /// Cold presentations of preloaded neighbors wait behind the page on screen;
+    /// a neighbor is promoted as soon as it becomes visible.
+    private var displayPromotions: [(key: String, promotion: TranslationRequestPromotion)] = []
     private var isScrubbing = false
     private var navigationDebounce = ReaderTranslationNavigationDebounce()
     private let session: ReaderTranslationSession
@@ -372,8 +375,15 @@ final class ReaderTranslationCoordinator {
         visiblePagesDidChange()
     }
 
+    private func promoteVisibleDisplays() {
+        guard let owner, !displayPromotions.isEmpty else { return }
+        let keys = Set(owner.translationVisiblePages.compactMap { $0.sourcePage?.translationCacheKey })
+        for entry in displayPromotions where keys.contains(entry.key) { entry.promotion.promote() }
+    }
+
     func visiblePagesDidChange() {
         guard isVisible, let owner else { return }
+        promoteVisibleDisplays()
         updateMetadataActivity(active: readSettings().automaticallyTranslate)
         let identity = owner.translationChapterKey + ":" + String(owner.translationCurrentPageIndex)
         let moved = navigationIdentity != identity
@@ -512,6 +522,10 @@ extension ReaderTranslationCoordinator {
             let host = (owner as? UIViewController)?.viewIfLoaded
             let activeHost = UIApplication.shared.applicationState == .active && host?.window?.windowScene != nil ? host : nil
             let cache = owner?.translationPersistsCache == true ? session.renderCache : nil
+            let promotion = TranslationRequestPromotion()
+            displayPromotions.append((pageKey, promotion))
+            promoteVisibleDisplays()
+            defer { displayPromotions.removeAll { $0.promotion === promotion } }
             let rendered: UIImage
             do {
                 rendered = try await performImagePreparation {
@@ -519,7 +533,8 @@ extension ReaderTranslationCoordinator {
                         image: image, regions: regions, settings: settings, viewport: current.viewport,
                         scale: current.scale, aspectFit: current.aspectFit, dark: current.dark,
                         host: activeHost, cache: cache, key: key,
-                        pageIdentity: ReaderTranslationCacheIdentity.translation(page: pageKey, settings: settings)
+                        pageIdentity: ReaderTranslationCacheIdentity.translation(page: pageKey, settings: settings),
+                        priority: .promotable(promotion)
                     )
                 }
             } catch is CancellationError {

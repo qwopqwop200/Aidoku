@@ -105,6 +105,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     private var snapshotGeneration = UUID()
     var onCacheGeometryChanged: (() -> Void)?
     var onRenderCommitted: (() -> Void)?
+    var onRenderCleared: (() -> Void)?
     var onSnapshotStored: ((UIImage) -> Void)?
     var canCacheRendering: Bool { snapshotTarget != nil }
     private(set) var lastDiagnostic: BrowserPageImageOverlayDiagnostic?
@@ -138,6 +139,8 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 ReaderTranslationDiagnostics.record("visible_render_committed", count: diagnostic.renderedItemCount)
                 captureCompletedRender(revision: diagnostic.revision)
                 onRenderCommitted?()
+            } else if diagnostic.outcome == .cleared {
+                onRenderCleared?()
             }
         }
         loadDocument()
@@ -166,6 +169,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     func resetForExportReuse() {
         cancelWork()
         onRenderCommitted = nil
+        onRenderCleared = nil
         snapshotTarget = nil
         preparedImage = nil
         imageDataURL = nil
