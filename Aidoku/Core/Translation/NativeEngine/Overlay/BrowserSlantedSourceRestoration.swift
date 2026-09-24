@@ -42,6 +42,119 @@ enum BrowserSlantedSourceRestoration {
       return {lw,lh,b:[-left+dx,-top+dy,box[2],box[3]].map(stable),
         auxiliary:auxiliary.map(bounds),exclusions:exclusions.map(bounds)};
     }
+    // Per-pixel passes of the rectified restoration live in small functions
+    // so the engine's optimizing tiers can compile them. Each keeps the
+    // original arithmetic and visiting order.
+    // Bilinear page-to-local resampling. Clamped taps and weights are shared by
+    // all four channels; the sum keeps the tap order (top-left, top-right,
+    // bottom-left, bottom-right).
+    function aidokuSlantedResample(rgba,w,h,local,lw,lh,cx,cy,c,s,ox,oy) {
+      for(let y=0;y<lh;y++)for(let x=0;x<lw;x++){
+        const dx=x+.5-ox,dy=y+.5-oy,px=cx+dx*c-dy*s-.5,py=cy+dx*s+dy*c-.5;
+        const fx=Math.floor(px),fy=Math.floor(py),tx=px-fx,ty=py-fy;
+        const ix0=Math.max(0,Math.min(w-1,fx)),ix1=Math.max(0,Math.min(w-1,fx+1));
+        const iy0=Math.max(0,Math.min(h-1,fy)),iy1=Math.max(0,Math.min(h-1,fy+1));
+        const t00=(iy0*w+ix0)*4,t01=(iy0*w+ix1)*4,t10=(iy1*w+ix0)*4,t11=(iy1*w+ix1)*4,ux=1-tx,uy=1-ty,out=(y*lw+x)*4;
+        for(let k=0;k<4;k++)
+          local[out+k]=0+rgba[t00+k]*ux*uy+rgba[t01+k]*tx*uy+rgba[t10+k]*ux*ty+rgba[t11+k]*tx*ty;
+      }
+    }
+    function aidokuSlantedLinear(v) {v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}
+    // Relative luminance of the restored patch composited over the local crop.
+    // Opaque or cleared cells composite to integer bytes; those reuse the
+    // exact per-byte values of the same transfer function.
+    function aidokuSlantedCompositeLuminance(restored,local,luminance,n) {
+      const linearByte=new Float64Array(256);for(let v=0;v<256;v++)linearByte[v]=aidokuSlantedLinear(v);
+      const linearOf=v=>v>=0&&v<=255&&(v|0)===v?linearByte[v]:aidokuSlantedLinear(v);
+      for(let i=0;i<n;i++){
+        const a=restored[i*4+3]/255;
+        const c0=restored[i*4]*a+local[i*4]*(1-a),c1=restored[i*4+1]*a+local[i*4+1]*(1-a),c2=restored[i*4+2]*a+local[i*4+2]*(1-a);
+        luminance[i]=Math.round(255*(.2126*linearOf(c0)+.7152*linearOf(c1)+.0722*linearOf(c2)));
+      }
+    }
+    // Project owned local pixels back to the page raster. Returns the count.
+    function aidokuSlantedProjectOwned(restored,layoutSafe,output,w,h,lw,lh,cx,cy,c,s,ox,oy) {
+      let erased=0;
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+        const dx=x+.5-cx,dy=y+.5-cy,lx=dx*c+dy*s+ox-.5,ly=-dx*s+dy*c+oy-.5;
+        const ix=Math.round(lx),iy=Math.round(ly);
+        if(ix<1||iy<1||ix>=lw-1||iy>=lh-1||!layoutSafe[iy*lw+ix])continue;
+        const dst=(y*w+x)*4;let weight=0,c0=0,c1=0,c2=0;
+        const fx=Math.floor(lx),fy=Math.floor(ly),tx=lx-fx,ty=ly-fy;
+        for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
+          const j=((fy+yy)*lw+fx+xx)*4;if(!restored[j+3])continue;
+          const a=(xx?tx:1-tx)*(yy?ty:1-ty);weight+=a;
+          c0+=restored[j]*a;c1+=restored[j+1]*a;c2+=restored[j+2]*a;
+        }
+        if(weight<=0)continue;
+        output[dst]=c0/weight;output[dst+1]=c1/weight;output[dst+2]=c2/weight;
+        output[dst+3]=255;erased++;
+      }
+      return erased;
+    }
+    // Page pixels on the straight background-to-ink ramp (fringe tolerance).
+    function aidokuSlantedRampPixels(rgba,raw,n,axis,bg,scale) {
+      const a0=axis[0],a1=axis[1],a2=axis[2],b0=bg[0],b1=bg[1],b2=bg[2];
+      for(let i=0;i<n;i++){
+        const r0=rgba[i*4]-b0,r1=rgba[i*4+1]-b1,r2=rgba[i*4+2]-b2,t=(0+a0*r0+a1*r1+a2*r2)/scale;
+        if(t>.06&&t<1.6&&Math.max(Math.abs(r0-a0*t),Math.abs(r1-a1*t),Math.abs(r2-a2*t))<=20)raw[i]=1;
+      }
+    }
+    // One hole-filling pass: unpainted ink-polarity pixels inside the OCR
+    // regions with at least five painted neighbours copy the last one found.
+    // All candidates are chosen before any is filled. Returns the count.
+    function aidokuSlantedFillHoles(rgba,output,w,h,axis,bg,scale,regions,cx,cy,c,s,ox,oy) {
+      const a0=axis[0],a1=axis[1],a2=axis[2],b0=bg[0],b1=bg[1],b2=bg[2],holes=[];
+      for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+        const i=y*w+x;if(output[i*4+3])continue;
+        const dx=x+.5-cx,dy=y+.5-cy,u=dx*c+dy*s+ox,v=-dx*s+dy*c+oy;
+        if(!regions.some(r=>u>=r[0]&&u<=r[0]+r[2]&&v>=r[1]&&v<=r[1]+r[3]))continue;
+        const r0=rgba[i*4]-b0,r1=rgba[i*4+1]-b1,r2=rgba[i*4+2]-b2,projection=(0+a0*r0+a1*r1+a2*r2)/scale;
+        const error=Math.max(Math.abs(r0-a0*projection),Math.abs(r1-a1*projection),Math.abs(r2-a2*projection));
+        if(projection<=.15||projection>=1.6||error>60)continue;
+        let covered=0,donor=-1;
+        for(let yy=y-1;yy<=y+1;yy++)for(let xx=x-1;xx<=x+1;xx++){
+          const j=yy*w+xx;if(output[j*4+3]){covered++;donor=j;}
+        }
+        if(covered>=5)holes.push([i,donor]);
+      }
+      for(const [i,donor] of holes)output.set(output.subarray(donor*4,donor*4+4),i*4);
+      return holes.length;
+    }
+    // Unpainted source-ink pixels inside the OCR box that touch the projected mask.
+    function aidokuSlantedExposedInk(rgba,output,w,h,box,cx,cy,c,s,sf,sb) {
+      const remaining=[];
+      for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+        const i=y*w+x;if(output[i*4+3])continue;
+        const dx=x+.5-cx,dy=y+.5-cy,u=dx*c+dy*s,v=-dx*s+dy*c;
+        if(Math.abs(u)>box[2]/2+2||Math.abs(v)>box[3]/2+2)continue;
+        if(Math.max(Math.abs(sf[0]-rgba[i*4]),Math.abs(sf[1]-rgba[i*4+1]),Math.abs(sf[2]-rgba[i*4+2]))>36||
+            Math.max(Math.abs(sb[0]-rgba[i*4]),Math.abs(sb[1]-rgba[i*4+1]),Math.abs(sb[2]-rgba[i*4+2]))<40)continue;
+        let adjacent=false;
+        for(let yy=y-1;yy<=y+1&&!adjacent;yy++)for(let xx=x-1;xx<=x+1;xx++)
+          if(output[(yy*w+xx)*4+3]){adjacent=true;break;}
+        if(adjacent)remaining.push(i);
+      }
+      return remaining;
+    }
+    // A local cell is newly safe only when every native bilinear donor was
+    // erased; its luminance is taken from the composited page raster.
+    function aidokuSlantedLayoutProof(rgba,output,w,h,layoutSafe,luminance,lw,lh,cx,cy,c,s,ox,oy) {
+      for(let y=0;y<lh;y++)for(let x=0;x<lw;x++){
+        const dx=x+.5-ox,dy=y+.5-oy,px=cx+dx*c-dy*s-.5,py=cy+dx*s+dy*c-.5;
+        const fx=Math.floor(px),fy=Math.floor(py);
+        if(fx<0||fy<0||fx+1>=w||fy+1>=h)continue;
+        const tx=px-fx,ty=py-fy;let owned=true,c0=0,c1=0,c2=0;
+        for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
+          const j=((fy+yy)*w+fx+xx)*4,opaque=output[j+3]===255;if(!opaque)owned=false;
+          const weight=(xx?tx:1-tx)*(yy?ty:1-ty),source=opaque?output:rgba;
+          c0+=source[j]*weight;c1+=source[j+1]*weight;c2+=source[j+2]*weight;
+        }
+        const i=y*lw+x;
+        if(owned)layoutSafe[i]=1;
+        luminance[i]=Math.round(255*(.2126*aidokuSlantedLinear(c0)+.7152*aidokuSlantedLinear(c1)+.0722*aidokuSlantedLinear(c2)));
+      }
+    }
     function aidokuRestoreSlantedSource(rgba,w,h,box,angle,palette,vertical=false,options={}) {
       if(!rgba||rgba.length!==w*h*4||w*h>262144||!Array.isArray(box)||box.length!==4||
           !box.every(Number.isFinite)||!Number.isFinite(angle)||box[2]<3||box[3]<3)return null;
@@ -50,21 +163,11 @@ enum BrowserSlantedSourceRestoration {
       const cx=box[0]+box[2]/2,cy=box[1]+box[3]/2,c=Math.cos(angle),s=Math.sin(angle);
       const local=new Uint8ClampedArray(n*4),ox=b[0]+box[2]/2,oy=b[1]+box[3]/2;
       // Pixel centers matter: a half-pixel shift leaves the old antialias fringe.
-      for(let y=0;y<lh;y++)for(let x=0;x<lw;x++){
-        const dx=x+.5-ox,dy=y+.5-oy,px=cx+dx*c-dy*s-.5,py=cy+dx*s+dy*c-.5;
-        const fx=Math.floor(px),fy=Math.floor(py),tx=px-fx,ty=py-fy;
-        for(let k=0;k<4;k++){
-          let value=0;
-          for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
-            const ix=Math.max(0,Math.min(w-1,fx+xx)),iy=Math.max(0,Math.min(h-1,fy+yy));
-            value+=rgba[(iy*w+ix)*4+k]*(xx?tx:1-tx)*(yy?ty:1-ty);
-          }
-          local[(y*lw+x)*4+k]=value;
-        }
-      }
+      aidokuSlantedResample(rgba,w,h,local,lw,lh,cx,cy,c,s,ox,oy);
       const auxiliary=geometry.auxiliary;
       if(options.inferRuby&&auxiliary.length===0&&palette?.background){
-        const raw=Uint8Array.from({length:n},(_,i)=>Math.max(local[i*4],local[i*4+1],local[i*4+2])<110?1:0);
+        const raw=new Uint8Array(n);
+        for(let i=0;i<n;i++)raw[i]=Math.max(local[i*4],local[i*4+1],local[i*4+2])<110?1:0;
         let inferred;
         if(vertical)inferred=aidokuInferVerticalRuby(raw,local,lw,lh,b,palette.background);
         else {
@@ -120,30 +223,10 @@ enum BrowserSlantedSourceRestoration {
         }
       }
       const output=new Uint8ClampedArray(w*h*4),luminance=new Uint8Array(n);
-      const linear=v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;};
-      for(let i=0;i<n;i++){
-        const a=result.rgba[i*4+3]/255;
-        const color=[0,1,2].map(k=>result.rgba[i*4+k]*a+local[i*4+k]*(1-a));
-        luminance[i]=Math.round(255*(.2126*linear(color[0])+.7152*linear(color[1])+.0722*linear(color[2])));
-      }
-      let erased=0;
-      for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-        const dx=x+.5-cx,dy=y+.5-cy,lx=dx*c+dy*s+ox-.5,ly=-dx*s+dy*c+oy-.5;
-        const ix=Math.round(lx),iy=Math.round(ly);
-        if(ix<1||iy<1||ix>=lw-1||iy>=lh-1||!result.layoutSafe[iy*lw+ix])continue;
-        // Only owned mask pixels are projected back. Unmodified page pixels
-        // stay on the original image and never undergo a second resampling.
-        const dst=(y*w+x)*4;let weight=0;const color=[0,0,0];
-        const fx=Math.floor(lx),fy=Math.floor(ly),tx=lx-fx,ty=ly-fy;
-        for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
-          const j=((fy+yy)*lw+fx+xx)*4;if(!result.rgba[j+3])continue;
-          const a=(xx?tx:1-tx)*(yy?ty:1-ty);weight+=a;
-          for(let k=0;k<3;k++)color[k]+=result.rgba[j+k]*a;
-        }
-        if(weight<=0)continue;
-        for(let k=0;k<3;k++)output[dst+k]=color[k]/weight;
-        output[dst+3]=255;erased++;
-      }
+      aidokuSlantedCompositeLuminance(result.rgba,local,luminance,n);
+      // Only owned mask pixels are projected back. Unmodified page pixels
+      // stay on the original image and never undergo a second resampling.
+      let erased=aidokuSlantedProjectOwned(result.rgba,result.layoutSafe,output,w,h,lw,lh,cx,cy,c,s,ox,oy);
       // The second sampling pass can strand soft native edges around an
       // otherwise erased glyph. Complete only the same connected ink whose
       // overwhelming majority was already owned; detached drawing is intact.
@@ -151,10 +234,8 @@ enum BrowserSlantedSourceRestoration {
         const seen=new Uint8Array(w*h),raw=new Uint8Array(w*h),queue=new Int32Array(w*h);
         const fg=result.sourceForeground,bg=result.sourceBackground,axis=fg.map((v,k)=>v-bg[k]);
         const norm=axis.reduce((a,v)=>a+v*v,0);
-        for(let i=0;i<w*h;i++){
-          const t=axis.reduce((a,v,k)=>a+v*(rgba[i*4+k]-bg[k]),0)/Math.max(1,norm);
-          if(t>.06&&t<1.6&&Math.max(...axis.map((v,k)=>Math.abs(rgba[i*4+k]-bg[k]-v*t)))<=20)raw[i]=1;
-        }
+        aidokuSlantedRampPixels(rgba,raw,w*h,axis,bg,Math.max(1,norm));
+        const regions=[b,...auxiliary];
         for(let start=0;start<raw.length;start++){
           if(!raw[start]||seen[start])continue;
           let head=0,tail=1,painted=0,inside=0,left=w,top=h,right=0,bottom=0,ul=Infinity,ut=Infinity,ur=-Infinity,ub=-Infinity;queue[0]=start;seen[start]=1;
@@ -163,7 +244,7 @@ enum BrowserSlantedSourceRestoration {
             left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);
             const dx=x+.5-cx,dy=y+.5-cy,u=dx*c+dy*s+ox,v=-dx*s+dy*c+oy;
             ul=Math.min(ul,u);ut=Math.min(ut,v);ur=Math.max(ur,u);ub=Math.max(ub,v);
-            if([b,...auxiliary].some(r=>u>=r[0]-2&&u<=r[0]+r[2]+2&&v>=r[1]-2&&v<=r[1]+r[3]+2))inside++;
+            if(regions.some(r=>u>=r[0]-2&&u<=r[0]+r[2]+2&&v>=r[1]-2&&v<=r[1]+r[3]+2))inside++;
             for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
               const j=yy*w+xx;if(raw[j]&&!seen[j]){seen[j]=1;queue[tail++]=j;}
             }
@@ -173,7 +254,7 @@ enum BrowserSlantedSourceRestoration {
             let contacts=0,covered=0,soft=true;
             for(let k=0;k<tail;k++){
               const i=queue[k],x=i%w,y=i/w|0;
-              if(Math.max(...fg.map((v,j)=>Math.abs(v-rgba[i*4+j])))<40)soft=false;
+              if(Math.max(Math.abs(fg[0]-rgba[i*4]),Math.abs(fg[1]-rgba[i*4+1]),Math.abs(fg[2]-rgba[i*4+2]))<40)soft=false;
               for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
                 const j=yy*w+xx;if(raw[j])continue;contacts++;covered+=Boolean(output[j*4+3]);
               }
@@ -239,54 +320,29 @@ enum BrowserSlantedSourceRestoration {
       // touch at least five painted neighbours and match the ink polarity.
       if(result.surfaceQuality?.reason==='smooth'){
         const fg=result.sourceForeground,bg=result.sourceBackground,axis=fg.map((v,k)=>v-bg[k]);
-        const norm=axis.reduce((a,v)=>a+v*v,0);
-        for(let pass=0;pass<2;pass++){
-          const holes=[];
-          for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
-            const i=y*w+x;if(output[i*4+3])continue;
-            const dx=x+.5-cx,dy=y+.5-cy,u=dx*c+dy*s+ox,v=-dx*s+dy*c+oy;
-            if(![b,...auxiliary].some(r=>u>=r[0]&&u<=r[0]+r[2]&&v>=r[1]&&v<=r[1]+r[3]))continue;
-            const projection=axis.reduce((a,q,k)=>a+q*(rgba[i*4+k]-bg[k]),0)/Math.max(1,norm);
-            const error=Math.max(...axis.map((q,k)=>Math.abs(rgba[i*4+k]-bg[k]-q*projection)));
-            if(projection<=.15||projection>=1.6||error>60)continue;
-            let covered=0,donor=-1;
-            for(let yy=y-1;yy<=y+1;yy++)for(let xx=x-1;xx<=x+1;xx++){
-              const j=yy*w+xx;if(output[j*4+3]){covered++;donor=j;}
-            }
-            if(covered>=5)holes.push([i,donor]);
-          }
-          for(const [i,donor] of holes){output.set(output.subarray(donor*4,donor*4+4),i*4);erased++;}
-        }
+        const norm=axis.reduce((a,v)=>a+v*v,0),regions=[b,...auxiliary];
+        for(let pass=0;pass<2;pass++)
+          erased+=aidokuSlantedFillHoles(rgba,output,w,h,axis,bg,Math.max(1,norm),regions,cx,cy,c,s,ox,oy);
       }
       // The rectified mask alone cannot prove that projecting it back covered
       // the native source raster. Check exposed ink immediately beside the
       // projected mask before committing any replacement.
-      const remaining=[];
-      for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
-        const i=y*w+x;if(output[i*4+3])continue;
-        const dx=x+.5-cx,dy=y+.5-cy,u=dx*c+dy*s,v=-dx*s+dy*c;
-        if(Math.abs(u)>box[2]/2+2||Math.abs(v)>box[3]/2+2)continue;
-        if(Math.max(...result.sourceForeground.map((value,k)=>Math.abs(value-rgba[i*4+k])))>36||
-            Math.max(...result.sourceBackground.map((value,k)=>Math.abs(value-rgba[i*4+k])))<40)continue;
-        let adjacent=false;
-        for(let yy=y-1;yy<=y+1&&!adjacent;yy++)for(let xx=x-1;xx<=x+1;xx++)
-          if(output[(yy*w+xx)*4+3]){adjacent=true;break;}
-        if(adjacent)remaining.push(i);
-      }
+      const remaining=aidokuSlantedExposedInk(rgba,output,w,h,box,cx,cy,c,s,result.sourceForeground,result.sourceBackground);
       if(remaining.length>=3){
         const seen=new Uint8Array(w*h),queue=new Int32Array(w*h);
         const fg=result.sourceForeground,bg=result.sourceBackground,axis=fg.map((v,k)=>v-bg[k]);
         const norm=axis.reduce((a,v)=>a+v*v,0);
+        const a0=axis[0],a1=axis[1],a2=axis[2],b0=bg[0],b1=bg[1],b2=bg[2],scale=Math.max(1,norm);
         const ink=i=>{
-          const t=axis.reduce((a,v,k)=>a+v*(rgba[i*4+k]-bg[k]),0)/Math.max(1,norm);
-          return t>.08&&t<1.2&&Math.max(...axis.map((v,k)=>Math.abs(rgba[i*4+k]-bg[k]-v*t)))<=24;
+          const r0=rgba[i*4]-b0,r1=rgba[i*4+1]-b1,r2=rgba[i*4+2]-b2,t=(0+a0*r0+a1*r1+a2*r2)/scale;
+          return t>.08&&t<1.2&&Math.max(Math.abs(r0-a0*t),Math.abs(r1-a1*t),Math.abs(r2-a2*t))<=24;
         };
         for(const start of remaining){
           if(seen[start])continue;
           let head=0,tail=1,cores=0,painted=0;queue[0]=start;seen[start]=1;
           while(head<tail){
             const i=queue[head++],x=i%w,y=i/w|0;
-            if(Math.max(...fg.map((v,k)=>Math.abs(v-rgba[i*4+k])))<=36){cores++;if(output[i*4+3])painted++;}
+            if(Math.max(Math.abs(fg[0]-rgba[i*4]),Math.abs(fg[1]-rgba[i*4+1]),Math.abs(fg[2]-rgba[i*4+2]))<=36){cores++;if(output[i*4+3])painted++;}
             for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
               const j=yy*w+xx;if(!seen[j]&&ink(j)){seen[j]=1;queue[tail++]=j;}
             }
@@ -299,23 +355,10 @@ enum BrowserSlantedSourceRestoration {
       // Native fringe completion must also update the layout proof. A local
       // cell is newly safe only when every native bilinear donor was erased;
       // unowned drawing cannot become available to the translated glyphs.
-      for(let y=0;y<lh;y++)for(let x=0;x<lw;x++){
-        const dx=x+.5-ox,dy=y+.5-oy,px=cx+dx*c-dy*s-.5,py=cy+dx*s+dy*c-.5;
-        const fx=Math.floor(px),fy=Math.floor(py);
-        if(fx<0||fy<0||fx+1>=w||fy+1>=h)continue;
-        const tx=px-fx,ty=py-fy,color=[0,0,0];let owned=true;
-        for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
-          const j=((fy+yy)*w+fx+xx)*4;if(output[j+3]!==255)owned=false;
-          const weight=(xx?tx:1-tx)*(yy?ty:1-ty);
-          for(let k=0;k<3;k++)color[k]+=(output[j+3]===255?output[j+k]:rgba[j+k])*weight;
-        }
-        const i=y*lw+x;
-        if(owned)result.layoutSafe[i]=1;
-        // Contrast is measured on the actual composite, including untouched
-        // paper beside an erased edge. Requiring four owned donors here kept
-        // the old glyph's dark luminance after its native pixels were erased.
-        luminance[i]=Math.round(255*(.2126*linear(color[0])+.7152*linear(color[1])+.0722*linear(color[2])));
-      }
+      // Contrast is measured on the actual composite, including untouched
+      // paper beside an erased edge. Requiring four owned donors here kept
+      // the old glyph's dark luminance after its native pixels were erased.
+      aidokuSlantedLayoutProof(rgba,output,w,h,result.layoutSafe,luminance,lw,lh,cx,cy,c,s,ox,oy);
       return {rgba:output,layoutSafe:result.layoutSafe,luminance,lw,lh,box:b,erased,
         localPixels:n,auxiliary,method:'rectified-'+result.method,surfaceQuality:result.surfaceQuality};
     }
@@ -341,10 +384,11 @@ enum BrowserSlantedSourceRestoration {
       const delta=fg.map((v,k)=>v-bg[k]),norm=delta.reduce((a,v)=>a+v*v,0);
       if(norm<3600)return null;
       const raw=new Uint8Array(n),core=new Uint8Array(n),seen=new Uint8Array(n),mask=new Uint8Array(n),queue=new Int32Array(n);
-      const distance=(i,color)=>Math.max(...color.map((v,k)=>Math.abs(v-rgba[i*4+k])));
+      const distance=(i,color)=>Math.max(Math.abs(color[0]-rgba[i*4]),Math.abs(color[1]-rgba[i*4+1]),Math.abs(color[2]-rgba[i*4+2]));
+      const d0=delta[0],d1=delta[1],d2=delta[2],b0=bg[0],b1=bg[1],b2=bg[2];
       for(let i=0;i<n;i++){
-        const t=delta.reduce((a,v,k)=>a+v*(rgba[i*4+k]-bg[k]),0)/norm;
-        const error=Math.max(...delta.map((v,k)=>Math.abs(rgba[i*4+k]-bg[k]-v*t)));
+        const r0=rgba[i*4]-b0,r1=rgba[i*4+1]-b1,r2=rgba[i*4+2]-b2,t=(0+d0*r0+d1*r1+d2*r2)/norm;
+        const error=Math.max(Math.abs(r0-d0*t),Math.abs(r1-d1*t),Math.abs(r2-d2*t));
         if(t>.05&&t<1.15&&error<=12)raw[i]=1;
         if(distance(i,fg)<=24)core[i]=1;
       }
@@ -390,10 +434,12 @@ enum BrowserSlantedSourceRestoration {
       const separation=Math.max(...fg.map((v,k)=>Math.abs(v-bg[k]))),tolerance=Math.min(32,separation*.3);
       const seen=new Uint8Array(w*h),raw=new Uint8Array(w*h),core=new Uint8Array(w*h),queue=new Int32Array(w*h);
       const axis=fg.map((v,k)=>v-bg[k]),norm=axis.reduce((a,v)=>a+v*v,0);
+      const a0=axis[0],a1=axis[1],a2=axis[2],b0=bg[0],b1=bg[1],b2=bg[2],f0=fg[0],f1=fg[1],f2=fg[2],scale=Math.max(1,norm);
       for(let i=0;i<w*h;i++){
-        const rgb=[0,1,2].map(k=>original[i*4+k]),projection=axis.reduce((a,v,k)=>a+v*(rgb[k]-bg[k]),0)/Math.max(1,norm);
-        if(projection>.08&&projection<1.2&&Math.max(...rgb.map((v,k)=>Math.abs(v-bg[k]-axis[k]*projection)))<=24)raw[i]=1;
-        if(!result.rgba[i*4+3]&&Math.max(...fg.map((v,k)=>Math.abs(v-rgb[k])))<=tolerance)core[i]=1;
+        const v0=original[i*4],v1=original[i*4+1],v2=original[i*4+2];
+        const r0=v0-b0,r1=v1-b1,r2=v2-b2,projection=(0+a0*r0+a1*r1+a2*r2)/scale;
+        if(projection>.08&&projection<1.2&&Math.max(Math.abs(r0-a0*projection),Math.abs(r1-a1*projection),Math.abs(r2-a2*projection))<=24)raw[i]=1;
+        if(!result.rgba[i*4+3]&&Math.max(Math.abs(f0-v0),Math.abs(f1-v1),Math.abs(f2-v2))<=tolerance)core[i]=1;
       }
       for(let start=0;start<raw.length;start++){
         if(!raw[start]||seen[start])continue;
