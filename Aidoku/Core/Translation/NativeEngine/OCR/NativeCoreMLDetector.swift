@@ -479,7 +479,9 @@ private final class NativeCoreMLDetectorModelPredictor:
 #if targetEnvironment(simulator)
                     configuration.computeUnits = .cpuOnly
 #else
-                    configuration.computeUnits = .all
+                    // The range-shaped fp16 detector runs on the GPU either way;
+                    // `.all` only adds a ~5-6 s Neural Engine compile on first load.
+                    configuration.computeUnits = .cpuAndGPU
 #endif
                     configuration.modelDisplayName = "PP-OCRv6 Medium Dynamic"
                     configuration.optimizationHints.reshapeFrequency =
@@ -560,7 +562,7 @@ private final class NativeCoreMLDetectorModelPredictor:
 #if targetEnvironment(simulator)
         "cpuOnly"
 #else
-        "all"
+        "cpuAndGPU"
 #endif
     }
 
