@@ -109,6 +109,9 @@ protocol NativeCoreMLDetecting: Sendable {
         sourceHeight: Int
     ) async throws
 
+    /// Loads the model without a shape-specific warm-up prediction.
+    func warmUpModel() async throws
+
     func detect(
         frame: NativeOCRRGBAFrame,
         requestID: String,
@@ -138,6 +141,7 @@ extension NativeCoreMLDetecting {
         sourceWidth: Int,
         sourceHeight: Int
     ) async throws {}
+    func warmUpModel() async throws {}
     func cancelPreparation() {}
 
     /// Non-native test and fallback detectors retain full postprocessing. The
@@ -501,6 +505,20 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
         await stageHandler?(.detectorReady)
         try await recognizer.prepare()
         await stageHandler?(.recognizerReady)
+    }
+
+    /// Reader-open warm-up: loads the detector model and prepares the
+    /// recognizer concurrently, before the first page image is known. Unlike
+    /// `prepare(sourceWidth:sourceHeight:)` the detector runs no speculative
+    /// prediction, because its dynamic input shape depends on the page. Both
+    /// stores coalesce with concurrent OCR loads, so this only moves loads
+    /// that the first OCR frame would perform anyway. Idempotent: resident
+    /// models return immediately. Cancel with task cancellation or
+    /// `cancelPreparation()`/`purgeResources()`.
+    func warmUp() async throws {
+        async let detectorReady: Void = detector.warmUpModel()
+        async let recognizerReady: Void = recognizer.prepare()
+        _ = try await (detectorReady, recognizerReady)
     }
 
     /// Best-effort post-result specialization. The production recognizer
