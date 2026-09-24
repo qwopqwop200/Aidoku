@@ -12,7 +12,10 @@
       "sourceOnnxSha256": "eb13b44b25bb36f89528b68720af8a61d9cf381176107f465db1757b65d086e1",
       "outputResource": "PP-OCRv6-Medium-DetShapes.mlpackage",
       "dynamicMaximumDimension": 2000,
-      "effectiveDynamicMaximumDimension": 1984
+      "effectiveDynamicMaximumDimension": 1984,
+      "computePrecision": "float16",
+      "precisionConversion": "coremltools 8.3: fp32 MLProgram loaded via milproto, re-converted with compute_precision=FLOAT16 (iOS18 target), float32 input/output descriptions preserved",
+      "outputWeightsSha256": "6c219772a08c9e80543f97acd1527d9a5eb501bf004bb215fa4e5a00133d743d"
     },
     {
       "id": "medium-recognizer",
@@ -35,7 +38,10 @@
       "sourceOnnxSha256": "d73e0058b7a8086bbd57f3d10b8bcd4ff95363f67e06e2762b5e814fe9c9410e",
       "outputResource": "PP-OCRv6-Small-DetShapes.mlpackage",
       "dynamicMaximumDimension": 2000,
-      "effectiveDynamicMaximumDimension": 1984
+      "effectiveDynamicMaximumDimension": 1984,
+      "computePrecision": "float16",
+      "precisionConversion": "coremltools 8.3: fp32 MLProgram loaded via milproto, re-converted with compute_precision=FLOAT16 (iOS18 target), float32 input/output descriptions preserved",
+      "outputWeightsSha256": "33cc7eb8f74e98f7193e06ced2d8860f61eed0fba8e0c20114cde6be866add08"
     },
     {
       "id": "small-recognizer",
@@ -58,7 +64,10 @@
       "sourceOnnxSha256": "193bab7a04fca699a6c82e6abb5b81bdb28177f0abd4062552b04908dafb19f8",
       "outputResource": "PP-OCRv6-Tiny-DetShapes.mlpackage",
       "dynamicMaximumDimension": 2000,
-      "effectiveDynamicMaximumDimension": 1984
+      "effectiveDynamicMaximumDimension": 1984,
+      "computePrecision": "float16",
+      "precisionConversion": "coremltools 8.3: fp32 MLProgram loaded via milproto, re-converted with compute_precision=FLOAT16 (iOS18 target), float32 input/output descriptions preserved",
+      "outputWeightsSha256": "aa6d8ac71a59f23fe79f5c1ad8b81ba4993abc2eae5cef00dfcb87b3da3eb2b7"
     },
     {
       "id": "tiny-recognizer",

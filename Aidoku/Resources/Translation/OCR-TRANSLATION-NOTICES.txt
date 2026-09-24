@@ -42,7 +42,7 @@ Medium width ranges from 160 through 3,200 and Small/Tiny width from 160 through
 recognizer, and character dictionary. Korean OCR and PP-OCRv5 models are not
 bundled.
 
-Some package manifests, including Small/Tiny resources, retain
+Some package manifests, including the Tiny recognizer, retain
 `com.microsoft.OnnxRuntime` as creator metadata. The model protobufs themselves
 are Core ML MLPrograms; this metadata does not mean ONNX Runtime is bundled or
 used at runtime. The app requests
@@ -52,6 +52,10 @@ Core ML to choose among the device's available compute units.
 `CoreMLSources.json` records the official archive URL and SHA-256, internal ONNX
 SHA-256, dynamic bound, output resource, dictionary, and dictionary SHA-256 for
 each tier and role.
+
+All three detectors (Medium, Small, Tiny) are stored as float16-compute
+MLPrograms, re-converted from the float32 conversions with coremltools; their
+input and output remain float32. All recognizers remain float32.
 
 
 

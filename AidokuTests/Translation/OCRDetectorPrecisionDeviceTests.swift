@@ -4,11 +4,12 @@ import ImageIO
 import Testing
 @testable import Aidoku
 
-/// Device-only experiment: compares the bundled fp32 detector against
-/// low-precision GPU accumulation, alternative compute units, and an optional
-/// fp16 re-conversion copied to Documents/OCRPrecision. Production code is
-/// untouched; the test loads the model with the production load options and
-/// runs the production preprocessing, map materialization, and DB decoder.
+/// Device-only experiment: compares the bundled fp16 Medium detector against
+/// an optional fp32 reference copied to
+/// Documents/OCRPrecision/PP-OCRv6-Medium-DetShapes-fp32.mlmodelc (baseline
+/// when present), plus alternative compute units. The test loads models with
+/// the production load options and runs the production preprocessing, float32
+/// map materialization, and DB decoder.
 @Suite(.serialized)
 struct OCRDetectorPrecisionDeviceTests {
     private static var fixtures: URL { URL.documentsDirectory.appendingPathComponent("OptimizationFixtures") }
@@ -24,19 +25,17 @@ struct OCRDetectorPrecisionDeviceTests {
         .appendingPathComponent("OptimizationFixtures").path)))
     func detectorPrecisionVariantsOnRealPages() async throws {
         guard #available(iOS 18.0, *) else { return }
-        let fp32 = try #require(Bundle.main.url(forResource: "PP-OCRv6-Medium-DetShapes", withExtension: "mlmodelc"))
-        let fp16 = URL.documentsDirectory.appendingPathComponent("OCRPrecision/PP-OCRv6-Medium-DetShapes-fp16.mlmodelc")
-        var variants = [
-            Variant(name: "fp32-all", url: fp32, units: .all, lowPrecision: false),
-            Variant(name: "fp32-all-lowprec", url: fp32, units: .all, lowPrecision: true),
-            Variant(name: "fp32-cpuGPU", url: fp32, units: .cpuAndGPU, lowPrecision: false),
-            Variant(name: "fp32-cpuGPU-lowprec", url: fp32, units: .cpuAndGPU, lowPrecision: true),
-            Variant(name: "fp32-cpuNE", url: fp32, units: .cpuAndNeuralEngine, lowPrecision: false),
-        ]
-        if FileManager.default.fileExists(atPath: fp16.path) {
-            variants.append(Variant(name: "fp16-all", url: fp16, units: .all, lowPrecision: false))
-            variants.append(Variant(name: "fp16-cpuGPU", url: fp16, units: .cpuAndGPU, lowPrecision: false))
+        let bundled = try #require(Bundle.main.url(forResource: "PP-OCRv6-Medium-DetShapes", withExtension: "mlmodelc"))
+        let fp32 = URL.documentsDirectory.appendingPathComponent("OCRPrecision/PP-OCRv6-Medium-DetShapes-fp32.mlmodelc")
+        var variants: [Variant] = []
+        // The first variant is the comparison baseline ("fp32-all").
+        if FileManager.default.fileExists(atPath: fp32.path) {
+            variants.append(Variant(name: "fp32-all", url: fp32, units: .all, lowPrecision: false))
+            variants.append(Variant(name: "fp32-cpuGPU", url: fp32, units: .cpuAndGPU, lowPrecision: false))
         }
+        variants.append(Variant(name: variants.isEmpty ? "fp32-all" : "bundled-fp16-all",
+                                url: bundled, units: .all, lowPrecision: false))
+        variants.append(Variant(name: "bundled-fp16-cpuGPU", url: bundled, units: .cpuAndGPU, lowPrecision: false))
         var models: [String: MLModel] = [:]
         for variant in variants {
             let configuration = MLModelConfiguration()
@@ -76,6 +75,8 @@ struct OCRDetectorPrecisionDeviceTests {
                         try await model.prediction(from: [NativeCoreMLDetector.inputFeatureName: tensor])
                     }
                     let output = try #require(outputs[NativeCoreMLDetector.outputFeatureName])
+                    // Production materializes with shapedArray(of: Float.self).
+                    #expect(output.scalarType == Float.self)
                     let map = try await NativeCoreMLDetectionOutput.makeMap(
                         output: output, width: prepared.resizedWidth, height: prepared.resizedHeight,
                         expectedShape: canvas.outputShape)
@@ -119,6 +120,30 @@ struct OCRDetectorPrecisionDeviceTests {
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         try JSONSerialization.data(withJSONObject: rows, options: [.sortedKeys])
             .write(to: output.appendingPathComponent("ocr-detector-precision.json"))
+    }
+
+    /// Every bundled fp16 detector tier must load with the production
+    /// configuration and return float32 output through the production pipeline.
+    @Test func bundledFloat16DetectorsRunThroughProductionPipeline() async throws {
+        guard #available(iOS 18.0, *) else { return }
+        let width = 800, height = 1_100
+        var bytes = [UInt8](repeating: 255, count: width * height * 4)
+        // Dark horizontal strokes resembling a text line.
+        for row in 500..<530 { for column in 200..<600 where column % 40 < 28 {
+            let offset = row * width * 4 + column * 4
+            bytes[offset] = 0; bytes[offset + 1] = 0; bytes[offset + 2] = 0
+        } }
+        let frame = try #require(NativeOCRRGBAFrame(width: width, height: height, bytesPerRow: width * 4, bytes: bytes))
+        for tier in IPhoneOCRModelTier.allCases {
+            let profile = NativeCoreMLOCRModelProfile.profile(for: tier)
+            let detector = NativeCoreMLDetector(modelResourceName: profile.detectorResourceName,
+                                                maximumSide: IPhoneOCRSettings.defaultDetectorMaximumSide)
+            let result = try await detector.detect(frame: frame, requestID: "fp16-\(tier.rawValue)",
+                                                   configuration: profile.postprocessConfiguration)
+            #expect(result.width == width && result.height == height)
+            print("OCR_PRECISION_TIER \(tier.rawValue) boxes=\(result.boxes.count) ms=\(result.diagnostics.totalMilliseconds)")
+            await detector.purgeResources()
+        }
     }
 
     private static func waitForCoolDevice() async {
