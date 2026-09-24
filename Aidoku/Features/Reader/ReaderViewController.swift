@@ -196,7 +196,7 @@ class ReaderViewController: BaseObservingViewController {
             UIBarButtonItem(
                 barButtonSystemItem: .close,
                 target: self,
-                action: #selector(close)
+                action: #selector(close as () -> Void)
             ),
             UIBarButtonItem(
                 image: UIImage(systemName: "list.bullet"),
@@ -687,12 +687,19 @@ extension ReaderViewController {
     }
 
     @objc func close() {
+        close(animated: true)
+    }
+
+    func close(animated: Bool, completion: (() -> Void)? = nil) {
         (reader as? ReaderWebtoonViewController)?.cancelPendingChapterLoads()
         translationCoordinator.close()
         Task {
             await temporaryPageStore.removeAll()
         }
-        dismiss(animated: true) { [temporaryImageSession] in temporaryImageSession?.removeFiles() }
+        dismiss(animated: animated) { [temporaryImageSession] in
+            temporaryImageSession?.removeFiles()
+            completion?()
+        }
     }
 
     @objc func sliderMoved(_ sender: ReaderSliderView) {
@@ -1805,7 +1812,7 @@ extension ReaderViewController {
             ),
             UIKeyCommand(
                 title: NSLocalizedString("CLOSE_READER"),
-                action: #selector(close),
+                action: #selector(close as () -> Void),
                 input: UIKeyCommand.inputEscape
             )
         ]

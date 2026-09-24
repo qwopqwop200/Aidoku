@@ -720,11 +720,47 @@ extension AppDelegate {
 
     static func presentSharedImageController(_ controller: UIViewController, from presenter: UIViewController) {
         controller.modalPresentationStyle = .fullScreen
-        if presenter.presentedViewController != nil {
-            presenter.dismiss(animated: false) { presenter.present(controller, animated: true) }
-        } else {
-            presenter.present(controller, animated: true)
+        let chain = presenter.presentedViewController.map { Array(sequence(first: $0, next: \.presentedViewController)) } ?? []
+        // Close an open reader through its own close path. Dismissing a SwiftUI fullScreenCover from the root
+        // leaves its binding set, so SwiftUI brings the old reader back over the shared image reader.
+        guard let index = chain.firstIndex(where: { readerViewController(in: $0) != nil }),
+              let reader = readerViewController(in: chain[index]) else {
+            presentWhenIdle(controller, from: presenter)
+            return
         }
+        let closeReader = {
+            reader.close(animated: false) {
+                // Let SwiftUI clear the cover's state before presenting over the same root.
+                DispatchQueue.main.async { presentWhenIdle(controller, from: presenter) }
+            }
+        }
+        if index + 1 < chain.count {
+            chain[index].dismiss(animated: false, completion: closeReader)
+        } else {
+            closeReader()
+        }
+    }
+
+    private static func readerViewController(in controller: UIViewController) -> ReaderViewController? {
+        if let reader = controller as? ReaderViewController { return reader }
+        for child in controller.children {
+            if let reader = readerViewController(in: child) { return reader }
+        }
+        return nil
+    }
+
+    private static func presentWhenIdle(_ controller: UIViewController, from presenter: UIViewController, attempts: Int = 0) {
+        guard let presented = presenter.presentedViewController else {
+            presenter.present(controller, animated: true)
+            return
+        }
+        if presented.isBeingDismissed, attempts < 20 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                presentWhenIdle(controller, from: presenter, attempts: attempts + 1)
+            }
+            return
+        }
+        presenter.dismiss(animated: false) { presenter.present(controller, animated: true) }
     }
 
     func handleDeepLink(url: URL) async -> Bool {
