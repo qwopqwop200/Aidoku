@@ -34,6 +34,19 @@ struct ReaderTranslationRenderAsset: Codable, Sendable {
     /// Hash existing provider bytes; no PNG/JPEG encoding or redraw is needed.
     /// Call off MainActor, because a provider may lazily decode its source.
     static func digestSource(_ image: UIImage) -> String? {
+        guard !Task.isCancelled else { return nil }
+        // A UIImage and its CGImage are immutable: a digest per instance is
+        // stable, so repeated displays skip copying and hashing every pixel.
+        if let cached = sourceDigests.value(for: image) { return cached }
+        guard let digest = computeSourceDigest(image) else { return nil }
+        sourceDigests.store(digest, for: image)
+        return digest
+    }
+
+    /// Weakly keyed by image identity; 64-byte values, bounded entry count.
+    static let sourceDigests = ReaderTranslationImageIdentityCache<String>(capacity: 32)
+
+    private static func computeSourceDigest(_ image: UIImage) -> String? {
         guard !Task.isCancelled, let pixels = image.cgImage, let bytes = pixels.dataProvider?.data else { return nil }
         let colorSpace = pixels.colorSpace
         let name = colorSpace?.name.map { $0 as String } ?? ""
@@ -72,5 +85,90 @@ struct ReaderTranslationRenderAsset: Codable, Sendable {
     func matches(regions: [ReaderTranslationRegion], sourceSize: CGSize, sourceDigest: String?) -> Bool {
         isValid && self.sourceSize == sourceSize && regionsDigest == Self.digest(regions)
             && sourceDigest != nil && self.sourceDigest == sourceDigest
+    }
+}
+
+/// A tiny, thread-safe cache of values derived from immutable `UIImage`
+/// instances. Keys are held weakly and compared by identity; an entry is
+/// dropped as soon as its image deallocates, on memory warnings, or when
+/// the least-recently-used slot is needed. Values are recomputable, so a
+/// miss only costs the original work.
+final class ReaderTranslationImageIdentityCache<Value>: @unchecked Sendable {
+    private final class Entry {
+        weak var image: UIImage?
+        let value: Value
+        init(image: UIImage, value: Value) {
+            self.image = image
+            self.value = value
+        }
+    }
+
+    /// Associated with the keyed image; its release removes the entry.
+    private final class Sentinel {
+        weak var cache: ReaderTranslationImageIdentityCache?
+        weak var entry: Entry?
+        init(cache: ReaderTranslationImageIdentityCache, entry: Entry) {
+            self.cache = cache
+            self.entry = entry
+        }
+        deinit {
+            // An image may deallocate while this cache's lock is held (a weak
+            // load inside the lock can be its final release). Remove later.
+            guard let cache, let entry else { return }
+            DispatchQueue.global(qos: .utility).async { cache.remove(entry) }
+        }
+    }
+
+    let capacity: Int
+    private let lock = NSLock()
+    private var entries: [Entry] = [] // Least recently used first.
+    private var warningObserver: NSObjectProtocol?
+
+    init(capacity: Int) {
+        self.capacity = max(1, capacity)
+        warningObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: nil
+        ) { [weak self] _ in self?.removeAll() }
+    }
+
+    deinit {
+        if let warningObserver { NotificationCenter.default.removeObserver(warningObserver) }
+    }
+
+    var count: Int {
+        lock.lock(); defer { lock.unlock() }
+        return entries.filter { $0.image != nil }.count
+    }
+
+    func value(for image: UIImage) -> Value? {
+        lock.lock(); defer { lock.unlock() }
+        entries.removeAll { $0.image == nil }
+        guard let index = entries.lastIndex(where: { $0.image === image }) else { return nil }
+        let entry = entries.remove(at: index)
+        entries.append(entry)
+        return entry.value
+    }
+
+    func store(_ value: Value, for image: UIImage) {
+        let entry = Entry(image: image, value: value)
+        lock.lock()
+        entries.removeAll { $0.image == nil || $0.image === image }
+        while entries.count >= capacity { entries.removeFirst() }
+        entries.append(entry)
+        lock.unlock()
+        // Each image carries one sentinel per cache; replacing it releases the
+        // previous sentinel, which removes only its own (already replaced) entry.
+        objc_setAssociatedObject(image, Unmanaged.passUnretained(self).toOpaque(),
+                                 Sentinel(cache: self, entry: entry), .OBJC_ASSOCIATION_RETAIN)
+    }
+
+    func removeAll() {
+        lock.lock(); defer { lock.unlock() }
+        entries.removeAll()
+    }
+
+    private func remove(_ entry: Entry) {
+        lock.lock(); defer { lock.unlock() }
+        entries.removeAll { $0 === entry }
     }
 }

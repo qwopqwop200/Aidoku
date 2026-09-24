@@ -375,6 +375,10 @@ enum ReaderTranslationImageExporter {
     return JSON.stringify({masks, surfaces, paintBounds});
     """#
 
+    /// Core Image contexts are thread-safe and expensive to create; the
+    /// composite gate already serializes production use.
+    nonisolated(unsafe) private static let compositeContext = CIContext(options: [.workingColorSpace: NSNull()])
+
     nonisolated static func composite(image: UIImage, typography: Data, layers: ExportLayers,
                                              displayRect: CGRect, size: CGSize) throws -> UIImage {
         try Task.checkCancellation()
@@ -421,14 +425,6 @@ enum ReaderTranslationImageExporter {
         format.preferredRange = .standard
         let destination = CGRect(origin: .zero, size: size)
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        // Original pixels bypass WebKit's 4 MP background copy entirely.
-        let cleaned = renderer.image { _ in
-            image.draw(in: destination)
-            for (mask, rect, opacity) in masks { mask.draw(in: rect, blendMode: .normal, alpha: opacity) }
-        }
-        guard let cgImage = cleaned.cgImage else { throw ExportError.renderFailed }
-        let source = CIImage(cgImage: cgImage).clampedToExtent()
-        let context = CIContext(options: [.workingColorSpace: NSNull()])
         let surfaces = try layers.surfaces.map { surface in
             guard surface.radius.isFinite, surface.radius >= 0, surface.blur.isFinite, surface.blur >= 0,
                   surface.saturation.isFinite, surface.saturation >= 0 else { throw ExportError.renderFailed }
@@ -440,6 +436,39 @@ enum ReaderTranslationImageExporter {
         let pageBounds = page.getBoxRect(.mediaBox)
         guard pageBounds.minX.isFinite, pageBounds.minY.isFinite, pageBounds.width.isFinite, pageBounds.height.isFinite,
               pageBounds.width > 0, pageBounds.height > 0 else { throw ExportError.renderFailed }
+        // Original pixels bypass WebKit's 4 MP background copy entirely.
+        func drawCleaned() {
+            image.draw(in: destination)
+            for (mask, rect, opacity) in masks { mask.draw(in: rect, blendMode: .normal, alpha: opacity) }
+        }
+        // A malformed export layer must never overwrite unrelated artwork.
+        // Clip even the vector page to the measured translation/text bounds.
+        func drawTypography(_ context: CGContext) {
+            guard !paintBounds.isEmpty else { return }
+            context.saveGState()
+            context.addRects(paintBounds)
+            context.clip()
+            context.translateBy(x: 0, y: size.height)
+            context.scaleBy(x: size.width / pageBounds.width, y: -size.height / pageBounds.height)
+            context.translateBy(x: -pageBounds.minX, y: -pageBounds.minY)
+            context.drawPDFPage(page)
+            context.restoreGState()
+        }
+        // Without backdrop surfaces nothing samples the cleaned page, so paint
+        // it straight into the output: the same draws in the same order and
+        // format, without a second full-page bitmap and copy.
+        if surfaces.isEmpty {
+            let output = renderer.image { drawing in
+                drawCleaned()
+                drawTypography(drawing.cgContext)
+            }
+            try Task.checkCancellation()
+            return output
+        }
+        let cleaned = renderer.image { _ in drawCleaned() }
+        guard let cgImage = cleaned.cgImage else { throw ExportError.renderFailed }
+        let source = CIImage(cgImage: cgImage).clampedToExtent()
+        let context = compositeContext
         var failure = false
         let output = renderer.image { drawing in
             cleaned.draw(in: destination)
@@ -455,18 +484,7 @@ enum ReaderTranslationImageExporter {
                 UIImage(cgImage: patch).draw(in: crop)
                 drawing.cgContext.restoreGState()
             }
-            // A malformed export layer must never overwrite unrelated artwork.
-            // Clip even the vector page to the measured translation/text bounds.
-            if !paintBounds.isEmpty {
-                drawing.cgContext.saveGState()
-                drawing.cgContext.addRects(paintBounds)
-                drawing.cgContext.clip()
-                drawing.cgContext.translateBy(x: 0, y: size.height)
-                drawing.cgContext.scaleBy(x: size.width / pageBounds.width, y: -size.height / pageBounds.height)
-                drawing.cgContext.translateBy(x: -pageBounds.minX, y: -pageBounds.minY)
-                drawing.cgContext.drawPDFPage(page)
-                drawing.cgContext.restoreGState()
-            }
+            drawTypography(drawing.cgContext)
         }
         guard !failure else { throw ExportError.renderFailed }
         try Task.checkCancellation()

@@ -29,6 +29,27 @@ enum ReaderTranslationBackgroundImage {
         return CGSize(width: max(1, floor(size.width * scale)), height: max(1, floor(size.height * scale)))
     }
 
+    /// Live and export overlays usually present the same image instance.
+    /// Two weakly keyed entries (adjacent webtoon pages encode back to back)
+    /// reuse the PNG/base64 encoding without pinning pixels; an entry is
+    /// released with its image or on a memory warning.
+    static let encodedDataURLs = ReaderTranslationImageIdentityCache<String>(capacity: 2)
+
+    /// The PNG data URL WebKit loads as the page background. Deterministic for
+    /// an immutable image, so an identical earlier encoding is reused.
+    static func dataURL(for image: UIImage) throws -> String? {
+        try Task.checkCancellation()
+        if let cached = encodedDataURLs.value(for: image) { return cached }
+        let dataURL: String? = try autoreleasepool {
+            let background = try prepare(image)
+            let data = background.pngData()
+            try Task.checkCancellation()
+            return data.map { "data:image/png;base64," + $0.base64EncodedString() }
+        }
+        if let dataURL { encodedDataURLs.store(dataURL, for: image) }
+        return dataURL
+    }
+
     static func prepare(_ image: UIImage, crop: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1)) throws -> UIImage {
         try Task.checkCancellation()
         let source = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
@@ -217,12 +238,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 try Task.checkCancellation()
                 ReaderTranslationDiagnostics.record("background_encode_begin")
                 defer { ReaderTranslationDiagnostics.record("background_encode_end") }
-                return try autoreleasepool {
-                    let background = try ReaderTranslationBackgroundImage.prepare(image)
-                    let data = background.pngData()
-                    try Task.checkCancellation()
-                    return data.map { "data:image/png;base64," + $0.base64EncodedString() }
-                }
+                return try ReaderTranslationBackgroundImage.dataURL(for: image)
                 }
             }
             let dataURL = await withTaskCancellationHandler {
