@@ -6,6 +6,7 @@ import os
 @MainActor
 final class ReaderTranslationSession {
     typealias Processor = (Page, ReaderTranslationSettings, ReaderTranslationService.Progress?) async throws -> [ReaderTranslationRegion]
+    typealias TranslationStore = @Sendable ([ReaderTranslationRegion], String, UInt64) async -> Void
     enum State: Equatable { case off, checking, on }
     struct Item {
         let key: String
@@ -78,6 +79,13 @@ final class ReaderTranslationSession {
     private var touchedPages: Set<String> = []
     private var currentPosition: Int?
     private var navigationPaused = false
+    private let storeTranslation: TranslationStore?
+    /// Completed translations whose disk write has not finished, keyed by disk identity.
+    /// Lookups consult this first, so a pending write can never cause duplicate OCR/API work.
+    private var pendingDiskStores: [String: (id: UUID, regions: [ReaderTranslationRegion], task: Task<Void, Never>)] = [:]
+    private var pendingDiskStoreOrder: [String] = []
+    /// Compact text only; bounds the write queue when disk I/O is slower than translation.
+    static let maximumPendingDiskStores = 4
     var onStateChanged: ((State) -> Void)?
     var onFailure: ((Error) -> Void)?
 
@@ -93,7 +101,8 @@ final class ReaderTranslationSession {
         overlapsLayoutWithTranslation: Bool = true,
         availableMemory: @escaping () -> UInt64 = { ReaderTranslationSession.processAvailableMemory() },
         reclaimMemory: @escaping () async -> Void = { await TranslationImageWorkBudget.reclaimIdleResources() },
-        cache: ReaderTranslationSessionCache? = nil
+        cache: ReaderTranslationSessionCache? = nil,
+        storeTranslation: TranslationStore? = nil
     ) {
         self.validate = validate
         self.process = process
@@ -107,6 +116,11 @@ final class ReaderTranslationSession {
         self.availableMemory = availableMemory
         self.reclaimMemory = reclaimMemory
         self.cache = cache ?? ReaderTranslationSessionCache()
+        self.storeTranslation = storeTranslation ?? diskCache.map { diskCache in
+            { @Sendable regions, key, generation in
+                try? await diskCache.storeRegions(regions, for: key, kind: .translation, generation: generation)
+            }
+        }
     }
 
     deinit {
@@ -165,7 +179,8 @@ final class ReaderTranslationSession {
         visibleCacheTask = Task { [weak self] in
             for key in missing {
                 guard !Task.isCancelled else { return }
-                let regions = try? await diskCache.translatedRegions(page: key, settings: settings)
+                var regions = self?.pendingTranslation(page: key, settings: settings)
+                if regions == nil { regions = try? await diskCache.translatedRegions(page: key, settings: settings) }
                 guard !Task.isCancelled, let self, visibleCacheGeneration == issued,
                       state == .on, self.settings?.hasSameTranslation(as: settings) == true else { return }
                 guard let regions else {
@@ -491,7 +506,7 @@ final class ReaderTranslationSession {
             defer { if textWarmGeneration == issued { textWarmTask = nil } }
             for item in window {
                 guard !Task.isCancelled, textWarmGeneration == issued, availableMemory() >= 128 * 1_024 * 1_024 else { return }
-                if !cache.contains(item.key), let regions = try? await diskCache.translatedRegions(page: item.key, settings: settings) {
+                if !cache.contains(item.key), let regions = await storedTranslation(page: item.key, settings: settings, diskCache: diskCache) {
                     guard !Task.isCancelled, textWarmGeneration == issued else { return }
                     try? cache.store(regions, for: item.key, evict: false)
                     if items.prefix(preparationWindowCount).contains(where: { $0.key == item.key }) {
@@ -535,7 +550,9 @@ final class ReaderTranslationSession {
                 let isVisible = visible.contains { $0.sourcePage?.translationCacheKey == item.key }
                 if !isVisible {
                     var regions = cache.regions(for: item.key)
-                    if regions == nil { regions = try? await diskCache?.translatedRegions(page: item.key, settings: settings) }
+                    if regions == nil, let diskCache {
+                        regions = await storedTranslation(page: item.key, settings: settings, diskCache: diskCache)
+                    }
                     guard layoutGeneration == issued, !Task.isCancelled else { return }
                     // A lookahead can publish to RAM while the disk lookup is
                     // suspended, before its independent persistence finishes.
@@ -711,6 +728,52 @@ final class ReaderTranslationSession {
         return true
     }
 
+    private func pendingTranslation(page key: String, settings: ReaderTranslationSettings) -> [ReaderTranslationRegion]? {
+        pendingDiskStores[ReaderTranslationCacheIdentity.translation(page: key, settings: settings)]?.regions
+    }
+
+    private func storedTranslation(page key: String, settings: ReaderTranslationSettings,
+                                   diskCache: ReaderTranslationDiskCache) async -> [ReaderTranslationRegion]? {
+        if let pending = pendingTranslation(page: key, settings: settings) { return pending }
+        return try? await diskCache.translatedRegions(page: key, settings: settings)
+    }
+
+    /// Starts a write that outlives worker cancellation. At most
+    /// `maximumPendingDiskStores` writes are in flight; beyond that the worker
+    /// waits for the oldest, so a slow disk cannot grow an unbounded queue.
+    private func persistTranslation(_ regions: [ReaderTranslationRegion], diskKey: String, generation: UInt64) async {
+        guard let storeTranslation else { return }
+        while pendingDiskStores.count >= Self.maximumPendingDiskStores,
+              let oldest = pendingDiskStoreOrder.first, let entry = pendingDiskStores[oldest] {
+            await entry.task.value
+            finishDiskStore(oldest, id: entry.id)
+        }
+        let id = UUID()
+        let task = Task(priority: .utility) { [weak self] in
+            await storeTranslation(regions, diskKey, generation)
+            self?.finishDiskStore(diskKey, id: id)
+        }
+        pendingDiskStoreOrder.removeAll { $0 == diskKey }
+        pendingDiskStoreOrder.append(diskKey)
+        pendingDiskStores[diskKey] = (id, regions, task)
+    }
+
+    private func finishDiskStore(_ diskKey: String, id: UUID) {
+        guard pendingDiskStores[diskKey]?.id == id else { return }
+        pendingDiskStores.removeValue(forKey: diskKey)
+        pendingDiskStoreOrder.removeAll { $0 == diskKey }
+    }
+
+    var pendingDiskStoreCount: Int { pendingDiskStores.count }
+
+    /// Waits until every started translation write has finished.
+    func flushPendingDiskStores() async {
+        while let (key, entry) = pendingDiskStores.first {
+            await entry.task.value
+            finishDiskStore(key, id: entry.id)
+        }
+    }
+
     private func drain() {
         warmTextCache()
         guard state == .on, !navigationPaused, worker == nil, let settings, nextItem() != nil else { return }
@@ -724,7 +787,8 @@ final class ReaderTranslationSession {
                     let key = item.key
                     let diskKey = ReaderTranslationCacheIdentity.translation(page: key, settings: settings)
                     let diskGeneration = await diskCache?.currentGeneration(settings: settings) ?? 0
-                    let stored = try? await diskCache?.translatedRegions(page: item.key, settings: settings)
+                    var stored: [ReaderTranslationRegion]?
+                    if let diskCache { stored = await storedTranslation(page: item.key, settings: settings, diskCache: diskCache) }
                     let regions: [ReaderTranslationRegion]
                     if let stored {
                         ReaderTranslationDiagnostics.record("translation_cache_hit", page: item.position + 1, count: stored.count)
@@ -757,13 +821,10 @@ final class ReaderTranslationSession {
                     didReportTranslationFailure = false
                     ReaderTranslationDiagnostics.record("translation_finished", page: item.position + 1, count: regions.count)
                     displayPreparedPages()
-                    if stored == nil {
-                        if let diskCache {
-                            // Completed API work must survive a page turn cancelling this worker.
-                            await Task(priority: .utility) {
-                                try? await diskCache.storeRegions(regions, for: diskKey, kind: .translation, generation: diskGeneration)
-                            }.value
-                        }
+                    if stored == nil, diskCache != nil {
+                        // Completed API work must survive a page turn cancelling this worker.
+                        // The write proceeds in the background; lookups read the pending value.
+                        await persistTranslation(regions, diskKey: diskKey, generation: diskGeneration)
                     }
                     guard workGeneration == issued, !Task.isCancelled else { return }
                     if prepareLayout != nil, items.prefix(preparationWindowCount).contains(where: { $0.key == item.key }), !visible.contains(where: { $0.sourcePage?.translationCacheKey == item.key }) {
@@ -815,6 +876,10 @@ extension ReaderTranslationSession {
             return regions
         }
         guard let diskCache else { return nil }
+        if self.settings?.hasSameTranslation(as: settings) == true, let pending = pendingTranslation(page: key, settings: settings) {
+            try? cache.store(pending, for: key)
+            return pending
+        }
         let generation = await diskCache.currentGeneration(settings: settings)
         let regions = try? await diskCache.translatedRegions(page: key, settings: settings)
         try Task.checkCancellation()
