@@ -11,6 +11,44 @@ enum ReaderTranslationBalloonMerger {
     }
 
     static func apply(_ regions: [ReaderTranslationRegion], image: CGImage, sourceLines: [SourceLine] = []) -> [ReaderTranslationRegion] {
+        apply(regions, image: image, sourceLines: sourceLines, ink: OutlinedInkMemo(image: image))
+    }
+
+    /// `outlinedInk` is a pure function of the image and pixel rect. One merge
+    /// pass asks for the same column rect repeatedly (pairwise checks and the
+    /// restarting stacked-caption scan), so it is computed once per rect.
+    private final class OutlinedInkMemo {
+        private struct Key: Hashable {
+            let x: UInt64, y: UInt64, width: UInt64, height: UInt64
+            init(_ rect: CGRect) {
+                x = Double(rect.origin.x).bitPattern; y = Double(rect.origin.y).bitPattern
+                width = Double(rect.size.width).bitPattern; height = Double(rect.size.height).bitPattern
+            }
+        }
+        private let image: CGImage
+        private var values: [Key: (Double, Double, Double)?] = [:]
+        init(image: CGImage) { self.image = image }
+
+        func sample(_ rect: CGRect) -> (Double, Double, Double)? {
+            let key = Key(rect)
+            if let cached = values[key] { return cached }
+            let value = ReaderTranslationBalloonMerger.outlinedInk(in: image, rect: rect)
+            values[key] = .some(value)
+            return value
+        }
+
+        func matching(_ first: CGRect, _ second: CGRect) -> Bool {
+            guard let a = sample(first), let b = sample(second) else { return false }
+            return ReaderTranslationBalloonMerger.matching(a, b)
+        }
+
+        func different(_ first: CGRect, _ second: CGRect) -> Bool {
+            guard let a = sample(first), let b = sample(second) else { return false }
+            return ReaderTranslationBalloonMerger.different(a, b)
+        }
+    }
+
+    private static func apply(_ regions: [ReaderTranslationRegion], image: CGImage, sourceLines: [SourceLine], ink: OutlinedInkMemo) -> [ReaderTranslationRegion] {
         // The pixel bridge/lobe checks below use upright axes. Native OCR
         // already groups rotated columns using their source quads; applying
         // these upright rules again would replace that quad with an AABB.
@@ -22,12 +60,13 @@ enum ReaderTranslationBalloonMerger {
         if !rotated.isEmpty {
             let ids = Set(rotated.map(\.id))
             let order = Dictionary(regions.enumerated().map { ($0.element.id, $0.offset) }, uniquingKeysWith: min)
-            return (apply(regions.filter { !ids.contains($0.id) }, image: image, sourceLines: sourceLines) + rotated)
+            return (apply(regions.filter { !ids.contains($0.id) }, image: image, sourceLines: sourceLines, ink: ink) + rotated)
                 .sorted { order[$0.id, default: 0] < order[$1.id, default: 0] }
         }
         let regions = joinShortStaggeredReactions(
             joinRepeatedKanaLeadIns(
-                joinStackedCaptionFragments(regions, image: image, sourceLines: sourceLines), image: image), image: image)
+                joinStackedCaptionFragments(regions, image: image, sourceLines: sourceLines, ink: ink),
+                image: image, ink: ink), image: image, ink: ink)
         let width = CGFloat(image.width), height = CGFloat(image.height)
         let candidates = regions.filter { $0.sourceOrientation == .vertical && $0.source.count >= 2 &&
             $0.rect.height * height >= $0.rect.width * width * 1.5 }
@@ -84,7 +123,7 @@ enum ReaderTranslationBalloonMerger {
             for (right, left) in zip(members, members.dropFirst()) {
                 func pixels(_ rect: CGRect) -> CGRect { CGRect(x: rect.minX * width, y: rect.minY * height, width: rect.width * width, height: rect.height * height) }
                 if separatesVerticalUtterances(right.source, box: pixels(right.rect), left.source, box: pixels(left.rect)) ||
-                    differentOutlinedInk(in: image, first: pixels(right.rect), second: pixels(left.rect)) { valid = false; break }
+                    ink.different(pixels(right.rect), pixels(left.rect)) { valid = false; break }
                 let gap = right.rect.minX - left.rect.maxX
                 let overlap = min(right.rect.maxY, left.rect.maxY) - max(right.rect.minY, left.rect.minY)
                 if gap < -smallest * 0.2 || gap > smallest * 1.8 || overlap < min(right.rect.height, left.rect.height) * 0.5 { valid = false; break }
@@ -122,7 +161,7 @@ enum ReaderTranslationBalloonMerger {
     /// classified horizontal. Keep ruby and unrelated one-character captions
     /// separate: require the exact repeated prefix, full-sized lettering, tight
     /// top alignment and image evidence across the adjacent columns.
-    private static func joinRepeatedKanaLeadIns(_ input: [ReaderTranslationRegion], image: CGImage) -> [ReaderTranslationRegion] {
+    private static func joinRepeatedKanaLeadIns(_ input: [ReaderTranslationRegion], image: CGImage, ink: OutlinedInkMemo) -> [ReaderTranslationRegion] {
         let width = CGFloat(image.width), height = CGFloat(image.height)
         func pixels(_ rect: CGRect) -> CGRect {
             CGRect(x: rect.minX * width, y: rect.minY * height, width: rect.width * width, height: rect.height * height)
@@ -148,7 +187,7 @@ enum ReaderTranslationBalloonMerger {
                       right.minX - left.maxX >= -font * 0.2,
                       right.minX - left.maxX <= font * 0.35,
                       !input.contains(where: { $0.id != column.id && $0.id != lead.id && $0.rect.intersects(box) }),
-                      !differentOutlinedInk(in: image, first: left, second: right) else { continue }
+                      !ink.different(left, right) else { continue }
                 let bridge = ReaderTranslationEnclosedBackground.hasClearVerticalBridge(
                     in: image, left: left, right: right, minimumOverlapInFontSizes: 0.6)
                 // Touching OCR padding can cover the gutter with letter ink.
@@ -189,7 +228,7 @@ enum ReaderTranslationBalloonMerger {
     /// Its merged OCR region is then labelled horizontal. Recover only with a
     /// longer vertical neighbour, matching ink and an unobstructed bright gutter;
     /// never change the orientation of a region that remains separate.
-    private static func joinShortStaggeredReactions(_ input: [ReaderTranslationRegion], image: CGImage) -> [ReaderTranslationRegion] {
+    private static func joinShortStaggeredReactions(_ input: [ReaderTranslationRegion], image: CGImage, ink: OutlinedInkMemo) -> [ReaderTranslationRegion] {
         let width = CGFloat(image.width), height = CGFloat(image.height)
         func pixels(_ rect: CGRect) -> CGRect {
             CGRect(x: rect.minX * width, y: rect.minY * height, width: rect.width * width, height: rect.height * height)
@@ -207,7 +246,7 @@ enum ReaderTranslationBalloonMerger {
                       rightBox.minX - leftBox.maxX >= -min(rightBox.width, leftBox.width) * 0.2,
                       !separatesVerticalUtterances(right.source, box: rightBox, left.source, box: leftBox),
                       !input.contains(where: { $0.id != column.id && $0.id != reaction.id && $0.rect.intersects(box) }),
-                      matchingOutlinedInk(in: image, first: rightBox, second: leftBox),
+                      ink.matching(rightBox, leftBox),
                       ReaderTranslationEnclosedBackground.hasClearVerticalBridge(in: image, left: leftBox, right: rightBox,
                           minimumOverlapInFontSizes: 1.25) else { continue }
                 let anchor = input.first { $0.id == column.id || $0.id == reaction.id }!
@@ -261,7 +300,7 @@ enum ReaderTranslationBalloonMerger {
 
     /// A wrapped caption can end with a centered/edge-aligned single column
     /// below its multi-column head. This is not an adjacent-column merge.
-    private static func joinStackedCaptionFragments(_ input: [ReaderTranslationRegion], image: CGImage, sourceLines: [SourceLine]) -> [ReaderTranslationRegion] {
+    private static func joinStackedCaptionFragments(_ input: [ReaderTranslationRegion], image: CGImage, sourceLines: [SourceLine], ink: OutlinedInkMemo) -> [ReaderTranslationRegion] {
         var result = input
         let width = CGFloat(image.width), height = CGFloat(image.height)
         func pixels(_ r: CGRect) -> CGRect { CGRect(x: r.minX * width, y: r.minY * height, width: r.width * width, height: r.height * height) }
@@ -279,7 +318,7 @@ enum ReaderTranslationBalloonMerger {
                       (gap >= -font * 0.5 || continuesLastSourceColumn(head: result[index], tail: tail,
                           top: top, bottom: bottom, sourceLines: sourceLines)), gap <= font * 1.1,
                       bottom.minX >= top.minX - font * 0.2, bottom.maxX <= top.maxX + font * 0.2,
-                      matchingOutlinedInk(in: image, first: top, second: bottom) else { continue }
+                      ink.matching(top, bottom) else { continue }
                 let union = result[index].rect.union(tail.rect)
                 guard !result.contains(where: { $0.id != head.id && $0.id != tail.id && $0.rect.intersects(union) }) else { continue }
                 var joined = ReaderTranslationRegion(id: head.id, rect: union, source: result[index].source + tail.source,
@@ -291,7 +330,7 @@ enum ReaderTranslationBalloonMerger {
                                   CGPoint(x: union.maxX, y: union.maxY), CGPoint(x: union.minX, y: union.maxY)]
                 result[index] = joined
                 // Rebuild indices after removal by id; a head may follow its tail in detector order.
-                return joinStackedCaptionFragments(result.filter { $0.id != tail.id }, image: image, sourceLines: sourceLines)
+                return joinStackedCaptionFragments(result.filter { $0.id != tail.id }, image: image, sourceLines: sourceLines, ink: ink)
             }
         }
         return result
@@ -347,12 +386,20 @@ enum ReaderTranslationBalloonMerger {
     // next to near-white outline/fill pixels, not the dominant background colour.
     static func matchingOutlinedInk(in image: CGImage, first: CGRect, second: CGRect) -> Bool {
         guard let a = outlinedInk(in: image, rect: first), let b = outlinedInk(in: image, rect: second) else { return false }
-        return abs(a.0 - b.0) <= 35 && abs(a.1 - b.1) <= 35 && abs(a.2 - b.2) <= 35
+        return matching(a, b)
     }
 
     static func differentOutlinedInk(in image: CGImage, first: CGRect, second: CGRect) -> Bool {
         guard let a = outlinedInk(in: image, rect: first), let b = outlinedInk(in: image, rect: second) else { return false }
-        return max(abs(a.0 - b.0), abs(a.1 - b.1), abs(a.2 - b.2)) >= 70
+        return different(a, b)
+    }
+
+    private static func matching(_ a: (Double, Double, Double), _ b: (Double, Double, Double)) -> Bool {
+        abs(a.0 - b.0) <= 35 && abs(a.1 - b.1) <= 35 && abs(a.2 - b.2) <= 35
+    }
+
+    private static func different(_ a: (Double, Double, Double), _ b: (Double, Double, Double)) -> Bool {
+        max(abs(a.0 - b.0), abs(a.1 - b.1), abs(a.2 - b.2)) >= 70
     }
 
     static func outlinedInk(in image: CGImage, rect: CGRect) -> (Double, Double, Double)? {
@@ -368,29 +415,44 @@ enum ReaderTranslationBalloonMerger {
                 return true
             }
             guard drawn else { return nil }
-            var bins: [Int: (count: Int, r: Int, g: Int, b: Int, rows: Set<Int>)] = [:]
-            let offsets: [Int] = [-4, 4, -w * 4, w * 4]
-            for y in 1..<(h - 1) {
-                for x in 1..<(w - 1) {
-                    let i = (y * w + x) * 4
-                    let r = Int(rgba[i]), g = Int(rgba[i + 1]), b = Int(rgba[i + 2])
-                    guard max(r, g, b) >= 110, max(r, g, b) - min(r, g, b) >= 65 else { continue }
-                    var whiteNeighbour = false
-                    for offset in offsets {
-                        let neighbour = i + offset
-                        if rgba[neighbour] >= 200 && rgba[neighbour + 1] >= 200 && rgba[neighbour + 2] >= 200 {
-                            whiteNeighbour = true
-                            break
+            // 64 fixed colour bins (r/64, g/64, b/64) with summed channels and a
+            // 12-bit bitmask of the vertical bands (y * 12 / h) that contain the
+            // bin. This is the former Dictionary/Set accumulation without
+            // per-pixel copy-on-write allocation.
+            var counts = [Int](repeating: 0, count: 64)
+            var sumR = [Int](repeating: 0, count: 64)
+            var sumG = [Int](repeating: 0, count: 64)
+            var sumB = [Int](repeating: 0, count: 64)
+            var rows = [UInt16](repeating: 0, count: 64)
+            let rowStride = w * 4
+            rgba.withUnsafeBufferPointer { pixels in
+                for y in 1..<(h - 1) {
+                    let band = UInt16(1) << UInt16(y * 12 / h)
+                    for x in 1..<(w - 1) {
+                        let i = (y * w + x) * 4
+                        let r = Int(pixels[i]), g = Int(pixels[i + 1]), b = Int(pixels[i + 2])
+                        let high = max(r, g, b)
+                        guard high >= 110, high - min(r, g, b) >= 65 else { continue }
+                        @inline(__always) func white(_ n: Int) -> Bool {
+                            pixels[n] >= 200 && pixels[n + 1] >= 200 && pixels[n + 2] >= 200
                         }
+                        guard white(i - 4) || white(i + 4) || white(i - rowStride) || white(i + rowStride) else { continue }
+                        let key = (r / 64) * 16 + (g / 64) * 4 + b / 64
+                        counts[key] += 1; sumR[key] += r; sumG[key] += g; sumB[key] += b
+                        rows[key] |= band
                     }
-                    guard whiteNeighbour else { continue }
-                    let key = (r / 64) * 16 + (g / 64) * 4 + b / 64
-                    var bin = bins[key] ?? (0, 0, 0, 0, [])
-                    bin.count += 1; bin.r += r; bin.g += g; bin.b += b; bin.rows.insert(y * 12 / h)
-                    bins[key] = bin
                 }
             }
-            guard let best = bins.values.max(by: { $0.count < $1.count }), best.count >= 24, best.rows.count >= 6 else { return nil }
+            // The former `bins.values.max(by:)` kept the first maximal bin in
+            // Dictionary iteration order, which depends on the per-process hash
+            // seed when two bins tie. Ties now resolve to the lowest bin key;
+            // every non-tied page selects exactly the same bin as before.
+            var bestKey = -1
+            for key in 0..<64 where counts[key] > 0 && (bestKey < 0 || counts[key] > counts[bestKey]) {
+                bestKey = key
+            }
+            guard bestKey >= 0, counts[bestKey] >= 24, rows[bestKey].nonzeroBitCount >= 6 else { return nil }
+            let best = (count: counts[bestKey], r: sumR[bestKey], g: sumG[bestKey], b: sumB[bestKey])
             // White outline antialiasing changes brightness/saturation, not the caption hue.
             let r = Double(best.r) / Double(best.count), g = Double(best.g) / Double(best.count), b = Double(best.b) / Double(best.count)
             let low = min(r, g, b), chroma = max(r, g, b) - low

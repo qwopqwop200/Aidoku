@@ -1402,9 +1402,11 @@ enum NativeOCRTextLineMerger {
     /// the original string. Width folding also handles voiced halfwidth kana,
     /// but deliberately does not equate circled digits or other compatibility
     /// characters whose visual distinction can carry meaning.
+    private static let overlapComparisonLocale = Locale(identifier: "en_US_POSIX")
+
     private static func overlapComparisonGlyphs(_ text: String) -> [String] {
         text.trimmingCharacters(in: .whitespacesAndNewlines).map {
-            String($0).folding(options: .widthInsensitive, locale: Locale(identifier: "en_US_POSIX"))
+            String($0).folding(options: .widthInsensitive, locale: overlapComparisonLocale)
                 .precomposedStringWithCanonicalMapping
         }
     }

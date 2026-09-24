@@ -27,6 +27,23 @@ enum ReaderTranslationLanguageFilter {
             return letters.allSatisfy(han) && AutomaticSourceLanguageDetector.detect(text) == language
         }
         guard letters.count >= 20, !letters.contains(where: han), !letters.contains(where: kana) else { return false }
+        let key = TargetLanguageKey(text: text, language: language)
+        if case let .some(.some(cached)) = targetLanguageCache.value(for: key) { return cached }
+        let result = isConfidentlyUnmixed(text, language: language)
+        targetLanguageCache.insert(result, for: key)
+        return result
+    }
+
+    private struct TargetLanguageKey: Hashable {
+        let text: String
+        let language: String
+    }
+
+    /// `apply` runs when OCR is cached and again before requests. The
+    /// NaturalLanguage decision is deterministic for the same text/target.
+    private static let targetLanguageCache = LanguageDetectionLRUCache<TargetLanguageKey, Bool>(capacity: 512)
+
+    private static func isConfidentlyUnmixed(_ text: String, language: String) -> Bool {
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(text)
         guard let best = recognizer.languageHypotheses(withMaximum: 2).max(by: { $0.value < $1.value }),

@@ -920,7 +920,7 @@ private struct NativeCoreMLRecognitionCropFingerprint: Hashable, Sendable {
 }
 
 @available(iOS 18.0, *)
-private struct NativeCoreMLCachedRecognition: Sendable {
+private struct NativeCoreMLCachedRecognition: Equatable, Sendable {
     let text: String
     let confidence: Double
 }
@@ -968,6 +968,23 @@ private final class NativeCoreMLRecognitionCropCache: @unchecked Sendable {
                 entries[fingerprint] = entry
                 return entry.value
             }
+        }
+    }
+
+    /// Reads entries without updating recency. Used only to predict a
+    /// lookahead chunk; the recency-updating `values(for:)` still runs at the
+    /// serial point and decides whether that prediction is used.
+    func peekValues(
+        for fingerprints: [NativeCoreMLRecognitionCropFingerprint]
+    ) -> [NativeCoreMLCachedRecognition?] {
+        guard capacity > 0 else {
+            return [NativeCoreMLCachedRecognition?](
+                repeating: nil,
+                count: fingerprints.count
+            )
+        }
+        return lock.withLock {
+            fingerprints.map { entries[$0]?.value }
         }
     }
 
@@ -1030,6 +1047,10 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         maximumPreparedRegionCount * 3 * 48 * 2_000
             * MemoryLayout<Float>.stride
     static let defaultRecognitionCacheCapacity = 512
+    /// Below this process headroom a window predicts one chunk at a time, so
+    /// a second in-flight Core ML activation set is never added.
+    static let minimumConcurrentPredictionMemory: UInt64 =
+        2 * 1_024 * 1_024 * 1_024
     /// The ordinary multi-line phone-page functions. This exactly fills, but
     /// never exceeds, the lower-memory two-function resident working set.
     /// Sparse batch-one inputs remain demand-loaded on every device.
@@ -1143,6 +1164,8 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
     private let preparationVariants: [NativeCoreMLRecognitionModelVariant]
     private let idlePreparationEnabled: Bool
     private let dynamicWidthEnabled: Bool
+    /// One or two chunk predictions in flight within a prepared window.
+    private let maximumConcurrentPredictions: Int
     private let maximumRecognitionWidth: Int
     private let recognitionCropCache: NativeCoreMLRecognitionCropCache
     private let auditObserver: (@Sendable (NativeCoreMLRecognitionAuditEvent) -> Void)?
@@ -1171,6 +1194,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
     ) {
         self.auditObserver = auditObserver
         dynamicWidthEnabled = modelResourceName.hasSuffix("-RecWidths")
+        maximumConcurrentPredictions = 2
         self.maximumRecognitionWidth = maximumRecognitionWidth
         let residentModelLimit = idleLongWidthPreparationEnabled ? 3 : 2
         let alignedMaximumWidth = max(
@@ -1237,10 +1261,12 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         idleLongWidthPreparationEnabled: Bool = false,
         recognitionCacheCapacity: Int = 0,
         dynamicWidth: Bool = false,
+        maximumConcurrentPredictions: Int = 2,
         auditObserver: (@Sendable (NativeCoreMLRecognitionAuditEvent) -> Void)? = nil
     ) throws {
         self.auditObserver = auditObserver
         dynamicWidthEnabled = dynamicWidth
+        self.maximumConcurrentPredictions = min(2, max(1, maximumConcurrentPredictions))
         maximumRecognitionWidth = 2_000
         guard dictionary.count == Self.expectedDictionaryCharacterCount
         else {
@@ -1497,8 +1523,9 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
 
             // Four current tensors plus at most four lookahead tensors retain
             // the existing eight-region byte budget. Prepare the next window
-            // while Core ML predicts the current one, keeping model calls and
-            // cache admission strictly serial in the established width order.
+            // while Core ML predicts the current one. Up to two chunks of a
+            // window predict concurrently; cache admission, audit events, and
+            // diagnostics stay strictly serial in the established width order.
             var windows: [[NativeCoreMLPlannedRegionChunk]] = []
             var windowStart = 0
             while windowStart < plannedChunks.count {
@@ -1522,17 +1549,16 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                 skippedInvalidRegions +=
                     preparedWindow.skippedInvalidRegions
 
-                for preparedChunk in preparedWindow.chunks {
-                    let step = try await recognizePreparedChunk(
-                        preparedChunk,
-                        requestID: requestID,
-                        threshold: threshold,
-                        predictor: resourceAccess.resources.predictor,
-                        dictionary: resourceAccess.resources.dictionary,
-                        recognitionCacheEpoch: recognitionCacheEpoch,
-                        generation: issuedGeneration,
-                        cancellationCheck: cancellationCheck
-                    )
+                try await recognizePreparedWindowChunks(
+                    preparedWindow.chunks,
+                    requestID: requestID,
+                    threshold: threshold,
+                    predictor: resourceAccess.resources.predictor,
+                    dictionary: resourceAccess.resources.dictionary,
+                    recognitionCacheEpoch: recognitionCacheEpoch,
+                    generation: issuedGeneration,
+                    cancellationCheck: cancellationCheck
+                ) { step in
                     preprocessingMilliseconds +=
                         step.preprocessingMilliseconds
                     predictionMilliseconds += step.predictionMilliseconds
@@ -1751,18 +1777,183 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         )
     }
 
-    /// Runs prediction for one already-prepared chunk. Prediction itself is
-    /// deliberately serial; only CPU crop preparation is globally concurrent.
-    private func recognizePreparedChunk(
-        _ chunk: NativeCoreMLPreparedRegionChunk,
+    /// Runs every chunk of one prepared window. At most two Core ML
+    /// predictions are in flight, each with its own unchanged input tensor,
+    /// shape, and batch size. All externally observable side effects (cache
+    /// lookups and insertions, audit events, diagnostics, and result order)
+    /// still happen strictly in chunk order.
+    ///
+    /// A lookahead chunk is predicted against a non-mutating cache peek. When
+    /// the preceding chunk has been committed, the real (recency-updating)
+    /// lookup runs at exactly the serial point; the speculative prediction is
+    /// used only when that lookup matches the peek, otherwise it is discarded
+    /// and the chunk is predicted again from the real lookup. The cache state
+    /// sequence, batch sizes, and model inputs therefore equal the serial
+    /// order's.
+    private func recognizePreparedWindowChunks(
+        _ chunks: [NativeCoreMLPreparedRegionChunk],
         requestID: String,
         threshold: Double,
         predictor: any NativeCoreMLRecognitionPredicting,
         dictionary: [String],
         recognitionCacheEpoch: UInt64,
         generation issuedGeneration: UInt64,
-        cancellationCheck: @escaping @Sendable () throws -> Void
-    ) async throws -> NativeCoreMLRecognitionStreamingChunkStep {
+        cancellationCheck: @escaping @Sendable () throws -> Void,
+        accumulate: (NativeCoreMLRecognitionStreamingChunkStep) -> Void
+    ) async throws {
+        guard !chunks.isEmpty else { return }
+        let allowsOverlap = chunks.count > 1
+            && maximumConcurrentPredictions > 1
+            && ReaderTranslationSession.processAvailableMemory()
+                >= Self.minimumConcurrentPredictionMemory
+        try await withThrowingTaskGroup(
+            of: (Int, Int, NativeCoreMLChunkPredictionOutcome).self
+        ) { group in
+            var lookups = [NativeCoreMLChunkCacheLookup?](
+                repeating: nil,
+                count: chunks.count
+            )
+            var speculative = [Bool](repeating: false, count: chunks.count)
+            var attempts = [Int](repeating: 0, count: chunks.count)
+            var launched = [Bool](repeating: false, count: chunks.count)
+            var completed: [Int: NativeCoreMLChunkPredictionOutcome] = [:]
+
+            func launch(_ index: Int, _ lookup: NativeCoreMLChunkCacheLookup) {
+                attempts[index] += 1
+                launched[index] = true
+                let attempt = attempts[index]
+                group.addTask {
+                    (index, attempt, await self.predictChunkGroups(
+                        lookup,
+                        predictor: predictor,
+                        generation: issuedGeneration,
+                        cancellationCheck: cancellationCheck
+                    ))
+                }
+            }
+
+            /// Launches `index` speculatively while its predecessor is in
+            /// flight. Static multifunction packages overlap only identical
+            /// functions so no second function load or eviction can start.
+            func launchLookahead(_ index: Int) {
+                guard allowsOverlap, index < chunks.count,
+                      !launched[index],
+                      let previous = lookups[index - 1]
+                else { return }
+                if !dynamicWidthEnabled,
+                   chunks[index].modelBatchSize
+                       != chunks[index - 1].modelBatchSize
+                    || chunks[index].works.first?.tensor.bucket
+                       != chunks[index - 1].works.first?.tensor.bucket {
+                    return
+                }
+                let pending = Set(previous.uncachedWorks.map(\.fingerprint))
+                // A crop repeated across the two chunks would become a cache
+                // hit after the predecessor commits; predict it serially.
+                guard !chunks[index].works.contains(where: {
+                    pending.contains($0.fingerprint)
+                }) else { return }
+                let peek = makeCacheLookup(
+                    chunks[index],
+                    cachedValues: recognitionCropCache.peekValues(
+                        for: chunks[index].works.map(\.fingerprint)
+                    )
+                )
+                lookups[index] = peek
+                speculative[index] = true
+                if !peek.predictionGroups.isEmpty {
+                    launch(index, peek)
+                }
+            }
+
+            try requireCurrent(
+                issuedGeneration,
+                cancellationCheck: cancellationCheck
+            )
+            let first = makeCacheLookup(
+                chunks[0],
+                cachedValues: recognitionCropCache.values(
+                    for: chunks[0].works.map(\.fingerprint)
+                )
+            )
+            lookups[0] = first
+            if !first.predictionGroups.isEmpty { launch(0, first) }
+            launchLookahead(1)
+
+            for index in chunks.indices {
+                guard let lookup = lookups[index] else {
+                    preconditionFailure("Missing recognition cache lookup")
+                }
+                var outcome = NativeCoreMLChunkPredictionOutcome.empty
+                if !lookup.predictionGroups.isEmpty {
+                    while completed[index] == nil {
+                        guard let (completedIndex, attempt, value) =
+                            try await group.next()
+                        else {
+                            preconditionFailure("Missing chunk prediction")
+                        }
+                        if attempt == attempts[completedIndex] {
+                            completed[completedIndex] = value
+                        }
+                    }
+                    outcome = completed.removeValue(forKey: index)!
+                }
+                let step = try commitChunk(
+                    lookup,
+                    outcome: outcome,
+                    requestID: requestID,
+                    threshold: threshold,
+                    dictionary: dictionary,
+                    recognitionCacheEpoch: recognitionCacheEpoch,
+                    generation: issuedGeneration,
+                    cancellationCheck: cancellationCheck
+                )
+                accumulate(step)
+
+                let next = index + 1
+                guard next < chunks.count else { break }
+                try requireCurrent(
+                    issuedGeneration,
+                    cancellationCheck: cancellationCheck
+                )
+                // The serial lookup point for the next chunk.
+                let real = makeCacheLookup(
+                    chunks[next],
+                    cachedValues: recognitionCropCache.values(
+                        for: chunks[next].works.map(\.fingerprint)
+                    )
+                )
+                if speculative[next],
+                   let peek = lookups[next],
+                   peek.cachedValues == real.cachedValues {
+                    lookups[next] = real
+                } else {
+                    if speculative[next], launched[next] {
+                        // Drain the stale prediction first so no more than
+                        // two predictions are ever in flight.
+                        while completed[next] == nil {
+                            guard let (completedIndex, attempt, value) =
+                                try await group.next()
+                            else { break }
+                            if attempt == attempts[completedIndex] {
+                                completed[completedIndex] = value
+                            }
+                        }
+                        completed[next] = nil
+                    }
+                    lookups[next] = real
+                    speculative[next] = false
+                    if !real.predictionGroups.isEmpty { launch(next, real) }
+                }
+                launchLookahead(next + 1)
+            }
+        }
+    }
+
+    private func makeCacheLookup(
+        _ chunk: NativeCoreMLPreparedRegionChunk,
+        cachedValues: [NativeCoreMLCachedRecognition?]
+    ) -> NativeCoreMLChunkCacheLookup {
         let preparedWorks = chunk.works
         let requestedModelBatchSize = chunk.modelBatchSize
         precondition(
@@ -1770,73 +1961,26 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                 ? (1...NativeCoreMLRecognitionModelVariant.maximumBatchSize).contains(requestedModelBatchSize)
                 : (requestedModelBatchSize == 1 || requestedModelBatchSize == 4)
         )
-        var preprocessingMilliseconds = 0.0
-        guard !preparedWorks.isEmpty else {
-            return NativeCoreMLRecognitionStreamingChunkStep(
-                recognizedRegions: [],
-                predictedRegions: 0,
-                cacheHitRegions: 0,
-                skippedInvalidRegions: 0,
-                modelFunctionSequence: [],
-                modelFunctionLoadSequence: [],
-                modelFunctionLoads: 0,
-                modelFunctionLoadMilliseconds: 0,
-                preprocessingMilliseconds: 0,
-                predictionMilliseconds: 0,
-                decodingMilliseconds: 0
-            )
-        }
-
-        try requireCurrent(
-            issuedGeneration,
-            cancellationCheck: cancellationCheck
-        )
-        let cachedValues = recognitionCropCache.values(
-            for: preparedWorks.map(\.fingerprint)
-        )
-        var recognizedRegions: [NativeCoreMLRecognizedRegion] = []
         var uncachedWorks: [NativeCoreMLPreparedRegionWork] = []
         uncachedWorks.reserveCapacity(preparedWorks.count)
         var cacheHitRegions = 0
         for (preparedWork, cached) in zip(preparedWorks, cachedValues) {
-            guard let cached else {
+            if cached == nil {
                 uncachedWorks.append(preparedWork)
-                continue
-            }
-            cacheHitRegions += 1
-            if let auditObserver {
-                auditObserver(.decoded(
-                    requestID: requestID, region: preparedWork.work.region,
-                    text: cached.text, confidence: cached.confidence,
-                    threshold: threshold, cacheHit: true
-                ))
-            }
-            if !cached.text.isEmpty, cached.confidence >= threshold {
-                recognizedRegions.append(NativeCoreMLRecognizedRegion(
-                    sourceIndex: preparedWork.work.region.sourceIndex,
-                    polygon: preparedWork.work.region.polygon,
-                    text: cached.text,
-                    confidence: cached.confidence
-                ))
+            } else {
+                cacheHitRegions += 1
             }
         }
-
         guard !uncachedWorks.isEmpty else {
-            return NativeCoreMLRecognitionStreamingChunkStep(
-                recognizedRegions: recognizedRegions,
-                predictedRegions: 0,
+            return NativeCoreMLChunkCacheLookup(
+                works: preparedWorks,
+                cachedValues: cachedValues,
+                uncachedWorks: [],
                 cacheHitRegions: cacheHitRegions,
-                skippedInvalidRegions: 0,
-                modelFunctionSequence: [],
-                modelFunctionLoadSequence: [],
-                modelFunctionLoads: 0,
-                modelFunctionLoadMilliseconds: 0,
-                preprocessingMilliseconds: 0,
-                predictionMilliseconds: 0,
-                decodingMilliseconds: 0
+                modelBatchSize: 0,
+                predictionGroups: []
             )
         }
-
         // Dynamic models batch only cache misses. Static functions retain
         // their existing padding and partial-cache-hit loading policy.
         let modelBatchSize: Int
@@ -1858,6 +2002,129 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         } else {
             predictionGroups = uncachedWorks.map { [$0] }
         }
+        return NativeCoreMLChunkCacheLookup(
+            works: preparedWorks,
+            cachedValues: cachedValues,
+            uncachedWorks: uncachedWorks,
+            cacheHitRegions: cacheHitRegions,
+            modelBatchSize: modelBatchSize,
+            predictionGroups: predictionGroups
+        )
+    }
+
+    /// Packs and predicts the chunk's cache misses without any cache, audit,
+    /// or diagnostics side effect. Groups stop at the first error, exactly
+    /// where the serial loop stopped; completed groups are still committed.
+    private func predictChunkGroups(
+        _ lookup: NativeCoreMLChunkCacheLookup,
+        predictor: any NativeCoreMLRecognitionPredicting,
+        generation issuedGeneration: UInt64,
+        cancellationCheck: @escaping @Sendable () throws -> Void
+    ) async -> NativeCoreMLChunkPredictionOutcome {
+        var groups: [NativeCoreMLGroupPrediction] = []
+        groups.reserveCapacity(lookup.predictionGroups.count)
+        do {
+            for group in lookup.predictionGroups {
+                try requireCurrent(
+                    issuedGeneration,
+                    cancellationCheck: cancellationCheck
+                )
+                let packingStarted = Self.nowMilliseconds()
+                guard let variant = NativeCoreMLRecognitionModelVariant(
+                    bucket: group[0].tensor.bucket,
+                    batchSize: lookup.modelBatchSize
+                ) else {
+                    throw NativeCoreMLRecognizerError.modelInputCreationFailed
+                }
+                let input = try Self.makeInputArray(
+                    tensors: group.map(\.tensor),
+                    modelBatchSize: lookup.modelBatchSize
+                )
+                let packingMilliseconds = Self.nowMilliseconds()
+                    - packingStarted
+
+                let predictionStarted = Self.nowMilliseconds()
+                let prediction: NativeCoreMLRecognitionPrediction
+                do {
+                    prediction = try await predict(
+                        input: input,
+                        using: predictor,
+                        generation: issuedGeneration,
+                        cancellationCheck: cancellationCheck
+                    )
+                } catch let error as NativeCoreMLRecognizerError {
+                    throw error
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    throw NativeCoreMLRecognizerError.predictionFailed(
+                        String(describing: error)
+                    )
+                }
+                let predictionTotalMilliseconds = Self.nowMilliseconds()
+                    - predictionStarted
+                guard prediction.outputs.count == lookup.modelBatchSize else {
+                    throw NativeCoreMLRecognizerError.modelOutputShape(
+                        expected: [lookup.modelBatchSize],
+                        actual: [prediction.outputs.count]
+                    )
+                }
+                groups.append(NativeCoreMLGroupPrediction(
+                    works: group,
+                    variant: variant,
+                    prediction: prediction,
+                    packingMilliseconds: packingMilliseconds,
+                    predictionTotalMilliseconds: predictionTotalMilliseconds
+                ))
+                try requireCurrent(
+                    issuedGeneration,
+                    cancellationCheck: cancellationCheck
+                )
+            }
+        } catch {
+            return NativeCoreMLChunkPredictionOutcome(
+                groups: groups,
+                error: error
+            )
+        }
+        return NativeCoreMLChunkPredictionOutcome(groups: groups, error: nil)
+    }
+
+    /// Applies one chunk's cache hits and predictions in the established
+    /// serial order: hit audits, then per-group decode, cache insertion, and
+    /// audit. A prediction error is rethrown after the groups that completed
+    /// before it, matching the former interleaved loop.
+    private func commitChunk(
+        _ lookup: NativeCoreMLChunkCacheLookup,
+        outcome: NativeCoreMLChunkPredictionOutcome,
+        requestID: String,
+        threshold: Double,
+        dictionary: [String],
+        recognitionCacheEpoch: UInt64,
+        generation issuedGeneration: UInt64,
+        cancellationCheck: @escaping @Sendable () throws -> Void
+    ) throws -> NativeCoreMLRecognitionStreamingChunkStep {
+        var recognizedRegions: [NativeCoreMLRecognizedRegion] = []
+        for (preparedWork, cached) in zip(lookup.works, lookup.cachedValues) {
+            guard let cached else { continue }
+            if let auditObserver {
+                auditObserver(.decoded(
+                    requestID: requestID, region: preparedWork.work.region,
+                    text: cached.text, confidence: cached.confidence,
+                    threshold: threshold, cacheHit: true
+                ))
+            }
+            if !cached.text.isEmpty, cached.confidence >= threshold {
+                recognizedRegions.append(NativeCoreMLRecognizedRegion(
+                    sourceIndex: preparedWork.work.region.sourceIndex,
+                    polygon: preparedWork.work.region.polygon,
+                    text: cached.text,
+                    confidence: cached.confidence
+                ))
+            }
+        }
+
+        var preprocessingMilliseconds = 0.0
         var predictedRegions = 0
         var modelFunctionSequence: [String] = []
         var modelFunctionLoadSequence: [String] = []
@@ -1866,70 +2133,29 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         var predictionMilliseconds = 0.0
         var decodingMilliseconds = 0.0
 
-        for group in predictionGroups {
-            try requireCurrent(
-                issuedGeneration,
-                cancellationCheck: cancellationCheck
-            )
-            let packingStarted = Self.nowMilliseconds()
-            guard let variant = NativeCoreMLRecognitionModelVariant(
-                bucket: group[0].tensor.bucket,
-                batchSize: modelBatchSize
-            ) else {
-                throw NativeCoreMLRecognizerError.modelInputCreationFailed
-            }
-            let input = try Self.makeInputArray(
-                tensors: group.map(\.tensor),
-                modelBatchSize: modelBatchSize
-            )
-            preprocessingMilliseconds += Self.nowMilliseconds()
-                - packingStarted
-
-            let predictionStarted = Self.nowMilliseconds()
-            let prediction: NativeCoreMLRecognitionPrediction
-            do {
-                prediction = try await predict(
-                    input: input,
-                    using: predictor,
-                    generation: issuedGeneration,
-                    cancellationCheck: cancellationCheck
-                )
-            } catch let error as NativeCoreMLRecognizerError {
-                throw error
-            } catch is CancellationError {
-                throw CancellationError()
-            } catch {
-                throw NativeCoreMLRecognizerError.predictionFailed(
-                    String(describing: error)
-                )
-            }
-            let predictionTotalMilliseconds = Self.nowMilliseconds()
-                - predictionStarted
-            guard prediction.outputs.count == modelBatchSize else {
-                throw NativeCoreMLRecognizerError.modelOutputShape(
-                    expected: [modelBatchSize],
-                    actual: [prediction.outputs.count]
-                )
-            }
-            modelFunctionSequence.append(variant.functionName)
-            predictedRegions += group.count
+        for groupPrediction in outcome.groups {
+            let prediction = groupPrediction.prediction
+            preprocessingMilliseconds += groupPrediction.packingMilliseconds
+            modelFunctionSequence.append(groupPrediction.variant.functionName)
+            predictedRegions += groupPrediction.works.count
             if prediction.modelWasLoaded {
-                modelFunctionLoadSequence.append(variant.functionName)
+                modelFunctionLoadSequence.append(
+                    groupPrediction.variant.functionName
+                )
                 modelFunctionLoads += 1
             }
             modelFunctionLoadMilliseconds +=
                 prediction.modelLoadMilliseconds
             predictionMilliseconds += max(
                 0,
-                predictionTotalMilliseconds
+                groupPrediction.predictionTotalMilliseconds
                     - prediction.modelLoadMilliseconds
             )
-            try requireCurrent(
-                issuedGeneration,
-                cancellationCheck: cancellationCheck
-            )
 
-            for (preparedWork, output) in zip(group, prediction.outputs) {
+            for (preparedWork, output) in zip(
+                groupPrediction.works,
+                prediction.outputs
+            ) {
                 try requireCurrent(
                     issuedGeneration,
                     cancellationCheck: cancellationCheck
@@ -1975,10 +2201,13 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                 }
             }
         }
+        if let error = outcome.error {
+            throw error
+        }
         return NativeCoreMLRecognitionStreamingChunkStep(
             recognizedRegions: recognizedRegions,
             predictedRegions: predictedRegions,
-            cacheHitRegions: cacheHitRegions,
+            cacheHitRegions: lookup.cacheHitRegions,
             skippedInvalidRegions: 0,
             modelFunctionSequence: modelFunctionSequence,
             modelFunctionLoadSequence: modelFunctionLoadSequence,
@@ -2277,6 +2506,36 @@ private struct NativeCoreMLPreparedRegionChunk: Sendable {
 }
 
 @available(iOS 18.0, *)
+private struct NativeCoreMLChunkCacheLookup: Sendable {
+    let works: [NativeCoreMLPreparedRegionWork]
+    let cachedValues: [NativeCoreMLCachedRecognition?]
+    let uncachedWorks: [NativeCoreMLPreparedRegionWork]
+    let cacheHitRegions: Int
+    let modelBatchSize: Int
+    let predictionGroups: [[NativeCoreMLPreparedRegionWork]]
+}
+
+@available(iOS 18.0, *)
+private struct NativeCoreMLGroupPrediction: Sendable {
+    let works: [NativeCoreMLPreparedRegionWork]
+    let variant: NativeCoreMLRecognitionModelVariant
+    let prediction: NativeCoreMLRecognitionPrediction
+    let packingMilliseconds: Double
+    let predictionTotalMilliseconds: Double
+}
+
+@available(iOS 18.0, *)
+private struct NativeCoreMLChunkPredictionOutcome: Sendable {
+    static let empty = NativeCoreMLChunkPredictionOutcome(
+        groups: [],
+        error: nil
+    )
+
+    let groups: [NativeCoreMLGroupPrediction]
+    let error: (any Error)?
+}
+
+@available(iOS 18.0, *)
 private struct NativeCoreMLPreparedRegionWindow: Sendable {
     let chunks: [NativeCoreMLPreparedRegionChunk]
     let skippedInvalidRegions: Int
@@ -2424,6 +2683,10 @@ enum NativeCoreMLRecognitionPreprocessor {
         let sourceMaximumX = Double(frame.width - 1)
         let sourceMaximumY = Double(frame.height - 1)
         let homography = plan.homography
+        // With g == h == 0 the projective denominator is exactly 1.0 for every
+        // finite u/v in [0, 1] (signed zeros included), and IEEE division by
+        // 1.0 is the identity. Skipping it is therefore bit-identical.
+        let isAffine = homography.g == 0 && homography.h == 0
         var valid = true
         // Each column uses the same normalized crop coordinate on all 48
         // rows. Keep the scalar operation order, but calculate it only once.
@@ -2454,22 +2717,28 @@ enum NativeCoreMLRecognitionPreprocessor {
                     for column in 0..<plan.resizedWidth {
                         let u = plan.rotatedCounterClockwise ? rowCoordinate : columnCoordinates[column]
                         let v = plan.rotatedCounterClockwise ? columnCoordinates[column] : rowCoordinate
-                        let denominator = homography.g * u
-                            + homography.h * v + 1
-                        guard denominator.isFinite,
-                              abs(denominator) > 0.000_000_1
-                        else {
-                            valid = false
-                            return
+                        var projectedX = homography.a * u
+                            + homography.b * v + homography.c
+                        var projectedY = homography.d * u
+                            + homography.e * v + homography.f
+                        if !isAffine {
+                            let denominator = homography.g * u
+                                + homography.h * v + 1
+                            guard denominator.isFinite,
+                                  abs(denominator) > 0.000_000_1
+                            else {
+                                valid = false
+                                return
+                            }
+                            projectedX /= denominator
+                            projectedY /= denominator
                         }
                         let sourceX = min(max(
-                            (homography.a * u + homography.b * v
-                                + homography.c) / denominator,
+                            projectedX,
                             0
                         ), sourceMaximumX)
                         let sourceY = min(max(
-                            (homography.d * u + homography.e * v
-                                + homography.f) / denominator,
+                            projectedY,
                             0
                         ), sourceMaximumY)
                         guard sourceX.isFinite, sourceY.isFinite else {

@@ -82,7 +82,31 @@ enum AutomaticSourceLanguageDetector {
         "språk", "svensk", "svenska", "webbläsare", "webbläsaren",
     ]
 
+    private struct DetectionKey: Hashable {
+        let text: String
+        let sourceHint: String?
+    }
+
+    /// `detect` is a pure function of its arguments. A page's regions are
+    /// filtered once when OCR is cached and again before requests, each time
+    /// creating NaturalLanguage recognizers, so recent results are reused.
+    private static let detectionCache = LanguageDetectionLRUCache<
+        DetectionKey,
+        String?
+    >(capacity: 512)
+
     static func detect(
+        _ untrimmedText: String,
+        sourceHint: String? = nil
+    ) -> String? {
+        let key = DetectionKey(text: untrimmedText, sourceHint: sourceHint)
+        if case let .some(.some(cached)) = detectionCache.value(for: key) { return cached }
+        let detected = detectUncached(untrimmedText, sourceHint: sourceHint)
+        detectionCache.insert(detected, for: key)
+        return detected
+    }
+
+    static func detectUncached(
         _ untrimmedText: String,
         sourceHint: String? = nil
     ) -> String? {
@@ -407,6 +431,46 @@ enum AutomaticSourceLanguageDetector {
             return true
         default:
             return false
+        }
+    }
+}
+
+/// A small lock-protected least-recently-used memo for deterministic language
+/// classification results.
+final class LanguageDetectionLRUCache<Key: Hashable, Value>: @unchecked Sendable {
+    private struct Entry {
+        let value: Value
+        var recency: UInt64
+    }
+
+    private let lock = NSLock()
+    private let capacity: Int
+    private var clock: UInt64 = 0
+    private var entries: [Key: Entry] = [:]
+
+    init(capacity: Int) {
+        self.capacity = max(1, capacity)
+    }
+
+    /// Returns `.some(value)` for a cached entry (the value itself may be nil).
+    func value(for key: Key) -> Value?? {
+        lock.withLock {
+            guard var entry = entries[key] else { return nil }
+            clock &+= 1
+            entry.recency = clock
+            entries[key] = entry
+            return .some(entry.value)
+        }
+    }
+
+    func insert(_ value: Value, for key: Key) {
+        lock.withLock {
+            clock &+= 1
+            entries[key] = Entry(value: value, recency: clock)
+            guard entries.count > capacity,
+                  let oldest = entries.min(by: { $0.value.recency < $1.value.recency })?.key
+            else { return }
+            entries.removeValue(forKey: oldest)
         }
     }
 }

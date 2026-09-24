@@ -34,13 +34,18 @@ enum ReaderTranslationEnclosedBackground {
         var labels = [Int](repeating: -1, count: reusingCompletedComponents ? pixels.count : 0)
         var components: [Component] = []
         var groups: [Int: [String]] = [:]
+        // One visit-stamp buffer shared by every flood of this call: a pixel is
+        // "seen" by the current flood iff its stamp equals that flood's
+        // generation. Equivalent to a fresh [Bool] per seed, without the
+        // per-seed full-image allocation.
+        var visits = FloodVisits()
         for input in candidates.prefix(64) {
             guard !Task.isCancelled else { return [] }
             let rect = CGRect(x: input.rect.minX / coordinateSize.width * CGFloat(width),
                               y: input.rect.minY / coordinateSize.height * CGFloat(height),
                               width: input.rect.width / coordinateSize.width * CGFloat(width),
                               height: input.rect.height / coordinateSize.height * CGFloat(height))
-            if let component = enclosed(rect, pixels: pixels, width: width, height: height, checkingAlternateSeeds: checkingAlternateSeeds, labels: &labels, components: &components) { groups[component, default: []].append(input.id) }
+            if let component = enclosed(rect, pixels: pixels, width: width, height: height, checkingAlternateSeeds: checkingAlternateSeeds, labels: &labels, components: &components, visits: &visits) { groups[component, default: []].append(input.id) }
         }
         return groups.keys.sorted().map { groups[$0]! }
     }
@@ -73,7 +78,25 @@ enum ReaderTranslationEnclosedBackground {
         return clearRows >= 47
     }
 
-    private static func enclosed(_ rect: CGRect, pixels: [UInt8], width: Int, height: Int, checkingAlternateSeeds: Bool, labels: inout [Int], components: inout [Component]) -> Int? {
+    private struct FloodVisits {
+        var stamps: [UInt32] = []
+        private(set) var generation: UInt32 = 0
+
+        /// Starts a new flood whose seen set is empty.
+        mutating func begin(pixelCount: Int) {
+            if stamps.count != pixelCount {
+                stamps = [UInt32](repeating: 0, count: pixelCount)
+                generation = 0
+            }
+            if generation == .max {
+                for index in stamps.indices { stamps[index] = 0 }
+                generation = 0
+            }
+            generation += 1
+        }
+    }
+
+    private static func enclosed(_ rect: CGRect, pixels: [UInt8], width: Int, height: Int, checkingAlternateSeeds: Bool, labels: inout [Int], components: inout [Component], visits: inout FloodVisits) -> Int? {
         guard rect.minX.isFinite, rect.minY.isFinite, rect.maxX.isFinite, rect.maxY.isFinite,
               rect.width > 0, rect.height > 0, rect.minX >= 0, rect.minY >= 0,
               rect.maxX < CGFloat(width), rect.maxY < CGFloat(height) else { return nil }
@@ -110,9 +133,10 @@ enum ReaderTranslationEnclosedBackground {
                       component.maxY - component.minY < height * 3 / 4 else { continue }
                 return component.minimumPoint
             }
-            var seen = [Bool](repeating: false, count: pixels.count)
+            visits.begin(pixelCount: pixels.count)
+            let generation = visits.generation
             var queue = [seed]
-            seen[seed] = true; remaining -= 1
+            visits.stamps[seed] = generation; remaining -= 1
             var cursor = 0, minX = width, maxX = 0, minY = height, maxY = 0
             var touchesEdge = false
             while cursor < queue.count {
@@ -122,10 +146,15 @@ enum ReaderTranslationEnclosedBackground {
                 if x == 0 || y == 0 || x == width - 1 || y == height - 1 { touchesEdge = true; break }
                 minX = min(minX, x); maxX = max(maxX, x)
                 minY = min(minY, y); maxY = max(maxY, y)
-                for next in [point - 1, point + 1, point - width, point + width] where !seen[next] && pixels[next] >= 235 {
-                    guard remaining > 0 else { return nil }
-                    remaining -= 1; seen[next] = true; queue.append(next)
+                // Unrolled in the former neighbour order: left, right, up, down.
+                // `visit` returns false only when the flood budget is exhausted.
+                func visit(_ next: Int) -> Bool {
+                    guard visits.stamps[next] != generation, pixels[next] >= 235 else { return true }
+                    guard remaining > 0 else { return false }
+                    remaining -= 1; visits.stamps[next] = generation; queue.append(next)
+                    return true
                 }
+                guard visit(point - 1), visit(point + 1), visit(point - width), visit(point + width) else { return nil }
             }
             if !touchesEdge, !labels.isEmpty {
                 let label = components.count
@@ -133,9 +162,9 @@ enum ReaderTranslationEnclosedBackground {
                     minX: minX, maxX: maxX, minY: minY, maxY: maxY))
                 for point in queue { labels[point] = label }
             }
-            for candidate in seeds where seen[candidate] { attempted.insert(candidate) }
+            for candidate in seeds where visits.stamps[candidate] == generation { attempted.insert(candidate) }
             guard !touchesEdge,
-                  perimeter.filter({ seen[$0] }).count * 5 >= perimeter.count * 4,
+                  perimeter.filter({ visits.stamps[$0] == generation }).count * 5 >= perimeter.count * 4,
                   minX < x0, maxX > x1, minY < y0, maxY > y1,
                   maxX - minX < width * 3 / 4, maxY - minY < height * 3 / 4 else { continue }
             return queue.min()
