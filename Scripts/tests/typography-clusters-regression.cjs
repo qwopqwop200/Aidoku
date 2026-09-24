@@ -234,10 +234,11 @@ test('compact cards discard obsolete translated footprints while covering origin
   assert(compact.coverage.some(r=>r[0]<=source[0]&&r[1]<=source[1]&&r[0]+r[2]>=source[0]+source[2]&&r[1]+r[3]>=source[1]+source[3]));
   assert(compact.coverage.every(r=>r[0]>=old[0]&&r[1]>=old[1]&&r[0]+r[2]<=old[0]+old[2]&&r[1]+r[3]<=old[1]+old[3]));
 });
-test('empty connecting corners can clear while a separate source column stays covered', () => {
+test('a separate source column and its caption share one rectangular plate', () => {
   const result=plain(api.compact([0,0,60,100],[30,40,20,20],[[3,3,5,94]],[]));
   const covers=(x,y)=>result.coverage.some(r=>x>=r[0]&&y>=r[1]&&x<=r[0]+r[2]&&y<=r[1]+r[3]);
-  assert(covers(5,5));assert(covers(40,50));assert(!covers(45,10));
+  assert.equal(result.coverage.length,1);assert.deepEqual(result.coverage[0],result.frame);
+  assert(covers(5,5));assert(covers(40,50));assert(covers(45,10));
 });
 test('restored source needs only final ink but neighboring lettering retains its existing background', () => {
   assert.deepEqual(plain(api.compact([0,0,100,100],[10,20,20,30],[],[])).frame,[7,17,26,36]);
@@ -277,7 +278,7 @@ test('slanted source effects retain a full source-glyph fringe across their writ
   const guarded=[source[0]-fringe,source[1],source[2]+fringe*2,source[3]];
   const result=plain(api.compact(panel,ink,[guarded],[],pad));
   for(const [x,y] of [[249,91],[249,136]])assert(result.coverage.some(r=>x>=r[0]&&y>=r[1]&&x<=r[0]+r[2]&&y<=r[1]+r[3]));
-  assert(!result.coverage.some(r=>269>=r[0]&&90>=r[1]&&269<=r[0]+r[2]&&90<=r[1]+r[3]));
+  assert.deepEqual(result.coverage,[result.frame]);
 });
 
 
@@ -289,7 +290,7 @@ test('sub-point edge erosion does not reveal a sliver of neighboring source lett
 test('neighbor source erasure can outlive its displaced translation', () => {
   const result=plain(api.compact([0,0,100,100],[10,40,30,20],[],[[80,5,8,90]]));
   for(const [x,y] of [[84,10],[84,90]])assert(result.coverage.some(r=>x>=r[0]&&x<=r[0]+r[2]&&y>=r[1]&&y<=r[1]+r[3]));
-  assert(!result.coverage.some(r=>60>=r[0]&&60<=r[0]+r[2]&&10>=r[1]&&10<=r[1]+r[3]));
+  assert.deepEqual(result.coverage,[result.frame]);
 });
 
 
@@ -326,8 +327,9 @@ test('certified erasure releases source-only plate area without changing transla
   const old=plain(api.compact(panel,ink,[footprint],[neighbor]));
   const next=plain(api.compact(panel,ink,[],[neighbor]));
   const covers=(p,x,y)=>p.coverage.some(r=>x>=r[0]&&x<=r[0]+r[2]&&y>=r[1]&&y<=r[1]+r[3]);
-  assert(covers(old,50,15));assert(!covers(next,50,15));
+  assert(covers(old,50,15));assert(next.frame[3]<=old.frame[3]);
   for(const point of [[25,55],[75,80],[8,10],[8,110]])assert(covers(next,...point));
+  assert.deepEqual(next.coverage,[next.frame]);
 });
 test('erasure certificate rejects clipped source fringes and ruby outside the main source', () => {
   const w=100,h=140,safe=new Uint8Array(w*h).fill(1);

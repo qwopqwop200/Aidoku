@@ -76,7 +76,9 @@ function style() {
     });
 }
 function element() {
-    return { dataset: {}, style: style(), attributes: {},
+    return { dataset: {}, style: style(), attributes: {}, children: [],
+        appendChild(child) { child.remove?.(); this.children.push(child); child.parentElement = this; },
+        remove() { if (this.parentElement) { const a = this.parentElement.children; a.splice(a.indexOf(this), 1); this.parentElement = null; } },
         setAttribute(name, value) { this.attributes[name] = value; },
         getBoundingClientRect() {
             const left = parseFloat(this.style.left), top = parseFloat(this.style.top);
@@ -121,8 +123,14 @@ const production = context.production;
 function render(overrides = {}) {
     const node = element(); node.dataset.aidokuRegion = '7';
     const children = [];
-    const root = { dataset: {}, appendChild(child) { children.push(child); },
-        querySelectorAll() { return children.filter(child => child === node); } };
+    const root = { dataset: {}, children,
+        appendChild(child) { child.remove?.(); children.push(child); child.parentElement = this; },
+        querySelectorAll(selector) {
+            const kind = selector.match(/data-aidoku-image-ocr-overlay="([^"]+)"/)?.[1];
+            const descendants = list => list.flatMap(child => [child, ...descendants(child.children || [])]);
+            return descendants(children).filter(child => child.attributes['data-aidoku-image-ocr-overlay'] === kind);
+        } };
+    node.setAttribute('data-aidoku-image-ocr-overlay', 'item');
     const fixture = {
         node, root, children, fontSize: 16, opacity: .84, restored: false,
         appearance: { preserveSourceTextColor: true, preserveSourceBackgroundColor: true },
@@ -286,20 +294,15 @@ for(const restored of [false,true])test(`inpainting fallback retains readable bo
  assert.equal(result.root.dataset.readabilityPanels,'1');
  assert.equal(result.node.dataset.sourceBackgroundColor,'readability-panel');
 });
-for (const erased of [false, true]) test(`long source coverage follows committed erasure: ${erased}`, () => {
+for (const erased of [false, true]) test(`long source column shares one rectangular caption plate: ${erased}`, () => {
  const result = render({restoredGeometry:erased,inside:false,
   item:{id:7,sourceColorEligible:true,lightSurface:true,balancedColumn:true,
    sourceFrame:[0,0,400,300],sourceBounds:[.25,.02,.05,.9]},
   appearance:{inpaintingEnabled:true,preserveSourceTextColor:true,preserveSourceBackgroundColor:true}});
- const panel=result.children.find(n=>n.attributes['data-aidoku-image-ocr-overlay']==='source-readability-panel'&&!n.dataset.sourceErasure);
- assert.ok(panel,'unreadable text still needs an opaque caption');
- assert.equal(parseFloat(panel.style.height)<80,!erased,'compact caption is used only when separate erasure is safe');
- const source=result.children.find(n=>n.dataset.sourceErasure==='true');
- assert.equal(Boolean(source),!erased,'only an unerased source needs a separate erasure plate');
- if(source){
-  assert.ok(parseFloat(source.style.height)>270);
-  assert.ok(parseFloat(source.style.width)<=30,'erasure retains the original margin without filling caption corners');
- }
+ const panels=result.children.filter(n=>n.attributes['data-aidoku-image-ocr-overlay']==='source-readability-panel');
+ assert.equal(panels.length,1,'caption and source erasure are one plate');
+ assert.ok(parseFloat(panels[0].style.height)>270,'the plate covers the whole source column');
+ assert.equal(result.children.some(n=>n.dataset.sourceErasure==='true'),false);
 });
 for (const erased of [false, true]) test(`ordinary artwork retains its source plate: restored=${erased}`, () => {
  const result=render({restoredGeometry:erased,inside:false,

@@ -2622,30 +2622,11 @@ final class BrowserPageImageOverlayRenderer {
       // When no owned mask could erase the original, the plate must contain
       // both languages' footprints. A tiny label on a long source column leaves
       // competing source text above and below the translation.
-      // Retain this temporary union through source anchoring. Its empty
-      // corners are trimmed after positioning and erasure certification.
+      // The plate stays one rectangle around both footprints.
       if(frame&&!restoredSourcePanels.has(item)){
         const bounds=[item.sourceBounds,...(item.auxiliaryInkRects||[])];
         for(const b of bounds){
           if(!Array.isArray(b)||b.length!==4||!b.every(Number.isFinite))continue;
-          if(item.balancedColumn&&!restoredPanelGeometry.has(item)&&b[3]*frame[3]>r.height*1.5&&b[2]*frame[2]<r.width*.75){
-            // Keep source erasure separate from the translated ink. A union
-            // rectangle fills unused corners and needlessly covers artwork.
-            const erasurePad=pad;
-            const left=Math.max(frame[0],frame[0]+b[0]*frame[2]-erasurePad);
-            const top=Math.max(frame[1],frame[1]+b[1]*frame[3]-erasurePad);
-            const right=Math.min(frame[0]+frame[2],frame[0]+(b[0]+b[2])*frame[2]+erasurePad);
-            const bottom=Math.min(frame[1]+frame[3],frame[1]+(b[1]+b[3])*frame[3]+erasurePad);
-            const erasure=document.createElement('div');
-            erasure.setAttribute('data-aidoku-image-ocr-overlay','source-readability-panel');
-            erasure.dataset.aidokuRegion=String(item.id);erasure.dataset.sourceErasure='true';
-            Object.assign(erasure.style,{position:'absolute',zIndex:'1',pointerEvents:'none',
-              left:`${left+scrollX}px`,top:`${top+scrollY}px`,
-              width:`${Math.max(1,right-left)}px`,height:`${Math.max(1,bottom-top)}px`,
-              backgroundColor:`rgb(${background.join(',')})`});
-            root.appendChild(erasure);readabilityPanels++;
-            continue;
-          }
           l=Math.min(l,frame[0]+b[0]*frame[2]-pad);t=Math.min(t,frame[1]+b[1]*frame[3]-pad);
           rr=Math.max(rr,frame[0]+(b[0]+b[2])*frame[2]+pad);bb=Math.max(bb,frame[1]+(b[1]+b[3])*frame[3]+pad);
         }
@@ -2874,10 +2855,6 @@ final class BrowserPageImageOverlayRenderer {
         if(compact.coverage.length===1&&compact.coverage[0].every((v,i)=>Math.abs(v-old[i])<.01))continue;
         const [left,top,width,height]=compact.frame;
         Object.assign(panel.style,{left:`${left+scrollX}px`,top:`${top+scrollY}px`,width:`${width}px`,height:`${height}px`});
-        // Nonzero winding fills the union, leaving unused connecting corners
-        // clear while preserving every original source/ruby erasure footprint.
-        panel.style.clipPath=`path('${compact.coverage.map(r=>
-          `M ${r[0]-left} ${r[1]-top} h ${r[2]} v ${r[3]} h ${-r[2]} Z`).join(' ')}')`;
         panel.dataset.panelCoverage=JSON.stringify(compact.coverage);
         node.dataset.sourcePanelOriginalFrame=JSON.stringify(old);
         node.dataset.sourcePanelCoverage=JSON.stringify(compact.coverage);
@@ -2926,6 +2903,103 @@ final class BrowserPageImageOverlayRenderer {
         node.dataset.sourceContrastSurfaces=JSON.stringify(surfaces);
         node.dataset.sourceContrastBefore=String(before);
         node.dataset.sourceContrastAfter=String(contrast(adjusted));
+      }
+    }
+    // Commit each opaque caption as one rectangle and one stacking context.
+    // Source erasure and text must never remain independently positioned siblings.
+    // Keep the already selected palette; this pass changes geometry only.
+    {
+      const panels=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]'));
+      const backings=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-backing"]'));
+      const captions=[];
+      for(const node of root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')){
+        if(node.style.transform&&node.style.transform!=='none')continue;
+        const owned=panels.filter(p=>p.dataset.aidokuRegion===node.dataset.aidokuRegion);
+        const panel=owned.find(p=>p.dataset.sourceErasure!=='true')||owned[0];
+        if(!panel)continue;
+        const range=document.createRange();range.selectNodeContents(node);
+        const ink=range.getBoundingClientRect(),bounds=owned.map(p=>p.getBoundingClientRect());
+        if(ink.width<=0||ink.height<=0)continue;
+        const pad=3;
+        const left=Math.min(ink.left-pad,...bounds.map(r=>r.left));
+        const top=Math.min(ink.top-pad,...bounds.map(r=>r.top));
+        const right=Math.max(ink.right+pad,...bounds.map(r=>r.right));
+        const bottom=Math.max(ink.bottom+pad,...bounds.map(r=>r.bottom));
+        captions.push({node,panel,owned,range,pad,box:{left,top,right,bottom},
+          centerX:(left+right)/2,centerY:(top+bottom)/2});
+      }
+      const union=boxes=>({left:Math.min(...boxes.map(b=>b.left)),top:Math.min(...boxes.map(b=>b.top)),
+        right:Math.max(...boxes.map(b=>b.right)),bottom:Math.max(...boxes.map(b=>b.bottom))});
+      const overlaps=(a,b)=>Math.min(a.right,b.right)-Math.max(a.left,b.left)>.5&&
+        Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>.5;
+      // Resolve complete rectangles BEFORE laying out their text. Merge any
+      // intersecting group bounds, then partition that covered area into
+      // disjoint rectangular cells. No source-covering pixels are released.
+      const groups=captions.map(c=>({members:[c],box:c.box}));
+      let merged=true;
+      while(merged){
+        merged=false;
+        outer:for(let i=0;i<groups.length;i++)for(let j=i+1;j<groups.length;j++){
+          if(!overlaps(groups[i].box,groups[j].box))continue;
+          groups[i].members.push(...groups[j].members);
+          groups[i].box=union([groups[i].box,groups[j].box]);groups.splice(j,1);
+          merged=true;break outer;
+        }
+      }
+      const partition=(members,box)=>{
+        if(members.length===1){members[0].box=box;return;}
+        const spreadX=Math.max(...members.map(c=>c.centerX))-Math.min(...members.map(c=>c.centerX));
+        const spreadY=Math.max(...members.map(c=>c.centerY))-Math.min(...members.map(c=>c.centerY));
+        const horizontal=spreadX/Math.max(1,box.right-box.left)>=spreadY/Math.max(1,box.bottom-box.top);
+        const key=horizontal?'centerX':'centerY';
+        members.sort((a,b)=>a[key]-b[key]);
+        const middle=Math.floor(members.length/2),first=members.slice(0,middle),last=members.slice(middle);
+        const low=horizontal?box.left:box.top,high=horizontal?box.right:box.bottom;
+        const ideal=(first[first.length-1][key]+last[0][key])/2;
+        const cut=Math.max(low+(high-low)*.15,Math.min(high-(high-low)*.15,ideal));
+        partition(first,{...box,[horizontal?'right':'bottom']:cut});
+        partition(last,{...box,[horizontal?'left':'top']:cut});
+      };
+      for(const group of groups)if(group.members.length>1){
+        partition(group.members,group.box);
+        for(const caption of group.members)caption.panel.style.borderRadius='0px';
+      }
+      for(const caption of captions){
+        const {node,panel,owned,range,pad,box:{left,top,right,bottom}}=caption;
+        const size=parseFloat(node.style.fontSize),ratio=parseFloat(node.style.lineHeight)/size||1.2;
+        Object.assign(panel.style,{left:`${left+scrollX}px`,top:`${top+scrollY}px`,
+          width:`${right-left}px`,height:`${bottom-top}px`,zIndex:'2',
+          isolation:'isolate',overflow:'hidden',clipPath:'none'});
+        panel.dataset.panelCoverage=JSON.stringify([[left,top,right-left,bottom-top]]);
+        panel.dataset.unifiedCaption='true';
+        // Reflow the original displayed content into the owner's entire inner
+        // rectangle, instead of retaining a narrow, displaced text-only strip.
+        const item=items.find(item=>String(item.id)===node.dataset.aidokuRegion);
+        if(item&&!item.vertical)node.textContent=item.text;
+        const content={left:left+pad,top:top+pad,right:right-pad,bottom:bottom-pad};
+        Object.assign(node.style,{left:'0px',top:'0px',width:'100%',height:'100%',
+          padding:`${content.top-top}px ${right-content.right}px ${bottom-content.bottom}px ${content.left-left}px`,zIndex:'auto',backgroundColor:'transparent',backgroundImage:'none',
+          display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'});
+        panel.appendChild(node);
+        for(const other of owned)if(other!==panel)other.remove();
+        for(const backing of backings)if(backing.dataset.aidokuRegion===node.dataset.aidokuRegion)backing.remove();
+        // Font fitting is bounded and uses the final shared rectangle.
+        const fits=()=>{
+          range.selectNodeContents(node);const r=range.getBoundingClientRect();
+          return r.left>=content.left-.5&&r.right<=content.right+.5&&
+            r.top>=content.top-.5&&r.bottom<=content.bottom+.5;
+        };
+        if(!fits()){
+          let lower=Math.min(size,5),upper=size;
+          for(let step=0;step<10;step++){
+            const candidate=(lower+upper)/2;
+            node.style.fontSize=`${candidate}px`;node.style.lineHeight=`${candidate*ratio}px`;
+            if(fits())lower=candidate;else upper=candidate;
+          }
+          node.style.fontSize=`${lower}px`;node.style.lineHeight=`${lower*ratio}px`;
+        }
+        node.dataset.unifiedCaption='true';
+        node.dataset.sourcePanelCoverage=panel.dataset.panelCoverage;
       }
     }
     root.dataset.readabilityPanels=String(readabilityPanels);

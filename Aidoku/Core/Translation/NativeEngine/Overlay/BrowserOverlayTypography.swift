@@ -142,7 +142,10 @@ enum BrowserOverlayTypography {
         (q.some((v,k)=>v!==r[k])||j<i)));
       const l=Math.min(...coverage.map(r=>r[0])),t=Math.min(...coverage.map(r=>r[1]));
       const right=Math.max(...coverage.map(r=>r[0]+r[2])),bottom=Math.max(...coverage.map(r=>r[1]+r[3]));
-      return {frame:[l,t,right-l,bottom-t],coverage};
+      // One rectangle around every footprint. A union of separate text and
+      // source rectangles leaves a cross-shaped plate.
+      const frame=[l,t,right-l,bottom-t];
+      return {frame,coverage:[frame]};
     };
     // Resolve visible surfaces in paint order, including clipped cards and local
     // backings. Hidden cards must not dictate the final foreground contrast.
