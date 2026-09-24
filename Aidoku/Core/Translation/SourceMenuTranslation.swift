@@ -17,17 +17,14 @@ enum SourceMenuTranslation {
                           service: ReaderTranslationService = .shared,
                           diskCache: ReaderTranslationDiskCache = .shared) async -> [String: String] {
         guard kind.isEnabled(in: settings) else { return [:] }
-        return await withTaskGroup(of: (String, String).self) { group in
-            for original in Set(originals) where !original.isEmpty {
-                group.addTask {
-                    (original, await TitleTranslation.translate(original, kind: kind, settings: settings,
-                        service: service, diskCache: diskCache))
-                }
-            }
-            var result: [String: String] = [:]
-            for await (original, translated) in group { result[original] = translated }
-            return result
+        let unique = Array(Set(originals).filter { !$0.isEmpty })
+        let translated = await MetadataTranslationTaskWindow.map(unique, fallback: { $0 }) { original in
+            await TitleTranslation.translate(original, kind: kind, settings: settings,
+                service: service, diskCache: diskCache)
         }
+        // Unscheduled cancelled inputs retain their original values, just as
+        // the former eagerly submitted cancelled TitleTranslation tasks did.
+        return Dictionary(uniqueKeysWithValues: zip(unique, translated))
     }
 }
 

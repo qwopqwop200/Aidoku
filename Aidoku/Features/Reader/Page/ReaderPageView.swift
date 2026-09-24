@@ -187,14 +187,17 @@ extension ReaderPageView {
         guard !Task.isCancelled else { return false }
         if var image = page.image {
             if !skipProcessing {
+                var processors: [ImageProcessing] = []
                 if UserDefaults.standard.bool(forKey: "Reader.cropBorders") {
-                    image = CropBordersProcessor().process(image) ?? image
+                    processors.append(CropBordersProcessor())
                 }
                 if UserDefaults.standard.bool(forKey: "Reader.downsampleImages") {
-                    image = DownsampleProcessor(width: UIScreen.main.bounds.width).process(image) ?? image
+                    processors.append(DownsampleProcessor(width: UIScreen.main.bounds.width))
                 } else if UserDefaults.standard.bool(forKey: "Reader.upscaleImages") {
-                    image = UpscaleProcessor().process(image) ?? image
+                    processors.append(UpscaleProcessor())
                 }
+                guard let processed = try? await Self.processRawImage(image, processors: processors) else { return false }
+                image = processed
             }
             return await prepareAndDisplayImage(image)
         } else if let zipURL = page.zipURL, let url = URL(string: zipURL), let filePath = page.imageURL {
@@ -213,6 +216,29 @@ extension ReaderPageView {
         } else {
             return false
         }
+    }
+
+    /// Raw source pages bypass Nuke's worker queue. A synchronous processor can
+    /// wait for MainActor (upscaling reads the display scale), so never run it
+    /// on the reader's actor. Share the existing raw-data slot with base64 pages.
+    static func processRawImage(_ image: UIImage, processors: [ImageProcessing]) async throws -> UIImage {
+        try Task.checkCancellation()
+        guard !processors.isEmpty else { return image }
+        let gate = base64Gate
+        let processing = Task.detached { () throws -> UIImage in
+            try await gate.withPermit {
+                var result = image
+                for processor in processors {
+                    try Task.checkCancellation()
+                    result = processor.process(result) ?? result
+                }
+                try Task.checkCancellation()
+                return result
+            }
+        }
+        return try await withTaskCancellationHandler {
+            try await processing.value
+        } onCancel: { processing.cancel() }
     }
 
     /// Creates the image request used to fetch a page image.

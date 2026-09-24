@@ -60,12 +60,55 @@ class TextRecognizer {
         let segments: [Segment]
     }
 
+    // Publication, reset and lookup share a lock. Vision and cluster construction
+    // happen on a private instance before publication, outside this lock.
+    let stateLock = NSRecursiveLock()
+    private var stateGeneration: UInt64 = 0
+
+    struct PreparedAnalysis {
+        let observations: [OCRObservation]
+        let clusters: [[Int]]
+        let orderedClusters: [[Int]]
+        let indexByObservation: [Int: Int]
+    }
+
+    func analysisGeneration() -> UInt64 {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return stateGeneration
+    }
+
+    static func prepareAnalysis(_ observations: [OCRObservation]) -> PreparedAnalysis {
+        let staging = TextRecognizer()
+        staging.observations = observations
+        staging.rebuildClusterCache()
+        return PreparedAnalysis(observations: staging.observations,
+                                clusters: staging.cachedClusters,
+                                orderedClusters: staging.cachedOrderedClusters,
+                                indexByObservation: staging.clusterIndexByObservation)
+    }
+
+    @discardableResult
+    func commitAnalysis(_ prepared: PreparedAnalysis, generation: UInt64) -> Bool {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        guard generation == stateGeneration, !Task.isCancelled else { return false }
+        observations = prepared.observations
+        cachedClusters = prepared.clusters
+        cachedOrderedClusters = prepared.orderedClusters
+        clusterIndexByObservation = prepared.indexByObservation
+        return true
+    }
+
     var observations: [OCRObservation] = []
     var cachedClusters: [[Int]] = []
     var cachedOrderedClusters: [[Int]] = []
     var clusterIndexByObservation: [Int: Int] = [:]
 
     func reset() {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        stateGeneration &+= 1
         observations = []
         cachedClusters = []
         cachedOrderedClusters = []

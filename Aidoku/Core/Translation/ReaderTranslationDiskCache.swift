@@ -793,7 +793,16 @@ private struct ReaderTranslationCachePolicy: Equatable {
 
 enum ReaderTranslationCacheIdentity {
     static func digest(_ value: String) -> String { digest(Data(value.utf8)) }
-    static func digest(_ value: Data) -> String { SHA256.hash(data: value).map { String(format: "%02x", $0) }.joined() }
+    private static let hexadecimalDigits = Array("0123456789abcdef".utf8)
+    static func digest(_ value: Data) -> String {
+        var bytes = [UInt8]()
+        bytes.reserveCapacity(SHA256.Digest.byteCount * 2)
+        for byte in SHA256.hash(data: value) {
+            bytes.append(hexadecimalDigits[Int(byte >> 4)])
+            bytes.append(hexadecimalDigits[Int(byte & 0x0f)])
+        }
+        return String(decoding: bytes, as: UTF8.self)
+    }
     static func encoded<T: Encodable>(_ value: T) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys

@@ -37,20 +37,19 @@ enum MangaDescriptionTranslation {
         // Keep every source line boundary outside model output, including empty lines.
         let paragraphs = original.components(separatedBy: "\n")
         var translated = paragraphs
-        await withTaskGroup(of: (Int, String).self) { group in
-            for (index, paragraph) in paragraphs.enumerated() where !paragraph.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                group.addTask {
-                    var result = ""
-                    for chunk in chunks(paragraph) {
-                        guard !Task.isCancelled else { return (index, paragraph) }
-                        result += await TitleTranslation.translate(chunk, kind: .description, settings: settings,
-                            service: service, diskCache: diskCache)
-                    }
-                    return (index, result)
-                }
+        let nonempty = paragraphs.enumerated().filter {
+            !$0.element.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }.map { (index: $0.offset, paragraph: $0.element) }
+        let results = await MetadataTranslationTaskWindow.map(nonempty, fallback: { $0.paragraph }) { item in
+            var result = ""
+            for chunk in chunks(item.paragraph) {
+                guard !Task.isCancelled else { return item.paragraph }
+                result += await TitleTranslation.translate(chunk, kind: .description, settings: settings,
+                    service: service, diskCache: diskCache)
             }
-            for await (index, result) in group { translated[index] = result }
+            return result
         }
+        for (item, result) in zip(nonempty, results) { translated[item.index] = result }
         return Task.isCancelled ? original : normalizedLineBreaks(translated.joined(separator: "\n"))
     }
 }

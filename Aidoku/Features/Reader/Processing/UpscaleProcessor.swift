@@ -28,7 +28,7 @@ struct UpscaleProcessor: ImageProcessing {
         // ensure image is smaller than max height
         guard cgImage.height < maxHeight else { return image }
 
-        return BlockingTask {
+        return BlockingTask(forwardsCancellation: true) {
             let model: ImageProcessingModel
             do {
                 guard let imageModel = try await ModelManager.shared.getModel(fileName: modelFile) else {
@@ -39,7 +39,11 @@ struct UpscaleProcessor: ImageProcessing {
                 LogManager.logger.error("Unable to load enabled upscaling model: \(error)")
                 return image
             }
-            guard let output = await model.process(cgImage) else {
+            let profileID = UInt64(ProcessInfo.processInfo.systemUptime * 1_000_000)
+            ReaderTranslationDiagnostics.renderingProfile("upscale_process_begin", count: cgImage.width * cgImage.height, revision: profileID)
+            let output = await model.process(cgImage)
+            ReaderTranslationDiagnostics.renderingProfile("upscale_process_end", count: output == nil ? 0 : 1, revision: profileID)
+            guard let output else {
                 LogManager.logger.error("Upscaling model failed to process image")
                 return image
             }

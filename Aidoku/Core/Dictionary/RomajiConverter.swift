@@ -40,10 +40,45 @@ enum RomajiConverter {
         let input = text.lowercased().filter { !$0.isWhitespace && $0 != "-" }
         guard !input.isEmpty, input.allSatisfy({ $0.isLetter || $0 == "'" }) else { return nil }
 
+        // Build suffix feasibility only after an unusually broad DFS traversal.
+        // Pruning removes no successful path and preserves the first-32 order.
+        func completableSuffixes() -> Set<String.Index> {
+            let positions = Array(input.indices)
+            var canComplete: Set<String.Index> = [input.endIndex]
+            for index in positions.reversed() {
+                let char = input[index]
+                let next = input.index(after: index)
+                var possible = false
+                if next < input.endIndex, char == input[next], isDoubleConsonant(char), canComplete.contains(next) {
+                    possible = true
+                }
+                if char == "n" {
+                    if next == input.endIndex {
+                        possible = true
+                    } else if input[next] == "'" {
+                        possible = possible || canComplete.contains(input.index(after: next))
+                    } else if !isVowel(input[next]) || input[next] == "y" {
+                        possible = possible || canComplete.contains(next)
+                    }
+                }
+                for length in [3, 2, 1] {
+                    guard let end = input.index(index, offsetBy: length, limitedBy: input.endIndex) else { continue }
+                    if kana[String(input[index..<end])] != nil && canComplete.contains(end) { possible = true }
+                }
+                if possible { canComplete.insert(index) }
+            }
+            return canComplete
+        }
+        var visitedStates = 0
+        var feasibleSuffixes: Set<String.Index>?
+
         var results = Set<String>()
         var stack: [(index: String.Index, current: String)] = [(input.startIndex, "")]
 
         while let state = stack.popLast(), results.count < 32 {
+            visitedStates += 1
+            if visitedStates == 257 { feasibleSuffixes = completableSuffixes() }
+            if let feasibleSuffixes, !feasibleSuffixes.contains(state.index) { continue }
             guard state.index < input.endIndex else {
                 results.insert(state.current)
                 continue

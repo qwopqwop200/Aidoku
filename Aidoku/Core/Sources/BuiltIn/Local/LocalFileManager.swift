@@ -414,6 +414,7 @@ extension LocalFileManager {
         let localFolder = fileManager.documentDirectory.appendingPathComponent("Local", isDirectory: true)
         localFolder.createDirectory()
         let mangaFolder = localFolder.appendingPathComponent(resolvedMangaId, isDirectory: true)
+        guard Self.isContainedLocalURL(mangaFolder) else { throw LocalFileManagerError.fileCopyFailed }
         mangaFolder.createDirectory()
 
         // get chapter number
@@ -434,6 +435,7 @@ extension LocalFileManager {
         let destURL: URL
 
         if skipUpload {
+            guard Self.isContainedLocalURL(url) else { throw LocalFileManagerError.fileCopyFailed }
             destURL = url
         } else {
             // get new name for file if necessary
@@ -464,6 +466,7 @@ extension LocalFileManager {
                 newDestURL = mangaFolder.appendingPathComponent(name)
                 counter += 1
             }
+            guard Self.isContainedLocalURL(newDestURL) else { throw LocalFileManagerError.fileCopyFailed }
             destURL = newDestURL
             do {
                 try fileManager.copyItem(at: url, to: destURL)
@@ -477,6 +480,7 @@ extension LocalFileManager {
             // save provided cover image to manga folder
             let coverFileName = "cover.png"
             let newCoverURL = mangaFolder.appendingPathComponent(coverFileName)
+            guard Self.isContainedLocalURL(newCoverURL) else { throw LocalFileManagerError.fileCopyFailed }
             do {
                 guard let data = mangaCoverImage.pngData() else { throw LocalFileManagerError.fileCopyFailed }
                 try data.write(to: newCoverURL, options: .atomic)
@@ -541,6 +545,7 @@ extension LocalFileManager {
         let mangaFolder = localFolder.appendingPathComponent(mangaKey, isDirectory: true)
         let coverFileName = "cover.png"
         let newCoverURL = mangaFolder.appendingPathComponent(coverFileName)
+        guard Self.isContainedLocalURL(newCoverURL) else { return nil }
         do {
             guard let data = image.pngData() else { return nil }
             try data.write(to: newCoverURL, options: .atomic)
@@ -549,7 +554,7 @@ extension LocalFileManager {
             return nil
         }
 
-        if let previousCover, previousCover.isFileURL, previousCover != newCoverURL {
+        if let previousCover, previousCover.isFileURL, previousCover != newCoverURL, Self.isContainedLocalURL(previousCover) {
             previousCover.removeItem()
         }
         // set cover image in coredata
@@ -574,7 +579,7 @@ extension LocalFileManager {
 
         let documentsDir = FileManager.default.documentDirectory
         let fileURL = documentsDir.appendingPathComponent(filePath)
-        if fileURL.exists {
+        if Self.isContainedLocalURL(fileURL), fileURL.exists {
             try? FileManager.default.removeItem(at: fileURL)
         }
     }
@@ -591,7 +596,7 @@ extension LocalFileManager {
 
             let documentsDir = FileManager.default.documentDirectory
             let fileURL = documentsDir.append(path: filePath)
-            if fileURL.exists {
+            if Self.isContainedLocalURL(fileURL), fileURL.exists {
                 try? FileManager.default.removeItem(at: fileURL)
             }
         }
@@ -749,5 +754,38 @@ extension LocalFileManager {
             close(fd)
             self.localFolderFileDescriptor = nil
         }
+    }
+}
+
+// Paths may be nested, but all writes/deletions must remain strictly below Local.
+// Resolve existing symlink ancestors as well as lexical dot components.
+extension LocalFileManager {
+    nonisolated static func isContainedLocalURL(_ url: URL, root: URL = FileManager.default.documentDirectory.appendingPathComponent("Local", isDirectory: true)) -> Bool {
+        guard url.isFileURL, root.isFileURL else { return false }
+        let expectedRoot = root.deletingLastPathComponent().standardizedFileURL
+            .resolvingSymlinksInPath().appendingPathComponent(root.lastPathComponent).standardizedFileURL
+        let resolvedRoot = root.standardizedFileURL.resolvingSymlinksInPath()
+        guard resolvedRoot.path == expectedRoot.path else { return false }
+        let base = resolvedRoot.path
+        // Foundation may leave a nonexistent leaf unchanged, including a symlink
+        // in its ancestors. Resolve the nearest existing ancestor first, then
+        // restore only the missing suffix without touching the filesystem.
+        var ancestor = url.standardizedFileURL
+        var missingComponents: [String] = []
+        let fileManager = FileManager.default
+        while !fileManager.fileExists(atPath: ancestor.path) {
+            // A dangling link is not a new ordinary directory; refusing it also
+            // avoids validating its unresolved spelling as a safe destination.
+            if (try? fileManager.destinationOfSymbolicLink(atPath: ancestor.path)) != nil { return false }
+            let parent = ancestor.deletingLastPathComponent()
+            guard parent.path != ancestor.path else { return false }
+            missingComponents.append(ancestor.lastPathComponent)
+            ancestor = parent
+        }
+        var candidate = ancestor.resolvingSymlinksInPath()
+        for component in missingComponents.reversed() {
+            candidate.appendPathComponent(component)
+        }
+        return candidate.standardizedFileURL.path.hasPrefix(base + "/")
     }
 }

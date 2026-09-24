@@ -8,34 +8,52 @@
 import UIKit
 
 @available(iOS 18.0, *)
-private actor DictionaryTextAnalysisQueue {
+actor DictionaryTextAnalysisQueue {
     static let shared = DictionaryTextAnalysisQueue()
 
     private var isRunning = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private struct Waiter {
+        let id: UUID
+        let continuation: CheckedContinuation<Void, Error>
+    }
+    private var waiters: [Waiter] = []
+    var queuedCount: Int { waiters.count }
 
-    func waitForTurn() async {
+    func waitForTurn() async throws {
+        try Task.checkCancellation()
         if !isRunning {
             isRunning = true
             return
         }
-        await withCheckedContinuation { continuation in
-            waiters.append(continuation)
+        let id = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                if Task.isCancelled { continuation.resume(throwing: CancellationError()) }
+                else { waiters.append(Waiter(id: id, continuation: continuation)) }
+            }
+        } onCancel: {
+            Task { await self.cancelWaiter(id) }
         }
+    }
+
+    private func cancelWaiter(_ id: UUID) {
+        guard let index = waiters.firstIndex(where: { $0.id == id }) else { return }
+        waiters.remove(at: index).continuation.resume(throwing: CancellationError())
     }
 
     func finishTurn() {
         if waiters.isEmpty {
             isRunning = false
         } else {
-            waiters.removeFirst().resume()
+            waiters.removeFirst().continuation.resume()
         }
     }
 
     func run(_ operation: () async -> Void) async {
-        await waitForTurn()
+        do { try await waitForTurn() } catch { return }
+        defer { finishTurn() }
+        guard !Task.isCancelled else { return }
         await operation()
-        finishTurn()
     }
 }
 

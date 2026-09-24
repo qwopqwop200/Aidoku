@@ -49,7 +49,9 @@ actor MangaBakaApi {
         let tokenExpired = await oauth.tokens?.expired == true
 
         // check if token expired
-        if statusCode == 400 || statusCode == 401 || statusCode == 403 || tokenExpired {
+        // A successful mutation must not be repeated merely because local expiry elapsed.
+        let succeeded = statusCode.map { (200..<300).contains($0) } ?? false
+        if statusCode == 400 || statusCode == 401 || statusCode == 403 || (tokenExpired && !succeeded) {
             // ensure we have a refresh token, otherwise we need to fully re-auth
             let reloginNeeded = await oauth.checkIfReloginNeeded(trackerName: "MangaBaka")
             guard !reloginNeeded else {

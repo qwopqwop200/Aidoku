@@ -79,9 +79,10 @@ actor KavitaApi {
         let response: Response = try await helper.request(path: "api/reader/chapter-info?chapterId=\(chapterId)")
 
         let pageNum = if progress.completed {
-            response.pages + 1
+            response.pages
         } else {
-            progress.page
+            // The wire format is zero-based; reject an unrepresentable subtraction.
+            try Self.zeroBasedPage(progress.page)
         }
 
         struct Payload: Encodable {
@@ -96,7 +97,7 @@ actor KavitaApi {
             seriesId: seriesId,
             volumeId: response.volumeId,
             chapterId: chapterId,
-            pageNum: pageNum - 1
+            pageNum: pageNum
         )
 
         // Accept an empty successful response, but propagate transport and HTTP failures for retry.
@@ -120,14 +121,22 @@ actor KavitaApi {
                 if page == 0 && !completed {
                     continue // no progress, skip
                 }
+                let nextPage = chapter.pagesRead.addingReportingOverflow(1)
+                guard !nextPage.overflow else { continue }
                 progressMap["\(chapter.id)"] = .init(
                     completed: completed,
-                    page: chapter.pagesRead + 1,
+                    page: nextPage.partialValue,
                     date: chapter.lastReadingProgressUtc
                 )
             }
         }
 
         return progressMap
+    }
+
+    static func zeroBasedPage(_ page: Int) throws -> Int {
+        let result = page.subtractingReportingOverflow(1)
+        guard !result.overflow else { throw URLError(.cannotParseResponse) }
+        return result.partialValue
     }
 }

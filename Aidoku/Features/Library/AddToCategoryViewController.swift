@@ -14,6 +14,8 @@ class AddToCategoryViewController: BaseTableViewController {
     var categories: [String] = []
     var selectedCategories: [String] = [] // for multiselect
 
+    private var isSaving = false
+
     var multiselect: Bool = false // if enabled, can select multiple
 
     lazy var dataSource = makeDataSource()
@@ -64,21 +66,42 @@ class AddToCategoryViewController: BaseTableViewController {
     }
 
     @objc func done() {
-        close()
+        guard !isSaving else { return }
+        isSaving = true
+        navigationItem.rightBarButtonItem?.isEnabled = false
         Task {
-            await CoreDataManager.shared.container.performBackgroundTask { [selectedCategories] context in
-                for info in self.manga {
+            defer {
+                isSaving = false
+                navigationItem.rightBarButtonItem?.isEnabled = true
+            }
+            if await saveSelectedCategories() { close() }
+        }
+    }
+
+    /// One selection is one transaction; failed saves cannot publish success.
+    func saveSelectedCategories() async -> Bool {
+        do {
+            try await CoreDataManager.shared.container.performBackgroundTask { [selectedCategories, manga] context in
+                for info in manga {
                     CoreDataManager.shared.addCategoriesToManga(
                         mangaId: info.id,
                         categories: selectedCategories,
                         context: context
                     )
-                    try? context.save()
                 }
+                do { try context.save() } catch { context.rollback(); throw error }
             }
             NotificationCenter.default.post(name: .updateMangaCategories, object: manga)
+            return true
+        } catch {
+            LogManager.logger.error("AddToCategoryViewController.save: \(error.localizedDescription)")
+            let alert = UIAlertController(title: NSLocalizedString("ERROR"), message: error.localizedDescription, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: NSLocalizedString("OK"), style: .default))
+            present(alert, animated: true)
+            return false
         }
     }
+
 }
 
 // MARK: - Table View Delegate
@@ -119,7 +142,7 @@ extension AddToCategoryViewController {
             let cell = tableView.dequeueReusableCell(withIdentifier: "UITableViewCell", for: indexPath)
             cell.textLabel?.text = category
             if self.multiselect {
-                if self.selectedCategories.contains(self.categories[indexPath.row]) {
+                if self.selectedCategories.contains(category) {
                     cell.accessoryType = .checkmark
                 } else {
                     cell.accessoryType = .none

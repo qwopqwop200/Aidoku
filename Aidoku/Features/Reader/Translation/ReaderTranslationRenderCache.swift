@@ -33,6 +33,14 @@ final class ReaderTranslationRenderCache {
         let task: Task<Void, Never>
     }
     private var assetWrites: [String: AssetWrite] = [:]
+    private let encodeAsset: @Sendable (ReaderTranslationRenderAsset) -> Data?
+    private(set) var activeAssetEncodings = 0
+    private struct EncodingWaiter {
+        let id: UUID
+        let continuation: CheckedContinuation<Bool, Never>
+    }
+    private var encodingWaiters: [EncodingWaiter] = []
+    var queuedAssetEncodings: Int { encodingWaiters.count }
 
     struct AssetStorageContext {
         fileprivate let generation: UUID
@@ -48,8 +56,10 @@ final class ReaderTranslationRenderCache {
     private var nearbyPages: Set<String>?
     private var variants: [String: [String]] = [:]
 
-    init(disk: ReaderTranslationDiskCache) {
+    init(disk: ReaderTranslationDiskCache,
+         encodeAsset: @escaping @Sendable (ReaderTranslationRenderAsset) -> Data? = { try? JSONEncoder().encode($0) }) {
         self.disk = disk
+        self.encodeAsset = encodeAsset
     }
 
     deinit {
@@ -192,9 +202,12 @@ final class ReaderTranslationRenderCache {
         let id = UUID()
         let task = Task(priority: .utility) { [weak self] in
             let diskGeneration = await context.diskGeneration.value
-            guard let self, !Task.isCancelled, self.generation == context.generation else { return }
+            guard let self else { return }
+            defer {
+                if self.assetWrites[key]?.id == id { self.assetWrites.removeValue(forKey: key) }
+            }
+            guard !Task.isCancelled, self.generation == context.generation else { return }
             await self.storeRenderAsset(asset, key: key, diskGeneration: diskGeneration)
-            if self.assetWrites[key]?.id == id { self.assetWrites.removeValue(forKey: key) }
         }
         assetWrites[key] = AssetWrite(id: id, task: task)
     }
@@ -203,15 +216,49 @@ final class ReaderTranslationRenderCache {
         let issued = generation
         guard !Task.isCancelled, asset.isValid, await disk.currentGeneration() == diskGeneration,
               generation == issued else { return }
-        let encoding = Task.detached(priority: .utility) { () -> Data? in
-            guard !Task.isCancelled else { return nil }
-            return try? JSONEncoder().encode(asset)
-        }
-        let data = await withTaskCancellationHandler { await encoding.value } onCancel: { encoding.cancel() }
+        let data = await encodedAsset(asset)
         guard let data, data.count <= ReaderTranslationRenderAsset.maximumEncodedBytes, !Task.isCancelled,
               await disk.currentGeneration() == diskGeneration, generation == issued else { return }
         retainRenderAsset(asset, key: key)
         try? await disk.store(data, for: Self.renderAssetStorageKey(key), kind: .layout, generation: diskGeneration)
+    }
+
+    private func encodedAsset(_ asset: ReaderTranslationRenderAsset) async -> Data? {
+        guard await acquireEncodingSlot() else { return nil }
+        // A cancelled synchronous JSON encode still owns its slot until it returns.
+        // Key replacement and clearMemory must never reset this lifetime count.
+        defer { releaseEncodingSlot() }
+        guard !Task.isCancelled else { return nil }
+        let encoding = Task.detached(priority: .utility) { [encodeAsset] () -> Data? in
+            guard !Task.isCancelled else { return nil }
+            return encodeAsset(asset)
+        }
+        return await withTaskCancellationHandler { await encoding.value } onCancel: { encoding.cancel() }
+    }
+
+    private func acquireEncodingSlot() async -> Bool {
+        guard !Task.isCancelled else { return false }
+        if activeAssetEncodings < 4 {
+            activeAssetEncodings += 1
+            return true
+        }
+        let id = UUID()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                if Task.isCancelled { continuation.resume(returning: false) }
+                else { encodingWaiters.append(EncodingWaiter(id: id, continuation: continuation)) }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                guard let self, let index = self.encodingWaiters.firstIndex(where: { $0.id == id }) else { return }
+                self.encodingWaiters.remove(at: index).continuation.resume(returning: false)
+            }
+        }
+    }
+
+    private func releaseEncodingSlot() {
+        if encodingWaiters.isEmpty { activeAssetEncodings -= 1 }
+        else { encodingWaiters.removeFirst().continuation.resume(returning: true) }
     }
 
     func load(_ key: String, pageIdentity: String? = nil, cancelPreparation: Bool = true) async -> UIImage? {

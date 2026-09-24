@@ -576,7 +576,7 @@ actor TranslationService {
         }
 
         let requestID = UUID()
-        let networkTask = Task { [client, providerRequestLimiter] in
+        let networkTask = Task { [client, providerRequestLimiter, cache] in
             do {
                 let result = try await Self.requestProvider(
                     client: client,
@@ -584,7 +584,8 @@ actor TranslationService {
                     configuration: configuration,
                     providerRequestLimiter: providerRequestLimiter,
                     priority: priority,
-                    onPartial: onPartial
+                    onPartial: onPartial,
+                    persistenceAdmission: { try await cache.ensureProviderPersistenceAdmission() }
                 )
                 await finish(
                     key: key,
@@ -614,11 +615,13 @@ actor TranslationService {
         providerRequestLimiter: TranslationProviderRequestLimiter?,
         priority: TranslationRequestPriority,
         allowsParallelSplit: Bool = true,
-        onPartial: RemoteTranslationPartialHandler? = nil
+        onPartial: RemoteTranslationPartialHandler? = nil,
+        persistenceAdmission: (@Sendable () async throws -> Void)? = nil
     ) async throws -> RemoteTranslationBatchResult {
         var attempt = 0
         while true {
             attempt += 1
+            let requiresPersistenceAdmission = attempt == 1
             let attemptStartedAt = ProcessInfo.processInfo.systemUptime
             let segmentCount = request.segments.count
             let sourceBytes = TranslationPerformanceDiagnostics.sourceBytes(
@@ -628,13 +631,17 @@ actor TranslationService {
                 let result: RemoteTranslationBatchResult
                 if let providerRequestLimiter {
                     result = try await providerRequestLimiter.withPermit(priority: priority) {
-                        try await client.translate(
+                        if requiresPersistenceAdmission { try await persistenceAdmission?() }
+                        try Task.checkCancellation()
+                        return try await client.translate(
                             request,
                             configuration: configuration,
                             onPartial: onPartial
                         )
                     }
                 } else {
+                    if requiresPersistenceAdmission { try await persistenceAdmission?() }
+                    try Task.checkCancellation()
                     result = try await client.translate(
                         request,
                         configuration: configuration,

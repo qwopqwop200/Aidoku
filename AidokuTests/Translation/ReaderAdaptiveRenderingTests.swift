@@ -117,8 +117,34 @@ struct ReaderAdaptiveRenderingTests {
         var results: [[String: Any]] = []
         // Keep the fixed-box reflow under test separate from word-aware spans,
         // which intentionally supersede that reflow in ordinary production use.
+        // Observe the live DOM on both sides of the final unified-caption pass.
+        // A child's final width belongs to its panel and cannot measure an earlier reflow.
+        let geometryAudit = #"""
+        (()=>{const n=root.querySelector('[data-aidoku-image-ocr-overlay="item"]');
+          const r=n.getBoundingClientRect(),t=n.firstChild,words=[];
+          if(t?.nodeType===Node.TEXT_NODE)for(const word of t.data.matchAll(/[^\s]+/gu)){
+            const glyphs=[];
+            for(let i=word.index;i<word.index+word[0].length;i++){
+              const q=document.createRange();q.setStart(t,i);q.setEnd(t,i+1);
+              const rects=[...q.getClientRects()].filter(b=>b.width>0&&b.height>0),b=rects.at(-1);
+              if(b)glyphs.push([b.left,b.top,b.width,b.height]);
+            }
+            words.push({text:word[0],glyphs});
+          }
+          const neighbors=[...root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')]
+            .filter(other=>other!==n).map(other=>{const q=document.createRange();q.selectNodeContents(other);return q.getBoundingClientRect();});
+          const overlaps=words.flatMap(w=>w.glyphs).filter(g=>neighbors.some(b=>
+            Math.min(g[0]+g[2],b.right)-Math.max(g[0],b.left)>.5&&
+            Math.min(g[1]+g[3],b.bottom)-Math.max(g[1],b.top)>.5)).length;
+          const wordBreaks=words.reduce((sum,w)=>sum+w.glyphs.slice(1).filter((g,i)=>Math.abs(g[1]-w.glyphs[i][1])>.5).length,0);
+          return {width:r.width,words,wordBreaks,overlaps};})()
+        """#
         let legacyRecoveryScript = BrowserPageImageOverlayRenderer.renderScript.replacingOccurrences(
             of: "let typographyCharacterBudget = 8192;", with: "let typographyCharacterBudget = 0;")
+            .replacingOccurrences(of: "// Commit each opaque caption as one rectangle and one stacking context.",
+                with: "globalThis.__captionBeforeUnified = \(geometryAudit);\n// Commit each opaque caption as one rectangle and one stacking context.")
+        let output = URL.documentsDirectory.appendingPathComponent("AuditCaptionReflow", isDirectory: true)
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         for enabled in [false, true] {
             let script = enabled ? legacyRecoveryScript :
                 legacyRecoveryScript.replacingOccurrences(
@@ -134,19 +160,56 @@ struct ReaderAdaptiveRenderingTests {
               const range=document.createRange();range.selectNodeContents(n);const ink=range.getBoundingClientRect();
               const plates=[...document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]')]
                 .map(p=>{const r=p.getBoundingClientRect();return [r.x,r.y,r.width,r.height];});
+              const root=document.querySelector('[data-aidoku-image-ocr-overlay="root"]');
+              const finalGeometry=\(geometryAudit);
               return {...n.dataset,text:n.textContent,width:r.width,left:r.left,right:r.right,plates:JSON.stringify(plates),
-                font:parseFloat(n.style.fontSize),contained:b.left<=ink.left+.5&&b.right>=ink.right-.5&&
+                intermediate:globalThis.__captionBeforeUnified,finalGeometry,
+                font:parseFloat(n.style.fontSize),paddingLeft:parseFloat(getComputedStyle(n).paddingLeft),
+                paddingRight:parseFloat(getComputedStyle(n).paddingRight),
+                usableWidth:r.width-parseFloat(getComputedStyle(n).paddingLeft)-parseFloat(getComputedStyle(n).paddingRight),
+                contained:b.left<=ink.left+.5&&b.right>=ink.right-.5&&
                   b.top<=ink.top+.5&&b.bottom>=ink.bottom-.5};})()
             """) as? [String: Any]))
+            let phase = enabled ? "after" : "before"
+            let snapshot = try await web.takeSnapshot(configuration: nil)
+            try #require(snapshot.pngData()).write(to: output.appendingPathComponent("\(scenario)-\(phase).png"))
+            let auditData = try JSONSerialization.data(withJSONObject: try #require(results.last), options: [.sortedKeys])
+            try auditData.write(to: output.appendingPathComponent("\(scenario)-\(phase).json"))
         }
         let before = results[0], after = results[1]
+        for (phase, result) in [("before", before), ("after", after)] {
+            let data = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
+            print("CAPTION_REFLOW_DIAGNOSTIC \(scenario) \(phase) \(String(decoding: data, as: UTF8.self))")
+        }
         #expect(after["text"] as? String == text)
         #expect(after["font"] as? Double == before["font"] as? Double)
         #expect(after["contained"] as? Bool == true)
         #expect(after["plates"] as? String == before["plates"] as? String)
+        let beforeFinal = try #require(before["finalGeometry"] as? [String: Any])
+        let afterFinal = try #require(after["finalGeometry"] as? [String: Any])
+        #expect(try #require(afterFinal["overlaps"] as? Int) <= #require(beforeFinal["overlaps"] as? Int))
         if scenario == "room" || scenario == "edge" {
             #expect(after["captionReflow"] as? String == "inside-fixed-box")
-            #expect(try #require(after["width"] as? Double) > #require(before["width"] as? Double))
+            let previousStage = try #require(before["intermediate"] as? [String: Any])
+            let nextStage = try #require(after["intermediate"] as? [String: Any])
+            #expect(try #require(nextStage["width"] as? Double) > #require(previousStage["width"] as? Double))
+            #expect(try #require(nextStage["wordBreaks"] as? Int) <= #require(previousStage["wordBreaks"] as? Int))
+            #expect(try #require(nextStage["overlaps"] as? Int) <= #require(previousStage["overlaps"] as? Int))
+            #expect(after["unifiedCaption"] as? String == "true")
+            // Final owner geometry and exact glyph rectangles must survive the
+            // intermediate optimization; compare actual ranges, not dataset claims.
+            let oldFinal = try #require(before["finalGeometry"] as? [String: Any])
+            let newFinal = try #require(after["finalGeometry"] as? [String: Any])
+            #expect(try JSONSerialization.data(withJSONObject: oldFinal, options: [.sortedKeys]) ==
+                JSONSerialization.data(withJSONObject: newFinal, options: [.sortedKeys]))
+            let words = try #require(newFinal["words"] as? [[String: Any]])
+            #expect(words.map { $0["text"] as? String } == text.split(whereSeparator: \.isWhitespace).map { Optional(String($0)) })
+            for word in words {
+                let glyphs = try #require(word["glyphs"] as? [[Double]])
+                try #require(!glyphs.isEmpty)
+                let tops = glyphs.map { $0[1] }
+                #expect(try #require(tops.max()) - #require(tops.min()) < 0.5)
+            }
             #expect(try #require(after["left"] as? Double) >= 0)
             #expect(try #require(after["right"] as? Double) <= 240)
         } else {

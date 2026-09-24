@@ -289,14 +289,9 @@ extension FilterGroupCreateView {
         if let editingGroupTitle {
             do {
                 try await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
-                    let request = CategoryObject.fetchRequest()
-                    request.predicate = NSPredicate(format: "title == %@", editingGroupTitle)
-                    request.fetchLimit = 1
-                    let result = try context.fetch(request)
-                    guard let category = result.first else { throw CocoaError(.validationMissingMandatoryProperty) }
-                    category.title = title.isEmpty ? editingGroupTitle : title
-                    category.data = data as NSObject
-                    try context.save()
+                    try CoreDataManager.shared.updateFilterGroupAndSave(
+                        title: editingGroupTitle, newTitle: title, data: data, context: context
+                    )
                 }
             } catch {
                 LogManager.logger.error("Failed to edit filter group: \(error)")
@@ -306,9 +301,9 @@ extension FilterGroupCreateView {
         } else {
             do {
                 try await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
-                    let category = CoreDataManager.shared.createCategory(title: title, group: true, context: context)
+                    let category = try CoreDataManager.shared.createCategory(title: title, group: true, context: context)
                     category.data = data as NSObject
-                    try context.save()
+                    do { try context.save() } catch { context.rollback(); throw error }
                 }
             } catch {
                 LogManager.logger.error("Failed to create filter group: \(error)")

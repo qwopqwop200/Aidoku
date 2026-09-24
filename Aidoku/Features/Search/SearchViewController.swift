@@ -74,9 +74,9 @@ class SearchViewController: UIViewController {
             searchText: searchTextBinding,
             searchCommitToggle: searchCommitToggleBinding,
             filters: filtersBinding,
-            openResult: open(result:),
-            dismissKeyboard: {
-                self.searchController.searchBar.resignFirstResponder()
+            openResult: { [weak self] result in self?.open(result: result) },
+            dismissKeyboard: { [weak self] in
+                self?.searchController.searchBar.resignFirstResponder()
             },
             path: NavigationCoordinator(rootViewController: self)
         )
@@ -123,10 +123,10 @@ class SearchViewController: UIViewController {
         return FilterHeaderView(
             filters: filters,
             enabledFilters: filtersBinding,
-            onFilterSheetDismiss: {
-                Task { @MainActor in
+            onFilterSheetDismiss: { [weak self] in
+                Task { @MainActor [weak self] in
                     try? await Task.sleep(nanoseconds: 100_000_000)
-                    if self.isSearchBarActive {
+                    if let self, self.isSearchBarActive {
                         self.searchController.searchBar.becomeFirstResponder()
                     }
                 }

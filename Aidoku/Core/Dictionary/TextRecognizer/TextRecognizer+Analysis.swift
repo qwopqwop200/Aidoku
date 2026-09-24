@@ -12,10 +12,11 @@ import Vision
 extension TextRecognizer {
     func analyze(_ image: UIImage, language: String?) async {
         guard let cgImage = image.cgImage else { return }
+        let generation = analysisGeneration()
         let recognizedObservations = await recognizeObservations(in: cgImage, language: language)
         guard !Task.isCancelled else { return }
-        observations = recognizedObservations
-        rebuildClusterCache()
+        let prepared = Self.prepareAnalysis(recognizedObservations)
+        commitAnalysis(prepared, generation: generation)
     }
 
     private func recognizeObservations(in cgImage: CGImage, language: String?) async -> [OCRObservation] {

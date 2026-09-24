@@ -10,6 +10,8 @@ import UIKit
 @available(iOS 18.0, *)
 extension TextRecognizer {
     func findText(at viewPoint: CGPoint, in imageView: UIView, imageSize: CGSize) -> Result? {
+        stateLock.lock()
+        defer { stateLock.unlock() }
         let sourceObservations: [(offset: Int, element: OCRObservation)] = Array(observations.enumerated())
         guard
             !sourceObservations.isEmpty,
@@ -87,6 +89,8 @@ extension TextRecognizer {
     }
 
     func paragraphOverlays(in imageView: UIView, imageSize: CGSize) -> [ParagraphOverlay] {
+        stateLock.lock()
+        defer { stateLock.unlock() }
         let clusters = cachedClusters
         guard !clusters.isEmpty else { return [] }
 

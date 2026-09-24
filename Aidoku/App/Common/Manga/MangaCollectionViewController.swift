@@ -119,7 +119,8 @@ class MangaCollectionViewController: BaseCollectionViewController {
 
     // MARK: Collection View Layout
     override func makeCollectionViewLayout() -> UICollectionViewLayout {
-        UICollectionViewCompositionalLayout { sectionIndex, environment in
+        UICollectionViewCompositionalLayout { [weak self] sectionIndex, environment in
+            guard let self else { return nil }
             switch Section(rawValue: sectionIndex) {
                 case .regular:
                     if self.usesListLayout {

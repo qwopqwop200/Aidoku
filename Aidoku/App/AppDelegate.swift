@@ -995,6 +995,16 @@ extension AppDelegate: @MainActor UNUserNotificationCenterDelegate {
         completionHandler(Int(options.rawValue))
     }
 
+    static func notificationURL(sourceId: String, mangaId: String) -> URL? {
+        // The reader deep-link parser splits before percent-decoding each key.
+        // Encode the manga as one component, including slashes in source-provided manga keys.
+        let componentCharacters = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "/?#"))
+        guard let source = sourceId.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed),
+              let manga = mangaId.addingPercentEncoding(withAllowedCharacters: componentCharacters)
+        else { return nil }
+        return URL(string: "aidoku://\(source)/\(manga)")
+    }
+
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
@@ -1004,9 +1014,7 @@ extension AppDelegate: @MainActor UNUserNotificationCenterDelegate {
         if
             let sourceId = userInfo[NotificationManager.sourceIdInfoKey] as? String,
             let mangaId = userInfo[NotificationManager.mangaIdInfoKey] as? String,
-            let encodedSource = sourceId.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed),
-            let encodedManga = mangaId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
-            let url = URL(string: "aidoku://\(encodedSource)/\(encodedManga)")
+            let url = Self.notificationURL(sourceId: sourceId, mangaId: mangaId)
         {
             Task { @MainActor in
                 self.handleUrl(url: url)

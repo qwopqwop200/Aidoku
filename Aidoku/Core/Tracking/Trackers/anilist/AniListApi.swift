@@ -54,7 +54,7 @@ extension AniListApi {
                 variables: AniListUpdateMediaVars(
                     id: media,
                     status: update.status != nil ? getStatusString(status: update.status!) : nil,
-                    progress: update.lastReadChapter != nil ? Int(update.lastReadChapter!) : nil,
+                    progress: update.lastReadChapter.flatMap { Int(exactly: $0.rounded(.towardZero)) },
                     volumes: update.lastReadVolume,
                     score: update.score,
                     startedAt: encodeDate(update.startReadDate),

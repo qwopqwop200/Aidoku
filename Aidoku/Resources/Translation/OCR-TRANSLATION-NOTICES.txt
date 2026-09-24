@@ -45,9 +45,9 @@ bundled.
 Some package manifests, including the Tiny recognizer, retain
 `com.microsoft.OnnxRuntime` as creator metadata. The model protobufs themselves
 are Core ML MLPrograms; this metadata does not mean ONNX Runtime is bundled or
-used at runtime. The app requests
-Core ML `.cpuOnly` in the Simulator and `.all` on a physical device, allowing
-Core ML to choose among the device's available compute units.
+used at runtime. The app requests Core ML `.cpuOnly` in the Simulator.
+On a physical device, detection uses `.cpuAndGPU` and recognition uses `.all`,
+allowing Core ML to choose among the compute units permitted for each stage.
 
 `CoreMLSources.json` records the official archive URL and SHA-256, internal ONNX
 SHA-256, dynamic bound, output resource, dictionary, and dictionary SHA-256 for

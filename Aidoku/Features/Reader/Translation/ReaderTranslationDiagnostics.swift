@@ -7,6 +7,17 @@ enum ReaderTranslationDiagnostics {
     private static let logger = os.Logger(subsystem: "app.aidoku.Aidoku", category: "ReaderPreparation")
     private static let writer = DispatchQueue(label: "app.aidoku.reader-diagnostics", qos: .utility)
 
+    // Opt-in local profiling; no extra event I/O in ordinary reader sessions.
+    private static let renderingProfileEnabled: Bool = {
+        guard let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return false }
+        return FileManager.default.fileExists(atPath: directory.appendingPathComponent("DisplayPerformance/run.json").path)
+    }()
+
+    static func renderingProfile(_ event: String, count: Int = 0, revision: UInt64 = 0) {
+        guard renderingProfileEnabled else { return }
+        record(event, count: count, code: Int(clamping: revision))
+    }
+
     static func record(_ event: String, page: Int = -1, count: Int = 0, code: Int = 0) {
         var info = task_vm_info_data_t()
         var size = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)

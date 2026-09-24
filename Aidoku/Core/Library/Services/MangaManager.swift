@@ -153,7 +153,7 @@ extension MangaManager {
                 chapters = manga.chapters ?? chapters
             }
         }
-        await CoreDataManager.shared.container.performBackgroundTask { [manga, chapters] context in
+        let saved = await CoreDataManager.shared.container.performBackgroundTask { [manga, chapters] context in
             CoreDataManager.shared.addToLibrary(
                 manga: manga,
                 chapters: chapters,
@@ -173,10 +173,14 @@ extension MangaManager {
             }
             do {
                 try context.save()
+                return true
             } catch {
+                context.rollback()
                 LogManager.logger.error("MangaManager.addToLibrary: \(error.localizedDescription)")
+                return false
             }
         }
+        guard saved else { return }
         // add enhanced trackers
         await TrackerManager.shared.bindEnhancedTrackers(manga: manga)
 
@@ -185,16 +189,20 @@ extension MangaManager {
     }
 
     func removeFromLibrary(mangaId: MangaIdentifier) async {
-        await CoreDataManager.shared.container.performBackgroundTask { context in
+        let saved = await CoreDataManager.shared.container.performBackgroundTask { context in
             CoreDataManager.shared.removeManga(mangaId: mangaId, context: context)
             CoreDataManager.shared.removeChapters(mangaId: mangaId, context: context)
             CoreDataManager.shared.removeTracks(mangaId: mangaId, context: context)
             do {
                 try context.save()
+                return true
             } catch {
+                context.rollback()
                 LogManager.logger.error("Failed to remove manga: \(error)")
+                return false
             }
         }
+        guard saved else { return }
         NotificationCenter.default.post(name: .removeFromLibrary, object: mangaId)
         NotificationCenter.default.post(name: .updateLibrary, object: nil)
         NotificationCenter.default.post(name: .updateTrackers, object: nil)
@@ -204,13 +212,20 @@ extension MangaManager {
         if mangaIds.count > 100 {
             await UIApplication.shared.appDelegate?.showLoadingIndicator()
         }
-        await CoreDataManager.shared.container.performBackgroundTask { context in
+        let saved = await CoreDataManager.shared.container.performBackgroundTask { context in
             CoreDataManager.shared.removeFromLibrary(ids: mangaIds, context: context)
             do {
                 try context.save()
+                return true
             } catch {
+                context.rollback()
                 LogManager.logger.error("Failed to remove multiple manga: \(error)")
+                return false
             }
+        }
+        guard saved else {
+            await UIApplication.shared.appDelegate?.hideLoadingIndicator()
+            return
         }
         for id in mangaIds {
             NotificationCenter.default.post(name: .removeFromLibrary, object: id)
@@ -225,7 +240,7 @@ extension MangaManager {
         chapters: [Chapter],
         trackItems: [TrackItem],
         categories: [String]
-    ) async {
+    ) async -> Bool {
         let newManga = manga.toNew()
         let newChapters = chapters.map { $0.toNew() }
         let lastOpened = manga.lastOpened
@@ -235,7 +250,7 @@ extension MangaManager {
         let lastRead = manga.lastRead
         let dateAdded = manga.dateAdded
 
-        await CoreDataManager.shared.container.performBackgroundTask { context in
+        return await CoreDataManager.shared.container.performBackgroundTask { context in
             CoreDataManager.shared.addToLibrary(
                 manga: newManga,
                 chapters: newChapters,
@@ -267,6 +282,7 @@ extension MangaManager {
                     trackerId: item.trackerId,
                     mangaId: item.mangaId,
                     title: item.title,
+                    chapterOffset: item.chapterOffset,
                     context: context
                 )
             }
@@ -274,7 +290,13 @@ extension MangaManager {
             for category in categories {
                 let hasCategory = CoreDataManager.shared.hasCategory(title: category, context: context)
                 if !hasCategory {
-                    CoreDataManager.shared.createCategory(title: category, context: context)
+                    do {
+                        try CoreDataManager.shared.createCategory(title: category, context: context)
+                    } catch {
+                        context.rollback()
+                        LogManager.logger.error("MangaManager.restoreToLibrary category: \(error.localizedDescription)")
+                        return false
+                    }
                 }
             }
             CoreDataManager.shared.addCategoriesToManga(
@@ -285,9 +307,12 @@ extension MangaManager {
 
             do {
                 try context.save()
+                return true
             } catch {
+                context.rollback()
                 LogManager.logger.error(
                     "MangaManager.restoreToLibrary: \(error.localizedDescription)")
+                return false
             }
         }
     }
@@ -995,6 +1020,7 @@ extension MangaManager {
                             trackerId: trackerId,
                             mangaId: newManga.identifier,
                             title: item.title,
+                            chapterOffset: Int(item.chapterOffset),
                             context: context
                         )
                     } else {

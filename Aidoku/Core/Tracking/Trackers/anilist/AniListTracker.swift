@@ -125,7 +125,8 @@ final class AniListTracker: OAuthTracker {
         let score: Int?
         let scoreType = await api.getStoreType()
         if let scoreRaw = result.mediaListEntry?.score {
-            score = scoreType == "POINT_10" ? Int(scoreRaw / 10) : Int(scoreRaw)
+            let value = scoreType == "POINT_10" ? scoreRaw / 10 : scoreRaw
+            score = Int(exactly: value.rounded(.towardZero))
         } else {
             score = nil
         }

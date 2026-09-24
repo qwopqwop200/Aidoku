@@ -27,7 +27,17 @@ class TrackerSettingOptionViewCoordinator: NSObject, UIPickerViewDelegate, UIPic
     }
 
     func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
-        numberType == .int ? total + 1 : total * 10 + 1
+        guard total >= 0 else { return 0 }
+        let scaled = total.multipliedReportingOverflow(by: numberType == .int ? 1 : 10)
+        let rows = scaled.partialValue.addingReportingOverflow(1)
+        return scaled.overflow || rows.overflow ? 0 : rows.partialValue
+    }
+
+    func selectionRow(for count: Float?) -> Int? {
+        let value = numberType == .int ? count ?? 0 : (count ?? 0) * 10
+        guard let row = Int(exactly: value.rounded(.towardZero)),
+              row >= 0, row < pickerView(pickerView, numberOfRowsInComponent: 0) else { return nil }
+        return row
     }
 
     func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {

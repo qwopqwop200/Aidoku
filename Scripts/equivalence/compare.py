@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Compare two PipelineEquivalenceHarness runs (pulled with pull.sh).
 
-Usage: compare.py <baselineDir> <candidateDir> [--diff-dir DIR] [--box-tol 1.0] [--conf-tol 1e-4]
-                  [--pixel-tol 2] [--max-diff-pct 0.0] [--json OUT]
+Usage: compare.py <baselineDir> <candidateDir> [--diff-dir DIR] [--box-tol 0] [--conf-tol 0]
+                  [--pixel-tol 0] [--max-diff-pct 0.0] [--json OUT]
 
 Reports:
   * OCR equivalence (final merged regions = production ReaderOCRService output, plus raw detector/recognizer
@@ -14,6 +14,7 @@ Reports:
 Exit status 1 when OCR/translation/layout/render equivalence fails the tolerances.
 """
 import argparse
+from fractions import Fraction
 import json
 import math
 import os
@@ -29,8 +30,35 @@ except ImportError:  # pragma: no cover
 
 
 def load(path):
+    def reject_constant(value):
+        raise ValueError(f"Non-finite JSON number: {value}")
+
+    def validate(value):
+        if isinstance(value, float) and not math.isfinite(value):
+            raise ValueError("Non-finite JSON number")
+        if isinstance(value, dict):
+            for item in value.values():
+                validate(item)
+        elif isinstance(value, list):
+            for item in value:
+                validate(item)
+
     with open(path, encoding="utf-8") as f:
-        return json.load(f)
+        value = json.load(f, parse_constant=reject_constant)
+    validate(value)  # A valid exponent such as 1e999 can also overflow to infinity.
+    return value
+
+
+def numeric_difference(a, b):
+    if any(isinstance(value, bool) or not isinstance(value, (int, float))
+           or (isinstance(value, float) and not math.isfinite(value)) for value in (a, b)):
+        return math.inf
+    # Preserve 1 == 1.0 while avoiding Float rounding of adjacent large integers.
+    difference = abs(Fraction(a) - Fraction(b))
+    try:
+        return float(difference)
+    except OverflowError:
+        return math.inf
 
 
 def maybe(path):
@@ -48,7 +76,7 @@ def max_point_dev(a, b):
         if isinstance(p, list):
             dev = max(dev, max_point_dev(p, q))
         else:
-            dev = max(dev, abs(float(p) - float(q)))
+            dev = max(dev, numeric_difference(p, q))
     return dev
 
 
@@ -66,7 +94,7 @@ def compare_regions(base, cand, box_tol, conf_tol, key_text="source", key_conf="
             box_dev = max(box_dev, max_point_dev(a.get(rect_key), b.get(rect_key)))
         if poly_key:
             box_dev = max(box_dev, max_point_dev(a.get(poly_key), b.get(poly_key)))
-        conf_dev = max(conf_dev, abs(float(a.get(key_conf, 0)) - float(b.get(key_conf, 0))))
+        conf_dev = max(conf_dev, numeric_difference(a.get(key_conf, 0), b.get(key_conf, 0)))
         for k in extra_keys:
             if k.endswith("Px"):
                 if max_point_dev(a.get(k), b.get(k)) > box_tol:
@@ -110,8 +138,11 @@ def compare_layout(a, b, tol):
     mism = []
     for k in sorted(keys):
         x, y = fa.get(k, "<missing>"), fb.get(k, "<missing>")
-        if isinstance(x, (int, float)) and isinstance(y, (int, float)) and not isinstance(x, bool):
-            d = abs(float(x) - float(y))
+        if isinstance(x, bool) or isinstance(y, bool):
+            if type(x) is not type(y) or x != y:
+                mism.append((k, x, y))
+        elif isinstance(x, (int, float)) and isinstance(y, (int, float)):
+            d = numeric_difference(x, y)
             num_dev = max(num_dev, d)
             if d > tol:
                 mism.append((k, x, y))
@@ -122,7 +153,7 @@ def compare_layout(a, b, tol):
 
 def compare_png(pa, pb, diff_path, pixel_tol):
     if not (os.path.exists(pa) or os.path.exists(pb)):
-        return {"present": False, "ok": True}
+        return {"present": False, "ok": False}
     if not (os.path.exists(pa) and os.path.exists(pb)):
         return {"present": "one side missing", "ok": False}
     if np is None:
@@ -211,14 +242,18 @@ def main():
     ap.add_argument("baseline")
     ap.add_argument("candidate")
     ap.add_argument("--diff-dir", default=None, help="heatmap output dir (default <candidate>/diff-vs-<baseline>)")
-    ap.add_argument("--box-tol", type=float, default=1.0)
-    ap.add_argument("--conf-tol", type=float, default=1e-4)
-    ap.add_argument("--pixel-tol", type=int, default=2)
+    ap.add_argument("--box-tol", type=float, default=0.0)
+    ap.add_argument("--conf-tol", type=float, default=0.0)
+    ap.add_argument("--pixel-tol", type=int, default=0)
     ap.add_argument("--max-diff-pct", type=float, default=0.0,
                     help="render fails if %% pixels with diff > pixel-tol exceeds this")
     ap.add_argument("--json", default=None, help="write machine-readable report")
     ap.add_argument("--no-timing", action="store_true")
+    ap.add_argument("--layout-tol", type=float, default=0.0)
     args = ap.parse_args()
+    if any(not math.isfinite(value) or value < 0 for value in
+           (args.box_tol, args.conf_tol, args.pixel_tol, args.max_diff_pct, args.layout_tol)):
+        ap.error("tolerances must be finite and nonnegative")
 
     B, C = args.baseline, args.candidate
     rb, rc = load(os.path.join(B, "results.json")), load(os.path.join(C, "results.json"))
@@ -230,7 +265,9 @@ def main():
     print(f"candidate: {C}  [{mc.get('label')} {mc.get('translationMode')} thermal {mc.get('thermalStart')}->{mc.get('thermalEnd')}]")
     fixtures = sorted(set(rows_b) | set(rows_c))
     report = {"fixtures": {}}
-    all_ok = True
+    all_ok = bool(fixtures) and len(rows_b) == len(rb["rows"]) and len(rows_c) == len(rc["rows"])
+    if not all_ok:
+        print("FAIL: empty fixture set or duplicate fixture identifiers")
 
     print("\n== Equivalence ==")
     for name in fixtures:
@@ -238,6 +275,16 @@ def main():
         if name not in rows_b or name not in rows_c:
             print(f"{name}: missing in {'baseline' if name not in rows_b else 'candidate'}")
             all_ok = False
+            report["fixtures"][name] = {"ok": False, "reason": "fixture missing"}
+            continue
+        missing = [str(os.path.join(directory, f"{name}.{suffix}"))
+                   for directory in (B, C)
+                   for suffix in ("ocr.json", "lines.json", "translated.json", "layout.json", "render.png")
+                   if not os.path.isfile(os.path.join(directory, f"{name}.{suffix}"))]
+        if missing:
+            all_ok = False
+            report["fixtures"][name] = {"ok": False, "missingArtifacts": missing}
+            print(f"{name}: FAIL missing artifacts {missing}")
             continue
         ob, oc = load(os.path.join(B, f"{name}.ocr.json")), load(os.path.join(C, f"{name}.ocr.json"))
         ocr = compare_regions(ob["regions"], oc["regions"], args.box_tol, args.conf_tol,
@@ -252,7 +299,7 @@ def main():
         trans_eq = [(x["id"], x["source"], x.get("translation")) for x in (tb or [])] == \
                    [(x["id"], x["source"], x.get("translation")) for x in (tc or [])]
         layout = compare_layout(maybe(os.path.join(B, f"{name}.layout.json")),
-                                maybe(os.path.join(C, f"{name}.layout.json")), 0.01)
+                                maybe(os.path.join(C, f"{name}.layout.json")), args.layout_tol)
         png = compare_png(os.path.join(B, f"{name}.render.png"), os.path.join(C, f"{name}.render.png"),
                           os.path.join(diff_dir, f"{name}.diff.png"), args.pixel_tol)
         if png.get("ok") is None:
@@ -260,7 +307,7 @@ def main():
         misses = rows_c[name].get("replayMisses", 0)
         unstable = [k for k in ("ocrUnstableAcrossPasses", "rawLinesUnstableAcrossPasses", "renderUnstableAcrossPasses")
                     if rows_b[name].get(k) or rows_c[name].get(k)]
-        ok = ocr["ok"] and prep["ok"] and eligible_eq and lines["ok"] and trans_eq and layout["ok"] and png["ok"]
+        ok = ocr["ok"] and prep["ok"] and eligible_eq and lines["ok"] and trans_eq and layout["ok"] and png["ok"] and misses == 0
         all_ok &= ok
         entry.update(ocr=ocr, prepared=prep, eligibleEqual=eligible_eq, rawLines=lines, translationsEqual=trans_eq,
                      layout=layout, render=png, replayMisses=misses, unstable=unstable, ok=ok)

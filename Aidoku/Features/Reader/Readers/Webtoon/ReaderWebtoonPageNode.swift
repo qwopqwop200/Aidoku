@@ -523,9 +523,10 @@ extension ReaderWebtoonPageNode {
 
             return image
         }
+        let processingGeneration = pageLoadGeneration
         self.imageProcessingTask = processingTask
         let image = await processingTask.value
-        self.imageProcessingTask = nil
+        if pageLoadGeneration == processingGeneration { self.imageProcessingTask = nil }
         guard !Task.isCancelled else { return }
         guard let image else {
             await showLoadFailure()

@@ -32,6 +32,12 @@ class ReaderViewController: BaseObservingViewController {
     private var chapterList: [AidokuRunner.Chapter]
     private var chaptersToMark: [AidokuRunner.Chapter] = []
     private var completedChapterKeys: Set<String> = []
+    private var completingChapterKeys: Set<String> = []
+    // Injectable persistence boundary; nil uses the real history store.
+    var historyCompletionWriter: (([AidokuRunner.Chapter]) async -> Bool)?
+    var completedDownloadRemover: (([ChapterIdentifier]) async -> Void)?
+    private var historyCompletionTasks: [UUID: Task<Void, Never>] = [:]
+    private var removingDownloadKeys: Set<String> = []
     private var chaptersToRemoveDownload: [AidokuRunner.Chapter] = [] {
         didSet {
             // ensure chapters queued for deletion are persistent, in case of app termination
@@ -451,14 +457,7 @@ class ReaderViewController: BaseObservingViewController {
             (reader as? ReaderWebtoonViewController)?.cancelPendingChapterLoads()
         }
 
-        if !chaptersToRemoveDownload.isEmpty {
-            Task {
-                await DownloadManager.shared.delete(chapters: chaptersToRemoveDownload.map {
-                    .init(sourceKey: manga.sourceKey, mangaKey: manga.key, chapterKey: $0.key)
-                })
-                chaptersToRemoveDownload = []
-            }
-        }
+        removeCompletedDownloadsAfterPendingHistory()
 
         guard currentPage >= 1 else { return }
         Task {
@@ -1251,21 +1250,61 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
         toolbarView.sliderView.currentValue = offset
     }
 
+    /// A completed close must not delete a download whose history save failed or is still pending.
+    func removeCompletedDownloadsAfterPendingHistory() {
+        let pending = Array(historyCompletionTasks.values)
+        let eligibleKeys = completingChapterKeys.union(chaptersToRemoveDownload.map(\.key))
+        guard !pending.isEmpty || !chaptersToRemoveDownload.isEmpty else { return }
+        Task {
+            for task in pending { await task.value }
+            let chapters = chaptersToRemoveDownload.filter {
+                eligibleKeys.contains($0.key) && removingDownloadKeys.insert($0.key).inserted
+            }
+            guard !chapters.isEmpty else { return }
+            let keys = Set(chapters.map(\.key))
+            let identifiers = chapters.map {
+                ChapterIdentifier(sourceKey: manga.sourceKey, mangaKey: manga.key, chapterKey: $0.key)
+            }
+            if let completedDownloadRemover {
+                await completedDownloadRemover(identifiers)
+            } else {
+                await DownloadManager.shared.delete(chapters: identifiers)
+            }
+            chaptersToRemoveDownload.removeAll { keys.contains($0.key) }
+            removingDownloadKeys.subtract(keys)
+        }
+    }
+
     func setCompleted() {
         guard !isTemporaryImageSession, !AppSettings.general.incognitoMode.get() else { return }
 
-        let chaptersToMark = chaptersToMark.filter { completedChapterKeys.insert($0.key).inserted }
-        guard !chaptersToMark.isEmpty else { return }
-        Task { [chaptersToMark] in
-            await HistoryManager.shared.addHistory(
-                mangaId: manga.identifier,
-                chapters: chaptersToMark,
-                manga: manga
-            )
+        let chaptersToMark = chaptersToMark.filter {
+            !completedChapterKeys.contains($0.key) && completingChapterKeys.insert($0.key).inserted
         }
-
-        if AppSettings.downloads.deleteDownloadAfterReading.get(), !chaptersToRemoveDownload.contains(chapter) {
-            chaptersToRemoveDownload.append(chapter)
+        guard !chaptersToMark.isEmpty else { return }
+        let chapterKeys = Set(chaptersToMark.map(\.key))
+        let completedChapter = chapter
+        let removeDownload = AppSettings.downloads.deleteDownloadAfterReading.get()
+        let taskID = UUID()
+        historyCompletionTasks[taskID] = Task { [chaptersToMark] in
+            defer { historyCompletionTasks[taskID] = nil }
+            let saved: Bool
+            if let historyCompletionWriter {
+                saved = await historyCompletionWriter(chaptersToMark)
+            } else {
+                saved = await HistoryManager.shared.addHistory(
+                    mangaId: manga.identifier,
+                    chapters: chaptersToMark,
+                    manga: manga
+                )
+            }
+            completingChapterKeys.subtract(chapterKeys)
+            if saved {
+                completedChapterKeys.formUnion(chapterKeys)
+                if removeDownload, !chaptersToRemoveDownload.contains(completedChapter) {
+                    chaptersToRemoveDownload.append(completedChapter)
+                }
+            }
         }
     }
 

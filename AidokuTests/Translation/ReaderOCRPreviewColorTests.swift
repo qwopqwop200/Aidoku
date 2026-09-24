@@ -59,13 +59,22 @@ struct ReaderOCRPreviewColorTests {
                 in: nil, contentWorld: .page)
             let audit = try #require(try await web.evaluateJavaScript("""
             (()=>{const node=document.querySelector('[data-aidoku-image-ocr-overlay="item"]');
-            const style=getComputedStyle(node);return {panel:style.backgroundColor,veil:style.backgroundImage,
+            const style=getComputedStyle(node),parent=node.parentElement,parentStyle=getComputedStyle(parent);
+            const range=document.createRange();range.selectNodeContents(node);
+            const ink=range.getBoundingClientRect(),box=parent.getBoundingClientRect();
+            return {ownsText:parent.getAttribute('data-aidoku-image-ocr-overlay')==='source-readability-panel'&&
+              parent.dataset.aidokuRegion===node.dataset.aidokuRegion&&parent.contains(node),
+            parentIsolation:parentStyle.isolation,parentZ:Number(parentStyle.zIndex),
+            textStack:style.zIndex,inkContained:ink.width>0&&ink.height>0&&
+              ink.left>=box.left-.5&&ink.right<=box.right+.5&&ink.top>=box.top-.5&&ink.bottom<=box.bottom+.5,
+            textVisible:style.visibility==='visible'&&Number(style.opacity)>0,
+            panel:style.backgroundColor,veil:style.backgroundImage,
             blur:style.webkitBackdropFilter,stroke:parseFloat(style.webkitTextStrokeWidth)>0,
             state:node.dataset.sourceBackgroundColor,text:node.textContent,
             plates:[...document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]')].map(n=>({
               x:n.offsetLeft,y:n.offsetTop,w:n.offsetWidth,h:n.offsetHeight,color:getComputedStyle(n).backgroundColor,
               z:Number(getComputedStyle(n).zIndex)})),
-            sourceBlur:Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-blur"],[data-aidoku-image-ocr-overlay="source-readability-blur"]')).map(n=>({filter:getComputedStyle(n).webkitBackdropFilter,z:Number(getComputedStyle(n).zIndex),width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height,raster:n.tagName==="CANVAS"?1:n.querySelectorAll("canvas").length})),textZ:Number(style.zIndex)};})()
+            sourceBlur:Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-blur"],[data-aidoku-image-ocr-overlay="source-readability-blur"]')).map(n=>({filter:getComputedStyle(n).webkitBackdropFilter,z:Number(getComputedStyle(n).zIndex),width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height,raster:n.tagName==="CANVAS"?1:n.querySelectorAll("canvas").length})),textZ:style.zIndex};})()
             """) as? [String: Any])
             #expect(audit["panel"] as? String == "rgba(0, 0, 0, 0)")
             #expect(audit["veil"] as? String == "none")
@@ -80,7 +89,50 @@ struct ReaderOCRPreviewColorTests {
             #expect((plate["w"] as? Double ?? 0) > 0)
             #expect((plate["h"] as? Double ?? 0) > 0)
             #expect((plate["x"] as? Double ?? -1) >= 0)
-            #expect((plate["z"] as? Int ?? 0) < (audit["textZ"] as? Int ?? 0))
+            // Text is now inside the opaque panel's stacking context. A sibling
+            // z-index comparison misreads `auto` as zero and cannot prove paint order.
+            #expect(audit["ownsText"] as? Bool == true)
+            #expect(audit["parentIsolation"] as? String == "isolate")
+            #expect(audit["parentZ"] as? Int == plate["z"] as? Int)
+            #expect(audit["textStack"] as? String == "auto")
+            #expect(audit["inkContained"] as? Bool == true)
+            #expect(audit["textVisible"] as? Bool == true)
+            // Observe actual WebKit pixels with/without only the glyph node.
+            // If the panel painted over its descendant, hiding the text could
+            // not change this otherwise identical final image.
+            let visible = try await web.takeSnapshot(configuration: nil)
+            _ = try await web.evaluateJavaScript("document.querySelector('[data-aidoku-image-ocr-overlay=\"item\"]').style.visibility='hidden'")
+            let hidden: UIImage
+            do { hidden = try await web.takeSnapshot(configuration: nil) }
+            catch {
+                _ = try? await web.evaluateJavaScript("document.querySelector('[data-aidoku-image-ocr-overlay=\"item\"]').style.visibility=''")
+                throw error
+            }
+            _ = try await web.evaluateJavaScript("document.querySelector('[data-aidoku-image-ocr-overlay=\"item\"]').style.visibility=''")
+            let visibleCG = try #require(visible.cgImage), hiddenCG = try #require(hidden.cgImage)
+            #expect(visibleCG.width == hiddenCG.width && visibleCG.height == hiddenCG.height)
+            func pixels(_ image: CGImage) throws -> [UInt8] {
+                var bytes = [UInt8](repeating: 0, count: image.width * image.height * 4)
+                try bytes.withUnsafeMutableBytes { storage in
+                    let context = try #require(CGContext(data: storage.baseAddress, width: image.width,
+                        height: image.height, bitsPerComponent: 8, bytesPerRow: image.width * 4,
+                        space: CGColorSpaceCreateDeviceRGB(),
+                        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+                    context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+                }
+                return bytes
+            }
+            let visibleBytes = try pixels(visibleCG), hiddenBytes = try pixels(hiddenCG)
+            let changedBytes = zip(visibleBytes, hiddenBytes).filter { $0 != $1 }.count
+            #expect(changedBytes > 0, "Actual glyph paint must be visible above the opaque owner")
+            print("CAPTION_STACK_PAINT \(failure) translated=\(translated) changedRGBABytes=\(changedBytes)")
+            let output = URL.documentsDirectory.appendingPathComponent("AuditCaptionStack", isDirectory: true)
+            try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+            let name = "\(failure)-\(translated ? "translated" : "ocr")"
+            try #require(visible.pngData()).write(to: output.appendingPathComponent("\(name)-visible.png"))
+            try #require(hidden.pngData()).write(to: output.appendingPathComponent("\(name)-hidden.png"))
+            try JSONSerialization.data(withJSONObject: audit, options: [.sortedKeys])
+                .write(to: output.appendingPathComponent("\(name).json"))
             #expect(plate["color"] as? String != "rgba(0, 0, 0, 0)")
             #expect(audit["text"] as? String == (translated ? "안녕" : "HELLO"))
         }

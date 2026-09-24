@@ -1062,8 +1062,10 @@ struct ReaderTranslationSessionTests {
         session.enable(settings: fixture.settings)
         try await waitUntil { await gate.started }
         #expect(visible.regions.isEmpty)
-        // Translated progress is shown provisionally, never as a completed page.
-        try await waitUntil { visible.isShowingProvisionalTranslation }
+        // The current contract retains the original until the complete page is ready.
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(!visible.isShowingProvisionalTranslation)
+        #expect(imageView.subviews.isEmpty)
         #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
         #expect(!visible.canExportTranslation)
         session.disable()
@@ -1515,7 +1517,7 @@ struct ReaderTranslationSessionTests {
         await ReaderOCRService.shared.purge()
     }
 
-    // MARK: Provisional (streamed) display
+    // MARK: Completed-only display while provider output streams
 
     private func visibleView(_ page: ReaderTranslationPage) -> UIView? { page.imageView?.subviews.first }
 
@@ -1525,7 +1527,7 @@ struct ReaderTranslationSessionTests {
         return region
     }
 
-    @Test func streamedProgressShowsOnlyOnVisiblePageAndFinalReplacesIt() async throws {
+    @Test func streamedProgressStaysHiddenAndFinalDisplaysOnVisiblePage() async throws {
         let gate = SessionGate()
         let fixture = SessionFixture()
         let visibleView = UIImageView(image: Self.image())
@@ -1553,10 +1555,10 @@ struct ReaderTranslationSessionTests {
         defer { session.close() }
         session.update(items: [Self.page(0), Self.page(1)].map(ReaderTranslationSession.Item.init), visible: [visible], context: "stream")
         session.enable(settings: fixture.settings)
-        try await waitUntil { visible.isShowingProvisionalTranslation }
-        let overlay = try #require(visibleView.subviews.first as? ReaderTranslationOverlayView)
-        // Live rendering only: no snapshot target, so no render/layout cache writes.
-        #expect(!overlay.canCacheRendering)
+        try await waitUntil { await gate.started }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(!visible.isShowingProvisionalTranslation)
+        #expect(visibleView.subviews.isEmpty)
         #expect(visible.regions.isEmpty) // Untranslated regions and export state are untouched.
         #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
         await gate.release()
@@ -1569,7 +1571,7 @@ struct ReaderTranslationSessionTests {
         #expect(!offscreen.isShowingProvisionalTranslation)
     }
 
-    @Test func streamedProgressIsThrottled() async throws {
+    @Test func streamedProgressDoesNotStartIntermediateRendering() async throws {
         let gate = SessionGate()
         let fixture = SessionFixture()
         let view = UIImageView(image: Self.image())
@@ -1585,16 +1587,18 @@ struct ReaderTranslationSessionTests {
         defer { session.close() }
         session.update(items: [.init(Self.page(0))], visible: [visible], context: "throttle")
         session.enable(settings: fixture.settings)
-        try await waitUntil { published && visible.isShowingProvisionalTranslation }
-        try await Task.sleep(for: .milliseconds(50))
-        // Twenty snapshots in one burst produce at most the leading render and one trailing render.
-        #expect(visible.provisionalRenderCount <= 2)
+        try await waitUntil { published }
+        try await Task.sleep(for: .milliseconds(300))
+        // Progress remains available to scheduling without exposing intermediate output.
+        #expect(!visible.isShowingProvisionalTranslation)
+        #expect(visible.provisionalRenderCount == 0)
+        #expect(view.subviews.isEmpty)
         await gate.release()
         try await waitUntil { visible.hasCompletedTranslation(settings: fixture.settings) }
         #expect(visible.regions.first?.translation == "안녕")
     }
 
-    @Test func provisionalRenderingNeverWritesCaches() async throws {
+    @Test func pendingTranslationNeverRendersOrWritesCompletedCaches() async throws {
         let gate = SessionGate()
         let fixture = SessionFixture()
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -1615,11 +1619,12 @@ struct ReaderTranslationSessionTests {
         session.update(items: [.init(Self.page(0))], visible: [visible], context: "nocache")
         #expect(try await disk.statistics().entries == 0)
         session.enable(settings: fixture.settings)
-        try await waitUntil { visible.isShowingProvisionalTranslation }
+        try await waitUntil { await gate.started }
         try await Task.sleep(for: .milliseconds(300))
-        // No translation, layout, snapshot or image-size record from a provisional render.
+        #expect(!visible.isShowingProvisionalTranslation)
+        // No translation, layout, snapshot or image-size record from pending progress.
         #expect(try await disk.statistics().entries == 0)
-        #expect((visibleView(visible) as? ReaderTranslationOverlayView)?.canCacheRendering == false)
+        #expect(visibleView(visible) == nil)
         #expect(try await disk.translatedRegions(page: Self.page(0).translationCacheKey, settings: fixture.settings) == nil)
         await gate.release()
         try await waitUntil { visible.hasCompletedTranslation(settings: fixture.settings) }
@@ -1627,7 +1632,7 @@ struct ReaderTranslationSessionTests {
     }
 
     @Test(arguments: [false, true])
-    func cancelledOrFailedStreamRemovesProvisionalText(fails: Bool) async throws {
+    func cancelledOrFailedStreamNeverExposesProvisionalText(fails: Bool) async throws {
         let gate = SessionGate()
         let fixture = SessionFixture()
         let firstView = UIImageView(image: Self.image())
@@ -1650,7 +1655,10 @@ struct ReaderTranslationSessionTests {
         let items = [Self.page(0), Self.page(1)].map(ReaderTranslationSession.Item.init)
         session.update(items: items, visible: [first], context: "cancel")
         session.enable(settings: fixture.settings)
-        try await waitUntil { first.isShowingProvisionalTranslation }
+        try await waitUntil { await gate.started }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(!first.isShowingProvisionalTranslation)
+        #expect(firstView.subviews.isEmpty)
         if fails {
             await gate.release()
         } else {

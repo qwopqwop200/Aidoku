@@ -133,9 +133,8 @@ struct FilterGroupsView: View {
 extension FilterGroupsView {
     func removeGroup(title: String) async -> Bool {
         await CoreDataManager.shared.container.performBackgroundTask { context in
-            CoreDataManager.shared.removeCategory(title: title, context: context)
             do {
-                try context.save()
+                try CoreDataManager.shared.removeCategoryAndSave(title: title, context: context)
                 return true
             } catch {
                 LogManager.logger.error("FilterGroupsView.removeGroup(title: \(title)): \(error)")
@@ -150,10 +149,8 @@ extension FilterGroupsView {
         } else {
             Task {
                 let newGroups: [FilterGroup]? = await CoreDataManager.shared.container.performBackgroundTask { context in
-                    let success = CoreDataManager.shared.renameCategory(title: title, newTitle: newTitle, context: context)
-                    guard success else { return nil }
                     do {
-                        try context.save()
+                        guard try CoreDataManager.shared.renameCategoryAndSave(title: title, newTitle: newTitle, context: context) else { return nil }
                         return CoreDataManager.shared.getFilterGroups(context: context)
                     } catch {
                         LogManager.logger.error("FilterGroupsView.renameGroup(title: \(title), newTitle: \(newTitle)): \(error)")

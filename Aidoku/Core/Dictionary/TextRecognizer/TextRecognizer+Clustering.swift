@@ -10,6 +10,8 @@ import UIKit
 @available(iOS 18.0, *)
 extension TextRecognizer {
     func rebuildClusterCache() {
+        stateLock.lock()
+        defer { stateLock.unlock() }
         guard !observations.isEmpty else {
             cachedClusters = []
             cachedOrderedClusters = []
@@ -31,6 +33,8 @@ extension TextRecognizer {
     }
 
     func orderedClusterForObservation(_ index: Int) -> [Int]? {
+        stateLock.lock()
+        defer { stateLock.unlock() }
         guard
             let clusterIndex = clusterIndexByObservation[index],
             cachedOrderedClusters.indices.contains(clusterIndex)
@@ -41,6 +45,8 @@ extension TextRecognizer {
     }
 
     func orderedClusterIndices(_ indices: [Int]) -> [Int] {
+        stateLock.lock()
+        defer { stateLock.unlock() }
         if
             let clusterIndex = cachedClusters.firstIndex(where: { $0 == indices }),
             cachedOrderedClusters.indices.contains(clusterIndex)

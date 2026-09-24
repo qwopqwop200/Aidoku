@@ -8,6 +8,52 @@
 import CoreData
 
 extension CoreDataManager {
+    // These synchronous helpers run on their context queue. Keep fetch, save,
+    // and preference migration together; never hold this lock across await.
+    private static let categoryReferenceLock = NSLock()
+
+    /// Commit the database rename before migrating settings that refer to its title.
+    func renameCategoryAndSave(title: String, newTitle: String, context: NSManagedObjectContext) throws -> Bool {
+        Self.categoryReferenceLock.lock()
+        defer { Self.categoryReferenceLock.unlock() }
+        guard renameCategory(title: title, newTitle: newTitle, context: context) else { return false }
+        do { try context.save() } catch { context.rollback(); throw error }
+        Self.updateCategoryReferences(from: title, to: newTitle)
+        return true
+    }
+
+    func removeCategoryAndSave(title: String, context: NSManagedObjectContext) throws {
+        Self.categoryReferenceLock.lock()
+        defer { Self.categoryReferenceLock.unlock() }
+        removeCategory(title: title, context: context)
+        do { try context.save() } catch { context.rollback(); throw error }
+        Self.updateCategoryReferences(from: title, to: nil)
+    }
+
+    func updateFilterGroupAndSave(title: String, newTitle: String, data: Data, context: NSManagedObjectContext) throws {
+        Self.categoryReferenceLock.lock()
+        defer { Self.categoryReferenceLock.unlock() }
+        let request = CategoryObject.fetchRequest()
+        request.predicate = NSPredicate(format: "title == %@", title)
+        request.fetchLimit = 1
+        guard let category = try context.fetch(request).first else { throw CocoaError(.validationMissingMandatoryProperty) }
+        category.title = newTitle.isEmpty ? title : newTitle
+        category.data = data as NSObject
+        do { try context.save() } catch { context.rollback(); throw error }
+        if category.title != title { Self.updateCategoryReferences(from: title, to: category.title) }
+    }
+
+    private static func updateCategoryReferences(from title: String, to newTitle: String?) {
+        let settings = AppSettings.library
+        if settings.defaultCategory.get() == title { settings.defaultCategory.set(newTitle) }
+        if settings.currentCategory.get() == title { settings.currentCategory.set(newTitle) }
+        for key in [settings.lockedCategories, settings.excludedUpdateCategories] {
+            let old = key.get()
+            guard old.contains(title) else { continue }
+            key.set(old.compactMap { $0 == title ? newTitle : $0 })
+        }
+    }
+
     /// Remove all category objects.
     func clearCategories(context: NSManagedObjectContext) {
         clear(request: CategoryObject.fetchRequest(), context: context)
@@ -81,19 +127,39 @@ extension CoreDataManager {
         return (try? context.count(for: request)) ?? 0 > 0
     }
 
-    /// Create a category object.
-    @discardableResult
-    func createCategory(title: String, group: Bool = false, context: NSManagedObjectContext) -> CategoryObject {
+    enum CategoryCapacityError: LocalizedError {
+        case exhausted
+        var errorDescription: String? { "The category list has reached its storage capacity." }
+    }
 
+    /// Create a category object. A saturated group fails before any mutation.
+    @discardableResult
+    func createCategory(title: String, group: Bool = false, context: NSManagedObjectContext) throws -> CategoryObject {
         let request = CategoryObject.fetchRequest()
         request.predicate = NSPredicate(format: "group == %@", NSNumber(value: group))
         request.sortDescriptors = [NSSortDescriptor(key: "sort", ascending: false)]
         request.fetchLimit = 1
-        let lastCategoryIndex = (try? context.fetch(request))?.first?.sort ?? -1
-
+        let lastCategoryIndex = try context.fetch(request).first?.sort ?? -1
+        let nextSort: Int16
+        if lastCategoryIndex == Int16.max {
+            // Backup imports may contain sparse ranks at the signed maximum.
+            // Renumber only this group, retaining its existing presentation order.
+            request.fetchLimit = 0
+            request.sortDescriptors = [NSSortDescriptor(key: "sort", ascending: true)]
+            let categories = try context.fetch(request)
+            let capacity = Int(Int16.max) - Int(Int16.min) + 1
+            guard categories.count < capacity else { throw CategoryCapacityError.exhausted }
+            let base = categories.count <= Int(Int16.max) ? 0 : Int(Int16.min)
+            for (index, category) in categories.enumerated() {
+                category.sort = Int16(base + index)
+            }
+            nextSort = Int16(base + categories.count)
+        } else {
+            nextSort = lastCategoryIndex + 1
+        }
         let categoryObject = CategoryObject(context: context)
         categoryObject.title = title
-        categoryObject.sort = lastCategoryIndex + 1
+        categoryObject.sort = nextSort
         categoryObject.group = group
         return categoryObject
     }
@@ -105,8 +171,24 @@ extension CoreDataManager {
         }
         // update sort fields
         let categories = getCategories(sorted: true, context: context)
-        for (index, category) in categories.enumerated() where category.sort != index {
-            category.sort = Int16(index)
+        if categories.count <= 65_536 {
+            Self.normalizeCategoryRanks(categories)
+        } else {
+            // Normal categories and filter groups have independent rank spaces.
+            for group in [false, true] {
+                let rows = categories.filter { $0.group == group }
+                if rows.count <= 65_536 { Self.normalizeCategoryRanks(rows) }
+                // An already overfull imported group retains its old ranks;
+                // removing an entry does not require changing its order.
+            }
+        }
+    }
+
+    private static func normalizeCategoryRanks(_ categories: [CategoryObject]) {
+        let base = categories.count <= Int(Int16.max) + 1 ? 0 : Int(Int16.min)
+        for (index, category) in categories.enumerated() {
+            let rank = Int16(base + index)
+            if category.sort != rank { category.sort = rank }
         }
     }
 
@@ -133,11 +215,16 @@ extension CoreDataManager {
             return
         }
 
-        let fromPosition = Int(categoryObject.sort)
+        // Each settings list uses its own positions. Stored sort values may
+        // contain gaps after a restore, so identify the row rather than treating
+        // its sort value as an index into all categories and filter groups.
         var categories = getCategories(sorted: true, context: context)
+            .filter { $0.group == categoryObject.group }
+        guard let fromPosition = categories.firstIndex(of: categoryObject) else { return }
 
         // ensure move is valid
         guard
+            categories.count <= 65_536,
             fromPosition != toPosition,
             fromPosition >= 0, fromPosition < categories.count,
             toPosition >= 0, toPosition < categories.count
@@ -149,9 +236,7 @@ extension CoreDataManager {
         categories.insert(movedCategory, at: toPosition)
 
         // update sort values to match new order
-        for (index, category) in categories.enumerated() where category.sort != index {
-            category.sort = Int16(index)
-        }
+        Self.normalizeCategoryRanks(categories)
     }
 
     /// Add categories to library manga.

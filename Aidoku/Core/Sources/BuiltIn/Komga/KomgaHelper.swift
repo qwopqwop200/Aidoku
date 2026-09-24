@@ -94,7 +94,12 @@ struct KomgaHelper: Sendable {
                     formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
                     try container.encode(formatter.string(from: date))
                 })
-                request.httpBody = try? encoder.encode(body)
+                do {
+                    request.httpBody = try encoder.encode(body)
+                } catch {
+                    // Never send a request with its selected filters silently removed.
+                    throw SourceError.message(error.localizedDescription)
+                }
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             }
 

@@ -61,6 +61,7 @@ actor DownloadManager {
     }
 
     func getDownloadedPages(for chapter: ChapterIdentifier) async -> [AidokuRunner.Page] {
+        guard cache.isSafe(chapter: chapter) else { return [] }
         let directory = cache.directory(for: chapter)
 
         let archiveURL = directory.appendingPathExtension("cbz")
@@ -126,7 +127,8 @@ actor DownloadManager {
     }
 
     func downloadsCount(for identifier: MangaIdentifier) -> Int {
-        cache.directory(for: identifier)
+        guard cache.isSafe(manga: identifier) else { return 0 }
+        return cache.directory(for: identifier)
             .contents
             .filter { ($0.isDirectory || $0.pathExtension == "cbz") && !$0.lastPathComponent.hasPrefix(".tmp") }
             .count
@@ -137,6 +139,7 @@ actor DownloadManager {
     }
 
     nonisolated func getDownloadStatus(for chapter: ChapterIdentifier) -> DownloadStatus {
+        guard cache.isSafe(chapter: chapter) else { return .none }
         let chapterDirectory = cache.directory(for: chapter)
         if chapterDirectory.exists || chapterDirectory.appendingPathExtension("cbz").exists {
             return .finished
@@ -151,11 +154,13 @@ actor DownloadManager {
     }
 
     nonisolated func getMangaDirectoryUrl(identifier: MangaIdentifier) -> URL? {
+        guard cache.isSafe(manga: identifier) else { return nil }
         let path = cache.directory(for: identifier).path
         return URL(string: "shareddocuments://\(path)")
     }
 
     func getCompressedFile(for chapter: ChapterIdentifier) -> URL? {
+        guard cache.isSafe(chapter: chapter) else { return nil }
         let chapterDirectory = cache.directory(for: chapter)
         let chapterFile = chapterDirectory.appendingPathExtension("cbz")
         if chapterFile.exists {
@@ -229,6 +234,7 @@ extension DownloadManager {
     func delete(chapters: [ChapterIdentifier]) async {
         await queue.cancelDownloads(for: chapters)
         for chapter in chapters {
+            guard cache.isSafe(chapter: chapter) else { continue }
             let directory = cache.directory(for: chapter)
             let archiveURL = directory.appendingPathExtension("cbz")
             let tmpDirectory = cache.tmpDirectory(for: chapter)
@@ -262,6 +268,7 @@ extension DownloadManager {
 
     /// Remove all downloads from a manga.
     func deleteChapters(for manga: MangaIdentifier) async {
+        guard cache.isSafe(manga: manga) else { return }
         await queue.cancelDownloads(for: manga)
         cache.directory(for: manga).removeItem()
         await cache.remove(manga: manga)
@@ -489,6 +496,7 @@ extension DownloadManager {
 
     /// Get downloaded chapters for a specific manga
     func getDownloadedChapters(for identifier: MangaIdentifier) async -> [DownloadedChapterInfo] {
+        guard cache.isSafe(manga: identifier) else { return [] }
         let mangaDirectory = cache.directory(for: identifier)
         guard mangaDirectory.exists else { return [] }
 
@@ -542,7 +550,7 @@ extension DownloadManager {
     }
 
     /// Save chapter metadata to ComicInfo.xml.
-    func saveChapterMetadata(manga: AidokuRunner.Manga, chapter: AidokuRunner.Chapter, to directory: URL) {
+    func saveChapterMetadata(manga: AidokuRunner.Manga, chapter: AidokuRunner.Chapter, to directory: URL) throws {
         let xml = ComicInfo.load(manga: manga, chapter: chapter).export()
         guard let data = xml.data(using: .utf8) else { return }
         do {
@@ -550,6 +558,7 @@ extension DownloadManager {
             try data.write(to: metadataURL)
         } catch {
             LogManager.logger.error("Failed to save chapter metadata: \(error)")
+            throw error
         }
     }
 

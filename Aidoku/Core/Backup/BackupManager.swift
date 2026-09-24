@@ -631,6 +631,17 @@ extension BackupManager {
 #endif
     }
 
+    nonisolated static func autoBackupInterval(for value: String) -> TimeInterval? {
+        switch value {
+            case "6hours": 21600
+            case "12hours": 43200
+            case "daily": 86400
+            case "2days": 172800
+            case "weekly": 604800
+            default: nil
+        }
+    }
+
     func scheduleAutoBackup() {
         guard AppSettings.backups.autoBackups.enabled.get() else {
 #if !targetEnvironment(simulator)
@@ -640,13 +651,13 @@ extension BackupManager {
         }
 
         let lastUpdated = AppSettings.backups.autoBackups.lastBackup.get()
-        let interval: Double = switch AppSettings.backups.autoBackups.interval.get() {
-            case "6hours": 21600
-            case "12hours": 43200
-            case "daily": 86400
-            case "2days": 172800
-            case "weekly": 604800
-            default: 0
+        guard let interval = Self.autoBackupInterval(for: AppSettings.backups.autoBackups.interval.get()) else {
+            // Backups can restore arbitrary strings. An unknown interval must
+            // not become zero and recursively start another successful backup.
+#if !targetEnvironment(simulator)
+            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.backupTaskIdentifier)
+#endif
+            return
         }
         let nextUpdateTime = lastUpdated + interval
 

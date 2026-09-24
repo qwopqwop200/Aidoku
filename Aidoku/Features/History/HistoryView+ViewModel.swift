@@ -29,7 +29,7 @@ extension HistoryView {
         private var loadTask: Task<Bool, Never>?
         private var historyReloadGeneration = 0
 
-        private var searchQuery: String = ""
+        private(set) var searchQuery: String = ""
         private var searchTask: Task<Void, Never>?
 
         private var missingMangaQueue: [MangaIdentifier: Set<String>] = [:]  // [mangaKey: Set<chapterId>]
@@ -199,8 +199,9 @@ extension HistoryView.ViewModel {
 extension HistoryView.ViewModel {
     // start a new search task with an optional delay
     func search(query: String, delay: Bool) async {
-        guard searchQuery != query else { return }
+        // Cancel pending input even when returning to the currently applied query.
         searchTask?.cancel()
+        guard searchQuery != query else { return }
         searchTask = Task {
             if delay {
                 try? await Task.sleep(nanoseconds: 500_000_000) // wait 0.5s

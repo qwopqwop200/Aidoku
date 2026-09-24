@@ -76,7 +76,8 @@ class DownloadCache {
     // Until background discovery finishes, inspect just the requested manga.
     private func loadIfNeeded(_ manga: MangaIdentifier) {
         let url = directory(for: manga)
-        guard !loaded, touchedManga.insert(url.path).inserted else { return }
+        guard !loaded, !touchedManga.contains(url.path), isSafe(manga: manga) else { return }
+        touchedManga.insert(url.path)
         let sourceKey = manga.sourceKey.directoryName
         if rootDirectory.subdirectories[sourceKey] == nil {
             rootDirectory.subdirectories[sourceKey] = Directory(url: directory(sourceKey: manga.sourceKey))
@@ -86,6 +87,7 @@ class DownloadCache {
 
     // add chapter to directory cache
     func add(chapter: ChapterIdentifier) {
+        guard isSafe(chapter: chapter) else { return }
         loadIfNeeded(chapter.mangaIdentifier)
         if !loaded { touchedManga.insert(directory(for: chapter.mangaIdentifier).path) }
         let sourceDirectory = rootDirectory.subdirectories[chapter.sourceKey.directoryName]
@@ -139,6 +141,7 @@ class DownloadCache {
 extension DownloadCache {
     // check if a chapter has a download directory
     func isChapterDownloaded(identifier: ChapterIdentifier) -> Bool {
+        guard Self.hasValidDownloadNames([identifier.sourceKey, identifier.mangaKey, identifier.chapterKey]) else { return false }
         loadIfNeeded(identifier.mangaIdentifier)
         guard
             let sourceDirectory = rootDirectory.subdirectories[identifier.sourceKey.directoryName],
@@ -151,6 +154,7 @@ extension DownloadCache {
 
     // check if any chapter subdirectories exist
     func hasDownloadedChapter(from identifier: MangaIdentifier) -> Bool {
+        guard Self.hasValidDownloadNames([identifier.sourceKey, identifier.mangaKey]) else { return false }
         loadIfNeeded(identifier)
         guard
             let sourceDirectory = rootDirectory.subdirectories[identifier.sourceKey.directoryName],
@@ -164,6 +168,63 @@ extension DownloadCache {
 
 // MARK: Directory Provider
 extension DownloadCache {
+    /// Keep the existing sanitized names, but never accept navigation names or
+    /// filesystem aliases that redirect a download outside its own hierarchy.
+    nonisolated static func isSafeDownloadPath(components: [String], root: URL = DownloadManager.directory) -> Bool {
+        guard root.isFileURL, !components.isEmpty else { return false }
+        let expectedRoot = root.deletingLastPathComponent().standardizedFileURL
+            .resolvingSymlinksInPath().appendingPathComponent(root.lastPathComponent).standardizedFileURL
+        var directory = root.standardizedFileURL.resolvingSymlinksInPath()
+        guard directory.path == expectedRoot.path else { return false }
+        for rawComponent in components {
+            let component = rawComponent.directoryName
+            guard !component.isEmpty, component != ".", component != ".." else { return false }
+            let next = directory.appendingPathComponent(component).standardizedFileURL
+            guard next.resolvingSymlinksInPath().path == next.path else { return false }
+            directory = next
+        }
+        return true
+    }
+
+    nonisolated static func hasValidDownloadNames(_ components: [String]) -> Bool {
+        components.allSatisfy {
+            let name = $0.directoryName
+            return !name.isEmpty && name != "." && name != ".."
+        }
+    }
+
+    nonisolated func isSafe(manga: MangaIdentifier) -> Bool {
+        Self.isSafeDownloadPath(components: [manga.sourceKey, manga.mangaKey])
+    }
+
+    nonisolated func isSafe(chapter: ChapterIdentifier) -> Bool {
+        Self.isSafeChapterPath(source: chapter.sourceKey, manga: chapter.mangaKey, chapter: chapter.chapterKey)
+    }
+
+    nonisolated static func isSafeChapterPath(source: String, manga: String, chapter: String,
+                                             root: URL = DownloadManager.directory) -> Bool {
+        guard root.isFileURL else { return false }
+        let expectedRoot = root.deletingLastPathComponent().standardizedFileURL
+            .resolvingSymlinksInPath().appendingPathComponent(root.lastPathComponent).standardizedFileURL
+        var directory = root.standardizedFileURL.resolvingSymlinksInPath()
+        guard directory.path == expectedRoot.path else { return false }
+        // Resolve each ancestor once, then check distinct final/staging targets.
+        for rawComponent in [source, manga] {
+            let component = rawComponent.directoryName
+            guard !component.isEmpty, component != ".", component != ".." else { return false }
+            let next = directory.appendingPathComponent(component).standardizedFileURL
+            guard next.resolvingSymlinksInPath().path == next.path else { return false }
+            directory = next
+        }
+        let name = chapter.directoryName
+        guard !name.isEmpty, name != ".", name != ".." else { return false }
+        return [name, name + ".cbz", Self.tmpDirectoryPrefix + name, Self.tmpDirectoryPrefix + name + ".cbz"]
+            .allSatisfy {
+                let target = directory.appendingPathComponent($0).standardizedFileURL
+                return target.resolvingSymlinksInPath().path == target.path
+            }
+    }
+
     nonisolated func directory(sourceKey: String) -> URL {
         DownloadManager.directory
             .appendingSafePathComponent(sourceKey)

@@ -148,6 +148,9 @@ final class ReaderTranslationSession {
         self.previews = Array(previews.prefix(2))
         let retained = Set((visible + pages + self.previews).map(ObjectIdentifier.init))
         knownPages.allObjects.filter { !retained.contains(ObjectIdentifier($0)) }.forEach { $0.releaseOverlay() }
+        if let pendingNavigationPage, !pages.contains(where: { $0 === pendingNavigationPage }) {
+            discardPendingNavigation()
+        }
         visible = pages
         (pages + self.previews).forEach { $0.renderCache = renderCache; knownPages.add($0) }
         if state == .on {
@@ -237,6 +240,9 @@ final class ReaderTranslationSession {
             currentPosition = anchor
         }
         self.items = Self.ordered(items, anchor: anchor, visibleKeys: visibleKeys)
+        if let pendingNavigationPage, !visible.contains(where: { $0 === pendingNavigationPage }) {
+            discardPendingNavigation()
+        }
         self.visible = visible
         visible.forEach { $0.renderCache = renderCache; knownPages.add($0) }
         if state == .on {
@@ -362,6 +368,7 @@ final class ReaderTranslationSession {
     /// critically low budget. New OCR still uses the larger admission threshold.
     @discardableResult
     func handleMemoryWarning() -> Bool {
+        discardPendingNavigation()
         guard availableMemory() >= 512 * 1_024 * 1_024 else {
             suspendWorkForResourcePressure()
             return true
@@ -412,6 +419,7 @@ final class ReaderTranslationSession {
     }
 
     private func stopWorker(preservingRecognitionFor page: Page? = nil) {
+        discardPendingNavigation()
         cancelTextWarm()
         memoryRetryTask?.cancel()
         memoryRetryTask = nil
@@ -645,17 +653,25 @@ final class ReaderTranslationSession {
     private func handleProgress(key: String, generation: UUID, regions: [ReaderTranslationRegion] = []) throws {
         try Task.checkCancellation()
         guard state == .on, workGeneration == generation, activeKey == key else { throw CancellationError() }
-        // Only the visible page shows streamed translations; lookahead pages
-        // keep their source until the completed result is prepared.
-        if let settings, let page = visible.first(where: { $0.sourcePage?.translationCacheKey == key }) {
-            if provisionalPage !== page { provisionalPage?.discardProvisionalTranslation() }
-            provisionalPage = page
-            page.displayProvisional(regions, settings: settings)
+        // The initial callback runs after OCR admission is released and before
+        // provider work. Reserve at most the same one future visible document.
+        if !regions.isEmpty, !navigationPaused, canStartHeavyWork, let settings,
+           let page = visible.first(where: { $0.sourcePage?.translationCacheKey == key }) {
+            if pendingNavigationPage !== page { discardPendingNavigation() }
+            if page.preparePendingOverlayNavigation(settings: settings) { pendingNavigationPage = page }
         }
+        // Progress validates the active request but must not replace the source.
+        // Only the completed translation and its final render may become visible.
         // OCR has released image admission before this callback.
         drainLayout()
     }
 
+    private func discardPendingNavigation() {
+        pendingNavigationPage?.discardPendingOverlayNavigation()
+        pendingNavigationPage = nil
+    }
+
+    private weak var pendingNavigationPage: ReaderTranslationPage?
     private weak var provisionalPage: ReaderTranslationPage?
 
     /// Provisional text belongs to the running translation of that page; a
@@ -852,6 +868,7 @@ final class ReaderTranslationSession {
                 } catch {
                     // A superseded worker's provisional state was discarded by stopWorker.
                     guard workGeneration == issued, !Task.isCancelled else { return }
+                    discardPendingNavigation()
                     discardProvisionalTranslations()
                     let cause = (error as? ReaderTranslationOCRFallback)?.underlying ?? error
                     let code: Int
@@ -877,6 +894,7 @@ final class ReaderTranslationSession {
                     }
                     // A broken image must not stop preparation of the remaining chapter.
                 }
+                discardPendingNavigation()
                 activeKey = nil
             }
             if workGeneration == issued { worker = nil; drainLayout() }

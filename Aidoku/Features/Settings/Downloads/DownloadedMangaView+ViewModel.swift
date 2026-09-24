@@ -92,17 +92,15 @@ extension DownloadedMangaView.ViewModel {
         return sortAscending ? sorted : sorted.reversed()
     }
 
-    private func extractNumberFromTitle(_ title: String) -> Double? {
-        // Look for patterns like "Chapter 1", "Ch. 15.5", "Episode 42", etc.
-        let patterns = [
+    private static let titleNumberPatterns: [NSRegularExpression] = [
             #"(?:chapter|ch\.?|episode|ep\.?)\s*(\d+(?:\.\d+)?)"#,
             #"^(\d+(?:\.\d+)?)(?:\s|$)"#,  // Starting with number
             #"(\d+(?:\.\d+)?)$"#           // Ending with number
-        ]
+    ].compactMap { try? NSRegularExpression(pattern: $0, options: .caseInsensitive) }
 
-        for pattern in patterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-               let match = regex.firstMatch(in: title, range: NSRange(title.startIndex..., in: title)),
+    private func extractNumberFromTitle(_ title: String) -> Double? {
+        for regex in Self.titleNumberPatterns {
+            if let match = regex.firstMatch(in: title, range: NSRange(title.startIndex..., in: title)),
                let range = Range(match.range(at: 1), in: title) {
                 let numberString = String(title[range])
                 if let number = Double(numberString) {

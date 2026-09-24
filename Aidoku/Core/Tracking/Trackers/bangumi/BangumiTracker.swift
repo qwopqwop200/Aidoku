@@ -30,11 +30,12 @@ final class BangumiTracker: OAuthTracker {
         // set status to reading if status doesn't already exist
         let state = await api.getSubjectState(id: id)
         if state?.collect == nil {
-            await api.update(subject: id, update: TrackUpdate(
+            let success = await api.update(subject: id, update: TrackUpdate(
                 status: earliestReadDate != nil ? .reading : .planning,
                 lastReadChapter: highestChapterRead,
                 startReadDate: earliestReadDate
             ))
+            guard success else { throw BangumiTrackerError.updateFailed }
         }
         return nil
     }

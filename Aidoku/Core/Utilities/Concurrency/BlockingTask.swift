@@ -32,8 +32,12 @@ final class BlockingTask<T>: @unchecked Sendable {
     private var result: T?
     private var completed = false
 
-    init(priority: TaskPriority? = nil, block: @escaping @Sendable () async -> T) {
-        Task.detached(priority: priority ?? BlockingTaskPriority.current()) {
+    private var operation: Task<Void, Never>?
+    private let forwardsCancellation: Bool
+
+    init(priority: TaskPriority? = nil, forwardsCancellation: Bool = false, block: @escaping @Sendable () async -> T) {
+        self.forwardsCancellation = forwardsCancellation
+        operation = Task.detached(priority: priority ?? BlockingTaskPriority.current()) {
             self.finish(await block())
         }
     }
@@ -49,7 +53,26 @@ final class BlockingTask<T>: @unchecked Sendable {
     func get() -> T {
         condition.lock()
         defer { condition.unlock() }
-        while !completed { condition.wait() }
+        // Opt in only for a cancellation-aware operation. The synchronous
+        // caller must still join actual completion so admission/resources stay
+        // owned until the model has stopped, including a noninterruptible tile.
+        let observesCancellation = forwardsCancellation && withUnsafeCurrentTask { $0 != nil }
+        var forwarded = false
+        while !completed {
+            if observesCancellation {
+                if !forwarded, Task.isCancelled {
+                    forwarded = true
+                    // Task.cancel may run cancellation handlers synchronously.
+                    condition.unlock()
+                    operation?.cancel()
+                    condition.lock()
+                    if completed { break }
+                }
+                _ = condition.wait(until: Date().addingTimeInterval(0.02))
+            } else {
+                condition.wait()
+            }
+        }
         return result!
     }
 }

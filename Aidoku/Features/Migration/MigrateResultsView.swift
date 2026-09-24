@@ -144,7 +144,9 @@ extension MigrateResultsView {
     }
 
     func startMatching() async {
-        selectedSeries.forEach {
+        // Row removal must not shift the cursor over work that has not started.
+        let matchingSeries = selectedSeries
+        matchingSeries.forEach {
             states[$0.identifier] = .running
         }
 
@@ -165,8 +167,8 @@ extension MigrateResultsView {
 
         await withTaskGroup(of: (MangaIdentifier, AidokuRunner.Manga?).self) { group in
             // add the initial tasks to the group
-            for i in 0..<min(selectedSeries.count, maxConcurrentTasks) {
-                let manga = selectedSeries[i]
+            for i in 0..<min(matchingSeries.count, maxConcurrentTasks) {
+                let manga = matchingSeries[i]
                 group.addTask {
                     await search(for: manga)
                 }
@@ -174,9 +176,9 @@ extension MigrateResultsView {
 
             var index = maxConcurrentTasks
             while let (key, result) = await group.next() {
-                if index < selectedSeries.count {
+                if index < matchingSeries.count {
                     // once a task completes, we can start a new one if there are still series left
-                    let manga = selectedSeries[index]
+                    let manga = matchingSeries[index]
                     group.addTask {
                         await search(for: manga)
                     }

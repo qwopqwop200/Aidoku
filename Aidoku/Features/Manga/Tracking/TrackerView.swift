@@ -154,7 +154,14 @@ struct TrackerView: View {
         // handle state updates
         .onChange(of: score) { newValue in
             guard info.supportsScores else { return }
-            let new = newValue != nil ? info.scoreType == .tenPointDecimal ? Int(newValue! * 10) : Int(newValue!) : nil
+            let new: Int?
+            if let newValue {
+                let scaled = info.scoreType == .tenPointDecimal ? newValue * 10 : newValue
+                guard let value = Int(exactly: scaled.rounded(.towardZero)) else { return }
+                new = value
+            } else {
+                new = nil
+            }
             guard state?.score != new else { return }
             state?.score = new
             update.score = new
@@ -188,7 +195,13 @@ struct TrackerView: View {
         }
         .onChange(of: lastReadVolume) { newValue in
             guard state?.progressUnit.supportsVolumes == true else { return }
-            let new = newValue != nil ? Int(floor(newValue!)) : nil
+            let new: Int?
+            if let newValue {
+                guard let value = Int(exactly: newValue.rounded(.down)) else { return }
+                new = value
+            } else {
+                new = nil
+            }
             guard state?.lastReadVolume != new else { return }
             state?.lastReadVolume = new
             update.lastReadVolume = new

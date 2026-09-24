@@ -1255,8 +1255,11 @@ extension LibraryViewController: LibraryCategorySelectionHeaderDelegate {
                     viewModel.currentCategory = ""
                 }
             } else if indexPath.section == 1 && !viewModel.categories.isEmpty {
+                // A menu callback may run after the category list has changed.
+                guard viewModel.categories.indices.contains(indexPath.row) else { return }
                 viewModel.currentCategory = viewModel.categories[indexPath.row]
             } else if indexPath.section == 2 || (indexPath.section == 1 && viewModel.categories.isEmpty) {
+                guard viewModel.filterGroups.indices.contains(indexPath.row) else { return }
                 viewModel.currentCategory = viewModel.filterGroups[indexPath.row].title
             }
             locked = viewModel.isCategoryLocked()
@@ -1651,15 +1654,17 @@ extension LibraryViewController {
                 }
 
                 Task {
+                    var restoredAny = false
                     for snapshot in removedManga {
-                        await MangaManager.shared.restoreToLibrary(
+                        let restored = await MangaManager.shared.restoreToLibrary(
                             manga: snapshot.manga,
                             chapters: snapshot.chapters,
                             trackItems: snapshot.trackItems,
                             categories: snapshot.categories
                         )
+                        restoredAny = restoredAny || restored
                     }
-
+                    guard restoredAny else { return }
                     NotificationCenter.default.post(name: .updateLibrary, object: nil)
                 }
             }

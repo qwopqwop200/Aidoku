@@ -34,7 +34,7 @@ final class MangaBakaTracker: OAuthTracker {
         if entry == nil {
             try await api.updateLibraryEntry(seriesId: id, create: true, data: .init(
                 state: highestChapterRead != nil ? .reading : .planToRead,
-                progressChapter: highestChapterRead.flatMap { Int(floor($0)) },
+                progressChapter: highestChapterRead.flatMap { Int(exactly: floor($0)) },
                 startDate: earliestReadDate?.dateString(format: dateFormat)
             ))
         }
@@ -50,7 +50,7 @@ final class MangaBakaTracker: OAuthTracker {
             seriesId: nil,
             state: update.status.flatMap(MangaBakaLibraryState.init),
             rating: update.score,
-            progressChapter: update.lastReadChapter.flatMap { Int(floor($0)) },
+            progressChapter: update.lastReadChapter.flatMap { Int(exactly: floor($0)) },
             progressVolume: update.lastReadVolume,
             startDate: update.startReadDate?.dateString(format: dateFormat),
             finishDate: update.finishReadDate?.dateString(format: dateFormat)

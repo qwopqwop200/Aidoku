@@ -34,7 +34,7 @@ final class MyAnimeListTracker: OAuthTracker {
             try await api.updateMangaStatus(
                 id: id,
                 status: MyAnimeListMangaStatus(
-                    numChaptersRead: highestChapterRead.flatMap { Int(floor($0)) },
+                    numChaptersRead: highestChapterRead.flatMap { Int(exactly: floor($0)) },
                     startDate: earliestReadDate?.dateString(format: "yyyy-MM-dd"),
                     status: highestChapterRead != nil ? "reading" : "plan_to_read",
                 )
@@ -50,7 +50,7 @@ final class MyAnimeListTracker: OAuthTracker {
         let status = MyAnimeListMangaStatus(
             isRereading: update.status != nil ? update.status?.rawValue == TrackStatus.rereading.rawValue : nil,
             numVolumesRead: update.lastReadVolume,
-            numChaptersRead: update.lastReadChapter != nil ? Int(floor(update.lastReadChapter!)) : nil,
+            numChaptersRead: update.lastReadChapter.flatMap { Int(exactly: floor($0)) },
             startDate: update.startReadDate?.dateString(format: "yyyy-MM-dd"),
             finishDate: update.finishReadDate?.dateString(format: "yyyy-MM-dd"),
             status: update.status != nil ? getStatusString(status: update.status!) : nil,

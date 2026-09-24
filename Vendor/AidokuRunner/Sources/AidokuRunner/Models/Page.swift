@@ -64,6 +64,16 @@ struct PageCodable: Sendable, Hashable, Codable {
     let hasDescription: Bool
     let description: String?
 
+    // The source SDK transfers returned image descriptors to the host.
+    // Resolve the entire list first because multiple pages can share a descriptor.
+    static func consume(_ pages: [PageCodable], store: GlobalStore) -> [Page] {
+        let result = pages.compactMap { $0.into(store: store) }
+        for pointer in Set(pages.compactMap { $0.content.storePointer }) {
+            store.remove(at: pointer)
+        }
+        return result
+    }
+
     func into(store: GlobalStore) -> Page? {
         content.into(store: store).flatMap {
             .init(

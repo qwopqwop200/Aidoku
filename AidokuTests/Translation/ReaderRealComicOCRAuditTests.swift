@@ -7,7 +7,7 @@ import UIKit
 @Suite(.serialized) @MainActor
 struct ReaderRealComicOCRAuditTests {
     // Opt-in, original-image audit of the actual ReaderOCRService route,
-    // including Vision reconciliation and UIKit word-boundary resolution.
+    // including native recognition and UIKit word-boundary resolution.
     // No provider request or translation-quality assertion is made here.
     @Test(.enabled(if: FileManager.default.fileExists(atPath:
         URL.documentsDirectory.appendingPathComponent("RealComicOCRAudit/manifest.json").path)))
@@ -35,7 +35,7 @@ struct ReaderRealComicOCRAuditTests {
                     "sha256": hash, "work": fixture.work, "run_label": manifest.runLabel,
                     "width": image.width, "height": image.height, "sequence_index": index,
                     "ocr_ms": Double(elapsed.seconds) * 1_000 + Double(elapsed.attoseconds) / 1e15,
-                    "scope": "Simulator ReaderOCRService: native + Vision + UIKit resolver + merger; no provider",
+                    "scope": "ReaderOCRService: native + UIKit resolver + merger; no provider",
                     "regions": regions.map { region -> [String: Any] in
                         ["id": region.id, "text": region.source, "confidence": region.confidence,
                          "rect": [region.rect.minX, region.rect.minY, region.rect.width, region.rect.height],

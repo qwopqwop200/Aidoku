@@ -189,7 +189,8 @@ extension Interpreter: Runner {
         defer { store.remove(at: chapterPointer) }
         let result: Int32 = try function.call(mangaPointer, chapterPointer)
         let data = try handleResult(result: result)
-        return try PostcardDecoder().decode([PageCodable].self, from: data).compactMap { $0.into(store: store) }
+        let pages = try PostcardDecoder().decode([PageCodable].self, from: data)
+        return PageCodable.consume(pages, store: store)
     }
 
     public func getMangaList(listing: Listing, page: Int) throws -> MangaPageResult {

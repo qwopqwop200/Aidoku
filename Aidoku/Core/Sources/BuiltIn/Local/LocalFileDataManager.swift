@@ -13,10 +13,12 @@ final actor LocalFileDataManager {
     static let shared = LocalFileDataManager()
 
     private let context: NSManagedObjectContext
+    private let saveDeletion: @Sendable (NSManagedObjectContext) throws -> Void
     private let objectExecutor: ObjectActorSerialExecutor
     public nonisolated let unownedExecutor: UnownedSerialExecutor
 
-    init() {
+    init(saveDeletion: @escaping @Sendable (NSManagedObjectContext) throws -> Void = { try $0.save() }) {
+        self.saveDeletion = saveDeletion
         context = CoreDataManager.shared.container.newBackgroundContext()
         context.automaticallyMergesChangesFromParent = true
         context.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
@@ -187,6 +189,17 @@ extension LocalFileDataManager {
             return nil // nothing to remove
         }
 
+        // Validate every existing path before mutating any record. Invalid legacy
+        // records stay intact for recovery; never convert them into delete targets.
+        for object in mangaObjects {
+            let paths = [object.fileInfo?.path] + ((object.chapters as? Set<ChapterObject>) ?? [])
+                .map { $0.fileInfo?.path }
+            for path in paths.compactMap({ $0 }) {
+                guard LocalFileManager.isContainedLocalURL(FileManager.default.documentDirectory.appendingPathComponent(path)) else {
+                    return nil
+                }
+            }
+        }
         var mangaPath: String?
 
         for mangaObject in mangaObjects {
@@ -217,7 +230,12 @@ extension LocalFileDataManager {
             // remove manga object
             context.delete(mangaObject)
 
-            try? context.save()
+            do { try saveDeletion(context) }
+            catch {
+                context.rollback()
+                LogManager.logger.error("Failed to remove local manga: \(error)")
+                return nil
+            }
         }
 
         return mangaPath
@@ -238,6 +256,10 @@ extension LocalFileDataManager {
         }
 
         let filePath = object.fileInfo?.path
+        if let filePath,
+           !LocalFileManager.isContainedLocalURL(FileManager.default.documentDirectory.appendingPathComponent(filePath)) {
+            return nil
+        }
 
         // remove file info
         if let fileInfo = object.fileInfo {
@@ -247,7 +269,12 @@ extension LocalFileDataManager {
         // remove chapter object
         context.delete(object)
 
-        try? context.save()
+        do { try saveDeletion(context) }
+        catch {
+            context.rollback()
+            LogManager.logger.error("Failed to remove local chapter: \(error)")
+            return nil
+        }
 
         // only report the file for removal if no other chapters still reference it
         if let filePath {

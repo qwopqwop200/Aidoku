@@ -194,7 +194,13 @@ extension LibraryViewModel {
             let isInFilterGroup = filterGroups.contains(where: { $0.title == currentCategory })
             let showUncategorized = AppSettings.library.showUncategorizedCategory.get()
             if let currentCategory, (!categories.contains(currentCategory) && !isInFilterGroup) || (currentCategory.isEmpty && !showUncategorized) {
-                self.currentCategory = nil
+                let persistedCategory = AppSettings.library.currentCategory.get()
+                if let persistedCategory,
+                   categories.contains(persistedCategory) || filterGroups.contains(where: { $0.title == persistedCategory }) {
+                    self.currentCategory = persistedCategory
+                } else {
+                    self.currentCategory = nil
+                }
                 await loadLibrary()
             } else if isInFilterGroup {
                 // refresh filter group in case filters changed
@@ -446,15 +452,17 @@ extension LibraryViewModel {
             for count in unreadCounts {
                 if let pinnedIndex = pinnedManga.firstIndex(where: { $0.hashValue == count.key }) {
                     pinnedManga[pinnedIndex].unread = count.value
-                    if read && sortMethod == .lastRead && pinnedIndex != 0 {
+                    if read && sortMethod == .lastRead {
                         let manga = pinnedManga.remove(at: pinnedIndex)
-                        pinnedManga.insert(manga, at: 0)
+                        if sortAscending { pinnedManga.append(manga) }
+                        else { pinnedManga.insert(manga, at: 0) }
                     }
                 } else if let mangaIndex = self.manga.firstIndex(where: { $0.hashValue == count.key }) {
                     self.manga[mangaIndex].unread = count.value
-                    if read && sortMethod == .lastRead && mangaIndex != 0 {
+                    if read && sortMethod == .lastRead {
                         let manga = self.manga.remove(at: mangaIndex)
-                        self.manga.insert(manga, at: 0)
+                        if sortAscending { self.manga.append(manga) }
+                        else { self.manga.insert(manga, at: 0) }
                     }
                 }
             }
@@ -476,14 +484,7 @@ extension LibraryViewModel {
 
         // fetch new unread counts
         let unreadCounts = await CoreDataManager.shared.container.performBackgroundTask { context in
-            var counts: [MangaIdentifier: Int] = [:]
-            for manga in currentManga {
-                let filters = CoreDataManager.shared.getMangaChapterFilters(mangaId: manga.id, context: context)
-                counts[manga.id] = CoreDataManager.shared.unreadCount(
-                    mangaId: manga.id, lang: filters.language, scanlators: filters.scanlators, context: context
-                )
-            }
-            return counts
+            CoreDataManager.shared.unreadCounts(mangaIds: currentManga.map(\.id), context: context)
         }
 
         // set unread counts
@@ -683,9 +684,11 @@ extension LibraryViewModel {
             if sortMethod == .lastOpened {
                 let manga = pinnedManga.remove(at: pinnedIndex)
                 if pinType.needsUpdateOnContentOpen {
-                    self.manga.insert(manga, at: 0)
+                    if sortAscending { self.manga.append(manga) }
+                    else { self.manga.insert(manga, at: 0) }
                 } else {
-                    pinnedManga.insert(manga, at: 0)
+                    if sortAscending { pinnedManga.append(manga) }
+                    else { pinnedManga.insert(manga, at: 0) }
                 }
             } else {
                 await loadLibrary() // don't know where to put in manga array, just refresh
@@ -719,10 +722,17 @@ extension LibraryViewModel {
 
         if let pinnedIndex = pinnedManga.firstIndex(where: { $0.id == mangaId }) {
             let manga = pinnedManga.remove(at: pinnedIndex)
-            self.manga.insert(manga, at: 0)
+            if pinType.needsUpdateOnContentOpen {
+                if sortAscending { self.manga.append(manga) }
+                else { self.manga.insert(manga, at: 0) }
+            } else {
+                if sortAscending { pinnedManga.append(manga) }
+                else { pinnedManga.insert(manga, at: 0) }
+            }
         } else if let index = manga.firstIndex(where: { $0.id == mangaId }) {
             let manga = manga.remove(at: index)
-            self.manga.insert(manga, at: 0)
+            if sortAscending { self.manga.append(manga) }
+            else { self.manga.insert(manga, at: 0) }
         }
     }
 

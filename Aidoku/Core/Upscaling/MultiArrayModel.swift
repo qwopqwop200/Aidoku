@@ -15,8 +15,14 @@ final class MultiArrayModel: ImageProcessingModel {
     private let shrinkSize: Int
     private let scale: Int
     private let grayscaleOnly: Bool
+    private let exactReuse: ReaderUpscaleCanonicalReuse?
 
-    required init?(model: MLModel, config: [String: Any]) {
+    // Protocol/custom model construction does not opt into deterministic reuse.
+    required convenience init?(model: MLModel, config: [String: Any]) {
+        self.init(model: model, config: config, allowsExactReuse: false)
+    }
+
+    init?(model: MLModel, config: [String: Any], allowsExactReuse: Bool) {
         let block = config["blockSize"] as? Int ?? 256
         let shrink = config["shrinkSize"] as? Int ?? 0
         let scale = config["scale"] as? Int ?? 2
@@ -40,6 +46,7 @@ final class MultiArrayModel: ImageProcessingModel {
         self.shrinkSize = shrink
         self.scale = scale
         self.grayscaleOnly = config["grayscaleOnly"] as? Bool ?? false
+        self.exactReuse = allowsExactReuse ? ReaderUpscaleCanonicalReuse() : nil
     }
 
     func process(_ image: CGImage) async -> CGImage? {
@@ -72,6 +79,27 @@ final class MultiArrayModel: ImageProcessingModel {
                 let blue = Int(pixels[offset + 2])
                 if max(red, green, blue) - min(red, green, blue) > 8 { return image }
             }
+        }
+        var reuseKey: ReaderUpscaleCanonicalReuse.Key?
+        if let exactReuse {
+            guard !Task.isCancelled else { return nil }
+            reuseKey = pixels.withUnsafeBytes {
+                ReaderUpscaleCanonicalReuse.key(bytes: $0, width: width, height: height)
+            }
+            guard !Task.isCancelled else { return nil }
+            if let reuseKey, let reused = exactReuse.image(for: reuseKey) {
+                guard !Task.isCancelled else { return nil }
+                ReaderTranslationDiagnostics.renderingProfile("upscale_model_weak_hit")
+                return reused
+            }
+        }
+        // Count actual inference passes after completed-result lookup, not calls
+        // that only normalize/hash and reuse already-owned exact output pixels.
+        let profileID = UInt64(ProcessInfo.processInfo.systemUptime * 1_000_000)
+        ReaderTranslationDiagnostics.renderingProfile("upscale_model_begin", count: width * height, revision: profileID)
+        var inferenceSucceeded = false
+        defer {
+            ReaderTranslationDiagnostics.renderingProfile("upscale_model_end", count: inferenceSucceeded ? 1 : 0, revision: profileID)
         }
         guard let input = try? MLMultiArray(shape: [1, 3, NSNumber(value: blockSize), NSNumber(value: blockSize)], dataType: .float32),
               let provider = try? MLDictionaryFeatureProvider(dictionary: [inputName: MLFeatureValue(multiArray: input)]) else { return nil }
@@ -122,10 +150,15 @@ final class MultiArrayModel: ImageProcessingModel {
             }
         }
         guard let provider = CGDataProvider(data: Data(result) as CFData) else { return nil }
-        return CGImage(
+        let output = CGImage(
             width: outputWidth, height: outputHeight, bitsPerComponent: 8, bitsPerPixel: 32,
             bytesPerRow: outputWidth * 4, space: colorSpace, bitmapInfo: CGBitmapInfo(rawValue: bitmapInfo),
             provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent
         )
+        inferenceSucceeded = output != nil
+        if let output, let reuseKey, !Task.isCancelled {
+            exactReuse?.store(output, for: reuseKey)
+        }
+        return output
     }
 }

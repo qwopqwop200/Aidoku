@@ -231,3 +231,47 @@ private actor CallbackGate {
         pending = nil
     }
 }
+
+struct ReturnedPageImageOwnershipTests {
+    @Test func duplicateReturnedImagesPreserveOrderMetadataAndPixelsAndReleaseDescriptors() throws {
+        let store = GlobalStore()
+        let canvas = Canvas(store: store)
+        let context = canvas.newContext(width: 3, height: 5)
+        let pointer = canvas.getImage(contextPtr: context)
+        store.remove(at: context)
+        let image = try #require(store.fetchImage(from: pointer))
+        let original = try #require(image.pngData())
+        let pages = [
+            PageCodable(content: .image(pointer), thumbnail: nil, hasDescription: true, description: "first"),
+            PageCodable(content: .text("middle"), thumbnail: nil, hasDescription: false, description: nil),
+            PageCodable(content: .image(pointer), thumbnail: nil, hasDescription: true, description: "last")
+        ]
+        let decoded = try PostcardDecoder().decode([PageCodable].self, from: PostcardEncoder().encode(pages))
+        let result = PageCodable.consume(decoded, store: store)
+        #expect(result.count == 3)
+        #expect(result.map(\.description) == ["first", nil, "last"])
+        #expect(store.storage.isEmpty)
+        #expect(result[1].content == .text("middle"))
+        for index in [0, 2] {
+            guard case let .image(output) = result[index].content else {
+                Issue.record("Returned image was lost")
+                return
+            }
+            #expect(output.size == image.size)
+            #expect(output.pngData() == original)
+        }
+    }
+
+    @Test func repeatedReturnedImagesDoNotAccumulateStoreEntries() throws {
+        let store = GlobalStore()
+        let canvas = Canvas(store: store)
+        for _ in 0..<50 {
+            let context = canvas.newContext(width: 2, height: 2)
+            let pointer = canvas.getImage(contextPtr: context)
+            store.remove(at: context)
+            let page = PageCodable(content: .image(pointer), thumbnail: nil, hasDescription: false, description: nil)
+            #expect(PageCodable.consume([page], store: store).count == 1)
+            #expect(store.storage.isEmpty)
+        }
+    }
+}

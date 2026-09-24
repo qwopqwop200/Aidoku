@@ -245,6 +245,38 @@ actor TranslationCache {
         }
     }
 
+    /// Stop accumulating new provider results after persistent storage failure
+    /// exhausts the pending-result budget. Existing answers remain readable.
+    /// This is a failure circuit breaker, not a hard cap on already admitted work.
+    func ensureProviderPersistenceAdmission() throws {
+        try Task.checkCancellation()
+        guard configuration.diskEnabled, lastPersistenceFailure != nil else { return }
+        // Only the failure path measures pending results. Healthy translation
+        // avoids another JSON encoding and keeps its existing persistence path.
+        var remainingBytes = maximumBytes
+        for (key, translations) in pendingDiskWrites {
+            let charge: Int
+            do {
+                charge = try translationEntryCharge(key: key, translations: translations)
+            } catch {
+                throw TranslationCacheError.persistenceFailure
+            }
+            if charge >= remainingBytes {
+                // Retry actual persistence before denying admission, so repaired
+                // storage can recover without an app restart or dropping data.
+                do {
+                    try persistPendingDiskWrites()
+                    lastPersistenceFailure = nil
+                } catch {
+                    schedulePersistence()
+                    throw TranslationCacheError.persistenceFailure
+                }
+                return
+            }
+            remainingBytes -= charge
+        }
+    }
+
     func reconfigure(_ next: TranslationCacheConfiguration) throws {
         let nextMaximumBytes = try next.validatedMaximumBytes()
         persistenceTask?.cancel()

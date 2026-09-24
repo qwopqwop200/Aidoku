@@ -141,7 +141,7 @@ extension BangumiApi {
             comment: nil,
             tags: nil,
             vol_status: update.lastReadVolume.map { Int($0) },
-            ep_status: update.lastReadChapter.map { Int($0) }
+            ep_status: update.lastReadChapter.flatMap { Int(exactly: $0.rounded(.towardZero)) }
         )
 
         request.httpBody = try? encoder.encode(collectionUpdate)

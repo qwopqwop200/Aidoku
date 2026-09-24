@@ -41,20 +41,20 @@ actor KomgaApi {
             return .init(
                 progressUnit: .chapters,
                 lastReadChapter: data.lastReadContinuousNumberSort,
-                totalChapters: Int(floor(data.maxNumberSort)),
+                totalChapters: Int(exactly: floor(data.maxNumberSort)),
             )
         } else {
             return .init(
                 progressUnit: .volumes,
-                lastReadVolume: Int(floor(data.lastReadContinuousNumberSort)),
-                totalVolumes: Int(floor(data.maxNumberSort)),
+                lastReadVolume: Int(exactly: floor(data.lastReadContinuousNumberSort)),
+                totalVolumes: Int(exactly: floor(data.maxNumberSort)),
             )
         }
     }
 
     func update(sourceKey: String, seriesId: String, update: TrackUpdate) async throws {
         let useChapters = shouldUseChapters(mangaId: .init(sourceKey: sourceKey, mangaKey: seriesId))
-        guard let lastReadVolume = useChapters ? update.lastReadChapter.flatMap({ Int(floor($0)) }) : update.lastReadVolume
+        guard let lastReadVolume = useChapters ? update.lastReadChapter.flatMap({ Int(exactly: floor($0)) }) : update.lastReadVolume
         else { return }
 
         let helper = KomgaHelper(sourceKey: sourceKey)

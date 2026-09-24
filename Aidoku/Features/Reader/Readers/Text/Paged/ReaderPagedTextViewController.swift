@@ -72,11 +72,14 @@ class ReaderPagedTextViewController: BaseObservingViewController {
     // Chapter navigation
     private var previousChapter: AidokuRunner.Chapter?
     private var nextChapter: AidokuRunner.Chapter?
+    private let readingProgressLoader: (@Sendable (String) async -> CGFloat?)?
 
     // MARK: - Initialization
 
-    init(source: AidokuRunner.Source?, manga: AidokuRunner.Manga) {
+    init(source: AidokuRunner.Source?, manga: AidokuRunner.Manga,
+         readingProgressLoader: (@Sendable (String) async -> CGFloat?)? = nil) {
         self.viewModel = ReaderTextViewModel(source: source, manga: manga)
+        self.readingProgressLoader = readingProgressLoader
         super.init()
     }
 
@@ -289,11 +292,15 @@ class ReaderPagedTextViewController: BaseObservingViewController {
                 targetIndex = pages.count - 1
                 currentCharacterOffset = pages[targetIndex].range.location
             } else if let chapterKey = chapter?.key {
+                let issued = chapterGeneration
                 Task {
+                    let progress = await loadReadingProgress(for: chapterKey)
+                    guard !Task.isCancelled, chapterGeneration == issued,
+                          chapter?.key == chapterKey, !pages.isEmpty else { return }
                     let targetIndex: Int
-                    if let progress = await loadReadingProgress(for: chapterKey), progress > 0 {
+                    if let progress, progress.isFinite, progress > 0 {
                         // Fall back to shared progress (e.g. from scroll reader)
-                        let idx = Int(progress * Double(max(1, pages.count - 1)))
+                        let idx = Int(min(progress, 1) * Double(max(1, pages.count - 1)))
                         targetIndex = min(max(0, idx), pages.count - 1)
                     } else {
                         targetIndex = min(pending - 1, pages.count - 1)
@@ -317,7 +324,8 @@ class ReaderPagedTextViewController: BaseObservingViewController {
 
     /// Load previously saved reading progress for a chapter.
     private func loadReadingProgress(for chapterKey: String) async -> CGFloat? {
-        await CoreDataManager.shared.container.performBackgroundTask { [weak self] context in
+        if let readingProgressLoader { return await readingProgressLoader(chapterKey) }
+        return await CoreDataManager.shared.container.performBackgroundTask { [weak self] context in
             guard let self else { return nil }
             let object = CoreDataManager.shared.getHistory(
                 chapterId: .init(
@@ -599,9 +607,12 @@ extension ReaderPagedTextViewController: ReaderReaderDelegate {
 
     func loadPreviousChapter() {
         guard let previousChapter else { return }
+        let issued = chapterGeneration
+        let origin = chapter
         Task {
             // Preload to check whether the chapter has text pages.
             let preloaded = await viewModel.preload(chapter: previousChapter)
+            guard !Task.isCancelled, chapterGeneration == issued, chapter == origin else { return }
             guard !preloaded.isEmpty else {
                 await MainActor.run { snapBackToTransitionPage() }
                 return
@@ -622,8 +633,11 @@ extension ReaderPagedTextViewController: ReaderReaderDelegate {
 
     func loadNextChapter() {
         guard let nextChapter else { return }
+        let issued = chapterGeneration
+        let origin = chapter
         Task {
             let preloaded = await viewModel.preload(chapter: nextChapter)
+            guard !Task.isCancelled, chapterGeneration == issued, chapter == origin else { return }
             guard !preloaded.isEmpty else {
                 await MainActor.run { snapBackToTransitionPage() }
                 return

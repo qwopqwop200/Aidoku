@@ -53,7 +53,8 @@ struct NativeOCRDiagnosticValidationTests {
                 detector.reset()
                 // This is the ONLY detector/recognizer call per fixture.
                 let result = try await pipeline.recognize(
-                    image: image, requestID: name, confidenceThreshold: configuration.confidenceThreshold
+                    image: image, requestID: name, confidenceThreshold: configuration.confidenceThreshold,
+                    detectorConfiguration: configuration.detectorPostprocessConfiguration
                 )
                 let detection = try #require(detector.lastResult)
                 let raw: [String: Any] = [
@@ -179,7 +180,12 @@ struct NativeOCRDiagnosticValidationTests {
                 source: source,
                 polygon: line.poly.map { CGPoint(x: $0.x / imageBounds.width, y: $0.y / imageBounds.height) },
                 confidence: line.score, sourceImageAspectRatio: Double(image.width) / Double(image.height), sourceOrientation: line.sourceOrientation,
-                sourceSingleVerticalColumn: line.singleVerticalColumn
+                sourceSingleVerticalColumn: line.singleVerticalColumn,
+                auxiliaryInkRects: line.auxiliaryInkRects.map { $0.intersection(imageBounds) }.filter { !$0.isNull && !$0.isEmpty }.map {
+                    CGRect(x: $0.minX / imageBounds.width, y: $0.minY / imageBounds.height,
+                           width: $0.width / imageBounds.width, height: $0.height / imageBounds.height)
+                },
+                auxiliaryInkPolygons: line.auxiliaryInkPolygons.map { $0.map { CGPoint(x: $0.x / imageBounds.width, y: $0.y / imageBounds.height) } }
             )
         }
         let balloonStart = ProcessInfo.processInfo.systemUptime

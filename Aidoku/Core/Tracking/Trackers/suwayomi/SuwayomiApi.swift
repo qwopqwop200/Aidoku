@@ -40,7 +40,7 @@ actor SuwayomiApi {
         return .init(
             progressUnit: .chapters,
             lastReadChapter: response.data.manga.latestReadChapter?.chapterNumber,
-            totalChapters: response.data.manga.highestNumberedChapter?.chapterNumber.flatMap { Int(floor($0)) }
+            totalChapters: response.data.manga.highestNumberedChapter?.chapterNumber.flatMap { Int(exactly: floor($0)) }
                 ?? response.data.manga.chapters.totalCount
         )
     }
@@ -127,7 +127,7 @@ actor SuwayomiApi {
             }
         }
 
-        let lastPageRead = max(progress.page - 1, 0)
+        let lastPageRead = progress.page > 0 ? progress.page - 1 : 0
         let patch = SuwayomiChapterProgressPatch(
             isRead: progress.completed,
             lastPageRead: lastPageRead
@@ -166,9 +166,11 @@ actor SuwayomiApi {
         var result: [String: ChapterReadProgress] = [:]
         for chapter in response.data.chapters.nodes {
             guard chapter.isRead || chapter.lastPageRead > 0 else { continue }
+            let page = chapter.lastPageRead.addingReportingOverflow(1)
+            guard !page.overflow else { continue }
             result["\(chapter.id)"] = .init(
                 completed: chapter.isRead,
-                page: chapter.isRead ? max(chapter.pageCount, chapter.lastPageRead + 1) : chapter.lastPageRead + 1,
+                page: chapter.isRead ? max(chapter.pageCount, page.partialValue) : page.partialValue,
                 date: Date(suwayomiTimestamp: chapter.lastReadAt)
             )
         }

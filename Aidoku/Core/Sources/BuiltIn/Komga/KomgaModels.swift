@@ -105,6 +105,16 @@ extension KomgaSearchCondition: Encodable {
                 try container.encode(ConditionValue(operator: exclude ? "isNot" : "is", value: readStatus.rawValue), forKey: .readStatus)
             case .releaseDate(let year, let exclude):
                 if let year {
+                    // Server-provided filter IDs can contain any Int. Validate both
+                    // neighbors before Calendar or Date.lastOf performs arithmetic.
+                    let nextYear = year.addingReportingOverflow(1)
+                    let previousYear = year.subtractingReportingOverflow(1)
+                    guard !nextYear.overflow, !previousYear.overflow else {
+                        throw EncodingError.invalidValue(year, .init(
+                            codingPath: encoder.codingPath,
+                            debugDescription: "Release year exceeds the supported integer range"
+                        ))
+                    }
                     struct ReleaseDate: Encodable {
                         struct Inner: Encodable {
                             var `operator`: String
@@ -130,8 +140,8 @@ extension KomgaSearchCondition: Encodable {
                     } else {
                         // any date that is within the given year (both after end of prev year and before first of next year)
                         guard
-                            let firstOfNextYear = Date.firstOf(year: year + 1),
-                            let lastOfPrevYear = Date.lastOf(year: year - 1)
+                            let firstOfNextYear = Date.firstOf(year: nextYear.partialValue),
+                            let lastOfPrevYear = Date.lastOf(year: previousYear.partialValue)
                         else { break }
                         try container.encode([
                             ReleaseDate(operator: "after", value: lastOfPrevYear),

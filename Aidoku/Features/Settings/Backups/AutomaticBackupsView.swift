@@ -10,6 +10,8 @@ import SwiftUI
 struct AutomaticBackupsView: View {
     @StateObject private var enabled = UserDefaultsBool(key: AppSettings.backups.autoBackups.enabled.key)
 
+    @AppStorage(AppSettings.backups.autoBackups.interval.key) private var interval = "daily"
+
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -69,6 +71,11 @@ struct AutomaticBackupsView: View {
                     CloseButton {
                         dismiss()
                     }
+                }
+            }
+            .onChange(of: interval) { _ in
+                Task {
+                    await BackupManager.shared.scheduleAutoBackup()
                 }
             }
             .onChange(of: enabled.value) { _ in

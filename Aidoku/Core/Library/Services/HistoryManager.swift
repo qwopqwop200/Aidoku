@@ -25,16 +25,18 @@ extension HistoryManager {
         let mangaId = chapterId.mangaIdentifier
         let metadataGeneration = HistoryMetadataCache.shared.generation
         let saved = await CoreDataManager.shared.container.performBackgroundTask { context in
-            CoreDataManager.shared.setRead(mangaId: mangaId, context: context)
-            CoreDataManager.shared.setProgress(
-                progress,
-                chapterId: chapterId,
-                totalPages: totalPages,
-                scrollPosition: scrollPosition,
-                context: context
-            )
             do {
-                try context.save()
+                try Self.saveMutationWithRetry(context: context) {
+                    CoreDataManager.shared.setRead(mangaId: mangaId, context: context)
+                    CoreDataManager.shared.setProgress(
+                        progress,
+                        chapterId: chapterId,
+                        totalPages: totalPages,
+                        scrollPosition: scrollPosition,
+                        context: context
+                    )
+                    return true
+                }
                 if let manga {
                     HistoryMetadataCache.shared.store(manga: manga, chapters: [chapter], generation: metadataGeneration)
                 }
@@ -80,44 +82,44 @@ extension HistoryManager {
         }
     }
 
+    @discardableResult
     func addHistory(
         mangaId: MangaIdentifier,
         chapters: [AidokuRunner.Chapter],
         manga: AidokuRunner.Manga? = nil,
         date: Date = Date(),
         skipTracker: Tracker? = nil
-    ) async {
+    ) async -> Bool {
+        guard !chapters.isEmpty else { return false }
         let metadataGeneration = HistoryMetadataCache.shared.generation
-        // mark each manga as read
-        let success = await CoreDataManager.shared.container.performBackgroundTask { context in
-            // mark chapters as read
-            let success = CoreDataManager.shared.setCompleted(
-                chapterIds: chapters.map {
-                    .init(sourceKey: mangaId.sourceKey, mangaKey: mangaId.mangaKey, chapterKey: $0.key)
-                },
-                date: date,
-                context: context
-            )
-            if success {
-                CoreDataManager.shared.setRead(
-                    mangaId: mangaId,
-                    date: date,
-                    context: context
-                )
-                do {
-                    try context.save()
-                    if let manga {
-                        HistoryMetadataCache.shared.store(manga: manga, chapters: chapters, generation: metadataGeneration)
+        let result = await CoreDataManager.shared.container.performBackgroundTask { context in
+            do {
+                let changed = try Self.saveMutationWithRetry(context: context) {
+                    let changed = CoreDataManager.shared.setCompleted(
+                        chapterIds: chapters.map {
+                            .init(sourceKey: mangaId.sourceKey, mangaKey: mangaId.mangaKey, chapterKey: $0.key)
+                        },
+                        date: date,
+                        context: context
+                    )
+                    if changed {
+                        CoreDataManager.shared.setRead(mangaId: mangaId, date: date, context: context)
                     }
-                } catch {
-                    context.rollback()
-                    LogManager.logger.error("HistoryManager.addHistory: \(error.localizedDescription)")
-                    return false
+                    return changed
                 }
+                if changed, let manga {
+                    HistoryMetadataCache.shared.store(manga: manga, chapters: chapters, generation: metadataGeneration)
+                }
+                return (saved: true, changed: changed)
+            } catch {
+                context.rollback()
+                LogManager.logger.error("HistoryManager.addHistory: \(error.localizedDescription)")
+                return (saved: false, changed: false)
             }
-            return success
         }
-        guard success else { return }
+        guard result.saved else { return false }
+        // Already-completed persisted chapters acknowledge success without duplicate events.
+        guard result.changed else { return true }
         NotificationCenter.default.post(
             name: .historyAdded,
             object: chapters.map {
@@ -142,6 +144,36 @@ extension HistoryManager {
                 progress: .init(completed: true, page: 0)
             )
         }
+        return true
+    }
+
+    /// Retry only optimistic locking conflicts on a private history transaction.
+    /// Refetch before replay so unrelated changes (for example lastOpened) survive.
+    @discardableResult
+    static func saveMutationWithRetry(
+        context: NSManagedObjectContext,
+        mutation: () throws -> Bool
+    ) throws -> Bool {
+        for attempt in 0..<3 {
+            let changed = try mutation()
+            guard changed else { return false }
+            do {
+                try context.save()
+                return true
+            } catch {
+                context.rollback()
+                guard attempt < 2, isOptimisticMergeConflict(error as NSError) else { throw error }
+                context.reset()
+            }
+        }
+        return false // The final failed attempt throws; no unbounded retries.
+    }
+
+    private static func isOptimisticMergeConflict(_ error: NSError) -> Bool {
+        guard error.domain == NSCocoaErrorDomain else { return false }
+        if error.code == NSManagedObjectMergeError { return true }
+        guard let errors = error.userInfo[NSDetailedErrorsKey] as? [NSError], !errors.isEmpty else { return false }
+        return errors.allSatisfy(isOptimisticMergeConflict)
     }
 
     func removeHistory(chapterIds: [ChapterIdentifier]) async {

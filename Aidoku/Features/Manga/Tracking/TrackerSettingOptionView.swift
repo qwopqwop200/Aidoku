@@ -72,7 +72,8 @@ struct TrackerSettingOptionView: View {
 
         coordinator = TrackerSettingOptionViewCoordinator(
             // FIXME: probably not gonna need more than 2k chapters, right?
-            total: Int(total.wrappedValue == 0 || total.wrappedValue == nil ? 2000 : total.wrappedValue!),
+            total: total.wrappedValue == nil || total.wrappedValue == 0
+                ? 2000 : Int(exactly: total.wrappedValue!.rounded(.towardZero)) ?? -1,
             numberType: numberType
         )
     }
@@ -162,7 +163,8 @@ struct TrackerSettingOptionView: View {
     }
 
     func showPicker() {
-        coordinator.pickerView.selectRow(numberType == .int ? Int(count ?? 0) : Int((count ?? 0) * 10), inComponent: 0, animated: false)
+        guard let row = coordinator.selectionRow(for: count) else { return }
+        coordinator.pickerView.selectRow(row, inComponent: 0, animated: false)
 
         let alert = UIAlertController(title: title, message: "\n\n\n\n\n\n\n\n", preferredStyle: .alert)
 

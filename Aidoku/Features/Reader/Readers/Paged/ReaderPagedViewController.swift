@@ -44,6 +44,18 @@ class ReaderPagedViewController: BaseObservingViewController {
     private lazy var pagesToPreload = UserDefaults.standard.integer(forKey: "Reader.pagesToPreload")
     private let pagePrefetcher = ReaderPagePrefetcher()
     private var nextChapterPreloadTask: Task<Void, Never>?
+    private var nextChapterPreloadTarget: AidokuRunner.Chapter?
+    private var nextChapterPreloadCount = 0
+    private var nextChapterPreloadGeneration = UUID()
+
+    private func cancelNextChapterPreload(resetPrefetch: Bool = true) {
+        nextChapterPreloadGeneration = UUID()
+        nextChapterPreloadTask?.cancel()
+        // Keep the cancelled task as a drain barrier until any replacement starts.
+        nextChapterPreloadTarget = nil
+        nextChapterPreloadCount = 0
+        if resetPrefetch { pagePrefetcher.reset() }
+    }
 
     // Split pages tracking
     private var actualPageIndices: [Int] = []
@@ -96,10 +108,12 @@ class ReaderPagedViewController: BaseObservingViewController {
     override func observe() {
         addObserver(forName: "Reader.pagedPageLayout") { [weak self] _ in
             guard let self = self else { return }
+            self.cancelNextChapterPreload()
             self.updatePageLayout()
             self.move(toPage: self.currentPage, animated: false)
         }
         addObserver(forName: "Reader.pagesToPreload") { [weak self] notification in
+            self?.cancelNextChapterPreload()
             self?.pagesToPreload = notification.object as? Int
                 ?? UserDefaults.standard.integer(forKey: "Reader.pagesToPreload")
         }
@@ -107,7 +121,7 @@ class ReaderPagedViewController: BaseObservingViewController {
             // clear pages that aren't in the preload range if we get a memory warning
             LogManager.logger.warn("Received memory warning")
             Self.clearSplitPageCache()
-            self?.pagePrefetcher.reset()
+            self?.cancelNextChapterPreload()
             guard
                 let self,
                 let viewController = pageViewController.viewControllers?.first,
@@ -122,6 +136,7 @@ class ReaderPagedViewController: BaseObservingViewController {
             guard let self, let chapter = self.chapter else { return }
             let actualPage = self.actualPageIndex(from: self.currentPage)
             let wasSplit = self.splitWideImages
+            self.cancelNextChapterPreload()
             self.splitWideImages = UserDefaults.standard.bool(forKey: "Reader.splitWideImages")
             self.splitPages.removeAll()
             if wasSplit, self.splitWideImages {
@@ -472,35 +487,54 @@ extension ReaderPagedViewController {
                   !visible.contains(ObjectIdentifier(controller)) else { continue }
             controller.clearPage()
         }
-        nextChapterPreloadTask?.cancel()
-        nextChapterPreloadTask = nil
-        pagePrefetcher.reset()
+        let nextCount = min(max(0, range.upperBound - displayPageCount), max(0, pagesToPreload))
+        if nextCount == 0 || nextChapterPreloadTarget != nextChapter || nextCount < nextChapterPreloadCount {
+            cancelNextChapterPreload()
+        }
         for i in ReaderPageLoadOrder.indices(
             in: range, pageCount: displayPageCount, currentPage: currentPage, visible: visiblePages
         ) {
             loadPage(at: i)
         }
         // allow prefetching into the next chapter
-        if range.upperBound > displayPageCount {
-            preloadNextChapter(pageCount: min(range.upperBound - displayPageCount, pagesToPreload))
+        if nextCount > 0 {
+            preloadNextChapter(pageCount: nextCount)
         }
     }
 
     /// Fetch the first `pageCount` pages of the next chapter ahead of time.
     func preloadNextChapter(pageCount: Int) {
+        let pageCount = min(pageCount, max(0, pagesToPreload))
         guard pageCount > 0, let nextChapter else { return }
-
+        if nextChapterPreloadTarget == nextChapter, nextChapterPreloadTask?.isCancelled == false {
+            nextChapterPreloadCount = max(nextChapterPreloadCount, pageCount)
+            return
+        }
         let previousTask = nextChapterPreloadTask
+        previousTask?.cancel()
+        let issued = UUID()
+        nextChapterPreloadGeneration = issued
+        nextChapterPreloadTarget = nextChapter
+        nextChapterPreloadCount = pageCount
         nextChapterPreloadTask = Task { [weak self] in
             // preloads run one at a time so a wider range doesn't duplicate a narrower one in flight
             await previousTask?.value
-            guard let self, !Task.isCancelled, nextChapter == self.nextChapter else { return }
+            guard let self, !Task.isCancelled, issued == nextChapterPreloadGeneration,
+                  nextChapter == self.nextChapter else { return }
+            defer {
+                if issued == nextChapterPreloadGeneration {
+                    nextChapterPreloadTask = nil
+                    nextChapterPreloadTarget = nil
+                    nextChapterPreloadCount = 0
+                }
+            }
 
             await viewModel.preload(chapter: nextChapter)
 
             guard
                 !Task.isCancelled,
                 nextChapter == self.nextChapter,
+                issued == nextChapterPreloadGeneration,
                 viewModel.preloadedChapter == nextChapter
             else { return }
 
@@ -516,12 +550,15 @@ extension ReaderPagedViewController {
                 previewController.setPage(firstPage, sourceId: sourceKey)
             }
 
-            await pagePrefetcher.prefetch(
-                pages: pages,
-                count: pageCount,
-                chapterKey: nextChapter.key,
-                sourceKey: sourceKey
-            )
+            var requested = 0
+            while !Task.isCancelled, issued == nextChapterPreloadGeneration,
+                  nextChapter == self.nextChapter, requested < nextChapterPreloadCount {
+                requested = nextChapterPreloadCount
+                await pagePrefetcher.prefetch(
+                    pages: pages, count: requested,
+                    chapterKey: nextChapter.key, sourceKey: sourceKey
+                )
+            }
         }
     }
 
@@ -930,21 +967,19 @@ extension ReaderPagedViewController: ReaderReaderDelegate {
 
     func setChapter(_ chapter: AidokuRunner.Chapter, startPage: Int) {
         let isChapterChange = self.chapter?.id != chapter.id
-        if isChapterChange {
-            nextChapterPreloadTask?.cancel()
-            if chapter != nextChapter {
-                pagePrefetcher.reset()
-            }
-        }
+        let handoff = viewModel.takePendingPreload(for: chapter)
+        // The handoff above reserves matching foreground work before cancellation.
+        cancelNextChapterPreload(resetPrefetch: chapter != nextChapter)
         self.chapter = chapter
         Task {
-            await loadChapter(startPage: startPage, isChapterChange: isChapterChange)
+            guard self.chapter == chapter, !Task.isCancelled else { return }
+            await loadChapter(startPage: startPage, isChapterChange: isChapterChange, handoff: handoff)
         }
     }
 
-    func loadChapter(startPage: Int, isChapterChange: Bool = true) async {
+    func loadChapter(startPage: Int, isChapterChange: Bool = true, handoff: ReaderChapterPageHandoff? = nil) async {
         guard let chapter else { return }
-        await viewModel.loadPages(chapter: chapter)
+        await viewModel.loadPages(chapter: chapter, handoff: handoff)
         guard self.chapter == chapter, !Task.isCancelled else { return }
         delegate?.setPages(viewModel.pages)
         if !viewModel.pages.isEmpty {
@@ -982,6 +1017,7 @@ extension ReaderPagedViewController: ReaderReaderDelegate {
 
     func refreshChapter(startPage: Int) {
         guard let chapter else { return }
+        cancelNextChapterPreload()
 
         loadPageControllers(chapter: chapter)
         move(toPage: max(1, min(startPage, displayPageCount)), animated: false)
@@ -1041,6 +1077,7 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
                 loadPreviousChapter()
 
             case 0: // previous chapter transition page
+                cancelNextChapterPreload()
                 delegate?.setCurrentPage(0, position: nil)
                 // preload previous
                 if let previousChapter = previousChapter {

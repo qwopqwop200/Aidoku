@@ -36,6 +36,7 @@ actor DownloadTask: Identifiable {
 
     private var currentPage: Int = 0
     private var failedPages: Int = 0
+    private var descriptionWriteFailed = false
     private var failedPageNumbers: [Int] = []
     private var pages: [Page] = []
 
@@ -111,13 +112,14 @@ actor DownloadTask: Identifiable {
         downloads.removeAll { cancelled.contains($0) }
         let cancellation = Task {
             await previousWorker?.value
-            for download in cancelled {
+            for download in cancelled where cache.isSafe(chapter: download.chapterIdentifier) {
                 cache.tmpDirectory(for: download.chapterIdentifier).removeItem()
             }
             if cancelledCurrent {
                 pages = []
                 currentPage = 0
                 failedPages = 0
+                descriptionWriteFailed = false
                 failedPageNumbers = []
             }
             if manga == nil && chapter == nil {
@@ -144,6 +146,19 @@ extension DownloadTask {
 
         // done with all downloads
         if downloads.isEmpty {
+            running = false
+            await delegate?.taskFinished(task: self)
+            return
+        }
+
+        // Reject malformed identifiers before any file lookup, failure marker,
+        // staging cleanup, or source callback can touch their derived paths.
+        while let download = downloads.first, !cache.isSafe(chapter: download.chapterIdentifier) {
+            downloads.removeFirst()
+            await delegate?.downloadFailed(download: download)
+            guard running, !Task.isCancelled else { return }
+        }
+        guard !downloads.isEmpty else {
             running = false
             await delegate?.taskFinished(task: self)
             return
@@ -213,6 +228,7 @@ extension DownloadTask {
         guard !Task.isCancelled, running, downloads.first == download else { return }
         currentPage = 0
         failedPages = 0
+        descriptionWriteFailed = false
         failedPageNumbers = []
         downloads[0].status = .downloading
 
@@ -234,7 +250,7 @@ extension DownloadTask {
         }
 
         var networkPages: [NetworkPage] = []
-        var descriptions: [(Page, URL)] = []
+        var descriptions: [(page: Page, target: URL, pageNumber: Int)] = []
 
         for (i, page) in pages.enumerated() {
             guard !Task.isCancelled, running, downloads.first == download else { return }
@@ -279,7 +295,7 @@ extension DownloadTask {
                 }
             }
 
-            if page.hasDescription { descriptions.append((page, targetPath)) }
+            if page.hasDescription { descriptions.append((page, targetPath, i + 1)) }
         }
 
         // Keep compressed files in the bounded queue, never decoded images. A
@@ -332,16 +348,33 @@ extension DownloadTask {
 
         // Metadata must finish before chapter promotion, but must not delay
         // the first image request. Descriptions use one bounded source request.
-        for (page, target) in descriptions {
+        for (page, target, pageNumber) in descriptions {
             guard !Task.isCancelled, running, downloads.first == download else { return }
             var description = page.description
             if description == nil { description = try? await source.getPageDescription(page: page.toNew()) }
             guard !Task.isCancelled, running, downloads.first == download else { return }
-            if let data = description?.data(using: .utf8) { try? data.write(to: target.appendingPathExtension("desc.txt")) }
+            if let data = description?.data(using: .utf8) {
+                do {
+                    try Self.writePageDescription(data, to: target.appendingPathExtension("desc.txt"))
+                } catch {
+                    descriptionWriteFailed = true
+                    // Present metadata must not be silently dropped by a successful
+                    // chapter promotion. Count each failed page at most once.
+                    if !failedPageNumbers.contains(pageNumber) {
+                        failedPageNumbers.append(pageNumber)
+                        failedPages += 1
+                    }
+                    LogManager.logger.error("Error writing page description: \(error)")
+                }
+            }
         }
         if !Task.isCancelled, running, downloads.first == download, currentPage == pages.count {
             await handleChapterDownloadFinish(download: download)
         }
+    }
+
+    nonisolated static func writePageDescription(_ data: Data, to destination: URL) throws {
+        try data.write(to: destination)
     }
 
     // Every producer returns a file, including sources that transform images.
@@ -483,19 +516,30 @@ extension DownloadTask {
                                    language: download.chapter.language ?? source.languages.first) }
     }
 
+    // Source lookup crosses an actor boundary. Queue membership and the control
+    // generation must be checked afterward, before indexing or starting prefetch.
+    func warmNextChapter(after download: Download,
+                         sourceLookup: @Sendable () async -> AidokuRunner.Source?) async {
+        guard downloads.count > 1, warmedPages == nil else { return }
+        let generation = controlGeneration
+        guard let source = await sourceLookup(),
+              !Task.isCancelled, generation == controlGeneration,
+              downloads.first == download, downloads.count > 1, warmedPages == nil,
+              (source.config?.maximumParallelRequests ?? Self.maxConcurrentPageTasks) > 1 else { return }
+        let next = downloads[1]
+        warmedPages = (next.chapterIdentifier, Task { await Self.loadPages(next, source: source) })
+    }
+
     private func handleChapterDownloadFinish(download: Download) async {
         let tmpDirectory = cache.tmpDirectory(for: download.chapterIdentifier)
         // Overlap only lightweight next-chapter metadata with finalization.
         // Pixel downloads wait for the existing bounded queue to own the chapter.
-        if downloads.count > 1, warmedPages == nil,
-           let source = await SourceManager.shared.source(for: download.chapterIdentifier.sourceKey),
-           (source.config?.maximumParallelRequests ?? Self.maxConcurrentPageTasks) > 1 {
-            let next = downloads[1]
-            warmedPages = (next.chapterIdentifier, Task { await Self.loadPages(next, source: source) })
+        await warmNextChapter(after: download) {
+            await SourceManager.shared.source(for: download.chapterIdentifier.sourceKey)
         }
+        guard !Task.isCancelled, running, downloads.first == download else { return }
 
-
-        if pages.isEmpty || (failedPages == pages.count && download.translatesImages != true) {
+        if pages.isEmpty || (failedPages == pages.count && download.translatesImages != true && !descriptionWriteFailed) {
             // the entire chapter failed to download, skip adding to cache and cancel
             tmpDirectory.removeItem()
             if let downloadIndex = downloads.firstIndex(where: { $0 == download }) {
@@ -510,7 +554,7 @@ extension DownloadTask {
             )
 
             // save metadata for failed download in downloads view
-            await DownloadManager.shared.saveChapterMetadata(manga: download.manga, chapter: download.chapter, to: tmpDirectory)
+            try? await DownloadManager.shared.saveChapterMetadata(manga: download.manga, chapter: download.chapter, to: tmpDirectory)
 
             markFailed(tmpDirectory: tmpDirectory)
 
@@ -522,7 +566,7 @@ extension DownloadTask {
         } else {
             do {
                 // Save chapter metadata after successful download
-                await DownloadManager.shared.saveChapterMetadata(manga: download.manga, chapter: download.chapter, to: tmpDirectory)
+                try await DownloadManager.shared.saveChapterMetadata(manga: download.manga, chapter: download.chapter, to: tmpDirectory)
 
                 let directory = cache.directory(for: download.chapterIdentifier)
 
@@ -573,6 +617,7 @@ extension DownloadTask {
         pages = []
         currentPage = 0
         failedPages = 0
+        descriptionWriteFailed = false
         failedPageNumbers = []
         await next()
     }

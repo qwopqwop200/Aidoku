@@ -32,6 +32,7 @@ final class ReaderTranslationPage {
     private var generation = UUID()
     private var task: Task<[ReaderTranslationRegion], Error>?
     private var overlay: ReaderTranslationOverlayView?
+    private var isPreparingEmptyOverlay = false
     private var cachedOverlay: ReaderTranslationCachedPageView?
     private var renderLookupTask: Task<Void, Never>?
     private var renderLookupKey: String?
@@ -96,6 +97,7 @@ final class ReaderTranslationPage {
 
     // Memory pressure must not erase a visible translation or interrupt its render.
     private func discardRecognitionCache() {
+        discardPendingOverlayNavigation()
         recognizedImage = nil
         recognizedConfiguration = nil
         recognizedRegions = nil
@@ -116,7 +118,8 @@ final class ReaderTranslationPage {
         releaseOverlay()
     }
 
-    func cancel() {
+    func cancel(preservingPendingOverlayNavigation: Bool = false) {
+        if !preservingPendingOverlayNavigation { discardPendingOverlayNavigation() }
         generation = UUID()
         task?.cancel()
         task = nil
@@ -143,7 +146,32 @@ final class ReaderTranslationPage {
         releaseOverlay()
     }
 
+    /// Navigate only the future visible document. No pixels, regions, or layout
+    /// are submitted until the normal completed-result publication path.
+    @discardableResult
+    func preparePendingOverlayNavigation(settings: ReaderTranslationSettings) -> Bool {
+        guard settings.overlay.visible, let imageView, imageView.image != nil,
+              imageView.window != nil, imageView.bounds.width > 0, imageView.bounds.height > 0,
+              !completedTranslation, cachedOverlay == nil else { return false }
+        if isPreparingEmptyOverlay { return true }
+        guard overlay == nil else { return false }
+        let pending = ReaderTranslationOverlayView(frame: imageView.bounds)
+        pending.isHidden = true
+        pending.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        imageView.insertSubview(pending, at: 0)
+        overlay = pending
+        isPreparingEmptyOverlay = true
+        ReaderTranslationDiagnostics.record("visible_navigation_prepared", page: (sourcePage?.index ?? -2) + 1)
+        return true
+    }
+
+    func discardPendingOverlayNavigation() {
+        guard isPreparingEmptyOverlay else { return }
+        releaseOverlay()
+    }
+
     func releaseOverlay() {
+        isPreparingEmptyOverlay = false
         hasLoadedCachedPresentation = false
         showsProvisional = false
         provisionalShown = nil
@@ -280,6 +308,11 @@ final class ReaderTranslationPage {
         // OCR and partial batches have different geometry after SFX filtering.
         // Leave the source image untouched until the whole translation is ready.
         guard completedTranslation, !result.isEmpty else { releaseOverlay(); return }
+        // A terminated empty speculative document has never displayed pixels.
+        // Do not inherit its text-only recovery state into the first final render.
+        if isPreparingEmptyOverlay, let overlay, overlay.contentTerminationCount > 0 {
+            discardPendingOverlayNavigation()
+        }
         if completedTranslation, let renderCache, let sourcePage, imageView.bounds.width > 0, imageView.bounds.height > 0 {
             let viewport = imageView.bounds.size
             let dark = imageView.traitCollection.userInterfaceStyle == .dark
@@ -415,6 +448,7 @@ final class ReaderTranslationPage {
         cachedOverlay?.removeFromSuperview()
         cachedOverlay = nil
         let overlay = overlay ?? ReaderTranslationOverlayView()
+        isPreparingEmptyOverlay = false
         // Reused overlays must follow the new image viewport too. Otherwise a
         // geometry invalidation republishes the same stale bounds forever.
         overlay.frame = imageView.bounds
@@ -527,7 +561,7 @@ final class ReaderTranslationPage {
             cachedOverlay?.isHidden = !settings.overlay.visible
             return
         }
-        cancel()
+        cancel(preservingPendingOverlayNavigation: true)
         completedTranslation = completed
         try? publish(displayed, image: image, settings: settings, generation: generation)
     }

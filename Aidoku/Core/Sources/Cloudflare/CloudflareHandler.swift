@@ -396,6 +396,17 @@ extension CloudflareHandler {
 }
 
 extension HTTPCookieStorage {
+    /// Keep historical header ordering, but only include cookies Foundation allows
+    /// on this request's scheme, host and path. Cache clearing uses allCookies below.
+    func requestCookies(for url: URL) -> [HTTPCookie]? {
+        guard let allowed = cookies(for: url) else { return nil }
+        return allCookies(for: url)?.filter { cookie in
+            allowed.contains {
+                $0.name == cookie.name && $0.domain == cookie.domain && $0.path == cookie.path
+            }
+        }
+    }
+
     func allCookies(for url: URL) -> [HTTPCookie]? {
         guard let host = url.host else { return nil }
         return cookies?.filter { cookie in

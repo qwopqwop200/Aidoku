@@ -954,6 +954,10 @@ function renderStructuredContent(parent, node, language = null, dictName = null,
     }
 
     const tagName = node.tag || 'span';
+    // Dictionary glossary data must not execute code in the native bridge's page.
+    if (typeof tagName === 'string' && tagName.toLowerCase() === 'script') {
+        return;
+    }
     const element = document.createElement(tagName);
     element.classList.add(`gloss-sc-${tagName}`);
     let nextLanguage = language;
@@ -1939,7 +1943,7 @@ window.renderPopup = function() {
             const glossarySections = el('div', { className: 'glossary-sections' });
             entryDiv.appendChild(glossarySections);
 
-            const grouped = {};
+            const grouped = Object.create(null);
             entry.glossaries.forEach(g => {
                 (grouped[g.dictionary] ??= []).push({
                     content: g.content,

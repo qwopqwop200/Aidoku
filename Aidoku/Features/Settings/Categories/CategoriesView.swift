@@ -165,8 +165,8 @@ extension CategoriesView {
         if !title.isEmpty, title.lowercased() != "none", !categories.contains(title), !groupTitles.contains(title) {
             Task {
                 let saved = await CoreDataManager.shared.container.performBackgroundTask { context in
-                    CoreDataManager.shared.createCategory(title: title, context: context)
                     do {
+                        try CoreDataManager.shared.createCategory(title: title, context: context)
                         try context.save()
                         return true
                     } catch {
@@ -186,14 +186,8 @@ extension CategoriesView {
 
     func removeCategory(title: String) async -> Bool {
         await CoreDataManager.shared.container.performBackgroundTask { context in
-            CoreDataManager.shared.removeCategory(title: title, context: context)
             do {
-                try context.save()
-                var locked = AppSettings.library.lockedCategories.get()
-                if let oldIndex = locked.firstIndex(of: title) {
-                    locked.remove(at: oldIndex)
-                    AppSettings.library.lockedCategories.set(locked)
-                }
+                try CoreDataManager.shared.removeCategoryAndSave(title: title, context: context)
                 return true
             } catch {
                 LogManager.logger.error("CategoriesView.removeCategory(title: \(title)): \(error)")
@@ -208,15 +202,8 @@ extension CategoriesView {
         } else {
             Task {
                 let newCategories: [String]? = await CoreDataManager.shared.container.performBackgroundTask { context in
-                    let success = CoreDataManager.shared.renameCategory(title: title, newTitle: newTitle, context: context)
-                    guard success else { return nil }
                     do {
-                        try context.save()
-                        var locked = AppSettings.library.lockedCategories.get()
-                        if let oldIndex = locked.firstIndex(of: title) {
-                            locked[oldIndex] = newTitle
-                            AppSettings.library.lockedCategories.set(locked)
-                        }
+                        guard try CoreDataManager.shared.renameCategoryAndSave(title: title, newTitle: newTitle, context: context) else { return nil }
                         return CoreDataManager.shared.getCategoryTitles(context: context)
                     } catch {
                         LogManager.logger.error("CategoriesView.renameCategory(title: \(title)): \(error)")

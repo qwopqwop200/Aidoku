@@ -28,14 +28,16 @@ struct OCRDetectorPrecisionDeviceTests {
         let bundled = try #require(Bundle.main.url(forResource: "PP-OCRv6-Medium-DetShapes", withExtension: "mlmodelc"))
         let fp32 = URL.documentsDirectory.appendingPathComponent("OCRPrecision/PP-OCRv6-Medium-DetShapes-fp32.mlmodelc")
         var variants: [Variant] = []
-        // The first variant is the comparison baseline ("fp32-all").
+        // The first available variant is the comparison baseline; its name
+        // always describes the resource actually loaded.
         if FileManager.default.fileExists(atPath: fp32.path) {
             variants.append(Variant(name: "fp32-all", url: fp32, units: .all, lowPrecision: false))
             variants.append(Variant(name: "fp32-cpuGPU", url: fp32, units: .cpuAndGPU, lowPrecision: false))
         }
-        variants.append(Variant(name: variants.isEmpty ? "fp32-all" : "bundled-fp16-all",
+        variants.append(Variant(name: "bundled-fp16-all",
                                 url: bundled, units: .all, lowPrecision: false))
         variants.append(Variant(name: "bundled-fp16-cpuGPU", url: bundled, units: .cpuAndGPU, lowPrecision: false))
+        let baselineName = try #require(variants.first?.name)
         var models: [String: MLModel] = [:]
         for variant in variants {
             let configuration = MLModelConfiguration()
@@ -90,9 +92,10 @@ struct OCRDetectorPrecisionDeviceTests {
                         configuration: .production, allowsWeakBridgeSplit: true).boxes
                     var row: [String: Any] = [
                         "file": file.lastPathComponent, "variant": variant.name,
+                        "baselineVariant": baselineName,
                         "boxes": boxes.map { ["s": $0.score, "p": $0.polygon.flatMap { [Double($0.x), Double($0.y)] }] },
                     ]
-                    if variant.name == "fp32-all" {
+                    if variant.name == baselineName {
                         baseline = map
                         baselineBoxes = boxes
                     } else if let baseline {

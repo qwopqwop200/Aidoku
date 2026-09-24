@@ -93,7 +93,7 @@ struct TrackerSearchView: View {
                     DoneButton {
                         track()
                     }
-                    .disabled(selectedItem == nil)
+                    .disabled(selectedItem == nil || loading)
                 }
             }
             .sheet(isPresented: $showSearchOptions) {
@@ -178,6 +178,7 @@ struct TrackerSearchView: View {
     }
 
     func track() {
+        guard !loading else { return }
         guard
             let selectedItem,
             let result = results.first(where: { $0.id == selectedItem })

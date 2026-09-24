@@ -37,6 +37,7 @@ class ReaderTextViewController: BaseViewController {
     /// The chapter after the last loaded section (for the bottom transition).
     private var nextChapter: AidokuRunner.Chapter?
 
+    private let readingProgressLoader: (@Sendable (String) async -> CGFloat?)?
     private var chapterGeneration = UUID()
     private var isLoadingChapter = false
     private var loadingNext = false
@@ -61,7 +62,8 @@ class ReaderTextViewController: BaseViewController {
 
     /// Load previously saved reading progress for a chapter.
     private func loadReadingProgress(for chapterKey: String) async -> CGFloat? {
-        await CoreDataManager.shared.container.performBackgroundTask { [weak self] context in
+        if let readingProgressLoader { return await readingProgressLoader(chapterKey) }
+        return await CoreDataManager.shared.container.performBackgroundTask { [weak self] context in
             guard let self else { return nil }
             let object = CoreDataManager.shared.getHistory(
                 chapterId: .init(
@@ -149,7 +151,9 @@ class ReaderTextViewController: BaseViewController {
         view.bounds.height
     }
 
-    init(source: AidokuRunner.Source?, manga: AidokuRunner.Manga) {
+    init(source: AidokuRunner.Source?, manga: AidokuRunner.Manga,
+         readingProgressLoader: (@Sendable (String) async -> CGFloat?)? = nil) {
+        self.readingProgressLoader = readingProgressLoader
         self.viewModel = .init(source: source, manga: manga)
         super.init()
     }
@@ -527,6 +531,8 @@ extension ReaderTextViewController {
                     let progress = await self.loadReadingProgress(for: chapter.key)
                     guard self.chapterGeneration == generation else { return }
                     if let savedProgress = progress, savedProgress.isFinite, !self.sections.isEmpty {
+                        // Imported history may be finite but outside its normalized domain.
+                        let savedProgress = min(1, max(0, savedProgress))
                         self.updateEstimatedPageCount()
                         let sectionHeight = self.sectionContentHeight(at: 0)
                         let screenHeight = self.scrollView.frame.size.height

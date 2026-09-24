@@ -66,6 +66,8 @@ private actor BrowserPageImageOverlayLayoutWorker {
         settings: IPhoneOverlaySettings, targetLanguage: String, viewport: CGSize
     ) throws -> Data {
         try Task.checkCancellation()
+        ReaderTranslationDiagnostics.renderingProfile("profile_layout_cpu_begin", count: items.count)
+        defer { ReaderTranslationDiagnostics.renderingProfile("profile_layout_cpu_end", count: items.count) }
         return try autoreleasepool {
             let payload = BrowserPageImageOverlayRenderer.layoutPayload(
                 items: items, imageSize: imageSize, sourceRect: sourceRect,
@@ -160,6 +162,7 @@ final class BrowserPageImageOverlayRenderer {
                 }
                 guard let encoded else { throw CancellationError() }
                 let payload = try JSONSerialization.jsonObject(with: encoded)
+                ReaderTranslationDiagnostics.renderingProfile("profile_dom_begin", count: items.count, revision: currentRevision)
                 let rawResult = try await javaScriptEvaluator(webView, Self.renderScript, [
                     "items": payload,
                     "appearance": ["opacity": min(1, max(0, settings.opacity)),
@@ -169,6 +172,7 @@ final class BrowserPageImageOverlayRenderer {
                                    "minimumReadableFontSize": BrowserOverlayLayoutPlanner.minimumRenderedFontSize],
                     "revision": String(currentRevision), "session": sessionIdentifier
                 ])
+                ReaderTranslationDiagnostics.renderingProfile("profile_dom_end", count: items.count, revision: currentRevision)
                 publish(Self.diagnostic(operation: .render, revision: currentRevision, rawResult: rawResult), completion: completion)
                 // Rendering must not wait for optional layout persistence or a
                 // queued cache-generation read. Join storage only after display.
@@ -177,7 +181,9 @@ final class BrowserPageImageOverlayRenderer {
                     if let cacheGeneration { storageGeneration = cacheGeneration }
                     else { storageGeneration = await cacheGenerationTask?.value }
                     if let storageGeneration, !Task.isCancelled, revision == currentRevision {
+                        ReaderTranslationDiagnostics.renderingProfile("profile_layout_store_begin", count: encoded.count, revision: currentRevision)
                         try? await layoutCache.store(encoded, for: layoutCacheKey, kind: .layout, generation: storageGeneration)
+                        ReaderTranslationDiagnostics.renderingProfile("profile_layout_store_end", count: encoded.count, revision: currentRevision)
                     }
                 }
             } catch is CancellationError {

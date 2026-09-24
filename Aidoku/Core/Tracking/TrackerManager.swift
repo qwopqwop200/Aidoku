@@ -58,7 +58,8 @@ actor TrackerManager {
     /// Send chapter read update to logged in trackers.
     func setCompleted(mangaId: MangaIdentifier, chapter: AidokuRunner.Chapter, skipTracker: Tracker? = nil) async {
         let chapterNum = chapter.chapterNumber
-        let volumeNum = chapter.volumeNumber.flatMap { Int(floor($0)) }
+        let volumeNum = chapter.volumeNumber.flatMap(Self.wholeTrackingNumber)
+        let chapterAsVolume = chapterNum.flatMap(Self.wholeTrackingNumber)
         guard chapterNum != nil || volumeNum != nil else { return }
 
         let key = "Manga.chapterDisplayMode.\(mangaId)"
@@ -85,7 +86,7 @@ actor TrackerManager {
                 shouldUpdate = hasChapterProgress || hasVolumeProgress
             } else if displayMode == .volume {
                 // Volume mode: check volume progress, or chapter progress if no volume
-                let hasChapterProgress = chapterNum != nil && (state.lastReadVolume ?? 0) < Int(floor(chapterNum!))
+                let hasChapterProgress = chapterAsVolume.map { (state.lastReadVolume ?? 0) < $0 } ?? false
                 let hasVolumeProgress = volumeNum != nil && (state.lastReadVolume ?? 0) < volumeNum!
                 shouldUpdate = hasChapterProgress || hasVolumeProgress
             } else {
@@ -125,9 +126,8 @@ actor TrackerManager {
                 // volume mode: only update volume, don't update chapter
                 if let volumeNum, volumeNum > 0 && state.lastReadVolume ?? 0 < volumeNum {
                     update.lastReadVolume = volumeNum
-                } else if let chapterNum {
+                } else if let volumeFromChapter = chapterAsVolume {
                     // no volume metadata, use chapter number as volume
-                    let volumeFromChapter = Int(floor(chapterNum))
                     if volumeFromChapter > state.lastReadVolume ?? 0 {
                         update.lastReadVolume = volumeFromChapter
                     }
@@ -155,7 +155,7 @@ actor TrackerManager {
                 let totalChapters = state.totalChapters,
                 let lastReadChapter = update.lastReadChapter ?? state.lastReadChapter
             {
-                totalChapters == Int(floor(lastReadChapter))
+                Self.wholeTrackingNumber(lastReadChapter) == totalChapters
             } else if (chapterNum == nil || displayMode == .volume) && update.lastReadVolume != nil {
                 update.lastReadVolume == state.totalVolumes
             } else {
@@ -540,6 +540,11 @@ actor TrackerManager {
 }
 
 extension TrackerManager {
+    /// Source metadata is untrusted; Float-to-Int conversion must not trap.
+    static func wholeTrackingNumber(_ number: Float) -> Int? {
+        Int(exactly: floor(number))
+    }
+
     static func applyChapterOffset(to chapter: Float, offset: Int, maxChapters: Int?) -> Float {
         var adjusted = chapter + Float(offset)
         adjusted = max(0, adjusted)

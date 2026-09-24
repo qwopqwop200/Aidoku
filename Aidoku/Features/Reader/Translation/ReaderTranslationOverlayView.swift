@@ -303,9 +303,12 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 // Rasterize the whole document via the isolated PDF export renderer.
                 // Promote a live renderer's saved layout into the bounded memory
                 // cache; subsequent displays/captures need no disk read or unpack.
+                ReaderTranslationDiagnostics.renderingProfile("profile_capture_layout_read_begin", revision: revision)
                 let layout = await target.cache.layoutData(for: ReaderTranslationRenderCache.layoutKey(renderKey: target.key, regions: regions))
+                ReaderTranslationDiagnostics.renderingProfile("profile_capture_layout_read_end", count: layout?.count ?? -1, revision: revision)
                 try Task.checkCancellation()
                 guard snapshotGeneration == issued, lastDiagnostic?.revision == revision, ReaderTranslationGeometry.sameViewport(bounds.size, size) else { return }
+                ReaderTranslationDiagnostics.renderingProfile("profile_capture_export_begin", revision: revision)
                 let snapshot = try await ReaderTranslationImageExporter.renderCacheSnapshot(
                     image: image, imageSize: imageSize, regions: regions, settings: settings,
                     viewport: size, scale: traitCollection.displayScale, aspectFit: aspectFit,
@@ -313,6 +316,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                     preparedLayout: layout.map { data in Task { data } } ?? preparedLayout,
                     assetCache: target.cache, assetKey: target.key
                 )
+                ReaderTranslationDiagnostics.renderingProfile("profile_capture_export_end", revision: revision)
                 try Task.checkCancellation()
                 guard snapshotGeneration == issued, lastDiagnostic?.revision == revision, ReaderTranslationGeometry.sameViewport(bounds.size, size) else { return }
                 let diskGeneration: UInt64?
@@ -331,6 +335,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        ReaderTranslationDiagnostics.renderingProfile("profile_navigation_finish", revision: UInt64(backgroundRevision))
         documentReady = true
         installBackground()
     }
@@ -345,12 +350,14 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         backgroundTask = Task { [weak self] in
             guard let self else { return }
             do {
+                ReaderTranslationDiagnostics.renderingProfile("profile_background_install_begin", revision: UInt64(revision))
                 let installed = try await webView.callAsyncJavaScript(
                     Self.backgroundScript,
                     arguments: ["source": imageDataURL ?? "", "fit": aspectFit ? "contain" : "fill",
                                 "revision": revision],
                     in: nil, contentWorld: ReaderTranslationDOM.contentWorld
                 ) as? Bool
+                ReaderTranslationDiagnostics.renderingProfile("profile_background_install_end", revision: UInt64(revision))
                 guard !Task.isCancelled, backgroundRevision == revision, installed == true else { return }
                 backgroundTask = nil
                 ready = true
@@ -410,6 +417,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         documentReady = false
         backgroundRevision += 1
         backgroundTask?.cancel(); backgroundTask = nil
+        ReaderTranslationDiagnostics.renderingProfile("profile_navigation_begin", revision: UInt64(backgroundRevision))
         webView.loadHTMLString("""
         <!doctype html><html><head>
         <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">

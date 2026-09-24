@@ -217,6 +217,8 @@ actor ModelManager {
     }
 
     func getModel(fileName: String) throws -> ImageProcessingModel? {
+        // Cancellation forwarded by a reader must not start cold Core ML work.
+        try Task.checkCancellation()
         let name = (fileName as NSString).lastPathComponent
         if let cached = imageModelCache[name] { return cached }
         // Release previous weights before compiling/loading a different model.
@@ -226,14 +228,19 @@ actor ModelManager {
         let info = try JSONDecoder().decode(ModelInfo.self, from: data)
         let compiled = root.appendingPathComponent(name + ".mlmodelc")
         let mlModel: MLModel
+        try Task.checkCancellation()
         do {
             mlModel = try MLModel(contentsOf: compiled)
         } catch {
+            // A failed cached load must not turn cancellation into compilation.
+            try Task.checkCancellation()
             // Core ML may invalidate compiled artifacts after an OS upgrade.
             let temporary = try MLModel.compileModel(at: root.appendingPathComponent(name))
             defer { try? FileManager.default.removeItem(at: temporary) }
+            try Task.checkCancellation()
             try? FileManager.default.removeItem(at: compiled)
             try FileManager.default.copyItem(at: temporary, to: compiled)
+            try Task.checkCancellation()
             mlModel = try MLModel(contentsOf: compiled)
         }
         let model = makeModel(mlModel, info: info)
@@ -241,10 +248,28 @@ actor ModelManager {
         return model
     }
 
+    nonisolated static func matchesExactReuseCatalog(_ info: ModelInfo, catalog: [ModelInfo]) -> Bool {
+        let supported = info.file == "SwinUNetV3Art2x.mlpackage" || (
+            info.file == "IllustrationJaNaiV3-FDATM.mlpackage" &&
+            info.sha256 == "ccd3fa07b322ab3167f210e5c57ab27ac178378d2162fd70d35ce342050a1665"
+        )
+        guard supported,
+              info.type == "multiarray",
+              let resource = info.bundledResource, let checksum = info.sha256,
+              let trusted = catalog.first(where: { $0.file == info.file }),
+              trusted.bundledResource == resource, trusted.sha256 == checksum, trusted.type == info.type else { return false }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        guard let actualConfig = try? encoder.encode(info.config),
+              let trustedConfig = try? encoder.encode(trusted.config) else { return false }
+        return actualConfig == trustedConfig
+    }
+
     private func makeModel(_ model: MLModel, info: ModelInfo) -> ImageProcessingModel? {
         let config = info.config?.compactMapValues { $0.toRaw() } ?? [:]
         switch info.type?.lowercased() {
-            case "multiarray": return MultiArrayModel(model: model, config: config)
+            case "multiarray": return MultiArrayModel(model: model, config: config,
+                allowsExactReuse: Self.matchesExactReuseCatalog(info, catalog: bundledModels()))
             case "image": return ImageModel(model: model, config: config)
             default: return nil
         }

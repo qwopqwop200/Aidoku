@@ -889,6 +889,7 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
     }
 
     func setChapter(_ chapter: AidokuRunner.Chapter, startPage: Int) {
+        let handoff = viewModel.takePendingPreload(for: chapter)
         chapterGeneration = UUID()
         let issued = chapterGeneration
         self.chapter = chapter
@@ -896,7 +897,8 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
         chapters = [chapter]
 
         Task {
-            await viewModel.loadPages(chapter: chapter)
+            guard issued == chapterGeneration, !Task.isCancelled else { return }
+            await viewModel.loadPages(chapter: chapter, handoff: handoff)
             guard issued == chapterGeneration, !Task.isCancelled else { return }
             delegate?.setPages(viewModel.pages)
             if viewModel.pages.isEmpty {

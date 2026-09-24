@@ -92,8 +92,8 @@ class LibraryCategorySelectionHeader: UICollectionReusableView {
                         title: option,
                         image: lockedOptions.contains(indexPath) ? UIImage(systemName: "lock.fill") : nil,
                         state: selected ? .on : .off
-                    ) { _ in
-                        self.setSelectedOption(indexPath)
+                    ) { [weak self] _ in
+                        self?.setSelectedOption(indexPath)
                     }
                 )
             }
