@@ -2,6 +2,28 @@
 // Original pixels outside the glyph/outline mask are never painted over.
 enum BrowserSourcePanelRestoration {
     static let script = """
+        // Allocation-free forms of the per-pixel color tests. Each evaluates the
+        // same floating-point expressions, in the same order, as the array forms
+        // (max |rgb-color| and the clamped projection onto an ink-to-paper ramp).
+        function aidokuRestorationDistance(r,g,bl,color) {
+          return Math.max(Math.abs(r-color[0]),Math.abs(g-color[1]),Math.abs(bl-color[2]));
+        }
+        function aidokuRestorationBlendAt(r,g,bl,e0,e1,e2,start) {
+          const s0=start[0],s1=start[1],s2=start[2],d0=e0-s0,d1=e1-s1,d2=e2-s2,length=0+d0*d0+d1*d1+d2*d2;
+          if(!length)return false;
+          const t=Math.max(0,Math.min(1,(0+(r-s0)*d0+(g-s1)*d1+(bl-s2)*d2)/length));
+          return Math.max(Math.abs(r-(s0+t*d0)),Math.abs(g-(s1+t*d1)),Math.abs(bl-(s2+t*d2)))<=24;
+        }
+        // A fixed ramp precomputes its direction once for a whole mask pass.
+        function aidokuRestorationBlend(end,start) {
+          if(!end||!start)return ()=>false;
+          const s0=start[0],s1=start[1],s2=start[2],d0=end[0]-s0,d1=end[1]-s1,d2=end[2]-s2,length=0+d0*d0+d1*d1+d2*d2;
+          if(!length)return ()=>false;
+          return (r,g,bl)=>{
+            const t=Math.max(0,Math.min(1,(0+(r-s0)*d0+(g-s1)*d1+(bl-s2)*d2)/length));
+            return Math.max(Math.abs(r-(s0+t*d0)),Math.abs(g-(s1+t*d1)),Math.abs(bl-(s2+t*d2)))<=24;
+          };
+        }
         // Fit an RGB plane to unmasked donor pixels. Smooth gradients are safe;
         // texture and illustration edges are not recoverable by diffusion. Sampling
         // is bounded by the crop budget and never reads the page a second time.
@@ -9,11 +31,14 @@ enum BrowserSourcePanelRestoration {
           const matrix=[[0,0,0],[0,0,0],[0,0,0]],rhs=[[0,0,0],[0,0,0],[0,0,0]];
           let count=0;
           const stride=Math.max(1,Math.ceil(Math.sqrt(w*h/4096)));
+          // Summed-area table of the mask answers each 9x9 donor-window query
+          // in constant time; the window bounds match the former direct scan.
+          const summed=new Int32Array((w+1)*(h+1));
+          for(let y=0;y<h;y++){let row=0;for(let x=0;x<w;x++){row+=mask[y*w+x]?1:0;summed[(y+1)*(w+1)+x+1]=summed[y*(w+1)+x+1]+row;}}
           const isDonor=(x,y)=>{
             const i=y*w+x;if(mask[i]||blocked[i])return false;
-            for(let yy=Math.max(0,y-4);yy<=Math.min(h-1,y+4);yy++)
-              for(let xx=Math.max(0,x-4);xx<=Math.min(w-1,x+4);xx++)if(mask[yy*w+xx])return true;
-            return false;
+            const x0=Math.max(0,x-4),x1=Math.min(w-1,x+4)+1,y0=Math.max(0,y-4),y1=Math.min(h-1,y+4)+1;
+            return summed[y1*(w+1)+x1]-summed[y0*(w+1)+x1]-summed[y1*(w+1)+x0]+summed[y0*(w+1)+x0]>0;
           };
           for(let y=1;y<h-1;y+=stride)for(let x=1;x<w-1;x+=stride){
             const i=y*w+x;if(!isDonor(x,y))continue;
@@ -51,14 +76,13 @@ enum BrowserSourcePanelRestoration {
           let localCount=0,localSquared=0,localOutliers=0,edges=0;
           for(let y=2;y<h-2;y+=stride)for(let x=2;x<w-2;x+=stride){
             const i=y*w+x;if(!isDonor(x,y))continue;
-            const neighbors=[i-1,i+1,i-w,i+w];
-            if(neighbors.some(j=>mask[j]||blocked[j]))continue;
+            if(mask[i-1]||blocked[i-1]||mask[i+1]||blocked[i+1]||mask[i-w]||blocked[i-w]||mask[i+w]||blocked[i+w])continue;
             let residual=0,edge=0;
             for(let c=0;c<3;c++){
-              const center=rgba[i*4+c];
-              const average=neighbors.reduce((sum,j)=>sum+rgba[j*4+c],0)/4;
+              const center=rgba[i*4+c],left=rgba[(i-1)*4+c],right=rgba[(i+1)*4+c],up=rgba[(i-w)*4+c],down=rgba[(i+w)*4+c];
+              const average=(0+left+right+up+down)/4;
               residual=Math.max(residual,Math.abs(center-average));
-              for(const j of neighbors)edge=Math.max(edge,Math.abs(center-rgba[j*4+c]));
+              edge=Math.max(edge,Math.abs(center-left),Math.abs(center-right),Math.abs(center-up),Math.abs(center-down));
             }
             localCount++;localSquared+=residual*residual;
             if(residual>12)localOutliers++;if(edge>28)edges++;
@@ -82,9 +106,9 @@ enum BrowserSourcePanelRestoration {
           const x0=Math.floor(b[0]),y0=Math.floor(b[1]),x1=Math.ceil(b[0]+b[2]),y1=Math.ceil(b[1]+b[3]);
           let count=0;
           for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
-            const i=(y*w+x)*4,rgb=[rgba[i],rgba[i+1],rgba[i+2]],key=rgb.map(v=>v>>4).join(',');
+            const i=(y*w+x)*4,r=rgba[i],g=rgba[i+1],bl=rgba[i+2],key=(r>>4)<<8|(g>>4)<<4|(bl>>4);
             let bin=bins.get(key);if(!bin){bin={count:0,sum:[0,0,0]};bins.set(key,bin);}
-            bin.count++;count++;for(let c=0;c<3;c++)bin.sum[c]+=rgb[c];
+            bin.count++;count++;bin.sum[0]+=r;bin.sum[1]+=g;bin.sum[2]+=bl;
           }
           const peaks=[...bins.values()].sort((a,b)=>b.count-a.count);
           if(!peaks.length)return null;
@@ -103,7 +127,7 @@ enum BrowserSourcePanelRestoration {
               const y=side===2?y0-step:side===3?y1-1+step:y0+t;
               if(x<0||x>=w||y<0||y>=h)continue;
               const i=(y*w+x)*4;samples++;
-              if(distance([rgba[i],rgba[i+1],rgba[i+2]],background)<=20)support++;
+              if(aidokuRestorationDistance(rgba[i],rgba[i+1],rgba[i+2],background)<=20)support++;
             }
             sides.push(support/Math.max(1,samples));
           }
@@ -125,7 +149,7 @@ enum BrowserSourcePanelRestoration {
               (palette.sourceInk.confidence?.stroke||0)<.6||distance(ink,fg)<48||distance(ink,bg)<48)return null;
           const n=w*h,seen=new Uint8Array(n),queue=new Int32Array(n),bands=new Set();
           const vertical=b[3]>=b[2],inside=(x,y)=>x>=b[0]&&x<b[0]+b[2]&&y>=b[1]&&y<b[1]+b[3];
-          const matches=i=>rgba[i*4+3]>=250&&Math.max(...ink.map((v,c)=>Math.abs(v-rgba[i*4+c])))<=28;
+          const matches=i=>rgba[i*4+3]>=250&&aidokuRestorationDistance(rgba[i*4],rgba[i*4+1],rgba[i*4+2],ink)<=28;
           let interior=0,exterior=0,owned=0,components=0;
           for(let i=0;i<n;i++){
             if(seen[i]||!matches(i))continue;
@@ -193,13 +217,13 @@ enum BrowserSourcePanelRestoration {
             for(let y=t-3;y<=d+3&&clear;y++)for(let x=l-3;x<=r+3;x++){
               if(x>l-3&&x<r+3&&y>t-3&&y<d+3)continue;
               const i=(y*w+x)*4;
-              if(Math.max(...background.map((v,c)=>Math.abs(rgba[i+c]-v)))>32){clear=false;break;}
+              if(aidokuRestorationDistance(rgba[i],rgba[i+1],rgba[i+2],background)>32){clear=false;break;}
             }
             // A balloon rule between the main text and the small column means
             // the two texts do not share a surface.
             for(let y=t;y<=d&&clear;y++)for(let x=Math.ceil(b[0]+b[2]+3);x<l-3;x++){
               const i=(y*w+x)*4;
-              if(Math.max(...background.map((v,c)=>Math.abs(rgba[i+c]-v)))>32){clear=false;break;}
+              if(aidokuRestorationDistance(rgba[i],rgba[i+1],rgba[i+2],background)>32){clear=false;break;}
             }
             if(!clear)continue;
             const rect=[l-1,t-1,r-l+3,d-t+3];
@@ -207,7 +231,16 @@ enum BrowserSourcePanelRestoration {
           }
           return result.slice(0,4);
         }
+        // One restoration may run the observed pass several times (palette
+        // fallbacks, compact/art-margin/fringe retries). Pixel classes are
+        // shared only for the duration of the outermost call.
         function aidokuRestoreSourcePanel(rgba,w,h,b,palette,options={}) {
+          if(aidokuRestoreSourcePanel.classificationCache)return aidokuRestoreSourcePanelAttempts(rgba,w,h,b,palette,options);
+          aidokuRestoreSourcePanel.classificationCache=[];
+          try{return aidokuRestoreSourcePanelAttempts(rgba,w,h,b,palette,options);}
+          finally{aidokuRestoreSourcePanel.classificationCache=null;}
+        }
+        function aidokuRestoreSourcePanelAttempts(rgba,w,h,b,palette,options) {
           // A merged OCR region can contain separately colored lettering. The
           // sampler or native repeated-component evidence establishes the second ink;
           // a spare palette color alone cannot authorize erasing illustration.
@@ -231,8 +264,8 @@ enum BrowserSourcePanelRestoration {
               let preservesPrimary=Boolean(joint);
               if(joint)for(let i=0;i<w*h;i++){
                 if(!result.rgba[i*4+3]||joint.rgba[i*4+3])continue;
-                const rgb=[rgba[i*4],rgba[i*4+1],rgba[i*4+2]];
-                if(distance(rgb,usedPalette.foreground)<=48&&distance(rgb,usedPalette.background)>=32){preservesPrimary=false;break;}
+                const r=rgba[i*4],g=rgba[i*4+1],bl=rgba[i*4+2];
+                if(aidokuRestorationDistance(r,g,bl,usedPalette.foreground)<=48&&aidokuRestorationDistance(r,g,bl,usedPalette.background)>=32){preservesPrimary=false;break;}
               }
               if(preservesPrimary){joint.secondaryInkPixels=Math.max(0,joint.erased-result.erased);result=joint;}
             }
@@ -380,7 +413,8 @@ enum BrowserSourcePanelRestoration {
             }
             let pair=null,pairShade=Infinity;
             for(let a=0;a<donors.length&&(halftone||!pair);a++)for(let b=a+1;b<donors.length;b++){
-              if([0,1,2].every(c=>Math.abs(rgba[donors[a]*4+c]-rgba[donors[b]*4+c])<=(halftone?24:6))){const shade=Math.abs((rgba[donors[a]*4+1]+rgba[donors[b]*4+1])/2-tone);if(shade<pairShade){pair=[donors[a],donors[b]];pairShade=shade;}if(!halftone)break;}
+              const da=donors[a]*4,db=donors[b]*4,agreement=halftone?24:6;
+              if(Math.abs(rgba[da]-rgba[db])<=agreement&&Math.abs(rgba[da+1]-rgba[db+1])<=agreement&&Math.abs(rgba[da+2]-rgba[db+2])<=agreement){const shade=Math.abs((rgba[donors[a]*4+1]+rgba[donors[b]*4+1])/2-tone);if(shade<pairShade){pair=[donors[a],donors[b]];pairShade=shade;}if(!halftone)break;}
             }
             // Missing or disagreeing donors invalidate the whole patch. There
             // is no diffusion fallback inside an otherwise patterned result.
@@ -543,6 +577,369 @@ enum BrowserSourcePanelRestoration {
           }
           return holes>=2&&bands.size>=2&&maxY-minY>=height*.45;
         }
+        // The per-pixel passes below live in small functions so that the
+        // engine's optimizing tiers can compile them; the large restoration
+        // body only sequences them. Each keeps the original visiting order.
+        function aidokuRestorationOpaque(rgba) {
+          for(let q=3;q<rgba.length;q+=4)if(rgba[q]<254)return false;
+          return true;
+        }
+        // First index >= from that is set in `on` and not yet seen, or n.
+        function aidokuNextSeed(on,seen,from,n) {
+          for(let i=from;i<n;i++)if(on[i]&&!seen[i])return i;
+          return n;
+        }
+        // Queue every mask pixel in raster order; returns the count.
+        function aidokuMaskQueue(mask,queue,n) {
+          let tail=0;for(let i=0;i<n;i++)if(mask[i])queue[tail++]=i;
+          return tail;
+        }
+        function aidokuMaskCount(mask,n) {
+          let count=0;for(let i=0;i<n;i++)count+=mask[i];
+          return count;
+        }
+        // [masked pixels, masked raw-ink pixels]
+        function aidokuCountPreserved(mask,raw,n) {
+          let pixels=0,core=0;
+          for(let i=0;i<n;i++)if(mask[i]){pixels++;if(raw[i])core++;}
+          return [pixels,core];
+        }
+        // Protected, non-frame ink within the OCR rectangle's pixel span.
+        function aidokuCountUnresolvedInk(protectedInk,frameInk,w,b) {
+          let unresolved=0;
+          for(let y=Math.floor(b[1]);y<Math.ceil(b[1]+b[3]);y++)for(let x=Math.floor(b[0]);x<Math.ceil(b[0]+b[2]);x++)
+            if(protectedInk[y*w+x]&&!frameInk[y*w+x])unresolved++;
+          return unresolved;
+        }
+        // [frame-ink pixels, pixels] of the OCR rectangle inset by three.
+        function aidokuFrameInterior(frameInk,w,b) {
+          let frameInterior=0,innerArea=0;
+          for(let y=Math.ceil(b[1]+3);y<Math.floor(b[1]+b[3]-3);y++)for(let x=Math.ceil(b[0]+3);x<Math.floor(b[0]+b[2]-3);x++){
+            innerArea++;if(frameInk[y*w+x])frameInterior++;
+          }
+          return [frameInterior,innerArea];
+        }
+        function aidokuRectHasInk(protectedInk,frameInk,w,r) {
+          for(let y=Math.floor(r[1]);y<Math.ceil(r[1]+r[3]);y++)for(let x=Math.floor(r[0]);x<Math.ceil(r[0]+r[2]);x++)
+            if(protectedInk[y*w+x]||frameInk[y*w+x])return true;
+          return false;
+        }
+        // Surviving ink and connected drawing constrain the translated text.
+        function aidokuLayoutSafe(protectedInk,drawingSurface,n) {
+          const layoutSafe=new Uint8Array(n);
+          for(let i=0;i<n;i++)if(!protectedInk[i]&&!drawingSurface?.[i])layoutSafe[i]=1;
+          return layoutSafe;
+        }
+        // Paint the fitted RGB plane into every mask pixel.
+        function aidokuPlaneFill(mask,coefficients,w,h) {
+          const n=w*h,output=new Uint8ClampedArray(n*4);
+          for(let i=0;i<n;i++){
+            if(!mask[i])continue;
+            const x=(i%w)/w,y=(i/w|0)/h;
+            for(let c=0;c<3;c++){
+              const a=coefficients[c];output[i*4+c]=a[0]+a[1]*x+a[2]*y;
+            }
+            output[i*4+3]=255;
+          }
+          return output;
+        }
+        // Eight-connected flood of `on` pixels from start. Returns the component
+        // size (its pixels are queue[0..size)) and writes [x0,y0,x1,y1] to bounds.
+        function aidokuFloodComponent(on,seen,queue,start,w,h,bounds) {
+          let head=0,tail=1,x0=w,y0=h,x1=0,y1=0;queue[0]=start;seen[start]=1;
+          while(head<tail){
+            const i=queue[head++],x=i%w,y=i/w|0;x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);
+            const yEnd=Math.min(h-1,y+1),xStart=Math.max(0,x-1),xEnd=Math.min(w-1,x+1);
+            for(let yy=Math.max(0,y-1);yy<=yEnd;yy++)for(let xx=xStart;xx<=xEnd;xx++){const j=yy*w+xx;if(on[j]&&!seen[j]){seen[j]=1;queue[tail++]=j;}}
+          }
+          bounds[0]=x0;bounds[1]=y0;bounds[2]=x1;bounds[3]=y1;
+          return tail;
+        }
+        // Frame-connected drawing grows through darker-than-paper pixels. Those
+        // pixels leave the glyph mask; raw ink among them becomes protected frame ink.
+        function aidokuGrowDrawingSupport(p,w,h,threshold,frameInk,raw,mask,seedRadius,protectedInk,queue) {
+          const n=w*h,support=new Uint8Array(n);
+          let end=0;
+          for(let i=0;i<n;i++)if(frameInk[i]){support[i]=1;queue[end++]=i;}
+          for(let head=0;head<end;head++){
+            const i=queue[head],x=i%w,y=i/w|0;
+            for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)
+              for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
+                const j=yy*w+xx;
+                if(support[j]||Math.max(p[j*4],p[j*4+1],p[j*4+2])>threshold)continue;
+                support[j]=1;queue[end++]=j;
+              }
+          }
+          for(let i=0;i<n;i++)if(support[i]){
+            mask[i]=0;seedRadius[i]=0;
+            if(raw[i]){protectedInk[i]=1;frameInk[i]=1;}
+          }
+          return support;
+        }
+        // Block donors within eight rings of protected ink.
+        function aidokuBlockProtectedDonors(protectedInk,w,h,queue) {
+          const n=w*h,donorBlocked=protectedInk.slice(),donorDistance=new Uint8Array(n);
+          let donorTail=0;
+          for(let i=0;i<n;i++)if(protectedInk[i])queue[donorTail++]=i;
+          for(let head=0;head<donorTail;head++){
+            const i=queue[head],x=i%w,y=i/w|0;if(donorDistance[i]>=8)continue;
+            for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
+              const j=yy*w+xx;if(donorBlocked[j])continue;
+              donorBlocked[j]=1;donorDistance[j]=donorDistance[i]+1;queue[donorTail++]=j;
+            }
+          }
+          return {donorBlocked,donorDistance};
+        }
+        // Bounded dilation of the owned glyph mask from queue[0..tail).
+        // Returns the grown queue length; flags[0] is set when a halo was followed.
+        function aidokuDilateOwnedMask(p,w,h,queue,tail,mask,distance,seedRadius,protectedInk,drawingSurface,donorBlocked,donorDistance,
+            protectArtMargin,followHalo,preciseFringe,radius,background,strokeBackgroundBlend,flags) {
+          for(let head=0;head<tail;head++){
+            const i=queue[head],x=i%w,y=i/w|0,atLimit=distance[i]>=seedRadius[i];
+            if(atLimit&&(!followHalo||distance[i]>=Math.min(20,seedRadius[i]+(preciseFringe?12:8))))continue;
+            const yEnd=Math.min(h-2,y+1),xStart=Math.max(1,x-1),xEnd=Math.min(w-2,x+1);
+            for(let yy=Math.max(1,y-1);yy<=yEnd;yy++)for(let xx=xStart;xx<=xEnd;xx++){
+              const j=yy*w+xx;
+              // Keep the art margin, but include the immediate antialiased edge of
+              // already owned lettering when it stays at least three pixels from art.
+              const ownedFringe=distance[i]<2&&donorDistance[j]>=3;
+              if(mask[j]||protectedInk[j]||drawingSurface?.[j]||(protectArtMargin&&donorBlocked[j]&&!ownedFringe))continue;
+              if(atLimit){
+                // Measured stroke width can miss its antialiased outer fringe. Follow
+                // only the observed stroke-to-backing color ramp, with a hard distance
+                // cap; widening every glyph would blur nearby illustration instead.
+                if(donorBlocked[j])continue;
+                const pr=p[j*4],pg=p[j*4+1],pb=p[j*4+2];
+                if(aidokuRestorationDistance(pr,pg,pb,background)<(preciseFringe?8:12)||!strokeBackgroundBlend(pr,pg,pb))continue;
+                flags[0]=1;
+              }
+              // Neighbor offsets are in {-1,0,1}: a length above 1.1 means diagonal.
+              if(xx!==x&&yy!==y&&distance[i]>radius-2)continue;
+              mask[j]=1;distance[j]=distance[i]+1;seedRadius[j]=seedRadius[i];queue[tail++]=j;
+            }
+          }
+          return tail;
+        }
+        // Follow the stroke-to-backing ramp one four-neighbor at a time against
+        // the fitted plane, up to each seed's fringe limit. Returns the queue length.
+        function aidokuFollowPlanarHalo(p,w,h,queue,tail,mask,distance,seedRadius,donorBlocked,drawingSurface,coefficients,stroke,preciseFringe) {
+          for(let head=0;head<tail;head++){
+            const i=queue[head],x=i%w,y=i/w|0;
+            if(distance[i]>=Math.min(20,seedRadius[i]+(preciseFringe?12:8)))continue;
+            for(let k=0;k<4;k++){
+              const xx=k===0?x-1:k===1?x+1:x,yy=k===2?y-1:k===3?y+1:y;
+              if(xx<1||yy<1||xx>=w-1||yy>=h-1)continue;
+              const j=yy*w+xx;if(mask[j]||donorBlocked[j]||drawingSurface?.[j])continue;
+              const q0=coefficients[0],q1=coefficients[1],q2=coefficients[2];
+              const e0=q0[0]+q0[1]*xx/w+q0[2]*yy/h,e1=q1[0]+q1[1]*xx/w+q1[2]*yy/h,e2=q2[0]+q2[1]*xx/w+q2[2]*yy/h;
+              const pr=p[j*4],pg=p[j*4+1],pb=p[j*4+2];
+              if(Math.max(Math.abs(pr-e0),Math.abs(pg-e1),Math.abs(pb-e2))<(preciseFringe?8:18)||
+                  !(stroke&&aidokuRestorationBlendAt(pr,pg,pb,e0,e1,e2,stroke)))continue;
+              mask[j]=1;distance[j]=distance[i]+1;seedRadius[j]=seedRadius[i];queue[tail++]=j;
+            }
+          }
+          return tail;
+        }
+        // One extra ring around confirmed body lettering on a clean plane. Only
+        // queue[0..priorTail) seeds it; ruby margins are excluded. Returns the queue length.
+        function aidokuExpandPlanarRing(p,w,h,queue,priorTail,mask,distance,seedRadius,donorBlocked,drawingSurface,rubyMargins,coefficients,foreground,stroke) {
+          let tail=priorTail;
+          for(let k=0;k<priorTail;k++){
+            const i=queue[k];if(distance[i]<seedRadius[i])continue;
+            const x=i%w,y=i/w|0;
+            for(let yy=y-1;yy<=y+1;yy++)for(let xx=x-1;xx<=x+1;xx++){
+              if(xx<1||xx>=w-1||yy<1||yy>=h-1)continue;
+              const j=yy*w+xx;if(mask[j]||donorBlocked[j]||drawingSurface?.[j])continue;
+              let rubyMargin=false;
+              for(const r of rubyMargins)if(xx>=r[0]&&xx<=r[2]&&yy>=r[1]&&yy<=r[3]){rubyMargin=true;break;}
+              if(rubyMargin)continue;
+              const q0=coefficients[0],q1=coefficients[1],q2=coefficients[2];
+              const e0=q0[0]+q0[1]*xx/w+q0[2]*yy/h,e1=q1[0]+q1[1]*xx/w+q1[2]*yy/h,e2=q2[0]+q2[1]*xx/w+q2[2]*yy/h;
+              const pr=p[j*4],pg=p[j*4+1],pb=p[j*4+2],error=Math.max(Math.abs(pr-e0),Math.abs(pg-e1),Math.abs(pb-e2));
+              if(error<4||!aidokuRestorationBlendAt(pr,pg,pb,e0,e1,e2,foreground)&&
+                  !(stroke&&aidokuRestorationBlendAt(pr,pg,pb,e0,e1,e2,stroke)))continue;
+              mask[j]=1;distance[j]=distance[i]+1;seedRadius[j]=seedRadius[i];queue[tail++]=j;
+            }
+          }
+          return tail;
+        }
+        // Fill enclosed, palette-matched holes of the mask. Returns the rebuilt
+        // queue length of mask pixels.
+        function aidokuFillEnclosedHoles(p,w,h,b,mask,queue,protectedInk,drawingSurface,stroke,background,inkStrokeBlend,strokeBackgroundBlend) {
+          const n=w*h,exterior=new Uint8Array(n);let end=0;
+          const visit=i=>{if(!mask[i]&&!exterior[i]){exterior[i]=1;queue[end++]=i;}};
+          for(let x=0;x<w;x++){visit(x);visit((h-1)*w+x);}
+          for(let y=0;y<h;y++){visit(y*w);visit(y*w+w-1);}
+          for(let head=0;head<end;head++){
+            const i=queue[head],x=i%w,y=i/w|0;
+            if(x>0)visit(i-1);if(x<w-1)visit(i+1);if(y>0)visit(i-w);if(y<h-1)visit(i+w);
+          }
+          for(let start=0;start<n;start++){
+            if(mask[start]||exterior[start])continue;
+            let head=0,end=1,owned=true;queue[0]=start;exterior[start]=1;
+            while(head<end){
+              const i=queue[head++],x=i%w,y=i/w|0,pr=p[i*4],pg=p[i*4+1],pb=p[i*4+2];
+              if(x<b[0]||x>b[0]+b[2]||y<b[1]||y>b[1]+b[3]||protectedInk[i]||drawingSurface?.[i]||
+                  aidokuRestorationDistance(pr,pg,pb,stroke)>24&&aidokuRestorationDistance(pr,pg,pb,background)>24&&
+                  !inkStrokeBlend(pr,pg,pb)&&!strokeBackgroundBlend(pr,pg,pb))owned=false;
+              for(let k=0;k<4;k++){
+                const j=k===0?i-1:k===1?i+1:k===2?i-w:i+w;
+                if(j>=0&&j<n&&!mask[j]&&!exterior[j]){exterior[j]=1;queue[end++]=j;}
+              }
+            }
+            if(owned&&end<=b[2]*b[3]*.15)for(let k=0;k<end;k++)mask[queue[k]]=1;
+          }
+          let tail=0;for(let i=0;i<n;i++)if(mask[i])queue[tail++]=i;
+          return tail;
+        }
+        // Fill masked pixels ring by ring from the average of their valid
+        // four-neighbors (left, right, up, down). Unreachable pixels stay masked.
+        function aidokuFillFromDonorFront(p,w,n,queue,tail,mask,donorBlocked,paintMask) {
+          const queued=new Uint8Array(n);let frontier=[];
+          const neighbor=(i,k)=>k===0?i-1:k===1?i+1:k===2?i-w:i+w;
+          const donorAt=j=>!mask[j]&&(!donorBlocked[j]||paintMask[j]);
+          for(let k=0;k<tail;k++){const i=queue[k];if(donorAt(i-1)||donorAt(i+1)||donorAt(i-w)||donorAt(i+w)){frontier.push(i);queued[i]=1;}}
+          while(frontier.length){
+            const rgb=new Float32Array(frontier.length*3);
+            for(let k=0;k<frontier.length;k++){
+              const i=frontier[k];let count=0,sum0=0,sum1=0,sum2=0;
+              for(let d=0;d<4;d++){const j=neighbor(i,d);if(!donorAt(j))continue;count++;sum0+=p[j*4];sum1+=p[j*4+1];sum2+=p[j*4+2];}
+              rgb[k*3]=sum0/count;rgb[k*3+1]=sum1/count;rgb[k*3+2]=sum2/count;
+            }
+            for(let k=0;k<frontier.length;k++){const i=frontier[k];for(let c=0;c<3;c++)p[i*4+c]=rgb[k*3+c];mask[i]=0;}
+            const next=[];for(const i of frontier)for(let d=0;d<4;d++){const j=neighbor(i,d);if(mask[j]&&!queued[j]){queued[j]=1;next.push(j);}}frontier=next;
+          }
+        }
+        // Relax queue[0..tail) toward the average of its linked four-neighbors
+        // and write the solution back to p.
+        function aidokuHarmonicFill(p,w,n,queue,tail,donorBlocked,paintMask,accelerated) {
+          const work=new Float32Array(n*3);for(let i=0;i<n;i++)for(let c=0;c<3;c++)work[i*3+c]=p[i*4+c];
+          const links=new Uint8Array(tail),counts=new Uint8Array(16);
+          for(let bits=1;bits<16;bits++)counts[bits]=(bits&1)+((bits>>1)&1)+((bits>>2)&1)+((bits>>3)&1);
+          for(let k=0;k<tail;k++){
+            const i=queue[k];
+            links[k]=((!donorBlocked[i-1]||paintMask[i-1])?1:0)|((!donorBlocked[i+1]||paintMask[i+1])?2:0)|
+              ((!donorBlocked[i-w]||paintMask[i-w])?4:0)|((!donorBlocked[i+w]||paintMask[i+w])?8:0);
+          }
+          for(let pass=0;pass<(accelerated?32:48);pass++){
+            const check=accelerated&&(pass&3)===3;let maximumChange=0;
+            for(let k=0;k<tail;k++){
+              const i=queue[k],bits=links[k];if(!bits)continue;
+              const left=(i-1)*3,right=(i+1)*3,up=(i-w)*3,down=(i+w)*3,count=counts[bits];
+              for(let channel=0;channel<3;channel++){
+                const at=i*3+channel,average=((bits&1?work[left+channel]:0)+(bits&2?work[right+channel]:0)+
+                  (bits&4?work[up+channel]:0)+(bits&8?work[down+channel]:0))/count;
+                if(accelerated){
+                  const change=(average-work[at])*1.6;work[at]+=change;
+                  if(check)maximumChange=Math.max(maximumChange,Math.abs(change));
+                }else work[at]=average;
+              }
+            }
+            if(check&&maximumChange<.05)break;
+          }
+          for(let k=0;k<tail;k++){const i=queue[k];for(let c=0;c<3;c++)p[i*4+c]=work[i*3+c];}
+        }
+        // Faded body letters, punctuation and fine ruby can have no dark core.
+        // Recruit ink-to-paper blend pixels inside regions with a clear ring
+        // into raw/faintInk. Returns whether any faint body component was added.
+        function aidokuRecruitFaintInk(p,w,h,faintRegions,background,separation,inkBackgroundBlend,raw,faintInk,queue) {
+          const n=w*h;let added=false;
+          for(const {rect:r,ruby} of faintRegions){
+            const x0=Math.floor(r[0]),y0=Math.floor(r[1]),x1=Math.ceil(r[0]+r[2]),y1=Math.ceil(r[1]+r[3]);
+            let samples=0,clear=0,rough=0;
+            for(let y=y0-2;y<=y1+1;y++)for(let x=x0-2;x<=x1+1;x++){
+              if(x!==x0-2&&x!==x1+1&&y!==y0-2&&y!==y1+1)continue;
+              const i=(y*w+x)*4;samples++;
+              if(aidokuRestorationDistance(p[i],p[i+1],p[i+2],background)<=20)clear++;
+              // Grain near the OCR box cannot establish ownership of faint glyphs.
+              // Otherwise isolated background noise recruits a much wider erase mask.
+              if(!ruby&&x>0&&y>0&&x<w-1&&y<h-1&&[0,1,2].some(c=>Math.abs(p[i+c]-(p[i-4+c]+p[i+4+c]+p[i-w*4+c]+p[i+w*4+c])/4)>6))rough++;
+            }
+            if(samples<(ruby?8:16)||clear/samples<(ruby?.85:.95)||!ruby&&rough/samples>.2)continue;
+            const soft=ruby?null:new Uint8Array(n);
+            for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
+              const i=y*w+x,pr=p[i*4],pg=p[i*4+1],pb=p[i*4+2];
+              if(aidokuRestorationDistance(pr,pg,pb,background)<Math.max(ruby?24:16,separation*.08)||!inkBackgroundBlend(pr,pg,pb))continue;
+              if(soft)soft[i]=1;
+              else {raw[i]=1;faintInk[i]=1;}
+            }
+            if(!soft)continue;
+            // Grow only components with no existing strong seed. Adding the faint
+            // antialias ramp to an already owned character can join adjacent Kanji
+            // into an oversized component and reject previously recoverable text.
+            for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
+              const start=y*w+x;if(!soft[start])continue;
+              let head=0,tail=1,strong=false,crosses=false,l=x,t=y,right=x,bottom=y;queue[0]=start;soft[start]=0;
+              while(head<tail){
+                const i=queue[head++],cx=i%w,cy=i/w|0;if(raw[i])strong=true;
+                l=Math.min(l,cx);t=Math.min(t,cy);right=Math.max(right,cx);bottom=Math.max(bottom,cy);
+                // A pale drawing line may cross an otherwise clear OCR boundary.
+                // Check its continuation outside the box before claiming a clipped
+                // piece as a faint letter; the darker component guard cannot see it.
+                if(cx===x0||cx===x1-1||cy===y0||cy===y1-1)
+                  for(let yy=cy-1;yy<=cy+1;yy++)for(let xx=cx-1;xx<=cx+1;xx++){
+                    if(xx>=x0&&xx<x1&&yy>=y0&&yy<y1)continue;
+                    const j=(yy*w+xx)*4,pr=p[j],pg=p[j+1],pb=p[j+2];
+                    if(aidokuRestorationDistance(pr,pg,pb,background)>=Math.max(16,separation*.08)&&inkBackgroundBlend(pr,pg,pb))crosses=true;
+                  }
+                for(let yy=Math.max(y0,cy-1);yy<Math.min(y1,cy+2);yy++)
+                  for(let xx=Math.max(x0,cx-1);xx<Math.min(x1,cx+2);xx++){
+                    const j=yy*w+xx;if(!soft[j])continue;
+                    soft[j]=0;queue[tail++]=j;
+                  }
+              }
+              // Solid inset blocks are not faint lettering (e.g. a redaction or UI
+              // swatch). Do not let them turn a clear ring into glyph ownership.
+              const solid=right-l>=3&&bottom-t>=3&&tail>(right-l+1)*(bottom-t+1)*.9;
+              // A lone low-contrast sample is paper/JPEG noise, not a new body
+              // component. Promoting it to protected ink would unnecessarily block
+              // translated glyphs; explicitly owned one-pixel ruby stays supported.
+              if(tail>=2&&!strong&&!solid&&!crosses)for(let k=0;k<tail;k++){raw[queue[k]]=1;faintInk[queue[k]]=1;added=true;}
+            }
+          }
+          return added;
+        }
+        // Initial per-pixel ownership classes for one palette. They depend only
+        // on the crop pixels, the palette object and the second ink, so retries
+        // within one aidokuRestoreSourcePanel call reuse them. Every caller
+        // receives private copies: later passes mutate raw and protectedInk.
+        function aidokuObservedPixelClasses(rgba,n,palette,secondaryInk,inkTolerance,separation,matchedInk) {
+          const cache=aidokuRestoreSourcePanel.classificationCache;
+          const hit=cache?.find(e=>e.rgba===rgba&&e.n===n&&e.palette===palette&&e.secondaryInk===secondaryInk);
+          if(hit)return {raw:hit.raw.slice(),observedInk:hit.observedInk&&hit.observedInk.slice(),protectedInk:hit.protectedInk.slice()};
+          const raw=new Uint8Array(n),protectedInk=new Uint8Array(n),observedInk=matchedInk?new Uint8Array(n):null;
+          const foreground=palette.foreground,strokeColor=palette.stroke;
+          const inkStrokeBlend=aidokuRestorationBlend(strokeColor,foreground);
+          const inkBackgroundBlend=aidokuRestorationBlend(palette.background,foreground);
+          const strokeBackgroundBlend=aidokuRestorationBlend(palette.background,strokeColor);
+          // Palette channels are read once; each distance is max |pixel-color|.
+          const lightSurface=Math.min(...palette.background)>=140,haloSeparation=Math.max(32,separation*.55);
+          const f0=foreground[0],f1=foreground[1],f2=foreground[2],g0=palette.background[0],g1=palette.background[1],g2=palette.background[2];
+          const k0=secondaryInk?secondaryInk[0]:0,k1=secondaryInk?secondaryInk[1]:0,k2=secondaryInk?secondaryInk[2]:0;
+          const s0=strokeColor?strokeColor[0]:0,s1=strokeColor?strokeColor[1]:0,s2=strokeColor?strokeColor[2]:0;
+          for(let i=0;i<n;i++){
+            const pr=rgba[4*i],pg=rgba[4*i+1],pb=rgba[4*i+2];
+            const inkDistance=Math.max(Math.abs(pr-f0),Math.abs(pg-f1),Math.abs(pb-f2)),backgroundDistance=Math.max(Math.abs(pr-g0),Math.abs(pg-g1),Math.abs(pb-g2));
+            const secondaryDistance=secondaryInk?Math.max(Math.abs(pr-k0),Math.abs(pg-k1),Math.abs(pb-k2)):Infinity;
+            const secondaryMatch=secondaryDistance<=inkTolerance&&secondaryDistance+8<backgroundDistance;
+            if(observedInk&&(inkDistance<=inkTolerance&&inkDistance+8<backgroundDistance||secondaryMatch))observedInk[i]=1;
+            // Dark rules on a light surface still enter component protection. On a
+            // dark surface the dark pixels are background, not an enormous ink component.
+            if(secondaryMatch||observedInk?.[i]||(lightSurface&&Math.max(pr,pg,pb)<110))raw[i]=1;
+            // The outer antialias ramp runs from stroke to backing, independently
+            // of the fill hue. Treating it as artwork strands valid colored halos.
+            if(observedInk&&!raw[i]&&backgroundDistance>=haloSeparation&&
+                inkDistance>inkTolerance&&(!strokeColor||Math.max(Math.abs(pr-s0),Math.abs(pg-s1),Math.abs(pb-s2))>inkTolerance)&&
+                !inkStrokeBlend(pr,pg,pb)&&!inkBackgroundBlend(pr,pg,pb)&&
+                !strokeBackgroundBlend(pr,pg,pb))
+              protectedInk[i]=1;
+          }
+          if(cache){
+            cache.push({rgba,n,palette,secondaryInk,raw:raw.slice(),observedInk:observedInk&&observedInk.slice(),protectedInk:protectedInk.slice()});
+            if(cache.length>8)cache.shift();
+          }
+          return {raw,observedInk,protectedInk};
+        }
         function aidokuRestoreObservedSourcePanel(rgba,w,h,b,palette,options={}) {
           const n=w*h;
           if(!Number.isInteger(w)||!Number.isInteger(h)||w<8||h<8||n>262144||
@@ -551,7 +948,7 @@ enum BrowserSourcePanelRestoration {
               !palette?.foreground||!palette?.background)return null;
           // WebKit crop resampling can round opaque alpha to 254. Accept that
           // one-byte error without flattening genuinely transparent source art.
-          for(let q=3;q<rgba.length;q+=4)if(rgba[q]<254)return null;
+          if(!aidokuRestorationOpaque(rgba))return null;
           // Suppressed white readings on a dark caption retain the same verified
           // ownership. Reuse the bounded mask in opposite polarity; alpha and
           // protected illustration components are unchanged.
@@ -571,14 +968,11 @@ enum BrowserSourcePanelRestoration {
           const foreground=palette.foreground;
           const colorDistance=(a,b)=>Math.max(...a.map((v,c)=>Math.abs(v-b[c])));
           const separation=colorDistance(foreground,palette.background);
-          const onInkBlend=(rgb,end,start=foreground)=>{
-            if(!end||!start)return false;
-            const delta=end.map((v,c)=>v-start[c]);
-            const length=delta.reduce((sum,v)=>sum+v*v,0);
-            if(!length)return false;
-            const t=Math.max(0,Math.min(1,delta.reduce((sum,v,c)=>sum+(rgb[c]-start[c])*v,0)/length));
-            return colorDistance(rgb,start.map((v,c)=>v+t*delta[c]))<=24;
-          };
+          // Whether a pixel lies on the straight ramp between two observed colors
+          // (fill to stroke, fill to backing, stroke to backing), within 24 levels.
+          const inkStrokeBlend=aidokuRestorationBlend(palette.stroke,foreground);
+          const inkBackgroundBlend=aidokuRestorationBlend(palette.background,foreground);
+          const strokeBackgroundBlend=aidokuRestorationBlend(palette.background,palette.stroke);
           const legacyDark=Math.max(...foreground)<=80&&Math.min(...palette.background)>=140;
           // Match observed ink in RGB space, independent of hue or panel polarity.
           // Color is evidence for ownership, never a reason to replace the panel.
@@ -597,25 +991,8 @@ enum BrowserSourcePanelRestoration {
           // neighboring artwork. Observed outlines retain their measured width.
           const radius=measuredRadius??(options.compactMask?(palette.stroke?6:3):12);
           
-     const p=rgba.slice(),raw=new Uint8Array(n),seen=new Uint8Array(n),mask=new Uint8Array(n),protectedInk=new Uint8Array(n),frameInk=new Uint8Array(n),queue=new Int32Array(n),seedRadius=new Uint8Array(n),accepted=[],isolatedBodyInk=[],readingCandidates=[],edgeFragments=[];
-     const observedInk=matchedInk?new Uint8Array(n):null;
-     for(let i=0;i<n;i++){
-       const rgb=[p[4*i],p[4*i+1],p[4*i+2]];
-       const inkDistance=colorDistance(rgb,foreground),backgroundDistance=colorDistance(rgb,palette.background);
-       const secondaryDistance=options.secondaryInk?colorDistance(rgb,options.secondaryInk):Infinity;
-       const secondaryMatch=secondaryDistance<=inkTolerance&&secondaryDistance+8<backgroundDistance;
-       if(observedInk&&(inkDistance<=inkTolerance&&inkDistance+8<backgroundDistance||secondaryMatch))observedInk[i]=1;
-       // Dark rules on a light surface still enter component protection. On a
-       // dark surface the dark pixels are background, not an enormous ink component.
-       if(secondaryMatch||observedInk?.[i]||(Math.min(...palette.background)>=140&&Math.max(...rgb)<110))raw[i]=1;
-       // The outer antialias ramp runs from stroke to backing, independently
-       // of the fill hue. Treating it as artwork strands valid colored halos.
-       if(observedInk&&!raw[i]&&backgroundDistance>=Math.max(32,separation*.55)&&
-           inkDistance>inkTolerance&&(!palette.stroke||colorDistance(rgb,palette.stroke)>inkTolerance)&&
-           !onInkBlend(rgb,palette.stroke)&&!onInkBlend(rgb,palette.background)&&
-           !onInkBlend(rgb,palette.background,palette.stroke))
-         protectedInk[i]=1;
-     }
+     const p=rgba.slice(),seen=new Uint8Array(n),mask=new Uint8Array(n),frameInk=new Uint8Array(n),queue=new Int32Array(n),seedRadius=new Uint8Array(n),accepted=[],isolatedBodyInk=[],readingCandidates=[],edgeFragments=[];
+     const {raw,observedInk,protectedInk}=aidokuObservedPixelClasses(rgba,n,palette,options.secondaryInk,inkTolerance,separation,matchedInk);
      const auxiliary=(options.auxiliary||[]).slice(0,32).filter(r=>Array.isArray(r)&&r.length===4&&r.every(Number.isFinite)&&r[0]>=2&&r[1]>=2&&r[2]>0&&r[3]>0&&r[0]+r[2]<w-2&&r[1]+r[3]<h-2);
      if(options.readabilityGate&&options.vertical&&legacyDark&&auxiliary.length===0)
        auxiliary.push(...aidokuInferVerticalRuby(raw,p,w,h,b,palette.background).filter(r=>
@@ -628,67 +1005,15 @@ enum BrowserSourcePanelRestoration {
      let faintBodyAdded=false,extendedHalo=false;
      const faintRegions=[...auxiliary.map(rect=>({rect,ruby:true}))];
      if(options.readabilityGate&&options.faintBody!==false&&separation>=60)faintRegions.push({rect:b,ruby:false});
-     for(const {rect:r,ruby} of faintRegions){
-       const x0=Math.floor(r[0]),y0=Math.floor(r[1]),x1=Math.ceil(r[0]+r[2]),y1=Math.ceil(r[1]+r[3]);
-       let samples=0,clear=0,rough=0;
-       for(let y=y0-2;y<=y1+1;y++)for(let x=x0-2;x<=x1+1;x++){
-         if(x!==x0-2&&x!==x1+1&&y!==y0-2&&y!==y1+1)continue;
-         const i=(y*w+x)*4;samples++;
-         if(colorDistance([p[i],p[i+1],p[i+2]],palette.background)<=20)clear++;
-         // Grain near the OCR box cannot establish ownership of faint glyphs.
-         // Otherwise isolated background noise recruits a much wider erase mask.
-         if(!ruby&&x>0&&y>0&&x<w-1&&y<h-1&&[0,1,2].some(c=>Math.abs(p[i+c]-(p[i-4+c]+p[i+4+c]+p[i-w*4+c]+p[i+w*4+c])/4)>6))rough++;
-       }
-       if(samples<(ruby?8:16)||clear/samples<(ruby?.85:.95)||!ruby&&rough/samples>.2)continue;
-       const soft=ruby?null:new Uint8Array(n);
-       for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
-         const i=y*w+x,rgb=[p[i*4],p[i*4+1],p[i*4+2]];
-         if(colorDistance(rgb,palette.background)<Math.max(ruby?24:16,separation*.08)||!onInkBlend(rgb,palette.background))continue;
-         if(soft)soft[i]=1;
-         else {raw[i]=1;faintInk[i]=1;}
-       }
-       if(!soft)continue;
-       // Grow only components with no existing strong seed. Adding the faint
-       // antialias ramp to an already owned character can join adjacent Kanji
-       // into an oversized component and reject previously recoverable text.
-       for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
-         const start=y*w+x;if(!soft[start])continue;
-         let head=0,tail=1,strong=false,crosses=false,l=x,t=y,right=x,bottom=y;queue[0]=start;soft[start]=0;
-         while(head<tail){
-           const i=queue[head++],cx=i%w,cy=i/w|0;if(raw[i])strong=true;
-           l=Math.min(l,cx);t=Math.min(t,cy);right=Math.max(right,cx);bottom=Math.max(bottom,cy);
-           // A pale drawing line may cross an otherwise clear OCR boundary.
-           // Check its continuation outside the box before claiming a clipped
-           // piece as a faint letter; the darker component guard cannot see it.
-           if(cx===x0||cx===x1-1||cy===y0||cy===y1-1)
-             for(let yy=cy-1;yy<=cy+1;yy++)for(let xx=cx-1;xx<=cx+1;xx++){
-               if(xx>=x0&&xx<x1&&yy>=y0&&yy<y1)continue;
-               const j=(yy*w+xx)*4,rgb=[p[j],p[j+1],p[j+2]];
-               if(colorDistance(rgb,palette.background)>=Math.max(16,separation*.08)&&onInkBlend(rgb,palette.background))crosses=true;
-             }
-           for(let yy=Math.max(y0,cy-1);yy<Math.min(y1,cy+2);yy++)
-             for(let xx=Math.max(x0,cx-1);xx<Math.min(x1,cx+2);xx++){
-               const j=yy*w+xx;if(!soft[j])continue;
-               soft[j]=0;queue[tail++]=j;
-             }
-         }
-         // Solid inset blocks are not faint lettering (e.g. a redaction or UI
-         // swatch). Do not let them turn a clear ring into glyph ownership.
-         const solid=right-l>=3&&bottom-t>=3&&tail>(right-l+1)*(bottom-t+1)*.9;
-         // A lone low-contrast sample is paper/JPEG noise, not a new body
-         // component. Promoting it to protected ink would unnecessarily block
-         // translated glyphs; explicitly owned one-pixel ruby stays supported.
-         if(tail>=2&&!strong&&!solid&&!crosses)for(let k=0;k<tail;k++){raw[queue[k]]=1;faintInk[queue[k]]=1;faintBodyAdded=true;}
-       }
-     }
+     faintBodyAdded=aidokuRecruitFaintInk(p,w,h,faintRegions,palette.background,separation,inkBackgroundBlend,raw,faintInk,queue);
      const retryPrevious=()=>faintBodyAdded||extendedHalo?
        aidokuRestoreObservedSourcePanel(rgba,w,h,b,palette,{...options,faintBody:false,outlineFringe:false}):null;
      let companions=0,connectedOutlineRuns=0;const bodyRules=[];const texturePoints=[],textureComponents=[];
-     for(let start=0;start<n;start++){
-     if(!raw[start]||seen[start])continue;let head=0,tail=1,x0=w,y0=h,x1=0,y1=0;queue[0]=start;seen[start]=1;
-     while(head<tail){const i=queue[head++],x=i%w,y=i/w|0;x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);
-     for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){const j=yy*w+xx;if(raw[j]&&!seen[j]){seen[j]=1;queue[tail++]=j;}}
-     }
+     const bounds=new Int32Array(4);
+     // Scan for the next seed outside the body: its closures would otherwise
+     // allocate a scope for every pixel visited.
+     for(let start=aidokuNextSeed(raw,seen,0,n);start<n;start=aidokuNextSeed(raw,seen,start+1,n)){
+     const tail=aidokuFloodComponent(raw,seen,queue,start,w,h,bounds),x0=bounds[0],y0=bounds[1],x1=bounds[2],y1=bounds[3];
      const cx=(x0+x1)/2,cy=(y0+y1)/2;
      if(options.readabilityGate&&tail<=4&&texturePoints.length<8192){texturePoints.push((cy|0)*w+(cx|0));textureComponents.push(Array.from(queue.subarray(0,tail)));}
      // Touching the rectified ownership boundary alone is not a glyph seed.
@@ -737,7 +1062,7 @@ enum BrowserSourcePanelRestoration {
        let samples=0,outlined=0;
        for(let yy=y0+3;yy<y1-2;yy++)for(const xx of [x0-3,x1+3]){
          const i=(yy*w+xx)*4;samples++;
-         if(colorDistance([p[i],p[i+1],p[i+2]],palette.stroke)<=24)outlined++;
+         if(aidokuRestorationDistance(p[i],p[i+1],p[i+2],palette.stroke)<=24)outlined++;
        }
        if(samples>20&&outlined>=samples*.9)bodyRules.push({box:[x0,y0,x1,y1],pixels:Array.from(queue.subarray(0,tail))});
      }
@@ -844,32 +1169,16 @@ enum BrowserSourcePanelRestoration {
      // reconnect them to known frame artwork through darker-than-paper pixels
      // before deciding which components belong to lettering.
      let drawingSurface=null;
-     if(options.protectArtMargin||options.readabilityGate){
-       const support=drawingSurface=new Uint8Array(n),threshold=Math.min(210,Math.min(...palette.background)-40);
-       let end=0;
-       for(let i=0;i<n;i++)if(frameInk[i]){support[i]=1;queue[end++]=i;}
-       for(let head=0;head<end;head++){
-         const i=queue[head],x=i%w,y=i/w|0;
-         for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)
-           for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
-             const j=yy*w+xx;
-             if(support[j]||Math.max(p[j*4],p[j*4+1],p[j*4+2])>threshold)continue;
-             support[j]=1;queue[end++]=j;
-           }
-       }
-       for(let i=0;i<n;i++)if(support[i]){
-         mask[i]=0;seedRadius[i]=0;
-         if(raw[i]){protectedInk[i]=1;frameInk[i]=1;}
-       }
-     }
+     if(options.protectArtMargin||options.readabilityGate)
+       drawingSurface=aidokuGrowDrawingSupport(p,w,h,Math.min(210,Math.min(...palette.background)-40),
+         frameInk,raw,mask,seedRadius,protectedInk,queue);
      // Validate tiny codec islands from their actual border, not merely a
      // dark-core bounding box. A contrasting observed halo and nearby owned
      // ink must surround them; connected artwork stays protected.
      if(measuredHalo&&Math.max(...foreground)-Math.min(...foreground)>=24){
        const visited=new Uint8Array(n),islands=[],fgMin=Math.min(...foreground),fgSpan=Math.max(...foreground)-fgMin;
        const halo=palette.stroke&&colorDistance(palette.stroke,palette.background)>=40;
-       for(let start=0;start<n;start++){
-         if(!protectedInk[start]||visited[start])continue;
+       for(let start=aidokuNextSeed(protectedInk,visited,0,n);start<n;start=aidokuNextSeed(protectedInk,visited,start+1,n)){
          let head=0,end=1;queue[0]=start;visited[start]=1;
          while(head<end){
            const i=queue[head++],x=i%w,y=i/w|0;
@@ -897,9 +1206,9 @@ enum BrowserSourcePanelRestoration {
              contacts++;
              if(mask[j]){compatible++;nearby=true;}
              else {
-               const color=[p[j*4],p[j*4+1],p[j*4+2]];
-               if(colorDistance(color,palette.stroke)<=32){compatible++;outline++;}
-               else if(onInkBlend(color,palette.stroke))compatible++;
+               const pr=p[j*4],pg=p[j*4+1],pb=p[j*4+2];
+               if(aidokuRestorationDistance(pr,pg,pb,palette.stroke)<=32){compatible++;outline++;}
+               else if(inkStrokeBlend(pr,pg,pb))compatible++;
              }
            }
          }
@@ -924,8 +1233,7 @@ enum BrowserSourcePanelRestoration {
          b[3]>=b[2]&&accepted.length>=6){
        const colors=[palette.foreground,palette.stroke].filter(c=>c&&Math.max(...c)-Math.min(...c)>=40);
        const visited=new Uint8Array(n),islands=[];
-       for(let start=0;colors.length&&start<n;start++){
-         if(!protectedInk[start]||visited[start])continue;
+       for(let start=aidokuNextSeed(protectedInk,visited,0,n);colors.length&&start<n;start=aidokuNextSeed(protectedInk,visited,start+1,n)){
          let head=0,end=1;queue[0]=start;visited[start]=1;
          while(head<end){
            const i=queue[head++],x=i%w,y=i/w|0;
@@ -957,7 +1265,7 @@ enum BrowserSourcePanelRestoration {
        }
        for(const i of islands){mask[i]=1;protectedInk[i]=0;seedRadius[i]=Math.min(radius,6);}
      }
-     const coreCount=mask.reduce((sum,v)=>sum+v,0);
+     const coreCount=aidokuMaskCount(mask,n);
      // Keep the original substantial-stroke density gate stable when adding
      // raster fragments; a handful of one-pixel dots must not reject an
      // otherwise valid dense caption and bring its entire source text back.
@@ -970,89 +1278,39 @@ enum BrowserSourcePanelRestoration {
        palette.confidence?.reason==='repeated dark glyph interiors enclosed by white source outlines';
      if(substantialCoreCount>b[2]*b[3]*(options.flatPalette ? .48 : outlinedDark ? .42 : connectedOutlineRuns>0&&palette.stroke&&(palette.confidence?.stroke||0)>=.6 ? .48 : .3))return retryPrevious();
      // Reject unresolved dark ink inside the OCR box, including intersecting art.
-     let unresolved=0;
-     for(let y=Math.floor(b[1]);y<Math.ceil(b[1]+b[3]);y++)for(let x=Math.floor(b[0]);x<Math.ceil(b[0]+b[2]);x++)
-       if(protectedInk[y*w+x]&&!frameInk[y*w+x])unresolved++;
+     let unresolved=aidokuCountUnresolvedInk(protectedInk,frameInk,w,b);
      if(!options.slantedOwnership&&unresolved>Math.max(8,coreCount*.04))return retryPrevious();
      // Neighboring untranslated ink and its halo are not background donors.
      // Exclusion affects sampling only: their original pixels remain untouched.
-     const donorBlocked=protectedInk.slice(),donorDistance=new Uint8Array(n);
-     let donorTail=0;
-     for(let i=0;i<n;i++)if(protectedInk[i])queue[donorTail++]=i;
-     for(let head=0;head<donorTail;head++){
-       const i=queue[head],x=i%w,y=i/w|0;if(donorDistance[i]>=8)continue;
-       for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
-         const j=yy*w+xx;if(donorBlocked[j])continue;
-         donorBlocked[j]=1;donorDistance[j]=donorDistance[i]+1;queue[donorTail++]=j;
-       }
-     }
+     const {donorBlocked,donorDistance}=aidokuBlockProtectedDonors(protectedInk,w,h,queue);
      if(drawingSurface)for(let i=0;i<n;i++)if(drawingSurface[i])donorBlocked[i]=1;
      // Tiny ruby outlines need less expansion than body lettering. Do not
      // blend a nearby white illustration edge into an otherwise gray reading.
+     const dimSurface=Math.max(...palette.background)<225;
      for(const r of auxiliary)for(let y=Math.max(0,Math.floor(r[1]-12));y<Math.min(h,Math.ceil(r[1]+r[3]+12));y++)
        for(let x=Math.max(0,Math.floor(r[0]-12));x<Math.min(w,Math.ceil(r[0]+r[2]+12));x++){
          const i=y*w+x;
-         if(Math.max(...palette.background)<225&&Math.min(p[i*4],p[i*4+1],p[i*4+2])>240)donorBlocked[i]=1;
+         if(dimSurface&&Math.min(p[i*4],p[i*4+1],p[i*4+2])>240)donorBlocked[i]=1;
        }
      const distance=new Uint8Array(n);let tail=0;
      const preciseFringe=options.preciseFringe!==false;
      const followHalo=measuredHalo&&options.outlineFringe!==false&&palette.stroke&&
        colorDistance(palette.stroke,palette.background)>=40;
-     for(let i=0;i<n;i++)if(mask[i])queue[tail++]=i;
+     tail=aidokuMaskQueue(mask,queue,n);
      // Include halos even when the color estimator mistakes them for paper.
      // Native-resolution dilation is bounded; 24 px crop padding keeps its
      // boundary samples outside the source outline rather than inside it.
-     for(let head=0;head<tail;head++){
-     const i=queue[head],x=i%w,y=i/w|0,atLimit=distance[i]>=seedRadius[i];
-     if(atLimit&&(!followHalo||distance[i]>=Math.min(20,seedRadius[i]+(preciseFringe?12:8))))continue;
-     for(let yy=Math.max(1,y-1);yy<=Math.min(h-2,y+1);yy++)for(let xx=Math.max(1,x-1);xx<=Math.min(w-2,x+1);xx++){
-     const j=yy*w+xx;
-     // Keep the art margin, but include the immediate antialiased edge of
-     // already owned lettering when it stays at least three pixels from art.
-     const ownedFringe=distance[i]<2&&donorDistance[j]>=3;
-     if(mask[j]||protectedInk[j]||drawingSurface?.[j]||(options.protectArtMargin&&donorBlocked[j]&&!ownedFringe))continue;
-     if(atLimit){
-       // Measured stroke width can miss its antialiased outer fringe. Follow
-       // only the observed stroke-to-backing color ramp, with a hard distance
-       // cap; widening every glyph would blur nearby illustration instead.
-       if(donorBlocked[j])continue;
-       const rgb=[p[j*4],p[j*4+1],p[j*4+2]];
-       if(colorDistance(rgb,palette.background)<(preciseFringe?8:12)||!onInkBlend(rgb,palette.background,palette.stroke))continue;
-       extendedHalo=true;
-     }
-     if(Math.hypot(xx-(i%w),yy-(i/w|0))>1.1&&distance[i]>radius-2)continue;
-     mask[j]=1;distance[j]=distance[i]+1;seedRadius[j]=seedRadius[i];queue[tail++]=j;
-     }}
+     const dilationFlags=new Uint8Array(1);
+     tail=aidokuDilateOwnedMask(p,w,h,queue,tail,mask,distance,seedRadius,protectedInk,drawingSurface,donorBlocked,donorDistance,
+       options.protectArtMargin,followHalo,preciseFringe,radius,palette.background,strokeBackgroundBlend,dilationFlags);
+     if(dilationFlags[0])extendedHalo=true;
      // A slanted outlined display glyph can enclose a wide white interior.
      // Dilation alone misses its center and then samples it as a white donor,
      // leaving the old letter's silhouette. Fill only enclosed, palette-matched
      // holes; any hole connected to the page or containing artwork is preserved.
      if((options.slantedOwnership||options.readabilityGate&&options.vertical&&Math.max(...foreground)-Math.min(...foreground)>=40)&&palette.stroke&&(palette.confidence?.stroke||0)>=.6&&
-         colorDistance(palette.stroke,palette.background)>=20){
-       const exterior=new Uint8Array(n);let end=0;
-       const visit=i=>{if(!mask[i]&&!exterior[i]){exterior[i]=1;queue[end++]=i;}};
-       for(let x=0;x<w;x++){visit(x);visit((h-1)*w+x);}
-       for(let y=0;y<h;y++){visit(y*w);visit(y*w+w-1);}
-       for(let head=0;head<end;head++){
-         const i=queue[head],x=i%w,y=i/w|0;
-         if(x>0)visit(i-1);if(x<w-1)visit(i+1);if(y>0)visit(i-w);if(y<h-1)visit(i+w);
-       }
-       for(let start=0;start<n;start++){
-         if(mask[start]||exterior[start])continue;
-         let head=0,end=1,owned=true;queue[0]=start;exterior[start]=1;
-         while(head<end){
-           const i=queue[head++],x=i%w,y=i/w|0,rgb=[p[i*4],p[i*4+1],p[i*4+2]];
-           if(x<b[0]||x>b[0]+b[2]||y<b[1]||y>b[1]+b[3]||protectedInk[i]||drawingSurface?.[i]||
-               colorDistance(rgb,palette.stroke)>24&&colorDistance(rgb,palette.background)>24&&
-               !onInkBlend(rgb,palette.stroke)&&!onInkBlend(rgb,palette.background,palette.stroke))owned=false;
-           for(const j of [i-1,i+1,i-w,i+w])if(j>=0&&j<n&&!mask[j]&&!exterior[j]){
-             exterior[j]=1;queue[end++]=j;
-           }
-         }
-         if(owned&&end<=b[2]*b[3]*.15)for(let k=0;k<end;k++)mask[queue[k]]=1;
-       }
-       tail=0;for(let i=0;i<n;i++)if(mask[i])queue[tail++]=i;
-     }
+         colorDistance(palette.stroke,palette.background)>=20)
+       tail=aidokuFillEnclosedHoles(p,w,h,b,mask,queue,protectedInk,drawingSurface,palette.stroke,palette.background,inkStrokeBlend,strokeBackgroundBlend);
      // Connected drawing inside a textured OCR surface is not recoverable
      // from nearby paper. Do not let the drawing itself become missing donors.
      // Chroma subsampling can leave a small interior island whose hue no
@@ -1087,18 +1345,14 @@ enum BrowserSourcePanelRestoration {
          if(valid&&border>0&&owned/border>=.9)pending.push(...island);
        }
        for(const i of pending){mask[i]=1;protectedInk[i]=0;unresolved--;}
-       if(pending.length){tail=0;for(let i=0;i<n;i++)if(mask[i])queue[tail++]=i;}
+       if(pending.length)tail=aidokuMaskQueue(mask,queue,n);
      }
-     let frameInterior=0,innerArea=0;
-     for(let y=Math.ceil(b[1]+3);y<Math.floor(b[1]+b[3]-3);y++)for(let x=Math.ceil(b[0]+3);x<Math.floor(b[0]+b[2]-3);x++){
-       innerArea++;if(frameInk[y*w+x])frameInterior++;
-     }
+     const interior=aidokuFrameInterior(frameInk,w,b),frameInterior=interior[0],innerArea=interior[1];
      // Keep source erasure independent from where the wider translation fits.
      // Only a fully resolved body and owned ruby can release the old rectangle.
      let sourceErasureVerified=unresolved===0&&frameInterior===0;
      if(sourceErasureVerified)for(const r of auxiliary)
-       for(let y=Math.floor(r[1]);y<Math.ceil(r[1]+r[3]);y++)for(let x=Math.floor(r[0]);x<Math.ceil(r[0]+r[2]);x++)
-         if(protectedInk[y*w+x]||frameInk[y*w+x])sourceErasureVerified=false;
+       if(aidokuRectHasInk(protectedInk,frameInk,w,r))sourceErasureVerified=false;
      // Texture outside a white balloon does not invalidate its isolated glyphs.
      // Reject periodic dots only when the final erasure would actually own them.
 
@@ -1112,25 +1366,26 @@ enum BrowserSourcePanelRestoration {
        const pending=[],planes=surfaceQuality.coefficients;
        for(let y=Math.ceil(b[1]);y<Math.floor(b[1]+b[3]);y++)for(let x=Math.ceil(b[0]);x<Math.floor(b[0]+b[2]);x++){
          const i=y*w+x;if(mask[i]||protectedInk[i]||drawingSurface?.[i])continue;
-         const bg=planes.map(a=>a[0]+a[1]*x/w+a[2]*y/h),rgb=Array.from(p.subarray(i*4,i*4+3));
-         const delta=foreground.map((v,c)=>v-bg[c]),length=delta.reduce((s,v)=>s+v*v,0);
-         if(length<1600||colorDistance(rgb,bg)<24)continue;
-         const t=delta.reduce((s,v,c)=>s+(rgb[c]-bg[c])*v,0)/length;
-         if(t<.1||t>=.95||colorDistance(rgb,bg.map((v,c)=>v+t*delta[c]))>18)continue;
+         const q0=planes[0],q1=planes[1],q2=planes[2];
+         const bg0=q0[0]+q0[1]*x/w+q0[2]*y/h,bg1=q1[0]+q1[1]*x/w+q1[2]*y/h,bg2=q2[0]+q2[1]*x/w+q2[2]*y/h;
+         const pr=p[i*4],pg=p[i*4+1],pb=p[i*4+2];
+         const d0=foreground[0]-bg0,d1=foreground[1]-bg1,d2=foreground[2]-bg2,length=0+d0*d0+d1*d1+d2*d2;
+         if(length<1600||Math.max(Math.abs(pr-bg0),Math.abs(pg-bg1),Math.abs(pb-bg2))<24)continue;
+         const t=(0+(pr-bg0)*d0+(pg-bg1)*d1+(pb-bg2)*d2)/length;
+         if(t<.1||t>=.95||Math.max(Math.abs(pr-(bg0+t*d0)),Math.abs(pg-(bg1+t*d1)),Math.abs(pb-(bg2+t*d2)))>18)continue;
          let owned=0;for(let yy=y-1;yy<=y+1;yy++)for(let xx=x-1;xx<=x+1;xx++)if(mask[yy*w+xx])owned++;
          if(owned>=3)pending.push(i);
        }
        for(const i of pending)mask[i]=1;
        if(pending.length){
-         tail=0;for(let i=0;i<n;i++)if(mask[i])queue[tail++]=i;
+         tail=aidokuMaskQueue(mask,queue,n);
          surfaceQuality=aidokuSourceSurfaceQuality(rgba,w,h,mask,donorBlocked);
        }
      }
      if((periodicInk||surfaceQuality?.safe&&surfaceQuality.rmse>3)&&frameInterior===0){
        const repeated=aidokuSourcePeriodicFill(rgba,w,h,mask,donorBlocked,periodicInk,texturePoints);
        if(repeated){
-         const layoutSafe=new Uint8Array(n);
-         for(let i=0;i<n;i++)if(!protectedInk[i]&&!drawingSurface?.[i])layoutSafe[i]=1;
+         const layoutSafe=aidokuLayoutSafe(protectedInk,drawingSurface,n);
          return {...repeated,layoutSafe,surfaceQuality:{...surfaceQuality,reason:'periodic',vectors:repeated.vectors,
            repetitionError:repeated.error},components:accepted.length,radius,companions,sourceErasureVerified,preservedPixels:0,preservedCore:0};
        }
@@ -1141,18 +1396,8 @@ enum BrowserSourcePanelRestoration {
      // backing before admitting those pixels as diffusion donors.
      if(followHalo&&surfaceQuality?.safe&&surfaceQuality.reason==='smooth'&&frameInterior===0){
        const priorTail=tail;
-       for(let head=0;head<tail;head++){
-         const i=queue[head],x=i%w,y=i/w|0;
-         if(distance[i]>=Math.min(20,seedRadius[i]+(preciseFringe?12:8)))continue;
-         for(const [xx,yy] of [[x-1,y],[x+1,y],[x,y-1],[x,y+1]]){
-           if(xx<1||yy<1||xx>=w-1||yy>=h-1)continue;
-           const j=yy*w+xx;if(mask[j]||donorBlocked[j]||drawingSurface?.[j])continue;
-           const backing=surfaceQuality.coefficients.map(a=>a[0]+a[1]*xx/w+a[2]*yy/h);
-           const rgb=[p[j*4],p[j*4+1],p[j*4+2]];
-           if(colorDistance(rgb,backing)<(preciseFringe?8:18)||!onInkBlend(rgb,backing,palette.stroke))continue;
-           mask[j]=1;distance[j]=distance[i]+1;seedRadius[j]=seedRadius[i];queue[tail++]=j;
-         }
-       }
+       tail=aidokuFollowPlanarHalo(p,w,h,queue,tail,mask,distance,seedRadius,donorBlocked,drawingSurface,
+         surfaceQuality.coefficients,palette.stroke,preciseFringe);
        if(tail>priorTail){extendedHalo=true;surfaceQuality=aidokuSourceSurfaceQuality(rgba,w,h,mask,donorBlocked);}
      }
      // A larger fringe must not turn a rejected irregular white balloon into
@@ -1183,7 +1428,7 @@ enum BrowserSourcePanelRestoration {
      if(surfaceQuality?.safe&&surfaceQuality.reason==='smooth'&&surfaceQuality.rmse>3&&frameInterior===0){
        const textured=aidokuSourceExemplarFill(rgba,w,h,mask,palette,surfaceQuality,protectedInk,textureComponents);
        if(textured){
-         const layoutSafe=new Uint8Array(n);for(let i=0;i<n;i++)if(!protectedInk[i]&&!drawingSurface?.[i])layoutSafe[i]=1;
+         const layoutSafe=aidokuLayoutSafe(protectedInk,drawingSurface,n);
          return {...textured,layoutSafe,surfaceQuality:{...surfaceQuality,reason:'exemplar-texture'},components:accepted.length,radius,companions,sourceErasureVerified,preservedPixels:0,preservedCore:0};
        }
      }
@@ -1195,19 +1440,8 @@ enum BrowserSourcePanelRestoration {
        const priorTail=tail,previousQuality=surfaceQuality;
        // Existing ruby halos can reach 20 pixels; exclude that full halo plus the new ring.
        const rubyMargins=auxiliary.map(r=>[r[0]-21,r[1]-21,r[0]+r[2]+21,r[1]+r[3]+21]);
-       for(let k=0;k<priorTail;k++){
-         const i=queue[k];if(distance[i]<seedRadius[i])continue;
-         const x=i%w,y=i/w|0;
-         for(let yy=y-1;yy<=y+1;yy++)for(let xx=x-1;xx<=x+1;xx++){
-           if(xx<1||xx>=w-1||yy<1||yy>=h-1)continue;
-           const j=yy*w+xx;if(mask[j]||donorBlocked[j]||drawingSurface?.[j])continue;
-           if(rubyMargins.some(r=>xx>=r[0]&&xx<=r[2]&&yy>=r[1]&&yy<=r[3]))continue;
-           const backing=previousQuality.coefficients.map(a=>a[0]+a[1]*xx/w+a[2]*yy/h);
-           const rgb=[p[j*4],p[j*4+1],p[j*4+2]],error=colorDistance(rgb,backing);
-           if(error<4||!onInkBlend(rgb,backing)&&!(palette.stroke&&onInkBlend(rgb,backing,palette.stroke)))continue;
-           mask[j]=1;distance[j]=distance[i]+1;seedRadius[j]=seedRadius[i];queue[tail++]=j;
-         }
-       }
+       tail=aidokuExpandPlanarRing(p,w,h,queue,priorTail,mask,distance,seedRadius,donorBlocked,drawingSurface,
+         rubyMargins,previousQuality.coefficients,foreground,palette.stroke);
        if(tail>priorTail){
          const expanded=aidokuSourceSurfaceQuality(rgba,w,h,mask,donorBlocked);
          if(expanded.safe&&expanded.reason==='smooth'&&expanded.rmse<=3&&expanded.outliers===0&&expanded.samples>=64)
@@ -1222,27 +1456,11 @@ enum BrowserSourcePanelRestoration {
      // Allow a small plane residual only with sparse outliers and no crossing art.
      if(surfaceQuality&&(surfaceQuality.rmse<=3||measuredHalo&&surfaceQuality.rmse<=8&&
          surfaceQuality.outliers<=.02&&frameInterior===0)&&(!options.compactMask||surfaceQuality.samples>=64)){
-       const output=new Uint8ClampedArray(n*4),layoutSafe=new Uint8Array(n);
-       for(let i=0;i<n;i++){
-         if(!protectedInk[i]&&!drawingSurface?.[i])layoutSafe[i]=1;
-         if(!mask[i])continue;
-         const x=(i%w)/w,y=(i/w|0)/h;
-         for(let c=0;c<3;c++){
-           const a=surfaceQuality.coefficients[c];output[i*4+c]=a[0]+a[1]*x+a[2]*y;
-         }
-         output[i*4+3]=255;
-       }
+       const output=aidokuPlaneFill(mask,surfaceQuality.coefficients,w,h),layoutSafe=aidokuLayoutSafe(protectedInk,drawingSurface,n);
        return {rgba:output,layoutSafe,surfaceQuality,erased:tail,components:accepted.length,radius,companions,sourceErasureVerified,preservedPixels:0,preservedCore:0};
      }
-     const paintMask=mask.slice(),queued=new Uint8Array(n);let frontier=[];
-     const neighbors=i=>[i-1,i+1,i-w,i+w];
-     for(let k=0;k<tail;k++)if(neighbors(queue[k]).some(j=>!mask[j]&&(!donorBlocked[j]||paintMask[j]))){frontier.push(queue[k]);queued[queue[k]]=1;}
-     while(frontier.length){
-     const rgb=new Float32Array(frontier.length*3);
-     for(let k=0;k<frontier.length;k++){const i=frontier[k],valid=neighbors(i).filter(j=>!mask[j]&&(!donorBlocked[j]||paintMask[j]));for(let c=0;c<3;c++)rgb[k*3+c]=valid.reduce((sum,j)=>sum+p[j*4+c],0)/valid.length;}
-     for(let k=0;k<frontier.length;k++){const i=frontier[k];for(let c=0;c<3;c++)p[i*4+c]=rgb[k*3+c];mask[i]=0;}
-     const next=[];for(const i of frontier)for(const j of neighbors(i))if(mask[j]&&!queued[j]){queued[j]=1;next.push(j);}frontier=next;
-     }
+     const paintMask=mask.slice();
+     aidokuFillFromDonorFront(p,w,n,queue,tail,mask,donorBlocked,paintMask);
      // Retry a failed reconstruction with the illustration margin protected.
      // Successful existing masks retain their exact pixels and donor choices.
      if(!options.protectArtMargin&&mask.some(value=>value!==0))
@@ -1251,8 +1469,7 @@ enum BrowserSourcePanelRestoration {
      // A pocket without a background donor is not evidence for a fill color.
      // Keep its original pixels instead of rejecting all recoverable lettering.
      // Large amounts of stranded ink still reject the entire proposal.
-     let preservedPixels=0,preservedCore=0;
-     for(let i=0;i<n;i++)if(mask[i]){preservedPixels++;if(raw[i])preservedCore++;}
+     const preserved=aidokuCountPreserved(mask,raw,n),preservedPixels=preserved[0],preservedCore=preserved[1];
      if(preservedCore>Math.min(64,coreCount*.02)||preservedPixels>tail*.15)return retryPrevious();
      let painted=0;
      for(let k=0;k<tail;k++){
@@ -1263,45 +1480,20 @@ enum BrowserSourcePanelRestoration {
      tail=painted;
      if(!tail)return null;
      // Protected rules are neither erased nor used as background samples.
-     const work=new Float32Array(n*3);for(let i=0;i<n;i++)for(let c=0;c<3;c++)work[i*3+c]=p[i*4+c];
      // Reuse the fixed donor topology and over-relax the harmonic solve.
      // Accelerate only a coherent surface without crossing art or donor
      // outliers. Faster diffusion of uncertain samples would spread drawing
      // colors into the cleared text; those cases retain the original solve.
      const accelerated=surfaceQuality?.reason==='smooth'&&surfaceQuality.outliers===0&&frameInterior===0;
-     const links=new Uint8Array(tail),counts=new Uint8Array(16);
-     for(let bits=1;bits<16;bits++)counts[bits]=(bits&1)+((bits>>1)&1)+((bits>>2)&1)+((bits>>3)&1);
-     for(let k=0;k<tail;k++){
-       const i=queue[k];
-       links[k]=((!donorBlocked[i-1]||paintMask[i-1])?1:0)|((!donorBlocked[i+1]||paintMask[i+1])?2:0)|
-         ((!donorBlocked[i-w]||paintMask[i-w])?4:0)|((!donorBlocked[i+w]||paintMask[i+w])?8:0);
-     }
-     for(let pass=0;pass<(accelerated?32:48);pass++){
-       const check=accelerated&&(pass&3)===3;let maximumChange=0;
-       for(let k=0;k<tail;k++){
-         const i=queue[k],bits=links[k];if(!bits)continue;
-         const left=(i-1)*3,right=(i+1)*3,up=(i-w)*3,down=(i+w)*3,count=counts[bits];
-         for(let channel=0;channel<3;channel++){
-           const at=i*3+channel,average=((bits&1?work[left+channel]:0)+(bits&2?work[right+channel]:0)+
-             (bits&4?work[up+channel]:0)+(bits&8?work[down+channel]:0))/count;
-           if(accelerated){
-             const change=(average-work[at])*1.6;work[at]+=change;
-             if(check)maximumChange=Math.max(maximumChange,Math.abs(change));
-           }else work[at]=average;
-         }
-       }
-       if(check&&maximumChange<.05)break;
-     }
-     for(let k=0;k<tail;k++){const i=queue[k];for(let c=0;c<3;c++)p[i*4+c]=work[i*3+c];}
+     aidokuHarmonicFill(p,w,n,queue,tail,donorBlocked,paintMask,accelerated);
 
           const output=new Uint8ClampedArray(n*4);
           for(let k=0;k<tail;k++){const i=queue[k];for(let c=0;c<3;c++)output[i*4+c]=p[i*4+c];output[i*4+3]=255;}
           // Reuse the reconstructed crop to keep translated glyphs off the
           // surviving balloon outline and illustration; no extra image decode.
-          const layoutSafe=new Uint8Array(n);
           // Gradients and translucent clothing are valid background, not
           // balloon edges. Only surviving ink constrains the text footprint.
-          for(let i=0;i<n;i++)if(!protectedInk[i]&&!drawingSurface?.[i])layoutSafe[i]=1;
+          const layoutSafe=aidokuLayoutSafe(protectedInk,drawingSurface,n);
           return {rgba:output,layoutSafe,surfaceQuality,erased:tail,components:accepted.length,radius,companions,sourceErasureVerified:sourceErasureVerified&&preservedCore===0&&preservedPixels===0,preservedPixels,preservedCore};
         }
     function aidokuSoftenSourceGlyphs(rgba,w,h,b,palette,vertical) {

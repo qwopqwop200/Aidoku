@@ -1086,9 +1086,11 @@ final class BrowserPageImageOverlayRenderer {
           if(restored){
             luminance=new Uint8Array(pixels);
             const linear=v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;};
+            // Both sources are byte arrays: tabulate the exact per-byte values.
+            const linearByte=new Float64Array(256);for(let v=0;v<256;v++)linearByte[v]=linear(v);
             for(let i=0;i<pixels;i++){
               const data=restored.rgba[i*4+3]?restored.rgba:original;
-              luminance[i]=Math.round(255*(.2126*linear(data[i*4])+.7152*linear(data[i*4+1])+.0722*linear(data[i*4+2])));
+              luminance[i]=Math.round(255*(.2126*linearByte[data[i*4]]+.7152*linearByte[data[i*4+1]]+.0722*linearByte[data[i*4+2]]));
             }
           }
           prepared={restored,luminance};
