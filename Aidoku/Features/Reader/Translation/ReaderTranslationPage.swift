@@ -36,6 +36,20 @@ final class ReaderTranslationPage {
     private var renderLookupTask: Task<Void, Never>?
     private var renderLookupKey: String?
     private var previewRegions: [ReaderTranslationRegion]?
+    /// Streamed, not yet validated translation shown on the visible page. It
+    /// only ever uses the live overlay without a snapshot target, so it never
+    /// writes render/layout caches, and the completed result replaces it.
+    private var showsProvisional = false
+    private var provisionalShown: [ReaderTranslationRegion]?
+    private var provisionalPending: [ReaderTranslationRegion]?
+    private var provisionalTask: Task<Void, Never>?
+    private var provisionalRenderedAt: TimeInterval = -.infinity
+    private var provisionalCommitPending = false
+    static let provisionalRenderInterval: TimeInterval = 0.2
+    /// A render that never commits must not stall later provisional updates.
+    static let provisionalCommitTimeout: TimeInterval = 2
+    private(set) var provisionalRenderCount = 0
+    var isShowingProvisionalTranslation: Bool { showsProvisional }
     var isUsingCachedRendering: Bool { cachedOverlay != nil }
     private(set) var hasLoadedCachedPresentation = false
     private let recognize: Recognizer
@@ -89,6 +103,7 @@ final class ReaderTranslationPage {
 
     func reset() {
         cancel()
+        discardProvisionalTranslation()
         previewRegions = nil
         regions = []
         recognizedImage = nil
@@ -105,6 +120,11 @@ final class ReaderTranslationPage {
         generation = UUID()
         task?.cancel()
         task = nil
+        // Keep a provisional frame until its replacement commits; only stop
+        // scheduling further provisional renders.
+        provisionalTask?.cancel()
+        provisionalTask = nil
+        provisionalPending = nil
         renderLookupTask?.cancel()
         renderLookupTask = nil
         renderLookupKey = nil
@@ -113,6 +133,7 @@ final class ReaderTranslationPage {
     func hidePreparedTranslation(preservingLoadedPresentation: Bool = false) {
         if preservingLoadedPresentation, hasLoadedCachedPresentation { return }
         cancel()
+        discardProvisionalTranslation()
         overlay?.isHidden = true
         cachedOverlay?.isHidden = true
     }
@@ -124,6 +145,9 @@ final class ReaderTranslationPage {
 
     func releaseOverlay() {
         hasLoadedCachedPresentation = false
+        showsProvisional = false
+        provisionalShown = nil
+        provisionalCommitPending = false
         renderLookupTask?.cancel()
         renderLookupTask = nil
         renderLookupKey = nil
@@ -286,7 +310,9 @@ final class ReaderTranslationPage {
                     .map { data in Task { data } },
                 pendingDiskGeneration: diskGeneration
             )
-            displayLive(result, image: image, settings: settings, target: target)
+            displayLive(result, image: image, settings: settings, target: target, retainsFrame: showsProvisional)
+            showsProvisional = false
+            provisionalShown = nil
             renderLookupTask = Task { [weak self] in
                 let storedGeneration = await diskGeneration.value
                 guard !Task.isCancelled, let self, generation == issued, imageView.image === image, renderLookupKey == key else { return }
@@ -301,7 +327,81 @@ final class ReaderTranslationPage {
             }
             return
         }
-        displayLive(result, image: image, settings: settings, target: nil)
+        displayLive(result, image: image, settings: settings, target: nil, retainsFrame: showsProvisional)
+        showsProvisional = false
+        provisionalShown = nil
+    }
+
+    /// Shows streamed translations of the visible page while its batch is
+    /// still running. Untranslated regions keep the original image (no item,
+    /// so no cleanup). Updates are coalesced: at most one render per
+    /// `provisionalRenderInterval`, never while the previous one is still
+    /// committing. A completed presentation is never replaced.
+    func displayProvisional(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings) {
+        guard settings.overlay.visible, let image = imageView?.image, cachedOverlay == nil,
+              !(completedTranslation && analyzedImage === image), overlay == nil || showsProvisional else { return }
+        let rect = sourcePage?.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
+        let displayed = result.filter { $0.translation != nil && !$0.preservesOriginalText }.compactMap { $0.cropped(to: rect) }
+        guard !displayed.isEmpty, displayed != provisionalShown else { return }
+        provisionalPending = displayed
+        scheduleProvisionalRender(image: image, settings: settings)
+    }
+
+    /// Removes a provisional presentation after failure or cancellation.
+    func discardProvisionalTranslation() {
+        provisionalTask?.cancel()
+        provisionalTask = nil
+        provisionalPending = nil
+        if showsProvisional { releaseOverlay() }
+    }
+
+    private func scheduleProvisionalRender(image: UIImage, settings: ReaderTranslationSettings) {
+        guard provisionalTask == nil else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        let committing = provisionalCommitPending && now - provisionalRenderedAt < Self.provisionalCommitTimeout
+        let delay = committing ? Self.provisionalCommitTimeout - (now - provisionalRenderedAt)
+            : max(0, provisionalRenderedAt + Self.provisionalRenderInterval - now)
+        let issued = generation
+        provisionalTask = Task { [weak self, weak image] in
+            if delay > 0 { try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
+            guard !Task.isCancelled, let self else { return }
+            provisionalTask = nil
+            guard generation == issued, let image, imageView?.image === image else { provisionalPending = nil; return }
+            renderPendingProvisional(image: image, settings: settings)
+        }
+    }
+
+    private func renderPendingProvisional(image: UIImage, settings: ReaderTranslationSettings) {
+        guard let pending = provisionalPending else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        if provisionalCommitPending, now - provisionalRenderedAt < Self.provisionalCommitTimeout {
+            // The commit callback (or the timeout) renders the latest state.
+            scheduleProvisionalRender(image: image, settings: settings)
+            return
+        }
+        guard cachedOverlay == nil, !(completedTranslation && analyzedImage === image), overlay == nil || showsProvisional else {
+            provisionalPending = nil
+            return
+        }
+        provisionalPending = nil
+        provisionalShown = pending
+        provisionalRenderedAt = now
+        provisionalCommitPending = true
+        provisionalRenderCount += 1
+        let retains = showsProvisional
+        showsProvisional = true
+        ReaderTranslationDiagnostics.record("visible_provisional_render", page: (sourcePage?.index ?? -2) + 1, count: pending.count)
+        displayLive(pending, image: image, settings: settings, target: nil, retainsFrame: retains)
+        let committed = overlay?.onRenderCommitted
+        overlay?.onRenderCommitted = { [weak self] in
+            committed?()
+            guard let self, showsProvisional else { return }
+            provisionalCommitPending = false
+            // Replace a timeout wait with the normal render interval.
+            provisionalTask?.cancel()
+            provisionalTask = nil
+            if provisionalPending != nil, let image = imageView?.image { scheduleProvisionalRender(image: image, settings: settings) }
+        }
     }
 
     private func validateProgress(image: UIImage, generation issued: UUID) throws {
@@ -309,7 +409,7 @@ final class ReaderTranslationPage {
     }
 
     private func displayLive(_ result: [ReaderTranslationRegion], image: UIImage, settings: ReaderTranslationSettings,
-                             target: ReaderTranslationSnapshotTarget?) {
+                             target: ReaderTranslationSnapshotTarget?, retainsFrame: Bool = false) {
         hasLoadedCachedPresentation = false
         guard let imageView else { return }
         cachedOverlay?.removeFromSuperview()
@@ -349,7 +449,7 @@ final class ReaderTranslationPage {
         overlay.isHidden = !settings.overlay.visible
         overlay.update(
             regions: result, imageSize: image.size, aspectFit: imageView.contentMode == .scaleAspectFit,
-            settings: settings, image: image, snapshotTarget: target
+            settings: settings, image: image, snapshotTarget: target, retainsCommittedFrame: retainsFrame
         )
         overlay.layoutIfNeeded()
     }

@@ -1061,9 +1061,13 @@ struct ReaderTranslationSessionTests {
         session.enable(settings: fixture.settings)
         try await waitUntil { await gate.started }
         #expect(visible.regions.isEmpty)
-        #expect(imageView.subviews.isEmpty)
+        // Translated progress is shown provisionally, never as a completed page.
+        try await waitUntil { visible.isShowingProvisionalTranslation }
         #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
+        #expect(!visible.canExportTranslation)
         session.disable()
+        #expect(imageView.subviews.isEmpty)
+        #expect(!visible.isShowingProvisionalTranslation)
         await gate.release()
         try await Task.sleep(for: .milliseconds(30))
         #expect(imageView.subviews.isEmpty)
@@ -1508,6 +1512,157 @@ struct ReaderTranslationSessionTests {
         #expect(result.allSatisfy { $0.translation == "미리 번역" })
         preloader.cancel()
         await ReaderOCRService.shared.purge()
+    }
+
+    // MARK: Provisional (streamed) display
+
+    private func visibleView(_ page: ReaderTranslationPage) -> UIView? { page.imageView?.subviews.first }
+
+    private static func translated(_ text: String) -> ReaderTranslationRegion {
+        var region = region
+        region.translation = text
+        return region
+    }
+
+    @Test func streamedProgressShowsOnlyOnVisiblePageAndFinalReplacesIt() async throws {
+        let gate = SessionGate()
+        let fixture = SessionFixture()
+        let visibleView = UIImageView(image: Self.image())
+        let offscreenView = UIImageView(image: Self.image())
+        let visible = ReaderTranslationPage(imageView: visibleView)
+        let offscreen = ReaderTranslationPage(imageView: offscreenView)
+        visible.sourcePage = Self.page(0)
+        offscreen.sourcePage = Self.page(1)
+        let second = ReaderTranslationRegion(id: "second", rect: CGRect(x: 0.5, y: 0.5, width: 0.2, height: 0.2), source: "World")
+        var offscreenProgress = false
+        let session = ReaderTranslationSession(validate: { _ in }, process: { page, _, progress in
+            var pendingSecond = second
+            pendingSecond.translation = nil
+            if page.index == 1 {
+                try await progress?([Self.translated("미리"), pendingSecond])
+                offscreenProgress = true
+                return [Self.translated("미리")]
+            }
+            try await progress?([Self.translated("스트림"), pendingSecond])
+            await gate.wait()
+            var finalSecond = second
+            finalSecond.translation = "세계"
+            return [Self.translated("안녕"), finalSecond]
+        }, availableMemory: { UInt64.max })
+        defer { session.close() }
+        session.update(items: [Self.page(0), Self.page(1)].map(ReaderTranslationSession.Item.init), visible: [visible], context: "stream")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { visible.isShowingProvisionalTranslation }
+        let overlay = try #require(visibleView.subviews.first as? ReaderTranslationOverlayView)
+        // Live rendering only: no snapshot target, so no render/layout cache writes.
+        #expect(!overlay.canCacheRendering)
+        #expect(visible.regions.isEmpty) // Untranslated regions and export state are untouched.
+        #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
+        await gate.release()
+        try await waitUntil { visible.hasCompletedTranslation(settings: fixture.settings) }
+        #expect(!visible.isShowingProvisionalTranslation)
+        #expect(visible.regions.map(\.translation) == ["안녕", "세계"])
+        #expect(visibleView.subviews.count == 1)
+        try await waitUntil { offscreenProgress }
+        #expect(offscreenView.subviews.isEmpty)
+        #expect(!offscreen.isShowingProvisionalTranslation)
+    }
+
+    @Test func streamedProgressIsThrottled() async throws {
+        let gate = SessionGate()
+        let fixture = SessionFixture()
+        let view = UIImageView(image: Self.image())
+        let visible = ReaderTranslationPage(imageView: view)
+        visible.sourcePage = Self.page(0)
+        var published = false
+        let session = ReaderTranslationSession(validate: { _ in }, process: { _, _, progress in
+            for index in 0..<20 { try await progress?([Self.translated("부분 \(index)")]) }
+            published = true
+            await gate.wait()
+            return [Self.region]
+        }, availableMemory: { UInt64.max })
+        defer { session.close() }
+        session.update(items: [.init(Self.page(0))], visible: [visible], context: "throttle")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { published && visible.isShowingProvisionalTranslation }
+        try await Task.sleep(for: .milliseconds(50))
+        // Twenty snapshots in one burst produce at most the leading render and one trailing render.
+        #expect(visible.provisionalRenderCount <= 2)
+        await gate.release()
+        try await waitUntil { visible.hasCompletedTranslation(settings: fixture.settings) }
+        #expect(visible.regions.first?.translation == "안녕")
+    }
+
+    @Test func provisionalRenderingNeverWritesCaches() async throws {
+        let gate = SessionGate()
+        let fixture = SessionFixture()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let renderCache = ReaderTranslationRenderCache(disk: disk)
+        let view = UIImageView(frame: CGRect(x: 0, y: 0, width: 300, height: 200))
+        view.image = Self.image()
+        let visible = ReaderTranslationPage(imageView: view)
+        visible.sourcePage = Self.page(0)
+        visible.renderCache = renderCache
+        let session = ReaderTranslationSession(validate: { _ in }, process: { _, _, progress in
+            try await progress?([Self.translated("임시")])
+            await gate.wait()
+            return [Self.region]
+        }, diskCache: disk, renderCache: renderCache, availableMemory: { UInt64.max })
+        defer { session.close() }
+        session.update(items: [.init(Self.page(0))], visible: [visible], context: "nocache")
+        #expect(try await disk.statistics().entries == 0)
+        session.enable(settings: fixture.settings)
+        try await waitUntil { visible.isShowingProvisionalTranslation }
+        try await Task.sleep(for: .milliseconds(300))
+        // No translation, layout, snapshot or image-size record from a provisional render.
+        #expect(try await disk.statistics().entries == 0)
+        #expect((visibleView(visible) as? ReaderTranslationOverlayView)?.canCacheRendering == false)
+        #expect(try await disk.translatedRegions(page: Self.page(0).translationCacheKey, settings: fixture.settings) == nil)
+        await gate.release()
+        try await waitUntil { visible.hasCompletedTranslation(settings: fixture.settings) }
+        #expect(visible.regions.first?.translation == "안녕")
+    }
+
+    @Test(arguments: [false, true])
+    func cancelledOrFailedStreamRemovesProvisionalText(fails: Bool) async throws {
+        let gate = SessionGate()
+        let fixture = SessionFixture()
+        let firstView = UIImageView(image: Self.image())
+        let secondView = UIImageView(image: Self.image())
+        let first = ReaderTranslationPage(imageView: firstView)
+        let second = ReaderTranslationPage(imageView: secondView)
+        first.sourcePage = Self.page(0)
+        second.sourcePage = Self.page(1)
+        var lateProgress: ReaderTranslationService.Progress?
+        let session = ReaderTranslationSession(validate: { _ in }, process: { page, _, progress in
+            guard page.index == 0 else { return [Self.region] }
+            lateProgress = progress
+            try await progress?([Self.translated("중간")])
+            await gate.wait()
+            if fails { throw RemoteTranslationError.refused }
+            try await Task.sleep(for: .seconds(30))
+            return [Self.region]
+        }, availableMemory: { UInt64.max })
+        defer { session.close() }
+        let items = [Self.page(0), Self.page(1)].map(ReaderTranslationSession.Item.init)
+        session.update(items: items, visible: [first], context: "cancel")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { first.isShowingProvisionalTranslation }
+        if fails {
+            await gate.release()
+        } else {
+            session.pauseForPageTurn()
+            session.update(items: items, visible: [second], context: "cancel", currentPageIndex: 1)
+        }
+        try await waitUntil { !first.isShowingProvisionalTranslation && firstView.subviews.isEmpty }
+        // A stale stream callback after cancellation cannot bring the text back.
+        try? await lateProgress?([Self.translated("늦음")])
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(firstView.subviews.isEmpty)
+        #expect(!first.hasCompletedTranslation(settings: fixture.settings))
+        await gate.release()
     }
 
     static var region: ReaderTranslationRegion {

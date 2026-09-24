@@ -229,6 +229,41 @@ struct TranslationStreamingTests {
         #expect(await transport.kinds == [.standard, .standard, .standard])
     }
 
+    @Test func readerPartialProgressDoesNotChangeFinalResult() async throws {
+        let suite = "streaming-final-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var settings = ReaderTranslationSettings(defaults: defaults)
+        settings.provider = .custom
+        settings.custom.apiProtocol = .chatCompletions
+        settings.custom.baseURL = "https://llm.example/v1"
+        settings.model = "gemma"
+        settings.includePageImage = false
+        settings.filterSFXWithLLM = false
+        settings.filterBackgroundWithLLM = false
+        let regions = ["おい、待てよ！", "どこへ行く？", "ドン"].enumerated().map {
+            ReaderTranslationRegion(id: "r\($0.offset)", rect: CGRect(x: 0.1, y: 0.1 + 0.2 * Double($0.offset), width: 0.2, height: 0.1),
+                                    source: $0.element)
+        }
+        var results: [[ReaderTranslationRegion]] = []
+        var partialCounts: [Int] = []
+        for streamsPartials in [false, true] {
+            let client = RemoteTranslationClient(credentialStore: StreamingTestCredential(),
+                                                 transport: ScriptedStreamingTransport(mode: .streamed))
+            _ = try await client.translate(Self.request(["warm"]), configuration: settings.configuration)
+            let service = ReaderTranslationService(client: client)
+            let partials = PartialRecorder()
+            let result = try await service.translate(regions: regions, settings: settings, onPartialProgress: streamsPartials ? { snapshot in
+                partials.append(snapshot.compactMap { $0.translation.map { RemoteTranslatedSegment(id: "x", text: $0) } })
+            } : nil)
+            results.append(result)
+            partialCounts.append(partials.values.count)
+        }
+        #expect(results[0] == results[1])
+        #expect(results[1].allSatisfy { $0.translation?.hasPrefix("ko:") == true })
+        #expect(partialCounts == [0, partialCounts[1]] && partialCounts[1] > 0)
+    }
+
     @Test func servicePartialsUseCallerIDsAndCompletedBatchesWin() async throws {
         let transport = ScriptedStreamingTransport(mode: .streamed)
         let client = RemoteTranslationClient(credentialStore: StreamingTestCredential(), transport: transport)

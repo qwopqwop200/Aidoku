@@ -160,7 +160,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     func update(
         regions: [ReaderTranslationRegion], imageSize: CGSize, aspectFit: Bool,
         settings: ReaderTranslationSettings, image: UIImage? = nil, snapshotTarget: ReaderTranslationSnapshotTarget? = nil,
-        preparedLayout: Task<Data, Error>? = nil
+        preparedLayout: Task<Data, Error>? = nil, retainsCommittedFrame: Bool = false
     ) {
         renderer.cancelPendingRender()
         self.regions = regions
@@ -170,7 +170,10 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         recoveryAttempts = 0
         lastDiagnostic = nil
         scheduleRenderRecovery()
-        webView.isHidden = true
+        // Progressive translation replaces one committed layout with the next.
+        // The render script is synchronous, so the previous frame stays on
+        // screen until the new DOM commits instead of flashing the source.
+        if !retainsCommittedFrame || webView.isHidden || preparedImage !== image { webView.isHidden = true }
         didStoreSnapshot = false
         snapshotGeneration = UUID()
         snapshotTask?.cancel()

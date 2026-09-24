@@ -160,7 +160,14 @@ struct ReaderTranslationRenderingTests {
         }
         #expect(!page.hasCompletedTranslation(settings: settings))
         #expect(page.regions.isEmpty)
-        #expect(imageView.subviews.isEmpty)
+        // The already translated region is shown provisionally on the visible
+        // page; the source image and completed state are untouched.
+        while !page.isShowingProvisionalTranslation {
+            if Date() > deadline { throw URLError(.timedOut) }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        let provisional = try #require(imageView.subviews.first as? ReaderTranslationOverlayView)
+        #expect(!provisional.canCacheRendering)
         #expect(imageView.image === source)
         await gate.release()
         while !page.hasCompletedTranslation(settings: settings) {
@@ -168,7 +175,9 @@ struct ReaderTranslationRenderingTests {
             try await Task.sleep(for: .milliseconds(10))
         }
         let overlay = try #require(imageView.subviews.first as? ReaderTranslationOverlayView)
-        if overlay.lastDiagnostic?.outcome != .committed { #expect(overlay.webView.isHidden) }
+        // The completed render reuses the provisional renderer, keeping its
+        // committed frame on screen until the final layout commits.
+        #expect(overlay === provisional)
         try await waitForRender(overlay)
         #expect(!overlay.webView.isHidden)
         #expect(page.regions.allSatisfy { $0.translation != nil })
