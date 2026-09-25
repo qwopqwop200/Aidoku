@@ -140,12 +140,15 @@ final class CoreDataManager: @unchecked Sendable {
     }
 
     /// Clear all objects from fetch request.
-    func clear<T: NSManagedObject>(request: NSFetchRequest<T>, context: NSManagedObjectContext) {
+    @discardableResult
+    func clear<T: NSManagedObject>(request: NSFetchRequest<T>, context: NSManagedObjectContext) -> Bool {
         let deleteRequest = NSBatchDeleteRequest(fetchRequest: (request as? NSFetchRequest<NSFetchRequestResult>)!)
         do {
             _ = try context.execute(deleteRequest)
+            return true
         } catch {
             LogManager.logger.error("CoreDataManager.clear: \(error.localizedDescription)")
+            return false
         }
     }
 

@@ -95,7 +95,7 @@ class AddToCategoryViewController: BaseTableViewController {
             return true
         } catch {
             LogManager.logger.error("AddToCategoryViewController.save: \(error.localizedDescription)")
-            let alert = UIAlertController(title: NSLocalizedString("ERROR"), message: error.localizedDescription, preferredStyle: .alert)
+            let alert = UIAlertController(title: NSLocalizedString("UNKNOWN_ERROR"), message: error.localizedDescription, preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: NSLocalizedString("OK"), style: .default))
             present(alert, animated: true)
             return false

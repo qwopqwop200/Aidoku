@@ -430,16 +430,6 @@
 "UNAVAILABLE_SOURCE_LISTS" = "Daftar Sumber yang Tidak Tersedia";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Terjadi kesalahan saat mengambil daftar sumber di atas.";
 "COPY_URL" = "Salin URL";
-"UPSCALING" = "Peningkatan Resolusi";
-"UPSCALE_IMAGES" = "Tingkatkan Resolusi Gambar";
-"UPSCALING_MODELS" = "Model Peningkatan Resolusi";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Tinggi Gambar Maksimum";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Gambar dengan tinggi yang sama dengan atau melebihi batas maksimum tidak akan ditingkatkan resolusinya.";
-"ENABLED_MODEL" = "Model yang Diaktifkan";
-"AVAILABLE_MODELS" = "Model yang Tersedia";
-"NO_AVAILABLE_MODELS" = "Tidak ada model yang tersedia";
-"NO_AVAILABLE_MODELS_TEXT" = "Gagal mengambil model yang tersedia. Periksa koneksi jaringan Anda dan pastikan aplikasi Anda menggunakan versi terbaru.";
-"MODEL_INFO" = "Informasi Model";
 "DOWNSAMPLE_IMAGES" = "Mengurangi resolusi gambar";
 "CROP_BORDERS" = "Pangkas Tepi";
 "DISABLE_QUICK_ACTIONS" = "Nonaktifkan Aksi Cepat";
@@ -1085,8 +1075,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Tidak dapat menampilkan pengaturan: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Lima model yang disertakan dapat diinstal secara offline. Instal model, lalu ketuk di Model yang Diaktifkan. MangaJaNai ditujukan untuk halaman hitam-putih dengan tinggi sekitar 1200 piksel; halaman berwarna tetap tidak berubah.";
 
 "DOWNLOAD_TRANSLATED" = "Unduh dengan terjemahan";
 
@@ -1096,15 +1084,10 @@
 "TRANSLATION_STATE_ON" = "Aktif";
 "TRANSLATION_STATE_OFF" = "Nonaktif";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "Ilustrasi; mempertahankan garis asli. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Ilustrasi dan sampul berwarna; model ringan untuk detail.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Gambar umum dan karya seni dengan beragam gaya; penajaman yang lebih kuat.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga, dan halaman berwarna.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Khusus manga hitam-putih, disesuaikan untuk halaman asli dengan tinggi sekitar 1200 piksel. Halaman berwarna dibiarkan tidak berubah.";
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Pengaturan terjemahan tidak valid. Periksa URL server, model, dan pengaturan lainnya.";
 

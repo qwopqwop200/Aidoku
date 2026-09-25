@@ -896,16 +896,6 @@
 "LEGACY_SOURCE_LIST" = "Veraltete Quellenliste";
 "LEGACY_SOURCE_LIST_WARNING" = "Warnung: Veraltete Quellenliste";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Sie haben derzeit eine Legacy-Quellenliste konfiguriert. Dieses Format ist veraltet und wird in einer zukünftigen Version von Aidoku nicht mehr funktionieren. Während es vorerst noch funktioniert, wird empfohlen, dass Sie einen Ersatz finden und ihn unter Einstellungen > Quellenlisten konfigurieren.";
-"UPSCALING" = "Hochskalierung";
-"UPSCALE_IMAGES" = "Bilder hochskalieren";
-"UPSCALING_MODELS" = "Upscaling-Modelle";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Maximale Bildhöhe";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Bilder, deren Höhe die maximale Bildhöhe erreicht oder überschreitet, werden nicht hochskaliert.";
-"ENABLED_MODEL" = "Aktiviertes Modell";
-"AVAILABLE_MODELS" = "Verfügbare Modelle";
-"NO_AVAILABLE_MODELS" = "Keine verfügbaren Modelle";
-"NO_AVAILABLE_MODELS_TEXT" = "Verfügbare Modelle konnten nicht abgerufen werden. Überprüfe deine Netzwerkverbindung und stelle sicher, dass du die neueste App-Version verwendest.";
-"MODEL_INFO" = "Modellinformationen";
 "DISABLE_QUICK_ACTIONS" = "Schnellaktionen deaktivieren";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Doppeltippen zum Zoomen deaktivieren";
 "LIVE_TEXT" = "Live-Text";
@@ -1087,8 +1077,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Einstellung kann nicht angezeigt werden: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Die fünf enthaltenen Modelle lassen sich offline installieren. Installiere ein Modell und tippe anschließend unter „Aktiviertes Modell“ darauf. MangaJaNai ist für Schwarz-Weiß-Seiten mit etwa 1200 Pixeln Höhe gedacht; Farbseiten bleiben unverändert.";
 
 "DOWNLOAD_TRANSLATED" = "Mit Übersetzung herunterladen";
 
@@ -1099,15 +1087,10 @@
 
 "TRANSLATION_STATE_OFF" = "Aus";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "Für Illustrationen; bewahrt die ursprüngliche Linienführung. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Für Farbillustrationen und Cover; leichtgewichtiges Modell zur Detailverbesserung.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Für allgemeine Bilder und verschiedene Zeichenstile; stärkere Schärfung.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Für Anime, Manga und Farbseiten.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Nur für Schwarz-Weiß-Manga, abgestimmt auf Originalseiten mit etwa 1200 Pixeln Höhe. Farbseiten bleiben unverändert.";
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Die Übersetzungseinstellungen sind ungültig. Prüfe die Server-URL, das Modell und die übrigen Einstellungen.";
 

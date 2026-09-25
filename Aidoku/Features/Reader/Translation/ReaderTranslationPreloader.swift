@@ -67,7 +67,7 @@ final class ReaderTranslationPreloader {
 
     // Acquire before decoding, not after images have accumulated waiting for OCR.
     private static let imagePreparationGate = TranslationImageWorkBudget.shared
-    private let loader = ReaderTranslationImageLoader()
+    private let loader: ReaderTranslationImageLoader
     private let translator: ReaderTranslationPage.ProgressiveTranslator?
     private let recognizer: Recognizer?
     private let dataPrefetcher: DataPrefetcher?
@@ -91,8 +91,10 @@ final class ReaderTranslationPreloader {
         availableMemory: @escaping @Sendable () -> UInt64 = { ReaderTranslationSession.processAvailableMemory() },
         retainImage: @escaping ImageRetention = { _ in true },
         storePreparedTranslation: PreparedTranslationStore? = nil,
-        storeRecognition: RecognitionStore? = nil
+        storeRecognition: RecognitionStore? = nil,
+        loader: ReaderTranslationImageLoader = ReaderTranslationImageLoader()
     ) {
+        self.loader = loader
         self.translator = translator
         self.diskCache = diskCache
         self.recognizer = recognizer
@@ -348,6 +350,13 @@ final class ReaderTranslationPreloader {
             }
             if skipTranslated, !promotion.isForeground,
                availableMemory() < TranslationImageWorkBudget.minimumHeadroom { return nil }
+            // A cold foreground URL must not hold the sole decode/OCR/render
+            // permit while waiting on the network. Warm only reusable compressed
+            // data here; source interception and all decoding still happen below.
+            if !skipTranslated, recognizer == nil {
+                try? await loader.prefetchData(page, priority: .high)
+                try Task.checkCancellation()
+            }
             lifetime.start()
             if skipTranslated {
                 // Best effort: source interception/decode fallback remains in load().
@@ -503,21 +512,47 @@ private actor ReaderTranslationPreparedProgress {
 actor ReaderTranslationImageLoader {
     private let temporaryStore = ReaderTemporaryPageStore()
     private let pipeline: ImagePipeline
-    init(pipeline: ImagePipeline = .shared) { self.pipeline = pipeline }
+    private let downloadAdmission: BulkDownloadAdmission
+    init(pipeline: ImagePipeline = .shared, downloadAdmission: BulkDownloadAdmission = .shared) {
+        self.pipeline = pipeline
+        self.downloadAdmission = downloadAdmission
+    }
     deinit { Task { [temporaryStore] in await temporaryStore.removeAll() } }
 
     /// Uses Nuke's data-only path: no decoding, image processors, or UIImage retention.
-    func prefetchData(_ page: Page) async throws {
+    func prefetchData(_ page: Page, priority: ImageRequest.Priority = .veryLow) async throws {
         guard page.image == nil, page.zipURL == nil, page.base64 == nil,
               let address = page.imageURL, let url = URL(string: address),
               ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return }
         var request = await ReaderPageView.imageRequest(url: url, context: page.context, sourceKey: page.sourceId)
         try Task.checkCancellation()
+        // Reuse a decoded reader hit directly instead of downloading bytes that
+        // may already have been evicted from disk.
+        guard pipeline.cache.cachedImage(for: request, caches: .memory) == nil else { return }
         // Without reusable disk data, warming would just download the page twice.
         guard pipeline.configuration.dataCache != nil,
               !request.options.contains(.disableDiskCacheReads),
               !request.options.contains(.disableDiskCacheWrites) else { return }
-        request.priority = .veryLow
+        // Nuke's data-only path cannot produce an encoded/processed cache entry.
+        // Warming under these policies would finish without reusable bytes, then
+        // download the same image again when OCR asks for decoded pixels.
+        switch pipeline.configuration.dataCachePolicy {
+        case .storeOriginalData, .storeAll: break
+        case .automatic:
+            guard request.processors.isEmpty else { return }
+        case .storeEncodedImages: return
+        }
+        request.priority = priority
+        let admission = downloadAdmission
+        let demand = if priority >= .high, ReaderImageDownloadCache.needsNetwork(request: request, pipeline: pipeline) {
+            try await admission.acquireReaderDemand()
+        } else {
+            nil as UUID?
+        }
+        defer {
+            if let demand { Task { await admission.releaseReaderDemand(demand) } }
+        }
+        try Task.checkCancellation()
         _ = try await pipeline.data(for: request)
         try Task.checkCancellation()
     }
@@ -550,7 +585,7 @@ actor ReaderTranslationImageLoader {
             if UserDefaults.standard.bool(forKey: "Reader.cropBorders") { processors.append(CropBordersProcessor()) }
             if UserDefaults.standard.bool(forKey: "Reader.downsampleImages") {
                 processors.append(DownsampleProcessor(width: UIScreen.main.bounds.width))
-            } else if UserDefaults.standard.bool(forKey: "Reader.upscaleImages") { processors.append(UpscaleProcessor()) }
+            }
             return processors
         }
         return try autoreleasepool {

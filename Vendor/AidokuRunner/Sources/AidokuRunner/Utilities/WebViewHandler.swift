@@ -49,6 +49,13 @@ class WebViewHandler: NSObject {
         webView.configuration.userContentController.add(ruleList)
     }
 
+    /// Convert the WebKit result on MainActor so the bridge can directly await
+    /// this Sendable value without an unstructured task breaking cancellation.
+    func evaluateAsyncJavaScriptString(_ script: String) async throws -> String? {
+        guard let result = try await evaluateAsyncJavaScript(script) else { return nil }
+        return "\(result)"
+    }
+
     func evaluateAsyncJavaScript(_ javaScriptString: String) async throws -> Any? {
         let callbackID = UUID().uuidString
 

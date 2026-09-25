@@ -39,14 +39,7 @@ struct SourceImageView: View {
     }
 
     private var processors: [ImageProcessing] {
-        var processors: [ImageProcessing] = []
-        if let downsampleWidth {
-            processors.append(DownsampleProcessor(width: downsampleWidth))
-        }
-        if let source, source.features.processesCovers {
-            processors.append(CoverInterceptorProcessor(source: source))
-        }
-        return processors
+        CoverImageProcessing.processors(source: source, downsampleWidth: downsampleWidth)
     }
 
     var body: some View {

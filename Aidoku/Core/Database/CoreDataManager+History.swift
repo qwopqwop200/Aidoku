@@ -9,16 +9,18 @@ import CoreData
 
 extension CoreDataManager {
     /// Remove all history objects.
-    func clearHistory(context: NSManagedObjectContext) {
+    @discardableResult
+    func clearHistory(context: NSManagedObjectContext) -> Bool {
         HistoryMetadataCache.shared.clear()
         // Invalidate again after this context's current save/rollback block, so
         // a recovery racing the deletion cannot leave a late disk entry.
         context.perform { HistoryMetadataCache.shared.clear() }
-        clear(request: HistoryObject.fetchRequest(), context: context)
+        return clear(request: HistoryObject.fetchRequest(), context: context)
     }
 
     /// Remove all history objects from manga not in library
-    func clearHistoryExcludingLibrary(context: NSManagedObjectContext) {
+    @discardableResult
+    func clearHistoryExcludingLibrary(context: NSManagedObjectContext) -> Bool {
         HistoryMetadataCache.shared.clear()
         // Invalidate again after this context's current save/rollback block, so
         // a recovery racing the deletion cannot leave a late disk entry.
@@ -49,7 +51,7 @@ extension CoreDataManager {
         }
 
         request.predicate = excludePredicate
-        clear(request: request, context: context)
+        return clear(request: request, context: context)
     }
 
     /// Gets all history objects.

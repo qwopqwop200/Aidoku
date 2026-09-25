@@ -20,7 +20,6 @@ struct ReaderSettingsView: View {
     @State private var lookupGestureLocksQuickActions: Bool
     @State private var lookupGestureLocksDoubleTap: Bool
     @StateObject private var downsampleImages = UserDefaultsBool(key: "Reader.downsampleImages")
-    @StateObject private var upscaleImages = UserDefaultsBool(key: "Reader.upscaleImages")
     @StateObject private var splitWideImages = UserDefaultsBool(key: "Reader.splitWideImages")
     @StateObject private var dictionaryLookupEnabled = UserDefaultsBool(key: AppSettings.dictionary.enable.key)
     @StateObject private var dictionaryTextOverlayModeEnabled = UserDefaultsBool(key: AppSettings.dictionary.textOverlayMode.key)
@@ -106,40 +105,6 @@ struct ReaderSettingsView: View {
                 if reader == .text {
                     textSection
                 } else {
-                    if !downsampleImages.value {
-                        Section {
-                            SettingView(
-                                setting: .init(
-                                    key: "Reader.upscaleImages",
-                                    title: String(format: NSLocalizedString("%@_EXPERIMENTAL"), NSLocalizedString("UPSCALE_IMAGES")),
-                                    value: .toggle(.init())
-                                )
-                            )
-                            if upscaleImages.value {
-                                NavigationLink(destination: UpscaleModelListView()) {
-                                    Text(NSLocalizedString("UPSCALING_MODELS"))
-                                }
-                                SettingView(
-                                    setting: .init(
-                                        key: "Reader.upscaleMaxHeight",
-                                        title: NSLocalizedString("UPSCALE_MAX_IMAGE_HEIGHT"),
-                                        value: .stepper(.init(
-                                            minimumValue: 200,
-                                            maximumValue: 4000,
-                                            stepValue: 100
-                                        ))
-                                    )
-                                )
-                            }
-                        } header: {
-                            Text(NSLocalizedString("UPSCALING"))
-                        } footer: {
-                            if upscaleImages.value {
-                                Text(NSLocalizedString("UPSCALE_MAX_IMAGE_HEIGHT_TEXT"))
-                            }
-                        }
-                    }
-
                     if readingMode == .rtl || readingMode == .ltr || readingMode == .vertical || readingMode == nil {
                         pagedSection
                     }
@@ -150,7 +115,6 @@ struct ReaderSettingsView: View {
                 }
             }
             .animation(.default, value: downsampleImages.value)
-            .animation(.default, value: upscaleImages.value)
             .animation(.default, value: splitWideImages.value)
             .navigationTitle(NSLocalizedString("READER_SETTINGS"))
             .navigationBarTitleDisplayMode(.inline)

@@ -655,16 +655,6 @@
 "NO_CURRENT_STREAK_TEXT" = "Kesintisiz bir okuma serisi oluşturmak için her gün okuyun.";
 "LONGEST_STREAK" = "En Uzun Okuma Serisi";
 "DAYS" = "Gün";
-"UPSCALING" = "Çözünürlük Artırma";
-"UPSCALE_IMAGES" = "Görsel Çözünürlüğünü Artır";
-"UPSCALING_MODELS" = "Çözünürlük Artırma Modelleri";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Maksimum Görsel Yüksekliği";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Yüksekliği belirlenen en fazla değere eşit veya bu değerin üzerinde olan görsellerin çözünürlüğü artırılmaz.";
-"ENABLED_MODEL" = "Etkinleştirilen Model";
-"AVAILABLE_MODELS" = "Mevcut Modeller";
-"NO_AVAILABLE_MODELS" = "Mevcut Model Yok";
-"NO_AVAILABLE_MODELS_TEXT" = "Mevcut modeller alınamadı. Ağ bağlantınızı kontrol edin ve uygulamanızın en son sürümü çalıştırdığından emin olun.";
-"MODEL_INFO" = "Model Bilgisi";
 "DISABLE_QUICK_ACTIONS" = "Hızlı Eylemleri Devre Dışı Bırak";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Çift Dokunma Yakınlaştırmasını Devre Dışı Bırak";
 "LIVE_TEXT" = "Canlı Metin";
@@ -1087,8 +1077,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Ayar görüntülenemiyor: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Dahil edilen beş model çevrimdışı olarak kurulabilir. Bir model yükleyin ve ardından Etkinleştirilen Model'de ona dokunun. MangaJaNai, yaklaşık 1200 piksel yüksekliğinde siyah beyaz sayfalar içindir; renkli sayfalar değişmeden kalır.";
 
 "DOWNLOAD_TRANSLATED" = "Çevirerek indir";
 
@@ -1098,15 +1086,10 @@
 "TRANSLATION_STATE_ON" = "Açık";
 "TRANSLATION_STATE_OFF" = "Kapalı";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "İllüstrasyonlar için; özgün çizgileri korur. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Renkli illüstrasyonlar ve kapaklar için; ayrıntıları iyileştiren hafif model.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Genel görüntüler ve çeşitli çizimler için; daha güçlü keskinleştirme.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga ve renkli sayfalar için.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Yalnızca siyah beyaz manga için, yaklaşık 1200 piksel yüksekliğindeki özgün sayfalara göre ayarlanmıştır. Renkli sayfalar değiştirilmeden bırakılır.";
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Çeviri ayarları geçersiz. Sunucu URL’sini, modeli ve diğer ayarları kontrol edin.";
 

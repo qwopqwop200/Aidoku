@@ -8,18 +8,35 @@
 import WebKit
 
 extension WKWebView {
-    func loadSourceRequest(_ request: URLRequest) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
+    @MainActor
+    func loadSourceRequest(
+        _ request: URLRequest,
+        configure: @escaping @MainActor (WKWebsiteDataStore) async throws -> Void = { try await SourceNetwork.configure($0) }
+    ) {
+        cancelSourceRequest()
+        let preparation = SourceNavigationPreparation()
+        objc_setAssociatedObject(self, &SourceNavigationPreparation.key, preparation, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        let dataStore = configuration.websiteDataStore
+        preparation.task = Task { @MainActor [weak self, weak preparation] in
             do {
-                try await SourceNetwork.configure(configuration.websiteDataStore)
-                load(request)
+                try await configure(dataStore)
+                guard !Task.isCancelled, preparation != nil else { return }
+                self?.load(request)
             } catch {
+                guard !Task.isCancelled, preparation != nil else { return }
                 // Never silently navigate directly when bypass setup fails.
                 let message = NSLocalizedString("HTTPS_BYPASS_TEST_FAILED")
-                loadHTMLString("<meta name='viewport' content='width=device-width'><p>\(message)</p>", baseURL: nil)
+                self?.loadHTMLString("<meta name='viewport' content='width=device-width'><p>\(message)</p>", baseURL: nil)
             }
+            preparation?.task = nil
         }
+    }
+
+    @MainActor
+    func cancelSourceRequest() {
+        let preparation = objc_getAssociatedObject(self, &SourceNavigationPreparation.key) as? SourceNavigationPreparation
+        preparation?.task?.cancel()
+        objc_setAssociatedObject(self, &SourceNavigationPreparation.key, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     }
 
     func getCookies(for domain: String? = nil) async -> [String: String]  {
@@ -63,4 +80,12 @@ extension WKWebView {
             return [:]
         }
     }
+}
+
+
+@MainActor
+private final class SourceNavigationPreparation {
+    static var key: UInt8 = 0
+    var task: Task<Void, Never>?
+    deinit { task?.cancel() }
 }

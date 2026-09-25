@@ -32,6 +32,8 @@ class VerticalContentOffsetPreservingLayout: UICollectionViewFlowLayout {
         contentSize
     }
 
+    private var verticalAttributes: [UICollectionViewLayoutAttributes] = []
+
     private var currentAttributes: [IndexPath: UICollectionViewLayoutAttributes] = [:]
 
     override init() {
@@ -52,6 +54,7 @@ class VerticalContentOffsetPreservingLayout: UICollectionViewFlowLayout {
 
         // calculate collection view size
         currentAttributes = [:]
+        verticalAttributes = []
 
         var origin: CGFloat = 0
         let width = collectionView.bounds.size.width
@@ -64,6 +67,7 @@ class VerticalContentOffsetPreservingLayout: UICollectionViewFlowLayout {
                 let size = CGSize(width: width, height: getHeight(for: indexPath))
                 attributes.frame = CGRect(origin: CGPoint(x: 0, y: origin), size: size)
                 currentAttributes[indexPath] = attributes
+                verticalAttributes.append(attributes)
 
                 origin += attributes.frame.size.height + minimumLineSpacing
             }
@@ -142,9 +146,20 @@ class VerticalContentOffsetPreservingLayout: UICollectionViewFlowLayout {
     }
 
     override func layoutAttributesForElements(in rect: CGRect) -> [UICollectionViewLayoutAttributes]? {
+        // Frames are stacked in increasing Y order (including the zoom transform).
+        // Find the first possible intersection, then visit only the viewport.
+        var low = 0
+        var high = verticalAttributes.count
+        while low < high {
+            let mid = low + (high - low) / 2
+            if verticalAttributes[mid].frame.maxY < rect.minY { low = mid + 1 }
+            else { high = mid }
+        }
         var attributes: [UICollectionViewLayoutAttributes] = []
-        for item in currentAttributes where rect.intersects(item.value.frame) {
-            attributes.append(item.value)
+        for index in low..<verticalAttributes.count {
+            let item = verticalAttributes[index]
+            if item.frame.minY > rect.maxY { break }
+            if rect.intersects(item.frame) { attributes.append(item) }
         }
         return attributes
     }

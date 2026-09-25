@@ -33,6 +33,24 @@ final class ReaderTranslationRenderCache {
         let task: Task<Void, Never>
     }
     private var assetWrites: [String: AssetWrite] = [:]
+    // Direct callers also suspend during encoding. Track only live operations so
+    // removal/replacement invalidates them without retaining per-key tombstones.
+    private var assetStores: [String: UUID] = [:]
+    private var assetDiskMutations: [String: AssetWrite] = [:]
+    var pendingAssetWrites: Int { assetWrites.count }
+    private struct AssetRead {
+        let id: UUID
+        let task: Task<Void, Never>
+        let priorities: ReaderAssetReadPriorities
+        var consumers: [UUID: CheckedContinuation<ReaderTranslationRenderAsset?, Never>]
+    }
+    private var assetReads: [String: AssetRead] = [:]
+    // Bound admitted reads/decode work to two; both may be speculative.
+    // Acquire before disk I/O: queued keys retain no Data.
+    private let assetReadGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 2)
+    private let decodeAsset: @Sendable (Data) -> ReaderTranslationRenderAsset?
+    var pendingAssetReads: Int { assetReads.count }
+
     private let encodeAsset: @Sendable (ReaderTranslationRenderAsset) -> Data?
     private(set) var activeAssetEncodings = 0
     private struct EncodingWaiter {
@@ -57,14 +75,22 @@ final class ReaderTranslationRenderCache {
     private var variants: [String: [String]] = [:]
 
     init(disk: ReaderTranslationDiskCache,
-         encodeAsset: @escaping @Sendable (ReaderTranslationRenderAsset) -> Data? = { try? JSONEncoder().encode($0) }) {
+         encodeAsset: @escaping @Sendable (ReaderTranslationRenderAsset) -> Data? = { try? JSONEncoder().encode($0) },
+         decodeAsset: @escaping @Sendable (Data) -> ReaderTranslationRenderAsset? = {
+             try? JSONDecoder().decode(ReaderTranslationRenderAsset.self, from: $0)
+         }) {
         self.disk = disk
         self.encodeAsset = encodeAsset
+        self.decodeAsset = decodeAsset
     }
 
     deinit {
         preparations.values.forEach { $0.task.cancel() }
         assetWrites.values.forEach { $0.task.cancel() }
+        for read in assetReads.values {
+            read.task.cancel()
+            read.consumers.values.forEach { $0.resume(returning: nil) }
+        }
     }
 
     func cachedImage(for key: String) -> UIImage? {
@@ -138,25 +164,70 @@ final class ReaderTranslationRenderCache {
         renderAssetOrder.removeAll { $0 == key }
     }
 
-    func renderAsset(for key: String) async -> ReaderTranslationRenderAsset? {
+    func renderAsset(for key: String, priority: TranslationRequestPriority = .foreground) async -> ReaderTranslationRenderAsset? {
         guard !Task.isCancelled else { return nil }
         if let asset = renderAssets[key] {
             renderAssetOrder.removeAll { $0 == key }; renderAssetOrder.append(key)
             return asset
         }
-        let issued = generation
-        guard let data = try? await disk.data(for: Self.renderAssetStorageKey(key), kind: .layout),
-              data.count <= ReaderTranslationRenderAsset.maximumEncodedBytes,
-              !Task.isCancelled, generation == issued else { return nil }
-        let decoding = Task.detached(priority: .userInitiated) { () -> ReaderTranslationRenderAsset? in
-            guard !Task.isCancelled, let asset = try? JSONDecoder().decode(ReaderTranslationRenderAsset.self, from: data),
-                  asset.isValid else { return nil }
-            return asset
+        let consumer = UUID()
+        let result: ReaderTranslationRenderAsset? = await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard !Task.isCancelled else { continuation.resume(returning: nil); return }
+                if var read = assetReads[key] {
+                    read.priorities.set(priority, for: consumer)
+                    read.consumers[consumer] = continuation
+                    assetReads[key] = read
+                    return
+                }
+                let id = UUID()
+                let issued = generation
+                let priorities = ReaderAssetReadPriorities()
+                priorities.set(priority, for: consumer)
+                let promotion = TranslationRequestPromotion(foregroundSource: { priorities.isForeground })
+                let task = Task { [weak self, disk, assetReadGate, decodeAsset] in
+                    let asset = try? await assetReadGate.withPermit(priority: .promotable(promotion)) {
+                        guard !Task.isCancelled,
+                              let data = try? await disk.data(for: Self.renderAssetStorageKey(key), kind: .layout,
+                                                              maximumBytes: ReaderTranslationRenderAsset.maximumEncodedBytes),
+                              data.count <= ReaderTranslationRenderAsset.maximumEncodedBytes,
+                              !Task.isCancelled else { return nil as ReaderTranslationRenderAsset? }
+                        let decoding = Task.detached(priority: promotion.isForeground ? .userInitiated : .utility) {
+                            guard !Task.isCancelled, let asset = decodeAsset(data), asset.isValid,
+                                  !Task.isCancelled else { return nil as ReaderTranslationRenderAsset? }
+                            return asset
+                        }
+                        // A synchronous decoder retains its slot until it actually finishes.
+                        return await withTaskCancellationHandler { await decoding.value } onCancel: { decoding.cancel() }
+                    }
+                    guard let self, self.assetReads[key]?.id == id else { return }
+                    let read = self.assetReads.removeValue(forKey: key)
+                    let result = !Task.isCancelled && self.generation == issued ? asset : nil
+                    if let result { self.retainRenderAsset(result, key: key) }
+                    read?.consumers.values.forEach { $0.resume(returning: result) }
+                }
+                assetReads[key] = AssetRead(id: id, task: task, priorities: priorities, consumers: [consumer: continuation])
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in self?.cancelAssetRead(key: key, consumer: consumer) }
         }
-        let asset = await withTaskCancellationHandler { await decoding.value } onCancel: { decoding.cancel() }
-        guard let asset, !Task.isCancelled, generation == issued else { return nil }
-        retainRenderAsset(asset, key: key)
-        return asset
+        return Task.isCancelled ? nil : result
+    }
+
+    private func cancelAssetRead(key: String, consumer: UUID? = nil, replacement: ReaderTranslationRenderAsset? = nil) {
+        guard var read = assetReads[key] else { return }
+        if let consumer {
+            read.priorities.remove(consumer)
+            read.consumers.removeValue(forKey: consumer)?.resume(returning: nil)
+        } else {
+            read.priorities.removeAll()
+            read.consumers.values.forEach { $0.resume(returning: replacement) }
+            read.consumers.removeAll()
+        }
+        if read.consumers.isEmpty {
+            read.task.cancel()
+            assetReads.removeValue(forKey: key)
+        } else { assetReads[key] = read }
     }
 
     func renderAsset(for key: String, regions: [ReaderTranslationRegion], sourceSize: CGSize,
@@ -167,9 +238,14 @@ final class ReaderTranslationRenderCache {
     }
 
     func removeRenderAsset(for key: String) async {
+        assetStores.removeValue(forKey: key)
+        cancelAssetRead(key: key)
         assetWrites.removeValue(forKey: key)?.task.cancel()
         removeMemoryRenderAsset(key)
-        try? await disk.remove(Self.renderAssetStorageKey(key), kind: .layout)
+        let removal = enqueueAssetDiskMutation(key: key) { [disk] in
+            try? await disk.remove(Self.renderAssetStorageKey(key), kind: .layout)
+        }
+        await removal.value
     }
 
     /// Capture both lifetimes before rendering; a later clear/settings change
@@ -200,27 +276,61 @@ final class ReaderTranslationRenderCache {
         assetWrites.removeValue(forKey: key)?.task.cancel()
         guard assetWrites.count < 4 else { return }
         let id = UUID()
+        assetStores[key] = id
         let task = Task(priority: .utility) { [weak self] in
             let diskGeneration = await context.diskGeneration.value
             guard let self else { return }
             defer {
                 if self.assetWrites[key]?.id == id { self.assetWrites.removeValue(forKey: key) }
+                if self.assetStores[key] == id { self.assetStores.removeValue(forKey: key) }
             }
-            guard !Task.isCancelled, self.generation == context.generation else { return }
-            await self.storeRenderAsset(asset, key: key, diskGeneration: diskGeneration)
+            guard !Task.isCancelled, self.generation == context.generation, self.assetStores[key] == id else { return }
+            await self.storeRenderAsset(asset, key: key, diskGeneration: diskGeneration, issued: context.generation, id: id)
         }
         assetWrites[key] = AssetWrite(id: id, task: task)
     }
 
     func storeRenderAsset(_ asset: ReaderTranslationRenderAsset, key: String, diskGeneration: UInt64) async {
         let issued = generation
-        guard !Task.isCancelled, asset.isValid, await disk.currentGeneration() == diskGeneration,
-              generation == issued else { return }
+        guard !Task.isCancelled, asset.isValid else { return }
+        assetWrites.removeValue(forKey: key)?.task.cancel()
+        let id = UUID()
+        assetStores[key] = id
+        await storeRenderAsset(asset, key: key, diskGeneration: diskGeneration, issued: issued, id: id)
+    }
+
+    private func storeRenderAsset(_ asset: ReaderTranslationRenderAsset, key: String, diskGeneration: UInt64,
+                                  issued: UUID, id: UUID) async {
+        defer { if assetStores[key] == id { assetStores.removeValue(forKey: key) } }
+        guard await disk.currentGeneration() == diskGeneration,
+              generation == issued, assetStores[key] == id else { return }
         let data = await encodedAsset(asset)
         guard let data, data.count <= ReaderTranslationRenderAsset.maximumEncodedBytes, !Task.isCancelled,
-              await disk.currentGeneration() == diskGeneration, generation == issued else { return }
+              await disk.currentGeneration() == diskGeneration, generation == issued,
+              assetStores[key] == id else { return }
+        // A read may already be decoding the previous disk value. It must not
+        // overwrite this newer committed value when its decoder returns. Existing
+        // consumers can use the replacement without a redundant render on a miss.
+        cancelAssetRead(key: key, replacement: asset)
         retainRenderAsset(asset, key: key)
-        try? await disk.store(data, for: Self.renderAssetStorageKey(key), kind: .layout, generation: diskGeneration)
+        let write = enqueueAssetDiskMutation(key: key) { [disk] in
+            try? await disk.store(data, for: Self.renderAssetStorageKey(key), kind: .layout, generation: diskGeneration)
+        }
+        await withTaskCancellationHandler { await write.value } onCancel: { write.cancel() }
+    }
+
+    // Actor mailboxes need not be FIFO. Chain per-key disk mutations in their
+    // MainActor issue order so an earlier delete cannot erase a later store.
+    private func enqueueAssetDiskMutation(key: String, operation: @escaping @Sendable () async -> Void) -> Task<Void, Never> {
+        let previous = assetDiskMutations[key]?.task
+        let id = UUID()
+        let task = Task { [weak self] in
+            await previous?.value
+            if !Task.isCancelled { await operation() }
+            if self?.assetDiskMutations[key]?.id == id { self?.assetDiskMutations.removeValue(forKey: key) }
+        }
+        assetDiskMutations[key] = AssetWrite(id: id, task: task)
+        return task
     }
 
     private func encodedAsset(_ asset: ReaderTranslationRenderAsset) async -> Data? {
@@ -355,13 +465,36 @@ final class ReaderTranslationRenderCache {
 
     func clearMemory() {
         generation = UUID()
+        for key in Array(assetReads.keys) { cancelAssetRead(key: key) }
         nearbyPages = [] // Late snapshots cannot refill memory after leaving the reader.
         preparations.values.forEach { $0.task.cancel() }
         preparations.removeAll()
         images.removeAll(); imageOrder.removeAll(); bitmapBytes = 0
         layouts.removeAll(); layoutOrder.removeAll(); layoutBytes = 0
         assetWrites.values.forEach { $0.task.cancel() }; assetWrites.removeAll()
+        assetStores.removeAll()
         renderAssets.removeAll(); renderAssetOrder.removeAll(); renderAssetBytes = 0
         variants.removeAll()
+    }
+}
+
+/// Read by the limiter off MainActor; retain only live consumer priorities.
+private final class ReaderAssetReadPriorities: @unchecked Sendable {
+    private let lock = NSLock()
+    private var priorities: [UUID: TranslationRequestPriority] = [:]
+
+    var isForeground: Bool {
+        let live = lock.withLock { Array(priorities.values) }
+        return live.contains { $0.isForeground }
+    }
+
+    func set(_ priority: TranslationRequestPriority, for consumer: UUID) {
+        lock.withLock { priorities[consumer] = priority }
+    }
+
+    func removeAll() { lock.withLock { priorities.removeAll() } }
+
+    func remove(_ consumer: UUID) {
+        _ = lock.withLock { priorities.removeValue(forKey: consumer) }
     }
 }

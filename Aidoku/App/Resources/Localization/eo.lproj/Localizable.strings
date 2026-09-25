@@ -778,16 +778,6 @@
 "LEGACY_SOURCE_LIST" = "Malnovformata fontlisto";
 "LEGACY_SOURCE_LIST_WARNING" = "Averto: malnovformata fontlisto";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Vi nuntempe havas agorditan malnovformatan fontliston. Ĉi tiu formato estas malmoderna kaj ĉesos funkcii en estonta versio de Aidoku. Kvankam ĝi ankoraŭ funkcias nuntempe, estas rekomendinde trovi anstataŭaĵon kaj agordi ĝin en Agordoj > Fontolistoj.";
-"UPSCALING" = "Altskalo";
-"UPSCALE_IMAGES" = "Pligrandigi bildan distingivon";
-"UPSCALING_MODELS" = "Altskalaj Modeloj";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Maksimuma Bilda Alteco";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Bildoj, kies alto egalas aŭ superas la maksimuman bildalton, ne estas pligrandigataj.";
-"ENABLED_MODEL" = "Ebligita Modelo";
-"AVAILABLE_MODELS" = "Disponeblaj Modeloj";
-"NO_AVAILABLE_MODELS" = "Neniuj Disponeblaj Modeloj";
-"NO_AVAILABLE_MODELS_TEXT" = "Malsukcesis alporti disponeblajn modelojn. Kontrolu vian retan konekton kaj certigu, ke via aplikaĵo funkcias la plej lastan version.";
-"MODEL_INFO" = "Modelaj Informoj";
 "LOCK_HISTORY_TAB" = "Ŝlosi la langeton Historio";
 "DOWNSAMPLE_IMAGES" = "Malgrandigi bildan distingivon";
 "CROP_BORDERS" = "Tondi bildlimojn";
@@ -1085,8 +1075,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Ne eblas montri agordon: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Kvin inkluzivitaj modeloj povas esti instalitaj eksterrete. Instalu modelon, tiam frapetu ĝin en Ebligita Modelo. MangaJaNai estas por nigrablankaj paĝoj ĉirkaŭ 1200 pikseloj altaj; koloraj paĝoj restas senŝanĝaj.";
 
 "DOWNLOAD_TRANSLATED" = "Elŝuti kun traduko";
 
@@ -1097,15 +1085,10 @@
 
 "TRANSLATION_STATE_OFF" = "Malŝaltita";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "Por ilustraĵoj; konservas la originalajn konturliniojn. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Por koloraj ilustraĵoj kaj kovriloj; malpeza modelo por plibonigi detalojn.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Por ĝeneralaj bildoj kaj diversaj desegnostiloj; pli forta akrigo.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Por animeoj, mangaoj kaj koloraj paĝoj.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Nur por nigrablankaj mangaoj, adaptita al originalaj paĝoj proksimume 1200 pikselojn altaj. Koloraj paĝoj restas senŝanĝaj.";
 
 "TRANSLATION_ERROR_CONFIGURATION" = "La tradukaj agordoj estas nevalidaj. Kontrolu la servilan URL, la modelon kaj la aliajn agordojn.";
 

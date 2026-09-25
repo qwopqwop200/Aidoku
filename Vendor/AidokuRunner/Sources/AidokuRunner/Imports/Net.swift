@@ -71,6 +71,7 @@ extension Net {
     }
 
     func send(descriptor: Int32) -> Int32 {
+        guard !Task.isCancelled else { return Result.requestError.rawValue }
         guard var request = store.fetch(from: descriptor) as? NetRequest
         else { return Result.invalidDescriptor.rawValue }
 
@@ -79,16 +80,12 @@ extension Net {
 
         // block until rate limit is okay
         let rateLimit = rateLimit // capture rate limit actor
-        BlockingTask {
-            var shouldWait = !(await rateLimit.incRequest())
-            while shouldWait {
-                let waitTime = await rateLimit.nextPeriodStart - Int(Date().timeIntervalSince1970)
-                if waitTime > 0 {
-                    try? await Task.sleep(nanoseconds: UInt64(waitTime) * 1_000_000_000)
-                }
-                shouldWait = !(await rateLimit.incRequest())
-            }
+        let admitted = BlockingTask(forwardsCancellation: true) {
+            do { try await rateLimit.acquire(); return true }
+            catch { return false }
         }.get()
+        guard admitted, !Task.isCancelled else { return Result.requestError.rawValue }
+
 
         struct RequestResult: Sendable {
             var data: Data?
@@ -97,8 +94,9 @@ extension Net {
         }
 
         let requestHandler = requestHandler // capture request handler
-        let result: RequestResult = BlockingTask {
+        let result: RequestResult = BlockingTask(forwardsCancellation: true) {
             do {
+                try Task.checkCancellation()
                 let (data, response) = if let requestHandler {
                     try await requestHandler(urlRequest)
                 } else {
@@ -124,6 +122,7 @@ extension Net {
     }
 
     func sendAll(memory: Memory, descriptors: Int32, length: Int32) -> Int32 {
+        guard !Task.isCancelled else { return Result.requestError.rawValue }
         guard
             descriptors >= 0, length > 0,
             let descriptorArray: [Int32] = try? memory.readValues(offset: UInt32(descriptors), length: UInt32(length))
@@ -137,7 +136,7 @@ extension Net {
 
         let rateLimit = rateLimit // capture rate limit actor
         let requestHandler = requestHandler // capture request handler
-        let (errors, requests) = BlockingTask {
+        let (errors, requests) = BlockingTask(forwardsCancellation: true) {
             await withTaskGroup(of: (Int, NetRequest, Data?, URLResponse?).self) { group in
                 var errors = Array(repeating: Int32(0), count: Int(length))
 
@@ -152,17 +151,9 @@ extension Net {
                         continue
                     }
                     group.addTask {
-                        var shouldWait = !(await rateLimit.incRequest())
-                        while shouldWait {
-                            while await rateLimit.atLimit {
-                                let waitTime = await rateLimit.nextPeriodStart - Int(Date().timeIntervalSince1970)
-                                if waitTime > 0 {
-                                    try? await Task.sleep(nanoseconds: UInt64(waitTime) * 1_000_000_000)
-                                }
-                            }
-                            shouldWait = !(await rateLimit.incRequest())
-                        }
                         do {
+                            try await rateLimit.acquire()
+                            try Task.checkCancellation()
                             let (data, response) = if let requestHandler {
                                 try await requestHandler(urlRequest)
                             } else {

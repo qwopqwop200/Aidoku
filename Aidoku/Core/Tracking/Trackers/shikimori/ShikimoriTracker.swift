@@ -63,9 +63,7 @@ final class ShikimoriTracker: OAuthTracker {
 
     func handleAuthenticationCallback(url: URL) async {
         if let authCode = url.queryParameters?["code"] {
-            let oauth = await api.getAccessToken(authCode: authCode)
-            token = oauth?.accessToken
-            UserDefaults.standard.set(try? JSONEncoder().encode(oauth), forKey: "Tracker.\(id).oauth")
+            _ = await api.getAccessToken(authCode: authCode)
         }
     }
 }

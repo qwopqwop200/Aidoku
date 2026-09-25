@@ -27,7 +27,29 @@ class ReaderPagedViewController: BaseObservingViewController {
             refreshChapter(startPage: currentPage)
         }
     }
-    var pageViewControllers: [ReaderPageViewController] = []
+    private var pageControllers = ReaderPageControllerStore()
+    private var activePageControllers: [ObjectIdentifier: ReaderPageViewController] = [:]
+    private var loadedPageControllers: [(Int, ReaderPageViewController)] {
+        activePageControllers.values.compactMap { controller in
+            pageControllers.firstIndex(of: controller).map { ($0, controller) }
+        }.sorted { $0.0 < $1.0 }
+    }
+    private func trackPageResources(_ page: ReaderPageViewController) {
+        page.onPageResourcesChanged = { [weak self, weak page] active in
+            guard let self, let page else { return }
+            activePageControllers[ObjectIdentifier(page)] = active ? page : nil
+        }
+        if page.page != nil { activePageControllers[ObjectIdentifier(page)] = page }
+    }
+    // Preserve the explicit eager inspection/fixture API; navigation uses lazy slots.
+    var pageViewControllers: [ReaderPageViewController] {
+        get { pageControllers.indices.map { pageControllers[$0] } }
+        set {
+            pageControllers = ReaderPageControllerStore(newValue)
+            activePageControllers.removeAll()
+            newValue.forEach(trackPageResources)
+        }
+    }
     var currentPage = 0
 
     private var usesDoublePages = false
@@ -65,6 +87,8 @@ class ReaderPagedViewController: BaseObservingViewController {
     private var nextPreviewSplitPages: [Page]?
 
     private var isTransitioning = false
+    private var pendingVisiblePageIDs: Set<ObjectIdentifier> = []
+    private var navigationWindow = ReaderPagedNavigationWindow()
     private var programmaticMove = false
     private var pendingSpreadRebuild = false
 
@@ -127,8 +151,8 @@ class ReaderPagedViewController: BaseObservingViewController {
                 let viewController = pageViewController.viewControllers?.first,
                 let currentIndex = getIndex(of: viewController, pos: .first)
             else { return }
-            let safeRange = max(0, currentIndex - pagesToPreload)...min(pageViewControllers.count - 1, currentIndex + pagesToPreload)
-            for (idx, controller) in pageViewControllers.enumerated() where !safeRange.contains(idx) {
+            let safeRange = max(0, currentIndex - pagesToPreload)...min(pageControllers.count - 1, currentIndex + pagesToPreload)
+            for (idx, controller) in loadedPageControllers where !safeRange.contains(idx) {
                 controller.clearPage()
             }
         }
@@ -216,6 +240,7 @@ class ReaderPagedViewController: BaseObservingViewController {
 extension ReaderPagedViewController {
     func loadPageControllers(chapter: AidokuRunner.Chapter) {
         guard !viewModel.pages.isEmpty else { return } // TODO: handle zero pages
+        navigationWindow = ReaderPagedNavigationWindow()
 
         // if transitioning from an adjacent chapter, keep the existing pages
         var firstPageController: ReaderPageViewController?
@@ -223,16 +248,16 @@ extension ReaderPagedViewController {
         var nextChapterPreviewController: ReaderPageViewController?
         var previousChapterPreviewController: ReaderPageViewController?
         if chapter == previousChapter {
-            lastPageController = pageViewControllers.first
-            nextChapterPreviewController = pageViewControllers[2]
+            lastPageController = pageControllers.first
+            nextChapterPreviewController = pageControllers[2]
 
             if let previousPreviewSplitPages {
                 splitPages[viewModel.pages.count] = previousPreviewSplitPages
                 self.previousPreviewSplitPages = nil
             }
         } else if chapter == nextChapter {
-            firstPageController = pageViewControllers.last
-            previousChapterPreviewController = pageViewControllers[pageViewControllers.count - 3]
+            firstPageController = pageControllers.last
+            previousChapterPreviewController = pageControllers[pageControllers.count - 3]
 
             if let nextPreviewSplitPages {
                 splitPages[1] = nextPreviewSplitPages
@@ -240,7 +265,8 @@ extension ReaderPagedViewController {
             }
         }
 
-        pageViewControllers = []
+        pageControllers = ReaderPageControllerStore()
+        activePageControllers.removeAll()
 
         if splitWideImages {
             restoreCachedSplitPages()
@@ -251,9 +277,9 @@ extension ReaderPagedViewController {
         // last page of previous chapter
         if previousChapter != nil {
             if let previousChapterPreviewController {
-                pageViewControllers.append(previousChapterPreviewController)
+                pageControllers.append(previousChapterPreviewController)
             } else {
-                pageViewControllers.append(
+                pageControllers.append(
                     makePageController(
                         hasImageCallbacks: true,
                         preloadPage: previousPreviewSplitPages?.last
@@ -266,7 +292,7 @@ extension ReaderPagedViewController {
         let previousInfoController = ReaderPageViewController(type: .info(.previous), delegate: delegate)
         previousInfoController.currentChapter = chapter
         previousInfoController.previousChapter = previousChapter
-        pageViewControllers.append(previousInfoController)
+        pageControllers.append(previousInfoController)
 
         // chapter pages
         let startPos = firstPageController != nil ? 1 : 0
@@ -274,26 +300,38 @@ extension ReaderPagedViewController {
 
         if let firstPageController {
             if let splitPageArray = splitPages[1] {
-                pageViewControllers.append(contentsOf: splitPageArray.map { makePageController(preloadPage: $0, skipProcessing: true) })
+                for splitPage in splitPageArray {
+                    pageControllers.appendDeferred { [unowned self] in
+                        makePageController(preloadPage: splitPage, skipProcessing: true)
+                    }
+                }
             } else {
-                pageViewControllers.append(firstPageController)
+                pageControllers.append(firstPageController)
             }
         }
 
         for i in startPos..<endPos {
             let originalPageIndex = i + 1
             if let splitPageArray = splitPages[originalPageIndex] {
-                pageViewControllers.append(contentsOf: splitPageArray.map { makePageController(preloadPage: $0, skipProcessing: true) })
+                for splitPage in splitPageArray {
+                    pageControllers.appendDeferred { [unowned self] in
+                        makePageController(preloadPage: splitPage, skipProcessing: true)
+                    }
+                }
             } else {
-                pageViewControllers.append(makePageController(hasImageCallbacks: true))
+                pageControllers.appendDeferred { [unowned self] in makePageController(hasImageCallbacks: true) }
             }
         }
 
         if let lastPageController {
             if let splitPageArray = splitPages[viewModel.pages.count] {
-                pageViewControllers.append(contentsOf: splitPageArray.map { makePageController(preloadPage: $0, skipProcessing: true) })
+                for splitPage in splitPageArray {
+                    pageControllers.appendDeferred { [unowned self] in
+                        makePageController(preloadPage: splitPage, skipProcessing: true)
+                    }
+                }
             } else {
-                pageViewControllers.append(lastPageController)
+                pageControllers.append(lastPageController)
             }
         }
 
@@ -303,14 +341,14 @@ extension ReaderPagedViewController {
         let nextInfoController = ReaderPageViewController(type: .info(.next), delegate: delegate)
         nextInfoController.currentChapter = chapter
         nextInfoController.nextChapter = nextChapter
-        pageViewControllers.append(nextInfoController)
+        pageControllers.append(nextInfoController)
 
         // first page of next chapter
         if nextChapter != nil {
             if let nextChapterPreviewController {
-                pageViewControllers.append(nextChapterPreviewController)
+                pageControllers.append(nextChapterPreviewController)
             } else {
-                pageViewControllers.append(
+                pageControllers.append(
                     makePageController(
                         hasImageCallbacks: true,
                         preloadPage: nextPreviewSplitPages?.first
@@ -319,6 +357,7 @@ extension ReaderPagedViewController {
             }
         }
 
+        for (_, controller) in pageControllers.materialized { trackPageResources(controller) }
         rebuildPageIndices()
     }
 
@@ -332,6 +371,7 @@ extension ReaderPagedViewController {
             delegate: delegate,
             temporaryPageStore: viewModel.temporaryPageStore
         )
+        trackPageResources(page)
         page.pageView?.imageView.addInteraction(UIContextMenuInteraction(delegate: self))
         if #available(iOS 18.0, *) {
             bindDictionaryOverlayTap(to: page)
@@ -339,7 +379,7 @@ extension ReaderPagedViewController {
         if hasImageCallbacks {
             page.onImageisWideImage = { [weak self, weak page] isWide in
                 guard let self, let page, isWide else { return }
-                guard let vcIndex = self.pageViewControllers.firstIndex(of: page) else { return }
+                guard let vcIndex = self.pageControllers.firstIndex(of: page) else { return }
                 let liveDisplay = self.pageIndex(from: vcIndex)
                 let actualPage = self.actualPageIndex(from: liveDisplay)
                 if self.splitWideImages {
@@ -370,14 +410,14 @@ extension ReaderPagedViewController {
     func move(toPage page: Int, animated: Bool, resetGesture: Bool = true) {
         let page = min(max(page, 0), displayPageCount + 1)
         let vcIndex = page + (previousChapter != nil ? 1 : 0)
-        guard pageViewControllers.indices.contains(vcIndex) else { return }
-        var targetViewController: UIViewController = pageViewControllers[vcIndex]
+        guard pageControllers.indices.contains(vcIndex) else { return }
+        var targetViewController: UIViewController = pageControllers[vcIndex]
 
-        let lastContentIndex = pageViewControllers.count - (nextChapter != nil ? 1 : 0) - 1
+        let lastContentIndex = pageControllers.count - (nextChapter != nil ? 1 : 0) - 1
 
         if usesDoublePages && vcIndex + 1 <= lastContentIndex {
-            let firstPage = pageViewControllers[vcIndex]
-            let secondPage = pageViewControllers[vcIndex + 1]
+            let firstPage = pageControllers[vcIndex]
+            let secondPage = pageControllers[vcIndex + 1]
             if
                 case .page = firstPage.type, case .page = secondPage.type,
                 spreadStart(for: page) == page,
@@ -391,8 +431,8 @@ extension ReaderPagedViewController {
             usesDoublePages, !(targetViewController is ReaderDoublePageViewController),
             vcIndex - 1 >= (previousChapter != nil ? 2 : 1)
         {
-            let firstPage = pageViewControllers[vcIndex - 1]
-            let secondPage = pageViewControllers[vcIndex]
+            let firstPage = pageControllers[vcIndex - 1]
+            let secondPage = pageControllers[vcIndex]
             if case .page = firstPage.type, case .page = secondPage.type {
                 let backPage = page - 1
                 if
@@ -444,9 +484,10 @@ extension ReaderPagedViewController {
         guard actualPageIndex > 0, actualPageIndex <= viewModel.pages.count else { return }
 
         let vcIndex = index + (previousChapter != nil ? 1 : 0)
-        guard vcIndex < pageViewControllers.count else { return }
+        guard vcIndex < pageControllers.count else { return }
 
-        let targetVC = pageViewControllers[vcIndex]
+        let targetVC = pageControllers[vcIndex]
+        targetVC.pageView?.imageLoadPriority = index == currentPage || pendingVisiblePageIDs.contains(ObjectIdentifier(targetVC)) || visiblePageControllers().contains(where: { $0 === targetVC }) ? .high : .low
         let sourceId = viewModel.source?.key ?? viewModel.manga.sourceKey
 
         if let splitPageArray = splitPages[actualPageIndex] {
@@ -475,9 +516,12 @@ extension ReaderPagedViewController {
     func loadPages(in range: ClosedRange<Int>) {
         // Rebase decoded images and in-flight loads on every completed navigation.
         // Visible controllers remain protected during UIKit's transition callback.
-        let visible = Set(visiblePageControllers().map(ObjectIdentifier.init))
-        var visiblePages = Set<Int>()
-        for (index, controller) in pageViewControllers.enumerated() {
+        let visibleControllers = visiblePageControllers()
+        let visible = Set(visibleControllers.map(ObjectIdentifier.init)).union(pendingVisiblePageIDs)
+        var visiblePages = Set(visibleControllers.compactMap { controller in
+            pageControllers.firstIndex(of: controller).map { pageIndex(from: $0) }
+        })
+        for (index, controller) in loadedPageControllers {
             let pageIndex = pageIndex(from: index)
             let isVisible = visible.contains(ObjectIdentifier(controller)) || pageIndex == currentPage
             controller.pageView?.imageLoadPriority = isVisible ? .high : .low
@@ -503,8 +547,11 @@ extension ReaderPagedViewController {
     }
 
     /// Fetch the first `pageCount` pages of the next chapter ahead of time.
-    func preloadNextChapter(pageCount: Int) {
-        let pageCount = min(pageCount, max(0, pagesToPreload))
+    func preloadNextChapter(pageCount: Int, isVisibleTransition: Bool = false) {
+        // The chapter transition needs its first image even when speculative
+        // lookahead is disabled, so the next swipe never targets an unloaded preview.
+        let limit = max(isVisibleTransition ? 1 : 0, pagesToPreload)
+        let pageCount = min(pageCount, limit)
         guard pageCount > 0, let nextChapter else { return }
         if nextChapterPreloadTarget == nextChapter, nextChapterPreloadTask?.isCancelled == false {
             nextChapterPreloadCount = max(nextChapterPreloadCount, pageCount)
@@ -544,7 +591,7 @@ extension ReaderPagedViewController {
 
             if
                 let firstPage = pages.first,
-                let previewController = pageViewControllers.last,
+                let previewController = pageControllers.last,
                 case .page = previewController.type
             {
                 previewController.setPage(firstPage, sourceId: sourceKey)
@@ -570,9 +617,9 @@ extension ReaderPagedViewController {
     func getIndex(of viewController: UIViewController, pos: PagePosition = .first) -> Int? {
         var currentIndex: Int?
         if let viewController = viewController as? ReaderPageViewController {
-            currentIndex = pageViewControllers.firstIndex(of: viewController)
+            currentIndex = pageControllers.firstIndex(of: viewController)
         } else if let viewController = viewController as? ReaderDoublePageViewController {
-            currentIndex = pageViewControllers.firstIndex(
+            currentIndex = pageControllers.firstIndex(
                 of: pos == .first
                     ? viewController.firstPageController
                     : viewController.secondPageController
@@ -615,11 +662,9 @@ extension ReaderPagedViewController {
         guard page >= 1, page <= displayPageCount else { return false }
         if manuallyIsolatedPages.contains(page) { return false }
         let vcIndex = page + (previousChapter != nil ? 1 : 0)
-        guard pageViewControllers.indices.contains(vcIndex) else { return false }
-        let vc = pageViewControllers[vcIndex]
-        guard case .page = vc.type else { return false }
+        guard pageControllers.indices.contains(vcIndex) else { return false }
         let actual = actualPageIndex(from: page)
-        if splitPages[actual] == nil, vc.isWideImage || hasCachedSplit(actual) {
+        if splitPages[actual] == nil, (pageControllers.existing(at: vcIndex)?.isWideImage ?? false) || hasCachedSplit(actual) {
             return false
         }
         return true
@@ -717,7 +762,7 @@ extension ReaderPagedViewController {
             splitPersistenceCount < 2,
             splitPages[pageIndex] == nil,
             controller.isWideImage,
-            pageViewControllers.contains(controller),
+            pageControllers.contains(controller),
             let (leftImage, rightImage) = controller.pageView?.splitImage()
         else { return }
 
@@ -742,7 +787,7 @@ extension ReaderPagedViewController {
     ) {
         guard
             stored.count >= 2,
-            let replacingIndex = pageViewControllers.firstIndex(of: controller)
+            let replacingIndex = pageControllers.firstIndex(of: controller)
         else { return }
 
         controller.onImageisWideImage = nil
@@ -750,7 +795,7 @@ extension ReaderPagedViewController {
         controller.setPage(stored[0], skipProcessing: true)
 
         let newVCs = stored.dropFirst().map { makePageController(preloadPage: $0, skipProcessing: true) }
-        pageViewControllers.insert(contentsOf: newVCs, at: replacingIndex + 1)
+        pageControllers.insert(contentsOf: newVCs, at: replacingIndex + 1)
 
         let splitDisplayPage = pageIndex(from: replacingIndex)
         shiftIsolation(after: splitDisplayPage, by: newVCs.count)
@@ -1048,6 +1093,22 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
         transitionCompleted completed: Bool
     ) {
         isTransitioning = false
+        pendingVisiblePageIDs.removeAll()
+        if !completed,
+           let settledController = pageViewController.viewControllers?.first,
+           let settledIndex = getIndex(of: settledController, pos: .first) {
+            let settledPage = pageIndex(from: settledIndex)
+            if (1...max(1, displayPageCount)).contains(settledPage) {
+                // An aborted drag restores the actual settled content window.
+                // currentPage intentionally remains the last content page while
+                // a chapter transition screen is displayed.
+                loadPages(in: navigationWindow.range(at: settledPage, lookahead: pagesToPreload, doublePages: usesDoublePages))
+            } else if settledPage == displayPageCount + 1 {
+                // Do not cancel mandatory chapter preview work by rebasing onto
+                // the stale last content page, particularly with zero lookahead.
+                preloadNextChapter(pageCount: max(1, pagesToPreload), isVisibleTransition: true)
+            }
+        }
         setLiveTextButtonHidden(delegate?.barsHidden ?? false)
         delegate?.translationVisibilityDidChange()
         if completed {
@@ -1064,8 +1125,7 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
         guard
             completed,
             let viewController = pageViewController.viewControllers?.first,
-            let currentIndex = getIndex(of: viewController, pos: .first),
-            pagesToPreload > 0
+            let currentIndex = getIndex(of: viewController, pos: .first)
         else {
             return
         }
@@ -1084,8 +1144,8 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
                     Task {
                         let loaded = await viewModel.preload(chapter: previousChapter)
                         guard self.previousChapter == previousChapter, !Task.isCancelled else { return }
-                        if currentIndex > 0, pageViewControllers.indices.contains(currentIndex - 1), let lastPage = loaded.last {
-                            pageViewControllers[currentIndex - 1].setPage(
+                        if currentIndex > 0, pageControllers.indices.contains(currentIndex - 1), let lastPage = loaded.last {
+                            pageControllers[currentIndex - 1].setPage(
                                 lastPage,
                                 sourceId: viewModel.source?.key ?? viewModel.manga.sourceKey
                             )
@@ -1095,8 +1155,8 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
 
             case displayPageCount + 1: // next chapter transition page
                 delegate?.setCurrentPage(displayPageCount + 1, position: nil)
-                // preload next
-                preloadNextChapter(pageCount: pagesToPreload)
+                // The adjacent chapter preview is now foreground navigation demand.
+                preloadNextChapter(pageCount: max(1, pagesToPreload), isVisibleTransition: true)
 
             case displayPageCount + 2: // next chapter first page
                 pendingSpreadRebuild = false
@@ -1118,8 +1178,8 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
                 } else {
                     delegate?.setCurrentPage(actualPage, position: nil)
                 }
-                // preload 1 before and pagesToPreload ahead
-                loadPages(in: page - 1 - (usesDoublePages ? 1 : 0)...page + pagesToPreload + (usesDoublePages ? 1 : 0))
+                navigationWindow.settled(at: page, doublePages: usesDoublePages)
+                loadPages(in: navigationWindow.range(at: page, lookahead: pagesToPreload, doublePages: usesDoublePages))
 
                 if
                     usesDoublePages,
@@ -1128,9 +1188,9 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
                     let first = doubleVC.firstPageController
                     let second = doubleVC.secondPageController
                     if
-                        !pageViewControllers.contains(first) || !pageViewControllers.contains(second),
-                        let idx = pageViewControllers.firstIndex(of: first)
-                            ?? pageViewControllers.firstIndex(of: second)
+                        !pageControllers.contains(first) || !pageControllers.contains(second),
+                        let idx = pageControllers.firstIndex(of: first)
+                            ?? pageControllers.firstIndex(of: second)
                     {
                         pendingSpreadRebuild = false
                         move(toPage: pageIndex(from: idx), animated: false, resetGesture: false)
@@ -1158,6 +1218,17 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
         willTransitionTo pendingViewControllers: [UIViewController]
     ) {
         isTransitioning = true
+        // UIKit can still report the outgoing controller as current during a
+        // drag. Both incoming pages are visible demand, not speculative work.
+        pendingVisiblePageIDs = Set(pendingViewControllers.flatMap { controller -> [ObjectIdentifier] in
+            if let page = controller as? ReaderPageViewController {
+                return [ObjectIdentifier(page)]
+            }
+            if let spread = controller as? ReaderDoublePageViewController {
+                return [ObjectIdentifier(spread.firstPageController), ObjectIdentifier(spread.secondPageController)]
+            }
+            return []
+        })
         setLiveTextButtonHidden(true)
 
         if UserDefaults.standard.bool(forKey: "Reader.hideBarsOnSwipe") {
@@ -1209,10 +1280,10 @@ extension ReaderPagedViewController: UIPageViewControllerDataSource {
         guard let currentIndex = getIndex(of: viewController, pos: .second) else {
             return nil
         }
-        if currentIndex + 1 < pageViewControllers.count {
-            if usesDoublePages && currentIndex + 2 < pageViewControllers.count {
-                let firstPage = pageViewControllers[currentIndex + 1]
-                let secondPage = pageViewControllers[currentIndex + 2]
+        if currentIndex + 1 < pageControllers.count {
+            if usesDoublePages && currentIndex + 2 < pageControllers.count {
+                let firstPage = pageControllers[currentIndex + 1]
+                let secondPage = pageControllers[currentIndex + 2]
                 if case .page = firstPage.type, case .page = secondPage.type {
                     let page = pageIndex(from: currentIndex + 1)
                     if
@@ -1223,7 +1294,7 @@ extension ReaderPagedViewController: UIPageViewControllerDataSource {
                     }
                 }
             }
-            return pageViewControllers[currentIndex + 1]
+            return pageControllers[currentIndex + 1]
         }
         return nil
     }
@@ -1234,8 +1305,8 @@ extension ReaderPagedViewController: UIPageViewControllerDataSource {
         }
         if currentIndex - 1 >= 0 {
             if usesDoublePages && currentIndex - 2 >= 0 {
-                let firstPage = pageViewControllers[currentIndex - 2]
-                let secondPage = pageViewControllers[currentIndex - 1]
+                let firstPage = pageControllers[currentIndex - 2]
+                let secondPage = pageControllers[currentIndex - 1]
                 if case .page = firstPage.type, case .page = secondPage.type {
                     let page = pageIndex(from: currentIndex - 2)
                     if
@@ -1246,7 +1317,7 @@ extension ReaderPagedViewController: UIPageViewControllerDataSource {
                     }
                 }
             }
-            return pageViewControllers[currentIndex - 1]
+            return pageControllers[currentIndex - 1]
         }
         return nil
     }
@@ -1279,14 +1350,14 @@ extension ReaderPagedViewController: @MainActor ReaderDictionaryReader {
 
     func setDictionaryOverlayTapHandler(_ handler: ((String, String, CGRect, [CGRect]) -> Void)?) {
         dictionaryOverlayTapHandler = handler
-        for controller in pageViewControllers {
+        for (_, controller) in pageControllers.materialized {
             bindDictionaryOverlayTap(to: controller)
         }
     }
 
     func setDictionaryOverlayInteractionMode(_ mode: DictionaryOverlayInteractionMode) {
         dictionaryOverlayInteractionMode = mode
-        for controller in pageViewControllers {
+        for (_, controller) in pageControllers.materialized {
             controller.pageView?.setDictionaryOverlayInteractionMode(mode)
         }
     }
@@ -1374,13 +1445,13 @@ extension ReaderPagedViewController: UIContextMenuInteractionDelegate {
                 }
             }
 
-            let translationPage = self.pageViewControllers.compactMap(\.pageView)
+            let translationPage = self.pageControllers.materialized.compactMap { $0.1.pageView }
                 .first(where: { $0.imageView === pageView })?.translationPage
             let saveTranslatedAction = ReaderTranslationImageExporter.saveAction(page: translationPage, presenter: self)
             var actions = [shareAction, saveToPhotosAction, saveTranslatedAction, reloadAction]
 
             if self.usesDoublePages {
-                for (index, pageViewController) in self.pageViewControllers.enumerated() {
+                for (index, pageViewController) in self.pageControllers.materialized {
                     guard
                         case .page = pageViewController.type,
                         let readerPageView = pageViewController.pageView,
@@ -1421,7 +1492,7 @@ extension ReaderPagedViewController: UIContextMenuInteractionDelegate {
 
     @MainActor
     private func reloadCurrentPageImage(for imageView: UIImageView) async {
-        for pageViewController in pageViewControllers {
+        for (_, pageViewController) in pageControllers.materialized {
             if
                 case .page = pageViewController.type,
                 let readerPageView = pageViewController.pageView,
@@ -1438,7 +1509,7 @@ extension ReaderPagedViewController: UIContextMenuInteractionDelegate {
 
     @MainActor
     private func setManualIsolation(for imageView: UIImageView, isolated: Bool) {
-        for (index, pageViewController) in pageViewControllers.enumerated() {
+        for (index, pageViewController) in pageControllers.materialized {
             if
                 case .page = pageViewController.type,
                 let readerPageView = pageViewController.pageView,
@@ -1469,7 +1540,7 @@ extension ReaderPagedViewController: UIContextMenuInteractionDelegate {
     }
 
     private func pageLanguage(for imageView: UIImageView) -> String? {
-        for pageViewController in pageViewControllers where pageViewController.pageView?.imageView == imageView {
+        for (_, pageViewController) in pageControllers.materialized where pageViewController.pageView?.imageView == imageView {
             return pageViewController.page?.language
         }
         return nil
@@ -1517,7 +1588,7 @@ extension ReaderPagedViewController {
                 Self.splitStore[key, default: [:]][pageIndex] = stored
             }
             for controller in visiblePageControllers() {
-                guard let index = pageViewControllers.firstIndex(of: controller) else { continue }
+                guard let index = pageControllers.firstIndex(of: controller) else { continue }
                 checkAndSplitWideImage(at: actualPageIndex(from: self.pageIndex(from: index)), controller: controller)
             }
         }
@@ -1550,11 +1621,11 @@ extension ReaderPagedViewController {
     func translationPreviewPages() -> [ReaderTranslationPage] {
         guard #available(iOS 18.0, *), isViewLoaded else { return [] }
         let visible = visiblePageControllers()
-        let indices = visible.compactMap { pageViewControllers.firstIndex(of: $0) }
+        let indices = visible.compactMap { pageControllers.firstIndex(of: $0) }
         guard let first = indices.min(), let last = indices.max() else { return [] }
-        let neighbors = [first - 1, last + 1].filter { pageViewControllers.indices.contains($0) }
+        let neighbors = [first - 1, last + 1].filter { pageControllers.indices.contains($0) }
         return neighbors.compactMap { index in
-            let controller = pageViewControllers[index]
+            let controller = pageControllers[index]
             guard case .page = controller.type else { return nil }
             loadPage(at: pageIndex(from: index))
             controller.loadViewIfNeeded()
@@ -1573,5 +1644,42 @@ extension ReaderPagedViewController {
     func translationPages() -> [ReaderTranslationPage] {
         guard #available(iOS 18.0, *) else { return [] }
         return visiblePageControllers().compactMap { $0.pageView?.translationPage }
+    }
+}
+
+/// Keep the same image budget while moving lookahead toward sustained navigation.
+/// A single opposite turn is often a quick reread; two establish a new direction.
+private struct ReaderPagedNavigationWindow {
+    private var anchor: Int?
+    private var direction = 1
+    private var oppositeSteps = 0
+
+    mutating func settled(at page: Int, doublePages: Bool) {
+        defer { anchor = page }
+        guard let anchor, anchor != page else { return }
+        let delta = page - anchor
+        let nextDirection = delta > 0 ? 1 : -1
+        if abs(delta) > (doublePages ? 2 : 1) {
+            direction = nextDirection
+            oppositeSteps = 0
+        } else if nextDirection == direction {
+            oppositeSteps = 0
+        } else {
+            oppositeSteps += 1
+            if oppositeSteps >= 2 {
+                direction = nextDirection
+                oppositeSteps = 0
+            }
+        }
+    }
+
+    func range(at page: Int, lookahead: Int, doublePages: Bool) -> ClosedRange<Int> {
+        let ahead = max(0, lookahead)
+        let spreadMargin = doublePages ? 1 : 0
+        // Preserve the existing zero-lookahead contract and spread mate budget.
+        if direction > 0 || ahead == 0 {
+            return page - 1 - spreadMargin...page + ahead + spreadMargin
+        }
+        return page - ahead - spreadMargin...page + 1 + spreadMargin
     }
 }

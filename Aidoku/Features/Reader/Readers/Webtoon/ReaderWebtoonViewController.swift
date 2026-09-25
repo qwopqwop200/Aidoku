@@ -32,6 +32,8 @@ class ReaderWebtoonViewController: ZoomableCollectionViewController {
     private var loadingPrevious = false
     private var loadingNext = false
     private var chapterGeneration = UUID()
+    private var chapterInsertionWaiters: [UUID: CheckedContinuation<Bool, Never>] = [:]
+    private var isAnimatingScroll = false
 
     // The chapters currently shown in the reader view
     private var chapters: [AidokuRunner.Chapter] = []
@@ -91,6 +93,9 @@ class ReaderWebtoonViewController: ZoomableCollectionViewController {
     /// Invalidate suspended chapter work when this reader is removed or closed.
     func cancelPendingChapterLoads() {
         chapterGeneration = UUID()
+        finishChapterInsertionWaiters(allowed: false)
+        isAnimatingScroll = false
+        isSliding = false
         loadingNext = false
         loadingPrevious = false
         isScrolling = false
@@ -258,6 +263,7 @@ extension ReaderWebtoonViewController {
         autoScrollDisplayLink?.invalidate()
         autoScrollDisplayLink = nil
 
+        settleChapterInsertion()
         updateContentScrollingState()
     }
 
@@ -265,6 +271,7 @@ extension ReaderWebtoonViewController {
         guard !isAutoScrolling else { return }
 
         isAutoScrolling = true
+        stopProgrammaticScroll()
         resumeAutoScroll()
 
         let displayLink = CADisplayLink(target: self, selector: #selector(handleAutoScrollFrame(_:)))
@@ -347,6 +354,8 @@ extension ReaderWebtoonViewController {
 extension ReaderWebtoonViewController {
     override func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
         super.scrollViewWillBeginDragging(scrollView)
+        isAnimatingScroll = false
+        isScrolling = true
         restorePreloadRange()
         pauseAutoScroll()
         setLiveTextButtonHidden(true)
@@ -358,7 +367,9 @@ extension ReaderWebtoonViewController {
         super.scrollViewDidScroll(scrollView)
         delegate?.translationVisibilityDidChange()
 
-        isScrolling = true
+        isScrolling = isSliding || isZooming || isAnimatingScroll
+            || self.scrollView.isDragging || self.scrollView.isDecelerating
+            || (isAutoScrolling && !autoScrollPausedForUserInteraction)
 
         // ignore if page slider is being used
         guard !isSliding && !isZooming else { return }
@@ -396,12 +407,14 @@ extension ReaderWebtoonViewController {
     // zooming sometimes causes page count to jitter between two pages
     func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
         isZooming = true
+        stopProgrammaticScroll()
         stopAutoScroll()
     }
 
     func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
         isZooming = false
         scrollViewDidScroll(scrollView)
+        settleChapterInsertion()
     }
 
     // fix content size when rotating
@@ -583,30 +596,73 @@ extension ReaderWebtoonViewController {
         }
         setLiveTextButtonHidden(false)
 
-        if infinite {
-            isScrolling = false
-            checkInfiniteLoad()
-        }
+        settleChapterInsertion()
+        if infinite { checkInfiniteLoad() }
         resumeAutoScroll()
         updateContentScrollingState()
     }
 
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
         setLiveTextButtonHidden(false)
-        if infinite {
-            isScrolling = false
-            checkInfiniteLoad()
-        }
+        settleChapterInsertion()
+        if infinite { checkInfiniteLoad() }
         resumeAutoScroll()
         updateContentScrollingState()
     }
 
     func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
+        isAnimatingScroll = false
         setLiveTextButtonHidden(false)
-        if infinite {
-            isScrolling = false
-            checkInfiniteLoad()
+        settleChapterInsertion()
+        if infinite { checkInfiniteLoad() }
+    }
+
+    // At most the previous and next chapter may wait. Wake on actual gesture /
+    // programmatic settlement, rather than retaining a periodic polling task.
+    private func waitForChapterInsertion(generation: UUID) async -> Bool {
+        while isZooming || isScrolling || isSliding || isAnimatingScroll
+            || (isAutoScrolling && !autoScrollPausedForUserInteraction) {
+            guard generation == chapterGeneration, !Task.isCancelled else { return false }
+            let id = UUID()
+            let allowed = await withTaskCancellationHandler {
+                await withCheckedContinuation { continuation in
+                    guard !Task.isCancelled, generation == chapterGeneration,
+                          chapterInsertionWaiters.count < 2 else {
+                        continuation.resume(returning: false)
+                        return
+                    }
+                    chapterInsertionWaiters[id] = continuation
+                }
+            } onCancel: {
+                Task { @MainActor [weak self] in
+                    self?.chapterInsertionWaiters.removeValue(forKey: id)?.resume(returning: false)
+                }
+            }
+            guard allowed else { return false }
         }
+        return generation == chapterGeneration && !Task.isCancelled
+    }
+
+    private func finishChapterInsertionWaiters(allowed: Bool) {
+        let pending = chapterInsertionWaiters
+        chapterInsertionWaiters.removeAll()
+        for continuation in pending.values { continuation.resume(returning: allowed) }
+    }
+
+    private func stopProgrammaticScroll() {
+        guard isAnimatingScroll else { return }
+        isAnimatingScroll = false
+        // UIKit need not send didEndScrollingAnimation when another interaction
+        // takes over. Cancel the old animation and clear its insertion barrier.
+        scrollView.setContentOffset(scrollView.contentOffset, animated: false)
+    }
+
+    private func settleChapterInsertion() {
+        isScrolling = scrollView.isDragging || scrollView.isDecelerating
+            || isSliding || isAnimatingScroll
+            || (isAutoScrolling && !autoScrollPausedForUserInteraction)
+        guard !isScrolling, !isZooming else { return }
+        finishChapterInsertionWaiters(allowed: true)
     }
 
     // check if at the top or bottom to append the next/prev chapter
@@ -616,9 +672,10 @@ extension ReaderWebtoonViewController {
             let topPath = getCurrentPagePath(pos: .top)
             if topPath == nil || (topPath?.section == 0 && topPath?.row == 0) {
                 loadingPrevious = true
+                let issued = chapterGeneration
                 Task {
                     await prependPreviousChapter()
-                    loadingPrevious = false
+                    if issued == chapterGeneration { loadingPrevious = false }
                 }
             }
         }
@@ -646,9 +703,10 @@ extension ReaderWebtoonViewController {
 
             if atEnd || withinPreloadRange {
                 loadingNext = true
+                let issued = chapterGeneration
                 Task {
                     await appendNextChapter()
-                    loadingNext = false
+                    if issued == chapterGeneration { loadingNext = false }
                 }
             }
         }
@@ -667,15 +725,12 @@ extension ReaderWebtoonViewController {
         }
 
         // wait until zooming and scrolling stops
-        while isZooming || isScrolling {
-            do { try await Task.sleep(nanoseconds: 500_000_000) } catch { return }
-            guard issued == chapterGeneration else { return }
-        }
+        guard await waitForChapterInsertion(generation: issued) else { return }
 
         // queue remove last section if we have three already
 //        let removeLast = chapters.count >= 3
 
-        guard issued == chapterGeneration, !chapters.contains(prevChapter) else { return }
+        guard issued == chapterGeneration, !Task.isCancelled, !chapters.contains(prevChapter) else { return }
         chapters.insert(prevChapter, at: 0)
         pages.insert(
             [Page(
@@ -724,15 +779,22 @@ extension ReaderWebtoonViewController {
         }
 
         // wait until zooming and scrolling stops
-        while isZooming || isScrolling {
-            do { try await Task.sleep(nanoseconds: 500_000_000) } catch { return }
-            guard issued == chapterGeneration else { return }
-        }
+        guard await waitForChapterInsertion(generation: issued) else { return }
 
         // queue remove first section if we have three already
 //        let removeFirst = chapters.count >= 3
 
-        guard issued == chapterGeneration, !chapters.contains(nextChapter) else { return }
+        guard issued == chapterGeneration, !Task.isCancelled, !chapters.contains(nextChapter) else { return }
+        // A pending above-page resize can leave the layout's global size-delta
+        // preservation flag set. Appending below must not count those new pages
+        // as height inserted above the reader. Preserve an existing visible item
+        // instead, including any genuine above-page resize during the batch.
+        let visibleBounds = collectionNode.view.bounds
+        let anchor = collectionNode.collectionViewLayout.layoutAttributesForElements(in: visibleBounds)?
+            .filter { $0.representedElementCategory == .cell && $0.frame.intersects(visibleBounds) }
+            .min { $0.frame.minY < $1.frame.minY }
+            .map { (path: $0.indexPath, offset: collectionNode.contentOffset.y - $0.frame.minY) }
+        let horizontalOffset = collectionNode.contentOffset.x
         chapters.append(nextChapter)
         pages.append(loaded + [Page(
             type: .nextInfoPage,
@@ -755,8 +817,24 @@ extension ReaderWebtoonViewController {
 //                collectionNode.deleteSections(IndexSet(integer: 0))
 //            }
 //        }
-        scrollView.contentOffset = self.collectionNode.contentOffset
+        guard issued == chapterGeneration else {
+            CATransaction.commit()
+            return
+        }
+        collectionNode.view.layoutIfNeeded()
         zoomView.adjustContentSize()
+        if let anchor,
+           let frame = collectionNode.collectionViewLayout.layoutAttributesForItem(at: anchor.path)?.frame {
+            let minimumY = -scrollView.adjustedContentInset.top
+            let maximumY = max(minimumY,
+                scrollView.contentSize.height - scrollView.bounds.height + scrollView.adjustedContentInset.bottom)
+            let y = min(max(frame.minY + anchor.offset, minimumY), maximumY)
+            let offset = CGPoint(x: horizontalOffset, y: y)
+            collectionNode.contentOffset = offset
+            scrollView.contentOffset = offset
+        } else {
+            scrollView.contentOffset = collectionNode.contentOffset
+        }
         CATransaction.commit()
     }
 
@@ -823,10 +901,13 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
                 collectionNode.contentOffset.y - collectionNode.bounds.height * 2/3
             )
         )
-        scrollView.setContentOffset(
-            offset,
-            animated: UserDefaults.standard.bool(forKey: "Reader.animatePageTransitions")
-        )
+        let animated = UserDefaults.standard.bool(forKey: "Reader.animatePageTransitions")
+        isAnimatingScroll = animated && offset != scrollView.contentOffset
+        scrollView.setContentOffset(offset, animated: animated)
+        if !isAnimatingScroll {
+            settleChapterInsertion()
+            if infinite { checkInfiniteLoad() }
+        }
     }
 
     func moveRight() {
@@ -837,14 +918,18 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
                 collectionNode.contentOffset.y + collectionNode.bounds.height * 2/3
             )
         )
-        scrollView.setContentOffset(
-            offset,
-            animated: UserDefaults.standard.bool(forKey: "Reader.animatePageTransitions")
-        )
+        let animated = UserDefaults.standard.bool(forKey: "Reader.animatePageTransitions")
+        isAnimatingScroll = animated && offset != scrollView.contentOffset
+        scrollView.setContentOffset(offset, animated: animated)
+        if !isAnimatingScroll {
+            settleChapterInsertion()
+            if infinite { checkInfiniteLoad() }
+        }
     }
 
     func sliderMoved(value: CGFloat) {
         isSliding = true
+        stopProgrammaticScroll()
 
         // get slider area
         guard
@@ -886,11 +971,18 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
     func sliderStopped(value: CGFloat) {
         isSliding = false
         scrollViewDidScroll(collectionNode.view)
+        settleChapterInsertion()
+        if infinite { checkInfiniteLoad() }
     }
 
     func setChapter(_ chapter: AidokuRunner.Chapter, startPage: Int) {
         let handoff = viewModel.takePendingPreload(for: chapter)
         chapterGeneration = UUID()
+        finishChapterInsertionWaiters(allowed: false)
+        loadingNext = false
+        loadingPrevious = false
+        isAnimatingScroll = false
+        isSliding = false
         let issued = chapterGeneration
         self.chapter = chapter
         updateDoubleTapZoomSetting()
@@ -941,6 +1033,7 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
                 animated: false
             )
             scrollView.contentOffset = collectionNode.contentOffset
+            settleChapterInsertion()
         }
     }
 }

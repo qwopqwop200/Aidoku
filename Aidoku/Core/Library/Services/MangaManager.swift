@@ -610,7 +610,7 @@ extension MangaManager {
         var pendingNotifications: [NotificationManager.NewChaptersSummary] = []
 
         let newDetails = await {
-            var results: [Int: AidokuRunner.Manga] = [:]
+            var results: [MangaIdentifier: AidokuRunner.Manga] = [:]
             let progress = Progress(totalUnitCount: Int64(total))
 
             for manga in filteredManga {
@@ -627,7 +627,7 @@ extension MangaManager {
                 }
 
                 if updateMetadata {
-                    results[manga.hashValue] = newManga
+                    results[manga.identifier] = Self.compactRefreshMetadata(newManga)
                 }
 
                 let mangaId = manga.identifier
@@ -712,12 +712,20 @@ extension MangaManager {
 
         if updateMetadata {
             for mangaItem in filteredManga {
-                guard let newInfo = newDetails[mangaItem.hashValue] else { continue }
+                guard let newInfo = newDetails[mangaItem.identifier] else { continue }
                 mangaItem.load(from: newInfo.toOld())
             }
         }
 
         AppSettings.library.lastUpdated.set(Date.now)
+    }
+
+    /// Final metadata publication needs no source chapter arrays. The current
+    /// response remains available to its DB transaction, then can be released.
+    nonisolated static func compactRefreshMetadata(_ manga: AidokuRunner.Manga) -> AidokuRunner.Manga {
+        var compact = manga
+        compact.chapters = nil
+        return compact
     }
 
     private func updateLibraryRefreshProgress(_ progress: Progress) {

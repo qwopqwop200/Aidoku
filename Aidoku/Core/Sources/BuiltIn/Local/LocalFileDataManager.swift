@@ -14,12 +14,21 @@ final actor LocalFileDataManager {
 
     private let context: NSManagedObjectContext
     private let saveDeletion: @Sendable (NSManagedObjectContext) throws -> Void
+    private let saveImport: @Sendable (NSManagedObjectContext) throws -> Void
+    private let saveReconciliation: @Sendable (NSManagedObjectContext) throws -> Void
     private let objectExecutor: ObjectActorSerialExecutor
     public nonisolated let unownedExecutor: UnownedSerialExecutor
 
-    init(saveDeletion: @escaping @Sendable (NSManagedObjectContext) throws -> Void = { try $0.save() }) {
+    init(
+        context suppliedContext: NSManagedObjectContext? = nil,
+        saveDeletion: @escaping @Sendable (NSManagedObjectContext) throws -> Void = { try $0.save() },
+        saveImport: @escaping @Sendable (NSManagedObjectContext) throws -> Void = { try $0.save() },
+        saveReconciliation: @escaping @Sendable (NSManagedObjectContext) throws -> Void = { try $0.save() }
+    ) {
         self.saveDeletion = saveDeletion
-        context = CoreDataManager.shared.container.newBackgroundContext()
+        self.saveImport = saveImport
+        self.saveReconciliation = saveReconciliation
+        context = suppliedContext ?? CoreDataManager.shared.container.newBackgroundContext()
         context.automaticallyMergesChangesFromParent = true
         context.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
         self.objectExecutor = ObjectActorSerialExecutor(context: context)
@@ -298,16 +307,17 @@ extension LocalFileDataManager {
     func removeMissingChapters(
         mangaId: String,
         availableChapters: Set<String>
-    ) -> Set<String> {
+    ) throws -> Set<String> {
+        do {
         // fetch db chapters for the manga
-        let dbChapters: [ChapterObject] = {
+        let dbChapters: [ChapterObject] = try {
             let request = ChapterObject.fetchRequest()
             request.predicate = NSPredicate(
                 format: "mangaId == %@ AND sourceId == %@",
                 mangaId,
                 LocalSourceRunner.sourceKey
             )
-            return (try? self.context.fetch(request)) ?? []
+            return try self.context.fetch(request)
         }()
 
         // remove chapters from db that no longer exist on disk
@@ -320,7 +330,7 @@ extension LocalFileDataManager {
             self.context.delete(chapter)
         }
 
-        try? self.context.save()
+        if context.hasChanges { try saveReconciliation(context) }
 
         // get db chapters file names
         let dbChapterFileNames: Set<String> = Set(dbChapters.compactMap { chapter in
@@ -330,12 +340,72 @@ extension LocalFileDataManager {
         })
 
         return dbChapterFileNames
+        } catch {
+            context.rollback()
+            throw error
+        }
     }
 }
 
 // MARK: Creating
 extension LocalFileDataManager {
+    private enum ImportError: Error { case missingManga }
+
+    /// No suspension between existence checks, inserts and commit. The caller may
+    /// acknowledge/remove its inbox only after this durable transaction succeeds.
+    // One transaction accepts the existing file and metadata fields together.
+    // swiftlint:disable:next function_parameter_count
+    func commitImport(
+        folder: URL, mangaId: String, mangaTitle: String, cover: String?, description: String?,
+        archive: URL, chapterId: String, chapterTitle: String?, volume: Float?, chapter: Float?, comicInfo: ComicInfo?
+    ) throws {
+        do {
+            // Replaying a scan or crash recovery must not create another chapter
+            // for an archive already committed by a foreground import.
+            let existing = ChapterObject.fetchRequest()
+            existing.predicate = NSPredicate(format: "mangaId == %@ AND sourceId == %@", mangaId, LocalSourceRunner.sourceKey)
+            let canonical = archive.standardizedFileURL.resolvingSymlinksInPath().path
+            if try context.fetch(existing).contains(where: { chapter in
+                guard let path = chapter.fileInfo?.path else { return false }
+                let stored = path.hasPrefix("/") ? URL(fileURLWithPath: path)
+                    : FileManager.default.documentDirectory.appendingPathComponent(path)
+                return stored.standardizedFileURL.resolvingSymlinksInPath().path == canonical
+            }) { return }
+            let request = MangaObject.fetchRequest()
+            request.predicate = NSPredicate(format: "id == %@ AND sourceId == %@", mangaId, LocalSourceRunner.sourceKey)
+            request.fetchLimit = 1
+            if try context.fetch(request).isEmpty {
+                stageManga(url: folder, id: mangaId, title: mangaTitle, cover: cover, description: description, comicInfo: comicInfo)
+            }
+            try stageChapter(mangaId: mangaId, url: archive, id: chapterId, title: chapterTitle,
+                             volume: volume, chapter: chapter, comicInfo: comicInfo)
+            try saveImport(context)
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
+    // Retain convenience entry points for callers creating individual records.
     func createManga(
+        url: URL, id: String, title: String, cover: String? = nil, description: String? = nil,
+        viewer: AidokuRunner.Viewer = .unknown, comicInfo: ComicInfo? = nil
+    ) {
+        stageManga(url: url, id: id, title: title, cover: cover, description: description, viewer: viewer, comicInfo: comicInfo)
+        do { try saveImport(context) } catch { context.rollback() }
+    }
+
+    func createChapter(
+        mangaId: String, url: URL, id: String, title: String? = nil,
+        volume: Float? = nil, chapter: Float? = nil, comicInfo: ComicInfo? = nil
+    ) {
+        do {
+            try stageChapter(mangaId: mangaId, url: url, id: id, title: title, volume: volume, chapter: chapter, comicInfo: comicInfo)
+            try saveImport(context)
+        } catch { context.rollback() }
+    }
+
+    private func stageManga(
         url: URL,
         id: String,
         title: String,
@@ -381,10 +451,9 @@ extension LocalFileDataManager {
         }
         object.fileInfo = fileInfo
 
-        try? context.save()
     }
 
-    func createChapter(
+    private func stageChapter(
         mangaId: String,
         url: URL,
         id: String,
@@ -392,11 +461,11 @@ extension LocalFileDataManager {
         volume: Float? = nil,
         chapter: Float? = nil,
         comicInfo: ComicInfo? = nil
-    ) {
+    ) throws {
         let request = MangaObject.fetchRequest()
         request.predicate = NSPredicate(format: "id == %@ AND sourceId == %@", mangaId, LocalSourceRunner.sourceKey)
         request.fetchLimit = 1
-        guard let mangaObject = (try? context.fetch(request))?.first else { return }
+        guard let mangaObject = try context.fetch(request).first else { throw ImportError.missingManga }
 
         // create chapter in db
         let fileInfo = LocalFileInfoObject(context: self.context)
@@ -437,21 +506,21 @@ extension LocalFileDataManager {
 
         mangaObject.addToChapters(chapterObject)
 
-        try? context.save()
     }
 }
 
 // MARK: Miscellaneous
 extension LocalFileDataManager {
     // finds manga in db but not on disk and manga on disk but not in db, and fix broken manga covers
-    func findMangaDiskChanges(mangaFolders: [URL]) -> (toRemove: Set<String>, toAdd: Set<String>) {
+    func findMangaDiskChanges(mangaFolders: [URL]) throws -> (toRemove: Set<String>, toAdd: Set<String>) {
+        do {
         let folderMangaIds = Set(mangaFolders.map { $0.lastPathComponent.normalized })
 
         // fetch all local manga objects from db
-        let coreDataManga: [MangaObject] = {
+        let coreDataManga: [MangaObject] = try {
             let request = MangaObject.fetchRequest()
             request.predicate = NSPredicate(format: "sourceId == %@", LocalSourceRunner.sourceKey)
-            return (try? self.context.fetch(request)) ?? []
+            return try self.context.fetch(request)
         }()
         let dbMangaIds = Set(coreDataManga.map { $0.id })
         let toRemove = dbMangaIds.subtracting(folderMangaIds)
@@ -475,7 +544,7 @@ extension LocalFileDataManager {
             if let value = manga.cover, let url = URL(string: value), url.isFileURL,
                let relative = url.toAidokuImageUrl() { manga.cover = relative.absoluteString }
         }
-        if context.hasChanges { try? context.save() }
+        if context.hasChanges { try saveReconciliation(context) }
 
         return (
             // manga that no longer exist on disk
@@ -483,6 +552,10 @@ extension LocalFileDataManager {
             // manga that exist on disk but not in db
             folderMangaIds.subtracting(dbMangaIds)
         )
+        } catch {
+            context.rollback()
+            throw error
+        }
     }
 }
 

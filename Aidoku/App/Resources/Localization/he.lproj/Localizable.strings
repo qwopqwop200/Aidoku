@@ -844,16 +844,6 @@
 "LEGACY_SOURCE_LIST" = "רשימת מקורות מדור קודם";
 "LEGACY_SOURCE_LIST_WARNING" = "אזהרה: רשימת מקורות מדור קודם";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "כרגע מוגדרת לך רשימת מקורות מדור קודם. פורמט זה מיושן ויפסיק לעבוד בגרסה עתידית של Aidoku. למרות שזה עדיין יעבוד לעת עתה, מומלץ למצוא תחליף ולהגדיר אותו בהגדרות > רשימות מקורות.";
-"UPSCALING" = "הגדלת רזולוציה";
-"UPSCALE_IMAGES" = "הגדל רזולוציית תמונות";
-"UPSCALING_MODELS" = "מודלים להגדלת רזולוציה";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "גובה תמונה מקסימלי";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "לא תוגדל הרזולוציה של תמונות שגובהן שווה לגובה המרבי או עולה עליו.";
-"ENABLED_MODEL" = "מודל פעיל";
-"AVAILABLE_MODELS" = "מודלים זמינים";
-"NO_AVAILABLE_MODELS" = "אין מודלים זמינים";
-"NO_AVAILABLE_MODELS_TEXT" = "לא ניתן לקבל את רשימת המודלים הזמינים. יש לבדוק את החיבור לרשת ולוודא שהאפליקציה מעודכנת לגרסה האחרונה.";
-"MODEL_INFO" = "מידע על המודל";
 "DISABLE_QUICK_ACTIONS" = "השבת פעולות מהירות";
 "DISABLE_DOUBLE_TAP_ZOOM" = "השבת את זום הקשה כפולה";
 "LIVE_TEXT" = "טקסט חי";
@@ -1085,8 +1075,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "לא ניתן להציג את ההגדרה: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "ניתן להתקין את חמשת המודלים הכלולים ללא חיבור לאינטרנט. יש להתקין מודל ואז להקיש עליו תחת מודל פעיל. MangaJaNai מיועד לעמודים בשחור-לבן בגובה של כ-1200 פיקסלים; עמודים צבעוניים נשארים ללא שינוי.";
 
 "DOWNLOAD_TRANSLATED" = "הורדה עם תרגום";
 
@@ -1096,15 +1084,10 @@
 "TRANSLATION_STATE_ON" = "פעיל";
 "TRANSLATION_STATE_OFF" = "כבוי";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "לאיורים; משמר את הקווים המקוריים. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "לאיורים צבעוניים ולעטיפות; מודל קל משקל לשיפור פרטים.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "לתמונות כלליות וליצירות אמנות מגוונות; חידוד חזק יותר.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "לאנימה, למנגה ולעמודים צבעוניים.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "למנגה בשחור-לבן בלבד, מותאם לעמודי מקור בגובה של כ-1200 פיקסלים. עמודים צבעוניים נשארים ללא שינוי.";
 
 "TRANSLATION_ERROR_CONFIGURATION" = "הגדרות התרגום אינן תקינות. יש לבדוק את כתובת השרת, המודל ושאר ההגדרות.";
 

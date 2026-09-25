@@ -12,6 +12,7 @@ enum LocalFileManagerError: Error {
     case cannotReadArchive
     case noImagesFound
     case fileCopyFailed
+    case databaseWriteFailed
 }
 
 struct LocalSeriesInfo: Hashable {

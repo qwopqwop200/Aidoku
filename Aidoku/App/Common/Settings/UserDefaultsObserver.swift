@@ -14,26 +14,28 @@ class UserDefaultsObserver: ObservableObject {
 
     private var cancellable: AnyCancellable?
 
-    init(keys: [String]) {
+    init(keys: [String], defaults: UserDefaults = .standard, notificationCenter: NotificationCenter = .default) {
         var observedValues: [String: Any?] = [:]
         for key in keys {
-            let value = UserDefaults.standard.object(forKey: key)
+            let value = defaults.object(forKey: key)
             observedValues[key] = value
         }
         self.observedValues = observedValues
 
-        cancellable = NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+        cancellable = notificationCenter.publisher(for: UserDefaults.didChangeNotification)
+            .throttle(for: .milliseconds(16), scheduler: RunLoop.main, latest: true)
             .sink { [weak self] _ in
                 guard let self else { return }
-                Task { @MainActor in
-                    for key in keys where !key.isEmpty {
-                        let newValue = UserDefaults.standard.object(forKey: key)
-                        let oldValue = self.observedValues[key, default: nil]
-                        if !Self.isEqual(oldValue, newValue) {
-                            self.observedValues[key] = newValue
-                        }
+                var updated = self.observedValues
+                var changed = false
+                for key in keys where !key.isEmpty {
+                    let newValue = defaults.object(forKey: key)
+                    if !Self.isEqual(updated[key, default: nil], newValue) {
+                        updated[key] = newValue
+                        changed = true
                     }
                 }
+                if changed { self.observedValues = updated }
             }
     }
 
@@ -53,25 +55,74 @@ class UserDefaultsObserver: ObservableObject {
 class UserDefaultsBool: ObservableObject {
     @Published var value: Bool {
         didSet {
-            UserDefaults.standard.set(value, forKey: key)
+            if !isReconciling, oldValue != value { defaults.set(value, forKey: key) }
         }
     }
 
     private let key: String
+    private let defaults: UserDefaults
+    private var isReconciling = false
     private var cancellable: AnyCancellable?
 
-    init(key: String, defaultValue: Bool = false) {
+    init(
+        key: String, defaultValue: Bool = false,
+        defaults: UserDefaults = .standard, notificationCenter: NotificationCenter = .default
+    ) {
+        self.defaults = defaults
         self.key = key
-        self.value = UserDefaults.standard.object(forKey: key) == nil ? defaultValue : UserDefaults.standard.bool(forKey: key)
+        self.value = defaults.object(forKey: key) == nil ? defaultValue : defaults.bool(forKey: key)
 
-        cancellable = NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
-            .receive(on: RunLoop.main)
+        cancellable = notificationCenter.publisher(for: UserDefaults.didChangeNotification)
+            .throttle(for: .milliseconds(16), scheduler: RunLoop.main, latest: true)
             .sink { [weak self] _ in
                 guard let self else { return }
-                let newValue = UserDefaults.standard.bool(forKey: self.key)
+                let newValue = defaults.object(forKey: self.key) == nil ? defaultValue : defaults.bool(forKey: self.key)
                 if self.value != newValue {
+                    self.isReconciling = true
                     self.value = newValue
+                    self.isReconciling = false
                 }
             }
     }
+}
+
+/// One active refresh plus one latest replacement. Cancelled work drains before replacement starts.
+@MainActor
+final class SettingsRefreshScheduler {
+    private var task: Task<Void, Never>?
+    private var pending: (@MainActor () async -> Void)?
+    private var generation = UUID()
+
+    func request<Value>(
+        operation: @escaping @MainActor () async -> Value,
+        commit: @escaping @MainActor (Value) -> Void
+    ) {
+        let current = UUID()
+        generation = current
+        pending = { [weak self] in
+            let value = await operation()
+            guard !Task.isCancelled, self?.generation == current else { return }
+            commit(value)
+        }
+        task?.cancel()
+        startPending()
+    }
+
+    func cancel() {
+        generation = UUID()
+        pending = nil
+        task?.cancel()
+    }
+
+    private func startPending() {
+        guard task == nil, let operation = pending else { return }
+        pending = nil
+        task = Task { [weak self] in
+            await operation()
+            self?.task = nil
+            self?.startPending()
+        }
+    }
+
+    deinit { task?.cancel() }
 }

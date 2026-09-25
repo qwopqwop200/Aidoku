@@ -85,7 +85,6 @@ struct FullAuditSettingsFlowTests {
                 "customCategoryBindings": "Dedicated empty categories; custom handlers from SettingsView use initial empty state; category edits not exercised",
                 "excludedActions": ["destructive reset/clear/migrate", "credential login/logout", "remote provider mutation", "iCloud synchronization", "dictionary/model download", "backup restore/create", "external links", "photo/library permission prompts"],
                 "conditionsNotForced": ["iCloud entitlement", "iPad-only presentation", "other OS branches", "enabled dictionary overlay controls", "populated tracker/source rows"],
-                "networkCaveat": "Upscale models presentation starts production remote catalog GET; no download action. Its timing only measures attachment, not remote completion.",
                 "notMeasured": ["cold launch", "Instruments hitches", "memory peak", "actual button touch latency", "all rows below viewport", "populated user data"],
                 "thermalState": ProcessInfo.processInfo.thermalState.rawValue,
                 "physicalMemory": ProcessInfo.processInfo.physicalMemory]
@@ -144,7 +143,6 @@ struct FullAuditSettingsFlowTests {
         case "Library.categories": return AnyView(CategoriesView(categories: .constant([])))
         case "Library.filterGroups": return AnyView(FilterGroupsView())
         case "Reader.tapZones": return AnyView(TapZonesSelectView())
-        case "Reader.upscalingModels": return AnyView(UpscaleModelListView())
         case "Network.httpsBypassPage":
             if #available(iOS 17.0, *) { return AnyView(HTTPSBypassSettingsView()) }
         case "Reader.translation":

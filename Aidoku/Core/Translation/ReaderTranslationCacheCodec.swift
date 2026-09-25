@@ -1,4 +1,5 @@
 import Foundation
+import Compression
 
 enum ReaderTranslationCacheCodec {
     private static let magic = Data("ATZ1".utf8)
@@ -28,6 +29,43 @@ enum ReaderTranslationCacheCodec {
         guard isPacked(data) else { return data } // Existing v1 JSON remains readable.
         let algorithm: NSData.CompressionAlgorithm = data.starts(with: zlibMagic) ? .zlib : .lzfse
         return try (Data(data.dropFirst(magic.count)) as NSData).decompressed(using: algorithm) as Data
+    }
+
+    /// Bounded expansion for render assets; old formats and successful bytes are unchanged.
+    static func unpack(_ data: Data, maximumBytes: Int) throws -> Data {
+        guard maximumBytes >= 0 else { throw CocoaError(.fileReadTooLarge) }
+        guard isPacked(data) else {
+            guard data.count <= maximumBytes else { throw CocoaError(.fileReadTooLarge) }
+            return data
+        }
+        let algorithm = data.starts(with: zlibMagic) ? COMPRESSION_ZLIB : COMPRESSION_LZFSE
+        let chunkSize = 64 * 1024
+        let destination = UnsafeMutablePointer<UInt8>.allocate(capacity: chunkSize)
+        defer { destination.deallocate() }
+        var stream = compression_stream(dst_ptr: destination, dst_size: chunkSize, src_ptr: destination, src_size: 0, state: nil)
+        guard compression_stream_init(&stream, COMPRESSION_STREAM_DECODE, algorithm) != COMPRESSION_STATUS_ERROR else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        defer { compression_stream_destroy(&stream) }
+        return try data.withUnsafeBytes { bytes in
+            stream.src_ptr = bytes.bindMemory(to: UInt8.self).baseAddress!.advanced(by: magic.count)
+            stream.src_size = data.count - magic.count
+            var result = Data()
+            while true {
+                try Task.checkCancellation()
+                stream.dst_ptr = destination
+                stream.dst_size = chunkSize
+                let remaining = stream.src_size
+                let status = compression_stream_process(&stream, Int32(COMPRESSION_STREAM_FINALIZE.rawValue))
+                let produced = chunkSize - stream.dst_size
+                guard produced <= maximumBytes - result.count else { throw CocoaError(.fileReadTooLarge) }
+                result.append(destination, count: produced)
+                if status == COMPRESSION_STATUS_END { return result }
+                guard status == COMPRESSION_STATUS_OK, produced > 0 || stream.src_size < remaining else {
+                    throw CocoaError(.fileReadCorruptFile)
+                }
+            }
+        }
     }
 
     static func repack(_ data: Data) throws -> Data {

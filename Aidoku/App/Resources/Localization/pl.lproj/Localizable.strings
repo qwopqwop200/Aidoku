@@ -868,16 +868,6 @@
 "LEGACY_SOURCE_LIST" = "Przestarzała lista źródeł";
 "LEGACY_SOURCE_LIST_WARNING" = "Ostrzeżenie: przestarzała lista źródeł";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Obecnie masz skonfigurowaną starszą listę źródeł. Ten format jest nieaktualny i przestanie działać w przyszłej wersji Aidoku. Chociaż na razie będzie to nadal działać, zaleca się znalezienie zamiennika i skonfigurowanie go w Ustawieniach> Listy źródeł.";
-"UPSCALING" = "Zwiększanie rozdzielczości";
-"UPSCALE_IMAGES" = "Zwiększaj rozdzielczość obrazów";
-"UPSCALING_MODELS" = "Modele zwiększania rozdzielczości";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Maksymalna wysokość obrazu";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Rozdzielczość obrazów, których wysokość jest równa ustawionemu maksimum lub je przekracza, nie będzie zwiększana.";
-"ENABLED_MODEL" = "Włączony model";
-"AVAILABLE_MODELS" = "Dostępne modele";
-"NO_AVAILABLE_MODELS" = "Brak dostępnych modeli";
-"NO_AVAILABLE_MODELS_TEXT" = "Nie udało się pobrać dostępnych modeli. Sprawdź połączenie sieciowe i upewnij się, że aplikacja ma najnowszą wersję.";
-"MODEL_INFO" = "Informacje o modelu";
 "DISABLE_QUICK_ACTIONS" = "Wyłącz szybkie akcje";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Wyłącz powiększanie podwójnym dotknięciem";
 "LIVE_TEXT" = "Tekst na żywo";
@@ -1085,8 +1075,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Nie można wyświetlić ustawienia: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Pięć dołączonych modeli można zainstalować bez połączenia z internetem. Zainstaluj model, a następnie wybierz go w sekcji „Włączony model”. MangaJaNai jest przeznaczony do stron czarno-białych o wysokości około 1200 pikseli; kolorowe strony pozostają bez zmian.";
 
 "DOWNLOAD_TRANSLATED" = "Pobierz z tłumaczeniem";
 
@@ -1096,15 +1084,10 @@
 "TRANSLATION_STATE_ON" = "Włączone";
 "TRANSLATION_STATE_OFF" = "Wyłączone";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "Ilustracje; zachowuje oryginalne linie rysunku. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Kolorowe ilustracje i okładki; lekki model do odwzorowywania szczegółów.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Obrazy ogólnego przeznaczenia i grafiki w różnych stylach; silniejsze wyostrzanie.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga i kolorowe strony.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Tylko czarno-biała manga; model dostosowany do oryginalnych stron o wysokości około 1200 pikseli. Kolorowe strony pozostają bez zmian.";
 "TRANSLATION_ERROR_CONFIGURATION" = "Ustawienia tłumaczenia są nieprawidłowe. Sprawdź adres URL serwera, model i pozostałe ustawienia.";
 "TRANSLATION_ERROR_REQUEST" = "Nie można użyć tekstu, obrazu lub ustawień języka do tłumaczenia.";
 "TRANSLATION_ERROR_RESPONSE" = "Serwer tłumaczeń zwrócił nieprawidłową odpowiedź. Spróbuj ponownie lub sprawdź ustawienia modelu.";

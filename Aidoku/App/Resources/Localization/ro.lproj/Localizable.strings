@@ -862,16 +862,6 @@
 "LEGACY_SOURCE_LIST" = "Listă de surse în format vechi";
 "LEGACY_SOURCE_LIST_WARNING" = "Avertisment: listă de surse în format vechi";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Aveți configurată o listă de surse într-un format vechi. Acest format este învechit și nu va mai funcționa într-o versiune viitoare a Aidoku. Deocamdată funcționează, dar se recomandă să găsiți o alternativă și să o configurați în Setări > Liste de surse.";
-"UPSCALING" = "Upscaling";
-"UPSCALE_IMAGES" = "Mărește rezoluția imaginilor";
-"UPSCALING_MODELS" = "Modele de upscaling";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Înălțimea maximă a imaginii";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Imaginile cu o înălțime egală cu sau mai mare decât limita maximă nu vor avea rezoluția mărită.";
-"ENABLED_MODEL" = "Model activat";
-"AVAILABLE_MODELS" = "Modele disponibile";
-"NO_AVAILABLE_MODELS" = "Nu există modele disponibile";
-"NO_AVAILABLE_MODELS_TEXT" = "Nu s-au putut prelua modelele disponibile. Verificați conexiunea la rețea și asigurați-vă că aplicația rulează cea mai recentă versiune.";
-"MODEL_INFO" = "Informații despre model";
 "DISABLE_QUICK_ACTIONS" = "Dezactivați acțiunile rapide";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Dezactivează mărirea prin atingere dublă";
 "LIVE_TEXT" = "Text live";
@@ -1085,8 +1075,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Nu se poate afișa setarea: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Cinci modele incluse pot fi instalate offline. Instalați un model, apoi atingeți-l în Model activat. MangaJaNai este pentru pagini alb-negru cu o înălțime de aproximativ 1200 de pixeli; paginile color rămân neschimbate.";
 
 "DOWNLOAD_TRANSLATED" = "Descarcă cu traducere";
 
@@ -1095,11 +1083,6 @@
 
 "TRANSLATION_STATE_ON" = "Activată";
 "TRANSLATION_STATE_OFF" = "Dezactivată";
-"UPSCALE_MODEL_SWINUNET_INFO" = "Ilustrații; păstrează liniile desenului original. FP32.";
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Ilustrații și coperte color; model ușor pentru detalii.";
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Imagini generale și ilustrații în stiluri variate; accentuare mai puternică a clarității.";
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga și pagini color.";
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Doar manga alb-negru, optimizat pentru pagini originale cu o înălțime de aproximativ 1200 de pixeli. Paginile color rămân neschimbate.";
 "TRANSLATION_ERROR_CONFIGURATION" = "Setările de traducere nu sunt valide. Verificați adresa URL a serverului, modelul și celelalte setări.";
 "TRANSLATION_ERROR_REQUEST" = "Textul, imaginea sau setările de limbă nu au putut fi folosite pentru traducere.";
 "TRANSLATION_ERROR_RESPONSE" = "Serverul de traducere a returnat un răspuns nevalid. Încercați din nou sau verificați setările modelului.";

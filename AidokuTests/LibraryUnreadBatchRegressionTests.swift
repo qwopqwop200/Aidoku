@@ -7,8 +7,9 @@ import Testing
 /// unreadCount, including nil/empty scanlator and history-null semantics.
 @Suite(.serialized) @MainActor
 struct LibraryUnreadBatchRegressionTests {
-    @Test func groupedCountsMatchScalarAcrossFiltersAndPendingChanges() throws {
-        let fixture = try R2UnreadStore()
+    @Test(arguments: [false, true])
+    func groupedCountsMatchScalarAcrossFiltersAndPendingChanges(twoStores: Bool) throws {
+        let fixture = try R2UnreadStore(twoStores: twoStores)
         defer { fixture.close() }
         let context = fixture.context
         var ids: [MangaIdentifier] = []
@@ -53,8 +54,33 @@ struct LibraryUnreadBatchRegressionTests {
         compare() // pending relationship-target change
     }
 
+    @Test func productionTwoStoreConfigurationExecutesBoundedGroupedQueries() throws {
+        let fixture = try R2UnreadStore(twoStores: true)
+        defer { fixture.close() }
+        let ids = (0..<257).map { fixture.addManga(index: $0, language: nil, scanlators: nil) }
+        for id in ids {
+            fixture.addChapter(id: id, index: 0, language: "en", scanlator: nil, history: 0, locked: false)
+        }
+        try fixture.context.save()
+        var grouped = 0
+        var scalarQueries = 0
+        let counts = CoreDataManager.shared.unreadCounts(mangaIds: ids, context: fixture.context) { isGrouped in
+            if isGrouped { grouped += 1 } else { scalarQueries += 1 }
+        }
+        #expect(counts == scalar(ids, context: fixture.context))
+        #expect(grouped == 3 && scalarQueries == 0)
+        fixture.addChapter(id: ids[0], index: 1, language: "en", scanlator: nil, history: 0, locked: false)
+        grouped = 0; scalarQueries = 0
+        let pending = CoreDataManager.shared.unreadCounts(mangaIds: ids, context: fixture.context) { isGrouped in
+            if isGrouped { grouped += 1 } else { scalarQueries += 1 }
+        }
+        #expect(pending == scalar(ids, context: fixture.context))
+        #expect(grouped == 0 && scalarQueries == 257)
+        print("TWO_STORE_UNREAD persistedGrouped=3 persistedScalar=0 pendingGrouped=0 pendingScalar=257 manga=257")
+    }
+
     @Test func boundedPairedSQLiteTimingRetainsExactCounts() throws {
-        let fixture = try R2UnreadStore()
+        let fixture = try R2UnreadStore(twoStores: true)
         defer { fixture.close() }
         var ids: [MangaIdentifier] = []
         for index in 0..<120 {
@@ -65,18 +91,37 @@ struct LibraryUnreadBatchRegressionTests {
         try fixture.context.save()
         var rows: [[String: Any]] = []
         for iteration in 0..<6 {
-            let a = ProcessInfo.processInfo.systemUptime
-            let expected = scalar(ids, context: fixture.context)
-            let b = ProcessInfo.processInfo.systemUptime
-            let actual = CoreDataManager.shared.unreadCounts(mangaIds: ids, context: fixture.context)
-            let c = ProcessInfo.processInfo.systemUptime
+            var expected: [MangaIdentifier: Int] = [:]
+            var actual: [MangaIdentifier: Int] = [:]
+            var scalarMS: Double = 0
+            var batchMS: Double = 0
+            var groupedQueries = 0
+            var scalarQueries = 0
+            func measureScalar() {
+                let start = ProcessInfo.processInfo.systemUptime
+                expected = scalar(ids, context: fixture.context)
+                scalarMS = (ProcessInfo.processInfo.systemUptime - start) * 1000
+            }
+            func measureBatch() {
+                let start = ProcessInfo.processInfo.systemUptime
+                actual = CoreDataManager.shared.unreadCounts(mangaIds: ids, context: fixture.context) { grouped in
+                    if grouped { groupedQueries += 1 } else { scalarQueries += 1 }
+                }
+                batchMS = (ProcessInfo.processInfo.systemUptime - start) * 1000
+            }
+            if iteration.isMultiple(of: 2) { measureScalar(); measureBatch() } else { measureBatch(); measureScalar() }
             #expect(actual == expected)
+            #expect(groupedQueries == 1 && scalarQueries == 0)
             rows.append(["iteration": iteration, "phase": iteration == 0 ? "warmup" : "measured",
-                "scalarMS": (b-a)*1000, "batchMS": (c-b)*1000, "counts": ids.map { actual[$0] ?? -1 }])
+                "scalarFirst": iteration.isMultiple(of: 2), "scalarMS": scalarMS, "batchMS": batchMS,
+                "groupedQueries": groupedQueries, "scalarQueries": scalarQueries, "counts": ids.map { actual[$0] ?? -1 }])
         }
         let directory = URL.documentsDirectory.appendingPathComponent("Round2UnreadBatch")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try JSONSerialization.data(withJSONObject: ["manga": 120, "chaptersPerManga": 12, "scope": "Separate production-schema SQLite; 6 paired synchronous calls; scalar then batch order; process-warm storage; not UI latency, not cold disk or peak-memory measurement", "rows": rows], options: [.prettyPrinted, .sortedKeys])
+        let scope = "Separate production-schema Cloud+Local SQLite; 6 paired synchronous calls; "
+            + "alternating scalar/batch order; process-warm storage; not UI latency, not cold disk or peak-memory measurement"
+        let evidence: [String: Any] = ["manga": 120, "chaptersPerManga": 12, "scope": scope, "rows": rows]
+        try JSONSerialization.data(withJSONObject: evidence, options: [.prettyPrinted, .sortedKeys])
             .write(to: directory.appendingPathComponent("paired-counts.json"), options: .atomic)
     }
 
@@ -94,12 +139,19 @@ struct LibraryUnreadBatchRegressionTests {
     let directory: URL
     let coordinator: NSPersistentStoreCoordinator
     let context: NSManagedObjectContext
-    init() throws {
+    init(twoStores: Bool = false) throws {
         directory = FileManager.default.temporaryDirectory.appendingPathComponent("round2-unread-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         coordinator = NSPersistentStoreCoordinator(managedObjectModel: CoreDataManager.shared.container.managedObjectModel)
-        try coordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: nil,
-            at: directory.appendingPathComponent("fixture.sqlite"))
+        if twoStores {
+            try coordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: "Cloud",
+                at: directory.appendingPathComponent("cloud.sqlite"))
+            try coordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: "Local",
+                at: directory.appendingPathComponent("local.sqlite"))
+        } else {
+            try coordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: nil,
+                at: directory.appendingPathComponent("fixture.sqlite"))
+        }
         context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
         context.persistentStoreCoordinator = coordinator
     }

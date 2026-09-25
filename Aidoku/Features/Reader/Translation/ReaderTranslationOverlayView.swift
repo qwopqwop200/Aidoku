@@ -39,7 +39,11 @@ enum ReaderTranslationBackgroundImage {
     /// an immutable image, so an identical earlier encoding is reused.
     static func dataURL(for image: UIImage) throws -> String? {
         try Task.checkCancellation()
-        if let cached = encodedDataURLs.value(for: image) { return cached }
+        if let cached = encodedDataURLs.value(for: image) {
+            ReaderTranslationDiagnostics.renderingProfile("profile_background_encoding_hit")
+            return cached
+        }
+        ReaderTranslationDiagnostics.renderingProfile("profile_background_encoding_miss")
         let dataURL: String? = try autoreleasepool {
             let background = try prepare(image)
             let data = background.pngData()
@@ -188,6 +192,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         preparedLayout: Task<Data, Error>? = nil, retainsCommittedFrame: Bool = false
     ) {
         renderer.cancelPendingRender()
+        let backgroundFitChanged = self.aspectFit != aspectFit
         self.regions = regions
         self.preparedLayout = preparedLayout ?? snapshotTarget?.preparedLayout
         self.snapshotTarget = contentTerminationCount == 0 ? snapshotTarget : nil
@@ -207,7 +212,28 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         self.settings = settings
         items = ReaderTranslationRegion.overlayItems(regions, imageSize: imageSize)
         dirty = true
-        if contentTerminationCount == 0, let image, preparedImage !== image { prepareBackground(image) }
+        if contentTerminationCount == 0 {
+            if let image {
+                if preparedImage !== image {
+                    prepareBackground(image)
+                } else if backgroundFitChanged {
+                    // The encoded pixels are reusable, but object-fit belongs to
+                    // presentation geometry and must follow a reused viewport.
+                    ready = false
+                    installBackground()
+                }
+            } else if preparedImage != nil || imageDataURL != nil || imageTask != nil {
+                // A text-only presentation must not inherit the previous page's
+                // source bitmap, including an encoding still in flight.
+                preparedImage = nil
+                imageGeneration = UUID()
+                imageTask?.cancel()
+                imageTask = nil
+                imageDataURL = nil
+                ready = false
+                installBackground()
+            }
+        }
         setNeedsLayout()
     }
 
@@ -239,6 +265,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         renderer.cancelPendingRender()
         webView.isHidden = true
         let gate = Self.encodingGate
+        ReaderTranslationDiagnostics.renderingProfile("profile_background_encode_queued", revision: UInt64(backgroundRevision))
         imageTask = Task { [weak self] in
             let encoding = Task.detached(priority: .utility) { () throws -> String? in
                 try await gate.withPermit {
@@ -269,6 +296,8 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         guard ready, bounds.width > 0, bounds.height > 0, dirty || !ReaderTranslationGeometry.sameViewport(renderedSize, bounds.size) else { return }
         dirty = false
         renderedSize = bounds.size
+        ReaderTranslationDiagnostics.renderingProfile("profile_overlay_render_ready", count: items.count,
+                                                      revision: UInt64(backgroundRevision))
         renderer.render(
             on: webView, items: settings.overlay.visible ? items : [], imageSize: imageSize,
             sourceRect: ReaderTranslationGeometry.displayRect(

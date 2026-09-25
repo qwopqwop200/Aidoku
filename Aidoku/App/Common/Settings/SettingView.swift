@@ -34,7 +34,7 @@ struct SettingView: View {
     @State private var toggleValue: Bool
     @State private var textValue: String
 
-    @State private var valueChangeTask: Task<Void, Never>?
+    @State private var valueChanges = SettingChangeScheduler()
     @State private var showLoginAlert = false
     @State private var showLogoutAlert = false
     @State private var showLoginFailAlert = false
@@ -47,6 +47,7 @@ struct SettingView: View {
     @State private var username = ""
     @State private var password = ""
     @State private var skippedFirst = false
+    @StateObject private var oauthAttempt = SettingsLoginAttempt()
     @State private var loginLoading = false
     @State private var loginReload = false
     @State private var session: ASWebAuthenticationSession?
@@ -269,17 +270,7 @@ struct SettingView: View {
     private func handleValueChange() {
         onChange?(key(setting.key))
 
-        valueChangeTask?.cancel()
-        valueChangeTask = Task {
-            // debounce change notification(s) with 500ms delay
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            guard !Task.isCancelled else { return }
-
-            func refresh() {
-                for refresh in setting.refreshes {
-                    NotificationCenter.default.post(name: Notification.Name("refresh-\(refresh)"), object: nil)
-                }
-            }
+        valueChanges.schedule(operation: {
             if let source, let notification = setting.notification {
                 do {
                     try await source.handleNotification(notification: notification)
@@ -287,7 +278,10 @@ struct SettingView: View {
                     LogManager.logger.error("Error handling setting notification for \(source.key): \(error)")
                 }
             }
-            refresh()
+        }, commit: {
+            for refresh in setting.refreshes {
+                NotificationCenter.default.post(name: Notification.Name("refresh-\(refresh)"), object: nil)
+            }
 
             switch setting.value {
                 case .toggle: toggleValue = SettingsStore.shared.get(key: key(setting.key)) as Bool
@@ -308,7 +302,7 @@ struct SettingView: View {
             }
             let notificationName = setting.notification ?? key(setting.key)
             NotificationCenter.default.post(name: .init(notificationName), object: value)
-        }
+        })
     }
 
     private func auth() async -> Bool {
@@ -812,7 +806,7 @@ extension SettingView {
                     showLoginWebConfirm = true
             }
         } label: {
-            if loginLoading {
+            if loginLoading || oauthAttempt.isLoading {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .frame(width: 20, height: 20)
@@ -821,7 +815,7 @@ extension SettingView {
                     .lineLimit(1)
             }
         }
-        .disabled(disabled || loginLoading)
+        .disabled(disabled || loginLoading || oauthAttempt.isLoading)
         .alert(setting.title, isPresented: $showLoginAlert) {
             // todo: if useEmail is true, we could verify that the email entered is valid before enabling the log in button
             let useEmail = value.useEmail ?? false
@@ -859,6 +853,8 @@ extension SettingView {
         .alert(NSLocalizedString("LOGOUT"), isPresented: $showLogoutAlert) {
             Button(NSLocalizedString("CANCEL"), role: .cancel) {}
             Button(NSLocalizedString("OK")) {
+                oauthAttempt.cancel()
+                session?.cancel()
                 SettingsStore.shared.remove(key: key + Self.usernameKeySuffix)
                 SettingsStore.shared.remove(key: key + Self.passwordKeySuffix)
                 SettingsStore.shared.remove(key: key + Self.cookieKeysKeySuffix)
@@ -890,6 +886,10 @@ extension SettingView {
         .sheet(isPresented: $showLoginWebView) {
             loginWebSheetView(value: value)
                 .interactiveDismissDisabled()
+        }
+        .onDisappear {
+            oauthAttempt.cancel()
+            session?.cancel()
         }
         .onAppear {
             username = SettingsStore.shared.get(key: key + Self.usernameKeySuffix)
@@ -1114,100 +1114,87 @@ extension SettingView {
             url = pkceUrl
         }
 
+        session?.cancel()
+        let attempt = oauthAttempt.begin()
         session = ASWebAuthenticationSession(
             url: url,
             callbackURLScheme: value.callbackScheme ?? "aidoku"
         ) { callback, error in
-            guard let callback else {
-                LogManager.logger.error("No callback URL received")
-                return
-            }
-
-            loginLoading = true
-
-            defer {
-                loginLoading = false
-            }
-
-            if value.pkce ?? false, let tokenUrlString = value.tokenUrl {
-                guard
-                    let codeVerifier,
-                    let urlComponents = URLComponents(url: callback, resolvingAgainstBaseURL: false),
-                    let code = urlComponents.queryItems?.first(where: { $0.name == "code" })?.value
-                else {
-                    LogManager.logger.error("Missing code verifier or code")
+            Task { @MainActor in
+                guard oauthAttempt.isCurrent(attempt) else { return }
+                guard let callback else {
+                    oauthAttempt.finish(attempt)
+                    LogManager.logger.error("No callback URL received")
                     return
                 }
 
-                guard let tokenUrl = URL(string: tokenUrlString) else {
-                    LogManager.logger.error("Invalid token URL: \(tokenUrlString)")
-                    return
-                }
-
-                var request = URLRequest(url: tokenUrl)
-                request.httpMethod = "POST"
-                request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-
-                var parameters: [String: String] = [
-                    "grant_type": "authorization_code",
-                    "code": code,
-                    "code_verifier": codeVerifier
-                ]
-                if let redirectUri {
-                    parameters["redirect_uri"] = redirectUri
-                }
-                if let clientId {
-                    parameters["client_id"] = clientId
-                }
-
-                request.httpBody = parameters.percentEncoded()
-
-                let task = URLSession.shared.dataTask(with: request) { data, response, error in
-                    if let error {
-                        LogManager.logger.error("Error requesting access token: \(error.localizedDescription)")
+                if value.pkce ?? false, let tokenUrlString = value.tokenUrl {
+                    guard
+                        let codeVerifier,
+                        let urlComponents = URLComponents(url: callback, resolvingAgainstBaseURL: false),
+                        let code = urlComponents.queryItems?.first(where: { $0.name == "code" })?.value
+                    else {
+                        oauthAttempt.finish(attempt)
+                        LogManager.logger.error("Missing code verifier or code")
                         return
                     }
 
-                    guard let response = response as? HTTPURLResponse,
-                          (200..<300).contains(response.statusCode), let data, !data.isEmpty else {
-                        LogManager.logger.error("Access token request returned an invalid response")
-                        Task { @MainActor in showLoginFailAlert = true }
+                    guard let tokenUrl = URL(string: tokenUrlString) else {
+                        oauthAttempt.finish(attempt)
+                        LogManager.logger.error("Invalid token URL: \(tokenUrlString)")
                         return
                     }
 
-                    let result = String(decoding: data, as: Unicode.UTF8.self)
+                    var request = URLRequest(url: tokenUrl)
+                    request.httpMethod = "POST"
+                    request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
 
-                    Task { @MainActor in
+                    var parameters: [String: String] = [
+                        "grant_type": "authorization_code",
+                        "code": code,
+                        "code_verifier": codeVerifier
+                    ]
+                    if let redirectUri {
+                        parameters["redirect_uri"] = redirectUri
+                    }
+                    if let clientId {
+                        parameters["client_id"] = clientId
+                    }
+
+                    request.httpBody = parameters.percentEncoded()
+
+                    oauthAttempt.exchange(request, attempt: attempt, commit: { result in
                         SettingsStore.shared.set(key: key, value: result)
+                    }, failed: {
+                        showLoginFailAlert = true
+                    })
+                } else {
+                    if let error {
+                        LogManager.logger.error("Error during login: \(error.localizedDescription)")
                     }
-                }
+                    SettingsStore.shared.set(key: key, value: callback.absoluteString)
+                    oauthAttempt.finish(attempt)
 
-                task.resume()
-            } else {
-                if let error {
-                    LogManager.logger.error("Error during login: \(error.localizedDescription)")
-                }
-                SettingsStore.shared.set(key: key, value: callback.absoluteString)
-
-                if let notification = setting.notification {
-                    if let source {
-                        Task {
-                            do {
-                                try await source.handleNotification(notification: notification)
-                            } catch {
-                                LogManager.logger.error("Error handling setting notification for \(source.key): \(error)")
+                    if let notification = setting.notification {
+                        if let source {
+                            Task {
+                                do {
+                                    try await source.handleNotification(notification: notification)
+                                } catch {
+                                    LogManager.logger.error("Error handling setting notification for \(source.key): \(error)")
+                                }
                             }
                         }
+                        NotificationCenter.default.post(name: Notification.Name(notification), object: nil)
                     }
-                    NotificationCenter.default.post(name: Notification.Name(notification), object: nil)
                 }
             }
         }
 
-        guard let session else { return }
+        guard let session else { oauthAttempt.finish(attempt); return }
 
         session.presentationContextProvider = Self.loginShimController
-        session.start()
+        if !session.start() { oauthAttempt.finish(attempt) }
     }
 }
 
@@ -1536,4 +1523,103 @@ extension SettingView {
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
     }
+}
+
+
+/// A superseded source callback may finish despite cancellation; only the latest change may publish.
+@MainActor
+final class SettingChangeScheduler {
+    private var task: Task<Void, Never>?
+    private var generation = UUID()
+
+    func schedule(
+        delayNanoseconds: UInt64 = 500_000_000,
+        operation: @escaping @MainActor () async -> Void,
+        commit: @escaping @MainActor () -> Void
+    ) {
+        task?.cancel()
+        let current = UUID()
+        generation = current
+        task = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: delayNanoseconds)
+            guard !Task.isCancelled else { return }
+            await operation()
+            guard !Task.isCancelled, self?.generation == current else { return }
+            // A commit can synchronously schedule another change via notifications.
+            self?.task = nil
+            commit()
+        }
+    }
+
+    deinit { task?.cancel() }
+}
+
+
+/// Owns the authentication + token-exchange lifetime, including cancellation-insensitive responses.
+@MainActor
+final class SettingsLoginAttempt: ObservableObject {
+    @Published private(set) var isLoading = false
+    private var generation = UUID()
+    private var task: Task<Void, Never>?
+
+    func begin() -> UUID {
+        cancel()
+        isLoading = true
+        return generation
+    }
+
+    func isCurrent(_ attempt: UUID) -> Bool { generation == attempt }
+
+    func cancel() {
+        generation = UUID()
+        task?.cancel()
+        task = nil
+        isLoading = false
+    }
+
+    func finish(_ attempt: UUID) {
+        guard isCurrent(attempt) else { return }
+        task = nil
+        isLoading = false
+    }
+
+    func exchange(
+        _ request: URLRequest, attempt: UUID, session: URLSession = .shared,
+        commit: @escaping @MainActor (String) -> Void,
+        failed: @escaping @MainActor () -> Void
+    ) {
+        exchange(attempt: attempt, operation: { try await session.data(for: request) }, commit: commit, failed: failed)
+    }
+
+    func exchange(
+        attempt: UUID, operation: @escaping @MainActor () async throws -> (Data, URLResponse),
+        commit: @escaping @MainActor (String) -> Void,
+        failed: @escaping @MainActor () -> Void
+    ) {
+        guard isCurrent(attempt) else { return }
+        task?.cancel()
+        task = Task { [weak self] in
+            do {
+                let (data, response) = try await operation()
+                guard !Task.isCancelled, let self, self.isCurrent(attempt) else { return }
+                guard let response = response as? HTTPURLResponse,
+                      (200..<300).contains(response.statusCode), !data.isEmpty else {
+                    self.task = nil
+                    failed()
+                    self.finish(attempt)
+                    return
+                }
+                self.task = nil
+                commit(String(decoding: data, as: UTF8.self))
+                self.finish(attempt)
+            } catch {
+                guard !Task.isCancelled, let self, self.isCurrent(attempt) else { return }
+                self.task = nil
+                failed()
+                self.finish(attempt)
+            }
+        }
+    }
+
+    deinit { task?.cancel() }
 }

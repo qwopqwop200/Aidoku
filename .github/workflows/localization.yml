@@ -1,6 +1,7 @@
 name: Localization
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - "Aidoku/**/*.swift"
@@ -20,6 +21,9 @@ on:
       - "Scripts/*localizations.py"
       - ".github/workflows/localization.yml"
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -29,6 +33,6 @@ jobs:
         with:
           python-version: '3.x'
       - name: Test localization validator
-        run: python3 -m unittest discover -s Scripts -v
+        run: python3 -m unittest discover -s Scripts -p 'test_validate_localizations.py' -v
       - name: Validate all app localizations
         run: python3 Scripts/validate_localizations.py

@@ -15,6 +15,29 @@ nonisolated enum DictionaryFileOperations {
               (200..<300).contains(response.statusCode) else { throw URLError(.badServerResponse) }
     }
 
+    /// Cap response storage while streaming, including servers without Content-Length.
+    static func boundedData(for request: URLRequest, session: URLSession = .shared,
+                            maximumBytes: Int) async throws -> Data {
+        guard maximumBytes > 0 else { throw CocoaError(.fileReadTooLarge) }
+        try Task.checkCancellation()
+        let (bytes, response) = try await session.bytes(for: request)
+        defer { bytes.task.cancel() }
+        try validateResponse(response)
+        guard response.expectedContentLength <= Int64(maximumBytes) else { throw CocoaError(.fileReadTooLarge) }
+        let transfer = bytes.task
+        return try await withTaskCancellationHandler {
+            var data = Data()
+            data.reserveCapacity(min(maximumBytes, 64 * 1024))
+            for try await byte in bytes {
+                guard data.count < maximumBytes else { throw CocoaError(.fileReadTooLarge) }
+                if data.count.isMultiple(of: 16 * 1024) { try Task.checkCancellation() }
+                data.append(byte)
+            }
+            try Task.checkCancellation()
+            return data
+        } onCancel: { transfer.cancel() }
+    }
+
     static func validateTitle(_ title: String) throws {
         guard !title.isEmpty, title != ".", title != "..",
               !title.contains("/"), !title.contains("\\"), !title.contains("\0") else {

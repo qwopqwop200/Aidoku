@@ -53,6 +53,9 @@ struct WebView: UIViewRepresentable {
 
     static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
         coordinator.stopObservingCookies()
+        uiView.cancelSourceRequest()
+        uiView.stopLoading()
+        uiView.navigationDelegate = nil
     }
 
     func makeCoordinator() -> Coordinator {
@@ -66,9 +69,22 @@ struct WebView: UIViewRepresentable {
         private var cookieStore: WKHTTPCookieStore?
         private weak var webView: WKWebView?
         private var isObservingCookies = false
+        private var refreshTask: Task<Void, Never>?
+        private var revision = UUID()
+        private var needsRefresh = false
+        typealias Snapshot = (cookies: [String: String], storage: [String: String])
+        private let extract: @MainActor (WKWebView, String?, [String]) async -> Snapshot
 
-        init(parent: WebView) {
+        init(
+            parent: WebView,
+            extract: @escaping @MainActor (WKWebView, String?, [String]) async -> Snapshot = { webView, host, keys in
+                let cookies = await webView.getCookies(for: host)
+                let storage = await webView.getLocalStorage(keys: keys)
+                return (cookies, storage)
+            }
+        ) {
             self.parent = parent
+            self.extract = extract
             super.init()
         }
 
@@ -81,32 +97,53 @@ struct WebView: UIViewRepresentable {
 
         @MainActor
         func stopObservingCookies() {
-            guard isObservingCookies else { return }
-            cookieStore?.remove(self)
+            revision = UUID()
+            refreshTask?.cancel()
+            refreshTask = nil
+            needsRefresh = false
+            if isObservingCookies { cookieStore?.remove(self) }
             isObservingCookies = false
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            Task {
-                let cookies = await webView.getCookies(for: parent.url.host)
-                parent.cookies = cookies
-                if !parent.localStorageKeys.isEmpty {
-                    let storage = await webView.getLocalStorage(keys: parent.localStorageKeys)
-                    parent.localStorage = storage
-                }
-            }
+            requestRefresh()
         }
 
         func cookiesDidChange(in cookieStore: WKHTTPCookieStore) {
-            guard let webView else { return }
-            Task {
-                let cookies = await webView.getCookies(for: parent.url.host)
-                parent.cookies = cookies
-                if !parent.localStorageKeys.isEmpty {
-                    let storage = await webView.getLocalStorage(keys: parent.localStorageKeys)
-                    parent.localStorage = storage
+            requestRefresh()
+        }
+
+        func requestRefresh() {
+            guard isObservingCookies, webView != nil else { return }
+            needsRefresh = true
+            guard refreshTask == nil else { return }
+            let current = revision
+            refreshTask = Task { [weak self] in
+                var deferredSnapshot = false
+                while let self, self.isObservingCookies, self.revision == current, self.needsRefresh {
+                    self.needsRefresh = false
+                    guard let webView = self.webView else { break }
+                    let url = self.parent.url
+                    let keys = self.parent.localStorageKeys
+                    let snapshot = await self.extract(webView, url.host, keys)
+                    guard !Task.isCancelled, self.revision == current, self.isObservingCookies else { return }
+                    guard self.parent.url == url, self.parent.localStorageKeys == keys else {
+                        self.needsRefresh = true
+                        continue
+                    }
+                    // Collapse a burst, but do not starve publication during continuous cookie changes.
+                    if !self.needsRefresh || deferredSnapshot {
+                        deferredSnapshot = false
+                        if self.parent.cookies != snapshot.cookies { self.parent.cookies = snapshot.cookies }
+                        if self.parent.localStorage != snapshot.storage { self.parent.localStorage = snapshot.storage }
+                    } else {
+                        deferredSnapshot = true
+                    }
                 }
+                if self?.revision == current { self?.refreshTask = nil }
             }
         }
+
+        deinit { refreshTask?.cancel() }
     }
 }

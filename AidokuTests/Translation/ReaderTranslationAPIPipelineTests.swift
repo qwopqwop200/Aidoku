@@ -316,6 +316,87 @@ struct ReaderTranslationAPIPipelineTests {
         #expect(await recorder.cancelled == [2])
     }
 
+    @Test func cachedPageTurnsReuseTheUpcomingOCRAndAPIThroughPauseAndAnchorUpdate() async throws {
+        let recorder = APIPipelineRecorder(blocked: [4])
+        let preloader = preloader(recorder)
+        let cache = ReaderTranslationSessionCache()
+        for index in 0..<4 {
+            var region = APIPipelineRecorder.region(index)
+            region.translation = "cached"
+            try cache.store([region], for: page(index).translationCacheKey)
+        }
+        var calls = 0
+        let session = ReaderTranslationSession(process: { page, settings, progress in
+            calls += 1
+            return try await preloader.translate(page, settings: settings, onProgress: progress)
+        }, cancelProcessing: { preloader.cancel() },
+           cancelProcessingForPage: { preloader.cancel(preservingRecognitionFor: $0) },
+           availableMemory: { UInt64.max }, cache: cache)
+        defer { session.close() }
+        let items = (0...4).map { ReaderTranslationSession.Item(page($0)) }
+        session.update(items: items, visible: [], context: "chapter", currentPageIndex: 0)
+        session.enable(settings: settings())
+        try await waitUntil { await recorder.published == [4] }
+        for destination in 1...3 {
+            session.pauseForPageTurn(preservingRecognitionFor: page(destination))
+            session.update(items: items, visible: [], context: "chapter", currentPageIndex: destination)
+            try await waitUntil { calls == destination + 1 }
+        }
+        await recorder.release(4)
+        try await waitUntil { cache.contains(page(4).translationCacheKey) }
+        #expect(await recorder.ocr == [4])
+        #expect(await recorder.started == [4])
+        #expect(await recorder.cancelled.isEmpty)
+        #expect(await recorder.maximumActive == 1)
+    }
+
+    @Test(arguments: ["uncached", "distant", "off", "pressure", "settings"])
+    func upcomingWorkPreservationStillCancelsWhenNoLongerUseful(reason: String) async throws {
+        let recorder = APIPipelineRecorder(blocked: [4])
+        let preloader = preloader(recorder)
+        let budget = HandoffMemoryBudget()
+        let cache = ReaderTranslationSessionCache()
+        for index in [0, 1, 2, 3, 10] {
+            var region = APIPipelineRecorder.region(index)
+            region.translation = "cached"
+            try cache.store([region], for: page(index).translationCacheKey)
+        }
+        let session = ReaderTranslationSession(process: { page, settings, progress in
+            try await preloader.translate(page, settings: settings, onProgress: progress)
+        }, cancelProcessing: { preloader.cancel() },
+           cancelProcessingForPage: { preloader.cancel(preservingRecognitionFor: $0) },
+           availableMemory: { budget.value }, cache: cache)
+        defer { session.close() }
+        let items = [0, 1, 2, 3, 4, 10].map { ReaderTranslationSession.Item(page($0)) }
+        let value = settings()
+        session.update(items: items, visible: [], context: "chapter", currentPageIndex: 0)
+        session.enable(settings: value)
+        try await waitUntil { await recorder.published == [4] }
+        if reason == "uncached" {
+            cache.clear()
+            for index in [0, 2, 3, 10] {
+                var region = APIPipelineRecorder.region(index)
+                region.translation = "cached"
+                try cache.store([region], for: page(index).translationCacheKey)
+            }
+        }
+        if reason == "pressure" { budget.lower() }
+        session.pauseForPageTurn(preservingRecognitionFor: page(reason == "distant" ? 10 : 1))
+        if reason == "off" { session.disable() }
+        if reason == "settings" {
+            var changed = value
+            changed.targetLanguage = value.targetLanguage == "en" ? "ko" : "en"
+            session.enable(settings: changed)
+        }
+        try await waitUntil { await recorder.cancelled.contains(4) }
+        #expect(await recorder.completed.contains(4) == false)
+        if reason == "uncached" {
+            session.update(items: items, visible: [], context: "chapter", currentPageIndex: 1)
+            try await waitUntil { await recorder.completed.contains(1) }
+            #expect(await recorder.started.prefix(2) == [4, 1])
+        }
+    }
+
     @Test func sessionTransfersActiveDestinationBeforeCancellingItsOldConsumer() async throws {
         let recorder = APIPipelineRecorder(blocked: [0, 1, 2])
         let preloader = preloader(recorder)

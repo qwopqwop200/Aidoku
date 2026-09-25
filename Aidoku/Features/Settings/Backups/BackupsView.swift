@@ -13,6 +13,7 @@ struct BackupsView: View {
     @State private var invalidBackups: Set<URL> = []
 
     @State private var loadedInitialBackupInfo = false
+    @State private var metadataRefresh = SettingsRefreshScheduler()
     @State private var targetRestoreBackup: BackupInfo?
     @State private var targetExportBackup: BackupInfo?
     @State private var showCreateSheet = false
@@ -96,6 +97,10 @@ struct BackupsView: View {
             guard !loadedInitialBackupInfo else { return }
             loadedInitialBackupInfo = true
             loadBackupInfo()
+        }
+        .onDisappear {
+            metadataRefresh.cancel()
+            loadedInitialBackupInfo = false
         }
         .onReceive(NotificationCenter.default.publisher(for: .updateBackupList)) { _ in
             backupUrls = BackupManager.backupUrls
@@ -283,19 +288,24 @@ struct BackupsView: View {
 
 extension BackupsView {
     func loadBackupInfo() {
-        Task.detached { [backupUrls] in
-            for backupUrl in backupUrls {
-                let backup = BackupInfo.load(from: backupUrl)
-                await MainActor.run {
-                    if let backup {
-                        self.backups[backupUrl] = backup
-                        self.invalidBackups.remove(backupUrl)
-                    } else {
-                        self.invalidBackups.insert(backupUrl)
-                    }
+        let urls = backupUrls
+        metadataRefresh.request(operation: {
+            let worker = Task.detached {
+                var loaded: [URL: BackupInfo] = [:]
+                var invalid: Set<URL> = []
+                for url in urls {
+                    guard !Task.isCancelled else { break }
+                    if let info = BackupInfo.load(from: url) { loaded[url] = info }
+                    else { invalid.insert(url) }
                 }
+                return (loaded, invalid)
             }
-        }
+            return await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
+        }, commit: { loaded, invalid in
+            let current = Set(backupUrls)
+            backups = loaded.filter { current.contains($0.key) }
+            invalidBackups = invalid.intersection(current)
+        })
     }
 
     func renameBackup(url: URL, name: String) {

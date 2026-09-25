@@ -12,6 +12,8 @@ struct KavitaEmptyResponse: Decodable {}
 
 struct KavitaHelper: Sendable {
     let sourceKey: String
+    // Optional transport keeps cancellation/retry behavior testable without a server.
+    var transport: (@Sendable (URLRequest) async throws -> (Data, URLResponse))?
 
     func authorize(request: inout URLRequest) -> Bool {
         if let token = UserDefaults.standard.string(forKey: "\(sourceKey).token") {
@@ -63,6 +65,7 @@ struct KavitaHelper: Sendable {
         body: Data? = nil,
         lastWorkingMirror: inout URL?
     ) async throws(SourceError) -> T {
+        guard !Task.isCancelled else { throw SourceError.networkError }
         let mainUrl = try getConfiguredServer()
         let mirrors = getMirrors()
         var allBaseUrls: [URL] = []
@@ -94,7 +97,11 @@ struct KavitaHelper: Sendable {
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             }
 
-            let result = try? await session.data(for: request)
+            guard !Task.isCancelled else { throw SourceError.networkError }
+            let result: (Data, URLResponse)?
+            if let transport { result = try? await transport(request) }
+            else { result = try? await session.data(for: request) }
+            guard !Task.isCancelled else { throw SourceError.networkError }
             guard
                 let data = result?.0,
                 let response = result?.1 as? HTTPURLResponse
@@ -141,12 +148,14 @@ struct KavitaHelper: Sendable {
 
         func tryRequests(ignoreFinalError: Bool = false) async throws(SourceError) -> T? {
             for (idx, baseUrl) in allBaseUrls.enumerated() {
+                guard !Task.isCancelled else { throw SourceError.networkError }
                 do {
                     if let result = try await doRequest(baseUrl: baseUrl) {
                         lastWorkingMirror = baseUrl == mainUrl ? nil : baseUrl
                         return result
                     }
                 } catch {
+                    guard !Task.isCancelled else { throw SourceError.networkError }
                     if error == SourceError.networkError && (!ignoreFinalError ? idx < allBaseUrls.count - 1 : true) {
                         continue
                     } else {
@@ -162,6 +171,8 @@ struct KavitaHelper: Sendable {
         if let result {
             return result
         } else {
+            // A cancelled network request must not start authentication work.
+            guard !Task.isCancelled else { throw SourceError.networkError }
             // try request again after re-auth
             guard
                 try await refreshToken(),
@@ -174,6 +185,7 @@ struct KavitaHelper: Sendable {
     }
 
     func refreshToken() async throws(SourceError) -> Bool {
+        guard !Task.isCancelled else { throw SourceError.networkError }
         let url = try getServerUrl(path: "api/account/refresh-token")
 
         let token = UserDefaults.standard.string(forKey: "\(sourceKey).token")
@@ -196,6 +208,7 @@ struct KavitaHelper: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let response: TokenRefresh? = try? await SourceNetwork.shared.object(from: request)
+        guard !Task.isCancelled else { throw SourceError.networkError }
         guard let response else {
             return try await refreshApiKey() // maybe refresh token expired(?)
         }
@@ -208,6 +221,7 @@ struct KavitaHelper: Sendable {
 
     // attempts to authenticate only using an api key
     private func refreshApiKey() async throws(SourceError) -> Bool {
+        guard !Task.isCancelled else { throw SourceError.networkError }
         var url = try getServerUrl(path: "api/Plugin/authenticate")
 
         let apiKey = UserDefaults.standard.string(forKey: "\(sourceKey).apiKey")
@@ -223,6 +237,7 @@ struct KavitaHelper: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         let response: KavitaSourceRunner.LoginResponse? = try? await SourceNetwork.shared.object(from: request)
+        guard !Task.isCancelled else { throw SourceError.networkError }
         guard let response else { return false }
 
         UserDefaults.standard.set(response.token, forKey: "\(sourceKey).token")

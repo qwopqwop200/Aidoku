@@ -19,8 +19,7 @@ extension DownloadsView {
         @Published var showingMigrateNotice = false
 
         // Non-reactive state for background updates
-        private var backgroundUpdateInProgress = false
-        private var lastUpdateId = UUID()
+        private let refreshCoordinator = DownloadRefreshCoordinator()
         private var updateDebouncer: Timer?
         private var cancellables = Set<AnyCancellable>()
 
@@ -44,14 +43,9 @@ extension DownloadsView.ViewModel {
             isLoading = true
         }
 
-        let manga = await DownloadManager.shared.getAllDownloadedManga()
-        let formattedSize = await DownloadManager.shared.getFormattedTotalDownloadedSize()
+        await performBackgroundUpdate()
         let shouldMigrate = await DownloadManager.shared.checkForOldMetadata()
-
         withAnimation(.easeInOut(duration: 0.3)) {
-            downloadedManga = manga
-            totalSize = formattedSize
-            totalCount = manga.count
             isLoading = false
             showingMigrateNotice = shouldMigrate
         }
@@ -59,27 +53,11 @@ extension DownloadsView.ViewModel {
 
     /// Background update that preserves user navigation and minimizes UI disruption
     private func performBackgroundUpdate() async {
-        // Prevent concurrent background updates
-        guard !backgroundUpdateInProgress else { return }
-        backgroundUpdateInProgress = true
-        defer { backgroundUpdateInProgress = false }
-
-        let updateId = UUID()
-        lastUpdateId = updateId
-
-        // Fetch new data in background
-        let newManga = await DownloadManager.shared.getAllDownloadedManga()
-        let newFormattedSize = await DownloadManager.shared.getFormattedTotalDownloadedSize()
-
-        await MainActor.run {
-            // Check if this update is still relevant (not superseded by another)
-            guard updateId == lastUpdateId else { return }
-
-            // Perform selective updates using intelligent diffing
-            updateDataSelectively(
-                newManga: newManga,
-                newTotalSize: newFormattedSize
-            )
+        await refreshCoordinator.refresh { [self] revision in
+            let newManga = await DownloadManager.shared.getAllDownloadedManga()
+            let newFormattedSize = await DownloadManager.shared.getFormattedTotalDownloadedSize()
+            guard refreshCoordinator.isCurrent(revision) else { return }
+            updateDataSelectively(newManga: newManga, newTotalSize: newFormattedSize)
         }
     }
 

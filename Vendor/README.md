@@ -29,6 +29,21 @@ Unicode/JSON handling, query error propagation, and thread-safe codec dispatch.
 Its generated Unicode table is retained as data. The CLI and unrelated examples
 are not part of this package. Zstandard remains a resolved package dependency.
 
+
+AidokuRunner network bridges opt in to forwarding caller cancellation while
+joining the underlying operation before releasing WASM runtime ownership.
+Network rate waits exit on cancellation instead of retrying a cancelled sleep;
+interpreter entry rejects already-cancelled work. Configured rate windows and
+per-runtime serialization are unchanged. `NetworkCancellationTests` covers
+cooperative and noncooperative completion plus cancelled permit waits.
+
+JavaScript and WebView async imports also forward cancellation while joining
+the actual operation; WebView evaluation avoids a detached inner task boundary.
+Partial home/manga results carry the caller's subscription token through the
+interpreter, so superseded requests cannot publish into or remove a newer sink.
+`JavaScriptCancellationTests` and `PartialResultOwnershipTests` exercise these
+lifetimes, including never-resolving JavaScript promises.
+
 Run both packages' test suites after changing either dependency:
 
 ```sh
@@ -44,3 +59,16 @@ Hoshi native regression sources and runners live in `Scripts/tests/hoshi-*`,
 `Scripts/tests/run-hoshi-*`, and `Vendor/HoshiDicts/Tests/ImportRegression`.
 Run those with their documented sanitizer commands after changing the native
 dictionary library, in addition to the app's integrated tests.
+
+## Nuke
+
+`Vendor/Nuke` preserves the pinned upstream source and license; see its
+`AIDOKU_PATCHES.md` for exact revision and the request-identity correction.
+The local package is required by the app project. URLRequest headers, method,
+and body must identify both cached bytes and coalesced original-data tasks;
+changing only a public cache key leaves simultaneous requests vulnerable to
+wrong-image reuse. Source interceptor request/response semantics stay intact.
+
+Run `swift test --package-path Vendor/Nuke` and the app's image-cache/reader
+regressions when changing this patch. Carry the fix forward deliberately during
+upstream updates.

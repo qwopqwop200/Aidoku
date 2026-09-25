@@ -153,6 +153,7 @@ class SourceViewController: OldMangaCollectionViewController {
     override func configure(cell: MangaGridCell, info: MangaInfo, indexPath: IndexPath) {
         cell.identifier = info.id
         cell.title = info.title
+        cell.startImageLoad(url: info.coverUrl)
         Task {
             let inLibrary = await CoreDataManager.shared.container.performBackgroundTask { context in
                 CoreDataManager.shared.hasLibraryManga(
@@ -162,7 +163,6 @@ class SourceViewController: OldMangaCollectionViewController {
             }
             guard cell.identifier == info.id else { return }
             cell.showsBookmark = inLibrary
-            await cell.loadImage(url: info.coverUrl)
         }
     }
 

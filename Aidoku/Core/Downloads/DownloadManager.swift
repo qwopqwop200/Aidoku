@@ -35,8 +35,12 @@ actor DownloadManager {
     private var downloadedMangaCache: [DownloadedMangaInfo] = []
     private var lastCacheUpdate: Date = .distantPast
     private let cacheValidityDuration: TimeInterval = 60 // 1 minute
+    private var snapshotRevision: UInt64 = 0
+    private var snapshotWork: (id: UUID, revision: UInt64, task: Task<[DownloadedMangaInfo], Never>)?
+    private let snapshotLoader: (@Sendable () async -> [DownloadedMangaInfo])?
 
-    init() {
+    init(snapshotLoader: (@Sendable () async -> [DownloadedMangaInfo])? = nil) {
+        self.snapshotLoader = snapshotLoader
         self.queue = DownloadQueue(cache: cache)
         if !Self.directory.exists {
             Self.directory.createDirectory()
@@ -361,18 +365,38 @@ extension DownloadManager {
 extension DownloadManager {
     /// Get all downloaded manga with metadata from CoreData if available
     func getAllDownloadedManga() async -> [DownloadedMangaInfo] {
-        // Return cached result if still valid
-        let now = Date()
-        if now.timeIntervalSince(lastCacheUpdate) < cacheValidityDuration {
-            return downloadedMangaCache
+        while true {
+            if Date().timeIntervalSince(lastCacheUpdate) < cacheValidityDuration {
+                return downloadedMangaCache
+            }
+            let work: (id: UUID, revision: UInt64, task: Task<[DownloadedMangaInfo], Never>)
+            if let existing = snapshotWork { work = existing }
+            else {
+                work = (UUID(), snapshotRevision, Task {
+                    if let snapshotLoader { return await snapshotLoader() }
+                    return await scanDownloadedManga()
+                })
+                snapshotWork = work
+            }
+            let result = await work.task.value
+            if snapshotWork?.id == work.id { snapshotWork = nil }
+            // A mutation during IO must not resurrect deleted chapters or mark
+            // an obsolete directory listing fresh for another sixty seconds.
+            guard work.revision == snapshotRevision else {
+                if Task.isCancelled { return downloadedMangaCache }
+                continue
+            }
+            downloadedMangaCache = result
+            lastCacheUpdate = Date()
+            return result
         }
+    }
 
+    private func scanDownloadedManga() async -> [DownloadedMangaInfo] {
         var downloadedManga: [DownloadedMangaInfo] = []
 
         // Ensure downloads directory exists
         guard Self.directory.exists else {
-            downloadedMangaCache = []
-            lastCacheUpdate = now
             return []
         }
 
@@ -486,10 +510,6 @@ extension DownloadManager {
             }
             return lhs.displayTitle.localizedCaseInsensitiveCompare(rhs.displayTitle) == .orderedAscending
         }
-
-        // Cache the result
-        downloadedMangaCache = downloadedManga
-        lastCacheUpdate = now
 
         return downloadedManga
     }
@@ -624,7 +644,8 @@ extension DownloadManager {
     }
 
     /// Invalidate the downloaded manga cache (call when downloads are added/removed)
-    private func invalidateDownloadedMangaCache() {
+    func invalidateDownloadedMangaCache() {
+        snapshotRevision &+= 1
         lastCacheUpdate = .distantPast
     }
 }

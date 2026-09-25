@@ -61,6 +61,14 @@ class MangaListViewController: MangaCollectionViewController {
         }
     }
 
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        if isMovingFromParent || isBeingDismissed || navigationController?.isBeingDismissed == true {
+            pageModel.cancel()
+            loaded = false
+        }
+    }
+
     override func observe() {
         super.observe()
         pageModel.$entries.sink { [weak self] _ in

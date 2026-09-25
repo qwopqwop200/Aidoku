@@ -111,12 +111,14 @@ enum TranslationRequestPriority: Sendable {
     case prefetch
     case metadata(MetadataTranslationPriority)
     case promotable(TranslationRequestPromotion)
+    case shared(TranslationRequestPrioritySet)
 
     var isForeground: Bool {
         switch self {
         case .foreground: true
         case .prefetch, .metadata: false
         case .promotable(let promotion): promotion.isForeground
+        case .shared(let priorities): priorities.schedulingRank == 0
         }
     }
 
@@ -125,9 +127,28 @@ enum TranslationRequestPriority: Sendable {
         case .foreground: 0
         case .prefetch: 1
         case .promotable(let promotion): promotion.isForeground ? 0 : 1
+        case .shared(let priorities): priorities.schedulingRank
         case .metadata(let priority): priority.rawValue
         }
     }
+}
+
+/// Only the provider's shared worker owns this aggregate; consumer priorities
+/// point to original callers, never back to the aggregate itself.
+final class TranslationRequestPrioritySet: @unchecked Sendable {
+    private let lock = NSLock()
+    private var consumers: [UUID: TranslationRequestPriority] = [:]
+
+    var schedulingRank: Int {
+        let priorities = lock.withLock { Array(consumers.values) }
+        return priorities.map(\.schedulingRank).min() ?? Int.max
+    }
+
+    func set(_ priority: TranslationRequestPriority, for consumer: UUID) {
+        lock.withLock { consumers[consumer] = priority }
+    }
+
+    func remove(_ consumer: UUID) { _ = lock.withLock { consumers.removeValue(forKey: consumer) } }
 }
 
 /// Shared by one page's OCR admission, batch scheduler, and queued provider
@@ -135,16 +156,23 @@ enum TranslationRequestPriority: Sendable {
 final class TranslationRequestPromotion: @unchecked Sendable {
     private let lock = NSLock()
     private var foreground = false
+    private let foregroundSource: (@Sendable () -> Bool)?
     let changes: AsyncStream<Void>
     private let continuation: AsyncStream<Void>.Continuation
 
-    init() {
+    /// A composed priority can read its consumers' current demand without
+    /// consuming their one-shot changes streams. Sources must form an acyclic
+    /// graph and must synchronize their own mutable state. Only explicit promote()
+    /// calls emit changes; admission always reads isForeground dynamically.
+    init(foregroundSource: (@Sendable () -> Bool)? = nil) {
+        self.foregroundSource = foregroundSource
         let stream = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
         changes = stream.stream
         continuation = stream.continuation
     }
 
-    var isForeground: Bool { lock.withLock { foreground } }
+    // Never call another priority/source while holding this promotion's lock.
+    var isForeground: Bool { lock.withLock { foreground } || foregroundSource?() == true }
 
     func promote() {
         let changed = lock.withLock {
@@ -253,6 +281,7 @@ actor TranslationService {
         let id: UUID
         let cacheStorageGeneration: UInt64
         let networkTask: Task<Void, Never>
+        let priorities: TranslationRequestPrioritySet
         var waiters:
             [UUID: CheckedContinuation<RemoteTranslationBatchResult, Error>]
     }
@@ -261,6 +290,7 @@ actor TranslationService {
     private let cache: TranslationCache
     private let providerRequestLimiter: TranslationProviderRequestLimiter?
     private var inFlight: [TranslationCacheKey: InFlightRequest] = [:]
+    var inFlightConsumerCount: Int { inFlight.values.reduce(0) { $0 + $1.waiters.count } }
     private var purgeGeneration: UInt64 = 0
     private var purgeTask: Task<Void, Error>?
 
@@ -570,12 +600,15 @@ actor TranslationService {
             return
         }
         if var existing = inFlight[key] {
+            existing.priorities.set(priority, for: waiterID)
             existing.waiters[waiterID] = continuation
             inFlight[key] = existing
             return
         }
 
         let requestID = UUID()
+        let priorities = TranslationRequestPrioritySet()
+        priorities.set(priority, for: waiterID)
         let networkTask = Task { [client, providerRequestLimiter, cache] in
             do {
                 let result = try await Self.requestProvider(
@@ -583,7 +616,7 @@ actor TranslationService {
                     request: request,
                     configuration: configuration,
                     providerRequestLimiter: providerRequestLimiter,
-                    priority: priority,
+                    priority: .shared(priorities),
                     onPartial: onPartial,
                     persistenceAdmission: { try await cache.ensureProviderPersistenceAdmission() }
                 )
@@ -604,6 +637,7 @@ actor TranslationService {
             id: requestID,
             cacheStorageGeneration: cacheStorageGeneration,
             networkTask: networkTask,
+            priorities: priorities,
             waiters: [waiterID: continuation]
         )
     }
@@ -778,6 +812,7 @@ actor TranslationService {
         else {
             return
         }
+        request.priorities.remove(waiterID)
         continuation.resume(throwing: CancellationError())
         if request.waiters.isEmpty {
             request.networkTask.cancel()

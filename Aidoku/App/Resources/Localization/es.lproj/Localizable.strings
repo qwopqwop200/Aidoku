@@ -425,7 +425,6 @@
 "TRACK_COMPLETED" = "Completado";
 "COMIC" = "Cómic";
 "BOOK" = "Libro";
-"UPSCALING" = "Ampliación";
 "ZONE_L_SHAPED" = "En forma de L";
 "NAME" = "Nombre";
 "DATE" = "Fecha";
@@ -485,11 +484,6 @@
 "OTHER_SETTINGS" = "Otra configuración";
 "USE_CHAPTERS" = "Usar capítulos";
 "TOGGLE_LOCK" = "Alternar bloqueo";
-"UPSCALE_IMAGES" = "Ampliar imágenes";
-"UPSCALING_MODELS" = "Modelos de ampliación";
-"ENABLED_MODEL" = "Modelo activado";
-"AVAILABLE_MODELS" = "Modelos disponibles";
-"MODEL_INFO" = "Información de modelo";
 "RELOAD_FAILED" = "Error al recargar";
 "TAP_ZONES" = "Zonas de toque";
 "RESET_COVER" = "Restablecer portada";
@@ -555,7 +549,6 @@
 "LOCAL_FILE_IMPORT_TEXT" = "Importa un archivo CBZ o ZIP que contenga imágenes para leer.";
 "SOURCE_NAME_INFO" = "El nombre que se mostrará en la fuente en la pestaña de exploración.";
 "SERVER_ERROR_AUTHENTICATION" = "No se puede iniciar sesión. Asegúrate de que tus credenciales se hayan ingresado correctamente.";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Las imágenes cuya altura sea igual o superior al límite máximo no se ampliarán.";
 "RESET_SETTINGS_CONFIRM_%@" = "¿Está seguro de que desea restablecer toda la configuración para %@?";
 "NO_EXTERNAL_SOURCES_INFO" = "Configura listas de fuentes en la pestaña de configuración para instalar fuentes externas.";
 "SOURCE_IMPORT_FAIL_TEXT" = "No se pudo importar la fuente. Asegúrate de que el archivo .aix sea válido.";
@@ -609,9 +602,6 @@
 "CURRENT_STREAK" = "Racha actual";
 "LONGEST_STREAK" = "Racha más larga";
 "UNAVAILABLE_SOURCE_LISTS" = "Listas de fuentes no disponibles";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Altura máxima de imagen";
-"NO_AVAILABLE_MODELS" = "No hay modelos disponibles";
-"NO_AVAILABLE_MODELS_TEXT" = "No se pudieron obtener los modelos disponibles. Revisa tu conexión de red y asegúrate de que la aplicación esté ejecutando la última versión.";
 "DISABLE_QUICK_ACTIONS" = "Desactivar acciones rápidas";
 "LIVE_TEXT" = "Texto en vivo";
 "ZONE_LEFT_RIGHT" = "Derecha e izquierda";
@@ -1087,8 +1077,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "No se puede mostrar la configuración: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Los cinco modelos incluidos se pueden instalar sin conexión. Instala un modelo y selecciónalo en «Modelo activado». MangaJaNai está diseñado para páginas en blanco y negro de unos 1200 píxeles de alto; las páginas en color no se modifican.";
 
 "DOWNLOAD_TRANSLATED" = "Descargar con traducción";
 
@@ -1097,11 +1085,6 @@
 
 "TRANSLATION_STATE_ON" = "Activada";
 "TRANSLATION_STATE_OFF" = "Desactivada";
-"UPSCALE_MODEL_SWINUNET_INFO" = "Ilustraciones; conserva el trazo original. FP32.";
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Ilustraciones y portadas en color; modelo ligero para los detalles.";
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Imágenes generales e ilustraciones de estilos variados; mayor realce de la nitidez.";
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga y páginas en color.";
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Solo manga en blanco y negro, optimizado para páginas originales de unos 1200 píxeles de alto. Las páginas en color no se modifican.";
 "TRANSLATION_ERROR_CONFIGURATION" = "La configuración de traducción no es válida. Comprueba la URL del servidor, el modelo y los demás ajustes.";
 "TRANSLATION_ERROR_REQUEST" = "No se pudieron utilizar el texto, la imagen o los ajustes de idioma para la traducción.";
 "TRANSLATION_ERROR_RESPONSE" = "El servidor de traducción devolvió una respuesta no válida. Inténtalo de nuevo o comprueba los ajustes del modelo.";

@@ -254,19 +254,18 @@ struct SourceHomeContentView: View {
     func loadHome() async {
         homeGeneration += 1
         let requestGeneration = homeGeneration
-        await source.partialHomePublisher?.sink { @Sendable partialHome in
-            Task { @MainActor in
-                guard homeGeneration == requestGeneration else { return }
-                withAnimation {
-                    self.home = partialHome
-                    if headerListingSelection == 0 {
-                        loading = false
+        let source = source
+        let publisher = source.partialHomePublisher
+        do {
+            let home = try await SourceHomeSubscription.load(publisher: publisher, receive: { @Sendable partialHome in
+                Task { @MainActor in
+                    guard homeGeneration == requestGeneration else { return }
+                    withAnimation {
+                        self.home = partialHome
+                        if headerListingSelection == 0 { loading = false }
                     }
                 }
-            }
-        }
-        do {
-            let home = try await source.getHome()
+            }, operation: { try await source.getHome() })
             guard homeGeneration == requestGeneration else { return }
             try Task.checkCancellation()
             withAnimation {
@@ -298,7 +297,6 @@ struct SourceHomeContentView: View {
             }
         }
         guard homeGeneration == requestGeneration else { return }
-        await source.partialHomePublisher?.removeSink()
         guard !Task.isCancelled, homeGeneration == requestGeneration else { return }
 
         withAnimation {

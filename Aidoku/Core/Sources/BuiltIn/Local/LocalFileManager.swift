@@ -16,6 +16,11 @@ import ZIPFoundation
 actor LocalFileManager {
     static let shared = LocalFileManager()
 
+    private let fileOperations = LocalFileOperationGate()
+    private let dataManager: LocalFileDataManager
+    private let localDirectory: URL
+    private let scanCheckpoint: (@Sendable () async -> Void)?
+
     private var lastScanTime = Date.distantPast
     private var scanTask: Task<Void, Never>?
 
@@ -27,11 +32,27 @@ actor LocalFileManager {
     private var localFolderFileDescriptor: CInt?
     private var localFolderSource: DispatchSourceFileSystemObject?
 
-    private var suppressFileEvents = false
+    private var scanDemand = LocalFileScanDemand()
 
-    private init() {
-        Task {
-            await startFileSystemListener()
+    private func beginFileMutation() { scanDemand.beginMutation() }
+
+    private func endFileMutation() {
+        scanDemand.endMutation()
+        if scanDemand.canRun && scanTask == nil {
+            Task { await self.scanLocalFiles() }
+        }
+    }
+
+    init(
+        dataManager: LocalFileDataManager = .shared, startsListener: Bool = true,
+        localDirectory: URL = FileManager.default.documentDirectory.appendingPathComponent("Local", isDirectory: true),
+        scanCheckpoint: (@Sendable () async -> Void)? = nil
+    ) {
+        self.dataManager = dataManager
+        self.localDirectory = localDirectory
+        self.scanCheckpoint = scanCheckpoint
+        if startsListener {
+            Task { await startFileSystemListener() }
         }
     }
 
@@ -53,10 +74,10 @@ extension LocalFileManager {
         }
         try await uploadFile(from: url)
         let mangaId = url.deletingPathExtension().lastPathComponent.normalized
-        guard var manga = await LocalFileDataManager.shared.fetchLocalSeries(id: mangaId) else {
+        guard var manga = await dataManager.fetchLocalSeries(id: mangaId) else {
             throw LocalFileManagerError.fileCopyFailed
         }
-        manga.chapters = await LocalFileDataManager.shared.fetchChapters(mangaId: mangaId)
+        manga.chapters = await dataManager.fetchChapters(mangaId: mangaId)
         await MangaManager.shared.addToLibrary(manga: manga, chapters: manga.chapters ?? [])
         return manga
     }
@@ -210,7 +231,7 @@ extension LocalFileManager {
 extension LocalFileManager {
     // fetch pages for a chapter from file system
     func fetchPages(mangaId: String, chapterId: String) async -> [AidokuRunner.Page] {
-        guard let cbzPath = await LocalFileDataManager.shared.fetchChapterArchivePath(mangaId: mangaId, chapterId: chapterId)
+        guard let cbzPath = await dataManager.fetchChapterArchivePath(mangaId: mangaId, chapterId: chapterId)
         else { return [] }
 
         let documentsDir = FileManager.default.documentDirectory
@@ -327,11 +348,16 @@ extension LocalFileManager {
         mangaDescription: String? = nil,
         chapterName: String? = nil,
         volume: Float? = nil,
-        chapter: Float? = nil
+        chapter: Float? = nil,
+        scanOwned: Bool = false
     ) async throws(LocalFileManagerError) {
+        if !scanOwned {
+            do { try await fileOperations.acquire() } catch { throw .fileCopyFailed }
+        }
+        defer { if !scanOwned { fileOperations.release() } }
         // disable file listener while we make changes to the disk
-        self.suppressFileEvents = true
-        defer { self.suppressFileEvents = false }
+        beginFileMutation()
+        defer { endFileMutation() }
 
         let documentsDirectory = FileManager.default.documentDirectory
 
@@ -411,10 +437,10 @@ extension LocalFileManager {
 
         // create new folder for the manga
         let fileManager = FileManager.default
-        let localFolder = fileManager.documentDirectory.appendingPathComponent("Local", isDirectory: true)
+        let localFolder = localDirectory
         localFolder.createDirectory()
         let mangaFolder = localFolder.appendingPathComponent(resolvedMangaId, isDirectory: true)
-        guard Self.isContainedLocalURL(mangaFolder) else { throw LocalFileManagerError.fileCopyFailed }
+        guard Self.isContainedLocalURL(mangaFolder, root: localDirectory) else { throw LocalFileManagerError.fileCopyFailed }
         mangaFolder.createDirectory()
 
         // get chapter number
@@ -424,7 +450,7 @@ extension LocalFileManager {
             } else if let chapter = LocalFileNameParser.getMangaChapterNumber(from: url.lastPathComponent) {
                 chapter
             } else if let mangaId {
-                await LocalFileDataManager.shared.getNextChapterNumber(series: mangaId)
+                await dataManager.getNextChapterNumber(series: mangaId)
             } else {
                 Float(1)
             }
@@ -435,7 +461,7 @@ extension LocalFileManager {
         let destURL: URL
 
         if skipUpload {
-            guard Self.isContainedLocalURL(url) else { throw LocalFileManagerError.fileCopyFailed }
+            guard Self.isContainedLocalURL(url, root: localDirectory) else { throw LocalFileManagerError.fileCopyFailed }
             destURL = url
         } else {
             // get new name for file if necessary
@@ -466,7 +492,7 @@ extension LocalFileManager {
                 newDestURL = mangaFolder.appendingPathComponent(name)
                 counter += 1
             }
-            guard Self.isContainedLocalURL(newDestURL) else { throw LocalFileManagerError.fileCopyFailed }
+            guard Self.isContainedLocalURL(newDestURL, root: localDirectory) else { throw LocalFileManagerError.fileCopyFailed }
             destURL = newDestURL
             do {
                 try fileManager.copyItem(at: url, to: destURL)
@@ -475,12 +501,18 @@ extension LocalFileManager {
             }
         }
 
+        var imported = false
+        defer {
+            // This destination was created exclusively by this upload. Never
+            // delete a pre-existing file discovered by the filesystem scanner.
+            if !imported && !skipUpload { try? FileManager.default.removeItem(at: destURL) }
+        }
         let coverURL: URL?
         if let mangaCoverImage {
             // save provided cover image to manga folder
             let coverFileName = "cover.png"
             let newCoverURL = mangaFolder.appendingPathComponent(coverFileName)
-            guard Self.isContainedLocalURL(newCoverURL) else { throw LocalFileManagerError.fileCopyFailed }
+            guard Self.isContainedLocalURL(newCoverURL, root: localDirectory) else { throw LocalFileManagerError.fileCopyFailed }
             do {
                 guard let data = mangaCoverImage.pngData() else { throw LocalFileManagerError.fileCopyFailed }
                 try data.write(to: newCoverURL, options: .atomic)
@@ -492,60 +524,51 @@ extension LocalFileManager {
             coverURL = Self.defaultCover(in: mangaFolder)
         }
 
-        // create the objects in db
-        let hasMangaObject = await LocalFileDataManager.shared.hasSeries(id: resolvedMangaId)
-        if !hasMangaObject {
-            let cover = coverURL?.toAidokuImageUrl()?.absoluteString ?? {
-                // if no cover url, try finding one in the directory
-                for ext in Self.allowedImageExtensions {
-                    let coverPath = mangaFolder.appendingPathComponent("cover.\(ext)")
-                    if coverPath.exists {
-                        return coverPath.toAidokuImageUrl()?.absoluteString
-                    }
-                }
-                return nil
-            }()
-            await LocalFileDataManager.shared.createManga(
-                url: mangaFolder,
-                id: resolvedMangaId,
-                title: mangaTitle,
-                cover: cover,
-                description: mangaDescription,
-                comicInfo: comicInfo
-            )
-        }
-
-        let title = if let chapterName {
-            chapterName.isEmpty ? nil : chapterName
+        // Commit series and chapter together. Failed commits retain the inbox for
+        // retry and cannot be mistaken for a successful import by its caller.
+        let cover = coverURL?.toAidokuImageUrl()?.absoluteString ?? {
+            for ext in Self.allowedImageExtensions {
+                let coverPath = mangaFolder.appendingPathComponent("cover.\(ext)")
+                if coverPath.exists { return coverPath.toAidokuImageUrl()?.absoluteString }
+            }
+            return nil
+        }()
+        let title: String?
+        if let chapterName {
+            title = chapterName.isEmpty ? nil : chapterName
         } else {
-            url.deletingPathExtension().lastPathComponent
+            title = url.deletingPathExtension().lastPathComponent
         }
-
-        await LocalFileDataManager.shared.createChapter(
-            mangaId: resolvedMangaId,
-            url: destURL,
-            id: UUID().uuidString,
-            title: title,
-            volume: volume,
-            chapter: chapter,
-            comicInfo: comicInfo
-        )
+        do {
+            try await dataManager.commitImport(
+                folder: mangaFolder, mangaId: resolvedMangaId, mangaTitle: mangaTitle, cover: cover,
+                description: mangaDescription, archive: destURL, chapterId: UUID().uuidString,
+                chapterTitle: title, volume: volume, chapter: chapter, comicInfo: comicInfo
+            )
+            imported = true
+        } catch {
+            throw LocalFileManagerError.databaseWriteFailed
+        }
     }
 }
 
 extension LocalFileManager {
     func setCover(for mangaKey: String, image: PlatformImage) async -> String? {
-        let mangaData = await LocalFileDataManager.shared.fetchLocalSeries(id: mangaKey)
+        guard (try? await fileOperations.acquire()) != nil else { return nil }
+        defer { fileOperations.release() }
+        beginFileMutation()
+        defer { endFileMutation() }
+        let mangaData = await dataManager.fetchLocalSeries(id: mangaKey)
 
         let previousCover = mangaData?.cover.flatMap(URL.init(string:)).map { $0.toAidokuFileUrl() ?? $0 }
 
         // upload the new cover
         let fileManager = FileManager.default
-        let localFolder = fileManager.documentDirectory.appendingPathComponent("Local", isDirectory: true)
+        let localFolder = localDirectory
         let mangaFolder = localFolder.appendingPathComponent(mangaKey, isDirectory: true)
         let coverFileName = "cover.png"
         let newCoverURL = mangaFolder.appendingPathComponent(coverFileName)
-        guard Self.isContainedLocalURL(newCoverURL) else { return nil }
+        guard Self.isContainedLocalURL(newCoverURL, root: localDirectory) else { return nil }
         do {
             guard let data = image.pngData() else { return nil }
             try data.write(to: newCoverURL, options: .atomic)
@@ -554,7 +577,7 @@ extension LocalFileManager {
             return nil
         }
 
-        if let previousCover, previousCover.isFileURL, previousCover != newCoverURL, Self.isContainedLocalURL(previousCover) {
+        if let previousCover, previousCover.isFileURL, previousCover != newCoverURL, Self.isContainedLocalURL(previousCover, root: localDirectory) {
             previousCover.removeItem()
         }
         // set cover image in coredata
@@ -568,53 +591,62 @@ extension LocalFileManager {
 // MARK: Removing
 extension LocalFileManager {
     // remove all db objects and local files associated with a given mangaId
-    func removeManga(with mangaId: String) async {
+    func removeManga(with mangaId: String, scanOwned: Bool = false) async {
+        if !scanOwned { guard (try? await fileOperations.acquire()) != nil else { return } }
+        defer { if !scanOwned { fileOperations.release() } }
+        beginFileMutation()
+        defer { endFileMutation() }
         // remove from db
-        let filePath = await LocalFileDataManager.shared.removeManga(with: mangaId)
+        let filePath = await dataManager.removeManga(with: mangaId)
         guard let filePath else { return }
 
         // disable file listener while we make changes to the disk
-        self.suppressFileEvents = true
-        defer { self.suppressFileEvents = false }
+        beginFileMutation()
+        defer { endFileMutation() }
 
         let documentsDir = FileManager.default.documentDirectory
         let fileURL = documentsDir.appendingPathComponent(filePath)
-        if Self.isContainedLocalURL(fileURL), fileURL.exists {
+        if Self.isContainedLocalURL(fileURL, root: localDirectory), fileURL.exists {
             try? FileManager.default.removeItem(at: fileURL)
         }
     }
 
     // remove a chapter from a given local manga
     func removeChapter(mangaId: String, chapterId: String) async {
+        guard (try? await fileOperations.acquire()) != nil else { return }
+        defer { fileOperations.release() }
+        beginFileMutation()
+        defer { endFileMutation() }
         // remove from db
-        let filePath = await LocalFileDataManager.shared.removeChapter(mangaId: mangaId, chapterId: chapterId)
+        let filePath = await dataManager.removeChapter(mangaId: mangaId, chapterId: chapterId)
 
         if let filePath {
             // disable file listener while we make changes to the disk
-            self.suppressFileEvents = true
-            defer { self.suppressFileEvents = false }
+            beginFileMutation()
+            defer { endFileMutation() }
 
             let documentsDir = FileManager.default.documentDirectory
             let fileURL = documentsDir.append(path: filePath)
-            if Self.isContainedLocalURL(fileURL), fileURL.exists {
+            if Self.isContainedLocalURL(fileURL, root: localDirectory), fileURL.exists {
                 try? FileManager.default.removeItem(at: fileURL)
             }
         }
 
         // remove the manga entry once no chapters remain
-        if await LocalFileDataManager.shared.fetchChapters(mangaId: mangaId).isEmpty {
-            await removeManga(with: mangaId)
+        if await dataManager.fetchChapters(mangaId: mangaId).isEmpty {
+            await removeManga(with: mangaId, scanOwned: true)
         }
     }
 
     // remove all local source files and db objects
     func removeAllLocalFiles() async {
+        guard (try? await fileOperations.acquire()) != nil else { return }
         // disable file listener while we make changes to the disk
-        self.suppressFileEvents = true
+        beginFileMutation()
 
         let fileManager = FileManager.default
         let documentsDir = fileManager.documentDirectory
-        let localFolder = documentsDir.appendingPathComponent("Local", isDirectory: true)
+        let localFolder = localDirectory
         do {
             try fileManager.removeItem(at: localFolder)
         } catch {
@@ -622,7 +654,8 @@ extension LocalFileManager {
         }
 
         // update database
-        self.suppressFileEvents = false
+        endFileMutation()
+        fileOperations.release()
         await scanLocalFiles()
     }
 }
@@ -639,8 +672,10 @@ extension LocalFileManager {
 
     // scan the local files folder and synchronize the db to match the file system
     func scanLocalFiles() async {
-        // don't scan while suppressing file events
-        guard !suppressFileEvents else { return }
+        // Every event advances demand, even when a mutation or existing scan
+        // prevents immediate work. A pass must include all later event demand.
+        scanDemand.request()
+        guard scanDemand.canRun else { return }
 
         // ensure only one scan is running at a time
         guard scanTask == nil else {
@@ -649,69 +684,88 @@ extension LocalFileManager {
         }
 
         scanTask = Task {
-            let fileManager = FileManager.default
-            let documentsDir = fileManager.documentDirectory
-            let localFolder = documentsDir.appendingPathComponent("Local", isDirectory: true)
-            localFolder.createDirectory()
-
-            // get all manga folders
-            let mangaFolders = localFolder.contents.filter { $0.isDirectory }
-
-            let (toRemove, toAdd) = await LocalFileDataManager.shared.findMangaDiskChanges(mangaFolders: mangaFolders)
-
-            // remove manga from db that no longer exist on disk
-            for mangaId in toRemove {
-                await removeManga(with: mangaId)
-            }
-
-            // for each manga folder, ensure chapters in db match local files
-            for folder in mangaFolders {
-                let mangaId = folder.lastPathComponent.normalized
-
-                // find cbz files in this folder
-                let cbzFiles = folder.contents
-                    .filter {
-                        Self.allowedFileExtensions.contains($0.pathExtension.lowercased())
-                    }
-                    .sorted {
-                        $0.path.localizedStandardCompare($1.path) == .orderedAscending
-                    }
-
-                // add manga to db that exist on disk but not in db yet
-                if toAdd.contains(mangaId) {
-                    // add cbz files as chapters
-                    for cbzFile in cbzFiles {
-                        do {
-                            try await uploadFile(from: cbzFile, skipUpload: true, mangaId: mangaId)
-                        } catch {
-                            LogManager.logger.error("Failed to process file \(cbzFile.lastPathComponent) for new manga \(mangaId): \(error)")
-                        }
-                    }
-                } else {
-                    // add missing chapters
-                    let cbzFileNames = Set(cbzFiles.map { $0.lastPathComponent })
-
-                    let dbChapterFileNames = await LocalFileDataManager.shared.removeMissingChapters(
-                        mangaId: mangaId,
-                        availableChapters: cbzFileNames
-                    )
-
-                    // add chapters for new cbz files
-                    let chaptersToAdd = cbzFiles.filter { !dbChapterFileNames.contains($0.lastPathComponent) }
-                    for cbzFile in chaptersToAdd {
-                        do {
-                            try await uploadFile(from: cbzFile, skipUpload: true, mangaId: mangaId)
-                        } catch {
-                            LogManager.logger.error("Failed to process file \(cbzFile.lastPathComponent) for manga \(mangaId): \(error)")
-                        }
-                    }
+            while scanDemand.takePass() {
+                do { try await fileOperations.acquire() } catch { scanDemand.request(); break }
+                do { try await scanLocalFilesPass() }
+                catch {
+                    // Retain demand, but retry only on a later event/call rather
+                    // than spinning on disk-full or persistent store failures.
+                    scanDemand.request()
+                    fileOperations.release()
+                    break
                 }
+                fileOperations.release()
             }
-
-            // clear running task (complete)
             scanTask = nil
         }
         await scanTask?.value
+    }
+
+    private func scanLocalFilesPass() async throws {
+        let fileManager = FileManager.default
+        let documentsDir = fileManager.documentDirectory
+        let localFolder = localDirectory
+        localFolder.createDirectory()
+
+        // get all manga folders
+        let mangaFolders = localFolder.contents.filter { $0.isDirectory }
+        await scanCheckpoint?()
+        try Task.checkCancellation()
+
+        let (toRemove, toAdd) = try await dataManager.findMangaDiskChanges(mangaFolders: mangaFolders)
+
+        // remove manga from db that no longer exist on disk
+        for mangaId in toRemove {
+            await removeManga(with: mangaId, scanOwned: true)
+        }
+
+        // for each manga folder, ensure chapters in db match local files
+        for folder in mangaFolders {
+            try Task.checkCancellation()
+            let mangaId = folder.lastPathComponent.normalized
+
+            // find cbz files in this folder
+            let cbzFiles = folder.contents
+                .filter {
+                    Self.allowedFileExtensions.contains($0.pathExtension.lowercased())
+                }
+                .sorted {
+                    $0.path.localizedStandardCompare($1.path) == .orderedAscending
+                }
+
+            // add manga to db that exist on disk but not in db yet
+            if toAdd.contains(mangaId) {
+                // add cbz files as chapters
+                for cbzFile in cbzFiles {
+                    do {
+                        try await uploadFile(from: cbzFile, skipUpload: true, mangaId: mangaId, scanOwned: true)
+                    } catch {
+                        LogManager.logger.error("Failed to process file \(cbzFile.lastPathComponent) for new manga \(mangaId): \(error)")
+                        if case LocalFileManagerError.databaseWriteFailed = error { throw error }
+                    }
+                }
+            } else {
+                // add missing chapters
+                let cbzFileNames = Set(cbzFiles.map { $0.lastPathComponent })
+
+                let dbChapterFileNames = try await dataManager.removeMissingChapters(
+                    mangaId: mangaId,
+                    availableChapters: cbzFileNames
+                )
+
+                // add chapters for new cbz files
+                let chaptersToAdd = cbzFiles.filter { !dbChapterFileNames.contains($0.lastPathComponent) }
+                for cbzFile in chaptersToAdd {
+                    do {
+                        try await uploadFile(from: cbzFile, skipUpload: true, mangaId: mangaId, scanOwned: true)
+                    } catch {
+                        LogManager.logger.error("Failed to process file \(cbzFile.lastPathComponent) for manga \(mangaId): \(error)")
+                        if case LocalFileManagerError.databaseWriteFailed = error { throw error }
+                    }
+                }
+            }
+        }
+
     }
 }
 
@@ -719,8 +773,7 @@ extension LocalFileManager {
 extension LocalFileManager {
     // start listening for file system changes in the local folder
     func startFileSystemListener() {
-        let localFolder = FileManager.default.documentDirectory
-            .appendingPathComponent("Local", isDirectory: true)
+        let localFolder = localDirectory
         localFolder.createDirectory()
 
         let fd = open(localFolder.path, O_EVTONLY)
@@ -787,5 +840,73 @@ extension LocalFileManager {
             candidate.appendPathComponent(component)
         }
         return candidate.standardizedFileURL.path.hasPrefix(base + "/")
+    }
+}
+
+/// Actor-owned demand state. Leases nest across suspension; an event arriving
+/// after a scan snapshot always survives as one trailing pass.
+struct LocalFileScanDemand {
+    private(set) var mutations = 0
+    private(set) var dirty = false
+    var canRun: Bool { mutations == 0 && dirty }
+
+    mutating func request() { dirty = true }
+    mutating func beginMutation() { mutations += 1 }
+    mutating func endMutation() {
+        precondition(mutations > 0)
+        mutations -= 1
+    }
+    mutating func takePass() -> Bool {
+        guard canRun else { return false }
+        dirty = false
+        return true
+    }
+}
+
+/// FIFO ownership across actor suspension. Cancellation removes queued work;
+/// callers release only after they actually acquired ownership.
+final class LocalFileOperationGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var active = false
+    private var waiting: [(UUID, CheckedContinuation<Void, Error>)] = []
+
+    func acquire() async throws {
+        let id = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                lock.lock()
+                if Task.isCancelled {
+                    lock.unlock()
+                    continuation.resume(throwing: CancellationError())
+                } else if !active {
+                    active = true
+                    lock.unlock()
+                    continuation.resume()
+                } else {
+                    waiting.append((id, continuation))
+                    lock.unlock()
+                }
+            }
+        } onCancel: {
+            self.lock.lock()
+            let index = self.waiting.firstIndex { $0.0 == id }
+            let continuation = index.map { self.waiting.remove(at: $0).1 }
+            self.lock.unlock()
+            continuation?.resume(throwing: CancellationError())
+        }
+        do { try Task.checkCancellation() }
+        catch { release(); throw error }
+    }
+
+    func release() {
+        lock.lock()
+        if waiting.isEmpty {
+            active = false
+            lock.unlock()
+        } else {
+            let next = waiting.removeFirst().1
+            lock.unlock()
+            next.resume()
+        }
     }
 }

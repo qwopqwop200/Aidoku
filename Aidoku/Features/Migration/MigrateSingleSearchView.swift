@@ -114,6 +114,7 @@ struct MigrateSingleSearchView: View {
             onSubmit: {
                 if query.isEmpty {
                     searchTask?.cancel()
+                    searchTask = nil
                     isLoading = false
                     results = []
                 } else {
@@ -139,6 +140,16 @@ struct MigrateSingleSearchView: View {
             Button(NSLocalizedString("SHOW_ENTRY")) {
                 guard let targetSeries else { return }
                 path.push(MangaViewController(manga: targetSeries, parent: path.rootViewController))
+            }
+        }
+        .onDisappear {
+            if searchTask != nil {
+                // Resume interrupted matching if this route becomes visible again,
+                // including a search task queued before its first execution.
+                searchTask?.cancel()
+                searchTask = nil
+                didFirstLoad = false
+                isLoading = false
             }
         }
         .onAppear {
@@ -238,6 +249,7 @@ extension MigrateSingleSearchView {
             withAnimation {
                 isLoading = false
             }
+            searchTask = nil
         }
     }
 }

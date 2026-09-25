@@ -237,6 +237,13 @@ class NewSourceViewController: UIViewController {
         searchController.searchBar.removeFromSuperview()
     }
 
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        if isMovingFromParent || isBeingDismissed || navigationController?.isBeingDismissed == true {
+            searchViewController.viewModel.cancelPendingRequests()
+        }
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         configure()

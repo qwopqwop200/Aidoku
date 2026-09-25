@@ -475,16 +475,6 @@
 "UNAVAILABLE_SOURCE_LISTS" = "Nedostupni popisi izvora";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Dogodila se greška prilikom dohvaćanja gore navedenih popisa izvora.";
 "COPY_URL" = "Kopiraj URL";
-"UPSCALING" = "Povećavanje rezolucije";
-"UPSCALE_IMAGES" = "Povećaj rezoluciju slika";
-"UPSCALING_MODELS" = "Modeli za povećavanje rezolucije";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Maksimalna visina slika";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Slikama čija je visina jednaka zadanoj maksimalnoj visini ili je premašuje neće se povećavati rezolucija.";
-"ENABLED_MODEL" = "Uključen model";
-"AVAILABLE_MODELS" = "Dostupni modeli";
-"NO_AVAILABLE_MODELS" = "Nema dostupnih modela";
-"NO_AVAILABLE_MODELS_TEXT" = "Dohvaćanje dostupnih modela nije uspjelo. Provjeri mrežnu vezu i osiguraj da pokrećeš najnoviju verziju aplikacije.";
-"MODEL_INFO" = "Informacije modela";
 "DISABLE_QUICK_ACTIONS" = "Isključi brze radnje";
 "TAP_ZONES" = "Područja dodira";
 "ZONE_LEFT_RIGHT" = "Lijevo i desno";
@@ -1087,8 +1077,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Nije moguće prikazati postavku: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Pet uključenih modela može se instalirati izvan mreže. Instalirajte model, zatim ga dodirnite u Uključen model. MangaJaNai je za crno-bijele stranice visine oko 1200 piksela; stranice u boji ostaju nepromijenjene.";
 
 "DOWNLOAD_TRANSLATED" = "Preuzmi s prijevodom";
 
@@ -1098,15 +1086,10 @@
 "TRANSLATION_STATE_ON" = "Uključeno";
 "TRANSLATION_STATE_OFF" = "Isključeno";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "Ilustracije; čuva izvorne linije crteža. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Ilustracije u boji i naslovnice; lagani model za prikaz detalja.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Opće slike i crteži različitih stilova; jače izoštravanje.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga i stranice u boji.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Samo crno-bijela manga; prilagođeno izvornim stranicama visine oko 1200 piksela. Stranice u boji ostaju nepromijenjene.";
 "TRANSLATION_ERROR_CONFIGURATION" = "Postavke prijevoda nisu valjane. Provjerite URL poslužitelja, model i ostale postavke.";
 "TRANSLATION_ERROR_REQUEST" = "Tekst, slika ili jezične postavke ne mogu se koristiti za prijevod.";
 "TRANSLATION_ERROR_RESPONSE" = "Poslužitelj za prijevod vratio je nevaljan odgovor. Pokušajte ponovno ili provjerite postavke modela.";

@@ -448,7 +448,6 @@
 "NO_RESULTS_TEXT" = "Kiểm tra chính tả hoặc thử tìm kiếm mới.";
 "LEARN_MORE" = "Tìm hiểu thêm…";
 "COPY_URL" = "Sao chép URL";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Chiều cao ảnh tối đa";
 "ZONE_LEFT_RIGHT" = "Trái và Phải";
 "ZONE_L_SHAPED" = "Hình chữ L";
 "ZONE_EDGE" = "Cạnh";
@@ -640,15 +639,6 @@
 "DOWNLOADED_CHAPTER_BADGES" = "Huy hiệu số chương đã tải về";
 "UNAVAILABLE_SOURCE_LISTS" = "Danh sách nguồn không khả dụng";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Đã xảy ra lỗi khi lấy danh sách nguồn trên.";
-"UPSCALING" = "Nâng độ phân giải";
-"UPSCALE_IMAGES" = "Nâng độ phân giải ảnh";
-"UPSCALING_MODELS" = "Mô hình nâng độ phân giải ảnh";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Ảnh có chiều cao bằng hoặc lớn hơn giới hạn tối đa sẽ không được nâng độ phân giải.";
-"ENABLED_MODEL" = "Mô hình đang bật";
-"AVAILABLE_MODELS" = "Mô hình khả dụng";
-"NO_AVAILABLE_MODELS" = "Không có Mô hình khả dụng nào";
-"MODEL_INFO" = "Thông tin Mô hình";
-"NO_AVAILABLE_MODELS_TEXT" = "Không thể lấy danh sách mô hình. Hãy kiểm tra kết nối mạng và đảm bảo ứng dụng đang ở phiên bản mới nhất.";
 "DISABLE_QUICK_ACTIONS" = "Tắt thao tác nhanh";
 "SOURCE_IMPORT_FAIL_TEXT" = "Nhập nguồn thất bại. Vui lòng đảm bảo tệp aix của bạn hợp lệ.";
 "LIBRARY_ENTRIES" = "Mục trong thư viện";
@@ -1087,8 +1077,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Không thể hiển thị cài đặt: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Năm mô hình đi kèm có thể được cài đặt ngoại tuyến. Cài đặt một mô hình, sau đó nhấn vào mô hình đó trong Mô hình đang bật. MangaJaNai dành cho các trang đen trắng có chiều cao khoảng 1200 pixel; các trang màu không thay đổi.";
 
 "DOWNLOAD_TRANSLATED" = "Tải xuống kèm bản dịch";
 
@@ -1099,15 +1087,10 @@
 
 "TRANSLATION_STATE_OFF" = "Tắt";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "Ảnh minh họa; giữ nét vẽ gốc. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Ảnh minh họa và bìa màu; mô hình nhẹ giúp tăng chi tiết.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Ảnh thông thường và tranh thuộc nhiều phong cách; tăng độ sắc nét mạnh hơn.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga và trang màu.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Chỉ dành cho manga đen trắng, được tinh chỉnh cho trang gốc cao khoảng 1200 điểm ảnh. Trang màu được giữ nguyên.";
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Cài đặt dịch không hợp lệ. Kiểm tra URL máy chủ, mô hình và các cài đặt khác.";
 

@@ -34,6 +34,7 @@ struct MangaUpdatesView: View {
     @State private var reachedEnd = false
     @State private var hasNoUpdates = false
     @State private var loadingTask: Task<(), Never>?
+    @StateObject private var operations = MangaUpdatesOperationQueue()
 
     @EnvironmentObject private var path: NavigationCoordinator
 
@@ -49,7 +50,7 @@ struct MangaUpdatesView: View {
                                 reachedEnd = true
                                 loadingMore = true
                                 loadingTask = Task {
-                                    await loadNewEntries()
+                                    await operations.run { await loadNewEntries() }
                                 }
                             }
                         }
@@ -246,30 +247,53 @@ extension MangaUpdatesView {
         }
 
         Task {
-            await loadingTask?.value
-            let removed = await CoreDataManager.shared.container.performBackgroundTask { context in
-                CoreDataManager.shared.removeMangaUpdates(
-                    updates: updates,
-                    context: context
-                )
-                do {
-                    try context.save()
-                    return true
-                } catch {
-                    context.rollback()
-                    return false
+            await operations.run {
+                let removed = await CoreDataManager.shared.container.performBackgroundTask { context in
+                    CoreDataManager.shared.removeMangaUpdates(
+                        updates: updates,
+                        context: context
+                    )
+                    do {
+                        try context.save()
+                        return true
+                    } catch {
+                        context.rollback()
+                        return false
+                    }
+                }
+                if removed {
+                    offset = max(0, offset - updates.count)
+                } else {
+                    entries = []
+                    offset = 0
+                    reachedEnd = false
+                    hasNoUpdates = false
+                    loadingMore = true
+                    await loadNewEntries()
                 }
             }
-            if removed {
-                offset = max(0, offset - updates.count)
-            } else {
-                entries = []
-                offset = 0
-                reachedEnd = false
-                hasNoUpdates = false
-                loadingMore = true
-                await loadNewEntries()
-            }
         }
+    }
+}
+
+/// Owns pagination and offset-changing mutations through their whole I/O span.
+/// Recovery loads execute inside the same turn; joining an old load alone is
+/// insufficient because a new pagination request can otherwise pass a delete.
+@MainActor
+final class MangaUpdatesOperationQueue: ObservableObject {
+    private var tail: Task<Void, Never>?
+    private var tailID = UUID()
+
+    func run(_ operation: @escaping @MainActor () async -> Void) async {
+        let predecessor = tail
+        let issued = UUID()
+        tailID = issued
+        let task = Task {
+            await predecessor?.value
+            await operation()
+        }
+        tail = task
+        await task.value
+        if tailID == issued { tail = nil }
     }
 }

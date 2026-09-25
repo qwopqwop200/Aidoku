@@ -15,6 +15,8 @@ class MangaListCell: UICollectionViewCell {
     private var url: String?
     private var imageTask: ImageTask?
     private var imageGeneration = 0
+    private(set) var preparationTask: Task<Void, Never>?
+    var resolveImageSource: (String) async -> AidokuRunner.Source? = { await SourceManager.shared.source(for: $0) }
 
     private var isEditing = false
 
@@ -160,6 +162,8 @@ class MangaListCell: UICollectionViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
+        preparationTask?.cancel()
+        preparationTask = nil
         imageGeneration += 1
         identifier = nil
         url = nil
@@ -254,9 +258,7 @@ extension MangaListCell {
             tagScrollView.isHidden = true
         }
 
-        Task {
-            await loadImage(url: manga.cover.flatMap { URL(string: $0) })
-        }
+        startImageLoad(url: manga.cover.flatMap { URL(string: $0) })
     }
 
     func configure(with info: MangaInfo) {
@@ -267,14 +269,25 @@ extension MangaListCell {
         subtitleLabel.text = info.author
         subtitleLabel.isHidden = subtitleLabel.text?.isEmpty ?? true
 
-        Task {
-            await loadImage(url: info.coverUrl)
-        }
+        startImageLoad(url: info.coverUrl)
     }
 }
 
 extension MangaListCell {
+    func startImageLoad(url: URL?) {
+        preparationTask?.cancel()
+        imageGeneration += 1
+        imageTask?.cancel()
+        imageTask = nil
+        let expectedIdentifier = identifier
+        preparationTask = Task { [weak self] in
+            guard !Task.isCancelled, let self, self.identifier == expectedIdentifier else { return }
+            await self.loadImage(url: url)
+        }
+    }
+
     private func loadImage(url: URL?) async {
+        guard !Task.isCancelled else { return }
         imageGeneration += 1
         let generation = imageGeneration
         imageTask?.cancel()
@@ -289,29 +302,29 @@ extension MangaListCell {
         self.coverImageView.stopAnimatingGIF()
 
         let source: AidokuRunner.Source? = if let sourceKey = identifier?.sourceKey {
-            await SourceManager.shared.source(for: sourceKey)
+            await resolveImageSource(sourceKey)
         } else {
             nil
         }
 
-        var urlRequest = URLRequest(url: url)
-        var cached = ImagePipeline.shared.cache.containsCachedImage(for: .init(urlRequest: urlRequest))
+        guard generation == imageGeneration, !Task.isCancelled else { return }
 
-        if !cached {
-            if let fileUrl = url.toAidokuFileUrl() {
-                urlRequest = URLRequest(url: fileUrl)
-            } else if let source {
-                urlRequest = await source.getModifiedImageRequest(url: url, context: nil)
-            }
+        // Resolve source authentication/rewrites before consulting a cache key.
+        // A bare-URL hit must not bypass the modified request's identity.
+        let urlRequest: URLRequest
+        if let fileUrl = url.toAidokuFileUrl() {
+            urlRequest = URLRequest(url: fileUrl)
+        } else if let source {
+            urlRequest = await source.getModifiedImageRequest(url: url, context: nil)
+        } else {
+            urlRequest = URLRequest(url: url)
         }
+        var cached = ImagePipeline.shared.cache.containsCachedImage(for: .init(urlRequest: urlRequest))
 
         guard generation == imageGeneration, !Task.isCancelled else { return }
         self.url = (urlRequest.url ?? url).absoluteString
 
-        var processors: [ImageProcessing] = [DownsampleProcessor(width: bounds.width)]
-        if let source, source.features.processesCovers {
-            processors.append(CoverInterceptorProcessor(source: source))
-        }
+        let processors = CoverImageProcessing.processors(source: source, downsampleWidth: bounds.width)
 
         let request = ImageRequest(
             urlRequest: urlRequest,
@@ -325,7 +338,7 @@ extension MangaListCell {
             guard let self, generation == self.imageGeneration else { return }
             switch result {
                 case .success(let response):
-                    if response.request.imageID != self.url {
+                    if response.request.url?.absoluteString != self.url {
                         return
                     }
                     Task { @MainActor in
@@ -350,10 +363,11 @@ extension MangaListCell {
                     guard let identifier else { return }
                     Task { @MainActor [weak self] in
                         guard
-                            let newUrl = await CoverRecovery.recover(from: error, identifier: identifier),
-                            self?.identifier == identifier
+                            let newUrl = await CoverRecovery.recover(from: error, identifier: identifier, failedURL: request.url),
+                            self?.identifier == identifier,
+                            self?.imageGeneration == generation
                         else { return }
-                        await self?.loadImage(url: newUrl)
+                        self?.startImageLoad(url: newUrl)
                     }
             }
         }

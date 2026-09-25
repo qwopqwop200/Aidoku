@@ -3,7 +3,10 @@ import CoreData
 extension CoreDataManager {
     /// Batches only persisted SQLite counts. Retains the scalar path for unsaved
     /// changes/other store types, since grouped dictionary fetches omit pending changes.
-    func unreadCounts(mangaIds: [MangaIdentifier], context: NSManagedObjectContext) -> [MangaIdentifier: Int] {
+    func unreadCounts(
+        mangaIds: [MangaIdentifier], context: NSManagedObjectContext,
+        didExecuteCountQuery: ((Bool) -> Void)? = nil
+    ) -> [MangaIdentifier: Int] {
         struct Group: Hashable {
             let source: String
             let language: String?
@@ -17,12 +20,19 @@ extension CoreDataManager {
             groups[Group(source: id.sourceKey, language: filter.language, scanlators: scanlators), default: []].append(id)
         }
         var result: [MangaIdentifier: Int] = [:]
-        let stores = context.persistentStoreCoordinator?.persistentStores ?? []
+        // The application has Cloud and Local stores. Only stores containing
+        // Chapter affect the aggregate; unrelated configurations are irrelevant.
+        let coordinator = context.persistentStoreCoordinator
+        let stores = coordinator?.persistentStores.filter { store in
+            coordinator?.managedObjectModel.entities(forConfigurationName: store.configurationName)?
+                .contains(where: { $0.name == "Chapter" }) == true
+        } ?? []
         let canGroup = !context.hasChanges && stores.count == 1 && stores.first?.type == NSSQLiteStoreType
         for (group, ids) in groups {
             func scalar(_ subset: ArraySlice<MangaIdentifier>) {
                 for id in subset {
                     result[id] = unreadCount(mangaId: id, lang: group.language, scanlators: group.scanlators, context: context)
+                    didExecuteCountQuery?(false)
                 }
             }
             for start in stride(from: 0, to: ids.count, by: 128) {
@@ -30,6 +40,7 @@ extension CoreDataManager {
                 guard canGroup else { scalar(subset); continue }
                 let request = NSFetchRequest<NSDictionary>(entityName: "Chapter")
                 request.resultType = .dictionaryResultType
+                request.affectedStores = stores
                 var predicates = [NSPredicate(format: "sourceId == %@ AND mangaId IN %@ AND (history == nil OR history.completed == false) AND locked == false",
                     group.source, subset.map(\.mangaKey))]
                 if let language = group.language { predicates.append(NSPredicate(format: "lang == %@", language)) }
@@ -46,6 +57,7 @@ extension CoreDataManager {
                 request.propertiesToGroupBy = ["mangaId"]
                 do {
                     let rows = try context.fetch(request)
+                    didExecuteCountQuery?(true)
                     var batch: [MangaIdentifier: Int] = [:]
                     var valid = true
                     for row in rows {

@@ -66,6 +66,7 @@ enum ReaderTranslationImageExporter {
     /// Complete an already-loaded source before presenting it. Replaying a
     /// settled asset uses only Core Graphics/Core Image and works without a window.
     /// A legacy text/layout-only cache needs one export to create that asset.
+    // swiftlint:disable:next function_parameter_count
     static func renderLoadedImage(
         image: UIImage, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
         viewport: CGSize, scale: CGFloat, aspectFit: Bool, dark: Bool,
@@ -82,13 +83,11 @@ enum ReaderTranslationImageExporter {
             width: image.size.width * pixelScale, height: image.size.height * pixelScale))
         guard size.width > 0, size.height > 0 else { throw ExportError.unavailable }
         let storage = cache?.renderAssetStorageContext(settings: settings)
-        let fingerprint = Task.detached(priority: .userInitiated) {
+        let fingerprint = Task.detached(priority: priority.isForeground ? .userInitiated : .utility) {
             (source: cache == nil ? nil : ReaderTranslationRenderAsset.digestSource(image),
              regions: ReaderTranslationRenderAsset.digest(regions))
         }
         defer { fingerprint.cancel() }
-        let assetRead = Task { await cache?.renderAsset(for: key) }
-        defer { assetRead.cancel() }
         let digests = await withTaskCancellationHandler { await fingerprint.value } onCancel: { fingerprint.cancel() }
         let sourceDigest = digests.source
         let bitmapKey = sourceDigest.map {
@@ -99,6 +98,10 @@ enum ReaderTranslationImageExporter {
             ReaderTranslationDiagnostics.record("loaded_composite_memory_hit")
             return image
         }
+        // A completed bitmap needs no asset I/O or decoding. Start the optional
+        // disk replay only after the content/source-aware memory lookup misses.
+        let assetRead = Task { await cache?.renderAsset(for: key, priority: priority) }
+        defer { assetRead.cancel() }
         let candidate = await withTaskCancellationHandler { await assetRead.value } onCancel: { assetRead.cancel() }
         try Task.checkCancellation()
         let cached = candidate.flatMap {
@@ -108,7 +111,7 @@ enum ReaderTranslationImageExporter {
         // Only the bounded native composite stage is shared with cold rendering.
         if let cached {
             do {
-                let result = try await compositeLoadedImage(image, asset: cached, size: size)
+                let result = try await compositeLoadedImage(image, asset: cached, size: size, priority: priority)
                 if let cache, let storage, let bitmapKey, let pageIdentity {
                     cache.storeLoadedImage(result, key: bitmapKey, pageIdentity: pageIdentity, context: storage)
                 }
@@ -131,12 +134,12 @@ enum ReaderTranslationImageExporter {
             // A prefetch may have completed while this request waited for
             // WebKit. Its viewport bitmap has a different key, but its settled
             // asset can still satisfy this load without another document render.
-            let prepared = await cache?.renderAsset(for: key)
+            let prepared = await cache?.renderAsset(for: key, priority: priority)
             try Task.checkCancellation()
             if let prepared, prepared.sourceSize == image.size, prepared.regionsDigest == digests.regions,
                sourceDigest != nil, prepared.sourceDigest == sourceDigest {
                 do {
-                    let result = try await compositeLoadedImage(image, asset: prepared, size: size)
+                    let result = try await compositeLoadedImage(image, asset: prepared, size: size, priority: priority)
                     if let cache, let storage, let bitmapKey, let pageIdentity {
                         cache.storeLoadedImage(result, key: bitmapKey, pageIdentity: pageIdentity, context: storage)
                     }
@@ -161,7 +164,7 @@ enum ReaderTranslationImageExporter {
             defer { layout.cancel() }
             let result = try await renderSerial(image: image, regions: regions, settings: settings,
                 viewport: viewport, aspectFit: aspectFit, host: host, pixelSize: size,
-                preparedLayout: layout, dark: dark, sourceDigest: sourceDigest)
+                preparedLayout: layout, dark: dark, sourceDigest: sourceDigest, priority: priority)
             try Task.checkCancellation()
             if let cache, let storage {
                 cache.storeRenderAssetAfterDisplay(result.asset, key: key, context: storage)
@@ -173,11 +176,13 @@ enum ReaderTranslationImageExporter {
         }
     }
 
-    private static func compositeLoadedImage(_ image: UIImage, asset: ReaderTranslationRenderAsset, size: CGSize) async throws -> UIImage {
+    static func compositeLoadedImage(_ image: UIImage, asset: ReaderTranslationRenderAsset, size: CGSize,
+                                     priority: TranslationRequestPriority,
+                                     limiter: TranslationProviderRequestLimiter = compositeGate) async throws -> UIImage {
         // Lock order is WebKit -> native for cold work; warm work takes only
         // native. Neither path waits for the shared image/OCR admission permit.
-        try await compositeGate.withPermit {
-            let operation = Task.detached(priority: .userInitiated) {
+        try await limiter.withPermit(priority: priority) {
+            let operation = Task.detached(priority: priority.isForeground ? .userInitiated : .utility) {
                 try composite(image: image, typography: asset.typography, layers: asset.layers,
                               displayRect: asset.displayRect, size: size)
             }
@@ -191,6 +196,7 @@ enum ReaderTranslationImageExporter {
     /// input is already decoded by the reader/preloader; do not reacquire its
     /// image permit (the preloader holds it until this capture completes).
     /// The export gate serializes the extra renderer and composite at 4 MP.
+    // swiftlint:disable:next function_parameter_count
     static func renderCacheSnapshot(
         image: UIImage, imageSize: CGSize, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
         viewport: CGSize, scale: CGFloat, aspectFit: Bool, host: UIView, dark: Bool,
@@ -212,13 +218,18 @@ enum ReaderTranslationImageExporter {
         }
         defer { fingerprint.cancel() }
         // Cache snapshots yield to a visible page waiting for its first presentation.
+        ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_wait", count: regions.count)
         return try await gate.withPermit(priority: .prefetch) { @MainActor in
+            ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_acquired", count: regions.count)
+            defer { ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_released", count: regions.count) }
             try Task.checkCancellation()
+            ReaderTranslationDiagnostics.renderingProfile("profile_capture_digest_wait")
             let sourceDigest = await withTaskCancellationHandler { await fingerprint.value } onCancel: { fingerprint.cancel() }
+            ReaderTranslationDiagnostics.renderingProfile("profile_capture_digest_ready")
             let result = try await renderSerial(image: image, regions: regions, settings: settings,
                 viewport: viewport, aspectFit: aspectFit, host: host, logicalImageSize: imageSize,
                 pixelSize: CGSize(width: max(1, floor(frame.width)), height: max(1, floor(frame.height))),
-                preparedLayout: preparedLayout, dark: dark, sourceDigest: sourceDigest)
+                preparedLayout: preparedLayout, dark: dark, sourceDigest: sourceDigest, priority: .prefetch)
             try Task.checkCancellation()
             if let assetCache, let assetKey, let storage {
                 assetCache.storeRenderAssetAfterDisplay(result.asset, key: assetKey, context: storage)
@@ -234,10 +245,52 @@ enum ReaderTranslationImageExporter {
         }
     }
 
+    /// Abort the owned renderer promptly, but retain the caller's permit until
+    /// WebKit acknowledges completion. stopLoading is not proof of process drain.
+    static func awaitExportStage<Value: Sendable>(
+        timeoutNanoseconds: UInt64 = 20_000_000_000,
+        teardown: @escaping @MainActor () -> Void,
+        operation: @escaping @MainActor () async throws -> Value
+    ) async throws -> Value {
+        try Task.checkCancellation()
+        let lifetime = ExportStageLifetime(teardown: teardown)
+        let timeout = Task { @MainActor in
+            do { try await Task.sleep(nanoseconds: timeoutNanoseconds) } catch { return }
+            lifetime.abort()
+        }
+        defer {
+            timeout.cancel()
+            if Task.isCancelled { lifetime.abort() }
+            lifetime.finish()
+        }
+        return try await withTaskCancellationHandler {
+            let value = try await operation()
+            try Task.checkCancellation()
+            guard !lifetime.aborted else { throw ExportError.renderFailed }
+            return value
+        } onCancel: {
+            Task { @MainActor in lifetime.abort() }
+        }
+    }
+
+    @MainActor
+    private final class ExportStageLifetime {
+        private(set) var aborted = false
+        private var finished = false
+        func finish() { finished = true }
+        private let teardown: @MainActor () -> Void
+        init(teardown: @escaping @MainActor () -> Void) { self.teardown = teardown }
+        func abort() {
+            guard !aborted, !finished else { return }
+            aborted = true
+            teardown()
+        }
+    }
+
     private static func renderSerial(image: UIImage, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
                                      viewport: CGSize, aspectFit: Bool, host: UIView, logicalImageSize: CGSize? = nil,
                                      pixelSize: CGSize? = nil, preparedLayout: Task<Data, Error>? = nil, dark: Bool? = nil,
-                                     sourceDigest: String? = nil) async throws -> RenderedPage {
+                                     sourceDigest: String? = nil, priority: TranslationRequestPriority = .foreground) async throws -> RenderedPage {
         try Task.checkCancellation()
         guard viewport.width > 0, viewport.height > 0,
               (host.window ?? (host as? UIWindow))?.windowScene != nil else { throw ExportError.unavailable }
@@ -268,6 +321,7 @@ enum ReaderTranslationImageExporter {
         defer { timeout.cancel(); overlay.onRenderCommitted = nil; overlay.onRenderCleared = nil; events.continuation.finish() }
         var exportSettings = settings
         exportSettings.overlay.visible = true
+        ReaderTranslationDiagnostics.renderingProfile("profile_export_render_begin", count: regions.count)
         overlay.update(regions: regions, imageSize: logicalImageSize ?? image.size, aspectFit: aspectFit,
                        settings: exportSettings, image: image, preparedLayout: preparedLayout)
         overlay.layoutIfNeeded()
@@ -277,14 +331,23 @@ enum ReaderTranslationImageExporter {
         } onCancel: { events.continuation.finish() }
         try Task.checkCancellation()
         guard ready, !overlay.hasExhaustedRecovery else { throw ExportError.renderFailed }
+        ReaderTranslationDiagnostics.renderingProfile("profile_export_render_ready", count: regions.count)
         // WKWebView snapshots can spread backdrop-filter blur beyond the card,
         // including over translated glyphs. Bake only the bounded backdrop crops
         // with Core Image, and capture typography with all backdrop filters off.
         guard overlay.contentTerminationCount == 0 else { throw ExportError.renderFailed }
-        let payload = try await overlay.webView.callAsyncJavaScript(Self.prepareExportScript,
-            arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
-        guard let json = payload as? String, let data = json.data(using: .utf8) else { throw ExportError.renderFailed }
+        ReaderTranslationDiagnostics.renderingProfile("profile_export_layers_begin")
+        let teardown = { @MainActor in
+            overlay.cancelWork()
+            overlay.removeFromSuperview()
+        }
+        let json: String? = try await awaitExportStage(teardown: teardown) {
+            try await overlay.webView.callAsyncJavaScript(Self.prepareExportScript,
+                arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? String
+        }
+        guard let json, let data = json.data(using: .utf8) else { throw ExportError.renderFailed }
         let layers = try JSONDecoder().decode(ExportLayers.self, from: data)
+        ReaderTranslationDiagnostics.renderingProfile("profile_export_layers_end")
         let rect = ReaderTranslationGeometry.displayRect(
             CGRect(x: 0, y: 0, width: 1, height: 1), imageSize: logicalImageSize ?? image.size,
             bounds: CGRect(origin: .zero, size: viewport), aspectFit: aspectFit
@@ -294,16 +357,22 @@ enum ReaderTranslationImageExporter {
         // The reader may be occluded by the progress alert or scrolled offscreen.
         let configuration = WKPDFConfiguration()
         configuration.rect = rect
-        let typography: Data = try await withCheckedThrowingContinuation { continuation in
-            overlay.webView.createPDF(configuration: configuration) { result in
-                continuation.resume(with: result)
+        ReaderTranslationDiagnostics.renderingProfile("profile_export_pdf_begin")
+        let typography: Data = try await awaitExportStage(teardown: teardown) {
+            try await withCheckedThrowingContinuation { continuation in
+                overlay.webView.createPDF(configuration: configuration) { result in
+                    continuation.resume(with: result)
+                }
             }
         }
+        ReaderTranslationDiagnostics.renderingProfile("profile_export_pdf_end", count: typography.count)
         try Task.checkCancellation()
         guard overlay.contentTerminationCount == 0 else { throw ExportError.renderFailed }
         let asset = ReaderTranslationRenderAsset(typography: typography, layers: layers, displayRect: rect,
             sourceSize: logicalImageSize ?? image.size, regions: regions, sourceDigest: sourceDigest)
-        let result = try await compositeLoadedImage(image, asset: asset, size: size)
+        ReaderTranslationDiagnostics.renderingProfile("profile_export_composite_begin")
+        let result = try await compositeLoadedImage(image, asset: asset, size: size, priority: priority)
+        ReaderTranslationDiagnostics.renderingProfile("profile_export_composite_end")
         try Task.checkCancellation()
         completed = true
         return RenderedPage(image: result, asset: asset)

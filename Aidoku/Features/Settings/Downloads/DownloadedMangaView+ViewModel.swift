@@ -21,8 +21,7 @@ extension DownloadedMangaView {
         @Published var readingHistory: [String: (page: Int, date: Int)] = [:]
 
         // Non-reactive state for background management
-        private var backgroundUpdateInProgress = false
-        private var lastUpdateId = UUID()
+        private let refreshCoordinator = DownloadRefreshCoordinator()
         private var updateDebouncer: Timer?
         private var cancellables = Set<AnyCancellable>()
 
@@ -39,12 +38,8 @@ extension DownloadedMangaView.ViewModel {
     func loadChapters() async {
         isLoading = true
 
-        let downloadedChapters = await DownloadManager.shared.getDownloadedChapters(for: manga.mangaIdentifier)
-
-        await MainActor.run {
-            self.chapters = self.sortChapters(downloadedChapters)
-            self.isLoading = false
-        }
+        await performBackgroundUpdate()
+        isLoading = false
     }
 
     func loadHistory() async {
@@ -114,26 +109,15 @@ extension DownloadedMangaView.ViewModel {
 
     /// Background update that preserves scroll position and selection state
     private func performBackgroundUpdate() async {
-        guard !backgroundUpdateInProgress else { return }
-        backgroundUpdateInProgress = true
-        defer { backgroundUpdateInProgress = false }
-
-        let updateId = UUID()
-        lastUpdateId = updateId
-
-        // Fetch updates in background
-        let newChapters = await DownloadManager.shared.getDownloadedChapters(for: manga.mangaIdentifier)
-        let updatedMangaStatus = await fetchUpdatedMangaLibraryStatus()
-
-        guard updateId == lastUpdateId else { return }
-
-        // Update library status immediately (doesn't affect list)
-        if updatedMangaStatus != manga.isInLibrary {
-            updateMangaLibraryStatus(to: updatedMangaStatus)
+        await refreshCoordinator.refresh { [self] revision in
+            let newChapters = await DownloadManager.shared.getDownloadedChapters(for: manga.mangaIdentifier)
+            let updatedMangaStatus = await fetchUpdatedMangaLibraryStatus()
+            guard refreshCoordinator.isCurrent(revision) else { return }
+            if updatedMangaStatus != manga.isInLibrary {
+                updateMangaLibraryStatus(to: updatedMangaStatus)
+            }
+            updateChaptersSelectively(newChapters: newChapters)
         }
-
-        // Selective chapter list updates
-        updateChaptersSelectively(newChapters: newChapters)
     }
 
     /// Update only changed chapters to preserve scroll position

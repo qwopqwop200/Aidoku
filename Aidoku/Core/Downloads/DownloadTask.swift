@@ -27,10 +27,16 @@ actor DownloadTask: Identifiable {
 
     private let cache: DownloadCache
     private let network: SourceNetwork
+    private let transportLimiter: TranslationProviderRequestLimiter?
+    private let bulkAdmission: BulkDownloadAdmission
+    private let sourceLookup: @Sendable (String) async -> AidokuRunner.Source?
     private var downloads: [Download]
     private weak var delegate: DownloadTaskDelegate?
 
     private var worker: Task<Void, Never>?
+    // A drained/cancelled worker cannot be revived while its terminal delegate
+    // callback is awaiting the queue; new entries belong to a successor.
+    private var retired = false
     private var controlGeneration = 0
     private var warmedPages: (chapter: ChapterIdentifier, task: Task<[Page], Never>)?
 
@@ -53,9 +59,15 @@ actor DownloadTask: Identifiable {
     }
 
     init(id: String, cache: DownloadCache, downloads: [Download], network: SourceNetwork = .shared,
+         transportLimiter: TranslationProviderRequestLimiter? = nil,
+         bulkAdmission: BulkDownloadAdmission = .shared,
+         sourceLookup: @escaping @Sendable (String) async -> AidokuRunner.Source? = { await SourceManager.shared.source(for: $0) },
          delegate: DownloadTaskDelegate? = nil) {
         self.id = id
         self.network = network
+        self.transportLimiter = transportLimiter
+        self.bulkAdmission = bulkAdmission
+        self.sourceLookup = sourceLookup
         self.cache = cache
         self.downloads = downloads
         self.delegate = delegate
@@ -66,11 +78,11 @@ actor DownloadTask: Identifiable {
     }
 
     func resume() {
-        guard !running else { return }
+        guard !running, !retired else { return }
         controlGeneration += 1
         running = true
         let previousWorker = worker
-        worker = Task {
+        worker = Task(priority: .utility) {
             // A cancelled render/network operation must finish unwinding before
             // a replacement touches the same chapter files and counters.
             await previousWorker?.value
@@ -99,6 +111,28 @@ actor DownloadTask: Identifiable {
             return true
         }
         guard !cancelled.isEmpty || (manga == nil && chapter == nil) else { return }
+        let cancelledCurrent = downloads.first.map { cancelled.contains($0) } ?? false
+        if !cancelledCurrent, manga != nil || chapter != nil {
+            // Editing future queue entries does not invalidate the active page
+            // worker, its staged files, or a pending manual pause/resume join.
+            downloads.removeAll { cancelled.contains($0) }
+            if let warmedPages, cancelled.contains(where: { $0.chapterIdentifier == warmedPages.chapter }) {
+                warmedPages.task.cancel()
+                self.warmedPages = nil
+            }
+            for download in cancelled {
+                if cache.isSafe(chapter: download.chapterIdentifier) {
+                    cache.tmpDirectory(for: download.chapterIdentifier).removeItem()
+                }
+            }
+            // Finish filesystem cleanup before yielding: a delegate callback can
+            // re-enqueue a cancelled identifier and start its replacement work.
+            for download in cancelled {
+                guard !downloads.contains(download) else { continue }
+                await delegate?.downloadCancelled(download: download)
+            }
+            return
+        }
         let wasRunning = running
         controlGeneration += 1
         let generation = controlGeneration
@@ -107,7 +141,6 @@ actor DownloadTask: Identifiable {
         warmedPages?.task.cancel()
         warmedPages = nil
         running = false
-        let cancelledCurrent = downloads.first.map { cancelled.contains($0) } ?? false
         // Remove by identity before suspending; indices cannot survive delegate callbacks.
         downloads.removeAll { cancelled.contains($0) }
         let cancellation = Task {
@@ -123,6 +156,7 @@ actor DownloadTask: Identifiable {
                 failedPageNumbers = []
             }
             if manga == nil && chapter == nil {
+                retired = true
                 await delegate?.taskCancelled(task: self)
             } else {
                 for download in cancelled { await delegate?.downloadCancelled(download: download) }
@@ -135,7 +169,7 @@ actor DownloadTask: Identifiable {
     }
 
     func add(download: Download) {
-        guard !downloads.contains(where: { $0 == download }) else { return }
+        guard !retired, !downloads.contains(where: { $0 == download }) else { return }
         downloads.append(download)
     }
 }
@@ -147,6 +181,7 @@ extension DownloadTask {
         // done with all downloads
         if downloads.isEmpty {
             running = false
+            retired = true
             await delegate?.taskFinished(task: self)
             return
         }
@@ -160,6 +195,7 @@ extension DownloadTask {
         }
         guard !downloads.isEmpty else {
             running = false
+            retired = true
             await delegate?.taskFinished(task: self)
             return
         }
@@ -167,7 +203,7 @@ extension DownloadTask {
         // attempt to download first chapter in the queue
         if
             let download = downloads.first,
-            let source = await SourceManager.shared.source(for: download.chapterIdentifier.sourceKey)
+            let source = await sourceLookup(download.chapterIdentifier.sourceKey)
         {
             guard running, !Task.isCancelled else { return }
             // if chapter already downloaded, skip
@@ -418,8 +454,7 @@ extension DownloadTask {
                 fileExtension = guessFileExtension(response: response, defaultValue: "png")
             }
             if let translationSettings {
-                let input = try Data(contentsOf: staged, options: .mappedIfSafe)
-                let output = try await DownloadImageTranslator.translate(input, settings: translationSettings)
+                let output = try await DownloadImageTranslator.translate(fileURL: staged, settings: translationSettings)
                 try Task.checkCancellation()
                 try output.write(to: staged, options: .atomic)
                 if output.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]) { fileExtension = "png" }
@@ -439,14 +474,21 @@ extension DownloadTask {
     }
 
     // Retry policy is identical for file-backed and data-backed responses.
-    private func fetchPageResource<Payload: Sendable>(
+    func fetchPageResource<Payload: Sendable>(
         for urlRequest: URLRequest, tmpDirectory: URL,
-        fetch: @Sendable () async throws -> (Payload, URLResponse),
+        fetch: @escaping @Sendable () async throws -> (Payload, URLResponse),
         cleanup: @Sendable (Payload) -> Void
     ) async -> (Payload, URLResponse)? {
         var attempt = 0
         while !Task.isCancelled {
-            let result = try? await fetch()
+            // Release the shared transport slot before decoding, provider waits,
+            // or retry backoff; queued cancellation never starts a request.
+            let result: (Payload, URLResponse)?
+            if let transportLimiter {
+                result = try? await transportLimiter.withPermit(priority: .prefetch, fetch)
+            } else {
+                result = try? await bulkAdmission.withPermit(fetch)
+            }
 
             // response was okay, bail out
             if let result, self.isSuccessResponse(result.1), !Task.isCancelled {

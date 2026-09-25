@@ -407,7 +407,8 @@ extension MangaView.ViewModel {
             }
         } else if let source {
             // load new data from source
-            await source.partialMangaPublisher?.sink { @Sendable newManga in
+            let publisher = await source.partialMangaPublisher
+            let token = await publisher?.sink { @Sendable newManga in
                 Task { @MainActor in
                     withAnimation {
                         self.manga = self.manga.copy(from: newManga)
@@ -416,11 +417,10 @@ extension MangaView.ViewModel {
                 }
             }
             do {
-                let newManga = try await source.getMangaUpdate(
-                    manga: manga,
-                    needsDetails: true,
-                    needsChapters: true
-                )
+                let newManga = try await PartialResultSubscription.$id.withValue(token) {
+                    try Task.checkCancellation()
+                    return try await source.getMangaUpdate(manga: manga, needsDetails: true, needsChapters: true)
+                }
                 withAnimation {
                     manga = newManga
                     chapters = filteredChapters()
@@ -430,7 +430,7 @@ extension MangaView.ViewModel {
                     self.error = error
                 }
             }
-            await source.partialMangaPublisher?.removeSink()
+            if let publisher, let token { await publisher.removeSink(token: token) }
         }
         await fetchDownloadedChapters()
         await loadDownloadStatus()

@@ -266,7 +266,7 @@
 			mainGroup = FB1B4825277CE18D0056D02C;
 			packageReferences = (
 				FB7B7ED6278CE949001E6EAF /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
-				FB171149296770CC00AD523D /* XCRemoteSwiftPackageReference "Nuke" */,
+				FB171149296770CC00AD523D /* XCLocalSwiftPackageReference "Nuke" */,
 				FBE53F0A29CC015E00899601 /* XCRemoteSwiftPackageReference "Texture" */,
 				FB662EDC2DA816CF00007514 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 				FBFDF5F62DF799180064F603 /* XCLocalSwiftPackageReference "AidokuRunner" */,
@@ -671,17 +671,13 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Vendor/HoshiDicts;
 		};
+		FB171149296770CC00AD523D /* XCLocalSwiftPackageReference "Nuke" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/Nuke;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		FB171149296770CC00AD523D /* XCRemoteSwiftPackageReference "Nuke" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/kean/Nuke";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 13.0.0;
-			};
-		};
 		FB2C83972E43F074003CA85F /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/scinfu/SwiftSoup";
@@ -741,7 +737,7 @@
 		};
 		FB17114A296770CC00AD523D /* NukeUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FB171149296770CC00AD523D /* XCRemoteSwiftPackageReference "Nuke" */;
+			package = FB171149296770CC00AD523D /* XCLocalSwiftPackageReference "Nuke" */;
 			productName = NukeUI;
 		};
 		FB2C83982E43F074003CA85F /* SwiftSoup */ = {

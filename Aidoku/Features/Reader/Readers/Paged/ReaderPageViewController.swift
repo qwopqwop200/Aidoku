@@ -71,6 +71,7 @@ class ReaderPageViewController: BaseObservingViewController {
 
     /// Callback when image aspect ratio is updated
     var onAspectRatioUpdated: (() -> Void)?
+    var onPageResourcesChanged: ((Bool) -> Void)?
 
     /// Callback when image loading is complete and wide image status is determined
     var onImageisWideImage: ((Bool) -> Void)?
@@ -189,6 +190,7 @@ class ReaderPageViewController: BaseObservingViewController {
         guard !pageSet, let pageView else { return }
         pageSet = true
         self.page = page
+        onPageResourcesChanged?(true)
         self.sourceId = sourceId
         updateDoubleTapZoomSetting()
         reloadButton.isHidden = true
@@ -284,6 +286,7 @@ class ReaderPageViewController: BaseObservingViewController {
         pageView?.imageView.image = nil
         zoomView?.zoomEnabled = false
         imageAspectRatio = nil
+        onPageResourcesChanged?(false)
     }
 
     /// Check if this is a wide image (aspect ratio > 1)

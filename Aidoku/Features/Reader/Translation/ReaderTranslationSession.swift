@@ -66,6 +66,7 @@ final class ReaderTranslationSession {
     private var workGeneration = UUID()
     private var probeTask: Task<Void, Never>?
     private var worker: Task<Void, Never>?
+    private var navigationRetainedWorkKey: String?
     private var visibleCacheTask: Task<Void, Never>?
     private var visibleCacheKeys: Set<String> = []
     private var visibleCacheGeneration = UUID()
@@ -224,7 +225,12 @@ final class ReaderTranslationSession {
         let visibleKeys = Set(visible.compactMap { $0.sourcePage?.translationCacheKey })
         let anchor = currentPageIndex ?? items.first(where: { visibleKeys.contains($0.key) })?.position ?? items.first?.position ?? 0
         if currentPosition != anchor {
-            stopWorker(preservingRecognitionFor: items.first { $0.position == anchor }?.page)
+            // A webtoon anchor can advance while the preceding page is still
+            // on screen. Its OCR/API work remains foreground demand; replacing
+            // it on every boundary crossing only repeats useful work.
+            if activeKey.map({ visibleKeys.contains($0) }) != true {
+                stopWorkerForNavigation(to: items.first { $0.position == anchor }?.page, in: items)
+            }
             retainUsefulLayout(in: Self.ordered(items, anchor: anchor, visibleKeys: visibleKeys))
         }
         // Visibility can arrive after the page-index callback (or change within a
@@ -351,10 +357,18 @@ final class ReaderTranslationSession {
 
     /// Cancel obsolete work while navigation settles, retaining the destination's
     /// lookahead. A nil destination (slider scrubbing) discards all pending work.
-    func pauseForPageTurn(preservingRecognitionFor page: Page? = nil) {
+    func pauseForPageTurn(preservingRecognitionFor page: Page? = nil,
+                          visiblePages: [ReaderTranslationPage] = []) {
         navigationPaused = true
         cancelVisibleCacheRestore()
-        stopWorker(preservingRecognitionFor: page)
+        let activePage = items.first { $0.key == activeKey }?.page
+        let keepsVisibleWork = page.map { destination in
+            activePage.map { active in
+                active.sourceId == destination.sourceId && active.chapterId == destination.chapterId
+                    && visiblePages.contains { $0.sourcePage?.translationCacheKey == active.translationCacheKey }
+            } == true
+        } == true
+        if !keepsVisibleWork { stopWorkerForNavigation(to: page, in: items) }
         if let key = page?.translationCacheKey, let destination = items.first(where: { $0.key == key }) {
             retainUsefulLayout(in: Self.ordered(items, anchor: destination.position))
         } else {
@@ -418,7 +432,29 @@ final class ReaderTranslationSession {
         preparedLayouts.removeAll()
     }
 
+    /// Crossing completed pages should not restart the same upcoming work.
+    /// Reuse the preloader's existing destination slot; retain only its identity
+    /// here so the pause and subsequent anchor update make the same decision.
+    private func stopWorkerForNavigation(to destination: Page?, in candidates: [Item]) {
+        let workKey = activeKey ?? navigationRetainedWorkKey
+        var retained: Page?
+        if state == .on, canStartHeavyWork, let destination,
+           cache.contains(destination.translationCacheKey),
+           let anchor = candidates.first(where: { $0.key == destination.translationCacheKey }),
+           let work = candidates.first(where: { $0.key == workKey }),
+           abs(work.position - anchor.position) < preparationWindowCount,
+           work.page.sourceId == destination.sourceId, work.page.chapterId == destination.chapterId {
+            let next = Self.ordered(candidates, anchor: anchor.position).first {
+                !finished.contains($0.key) && !attempted.contains($0.key) && !cache.contains($0.key)
+            }
+            if next?.key == work.key { retained = work.page }
+        }
+        stopWorker(preservingRecognitionFor: retained ?? destination)
+        navigationRetainedWorkKey = retained?.translationCacheKey
+    }
+
     private func stopWorker(preservingRecognitionFor page: Page? = nil) {
+        navigationRetainedWorkKey = nil
         discardPendingNavigation()
         cancelTextWarm()
         memoryRetryTask?.cancel()
@@ -453,6 +489,14 @@ final class ReaderTranslationSession {
     func sourceImageDidLoad(_ page: Page) {
         guard state == .on else { return }
         let key = page.translationCacheKey
+        // Translation can finish before the reader assigns its decoded image.
+        // That publication has no image to attach to; source readiness must
+        // retry presentation without waiting for another navigation callback.
+        if visible.contains(where: { $0.sourcePage?.translationCacheKey == key }) {
+            ReaderTranslationDiagnostics.record("visible_source_ready", page: page.index + 1)
+            restoreVisibleDiskCache()
+            displayPreparedPages()
+        }
         guard items.prefix(preparationWindowCount).contains(where: { $0.key == key }) else { return }
         enqueuePreparedLayouts()
         drainLayout()
@@ -812,7 +856,7 @@ final class ReaderTranslationSession {
         let issued = workGeneration
         worker = Task { [weak self] in
             guard let self else { return }
-            while state == .on, workGeneration == issued, !Task.isCancelled, let item = nextItem() {
+            while state == .on, !navigationPaused, workGeneration == issued, !Task.isCancelled, let item = nextItem() {
                 activeKey = item.key
                 ReaderTranslationDiagnostics.record("page_start", page: item.position + 1)
                 do {
@@ -821,6 +865,11 @@ final class ReaderTranslationSession {
                     let diskGeneration = await diskCache?.currentGeneration(settings: settings) ?? 0
                     var stored: [ReaderTranslationRegion]?
                     if let diskCache { stored = await storedTranslation(page: item.key, settings: settings, diskCache: diskCache) }
+                    // Actor cache reads can resume after navigation has replaced
+                    // this worker. Do not let that stale miss enter the shared
+                    // preloader and displace the new destination's request.
+                    try Task.checkCancellation()
+                    guard workGeneration == issued else { return }
                     let regions: [ReaderTranslationRegion]
                     if let stored {
                         ReaderTranslationDiagnostics.record("translation_cache_hit", page: item.position + 1, count: stored.count)

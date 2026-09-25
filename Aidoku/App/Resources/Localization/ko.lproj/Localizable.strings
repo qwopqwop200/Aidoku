@@ -475,16 +475,6 @@
 "UNAVAILABLE_SOURCE_LISTS" = "사용할 수 없는 소스 목록";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "위 소스 목록을 받아오는 중 오류가 발생했습니다.";
 "COPY_URL" = "URL 복사";
-"UPSCALING" = "업스케일";
-"UPSCALE_IMAGES" = "이미지 업스케일";
-"UPSCALING_MODELS" = "업스케일링 모델";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "최대 이미지 높이";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "최대 이미지 높이 이상의 이미지는 업스케일되지 않습니다.";
-"ENABLED_MODEL" = "활성화된 모델";
-"AVAILABLE_MODELS" = "사용할 수 있는 모델";
-"NO_AVAILABLE_MODELS" = "사용할 수 있는 모델 없음";
-"NO_AVAILABLE_MODELS_TEXT" = "사용할 수 있는 모델을 받아오는 데에 실패했습니다. 네트워크 연결을 확인하고 앱이 최신 버전인지 확인해 주세요.";
-"MODEL_INFO" = "모델 정보";
 "DISABLE_QUICK_ACTIONS" = "빠른 동작 비활성화";
 "TAP_ZONES" = "탭 구역";
 "ZONE_LEFT_RIGHT" = "왼쪽/오른쪽";
@@ -1017,8 +1007,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "설정을 표시할 수 없습니다: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "포함된 5개 모델은 인터넷 없이 설치할 수 있습니다. 모델을 설치한 뒤 ‘활성화된 모델’에서 선택하세요. MangaJaNai는 원본 높이 약 1200px의 흑백 페이지용이며, 컬러 페이지는 원본으로 표시합니다.";
 
 "DOWNLOAD_TRANSLATED" = "번역하며 내려받기";
 
@@ -1029,12 +1017,7 @@
 
 "TRANSLATION_STATE_OFF" = "꺼짐";
 
-// Translation errors and upscaling model descriptions
-"UPSCALE_MODEL_SWINUNET_INFO" = "일러스트용. 원본 선화를 보존합니다. FP32.";
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "컬러 일러스트와 표지용 경량 모델로 세부 묘사를 개선합니다.";
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "일반 이미지와 다양한 화풍용. 선명도를 강하게 높입니다.";
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "애니메이션·만화·컬러 페이지용.";
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "흑백 만화 전용이며, 원본 높이가 약 1200픽셀인 페이지에 맞춰 조정되었습니다. 컬러 페이지는 원본을 유지합니다.";
+// Translation errors
 "TRANSLATION_ERROR_CONFIGURATION" = "번역 설정이 올바르지 않습니다. 서버 주소, 모델 및 기타 설정을 확인하세요.";
 "TRANSLATION_ERROR_REQUEST" = "현재 텍스트, 이미지 또는 언어 설정으로 번역할 수 없습니다.";
 "TRANSLATION_ERROR_RESPONSE" = "번역 서버가 올바르지 않은 응답을 반환했습니다. 다시 시도하거나 모델 설정을 확인하세요.";

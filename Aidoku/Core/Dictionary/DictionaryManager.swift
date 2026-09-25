@@ -35,6 +35,12 @@ class DictionaryManager {
     //    private(set) var collapsedDictionaries: Set<String> = []
     private(set) var isImporting = false
     private(set) var isUpdating = false
+    private var cancelOperation: (@Sendable () -> Void)?
+    private var operationID: UUID?
+
+    /// Explicit cancellation preserves completed imports; an active native import
+    /// drains before cancellation is observed at the next safe stage boundary.
+    func cancelCurrentOperation() { cancelOperation?() }
     var shouldShowError = false
     var errorMessage = ""
     var currentImport = ""
@@ -267,12 +273,15 @@ class DictionaryManager {
               let dictionariesDir = try? Self.getDictionariesDirectory() else { return }
 
         isImporting = true
+        let operationID = UUID()
+        self.operationID = operationID
 
-        await Task.detached {
+        let worker = Task.detached {
             var imported: [String] = []
             var failed: [String] = []
 
             for url in urls {
+                guard !Task.isCancelled else { break }
                 await MainActor.run {
                     self.currentImport = "Importing \(url.lastPathComponent)"
                 }
@@ -290,10 +299,12 @@ class DictionaryManager {
                     try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
                     defer { try? FileManager.default.removeItem(at: tempRoot) }
                     try DictionaryFileOperations.validateArchive(at: url)
+                    try Task.checkCancellation()
                     let importResult = dictionary_importer.import(
                         std.string(url.path(percentEncoded: false)),
                         std.string(tempRoot.path(percentEncoded: false))
                     )
+                    try Task.checkCancellation()
                     guard importResult.success else { throw CocoaError(.fileReadCorruptFile) }
                     let title = String(importResult.title)
                     try DictionaryFileOperations.validateTitle(title)
@@ -305,11 +316,14 @@ class DictionaryManager {
                     if counts.termMeta[std.string("pitch")] != nil || counts.termMeta[std.string("ipa")] != nil { types.append(.pitch) }
                     if counts.kanji.total > 0 { types.append(.kanji) }
                     guard !types.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
+                    try Task.checkCancellation()
                     for type in types {
                         let destination = dictionariesDir.appendingPathComponent(type.rawValue).appendingPathComponent(title)
                         try DictionaryFileOperations.install(from: temp, to: destination)
                     }
                     imported.append(current)
+                } catch is CancellationError {
+                    break
                 } catch {
                     failed.append("\(current): \(error.localizedDescription)")
                 }
@@ -318,27 +332,37 @@ class DictionaryManager {
             await MainActor.run { [imported, failed] in
                 self.isImporting = false
 
+                guard !Task.isCancelled || !imported.isEmpty || !failed.isEmpty else { return }
                 // A multi-category archive may have committed one category before a later failure.
                 self.loadDictionaries()
                 self.saveDictionaryConfig()
                 self.rebuildLookupQuery()
 
+                if Task.isCancelled { return }
                 if imported.isEmpty {
                     self.showError(String(format: NSLocalizedString("DICTIONARY_IMPORT_ERRORS_%@"), failed.joined(separator: "\n")))
                 } else if !failed.isEmpty {
                     self.showError(String(format: NSLocalizedString("DICTIONARY_PARTIAL_IMPORT_ERRORS_%@"), failed.joined(separator: "\n")))
                 }
             }
-        }.value
+        }
+        cancelOperation = { worker.cancel() }
+        defer {
+            if self.operationID == operationID { cancelOperation = nil; self.operationID = nil }
+        }
+        await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
     }
 
     func updateDictionaries(showErrors: Bool = true, session: URLSession = .shared) {
         guard !isImporting, !isUpdating else { return }
         let dictionaries = updatableDictionaries
         isUpdating = true
-        Task.detached {
+        let operationID = UUID()
+        self.operationID = operationID
+        let worker = Task.detached {
             var failures: [String] = []
             for (dictionary, type) in dictionaries {
+                guard !Task.isCancelled else { break }
                 let index = dictionary.index
                 await MainActor.run {
                     self.currentImport = "Checking \(index.title)"
@@ -382,6 +406,8 @@ class DictionaryManager {
                             self.rebuildLookupQuery()
                         }
                     }
+                } catch is CancellationError {
+                    break
                 } catch {
                     failures.append("\(index.title): \(error.localizedDescription)")
                 }
@@ -389,6 +415,8 @@ class DictionaryManager {
 
             await MainActor.run { [failures] in
                 self.isUpdating = false
+                if self.operationID == operationID { self.cancelOperation = nil; self.operationID = nil }
+                guard !Task.isCancelled else { return }
                 if failures.count < dictionaries.count {
                     AppSettings.dictionary.lastUpdate.set(Date.now)
                 }
@@ -397,35 +425,47 @@ class DictionaryManager {
                 }
             }
         }
+        cancelOperation = { worker.cancel() }
     }
 
-    func downloadDictionary(indexUrl: String, type: DictionaryType) async -> Bool {
+    func downloadDictionary(indexUrl: String, type: DictionaryType, session: URLSession = .shared) async -> Bool {
         guard !isImporting, !isUpdating else { return false }
         isImporting = true
+        let operationID = UUID()
+        self.operationID = operationID
 
-        return await Task.detached {
+        let worker = Task.detached {
             var failure: String?
+            var installed = false
 
             do {
-                _ = try await self.importRemoteDictionary(indexUrl: indexUrl, type: type)
+                installed = try await self.importRemoteDictionary(indexUrl: indexUrl, type: type, session: session) != nil
+            } catch is CancellationError {
+                // No error alert for an explicit cancellation.
             } catch {
                 failure = error.localizedDescription
             }
 
-            await MainActor.run { [failure] in
+            await MainActor.run { [failure, installed] in
                 self.isImporting = false
 
-                if let failure {
-                    self.showError(failure)
-                } else {
+                // Reconcile an atomic install that may have committed just before
+                // cancellation. Cancellation suppresses alerts, not committed data.
+                if installed {
                     self.loadDictionaries()
                     self.saveDictionaryConfig()
                     self.rebuildLookupQuery()
                 }
+                if !Task.isCancelled, let failure { self.showError(failure) }
             }
 
-            return failure == nil
-        }.value
+            return failure == nil && !Task.isCancelled
+        }
+        cancelOperation = { worker.cancel() }
+        defer {
+            if self.operationID == operationID { cancelOperation = nil; self.operationID = nil }
+        }
+        return await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
     }
 
     private nonisolated func importRemoteDictionary(
@@ -433,6 +473,7 @@ class DictionaryManager {
         type: DictionaryType,
         session: URLSession = .shared
     ) async throws -> ImportResult? {
+        try Task.checkCancellation()
         let existingIndex: DictionaryIndex? = await Task { @MainActor in
             let targetDictionaries = switch type {
                 case .term: termDictionaries
@@ -443,8 +484,9 @@ class DictionaryManager {
             return targetDictionaries.first(where: { $0.index.indexUrl == indexUrl })?.index
         }.value
 
-        let (data, response) = try await session.data(from: DictionaryFileOperations.remoteURL(indexUrl))
-        try DictionaryFileOperations.validateResponse(response)
+        let data = try await DictionaryFileOperations.boundedData(
+            for: URLRequest(url: DictionaryFileOperations.remoteURL(indexUrl)), session: session, maximumBytes: 16 * 1024 * 1024)
+        try Task.checkCancellation()
         let remoteIndex = try JSONDecoder().decode(DictionaryIndex.self, from: data)
 
         if existingIndex?.revision == remoteIndex.revision {
@@ -477,12 +519,15 @@ class DictionaryManager {
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         tempFiles.append(tempDir)
 
+        try Task.checkCancellation()
         try DictionaryFileOperations.validateArchive(at: temp)
+        try Task.checkCancellation()
         let importResult = dictionary_importer.import(
             std.string(temp.path(percentEncoded: false)),
             std.string(tempDir.path(percentEncoded: false))
         )
 
+        try Task.checkCancellation()
         if !importResult.success {
             throw NSError(
                 domain: Bundle.main.bundleIdentifier ?? "",
@@ -498,6 +543,7 @@ class DictionaryManager {
             .appendingPathComponent(type.rawValue)
             .appendingPathComponent(new)
 
+        try Task.checkCancellation()
         try DictionaryFileOperations.install(from: tempPath, to: destPath)
 
         return importResult

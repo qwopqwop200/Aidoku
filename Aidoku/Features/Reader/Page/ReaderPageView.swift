@@ -40,12 +40,17 @@ class ReaderPageView: UIView {
     private var imageWidthConstraint: NSLayoutConstraint?
     private var imageHeightConstraint: NSLayoutConstraint?
     private var imageTask: ImageTask?
+    private let imageDownloadDemand: ReaderImageDownloadDemand
+    private let imagePipeline: ImagePipeline
     var imageLoadPriority: ImageRequest.Priority = .normal {
-        didSet { imageTask?.priority = imageLoadPriority }
+        didSet {
+            imageTask?.priority = imageLoadPriority
+            imageDownloadDemand.updatePriority(imageLoadPriority)
+        }
     }
     private var imageLoadGeneration = UUID()
     private var lastTranslationLayoutSize = CGSize.zero
-    private static let base64Gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
+    static let base64Gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private var sourceId: String?
     private var shouldShowLiveTextButton = false
     @available(iOS 16.0, *)
@@ -70,8 +75,14 @@ class ReaderPageView: UIView {
     var isTranslationPreload = false
     private var currentImageRequest: ImageRequest?
 
-    init(temporaryPageStore: ReaderTemporaryPageStore) {
+    init(
+        temporaryPageStore: ReaderTemporaryPageStore,
+        imagePipeline: ImagePipeline = .shared,
+        downloadAdmission: BulkDownloadAdmission = .shared
+    ) {
         self.temporaryPageStore = temporaryPageStore
+        self.imagePipeline = imagePipeline
+        self.imageDownloadDemand = ReaderImageDownloadDemand(admission: downloadAdmission)
         super.init(frame: .zero)
         configure()
         constrain()
@@ -193,8 +204,6 @@ extension ReaderPageView {
                 }
                 if UserDefaults.standard.bool(forKey: "Reader.downsampleImages") {
                     processors.append(DownsampleProcessor(width: UIScreen.main.bounds.width))
-                } else if UserDefaults.standard.bool(forKey: "Reader.upscaleImages") {
-                    processors.append(UpscaleProcessor())
                 }
                 guard let processed = try? await Self.processRawImage(image, processors: processors) else { return false }
                 image = processed
@@ -218,9 +227,8 @@ extension ReaderPageView {
         }
     }
 
-    /// Raw source pages bypass Nuke's worker queue. A synchronous processor can
-    /// wait for MainActor (upscaling reads the display scale), so never run it
-    /// on the reader's actor. Share the existing raw-data slot with base64 pages.
+    /// Raw source pages bypass Nuke's worker queue. Keep synchronous image work
+    /// off the reader's actor and share the bounded raw-data slot with base64 pages.
     static func processRawImage(_ image: UIImage, processors: [ImageProcessing]) async throws -> UIImage {
         try Task.checkCancellation()
         guard !processors.isEmpty else { return image }
@@ -278,8 +286,6 @@ extension ReaderPageView {
         }
         if UserDefaults.standard.bool(forKey: "Reader.downsampleImages") {
             processors.append(DownsampleProcessor(width: UIScreen.main.bounds.width))
-        } else if UserDefaults.standard.bool(forKey: "Reader.upscaleImages") {
-            processors.append(UpscaleProcessor())
         }
 
         return ImageRequest(
@@ -317,7 +323,11 @@ extension ReaderPageView {
         let issued = imageLoadGeneration
         var request = request
         request.priority = imageLoadPriority
-        let loading = ImagePipeline.shared.loadImage(
+        let demand = await imageDownloadDemand.start(request: request, pipeline: imagePipeline, priority: imageLoadPriority)
+        defer { imageDownloadDemand.end(demand) }
+        guard !Task.isCancelled, imageLoadGeneration == issued else { return false }
+        request.priority = imageLoadPriority
+        let loading = imagePipeline.loadImage(
             with: request,
             progress: { [weak self] _, completed, total in
                 guard let self, self.imageLoadGeneration == issued else { return }
@@ -337,9 +347,11 @@ extension ReaderPageView {
             let response = try await withTaskCancellationHandler {
                 try await loading.response
             } onCancel: { loading.cancel() }
+            imageDownloadDemand.end(demand)
             guard !Task.isCancelled, imageLoadGeneration == issued else { return false }
             return await prepareAndDisplayImage(response.image, gifData: response.container.type == .gif ? response.container.data : nil)
         } catch {
+            imageDownloadDemand.end(demand)
             guard !Task.isCancelled, imageLoadGeneration == issued else { return false }
             // we can still send to image processor even if the request failed
             if request.userInfo[.processesKey] as? Bool == true {
@@ -372,7 +384,16 @@ extension ReaderPageView {
             self.textView = nil
         }
 
-        let fullKey = "\(key)-\(ImageProcessingSettingsKey.getProcessorSettingsKey())"
+        let issued = imageLoadGeneration
+        let shouldCropBorders = UserDefaults.standard.bool(forKey: "Reader.cropBorders")
+        let shouldDownsample = UserDefaults.standard.bool(forKey: "Reader.downsampleImages")
+        let downsampleWidth = UIScreen.main.bounds.width
+        let settingsKey = "crop:\(shouldCropBorders)-downsample:\(shouldDownsample)"
+            + (shouldDownsample ? "-width:\(downsampleWidth)" : "")
+        let fullKey = await Task.detached {
+            ReaderImageContentIdentity.base64Key(base64, processorSettingsKey: settingsKey)
+        }.value
+        guard !Task.isCancelled, imageLoadGeneration == issued else { return false }
         let request = ImageRequest(id: fullKey, data: { Data() })
 
         // Store current image request for reload functionality
@@ -380,18 +401,22 @@ extension ReaderPageView {
 
         progressView.setProgress(value: 0, withAnimation: false)
         progressView.isHidden = false
-        let issued = imageLoadGeneration
         defer { if imageLoadGeneration == issued { progressView.isHidden = true } }
 
-        if ImagePipeline.shared.cache.containsCachedImage(for: request) {
-            let imageContainer = ImagePipeline.shared.cache.cachedImage(for: request)
-            return await prepareAndDisplayImage(imageContainer?.image)
+        if let cached = imagePipeline.cache.cachedImage(for: request, caches: .memory) {
+            return await prepareAndDisplayImage(cached.image)
         }
 
+        let pipeline = imagePipeline
         let gate = Self.base64Gate
         let processing = Task.detached { () throws -> UIImage? in
             try await gate.withPermit {
             try Task.checkCancellation()
+            // Disk decoding and cache encoding are synchronous Nuke APIs. Keep
+            // both inside the bounded worker, and recover from corrupt entries.
+            if let cached = pipeline.cache.cachedImage(for: request, caches: .disk) {
+                return cached.image
+            }
             guard
                 let imageData = Data(base64Encoded: base64),
                 var image = UIImage(data: imageData)
@@ -399,34 +424,28 @@ extension ReaderPageView {
                 return nil
             }
 
-            if UserDefaults.standard.bool(forKey: "Reader.cropBorders") {
+            if shouldCropBorders {
                 let processor = CropBordersProcessor()
                 if let processedImage = processor.process(image) {
                     image = processedImage
                 }
             }
-            if UserDefaults.standard.bool(forKey: "Reader.downsampleImages") {
-                let processor = await DownsampleProcessor(width: UIScreen.main.bounds.width)
-                if let processedImage = processor.process(image) {
-                    image = processedImage
-                }
-            } else if UserDefaults.standard.bool(forKey: "Reader.upscaleImages") {
-                let processor = UpscaleProcessor()
+            if shouldDownsample {
+                let processor = await DownsampleProcessor(width: downsampleWidth)
                 if let processedImage = processor.process(image) {
                     image = processedImage
                 }
             }
 
             try Task.checkCancellation()
+            pipeline.cache.storeCachedImage(ImageContainer(image: image), for: request)
             return image
             }
         }
         let image = try? await withTaskCancellationHandler {
             try await processing.value
         } onCancel: { processing.cancel() }
-        guard !Task.isCancelled, let image else { return false }
-
-        ImagePipeline.shared.cache.storeCachedImage(ImageContainer(image: image), for: request)
+        guard !Task.isCancelled, imageLoadGeneration == issued, let image else { return false }
         return await prepareAndDisplayImage(image)
     }
 
@@ -600,6 +619,7 @@ extension ReaderPageView {
     }
 
     func releasePageResources() {
+        imageDownloadDemand.end()
         imageLoadGeneration = UUID()
         pageLoadTask?.cancel()
         pageLoadTask = nil
@@ -618,6 +638,7 @@ extension ReaderPageView {
     }
 
     func cancelTranslationPreload() {
+        imageDownloadDemand.end()
         pageLoadTask?.cancel()
         imageTask?.cancel()
         translationPage.cancel()
@@ -763,32 +784,8 @@ extension ReaderPageView {
 
     /// Clears the cache entry for the current image
     private func clearCurrentImageCache() {
-        guard let currentPage else { return }
-
-        let settingsKey = ImageProcessingSettingsKey.getProcessorSettingsKey()
-        // Handle different image types
-        if currentPage.imageURL != nil {
-            // For URL-based images, use the stored request if available
-            if let currentImageRequest {
-                ImagePipeline.shared.cache.removeCachedImage(for: currentImageRequest)
-            }
-        }
-        if currentPage.base64 != nil {
-            // For base64 images
-            let fullKey = "\(currentPage.hashValue)-\(settingsKey)"
-            let request = ImageRequest(id: fullKey, data: { Data() })
-            ImagePipeline.shared.cache.removeCachedImage(for: request)
-        }
-        if let zipURL = currentPage.zipURL, let url = URL(string: zipURL), let filePath = currentPage.imageURL {
-            // For zip file images
-            var hasher = Hasher()
-            hasher.combine(url)
-            hasher.combine(filePath)
-            let key = String(hasher.finalize())
-            let fullKey = "\(key)-\(settingsKey)"
-            let request = ImageRequest(id: fullKey, data: { Data() })
-            ImagePipeline.shared.cache.removeCachedImage(for: request)
-        }
+        guard let currentImageRequest else { return }
+        ReaderImageDownloadCache.removeCachedImageAndOriginal(for: currentImageRequest, pipeline: imagePipeline)
     }
 
     /// Splits the current image into left and right halves

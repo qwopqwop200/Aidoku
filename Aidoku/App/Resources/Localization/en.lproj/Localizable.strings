@@ -544,16 +544,6 @@
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "You currently have a legacy source list configured. This format is outdated and will stop working in a future version of Aidoku. While it will still work for now, it is recommended that you find a replacement and configure it in Settings > Source Lists.";
 
 // Upscaling
-"UPSCALING" = "Upscaling";
-"UPSCALE_IMAGES" = "Upscale Images";
-"UPSCALING_MODELS" = "Upscaling Models";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Maximum Image Height";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Images at or above the maximum image height won't be upscaled.";
-"ENABLED_MODEL" = "Enabled Model";
-"AVAILABLE_MODELS" = "Available Models";
-"NO_AVAILABLE_MODELS" = "No Available Models";
-"NO_AVAILABLE_MODELS_TEXT" = "Failed to fetch available models. Check your network connection and ensure your app is running the latest version.";
-"MODEL_INFO" = "Model Info";
 "LOCK_HISTORY_TAB" = "Lock History Tab";
 
 // Reader Settings
@@ -1057,8 +1047,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Unable to display setting: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Five included models can be installed offline. Install a model, then tap it in Enabled Model. MangaJaNai is for black-and-white pages around 1200 pixels tall; color pages stay unchanged.";
 
 "DOWNLOAD_TRANSLATED" = "Download with Translation";
 
@@ -1069,15 +1057,10 @@
 
 "TRANSLATION_STATE_OFF" = "Off";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "Illustrations; preserves original linework. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Color illustrations and covers; lightweight detail model.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "General images and mixed artwork; stronger sharpening.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga and color pages.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Black-and-white manga only, tuned for original pages about 1200 pixels tall. Color pages are left unchanged.";
 
 // Localized OCR and translation errors
 "TRANSLATION_ERROR_CONFIGURATION" = "The translation settings are invalid. Check the server URL, model, and other settings.";

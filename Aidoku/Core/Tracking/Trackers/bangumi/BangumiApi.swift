@@ -43,12 +43,12 @@ actor BangumiApi {
         ]
         request.httpBody = body.percentEncoded()
 
+        let issued = await oauth.beginAuthentication()
         let response: OAuthResponse? = try? await URLSession.shared.object(from: request)
-        if let response { await oauth.setTokens(response) }
-        return response
+        return await oauth.commitAuthentication(response, generation: issued)
     }
 
-    func refreshAccessToken() async -> OAuthResponse? {
+    func refreshAccessToken(replacingAuthorization: String? = nil) async -> OAuthResponse? {
         guard let refreshToken = await oauth.tokens?.refreshToken else { return nil }
 
         guard let url = URL(string: oauth.baseUrl + "/access_token") else { return nil }
@@ -66,9 +66,10 @@ actor BangumiApi {
         ]
         request.httpBody = body.percentEncoded()
 
-        let response: OAuthResponse? = try? await URLSession.shared.object(from: request)
-        if let response { await oauth.setTokens(response) }
-        return response
+        let refreshRequest = request
+        return await oauth.refreshTokens(replacingAuthorization: replacingAuthorization) {
+            try? await URLSession.shared.object(from: refreshRequest)
+        }
     }
 }
 
@@ -159,7 +160,11 @@ extension BangumiApi {
     }
 
     private func requestData(urlRequest: URLRequest) async throws -> (Data, URLResponse) {
+        let currentGeneration = await oauth.accountGeneration
+        let issued = OAuthClient.generation(for: urlRequest) ?? currentGeneration
+        guard currentGeneration == issued else { throw CancellationError() }
         var (data, response) = try await URLSession.shared.data(for: urlRequest)
+        guard await oauth.accountGeneration == issued else { throw CancellationError() }
         let statusCode = (response as? HTTPURLResponse)?.statusCode
 
         if await oauth.tokens == nil {
@@ -167,9 +172,11 @@ extension BangumiApi {
         }
 
         let tokenExpired = await oauth.tokens?.expired == true
+        guard await oauth.accountGeneration == issued else { throw CancellationError() }
 
-        // Check if token expired (401 Unauthorized)
-        if statusCode == 401 || statusCode == 40101 || statusCode == 40102 || tokenExpired {
+        let succeeded = statusCode.map { (200..<300).contains($0) } ?? false
+        // A successful mutation must not be repeated due to local expiry.
+        if statusCode == 401 || statusCode == 40101 || statusCode == 40102 || (tokenExpired && !succeeded) {
             // ensure we have a refresh token, otherwise we need to fully re-auth
             let reloginNeeded = await oauth.checkIfReloginNeeded(trackerName: "Bangumi")
             guard !reloginNeeded else {
@@ -177,12 +184,13 @@ extension BangumiApi {
             }
 
             // Try to refresh token and retry request
-            guard await refreshAccessToken() != nil else {
+            guard await refreshAccessToken(replacingAuthorization: urlRequest.value(forHTTPHeaderField: "Authorization")) != nil else {
                 return (data, response)
             }
 
             // Retry the original request with refreshed token
             if let newAuthorization = await oauth.authorizedRequest(for: urlRequest.url!).value(forHTTPHeaderField: "Authorization") {
+                guard await oauth.accountGeneration == issued else { throw CancellationError() }
                 var newRequest = urlRequest
                 newRequest.setValue(newAuthorization, forHTTPHeaderField: "Authorization")
                 newRequest.setValue(userAgent, forHTTPHeaderField: "User-Agent")
@@ -190,6 +198,7 @@ extension BangumiApi {
             }
         }
 
+        guard await oauth.accountGeneration == issued else { throw CancellationError() }
         return (data, response)
     }
 

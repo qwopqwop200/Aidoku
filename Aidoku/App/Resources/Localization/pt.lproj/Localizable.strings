@@ -418,10 +418,6 @@
 "EMAIL" = "E-mail";
 "PASSWORD" = "Palavra-passe";
 "COPY_URL" = "Copiar URL";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Altura máxima da imagem";
-"ENABLED_MODEL" = "Modelo ativado";
-"AVAILABLE_MODELS" = "Modelos disponíveis";
-"NO_AVAILABLE_MODELS" = "Nenhuns modelos disponíveis";
 "ZONE_KINDLE" = "Kindle";
 "DISABLED" = "Desativado";
 "TRACK_COMPLETED" = "Completo";
@@ -912,12 +908,6 @@
 "LEGACY_SOURCE_LIST" = "Lista de fontes em formato antigo";
 "LEGACY_SOURCE_LIST_WARNING" = "Aviso: lista de fontes em formato antigo";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Tem configurada uma lista de fontes num formato antigo. Este formato está desatualizado e deixará de funcionar numa versão futura do Aidoku. Embora ainda funcione, recomenda-se que encontre uma alternativa e a configure em Configurações > Listas de Fontes.";
-"UPSCALING" = "Aumento de escala";
-"UPSCALE_IMAGES" = "Aumentar a resolução das imagens";
-"UPSCALING_MODELS" = "Modelos de upscaling";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "As imagens cuja altura seja igual ou superior ao limite máximo não terão a resolução aumentada.";
-"NO_AVAILABLE_MODELS_TEXT" = "Não foi possível obter os modelos disponíveis. Verifique a ligação à rede e certifique-se de que a aplicação está atualizada.";
-"MODEL_INFO" = "Informações do modelo";
 "DISABLE_QUICK_ACTIONS" = "Desabilitar ações rápidas";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Desativar zoom com toque duplo";
 "LIVE_TEXT" = "Texto ao vivo";
@@ -1085,8 +1075,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Não é possível exibir a configuração: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Os cinco modelos incluídos podem ser instalados sem ligação à Internet. Instale um modelo e selecione-o em «Modelo ativado». O MangaJaNai destina-se a páginas a preto e branco com cerca de 1200 píxeis de altura; as páginas a cores permanecem inalteradas.";
 
 "DOWNLOAD_TRANSLATED" = "Descarregar com tradução";
 
@@ -1095,11 +1083,6 @@
 
 "TRANSLATION_STATE_ON" = "Ativada";
 "TRANSLATION_STATE_OFF" = "Desativada";
-"UPSCALE_MODEL_SWINUNET_INFO" = "Ilustrações; preserva o traço original. FP32.";
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Ilustrações e capas a cores; modelo leve para os detalhes.";
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Imagens gerais e ilustrações de estilos variados; reforço da nitidez.";
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga e páginas a cores.";
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Apenas manga a preto e branco, otimizado para páginas originais com cerca de 1200 píxeis de altura. As páginas a cores permanecem inalteradas.";
 "TRANSLATION_ERROR_CONFIGURATION" = "As definições de tradução são inválidas. Verifique o URL do servidor, o modelo e as restantes definições.";
 "TRANSLATION_ERROR_REQUEST" = "Não foi possível utilizar o texto, a imagem ou as definições de idioma para a tradução.";
 "TRANSLATION_ERROR_RESPONSE" = "O servidor de tradução devolveu uma resposta inválida. Tente novamente ou verifique as definições do modelo.";

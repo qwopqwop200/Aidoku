@@ -115,14 +115,10 @@ final class MangaBakaTracker: OAuthTracker {
 
     func handleAuthenticationCallback(url: URL) async {
         if let authCode = url.queryParameters?["code"] {
-            guard let oauth = await api.oauth.getAccessToken(
+            _ = await api.oauth.getAccessToken(
                 authCode: authCode,
                 redirectUri: "aidoku://\(callbackHost)"
-            ) else {
-                return
-            }
-            token = oauth.accessToken
-            UserDefaults.standard.set(try? JSONEncoder().encode(oauth), forKey: "Tracker.\(id).oauth")
+            )
         }
     }
 }

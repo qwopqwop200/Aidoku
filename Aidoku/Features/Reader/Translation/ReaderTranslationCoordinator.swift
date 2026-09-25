@@ -183,6 +183,16 @@ final class ReaderTranslationCoordinator {
             Task { @MainActor [weak self] in
                 guard let self, isVisible, !isScrubbing else { return }
                 self.layoutPreparer.sourceDidLoad(source.image, page: source.page)
+                // A delayed backing view may replace the page object captured
+                // when translation started. Refresh the actual viewport before
+                // delivering readiness to the session's completed-result path.
+                if let owner = self.owner {
+                    let visible = owner.translationVisiblePages
+                    if visible.contains(where: { $0.sourcePage?.translationCacheKey == source.page.translationCacheKey }) {
+                        self.session.refreshVisiblePages(visible,
+                            previews: self.readSettings().automaticallyTranslate ? owner.translationPreviewPages : [])
+                    }
+                }
                 self.session.sourceImageDidLoad(source.page)
             }
         })
@@ -404,7 +414,7 @@ final class ReaderTranslationCoordinator {
             let pages = owner.translationUpcomingPages
             let index = owner.translationCurrentPageIndex
             let destination = pages.indices.contains(index) ? pages[index] : nil
-            session.pauseForPageTurn(preservingRecognitionFor: destination)
+            session.pauseForPageTurn(preservingRecognitionFor: destination, visiblePages: owner.translationVisiblePages)
             synchronizationTask?.cancel()
             synchronizationTask = nil
         }

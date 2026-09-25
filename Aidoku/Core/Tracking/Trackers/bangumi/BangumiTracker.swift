@@ -135,11 +135,7 @@ final class BangumiTracker: OAuthTracker {
     func handleAuthenticationCallback(url: URL) async {
         guard let code = url.queryParameters?["code"] else { return }
 
-        let oauth = await api.getAccessToken(authCode: code)
-        if let oauth = oauth {
-            token = oauth.accessToken
-            UserDefaults.standard.set(try? JSONEncoder().encode(oauth), forKey: "Tracker.\(id).oauth")
-        }
+        _ = await api.getAccessToken(authCode: code)
     }
 }
 

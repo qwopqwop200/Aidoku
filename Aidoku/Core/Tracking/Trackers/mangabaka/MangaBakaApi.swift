@@ -21,7 +21,7 @@ actor MangaBakaApi {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-    private func refreshAccessToken() async -> OAuthResponse? {
+    private func refreshAccessToken(replacingAuthorization: String? = nil) async -> OAuthResponse? {
         guard let refreshToken = await oauth.tokens?.refreshToken else { return nil }
 
         guard let url = URL(string: oauth.baseUrl + "/token") else { return nil }
@@ -33,13 +33,18 @@ actor MangaBakaApi {
             "grant_type": "refresh_token",
             "redirect_uri": "aidoku://mangabaka-auth"
         ].percentEncoded()
-        let response: OAuthResponse? = try? await URLSession.shared.object(from: request)
-        if let response { await oauth.setTokens(response) }
-        return response
+        let refreshRequest = request
+        return await oauth.refreshTokens(replacingAuthorization: replacingAuthorization) {
+            try? await URLSession.shared.object(from: refreshRequest)
+        }
     }
 
     private func requestData(urlRequest: URLRequest) async throws -> Data {
+        let currentGeneration = await oauth.accountGeneration
+        let issued = OAuthClient.generation(for: urlRequest) ?? currentGeneration
+        guard currentGeneration == issued else { throw CancellationError() }
         var (data, response) = try await URLSession.shared.data(for: urlRequest)
+        guard await oauth.accountGeneration == issued else { throw CancellationError() }
         let statusCode = (response as? HTTPURLResponse)?.statusCode
 
         if await oauth.tokens == nil {
@@ -47,6 +52,7 @@ actor MangaBakaApi {
         }
 
         let tokenExpired = await oauth.tokens?.expired == true
+        guard await oauth.accountGeneration == issued else { throw CancellationError() }
 
         // check if token expired
         // A successful mutation must not be repeated merely because local expiry elapsed.
@@ -59,11 +65,12 @@ actor MangaBakaApi {
             }
 
             // refresh access token
-            if await refreshAccessToken() != nil {
+            if await refreshAccessToken(replacingAuthorization: urlRequest.value(forHTTPHeaderField: "Authorization")) != nil {
                 // try request again with refreshed token
                 let newAuthorization = await oauth.authorizedRequest(for: URL(string: oauth.baseUrl + "/token")!)
                     .value(forHTTPHeaderField: "Authorization")
                 if let newAuthorization {
+                    guard await oauth.accountGeneration == issued else { throw CancellationError() }
                     var newRequest = urlRequest
                     newRequest.setValue(newAuthorization, forHTTPHeaderField: "Authorization")
                     (data, response) = try await URLSession.shared.data(for: newRequest)
@@ -71,6 +78,7 @@ actor MangaBakaApi {
             }
         }
 
+        guard await oauth.accountGeneration == issued else { throw CancellationError() }
         guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) else {
             throw URLError(.badServerResponse)
         }

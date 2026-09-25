@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct OAuthResponse {
+struct OAuthResponse: Sendable, Equatable {
     var tokenType: String?
     var refreshToken: String?
     var accessToken: String?

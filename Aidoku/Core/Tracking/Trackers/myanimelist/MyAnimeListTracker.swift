@@ -104,9 +104,7 @@ final class MyAnimeListTracker: OAuthTracker {
 
     func handleAuthenticationCallback(url: URL) async {
         if let authCode = url.queryParameters?["code"] {
-            guard let oauth = await api.oauth.getAccessToken(authCode: authCode) else { return }
-            token = oauth.accessToken
-            UserDefaults.standard.set(try? JSONEncoder().encode(oauth), forKey: "Tracker.\(id).oauth")
+            _ = await api.oauth.getAccessToken(authCode: authCode)
         }
     }
 }

@@ -26,6 +26,7 @@ struct MigrateResultsView: View {
     @State private var showingConfirmAlert = false
     @State private var migratedManga: [MangaIdentifier: AidokuRunner.Manga?] = [:]
     @State private var newChapters: [MangaIdentifier: [AidokuRunner.Chapter]] = [:]
+    @State private var matchingDemand: [MangaIdentifier: MigrationRowDemand] = [:]
     @State private var states: [MangaIdentifier: MigrationState] = [:]
 
     @EnvironmentObject private var path: NavigationCoordinator
@@ -117,6 +118,7 @@ extension MigrateResultsView {
     func remove(manga: AidokuRunner.Manga) {
         selectedSeries.removeAll { $0.identifier == manga.identifier }
         let key = manga.identifier
+        matchingDemand[key]?.revoke()
         newChapters.removeValue(forKey: key)
         migratedManga.removeValue(forKey: key)
         states.removeValue(forKey: key)
@@ -126,6 +128,8 @@ extension MigrateResultsView {
         .init(
             get: { self.migratedManga[key, default: nil] },
             set: {
+                self.matchingDemand[key]?.revoke()
+                self.states[key] = $0 == nil ? .idle : .done
                 self.migratedManga[key] = $0
                 self.newChapters.removeValue(forKey: key)
             }
@@ -147,48 +151,45 @@ extension MigrateResultsView {
         // Row removal must not shift the cursor over work that has not started.
         let matchingSeries = selectedSeries
         matchingSeries.forEach {
+            matchingDemand[$0.identifier]?.revoke()
+            matchingDemand[$0.identifier] = MigrationRowDemand()
             states[$0.identifier] = .running
         }
 
         // sources freeze if we run too many tasks concurrently, so we limit it
         let maxConcurrentTasks = 3
 
-        nonisolated func search(for manga: AidokuRunner.Manga) async -> (MangaIdentifier, AidokuRunner.Manga?) {
-            // check sources until a manga is found
-            for source in targetSources {
-                let search = try? await source.getSearchMangaList(query: manga.title, page: 1, filters: [])
-                if let newManga = search?.entries.first {
-                    return (manga.identifier, newManga)
-                }
-            }
-            // didn't find a manga in any of the sources
-            return (manga.identifier, nil)
+        nonisolated func search(for manga: AidokuRunner.Manga, demand: MigrationRowDemand) async -> (MangaIdentifier, AidokuRunner.Manga?) {
+            let match = await MigrationMatchSearch.firstMatch(for: manga, sources: targetSources, isNeeded: { demand.isActive })
+            return (manga.identifier, match)
         }
 
         await withTaskGroup(of: (MangaIdentifier, AidokuRunner.Manga?).self) { group in
             // add the initial tasks to the group
             for i in 0..<min(matchingSeries.count, maxConcurrentTasks) {
                 let manga = matchingSeries[i]
+                guard let demand = matchingDemand[manga.identifier], demand.isActive else { continue }
                 group.addTask {
-                    await search(for: manga)
+                    await search(for: manga, demand: demand)
                 }
             }
 
             var index = maxConcurrentTasks
             while let (key, result) = await group.next() {
-                if index < matchingSeries.count {
-                    // once a task completes, we can start a new one if there are still series left
+                guard !Task.isCancelled else { group.cancelAll(); break }
+                while index < matchingSeries.count {
                     let manga = matchingSeries[index]
-                    group.addTask {
-                        await search(for: manga)
-                    }
                     index += 1
+                    guard let demand = matchingDemand[manga.identifier], demand.isActive else { continue }
+                    group.addTask { await search(for: manga, demand: demand) }
+                    break
                 }
 
                 guard !Task.isCancelled else { group.cancelAll(); break }
-                guard selectedSeries.contains(where: { $0.identifier == key }) else { continue }
+                guard matchingDemand[key]?.isActive == true, selectedSeries.contains(where: { $0.identifier == key }) else { continue }
                 // handle result
                 await MainActor.run {
+                    guard matchingDemand[key]?.isActive == true, selectedSeries.contains(where: { $0.identifier == key }) else { return }
                     if let result {
                         withAnimation {
                             migratedManga[key] = result

@@ -44,10 +44,13 @@ final class TranslationImageWorkBudget: Sendable {
         purgeCaches: @Sendable () async -> Void,
         purgeModels: @Sendable () async -> Void
     ) async -> Bool {
+        // Another worker may have released its images after this caller failed
+        // admission. Avoid evicting warm reader resources once pressure passed.
+        guard !Task.isCancelled, availableMemory() < requiredHeadroom else { return false }
         ReaderTranslationDiagnostics.record("memory_reclaim_begin")
         defer { ReaderTranslationDiagnostics.record("memory_reclaim_end") }
         await purgeCaches()
-        guard availableMemory() < requiredHeadroom else { return false }
+        guard !Task.isCancelled, availableMemory() < requiredHeadroom else { return false }
         await purgeModels()
         return true
     }
@@ -90,10 +93,15 @@ final class TranslationImageWorkBudget: Sendable {
                     return try await operation()
                 }
             } catch AdmissionError.insufficientMemory {
+                try Task.checkCancellation()
                 // Caches go first; OCR models only once caches alone were insufficient.
                 if !purgedModels {
                     purgedModels = await Self.reclaimIdleResources(requiredHeadroom: required, availableMemory: availableMemory)
                 }
+                try Task.checkCancellation()
+                // Successful reclamation need not add a fixed 250 ms to the
+                // visible page. Re-enter the priority-aware gate, never bypass it.
+                if availableMemory() >= required { continue }
                 // Release admission before waiting so a background download
                 // cannot hold the foreground reader's slot during pressure.
                 try await Task.sleep(nanoseconds: 250_000_000)

@@ -533,10 +533,6 @@
 "UNAVAILABLE_SOURCE_LISTS" = "รายการแหล่งที่มาที่ไม่พร้อมใช้งาน";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "เกิดข้อผิดพลาดขณะดึงรายการแหล่งที่มาข้างต้น";
 "COPY_URL" = "คัดลอก URL";
-"UPSCALING" = "การเพิ่มความละเอียดภาพ";
-"UPSCALE_IMAGES" = "เพิ่มความละเอียดภาพ";
-"UPSCALING_MODELS" = "โมเดลเพิ่มความละเอียดภาพ";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "ความสูงของภาพมากสุด";
 "COMIC" = "การ์ตูน";
 "BOOK" = "หนังสือ";
 "TITLE_DISPLAY_MODE" = "โหมดการแสดงชื่อเรื่อง";
@@ -580,12 +576,6 @@
 "%i_PAGES" = "%i หน้า";
 "1_PAGE" = "1 หน้า";
 "CBZ_NAME" = "คลังไฟล์ Zip หนังสือการ์ตูน";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "รูปภาพที่มีความสูงเท่ากับหรือเกินขีดจำกัดสูงสุดจะไม่ถูกเพิ่มความละเอียด";
-"ENABLED_MODEL" = "โมเดลที่เปิดใช้งาน";
-"AVAILABLE_MODELS" = "โมเดลที่มี";
-"NO_AVAILABLE_MODELS" = "ไม่พบโมเดล";
-"NO_AVAILABLE_MODELS_TEXT" = "ไม่สามารถดึงข้อมูลโมเดลที่มีได้ ตรวจสอบการเชื่อมต่อเครือข่ายและตรวจสอบว่าแอปเป็นเวอร์ชันล่าสุด";
-"MODEL_INFO" = "ข้อมูลโมเดล";
 "DISABLE_QUICK_ACTIONS" = "ปิดการใช้งาน Quick Actions";
 "TAP_ZONES" = "โซนการแตะ";
 "ZONE_LEFT_RIGHT" = "ซ้ายและขวา";
@@ -1087,8 +1077,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "ไม่สามารถแสดงการตั้งค่าได้: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "ติดตั้งโมเดลที่ให้มาทั้งห้าแบบออฟไลน์ได้ เมื่อติดตั้งแล้ว ให้แตะเลือกในโมเดลที่เปิดใช้งาน MangaJaNai ใช้กับหน้าขาวดำที่สูงประมาณ 1200 พิกเซล โดยไม่เปลี่ยนแปลงหน้าสี";
 
 "DOWNLOAD_TRANSLATED" = "ดาวน์โหลดพร้อมคำแปล";
 
@@ -1099,15 +1087,10 @@
 
 "TRANSLATION_STATE_OFF" = "ปิด";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "ภาพประกอบ โดยคงลายเส้นต้นฉบับ FP32";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "ภาพประกอบสีและภาพปก ใช้โมเดลขนาดเล็กที่เน้นรายละเอียด";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "ภาพทั่วไปและงานศิลป์หลากหลายรูปแบบ เพิ่มความคมชัดได้มากขึ้น";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "อนิเมะ มังงะ และหน้าสี";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "สำหรับมังงะขาวดำเท่านั้น ปรับให้เหมาะกับหน้าต้นฉบับที่สูงประมาณ 1200 พิกเซล หน้าสีจะคงเดิม";
 
 "TRANSLATION_ERROR_CONFIGURATION" = "การตั้งค่าการแปลไม่ถูกต้อง ตรวจสอบ URL เซิร์ฟเวอร์ โมเดล และการตั้งค่าอื่นๆ";
 

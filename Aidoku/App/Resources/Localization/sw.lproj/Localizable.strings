@@ -727,16 +727,6 @@
 "LEGACY_SOURCE_LIST" = "Orodha ya Vyanzo ya Muundo wa Zamani";
 "LEGACY_SOURCE_LIST_WARNING" = "Onyo: Orodha ya Vyanzo ya Muundo wa Zamani";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Kwa sasa una orodha ya vyanzo ya muundo wa zamani iliyosanidiwa. Umbizo hili limepitwa na wakati na litaacha kufanya kazi katika toleo la baadaye la Aidoku. Ingawa bado itafanya kazi kwa sasa, inashauriwa utafute mbadala na uisanidi katika Mipangilio > Orodha za Chanzo.";
-"UPSCALING" = "Kuongeza Azimio";
-"UPSCALE_IMAGES" = "Ongeza Azimio la Picha";
-"UPSCALING_MODELS" = "Modeli za Kuongeza Azimio";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Urefu wa Juu wa Picha";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Picha zenye urefu unaolingana na au kuzidi kikomo cha juu hazitaongezwa azimio.";
-"ENABLED_MODEL" = "Modeli Iliyowezeshwa";
-"AVAILABLE_MODELS" = "Modeli Zinazopatikana";
-"NO_AVAILABLE_MODELS" = "Hakuna Modeli Zinazopatikana";
-"NO_AVAILABLE_MODELS_TEXT" = "Imeshindwa kupata modeli zinazopatikana. Angalia muunganisho wako wa mtandao na uhakikishe kuwa programu yako inatumia toleo jipya zaidi.";
-"MODEL_INFO" = "Maelezo ya Modeli";
 "LOCK_HISTORY_TAB" = "Funga Kichupo cha Historia";
 "DOWNSAMPLE_IMAGES" = "Punguza Azimio la Picha";
 "CROP_BORDERS" = "Kata Kingo";
@@ -1065,8 +1055,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Haiwezi kuonyesha mpangilio: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Modeli tano zilizojumuishwa zinaweza kusakinishwa nje ya mtandao. Sakinisha modeli, kisha uiguse katika Modeli Iliyowezeshwa. MangaJaNai ni ya kurasa nyeusi na nyeupe zenye urefu wa karibu pikseli 1200; kurasa za rangi hubaki bila kubadilika.";
 
 "DOWNLOAD_TRANSLATED" = "Pakua pamoja na tafsiri";
 
@@ -1076,15 +1064,10 @@
 "TRANSLATION_STATE_ON" = "Imewashwa";
 "TRANSLATION_STATE_OFF" = "Imezimwa";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "Michoro; huhifadhi mistari asilia. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Michoro ya rangi na majalada; modeli nyepesi ya kuboresha maelezo madogo.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Picha za kawaida na michoro ya mitindo mbalimbali; huongeza ukali wa picha zaidi.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga na kurasa za rangi.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Manga nyeusi na nyeupe pekee, imerekebishwa kwa kurasa asilia zenye urefu wa karibu pikseli 1200. Kurasa za rangi huachwa bila kubadilika.";
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Mipangilio ya tafsiri si halali. Angalia URL ya seva, modeli na mipangilio mingine.";
 

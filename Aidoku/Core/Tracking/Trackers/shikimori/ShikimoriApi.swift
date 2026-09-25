@@ -38,12 +38,12 @@ extension ShikimoriApi {
             "scope": "users_rate",
             "code": authCode
         ], boundary: boundary)
+        let issued = await oauth.beginAuthentication()
         let response: OAuthResponse? = try? await URLSession.shared.object(from: request)
-        if let response { await oauth.setTokens(response) }
-        return response
+        return await oauth.commitAuthentication(response, generation: issued)
     }
 
-    func refreshAccessToken() async -> OAuthResponse? {
+    func refreshAccessToken(replacingAuthorization: String? = nil) async -> OAuthResponse? {
         guard let refreshToken = await oauth.tokens?.refreshToken else { return nil }
 
         guard let url = URL(string: oauth.baseUrl + "/oauth/token") else { return nil }
@@ -58,9 +58,10 @@ extension ShikimoriApi {
             "refresh_token": refreshToken,
             "grant_type": "refresh_token"
         ], boundary: boundary)
-        let response: OAuthResponse? = try? await URLSession.shared.object(from: request)
-        if let response { await oauth.setTokens(response) }
-        return response
+        let refreshRequest = request
+        return await oauth.refreshTokens(replacingAuthorization: replacingAuthorization) {
+            try? await URLSession.shared.object(from: refreshRequest)
+        }
     }
 
     // MARK: API Methods - Data
@@ -78,6 +79,8 @@ extension ShikimoriApi {
     }
 
     func register(trackId: String, highestChapterRead: Float?, earliestReadDate: Date?) async -> String? {
+        guard let baseURL = URL(string: oauth.baseUrl) else { return nil }
+        let issued = OAuthClient.generation(for: await authorizedRequest(for: baseURL))
         var query: [String: String] = [:]
         query["user_rate[user_id]"] = await getUser()
         query["user_rate[target_id]"] = trackId
@@ -91,6 +94,7 @@ extension ShikimoriApi {
         url.queryParameters = query
         var request = await authorizedRequest(for: url)
         request.httpMethod = "POST"
+        guard OAuthClient.generation(for: request) == issued else { return nil }
 
         guard
             let data = try? await requestData(urlRequest: request),
@@ -195,19 +199,13 @@ private extension ShikimoriApi {
     }
 
     func getUser() async -> String? {
-        let key: String = "Tracker.\(oauth.id).user_id"
-        if UserDefaults.standard.string(forKey: key) == nil {
-            guard
-                let url = URL(string: oauth.baseUrl + "/api/users/whoami"),
-                let data = try? await requestData(urlRequest: authorizedRequest(for: url)),
-                let resp = try? decoder.decode(ShikimoriUser.self, from: data)
-            else {
-                return nil
-            }
-            UserDefaults.standard.set(String(resp.userId), forKey: key)
-            return String(resp.userId)
-        }
-        return UserDefaults.standard.string(forKey: key)
+        if let cached = await oauth.cachedUserID() { return cached }
+        guard let url = URL(string: oauth.baseUrl + "/api/users/whoami") else { return nil }
+        let request = await authorizedRequest(for: url)
+        guard let issued = OAuthClient.generation(for: request),
+              let data = try? await requestData(urlRequest: request),
+              let response = try? decoder.decode(ShikimoriUser.self, from: data) else { return nil }
+        return await oauth.cacheUserID(String(response.userId), generation: issued)
     }
 
     private func requestGraphQL<T: Codable, D: Encodable>(_ data: D) async -> GraphQLResponse<T>? {
@@ -226,8 +224,13 @@ private extension ShikimoriApi {
     }
 
     @discardableResult
-    func requestData(urlRequest: URLRequest) async throws -> Data {
+    // Internal to allow the original-request account fence to be exercised directly.
+    internal func requestData(urlRequest: URLRequest) async throws -> Data {
+        let currentGeneration = await oauth.accountGeneration
+        let issued = OAuthClient.generation(for: urlRequest) ?? currentGeneration
+        guard currentGeneration == issued else { throw CancellationError() }
         var (data, response) = try await URLSession.shared.data(for: urlRequest)
+        guard await oauth.accountGeneration == issued else { throw CancellationError() }
         let statusCode = (response as? HTTPURLResponse)?.statusCode
 
         if await oauth.tokens == nil {
@@ -235,9 +238,11 @@ private extension ShikimoriApi {
         }
 
         let tokenExpired = await oauth.tokens?.expired == true
+        guard await oauth.accountGeneration == issued else { throw CancellationError() }
 
-        // check if token expired
-        if statusCode == 401 || tokenExpired {
+        let succeeded = statusCode.map { (200..<300).contains($0) } ?? false
+        // A successful mutation must not be repeated due to local expiry.
+        if statusCode == 401 || (tokenExpired && !succeeded) {
             // ensure we have a refresh token, otherwise we need to fully re-auth
             let reloginNeeded = await oauth.checkIfReloginNeeded(trackerName: "Shikimori")
             guard !reloginNeeded else {
@@ -245,11 +250,12 @@ private extension ShikimoriApi {
             }
 
             // refresh access token
-            if await refreshAccessToken() != nil {
+            if await refreshAccessToken(replacingAuthorization: urlRequest.value(forHTTPHeaderField: "Authorization")) != nil {
                 // try request again with refreshed token
                 let retryUrl = URL(string: oauth.baseUrl + "/oauth/token")!
                 let newRequest = await authorizedRequest(for: retryUrl)
                 if let newAuthorization = newRequest.value(forHTTPHeaderField: "Authorization") {
+                    guard await oauth.accountGeneration == issued else { throw CancellationError() }
                     var retryRequest = urlRequest
                     retryRequest.setValue(newAuthorization, forHTTPHeaderField: "Authorization")
                     retryRequest.setValue(userAgent, forHTTPHeaderField: "User-Agent")
@@ -258,6 +264,7 @@ private extension ShikimoriApi {
             }
         }
 
+        guard await oauth.accountGeneration == issued else { throw CancellationError() }
         guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) else {
             throw URLError(.badServerResponse)
         }

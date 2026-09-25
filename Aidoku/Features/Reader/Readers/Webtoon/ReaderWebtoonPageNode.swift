@@ -19,6 +19,9 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
     let page: Page
     let temporaryPageStore: ReaderTemporaryPageStore
     let pillarboxLayoutState: ReaderPillarboxLayoutState
+    private let imagePipeline: ImagePipeline
+    @MainActor private lazy var imageDownloadDemand = ReaderImageDownloadDemand()
+    private var imageDownloadDemandToken: UUID?
 
     weak var delegate: ReaderWebtoonViewController?
 
@@ -128,12 +131,14 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
         source: AidokuRunner.Source?,
         page: Page,
         temporaryPageStore: ReaderTemporaryPageStore,
-        pillarboxLayoutState: ReaderPillarboxLayoutState
+        pillarboxLayoutState: ReaderPillarboxLayoutState,
+        imagePipeline: ImagePipeline = .shared
     ) {
         self.source = source
         self.page = page
         self.temporaryPageStore = temporaryPageStore
         self.pillarboxLayoutState = pillarboxLayoutState
+        self.imagePipeline = imagePipeline
         super.init()
 
         automaticallyManagesSubnodes = true
@@ -188,6 +193,10 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
     override func didEnterVisibleState() {
         super.didEnterVisibleState()
         imageTask?.priority = .high
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            imageDownloadDemand.updatePriority(isVisible ? .high : .low)
+        }
         Task { @MainActor in NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: nil) }
         displayPage()
     }
@@ -200,6 +209,10 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
     override func didExitVisibleState() {
         super.didExitVisibleState()
         imageTask?.priority = .low
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            imageDownloadDemand.updatePriority(isVisible ? .high : .low)
+        }
         Task { @MainActor in NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: nil) }
     }
 
@@ -358,6 +371,10 @@ extension ReaderWebtoonPageNode {
 
         imageTask?.cancel()
         imageTask = nil
+        if let token = imageDownloadDemandToken {
+            imageDownloadDemandToken = nil
+            Task { @MainActor [self] in imageDownloadDemand.end(token) }
+        }
 
         imageProcessingTask?.cancel()
         imageProcessingTask = nil
@@ -386,16 +403,21 @@ extension ReaderWebtoonPageNode {
         }
     }
 
+    // Request admission owns UI-backed progress state and must resume on main
+    // after source hooks. Nuke processing and fallback decoding stay off-main.
+    @MainActor
     private func loadImage(url: URL, context: PageContext?) async {
+        let issued = pageLoadGeneration
         let urlRequest = if !url.isFileURL, let source {
             await source.getModifiedImageRequest(url: url, context: context)
         } else {
             URLRequest(url: url)
         }
 
+        guard !Task.isCancelled, issued == pageLoadGeneration else { return }
+
         let width = pageWidth
         let shouldDownsample = UserDefaults.standard.bool(forKey: "Reader.downsampleImages") && width > 0
-        let shouldUpscale = UserDefaults.standard.bool(forKey: "Reader.upscaleImages")
         let shouldCropBorders = UserDefaults.standard.bool(forKey: "Reader.cropBorders")
         var processors: [ImageProcessing] = []
         var usePageProcessor = false
@@ -412,12 +434,14 @@ extension ReaderWebtoonPageNode {
             processors.append(CropBordersProcessor())
         }
         if shouldDownsample {
-            processors.append(await DownsampleProcessor(width: width))
-        } else if shouldUpscale {
-            processors.append(UpscaleProcessor())
+            processors.append(DownsampleProcessor(width: width))
         }
 
-        let request = ImageRequest(
+        // A source hook or processor setup can finish after this node left the
+        // preload range. Never enqueue obsolete work or overwrite a newer task.
+        guard !Task.isCancelled, issued == pageLoadGeneration else { return }
+
+        var request = ImageRequest(
             urlRequest: urlRequest,
             processors: processors,
             priority: isVisible ? .high : .low,
@@ -427,7 +451,16 @@ extension ReaderWebtoonPageNode {
         // Store current image request for reload functionality
         self.currentImageRequest = request
 
-        let imageTask = ImagePipeline.shared.loadImage(
+        let demand = await imageDownloadDemand.start(
+            request: request, pipeline: imagePipeline, priority: isVisible ? .high : .low
+        )
+        defer { imageDownloadDemand.end(demand) }
+        guard !Task.isCancelled, issued == pageLoadGeneration else { return }
+        imageDownloadDemandToken = demand
+        request.priority = isVisible ? .high : .low
+        self.currentImageRequest = request
+
+        let imageTask = imagePipeline.loadImage(
             with: request,
             progress: { [weak progressView] _, completed, total in
                 guard let progressView else { return }
@@ -438,16 +471,26 @@ extension ReaderWebtoonPageNode {
             completion: { _ in }
         )
         self.imageTask = imageTask
+        defer {
+            if pageLoadGeneration == issued {
+                self.imageTask = nil
+                imageDownloadDemandToken = nil
+            }
+        }
 
         do {
-            let response = try await imageTask.response
-            guard !Task.isCancelled else { return }
+            let response = try await withTaskCancellationHandler {
+                try await imageTask.response
+            } onCancel: { imageTask.cancel() }
+            imageDownloadDemand.end(demand)
+            guard !Task.isCancelled, issued == pageLoadGeneration else { return }
             await prepareAndDisplayImage(response.image, gifData: response.container.type == .gif ? response.container.data : nil)
         } catch {
-            guard !Task.isCancelled else { return }
+            imageDownloadDemand.end(demand)
+            guard !Task.isCancelled, issued == pageLoadGeneration else { return }
 
-            switch error {
-                case .dataLoadingFailed, .dataIsEmpty:
+            switch error as? ImagePipeline.Error {
+                case .dataLoadingFailed?, .dataIsEmpty?:
                     // we can still send to image processor even if the request failed
                     if request.userInfo[.processesKey] as? Bool == true {
                         let processor = request.processors.first(where: { $0 is PageInterceptorProcessor }) as? PageInterceptorProcessor
@@ -456,7 +499,7 @@ extension ReaderWebtoonPageNode {
                                 try? processor.processWithoutImage(request: request)
                             }.value
 
-                            guard !Task.isCancelled else { return }
+                            guard !Task.isCancelled, issued == pageLoadGeneration else { return }
 
                             if let result {
                                 await prepareAndDisplayImage(result.image, gifData: result.type == .gif ? result.data : nil)
@@ -468,12 +511,21 @@ extension ReaderWebtoonPageNode {
                     break
             }
 
-            await showLoadFailure()
+            showLoadFailure()
         }
     }
 
     private func loadImage(base64: String) async {
-        let fullKey = "\(page.key)-\(ImageProcessingSettingsKey.getProcessorSettingsKey())"
+        let issued = pageLoadGeneration
+        let downsampleWidth = pageWidth
+        let shouldCropBorders = UserDefaults.standard.bool(forKey: "Reader.cropBorders")
+        let shouldDownsample = UserDefaults.standard.bool(forKey: "Reader.downsampleImages") && downsampleWidth > 0
+        let settingsKey = "crop:\(shouldCropBorders)-downsample:\(shouldDownsample)"
+            + (shouldDownsample ? "-width:\(downsampleWidth)" : "")
+        let fullKey = await Task.detached {
+            ReaderImageContentIdentity.base64Key(base64, processorSettingsKey: settingsKey)
+        }.value
+        guard !Task.isCancelled, issued == pageLoadGeneration else { return }
         let request = ImageRequest(
             id: fullKey,
             data: { Data() },
@@ -486,16 +538,19 @@ extension ReaderWebtoonPageNode {
         progressNode.isHidden = false
 
         // check cache
-        if ImagePipeline.shared.cache.containsCachedImage(for: request) {
-            let imageContainer = ImagePipeline.shared.cache.cachedImage(for: request)
-            await prepareAndDisplayImage(imageContainer?.image)
+        if let cached = imagePipeline.cache.cachedImage(for: request, caches: .memory) {
+            await prepareAndDisplayImage(cached.image)
             return
         }
 
-        let downsampleWidth = pageWidth
-        let shouldDownsample = UserDefaults.standard.bool(forKey: "Reader.downsampleImages") && downsampleWidth > 0
-
+        let pipeline = imagePipeline
+        let gate = await ReaderPageView.base64Gate
         let processingTask = Task.detached { () -> UIImage? in
+            try? await gate.withPermit {
+            guard !Task.isCancelled else { return nil }
+            if let cached = pipeline.cache.cachedImage(for: request, caches: .disk) {
+                return cached.image
+            }
             guard
                 let imageData = Data(base64Encoded: base64),
                 var image = UIImage(data: imageData)
@@ -503,37 +558,39 @@ extension ReaderWebtoonPageNode {
                 return nil
             }
 
-            if UserDefaults.standard.bool(forKey: "Reader.cropBorders") {
+            guard !Task.isCancelled else { return nil }
+            if shouldCropBorders {
                 let processor = CropBordersProcessor()
                 if let processedImage = processor.process(image) {
                     image = processedImage
                 }
             }
+            guard !Task.isCancelled else { return nil }
             if shouldDownsample {
                 let processor = await DownsampleProcessor(width: downsampleWidth)
-                if let processedImage = processor.process(image) {
-                    image = processedImage
-                }
-            } else if UserDefaults.standard.bool(forKey: "Reader.upscaleImages") {
-                let processor = UpscaleProcessor()
+                guard !Task.isCancelled else { return nil }
                 if let processedImage = processor.process(image) {
                     image = processedImage
                 }
             }
 
+            guard !Task.isCancelled else { return nil }
+            pipeline.cache.storeCachedImage(ImageContainer(image: image), for: request)
             return image
+            }
         }
         let processingGeneration = pageLoadGeneration
         self.imageProcessingTask = processingTask
-        let image = await processingTask.value
+        let image = await withTaskCancellationHandler {
+            await processingTask.value
+        } onCancel: { processingTask.cancel() }
         if pageLoadGeneration == processingGeneration { self.imageProcessingTask = nil }
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled, pageLoadGeneration == processingGeneration else { return }
         guard let image else {
             await showLoadFailure()
             return
         }
 
-        ImagePipeline.shared.cache.storeCachedImage(ImageContainer(image: image), for: request)
         await prepareAndDisplayImage(image)
     }
 
@@ -888,33 +945,7 @@ extension ReaderWebtoonPageNode {
 
     /// Clears the cache entry for the current image
     private func clearCurrentImageCache() {
-        let settingsKey = ImageProcessingSettingsKey.getProcessorSettingsKey()
-        // Handle different image types
-        if let urlString = page.imageURL, let url = URL(string: urlString) {
-            // For URL-based images, remove from both memory and disk cache
-            if let currentImageRequest = currentImageRequest {
-                ImagePipeline.shared.cache.removeCachedImage(for: currentImageRequest)
-            }
-
-            // Also try to remove the basic URL request from cache
-            let basicRequest = ImageRequest(url: url)
-            ImagePipeline.shared.cache.removeCachedImage(for: basicRequest)
-
-        } else if page.base64 != nil {
-            // For base64 images, remove using the page key
-            let fullKey = "\(page.key)-\(settingsKey)"
-            let request = ImageRequest(id: fullKey, data: { Data() })
-            ImagePipeline.shared.cache.removeCachedImage(for: request)
-
-        } else if let zipURL = page.zipURL, let url = URL(string: zipURL), let filePath = page.imageURL {
-            // For zip-based images, remove using the generated key
-            var hasher = Hasher()
-            hasher.combine(url)
-            hasher.combine(filePath)
-            let key = String(hasher.finalize())
-            let fullKey = "\(key)-\(settingsKey)"
-            let request = ImageRequest(id: fullKey, data: { Data() })
-            ImagePipeline.shared.cache.removeCachedImage(for: request)
-        }
+        guard let currentImageRequest else { return }
+        ReaderImageDownloadCache.removeCachedImageAndOriginal(for: currentImageRequest, pipeline: imagePipeline)
     }
 }

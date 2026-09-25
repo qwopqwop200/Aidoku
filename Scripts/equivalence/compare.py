@@ -115,30 +115,34 @@ def compare_regions(base, cand, box_tol, conf_tol, key_text="source", key_conf="
     return r
 
 
-def flatten(obj, prefix=""):
-    if isinstance(obj, dict):
-        for k in sorted(obj):
-            yield from flatten(obj[k], f"{prefix}.{k}")
-    elif isinstance(obj, list):
-        yield (prefix + ".#len", len(obj))
-        for i, v in enumerate(obj):
-            yield from flatten(v, f"{prefix}[{i}]")
-    else:
-        yield (prefix, obj)
-
-
 def compare_layout(a, b, tol):
     if a is None and b is None:
         return {"ok": True, "present": False}
     if a is None or b is None:
         return {"ok": False, "present": "one side missing"}
-    fa, fb = dict(flatten(a)), dict(flatten(b))
-    keys = set(fa) | set(fb)
     num_dev = 0.0
     mism = []
-    for k in sorted(keys):
-        x, y = fa.get(k, "<missing>"), fb.get(k, "<missing>")
-        if isinstance(x, bool) or isinstance(y, bool):
+
+    def visit(x, y, k=""):
+        nonlocal num_dev
+        # Compare containers directly: flattening loses empty objects and lets
+        # literal keys collide with synthesized paths such as a.b or items.#len.
+        if isinstance(x, dict) and isinstance(y, dict):
+            for key in sorted(set(x) | set(y)):
+                path = f"{k}[{json.dumps(key)}]"
+                if key not in x or key not in y:
+                    # The label is report-only, never a comparison sentinel.
+                    mism.append((path, x.get(key, "<missing>"), y.get(key, "<missing>")))
+                else:
+                    visit(x[key], y[key], path)
+        elif isinstance(x, list) and isinstance(y, list):
+            if len(x) != len(y):
+                mism.append((k + ".#len", len(x), len(y)))
+            for index, (left, right) in enumerate(zip(x, y)):
+                visit(left, right, f"{k}[{index}]")
+        elif isinstance(x, (dict, list)) or isinstance(y, (dict, list)):
+            mism.append((k, x, y))
+        elif isinstance(x, bool) or isinstance(y, bool):
             if type(x) is not type(y) or x != y:
                 mism.append((k, x, y))
         elif isinstance(x, (int, float)) and isinstance(y, (int, float)):
@@ -148,6 +152,8 @@ def compare_layout(a, b, tol):
                 mism.append((k, x, y))
         elif x != y:
             mism.append((k, x, y))
+
+    visit(a, b)
     return {"ok": not mism, "numericMaxDev": num_dev, "mismatches": len(mism), "examples": mism[:5]}
 
 

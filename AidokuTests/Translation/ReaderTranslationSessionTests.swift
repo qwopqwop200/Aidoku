@@ -5,6 +5,63 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationSessionTests {
+    @Test func sourceReadyPublishesTranslationCompletedBeforeImageAssignment() async throws {
+        let fixture = SessionFixture()
+        let source = Self.page(0)
+        let view = UIImageView(frame: CGRect(x: 0, y: 0, width: 300, height: 200))
+        let page = ReaderTranslationPage(imageView: view)
+        page.sourcePage = source
+        let cache = ReaderTranslationSessionCache()
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            calls += 1
+            return [Self.region]
+        }, availableMemory: { .max }, cache: cache)
+        defer { session.close() }
+        session.update(items: [.init(source)], visible: [page], context: "late-source")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { cache.contains(source.translationCacheKey) }
+        #expect(!page.hasCompletedTranslation(settings: fixture.settings))
+        view.image = Self.image()
+        session.sourceImageDidLoad(source)
+        #expect(page.hasCompletedTranslation(settings: fixture.settings))
+        #expect(view.subviews.contains { $0 is ReaderTranslationOverlayView })
+        #expect(calls == 1)
+    }
+
+    @Test func sourceReadyRefreshesReplacedVisibleBackingView() async throws {
+        let fixture = SessionFixture()
+        fixture.defaults.set(true, forKey: ReaderTranslationSettings.keyPrefix + "automatic")
+        let source = Self.page(0)
+        let initialView = UIImageView()
+        let initialPage = ReaderTranslationPage(imageView: initialView)
+        initialPage.sourcePage = source
+        let cache = ReaderTranslationSessionCache()
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            calls += 1
+            return [Self.region]
+        }, availableMemory: { .max }, cache: cache)
+        let owner = SessionToolbarOwner()
+        owner.translationUpcomingPages = [source]
+        owner.translationVisiblePages = [initialPage]
+        let coordinator = ReaderTranslationCoordinator(owner: owner, session: session,
+            readSettings: { fixture.settings }, setEnabled: { _ in })
+        defer { coordinator.close() }
+        coordinator.resume()
+        try await waitUntil { cache.contains(source.translationCacheKey) }
+        let image = Self.image()
+        let view = UIImageView(image: image)
+        view.frame = CGRect(x: 0, y: 0, width: 300, height: 200)
+        let page = ReaderTranslationPage(imageView: view)
+        page.sourcePage = source
+        owner.translationVisiblePages = [page]
+        ReaderTranslationPage.sourceDidLoad(image, page: source)
+        try await waitUntil { page.hasCompletedTranslation(settings: fixture.settings) }
+        #expect(view.subviews.contains { $0 is ReaderTranslationOverlayView })
+        #expect(calls == 1)
+    }
+
     @Test func chapterSweepPersistsDistantPagesWithoutEvictingNearbyText() async throws {
         let fixture = SessionFixture()
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

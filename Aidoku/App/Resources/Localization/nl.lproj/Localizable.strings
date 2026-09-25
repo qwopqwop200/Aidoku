@@ -875,16 +875,6 @@
 "LEGACY_SOURCE_LIST" = "Verouderde bronnenlijst";
 "LEGACY_SOURCE_LIST_WARNING" = "Waarschuwing: verouderde bronnenlijst";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Er is momenteel een bronnenlijst met een verouderd formaat ingesteld. Dit formaat werkt niet meer in een toekomstige versie van Aidoku. Het werkt voorlopig nog wel, maar het is raadzaam een vervangende lijst te zoeken en die in te stellen via Instellingen > Bronnenlijsten.";
-"UPSCALING" = "Opschaling";
-"UPSCALE_IMAGES" = "Afbeeldingen opschalen";
-"UPSCALING_MODELS" = "Opschalingsmodellen";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Maximale beeldhoogte";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Afbeeldingen waarvan de hoogte gelijk is aan of groter is dan de maximale afbeeldingshoogte, worden niet opgeschaald.";
-"ENABLED_MODEL" = "Ingeschakeld model";
-"AVAILABLE_MODELS" = "Beschikbare modellen";
-"NO_AVAILABLE_MODELS" = "Geen beschikbare modellen";
-"NO_AVAILABLE_MODELS_TEXT" = "Kan beschikbare modellen niet ophalen. Controleer uw netwerkverbinding en zorg ervoor dat uw app de nieuwste versie gebruikt.";
-"MODEL_INFO" = "Modelinformatie";
 "DISABLE_QUICK_ACTIONS" = "Schakel Snelle acties uit";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Schakel Dubbeltikzoom uit";
 "LIVE_TEXT" = "Live-tekst";
@@ -1087,8 +1077,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Kan instelling niet weergeven: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Vijf meegeleverde modellen kunnen offline worden geïnstalleerd. Installeer een model en tik erop in Ingeschakeld model. MangaJaNai is voor zwart-witpagina's van ongeveer 1200 pixels hoog; kleurenpagina's blijven ongewijzigd.";
 
 "DOWNLOAD_TRANSLATED" = "Downloaden met vertaling";
 
@@ -1099,15 +1087,10 @@
 
 "TRANSLATION_STATE_OFF" = "Uit";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "Voor illustraties; behoudt het oorspronkelijke lijnwerk. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Voor kleurenillustraties en omslagen; lichtgewicht model voor detailverbetering.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Voor algemene afbeeldingen en uiteenlopende tekenstijlen; sterkere verscherping.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Voor anime, manga en kleurenpagina’s.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Alleen voor zwart-witmanga, afgestemd op oorspronkelijke pagina’s van ongeveer 1200 pixels hoog. Kleurenpagina’s blijven ongewijzigd.";
 
 "TRANSLATION_ERROR_CONFIGURATION" = "De vertaalinstellingen zijn ongeldig. Controleer de server-URL, het model en de overige instellingen.";
 

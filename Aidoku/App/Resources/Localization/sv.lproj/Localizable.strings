@@ -586,16 +586,6 @@
 "ALL_TIME" = "Någonsin";
 "THIS_MONTH" = "Denna månad";
 "THIS_YEAR" = "Detta år";
-"UPSCALING" = "Uppskalning";
-"UPSCALE_IMAGES" = "Uppskala bilder";
-"UPSCALING_MODELS" = "Uppskalningsmodeller";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Max bildhöjd";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Bilder vars höjd är lika med eller större än den maximala bildhöjden skalas inte upp.";
-"ENABLED_MODEL" = "Aktiverad modell";
-"AVAILABLE_MODELS" = "Tillgängliga modeller";
-"NO_AVAILABLE_MODELS" = "Inga modeller tillgängliga";
-"NO_AVAILABLE_MODELS_TEXT" = "Kunde ej hämta tillgängliga modeller. Dubbelkolla din nätverksuppkoppling och se till att du kör den senaste appversionen.";
-"MODEL_INFO" = "Modellinfo";
 "DISABLE_QUICK_ACTIONS" = "Inaktivera snabbfunktioner";
 "LIVE_TEXT" = "Live-text";
 "READER_BG_COLOR_AUTO" = "Automatisk";
@@ -1085,8 +1075,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Kan inte visa inställning: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Fem inkluderade modeller kan installeras offline. Installera en modell och tryck sedan på den i Aktiverad modell. MangaJaNai är för svartvita sidor runt 1200 pixlar höga; färgsidor förblir oförändrade.";
 
 "DOWNLOAD_TRANSLATED" = "Ladda ned med översättning";
 
@@ -1097,15 +1085,10 @@
 
 "TRANSLATION_STATE_OFF" = "Av";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "För illustrationer; bevarar det ursprungliga linjearbetet. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "För färgillustrationer och omslag; lättviktsmodell för detaljförbättring.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "För allmänna bilder och varierande teckningsstilar; kraftigare skärpning.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "För anime, manga och färgsidor.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Endast för svartvit manga, anpassad för originalsidor som är cirka 1200 pixlar höga. Färgsidor lämnas oförändrade.";
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Översättningsinställningarna är ogiltiga. Kontrollera serverns URL, modellen och övriga inställningar.";
 

@@ -151,8 +151,7 @@ struct ColdLaunchImageProbeTests {
         let url = try #require(page.imageURL.flatMap(URL.init(string:)))
         let requestStart = ProcessInfo.processInfo.systemUptime
         let pageRequest = await ReaderPageView.imageRequest(url: url, context: page.context, source: source)
-        rows.append(["phase": "reader_request_preparation", "ms": elapsed(requestStart),
-                     "upscaleModelConfigured": ModelManager.shared.getEnabledModelFileName() != nil])
+        rows.append(["phase": "reader_request_preparation", "ms": elapsed(requestStart)])
         try await sample("reader_first_after_process_start", request: pageRequest, readerPage: page)
         try await sample("reader_same_process_repeat", request: pageRequest, readerPage: page)
         // Include the real controller's chapter-sized view construction and

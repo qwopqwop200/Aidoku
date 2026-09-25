@@ -790,16 +790,6 @@
 "LEGACY_SOURCE_LIST" = "Eldre kildeliste";
 "LEGACY_SOURCE_LIST_WARNING" = "Advarsel: Eldre kildeliste";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Du har for øyeblikket konfigurert en eldre kildeliste. Dette formatet er utdatert og vil slutte å fungere i en fremtidig versjon av Aidoku. Selv om det fortsatt vil fungere foreløpig, anbefales det at du finner en erstatning og konfigurerer den i Innstillinger > Kildelister.";
-"UPSCALING" = "Oppskalering";
-"UPSCALE_IMAGES" = "Oppskalere bilder";
-"UPSCALING_MODELS" = "Oppskaleringsmodeller";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Maksimal bildehøyde";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Bilder med en høyde som er lik eller større enn maksimal bildehøyde, blir ikke oppskalert.";
-"ENABLED_MODEL" = "Aktivert modell";
-"AVAILABLE_MODELS" = "Tilgjengelige modeller";
-"NO_AVAILABLE_MODELS" = "Ingen tilgjengelige modeller";
-"NO_AVAILABLE_MODELS_TEXT" = "Kunne ikke hente tilgjengelige modeller. Sjekk nettverkstilkoblingen din og sørg for at appen din kjører den nyeste versjonen.";
-"MODEL_INFO" = "Modellinformasjon";
 "LOCK_HISTORY_TAB" = "Lås historikk-fanen";
 "DOWNSAMPLE_IMAGES" = "Reduser bildeoppløsningen";
 "CROP_BORDERS" = "Beskjær kanter";
@@ -1085,8 +1075,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Kan ikke vise innstilling: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Fem inkluderte modeller kan installeres offline. Installer en modell, og trykk deretter på den i Aktivert modell. MangaJaNai er for svart-hvitt-sider rundt 1200 piksler høye; fargesider forblir uendret.";
 
 "DOWNLOAD_TRANSLATED" = "Last ned med oversettelse";
 
@@ -1097,15 +1085,10 @@
 
 "TRANSLATION_STATE_OFF" = "Av";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "For illustrasjoner; bevarer den opprinnelige strekføringen. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "For fargeillustrasjoner og omslag; lettvektsmodell for detaljforbedring.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "For generelle bilder og varierte tegnestiler; sterkere skarphetsforbedring.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "For anime, manga og fargesider.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Kun for manga i svart-hvitt, tilpasset originalsider som er omtrent 1200 piksler høye. Fargesider forblir uendret.";
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Oversettelsesinnstillingene er ugyldige. Kontroller serverens URL, modellen og de andre innstillingene.";
 

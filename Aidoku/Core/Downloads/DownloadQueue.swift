@@ -14,7 +14,11 @@ import UIKit
 // creates a downloadtask for every source
 // only one chapter per source is downloaded at a time
 actor DownloadQueue {
+    typealias WorkerFactory = @Sendable (String, DownloadCache, [Download], any DownloadTaskDelegate) -> DownloadTask
     private let cache: DownloadCache
+    private let workerFactory: WorkerFactory
+    private var cancelAllTask: Task<Void, Never>?
+    var isCancellingAll: Bool { cancelAllTask != nil }
     private var onCompletion: (() -> Void)?
 
     private(set) var queue: [String: [Download]] = [:] // all queued downloads stored under source id
@@ -33,12 +37,17 @@ actor DownloadQueue {
     private var totalDownloads: Int = 0
     private var completedDownloads: Int = 0
     private var bgTask: ProgressReporting?
-    private var sendCancelNotification = true
+    private var cancellationNotificationDepth = 0
+    private var sendCancelNotification: Bool { cancellationNotificationDepth == 0 }
 
     private static let taskIdentifier = (Bundle.main.bundleIdentifier ?? "") + ".download"
 
-    init(cache: DownloadCache, onCompletion: (() -> Void)? = nil) {
+    init(cache: DownloadCache, onCompletion: (() -> Void)? = nil,
+         workerFactory: @escaping WorkerFactory = { id, cache, downloads, delegate in
+             DownloadTask(id: id, cache: cache, downloads: downloads, delegate: delegate)
+         }) {
         self.cache = cache
+        self.workerFactory = workerFactory
         self.onCompletion = onCompletion
     }
 
@@ -83,16 +92,16 @@ actor DownloadQueue {
     }
 
     private func initAndResumeTasks() async {
-        guard !paused, !suspendedForBackground, canUseNetwork else { return }
+        guard cancelAllTask == nil, !paused, !suspendedForBackground, canUseNetwork else { return }
         for sourceKey in Array(queue.keys) {
-            guard !paused, !suspendedForBackground, canUseNetwork else { return }
+            guard cancelAllTask == nil, !paused, !suspendedForBackground, canUseNetwork else { return }
             guard let downloads = queue[sourceKey], !downloads.isEmpty else { continue }
             if tasks[sourceKey] == nil {
                 // Publish a fully initialized worker without an actor suspension;
                 // foreground and scheduler callbacks may both arrive here.
-                tasks[sourceKey] = DownloadTask(id: sourceKey, cache: cache, downloads: downloads, delegate: self)
+                tasks[sourceKey] = workerFactory(sourceKey, cache, downloads, self)
             }
-            guard !paused, !suspendedForBackground, canUseNetwork else { return }
+            guard cancelAllTask == nil, !paused, !suspendedForBackground, canUseNetwork else { return }
             await tasks[sourceKey]?.resume()
         }
     }
@@ -166,6 +175,9 @@ actor DownloadQueue {
 
     @discardableResult
     func add(chapters: [AidokuRunner.Chapter], manga: AidokuRunner.Manga, autoStart: Bool = true, translatesImages: Bool = false) async -> [Download] {
+        // Entries arriving during cancel-all are accepted after its joined
+        // cleanup, never published into a directory the old operation can erase.
+        while let cancellation = cancelAllTask { await cancellation.value }
         var downloads: [Download] = []
         for chapter in chapters {
             let identifier = ChapterIdentifier(
@@ -177,12 +189,16 @@ actor DownloadQueue {
                 continue
             }
 
+            while let cancellation = cancelAllTask { await cancellation.value }
             guard queue[manga.sourceKey]?.contains(where: { $0.chapterIdentifier == identifier }) != true else { continue }
 
-            // create tmp directory so we know it's queued
-            let tmpDirectory = cache.tmpDirectory(for: identifier)
-            tmpDirectory.removeItem() // remove in case it exists from a previous failed download
-            tmpDirectory.createDirectory()
+            // The worker rejects invalid identifiers, but queue preparation runs
+            // first. Never touch their derived paths while recording queue state.
+            if cache.isSafe(chapter: identifier) {
+                let tmpDirectory = cache.tmpDirectory(for: identifier)
+                tmpDirectory.removeItem() // remove a previous failed download
+                tmpDirectory.createDirectory()
+            }
 
             var download = Download.from(manga: manga, chapter: chapter)
             download.translatesImages = translatesImages
@@ -191,8 +207,10 @@ actor DownloadQueue {
                 queue[manga.sourceKey] = [download]
             } else {
                 queue[manga.sourceKey]?.append(download)
-                await tasks[manga.sourceKey]?.add(download: download)
             }
+            // A source row may have drained while its worker's terminal callback
+            // is still pending. Reconcile both states, not just the row-present case.
+            await tasks[manga.sourceKey]?.add(download: download)
         }
         totalDownloads += downloads.count
         bgTask?.progress.totalUnitCount = Int64(totalDownloads)
@@ -208,7 +226,9 @@ actor DownloadQueue {
             await task.cancel(chapter: chapter)
         } else {
             // no longer in queue but the tmp download directory still exists, so we should remove it
-            cache.tmpDirectory(for: chapter).removeItem()
+            if cache.isSafe(chapter: chapter) {
+                cache.tmpDirectory(for: chapter).removeItem()
+            }
             if let download = queue[chapter.sourceKey]?.first(where: { $0.chapterIdentifier == chapter }) {
                 await downloadCancelled(download: download)
             }
@@ -218,12 +238,12 @@ actor DownloadQueue {
 
     func cancelDownloads(for chapters: [ChapterIdentifier]) async {
         // disable individual download cancelled notifications
-        sendCancelNotification = false
-        defer { sendCancelNotification = true }
+        cancellationNotificationDepth += 1
+        defer { cancellationNotificationDepth -= 1 }
         for chapter in chapters {
             if let task = tasks[chapter.sourceKey] {
                 await task.cancel(chapter: chapter)
-            } else {
+            } else if cache.isSafe(chapter: chapter) {
                 cache.tmpDirectory(for: chapter).removeItem()
             }
             if let download = queue[chapter.sourceKey]?.first(where: { $0.chapterIdentifier == chapter }) {
@@ -237,7 +257,7 @@ actor DownloadQueue {
     func cancelDownloads(for manga: MangaIdentifier) async {
         if let task = tasks[manga.sourceKey] {
             await task.cancel(manga: manga)
-        } else {
+        } else if cache.isSafe(manga: manga) {
             cache.directory(for: manga)
                 .contentsIncludingHidden
                 .filter {
@@ -252,19 +272,28 @@ actor DownloadQueue {
     }
 
     func cancelAll() async {
-        sendCancelNotification = false
-        defer { sendCancelNotification = true }
-        for task in tasks {
-            await task.value.cancel()
+        if let cancellation = cancelAllTask {
+            await cancellation.value
+            return
         }
-        for download in queue.values.joined() {
-            cache.tmpDirectory(for: download.chapterIdentifier).removeItem()
+        let cancellation = Task {
+            cancellationNotificationDepth += 1
+            for task in Array(tasks.values) { await task.cancel() }
+            for download in queue.values.joined() where cache.isSafe(chapter: download.chapterIdentifier) {
+                cache.tmpDirectory(for: download.chapterIdentifier).removeItem()
+            }
+            queue = [:]
+            progressBlocks.removeAll()
+            finishBackgroundTaskIfEmpty()
+            cancellationNotificationDepth -= 1
+            NotificationCenter.default.post(name: .downloadsCancelled, object: nil)
+            saveQueueState()
+            // Clear before completing, so a joining add cannot observe a finished
+            // task as a still-active cancellation boundary.
+            cancelAllTask = nil
         }
-        queue = [:]
-        progressBlocks.removeAll()
-        finishBackgroundTaskIfEmpty()
-        NotificationCenter.default.post(name: .downloadsCancelled, object: nil)
-        saveQueueState()
+        cancelAllTask = cancellation
+        await cancellation.value
     }
 
     // register callback for download progress change
@@ -370,9 +399,12 @@ extension DownloadQueue: DownloadTaskDelegate {
     func taskFinished(task: DownloadTask) async {
         guard tasks[task.id] === task else { return }
         tasks.removeValue(forKey: task.id)
-        queue.removeValue(forKey: task.id)
+        // Accepted entries may have arrived after this worker retired. They are
+        // authoritative queue state and must survive the old terminal callback.
+        if queue[task.id]?.isEmpty == true { queue.removeValue(forKey: task.id) }
         finishBackgroundTaskIfEmpty()
         saveQueueState()
+        await initAndResumeTasks()
     }
 
     func downloadFinished(download: Download) async {

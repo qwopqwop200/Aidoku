@@ -22,7 +22,72 @@ actor OAuthClient {
     }
 
     var codeVerifier = ""
-    var tokens: OAuthResponse?
+    private(set) var tokens: OAuthResponse?
+    private(set) var accountGeneration = UUID()
+    private var refresh: (id: UUID, task: Task<OAuthResponse?, Never>)?
+    private nonisolated static let generationProperty = "Aidoku.OAuth.accountGeneration"
+
+    nonisolated static func generation(for request: URLRequest) -> UUID? {
+        (URLProtocol.property(forKey: generationProperty, in: request) as? String).flatMap(UUID.init(uuidString:))
+    }
+
+    deinit { refresh?.task.cancel() }
+
+    @discardableResult
+    func beginAuthentication() -> UUID {
+        accountGeneration = UUID()
+        UserDefaults.standard.removeObject(forKey: "Tracker.\(id).user_id")
+        refresh?.task.cancel()
+        refresh = nil
+        return accountGeneration
+    }
+
+    func commitAuthentication(_ response: OAuthResponse?, generation: UUID) -> OAuthResponse? {
+        guard !Task.isCancelled, accountGeneration == generation, let response else { return nil }
+        tokens = response
+        saveTokens()
+        UserDefaults.standard.set(response.accessToken, forKey: "Tracker.\(id).token")
+        return response
+    }
+
+    /// Sharing survives cancellation of one search, but never an account change.
+    func refreshTokens(replacingAuthorization: String?,
+                       operation: @escaping @Sendable () async -> OAuthResponse?) async -> OAuthResponse? {
+        guard !Task.isCancelled else { return nil }
+        if tokens == nil { loadTokens() }
+        let issued = accountGeneration
+        let currentAuthorization = "\(tokens?.tokenType ?? "Bearer") \(tokens?.accessToken ?? "")"
+        if let replacingAuthorization, replacingAuthorization != currentAuthorization { return tokens }
+        if let refresh {
+            let result = await refresh.task.value
+            return !Task.isCancelled && accountGeneration == issued ? result : nil
+        }
+        let id = UUID()
+        let task = Task { [weak self] () -> OAuthResponse? in
+            let result = await operation()
+            return await self?.finishRefresh(result, generation: issued, id: id)
+        }
+        refresh = (id, task)
+        let result = await task.value
+        return !Task.isCancelled && accountGeneration == issued ? result : nil
+    }
+
+    func cachedUserID() -> String? {
+        UserDefaults.standard.string(forKey: "Tracker.\(id).user_id")
+    }
+
+    func cacheUserID(_ value: String, generation: UUID) -> String? {
+        guard !Task.isCancelled, accountGeneration == generation else { return nil }
+        UserDefaults.standard.set(value, forKey: "Tracker.\(id).user_id")
+        return value
+    }
+
+    private func finishRefresh(_ result: OAuthResponse?, generation: UUID, id: UUID) -> OAuthResponse? {
+        guard !Task.isCancelled, accountGeneration == generation else { return nil }
+        if let result { tokens = result; saveTokens() }
+        if refresh?.id == id { refresh = nil }
+        return result
+    }
 
     init(
         id: String,
@@ -85,8 +150,9 @@ extension OAuthClient {
             body["redirect_uri"] = redirectUri
         }
         request.httpBody = body.percentEncoded()
-        tokens = try? await URLSession.shared.object(from: request)
-        return tokens
+        let issued = beginAuthentication()
+        let response: OAuthResponse? = try? await URLSession.shared.object(from: request)
+        return commitAuthentication(response, generation: issued)
     }
 
 //    func refreshAccessToken(refreshToken: String) async -> OAuthResponse? {
@@ -102,11 +168,16 @@ extension OAuthClient {
 //    }
 
     func loadTokens() {
+        let loaded: OAuthResponse
         if let data = UserDefaults.standard.data(forKey: "Tracker.\(id).oauth") {
-            tokens = (try? JSONDecoder().decode(OAuthResponse.self, from: data)) ?? OAuthResponse()
+            loaded = (try? JSONDecoder().decode(OAuthResponse.self, from: data)) ?? OAuthResponse()
         } else {
-            tokens = OAuthResponse()
+            loaded = OAuthResponse()
         }
+        if tokens?.accessToken != loaded.accessToken || tokens?.refreshToken != loaded.refreshToken {
+            beginAuthentication()
+        }
+        tokens = loaded
     }
 
     func saveTokens() {
@@ -114,14 +185,21 @@ extension OAuthClient {
     }
 
     func setTokens(_ response: OAuthResponse?) {
+        beginAuthentication()
         tokens = response
-        saveTokens()
+        if response == nil {
+            UserDefaults.standard.removeObject(forKey: "Tracker.\(id).oauth")
+            UserDefaults.standard.removeObject(forKey: "Tracker.\(id).token")
+            UserDefaults.standard.removeObject(forKey: "Tracker.\(id).user_id")
+        } else {
+            saveTokens()
+        }
     }
 
     func authorizedRequest(for url: URL, additionalHeaders: [String: String]? = nil) -> URLRequest {
         if tokens == nil { loadTokens() }
 
-        var request = URLRequest(url: url)
+        let request = NSMutableURLRequest(url: url)
         request.addValue(
             "\(tokens?.tokenType ?? "Bearer") \(tokens?.accessToken ?? "")",
             forHTTPHeaderField: "Authorization"
@@ -134,7 +212,8 @@ extension OAuthClient {
             }
         }
 
-        return request
+        URLProtocol.setProperty(accountGeneration.uuidString, forKey: Self.generationProperty, in: request)
+        return request as URLRequest
     }
 }
 
@@ -193,7 +272,8 @@ extension OAuthClient {
         guard var tokens else { return }
         if !tokens.askedForRefresh {
             tokens.askedForRefresh = true
-            setTokens(tokens)
+            self.tokens = tokens
+            saveTokens()
             await MainActor.run {
                 UIApplication.shared.appDelegate?.presentAlert(
                     title: String(format: NSLocalizedString("%@_TRACKER_LOGIN_NEEDED"), trackerName),

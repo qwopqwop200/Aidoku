@@ -48,6 +48,18 @@ actor RateLimit {
         return true
     }
 
+    /// Wait without swallowing cancellation or charging a cancelled request.
+    func acquire() async throws {
+        while true {
+            try Task.checkCancellation()
+            if incRequest() { return }
+            let waitTime = nextPeriodStart - Int(Date().timeIntervalSince1970)
+            if waitTime > 0 {
+                try await Task.sleep(nanoseconds: UInt64(waitTime) * 1_000_000_000)
+            }
+        }
+    }
+
     private func resetPeriod() {
         currentPeriodStart = Int(Date().timeIntervalSince1970)
         requestsInPeriod = 0

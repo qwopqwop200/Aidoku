@@ -457,9 +457,6 @@
 "SAVE_SEARCH_FAIL" = "Impossibile salvare";
 "SAVED_SEARCH_NAME" = "Nome";
 "READER_BG_COLOR_AUTO" = "Automatico";
-"ENABLED_MODEL" = "Modello abilitato";
-"AVAILABLE_MODELS" = "Modelli disponibili";
-"NO_AVAILABLE_MODELS" = "Nessun modello disponibile";
 "COPY_URL" = "Copia URL";
 "TEXT_READER_STYLE" = "Stile lettore";
 "CREATE_BACKUP" = "Crea backup";
@@ -884,13 +881,6 @@
 "LEGACY_SOURCE_LIST" = "Elenco delle fonti legacy";
 "LEGACY_SOURCE_LIST_WARNING" = "Avviso: elenco delle fonti legacy";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Hai configurato un elenco di fonti in un formato precedente. Questo formato è obsoleto e smetterà di funzionare in una versione futura di Aidoku. Per ora funziona ancora, ma ti consigliamo di trovare un’alternativa e configurarla in Impostazioni > Elenchi delle fonti.";
-"UPSCALING" = "Upscaling";
-"UPSCALE_IMAGES" = "Aumenta la risoluzione delle immagini";
-"UPSCALING_MODELS" = "Modelli di upscaling";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Altezza massima dell'immagine";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Le immagini la cui altezza è pari o superiore al limite massimo non verranno ingrandite.";
-"NO_AVAILABLE_MODELS_TEXT" = "Impossibile recuperare i modelli disponibili. Controlla la connessione di rete e assicurati che l'app esegua la versione più recente.";
-"MODEL_INFO" = "Informazioni sul modello";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Disattiva lo zoom con doppio tocco";
 "LIVE_TEXT" = "Testo dal vivo";
 "HIDE_BARS_ON_SWIPE" = "Nascondi le barre durante lo scorrimento";
@@ -1087,8 +1077,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Impossibile visualizzare l'impostazione: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "I cinque modelli inclusi possono essere installati offline. Installa un modello, poi selezionalo in «Modello abilitato». MangaJaNai è pensato per pagine in bianco e nero alte circa 1200 pixel; le pagine a colori rimangono invariate.";
 
 "DOWNLOAD_TRANSLATED" = "Scarica con traduzione";
 
@@ -1097,11 +1085,6 @@
 
 "TRANSLATION_STATE_ON" = "Attivata";
 "TRANSLATION_STATE_OFF" = "Disattivata";
-"UPSCALE_MODEL_SWINUNET_INFO" = "Illustrazioni; conserva il tratto originale. FP32.";
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Illustrazioni e copertine a colori; modello leggero per i dettagli.";
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Immagini generiche e illustrazioni di vari stili; maggiore accentuazione della nitidezza.";
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga e pagine a colori.";
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Solo manga in bianco e nero, ottimizzato per pagine originali alte circa 1200 pixel. Le pagine a colori rimangono invariate.";
 "TRANSLATION_ERROR_CONFIGURATION" = "Le impostazioni di traduzione non sono valide. Controlla l’URL del server, il modello e le altre impostazioni.";
 "TRANSLATION_ERROR_REQUEST" = "Non è stato possibile usare il testo, l’immagine o le impostazioni della lingua per la traduzione.";
 "TRANSLATION_ERROR_RESPONSE" = "Il server di traduzione ha restituito una risposta non valida. Riprova o controlla le impostazioni del modello.";

@@ -35,12 +35,25 @@ struct PageTrackUpdate: Codable, Equatable {
 
 
 extension PageTrackUpdate {
+    struct Key: Hashable {
+        let tracker: String
+        let track: String
+        let chapter: ChapterIdentifier
+    }
+    var key: Key { Key(tracker: trackerId, track: trackId, chapter: chapterId) }
+
     static func reconcile(pending: [Self], sent: [Self], failed: [Self]) -> [Self] {
-        pending.compactMap { update in
-            guard sent.contains(update) else { return update }
-            return failed.first {
-                $0.trackerId == update.trackerId && $0.trackId == update.trackId && $0.chapterId == update.chapterId
-            }
+        let sentByKey = Dictionary(sent.map { ($0.key, $0) }, uniquingKeysWith: { _, last in last })
+        let failedByKey = Dictionary(failed.map { ($0.key, $0) }, uniquingKeysWith: { _, last in last })
+        return pending.compactMap { update in
+            guard sentByKey[update.key] == update else { return update }
+            return failedByKey[update.key]
         }
+    }
+
+    /// Preserve latest-arrival ordering while replacing duplicates in linear time.
+    static func merging(pending: [Self], updates: [Self]) -> [Self] {
+        var seen: Set<Key> = []
+        return (pending + updates).reversed().filter { seen.insert($0.key).inserted }.reversed()
     }
 }

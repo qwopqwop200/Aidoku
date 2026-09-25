@@ -39,7 +39,7 @@ class AudioHandler: NSObject, WKURLSchemeHandler {
         tasks[taskId] = Task {
             do {
                 let request = URLRequest(url: targetUrl, timeoutInterval: 4)
-                let (data, _) = try await URLSession.shared.data(for: request)
+                let data = try await DictionaryFileOperations.boundedData(for: request, maximumBytes: 1024 * 1024)
 
                 await MainActor.run {
                     guard self.tasks.removeValue(forKey: taskId) != nil else { return }

@@ -634,16 +634,6 @@
 "COPY_URL" = "URLをコピー";
 "LEGACY_SOURCE_LIST" = "レガシーソースリスト";
 "LEGACY_SOURCE_LIST_WARNING" = "警告: レガシーソースリスト";
-"UPSCALING" = "アップスケール";
-"UPSCALE_IMAGES" = "画像をアップスケール";
-"UPSCALING_MODELS" = "アップスケールモデル";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "最大画像高さ";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "最大画像高さ以上の画像はアップスケールされません。";
-"ENABLED_MODEL" = "有効なモデル";
-"AVAILABLE_MODELS" = "利用可能なモデル";
-"NO_AVAILABLE_MODELS" = "利用可能なモデルがありません";
-"NO_AVAILABLE_MODELS_TEXT" = "利用可能なモデルの取得に失敗しました。ネットワーク接続を確認し、アプリが最新バージョンであることを確認してください。";
-"MODEL_INFO" = "モデル情報";
 "DISABLE_QUICK_ACTIONS" = "クイックアクションを無効化";
 "DISABLE_DOUBLE_TAP_ZOOM" = "ダブルタップで拡大を無効化";
 "LIVE_TEXT" = "テキスト認識表示";
@@ -1077,8 +1067,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "設定を表示できません: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "同梱の5つのモデルはオフラインでインストールできます。インストール後、「有効なモデル」でモデルをタップしてください。MangaJaNaiは高さ約1200ピクセルの白黒ページ向けで、カラーページは元のまま表示されます。";
 
 "DOWNLOAD_TRANSLATED" = "翻訳付きでダウンロード";
 
@@ -1089,12 +1077,7 @@
 
 "TRANSLATION_STATE_OFF" = "オフ";
 
-// Translation errors and upscaling model descriptions
-"UPSCALE_MODEL_SWINUNET_INFO" = "イラスト向け。元の線画を保持します。FP32。";
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "カラーイラストや表紙向けの、細部を鮮明にする軽量モデル。";
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "一般的な画像や多様な画風向け。シャープネスを強めます。";
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "アニメ・漫画・カラーページ向け。";
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "白黒漫画専用で、元の高さが約1200ピクセルのページ向けに調整されています。カラーページは変更しません。";
+// Translation errors
 "TRANSLATION_ERROR_CONFIGURATION" = "翻訳設定が無効です。サーバーURL、モデル、その他の設定を確認してください。";
 "TRANSLATION_ERROR_REQUEST" = "現在のテキスト、画像、または言語設定では翻訳できません。";
 "TRANSLATION_ERROR_RESPONSE" = "翻訳サーバーが無効な応答を返しました。再試行するか、モデル設定を確認してください。";

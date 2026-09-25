@@ -757,16 +757,6 @@
 "LEGACY_SOURCE_LIST" = "Régi formátumú forráslista";
 "LEGACY_SOURCE_LIST_WARNING" = "Figyelmeztetés: régi formátumú forráslista";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Jelenleg egy régi formátumú forráslista van beállítva. Ez a formátum elavult, és az Aidoku egy későbbi verziójában már nem fog működni. Egyelőre még használható, de ajánlott új forráslistát keresni, és beállítani a Beállítások > Forráslisták menüpontban.";
-"UPSCALING" = "Felskálázás";
-"UPSCALE_IMAGES" = "Képek felskálázása";
-"UPSCALING_MODELS" = "Felskálázási modellek";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Maximális képmagasság";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Azok a képek nem lesznek felskálázva, amelyek magassága eléri vagy meghaladja a megadott maximumot.";
-"ENABLED_MODEL" = "Engedélyezett modell";
-"AVAILABLE_MODELS" = "Elérhető modellek";
-"NO_AVAILABLE_MODELS" = "Nincsenek elérhető modellek";
-"NO_AVAILABLE_MODELS_TEXT" = "Nem sikerült lekérni az elérhető modelleket. Ellenőrizze a hálózati kapcsolatot, és győződjön meg arról, hogy az alkalmazás a legújabb verziót futtatja.";
-"MODEL_INFO" = "Modell információ";
 "LOCK_HISTORY_TAB" = "Előzmények lap zárolása";
 "DOWNSAMPLE_IMAGES" = "Képek felbontásának csökkentése";
 "CROP_BORDERS" = "Képszegélyek levágása";
@@ -1085,8 +1075,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "A beállítás nem jeleníthető meg: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Öt mellékelt modell offline is telepíthető. Telepítsen egy modellt, majd válassza ki az Engedélyezett modell szakaszban. A MangaJaNai körülbelül 1200 képpont magas fekete-fehér oldalakhoz való; a színes oldalak változatlanok maradnak.";
 
 "DOWNLOAD_TRANSLATED" = "Letöltés fordítással";
 
@@ -1096,15 +1084,10 @@
 "TRANSLATION_STATE_ON" = "Bekapcsolva";
 "TRANSLATION_STATE_OFF" = "Kikapcsolva";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "Illusztrációkhoz; megőrzi az eredeti vonalvezetést. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Színes illusztrációkhoz és borítókhoz; kis erőforrásigényű modell a részletek javításához.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Általános képekhez és vegyes grafikákhoz; erősebb élesítés.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Animéhez, mangához és színes oldalakhoz.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Csak fekete-fehér mangához, körülbelül 1200 képpont magas eredeti oldalakra hangolva. A színes oldalak változatlanok maradnak.";
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Érvénytelen fordítási beállítások. Ellenőrizze a szerver URL-címét, a modellt és a többi beállítást.";
 

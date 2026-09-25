@@ -67,6 +67,26 @@ class SourceSearchViewModel: ObservableObject {
         loadManga(searchText: searchText, filters: filters)
     }
 
+    @discardableResult
+    func cancelPendingRequests() -> Task<Void, Never>? {
+        let pending = loadMoreTask ?? searchTask
+        generation += 1
+        searchTask?.cancel()
+        loadMoreTask?.cancel()
+        searchTask = nil
+        loadMoreTask = nil
+        loadingSearch = false
+        searchIsDebouncing = false
+        loadingInitial = false
+        // Preserve completed content; a dismissed initial request may be retried
+        // if this controller is deliberately presented again.
+        if entries.isEmpty {
+            hasAppeared = false
+            currentSearch = nil
+        }
+        return pending
+    }
+
     func waitForSearch() async {
         await searchTask?.value
     }

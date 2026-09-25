@@ -6,6 +6,44 @@ import WebKit
 @Suite(.serialized)
 @MainActor
 struct ReaderTranslationRenderingTests {
+    @Test func lateSourceRendersCompletedTranslationWithoutPageTurn() async throws {
+        let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
+        let host = try window(frame: frame)
+        host.rootViewController = UIViewController()
+        let view = UIImageView(frame: frame)
+        view.contentMode = .scaleAspectFit
+        host.rootViewController?.view.addSubview(view)
+        host.makeKeyAndVisible()
+        let page = ReaderTranslationPage(imageView: view)
+        let source = Page(sourceId: "late-source", chapterId: "render", index: 0)
+        page.sourcePage = source
+        var settings = fixtureSettings()
+        settings.overlay = ReaderTranslationSettings.defaultOverlay
+        let regions = [ReaderTranslationRegion(id: "late", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2),
+            source: "Hello", translation: "이미지가 늦게 준비된 페이지")]
+        let cache = ReaderTranslationSessionCache()
+        try cache.store(regions, for: source.translationCacheKey)
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            Issue.record("Completed translation must not run OCR/API again")
+            return []
+        }, availableMemory: { .max }, cache: cache)
+        defer { session.close(); host.isHidden = true }
+        session.update(items: [.init(source)], visible: [page], context: "late-source")
+        session.enable(settings: settings)
+        #expect(view.subviews.isEmpty)
+        view.image = image()
+        session.sourceImageDidLoad(source)
+        let overlay = try #require(view.subviews.first as? ReaderTranslationOverlayView)
+        // Do not force layout or issue a navigation refresh while waiting.
+        let deadline = Date().addingTimeInterval(10)
+        while overlay.lastDiagnostic?.outcome != .committed {
+            if Date() > deadline { throw URLError(.timedOut) }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(!overlay.isHidden && !overlay.webView.isHidden)
+        #expect(overlay.lastDiagnostic?.renderedItemCount == 1)
+    }
+
     @Test func backgroundReplacementPreservesDocumentAndReadablePixels() async throws {
         let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
         let host = try window(frame: frame)
@@ -164,7 +202,14 @@ struct ReaderTranslationRenderingTests {
         // text while the remaining provider output is still pending.
         try await Task.sleep(for: .milliseconds(300))
         #expect(!page.isShowingProvisionalTranslation)
-        #expect(imageView.subviews.isEmpty)
+        // Navigation may warm an empty, hidden WebKit document before the
+        // provider finishes. It must not reveal OCR or partially translated text.
+        for subview in imageView.subviews {
+            let pending = try #require(subview as? ReaderTranslationOverlayView)
+            #expect(pending.isHidden)
+            #expect(pending.webView.isHidden)
+            #expect(pending.lastDiagnostic?.outcome != .committed)
+        }
         #expect(!page.canExportTranslation)
         #expect(imageView.image === source)
         await gate.release()
@@ -176,6 +221,7 @@ struct ReaderTranslationRenderingTests {
         #expect(!page.isShowingProvisionalTranslation)
         #expect(imageView.image === source)
         try await waitForRender(overlay)
+        #expect(!overlay.isHidden)
         #expect(!overlay.webView.isHidden)
         #expect(page.regions.allSatisfy { $0.translation != nil })
         #expect(overlay.lastDiagnostic?.renderedItemCount == page.regions.count)

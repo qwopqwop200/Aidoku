@@ -25,7 +25,7 @@ actor MyAnimeListApi {
         try await requestData(urlRequest: oauth.authorizedRequest(for: url))
     }
 
-    func refreshAccessToken() async -> OAuthResponse? {
+    func refreshAccessToken(replacingAuthorization: String? = nil) async -> OAuthResponse? {
         guard let refreshToken = await oauth.tokens?.refreshToken else { return nil }
 
         guard let url = URL(string: oauth.baseUrl + "/token") else { return nil }
@@ -36,13 +36,18 @@ actor MyAnimeListApi {
             "refresh_token": refreshToken,
             "grant_type": "refresh_token"
         ].percentEncoded()
-        let response: OAuthResponse? = try? await URLSession.shared.object(from: request)
-        if let response { await oauth.setTokens(response) }
-        return response
+        let refreshRequest = request
+        return await oauth.refreshTokens(replacingAuthorization: replacingAuthorization) {
+            try? await URLSession.shared.object(from: refreshRequest)
+        }
     }
 
     private func requestData(urlRequest: URLRequest) async throws -> Data {
+        let currentGeneration = await oauth.accountGeneration
+        let issued = OAuthClient.generation(for: urlRequest) ?? currentGeneration
+        guard currentGeneration == issued else { throw CancellationError() }
         var (data, response) = try await URLSession.shared.data(for: urlRequest)
+        guard await oauth.accountGeneration == issued else { throw CancellationError() }
         let statusCode = (response as? HTTPURLResponse)?.statusCode
 
         if await oauth.tokens == nil {
@@ -50,9 +55,11 @@ actor MyAnimeListApi {
         }
 
         let tokenExpired = await oauth.tokens?.expired == true
+        guard await oauth.accountGeneration == issued else { throw CancellationError() }
 
-        // check if token expired
-        if statusCode == 400 || statusCode == 401 || statusCode == 403 || tokenExpired {
+        let succeeded = statusCode.map { (200..<300).contains($0) } ?? false
+        // A successful mutation must not be repeated due to local expiry.
+        if statusCode == 400 || statusCode == 401 || statusCode == 403 || (tokenExpired && !succeeded) {
             // ensure we have a refresh token, otherwise we need to fully re-auth
             let reloginNeeded = await oauth.checkIfReloginNeeded(trackerName: "MyAnimeList")
             guard !reloginNeeded else {
@@ -60,11 +67,12 @@ actor MyAnimeListApi {
             }
 
             // refresh access token
-            if await refreshAccessToken() != nil {
+            if await refreshAccessToken(replacingAuthorization: urlRequest.value(forHTTPHeaderField: "Authorization")) != nil {
                 // try request again with refreshed token
                 let newAuthorization = await oauth.authorizedRequest(for: URL(string: oauth.baseUrl + "/token")!)
                     .value(forHTTPHeaderField: "Authorization")
                 if let newAuthorization {
+                    guard await oauth.accountGeneration == issued else { throw CancellationError() }
                     var newRequest = urlRequest
                     newRequest.setValue(newAuthorization, forHTTPHeaderField: "Authorization")
                     (data, response) = try await URLSession.shared.data(for: newRequest)
@@ -72,6 +80,7 @@ actor MyAnimeListApi {
             }
         }
 
+        guard await oauth.accountGeneration == issued else { throw CancellationError() }
         guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) else {
             throw URLError(.badServerResponse)
         }

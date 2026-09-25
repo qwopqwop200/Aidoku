@@ -144,6 +144,7 @@ public actor Interpreter {
 
 extension Interpreter: Runner {
     public func getSearchMangaList(query: String?, page: Int, filters: [FilterValue]) throws -> MangaPageResult {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "get_search_manga_list")
         let queryPointer = store.store(query ?? "")
         defer { store.remove(at: queryPointer) }
@@ -156,10 +157,13 @@ extension Interpreter: Runner {
     }
 
     public func getMangaUpdate(manga: Manga, needsDetails: Bool, needsChapters: Bool) async throws -> Manga {
+        try Task.checkCancellation()
+        let subscription = if let owner = PartialResultSubscription.id { owner }
+            else { await partialMangaPublisher?.subscriptionID }
         let callbackId = await partialValueHandler.registerCallback { @Sendable _, data in
             let manga = try? PostcardDecoder().decode(Manga.self, from: data)
             guard let manga else { return nil }
-            await self.partialMangaPublisher?.send(manga)
+            await self.partialMangaPublisher?.send(manga, to: subscription)
             return nil
         }
 
@@ -180,6 +184,7 @@ extension Interpreter: Runner {
     }
 
     public func getPageList(manga: Manga, chapter: Chapter) throws -> [Page] {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "get_page_list")
         var newManga = manga
         newManga.chapters = nil
@@ -194,6 +199,7 @@ extension Interpreter: Runner {
     }
 
     public func getMangaList(listing: Listing, page: Int) throws -> MangaPageResult {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "get_manga_list")
         let listingPointer = try store.storeEncoded(listing)
         defer {
@@ -205,11 +211,14 @@ extension Interpreter: Runner {
     }
 
     public func getHome() async throws -> Home {
+        try Task.checkCancellation()
         struct PartialValueHolder: Sendable {
             var currentHome: Home?
             var decodingError: Error?
         }
 
+        let subscription = if let owner = PartialResultSubscription.id { owner }
+            else { await partialHomePublisher?.subscriptionID }
         let callbackId = await partialValueHandler.registerCallback { @Sendable partial, data in
             var partial = (partial as? PartialValueHolder) ?? .init()
             do {
@@ -218,7 +227,7 @@ extension Interpreter: Runner {
                     case var .layout(home):
                         home.setSourceKey(self.sourceKey)
                         partial.currentHome = home
-                        await self.partialHomePublisher?.send(home)
+                        await self.partialHomePublisher?.send(home, to: subscription)
                     case var .component(component):
                         component.setSourceKey(self.sourceKey)
                         if let currentHome = partial.currentHome {
@@ -235,7 +244,7 @@ extension Interpreter: Runner {
                         } else {
                             partial.currentHome = Home(components: [component])
                         }
-                        await self.partialHomePublisher?.send(partial.currentHome!)
+                        await self.partialHomePublisher?.send(partial.currentHome!, to: subscription)
                 }
             } catch {
                 partial.decodingError = error
@@ -270,6 +279,7 @@ extension Interpreter: Runner {
     }
 
     public func processPageImage(response: Response, context: PageContext?) throws -> PlatformImage? {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "process_page_image")
         let responsePointer = try store.storeEncoded(response)
         defer { store.remove(at: responsePointer) }
@@ -292,6 +302,7 @@ extension Interpreter: Runner {
     }
 
     public func processCoverImage(response: Response) throws -> PlatformImage? {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "process_cover_image")
         let responsePointer = try store.storeEncoded(response)
         defer { store.remove(at: responsePointer) }
@@ -304,6 +315,7 @@ extension Interpreter: Runner {
     }
 
     public func getSearchFilters() throws -> [Filter] {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "get_filters")
         let result: Int32 = try function.call()
         let data = try handleResult(result: result)
@@ -311,6 +323,7 @@ extension Interpreter: Runner {
     }
 
     public func getSettings() throws -> [Setting] {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "get_settings")
         let result: Int32 = try function.call()
         let data = try handleResult(result: result)
@@ -318,6 +331,7 @@ extension Interpreter: Runner {
     }
 
     public func getListings() throws -> [Listing] {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "get_listings")
         let result: Int32 = try function.call()
         let data = try handleResult(result: result)
@@ -325,6 +339,7 @@ extension Interpreter: Runner {
     }
 
     public func getImageRequest(url: String, context: PageContext?) throws -> URLRequest {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "get_image_request")
         let responsePointer = try store.storeEncoded(url)
         defer { store.remove(at: responsePointer) }
@@ -346,6 +361,7 @@ extension Interpreter: Runner {
     }
 
     public func getPageDescription(page: Page) throws -> String? {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "get_page_description")
         let codablePage = page.codable(store: store)
         defer {
@@ -361,6 +377,7 @@ extension Interpreter: Runner {
     }
 
     public func getAlternateCovers(manga: Manga) throws -> [String] {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "get_alternate_covers")
         let mangaPointer = try store.storeEncoded(manga)
         defer { store.remove(at: mangaPointer) }
@@ -370,6 +387,7 @@ extension Interpreter: Runner {
     }
 
     public func getBaseUrl() throws -> URL? {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "get_base_url")
         let result: Int32 = try function.call()
         let data = try handleResult(result: result)
@@ -377,6 +395,7 @@ extension Interpreter: Runner {
     }
 
     public func handleNotification(notification: String) throws {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "handle_notification")
         let urlPointer = try store.storeEncoded(notification)
         defer { store.remove(at: urlPointer) }
@@ -384,6 +403,7 @@ extension Interpreter: Runner {
     }
 
     public func handleDeepLink(url: String) throws -> DeepLinkResult? {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "handle_deep_link")
         let urlPointer = try store.storeEncoded(url)
         defer { store.remove(at: urlPointer) }
@@ -393,6 +413,7 @@ extension Interpreter: Runner {
     }
 
     public func handleBasicLogin(key: String, username: String, password: String) throws -> Bool {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "handle_basic_login")
 
         let keyPtr = try store.storeEncoded(key)
@@ -408,6 +429,7 @@ extension Interpreter: Runner {
     }
 
     public func handleWebLogin(key: String, cookies: [String: String]) throws -> Bool {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "handle_web_login")
 
         let keys = [String](cookies.keys)
@@ -426,6 +448,7 @@ extension Interpreter: Runner {
     }
 
     public func handleMigration(kind: KeyKind, mangaKey: String, chapterKey: String?) throws -> String {
+        try Task.checkCancellation()
         let function = try module.findFunction(name: "handle_key_migration")
 
         let mangaKeyPtr = try store.storeEncoded(mangaKey)

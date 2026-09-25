@@ -281,32 +281,46 @@ actor TranslationCache {
         let nextMaximumBytes = try next.validatedMaximumBytes()
         persistenceTask?.cancel()
         persistenceTask = nil
-        if configuration.diskEnabled {
-            try persistPendingDiskWrites()
-        }
+        do {
+            if configuration.diskEnabled {
+                try persistPendingDiskWrites()
+            }
 
-        if !next.memoryEnabled {
-            clearMemoryEntries()
-        }
-        maximumBytes = nextMaximumBytes
-        configuration = next
-        trimMemoryToBudget()
-
-        if next.diskEnabled {
-            if let diskStore {
-                evictions &+= UInt64(try diskStore.setMaximumBytes(nextMaximumBytes))
+            // Complete fallible storage work before publishing configuration or
+            // dropping the old memory tier. A failed disk enable must not leave
+            // diskEnabled=true with no store (which silently loses new results).
+            let nextDiskStore: TranslationDiskStore?
+            if next.diskEnabled {
+                if let diskStore {
+                    evictions &+= UInt64(try diskStore.setMaximumBytes(nextMaximumBytes))
+                    nextDiskStore = diskStore
+                } else {
+                    nextDiskStore = try TranslationDiskStore(
+                        storageRootURL: storageRootURL,
+                        maximumBytes: nextMaximumBytes
+                    )
+                }
             } else {
-                diskStore = try TranslationDiskStore(
-                    storageRootURL: storageRootURL,
-                    maximumBytes: nextMaximumBytes
-                )
+                try diskStore?.clear()
+                nextDiskStore = nil
             }
-        } else {
-            pendingDiskWrites.removeAll(keepingCapacity: false)
-            if let diskStore {
-                try diskStore.clear()
+
+            diskStore = nextDiskStore
+            maximumBytes = nextMaximumBytes
+            configuration = next
+            if !next.memoryEnabled {
+                clearMemoryEntries()
             }
-            diskStore = nil
+            trimMemoryToBudget()
+            if !next.diskEnabled {
+                pendingDiskWrites.removeAll(keepingCapacity: false)
+            }
+            lastPersistenceFailure = nil
+        } catch {
+            // Reconfiguration must not cancel the only retry for an existing
+            // valid result when storage is temporarily unavailable.
+            if !pendingDiskWrites.isEmpty { schedulePersistence() }
+            throw error
         }
     }
 
@@ -663,8 +677,14 @@ private final class TranslationDiskStore {
     }
 
     func setMaximumBytes(_ value: Int) throws -> Int {
+        let previousMaximumBytes = maximumBytes
         maximumBytes = value
-        return try trimToBudget()
+        do {
+            return try trimToBudget()
+        } catch {
+            maximumBytes = previousMaximumBytes
+            throw error
+        }
     }
 
     func clear() throws {
@@ -759,16 +779,22 @@ private final class TranslationDiskStore {
     }
 
     private func remove(_ key: TranslationCacheKey) throws {
-        guard let metadata = entries.removeValue(forKey: key) else { return }
+        guard let metadata = entries[key] else { return }
+        do {
+            try fileManager.removeItem(at: metadata.fileURL)
+        } catch {
+            let error = error as NSError
+            // Only confirmed absence completes eviction. fileExists can also
+            // report false for an inaccessible ancestor, which is not removal.
+            guard error.domain == NSCocoaErrorDomain, error.code == NSFileNoSuchFileError else {
+                // A failed eviction still occupies disk space. Keep its ownership
+                // and byte charge so the next retry can remove the same record.
+                throw TranslationCacheError.persistenceFailure
+            }
+        }
+        entries.removeValue(forKey: key)
         fileOwners.removeValue(forKey: metadata.fileURL.lastPathComponent)
         usedBytes -= metadata.byteCount
-        do {
-            if fileManager.fileExists(atPath: metadata.fileURL.path) {
-                try fileManager.removeItem(at: metadata.fileURL)
-            }
-        } catch {
-            throw TranslationCacheError.persistenceFailure
-        }
     }
 
     private func prepareDirectory(_ url: URL) throws {

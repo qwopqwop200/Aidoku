@@ -21,7 +21,7 @@ struct Page: Hashable {
     var chapterId: String
     var index: Int = 0
     var imageURL: String?
-    var base64: String?
+    @HashedReaderBase64 var base64: String? = nil
     var text: String?
     var image: PlatformImage?
     var zipURL: String?

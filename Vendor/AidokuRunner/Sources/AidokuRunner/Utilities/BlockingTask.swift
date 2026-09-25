@@ -39,8 +39,12 @@ final class BlockingTask<T>: @unchecked Sendable {
     private var result: T?
     private var completed = false
 
-    init(priority: TaskPriority? = nil, block: @escaping @Sendable () async -> T) {
-        Task.detached(priority: priority ?? BlockingTaskPriority.current()) {
+    private var operation: Task<Void, Never>?
+    private let forwardsCancellation: Bool
+
+    init(priority: TaskPriority? = nil, forwardsCancellation: Bool = false, block: @escaping @Sendable () async -> T) {
+        self.forwardsCancellation = forwardsCancellation
+        operation = Task.detached(priority: priority ?? BlockingTaskPriority.current()) {
             self.finish(await block())
         }
     }
@@ -56,7 +60,24 @@ final class BlockingTask<T>: @unchecked Sendable {
     func get() -> T {
         condition.lock()
         defer { condition.unlock() }
-        while !completed { condition.wait() }
+        let observesCancellation = forwardsCancellation && withUnsafeCurrentTask { $0 != nil }
+        var forwarded = false
+        while !completed {
+            if observesCancellation {
+                if !forwarded, Task.isCancelled {
+                    forwarded = true
+                    condition.unlock()
+                    operation?.cancel()
+                    condition.lock()
+                    if completed { break }
+                }
+                // Keep runtime ownership until the underlying operation really
+                // finishes; cancellation must never release a live WASM store.
+                _ = condition.wait(until: Date().addingTimeInterval(0.02))
+            } else {
+                condition.wait()
+            }
+        }
         return result!
     }
 }

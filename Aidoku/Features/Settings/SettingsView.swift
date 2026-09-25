@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var categoriesOnly: [String] = []
     @State private var categoriesAndGroups: [String] = []
     @State private var categoriesLoaded = false
+    @State private var categoryRefresh = SettingsRefreshScheduler()
 
     @State private var searchText: String = ""
     @State private var searchResult: SettingSearchResult?
@@ -124,35 +125,37 @@ extension SettingsView {
         }
         .task {
             guard !categoriesLoaded else { return }
-            await updateCategories()
+            updateCategories()
         }
         .onReceive(NotificationCenter.default.publisher(for: .updateCategories)) { _ in
-            Task {
-                await updateCategories()
-            }
+            updateCategories()
+        }
+        .onDisappear {
+            categoryRefresh.cancel()
+            categoriesLoaded = false
         }
     }
 }
 
 extension SettingsView {
-    func updateCategories() async {
-        let (categoriesOnly, categoriesAndGroups) = await CoreDataManager.shared.container.performBackgroundTask { context in
-            (
-                CoreDataManager.shared.getCategoryTitles(context: context),
-                CoreDataManager.shared.getCategoryTitles(excludeFilterGroups: false, context: context)
-            )
-        }
-
-        self.categoriesOnly = categoriesOnly
-        self.categoriesAndGroups = categoriesAndGroups
-        self.categoriesLoaded = true
-
-        if
-            let selected = AppSettings.library.defaultCategory.get(),
-            !selected.isEmpty && selected != "none" && !categoriesOnly.contains(selected)
-        {
-            AppSettings.library.defaultCategory.reset()
-        }
+    func updateCategories() {
+        let selected = AppSettings.library.defaultCategory.get()
+        categoryRefresh.request(operation: {
+            await CoreDataManager.shared.container.performBackgroundTask { context in
+                (
+                    CoreDataManager.shared.getCategoryTitles(context: context),
+                    CoreDataManager.shared.getCategoryTitles(excludeFilterGroups: false, context: context)
+                )
+            }
+        }, commit: { categoriesOnly, categoriesAndGroups in
+            self.categoriesOnly = categoriesOnly
+            self.categoriesAndGroups = categoriesAndGroups
+            self.categoriesLoaded = true
+            if let selected, AppSettings.library.defaultCategory.get() == selected,
+               !selected.isEmpty && selected != "none" && !categoriesOnly.contains(selected) {
+                AppSettings.library.defaultCategory.reset()
+            }
+        })
     }
 
     func onSettingChange(_ key: String) {
@@ -222,10 +225,10 @@ extension SettingsView {
                     message: NSLocalizedString("CLEAR_READ_HISTORY_TEXT")
                 ) {
                     Task {
-                        await CoreDataManager.shared.container.performBackgroundTask { context in
+                        let cleared = await CoreDataManager.shared.container.performBackgroundTask { context in
                             CoreDataManager.shared.clearHistory(context: context)
-                            try? context.save()
                         }
+                        guard cleared else { return }
                         NotificationCenter.default.post(name: .updateHistory, object: nil)
                     }
                 }
@@ -235,10 +238,10 @@ extension SettingsView {
                     message: NSLocalizedString("CLEAR_EXCLUDING_LIBRARY_TEXT")
                 ) {
                     Task {
-                        await CoreDataManager.shared.container.performBackgroundTask { context in
+                        let cleared = await CoreDataManager.shared.container.performBackgroundTask { context in
                             CoreDataManager.shared.clearHistoryExcludingLibrary(context: context)
-                            try? context.save()
                         }
+                        guard cleared else { return }
                         NotificationCenter.default.post(name: .updateHistory, object: nil)
                     }
                 }
@@ -305,8 +308,6 @@ extension SettingsView {
             FilterGroupsView()
         } else if key == "Reader.tapZones" {
             TapZonesSelectView()
-        } else if key == "Reader.upscalingModels" {
-            UpscaleModelListView()
         } else if key == "Network.httpsBypassPage" {
             if #available(iOS 17.0, *) { HTTPSBypassSettingsView() }
         } else if key == "Reader.translation" {

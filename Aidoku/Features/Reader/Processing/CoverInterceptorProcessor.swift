@@ -113,3 +113,19 @@ extension CoverInterceptorProcessor: Hashable {
         AnyHashable(self)
     }
 }
+
+/// Source interceptors can replace all pixels (and may start from Nuke's empty
+/// decoder). Apply display sizing only after the final source image exists.
+enum CoverImageProcessing {
+    @MainActor
+    static func processors(source: AidokuRunner.Source?, downsampleWidth: CGFloat?) -> [any ImageProcessing] {
+        var processors: [any ImageProcessing] = []
+        if let source, source.features.processesCovers {
+            processors.append(CoverInterceptorProcessor(source: source))
+        }
+        if let downsampleWidth {
+            processors.append(DownsampleProcessor(width: downsampleWidth))
+        }
+        return processors
+    }
+}

@@ -120,7 +120,7 @@ actor ReaderTranslationDiskCache {
         if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
     }
 
-    func data(for key: String, kind: Kind) throws -> Data? {
+    func data(for key: String, kind: Kind, maximumBytes: Int? = nil) throws -> Data? {
         try Task.checkCancellation()
         try prepare()
         let name = fileName(key, kind: kind)
@@ -132,7 +132,16 @@ actor ReaderTranslationDiskCache {
             try database?.delete(name)
             return nil
         }
-        guard let unpacked = try? ReaderTranslationCacheCodec.unpack(data) else {
+        let unpacked: Data
+        do {
+            if let maximumBytes {
+                unpacked = try ReaderTranslationCacheCodec.unpack(data, maximumBytes: maximumBytes)
+            } else {
+                unpacked = try ReaderTranslationCacheCodec.unpack(data)
+            }
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
             try database?.delete(name)
             return nil
         }
@@ -394,7 +403,8 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         try execute("CREATE TRIGGER IF NOT EXISTS region_base_insert AFTER INSERT ON region_bases BEGIN UPDATE totals SET bytes=bytes+length(new.data); END")
         try execute("CREATE TRIGGER IF NOT EXISTS region_base_update AFTER UPDATE OF data ON region_bases BEGIN UPDATE totals SET bytes=bytes+length(new.data)-length(old.data); END")
         try execute("CREATE TRIGGER IF NOT EXISTS region_base_delete AFTER DELETE ON region_bases BEGIN UPDATE totals SET bytes=bytes-length(old.data); END")
-        try execute("CREATE TRIGGER IF NOT EXISTS region_unlink AFTER DELETE ON region_links BEGIN DELETE FROM region_bases WHERE name=old.base AND NOT EXISTS (SELECT 1 FROM region_links WHERE base=old.base); END")
+        try execute("CREATE TRIGGER IF NOT EXISTS region_unlink AFTER DELETE ON region_links BEGIN DELETE FROM region_bases WHERE "
+            + "name=old.base AND NOT EXISTS (SELECT 1 FROM region_links WHERE base=old.base); END")
         try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: url.path)
     }
 
@@ -461,7 +471,8 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     }
 
     func payload(_ name: String) throws -> (data: Data, base: Data?)? {
-        try statement("SELECT cache.data, region_bases.data FROM cache LEFT JOIN region_links USING(name) LEFT JOIN region_bases ON region_bases.name=region_links.base WHERE cache.name=?", name: name) { pointer in
+        try statement("SELECT cache.data, region_bases.data FROM cache LEFT JOIN region_links USING(name) LEFT JOIN region_bases ON "
+            + "region_bases.name=region_links.base WHERE cache.name=?", name: name) { pointer in
             let result = sqlite3_step(pointer)
             if result == SQLITE_DONE { return nil }
             guard result == SQLITE_ROW else { throw failure() }
@@ -476,7 +487,8 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     }
 
     func nextLegacyRegion(after name: String) throws -> (name: String, data: Data)? {
-        try statement("SELECT name,data FROM cache WHERE name>? AND (name LIKE 'ocr-%' OR name LIKE 'translation-%' OR name LIKE 'metadata-%') AND NOT EXISTS (SELECT 1 FROM region_links WHERE region_links.name=cache.name) ORDER BY name LIMIT 1", name: name) { pointer in
+        try statement("SELECT name,data FROM cache WHERE name>? AND (name LIKE 'ocr-%' OR name LIKE 'translation-%' OR name LIKE 'metadata-%') "
+            + "AND NOT EXISTS (SELECT 1 FROM region_links WHERE region_links.name=cache.name) ORDER BY name LIMIT 1", name: name) { pointer in
             let result = sqlite3_step(pointer)
             if result == SQLITE_DONE { return nil }
             guard result == SQLITE_ROW else { throw failure() }
@@ -534,7 +546,8 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     func touch(_ name: String) throws {
         // The newest entry already has the correct durable LRU position. Repeated
         // reads need no journal/fsync; alternating entries still persist exact order.
-        try statement("UPDATE cache SET accessed=(SELECT COALESCE(MAX(accessed),0)+1 FROM cache) WHERE name=? AND name != (SELECT name FROM cache ORDER BY accessed DESC, name DESC LIMIT 1)", name: name, body: step)
+        try statement("UPDATE cache SET accessed=(SELECT COALESCE(MAX(accessed),0)+1 FROM cache) WHERE name=? AND name != (SELECT name FROM "
+            + "cache ORDER BY accessed DESC, name DESC LIMIT 1)", name: name, body: step)
     }
 
     func delete(_ name: String) throws {
@@ -556,7 +569,13 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
             if let base {
                 let digest = ReaderTranslationCacheIdentity.digest(base)
                 let packedBase = try ReaderTranslationCacheCodec.repack(base)
-                try statement("INSERT OR IGNORE INTO region_bases(name,data) VALUES(?,?)", name: digest) { pointer in
+                // A surviving sibling link can keep a corrupt shared base alive after
+                // a cache miss. Fresh canonical source data must repair that base,
+                // otherwise recomputing this page repeatedly stores another miss.
+                // Matching bytes perform no UPDATE and keep the common hit cheap.
+                let baseSQL = "INSERT INTO region_bases(name,data) VALUES(?,?) " +
+                    "ON CONFLICT(name) DO UPDATE SET data=excluded.data WHERE region_bases.data != excluded.data"
+                try statement(baseSQL, name: digest) { pointer in
                     let result = packedBase.withUnsafeBytes { sqlite3_bind_blob(pointer, 2, $0.baseAddress, Int32($0.count), transient) }
                     guard result == SQLITE_OK else { throw failure() }
                     try step(pointer)
@@ -825,7 +844,10 @@ enum ReaderTranslationCacheIdentity {
             "reader-translation-v2-neighbor-context", ocr(page: page, settings: settings), config.provider.rawValue, config.apiProtocol.rawValue,
             config.baseURL, config.model, config.credentialAccount, String(config.credentialGeneration), config.reasoningEffort.rawValue,
             config.instructions, settings.sourceLanguage, settings.targetLanguage
-        ] + (settings.includePageImage ? ["page-image-v2-auto-fallback", String(TranslationImageSupport.shared.revision(for: config))] : []) + (settings.filterSFXWithLLM ? [settings.shouldAttachPageImage ? TranslationHTTPCodec.sfxPolicy : TranslationHTTPCodec.textOnlySFXPolicy] : []) + (settings.filterBackgroundWithLLM ? [settings.shouldAttachPageImage ? TranslationHTTPCodec.backgroundPolicy : TranslationHTTPCodec.textOnlyBackgroundPolicy] : []))
+        ]
+            + (settings.includePageImage ? ["page-image-v2-auto-fallback", String(TranslationImageSupport.shared.revision(for: config))] : [])
+            + (settings.filterSFXWithLLM ? [settings.shouldAttachPageImage ? TranslationHTTPCodec.sfxPolicy : TranslationHTTPCodec.textOnlySFXPolicy] : [])
+            + (settings.filterBackgroundWithLLM ? [settings.shouldAttachPageImage ? TranslationHTTPCodec.backgroundPolicy : TranslationHTTPCodec.textOnlyBackgroundPolicy] : []))
     }
     // Every geometry/appearance input must be included to reject stale pixels after a reader change.
     // swiftlint:disable:next function_parameter_count

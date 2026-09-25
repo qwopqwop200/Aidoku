@@ -97,7 +97,7 @@ extension JavaScript {
             return Result.invalidString.rawValue
         }
 
-        let result: String? = BlockingTask { [printHandler] in
+        let result: String? = BlockingTask(forwardsCancellation: true) { [printHandler] in
             do {
                 return try await context.evaluateAsyncScript(jsString)
             } catch {
@@ -281,14 +281,8 @@ extension JavaScript {
             return Result.invalidString.rawValue
         }
 
-        let result: String? = BlockingTask {
-            await Task { @MainActor in
-                let result = try? await webViewHandler.evaluateAsyncJavaScript(jsString)
-                guard let result else {
-                    return nil
-                }
-                return "\(result)"
-            }.value
+        let result: String? = BlockingTask(forwardsCancellation: true) {
+            try? await webViewHandler.evaluateAsyncJavaScriptString(jsString)
         }.get()
 
         guard let result else {

@@ -470,7 +470,6 @@
 "NO_HISTORY" = "沒有閱讀記錄";
 "NO_RECENT_SEARCHES" = "沒有最近的搜尋項目";
 "NO_RESULTS_FOR_%@" = "沒有「%@」的結果";
-"NO_AVAILABLE_MODELS" = "沒有可用的模型";
 "NO_HISTORY_TEXT" = "閱讀記錄會顯示在此處。";
 "NO_RECENT_SEARCHES_TEXT" = "你最近的搜尋項目會顯示在此處。";
 "BACKGROUND_REFRESH" = "背景更新";
@@ -636,15 +635,6 @@
 "BACKGROUND_REFRESH_TEXT" = "手動開始更新書庫後，即使 App 切換至背景，也允許更新完成。";
 "NO_RESULTS_TEXT" = "檢查拼字或嘗試重新搜尋。";
 "LEARN_MORE" = "瞭解更多…";
-"UPSCALING" = "超解析度";
-"UPSCALE_IMAGES" = "提升圖片解析度";
-"UPSCALING_MODELS" = "超解析度模型";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "最大圖片高度";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "高度達到或超過上限的圖片不會進行超解析度處理。";
-"ENABLED_MODEL" = "已啟用的模型";
-"AVAILABLE_MODELS" = "可用的模型";
-"NO_AVAILABLE_MODELS_TEXT" = "無法取得可用的模型。請檢查網路連接以及確保應用程式是最新版本。";
-"MODEL_INFO" = "模型資訊";
 "CLEAR_SOURCE_CACHE_TEXT" = "清除此來源網址的 Cookie、網站資料和快取的來源內容。您可能需要重新登入，載入時間也可能暫時增加。";
 "OEL" = "英文原創漫畫";
 "SOURCE_BREAKING_CHANGE" = "來源不相容變更";
@@ -1085,8 +1075,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "無法顯示設定：%@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "內建的5個模型皆可離線安裝。安裝模型後，在「已啟用的模型」中點選。MangaJaNai 適用於高度約1200像素的黑白頁面；彩色頁面保持原樣。";
 
 "DOWNLOAD_TRANSLATED" = "下載並翻譯";
 
@@ -1097,12 +1085,7 @@
 
 "TRANSLATION_STATE_OFF" = "關閉";
 
-// Translation errors and upscaling model descriptions
-"UPSCALE_MODEL_SWINUNET_INFO" = "適用於插畫，保留原始線條。FP32。";
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "適用於彩色插畫與封面的輕量細節增強模型。";
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "適用於一般圖片與多種畫風，銳化效果更強。";
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "適用於動畫、漫畫與彩色頁面。";
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "僅適用於黑白漫畫，針對原始高度約為 1200 像素的頁面進行調整。彩色頁面保持原樣。";
+// Translation errors
 "TRANSLATION_ERROR_CONFIGURATION" = "翻譯設定無效。請檢查伺服器位址、模型與其他設定。";
 "TRANSLATION_ERROR_REQUEST" = "無法使用目前的文字、圖片或語言設定進行翻譯。";
 "TRANSLATION_ERROR_RESPONSE" = "翻譯伺服器傳回了無效的回應。請重試或檢查模型設定。";

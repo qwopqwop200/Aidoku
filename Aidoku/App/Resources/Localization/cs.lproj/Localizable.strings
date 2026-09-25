@@ -862,16 +862,6 @@
 "LEGACY_SOURCE_LIST" = "Zastaralý seznam zdrojů";
 "LEGACY_SOURCE_LIST_WARNING" = "Upozornění: zastaralý seznam zdrojů";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Máte nastavený zastaralý seznam zdrojů. Tento formát v budoucí verzi Aidoku přestane fungovat. Zatím je funkční, ale doporučujeme najít náhradu a nastavit ji v Nastavení > Seznamy zdrojů.";
-"UPSCALING" = "Zvýšení rozlišení";
-"UPSCALE_IMAGES" = "Zvyšovat rozlišení obrázků";
-"UPSCALING_MODELS" = "Modely pro zvýšení rozlišení";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Maximální výška obrázku";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Obrázky, jejichž výška dosahuje nastaveného maxima nebo je překračuje, se nebudou převádět do vyššího rozlišení.";
-"ENABLED_MODEL" = "Povolený model";
-"AVAILABLE_MODELS" = "Dostupné modely";
-"NO_AVAILABLE_MODELS" = "Žádné dostupné modely";
-"NO_AVAILABLE_MODELS_TEXT" = "Nepodařilo se načíst dostupné modely. Zkontrolujte připojení k síti a ujistěte se, že vaše aplikace používá nejnovější verzi.";
-"MODEL_INFO" = "Informace o modelu";
 "DISABLE_QUICK_ACTIONS" = "Zakázat rychlé akce";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Zakázat přiblížení dvojitým klepnutím";
 "LIVE_TEXT" = "Živý text";
@@ -1085,8 +1075,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Nelze zobrazit nastavení: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Pět přiložených modelů lze nainstalovat bez připojení k internetu. Nainstalujte model a poté jej vyberte v části „Povolený model“. MangaJaNai je určen pro černobílé stránky vysoké přibližně 1200 pixelů; barevné stránky zůstávají beze změny.";
 
 "DOWNLOAD_TRANSLATED" = "Stáhnout s překladem";
 
@@ -1096,15 +1084,10 @@
 "TRANSLATION_STATE_ON" = "Zapnuto";
 "TRANSLATION_STATE_OFF" = "Vypnuto";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "Ilustrace; zachovává původní linie kresby. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Barevné ilustrace a obálky; úsporný model pro vykreslení detailů.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Obecné obrázky a kresby v různých stylech; silnější doostření.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Anime, manga a barevné stránky.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Pouze černobílá manga; model je přizpůsoben původním stránkám vysokým přibližně 1200 pixelů. Barevné stránky zůstávají beze změny.";
 "TRANSLATION_ERROR_CONFIGURATION" = "Nastavení překladu je neplatné. Zkontrolujte adresu URL serveru, model a další nastavení.";
 "TRANSLATION_ERROR_REQUEST" = "Text, obrázek nebo jazyková nastavení nelze použít k překladu.";
 "TRANSLATION_ERROR_RESPONSE" = "Překladový server vrátil neplatnou odpověď. Zkuste to znovu nebo zkontrolujte nastavení modelu.";

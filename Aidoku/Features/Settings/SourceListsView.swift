@@ -12,6 +12,11 @@ struct SourceListsView: View {
     @State private var sourceLists: [URL: SourceList] = [:]
     @State private var missingSourceLists: Set<URL> = []
     @State private var showAddListFailAlert = false
+    @State private var listRefresh = SettingsRefreshScheduler()
+    @State private var addTask: Task<Void, Never>?
+    @State private var isAdding = false
+    @State private var showAddProgress = false
+    @State private var addGeneration = UUID()
 
     private var activeSourceListURLs: [URL] {
         sourceListsURLs.filter {
@@ -54,6 +59,7 @@ struct SourceListsView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                .disabled(isAdding)
             }
         }
         .alert(NSLocalizedString("SOURCE_LIST_ADD_FAIL"), isPresented: $showAddListFailAlert) {
@@ -62,22 +68,39 @@ struct SourceListsView: View {
             Text(NSLocalizedString("SOURCE_LIST_ADD_FAIL_TEXT"))
         }
         .onReceive(NotificationCenter.default.publisher(for: .updateSourceLists)) { _ in
-            Task {
-                await loadSourceLists()
-            }
+            refreshSourceLists()
         }
-        .task {
-            guard sourceLists.isEmpty else { return }
-            await loadSourceLists()
+        .task { refreshSourceLists() }
+        .onDisappear {
+            listRefresh.cancel()
+            addGeneration = UUID()
+            addTask?.cancel()
+            addTask = nil
+            isAdding = false
+            showAddProgress = false
+        }
+        .overlay {
+            if showAddProgress { ProgressView().padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12)) }
         }
     }
 
-    func loadSourceLists() async {
-        sourceListsURLs = await SourceManager.shared.getSourceListURLs().sorted { $0.absoluteString < $1.absoluteString }
+    private func refreshSourceLists() {
+        listRefresh.request(operation: { await loadSourceLists() }, commit: { _ in })
+    }
 
-        if await SourceManager.shared.sourceListLoadFinished {
-            missingSourceLists = await SourceManager.shared.getMissingSourceLists()
-            sourceLists = await SourceManager.shared.getLoadedSourceLists()
+    func loadSourceLists() async {
+        let urls = await SourceManager.shared.getSourceListURLs().sorted { $0.absoluteString < $1.absoluteString }
+        guard !Task.isCancelled else { return }
+        sourceListsURLs = urls
+
+        let finished = await SourceManager.shared.sourceListLoadFinished
+        guard !Task.isCancelled else { return }
+        if finished {
+            let missing = await SourceManager.shared.getMissingSourceLists()
+            let loaded = await SourceManager.shared.getLoadedSourceLists()
+            guard !Task.isCancelled else { return }
+            missingSourceLists = missing
+            sourceLists = loaded
         } else {
             missingSourceLists = []
             sourceLists = [:]
@@ -85,12 +108,14 @@ struct SourceListsView: View {
             let stream = await SourceManager.shared.streamSourceListsLoad()
             for await url in stream {
                 let sourceList = await SourceManager.shared.getSourceList(url: url)
+                guard !Task.isCancelled else { return }
                 withAnimation {
                     sourceLists[url] = sourceList
                 }
             }
 
             let newMissingSourceLists = await SourceManager.shared.getMissingSourceLists()
+            guard !Task.isCancelled else { return }
             withAnimation {
                 missingSourceLists = newMissingSourceLists
             }
@@ -150,35 +175,28 @@ struct SourceListsView: View {
             return
         }
 
-        actor Done {
-            var value: Bool = false
-            func set() {
-                value = true
-            }
-        }
-        let done = Done()
-
-        Task {
-            // show loading indicator if it takes longer than 0.5s
-            Task {
+        guard !isAdding else { return }
+        isAdding = true
+        let generation = UUID()
+        addGeneration = generation
+        addTask = Task {
+            let indicator = Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 500_000_000)
-                let finished = await done.value
-                if !finished {
-                    await MainActor.run {
-                        UIApplication.shared.appDelegate?.showLoadingIndicator()
-                    }
+                guard !Task.isCancelled, addGeneration == generation else { return }
+                showAddProgress = true
+            }
+            defer {
+                indicator.cancel()
+                if addGeneration == generation {
+                    isAdding = false
+                    showAddProgress = false
+                    addTask = nil
                 }
             }
-
             let success = await SourceManager.shared.addSourceList(url: url)
-            await done.set()
-            await UIApplication.shared.appDelegate?.hideLoadingIndicator()
-
-            if success {
-                await loadSourceLists()
-            } else {
-                showAddListFailAlert = true
-            }
+            guard !Task.isCancelled, addGeneration == generation else { return }
+            if success { refreshSourceLists() }
+            else { showAddListFailAlert = true }
         }
     }
 

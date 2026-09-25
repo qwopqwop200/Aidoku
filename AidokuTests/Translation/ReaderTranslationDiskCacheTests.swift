@@ -675,6 +675,37 @@ struct ReaderTranslationDiskCacheTests {
         #expect(try await cache.statistics().payloadBytes == 0)
     }
 
+    @Test(arguments: [false, true])
+    func recomputingPageRepairsSharedBaseWithoutDiscardingSiblingTranslations(readCorruptFirst: Bool) async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        let source = [ReaderTranslationRegion(id: "one", rect: .zero, source: "Original source")]
+        var translated = source
+        translated[0].translation = "보존할 번역"
+        try await cache.storeRegions(source, for: "ocr", kind: .ocr, generation: 0)
+        try await cache.storeRegions(translated, for: "translated", kind: .translation, generation: 0)
+        try databaseExecute(root, "UPDATE region_bases SET data=X'00'")
+        if readCorruptFirst {
+            #expect(try await cache.regions(for: "ocr", kind: .ocr) == nil)
+        }
+        // The translation's link still owns the damaged base, even when the OCR
+        // miss deleted its own link. Recomputed OCR must heal both consumers.
+        try await cache.storeRegions(source, for: "ocr", kind: .ocr, generation: 0)
+        #expect(try await cache.regions(for: "ocr", kind: .ocr) == source)
+        #expect(try await cache.regions(for: "translated", kind: .translation) == translated)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_bases") == 1)
+        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_links") == 2)
+        #expect(try databaseInteger(root, "SELECT bytes FROM totals") == databaseInteger(root,
+            "SELECT COALESCE((SELECT SUM(length(data)) FROM cache),0)+COALESCE((SELECT SUM(length(data)) FROM region_bases),0)"))
+        // An already healthy base must not add a write merely to share it.
+        try databaseExecute(root, "CREATE TRIGGER reject_healthy_base_update BEFORE UPDATE ON region_bases BEGIN SELECT RAISE(ABORT,'unexpected write'); END")
+        try await cache.storeRegions(source, for: "another", kind: .ocr, generation: 0)
+        #expect(try await cache.regions(for: "another", kind: .ocr) == source)
+        let reopened = ReaderTranslationDiskCache(directory: root)
+        #expect(try await reopened.regions(for: "translated", kind: .translation) == translated)
+    }
+
     @Test(arguments: [1, 3])
     func realRegionCorpusReducesAllocatedStorageAndMigratesLosslessly(variants: Int) async throws {
         let root = directory()

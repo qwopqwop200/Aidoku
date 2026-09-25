@@ -847,16 +847,6 @@
 "LEGACY_SOURCE_LIST" = "Listë burimesh në format të vjetër";
 "LEGACY_SOURCE_LIST_WARNING" = "Paralajmërim: listë burimesh në format të vjetër";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Aktualisht keni të konfiguruar një listë burimesh në format të vjetër. Ky format është i vjetëruar dhe do të ndalojë së funksionuari në një version të ardhshëm të Aidoku. Edhe pse ende funksionon, rekomandohet të gjeni një zëvendësim dhe ta konfiguroni te Cilësimet > Listat e Burimeve.";
-"UPSCALING" = "Rritja e rezolucionit";
-"UPSCALE_IMAGES" = "Rrit rezolucionin e imazheve";
-"UPSCALING_MODELS" = "Modele për rritjen e rezolucionit";
-"UPSCALE_MAX_IMAGE_HEIGHT" = "Lartësia maksimale e imazhit";
-"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Imazheve me lartësi të barabartë ose më të madhe se kufiri maksimal nuk do t’u rritet rezolucioni.";
-"ENABLED_MODEL" = "Modeli i aktivizuar";
-"AVAILABLE_MODELS" = "Modelet e disponueshme";
-"NO_AVAILABLE_MODELS" = "Nuk ka modele të disponueshme";
-"NO_AVAILABLE_MODELS_TEXT" = "Dështoi në marrjen e modeleve të disponueshme. Kontrolloni lidhjen tuaj të rrjetit dhe sigurohuni që aplikacioni juaj po ekzekuton versionin më të fundit.";
-"MODEL_INFO" = "Informacioni i modelit";
 "DISABLE_QUICK_ACTIONS" = "Çaktivizo Veprimet e Shpejta";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Çaktivizo zmadhimin me prekje të dyfishtë";
 "LIVE_TEXT" = "Tekst i drejtpërdrejtë";
@@ -1064,8 +1054,6 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Nuk mund të shfaqet cilësimi: %@";
 
-// Bundled upscaling models
-"BUNDLED_UPSCALING_MODELS_HELP" = "Pesë modele të përfshira mund të instalohen jashtë linje. Instaloni një model dhe më pas prekni në Modeli i aktivizuar. MangaJaNai është për faqe bardh e zi rreth 1200 piksele të larta; faqet me ngjyra mbeten të pandryshuara.";
 
 "DOWNLOAD_TRANSLATED" = "Shkarko me përkthim";
 
@@ -1075,15 +1063,10 @@
 "TRANSLATION_STATE_ON" = "Aktiv";
 "TRANSLATION_STATE_OFF" = "Joaktiv";
 
-"UPSCALE_MODEL_SWINUNET_INFO" = "Për ilustrime; ruan vijat origjinale të vizatimit. FP32.";
 
-"UPSCALE_MODEL_ILLUSTRATIONJANAI_INFO" = "Për ilustrime me ngjyra dhe kopertina; model i lehtë për përmirësimin e detajeve.";
 
-"UPSCALE_MODEL_ULTRASHARP_INFO" = "Për imazhe të përgjithshme dhe vepra artistike të llojeve të ndryshme; mprehje më e fortë.";
 
-"UPSCALE_MODEL_ANIMESHARP_INFO" = "Për anime, manga dhe faqe me ngjyra.";
 
-"UPSCALE_MODEL_MANGAJANAI_INFO" = "Vetëm për manga bardh e zi, i përshtatur për faqe origjinale rreth 1200 pikselë të larta. Faqet me ngjyra mbeten të pandryshuara.";
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Cilësimet e përkthimit janë të pavlefshme. Kontrolloni URL-në e serverit, modelin dhe cilësimet e tjera.";
 
