@@ -138,7 +138,8 @@ struct ReaderSessionNavigationOverlapTests {
                         else { c.resume(throwing: error ?? URLError(.cannotDecodeContentData)) }
                     }
                 }
-                try #require(displayed.pngData()).write(to: folder.appendingPathComponent("display-\(iteration).png"))
+                let displayedPNG = try #require(displayed.pngData())
+                try displayedPNG.write(to: folder.appendingPathComponent("display-\(iteration).png"))
                 // Diagnostic-only: retain the original first screenshot and strict
                 // clean/recovery assertion below. Never replace reference pixels.
                 var snapshotDiagnostics: [[String: Any]] = []
@@ -166,22 +167,23 @@ struct ReaderSessionNavigationOverlapTests {
                     let repeatedPNG = try #require(repeated.pngData())
                     try repeatedPNG.write(to: folder.appendingPathComponent("display-\(iteration)-settled-\(sample).png"))
                     snapshotDiagnostics.append(["sample": sample, "epoch": Date().timeIntervalSince1970,
-                        "geometry": geometry as Any? ?? NSNull(), "samePNGBytesAsFirst": repeatedPNG == displayed.pngData(),
+                        "geometry": geometry as Any? ?? NSNull(), "samePNGBytesAsFirst": repeatedPNG == displayedPNG,
                         "bounds": NSCoder.string(for: overlay.bounds), "frame": NSCoder.string(for: overlay.frame),
                         "screenScale": overlay.traitCollection.displayScale])
                 }
                 try JSONSerialization.data(withJSONObject: snapshotDiagnostics, options: [.sortedKeys, .prettyPrinted])
                     .write(to: folder.appendingPathComponent("display-\(iteration)-settled.json"), options: .atomic)
                 let export = try await page.exportTranslatedImage(host: window)
-                try #require(export.pngData()).write(to: folder.appendingPathComponent("export-\(iteration).png"))
+                let exportPNG = try #require(export.pngData())
+                try exportPNG.write(to: folder.appendingPathComponent("export-\(iteration).png"))
                 if mode == "terminate" || mode == "post-terminate" {
                     // Compare matched warm views on both sides of termination.
                     // The original first-cold-vs-warm failure remains archived;
                     // no tolerance or automatic reference replacement is used.
                     let reference = mode == "terminate" ? options.repetitions - 1 : options.repetitions
-                    #expect(try Data(contentsOf: folder.appendingPathComponent("display-\(reference).png")) == displayed.pngData(),
+                    #expect(try Data(contentsOf: folder.appendingPathComponent("display-\(reference).png")) == displayedPNG,
                             "Matched warm clean/recovered/clean views must have exact complete pixels")
-                    #expect(try Data(contentsOf: folder.appendingPathComponent("export-0.png")) == export.pngData(),
+                    #expect(try Data(contentsOf: folder.appendingPathComponent("export-0.png")) == exportPNG,
                             "Terminated empty navigation must preserve final exported pixels exactly")
                 }
                 rows.append(["iteration": iteration, "mode": mode, "startEpoch": startEpoch, "pendingCount": pendingCount,

@@ -6,6 +6,8 @@ import WebKit
 @Suite(.serialized)
 @MainActor
 struct ReaderSourceTextColorTests {
+    private static let webFixture = RegressionWebFixture()
+
     @Test func defaultsMigrationPersistenceAndCacheIdentity() throws {
         let suite = "source-color-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -45,13 +47,11 @@ struct ReaderSourceTextColorTests {
     }
 
     @Test func estimatesSolidInkAndRejectsAmbiguousPixels() async throws {
-        let web = WKWebView()
-        web.loadHTMLString("<!doctype html><html><body></body></html>", baseURL: nil)
-        let deadline = Date().addingTimeInterval(20)
-        while web.isLoading || web.url == nil {
-            if Date() > deadline { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        let web = Self.webFixture.acquire()
+        defer { Self.webFixture.release(web) }
+        web.scrollView.contentInsetAdjustmentBehavior = .automatic
+        try await RegressionWebFixture.load("<!doctype html><html><body></body></html>", in: web)
+
         let result = try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
         const run = (foreground, background, style = '') => {
           const canvas = document.createElement('canvas'); canvas.width = 180; canvas.height = 80;
@@ -130,13 +130,11 @@ struct ReaderSourceTextColorTests {
     }
 
     @Test func extractsFillAndIndependentSourceStrokeWithoutRecoloring() async throws {
-        let web = WKWebView()
-        web.loadHTMLString("<!doctype html><html><body></body></html>", baseURL: nil)
-        let deadline = Date().addingTimeInterval(20)
-        while web.isLoading || web.url == nil {
-            if Date() > deadline { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        let web = Self.webFixture.acquire()
+        defer { Self.webFixture.release(web) }
+        web.scrollView.contentInsetAdjustmentBehavior = .automatic
+        try await RegressionWebFixture.load("<!doctype html><html><body></body></html>", in: web)
+
         let result = try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
         const diagnostics = {};
         const rgbaBase64 = bytes => {
@@ -272,13 +270,11 @@ struct ReaderSourceTextColorTests {
     }
 
     @Test func opaqueBoxesReuseColorSamplesAndInvalidateOnSourceReload() async throws {
-        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 400))
-        web.loadHTMLString("<!doctype html><html><body></body></html>", baseURL: nil)
-        let deadline = Date().addingTimeInterval(20)
-        while web.isLoading || web.url == nil {
-            if Date() > deadline { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        let web = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 390, height: 400))
+        defer { Self.webFixture.release(web) }
+        web.scrollView.contentInsetAdjustmentBehavior = .automatic
+        try await RegressionWebFixture.load("<!doctype html><html><body></body></html>", in: web)
+
         _ = try await web.callAsyncJavaScript("""
         const source=document.createElement('canvas');source.width=120;source.height=120;
         const c=source.getContext('2d');c.fillStyle='white';c.fillRect(0,0,120,120);
@@ -376,13 +372,11 @@ struct ReaderSourceTextColorTests {
     }
 
     @Test func outlineFreeReadabilityKeepsManualFontsAndSourceSampling() async throws {
-        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
-        web.loadHTMLString("<!doctype html><html><body></body></html>", baseURL: nil)
-        let deadline = Date().addingTimeInterval(20)
-        while web.isLoading || web.url == nil {
-            if Date() > deadline { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        let web = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
+        defer { Self.webFixture.release(web) }
+        web.scrollView.contentInsetAdjustmentBehavior = .automatic
+        try await RegressionWebFixture.load("<!doctype html><html><body></body></html>", in: web)
+
         // Seed the existing sampler cache, isolating renderer behavior from OCR/
         // font-raster-dependent extraction already covered by the tests above.
         // This runs the real renderScript and real WK computed styles, not a
@@ -565,9 +559,11 @@ struct ReaderSourceTextColorTests {
     }
 
     @Test func tightOutlinedColumnsKeepTheObservedGrayPanel() async throws {
-        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 200, height: 400))
-        web.loadHTMLString("<html><body></body></html>", baseURL: nil)
-        for _ in 0..<100 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+        let web = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 200, height: 400))
+        defer { Self.webFixture.release(web) }
+        web.scrollView.contentInsetAdjustmentBehavior = .automatic
+        try await RegressionWebFixture.load("<html><body></body></html>", in: web)
+
         let result = try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
         const values = [];
         for (const gray of [128, 195]) {
@@ -595,9 +591,11 @@ struct ReaderSourceTextColorTests {
     private nonisolated static var directory: URL { URL.documentsDirectory.appendingPathComponent("MangaQuality") }
 
     @Test func panelRecoveryRequiresMatchingSurfacesAcrossText() async throws {
-        let web = WKWebView()
-        web.loadHTMLString("<html><body></body></html>", baseURL: nil)
-        for _ in 0..<100 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+        let web = Self.webFixture.acquire()
+        defer { Self.webFixture.release(web) }
+        web.scrollView.contentInsetAdjustmentBehavior = .automatic
+        try await RegressionWebFixture.load("<html><body></body></html>", in: web)
+
         let result = try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
         const sample = (left,right,background=null,foreground=[12,12,12]) => {
           const rgba = new Uint8ClampedArray(60*100*4);
@@ -628,9 +626,11 @@ struct ReaderSourceTextColorTests {
 
     @Test(.enabled(if: FileManager.default.fileExists(atPath: directory.appendingPathComponent("white-panel-page2.png").path)))
     func capturedTranslucentPanelsDoNotBecomeWhite() async throws {
-        let web = WKWebView()
-        web.loadHTMLString("<html><body></body></html>", baseURL: nil)
-        for _ in 0..<100 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+        let web = Self.webFixture.acquire()
+        defer { Self.webFixture.release(web) }
+        web.scrollView.contentInsetAdjustmentBehavior = .automatic
+        try await RegressionWebFixture.load("<html><body></body></html>", in: web)
+
         for (name, box, expected) in [
             ("page2", [1000, 365, 70, 350], [130, 131, 136]),
             ("page15", [1070, 320, 28, 127], [207, 202, 206]),
@@ -653,9 +653,11 @@ struct ReaderSourceTextColorTests {
     @Test(.enabled(if: FileManager.default.fileExists(atPath: directory.appendingPathComponent("user-source-color.png").path)))
     func capturedOutlinedGrayBalloonKeepsItsBackground() async throws {
         let source = try Data(contentsOf: Self.directory.appendingPathComponent("user-source-color.png"))
-        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 430, height: 932))
-        web.loadHTMLString("<html><body></body></html>", baseURL: nil)
-        for _ in 0..<100 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+        let web = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 430, height: 932))
+        defer { Self.webFixture.release(web) }
+        web.scrollView.contentInsetAdjustmentBehavior = .automatic
+        try await RegressionWebFixture.load("<html><body></body></html>", in: web)
+
         let result = try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
         const image = new Image(); image.src = 'data:image/png;base64,' + encoded; await image.decode();
         const sampler = aidokuSourceColorSampler(image,true);
@@ -784,18 +786,17 @@ struct ReaderSourceTextColorTests {
             let regions = try JSONDecoder().decode([ReaderTranslationStoredRegion].self,
                 from: Data(contentsOf: Self.directory.appendingPathComponent(fixture.regions))).map(\.region)
             let size = CGSize(width: 430, height: 430 * image.size.height / image.size.width)
-            let (host, overlay) = try makeOverlay(size: size)
-            defer { overlay.cancelWork(); host.isHidden = true }
-            overlay.cancelWork()
-            overlay.removeFromSuperview()
-            let web = WKWebView(frame: CGRect(origin: .zero, size: size))
+            let host = try makeHost()
+            defer { host.isHidden = true }
+            let web = Self.webFixture.acquire(frame: CGRect(origin: .zero, size: size))
+            defer { Self.webFixture.release(web) }
             web.scrollView.contentInsetAdjustmentBehavior = .never
             host.rootViewController?.view.addSubview(web)
-            web.loadHTMLString("""
+            try await RegressionWebFixture.load("""
             <meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0}img{display:block;width:100%}</style>
             <img id="reader-source-image" src="data:image/png;base64,\(imageData.base64EncodedString())">
-            """, baseURL: nil)
-            for _ in 0..<200 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+            """, in: web)
+
             _ = try await web.callAsyncJavaScript("await document.getElementById('reader-source-image').decode()",
                 arguments: [:], in: nil, contentWorld: .page)
             var settings = ReaderTranslationSettings.defaultOverlay
@@ -926,18 +927,14 @@ struct ReaderSourceTextColorTests {
             let size = CGSize(width: width, height: width * image.size.height / image.size.width)
             for before in baseline == nil ? [false] : [true, false] {
                 for translated in [false, true] {
-                    let web = WKWebView(frame: CGRect(origin: .zero, size: size))
-                    let (host, overlay) = try makeOverlay(size: size)
-                    overlay.cancelWork(); overlay.removeFromSuperview()
+                    let web = Self.webFixture.acquire(frame: CGRect(origin: .zero, size: size))
+                    defer { Self.webFixture.release(web) }
+                    let host = try makeHost()
                     web.scrollView.contentInsetAdjustmentBehavior = .never
                     host.rootViewController?.view.addSubview(web)
                     defer { host.isHidden = true }
-                    web.loadHTMLString("<html><head><meta name='viewport' content='width=device-width,initial-scale=1'></head><body style='margin:0'></body></html>", baseURL: nil)
-                    let deadline = Date().addingTimeInterval(20)
-                    while web.isLoading || web.url == nil {
-                        if Date() > deadline { throw URLError(.timedOut) }
-                        try await Task.sleep(for: .milliseconds(20))
-                    }
+                    try await RegressionWebFixture.load("<html><head><meta name='viewport' content='width=device-width,initial-scale=1'></head><body style='margin:0'></body></html>", in: web)
+
                     _ = try await web.callAsyncJavaScript("""
                     const image=new Image();image.id='reader-source-image';image.src='data:image/png;base64,'+encoded;
                     await image.decode();image.style.width='\(width)px';image.style.height='auto';document.body.appendChild(image);
@@ -1053,10 +1050,15 @@ struct ReaderSourceTextColorTests {
             .write(to: directory.appendingPathComponent(name + ".json"))
     }
 
-    private func makeOverlay(size: CGSize) throws -> (UIWindow, ReaderTranslationOverlayView) {
+    private func makeHost() throws -> UIWindow {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let host = UIWindow(windowScene: scene); host.rootViewController = UIViewController()
         host.makeKeyAndVisible()
+        return host
+    }
+
+    private func makeOverlay(size: CGSize) throws -> (UIWindow, ReaderTranslationOverlayView) {
+        let host = try makeHost()
         let overlay = ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: size))
         host.rootViewController?.view.addSubview(overlay)
         return (host, overlay)

@@ -6,6 +6,17 @@ import WebKit
 
 @Suite(.serialized)
 struct ReaderTranslationRenderSpeedTests {
+    // Two passes retain repeated cold-cache checks. Five timing samples remain
+    // available for dedicated benchmarks, rather than every regression run.
+    private var renderRepetitions: Int {
+        ProcessInfo.processInfo.environment["AIDOKU_TEST_EXTENDED_BENCHMARKS"] == "1" ? 5 : 2
+    }
+
+    private func median(_ values: [Double]) -> Double {
+        let sorted = values.sorted()
+        return (sorted[(sorted.count - 1) / 2] + sorted[sorted.count / 2]) / 2
+    }
+
     @Test(arguments: [false, true]) @MainActor
     func loadedReaderImageIsComposedBeforePageEntersWindow(webtoon: Bool) async throws {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
@@ -335,7 +346,7 @@ struct ReaderTranslationRenderSpeedTests {
         try await restored.prepare(page: page, regions: regions, settings: settings, geometry: geometry, window: window)
         #expect(cache.cachedImage(for: key) != nil)
         var replayMilliseconds: [Double] = []
-        for _ in 0..<5 {
+        for _ in 0..<renderRepetitions {
             ReaderTranslationImageExporter.clearIdleRenderer()
             let reopened = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
             let replay = ReaderTranslationLayoutPreparer(renderCache: reopened) { _, _, _, _, _, _ in
@@ -351,7 +362,7 @@ struct ReaderTranslationRenderSpeedTests {
             let output = URL.documentsDirectory.appendingPathComponent("cache-replay.png")
             try #require(bitmap.pngData()).write(to: output)
         }
-        print("DISK_LAYOUT_REPLAY_MS=\(replayMilliseconds) median=\(replayMilliseconds.sorted()[2])")
+        print("DISK_LAYOUT_REPLAY_MS=\(replayMilliseconds) median=\(median(replayMilliseconds))")
         ReaderTranslationImageExporter.clearIdleRenderer()
         #expect(try await disk.data(for: layoutKey, kind: .layout) == saved)
         #expect(try await disk.imageSize(page: page.translationCacheKey) == image.size)
@@ -389,7 +400,7 @@ struct ReaderTranslationRenderSpeedTests {
             sourceRect: rect, settings: settings.overlay, targetLanguage: settings.targetLanguage, viewport: viewport)
         let prepared = Task<Data, Error> { data }
         var legacyTimes: [Double] = [], directTimes: [Double] = []
-        for index in 0..<5 {
+        for index in 0..<renderRepetitions {
             ReaderTranslationImageExporter.clearIdleRenderer()
             let key = "legacy-\(index)"
             await cache.storeLayout(data, key: ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: regions), diskGeneration: 0)
@@ -424,7 +435,7 @@ struct ReaderTranslationRenderSpeedTests {
             #expect(legacy.width == pixels.width && legacy.height == pixels.height)
             #expect(legacy.dataProvider?.data as Data? == pixels.dataProvider?.data as Data?)
         }
-        print("SAME_BINARY_CACHE_RENDER_MS legacy=\(legacyTimes) direct=\(directTimes) legacyMedian=\(legacyTimes.sorted()[2]) directMedian=\(directTimes.sorted()[2])")
+        print("SAME_BINARY_CACHE_RENDER_MS legacy=\(legacyTimes) direct=\(directTimes) legacyMedian=\(median(legacyTimes)) directMedian=\(median(directTimes))")
     }
 }
 

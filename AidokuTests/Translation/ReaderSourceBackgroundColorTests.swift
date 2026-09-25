@@ -36,6 +36,7 @@ struct ReaderSourceBackgroundColorTests {
         defer { host.isHidden = true }
         var counts: [String: Int] = [:]
         var reports: [[String: Any]] = []
+        let webFixture = RegressionWebFixture()
         for fixture in fixtures {
             let data = try Data(contentsOf: Self.directory.appendingPathComponent(fixture.image))
             let image = try #require(UIImage(data: data))
@@ -46,16 +47,13 @@ struct ReaderSourceBackgroundColorTests {
                 for translated in [false, true] {
                     let phase = translated ? "ko" : "ocr"
                     let name = fixture.id + (before ? "-before-" : "-after-") + phase
-                    let web = WKWebView(frame: CGRect(origin: .zero, size: size))
+                    let web = webFixture.acquire(frame: CGRect(origin: .zero, size: size))
+                    defer { webFixture.release(web) }
                     web.scrollView.contentInsetAdjustmentBehavior = .never
                     host.rootViewController?.view.addSubview(web)
                     defer { web.removeFromSuperview() }
-                    web.loadHTMLString("<meta name='viewport' content='width=device-width,initial-scale=1'><body style='margin:0'></body>", baseURL: nil)
-                    let deadline = Date().addingTimeInterval(20)
-                    while web.isLoading || web.url == nil {
-                        if Date() > deadline { throw URLError(.timedOut) }
-                        try await Task.sleep(for: .milliseconds(20))
-                    }
+                    try await RegressionWebFixture.load("<meta name='viewport' content='width=device-width,initial-scale=1'><body style='margin:0'></body>", in: web)
+
                     _ = try await web.callAsyncJavaScript("""
                     const image=new Image();image.id='reader-source-image';image.src='data:image/png;base64,'+encoded;
                     await image.decode();image.style.width='\(width)px';image.style.height='auto';document.body.appendChild(image);

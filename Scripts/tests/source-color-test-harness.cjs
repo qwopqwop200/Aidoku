@@ -13,13 +13,14 @@ const script = source.match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const ink = [180, 42, 59], panel = [246, 234, 217];
 
 function raster(width, height, color = panel) {
-    const data = new Uint8ClampedArray(width * height * 4);
-    for (let i = 0; i < width * height; i++) data.set([...color, 255], i * 4);
+    const data = new Uint8ClampedArray(width * height * 4), rgba = [...color, 255];
+    for (let i = 0; i < width * height; i++) data.set(rgba, i * 4);
     return { complete: true, naturalWidth: width, naturalHeight: height, data };
 }
 function rect(image, x, y, width, height, color) {
+    const rgba = [...color, 255];
     for (let yy = y; yy < y + height; yy++) for (let xx = x; xx < x + width; xx++)
-        image.data.set([...color, 255], (yy * image.naturalWidth + xx) * 4);
+        image.data.set(rgba, (yy * image.naturalWidth + xx) * 4);
 }
 function line(height = 1600) {
     const image = raster(64, height);
@@ -60,7 +61,8 @@ function transpose(image) {
     const result = raster(image.naturalHeight, image.naturalWidth);
     for (let y = 0; y < image.naturalHeight; y++) for (let x = 0; x < image.naturalWidth; x++) {
         const from = (y * image.naturalWidth + x) * 4, to = (x * image.naturalHeight + y) * 4;
-        result.data.set(image.data.subarray(from, from + 4), to);
+        result.data[to] = image.data[from]; result.data[to + 1] = image.data[from + 1];
+        result.data[to + 2] = image.data[from + 2]; result.data[to + 3] = image.data[from + 3];
     }
     return result;
 }
@@ -83,6 +85,9 @@ function resize(image, sx, sy, sw, sh, width, height) {
     }
     return result;
 }
+// Cache compilation only: every harness still owns a fresh realm, sampler cache,
+// canvas state and overrides. Key by extracted source, including --source inputs.
+const compiledScripts = new Map();
 function harness(helpers = null, readError = false, sourceOverride = null) {
     const evaluatedScript = sourceOverride ? fs.readFileSync(sourceOverride, 'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1] : script;
     const evaluatedSampler = evaluatedScript.slice(evaluatedScript.indexOf('    const aidokuSourceColorSampler ='));
@@ -115,9 +120,17 @@ function harness(helpers = null, readError = false, sourceOverride = null) {
             });
             return canvas;
         } }, ...(helpers || {}) });
-    vm.runInContext((helpers ? evaluatedSampler : evaluatedScript) + '\n' +
+    // Bind the realm's own intrinsic once, avoiding VM global-proxy lookups in
+    // pixel loops without sharing or replacing Math across isolated contexts.
+    const program = 'const Math = globalThis.Math;\n' + (helpers ? evaluatedSampler : evaluatedScript) + '\n' +
         'globalThis.sampleSource = aidokuSourceColorSampler;' +
-        (helpers ? '' : 'globalThis.estimateSource = aidokuEstimateSourceColors;globalThis.observedCaption=aidokuObservedCaptionPalette;globalThis.enclosedInk=aidokuRecoverOutlinedColor;'), context);
+        (helpers ? '' : 'globalThis.estimateSource = aidokuEstimateSourceColors;globalThis.observedCaption=aidokuObservedCaptionPalette;globalThis.enclosedInk=aidokuRecoverOutlinedColor;');
+    let compiled = compiledScripts.get(program);
+    if (!compiled) {
+        compiled = new vm.Script(program);
+        compiledScripts.set(program, compiled);
+    }
+    compiled.runInContext(context);
     return { context, draws, sampler: context.sampleSource, estimate: context.estimateSource, observed: context.observedCaption, enclosed: context.enclosedInk };
 }
 function near(actual, expected, tolerance = 12) {

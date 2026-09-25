@@ -45,8 +45,9 @@ struct HTTPSBypassTests {
         invalid[5] = 2
         #expect(TLSClientHello.inspect(invalid) == .passthrough)
         // Each damaged length/direction byte must remain bounded and never trap.
-        for index in 0..<hello().count {
-            var malformed = hello(); malformed[index] = 255
+        let original = hello()
+        for index in original.indices {
+            var malformed = original; malformed[index] = 255
             _ = TLSClientHello.inspect(malformed)
         }
     }

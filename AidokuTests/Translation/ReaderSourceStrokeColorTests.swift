@@ -31,12 +31,8 @@ struct ReaderSourceStrokeColorTests {
         defer { host.isHidden = true }
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 430, height: 650))
         host.rootViewController?.view.addSubview(web)
-        web.loadHTMLString("<meta name='viewport' content='width=device-width,initial-scale=1'><body style='margin:12px;background:#ddd;font:14px sans-serif'>", baseURL: nil)
-        let deadline = Date().addingTimeInterval(20)
-        while web.isLoading || web.url == nil {
-            if Date() > deadline { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        try await RegressionWebFixture.load("<meta name='viewport' content='width=device-width,initial-scale=1'><body style='margin:12px;background:#ddd;font:14px sans-serif'>", in: web)
+
         var rows: [[String: Any]] = []
         var beforeMatches = 0, afterMatches = 0, beforeStrokes = 0, afterStrokes = 0
         var regressions: [String] = []

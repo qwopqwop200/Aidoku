@@ -6,15 +6,13 @@ import WebKit
 @Suite(.serialized)
 @MainActor
 struct ReaderOCRPreviewColorTests {
+    @MainActor private static let webFixture = RegressionWebFixture()
+
     @Test(arguments: ["missing", "transparent", "read-error", "low-confidence"])
     func unresolvedPanelUsesReadableCaptionWithoutBlurringArtwork(failure: String) async throws {
-        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 240, height: 120))
-        web.loadHTMLString("<html><body style='margin:0;background:#584060'></body></html>", baseURL: nil)
-        let deadline = Date().addingTimeInterval(20)
-        while web.isLoading || web.url == nil {
-            if Date() > deadline { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        let web = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 240, height: 120))
+        defer { Self.webFixture.release(web) }
+        try await RegressionWebFixture.load("<html><body style='margin:0;background:#584060'></body></html>", in: web)
         _ = try await web.callAsyncJavaScript("""
         if (failure !== 'missing') {
           const canvas=document.createElement('canvas');canvas.width=240;canvas.height=120;
@@ -140,13 +138,9 @@ struct ReaderOCRPreviewColorTests {
 
     @Test(arguments: ["ocr", "ja", "ko"], [false, true])
     func largeOutlinedColumnsUseOpaqueBoxesWithinSamplingBudget(language: String, colored: Bool) async throws {
-        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 600, height: 600))
-        web.loadHTMLString("<html><body style='margin:0'></body></html>", baseURL: nil)
-        let deadline = Date().addingTimeInterval(20)
-        while web.isLoading || web.url == nil {
-            if Date() > deadline { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        let web = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 600, height: 600))
+        defer { Self.webFixture.release(web) }
+        try await RegressionWebFixture.load("<html><body style='margin:0'></body></html>", in: web)
         _ = try await web.callAsyncJavaScript("""
         const canvas=document.createElement('canvas');canvas.width=600;canvas.height=600;
         const ctx=canvas.getContext('2d'),gradient=ctx.createLinearGradient(0,0,600,600);
@@ -199,13 +193,9 @@ struct ReaderOCRPreviewColorTests {
     }
 
     @Test func previewAndTranslationSampleIndependentlyOnce() async throws {
-        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 240, height: 120))
-        web.loadHTMLString("<html><body style='margin:0'></body></html>", baseURL: nil)
-        let deadline = Date().addingTimeInterval(20)
-        while web.isLoading || web.url == nil {
-            if Date() > deadline { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        let web = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 240, height: 120))
+        defer { Self.webFixture.release(web) }
+        try await RegressionWebFixture.load("<html><body style='margin:0'></body></html>", in: web)
         _ = try await web.callAsyncJavaScript("""
         const canvas=document.createElement('canvas');canvas.width=240;canvas.height=120;
         const ctx=canvas.getContext('2d');ctx.fillStyle='#fff0c0';ctx.fillRect(0,0,240,120);
@@ -267,9 +257,9 @@ struct ReaderOCRPreviewColorTests {
     }
 
     @Test func texturedSurfaceAndOutlinedColorStayVisibleAcrossTranslation() async throws {
-        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 120, height: 720))
-        web.loadHTMLString("<html><body style='margin:0'></body></html>", baseURL: nil)
-        for _ in 0..<200 where web.isLoading || web.url == nil { try await Task.sleep(for: .milliseconds(20)) }
+        let web = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 120, height: 720))
+        defer { Self.webFixture.release(web) }
+        try await RegressionWebFixture.load("<html><body style='margin:0'></body></html>", in: web)
         let audit = try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
         const canvas=document.createElement('canvas');canvas.width=120;canvas.height=720;
         const ctx=canvas.getContext('2d');
@@ -355,9 +345,9 @@ struct ReaderOCRPreviewColorTests {
     }
 
     @Test func outlinedRecoveryRejectsAmbiguousColorsAndSolidArtwork() async throws {
-        let web = WKWebView()
-        web.loadHTMLString("<html></html>", baseURL: nil)
-        for _ in 0..<200 where web.isLoading || web.url == nil { try await Task.sleep(for: .milliseconds(20)) }
+        let web = Self.webFixture.acquire()
+        defer { Self.webFixture.release(web) }
+        try await RegressionWebFixture.load("<html></html>", in: web)
         let value = try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
         const c=document.createElement('canvas');c.width=180;c.height=120;const ctx=c.getContext('2d');
         const reset=()=>{ctx.fillStyle='#fff';ctx.fillRect(0,0,180,120);};

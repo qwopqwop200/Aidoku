@@ -6,6 +6,8 @@ import WebKit
 @Suite(.serialized)
 @MainActor
 struct ReaderSlantedTextTests {
+    private static let webFixture = RegressionWebFixture()
+
     private nonisolated static var directory: URL { URL.documentsDirectory.appendingPathComponent("SlantedText") }
 
     private func quad(angle: CGFloat, size: CGSize = CGSize(width: 180, height: 48), center: CGPoint = CGPoint(x: 200, y: 180)) -> [CGPoint] {
@@ -157,17 +159,23 @@ struct ReaderSlantedTextTests {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene: scene); window.rootViewController = UIViewController(); window.makeKeyAndVisible()
         defer { window.isHidden = true }
-        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 430, height: 260))
+        let web = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 430, height: 260))
+        defer { Self.webFixture.release(web) }
         web.scrollView.contentInsetAdjustmentBehavior = .never
         window.rootViewController?.view.addSubview(web)
-        web.loadHTMLString("""
+        window.rootViewController?.view.layoutIfNeeded()
+        web.layoutIfNeeded()
+        try await RegressionWebFixture.load("""
         <meta name='viewport' content='width=device-width,initial-scale=1'><style>
         html,body{margin:0;height:260px;background:white}div{position:absolute;left:30px;top:20px;width:360px;height:210px;
         display:flex;align-items:center;justify-content:center;text-align:center;white-space:pre-wrap;
         font:700 31.5px 'Apple SD Gothic Neo',-apple-system,sans-serif;line-height:1.193;letter-spacing:-.012em;color:black}
         </style><div>역겨워! 목욕할 시간이야.\nQuick brown fox 123!</div>
-        """, baseURL: nil)
-        for _ in 0..<500 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+        """, in: web)
+
+        // Reattached WebKit views settle viewport/scroll geometry during presentation.
+        // Measure glyphs after the same paint fence used for the snapshot.
+        _ = try await web.callAsyncJavaScript("await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))", arguments: [:], in: nil, contentWorld: .page)
         let rects = try #require(try await web.evaluateJavaScript(#"""
         (()=>{const n=document.querySelector('div'),t=n.firstChild,s=getComputedStyle(n),c=document.createElement('canvas').getContext('2d');
         c.font=`${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;const range=document.createRange(),out=[];let offset=0;
@@ -177,7 +185,6 @@ struct ReaderSlantedTextTests {
             out.push([r.left-m.actualBoundingBoxLeft-1,baseline-m.actualBoundingBoxAscent-1,
               r.left+m.actualBoundingBoxRight+1,baseline+m.actualBoundingBoxDescent+1]);}}offset=next;}return out;})()
         """#) as? [[Double]])
-        _ = try await web.callAsyncJavaScript("await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))", arguments: [:], in: nil, contentWorld: .page)
         let snapshot: UIImage = try await withCheckedThrowingContinuation { continuation in
             web.takeSnapshot(with: nil) { image, error in
                 if let image { continuation.resume(returning: image) }
@@ -348,11 +355,13 @@ struct ReaderSlantedTextTests {
             let minY = points.map(\.y).min()!, maxY = points.map(\.y).max()!
             let sourceBox = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
             let size = CGSize(width: 430, height: 430 * image.size.height / image.size.width)
-            let web = WKWebView(frame: CGRect(origin: .zero, size: size)); web.scrollView.contentInsetAdjustmentBehavior = .never
+            let web = Self.webFixture.acquire(frame: CGRect(origin: .zero, size: size))
+            defer { Self.webFixture.release(web) }
+            web.scrollView.contentInsetAdjustmentBehavior = .never
             window.rootViewController?.view.addSubview(web)
             defer { web.removeFromSuperview() }
-            web.loadHTMLString("<meta name='viewport' content='width=device-width,initial-scale=1'><style>body{margin:0}img{display:block;width:100%}</style><img id='reader-source-image' src='data:image/png;base64,\(data.base64EncodedString())'>", baseURL: nil)
-            for _ in 0..<500 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+            try await RegressionWebFixture.load("<meta name='viewport' content='width=device-width,initial-scale=1'><style>body{margin:0}img{display:block;width:100%}</style><img id='reader-source-image' src='data:image/png;base64,\(data.base64EncodedString())'>", in: web)
+
             _ = try await web.callAsyncJavaScript("await document.getElementById('reader-source-image').decode()", arguments: [:], in: nil, contentWorld: .page)
             var revision = 0
             for colors in [true, false] {

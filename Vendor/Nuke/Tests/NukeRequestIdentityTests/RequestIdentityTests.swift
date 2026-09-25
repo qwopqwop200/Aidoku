@@ -56,7 +56,7 @@ struct RequestIdentityTests {
     @Test func warmDiskDoesNotReturnAnotherAuthorizationBody() async throws {
         let cache = try DataCache(name: "identity-test-" + UUID().uuidString)
         defer { cache.removeAll() }
-        let loader = IdentityLoader()
+        let loader = IdentityLoader(delaysResponse: false)
         let pipeline = ImagePipeline { $0.dataLoader = loader; $0.dataCache = cache; $0.dataCachePolicy = .storeOriginalData }
         #expect(try await pipeline.data(for: request("A")).0 == Data("A".utf8))
         #expect(try await pipeline.data(for: request("B")).0 == Data("B".utf8))
@@ -98,12 +98,21 @@ struct RequestIdentityTests {
 private final class IdentityLoader: DataLoading, @unchecked Sendable {
     private let lock = NSLock()
     private var requests = 0
+    private let delaysResponse: Bool
+
+    init(delaysResponse: Bool = true) {
+        self.delaysResponse = delaysResponse
+    }
+
     var count: Int { lock.withLock { requests } }
     func loadData(with request: URLRequest, didReceiveData: @escaping @Sendable (Data, URLResponse) -> Void,
                   completion: @escaping @Sendable (Error?) -> Void) -> any Cancellable {
         lock.withLock { requests += 1 }
         let task = Task {
-            do { try await Task.sleep(for: .milliseconds(150)) }
+            do {
+                // Only overlapping-request tests need a transport held in flight.
+                if delaysResponse { try await Task.sleep(for: .milliseconds(150)) }
+            }
             catch { completion(error); return }
             let data = Data((request.value(forHTTPHeaderField: "Authorization") ?? "none").utf8)
             didReceiveData(data, URLResponse(url: request.url!, mimeType: "image/png", expectedContentLength: data.count, textEncodingName: nil))

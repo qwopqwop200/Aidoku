@@ -3,6 +3,14 @@ import Testing
 
 @MainActor
 struct HistorySearchCancellationTests {
+    private func waitForQuery(_ query: String, in model: HistoryView.ViewModel) async throws {
+        let deadline = ContinuousClock.now + .seconds(3)
+        while model.searchQuery != query {
+            try #require(ContinuousClock.now < deadline, "Timed out waiting for search query")
+            try await Task.sleep(for: .milliseconds(1))
+        }
+    }
+
     @Test func clearingBeforeDebounceDoesNotApplyTheAbandonedQuery() async throws {
         let model = HistoryView.ViewModel()
         await model.search(query: "abandoned", delay: true)
@@ -15,9 +23,7 @@ struct HistorySearchCancellationTests {
         let model = HistoryView.ViewModel()
         await model.search(query: "original", delay: false)
         // Allow the immediate task to apply the first query.
-        for _ in 0..<100 where model.searchQuery != "original" {
-            await Task.yield()
-        }
+        try await waitForQuery("original", in: model)
         #expect(model.searchQuery == "original")
         await model.search(query: "replacement", delay: true)
         await model.search(query: "original", delay: false)
@@ -28,7 +34,7 @@ struct HistorySearchCancellationTests {
     @Test func normalDebouncedSearchStillApplies() async throws {
         let model = HistoryView.ViewModel()
         await model.search(query: "latest", delay: true)
-        try await Task.sleep(nanoseconds: 650_000_000)
+        try await waitForQuery("latest", in: model)
         #expect(model.searchQuery == "latest")
     }
 }

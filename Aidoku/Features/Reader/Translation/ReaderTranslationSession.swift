@@ -47,6 +47,8 @@ final class ReaderTranslationSession {
     private var finished: Set<String> = []
     private let availableMemory: () -> UInt64
     private let reclaimMemory: () async -> Void
+    private let waitForMemoryRetry: () async throws -> Void
+    private let waitForAPIRetry: (UInt64) async throws -> Void
     private var attemptedMemoryReclaim = false
     private var memoryRetryTask: Task<Void, Never>?
     private var memoryNotBefore = Date.distantPast
@@ -102,6 +104,8 @@ final class ReaderTranslationSession {
         overlapsLayoutWithTranslation: Bool = true,
         availableMemory: @escaping () -> UInt64 = { ReaderTranslationSession.processAvailableMemory() },
         reclaimMemory: @escaping () async -> Void = { await TranslationImageWorkBudget.reclaimIdleResources() },
+        waitForMemoryRetry: @escaping () async throws -> Void = { try await Task.sleep(nanoseconds: 2_000_000_000) },
+        waitForAPIRetry: @escaping (UInt64) async throws -> Void = { try await Task.sleep(nanoseconds: $0) },
         cache: ReaderTranslationSessionCache? = nil,
         storeTranslation: TranslationStore? = nil
     ) {
@@ -116,6 +120,8 @@ final class ReaderTranslationSession {
         self.overlapsLayoutWithTranslation = overlapsLayoutWithTranslation
         self.availableMemory = availableMemory
         self.reclaimMemory = reclaimMemory
+        self.waitForMemoryRetry = waitForMemoryRetry
+        self.waitForAPIRetry = waitForAPIRetry
         self.cache = cache ?? ReaderTranslationSessionCache()
         self.storeTranslation = storeTranslation ?? diskCache.map { diskCache in
             { @Sendable regions, key, generation in
@@ -525,7 +531,7 @@ final class ReaderTranslationSession {
                 preparedLayouts.removeAll()
                 await reclaimMemory()
             }
-            do { try await Task.sleep(nanoseconds: 2_000_000_000) } catch { return }
+            do { try await waitForMemoryRetry() } catch { return }
             guard !Task.isCancelled, state == .on else { return }
             memoryRetryTask = nil
             drain()
@@ -792,8 +798,9 @@ final class ReaderTranslationSession {
         ReaderTranslationDiagnostics.record("api_retry_scheduled", page: (items.first { $0.key == key }?.position ?? -1) + 1,
                                             count: retryCounts[key, default: 0])
         let issued = workGeneration
+        let waitForAPIRetry = waitForAPIRetry
         retryTasks[key] = Task { [weak self] in
-            do { try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000) } catch { return }
+            do { try await waitForAPIRetry(UInt64(delay) * 1_000_000_000) } catch { return }
             guard let self, state == .on, workGeneration == issued, !Task.isCancelled else { return }
             retryTasks.removeValue(forKey: key)
             attempted.remove(key)

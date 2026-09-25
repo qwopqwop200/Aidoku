@@ -293,10 +293,12 @@ struct ReaderTranslationDiskCacheTests {
         var handle: OpaquePointer?
         #expect(sqlite3_open(root.appendingPathComponent("cache.sqlite").path, &handle) == SQLITE_OK)
         defer { sqlite3_close(handle) }
+        // Index lookup scales with entry count. Large payload allocation is
+        // covered separately; avoid writing 25 MB just to seed this index.
         #expect(sqlite3_exec(handle, """
             WITH RECURSIVE numbers(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM numbers WHERE x<100000)
             INSERT INTO cache(name,data,accessed)
-            SELECT 'translation-bulk-' || printf('%06d',x), zeroblob(256), x FROM numbers
+            SELECT 'translation-bulk-' || printf('%06d',x), zeroblob(1), x FROM numbers
             """, nil, nil, nil) == SQLITE_OK)
         #expect(try await cache.statistics().entries == 100_001)
         let start = Date()

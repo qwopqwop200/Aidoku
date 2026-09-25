@@ -761,6 +761,8 @@ struct ReaderTranslationSessionTests {
 
     @Test func exhaustedRetriesShowNoticeAndManualRetryRecovers() async throws {
         let fixture = SessionFixture()
+        let retry = SessionRetryClock()
+        defer { retry.releaseAll() }
         fixture.defaults.set(true, forKey: ReaderTranslationSettings.keyPrefix + "automatic")
         let source = Self.page(0)
         let imageView = UIImageView(image: Self.image())
@@ -780,16 +782,22 @@ struct ReaderTranslationSessionTests {
                     underlying: RemoteTranslationError.httpStatus(503, requestID: nil))
             }
             return [Self.region]
-        }, availableMemory: { UInt64.max })
+        }, availableMemory: { UInt64.max }, waitForAPIRetry: { await retry.wait($0) })
         let coordinator = ReaderTranslationCoordinator(owner: owner, session: session,
             readSettings: { fixture.settings }, setEnabled: { _ in })
         defer { coordinator.close(); window.isHidden = true }
         coordinator.install()
         coordinator.resume()
-        try await waitUntil { calls == 1 }
+        try await waitUntil { retry.delays.count == 1 }
+        #expect(calls == 1)
+        #expect(retry.delays == [1_000_000_000])
         #expect(!owner.view.subviews.contains { $0.accessibilityIdentifier == "reader.translation.failure" })
-        try await waitUntil { calls == 2 }
+        retry.advance()
+        try await waitUntil { retry.delays.count == 2 }
+        #expect(calls == 2)
+        #expect(retry.delays == [1_000_000_000, 3_000_000_000])
         #expect(!owner.view.subviews.contains { $0.accessibilityIdentifier == "reader.translation.failure" })
+        retry.advance()
         try await waitUntil { owner.view.subviews.contains { $0.accessibilityIdentifier == "reader.translation.failure" } }
         #expect(calls == 3)
         let notice = try #require(owner.view.subviews.first { $0.accessibilityIdentifier == "reader.translation.failure" } as? UIVisualEffectView)
@@ -803,8 +811,8 @@ struct ReaderTranslationSessionTests {
         #expect(toggle.accessibilityHint == RemoteTranslationError.httpStatus(503, requestID: nil).localizedDescription)
         #expect(page.regions.isEmpty)
         #expect(imageView.subviews.isEmpty)
-        let retry = try #require(stack.arrangedSubviews.last as? UIButton)
-        retry.sendActions(for: .touchUpInside)
+        let retryButton = try #require(stack.arrangedSubviews.last as? UIButton)
+        retryButton.sendActions(for: .touchUpInside)
         try await waitUntil { page.hasCompletedTranslation(settings: fixture.settings) }
         #expect(calls == 4)
         #expect(notice.superview == nil)
@@ -819,6 +827,8 @@ struct ReaderTranslationSessionTests {
 
     @Test func transientTransportFailureRecoversWithoutAnotherPageTurn() async throws {
         let fixture = SessionFixture()
+        let retry = SessionRetryClock()
+        defer { retry.releaseAll() }
         let source = Self.page(0)
         let view = UIImageView(image: Self.image())
         let visible = ReaderTranslationPage(imageView: view)
@@ -830,10 +840,14 @@ struct ReaderTranslationSessionTests {
                 throw ReaderTranslationOCRFallback(regions: [Self.region], underlying: RemoteTranslationError.transport(.timedOut))
             }
             return [Self.region]
-        })
+        }, waitForAPIRetry: { await retry.wait($0) })
         defer { session.close() }
         session.update(items: [.init(source)], visible: [visible], context: "retry")
         session.enable(settings: fixture.settings)
+        try await waitUntil { retry.delays.count == 1 }
+        #expect(calls == 1)
+        #expect(retry.delays == [1_000_000_000])
+        retry.advance()
         try await waitUntil { visible.hasCompletedTranslation(settings: fixture.settings) }
         #expect(calls == 2)
         #expect(session.state == .on)
@@ -842,6 +856,8 @@ struct ReaderTranslationSessionTests {
     @Test(arguments: [408, 429, 500, 503])
     func apiRetryKeepsOriginalBeforeFailureNotification(status: Int) async throws {
         let fixture = SessionFixture()
+        let retry = SessionRetryClock()
+        defer { retry.releaseAll() }
         let source = Self.page(0)
         let view = UIImageView(image: Self.image())
         let visible = ReaderTranslationPage(imageView: view)
@@ -857,12 +873,15 @@ struct ReaderTranslationSessionTests {
                     underlying: RemoteTranslationError.httpStatus(status, requestID: nil))
             }
             return [Self.region]
-        })
+        }, waitForAPIRetry: { await retry.wait($0) })
         defer { session.close() }
         session.onFailure = { _ in failures += 1 }
         session.update(items: [.init(source)], visible: [visible], context: "http-retry")
         session.enable(settings: fixture.settings)
-        try await waitUntil { calls == 1 }
+        try await waitUntil { retry.delays.count == 1 }
+        #expect(calls == 1)
+        #expect(retry.delays == [1_000_000_000])
+        // Preserve the observation window while the retry is explicitly held.
         try await Task.sleep(for: .milliseconds(100))
         #expect(visible.regions.isEmpty)
         #expect(view.subviews.isEmpty)
@@ -874,6 +893,7 @@ struct ReaderTranslationSessionTests {
         #expect(replacement.regions.isEmpty)
         #expect(view.subviews.isEmpty)
         #expect(failures == 0)
+        retry.advance()
         try await waitUntil { replacement.hasCompletedTranslation(settings: fixture.settings) }
         #expect(calls == 2)
         #expect(failures == 0)
@@ -881,6 +901,8 @@ struct ReaderTranslationSessionTests {
 
     @Test func failedPageRetriesWhenVisibilityArrivesAfterPageIndex() async throws {
         let fixture = SessionFixture()
+        let retry = SessionRetryClock()
+        defer { retry.releaseAll() }
         let source = Self.page(0)
         let view = UIImageView(image: Self.image())
         let visible = ReaderTranslationPage(imageView: view)
@@ -894,14 +916,22 @@ struct ReaderTranslationSessionTests {
                 throw ReaderTranslationOCRFallback(regions: [Self.region], underlying: URLError(.notConnectedToInternet))
             }
             return [Self.region]
-        })
+        }, waitForAPIRetry: { await retry.wait($0) })
         defer { session.close() }
         session.onFailure = { _ in failures += 1 }
         let items = [ReaderTranslationSession.Item(source)]
         session.update(items: items, visible: [visible], context: "revisit", currentPageIndex: 0)
         session.enable(settings: fixture.settings)
+        for (index, expected) in ([1_000_000_000, 3_000_000_000] as [UInt64]).enumerated() {
+            let attempt = index + 1
+            try await waitUntil { retry.delays.count == attempt }
+            #expect(retry.delays.last == expected)
+            #expect(calls == attempt)
+            retry.advance()
+        }
         try await waitUntil { failures == 1 }
         #expect(calls == 3)
+        #expect(retry.delays == [1_000_000_000, 3_000_000_000])
         #expect(!visible.hasCompletedTranslation(settings: fixture.settings))
         session.pauseForPageTurn()
         session.update(items: items, visible: [], context: "revisit", currentPageIndex: 1)
@@ -940,8 +970,40 @@ struct ReaderTranslationSessionTests {
         #expect(view.subviews.isEmpty)
     }
 
+    @Test func cancelledAPIRetryRejectsLateClockCompletion() async throws {
+        let fixture = SessionFixture()
+        let retry = SessionRetryClock()
+        defer { retry.releaseAll() }
+        let source = Self.page(0)
+        let view = UIImageView(image: Self.image())
+        let visible = ReaderTranslationPage(imageView: view)
+        visible.sourcePage = source
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            calls += 1
+            throw ReaderTranslationOCRFallback(regions: [Self.region], underlying: URLError(.timedOut))
+        }, waitForAPIRetry: { await retry.wait($0) })
+        defer { session.close() }
+        session.update(items: [.init(source)], visible: [visible], context: "late-retry")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { retry.delays.count == 1 }
+        #expect(retry.delays == [1_000_000_000])
+        session.pauseForPageTurn()
+        // This clock deliberately ignores cancellation and completes late. The
+        // production generation/cancellation guard must still reject the retry.
+        retry.advance()
+        try await waitUntil { retry.completed == 1 }
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(calls == 1)
+        #expect(retry.delays.count == 1)
+        #expect(visible.regions.isEmpty)
+        #expect(view.subviews.isEmpty)
+    }
+
     @Test func persistentOfflineFailureHasBoundedRetries() async throws {
         let fixture = SessionFixture()
+        let retry = SessionRetryClock()
+        defer { retry.releaseAll() }
         let source = Self.page(0)
         let view = UIImageView(image: Self.image())
         let visible = ReaderTranslationPage(imageView: view)
@@ -952,13 +1014,21 @@ struct ReaderTranslationSessionTests {
             var ocr = Self.region
             ocr.translation = nil
             throw ReaderTranslationOCRFallback(regions: [ocr], underlying: URLError(.notConnectedToInternet))
-        })
+        }, waitForAPIRetry: { await retry.wait($0) })
         defer { session.close() }
         session.update(items: [.init(source)], visible: [visible], context: "offline")
         session.enable(settings: fixture.settings)
+        for (index, expected) in ([1_000_000_000, 3_000_000_000] as [UInt64]).enumerated() {
+            let attempt = index + 1
+            try await waitUntil { retry.delays.count == attempt }
+            #expect(retry.delays.last == expected)
+            #expect(calls == attempt)
+            retry.advance()
+        }
         try await waitUntil { calls == 3 }
         try await Task.sleep(for: .milliseconds(200))
         #expect(calls == 3)
+        #expect(retry.delays == [1_000_000_000, 3_000_000_000])
         #expect(session.state == .on)
         #expect(visible.regions.isEmpty)
         #expect(view.subviews.isEmpty)
@@ -1852,4 +1922,30 @@ private actor SessionGate {
         super.init(nibName: nil, bundle: nil)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+}
+
+/// An explicitly advanced backoff clock; late completion intentionally ignores cancellation.
+@MainActor private final class SessionRetryClock {
+    private(set) var delays: [UInt64] = []
+    private(set) var completed = 0
+    private var released = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait(_ nanoseconds: UInt64) async {
+        guard !released else { return }
+        delays.append(nanoseconds)
+        await withCheckedContinuation { waiters.append($0) }
+        completed += 1
+    }
+
+    func advance() {
+        guard !waiters.isEmpty else { Issue.record("No pending API retry to advance"); return }
+        waiters.removeFirst().resume()
+    }
+
+    func releaseAll() {
+        released = true
+        waiters.forEach { $0.resume() }
+        waiters.removeAll()
+    }
 }

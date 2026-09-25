@@ -3,16 +3,20 @@ import Testing
 @testable import Aidoku
 
 struct TranslationCacheScalingTests {
+    // This suite measures cache behavior, so immutable provider setup is shared across 5,000 keys.
+    private static let configuration = RemoteTranslationConfiguration.openAI(model: "cache-test")
+    private static let endpoint: Result<URL, Error> = Result { try configuration.validatedEndpoint() }
+    private static let translationText = String(repeating: "a", count: 512)
+
     private func key(_ index: Int) throws -> TranslationCacheKey {
-        let configuration = RemoteTranslationConfiguration.openAI(model: "cache-test")
         let request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",
             sourceText: String(format: "source-%05d", index))
-        return TranslationCacheKey(configuration: configuration,
-            endpoint: try configuration.validatedEndpoint(), request: request)
+        return TranslationCacheKey(configuration: Self.configuration,
+            endpoint: try Self.endpoint.get(), request: request)
     }
 
     private func value(_ key: TranslationCacheKey) -> [RemoteTranslatedSegment] {
-        key.segments.map { .init(id: $0.id, text: String(repeating: "a", count: 512)) }
+        key.segments.map { .init(id: $0.id, text: Self.translationText) }
     }
 
     @Test func largeBudgetReductionPreservesExactLRUAfterHitsAndReplacement() async throws {

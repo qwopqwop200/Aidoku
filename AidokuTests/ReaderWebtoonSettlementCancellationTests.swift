@@ -27,7 +27,9 @@ struct ReaderWebtoonSettlementCancellationTests {
         let next = AidokuRunner.Chapter(key: "next")
         let owner = WebtoonCancellationOwner(next: next)
         controller.delegate = owner
-        let image = UIGraphicsImageRenderer(size: CGSize(width: 390, height: 900)).image {
+        // Geometry-only fixture: preserve point dimensions without screen-scale pixel allocation.
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 390, height: 900), format: format).image {
             UIColor.white.setFill(); $0.fill(CGRect(x: 0, y: 0, width: 390, height: 900))
         }
         controller.viewModel.preloadedChapter = first
@@ -85,7 +87,9 @@ struct ReaderWebtoonSettlementCancellationTests {
         let next = AidokuRunner.Chapter(key: "next")
         let owner = WebtoonCancellationOwner(next: next)
         controller.delegate = owner
-        let image = UIGraphicsImageRenderer(size: CGSize(width: 390, height: 900)).image {
+        // Geometry-only fixture: preserve point dimensions without screen-scale pixel allocation.
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 390, height: 900), format: format).image {
             UIColor.white.setFill(); $0.fill(CGRect(x: 0, y: 0, width: 390, height: 900))
         }
         controller.viewModel.preloadedChapter = first

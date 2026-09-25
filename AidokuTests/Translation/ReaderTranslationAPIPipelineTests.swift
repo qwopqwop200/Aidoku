@@ -552,22 +552,36 @@ struct ReaderTranslationAPIPipelineTests {
     }
 
     @Test func controlledProviderWaitBenchmark() async throws {
-        func measure(concurrency: Int) async throws -> Double {
-            let recorder = APIPipelineRecorder(delayMilliseconds: 200)
+        func measure(concurrency: Int) async throws -> Int {
+            let recorder = APIPipelineRecorder(blocked: Set(0..<6))
             let preloader = preloader(recorder)
             preloader.nextPage = { page in page.index < 5 ? self.page(page.index + 1) : nil }
-            defer { preloader.cancel() }
             let value = settings(concurrency: concurrency)
-            let start = ProcessInfo.processInfo.systemUptime
-            for index in 0..<6 { _ = try await preloader.translate(page(index), settings: value) }
+            let work = Task {
+                for index in 0..<6 {
+                    let result = try await preloader.translate(page(index), settings: value)
+                    #expect(result.first?.translation == "complete-\(value.targetLanguage)-\(index)")
+                }
+            }
+            defer { work.cancel(); preloader.cancel() }
+            try await waitUntil { await recorder.published.contains(0) }
+            if concurrency > 1 {
+                // Page one must start while page zero is still blocked.
+                try await waitUntil { await recorder.published.contains(1) }
+                #expect(await recorder.completed.isEmpty)
+            }
+            for index in 0..<6 {
+                try await waitUntil { await recorder.published.contains(index) }
+                await recorder.release(index)
+            }
+            try await work.value
             #expect(await recorder.started.sorted() == Array(0..<6))
+            #expect(await recorder.completed.sorted() == Array(0..<6))
             #expect(await recorder.ocr == Array(0..<6))
-            return ProcessInfo.processInfo.systemUptime - start
+            return await recorder.maximumActive
         }
-        let serial = try await measure(concurrency: 1)
-        let overlapped = try await measure(concurrency: 16)
-        print("API_PIPELINE_CONTROLLED_SECONDS serial=\(serial) overlapped=\(overlapped)")
-        #expect(overlapped < serial * 0.8)
+        #expect(try await measure(concurrency: 1) == 1)
+        #expect(try await measure(concurrency: 16) == 2)
     }
 
     private func settings(concurrency: Int = 16) -> ReaderTranslationSettings {
@@ -635,10 +649,9 @@ private actor APIPipelineRecorder {
     private var blocked: Set<Int>
     private var blockedOCR: Set<Int>
     private let failed: Set<Int>
-    private let delayMilliseconds: Int
 
-    init(blocked: Set<Int> = [], failed: Set<Int> = [], delayMilliseconds: Int = 0, blockedOCR: Set<Int> = []) {
-        self.blocked = blocked; self.failed = failed; self.delayMilliseconds = delayMilliseconds
+    init(blocked: Set<Int> = [], failed: Set<Int> = [], blockedOCR: Set<Int> = []) {
+        self.blocked = blocked; self.failed = failed
         self.blockedOCR = blockedOCR
     }
     func release(_ index: Int) { blocked.remove(index) }
@@ -646,7 +659,8 @@ private actor APIPipelineRecorder {
     func recognize(_ index: Int) async throws -> [ReaderTranslationRegion] {
         ocr.append(index)
         while blockedOCR.contains(index) { try await Task.sleep(for: .milliseconds(5)) }
-        try await Task.sleep(for: .milliseconds(25))
+        await Task.yield()
+        try Task.checkCancellation()
         return [Self.region(index)]
     }
     func translate(
@@ -665,7 +679,6 @@ private actor APIPipelineRecorder {
             try await progress?(partial)
             published.append(index)
             while blocked.contains(index) { try await Task.sleep(for: .milliseconds(5)) }
-            try await Task.sleep(for: .milliseconds(delayMilliseconds))
             try Task.checkCancellation()
         } catch { cancelled.append(index); throw error }
         completed.append(index)

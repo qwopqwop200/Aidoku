@@ -7,16 +7,23 @@ struct TranslationErrorLocalizationTests {
         "id", "it", "ja", "ka", "km", "ko", "ml", "nb-NO", "ne", "nl", "pl", "pt-BR", "pt", "ro", "ru", "sq", "sr",
         "sv", "sw", "ta", "th", "tr", "uk", "ur", "vi", "zh-Hans", "zh-Hant"]
 
+    // Bundle resources are immutable for this process; each locale still loads its own table.
+    private static let englishReference: Result<[String: String], Error> = Result {
+        let path = try #require(Bundle.main.path(forResource: "en", ofType: "lproj"))
+        let bundle = try #require(Bundle(path: path))
+        let url = try #require(bundle.url(forResource: "Localizable", withExtension: "strings"))
+        return try #require(PropertyListSerialization.propertyList(
+            from: Data(contentsOf: url), options: 0, format: nil
+        ) as? [String: String])
+    }
+
     @Test(arguments: locales)
     func everyLocaleShipsItsOwnTranslationErrorsAndFormatsIdentifiers(locale: String) throws {
         let path = try #require(Bundle.main.path(forResource: locale, ofType: "lproj"))
         let bundle = try #require(Bundle(path: path))
         let url = try #require(bundle.url(forResource: "Localizable", withExtension: "strings"))
         let entries = try #require(PropertyListSerialization.propertyList(from: Data(contentsOf: url), options: 0, format: nil) as? [String: String])
-        let englishPath = try #require(Bundle.main.path(forResource: "en", ofType: "lproj"))
-        let english = try #require(Bundle(path: englishPath))
-        let englishURL = try #require(english.url(forResource: "Localizable", withExtension: "strings"))
-        let englishEntries = try #require(PropertyListSerialization.propertyList(from: Data(contentsOf: englishURL), options: 0, format: nil) as? [String: String])
+        let englishEntries = try Self.englishReference.get()
         let keys = englishEntries.keys.filter { $0.hasPrefix("TRANSLATION_ERROR_") } + [
             "TRANSLATION_IMAGE_UNSUPPORTED", "TRANSLATION_CONNECTION_FAILED_NOTICE", "TRANSLATION_INCLUDE_IMAGE_HELP",
             "TRANSLATION_TEST_SUCCESS", "TRANSLATION_TEST_FAILURE", "TRANSLATION_TEST_HELP"

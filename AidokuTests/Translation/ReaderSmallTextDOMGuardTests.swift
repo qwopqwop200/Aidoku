@@ -7,6 +7,8 @@ import WebKit
 @Suite(.serialized)
 @MainActor
 struct ReaderSmallTextDOMGuardTests {
+    @MainActor private static let webFixture = RegressionWebFixture()
+
     // Recorded planned payloads: small-font-sfx-study/captures versus
     // source-ink-cleanup-study/paired-captures. No image or dataset dependency.
     private static let fixturesJSON = #"""
@@ -83,7 +85,8 @@ struct ReaderSmallTextDOMGuardTests {
         let previous = scene.keyWindow
         let window = UIWindow(windowScene: scene)
         window.rootViewController = UIViewController()
-        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 780))
+        let webView = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 390, height: 780))
+        defer { Self.webFixture.release(webView) }
         window.rootViewController?.view.addSubview(webView)
         window.makeKeyAndVisible()
         // Isolate enlargement guards from the subsequent Korean shrink repair.
@@ -97,12 +100,7 @@ struct ReaderSmallTextDOMGuardTests {
             return try await BrowserPageImageOverlayRenderer.evaluateJavaScript(webView, isolated, arguments)
         }
         defer { renderer.cancelPendingRender(); window.isHidden = true; previous?.makeKey() }
-        webView.loadHTMLString("<meta name='viewport' content='width=device-width,initial-scale=1'><style>html,body{margin:0;width:100%;height:100%}</style><div id='fixture-ready'></div>", baseURL: nil)
-        let deadline = Date().addingTimeInterval(20)
-        while (try? await webView.evaluateJavaScript("!!document.getElementById('fixture-ready')") as? Bool) != true {
-            guard Date() < deadline else { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(10))
-        }
+        try await RegressionWebFixture.load("<meta name='viewport' content='width=device-width,initial-scale=1'><style>html,body{margin:0;width:100%;height:100%}</style><div id='fixture-ready'></div>", in: webView)
         let strict = try await render(baseline, on: webView, using: renderer)
         #expect(abs((try #require(strict["font"] as? Double)) - referenceFont) < 0.01)
         let suppliedReference = candidate.removeValue(forKey: "smallTextReference")
@@ -146,11 +144,7 @@ struct ReaderSmallTextDOMGuardTests {
         renderer.render(on: webView, items: [], imageSize: webView.bounds.size,
                         sourceRect: webView.bounds, settings: ReaderTranslationSettings.defaultOverlay,
                         targetLanguage: "ko", preparedLayout: prepared) { _ in finished = true }
-        let deadline = Date().addingTimeInterval(20)
-        while !finished {
-            guard Date() < deadline else { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(10))
-        }
+        try await RegressionTestWait.until { finished }
         #expect(renderer.lastDiagnostic?.outcome == .committed)
         return try #require(try await webView.evaluateJavaScript("""
         (() => {

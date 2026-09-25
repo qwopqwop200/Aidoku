@@ -15,13 +15,16 @@ def main():
     parser.add_argument('--device', required=True, help='Connected device UDID')
     parser.add_argument('--team', required=True, help='Apple development team ID')
     parser.add_argument('--app-id-prefix', required=True, help='Existing installation bundle prefix')
-    parser.add_argument('--derived-data', type=Path, default=root / 'build/device')
+    parser.add_argument('--derived-data', type=Path)
+    parser.add_argument('--full-optimization', action='store_true',
+                        help='Use whole-module optimization for explicit performance/release validation')
     parser.add_argument('--jobs', type=int, default=2, help='Parallel build jobs (default: 2)')
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
     if args.jobs < 1:
         parser.error('--jobs must be positive')
-    cache = args.derived_data.expanduser().resolve()
+    cache = (args.derived_data or root / ('build/device-wmo' if args.full_optimization
+                                                else 'build/device-fast')).expanduser().resolve()
     command = [
         'xcodebuild', '-project', str(root / 'Aidoku.xcodeproj'),
         '-scheme', 'Aidoku', '-configuration', 'Release',
@@ -30,6 +33,7 @@ def main():
         '-disableAutomaticPackageResolution', '-skipPackagePluginValidation',
         '-allowProvisioningUpdates', 'CODE_SIGN_STYLE=Automatic',
         f'DEVELOPMENT_TEAM={args.team}', f'APP_ID_PREFIX={args.app_id_prefix}',
+        'SWIFT_COMPILATION_MODE=' + ('wholemodule' if args.full_optimization else 'singlefile'),
         '-jobs', str(args.jobs), '-showBuildTimingSummary', 'build',
     ]
     print(shlex.join(command), flush=True)

@@ -63,14 +63,14 @@ struct ReaderTranslationDismissalTests {
         if usesUIKitTransition {
             transition.isInteractive = true
             controller.dismiss(animated: true)
-            try await Task.sleep(for: .milliseconds(50))
+            try await RegressionTestWait.until { transition.started }
             transition.interaction.update(0.15)
         } else {
             controller.beginAppearanceTransition(false, animated: true)
         }
         #expect(overlay.superview === reader.imageView)
         #expect(!overlay.isHidden)
-        try await Task.sleep(for: .milliseconds(100))
+        await Task.yield()
         #expect(reader.page.isUsingCachedRendering)
 
         if usesUIKitTransition {
@@ -109,6 +109,7 @@ struct ReaderTranslationDismissalTests {
     let interaction = UIPercentDrivenInteractiveTransition()
     var isInteractive = false
     var completed = false
+    var started = false
 
     func animationController(forDismissed dismissed: UIViewController) -> (any UIViewControllerAnimatedTransitioning)? {
         self
@@ -119,9 +120,10 @@ struct ReaderTranslationDismissalTests {
         isInteractive ? interaction : nil
     }
 
-    func transitionDuration(using transitionContext: (any UIViewControllerContextTransitioning)?) -> TimeInterval { 0.25 }
+    func transitionDuration(using transitionContext: (any UIViewControllerContextTransitioning)?) -> TimeInterval { 0.05 }
 
     func animateTransition(using transitionContext: any UIViewControllerContextTransitioning) {
+        started = true
         guard let view = transitionContext.view(forKey: .from) else {
             transitionContext.completeTransition(false)
             completed = true

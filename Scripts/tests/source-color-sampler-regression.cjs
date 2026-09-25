@@ -6,6 +6,24 @@ const vm = require('node:vm');
 const { harness, raster, rect, line, outlinedLine, whiteOutlinedGlyphs, transpose, resize, near, ink, panel } = require('./source-color-test-harness.cjs');
 const bounds = [0, 0, 1, 1];
 
+// Reusing compiled production code must not share the realm's intrinsics,
+// sampler caches or mocked document state between independent test cases.
+{
+    const first = harness(), second = harness();
+    assert.notStrictEqual(vm.runInContext('Math', first.context), vm.runInContext('Math', second.context));
+    assert.strictEqual(vm.runInContext('Math', first.context), vm.runInContext('globalThis.Math', first.context));
+    vm.runInContext('Math.fixtureIsolationMarker = true', first.context);
+    assert.equal(vm.runInContext('Math.fixtureIsolationMarker', second.context), undefined);
+    const image = line();
+    const one = first.sampler(image, true), two = second.sampler(image, true);
+    one.sample(bounds);
+    two.sample(bounds);
+    assert.equal(one.stats.hits, 0);
+    assert.equal(two.stats.hits, 0);
+    assert.equal(first.draws.length, 1);
+    assert.equal(second.draws.length, 1);
+}
+
 // Previously, the longest-side limit sent a 64 x 1600 source to a 7 x 192
 // raster: the production estimator rejects any dimension smaller than eight.
 for (const image of [line(), transpose(line())]) {

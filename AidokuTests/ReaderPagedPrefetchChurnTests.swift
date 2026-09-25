@@ -26,6 +26,7 @@ struct ReaderPagedPrefetchChurnTests {
             UIColor.white.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 32, height: 64))
             UIColor.blue.setFill(); ctx.fill(CGRect(x: 4, y: 8, width: 20, height: 48))
         }
+        let expectedRGBA = try rgba(sourceImage)
         let png = try #require(sourceImage.pngData())
         let inputs = (0..<5).map { output.appendingPathComponent("source-\($0).png") }
         for input in inputs { try png.write(to: input) }
@@ -70,11 +71,12 @@ struct ReaderPagedPrefetchChurnTests {
             try await Task.sleep(for: .milliseconds(34))
             let elapsed = (ProcessInfo.processInfo.systemUptime - adoption) * 1000
             let shown = try #require(reader.translationPages().first { $0.sourcePage?.chapterId == "next" }?.imageView?.image)
-            #expect(try rgba(shown) == rgba(sourceImage))
+            let exactRGBA = try rgba(shown) == expectedRGBA
+            #expect(exactRGBA)
             try #require(shown.pngData()).write(to: output.appendingPathComponent("displayed-\(iteration).png"))
             let counts = await counter.snapshot()
             rows.append(["iteration": iteration, "exitAndReturn": exitAndReturn, "counts": counts, "adoptionToVisibleMS": elapsed,
-                         "pageOrder": reader.viewModel.pages.map { URL(string: $0.imageURL ?? "")?.lastPathComponent ?? "missing" }, "exactRGBA": try rgba(shown) == rgba(sourceImage)])
+                         "pageOrder": reader.viewModel.pages.map { URL(string: $0.imageURL ?? "")?.lastPathComponent ?? "missing" }, "exactRGBA": exactRGBA])
             try JSONSerialization.data(withJSONObject: ["rows": rows,
                 "scope": "Actual ReaderPagedViewController, controlled 1s delayed Runner, programmatic tail pages3/4/5 at250ms gaps then chapter handoff; no physical gesture/network/OCR/upscale. 34ms settle is not display callback proof."], options: [.prettyPrinted, .sortedKeys])
                 .write(to: output.appendingPathComponent("results.json"), options: .atomic)

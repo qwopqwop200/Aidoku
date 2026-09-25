@@ -35,7 +35,8 @@ struct SourcePaginationTests {
         var pages: [Int] = []
         let model = SourceSearchViewModel(getPage: { _, page, _ in
             pages.append(page)
-            try await Task.sleep(nanoseconds: 30_000_000)
+            // Only pagination needs an overlap window; initial loading is awaited.
+            if page == 2 { try await Task.sleep(nanoseconds: 30_000_000) }
             return result(["\(page)"])
         }, getBookmarks: { _ in [] })
         model.loadManga(searchText: "", filters: [])
@@ -70,20 +71,21 @@ struct SourcePaginationTests {
     }
 
     @Test func cancelledPageCannotOverwriteNewSearch() async {
-        var started = false
+        var finishOldPage: CheckedContinuation<Void, Never>?
         let model = SourceSearchViewModel(getPage: { query, page, _ in
             if query == "old" && page == 2 {
-                started = true
-                try? await Task.sleep(nanoseconds: 100_000_000)
+                await withCheckedContinuation { finishOldPage = $0 }
             }
             return result(["\(query)-\(page)"])
         }, getBookmarks: { _ in [] })
         model.loadManga(searchText: "old", filters: [])
         await model.waitForSearch()
         let pending = Task { await model.loadMore(searchText: "old", filters: []) }
-        while !started { await Task.yield() }
+        while finishOldPage == nil { await Task.yield() }
         model.loadManga(searchText: "new", filters: [])
         await model.waitForSearch()
+        // Deliver the stale response only after the replacement search has committed.
+        finishOldPage?.resume()
         await pending.value
         #expect(model.entries.map(\.key) == ["new-1"])
         #expect(model.error == nil)

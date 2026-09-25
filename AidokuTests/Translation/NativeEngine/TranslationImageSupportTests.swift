@@ -15,6 +15,19 @@ struct TranslationImageSupportTests {
         ("What could this possibly mean?", "unknown")
     ]
 
+    // Shared immutable bytes only; settings, services and transports remain isolated per case.
+    private static let fixtureSize = CGSize(width: 32, height: 32)
+    private static let fixtureJPEG: Result<Data, Error> = Result {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let image = UIGraphicsImageRenderer(size: fixtureSize, format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 32, height: 32))
+        }
+        return try ReaderTranslationImagePreparation.translationJPEG(image)
+    }
+
     @Test(arguments: [RemoteTranslationProtocol.responses, .chatCompletions], 0..<16)
     func readerFilterAndImageMatrix(apiProtocol: RemoteTranslationProtocol, mode: Int) async throws {
         // Four filter combinations x disabled/supported/rejected/known-unsupported images.
@@ -33,14 +46,7 @@ struct TranslationImageSupportTests {
             ReaderTranslationRegion(id: "line-\(index)", rect: CGRect(x: 0.1, y: 0.05 + Double(index) * 0.13, width: 0.6, height: 0.1),
                                     source: sample.0)
         }
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        format.opaque = true
-        let image = UIGraphicsImageRenderer(size: CGSize(width: 32, height: 32), format: format).image { context in
-            UIColor.white.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 32, height: 32))
-        }
-        let jpeg = try ReaderTranslationImagePreparation.translationJPEG(image)
+        let jpeg = try Self.fixtureJPEG.get()
         let providedImage = imageMode == 1 || imageMode == 2 ? jpeg : nil
         let output = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: providedImage)
         #expect(output.count == regions.count)
@@ -50,7 +56,7 @@ struct TranslationImageSupportTests {
             #expect(output[index].translation == (retained ? sample.0 : "translated:" + sample.0))
             #expect(output[index].preservesOriginalText == retained)
         }
-        let overlays = ReaderTranslationRegion.overlayItems(output, imageSize: image.size)
+        let overlays = ReaderTranslationRegion.overlayItems(output, imageSize: Self.fixtureSize)
         #expect(overlays.count == output.filter { !$0.preservesOriginalText }.count)
         #expect(await transport.images == (imageMode == 2 ? [true, false] : [imageMode == 1]))
         let bodies = await transport.bodies

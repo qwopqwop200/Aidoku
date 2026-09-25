@@ -201,6 +201,7 @@ struct FullAuditPerformanceTests {
         let fixture = try FullAuditPixels.fixture()
         let sourceHash = try FullAuditPixels.hash(fixture)
         let bytes = try #require(fixture.pngData())
+        let sourceEncodedHash = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
         try bytes.write(to: runDirectory.appendingPathComponent("source.png"), options: .atomic)
         let host = UIViewController()
         host.view.backgroundColor = .white
@@ -229,7 +230,7 @@ struct FullAuditPerformanceTests {
             row["processing"] = "skipProcessing=true; excludes crop, upscale, OCR and translation"
             row["sourcePixelSHA256"] = sourceHash
             row["displayedImagePixelSHA256"] = displayedHash
-            row["sourceEncodedSHA256"] = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+            row["sourceEncodedSHA256"] = sourceEncodedHash
             row["screenshot"] = label + ".png"
             row["screenshotPixelSHA256"] = try screenshot(label)
             row["finalReady"] = try await finalReady(label, screen: "reader", since: probe.measurementStart)

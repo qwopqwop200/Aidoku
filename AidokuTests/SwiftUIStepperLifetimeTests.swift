@@ -10,27 +10,11 @@ struct SwiftUIStepperLifetimeTests {
         weak var value: UIStepper?
         init(_ value: UIStepper) { self.value = value }
     }
-    private final class DisplayCycle: NSObject {
-        private var frames = 0
-        private var link: CADisplayLink?
-        private var completion: CheckedContinuation<Void, Never>?
-        static func wait() async {
-            await withCheckedContinuation { continuation in
-                let cycle = DisplayCycle()
-                cycle.completion = continuation
-                let link = CADisplayLink(target: cycle, selector: #selector(cycle.tick))
-                cycle.link = link
-                link.add(to: .main, forMode: .common)
-            }
-        }
-        @objc private func tick() {
-            frames += 1
-            guard frames == 2 else { return }
-            link?.invalidate()
-            link = nil
-            let completion = completion
-            self.completion = nil
-            completion?.resume()
+    private func waitUntil(_ condition: () -> Bool) async throws {
+        let deadline = ContinuousClock.now + .seconds(3)
+        while !condition() {
+            guard ContinuousClock.now < deadline else { throw URLError(.timedOut) }
+            try await Task.sleep(for: .milliseconds(1))
         }
     }
     private func steppers(in view: UIView) -> [UIStepper] {
@@ -69,7 +53,10 @@ struct SwiftUIStepperLifetimeTests {
             controller.view.layoutIfNeeded()
             return window
         }
-        await DisplayCycle.wait()
+        try await waitUntil {
+            window?.rootViewController?.view.layoutIfNeeded()
+            return window?.rootViewController.map { steppers(in: $0.view).count == 1 } == true
+        }
         autoreleasepool {
             if let root = window?.rootViewController?.view {
                 let native = steppers(in: root)
@@ -89,12 +76,7 @@ struct SwiftUIStepperLifetimeTests {
             window?.rootViewController = nil
             window = nil
         }
-        await DisplayCycle.wait()
-        for _ in 0..<200 {
-            let released = autoreleasepool { host == nil && capture == nil }
-            if released { break }
-            try await Task.sleep(for: .milliseconds(10))
-        }
+        try await waitUntil { autoreleasepool { host == nil && capture == nil } }
         #expect(host == nil)
         #expect(capture == nil)
         #expect(probes.count == 1)
@@ -123,14 +105,17 @@ struct SwiftUIStepperLifetimeTests {
                 window.rootViewController = controller
                 window.layoutIfNeeded()
             }
-            await DisplayCycle.wait()
+            try await waitUntil {
+                window.rootViewController?.view.layoutIfNeeded()
+                return window.rootViewController.map { steppers(in: $0.view).count == 1 } == true
+            }
             autoreleasepool {
                 let native = window.rootViewController.map { steppers(in: $0.view) } ?? []
                 #expect(native.count == 1)
                 native.forEach { identities.insert(ObjectIdentifier($0)) }
                 window.rootViewController = nil
             }
-            await DisplayCycle.wait()
+            try await waitUntil { autoreleasepool { host == nil && marker == nil } }
             #expect(host == nil)
             #expect(marker == nil)
         }
@@ -152,15 +137,22 @@ struct SwiftUIStepperLifetimeTests {
                 SettingStepper(value: .constant(3.0), in: range, step: step, accessibilityLabel: "Inert")
                     .disabled(disabled))
             window.layoutIfNeeded()
-            await DisplayCycle.wait()
+            try await waitUntil {
+                window.rootViewController?.view.layoutIfNeeded()
+                return window.rootViewController.map { steppers(in: $0.view).count == 1 } == true
+            }
+            var probes: [WeakStepper] = []
             autoreleasepool {
                 let native = window.rootViewController.map { steppers(in: $0.view) } ?? []
+                probes = native.map(WeakStepper.init)
                 #expect(native.count == 1)
                 #expect(native.first?.isEnabled == false)
                 #expect(native.first?.accessibilityValue == "3")
                 window.rootViewController = nil
             }
-            await DisplayCycle.wait()
+            try await waitUntil {
+                probes.allSatisfy { $0.value?.superview == nil && ($0.value?.allTargets.isEmpty ?? true) }
+            }
         }
     }
 

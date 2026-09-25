@@ -47,6 +47,8 @@ private final class BrowserTestNavigationWaiter: NSObject,
 
 @Suite(.serialized)
 struct ReaderOverlayEngineTests {
+    @MainActor private static let webFixture = RegressionWebFixture()
+
 
     @Test
     func separateHorizontalSourceLinesDoNotBecomeASideBySideBand() {
@@ -142,9 +144,8 @@ struct ReaderOverlayEngineTests {
     @Test func pageImageDOMOverlayCommitsAtomicallyAndHonorsRevisions()
         async throws
     {
-        let webView = WKWebView(
-            frame: CGRect(x: 0, y: 0, width: 390, height: 715)
-        )
+        let webView = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 390, height: 715))
+        defer { Self.webFixture.release(webView) }
         let waiter = BrowserTestNavigationWaiter()
         await waiter.load(
             html: """
@@ -283,9 +284,8 @@ struct ReaderOverlayEngineTests {
     @Test func pageImageDOMClearRemovesHigherRevisionFromPreviousSession()
         async throws
     {
-        let webView = WKWebView(
-            frame: CGRect(x: 0, y: 0, width: 390, height: 715)
-        )
+        let webView = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 390, height: 715))
+        defer { Self.webFixture.release(webView) }
         let waiter = BrowserTestNavigationWaiter()
         await waiter.load(
             html: """
@@ -377,9 +377,8 @@ struct ReaderOverlayEngineTests {
         }
         var callbackDiagnostic: BrowserPageImageOverlayDiagnostic?
         renderer.onDiagnostic = { callbackDiagnostic = $0 }
-        let webView = WKWebView(
-            frame: CGRect(x: 0, y: 0, width: 390, height: 715)
-        )
+        let webView = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 390, height: 715))
+        defer { Self.webFixture.release(webView) }
         let diagnostic = await withCheckedContinuation { continuation in
             renderer.render(
                 on: webView,
@@ -410,9 +409,8 @@ struct ReaderOverlayEngineTests {
                 "itemCount": 0,
             ]
         }
-        let webView = WKWebView(
-            frame: CGRect(x: 0, y: 0, width: 390, height: 715)
-        )
+        let webView = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 390, height: 715))
+        defer { Self.webFixture.release(webView) }
         let diagnostic = await withCheckedContinuation { continuation in
             renderer.clear(
                 on: webView,
@@ -531,7 +529,8 @@ struct ReaderOverlayEngineTests {
 
     @MainActor
     @Test func koreanDialogueBalancesLinesWithoutChangingTextOrExplicitBreaks() async throws {
-        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 780))
+        let webView = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 390, height: 780))
+        defer { Self.webFixture.release(webView) }
         let waiter = BrowserTestNavigationWaiter()
         await waiter.load(html: "<!doctype html><meta name=viewport content=width=device-width>", in: webView)
         // Real SPY dialogue geometry; test browser line layout, not just CSS serialization.
@@ -630,9 +629,8 @@ struct ReaderOverlayEngineTests {
             items.compactMap(\.translatedText)
         ))
 
-        let webView = WKWebView(
-            frame: CGRect(origin: .zero, size: viewport)
-        )
+        let webView = Self.webFixture.acquire(frame: CGRect(origin: .zero, size: viewport))
+        defer { Self.webFixture.release(webView) }
         let waiter = BrowserTestNavigationWaiter()
         await waiter.load(
             html: """
@@ -775,9 +773,8 @@ struct ReaderOverlayEngineTests {
         #expect(sourceItem["translationText"] == nil)
         #expect(translatedItem["translationText"] == nil)
 
-        let webView = WKWebView(
-            frame: CGRect(origin: .zero, size: viewport)
-        )
+        let webView = Self.webFixture.acquire(frame: CGRect(origin: .zero, size: viewport))
+        defer { Self.webFixture.release(webView) }
         let waiter = BrowserTestNavigationWaiter()
         await waiter.load(
             html: """
@@ -934,9 +931,8 @@ struct ReaderOverlayEngineTests {
         #expect(payloadByID["934"]?["wrappingScript"] as? String == "cjk")
         #expect(payloadByID["934"]?["fontScript"] as? String == "japanese")
 
-        let webView = WKWebView(
-            frame: CGRect(origin: .zero, size: viewport)
-        )
+        let webView = Self.webFixture.acquire(frame: CGRect(origin: .zero, size: viewport))
+        defer { Self.webFixture.release(webView) }
         let waiter = BrowserTestNavigationWaiter()
         await waiter.load(
             html: """

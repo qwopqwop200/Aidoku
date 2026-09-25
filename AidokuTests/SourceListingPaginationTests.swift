@@ -27,7 +27,8 @@ struct SourceListingPaginationTests {
         var pages: [Int] = []
         let model = SourceListingViewModel(getPage: { _, page in
             pages.append(page)
-            try await Task.sleep(nanoseconds: 30_000_000)
+            // Only pagination needs an overlap window; initial loading is awaited.
+            if page == 2 { try await Task.sleep(nanoseconds: 30_000_000) }
             return result(["\(page)"])
         }, getBookmarks: { _ in [] })
         await model.reload(listing: listing)

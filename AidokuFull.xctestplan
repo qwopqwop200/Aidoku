@@ -1,0 +1,23 @@
+{
+  "configurations": [
+    {
+      "id": "B365A181-386A-4562-AD93-E8D8CE672E67",
+      "name": "Default",
+      "options": {}
+    }
+  ],
+  "defaultOptions": {
+    "codeCoverage": false
+  },
+  "testTargets": [
+    {
+      "target": {
+        "containerPath": "container:Aidoku.xcodeproj",
+        "identifier": "FBB44E712EC635620032EFBB",
+        "name": "AidokuTests"
+      },
+      "parallelizable": false
+    }
+  ],
+  "version": 1
+}

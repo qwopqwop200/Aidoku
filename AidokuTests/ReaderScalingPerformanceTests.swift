@@ -22,6 +22,7 @@ struct ReaderScalingPerformanceTests {
             UIColor.white.setFill(); c.fill(CGRect(x: 0, y: 0, width: 64, height: 128))
             UIColor.blue.setFill(); c.fill(CGRect(x: 8, y: 16, width: 48, height: 96))
         }
+        let expectedPixelHash = try ScalingPixels.hash(image)
         let output = URL.documentsDirectory.appendingPathComponent("ReaderScaling-\(UUID())")
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
@@ -50,7 +51,7 @@ struct ReaderScalingPerformanceTests {
                     try await ready(reader, page: page)
                     navigation.append((CACurrentMediaTime() - start) * 1000)
                     let displayed = try #require(reader.translationPages().first?.imageView?.image)
-                    #expect(try ScalingPixels.hash(displayed) == ScalingPixels.hash(image))
+                    #expect(try ScalingPixels.hash(displayed) == expectedPixelHash)
                 }
                 let displayed = try #require(reader.translationPages().first?.imageView?.image)
                 try #require(displayed.pngData()).write(to: output.appendingPathComponent("display-\(count)-\(iteration).png"))

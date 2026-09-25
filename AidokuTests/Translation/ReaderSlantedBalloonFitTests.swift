@@ -31,6 +31,7 @@ struct ReaderSlantedBalloonFitTests {
         window.rootViewController = UIViewController()
         window.makeKeyAndVisible()
         defer { window.isHidden = true }
+        let webFixture = RegressionWebFixture()
         for fixture in fixtures where ids.contains(fixture.id) {
             let data = try Data(contentsOf: Self.directory.appendingPathComponent(fixture.id + ".png"))
             let image = try #require(UIImage(data: data))
@@ -39,12 +40,13 @@ struct ReaderSlantedBalloonFitTests {
                 width: points.map(\.x).max()! - points.map(\.x).min()!,
                 height: points.map(\.y).max()! - points.map(\.y).min()!)
             let size = CGSize(width: 430, height: 430 * image.size.height / image.size.width)
-            let web = WKWebView(frame: CGRect(origin: .zero, size: size))
+            let web = webFixture.acquire(frame: CGRect(origin: .zero, size: size))
+            defer { webFixture.release(web) }
             web.scrollView.contentInsetAdjustmentBehavior = .never
             window.rootViewController?.view.addSubview(web)
             defer { web.removeFromSuperview() }
-            web.loadHTMLString("<meta name='viewport' content='width=device-width,initial-scale=1'><style>body{margin:0}img{display:block;width:100%}</style><img id='reader-source-image' src='data:image/png;base64,\(data.base64EncodedString())'>", baseURL: nil)
-            for _ in 0..<500 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
+            try await RegressionWebFixture.load("<meta name='viewport' content='width=device-width,initial-scale=1'><style>body{margin:0}img{display:block;width:100%}</style><img id='reader-source-image' src='data:image/png;base64,\(data.base64EncodedString())'>", in: web)
+
             _ = try await web.callAsyncJavaScript("await document.getElementById('reader-source-image').decode()",
                 arguments: [:], in: nil, contentWorld: .page)
             let item = BrowserOverlayItem(stableRegionID: 0, rect: rect, sourceText: fixture.source,

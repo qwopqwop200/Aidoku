@@ -226,14 +226,20 @@ struct ReaderTranslationPersistentPipelineTests {
         raw.translation = nil
         let fallback = raw
         var notices = 0
+        var retryDelays: [UInt64] = []
         let session = ReaderTranslationSession(process: { _, _, _ in
             throw ReaderTranslationOCRFallback(regions: [fallback], underlying: URLError(.timedOut))
-        }, diskCache: fixture.disk)
+        }, diskCache: fixture.disk, waitForAPIRetry: { delay in
+            retryDelays.append(delay)
+            await Task.yield()
+            try Task.checkCancellation()
+        })
         defer { session.close() }
         session.onFailure = { _ in notices += 1 }
         session.update(items: [.init(sourcePage)], visible: [visible], context: "fallback")
         session.enable(settings: fixture.settings)
         try await waitUntil { notices == 1 }
+        #expect(retryDelays == [1_000_000_000, 3_000_000_000])
         #expect(session.state == .on)
         #expect(visible.regions.isEmpty)
         #expect(view.image === image)
