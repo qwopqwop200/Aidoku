@@ -34,6 +34,27 @@ struct ReaderTranslationOverlapTests {
         #expect(visible.canExportTranslation)
     }
 
+    @Test func providerStartsDuringOCRPersistenceWithoutReleasingTheRecognitionBarrier() async throws {
+        let recorder = OverlapRecorder()
+        let preloader = ReaderTranslationPreloader(
+            translator: { regions, _, _ in try await recorder.translate(regions) },
+            recognizer: { page, _ in try await recorder.recognize(page.index) },
+            storeRecognition: { regions, _, _ in await recorder.storeRecognition(Int(regions[0].id)!) })
+        preloader.nextPage = { _ in page(1) }
+        let work = Task { try await preloader.translate(page(0), settings: settings) }
+        defer { preloader.cancel(); work.cancel() }
+        try await waitUntil { await recorder.persistingOCR == [0] }
+        // Disk persistence is deliberately held. API work should already run,
+        // but the existing recognition barrier still bounds the next OCR page.
+        try await waitUntil { await recorder.completed == [0] }
+        #expect(await recorder.persistedOCR.isEmpty)
+        #expect(await recorder.ocr == [0])
+        await recorder.releaseRecognitionStore()
+        #expect(try await work.value.first?.translation == "translated")
+        try await waitUntil { await recorder.ocr == [0, 1] }
+        #expect(await recorder.persistedOCR.contains(0))
+    }
+
     @Test func compressedLookaheadDownloadsDuringCurrentOCRWithoutDecodingAnotherPage() async throws {
         let recorder = OverlapRecorder(blockedOCR: 0)
         let preloader = ReaderTranslationPreloader(
@@ -133,6 +154,52 @@ struct ReaderTranslationOverlapTests {
         await recorder.release()
         try await waitUntil { await recorder.completed.contains(1) }
         #expect(await recorder.ocr.filter { $0 == 1 }.count == 1)
+    }
+
+    @Test func adoptingDownloadingLookaheadPromotesExistingTransfer() async throws {
+        let recorder = OverlapRecorder(blockedAPI: 0)
+        let preloader = ReaderTranslationPreloader(
+            translator: { regions, _, _ in try await recorder.translate(regions) },
+            recognizer: { page, _ in try await recorder.recognize(page.index) },
+            dataPrefetcher: { page in try await recorder.prefetchUntilPromoted(page.index) },
+            dataPromoter: { page in await recorder.promoteData(page.index) })
+        preloader.nextPage = { _ in page(1) }
+        let original = Task { try await preloader.translate(page(0), settings: settings) }
+        defer { original.cancel(); preloader.cancel() }
+        try await waitUntil { await recorder.prefetched == [1] }
+        preloader.cancel(preservingRecognitionFor: page(1))
+        preloader.nextPage = nil
+        let adopted = Task { try await preloader.translate(page(1), settings: settings) }
+        defer { adopted.cancel() }
+        // The transfer cannot complete until it is promoted. This condition
+        // catches a visible destination inheriting the speculative download QoS.
+        try await waitUntil { await recorder.completed.contains(1) }
+        _ = try await adopted.value
+        #expect(await recorder.promotedData == [1])
+        #expect(await recorder.prefetched == [1])
+        #expect(await recorder.ocr.filter { $0 == 1 }.count == 1)
+        #expect(await recorder.cancelledData.isEmpty)
+    }
+
+    @Test func cancellingAdoptedPageStopsItsDownloadPromotionObserver() async throws {
+        let recorder = OverlapRecorder(blockedOCR: 1, blockedAPI: 0)
+        let preloader = ReaderTranslationPreloader(
+            translator: { regions, _, _ in try await recorder.translate(regions) },
+            recognizer: { page, _ in try await recorder.recognize(page.index) },
+            dataPrefetcher: { page in try await recorder.prefetchUntilPromoted(page.index) },
+            dataPromoter: { page in try await recorder.promoteDataUntilCancelled(page.index) })
+        preloader.nextPage = { _ in page(1) }
+        let original = Task { try await preloader.translate(page(0), settings: settings) }
+        defer { original.cancel(); preloader.cancel() }
+        try await waitUntil { await recorder.prefetched == [1] }
+        preloader.cancel(preservingRecognitionFor: page(1))
+        preloader.nextPage = nil
+        let adopted = Task { try await preloader.translate(page(1), settings: settings) }
+        defer { adopted.cancel() }
+        try await waitUntil { await recorder.promotedData == [1] }
+        preloader.cancel()
+        await #expect(throws: CancellationError.self) { try await adopted.value }
+        try await waitUntil { await recorder.cancelledPromotions == [1] }
     }
 
     @Test func completedLookaheadOCRSurvivesExitAndReopening() async throws {
@@ -269,8 +336,32 @@ struct ReaderTranslationOverlapTests {
 }
 
 private actor OverlapRecorder {
+    var persistingOCR: [Int] = []
+    var persistedOCR: [Int] = []
+    private var recognitionStoreReleased = false
+    func releaseRecognitionStore() { recognitionStoreReleased = true }
+    func storeRecognition(_ index: Int) async {
+        persistingOCR.append(index)
+        while !recognitionStoreReleased && !Task.isCancelled { try? await Task.sleep(for: .milliseconds(5)) }
+        persistedOCR.append(index)
+    }
     var prefetched: [Int] = []
     var cancelledData: [Int] = []
+    var promotedData: [Int] = []
+    var cancelledPromotions: [Int] = []
+    func promoteDataUntilCancelled(_ index: Int) async throws {
+        promotedData.append(index)
+        do { while true { try await Task.sleep(for: .milliseconds(5)) } }
+        catch { cancelledPromotions.append(index); throw error }
+    }
+    func promoteData(_ index: Int) { promotedData.append(index) }
+    func prefetchUntilPromoted(_ index: Int) async throws {
+        prefetched.append(index)
+        do {
+            while !promotedData.contains(index) { try await Task.sleep(for: .milliseconds(5)) }
+            try Task.checkCancellation()
+        } catch { cancelledData.append(index); throw error }
+    }
     func prefetch(_ index: Int) { prefetched.append(index) }
     func blockedPrefetch(_ index: Int) async throws {
         prefetched.append(index)

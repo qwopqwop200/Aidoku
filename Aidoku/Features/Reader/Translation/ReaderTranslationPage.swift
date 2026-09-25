@@ -287,8 +287,12 @@ final class ReaderTranslationPage {
     func showCompletedTranslation(settings: ReaderTranslationSettings) {
         previewRegions = nil
         guard hasCompletedTranslation(settings: settings) else { return }
+        // A recovered WebContent process intentionally uses a text-only
+        // document; it cannot become snapshot-capable until a new overlay.
+        // Repeated session publication must not restart that recovery.
         if (overlay == nil && cachedOverlay == nil) || lastSettings?.overlay != settings.overlay ||
-            (renderCache != nil && overlay?.canCacheRendering == false), !regions.isEmpty, let image = imageView?.image {
+            (renderCache != nil && overlay?.canCacheRendering == false && overlay?.contentTerminationCount == 0),
+            !regions.isEmpty, let image = imageView?.image {
             try? publish(regions, image: image, settings: settings, generation: generation)
         }
         overlay?.isHidden = !settings.overlay.visible

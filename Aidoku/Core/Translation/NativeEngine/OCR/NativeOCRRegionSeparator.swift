@@ -6,7 +6,44 @@ import Foundation
 /// This does not infer balloon ownership: only long straight dark rules with
 /// bright pixels on BOTH sides are admitted, never broad dark CG backgrounds.
 struct NativeOCRRegionSeparator {
-    private let pixels: [UInt8]
+    // Geometry rejects most pairs without inspecting pixels. Keep rasterization
+    // lazy so sparse/disjoint OCR pages never draw a second full-page image.
+    // The lock also preserves safe shared queries from independent callers.
+    private final class Raster: @unchecked Sendable {
+        private let lock = NSLock()
+        private var image: CGImage?
+        private var pixels: [UInt8]?
+        private var attempted = false
+
+        init(image: CGImage) { self.image = image }
+
+        var isMaterialized: Bool { lock.withLock { attempted } }
+
+        func materialize(width: Int, height: Int) -> [UInt8]? {
+            lock.withLock {
+                if attempted { return pixels }
+                attempted = true
+                defer { image = nil }
+                guard let image else { return nil }
+                var data = [UInt8](repeating: 255, count: width * height)
+                let drawn = data.withUnsafeMutableBytes { bytes -> Bool in
+                    guard let context = CGContext(data: bytes.baseAddress, width: width, height: height,
+                        bitsPerComponent: 8, bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
+                        bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return false }
+                    context.setFillColor(gray: 1, alpha: 1)
+                    context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+                    context.interpolationQuality = .medium
+                    context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+                    return true
+                }
+                guard drawn else { return nil }
+                pixels = data
+                return data
+            }
+        }
+    }
+    private let raster: Raster
+    var hasRasterizedImage: Bool { raster.isMaterialized }
     private let width: Int
     private let height: Int
     private let sx: CGFloat
@@ -18,20 +55,7 @@ struct NativeOCRRegionSeparator {
         height = max(1, Int((CGFloat(image.height) * scale).rounded()))
         sx = CGFloat(width) / CGFloat(image.width)
         sy = CGFloat(height) / CGFloat(image.height)
-        var data = [UInt8](repeating: 255, count: width * height)
-        let w = width, h = height
-        let drawn = data.withUnsafeMutableBytes { bytes -> Bool in
-            guard let context = CGContext(data: bytes.baseAddress, width: w, height: h,
-                bitsPerComponent: 8, bytesPerRow: w, space: CGColorSpaceCreateDeviceGray(),
-                bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return false }
-            context.setFillColor(gray: 1, alpha: 1)
-            context.fill(CGRect(x: 0, y: 0, width: w, height: h))
-            context.interpolationQuality = .medium
-            context.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
-            return true
-        }
-        guard drawn else { return nil }
-        pixels = data
+        raster = Raster(image: image)
     }
 
     func separates(_ a: CGRect, _ b: CGRect, orientation: BrowserOCRSourceOrientation) -> Bool {
@@ -62,6 +86,7 @@ struct NativeOCRRegionSeparator {
         let lo = Int(max(0, min(CGFloat(cLimit), ceil(crossStart * crossScale))))
         let hi = Int(max(0, min(CGFloat(cLimit), floor(crossEnd * crossScale))))
         guard end > start, hi - lo >= 6, end - start <= 128 else { return false }
+        guard !Task.isCancelled, let pixels = raster.materialize(width: width, height: height) else { return false }
         let count = min(256, hi - lo)
         func occupancy(_ p: Int, bright: Bool) -> Double {
             guard p >= 0, p < pLimit else { return 0 }

@@ -17,6 +17,8 @@ enum TranslationPerformanceDiagnostics {
         sourceBytes: Int,
         elapsedMilliseconds: Double
     ) {
+        TranslationPerformanceFileLog.record(.service, fields: [.source: sourceCode(source), .segments: Double(segmentCount),
+            .sourceBytes: Double(sourceBytes), .elapsedMilliseconds: elapsedMilliseconds])
         logger.notice(
             "service_complete source=\(source.rawValue, privacy: .public) segments=\(segmentCount, privacy: .public) source_bytes=\(sourceBytes, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public)"
         )
@@ -28,6 +30,8 @@ enum TranslationPerformanceDiagnostics {
         sourceBytes: Int,
         elapsedMilliseconds: Double
     ) {
+        TranslationPerformanceFileLog.record(.providerAttempt, fields: [.attempt: Double(attempt), .segments: Double(segmentCount),
+            .sourceBytes: Double(sourceBytes), .elapsedMilliseconds: elapsedMilliseconds])
         logger.notice(
             "provider_attempt_complete attempt=\(attempt, privacy: .public) segments=\(segmentCount, privacy: .public) source_bytes=\(sourceBytes, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public)"
         )
@@ -41,6 +45,9 @@ enum TranslationPerformanceDiagnostics {
         sourceBytes: Int,
         elapsedMilliseconds: Double
     ) {
+        TranslationPerformanceFileLog.record(.providerFailure, fields: [.attempt: Double(attempt), .retry: willRetry ? 1 : 0,
+            .reason: reason == "invalid_structured_response" ? 1 : 0, .segments: Double(segmentCount),
+            .sourceBytes: Double(sourceBytes), .elapsedMilliseconds: elapsedMilliseconds])
         logger.error(
             "provider_attempt_failed attempt=\(attempt, privacy: .public) reason=\(reason, privacy: .public) retry=\(willRetry, privacy: .public) segments=\(segmentCount, privacy: .public) source_bytes=\(sourceBytes, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public)"
         )
@@ -51,6 +58,9 @@ enum TranslationPerformanceDiagnostics {
         segmentCount: Int,
         elapsedMilliseconds: Double
     ) {
+        if let event = TranslationPerformanceFileLog.Event(rawValue: phase) {
+            TranslationPerformanceFileLog.record(event, fields: [.segments: Double(segmentCount), .elapsedMilliseconds: elapsedMilliseconds])
+        }
         logger.notice(
             "client_phase_complete phase=\(phase, privacy: .public) segments=\(segmentCount, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public)"
         )
@@ -62,6 +72,11 @@ enum TranslationPerformanceDiagnostics {
         statusClass: Int,
         metrics: TranslationHTTPTransportMetrics
     ) {
+        TranslationPerformanceFileLog.record(.transport, fields: [.segments: Double(segmentCount),
+            .responseBytes: Double(responseBytes), .statusClass: Double(statusClass),
+            .responseHeadersMilliseconds: metrics.responseHeadersMilliseconds ?? -1,
+            .firstBodyByteMilliseconds: metrics.firstBodyByteMilliseconds ?? -1,
+            .bodyMilliseconds: metrics.bodyMilliseconds ?? -1, .totalMilliseconds: metrics.totalMilliseconds ?? -1])
         // `-1` means a custom/test transport could not provide this phase.
         // The delegate-backed production transport records response headers,
         // first body byte, body receive, and full transport duration separately.
@@ -77,9 +92,19 @@ enum TranslationPerformanceDiagnostics {
         elapsedMilliseconds: Double,
         combinedSource: TranslationResultSource
     ) {
+        TranslationPerformanceFileLog.record(.batch, fields: [.batchCount: Double(batchCount), .segments: Double(totalSegments),
+            .sourceBytes: Double(sourceBytes), .elapsedMilliseconds: elapsedMilliseconds, .source: sourceCode(combinedSource)])
         logger.notice(
             "batch_group_complete batch_count=\(batchCount, privacy: .public) total_segments=\(totalSegments, privacy: .public) source_bytes=\(sourceBytes, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public) combined_source=\(combinedSource.rawValue, privacy: .public)"
         )
+    }
+
+    private static func sourceCode(_ source: TranslationResultSource) -> Double {
+        switch source {
+        case .network: 0
+        case .memoryCache: 1
+        case .diskCache: 2
+        }
     }
 
     static func elapsedMilliseconds(since uptime: TimeInterval) -> Double {
@@ -665,21 +690,22 @@ actor TranslationService {
                 let result: RemoteTranslationBatchResult
                 if let providerRequestLimiter {
                     result = try await providerRequestLimiter.withPermit(priority: priority) {
-                        if requiresPersistenceAdmission { try await persistenceAdmission?() }
-                        try Task.checkCancellation()
-                        return try await client.translate(
-                            request,
-                            configuration: configuration,
-                            onPartial: onPartial
+                        TranslationPerformanceDiagnostics.clientPhaseCompleted(
+                            phase: "provider_queue",
+                            segmentCount: segmentCount,
+                            elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: attemptStartedAt)
+                        )
+                        return try await performProviderAttempt(
+                            client: client, request: request, configuration: configuration,
+                            onPartial: onPartial,
+                            persistenceAdmission: requiresPersistenceAdmission ? persistenceAdmission : nil
                         )
                     }
                 } else {
-                    if requiresPersistenceAdmission { try await persistenceAdmission?() }
-                    try Task.checkCancellation()
-                    result = try await client.translate(
-                        request,
-                        configuration: configuration,
-                        onPartial: onPartial
+                    result = try await performProviderAttempt(
+                        client: client, request: request, configuration: configuration,
+                        onPartial: onPartial,
+                        persistenceAdmission: requiresPersistenceAdmission ? persistenceAdmission : nil
                     )
                 }
                 TranslationPerformanceDiagnostics
@@ -723,8 +749,7 @@ actor TranslationService {
                         var part = RemoteTranslationRequest(sourceLanguage: request.sourceLanguage,
                             targetLanguage: request.targetLanguage, segments: segments,
                             context: request.context, glossary: request.glossary)
-                        part.imageJPEG = request.imageJPEG
-                        part.preparedImageDataURL = request.preparedImageDataURL
+                        part.copyImageRepresentation(from: request)
                         part.filtersSFX = request.filtersSFX
                         part.filtersBackground = request.filtersBackground
                         return part
@@ -790,6 +815,39 @@ actor TranslationService {
                 )
             }
         }
+    }
+
+    /// Keep provider queueing and the persistence circuit breaker out of the
+    /// client duration. The client includes request encoding/transport/validation,
+    /// whose nested phases further separate local work from server response wait.
+    private static func performProviderAttempt(
+        client: RemoteTranslating,
+        request: RemoteTranslationRequest,
+        configuration: RemoteTranslationConfiguration,
+        onPartial: RemoteTranslationPartialHandler?,
+        persistenceAdmission: (@Sendable () async throws -> Void)?
+    ) async throws -> RemoteTranslationBatchResult {
+        if let persistenceAdmission {
+            let startedAt = ProcessInfo.processInfo.systemUptime
+            defer {
+                TranslationPerformanceDiagnostics.clientPhaseCompleted(
+                    phase: "persistence_admission",
+                    segmentCount: request.segments.count,
+                    elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: startedAt)
+                )
+            }
+            try await persistenceAdmission()
+        }
+        try Task.checkCancellation()
+        let startedAt = ProcessInfo.processInfo.systemUptime
+        defer {
+            TranslationPerformanceDiagnostics.clientPhaseCompleted(
+                phase: "provider_client",
+                segmentCount: request.segments.count,
+                elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: startedAt)
+            )
+        }
+        return try await client.translate(request, configuration: configuration, onPartial: onPartial)
     }
 
     private static func isStructuredOutputRetryable(_ error: Error) -> Bool {

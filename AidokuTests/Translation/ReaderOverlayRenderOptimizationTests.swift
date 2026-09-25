@@ -196,6 +196,69 @@ struct ReaderOverlayRenderOptimizationTests {
         #expect(ReaderTranslationBackgroundImage.encodedDataURLs.count == 0)
     }
 
+    @Test func cachedBackgroundBypassesBusyEncoderWhileColdBackgroundRemainsBounded() async throws {
+        ReaderTranslationBackgroundImage.encodedDataURLs.removeAll()
+        let hot = Self.source(size: CGSize(width: 32, height: 32))
+        let cold = Self.source(size: CGSize(width: 33, height: 32))
+        let encoded = try ReaderTranslationBackgroundImage.dataURL(for: hot)
+        let expected = try #require(encoded)
+        let gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
+        let entered = AsyncStream<Void>.makeStream()
+        let release = AsyncStream<Void>.makeStream()
+        let blocker = Task {
+            try await gate.withPermit {
+                entered.continuation.yield(())
+                var iterator = release.stream.makeAsyncIterator()
+                _ = await iterator.next()
+            }
+        }
+        defer {
+            release.continuation.finish()
+            entered.continuation.finish()
+            blocker.cancel()
+        }
+        var admission = entered.stream.makeAsyncIterator()
+        _ = await admission.next()
+        let coldTask = Task { try await ReaderTranslationBackgroundImage.scheduledDataURL(for: cold, gate: gate) }
+        defer { coldTask.cancel() }
+        var result: String?
+        let hotTask = Task { result = try await ReaderTranslationBackgroundImage.scheduledDataURL(for: hot, gate: gate) }
+        defer { hotTask.cancel() }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while ContinuousClock.now < deadline {
+            let queued = await gate.queuedRequestCount
+            if result != nil && queued > 0 { break }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        // A regression must fail without hanging behind the intentionally held permit.
+        #expect(result == expected)
+        #expect(await gate.queuedRequestCount == 1)
+        #expect(ReaderTranslationBackgroundImage.encodedDataURLs.value(for: cold) == nil)
+        release.continuation.finish()
+        try await blocker.value
+        try await hotTask.value
+        let coldResult = try await coldTask.value
+        #expect(coldResult == ReaderTranslationBackgroundImage.encodedDataURLs.value(for: cold))
+        #expect(coldResult != nil)
+    }
+
+    @Test func cancelledBackgroundCacheHitStillHonorsCancellation() async throws {
+        let image = Self.source(size: CGSize(width: 32, height: 32))
+        _ = try ReaderTranslationBackgroundImage.dataURL(for: image)
+        let gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
+        let task = Task { @MainActor in
+            try await ReaderTranslationBackgroundImage.scheduledDataURL(for: image, gate: gate)
+        }
+        // MainActor inheritance guarantees the body cannot run before this cancel.
+        task.cancel()
+        do {
+            _ = try await task.value
+            Issue.record("Cancelled cache hit returned an encoding")
+        } catch is CancellationError {
+            #expect(await gate.queuedRequestCount == 0)
+        }
+    }
+
     @Test func identityCacheIsWeakAndBounded() async throws {
         let cache = ReaderTranslationImageIdentityCache<String>(capacity: 2)
         var images: [UIImage] = autoreleasepool { (0..<4).map { _ in Self.source(size: CGSize(width: 8, height: 8)) } }

@@ -241,6 +241,37 @@ struct ReaderTranslationAPIPipelineTests {
         #expect(try await second.value.first?.translation == "complete-ko-1")
     }
 
+    @Test func retainedLookaheadCompletionRefillsForTheNewDestinationDuringItsAPIWait() async throws {
+        let recorder = APIPipelineRecorder(blocked: [0, 1, 20, 21])
+        let preloader = preloader(recorder)
+        preloader.nextPage = { current in
+            switch current.index {
+            case 0: page(1)
+            case 20: page(21)
+            default: nil
+            }
+        }
+        let original = Task { try await preloader.translate(page(0), settings: settings()) }
+        defer { preloader.cancel(); original.cancel() }
+        try await waitUntil { Set(await recorder.published) == [0, 1] }
+        preloader.cancel(preservingRecognitionFor: page(20))
+        try await waitUntil { await recorder.cancelled == [0] }
+        let destination = Task { try await preloader.translate(page(20), settings: settings()) }
+        defer { destination.cancel() }
+        try await waitUntil { await recorder.published.contains(20) }
+        #expect(await recorder.started.contains(21) == false)
+        await recorder.release(1)
+        // Page 20 remains blocked. Completing the old lookahead must refill its
+        // bounded slot with page 21 without waiting for page 20 or navigation.
+        try await waitUntil { await recorder.published.contains(21) }
+        #expect(await recorder.completed == [1])
+        #expect(await recorder.started.sorted() == [0, 1, 20, 21])
+        #expect(await recorder.ocr.filter { $0 == 21 }.count == 1)
+        #expect(await recorder.maximumActive == 2)
+        await recorder.release(20)
+        #expect(try await destination.value.first?.translation == "complete-ko-20")
+    }
+
     @Test func pageTurnPauseAndAnchorUpdateKeepOneStartedLookahead() async throws {
         for destination in [1, 3] {
             let recorder = APIPipelineRecorder(blocked: [0, 1, 3])
@@ -258,9 +289,12 @@ struct ReaderTranslationAPIPipelineTests {
             try await waitUntil { Set(await recorder.published) == [0, 1] }
             session.pauseForPageTurn(preservingRecognitionFor: page(destination))
             try await waitUntil { await recorder.cancelled.contains(0) }
-            // The debounce must not launch the new destination early.
+            // The debounce must not launch the new destination early. Both
+            // detached provider tasks may resume after page zero OCR completes;
+            // their recorder entry order is not a provider admission contract.
             try await Task.sleep(for: .milliseconds(350))
-            #expect(await recorder.started == [0, 1])
+            let startedDuringPause = await recorder.started
+            #expect(startedDuringPause.sorted() == [0, 1])
             if destination == 1 {
                 #expect(await recorder.cancelled == [0])
             } else {

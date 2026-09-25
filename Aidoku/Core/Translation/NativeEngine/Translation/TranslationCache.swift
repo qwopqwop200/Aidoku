@@ -638,13 +638,9 @@ private final class TranslationDiskStore {
         }
 
         let previousSize = entries[key]?.byteCount ?? 0
-        var evictions = 0
-        while usedBytes - previousSize + data.count > maximumBytes {
-            guard let victim = leastRecentlyUsed(excluding: key) else {
-                return PutResult(accepted: false, evictions: evictions)
-            }
-            try remove(victim)
-            evictions += 1
+        let evictions = try evict(to: maximumBytes - data.count + previousSize, excluding: key)
+        guard usedBytes - previousSize + data.count <= maximumBytes else {
+            return PutResult(accepted: false, evictions: evictions)
         }
 
         var options: Data.WritingOptions = [.atomic]
@@ -755,27 +751,35 @@ private final class TranslationDiskStore {
     }
 
     private func trimToBudget() throws -> Int {
-        var evictions = 0
-        while usedBytes > maximumBytes, let victim = leastRecentlyUsed(excluding: nil) {
-            try remove(victim)
+        try evict(to: maximumBytes, excluding: nil)
+    }
+
+    private func evict(to targetBytes: Int, excluding excluded: TranslationCacheKey?) throws -> Int {
+        guard usedBytes > targetBytes else { return 0 }
+        // Most inserts evict at most one record. Retain that linear scan, but
+        // order the remaining victims once for a large result or budget shrink.
+        // Repeated min/filter scans made those operations quadratic on this actor.
+        guard let first = entries.lazy.filter({ $0.key != excluded }).min(by: older) else { return 0 }
+        try remove(first.key)
+        var evictions = 1
+        guard usedBytes > targetBytes else { return evictions }
+        let victims = entries.filter { $0.key != excluded }.sorted(by: older)
+        for victim in victims {
+            guard usedBytes > targetBytes else { break }
+            try remove(victim.key)
             evictions += 1
         }
         return evictions
     }
 
-    private func leastRecentlyUsed(
-        excluding excluded: TranslationCacheKey?
-    ) -> TranslationCacheKey? {
-        entries
-            .filter { $0.key != excluded }
-            .min { left, right in
-                if left.value.modifiedAt == right.value.modifiedAt {
-                    return left.value.fileURL.lastPathComponent <
-                        right.value.fileURL.lastPathComponent
-                }
-                return left.value.modifiedAt < right.value.modifiedAt
-            }?
-            .key
+    private func older(
+        _ left: (key: TranslationCacheKey, value: Metadata),
+        _ right: (key: TranslationCacheKey, value: Metadata)
+    ) -> Bool {
+        if left.value.modifiedAt == right.value.modifiedAt {
+            return left.value.fileURL.lastPathComponent < right.value.fileURL.lastPathComponent
+        }
+        return left.value.modifiedAt < right.value.modifiedAt
     }
 
     private func remove(_ key: TranslationCacheKey) throws {

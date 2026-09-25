@@ -7,6 +7,7 @@ import Foundation
 /// depend on network chunk boundaries.
 struct ChatCompletionStreamDecoder {
     private var pending = Data()
+    private var searchedBytes = 0
     private(set) var content = ""
     private(set) var finishReason: String?
     private(set) var refused = false
@@ -16,10 +17,20 @@ struct ChatCompletionStreamDecoder {
     mutating func consume(_ data: Data) throws -> [String] {
         pending.append(data)
         var deltas: [String] = []
-        while let newline = pending.firstIndex(of: 0x0A) {
-            let line = pending[pending.startIndex..<newline]
-            pending.removeSubrange(pending.startIndex...newline)
-            if let delta = try decode(line: Data(line)) { deltas.append(delta) }
+        var lineStart = pending.startIndex
+        var searchStart = pending.index(lineStart, offsetBy: searchedBytes)
+        while let newline = pending[searchStart...].firstIndex(of: 0x0A) {
+            // Decode before discarding bytes. Removing the prefix per line
+            // repeatedly copies the remaining buffered SSE response.
+            if let delta = try decode(line: Data(pending[lineStart..<newline])) {
+                deltas.append(delta)
+            }
+            lineStart = pending.index(after: newline)
+            searchStart = lineStart
+        }
+        searchedBytes = pending.distance(from: lineStart, to: pending.endIndex)
+        if lineStart != pending.startIndex {
+            pending.removeSubrange(pending.startIndex..<lineStart)
         }
         return deltas
     }
@@ -29,6 +40,7 @@ struct ChatCompletionStreamDecoder {
         guard !pending.isEmpty else { return [] }
         let line = pending
         pending = Data()
+        searchedBytes = 0
         return try decode(line: line).map { [$0] } ?? []
     }
 

@@ -139,7 +139,7 @@ private final class _DataLoader: NSObject, URLSessionDataDelegate, @unchecked Se
             self.handlers[task] = handler
         }
         task.resume()
-        return AnonymousCancellable { task.cancel() }
+        return DataLoaderTask(task: task)
     }
 
     // MARK: URLSessionDelegate
@@ -234,4 +234,11 @@ private final class _DataLoader: NSObject, URLSessionDataDelegate, @unchecked Se
             self.completion = completion
         }
     }
+}
+
+/// URLSessionTask supports priority changes after resume as scheduling hints.
+private struct DataLoaderTask: DataLoadingPriorityUpdating {
+    let task: URLSessionTask
+    func cancel() { task.cancel() }
+    func setPriority(_ priority: Float) { task.priority = min(1, max(0, priority)) }
 }

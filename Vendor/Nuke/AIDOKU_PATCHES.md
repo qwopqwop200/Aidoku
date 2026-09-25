@@ -25,3 +25,11 @@ Custom imageID overrides remain the caller's responsibility for cache isolation.
 
 Run `swift test --package-path Vendor/Nuke -j 2`, then the integrated iOS tests.
 Carry this correction and its tests forward deliberately when updating upstream.
+
+Active data loading priority: an optional `DataLoadingPriorityUpdating` handle
+forwards the maximum coalesced subscriber priority to URLSessionTask.priority,
+including promotion and demotion after resume. This is a network scheduling
+hint, not guaranteed bandwidth or preemption. Existing DataLoading conformers
+remain supported; request identity, concurrency limits and last-subscriber
+cancellation are unchanged. Aidoku's asynchronous source-loader wrapper retains
+and forwards the latest priority while its URLSession is being prepared.

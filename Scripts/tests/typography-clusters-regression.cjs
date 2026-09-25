@@ -10,7 +10,7 @@ const colorSource = fs.readFileSync(path.join(__dirname,
   '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift'), 'utf8');
 const contrastScript = colorSource.slice(colorSource.indexOf('    const aidokuSourceColorLuminance ='),
   colorSource.indexOf('    // Outline-free display keeps chromatic source ink.'));
-const api = vm.runInNewContext(script + contrastScript + ';({attached:aidokuHasAttachedLeadingInk,balloonFonts:aidokuBalloonFontSizes,erasure:aidokuRestoredErasureCovers,residual:aidokuHasResidualLettering,artworkFonts:aidokuArtworkFontSizes,compact:aidokuCompactPanel,visible:aidokuVisiblePanelColors,adjust:aidokuAdjustInkForContrast,fonts:aidokuFontClusters,inks:aidokuInkClusters,lines:aidokuKoreanLines,fragments:aidokuKoreanFragments,improves:aidokuKoreanWrapImproves,frame:aidokuCaptionInkFrame,candidates:aidokuCohortFontCandidates,flowFits:aidokuFontFlowFits,anchor:aidokuSourceAnchorShift,backing:aidokuTextBackingRect,needsBacking:aidokuNeedsTextBacking,keepsContrast:aidokuTextBackingKeepsContrast,contrast:aidokuSourceColorContrast})');
+const api = vm.runInNewContext(script + contrastScript + ';({restoredFloor:aidokuRestoredFontFloor,captionFloor:aidokuCaptionFontFloor,attached:aidokuHasAttachedLeadingInk,balloonFonts:aidokuBalloonFontSizes,erasure:aidokuRestoredErasureCovers,residual:aidokuHasResidualLettering,artworkFonts:aidokuArtworkFontSizes,compact:aidokuCompactPanel,visible:aidokuVisiblePanelColors,adjust:aidokuAdjustInkForContrast,fonts:aidokuFontClusters,inks:aidokuInkClusters,lines:aidokuKoreanLines,fragments:aidokuKoreanFragments,improves:aidokuKoreanWrapImproves,frame:aidokuCaptionInkFrame,candidates:aidokuCohortFontCandidates,flowFits:aidokuFontFlowFits,anchor:aidokuSourceAnchorShift,backing:aidokuTextBackingRect,needsBacking:aidokuNeedsTextBacking,keepsContrast:aidokuTextBackingKeepsContrast,contrast:aidokuSourceColorContrast})');
 const plain = x => JSON.parse(JSON.stringify(x));
 test('only a later panel with a different color needs a lettering backing', () => {
   const panels=[{rect:[0,0,50,50],color:'white'},{rect:[0,25,25,50],color:'purple'}];
@@ -188,7 +188,7 @@ test('a tight caption can reach an intermediate cohort size below the first five
   // candidates were at least 7.5pt. The smaller valid recovery must survive.
   assert.equal(candidates.find(size=>size<=6.75),6.75);
   assert(candidates.length<=13&&candidates.every(size=>size>5.5&&size<=8.5));
-  assert.deepEqual(plain(api.candidates(12,8,5)),[9]);
+  assert.equal(api.candidates(12,8,5)[0],9);
   assert.deepEqual(plain(api.candidates(8.5,8.5,5)),[]);
   assert.deepEqual(plain(api.candidates(NaN,8.5,5)),[]);
 });
@@ -294,11 +294,11 @@ test('neighbor source erasure can outlive its displaced translation', () => {
 });
 
 
-test('artwork fitting keeps an 8.5 point floor and at least 80 percent of each font', () => {
-  for (const font of [5, 7.5, 8.5]) assert.deepEqual(plain(api.artworkFonts(font)), []);
-  for (const font of [8.6, 9, 10.5, 12, 31.75]) {
+test('artwork fitting spends a bounded share of type size while preserving tiny captions', () => {
+  for (const font of [5, 6, 6.5]) assert.deepEqual(plain(api.artworkFonts(font)), []);
+  for (const font of [6.6, 7.5, 8.5, 9, 10.5, 12, 31.75]) {
     const sizes=plain(api.artworkFonts(font));
-    assert(sizes.every(size=>size>=Math.max(8.5,font*.8)&&size<font));
+    assert(sizes.every(size=>size>=Math.max(6.5,font*.65)&&size<font));
     assert(sizes.every((size,i)=>i===0||size<sizes[i-1]));
   }
   assert.deepEqual(plain(api.artworkFonts(NaN)), []);
@@ -372,13 +372,15 @@ test('real bold heading keeps its erasure plate when the final D survives recons
   assert(!api.erasure(out.layoutSafe,f.w,f.h,f.regions,f.glyph,[f.b]));
 });
 
-test('verified balloon fits keep at least 85 percent of each font with a 7.5 point floor', () => {
-  for(const font of [7.5,8.25,8.75,9.5,12,30]){
+test('verified balloon fits cover their full 65 percent interval without shrinking tiny type', () => {
+  for(const font of [6.5,7.5,8.25,8.75,9.5,12,30]){
     const sizes=plain(api.balloonFonts(font));assert.equal(sizes[0],font);
-    assert(sizes.every(v=>v>=Math.max(7.5,font*.85)&&v<=font));
+    assert(sizes.every(v=>v>=Math.max(6.5,font*.65)&&v<=font));
     assert(sizes.every((v,i)=>i===0||v<sizes[i-1]));assert(sizes.length<=9);
   }
-  for(const value of [5,7.49,NaN])assert.deepEqual(plain(api.balloonFonts(value)),[]);
+  for(const value of [0,-1,NaN,Infinity])assert.deepEqual(plain(api.balloonFonts(value)),[]);
+  for(const font of [5,5.75,6.49])assert.deepEqual(plain(api.balloonFonts(font)),[font],
+    'small captions may rewrap at their existing size, never shrink further');
 });
 test('narrow balloon reflow can add a word break without creating isolated Korean fragments', () => {
   const base={breaks:[4],badStarts:[],badEnds:[],hangulFragments:0,punctuationOnly:0};
@@ -403,4 +405,64 @@ test('smooth leading contours do not restore oversized panels', () => {
     for(let y=0;y<h;y++)for(let x=Math.ceil(edge(y));x<w;x++)safe[y*w+x]=0;
     assert(!api.attached(safe,w,h,core,glyph));
   }
+});
+
+
+test('two equally styled captions use both central sizes rather than only the roomy card', () => {
+  const groups=plain(api.fonts([font('tight',18,12.75),font('roomy',18.5,21.5)]));
+  assert.equal(groups[0].font,17.25);
+  assert.equal(groups[0].members.length,2);
+  assert.deepEqual(plain(api.fonts(groups[0].members.slice().reverse())),groups);
+  assert.equal(api.fonts([font('valid',10,9),font('invalid',10,Infinity)]).length,0);
+});
+
+test('failed shrink targets retain closer measured candidates within the existing probe limit', () => {
+  const sizes=plain(api.candidates(12.75,11.25,5));
+  assert.equal(sizes[0],11.25);
+  assert.equal(sizes.find(size=>size>=12),12);
+  assert(sizes.every((size,i)=>size>=12.75*.75&&size<12.75&&(i===0||size>sizes[i-1])));
+  assert(api.candidates(100,5,5).length<=13);
+});
+
+
+test('final caption fitting preserves small type and the user readability floor', () => {
+  for(const font of [5,6.5,7.5,8.5])assert.equal(api.captionFloor(font,5),font);
+  assert.equal(api.captionFloor(10,5),8.5);
+  assert.equal(api.captionFloor(20,5),16);
+  assert.equal(api.captionFloor(10,9.5),9.5);
+  assert.equal(api.captionFloor(NaN,5),null);
+  assert.equal(api.captionFloor(10,0),null);
+});
+
+
+test('cohort harmonization cannot make already small captions less readable', () => {
+  for(const size of [5,6.5,7.25,7.5])assert.deepEqual(plain(api.candidates(size,5,5)),[]);
+  assert.equal(api.candidates(8,6.5,5)[0],7.5);
+});
+
+
+test('large balloon lettering reaches the permitted floor within nine probes', () => {
+  for(const font of [10.25,14,30,101.3]){
+    const sizes=plain(api.balloonFonts(font,5));
+    assert.equal(sizes[0],font);
+    assert.equal(sizes.at(-1),Math.ceil(api.restoredFloor(font,5)*4)/4);
+    assert(sizes.length<=9);
+    assert(sizes.every((v,i)=>i===0||v<sizes[i-1]));
+  }
+  assert(plain(api.balloonFonts(10,8)).every(v=>v>=8));
+  assert.deepEqual(plain(api.balloonFonts(5,6)),[]);
+  assert.deepEqual(plain(api.artworkFonts(7,7.5)),[]);
+  assert.deepEqual(plain(api.balloonFonts(10,NaN)),[]);
+});
+
+
+test('restoration can shrink more only when recovering the original artwork surface', () => {
+  assert.equal(api.captionFloor(10.5,5),8.5);
+  assert.equal(api.restoredFloor(10.5,5),6.825);
+  for(const font of [5,5.75,6.5])assert.equal(api.restoredFloor(font,5),font);
+  assert.equal(api.restoredFloor(20,5),13);
+  assert.equal(api.restoredFloor(10,9.5),9.5);
+  assert.equal(api.restoredFloor(NaN,5),null);
+  assert.equal(api.restoredFloor(10,0),null);
+  assert(plain(api.balloonFonts(10.5,5)).some(size=>size<api.captionFloor(10.5,5)));
 });

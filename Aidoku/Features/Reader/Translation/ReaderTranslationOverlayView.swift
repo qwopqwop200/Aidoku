@@ -54,6 +54,23 @@ enum ReaderTranslationBackgroundImage {
         return dataURL
     }
 
+    /// A retained encoding needs no image work and must not queue behind a
+    /// different page's PNG compression. Misses remain serialized, with a
+    /// second lookup in dataURL after admission in case another request filled it.
+    static func scheduledDataURL(for image: UIImage, gate: TranslationProviderRequestLimiter) async throws -> String? {
+        try Task.checkCancellation()
+        if let cached = encodedDataURLs.value(for: image) {
+            ReaderTranslationDiagnostics.renderingProfile("profile_background_encoding_hit")
+            return cached
+        }
+        return try await gate.withPermit {
+            try Task.checkCancellation()
+            ReaderTranslationDiagnostics.record("background_encode_begin")
+            defer { ReaderTranslationDiagnostics.record("background_encode_end") }
+            return try dataURL(for: image)
+        }
+    }
+
     static func prepare(_ image: UIImage, crop: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1)) throws -> UIImage {
         try Task.checkCancellation()
         let source = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
@@ -105,6 +122,8 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     private var preparedLayout: Task<Data, Error>?
     private var settings = ReaderTranslationSettings()
     private var snapshotTarget: ReaderTranslationSnapshotTarget?
+    // Region JSON/digest belongs to an update, not each layout/capture pass.
+    private(set) var layoutCacheKey: String?
     private var snapshotTask: Task<Void, Never>?
     private var snapshotGeneration = UUID()
     var onCacheGeometryChanged: (() -> Void)?
@@ -180,6 +199,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         onRenderCommitted = nil
         onRenderCleared = nil
         snapshotTarget = nil
+        layoutCacheKey = nil
         preparedImage = nil
         imageDataURL = nil
         items = []
@@ -201,6 +221,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         self.regions = regions
         self.preparedLayout = preparedLayout ?? snapshotTarget?.preparedLayout
         self.snapshotTarget = contentTerminationCount == 0 ? snapshotTarget : nil
+        layoutCacheKey = self.snapshotTarget.map { ReaderTranslationRenderCache.layoutKey(renderKey: $0.key, regions: regions) }
         recoveryTask?.cancel(); recoveryTask = nil
         recoveryAttempts = 0
         lastDiagnostic = nil
@@ -275,12 +296,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         ReaderTranslationDiagnostics.renderingProfile("profile_background_encode_queued", revision: UInt64(backgroundRevision))
         imageTask = Task { [weak self] in
             let encoding = Task.detached(priority: .utility) { () throws -> String? in
-                try await gate.withPermit {
-                try Task.checkCancellation()
-                ReaderTranslationDiagnostics.record("background_encode_begin")
-                defer { ReaderTranslationDiagnostics.record("background_encode_end") }
-                return try ReaderTranslationBackgroundImage.dataURL(for: image)
-                }
+                try await ReaderTranslationBackgroundImage.scheduledDataURL(for: image, gate: gate)
             }
             let dataURL = await withTaskCancellationHandler {
                 try? await encoding.value
@@ -313,7 +329,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
             ),
             settings: settings.overlay, targetLanguage: settings.targetLanguage,
             layoutCache: snapshotTarget?.cache.disk,
-            layoutCacheKey: snapshotTarget.map { ReaderTranslationRenderCache.layoutKey(renderKey: $0.key, regions: regions) },
+            layoutCacheKey: layoutCacheKey,
             cacheGeneration: snapshotTarget?.diskGeneration,
             cacheGenerationTask: snapshotTarget?.pendingDiskGeneration, preparedLayout: preparedLayout
         )
@@ -325,7 +341,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     }
 
     private func captureCompletedRender(revision: UInt64) {
-        guard let target = snapshotTarget, bounds.width > 0, bounds.height > 0 else { return }
+        guard let target = snapshotTarget, let layoutCacheKey, bounds.width > 0, bounds.height > 0 else { return }
         snapshotTask?.cancel()
         let issued = snapshotGeneration
         let size = bounds.size
@@ -349,7 +365,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 // Promote a live renderer's saved layout into the bounded memory
                 // cache; subsequent displays/captures need no disk read or unpack.
                 ReaderTranslationDiagnostics.renderingProfile("profile_capture_layout_read_begin", revision: revision)
-                let layout = await target.cache.layoutData(for: ReaderTranslationRenderCache.layoutKey(renderKey: target.key, regions: regions))
+                let layout = await target.cache.layoutData(for: layoutCacheKey)
                 ReaderTranslationDiagnostics.renderingProfile("profile_capture_layout_read_end", count: layout?.count ?? -1, revision: revision)
                 try Task.checkCancellation()
                 guard snapshotGeneration == issued, lastDiagnostic?.revision == revision, ReaderTranslationGeometry.sameViewport(bounds.size, size) else { return }
@@ -447,6 +463,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         // Keep the original UIImageView beneath a text-only recovery document.
         // Such a document cannot be cached as a complete page snapshot.
         snapshotTarget = nil
+        layoutCacheKey = nil
         lastDiagnostic = nil
         guard !hasExhaustedRecovery else { return }
         loadDocument()

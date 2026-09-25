@@ -8,9 +8,10 @@ enum ReaderTranslationImageExporter {
     enum ExportError: Error { case unavailable, renderFailed }
     private static let gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private static let compositeGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
-    private static var idleOverlay: ReaderTranslationOverlayView?
+    private static let idleRenderer = ReaderTranslationIdleRendererSlot<ReaderTranslationOverlayView> { $0.cancelWork() }
     private static var eviction: Task<Void, Never>?
     private static var warningObserver: NSObjectProtocol?
+    private static var backgroundObserver: NSObjectProtocol?
     private struct RenderedPage {
         let image: UIImage
         let asset: ReaderTranslationRenderAsset
@@ -18,22 +19,36 @@ enum ReaderTranslationImageExporter {
 
     static func clearIdleRenderer() {
         eviction?.cancel(); eviction = nil
-        idleOverlay?.cancelWork(); idleOverlay = nil
+        if idleRenderer.clear() { ReaderTranslationDiagnostics.record("renderer_idle_evicted") }
     }
 
     private static func release(_ overlay: ReaderTranslationOverlayView) {
         overlay.removeFromSuperview()
         guard overlay.contentTerminationCount == 0,
-              ReaderTranslationSession.processAvailableMemory() >= TranslationImageWorkBudget.minimumHeadroom else {
+              ReaderTranslationIdleRendererSlot<ReaderTranslationOverlayView>.shouldRetain(
+                age: 0, availableMemory: ReaderTranslationSession.processAvailableMemory(),
+                isActive: UIApplication.shared.applicationState == .active) else {
             overlay.cancelWork()
             return
         }
+        // This drops source pixels, encoded PNG, regions and layout before the
+        // single reusable content process waits for the next translated page.
         overlay.resetForExportReuse()
-        idleOverlay = overlay
+        idleRenderer.store(overlay, now: ProcessInfo.processInfo.systemUptime)
         eviction?.cancel()
         eviction = Task { @MainActor in
-            do { try await Task.sleep(nanoseconds: 2_000_000_000) } catch { return }
-            clearIdleRenderer()
+            // Recheck headroom while idle, rather than retaining an expensive
+            // content process for the entire deadline after memory pressure rises.
+            while !Task.isCancelled {
+                do { try await Task.sleep(nanoseconds: 1_000_000_000) } catch { return }
+                if idleRenderer.trim(now: ProcessInfo.processInfo.systemUptime,
+                    availableMemory: ReaderTranslationSession.processAvailableMemory(),
+                    isActive: UIApplication.shared.applicationState == .active) {
+                    eviction = nil
+                    ReaderTranslationDiagnostics.record("renderer_idle_evicted")
+                    return
+                }
+            }
         }
     }
 
@@ -217,32 +232,55 @@ enum ReaderTranslationImageExporter {
             assetSourceDigest ?? (assetCache == nil ? nil : ReaderTranslationRenderAsset.digestSource(image))
         }
         defer { fingerprint.cancel() }
+        try Task.checkCancellation()
+        let sourceDigest = await withTaskCancellationHandler { await fingerprint.value } onCancel: { fingerprint.cancel() }
+        try Task.checkCancellation()
+        let pageSize = CGSize(width: max(1, floor(frame.width)), height: max(1, floor(frame.height)))
+        // A bitmap evicted from the nearby-page budget can still have a settled
+        // overlay asset. Replay it natively before joining the cold WebKit queue,
+        // just as the visible-image path does; do not redo layout, DOM or PDF.
+        if let assetCache, let assetKey, let sourceDigest,
+           let asset = await assetCache.renderAsset(for: assetKey, priority: .prefetch),
+           asset.matches(regions: regions, sourceSize: imageSize, sourceDigest: sourceDigest),
+           asset.displayRect == rect {
+            do {
+                let page = try await compositeLoadedImage(image, asset: asset, size: pageSize, priority: .prefetch)
+                try Task.checkCancellation()
+                ReaderTranslationDiagnostics.record("snapshot_asset_replayed")
+                return snapshotCanvas(page: page, viewport: viewport, rect: rect, canvasSize: canvasSize, frame: frame)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                // Invalid PDF/mask data is a miss, not a permanently broken page.
+                await assetCache.removeRenderAsset(for: assetKey)
+            }
+        }
         // Cache snapshots yield to a visible page waiting for its first presentation.
         ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_wait", count: regions.count)
         return try await gate.withPermit(priority: .prefetch) { @MainActor in
             ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_acquired", count: regions.count)
             defer { ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_released", count: regions.count) }
             try Task.checkCancellation()
-            ReaderTranslationDiagnostics.renderingProfile("profile_capture_digest_wait")
-            let sourceDigest = await withTaskCancellationHandler { await fingerprint.value } onCancel: { fingerprint.cancel() }
-            ReaderTranslationDiagnostics.renderingProfile("profile_capture_digest_ready")
             let result = try await renderSerial(image: image, regions: regions, settings: settings,
                 viewport: viewport, aspectFit: aspectFit, host: host, logicalImageSize: imageSize,
-                pixelSize: CGSize(width: max(1, floor(frame.width)), height: max(1, floor(frame.height))),
+                pixelSize: pageSize,
                 preparedLayout: preparedLayout, dark: dark, sourceDigest: sourceDigest, priority: .prefetch)
             try Task.checkCancellation()
             if let assetCache, let assetKey, let storage {
                 assetCache.storeRenderAssetAfterDisplay(result.asset, key: assetKey, context: storage)
             }
-            let page = result.image
-            if rect == CGRect(origin: .zero, size: viewport) { return page }
-            // Paged aspect-fit readers cache the entire viewport, including its
-            // transparent letterbox, rather than stretching the cropped page.
-            let format = UIGraphicsImageRendererFormat()
-            format.scale = 1
-            format.preferredRange = .standard
-            return UIGraphicsImageRenderer(size: canvasSize, format: format).image { _ in page.draw(in: frame) }
+            return snapshotCanvas(page: result.image, viewport: viewport, rect: rect, canvasSize: canvasSize, frame: frame)
         }
+    }
+
+    private static func snapshotCanvas(page: UIImage, viewport: CGSize, rect: CGRect, canvasSize: CGSize, frame: CGRect) -> UIImage {
+        if rect == CGRect(origin: .zero, size: viewport) { return page }
+        // Keep the original bitmap geometry and transparent letterbox on both
+        // cold export and replay; replay must never stretch a page to the viewport.
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.preferredRange = .standard
+        return UIGraphicsImageRenderer(size: canvasSize, format: format).image { _ in page.draw(in: frame) }
     }
 
     /// Abort the owned renderer promptly, but retain the caller's permit until
@@ -298,9 +336,27 @@ enum ReaderTranslationImageExporter {
             warningObserver = NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification,
                 object: nil, queue: .main) { _ in Task { @MainActor in clearIdleRenderer() } }
         }
+        if backgroundObserver == nil {
+            backgroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification,
+                object: nil, queue: .main) { _ in Task { @MainActor in clearIdleRenderer() } }
+        }
         eviction?.cancel(); eviction = nil
-        let overlay = idleOverlay ?? ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: viewport))
-        idleOverlay = nil
+        let exportStartedAt = ProcessInfo.processInfo.systemUptime
+        let reused = idleRenderer.take(now: exportStartedAt,
+            availableMemory: ReaderTranslationSession.processAvailableMemory(),
+            isActive: UIApplication.shared.applicationState == .active)
+        let overlay: ReaderTranslationOverlayView
+        let reusedHealthyRenderer = reused?.contentTerminationCount == 0
+        if let reused, reusedHealthyRenderer {
+            overlay = reused
+            ReaderTranslationDiagnostics.record("renderer_idle_reused")
+        } else {
+            reused?.cancelWork()
+            let started = ProcessInfo.processInfo.systemUptime
+            overlay = ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: viewport))
+            ReaderTranslationDiagnostics.record("renderer_idle_created",
+                count: Int((ProcessInfo.processInfo.systemUptime - started) * 1_000))
+        }
         overlay.frame = CGRect(origin: .zero, size: viewport)
         overlay.overrideUserInterfaceStyle = dark.map { $0 ? .dark : .light } ?? .unspecified
         // A separate renderer avoids changing the reader's zoom, cached rendering, or visible DOM.
@@ -332,6 +388,8 @@ enum ReaderTranslationImageExporter {
         try Task.checkCancellation()
         guard ready, !overlay.hasExhaustedRecovery else { throw ExportError.renderFailed }
         ReaderTranslationDiagnostics.renderingProfile("profile_export_render_ready", count: regions.count)
+        ReaderTranslationDiagnostics.record("renderer_export_ready",
+            count: Int((ProcessInfo.processInfo.systemUptime - exportStartedAt) * 1_000), code: reusedHealthyRenderer ? 1 : 0)
         // WKWebView snapshots can spread backdrop-filter blur beyond the card,
         // including over translated glyphs. Bake only the bounded backdrop crops
         // with Core Image, and capture typography with all backdrop filters off.
@@ -375,6 +433,8 @@ enum ReaderTranslationImageExporter {
         ReaderTranslationDiagnostics.renderingProfile("profile_export_composite_end")
         try Task.checkCancellation()
         completed = true
+        ReaderTranslationDiagnostics.record("renderer_export_finished",
+            count: Int((ProcessInfo.processInfo.systemUptime - exportStartedAt) * 1_000), code: reusedHealthyRenderer ? 1 : 0)
         return RenderedPage(image: result, asset: asset)
     }
 
@@ -585,5 +645,53 @@ enum ReaderTranslationImageExporter {
                 }
             }
         }
+    }
+}
+
+
+/// A single idle renderer lease. The caller releases page data before storing;
+/// this slot only extends process reuse when memory has an extra 256 MiB margin.
+/// Time and environment are explicit so expiry/pressure are deterministic in tests.
+@MainActor
+final class ReaderTranslationIdleRendererSlot<Value> {
+    private var entry: (value: Value, storedAt: TimeInterval)?
+    private let discard: (Value) -> Void
+
+    init(discard: @escaping (Value) -> Void) { self.discard = discard }
+
+    static func shouldRetain(age: TimeInterval, availableMemory: UInt64, isActive: Bool) -> Bool {
+        let minimum = TranslationImageWorkBudget.minimumHeadroom
+        guard isActive, availableMemory >= minimum, age >= 0 else { return false }
+        let lifetime: TimeInterval = availableMemory - minimum >= 256 * 1_024 * 1_024 ? 10 : 2
+        return age < lifetime
+    }
+
+    func store(_ value: Value, now: TimeInterval) {
+        clear()
+        entry = (value, now)
+    }
+
+    func take(now: TimeInterval, availableMemory: UInt64, isActive: Bool) -> Value? {
+        _ = trim(now: now, availableMemory: availableMemory, isActive: isActive)
+        defer { entry = nil }
+        return entry?.value
+    }
+
+    @discardableResult
+    func trim(now: TimeInterval, availableMemory: UInt64, isActive: Bool) -> Bool {
+        guard let entry else { return true }
+        guard Self.shouldRetain(age: now - entry.storedAt, availableMemory: availableMemory, isActive: isActive) else {
+            clear()
+            return true
+        }
+        return false
+    }
+
+    @discardableResult
+    func clear() -> Bool {
+        guard let previous = entry else { return false }
+        entry = nil
+        discard(previous.value)
+        return true
     }
 }

@@ -180,9 +180,8 @@ actor ReaderTranslationDiskCache {
         guard kind != .snapshot else { return }
         let name = fileName(key, kind: kind)
         let packed = ReaderTranslationCacheCodec.pack(data)
-        guard Int64(packed.count) <= byteLimit, let database else { return }
-        try flushAccesses()
-        try database.store(packed, name: name)
+        guard Int64(packed.count) <= byteLimit, database != nil else { return }
+        try storePayload(packed, name: name)
         try trim()
     }
 
@@ -231,9 +230,18 @@ actor ReaderTranslationDiskCache {
         }
         let archive = try ReaderTranslationRegionArchive(regions)
         guard Int64(archive.base.count + archive.variant.count) <= byteLimit else { return }
-        try flushAccesses()
-        try database?.store(archive.variant, name: fileName(key, kind: kind), base: archive.base)
+        try storePayload(archive.variant, name: fileName(key, kind: kind), base: archive.base)
         try trim()
+    }
+
+    private func storePayload(_ data: Data, name: String, base: Data? = nil) throws {
+        guard let database else { return }
+        // Preserve exact read-before-write LRU order in the content transaction.
+        // A failed write rolls back touches too, so keep them queued for retry.
+        try database.store(data, name: name, base: base, touching: pendingTouches)
+        touchFlushTask?.cancel()
+        touchFlushTask = nil
+        pendingTouches.removeAll()
     }
 
     func remove(_ key: String, kind: Kind) throws {
@@ -554,9 +562,10 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         try statement("DELETE FROM cache WHERE name=?", name: name, body: step)
     }
 
-    func store(_ data: Data, name: String, base: Data? = nil, preservingAccess: Bool = false) throws {
+    func store(_ data: Data, name: String, base: Data? = nil, preservingAccess: Bool = false, touching names: [String] = []) throws {
         try execute("BEGIN IMMEDIATE")
         do {
+            for name in names { try touch(name) }
             let accessed: Int64? = preservingAccess ? try statement("SELECT accessed FROM cache WHERE name=?", name: name) { pointer in
                 guard sqlite3_step(pointer) == SQLITE_ROW else { throw failure() }
                 return sqlite3_column_int64(pointer, 0)
@@ -859,7 +868,7 @@ enum ReaderTranslationCacheIdentity {
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
         return encoded([
-            "reader-render-v99-unified-caption", translation(page: page, settings: settings), encoded(settings.overlay),
+            "reader-render-v106-paper-outline", translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
             "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit",
             ProcessInfo.processInfo.operatingSystemVersionString

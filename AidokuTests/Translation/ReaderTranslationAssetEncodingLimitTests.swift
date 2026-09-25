@@ -6,6 +6,34 @@ import UIKit
 @Suite(.serialized)
 @MainActor
 struct ReaderTranslationAssetEncodingLimitTests {
+    @Test func completedAssetIsReusableWhileOptionalSerializationIsBlocked() async throws {
+        let fixture = EncodingLimitFixture()
+        defer { fixture.close() }
+        let expected = fixture.asset(0)
+        let context = fixture.cache.renderAssetStorageContext(settings: fixture.settings)
+        fixture.cache.storeRenderAssetAfterDisplay(expected, key: "ready", context: context)
+        try await waitUntil { fixture.encoder.started == 1 }
+        #expect(fixture.cache.activeAssetEncodings == 1)
+        #expect(fixture.cache.pendingAssetWrites == 1)
+        #expect(try await fixture.disk.data(for: ReaderTranslationRenderCache.renderAssetStorageKey("ready"), kind: .layout) == nil)
+        // Both foreground and speculative requests can replay the finished asset
+        // even though its JSON encoder has not returned and no disk row exists.
+        for priority in [TranslationRequestPriority.foreground, .prefetch] {
+            let replay = try #require(await fixture.cache.renderAsset(for: "ready", priority: priority))
+            #expect(replay.typography == expected.typography)
+            #expect(replay.regionsDigest == expected.regionsDigest)
+        }
+        #expect(fixture.cache.pendingAssetReads == 0)
+        #expect(fixture.cache.renderAssetBytes == expected.byteCost)
+        #expect(fixture.cache.renderAssetBytes <= ReaderTranslationRenderCache.renderAssetByteLimit)
+        fixture.cache.clearMemory()
+        #expect(fixture.cache.renderAssetBytes == 0)
+        #expect(await fixture.cache.renderAsset(for: "ready") == nil)
+        fixture.encoder.release()
+        try await waitUntil { fixture.cache.activeAssetEncodings == 0 }
+        #expect(await fixture.cache.renderAsset(for: "ready") == nil)
+    }
+
     @Test func sameKeyReplacementKeepsFourLiveEncodesAndPersistsLatest() async throws {
         let fixture = EncodingLimitFixture()
         defer { fixture.close() }

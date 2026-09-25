@@ -6,6 +6,49 @@ import UIKit
 
 @Suite(.serialized)
 struct ReaderTranslationDiskCacheTests {
+    @Test(arguments: [false, true])
+    func pendingReadTouchesCommitWithContentAndSurviveFailedStore(regionPayload: Bool) async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        // Keep the actor uninterrupted so the touch timer cannot race this test.
+        func exercise(_ cache: isolated ReaderTranslationDiskCache) throws {
+            let first = Data("first".utf8), second = Data("second".utf8)
+            try cache.store(first, for: "first", kind: .layout, generation: 0)
+            try cache.store(second, for: "second", kind: .layout, generation: 0)
+            let before = try databaseContents(root)
+            #expect(try cache.data(for: "first", kind: .layout) == first)
+            try databaseExecute(root, "CREATE TRIGGER reject_content BEFORE INSERT ON cache BEGIN SELECT RAISE(ABORT,'test'); END")
+            let regions = [ReaderTranslationRegion(id: "test", rect: CGRect(x: 0, y: 0, width: 1, height: 1),
+                                                   source: "Original", translation: "번역")]
+            func store(_ cache: isolated ReaderTranslationDiskCache) throws {
+                if regionPayload {
+                    try cache.storeRegions(regions, for: "third", kind: .translation, generation: 0)
+                } else {
+                    try cache.store(Data("third".utf8), for: "third", kind: .layout, generation: 0)
+                }
+            }
+            do {
+                try store(cache)
+                Issue.record("Injected content failure must propagate")
+            } catch {}
+            // The failed content transaction must not commit the queued LRU touch.
+            #expect(try databaseContents(root) == before)
+            try databaseExecute(root, "DROP TRIGGER reject_content")
+            try store(cache)
+            let firstName = "layout-" + ReaderTranslationCacheIdentity.digest("first") + ".cache"
+            let secondName = "layout-" + ReaderTranslationCacheIdentity.digest("second") + ".cache"
+            #expect(try databaseInteger(root, "SELECT accessed FROM cache WHERE name='\(firstName)'") >
+                    databaseInteger(root, "SELECT accessed FROM cache WHERE name='\(secondName)'"))
+            let committed = try databaseContents(root)
+            try cache.flushAccesses()
+            #expect(try databaseContents(root) == committed)
+        }
+        try await exercise(cache)
+        let reopened = ReaderTranslationDiskCache(directory: root)
+        #expect(try await reopened.contains("third", kind: regionPayload ? .translation : .layout))
+    }
+
     @Test func compactCompressionPreservesResultsBasesAndLRUAndRetriesFailures() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }

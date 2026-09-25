@@ -14,21 +14,46 @@ enum BrowserOverlayTypography {
     }
 
     static let script = #"""
-    // Artwork protection may give up at most one fifth of the current type
-    // size. Already-small captions never subsidize a smaller background.
-    const aidokuArtworkFontSizes = font => {
-      if(!Number.isFinite(font)||font<=8.5)return [];
-      const floor=Math.max(8.5,Math.ceil(font*.8*4)/4);
-      return [...new Set([.95,.9,.85,.8].map(scale=>Math.max(floor,Math.floor(font*scale*4)/4)))]
+    // Opaque caption packing must not use the more aggressive restoration
+    // floor: that can merge cards into long, narrowly rewrapped paragraphs.
+    const aidokuCaptionFontFloor = (original, minimum = 5) => {
+      if(!Number.isFinite(original)||original<=0||!Number.isFinite(minimum)||minimum<=0)return null;
+      return Math.max(minimum,Math.min(original,8.5),original*.8);
+    };
+    // Prefer 6.5pt or 65% of the original type when recovering artwork. A
+    // caption already below 6.5pt can rewrap but never becomes smaller. Every
+    // caller still measures the complete text and honors the user minimum.
+    const aidokuRestoredFontFloor = (original, minimum = 5) => {
+      if(!Number.isFinite(original)||original<=0||!Number.isFinite(minimum)||minimum<=0)return null;
+      return Math.max(minimum,Math.min(original,6.5),original*.65);
+    };
+    const aidokuArtworkFontSizes = (font, minimum = 5) => {
+      const bound=aidokuRestoredFontFloor(font,minimum);
+      if(bound===null||bound>=font)return [];
+      const floor=Math.ceil(bound*4)/4;
+      return [...new Set([.9,.8,.7,.65].map(scale=>Math.max(floor,Math.floor(font*scale*4)/4)))]
         .filter(size=>size<font);
     };
-    // Only a verified balloon fit may trade up to 15% for restoring its outline.
-    // Already-small captions keep their font; their wrapping may still improve.
-    const aidokuBalloonFontSizes = font => {
-      if(!Number.isFinite(font)||font<7.5)return [];
-      const floor=Math.max(7.5,Math.ceil(font*.85*4)/4),sizes=[font];
-      for(let size=Math.floor((font-.25)*4)/4;size>=floor&&sizes.length<9;size-=.25)sizes.push(size);
+    // Cover the full permitted interval within nine probes. A quarter-point
+    // walk with a fixed cap previously never reached the floor for large type.
+    const aidokuBalloonFontSizes = (font, minimum = 5) => {
+      const bound=aidokuRestoredFontFloor(font,minimum);
+      if(bound===null||bound>font)return [];
+      const floor=Math.ceil(bound*4)/4;
+      if(floor>=font)return [font];
+      const steps=Math.ceil((font-floor)*4),count=Math.min(8,steps),sizes=[font];
+      for(let i=1;i<=count;i++){
+        const size=Math.max(floor,Math.floor((font-(font-floor)*i/count)*4)/4);
+        if(size<sizes[sizes.length-1])sizes.push(size);
+      }
       return sizes;
+    };
+    // Only a fully restored balloon may try these after the preferred sizes
+    // fail. Its caller commits smaller lettering only when the panel is removed.
+    const aidokuEmergencyBalloonFontSizes = (font, minimum, preferred) => {
+      if(!Number.isFinite(font)||!Number.isFinite(minimum)||minimum<=0||font<=Math.max(6.5,minimum)||!preferred.length)return [];
+      const last=preferred[preferred.length-1];
+      return [...new Set([6,5.5,minimum].map(size=>Math.max(minimum,size)))].filter(size=>size<last&&size<font);
     };
     // A successful mask may still exclude an unannotated ruby character.
     // Keep the old erasure plate around small surviving ink components near
@@ -264,13 +289,17 @@ enum BrowserOverlayTypography {
     };
     const aidokuFontClusters = entries => {
       if(entries.length>256)return [];
-      return aidokuStyleGroups(entries.filter(e=>Number.isFinite(e.source)&&e.source>0&&e.font>=5),
+      return aidokuStyleGroups(entries.filter(e=>Number.isFinite(e.source)&&e.source>0&&Number.isFinite(e.font)&&e.font>=5),
         (a,b)=>a.script===b.script&&a.vertical===b.vertical&&a.column===b.column&&
           Math.max(a.source,b.source)/Math.min(a.source,b.source)<=1.22,
         (a,b)=>a.source-b.source||a.font-b.font||String(a.id).localeCompare(String(b.id)))
         .filter(g=>g.length>=2).map(group=>{
           const sizes=group.map(e=>e.font).sort((a,b)=>a-b);
-          const median=sizes[Math.floor(sizes.length/2)];
+          // Even cohorts must not let the roomier half dictate every caption.
+          // Both central observations contribute, retaining the source-derived
+          // readability recovery below for tightly packed dialogue.
+          const middle=Math.floor(sizes.length/2);
+          const median=(sizes[middle]+sizes[Math.floor((sizes.length-1)/2)])/2;
           const sourceSizes=group.map(e=>e.source).sort((a,b)=>a-b);
           const readable=Math.min(sourceSizes[Math.floor(sourceSizes.length/2)]*.9,median*1.15,10.5);
           return {members:group,font:Math.round(Math.max(median,readable)*4)/4};
@@ -322,9 +351,15 @@ enum BrowserOverlayTypography {
     } : null;
     const aidokuCohortFontCandidates = (original, target, minimum) => {
       if(![original,target,minimum].every(Number.isFinite)||original<=0)return [];
-      const desired=Math.round(Math.max(original*.75,Math.min(target,original+3))*4)/4;
+      const desired=Math.round(Math.max(original*.75,Math.min(original,7.5),Math.min(target,original+3))*4)/4;
       if(desired<minimum||Math.abs(desired-original)<.01)return [];
-      if(desired<original)return [desired];
+      if(desired<original){
+        // A smaller target can create a different bad line ending. Recover
+        // toward the old size instead of abandoning the entire cohort.
+        const sizes=[];
+        for(let size=desired;size<original&&sizes.length<13;size+=.25)sizes.push(size);
+        return sizes;
+      }
       // Search the entire bounded recovery interval. Five probes near the
       // target can miss a readable intermediate size and leave an outlier tiny.
       const sizes=[];

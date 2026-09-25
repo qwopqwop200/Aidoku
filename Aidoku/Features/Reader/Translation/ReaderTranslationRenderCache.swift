@@ -302,8 +302,14 @@ final class ReaderTranslationRenderCache {
     private func storeRenderAsset(_ asset: ReaderTranslationRenderAsset, key: String, diskGeneration: UInt64,
                                   issued: UUID, id: UUID) async {
         defer { if assetStores[key] == id { assetStores.removeValue(forKey: key) } }
-        guard await disk.currentGeneration() == diskGeneration,
+        guard await disk.currentGeneration() == diskGeneration, !Task.isCancelled,
               generation == issued, assetStores[key] == id else { return }
+        // These are already completed rendering bytes. Make them replayable while
+        // optional JSON encoding/persistence runs, otherwise another display can
+        // miss both tiers and repeat the WebKit export. This shares the same Data
+        // under the existing byte-bounded LRU; no decoded bitmap is retained here.
+        cancelAssetRead(key: key, replacement: asset)
+        retainRenderAsset(asset, key: key)
         let data = await encodedAsset(asset)
         guard let data, data.count <= ReaderTranslationRenderAsset.maximumEncodedBytes, !Task.isCancelled,
               await disk.currentGeneration() == diskGeneration, generation == issued,

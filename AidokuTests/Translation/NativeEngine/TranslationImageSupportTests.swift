@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import CoreGraphics
 import UIKit
 import Testing
@@ -6,6 +7,37 @@ import Testing
 
 @Suite(.serialized)
 struct TranslationImageSupportTests {
+    @Test func imageDigestMemoPreservesIdentityAcrossCopiesAndInvalidatesOnMutation() throws {
+        var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", sourceText: "画像")
+        request.imageJPEG = Data([0xff, 0xd8, 1, 2, 0xff, 0xd9])
+        request.prepareImageRepresentation()
+        let originalBytes = try #require(request.imageJPEG)
+        let expected = SHA256.hash(data: originalBytes).map { String(format: "%02x", $0) }.joined()
+        #expect(request.imageDigest == expected)
+        let canonical = request.canonicalizedForTranslationSemantics().request
+        #expect(canonical.imageDigest == expected)
+        var copied = request
+        copied.imageJPEG?[2] = 3
+        #expect(copied.imageDigest != expected)
+        #expect(copied.preparedImageDataURL == nil)
+        #expect(request.imageJPEG == originalBytes && request.imageDigest == expected)
+        #expect(canonical.imageDigest == expected)
+        copied.copyImageRepresentation(from: request)
+        #expect(copied.imageDigest == expected)
+        #expect(copied.preparedImageDataURL == request.preparedImageDataURL)
+        copied.imageJPEG = nil
+        #expect(copied.imageDigest == nil && copied.preparedImageDataURL == nil)
+        let encoded = try JSONEncoder().encode(request)
+        let object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        #expect(object["imageDigestMemo"] == nil && object["imageDigest"] == nil)
+        let decoded = try JSONDecoder().decode(RemoteTranslationRequest.self, from: encoded)
+        #expect(decoded == request && decoded.imageDigest == expected)
+        let configuration = RemoteTranslationConfiguration.openAI(model: "image-digest-fixture")
+        let endpoint = try configuration.validatedEndpoint()
+        #expect(TranslationCacheKey(configuration: configuration, endpoint: endpoint, request: request) ==
+            TranslationCacheKey(configuration: configuration, endpoint: endpoint, request: decoded))
+    }
+
     private static let roleSamples: [(String, String)] = [
         ("Please open the door and come inside.", "dialogue"),
         ("Three days later, the travelers returned.", "narration"),

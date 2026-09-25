@@ -162,12 +162,11 @@ enum TranslationHTTPCodec {
 
     static let maximumTranslationBytes = 512 * 1024
 
-    /// Chat Completions wire options. `.standard` is the portable
-    /// `response_format` request. `compactStreaming` is only used for custom
-    /// endpoints positively identified as vLLM: an exact, whitespace-free
-    /// grammar (`structured_outputs.regex`) replaces the JSON schema that some
-    /// proxies drop, output streams over SSE, and an optional generous
-    /// `max_tokens` ends runaway generations. The prompt text is unchanged.
+    /// `.standard` uses the protocol's portable JSON schema. For custom
+    /// endpoints positively identified as vLLM, an exact whitespace-free
+    /// grammar (`structured_outputs.regex`) replaces that schema. Responses
+    /// stays buffered; Chat Completions can stream with an optional generous
+    /// token cap. Prompt, image input and validation remain unchanged.
     struct ChatWireOptions: Equatable, Sendable {
         var compactStructuredOutput = false
         var stream = false
@@ -284,6 +283,17 @@ enum TranslationHTTPCodec {
                     ],
                 ],
             ]
+            if chatOptions.compactStructuredOutput {
+                // vLLM rejects text.format together with structured_outputs.
+                responsesRoot.removeValue(forKey: "text")
+                responsesRoot["structured_outputs"] = [
+                    "regex": try compactOutputPattern(
+                        segmentIDs: request.segments.map(\.id),
+                        filtersSFX: filtersSFX,
+                        filtersBackground: filtersBackground
+                    ),
+                ]
+            }
             if configuration.reasoningEffort != .modelDefault {
                 responsesRoot["reasoning"] = [
                     "effort": configuration.reasoningEffort.rawValue,
@@ -712,14 +722,32 @@ enum TranslationHTTPCodec {
     /// Whether a successful standard Chat Completions body came from a vLLM
     /// release that supports `structured_outputs` (introduced in 0.10.2; the
     /// check requires 0.11+). Unknown servers keep the portable request.
-    static func identifiesStructuredOutputServer(responseBody: Data) -> Bool {
-        guard let root = try? JSONSerialization.jsonObject(with: responseBody) as? [String: Any],
-              let fingerprint = root["system_fingerprint"] as? String,
-              fingerprint.hasPrefix("vllm-") else { return false }
-        let version = fingerprint.dropFirst(5).split(separator: "-").first ?? ""
-        let parts = version.split(separator: ".").map { Int($0) }
-        guard parts.count >= 2, let major = parts[0], let minor = parts[1] else { return false }
-        return major > 0 || minor >= 11
+    static func identifiesStructuredOutputServer(
+        responseBody: Data,
+        apiProtocol: RemoteTranslationProtocol = .chatCompletions,
+        vllmVersionHeader: String? = nil
+    ) -> Bool {
+        let root = try? JSONSerialization.jsonObject(with: responseBody) as? [String: Any]
+        let fingerprint = root?["system_fingerprint"] as? String
+        let version: String
+        if let fingerprint, fingerprint.hasPrefix("vllm-") {
+            version = String(fingerprint.dropFirst(5).split(separator: "-").first ?? "")
+        } else if let vllmVersionHeader {
+            // An explicit upstream version is required. Generic server names
+            // and Responses extension fields do not establish capability.
+            version = vllmVersionHeader
+        } else {
+            return false
+        }
+        let components = version.split(separator: ".", omittingEmptySubsequences: false)
+        guard components.count == 3,
+              components.allSatisfy({ !$0.isEmpty && $0.utf8.allSatisfy({ (48...57).contains($0) }) })
+        else { return false }
+        let parts = components.compactMap { Int($0) }
+        guard parts.count == 3 else { return false }
+        let major = parts[0], minor = parts[1]
+        // Responses' top-level structured_outputs was verified on vLLM 0.27.
+        return major > 0 || minor >= (apiProtocol == .responses ? 27 : 11)
     }
 
     /// Best-effort validation of one streamed item for progressive display.

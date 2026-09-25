@@ -33,6 +33,40 @@ struct ReaderPrefetchDataReuseTests {
                 "Data warming followed by OCR loading must never download the same page twice")
     }
 
+    @Test(arguments: [false, true])
+    func diskHitWarmingDoesNotReadBytesAndEvictedDemandStillLoadsOnce(processed: Bool) async throws {
+        let defaults = UserDefaults.standard
+        let keys = ["Reader.cropBorders", "Reader.downsampleImages"]
+        let saved = keys.map { defaults.object(forKey: $0) }
+        defer { for (key, value) in zip(keys, saved) { defaults.set(value, forKey: key) } }
+        defaults.set(processed, forKey: "Reader.cropBorders")
+        defaults.set(false, forKey: "Reader.downsampleImages")
+        let cache = PrefetchCountingDataCache()
+        let pipeline = ImagePipeline {
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.protocolClasses = [PrefetchReuseURLProtocol.self]
+            configuration.urlCache = nil
+            $0.dataLoader = DataLoader(configuration: configuration)
+            $0.dataCache = cache
+            $0.dataCachePolicy = .storeOriginalData
+            $0.imageCache = ImageCache()
+        }
+        let loader = ReaderTranslationImageLoader(pipeline: pipeline)
+        let url = URL(string: "https://prefetch-reuse.invalid/" + UUID().uuidString)!
+        let page = Page(sourceId: "", chapterId: "reuse", index: 0, imageURL: url.absoluteString)
+        var original = await ReaderPageView.imageRequest(url: url, sourceKey: page.sourceId)
+        #expect(original.processors.isEmpty == !processed)
+        original.processors = []
+        original.thumbnail = nil
+        pipeline.cache.storeCachedData(PrefetchReuseURLProtocol.png, for: original)
+        try await loader.prefetchData(page, priority: .high)
+        #expect(cache.readCount == 0, "A warm disk entry needs only a presence check, not a full compressed-data read")
+        #expect(PrefetchReuseURLProtocol.count(url) == 0)
+        cache.removeAll()
+        #expect(try await loader.load(page).size.width == 1)
+        #expect(PrefetchReuseURLProtocol.count(url) == 1, "Eviction after warming must fall back to the normal download")
+    }
+
     @Test func noDiskCacheSkipsNetworkWarmingAndDemandStillLoadsOnce() async throws {
         let pipeline = ImagePipeline {
             let configuration = URLSessionConfiguration.ephemeral
@@ -55,7 +89,7 @@ struct ReaderPrefetchDataReuseTests {
 private final class PrefetchReuseURLProtocol: URLProtocol {
     private static let lock = NSLock()
     private static var counts: [URL: Int] = [:]
-    private static let png = Data(base64Encoded:
+    static let png = Data(base64Encoded:
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
     static func count(_ url: URL) -> Int { lock.withLock { counts[url, default: 0] } }
     override class func canInit(with request: URLRequest) -> Bool { request.url?.host == "prefetch-reuse.invalid" }
@@ -70,4 +104,18 @@ private final class PrefetchReuseURLProtocol: URLProtocol {
         client?.urlProtocolDidFinishLoading(self)
     }
     override func stopLoading() {}
+}
+
+private final class PrefetchCountingDataCache: DataCaching, @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [String: Data] = [:]
+    private var reads = 0
+    var readCount: Int { lock.withLock { reads } }
+    func cachedData(for key: String) -> Data? {
+        lock.withLock { reads += 1; return values[key] }
+    }
+    func containsData(for key: String) -> Bool { lock.withLock { values[key] != nil } }
+    func storeData(_ data: Data, for key: String) { lock.withLock { values[key] = data } }
+    func removeData(for key: String) { _ = lock.withLock { values.removeValue(forKey: key) } }
+    func removeAll() { lock.withLock { values.removeAll() } }
 }

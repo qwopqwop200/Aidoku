@@ -20,6 +20,9 @@ final class ReaderTranslationPreloader {
         private var started = false
         private var finished = false
         private var retained = false
+        private var prefetching = false
+        var isPrefetching: Bool { lock.withLock { prefetching } }
+        func setPrefetching(_ value: Bool) { lock.withLock { prefetching = value } }
         var isRunning: Bool { lock.withLock { started && !finished } }
         var isRetained: Bool { lock.withLock { retained } }
         func start() { lock.withLock { started = true } }
@@ -34,6 +37,25 @@ final class ReaderTranslationPreloader {
         /// Consumes the value so a bounded JPEG is never retained past its one use.
         func take() -> Value? { lock.withLock { defer { value = nil }; return value } }
     }
+    /// One consumer can start provider work once OCR preparation is complete,
+    /// while the recognition task still joins its bounded persistence work.
+    private actor RecognitionDelivery {
+        private var result: Result<[ReaderTranslationRegion]?, Error>?
+        private var waiter: CheckedContinuation<[ReaderTranslationRegion]?, Error>?
+
+        func value() async throws -> [ReaderTranslationRegion]? {
+            if let result { return try result.get() }
+            return try await withCheckedThrowingContinuation { waiter = $0 }
+        }
+
+        func resolve(_ value: Result<[ReaderTranslationRegion]?, Error>) {
+            guard result == nil else { return }
+            result = value
+            waiter?.resume(with: value)
+            waiter = nil
+        }
+    }
+
     private struct RecognitionOutput: Sendable {
         let regions: [ReaderTranslationRegion]?
         let persist: Bool
@@ -42,6 +64,7 @@ final class ReaderTranslationPreloader {
         let key: String
         let pageKey: String
         let recognition: Task<[ReaderTranslationRegion]?, Error>
+        let recognitionDelivery: RecognitionDelivery
         let progress: ReaderTranslationPreparedProgress
         let promotion: TranslationRequestPromotion
         let lifetime: WorkLifetime
@@ -71,6 +94,7 @@ final class ReaderTranslationPreloader {
     private let translator: ReaderTranslationPage.ProgressiveTranslator?
     private let recognizer: Recognizer?
     private let dataPrefetcher: DataPrefetcher?
+    private let dataPromoter: DataPrefetcher?
     private let availableMemory: @Sendable () -> UInt64
     private let diskCache: ReaderTranslationDiskCache?
     private let storePreparedTranslation: PreparedTranslationStore
@@ -78,7 +102,7 @@ final class ReaderTranslationPreloader {
     private let retainImage: ImageRetention
     private var operation: Task<[ReaderTranslationRegion], Error>?
     private var preparedPage: PreparedPage?
-    private var currentDemand: (work: PreparedPage, lease: DemandLease)?
+    private var currentDemand: (work: PreparedPage, lease: DemandLease, page: Page)?
     private var generation = UUID()
     var nextPage: ((Page) -> Page?)?
     var onPrepared: (@MainActor @Sendable (Page, [ReaderTranslationRegion], ReaderTranslationSettings) -> Void)?
@@ -88,6 +112,7 @@ final class ReaderTranslationPreloader {
         translator: ReaderTranslationPage.ProgressiveTranslator? = nil,
         recognizer: Recognizer? = nil,
         dataPrefetcher: DataPrefetcher? = nil,
+        dataPromoter: DataPrefetcher? = nil,
         availableMemory: @escaping @Sendable () -> UInt64 = { ReaderTranslationSession.processAvailableMemory() },
         retainImage: @escaping ImageRetention = { _ in true },
         storePreparedTranslation: PreparedTranslationStore? = nil,
@@ -99,6 +124,7 @@ final class ReaderTranslationPreloader {
         self.diskCache = diskCache
         self.recognizer = recognizer
         self.dataPrefetcher = dataPrefetcher
+        self.dataPromoter = dataPromoter
         self.availableMemory = availableMemory
         self.retainImage = retainImage
         self.storePreparedTranslation = storePreparedTranslation ?? { regions, key, generation in
@@ -148,11 +174,21 @@ final class ReaderTranslationPreloader {
         }
         let demand = work
         let lease = DemandLease(demand)
-        currentDemand = (demand, lease)
+        currentDemand = (demand, lease, page)
         // Download only compressed data during demand OCR. The following OCR
         // still waits for demand recognition and the shared decoding permit.
         prepareNext(after: page, settings: settings, afterRecognition: demand.recognition)
-        let task = Task { [weak self] in
+        let task = Task { [weak self, loader, dataPromoter, recognizer] in
+            // Adopting lookahead promotes image admission and provider work, but
+            // its already-running data-only Nuke request still has low priority.
+            // One observer raises that coalesced transfer while this consumer lives.
+            let downloadPromotion: Task<Void, Never>? = if demand.lifetime.isPrefetching {
+                Task {
+                    if let dataPromoter { try? await dataPromoter(page) }
+                    else if recognizer == nil { try? await loader.prefetchData(page, priority: .high) }
+                }
+            } else { nil }
+            defer { downloadPromotion?.cancel() }
             try await demand.progress.observe { [weak lease] regions in
                 guard let lease, !lease.isRetained else { return }
                 do { try await onProgress?(regions) }
@@ -162,12 +198,14 @@ final class ReaderTranslationPreloader {
                 }
             }
             // Wait for this OCR before preparing another, retaining serial recognition.
-            let recognized = try await withTaskCancellationHandler { try await demand.recognition.value } onCancel: { lease.cancel() }
+            let recognized = try await withTaskCancellationHandler {
+                try await demand.recognition.value
+            } onCancel: { lease.cancel(); downloadPromotion?.cancel() }
             try Task.checkCancellation()
             if recognized != nil, self?.generation == issued { self?.prepareNext(after: page, settings: settings) }
             let result = try await withTaskCancellationHandler {
                 try await demand.translation?.value
-            } onCancel: { lease.cancel() }
+            } onCancel: { lease.cancel(); downloadPromotion?.cancel() }
             try Task.checkCancellation()
             if let result { return result }
             if let stored = try? await self?.diskCache?.translatedRegions(page: page.translationCacheKey, settings: settings) {
@@ -177,7 +215,8 @@ final class ReaderTranslationPreloader {
             }
             // A translated disk hit skipped speculative OCR, but the entry was
             // evicted before demand arrived. Obtain real OCR and translation now.
-            guard let fallback = self?.makeWork(page, settings: settings, speculative: false) else { throw CancellationError() }
+            guard let fallback = self?.makeWork(page, settings: settings, speculative: false,
+                                               checkTranslationCache: false) else { throw CancellationError() }
             try await fallback.progress.observe(onProgress)
             return try await withTaskCancellationHandler {
                 _ = try await fallback.recognition.value
@@ -199,18 +238,22 @@ final class ReaderTranslationPreloader {
 
     private func makeWork(
         _ page: Page, settings: ReaderTranslationSettings, speculative: Bool,
+        checkTranslationCache: Bool = true,
         afterRecognition: Task<[ReaderTranslationRegion]?, Error>? = nil
     ) -> PreparedPage {
         let promotion = TranslationRequestPromotion()
         let lifetime = WorkLifetime()
         let preparedImageJPEG = LockedSlot<Data>()
+        let delivery = RecognitionDelivery()
         if !speculative { promotion.promote() }
         var work = PreparedPage(
             key: ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: settings),
             pageKey: page.translationCacheKey,
             recognition: recognitionTask(page, settings: settings, skipTranslated: speculative, promotion: promotion,
                                          lifetime: lifetime, preparedImageJPEG: preparedImageJPEG,
-                                         afterRecognition: afterRecognition),
+                                         afterRecognition: afterRecognition, delivery: delivery,
+                                         checkTranslationCache: checkTranslationCache),
+            recognitionDelivery: delivery,
             progress: ReaderTranslationPreparedProgress(),
             promotion: promotion, lifetime: lifetime, settings: settings, preparedImageJPEG: preparedImageJPEG
         )
@@ -228,10 +271,19 @@ final class ReaderTranslationPreloader {
         let onPrepared = onPrepared
         let storePreparedTranslation = storePreparedTranslation
         let imageAdmission = Self.imagePreparationGate
+        let didFinish: @MainActor @Sendable (String) -> Void = { [weak self] key in
+            self?.lookaheadDidFinish(key: key)
+        }
         return Task.detached(priority: speculative ? .utility : .userInitiated) { [diskCache, loader, retainImage] in
-            defer { work.lifetime.finish() }
+            defer {
+                work.lifetime.finish()
+                if speculative {
+                    let key = work.key
+                    Task { await didFinish(key) }
+                }
+            }
             let diskGeneration = await diskCache?.currentGeneration(settings: settings) ?? 0
-            guard let regions = try await withTaskCancellationHandler(operation: { try await work.recognition.value },
+            guard let regions = try await withTaskCancellationHandler(operation: { try await work.recognitionDelivery.value() },
                                                                       onCancel: { work.recognition.cancel() }) else { return nil }
             try Task.checkCancellation()
             let eligible = ReaderTranslationLanguageFilter.apply(regions, settings: settings)
@@ -297,6 +349,15 @@ final class ReaderTranslationPreloader {
         }
     }
 
+    /// A retained page from before a jump can finish while the new destination
+    /// is still waiting on its provider. Refill the same one-page slot now, so
+    /// the new neighbor does not wait for another page turn or API completion.
+    private func lookaheadDidFinish(key: String) {
+        guard preparedPage?.key == key, let currentDemand else { return }
+        prepareNext(after: currentDemand.page, settings: currentDemand.work.settings,
+                    afterRecognition: currentDemand.work.recognition)
+    }
+
     private func prepareNext(
         after page: Page, settings: ReaderTranslationSettings,
         afterRecognition: Task<[ReaderTranslationRegion]?, Error>? = nil
@@ -326,7 +387,9 @@ final class ReaderTranslationPreloader {
         promotion: TranslationRequestPromotion,
         lifetime: WorkLifetime,
         preparedImageJPEG: LockedSlot<Data>,
-        afterRecognition: Task<[ReaderTranslationRegion]?, Error>? = nil
+        afterRecognition: Task<[ReaderTranslationRegion]?, Error>? = nil,
+        delivery: RecognitionDelivery,
+        checkTranslationCache: Bool = true
     ) -> Task<[ReaderTranslationRegion]?, Error> {
         let key = ReaderTranslationCacheIdentity.ocr(page: page.translationCacheKey, settings: settings)
         let admission = Self.imagePreparationGate
@@ -334,134 +397,155 @@ final class ReaderTranslationPreloader {
         let encodesJPEG = translator == nil && settings.shouldAttachPageImage
         return Task.detached(priority: .utility) { [diskCache, loader, recognizer, dataPrefetcher, availableMemory, retainImage,
                                                     storeRecognition] in
-            try Task.checkCancellation()
-            if skipTranslated, let diskCache,
-               try await diskCache.translatedRegions(page: page.translationCacheKey, settings: settings) != nil { return nil }
-            let diskGeneration = await diskCache?.currentGeneration(settings: settings) ?? 0
-            let cachedOCR = try? await diskCache?.regions(for: key, kind: .ocr)
-            // Prepared text has no image allocation. Do not queue it behind an
-            // unrelated, potentially non-interruptible OCR inference. Image-context
-            // requests keep the normal barrier before their later image load.
-            if let cachedOCR, !settings.shouldAttachPageImage,
-               !ReaderTranslationImagePreparation.needsImage(cachedOCR, settings: settings) {
+            func recognize() async throws -> [ReaderTranslationRegion]? {
                 try Task.checkCancellation()
-                lifetime.start()
-                return cachedOCR
-            }
-            if skipTranslated, !promotion.isForeground,
-               availableMemory() < TranslationImageWorkBudget.minimumHeadroom { return nil }
-            // A cold foreground URL must not hold the sole decode/OCR/render
-            // permit while waiting on the network. Warm only reusable compressed
-            // data here; source interception and all decoding still happen below.
-            if !skipTranslated, recognizer == nil {
-                try? await loader.prefetchData(page, priority: .high)
-                try Task.checkCancellation()
-            }
-            lifetime.start()
-            if skipTranslated {
-                // Best effort: source interception/decode fallback remains in load().
-                let needsImage = cachedOCR.map {
-                    settings.shouldAttachPageImage || ReaderTranslationImagePreparation.needsImage($0, settings: settings)
-                } ?? true
-                if needsImage {
-                    if let dataPrefetcher { try? await dataPrefetcher(page) }
-                    else if recognizer == nil { try? await loader.prefetchData(page) }
-                }
-                try Task.checkCancellation()
-                do {
-                    _ = try await afterRecognition?.value
-                } catch {
+                // A completed retained lookahead may have left the one-page RAM
+                // slot before navigation returns to it. Demand must reuse its disk
+                // translation too, rather than repeat the provider from cached OCR.
+                if checkTranslationCache, let diskCache,
+                   try await diskCache.translatedRegions(page: page.translationCacheKey, settings: settings) != nil { return nil }
+                let diskGeneration = await diskCache?.currentGeneration(settings: settings) ?? 0
+                let cachedOCR = try? await diskCache?.regions(for: key, kind: .ocr)
+                // Prepared text has no image allocation. Do not queue it behind an
+                // unrelated, potentially non-interruptible OCR inference. Image-context
+                // requests keep the normal barrier before their later image load.
+                if let cachedOCR, !settings.shouldAttachPageImage,
+                   !ReaderTranslationImagePreparation.needsImage(cachedOCR, settings: settings) {
                     try Task.checkCancellation()
-                    // The failed demand will discard its lookahead. Avoid starting
-                    // OCR just to cancel/repeat it; nil is retried on actual demand.
-                    if !promotion.isForeground, !lifetime.isRetained { return nil }
+                    lifetime.start()
+                    return cachedOCR
                 }
-                try Task.checkCancellation()
-            }
-            /// Encode the provider JPEG while the decoded image is already resident
-            /// under this permit. Failure leaves the translation task's original path.
-            @Sendable func prepareJPEG(_ regions: [ReaderTranslationRegion], image: UIImage) {
-                guard encodesJPEG, !Task.isCancelled,
-                      !ReaderTranslationLanguageFilter.apply(regions, settings: settings).isEmpty else { return }
-                preparedImageJPEG.store(try? autoreleasepool { try ReaderTranslationImagePreparation.translationJPEG(image) })
-            }
-            // SQLite writes happen after the permit is released, so the next page's
-            // decode/OCR never waits for this page's disk I/O.
-            let loadedImageSize = LockedSlot<CGSize>()
-            let output: RecognitionOutput
-            do {
-                output = try await admission.withPermit(priority: .promotable(promotion)) {
-                try Task.checkCancellation()
-                // Headroom can fall while downloading or waiting for the OCR permit.
                 if skipTranslated, !promotion.isForeground,
-                   availableMemory() < 1_280 * 1_024 * 1_024 { return RecognitionOutput(regions: nil, persist: false) }
-                if let stored = cachedOCR {
-                    guard ReaderTranslationImagePreparation.needsImage(stored, settings: settings) else {
-                        return RecognitionOutput(regions: stored, persist: false)
-                    }
-                    let image = try await loader.load(page, cacheInMemory: await retainImage(page))
+                   availableMemory() < TranslationImageWorkBudget.minimumHeadroom { return nil }
+                // A cold foreground URL must not hold the sole decode/OCR/render
+                // permit while waiting on the network. Warm only reusable compressed
+                // data here; source interception and all decoding still happen below.
+                if !skipTranslated, recognizer == nil {
+                    try? await loader.prefetchData(page, priority: .high)
                     try Task.checkCancellation()
-                    let prepared = ReaderTranslationImagePreparation.apply(stored, image: image, settings: settings)
-                    prepareJPEG(prepared, image: image)
-                    return RecognitionOutput(regions: prepared, persist: true)
                 }
-                let regions: [ReaderTranslationRegion]
-                var evidenceImage: UIImage?
-                var jpegSource: UIImage?
-                if let recognizer {
-                    regions = try await recognizer(page, settings)
-                    if ReaderTranslationImagePreparation.needsImage(regions, settings: settings) {
-                        evidenceImage = try await loader.load(page, cacheInMemory: await retainImage(page))
-                        jpegSource = evidenceImage
-                    }
-                } else {
-                    guard #available(iOS 18.0, *) else { return RecognitionOutput(regions: [], persist: false) }
-                    var phaseStart = ProcessInfo.processInfo.systemUptime
-                    let image = try await loader.load(page, cacheInMemory: await retainImage(page))
-                    if settings.rightToLeftPanelOrder { evidenceImage = image }
-                    jpegSource = image
-                    loadedImageSize.store(image.size)
-                    TranslationPerformanceDiagnostics.clientPhaseCompleted(
-                        phase: "reader_image_load", segmentCount: 0,
-                        elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: phaseStart)
-                    )
-                    try Task.checkCancellation()
-                    // Scope the normalized copy so it is released before JPEG encoding.
-                    do {
-                        let pixels = try autoreleasepool { () throws -> CGImage in
-                            if image.imageOrientation == .up, let pixels = image.cgImage { return pixels }
-                            let format = UIGraphicsImageRendererFormat()
-                            format.scale = image.scale
-                            let normalized = UIGraphicsImageRenderer(size: image.size, format: format).image { _ in image.draw(at: .zero) }
-                            guard let pixels = normalized.cgImage else { throw NativeCoreMLDetectorError.imageConversionFailed }
-                            return pixels
+                lifetime.start()
+                if skipTranslated {
+                    // Best effort: source interception/decode fallback remains in load().
+                    let needsImage = cachedOCR.map {
+                        settings.shouldAttachPageImage || ReaderTranslationImagePreparation.needsImage($0, settings: settings)
+                    } ?? true
+                    if needsImage {
+                        lifetime.setPrefetching(true)
+                        defer { lifetime.setPrefetching(false) }
+                        if let dataPrefetcher { try? await dataPrefetcher(page) }
+                        else if recognizer == nil {
+                            try? await loader.prefetchData(page, priority: promotion.isForeground ? .high : .veryLow)
                         }
-                        phaseStart = ProcessInfo.processInfo.systemUptime
-                        regions = try await ReaderOCRService.shared.recognize(image: pixels, configuration: settings.ocrConfiguration)
                     }
-                    TranslationPerformanceDiagnostics.clientPhaseCompleted(
-                        phase: skipTranslated ? "reader_ocr_ahead" : "reader_ocr", segmentCount: regions.count,
-                        elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: phaseStart)
-                    )
+                    try Task.checkCancellation()
+                    do {
+                        _ = try await afterRecognition?.value
+                    } catch {
+                        try Task.checkCancellation()
+                        // The failed demand will discard its lookahead. Avoid starting
+                        // OCR just to cancel/repeat it; nil is retried on actual demand.
+                        if !promotion.isForeground, !lifetime.isRetained { return nil }
+                    }
+                    try Task.checkCancellation()
                 }
-                try Task.checkCancellation()
-                let prepared = evidenceImage.map { ReaderTranslationImagePreparation.apply(regions, image: $0, settings: settings) } ?? regions
-                if let jpegSource { prepareJPEG(prepared, image: jpegSource) }
-                return RecognitionOutput(regions: prepared, persist: true)
+                /// Encode the provider JPEG while the decoded image is already resident
+                /// under this permit. Failure leaves the translation task's original path.
+                @Sendable func prepareJPEG(_ regions: [ReaderTranslationRegion], image: UIImage) {
+                    guard encodesJPEG, !Task.isCancelled,
+                          !ReaderTranslationLanguageFilter.apply(regions, settings: settings).isEmpty else { return }
+                    preparedImageJPEG.store(try? autoreleasepool { try ReaderTranslationImagePreparation.translationJPEG(image) })
                 }
-            } catch {
+                // SQLite writes happen after the permit is released, so the next page's
+                // decode/OCR never waits for this page's disk I/O.
+                let loadedImageSize = LockedSlot<CGSize>()
+                let output: RecognitionOutput
+                do {
+                    output = try await admission.withPermit(priority: .promotable(promotion)) {
+                        try Task.checkCancellation()
+                        // Headroom can fall while downloading or waiting for the OCR permit.
+                        if skipTranslated, !promotion.isForeground,
+                           availableMemory() < 1_280 * 1_024 * 1_024 { return RecognitionOutput(regions: nil, persist: false) }
+                        if let stored = cachedOCR {
+                            guard ReaderTranslationImagePreparation.needsImage(stored, settings: settings) else {
+                                return RecognitionOutput(regions: stored, persist: false)
+                            }
+                            let image = try await loader.load(page, cacheInMemory: await retainImage(page))
+                            try Task.checkCancellation()
+                            let prepared = ReaderTranslationImagePreparation.apply(stored, image: image, settings: settings)
+                            prepareJPEG(prepared, image: image)
+                            return RecognitionOutput(regions: prepared, persist: true)
+                        }
+                        let regions: [ReaderTranslationRegion]
+                        var evidenceImage: UIImage?
+                        var jpegSource: UIImage?
+                        if let recognizer {
+                            regions = try await recognizer(page, settings)
+                            if ReaderTranslationImagePreparation.needsImage(regions, settings: settings) {
+                                evidenceImage = try await loader.load(page, cacheInMemory: await retainImage(page))
+                                jpegSource = evidenceImage
+                            }
+                        } else {
+                            guard #available(iOS 18.0, *) else { return RecognitionOutput(regions: [], persist: false) }
+                            var phaseStart = ProcessInfo.processInfo.systemUptime
+                            let image = try await loader.load(page, cacheInMemory: await retainImage(page))
+                            if settings.rightToLeftPanelOrder { evidenceImage = image }
+                            jpegSource = image
+                            loadedImageSize.store(image.size)
+                            TranslationPerformanceDiagnostics.clientPhaseCompleted(
+                                phase: "reader_image_load", segmentCount: 0,
+                                elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: phaseStart)
+                            )
+                            try Task.checkCancellation()
+                            // Scope the normalized copy so it is released before JPEG encoding.
+                            do {
+                                let pixels = try autoreleasepool { () throws -> CGImage in
+                                    if image.imageOrientation == .up, let pixels = image.cgImage { return pixels }
+                                    let format = UIGraphicsImageRendererFormat()
+                                    format.scale = image.scale
+                                    let normalized = UIGraphicsImageRenderer(size: image.size, format: format).image { _ in image.draw(at: .zero) }
+                                    guard let pixels = normalized.cgImage else { throw NativeCoreMLDetectorError.imageConversionFailed }
+                                    return pixels
+                                }
+                                phaseStart = ProcessInfo.processInfo.systemUptime
+                                regions = try await ReaderOCRService.shared.recognize(image: pixels, configuration: settings.ocrConfiguration)
+                            }
+                            TranslationPerformanceDiagnostics.clientPhaseCompleted(
+                                phase: skipTranslated ? "reader_ocr_ahead" : "reader_ocr", segmentCount: regions.count,
+                                elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: phaseStart)
+                            )
+                        }
+                        try Task.checkCancellation()
+                        let prepared = evidenceImage.map { ReaderTranslationImagePreparation.apply(regions, image: $0, settings: settings) } ?? regions
+                        if let jpegSource { prepareJPEG(prepared, image: jpegSource) }
+                        return RecognitionOutput(regions: prepared, persist: true)
+                    }
+                } catch {
+                    if let size = loadedImageSize.take() {
+                        try? await diskCache?.storeImageSize(size, page: page.translationCacheKey, generation: diskGeneration)
+                    }
+                    throw error
+                }
+                // Release the prepared OCR to the provider before disk writes. The
+                // owning recognition task still joins both writes, so navigation and
+                // the one-page lookahead cannot accumulate detached persistence jobs.
+                await delivery.resolve(.success(output.regions))
                 if let size = loadedImageSize.take() {
                     try? await diskCache?.storeImageSize(size, page: page.translationCacheKey, generation: diskGeneration)
                 }
+                if output.persist, let regions = output.regions, !Task.isCancelled {
+                    await storeRecognition(regions, key, diskGeneration)
+                }
+                return output.regions
+            }
+            do {
+                let result = try await recognize()
+                await delivery.resolve(.success(result))
+                return result
+            } catch {
+                await delivery.resolve(.failure(error))
                 throw error
             }
-            if let size = loadedImageSize.take() {
-                try? await diskCache?.storeImageSize(size, page: page.translationCacheKey, generation: diskGeneration)
-            }
-            if output.persist, let regions = output.regions, !Task.isCancelled {
-                await storeRecognition(regions, key, diskGeneration)
-            }
-            return output.regions
         }
     }
 
@@ -542,9 +626,14 @@ actor ReaderTranslationImageLoader {
             guard request.processors.isEmpty else { return }
         case .storeEncodedImages: return
         }
+        // Warming is complete when either reusable disk identity already exists.
+        // Do not read and discard the whole compressed image here only to read it
+        // again during load(). Eviction between this check and load remains safe:
+        // the normal image pipeline fetches missing bytes on demand.
+        guard ReaderImageDownloadCache.needsNetwork(request: request, pipeline: pipeline) else { return }
         request.priority = priority
         let admission = downloadAdmission
-        let demand = if priority >= .high, ReaderImageDownloadCache.needsNetwork(request: request, pipeline: pipeline) {
+        let demand = if priority >= .high {
             try await admission.acquireReaderDemand()
         } else {
             nil as UUID?

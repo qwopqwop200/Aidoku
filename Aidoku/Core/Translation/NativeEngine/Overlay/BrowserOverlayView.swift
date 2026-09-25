@@ -961,8 +961,10 @@ final class BrowserPageImageOverlayRenderer {
     const restoredPanelGeometry = new Map();
     let restoredPanelLookupBudget = 4194304;
     let restoredExteriorPixelBudget = 1048576;
+    let restoredTextInspectionBudget = 8192;
     const panelRestorationPixelLimit = 1572864;
     let panelRestorationBudget = panelRestorationPixelLimit;
+    let paperProposalBudget = 2097152;
     let rubyInspectionBudget = 262144;
     let remainingPanelRestorations = items.filter(item => item.sourcePanelRestorationEligible && item.sourceColorEligible).length;
     const panelRestorationAudit = [];
@@ -1003,7 +1005,7 @@ final class BrowserPageImageOverlayRenderer {
       if(w<8||h<8||w*h>262144||pixels>allowance)return;
       panelRestorationBudget-=pixels;
       try {
-        const key=JSON.stringify(['slanted-glyph-mask-v4-native-coordinates',x,y,w,h,box,item.rotation,palette,Boolean(item.sourceVertical),options]);
+        const key=JSON.stringify(['slanted-glyph-mask-v5-dense-donors',x,y,w,h,box,item.rotation,palette,Boolean(item.sourceVertical),options]);
         let prepared=cleanupCache?.entries.get(key);
         if(!prepared){
           cleanupCanvas.width=w;cleanupCanvas.height=h;cleanupContext.drawImage(sourceImage,x,y,w,h,0,0,w,h);
@@ -1076,16 +1078,28 @@ final class BrowserPageImageOverlayRenderer {
       if(w<8||h<8||pixels>panelRestorationBudget)return false;
       panelRestorationBudget-=pixels;
       try {
-        const key=JSON.stringify(['spatial-panel-v31-observed-lettering',x,y,sourceWidth,sourceHeight,w,h,b,palette,auxiliary,rubyExclusions,leadingRule,Boolean(item.sourceVertical)]);
+        const key=JSON.stringify(['spatial-panel-v36-paper-outline',x,y,sourceWidth,sourceHeight,w,h,b,palette,auxiliary,rubyExclusions,leadingRule,Boolean(item.sourceVertical)]);
         let prepared=cleanupCache?.entries.get(key);
         if(!prepared){
           cleanupCanvas.width=w;cleanupCanvas.height=h;
           cleanupContext.drawImage(sourceImage,x,y,sourceWidth,sourceHeight,0,0,w,h);
           const original=cleanupContext.getImageData(0,0,w,h).data;
-          const restored=aidokuRestoreSourcePanel(original,w,h,
+          let restored=aidokuRestoreSourcePanel(original,w,h,
             [(b[0]*iw-x)*sx,(b[1]*ih-y)*sy,b[2]*iw*sx,b[3]*ih*sy],palette,
             {readabilityGate:true,sampleScale:Math.min(sx,sy),auxiliary:auxiliary.map(r=>[(r[0]*iw-x)*sx,(r[1]*ih-y)*sy,r[2]*iw*sx,r[3]*ih*sy]),
               inferredRubyExclusions:rubyExclusions.map(r=>[(r[0]*iw-x)*sx,(r[1]*ih-y)*sy,r[2]*iw*sx,r[3]*ih*sy]),leadingRule,vertical:Boolean(item.sourceVertical)});
+          if(!restored){
+            const paper=aidokuEnclosedPaperRestore(original,w,h,[(b[0]*iw-x)*sx,(b[1]*ih-y)*sy,b[2]*iw*sx,b[3]*ih*sy],{
+              auxiliary:auxiliary.map(r=>[(r[0]*iw-x)*sx,(r[1]*ih-y)*sy,r[2]*iw*sx,r[3]*ih*sy]),
+              excluded:rubyExclusions.map(r=>[(r[0]*iw-x)*sx,(r[1]*ih-y)*sy,r[2]*iw*sx,r[3]*ih*sy])});
+            if(paper?.sourceErasureVerified)restored={...paper,localProposal:true};
+          }
+          if(!restored){
+            const local=aidokuLocalComponentRestore(original,w,h,[(b[0]*iw-x)*sx,(b[1]*ih-y)*sy,b[2]*iw*sx,b[3]*ih*sy],palette,
+              {auxiliary:auxiliary.map(r=>[(r[0]*iw-x)*sx,(r[1]*ih-y)*sy,r[2]*iw*sx,r[3]*ih*sy]),
+               excluded:rubyExclusions.map(r=>[(r[0]*iw-x)*sx,(r[1]*ih-y)*sy,r[2]*iw*sx,r[3]*ih*sy])});
+            if(local?.sourceGlyphsVerified)restored={...local,localProposal:true};
+          }
           // Readability is checked against actual composited pixels, without
           // changing the source foreground/background estimators.
           let luminance=null;
@@ -1106,6 +1120,7 @@ final class BrowserPageImageOverlayRenderer {
         panelRestorationAudit.push({id:String(item.id),pixels,sourcePixels:sourceWidth*sourceHeight,scale,accepted:Boolean(result),method:result?.method||'',surface:result?.surfaceQuality?.reason||'',erased:result?.erased||0,companions:result?.companions||0,preservedPixels:result?.preservedPixels||0,preservedCore:result?.preservedCore||0,sourceErasureVerified:Boolean(result?.sourceErasureVerified)});
         if(!result)return false;
         const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+        if(result.localProposal){canvas.dataset.localRestorationProposal='true';canvas.style.visibility='hidden';}
         const context=canvas.getContext('2d');if(!context)return false;
         const output=context.createImageData(w,h);output.data.set(result.rgba);context.putImageData(output,0,0);
         canvas.setAttribute('data-aidoku-image-ocr-overlay','source-panel-restoration');
@@ -1115,7 +1130,7 @@ final class BrowserPageImageOverlayRenderer {
           clipPath:aidokuCleanupClip(cleanupImageGeometry,frame[0]+x/iw*frame[2],frame[1]+y/ih*frame[3],sourceWidth/iw*frame[2],sourceHeight/ih*frame[3])});
         root.appendChild(canvas);restoredSourcePanels.add(item);
         restoredPanelGeometry.set(item,{canvas,safe:result.layoutSafe,luminance:prepared.luminance,w,h,x,y,frame,iw,ih,sx,sy,
-          surfaceQuality:result.surfaceQuality,sourceErasureVerified:result.sourceErasureVerified,erasureComplete:result.erased>0&&result.preservedPixels===0&&result.preservedCore===0});return true;
+          surfaceQuality:result.surfaceQuality,sourceRemainingInk:result.sourceRemainingInk,sourceCorePixels:result.sourceCorePixels,provisional:!!result.localProposal,sourceGlyphsVerified:result.sourceGlyphsVerified,sourceErasureVerified:result.sourceErasureVerified,erasureComplete:result.erased>0&&result.preservedPixels===0&&result.preservedCore===0});return true;
       } catch (_) { return false; }
     };
     const appendSourceCleanup = item => {
@@ -1217,9 +1232,9 @@ final class BrowserPageImageOverlayRenderer {
     const typographyInkFrames = new Map();
     const typographyEntries = [];
     let artworkTypeBudget = 8192;
-    let balloonTypeBudget = 8192;
-    let balloonSurfaceBudget = 524288;
-    let artworkSurfaceBudget = 262144;
+    let balloonTypeBudget = 32768;
+    let balloonSurfaceBudget = 2097152;
+    let artworkSurfaceBudget = 1048576;
     let typographyCharacterBudget = 8192;
     let captionReflowCharacterBudget = 8192;
     let koreanWrapCharacterBudget = 2048;
@@ -1263,7 +1278,7 @@ final class BrowserPageImageOverlayRenderer {
     }
 
     let paragraphRecoveryProbeBudget = 512;
-        const koreanWrapMeasure = document.createElement('canvas').getContext('2d');
+    const koreanWrapMeasure = document.createElement('canvas').getContext('2d');
     try {
       for (const item of items) {
         if (!item || typeof item !== 'object') {
@@ -1979,7 +1994,10 @@ final class BrowserPageImageOverlayRenderer {
         }
         const panelGeometry=restoredPanelGeometry.get(item);
         let fitsRestoredSurface = null, readableRestoredInk = null;
-        if(panelGeometry?.safe&&displayedText.length<=180){
+        // Long captions share a bounded page allowance instead of losing a
+        // valid restoration solely because they crossed a per-caption limit.
+        if(panelGeometry?.safe&&displayedText.length<=restoredTextInspectionBudget){
+          restoredTextInspectionBudget-=displayedText.length;
           const c=panelGeometry,initial=parseFloat(node.style.fontSize);
           const finalPalette=aidokuCaptionPalette(sampled,foreground.split(',').map(Number),true);
           const linear=v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;};
@@ -1987,7 +2005,7 @@ final class BrowserPageImageOverlayRenderer {
           let surfaceKey=null,surfaceRange=null;
           const inspectSurface=(profile,allowExterior=false)=>{
             if(!profile||!contentFits())return null;
-            const key=JSON.stringify([profile.ink,allowExterior]);
+            const key=JSON.stringify([profile.ink,allowExterior,c.surfaceRevision||0]);
             if(key===surfaceKey)return surfaceRange;
             surfaceKey=key;surfaceRange=null;
             let exterior=null;
@@ -1999,7 +2017,7 @@ final class BrowserPageImageOverlayRenderer {
                 (a[1]-c.frame[1])*c.ih/c.frame[3],a[2]*c.iw/c.frame[2],a[3]*c.ih/c.frame[3]]);
               const l=Math.floor(Math.min(...rects.map(r=>r[0]))),t=Math.floor(Math.min(...rects.map(r=>r[1])));
               const r=Math.ceil(Math.max(...rects.map(r=>r[0]+r[2]))),b=Math.ceil(Math.max(...rects.map(r=>r[1]+r[3])));
-              const pixels=(r-l)*(b-t),margin=24*c.iw/c.frame[2];
+              const pixels=(r-l)*(b-t),margin=64*c.iw/c.frame[2];
               if((l<c.x||t<c.y||r>c.x+c.w/c.sx||b>c.y+c.h/c.sy)&&
                   l>=0&&t>=0&&r<=c.iw&&b<=c.ih&&l>=c.x-margin&&r<=c.x+c.w/c.sx+margin&&
                   t>=c.y-margin&&b<=c.y+c.h/c.sy+margin&&pixels>0&&pixels<=Math.min(262144,restoredExteriorPixelBudget))try{
@@ -2016,7 +2034,10 @@ final class BrowserPageImageOverlayRenderer {
               const r=Math.ceil(((a[0]+a[2]-c.frame[0])*c.iw/c.frame[2]-c.x)*c.sx);
               const b=Math.ceil(((a[1]+a[3]-c.frame[1])*c.ih/c.frame[3]-c.y)*c.sy);
               const count=(r-l)*(b-t);
-              if((!exterior&&(l<0||t<0||r>c.w||b>c.h))||count<0||count>restoredPanelLookupBudget)return null;
+              if((!exterior&&(l<0||t<0||r>c.w||b>c.h))||count<0)return null;
+              // A later bounded balloon/artwork pass can grant a fresh local
+              // allowance. Resource exhaustion is not evidence of unsafe pixels.
+              if(count>restoredPanelLookupBudget){surfaceKey=null;return null;}
               restoredPanelLookupBudget-=count;
               for(let yy=t;yy<b;yy++)for(let xx=l;xx<r;xx++){
                 let luminance;
@@ -2028,7 +2049,7 @@ final class BrowserPageImageOverlayRenderer {
                   const x=Math.floor(c.x+(xx+.5)/c.sx)-exterior.x,y=Math.floor(c.y+(yy+.5)/c.sy)-exterior.y;
                   if(x<0||y<0||x>=exterior.w||y>=exterior.h)return null;
                   const i=(y*exterior.w+x)*4,rgb=Array.from(exterior.rgba.subarray(i,i+3));
-                  const plane=c.surfaceQuality.coefficients.map(a=>a[0]+a[1]*xx/c.w+a[2]*yy/c.h);
+                  const plane=aidokuSurfacePlaneRGB(c.surfaceQuality.coefficients,xx/c.w,yy/c.h);
                   // Coordinated columns have already passed the independent
                   // exposed-pixel gradient/edge gate across their full height.
                   // Permit its 24 RGB lighting tolerance beyond the OCR crop;
@@ -2052,7 +2073,7 @@ final class BrowserPageImageOverlayRenderer {
             return foregroundL<lo?(lo+.05)/(foregroundL+.05):foregroundL>hi?(foregroundL+.05)/(hi+.05):1;
           };
           const onSurface=(profile,foregroundL=inkL)=>{
-            const contrast=surfaceContrast(inspectSurface(profile),foregroundL);
+            const contrast=surfaceContrast(inspectSurface(profile,true),foregroundL);
             if(contrast<4.5)return false;
             node.dataset.sourcePanelMinimumContrast=String(contrast);return true;
           };
@@ -2296,11 +2317,20 @@ final class BrowserPageImageOverlayRenderer {
                 node.dataset.sourcePanelTextFit='inside';restoredSourcePanels.add(item);return true;
               } finally {({x,y,width,height}=saved);measurementNode.remove();}
             },
-            fitBalloon: () => {
+            fitBalloon: (offsetSearch=false) => {
               if(item.balancedColumn||item.rotation||wrappingScript!=='korean'||!fitsRestoredSurface||
-                  /[\\r\\n]/u.test(displayedText)||displayedText.length>80)return false;
+                  /[\\r\\n]/u.test(displayedText)||displayedText.length>180)return false;
+              if(offsetSearch&&panelGeometry?.partialErasureCertified){
+                const c=panelGeometry,b=item.sourceBounds;
+                const core=[b,...(item.auxiliaryInkRects||[])].map(a=>[(a[0]*c.iw-c.x)*c.sx,(a[1]*c.ih-c.y)*c.sy,a[2]*c.iw*c.sx,a[3]*c.ih*c.sy]);
+                if(!aidokuOutlineSourceResolved(c,core))return false;
+              }
               const font=parseFloat(node.style.fontSize),priorFont=Number(node.dataset.artworkOriginalFont);
-              const sizes=aidokuBalloonFontSizes(font).filter(size=>!priorFont||size>=Math.max(8.5,priorFont*.8));
+              const sizes=aidokuBalloonFontSizes(font,minimumFontSize).filter(size=>size>=aidokuRestoredFontFloor(priorFont||font,minimumFontSize));
+              const emergencySizes=node.dataset.sourceErasurePolicy==='auxiliary-original-preserved'?[]:
+                aidokuEmergencyBalloonFontSizes(priorFont||font,minimumFontSize,sizes).filter(size=>size<font);
+              sizes.push(...emergencySizes.filter(size=>!panelGeometry?.provisional||size>=7));
+              if(offsetSearch){sizes.splice(0,sizes.length,...sizes.filter(size=>size>=7).reverse());if(font>7&&!sizes.includes(7))sizes.unshift(7);}
               if(!sizes.length)return false;
               const plate=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]'))
                 .find(p=>p.dataset.aidokuRegion===String(item.id)&&p.dataset.sourceErasure!=='true');
@@ -2308,14 +2338,46 @@ final class BrowserPageImageOverlayRenderer {
               const p=plate.getBoundingClientRect(),intersects=r=>r[0]<p.right&&r[0]+r[2]>p.left&&r[1]<p.bottom&&r[1]+r[3]>p.top;
               const otherBackgrounds=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"], [data-aidoku-image-ocr-overlay="source-readability-backing"]'))
                 .filter(layer=>layer!==plate).map(layer=>layer.getBoundingClientRect());
+              const otherInks=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'))
+                .filter(other=>other!==node).map(other=>{
+                  const range=document.createRange();range.selectNodeContents(other);return range.getBoundingClientRect();
+                }).filter(r=>r.width>0&&r.height>0);
               // Removing this card must not uncover another original or deprive
               // a neighboring caption of its readable backing.
-              if(items.some(other=>other!==item&&[other.sourceBounds,...(other.auxiliaryInkRects||[])].some(b=>{
-                const f=cleanupImageGeometry?.frame||other.sourceFrame;
-                return f&&b&&intersects([f[0]+b[0]*f[2]-3,f[1]+b[1]*f[3]-3,b[2]*f[2]+6,b[3]*f[3]+6]);
-              }))||Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).some(other=>{
-                if(other===node)return false;const range=document.createRange();range.selectNodeContents(other);
-                const r=range.getBoundingClientRect();return intersects([r.left,r.top,r.width,r.height]);
+              let sharedRemoval=false;
+              if(items.some(other=>{
+                if(other===item)return false;
+                const overlapping=[other.sourceBounds,...(other.auxiliaryInkRects||[])].some(b=>{
+                  const f=cleanupImageGeometry?.frame||other.sourceFrame;
+                  return f&&b&&intersects([f[0]+b[0]*f[2]-3,f[1]+b[1]*f[3]-3,b[2]*f[2]+6,b[3]*f[3]+6]);
+                });
+                if(!overlapping)return false;
+                const restored=restoredPanelGeometry.get(other);
+                if(restored?.sourceErasureVerified&&!restored.provisional&&!restored.partialErasureCertified&&restored.erasureComplete&&
+                    restored.canvas?.isConnected&&root.contains(restored.canvas)&&restored.canvas.width>0&&restored.canvas.height>0){
+                  sharedRemoval=true;return false;
+                }
+                return true;
+              })||Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).some(other=>{
+                if(other===node)return false;
+                const range=document.createRange();range.selectNodeContents(other);const r=range.getBoundingClientRect();
+                const owned=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]'))
+                  .filter(layer=>layer!==plate&&layer.dataset.aidokuRegion===other.dataset.aidokuRegion)
+                  .some(layer=>{
+                    // A bounding rectangle alone cannot certify a clipped backing.
+                    // Admit only opaque, visible owners with explicit full coverage.
+                    const style=getComputedStyle(layer),color=style.backgroundColor.match(/[0-9.]+/g)?.map(Number);
+                    if(!color||(color.length!==3&&(color.length!==4||color[3]!==1)))return false;
+                    if(style.clipPath!=='none'||style.display==='none'||style.visibility!=='visible'||Number(style.opacity)!==1)return false;
+                    const b=layer.getBoundingClientRect();
+                    if(b.left>r.left||b.right<r.right||b.top>r.top||b.bottom<r.bottom)return false;
+                    if(!layer.dataset.panelCoverage)return true;
+                    try {return JSON.parse(layer.dataset.panelCoverage).some(c=>Array.isArray(c)&&c.length===4&&c.every(Number.isFinite)&&
+                      c[0]<=r.left&&c[1]<=r.top&&c[0]+c[2]>=r.right&&c[1]+c[3]>=r.bottom);}catch(_){return false;}
+                  });
+                if(!intersects([r.left,r.top,r.width,r.height]))return false;
+                if(owned||other.dataset.sourceBackgroundColor==='inpainted'){sharedRemoval=true;return false;}
+                return true;
               }))return false;
               measurementNode.style.cssText=node.style.cssText;
               measurementNode.replaceChildren(...Array.from(node.childNodes).map(c=>c.cloneNode(true)));
@@ -2332,27 +2394,40 @@ final class BrowserPageImageOverlayRenderer {
                 const liveRange=document.createRange();liveRange.selectNodeContents(node);
                 const liveOriginal=liveRange.getBoundingClientRect();
                 const cx=(box.left+box.right)/2,cy=(box.top+box.bottom)/2;
-                // A certified erasure no longer makes a tall backing plate.
-                // Keep that original vertical room available to the font-fit
-                // search; every proposed glyph must still pass the pixel gate.
-                const sourceFrame=cleanupImageGeometry?.frame||item.sourceFrame,b=item.sourceBounds;
-                const top=sourceFrame&&b?Math.min(p.top,sourceFrame[1]+b[1]*sourceFrame[3]):p.top;
-                const bottom=sourceFrame&&b?Math.max(p.bottom,sourceFrame[1]+(b[1]+b[3])*sourceFrame[3]):p.bottom;
-                const availableHeight=2*Math.min(cy-top-2,bottom-cy-2);
-                const widths=[...new Set([1,.9,.8,.7,.6].map(scale=>Math.floor((box.right-box.left)*scale*4)/4))];
+                // Use the inspected crop's clean margin for extra line breaks.
+                // The OCR box bounds source erasure, not the available balloon;
+                // every proposed glyph still passes the pixel safety gate.
+                const cropTop=panelGeometry.frame[1]+panelGeometry.y/panelGeometry.ih*panelGeometry.frame[3];
+                const cropBottom=cropTop+panelGeometry.h/panelGeometry.sy/panelGeometry.ih*panelGeometry.frame[3];
+                const top=Math.min(p.top,cropTop);
+                const bottom=Math.max(p.bottom,cropBottom);
+                const cropLeft=panelGeometry.frame[0]+panelGeometry.x/panelGeometry.iw*panelGeometry.frame[2];
+                const cropRight=cropLeft+panelGeometry.w/panelGeometry.sx/panelGeometry.iw*panelGeometry.frame[2];
+                const left=Math.min(p.left,cropLeft),right=Math.max(p.right,cropRight);
+                const source=item.sourceBounds,frame=panelGeometry.frame;
+                const sourceCX=frame[0]+(source[0]+source[2]/2)*frame[2],sourceCY=frame[1]+(source[1]+source[3]/2)*frame[3];
+                const sourceWidth=source[2]*frame[2],baseWidth=box.right-box.left;
+                const centers=(offsetSearch?[[sourceCX,sourceCY],[sourceCX-6,sourceCY],[sourceCX+6,sourceCY],[sourceCX,sourceCY-6],[sourceCX,sourceCY+6],[sourceCX-12,sourceCY],[sourceCX+12,sourceCY],[sourceCX,sourceCY-12],[sourceCX,sourceCY+12]]:[[sourceCX,sourceCY],[cx,cy]])
+                  .filter(([xx,yy],i,all)=>all.findIndex(([a,b])=>Math.abs(a-xx)<.5&&Math.abs(b-yy)<.5)===i);
+                let attempts=0;
                 const ink=node.dataset.sourceAppliedTextRGB?.split(',').map(Number);
                 if(ink?.length!==3||!ink.every(Number.isFinite))return false;
-                for(const size of sizes)for(const candidateWidth of widths){
+                for(const size of sizes)for(const [anchorX,anchorY] of centers){
+                  const availableHeight=2*Math.min(anchorY-top-2,bottom-anchorY-2);
+                  const widths=[...new Set([baseWidth*size/font,sourceWidth,baseWidth*.75,baseWidth*1.15,sourceWidth*.8,...(offsetSearch?[sourceWidth*.6,baseWidth*.55]:[])]
+                    .map(value=>Math.floor(value*4)/4))];
+                  for(const candidateWidth of widths){
+                  if(attempts++>=90+emergencySizes.length*10)return false;
                   if(candidateWidth<size*1.8||displayedText.length>balloonTypeBudget||balloonSurfaceBudget<=0)continue;
                   balloonTypeBudget-=displayedText.length;
-                  x=cx-candidateWidth/2;y=cy-availableHeight/2;width=candidateWidth;height=availableHeight;
+                  x=anchorX-candidateWidth/2;y=anchorY-availableHeight/2;width=candidateWidth;height=availableHeight;
                   for(const n of [node,measurementNode]){
                     Object.assign(n.style,{left:`${x+scrollX}px`,top:`${y+scrollY}px`,width:`${width}px`,height:`${height}px`,
                       display:'block',padding:'0px',whiteSpace:'pre-wrap'});
                     n.textContent=displayedText;
                   }
                   applyMeasuredFontSize(size);
-                  const maxLines=Math.min(original.lines+3,Math.floor(height/(size*lineHeightRatio)));
+                  const maxLines=Math.min(original.lines+8,Math.floor(height/(size*lineHeightRatio)));
                   if(maxLines<1)continue;
                   if(!wordLines(maxLines)){
                     if(!koreanWrapMeasure||koreanWrapMeasure.measureText(displayedText).width>width)continue;
@@ -2361,10 +2436,10 @@ final class BrowserPageImageOverlayRenderer {
                   const candidate=lineProfile();
                   if(!candidate||!contentFits()||!aidokuFontFlowFits(candidate,original,1)||candidate.lines>maxLines)continue;
                   const next=aidokuCaptionInkFrame(candidate.ink,size);
-                  if(!next||next.left<p.left||next.right>p.right||next.top<top||next.bottom>bottom)continue;
+                  if(!next||next.left<left||next.right>right||next.top<top||next.bottom>bottom)continue;
                   // The image's clean pixels are not the visible surface when
                   // another opaque layer still covers the proposed lettering.
-                  if(otherBackgrounds.some(r=>next.left-1<r.right&&next.right+1>r.left&&
+                  if([...otherBackgrounds,...otherInks].some(r=>next.left-1<r.right&&next.right+1>r.left&&
                       next.top-.75<r.bottom&&next.bottom+.75>r.top))continue;
                   // A little breathing room inside the actual restored balloon,
                   // with the final clustered ink color, is mandatory.
@@ -2378,17 +2453,18 @@ final class BrowserPageImageOverlayRenderer {
                   // the page. Verify the actual displayed DOM, including its
                   // whitespace and font metrics, before removing the backing.
                   liveRange.selectNodeContents(node);const liveNext=liveRange.getBoundingClientRect();
-                  if(Math.abs(liveNext.left+liveNext.width/2-liveOriginal.left-liveOriginal.width/2)>1.5||
-                      Math.abs(liveNext.top+liveNext.height/2-liveOriginal.top-liveOriginal.height/2)>1.5)continue;
+                  if(Math.abs(liveNext.left+liveNext.width/2-anchorX)>1.5||
+                      Math.abs(liveNext.top+liveNext.height/2-anchorY)>1.5)continue;
                   const flow=p=>({lines:p.lines,breaks:p.breaks.length,fragments:p.hangulFragments,
                     punctuation:p.punctuationOnly,badStarts:p.badStarts.length,badEnds:p.badEnds.length});
                   node.dataset.balloonFontFit='restored-surface';node.dataset.balloonOriginalFont=String(font);
+                  if(emergencySizes.includes(size))node.dataset.balloonEmergencyFontFit='true';
                   node.dataset.balloonOriginalInk=JSON.stringify([liveOriginal.left,liveOriginal.top,liveOriginal.width,liveOriginal.height]);
                   node.dataset.balloonOriginalFlow=JSON.stringify(flow(original));node.dataset.balloonFinalFlow=JSON.stringify(flow(candidate));
                   node.dataset.sourcePanelFinalFont=String(size);node.dataset.sourcePanelTextFit='inside';
                   node.dataset.sourceBackgroundColor='inpainted';node.dataset.sourceAppliedBackgroundRGB='';
                   delete node.dataset.inpaintingFallback;plate.remove();readabilityPanels--;accepted=true;return true;
-                }
+                }}
                 return false;
               } finally {
                 if(!accepted){
@@ -2401,7 +2477,7 @@ final class BrowserPageImageOverlayRenderer {
             protectArtwork: () => {
               if(!artworkFirst||item.balancedColumn||item.rotation||wrappingScript==='rightToLeft'||
                   /[\\r\\n]/u.test(displayedText)||restoredSourcePanels.has(item))return;
-              const originalFont=parseFloat(node.style.fontSize),sizes=aidokuArtworkFontSizes(originalFont);
+              const originalFont=parseFloat(node.style.fontSize),sizes=aidokuArtworkFontSizes(originalFont,minimumFontSize);
               if(!sizes.length||displayedText.length*sizes.length>artworkTypeBudget)return;
               artworkTypeBudget-=displayedText.length*sizes.length;
               measurementNode.style.cssText=node.style.cssText;
@@ -2769,9 +2845,71 @@ final class BrowserPageImageOverlayRenderer {
       const inks=new Map(Array.from(nodes,([id,node])=>{
         const range=document.createRange();range.selectNodeContents(node);return [id,rect(range.getBoundingClientRect())];
       }));
-      const certifiedErasure=new Set();
+      const certifiedErasure=new Set(),partialErasureCandidates=[];
       if (true /* separate-erasure-backing */) {
         let certificationBudget=524288;
+        const erasureRetries=[];
+        // Artwork protection has already finished. Reuse only its unspent
+        // read-only surface allowance; restoration/decoding budgets stay fixed.
+        let exteriorProofBudget=Math.max(0,Math.min(262144,artworkSurfaceBudget));
+        const certifyOccludedExterior=(c,core,glyph)=>{
+          const {safe,w,h}=c,n=w*h,limit=Math.max(12,glyph*2);
+          if(!c.sourceErasureVerified||!c.erasureComplete||!safe||safe.length!==n||n>262144)return null;
+          const labels=new Int32Array(n),queue=new Int32Array(n),components=[],residual=[];
+          const inCore=(x,y)=>core.some(r=>x>=Math.floor(r[0])&&x<Math.ceil(r[0]+r[2])&&y>=Math.floor(r[1])&&y<Math.ceil(r[1]+r[3]));
+          for(let start=0;start<n;start++){
+            if(safe[start]||labels[start])continue;
+            const label=components.length+1;let head=0,tail=1,l=w,t=h,r=0,b=0,edge=false;
+            queue[0]=start;labels[start]=label;
+            while(head<tail){
+              const i=queue[head++],x=i%w,y=i/w|0;
+              l=Math.min(l,x);r=Math.max(r,x);t=Math.min(t,y);b=Math.max(b,y);
+              edge ||= x===0||y===0||x===w-1||y===h-1;
+              for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
+                const j=yy*w+xx;if(!safe[j]&&!labels[j]){labels[j]=label;queue[tail++]=j;}
+              }
+            }
+            const span=Math.max(r-l+1,b-t+1),part={label,l,t,r,b,count:tail,barrier:edge&&span>limit&&tail>=glyph*2};
+            components.push(part);
+            if(tail>=2&&span<=limit&&core.some(q=>r>=q[0]-glyph&&l<=q[0]+q[2]+glyph&&b>=q[1]-glyph&&t<=q[1]+q[3]+glyph)){
+              part.points=Array.from(queue.subarray(0,tail));residual.push(part);
+            }
+          }
+          if(!residual.length)return null;
+          const barriers=new Set(components.filter(c=>c.barrier).map(c=>c.label));
+          if(!barriers.size)return null;
+          // Finite ray samples can miss an opening between their targets.
+          // Flood every owned source cell through all non-boundary cells,
+          // including small unsafe islands. Only truly disconnected exterior
+          // components may be omitted from the lettering certificate.
+          const reachable=new Uint8Array(n);let head=0,tail=0;
+          for(const q of core){
+            const left=Math.max(0,Math.floor(q[0])),top=Math.max(0,Math.floor(q[1]));
+            const right=Math.min(w,Math.ceil(q[0]+q[2])),bottom=Math.min(h,Math.ceil(q[1]+q[3]));
+            for(let y=top;y<bottom;y++)for(let x=left;x<right;x++){
+              if(exteriorProofBudget<1)return null;exteriorProofBudget--;
+              const i=y*w+x;
+              if(!reachable[i]&&!barriers.has(labels[i])){reachable[i]=1;queue[tail++]=i;}
+            }
+          }
+          if(!tail)return null;
+          while(head<tail){
+            if(exteriorProofBudget<1)return null;exteriorProofBudget--;
+            const i=queue[head++],x=i%w,y=i/w|0;
+            for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
+              const j=yy*w+xx;
+              if(!reachable[j]&&!barriers.has(labels[j])){reachable[j]=1;queue[tail++]=j;}
+            }
+          }
+          const filtered=safe.slice();let ignored=0;
+          for(const part of residual){
+            if(part.points.some(i=>reachable[i]||inCore(i%w,i/w|0)))return null;
+            for(const i of part.points)filtered[i]=1;
+            ignored+=part.points.length;
+          }
+          return ignored?{safe:filtered,ignored,components:residual.length}:null;
+        };
+
         // Certify each card's own footprint. Neighbor erasure requirements
         // below remain intact, including areas outside this card's crop.
         for(const item of items){
@@ -2804,31 +2942,327 @@ final class BrowserPageImageOverlayRenderer {
           // strokes veto release, while smooth balloon contours still allow
           // smaller lettering and removal of the old oversized panel.
           if(item.sourceVertical&&!item.sourceSingleColumn&&
-              aidokuHasAttachedLeadingInk(c.safe,c.w,c.h,core,glyph))continue;
+              aidokuHasAttachedLeadingInk(c.safe,c.w,c.h,core,glyph)){
+            erasureRetries.push({item,c,id,node,coverage,regions,core,glyph});continue;
+          }
           // A proven body can sit next to large connected artwork outside
           // the source crop. It need not keep a blank card over that artwork,
           // but small surviving ruby/punctuation still veto release.
           const ownedBodyClear=c.sourceErasureVerified&&
             !aidokuHasResidualLettering(c.safe,c.w,c.h,core,glyph);
-          if(!ownedBodyClear&&!aidokuRestoredErasureCovers(c.safe,c.w,c.h,regions,glyph,core))continue;
+          if(!ownedBodyClear&&!aidokuRestoredErasureCovers(c.safe,c.w,c.h,regions,glyph,core)){
+            erasureRetries.push({item,c,id,node,coverage,regions,core,glyph});continue;
+          }
           certifiedErasure.add(item);
           node.dataset.sourceErasureRestored='true';
           node.dataset.sourceErasureReleased=JSON.stringify(coverage);
           node.dataset.sourceErasureCrop=JSON.stringify([c.frame[0]+c.x/c.iw*c.frame[2],c.frame[1]+c.y/c.ih*c.frame[3],
             c.w/c.sx/c.iw*c.frame[2],c.h/c.sy/c.ih*c.frame[3]]);
         }
+        // Each source mask was classified against the original page. Another
+        // committed mask can have erased ink that still blocks this crop's
+        // certification. Reconcile only pixels visibly replaced by opaque,
+        // owned-safe bilinear donors; keep every other original safety cell.
+        const groupPixels=new Map();
+        for(const pending of erasureRetries){
+          const {item,c,id,node,coverage,regions,core,glyph}=pending;
+          const candidates=[];
+          let work=c.w*c.h;
+          for(const [other,d] of restoredPanelGeometry){
+            if(d.provisional||!d.canvas?.isConnected||!root.contains(d.canvas)||!d.safe||
+                d.canvas.width!==d.w||d.canvas.height!==d.h)continue;
+            const left=d.frame[0]+d.x/d.iw*d.frame[2],top=d.frame[1]+d.y/d.ih*d.frame[3];
+            const right=left+d.w/d.sx/d.iw*d.frame[2],bottom=top+d.h/d.sy/d.ih*d.frame[3];
+            const l=Math.max(0,Math.floor(((left-c.frame[0])*c.iw/c.frame[2]-c.x)*c.sx));
+            const t=Math.max(0,Math.floor(((top-c.frame[1])*c.ih/c.frame[3]-c.y)*c.sy));
+            const r=Math.min(c.w,Math.ceil(((right-c.frame[0])*c.iw/c.frame[2]-c.x)*c.sx));
+            const b=Math.min(c.h,Math.ceil(((bottom-c.frame[1])*c.ih/c.frame[3]-c.y)*c.sy));
+            if(l>=r||t>=b)continue;
+            work+=(r-l)*(b-t)+(groupPixels.has(d)?0:d.w*d.h);
+            candidates.push({d,l,t,r,b});
+          }
+          if(candidates.length<2||work>certificationBudget)continue;
+          certificationBudget-=work;
+          let complete=true;
+          for(const {d} of candidates)if(!groupPixels.has(d))try{
+            groupPixels.set(d,d.canvas.getContext('2d').getImageData(0,0,d.w,d.h).data);
+          }catch(_){complete=false;break;}
+          if(!complete)continue;
+          const safe=c.safe.slice(),luminance=c.luminance.slice();
+          const linear=v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;};
+          for(const {d,l,t,r,b} of candidates){
+            const rgba=groupPixels.get(d);
+            for(let y=t;y<b;y++)for(let x=l;x<r;x++){
+              const i=y*c.w+x;if(c.safe[i])continue;
+              const px=c.frame[0]+(c.x+(x+.5)/c.sx)/c.iw*c.frame[2];
+              const py=c.frame[1]+(c.y+(y+.5)/c.sy)/c.ih*c.frame[3];
+              const u=((px-d.frame[0])*d.iw/d.frame[2]-d.x)*d.sx-.5;
+              const v=((py-d.frame[1])*d.ih/d.frame[3]-d.y)*d.sy-.5;
+              const xx=Math.floor(u),yy=Math.floor(v);
+              if(xx<0||yy<0||xx+1>=d.w||yy+1>=d.h)continue;
+              const cells=[yy*d.w+xx,yy*d.w+xx+1,(yy+1)*d.w+xx,(yy+1)*d.w+xx+1];
+              if(cells.every(j=>rgba[j*4+3]===0))continue;
+              // A later antialiased edge cannot inherit an earlier mask's
+              // certificate. Its exact composite is deliberately unproven.
+              safe[i]=0;
+              if(d===c||!d.erasureComplete||!cells.every(j=>rgba[j*4+3]===255&&d.safe[j]))continue;
+              const fx=u-xx,fy=v-yy,weights=[(1-fx)*(1-fy),fx*(1-fy),(1-fx)*fy,fx*fy];
+              const rgb=[0,1,2].map(channel=>Math.round(cells.reduce((sum,j,k)=>sum+rgba[j*4+channel]*weights[k],0)));
+              safe[i]=1;luminance[i]=Math.round(255*(.2126*linear(rgb[0])+.7152*linear(rgb[1])+.0722*linear(rgb[2])));
+            }
+          }
+          let added=0;for(let i=0;i<safe.length;i++)if(!c.safe[i]&&safe[i])added++;
+          if(!added)continue;
+          c.safe=safe;c.luminance=luminance;c.surfaceRevision=(c.surfaceRevision||0)+1;
+          node.dataset.sourceErasureGroupPixels=String(added);
+          if(item.sourceVertical&&!item.sourceSingleColumn&&aidokuHasAttachedLeadingInk(safe,c.w,c.h,core,glyph))continue;
+          const ownedBodyClear=c.sourceErasureVerified&&!aidokuHasResidualLettering(safe,c.w,c.h,core,glyph);
+          if(!ownedBodyClear&&!aidokuRestoredErasureCovers(safe,c.w,c.h,regions,glyph,core))continue;
+          c.groupErasureCertified=true;
+          certifiedErasure.add(item);
+          node.dataset.sourceErasureRestored='true';
+          node.dataset.sourceErasureGroup='true';
+          node.dataset.sourceErasureReleased=JSON.stringify(coverage);
+        }
+        // Preserve all ordinary and already-shared certificates before
+        // spending the remaining allowance on exterior-component proofs.
+        for(const pending of erasureRetries){
+          const {item,c,id,node,coverage,core,glyph}=pending;
+          if(certifiedErasure.has(item)||!c.sourceErasureVerified||!c.erasureComplete||c.w*c.h>exteriorProofBudget)continue;
+          exteriorProofBudget-=c.w*c.h;
+          if(item.sourceVertical&&!item.sourceSingleColumn&&aidokuHasAttachedLeadingInk(c.safe,c.w,c.h,core,glyph))continue;
+          const isolated=certifyOccludedExterior(c,core,glyph);
+          if(!isolated||aidokuHasResidualLettering(isolated.safe,c.w,c.h,core,glyph))continue;
+          certifiedErasure.add(item);
+          node.dataset.sourceErasureRestored='true';
+          node.dataset.sourceErasureOccludedPixels=String(isolated.ignored);
+          node.dataset.sourceErasureOccludedComponents=String(isolated.components);
+          node.dataset.sourceErasureReleased=JSON.stringify(coverage);
+        }
+        // Full direct, group and exterior proofs retain their original priority.
+        // Partial candidates are only evaluated after every full fit has run.
+        partialErasureCandidates.push(...erasureRetries.filter(p=>!certifiedErasure.has(p.item)));
+        artworkSurfaceBudget=exteriorProofBudget;
       }
       if(certifiedErasure.size){
         mount.appendChild(measurementHost);
         try {for(const entry of typographyEntries){
           const item=items.find(item=>item.id===entry.id),id=String(entry.id);
-          if(!certifiedErasure.has(item)||!entry.fitBalloon())continue;
+          if(!certifiedErasure.has(item)||!entry.fitBalloon()&&!entry.fitBalloon(true))continue;
           plates.delete(id);
           const range=document.createRange();range.selectNodeContents(nodes.get(id));
           inks.set(id,rect(range.getBoundingClientRect()));
         }} finally {measurementHost.remove();}
       }
-      for(const item of items){
+      const aidokuMainbodyCellsClear = (safe,w,h,regions) => {
+        if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w*h>262144||safe?.length!==w*h||!Array.isArray(regions)||!regions.length)return false;
+        let budget=w*h*2;
+        for(const r of regions){
+          if(!Array.isArray(r)||r.length!==4||!r.every(Number.isFinite)||r[2]<=0||r[3]<=0)return false;
+          const l=Math.floor(r[0]),t=Math.floor(r[1]),right=Math.ceil(r[0]+r[2]),bottom=Math.ceil(r[1]+r[3]);
+          if(l<0||t<0||right>w||bottom>h||(budget-=(right-l)*(bottom-t))<0)return false;
+          for(let y=t;y<bottom;y++)for(let x=l;x<right;x++)if(safe[y*w+x]!==1)return false;
+        }
+        return true;
+      };
+      // Preserve full-sized exterior source words, while still allowing small
+      // ruby fragments. Illustration beyond a continuous boundary is excluded.
+      const aidokuHasLargePartialResidual = (safe,w,h,core,glyph,vertical) => {
+        const n=w*h;
+        if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||n>262144||safe?.length!==n||!Number.isFinite(glyph)||glyph<=0||!Array.isArray(core)||!core.length||!core.every(r=>Array.isArray(r)&&r.length===4&&r.every(Number.isFinite)&&r[2]>0&&r[3]>0))return true;
+        const labels=new Int32Array(n),queue=new Int32Array(n),parts=[];
+        const near=(r,q)=>r.r>=q[0]-glyph&&r.l<=q[0]+q[2]+glyph&&r.b>=q[1]-glyph&&r.t<=q[1]+q[3]+glyph;
+        for(let start=0;start<n;start++){
+          if(safe[start]||labels[start])continue;
+          const label=parts.length+1;let head=0,tail=1,l=w,t=h,r=0,b=0,edge=false;
+          queue[0]=start;labels[start]=label;
+          while(head<tail){
+            const i=queue[head++],x=i%w,y=i/w|0;l=Math.min(l,x);r=Math.max(r,x);t=Math.min(t,y);b=Math.max(b,y);
+            edge ||= x===0||y===0||x===w-1||y===h-1;
+            for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
+              const j=yy*w+xx;if(!safe[j]&&!labels[j]){labels[j]=label;queue[tail++]=j;}
+            }
+          }
+          parts.push({label,l,t,r,b,count:tail,edge,barrier:edge&&Math.max(r-l+1,b-t+1)>glyph*2&&tail>=glyph*2});
+        }
+        const candidates=parts.filter(p=>!p.edge&&Math.max(p.r-p.l+1,p.b-p.t+1)>=glyph*.35&&
+          Math.max(p.r-p.l+1,p.b-p.t+1)<=glyph*2&&p.count>=glyph*glyph*.05&&core.some(q=>near(p,q)));
+        if(candidates.length<2)return false;
+        if(candidates.length>256)return true;
+        const barriers=new Set(parts.filter(p=>p.barrier).map(p=>p.label)),reachable=new Uint8Array(n);
+        let head=0,tail=0,seedBudget=n*2;
+        for(const q of core)for(let y=Math.max(0,Math.floor(q[1]));y<Math.min(h,Math.ceil(q[1]+q[3]));y++)
+          for(let x=Math.max(0,Math.floor(q[0]));x<Math.min(w,Math.ceil(q[0]+q[2]));x++){
+            if(--seedBudget<0)return true;const i=y*w+x;if(!reachable[i]&&!barriers.has(labels[i])){reachable[i]=1;queue[tail++]=i;}
+          }
+        while(head<tail){
+          const i=queue[head++],x=i%w,y=i/w|0;
+          for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
+            const j=yy*w+xx;if(!reachable[j]&&!barriers.has(labels[j])){reachable[j]=1;queue[tail++]=j;}
+          }
+        }
+        const visible=new Set();for(let i=0;i<n;i++)if(reachable[i]&&labels[i])visible.add(labels[i]);
+        const lettering=candidates.filter(p=>visible.has(p.label));
+        for(let i=0;i<lettering.length;i++)for(let j=i+1;j<lettering.length;j++){
+          const a=lettering[i],b=lettering[j];
+          const aligned=vertical?Math.min(a.r,b.r)>=Math.max(a.l,b.l)-glyph*.12:Math.min(a.b,b.b)>=Math.max(a.t,b.t)-glyph*.12;
+          const gap=vertical?Math.max(a.t,b.t)-Math.min(a.b,b.b):Math.max(a.l,b.l)-Math.min(a.r,b.r);
+          const span=vertical?Math.max(a.b,b.b)-Math.min(a.t,b.t)+1:Math.max(a.r,b.r)-Math.min(a.l,b.l)+1;
+          if(aligned&&gap<=glyph&&span>=glyph*.75&&(a.count+b.count)>=glyph*glyph*.1)return true;
+        }
+        return false;
+      };
+      // This bounded fallback preserves unannotated exterior reading instead
+      // of covering the illustration with a whole opaque card. It is never a
+      // certificate for that card's full rectangle or a neighboring source.
+      let partialProofBudget=2097152;
+      mount.appendChild(measurementHost);
+      const preservedArtRetries=[],residualRetries=[];
+      try {for(let pass=0;pass<3;pass++)for(const pending of pass===2?residualRetries:pass===1?preservedArtRetries:partialErasureCandidates){
+        const {item,c,id,node,core,glyph}=pending;
+        const entry=typographyEntries.find(e=>e.id===item.id);
+        if(!entry||!plates.has(id)||!c.erasureComplete||certifiedErasure.has(item)||
+            c.w*c.h>partialProofBudget)continue;
+        partialProofBudget-=c.w*c.h;
+        if(item.sourceVertical&&!item.sourceSingleColumn&&
+            aidokuHasAttachedLeadingInk(c.safe,c.w,c.h,core,glyph))continue;
+        if(aidokuHasLargePartialResidual(c.safe,c.w,c.h,core,glyph,Boolean(item.sourceVertical))){
+          node.dataset.partialResidualRejected='large-reading';continue;
+        }
+        const strictCoreClear=aidokuMainbodyCellsClear(c.safe,c.w,c.h,core);
+        if(!c.sourceErasureVerified&&!strictCoreClear){
+          if(!c.sourceGlyphsVerified){
+              if(core.slice(1).some(a=>!aidokuMainbodyCellsClear(c.safe,c.w,c.h,[a])))continue;
+              if(!(Number.isFinite(c.sourceRemainingInk)&&c.sourceRemainingInk<=Math.min(96,c.sourceCorePixels*.08)))continue;
+              if(pass<2){residualRetries.push(pending);continue;}
+            }
+          // Previously accepted partial fits retain first choice of space.
+          if(pass===0){preservedArtRetries.push(pending);continue;}
+        }
+        // Do not expose a provisional partial proof to prior full-fit decisions.
+        // fitBalloon rolls geometry back on failure; restore proof flags too.
+        const previousPolicy=node.dataset.sourceErasurePolicy;
+        const previousPartial=c.partialErasureCertified;
+        node.dataset.sourceErasurePolicy='auxiliary-original-preserved';
+        c.partialErasureCertified=true;
+        let fitted=false;
+            try {fitted=entry.fitBalloon()||entry.fitBalloon(true);} catch(_){}
+            if(!fitted){
+          if(previousPolicy===undefined)delete node.dataset.sourceErasurePolicy;
+          else node.dataset.sourceErasurePolicy=previousPolicy;
+          if(previousPartial===undefined)delete c.partialErasureCertified;
+          else c.partialErasureCertified=previousPartial;
+          continue;
+        }
+        certifiedErasure.add(item);plates.delete(id);
+        node.dataset.sourceErasureRestored='partial-mainbody';
+        node.dataset.partialMainbodyProof=strictCoreClear?'all-core-safe':c.sourceErasureVerified?'owned-glyph-mask':c.sourceGlyphsVerified?'resolved-body-preserved-art':'residual-specks-preserved';
+        // An owned glyph mask can contain illustration inside its OCR box.
+        // Only strict cell proof may advertise rectangular released coverage.
+        const f=cleanupImageGeometry?.frame||item.sourceFrame;
+        node.dataset.sourceErasureReleased=JSON.stringify(strictCoreClear?
+          [item.sourceBounds,...(item.auxiliaryInkRects||[])].map(b=>
+            [f[0]+b[0]*f[2],f[1]+b[1]*f[3],b[2]*f[2],b[3]*f[3]]):[]);
+        const range=document.createRange();range.selectNodeContents(node);
+        inks.set(id,rect(range.getBoundingClientRect()));
+      }} finally {measurementHost.remove();}
+            // Retry remaining opaque captions against a larger paper component.
+          // Existing successful layouts have already committed their positions.
+          mount.appendChild(measurementHost);
+          try {for(const item of items){
+            const id=String(item.id),node=nodes.get(id),c=restoredPanelGeometry.get(item),entry=typographyEntries.find(e=>e.id===item.id);
+            if(!node||!c||!entry||!plates.has(id)||item.rotation||paperProposalBudget<1024)continue;
+            const f=cleanupImageGeometry?.frame||item.sourceFrame,b=item.sourceBounds,iw=sourceImage.naturalWidth,ih=sourceImage.naturalHeight;
+            const bx=Math.max(0,Math.floor(b[0]*iw)-96),by=Math.max(0,Math.floor(b[1]*ih)-96),br=Math.min(iw,Math.ceil((b[0]+b[2])*iw)+96),bb=Math.min(ih,Math.ceil((b[1]+b[3])*ih)+96),w=br-bx,h=bb-by;
+            if(w*h>Math.min(262144,paperProposalBudget))continue;paperProposalBudget-=w*h;
+            let rgba;
+            try {cleanupCanvas.width=w;cleanupCanvas.height=h;cleanupContext.drawImage(sourceImage,bx,by,w,h,0,0,w,h);
+              rgba=cleanupContext.getImageData(0,0,w,h).data;} catch(_){continue;}
+            const aux=(item.auxiliaryInkRects||[]).map(a=>[a[0]*iw-bx,a[1]*ih-by,a[2]*iw,a[3]*ih]);
+            const excluded=items.filter(other=>other!==item).flatMap(other=>[other.sourceBounds,...(other.auxiliaryInkRects||[])]).filter(Array.isArray).map(a=>[a[0]*iw-bx,a[1]*ih-by,a[2]*iw,a[3]*ih]);
+            const core=[[(b[0]*iw-bx),(b[1]*ih-by),b[2]*iw,b[3]*ih],...aux];
+            const result=aidokuEnclosedPaperRestore(rgba,w,h,core[0],{auxiliary:aux,excluded});
+            if(!result)continue;
+            if(!aidokuOutlineSourceResolved({w,h,safe:result.layoutSafe,iw,sx:1,frame:f,sourceGlyphsVerified:true,sourceErasureVerified:result.sourceErasureVerified},core))continue;
+            const glyph=Math.max(4,(Number(item.sourceFontSize)||parseFloat(node.style.fontSize))*iw/f[2]);
+            if(item.sourceVertical&&!item.sourceSingleColumn&&aidokuHasAttachedLeadingInk(result.layoutSafe,w,h,core,glyph)||aidokuHasLargePartialResidual(result.layoutSafe,w,h,core,glyph,Boolean(item.sourceVertical)))continue;
+            const nextCanvas=document.createElement('canvas');nextCanvas.width=w;nextCanvas.height=h;
+            const ctx=nextCanvas.getContext('2d');if(!ctx)continue;const im=ctx.createImageData(w,h);im.data.set(result.rgba);ctx.putImageData(im,0,0);
+            nextCanvas.setAttribute('data-aidoku-image-ocr-overlay','source-panel-restoration');
+            Object.assign(nextCanvas.style,{position:'absolute',zIndex:'1',pointerEvents:'none',visibility:'hidden',left:`${f[0]+bx/iw*f[2]+scrollX}px`,top:`${f[1]+by/ih*f[3]+scrollY}px`,width:`${w/iw*f[2]}px`,height:`${h/ih*f[3]}px`});
+            nextCanvas.style.clipPath=aidokuCleanupClip(cleanupImageGeometry,f[0]+bx/iw*f[2],f[1]+by/ih*f[3],w/iw*f[2],h/ih*f[3]);
+            const luminance=new Uint8Array(w*h),linear=v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4},lookup=new Float64Array(256);for(let v=0;v<256;v++)lookup[v]=linear(v);
+            for(let i=0;i<w*h;i++){const p=result.rgba[i*4+3]?result.rgba:rgba;luminance[i]=Math.round(255*(.2126*lookup[p[i*4]]+.7152*lookup[p[i*4+1]]+.0722*lookup[p[i*4+2]]))}
+            const saved={...c},policy=node.dataset.sourceErasurePolicy;
+            Object.assign(c,{canvas:nextCanvas,safe:result.layoutSafe,luminance,w,h,x:bx,y:by,frame:f,iw,ih,sx:1,sy:1,surfaceQuality:result.surfaceQuality,sourceGlyphsVerified:true,sourceErasureVerified:result.sourceErasureVerified,erasureComplete:true,partialErasureCertified:true,provisional:true,surfaceRevision:(c.surfaceRevision||0)+1});
+            node.dataset.sourceErasurePolicy='auxiliary-original-preserved';root.appendChild(nextCanvas);
+            let fitted=false;
+            try {fitted=entry.fitBalloon()||entry.fitBalloon(true);} catch(_){}
+            if(!fitted){
+              const revision=c.surfaceRevision;for(const key of Object.keys(c))delete c[key];Object.assign(c,saved,{surfaceRevision:revision+1});nextCanvas.remove();
+              if(policy===undefined)delete node.dataset.sourceErasurePolicy;else node.dataset.sourceErasurePolicy=policy;
+              continue;
+            }
+            saved.canvas.remove();nextCanvas.style.visibility='';c.provisional=false;plates.delete(id);
+            node.dataset.sourceErasureRestored='partial-mainbody';node.dataset.partialMainbodyProof='enclosed-paper-ink';node.dataset.sourceErasureReleased='[]';
+            const range=document.createRange();range.selectNodeContents(node);inks.set(id,rect(range.getBoundingClientRect()));
+          }} finally {measurementHost.remove();}
+
+          // A high-contrast glyph outline can replace a whole opaque card once
+          // owned source lettering is gone. It does not reconstruct or flatten art.
+          for(const item of items){
+            const id=String(item.id),node=nodes.get(id),c=restoredPanelGeometry.get(item),plate=plates.get(id);
+            if(!node||!c?.erasureComplete||!plate||item.rotation||item.sourceTextOnly!==false)continue;
+
+            const f=cleanupImageGeometry?.frame||item.sourceFrame,b=item.sourceBounds;
+            const core=[b,...(item.auxiliaryInkRects||[])].map(a=>[(a[0]*c.iw-c.x)*c.sx,(a[1]*c.ih-c.y)*c.sy,a[2]*c.iw*c.sx,a[3]*c.ih*c.sy]);
+            if(!aidokuOutlineSourceResolved(c,core))continue;
+            const size=parseFloat(node.style.fontSize),glyph=Math.max(4,(Number(item.sourceFontSize)||size)*c.iw/f[2]*c.sx);
+            if(size<7||node.scrollHeight>node.clientHeight+1||node.scrollWidth>node.clientWidth+1||
+                item.sourceVertical&&!item.sourceSingleColumn&&aidokuHasAttachedLeadingInk(c.safe,c.w,c.h,core,glyph)||
+                aidokuHasLargePartialResidual(c.safe,c.w,c.h,core,glyph,Boolean(item.sourceVertical)))continue;
+            const range=document.createRange();range.selectNodeContents(node);const ink=range.getBoundingClientRect();
+            const source={left:f[0]+b[0]*f[2],top:f[1]+b[1]*f[3],width:b[2]*f[2],height:b[3]*f[3]};
+            const cx=source.left+source.width/2,cy=source.top+source.height/2;
+            if(Math.hypot(ink.left+ink.width/2-cx,ink.top+ink.height/2-cy)>12||
+                ink.left<source.left-12||ink.right>source.left+source.width+12||ink.top<source.top-12||ink.bottom>source.top+source.height+12||
+                ink.width*ink.height>Math.max(200,source.width*source.height*1.8))continue;
+            let collision=false;
+            for(const other of nodes.values()){
+              if(other===node)continue;const r=document.createRange();r.selectNodeContents(other);const q=r.getBoundingClientRect();
+              if(ink.left-1<q.right&&ink.right+1>q.left&&ink.top-1<q.bottom&&ink.bottom+1>q.top){collision=true;break;}
+            }
+            if(collision)continue;
+            const oldPlate=plate.getBoundingClientRect();
+            if(items.some(other=>{
+              if(other===item)return false;
+              const f=cleanupImageGeometry?.frame||other.sourceFrame;
+              const overlaps=[other.sourceBounds,...(other.auxiliaryInkRects||[])].some(a=>f&&a&&
+                f[0]+a[0]*f[2]<oldPlate.right&&f[0]+(a[0]+a[2])*f[2]>oldPlate.left&&
+                f[1]+a[1]*f[3]<oldPlate.bottom&&f[1]+(a[1]+a[3])*f[3]>oldPlate.top);
+              if(!overlaps)return false;
+              const d=restoredPanelGeometry.get(other);
+              return !d?.sourceErasureVerified||d.provisional||d.partialErasureCertified||!d.canvas?.isConnected;
+            }))continue;
+            const foreground=node.dataset.sourceAppliedTextRGB?.split(',').map(Number);if(foreground?.length!==3||!foreground.every(Number.isFinite))continue;
+            const L=aidokuSourceColorLuminance(foreground),black=(L+.05)/.05,white=1.05/(L+.05);
+            let stroke=white>=black?[255,255,255]:[0,0,0];
+            const observed=node.dataset.sourceSampledStrokeRGB?.split(',').map(Number);
+            const contrast=color=>{const x=aidokuSourceColorLuminance(color);return (Math.max(x,L)+.05)/(Math.min(x,L)+.05)};
+            if(observed?.length===3&&observed.every(Number.isFinite)&&contrast(observed)>=7)stroke=observed;
+            if(contrast(stroke)<7)continue;
+            node.style.webkitTextStrokeWidth=`${Math.max(.55,Math.min(.9,size*.065))}px`;
+            node.style.webkitTextStrokeColor=`rgb(${stroke.join(',')})`;node.style.paintOrder='stroke fill';
+            node.dataset.sourceAppliedStrokeRGB=stroke.join(',');node.dataset.sourceTextOutline='true';node.dataset.sourceStrokeColor='readability-outline';
+            node.dataset.sourceOutlineContrast=String(contrast(stroke));node.dataset.sourceBackgroundColor='inpainted';node.dataset.sourceAppliedBackgroundRGB='';
+            delete node.dataset.sourcePanelSurfaceLuminance;node.dataset.sourceErasurePolicy='auxiliary-original-preserved';
+            node.dataset.sourceErasureRestored='partial-mainbody';node.dataset.partialMainbodyProof='outlined-source-position';node.dataset.sourceErasureReleased='[]';
+            c.partialErasureCertified=true;plate.remove();plates.delete(id);readabilityPanels--;
+            for(const layer of root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-backing"]'))if(layer.dataset.aidokuRegion===id)layer.remove();
+            inks.set(id,rect(ink));
+          }
+
+    for(const item of items){
         const id=String(item.id),node=nodes.get(id),panel=plates.get(id),ink=inks.get(id);
         if(!node||!panel||item.balancedColumn||item.sourceTextOnly!==false)continue;
         const frame=cleanupImageGeometry?.frame||item.sourceFrame;
@@ -2911,6 +3345,55 @@ final class BrowserPageImageOverlayRenderer {
         node.dataset.sourceContrastAfter=String(contrast(adjusted));
       }
     }
+    for(const [item,c] of restoredPanelGeometry){
+      if(!c.canvas?.dataset.localRestorationProposal)continue;
+      const n=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).find(n=>n.dataset.aidokuRegion===String(item.id));
+      if(n?.dataset.sourceBackgroundColor==='inpainted'){c.provisional=false;c.canvas.style.visibility='';n.dataset.localRestorationCommitted='true';}
+      else c.canvas.remove();
+    }
+    // Oversized failed source restoration must not replace most of an illustration.
+    {
+      for(const item of items){
+        if(item.rotation||restoredPanelGeometry.has(item))continue;
+        const b=item.sourceBounds,f=cleanupImageGeometry?.frame||item.sourceFrame;
+        if(!Array.isArray(b)||!Array.isArray(f)||b.length!==4||f.length!==4||!b.every(Number.isFinite)||!f.every(Number.isFinite)||
+           b[2]<=0||b[3]<=0||f[2]<=0||f[3]<=0||b[2]*b[3]<.22)continue;
+        const id=String(item.id),node=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).find(n=>n.dataset.aidokuRegion===id);
+        if(!node||node.textContent.length>120)continue;
+        const range=document.createRange();range.selectNodeContents(node);let ink=range.getBoundingClientRect();
+        if(ink.width<=0||ink.height<=0||b[2]*f[2]*b[3]*f[3]<ink.width*ink.height*8)continue;
+        const covers=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"], [data-aidoku-image-ocr-overlay="source-readability-backing"]')).filter(p=>p.dataset.aidokuRegion===id);
+        if(!covers.length)continue;
+        const obstacles=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).filter(n=>n!==node).map(n=>{
+          const r=document.createRange();r.selectNodeContents(n);return r.getBoundingClientRect();
+        });
+        const intersects=(a,b)=>a.left-3<b.right&&a.right+3>b.left&&a.top-3<b.bottom&&a.bottom+3>b.top;
+        if(obstacles.some(r=>intersects(ink,r))){
+          const limit=Math.min(72,b[3]*f[3]*.15),step=ink.height+8;
+          let shift=null;
+          for(let k=1;k<=4&&shift===null;k++)for(const direction of [1,-1]){
+            const dy=direction*k*step;if(Math.abs(dy)>limit)continue;
+            const next={left:ink.left,right:ink.right,top:ink.top+dy,bottom:ink.bottom+dy};
+            if(next.top<f[1]+4||next.bottom>f[1]+f[3]-4||obstacles.some(r=>intersects(next,r)))continue;
+            shift=dy;break;
+          }
+          if(shift===null)continue;
+          node.style.top=`${parseFloat(node.style.top)+shift}px`;
+          range.selectNodeContents(node);ink=range.getBoundingClientRect();
+          node.dataset.sourcePreservedCaptionShift=String(shift);
+        }
+        const changed=[];
+        for(const panel of covers){
+          if(Array.from(panel.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).some(n=>n!==node))continue;
+          const p=panel.getBoundingClientRect(),l=Math.max(p.left,ink.left-4),t=Math.max(p.top,ink.top-4),r=Math.min(p.right,ink.right+4),d=Math.min(p.bottom,ink.bottom+4);
+          if(r<=l||d<=t)continue;
+          Object.assign(panel.style,{left:`${l+scrollX}px`,top:`${t+scrollY}px`,width:`${r-l}px`,height:`${d-t}px`,clipPath:''});
+          panel.dataset.panelCoverage=JSON.stringify([[l,t,r-l,d-t]]);
+          panel.dataset.captionUnionClipped='true';panel.dataset.sourcePreservedCaption='oversized-unrestored';changed.push(panel);
+        }
+        if(changed.length){node.dataset.sourceErasurePreserved='oversized-unrestored';node.dataset.sourceBackgroundColor='source-preserved-caption';}
+      }
+    }
     // Commit each opaque caption as one rectangle and one stacking context.
     // Source erasure and text must never remain independently positioned siblings.
     // Keep the already selected palette; this pass changes geometry only.
@@ -2952,26 +3435,128 @@ final class BrowserPageImageOverlayRenderer {
           merged=true;break outer;
         }
       }
-      const partition=(members,box)=>{
+      const partition=(members,box,invert=false)=>{
         if(members.length===1){members[0].box=box;return;}
         const spreadX=Math.max(...members.map(c=>c.centerX))-Math.min(...members.map(c=>c.centerX));
         const spreadY=Math.max(...members.map(c=>c.centerY))-Math.min(...members.map(c=>c.centerY));
-        const horizontal=spreadX/Math.max(1,box.right-box.left)>=spreadY/Math.max(1,box.bottom-box.top);
+        const preferred=spreadX/Math.max(1,box.right-box.left)>=spreadY/Math.max(1,box.bottom-box.top);
+        const horizontal=invert?!preferred:preferred;
         const key=horizontal?'centerX':'centerY';
         members.sort((a,b)=>a[key]-b[key]);
         const middle=Math.floor(members.length/2),first=members.slice(0,middle),last=members.slice(middle);
         const low=horizontal?box.left:box.top,high=horizontal?box.right:box.bottom;
         const ideal=(first[first.length-1][key]+last[0][key])/2;
         const cut=Math.max(low+(high-low)*.15,Math.min(high-(high-low)*.15,ideal));
-        partition(first,{...box,[horizontal?'right':'bottom']:cut});
-        partition(last,{...box,[horizontal?'left':'top']:cut});
+        partition(first,{...box,[horizontal?'right':'bottom']:cut},invert);
+        partition(last,{...box,[horizontal?'left':'top']:cut},invert);
       };
-      for(const group of groups)if(group.members.length>1){
-        partition(group.members,group.box);
-        for(const caption of group.members)caption.panel.style.borderRadius='0px';
+      // Measure at the readability floor before mutating any final group.
+      // A failed partition keeps its complete prior DOM and erasure surfaces.
+      let captionMeasurementBudget=512,captionPreflightFallbacks=0;
+      const skippedCaptions=new Set();
+      const prepareCaptionText=(node,item)=>{
+        if(node.dataset.koreanLineLayout==='word-aware'&&node.children.length){
+          const wrapper=document.createElement('div');
+          wrapper.dataset.captionPreservedLines='true';
+          Object.assign(wrapper.style,{display:'block',width:'100%',flex:'0 0 auto'});
+          while(node.firstChild)wrapper.appendChild(node.firstChild);
+          node.appendChild(wrapper);
+        }else if(item&&!item.vertical)node.textContent=item.text;
+      };
+      // Artwork fitting may already have shrunk this text. A second smaller
+      // floor must not unlock a different opaque group packing and displace
+      // neighboring captions. Keep packing tied to its original readable size.
+      const opaqueCaptionFloor=node=>{
+        const size=parseFloat(node.style.fontSize);
+        const original=Math.max(size,Number(node.dataset.artworkOriginalFont)||size);
+        return aidokuCaptionFontFloor(original,minimumFontSize);
+      };
+      // Probes restore their DOM in finally, so all candidate groups can share
+      // the same original obstacle geometry without repeated WebKit layout reads.
+      const packingValid=new Set();
+      const packingInks=new Map(Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).map(node=>{
+        const range=document.createRange();range.selectNodeContents(node);const r=range.getBoundingClientRect(),box=node.getBoundingClientRect();
+        // Preserve an accepted position, not a broken overflowing layout which
+        // this final pass must repair before it can become readable.
+        if(node.scrollWidth<=node.clientWidth+1&&node.scrollHeight<=node.clientHeight+1&&
+            r.left>=box.left-1&&r.top>=box.top-1&&r.right<=box.right+1&&r.bottom<=box.bottom+1)packingValid.add(node);
+        return [node,[r.left,r.top,r.width,r.height]];
+      }));
+      const probeCell=(caption,box)=>{
+        if(captionMeasurementBudget--<=0)return false;
+        const {node,panel,range,pad}=caption,item=items.find(item=>String(item.id)===node.dataset.aidokuRegion);
+        const size=parseFloat(node.style.fontSize),floor=caption.repartitioning?opaqueCaptionFloor(node):aidokuCaptionFontFloor(size,minimumFontSize);
+        if(!floor||floor>size+.01)return false;
+        const originalInk=packingInks.get(node);
+        const saved={node:node.style.cssText,panel:panel.style.cssText,children:Array.from(node.childNodes),
+          parent:node.parentNode,next:node.nextSibling};
+        const ratio=parseFloat(node.style.lineHeight)/size||1.2;
+        try {
+          Object.assign(panel.style,{left:`${box.left+scrollX}px`,top:`${box.top+scrollY}px`,
+            width:`${box.right-box.left}px`,height:`${box.bottom-box.top}px`});
+          prepareCaptionText(node,item);
+          Object.assign(node.style,{left:'0px',top:'0px',width:'100%',height:'100%',padding:`${pad}px`,
+            display:'flex',alignItems:'center',justifyContent:'center',fontSize:`${floor}px`,lineHeight:`${floor*ratio}px`});
+          panel.appendChild(node);range.selectNodeContents(node);const r=range.getBoundingClientRect();
+          if(caption.repartitioning&&packingValid.has(node)){
+            const b=item?.sourceBounds,f=cleanupImageGeometry?.frame||item?.sourceFrame;
+            if(Array.isArray(b)&&Array.isArray(f)&&b.length===4&&f.length===4&&
+                b.every(Number.isFinite)&&f.every(Number.isFinite)&&b[2]>0&&b[3]>0&&f[2]>0&&f[3]>0&&originalInk){
+              const source=[f[0]+b[0]*f[2],f[1]+b[1]*f[3],b[2]*f[2],b[3]*f[3]];
+              const sx=source[0]+source[2]/2,sy=source[1]+source[3]/2;
+              const oldDistance=Math.hypot(originalInk[0]+originalInk[2]/2-sx,originalInk[1]+originalInk[3]/2-sy);
+              const obstacles=Array.from(packingInks).filter(([other,a])=>other!==node&&a[2]>0&&a[3]>0).map(([,a])=>a);
+              const ink=[r.left,r.top,r.width,r.height];
+              const shift=aidokuSourceAnchorShift(ink,source,[box.left,box.top,box.right-box.left,box.bottom-box.top],obstacles);
+              const distance=Math.hypot(r.left+r.width/2+(shift?.dx||0)-sx,r.top+r.height/2+(shift?.dy||0)-sy);
+              const tolerance=Math.max(4,Math.min(8,Math.min(source[2],source[3])*.15));
+              if(distance>oldDistance+tolerance)return false;
+            }
+          }
+          return r.width>0&&r.height>0&&r.left>=box.left+pad-.5&&r.right<=box.right-pad+.5&&
+            r.top>=box.top+pad-.5&&r.bottom<=box.bottom-pad+.5;
+        }finally{
+          node.replaceChildren(...saved.children);node.style.cssText=saved.node;panel.style.cssText=saved.panel;
+          saved.parent.insertBefore(node,saved.next?.parentNode===saved.parent?saved.next:null);
+        }
+      };
+      for(const group of groups){
+        for(const caption of group.members)caption.repartitioning=group.members.length>1;
+        const footprints=group.members.map(c=>({...c.box}));
+        let selected=null;
+        for(const invert of (group.members.length>1?[false,true]:[false])){
+          partition([...group.members],group.box,invert);
+          if(group.members.every(c=>probeCell(c,c.box))){
+            selected=group.members.map(c=>({...c.box}));break;
+          }
+        }
+        if(!selected){
+          for(let i=0;i<group.members.length;i++){
+            const caption=group.members[i];caption.box=footprints[i];skippedCaptions.add(caption);
+            caption.node.dataset.unifiedCaptionFit=captionMeasurementBudget<0?'budget-preserved':'floor-preserved';
+          }
+          captionPreflightFallbacks++;continue;
+        }
+        for(let i=0;i<group.members.length;i++){
+          const caption=group.members[i];caption.box=selected[i];
+          if(group.members.length>1)caption.panel.style.borderRadius='0px';
+          const cell=caption.box;
+          const covered=footprints.map(b=>({left:Math.max(b.left,cell.left),top:Math.max(b.top,cell.top),
+            right:Math.min(b.right,cell.right),bottom:Math.min(b.bottom,cell.bottom)}))
+            .filter(b=>b.right>b.left&&b.bottom>b.top);
+          if(!covered.length)continue;
+          caption.requiredCoverage=covered;
+          const compact=union(covered);
+          if((compact.right-compact.left)*(compact.bottom-compact.top)<
+              (cell.right-cell.left)*(cell.bottom-cell.top)-1)caption.compactBox=compact;
+        }
       }
+      root.dataset.captionPreflightFallbacks=String(captionPreflightFallbacks);
+      root.dataset.captionPreflightMeasurements=String(512-Math.max(0,captionMeasurementBudget));
       for(const caption of captions){
-        const {node,panel,owned,range,pad,box:{left,top,right,bottom}}=caption;
+        if(skippedCaptions.has(caption))continue;
+        const {node,panel,owned,range,pad}=caption;
+        let {left,top,right,bottom}=caption.compactBox||caption.box;
         const size=parseFloat(node.style.fontSize),ratio=parseFloat(node.style.lineHeight)/size||1.2;
         Object.assign(panel.style,{left:`${left+scrollX}px`,top:`${top+scrollY}px`,
           width:`${right-left}px`,height:`${bottom-top}px`,zIndex:'2',
@@ -2981,8 +3566,8 @@ final class BrowserPageImageOverlayRenderer {
         // Reflow the original displayed content into the owner's entire inner
         // rectangle, instead of retaining a narrow, displaced text-only strip.
         const item=items.find(item=>String(item.id)===node.dataset.aidokuRegion);
-        if(item&&!item.vertical)node.textContent=item.text;
-        const content={left:left+pad,top:top+pad,right:right-pad,bottom:bottom-pad};
+        prepareCaptionText(node,item);
+        let content={left:left+pad,top:top+pad,right:right-pad,bottom:bottom-pad};
         Object.assign(node.style,{left:'0px',top:'0px',width:'100%',height:'100%',
           padding:`${content.top-top}px ${right-content.right}px ${bottom-content.bottom}px ${content.left-left}px`,zIndex:'auto',backgroundColor:'transparent',backgroundImage:'none',
           display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'});
@@ -2995,8 +3580,21 @@ final class BrowserPageImageOverlayRenderer {
           return r.left>=content.left-.5&&r.right<=content.right+.5&&
             r.top>=content.top-.5&&r.bottom<=content.bottom+.5;
         };
+        // Compaction may remove only unnecessary background, never trade
+        // readable type for less coverage. Keep the original partition when
+        // its smaller candidate cannot contain the already selected font.
+        if(caption.compactBox&&!fits()){
+          ({left,top,right,bottom}=caption.box);
+          content={left:left+pad,top:top+pad,right:right-pad,bottom:bottom-pad};
+          Object.assign(panel.style,{left:`${left+scrollX}px`,top:`${top+scrollY}px`,
+            width:`${right-left}px`,height:`${bottom-top}px`});
+          panel.dataset.panelCoverage=JSON.stringify([[left,top,right-left,bottom-top]]);
+        }else if(caption.compactBox){
+          panel.dataset.captionCompactOriginal=JSON.stringify(caption.box);
+          node.dataset.captionCompactOriginal=panel.dataset.captionCompactOriginal;
+        }
         if(!fits()){
-          let lower=Math.min(size,5),upper=size;
+          let lower=caption.repartitioning?opaqueCaptionFloor(node):aidokuCaptionFontFloor(size,minimumFontSize),upper=size;
           for(let step=0;step<10;step++){
             const candidate=(lower+upper)/2;
             node.style.fontSize=`${candidate}px`;node.style.lineHeight=`${candidate*ratio}px`;
@@ -3007,8 +3605,224 @@ final class BrowserPageImageOverlayRenderer {
         node.dataset.unifiedCaption='true';
         node.dataset.sourcePanelCoverage=panel.dataset.panelCoverage;
       }
+      // Rectangle partitioning and the final font fit above can undo the
+      // earlier source anchor. Anchor the actual final ink only after every
+      // caption has its final cell; keep source erasure and cell bounds fixed.
+      const sourceRect=item=>{
+        const b=item.sourceBounds,f=cleanupImageGeometry?.frame||item.sourceFrame;
+        return Array.isArray(b)&&Array.isArray(f)&&b.length===4&&f.length===4&&
+          b.every(Number.isFinite)&&f.every(Number.isFinite)&&b[2]>0&&b[3]>0&&f[2]>0&&f[3]>0
+          ? [f[0]+b[0]*f[2],f[1]+b[1]*f[3],b[2]*f[2],b[3]*f[3]] : null;
+      };
+      const finalInks=new Map(Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).map(node=>{
+        const range=document.createRange();range.selectNodeContents(node);const r=range.getBoundingClientRect();
+        return [node.dataset.aidokuRegion,[r.left,r.top,r.width,r.height]];
+      }));
+      const finalSources=new Map(items.flatMap(item=>{
+        const source=sourceRect(item);return source?[[String(item.id),source]]:[];
+      }));
+      for(const caption of captions){
+        if(skippedCaptions.has(caption))continue;
+        const {node,panel,range}=caption,id=node.dataset.aidokuRegion;
+        const item=items.find(item=>String(item.id)===id),source=finalSources.get(id),ink=finalInks.get(id);
+        if(!item||!source||item.vertical||item.rotation||item.balancedColumn)continue;
+        const p=panel.getBoundingClientRect();
+        const obstacles=[...finalInks,...finalSources].filter(([other,r])=>other!==id&&r[2]>0&&r[3]>0)
+          .map(([,r])=>r);
+        const shift=aidokuSourceAnchorShift(ink,source,[p.left,p.top,p.width,p.height],obstacles);
+        if(!shift)continue;
+        node.style.left=`${shift.dx}px`;node.style.top=`${shift.dy}px`;
+        range.selectNodeContents(node);const r=range.getBoundingClientRect();
+        const next=[r.left,r.top,r.width,r.height];
+        // The browser owns rounding; accept only the measured containment.
+        if(r.left<p.left+3-.04||r.top<p.top+3-.04||r.right>p.right-3+.04||r.bottom>p.bottom-3+.04){
+          node.style.left='0px';node.style.top='0px';continue;
+        }
+        node.dataset.finalSourceAnchorOriginalInk=JSON.stringify(ink);
+        node.dataset.finalSourceAnchorShift=JSON.stringify([shift.dx,shift.dy]);
+        finalInks.set(id,next);
+      }
+      // A partition's bounding box can cover empty corners which belonged to
+      // no original caption. Retain every old covered pixel and the final
+      // translated ink; release only the new empty space introduced by union.
+      // Never use OCR body bounds here: the old surface may own missed ruby.
+      for(const caption of captions){
+        if(skippedCaptions.has(caption)||!caption.requiredCoverage)continue;
+        const {node,panel,range}=caption,p=panel.getBoundingClientRect();
+        range.selectNodeContents(node);const ink=range.getBoundingClientRect();
+        const coverage=[...caption.requiredCoverage,{left:ink.left-3,top:ink.top-3,right:ink.right+3,bottom:ink.bottom+3}]
+          .map(b=>({left:Math.max(p.left,b.left),top:Math.max(p.top,b.top),
+            right:Math.min(p.right,b.right),bottom:Math.min(p.bottom,b.bottom)}))
+          .filter(b=>b.right>b.left&&b.bottom>b.top);
+        if(!coverage.length||coverage.length>257)continue;
+        const path=coverage.map(b=>`M ${b.left-p.left} ${b.top-p.top} H ${b.right-p.left} V ${b.bottom-p.top} H ${b.left-p.left} Z`).join(' ');
+        const clip=`path('${path}')`;
+        if(!CSS.supports('clip-path',clip))continue;
+        panel.style.clipPath=clip;
+        panel.dataset.panelCoverage=JSON.stringify(coverage.map(b=>[b.left,b.top,b.right-b.left,b.bottom-b.top]));
+        panel.dataset.captionUnionClipped='true';
+        node.dataset.sourcePanelCoverage=panel.dataset.panelCoverage;
+      }
+      // A rejected partition retains its readable lettering and all source
+      // erasure. It need not retain the empty bridge between detached text
+      // and its source. Preserve the same source margins and every neighbor's
+      // original/translated ink which the old surface was backing.
+      const bridgeNodes=new Map(Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'))
+        .map(n=>[n.dataset.aidokuRegion,n]));
+      const bridgeSourceRects=other=>{
+        const n=bridgeNodes.get(String(other.id));
+        if(n?.dataset.sourceErasurePreserved==='oversized-unrestored')return [];
+        const f=cleanupImageGeometry?.frame||other.sourceFrame;
+        if(!Array.isArray(f)||f.length!==4||!f.every(Number.isFinite))return [];
+        const pad=Math.max(typographyInkFrames.get(other)?.pad||0,Math.max(3,Math.min(6,(parseFloat(n?.style.fontSize)||10)*.3)));
+        const cross=Math.max(pad,Math.min(16,Number.isFinite(other.sourceFontSize)?other.sourceFontSize:pad));
+        const px=(other.sourceVertical?cross:pad)+.04,py=(other.sourceVertical?pad:cross)+.04;
+        return [other.sourceBounds,...(other.auxiliaryInkRects||[])].filter(b=>Array.isArray(b)&&b.length===4&&b.every(Number.isFinite)&&b[2]>0&&b[3]>0)
+          .map(b=>[f[0]+b[0]*f[2]-px,f[1]+b[1]*f[3]-py,b[2]*f[2]+2*px,b[3]*f[3]+2*py]);
+      };
+      const bridgeRequired=items.flatMap(bridgeSourceRects);
+      const bridgeInks=Array.from(finalInks.values()).filter(r=>r[2]>0&&r[3]>0).map(r=>[r[0]-3,r[1]-3,r[2]+6,r[3]+6]);
+      for(const caption of skippedCaptions){
+        const {node,owned}=caption;
+        const item=items.find(other=>String(other.id)===node.dataset.aidokuRegion);
+        if(!item||!sourceRect(item)||node.dataset.sourceErasurePreserved==='oversized-unrestored')continue;
+        const layers=[...owned,...backings.filter(p=>p.dataset.aidokuRegion===node.dataset.aidokuRegion)];
+        for(const layer of layers){
+          const p=layer.getBoundingClientRect();let original=[[p.left,p.top,p.width,p.height]];
+          try {
+            if(layer.dataset.captionUnionClipped==='true')original=JSON.parse(layer.dataset.panelCoverage);
+            else if(layer.dataset.aidokuImageOcrOverlay==='source-readability-backing'&&node.dataset.sourceTextBacking)
+              original=[JSON.parse(node.dataset.sourceTextBacking)];
+          }catch(_){continue;}
+          const coverage=[];
+          for(const r of [...bridgeRequired,...bridgeInks])for(const old of original){
+            const left=Math.max(r[0],old[0],p.left),top=Math.max(r[1],old[1],p.top);
+            const right=Math.min(r[0]+r[2],old[0]+old[2],p.right),bottom=Math.min(r[1]+r[3],old[1]+old[3],p.bottom);
+            if(right>left&&bottom>top)coverage.push([left,top,right-left,bottom-top]);
+          }
+          if(!coverage.length||coverage.length>512)continue;
+          const path=coverage.map(r=>`M ${r[0]-p.left} ${r[1]-p.top} h ${r[2]} v ${r[3]} h ${-r[2]} Z`).join(' ');
+          const clip=`path('${path}')`;if(!CSS.supports('clip-path',clip))continue;
+          layer.style.clipPath=clip;layer.dataset.panelCoverage=JSON.stringify(coverage);
+          layer.dataset.captionUnionClipped='true';layer.dataset.sourceBridgeClipped='true';
+          if(layer===caption.panel)node.dataset.sourcePanelCoverage=layer.dataset.panelCoverage;
+        }
+      }
     }
-    root.dataset.readabilityPanels=String(readabilityPanels);
+    // Geometry is now committed. Recheck the actual owning surface, then
+    // share one readable swatch across compatible source-color cohorts.
+    if(appearance?.preserveSourceTextColor&&opacity===1&&items.length<=256){
+      const finalColors=[];
+      const finalPanels=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]'));
+      const finalNodes=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'));
+      // Restored text must remain above opaque siblings added later in the pass.
+      for(const node of finalNodes){
+        if(node.parentElement===root&&node.dataset.sourceBackgroundColor==='inpainted')node.style.zIndex='3';
+      }
+      const valid=rgb=>Array.isArray(rgb)&&rgb.length===3&&rgb.every(v=>Number.isFinite(v)&&v>=0&&v<=255);
+      for(const item of items){
+        if(!item.sourceColorEligible||item.sourceTextOnly!==false||item.rotation)continue;
+        const node=finalNodes.find(n=>n.dataset.aidokuRegion===String(item.id));
+        if(!node)continue;
+        const ink=node.dataset.sourceAppliedTextRGB?.split(',').map(Number);
+        if(!valid(ink))continue;
+        const owner=node.parentElement;
+        const solid=owner?.dataset.aidokuImageOcrOverlay==='source-readability-panel';
+        let range=null,outline=null;
+        if(solid){
+          const background=owner.style.backgroundColor.match(/[0-9.]+/g)?.map(Number);
+          if(!valid(background))continue;
+          const luminance=aidokuSourceColorLuminance(background);range=[luminance,luminance];
+          // The original observed fill and outline are one visual style.
+          // Recover that pair only on an opaque, measured owner with enough
+          // padding for the thin stroke; small text keeps unobstructed counters.
+          const sample=cachedSourceSample(item),sourceInk=sample?.foreground;
+          if(valid(sourceInk)&&(sample?.confidence?.foreground||0)>=.55)
+            outline=aidokuReadableSourceOutline(sample,sourceInk,range,parseFloat(node.style.fontSize));
+        }else if(node.dataset.sourceBackgroundColor==='inpainted'&&node.dataset.sourcePanelSurfaceLuminance){
+          try {range=JSON.parse(node.dataset.sourcePanelSurfaceLuminance);}catch(_){}
+        }
+        if(node.dataset.partialMainbodyProof==='outlined-source-position'){
+              const stroke=node.dataset.sourceAppliedStrokeRGB?.split(',').map(Number);
+              if(valid(stroke)){
+                const a=aidokuSourceColorLuminance(ink),b=aidokuSourceColorLuminance(stroke);
+                const outlinedContrast=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+                if(outlinedContrast>=4.5){
+                  node.dataset.sourceFinalMinimumContrast=String(outlinedContrast);
+                  node.dataset.sourceContrastBasis='text-outline';
+                  continue;
+                }
+              }
+            }
+            if(!Array.isArray(range)||range.length!==2||!range.every(Number.isFinite))continue;
+        const overlappingSurfaces=[];
+        if(node.parentElement===root&&node.dataset.sourceBackgroundColor==='inpainted'){
+          const inkRange=document.createRange();inkRange.selectNodeContents(node);
+          const bounds=inkRange.getBoundingClientRect();
+          for(const panel of finalPanels){
+            const b=panel.getBoundingClientRect();
+            let coverage=[[b.left,b.top,b.width,b.height]];
+            if(panel.dataset.captionUnionClipped==='true')try {
+              const actual=JSON.parse(panel.dataset.panelCoverage);
+              if(Array.isArray(actual)&&actual.every(r=>Array.isArray(r)&&r.length===4&&r.every(Number.isFinite)))coverage=actual;
+            }catch(_){}
+            if(!coverage.some(r=>Math.min(r[0]+r[2],bounds.right)>Math.max(r[0],bounds.left)&&
+                Math.min(r[1]+r[3],bounds.bottom)>Math.max(r[1],bounds.top)))continue;
+            const rgb=panel.style.backgroundColor.match(/[0-9.]+/g)?.map(Number);
+            if(valid(rgb))overlappingSurfaces.push(aidokuSourceColorLuminance(rgb));
+          }
+        }
+        const contrast=rgb=>{
+          const luminance=aidokuSourceColorLuminance(rgb);
+          return Math.min(aidokuLuminanceContrast(luminance,...range),
+            ...overlappingSurfaces.map(surface=>aidokuLuminanceContrast(luminance,surface,surface)));
+        };
+        if(outline){
+          node.style.color=`rgb(${outline.foreground.join(',')})`;
+          node.style.webkitTextStrokeWidth=`${outline.width}px`;
+          node.style.webkitTextStrokeColor=`rgb(${outline.stroke.join(',')})`;
+          node.style.paintOrder='stroke fill';
+          node.dataset.sourceAppliedTextRGB=outline.foreground.join(',');
+          node.dataset.sourceAppliedStrokeRGB=outline.stroke.join(',');
+          node.dataset.sourceTextOutline='true';node.dataset.sourceStrokeColor='preserved';
+          node.dataset.sourceFinalMinimumContrast=String(outline.minimumContrast);
+          node.dataset.sourceTextColorAdjusted='false';
+          delete node.dataset.inkCluster;
+          continue;
+        }
+        const adjusted=aidokuAdjustInkForContrast(ink,contrast);
+        if(contrast(adjusted)>=4.5){
+          node.style.color=`rgb(${adjusted.join(',')})`;
+          node.dataset.sourceAppliedTextRGB=adjusted.join(',');
+          node.dataset.sourceFinalMinimumContrast=String(contrast(adjusted));
+          if(adjusted.some((v,i)=>v!==ink[i]))node.dataset.sourceTextColorAdjusted='true';
+        }
+        const cluster=node.dataset.inkCluster?.split(',').map(Number);
+        if(valid(cluster))finalColors.push({node,cluster,contrast});
+      }
+      const cohorts=new Map();
+      for(const entry of finalColors){
+        const key=entry.cluster.join(',');
+        if(!cohorts.has(key))cohorts.set(key,[]);
+        cohorts.get(key).push(entry);
+      }
+      for(const entries of cohorts.values()){
+        if(entries.length<2)continue;
+        const original=entries[0].cluster;
+        const contrast=rgb=>Math.min(...entries.map(e=>e.contrast(rgb)));
+        const shared=aidokuAdjustInkForContrast(original,contrast);
+        // Opposite-polarity backgrounds do not justify turning a source
+        // color into unrelated gray just to satisfy a shared cluster.
+        if(contrast(shared)<4.5||Math.max(...shared.map((v,i)=>Math.abs(v-original[i])))>32)continue;
+        for(const {node,contrast} of entries){
+          node.style.color=`rgb(${shared.join(',')})`;
+          node.dataset.sourceAppliedTextRGB=shared.join(',');
+          node.dataset.finalInkCluster=shared.join(',');
+          node.dataset.sourceFinalMinimumContrast=String(contrast(shared));
+        }
+      }
+    }
+    root.dataset.readabilityPanels=String(root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]').length);
     return {
       status: 'committed', revision: String(revision),
       itemCount: renderedItemCount

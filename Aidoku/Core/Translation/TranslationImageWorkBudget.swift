@@ -7,6 +7,7 @@ import Nuke
 final class TranslationImageWorkBudget: Sendable {
     static let shared = TranslationImageWorkBudget()
     static let minimumHeadroom: UInt64 = 1_280 * 1_024 * 1_024
+    private static let reclamationGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private let gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private let availableMemory: @Sendable () -> UInt64
 
@@ -23,7 +24,7 @@ final class TranslationImageWorkBudget: Sendable {
     @discardableResult
     static func reclaimIdleResources(
         requiredHeadroom: UInt64 = minimumHeadroom,
-        availableMemory: @Sendable () -> UInt64 = { ReaderTranslationSession.processAvailableMemory() }
+        availableMemory: @escaping @Sendable () -> UInt64 = { ReaderTranslationSession.processAvailableMemory() }
     ) async -> Bool {
         await reclaimIdleResources(requiredHeadroom: requiredHeadroom, availableMemory: availableMemory, purgeCaches: {
             await MainActor.run {
@@ -40,19 +41,28 @@ final class TranslationImageWorkBudget: Sendable {
     @discardableResult
     static func reclaimIdleResources(
         requiredHeadroom: UInt64,
-        availableMemory: @Sendable () -> UInt64,
-        purgeCaches: @Sendable () async -> Void,
-        purgeModels: @Sendable () async -> Void
+        availableMemory: @escaping @Sendable () -> UInt64,
+        purgeCaches: @escaping @Sendable () async -> Void,
+        purgeModels: @escaping @Sendable () async -> Void
     ) async -> Bool {
         // Another worker may have released its images after this caller failed
         // admission. Avoid evicting warm reader resources once pressure passed.
         guard !Task.isCancelled, availableMemory() < requiredHeadroom else { return false }
-        ReaderTranslationDiagnostics.record("memory_reclaim_begin")
-        defer { ReaderTranslationDiagnostics.record("memory_reclaim_end") }
-        await purgeCaches()
-        guard !Task.isCancelled, availableMemory() < requiredHeadroom else { return false }
-        await purgeModels()
-        return true
+        // Reader and download waiters share recovery too: after the first
+        // purge restores headroom, queued recoveries must recheck instead of
+        // evicting the newly warm caches/models again. Never hold image admission
+        // while waiting for this gate or for headroom to recover.
+        do {
+            return try await reclamationGate.withPermit {
+                guard !Task.isCancelled, availableMemory() < requiredHeadroom else { return false }
+                ReaderTranslationDiagnostics.record("memory_reclaim_begin")
+                defer { ReaderTranslationDiagnostics.record("memory_reclaim_end") }
+                await purgeCaches()
+                guard !Task.isCancelled, availableMemory() < requiredHeadroom else { return false }
+                await purgeModels()
+                return true
+            }
+        } catch { return false } // A cancelled waiter must not evict resources.
     }
 
     static func requiredHeadroom(decodedBytes: UInt64) -> UInt64 {

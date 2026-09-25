@@ -36,6 +36,10 @@ enum BrowserOverlayColumnLayout {
             guard row.count >= 2 else { continue }
             let rowSet = Set(row)
             let gap = 4 * scale
+            // OCR tops within one row may jitter by several pixels. Align
+            // inward, retaining each source bottom so this never increases
+            // the area offered to a caption or extends into adjacent artwork.
+            let rowTop = row.map { sources[$0].minY }.max()!
             var frames: [CGRect] = []
             for (offset, index) in row.enumerated() {
                 let source = sources[index]
@@ -46,8 +50,8 @@ enum BrowserOverlayColumnLayout {
                     (sources[row[offset - 1]].maxX + source.minX) / 2 + gap / 2
                 let right = offset == row.count - 1 ? source.maxX + edge :
                     (source.maxX + sources[row[offset + 1]].minX) / 2 - gap / 2
-                frames.append(CGRect(x: max(bounds.minX, left), y: source.minY,
-                    width: min(bounds.maxX, right) - max(bounds.minX, left), height: source.height))
+                frames.append(CGRect(x: max(bounds.minX, left), y: rowTop,
+                    width: min(bounds.maxX, right) - max(bounds.minX, left), height: source.maxY - rowTop))
             }
             guard frames.allSatisfy({ $0.width > 0 && bounds.contains($0) }),
                   !frames.contains(where: { frame in sources.indices.contains { other in
@@ -64,6 +68,15 @@ enum BrowserOverlayColumnLayout {
             for step in 0...6 {
                 let font = (9 - CGFloat(step) * 0.25) * scale
                 guard font >= BrowserOverlayLayoutPlanner.minimumRenderedFontSize else { break }
+                // Prefer the existing source-centered allocation whenever it
+                // fits at this size. Redistributing widths by translation
+                // length otherwise shifts even short, already fitting text.
+                if zip(row, frames).allSatisfy({ index, frame in
+                    variants[index].fits(available: CGSize(width: floor(frame.width - 4 * scale),
+                        height: frame.height - 4 * scale), fontSize: font, measurementCache: measurementCache)
+                }) {
+                    chosen = font; chosenFrames = frames; break
+                }
                 let left = frames[0].minX, right = frames[frames.count - 1].maxX
                 let available = right - left - CGFloat(row.count - 1) * gap
                 let minimum = row.map { index in
@@ -77,7 +90,7 @@ enum BrowserOverlayColumnLayout {
                 let trial = row.enumerated().map { offset, index -> CGRect in
                     let width = minimum[offset] + remaining * weights[offset] / totalWeight
                     defer { cursor += width + gap }
-                    return CGRect(x: cursor, y: sources[index].minY, width: width, height: sources[index].height)
+                    return CGRect(x: cursor, y: rowTop, width: width, height: sources[index].maxY - rowTop)
                 }
                 let fits = zip(row, trial).allSatisfy { index, frame in
                     // measuredSize rounds ink extents upward. Use whole-point
@@ -101,8 +114,8 @@ enum BrowserOverlayColumnLayout {
                 for step in 0...6 {
                     let font = (9 - CGFloat(step) * 0.25) * scale
                     guard font >= BrowserOverlayLayoutPlanner.minimumRenderedFontSize else { break }
-                    let shared = zip(row, frames).map { index, frame in
-                        CGRect(x: frame.minX, y: frame.minY, width: frame.width, height: bottom - sources[index].minY)
+                    let shared = frames.map { frame in
+                        CGRect(x: frame.minX, y: frame.minY, width: frame.width, height: bottom - rowTop)
                     }
                     if zip(row, shared).allSatisfy({ index, frame in
                         variants[index].fits(available: CGSize(width: floor(frame.width - 4 * scale),
@@ -111,7 +124,7 @@ enum BrowserOverlayColumnLayout {
                         chosen = font; chosenFrames = shared; break
                     }
                     let widths = row.map { index -> CGFloat in
-                        let height = bottom - sources[index].minY - 4 * scale
+                        let height = bottom - rowTop - 4 * scale
                         var lower = ceil(font * 2 + 4 * scale)
                         var upper = floor(min(available, max(sources[index].width * 3, font * 7)))
                         guard upper >= lower, variants[index].fits(
@@ -133,8 +146,8 @@ enum BrowserOverlayColumnLayout {
                     let trial = row.enumerated().map { offset, index -> CGRect in
                         let width = widths[offset] + spare * weights[offset] / totalWeight
                         defer { cursor += width + gap }
-                        return CGRect(x: cursor, y: sources[index].minY, width: width,
-                            height: bottom - sources[index].minY)
+                        return CGRect(x: cursor, y: rowTop, width: width,
+                            height: bottom - rowTop)
                     }
                     guard zip(row, trial).allSatisfy({ index, frame in
                         abs(frame.midX - sources[index].midX) <= 24 * scale &&

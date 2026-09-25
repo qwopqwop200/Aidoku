@@ -89,6 +89,97 @@ struct ReaderTranslationImageExportTests {
         try #require(output.pngData()).write(to: folder.appendingPathComponent("tall-cache-bottom.png"))
     }
 
+    /// Same-binary cold export versus native asset replay, including a logical
+    /// source size different from decoded pixels (the preloader's normal path).
+    @Test(arguments: [false, true])
+    func snapshotAssetReplayPreservesPixelsAndRejectsChangedIdentity(webtoon: Bool) async throws {
+        let window = try host()
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let disk = ReaderTranslationDiskCache(directory: directory)
+        let cache = ReaderTranslationRenderCache(disk: disk)
+        defer {
+            cache.clearMemory()
+            window.isHidden = true
+            ReaderTranslationImageExporter.clearIdleRenderer()
+            try? FileManager.default.removeItem(at: directory)
+        }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 150, height: 200), format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 150, height: 200))
+            UIColor.systemBlue.setFill()
+            context.fill(CGRect(x: 9, y: 17, width: 27, height: 33))
+        }
+        let logicalSize = CGSize(width: 600, height: 800)
+        let viewport = webtoon ? CGSize(width: 390, height: 520) : CGSize(width: 390, height: 700)
+        let regions = [ReaderTranslationRegion(id: "asset-replay", rect: CGRect(x: 0.3, y: 0.4, width: 0.5, height: 0.2),
+            source: "Hello", translation: "동일한 번역")]
+        let settings = settings()
+        let generation = await disk.currentGeneration(settings: settings)
+        let start = ProcessInfo.processInfo.systemUptime
+        let original = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+            image: image, imageSize: logicalSize, regions: regions, settings: settings,
+            viewport: viewport, scale: 2, aspectFit: !webtoon, host: window, dark: false,
+            preparedLayout: nil, assetCache: cache, assetKey: "snapshot")
+        let coldMS = (ProcessInfo.processInfo.systemUptime - start) * 1_000
+        let deadline = Date().addingTimeInterval(20)
+        while cache.pendingAssetWrites > 0 {
+            try #require(Date() < deadline)
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
+        let stored = await cache.renderAsset(for: "snapshot")
+        let asset = try #require(stored)
+        #expect(asset.sourceSize == logicalSize)
+        #expect(await disk.currentGeneration() == generation)
+        // No window and a failed layout task prove replay needs neither WebKit
+        // nor an additional layout pass. The previous implementation throws.
+        let unusedLayout = Task<Data, Error> { throw CancellationError() }
+        let replayStart = ProcessInfo.processInfo.systemUptime
+        let replay = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+            image: image, imageSize: logicalSize, regions: regions, settings: settings,
+            viewport: viewport, scale: 2, aspectFit: !webtoon, host: UIView(), dark: false,
+            preparedLayout: unusedLayout, assetCache: cache, assetKey: "snapshot")
+        let replayMS = (ProcessInfo.processInfo.systemUptime - replayStart) * 1_000
+        #expect(replay.size == original.size)
+        #expect(try pixelData(replay) == pixelData(original))
+        if !webtoon {
+            let pixels = try pixelData(replay)
+            #expect(pixels[3] == 0, "The viewport letterbox must remain transparent")
+        }
+        print("SNAPSHOT_ASSET_REPLAY_MS webtoon=\(webtoon) cold=\(coldMS) replay=\(replayMS)")
+        // A caller accidentally reusing the same key must not paint stale content.
+        let changed = UIGraphicsImageRenderer(size: image.size, format: format).image { context in
+            UIColor.black.setFill(); context.fill(CGRect(origin: .zero, size: image.size))
+        }
+        let otherRegions = [ReaderTranslationRegion(id: "asset-replay", rect: regions[0].rect,
+            source: "Hello", translation: "변경된 번역")]
+        struct InvalidSnapshotIdentity {
+            let source: UIImage
+            let size: CGSize
+            let content: [ReaderTranslationRegion]
+            let bounds: CGSize
+        }
+        let cases: [InvalidSnapshotIdentity] = [
+            .init(source: changed, size: logicalSize, content: regions, bounds: viewport),
+            .init(source: image, size: logicalSize, content: otherRegions, bounds: viewport),
+            .init(source: image, size: CGSize(width: 601, height: 800), content: regions, bounds: viewport),
+            .init(source: image, size: logicalSize, content: regions,
+                  bounds: CGSize(width: viewport.width + 1, height: viewport.height))
+        ]
+        for invalid in cases {
+            do {
+                _ = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+                    image: invalid.source, imageSize: invalid.size, regions: invalid.content, settings: settings,
+                    viewport: invalid.bounds, scale: 2, aspectFit: !webtoon, host: UIView(), dark: false,
+                    preparedLayout: nil, assetCache: cache, assetKey: "snapshot")
+                Issue.record("Changed snapshot identity replayed a stale asset")
+            } catch ReaderTranslationImageExporter.ExportError.unavailable {
+                // A cache miss needs the intentionally absent window.
+            }
+        }
+    }
+
     @Test func exportExtractsEverySourceRepairBeyondTypographyBounds() async throws {
         let window = try host()
         defer { window.isHidden = true }
@@ -420,6 +511,58 @@ struct ReaderTranslationImageExportTests {
         #expect(pixels.prefix(100 * rowBytes).allSatisfy { $0 > 240 })
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try output.pngData()?.write(to: folder.appendingPathComponent("webtoon-export.png"))
+    }
+
+    @Test func idleRendererSurvivesTranslationGapOnlyWithExtraHeadroom() {
+        let minimum = TranslationImageWorkBudget.minimumHeadroom
+        let comfortable = minimum + 256 * 1_024 * 1_024
+        var discarded: [Int] = []
+        let slot = ReaderTranslationIdleRendererSlot<Int> { discarded.append($0) }
+        // Typical API gaps exceed the old unconditional two-second expiry.
+        slot.store(1, now: 0)
+        #expect(slot.take(now: 4.8, availableMemory: comfortable, isActive: true) == 1)
+        slot.store(2, now: 5)
+        #expect(slot.take(now: 13.8, availableMemory: comfortable, isActive: true) == 2)
+        #expect(discarded.isEmpty)
+        slot.store(3, now: 14)
+        #expect(slot.take(now: 24, availableMemory: comfortable, isActive: true) == nil)
+        #expect(discarded == [3])
+        // Keep the existing short lease on tighter-memory devices.
+        slot.store(4, now: 25)
+        #expect(slot.take(now: 27, availableMemory: comfortable - 1, isActive: true) == nil)
+        #expect(discarded == [3, 4])
+    }
+
+    @Test func idleRendererImmediatelyDropsOnPressureAndBackground() {
+        let minimum = TranslationImageWorkBudget.minimumHeadroom
+        let comfortable = minimum + 256 * 1_024 * 1_024
+        var discarded: [Int] = []
+        let slot = ReaderTranslationIdleRendererSlot<Int> { discarded.append($0) }
+        slot.store(1, now: 0)
+        #expect(slot.trim(now: 0.1, availableMemory: minimum - 1, isActive: true))
+        #expect(slot.take(now: 0.2, availableMemory: comfortable, isActive: true) == nil)
+        slot.store(2, now: 1)
+        #expect(slot.trim(now: 1.1, availableMemory: comfortable, isActive: false))
+        #expect(slot.take(now: 1.2, availableMemory: comfortable, isActive: true) == nil)
+        slot.store(3, now: 2)
+        // A high-headroom lease contracts as soon as headroom falls.
+        #expect(slot.trim(now: 5, availableMemory: minimum, isActive: true))
+        #expect(discarded == [1, 2, 3])
+    }
+
+    @Test func idleRendererSlotNeverRetainsMoreThanOneAndClearsOnce() {
+        let comfortable = TranslationImageWorkBudget.minimumHeadroom + 256 * 1_024 * 1_024
+        var discarded: [Int] = []
+        let slot = ReaderTranslationIdleRendererSlot<Int> { discarded.append($0) }
+        slot.store(1, now: 0)
+        slot.store(2, now: 1)
+        #expect(discarded == [1])
+        #expect(slot.take(now: 1.1, availableMemory: comfortable, isActive: true) == 2)
+        #expect(slot.take(now: 1.2, availableMemory: comfortable, isActive: true) == nil)
+        slot.store(3, now: 2)
+        #expect(slot.clear())
+        #expect(!slot.clear())
+        #expect(discarded == [1, 3])
     }
 
     private func pixelData(_ image: UIImage) throws -> [UInt8] {

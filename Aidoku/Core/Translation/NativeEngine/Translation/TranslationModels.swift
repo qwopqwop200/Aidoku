@@ -167,6 +167,26 @@ struct RemoteTranslatedSegment: Codable, Hashable, Sendable {
     var isSFX: Bool? = nil
 }
 
+/// Request-local derived value; it retains no image bytes and is shared only
+/// while request copies refer to the same immutable Data value.
+private final class TranslationImageDigestMemo: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: String?
+
+    func digest(of data: Data) -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        if let value { return value }
+        let digest = Self.compute(data)
+        value = digest
+        return digest
+    }
+
+    static func compute(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
 struct RemoteTranslationRequest: Codable, Hashable, Sendable {
     static let singleSegmentID = "segment-0"
     static let maximumSegments = 64
@@ -178,7 +198,23 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
     static let maximumGlossaryEntries = 100
     static let maximumGlossaryBytes = 64 * 1024
 
-    var imageJPEG: Data? = nil { didSet { preparedImageDataURL = nil } }
+    var imageJPEG: Data? = nil {
+        didSet {
+            preparedImageDataURL = nil
+            imageDigestMemo = imageJPEG == nil ? nil : TranslationImageDigestMemo()
+        }
+    }
+    private var imageDigestMemo: TranslationImageDigestMemo?
+    var imageDigest: String? {
+        guard let imageJPEG else { return nil }
+        return imageDigestMemo?.digest(of: imageJPEG) ?? TranslationImageDigestMemo.compute(imageJPEG)
+    }
+
+    mutating func copyImageRepresentation(from request: Self) {
+        imageJPEG = request.imageJPEG
+        preparedImageDataURL = request.preparedImageDataURL
+        imageDigestMemo = request.imageDigestMemo
+    }
     // Shared String storage across batches; omitted from persisted/wire models.
     var preparedImageDataURL: String? = nil
     private enum CodingKeys: String, CodingKey {
@@ -599,7 +635,7 @@ struct TranslationCacheKey: Codable, Hashable, Sendable {
         sfxPolicy = request.filtersSFX == true
             ? (request.imageJPEG == nil ? TranslationHTTPCodec.textOnlySFXPolicy : TranslationHTTPCodec.sfxPolicy)
             : nil
-        imageDigest = request.imageJPEG.map { SHA256.hash(data: $0).map { String(format: "%02x", $0) }.joined() }
+        imageDigest = request.imageDigest
         imageSupportRevision = request.imageJPEG == nil ? nil : TranslationImageSupport.shared.revision(for: configuration)
         version = Self.schemaVersion
         provider = configuration.provider
@@ -729,8 +765,7 @@ extension RemoteTranslationRequest {
             context: context,
             glossary: glossary
         )
-        canonical.imageJPEG = imageJPEG
-        canonical.preparedImageDataURL = preparedImageDataURL
+        canonical.copyImageRepresentation(from: self)
         canonical.filtersSFX = filtersSFX
         canonical.filtersBackground = filtersBackground
         return CanonicalRemoteTranslationRequest(request: canonical, callerSegmentIDs: segments.map(\.id))

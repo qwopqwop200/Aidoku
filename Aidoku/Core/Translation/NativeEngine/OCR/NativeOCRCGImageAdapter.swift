@@ -17,9 +17,14 @@ enum NativeOCRCGImageAdapter {
         let countResult = bytesPerRow.multipliedReportingOverflow(by: height)
         guard !countResult.overflow else { return nil }
 
-        var bytes = [UInt8](repeating: 0, count: countResult.partialValue)
-        let rendered = bytes.withUnsafeMutableBytes { storage -> Bool in
-            guard let baseAddress = storage.baseAddress else { return false }
+        // The full, unpadded destination is overwritten with .copy below,
+        // including transparent source pixels. Avoid zero-filling the same
+        // multi-megabyte buffer immediately before Core Graphics writes it.
+        let bytes = [UInt8](unsafeUninitializedCapacity: countResult.partialValue) { storage, initializedCount in
+            guard let baseAddress = storage.baseAddress else { return }
+            // Image masks stencil only covered pixels even with .copy. Keep
+            // the historical transparent background for their untouched pixels.
+            if image.isMask { storage.initialize(repeating: 0) }
             guard let context = CGContext(
                 data: baseAddress,
                 width: width,
@@ -31,7 +36,7 @@ enum NativeOCRCGImageAdapter {
                     CGImageAlphaInfo.premultipliedLast.rawValue
                     | CGBitmapInfo.byteOrder32Big.rawValue
             ) else {
-                return false
+                return
             }
             context.interpolationQuality = .none
             context.setBlendMode(.copy)
@@ -39,9 +44,9 @@ enum NativeOCRCGImageAdapter {
                 image,
                 in: CGRect(x: 0, y: 0, width: width, height: height)
             )
-            return true
+            initializedCount = countResult.partialValue
         }
-        guard rendered else { return nil }
+        guard bytes.count == countResult.partialValue else { return nil }
         return NativeOCRRGBAFrame(
             width: width,
             height: height,

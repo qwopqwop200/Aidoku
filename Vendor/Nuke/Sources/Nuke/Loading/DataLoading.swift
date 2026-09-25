@@ -22,3 +22,9 @@ public protocol DataLoading: Sendable {
 public protocol Cancellable: Sendable {
     func cancel()
 }
+
+/// Optional transport priority support. Values use URLSession's 0...1 range.
+/// Coalesced image requests forward the highest remaining subscriber priority.
+public protocol DataLoadingPriorityUpdating: Cancellable {
+    func setPriority(_ priority: Float)
+}

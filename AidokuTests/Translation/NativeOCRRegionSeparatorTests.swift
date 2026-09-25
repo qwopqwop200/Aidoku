@@ -23,6 +23,18 @@ struct NativeOCRRegionSeparatorTests {
         return NativeOCRRegionSeparator(image: image)!
     }
 
+    @Test func geometryRejectionsDoNotRasterizeAndLaterValidQueryStillFindsRule() {
+        let separator = map { x, _ in x == 25 ? 0 : nil }
+        #expect(!separator.hasRasterizedImage)
+        #expect(!separator.separates(left, right, orientation: .unknown))
+        #expect(!separator.separates(left, left.offsetBy(dx: 5, dy: 0), orientation: .vertical))
+        #expect(!separator.separates(left, right.offsetBy(dx: 60, dy: 0), orientation: .vertical))
+        #expect(!separator.hasRasterizedImage)
+        #expect(separator.separates(left, right, orientation: .vertical))
+        #expect(separator.hasRasterizedImage)
+        #expect(separator.separates(right, left, orientation: .vertical))
+    }
+
     @Test func longThinVerticalRuleSeparatesBothInputOrders() {
         let separator = map { x, _ in x == 25 ? 0 : nil }
         #expect(separator.separates(left, right, orientation: .vertical))
@@ -102,6 +114,7 @@ struct NativeOCRRegionSeparatorTests {
             return separator.separates(first, second, orientation: .vertical)
         }
         #expect(await task.value == false)
+        #expect(!separator.hasRasterizedImage)
     }
 
     @Test func separatorVetoPreservesTextAndDefaultMergeContract() {

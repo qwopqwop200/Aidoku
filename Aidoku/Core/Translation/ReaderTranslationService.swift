@@ -93,8 +93,12 @@ actor ReaderOCRService {
     }
 
     func recognize(image: CGImage, configuration: ReaderOCRConfiguration) async throws -> [ReaderTranslationRegion] {
-        try await gate.withPermit {
-            try await self.recognizeSerial(image: image, configuration: configuration)
+        let queuedAt = ProcessInfo.processInfo.systemUptime
+        return try await gate.withPermit {
+            TranslationPerformanceFileLog.record(.ocrQueue, fields: [
+                .elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: queuedAt)
+            ])
+            return try await self.recognizeSerial(image: image, configuration: configuration)
         }
     }
 
@@ -185,6 +189,10 @@ actor ReaderOCRService {
         )
         try Task.checkCancellation()
         ReaderTranslationDiagnostics.record("ocr_end", count: result.lines.count)
+        TranslationPerformanceFileLog.record(.ocrFrame, fields: [.elapsedMilliseconds: result.frameConversionMilliseconds])
+        TranslationPerformanceFileLog.record(.ocrDetection, fields: [.elapsedMilliseconds: result.detectionMilliseconds])
+        TranslationPerformanceFileLog.record(.ocrRecognition, fields: [.elapsedMilliseconds: result.recognitionMilliseconds])
+        let postprocessStartedAt = ProcessInfo.processInfo.systemUptime
         let lines = result.lines
         var phases: [String: Double] = ["native": result.totalMilliseconds, "ocrPasses": 1]
         let wordStart = ProcessInfo.processInfo.systemUptime
@@ -254,6 +262,10 @@ actor ReaderOCRService {
         let balloonStart = ProcessInfo.processInfo.systemUptime
         let joined = ReaderTranslationBalloonMerger.apply(regions, image: image, sourceLines: lines.map { .init(polygon: $0.polygon, text: $0.text, orientation: $0.orientation) })
         lastPhaseMilliseconds["balloonMerge"] = (ProcessInfo.processInfo.systemUptime - balloonStart) * 1000
+        TranslationPerformanceFileLog.record(.ocrPostprocess, fields: [
+            .segments: Double(joined.count),
+            .elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: postprocessStartedAt)
+        ])
         try Task.checkCancellation()
         return joined
     }
@@ -292,7 +304,11 @@ actor ReaderTranslationService {
             guard activeReaders.insert(owner).inserted else { return }
             metadataGeneration &+= 1
             for task in metadataTasks.values { task.cancel() }
-            if warmsOCROnReaderOpen { Self.requestOCRWarmUp() }
+            if warmsOCROnReaderOpen {
+                Self.requestOCRWarmUp()
+                let configuration = ReaderTranslationSettings().configuration
+                Task(priority: .utility) { [client] in await client.prepare(configuration: configuration) }
+            }
         } else {
             activeReaders.remove(owner)
             guard activeReaders.isEmpty else { return }
@@ -425,11 +441,13 @@ actor ReaderTranslationService {
         let regions = ReaderTranslationLanguageFilter.apply(regions, settings: settings)
         guard !regions.isEmpty else { try await onProgress?([]); return [] }
         let service = try translationService()
-        let concurrency = max(1, min(settings.includePageImage ? 2 : BoundedTranslationBatchExecutor.allowedMaximumConcurrentRequests,
+        let attachesImage = settings.shouldAttachPageImage
+        // A remembered text-only fallback sends no image and must not retain
+        // the image-upload concurrency cap merely because the preference is on.
+        let concurrency = max(1, min(attachesImage ? 2 : BoundedTranslationBatchExecutor.allowedMaximumConcurrentRequests,
                                      settings.maximumConcurrentRequests))
         await limiter.setMaximumConcurrentRequests(concurrency)
         try Task.checkCancellation()
-        let attachesImage = settings.shouldAttachPageImage
         let imageJPEG = try attachesImage
             ? (preparedImageJPEG ?? image.map(ReaderTranslationImagePreparation.translationJPEG)) : nil
         guard !attachesImage || imageJPEG != nil else {

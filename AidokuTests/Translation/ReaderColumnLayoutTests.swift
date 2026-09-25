@@ -25,6 +25,29 @@ struct ReaderColumnLayoutTests {
         #expect(ordered[1].rect.maxX < ordered[2].rect.minX)
     }
 
+    @Test func alignedSourceRowTrimsInwardAndKeepsExistingColumnAllocation() throws {
+        let sources = [CGRect(x: 20, y: 20, width: 20, height: 100),
+                       CGRect(x: 60, y: 23, width: 20, height: 100),
+                       CGRect(x: 100, y: 21, width: 20, height: 100)]
+        let variants = ["네!", "오늘은 괜찮아.", "응!"].map {
+            BrowserOverlayDisplayVariant.plain($0, vertical: false)
+        }
+        let layouts = BrowserOverlayColumnLayout.plan(sources: sources, variants: variants,
+            eligible: [true, true, true], bounds: CGRect(x: 0, y: 0, width: 430, height: 320), measurementCache: .init())
+        let ordered = try sources.indices.map { try #require(layouts[$0]) }
+        #expect(Set(ordered.map { $0.rect.minY }) == [23])
+        #expect(Set(ordered.map(\.maximumFontSize)).count == 1)
+        // Equal source spacing stays equal despite unequal translation lengths.
+        #expect(ordered[0].rect.midX == 30)
+        #expect(ordered[1].rect.midX == 70)
+        #expect(ordered[2].rect.midX == 110)
+        for (index, layout) in ordered.enumerated() {
+            #expect(layout.rect.maxY == sources[index].maxY)
+            #expect(layout.rect.height <= sources[index].height)
+        }
+        #expect(!BrowserOverlayCollisionGeometry.hasOverlap(in: ordered.map(\.rect)))
+    }
+
     @Test func isolatedBalloonAndDifferentRowsKeepTheirOriginalPlanner() {
         let sources = [CGRect(x: 20, y: 20, width: 20, height: 100),
                        CGRect(x: 60, y: 120, width: 20, height: 100)]
@@ -101,10 +124,12 @@ struct ReaderColumnLayoutTests {
             eligible: sources.map { _ in true }, bounds: CGRect(x: 0, y: 0, width: 430, height: 322.5),
             measurementCache: .init())
         #expect(layouts.count == 10)
+        #expect(Set(layouts.values.map { $0.rect.minY }).count == 1)
         #expect(!BrowserOverlayCollisionGeometry.hasOverlap(in: layouts.values.map(\.rect)))
         for (index, layout) in layouts {
             #expect(abs(layout.rect.midX - sources[index].midX) <= 24)
-            #expect(layout.rect.minY == sources[index].minY)
+            #expect(layout.rect.minY >= sources[index].minY)
+            #expect(layout.rect.minY - sources[index].minY <= 8)
             #expect(layout.maximumFontSize >= 7.5)
         }
     }
@@ -130,10 +155,12 @@ struct ReaderColumnLayoutTests {
             eligible: sources.map { _ in true }, bounds: CGRect(x: 0, y: 0, width: 430, height: 322.5),
             measurementCache: .init())
         #expect(layouts.count == 5)
+        #expect(Set(layouts.values.map { $0.rect.minY }).count == 1)
         #expect(!BrowserOverlayCollisionGeometry.hasOverlap(in: layouts.values.map(\.rect)))
         for (index, layout) in layouts {
             #expect(abs(layout.rect.midX - sources[index].midX) <= 24)
-            #expect(layout.rect.minY == sources[index].minY)
+            #expect(layout.rect.minY >= sources[index].minY)
+            #expect(layout.rect.minY - sources[index].minY <= 8)
             #expect(layout.maximumFontSize >= 7.5)
         }
     }

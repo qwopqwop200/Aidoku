@@ -707,7 +707,12 @@ extension AppDelegate {
 
     // The Settings tab is a SwiftUI hosting controller on iPhone, not a navigation controller.
     static func sharedImagePresenter(in window: UIWindow?) -> UIViewController? {
-        guard let root = window?.rootViewController, root.viewIfLoaded?.window != nil else { return nil }
+        guard let window, !window.isHidden, let root = window.rootViewController else { return nil }
+        // Full-screen readers detach the root view from the window. Keep the root as the
+        // presentation owner, but accept its visible modal chain when receiving another share.
+        guard sequence(first: root, next: \.presentedViewController).contains(where: {
+            $0.viewIfLoaded?.window === window
+        }) else { return nil }
         return root
     }
 

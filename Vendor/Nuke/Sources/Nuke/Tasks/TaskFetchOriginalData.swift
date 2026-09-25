@@ -15,6 +15,12 @@ final class TaskFetchOriginalData: AsyncPipelineTask<(Data, URLResponse?)> {
     private var dataLoadCancellable: (any Cancellable)?
     private var dataLoadTask: Task<Void, Never>?
 
+    override func didChangePriority() {
+        // Queue priority alone cannot influence an already-running transfer.
+        // The handle remains shared by all coalesced subscribers.
+        (dataLoadCancellable as? any DataLoadingPriorityUpdating)?.setPriority(Float(priority.rawValue) / 4)
+    }
+
     override func start() {
         if case .data(let closure) = request.resource {
             loadAsyncData(closure)
@@ -137,6 +143,7 @@ final class TaskFetchOriginalData: AsyncPipelineTask<(Data, URLResponse?)> {
                     }
                 }
             )
+            didChangePriority()
         }
     }
 

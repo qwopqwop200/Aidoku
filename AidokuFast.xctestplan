@@ -473,6 +473,9 @@
             "name" : "TranslationPromotionSourceTests"
           },
           {
+            "name" : "TranslationPerformanceFileLogTests"
+          },
+          {
             "name" : "TranslationStreamingTests"
           }
         ]

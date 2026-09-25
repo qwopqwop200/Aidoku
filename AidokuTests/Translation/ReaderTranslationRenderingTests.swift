@@ -194,6 +194,58 @@ struct ReaderTranslationRenderingTests {
         #expect(drawn && rgba[2] > 240 && rgba[0] < 15)
     }
 
+    @Test func repeatedCompletedPublicationKeepsCommittedRecoveryDocument() async throws {
+        let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
+        let host = try window(frame: frame)
+        host.rootViewController = UIViewController()
+        let view = UIImageView(frame: frame)
+        view.image = image()
+        host.rootViewController?.view.addSubview(view)
+        host.makeKeyAndVisible()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let page = ReaderTranslationPage(imageView: view)
+        page.sourcePage = Page(sourceId: "recovery-repeat", chapterId: "render", index: 0)
+        defer { page.reset(); host.isHidden = true; try? FileManager.default.removeItem(at: root) }
+        var region = ReaderTranslationRegion(id: "recovery", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2), source: "Hello")
+        region.translation = "안녕"
+        let settings = fixtureSettings()
+        page.displayPrepared([region], settings: settings)
+        let overlay = try #require(view.subviews.compactMap { $0 as? ReaderTranslationOverlayView }.first)
+        overlay.webViewWebContentProcessDidTerminate(overlay.webView)
+        try await waitForRender(overlay)
+        let revision = try #require(overlay.lastDiagnostic?.revision)
+        #expect(!overlay.canCacheRendering)
+        page.renderCache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+        for _ in 0..<20 { page.showCompletedTranslation(settings: settings) }
+        #expect(overlay.lastDiagnostic?.revision == revision, "Repeated demand must preserve the recovered committed frame")
+        #expect(overlay.lastDiagnostic?.outcome == .committed)
+        #expect(!overlay.webView.isHidden)
+    }
+
+    @Test func cachedLayoutIdentityUpdatesWithRegionsAndClearsForTextOnlyRecovery() {
+        let overlay = ReaderTranslationOverlayView(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { overlay.cancelWork(); try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+        let target = ReaderTranslationSnapshotTarget(cache: cache, key: "render", pageIdentity: "page", diskGeneration: 0,
+                                                     viewport: overlay.bounds.size, dark: false)
+        var region = ReaderTranslationRegion(id: "identity", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2), source: "Hello")
+        region.translation = "first"
+        overlay.update(regions: [region], imageSize: overlay.bounds.size, aspectFit: false,
+                       settings: fixtureSettings(), snapshotTarget: target)
+        let first = overlay.layoutCacheKey
+        #expect(first == ReaderTranslationRenderCache.layoutKey(renderKey: target.key, regions: [region]))
+        region.translation = "changed"
+        overlay.update(regions: [region], imageSize: overlay.bounds.size, aspectFit: false,
+                       settings: fixtureSettings(), snapshotTarget: target)
+        #expect(overlay.layoutCacheKey != first)
+        #expect(overlay.layoutCacheKey == ReaderTranslationRenderCache.layoutKey(renderKey: target.key, regions: [region]))
+        overlay.webViewWebContentProcessDidTerminate(overlay.webView)
+        #expect(overlay.layoutCacheKey == nil)
+        overlay.resetForExportReuse()
+        #expect(overlay.layoutCacheKey == nil)
+    }
+
     @Test func contentTerminationBudgetSurvivesProgressUpdates() {
         let overlay = ReaderTranslationOverlayView(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
         defer { overlay.cancelWork() }

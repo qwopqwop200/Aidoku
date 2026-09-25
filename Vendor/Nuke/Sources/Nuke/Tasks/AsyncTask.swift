@@ -67,8 +67,11 @@ class AsyncTask<Value: Sendable, Error: Sendable>: AsyncTaskSubscriptionDelegate
             guard oldValue != priority else { return }
             operation?.priority = priority
             dependency?.setPriority(priority)
+            didChangePriority()
         }
     }
+
+    func didChangePriority() {}
 
     /// A task might have a dependency. The task automatically unsubscribes
     /// from the dependency when it gets cancelled, and also updates the

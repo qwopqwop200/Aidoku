@@ -5,6 +5,39 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationSessionTests {
+    @Test func newlyVisiblePageCancelsItsCompetingOffscreenExport() async throws {
+        let fixture = SessionFixture()
+        let pages = [Self.page(0), Self.page(1)]
+        let cache = ReaderTranslationSessionCache()
+        for page in pages { try cache.store([Self.region], for: page.translationCacheKey) }
+        let views = [UIImageView(), UIImageView()]
+        let visible = views.enumerated().map { index, view in
+            let result = ReaderTranslationPage(imageView: view)
+            result.sourcePage = pages[index]
+            return result
+        }
+        var started = false
+        var cancelled = false
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in calls += 1; return [Self.region] },
+            prepareLayout: { page, _, _ in
+                guard page.index == 1 else { return }
+                started = true
+                do { try await Task.sleep(for: .seconds(30)) }
+                catch { cancelled = true; throw error }
+            }, availableMemory: { .max }, cache: cache)
+        defer { session.close() }
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [visible[0]], context: "visible-export")
+        session.enable(settings: fixture.settings)
+        try await waitUntil { started }
+        // Visibility can change before the debounced anchor callback. It must
+        // immediately give the destination sole ownership of visible rendering.
+        session.refreshVisiblePages([visible[1]])
+        try await waitUntil { cancelled }
+        #expect(cache.regions(for: pages[1].translationCacheKey)?.first?.translation == Self.region.translation)
+        #expect(calls == 0)
+    }
+
     @Test func sourceReadyPublishesTranslationCompletedBeforeImageAssignment() async throws {
         let fixture = SessionFixture()
         let source = Self.page(0)
@@ -60,6 +93,45 @@ struct ReaderTranslationSessionTests {
         try await waitUntil { page.hasCompletedTranslation(settings: fixture.settings) }
         #expect(view.subviews.contains { $0 is ReaderTranslationOverlayView })
         #expect(calls == 1)
+    }
+
+    @Test func interruptedTextWarmResumesTheSameWindowAfterMemoryRecovery() async throws {
+        let fixture = SessionFixture()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let cache = ReaderTranslationSessionCache()
+        let pages = (0..<3).map { Self.page($0) }
+        for page in pages {
+            let key = ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: fixture.settings)
+            try await disk.storeRegions([Self.region], for: key, kind: .translation, generation: disk.currentGeneration())
+        }
+        var recovered = false
+        var interrupted = false
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in calls += 1; return [Self.region] },
+            diskCache: disk, availableMemory: {
+                if !recovered, cache.contains(pages[0].translationCacheKey) {
+                    interrupted = true
+                    return 0
+                }
+                return .max
+            }, cache: cache)
+        defer { session.close() }
+        // Navigation's cache-only phase must warm text without loading images
+        // or letting the chapter worker hide a missed warm-up by translating it.
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [],
+                       context: "warm-recovery", processUncachedPages: false)
+        session.enable(settings: fixture.settings)
+        try await waitUntil { interrupted }
+        #expect(cache.contains(pages[0].translationCacheKey))
+        #expect(!cache.contains(pages[1].translationCacheKey))
+        #expect(!cache.contains(pages[2].translationCacheKey))
+        recovered = true
+        session.enable(settings: fixture.settings)
+        try await waitUntil { cache.contains(pages[2].translationCacheKey) }
+        #expect(cache.regions(for: pages[1].translationCacheKey)?.first?.translation == Self.region.translation)
+        #expect(calls == 0)
     }
 
     @Test func chapterSweepPersistsDistantPagesWithoutEvictingNearbyText() async throws {

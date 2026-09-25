@@ -158,6 +158,7 @@ final class ReaderTranslationSession {
         if let pendingNavigationPage, !pages.contains(where: { $0 === pendingNavigationPage }) {
             discardPendingNavigation()
         }
+        cancelLayoutForVisiblePages(pages)
         visible = pages
         (pages + self.previews).forEach { $0.renderCache = renderCache; knownPages.add($0) }
         if state == .on {
@@ -255,6 +256,7 @@ final class ReaderTranslationSession {
         if let pendingNavigationPage, !visible.contains(where: { $0 === pendingNavigationPage }) {
             discardPendingNavigation()
         }
+        cancelLayoutForVisiblePages(visible)
         self.visible = visible
         visible.forEach { $0.renderCache = renderCache; knownPages.add($0) }
         if state == .on {
@@ -508,6 +510,15 @@ final class ReaderTranslationSession {
         drainLayout()
     }
 
+    /// The visible page now owns final presentation. Do not leave a second
+    /// offscreen export of the same page competing for its image/render permit.
+    /// Completed snapshots remain in the render cache and are reused normally.
+    private func cancelLayoutForVisiblePages(_ pages: [ReaderTranslationPage]) {
+        guard let activeLayoutKey,
+              pages.contains(where: { $0.sourcePage?.translationCacheKey == activeLayoutKey }) else { return }
+        cancelLayout(clearQueue: false)
+    }
+
     private func cancelLayout(clearQueue: Bool) {
         layoutGeneration = UUID()
         layoutTask?.cancel()
@@ -557,7 +568,6 @@ final class ReaderTranslationSession {
         let window = Array(items.prefix(Self.textWindowCount))
         let keys = window.map(\.key)
         guard warmedTextWindow != keys else { return }
-        warmedTextWindow = keys
         cache.retainPages(Set(keys))
         let issued = textWarmGeneration
         textWarmTask = Task(priority: .utility) { [weak self] in
@@ -576,6 +586,11 @@ final class ReaderTranslationSession {
                 }
                 await Task.yield()
             }
+            // Only a completed scan can suppress the next warm-up. Memory
+            // pressure may stop this task midway without changing navigation;
+            // once headroom recovers, resume the same window's missing records.
+            guard !Task.isCancelled, textWarmGeneration == issued else { return }
+            warmedTextWindow = keys
             enqueuePreparedLayouts()
             drainLayout()
             guard let prepareTextLayout else { return }

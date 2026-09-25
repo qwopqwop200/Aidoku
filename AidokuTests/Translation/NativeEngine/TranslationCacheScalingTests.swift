@@ -66,4 +66,52 @@ struct TranslationCacheScalingTests {
         #expect(try await cache.value(for: first) != nil)
         #expect(try await cache.value(for: second) == nil)
     }
+
+    @Test func diskBulkEvictionPreservesLRUAndReplacementAcrossReopen() async throws {
+        struct StoredKey: Decodable { let key: TranslationCacheKey }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let configuration = TranslationCacheConfiguration(memoryEnabled: false, maxSizeMiB: 4)
+        let original = try TranslationCache(configuration: configuration, storageRootURL: root)
+        let keys = try (0..<64).map(key)
+        let text = String(repeating: "a", count: 40_000)
+        for key in keys {
+            await original.insert(key.segments.map { .init(id: $0.id, text: text) }, for: key)
+        }
+        #expect(await original.statistics().diskEntries == keys.count)
+        // Fix the persisted order independently of filesystem clock resolution.
+        let directory = root.appendingPathComponent("browser-app/translation-cache-v1")
+        for url in try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) {
+            let stored = try JSONDecoder().decode(StoredKey.self, from: Data(contentsOf: url))
+            let index = try #require(keys.firstIndex(of: stored.key))
+            try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: Double(index + 1))],
+                                                 ofItemAtPath: url.path)
+        }
+        let cache = try TranslationCache(configuration: configuration, storageRootURL: root)
+        // A read must promote the oldest entry before a multi-victim shrink.
+        #expect(try await cache.value(for: keys[0]) != nil)
+        var order = Array(keys.dropFirst()) + [keys[0]]
+        try await cache.reconfigure(.init(memoryEnabled: false, maxSizeMiB: 1))
+        let shrunk = await cache.statistics()
+        #expect(shrunk.diskBytes <= 1_024 * 1_024)
+        #expect(shrunk.diskEntries > 1 && shrunk.diskEntries < keys.count)
+        #expect(shrunk.evictions == UInt64(keys.count - shrunk.diskEntries))
+        order = Array(order.suffix(shrunk.diskEntries))
+
+        // Grow the protected replacement enough to evict several other records.
+        let replacement = keys[0]
+        let large = replacement.segments.map { RemoteTranslatedSegment(id: $0.id, text: String(repeating: "b", count: 500_000)) }
+        await cache.insert(large, for: replacement)
+        let replaced = await cache.statistics()
+        #expect(replaced.diskBytes <= 1_024 * 1_024)
+        #expect(replaced.diskEntries < shrunk.diskEntries - 1)
+        order = Array(order.suffix(replaced.diskEntries))
+        let expected = Set(order)
+        let reopened = try TranslationCache(configuration: .init(memoryEnabled: false, maxSizeMiB: 1), storageRootURL: root)
+        for key in keys {
+            #expect((try await reopened.value(for: key) != nil) == expected.contains(key))
+        }
+        #expect(try await reopened.value(for: replacement)?.translations == large)
+    }
+
 }

@@ -45,6 +45,7 @@ function style() {
     const key = name => name.replace(/^-webkit-/, 'webkit-')
         .replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
     const read = name => {
+        if (name === 'cssText') return JSON.stringify(values); // reversible fixture CSS snapshot
         if (name === 'webkitTextStroke') {
             return values.webkitTextStrokeWidth
                 ? `${values.webkitTextStrokeWidth} ${values.webkitTextStrokeColor || 'currentcolor'}` : '';
@@ -52,6 +53,11 @@ function style() {
         return values[name] || '';
     };
     const write = (name, value) => {
+        if (name === 'cssText') {
+            for (const key of Object.keys(values)) delete values[key];
+            Object.assign(values, value ? JSON.parse(value) : {});
+            return true;
+        }
         if (name === 'webkitTextStroke') {
             const match = String(value).match(/^(.*?)\s+((?:rgb|rgba)\([^)]*\)|transparent|currentcolor)$/);
             assert.ok(match, `unsupported stroke shorthand in DOM fixture: ${value}`);
@@ -75,24 +81,45 @@ function style() {
         set(_target, name, value) { return write(name, value); }
     });
 }
+function treeNode(node) {
+    Object.assign(node, {
+        appendChild(child) { child.remove?.(); this.children.push(child); child.parentElement = this; return child; },
+        insertBefore(child, next) {
+            child.remove?.(); const index = this.children.indexOf(next);
+            this.children.splice(index < 0 ? this.children.length : index, 0, child);
+            child.parentElement = this; return child;
+        },
+        replaceChildren(...children) {
+            for (const child of [...this.children]) child.remove();
+            for (const child of children) this.appendChild(child);
+        },
+        remove() { if (this.parentElement) { const a = this.parentElement.children; a.splice(a.indexOf(this), 1); this.parentElement = null; } }
+    });
+    Object.defineProperties(node, {
+        childNodes: {get() { return this.children; }},
+        firstChild: {get() { return this.children[0] || null; }},
+        parentNode: {get() { return this.parentElement || null; }},
+        nextSibling: {get() { const siblings=this.parentElement?.children; return siblings?.[siblings.indexOf(this)+1] || null; }}
+    });
+    return node;
+}
 function element() {
-    return { dataset: {}, style: style(), attributes: {}, children: [],
-        appendChild(child) { child.remove?.(); this.children.push(child); child.parentElement = this; },
-        remove() { if (this.parentElement) { const a = this.parentElement.children; a.splice(a.indexOf(this), 1); this.parentElement = null; } },
+    return treeNode({ dataset: {}, style: style(), attributes: {}, children: [],
         setAttribute(name, value) { this.attributes[name] = value; },
         getBoundingClientRect() {
             const left = parseFloat(this.style.left), top = parseFloat(this.style.top);
             const width = parseFloat(this.style.width), height = parseFloat(this.style.height);
             return {left, top, width, height, right: left + width, bottom: top + height};
-        } };
+        } });
 }
-const context = vm.createContext({ console, performance });
+// This fixed-geometry DOM shim has no raster clip support; WebKit regressions cover it.
+const context = vm.createContext({ console, performance, CSS: { supports: () => false } });
 vm.runInContext(decodeSwift(helpersMatch[1]) + typography + `
     globalThis.production = {
         contrast: aidokuSourceColorContrast,
         render: fixture => {
             const {item, node, root, appearance, opacity, document} = fixture;
-            const fontSize = fixture.fontSize, lineHeight = fontSize * 1.2;
+            const fontSize = fixture.fontSize, lineHeight = fontSize * 1.2, minimumFontSize = 5;
             const vertical = Boolean(item.vertical), wrappingScript = 'word';
             const displayedText = 'translated text', fontFamily = 'sans-serif';
             const x = 20, y = 20, width = 160, height = 60;
@@ -123,13 +150,13 @@ const production = context.production;
 function render(overrides = {}) {
     const node = element(); node.dataset.aidokuRegion = '7';
     const children = [];
-    const root = { dataset: {}, children,
+    const root = treeNode({ dataset: {}, children,
         appendChild(child) { child.remove?.(); children.push(child); child.parentElement = this; },
         querySelectorAll(selector) {
             const kind = selector.match(/data-aidoku-image-ocr-overlay="([^"]+)"/)?.[1];
             const descendants = list => list.flatMap(child => [child, ...descendants(child.children || [])]);
             return descendants(children).filter(child => child.attributes['data-aidoku-image-ocr-overlay'] === kind);
-        } };
+        } });
     node.setAttribute('data-aidoku-image-ocr-overlay', 'item');
     const fixture = {
         node, root, children, fontSize: 16, opacity: .84, restored: false,
@@ -358,3 +385,53 @@ for (const { name, run } of selected) {
 }
 console.log(`${passed}/${selected.length} source-color readability regressions passed`);
 if (passed !== selected.length) process.exitCode = 1;
+
+const restoration = fs.readFileSync(path.join(overlayDirectory, 'BrowserSourcePanelRestoration.swift'), 'utf8');
+const surfacePlaneHelper = restoration.match(/function aidokuSurfacePlaneRGB\(coefficients,x,y\) \{[\s\S]*?\n        \}/);
+assert.ok(surfacePlaneHelper, 'production surface gamut helper must be present');
+vm.runInContext(surfacePlaneHelper[0], context);
+
+// Exercise the production restored-surface gate independently from DOM layout.
+// Real glyph positioning and crop reflow are covered by ReaderPanelIncidentTests.
+const restoredSurfaceGate = decodeSwift(between(overlay,
+    '        const panelGeometry=restoredPanelGeometry.get(item);',
+    "        if(node.dataset.captionFontRecovery==='accepted'&&preRecoveryProfile){"));
+vm.runInContext(`
+    globalThis.checkRestoredSurface = fixture => {
+      const node={style:{fontSize:'10px'},dataset:{}}, item={};
+      const displayedText='가'.repeat(fixture.length||20), foreground='0,0,0';
+      const sampled={foreground:[0,0,0],background:[255,255,255],confidence:{foreground:1,background:1}};
+      const c={safe:new Uint8Array(400).fill(1),luminance:new Uint8Array(400).fill(255),
+        w:20,h:20,x:30,y:30,sx:1,sy:1,iw:100,ih:100,frame:[0,0,100,100],
+        sourceErasureVerified:true,surfaceQuality:{safe:true,coefficients:[[255,0,0],[255,0,0],[255,0,0]]}};
+      if(fixture.unsafe)c.safe.fill(0);
+      if(fixture.lowContrast)c.luminance.fill(0);
+      const restoredPanelGeometry=new Map([[item,c]]),restoredSourcePanels=new Set([item]);
+      let restoredTextInspectionBudget=fixture.textBudget??8192;
+      let restoredPanelLookupBudget=fixture.pixelBudget??4194304,restoredExteriorPixelBudget=1048576;
+      const sourceImage={complete:true},cleanupCanvas={};
+      const cleanupContext={drawImage(){},getImageData(x,y,w,h){
+        const data=new Uint8Array(w*h*4).fill(255);
+        if(fixture.exteriorArt)for(let i=0;i<data.length;i+=4){data[i]=0;data[i+1]=0;data[i+2]=0;}
+        return {data};
+      }};
+      const contentFits=()=>true,lineProfile=()=>({ink:[fixture.exterior?[55,32,5,8]:[32,32,5,8]]});
+      ${restoredSurfaceGate}
+      return {inside:node.dataset.sourcePanelTextFit==='inside',textBudget:restoredTextInspectionBudget,
+        pixelBudget:restoredPanelLookupBudget,exteriorBudget:restoredExteriorPixelBudget};
+    };
+`, context);
+for (const length of [180,181,256]) {
+    const result=context.checkRestoredSurface({length});
+    assert.ok(result.inside, 'long text on a verified surface must not gain an opaque card');
+    assert.equal(result.textBudget,8192-length);
+}
+assert.ok(context.checkRestoredSurface({exterior:true}).inside,
+    'verified blank surface beyond the OCR crop is available to wider translation');
+for (const fixture of [{exterior:true,exteriorArt:true},{unsafe:true},{lowContrast:true},
+    {length:181,textBudget:180},{pixelBudget:1}]) {
+    const result=context.checkRestoredSurface(fixture);
+    assert.ok(!result.inside,'artwork, unreadable pixels and exhausted budgets still require fallback');
+    assert.ok(result.pixelBudget>=0&&result.exteriorBudget>=0&&result.textBudget>=0);
+}
+console.log('PASS bounded restored-surface room and long-caption controls');

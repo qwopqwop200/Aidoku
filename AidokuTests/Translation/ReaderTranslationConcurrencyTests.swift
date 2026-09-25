@@ -126,6 +126,38 @@ struct ReaderTranslationConcurrencyTests {
         #expect(await client.peak == 32)
     }
 
+    @Test(arguments: [false, true])
+    func imageCapabilityUsesTheActualRequestConcurrencyCap(unsupported: Bool) async throws {
+        let client = ConcurrencyProbe()
+        let service = ReaderTranslationService(client: client)
+        var value = settings(concurrency: 4)
+        value.provider = .custom
+        value.custom.baseURL = "https://concurrency-fixture.example/" + UUID().uuidString + "/v1"
+        value.custom.model = "image-concurrency-fixture"
+        // Validate the fixture before waiting for provider admission, so a
+        // configuration failure cannot be reported as a concurrency timeout.
+        _ = try value.configuration.validatedEndpoint()
+        value.includePageImage = true
+        TranslationImageSupport.shared.record(unsupported ? .unsupported : .supported, for: value.configuration)
+        let input = regions(prefix: "image-capability", count: 300)
+        #expect(ReaderTranslationService.plans(regions: input, settings: value).count > 4)
+        let capturedSettings = value
+        let work = Task {
+            try await service.translate(regions: input, settings: capturedSettings,
+                                        preparedImageJPEG: unsupported ? nil : Data([0xff, 0xd8, 0xff, 0xd9]))
+        }
+        defer { work.cancel() }
+        let expectedConcurrency = unsupported ? 4 : 2
+        try await waitUntil { await client.active == expectedConcurrency }
+        #expect(await client.peak == expectedConcurrency)
+        await client.release()
+        let result = try await work.value
+        #expect(result.map(\.id) == input.map(\.id))
+        #expect(result.compactMap(\.translation) == input.map { "translated " + $0.source })
+        #expect(await client.imageAttachments.allSatisfy { $0 == !unsupported })
+        #expect(await client.peak == expectedConcurrency)
+    }
+
     @Test func currentAndPrefetchShareTheConfiguredRequestCap() async throws {
         let client = ConcurrencyProbe()
         let service = ReaderTranslationService(client: client)
@@ -276,10 +308,12 @@ private actor ConcurrencyProbe: RemoteTranslating {
     var active = 0
     var peak = 0
     var calls = 0
+    var imageAttachments: [Bool] = []
     private var released = false
     func release() { released = true }
     func translate(_ request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration) async throws -> RemoteTranslationBatchResult {
         calls += 1
+        imageAttachments.append(request.imageJPEG != nil)
         active += 1
         peak = max(peak, active)
         defer { active -= 1 }

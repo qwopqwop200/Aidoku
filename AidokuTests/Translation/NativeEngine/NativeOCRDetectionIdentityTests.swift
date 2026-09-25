@@ -8,6 +8,77 @@ import XCTest
 /// implementation as the reference and compares IEEE bit patterns.
 @available(iOS 18.0, *)
 final class NativeOCRDetectionIdentityTests: XCTestCase {
+    func testRGBAConversionPreservesTransparentColorSpaceAndPaddedImages() throws {
+        // Poisoning the reference destination additionally proves that the
+        // full .copy draw overwrites every byte, including alpha-zero pixels.
+        for size in [(1, 1), (7, 13), (32, 48), (189, 257)] {
+            for space in [CGColorSpaceCreateDeviceRGB(), CGColorSpace(name: CGColorSpace.sRGB)!,
+                          CGColorSpace(name: CGColorSpace.displayP3)!] {
+                for alpha in [CGImageAlphaInfo.premultipliedLast, .premultipliedFirst, .noneSkipLast] {
+                    let stride = (size.0 * 4 + 63) / 64 * 64
+                    let context = try XCTUnwrap(CGContext(data: nil, width: size.0, height: size.1,
+                        bitsPerComponent: 8, bytesPerRow: stride, space: space, bitmapInfo: alpha.rawValue))
+                    context.clear(CGRect(x: 0, y: 0, width: size.0, height: size.1))
+                    for row in 0..<size.1 {
+                        context.setFillColor(red: CGFloat(row % 3) / 2, green: 0.4, blue: 0.8,
+                            alpha: CGFloat(row % 4) / 3)
+                        context.fill(CGRect(x: 0, y: row, width: size.0, height: 1))
+                    }
+                    let image = try XCTUnwrap(context.makeImage())
+                    try assertExactRGBAConversion(image)
+                }
+            }
+        }
+    }
+
+    func testRGBAConversionPreservesGrayscaleAndCancellation() async throws {
+        let width = 7, height = 13, stride = 16
+        let data = Data((0..<(stride * height)).map { UInt8(truncatingIfNeeded: $0 * 17) })
+        let provider = try XCTUnwrap(CGDataProvider(data: data as CFData))
+        let image = try XCTUnwrap(CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 8,
+            bytesPerRow: stride, space: CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue), provider: provider,
+            decode: nil, shouldInterpolate: false, intent: .defaultIntent))
+        try assertExactRGBAConversion(image)
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return NativeOCRCGImageAdapter.makeRGBAFrame(from: image)
+        }
+        let cancelled = await task.value
+        XCTAssertNil(cancelled)
+    }
+
+    func testRGBAConversionPreservesBinaryAndGrayscaleMaskBackgrounds() throws {
+        for bits in [1, 8] {
+            for shade: UInt8 in [0, 85, 255] {
+                let width = 8, height = 8, stride = bits == 1 ? 1 : 8
+                let provider = try XCTUnwrap(CGDataProvider(data: Data(repeating: shade, count: stride * height) as CFData))
+                let image = try XCTUnwrap(CGImage(maskWidth: width, height: height, bitsPerComponent: bits,
+                    bitsPerPixel: bits, bytesPerRow: stride, provider: provider, decode: nil, shouldInterpolate: false))
+                XCTAssertTrue(image.isMask)
+                // Unlike ordinary images, masks intentionally leave uncovered
+                // destination pixels unchanged; compare only with zero-fill.
+                try assertExactRGBAConversion(image, poisons: [0])
+            }
+        }
+    }
+
+    private func assertExactRGBAConversion(_ image: CGImage, poisons: [UInt8] = [0, 0xA5]) throws {
+        let actual = try XCTUnwrap(NativeOCRCGImageAdapter.makeRGBAFrame(from: image))
+        for poison in poisons {
+            var expected = [UInt8](repeating: poison, count: image.width * image.height * 4)
+            try expected.withUnsafeMutableBytes { bytes in
+                let target = try XCTUnwrap(CGContext(data: bytes.baseAddress, width: image.width, height: image.height,
+                    bitsPerComponent: 8, bytesPerRow: image.width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
+                target.interpolationQuality = .none
+                target.setBlendMode(.copy)
+                target.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+            }
+            XCTAssertEqual(actual.bytes, expected)
+        }
+    }
+
     // MARK: - Historical reference implementations
 
     private static let referenceMean: [Float] = [0.485, 0.456, 0.406]

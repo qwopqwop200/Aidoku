@@ -7,6 +7,8 @@ import Foundation
 typealias RemoteTranslationPartialHandler = @Sendable ([RemoteTranslatedSegment]) -> Void
 
 protocol RemoteTranslating: Sendable {
+    func prepare(configuration: RemoteTranslationConfiguration) async
+
     func translate(
         _ request: RemoteTranslationRequest,
         configuration: RemoteTranslationConfiguration
@@ -20,6 +22,8 @@ protocol RemoteTranslating: Sendable {
 }
 
 extension RemoteTranslating {
+    func prepare(configuration: RemoteTranslationConfiguration) async {}
+
     /// Non-streaming clients only publish their final result.
     func translate(
         _ request: RemoteTranslationRequest,
@@ -30,16 +34,98 @@ extension RemoteTranslating {
     }
 }
 
-/// Per-endpoint record of whether a custom Chat Completions server accepts
-/// the compact streamed wire format. Only a server that identified itself as
-/// a recent vLLM in a successful standard response is tried; a rejection or
+/// Per-endpoint record of whether a custom server accepts
+/// the compact structured wire format. Only a server that identified itself as
+/// a recent vLLM in a successful metadata or standard response is tried; a rejection or
 /// an unverified malformed answer permanently returns it to the standard
-/// `response_format` request for this client.
+/// structured request for this client.
 final class CompactChatOutputRegistry: @unchecked Sendable {
     enum State: Equatable { case unknown, eligible, verified, unsupported }
 
     private let lock = NSLock()
     private var states: [String: State] = [:]
+    private var metadataAttempts: [String: TimeInterval] = [:]
+    private var metadataInFlight: [String: TimeInterval] = [:]
+    private struct MetadataWaiter {
+        let key: String
+        let continuation: CheckedContinuation<Void, Error>
+        let timeout: Task<Void, Never>
+    }
+    private var metadataWaiters: [UUID: MetadataWaiter] = [:]
+    var metadataWaiterCount: Int {
+        lock.lock(); defer { lock.unlock() }
+        return metadataWaiters.count
+    }
+
+    func beginMetadataProbe(endpoint: String, account: String, now: TimeInterval) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard (states[endpoint] ?? .unknown) == .unknown else { return false }
+        let key = endpoint + "\n" + account
+        guard metadataInFlight[key] == nil else { return false }
+        guard now - (metadataAttempts[key] ?? -.infinity) >= 300 else { return false }
+        metadataAttempts = metadataAttempts.filter { now - $0.value < 300 }
+        guard metadataAttempts.count < 32 else { return false }
+        metadataAttempts[key] = now
+        metadataInFlight[key] = now
+        return true
+    }
+
+    func finishMetadataProbe(endpoint: String, account: String) {
+        let key = endpoint + "\n" + account
+        lock.lock()
+        metadataInFlight.removeValue(forKey: key)
+        let completed = metadataWaiters.filter { $0.value.key == key }
+        for id in completed.keys { metadataWaiters.removeValue(forKey: id) }
+        lock.unlock()
+        for waiter in completed.values {
+            waiter.timeout.cancel()
+            waiter.continuation.resume()
+        }
+    }
+
+    /// Cached OCR can finish before metadata. Give an already running probe
+    /// at most 80 ms from its start, shared by all callers, not 80 ms per call.
+    /// Late arrivals and endpoints without a probe never wait.
+    func waitForMetadata(endpoint: String, account: String) async throws {
+        let id = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                lock.lock()
+                if Task.isCancelled {
+                    lock.unlock()
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                let key = endpoint + "\n" + account
+                let remaining = metadataInFlight[key].map { 0.08 - (ProcessInfo.processInfo.systemUptime - $0) } ?? 0
+                guard (states[endpoint] ?? .unknown) == .unknown, remaining > 0, metadataWaiters.count < 64 else {
+                    lock.unlock()
+                    continuation.resume()
+                    return
+                }
+                let timeout = Task { [weak self] in
+                    do { try await Task.sleep(nanoseconds: UInt64(min(0.08, remaining) * 1_000_000_000)) }
+                    catch { return }
+                    self?.finishMetadataWaiter(id, cancelled: false)
+                }
+                metadataWaiters[id] = MetadataWaiter(key: key, continuation: continuation, timeout: timeout)
+                lock.unlock()
+            }
+        } onCancel: {
+            self.finishMetadataWaiter(id, cancelled: true)
+        }
+        try Task.checkCancellation()
+    }
+
+    private func finishMetadataWaiter(_ id: UUID, cancelled: Bool) {
+        lock.lock()
+        let waiter = metadataWaiters.removeValue(forKey: id)
+        lock.unlock()
+        guard let waiter else { return }
+        waiter.timeout.cancel()
+        if cancelled { waiter.continuation.resume(throwing: CancellationError()) }
+        else { waiter.continuation.resume() }
+    }
 
     func state(for key: String) -> State {
         lock.lock(); defer { lock.unlock() }
@@ -179,6 +265,42 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         self.transport = transport
         self.imageSupport = imageSupport
         self.rechecksImageSupport = rechecksImageSupport
+    }
+
+    /// Start alongside OCR; translation only gives an in-flight probe a short grace. A metadata
+    /// hint only makes compact output eligible; strict decoding and fallback
+    /// still verify the actual protocol on its first translation.
+    func prepare(configuration: RemoteTranslationConfiguration) async {
+        guard !Task.isCancelled, configuration.provider == .custom,
+              configuration.apiProtocol != .responses || configuration.reasoningEffort == .none,
+              let endpoint = try? configuration.validatedEndpoint(),
+              compactOutput.beginMetadataProbe(endpoint: endpoint.absoluteString,
+                  account: configuration.credentialAccount, now: ProcessInfo.processInfo.systemUptime)
+        else { return }
+        defer { compactOutput.finishMetadataProbe(endpoint: endpoint.absoluteString, account: configuration.credentialAccount) }
+        do {
+            let secret = try credentialStore.secret(for: configuration.credentialAccount)
+            guard !secret.isEmpty, secret.utf8.count <= KeychainTranslationCredentialStore.maximumSecretBytes,
+                  !secret.contains("\r"), !secret.contains("\n"), !secret.contains("\0") else { return }
+            var base = endpoint.deletingLastPathComponent()
+            if configuration.apiProtocol == .chatCompletions { base.deleteLastPathComponent() }
+            var request = URLRequest(url: base.appendingPathComponent("models"),
+                                     cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 1.5)
+            request.setValue("Bearer " + secret, forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            let response = try await transport.data(for: request, maximumResponseBytes: 64 * 1024,
+                                                    bypassesProxy: endpoint.scheme == "http")
+            try Task.checkCancellation()
+            guard (200...299).contains(response.response.statusCode),
+                  TranslationHTTPCodec.identifiesStructuredOutputServer(responseBody: Data(),
+                    apiProtocol: configuration.apiProtocol,
+                    vllmVersionHeader: response.response.value(forHTTPHeaderField: "X-vLLM-Version")) else { return }
+            compactOutput.markEligible(endpoint.absoluteString)
+            ReaderTranslationDiagnostics.record("api_compact_metadata_ready")
+        } catch {
+            // Metadata is optional. Ordinary translation retains its existing
+            // credential errors, timeout policy and portable response format.
+        }
     }
 
     func translate(
@@ -358,6 +480,9 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         )
 
         let compactKey = endpoint.absoluteString
+        if Self.usesCompactOutput(configuration: configuration, request: request, state: .eligible) {
+            try await compactOutput.waitForMetadata(endpoint: compactKey, account: configuration.credentialAccount)
+        }
         let compactState = compactOutput.state(for: compactKey)
         if Self.usesCompactOutput(configuration: configuration, request: request, state: compactState) {
             do {
@@ -384,8 +509,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         }
         let result = try await exchange(request, configuration: configuration, endpoint: endpoint, apiKey: apiKey,
                                         chatOptions: .standard, onPartial: nil)
-        if result.identifiesStructuredOutputServer, configuration.provider == .custom,
-           configuration.apiProtocol == .chatCompletions {
+        if result.identifiesStructuredOutputServer, configuration.provider == .custom {
             compactOutput.markEligible(compactKey)
         }
         return result.batch
@@ -396,8 +520,13 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         request: RemoteTranslationRequest,
         state: CompactChatOutputRegistry.State
     ) -> Bool {
-        guard configuration.provider == .custom, configuration.apiProtocol == .chatCompletions,
+        guard configuration.provider == .custom,
               state == .eligible || state == .verified else { return false }
+        // Responses grammar support is verified only for direct answers;
+        // reasoning plus grammar may be incompatible on custom endpoints.
+        if configuration.apiProtocol == .responses, configuration.reasoningEffort != .none {
+            return false
+        }
         return TranslationHTTPCodec.supportsCompactOutput(segmentIDs: request.segments.map(\.id))
     }
 
@@ -405,7 +534,12 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         configuration: RemoteTranslationConfiguration,
         request: RemoteTranslationRequest
     ) -> TranslationHTTPCodec.ChatWireOptions {
-        TranslationHTTPCodec.ChatWireOptions(
+        // Responses keeps its existing buffered protocol and token policy.
+        // Only Chat Completions uses the SSE decoder and max_tokens option.
+        if configuration.apiProtocol == .responses {
+            return .init(compactStructuredOutput: true)
+        }
+        return TranslationHTTPCodec.ChatWireOptions(
             compactStructuredOutput: true,
             stream: true,
             // Reasoning tokens count toward max_tokens; only cap direct answers.
@@ -589,7 +723,10 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                 providerRequestID: requestID
             ),
             identifiesStructuredOutputServer: !chatOptions.compactStructuredOutput && !isEventStream &&
-                TranslationHTTPCodec.identifiesStructuredOutputServer(responseBody: body)
+                TranslationHTTPCodec.identifiesStructuredOutputServer(
+                    responseBody: body, apiProtocol: configuration.apiProtocol,
+                    vllmVersionHeader: response.value(forHTTPHeaderField: "X-vLLM-Version")
+                )
         )
     }
 

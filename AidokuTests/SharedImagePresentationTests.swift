@@ -30,5 +30,39 @@ struct SharedImagePresentationTests {
     @Test func unavailableWindowDoesNotConsumeSharedImages() {
         #expect(AppDelegate.sharedImagePresenter(in: nil) == nil)
         #expect(AppDelegate.sharedImagePresenter(in: UIWindow()) == nil)
+        let detachedWindow = UIWindow()
+        detachedWindow.rootViewController = UIViewController()
+        #expect(AppDelegate.sharedImagePresenter(in: detachedWindow) == nil)
+    }
+
+    @Test func replacesSharedImageWhileFullScreenControllerIsOpen() async throws {
+        let scene = try #require(UIApplication.shared.connectedScenes.first as? UIWindowScene)
+        let window = UIWindow(windowScene: scene)
+        let root = UIViewController()
+        window.rootViewController = root
+        window.makeKeyAndVisible()
+        defer {
+            root.dismiss(animated: false)
+            window.isHidden = true
+        }
+        let first = UIViewController()
+        first.modalPresentationStyle = .fullScreen
+        await withCheckedContinuation { continuation in
+            root.present(first, animated: false) { continuation.resume() }
+        }
+        // UIKit removes the presenting view after a full-screen presentation.
+        #expect(root.viewIfLoaded?.window == nil)
+        #expect(first.view.window === window)
+        let presenter = try #require(AppDelegate.sharedImagePresenter(in: window))
+        #expect(presenter === root)
+        let second = UIViewController()
+        AppDelegate.presentSharedImageController(second, from: presenter)
+        for _ in 0..<100 {
+            if root.presentedViewController === second, !second.isBeingPresented { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(root.presentedViewController === second)
+        #expect(second.view.window === window)
+        #expect(first.presentingViewController == nil)
     }
 }

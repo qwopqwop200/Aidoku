@@ -620,16 +620,45 @@ enum BrowserSourceTextColor {
     // correction toward black/white instead of surrounding it with a harsh ring.
     const aidokuAdjustInkForContrast = (color, contrast) => {
       if (contrast(color) >= 4.5) return [...color];
-      const endpoint = contrast([0,0,0]) >= contrast([255,255,255]) ? 0 : 255;
-      const extreme = [endpoint,endpoint,endpoint];
-      if (contrast(extreme) < 4.5) return extreme;
-      let low = 0, high = 1;
-      const blend = t => color.map(v => Math.round(v + (endpoint-v)*t));
-      for (let i=0;i<12;i++) {
-        const mid=(low+high)/2;
-        if (contrast(blend(mid)) >= 4.5) high=mid; else low=mid;
+      // Both directions can satisfy the target on a middle-tone surface.
+      // Select the smallest RGB correction, not the endpoint with the highest
+      // possible contrast: the latter unnecessarily destroys pale source ink.
+      const candidates=[];
+      for(const endpoint of [0,255]){
+        if(contrast([endpoint,endpoint,endpoint])<4.5)continue;
+        let low=0,high=1;
+        const blend=t=>color.map(v=>Math.round(v+(endpoint-v)*t));
+        for(let i=0;i<12;i++){
+          const mid=(low+high)/2;
+          if(contrast(blend(mid))>=4.5)high=mid;else low=mid;
+        }
+        const rgb=blend(high);
+        candidates.push({rgb,distance:rgb.reduce((sum,v,i)=>sum+(v-color[i])**2,0)});
       }
-      return blend(high);
+      if(candidates.length)return candidates.sort((a,b)=>a.distance-b.distance)[0].rgb;
+      // A high-variation surface may have no feasible fill. The caller retains
+      // its plate in this case; do not claim that an extreme solved contrast.
+      return contrast([0,0,0])>=contrast([255,255,255])?[0,0,0]:[255,255,255];
+    };
+    // A verified source outline can retain the original fill without a large
+    // backing plate. The caller must first inspect the entire expanded glyph
+    // footprint, including this outline, for safe restored background pixels.
+    // This helper is display-only and never changes the source erasure palette.
+    const aidokuReadableSourceOutline = (sample, ink, range, fontSize) => {
+      const valid=rgb=>Array.isArray(rgb)&&rgb.length===3&&rgb.every(v=>Number.isFinite(v)&&v>=0&&v<=255);
+      if(!valid(ink)||!valid(sample?.stroke)||(sample?.confidence?.stroke||0)<.55||
+          !Array.isArray(range)||range.length!==2||!range.every(Number.isFinite)||
+          range[0]<0||range[1]>1||range[0]>range[1]||!Number.isFinite(fontSize)||fontSize<12)return null;
+      const stroke=sample.stroke;
+      const contrast=rgb=>aidokuLuminanceContrast(aidokuSourceColorLuminance(rgb),...range);
+      if(contrast(ink)>=4.5)return null;
+      const pair=aidokuSourceColorContrast(ink,true,1,stroke),edge=contrast(stroke);
+      if(pair<4.5||edge<4.5)return null;
+      const width=Math.min(1.15,fontSize*.035);
+      // paint-order:stroke fill preserves the glyph's inner counters. The CSS
+      // stroke straddles its path, so the external expansion is width / 2.
+      return {foreground:[...ink],stroke:[...stroke],width,
+        expansion:width/2,minimumContrast:Math.min(pair,edge)};
     };
     // Outline-free display keeps chromatic source ink. For white lettering
     // defined by a colored outline, flatten the observed outline into the fill

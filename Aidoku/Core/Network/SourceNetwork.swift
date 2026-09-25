@@ -145,17 +145,30 @@ final class SourceImageDataLoader: DataLoading, @unchecked Sendable {
         return operation
     }
 
-    private final class Operation: Cancellable, @unchecked Sendable {
+    private final class Operation: DataLoadingPriorityUpdating, @unchecked Sendable {
         private let lock = NSLock()
         private var task: Task<Void, Never>?
         private var load: (any Cancellable)?
         private var cancelled = false
+        private var priority: Float = URLSessionTask.defaultPriority
+        func setPriority(_ priority: Float) {
+            // Serialize binding and priority updates so an older value cannot
+            // overwrite promotion while imageLoader() is still being prepared.
+            lock.lock()
+            self.priority = priority
+            (load as? any DataLoadingPriorityUpdating)?.setPriority(priority)
+            lock.unlock()
+        }
         func setTask(_ task: Task<Void, Never>) {
             lock.lock(); let cancelled = cancelled; self.task = task; lock.unlock()
             if cancelled { task.cancel() }
         }
         func setLoad(_ load: any Cancellable) {
-            lock.lock(); let cancelled = cancelled; self.load = load; lock.unlock()
+            lock.lock()
+            let cancelled = cancelled
+            self.load = load
+            (load as? any DataLoadingPriorityUpdating)?.setPriority(priority)
+            lock.unlock()
             if cancelled { load.cancel() }
         }
         func cancel() {
