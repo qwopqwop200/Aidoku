@@ -6,6 +6,79 @@ import WebKit
 @Suite(.serialized)
 @MainActor
 struct ReaderTranslationRenderingTests {
+    @Test func cachedPageRevealsOnlyFinalBitmap() async throws {
+        let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
+        let host = try window(frame: frame)
+        host.rootViewController = UIViewController()
+        let view = UIImageView(frame: frame)
+        view.contentMode = .scaleAspectFit
+        view.image = image()
+        host.rootViewController?.view.addSubview(view)
+        host.makeKeyAndVisible()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+        let page = ReaderTranslationPage(imageView: view)
+        page.sourcePage = Page(sourceId: "stable-presentation", chapterId: "render", index: 0)
+        page.renderCache = cache
+        defer {
+            page.reset(); host.isHidden = true
+            ReaderTranslationImageExporter.clearIdleRenderer()
+            try? FileManager.default.removeItem(at: root)
+        }
+        var settings = fixtureSettings()
+        settings.overlay = ReaderTranslationSettings.defaultOverlay
+        page.displayPrepared([ReaderTranslationRegion(id: "stable", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2),
+            source: "Hello", translation: "한 번 표시한 글자는 움직이지 않는다")], settings: settings)
+        let overlay = try #require(view.subviews.first as? ReaderTranslationOverlayView)
+        var committed = false
+        let originalCommit = overlay.onRenderCommitted
+        overlay.onRenderCommitted = {
+            originalCommit?()
+            committed = true
+            #expect(overlay.webView.isHidden, "The live DOM must not precede the final PDF bitmap")
+        }
+        defer { overlay.onRenderCommitted = nil }
+        let deadline = Date().addingTimeInterval(30)
+        while !page.isUsingCachedRendering {
+            if Date() > deadline { throw URLError(.timedOut) }
+            #expect(overlay.webView.isHidden)
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(committed)
+        #expect(overlay.superview == nil)
+        let canvas = try #require(view.subviews.first as? UIImageView)
+        #expect(canvas.accessibilityIdentifier == "reader.translation.cachedOverlay")
+        let bitmap = try #require(canvas.image)
+        #expect(!canvas.isHidden)
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(view.subviews.first === canvas)
+        #expect(canvas.image === bitmap)
+        #expect(canvas.frame == view.bounds)
+    }
+
+    @Test func deferredSnapshotWithoutHostRevealsCommittedFallback() async throws {
+        let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
+        let overlay = ReaderTranslationOverlayView(frame: frame)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+        defer { overlay.cancelWork(); try? FileManager.default.removeItem(at: root) }
+        overlay.defersPresentationUntilSnapshot = true
+        let source = image()
+        overlay.update(regions: [ReaderTranslationRegion(id: "fallback", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2),
+            source: "Hello", translation: "캐시 실패 시 완성된 번역 표시")], imageSize: source.size,
+            aspectFit: true, settings: fixtureSettings(), image: source,
+            snapshotTarget: .init(cache: cache, key: "fallback", pageIdentity: "fallback", diskGeneration: 0,
+                                  viewport: frame.size, dark: overlay.traitCollection.userInterfaceStyle == .dark))
+        try await waitForRender(overlay)
+        let deadline = Date().addingTimeInterval(3)
+        while overlay.webView.isHidden {
+            if Date() > deadline { throw URLError(.timedOut) }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(!overlay.didStoreSnapshot)
+        #expect(overlay.lastDiagnostic?.outcome == .committed)
+    }
+
     @Test func lateSourceRendersCompletedTranslationWithoutPageTurn() async throws {
         let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
         let host = try window(frame: frame)

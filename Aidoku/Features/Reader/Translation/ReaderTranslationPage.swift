@@ -466,6 +466,7 @@ final class ReaderTranslationPage {
                                                 count: regions.count)
         }
         let issued = generation
+        overlay.defersPresentationUntilSnapshot = target != nil
         overlay.onSnapshotStored = { [weak self, weak overlay, weak imageView] snapshot in
             guard let self, let overlay, self.overlay === overlay, generation == issued,
                   imageView?.image === image, completedTranslation, lastSettings == settings,

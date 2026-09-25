@@ -111,6 +111,9 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     var onRenderCommitted: (() -> Void)?
     var onRenderCleared: (() -> Void)?
     var onSnapshotStored: ((UIImage) -> Void)?
+    // A PDF composite can rasterize glyphs differently from the live DOM.
+    // Readers replacing this view with that composite reveal only the latter.
+    var defersPresentationUntilSnapshot = false
     var canCacheRendering: Bool { snapshotTarget != nil }
     private(set) var lastDiagnostic: BrowserPageImageOverlayDiagnostic?
     private(set) var didStoreSnapshot = false
@@ -139,7 +142,9 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 recoveryTask?.cancel(); recoveryTask = nil
                 // Reveal only the committed layout, after background sampling,
                 // cleanup and typesetting have all completed.
-                webView.isHidden = false
+                if !defersPresentationUntilSnapshot || snapshotTarget == nil {
+                    webView.isHidden = false
+                }
                 ReaderTranslationDiagnostics.record("visible_render_committed", count: diagnostic.renderedItemCount)
                 captureCompletedRender(revision: diagnostic.revision)
                 onRenderCommitted?()
@@ -203,7 +208,9 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         // Progressive translation replaces one committed layout with the next.
         // The render script is synchronous, so the previous frame stays on
         // screen until the new DOM commits instead of flashing the source.
-        if !retainsCommittedFrame || webView.isHidden || preparedImage !== image { webView.isHidden = true }
+        if defersPresentationUntilSnapshot || !retainsCommittedFrame || webView.isHidden || preparedImage !== image {
+            webView.isHidden = true
+        }
         didStoreSnapshot = false
         snapshotGeneration = UUID()
         snapshotTask?.cancel()
@@ -324,6 +331,15 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         let size = bounds.size
         snapshotTask = Task { [weak self] in
             guard let self else { return }
+            defer {
+                // Missing hosts, export failures and cache admission failures
+                // still get one complete presentation. Stale/cancelled work
+                // must never reveal a replacement page or a partial render.
+                if !Task.isCancelled, snapshotGeneration == issued,
+                   lastDiagnostic?.revision == revision, lastDiagnostic?.outcome == .committed {
+                    webView.isHidden = false
+                }
+            }
             do {
                 guard let image = preparedImage, let host = window else { return }
                 // A DOM commit does not mean WebKit has painted tiles outside the
