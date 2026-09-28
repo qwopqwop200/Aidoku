@@ -15,6 +15,266 @@ enum BrowserOverlayTypography {
 
     // Large functions keep each outermost loop in `(()=>{...})();` (see BrowserOverlayView.renderScript).
     static let script = #"""
+    // Last geometry-only polish: never refit text or change translation content.
+    // Work is bounded by the existing 256-region page limit, with no pixel buffers.
+    const aidokuPolishCaptionPanels = (root, items, opacity, keptItems = [], readSource = null, keptZones = []) => {
+      if(opacity!==1||items.length>256)return;
+      const rect=n=>{const r=n.getBoundingClientRect();return {l:r.left,t:r.top,r:r.right,b:r.bottom};};
+      const union=rs=>({l:Math.min(...rs.map(r=>r.l)),t:Math.min(...rs.map(r=>r.t)),
+        r:Math.max(...rs.map(r=>r.r)),b:Math.max(...rs.map(r=>r.b))});
+      const hit=(a,b)=>Math.min(a.r,b.r)-Math.max(a.l,b.l)>.25&&Math.min(a.b,b.b)-Math.max(a.t,b.t)>.25;
+      const contains=(a,b)=>b.l>=a.l-.25&&b.r<=a.r+.25&&b.t>=a.t-.25&&b.b<=a.b+.25;
+      const pad=(r,p)=>({l:r.l-p,t:r.t-p,r:r.r+p,b:r.b+p});
+      const area=r=>Math.max(0,r.r-r.l)*Math.max(0,r.b-r.t);
+      const coveredArea=rs=>{
+        const xs=[...new Set(rs.flatMap(r=>[r.l,r.r]))].sort((a,b)=>a-b);let total=0;
+        for(let i=1;i<xs.length;i++){
+          const spans=rs.filter(r=>r.l<xs[i]&&r.r>xs[i-1]).map(r=>[r.t,r.b]).sort((a,b)=>a[0]-b[0]);
+          let end=-Infinity,height=0;
+          for(const [t,b] of spans){height+=Math.max(0,b-Math.max(t,end));end=Math.max(end,b);}
+          total+=(xs[i]-xs[i-1])*height;
+        }return total;
+      };
+      const ink=n=>{const q=document.createRange();q.selectNodeContents(n);const r=q.getBoundingClientRect();
+        return {l:r.left,t:r.top,r:r.right,b:r.bottom};};
+      const flat=(n,allowCaptionClip=false)=>{const s=getComputedStyle(n);return (!s.transform||s.transform==='none')&&
+        (!s.scale||s.scale==='none')&&(!s.rotate||s.rotate==='none')&&(!s.translate||s.translate==='none')&&
+        (!s.clipPath||s.clipPath==='none'||allowCaptionClip&&n.dataset.captionUnionClipped==='true')&&(!s.backgroundImage||s.backgroundImage==='none')&&
+        !n.dataset.foreignFills&&(!s.opacity||Number(s.opacity)===1);};
+      const nodes=new Map(Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'))
+        .filter(n=>getComputedStyle(n).visibility!=='hidden').map(n=>[n.dataset.aidokuRegion,n]));
+      const panels=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]'));
+      const entries=items.flatMap(item=>{
+        const node=nodes.get(String(item.id)),f=item.sourceFrame,b=item.sourceBounds;
+        if(!node||!f||!b)return [];
+        const sources=[b,...(item.auxiliaryInkRects||[])].filter(a=>a?.length===4&&a.every(Number.isFinite))
+          .map(a=>({l:f[0]+a[0]*f[2],t:f[1]+a[1]*f[3],r:f[0]+(a[0]+a[2])*f[2],b:f[1]+(a[1]+a[3])*f[3]}));
+        return [{item,node,sources,ink:ink(node),panels:panels.filter(p=>p.dataset.aidokuRegion===String(item.id))}];
+      });
+      const kept=keptZones.length?keptZones.map(z=>({l:z.left,t:z.top,r:z.right,b:z.bottom})):keptItems.flatMap(item=>{
+        const f=item.sourceFrame,b=item.sourceBounds;
+        return f&&b?[{l:f[0]+b[0]*f[2],t:f[1]+b[1]*f[3],r:f[0]+(b[0]+b[2])*f[2],b:f[1]+(b[1]+b[3])*f[3]}]:[];
+      });
+      const eligible=e=>e.item.sourceTextOnly===false&&!e.item.rotation&&!e.item.vertical&&
+        !e.item.sourceLettering&&e.item.wrappingScript==='korean'&&flat(e.node);
+      const place=(n,r)=>Object.assign(n.style,{left:`${r.l+scrollX}px`,top:`${r.t+scrollY}px`,
+        width:`${r.r-r.l}px`,height:`${r.b-r.t}px`});
+      const detach=e=>{if(e.node.parentElement!==root){const r=rect(e.node);root.appendChild(e.node);place(e.node,r);e.node.style.zIndex='3';}};
+      const rgb=value=>(String(value||'').match(/[\d.]+/g)||[]).slice(0,3).map(Number);
+      const luminance=c=>c.reduce((sum,v,i)=>{v/=255;return sum+[.2126,.7152,.0722][i]*(v<=.04045?v/12.92:((v+.055)/1.055)**2.4);},0);
+      // A sampled outline can be thicker than the Hangul counters. Keep an
+      // outside outline, but cap ordinary dialogue independently of source SFX.
+      for(const e of entries){
+        if(!eligible(e))continue;
+        const s=getComputedStyle(e.node),size=parseFloat(s.fontSize),width=parseFloat(s.webkitTextStrokeWidth);
+        const cap=Math.max(.6,Math.min(1.5,size*.075));
+        const fill=rgb(s.color),outline=rgb(s.webkitTextStrokeColor),background=rgb(e.node.dataset.sourceAppliedBackgroundRGB);
+        // A light ring may be the only contrast on a dark fill/dark plate.
+        // Preserve that readability aid; dark outlines around light dialogue
+        // and fills already legible against their plate can safely be thinner.
+        const contrast=fill.length===3&&background.length===3?
+          (Math.max(luminance(fill),luminance(background))+.05)/(Math.min(luminance(fill),luminance(background))+.05):0;
+        const safe=fill.length===3&&outline.length===3&&(luminance(outline)<luminance(fill)||contrast>=4.5);
+        if(width>cap&&s.webkitTextStrokeColor!==s.color&&safe){
+          e.node.style.webkitTextStrokeWidth=`${cap}px`;e.node.style.paintOrder='stroke fill';
+          e.node.dataset.dialogueStrokeCapped='true';e.ink=ink(e.node);
+        }
+      }
+      // The pixel gate already certified each balanced column's top. Later
+      // centering must not stagger short and long replies within that row.
+      for(const e of entries){
+        const c=e.item.columnLayout;
+        if(!eligible(e)||!e.item.balancedColumn||!c)continue;
+        const dy=c.y+(c.paddingTop||0)-e.ink.t;
+        const moved={...e.ink,t:e.ink.t+dy,b:e.ink.b+dy};
+        const slot={l:c.x,t:c.y,r:c.x+c.width,b:c.y+c.height};
+        if(Math.abs(dy)<.25||!contains(slot,moved)||
+          entries.some(o=>o!==e&&hit(moved,pad(o.ink,1)))||kept.some(o=>hit(moved,o))||
+          e.panels.length&&!e.panels.some(p=>contains(rect(p),moved)))continue;
+        detach(e);e.node.style.top=`${parseFloat(e.node.style.top)+dy}px`;
+        e.ink=ink(e.node);e.node.dataset.captionRowAligned='true';
+      }
+      // Merge only the same caption's opaque, plain plates. Keep all source
+      // erasure coverage; refuse unions reaching another source or its glyphs.
+      for(const e of entries){
+        if(!eligible(e)||!e.panels.length||e.panels.some(p=>!flat(p,true)))continue;
+        const boxes=e.panels.map(rect),u=union(boxes),frame=e.item.sourceFrame;
+        const bounds={l:frame[0],t:frame[1],r:frame[0]+frame[2],b:frame[1]+frame[3]};
+        const main=e.panels.find(p=>p.dataset.sourceErasure!=='true')||e.panels[0];
+        const colors=e.panels.map(p=>getComputedStyle(p).backgroundColor.match(/[\d.]+/g)?.map(Number));
+        if(colors.some(c=>!c||c.length<3||(c.length>3&&c[3]!==1))||
+          colors.some(c=>c.slice(0,3).some((v,i)=>Math.abs(v-colors[0][i])>24)))continue;
+        const obstacles=entries.filter(o=>o!==e).flatMap(o=>[pad(o.ink,1),...o.sources]).concat(kept);
+        // Only discard empty horizontal padding when it conflicts. Source and
+        // translated ink (including a small antialiasing margin) remain covered.
+        const required=pad(union([e.ink,...e.sources]),4);
+        let target=u;
+        if(obstacles.some(o=>hit(u,o))&&contains(u,required))target={...u,l:required.l,r:required.r};
+        if(kept.some(o=>hit(target,o))){
+          const bottom=Math.max(e.ink.b+2,...e.sources.map(s=>s.b+1));
+          if(bottom<target.b)target={...target,b:bottom};
+        }
+        const clipped=e.panels.some(p=>getComputedStyle(p).clipPath!=='none'&&getComputedStyle(p).clipPath);
+        if(e.panels.length>1||clipped){
+          let coverage=[];
+          try {coverage=e.panels.flatMap(p=>p.dataset.panelCoverage?
+            JSON.parse(p.dataset.panelCoverage).map(a=>({l:a[0],t:a[1],r:a[0]+a[2],b:a[1]+a[3]})):[rect(p)]);}
+          catch(_){continue;}
+          if(!coverage.length||coverage.length>64||coverage.some(r=>!Object.values(r).every(Number.isFinite)))continue;
+          const intersection=(a,b)=>({l:Math.max(a.l,b.l),t:Math.max(a.t,b.t),r:Math.min(a.r,b.r),b:Math.min(a.b,b.b)});
+          // Existing source margins may already touch a neighbor. Filling an
+          // empty corner is allowed only if it adds no coverage over its ink.
+          // OCR kept-lettering boxes include blank margins. Only a small,
+          // pixel-certified uniform margin may be covered by the solid plate.
+          const blankKept=new Set(kept.filter(o=>{
+            if(!hit(target,o)||!readSource)return false;
+            const r=intersection(target,o);
+            if(Math.min(r.r-r.l,r.b-r.t)>6)return false;
+            try {
+              const pixels=readSource(pad(r,1),frame);
+              if(!pixels?.length)return false;
+              const low=[255,255,255],high=[0,0,0];
+              for(let i=0;i<pixels.length;i+=4){
+                if(pixels[i+3]<250)return false;
+                for(let k=0;k<3;k++){
+                  low[k]=Math.min(low[k],pixels[i+k]);high[k]=Math.max(high[k],pixels[i+k]);
+                  const w=pixels.captionWidth;
+                  if(w&&((i/4)%w>0&&Math.abs(pixels[i+k]-pixels[i-4+k])>12||
+                    i>=w*4&&Math.abs(pixels[i+k]-pixels[i-w*4+k])>12))return false;
+                }
+              }
+              return high.every((v,k)=>v-low[k]<=48);
+            }catch(_){return false;}
+          }));
+          const addsCollision=obstacles.some(o=>{
+            if(blankKept.has(o))return false;
+            const existing=coverage.map(r=>intersection(r,o)).filter(r=>r.r>r.l&&r.b>r.t);
+            return area(intersection(target,o))>coveredArea(existing)+.05;
+          });
+          if(area(target)>coveredArea(coverage)*1.35||!contains(bounds,target)||addsCollision||kept.some(o=>hit(target,o)&&!blankKept.has(o)))continue;
+          detach(e);place(main,target);main.style.borderRadius='2px';main.style.clipPath='none';
+          main.dataset.panelCoverage=JSON.stringify([[target.l,target.t,target.r-target.l,target.b-target.t]]);
+          e.node.dataset.sourcePanelCoverage=main.dataset.panelCoverage;
+          for(const p of e.panels)if(p!==main)p.remove();
+          e.panels=[main];main.dataset.captionUnified='true';
+          if(blankKept.size)main.dataset.captionBlankKept='true';
+          delete main.dataset.captionUnionClipped;delete main.dataset.sourceBridgeClipped;
+          e.node.style.backgroundColor='transparent';e.node.style.backgroundImage='none';
+        }else if(target!==u){
+          detach(e);place(main,target);main.dataset.captionTrimmed='true';
+        }
+      }
+      // Resolve remaining text/card incursions by the shortest legal shift.
+      // The source plate is fixed; the complete lettering must still fit it.
+      for(const e of entries){
+        if(!eligible(e)||e.item.balancedColumn||e.panels.length!==1||!flat(e.panels[0],true))continue;
+        const panel=e.panels[0],own=rect(panel),before=ink(e.node);
+        if(getComputedStyle(panel).clipPath!=='none'&&getComputedStyle(panel).clipPath){
+          let coverage=[];try {coverage=JSON.parse(panel.dataset.panelCoverage||'[]')
+            .map(a=>({l:a[0],t:a[1],r:a[0]+a[2],b:a[1]+a[3]}));}catch(_){continue;}
+          if(!coverage.length||coverage.length>64||coveredArea(coverage)<area(own)*.995)continue;
+        }
+        const obstacles=entries.filter(o=>o!==e).flatMap(o=>[pad(o.ink,1),...o.panels.map(rect)]).concat(kept);
+        const collisions=obstacles.filter(o=>hit(before,o));if(!collisions.length)continue;
+        const xs=[0],ys=[0];
+        for(const o of collisions){xs.push(o.l-before.r-.75,o.r-before.l+.75);ys.push(o.t-before.b-.75,o.b-before.t+.75);}
+        const limit=Math.min(24,Math.max(4,parseFloat(getComputedStyle(e.node).fontSize)*1.5));
+        // At most 289 trials even on a pathological crowded page.
+        const axis=values=>[...new Set(values)].filter(v=>Math.abs(v)<=limit)
+          .sort((a,b)=>Math.abs(a)-Math.abs(b)).slice(0,17);
+        const trials=axis(xs).flatMap(dx=>axis(ys).map(dy=>({dx,dy,d:Math.hypot(dx,dy)})))
+          .filter(p=>p.d>0&&p.d<=limit).sort((a,b)=>a.d-b.d);
+        const chosen=trials.find(p=>{const r={l:before.l+p.dx,r:before.r+p.dx,t:before.t+p.dy,b:before.b+p.dy};
+          if(obstacles.some(o=>hit(r,o)))return false;
+          const grown=union([own,pad(r,.5)]),f=e.item.sourceFrame;
+          const overlap=(a,b)=>Math.max(0,Math.min(a.r,b.r)-Math.max(a.l,b.l))*Math.max(0,Math.min(a.b,b.b)-Math.max(a.t,b.t));
+          // A sub-glyph extra margin can resolve the collision without a font
+          // change. Never extend more than two pixels or cover a new neighbor.
+          const allowance=Math.min(2,parseFloat(getComputedStyle(e.node).fontSize)*.25);
+          if(Math.max(own.l-grown.l,own.t-grown.t,grown.r-own.r,grown.b-own.b)>allowance||
+            !contains({l:f[0],t:f[1],r:f[0]+f[2],b:f[1]+f[3]},grown)||
+            obstacles.some(o=>overlap(grown,o)>overlap(own,o)+.01))return false;
+          p.grown=grown;return true;});
+        if(!chosen)continue;
+        detach(e);place(panel,chosen.grown);panel.style.clipPath='none';
+        panel.dataset.panelCoverage=JSON.stringify([[chosen.grown.l,chosen.grown.t,
+          chosen.grown.r-chosen.grown.l,chosen.grown.b-chosen.grown.t]]);
+        e.node.dataset.sourcePanelCoverage=panel.dataset.panelCoverage;
+        e.node.style.left=`${parseFloat(e.node.style.left)+chosen.dx}px`;
+        e.node.style.top=`${parseFloat(e.node.style.top)+chosen.dy}px`;
+        e.ink=ink(e.node);e.node.dataset.captionMinimalShift=JSON.stringify([chosen.dx,chosen.dy]);
+      }
+      // Solid owner plates replace the text-only backing too. Leaving that
+      // clipped clone behind recreates the two-panel silhouette on the page.
+      for(const e of entries){
+        if(e.panels.length!==1||!flat(e.panels[0]))continue;
+        const main=e.panels[0],frame=rect(main),color=getComputedStyle(main).backgroundColor;
+        for(const layer of root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-backing"]')){
+          if(layer.dataset.aidokuRegion===String(e.item.id)&&contains(frame,rect(layer))&&
+            getComputedStyle(layer).backgroundColor===color)layer.remove();
+        }
+      }
+      // Give neighboring solid cards real space. Trim unused margins first;
+      // if their lettering still crowds the seam, translate it without reflow.
+      const gap=1,margin=.5;
+      const cards=entries.filter(e=>e.item.sourceTextOnly===false&&!e.item.rotation&&(!e.item.sourceLettering||e.item.sourceLettering==='piece')&&
+        e.item.wrappingScript==='korean'&&flat(e.node)&&e.panels.length===1&&flat(e.panels[0],true)&&(()=>{
+          const p=e.panels[0];if(!getComputedStyle(p).clipPath||getComputedStyle(p).clipPath==='none')return true;
+          try {return coveredArea(JSON.parse(p.dataset.panelCoverage||'[]').map(r=>({l:r[0],t:r[1],r:r[0]+r[2],b:r[1]+r[3]})))>=area(rect(p))*.995;}catch(_){return false;}
+        })())
+        .map(e=>({e,p:e.panels[0],base:rect(e.panels[0]),r:rect(e.panels[0])}))
+        .sort((a,b)=>a.r.l-b.r.l);
+      const overlapY=(a,b)=>Math.min(a.b,b.b)-Math.max(a.t,b.t)>.5;
+      const commit=c=>{
+        detach(c.e);place(c.p,c.r);c.p.style.clipPath='none';
+        c.p.dataset.panelCoverage=JSON.stringify([[c.r.l,c.r.t,c.r.r-c.r.l,c.r.b-c.r.t]]);
+        c.e.node.dataset.sourcePanelCoverage=c.p.dataset.panelCoverage;
+        c.p.dataset.captionSpaced='true';
+      };
+      for(const resolve of [false,true])for(let i=0;i<cards.length;i++)for(let j=i+1;j<cards.length;j++){
+        const a=cards[i],b=cards[j];
+        if(!overlapY(a.r,b.r)||b.r.l-a.r.r>=gap||a.r.l>=b.r.l||a.r.r>=b.r.r)continue;
+        const ar=pad(union([a.e.ink,...a.e.sources]),margin),br=pad(union([b.e.ink,...b.e.sources]),margin);
+        // These changes remove empty padding only and retain the source boxes.
+        const right=Math.max(a.r.l+1,Math.min(a.r.r,ar.r));
+        const left=Math.min(b.r.r-1,Math.max(b.r.l,br.l));
+        if(right<a.r.r){a.r={...a.r,r:right};commit(a);}
+        if(left>b.r.l){b.r={...b.r,l:left};commit(b);}
+        if(!resolve||b.r.l-a.r.r>=gap)continue;
+        if(!eligible(a.e)||!eligible(b.e)||a.e.item.balancedColumn||b.e.item.balancedColumn)continue;
+        const af=a.e.item.sourceFrame,bf=b.e.item.sourceFrame;
+        let outerLeft=Math.max(af[0],a.base.l-3),outerRight=Math.min(bf[0]+bf[2],b.base.r+3);
+        for(const other of cards){
+          if(other===a||other===b)continue;
+          if(overlapY(a.r,other.r)&&other.r.l<a.r.l)outerLeft=Math.max(outerLeft,other.r.r+gap);
+          if(overlapY(b.r,other.r)&&other.r.r>b.r.r)outerRight=Math.min(outerRight,other.r.l-gap);
+        }
+        const as=union(a.e.sources),bs=union(b.e.sources),ai=a.e.ink,bi=b.e.ink;
+        const lo=Math.max(as.r+margin,outerLeft+ai.r-ai.l+2*margin);
+        const hi=Math.min(bs.l-margin-gap,outerRight-(bi.r-bi.l)-2*margin-gap);
+        if(lo>hi)continue;
+        const seam=Math.max(lo,Math.min(hi,(a.r.r+b.r.l-gap)/2));
+        const ad=Math.min(0,seam-margin-ai.r),bd=Math.max(0,seam+gap+margin-bi.l);
+        const limit=e=>Math.min(8,parseFloat(getComputedStyle(e.node).fontSize));
+        if(Math.abs(ad)>limit(a.e)||Math.abs(bd)>limit(b.e))continue;
+        const moved=(r,d)=>({...r,l:r.l+d,r:r.r+d});
+        const an=moved(ai,ad),bn=moved(bi,bd);
+        const ap={...a.r,l:Math.min(a.r.l,an.l-margin),r:seam};
+        const bp={...b.r,l:seam+gap,r:Math.max(b.r.r,bn.r+margin)};
+        const overlap=(r,o)=>area({l:Math.max(r.l,o.l),t:Math.max(r.t,o.t),r:Math.min(r.r,o.r),b:Math.min(r.b,o.b)});
+        const safe=(c,ink,plate)=>{
+          if(plate.l<outerLeft||plate.r>outerRight||!contains(plate,pad(ink,margin)))return false;
+          const obstacles=entries.filter(e=>e!==a.e&&e!==b.e).flatMap(e=>[pad(e.ink,.5),...e.sources]).concat(kept);
+          return !obstacles.some(o=>hit(ink,o)||overlap(plate,o)>overlap(c.r,o)+.05);
+        };
+        if(!safe(a,an,ap)||!safe(b,bn,bp))continue;
+        for(const [c,d,plate] of [[a,ad,ap],[b,bd,bp]]){
+          detach(c.e);c.e.node.style.left=`${parseFloat(c.e.node.style.left)+d}px`;
+          c.e.ink=ink(c.e.node);c.e.node.dataset.captionSpacingShift=String(d);
+          c.r=plate;commit(c);
+        }
+      }
+    };
     // Opaque caption packing must not use the more aggressive restoration
     // floor: that can merge cards into long, narrowly rewrapped paragraphs.
     const aidokuCaptionFontFloor = (original, minimum = 5) => {

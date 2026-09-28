@@ -16,7 +16,7 @@ enum BrowserOverlayColumnLayout {
         let candidates = sources.indices.filter {
             let r = sources[$0]
             return eligible[$0] && !variants[$0].vertical && r.width > 0 &&
-                r.height >= max(30 * scale, r.width * 3) && r.width <= 40 * scale &&
+                r.height >= max(12 * scale, r.width * 1.25) && r.width <= 40 * scale &&
                 variants[$0].displayText.count <= 180 &&
                 BrowserOverlayTextFlow.wrappingScript(for: variants[$0].displayText) == .korean
         }.sorted { sources[$0].minX < sources[$1].minX }
@@ -33,7 +33,11 @@ enum BrowserOverlayColumnLayout {
                 row.append(next)
             }
             visited.formUnion(row)
-            guard row.count >= 2 else { continue }
+            // Short replies belong to the same row as long vertical dialogue.
+            // Require two tall anchors so unrelated short labels stay untouched.
+            guard row.count >= 2, row.filter({
+                sources[$0].height >= max(30 * scale, sources[$0].width * 3)
+            }).count >= 2 else { continue }
             let rowSet = Set(row)
             let gap = 4 * scale
             // OCR tops within one row may jitter by several pixels. Align

@@ -15834,6 +15834,23 @@ final class BrowserPageImageOverlayRenderer {
         root.dataset.recoveredLinesMilliseconds=String(Math.round((performance.now()-started)*10)/10);
       } catch(error) {root.dataset.recoveredLinesError=String(error).slice(0,160);}
     })();
+    let captionReadBudget=65536,captionReadCanvas=null;
+    aidokuPolishCaptionPanels(root, items, opacity, keptItems, (r,f)=>{
+      if(!sourcePixelReader||!sourceImage)return null;
+      const sx=sourceImage.naturalWidth/f[2],sy=sourceImage.naturalHeight/f[3];
+      const x=Math.max(0,Math.floor((r.l-f[0])*sx)),y=Math.max(0,Math.floor((r.t-f[1])*sy));
+      const w=Math.min(sourceImage.naturalWidth-x,Math.ceil((r.r-f[0])*sx)-x);
+      const h=Math.min(sourceImage.naturalHeight-y,Math.ceil((r.b-f[1])*sy)-y);
+      if(w<=0||h<=0||w*h>captionReadBudget)return null;
+      captionReadBudget-=w*h;
+      if(!captionReadCanvas)captionReadCanvas=document.createElement('canvas');
+      const context=captionReadCanvas.getContext('2d',{willReadFrequently:true});
+      if(!context)return null;
+      const pixels=sourcePixelReader.read(context,x,y,w,h,w,h);
+      if(pixels)pixels.captionWidth=w;
+      return pixels;
+    }, keptZones);
+    if(captionReadCanvas){captionReadCanvas.width=0;captionReadCanvas.height=0;}
     // Kept source lettering is never covered. Where a plate, backing, glyph
     // cover, erasure or restoration layer reaches into a kept zone, the page
     // image itself is shown again above it: one clipped copy of the source
@@ -15873,6 +15890,10 @@ final class BrowserPageImageOverlayRenderer {
         const zones=[...keptZones.filter(z=>!collided.has(z.id)&&covers.some(c=>meets(c,z))),...effectZones];
         let pieces=zones.map(box);
         (()=>{for(const g of glyphLines)if(zones.some(z=>meets(g,z)))pieces=aidokuSubtractRects(pieces,g);})();
+        // These intersections were sampled from the original at native resolution
+        // and contain only uniform empty margin, not preserved lettering.
+        for(const panel of root.querySelectorAll('[data-caption-blank-kept="true"]'))
+          pieces=aidokuSubtractRects(pieces,box(panel.getBoundingClientRect()));
         pieces=pieces.map(p=>({left:Math.max(p.left,image.left),top:Math.max(p.top,image.top),
           right:Math.min(p.right,image.right),bottom:Math.min(p.bottom,image.bottom)}))
           .filter(p=>p.right-p.left>=.5&&p.bottom-p.top>=.5);

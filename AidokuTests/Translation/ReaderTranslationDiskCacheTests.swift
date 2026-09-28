@@ -287,6 +287,25 @@ struct ReaderTranslationDiskCacheTests {
         #expect(oldKey != ReaderTranslationCacheIdentity.ocr(page: "page", settings: settings))
     }
 
+    @Test func disjointPanelsRejectPreviousRenderIdentity() {
+        let settings = ReaderTranslationSettings()
+        let size = CGSize(width: 390, height: 780)
+        let crop = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let previous = ReaderTranslationCacheIdentity.encoded([
+            "reader-render-v113-protected-lettering-groups",
+            ReaderTranslationCacheIdentity.translation(page: "panel-page", settings: settings),
+            ReaderTranslationCacheIdentity.encoded(settings.overlay),
+            ReaderTranslationCacheIdentity.encoded(size), ReaderTranslationCacheIdentity.encoded(size),
+            String(Double(3)), String(true), ReaderTranslationCacheIdentity.encoded(crop), String(false),
+            "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit", "fixture-font",
+            ProcessInfo.processInfo.operatingSystemVersionString
+        ])
+        let current = ReaderTranslationCacheIdentity.render(page: "panel-page", settings: settings,
+            imageSize: size, viewport: size, scale: 3, aspectFit: true, crop: crop, dark: false,
+            letteringFontKey: "fixture-font")
+        #expect(current != previous)
+    }
+
     @Test func letteringFontAvailabilityInvalidatesPersistentRender() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }

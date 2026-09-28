@@ -48,6 +48,28 @@ struct ReaderColumnLayoutTests {
         #expect(!BrowserOverlayCollisionGeometry.hasOverlap(in: ordered.map(\.rect)))
     }
 
+    @Test func shortRepliesStayInTheTallDialogueRow() throws {
+        let sources = [CGRect(x: 20, y: 20, width: 12, height: 100),
+                       CGRect(x: 60, y: 21, width: 12, height: 24),
+                       CGRect(x: 100, y: 20, width: 12, height: 100)]
+        let variants = ["오늘 다시 만나서 반가워.", "앗!", "그러니까 사과하지 말라니까!"].map {
+            BrowserOverlayDisplayVariant.plain($0, vertical: false)
+        }
+        let layouts = BrowserOverlayColumnLayout.plan(sources: sources, variants: variants,
+            eligible: [true, true, true], bounds: CGRect(x: 0, y: 0, width: 430, height: 320), measurementCache: .init())
+        let ordered = try sources.indices.map { try #require(layouts[$0]) }
+        #expect(Set(ordered.map { $0.rect.minY }) == [21])
+        #expect(!BrowserOverlayCollisionGeometry.hasOverlap(in: ordered.map(\.rect)))
+    }
+
+    @Test func shortLabelsWithoutTallDialogueAreNotAColumnRow() {
+        let sources = [CGRect(x: 20, y: 20, width: 12, height: 24),
+                       CGRect(x: 60, y: 20, width: 12, height: 24)]
+        let variants = sources.map { _ in BrowserOverlayDisplayVariant.plain("앗!", vertical: false) }
+        #expect(BrowserOverlayColumnLayout.plan(sources: sources, variants: variants,
+            eligible: [true, true], bounds: CGRect(x: 0, y: 0, width: 430, height: 320), measurementCache: nil).isEmpty)
+    }
+
     @Test func isolatedBalloonAndDifferentRowsKeepTheirOriginalPlanner() {
         let sources = [CGRect(x: 20, y: 20, width: 20, height: 100),
                        CGRect(x: 60, y: 120, width: 20, height: 100)]

@@ -120,12 +120,13 @@ function element() {
         } });
 }
 // This fixed-geometry DOM shim has no raster clip support; WebKit regressions cover it.
-const context = vm.createContext({ console, performance, CSS: { supports: () => false } });
+const context = vm.createContext({ console, performance, getComputedStyle: node => node.style, scrollX: 0, scrollY: 0, CSS: { supports: () => false } });
 vm.runInContext(decodeSwift(helpersMatch[1]) + typography + `
     globalThis.production = {
         contrast: aidokuSourceColorContrast,
         render: fixture => {
             const {item, node, root, appearance, opacity, document} = fixture;
+            globalThis.document = document;
             const fontSize = fixture.fontSize, lineHeight = fontSize * 1.2, minimumFontSize = 5;
             const vertical = Boolean(item.vertical), wrappingScript = 'word';
             const displayedText = 'translated text', fontFamily = 'sans-serif';
