@@ -55,8 +55,8 @@ enum BrowserOverlayTypography {
         const f=item.sourceFrame,b=item.sourceBounds;
         return f&&b?[{l:f[0]+b[0]*f[2],t:f[1]+b[1]*f[3],r:f[0]+(b[0]+b[2])*f[2],b:f[1]+(b[1]+b[3])*f[3]}]:[];
       });
-      const eligible=e=>e.item.sourceTextOnly===false&&!e.item.rotation&&!e.item.vertical&&
-        !e.item.sourceLettering&&e.item.wrappingScript==='korean'&&flat(e.node);
+      const eligible=(e,allowPiece=false)=>e.item.sourceTextOnly===false&&!e.item.rotation&&!e.item.vertical&&
+        (!e.item.sourceLettering||allowPiece&&e.item.sourceLettering==='piece')&&e.item.wrappingScript==='korean'&&flat(e.node);
       const place=(n,r)=>Object.assign(n.style,{left:`${r.l+scrollX}px`,top:`${r.t+scrollY}px`,
         width:`${r.r-r.l}px`,height:`${r.b-r.t}px`});
       const detach=e=>{if(e.node.parentElement!==root){const r=rect(e.node);root.appendChild(e.node);place(e.node,r);e.node.style.zIndex='3';}};
@@ -97,7 +97,7 @@ enum BrowserOverlayTypography {
       // Merge only the same caption's opaque, plain plates. Keep all source
       // erasure coverage; refuse unions reaching another source or its glyphs.
       for(const e of entries){
-        if(!eligible(e)||!e.panels.length||e.panels.some(p=>!flat(p,true)))continue;
+        if(!eligible(e,true)||!e.panels.length||e.panels.some(p=>!flat(p,true)))continue;
         const boxes=e.panels.map(rect),u=union(boxes),frame=e.item.sourceFrame;
         const bounds={l:frame[0],t:frame[1],r:frame[0]+frame[2],b:frame[1]+frame[3]};
         const main=e.panels.find(p=>p.dataset.sourceErasure!=='true')||e.panels[0];
@@ -272,6 +272,52 @@ enum BrowserOverlayTypography {
           detach(c.e);c.e.node.style.left=`${parseFloat(c.e.node.style.left)+d}px`;
           c.e.ink=ink(c.e.node);c.e.node.dataset.captionSpacingShift=String(d);
           c.r=plate;commit(c);
+        }
+      }
+      // A crowded row needs a joint solution: moving its middle caption alone
+      // can be impossible even though the outer caption has spare space.
+      // Search bounded quarter-pixel translations, keeping every glyph and
+      // source box inside its own disjoint rectangle; never scale or rewrap.
+      const groups=[];
+      for(const c of cards){
+        const g=groups[groups.length-1],previous=g?.[g.length-1];
+        if(previous&&overlapY(previous.r,c.r)&&c.r.l-previous.r.r<=12)g.push(c);
+        else groups.push([c]);
+      }
+      for(const group of groups){
+        if(group.length<2||group.length>12||group.some(c=>!eligible(c.e,true)||c.e.item.balancedColumn)||
+          !group.some((c,i)=>i&&c.r.l-group[i-1].r.r<gap-.05))continue;
+        const owners=new Set(group.map(c=>c.e));
+        const obstacles=entries.filter(e=>!owners.has(e)).flatMap(e=>[pad(e.ink,.5),...e.sources,...e.panels.map(rect)]).concat(kept);
+        const overlap=(r,o)=>area({l:Math.max(r.l,o.l),t:Math.max(r.t,o.t),r:Math.min(r.r,o.r),b:Math.min(r.b,o.b)});
+        let states=[];
+        for(let index=0;index<group.length;index++){
+          const c=group[index],f=c.e.item.sourceFrame,original=c.e.ink;
+          const limit=Math.min(8,parseFloat(getComputedStyle(c.e.node).fontSize));
+          const next=[];
+          for(let step=-Math.floor(limit*4);step<=Math.floor(limit*4);step++){
+            const dx=step/4,moved={...original,l:original.l+dx,r:original.r+dx};
+            const required=pad(union([moved,...c.e.sources]),margin);
+            const r={...c.r,l:required.l,r:required.r};
+            if(r.l<Math.max(f[0],c.base.l-3)||r.r>Math.min(f[0]+f[2],c.base.r+3)||
+              !contains(r,pad(moved,margin))||obstacles.some(o=>hit(moved,o)||overlap(r,o)>overlap(c.r,o)+.05))continue;
+            let parent=null;
+            if(index){
+              for(const state of states)if(state.r.r+gap<=r.l&&(!parent||state.cost<parent.cost))parent=state;
+              if(!parent)continue;
+            }
+            next.push({r,dx,c,parent,cost:(parent?.cost||0)+Math.abs(dx)});
+          }
+          states=next;if(!states.length)break;
+        }
+        if(!states.length)continue;
+        let chosen=states.reduce((a,b)=>a.cost<=b.cost?a:b);
+        const solution=[];while(chosen){solution.push(chosen);chosen=chosen.parent;}
+        if(solution.length!==group.length)continue;
+        for(const {c,r,dx} of solution){
+          detach(c.e);c.e.node.style.left=`${parseFloat(c.e.node.style.left)+dx}px`;
+          c.e.ink=ink(c.e.node);c.e.node.dataset.captionGroupShift=String(dx);
+          c.r=r;commit(c);
         }
       }
     };

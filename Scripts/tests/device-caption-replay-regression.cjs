@@ -7,7 +7,8 @@ const directory=process.argv[2];
 assert.ok(directory,'Pass the directory containing the three matched device-page replays');
 const get=(run,n)=>{if(run==='after')run=process.argv[3]||run;return JSON.parse(fs.readFileSync(path.join(directory,run,`phone-${n}.items.json`),'utf8'));};
 const item=(page,id)=>{const value=page.items.find(i=>i.region===String(id));assert.ok(value,`missing region ${id}`);return value;};
-for(let n=1;n<=3;n++){
+const count=fs.existsSync(path.join(directory,'before','phone-4.items.json'))?4:3;
+for(let n=1;n<=count;n++){
   const before=get('before',n),after=get('after',n);
   assert.equal(after.items.length,before.items.length);
   for(const a of after.items){const b=item(before,a.region);
@@ -32,4 +33,12 @@ assert.ok(Math.max(...row.map(i=>i.ink[1]))-Math.min(...row.map(i=>i.ink[1]))<.0
 const old=item(get('before',3),1),fresh=item(get('after',3),1);
 assert.ok(parseFloat(fresh.strokeWidth)<=parseFloat(old.strokeWidth)*.6);
 assert.ok(parseFloat(fresh.strokeWidth)>=.6,'retain a visible contrast outline');
-console.log('PASS all three actual device pages: preserved text/fonts, no added overflow, adjacent plate cleared, solid rectangle, 11-column alignment, thinner outline');
+if(count===4){
+  const fresh=get('after',4),row=fresh.layers.filter(l=>l.kind==='source-readability-panel'&&['7','8','9'].includes(l.region));
+  assert.equal(row.length,3);
+  for(const panel of row){assert.equal(panel.dataset.captionUnified,'true');assert.equal(JSON.parse(panel.dataset.panelCoverage).length,1);}
+  row.sort((a,b)=>a.box[0]-b.box[0]);
+  for(let i=1;i<row.length;i++)assert.ok(row[i].box[0]-row[i-1].box[0]-row[i-1].box[2]>=.95,'crowded trio has a real gap');
+  for(const id of [7,8])assert.ok(Number(item(fresh,id).dataset.captionGroupShift)<0,'joint spacing includes the short piece');
+}
+console.log('PASS actual device pages: preserved text/fonts, no added overflow, adjacent plate cleared, solid rectangle, 11-column alignment, thinner outline');

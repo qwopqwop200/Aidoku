@@ -84,6 +84,29 @@ const script = fs.readFileSync(path.join(__dirname,
       };return ['missing','ink','blank'].map(run);
     });
     assert.deepEqual(margins,[false,false,true],'only pixel-certified blank kept margins may be filled');
+    const packed=await page.evaluate(()=>{
+      const root=document.createElement('div');document.body.appendChild(root);
+      const specs=[{x:8,w:41,ink:11.6,iw:34,sx:29,sw:13,piece:true},
+        {x:45,w:30,ink:49,iw:24,sx:55,sw:10},{x:71,w:54,ink:75,iw:48,sx:71.77,sw:43}];
+      const items=[],panels=[],nodes=[];
+      specs.forEach((s,i)=>{
+        const id='group-'+i,p=document.createElement('div'),n=document.createElement('div'),span=document.createElement('span');
+        p.dataset.aidokuImageOcrOverlay='source-readability-panel';p.dataset.aidokuRegion=id;
+        p.style.cssText=`position:absolute;left:${s.x}px;top:20px;width:${s.w}px;height:100px;background:rgb(130,115,110)`;
+        n.dataset.aidokuImageOcrOverlay='item';n.dataset.aidokuRegion=id;
+        n.style.cssText=`position:absolute;left:${s.ink}px;top:40px;font:10px/20px sans-serif`;
+        span.style.cssText=`display:inline-block;width:${s.iw}px;height:20px`;span.textContent='대사';n.appendChild(span);
+        root.append(p,n);panels.push(p);nodes.push(n);
+        items.push({id,sourceTextOnly:false,wrappingScript:'korean',sourceLettering:s.piece?'piece':null,
+          sourceFrame:[0,0,200,200],sourceBounds:[s.sx/200,20/200,s.sw/200,100/200]});
+      });
+      window.polish(root,items,1);
+      const boxes=panels.map(p=>{const r=p.getBoundingClientRect();return [r.left,r.right];});
+      const shifts=nodes.map(n=>Number(n.dataset.captionGroupShift||0));root.remove();return {boxes,shifts};
+    });
+    assert.ok(packed.boxes[1][0]-packed.boxes[0][1]>=.95);
+    assert.ok(packed.boxes[2][0]-packed.boxes[1][1]>=.95);
+    assert.ok(packed.shifts[0]<0&&packed.shifts[1]<0,'free space by jointly moving the first and middle captions');
     if(process.env.CAPTION_SCREENSHOT)await page.screenshot({path:process.env.CAPTION_SCREENSHOT});
     console.log('PASS WebKit: rectangular union, blank-padding trim, minimum movement, shared row top, dialogue stroke, SFX preservation, unchanged text/font');
   } finally {await browser.close();}

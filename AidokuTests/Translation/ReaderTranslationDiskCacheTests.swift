@@ -287,12 +287,13 @@ struct ReaderTranslationDiskCacheTests {
         #expect(oldKey != ReaderTranslationCacheIdentity.ocr(page: "page", settings: settings))
     }
 
-    @Test func disjointPanelsRejectPreviousRenderIdentity() {
+    @Test(arguments: ["reader-render-v113-protected-lettering-groups", "reader-render-v114-disjoint-caption-panels"])
+    func disjointPanelsRejectPreviousRenderIdentity(revision: String) {
         let settings = ReaderTranslationSettings()
         let size = CGSize(width: 390, height: 780)
         let crop = CGRect(x: 0, y: 0, width: 1, height: 1)
         let previous = ReaderTranslationCacheIdentity.encoded([
-            "reader-render-v113-protected-lettering-groups",
+            revision,
             ReaderTranslationCacheIdentity.translation(page: "panel-page", settings: settings),
             ReaderTranslationCacheIdentity.encoded(settings.overlay),
             ReaderTranslationCacheIdentity.encoded(size), ReaderTranslationCacheIdentity.encoded(size),
