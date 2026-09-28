@@ -125,6 +125,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     // Region JSON/digest belongs to an update, not each layout/capture pass.
     private(set) var layoutCacheKey: String?
     private var snapshotTask: Task<Void, Never>?
+    private var directSnapshotInFlight = false
     private var snapshotGeneration = UUID()
     var onCacheGeometryChanged: (() -> Void)?
     var onRenderCommitted: (() -> Void)?
@@ -183,6 +184,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     func cancelWork() {
         recoveryTask?.cancel(); recoveryTask = nil
         snapshotGeneration = UUID()
+        directSnapshotInFlight = false
         snapshotTask?.cancel()
         snapshotTask = nil
         imageGeneration = UUID()
@@ -236,6 +238,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         }
         didStoreSnapshot = false
         snapshotGeneration = UUID()
+        directSnapshotInFlight = false
         snapshotTask?.cancel()
         self.imageSize = imageSize
         self.aspectFit = aspectFit
@@ -243,7 +246,17 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         items = ReaderTranslationRegion.layoutItems(regions, imageSize: imageSize)
         dirty = true
         if contentTerminationCount == 0 {
-            if let image {
+            if let image, defersPresentationUntilSnapshot, self.snapshotTarget != nil, window != nil {
+                // The final bitmap is the only visible presentation. Its isolated
+                // exporter owns the one DOM render; do not paint this hidden view first.
+                preparedImage = image
+                imageGeneration = UUID()
+                imageTask?.cancel(); imageTask = nil
+                backgroundRevision += 1
+                backgroundTask?.cancel(); backgroundTask = nil
+                recoveryTask?.cancel(); recoveryTask = nil
+                imageDataURL = nil
+            } else if let image {
                 if preparedImage !== image {
                     prepareBackground(image)
                 } else if backgroundFitChanged {
@@ -318,6 +331,16 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
             onCacheGeometryChanged?()
             return
         }
+        if defersPresentationUntilSnapshot, snapshotTarget != nil, preparedImage != nil, window != nil,
+           contentTerminationCount == 0, bounds.width > 0, bounds.height > 0 {
+            if !directSnapshotInFlight, !didStoreSnapshot,
+               dirty || !ReaderTranslationGeometry.sameViewport(renderedSize, bounds.size) {
+                dirty = false
+                renderedSize = bounds.size
+                captureOnlySnapshot()
+            }
+            return
+        }
         guard ready, bounds.width > 0, bounds.height > 0, dirty || !ReaderTranslationGeometry.sameViewport(renderedSize, bounds.size) else { return }
         dirty = false
         renderedSize = bounds.size
@@ -340,6 +363,76 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) { dirty = true; setNeedsLayout() }
+    }
+
+    /// A cache-backed visible page needs one full-page export, not a hidden
+    /// live render followed by a second export render. Keep this view as the
+    /// geometry/cancellation owner until the final bitmap replaces it.
+    private func captureOnlySnapshot() {
+        guard let target = snapshotTarget, let layoutCacheKey, let image = preparedImage, let host = window else { return }
+        snapshotTask?.cancel()
+        let issued = snapshotGeneration
+        let size = bounds.size
+        let regions = regions, settings = settings, imageSize = imageSize, aspectFit = aspectFit
+        let items = items
+        let sourceRect = ReaderTranslationGeometry.displayRect(
+            CGRect(x: 0, y: 0, width: 1, height: 1), imageSize: imageSize,
+            bounds: CGRect(origin: .zero, size: size), aspectFit: aspectFit)
+        let existingLayout = preparedLayout
+        directSnapshotInFlight = true
+        snapshotTask = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                if snapshotGeneration == issued { directSnapshotInFlight = false; snapshotTask = nil }
+            }
+            let layout = Task { () throws -> Data in
+                if let existingLayout { return try await existingLayout.value }
+                if let cached = await target.cache.layoutData(for: layoutCacheKey) { return cached }
+                return try await BrowserPageImageOverlayRenderer.prepareLayoutData(
+                    items: items, imageSize: imageSize, sourceRect: sourceRect,
+                    settings: settings.overlay, targetLanguage: settings.targetLanguage, viewport: size)
+            }
+            defer { layout.cancel() }
+            ReaderTranslationDiagnostics.record("visible_snapshot_only_begin", count: regions.count)
+            do {
+                let snapshot = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+                    image: image, imageSize: imageSize, regions: regions, settings: settings,
+                    viewport: size, scale: traitCollection.displayScale, aspectFit: aspectFit,
+                    host: host, dark: target.dark, preparedLayout: layout,
+                    assetCache: target.cache, assetKey: target.key, priority: .foreground)
+                try Task.checkCancellation()
+                guard snapshotGeneration == issued,
+                      ReaderTranslationGeometry.sameViewport(bounds.size, size),
+                      (traitCollection.userInterfaceStyle == .dark) == target.dark else { return }
+                let diskGeneration: UInt64?
+                if let ready = target.diskGeneration { diskGeneration = ready }
+                else { diskGeneration = await target.pendingDiskGeneration?.value }
+                try Task.checkCancellation()
+                guard snapshotGeneration == issued else { return }
+                guard let diskGeneration else { throw ReaderTranslationImageExporter.ExportError.unavailable }
+                await target.cache.store(snapshot, key: target.key, pageIdentity: target.pageIdentity, diskGeneration: diskGeneration)
+                try Task.checkCancellation()
+                guard snapshotGeneration == issued else { return }
+                guard let cached = target.cache.cachedImage(for: target.key) else {
+                    throw ReaderTranslationImageExporter.ExportError.unavailable
+                }
+                didStoreSnapshot = true
+                ReaderTranslationDiagnostics.record("visible_snapshot_only_finished", count: regions.count)
+                onRenderCommitted?()
+                onSnapshotStored?(cached)
+            } catch {
+                guard !Task.isCancelled, snapshotGeneration == issued else { return }
+                // A failed optional capture still gets a live translated fallback.
+                // Disable capture for this update so it cannot loop on the failure.
+                ReaderTranslationDiagnostics.record("visible_snapshot_only_fallback")
+                snapshotTarget = nil
+                self.layoutCacheKey = nil
+                dirty = true
+                prepareBackground(image)
+                scheduleRenderRecovery()
+                setNeedsLayout()
+            }
+        }
     }
 
     private func captureCompletedRender(revision: UInt64) {

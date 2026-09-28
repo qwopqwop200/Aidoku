@@ -216,7 +216,7 @@ enum ReaderTranslationImageExporter {
         image: UIImage, imageSize: CGSize, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
         viewport: CGSize, scale: CGFloat, aspectFit: Bool, host: UIView, dark: Bool,
         preparedLayout: Task<Data, Error>?, assetCache: ReaderTranslationRenderCache? = nil, assetKey: String? = nil,
-        assetSourceDigest: String? = nil
+        assetSourceDigest: String? = nil, priority: TranslationRequestPriority = .prefetch
     ) async throws -> UIImage {
         guard viewport.width > 0, viewport.height > 0 else { throw ExportError.unavailable }
         let factor = min(max(1, scale), sqrt(4_000_000 / viewport.width / viewport.height))
@@ -240,11 +240,11 @@ enum ReaderTranslationImageExporter {
         // overlay asset. Replay it natively before joining the cold WebKit queue,
         // just as the visible-image path does; do not redo layout, DOM or PDF.
         if let assetCache, let assetKey, let sourceDigest,
-           let asset = await assetCache.renderAsset(for: assetKey, priority: .prefetch),
+           let asset = await assetCache.renderAsset(for: assetKey, priority: priority),
            asset.matches(regions: regions, sourceSize: imageSize, sourceDigest: sourceDigest),
            asset.displayRect == rect {
             do {
-                let page = try await compositeLoadedImage(image, asset: asset, size: pageSize, priority: .prefetch)
+                let page = try await compositeLoadedImage(image, asset: asset, size: pageSize, priority: priority)
                 try Task.checkCancellation()
                 ReaderTranslationDiagnostics.record("snapshot_asset_replayed")
                 return snapshotCanvas(page: page, viewport: viewport, rect: rect, canvasSize: canvasSize, frame: frame)
@@ -257,14 +257,14 @@ enum ReaderTranslationImageExporter {
         }
         // Cache snapshots yield to a visible page waiting for its first presentation.
         ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_wait", count: regions.count)
-        return try await gate.withPermit(priority: .prefetch) { @MainActor in
+        return try await gate.withPermit(priority: priority) { @MainActor in
             ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_acquired", count: regions.count)
             defer { ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_released", count: regions.count) }
             try Task.checkCancellation()
             let result = try await renderSerial(image: image, regions: regions, settings: settings,
                 viewport: viewport, aspectFit: aspectFit, host: host, logicalImageSize: imageSize,
                 pixelSize: pageSize,
-                preparedLayout: preparedLayout, dark: dark, sourceDigest: sourceDigest, priority: .prefetch)
+                preparedLayout: preparedLayout, dark: dark, sourceDigest: sourceDigest, priority: priority)
             try Task.checkCancellation()
             if let assetCache, let assetKey, let storage {
                 assetCache.storeRenderAssetAfterDisplay(result.asset, key: assetKey, context: storage)

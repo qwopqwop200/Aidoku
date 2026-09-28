@@ -45,6 +45,7 @@ struct ReaderTranslationRenderingTests {
             try await Task.sleep(for: .milliseconds(20))
         }
         #expect(committed)
+        #expect(overlay.lastDiagnostic == nil, "The hidden live renderer must not render before the single export")
         #expect(overlay.superview == nil)
         let canvas = try #require(view.subviews.first as? UIImageView)
         #expect(canvas.accessibilityIdentifier == "reader.translation.cachedOverlay")
@@ -54,6 +55,109 @@ struct ReaderTranslationRenderingTests {
         #expect(view.subviews.first === canvas)
         #expect(canvas.image === bitmap)
         #expect(canvas.frame == view.bounds)
+    }
+
+    @Test func singlePassSnapshotMatchesLegacyFinalPixels() async throws {
+        let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
+        let host = try window(frame: frame)
+        host.rootViewController = UIViewController()
+        host.makeKeyAndVisible()
+        defer { host.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
+        let source = image(), settings = fixtureSettings()
+        let regions = [ReaderTranslationRegion(id: "dialogue", rect: CGRect(x: 0.07, y: 0.1, width: 0.7, height: 0.1),
+            source: "HELLO WORLD", translation: "안녕, 세상! 함께 출발하자.")]
+        var snapshots: [[UInt8]] = []
+        for direct in [false, true] {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+            let generation = await cache.disk.currentGeneration(settings: settings)
+            let overlay = ReaderTranslationOverlayView(frame: frame)
+            host.rootViewController?.view.addSubview(overlay)
+            defer { overlay.cancelWork(); overlay.removeFromSuperview(); try? FileManager.default.removeItem(at: root) }
+            overlay.defersPresentationUntilSnapshot = direct
+            overlay.update(regions: regions, imageSize: source.size, aspectFit: true, settings: settings, image: source,
+                snapshotTarget: .init(cache: cache, key: "parity", pageIdentity: "parity", diskGeneration: generation,
+                                      viewport: frame.size, dark: overlay.traitCollection.userInterfaceStyle == .dark))
+            overlay.layoutIfNeeded()
+            let deadline = Date().addingTimeInterval(30)
+            while cache.cachedImage(for: "parity") == nil {
+                if Date() > deadline { throw URLError(.timedOut) }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            let bitmap = try #require(cache.cachedImage(for: "parity")?.cgImage)
+            let pixels = try #require(NativeOCRCGImageAdapter.makeRGBAFrame(from: bitmap))
+            snapshots.append(pixels.bytes)
+        }
+        #expect(snapshots[0] == snapshots[1], "Removing the hidden render must preserve the final bitmap pixels")
+    }
+
+    @Test func replacedSinglePassSnapshotCannotPublishOrCacheOldPage() async throws {
+        let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
+        let host = try window(frame: frame)
+        host.rootViewController = UIViewController()
+        let overlay = ReaderTranslationOverlayView(frame: frame)
+        host.rootViewController?.view.addSubview(overlay)
+        host.makeKeyAndVisible()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+        let settings = fixtureSettings(), source = image()
+        let generation = await cache.disk.currentGeneration(settings: settings)
+        defer {
+            overlay.cancelWork(); host.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer()
+            try? FileManager.default.removeItem(at: root)
+        }
+        overlay.defersPresentationUntilSnapshot = true
+        var publications = 0
+        overlay.onSnapshotStored = { _ in publications += 1 }
+        for key in ["old-page", "new-page"] {
+            overlay.update(regions: [.init(id: key, rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2),
+                source: "Hello", translation: "현재 페이지의 완성된 번역")], imageSize: source.size,
+                aspectFit: true, settings: settings, image: source,
+                snapshotTarget: .init(cache: cache, key: key, pageIdentity: key, diskGeneration: generation,
+                                      viewport: frame.size, dark: overlay.traitCollection.userInterfaceStyle == .dark))
+            overlay.layoutIfNeeded()
+            await Task.yield()
+        }
+        let deadline = Date().addingTimeInterval(30)
+        while !overlay.didStoreSnapshot {
+            if Date() > deadline { throw URLError(.timedOut) }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(publications == 1)
+        #expect(cache.cachedImage(for: "old-page") == nil)
+        #expect(cache.cachedImage(for: "new-page") != nil)
+        #expect(overlay.lastDiagnostic == nil)
+    }
+
+    @Test(arguments: [false, true])
+    func failedSinglePassCacheAdmissionRevealsLiveFallback(missingGeneration: Bool) async throws {
+        let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
+        let host = try window(frame: frame)
+        host.rootViewController = UIViewController()
+        let overlay = ReaderTranslationOverlayView(frame: frame)
+        host.rootViewController?.view.addSubview(overlay)
+        host.makeKeyAndVisible()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+        defer {
+            overlay.cancelWork(); host.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer()
+            try? FileManager.default.removeItem(at: root)
+        }
+        overlay.defersPresentationUntilSnapshot = true
+        let source = image()
+        overlay.update(regions: [.init(id: "stale", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2),
+            source: "Hello", translation: "캐시 세대가 바뀌어도 번역을 표시")], imageSize: source.size,
+            aspectFit: true, settings: fixtureSettings(), image: source,
+            snapshotTarget: .init(cache: cache, key: "stale", pageIdentity: "stale", diskGeneration: missingGeneration ? nil : .max,
+                                  viewport: frame.size, dark: overlay.traitCollection.userInterfaceStyle == .dark))
+        let deadline = Date().addingTimeInterval(30)
+        while overlay.lastDiagnostic?.outcome != .committed || overlay.webView.isHidden {
+            if Date() > deadline { throw URLError(.timedOut) }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(!overlay.didStoreSnapshot)
+        #expect(!overlay.canCacheRendering)
+        #expect(cache.cachedImage(for: "stale") == nil)
     }
 
     @Test func deferredSnapshotWithoutHostRevealsCommittedFallback() async throws {
@@ -770,6 +874,7 @@ struct ReaderTranslationRenderingTests {
     private func fixtureSettings() -> ReaderTranslationSettings {
         var settings = ReaderTranslationSettings()
         settings.sourceLanguage = "auto"
+        settings.includePageImage = false // Fixture translator receives text; never inherit device preferences.
         settings.translationSourceLanguages = []
         return settings
     }
