@@ -110,6 +110,7 @@ struct ReaderAdaptiveRenderingTests {
         payload.removeValue(forKey: "smallTextReference")
         payload["balancedColumn"] = false
         payload["allowsAutomaticFontRecovery"] = scenario != "manual"
+        payload["id"] = "reflow-subject"
         var items = [payload]
         if scenario == "blocked" {
             for (index, x) in [0, 60].enumerated() {
@@ -126,7 +127,7 @@ struct ReaderAdaptiveRenderingTests {
         // Observe the live DOM on both sides of the final unified-caption pass.
         // A child's final width belongs to its panel and cannot measure an earlier reflow.
         let geometryAudit = #"""
-        (()=>{const n=root.querySelector('[data-aidoku-image-ocr-overlay="item"]');
+        (()=>{const n=root.querySelector('[data-aidoku-image-ocr-overlay="item"][data-aidoku-region="reflow-subject"]');
           const r=n.getBoundingClientRect(),t=n.firstChild,words=[];
           if(t?.nodeType===Node.TEXT_NODE)for(const word of t.data.matchAll(/[^\s]+/gu)){
             const glyphs=[];
@@ -160,8 +161,8 @@ struct ReaderAdaptiveRenderingTests {
                     "appearance": ["minimumReadableFontSize": 1, "opacity": 1, "preserveSourceBackgroundColor": true]],
                 in: nil, contentWorld: .page)
             results.append(try #require(try await web.evaluateJavaScript("""
-            (()=>{const n=document.querySelector('[data-aidoku-image-ocr-overlay="item"]');
-              const p=document.querySelector('[data-aidoku-image-ocr-overlay="source-readability-panel"]');
+            (()=>{const n=document.querySelector('[data-aidoku-image-ocr-overlay="item"][data-aidoku-region="reflow-subject"]');
+              const p=document.querySelector('[data-aidoku-image-ocr-overlay="source-readability-panel"][data-aidoku-region="reflow-subject"]');
               const r=n.getBoundingClientRect(),b=p.getBoundingClientRect();
               const range=document.createRange();range.selectNodeContents(n);const ink=range.getBoundingClientRect();
               const plates=[...document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]')]

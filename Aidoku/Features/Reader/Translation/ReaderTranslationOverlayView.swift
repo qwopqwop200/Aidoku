@@ -413,6 +413,12 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 try Task.checkCancellation()
                 guard snapshotGeneration == issued else { return }
                 guard let diskGeneration else { throw ReaderTranslationImageExporter.ExportError.unavailable }
+                // The snapshot-only path bypasses the live renderer's layout
+                // persistence. Retain its prepared payload for reuse after restart.
+                let completedLayout = try await layout.value
+                try Task.checkCancellation()
+                guard snapshotGeneration == issued else { return }
+                await target.cache.storeLayout(completedLayout, key: layoutCacheKey, diskGeneration: diskGeneration)
                 await target.cache.store(snapshot, key: target.key, pageIdentity: target.pageIdentity, diskGeneration: diskGeneration)
                 try Task.checkCancellation()
                 guard snapshotGeneration == issued else { return }

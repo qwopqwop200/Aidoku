@@ -1566,7 +1566,8 @@ struct ReaderTranslationSessionTests {
         try await waitUntil { calls == 2 && !firstImage.subviews.isEmpty }
         session.update(items: items, visible: [second], context: "chapter")
         #expect(firstImage.subviews.isEmpty)
-        #expect(!secondImage.subviews.isEmpty)
+        // Provider invocation precedes the asynchronous cache/display commit.
+        try await waitUntil { !secondImage.subviews.isEmpty }
         first.applySettings(fixture.settings)
         #expect(firstImage.subviews.isEmpty)
         session.update(items: items, visible: [first], context: "chapter")
