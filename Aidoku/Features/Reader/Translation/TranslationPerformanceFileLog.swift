@@ -28,6 +28,7 @@ enum TranslationPerformanceFileLog {
         case sourceBytes = "source_bytes"
         case responseBytes = "response_bytes"
         case statusClass = "status_class"
+        case statusCode = "status_code"
         case responseHeadersMilliseconds = "response_headers_ms"
         case firstBodyByteMilliseconds = "first_body_byte_ms"
         case bodyMilliseconds = "body_ms"

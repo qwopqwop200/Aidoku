@@ -69,11 +69,12 @@ enum TranslationPerformanceDiagnostics {
     static func transportCompleted(
         segmentCount: Int,
         responseBytes: Int,
-        statusClass: Int,
+        statusCode: Int,
         metrics: TranslationHTTPTransportMetrics
     ) {
+        let statusClass = statusCode / 100
         TranslationPerformanceFileLog.record(.transport, fields: [.segments: Double(segmentCount),
-            .responseBytes: Double(responseBytes), .statusClass: Double(statusClass),
+            .responseBytes: Double(responseBytes), .statusClass: Double(statusClass), .statusCode: Double(statusCode),
             .responseHeadersMilliseconds: metrics.responseHeadersMilliseconds ?? -1,
             .firstBodyByteMilliseconds: metrics.firstBodyByteMilliseconds ?? -1,
             .bodyMilliseconds: metrics.bodyMilliseconds ?? -1, .totalMilliseconds: metrics.totalMilliseconds ?? -1])
@@ -81,7 +82,7 @@ enum TranslationPerformanceDiagnostics {
         // The delegate-backed production transport records response headers,
         // first body byte, body receive, and full transport duration separately.
         logger.notice(
-            "transport_complete segments=\(segmentCount, privacy: .public) response_bytes=\(responseBytes, privacy: .public) status_class=\(statusClass, privacy: .public) response_headers_ms=\(metrics.responseHeadersMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) first_body_byte_ms=\(metrics.firstBodyByteMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) body_ms=\(metrics.bodyMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) total_ms=\(metrics.totalMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public)"
+            "transport_complete segments=\(segmentCount, privacy: .public) response_bytes=\(responseBytes, privacy: .public) status_code=\(statusCode, privacy: .public) status_class=\(statusClass, privacy: .public) response_headers_ms=\(metrics.responseHeadersMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) first_body_byte_ms=\(metrics.firstBodyByteMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) body_ms=\(metrics.bodyMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) total_ms=\(metrics.totalMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public)"
         )
     }
 

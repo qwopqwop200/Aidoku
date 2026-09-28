@@ -78,7 +78,7 @@ struct TranslationPerformanceFileLogTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let writer = TranslationPerformanceFileWriter(directory: directory, maximumBytes: 512)
         for index in 0..<20 {
-            writer.record(.transport, fields: [.segments: Double(index), .totalMilliseconds: 123])
+            writer.record(.transport, fields: [.segments: Double(index), .totalMilliseconds: 123, .statusCode: 500])
         }
         writer.flushForTesting()
         for filename in ["translation-performance.log", "translation-performance.previous.log"] {
@@ -89,6 +89,7 @@ struct TranslationPerformanceFileLogTests {
         let current = try String(contentsOf: directory.appendingPathComponent("translation-performance.log"), encoding: .utf8)
         #expect(current.contains("segments=19.0"))
         #expect(current.contains("pipeline_event=transport"))
+        #expect(current.contains("status_code=500.0"))
     }
 
     @Test func nonfiniteMetricsAreOmittedAndUnavailableSentinelSurvives() throws {

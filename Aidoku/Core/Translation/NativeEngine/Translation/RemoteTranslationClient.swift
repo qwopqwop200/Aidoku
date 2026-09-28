@@ -667,7 +667,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         TranslationPerformanceDiagnostics.transportCompleted(
             segmentCount: segmentCount,
             responseBytes: body.count,
-            statusClass: response.statusCode / 100,
+            statusCode: response.statusCode,
             metrics: transportResponse.metrics
         )
 
