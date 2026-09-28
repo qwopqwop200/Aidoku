@@ -4,7 +4,7 @@ import CryptoKit
 /// The source artwork stays in the image pipeline. Only the settled typography
 /// and source-repair patches persist, so a reload needs no WebKit document.
 struct ReaderTranslationRenderAsset: Codable, Sendable {
-    static let currentVersion = 1
+    static let currentVersion = 2
     static let maximumContentBytes = 16 * 1_024 * 1_024
     static let maximumEncodedBytes = 24 * 1_024 * 1_024
 
@@ -63,6 +63,7 @@ struct ReaderTranslationRenderAsset: Codable, Sendable {
     var byteCost: Int {
         typography.count + layers.masks.reduce(0) { $0 + $1.png.utf8.count + 64 }
             + layers.surfaces.count * 96 + layers.paintBounds.count * 32
+            + (layers.sourceRestorations?.count ?? 0) * 32
             + regionsDigest.utf8.count + (sourceDigest?.utf8.count ?? 0) + 256
     }
 
@@ -80,6 +81,8 @@ struct ReaderTranslationRenderAsset: Codable, Sendable {
                     && $0.blur.isFinite && $0.blur >= 0 && $0.saturation.isFinite && $0.saturation >= 0
             }
             && layers.paintBounds.allSatisfy(validFrame)
+            && (layers.sourceRestorations?.count ?? 0) <= 1_024
+            && (layers.sourceRestorations ?? []).allSatisfy(validFrame)
     }
 
     func matches(regions: [ReaderTranslationRegion], sourceSize: CGSize, sourceDigest: String?) -> Bool {

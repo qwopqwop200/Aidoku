@@ -112,7 +112,7 @@ private enum FrozenFormatterIdentity {
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
         return encoded([
-            "reader-render-v115-joint-caption-spacing", translation(page: page, settings: settings), encoded(settings.overlay),
+            "reader-render-v116-source-restoration-geometry", translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
             "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit", BrowserOverlayLetterFonts.shared.availabilityKey,
             ProcessInfo.processInfo.operatingSystemVersionString

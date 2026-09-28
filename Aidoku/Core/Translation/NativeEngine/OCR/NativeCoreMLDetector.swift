@@ -574,7 +574,7 @@ private final class NativeCoreMLDetectorModelPredictor:
         inputFeatureName: String,
         outputFeatureName: String
     ) throws {
-        modelStore = ModelStore(asset: try MLModelAsset(url: modelURL))
+        modelStore = ModelStore(asset: try MLModelAsset(url: NativeCoreMLModelStore.shared.modelURL(for: modelURL)))
         self.modelName = modelName
         self.inputFeatureName = inputFeatureName
         self.outputFeatureName = outputFeatureName

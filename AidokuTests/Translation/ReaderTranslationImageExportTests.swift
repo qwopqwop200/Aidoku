@@ -217,6 +217,71 @@ struct ReaderTranslationImageExportTests {
         }
     }
 
+    @Test func keptLetteringStoresGeometryInsteadOfWholeArtwork() async throws {
+        let window = try host()
+        defer { window.isHidden = true }
+        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 320))
+        try #require(window.rootViewController?.view).addSubview(webView)
+        webView.loadHTMLString("<html><meta name=viewport content=width=device-width><body style=margin:0></body></html>", baseURL: nil)
+        let deadline = Date().addingTimeInterval(10)
+        while webView.isLoading || webView.url == nil {
+            try #require(Date() < deadline)
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let encoded = try #require(try await webView.callAsyncJavaScript(#"""
+        const canvas=document.createElement('canvas');canvas.width=390;canvas.height=320;
+        const context=canvas.getContext('2d'),pixels=context.createImageData(390,320);
+        let random=71;
+        for(let i=0;i<pixels.data.length;i+=4){
+          for(let k=0;k<3;k++){random=(Math.imul(random,1664525)+1013904223)>>>0;pixels.data[i+k]=random>>>24;}
+          pixels.data[i+3]=255;
+        }
+        context.putImageData(pixels,0,0);
+        const source=new Image();source.id='reader-source-image';source.src=canvas.toDataURL();
+        source.style.cssText='position:absolute;left:0;top:0;width:390px;height:320px;visibility:hidden';
+        document.body.append(source);await source.decode();
+        const plate=document.createElement('div');plate.dataset.aidokuImageOcrOverlay='source-readability-panel';
+        plate.style.cssText='position:absolute;inset:0;background:rgb(60,70,80)';document.body.append(plate);
+        const copy=source.cloneNode(false);copy.removeAttribute('id');copy.dataset.aidokuImageOcrOverlay='kept-lettering';
+        copy.dataset.sourceRestoreRects=JSON.stringify([[20,20,40,40],[80,30,30,20]]);
+        copy.style.visibility='visible';copy.style.clipPath="path('M 20 20 H 60 V 60 H 20 Z M 80 30 H 110 V 50 H 80 Z')";
+        document.body.append(copy);await copy.decode();return source.src.split(',')[1];
+        """#, arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? String)
+        let originalData = try #require(Data(base64Encoded: encoded))
+        let original = try #require(UIImage(data: originalData))
+        let configuration = WKPDFConfiguration()
+        configuration.rect = webView.bounds
+        func pdf() async throws -> Data {
+            try await withCheckedThrowingContinuation { continuation in
+                webView.createPDF(configuration: configuration) { continuation.resume(with: $0) }
+            }
+        }
+        let before = try await pdf()
+        let raw = try #require(try await webView.callAsyncJavaScript(ReaderTranslationImageExporter.prepareExportScript,
+            arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? String)
+        let layers = try JSONDecoder().decode(ReaderTranslationImageExporter.ExportLayers.self, from: Data(raw.utf8))
+        #expect(layers.sourceRestorations == [[20, 20, 40, 40], [80, 30, 30, 20]])
+        let after = try await pdf()
+        #expect(after.count < before.count / 10)
+        let output = try ReaderTranslationImageExporter.composite(image: original, typography: after, layers: layers,
+            displayRect: webView.bounds, size: webView.bounds.size)
+        let legacyLayers = ReaderTranslationImageExporter.ExportLayers(masks: [], surfaces: [], paintBounds: layers.paintBounds)
+        let legacy = try ReaderTranslationImageExporter.composite(image: original, typography: before, layers: legacyLayers,
+            displayRect: webView.bounds, size: webView.bounds.size)
+        func rgba(_ image: UIImage) throws -> [UInt8] {
+            let pixels = try #require(image.cgImage)
+            var bytes = [UInt8](repeating: 0, count: 390 * 320 * 4)
+            let context = try #require(CGContext(data: &bytes, width: 390, height: 320, bitsPerComponent: 8,
+                bytesPerRow: 390 * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.draw(pixels, in: CGRect(x: 0, y: 0, width: 390, height: 320))
+            return bytes
+        }
+        let current = try rgba(output), previous = try rgba(legacy)
+        let error = zip(current, previous).reduce(0) { $0 + abs(Int($1.0) - Int($1.1)) }
+        #expect(Double(error) / Double(current.count) < 0.5)
+        print("SOURCE_RESTORE_PDF before=\(before.count) after=\(after.count) meanPixelDelta=\(Double(error) / Double(current.count))")
+    }
+
     @Test func exportExtractsEverySourceRepairBeyondTypographyBounds() async throws {
         let window = try host()
         defer { window.isHidden = true }

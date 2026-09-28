@@ -15903,6 +15903,7 @@ final class BrowserPageImageOverlayRenderer {
             `V ${p.bottom-image.top} H ${p.left-image.left} Z`).join(' ');
           const copy=sourceImage.cloneNode(false);copy.removeAttribute('id');
           copy.setAttribute('data-aidoku-image-ocr-overlay','kept-lettering');copy.setAttribute('aria-hidden','true');
+          copy.dataset.sourceRestoreRects=JSON.stringify(pieces.map(p=>[p.left,p.top,p.right-p.left,p.bottom-p.top]));
           copy.style.cssText=sourceImage.style.cssText;
           Object.assign(copy.style,{position:'absolute',zIndex:'4',pointerEvents:'none',margin:'0',transform:'none',
             left:`${image.left+scrollX}px`,top:`${image.top+scrollY}px`,width:`${image.width}px`,height:`${image.height}px`,

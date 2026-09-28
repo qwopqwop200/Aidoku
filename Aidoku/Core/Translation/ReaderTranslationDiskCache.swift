@@ -834,11 +834,13 @@ private struct ReaderTranslationCachePolicy: Equatable {
         metadata = ReaderTranslationCacheIdentity.encoded(TitleTranslationKind.allCases.map {
             TitleTranslation.cacheKey("cache-policy", kind: $0, settings: settings)
         })
-        layout = ReaderTranslationCacheIdentity.encoded(settings.overlay)
+        layout = ReaderTranslationCacheIdentity.encoded([ReaderTranslationCacheIdentity.renderRevision,
+            ReaderTranslationCacheIdentity.encoded(settings.overlay)])
     }
 }
 
 enum ReaderTranslationCacheIdentity {
+    static let renderRevision = "reader-render-v116-source-restoration-geometry"
     static func digest(_ value: String) -> String { digest(Data(value.utf8)) }
     private static let hexadecimalDigits = Array("0123456789abcdef".utf8)
     static func digest(_ value: Data) -> String {
@@ -888,7 +890,7 @@ enum ReaderTranslationCacheIdentity {
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
         return encoded([
-            "reader-render-v115-joint-caption-spacing", translation(page: page, settings: settings), encoded(settings.overlay),
+            renderRevision, translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
             "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit", letteringFontKey,
             ProcessInfo.processInfo.operatingSystemVersionString

@@ -472,6 +472,7 @@ enum ReaderTranslationImageExporter {
         let masks: [Mask]
         let surfaces: [Surface]
         let paintBounds: [[CGFloat]]
+        var sourceRestorations: [[CGFloat]]? = nil
     }
 
     static let prepareExportScript = #"""
@@ -516,6 +517,17 @@ enum ReaderTranslationImageExporter {
       node.style.setProperty('backdrop-filter', 'none', 'important');
       node.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
     }
+    // A clipped <img> still embeds its ENTIRE source bitmap in a PDF.
+    // Persist only its clip rectangles and reuse original pixels at composite time.
+    const sourceRestorations=[];
+    for(const node of document.querySelectorAll('[data-aidoku-image-ocr-overlay="kept-lettering"]')){
+      const rects=JSON.parse(node.dataset.sourceRestoreRects||'null');
+      if(!Array.isArray(rects)||rects.length>1024||rects.some(r=>!Array.isArray(r)||r.length!==4||
+        !r.every(Number.isFinite)||r[2]<=0||r[3]<=0))throw new Error('Invalid source restoration geometry');
+      sourceRestorations.push(...rects);
+      node.style.visibility='hidden';
+    }
+    if(sourceRestorations.length>1024)throw new Error('Too many source restoration rectangles');
     source.style.visibility = 'hidden';
     for (const node of sourceLayers) {
       node.style.visibility = 'hidden';
@@ -524,7 +536,7 @@ enum ReaderTranslationImageExporter {
       new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))),
       new Promise(resolve => setTimeout(resolve, 150))
     ]);
-    return JSON.stringify({masks, surfaces, paintBounds});
+    return JSON.stringify({masks, surfaces, paintBounds, sourceRestorations});
     """#
 
     /// Core Image contexts are thread-safe and expensive to create; the
@@ -583,6 +595,8 @@ enum ReaderTranslationImageExporter {
             return (surface, try outputFrame(surface.frame))
         }
         let paintBounds = try layers.paintBounds.map(outputFrame)
+        guard (layers.sourceRestorations?.count ?? 0) <= 1_024 else { throw ExportError.renderFailed }
+        let sourceRestorations = try (layers.sourceRestorations ?? []).map(outputFrame)
         guard let provider = CGDataProvider(data: typography as CFData),
               let pdf = CGPDFDocument(provider), let page = pdf.page(at: 1) else { throw ExportError.renderFailed }
         let pageBounds = page.getBoxRect(.mediaBox)
@@ -606,6 +620,16 @@ enum ReaderTranslationImageExporter {
             context.drawPDFPage(page)
             context.restoreGState()
         }
+        func restoreSource(_ context: CGContext) {
+            guard !sourceRestorations.isEmpty, !paintBounds.isEmpty else { return }
+            context.saveGState()
+            context.addRects(paintBounds)
+            context.clip()
+            context.addRects(sourceRestorations)
+            context.clip()
+            image.draw(in: destination)
+            context.restoreGState()
+        }
         // Without backdrop surfaces nothing samples the cleaned page, so paint
         // it straight into the output: the same draws in the same order and
         // format, without a second full-page bitmap and copy.
@@ -613,6 +637,7 @@ enum ReaderTranslationImageExporter {
             let output = renderer.image { drawing in
                 drawCleaned()
                 drawTypography(drawing.cgContext)
+                restoreSource(drawing.cgContext)
             }
             try Task.checkCancellation()
             return output
@@ -637,6 +662,7 @@ enum ReaderTranslationImageExporter {
                 drawing.cgContext.restoreGState()
             }
             drawTypography(drawing.cgContext)
+            restoreSource(drawing.cgContext)
         }
         guard !failure else { throw ExportError.renderFailed }
         try Task.checkCancellation()

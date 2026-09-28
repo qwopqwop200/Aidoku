@@ -515,7 +515,7 @@ private final class NativeCoreMLModelPredictor:
         outputFeatureName: String,
         maximumResidentModels: Int
     ) async throws {
-        let asset = try MLModelAsset(url: modelURL)
+        let asset = try MLModelAsset(url: NativeCoreMLModelStore.shared.modelURL(for: modelURL))
         let availableFunctions = Set(try await asset.functionNames)
         let expectedFunctions = Set(
             NativeCoreMLRecognitionModelVariant.production.map(\.functionName)

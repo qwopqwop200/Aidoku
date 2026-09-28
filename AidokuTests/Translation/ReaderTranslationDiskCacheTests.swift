@@ -184,6 +184,26 @@ struct ReaderTranslationDiskCacheTests {
         print("CACHE_PAGE_MIGRATION before=\(before.bytes) after=\(after.bytes) payload=\(after.payloadBytes)")
     }
 
+    @Test func rendererRevisionRetiresOnlyRecomputableLayouts() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        let settings = ReaderTranslationSettings()
+        try await cache.synchronizeSettings(settings)
+        let generation = await cache.currentGeneration()
+        for kind in [ReaderTranslationDiskCache.Kind.ocr, .translation, .layout] {
+            try await cache.store(Data("preserved".utf8), for: "fixture", kind: kind, generation: generation)
+        }
+        let previousPolicy = ReaderTranslationCacheIdentity.encoded(settings.overlay)
+        try databaseExecute(root, "UPDATE cache_policy SET value='\(previousPolicy)' WHERE name='layout'")
+        let reopened = ReaderTranslationDiskCache(directory: root)
+        try await reopened.synchronizeSettings(settings)
+        #expect(try await reopened.data(for: "fixture", kind: .layout) == nil)
+        for kind in [ReaderTranslationDiskCache.Kind.ocr, .translation] {
+            #expect(try await reopened.data(for: "fixture", kind: kind) == Data("preserved".utf8))
+        }
+    }
+
     @Test func reopeningRemovesLegacyRastersAndPreservesDurableWork() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }

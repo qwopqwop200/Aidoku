@@ -149,6 +149,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         )
         AppSettings.registerDefaults()
         Task(priority: .background) { try? await ReaderTranslationDiskCache.shared.compact() }
+        Task.detached(priority: .utility) { NativeCoreMLModelStore.shared.reclaimLegacyExecutionCache() }
 
         // PlayCover fix: eagerly initialize the Core Data stack on the main thread
         // before any background migration task touches it. The `lazy var container`
