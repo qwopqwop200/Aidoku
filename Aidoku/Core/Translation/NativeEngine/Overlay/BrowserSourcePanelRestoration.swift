@@ -1756,10 +1756,11 @@ enum BrowserSourcePanelRestoration {
      // longer matches the ink. Require a nearly closed border of already owned
      // glyph pixels; never grow through connected drawing or a balloon edge.
      if(options.readabilityGate&&options.vertical&&!options.slantedOwnership&&unresolved>0&&unresolved<=32&&
-         [palette.foreground,palette.stroke].some(c=>c&&Math.max(...c)-Math.min(...c)>=40)){
+         ([palette.foreground,palette.stroke].some(c=>c&&Math.max(...c)-Math.min(...c)>=40)||
+          palette.stroke&&(palette.confidence?.stroke||0)>=.6)){
        const pending=[],visited=new Uint8Array(n);
        const outlined=palette.stroke&&(palette.confidence?.stroke||0)>=.6&&
-         Math.max(...palette.stroke)-Math.min(...palette.stroke)>=40;
+         colorDistance(palette.stroke,palette.foreground)>=40;
        (()=>{for(let y=Math.ceil(b[1]);y<Math.floor(b[1]+b[3]);y++)for(let x=Math.ceil(b[0]);x<Math.floor(b[0]+b[2]);x++){
          const start=y*w+x;if(visited[start]||!protectedInk[start]||raw[start]||frameInk[start]||drawingSurface?.[start])continue;
          const island=[start];visited[start]=1;let valid=true,left=x,right=x,top=y,bottom=y;

@@ -71,12 +71,12 @@ struct ReaderCaptionOriginalReplayTests {
             ($0["text"] as? String)?.contains("고마") == true }.compactMap { $0["id"] as? String })
         let owners = captions.isEmpty ? auditRows.filter { ($0["kind"] as? String) == "source-readability-panel" &&
             captionIDs.contains($0["id"] as? String ?? "") } : captions
-        #expect(owners.count == 1)
-        for owner in owners {
-            let data = try #require(owner["data"] as? [String: String])
-            #expect(data["sourceFrameLines"] == nil, "A hair contour must not be restored over the caption")
-            #expect(data["captionUnified"] == "true")
-        }
+        #expect(owners.isEmpty, "Short restored captions must not retain a rectangular panel")
+        let caption = try #require(auditRows.first { ($0["kind"] as? String) == "item" &&
+            captionIDs.contains($0["id"] as? String ?? "") })
+        let data = try #require(caption["data"] as? [String: String])
+        #expect(data["smallCaptionInpainted"] == "true")
+        #expect(data["sourceBackgroundColor"] == "inpainted")
         let snapshot = try await web.takeSnapshot(configuration: nil)
         try #require(snapshot.pngData()).write(to: directory.appendingPathComponent("original.render.png"))
     }

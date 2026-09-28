@@ -15834,6 +15834,69 @@ final class BrowserPageImageOverlayRenderer {
         root.dataset.recoveredLinesMilliseconds=String(Math.round((performance.now()-started)*10)/10);
       } catch(error) {root.dataset.recoveredLinesError=String(error).slice(0,160);}
     })();
+    // Short captions need only a glyph outline after local background repair.
+    // Keep this separate from balloon fitting: a textured surface need not be
+    // flat paper, and unrecognized punctuation outside the OCR box stays intact.
+    if(inpaintingEnabled&&opacity===1){
+      for(const item of items){
+        const c=restoredPanelGeometry.get(item),id=String(item.id);
+        if(!c?.erasureComplete||c.provisional||c.partialErasureCertified||item.rotation||
+            !item.sourceSingleColumn||item.auxiliaryInkRects?.length||[...item.text].length>12||c.w*c.h>65536||
+            !Number.isFinite(c.sourceRemainingInk)||c.sourceRemainingInk>8||!c.canvas?.isConnected)continue;
+        const node=root.querySelector('[data-aidoku-image-ocr-overlay="item"][data-aidoku-region="'+id+'"]');
+        const plates=[...root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]')]
+          .filter(p=>p.dataset.aidokuRegion===id);
+        if(!node||plates.length!==1||node.parentNode!==root&&node.parentNode!==plates[0])continue;
+        const plateBox=plates[0].getBoundingClientRect();
+        if(items.some(other=>other!==item&&[other.sourceBounds,...(other.auxiliaryInkRects||[])].some(b=>{
+          const f=other.sourceFrame;if(!f||!b)return false;
+          return f[0]+b[0]*f[2]<plateBox.right&&f[0]+(b[0]+b[2])*f[2]>plateBox.left&&
+            f[1]+b[1]*f[3]<plateBox.bottom&&f[1]+(b[1]+b[3])*f[3]>plateBox.top;
+        })))continue;
+        const image=c.canvas.getContext('2d').getImageData(0,0,c.w,c.h);
+        const undo=aidokuFillEnclosedSpecks(c,image);
+        const b=item.sourceBounds;
+        const l=Math.max(0,Math.ceil((b[0]*c.iw-c.x)*c.sx)),t=Math.max(0,Math.ceil((b[1]*c.ih-c.y)*c.sy));
+        const r=Math.min(c.w,Math.floor(((b[0]+b[2])*c.iw-c.x)*c.sx)),bottom=Math.min(c.h,Math.floor(((b[1]+b[3])*c.ih-c.y)*c.sy));
+        let unsafe=0;for(let y=t;y<bottom;y++)for(let x=l;x<r;x++)if(!c.safe[y*c.w+x])unsafe++;
+        node.dataset.smallRestorationUnsafe=String(unsafe);
+        // Connected artwork crossing the crop is retained, never filled. An
+        // isolated unsafe island inside the source still vetoes panel removal.
+        const visited=new Uint8Array(c.w*c.h);let unresolved=false;
+        const glyph=Math.max(4,Number(item.sourceFontSize)*c.iw/c.frame[2]*c.sx);
+        for(let y=t;y<bottom;y++)for(let x=l;x<r;x++){
+          const start=y*c.w+x;if(c.safe[start]||visited[start])continue;
+          const queue=[start];visited[start]=1;let edge=false,x0=x,x1=x,y0=y,y1=y;
+          for(let head=0;head<queue.length;head++){
+            const i=queue[head],xx=i%c.w,yy=i/c.w|0;
+            x0=Math.min(x0,xx);x1=Math.max(x1,xx);y0=Math.min(y0,yy);y1=Math.max(y1,yy);
+            if(xx===0||yy===0||xx===c.w-1||yy===c.h-1)edge=true;
+            for(let v=Math.max(0,yy-1);v<=Math.min(c.h-1,yy+1);v++)for(let u=Math.max(0,xx-1);u<=Math.min(c.w-1,xx+1);u++){
+              const j=v*c.w+u;if(!c.safe[j]&&!visited[j]){visited[j]=1;queue.push(j);}
+            }
+          }
+          if(!edge||Math.max(x1-x0,y1-y0)<glyph*.5)unresolved=true;
+        }
+        if(unresolved||unsafe>(r-l)*(bottom-t)*.05){undo?.();continue;}
+        if(node.parentNode!==root){
+          const box=node.getBoundingClientRect();root.appendChild(node);
+          Object.assign(node.style,{position:'absolute',left:(box.left+scrollX)+'px',top:(box.top+scrollY)+'px',width:box.width+'px',height:box.height+'px'});
+        }
+        for(const plate of plates)plate.remove();
+        node.style.background='transparent';node.style.textShadow='none';node.style.zIndex='3';
+        node.style.color='rgb(40,40,48)';node.style.webkitTextStrokeColor='rgb(250,250,250)';
+        node.style.webkitTextStrokeWidth=Math.min(.7,parseFloat(node.style.fontSize)*.045)+'px';
+        node.style.paintOrder='stroke fill';
+        node.dataset.sourceBackgroundColor='inpainted';node.dataset.sourcePanelTextFit='inside';
+        node.dataset.smallCaptionInpainted='true';delete node.dataset.inpaintingFallback;
+        node.dataset.sourceAppliedBackgroundRGB='';node.dataset.sourceAppliedTextRGB='40,40,48';
+        node.dataset.sourceAppliedStrokeRGB='250,250,250';node.dataset.sourceTextOutline='true';
+        node.dataset.sourceStrokeColor='readability';node.dataset.sourceTextColorAdjusted='true';
+        delete node.dataset.sourceFinalMinimumContrast;delete node.dataset.sourcePanelCoverage;
+        delete node.dataset.unifiedCaption;
+        restoredSourcePanels.add(item);
+      }
+    }
     let captionReadBudget=65536,captionReadCanvas=null;
     aidokuPolishCaptionPanels(root, items, opacity, keptItems, (r,f)=>{
       if(!sourcePixelReader||!sourceImage)return null;
