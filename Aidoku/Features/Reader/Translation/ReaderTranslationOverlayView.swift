@@ -99,6 +99,7 @@ enum ReaderTranslationBackgroundImage {
 @MainActor
 final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     private static let encodingGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
+    var diagnosticContext: ReaderTranslationDiagnostics.Context?
     let webView: WKWebView
     private let renderer = BrowserPageImageOverlayRenderer()
     private var ready = false
@@ -167,7 +168,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 if !defersPresentationUntilSnapshot || snapshotTarget == nil || !diagnostic.isCacheable {
                     webView.isHidden = false
                 }
-                ReaderTranslationDiagnostics.record("visible_render_committed", count: diagnostic.renderedItemCount)
+                ReaderTranslationDiagnostics.record("visible_render_committed", count: diagnostic.renderedItemCount, context: diagnosticContext)
                 if diagnostic.isCacheable { captureCompletedRender(revision: diagnostic.revision) }
                 onRenderCommitted?()
             } else if diagnostic.outcome == .cleared {
@@ -395,11 +396,13 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
             defer { layout.cancel() }
             ReaderTranslationDiagnostics.record("visible_snapshot_only_begin", count: regions.count)
             do {
-                let snapshot = try await ReaderTranslationImageExporter.renderCacheSnapshot(
-                    image: image, imageSize: imageSize, regions: regions, settings: settings,
-                    viewport: size, scale: traitCollection.displayScale, aspectFit: aspectFit,
-                    host: host, dark: target.dark, preparedLayout: layout,
-                    assetCache: target.cache, assetKey: target.key, priority: .foreground)
+                let snapshot = try await ReaderTranslationDiagnostics.measure("visible_snapshot", context: diagnosticContext) {
+                    try await ReaderTranslationImageExporter.renderCacheSnapshot(
+                        image: image, imageSize: imageSize, regions: regions, settings: settings,
+                        viewport: size, scale: traitCollection.displayScale, aspectFit: aspectFit,
+                        host: host, dark: target.dark, preparedLayout: layout,
+                        assetCache: target.cache, assetKey: target.key, priority: .foreground)
+                }
                 try Task.checkCancellation()
                 guard snapshotGeneration == issued,
                       ReaderTranslationGeometry.sameViewport(bounds.size, size),
@@ -465,13 +468,15 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 try Task.checkCancellation()
                 guard snapshotGeneration == issued, lastDiagnostic?.revision == revision, ReaderTranslationGeometry.sameViewport(bounds.size, size) else { return }
                 ReaderTranslationDiagnostics.renderingProfile("profile_capture_export_begin", revision: revision)
-                let snapshot = try await ReaderTranslationImageExporter.renderCacheSnapshot(
-                    image: image, imageSize: imageSize, regions: regions, settings: settings,
-                    viewport: size, scale: traitCollection.displayScale, aspectFit: aspectFit,
-                    host: host, dark: target.dark,
-                    preparedLayout: layout.map { data in Task { data } } ?? preparedLayout,
-                    assetCache: target.cache, assetKey: target.key
+                let snapshot = try await ReaderTranslationDiagnostics.measure("visible_snapshot", context: diagnosticContext) {
+                    try await ReaderTranslationImageExporter.renderCacheSnapshot(
+                        image: image, imageSize: imageSize, regions: regions, settings: settings,
+                        viewport: size, scale: traitCollection.displayScale, aspectFit: aspectFit,
+                        host: host, dark: target.dark,
+                        preparedLayout: layout.map { data in Task { data } } ?? preparedLayout,
+                        assetCache: target.cache, assetKey: target.key
                 )
+                }
                 ReaderTranslationDiagnostics.renderingProfile("profile_capture_export_end", revision: revision)
                 try Task.checkCancellation()
                 guard snapshotGeneration == issued, lastDiagnostic?.revision == revision, ReaderTranslationGeometry.sameViewport(bounds.size, size) else { return }

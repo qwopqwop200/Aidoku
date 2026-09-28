@@ -18,7 +18,12 @@ final class ReaderTranslationPage {
         [ReaderTranslationRegion], ReaderTranslationSettings, ReaderTranslationService.Progress?
     ) async throws -> [ReaderTranslationRegion]
     weak var imageView: UIImageView?
-    var sourcePage: Page?
+    var sourcePage: Page? {
+        didSet {
+            diagnosticContext = sourcePage.map { ReaderTranslationDiagnostics.makeContext(pageKey: $0.translationCacheKey) }
+        }
+    }
+    var diagnosticContext: ReaderTranslationDiagnostics.Context?
     var renderCache: ReaderTranslationRenderCache?
     private weak var analyzedImage: UIImage?
     private var analyzedConfiguration: ReaderOCRConfiguration?
@@ -427,7 +432,7 @@ final class ReaderTranslationPage {
         provisionalRenderCount += 1
         let retains = showsProvisional
         showsProvisional = true
-        ReaderTranslationDiagnostics.record("visible_provisional_render", page: (sourcePage?.index ?? -2) + 1, count: pending.count)
+        ReaderTranslationDiagnostics.record("visible_provisional_render", page: diagnosticContext?.page ?? -1, count: pending.count)
         displayLive(pending, image: image, settings: settings, target: nil, retainsFrame: retains)
         let committed = overlay?.onRenderCommitted
         overlay?.onRenderCommitted = { [weak self] in
@@ -455,6 +460,7 @@ final class ReaderTranslationPage {
         isPreparingEmptyOverlay = false
         // Reused overlays must follow the new image viewport too. Otherwise a
         // geometry invalidation republishes the same stale bounds forever.
+        overlay.diagnosticContext = diagnosticContext
         overlay.frame = imageView.bounds
         if overlay.superview == nil {
             overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -462,12 +468,12 @@ final class ReaderTranslationPage {
             imageView.insertSubview(overlay, at: 0)
         }
         self.overlay = overlay
-        ReaderTranslationDiagnostics.record("visible_live_attached", page: (sourcePage?.index ?? -2) + 1,
-                                            count: Int(imageView.bounds.width), code: Int(imageView.bounds.height))
+        ReaderTranslationDiagnostics.record("visible_live_attached", page: diagnosticContext?.page ?? -1,
+                                            count: Int(imageView.bounds.width), code: Int(imageView.bounds.height), context: diagnosticContext)
         overlay.onRenderCommitted = { [weak self, weak overlay] in
             guard let self, self.overlay === overlay else { return }
-            ReaderTranslationDiagnostics.record("visible_live_committed", page: (sourcePage?.index ?? -2) + 1,
-                                                count: regions.count)
+            ReaderTranslationDiagnostics.record("visible_live_committed", page: diagnosticContext?.page ?? -1,
+                                                count: regions.count, context: diagnosticContext)
         }
         let issued = generation
         overlay.defersPresentationUntilSnapshot = target != nil
@@ -502,6 +508,7 @@ final class ReaderTranslationPage {
             return
         }
         reset()
+        if let diagnostic = prepared.diagnosticContext { diagnosticContext = diagnostic }
         let crop = sourcePage?.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
         regions = prepared.regions.compactMap { $0.cropped(to: crop) }
         analyzedImage = source
@@ -542,10 +549,13 @@ final class ReaderTranslationPage {
                 try? publish(regions, image: source, settings: settings, generation: generation)
             }
         }
+        if imageView.bounds.width <= 0 || imageView.bounds.height <= 0 {
+            ReaderTranslationDiagnostics.record("bitmap_attached_before_layout", context: diagnosticContext)
+        }
         cachedOverlay = canvas
         imageView.insertSubview(canvas, at: 0)
-        ReaderTranslationDiagnostics.record("visible_bitmap_attached", page: (sourcePage?.index ?? -2) + 1,
-                                            count: Int(imageView.bounds.width), code: Int(imageView.bounds.height))
+        ReaderTranslationDiagnostics.record("visible_bitmap_attached", page: diagnosticContext?.page ?? -1,
+                                            count: Int(imageView.bounds.width), code: Int(imageView.bounds.height), context: diagnosticContext)
     }
 
     func displayPrepared(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings, completed: Bool = true) {

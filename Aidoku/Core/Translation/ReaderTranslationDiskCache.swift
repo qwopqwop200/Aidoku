@@ -210,10 +210,17 @@ actor ReaderTranslationDiskCache {
     /// request. Never treat a filtered subset as a complete all-language page.
     func translatedRegions(page: String, settings: ReaderTranslationSettings) throws -> [ReaderTranslationRegion]? {
         let key = ReaderTranslationCacheIdentity.translation(page: page, settings: settings)
-        if let cached = try regions(for: key, kind: .translation) { return cached }
+        if let cached = try regions(for: key, kind: .translation) {
+            guard !ReaderTranslationLanguageFilter.containsUntranslatedJapaneseReply(cached, target: settings.targetLanguage) else {
+                ReaderTranslationDiagnostics.record("translation_cache_wrong_language")
+                return nil
+            }
+            return cached
+        }
         guard !settings.rightToLeftPanelOrder, ReaderTranslationLanguageFilter.identity(settings: settings) != nil,
               let cached = try regions(for: ReaderTranslationCacheIdentity.unfilteredTranslation(page: page, settings: settings),
                                        kind: .translation) else { return nil }
+        guard !ReaderTranslationLanguageFilter.containsUntranslatedJapaneseReply(cached, target: settings.targetLanguage) else { return nil }
         let filtered = ReaderTranslationLanguageFilter.apply(cached, settings: settings)
         try Task.checkCancellation()
         try storeRegions(filtered, for: key, kind: .translation, generation: generation)

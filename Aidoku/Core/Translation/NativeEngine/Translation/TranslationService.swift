@@ -346,7 +346,8 @@ actor TranslationService {
             let lookup = await cache.lookup(for: key)
             try Task.checkCancellation()
             guard admittedGeneration == purgeGeneration, purgeTask == nil else { continue }
-            guard let cached = lookup.value else { return nil }
+            guard let cached = lookup.value,
+                  !Self.containsWrongLanguage(cached.translations, request: canonical.request) else { return nil }
             return try canonical.restoringCallerSegmentIDs(in: RemoteTranslationBatchResult(
                 translations: cached.translations, source: cached.source, providerRequestID: nil
             ))
@@ -409,7 +410,7 @@ actor TranslationService {
             else {
                 continue
             }
-            if let cached = lookup.value {
+            if let cached = lookup.value, !Self.containsWrongLanguage(cached.translations, request: canonicalRequest.request) {
                 let canonicalResult = RemoteTranslationBatchResult(
                     translations: cached.translations,
                     source: cached.source,
@@ -512,7 +513,7 @@ actor TranslationService {
             else {
                 continue
             }
-            guard let cached else { return nil }
+            guard let cached, !Self.containsWrongLanguage(cached.translations, request: canonicalRequest.request) else { return nil }
             let canonicalResult = RemoteTranslationBatchResult(
                 translations: cached.translations,
                 source: cached.source,
@@ -732,7 +733,8 @@ actor TranslationService {
                         "the chat completion was truncated", "the chat completion did not finish with text",
                         "expected exactly one text content part", "missing chat completion message content",
                         "structured translation is not valid JSON", "structured translation does not match the required schema",
-                        "structured translation contains an invalid segment", "structured translation is missing one or more segment IDs"
+                        "structured translation contains an invalid segment", "structured translation is missing one or more segment IDs",
+                        "translation is still in source language"
                     ]
                     ReaderTranslationDiagnostics.record("api_invalid_response", count: attempt,
                                                         code: knownReasons.firstIndex(of: reason).map { $0 + 1 } ?? 0)
@@ -848,7 +850,20 @@ actor TranslationService {
                 elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: startedAt)
             )
         }
-        return try await client.translate(request, configuration: configuration, onPartial: onPartial)
+        let result = try await client.translate(request, configuration: configuration, onPartial: onPartial)
+        guard !containsWrongLanguage(result.translations, request: request) else {
+            throw RemoteTranslationError.invalidResponse("translation is still in source language")
+        }
+        return result
+    }
+
+    private static func containsWrongLanguage(_ translations: [RemoteTranslatedSegment], request: RemoteTranslationRequest) -> Bool {
+        let sources = Dictionary(request.segments.map { ($0.id, $0.text) }, uniquingKeysWith: { first, _ in first })
+        return translations.contains { segment in
+            guard segment.isSFX != true, let source = sources[segment.id] else { return false }
+            return ReaderTranslationLanguageFilter.isUntranslatedJapaneseReply(
+                source: source, translation: segment.text, target: request.targetLanguage)
+        }
     }
 
     private static func isStructuredOutputRetryable(_ error: Error) -> Bool {

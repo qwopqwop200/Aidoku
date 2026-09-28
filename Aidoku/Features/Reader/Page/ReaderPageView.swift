@@ -179,9 +179,15 @@ extension ReaderPageView {
         progressView.setProgress(value: 0, withAnimation: false)
         progressView.isHidden = false
         let issued = imageLoadGeneration
+        let diagnostic = ReaderTranslationDiagnostics.makeContext(pageKey: page.translationCacheKey)
         let loading = Task { [weak self] in
             guard let self else { return false }
-            return await self.loadPage(page, skipProcessing: skipProcessing)
+            return await ReaderTranslationDiagnostics.measure("source_load", context: diagnostic) {
+                let succeeded = await self.loadPage(page, skipProcessing: skipProcessing)
+                ReaderTranslationDiagnostics.record("source_load_result", count: succeeded ? 1 : 0,
+                    outcome: succeeded ? 0 : (Task.isCancelled ? 1 : 2))
+                return succeeded
+            }
         }
         pageLoadTask = loading
         let succeeded = await withTaskCancellationHandler {
@@ -344,9 +350,11 @@ extension ReaderPageView {
             }
         }
         do {
-            let response = try await withTaskCancellationHandler {
-                try await loading.response
-            } onCancel: { loading.cancel() }
+            let response = try await ReaderTranslationDiagnostics.measure("source_image_response") {
+                try await withTaskCancellationHandler {
+                    try await loading.response
+                } onCancel: { loading.cancel() }
+            }
             imageDownloadDemand.end(demand)
             guard !Task.isCancelled, imageLoadGeneration == issued else { return false }
             return await prepareAndDisplayImage(response.image, gifData: response.container.type == .gif ? response.container.data : nil)

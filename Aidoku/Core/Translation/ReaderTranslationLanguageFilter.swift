@@ -3,6 +3,31 @@ import NaturalLanguage
 
 /// Apply the source-language policy after raw OCR caching, before requests or overlays.
 enum ReaderTranslationLanguageFilter {
+    /// A Japanese sentence re-punctuated by the provider is not a Korean translation.
+    /// Exact copies remain valid for explicit SFX/background preservation; short names,
+    /// symbols and mixed Korean output are deliberately outside this narrow rejection.
+    static func isUntranslatedJapaneseReply(source: String, translation: String, target: String) -> Bool {
+        guard canonical(target) == "ko",
+              source.trimmingCharacters(in: .whitespacesAndNewlines) != translation.trimmingCharacters(in: .whitespacesAndNewlines)
+        else { return false }
+        func kana(_ scalar: Unicode.Scalar) -> Bool {
+            (0x3040...0x30FF).contains(scalar.value) || (0xFF66...0xFF9D).contains(scalar.value)
+        }
+        let letters = translation.unicodeScalars.filter { $0.properties.isAlphabetic }
+        guard letters.count >= 20, letters.filter(kana).count >= 2,
+              source.unicodeScalars.filter(kana).count >= 2 else { return false }
+        return !letters.contains {
+            (0xAC00...0xD7A3).contains($0.value) || (0x1100...0x11FF).contains($0.value) ||
+                (0x3130...0x318F).contains($0.value)
+        }
+    }
+
+    static func containsUntranslatedJapaneseReply(_ regions: [ReaderTranslationRegion], target: String) -> Bool {
+        regions.contains { region in
+            region.translation.map { isUntranslatedJapaneseReply(source: region.source, translation: $0, target: target) } ?? false
+        }
+    }
+
     /// Only skip confident, unmixed text. Short Latin tags and romanized titles remain eligible.
     static func isAlreadyTargetLanguage(_ text: String, target: String) -> Bool {
         let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }

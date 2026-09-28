@@ -4,6 +4,50 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationLanguageFilterTests {
+    @Test func JapaneseDialogueCannotBecomeAKoreanCompletedCache() async throws {
+        let fixture = LanguageFilterFixture()
+        let source = "これからも毎日おいしいパンを作ってみんなに届けます"
+        let wrong = "「" + source + "」"
+        #expect(ReaderTranslationLanguageFilter.isUntranslatedJapaneseReply(source: source, translation: wrong, target: "ko"))
+        for value in [source, "앞으로도 매일 맛있는 빵을 만들어 모두에게 전하겠습니다", "スタジオジブリ", "「ドンドン」"] {
+            #expect(!ReaderTranslationLanguageFilter.isUntranslatedJapaneseReply(source: source, translation: value, target: "ko"))
+        }
+        #expect(!ReaderTranslationLanguageFilter.isUntranslatedJapaneseReply(source: source, translation: wrong, target: "ja"))
+        let bad = [ReaderTranslationRegion(id: "dialogue", rect: .zero, source: source, translation: wrong)]
+        let pageKey = fixture.page.translationCacheKey
+        let settings = fixture.settings
+        let key = ReaderTranslationCacheIdentity.translation(page: pageKey, settings: settings)
+        try await fixture.disk.storeRegions(bad, for: key, kind: .translation, generation: 0)
+        #expect(try await fixture.disk.translatedRegions(page: pageKey, settings: settings) == nil)
+        // A failed language check is a targeted cache miss, never a purge of OCR or user data.
+        #expect(try await fixture.disk.regions(for: key, kind: .translation) == bad)
+        var valid = bad
+        valid[0].translation = "앞으로도 매일 맛있는 빵을 만들어 모두에게 전하겠습니다"
+        try await fixture.disk.storeRegions(valid, for: key, kind: .translation, generation: 0)
+        #expect(try await fixture.disk.translatedRegions(page: pageKey, settings: settings) == valid)
+    }
+
+    @Test func wrongLanguageProviderReplyRetriesAndReplacesOldBatchCache() async throws {
+        let fixture = LanguageFilterFixture()
+        let source = "これからも毎日おいしいパンを作ってみんなに届けます"
+        let request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", sourceText: source)
+        let configuration = fixture.settings.configuration
+        let canonical = request.canonicalizedForTranslationSemantics().request
+        let cache = try TranslationCache(configuration: .init(diskEnabled: false))
+        let key = TranslationCacheKey(configuration: configuration, endpoint: try configuration.validatedEndpoint(), request: canonical)
+        await cache.insert(canonical.segments.map { .init(id: $0.id, text: "「" + $0.text + "」") }, for: key)
+        let client = WrongLanguageThenKoreanClient()
+        let service = TranslationService(client: client, cache: cache)
+        #expect(try await service.cachedResult(request, configuration: configuration) == nil)
+        #expect(try await service.cachedTranslation(request, configuration: configuration) == nil)
+        let result = try await service.translate(request, configuration: configuration)
+        #expect(result.translations.first?.text == "앞으로도 매일 맛있는 빵을 만들어 모두에게 전하겠습니다")
+        #expect(await client.calls == 2)
+        #expect(try await service.cachedResult(request, configuration: configuration)?.translations == result.translations)
+        _ = try await service.translate(request, configuration: configuration)
+        #expect(await client.calls == 2)
+    }
+
     @Test func correctedKanaEvidenceReusesRawOCRButRejectsOldFilteredSubset() async throws {
         let fixture = LanguageFilterFixture()
         var settings = fixture.settings
@@ -252,5 +296,15 @@ private actor LanguageFilterProgress {
     deinit {
         try? FileManager.default.removeItem(at: root)
         UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
+    }
+}
+
+private actor WrongLanguageThenKoreanClient: RemoteTranslating {
+    private(set) var calls = 0
+    func translate(_ request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration) async throws -> RemoteTranslationBatchResult {
+        calls += 1
+        return .init(translations: request.segments.map {
+            .init(id: $0.id, text: calls == 1 ? "「" + $0.text + "」" : "앞으로도 매일 맛있는 빵을 만들어 모두에게 전하겠습니다")
+        }, source: .network, providerRequestID: nil)
     }
 }

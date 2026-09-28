@@ -16,6 +16,7 @@ struct ReaderTranslationImageGeometry: Equatable {
 /// The loader retains the original for OCR, dictionary lookup and image export.
 @MainActor
 struct ReaderTranslationPreparedImage {
+    let diagnosticContext = ReaderTranslationDiagnostics.context
     let image: UIImage
     let regions: [ReaderTranslationRegion]
     let settings: ReaderTranslationSettings

@@ -449,14 +449,6 @@ final class ReaderTranslationCoordinator {
         guard #available(iOS 18.0, *), let owner, isVisible, UIApplication.shared.applicationState == .active else { return }
         let visible = owner.translationVisiblePages
         let visibleKeys = visible.compactMap { $0.sourcePage?.translationCacheKey }
-        if visibleKeys != diagnosticVisibleKeys {
-            diagnosticVisibleKeys = visibleKeys
-            ReaderTranslationDiagnostics.record("visible_window", page: owner.translationCurrentPageIndex + 1, count: visible.count)
-            for page in visible {
-                ReaderTranslationDiagnostics.record("visible_page", page: (page.sourcePage?.index ?? -2) + 1,
-                    count: Int(page.imageView?.bounds.width ?? 0), code: Int(page.imageView?.bounds.height ?? 0))
-            }
-        }
         session.refreshVisiblePages(visible, previews: readSettings().automaticallyTranslate ? owner.translationPreviewPages : [])
         let pages = owner.translationUpcomingPages
         let renderContext = visible.first.flatMap { page in
@@ -464,6 +456,18 @@ final class ReaderTranslationCoordinator {
         }
         session.update(items: ReaderTranslationSession.chapterItems(pages), visible: visible, context: owner.translationChapterKey,
                        currentPageIndex: owner.translationCurrentPageIndex, renderContext: renderContext)
+        if visibleKeys != diagnosticVisibleKeys {
+            diagnosticVisibleKeys = visibleKeys
+            ReaderTranslationDiagnostics.record("visible_window", page: owner.translationCurrentPageIndex + 1, count: visible.count)
+            for page in visible {
+                if let key = page.sourcePage?.translationCacheKey {
+                    let diagnostic = session.diagnosticContext(pageKey: key)
+                    page.diagnosticContext = diagnostic
+                    ReaderTranslationDiagnostics.record("visible_page", count: Int(page.imageView?.bounds.width ?? 0),
+                        code: Int(page.imageView?.bounds.height ?? 0), context: diagnostic)
+                }
+            }
+        }
         var settings = readSettings()
         settings.rightToLeftPanelOrder = owner.translationReadsRightToLeft
         if settings.automaticallyTranslate { session.enable(settings: settings) } else { session.disable(preservingVisibleRendering: true) }
@@ -501,6 +505,17 @@ extension ReaderTranslationCoordinator {
         image: UIImage, page: Page,
         geometry: @escaping @MainActor () -> ReaderTranslationImageGeometry?
     ) async throws -> ReaderTranslationPreparedImage? {
+        let key = page.translationCacheKey
+        let diagnostic = session.diagnosticContext(pageKey: key)
+        return try await ReaderTranslationDiagnostics.measure("loaded_presentation", context: diagnostic) {
+            try await prepareCachedImageBody(image: image, page: page, geometry: geometry)
+        }
+    }
+
+    private func prepareCachedImageBody(
+        image: UIImage, page: Page,
+        geometry: @escaping @MainActor () -> ReaderTranslationImageGeometry?
+    ) async throws -> ReaderTranslationPreparedImage? {
         guard #available(iOS 18.0, *) else { return nil }
         let pageKey = page.translationCacheKey
         let crop = page.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
@@ -516,13 +531,18 @@ extension ReaderTranslationCoordinator {
             try Task.checkCancellation()
             guard owner != nil else { throw CancellationError() }
             guard imagePreparationSettings() == settings else { continue }
-            guard let result else { return nil }
+            guard let result else {
+                ReaderTranslationDiagnostics.record("loaded_translation_miss")
+                return nil
+            }
+            ReaderTranslationDiagnostics.record("loaded_translation_hit", count: result.count)
             let regions = result.compactMap { $0.cropped(to: crop) }
             guard !regions.isEmpty else { return nil }
             guard let current = geometry(), current.isValid else {
                 guard let host = (owner as? UIViewController)?.viewIfLoaded else {
                     throw ReaderTranslationImageExporter.ExportError.unavailable
                 }
+                ReaderTranslationDiagnostics.record("loaded_geometry_wait")
                 try await ReaderTranslationLayoutAwaiter.wait(in: host) { [weak self] in
                     self?.imagePreparationSettings() != settings || geometry()?.isValid == true
                 }
@@ -563,6 +583,7 @@ extension ReaderTranslationCoordinator {
                 guard UIApplication.shared.applicationState != .active || host.window?.windowScene == nil else {
                     throw ReaderTranslationImageExporter.ExportError.unavailable
                 }
+                ReaderTranslationDiagnostics.record("loaded_host_wait")
                 try await ReaderTranslationLayoutAwaiter.wait(in: host) { [weak self, weak host] in
                     guard self?.imagePreparationSettings() == settings, let latest = geometry(), latest.isValid,
                           renderKey(settings, latest) == key else { return true }

@@ -119,9 +119,11 @@ enum ReaderTranslationImageExporter {
         defer { assetRead.cancel() }
         let candidate = await withTaskCancellationHandler { await assetRead.value } onCancel: { assetRead.cancel() }
         try Task.checkCancellation()
+        ReaderTranslationDiagnostics.record(candidate == nil ? "render_asset_miss" : "render_asset_candidate")
         let cached = candidate.flatMap {
             $0.sourceSize == image.size && $0.regionsDigest == digests.regions && sourceDigest != nil && $0.sourceDigest == sourceDigest ? $0 : nil
         }
+        if candidate != nil, cached == nil { ReaderTranslationDiagnostics.record("render_asset_identity_mismatch") }
         // Native replay must not wait behind an offscreen WebKit/PDF render.
         // Only the bounded native composite stage is shared with cold rendering.
         if let cached {
@@ -143,7 +145,10 @@ enum ReaderTranslationImageExporter {
         // The reader already owns decoded pixels. Reacquiring the shared OCR/
         // image permit here could deadlock against a preloader awaiting display.
         guard host != nil else { throw ExportError.unavailable }
+        let queuedAt = ProcessInfo.processInfo.systemUptime
+        ReaderTranslationDiagnostics.record("export_queued")
         return try await gate.withPermit(priority: priority) { @MainActor in
+            ReaderTranslationDiagnostics.record("export_admitted", elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - queuedAt) * 1000)
             try Task.checkCancellation()
             if let bitmapKey, let image = cache?.cachedImage(for: bitmapKey) { return image }
             // A prefetch may have completed while this request waited for
@@ -196,14 +201,16 @@ enum ReaderTranslationImageExporter {
                                      limiter: TranslationProviderRequestLimiter = compositeGate) async throws -> UIImage {
         // Lock order is WebKit -> native for cold work; warm work takes only
         // native. Neither path waits for the shared image/OCR admission permit.
-        try await limiter.withPermit(priority: priority) {
-            let operation = Task.detached(priority: priority.isForeground ? .userInitiated : .utility) {
-                try composite(image: image, typography: asset.typography, layers: asset.layers,
-                              displayRect: asset.displayRect, size: size)
+        try await ReaderTranslationDiagnostics.measure("native_composite") {
+            try await limiter.withPermit(priority: priority) {
+                let operation = Task.detached(priority: priority.isForeground ? .userInitiated : .utility) {
+                    try composite(image: image, typography: asset.typography, layers: asset.layers,
+                                  displayRect: asset.displayRect, size: size)
+                }
+                let result = try await withTaskCancellationHandler { try await operation.value } onCancel: { operation.cancel() }
+                try Task.checkCancellation()
+                return result
             }
-            let result = try await withTaskCancellationHandler { try await operation.value } onCancel: { operation.cancel() }
-            try Task.checkCancellation()
-            return result
         }
     }
 
@@ -257,7 +264,10 @@ enum ReaderTranslationImageExporter {
         }
         // Cache snapshots yield to a visible page waiting for its first presentation.
         ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_wait", count: regions.count)
+        let queuedAt = ProcessInfo.processInfo.systemUptime
+        ReaderTranslationDiagnostics.record("export_queued")
         return try await gate.withPermit(priority: priority) { @MainActor in
+            ReaderTranslationDiagnostics.record("export_admitted", elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - queuedAt) * 1000)
             ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_acquired", count: regions.count)
             defer { ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_released", count: regions.count) }
             try Task.checkCancellation()
@@ -329,113 +339,122 @@ enum ReaderTranslationImageExporter {
                                      viewport: CGSize, aspectFit: Bool, host: UIView, logicalImageSize: CGSize? = nil,
                                      pixelSize: CGSize? = nil, preparedLayout: Task<Data, Error>? = nil, dark: Bool? = nil,
                                      sourceDigest: String? = nil, priority: TranslationRequestPriority = .foreground) async throws -> RenderedPage {
-        try Task.checkCancellation()
-        guard viewport.width > 0, viewport.height > 0,
-              (host.window ?? (host as? UIWindow))?.windowScene != nil else { throw ExportError.unavailable }
-        if warningObserver == nil {
-            warningObserver = NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification,
-                object: nil, queue: .main) { _ in Task { @MainActor in clearIdleRenderer() } }
-        }
-        if backgroundObserver == nil {
-            backgroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification,
-                object: nil, queue: .main) { _ in Task { @MainActor in clearIdleRenderer() } }
-        }
-        eviction?.cancel(); eviction = nil
-        let exportStartedAt = ProcessInfo.processInfo.systemUptime
-        let reused = idleRenderer.take(now: exportStartedAt,
-            availableMemory: ReaderTranslationSession.processAvailableMemory(),
-            isActive: UIApplication.shared.applicationState == .active)
-        let overlay: ReaderTranslationOverlayView
-        let reusedHealthyRenderer = reused?.contentTerminationCount == 0
-        if let reused, reusedHealthyRenderer {
-            overlay = reused
-            ReaderTranslationDiagnostics.record("renderer_idle_reused")
-        } else {
-            reused?.cancelWork()
-            let started = ProcessInfo.processInfo.systemUptime
-            overlay = ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: viewport))
-            ReaderTranslationDiagnostics.record("renderer_idle_created",
-                count: Int((ProcessInfo.processInfo.systemUptime - started) * 1_000))
-        }
-        overlay.frame = CGRect(origin: .zero, size: viewport)
-        overlay.overrideUserInterfaceStyle = dark.map { $0 ? .dark : .light } ?? .unspecified
-        // A separate renderer avoids changing the reader's zoom, cached rendering, or visible DOM.
-        host.insertSubview(overlay, at: 0)
-        var completed = false
-        defer {
-            if completed { release(overlay) }
-            else { overlay.cancelWork(); overlay.removeFromSuperview() }
-        }
-        let events = AsyncStream<Bool>.makeStream(bufferingPolicy: .bufferingNewest(1))
-        overlay.onRenderCommitted = { events.continuation.yield(true) }
-        // Regions without drawable items clear the document instead of committing.
-        overlay.onRenderCleared = { events.continuation.yield(true) }
-        let timeout = Task {
-            do { try await Task.sleep(nanoseconds: 20_000_000_000) } catch { return }
-            events.continuation.yield(false)
-        }
-        defer { timeout.cancel(); overlay.onRenderCommitted = nil; overlay.onRenderCleared = nil; events.continuation.finish() }
-        var exportSettings = settings
-        exportSettings.overlay.visible = true
-        ReaderTranslationDiagnostics.renderingProfile("profile_export_render_begin", count: regions.count)
-        overlay.update(regions: regions, imageSize: logicalImageSize ?? image.size, aspectFit: aspectFit,
-                       settings: exportSettings, image: image, preparedLayout: preparedLayout)
-        overlay.layoutIfNeeded()
-        let ready = await withTaskCancellationHandler {
-            var iterator = events.stream.makeAsyncIterator()
-            return await iterator.next() ?? false
-        } onCancel: { events.continuation.finish() }
-        try Task.checkCancellation()
-        guard ready, !overlay.hasExhaustedRecovery, overlay.lastDiagnostic?.isCacheable != false else { throw ExportError.renderFailed }
-        ReaderTranslationDiagnostics.renderingProfile("profile_export_render_ready", count: regions.count)
-        ReaderTranslationDiagnostics.record("renderer_export_ready",
-            count: Int((ProcessInfo.processInfo.systemUptime - exportStartedAt) * 1_000), code: reusedHealthyRenderer ? 1 : 0)
-        // WKWebView snapshots can spread backdrop-filter blur beyond the card,
-        // including over translated glyphs. Bake only the bounded backdrop crops
-        // with Core Image, and capture typography with all backdrop filters off.
-        guard overlay.contentTerminationCount == 0 else { throw ExportError.renderFailed }
-        ReaderTranslationDiagnostics.renderingProfile("profile_export_layers_begin")
-        let teardown = { @MainActor in
-            overlay.cancelWork()
-            overlay.removeFromSuperview()
-        }
-        let json: String? = try await awaitExportStage(teardown: teardown) {
-            try await overlay.webView.callAsyncJavaScript(Self.prepareExportScript,
-                arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? String
-        }
-        guard let json, let data = json.data(using: .utf8) else { throw ExportError.renderFailed }
-        let layers = try JSONDecoder().decode(ExportLayers.self, from: data)
-        ReaderTranslationDiagnostics.renderingProfile("profile_export_layers_end")
-        let rect = ReaderTranslationGeometry.displayRect(
-            CGRect(x: 0, y: 0, width: 1, height: 1), imageSize: logicalImageSize ?? image.size,
-            bounds: CGRect(origin: .zero, size: viewport), aspectFit: aspectFit
-        )
-        let size = pixelSize ?? outputSize(for: image)
-        // PDF paints DOM text without WebKit's on-screen GPU snapshot layers.
-        // The reader may be occluded by the progress alert or scrolled offscreen.
-        let configuration = WKPDFConfiguration()
-        configuration.rect = rect
-        ReaderTranslationDiagnostics.renderingProfile("profile_export_pdf_begin")
-        let typography: Data = try await awaitExportStage(teardown: teardown) {
-            try await withCheckedThrowingContinuation { continuation in
-                overlay.webView.createPDF(configuration: configuration) { result in
-                    continuation.resume(with: result)
+        return try await ReaderTranslationDiagnostics.measure("export_render") {
+            try Task.checkCancellation()
+            guard viewport.width > 0, viewport.height > 0,
+                  (host.window ?? (host as? UIWindow))?.windowScene != nil else { throw ExportError.unavailable }
+            if warningObserver == nil {
+                warningObserver = NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification,
+                    object: nil, queue: .main) { _ in Task { @MainActor in clearIdleRenderer() } }
+            }
+            if backgroundObserver == nil {
+                backgroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification,
+                    object: nil, queue: .main) { _ in Task { @MainActor in clearIdleRenderer() } }
+            }
+            eviction?.cancel(); eviction = nil
+            let exportStartedAt = ProcessInfo.processInfo.systemUptime
+            let reused = idleRenderer.take(now: exportStartedAt,
+                availableMemory: ReaderTranslationSession.processAvailableMemory(),
+                isActive: UIApplication.shared.applicationState == .active)
+            let overlay: ReaderTranslationOverlayView
+            let reusedHealthyRenderer = reused?.contentTerminationCount == 0
+            if let reused, reusedHealthyRenderer {
+                overlay = reused
+                ReaderTranslationDiagnostics.record("renderer_idle_reused")
+            } else {
+                reused?.cancelWork()
+                let started = ProcessInfo.processInfo.systemUptime
+                overlay = ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: viewport))
+                ReaderTranslationDiagnostics.record("renderer_idle_created",
+                    count: Int((ProcessInfo.processInfo.systemUptime - started) * 1_000))
+            }
+            overlay.diagnosticContext = ReaderTranslationDiagnostics.context
+            overlay.frame = CGRect(origin: .zero, size: viewport)
+            overlay.overrideUserInterfaceStyle = dark.map { $0 ? .dark : .light } ?? .unspecified
+            // This renderer must join a window for WebKit, but must never paint into
+            // the reader while its DOM commits or export preparation strips layers.
+            // Inserting behind siblings alone leaks through transparent/loading areas.
+            // PDF export reads the document independently of the UIKit host opacity.
+            overlay.alpha = 0
+            host.insertSubview(overlay, at: 0)
+            var completed = false
+            defer {
+                if completed { release(overlay) }
+                else { overlay.cancelWork(); overlay.removeFromSuperview() }
+            }
+            let events = AsyncStream<Bool>.makeStream(bufferingPolicy: .bufferingNewest(1))
+            overlay.onRenderCommitted = { events.continuation.yield(true) }
+            // Regions without drawable items clear the document instead of committing.
+            overlay.onRenderCleared = { events.continuation.yield(true) }
+            let timeout = Task {
+                do { try await Task.sleep(nanoseconds: 20_000_000_000) } catch { return }
+                events.continuation.yield(false)
+            }
+            defer { timeout.cancel(); overlay.onRenderCommitted = nil; overlay.onRenderCleared = nil; events.continuation.finish() }
+            var exportSettings = settings
+            exportSettings.overlay.visible = true
+            ReaderTranslationDiagnostics.renderingProfile("profile_export_render_begin", count: regions.count)
+            overlay.update(regions: regions, imageSize: logicalImageSize ?? image.size, aspectFit: aspectFit,
+                           settings: exportSettings, image: image, preparedLayout: preparedLayout)
+            overlay.layoutIfNeeded()
+            let ready = await withTaskCancellationHandler {
+                var iterator = events.stream.makeAsyncIterator()
+                return await iterator.next() ?? false
+            } onCancel: { events.continuation.finish() }
+            try Task.checkCancellation()
+            guard ready, !overlay.hasExhaustedRecovery, overlay.lastDiagnostic?.isCacheable != false else { throw ExportError.renderFailed }
+            ReaderTranslationDiagnostics.renderingProfile("profile_export_render_ready", count: regions.count)
+            ReaderTranslationDiagnostics.record("renderer_export_ready",
+                count: Int((ProcessInfo.processInfo.systemUptime - exportStartedAt) * 1_000), code: reusedHealthyRenderer ? 1 : 0)
+            // WKWebView snapshots can spread backdrop-filter blur beyond the card,
+            // including over translated glyphs. Bake only the bounded backdrop crops
+            // with Core Image, and capture typography with all backdrop filters off.
+            guard overlay.contentTerminationCount == 0 else { throw ExportError.renderFailed }
+            ReaderTranslationDiagnostics.renderingProfile("profile_export_layers_begin")
+            let teardown = { @MainActor in
+                overlay.cancelWork()
+                overlay.removeFromSuperview()
+            }
+            let json: String? = try await awaitExportStage(teardown: teardown) {
+                try await overlay.webView.callAsyncJavaScript(Self.prepareExportScript,
+                    arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? String
+            }
+            guard let json, let data = json.data(using: .utf8) else { throw ExportError.renderFailed }
+            let layers = try JSONDecoder().decode(ExportLayers.self, from: data)
+            ReaderTranslationDiagnostics.renderingProfile("profile_export_layers_end")
+            let rect = ReaderTranslationGeometry.displayRect(
+                CGRect(x: 0, y: 0, width: 1, height: 1), imageSize: logicalImageSize ?? image.size,
+                bounds: CGRect(origin: .zero, size: viewport), aspectFit: aspectFit
+            )
+            let size = pixelSize ?? outputSize(for: image)
+            // PDF paints DOM text without WebKit's on-screen GPU snapshot layers.
+            // The reader may be occluded by the progress alert or scrolled offscreen.
+            let configuration = WKPDFConfiguration()
+            configuration.rect = rect
+            ReaderTranslationDiagnostics.renderingProfile("profile_export_pdf_begin")
+            let typography: Data = try await ReaderTranslationDiagnostics.measure("export_pdf") {
+                try await awaitExportStage(teardown: teardown) {
+                    try await withCheckedThrowingContinuation { continuation in
+                        overlay.webView.createPDF(configuration: configuration) { result in
+                            continuation.resume(with: result)
+                        }
+                    }
                 }
             }
+            ReaderTranslationDiagnostics.renderingProfile("profile_export_pdf_end", count: typography.count)
+            try Task.checkCancellation()
+            guard overlay.contentTerminationCount == 0 else { throw ExportError.renderFailed }
+            let asset = ReaderTranslationRenderAsset(typography: typography, layers: layers, displayRect: rect,
+                sourceSize: logicalImageSize ?? image.size, regions: regions, sourceDigest: sourceDigest)
+            ReaderTranslationDiagnostics.renderingProfile("profile_export_composite_begin")
+            let result = try await compositeLoadedImage(image, asset: asset, size: size, priority: priority)
+            ReaderTranslationDiagnostics.renderingProfile("profile_export_composite_end")
+            try Task.checkCancellation()
+            completed = true
+            ReaderTranslationDiagnostics.record("renderer_export_finished",
+                count: Int((ProcessInfo.processInfo.systemUptime - exportStartedAt) * 1_000), code: reusedHealthyRenderer ? 1 : 0)
+            return RenderedPage(image: result, asset: asset)
         }
-        ReaderTranslationDiagnostics.renderingProfile("profile_export_pdf_end", count: typography.count)
-        try Task.checkCancellation()
-        guard overlay.contentTerminationCount == 0 else { throw ExportError.renderFailed }
-        let asset = ReaderTranslationRenderAsset(typography: typography, layers: layers, displayRect: rect,
-            sourceSize: logicalImageSize ?? image.size, regions: regions, sourceDigest: sourceDigest)
-        ReaderTranslationDiagnostics.renderingProfile("profile_export_composite_begin")
-        let result = try await compositeLoadedImage(image, asset: asset, size: size, priority: priority)
-        ReaderTranslationDiagnostics.renderingProfile("profile_export_composite_end")
-        try Task.checkCancellation()
-        completed = true
-        ReaderTranslationDiagnostics.record("renderer_export_finished",
-            count: Int((ProcessInfo.processInfo.systemUptime - exportStartedAt) * 1_000), code: reusedHealthyRenderer ? 1 : 0)
-        return RenderedPage(image: result, asset: asset)
     }
 
     struct ExportLayers: Codable, Sendable {

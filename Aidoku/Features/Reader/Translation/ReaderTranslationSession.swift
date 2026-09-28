@@ -636,7 +636,10 @@ final class ReaderTranslationSession {
                         do {
                             activeLayoutKey = item.key
                             ReaderTranslationDiagnostics.record("render_start", page: item.position + 1, count: regions.count)
-                            try await prepareLayout(item.page, regions, settings)
+                            let diagnostic = ReaderTranslationDiagnostics.makeContext(pageKey: item.key, page: item.position + 1)
+                            try await ReaderTranslationDiagnostics.measure("page_render", context: diagnostic) {
+                                try await prepareLayout(item.page, regions, settings)
+                            }
                             guard layoutGeneration == issued, !Task.isCancelled else { return }
                             preparedLayouts.insert(item.key)
                             displayPreparedPages()
@@ -880,7 +883,9 @@ final class ReaderTranslationSession {
             guard let self else { return }
             while state == .on, !navigationPaused, workGeneration == issued, !Task.isCancelled, let item = nextItem() {
                 activeKey = item.key
-                ReaderTranslationDiagnostics.record("page_start", page: item.position + 1)
+                let diagnostic = ReaderTranslationDiagnostics.makeContext(pageKey: item.key, page: item.position + 1)
+                let startedAt = ProcessInfo.processInfo.systemUptime
+                ReaderTranslationDiagnostics.record("page_start", page: item.position + 1, context: diagnostic)
                 do {
                     let key = item.key
                     let diskKey = ReaderTranslationCacheIdentity.translation(page: key, settings: settings)
@@ -894,7 +899,7 @@ final class ReaderTranslationSession {
                     guard workGeneration == issued else { return }
                     let regions: [ReaderTranslationRegion]
                     if let stored {
-                        ReaderTranslationDiagnostics.record("translation_cache_hit", page: item.position + 1, count: stored.count)
+                        ReaderTranslationDiagnostics.record("translation_cache_hit", page: item.position + 1, count: stored.count, context: diagnostic)
                         regions = stored
                     } else {
                         guard canStartHeavyWork else {
@@ -911,8 +916,10 @@ final class ReaderTranslationSession {
                             $0.sourcePage?.translationCacheKey == item.key
                         }) { cancelLayout(clearQueue: false) }
                         ReaderTranslationDiagnostics.record("translation_start", page: item.position + 1)
-                        regions = try await process(item.page, settings) { [weak self] progress in
-                            try await self?.handleProgress(key: key, generation: issued, regions: progress)
+                        regions = try await ReaderTranslationDiagnostics.measure("page_translation", context: diagnostic) {
+                            try await process(item.page, settings) { [weak self] progress in
+                                try await self?.handleProgress(key: key, generation: issued, regions: progress)
+                            }
                         }
                     }
                     try Task.checkCancellation()
@@ -922,7 +929,8 @@ final class ReaderTranslationSession {
                     attempted.insert(item.key) // NSCache eviction must not spin the same completed demand.
                     retryCounts.removeValue(forKey: item.key)
                     didReportTranslationFailure = false
-                    ReaderTranslationDiagnostics.record("translation_finished", page: item.position + 1, count: regions.count)
+                    ReaderTranslationDiagnostics.record("translation_finished", page: item.position + 1, count: regions.count,
+                        context: diagnostic, elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - startedAt) * 1000)
                     displayPreparedPages()
                     if stored == nil, diskCache != nil {
                         // Completed API work must survive a page turn cancelling this worker.
@@ -948,7 +956,7 @@ final class ReaderTranslationSession {
                     case RemoteTranslationError.transport(let transport): code = transport.rawValue
                     default: code = (cause as NSError).code
                     }
-                    ReaderTranslationDiagnostics.record("page_failed", page: item.position + 1, code: code)
+                    ReaderTranslationDiagnostics.record("page_failed", page: item.position + 1, code: code, context: diagnostic, outcome: 2)
                     attempted.insert(item.key)
                     // Failed/partial pages keep their source image and never enter completed caches.
                     if scheduleTransientRetry(error, key: item.key) {
@@ -974,6 +982,12 @@ final class ReaderTranslationSession {
 }
 
 extension ReaderTranslationSession {
+    /// Uses already-computed item keys: logging must not rehash every chapter page on each load.
+    func diagnosticContext(pageKey: String) -> ReaderTranslationDiagnostics.Context {
+        let position = items.first { $0.key == pageKey }?.position
+        return ReaderTranslationDiagnostics.makeContext(pageKey: pageKey, page: position.map { $0 + 1 } ?? -1)
+    }
+
     /// Image loading can restore a completed translation before session startup.
     /// This lookup never recognizes an image, probes a provider, or starts work.
     func cachedRegions(for page: Page, settings: ReaderTranslationSettings) async throws -> [ReaderTranslationRegion]? {

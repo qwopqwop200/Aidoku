@@ -118,7 +118,12 @@ final class ReaderTranslationRenderCache {
     }
 
     func layoutData(for key: String) async -> Data? {
-        if let data = cachedLayout(for: key) { return data }
+        if let data = cachedLayout(for: key) {
+            ReaderTranslationDiagnostics.record("layout_memory_hit", count: data.count)
+            return data
+        }
+        let startedAt = ProcessInfo.processInfo.systemUptime
+        defer { ReaderTranslationDiagnostics.record("layout_disk_lookup", elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - startedAt) * 1000) }
         let issued = generation
         guard let data = try? await disk.data(for: key, kind: .layout), !Task.isCancelled, generation == issued,
               (try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]) != nil else { return nil }
@@ -167,6 +172,7 @@ final class ReaderTranslationRenderCache {
     func renderAsset(for key: String, priority: TranslationRequestPriority = .foreground) async -> ReaderTranslationRenderAsset? {
         guard !Task.isCancelled else { return nil }
         if let asset = renderAssets[key] {
+            ReaderTranslationDiagnostics.record("asset_memory_hit", count: asset.byteCost)
             renderAssetOrder.removeAll { $0 == key }; renderAssetOrder.append(key)
             return asset
         }
@@ -175,6 +181,7 @@ final class ReaderTranslationRenderCache {
             await withCheckedContinuation { continuation in
                 guard !Task.isCancelled else { continuation.resume(returning: nil); return }
                 if var read = assetReads[key] {
+                    ReaderTranslationDiagnostics.record("asset_read_joined", count: read.consumers.count)
                     read.priorities.set(priority, for: consumer)
                     read.consumers[consumer] = continuation
                     assetReads[key] = read
@@ -186,6 +193,7 @@ final class ReaderTranslationRenderCache {
                 priorities.set(priority, for: consumer)
                 let promotion = TranslationRequestPromotion(foregroundSource: { priorities.isForeground })
                 let task = Task { [weak self, disk, assetReadGate, decodeAsset] in
+                    let span = ReaderTranslationDiagnostics.Span("asset_disk_decode")
                     let asset = try? await assetReadGate.withPermit(priority: .promotable(promotion)) {
                         guard !Task.isCancelled,
                               let data = try? await disk.data(for: Self.renderAssetStorageKey(key), kind: .layout,
@@ -200,6 +208,8 @@ final class ReaderTranslationRenderCache {
                         // A synchronous decoder retains its slot until it actually finishes.
                         return await withTaskCancellationHandler { await decoding.value } onCancel: { decoding.cancel() }
                     }
+                    span.finish(count: asset?.byteCost ?? 0, error: Task.isCancelled ? CancellationError() : nil)
+                    ReaderTranslationDiagnostics.record(asset == nil ? "asset_disk_miss" : "asset_disk_hit")
                     guard let self, self.assetReads[key]?.id == id else { return }
                     let read = self.assetReads.removeValue(forKey: key)
                     let result = !Task.isCancelled && self.generation == issued ? asset : nil

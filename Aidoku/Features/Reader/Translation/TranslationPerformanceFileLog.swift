@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 /// A content-free device-readable counterpart to OSLog. Only closed event/field
 /// enums and finite numbers cross this boundary; no text, URL, model or key can.
@@ -44,67 +45,161 @@ enum TranslationPerformanceFileLog {
     }
 }
 
-/// Queue admission is bounded as well as the two files, so a slow filesystem
-/// cannot retain unlimited diagnostic work. No fsync or reader-thread file I/O.
+/// Bounded admission and one delayed drain, rather than one closure/open/write per event.
+/// Producers only retain scalar metrics. Formatting, memory sampling and file I/O run on utility.
 final class TranslationPerformanceFileWriter: @unchecked Sendable {
+    private struct Entry {
+        let sequence: UInt64
+        let timestamp: TimeInterval
+        let uptime: TimeInterval
+        let event: String
+        let reader: Bool
+        let fields: [TranslationPerformanceFileLog.Field: Double]
+        let context: ReaderTranslationDiagnostics.Context?
+        let page: Int
+        let count: Int
+        let code: Int
+        let elapsed: Double?
+        let outcome: Int
+    }
     private let directory: URL
     private let maximumBytes: Int
     private let maximumPending: Int
-    private let queue = DispatchQueue(label: "app.aidoku.translation-performance", qos: .utility)
+    private let filename: String
+    private let samplesMemory: Bool
+    private let flushInterval: TimeInterval
+    private let queue = DispatchQueue(label: "app.aidoku.translation-diagnostics", qos: .utility)
     private let lock = NSLock()
-    private var pending = 0
+    private var pending: [Entry] = []
+    private var scheduled = false
+    private var sequence: UInt64 = 0
     private var dropped = 0
+    private var writeFailures = 0 // Writer queue only.
+    private var memorySample: (uptime: TimeInterval, footprint: Int64, available: UInt64) = (-1, -1, 0)
+    private(set) var writeBatchCount = 0 // Read only after flushForTesting.
+    private(set) var memorySampleCount = 0
 
-    init(directory: URL, maximumBytes: Int = 524_288, maximumPending: Int = 128) {
+    init(directory: URL, maximumBytes: Int = 524_288, maximumPending: Int = 256,
+         filename: String = "translation-performance", samplesMemory: Bool = false, flushInterval: TimeInterval = 0.25) {
         self.directory = directory
-        self.maximumBytes = maximumBytes
-        self.maximumPending = maximumPending
+        self.maximumBytes = max(1, maximumBytes)
+        self.maximumPending = max(1, maximumPending)
+        self.filename = filename
+        self.samplesMemory = samplesMemory
+        self.flushInterval = flushInterval
     }
 
     func record(_ event: TranslationPerformanceFileLog.Event, fields: [TranslationPerformanceFileLog.Field: Double]) {
-        let admission: Int? = lock.withLock {
-            guard pending < maximumPending else { dropped += 1; return nil }
-            pending += 1
-            let value = dropped
-            dropped = 0
-            return value
-        }
-        guard let dropped = admission else { return }
+        enqueue(event: event.rawValue, reader: false, fields: fields, context: ReaderTranslationDiagnostics.context)
+    }
+
+    func recordReader(_ event: String, page: Int, count: Int, code: Int, context: ReaderTranslationDiagnostics.Context?,
+                      elapsedMilliseconds: Double? = nil, outcome: Int = 0) {
+        // Existing reader call sites use constant event names. Reject accidental text/URLs.
+        guard !event.isEmpty, event.utf8.count <= 80,
+              event.utf8.allSatisfy({ (97...122).contains($0) || (48...57).contains($0) || $0 == 95 }) else { return }
+        enqueue(event: event, reader: true, fields: [:], context: context, page: page, count: count, code: code,
+                elapsed: elapsedMilliseconds, outcome: outcome)
+    }
+
+    private func enqueue(event: String, reader: Bool, fields: [TranslationPerformanceFileLog.Field: Double],
+                         context: ReaderTranslationDiagnostics.Context?, page: Int = -1, count: Int = 0,
+                         code: Int = 0, elapsed: Double? = nil, outcome: Int = 0) {
         let timestamp = Date().timeIntervalSince1970
         let uptime = ProcessInfo.processInfo.systemUptime
-        queue.async { [self] in
-            defer { lock.withLock { pending -= 1 } }
-            autoreleasepool {
-                let values = fields.filter { $0.value.isFinite }.sorted { $0.key.rawValue < $1.key.rawValue }
-                    .map { "\($0.key.rawValue)=\($0.value)" }.joined(separator: " ")
-                let line = "time=\(timestamp) uptime=\(uptime) pid=\(ProcessInfo.processInfo.processIdentifier) pipeline_event=\(event.rawValue) dropped=\(dropped) \(values)\n"
-                append(Data(line.utf8))
+        let shouldSchedule = lock.withLock {
+            sequence &+= 1
+            guard pending.count < maximumPending else { dropped += 1; return false }
+            pending.append(Entry(sequence: sequence, timestamp: timestamp, uptime: uptime, event: event, reader: reader,
+                fields: fields, context: context, page: page, count: count, code: code, elapsed: elapsed, outcome: outcome))
+            guard !scheduled else { return false }
+            scheduled = true
+            return true
+        }
+        if shouldSchedule { queue.asyncAfter(deadline: .now() + flushInterval) { [self] in drain() } }
+    }
+
+    /// Explicit test barrier only; production readers never wait for disk.
+    func flushForTesting() { queue.sync { drain() } }
+
+    private func drain() {
+        let batch: ([Entry], Int) = lock.withLock {
+            let batch = (pending, dropped)
+            pending = []
+            dropped = 0
+            scheduled = false
+            return batch
+        }
+        guard !batch.0.isEmpty else { return }
+        autoreleasepool {
+            let now = ProcessInfo.processInfo.systemUptime
+            if samplesMemory, memorySample.uptime < 0 || now - memorySample.uptime >= 1 {
+                var info = task_vm_info_data_t()
+                var size = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
+                let status = withUnsafeMutablePointer(to: &info) { pointer in
+                    pointer.withMemoryRebound(to: integer_t.self, capacity: Int(size)) {
+                        task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &size)
+                    }
+                }
+                memorySample = (now, status == KERN_SUCCESS ? Int64(info.phys_footprint / 1_048_576) : -1,
+                                UInt64(os_proc_available_memory() / 1_048_576))
+                memorySampleCount += 1
             }
+            let lines = batch.0.enumerated().map { index, entry -> Data in
+                var line = "time=\(entry.timestamp) uptime=\(entry.uptime) pid=\(ProcessInfo.processInfo.processIdentifier) seq=\(entry.sequence) "
+                line += "\(entry.reader ? "reader_event" : "pipeline_event")=\(entry.event) dropped=\(index == 0 ? batch.1 : 0) write_failures=\(writeFailures)"
+                if let context = entry.context {
+                    line += " trace=\(context.trace) page_token=\(String(context.pageToken, radix: 16))"
+                }
+                line += " page=\(entry.page >= 0 ? entry.page : entry.context?.page ?? -1)"
+                if entry.reader {
+                    line += " count=\(entry.count) code=\(entry.code) outcome=\(entry.outcome)"
+                    if let elapsed = entry.elapsed, elapsed.isFinite { line += " elapsed_ms=\(elapsed)" }
+                } else {
+                    for (key, value) in entry.fields.sorted(by: { $0.key.rawValue < $1.key.rawValue }) where value.isFinite {
+                        line += " \(key.rawValue)=\(value)"
+                    }
+                }
+                if samplesMemory {
+                    line += " footprintMiB=\(memorySample.footprint) availableMiB=\(memorySample.available) memory_sample_uptime=\(memorySample.uptime)"
+                }
+                return Data((line + "\n").utf8)
+            }
+            append(lines)
         }
     }
 
-    /// Test-only barrier. Production callers never wait for the filesystem.
-    func flushForTesting() { queue.sync {} }
-
-    private func append(_ data: Data) {
-        guard data.count <= maximumBytes else { return }
-        let url = directory.appendingPathComponent("translation-performance.log")
-        let previous = directory.appendingPathComponent("translation-performance.previous.log")
+    private func append(_ lines: [Data]) {
+        let url = directory.appendingPathComponent(filename + ".log")
+        let previous = directory.appendingPathComponent(filename + ".previous.log")
+        var file: FileHandle?
+        defer { try? file?.close() }
         do {
-            let bytes = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-            if bytes + data.count > maximumBytes {
-                try? FileManager.default.removeItem(at: previous)
-                if FileManager.default.fileExists(atPath: url.path) {
-                    try FileManager.default.moveItem(at: url, to: previous)
+            var bytes = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            var buffer = Data()
+            func writeBuffer() throws {
+                guard !buffer.isEmpty else { return }
+                if file == nil {
+                    if !FileManager.default.fileExists(atPath: url.path) { FileManager.default.createFile(atPath: url.path, contents: nil) }
+                    file = try FileHandle(forWritingTo: url)
+                    try file?.seekToEnd()
                 }
+                try file?.write(contentsOf: buffer)
+                writeBatchCount += 1
+                buffer.removeAll(keepingCapacity: true)
             }
-            if !FileManager.default.fileExists(atPath: url.path) {
-                FileManager.default.createFile(atPath: url.path, contents: nil)
+            for line in lines where line.count <= maximumBytes {
+                if bytes + line.count > maximumBytes {
+                    try writeBuffer()
+                    try file?.close(); file = nil
+                    try? FileManager.default.removeItem(at: previous)
+                    if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.moveItem(at: url, to: previous) }
+                    bytes = 0
+                }
+                buffer.append(line)
+                bytes += line.count
             }
-            let file = try FileHandle(forWritingTo: url)
-            defer { try? file.close() }
-            try file.seekToEnd()
-            try file.write(contentsOf: data)
-        } catch { /* Diagnostics must never change translation outcomes. */ }
+            try writeBuffer()
+        } catch { writeFailures += 1 } // Logging can never change reader outcomes.
     }
 }

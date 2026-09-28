@@ -1,13 +1,30 @@
-import os
 import Foundation
-import Darwin
 
-/// No page text, URLs or credentials. Two bounded files survive an abrupt exit.
+/// Content-free correlation shared by reader milestones and fine-grained phase timings.
+/// A page token is a truncated existing SHA-256 identity, never a URL or source text.
 enum ReaderTranslationDiagnostics {
-    private static let logger = os.Logger(subsystem: "app.aidoku.Aidoku", category: "ReaderPreparation")
-    private static let writer = DispatchQueue(label: "app.aidoku.reader-diagnostics", qos: .utility)
+    struct Context: Sendable, Equatable {
+        let trace: UInt64
+        let pageToken: UInt64
+        let page: Int
+    }
+    @TaskLocal static var context: Context?
+    private static let identityLock = NSLock()
+    private static var nextIdentity: UInt64 = 0
 
-    // Opt-in local profiling; no extra event I/O in ordinary reader sessions.
+    static func makeContext(pageKey: String, page: Int = -1) -> Context {
+        let token = UInt64(pageKey.prefix(16), radix: 16) ?? 0
+        if let context, context.pageToken == token, token != 0 {
+            return Context(trace: context.trace, pageToken: token, page: page >= 0 ? page : context.page)
+        }
+        let identity = identityLock.withLock { nextIdentity &+= 1; return nextIdentity }
+        return Context(trace: identity, pageToken: token, page: page)
+    }
+
+    private static let sink: TranslationPerformanceFileWriter? = {
+        guard let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
+        return TranslationPerformanceFileWriter(directory: directory, filename: "reader-memory-events", samplesMemory: true)
+    }()
     private static let renderingProfileEnabled: Bool = {
         guard let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return false }
         return FileManager.default.fileExists(atPath: directory.appendingPathComponent("DisplayPerformance/run.json").path)
@@ -18,37 +35,39 @@ enum ReaderTranslationDiagnostics {
         record(event, count: count, code: Int(clamping: revision))
     }
 
-    static func record(_ event: String, page: Int = -1, count: Int = 0, code: Int = 0) {
-        var info = task_vm_info_data_t()
-        var size = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
-        let status = withUnsafeMutablePointer(to: &info) { pointer in
-            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(size)) {
-                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &size)
-            }
+    static func record(_ event: String, page: Int = -1, count: Int = 0, code: Int = 0,
+                       context explicit: Context? = nil, elapsedMilliseconds: Double? = nil, outcome: Int = 0) {
+        sink?.recordReader(event, page: page, count: count, code: code, context: explicit ?? context,
+                           elapsedMilliseconds: elapsedMilliseconds, outcome: outcome)
+    }
+
+    struct Span: Sendable {
+        let event: String
+        let context: Context?
+        private let started: TimeInterval
+        init(_ event: String, context: Context? = ReaderTranslationDiagnostics.context, count: Int = 0) {
+            self.event = event
+            self.context = context
+            started = ProcessInfo.processInfo.systemUptime
+            ReaderTranslationDiagnostics.record(event + "_begin", count: count, context: context)
         }
-        let footprint = status == KERN_SUCCESS ? Int64(info.phys_footprint / 1_048_576) : -1
-        let available = os_proc_available_memory() / 1_048_576
-        let line = "time=\(Date().timeIntervalSince1970) pid=\(ProcessInfo.processInfo.processIdentifier) reader_event=\(event) page=\(page) count=\(count) code=\(code) footprintMiB=\(footprint) availableMiB=\(available)"
-        logger.notice("\(line, privacy: .public)")
-        writer.async {
-            autoreleasepool {
-                guard let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
-                let url = directory.appendingPathComponent("reader-memory-events.log")
-                let previous = directory.appendingPathComponent("reader-memory-events.previous.log")
-                do {
-                    let bytes = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-                    if bytes >= 262_144 {
-                        try? FileManager.default.removeItem(at: previous)
-                        try FileManager.default.moveItem(at: url, to: previous)
-                    }
-                    if !FileManager.default.fileExists(atPath: url.path) {
-                        FileManager.default.createFile(atPath: url.path, contents: nil)
-                    }
-                    let file = try FileHandle(forWritingTo: url)
-                    defer { try? file.close() }
-                    try file.seekToEnd()
-                    try file.write(contentsOf: Data((line + "\n").utf8))
-                } catch { /* Diagnostics must never interfere with the reader. */ }
+        func finish(count: Int = 0, error: Error? = nil) {
+            ReaderTranslationDiagnostics.record(event + "_end", count: count, code: error.map { ($0 as NSError).code } ?? 0,
+                context: context, elapsedMilliseconds: max(0, (ProcessInfo.processInfo.systemUptime - started) * 1000),
+                outcome: error == nil ? 0 : (error is CancellationError ? 1 : 2))
+        }
+    }
+
+    static func measure<T>(_ event: String, context: Context? = ReaderTranslationDiagnostics.context, operation: () async throws -> T) async rethrows -> T {
+        try await $context.withValue(context) {
+            let span = Span(event)
+            do {
+                let result = try await operation()
+                span.finish()
+                return result
+            } catch {
+                span.finish(error: error)
+                throw error
             }
         }
     }

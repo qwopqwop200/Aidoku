@@ -25,6 +25,43 @@ struct ReaderTranslationImageExportTests {
         return settings
     }
 
+    @Test func temporaryRendererNeverAppearsInTransparentHostOnCreationOrReuse() async throws {
+        let window = try host()
+        ReaderTranslationImageExporter.clearIdleRenderer()
+        defer { window.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
+        let view = ExportVisibilityHost(frame: window.bounds)
+        window.addSubview(view)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let source = UIGraphicsImageRenderer(size: CGSize(width: 120, height: 160), format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 120, height: 160))
+        }
+        let region = ReaderTranslationRegion(id: "visibility", rect: CGRect(x: 0.1, y: 0.3, width: 0.8, height: 0.3),
+            source: "Hello", translation: "번역 표시 검증")
+        for _ in 0..<2 {
+            let output = try await ReaderTranslationImageExporter.render(image: source, regions: [region], settings: settings(),
+                viewport: CGSize(width: 240, height: 320), aspectFit: true, host: view)
+            #expect(output.size == source.size)
+            #expect(try pixelData(output) != pixelData(source), "Invisible UIKit hosting must still export translated typography")
+            #expect(view.renderer?.alpha == 0, "A DOM commit must not reveal the temporary renderer")
+            #expect(view.renderer?.superview == nil)
+        }
+        #expect(view.attachmentAlphas == [0, 0], "Both newly created and reused renderers must be invisible before attachment")
+    }
+
+    private final class ExportVisibilityHost: UIView {
+        var attachmentAlphas: [CGFloat] = []
+        weak var renderer: ReaderTranslationOverlayView?
+
+        override func didAddSubview(_ subview: UIView) {
+            super.didAddSubview(subview)
+            guard let overlay = subview as? ReaderTranslationOverlayView else { return }
+            renderer = overlay
+            attachmentAlphas.append(overlay.alpha)
+        }
+    }
+
     @Test func cacheSnapshotPreservesTransparentLetterboxAndLogicalImageSize() async throws {
         let window = try host()
         defer { window.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
