@@ -13,8 +13,9 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
 
     init(root: URL? = nil, runtimeCache: URL? = nil) {
         let manager = FileManager.default
-        self.root = root ?? manager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("ReaderCoreMLModels-v1", isDirectory: true)
+        self.root = (root ?? manager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ReaderCoreMLModels-v1", isDirectory: true))
+            .standardizedFileURL.resolvingSymlinksInPath()
         self.runtimeCache = runtimeCache ?? Bundle.main.bundleIdentifier.map {
             manager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent($0, isDirectory: true)
@@ -25,7 +26,8 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
     func modelURL(for source: URL) throws -> URL {
         lock.lock()
         defer { lock.unlock() }
-        if let existing = resolved[source] { return existing }
+        let source = source.standardizedFileURL.resolvingSymlinksInPath()
+        if let existing = resolved[source], FileManager.default.fileExists(atPath: existing.path) { return existing }
         cleanLegacyOnce()
         let manager = FileManager.default
         let files = try regularFiles(in: source)
@@ -53,16 +55,23 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
             try manager.copyItem(at: source, to: staging)
             try manager.moveItem(at: staging, to: destination)
         }
-        resolved[source] = destination
+        // Resolve after publication: Foundation can only fully canonicalize
+        // an iOS container alias once the destination exists on disk.
+        let published = destination.standardizedFileURL.resolvingSymlinksInPath()
+        resolved[source] = published
         // Remove superseded copies of this model, never a model already loaded
         // in this process. User documents and the bundled originals are untouched.
+        // /var and /private/var can name the same iOS directory. Enumeration
+        // also normalizes trailing slashes; URL equality must never decide
+        // whether to delete the copy just published or an in-use model.
+        let residentNames = Set(resolved.values.map(\.lastPathComponent))
         for old in try manager.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey])
-        where old.lastPathComponent.hasPrefix(prefix) && old.pathExtension == "mlmodelc" && old != destination {
-            if !resolved.values.contains(old), try old.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true {
+        where old.lastPathComponent.hasPrefix(prefix) && old.pathExtension == "mlmodelc" && old.lastPathComponent != destination.lastPathComponent {
+            if !residentNames.contains(old.lastPathComponent), try old.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true {
                 try? manager.removeItem(at: old)
             }
         }
-        return destination
+        return published
     }
 
     /// Run on a utility task at launch, before OCR. All production model loads

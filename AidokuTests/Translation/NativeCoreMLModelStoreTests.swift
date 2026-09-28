@@ -51,7 +51,8 @@ struct NativeCoreMLModelStoreTests {
             let store = NativeCoreMLModelStore(root: root.appendingPathComponent("stable"), runtimeCache: root.appendingPathComponent("runtime"))
             let stable = try store.modelURL(for: source)
             let relaunched = NativeCoreMLModelStore(root: root.appendingPathComponent("stable"), runtimeCache: root.appendingPathComponent("runtime"))
-            #expect(try relaunched.modelURL(for: source) == stable)
+            let reloaded = try relaunched.modelURL(for: source)
+            #expect(reloaded == stable)
             let asset = try MLModelAsset(url: stable)
             let functions = try await asset.functionNames
             let configuration = MLModelConfiguration()
@@ -60,6 +61,37 @@ struct NativeCoreMLModelStoreTests {
             let model = try await MLModel.load(asset: asset, configuration: configuration)
             #expect(!model.modelDescription.inputDescriptionsByName.isEmpty)
             #expect(!model.modelDescription.outputDescriptionsByName.isEmpty)
+        }
+    }
+
+    @Test func directoryAliasKeepsPublishedAndResidentModels() throws {
+        let root = try temporary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let real = root.appendingPathComponent("real", isDirectory: true)
+        try FileManager.default.createDirectory(at: real, withIntermediateDirectories: true)
+        let alias = root.appendingPathComponent("alias", isDirectory: true)
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: real)
+        let store = NativeCoreMLModelStore(root: alias.appendingPathComponent("models", isDirectory: true),
+            runtimeCache: root.appendingPathComponent("runtime"))
+        var published: [URL] = []
+        for version in ["one", "two"] {
+            let source = root.appendingPathComponent(version + "/OCR.mlmodelc", isDirectory: true)
+            try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+            try Data(version.utf8).write(to: source.appendingPathComponent("model.mil"))
+            published.append(try store.modelURL(for: source))
+        }
+        for model in published { #expect(FileManager.default.fileExists(atPath: model.appendingPathComponent("model.mil").path)) }
+    }
+
+    @Test func productionDirectoryKeepsBothPublishedModels() throws {
+        // The injected temporary roots did not reproduce iOS Application Support
+        // URL aliases. Exercise the exact persistent directory used by OCR.
+        for name in ["PP-OCRv6-Medium-DetShapes", "PP-OCRv6-Medium-RecWidths"] {
+            let source = try #require(Bundle.main.url(forResource: name, withExtension: "mlmodelc"))
+            let model = try NativeCoreMLModelStore.shared.modelURL(for: source)
+            #expect(FileManager.default.fileExists(atPath: model.appendingPathComponent("model.mil").path))
+            #expect(try NativeCoreMLModelStore.shared.modelURL(for: source) == model)
+            _ = try MLModelAsset(url: model)
         }
     }
 
