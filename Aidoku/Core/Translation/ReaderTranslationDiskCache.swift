@@ -840,7 +840,7 @@ private struct ReaderTranslationCachePolicy: Equatable {
 }
 
 enum ReaderTranslationCacheIdentity {
-    static let renderRevision = "reader-render-v116-source-restoration-geometry"
+    static let renderRevision = "reader-render-v117-two-sided-frame-restoration"
     static func digest(_ value: String) -> String { digest(Data(value.utf8)) }
     private static let hexadecimalDigits = Array("0123456789abcdef".utf8)
     static func digest(_ value: Data) -> String {

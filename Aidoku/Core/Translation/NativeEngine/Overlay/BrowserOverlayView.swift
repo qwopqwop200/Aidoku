@@ -11053,8 +11053,8 @@ final class BrowserPageImageOverlayRenderer {
           const rgba=lineContext.getImageData(0,0,w,h).data,lum=new Float32Array(w*h);
           for(let i=0;i<w*h;i++)lum[i]=.2126*rgba[i*4]+.7152*rgba[i*4+1]+.0722*rgba[i*4+2];
           const X=x=>(x-E.left)*k,Y=y=>(y-E.top)*k;
-          // A frame run leaves the plate AND the source box by `reach` px on at
-          // least one side (lettering strokes stay inside the source box), is
+          // A frame run leaves the plate AND the source box by `reach` px on
+          // both sides (a one-sided hair/art contour is not a frame), is
           // long, and is a thin dark line with light surface on both sides.
           const thick=Math.ceil(4.5*k),minRun=Math.max(12*k,Math.min(p.width,p.height)*.5*k);
           const line=new Uint8Array(w*h);let found=0;
@@ -11070,7 +11070,7 @@ final class BrowserPageImageOverlayRenderer {
                 if(dark&&start<0)start=q;
                 if(dark||start<0)continue;
                 const end=q;
-                if(end-start>=minRun&&(start<=lo||end>=hi)&&start<plateHi&&end>plateLo){
+                if(end-start>=minRun&&start<=lo&&end>=hi&&start<plateHi&&end>plateLo){
                   let sides=0,total=0;
                   for(let s=start;s<end;s++){
                     const before=horizontal?(o-thick)*w+s:s*w+o-thick,after=horizontal?(o+thick)*w+s:s*w+o+thick;
