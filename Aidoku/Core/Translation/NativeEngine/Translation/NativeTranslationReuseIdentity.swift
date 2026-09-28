@@ -52,16 +52,10 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
     func canRemainVisibleWhileRefreshing(
         expected: NativeTranslationReuseIdentity
     ) -> Bool {
-        let sourceText = cacheKey.segments.first {
-            $0.id == segmentID
-        }?.text
-        let expectedSourceText = expected.cacheKey.segments.first {
-            $0.id == expected.segmentID
-        }?.text
-        return sourceText != nil &&
-            sourceText == expectedSourceText &&
-            cacheKey.segments.first(where: { $0.id == segmentID })?.bounds ==
-                expected.cacheKey.segments.first(where: { $0.id == expected.segmentID })?.bounds &&
+        guard let sourceSegment = cacheKey.segments.first(where: { $0.id == segmentID }),
+              let expectedSegment = expected.cacheKey.segments.first(where: { $0.id == expected.segmentID }) else { return false }
+        return sourceSegment.text == expectedSegment.text &&
+            sourceSegment.bounds == expectedSegment.bounds &&
             cacheKey.imageDigest == expected.cacheKey.imageDigest &&
             cacheKey.imageSupportRevision == expected.cacheKey.imageSupportRevision &&
             cacheKey.sfxPolicy == expected.cacheKey.sfxPolicy &&

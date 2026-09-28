@@ -4,7 +4,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const {webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const source=fs.readFileSync(process.env.CAPTION_SOURCE_PATH||path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
 const start=source.indexOf('    // Commit each opaque caption as one rectangle');
-const block=source.slice(start,source.indexOf('    root.dataset.readabilityPanels=',start)).replace(/\\([\\"])/g,'$1');
+const block=source.slice(start,source.indexOf('    // Every plate is final. Grow translations',start)).replace(/\\([\\"])/g,'$1');
 assert.ok(start>0);
 const typographySource=fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'),'utf8');
 const typographyScript=typographySource.split('static let script = #\"\"\"')[1].split('\"\"\"#')[0];
@@ -15,7 +15,7 @@ let browser;
   if(process.env.CAPTION_CASE_FILTER&&!new RegExp(process.env.CAPTION_CASE_FILTER).test(mode))continue;
   await page.setContent('<style>body{margin:0;height:1300px}#root{position:absolute;inset:0}</style><div id="root"></div>');
   await page.evaluate(({scroll,mode})=>{
-   const root=document.querySelector('#root');window.root=root;window.items=[];window.cleanupImageGeometry=null;window.typographyInkFrames=new Map();window.minimumFontSize=7;window.appearance={minimumFontSize:7};
+   const root=document.querySelector('#root');window.root=root;window.opacity=1;window.items=[];window.cleanupImageGeometry=null;window.typographyInkFrames=new Map();window.minimumFontSize=7;window.appearance={minimumFontSize:7};
    const fixtures=[
     {id:'left',box:[172,155,124,397],ink:[172,165,112,375],text:'「나에게도 너와 비슷한 나이의 딸이 있는데 말이야, 한창 말썽을 피울 때라 골치 아프다니까……」',bg:'rgb(179, 158, 137)',fg:'rgb(0, 0, 0)'},
     {id:'incident',box:[275,155,67,335],ink:[293,176,18,295],text:'그렇게…… 보지 말아주세요',bg:'rgb(102, 89, 78)',fg:'rgb(255, 200, 158)'}];

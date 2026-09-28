@@ -2,14 +2,14 @@
 // node Scripts/tests/source-erasure-group-regression.cjs
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const view=fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
-const start=view.indexOf('        // Each source mask was classified'),end=view.indexOf('      }\n      if(certifiedErasure.size){',start);
+const start=view.indexOf('        // Each source mask was classified'),end=view.indexOf('        // Preserve all ordinary and already-shared certificates',start);
 assert.ok(start>=0&&end>start,'production group reconciliation block must be present');
 const block=view.slice(start,end);
 const typography=fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'),'utf8');
 const match=typography.match(/static let script = #"""\n([\s\S]*?)\n    """#/);
 assert.ok(match,'production certification helpers must be present');
 const run=new Function('restoredPanelGeometry','erasureRetries','root','certifiedErasure','certificationBudget',
- match[1]+';'+block+';return certificationBudget;');
+ match[1]+';const budgetStop=()=>true;'+block+';return certificationBudget;');
 function make({alpha=0,safeValue=1,color=220}={}){const w=12,h=12,rgba=new Uint8ClampedArray(w*h*4);for(let i=0;i<w*h;i++)rgba.set([color,color,color,alpha],i*4);const c={w,h,x:0,y:0,sx:1,sy:1,iw:w,ih:h,frame:[0,0,w,h],safe:new Uint8Array(w*h).fill(safeValue),luminance:new Uint8Array(w*h).fill(100),erasureComplete:true,sourceErasureVerified:true};c.canvas={isConnected:true,width:w,height:h,getContext:()=>({getImageData:()=>({data:rgba})})};return{c,rgba}}
 function test(name,f){f();console.log('PASS '+name)}
 function scene(){const source=make(),donor=make({alpha:255}),item={},other={},i=5*12+5;source.c.safe[i]=0;const safe=source.c.safe.slice(),lum=source.c.luminance.slice();const pending={item,c:source.c,id:'0',node:{dataset:{}},coverage:[[2,2,8,8]],regions:[[2,2,8,8]],core:[[3,3,6,6]],glyph:4};return{source,donor,item,other,i,safe,lum,pending}}

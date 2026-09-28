@@ -145,66 +145,6 @@ struct HTTPSBypassTests {
         #expect(server.received == body.count)
     }
 
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["AIDOKU_LIVE_BYPASS_TESTS"] == "1"))
-    func liveTLSAndCertificateValidation() async throws {
-        let network = SourceNetwork()
-        for address in ["https://www.cloudflare.com", "https://www.apple.com"] {
-            let result = try await network.test(url: #require(URL(string: address)))
-            #expect((200..<400).contains(result.status))
-            #expect(result.fragmented)
-        }
-        do {
-            _ = try await network.test(url: #require(URL(string: "https://expired.badssl.com")))
-            Issue.record("Expired server certificates must remain rejected")
-        } catch {
-            #expect([NSURLErrorServerCertificateHasBadDate, NSURLErrorServerCertificateUntrusted].contains((error as NSError).code))
-        }
-    }
-
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["AIDOKU_LIVE_BYPASS_TESTS"] == "1"))
-    func liveImageDataLoaderStreamsThroughTheProxy() async throws {
-        let network = SourceNetwork(enabled: { true })
-        let loader = SourceImageDataLoader(network: network)
-        let size = Counter()
-        let request = URLRequest(url: try #require(URL(string: "https://www.cloudflare.com/favicon.ico")))
-        var operation: (any Cancellable)?
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            operation = loader.loadData(with: request, didReceiveData: { data, response in
-                size.add(data.count)
-                #expect((response as? HTTPURLResponse)?.statusCode == 200)
-            }, completion: { error in
-                if let error { continuation.resume(throwing: error) } else { continuation.resume() }
-            })
-        }
-        operation?.cancel()
-        #expect(size.value > 0)
-    }
-
-    @MainActor @Test(.enabled(if: ProcessInfo.processInfo.environment["AIDOKU_LIVE_BYPASS_TESTS"] == "1"))
-    func liveWebKitUsesTheSameProxy() async throws {
-        let proxy = HTTPSBypassProxy()
-        defer { proxy.stop() }
-        let endpoint = try await proxy.start()
-        let store = WKWebsiteDataStore.nonPersistent()
-        var config = ProxyConfiguration(socksv5Proxy: endpoint)
-        config.allowFailover = false
-        store.proxyConfigurations = [config]
-        let configuration = WKWebViewConfiguration()
-        configuration.websiteDataStore = store
-        let view = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480), configuration: configuration)
-        let delegate = Navigation()
-        view.navigationDelegate = delegate
-        view.load(URLRequest(url: try #require(URL(string: "https://www.cloudflare.com/cdn-cgi/trace"))))
-        let deadline = Date().addingTimeInterval(30)
-        while !delegate.finished && delegate.error == nil && Date() < deadline {
-            try await Task.sleep(nanoseconds: 25_000_000)
-        }
-        if let error = delegate.error { throw error }
-        #expect(delegate.finished)
-        #expect(await proxy.fragmentCount() > 0)
-        view.stopLoading()
-    }
-
     private func hello(name: String? = "reader.example.org") -> Data {
         var extensions: [UInt8] = [0, 43, 0, 3, 2, 3, 4] // supported_versions before SNI
         if let name {

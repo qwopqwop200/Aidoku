@@ -173,6 +173,15 @@ test('each smaller line budget is evaluated independently without losing the ori
   }
 });
 
+test('surplus suffix line budgets preserve wrapping, spaces, and supplementary characters', () => {
+  for(const text of ['오늘 다시 만나서 반가워.', '  🙂 그대의 말풍선  ', '가나다라마바사아자차카타파하']){
+    const lines=plain(api.lines(text,5,Array.from(text).length,measure));
+    assert(lines);assert.equal(lines.join(''),text);
+    assert(lines.every(line=>measure(line.trim())<=5.1));
+    assert.deepEqual(plain(api.lines(text,5,lines.length,measure)),lines);
+  }
+});
+
 test('repairing one orphan must not split otherwise intact neighboring words', () => {
   const old={lines:6,breaks:[12],hangulFragments:1,punctuationOnly:0,badStarts:[],badEnds:[]};
   assert(!api.improves({...old,breaks:[10,18,22],hangulFragments:0},old));

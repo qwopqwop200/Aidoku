@@ -145,6 +145,14 @@ struct TranslationHTTPCodecTests {
                 } else {
                     instructions = try #require((root["messages"] as? [[String: Any]])?.first?["content"] as? String)
                 }
+                if filtersSFX && withImage {
+                    #expect(instructions.contains("Except for the non-content lettering preserved above") == page)
+                }
+                if page && filtersSFX && withImage {
+                    let lettering = try #require(instructions.range(of: TranslationHTTPCodec.nonContentLetteringInstructions))
+                    let translation = try #require(instructions.range(of: "translate ALL admitted utterances"))
+                    #expect(lettering.upperBound < translation.lowerBound)
+                }
                 // Metadata requests (titles, tags, authors) never receive the page-lettering rule.
                 #expect(instructions.contains(TranslationHTTPCodec.nonContentLetteringInstructions) == page)
                 #expect(instructions.contains("Copy only the non-content lettering described above.") == page)

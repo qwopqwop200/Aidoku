@@ -23,11 +23,11 @@ enum ReaderOCRWordBoundaryResolver {
     static func unknownWordCount(in words: [String]) -> Int? {
         guard let language = UITextChecker.availableLanguages.first(where: { $0.hasPrefix("en") }) else { return nil }
         let checker = UITextChecker()
-        return words.filter { word in
-            checker.rangeOfMisspelledWord(
+        return words.reduce(into: 0) { count, word in
+            if checker.rangeOfMisspelledWord(
                 in: word, range: NSRange(word.startIndex..., in: word),
                 startingAt: 0, wrap: false, language: language
-            ).location != NSNotFound
-        }.count
+            ).location != NSNotFound { count += 1 }
+        }
     }
 }

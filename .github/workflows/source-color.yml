@@ -13,6 +13,8 @@ on:
       - "Scripts/tests/row-end-marks-regression.cjs"
       - "Scripts/tests/connected-lettering-regression.cjs"
       - "Scripts/tests/render-body-sync-regression.cjs"
+      - "Scripts/tests/balloon-unit-commit-regression.cjs"
+      - "Scripts/tests/balloon-unit-plate-footprint-regression.cjs"
       - "Scripts/tests/fixtures/source-color-*.json"
       - "Scripts/tests/fixtures/source-inpainting-*.json"
       - "Scripts/tests/fixtures/slanted-*.json"
@@ -44,6 +46,8 @@ jobs:
           node Scripts/tests/row-end-marks-regression.cjs || status=1
           node Scripts/tests/connected-lettering-regression.cjs || status=1
           node Scripts/tests/render-body-sync-regression.cjs || status=1
+          node Scripts/tests/balloon-unit-commit-regression.cjs || status=1
+          node Scripts/tests/balloon-unit-plate-footprint-regression.cjs || status=1
           node Scripts/tests/source-inpainting-segmentation.cjs || status=1
           node Scripts/tests/source-inpainting-panel-incidents.cjs || status=1
           node Scripts/tests/column-layout-surface-regression.cjs || status=1

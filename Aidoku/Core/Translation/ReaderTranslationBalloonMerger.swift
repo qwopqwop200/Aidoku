@@ -959,13 +959,6 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
         return max(abs(a.0 - b.0), abs(a.1 - b.1), abs(a.2 - b.2)) >= 100
     }
 
-    /// Opposite polarity: one line is reversed lettering on a dark ground (much of its
-    /// box is dark) and the other is dark ink on a light ground (little of it is dark).
-    static func oppositePolarity(in image: CGImage, first: CGRect, second: CGRect) -> Bool {
-        guard let a = darkFraction(in: image, rect: first), let b = darkFraction(in: image, rect: second) else { return false }
-        return max(a, b) >= 0.3 && min(a, b) <= 0.15
-    }
-
     static func darkFraction(in image: CGImage, rect: CGRect) -> Double? {
         let bounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
         guard let crop = image.cropping(to: rect.integral.intersection(bounds)) else { return nil }

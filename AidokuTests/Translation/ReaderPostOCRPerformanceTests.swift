@@ -5,48 +5,6 @@ import UIKit
 
 @Suite(.serialized)
 struct ReaderPostOCRPerformanceTests {
-    @Test(.enabled(if: FileManager.default.fileExists(atPath:
-        URL.documentsDirectory.appendingPathComponent("OCRDeviceBenchmark/manifest.json").path)))
-    func completedBackgroundComponentsPreserveRealPageGroups() throws {
-        struct Fixture: Decodable {
-            struct Line: Decodable { let polygon: [[CGFloat]] }
-            let id: String; let image: String; let lines: [Line]
-        }
-        let directory = URL.documentsDirectory.appendingPathComponent("OCRDeviceBenchmark")
-        let fixtures = try JSONDecoder().decode([Fixture].self,
-            from: Data(contentsOf: directory.appendingPathComponent("manifest.json")))
-        var rows: [[String: Any]] = []
-        for fixture in fixtures {
-            let image = try #require(UIImage(contentsOfFile: directory.appendingPathComponent(fixture.image).path)?.cgImage)
-            let inputs = fixture.lines.enumerated().map { index, line in
-                let xs = line.polygon.map { $0[0] }, ys = line.polygon.map { $0[1] }
-                return ReaderTranslationEnclosedBackground.Input(id: String(index), text: "text",
-                    rect: CGRect(x: xs.min()!, y: ys.min()!, width: xs.max()! - xs.min()!, height: ys.max()! - ys.min()!))
-            }
-            for alternate in [false, true] {
-                var referenceMS = 0.0, optimizedMS = 0.0
-                for pass in 0..<6 {
-                    var reference: [[String]] = [], optimized: [[String]] = []
-                    func run(_ reuse: Bool) -> [[String]] {
-                        let start = ProcessInfo.processInfo.systemUptime
-                        let result = ReaderTranslationEnclosedBackground.enclosedRegionGroups(in: image,
-                            candidateInputs: inputs, coordinateSize: CGSize(width: image.width, height: image.height),
-                            checkingAlternateSeeds: alternate, reusingCompletedComponents: reuse)
-                        let elapsed = (ProcessInfo.processInfo.systemUptime - start) * 1000
-                        if reuse { optimizedMS += elapsed } else { referenceMS += elapsed }
-                        return result
-                    }
-                    if pass % 2 == 0 { reference = run(false); optimized = run(true) }
-                    else { optimized = run(true); reference = run(false) }
-                    #expect(reference == optimized, "Grouping changed for \(fixture.id)")
-                }
-                rows.append(["id": fixture.id, "alternate": alternate, "referenceMS": referenceMS, "optimizedMS": optimizedMS])
-            }
-        }
-        try JSONSerialization.data(withJSONObject: rows, options: [.sortedKeys])
-            .write(to: directory.appendingPathComponent("post-ocr-background.json"), options: .atomic)
-        print("BACKGROUND_BENCH reference_ms=\(rows.reduce(0.0) { $0 + ($1["referenceMS"] as! Double) }) optimized_ms=\(rows.reduce(0.0) { $0 + ($1["optimizedMS"] as! Double) })")
-    }
 
     @Test @MainActor func measurementStringReusePreservesWrappingAndCompleteLayout() throws {
         let variants: [BrowserOverlayDisplayVariant] = [

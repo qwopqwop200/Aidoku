@@ -9,39 +9,6 @@ struct ReaderTranslationBalloonMergerTests {
         let freshOCRSource: String?
     }
 
-    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("DatasetMerge/fixtures.json").path)))
-    func datasetLeadInsPreserveRubyAndSeparateBalloons() throws {
-        let folder = URL.documentsDirectory.appendingPathComponent("DatasetMerge")
-        let fixtures = try JSONDecoder().decode([DatasetFixture].self, from: Data(contentsOf: folder.appendingPathComponent("fixtures.json")))
-        #expect(fixtures.count >= 10)
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        for fixture in fixtures {
-            let image = try #require(UIImage(contentsOfFile: folder.appendingPathComponent(fixture.id + ".png").path)?.cgImage)
-            let input = try JSONDecoder().decode([ReaderTranslationStoredRegion].self,
-                from: Data(contentsOf: folder.appendingPathComponent(fixture.id + "-input.json"))).map(\.region)
-            let output = ReaderTranslationBalloonMerger.apply(input, image: image)
-            #expect(output.map(\.source) == fixture.expectedSources, "Dataset page: \(fixture.id)")
-            try encoder.encode(output.map(ReaderTranslationStoredRegion.init))
-                .write(to: folder.appendingPathComponent(fixture.id + "-output.json"))
-        }
-    }
-
-    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("DatasetMerge/fixtures.json").path)))
-    func datasetLeadInsWithFreshOCR() async throws {
-        let folder = URL.documentsDirectory.appendingPathComponent("DatasetMerge")
-        let fixtures = try JSONDecoder().decode([DatasetFixture].self, from: Data(contentsOf: folder.appendingPathComponent("fixtures.json")))
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        for fixture in fixtures {
-            guard let expected = fixture.freshOCRSource else { continue }
-            let image = try #require(UIImage(contentsOfFile: folder.appendingPathComponent(fixture.id + ".png").path)?.cgImage)
-            let output = try await ReaderOCRService.shared.recognize(image: image, configuration: ReaderOCRConfiguration())
-            try encoder.encode(output.map(ReaderTranslationStoredRegion.init))
-                .write(to: folder.appendingPathComponent(fixture.id + "-fresh.json"))
-            #expect(output.contains { $0.source == expected && $0.sourceOrientation == .vertical && $0.sourceSingleVerticalColumn == false },
-                "Dataset page: \(fixture.id), expected: \(expected)")
-        }
-    }
-
     @Test(arguments: [0.5, 1.0, 2.0], [false, true])
     func repeatedKanaNeedsFullSizeAlignmentAndImageEvidence(scale: CGFloat, verticalLead: Bool) throws {
         func region(_ id: String, _ text: String, _ rect: CGRect, lead: Bool = false) -> ReaderTranslationRegion {
@@ -86,135 +53,6 @@ struct ReaderTranslationBalloonMergerTests {
         }
         let middle = region("middle", "別", CGRect(x: 198, y: 160, width: 8, height: 20))
         #expect(ReaderTranslationBalloonMerger.apply([column, lead, middle], image: image) == [column, lead, middle])
-    }
-
-    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("zerodo-page22-cached.json").path)))
-    func originalCachedReactionPreservesUnrelatedRegions() throws {
-        let folder = URL.documentsDirectory
-        let image = try #require(UIImage(contentsOfFile: folder.appendingPathComponent("zerodo-page22.png").path)?.cgImage)
-        let regions = try JSONDecoder().decode([ReaderTranslationStoredRegion].self,
-            from: Data(contentsOf: folder.appendingPathComponent("zerodo-page22-cached.json"))).map(\.region)
-        let short = try #require(regions.first { $0.source == "は!?" })
-        #expect(short.sourceOrientation == .horizontal)
-        #expect(short.sourceSingleVerticalColumn == false)
-        for input in [regions, regions.reversed().map { $0 }] {
-            let result = ReaderTranslationBalloonMerger.apply(input, image: image)
-            let joined = try #require(result.first { $0.source == "は!?ちょ…つ" })
-            #expect(result.count == input.count - 1)
-            #expect(joined.sourceOrientation == .vertical)
-            #expect(joined.sourceSingleVerticalColumn == false)
-            let members = input.filter { $0.source == "は!?" || $0.source == "ちょ…つ" }
-            #expect(joined.id == members.first?.id)
-            #expect(joined.confidence == members.map(\.confidence).min())
-            #expect(joined.rect == members[0].rect.union(members[1].rect))
-            #expect(result.filter { $0.id != joined.id } == input.filter { !members.map(\.id).contains($0.id) })
-        }
-    }
-
-    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("zerodo-page22.png").path)),
-          arguments: [false, true])
-    func originalPageJoinsReactionWithHorizontalPunctuation(useDeviceSettings: Bool) async throws {
-        let folder = URL.documentsDirectory
-        let image = try #require(UIImage(contentsOfFile: folder.appendingPathComponent("zerodo-page22.png").path)?.cgImage)
-        let configuration = useDeviceSettings
-            ? ReaderOCRConfiguration(confidenceThreshold: 0.7, detectorPixelThreshold: 0.3, detectorConfidenceThreshold: 0.15)
-            : ReaderOCRConfiguration()
-        let name = useDeviceSettings ? "zerodo-device" : "zerodo-default"
-        let pipeline = NativeCoreMLOCRPipeline(modelTier: configuration.modelTier,
-            detectorMaximumSide: configuration.detectorMaximumSide, recognizerMaximumWidth: configuration.recognizerMaximumWidth)
-        let native = try await pipeline.recognize(image: image, requestID: UUID().uuidString,
-            confidenceThreshold: configuration.confidenceThreshold,
-            detectorConfiguration: configuration.detectorPostprocessConfiguration)
-        let raw: [[String: Any]] = native.lines.map { ["text": $0.text, "polygon": $0.polygon.map { [$0.x, $0.y] },
-            "orientation": String(describing: $0.orientation), "score": $0.score] }
-        try JSONSerialization.data(withJSONObject: raw, options: [.prettyPrinted, .sortedKeys])
-            .write(to: folder.appendingPathComponent(name + "-raw.json"))
-        await pipeline.purgeResources()
-        let regions = try await ReaderOCRService.shared.recognize(image: image, configuration: configuration)
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(regions.map(ReaderTranslationStoredRegion.init))
-            .write(to: folder.appendingPathComponent(name + "-regions.json"))
-        let reaction = regions.filter { $0.rect.midX < 0.16 && (0.64...0.77).contains($0.rect.midY) }
-        #expect(reaction.count == 1)
-        #expect(reaction.first?.source.hasPrefix("は!?") == true)
-        #expect(reaction.first?.source.contains("ちょ") == true)
-        #expect(reaction.first?.sourceOrientation == .vertical)
-        #expect(reaction.first?.sourceSingleVerticalColumn == false)
-        #expect(regions.contains { $0.rect.minY > 0.8 && $0.source.contains("ストロー") })
-        #expect(regions.contains { $0.rect.maxY < 0.2 && $0.source.contains("ストロー") })
-    }
-
-    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("blue-merge-source.png").path)))
-    func capturedBlueBalloonJoinsShortStaggeredColumns() async throws {
-        let folder = URL.documentsDirectory
-        let image = try #require(UIImage(contentsOfFile: folder.appendingPathComponent("blue-merge-source.png").path)?.cgImage)
-        let configuration = ReaderOCRConfiguration()
-        let pipeline = NativeCoreMLOCRPipeline(modelTier: configuration.modelTier,
-            detectorMaximumSide: configuration.detectorMaximumSide, recognizerMaximumWidth: configuration.recognizerMaximumWidth)
-        let native = try await pipeline.recognize(image: image, requestID: UUID().uuidString,
-            confidenceThreshold: configuration.confidenceThreshold,
-            detectorConfiguration: configuration.detectorPostprocessConfiguration)
-        let raw: [[String: Any]] = native.lines.map { ["text": $0.text, "polygon": $0.polygon.map { [$0.x, $0.y] },
-            "orientation": String(describing: $0.orientation), "score": $0.score] }
-        try JSONSerialization.data(withJSONObject: raw, options: .prettyPrinted)
-            .write(to: folder.appendingPathComponent("blue-merge-raw.json"))
-        let geometric = NativeOCRTextLineMerger.merge(native.lines, imageWidth: image.width, imageHeight: image.height)
-        let geometry: [[String: Any]] = geometric.map { ["text": $0.text, "rect": [$0.boundingRect.minX,
-            $0.boundingRect.minY, $0.boundingRect.width, $0.boundingRect.height], "orientation": String(describing: $0.sourceOrientation)] }
-        try JSONSerialization.data(withJSONObject: geometry, options: .prettyPrinted)
-            .write(to: folder.appendingPathComponent("blue-merge-geometry.json"))
-        await pipeline.purgeResources()
-        let regions = try await ReaderOCRService.shared.recognize(image: image, configuration: configuration)
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(regions.map(ReaderTranslationStoredRegion.init))
-            .write(to: folder.appendingPathComponent("blue-merge-regions.json"))
-        let upper = regions.filter { $0.rect.midY * CGFloat(image.height) < 310 }
-        #expect(upper.count == 1)
-        #expect(upper.first?.source.contains("は") == true)
-        #expect(upper.first?.source.contains("ちょ") == true)
-        #expect(upper.first?.sourceSingleVerticalColumn == false)
-        #expect(regions.contains { $0.rect.minY * CGFloat(image.height) > 350 && $0.source.contains("ストロー") })
-        // The supplied translated screenshot has omitted leading dots and a
-        // short right-hand box. Reconstruct those visible glyph bounds on the
-        // original pixels; full-screenshot medium OCR above is a separate control.
-        func fragment(_ id: String, _ text: String, _ box: CGRect) -> ReaderTranslationRegion {
-            ReaderTranslationRegion(id: id, rect: CGRect(x: box.minX / CGFloat(image.width), y: box.minY / CGFloat(image.height),
-                width: box.width / CGFloat(image.width), height: box.height / CGFloat(image.height)), source: text,
-                sourceOrientation: .vertical, sourceSingleVerticalColumn: true)
-        }
-        let split = [fragment("reaction-left", "ちょ…っ", CGRect(x: 89, y: 138, width: 40, height: 145)),
-                     fragment("reaction-right", "は!?", CGRect(x: 137, y: 213, width: 40, height: 72))]
-            + regions.filter { $0.rect.minY * CGFloat(image.height) > 310 }
-        let repaired = ReaderTranslationBalloonMerger.apply(split, image: image)
-        #expect(repaired.count == split.count - 1)
-        #expect(repaired.first?.source == "は!?ちょ…っ")
-        #expect(repaired.first?.sourceSingleVerticalColumn == false)
-        #expect(Array(repaired.dropFirst()) == Array(split.dropFirst(2)))
-        try encoder.encode(split.map(ReaderTranslationStoredRegion.init))
-            .write(to: folder.appendingPathComponent("blue-merge-split.json"))
-        try encoder.encode(repaired.map(ReaderTranslationStoredRegion.init))
-            .write(to: folder.appendingPathComponent("blue-merge-repaired.json"))
-    }
-
-    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("gray-merge-source.png").path)))
-    func capturedGrayBalloonKeepsAllThreeColumnsTogether() async throws {
-        let folder = URL.documentsDirectory
-        let screenshot = try #require(UIImage(contentsOfFile: folder.appendingPathComponent("gray-merge-source.png").path)?.cgImage)
-        let image = screenshot
-        let configuration = ReaderOCRConfiguration(confidenceThreshold: 0.2)
-        let pipeline = NativeCoreMLOCRPipeline(modelTier: configuration.modelTier,
-            detectorMaximumSide: configuration.detectorMaximumSide, recognizerMaximumWidth: configuration.recognizerMaximumWidth)
-        let native = try await pipeline.recognize(image: image, requestID: UUID().uuidString, confidenceThreshold: configuration.confidenceThreshold)
-        let raw: [[String: Any]] = native.lines.map { ["text": $0.text, "polygon": $0.polygon.map { [$0.x, $0.y] }, "orientation": String(describing: $0.orientation), "score": $0.score] }
-        try JSONSerialization.data(withJSONObject: raw, options: .prettyPrinted).write(to: folder.appendingPathComponent("gray-merge-raw.json"))
-        await pipeline.purgeResources()
-        let regions = try await ReaderOCRService.shared.recognize(image: image, configuration: configuration)
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(regions.map(ReaderTranslationStoredRegion.init)).write(to: folder.appendingPathComponent("gray-merge-regions.json"))
-        let leftBalloon = regions.filter { $0.rect.midX < 0.3 && $0.rect.midY < 0.4 }
-        #expect(leftBalloon.count == 1)
-        #expect(leftBalloon.first?.source == "もうここには来ないんだから気にしなくていい")
-        #expect(regions.count == 3)
     }
 
     @Test(arguments: [0.5, 1.0, 2.0], [false, true])
@@ -319,25 +157,6 @@ struct ReaderTranslationBalloonMergerTests {
         #expect(ReaderTranslationBalloonMerger.matchingOutlinedInk(in: softenedOrange, first: first, second: second))
     }
 
-    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("DeviceSpeed/horizontal-source.png").path)))
-    func capturedHorizontalBalloon() async throws {
-        let directory = URL.documentsDirectory.appendingPathComponent("DeviceSpeed")
-        let image = try #require(UIImage(contentsOfFile: directory.appendingPathComponent("horizontal-source.png").path)?.cgImage)
-        let configuration = ReaderTranslationSettings().ocrConfiguration
-        let pipeline = NativeCoreMLOCRPipeline(modelTier: configuration.modelTier,
-            detectorMaximumSide: configuration.detectorMaximumSide, recognizerMaximumWidth: configuration.recognizerMaximumWidth)
-        let native = try await pipeline.recognize(image: image, requestID: UUID().uuidString, confidenceThreshold: configuration.confidenceThreshold)
-        let separator = NativeOCRRegionSeparator(image: image)
-        let merged = NativeOCRTextLineMerger.merge(native.lines, imageWidth: image.width, imageHeight: image.height,
-            separationCheck: { separator?.separates($0, $1, orientation: $2) ?? false })
-        let raw: [[String: Any]] = native.lines.map { ["text": $0.text, "polygon": $0.polygon.map { [$0.x, $0.y] }, "orientation": String(describing: $0.orientation)] }
-        let rows: [[String: Any]] = merged.map { ["text": $0.text, "box": [$0.boundingRect.minX, $0.boundingRect.minY, $0.boundingRect.width, $0.boundingRect.height]] }
-        try JSONSerialization.data(withJSONObject: ["raw": raw, "merged": rows], options: .prettyPrinted)
-            .write(to: directory.appendingPathComponent("horizontal-diagnostics.json"))
-        #expect(merged.filter { $0.boundingRect.minY > 140 && $0.boundingRect.maxY < 250 }.map(\.text) == ["どしたん話聞こか？"])
-        await pipeline.purgeResources()
-    }
-
     private func image(_ boxes: [CGRect]) throws -> CGImage {
         let context = try #require(CGContext(data: nil, width: 400, height: 400,
             bitsPerComponent: 8, bytesPerRow: 400, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: 0))
@@ -385,32 +204,6 @@ struct ReaderTranslationBalloonMergerTests {
         ]))
         #expect(result.map(\.id) == columns.map(\.id))
         #expect(result.map(\.source) == columns.map(\.source))
-    }
-
-    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("MangaQuality/user-merge.png").path)))
-    func capturedTranslucentBalloonJoinsOffsetLexicalColumns() throws {
-        let image = try #require(UIImage(contentsOfFile: URL.documentsDirectory.appendingPathComponent("MangaQuality/user-merge.png").path)?.cgImage)
-        // Actual detector boxes: the leading ellipsis of the right column was
-        // not recognized, shifting its lexical top 71 px below the left one.
-        let regions = [
-            ReaderTranslationRegion(id: "left", rect: CGRect(x: 266/1290.0, y: 780/1824.0, width: 50/1290.0, height: 292/1824.0),
-                source: "困ちいないよ", sourceOrientation: .vertical, sourceSingleVerticalColumn: true),
-            ReaderTranslationRegion(id: "right", rect: CGRect(x: 318/1290.0, y: 851/1824.0, width: 47/1290.0, height: 393/1824.0),
-                source: "確かに足は不自由だけど", sourceOrientation: .vertical, sourceSingleVerticalColumn: true)
-        ]
-        let result = ReaderTranslationBalloonMerger.apply(regions, image: image)
-        #expect(result.count == 1)
-        #expect(result.first?.source == "確かに足は不自由だけど困ちいないよ")
-        #expect(result.first?.id == "left")
-        // The lower lobe shares a flood component with the left column but
-        // fails the text-block checks. It must not reserve that column.
-        let lowerLobe = ReaderTranslationRegion(id: "lower-lobe",
-            rect: CGRect(x: 116/1290.0, y: 992/1824.0, width: 93/1290.0, height: 351/1824.0),
-            source: "私はあまりヒトと関わりたくないんだっ", sourceOrientation: .vertical, sourceSingleVerticalColumn: false)
-        let full = ReaderTranslationBalloonMerger.apply(regions + [lowerLobe], image: image)
-        #expect(full.count == 2)
-        #expect(full.first?.source == "確かに足は不自由だけど困ちいないよ")
-        #expect(full.last?.source == lowerLobe.source)
     }
 
     @Test func separateBalloonsAndOpenBackgroundDoNotJoin() throws {

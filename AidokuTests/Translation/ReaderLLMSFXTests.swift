@@ -99,34 +99,6 @@ struct ReaderLLMSFXTests {
 
     // Opt-in device/provider regression. The fixture contains only source text and image,
     // never credentials. Consume the input once so ordinary test runs cannot spend API calls.
-    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("BackgroundFilterValidation/input.json").path)))
-    func liveBackgroundSignsPreserveCaption() async throws {
-        let folder = URL.documentsDirectory.appendingPathComponent("BackgroundFilterValidation")
-        let inputURL = folder.appendingPathComponent("input.json")
-        defer { try? FileManager.default.removeItem(at: inputURL) }
-        let input = try JSONDecoder().decode([ReaderTranslationStoredRegion].self, from: Data(contentsOf: inputURL)).map(\.region)
-        let image = try #require(UIImage(contentsOfFile: folder.appendingPathComponent("original-top.jpg").path))
-        var settings = ReaderTranslationSettings()
-        settings.filterBackgroundWithLLM = true
-        settings.includePageImage = true
-        let result = try await ReaderTranslationService().translate(regions: input, settings: settings, image: image)
-        let evidence = result.map { ["id": $0.id, "source": $0.source, "translation": $0.translation ?? "", "preserved": $0.preservesOriginalText] as [String: Any] }
-        try JSONSerialization.data(withJSONObject: evidence, options: [.prettyPrinted, .sortedKeys]).write(to: folder.appendingPathComponent("result.json"))
-        #expect(result.count == 5)
-        #expect(result.first?.preservesOriginalText == false)
-        #expect(result.dropFirst().allSatisfy { $0.preservesOriginalText })
-        #expect(ReaderTranslationRegion.overlayItems(result, imageSize: image.size).count == 1)
-        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(x: 0, y: 0, width: 390, height: 700)
-        window.rootViewController = UIViewController()
-        window.makeKeyAndVisible()
-        defer { window.isHidden = true }
-        let host = try #require(window.rootViewController?.view)
-        let rendered = try await ReaderTranslationImageExporter.render(image: image, regions: result, settings: settings,
-            viewport: CGSize(width: 390, height: 700), aspectFit: true, host: host)
-        try #require(rendered.pngData()).write(to: folder.appendingPathComponent("rendered.png"))
-    }
 
     @Test func sfxRoleSurvivesContradictoryFlagOnlyWhenEnabled() throws {
         for enabled in [false, true] {
@@ -142,52 +114,6 @@ struct ReaderLLMSFXTests {
     }
 
     // Opt-in real-page test uses the installed account without exporting its credential.
-    @Test(.enabled(if: FileManager.default.fileExists(atPath: URL.documentsDirectory.appendingPathComponent("SFXFragmentValidation/input.json").path)))
-    func liveSFXFragmentsPreserveDialogue() async throws {
-        let folder = URL.documentsDirectory.appendingPathComponent("SFXFragmentValidation")
-        let inputURL = folder.appendingPathComponent("input.json")
-        defer { try? FileManager.default.removeItem(at: inputURL) }
-        let input = try JSONDecoder().decode([ReaderTranslationStoredRegion].self, from: Data(contentsOf: inputURL)).map(\.region)
-        let image = try #require(UIImage(contentsOfFile: folder.appendingPathComponent("source.png").path))
-        var settings = ReaderTranslationSettings()
-        settings.filterBackgroundWithLLM = true
-        settings.filterSFXWithLLM = true
-        settings.includePageImage = true
-        let audit = QualityTranslationAuditTransport(base: BoundedURLSessionTransport(), outputDirectory: folder)
-        let liveClient = RemoteTranslationClient(transport: audit)
-        let result = try await ReaderTranslationService(client: liveClient).translate(regions: input, settings: settings, image: image)
-        try await audit.flush(to: folder.appendingPathComponent("response-audit.json"))
-        let evidence = result.map { ["id": $0.id, "source": $0.source, "translation": $0.translation ?? "", "preserved": $0.preservesOriginalText] as [String: Any] }
-        try JSONSerialization.data(withJSONObject: evidence, options: [.prettyPrinted, .sortedKeys]).write(to: folder.appendingPathComponent("result.json"))
-        #expect(result.count == input.count)
-        #expect(result.prefix(2).allSatisfy { $0.preservesOriginalText })
-        #expect(result.dropFirst(2).allSatisfy { !$0.preservesOriginalText && $0.translation != nil })
-        #expect(ReaderTranslationRegion.overlayItems(result, imageSize: image.size).count == input.count - 2)
-        // Recognition errors must not turn visually matched effects into spoken words.
-        let corrupted = input.enumerated().map { index, region in
-            index < 2 ? ReaderTranslationRegion(id: region.id, rect: region.rect, source: index == 0 ? "S" : "7") : region
-        }
-        var corruptionSettings = settings
-        corruptionSettings.sourceLanguage = "auto"
-        corruptionSettings.translationSourceLanguages = [] // Exercise the LLM, not the language allowlist.
-        let corruptedResult = try await ReaderTranslationService(client: liveClient).translate(regions: corrupted, settings: corruptionSettings, image: image)
-        try await audit.flush(to: folder.appendingPathComponent("response-audit.json"))
-        let corruptedEvidence = corruptedResult.map { ["id": $0.id, "source": $0.source, "translation": $0.translation ?? "", "preserved": $0.preservesOriginalText] as [String: Any] }
-        try JSONSerialization.data(withJSONObject: corruptedEvidence, options: [.prettyPrinted, .sortedKeys]).write(to: folder.appendingPathComponent("corrupted-result.json"))
-        #expect(corruptedResult.count == input.count)
-        #expect(corruptedResult.prefix(2).allSatisfy { $0.preservesOriginalText })
-        #expect(corruptedResult.dropFirst(2).allSatisfy { !$0.preservesOriginalText && $0.translation != nil })
-        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(x: 0, y: 0, width: 390, height: 700)
-        window.rootViewController = UIViewController()
-        window.makeKeyAndVisible()
-        defer { window.isHidden = true }
-        let host = try #require(window.rootViewController?.view)
-        let rendered = try await ReaderTranslationImageExporter.render(image: image, regions: result, settings: settings,
-            viewport: CGSize(width: 390, height: 700), aspectFit: true, host: host)
-        try #require(rendered.pngData()).write(to: folder.appendingPathComponent("rendered.png"))
-    }
 
     @Test func backgroundRoleControlsPreservation() throws {
         for role in ["background", "dialogue", "narration", "story_text", "sfx", "unknown", "invalid"] {

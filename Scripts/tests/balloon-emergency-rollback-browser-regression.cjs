@@ -4,7 +4,7 @@ const {webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const base=path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
 const source=fs.readFileSync(process.env.CAPTION_SOURCE||path.join(base,'BrowserOverlayView.swift'),'utf8');
 const start=source.indexOf('fitBalloon: ')+'fitBalloon: '.length;
-const fitSource=source.slice(start,source.indexOf('            protectArtwork: () => {',start)).trim().replace(/,$/,'').replace(/\\([\\"])/g,'$1');
+const fitSource=source.slice(start,source.indexOf('            // Native planning only sees',start)).trim().replace(/,$/,'').replace(/\\([\\"])/g,'$1');
 const typeSource=fs.readFileSync(path.join(base,'BrowserOverlayTypography.swift'),'utf8');
 let helpers=typeSource.split('static let script = #"""')[1].split('"""#')[0];
 if(process.env.EMERGENCY_HELPER&&!helpers.includes('const aidokuEmergencyBalloonFontSizes'))helpers+='\n'+fs.readFileSync(process.env.EMERGENCY_HELPER,'utf8');
@@ -21,6 +21,7 @@ let browser;
    const node=document.createElement('div');node.dataset.aidokuImageOcrOverlay='item';node.dataset.aidokuRegion='1';node.dataset.sourceAppliedTextRGB='0,0,0';
    node.style.cssText='position:absolute;left:90px;top:90px;width:70px;height:40px;font:10px/12px sans-serif;color:black';node.innerHTML='<span>짧은 대사</span>';root.append(node);
    const measurementHost=document.createElement('div');root.append(measurementHost);const measurementNode=node.cloneNode(true);measurementNode.removeAttribute('data-aidoku-image-ocr-overlay');
+   let balloonFitMilliseconds=0,centerFrames=null;
    let x=90,y=90,width=70,height=40,readabilityPanels=1,balloonTypeBudget=8192,balloonSurfaceBudget=524288,restoredPanelLookupBudget=524288;
    const panelGeometry={frame:[0,0,400,400],x:0,y:0,w:400,h:400,iw:400,ih:400,sx:1,sy:1};
    const lineHeightRatio=1.2,observed=[];let probes=0;
@@ -40,8 +41,8 @@ let browser;
   assert.equal(result.accepted,false);
   assert.ok(result.restored&&result.measurementDetached&&result.panelKept,'failed emergency attempts restore full DOM and preserve backing');
   assert.equal(result.readabilityPanels,1);assert.deepEqual(result.dimensions,[90,90,70,40]);
-  // Emergency lettering stops at the 7pt phone legibility floor (or a higher configured minimum).
-  assert.equal(result.min,Math.max(minimum,7),'last emergency candidate reaches the legibility floor');
+  // Emergency lettering stops at the 8pt phone legibility floor (or a higher configured minimum).
+  assert.equal(result.min,Math.max(minimum,8),'last emergency candidate reaches the legibility floor');
   assert.ok(result.probes>0&&result.probes<=120&&result.observed.length<=120,'preferred + emergency probes remain bounded');
   assert.ok(result.balloonTypeBudget>=0,'page budget is preserved');
   console.log(`PASS emergency rollback, minimum=${minimum}, probes=${result.probes}, measured=${result.observed.length}`);

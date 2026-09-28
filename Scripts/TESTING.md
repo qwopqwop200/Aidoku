@@ -82,12 +82,15 @@ the simulator entitlements; manually signing the finished app is not equivalent.
 Do not clean the stable cache between normal runs.
 
 The AidokuFull plan includes real CoreML, WebKit, network contention, and negative
-observation windows. It is not guaranteed to finish in a minute. Dataset,
-provider, soak, populated-library, and physical-device tests have explicit opt-in
-prerequisites; default skips do not validate those paths. Supply each original
-fixture/marker and service only when running that test's documented scenario.
-Some older fixture loops return early when images are absent, so even a default
-pass is not evidence of real-image coverage for those cases.
+observation windows. It is not guaranteed to finish in a minute. On 2026-09-28,
+105 prerequisite-dependent test declarations were removed at the user's request.
+The current suite has no conditional skip traits. Removed dataset, provider,
+soak, populated-library, and physical-device scenarios are no longer covered
+by AidokuFull; the older timing snapshots below describe the historical suite.
+Four removed declarations silently continued past missing image fixtures; their
+empty successful runs are no longer included in the full-suite count. The 50
+resulting empty suite files and their unreachable fixture/benchmark helpers were
+also removed; this cleanup does not remove additional executable tests.
 
 ## Broader host and package checks
 
@@ -160,3 +163,32 @@ so the run used the freshly compiled current sources. Evidence and scope limits:
 
 The iOS runner has **no default compilation/test deadline**; only host smoke checks
 retain the 55-second default. Three runner regression tests verify this policy.
+
+## Eight-agent typesetting review verification (2026-09-28)
+
+Reviewed local `main` (`0d22699e`) against `typesetting-quality-final`, including
+the prior uncommitted repair work. Eight agents covered OCR, overlay layout,
+kernels, restoration/color, typography, translation, cache/UI, and dead tests.
+
+| Scope | Result | Build / execution |
+| --- | --- | --- |
+| Full Release simulator, AidokuFull, no suite filter | 1,460 passed, 0 failed, 0 skipped | 126.21 s / 184.93 s |
+| iPhone 15 Pro Max, iOS 26.6.2, eight affected suites | 334 passed, 0 failed, 0 skipped | 383.13 s / 19.11 s |
+| Device production Release build | Passed, signed and installed | 274.01 s |
+| Host regression matrix | 49 commands passed, including 43 Python tests | Separate host scope |
+| Package tests | Nuke 9, Wasm3 26, AidokuRunner 30 passed | Separate package scope |
+| Native storage / blocking priority probes | Both passed | Separate host scope |
+
+The first physical-device execution lost its remote runner connection after 159
+test definitions passed. It did not record a test assertion failure. The same
+compiled sources and same eight suites passed on retry; the initial interruption
+is not counted as a successful run. Sources were unchanged between build and
+test. Stable caches, Release `-O`, `singlefile`, and active architecture were used;
+no clean or arbitrary iOS timeout was applied. These builds include recompilation
+and are not warm no-change timings.
+
+Installation preserved all 328 existing Documents, Application Support, and
+Preferences files byte-for-byte before app launch. Physical execution covers the
+selected OCR, translation, overlay-engine, and cache suites; it does not establish
+whole-app latency, actual-reader visual quality, live-provider behavior, or
+long-duration Jetsam safety. Helper microbenchmarks are not end-to-end speedups.

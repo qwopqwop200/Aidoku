@@ -1180,7 +1180,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
                     || postprocessed.candidateComponents
                         >= configuration.maximumCandidates
                     || NativeCoreMLDetectionOutput.boxesTouchArtificialEdge(
-                        postprocessed.boxes,
+                        postprocessed.boxes.filter { $0.score >= configuration.boxThreshold },
                         region: usedRegion,
                         fullWidth: prepared.resizedWidth,
                         fullHeight: prepared.resizedHeight,

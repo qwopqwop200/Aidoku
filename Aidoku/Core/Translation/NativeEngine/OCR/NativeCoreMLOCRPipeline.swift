@@ -624,7 +624,16 @@ enum NativeOCRAdjacentLineRecovery {
         // Base captions a gap line may join: the owners of its two flanks.
         let bridging: [(line: NativeCoreMLOCRLine, owners: Set<Int>)] = bridges.map { bridge in
             (bridge.line, Set(bridge.flanks.compactMap { flank in
-                baseLines.firstIndex { $0.polygon == flank }.flatMap { baseOwners[$0] }
+                if let exact = baseLines.firstIndex(where: { $0.polygon == flank }) { return baseOwners[exact] }
+                // Unit completion can replace a flank polygon. Accept only one
+                // unambiguous containing read; neighboring captions cannot claim it.
+                guard let rect = NativeOCRScopeGeometry.bounds(for: flank), rect.width > 0, rect.height > 0 else { return nil }
+                let matches = baseLines.indices.filter { index in
+                    guard let candidate = NativeOCRScopeGeometry.bounds(for: baseLines[index].polygon) else { return false }
+                    let overlap = candidate.intersection(rect)
+                    return !overlap.isNull && overlap.width * overlap.height >= rect.width * rect.height * 0.9
+                }
+                return matches.count == 1 ? baseOwners[matches[0]] : nil
             }))
         }
         var result = base
@@ -1658,8 +1667,6 @@ enum NativeOCRStackedRowSplit {
 /// accepted text uses kana, kana of its own (a Han-only read there is a sign, a book spine or a misread).
 @available(iOS 18.0, *)
 enum NativeOCRIsolatedLineRecovery {
-    /// Test-only switch for same-binary A/B timing.
-    nonisolated(unsafe) static var isEnabled = true
     /// Reads down to the confidence threshold minus this margin qualify.
     static let confidenceMargin = 0.15
     /// More candidates than this on one page (dense low-quality handwriting) recovers nothing.
@@ -1684,7 +1691,6 @@ enum NativeOCRIsolatedLineRecovery {
         _ reads: [NativeCoreMLRecognizedRegion], threshold: Double, accepted: [NativeCoreMLRecognizedRegion],
         occupied: [[CGPoint]]
     ) -> [NativeCoreMLRecognizedRegion] {
-        guard isEnabled else { return [] }
         let pageUsesKana = accepted.contains { usesKana($0.text) }
         let blockers = (accepted.map(\.polygon) + occupied).compactMap(NativeOCRScopeGeometry.bounds(for:))
         func overlaps(_ a: CGRect, _ b: CGRect) -> Bool {
@@ -1698,8 +1704,9 @@ enum NativeOCRIsolatedLineRecovery {
                   !blockers.contains(where: { overlaps($0, bounds) }),
                   !chosen.contains(where: { overlaps($0.bounds, bounds) }) else { continue }
             chosen.append((read, bounds))
+            // Selection only grows: once the page exceeds the cap, later reads cannot make it eligible.
+            guard chosen.count <= maximumPerPage else { return [] }
         }
-        guard chosen.count <= maximumPerPage else { return [] }
         return chosen.map(\.read).sorted { $0.sourceIndex < $1.sourceIndex }
     }
 
@@ -2113,7 +2120,7 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
                 rejectedReads = decoded.regions.filter { $0.confidence < threshold }
                 let value = rejectedReads.isEmpty ? decoded : NativeCoreMLRecognitionResult(
                     requestID: requestID, regions: decoded.regions.filter { $0.confidence >= threshold },
-                    diagnostics: decoded.diagnostics
+                    diagnostics: decoded.diagnostics.withAcceptedRegions(decoded.regions.count - rejectedReads.count)
                 )
                 recognition = value
                 // A steep Latin baseline and a tilted Japanese vertical column
@@ -2148,7 +2155,7 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
             // Stacked-row split: a strong box with no accepted read that holds a stack of short Latin rows.
             var splitLines: [NativeCoreMLOCRLine] = []
             let splitStarted = Self.nowMilliseconds()
-            if recovers, NativeOCRIsolatedLineRecovery.isEnabled {
+            if recovers {
                 // Comic lettering only: the page has a confidently read capital Latin row. A failed box that
                 // overlaps an accepted line is a duplicate detection of it.
                 let acceptedReads = recognition?.regions ?? []

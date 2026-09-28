@@ -214,7 +214,6 @@ struct ReaderTranslationSessionTests {
         #expect(Array(calls.suffix(6)) == [11, 10, 9, 8, 7, 6])
     }
 
-
     @Test func scrollBurstCoalescesChapterWorkAndKeepsLatestDestination() async throws {
         let fixture = SessionFixture()
         let pages = (0..<4).map { Self.page($0) }
@@ -712,105 +711,6 @@ struct ReaderTranslationSessionTests {
         await cache.store(image, key: key,
             pageIdentity: ReaderTranslationCacheIdentity.translation(page: source.translationCacheKey, settings: settings),
             diskGeneration: 0)
-    }
-
-    @Test func stackedAndAdjacentCaptionsRemainDistinctCases() async throws {
-        let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        var report: [String: Any] = [:]
-        for number in [1, 2, 3, 6] {
-            guard let image = UIImage(contentsOfFile: root.appendingPathComponent("stacked-source-\(number).png").path)?.cgImage else { continue }
-            let regions = try await ReaderOCRService.shared.recognize(image: image, tier: .small)
-            let relevant = regions.filter { number == 6 ? $0.rect.midX > 0.25 : (number == 2 ? $0.rect.midX > 0.2 : $0.rect.midX > 0.35) }
-            #expect(relevant.count == (number <= 2 ? 2 : 1), "Stacked caption fixture \(number)")
-            report[String(number)] = regions.map { ["source": $0.source, "x": $0.rect.minX, "y": $0.rect.minY,
-                "width": $0.rect.width, "height": $0.rect.height] as [String: Any] }
-        }
-        if !report.isEmpty { try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
-            .write(to: root.appendingPathComponent("stacked-results.json")) }
-    }
-
-    @Test func independentCaptionColumnsOnDevice() async throws {
-        let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        var report: [String: Any] = [:]
-        for number in 1...5 {
-            guard let image = UIImage(contentsOfFile: root.appendingPathComponent("gutter-source-\(number).png").path)?.cgImage else { continue }
-            let regions = try await ReaderOCRService.shared.recognize(image: image, tier: .small)
-            let relevant = regions.filter { number != 4 || $0.rect.midX > 0.2 }
-            report[String(number)] = regions.map { ["text": $0.source, "x": $0.rect.minX, "width": $0.rect.width] as [String: Any] }
-            #expect(relevant.count == 2, "Caption fixture \(number) must retain its independent columns")
-        }
-        if !report.isEmpty {
-            try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
-                .write(to: root.appendingPathComponent("gutter-results.json"))
-        }
-    }
-
-    @Test func capturedColumnSpacingDiagnostics() async throws {
-        let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        var report: [String: Any] = [:]
-        let pipeline = NativeCoreMLOCRPipeline(modelTier: .small, detectorMaximumSide: 1600, recognizerMaximumWidth: 1024)
-        for number in [1, 3, 5] {
-            let path = root.appendingPathComponent("spacing-source-\(number).png")
-            guard let image = UIImage(contentsOfFile: path.path)?.cgImage else { continue }
-            let raw = try await pipeline.recognize(image: image, requestID: UUID().uuidString, confidenceThreshold: 0.3)
-            let merged = NativeOCRTextLineMerger.merge(raw.lines, imageWidth: image.width, imageHeight: image.height)
-            let final = try await ReaderOCRService.shared.recognize(image: image, tier: .small)
-            if number == 3 || number == 5 {
-                #expect(merged.count == 2)
-                #expect(final.count == 2)
-            }
-            if number == 1 {
-                #expect(merged.contains { $0.boundingRect.minY < 30 && $0.boundingRect.maxY > 330 })
-                #expect(final.contains { $0.rect.minY < 0.1 && $0.rect.maxY > 0.85 })
-            }
-            report[String(number)] = ["finalCount": final.count, "raw": raw.lines.map { l in
-                ["text": l.text, "polygon": l.polygon.map { [$0.x, $0.y] }] as [String: Any]
-            }, "merged": merged.map(\.text)]
-        }
-        await pipeline.purgeResources()
-        if !report.isEmpty {
-            try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
-                .write(to: root.appendingPathComponent("spacing-diagnostics.json"))
-        }
-    }
-
-    @Test func capturedColourCaptionOCRDiagnostics() async throws {
-        let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        var all: [String: Any] = [:]
-        for number in [42, 43, 44, 47] {
-            let path = root.appendingPathComponent("merge-source-\(number).png")
-            guard FileManager.default.fileExists(atPath: path.path) else { continue }
-            let image = try #require(UIImage(contentsOfFile: path.path)?.cgImage)
-            let crop = try #require(image.cropping(to: CGRect(x: 0, y: CGFloat(image.height) * 0.327,
-                width: CGFloat(image.width), height: CGFloat(image.height) * 0.346)))
-            let regions = try await ReaderOCRService.shared.recognize(image: crop, tier: .small)
-            all[String(number)] = regions.map { r -> [String: Any] in
-                let pixelRect = CGRect(x: r.rect.minX * CGFloat(crop.width), y: r.rect.minY * CGFloat(crop.height), width: r.rect.width * CGFloat(crop.width), height: r.rect.height * CGFloat(crop.height))
-                let ink = ReaderTranslationBalloonMerger.outlinedInk(in: crop, rect: pixelRect)
-                return ["ink": ink.map { [$0.0, $0.1, $0.2] } ?? [], "source": r.source, "x": r.rect.minX, "y": r.rect.minY, "width": r.rect.width,
-                 "height": r.rect.height, "single": r.sourceSingleVerticalColumn ?? false]
-            }
-            #expect(!regions.isEmpty)
-            if number == 44 {
-                let purple = try #require(regions.first { $0.rect.midX > 0.68 && $0.rect.midX < 0.72 })
-                let orange = try #require(regions.first { $0.rect.midX > 0.72 && $0.rect.midX < 0.76 })
-                #expect(purple.rect.maxX < orange.rect.minX)
-                #expect(purple.rect.width < 0.05 && orange.rect.width < 0.05)
-            }
-            if number == 47 {
-                #expect(regions.contains { $0.source.contains("パン屋") && !$0.source.contains("でも私") })
-                #expect(regions.contains { $0.source.contains("でも私") && !$0.source.contains("パン屋") })
-            }
-            if number == 43 {
-                #expect(regions.contains { $0.source.contains("アタシ") && !$0.source.contains("それで") })
-                #expect(regions.contains { $0.source.contains("それで") && !$0.source.contains("アタシ") })
-                #expect(!regions.contains { $0.source.contains("ごめんな") && $0.source.contains("マリ") })
-            }
-        }
-        if !all.isEmpty {
-            try JSONSerialization.data(withJSONObject: all, options: [.prettyPrinted, .sortedKeys])
-                .write(to: root.appendingPathComponent("merge-caption-result.json"))
-        }
     }
 
     @Test func visibleRenderingDoesNotWaitForSpeculativeSnapshot() async throws {

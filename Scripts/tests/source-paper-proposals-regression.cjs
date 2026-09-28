@@ -9,7 +9,13 @@ function ink(x,y,ww,hh){for(let yy=y;yy<y+hh;yy++)for(let xx=x;xx<x+ww;xx++){con
 ink(25,25,3,12);ink(34,25,3,12);ink(25,30,12,3);ink(25,45,12,3);ink(30,45,3,12);
 const original=rgba.slice(),paper=api.paper(rgba,w,h,b);
 assert.ok(paper?.sourceErasureVerified);assert.ok(paper.erased>0);assert.deepEqual(rgba,original);
-for(let i=0;i<w*h;i++)if(paper.rgba[i*4+3])assert.equal(rgba[i*4],0,'only enclosed original ink is painted');
+for(let i=0;i<w*h;i++)if(paper.rgba[i*4+3]){
+ const x=i%w,y=i/w|0;
+ assert.ok(rgba[i*4]===0||Array.from({length:5},(_,dy)=>dy-2).some(dy=>
+  Array.from({length:5},(_,dx)=>dx-2).some(dx=>x+dx>=0&&x+dx<w&&y+dy>=0&&y+dy<h&&rgba[((y+dy)*w+x+dx)*4]===0)),
+  'paint is confined to owned ink and its two-pixel sampling guard');
+ assert.deepEqual([...paper.rgba.subarray(i*4,i*4+3)],[255,255,255],'the guard uses clean paper');
+}
 assert.equal(api.paper(rgba,w,h,b,{excluded:[[24,24,15,15]]}),null,'another owner cannot be erased');
 for(const a of [[-1,1,4,4],[1,1,Infinity,4],[79,1,4,4]])assert.equal(api.paper(rgba,w,h,b,{auxiliary:[a]}),null);
 ink(0,20,80,2);const bordered=api.paper(rgba,w,h,b);assert.ok(bordered);assert.equal(bordered.sourceErasureVerified,false);

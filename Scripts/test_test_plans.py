@@ -22,6 +22,19 @@ class TestPlanScopeTests(unittest.TestCase):
             self.assertFalse(target.get('skippedTests'))
             self.assertFalse(target.get('enabled') is False)
 
+    def test_tests_do_not_silently_skip_for_local_prerequisites(self):
+        for path in (ROOT / 'AidokuTests').rglob('*.swift'):
+            source = path.read_text()
+            self.assertNotRegex(source, r'@(?:Test|Suite)\s*\([^\n]*\.enabled\(', str(path))
+            self.assertNotIn('XCTSkip(', source, str(path))
+            self.assertNotRegex(source, r'@(?:Test|Suite)\s*\(\s*\.disabled\(', str(path))
+
+    def test_suite_files_have_executable_tests(self):
+        for path in (ROOT / 'AidokuTests').rglob('*.swift'):
+            source = path.read_text()
+            if re.search(r'@Suite\b', source):
+                self.assertRegex(source, r'@Test\b', str(path))
+
     def test_fast_suite_identifiers_exist_and_exclude_live_benchmarks(self):
         fast = json.loads((ROOT / 'AidokuFast.xctestplan').read_text())
         self.assertIs(fast['defaultOptions']['codeCoverage'], False)

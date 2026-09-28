@@ -647,7 +647,10 @@ enum BrowserSlantedSourceRestoration {
         let p0=Infinity,p1=-Infinity,q0=Infinity,q1=-Infinity;
         for(const v of p){const d=v[0]*nx+v[1]*ny;p0=Math.min(p0,d);p1=Math.max(p1,d);}
         for(const v of q){const d=v[0]*nx+v[1]*ny;q0=Math.min(q0,d);q1=Math.max(q1,d);}
-        least=Math.min(least,Math.max(0,Math.min(p1,q1)-Math.max(p0,q0)));
+        if(p1<=q0||q1<=p0)return 0;
+        // Intersection width understates penetration when one projection
+        // contains the other: use the distance to either separating edge.
+        least=Math.min(least,p1-q0,q1-p0);
       }
       return least;
     }

@@ -34,6 +34,7 @@ def main():
         '-allowProvisioningUpdates', 'CODE_SIGN_STYLE=Automatic',
         f'DEVELOPMENT_TEAM={args.team}', f'APP_ID_PREFIX={args.app_id_prefix}',
         'SWIFT_COMPILATION_MODE=' + ('wholemodule' if args.full_optimization else 'singlefile'),
+        'ONLY_ACTIVE_ARCH=YES',
         '-jobs', str(args.jobs), '-showBuildTimingSummary', 'build',
     ]
     print(shlex.join(command), flush=True)

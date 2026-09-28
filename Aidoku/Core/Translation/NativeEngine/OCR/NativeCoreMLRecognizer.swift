@@ -60,7 +60,7 @@ struct NativeCoreMLRecognitionDiagnostics: Equatable, Sendable {
     /// Regions whose complete rectified float tensor exactly matched a prior
     /// prediction from this recognizer/model instance.
     let cacheHitRegions: Int
-    let acceptedRegions: Int
+    private(set) var acceptedRegions: Int
     let skippedInvalidRegions: Int
     let modelWasAlreadyLoaded: Bool
     let modelLoadMilliseconds: Double
@@ -72,6 +72,12 @@ struct NativeCoreMLRecognitionDiagnostics: Equatable, Sendable {
     let predictionMilliseconds: Double
     let decodingMilliseconds: Double
     let totalMilliseconds: Double
+
+    func withAcceptedRegions(_ count: Int) -> Self {
+        var result = self
+        result.acceptedRegions = count
+        return result
+    }
 
     func addingRecovery(_ recovery: Self, acceptedCount: Int) -> Self {
         Self(

@@ -9,7 +9,7 @@ const helpers=fs.readFileSync(path.join(directory,'BrowserSourceTextColor.swift'
   .match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const view=fs.readFileSync(path.join(directory,'BrowserOverlayView.swift'),'utf8');
 const start=view.indexOf('    // Geometry is now committed. Recheck the actual owning surface, then');
-const end=view.indexOf('    root.dataset.readabilityPanels=',start);
+const end=view.indexOf('    // Minimal-area plates.',start);
 assert.ok(start>0&&end>start);
 const pass=view.slice(start,end);
 function box(left=0,top=0,width=100,height=80){return {left,top,width,height,right:left+width,bottom:top+height};}
@@ -46,12 +46,16 @@ assert.ok(parseFloat(node.style.webkitTextStrokeWidth)<=1.15);
 assert.ok(Number(node.dataset.sourceFinalMinimumContrast)>=4.5);
 assert.equal(node.dataset.inkCluster,undefined,'flat-fill clustering cannot erase native fill/stroke roles');
 [node]=run([{ink:[26,9,9],background:[248,238,244],font:8.5,sample}]);
-assert.notEqual(node.dataset.sourceTextOutline,'true','small type must remain fill-only');
+assert.equal(node.dataset.sourceTextOutline,'true','readable small type retains an observed source outline');
+assert.ok(parseFloat(node.style.webkitTextStrokeWidth)<=8.5*.14,'stroke remains bounded relative to the glyph');
+[node]=run([{ink:[26,9,9],background:[248,238,244],font:7.5,sample}]);
+assert.notEqual(node.dataset.sourceTextOutline,'true','type below the outline legibility floor remains fill-only');
 [node]=run([{ink:[26,9,9],background:[248,238,244],sample:{...sample,confidence:{foreground:.3,stroke:.7}}}]);
 assert.notEqual(node.dataset.sourceTextOutline,'true','uncertain fill must not be promoted to native outline pair');
 [node]=run([{ink:[200,190,180],range:[.8,.95],font:24,sample}]);
 assert.equal(node.style.zIndex,'3');
-assert.notEqual(node.dataset.sourceTextOutline,'true','transparent restoration needs an expanded spatial check, so this pass cannot add stroke');
+assert.equal(node.dataset.sourceTextOutline,'true','a measured restored surface retains the observed source style');
+assert.equal(node.style.paintOrder,'stroke fill');
 assert.ok(Number(node.dataset.sourceFinalMinimumContrast)>=4.5);
 const grouped=run([
   {ink:[157,75,126],background:[255,255,255],cluster:[157,75,126]},

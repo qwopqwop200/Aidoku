@@ -1,9 +1,19 @@
 // Production rectified erasure against independent clean-page and artwork oracles.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const source=n=>fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/'+n+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
-const {restore,fits}=new Function(source('BrowserSourceTextColor')+source('BrowserSourcePanelRestoration')+source('BrowserSlantedSourceRestoration')+';return {restore:aidokuRestoreSlantedSource,fits:aidokuSlantedInkFits}')();
+const {restore,fits,depth,card}=new Function(source('BrowserSourceTextColor')+source('BrowserSourcePanelRestoration')+source('BrowserSlantedSourceRestoration')+';return {restore:aidokuRestoreSlantedSource,fits:aidokuSlantedInkFits,depth:aidokuConvexDepth,card:aidokuRotatedCard}')();
 let passed=0;
 function test(name,fn){fn();passed++;console.log('PASS',name);}
+test('obstacle penetration increases inside a containing caption',()=>{
+ const obstacle=card(50,50,100,100,0),near=card(3,50,4,4,0),deep=card(50,50,4,4,0);
+ assert.equal(depth(near,obstacle),5);
+ assert.equal(depth(deep,obstacle),52);
+ assert.equal(depth(obstacle,deep),52,'containment is symmetric');
+ assert.equal(depth(card(102,50,4,4,0),obstacle),0,'touching edges are clear');
+ assert.equal(depth(card(104,50,4,4,0),obstacle),0,'separated cards are clear');
+ const angle=.7,rotated=card(50,50,100,100,angle),inside=card(50,50,4,4,angle);
+ assert.ok(Math.abs(depth(rotated,inside)-52)<1e-9,'rotation preserves penetration');
+});
 function scene(degrees,colors){
  const w=320,h=320,cx=160,cy=160,a=degrees*Math.PI/180,c=Math.cos(a),s=Math.sin(a),data=new Uint8ClampedArray(w*h*4),clean=data.slice(),ink=[],art=[];
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){

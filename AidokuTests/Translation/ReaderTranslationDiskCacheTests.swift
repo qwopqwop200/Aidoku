@@ -287,6 +287,25 @@ struct ReaderTranslationDiskCacheTests {
         #expect(oldKey != ReaderTranslationCacheIdentity.ocr(page: "page", settings: settings))
     }
 
+    @Test func letteringFontAvailabilityInvalidatesPersistentRender() async throws {
+        let root = directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = ReaderTranslationDiskCache(directory: root)
+        let settings = ReaderTranslationSettings()
+        let size = CGSize(width: 390, height: 780)
+        func key(_ fonts: String) -> String {
+            ReaderTranslationCacheIdentity.render(page: "font-page", settings: settings, imageSize: size,
+                viewport: size, scale: 3, aspectFit: true, crop: CGRect(x: 0, y: 0, width: 1, height: 1),
+                dark: false, letteringFontKey: fonts)
+        }
+        let fallback = key("letter-styles-v1:")
+        let serif = key("letter-styles-v1:serif")
+        try await cache.store(Data("fallback layout".utf8), for: fallback, kind: .layout, generation: 0)
+        #expect(serif != fallback)
+        #expect(try await cache.data(for: serif, kind: .layout) == nil)
+        #expect(try await cache.data(for: fallback, kind: .layout) != nil)
+    }
+
     @Test func durableRegionsSurviveANewCacheInstanceAndPreserveGeometry() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }

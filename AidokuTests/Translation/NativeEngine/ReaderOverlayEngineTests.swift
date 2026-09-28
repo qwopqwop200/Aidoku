@@ -49,7 +49,6 @@ private final class BrowserTestNavigationWaiter: NSObject,
 struct ReaderOverlayEngineTests {
     @MainActor private static let webFixture = RegressionWebFixture()
 
-
     @Test
     func separateHorizontalSourceLinesDoNotBecomeASideBySideBand() {
         let sources = [
@@ -398,6 +397,25 @@ struct ReaderOverlayEngineTests {
         #expect(callbackDiagnostic == diagnostic)
         #expect(renderer.lastDiagnostic == diagnostic)
         #expect(!String(describing: diagnostic).contains(sensitiveError))
+    }
+
+    @MainActor
+    @Test(arguments: [false, true])
+    func missingRequestedFontCannotBeCached(failed: Bool) async {
+        let renderer = BrowserPageImageOverlayRenderer { _, _, arguments in
+            ["status": "committed", "revision": arguments["revision"] as? String ?? "",
+             "itemCount": 0, "letterFaceFailed": failed] as [String: Any]
+        }
+        let webView = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 390, height: 715))
+        defer { Self.webFixture.release(webView) }
+        let diagnostic = await withCheckedContinuation { continuation in
+            renderer.render(on: webView, items: [], imageSize: CGSize(width: 390, height: 715),
+                sourceRect: CGRect(x: 0, y: 0, width: 390, height: 715),
+                settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko",
+                completion: { continuation.resume(returning: $0) })
+        }
+        #expect(diagnostic.outcome == .committed)
+        #expect(diagnostic.isCacheable == !failed)
     }
 
     @MainActor

@@ -62,11 +62,23 @@ struct ReaderTranslationRegion: Equatable, Sendable {
                 || (region.translation != nil && (notices[index] || region.isOccludedFinePrint)))
         }
         guard restated.contains(true) else { return exact }
-        let painted = regions.indices.filter { regions[$0].translation != nil && !exact[$0] && !restated[$0] }
-        return regions.indices.map { index in
-            guard restated[index] else { return exact[index] }
-            return !painted.contains { regions[index].letteringIntersects(regions[$0]) }
+        var kept = zip(exact, restated).map { $0 || $1 }
+        var painted = regions.indices.filter { regions[$0].translation != nil && !kept[$0] }
+        var cursor = 0
+        // A restated caption that meets a painted neighbour must itself paint. Propagate that
+        // decision through its neighbours too, so a chain cannot leave protected lettering
+        // underneath a newly painted caption. Visit each painted region only once.
+        while cursor < painted.count {
+            let neighbour = painted[cursor]
+            cursor += 1
+            for index in regions.indices where kept[index] && !exact[index] {
+                if regions[index].letteringIntersects(regions[neighbour]) {
+                    kept[index] = false
+                    painted.append(index)
+                }
+            }
         }
+        return kept
     }
 
     /// Whether the lettering of two regions meets: a separating-axis test on the convex hulls of their
@@ -382,12 +394,38 @@ actor ReaderOCRService {
             if separator?.separates(a, b, orientation: orientation) == true { return true }
             return enclosure?.separates(a, b) ?? false
         }
+        // Recovery regroups the same lines, and pairwise merging compares each line more than
+        // once. Keep both conclusive and inconclusive samples for this page only, avoiding
+        // repeated image crops/rasterization without extending image lifetime beyond OCR.
+        // Each cache retains at most 256 scalar samples, including merged candidate boxes.
+        var textInkSamples: [NSValue: (Double, Double, Double)?] = [:]
+        var darkSamples: [NSValue: Double?] = [:]
+        func textInk(_ rect: CGRect) -> (Double, Double, Double)? {
+            let key = NSValue(cgRect: rect)
+            if let cached = textInkSamples[key] { return cached }
+            let value = ReaderTranslationBalloonMerger.textInk(in: image, rect: rect)
+            if textInkSamples.count < 256 { textInkSamples[key] = .some(value) }
+            return value
+        }
+        func darkFraction(_ rect: CGRect) -> Double? {
+            let key = NSValue(cgRect: rect)
+            if let cached = darkSamples[key] { return cached }
+            let value = ReaderTranslationBalloonMerger.darkFraction(in: image, rect: rect)
+            if darkSamples.count < 256 { darkSamples[key] = .some(value) }
+            return value
+        }
         func group(_ lines: [NativeCoreMLOCRLine]) -> [ReaderTranslationRegion] {
             let merged = NativeOCRTextLineMerger.merge(
                 lines, imageWidth: image.width, imageHeight: image.height, recognizedLatinWords: recognizedWords,
                 separationCheck: separated,
-                inkContrast: { ReaderTranslationBalloonMerger.differentTextInk(in: image, first: $0, second: $1) },
-                polarityContrast: { ReaderTranslationBalloonMerger.oppositePolarity(in: image, first: $0, second: $1) }
+                inkContrast: {
+                    guard let a = textInk($0), let b = textInk($1) else { return false }
+                    return max(abs(a.0 - b.0), abs(a.1 - b.1), abs(a.2 - b.2)) >= 100
+                },
+                polarityContrast: {
+                    guard let a = darkFraction($0), let b = darkFraction($1) else { return false }
+                    return max(a, b) >= 0.3 && min(a, b) <= 0.15
+                }
             )
             let regions: [ReaderTranslationRegion] = merged.enumerated().compactMap { index, line in
                 let rect = line.boundingRect.intersection(imageBounds)

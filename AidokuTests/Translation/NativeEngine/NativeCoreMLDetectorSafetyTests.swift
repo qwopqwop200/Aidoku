@@ -271,6 +271,12 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
                                                              bridges: [gap], imageBounds: bounds)
         XCTAssertEqual(bridged.map(\.id), ["region-0"])
         XCTAssertEqual(bridged.first?.source, "水中発破の許可が下りない筈なのに何で")
+        let completedFlanks = baseLines.map { original in
+            let rect = NativeOCRScopeGeometry.bounds(for: original.polygon)!.insetBy(dx: -1, dy: -1)
+            return line(column(rect.minX, rect.minY, rect.width, rect.height), original.text)
+        }
+        XCTAssertEqual(NativeOCRAdjacentLineRecovery.extending(base, with: joined, baseLines: completedFlanks,
+            recovered: [gap.line], bridges: [gap], imageBounds: bounds), bridged)
         // Without the bridge (an adjacent-line recovery), joining two captions keeps the base grouping.
         XCTAssertEqual(NativeOCRAdjacentLineRecovery.extending(base, with: joined, baseLines: baseLines, recovered: [gap.line],
                                                               imageBounds: bounds), base)
@@ -510,7 +516,6 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
         }
     }
 
-
     func testIsolatedLineRecoveryAdmitsOnlyNearThresholdKanaReadsWithoutNeighbours() {
         func box(_ x: CGFloat, _ y: CGFloat, _ width: CGFloat, _ height: CGFloat) -> [CGPoint] {
             [CGPoint(x: x, y: y), CGPoint(x: x + width, y: y), CGPoint(x: x + width, y: y + height), CGPoint(x: x, y: y + height)]
@@ -540,6 +545,12 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
         XCTAssertEqual(NativeOCRIsolatedLineRecovery.candidates(han, threshold: 0.75, accepted: chinese, occupied: []).map(\.sourceIndex), [1])
         // Dense low-quality handwriting (too many candidates on one page) recovers nothing.
         let many = (0..<7).map { read(10 + $0, box(CGFloat(1_000 + 60 * $0), 100, 40, 80), "あいう", 0.7) }
+        XCTAssertEqual(NativeOCRIsolatedLineRecovery.candidates(Array(many.prefix(6)), threshold: 0.75,
+                                                               accepted: accepted, occupied: []).map(\.sourceIndex), Array(10..<16))
+        // The cap counts admitted non-overlapping reads, not raw candidates or duplicate detections.
+        let duplicate = read(99, many[0].polygon, "あいう", 0.65)
+        XCTAssertEqual(NativeOCRIsolatedLineRecovery.candidates(Array(many.prefix(6)) + [duplicate], threshold: 0.75,
+                                                               accepted: accepted, occupied: []).count, 6)
         XCTAssertTrue(NativeOCRIsolatedLineRecovery.candidates(many, threshold: 0.75, accepted: accepted, occupied: []).isEmpty)
 
         // New captions never overlap an existing caption and take fresh ids.
@@ -623,7 +634,6 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
         XCTAssertFalse(NativeOCRStackedRowSplit.accepts([read("400K", 0.95), read("SEE", 0.99)], threshold: 0.75))
         XCTAssertFalse(NativeOCRStackedRowSplit.accepts([read("I", 0.95), read("-", 0.99)], threshold: 0.75))
     }
-
 
     func fill(_ values: inout [Float], mapWidth: Int, rectangle: CGRect, value: Float) {
         for y in Int(rectangle.minY)..<Int(rectangle.maxY) {

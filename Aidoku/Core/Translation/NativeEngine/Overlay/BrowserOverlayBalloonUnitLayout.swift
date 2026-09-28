@@ -64,13 +64,15 @@ extension BrowserOverlayLayoutPlanner {
             groups[[Double(r.minX), Double(r.minY), Double(r.width), Double(r.height)], default: []].append(index)
         }
         var units: [BrowserOverlayBalloonUnit] = []
+        var orderKeys: [UInt64?]?
         for (_, indices) in groups.sorted(by: { ($0.value.first ?? 0) < ($1.value.first ?? 0) }) {
             guard !Task.isCancelled else { break }
             guard let interior = items[indices[0]].balloonInterior, indices.count == interior.members,
                   indices.allSatisfy({ eligible[$0] && planned[$0] != nil }),
                   let paper = BalloonPaper(interior, frame: frame) else { continue }
+            if orderKeys == nil { orderKeys = items.map(\.stableRegionID) }
             let ordered = readingOrder(indices, sources: sources, sourceVerticals: sourceVerticals,
-                                       orderKeys: items.map(\.stableRegionID))
+                                       orderKeys: orderKeys)
             let glyphs = ordered.compactMap { index in
                 BrowserOverlayTypography.sourceSize(text: items[index].sourceText, rect: sources[index])
             }

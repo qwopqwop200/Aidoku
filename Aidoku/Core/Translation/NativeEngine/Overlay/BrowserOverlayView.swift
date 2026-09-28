@@ -52,6 +52,7 @@ struct BrowserPageImageOverlayDiagnostic: Equatable, Sendable {
     let revision: UInt64
     let outcome: Outcome
     let renderedItemCount: Int
+    var isCacheable = true
 }
 
 /// Serialize CPU-heavy layout away from UIKit. Only immutable data crosses back.
@@ -826,7 +827,8 @@ final class BrowserPageImageOverlayRenderer {
             operation: operation,
             revision: revision,
             outcome: outcome,
-            renderedItemCount: itemCount.intValue
+            renderedItemCount: itemCount.intValue,
+            isCacheable: result["letterFaceFailed"] as? Bool != true
         )
     }
 
@@ -7284,8 +7286,10 @@ final class BrowserPageImageOverlayRenderer {
             right=Math.min(frame[0]+frame[2],right);bottom=Math.min(frame[1]+frame[3],bottom);
           }
           const old=panel.getBoundingClientRect();
-          // A unit's plate is clipped to its balloon below; only other plates may not grow.
-          if(!(unitMembersOf(item)&&!unitResidueRisk.has(item))&&(right-left)*(bottom-top)>old.width*old.height+.5){
+          // Authorize growth here; a later clip may decline because of its color or trim threshold.
+          const interior=unitMembersOf(item)&&!unitResidueRisk.has(item)?balloonInteriorOf(item):null;
+          if((right-left)*(bottom-top)>old.width*old.height+.5&&
+              (!interior||interior.outside({left,top,right,bottom})>2)){
             result.restore();delete node.dataset.balloonInteriorLayout;continue;
           }
           Object.assign(panel.style,{left:`${left+scrollX}px`,top:`${top+scrollY}px`,width:`${right-left}px`,height:`${bottom-top}px`});
@@ -10289,10 +10293,10 @@ final class BrowserPageImageOverlayRenderer {
         const ratios=memberNodes.map((n,i)=>parseFloat(n.style.lineHeight)/sizes[i]||1.2);
         const restore=()=>memberNodes.forEach((n,i)=>{n.style.cssText=saved[i].css;n.replaceChildren(...saved[i].children);});
         // Blocks at size f wrapped to width w (whole words, centred lines): ink boxes relative to each node.
-        const blocks=(f,w)=>{
+        const blocks=(f,w,commit=false)=>{
           const pad=Math.max(1,Math.min(3,f*.15)),result=[];
           for(let i=0;i<memberNodes.length;i++){
-            if(unitProbes++>=unitBudget)return null;
+            if(!commit&&unitProbes++>=unitBudget)return null;
             const n=memberNodes[i];
             n.textContent=String(members[i].text||'');
             Object.assign(n.style,{left:`${scrollX}px`,top:`${scrollY}px`,width:`${w+pad*2}px`,height:'auto',padding:`${pad}px`,
@@ -10352,7 +10356,7 @@ final class BrowserPageImageOverlayRenderer {
           if(!best){restore();const why=unitProbes>=unitBudget?'budget':'no-fit';outcomes[why]=(outcomes[why]||0)+1;
             memberNodes[0].dataset.balloonUnitBlocked=why;continue;}
           // Commit: every member at the common size and width, stacked in reading order.
-          blocks(best.f,best.w);
+          if(!blocks(best.f,best.w,true)){restore();continue;}
           let failed=false;
           memberNodes.forEach((n,i)=>{
             const m=best.measured[i],q=best.inks[i];
@@ -10647,12 +10651,14 @@ final class BrowserPageImageOverlayRenderer {
     // outline or the art beyond. Words are never split; a unit that cannot fit keeps its layout.
     if(opacity===1&&items.length<=256)try {
       let contained=0,failed=0;const started=performance.now();
+      const unitNodes=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'));
+      const unitNodesById=new Map(unitNodes.map(node=>[node.dataset.aidokuRegion,node]));
       (()=>{for(const item of items){
         // A unit plated over members that reach past its balloon keeps its lettering on that plate.
         if(!unitMembersOf(item)||unitResidueRisk.has(item)||item.rotation||item.vertical)continue;
         const interior=balloonInteriorOf(item);
         if(!interior)continue;
-        const node=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).find(n=>n.dataset.aidokuRegion===String(item.id));
+        const node=unitNodesById.get(String(item.id));
         if(!node||node.style.visibility==='hidden'||node.style.transform&&node.style.transform!=='none')continue;
         const container=node.parentElement;
         if(!container||container!==root&&container.dataset.aidokuImageOcrOverlay!=='source-readability-panel')continue;
@@ -10676,17 +10682,29 @@ final class BrowserPageImageOverlayRenderer {
           return false;
         };
         const outside=(rects,dx,dy,fs)=>{
+          // The actual new plate is a padded bounding box, not separate line rectangles.
+          // Check that full footprint now: the later optional clip can refuse a complex outline.
+          if(container!==root){
+            if(!rects.length)return Infinity;
+            const pad=Math.max(3,Math.min(6,fs*.3));
+            return interior.outside({left:Math.min(...rects.map(r=>r.left))+dx-pad,
+              top:Math.min(...rects.map(r=>r.top))+dy-pad,right:Math.max(...rects.map(r=>r.right))+dx+pad,
+              bottom:Math.max(...rects.map(r=>r.bottom))+dy+pad});
+          }
           const m=Math.max(1.5,fs*.2);let out=0;
           for(const r of rects)out+=interior.outside({left:r.left+dx-m,top:r.top+dy-m,right:r.right+dx+m,bottom:r.bottom+dy+m});
           return out;
         };
-        const before=outside(lineRects(),0,0,size);
-        if(before<=2)continue;
+        const before=outside(lineRects(),0,0,size),restoration=restoredPanelGeometry.get(item);
+        const canGrow=container===root&&restoration?.erasureComplete&&restoration.sourceGlyphsVerified&&
+          !restoration.provisional&&!restoration.partialErasureCertified;
+        const ceiling=canGrow?Math.max(size,Math.floor(Math.min(24,size*1.25,Number(item.sourceFontSize)||size)*2)/2):size;
+        if(before<=2&&ceiling<size+.5)continue;
         // Re-flow the caption's own text (a narrow planned column may have hard-broken it).
         const text=node.textContent.replace(/\\s/gu,'');
         if(!item.text||/[\\r\\n]/u.test(item.text)||item.text.replace(/\\s/gu,'')!==text)continue;
-        const others=items.filter(other=>other!==item).flatMap(balloonRectsOf)
-          .concat(Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'))
+        const others=items.concat(keptItems).filter(other=>other!==item).flatMap(balloonRectsOf)
+          .concat(unitNodes
           .filter(other=>other!==node&&other.style.visibility!=='hidden').map(other=>{
             const q=document.createRange();q.selectNodeContents(other);const r=q.getBoundingClientRect();
             return {left:r.left,top:r.top,right:r.right,bottom:r.bottom};
@@ -10700,7 +10718,7 @@ final class BrowserPageImageOverlayRenderer {
         const span=interior.w/interior.k;
         let best=null,nearest=null;
         // The balloon frame wins over size: step down to the readable floor (8.5 px) when needed.
-        (()=>{for(let fs=size;fs>=Math.min(size,8.5)-1e-6;fs-=.5){
+        (()=>{for(let fs=ceiling;fs>=Math.min(size,8.5)-1e-6;fs-=.5){
           for(const scale of [1,.95,.85,.75,.65,.55,.45]){
             const width=Math.floor(span*scale),tall=fs*ratio*14;
             if(width<fs*2)break;
@@ -10714,11 +10732,12 @@ final class BrowserPageImageOverlayRenderer {
             const ink={left:Math.min(...rects.map(r=>r.left)),top:Math.min(...rects.map(r=>r.top)),
               right:Math.max(...rects.map(r=>r.right)),bottom:Math.max(...rects.map(r=>r.bottom))};
             if(splitsWord(fs))continue;
-            const step=Math.max(1,fs*.25),reach=fs*3;
+            const step=Math.max(1,fs*.25),reach=fs*3,obstaclePad=container===root?1:Math.max(3,Math.min(6,fs*.3));
             for(const [px,py] of centres)for(let dy=-reach;dy<=reach+.01;dy+=step)for(let dx=-reach;dx<=reach+.01;dx+=step){
               const ox=px-cx+dx,oy=py-cy+dy;
               const c={left:ink.left+ox,top:ink.top+oy,right:ink.right+ox,bottom:ink.bottom+oy};
-              if(others.some(o=>c.left-1<o.right&&c.right+1>o.left&&c.top-1<o.bottom&&c.bottom+1>o.top))continue;
+              if(others.some(o=>c.left-obstaclePad<o.right&&c.right+obstaclePad>o.left&&
+                  c.top-obstaclePad<o.bottom&&c.bottom+obstaclePad>o.top))continue;
               const out=outside(rects,ox,oy,fs);
               const score=Math.hypot(dx,dy)/fs+(size-fs)*4;
               // Least protrusion when no layout clears the outline (a partial outline inside the paper).
@@ -10730,7 +10749,7 @@ final class BrowserPageImageOverlayRenderer {
           }
           if(best)break;
         }})();
-        const partial=!best&&nearest&&nearest.out*2<=before;
+        const partial=container===root&&!best&&nearest&&nearest.out*2<=before;
         if(partial)best=nearest;
         if(!best){
           restore();failed++;node.dataset.unitContainment=JSON.stringify(['kept',Math.round(before)]);continue;
@@ -10742,7 +10761,7 @@ final class BrowserPageImageOverlayRenderer {
         const final=lineRects();
         const settled=final.length?outside(final,0,0,best.fs):Infinity;
         // Re-laying out at the chosen spot can differ from the translated trial by a sub-pixel (a few samples).
-        if(!final.length||settled>(partial?best.out:2)+16||splitsWord(best.fs)){
+        if(!final.length||settled>(partial?best.out:2)+(container===root?16:0)||splitsWord(best.fs)){
           restore();failed++;node.dataset.unitContainment=JSON.stringify(['kept',Math.round(before)]);continue;
         }
         if(container!==root){
@@ -10770,32 +10789,32 @@ final class BrowserPageImageOverlayRenderer {
     // clear of the balloon outline; the larger size wins. The words, their order and the erasure are unchanged.
     if(opacity===1&&items.length<=256)try {
       let parted=0;const started=performance.now(),f=cleanupImageGeometry?.frame;
+      const unitNodes=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'));
+      const unitNodesById=new Map(unitNodes.map(node=>[node.dataset.aidokuRegion,node]));
       if(Array.isArray(f)&&f.length===4&&f.every(Number.isFinite))(()=>{for(const item of items){
-        const members=unitMembersOf(item);
+        // Validation sorts by area for restoration; lettering must use the original reading order.
+        const members=unitMembersOf(item)?item.unitMemberRects:null;
         if(!members||members.length!==2||unitResidueRisk.has(item)||item.rotation||item.vertical||!item.text||/[\\r\\n]/u.test(item.text))continue;
         const interior=balloonInteriorOf(item);
         if(!interior)continue;
-        const node=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')).find(n=>n.dataset.aidokuRegion===String(item.id));
-        if(!node||node.style.visibility==='hidden'||node.style.transform&&node.style.transform!=='none'||
-            !node.dataset.unitContainment||node.dataset.unitContainment.startsWith('["kept"'))continue;
+        const node=unitNodesById.get(String(item.id));
+        if(!node||node.style.visibility==='hidden'||node.style.transform&&node.style.transform!=='none')continue;
         const container=node.parentElement;
         if(!container||container!==root&&container.dataset.aidokuImageOcrOverlay!=='source-readability-panel')continue;
         const size=parseFloat(node.style.fontSize),ratio=parseFloat(node.style.lineHeight)/size||1.2;
         const text=item.text.trim(),spaces=[...text.matchAll(/ +/gu)];
         if(!(size>0)||!spaces.length)continue;
         const rects=members.map(r=>({left:f[0]+r[0]*f[2],top:f[1]+r[1]*f[3],right:f[0]+(r[0]+r[2])*f[2],bottom:f[1]+(r[1]+r[3])*f[3]}));
-        // Only stacked members (reading order top first): side by side, the parts' order is ambiguous.
-        const [a,b]=rects;
-        if(Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>.25*Math.min(a.bottom-a.top,b.bottom-b.top))continue;
-        rects.sort((p,q)=>p.top-q.top);
+        // Native unit members already follow the joined source's reading order.
+        // Preserve it for side-by-side members as well as stacked members.
         const area=r=>(r.right-r.left)*(r.bottom-r.top),share=area(rects[0])/(area(rects[0])+area(rects[1]));
         // Two break candidates: nearest to the members' area share, a sentence end preferred.
         const breaks=spaces.map(m=>{const first=text.slice(0,m.index),second=text.slice(m.index+m[0].length);
           return {parts:[first,second],score:Math.abs(first.length/(first.length+second.length)-share)-(/[.!?…~,]$/u.test(first)?.15:0)};})
           .filter(c=>c.parts.every(p=>p.replace(/[^가-힣A-Za-z0-9]/gu,'').length>=2)).sort((p,q)=>p.score-q.score).slice(0,2);
         if(!breaks.length)continue;
-        const others=items.filter(other=>other!==item).flatMap(balloonRectsOf)
-          .concat(Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'))
+        const others=items.concat(keptItems).filter(other=>other!==item).flatMap(balloonRectsOf)
+          .concat(unitNodes
           .filter(other=>other!==node&&other.style.visibility!=='hidden').map(other=>{
             const q=document.createRange();q.selectNodeContents(other);const r=q.getBoundingClientRect();
             return {left:r.left,top:r.top,right:r.right,bottom:r.bottom};
@@ -10822,19 +10841,21 @@ final class BrowserPageImageOverlayRenderer {
         // One part centred on its member: the widest measure whose lines clear the outline, others and `placed`.
         const place=(part,r,fs,placed)=>{
           const cx=(r.left+r.right)/2,cy=(r.top+r.bottom)/2,tall=fs*ratio*8;
-          for(const scale of [.9,.75,.6,.5,.4]){
+          for(const scale of [.9,.75,.6,.5,.4,.3,.25,.2]){
             const width=Math.floor(span*scale);
             if(width<fs*2)break;
-            const div=document.createElement('div');div.textContent=part;
+            const div=document.createElement('div');div.textContent=part+(placed.length?'':' ');
             Object.assign(div.style,{position:'absolute',left:`${cx-width/2-nodeBox.left}px`,top:`${cy-tall/2-nodeBox.top}px`,
               width:`${width}px`,height:`${tall}px`,display:'flex',alignItems:'center',justifyContent:'center',textAlign:'center',
               fontSize:`${fs}px`,lineHeight:`${fs*ratio}px`,wordBreak:'keep-all',overflowWrap:'normal'});
             node.appendChild(div);
             const list=lines(div);
             if(list.length&&div.scrollWidth<=div.clientWidth+1&&!splits(div,fs)){
-              const ink=inkOfLines(list),m=Math.max(1.5,fs*.2);
-              let out=0;for(const l of list)out+=interior.outside({left:l.left-m,top:l.top-m,right:l.right+m,bottom:l.bottom+m});
-              if(out<=2&&!others.some(o=>meets(ink,o,1))&&!placed.some(p=>meets(ink,p,fs*.4)))return {div,ink};
+              const ink=inkOfLines(list),m=container===root?Math.max(1.5,fs*.2):Math.max(3,Math.min(6,fs*.3));
+              let out=0;
+              if(container!==root)out=interior.outside({left:ink.left-m,top:ink.top-m,right:ink.right+m,bottom:ink.bottom+m});
+              else for(const l of list)out+=interior.outside({left:l.left-m,top:l.top-m,right:l.right+m,bottom:l.bottom+m});
+              if(out<=2&&!others.some(o=>meets(ink,o,container===root?1:m))&&!placed.some(p=>meets(ink,p,fs*.4)))return {div,ink};
             }
             div.remove();
           }
@@ -11634,6 +11655,13 @@ final class BrowserPageImageOverlayRenderer {
                 const ys=[0,(inkBox[1]+inkBox[3])/2,inkBox[1]+total/2,inkBox[3]-total/2];
                 const shifts=[];
                 for(const y of ys)for(const x of xs)if(!shifts.some(([a,b])=>Math.abs(a-x)<.5&&Math.abs(b-y)<.5))shifts.push([x,y]);
+                // A near-boundary word may fit after a one-pixel move without
+                // reducing its font or relaxing the paper/obstacle checks.
+                if(kind==='split'){
+                  const anchors=shifts.slice();
+                  for(const [x,y] of anchors)for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]])
+                    if(!shifts.some(([a,b])=>Math.abs(a-x-dx)<.5&&Math.abs(b-y-dy)<.5))shifts.push([x+dx,y+dy]);
+                }
                 const m=Math.max(2,size*.25);
                 for(const [ox,oy] of shifts){
                   const rects=lines.map((l,i)=>{
@@ -15871,7 +15899,8 @@ final class BrowserPageImageOverlayRenderer {
     if(typeof aidokuPixelKernels!=='undefined')aidokuPixelKernels.trim?.();
     return {
       status: 'committed', revision: String(revision),
-      itemCount: renderedItemCount
+      itemCount: renderedItemCount,
+      letterFaceFailed: Boolean(letterStyleSerif && letterStyleFonts?.serif === true && !serifLetterFamily)
     };
     };
     // The face time is taken before the continuation runs (and compiles).

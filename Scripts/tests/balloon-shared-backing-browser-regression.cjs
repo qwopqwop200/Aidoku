@@ -2,7 +2,7 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const source=fs.readFileSync(process.env.CAPTION_SOURCE||path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
-const begin=source.indexOf('              let sharedRemoval=false;',source.indexOf('fitBalloon: '));
+const begin=source.indexOf('              const opaqueCard=layer=>{',source.indexOf('fitBalloon: '));
 assert.ok(begin>0,'shared backing admission must exist');
 const gate=source.slice(begin,source.indexOf('              measurementNode.style.cssText=',begin)).replace(/\\([\\"])/g,'$1');
 let browser;
@@ -12,7 +12,7 @@ let browser;
   await page.setContent('<style>body{margin:0}#root{position:absolute;inset:0}</style><div id="root"></div>');
   const admitted=await page.evaluate(({gate,mode})=>{
    const root=document.querySelector('#root'),item={id:0,sourceFrame:[0,0,300,300],sourceBounds:[0,0,.1,.1]},items=[item];
-   const restoredPanelGeometry=new Map(),cleanupImageGeometry=null;
+   const restoredPanelGeometry=new Map(),cleanupImageGeometry=null,legible=false;
    const plate=document.createElement('div');plate.style.cssText='position:absolute;left:20px;top:20px;width:100px;height:100px';root.append(plate);
    const node=document.createElement('div');node.dataset.aidokuImageOcrOverlay='item';root.append(node);
    const p=plate.getBoundingClientRect(),intersects=r=>r[0]<p.right&&r[0]+r[2]>p.left&&r[1]<p.bottom&&r[1]+r[3]>p.top;

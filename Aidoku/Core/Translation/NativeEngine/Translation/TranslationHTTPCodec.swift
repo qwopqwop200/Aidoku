@@ -7,7 +7,7 @@ enum TranslationHTTPCodec {
     static let textOnlyBackgroundPolicy = "llm-background-text-v2-context-gate"
     static let textOnlySFXPolicy = "llm-sfx-text-v1-preservation-first"
     static let sfxPolicy = "llm-sfx-v26-normal-text-protection"
-    static let letteringPolicy = "page-lettering-v1-copy-brands-notices"
+    static let letteringPolicy = "page-lettering-v2-editorial-exceptions"
 
     /// Page lettering only (never metadata such as titles or tags). Brand/logo names in Latin
     /// letters are already readable, and watermarks are not content: an exact copy lets the
@@ -218,11 +218,11 @@ enum TranslationHTTPCodec {
         let letteringInstructions = request.translatesPageLettering == true ? "\n\n" + nonContentLetteringInstructions : ""
         let taskInstructions: String
         if filtersSFX, request.imageJPEG != nil {
-            taskInstructions = imageEditorialPriorityInstructions + "\n\n" + sfxInstructions(hasImage: true) + """
+            taskInstructions = imageEditorialPriorityInstructions + letteringInstructions + "\n\n" + sfxInstructions(hasImage: true) + """
 
             An image is attached. bbox=[x,y,width,height] normalized from the top left of the full image;
             width/height are sizes, not opposite corners. Inspect the original lettering at each bbox.
-            Translate ALL admitted utterances into target_language, even when they contain a different
+            \(request.translatesPageLettering == true ? "Except for the non-content lettering preserved above, translate" : "Translate") ALL admitted utterances into target_language, even when they contain a different
             source language. Do not leave an admitted utterance untranslated. "Preserve" an admitted
             dialogue/title means preserve its meaning in translation, not copy its source characters.
             \(filtersBackground ? """
@@ -235,7 +235,7 @@ enum TranslationHTTPCodec {
             background. Page-level titles/editorial captions and plot-critical messages remain story_text.
             """ : "Physical signs are not SFX; translate them because background filtering is disabled.")
             """ + "\n\nTranslation preferences apply ONLY to admitted non-SFX text:\n" +
-                configuration.instructions + letteringInstructions + contextInstructions + koreanInstructions
+                configuration.instructions + contextInstructions + koreanInstructions
         } else {
             taskInstructions = configuration.instructions + letteringInstructions + contextInstructions + koreanInstructions +
                 (request.imageJPEG == nil ? "" : "\n\n" + imageInstructions) +
@@ -264,7 +264,6 @@ enum TranslationHTTPCodec {
             backgroundEvidence = ""
         }
         let instructions = taskInstructions + roleContract + """
-
 
         Output contract: Return only a JSON object with exactly one key, "translations".
         Its value must be an array of exactly \(request.segments.count) objects, each containing only \(outputKeys.joined(separator: ", ")).

@@ -78,7 +78,7 @@ struct ReaderOCRPreviewColorTests {
             #expect(audit["veil"] as? String == "none")
             #expect(audit["blur"] as? String == "none")
             #expect(audit["stroke"] as? Bool == false)
-            #expect(audit["state"] as? String == "readability-panel")
+            #expect(audit["state"] as? String == (translated ? "source-preserved-caption" : "readability-panel"))
             let blurs = try #require(audit["sourceBlur"] as? [[String: Any]])
             #expect(blurs.isEmpty)
             let plates = try #require(audit["plates"] as? [[String: Any]])
@@ -184,7 +184,7 @@ struct ReaderOCRPreviewColorTests {
         const audit=JSON.parse(root.dataset.panelRestorationAudit);
         return {transparent:style.backgroundColor==='rgba(0, 0, 0, 0)'&&style.backgroundImage==='none',
           // Box rendering never erases or blurs either neutral or colored source ink.
-          presentation:node.dataset.sourceBackgroundColor==='readability-panel'&&root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]').length===1,
+          presentation:node.dataset.sourceBackgroundColor==='source-preserved-caption'&&root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]').length===1,
           bounded:audit.length===0&&Number(root.dataset.panelRestorationPixels)===0&&Number(root.dataset.sourceColorPixels)<=393216,
           font:parseFloat(style.fontSize)>0,text:node.textContent,details:JSON.stringify({audit,data:node.dataset,failures:globalThis.panelFailures})};})()
         """) as? [String: Any])
@@ -291,7 +291,7 @@ struct ReaderOCRPreviewColorTests {
         settings.opacity = 1
         var appearances: [[String: String]] = []
         for (index, translation) in [nil, "번역된 글자"].enumerated() {
-            let item = BrowserOverlayItem(rect: CGRect(x: 30, y: 15, width: 60, height: 680),
+            let item = BrowserOverlayItem(rect: CGRect(x: 30, y: 15, width: 60, height: 180),
                 sourceText: "あああ", translatedText: translation, confidence: 1, sourceOrientation: .vertical)
             var payload = BrowserPageImageOverlayRenderer.layoutPayload(items: [item], imageSize: CGSize(width: 120, height: 720),
                 sourceRect: CGRect(x: 0, y: 0, width: 120, height: 720), settings: settings, targetLanguage: "ko", viewport: CGSize(width: 120, height: 720))

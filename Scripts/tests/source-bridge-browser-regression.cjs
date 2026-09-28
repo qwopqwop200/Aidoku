@@ -6,7 +6,7 @@ const {webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const source=fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
 function extract(from,to){const a=source.indexOf(from),b=source.indexOf(to,a);assert.ok(a>=0&&b>a);return source.slice(a,b).replace(/\\([\\"])/g,'$1');}
 const oversized=extract('    // Oversized failed source restoration','    // Commit each opaque caption');
-const bridge='(()=>{'+extract('      const sourceRect=item=>{','      const finalInks=')+extract('      // A rejected partition retains','    // Geometry is now committed.').replace(/\s*}\s*$/,'')+'})();';
+const bridge='(()=>{'+extract('      const sourceRect=item=>{','      const finalInks=')+extract('      // A rejected partition retains','    // Every plate is final. Grow translations').replace(/\s*}\s*$/,'')+'})();';
 let browser;
 (async()=>{
  browser=await webkit.launch();const page=await browser.newPage({viewport:{width:400,height:400}});
@@ -20,7 +20,7 @@ let browser;
    const n=document.createElement('div');n.dataset.aidokuImageOcrOverlay='item';n.dataset.aidokuRegion='owner';n.textContent='읽을 수 있는 번역';n.style.cssText='position:absolute;left:110px;top:180px;width:180px;height:24px;font:16px/24px sans-serif;color:black';root.append(n);
    if(mode==='collision'){const other=n.cloneNode(true);other.dataset.aidokuRegion='neighbor';root.append(other);}
   },mode);
-  await page.evaluate(oversized);
+  await page.evaluate(fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1]+'\n'+fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0]+'\n'+oversized);
   const result=await page.evaluate(()=>{
    const n=root.querySelector('[data-aidoku-region="owner"][data-aidoku-image-ocr-overlay="item"]'),p=root.querySelector('[data-aidoku-image-ocr-overlay="source-readability-panel"]');
    const r=document.createRange();r.selectNodeContents(n);const ink=r.getBoundingClientRect(),b=p.getBoundingClientRect();

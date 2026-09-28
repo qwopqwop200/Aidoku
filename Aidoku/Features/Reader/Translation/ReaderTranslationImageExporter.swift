@@ -386,7 +386,7 @@ enum ReaderTranslationImageExporter {
             return await iterator.next() ?? false
         } onCancel: { events.continuation.finish() }
         try Task.checkCancellation()
-        guard ready, !overlay.hasExhaustedRecovery else { throw ExportError.renderFailed }
+        guard ready, !overlay.hasExhaustedRecovery, overlay.lastDiagnostic?.isCacheable != false else { throw ExportError.renderFailed }
         ReaderTranslationDiagnostics.renderingProfile("profile_export_render_ready", count: regions.count)
         ReaderTranslationDiagnostics.record("renderer_export_ready",
             count: Int((ProcessInfo.processInfo.systemUptime - exportStartedAt) * 1_000), code: reusedHealthyRenderer ? 1 : 0)
@@ -647,7 +647,6 @@ enum ReaderTranslationImageExporter {
         }
     }
 }
-
 
 /// A single idle renderer lease. The caller releases page data before storing;
 /// this slot only extends process reuse when memory has an extra 256 MiB margin.

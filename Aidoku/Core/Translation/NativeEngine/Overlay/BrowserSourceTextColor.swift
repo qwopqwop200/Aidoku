@@ -2834,8 +2834,13 @@ enum BrowserSourceTextColor {
           d[k]=Math.min(d[k],x?d[k-1]+1:1,y?d[k-bw]+1:1);}
         for(let y=bh-1;y>=0;y--)for(let x=bw-1;x>=0;x--){const k=y*bw+x;if(!d[k])continue;
           d[k]=Math.min(d[k],x<bw-1?d[k+1]+1:1,y<bh-1?d[k+bw]+1:1);}
-        const values=[];for(const v of d)if(v)values.push(v);values.sort((a,c)=>a-c);
-        return values[Math.floor(values.length/2)];
+        // Distance cannot exceed half the shorter crop dimension. Select
+        // the exact median without allocating and sorting one value per pixel.
+        const histogram=new Uint32Array(Math.ceil(Math.min(bw,bh)/2)+1);
+        for(const v of d)if(v)histogram[v]++;
+        let cumulative=0;const middle=Math.floor(count/2);
+        for(let v=1;v<histogram.length;v++){cumulative+=histogram[v];if(cumulative>middle)return v;}
+        return null;
       };
       const paper=thickness(light),ink=thickness(dark);
       return paper!==null&&ink!==null&&paper>=3&&paper>=ink*3;

@@ -1101,7 +1101,9 @@ enum BrowserOverlayTypography {
             (lastWord===1&&split&&korean[last]&&korean[end]);
           const cost=12+(split?36:0)+(fragment?90:0)+(start>0&&dependent[first]?24:0)+
             Math.pow(1-used/width,2)*(end===n?5:16);
-          for(let lines=1;lines<=Math.min(limit,n-start);lines++){
+          // The suffix has at most n-end nonempty lines; larger states are
+          // unreachable. Avoid visiting them for every candidate break.
+          for(let lines=1;lines<=Math.min(limit,n-end+1);lines++){
             const total=cost+dp[lines-1][end];
             if(total<dp[lines][start]){dp[lines][start]=total;next[lines][start]=end;}
           }

@@ -53,6 +53,24 @@ struct ReaderTranslationTests {
         #expect(items.compactMap(\.stableRegionID) == [1, 2, 3])
     }
 
+    @Test func repaintedLetteringPropagatesThroughOverlappingRestatements() {
+        let regions = [
+            ReaderTranslationRegion(id: "outer", rect: CGRect(x: 0.1, y: 0.1, width: 0.15, height: 0.05),
+                                    source: "Uideo Game", translation: "Video Game"),
+            ReaderTranslationRegion(id: "middle", rect: CGRect(x: 0.2, y: 0.1, width: 0.15, height: 0.05),
+                                    source: "K.O", translation: "K.O."),
+            ReaderTranslationRegion(id: "dialogue", rect: CGRect(x: 0.3, y: 0.1, width: 0.15, height: 0.05),
+                                    source: "夜の空", translation: "밤하늘"),
+            ReaderTranslationRegion(id: "exact", rect: CGRect(x: 0.1, y: 0.1, width: 0.15, height: 0.05),
+                                    source: "LOGO", translation: "LOGO")
+        ]
+        #expect(ReaderTranslationRegion.keepsOriginalLettering(regions) == [false, false, false, true])
+        // Classification must not depend on the input/reading order of the overlap chain.
+        #expect(ReaderTranslationRegion.keepsOriginalLettering(Array(regions.reversed())) == [true, false, false, false])
+        let items = ReaderTranslationRegion.layoutItems(regions, imageSize: CGSize(width: 100, height: 100))
+        #expect(items.filter(\.keepsSourceLettering).map(\.stableRegionID) == [3])
+    }
+
     @Test func keptLetteringIsReservedAndProtectedInTheLayout() throws {
         // diverse-1921: the SOUND! EUPHONIUM logo stays as printed right above a translated paragraph.
         let regions = [

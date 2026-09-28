@@ -163,11 +163,11 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 recoveryTask?.cancel(); recoveryTask = nil
                 // Reveal only the committed layout, after background sampling,
                 // cleanup and typesetting have all completed.
-                if !defersPresentationUntilSnapshot || snapshotTarget == nil {
+                if !defersPresentationUntilSnapshot || snapshotTarget == nil || !diagnostic.isCacheable {
                     webView.isHidden = false
                 }
                 ReaderTranslationDiagnostics.record("visible_render_committed", count: diagnostic.renderedItemCount)
-                captureCompletedRender(revision: diagnostic.revision)
+                if diagnostic.isCacheable { captureCompletedRender(revision: diagnostic.revision) }
                 onRenderCommitted?()
             } else if diagnostic.outcome == .cleared {
                 onRenderCleared?()
