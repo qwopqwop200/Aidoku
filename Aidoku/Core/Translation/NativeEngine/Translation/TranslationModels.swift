@@ -218,17 +218,18 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
     // Shared String storage across batches; omitted from persisted/wire models.
     var preparedImageDataURL: String? = nil
     private enum CodingKeys: String, CodingKey {
-        case imageJPEG, filtersSFX, filtersBackground, sourceLanguage, targetLanguage, segments, context, glossary
+        case imageJPEG, filtersSFX, filtersBackground, translatesPageLettering, sourceLanguage, targetLanguage, segments, context
+        case glossary
     }
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.imageJPEG == rhs.imageJPEG && lhs.filtersSFX == rhs.filtersSFX && lhs.filtersBackground == rhs.filtersBackground
-            && lhs.sourceLanguage == rhs.sourceLanguage && lhs.targetLanguage == rhs.targetLanguage
+            && lhs.translatesPageLettering == rhs.translatesPageLettering && lhs.sourceLanguage == rhs.sourceLanguage && lhs.targetLanguage == rhs.targetLanguage
             && lhs.segments == rhs.segments && lhs.context == rhs.context && lhs.glossary == rhs.glossary
     }
 
     func hash(into hasher: inout Hasher) {
-        hasher.combine(imageJPEG); hasher.combine(filtersSFX); hasher.combine(filtersBackground)
+        hasher.combine(imageJPEG); hasher.combine(filtersSFX); hasher.combine(filtersBackground); hasher.combine(translatesPageLettering)
         hasher.combine(sourceLanguage); hasher.combine(targetLanguage)
         hasher.combine(segments); hasher.combine(context); hasher.combine(glossary)
     }
@@ -238,6 +239,9 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
     }
     var filtersSFX: Bool? = nil
     var filtersBackground: Bool? = nil
+    /// Segments are OCR lettering of a comic page (not metadata such as titles or tags):
+    /// the prompt adds the non-content lettering rule (brand/logo names, watermarks copied).
+    var translatesPageLettering: Bool? = nil
 
     let sourceLanguage: String
     let targetLanguage: String
@@ -607,6 +611,7 @@ struct TranslationCacheKey: Codable, Hashable, Sendable {
     let imageSupportRevision: Int?
     let sfxPolicy: String?
     let backgroundPolicy: String?
+    let letteringPolicy: String?
     let version: Int
     let provider: RemoteTranslationProvider
     let apiProtocol: RemoteTranslationProtocol
@@ -635,6 +640,7 @@ struct TranslationCacheKey: Codable, Hashable, Sendable {
         sfxPolicy = request.filtersSFX == true
             ? (request.imageJPEG == nil ? TranslationHTTPCodec.textOnlySFXPolicy : TranslationHTTPCodec.sfxPolicy)
             : nil
+        letteringPolicy = request.translatesPageLettering == true ? TranslationHTTPCodec.letteringPolicy : nil
         imageDigest = request.imageDigest
         imageSupportRevision = request.imageJPEG == nil ? nil : TranslationImageSupport.shared.revision(for: configuration)
         version = Self.schemaVersion
@@ -689,6 +695,13 @@ struct CanonicalRemoteTranslationRequest: Sendable {
         self.callerSegmentIDs = callerSegmentIDs
     }
 
+    /// Every result (network, streamed, cached, any client) leaves the service
+    /// here, so leaked JSON escapes are decoded once, against the segment's source.
+    private func repairedText(_ text: String, at index: Int) -> String {
+        TranslationHTTPCodec.decodingLeakedEscapes(
+            in: text, source: request.segments.indices.contains(index) ? request.segments[index].text : nil)
+    }
+
     /// Maps provisional streamed segments back to caller IDs, dropping any
     /// segment whose canonical ID is not part of this request.
     func restoringCallerSegmentIDs(inPartial segments: [RemoteTranslatedSegment]) -> [RemoteTranslatedSegment] {
@@ -696,7 +709,7 @@ struct CanonicalRemoteTranslationRequest: Sendable {
         guard expectedCanonicalIDs.count == callerSegmentIDs.count else { return [] }
         return segments.compactMap { segment in
             guard let index = expectedCanonicalIDs.firstIndex(of: segment.id) else { return nil }
-            return RemoteTranslatedSegment(id: callerSegmentIDs[index], text: segment.text, isSFX: segment.isSFX)
+            return RemoteTranslatedSegment(id: callerSegmentIDs[index], text: repairedText(segment.text, at: index), isSFX: segment.isSFX)
         }
     }
 
@@ -733,7 +746,7 @@ struct CanonicalRemoteTranslationRequest: Sendable {
             }
             return RemoteTranslatedSegment(
                 id: callerSegmentIDs[index],
-                text: translation.text, isSFX: translation.isSFX
+                text: repairedText(translation.text, at: index), isSFX: translation.isSFX
             )
         }
         return RemoteTranslationBatchResult(
@@ -768,6 +781,7 @@ extension RemoteTranslationRequest {
         canonical.copyImageRepresentation(from: self)
         canonical.filtersSFX = filtersSFX
         canonical.filtersBackground = filtersBackground
+        canonical.translatesPageLettering = translatesPageLettering
         return CanonicalRemoteTranslationRequest(request: canonical, callerSegmentIDs: segments.map(\.id))
     }
 }

@@ -84,6 +84,10 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
     }
     var usesSourceInpainting: Bool { inpaintingEnabled && preserveSourceColors }
     var opacity: Double
+    /// Source replacement erases and rebuilds the page's own lettering surface.
+    /// A translucent replacement would only re-expose the original text, so the
+    /// background opacity preference applies to the white and dark appearances.
+    var renderedBackgroundOpacity: Double { usesSourceInpainting ? 1 : min(1, max(0, opacity)) }
     var textPlacement: IPhoneOverlayTextPlacement
     var subtitlePosition: IPhoneSubtitlePosition
     var subtitleMaxLines: Int

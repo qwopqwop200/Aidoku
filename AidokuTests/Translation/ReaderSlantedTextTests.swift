@@ -5,6 +5,7 @@ import WebKit
 
 @Suite(.serialized)
 @MainActor
+// swiftlint:disable:next type_body_length
 struct ReaderSlantedTextTests {
     private static let webFixture = RegressionWebFixture()
 
@@ -99,6 +100,40 @@ struct ReaderSlantedTextTests {
         #expect(abs(mapped.rect.midX - 110) < 0.0001 && abs(mapped.rect.midY - 110) < 0.0001)
     }
 
+    @Test func nearUprightLabelsTakeTheUprightPath() {
+        let size = CGSize(width: 800, height: 1200)
+        func mapped(degrees: CGFloat, box: CGSize, text: String, vertical: Bool = false) -> BrowserOverlayRotation.Geometry? {
+            let points = quad(angle: degrees * .pi / 180, size: box, center: CGPoint(x: 400, y: 600))
+            var region = ReaderTranslationRegion(
+                id: "near-upright", rect: CGRect(x: 0.4, y: 0.4, width: 0.2, height: 0.2),
+                source: text, translation: "번역", polygon: points.map { CGPoint(x: $0.x / size.width, y: $0.y / size.height) })
+            region.sourceOrientation = vertical ? .vertical : .horizontal
+            return BrowserOverlayRotation.mapped(item: region.overlayItem(index: 0, imageSize: size), imageSize: size,
+                                                 sourceRect: CGRect(origin: .zero, size: size), settings: ReaderTranslationSettings.defaultOverlay)
+        }
+        // A short label's detector box tilts by a few degrees; its baseline
+        // rises by a fifth of a glyph at most, so it is set upright.
+        #expect(mapped(degrees: 3.5, box: CGSize(width: 60, height: 20), text: "Skip") == nil)
+        // The same angle over a long line is visible lettering slant.
+        #expect(mapped(degrees: 3.5, box: CGSize(width: 400, height: 20), text: "a long slanted handwritten line of text") != nil)
+        // Vertical columns, display lettering and steeper labels keep their quad.
+        #expect(mapped(degrees: 3.5, box: CGSize(width: 20, height: 60), text: "縦書き", vertical: true) != nil)
+        #expect(mapped(degrees: 3.5, box: CGSize(width: 90, height: 60), text: "ドン") != nil)
+        #expect(mapped(degrees: 5, box: CGSize(width: 60, height: 20), text: "Skip") != nil)
+        // The upright label's payload records its quad tilt, which keeps it
+        // out of the page's size cohorts (it used to be a rotated caption).
+        let points = quad(angle: 3.5 * .pi / 180, size: CGSize(width: 60, height: 20), center: CGPoint(x: 400, y: 600))
+        let item = BrowserOverlayItem(
+            stableRegionID: 1, rect: NativeOCRScopeGeometry.bounds(for: points) ?? .zero,
+            sourceText: "Skip", translatedText: "건너뛰기", confidence: 1, sourceOrientation: .horizontal, sourcePolygon: points)
+        let payload = BrowserPageImageOverlayRenderer.layoutPayload(
+            items: [item], imageSize: size,
+            sourceRect: CGRect(origin: .zero, size: size), settings: ReaderTranslationSettings.defaultOverlay,
+            targetLanguage: "ko", viewport: size).first
+        #expect((payload?["rotation"] as? NSNumber)?.doubleValue == 0)
+        #expect(abs(((payload?["nearUprightRotation"] as? NSNumber)?.doubleValue ?? 0) - 3.5 * .pi / 180) < 0.01)
+    }
+
     @Test func smallUnfittableTranslationRetainsOrdinaryLayout() throws {
         let geometry = try #require(BrowserOverlayRotation.geometry(polygon: quad(angle: 0.3, size: CGSize(width: 8, height: 8))))
         #expect(BrowserOverlayRotation.layout(geometry: geometry, variant: .plain("아주 긴 번역문이라서 들어갈 수 없다", vertical: false),
@@ -139,6 +174,74 @@ struct ReaderSlantedTextTests {
                 #expect(fonts(card) == fonts(try #require(cards(reference).first)))
                 #expect(card.layer.mask == nil)
             }
+        }
+    }
+
+    @Test func narrowSlantedVerticalColumnOffersAnUprightKoreanCard() throws {
+        // A slanted vertical column two syllables wide cannot hold a Korean
+        // sentence without breaking every word. The payload keeps the rotated
+        // layout (its erasure and fallback) and offers the planner's upright
+        // card; one short word or a steep column keeps only its slanted quad.
+        let size = CGSize(width: 430, height: 800)
+        func payload(_ translation: String, degrees: CGFloat) throws -> [String: Any] {
+            let points = quad(angle: degrees * .pi / 180, size: CGSize(width: 24, height: 220), center: CGPoint(x: 215, y: 400))
+            let bounds = try #require(NativeOCRScopeGeometry.bounds(for: points))
+            let item = BrowserOverlayItem(stableRegionID: 3, rect: bounds, sourceText: "何でコイツは標的にならなかったんだ",
+                                          translatedText: translation, confidence: 1, sourceOrientation: .vertical,
+                                          sourceSingleVerticalColumn: true, sourcePolygon: points)
+            return try #require(BrowserPageImageOverlayRenderer.layoutPayload(
+                items: [item], imageSize: size,
+                sourceRect: CGRect(origin: .zero, size: size), settings: ReaderTranslationSettings.defaultOverlay,
+                targetLanguage: "ko", viewport: size).first)
+        }
+        func number(_ value: Any?) -> Double { (value as? NSNumber)?.doubleValue ?? .nan }
+        let sentence = try payload("왜 이 녀석은 표적이 되지 않았지?", degrees: 6)
+        #expect(abs(number(sentence["rotation"]) - 6 * .pi / 180) < 0.01)
+        let upright = try #require(sentence["uprightAlternative"] as? [String: Any])
+        #expect(number(upright["width"]) - number(upright["paddingLeft"]) - number(upright["paddingRight"]) >=
+            3 * number(upright["fontSize"]))
+        #expect(try payload("톡톡", degrees: 6)["uprightAlternative"] is NSNull)
+        #expect(try payload("왜 이 녀석은 표적이 되지 않았지?", degrees: 25)["uprightAlternative"] is NSNull)
+    }
+
+    @Test func nearUprightVerticalColumnsSetUprightTextInsideTheirQuad() throws {
+        // A vertical column's quad tilts by detector noise below 4.2 degrees.
+        // The payload keeps the quad's layout and erasure (box, rotation, size)
+        // and marks the caption upright; steeper columns and rows do not.
+        let size = CGSize(width: 430, height: 800), center = CGPoint(x: 215, y: 400)
+        func payload(degrees: CGFloat, vertical: Bool = true) throws -> [String: Any] {
+            let box = vertical ? CGSize(width: 40, height: 160) : CGSize(width: 300, height: 30)
+            let points = quad(angle: degrees * .pi / 180, size: box, center: center)
+            let bounds = try #require(NativeOCRScopeGeometry.bounds(for: points))
+            let item = BrowserOverlayItem(stableRegionID: 4, rect: bounds, sourceText: "どうなってるんだよ",
+                                          translatedText: "어떻게 된 거야", confidence: 1, sourceOrientation: vertical ? .vertical : .horizontal,
+                                          sourceSingleVerticalColumn: vertical, sourcePolygon: points)
+            return try #require(BrowserPageImageOverlayRenderer.layoutPayload(
+                items: [item], imageSize: size,
+                sourceRect: CGRect(origin: .zero, size: size), settings: ReaderTranslationSettings.defaultOverlay,
+                targetLanguage: "ko", viewport: size).first)
+        }
+        func number(_ value: Any?) -> CGFloat { CGFloat((value as? NSNumber)?.doubleValue ?? .nan) }
+        let column = try payload(degrees: 3.5)
+        #expect(abs(number(column["rotation"]) - 3.5 * .pi / 180) < 0.01)
+        #expect(column["uprightQuadText"] as? Bool == true)
+        #expect(try payload(degrees: 5)["uprightQuadText"] as? Bool == false)
+        #expect(try payload(degrees: 3.5, vertical: false)["uprightQuadText"] as? Bool == false)
+        // The upright plate outline: the page frame clipped to the quad grown
+        // by the margin never reaches further than the margin past the quad.
+        let geometry = try #require(BrowserOverlayRotation.geometry(polygon: quad(
+            angle: 3.5 * .pi / 180,
+            size: CGSize(width: 40, height: 160), center: center), singleVerticalColumn: true))
+        let frame = [CGPoint(x: 195, y: 300), CGPoint(x: 235, y: 300), CGPoint(x: 235, y: 500), CGPoint(x: 195, y: 500)]
+        let outline = BrowserOverlayRotation.clipped(frame, toQuad: geometry)
+        let margin = BrowserOverlayRotation.uprightQuadMargin + 0.001
+        let c = cos(geometry.radians), s = sin(geometry.radians)
+        #expect(outline.count >= 4)
+        for point in outline {
+            let dx = point.x - geometry.panelRect.midX, dy = point.y - geometry.panelRect.midY
+            #expect(abs(dx * c + dy * s) <= geometry.panelRect.width / 2 + margin)
+            #expect(abs(-dx * s + dy * c) <= geometry.panelRect.height / 2 + margin)
+            #expect(point.x >= 195 - 0.001 && point.x <= 235 + 0.001)
         }
     }
 
@@ -395,6 +498,11 @@ struct ReaderSlantedTextTests {
                         local:[parseFloat(s.left),parseFloat(s.top),parseFloat(s.width),parseFloat(s.height)],
                         font:parseFloat(s.fontSize),color:s.color,background:s.backgroundColor,
                         visibility:s.visibility,
+                        ...(()=>{const p=[...document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-rotated-panel"]')]
+                          .find(p=>p.dataset.aidokuRegion===n.dataset.aidokuRegion);if(!p)return {surface:s.backgroundColor};
+                          const ps=getComputedStyle(p),pf=p.getBoundingClientRect();
+                          return {surface:ps.backgroundColor,plateLinked:ps.transform===s.transform&&ps.clipPath===s.clipPath&&
+                            [pf.x-f.x,pf.y-f.y,pf.width-f.width,pf.height-f.height].every(d=>Math.abs(d)<.5)};})(),
                         slantedMasks:[...document.querySelectorAll('[data-slanted-glyph-mask="true"]')]
                           .filter(p=>p.dataset.aidokuRegion===n.dataset.aidokuRegion).length,
                         axisAlignedPanels:[...document.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]')]
@@ -408,17 +516,30 @@ struct ReaderSlantedTextTests {
                         #expect(audit["rotatingPanel"] as? String == "true")
                         #expect(audit["axisAlignedPanels"] as? Int == 0, "\(fixture.id) must rotate its background too")
                         if colors && inpainting {
-                            #expect(audit["background"] as? String == "rgba(0, 0, 0, 0)")
                             let erased = audit["slantedSourceErased"] as? String == "true"
                             #expect(audit["slantedArtworkSafe"] as? String == String(erased))
                             #expect(audit["slantedMasks"] as? Int == (erased ? 1 : 0))
-                            #expect(audit["visibility"] as? String == (erased ? "visible" : "hidden"))
+                            // A translation is never dropped: without a certified erasure the
+                            // opaque rotated plate covers the source quad instead.
+                            #expect(audit["visibility"] as? String == "visible")
+                            if erased {
+                                #expect(audit["background"] as? String == "rgba(0, 0, 0, 0)")
+                            } else {
+                                #expect(audit["sourceBackgroundColor"] as? String == "rotated-panel")
+                                // The plate is its own element below all lettering, with the
+                                // caption's exact box, rotation and clip; the lettering is transparent.
+                                let background = audit["surface"] as? String ?? ""
+                                #expect(background.hasPrefix("rgb("), "\(fixture.id) opaque rotated plate")
+                                #expect(audit["background"] as? String == "rgba(0, 0, 0, 0)")
+                                #expect(audit["plateLinked"] as? Bool == true, "\(fixture.id) plate shares the caption geometry")
+                            }
                             if erased, let floor = (audit["slantedFontFloor"] as? String).flatMap(Double.init),
                                let font = audit["font"] as? Double {
                                 #expect(font >= floor - 0.01, "\(fixture.id) must keep readable text size")
                             }
                         } else {
-                            #expect(audit["background"] as? String != "rgba(0, 0, 0, 0)")
+                            #expect(audit["surface"] as? String != "rgba(0, 0, 0, 0)")
+                            if audit["plateLinked"] != nil { #expect(audit["plateLinked"] as? Bool == true) }
                         }
                         if colors, let contrastValue = audit["sourceContrastAfter"] as? String,
                            let contrast = Double(contrastValue) {

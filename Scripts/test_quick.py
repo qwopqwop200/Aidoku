@@ -22,6 +22,9 @@ def host_commands():
             'source-color-regression',
             'source-color-readability-regression',
             'source-inpainting-regression',
+            'row-end-marks-regression',
+            'connected-lettering-regression',
+            'render-body-sync-regression',
             'column-layout-surface-regression',
         ]
     ]

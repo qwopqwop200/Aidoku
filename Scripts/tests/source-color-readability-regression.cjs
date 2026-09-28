@@ -103,8 +103,15 @@ function treeNode(node) {
     });
     return node;
 }
+// Supports the renderer's attribute selectors, including comma-separated lists.
+function overlayQuery(children, selector) {
+    const kinds = [...selector.matchAll(/data-aidoku-image-ocr-overlay="([^"]+)"/g)].map(match => match[1]);
+    const descendants = list => list.flatMap(child => [child, ...descendants(child.children || [])]);
+    return descendants(children).filter(child => kinds.includes(child.attributes?.['data-aidoku-image-ocr-overlay']));
+}
 function element() {
     return treeNode({ dataset: {}, style: style(), attributes: {}, children: [],
+        querySelectorAll(selector) { return overlayQuery(this.children, selector); },
         setAttribute(name, value) { this.attributes[name] = value; },
         getBoundingClientRect() {
             const left = parseFloat(this.style.left), top = parseFloat(this.style.top);
@@ -125,9 +132,11 @@ vm.runInContext(decodeSwift(helpersMatch[1]) + typography + `
             const x = 20, y = 20, width = 160, height = 60;
             const paddingTop = 0, paddingRight = 0, paddingBottom = 0, paddingLeft = 0;
             const scrollX = 0, scrollY = 0, cleanupImageGeometry = null;
+            const keptItems = [], keptZones = [];
             const inpaintingEnabled = Boolean(appearance?.inpaintingEnabled && appearance?.preserveSourceTextColor && appearance?.preserveSourceBackgroundColor);
             const captionTextReflows = new Map();
             const artworkFirst = false;
+            let artworkSurfaceBudget = 1048576;
             const typographyEntries = [];
             const measurementHost = {remove() {}};
             const mount = {appendChild() {}};
@@ -148,15 +157,11 @@ vm.runInContext(decodeSwift(helpersMatch[1]) + typography + `
 const production = context.production;
 
 function render(overrides = {}) {
-    const node = element(); node.dataset.aidokuRegion = '7';
+    const node = element(); node.dataset.aidokuRegion = '7'; node.textContent = 'translated text';
     const children = [];
     const root = treeNode({ dataset: {}, children,
         appendChild(child) { child.remove?.(); children.push(child); child.parentElement = this; },
-        querySelectorAll(selector) {
-            const kind = selector.match(/data-aidoku-image-ocr-overlay="([^"]+)"/)?.[1];
-            const descendants = list => list.flatMap(child => [child, ...descendants(child.children || [])]);
-            return descendants(children).filter(child => child.attributes['data-aidoku-image-ocr-overlay'] === kind);
-        } });
+        querySelectorAll(selector) { return overlayQuery(children, selector); } });
     node.setAttribute('data-aidoku-image-ocr-overlay', 'item');
     const fixture = {
         node, root, children, fontSize: 16, opacity: .84, restored: false,
@@ -339,7 +344,24 @@ for (const erased of [false, true]) test(`ordinary artwork retains its source pl
  const panel=result.children.find(n=>n.attributes['data-aidoku-image-ocr-overlay']==='source-readability-panel');
  assert.ok(parseFloat(panel.style.height)>270);
 });
+function inkDocument(rect) {
+ return { createElement: element, createRange() { return { selectNodeContents() {}, getBoundingClientRect() { return rect; } }; } };
+}
 test('large source lettering is never left unerased to reduce a caption background', () => {
+ // The caption fills at least an eighth of the source box, so the box is lettering, not illustration.
+ const result=render({
+  item:{id:7,sourceColorEligible:true,sourceTextOnly:false,lightSurface:true,
+   sourceFrame:[0,0,400,300],sourceBounds:[.02,.02,.95,.95]},
+  document:inkDocument({left:100,top:100,right:300,bottom:200,width:200,height:100}),
+  appearance:{inpaintingEnabled:true,preserveSourceTextColor:true,preserveSourceBackgroundColor:true}});
+ const panel=result.children.find(n=>n.attributes['data-aidoku-image-ocr-overlay']==='source-readability-panel');
+ assert.ok(panel);
+ const rect=panel.getBoundingClientRect();
+ assert.ok(rect.width>=380 && rect.height>=285);
+ assert.equal(result.node.dataset.sourceArtworkPreserved,undefined);
+ assert.equal(result.node.dataset.sourceErasurePreserved,undefined);
+});
+test('an unrestored source box eight times the caption keeps the illustration outside the caption', () => {
  const result=render({
   item:{id:7,sourceColorEligible:true,sourceTextOnly:false,lightSurface:true,
    sourceFrame:[0,0,400,300],sourceBounds:[.02,.02,.95,.95]},
@@ -347,8 +369,8 @@ test('large source lettering is never left unerased to reduce a caption backgrou
  const panel=result.children.find(n=>n.attributes['data-aidoku-image-ocr-overlay']==='source-readability-panel');
  assert.ok(panel);
  const rect=panel.getBoundingClientRect();
- assert.ok(rect.width>=380 && rect.height>=285);
- assert.equal(result.node.dataset.sourceArtworkPreserved,undefined);
+ assert.ok(rect.width<=172 && rect.height<=72, `panel shrinks to the caption, got ${rect.width}x${rect.height}`);
+ assert.equal(result.node.dataset.sourceErasurePreserved,'oversized-unrestored');
 });
 for (const text of [false, true]) test(`manual palette keeps the original erasure after column movement: text=${text}`, () => {
  const result=render({item:{id:7,sourceColorEligible:true,lightSurface:true,balancedColumn:true,

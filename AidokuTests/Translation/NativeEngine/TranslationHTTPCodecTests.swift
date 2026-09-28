@@ -125,6 +125,57 @@ struct TranslationHTTPCodecTests {
     }
 
     @Test(arguments: [RemoteTranslationProtocol.responses, .chatCompletions], [false, true])
+    func pageLetteringCopiesBrandLogosAndNoticesOnlyForPageRequests(
+        apiProtocol: RemoteTranslationProtocol, withImage: Bool
+    ) throws {
+        let config = RemoteTranslationConfiguration(provider: .custom, apiProtocol: apiProtocol,
+            baseURL: "https://translator.example", model: "test", credentialAccount: "test")
+        for (filtersSFX, filtersBackground) in [(false, false), (true, false), (false, true), (true, true)] {
+            for page in [true, false] {
+                var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", sourceText: "BURGER MONSTER")
+                request.filtersSFX = filtersSFX ? true : nil
+                request.filtersBackground = filtersBackground ? true : nil
+                request.translatesPageLettering = page ? true : nil
+                if withImage { request.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9]) }
+                let body = try TranslationHTTPCodec.requestBody(configuration: config, request: request)
+                let root = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+                let instructions: String
+                if apiProtocol == .responses {
+                    instructions = try #require(root["instructions"] as? String)
+                } else {
+                    instructions = try #require((root["messages"] as? [[String: Any]])?.first?["content"] as? String)
+                }
+                // Metadata requests (titles, tags, authors) never receive the page-lettering rule.
+                #expect(instructions.contains(TranslationHTTPCodec.nonContentLetteringInstructions) == page)
+                #expect(instructions.contains("Copy only the non-content lettering described above.") == page)
+                #expect(instructions.contains("brand, trademark, product, company, shop or service name") == page)
+                #expect(instructions.contains("SAMPLE, anti-repost/reupload or AI-training notices") == page)
+                #expect(instructions.contains("a series or brand logo drawn as stylised artwork") == page)
+                #expect(instructions.contains("Translate everything else as usual: dialogue, narration, plain titles") == page)
+            }
+        }
+    }
+
+    @Test func pageLetteringPolicyInvalidatesOnlyPageTranslations() throws {
+        let config = RemoteTranslationConfiguration.openAI(model: "test")
+        for page in [true, false] {
+            var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", sourceText: "SAMPLE")
+            request.translatesPageLettering = page ? true : nil
+            let key = TranslationCacheKey(configuration: config, endpoint: try config.validatedEndpoint(), request: request)
+            #expect(key.letteringPolicy == (page ? TranslationHTTPCodec.letteringPolicy : nil))
+            // A key stored before the policy existed decodes without it: page replies miss, metadata still hits.
+            var previous = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(key)) as? [String: Any])
+            previous.removeValue(forKey: "letteringPolicy")
+            let old = try JSONDecoder().decode(TranslationCacheKey.self, from: JSONSerialization.data(withJSONObject: previous))
+            #expect((key != old) == page)
+            // The flag survives canonicalization and the request's own coding.
+            #expect(request.canonicalizedForTranslationSemantics().request.translatesPageLettering == request.translatesPageLettering)
+            let decoded = try JSONDecoder().decode(RemoteTranslationRequest.self, from: JSONEncoder().encode(request))
+            #expect(decoded == request)
+        }
+    }
+
+    @Test(arguments: [RemoteTranslationProtocol.responses, .chatCompletions], [false, true])
     func visualSFXContractRespectsIndependentBackgroundSetting(
         apiProtocol: RemoteTranslationProtocol, filtersBackground: Bool
     ) throws {
@@ -175,6 +226,50 @@ struct TranslationHTTPCodecTests {
             expectedSegmentIDs: ["effect", "dialogue"], sfxSourceTexts: ["effect": source, "dialogue": source])
         #expect(parsed.first { $0.id == "effect" }?.text == source)
         #expect(parsed.first { $0.id == "dialogue" }?.text == translation)
+    }
+
+    @Test(arguments: [
+        ("지금까지 \\uae68닫지 못하고", "지금까지 깨닫지 못하고"),
+        ("\\ub04c어 멈추게 했다", "끌어 멈추게 했다"),
+        ("웃음 \\ud83d\\ude00", "웃음 😀"),
+        ("첫 줄\\n둘째 줄", "첫 줄\n둘째 줄"),
+        ("첫 줄\\r\\n둘째 줄", "첫 줄\n둘째 줄"),
+        ("끝\\n", "끝\n")
+    ])
+    func leakedJSONEscapesAreDecoded(example: (String, String)) {
+        #expect(TranslationHTTPCodec.decodingLeakedEscapes(in: example.0, source: "原文") == example.1)
+    }
+
+    @Test(arguments: [
+        "\\커플/",                  // decorative backslash from the lettering
+        "이걸로 \\ud 털어냈다",       // truncated escape: nothing to recover
+        "경로 C:\\new\\n1 폴더",    // backslash continuing an ASCII word
+        "두 개 \\\\uae68 그대로",    // escaped backslash, not an escape
+        "\\u0041 \\u0007 \\ue000", // ASCII, control and private-use targets
+        "\\ud83d 짝 없는 서로게이트",
+        "\\uzzzz 헥스 아님"
+    ])
+    func legitimateBackslashesAreKept(text: String) {
+        #expect(TranslationHTTPCodec.decodingLeakedEscapes(in: text, source: "原文") == text)
+    }
+
+    @Test func escapesPresentInTheSourceAreKept() {
+        #expect(TranslationHTTPCodec.decodingLeakedEscapes(in: "코드 \\u00e9", source: "コード \\u00e9") == "코드 \\u00e9")
+        #expect(TranslationHTTPCodec.decodingLeakedEscapes(in: "코드 \\u00e9", source: "コード") == "코드 é")
+    }
+
+    @Test func everyServiceResultDecodesLeakedEscapesAgainstItsSource() throws {
+        let request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", segments: [
+            .init(id: "ocr-1", text: "今まで気付かなかった"), .init(id: "ocr-2", text: "パス \\ub04c")
+        ])
+        let canonical = request.canonicalizedForTranslationSemantics()
+        let leaked = [RemoteTranslatedSegment(id: "segment-0", text: "지금까지 \\uae68닫지"),
+                      RemoteTranslatedSegment(id: "segment-1", text: "경로 \\ub04c")]
+        let restored = try canonical.restoringCallerSegmentIDs(in: .init(translations: leaked, source: .diskCache, providerRequestID: nil))
+        #expect(restored.translations.map(\.id) == ["ocr-1", "ocr-2"])
+        #expect(restored.translations.map(\.text) == ["지금까지 깨닫지", "경로 \\ub04c"])
+        let partial = canonical.restoringCallerSegmentIDs(inPartial: [leaked[0]])
+        #expect(partial.map(\.text) == ["지금까지 깨닫지"])
     }
 
     @Test func pageImageEncodingResizesAndProducesJPEG() throws {

@@ -40,7 +40,8 @@ let browser;
   assert.equal(result.accepted,false);
   assert.ok(result.restored&&result.measurementDetached&&result.panelKept,'failed emergency attempts restore full DOM and preserve backing');
   assert.equal(result.readabilityPanels,1);assert.deepEqual(result.dimensions,[90,90,70,40]);
-  assert.equal(result.min,minimum,'last emergency candidate reaches configured minimum');
+  // Emergency lettering stops at the 7pt phone legibility floor (or a higher configured minimum).
+  assert.equal(result.min,Math.max(minimum,7),'last emergency candidate reaches the legibility floor');
   assert.ok(result.probes>0&&result.probes<=120&&result.observed.length<=120,'preferred + emergency probes remain bounded');
   assert.ok(result.balloonTypeBudget>=0,'page budget is preserved');
   console.log(`PASS emergency rollback, minimum=${minimum}, probes=${result.probes}, measured=${result.observed.length}`);

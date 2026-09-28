@@ -66,6 +66,7 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
             cacheKey.imageSupportRevision == expected.cacheKey.imageSupportRevision &&
             cacheKey.sfxPolicy == expected.cacheKey.sfxPolicy &&
             cacheKey.backgroundPolicy == expected.cacheKey.backgroundPolicy &&
+            cacheKey.letteringPolicy == expected.cacheKey.letteringPolicy &&
             cacheKey.version == expected.cacheKey.version &&
             cacheKey.provider == expected.cacheKey.provider &&
             cacheKey.apiProtocol == expected.cacheKey.apiProtocol &&
@@ -91,6 +92,7 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
             cacheKey.imageSupportRevision == expected.cacheKey.imageSupportRevision &&
             cacheKey.sfxPolicy == expected.cacheKey.sfxPolicy &&
             cacheKey.backgroundPolicy == expected.cacheKey.backgroundPolicy &&
+            cacheKey.letteringPolicy == expected.cacheKey.letteringPolicy &&
             cacheKey.version == expected.cacheKey.version &&
             cacheKey.provider == expected.cacheKey.provider &&
             cacheKey.apiProtocol == expected.cacheKey.apiProtocol &&
@@ -154,7 +156,9 @@ enum NativeProgressiveTranslationOverlay {
                     (canKeepExisting
                         ? item.translationReuseIdentity
                         : nil),
-                sourcePolygon: item.sourcePolygon, auxiliaryInkRects: item.auxiliaryInkRects, auxiliaryInkPolygons: item.auxiliaryInkPolygons
+                sourcePolygon: item.sourcePolygon, auxiliaryInkRects: item.auxiliaryInkRects, auxiliaryInkPolygons: item.auxiliaryInkPolygons,
+                balloonInterior: item.balloonInterior, unitMemberRects: item.unitMemberRects,
+                keepsSourceLettering: item.keepsSourceLettering, recoveredLine: item.recoveredLine
             )
         }
     }

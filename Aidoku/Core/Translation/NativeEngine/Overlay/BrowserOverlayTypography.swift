@@ -13,6 +13,7 @@ enum BrowserOverlayTypography {
         return min(min(rect.width, rect.height), sqrt(rect.width * rect.height / units))
     }
 
+    // Large functions keep each outermost loop in `(()=>{...})();` (see BrowserOverlayView.renderScript).
     static let script = #"""
     // Opaque caption packing must not use the more aggressive restoration
     // floor: that can merge cards into long, narrowly rewrapped paragraphs.
@@ -20,12 +21,13 @@ enum BrowserOverlayTypography {
       if(!Number.isFinite(original)||original<=0||!Number.isFinite(minimum)||minimum<=0)return null;
       return Math.max(minimum,Math.min(original,8.5),original*.8);
     };
-    // Prefer 6.5pt or 65% of the original type when recovering artwork. A
-    // caption already below 6.5pt can rewrap but never becomes smaller. Every
-    // caller still measures the complete text and honors the user minimum.
+    // Removing a plate or protecting artwork must not trade away legibility:
+    // at phone size 8pt or 75% of the original type is the floor. A caption
+    // already below 8pt can rewrap but never becomes smaller. Every caller
+    // still measures the complete text and honors the user minimum.
     const aidokuRestoredFontFloor = (original, minimum = 5) => {
       if(!Number.isFinite(original)||original<=0||!Number.isFinite(minimum)||minimum<=0)return null;
-      return Math.max(minimum,Math.min(original,6.5),original*.65);
+      return Math.max(minimum,Math.min(original,8),original*.75);
     };
     const aidokuArtworkFontSizes = (font, minimum = 5) => {
       const bound=aidokuRestoredFontFloor(font,minimum);
@@ -48,12 +50,70 @@ enum BrowserOverlayTypography {
       }
       return sizes;
     };
+    // Larger type must not turn a sentence into a stack of one- or two-syllable
+    // lines. Short utterances may stack in a round balloon; longer text is
+    // rejected when lines average under 2.5 characters and get shorter than
+    // the committed layout's lines.
+    const aidokuGrowthKeepsLineLength = (text, originalLines, lines) => {
+      const count=String(text||'').replace(/\s/gu,'').length;
+      if(!count||!Number.isFinite(lines)||lines<1)return false;
+      if(lines<3||count<8)return true;
+      const before=count/Math.max(1,originalLines||1),after=count/lines;
+      return after>=2.5||after>=before;
+    };
+    // Line-flow defects of a measured layout: stranded syllables, punctuation
+    // lines and kinsoku violations outrank mid-word breaks; 0 is clean.
+    const aidokuKoreanFlowRank = profile =>
+      (profile.hangulFragments+profile.punctuationOnly+profile.badStarts.length+profile.badEnds.length)*100+
+        profile.breaks.length;
+    // Narrowest width that keeps the longest word on one line (same letter
+    // spacing correction as the Korean line breaker).
+    const aidokuKoreanWordWidth = (text, size, measure) => {
+      const words=String(text||'').split(/\s+/u).filter(Boolean);
+      if(!words.length||!Number.isFinite(size)||size<=0)return 0;
+      return Math.max(...words.map(word=>measure(word)+Math.max(0,Array.from(word).length-1)*size*(-.012)))+1;
+    };
+    // Condensed Korean width (장평): a caption whose size is bound by the width
+    // of its longest word may set it at 90 % width (a horizontal scale about
+    // the box centre), never narrower.
+    const aidokuCondensedWidth = .9;
+    // Readability floor (CSS px = pt at the phone's page width). Korean type
+    // follows its source at 0.9x the source glyph, but source lettering of a
+    // spread or dense narration can itself be under 9 px at phone width: a
+    // Hangul syllable packs up to ~12 strokes into one em, and below 9 px
+    // (27 device px at 3x) its strokes merge. Such a caption may take this
+    // size, but only on free room its growth search already verifies (its
+    // restored surface or balloon interior, its plate or the flat paper of the
+    // plate's colour), never over art, another caption or another source.
+    const aidokuReadableFontSize = 9;
+    // Harmony and cohort passes never take a lifted caption below this size
+    // (the smallest readable one); the growth itself aims at the floor.
+    const aidokuReadableMinimum = 8.5;
+    // A caption whose source-proportional size (0.9x glyph) is below the floor.
+    const aidokuBelowReadableSource = glyph => Number.isFinite(glyph) && glyph > 0 && glyph * .9 < aidokuReadableFontSize;
+    // Word-bound: the longest word overflows the measure at full width but
+    // fits it condensed. The one test for every condensed path (axis-aligned
+    // plates, rotated plates, slanted restored lettering).
+    const aidokuCondensedWordBound = (longest, available) =>
+      longest > available && longest * aidokuCondensedWidth <= available;
+    // Sizes a condensed caption tries, largest first: at least 1.06x and at
+    // most 1.25x its full-width size, never above its target.
+    const aidokuCondensedSizes = (base, target) => {
+      if(!(base>0)||!(target>0))return [];
+      const sizes=[];
+      for(const gain of [1.25,1.17,1.11,1.06]){
+        const size=Math.floor(Math.min(target,base*gain)*4)/4;
+        if(size>=base*1.06&&!sizes.includes(size))sizes.push(size);
+      }
+      return sizes;
+    };
     // Only a fully restored balloon may try these after the preferred sizes
     // fail. Its caller commits smaller lettering only when the panel is removed.
     const aidokuEmergencyBalloonFontSizes = (font, minimum, preferred) => {
       if(!Number.isFinite(font)||!Number.isFinite(minimum)||minimum<=0||font<=Math.max(6.5,minimum)||!preferred.length)return [];
       const last=preferred[preferred.length-1];
-      return [...new Set([6,5.5,minimum].map(size=>Math.max(minimum,size)))].filter(size=>size<last&&size<font);
+      // Sizes below 7pt are unreadable on a phone; keep the plate instead.
+      return [...new Set([7,minimum].map(size=>Math.max(minimum,size)))].filter(size=>size>=7&&size<last&&size<font);
     };
     // A successful mask may still exclude an unannotated ruby character.
     // Keep the old erasure plate around small surviving ink components near
@@ -239,7 +299,7 @@ enum BrowserOverlayTypography {
     // Packing uses padded cards, which can displace the actual lettering even
     // when its original position is free. Restore only transparent lettering
     // inside an already frozen opaque plate: no resizing or new artwork cover.
-    const aidokuSourceAnchorShift = (ink, source, plate, obstacles) => {
+    const aidokuSourceAnchorShift = (ink, source, plate, obstacles, leavesOverlap = false) => {
       const valid=r=>Array.isArray(r)&&r.length===4&&r.every(Number.isFinite)&&r[2]>0&&r[3]>0;
       if(!valid(ink)||!valid(source)||!valid(plate)||!Array.isArray(obstacles)||
           !obstacles.every(valid))return null;
@@ -269,13 +329,389 @@ enum BrowserOverlayTypography {
         const moved=[ink[0]+x,ink[1]+y,ink[2],ink[3]];
         // Check the whole path as well as the destination, preventing a jump
         // across another dialogue/source even if the far side happens to fit.
+        // With leavesOverlap, lettering which a shared caption cell already
+        // placed over another source may leave it toward its own source: that
+        // overlap must only not grow at the destination.
         const swept=[Math.min(ink[0],moved[0]),Math.min(ink[1],moved[1]),
           ink[2]+Math.abs(x),ink[3]+Math.abs(y)];
-        if(!inside(moved)||obstacles.some(o=>overlap(swept,o)>overlap(ink,o)+tolerance))continue;
+        if(!inside(moved)||obstacles.some(o=>{
+          const current=overlap(ink,o);
+          return leavesOverlap&&current>tolerance?overlap(moved,o)>current+tolerance:overlap(swept,o)>current+tolerance;
+        }))continue;
         const score=distance(x,y);
         if(score<bestDistance-.0001){best={dx:x,dy:y};bestDistance=score;}
       }
       return best;
+    };
+    // Rectangle difference {left,top,right,bottom} minus one rectangle, as at
+    // most four disjoint pieces per input rectangle.
+    const aidokuSubtractRects = (rects, cut) => rects.flatMap(a => {
+      if(Math.min(a.right,cut.right)<=Math.max(a.left,cut.left)||Math.min(a.bottom,cut.bottom)<=Math.max(a.top,cut.top))return [a];
+      const top=Math.max(a.top,cut.top),bottom=Math.min(a.bottom,cut.bottom);
+      return [{...a,bottom:cut.top},{...a,top:cut.bottom},{...a,right:cut.left,top,bottom},{...a,left:cut.right,top,bottom}]
+        .filter(r=>r.right-r.left>0&&r.bottom-r.top>0);
+    });
+    // Page area owned by source lettering that stays visible: each kept box
+    // [x,y,w,h] plus a halo of 15% of its glyph (1-3 px) for glyph edges past
+    // the OCR box, minus the painted captions' source boxes, which those
+    // captions still erase. Pieces under half a pixel are dropped.
+    const aidokuKeptLetteringZones = (kept, painted) => {
+      if(!Array.isArray(kept)||!Array.isArray(painted)||kept.length>256)return [];
+      const valid=r=>Array.isArray(r)&&r.length===4&&r.every(Number.isFinite)&&r[2]>0&&r[3]>0;
+      const cuts=painted.filter(valid).slice(0,512).map(r=>({left:r[0],top:r[1],right:r[0]+r[2],bottom:r[1]+r[3]}));
+      return kept.flatMap(k=>{
+        const r=[k.x,k.y,k.width,k.height];
+        if(!valid(r))return [];
+        const glyph=Number(k.sourceFontSize)>0?Number(k.sourceFontSize):Math.min(r[2],r[3]);
+        const pad=Math.max(1,Math.min(3,glyph*.15));
+        let pieces=[{left:r[0]-pad,top:r[1]-pad,right:r[0]+r[2]+pad,bottom:r[1]+r[3]+pad}];
+        for(const cut of cuts){pieces=aidokuSubtractRects(pieces,cut);if(pieces.length>64)break;}
+        return pieces.filter(p=>p.right-p.left>=.5&&p.bottom-p.top>=.5).map(p=>({...p,id:String(k.id)}));
+      });
+    };
+    // Gloss placement at kept source lettering (titles, sound effects, logos). A gloss is always
+    // attached to its source, like a scanlator's note: centred directly below or directly above the
+    // lettering's ink (a gap of about a fifth of the gloss size, at most half a line), else directly
+    // beside it (right or left, vertically centred; along a tall column also level with its ends).
+    // Below and above compete on the art under them; beside costs more. The block of translated
+    // nodes is tried at every size from `start` down to `minimum`, wrapped at the ink width, the
+    // frame width, the side room, and 1/2 or 1/3 of the ink width; each node takes at most `lines`
+    // lines. A spot must stay in the frame and in the lettering's panel (no frame line between
+    // them), off the `blocked` rects and the lettering's ink, and on flat page. Flatness comes from
+    // one sample grid (about 2 css px per sample) of the page band around the lettering: luminance
+    // steps, the lettering's own fill and the sampled background colour, as prefix sums. Cost: side
+    // + 12x edge share + 6x the relative size loss; a smaller size is tried only while its size
+    // penalty stays below the best cost. Returns {cost,size,width,lh,moves,edge,rank,side,gap,ink} or null.
+    const aidokuGlossPlacer = ({frame:f,band,fill,ground,image:glossImage,reasons}) => {
+      let grid;
+      const intersects=(a,b)=>a.left-3<b.right&&a.right+3>b.left&&a.top-3<b.bottom&&a.bottom+3>b.top;
+      const sampleGrid=()=>{
+        if(grid!==undefined)return grid;grid=null;
+        if(!glossImage?.complete||!(glossImage.naturalWidth>0))return grid;
+        const reach=26*1.2*3+40,top=Math.max(f[1],band.top-reach),bottom=Math.min(f[1]+f[3],band.bottom+reach);
+        const k=Math.max(2,f[2]/200,(bottom-top)/400),gw=Math.max(2,Math.round(f[2]/k)),gh=Math.max(2,Math.round((bottom-top)/k));
+        const canvas=document.createElement('canvas'),context=canvas.getContext?.('2d',{willReadFrequently:true});
+        if(!context)return grid;
+        canvas.width=gw;canvas.height=gh;
+        let data;
+        try {
+          context.drawImage(glossImage,0,(top-f[1])/f[3]*glossImage.naturalHeight,glossImage.naturalWidth,(bottom-top)/f[3]*glossImage.naturalHeight,0,0,gw,gh);
+          data=context.getImageData(0,0,gw,gh).data;
+        } catch(_){return grid;}
+        const lum=new Float32Array(gw*gh),W=gw+1,sum=()=>new Int32Array(W*(gh+1));
+        const edges=sum(),pairs=sum(),own=sum(),paper=sum(),rows=new Int32Array(W*gh),columns=new Int32Array((gh+1)*gw);
+        for(let i=0;i<gw*gh;i++){const p=i*4;lum[i]=data[p]*.299+data[p+1]*.587+data[p+2]*.114;}
+        for(let y=0;y<gh;y++)for(let x=0;x<gw;x++){
+          const i=y*gw+x,p=i*4,step=x+1<gw&&Math.abs(lum[i]-lum[i+1])>32?1:0,drop=y+1<gh&&Math.abs(lum[i]-lum[i+gw])>32?1:0;
+          const o=Math.max(Math.abs(data[p]-fill[0]),Math.abs(data[p+1]-fill[1]),Math.abs(data[p+2]-fill[2]))<=24?1:0;
+          const a=ground&&Math.max(Math.abs(data[p]-ground[0]),Math.abs(data[p+1]-ground[1]),Math.abs(data[p+2]-ground[2]))<=64?1:0;
+          const j=(y+1)*W+x+1;
+          edges[j]=step+drop+edges[j-1]+edges[j-W]-edges[j-W-1];
+          pairs[j]=(x+1<gw?1:0)+(y+1<gh?1:0)+pairs[j-1]+pairs[j-W]-pairs[j-W-1];
+          own[j]=o+own[j-1]+own[j-W]-own[j-W-1];paper[j]=a+paper[j-1]+paper[j-W]-paper[j-W-1];
+          rows[y*W+x+1]=rows[y*W+x]+drop;columns[x*(gh+1)+y+1]=columns[x*(gh+1)+y]+step;
+        }
+        const area=(t,x0,y0,x1,y1)=>t[y1*W+x1]-t[y0*W+x1]-t[y1*W+x0]+t[y0*W+x0];
+        grid={k,top,gw,gh,area,edges,pairs,own,paper,rows,columns,W};
+        return grid;
+      };
+      const underneath=(r,inset=0)=>{
+        const g=sampleGrid();
+        if(!g)return {rule:0,edge:0,edgeMax:0,own:0,paper:1};
+        reasons.reads++;
+        const x0=Math.max(0,Math.floor((r.left-f[0])/g.k)),x1=Math.min(g.gw,Math.ceil((r.right-f[0])/g.k));
+        const y0=Math.max(0,Math.floor((r.top-g.top)/g.k)),y1=Math.min(g.gh,Math.ceil((r.bottom-g.top)/g.k));
+        if(x1-x0<2||y1-y0<2)return {rule:1,edge:1,edgeMax:1,own:1,paper:0};
+        // Square cells (one line tall): a spot is judged by its worst cell, so a glyph
+        // stem or a face at one end is not averaged away by flat surface elsewhere.
+        const cell=Math.max(2,y1-y0);let edgeMax=0,own=0,paper=1;
+        for(let c=x0;c<x1;c+=cell){
+          const c1=Math.min(x1,c+cell),n=(c1-c)*(y1-y0),p=g.area(g.pairs,c,y0,c1,y1);
+          edgeMax=Math.max(edgeMax,p?g.area(g.edges,c,y0,c1,y1)/p:0);
+          own=Math.max(own,g.area(g.own,c,y0,c1,y1)/n);paper=Math.min(paper,g.area(g.paper,c,y0,c1,y1)/n);
+        }
+        // A frame line or panel border: one row (column) with steps along most of its length.
+        // Only lines through the text itself count; the clearance margin may touch one.
+        const iy=Math.round(inset/g.k)+1,ix=iy;let rule=0;
+        for(let y=y0+iy;y<y1-iy-1;y++)rule=Math.max(rule,(g.rows[y*g.W+x1]-g.rows[y*g.W+x0])/(x1-x0));
+        for(let x=x0+ix;x<x1-ix-1;x++)rule=Math.max(rule,(g.columns[x*(g.gh+1)+y1]-g.columns[x*(g.gh+1)+y0])/(y1-y0));
+        const p=g.area(g.pairs,x0,y0,x1,y1);
+        return {rule,edge:p?g.area(g.edges,x0,y0,x1,y1)/p:0,edgeMax,own,paper};
+      };
+      // A frame line or panel border between the lettering and a spot: a row (column) with steps along
+      // 80 % of a band 1.5x the lettering's width (height), from the spot to the lettering's middle.
+      // Lettering strokes stay inside their box, so they cover at most two thirds of the band; the box
+      // itself may reach over a border into the next panel.
+      const divided=(r,wide)=>{
+        const g=sampleGrid();
+        if(!g)return false;
+        const x0=Math.max(0,Math.floor((r.left-f[0])/g.k)),x1=Math.min(g.gw,Math.ceil((r.right-f[0])/g.k));
+        const y0=Math.max(0,Math.floor((r.top-g.top)/g.k)),y1=Math.min(g.gh,Math.ceil((r.bottom-g.top)/g.k));
+        if(x1-x0<2||y1-y0<2)return false;
+        if(wide)for(let y=y0;y<y1;y++)if(g.rows[y*g.W+x1]-g.rows[y*g.W+x0]>(x1-x0)*.8)return true;
+        if(!wide)for(let x=x0;x<x1;x++)if(g.columns[x*(g.gh+1)+y1]-g.columns[x*(g.gh+1)+y0]>(y1-y0)*.8)return true;
+        return false;
+      };
+      // The lettering's ink box: the rows and columns of the OCR box that hold its fill (only when the
+      // fill stands out from the page ground; else the OCR box). OCR boxes carry padding, so a gloss
+      // measured from the ink sits closer; ink past the box is caught by the spot's fill test below.
+      const figure=Boolean(ground)&&Math.max(...fill.map((v,k)=>Math.abs(v-ground[k])))>48;
+      const inkOf=s=>{
+        const g=figure?sampleGrid():null;
+        if(!g)return s;
+        const toX=x=>Math.max(0,Math.min(g.gw,Math.round((x-f[0])/g.k))),toY=y=>Math.max(0,Math.min(g.gh,Math.round((y-g.top)/g.k)));
+        const bx0=toX(s.left),bx1=toX(s.right),by0=toY(s.top),by1=toY(s.bottom);
+        if(bx1-bx0<3||by1-by0<3||g.area(g.own,bx0,by0,bx1,by1)<(bx1-bx0)*(by1-by0)*.03)return s;
+        const row=y=>g.area(g.own,bx0,y,bx1,y+1)>=Math.max(2,(bx1-bx0)*.08);
+        let top=by0,bottom=by1-1;
+        while(top<bottom&&!row(top))top++;
+        while(bottom>top&&!row(bottom))bottom--;
+        const column=x=>g.area(g.own,x,top,x+1,bottom+1)>=Math.max(2,(bottom+1-top)*.08);
+        let left=bx0,right=bx1-1;
+        while(left<right&&!column(left))left++;
+        while(right>left&&!column(right))right--;
+        // A partial fill match (a two-tone effect) must not shrink the box to one of its parts.
+        const ink={left:Math.max(s.left,f[0]+left*g.k),right:Math.min(s.right,f[0]+(right+1)*g.k),
+          top:Math.max(s.top,g.top+top*g.k),bottom:Math.min(s.bottom,g.top+(bottom+1)*g.k)};
+        if(ink.right-ink.left<(s.right-s.left)*.5){ink.left=s.left;ink.right=s.right;}
+        if(ink.bottom-ink.top<(s.bottom-s.top)*.5){ink.top=s.top;ink.bottom=s.bottom;}
+        return ink;
+      };
+      const search=(s,blocked,nodes,before,{start,minimum,lines=2,texture=false})=>{
+        // An unsampled page cannot prove a spot flat: no gloss rather than one over the art.
+        if(!sampleGrid())return null;
+        const ink=inkOf(s),inside=r=>r.left<ink.right&&r.right>ink.left&&r.top<ink.bottom&&r.bottom>ink.top,frameWidth=f[2]-8;
+        const sourceWidth=Math.min(ink.right-ink.left,frameWidth),sideWidth=Math.max(ink.left-f[0]-8,f[0]+f[2]-ink.right-8);
+        const cx=(ink.left+ink.right)/2,cy=(ink.top+ink.bottom)/2;
+        let placed=null;
+        // With `texture`, a lettering set on even texture (hatching, screentone) with no flat spot next to
+        // it takes a note of at least 11 px on the texture itself (up to twice the edge share); its
+        // heavier outline keeps it readable, and it hides far less art than a plate would.
+        const pass=relaxed=>{(()=>{for(let size=relaxed?Math.max(start,11):start,floor=relaxed?Math.max(minimum,11):minimum;
+          size>=floor;size=size>floor?Math.max(floor,Math.round(size*.9*4)/4):0){
+          const lh=Math.round(size*1.2*100)/100;
+          for(const width of [...new Set([sourceWidth,frameWidth,sideWidth,sourceWidth/2,sourceWidth/3].map(Math.round))].filter(w=>w>=size*4)){
+            const texts=nodes.map(n=>{
+              Object.assign(n.style,{fontSize:`${size}px`,lineHeight:`${lh}px`,width:`${width}px`,height:`${Math.ceil(lh*3)}px`,textAlign:'center'});
+              const r=document.createRange();r.selectNodeContents(n);return r.getBoundingClientRect();
+            });
+            if(texts.some(t=>t.height>lh*(lines+.6)||t.width>width+1))continue;
+            const tw=Math.max(...texts.map(t=>t.width)),th=texts.reduce((sum,t)=>sum+t.height,0),spots=[];
+            // A small gap (about a fifth of the size), else at most half a line.
+            const near=Math.max(2,Math.round(size*.22*4)/4),far=Math.max(near,Math.round(lh*.5*4)/4);
+            for(const [gap,extra] of [[near,0],[far,.5]]){
+              if(extra&&far<=near)continue;
+              spots.push({rank:0,side:'below',gap,cost:extra,left:cx-tw/2,top:ink.bottom+gap});
+              spots.push({rank:1,side:'above',gap,cost:.25+extra,left:cx-tw/2,top:ink.top-gap-th});
+              spots.push({rank:2,side:'right',gap,cost:2+extra,left:ink.right+gap,top:cy-th/2,beside:true});
+              spots.push({rank:2,side:'left',gap,cost:2.25+extra,left:ink.left-gap-tw,top:cy-th/2,beside:true});
+              // Alongside a tall column, level with its top or bottom end.
+              if(ink.bottom-ink.top>=th*2)for(const [side,left] of [['right',ink.right+gap],['left',ink.left-gap-tw]])
+                for(const top of [ink.top,ink.bottom-th])spots.push({rank:3,side,gap,cost:2.5+extra,left,top,beside:true});
+            }
+            for(const spot of spots){
+              // Centred on the ink; the frame may push a block below or above by a quarter of its width.
+              const left=spot.beside?spot.left:Math.max(f[0]+4,Math.min(f[0]+f[2]-4-tw,spot.left)),top=spot.top;
+              const next={left,right:left+tw,top,bottom:top+th};
+              if(next.top<f[1]+4||next.bottom>f[1]+f[3]-4||next.left<f[0]+4||next.right>f[0]+f[2]-4||
+                 Math.abs(left-spot.left)>tw*.25+1){reasons.frame++;continue;}
+              if(inside(next)){reasons.source++;continue;}
+              if(blocked.some(r=>intersects(next,r))){reasons.blocked++;continue;}
+              // The clearance margin never reaches back into the lettering it is attached to.
+              const m=Math.max(3,size*.2),pad={left:next.left-m,right:next.right+m,top:next.top-m,bottom:next.bottom+m};
+              if(spot.side==='below')pad.top=Math.max(pad.top,ink.bottom+1);
+              if(spot.side==='above')pad.bottom=Math.min(pad.bottom,ink.top-1);
+              if(spot.beside&&spot.side==='right')pad.left=Math.max(pad.left,ink.right+1);
+              if(spot.beside&&spot.side==='left')pad.right=Math.min(pad.right,ink.left-1);
+              const under=underneath(pad,m);
+              // Over art or lettering (dense edges), a rule through the text, or the lettering's own fill
+              // (when that fill differs from the page ground).
+              if(under.edge>(relaxed?.32:.16)||under.edgeMax>(relaxed?.5:.3)||under.rule>.6||figure&&under.own>.2){reasons.edge++;continue;}
+              // The spot stays in the lettering's panel: no frame line in the gap between them.
+              const w=ink.right-ink.left,h=ink.bottom-ink.top,wide=!spot.beside;
+              const between=wide?{left:ink.left-w*.25,right:ink.right+w*.25,top:Math.min(next.top,ink.top+h*.5),bottom:Math.max(next.bottom,ink.top+h*.5)}:
+                {left:Math.min(next.left,ink.left+w*.5),right:Math.max(next.right,ink.left+w*.5),top:ink.top-h*.25,bottom:ink.bottom+h*.25};
+              if(divided(between,wide)){reasons.panel=(reasons.panel||0)+1;continue;}
+              const cost=spot.cost+under.edge*12+(start-size)/start*6+(relaxed?3:0);
+              if(!placed||cost<placed.cost){
+                // Lines stack in source order, each centred in the block.
+                let y=top;const order=before?[1,0]:[0,1],moves=[];
+                for(const k of order.filter(k=>k<texts.length)){
+                  moves[k]={dx:left+(tw-texts[k].width)/2-texts[k].left,dy:y-texts[k].top};y+=texts[k].height;
+                }
+                placed={cost,size,width,lh,moves,edge:under.edge,rank:spot.rank,side:spot.side,gap:spot.gap,ink,texture:relaxed};
+              }
+            }
+          }
+          // Smaller sizes only pay off while their size penalty is below the best cost.
+          if(placed&&(start-size)/start*6>=placed.cost)break;
+        }})();};
+        pass(false);
+        if(!placed&&texture)pass(true);
+        return placed;
+      };
+      // Tilted lettering (see searchTilted): a frame {cx,cy,angle,hw,hh} is the lettering's box in its own
+      // axes (u along its baseline, v along its local down), centred on (cx,cy). `at` maps local to page.
+      const at=(q,u,v)=>{const c=Math.cos(q.angle),n=Math.sin(q.angle);return [q.cx+u*c-v*n,q.cy+u*n+v*c];};
+      const cornersOf=(q,r)=>[[r.u0,r.v0],[r.u1,r.v0],[r.u1,r.v1],[r.u0,r.v1]].map(([u,v])=>at(q,u,v));
+      // Separating axes: an oriented block (page corners) against an axis-aligned rect grown by 3 px.
+      const meets=(corners,b,q)=>{
+        const xs=corners.map(p=>p[0]),ys=corners.map(p=>p[1]);
+        if(Math.max(...xs)<=b.left-3||Math.min(...xs)>=b.right+3||Math.max(...ys)<=b.top-3||Math.min(...ys)>=b.bottom+3)return false;
+        const c=Math.cos(q.angle),n=Math.sin(q.angle),box=[[b.left-3,b.top-3],[b.right+3,b.top-3],[b.right+3,b.bottom+3],[b.left-3,b.bottom+3]];
+        for(const [ax,ay] of [[c,n],[-n,c]]){
+          const a=corners.map(p=>p[0]*ax+p[1]*ay),d=box.map(p=>p[0]*ax+p[1]*ay);
+          if(Math.max(...a)<=Math.min(...d)||Math.max(...d)<=Math.min(...a))return false;
+        }
+        return true;
+      };
+      // Page samples (grid cells) of a local rect, one per grid step: [x, y] grid indices, or null off the grid.
+      const samplesOf=(q,r,g)=>{
+        const out=[];
+        for(let v=r.v0+g.k/2;v<r.v1;v+=g.k)for(let u=r.u0+g.k/2;u<r.u1;u+=g.k){
+          const [px,py]=at(q,u,v),x=Math.floor((px-f[0])/g.k),y=Math.floor((py-g.top)/g.k);
+          out.push(x<0||y<0||x>=g.gw||y>=g.gh?null:[x,y,u,v]);
+        }
+        return out;
+      };
+      const cellOf=(g,t,x,y)=>g.area(t,x,y,x+1,y+1);
+      // `underneath` for an oriented block: the same measures over the samples of the rotated rect.
+      const underneathTilted=(q,r,inset)=>{
+        const g=sampleGrid();
+        if(!g)return {rule:0,edge:0,edgeMax:0,own:0,paper:1};
+        reasons.reads++;
+        const list=samplesOf(q,r,g);
+        if(!list.length||list.some(p=>!p))return {rule:1,edge:1,edgeMax:1,own:1,paper:0};
+        const cell=Math.max(2*g.k,r.v1-r.v0),cells=new Map(),rows=new Map(),columns=new Map();
+        let e=0,p=0,edgeMax=0,own=0,paper=1;
+        for(const [x,y,u,v] of list){
+          const ce=cellOf(g,g.edges,x,y),cp=cellOf(g,g.pairs,x,y);e+=ce;p+=cp;
+          const key=Math.floor((u-r.u0)/cell),c=cells.get(key)||{e:0,p:0,o:0,a:0,n:0};
+          c.e+=ce;c.p+=cp;c.o+=cellOf(g,g.own,x,y);c.a+=cellOf(g,g.paper,x,y);c.n++;cells.set(key,c);
+          if(u>r.u0+inset+g.k&&u<r.u1-inset-g.k&&v>r.v0+inset+g.k&&v<r.v1-inset-g.k){
+            const rw=rows.get(y)||[0,0],cl=columns.get(x)||[0,0];
+            rw[0]++;rw[1]+=g.rows[y*g.W+x+1]-g.rows[y*g.W+x];rows.set(y,rw);
+            cl[0]++;cl[1]+=g.columns[x*(g.gh+1)+y+1]-g.columns[x*(g.gh+1)+y];columns.set(x,cl);
+          }
+        }
+        for(const c of cells.values()){edgeMax=Math.max(edgeMax,c.p?c.e/c.p:0);own=Math.max(own,c.o/c.n);paper=Math.min(paper,c.a/c.n);}
+        // A rule is a long line: only page rows (columns) holding at least 60 % of the longest run count.
+        let rule=0;
+        for(const lines of [rows,columns]){
+          const longest=Math.max(0,...[...lines.values()].map(l=>l[0]));
+          for(const [n,d] of lines.values())if(n>=Math.max(4,longest*.6))rule=Math.max(rule,d/n);
+        }
+        return {rule,edge:p?e/p:0,edgeMax,own,paper};
+      };
+      // `divided` for a local band: a page row (column) whose samples in the band nearly all step.
+      const dividedTilted=(q,r,wide)=>{
+        const g=sampleGrid();
+        if(!g)return false;
+        const lines=new Map();
+        for(const s of samplesOf(q,r,g)){
+          if(!s)continue;
+          const [x,y]=s,key=wide?y:x,l=lines.get(key)||[0,0];l[0]++;
+          l[1]+=wide?g.rows[y*g.W+x+1]-g.rows[y*g.W+x]:g.columns[x*(g.gh+1)+y+1]-g.columns[x*(g.gh+1)+y];lines.set(key,l);
+        }
+        const longest=Math.max(0,...[...lines.values()].map(l=>l[0]));
+        for(const [n,d] of lines.values())if(n>=Math.max(6,longest*.6)&&d>n*.8)return true;
+        return false;
+      };
+      // The ink box in local axes: the rows and columns (along u, v) of the frame that hold the fill.
+      const inkOfTilted=q=>{
+        const r={u0:-q.hw,u1:q.hw,v0:-q.hh,v1:q.hh},g=figure?sampleGrid():null;
+        if(!g)return r;
+        const nu=Math.max(1,Math.ceil(q.hw*2/g.k)),nv=Math.max(1,Math.ceil(q.hh*2/g.k)),hu=new Array(nu).fill(0),hv=new Array(nv).fill(0);
+        let total=0;
+        for(const s of samplesOf(q,r,g)){
+          if(!s||!cellOf(g,g.own,s[0],s[1]))continue;
+          const iu=Math.min(nu-1,Math.floor((s[2]-r.u0)/g.k)),iv=Math.min(nv-1,Math.floor((s[3]-r.v0)/g.k));hu[iu]++;hv[iv]++;total++;
+        }
+        if(nu<3||nv<3||total<nu*nv*.03)return r;
+        let a=0,b=nv-1,c=0,d=nu-1;
+        while(a<b&&hv[a]<Math.max(2,nu*.08))a++;
+        while(b>a&&hv[b]<Math.max(2,nu*.08))b--;
+        while(c<d&&hu[c]<Math.max(2,nv*.08))c++;
+        while(d>c&&hu[d]<Math.max(2,nv*.08))d--;
+        const ink={u0:r.u0+c*g.k,u1:Math.min(r.u1,r.u0+(d+1)*g.k),v0:r.v0+a*g.k,v1:Math.min(r.v1,r.v0+(b+1)*g.k)};
+        if(ink.u1-ink.u0<(r.u1-r.u0)*.5){ink.u0=r.u0;ink.u1=r.u1;}
+        if(ink.v1-ink.v0<(r.v1-r.v0)*.5){ink.v0=r.v0;ink.v1=r.v1;}
+        return ink;
+      };
+      // Attached placement for tilted lettering (the note turns with it): below, above and beside are
+      // taken along the lettering's own axes, centred on its ink, with the same gaps and costs as
+      // `search`. Every test uses the rotated block: frame corners, separating axes against blocked
+      // rects, and samples of the rotated rect for art, rules, fill and frame lines between them.
+      const searchTilted=(q,blocked,nodes,before,{start,minimum,lines=2,texture=false})=>{
+        // An unsampled page cannot prove a spot flat: no gloss rather than one over the art.
+        if(!sampleGrid())return null;
+        const ink=inkOfTilted(q),frameWidth=f[2]-8,sourceWidth=Math.min(ink.u1-ink.u0,frameWidth);
+        const mu=(ink.u0+ink.u1)/2,mv=(ink.v0+ink.v1)/2;
+        let placed=null;
+        const pass=relaxed=>{(()=>{for(let size=relaxed?Math.max(start,11):start,floor=relaxed?Math.max(minimum,11):minimum;
+          size>=floor;size=size>floor?Math.max(floor,Math.round(size*.9*4)/4):0){
+          const lh=Math.round(size*1.2*100)/100;
+          for(const width of [...new Set([sourceWidth,frameWidth*.75,sourceWidth/2,sourceWidth/3].map(Math.round))].filter(w=>w>=size*4)){
+            const texts=nodes.map(n=>{
+              Object.assign(n.style,{fontSize:`${size}px`,lineHeight:`${lh}px`,width:`${width}px`,height:`${Math.ceil(lh*3)}px`,textAlign:'center'});
+              const r=document.createRange();r.selectNodeContents(n);return r.getBoundingClientRect();
+            });
+            if(texts.some(t=>t.height>lh*(lines+.6)||t.width>width+1))continue;
+            const tw=Math.max(...texts.map(t=>t.width)),th=texts.reduce((sum,t)=>sum+t.height,0),spots=[];
+            const near=Math.max(2,Math.round(size*.22*4)/4),far=Math.max(near,Math.round(lh*.5*4)/4);
+            for(const [gap,extra] of [[near,0],[far,.5]]){
+              if(extra&&far<=near)continue;
+              spots.push({rank:0,side:'below',gap,cost:extra,u:mu,v:ink.v1+gap+th/2});
+              spots.push({rank:1,side:'above',gap,cost:.25+extra,u:mu,v:ink.v0-gap-th/2});
+              spots.push({rank:2,side:'right',gap,cost:2+extra,u:ink.u1+gap+tw/2,v:mv,beside:true});
+              spots.push({rank:2,side:'left',gap,cost:2.25+extra,u:ink.u0-gap-tw/2,v:mv,beside:true});
+              if(ink.v1-ink.v0>=th*2)for(const [side,u] of [['right',ink.u1+gap+tw/2],['left',ink.u0-gap-tw/2]])
+                for(const v of [ink.v0+th/2,ink.v1-th/2])spots.push({rank:3,side,gap,cost:2.5+extra,u,v,beside:true});
+            }
+            for(const spot of spots){
+              const r={u0:spot.u-tw/2,u1:spot.u+tw/2,v0:spot.v-th/2,v1:spot.v+th/2},corners=cornersOf(q,r);
+              if(corners.some(([x,y])=>x<f[0]+4||x>f[0]+f[2]-4||y<f[1]+4||y>f[1]+f[3]-4)){reasons.frame++;continue;}
+              if(blocked.some(b=>meets(corners,b,q))){reasons.blocked++;continue;}
+              const m=Math.max(3,size*.2),pad={u0:r.u0-m,u1:r.u1+m,v0:r.v0-m,v1:r.v1+m};
+              if(spot.side==='below')pad.v0=Math.max(pad.v0,ink.v1+1);
+              if(spot.side==='above')pad.v1=Math.min(pad.v1,ink.v0-1);
+              if(spot.beside&&spot.side==='right')pad.u0=Math.max(pad.u0,ink.u1+1);
+              if(spot.beside&&spot.side==='left')pad.u1=Math.min(pad.u1,ink.u0-1);
+              const under=underneathTilted(q,pad,m);
+              if(under.edge>(relaxed?.32:.16)||under.edgeMax>(relaxed?.5:.3)||under.rule>.6||figure&&under.own>.2){reasons.edge++;continue;}
+              const w=ink.u1-ink.u0,h=ink.v1-ink.v0,wide=!spot.beside;
+              const between=wide?{u0:ink.u0-w*.25,u1:ink.u1+w*.25,v0:Math.min(r.v0,mv),v1:Math.max(r.v1,mv)}:
+                {u0:Math.min(r.u0,mu),u1:Math.max(r.u1,mu),v0:ink.v0-h*.25,v1:ink.v1+h*.25};
+              // Beside: also no frame line across the note's own rows between the ink and the note's far edge
+              // (a border running past lettering that is cut by the page edge).
+              const gapBand=spot.side==='right'?{u0:ink.u1,u1:r.u1,v0:r.v0,v1:r.v1}:{u0:r.u0,u1:ink.u0,v0:r.v0,v1:r.v1};
+              if(dividedTilted(q,between,wide)||spot.beside&&dividedTilted(q,gapBand,false)){reasons.panel=(reasons.panel||0)+1;continue;}
+              const cost=spot.cost+under.edge*12+(start-size)/start*6+(relaxed?3:0);
+              if(!placed||cost<placed.cost){
+                // The block is set upright around its centre, then turned about it (see `transform`).
+                const [cx,cy]=at(q,spot.u,spot.v);let y=cy-th/2;const order=before?[1,0]:[0,1],moves=[];
+                for(const k of order.filter(k=>k<texts.length)){
+                  moves[k]={dx:cx-tw/2+(tw-texts[k].width)/2-texts[k].left,dy:y-texts[k].top};y+=texts[k].height;
+                }
+                placed={cost,size,width,lh,moves,edge:under.edge,rank:spot.rank,side:spot.side,gap:spot.gap,texture:relaxed,
+                  angle:q.angle,center:[cx,cy],block:[tw,th]};
+              }
+            }
+          }
+          if(placed&&(start-size)/start*6>=placed.cost)break;
+        }})();};
+        pass(false);
+        if(!placed&&texture)pass(true);
+        return placed;
+      };
+      return {search,searchTilted,underneath,divided,inkOf,setBand:next=>{band=next;grid=undefined;}};
+    };
+    // Turns a placed gloss node with its lettering: rotation about the text block's centre.
+    const aidokuTurnGloss = (node, placed) => {
+      if (!placed?.angle) return;
+      const left = parseFloat(node.style.left) - scrollX, top = parseFloat(node.style.top) - scrollY;
+      node.style.transformOrigin = `${placed.center[0] - left}px ${placed.center[1] - top}px`;
+      node.style.transform = `rotate(${placed.angle}rad)`;
     };
     // Complete-link clusters cannot bridge two distinct styles through a chain
     // of intermediate samples. Sorting also makes them independent of OCR order.
@@ -303,6 +739,135 @@ enum BrowserOverlayTypography {
           const sourceSizes=group.map(e=>e.source).sort((a,b)=>a-b);
           const readable=Math.min(sourceSizes[Math.floor(sourceSizes.length/2)]*.9,median*1.15,10.5);
           return {members:group,font:Math.round(Math.max(median,readable)*4)/4};
+        });
+    };
+    // One target per clustered caption. Kept source lettering (entries with
+    // the same fields, font = the size a caption of its source would take)
+    // joins the clusters too, so keeping a watermark or logo does not re-form
+    // the clusters of other captions; it only ever raises the target of a
+    // caption `raisable` accepts, never lowers one, and receives none itself.
+    // Without kept lettering the targets are exactly aidokuFontClusters'.
+    const aidokuFontClusterTargets = (entries, kept = [], raisable = () => true) => {
+      const targets=new Map();
+      for(const group of aidokuFontClusters(entries))for(const entry of group.members)targets.set(entry,group.font);
+      if(!Array.isArray(kept)||!kept.length)return targets;
+      for(const group of aidokuFontClusters([...entries,...kept.map(k=>({...k,kept:true}))])){
+        if(!group.members.some(entry=>entry.kept))continue;
+        for(const entry of group.members){
+          if(entry.kept||!raisable(entry))continue;
+          const own=targets.get(entry);
+          if(own===undefined?group.font>entry.font:group.font>own)targets.set(entry,group.font);
+        }
+      }
+      return targets;
+    };
+    // Same-row and same-column captions: source boxes of one lettering style
+    // (script, orientation, style key, glyph size within 1.25x) that sit side by side on a
+    // shared line, or stack on a shared column edge with a small gap. Groups
+    // never span more than 1.3x in glyph size. Links record the axis they
+    // share ('y': one line, 'x': one column) and the aligned edge (0 start,
+    // .5 centre, 1 end), or edge null when only the size is shared.
+    const aidokuAlignedGroups = boxes => {
+      if(!Array.isArray(boxes)||boxes.length<2||boxes.length>256)return [];
+      const valid=b=>b&&[b.x,b.y,b.w,b.h,b.glyph].every(Number.isFinite)&&b.w>0&&b.h>0&&b.glyph>0;
+      const parent=boxes.map((_,i)=>i),low=boxes.map(b=>b?.glyph),high=boxes.map(b=>b?.glyph),links=[];
+      const find=i=>parent[i]===i?i:(parent[i]=find(parent[i]));
+      const edge=(a,b,axis,tolerance)=>{
+        const [p,s]=axis==='x'?['x','w']:['y','h'];
+        const best=[.5,0,1].map(e=>[Math.abs(a[p]+e*a[s]-b[p]-e*b[s]),e]).sort((u,v)=>u[0]-v[0])[0];
+        return best[0]<=tolerance?best[1]:null;
+      };
+      for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){
+        const a=boxes[i],b=boxes[j];
+        if(!valid(a)||!valid(b)||a.script!==b.script||Boolean(a.vertical)!==Boolean(b.vertical)||(a.style||'')!==(b.style||''))continue;
+        const small=Math.min(a.glyph,b.glyph),large=Math.max(a.glyph,b.glyph);
+        if(large/small>1.25)continue;
+        const xOverlap=Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x),yOverlap=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y);
+        const tolerance=Math.max(2,small*.25);
+        let link=null;
+        const nested=Math.max(0,xOverlap)*Math.max(0,yOverlap)>=.5*Math.min(a.w*a.h,b.w*b.h);
+        // An OCR fragment inside or across another box of the same style is
+        // a split line of one sentence: it shares the size only.
+        if(nested)link={axis:a.vertical?'x':'y',edge:null,gap:0};
+        else if(!a.vertical){
+          if(yOverlap>=.6*Math.min(a.h,b.h)&&-xOverlap>=-.25*small&&-xOverlap<=6*large)
+            link={axis:'y',edge:edge(a,b,'y',tolerance),gap:-xOverlap};
+          else if(xOverlap>=.5*Math.min(a.w,b.w)&&-yOverlap>=-.25*small&&-yOverlap<=2*large){
+            const e=edge(a,b,'x',tolerance);if(e!==null)link={axis:'x',edge:e,gap:-yOverlap};
+          }
+        } else if(xOverlap>=.6*Math.min(a.w,b.w)&&-yOverlap>=-.25*small&&-yOverlap<=3*large)
+          link={axis:'x',edge:edge(a,b,'x',tolerance)===.5?.5:null,gap:-yOverlap};
+        else if(yOverlap>=.5*Math.min(a.h,b.h)&&-xOverlap>=-.25*small&&-xOverlap<=2*large&&edge(a,b,'y',tolerance)!==null)
+          link={axis:'y',edge:null,gap:-xOverlap};
+        if(link)links.push({a:i,b:j,...link});
+      }
+      links.sort((u,v)=>u.gap-v.gap||u.a-v.a||u.b-v.b);
+      for(const link of links){
+        const ra=find(link.a),rb=find(link.b);
+        if(ra===rb)continue;
+        const lo=Math.min(low[ra],low[rb]),hi=Math.max(high[ra],high[rb]);
+        if(hi/lo>1.3)continue;
+        parent[rb]=ra;low[ra]=lo;high[ra]=hi;
+      }
+      const groups=new Map();
+      for(let i=0;i<boxes.length;i++){
+        if(!valid(boxes[i]))continue;
+        const r=find(i);if(!groups.has(r))groups.set(r,{members:[],links:[]});
+        groups.get(r).members.push(i);
+      }
+      for(const link of links){const r=find(link.a);if(r===find(link.b))groups.get(r).links.push(link);}
+      return [...groups.values()].filter(g=>g.members.length>=2);
+    };
+    // Side-by-side vertical source columns (neighbouring balloons, or column
+    // blocks of one balloon) that share a top, centre or bottom line. Set as
+    // horizontal Korean blocks, they keep that line. Same script and style,
+    // glyphs within 1.25x, heights overlapping by half, a gap of at most three
+    // glyphs, the edge aligned within max(2, 0.25 glyph); the top wins a tie
+    // (a vertical column starts at its top). Links carry the shared edge
+    // (0 top, .5 centre, 1 bottom) and the gap.
+    const aidokuColumnRowLinks = boxes => {
+      if(!Array.isArray(boxes)||boxes.length<2||boxes.length>256)return [];
+      const valid=b=>b&&b.vertical&&[b.x,b.y,b.w,b.h,b.glyph].every(Number.isFinite)&&b.w>0&&b.h>0&&b.glyph>0;
+      const links=[];
+      for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){
+        const a=boxes[i],b=boxes[j];
+        if(!valid(a)||!valid(b)||a.script!==b.script||(a.style||'')!==(b.style||''))continue;
+        const small=Math.min(a.glyph,b.glyph),large=Math.max(a.glyph,b.glyph);
+        if(large/small>1.25)continue;
+        const xOverlap=Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x),yOverlap=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y);
+        if(yOverlap<.5*Math.min(a.h,b.h)||-xOverlap<-.25*small||-xOverlap>3*large)continue;
+        if(Math.max(0,xOverlap)*yOverlap>=.5*Math.min(a.w*a.h,b.w*b.h))continue;
+        const best=[0,.5,1].map(e=>[Math.abs(a.y+e*a.h-b.y-e*b.h),e]).sort((u,v)=>u[0]-v[0])[0];
+        if(best[0]<=Math.max(2,small*.25))links.push({a:i,b:j,axis:'y',edge:best[1],gap:-xOverlap});
+      }
+      return links;
+    };
+    // Colour class of a sampled source colour for page style keys: a hue
+    // sector for chromatic colours, otherwise dark, mid or light.
+    const aidokuStyleColorClass = rgb => {
+      if(!Array.isArray(rgb)||rgb.length<3||!rgb.slice(0,3).every(v=>Number.isFinite(v)&&v>=0&&v<=255))return '?';
+      const [r,g,b]=rgb.slice(0,3).map(v=>v/255),max=Math.max(r,g,b),min=Math.min(r,g,b);
+      if((max-min)*255>60){
+        const h=max===r?((g-b)/(max-min)+6)%6:max===g?(b-r)/(max-min)+2:(r-g)/(max-min)+4;
+        return 'h'+Math.floor(((h*60+30)%360)/60);
+      }
+      const l=.299*r+.587*g+.114*b;
+      return l<.3?'dark':l>.72?'light':'mid';
+    };
+    // Page lettering styles: captions with one style key (orientation and
+    // colour classes) whose source glyphs are all within 15% of each other.
+    // Complete-link, so a chain of sizes never merges two styles. The target
+    // is the typical size of the members that fit well: the lower median of
+    // the larger half of the sizes (one roomy outlier never sets it).
+    const aidokuPageStyleGroups = (records, tolerance = 1.15) => {
+      if(!Array.isArray(records)||records.length>256)return [];
+      return aidokuStyleGroups(records.map((r,index)=>({...r,index})).filter(r=>Number.isFinite(r.glyph)&&r.glyph>0&&
+          Number.isFinite(r.font)&&r.font>0&&typeof r.key==='string'),
+        (a,b)=>a.key===b.key&&Math.max(a.glyph,b.glyph)/Math.min(a.glyph,b.glyph)<=tolerance,
+        (a,b)=>a.key.localeCompare(b.key)||a.glyph-b.glyph||a.index-b.index)
+        .filter(g=>g.length>=2).map(group=>{
+          const fonts=group.map(r=>r.font).sort((a,b)=>a-b),upper=fonts.slice(Math.floor(fonts.length/2));
+          return {members:group.map(r=>r.index),font:upper[Math.floor((upper.length-1)/2)]};
         });
     };
     const aidokuInkLab = rgb => {
@@ -344,6 +909,88 @@ enum BrowserOverlayTypography {
       }
       return count;
     };
+    // A break inside a Korean word is mild when the second half is only
+    // particles or a copula form after a noun of two or more syllables
+    // (경찰관 / 이라니, 천수각 / 에서의): readers still see two units. It is bad
+    // inside a stem or an ending (습 / 니다, 여유 / 로운, 당연하 / 잖아). Bare
+    // endings (라고, 니까, 잖아) follow verb stems too and count as bad; a stem
+    // ending in 하/되/으/시 is a verb or connective.
+    const aidokuMildBreakParticles = ('이 가 은 는 을 를 의 에 에서 에게 에게서 께 께서 한테 한테서 으로 로 으로서 로서 으로써 로써 '+
+      '와 과 랑 이랑 하고 도 만 까지 부터 마저 조차 밖에 처럼 보다 같이 이나 이든 이든지 이라도 들 님 씨 이야 이다 이에요 입니다 '+
+      '이죠 이지 이고 이며 인데 인가 인지 이라 이라는 이라고 이라니 이란 이니까 이잖아 이었 이었다 이었어 였다 였어 이네 이군 이구나 이래')
+      .split(' ').sort((a,b)=>b.length-a.length);
+    const aidokuBadBreak = (text, offset) => {
+      const t=String(text||''),hangul=c=>/^[가-힣]$/u.test(c||'');
+      if(!(offset>0)||!hangul(t[offset-1])||!hangul(t[offset]))return false;
+      let start=offset;while(start>0&&hangul(t[start-1]))start--;
+      const prefix=t.slice(start,offset);
+      let end=offset;while(end<t.length&&!/\s/u.test(t[end]))end++;
+      let rest=t.slice(offset,end);
+      if(prefix.length<2||'하되으시해돼게지'.includes(prefix[prefix.length-1])||/^(가는|가고|에이|이는|는데|가지)/u.test(rest))return true;
+      let matched=false;
+      while(rest&&hangul(rest[0])){
+        const particle=aidokuMildBreakParticles.find(p=>rest.startsWith(p));
+        if(!particle)return true;
+        rest=rest.slice(particle.length);matched=true;
+      }
+      return !matched||hangul(rest[0])||/[\p{L}\p{N}]/u.test(rest);
+    };
+    // A caption that is only one reduplicated exclamation, scream or mimetic
+    // word (아아아아, 으아아아악!, 두근두근) may break between repeats of its
+    // unit (아아|아아, 두근|두근): the lines follow a stacked source run and the
+    // break is not a split word. A one-syllable unit needs three repeats around
+    // the break and two syllables on each side, so no syllable is stranded.
+    // Inside a sentence the run stays one word.
+    const aidokuReduplicationBreak = (text, offset) => {
+      if(!text||!(offset>1)||offset>=text.length)return false;
+      if((String(text).match(/\p{Script=Hangul}+/gu)||[]).length!==1||/[\p{L}\p{N}]/u.test(String(text).replace(/\p{Script=Hangul}/gu,'')))
+        return false;
+      const hangul=c=>Boolean(c)&&/^\p{Script=Hangul}$/u.test(c);
+      const at=i=>text[i];
+      if(at(offset-1)===at(offset)&&hangul(at(offset))&&hangul(at(offset-2))&&hangul(at(offset+1))&&
+          (at(offset-2)===at(offset)||at(offset+1)===at(offset)))return true;
+      for(let unit=2;unit<=3;unit++){
+        if(offset<unit||offset+unit>text.length)continue;
+        const token=text.slice(offset,offset+unit);
+        if(Array.from(token).every(hangul)&&text.slice(offset-unit,offset)===token)return true;
+      }
+      return false;
+    };
+    // Interface rows (game or visual-novel button bars, menus, credit rows)
+    // in the top or bottom band of the page: at least three one-line
+    // captions of short words on one line, or one widely spaced line of four
+    // or more short labels. They keep the interface's scale; returns member index groups.
+    const aidokuInterfaceRows = (boxes, frame) => {
+      if(!Array.isArray(boxes)||boxes.length>256||!Array.isArray(frame)||frame.length!==4||
+          !frame.every(Number.isFinite)||!(frame[3]>0))return [];
+      const top=frame[1],height=frame[3];
+      const words=t=>String(t||'').split(/[\s,，、·・|/]+/u).filter(Boolean);
+      const label=b=>b&&!b.vertical&&[b.x,b.y,b.w,b.h,b.glyph].every(Number.isFinite)&&b.w>0&&b.h>0&&b.glyph>0&&
+        b.glyph<=height*.06&&b.h<=b.glyph*2.2&&!/[.!?。！？…‥~～]["'」』）)]*$/u.test(String(b.text||'').trim())&&
+        (y=>y>=top+height*.82||y<=top+height*.12)(b.y+b.h/2);
+      const short=b=>{const w=words(b.text);return w.length>=1&&w.every(v=>Array.from(v).length<=6);};
+      const letters=b=>Array.from(String(b.text||'').replace(/[\s,，、·・|/]+/gu,'')).length;
+      const rows=[];
+      boxes.forEach((b,i)=>{
+        if(!label(b))return;
+        const w=words(b.text);
+        if(w.length>=4&&w.every(v=>Array.from(v).length<=4)&&b.w>=1.2*b.glyph*letters(b))rows.push([i]);
+      });
+      const candidates=boxes.map((b,i)=>label(b)&&short(b)?i:-1).filter(i=>i>=0).sort((i,j)=>boxes[i].x-boxes[j].x);
+      const parent=new Map(candidates.map(i=>[i,i]));
+      const find=i=>parent.get(i)===i?i:find(parent.get(i));
+      for(let p=0;p<candidates.length;p++)for(let q=p+1;q<candidates.length;q++){
+        const a=boxes[candidates[p]],b=boxes[candidates[q]],large=Math.max(a.glyph,b.glyph);
+        if(large/Math.min(a.glyph,b.glyph)>1.4||Math.abs(a.y+a.h/2-b.y-b.h/2)>.6*large)continue;
+        const gap=Math.max(a.x,b.x)-Math.min(a.x+a.w,b.x+b.w);
+        if(gap>8*large)continue;
+        parent.set(find(candidates[q]),find(candidates[p]));
+      }
+      const groups=new Map();
+      for(const i of candidates){const r=find(i);if(!groups.has(r))groups.set(r,[]);groups.get(r).push(i);}
+      for(const group of groups.values())if(group.length>=3)rows.push(group.sort((i,j)=>i-j));
+      return rows;
+    };
     const aidokuCaptionInkFrame = (ink, font) => ink?.length ? {
       left:Math.min(...ink.map(r=>r[0])),top:Math.min(...ink.map(r=>r[1])),
       right:Math.max(...ink.map(r=>r[0]+r[2])),bottom:Math.max(...ink.map(r=>r[1]+r[3])),
@@ -381,52 +1028,92 @@ enum BrowserOverlayTypography {
     // Fixed-font Korean line breaking for narrow columns. Preserve the exact
     // text; penalize splitting an eojeol and especially stranding one syllable.
     // The longest strings/explicit newlines retain WebKit's regular wrapping.
-    const aidokuKoreanLines = (text, width, maxLines, measure) => {
+    // `quotes` (1 or 2): curly quotes and straight quotes (closing after ink,
+    // else opening) follow the same rule as brackets: none closes a line start
+    // or opens a line end. 2 also keeps dependent nouns with their modifier.
+    // `unit` ({advance, tracking}): a line's width is the sum of its code
+    // points' advances plus tracking per gap (prefix sums; no string measures).
+    const aidokuKoreanLines = (text, width, maxLines, measure, quotes = false, unit = null) => {
       if(!text||text.length>180||/[\r\n]/u.test(text)||width<=0||maxLines<1)return null;
       const chars=Array.from(text),n=chars.length;
-      const opening=/^[（(\[「『【《〈]$/u,closing=/^[、。，．,.！？!?…‥）)\]」』】》〉:;]$/u;
+      const opening=quotes?/^[（(\[「『【《〈“‘]$/u:/^[（(\[「『【《〈]$/u;
+      const closing=quotes?/^[、。，．,.！？!?…‥）)\]」』】》〉:;”’]$/u:/^[、。，．,.！？!?…‥）)\]」』】》〉:;]$/u;
       const hangul=c=>c&&/^[\p{Script=Hangul}]$/u.test(c);
       const whitespace=c=>!c||/\s/u.test(c);
+      // Per code point: its offset in `text`, its classes, the nearest
+      // whitespace on either side and prefix counts, so each candidate line
+      // (the trimmed text between two breaks) needs no string rebuilding.
+      const offsets=new Int32Array(n+1),space=new Uint8Array(n),korean=new Uint8Array(n);
+      const opens=new Uint8Array(n),closes=new Uint8Array(n),koreanBefore=new Int32Array(n+1),letterBefore=new Int32Array(n+1);
+      const nextSpace=new Int32Array(n+1),previousSpace=new Int32Array(n),previousInk=new Int32Array(n);
+      (()=>{for(let i=0;i<n;i++){
+        const c=chars[i];offsets[i+1]=offsets[i]+c.length;
+        space[i]=whitespace(c)?1:0;korean[i]=hangul(c)?1:0;opens[i]=opening.test(c)?1:0;closes[i]=closing.test(c)?1:0;
+        if(quotes&&(c==='"'||c==="'")){
+          const after=i>0&&!whitespace(chars[i-1])&&!opening.test(chars[i-1]);
+          closes[i]=after?1:0;opens[i]=after?0:1;
+        }
+        koreanBefore[i+1]=koreanBefore[i]+korean[i];letterBefore[i+1]=letterBefore[i]+(/[\p{L}\p{N}]/u.test(c)?1:0);
+        previousSpace[i]=space[i]?i:i?previousSpace[i-1]:-1;previousInk[i]=space[i]?(i?previousInk[i-1]:-1):i;
+      }})();
+      nextSpace[n]=n;
+      (()=>{for(let i=n-1;i>=0;i--)nextSpace[i]=space[i]?i:nextSpace[i+1];})();
+      const advanceBefore=unit?new Float64Array(n+1):null;
+      if(unit)(()=>{for(let i=0;i<n;i++)advanceBefore[i+1]=advanceBefore[i]+unit.advance(chars[i]);})();
+      // `quotes` 2 layouts also keep a dependent noun on the line of the
+      // modifier it completes (만드는 게, 있을 때, 할 수): a line starting with
+      // one after a word ending in ㄴ/ㄹ costs as much as a short line.
+      const dependent=new Uint8Array(n);
+      if(quotes===2)(()=>{for(let i=1;i<n;i++){
+        if(space[i]||!space[i-1]||previousInk[i-1]<0)continue;
+        const word=text.slice(offsets[i],offsets[nextSpace[i]]).replace(/[\p{P}\p{S}]+$/u,'');
+        const tail=chars[previousInk[i-1]].codePointAt(0)-0xAC00;
+        if(tail>=0&&tail<11172&&(tail%28===4||tail%28===8)&&/^(것|거|게|걸|건|수|줄|때|데|뿐|듯|적|척|만큼|대로|중|채|김|바|법|리)$/u.test(word))
+          dependent[i]=1;
+      }})();
       // Keep a solution for each line count. A cheap suffix using more lines
       // must not discard the tighter suffix needed to fit the whole caption.
       const limit=Math.min(n,Math.floor(maxLines));
-      const dp=Array.from({length:limit+1},()=>Array(n+1).fill(Infinity));
-      const next=Array.from({length:limit+1},()=>Array(n+1).fill(-1));
+      const dp=Array.from({length:limit+1},()=>new Float64Array(n+1).fill(Infinity));
+      const next=Array.from({length:limit+1},()=>new Int32Array(n+1).fill(-1));
       dp[0][n]=0;
-      for(let start=n-1;start>=0;start--){
+      (()=>{for(let start=n-1;start>=0;start--){
+        // The line text is chars[first..last] (whitespace trimmed).
+        let first=start;
+        while(first<n&&space[first])first++;
         for(let end=start+1;end<=n;end++){
-          if(end<n&&whitespace(chars[end]))continue;
-          const part=chars.slice(start,end).join('').trim();
-          if(!part)continue;
-          const used=measure(part);
+          if(end<n&&space[end])continue;
+          const last=previousInk[end-1];
+          if(last<first)continue;
+          const used=unit?advanceBefore[last+1]-advanceBefore[first]+(last-first)*unit.tracking:
+            measure(text.slice(offsets[first],offsets[last+1]));
           if(used>width+.1)break;
-          const visible=Array.from(part),first=visible[0],last=visible[visible.length-1];
           // Ellipses already at the start of the dialogue are intentional.
           // Only newly created line starts must reject closing punctuation;
           // keep a leading ellipsis attached to some dialogue on its first line.
-          if((closing.test(first)&&(start>0||!/[\p{L}\p{N}]/u.test(part)))||opening.test(last))continue;
-          const split=end<n&&!whitespace(chars[end-1])&&!whitespace(chars[end]);
+          if((closes[first]&&(start>0||letterBefore[last+1]===letterBefore[first]))||opens[last])continue;
+          const split=end<n&&!space[end-1]&&!space[end];
           // Count orphaned word fragments even when another word shares the
           // line ("는 거야"). Genuine one-syllable words such as "왜" are fine.
-          const firstWord=Array.from(part.split(/\s+/u)[0]).filter(hangul).length;
-          const lastWord=Array.from(part.split(/\s+/u).at(-1)).filter(hangul).length;
-          const fragment=(firstWord===1&&start>0&&hangul(chars[start-1])&&hangul(first))||
-            (lastWord===1&&split&&hangul(last)&&hangul(chars[end]));
-          const cost=12+(split?36:0)+(fragment?90:0)+
+          const firstWord=koreanBefore[Math.min(nextSpace[first],last+1)]-koreanBefore[first];
+          const lastWord=koreanBefore[last+1]-koreanBefore[Math.max(previousSpace[last]+1,first)];
+          const fragment=(firstWord===1&&start>0&&korean[start-1]&&korean[first])||
+            (lastWord===1&&split&&korean[last]&&korean[end]);
+          const cost=12+(split?36:0)+(fragment?90:0)+(start>0&&dependent[first]?24:0)+
             Math.pow(1-used/width,2)*(end===n?5:16);
           for(let lines=1;lines<=Math.min(limit,n-start);lines++){
             const total=cost+dp[lines-1][end];
             if(total<dp[lines][start]){dp[lines][start]=total;next[lines][start]=end;}
           }
         }
-      }
+      }})();
       let remaining=1;
-      for(let lines=2;lines<=limit;lines++)if(dp[lines][0]<dp[remaining][0])remaining=lines;
+      (()=>{for(let lines=2;lines<=limit;lines++)if(dp[lines][0]<dp[remaining][0])remaining=lines;})();
       if(next[remaining][0]<0)return null;
       const lines=[];
-      for(let i=0;i<n;remaining--){
-        const end=next[remaining][i];lines.push(chars.slice(i,end).join(''));i=end;
-      }
+      (()=>{for(let i=0;i<n;remaining--){
+        const end=next[remaining][i];lines.push(text.slice(offsets[i],offsets[end]));i=end;
+      }})();
       return lines;
     };
     """#

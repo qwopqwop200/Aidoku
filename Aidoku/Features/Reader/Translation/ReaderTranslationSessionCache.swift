@@ -37,6 +37,15 @@ extension ReaderTranslationRegion {
             translationOrderVersion: translationOrderVersion, sourceOrientation: sourceOrientation,
             sourceSingleVerticalColumn: sourceSingleVerticalColumn, translationReuseIdentity: translationReuseIdentity)
         result.polygon = polygon.map { CGPoint(x: ($0.x - crop.minX) / crop.width, y: ($0.y - crop.minY) / crop.height) }
+        result.balloonInterior = balloonInterior?.cropped(to: crop)
+        result.isOccludedFinePrint = isOccludedFinePrint
+        result.unitMemberRects = unitMemberRects.compactMap { rect in
+            let clipped = rect.intersection(crop)
+            guard !clipped.isNull, !clipped.isEmpty else { return nil }
+            return CGRect(x: (clipped.minX - crop.minX) / crop.width, y: (clipped.minY - crop.minY) / crop.height,
+                          width: clipped.width / crop.width, height: clipped.height / crop.height)
+        }
+        result.isRecoveredLine = isRecoveredLine
         result.auxiliaryInkRects = auxiliaryInkRects.compactMap { rect in
             let clipped = rect.intersection(crop)
             guard !clipped.isNull, !clipped.isEmpty else { return nil }
@@ -79,7 +88,8 @@ final class ReaderTranslationSessionCache {
             cost += 512 + region.id.utf8.count + region.source.utf8.count + (region.translation?.utf8.count ?? 0)
             cost += region.translationOrderVersion?.utf8.count ?? 0
             cost += region.polygon.count * MemoryLayout<CGPoint>.stride
-            cost += region.auxiliaryInkRects.count * MemoryLayout<CGRect>.stride
+            cost += (region.auxiliaryInkRects.count + region.unitMemberRects.count) * MemoryLayout<CGRect>.stride
+            cost += region.balloonInterior.map { 64 + $0.spans.count * MemoryLayout<Double>.stride } ?? 0
             for polygon in region.auxiliaryInkPolygons {
                 cost += 32 + polygon.count * MemoryLayout<CGPoint>.stride
             }

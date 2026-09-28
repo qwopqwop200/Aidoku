@@ -137,7 +137,7 @@ final class ReaderTranslationRenderCache {
     /// retranslated under the same settings must not replay an older payload.
     nonisolated static func layoutKey(renderKey: String, regions: [ReaderTranslationRegion]) -> String {
         ReaderTranslationCacheIdentity.encoded([
-            "reader-layout-content-v1", renderKey, ReaderTranslationRenderAsset.digest(regions)
+            "reader-layout-content-v5-lettering-quads", renderKey, ReaderTranslationRenderAsset.digest(regions)
         ])
     }
 

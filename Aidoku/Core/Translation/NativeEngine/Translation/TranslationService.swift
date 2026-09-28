@@ -752,6 +752,7 @@ actor TranslationService {
                         part.copyImageRepresentation(from: request)
                         part.filtersSFX = request.filtersSFX
                         part.filtersBackground = request.filtersBackground
+                        part.translatesPageLettering = request.translatesPageLettering
                         return part
                     }
                     let recovered: [RemoteTranslatedSegment]

@@ -453,12 +453,15 @@ struct ReaderTranslationSettingsView: View {
                 Text(NSLocalizedString("TRANSLATION_DARK")).tag(IPhoneOverlayAppearance.dark)
             }
             .accessibilityIdentifier("translation.appearance")
-            HStack {
-                Text(NSLocalizedString("TRANSLATION_OPACITY"))
-                Spacer()
-                Text(settings.overlay.opacity, format: .percent.precision(.fractionLength(0))).foregroundStyle(.secondary)
+            // Source replacement is always opaque; the preference applies to plain plates.
+            if settings.overlay.appearance != .source {
+                HStack {
+                    Text(NSLocalizedString("TRANSLATION_OPACITY"))
+                    Spacer()
+                    Text(settings.overlay.opacity, format: .percent.precision(.fractionLength(0))).foregroundStyle(.secondary)
+                }
+                Slider(value: persistedSettings.overlay.opacity, in: 0.2...1, step: 0.01)
             }
-            Slider(value: persistedSettings.overlay.opacity, in: 0.2...1, step: 0.01)
         } header: {
             Text(NSLocalizedString("TRANSLATION_OVERLAY"))
         } footer: {

@@ -74,10 +74,16 @@ struct ReaderAdaptiveRenderingTests {
         })()
         """) as? [String: Any])
         let font = try #require(result["font"] as? Double)
-        // The ellipsis token already occupies the available width at 5pt.
-        // Increasing it would split that token, so this case must stay unchanged.
-        if automatic && !text.contains("……") { #expect(font > 5); #expect(font < 10.5) }
-        else { #expect(font == 5) }
+        // The ellipsis token already occupies the 5pt box. It may only grow
+        // inside the opaque plate it owns, and never by splitting a word
+        // (checked below). Without automatic recovery the size is fixed.
+        if automatic && !text.contains("……") {
+            #expect(font > 5); #expect(font < 10.5)
+        } else if automatic {
+            #expect(font >= 5); #expect(font < 10.5)
+        } else {
+            #expect(font == 5)
+        }
         #expect(result["intact"] as? Bool == true)
         #expect(result["text"] as? String == text)
     }
@@ -252,7 +258,9 @@ struct ReaderAdaptiveRenderingTests {
               : aidokuSourceColorContrast(p.foreground,true,1,p.background)>=4.5,
             exact:!c.exactInk||p.foreground.every((v,i)=>v===c.exactInk[i]),
             unchanged:Boolean(c.exactInk)||aidokuSourceColorContrast(c.ink,true,1,c.bg)<4.5||p.foreground.every((v,i)=>v===c.ink[i]),
-            blueOrder:Boolean(c.exactInk)||c.ink[2]<=c.ink[0]||p.foreground[2]>p.foreground[0],
+            // Coloured ink keeps its hue order; neutral ink (spread < 24) that crosses its surface goes to
+            // the opposite extreme, where no hue order remains.
+            blueOrder:Boolean(c.exactInk)||c.ink[2]<=c.ink[0]||Math.max(...c.ink)-Math.min(...c.ink)<24||p.foreground[2]>p.foreground[0],
             inputUnchanged:JSON.stringify(c)===before};
         });
         """, arguments: [:], in: nil, contentWorld: .page) as? [[String: Bool]])

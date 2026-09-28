@@ -7,6 +7,23 @@ enum TranslationHTTPCodec {
     static let textOnlyBackgroundPolicy = "llm-background-text-v2-context-gate"
     static let textOnlySFXPolicy = "llm-sfx-text-v1-preservation-first"
     static let sfxPolicy = "llm-sfx-v26-normal-text-protection"
+    static let letteringPolicy = "page-lettering-v1-copy-brands-notices"
+
+    /// Page lettering only (never metadata such as titles or tags). Brand/logo names in Latin
+    /// letters are already readable, and watermarks are not content: an exact copy lets the
+    /// renderer keep the printed lettering instead of covering the artwork with a plate.
+    static let nonContentLetteringInstructions = """
+    Non-content lettering: copy a segment's text exactly as supplied (do not translate, transliterate
+    or correct its spelling) when the WHOLE segment is only
+    - a brand, trademark, product, company, shop or service name, or a logo, written in Latin letters,
+      including a Latin-letter title logo of a published work (manga, anime, game, magazine);
+    - a watermark or notice: SAMPLE, anti-repost/reupload or AI-training notices (無断転載禁止,
+      Do Not Repost), @handles, URLs or copyright lines.
+    When the page image is attached, a series or brand logo drawn as stylised artwork is also copied,
+    in any script; for such a logo this takes precedence over translating title fragments.
+    Translate everything else as usual: dialogue, narration, plain titles, chapter headings, subtitles,
+    credits, signs written as sentences, and names used inside a sentence.
+    """
 
     static let imageEditorialPriorityInstructions = """
     First distinguish a narrative action scene from an actual cover/title/definition composition.
@@ -198,6 +215,7 @@ enum TranslationHTTPCodec {
         Use natural Korean with consistent names and speech levels. Preserve meaning;
         let the renderer wrap lines instead of copying OCR line breaks.
         """ : ""
+        let letteringInstructions = request.translatesPageLettering == true ? "\n\n" + nonContentLetteringInstructions : ""
         let taskInstructions: String
         if filtersSFX, request.imageJPEG != nil {
             taskInstructions = imageEditorialPriorityInstructions + "\n\n" + sfxInstructions(hasImage: true) + """
@@ -217,9 +235,9 @@ enum TranslationHTTPCodec {
             background. Page-level titles/editorial captions and plot-critical messages remain story_text.
             """ : "Physical signs are not SFX; translate them because background filtering is disabled.")
             """ + "\n\nTranslation preferences apply ONLY to admitted non-SFX text:\n" +
-                configuration.instructions + contextInstructions + koreanInstructions
+                configuration.instructions + letteringInstructions + contextInstructions + koreanInstructions
         } else {
-            taskInstructions = configuration.instructions + contextInstructions + koreanInstructions +
+            taskInstructions = configuration.instructions + letteringInstructions + contextInstructions + koreanInstructions +
                 (request.imageJPEG == nil ? "" : "\n\n" + imageInstructions) +
                 (filtersSFX ? "\n\n" + sfxInstructions(hasImage: false) : "") +
                 (filtersBackground ? "\n\n" + backgroundInstructions(hasImage: request.imageJPEG != nil) : "")
@@ -251,7 +269,7 @@ enum TranslationHTTPCodec {
         Output contract: Return only a JSON object with exactly one key, "translations".
         Its value must be an array of exactly \(request.segments.count) objects, each containing only \(outputKeys.joined(separator: ", ")).
         Copy each supplied segment id exactly once: \(request.segments.map(\.id).joined(separator: ", ")).
-        "text" must be non-empty. \(filtersBackground ? "Return original text for text_role=background, and also for is_sfx=true or text_role=sfx if SFX classification is enabled; translate all other segments." : (filtersSFX ? "Return the original text for SFX and a translation otherwise; is_sfx must be a JSON boolean." : "Translate every segment, including short fragments and sound effects."))
+        "text" must be non-empty. \(filtersBackground ? "Return original text for text_role=background, and also for is_sfx=true or text_role=sfx if SFX classification is enabled; translate all other segments." : (filtersSFX ? "Return the original text for SFX and a translation otherwise; is_sfx must be a JSON boolean." : "Translate every segment, including short fragments and sound effects."))\(request.translatesPageLettering == true ? " Copy only the non-content lettering described above." : "")
         Do not use Markdown fences, extra keys, or a dictionary keyed by segment ids.
         """ + backgroundEvidence
         var responsesContent: [[String: Any]] = [["type": "input_text", "text": translationData]]
@@ -787,5 +805,87 @@ enum TranslationHTTPCodec {
             decoder.content,
             expectedSegmentIDs: expectedSegmentIDs, sfxSourceTexts: sfxSourceTexts, backgroundSourceTexts: backgroundSourceTexts
         )
+    }
+}
+
+extension TranslationHTTPCodec {
+    /// Decodes JSON escapes that leaked into a translation as literal text,
+    /// e.g. when a model double-encodes its output ("\\uae68" -> "깨",
+    /// "\\n" -> newline). Only an unescaped backslash starts an escape
+    /// (a doubled backslash stays literal); `\u` needs four hex digits naming
+    /// a visible non-ASCII character (surrogates only as a valid pair); `\n`
+    /// must not continue an ASCII word. An escape the source text itself
+    /// contains is legitimate and kept.
+    static func decodingLeakedEscapes(in text: String, source: String? = nil) -> String {
+        guard text.contains("\\") else { return text }
+        let scalars = Array(text.unicodeScalars)
+        var output = String.UnicodeScalarView()
+        var index = 0
+        var changed = false
+        while index < scalars.count {
+            guard scalars[index] == "\\" else {
+                output.append(scalars[index])
+                index += 1
+                continue
+            }
+            var run = 0
+            while index + run < scalars.count, scalars[index + run] == "\\" { run += 1 }
+            if run == 1, let (decoded, length) = leakedEscape(scalars, at: index, source: source) {
+                output.append(contentsOf: decoded)
+                index += length
+                changed = true
+            } else {
+                output.append(contentsOf: scalars[index..<(index + run)])
+                index += run
+            }
+        }
+        return changed ? String(output) : text
+    }
+
+    private static func leakedEscape(
+        _ scalars: [Unicode.Scalar], at index: Int, source: String?
+    ) -> ([Unicode.Scalar], Int)? {
+        guard index + 1 < scalars.count else { return nil }
+        let literal = { (length: Int) in String(String.UnicodeScalarView(scalars[index..<(index + length)])) }
+        switch scalars[index + 1] {
+        case "u":
+            guard let high = hexValue(scalars, at: index + 2) else { return nil }
+            var value = high
+            var length = 6
+            if (0xD800...0xDBFF).contains(high) {
+                guard index + 7 < scalars.count, scalars[index + 6] == "\\", scalars[index + 7] == "u",
+                      let low = hexValue(scalars, at: index + 8), (0xDC00...0xDFFF).contains(low) else { return nil }
+                value = 0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00)
+                length = 12
+            }
+            guard value >= 0xA0, let scalar = Unicode.Scalar(value), !scalar.properties.isNoncharacterCodePoint,
+                  ![.control, .format, .surrogate, .privateUse, .unassigned].contains(scalar.properties.generalCategory),
+                  source?.contains(literal(length)) != true
+            else { return nil }
+            return ([scalar], length)
+        case "n", "r":
+            // "\r\n" is one line break; a lone "\r" is not decoded.
+            let crlf = scalars[index + 1] == "r"
+            if crlf, !(index + 3 < scalars.count && scalars[index + 2] == "\\" && scalars[index + 3] == "n") { return nil }
+            let length = crlf ? 4 : 2
+            if index + length < scalars.count {
+                let next = scalars[index + length]
+                if next.isASCII, next.properties.isAlphabetic || ("0"..."9").contains(next) { return nil }
+            }
+            guard source?.contains(literal(length)) != true else { return nil }
+            return (["\n"], length)
+        default:
+            return nil
+        }
+    }
+
+    private static func hexValue(_ scalars: [Unicode.Scalar], at index: Int) -> UInt32? {
+        guard index + 4 <= scalars.count else { return nil }
+        var value: UInt32 = 0
+        for scalar in scalars[index..<(index + 4)] {
+            guard scalar.isASCII, let digit = UInt32(String(scalar), radix: 16) else { return nil }
+            value = value << 4 | digit
+        }
+        return value
     }
 }

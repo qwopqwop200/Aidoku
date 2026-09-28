@@ -10,7 +10,7 @@ const colorSource = fs.readFileSync(path.join(__dirname,
   '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift'), 'utf8');
 const contrastScript = colorSource.slice(colorSource.indexOf('    const aidokuSourceColorLuminance ='),
   colorSource.indexOf('    // Outline-free display keeps chromatic source ink.'));
-const api = vm.runInNewContext(script + contrastScript + ';({restoredFloor:aidokuRestoredFontFloor,captionFloor:aidokuCaptionFontFloor,attached:aidokuHasAttachedLeadingInk,balloonFonts:aidokuBalloonFontSizes,erasure:aidokuRestoredErasureCovers,residual:aidokuHasResidualLettering,artworkFonts:aidokuArtworkFontSizes,compact:aidokuCompactPanel,visible:aidokuVisiblePanelColors,adjust:aidokuAdjustInkForContrast,fonts:aidokuFontClusters,inks:aidokuInkClusters,lines:aidokuKoreanLines,fragments:aidokuKoreanFragments,improves:aidokuKoreanWrapImproves,frame:aidokuCaptionInkFrame,candidates:aidokuCohortFontCandidates,flowFits:aidokuFontFlowFits,anchor:aidokuSourceAnchorShift,backing:aidokuTextBackingRect,needsBacking:aidokuNeedsTextBacking,keepsContrast:aidokuTextBackingKeepsContrast,contrast:aidokuSourceColorContrast})');
+const api = vm.runInNewContext(script + contrastScript + ';({restoredFloor:aidokuRestoredFontFloor,captionFloor:aidokuCaptionFontFloor,attached:aidokuHasAttachedLeadingInk,balloonFonts:aidokuBalloonFontSizes,erasure:aidokuRestoredErasureCovers,residual:aidokuHasResidualLettering,artworkFonts:aidokuArtworkFontSizes,compact:aidokuCompactPanel,visible:aidokuVisiblePanelColors,adjust:aidokuAdjustInkForContrast,fonts:aidokuFontClusters,inks:aidokuInkClusters,lines:aidokuKoreanLines,fragments:aidokuKoreanFragments,improves:aidokuKoreanWrapImproves,frame:aidokuCaptionInkFrame,candidates:aidokuCohortFontCandidates,flowFits:aidokuFontFlowFits,anchor:aidokuSourceAnchorShift,backing:aidokuTextBackingRect,needsBacking:aidokuNeedsTextBacking,keepsContrast:aidokuTextBackingKeepsContrast,contrast:aidokuSourceColorContrast,flowRank:aidokuKoreanFlowRank,wordWidth:aidokuKoreanWordWidth,rows:aidokuAlignedGroups,columnRows:aidokuColumnRowLinks,pageStyles:aidokuPageStyleGroups,styleColor:aidokuStyleColorClass,reduplication:aidokuReduplicationBreak,interfaceRows:aidokuInterfaceRows,clusterTargets:aidokuFontClusterTargets,keptZones:aidokuKeptLetteringZones,subtract:aidokuSubtractRects,condensedWidth:aidokuCondensedWidth,condensedSizes:aidokuCondensedSizes,wordBound:aidokuCondensedWordBound})');
 const plain = x => JSON.parse(JSON.stringify(x));
 test('only a later panel with a different color needs a lettering backing', () => {
   const panels=[{rect:[0,0,50,50],color:'white'},{rect:[0,25,25,50],color:'purple'}];
@@ -79,6 +79,13 @@ test('anchoring can restore one axis when a diagonal move would hit a neighbor',
 test('existing overlap cannot grow and adjacent lettering does not get pulled into collision', () => {
   assert.equal(api.anchor([10,20,20,20],[25,20,20,20],[7,17,41,26],[[25,20,15,20]]),null);
   assert.equal(api.anchor([10,20,20,20],[25,20,20,20],[7,17,41,26],[[35,20,15,20]]),null);
+});
+test('lettering centred over another source may leave it only when the caller allows it', () => {
+  const ink=[10,20,20,20],source=[60,20,20,20],plate=[7,17,80,26],covered=[[0,15,40,30]];
+  assert.equal(api.anchor(ink,source,plate,covered),null);
+  assert.deepEqual(plain(api.anchor(ink,source,plate,covered,true)),{dx:50,dy:0});
+  // Leaving one source never allows a jump across another free caption.
+  assert.equal(api.anchor(ink,source,plate,[...covered,[45,20,5,20]],true),null);
 });
 test('already anchored text and uncertain or clipped geometry stay unchanged', () => {
   assert.equal(api.anchor([10,20,20,20],[11,21,20,20],[7,17,30,30],[]),null);
@@ -256,11 +263,23 @@ test('foreground uses only visible surfaces including clipped corners and final 
   assert.deepEqual(plain(api.visible([0,0,20,10],[...layers,{coverage:[[0,0,20,10]],color:yellow}],white)),[yellow]);
 });
 test('low-contrast yellow and white ink become readable without changing their background', () => {
-  for(const [ink,bg] of [[[248,247,39],[253,254,6]],[[255,255,255],[232,232,232]],[[21,3,26],[141,97,153]],[[27,25,22],[88,38,30]]]){
+  // Coloured ink takes the smallest correction and keeps its hue.
+  for(const [ink,bg] of [[[248,247,39],[253,254,6]]]){
     const saved=[...bg],contrast=rgb=>api.contrast(rgb,true,1,bg),adjusted=plain(api.adjust(ink,contrast));
     assert(contrast(adjusted)>=4.5);assert.deepEqual(bg,saved);
     assert.notDeepEqual(adjusted,[0,0,0]);assert.notDeepEqual(adjusted,[255,255,255]);
   }
+  // Neutral ink on the wrong side of its surface would pass through the
+  // surface tone: it takes the opposite extreme instead of a washed mid-gray.
+  for(const [ink,bg,extreme] of [[[255,255,255],[232,232,232],[0,0,0]],[[21,3,26],[141,97,153],[255,255,255]],
+      [[27,25,22],[88,38,30],[255,255,255]]]){
+    const saved=[...bg],contrast=rgb=>api.contrast(rgb,true,1,bg),adjusted=plain(api.adjust(ink,contrast));
+    assert(contrast(adjusted)>=4.5);assert.deepEqual(bg,saved);assert.deepEqual(adjusted,extreme);
+  }
+  // Large coloured type may stop at 3:1.
+  const pink=[249,137,155],pale=[223,254,188],contrast=rgb=>api.contrast(rgb,true,1,pale);
+  const large=plain(api.adjust(pink,contrast,3)),small=plain(api.adjust(pink,contrast));
+  assert(contrast(large)>=3&&contrast(large)<contrast(small));assert(large[0]>large[2]);
 });
 test('readable source colors and different speaker hues remain distinct', () => {
   const magenta=[164,70,139],orange=[154,57,0],bg=[255,255,255];
@@ -458,11 +477,196 @@ test('large balloon lettering reaches the permitted floor within nine probes', (
 
 test('restoration can shrink more only when recovering the original artwork surface', () => {
   assert.equal(api.captionFloor(10.5,5),8.5);
-  assert.equal(api.restoredFloor(10.5,5),6.825);
-  for(const font of [5,5.75,6.5])assert.equal(api.restoredFloor(font,5),font);
-  assert.equal(api.restoredFloor(20,5),13);
+  // Legibility floor: 8pt or 75% of the original, never above the original.
+  assert.equal(api.restoredFloor(10.5,5),8);
+  for(const font of [5,5.75,6.5,7.75])assert.equal(api.restoredFloor(font,5),font);
+  assert.equal(api.restoredFloor(20,5),15);
   assert.equal(api.restoredFloor(10,9.5),9.5);
   assert.equal(api.restoredFloor(NaN,5),null);
   assert.equal(api.restoredFloor(10,0),null);
   assert(plain(api.balloonFonts(10.5,5)).some(size=>size<api.captionFloor(10.5,5)));
+});
+test('growth width repair ranks stranded syllables above split words and holds the longest word', () => {
+  const profile=(breaks,fragments=0,punctuation=0)=>({breaks:Array(breaks).fill(0),hangulFragments:fragments,
+    punctuationOnly:punctuation,badStarts:[],badEnds:[]});
+  assert.equal(api.flowRank(profile(0)),0);
+  assert(api.flowRank(profile(2))<api.flowRank(profile(0,1)));
+  assert(api.flowRank(profile(1))<api.flowRank(profile(1,0,1)));
+  // Ten pixels per character, -0.012em tracking between characters, 1 px slack.
+  const width=api.wordWidth('케이크도 먹어버리자',10,part=>Array.from(part).length*10);
+  assert.equal(Math.round(width*1000)/1000,50-4*.12+1);
+  assert.equal(api.wordWidth('',10,part=>part.length),0);
+});
+
+
+test('side-by-side vertical source columns link on their shared top, centre or bottom line', () => {
+  const col=(x,y,w,h,glyph,extra={})=>({x,y,w,h,glyph,script:'korean',vertical:true,...extra});
+  // Two balloons of one row (comic-7964): top-aligned columns, gap under three glyphs.
+  const top=plain(api.columnRows([col(100,50,40,120,12),col(170,50,30,80,12.5)]));
+  assert.equal(top.length,1);assert.equal(top[0].edge,0);assert.equal(top[0].axis,'y');assert.equal(top[0].gap,30);
+  // Same-height columns tie: the top line wins (a vertical column starts at its top).
+  assert.equal(api.columnRows([col(0,0,20,100,10),col(30,0,20,100,10)])[0].edge,0);
+  // Centred and bottom-aligned columns keep that line.
+  assert.equal(api.columnRows([col(0,20,20,60,10),col(30,0,20,100,10)])[0].edge,.5);
+  assert.equal(api.columnRows([col(0,40,20,60,10),col(30,0,20,100,10)])[0].edge,1);
+  // Unaligned lines, distant columns, other sizes, scripts, styles or horizontal sources never link.
+  assert.equal(api.columnRows([col(0,15,20,60,10),col(30,0,20,100,10)]).length,0);
+  assert.equal(api.columnRows([col(0,0,20,100,10),col(60,0,20,100,10)]).length,0);
+  assert.equal(api.columnRows([col(0,0,20,100,10),col(30,0,20,100,13)]).length,0);
+  assert.equal(api.columnRows([col(0,0,20,100,10),col(30,0,20,100,10,{script:'latin'})]).length,0);
+  assert.equal(api.columnRows([col(0,0,20,100,10),col(30,0,20,100,10,{style:'5,5,3'})]).length,0);
+  assert.equal(api.columnRows([col(0,0,20,100,10),col(30,0,20,100,10,{vertical:false})]).length,0);
+  // A column stacked below another is not a row; a fragment inside a column is not a neighbour.
+  assert.equal(api.columnRows([col(0,0,20,100,10),col(0,110,20,100,10)]).length,0);
+  assert.equal(api.columnRows([col(0,0,20,100,10),col(2,0,16,100,10)]).length,0);
+  assert.deepEqual(plain(api.columnRows([null,col(0,0,20,100,10),col(30,0,NaN,100,10)])),[]);
+  assert.deepEqual(plain(api.columnRows([])),[]);
+});
+
+test('same-row and same-column captions form one style group with their shared axis', () => {
+  const box=(x,y,w,h,glyph,extra={})=>({x,y,w,h,glyph,script:'korean',vertical:false,...extra});
+  // UI button row: one line, similar glyphs, small gaps.
+  const row=plain(api.rows([box(10,100,30,10,8),box(45,100,20,10,8.5),box(70,101,25,9,8),box(10,300,60,10,8)]));
+  assert.equal(row.length,1);
+  assert.deepEqual(row[0].members,[0,1,2]);
+  assert(row[0].links.every(l=>l.axis==='y'));
+  // Left-aligned caption stack (diverse2-1314): one column, start edge.
+  const stack=plain(api.rows([box(50,40,200,40,17),box(50,95,160,80,17.5),box(50,190,210,40,17)]));
+  assert.equal(stack.length,1);
+  assert(stack[0].links.some(l=>l.axis==='x'&&l.edge===0));
+  // A split OCR fragment inside its sentence box shares only the size.
+  const nested=plain(api.rows([box(0,0,100,20,18),box(60,8,20,12,17)]));
+  assert.equal(nested.length,1);assert.equal(nested[0].links[0].edge,null);
+  // Different lettering styles, orientations or distant rows never join.
+  assert.equal(api.rows([box(0,0,40,10,8),box(45,0,40,14,12)]).length,0);
+  assert.equal(api.rows([box(0,0,40,10,8),box(45,0,40,10,8,{vertical:true})]).length,0);
+  assert.equal(api.rows([box(0,0,40,10,8),box(45,0,40,10,8,{script:'latin'})]).length,0);
+  assert.equal(api.rows([box(0,0,40,10,8),box(45,0,40,10,8,{style:'5,5,3'})]).length,0);
+  assert.equal(api.rows([box(0,0,40,10,8),box(200,0,40,10,8)]).length,0);
+  assert.equal(api.rows([box(0,0,40,10,8),box(0,60,40,10,8)]).length,0);
+  // Chains cannot bridge a 1.3x spread in glyph size.
+  const chain=plain(api.rows([box(0,0,20,10,8),box(25,0,20,10,9.6),box(50,0,20,10,11.5)]));
+  assert(chain.every(g=>Math.max(...g.members.map(i=>[8,9.6,11.5][i]))/Math.min(...g.members.map(i=>[8,9.6,11.5][i]))<=1.3));
+  assert.deepEqual(plain(api.rows([])),[]);
+  assert.deepEqual(plain(api.rows([box(0,0,NaN,10,8),box(45,0,20,10,8)])),[]);
+});
+
+
+test('page style groups share one target size per source lettering style', () => {
+  const r=(glyph,font,key='v|dark||light|')=>({glyph,font,key});
+  // Four same-style balloons: the target is the typical size of the members
+  // that fit well (lower median of the larger half), not the small ones.
+  const four=plain(api.pageStyles([r(12,8.25),r(12.4,7.5),r(12.6,10.5),r(12.2,12)]));
+  assert.equal(four.length,1);
+  assert.deepEqual(four[0].members.slice().sort(),[0,1,2,3]);
+  assert.equal(four[0].font,10.5);
+  // Two members: the larger one sets the size.
+  assert.equal(plain(api.pageStyles([r(20,11),r(21,16)]))[0].font,16);
+  // One roomy outlier among small members never sets the target.
+  assert.equal(plain(api.pageStyles([r(10,7),r(10,7.5),r(10,14)]))[0].font,7.5);
+  // Different style keys (fill, outline or ground colour) never join.
+  assert.equal(api.pageStyles([r(12,8),r(12,12,'v|light|outline|dark|')]).length,0);
+  assert.equal(api.pageStyles([r(12,8),r(12,12,'h|dark||light|')]).length,0);
+  // Complete-link: no chain bridges more than the glyph tolerance.
+  const chain=plain(api.pageStyles([r(10,8),r(11.2,9),r(12.6,10)]));
+  const glyphs=[10,11.2,12.6];
+  assert(chain.every(g=>Math.max(...g.members.map(i=>glyphs[i]))/Math.min(...g.members.map(i=>glyphs[i]))<=1.15));
+  assert(plain(api.pageStyles([r(10,8),r(12,9)],1.25)).length===1);
+  assert.deepEqual(plain(api.pageStyles([])),[]);
+  assert.deepEqual(plain(api.pageStyles([r(NaN,8),r(12,9)])),[]);
+  assert.equal(api.styleColor([3,3,3]),'dark');
+  assert.equal(api.styleColor([250,250,250]),'light');
+  assert.equal(api.styleColor([128,128,128]),'mid');
+  assert.equal(api.styleColor([220,40,40]),'h0');
+  assert.equal(api.styleColor([]),'?');
+});
+
+test('breaks between repeats of a short unit are not split words', () => {
+  const at=(text,left)=>api.reduplication(text,left.length);
+  assert.equal(at('아아아아','아아'),true);
+  assert.equal(at('으아아아악','으아아'),true);
+  assert.equal(at('두근두근','두근'),true);
+  assert.equal(at('하하하하','하하'),true);
+  assert.equal(at('으아아아악!!','으아아'),true);
+  // Inside a sentence (or next to other letters) the run stays one word.
+  assert.equal(at('야아아아아아아! 뭔가 아픈 게','야아아아아'),false);
+  assert.equal(at('아아아아 A','아아'),false);
+  // Real word splits and stranded syllables still count.
+  assert.equal(at('아아아아','아'),false);
+  assert.equal(at('하하하하','하하하'),false);
+  assert.equal(at('포테이토칩이','포테이'),false);
+  assert.equal(at('다다음','다'),false);
+  assert.equal(at('두근두근','두근두'),false);
+  assert.equal(at('AAAA','AA'),false);
+  assert.equal(api.reduplication('',0),false);
+});
+
+test('interface rows are short one-line labels on one line at the page edge', () => {
+  const frame=[0,0,400,225];
+  const label=(x,text,y=214,glyph=7)=>({x,y,w:Math.max(12,text.length*8),h:9,glyph,text,vertical:false});
+  const menu=['뒤로','기록','스킵','자동','저장'].map((t,i)=>label(100+i*40,t));
+  assert.deepEqual(plain(api.interfaceRows(menu,frame)),[[0,1,2,3,4]]);
+  // Two labels are not a row; a mid-page row is ordinary lettering.
+  assert.deepEqual(plain(api.interfaceRows(menu.slice(0,2),frame)),[]);
+  assert.deepEqual(plain(api.interfaceRows(menu.map(b=>({...b,y:110})),frame)),[]);
+  // Sentences (terminal punctuation) and vertical captions never join.
+  assert.deepEqual(plain(api.interfaceRows([label(100,'그래.'),label(140,'뭐?'),label(180,'응!')],frame)),[]);
+  assert.deepEqual(plain(api.interfaceRows(menu.map(b=>({...b,vertical:true})),frame)),[]);
+  // One widely spaced merged line of short labels is a row; a dense dialogue line is not.
+  const merged={x:100,y:214,w:190,h:9,glyph:8,text:'뒤로 역사 스킵 자동 저장 옵션',vertical:false};
+  assert.deepEqual(plain(api.interfaceRows([merged],frame)),[[0]]);
+  assert.deepEqual(plain(api.interfaceRows([{...merged,w:90,text:'자 그럼 이제 가 볼까 우리'}],frame)),[]);
+  // Distant labels with very different glyphs are separate.
+  assert.deepEqual(plain(api.interfaceRows([...menu.slice(0,2),label(300,'설정',214,12)],frame)),[]);
+  assert.deepEqual(plain(api.interfaceRows(menu,[0,0,0,0])),[]);
+});
+
+test('kept lettering keeps the page clusters of the remaining captions (diverse2-2011, diverse2-2307)', () => {
+  // CUP NOODLE labels kept as printed: without them the dialogue re-clusters
+  // with the smaller third balloon and drops 9.75 -> 8.75.
+  const e=(id,source,font)=>({id,source,font,script:'korean',vertical:false,column:false});
+  const dialogue=[e('10',11.708869,11.75),e('11',9.780160,7.75),e('12',9.616151,8.75)];
+  const byId=m=>Object.fromEntries([...m].map(([k,v])=>[k.id,v]));
+  assert.deepEqual(byId(api.clusterTargets(dialogue)),{10:8.75,11:8.75,12:8.75});
+  const labels=[{...e('kept-3',11.584303,11.584303*.9)},{...e('kept-4',10.742534,10.742534*.9)}];
+  assert.deepEqual(byId(api.clusterTargets(dialogue,labels)),{10:9.75,11:9.75,12:9.75});
+  // A kept notice never lowers a target and gives none to a caption `raisable` rejects.
+  const pair=[e('1',33.367805,10.5),e('2',35.170786,12)];
+  assert.deepEqual(byId(api.clusterTargets(pair,[e('kept-3',29.937822,29.937822*.9)])),{1:12,2:12});
+  assert.deepEqual(byId(api.clusterTargets(pair,[e('kept-3',29.937822,5)])),{1:11.25,2:11.25});
+  assert.deepEqual(byId(api.clusterTargets(pair,[e('kept-3',29.937822,29.937822*.9)],entry=>entry.id!=='2')),{1:12,2:11.25});
+  // A kept-only cohort raises a lone caption, never shrinks it.
+  assert.deepEqual(byId(api.clusterTargets([e('5',20,12)],[e('kept-6',21,18.9)])),{5:15.5});
+  assert.deepEqual(byId(api.clusterTargets([e('5',20,19)],[e('kept-6',21,9)])),{});
+  assert.equal(api.clusterTargets(dialogue,[]).size,3);
+});
+test('kept lettering zones: box plus a small halo, minus painted source boxes', () => {
+  const zones=plain(api.keptZones([{id:'kept-1',x:10,y:10,width:40,height:10,sourceFontSize:10}],[[0,18,100,30]]));
+  // 1.5 px halo (15% of the glyph); the painted caption below keeps its own box.
+  assert.deepEqual(zones,[{left:8.5,top:8.5,right:51.5,bottom:18,id:'kept-1'}]);
+  const inside=plain(api.keptZones([{id:'kept-2',x:20,y:20,width:10,height:10,sourceFontSize:null}],[[0,0,100,100]]));
+  assert.deepEqual(inside,[]);
+  const around=plain(api.keptZones([{id:'kept-3',x:0,y:0,width:30,height:30,sourceFontSize:30}],[[10,10,10,10]]));
+  assert.equal(around.length,4);
+  assert.equal(around.reduce((n,z)=>n+(z.right-z.left)*(z.bottom-z.top),0),36*36-100);
+  assert.deepEqual(plain(api.subtract([{left:0,top:0,right:10,bottom:10}],{left:20,top:0,right:30,bottom:10})),
+    [{left:0,top:0,right:10,bottom:10}]);
+});
+test('condensed width stays at 90 % and only tries clearly larger sizes up to the target', () => {
+  assert.equal(api.condensedWidth, .9);
+  assert.deepEqual(plain(api.condensedSizes(10,20)),[12.5,11.5,11]);
+  // The target bounds every size; sizes below 1.06x are not worth condensing.
+  assert.deepEqual(plain(api.condensedSizes(10,11.2)),[11]);
+  assert.deepEqual(plain(api.condensedSizes(10,10.5)),[]);
+  assert.deepEqual(plain(api.condensedSizes(0,20)),[]);
+  for(const size of api.condensedSizes(13.25,30))assert(size>=13.25*1.06&&size<=13.25*1.25);
+});
+test('condensing is only for word-bound measures: overflowing at full width, fitting at 90 %', () => {
+  assert.equal(api.wordBound(100,95), true);
+  assert.equal(api.wordBound(100,90), true);
+  // Fits at full width: not word-bound.
+  assert.equal(api.wordBound(90,95), false);
+  assert.equal(api.wordBound(95,95), false);
+  // Too long even condensed.
+  assert.equal(api.wordBound(100,89), false);
 });

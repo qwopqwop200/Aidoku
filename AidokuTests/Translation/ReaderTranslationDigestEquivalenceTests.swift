@@ -86,7 +86,7 @@ private enum FrozenFormatterIdentity {
     static func ocr(page: String, settings: ReaderTranslationSettings) -> String {
         // OCR entries contain merged regions. A merger change must also
         // invalidate derived translations/layouts instead of replaying old boxes.
-        encoded(["reader-ocr-v57-fp16-detector", page, encoded(settings.ocrConfiguration)])
+        encoded(["reader-ocr-v62-recovered-lines-bridge-split", page, encoded(settings.ocrConfiguration)])
     }
     static func translation(page: String, settings: ReaderTranslationSettings) -> String {
         let previous = unfilteredTranslation(page: page, settings: settings)
@@ -99,7 +99,7 @@ private enum FrozenFormatterIdentity {
         return encoded([
             "reader-translation-v2-neighbor-context", ocr(page: page, settings: settings), config.provider.rawValue, config.apiProtocol.rawValue,
             config.baseURL, config.model, config.credentialAccount, String(config.credentialGeneration), config.reasoningEffort.rawValue,
-            config.instructions, settings.sourceLanguage, settings.targetLanguage
+            config.instructions, settings.sourceLanguage, settings.targetLanguage, TranslationHTTPCodec.letteringPolicy
         ] + (settings.includePageImage ? ["page-image-v2-auto-fallback", String(TranslationImageSupport.shared.revision(for: config))] : []) + (settings.filterSFXWithLLM ? [settings.shouldAttachPageImage ? TranslationHTTPCodec.sfxPolicy : TranslationHTTPCodec.textOnlySFXPolicy] : []) + (settings.filterBackgroundWithLLM ? [settings.shouldAttachPageImage ? TranslationHTTPCodec.backgroundPolicy : TranslationHTTPCodec.textOnlyBackgroundPolicy] : []))
     }
     // Every geometry/appearance input must be included to reject stale pixels after a reader change.
@@ -112,7 +112,7 @@ private enum FrozenFormatterIdentity {
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
         return encoded([
-            "reader-render-v106-paper-outline", translation(page: page, settings: settings), encoded(settings.overlay),
+            "reader-render-v111-unit-parts-review-fixes", translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
             "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit",
             ProcessInfo.processInfo.operatingSystemVersionString

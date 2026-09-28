@@ -1147,7 +1147,8 @@ final class NativeCoreMLDetector: @unchecked Sendable {
                             fullHeight: prepared.resizedHeight
                         ),
                         configuration: configuration,
-                        allowsWeakBridgeSplit: allowsWeakBridgeSplit && configuration == .production,
+                        allowsWeakBridgeSplit: allowsWeakBridgeSplit
+                            && configuration.withRecoveryBoxThreshold(nil) == .production,
                         cancellationCheck: {
                             try requireCurrent(
                                 issuedGeneration,

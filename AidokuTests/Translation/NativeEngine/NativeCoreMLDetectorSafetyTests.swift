@@ -88,7 +88,12 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
         var settings = ReaderOCRConfiguration()
         let rejectedRegion = try decode(settings)
         XCTAssertEqual(rejectedRegion.candidateComponents, 1)
-        XCTAssertTrue(rejectedRegion.boxes.isEmpty)
+        // Below the box threshold a component survives only as a weak box for adjacent-line recovery;
+        // the pipeline never reads it in the primary pass.
+        XCTAssertTrue(rejectedRegion.boxes.allSatisfy { $0.score < settings.detectorPostprocessConfiguration.boxThreshold })
+        XCTAssertTrue(try NativeCoreMLDBPostprocessor.decode(
+            map: map, sourceWidth: 32, sourceHeight: 32,
+            configuration: settings.detectorPostprocessConfiguration.withRecoveryBoxThreshold(nil)).boxes.isEmpty)
         settings.detectorConfidenceThreshold = 0.45
         XCTAssertEqual(try decode(settings).boxes.count, 1)
         settings.detectorPixelThreshold = 0.55
@@ -96,6 +101,182 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
         XCTAssertEqual(rejectedPixels.candidateComponents, 0)
         XCTAssertTrue(rejectedPixels.boxes.isEmpty)
         XCTAssertEqual(settings.confidenceThreshold, 0.75)
+    }
+
+    func testAdjacentLineRecoveryAdmitsOnlySiblingLinesOfAcceptedCaptions() {
+        func column(_ x: CGFloat, _ y: CGFloat, _ width: CGFloat, _ height: CGFloat) -> [CGPoint] {
+            [CGPoint(x: x, y: y), CGPoint(x: x + width, y: y), CGPoint(x: x + width, y: y + height), CGPoint(x: x, y: y + height)]
+        }
+        func line(_ polygon: [CGPoint], _ text: String, vertical: Bool = true) -> NativeCoreMLOCRLine {
+            NativeCoreMLOCRLine(polygon: polygon, text: text, score: 0.6, orientation: vertical ? .vertical : .horizontal)
+        }
+        let anchor = line(column(200, 100, 40, 200), "かよわいねぇ")
+        let candidates = [
+            line(column(250, 90, 40, 160), "元チャン様"), // sibling column one pitch to the right
+            line(column(145, 120, 42, 140), "上着も"), // sibling column to the left
+            line(column(330, 100, 40, 200), "遠いね"), // two pitches away: a neighbouring caption
+            line(column(250, 400, 40, 160), "下の方"), // not side by side with the anchor
+            line(column(250, 100, 90, 200), "大きな字"), // display lettering, 2x thicker
+            line(column(250, 100, 18, 120), "るび"), // ruby-sized
+            line(column(250, 150, 160, 40), "横書き", vertical: false), // other orientation
+            line(column(250, 100, 40, 200), "ーき"), // stroke noise
+            line(column(250, 100, 40, 200), "SALE") // Latin
+        ]
+        let admitted = NativeOCRAdjacentLineRecovery.admitted(candidates, anchors: [anchor]) { _, _, _ in false }
+        XCTAssertEqual(admitted.map(\.text), ["元チャン様", "上着も"])
+        // A balloon outline or another enclosed surface between the lines vetoes the recovery.
+        XCTAssertTrue(NativeOCRAdjacentLineRecovery.admitted(candidates, anchors: [anchor]) { _, _, _ in true }.isEmpty)
+        // A Latin sign is not a caption the lettering continues.
+        XCTAssertTrue(NativeOCRAdjacentLineRecovery.admitted([candidates[0]], anchors: [line(anchor.polygon, "SAFE")]) { _, _, _ in
+            false
+        }.isEmpty)
+        // A short or repeated sound effect is not a caption either.
+        for sound in ["もしゃ", "もしゃもい", "ドキドキドキ"] {
+            XCTAssertTrue(NativeOCRAdjacentLineRecovery.admitted([candidates[0]], anchors: [line(anchor.polygon, sound)]) { _, _, _ in
+                false
+            }.isEmpty)
+        }
+        // Recovery only extends one caption: a recovered line left on its own, a regrouping that joins two
+        // captions, or an extension that crowds a neighbour keeps the base grouping.
+        func region(_ id: String, _ source: String, _ rect: CGRect) -> ReaderTranslationRegion {
+            ReaderTranslationRegion(id: id, rect: rect, source: source)
+        }
+        let bounds = CGRect(x: 0, y: 0, width: 1_000, height: 1_000)
+        let base = [region("region-0", "かよわいねぇ", CGRect(x: 0.2, y: 0.1, width: 0.04, height: 0.2)),
+                    region("region-1", "遠いね", CGRect(x: 0.4, y: 0.1, width: 0.04, height: 0.2))]
+        let baseLines = [line(column(200, 100, 40, 200), "かよわいねぇ"), line(column(400, 100, 40, 200), "遠いね")]
+        let recovered = [candidates[0]]
+        let extended = region("region-5", "元チャン様かよわいねぇ", CGRect(x: 0.2, y: 0.09, width: 0.09, height: 0.21))
+        let kept = NativeOCRAdjacentLineRecovery.extending(base, with: [extended, base[1]], baseLines: baseLines,
+                                                          recovered: recovered, imageBounds: bounds)
+        XCTAssertEqual(kept.map(\.id), ["region-0", "region-1"])
+        XCTAssertEqual(kept[0].source, "元チャン様かよわいねぇ")
+        let alone = [base[0], region("region-2", "元チャン様", CGRect(x: 0.25, y: 0.09, width: 0.04, height: 0.16)), base[1]]
+        XCTAssertEqual(NativeOCRAdjacentLineRecovery.extending(base, with: alone, baseLines: baseLines, recovered: recovered,
+                                                              imageBounds: bounds), base)
+        let bridged = [region("region-0", "かよわいねぇ元チャン様遠いね", CGRect(x: 0.2, y: 0.09, width: 0.24, height: 0.21))]
+        XCTAssertEqual(NativeOCRAdjacentLineRecovery.extending(base, with: bridged, baseLines: baseLines, recovered: recovered,
+                                                              imageBounds: bounds), base)
+        let neighbour = [base[0], region("region-1", "遠いね", CGRect(x: 0.3, y: 0.1, width: 0.04, height: 0.2))]
+        let crowding = NativeOCRAdjacentLineRecovery.extending(
+            neighbour, with: [extended, neighbour[1]], baseLines: [baseLines[0], line(column(300, 100, 40, 200), "遠いね")],
+            recovered: recovered, imageBounds: bounds)
+        XCTAssertEqual(crowding, neighbour)
+        // A caption already touching its neighbour is not extended either.
+        let touching = [base[0], region("region-1", "遠いね", CGRect(x: 0.29, y: 0.1, width: 0.04, height: 0.2))]
+        XCTAssertEqual(NativeOCRAdjacentLineRecovery.extending(
+            touching, with: [extended, touching[1]], baseLines: [baseLines[0], line(column(290, 100, 40, 200), "遠いね")],
+            recovered: recovered, imageBounds: bounds), touching)
+        // Watermark notices and Latin-mixed garble are never recovered or used as anchors.
+        XCTAssertFalse(NativeOCRAdjacentLineRecovery.admits("無断転載禁止"))
+        XCTAssertFalse(NativeOCRAdjacentLineRecovery.admits("白体 徒P5"))
+        XCTAssertFalse(NativeOCRAdjacentLineRecovery.anchors("AI学習自作発言"))
+        // A one-glyph anchor has no reading direction.
+        XCTAssertTrue(NativeOCRAdjacentLineRecovery.admitted([candidates[0]], anchors: [line(column(200, 100, 40, 40), "字")]) { _, _, _ in
+            false
+        }.isEmpty)
+        XCTAssertTrue(NativeOCRAdjacentLineRecovery.admits("死んじゃうよ!!"))
+        XCTAssertFalse(NativeOCRAdjacentLineRecovery.admits("岛"))
+    }
+
+    func testLatinStackRecoveryCompletesCapitalLetteringOnly() {
+        func row(_ x: CGFloat, _ y: CGFloat, _ width: CGFloat, _ height: CGFloat) -> [CGPoint] {
+            [CGPoint(x: x, y: y), CGPoint(x: x + width, y: y), CGPoint(x: x + width, y: y + height), CGPoint(x: x, y: y + height)]
+        }
+        func line(_ polygon: [CGPoint], _ text: String) -> NativeCoreMLOCRLine {
+            NativeCoreMLOCRLine(polygon: polygon, text: text, score: 0.57, orientation: .horizontal)
+        }
+        // comic-8895: "SO" above "YOU CAN / TRUST / HIM." read at 0.57 (gate 0.75).
+        let anchor = line(row(97, 415, 65, 19), "YOUI CAN")
+        let candidates = [
+            line(row(116, 400, 26, 17), "So"), // the dropped first row of the stack
+            line(row(116, 360, 26, 17), "SO"), // two pitches above: another balloon
+            line(row(116, 400, 26, 17), "1..."), // digits are not a lettering row
+            line(row(116, 400, 26, 17), "もう"), // kana next to a Latin row is not recovered here
+            line(row(90, 400, 90, 40), "BIG") // display lettering, 2x thicker
+        ]
+        let admitted = NativeOCRAdjacentLineRecovery.admitted(candidates, anchors: [anchor]) { _, _, _ in false }
+        XCTAssertEqual(admitted.map(\.text), ["So"])
+        XCTAssertTrue(NativeOCRAdjacentLineRecovery.admitted(candidates, anchors: [anchor]) { _, _, _ in true }.isEmpty)
+        // Mixed-case anchors (brand labels, dialogue boxes) never pull in the small print around them.
+        XCTAssertTrue(NativeOCRAdjacentLineRecovery.admitted(candidates, anchors: [line(anchor.polygon, "Old Town")]) { _, _, _ in
+            false
+        }.isEmpty)
+        XCTAssertFalse(NativeOCRAdjacentLineRecovery.latinAnchors("NO AI TRAINING 無断転載禁止"))
+        XCTAssertFalse(NativeOCRAdjacentLineRecovery.admitsLatin("THIS IS A LONG ROW"))
+        XCTAssertTrue(NativeOCRAdjacentLineRecovery.admitsLatin("I..."))
+    }
+
+    func testGapLineRecoveryProposesOnlyInkColumnsOfTheFlanksStyle() {
+        func column(_ x: CGFloat, _ y: CGFloat, _ width: CGFloat, _ height: CGFloat) -> [CGPoint] {
+            [CGPoint(x: x, y: y), CGPoint(x: x + width, y: y), CGPoint(x: x + width, y: y + height), CGPoint(x: x, y: y + height)]
+        }
+        // Glyph-like ink (bars in 30 px cells, 6 px leading) on light paper; columns at x 300 (A), 255 (gap), 210 (B).
+        func glyph(_ x: Int, _ y: Int, left: Int, top: Int, bottom: Int) -> Bool {
+            guard x >= left, x < left + 30, y >= top, y < bottom else { return false }
+            let cellY = (y - top) % 36, cellX = x - left
+            guard cellY < 30 else { return false }
+            return (5..<10).contains(cellY) || (20..<25).contains(cellY) || (13..<18).contains(cellX)
+        }
+        func page(middle: @escaping (Int, Int) -> Int?) -> (Int, Int) -> Int {
+            { x, y in
+                if glyph(x, y, left: 300, top: 100, bottom: 316) || glyph(x, y, left: 210, top: 100, bottom: 316) { return 20 }
+                return middle(x, y) ?? 240
+            }
+        }
+        let lines = [NativeOCRGapLineRecovery.Line(polygon: column(294, 94, 42, 222), text: "水中発破の許可"),
+                     NativeOCRGapLineRecovery.Line(polygon: column(204, 94, 42, 222), text: "なのに何で")]
+        let missed = page { x, y in glyph(x, y, left: 255, top: 130, bottom: 280) ? 20 : nil }
+        let proposals = NativeOCRGapLineRecovery.proposals(width: 1_000, height: 1_000, luminance: missed, lines: lines, blockers: [])
+        XCTAssertEqual(proposals.count, 1)
+        let box = NativeOCRScopeGeometry.bounds(for: proposals.first?.polygon ?? []) ?? .null
+        XCTAssertEqual(box.midX, 270, accuracy: 4)
+        XCTAssertEqual(box.minY, 124, accuracy: 8)
+        XCTAssertEqual(box.maxY, 280, accuracy: 10)
+        XCTAssertEqual(proposals.first?.flankTexts, ["水中発破の許可", "なのに何で"])
+        // An empty gutter, tone/art on another surface, or a detector box already in the gap: no proposal.
+        XCTAssertTrue(NativeOCRGapLineRecovery.proposals(width: 1_000, height: 1_000, luminance: page { _, _ in nil },
+                                                         lines: lines, blockers: []).isEmpty)
+        let art = page { x, y in (250..<290).contains(x) && (100..<316).contains(y) ? ((x + y) % 5 < 2 ? 20 : 130) : nil }
+        XCTAssertTrue(NativeOCRGapLineRecovery.proposals(width: 1_000, height: 1_000, luminance: art, lines: lines, blockers: []).isEmpty)
+        XCTAssertTrue(NativeOCRGapLineRecovery.proposals(width: 1_000, height: 1_000, luminance: missed, lines: lines,
+                                                         blockers: [column(250, 130, 40, 150)]).isEmpty)
+        // Short flanks only (no four-character caption line) are not a caption the gap continues.
+        let short = lines.map { NativeOCRGapLineRecovery.Line(polygon: $0.polygon, text: "あっ") }
+        XCTAssertTrue(NativeOCRGapLineRecovery.proposals(width: 1_000, height: 1_000, luminance: missed, lines: short, blockers: []).isEmpty)
+
+        // Reads: Japanese as long as the ink, never a re-read of a flank, Latin, or a notice.
+        let proposal = NativeOCRGapLineRecovery.Proposal(polygon: column(249, 124, 42, 160), vertical: true,
+                                                         flanks: lines.map(\.polygon), flankTexts: lines.map(\.text))
+        XCTAssertTrue(NativeOCRGapLineRecovery.accepts("が下りない筈", proposal: proposal))
+        XCTAssertFalse(NativeOCRGapLineRecovery.accepts("水中発破の", proposal: proposal))
+        XCTAssertFalse(NativeOCRGapLineRecovery.accepts("が", proposal: proposal))
+        XCTAssertFalse(NativeOCRGapLineRecovery.accepts("SALE", proposal: proposal))
+        XCTAssertFalse(NativeOCRGapLineRecovery.accepts("無断転載禁止", proposal: proposal))
+
+        // A gap line may join its two flank captions (and only those) into one region.
+        func line(_ polygon: [CGPoint], _ text: String) -> NativeCoreMLOCRLine {
+            NativeCoreMLOCRLine(polygon: polygon, text: text, score: 0.9, orientation: .vertical)
+        }
+        let bounds = CGRect(x: 0, y: 0, width: 500, height: 500)
+        let baseLines = [line(lines[0].polygon, lines[0].text), line(lines[1].polygon, lines[1].text)]
+        let base = [ReaderTranslationRegion(id: "region-0", rect: CGRect(x: 0.588, y: 0.188, width: 0.084, height: 0.444),
+                                            source: lines[0].text),
+                    ReaderTranslationRegion(id: "region-1", rect: CGRect(x: 0.408, y: 0.188, width: 0.084, height: 0.444),
+                                            source: lines[1].text)]
+        let gap = NativeCoreMLOCRGapLine(line: line(proposal.polygon, "が下りない筈"), flanks: lines.map(\.polygon))
+        let joined = [ReaderTranslationRegion(id: "region-0", rect: CGRect(x: 0.408, y: 0.188, width: 0.264, height: 0.444),
+                                              source: "水中発破の許可が下りない筈なのに何で")]
+        let bridged = NativeOCRAdjacentLineRecovery.extending(base, with: joined, baseLines: baseLines, recovered: [gap.line],
+                                                             bridges: [gap], imageBounds: bounds)
+        XCTAssertEqual(bridged.map(\.id), ["region-0"])
+        XCTAssertEqual(bridged.first?.source, "水中発破の許可が下りない筈なのに何で")
+        // Without the bridge (an adjacent-line recovery), joining two captions keeps the base grouping.
+        XCTAssertEqual(NativeOCRAdjacentLineRecovery.extending(base, with: joined, baseLines: baseLines, recovered: [gap.line],
+                                                              imageBounds: bounds), base)
+        // A separated flank (balloon outline between) vetoes the gap line.
+        XCTAssertTrue(NativeOCRGapLineRecovery.admitted([gap]) { _, _, _ in true }.isEmpty)
+        XCTAssertEqual(NativeOCRGapLineRecovery.admitted([gap]) { _, _, _ in false }, [gap])
     }
 
     func testDBPostprocessFindsScoresAndUnclipsRectangle() throws {
@@ -241,6 +422,70 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
         XCTAssertEqual(result.boxes.count, 2)
     }
 
+    func testLetteringUnitRecoveryFindsOnlyTheUnreadSameStyleHalfOnPaper() {
+        typealias Unit = NativeOCRLetteringUnitRecovery
+        func quad(_ rect: CGRect) -> [CGPoint] {
+            [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY),
+             CGPoint(x: rect.maxX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.maxY)]
+        }
+        // A 400 x 200 white page. Glyphs: 36 px hollow squares with 5 px black strokes.
+        let width = 400, height = 200
+        func page(glyphs: [CGRect], hatch: CGRect? = nil) -> Unit.Pixel {
+            { x, y in
+                let point = CGPoint(x: CGFloat(x) + 0.5, y: CGFloat(y) + 0.5)
+                for glyph in glyphs where glyph.contains(point) && !glyph.insetBy(dx: 5, dy: 5).contains(point) {
+                    return (10, 10, 10)
+                }
+                if let hatch, hatch.contains(point), (x + y) % 6 < 2 { return (10, 10, 10) }
+                return (250, 250, 250)
+            }
+        }
+        let first = CGRect(x: 60, y: 80, width: 36, height: 36)
+        let second = CGRect(x: 104, y: 80, width: 36, height: 36)
+        // The page pass read the first glyph only; its box has the detector's margin.
+        let anchor = Unit.Line(polygon: quad(first.insetBy(dx: -4, dy: -4)), text: "だ")
+        let found = Unit.neighbours(width: width, height: height, pixel: page(glyphs: [first, second]), lines: [anchor],
+                                    occupied: [first.insetBy(dx: -4, dy: -4)])
+        XCTAssertEqual(found.count, 1)
+        XCTAssertEqual(found.first?.side, .after)
+        XCTAssertFalse(found.first?.vertical ?? true)
+        XCTAssertTrue(found.first.map { $0.ink.insetBy(dx: -2, dy: -2).contains(second) } ?? false)
+        // Nothing unread next to it, the neighbour already read, or the neighbour inside hatching: no unit.
+        XCTAssertTrue(Unit.neighbours(width: width, height: height, pixel: page(glyphs: [first]), lines: [anchor],
+                                      occupied: [first.insetBy(dx: -4, dy: -4)]).isEmpty)
+        XCTAssertTrue(Unit.neighbours(width: width, height: height, pixel: page(glyphs: [first, second]), lines: [anchor],
+                                      occupied: [first.insetBy(dx: -4, dy: -4), second.insetBy(dx: -4, dy: -4)]).isEmpty)
+        XCTAssertTrue(Unit.neighbours(width: width, height: height,
+                                      pixel: page(glyphs: [first, second], hatch: CGRect(x: 98, y: 60, width: 80, height: 80)),
+                                      lines: [anchor], occupied: [first.insetBy(dx: -4, dy: -4)]).isEmpty)
+        // Grey artwork inside the unit's box (the erase would not be clean): no unit.
+        let drawn: Unit.Pixel = { x, y in
+            if (100...103).contains(x) && (100...118).contains(y) { return (120, 120, 120) }
+            return page(glyphs: [first, second])(x, y)
+        }
+        XCTAssertTrue(Unit.neighbours(width: width, height: height, pixel: drawn, lines: [anchor],
+                                      occupied: [first.insetBy(dx: -4, dy: -4)]).isEmpty)
+        // Body-size Han lines and long lines are no anchors; display-size Han lines are.
+        XCTAssertFalse(Unit.isAnchor("数学", glyph: 30, medianGlyph: 30))
+        XCTAssertTrue(Unit.isAnchor("にぎ", glyph: 30, medianGlyph: 30))
+        XCTAssertFalse(Unit.isAnchor("推し", glyph: 30, medianGlyph: 30))
+        XCTAssertTrue(Unit.isAnchor("恋愛", glyph: 60, medianGlyph: 30))
+        XCTAssertFalse(Unit.isAnchor("いえそんなことないです", glyph: 30, medianGlyph: 30))
+        XCTAssertFalse(Unit.isAnchor("禁止", glyph: 90, medianGlyph: 30))
+
+        // Unit reads: the anchor extended on the neighbour's side, in kana and marks for a kana anchor.
+        XCTAssertTrue(Unit.completes("だら…", anchor: "だ", side: .after))
+        XCTAssertTrue(Unit.completes("これがー", anchor: "これが", side: .after))
+        XCTAssertTrue(Unit.completes("ははは", anchor: "はは", side: .after))
+        XCTAssertFalse(Unit.completes("だ", anchor: "だ", side: .after))
+        XCTAssertFalse(Unit.completes("らだ", anchor: "だ", side: .after))
+        XCTAssertFalse(Unit.completes("セ也", anchor: "セ", side: .after))
+        XCTAssertFalse(Unit.completes("第一", anchor: "第", side: .after))
+        XCTAssertFalse(Unit.completes("次の日ー", anchor: "次の日", side: .after))
+        XCTAssertTrue(Unit.completes("恋愛頭脳戦", anchor: "頭脳戦", side: .before))
+        XCTAssertFalse(Unit.completes("フあのー", anchor: "あの", side: .after))
+    }
+
     func testDBPostprocessChecksCancellationDuringWork() {
         let map = rectangularMap(
             width: 128,
@@ -263,6 +508,120 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
         ) { error in
             XCTAssertTrue(error is CancellationError)
         }
+    }
+
+
+    func testIsolatedLineRecoveryAdmitsOnlyNearThresholdKanaReadsWithoutNeighbours() {
+        func box(_ x: CGFloat, _ y: CGFloat, _ width: CGFloat, _ height: CGFloat) -> [CGPoint] {
+            [CGPoint(x: x, y: y), CGPoint(x: x + width, y: y), CGPoint(x: x + width, y: y + height), CGPoint(x: x, y: y + height)]
+        }
+        func read(_ index: Int, _ polygon: [CGPoint], _ text: String, _ confidence: Double) -> NativeCoreMLRecognizedRegion {
+            NativeCoreMLRecognizedRegion(sourceIndex: index, polygon: polygon, text: text, confidence: confidence)
+        }
+        let accepted = [read(0, box(100, 100, 40, 200), "かよわいねぇ", 0.95)]
+        let reads = [
+            read(1, box(400, 100, 40, 120), "こら～!", 0.7), // a balloon of its own
+            read(2, box(500, 100, 40, 80), "うう…", 0.62),
+            read(3, box(600, 100, 40, 80), "まで!?", 0.5), // below the margin
+            read(4, box(700, 100, 40, 80), "天皇", 0.7), // Han only on a kana page
+            read(5, box(800, 100, 40, 80), "ABC", 0.7), // Latin
+            read(6, box(900, 100, 40, 80), "第3話", 0.7), // digits
+            read(7, box(100, 150, 40, 80), "ねぇ", 0.7), // overlaps an accepted line
+            read(8, box(405, 110, 40, 100), "こら", 0.65), // overlaps a stronger candidate
+            read(9, box(300, 500, 40, 80), "無断転載", 0.7) // notice
+        ]
+        let found = NativeOCRIsolatedLineRecovery.candidates(reads, threshold: 0.75, accepted: accepted, occupied: [])
+        XCTAssertEqual(found.map(\.sourceIndex), [1, 2])
+        XCTAssertTrue(NativeOCRIsolatedLineRecovery.candidates(reads, threshold: 0.75, accepted: accepted,
+                                                               occupied: [box(400, 100, 40, 120), box(500, 100, 40, 80)]).isEmpty)
+        // A Chinese page (no kana among accepted lines) admits Han reads, but not one Han character repeated.
+        let chinese = [read(0, box(100, 100, 40, 200), "要丟不丟隨便你", 0.95)]
+        let han = [read(1, box(400, 100, 40, 120), "唰啦", 0.7), read(2, box(500, 100, 40, 120), "国国", 0.7)]
+        XCTAssertEqual(NativeOCRIsolatedLineRecovery.candidates(han, threshold: 0.75, accepted: chinese, occupied: []).map(\.sourceIndex), [1])
+        // Dense low-quality handwriting (too many candidates on one page) recovers nothing.
+        let many = (0..<7).map { read(10 + $0, box(CGFloat(1_000 + 60 * $0), 100, 40, 80), "あいう", 0.7) }
+        XCTAssertTrue(NativeOCRIsolatedLineRecovery.candidates(many, threshold: 0.75, accepted: accepted, occupied: []).isEmpty)
+
+        // New captions never overlap an existing caption and take fresh ids.
+        let existing = [
+            ReaderTranslationRegion(id: "region-0", rect: CGRect(x: 0.1, y: 0.1, width: 0.04, height: 0.2), source: "かよわいねぇ"),
+            ReaderTranslationRegion(id: "region-1", rect: CGRect(x: 0.2, y: 0.1, width: 0.04, height: 0.2), source: "上着も")
+        ]
+        let grouped = [ReaderTranslationRegion(id: "region-0", rect: CGRect(x: 0.4, y: 0.1, width: 0.04, height: 0.12), source: "こら～!"),
+                       ReaderTranslationRegion(id: "region-1", rect: CGRect(x: 0.105, y: 0.15, width: 0.04, height: 0.1), source: "ねぇ")]
+        let captions = NativeOCRIsolatedLineRecovery.captions(grouped, beside: existing)
+        XCTAssertEqual(captions.map(\.source), ["こら～!"])
+        XCTAssertEqual(captions.map(\.id), ["region-2"])
+        // Recovered captions carry their flag through storage and into the overlay payload item.
+        XCTAssertEqual(captions.map(\.isRecoveredLine), [true])
+        XCTAssertTrue(ReaderTranslationStoredRegion(captions[0]).region.isRecoveredLine)
+        XCTAssertFalse(ReaderTranslationStoredRegion(existing[0]).region.isRecoveredLine)
+        XCTAssertTrue(captions[0].overlayItem(index: 0, imageSize: CGSize(width: 100, height: 100)).recoveredLine)
+    }
+
+    func testOpenPaperAdmitsTextOnPaperButNotOnArtwork() throws {
+        // 400x400 white page: a dark glyph block on the paper at (60, 60), and one on a striped tone area at (260, 260).
+        let context = try XCTUnwrap(CGContext(data: nil, width: 400, height: 400, bitsPerComponent: 8, bytesPerRow: 400,
+                                              space: CGColorSpaceCreateDeviceGray(), bitmapInfo: 0))
+        context.setFillColor(gray: 1, alpha: 1)
+        context.fill(CGRect(x: 0, y: 0, width: 400, height: 400))
+        context.setFillColor(gray: 0.35, alpha: 1)
+        for x in stride(from: 200, to: 400, by: 6) { context.fill(CGRect(x: x, y: 0, width: 3, height: 200)) }
+        context.setFillColor(gray: 0, alpha: 1)
+        // CoreGraphics has a bottom-left origin: y 330 here is image row 60.
+        for y in stride(from: 300, to: 340, by: 10) { context.fill(CGRect(x: 62, y: y, width: 16, height: 3)) }
+        for y in stride(from: 100, to: 140, by: 10) { context.fill(CGRect(x: 262, y: y, width: 16, height: 3)) }
+        let image = try XCTUnwrap(context.makeImage())
+        let map = ReaderTranslationEnclosedBackground.ComponentMap(image: image)
+        XCTAssertTrue(map.onOpenPaper(CGRect(x: 60, y: 58, width: 20, height: 44)))
+        XCTAssertFalse(map.onOpenPaper(CGRect(x: 260, y: 258, width: 20, height: 44)))
+    }
+
+    func testStackedRowSplitFindsOnlyShortLatinRowStacks() {
+        func box(_ x: CGFloat, _ y: CGFloat, _ width: CGFloat, _ height: CGFloat) -> [CGPoint] {
+            [CGPoint(x: x, y: y), CGPoint(x: x + width, y: y), CGPoint(x: x + width, y: y + height), CGPoint(x: x, y: y + height)]
+        }
+        // Three centred lettered rows (letter-like bars, 20 px tall, 8 px leading) inside one box at (100, 100).
+        func letters(_ x: Int, _ y: Int, rows: [(Int, Int)], top: Int) -> Bool {
+            for (index, row) in rows.enumerated() {
+                let rowTop = top + index * 28
+                guard y >= rowTop, y < rowTop + 20, x >= row.0, x < row.1 else { continue }
+                let cell = (x - row.0) % 14
+                return cell < 3 || (cell < 11 && (y - rowTop < 3 || y - rowTop > 16))
+            }
+            return false
+        }
+        let stack: (Int, Int) -> Int = { x, y in letters(x, y, rows: [(110, 166), (104, 174), (116, 158)], top: 108) ? 20 : 240 }
+        let proposals = NativeOCRStackedRowSplit.proposals(width: 1_000, height: 1_000, luminance: stack,
+                                                             boxes: [(sourceIndex: 3, polygon: box(100, 100, 80, 96))])
+        XCTAssertEqual(proposals.count, 1)
+        XCTAssertEqual(proposals.first?.sourceIndex, 3)
+        XCTAssertEqual(proposals.first?.rows.count, 3)
+        let middle = NativeOCRScopeGeometry.bounds(for: proposals.first?.rows[1] ?? []) ?? .null
+        XCTAssertEqual(middle.midY, 146, accuracy: 3)
+        XCTAssertEqual(middle.minX, 101, accuracy: 4)
+        // One vertical column of square glyphs (rows as tall as wide), a flat box or uniform tone: no proposal.
+        let column: (Int, Int) -> Int = { x, y in
+            guard x >= 110, x < 140, y >= 108 else { return 240 }
+            let cell = (y - 108) % 36
+            return cell < 30 && y < 108 + 36 * 4 && ((x - 110) % 10 < 3 || cell % 10 < 3) ? 20 : 240
+        }
+        XCTAssertTrue(NativeOCRStackedRowSplit.proposals(width: 1_000, height: 1_000, luminance: column,
+                                                         boxes: [(sourceIndex: 1, polygon: box(104, 100, 42, 160))]).isEmpty)
+        XCTAssertTrue(NativeOCRStackedRowSplit.proposals(width: 1_000, height: 1_000, luminance: { _, _ in 240 },
+                                                         boxes: [(sourceIndex: 1, polygon: box(100, 100, 80, 96))]).isEmpty)
+        XCTAssertTrue(NativeOCRStackedRowSplit.proposals(width: 1_000, height: 1_000, luminance: { x, y in (x + y) % 4 < 2 ? 20 : 240 },
+                                                         boxes: [(sourceIndex: 1, polygon: box(100, 100, 80, 96))]).isEmpty)
+
+        func read(_ text: String, _ confidence: Double) -> NativeCoreMLRecognizedRegion {
+            NativeCoreMLRecognizedRegion(sourceIndex: 0, polygon: box(0, 0, 10, 10), text: text, confidence: confidence)
+        }
+        XCTAssertTrue(NativeOCRStackedRowSplit.accepts([read("I'LL", 0.95), read("SEE", 0.99), read("YOU!", 0.6)], threshold: 0.75))
+        XCTAssertFalse(NativeOCRStackedRowSplit.accepts([read("I'LL", 0.95), nil], threshold: 0.75))
+        XCTAssertFalse(NativeOCRStackedRowSplit.accepts([read("I'LL", 0.6), read("SEE", 0.6)], threshold: 0.75))
+        XCTAssertFalse(NativeOCRStackedRowSplit.accepts([read("食べに", 0.95), read("SEE", 0.99)], threshold: 0.75))
+        XCTAssertFalse(NativeOCRStackedRowSplit.accepts([read("400K", 0.95), read("SEE", 0.99)], threshold: 0.75))
+        XCTAssertFalse(NativeOCRStackedRowSplit.accepts([read("I", 0.95), read("-", 0.99)], threshold: 0.75))
     }
 
 

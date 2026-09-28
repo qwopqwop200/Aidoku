@@ -136,7 +136,9 @@ enum NativeOCRTextLineMerger {
         imageWidth: Int,
         imageHeight: Int,
         recognizedLatinWords: Set<String> = [],
-        separationCheck: ((CGRect, CGRect, BrowserOCRSourceOrientation) -> Bool)? = nil
+        separationCheck: ((CGRect, CGRect, BrowserOCRSourceOrientation) -> Bool)? = nil,
+        inkContrast: ((CGRect, CGRect) -> Bool)? = nil,
+        polarityContrast: ((CGRect, CGRect) -> Bool)? = nil
     ) -> [PaddleOCRLine] {
         guard imageWidth > 0, imageHeight > 0 else {
             return fallback(nativeLines)
@@ -165,7 +167,8 @@ enum NativeOCRTextLineMerger {
             filtered,
             imageWidth: CGFloat(imageWidth),
             imageHeight: CGFloat(imageHeight),
-            recognizedLatinWords: recognizedLatinWords, separationCheck: separationCheck
+            recognizedLatinWords: recognizedLatinWords, separationCheck: separationCheck, inkContrast: inkContrast,
+            polarityContrast: polarityContrast
         ).map { line in
             (index: line.index, line: PaddleOCRLine(
                 poly: line.polygon.map {
@@ -567,11 +570,15 @@ enum NativeOCRTextLineMerger {
         imageHeight: CGFloat,
         recognizedLatinWords: Set<String>,
         deskew: Bool = true,
-        separationCheck: ((CGRect, CGRect, BrowserOCRSourceOrientation) -> Bool)? = nil
+        gridExclusions: [CGRect]? = [],
+        separationCheck: ((CGRect, CGRect, BrowserOCRSourceOrientation) -> Bool)? = nil,
+        inkContrast: ((CGRect, CGRect) -> Bool)? = nil,
+        polarityContrast: ((CGRect, CGRect) -> Bool)? = nil
     ) -> [Line] {
         if deskew, let result = mergeSlantedHorizontalLines(
             lines, imageWidth: imageWidth, imageHeight: imageHeight,
-            recognizedLatinWords: recognizedLatinWords, separationCheck: separationCheck
+            recognizedLatinWords: recognizedLatinWords, separationCheck: separationCheck, inkContrast: inkContrast,
+            polarityContrast: polarityContrast
         ) { return result }
         guard lines.count >= 2 else {
             return lines.map(resolvedSingleLine)
@@ -588,7 +595,8 @@ enum NativeOCRTextLineMerger {
                     deduplicateLines(lines),
                     imageWidth: imageWidth,
                     imageHeight: imageHeight,
-                    recognizedLatinWords: recognizedLatinWords, separationCheck: separationCheck
+                    recognizedLatinWords: recognizedLatinWords, separationCheck: separationCheck,
+                    polarityContrast: polarityContrast
                 )
             )
         )
@@ -601,10 +609,17 @@ enum NativeOCRTextLineMerger {
         let regularPairs = regularSpacingPairs(visualLines, orientation: .horizontal, fragments: false)
             .union(regularSpacingPairs(visualLines, orientation: .vertical, fragments: false))
         let captionGutters = contrastingVerticalGutters(visualLines)
+        let speakerTags = speakerNameTags(visualLines, spatialIndex: spatialIndex, inkContrast: inkContrast)
+        let structuredCells = gridExclusions.map { exclusions in structuredTextSeparations(
+            visualLines, spatialIndex: spatialIndex, exclusions: exclusions,
+            joinable: { canFormTranslationRegion(geometries[$0], geometries[$1]) || regularPairs.contains(IndexPair($0, $1)) },
+            separationCheck: separationCheck
+        ) } ?? []
         var admittedPairs: Set<IndexPair> = []
         for left in geometries.indices {
             for right in spatialIndex.indices(intersecting: searchBounds(visualLines[left])) where right > left {
-                guard !captionGutters.contains(IndexPair(left, right)),
+                guard !captionGutters.contains(IndexPair(left, right)), !structuredCells.contains(IndexPair(left, right)),
+                      !speakerTags.contains(left), !speakerTags.contains(right),
                       !areIndependentQuotedLanguages(geometries[left], geometries[right]) else { continue }
                 if crossesIndependentVerticalBlocks(visualLines[left], visualLines[right], lines: visualLines,
                     spatialIndex: spatialIndex) { continue }
@@ -625,17 +640,165 @@ enum NativeOCRTextLineMerger {
             Array(geometries.indices),
             set: connected
         )
+        let cellGeometries = trimmingOverlappingGridRows(geometries, separated: structuredCells, connected: connected)
         return candidates
             .flatMap { splitSuspiciousRegion($0, geometries: geometries, admittedPairs: admittedPairs) }
             .map {
                 mergeTranslationRegion(
                     $0,
-                    geometries: geometries,
+                    geometries: cellGeometries,
                     imageWidth: imageWidth,
                     imageHeight: imageHeight
                 )
             }
             .sorted { $0.index < $1.index }
+    }
+
+    /// Detector boxes of densely set grid rows overlap by their padding. Kept apart, each row's card and plate
+    /// would reach over the neighbouring row's text (diverse-2233 contents), so the shared band is split at its
+    /// middle between two separated rows of one column. Glyph ink sits inside the unpadded core.
+    private static func trimmingOverlappingGridRows(
+        _ geometries: [RegionGeometry], separated: Set<IndexPair>, connected: DisjointSet
+    ) -> [RegionGeometry] {
+        guard !separated.isEmpty else { return geometries }
+        var top = geometries.map { $0.box.minY }, bottom = geometries.map { $0.box.maxY }
+        for pair in separated where connected.find(pair.lower) != connected.find(pair.upper) {
+            let first = geometries[pair.lower].box, second = geometries[pair.upper].box
+            let upper = first.midY <= second.midY ? pair.lower : pair.upper
+            let lower = upper == pair.lower ? pair.upper : pair.lower
+            let a = geometries[upper].box, b = geometries[lower].box
+            let overlap = a.maxY - b.minY
+            guard overlap > 0, overlap < min(a.height, b.height) * 0.5,
+                  overlapRatio(a.minX, a.maxX, b.minX, b.maxX) > 0 else { continue }
+            let middle = (a.maxY + b.minY) / 2
+            bottom[upper] = min(bottom[upper], middle)
+            top[lower] = max(top[lower], middle)
+        }
+        return geometries.enumerated().map { index, geometry in
+            let line = geometry.line
+            guard top[index] > line.box.minY || bottom[index] < line.box.maxY else { return geometry }
+            let polygon = line.polygon.map { CGPoint(x: $0.x, y: min(max($0.y, top[index]), bottom[index])) }
+            var trimmed = Line(index: line.index, text: line.text, confidence: line.confidence, box: boundingBox(polygon),
+                               polygon: polygon, orientationHint: line.orientationHint, orientation: line.orientation,
+                               singleVerticalColumn: line.singleVerticalColumn, clippedByTile: line.clippedByTile)
+            trimmed.sourceTileBounds = line.sourceTileBounds
+            return makeRegionGeometry((geometry.index, trimmed))
+        }
+    }
+
+    /// Structured text (credits, forms, tables of contents, profile tables, chat logs) is a grid of separate
+    /// cells: rows of two or more horizontal cells side by side on one paper, stacked in flush-aligned columns.
+    /// Every grid row is its own item, so region formation never joins lines of two different rows: a dense
+    /// value or page-number column would otherwise read as one paragraph and every label would lose its value
+    /// (diverse-3493 credits, diverse2-1942 / diverse-3410 contents). Grid rows are keyed by a flush column over
+    /// three or more rows, one cell per row, whose cells are separate items (no two consecutive cells would
+    /// join) or numbers (page numbers, prices). Two side-by-side paragraphs or balloons are not a grid: the rows
+    /// of each column join, and their words are not numbers. Tilted tables (photographed forms, lab sheets) are left
+    /// to the ordinary grouping: a slanted frame never forms grids, and `exclusions` (the reach of slanted lines on
+    /// the page) keeps their upright fragments out of any grid.
+    private static func structuredTextSeparations(
+        _ lines: [Line], spatialIndex: NativeOCRSpatialIndex, exclusions: [CGRect], joinable: (Int, Int) -> Bool,
+        separationCheck: ((CGRect, CGRect, BrowserOCRSourceOrientation) -> Bool)?
+    ) -> Set<IndexPair> {
+        let cells = lines.indices.filter { index in
+            lines[index].orientation == .horizontal && lines[index].box.height > 0 && lines[index].box.width > 0
+                && lines[index].text.unicodeScalars.contains(where: isLetterOrNumber)
+                && !exclusions.contains { $0.intersects(lines[index].box) }
+        }
+        guard cells.count >= 6 else { return [] }
+        let isCell = Set(cells)
+        var result: Set<IndexPair> = []
+        // Row mates: side-by-side cells centred on one baseline band, on the same paper.
+        let rows = DisjointSet(lines.count)
+        var mates: [Int: [Int]] = [:]
+        for index in cells {
+            let box = lines[index].box
+            let search = box.insetBy(dx: -box.height * 12, dy: -box.height * 0.5)
+            for other in spatialIndex.indices(intersecting: search) where other > index && isCell.contains(other) {
+                let otherBox = lines[other].box
+                let small = min(box.height, otherBox.height), large = max(box.height, otherBox.height)
+                let gap = intervalGap(box.minX, box.maxX, otherBox.minX, otherBox.maxX)
+                guard large <= small * 2.5, abs(box.midY - otherBox.midY) <= large * 0.3,
+                      gap >= -small * 0.5, gap <= large * 12,
+                      separationCheck?(box, otherBox, .horizontal) != true else { continue }
+                rows.union(index, other)
+                mates[index, default: []].append(other)
+                mates[other, default: []].append(index)
+            }
+        }
+        var rowMembers: [Int: [Int]] = [:]
+        for index in cells where mates[index] != nil { rowMembers[rows.find(index), default: []].append(index) }
+        // A row is one baseline band; a chain that drifts over two text rows is not a grid row.
+        rowMembers = rowMembers.filter { _, members in
+            let centres = members.map { lines[$0].box.midY }
+            let small = members.map { lines[$0].box.height }.min() ?? 0
+            return (centres.max() ?? 0) - (centres.min() ?? 0) <= small * 0.5
+        }
+        guard rowMembers.count >= 2 else { return result }
+        var rowOf: [Int: Int] = [:]
+        for (row, members) in rowMembers { for member in members { rowOf[member] = row } }
+        // Columns: cells of two different rows with a shared flush edge, at most a few row pitches apart.
+        let columns = DisjointSet(lines.count)
+        let tables = DisjointSet(lines.count)
+        let gridCells = rowOf.keys.sorted()
+        for (position, index) in gridCells.enumerated() {
+            let box = lines[index].box
+            for other in gridCells[(position + 1)...] where rowOf[other] != rowOf[index] {
+                let otherBox = lines[other].box
+                let small = min(box.height, otherBox.height), large = max(box.height, otherBox.height)
+                guard large <= small * 1.6, abs(box.midY - otherBox.midY) <= large * 4.5,
+                      overlapRatio(box.minY, box.maxY, otherBox.minY, otherBox.maxY) < 0.5,
+                      abs(box.minX - otherBox.minX) <= small * 0.35 || abs(box.maxX - otherBox.maxX) <= small * 0.35
+                else { continue }
+                columns.union(index, other)
+                tables.union(rowOf[index]!, rowOf[other]!)
+            }
+        }
+        var columnMembers: [Int: [Int]] = [:]
+        for index in gridCells { columnMembers[columns.find(index), default: []].append(index) }
+        // Rows keyed by a qualifying column: its cells are separate items (no two consecutive cells would join)
+        // or numbers (page numbers, prices, scores), one per row.
+        var keyedRows = Set<Int>()
+        for members in columnMembers.values {
+            let ordered = members.sorted { lines[$0].box.midY < lines[$1].box.midY }
+            let rowsSpanned = Set(ordered.compactMap { rowOf[$0] })
+            guard rowsSpanned.count >= 3, rowsSpanned.count == ordered.count else { continue }
+            let separateItems = zip(ordered, ordered.dropFirst()).allSatisfy { !joinable($0, $1) }
+            let numericColumn = ordered.allSatisfy { index in
+                let characters = lines[index].text.unicodeScalars.filter(isLetterOrNumber)
+                return characters.count <= 6 && characters.filter(isNumber).count * 2 >= characters.count
+            }
+            if separateItems || numericColumn { keyedRows.formUnion(rowsSpanned) }
+        }
+        guard !keyedRows.isEmpty else { return result }
+        var tableCells = gridCells.filter { keyedRows.contains(rowOf[$0]!) }
+        // A note set between two rows of a table with no room of its own (a publisher line squeezed under a
+        // credit): its translation cannot sit between the separated rows, so it would be thrown off the table
+        // and its plate would cross the artwork (diverse-3493). Such a table keeps the ordinary grouping.
+        let isTableCell = Set(tableCells)
+        var crampedTables = Set<Int>()
+        for index in cells where !isTableCell.contains(index) {
+            let box = lines[index].box
+            var above: [Int: CGFloat] = [:], below: [Int: CGFloat] = [:]
+            for cell in spatialIndex.indices(intersecting: box.insetBy(dx: 0, dy: -box.height * 2)) where isTableCell.contains(cell) {
+                let cellBox = lines[cell].box
+                guard intervalGap(box.minX, box.maxX, cellBox.minX, cellBox.maxX) < 0 else { continue }
+                let table = tables.find(rowOf[cell]!)
+                if cellBox.midY < box.midY { above[table] = max(above[table] ?? -.infinity, cellBox.maxY) }
+                if cellBox.midY > box.midY { below[table] = min(below[table] ?? .infinity, cellBox.minY) }
+            }
+            for (table, top) in above {
+                if let bottom = below[table], bottom - top < box.height * 1.5 { crampedTables.insert(table) }
+            }
+        }
+        if !crampedTables.isEmpty { tableCells.removeAll { crampedTables.contains(tables.find(rowOf[$0]!)) } }
+        for (position, index) in tableCells.enumerated() {
+            for other in tableCells[(position + 1)...] where rowOf[other] != rowOf[index]
+                && tables.find(rowOf[other]!) == tables.find(rowOf[index]!) {
+                result.insert(IndexPair(index, other))
+            }
+        }
+        return result
     }
 
     /// A slanted line's axis-aligned height includes its horizontal advance.
@@ -645,9 +808,11 @@ enum NativeOCRTextLineMerger {
     private static func mergeSlantedHorizontalLines(
         _ input: [Line], imageWidth: CGFloat, imageHeight: CGFloat,
         recognizedLatinWords: Set<String>,
-        separationCheck: ((CGRect, CGRect, BrowserOCRSourceOrientation) -> Bool)?
+        separationCheck: ((CGRect, CGRect, BrowserOCRSourceOrientation) -> Bool)?,
+        inkContrast: ((CGRect, CGRect) -> Bool)?,
+        polarityContrast: ((CGRect, CGRect) -> Bool)? = nil
     ) -> [Line]? {
-        func angle(_ line: Line) -> CGFloat? {
+        func angle(_ line: Line, minimum: CGFloat = 0.10) -> CGFloat? {
             guard line.orientation == .horizontal, line.polygon.count == 4 else { return nil }
             let points = line.polygon
             let top = CGPoint(x: points[1].x - points[0].x, y: points[1].y - points[0].y)
@@ -655,21 +820,29 @@ enum NativeOCRTextLineMerger {
             let side = hypot(points[3].x - points[0].x, points[3].y - points[0].y)
             guard top.x > 0, bottom.x > 0, hypot(top.x, top.y) >= side * 1.8 else { return nil }
             let value = atan2(top.y, top.x)
-            guard abs(value) >= 0.10, abs(value) <= 0.55,
+            guard abs(value) >= minimum, abs(value) <= 0.55,
                   abs(value - atan2(bottom.y, bottom.x)) <= 0.04 else { return nil }
             return value
+        }
+        // Comic lettering rows: capital Latin letters only (labels and mixed-case text keep their frame).
+        func latinRow(_ line: Line) -> Bool {
+            let letters = line.text.unicodeScalars.filter(isLetter)
+            return !letters.isEmpty && letters.allSatisfy { isLatin($0) && !(0x61...0x7A ~= $0.value) }
         }
         guard input.contains(where: { angle($0) != nil }) else { return nil }
         // Duplicate tiles can straddle the angle threshold by a fraction of a
         // pixel. Select their representative before partitioning by baseline.
         let lines = deduplicateLines(input)
-        let angles = lines.map(angle)
+        var angles = lines.map { angle($0) }
+        promoteItalicLatinStacks(lines, angles: &angles, angle: { angle($0, minimum: 0) }, latinRow: latinRow)
         let spatialIndex = NativeOCRSpatialIndex(boxes: lines.map(\.box))
         var remaining = Set(lines.indices.filter { angles[$0] != nil })
         var result = mergeConservativeTextLines(
             lines.indices.filter { angles[$0] == nil }.map { lines[$0] },
             imageWidth: imageWidth, imageHeight: imageHeight,
-            recognizedLatinWords: recognizedLatinWords, deskew: false, separationCheck: separationCheck
+            recognizedLatinWords: recognizedLatinWords, deskew: false,
+            gridExclusions: lines.indices.filter { angles[$0] != nil }.map { searchBounds(lines[$0]) },
+            separationCheck: separationCheck, inkContrast: inkContrast, polarityContrast: polarityContrast
         )
         // Model/tile enumeration is not reading order. A geometric seed keeps
         // grouping stable even when neighbouring lines have slightly different slopes.
@@ -723,14 +896,56 @@ enum NativeOCRTextLineMerger {
                 result += mergeConservativeTextLines(
                     members.map { rotated(lines[$0], inverse: false) },
                     imageWidth: imageWidth, imageHeight: imageHeight,
-                    recognizedLatinWords: recognizedLatinWords, deskew: false,
+                    recognizedLatinWords: recognizedLatinWords, deskew: false, gridExclusions: nil,
                     separationCheck: { a, b, orientation in
                         separationCheck?(pageBounds(a), pageBounds(b), orientation) ?? false
-                    }
+                    },
+                    inkContrast: inkContrast.map { contrast in { contrast(pageBounds($0), pageBounds($1)) } },
+                    polarityContrast: polarityContrast.map { contrast in { contrast(pageBounds($0), pageBounds($1)) } }
                 ).map { rotated($0, inverse: true) }
             }
         }
         return result.sorted { $0.index < $1.index }
+    }
+
+    /// Italic comic lettering tilts every row of one balloon by about the same angle, and rows just
+    /// under the slant threshold would otherwise stay on the axis-aligned frame while their neighbours were
+    /// deskewed, splitting one balloon ("WHY IS / MAMA / NOT / HERE"). A stack of capital Latin rows (each
+    /// row overlapping the next by half the shorter width, at most 0.6 line heights apart) that
+    /// mixes slanted and unslanted rows is promoted as a whole when every row tilts by at least
+    /// 0.035 rad and within 0.07 rad of the stack's slanted rows. Otherwise nothing changes.
+    private static func promoteItalicLatinStacks(
+        _ lines: [Line], angles: inout [CGFloat?], angle: (Line) -> CGFloat?, latinRow: (Line) -> Bool
+    ) {
+        let rows = lines.indices.filter { lines[$0].orientation == .horizontal && latinRow(lines[$0]) && angle(lines[$0]) != nil }
+        guard rows.count >= 2, rows.contains(where: { angles[$0] != nil }), rows.contains(where: { angles[$0] == nil }) else { return }
+        var parent = Dictionary(uniqueKeysWithValues: rows.map { ($0, $0) })
+        func root(_ index: Int) -> Int {
+            var current = index
+            while let next = parent[current], next != current { current = next }
+            return current
+        }
+        for (position, first) in rows.enumerated() {
+            for second in rows.dropFirst(position + 1) {
+                let a = lines[first].box, b = lines[second].box
+                let overlap = min(a.maxX, b.maxX) - max(a.minX, b.minX)
+                let gap = max(a.minY, b.minY) - min(a.maxY, b.maxY)
+                guard overlap >= min(a.width, b.width) * 0.5, gap <= min(a.height, b.height) * 0.6,
+                      max(a.height, b.height) <= min(a.height, b.height) * 1.6 else { continue }
+                parent[root(second)] = root(first)
+            }
+        }
+        var stacks: [Int: [Int]] = [:]
+        for row in rows { stacks[root(row), default: []].append(row) }
+        for stack in stacks.values {
+            let slanted = stack.compactMap { angles[$0] }.sorted()
+            guard !slanted.isEmpty, slanted.count < stack.count else { continue }
+            let base = slanted[slanted.count / 2]
+            let tilts = stack.compactMap { angle(lines[$0]) }
+            guard tilts.count == stack.count,
+                  tilts.allSatisfy({ abs($0) >= 0.035 && abs($0 - base) <= 0.07 }) else { continue }
+            for row in stack where angles[row] == nil { angles[row] = angle(lines[row]) }
+        }
     }
 
     private static func mergeLineFragments(
@@ -738,7 +953,8 @@ enum NativeOCRTextLineMerger {
         imageWidth: CGFloat,
         imageHeight: CGFloat,
         recognizedLatinWords: Set<String>,
-        separationCheck: ((CGRect, CGRect, BrowserOCRSourceOrientation) -> Bool)? = nil
+        separationCheck: ((CGRect, CGRect, BrowserOCRSourceOrientation) -> Bool)? = nil,
+        polarityContrast: ((CGRect, CGRect) -> Bool)? = nil
     ) -> [Line] {
         let geometries = lines.enumerated().map(makeGeometry)
         let spatialIndex = NativeOCRSpatialIndex(boxes: lines.map(\.box))
@@ -766,6 +982,8 @@ enum NativeOCRTextLineMerger {
                 }
                 if leftGeometry.supportsHorizontal,
                    rightGeometry.supportsHorizontal,
+                   !crossesIndependentHorizontalBlocks(leftGeometry.line, rightGeometry.line, lines: lines,
+                       spatialIndex: spatialIndex),
                    !spatialIndex.indices(intersecting: leftGeometry.line.box.union(rightGeometry.line.box)).contains(where: { middle in
                        guard middle != left, middle != right else { return false }
                        let item = geometries[middle]
@@ -782,8 +1000,14 @@ enum NativeOCRTextLineMerger {
                    ) {
                     let ordered = [leftGeometry.line, rightGeometry.line].sorted { $0.box.minX < $1.box.minX }
                     let font = min(ordered[0].box.height, ordered[1].box.height)
+                    // A display heading beside body text on the same row (a reversed title
+                    // box next to ruled lines) is a different lettering unit: larger glyphs
+                    // on a background of the opposite polarity never continue the smaller line.
+                    if max(ordered[0].box.height, ordered[1].box.height) >= font * 1.1,
+                       polarityContrast?(ordered[0].box, ordered[1].box) == true { continue }
                     let isNewOverlapEdge = ordered[0].box.maxX - ordered[1].box.minX > font * 0.15
-                        && horizontalLatinOverlap(ordered[0], ordered[1]) != nil
+                        && (horizontalLatinOverlap(ordered[0], ordered[1]) != nil
+                            || horizontalLatinSeam(ordered[0], ordered[1]) != nil || horizontalCJKSeam(ordered[0], ordered[1]) != nil)
                         && overlappingCharacterCount(ordered[0], ordered[1], orientation: .horizontal) == nil
                     if isNewOverlapEdge {
                         let nearby = spatialIndex.indices(intersecting: ordered[0].box.union(ordered[1].box)
@@ -948,6 +1172,41 @@ enum NativeOCRTextLineMerger {
         return result
     }
 
+    /// Two pieces of one row separated by a gutter that continues through the neighbouring rows are the
+    /// facing rows of two side-by-side text blocks (two lettering stacks in one balloon), not one line
+    /// broken at a word gap: each piece has an aligned row above or below on its own side, and no
+    /// neighbouring row spans the gutter.
+    private static func crossesIndependentHorizontalBlocks(
+        _ a: Line, _ b: Line, lines: [Line], spatialIndex: NativeOCRSpatialIndex
+    ) -> Bool {
+        guard a.orientation != .vertical, b.orientation != .vertical else { return false }
+        let left = a.box.minX <= b.box.minX ? a : b, right = left.index == a.index ? b : a
+        let font = min(left.box.height, right.box.height)
+        let gapStart = left.box.maxX, gapEnd = right.box.minX
+        guard font > 0, gapEnd > gapStart, gapEnd - gapStart <= font * 1.2,
+              overlapRatio(left.box.minY, left.box.maxY, right.box.minY, right.box.maxY) >= 0.5 else { return false }
+        func neighbours(_ line: Line) -> (own: Bool, crossing: Bool) {
+            var own = false, crossing = false
+            for index in spatialIndex.indices(intersecting: line.box.insetBy(dx: 0, dy: -font * 1.2)) {
+                let other = lines[index]
+                guard other.index != a.index, other.index != b.index, other.orientation != .vertical,
+                      other.box.height <= line.box.height * 1.6, other.box.height * 1.6 >= line.box.height,
+                      overlapRatio(other.box.minY, other.box.maxY, line.box.minY, line.box.maxY) < 0.5,
+                      separatedIntervalGap(other.box.minY, other.box.maxY, line.box.minY, line.box.maxY) <= font,
+                      overlapRatio(other.box.minX, other.box.maxX, line.box.minX, line.box.maxX) >= 0.5 else { continue }
+                if other.box.minX < gapEnd - font * 0.1, other.box.maxX > gapStart + font * 0.1 {
+                    crossing = true
+                } else if min(abs(other.box.minX - line.box.minX), abs(other.box.maxX - line.box.maxX),
+                              abs(other.box.midX - line.box.midX)) <= font * 0.5 {
+                    own = true
+                }
+            }
+            return (own, crossing)
+        }
+        let first = neighbours(left), second = neighbours(right)
+        return first.own && second.own && !first.crossing && !second.crossing
+    }
+
     /// A short same-column gap is not a continuation when both fragments have
     /// their own top-aligned neighbouring columns (stacked balloon lobes).
     private static func crossesIndependentVerticalBlocks(
@@ -1050,9 +1309,11 @@ enum NativeOCRTextLineMerger {
             guard overlappingJoin(
                 ordered[0], ordered[1], orientation: orientation
             ) != nil || (orientation == .horizontal && paddedCJKNeighbours(ordered[0], ordered[1]))
+                || (orientation == .horizontal && paddedLatinLetterNeighbours(ordered[0], ordered[1]))
                 || (orientation == .horizontal && horizontalLatinOverlap(ordered[0], ordered[1]) != nil)
                 || (orientation == .vertical && paddedVerticalNeighbours(ordered[0], ordered[1])) else { return nil }
         }
+        guard orientation == .vertical || !isScriptSwitchAtSizeJump(left.line, right.line) else { return nil }
         return Candidate(
             left: left.index,
             right: right.index,
@@ -1154,6 +1415,67 @@ enum NativeOCRTextLineMerger {
         let overlap = left.box.maxX - right.box.minX
         return overlap > 0 && overlap <= min(left.box.height, right.box.height) * 0.55 &&
             overlap <= min(left.box.width, right.box.width) * 0.55
+    }
+
+    /// A lone Latin letter ("I" of "I HAVE") detected as its own padded box on the row of the next
+    /// word. Its box may overlap the word's box by up to half a glyph height; the letter itself stays
+    /// outside the word's box, so neither read contains the other.
+    private static func paddedLatinLetterNeighbours(_ left: Line, _ right: Line) -> Bool {
+        let a = left.text.unicodeScalars.filter { CharacterSet.letters.contains($0) }
+        let b = right.text.unicodeScalars.filter { CharacterSet.letters.contains($0) }
+        guard a.count == 1 || b.count == 1, !a.isEmpty, !b.isEmpty, a.allSatisfy(isLatin), b.allSatisfy(isLatin),
+              !(left.text + right.text).unicodeScalars.contains(where: { CharacterSet.decimalDigits.contains($0) }),
+              left.box.minX < right.box.minX, left.box.maxX < right.box.maxX else { return false }
+        let font = min(left.box.height, right.box.height)
+        let overlap = left.box.maxX - right.box.minX
+        let letter = a.count == 1 ? left.box : right.box, word = a.count == 1 ? right.box : left.box
+        // A letter repeating the word's facing letter may be a re-read crop or a stutter ("I" | "I am"):
+        // that case keeps its existing boundary.
+        let facing = a.count == 1 ? b.first : a.last, single = a.count == 1 ? a.first : b.first
+        guard let facing, let single, String(facing).lowercased() != String(single).lowercased() else { return false }
+        return overlap > 0 && overlap <= font * 0.55 && !word.contains(CGPoint(x: letter.midX, y: letter.midY))
+    }
+
+    /// One CJK row detected as two boxes that share more than half a glyph
+    /// (百貨店で香水を買 | 買う話). Returns how many leading glyphs of `right`
+    /// re-read that shared glyph: 1 when both reads agree, otherwise 0.
+    /// Below half a glyph, neighbouring labels and ruby keep their boundary.
+    private static func horizontalCJKSeam(_ left: Line, _ right: Line) -> Int? {
+        let a = left.box, b = right.box, font = min(a.height, b.height)
+        let x = overlapComparisonGlyphs(left.text), y = overlapComparisonGlyphs(right.text)
+        let letters = (left.text + right.text).unicodeScalars.filter(isLetter)
+        guard font > 0, x.count >= 2, y.count >= 2, !letters.isEmpty, letters.allSatisfy(isCJK),
+              max(a.height, b.height) <= font * 1.25, abs(a.midY - b.midY) <= font * 0.2,
+              overlapRatio(a.minY, a.maxY, b.minY, b.maxY) >= 0.8,
+              a.minX < b.minX, a.maxX < b.maxX else { return nil }
+        let leftAdvance = a.width / CGFloat(x.count), rightAdvance = b.width / CGFloat(y.count)
+        let advance = (leftAdvance + rightAdvance) / 2, overlap = a.maxX - b.minX
+        guard max(leftAdvance, rightAdvance) <= min(leftAdvance, rightAdvance) * 1.5,
+              overlap >= advance * 0.55, overlap <= advance * 1.3 else { return nil }
+        return x.last == y.first && overlap >= advance * 0.7 ? 1 : 0
+    }
+
+    /// A Latin row split inside a word, with the right crop re-reading the
+    /// left crop's final letters (`Begone, f` | `foul monster!`).
+    private static func horizontalLatinSeam(_ left: Line, _ right: Line) -> Int? {
+        guard !left.clippedByTile, !right.clippedByTile else { return nil }
+        let a = left.box, b = right.box, font = min(a.height, b.height)
+        let x = left.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let y = right.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let letters = (x + y).unicodeScalars.filter(isLetter)
+        guard font > 0, !letters.isEmpty, letters.allSatisfy(isLatin),
+              max(a.height, b.height) <= font * 1.25, abs(a.midY - b.midY) <= font * 0.2,
+              overlapRatio(a.minY, a.maxY, b.minY, b.maxY) >= 0.8,
+              a.minX < b.minX, a.maxX < b.maxX, a.maxX > b.minX,
+              let tail = x.split(whereSeparator: { $0.isWhitespace }).last,
+              let head = y.split(whereSeparator: { $0.isWhitespace }).first,
+              (1...2).contains(tail.count), x.count > tail.count, head.count >= tail.count + 2,
+              tail.allSatisfy({ $0.isLetter }), head.lowercased().hasPrefix(tail.lowercased()) else { return nil }
+        let leftAdvance = a.width / CGFloat(x.count), rightAdvance = b.width / CGFloat(y.count)
+        let expected = CGFloat(tail.count) * (leftAdvance + rightAdvance) / 2
+        guard max(leftAdvance, rightAdvance) <= min(leftAdvance, rightAdvance) * 1.6,
+              abs(a.maxX - b.minX - expected) <= expected * 0.5 else { return nil }
+        return tail.count
     }
 
     private static func inheritHorizontalInlineGlyphs(_ lines: [Line]) -> [Line] {
@@ -1260,6 +1582,29 @@ enum NativeOCRTextLineMerger {
             orientation: orientation,
             singleVerticalColumn: orientation == .vertical
         )
+    }
+
+    /// A Latin-only piece beside a CJK-only piece whose glyphs are over 1.3 times taller or shorter
+    /// (measured across the detected quadrilateral, so a slant does not inflate it) is different
+    /// lettering that only lines up, such as a phone number cut by a panel border and a name list in the
+    /// next panel ("masa-heaven" | "プロデューサ"). Mixed-script words in one line share the type size.
+    private static func isScriptSwitchAtSizeJump(_ left: Line, _ right: Line) -> Bool {
+        func script(_ text: String) -> Int? {
+            var latin = false, cjk = false
+            for scalar in text.unicodeScalars where isLetter(scalar) {
+                if isLatin(scalar) { latin = true } else if isCJK(scalar) { cjk = true } else { return nil }
+            }
+            return latin == cjk ? nil : (latin ? 0 : 1)
+        }
+        func thickness(_ line: Line) -> CGFloat {
+            let points = line.polygon
+            guard points.count == 4 else { return line.box.height }
+            return (hypot(points[3].x - points[0].x, points[3].y - points[0].y)
+                + hypot(points[2].x - points[1].x, points[2].y - points[1].y)) / 2
+        }
+        guard let first = script(left.text), let second = script(right.text), first != second else { return false }
+        let a = thickness(left), b = thickness(right)
+        return a > 0 && b > 0 && max(a, b) > 1.3 * min(a, b)
     }
 
     private static func isSingleCJKGlyph(_ text: String) -> Bool {
@@ -1383,9 +1728,18 @@ enum NativeOCRTextLineMerger {
         if orientation == .horizontal, horizontalLatinOverlap(left, right) == 1 {
             return OverlappingJoin(prefixCount: 1)
         }
-        // A clipped crop may read the beginning of an ellipsis as a middle dot.
-        // Only the crop ending at the tile edge can surrender that punctuation;
-        // the overlapping crop must independently re-read at least three letters.
+        if let match = clippedEllipsisJoin(left, right, orientation: orientation) { return match }
+        guard orientation == .horizontal,
+              let count = horizontalCJKSeam(left, right) ?? horizontalLatinSeam(left, right) else { return nil }
+        return OverlappingJoin(prefixCount: count)
+    }
+
+    // A clipped crop may read the beginning of an ellipsis as a middle dot.
+    // Only the crop ending at the tile edge can surrender that punctuation;
+    // the overlapping crop must independently re-read at least three letters.
+    private static func clippedEllipsisJoin(
+        _ left: Line, _ right: Line, orientation: Orientation
+    ) -> OverlappingJoin? {
         guard left.clippedByTile, originateInDifferentOverlappingTiles(left, right),
               let tile = left.sourceTileBounds,
               primaryInterval(left.box, orientation: orientation).1
@@ -1902,6 +2256,46 @@ enum NativeOCRTextLineMerger {
             }
         }
         return result
+    }
+
+    /// A visual-novel speaker name sits directly above its dialogue, flush left,
+    /// in a different ink colour. It is a label, not the sentence's first words,
+    /// so it keeps its own region even at paragraph line spacing.
+    private static func speakerNameTags(
+        _ lines: [Line], spatialIndex: NativeOCRSpatialIndex, inkContrast: ((CGRect, CGRect) -> Bool)?
+    ) -> Set<Int> {
+        guard let inkContrast, lines.count >= 2 else { return [] }
+        var result: Set<Int> = []
+        for (index, name) in lines.enumerated() where name.orientation == .horizontal && isSpeakerName(name.text) {
+            let tag = name.box
+            let search = CGRect(x: tag.minX - tag.height * 2, y: tag.maxY - tag.height * 0.5,
+                                width: tag.width + tag.height * 4, height: tag.height * 2.5)
+            let hasDialogue = spatialIndex.indices(intersecting: search).contains { other in
+                let dialogue = lines[other], box = dialogue.box
+                let text = dialogue.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard other != index, dialogue.orientation == .horizontal, box.height > 0,
+                      text.count >= 12, text.contains(" "),
+                      text.unicodeScalars.contains(where: isLatin),
+                      tag.height >= box.height * 0.65, tag.height <= box.height * 2,
+                      box.minY - tag.maxY >= -box.height * 0.3, box.minY - tag.maxY <= box.height * 1.2,
+                      box.width >= tag.width * 2.5,
+                      abs(tag.minX - box.minX) <= box.height * 1.5,
+                      tag.midX < box.midX - box.width * 0.25 else { return false }
+                return inkContrast(tag, box)
+            }
+            if hasDialogue { result.insert(index) }
+        }
+        return result
+    }
+
+    /// One or two capitalised Latin words, as VN name boxes print them (`Maja`, `Mysterious Guy`, `BIKER BOY`).
+    private static func isSpeakerName(_ text: String) -> Bool {
+        let words = text.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: " ")
+        guard (1...2).contains(words.count), words.reduce(0, { $0 + $1.count }) <= 16 else { return false }
+        return words.allSatisfy { word in
+            guard word.count >= 2, let first = word.unicodeScalars.first, (0x41...0x5A).contains(first.value) else { return false }
+            return word.unicodeScalars.allSatisfy { isLatin($0) || $0 == "'" || $0 == "-" || $0 == "_" }
+        }
     }
 
     private static func canFormTranslationRegion(

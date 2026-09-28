@@ -44,13 +44,18 @@ struct NativeCoreMLDBPostprocessConfiguration: Equatable, Sendable {
     let unclipRatio: Double
     let maximumCandidates: Int
     let minimumBoxSide: Double
+    /// Components scoring in `recoveryBoxThreshold..<boxThreshold` (and not split into accepted
+    /// parts) are kept as weak boxes. Their recognition must pass the pipeline's recovery gate
+    /// (faint pencil / brush lettering); nil keeps the exact thresholded detector output.
+    let recoveryBoxThreshold: Double?
 
     init(
         threshold: Double,
         boxThreshold: Double,
         unclipRatio: Double,
         maximumCandidates: Int,
-        minimumBoxSide: Double = 3
+        minimumBoxSide: Double = 3,
+        recoveryBoxThreshold: Double? = nil
     ) {
         precondition((0 ... 1).contains(threshold))
         precondition((0 ... 1).contains(boxThreshold))
@@ -62,6 +67,12 @@ struct NativeCoreMLDBPostprocessConfiguration: Equatable, Sendable {
         self.unclipRatio = unclipRatio
         self.maximumCandidates = maximumCandidates
         self.minimumBoxSide = minimumBoxSide
+        self.recoveryBoxThreshold = recoveryBoxThreshold.map { min(max($0, 0), boxThreshold) }
+    }
+
+    func withRecoveryBoxThreshold(_ value: Double?) -> Self {
+        Self(threshold: threshold, boxThreshold: boxThreshold, unclipRatio: unclipRatio,
+             maximumCandidates: maximumCandidates, minimumBoxSide: minimumBoxSide, recoveryBoxThreshold: value)
     }
 }
 
@@ -372,6 +383,8 @@ enum NativeCoreMLDBPostprocessor {
                               cancellationCheck: cancellationCheck
                           ) {
                     parts = split
+                } else if let recovery = configuration.recoveryBoxThreshold, score >= recovery {
+                    parts = [(minimum, score, nil)]
                 } else {
                     continue
                 }

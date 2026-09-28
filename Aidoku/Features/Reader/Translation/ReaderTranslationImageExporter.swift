@@ -172,7 +172,7 @@ enum ReaderTranslationImageExporter {
                 let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: regions)
                 if let data = await cache?.layoutData(for: layoutKey) { return data }
                 return try await BrowserPageImageOverlayRenderer.prepareLayoutData(
-                    items: ReaderTranslationRegion.overlayItems(regions, imageSize: image.size),
+                    items: ReaderTranslationRegion.layoutItems(regions, imageSize: image.size),
                     imageSize: image.size, sourceRect: rect, settings: settings.overlay,
                     targetLanguage: settings.targetLanguage, viewport: viewport)
             }

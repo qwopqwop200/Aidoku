@@ -244,7 +244,9 @@ struct ReaderSourceTextColorTests {
                 const c=v/255;return sum+(c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4))*[.2126,.7152,.0722][i];},0);
               const a=luminance(n.dataset.sourceAppliedTextRGB||'0,0,0');
               const b=luminance(n.dataset.sourceAppliedBackgroundRGB||n.dataset.sourceSampledBackgroundRGB||'255,255,255');
+              const o=luminance(n.dataset.sourceAppliedStrokeRGB||'255,255,255');
               return {contrast:String((Math.max(a,b)+.05)/(Math.min(a,b)+.05)),
+                strokeContrast:String((Math.max(o,b)+.05)/(Math.min(o,b)+.05)),
                 sampled:n.dataset.sourceSampledStrokeRGB, applied:n.dataset.sourceAppliedStrokeRGB,
                 state:n.dataset.sourceStrokeColor, backgroundMode:n.dataset.sourceBackgroundColor, stroke:s.webkitTextStrokeColor,
                 width:s.webkitTextStrokeWidth, paintOrder:s.paintOrder,
@@ -258,14 +260,29 @@ struct ReaderSourceTextColorTests {
                 let sampled = try #require(audit["sampled"])
                 let channels = sampled.split(separator: ",").compactMap { Int($0) }
                 #expect(channels.count == 3 && zip(channels, [96, 54, 28]).allSatisfy { abs($0 - $1) <= 16 })
-                #expect(audit["appliedFill"] != audit["sampledFill"])
-                #expect(audit["adjusted"] == "true")
-                #expect((Double(audit["contrast"] ?? "") ?? 0) >= 4.5)
             }
-            #expect(audit["state"] == "none")
-            #expect(audit["applied"] == "")
-            #expect(audit["width"] == "0px")
-            #expect(audit["paintOrder"] == "normal")
+            // With the panel kept, the observed fill + outline pair is the lettering style; without it the
+            // fill is adjusted for contrast and the outline dropped. The fixture fixes which path applies.
+            if text && panel {
+                // Keep both, with the outline painted under the fill, matching the sample and
+                // supplying the contrast against the panel.
+                #expect(audit["state"] == "preserved")
+                #expect((Double(audit["strokeContrast"] ?? "") ?? 0) >= 4.5)
+                #expect(audit["applied"] == audit["sampled"])
+                #expect(audit["appliedFill"] == audit["sampledFill"])
+                #expect(audit["width"] != "0px")
+                #expect(audit["paintOrder"]?.hasPrefix("stroke") == true)
+            } else {
+                if text {
+                    #expect(audit["appliedFill"] != audit["sampledFill"])
+                    #expect(audit["adjusted"] == "true")
+                    #expect((Double(audit["contrast"] ?? "") ?? 0) >= 4.5)
+                }
+                #expect(audit["state"] == "none")
+                #expect(audit["applied"] == "")
+                #expect(audit["width"] == "0px")
+                #expect(audit["paintOrder"] == "normal")
+            }
         }
     }
 

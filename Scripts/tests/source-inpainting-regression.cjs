@@ -238,9 +238,10 @@ function budgetHarness(items, globalState = {}, source = {}) {
     const sourceImage = Object.assign({complete:true,naturalWidth:3000,naturalHeight:3000,src:'fixture',addEventListener(){}},source);
     let reads=0,calls=0;
     const env={globalThis:globalState,sourceImage,items,appearance:{inpaintingEnabled:true,preserveSourceTextColor:true,preserveSourceBackgroundColor:true},
-        opacity:1,cleanupImageGeometry:{frame:[0,0,430,430]},scrollX:0,scrollY:0,
+        opacity:1,cleanupImageGeometry:{frame:[0,0,430,430]},scrollX:0,scrollY:0,keptItems:[],keptZones:[],
         cachedSourceSample(){return {foreground:[20,20,20],background:[240,240,240]};},
         aidokuRestoreSourcePanel(p,w,h){calls++;return {rgba:new Uint8ClampedArray(w*h*4),layoutSafe:new Uint8Array(w*h),erased:1};},
+        aidokuCompleteConnectedLettering(){return 0;},
         aidokuCleanupClip(){return 'none';},root:{dataset:{},appendChild(){}},document:{createElement(){const canvas={style:{},setAttribute(){}};
             canvas.getContext=()=>({drawImage(){},getImageData(){reads+=canvas.width*canvas.height;return {data:new Uint8ClampedArray(canvas.width*canvas.height*4)};},
                 createImageData(w,h){return {data:new Uint8ClampedArray(w*h*4)};},putImageData(){}});return canvas;}}};
@@ -460,6 +461,46 @@ for(const f of onePixelCases)test('real one-pixel expansion footprint / '+f.name
         assert.ok(!f.auxiliary.some(r=>x>=r[0]-21&&x<=r[0]+r[2]+21&&y>=r[1]-21&&y<=r[1]+r[3]+21),
             'preserve the entire existing ruby halo');
     }
+});
+
+const enclosedPaper=new Function(script+';return aidokuEnclosedPaperRestore;')();
+test('enclosed paper: glyph holes get a two-pixel paper ring in clean paper colour; a frame with arrows stays',()=>{
+    const w=120,h=90,rgba=new Uint8ClampedArray(w*h*4);
+    for(let i=0;i<w*h;i++)rgba.set([252,252,250,255],i*4);
+    const ink=(x,y,v)=>rgba.set([v,v,v,255],(y*w+x)*4);
+    // Sign frame just outside the caption with arrows hanging far below it.
+    for(let x=20;x<=100;x++){ink(x,20,40);ink(x,50,40);}
+    for(let y=20;y<=50;y++){ink(20,y,40);ink(100,y,40);}
+    for(const ax of [35,60,85])for(let y=51;y<=80;y++)ink(ax,y,40);
+    // Two glyphs with a pale pink antialiased fringe (still paper by value).
+    for(const gx of [40,64])for(let y=30;y<=40;y++)for(let x=gx;x<gx+12;x++){
+        const edge=x===gx||x===gx+11||y===30||y===40;ink(x,y,edge?150:20);}
+    for(const gx of [39,76])for(let y=29;y<=41;y++)rgba.set([250,236,244,255],(y*w+gx)*4);
+    const before=rgba.slice(),out=enclosedPaper(rgba,w,h,[36,27,48,17],{auxiliary:[],excluded:[]});
+    assert.ok(out);assert.deepEqual(rgba,before);
+    for(let x=20;x<=100;x++){assert.equal(out.rgba[(20*w+x)*4+3],0,'frame kept');assert.equal(out.layoutSafe[20*w+x],0);}
+    for(let y=51;y<=80;y++)assert.equal(out.rgba[(y*w+35)*4+3],0,'arrows kept');
+    for(const gx of [40,64])for(let y=28;y<=42;y++)for(let x=gx-2;x<gx+14;x++){
+        const i=(y*w+x)*4;assert.equal(out.rgba[i+3],255,'glyph and its two-pixel ring are painted');
+        for(let c=0;c<3;c++)assert.ok(Math.abs(out.rgba[i+c]-[252,252,250][c])<=1,'clean paper colour, no fringe tint');
+    }
+});
+test('a long thin rim mostly outside the OCR box is protected, not erased as a glyph',()=>{
+    const w=150,h=120,rgba=new Uint8ClampedArray(w*h*4);
+    for(let i=0;i<w*h;i++)rgba.set([250,250,250,255],i*4);
+    const ink=(x,y)=>rgba.set([30,30,30,255],(y*w+x)*4);
+    for(let k=0;k<3;k++)for(let y=36;y<60;y++)for(let x=36+k*24;x<54+k*24;x++)if(x<40+k*24||y<40||y>=56||x>=50+k*24)ink(x,y);
+    // A balloon-edge arc below the box whose bounding centre lies inside it.
+    const rim=x=>Math.round(92-((x-70)**2)/25);
+    for(let x=50;x<=90;x++)for(let y=Math.min(rim(x),rim(x+(x<70?1:-1)));y<=rim(x)+1;y++)ink(x,y);
+    const before=rgba.slice(),palette={foreground:[30,30,30],background:[250,250,250],confidence:{foreground:1}};
+    const out=restore(rgba,w,h,[33,33,76,52],palette,{readabilityGate:true});
+    assert.ok(out);assert.deepEqual(rgba,before);
+    let checked=0;
+    for(let x=50;x<=90;x++){const y=rim(x);if(y<88)continue;checked++;
+        assert.equal(out.rgba[(y*w+x)*4+3],0,'rim pixels outside the box are not painted');}
+    assert.ok(checked>=10);
+    assert.equal(out.rgba[(40*w+37)*4+3],255,'glyph ink is erased');
 });
 
 console.log(`${passed} reconstruction checks passed`);

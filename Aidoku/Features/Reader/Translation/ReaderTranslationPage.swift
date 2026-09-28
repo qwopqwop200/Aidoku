@@ -378,7 +378,8 @@ final class ReaderTranslationPage {
         guard settings.overlay.visible, let image = imageView?.image, cachedOverlay == nil,
               !(completedTranslation && analyzedImage === image), overlay == nil || showsProvisional else { return }
         let rect = sourcePage?.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
-        let displayed = result.filter { $0.translation != nil && !$0.preservesOriginalText }.compactMap { $0.cropped(to: rect) }
+        let kept = ReaderTranslationRegion.keepsOriginalLettering(result)
+        let displayed = result.indices.filter { result[$0].translation != nil && !kept[$0] }.compactMap { result[$0].cropped(to: rect) }
         guard !displayed.isEmpty, displayed != provisionalShown else { return }
         provisionalPending = displayed
         scheduleProvisionalRender(image: image, settings: settings)

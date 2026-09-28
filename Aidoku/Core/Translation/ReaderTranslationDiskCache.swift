@@ -776,6 +776,10 @@ struct ReaderTranslationStoredRegion: Codable {
     let translationOrderVersion: String?
     let reuseKey: TranslationCacheKey?
     let reuseSegment: String?
+    let balloonInterior: ReaderTranslationBalloonInterior?
+    let occludedFinePrint: Bool?
+    let unitMemberRects: [CGRect]?
+    let recoveredLine: Bool?
 
     init(_ value: ReaderTranslationRegion) {
         id = value.id; rect = value.rect; source = value.source; translation = value.translation
@@ -787,6 +791,10 @@ struct ReaderTranslationStoredRegion: Codable {
         translationOrder = value.translationOrder
         translationOrderVersion = value.translationOrderVersion
         reuseKey = value.translationReuseIdentity?.cacheKey; reuseSegment = value.translationReuseIdentity?.segmentID
+        balloonInterior = value.balloonInterior
+        occludedFinePrint = value.isOccludedFinePrint ? true : nil
+        unitMemberRects = value.unitMemberRects.isEmpty ? nil : value.unitMemberRects
+        recoveredLine = value.isRecoveredLine ? true : nil
     }
     var region: ReaderTranslationRegion {
         var region = ReaderTranslationRegion(id: id, rect: rect, source: source, translation: translation, polygon: polygon,
@@ -798,6 +806,10 @@ struct ReaderTranslationStoredRegion: Codable {
         region.translationOrder = translationOrder
         region.translationOrderVersion = translationOrderVersion
         if let reuseKey, let reuseSegment { region.translationReuseIdentity = .init(cacheKey: reuseKey, segmentID: reuseSegment) }
+        region.balloonInterior = balloonInterior
+        region.isOccludedFinePrint = occludedFinePrint ?? false
+        region.unitMemberRects = unitMemberRects ?? []
+        region.isRecoveredLine = recoveredLine ?? false
         return region
     }
 }
@@ -839,7 +851,7 @@ enum ReaderTranslationCacheIdentity {
     static func ocr(page: String, settings: ReaderTranslationSettings) -> String {
         // OCR entries contain merged regions. A merger change must also
         // invalidate derived translations/layouts instead of replaying old boxes.
-        encoded(["reader-ocr-v57-fp16-detector", page, encoded(settings.ocrConfiguration)])
+        encoded(["reader-ocr-v62-recovered-lines-bridge-split", page, encoded(settings.ocrConfiguration)])
     }
     static func translation(page: String, settings: ReaderTranslationSettings) -> String {
         let previous = unfilteredTranslation(page: page, settings: settings)
@@ -852,7 +864,7 @@ enum ReaderTranslationCacheIdentity {
         return encoded([
             "reader-translation-v2-neighbor-context", ocr(page: page, settings: settings), config.provider.rawValue, config.apiProtocol.rawValue,
             config.baseURL, config.model, config.credentialAccount, String(config.credentialGeneration), config.reasoningEffort.rawValue,
-            config.instructions, settings.sourceLanguage, settings.targetLanguage
+            config.instructions, settings.sourceLanguage, settings.targetLanguage, TranslationHTTPCodec.letteringPolicy
         ]
             + (settings.includePageImage ? ["page-image-v2-auto-fallback", String(TranslationImageSupport.shared.revision(for: config))] : [])
             + (settings.filterSFXWithLLM ? [settings.shouldAttachPageImage ? TranslationHTTPCodec.sfxPolicy : TranslationHTTPCodec.textOnlySFXPolicy] : [])
@@ -868,7 +880,7 @@ enum ReaderTranslationCacheIdentity {
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
         return encoded([
-            "reader-render-v106-paper-outline", translation(page: page, settings: settings), encoded(settings.overlay),
+            "reader-render-v111-unit-parts-review-fixes", translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
             "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit",
             ProcessInfo.processInfo.operatingSystemVersionString

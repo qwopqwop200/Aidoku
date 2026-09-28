@@ -8,6 +8,55 @@ import UIKit
 
 struct NativeOCRTextLineMergerTests {
     @Test(arguments: [0.5, 1.0, 2.0])
+    func scriptSwitchAtASizeJumpDoesNotJoinAcrossThePanelBorder(scale: Double) {
+        // Real comic-8426 detector polygons (1350x1920): a tilted phone number cut by a panel border
+        // lines up with a smaller katakana list entry on the next panel's phone.
+        func line(_ text: String, _ points: [[Double]]) -> NativeCoreMLOCRLine {
+            NativeCoreMLOCRLine(polygon: points.map { CGPoint(x: $0[0] * scale, y: $0[1] * scale) },
+                text: text, score: 0.99, orientation: .horizontal, orientationIsEstimated: true)
+        }
+        let rows = [
+            line("080-0988-", [[182, 1533], [509, 1612], [493, 1681], [166, 1602]]),
+            line("masa-heaven", [[146, 1616], [590, 1727], [574, 1794], [130, 1682]]),
+            line("一郎", [[608, 1702], [705, 1724], [696, 1762], [600, 1740]]),
+            line("プロデューサ", [[596, 1727], [805, 1789], [793, 1830], [585, 1768]]),
+            line("さん", [[598, 1766], [663, 1784], [653, 1821], [588, 1803]])
+        ]
+        let texts = merge(rows, width: Int(1350 * scale), height: Int(1920 * scale)).map(\.text)
+        #expect(!texts.contains { $0.contains("heaven") && $0.contains("プロデューサ") }, "\(texts)")
+        // Mixed-script pieces of one line in one type size still join.
+        let mixed = merge([line("LINE", [[100, 100], [180, 100], [180, 140], [100, 140]]),
+                           line("で送った", [[182, 100], [330, 100], [330, 140], [182, 140]])],
+                          width: Int(1350 * scale), height: Int(1920 * scale)).map(\.text)
+        #expect(mixed == ["LINEで送った"], "\(mixed)")
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0])
+    func sideBySideLetteringStacksKeepTheirOwnRows(scale: Double) {
+        // Real comic-2459 detector boxes: two handwritten English stacks in one balloon. Their facing rows
+        // "DOES" and "ARE YOU" sit on one baseline with a narrow gutter that runs through every row.
+        func line(_ text: String, _ box: [Double]) -> NativeCoreMLOCRLine {
+            let (x0, y0, x1, y1) = (box[0] * scale, box[1] * scale, box[2] * scale, box[3] * scale)
+            return NativeCoreMLOCRLine(polygon: [CGPoint(x: x0, y: y0), CGPoint(x: x1, y: y0), CGPoint(x: x1, y: y1),
+                                                 CGPoint(x: x0, y: y1)],
+                text: text, score: 0.99, orientation: .horizontal, orientationIsEstimated: true)
+        }
+        let rows = [
+            line("KAGUYA,", [237, 910, 313, 947]), line("DOES", [183, 940, 229, 971]), line("ARE YOU", [238, 942, 313, 975]),
+            line("YOUR", [182, 968, 230, 997]), line("OKAY!?", [247, 970, 309, 1006]), line("HEAD", [179, 992, 232, 1026]),
+            line("HURT!?", [175, 1021, 241, 1052])
+        ]
+        let texts = merge(rows, width: Int(800 * scale), height: Int(1200 * scale)).map(\.text)
+        #expect(!texts.contains { $0.contains("DOES") && $0.contains("ARE") }, "\(texts)")
+        #expect(!texts.contains { $0.contains("YOUR") && $0.contains("OKAY") }, "\(texts)")
+        // One centred balloon line broken at a word gap still joins: the rows around it span the gap.
+        let centred = merge([line("I CAN'T", [200, 100, 300, 130]), line("BELIEVE", [308, 100, 416, 130]),
+                             line("WELL, THAT IS", [220, 60, 400, 90]), line("REALLY TRUE!", [230, 140, 390, 170])],
+                            width: Int(800 * scale), height: Int(1200 * scale)).map(\.text)
+        #expect(centred.contains { $0.contains("I CAN'T BELIEVE") }, "\(centred)")
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0])
     func stackedBalloonColumnsKeepIndependentReadingOrder(scale: Double) {
         // Real comic-0474 detector polygons: a 25px gap previously attached
         // the lower lobe's left column to the upper lobe's middle column.
@@ -1716,6 +1765,165 @@ NativeCoreMLOCRLine(polygon: [CGPoint(x: 675, y: 435), CGPoint(x: 688, y: 438), 
         let part = line("BIRTHD", 918, 1707, 618, 197, orientation: .horizontal, sourceTileBounds: a)
         let full = line("BIRTHDAY", 910, 1684, 899, 234, orientation: .horizontal, sourceTileBounds: b)
         #expect(merge([part, full], width: 2048, height: 2048).map(\.text).joined() == full.text)
+    }
+
+    @Test func overlappingHorizontalCJKFragmentsJoinWithoutDuplicatedSeamGlyph() {
+        // Real diverse-0704 title: one row detected as two boxes sharing the 買 glyph.
+        let left = line("百貨店で香水を買", 258, 62, 285, 73, orientation: .horizontal)
+        let right = line("買う話", 510, 63, 126, 70, orientation: .horizontal)
+        for input in [[left, right], [right, left]] {
+            #expect(merge(input, width: 1398, height: 1984).map(\.text) == ["百貨店で香水を買う話"])
+        }
+        // More than half a glyph of padding overlap without a repeated read keeps every glyph.
+        let first = line("何その良", 738, 482, 102, 33, orientation: .horizontal)
+        let second = line("い発音", 823, 481, 81, 34, orientation: .horizontal)
+        #expect(merge([first, second], width: 1075, height: 1518).map(\.text) == ["何その良い発音"])
+        // Neighbouring name labels overlapping by less than half a glyph stay separate.
+        let name = line("新田美波", 100, 10, 160, 44, orientation: .horizontal)
+        let other = line("速水奏", 245, 10, 120, 44, orientation: .horizontal)
+        #expect(merge([name, other], width: 600, height: 400).count == 2)
+        // Image evidence still vetoes the new overlap edge.
+        let vetoed = NativeOCRTextLineMerger.merge([left, right], imageWidth: 1398, imageHeight: 1984,
+            separationCheck: { _, _, _ in true })
+        #expect(vetoed.count == 2)
+    }
+
+    @Test func latinRowSplitInsideAWordDropsTheRereadLetter() {
+        // Real comic-2939 dialogue: the second crop re-reads the "f" of "foul".
+        let left = line("Begone, f", 478, 961, 275, 71, orientation: .horizontal)
+        let right = line("foul monster!", 715, 960, 430, 70, orientation: .horizontal)
+        #expect(merge([left, right], width: 2634, height: 1481).map(\.text) == ["Begone, foul monster!"])
+        // Separate UI labels do not share a word prefix.
+        let options = line("OPTIONS", 100, 10, 140, 29, orientation: .horizontal)
+        let menu = line("MENU", 226, 10, 80, 29, orientation: .horizontal)
+        #expect(merge([options, menu], width: 600, height: 400).count == 2)
+    }
+
+    @Test func visualNovelSpeakerNameKeepsItsOwnRegion() {
+        // Real diverse-0569 name box and dialogue line (dataset polygons).
+        let name = line("Maja", 157, 537, 80, 40, orientation: .horizontal)
+        let dialogue = line("Well, if this isn't a perfect beach day, I don't know what is!", 165, 583, 588, 27,
+                            orientation: .horizontal)
+        func regions(_ contrast: ((CGRect, CGRect) -> Bool)?) -> [String] {
+            NativeOCRTextLineMerger.merge([name, dialogue], imageWidth: 1275, imageHeight: 716, inkContrast: contrast).map(\.text)
+        }
+        #expect(regions(nil).count == 1)
+        #expect(regions { _, _ in false }.count == 1)
+        #expect(Set(regions { _, _ in true }) == [name.text, dialogue.text])
+        // A centred short first line of a balloon is not a name tag, whatever its ink.
+        let centred = line("Maja", 419, 537, 80, 40, orientation: .horizontal)
+        #expect(NativeOCRTextLineMerger.merge([centred, dialogue], imageWidth: 1275, imageHeight: 716,
+            inkContrast: { _, _ in true }).count == 1)
+    }
+
+    @Test func englishLetteringStackKeepsLoneLetterAndItalicRows() {
+        // Real r6 detector polygons (English scanlation balloons).
+        func line(_ text: String, _ points: [[Double]], vertical: Bool = false) -> NativeCoreMLOCRLine {
+            NativeCoreMLOCRLine(polygon: points.map { CGPoint(x: $0[0], y: $0[1]) }, text: text, score: 0.99,
+                orientation: vertical ? .vertical : .horizontal, orientationIsEstimated: true)
+        }
+        // A padded lone "I" box overlapping HAVE on its row joins that row, not the row below.
+        let stack = [
+            line("I", [[189, 177], [216, 177], [216, 202], [189, 202]]),
+            line("HAVE", [[208, 175], [275, 175], [275, 203], [208, 203]]),
+            line("TO GIVE", [[183, 196], [282, 197], [281, 225], [183, 224]]),
+            line("THIS FIGHT", [[168, 219], [297, 219], [297, 245], [168, 245]]),
+            line("MY ALL.", [[185, 241], [279, 241], [279, 268], [185, 268]])
+        ]
+        #expect(merge(stack, width: 1300, height: 1920).map(\.text) == ["I HAVE TO GIVE THIS FIGHT MY ALL."])
+        // Italic rows tilt by 0.08-0.11 rad, around the slant threshold: one balloon, one region.
+        let italic = [
+            line("WHY IS", [[195, 321], [359, 306], [363, 360], [199, 375]]),
+            line("MAMA", [[211, 364], [348, 351], [352, 399], [216, 412]]),
+            line("NOT", [[235, 402], [341, 390], [346, 440], [241, 452]]),
+            line("HERE", [[225, 438], [355, 428], [359, 484], [229, 493]]),
+            line("WITH", [[237, 478], [356, 468], [360, 521], [241, 531]]),
+            line("US!?", [[239, 521], [359, 507], [364, 558], [244, 572]])
+        ]
+        #expect(merge(italic, width: 1350, height: 1920).map(\.text) == ["WHY IS MAMA NOT HERE WITH US!?"])
+        // Mixed-case rows (labels, handwriting) keep the axis-aligned frame they had before.
+        let label = italic.map { line($0.text.capitalized, $0.polygon.map { [$0.x, $0.y] }) }
+        #expect(merge(label, width: 1350, height: 1920).count > 1)
+        // A confidently read lone "I" above a capital row takes the row's horizontal orientation.
+        let rows = [[[1005, 917], [1124, 918], [1123, 951], [1004, 950]]].map { $0.map { CGPoint(x: $0[0], y: $0[1]) } }
+        let letter = line("I", [[1050, 889], [1076, 889], [1076, 922], [1050, 922]], vertical: true)
+        let oriented = NativeOCRAdjacentLineRecovery.orientingSingleLatinLetter(letter, rows: rows)
+        #expect(oriented.orientation == .horizontal && !oriented.orientationIsEstimated)
+        let swear = line("SWEAR,", [[1005, 917], [1124, 918], [1123, 951], [1004, 950]])
+        #expect(merge([oriented, swear], width: 1350, height: 1920).map(\.text) == ["I SWEAR,"])
+        // Kana and digits are never re-oriented by a Latin row.
+        for text in ["1", "あ"] {
+            let other = line(text, [[1050, 889], [1076, 889], [1076, 922], [1050, 922]], vertical: true)
+            #expect(NativeOCRAdjacentLineRecovery.orientingSingleLatinLetter(other, rows: rows).orientation == .vertical)
+        }
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0])
+    func structuredTextKeepsEveryGridRowApart(scale: Double) {
+        func box(_ text: String, _ x0: Double, _ y0: Double, _ x1: Double, _ y1: Double) -> NativeCoreMLOCRLine {
+            NativeCoreMLOCRLine(polygon: [CGPoint(x: x0 * scale, y: y0 * scale), CGPoint(x: x1 * scale, y: y0 * scale),
+                                          CGPoint(x: x1 * scale, y: y1 * scale), CGPoint(x: x0 * scale, y: y1 * scale)],
+                                text: text, score: 0.99, orientation: .horizontal, orientationIsEstimated: true)
+        }
+        // diverse-3493 credits (844x1200) without the publisher note: bracketed roles in a flush-left column, each
+        // name on its role's row. The names touch vertically and used to read as one paragraph.
+        let note = box("(GCノベルズ/マイクロマガジン社)", 50, 1020, 227, 1037)
+        let credits = [
+            box("[原作]", 50, 983, 119, 1015), box("進行諸島", 104, 974, 284, 1022), box("[作画]", 51, 1048, 113, 1078),
+            box("なのら", 105, 1041, 227, 1089), box("渡辺樹", 106, 1089, 244, 1138), box("[構成]", 50, 1099, 112, 1127),
+            box("ともぞ", 167, 1135, 266, 1182), box("[キャラクター原案]", 50, 1148, 175, 1170)
+        ]
+        let names = Set(merge(credits, width: Int(844 * scale), height: Int(1200 * scale)).map(\.text))
+        #expect(["進行諸島", "なのら", "渡辺樹", "ともぞ"].allSatisfy(names.contains), "\(names)")
+        // The real page squeezes that note between the first two rows with no room of its own: split rows would
+        // throw its translation off the credits, so this table keeps the ordinary grouping.
+        let squeezed = Set(merge(credits + [note], width: Int(844 * scale), height: Int(1200 * scale)).map(\.text))
+        #expect(!squeezed.contains("進行諸島") && squeezed.contains("(GCノベルズ/マイクロマガジン社)"), "\(squeezed)")
+        // Real diverse2-1942 contents (1000x1419): regularly spaced page numbers beside their titles.
+        let contents = [
+            box("リアル鬼ごっこ", 415, 780, 579, 810), box("009P", 854, 781, 919, 807),
+            box("おっさんミーツガール", 413, 830, 651, 854), box("019P", 854, 828, 919, 855),
+            box("こいつらでO-GIRI", 416, 878, 609, 902), box("029P", 854, 877, 919, 903),
+            box("こいつらでO-GIRI2", 416, 924, 627, 948), box("041P", 854, 924, 920, 950),
+            box("鎮守府百景", 411, 971, 533, 998), box("077P", 854, 971, 919, 998)
+        ]
+        let numbers = ["009P", "019P", "029P", "041P", "077P"]
+        let pages = Set(merge(contents, width: Int(1000 * scale), height: Int(1419 * scale)).map(\.text))
+        #expect(numbers.allSatisfy(pages.contains), "\(pages)")
+        // Even when the titles are set at a regular pitch too, the page-number column keeps the rows apart.
+        var regular: [NativeCoreMLOCRLine] = []
+        for (index, number) in numbers.enumerated() {
+            let top = 780 + Double(index) * 47
+            regular += [box("第\(index + 1)話タイトル", 415, top, 600, top + 26), box(number, 854, top, 919, top + 26)]
+        }
+        let regularPages = merge(regular, width: Int(1000 * scale), height: Int(1419 * scale)).map(\.text)
+        #expect(regularPages.count == 10, "\(regularPages)")
+        // Real diverse-2233 contents (1414x2000): padded row boxes overlap; every row stays apart and the rows
+        // no longer share the overlapping band, so no card reaches over its neighbour's text.
+        let dense = [
+            box("21話 プレゼント", 322, 417, 708, 497), box("P03~17", 1021, 423, 1194, 491),
+            box("22話疑問", 322, 473, 574, 557), box("P19~24", 1025, 482, 1196, 547),
+            box("23話 化物", 323, 531, 572, 611), box("P25~86", 1023, 541, 1197, 604),
+            box("24話 忘れ物", 326, 594, 618, 667), box("P87~43", 1023, 597, 1196, 662)
+        ]
+        let rows = merge(dense, width: Int(1414 * scale), height: Int(2000 * scale))
+        #expect(rows.count == 8, "\(rows.map(\.text))")
+        let titles = rows.filter { $0.text.contains("話") }.map(\.boundingRect).sorted { $0.minY < $1.minY }
+        #expect(titles.count == 4 && zip(titles, titles.dropFirst()).allSatisfy { $0.maxY <= $1.minY + 0.5 }, "\(titles)")
+        // Two side-by-side paragraphs with aligned rows are not a grid: each still reads as one paragraph.
+        var columns: [NativeCoreMLOCRLine] = []
+        for row in 0..<4 {
+            let top = 100 + Double(row) * 30
+            columns.append(box("これは左の段落の長い文章の行です\(row)", 50, top, 420, top + 24))
+            columns.append(box("こちらは右の段落の長い文章の行です\(row)", 480, top, 850, top + 24))
+        }
+        let paragraphs = merge(columns, width: Int(900 * scale), height: Int(1200 * scale))
+        #expect(paragraphs.count == 2, "\(paragraphs.map(\.text))")
+        // A label beside only the first row of a caption leaves the caption whole.
+        let caption = merge([box("名前", 50, 100, 98, 124), box("今日はとても良い天気ですね", 120, 100, 420, 124),
+                             box("明日も晴れるといいな", 120, 128, 360, 152), box("そう思います", 120, 156, 270, 180)],
+                            width: Int(900 * scale), height: Int(1200 * scale)).map(\.text)
+        #expect(caption.contains { $0.contains("今日は") && $0.contains("明日も") && $0.contains("そう思います") }, "\(caption)")
     }
 
     private func merge(

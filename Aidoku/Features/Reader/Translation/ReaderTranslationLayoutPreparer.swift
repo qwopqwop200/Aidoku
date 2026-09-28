@@ -23,7 +23,7 @@ struct ReaderTranslationLayoutGeometry: Sendable {
         let container = pageContainer ?? (aspectFit ? viewport : CGSize(width: viewport.width, height: 0))
         return ReaderTranslationCacheIdentity.encoded([
             ReaderTranslationCacheIdentity.encoded(container), String(Double(scale)), String(aspectFit),
-            String(fitHeight), String(dark), String(Double(crop.width))
+            String(fitHeight), String(dark), String(Double(crop.width)), BrowserOverlayLetterFonts.shared.availabilityKey
         ])
     }
 
@@ -122,7 +122,7 @@ final class ReaderTranslationLayoutPreparer {
             let displayed = regions.compactMap { $0.cropped(to: crop) }
             let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: displayed)
             if await renderCache.layoutData(for: layoutKey) != nil { continue }
-            let items = ReaderTranslationRegion.overlayItems(displayed, imageSize: size)
+            let items = ReaderTranslationRegion.layoutItems(displayed, imageSize: size)
             let sourceRect = ReaderTranslationGeometry.displayRect(CGRect(x: 0, y: 0, width: 1, height: 1), imageSize: size,
                 bounds: CGRect(origin: .zero, size: viewport), aspectFit: geometry.aspectFit)
             let data = try await layoutPreparation(items, size, sourceRect, settings.overlay, settings.targetLanguage, viewport)
@@ -170,7 +170,7 @@ final class ReaderTranslationLayoutPreparer {
             let displayed = regions.compactMap { $0.cropped(to: crop) }
             let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: displayed)
             try await renderCache.prepare(key) { [renderCache, layoutPreparation] in
-                let items = ReaderTranslationRegion.overlayItems(displayed, imageSize: size)
+                let items = ReaderTranslationRegion.layoutItems(displayed, imageSize: size)
                 // Start layout immediately, while the source image is cropped,
                 // encoded and loaded into WebKit. The renderer joins this exact
                 // task, so a slow layout can never start a duplicate calculation.

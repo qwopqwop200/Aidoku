@@ -140,6 +140,8 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     override init(frame: CGRect) {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
+        // Source-style Korean faces (serif lettering) are handed to the document on request.
+        BrowserOverlayLetterFonts.shared.register(in: configuration, contentWorld: ReaderTranslationDOM.contentWorld)
         webView = WKWebView(frame: .zero, configuration: configuration)
         super.init(frame: frame)
         isUserInteractionEnabled = false
@@ -238,7 +240,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         self.imageSize = imageSize
         self.aspectFit = aspectFit
         self.settings = settings
-        items = ReaderTranslationRegion.overlayItems(regions, imageSize: imageSize)
+        items = ReaderTranslationRegion.layoutItems(regions, imageSize: imageSize)
         dirty = true
         if contentTerminationCount == 0 {
             if let image {
@@ -273,7 +275,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
             do { try await Task.sleep(nanoseconds: 8_000_000_000) } catch { return }
             guard let self, !Task.isCancelled else { return }
             recoveryTask = nil
-            guard !items.isEmpty, lastDiagnostic?.outcome != .committed else { return }
+            guard items.contains(where: { !$0.keepsSourceLettering }), lastDiagnostic?.outcome != .committed else { return }
             recoveryAttempts += 1
             ReaderTranslationDiagnostics.record("visible_render_retry", count: recoveryAttempts)
             // Encoding already in progress must finish before its document loads.

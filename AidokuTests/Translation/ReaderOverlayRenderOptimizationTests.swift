@@ -1,6 +1,7 @@
 import Testing
 import UIKit
 import CoreImage
+import CoreText
 import ImageIO
 @testable import Aidoku
 
@@ -326,5 +327,44 @@ struct ReaderOverlayRenderOptimizationTests {
         #expect(calls == before)
         cache.removeAll()
         #expect(cache.entryCount == 0)
+    }
+
+    // MARK: Measurement fonts
+
+    /// Fitting visits many fractional sizes; UIKit would keep every such font for the process lifetime.
+    /// The Core Text fonts must be the same faces with the same metrics and line breaking.
+    @Test func overlayFontsMatchUIKitFontsAtFractionalSizes() {
+        let texts = ["안녕하세요 반갑습니다 오늘은 날씨가 좋네요", "WHAT?! 이게 뭐야...",
+                     "그래서 나는 결심했다. 세계를 구하기로!"]
+        func layout(_ font: UIFont, _ text: String, _ width: CGFloat) -> CGSize {
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.lineBreakStrategy = [.standard, .hangulWordPriority]
+            return NSAttributedString(string: text, attributes: [.font: font, .paragraphStyle: paragraph]).boundingRect(
+                with: CGSize(width: width, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil).size
+        }
+        for index in 0..<60 {
+            let size = 6 + CGFloat(index) * 0.731
+            for weight in [UIFont.Weight.regular, .medium, .semibold, .bold, .heavy, .black] {
+                let expected = UIFont.systemFont(ofSize: size, weight: weight)
+                let font = BrowserOverlayFont.system(ofSize: size, weight: weight)
+                #expect(font.fontName == expected.fontName)
+                #expect(font.pointSize == expected.pointSize)
+                #expect(font.lineHeight == expected.lineHeight)
+                #expect(font.ascender == expected.ascender && font.descender == expected.descender)
+                #expect((CTFontCopyVariation(font) as NSDictionary?) == (CTFontCopyVariation(expected) as NSDictionary?))
+                for text in texts {
+                    // TextKit alone returns widths up to ~4e-8 apart for two calls with the very same UIFont
+                    // (same cases either way); compare at layout precision.
+                    let a = layout(font, text, 90), b = layout(expected, text, 90)
+                    #expect(abs(a.width - b.width) < 1e-6 && a.height == b.height)
+                }
+            }
+            let named = BrowserOverlayFont.named("AppleSDGothicNeo-Bold", size: size)
+            let expectedNamed = UIFont(name: "AppleSDGothicNeo-Bold", size: size)
+            #expect(named?.fontName == expectedNamed?.fontName && named?.lineHeight == expectedNamed?.lineHeight)
+        }
+        #expect(BrowserOverlayFont.named("No-Such-Face-Aidoku", size: 12) == nil)
+        #expect(BrowserOverlayFont.system(ofSize: 13.25, weight: .bold) === BrowserOverlayFont.system(ofSize: 13.25, weight: .bold))
     }
 }

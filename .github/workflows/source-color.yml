@@ -4,15 +4,15 @@ on:
   pull_request:
     paths:
       - ".github/workflows/source-color.yml"
-      - "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift"
-      - "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift"
-      - "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSlantedSourceRestoration.swift"
-      - "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift"
+      - "Aidoku/Core/Translation/NativeEngine/Overlay/**"
       - "Scripts/tests/source-color-*.cjs"
       - "Scripts/tests/export-source-background-fixtures.py"
       - "Scripts/tests/source-inpainting-*.cjs"
       - "Scripts/tests/slanted-*.cjs"
       - "Scripts/tests/column-layout-surface-regression.cjs"
+      - "Scripts/tests/row-end-marks-regression.cjs"
+      - "Scripts/tests/connected-lettering-regression.cjs"
+      - "Scripts/tests/render-body-sync-regression.cjs"
       - "Scripts/tests/fixtures/source-color-*.json"
       - "Scripts/tests/fixtures/source-inpainting-*.json"
       - "Scripts/tests/fixtures/slanted-*.json"
@@ -27,23 +27,29 @@ jobs:
       - uses: actions/checkout@v5
       - name: Test production color estimation and sampling
         run: |
-          node Scripts/tests/source-color-regression.cjs
-          node Scripts/tests/source-color-sampler-regression.cjs
-          node Scripts/tests/source-color-diversity-regression.cjs
-          node Scripts/tests/source-color-stroke-regression.cjs
-          node Scripts/tests/source-color-stroke-regression.cjs --annotations Scripts/tests/fixtures/source-color-stroke-expansion.json --captures Scripts/tests/fixtures/source-color-stroke-expansion-captures.json
-          node Scripts/tests/source-color-diversity-regression.cjs --fixtures Scripts/tests/fixtures/source-color-expansion.json
-          node Scripts/tests/source-color-diversity-regression.cjs --fixtures Scripts/tests/fixtures/source-color-round-three.json
-          node Scripts/tests/source-color-background-regression.cjs
-          node Scripts/tests/source-color-background-regression.cjs --labels Scripts/tests/fixtures/source-color-background-expansion.json --captures Scripts/tests/fixtures/source-color-background-expansion-captures.json
-          node Scripts/tests/source-color-background-regression.cjs --labels Scripts/tests/fixtures/source-color-background-round-three.json --captures Scripts/tests/fixtures/source-color-background-round-three-captures.json
-          node Scripts/tests/source-color-readability-regression.cjs
-          node Scripts/tests/source-inpainting-regression.cjs
-          node Scripts/tests/source-inpainting-segmentation.cjs
-          node Scripts/tests/source-inpainting-panel-incidents.cjs
-          node Scripts/tests/column-layout-surface-regression.cjs
-          node Scripts/tests/source-inpainting-hard-cases.cjs
-          node Scripts/tests/source-inpainting-textures.cjs
-          node Scripts/tests/slanted-artwork-regression.cjs
-          node Scripts/tests/slanted-ruby-regression.cjs
-          node Scripts/tests/slanted-residual-ink-regression.cjs
+          # Run every regression and fail at the end, so one red runner does not hide the others.
+          status=0
+          node Scripts/tests/source-color-regression.cjs || status=1
+          node Scripts/tests/source-color-sampler-regression.cjs || status=1
+          node Scripts/tests/source-color-diversity-regression.cjs || status=1
+          node Scripts/tests/source-color-stroke-regression.cjs || status=1
+          node Scripts/tests/source-color-stroke-regression.cjs --annotations Scripts/tests/fixtures/source-color-stroke-expansion.json --captures Scripts/tests/fixtures/source-color-stroke-expansion-captures.json || status=1
+          node Scripts/tests/source-color-diversity-regression.cjs --fixtures Scripts/tests/fixtures/source-color-expansion.json || status=1
+          node Scripts/tests/source-color-diversity-regression.cjs --fixtures Scripts/tests/fixtures/source-color-round-three.json || status=1
+          node Scripts/tests/source-color-background-regression.cjs || status=1
+          node Scripts/tests/source-color-background-regression.cjs --labels Scripts/tests/fixtures/source-color-background-expansion.json --captures Scripts/tests/fixtures/source-color-background-expansion-captures.json || status=1
+          node Scripts/tests/source-color-background-regression.cjs --labels Scripts/tests/fixtures/source-color-background-round-three.json --captures Scripts/tests/fixtures/source-color-background-round-three-captures.json || status=1
+          node Scripts/tests/source-color-readability-regression.cjs || status=1
+          node Scripts/tests/source-inpainting-regression.cjs || status=1
+          node Scripts/tests/row-end-marks-regression.cjs || status=1
+          node Scripts/tests/connected-lettering-regression.cjs || status=1
+          node Scripts/tests/render-body-sync-regression.cjs || status=1
+          node Scripts/tests/source-inpainting-segmentation.cjs || status=1
+          node Scripts/tests/source-inpainting-panel-incidents.cjs || status=1
+          node Scripts/tests/column-layout-surface-regression.cjs || status=1
+          node Scripts/tests/source-inpainting-hard-cases.cjs || status=1
+          node Scripts/tests/source-inpainting-textures.cjs || status=1
+          node Scripts/tests/slanted-artwork-regression.cjs || status=1
+          node Scripts/tests/slanted-ruby-regression.cjs || status=1
+          node Scripts/tests/slanted-residual-ink-regression.cjs || status=1
+          exit "$status"

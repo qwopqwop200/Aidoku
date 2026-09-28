@@ -65,12 +65,15 @@ struct ReaderOCRConfiguration: Equatable, Codable, Sendable {
         let base = NativeCoreMLOCRModelProfile.profile(for: modelTier).postprocessConfiguration
         // Autosaved drafts can bypass validate(); never feed invalid values
         // into the detector's preconditions.
+        let boxThreshold = detectorConfidenceThreshold.isFinite ? min(max(detectorConfidenceThreshold, 0), 1) : base.boxThreshold
         return NativeCoreMLDBPostprocessConfiguration(
             threshold: detectorPixelThreshold.isFinite ? min(max(detectorPixelThreshold, 0), 1) : base.threshold,
-            boxThreshold: detectorConfidenceThreshold.isFinite ? min(max(detectorConfidenceThreshold, 0), 1) : base.boxThreshold,
+            boxThreshold: boxThreshold,
             unclipRatio: base.unclipRatio,
             maximumCandidates: base.maximumCandidates,
-            minimumBoxSide: detectorMinimumBoxSide.isFinite ? min(max(detectorMinimumBoxSide, 0), 20) : base.minimumBoxSide
+            minimumBoxSide: detectorMinimumBoxSide.isFinite ? min(max(detectorMinimumBoxSide, 0), 20) : base.minimumBoxSide,
+            // Keep the model's recovery margin below a user-adjusted box threshold.
+            recoveryBoxThreshold: base.recoveryBoxThreshold.map { max(0, boxThreshold - (base.boxThreshold - $0)) }
         )
     }
 }
