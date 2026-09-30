@@ -592,7 +592,7 @@ enum NativeOCRTextLineMerger {
         let horizontalResolved = inheritHorizontalWrappedTailOrientations(
             deduplicateLines(
                 mergeLineFragments(
-                    deduplicateLines(lines),
+                    inheritVerticalLatinInitials(deduplicateLines(lines)),
                     imageWidth: imageWidth,
                     imageHeight: imageHeight,
                     recognizedLatinWords: recognizedLatinWords, separationCheck: separationCheck,
@@ -629,7 +629,16 @@ enum NativeOCRTextLineMerger {
                 if canFormTranslationRegion(
                     geometries[left],
                     geometries[right]
-                ) || regularPairs.contains(IndexPair(left, right)) {
+                ) || regularPairs.contains(IndexPair(left, right)) || witnessedPaddedVerticalColumns(
+                    visualLines[left], visualLines[right], lines: visualLines, spatialIndex: spatialIndex
+                ) {
+                    // A larger sign behind translucent dialogue can align with
+                    // its columns. Distinct sampled ink and lettering size are
+                    // evidence of separate text surfaces, not another column.
+                    if geometries[left].orientation == .vertical,
+                       max(geometries[left].fontSize, geometries[right].fontSize)
+                        > min(geometries[left].fontSize, geometries[right].fontSize) * 1.25,
+                       inkContrast?(geometries[left].box, geometries[right].box) == true { continue }
                     if separationCheck?(geometries[left].box, geometries[right].box, geometries[left].orientation.source) == true { continue }
                     admittedPairs.insert(IndexPair(left, right))
                     connected.union(left, right)
@@ -999,6 +1008,9 @@ enum NativeOCRTextLineMerger {
                        maximumGap: regularHorizontal.contains(IndexPair(left, right)) ? 0.85 : 0.4
                    ) {
                     let ordered = [leftGeometry.line, rightGeometry.line].sorted { $0.box.minX < $1.box.minX }
+                    // Image ownership is authoritative for every fragment edge,
+                    // including non-overlapping words on neighbouring papers.
+                    if separationCheck?(ordered[0].box, ordered[1].box, .horizontal) == true { continue }
                     let font = min(ordered[0].box.height, ordered[1].box.height)
                     // A display heading beside body text on the same row (a reversed title
                     // box next to ruled lines) is a different lettering unit: larger glyphs
@@ -1012,8 +1024,7 @@ enum NativeOCRTextLineMerger {
                     if isNewOverlapEdge {
                         let nearby = spatialIndex.indices(intersecting: ordered[0].box.union(ordered[1].box)
                             .insetBy(dx: -font * 3, dy: -font * 2)).map { geometries[$0].line }
-                        if conflictsWithIndependentHorizontalOwners(ordered[0], ordered[1], nearby: nearby)
-                            || separationCheck?(ordered[0].box, ordered[1].box, .horizontal) == true { continue }
+                        if conflictsWithIndependentHorizontalOwners(ordered[0], ordered[1], nearby: nearby) { continue }
                     }
                     candidates.append(candidate)
                 }
@@ -1091,8 +1102,12 @@ enum NativeOCRTextLineMerger {
             supportsHorizontal: line.orientationHint == .horizontal
                 || (line.orientationHint == .unknown && !clearlyVertical),
             supportsVertical: line.orientationHint == .vertical
+                // A square CJK glyph has no intrinsic reading direction. The
+                // detector labels isolated glyphs horizontal even inside a
+                // vertical column; let aligned neighbours resolve that axis.
+                || compactSingleCJKGlyph
                 || (line.orientationHint == .unknown
-                    && (clearlyVertical || compactSingleCJKGlyph))
+                    && clearlyVertical)
         )
     }
 
@@ -1218,10 +1233,10 @@ enum NativeOCRTextLineMerger {
         let bottom = a.box.minY < b.box.minY ? b : a
         let font = min(top.box.width, bottom.box.width)
         let gap = bottom.box.minY - top.box.maxY
-        guard font > 0, gap >= font * 0.6, gap <= font * 1.1,
+        guard font > 0, gap >= 0, gap <= font * 1.1,
               max(top.box.width, bottom.box.width) <= font * 1.6,
-              overlapRatio(top.box.minX, top.box.maxX, bottom.box.minX, bottom.box.maxX) >= 0.8,
-              abs(top.box.midX - bottom.box.midX) <= font * 0.25 else { return false }
+              overlapRatio(top.box.minX, top.box.maxX, bottom.box.minX, bottom.box.maxX) >= 0.58,
+              abs(top.box.midX - bottom.box.midX) <= font * 0.45 else { return false }
         func neighbours(_ line: Line) -> Set<Int> {
             let search = line.box.insetBy(dx: -font * 2, dy: -font)
             return Set(spatialIndex.indices(intersecting: search).compactMap { index in
@@ -1263,6 +1278,12 @@ enum NativeOCRTextLineMerger {
         return regular ? 0.85 : 0.4
     }
 
+    private static func verticalScriptBreak(_ left: Line, _ right: Line) -> Bool {
+        let a = left.text.unicodeScalars.filter(isLetter), b = right.text.unicodeScalars.filter(isLetter)
+        return (a.count >= 3 && a.allSatisfy(isLatin) && b.contains(where: isCJK))
+            || (b.count >= 3 && b.allSatisfy(isLatin) && a.contains(where: isCJK))
+    }
+
     private static func mergeCandidate(
         _ left: Geometry,
         _ right: Geometry,
@@ -1273,7 +1294,11 @@ enum NativeOCRTextLineMerger {
         let rightFont = fontSize(right, orientation: orientation)
         let smallerFont = min(leftFont, rightFont)
         let largerFont = max(leftFont, rightFont)
-        guard largerFont / smallerFont <= 1.6 else { return nil }
+        if largerFont / smallerFont > 1.6 {
+            let upper = left.line.box.minY < right.line.box.minY ? left.line : right.line
+            let lower = left.line.box.minY < right.line.box.minY ? right.line : left.line
+            guard orientation == .vertical, paddedVerticalGlyphAdvance(upper, lower) else { return nil }
+        }
 
         let primaryGap = orientation == .vertical
             ? intervalGap(
@@ -1285,6 +1310,7 @@ enum NativeOCRTextLineMerger {
                 right.line.box.minX, right.line.box.maxX
             )
         guard primaryGap < smallerFont * maximumGap else { return nil }
+        if orientation == .vertical, primaryGap >= 0, verticalScriptBreak(left.line, right.line) { return nil }
 
         let perpendicularOverlap = orientation == .vertical
             ? overlapRatio(
@@ -1322,20 +1348,76 @@ enum NativeOCRTextLineMerger {
         )
     }
 
+    /// Compare advances when a detector pads a same-column fragment wider than
+    /// the preceding glyphs. Tight centres and a sub-glyph overlap distinguish
+    /// a continuation from the neighbouring column or a duplicate tile.
+    private static func paddedVerticalGlyphAdvance(_ upper: Line, _ lower: Line) -> Bool {
+        let a = upper.box, b = lower.box
+        let first = upper.text.unicodeScalars, second = lower.text.unicodeScalars
+        let latinInitial = first.count == 1 && first.allSatisfy { (0x41...0x5A).contains($0.value) }
+        guard !upper.clippedByTile, !lower.clippedByTile,
+              upper.orientation == .vertical || isSingleCJKGlyph(upper.text), lower.orientation == .vertical,
+              !first.isEmpty, second.count >= 2,
+              latinInitial || first.allSatisfy(isCJK), second.allSatisfy(isCJK),
+              a.minY < b.minY, a.maxY < b.maxY else { return false }
+        let x = a.height / CGFloat(first.count), y = b.height / CGFloat(second.count)
+        let small = min(x, y), large = max(x, y), overlap = a.maxY - b.minY
+        return small > 0 && large <= small * 1.3 && overlap > 0 && overlap <= small * 0.55
+            && a.width >= x * 0.7 && a.width <= x * 1.85 && b.width >= y * 0.7 && b.width <= y * 1.85
+            && abs(a.midX - b.midX) <= min(a.width, b.width) * 0.18
+            && overlapRatio(a.minX, a.maxX, b.minX, b.maxX) >= 0.9
+    }
+
+    /// A single Latin class/section initial has no inherent writing direction.
+    /// Resolve it only from one directly aligned Japanese column below it;
+    /// neighbouring Latin letters still keep their horizontal word.
+    private static func inheritVerticalLatinInitials(_ lines: [Line]) -> [Line] {
+        guard lines.contains(where: { $0.orientation == .horizontal && $0.text.unicodeScalars.count == 1 &&
+            $0.text.unicodeScalars.allSatisfy { (0x41...0x5A).contains($0.value) } }) else { return lines }
+        let spatial = NativeOCRSpatialIndex(boxes: lines.map(\.box))
+        return lines.enumerated().map { index, line in
+            let letters = line.text.unicodeScalars
+            guard line.orientation == .horizontal, letters.count == 1,
+                  letters.allSatisfy({ (0x41...0x5A).contains($0.value) }),
+                  line.box.height >= line.box.width * 0.7, line.box.height <= line.box.width * 1.4 else { return line }
+            let nearby = spatial.indices(intersecting: searchBounds(line)).filter { $0 != index }
+            guard !nearby.contains(where: { other in
+                let next = lines[other]
+                return next.orientation == .horizontal && next.text.unicodeScalars.contains(where: isLatin)
+                    && abs(next.box.midY - line.box.midY) <= line.box.height * 0.3
+                    && separatedIntervalGap(line.box.minX, line.box.maxX, next.box.minX, next.box.maxX) <= line.box.width * 0.5
+            }) else { return line }
+            var vertical = Line(index: line.index, text: line.text, confidence: line.confidence, box: line.box,
+                polygon: line.polygon, orientationHint: .vertical, orientation: .vertical, singleVerticalColumn: true)
+            vertical.clippedByTile = line.clippedByTile; vertical.sourceTileBounds = line.sourceTileBounds
+            let anchors = nearby.filter { paddedVerticalGlyphAdvance(vertical, lines[$0]) }
+            return anchors.count == 1 ? vertical : line
+        }
+    }
+
     /// Detector expansion may overlap adjacent glyph boxes without either
     /// recognition containing the other's text. Keep every glyph in that case.
     // Full-page DBNet boxes can overlap by less than half a glyph at a pause.
     // These are successive pieces of one column, not duplicate text crops.
     private static func paddedVerticalNeighbours(_ upper: Line, _ lower: Line) -> Bool {
+        if paddedVerticalGlyphAdvance(upper, lower) { return true }
         let a = upper.box, b = lower.box, font = min(upper.box.width, lower.box.width)
         let overlap = a.maxY - b.minY
         let next = lower.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let singleGlyph = isSingleCJKGlyph(upper.text) || isSingleCJKGlyph(next)
+        // A narrow punctuation tail (sometimes read as zeros) overlaps its
+        // preceding kana after detector expansion. Resolve that column before
+        // paragraph grouping, where the tail cannot align with the next column.
+        // Keep the recognized text: geometry alone cannot correct its spelling.
+        let narrowTail = (2...6).contains(next.count) && upper.text.unicodeScalars.contains(where: isCJK)
+            && next.unicodeScalars.allSatisfy { isNumber($0) || CharacterSet.punctuationCharacters.contains($0) }
+            && b.width <= a.width * 0.8 && b.height <= a.height * 0.8
         guard font > 0, !upper.clippedByTile, !lower.clippedByTile,
-              upper.text.count >= 2, next.count >= 2,
+              (upper.text.count >= 2 && next.count >= 2) || singleGlyph,
               !next.hasPrefix("「"), !next.hasPrefix("『"), !next.hasPrefix("“"),
               a.minY < b.minY, a.maxY < b.maxY,
-              overlap > 0, overlap <= font * 0.5,
-              overlap <= min(a.height, b.height) * 0.15,
+              overlap > 0, overlap <= font * (narrowTail ? 0.6 : 0.5),
+              overlap <= min(a.height, b.height) * (singleGlyph || narrowTail ? 0.35 : 0.15),
               abs(a.midX - b.midX) <= font * 0.25,
               overlapRatio(a.minX, a.maxX, b.minX, b.maxX) >= 0.8 else { return false }
         return true
@@ -1509,9 +1591,11 @@ enum NativeOCRTextLineMerger {
                 : item.supportsHorizontal
         }) else { return false }
         let fonts = component.map { fontSize($0, orientation: orientation) }
-        guard (fonts.max() ?? 1) / (fonts.min() ?? 1) <= 1.6 else {
-            return false
-        }
+        let ratio = (fonts.max() ?? 1) / (fonts.min() ?? 1)
+        let verticalOrder = component.sorted { $0.line.box.minY < $1.line.box.minY }
+        let paddedColumn = orientation == .vertical && ratio <= 2.1 &&
+            zip(verticalOrder, verticalOrder.dropFirst()).contains { paddedVerticalGlyphAdvance($0.line, $1.line) }
+        guard ratio <= 1.6 || paddedColumn else { return false }
         let centers = component.map {
             orientation == .vertical ? $0.centerX : $0.centerY
         }
@@ -2392,6 +2476,9 @@ enum NativeOCRTextLineMerger {
         let sameColumn = horizontalOverlap >= 0.6
             && centerDelta <= largerFont * 0.5
         if sameColumn {
+            // A longer same-column gap may cross a translucent balloon's border
+            // into a Latin shop sign. Alignment alone cannot make it dialogue.
+            if verticalScriptBreak(left.line, right.line) && verticalOverlap == 0 { return false }
             if verticalOverlap < mangaVerticalSameColumnOverlapRatio {
                 // A detector can split a single column at a pause (or leave only
                 // a small overlap). Compare physical glyph widths, not sentence
@@ -2426,6 +2513,49 @@ enum NativeOCRTextLineMerger {
                 || paddedAdjacentVerticalColumns(left, right))
             && columnGap < smallerFont * mangaVerticalColumnGapInFontSizes
             && minimumRegionAlignmentDelta(left, right) <= smallerFont * 1.25
+    }
+
+    /// Device inference can pad one column far into its neighbour. Two overlapping
+    /// boxes alone are ambiguous; require a third, normally spaced column to
+    /// establish the local glyph pitch before joining the wide edge column.
+    private static func witnessedPaddedVerticalColumns(
+        _ a: Line, _ b: Line, lines: [Line], spatialIndex: NativeOCRSpatialIndex
+    ) -> Bool {
+        func advance(_ line: Line) -> CGFloat? {
+            let letters = line.text.unicodeScalars
+            let japanese = letters.allSatisfy(isCJK) ||
+                (letters.first.map { (0x41...0x5A).contains($0.value) } == true && letters.dropFirst().allSatisfy(isCJK))
+            guard line.orientation == .vertical, line.singleVerticalColumn,
+                  letters.count >= 3, line.box.height >= line.box.width * 2.5,
+                  japanese
+            else { return nil }
+            return line.box.height / CGFloat(letters.count)
+        }
+        guard let first = advance(a), let second = advance(b),
+              !a.text.contains(b.text), !b.text.contains(a.text) else { return false }
+        let small = min(first, second), large = max(first, second)
+        let pitch = (first + second) / 2
+        let overlap = overlapRatio(a.box.minX, a.box.maxX, b.box.minX, b.box.maxX)
+        let delta = abs(a.box.midX - b.box.midX)
+        guard large <= small * 1.3, overlap >= 0.5, overlap <= 0.75,
+              delta >= pitch * 0.55, delta <= pitch * 1.1,
+              max(a.box.width, b.box.width) <= pitch * 2.1,
+              abs(a.box.minY - b.box.minY) <= pitch * 0.3,
+              overlapRatio(a.box.minY, a.box.maxY, b.box.minY, b.box.maxY) >= 0.85 else { return false }
+        let left = a.box.midX < b.box.midX ? a : b
+        let right = a.box.midX < b.box.midX ? b : a
+        let search = left.box.union(right.box).insetBy(dx: -pitch * 2, dy: 0)
+        return spatialIndex.indices(intersecting: search).contains { index in
+            let witness = lines[index]
+            guard witness.index != a.index, witness.index != b.index,
+                  let step = advance(witness), step >= small * 0.8, step <= large * 1.2,
+                  witness.box.width <= pitch * 1.85 else { return false }
+            let distance = witness.box.midX < left.box.midX
+                ? left.box.midX - witness.box.midX : witness.box.midX - right.box.midX
+            return distance >= pitch * 0.75 && distance <= pitch * 1.3
+                && abs(witness.box.minY - a.box.minY) <= pitch * 0.3
+                && overlapRatio(witness.box.minY, witness.box.maxY, a.box.minY, a.box.maxY) >= 0.85
+        }
     }
 
     /// A wide detector margin can cover half of the neighbouring column even

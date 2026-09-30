@@ -610,7 +610,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Automatische Übersetzung";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Übersetzt die Seiten im Reader automatisch mit deinen gespeicherten API-Einstellungen und dem eingestellten Denkaufwand. Vor Beginn der Übersetzung wird kein separater Verbindungstest durchgeführt. Übersetzungsfehler deaktivieren diese Einstellung nicht. Mit „API-Verbindung testen“ kannst du deine Einstellungen manuell prüfen.";
+"TRANSLATION_AUTOMATIC_HELP" = "Übersetzt die Seiten im Reader automatisch und zeigt sie an. Der Übersetzungsbutton im Reader schaltet diese Einstellung ein oder aus.";
 
 "TRANSLATION_TEST" = "API-Verbindung testen";
 
@@ -1183,3 +1183,12 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Ein umfassendes japanisch-englisches Wörterbuch, gepflegt von der Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Ein Wörterbuch japanischer Eigennamen, gepflegt von der Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Ein Häufigkeitswörterbuch auf Grundlage des Medienkorpus von https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Beim Anzeigen der Originalseiten übersetzen";
+"TRANSLATION_BACKGROUND_HELP" = "Übersetzt beim Lesen weiter, auch wenn der Übersetzungsbutton ausgeschaltet ist. Die Originalseiten bleiben sichtbar. Die Übersetzung pausiert, wenn die App nicht aktiv ist.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Seiten vorab übersetzen";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Maximale Anzahl der vorab zu übersetzenden Seiten, ohne die sichtbaren Seiten mitzuzählen. Die Auswahl folgt der Lesepriorität und bevorzugt nachfolgende Seiten.";
+"TRANSLATION_UNLIMITED" = "Unbegrenzt";
+"TRANSLATION_PAGE_SETTINGS" = "Seitenübersetzung";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Nur sichtbare Seiten";

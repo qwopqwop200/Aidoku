@@ -408,7 +408,7 @@
 
 "TRANSLATION_AUTOMATIC" = "תרגום אוטומטי";
 
-"TRANSLATION_AUTOMATIC_HELP" = "מתרגם אוטומטית את עמודי הקורא באמצעות הגדרות ה-API ורמת מאמץ החשיבה השמורות. לא מתבצעת בדיקת חיבור נפרדת לפני תחילת התרגום. כשלי תרגום אינם מכבים הגדרה זו. לבדיקת ההגדרות באופן ידני, השתמש באפשרות «בדוק חיבור API».";
+"TRANSLATION_AUTOMATIC_HELP" = "תרגום והצגה אוטומטיים של העמודים בקורא. כפתור התרגום בקורא מפעיל או מכבה הגדרה זו.";
 
 "TRANSLATION_TEST" = "בדוק חיבור API";
 
@@ -1180,3 +1180,12 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "מילון יפני–אנגלי מקיף המתוחזק בידי קבוצת המחקר והפיתוח של מילונים אלקטרוניים (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "מילון שמות פרטיים ביפנית המתוחזק בידי קבוצת המחקר והפיתוח של מילונים אלקטרוניים (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "מילון תדירויות המבוסס על מאגר טקסטים ממדיה באתר https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "תרגום בזמן הצגת עמודי המקור";
+"TRANSLATION_BACKGROUND_HELP" = "התרגום ממשיך בזמן הקריאה גם כשכפתור התרגום כבוי. עמודי המקור נשארים גלויים. התרגום מושהה כשהיישום אינו פעיל.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "עמודים לתרגום מראש";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "המספר המרבי של עמודים לתרגום מראש, בלי לספור את העמודים הגלויים. העמודים נבחרים לפי עדיפות הקריאה, עם העדפה לעמודים הבאים.";
+"TRANSLATION_UNLIMITED" = "ללא הגבלה";
+"TRANSLATION_PAGE_SETTINGS" = "תרגום עמודים";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "עמודים גלויים בלבד";

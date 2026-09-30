@@ -448,6 +448,13 @@ extension ReaderWebtoonPageNode {
             userInfo: [.processesKey: usePageProcessor]
         )
 
+        if let localIdentity = await ReaderImageContentIdentity.localFileRequestIdentity(url) {
+            request.imageID = localIdentity
+        } else if !usePageProcessor {
+            ReaderImageContentIdentity.applyStableRemoteIdentity(to: &request, sourceKey: source?.key)
+        }
+        guard !Task.isCancelled, issued == pageLoadGeneration else { return }
+
         // Store current image request for reload functionality
         self.currentImageRequest = request
 

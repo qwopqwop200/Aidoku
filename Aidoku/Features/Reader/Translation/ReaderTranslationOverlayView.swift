@@ -15,6 +15,8 @@ struct ReaderTranslationSnapshotTarget {
     let dark: Bool
     var preparedLayout: Task<Data, Error>?
     var pendingDiskGeneration: Task<UInt64, Never>? = nil
+    // Bitmap keys include text; reusable layout/assets retain their render namespace.
+    var renderKey: String? = nil
 }
 
 /// Bound only the WebKit background copy; OCR keeps its original coordinates and pixels.
@@ -131,6 +133,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     var onCacheGeometryChanged: (() -> Void)?
     var onRenderCommitted: (() -> Void)?
     var onRenderCleared: (() -> Void)?
+    var onRenderFailed: (() -> Void)?
     var onSnapshotStored: ((UIImage) -> Void)?
     // A PDF composite can rasterize glyphs differently from the live DOM.
     // Readers replacing this view with that composite reveal only the latter.
@@ -173,6 +176,9 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                 onRenderCommitted?()
             } else if diagnostic.outcome == .cleared {
                 onRenderCleared?()
+            } else if case .failed = diagnostic.outcome {
+                ReaderTranslationDiagnostics.record("visible_render_failed", context: diagnosticContext)
+                onRenderFailed?()
             }
         }
         loadDocument()
@@ -203,6 +209,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         cancelWork()
         onRenderCommitted = nil
         onRenderCleared = nil
+        onRenderFailed = nil
         snapshotTarget = nil
         layoutCacheKey = nil
         preparedImage = nil
@@ -226,7 +233,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
         self.regions = regions
         self.preparedLayout = preparedLayout ?? snapshotTarget?.preparedLayout
         self.snapshotTarget = contentTerminationCount == 0 ? snapshotTarget : nil
-        layoutCacheKey = self.snapshotTarget.map { ReaderTranslationRenderCache.layoutKey(renderKey: $0.key, regions: regions) }
+        layoutCacheKey = self.snapshotTarget.map { ReaderTranslationRenderCache.layoutKey(renderKey: $0.renderKey ?? $0.key, regions: regions) }
         recoveryTask?.cancel(); recoveryTask = nil
         recoveryAttempts = 0
         lastDiagnostic = nil
@@ -401,7 +408,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                         image: image, imageSize: imageSize, regions: regions, settings: settings,
                         viewport: size, scale: traitCollection.displayScale, aspectFit: aspectFit,
                         host: host, dark: target.dark, preparedLayout: layout,
-                        assetCache: target.cache, assetKey: target.key, priority: .foreground)
+                        assetCache: target.cache, assetKey: target.renderKey ?? target.key, priority: .foreground)
                 }
                 try Task.checkCancellation()
                 guard snapshotGeneration == issued,
@@ -480,7 +487,7 @@ final class ReaderTranslationOverlayView: UIView, WKNavigationDelegate {
                         viewport: size, scale: traitCollection.displayScale, aspectFit: aspectFit,
                         host: host, dark: target.dark,
                         preparedLayout: layout.map { data in Task { data } } ?? preparedLayout,
-                        assetCache: target.cache, assetKey: target.key
+                        assetCache: target.cache, assetKey: target.renderKey ?? target.key
                 )
                 }
                 ReaderTranslationDiagnostics.renderingProfile("profile_capture_export_end", revision: revision)

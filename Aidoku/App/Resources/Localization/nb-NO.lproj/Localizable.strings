@@ -295,7 +295,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Automatisk oversettelse";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Oversetter sider i leseren automatisk med de lagrede API-innstillingene og resonneringsinnsatsen. Ingen separat tilkoblingstest kjøres før oversettelsen starter. Oversettelsesfeil slår ikke av denne innstillingen. Bruk Test API-tilkobling for å kontrollere innstillingene manuelt.";
+"TRANSLATION_AUTOMATIC_HELP" = "Oversetter og viser sider i leseren automatisk. Oversettelsesknappen i leseren slår denne innstillingen på eller av.";
 
 "TRANSLATION_TEST" = "Test API-tilkobling";
 
@@ -1181,3 +1181,12 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "En omfattende japansk-engelsk ordbok vedlikeholdt av Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "En ordbok over japanske egennavn vedlikeholdt av Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "En frekvensordbok basert på mediekorpuset på https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Oversett mens originalsidene vises";
+"TRANSLATION_BACKGROUND_HELP" = "Fortsetter å oversette mens du leser med oversettelsesknappen av. Originalsidene forblir synlige. Oversettelsen settes på pause når appen er inaktiv.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Antall sider som oversettes på forhånd";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Maksimalt antall sider som oversettes på forhånd, utenom de synlige sidene. Sidene velges etter leseprioritet, med vekt på kommende sider.";
+"TRANSLATION_UNLIMITED" = "Ubegrenset";
+"TRANSLATION_PAGE_SETTINGS" = "Sideoversettelse";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Bare synlige sider";

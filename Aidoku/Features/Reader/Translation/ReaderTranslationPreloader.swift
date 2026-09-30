@@ -6,7 +6,7 @@ struct ReaderTranslationOCRFallback: Error {
     let underlying: Error
 }
 
-/// Prepares a demand page and at most one offscreen page without reader views.
+/// Prepares a demand page and a bounded offscreen window without reader views.
 /// Started lookahead can finish across navigation; OCR and provider admission stay bounded.
 @MainActor
 final class ReaderTranslationPreloader {
@@ -102,10 +102,14 @@ final class ReaderTranslationPreloader {
     private let storeRecognition: RecognitionStore
     private let retainImage: ImageRetention
     private var operation: Task<[ReaderTranslationRegion], Error>?
-    private var preparedPage: PreparedPage?
+    private var preparedPages: [PreparedPage] = []
+    var preparedPageCount: Int { preparedPages.count }
     private var currentDemand: (work: PreparedPage, lease: DemandLease, page: Page)?
     private var generation = UUID()
     var nextPage: ((Page) -> Page?)?
+    var nextPageExcluding: ((Page, Set<String>) -> Page?)?
+    /// The reader may allow a second lookahead only after visible work settles.
+    var lookaheadLimit: ((Page, ReaderTranslationSettings) -> Int)?
     var onPrepared: (@MainActor @Sendable (Page, [ReaderTranslationRegion], ReaderTranslationSettings) -> Void)?
 
     init(
@@ -136,7 +140,7 @@ final class ReaderTranslationPreloader {
         }
     }
 
-    deinit { operation?.cancel(); preparedPage?.cancel(); currentDemand?.work.cancel() }
+    deinit { operation?.cancel(); preparedPages.forEach { $0.cancel() }; currentDemand?.work.cancel() }
 
     func translate(
         _ page: Page, settings: ReaderTranslationSettings, onProgress: ReaderTranslationService.Progress? = nil
@@ -151,21 +155,25 @@ final class ReaderTranslationPreloader {
             demand.lease.retain()
             return demand.work
         }
-        if canFinishLookahead(settings: settings) { preparedPage?.lifetime.retain() }
+        // A retained observer no longer owns cancellation. Explicitly retire
+        // its work when a different page or configuration replaces it.
+        if adopted == nil { currentDemand?.work.cancel() }
+        for work in preparedPages where canFinishLookahead(work, settings: settings) { work.lifetime.retain() }
         operation?.cancel()
         generation = UUID()
         let issued = generation
         var work: PreparedPage
         if let adopted {
             work = adopted
-        } else if let preparedPage, preparedPage.key == key,
-                  preparedPage.settings.maximumConcurrentRequests == settings.maximumConcurrentRequests {
-            work = preparedPage
-            self.preparedPage = nil
+        } else if let index = preparedPages.firstIndex(where: {
+            $0.key == key && $0.settings.maximumConcurrentRequests == settings.maximumConcurrentRequests
+        }) {
+            work = preparedPages.remove(at: index)
         } else {
-            if !canFinishLookahead(settings: settings) {
-                preparedPage?.cancel()
-                preparedPage = nil
+            preparedPages.removeAll { work in
+                guard !canFinishLookahead(work, settings: settings) else { return false }
+                work.cancel()
+                return true
             }
             work = makeWork(page, settings: settings, speculative: false)
         }
@@ -233,7 +241,7 @@ final class ReaderTranslationPreloader {
             return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
         } catch {
             lease.cancel()
-            if generation == issued { preparedPage?.cancel(); preparedPage = nil }
+            if generation == issued { preparedPages.forEach { $0.cancel() }; preparedPages.removeAll() }
             throw error
         }
     }
@@ -287,7 +295,7 @@ final class ReaderTranslationPreloader {
                         Task { await didFinish(key) }
                     }
                 }
-                let diskGeneration = await diskCache?.currentGeneration(settings: settings) ?? 0
+                let diskWrite = await diskCache?.captureTranslationWrite(settings: settings)
                 guard let regions = try await withTaskCancellationHandler(operation: { try await work.recognitionDelivery.value() },
                                                                           onCancel: { work.recognition.cancel() }) else { return nil }
                 try Task.checkCancellation()
@@ -344,7 +352,14 @@ final class ReaderTranslationPreloader {
                     // write independent of navigation cancellation, but join it here
                     // so this bounded lookahead cannot create a growing write queue.
                     let persistence = Task(priority: .utility) {
-                        await storePreparedTranslation(result, work.key, diskGeneration)
+                        if let diskCache {
+                            guard let diskWrite,
+                                  let destination = await diskCache.resolveTranslationWrite(
+                                    page: page.translationCacheKey, settings: settings, token: diskWrite) else { return }
+                            await storePreparedTranslation(result, destination.key, destination.generation)
+                        } else {
+                            await storePreparedTranslation(result, work.key, 0)
+                        }
                     }
                     await onPrepared?(page, result, settings)
                     await persistence.value
@@ -356,10 +371,10 @@ final class ReaderTranslationPreloader {
     }
 
     /// A retained page from before a jump can finish while the new destination
-    /// is still waiting on its provider. Refill the same one-page slot now, so
+    /// is still waiting on its provider. Refill the bounded lookahead slots now, so
     /// the new neighbor does not wait for another page turn or API completion.
     private func lookaheadDidFinish(key: String) {
-        guard preparedPage?.key == key, let currentDemand else { return }
+        guard preparedPages.contains(where: { $0.key == key }), let currentDemand, !currentDemand.lease.isRetained else { return }
         prepareNext(after: currentDemand.page, settings: currentDemand.work.settings,
                     afterRecognition: currentDemand.work.recognition)
     }
@@ -368,19 +383,38 @@ final class ReaderTranslationPreloader {
         after page: Page, settings: ReaderTranslationSettings,
         afterRecognition: Task<[ReaderTranslationRegion]?, Error>? = nil
     ) {
-        guard let next = nextPage?(page), next.translationCacheKey != page.translationCacheKey else { return }
-        let key = ReaderTranslationCacheIdentity.translation(page: next.translationCacheKey, settings: settings)
-        guard preparedPage?.key != key else { return }
-        guard !canFinishLookahead(settings: settings) else { return }
-        preparedPage?.cancel()
-        preparedPage = makeWork(next, settings: settings, speculative: true, afterRecognition: afterRecognition)
+        // A second compressed/JPEG/text slot is useful for settled background
+        // preparation. Decoding/OCR still uses the single shared image permit.
+        let capacity = settings.maximumConcurrentRequests >= 3 && availableMemory() >= 2 * 1_024 * 1_024 * 1_024
+            ? min(2, max(1, lookaheadLimit?(page, settings) ?? 1)) : 1
+        var excluded: Set<String> = [page.translationCacheKey]
+        var desired: [(Page, String)] = []
+        for _ in 0..<capacity {
+            guard let next = nextPageExcluding?(page, excluded) ?? nextPage?(page),
+                  excluded.insert(next.translationCacheKey).inserted else { break }
+            desired.append((next, ReaderTranslationCacheIdentity.translation(page: next.translationCacheKey, settings: settings)))
+        }
+        while preparedPages.count > capacity { preparedPages.removeLast().cancel() }
+        guard !desired.isEmpty else { return }
+        preparedPages.removeAll { work in
+            let wanted = desired.contains { $0.1 == work.key }
+                && work.settings.maximumConcurrentRequests == settings.maximumConcurrentRequests
+            guard !wanted && !canFinishLookahead(work, settings: settings) else { return false }
+            work.cancel()
+            return true
+        }
+        for (next, key) in desired where preparedPages.count < capacity {
+            guard !preparedPages.contains(where: { $0.key == key }) else { continue }
+            let previous = preparedPages.last?.recognition ?? afterRecognition
+            preparedPages.append(makeWork(next, settings: settings, speculative: true, afterRecognition: previous))
+        }
     }
 
     /// One already-started background page may finish even after a distant jump.
     /// Never preserve old foreground priority, changed settings, or work under pressure.
     /// This uses the existing lookahead slot, so navigation cannot grow a work queue.
-    private func canFinishLookahead(settings: ReaderTranslationSettings? = nil) -> Bool {
-        guard let preparedPage, preparedPage.translation != nil,
+    private func canFinishLookahead(_ preparedPage: PreparedPage, settings: ReaderTranslationSettings? = nil) -> Bool {
+        guard preparedPage.translation != nil,
               !preparedPage.promotion.isForeground, preparedPage.lifetime.isRunning,
               availableMemory() >= TranslationImageWorkBudget.minimumHeadroom else { return false }
         guard let settings else { return true }
@@ -406,7 +440,7 @@ final class ReaderTranslationPreloader {
             try await ReaderTranslationDiagnostics.measure("ocr_preparation", context: diagnosticContext) {
                 func recognize() async throws -> [ReaderTranslationRegion]? {
                     try Task.checkCancellation()
-                    // A completed retained lookahead may have left the one-page RAM
+                    // A completed retained lookahead may have left its RAM
                     // slot before navigation returns to it. Demand must reuse its disk
                     // translation too, rather than repeat the provider from cached OCR.
                     if checkTranslationCache, let diskCache,
@@ -540,7 +574,7 @@ final class ReaderTranslationPreloader {
                     }
                     // Release the prepared OCR to the provider before disk writes. The
                     // owning recognition task still joins both writes, so navigation and
-                    // the one-page lookahead cannot accumulate detached persistence jobs.
+                    // bounded lookahead cannot accumulate detached persistence jobs.
                     await delivery.resolve(.success(output.regions))
                     if let size = loadedImageSize.take() {
                         try? await diskCache?.storeImageSize(size, page: page.translationCacheKey, generation: diskGeneration)
@@ -564,21 +598,39 @@ final class ReaderTranslationPreloader {
 
     func cancel(preservingRecognitionFor page: Page? = nil) {
         generation = UUID()
+        let preservesDemand = page != nil && currentDemand?.work.pageKey == page?.translationCacheKey
+        // Replacing only the current observer leaves its neighbors useful,
+        // including OCR-only work and preparation not yet at the provider.
+        // Keep the same bounded slots, subject to the existing memory floor.
+        let preservesNeighbor = preservesDemand && availableMemory() >= TranslationImageWorkBudget.minimumHeadroom
         if let currentDemand, let page, currentDemand.work.pageKey == page.translationCacheKey {
             currentDemand.lease.retain()
-            preparedPage?.cancel()
-            preparedPage = currentDemand.work
+            // Keep the existing slots: moving demand into a lookahead
+            // slot discarded an already-running neighbor on every handoff.
+            // The next observer adopts demand directly; OFF still cancels all slots.
+        } else {
+            currentDemand?.work.cancel()
+            currentDemand = nil
         }
-        currentDemand = nil
-        if page != nil, canFinishLookahead() { preparedPage?.lifetime.retain() }
+        if page != nil {
+            for work in preparedPages where canFinishLookahead(work) { work.lifetime.retain() }
+        }
         operation?.cancel()
         operation = nil
         // A page turn promotes both OCR and API work. OFF/exit/settings changes
         // pass nil and stop all work. A different destination can leave one
         // started, unpromoted lookahead to finish and persist its result.
-        if page == nil || (page?.translationCacheKey != preparedPage?.pageKey && !canFinishLookahead()) {
-            preparedPage?.cancel()
-            preparedPage = nil
+        preparedPages.removeAll { work in
+            guard page == nil || (!preservesNeighbor && page?.translationCacheKey != work.pageKey && !canFinishLookahead(work)) else { return false }
+            work.cancel()
+            return true
+        }
+        // Navigation restores the foreground reservation: retain its destination
+        // preferentially and at most one old neighbor, never two background APIs.
+        if !preservesDemand, preparedPages.count > 1 {
+            let kept = preparedPages.first(where: { $0.pageKey == page?.translationCacheKey }) ?? preparedPages[0]
+            preparedPages.filter { $0.key != kept.key }.forEach { $0.cancel() }
+            preparedPages = [kept]
         }
     }
 }

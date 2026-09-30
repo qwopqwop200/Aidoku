@@ -490,7 +490,34 @@ actor ReaderOCRService {
         if !recovered.isEmpty || !gaps.isEmpty || !beside.isEmpty {
             joined = NativeOCRAdjacentLineRecovery.extending(joined, with: group(lines + recovered + beside + gaps.map(\.line)),
                                                              baseLines: lines, recovered: recovered + beside + gaps.map(\.line),
-                                                             bridges: bridges, imageBounds: imageBounds)
+                                                             bridges: bridges, imageBounds: imageBounds, inkContrast: {
+                let foreground = $0, background = $1
+                // Sample the sign outside the recovered foreground column.
+                // Otherwise its few dark glyph pixels can masquerade as the
+                // sign's own ink and veto a valid gap completion.
+                let overlap = foreground.intersection(background)
+                let sample: CGRect
+                if !overlap.isNull, !overlap.isEmpty {
+                    let strips = [
+                        CGRect(x: background.minX, y: background.minY, width: overlap.minX - background.minX, height: background.height),
+                        CGRect(x: overlap.maxX, y: background.minY, width: background.maxX - overlap.maxX, height: background.height),
+                        CGRect(x: background.minX, y: background.minY, width: background.width, height: overlap.minY - background.minY),
+                        CGRect(x: background.minX, y: overlap.maxY, width: background.width, height: background.maxY - overlap.maxY)
+                    ]
+                    guard let strip = strips.max(by: { $0.width * $0.height < $1.width * $1.height }),
+                          strip.width * strip.height >= background.width * background.height * 0.4 else { return false }
+                    sample = strip
+                } else { sample = background }
+                guard let a = textInk(foreground) else { return false }
+                if let b = textInk(sample) {
+                    return max(abs(a.0 - b.0), abs(a.1 - b.1), abs(a.2 - b.2)) >= 100
+                }
+                // A faded sign may have no high-contrast ink bin at all.
+                // Certify that its remaining pixels contain none of the dark
+                // strokes which occupy a meaningful part of the recovered line.
+                return max(a.0, a.1, a.2) < 80 && (darkFraction(foreground) ?? 0) >= 0.08
+                    && (darkFraction(sample) ?? 1) < 0.01
+            })
         }
         // One enclosed balloon is translated as one unit (fragments, tails, ruby, split blocks). The join runs once,
         // after recovery: both recovery groupings above then compare the same line merge, and a recovered or gap
@@ -517,6 +544,28 @@ actor ReaderOCRService {
         // alone in its balloon against that paper instead of its OCR column (no pixel work in WebKit).
         let interiorStart = ProcessInfo.processInfo.systemUptime
         joined = ReaderTranslationEnclosedBackground.attachingBalloonInteriors(joined, image: image, map: enclosure)
+        let countBeforeChromaticJoin = joined.count
+        joined = ReaderTranslationChromaticBalloon.applying(joined, image: image)
+        // A colored contour can complete a column whose fragments occupied different
+        // light-paper patches. Give that completed column one bounded opportunity to
+        // join its paragraph, using the same separation and enclosure guards.
+        if joined.count < countBeforeChromaticJoin, let enclosure {
+            let prior = Dictionary(joined.map { ($0.id, $0.rect) }, uniquingKeysWith: { first, _ in first })
+            let completed = ReaderTranslationBalloonMerger.joinBalloonUnits(
+                joined, image: image, enclosure: enclosure,
+                sourceLines: lines.map { .init(polygon: $0.polygon, text: $0.text, orientation: $0.orientation) }, separates: separated)
+            if completed.count < joined.count {
+                joined = completed
+                let changed = joined.indices.filter { prior[joined[$0].id] != joined[$0].rect }
+                let refreshed = ReaderTranslationEnclosedBackground.attachingBalloonInteriors(
+                    changed.map { joined[$0] }, image: image, map: enclosure)
+                let contours = ReaderTranslationChromaticBalloon.interiors(refreshed, image: image)
+                for (offset, index) in changed.enumerated() {
+                    joined[index] = refreshed[offset]
+                    if let contour = contours[offset] { joined[index].balloonInterior = contour }
+                }
+            }
+        }
         lastPhaseMilliseconds["balloonInterior"] = (ProcessInfo.processInfo.systemUptime - interiorStart) * 1000
         // Cut-off fine print of a background document stays as printed art (kept lettering).
         joined = await ReaderTranslationNonContentText.markingOccludedDocumentText(joined)
@@ -555,7 +604,7 @@ actor ReaderTranslationService {
 
     // Pause before reader OCR/debounce starts, and retain the pause between pages.
     // Multiple reader owners cannot accidentally resume each other's metadata work.
-    // Readers mark themselves active only while automatic translation is on,
+    // Readers mark themselves active while visible or background translation is on,
     // so this is also the reader-open hook that warms the OCR models.
     func setReaderActive(_ active: Bool, owner: UUID) {
         if active {
@@ -584,7 +633,7 @@ actor ReaderTranslationService {
     private static func requestOCRWarmUp() {
         guard #available(iOS 18.0, *) else { return }
         let settings = ReaderTranslationSettings()
-        guard settings.automaticallyTranslate else { return }
+        guard settings.shouldProcessReaderPages else { return }
         let configuration = settings.ocrConfiguration
         Task(priority: .utility) { await ReaderOCRService.shared.warmUp(configuration: configuration) }
     }
@@ -703,9 +752,19 @@ actor ReaderTranslationService {
         let attachesImage = settings.shouldAttachPageImage
         // A remembered text-only fallback sends no image and must not retain
         // the image-upload concurrency cap merely because the preference is on.
-        let concurrency = max(1, min(attachesImage ? 2 : BoundedTranslationBatchExecutor.allowedMaximumConcurrentRequests,
+        let concurrency = max(1, min(attachesImage ? 3 : BoundedTranslationBatchExecutor.allowedMaximumConcurrentRequests,
                                      settings.maximumConcurrentRequests))
         await limiter.setMaximumConcurrentRequests(concurrency)
+        // Each of the two offscreen pages submits one batch at a time, leaving
+        // the third provider slot available for visible demand. Promotion may
+        // then expand that page's batches; metadata keeps its existing policy.
+        let speculativeBatchLimit: Int
+        switch priority {
+        case .prefetch, .promotable:
+            speculativeBatchLimit = min(2, max(1, (concurrency - 1) / 2))
+        default:
+            speculativeBatchLimit = 2
+        }
         try Task.checkCancellation()
         let imageJPEG = try attachesImage
             ? (preparedImageJPEG ?? image.map(ReaderTranslationImagePreparation.translationJPEG)) : nil
@@ -749,10 +808,39 @@ actor ReaderTranslationService {
             plans.map(\.request), configuration: settings.configuration, service: service,
             // The scheduler reserves foreground capacity until a lookahead is promoted.
             maximumConcurrentRequests: concurrency,
+            maximumSpeculativeRequests: speculativeBatchLimit,
             priority: priority,
             onBatchCompleted: { index, result in
                 try Task.checkCancellation()
-                let snapshot = await progress.complete(index: index, result: result)
+                // Classification can copy a complete balloon sentence unchanged. Retry only those
+                // independently measured utterances once, without background/SFX filtering.
+                let plan = plans[index]
+                let missed = Set(result.translations.compactMap { translated -> String? in
+                    guard let input = plan.inputIndicesBySegmentID[translated.id],
+                          ReaderTranslationLanguageFilter.requiresBalloonTranslation(regions[input],
+                            translation: translated.text, target: settings.targetLanguage) else { return nil }
+                    return translated.id
+                })
+                var completed = result
+                if !missed.isEmpty {
+                    var recovery = RemoteTranslationRequest(sourceLanguage: plan.request.sourceLanguage,
+                        targetLanguage: plan.request.targetLanguage,
+                        segments: plan.request.segments.filter { missed.contains($0.id) },
+                        context: plan.request.context, glossary: plan.request.glossary)
+                    recovery.copyImageRepresentation(from: plan.request)
+                    let retry = try await service.translate(recovery, configuration: settings.configuration, usesCache: false, priority: priority)
+                    let replacements = Dictionary(retry.translations.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                    for id in missed {
+                        guard let input = plan.inputIndicesBySegmentID[id], let value = replacements[id],
+                              !ReaderTranslationLanguageFilter.requiresBalloonTranslation(regions[input],
+                                translation: value.text, target: settings.targetLanguage) else {
+                            throw RemoteTranslationError.invalidResponse("balloon dialogue was not translated")
+                        }
+                    }
+                    completed = .init(translations: result.translations.map { replacements[$0.id] ?? $0 },
+                                      source: .network, providerRequestID: retry.providerRequestID)
+                }
+                let snapshot = await progress.complete(index: index, result: completed)
                 try await onProgress?(snapshot)
             },
             onBatchPartial: partialHandler

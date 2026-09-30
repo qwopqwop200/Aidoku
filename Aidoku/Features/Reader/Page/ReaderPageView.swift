@@ -294,12 +294,18 @@ extension ReaderPageView {
             processors.append(DownsampleProcessor(width: UIScreen.main.bounds.width))
         }
 
-        return ImageRequest(
+        var request = ImageRequest(
             urlRequest: urlRequest,
             processors: processors,
             options: source?.key.hasPrefix(TemporarySharedImageSession.sourcePrefix) == true ? [.disableDiskCache, .disableMemoryCache] : [],
             userInfo: [.processesKey: usePageProcessor]
         )
+        if let localIdentity = await ReaderImageContentIdentity.localFileRequestIdentity(url) {
+            request.imageID = localIdentity
+        } else if !usePageProcessor {
+            ReaderImageContentIdentity.applyStableRemoteIdentity(to: &request, sourceKey: source?.key)
+        }
+        return request
     }
 
     func setPageImage(url: URL, context: PageContext? = nil, sourceId: String? = nil) async -> Bool {

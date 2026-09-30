@@ -749,7 +749,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Автоматичний переклад";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Автоматично перекладає сторінки в рідері, використовуючи збережені налаштування API та рівень міркування. Перед початком перекладу окрема перевірка підключення не виконується. Помилки перекладу не вимикають це налаштування. Для ручної перевірки налаштувань скористайтеся «Перевірити підключення до API».";
+"TRANSLATION_AUTOMATIC_HELP" = "Автоматично перекладає та показує сторінки в рідері. Кнопка перекладу в рідері вмикає або вимикає це налаштування.";
 
 "TRANSLATION_TEST" = "Перевірити підключення до API";
 
@@ -1153,3 +1153,14 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Повний японсько-англійський словник, який підтримує група Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Словник японських власних назв, який підтримує група Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Частотний словник на основі медіакорпусу https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Перекладати під час показу оригіналу";
+"TRANSLATION_BACKGROUND_HELP" = "Продовжує переклад під час читання, навіть якщо кнопку перекладу вимкнено. На екрані залишаються оригінальні сторінки. Переклад призупиняється, коли застосунок неактивний.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Сторінок для завчасного перекладу";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Максимальна кількість сторінок для завчасного перекладу, не враховуючи сторінок на екрані. Сторінки вибираються за пріоритетом читання з перевагою для наступних сторінок.";
+"TRANSLATION_UNLIMITED" = "Без обмежень";
+
+"TRANSLATION_PAGE_SETTINGS" = "Переклад сторінок";
+
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Лише сторінки на екрані";

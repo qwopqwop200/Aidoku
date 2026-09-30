@@ -82,7 +82,7 @@ struct ReaderCustomTranslationSettings: Equatable, Codable, Sendable {
     var baseURL = ""
     var model = ""
     var apiProtocol: RemoteTranslationProtocol = .responses
-    var reasoningEffort: OpenAIReasoningEffort = .modelDefault
+    var reasoningEffort: OpenAIReasoningEffort = .none
 }
 
 struct ReaderTranslationSettings: Equatable, Sendable {
@@ -92,6 +92,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
 
     var provider: RemoteTranslationProvider = .openAI
     var automaticallyTranslate = true
+    var translateInBackground = false
+    // nil means the whole chapter; zero prepares only visible pages.
+    var maximumPretranslatedPages: Int?
+    var shouldProcessReaderPages: Bool { automaticallyTranslate || translateInBackground }
     var includePageImage = false
     var shouldAttachPageImage: Bool {
         includePageImage && TranslationImageSupport.shared.status(for: configuration) != .unsupported
@@ -113,7 +117,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var chapterTitleSourceLanguages: [String] = []
     var custom = ReaderCustomTranslationSettings()
     private var openAIModel = "gpt-5-mini"
-    private var openAIReasoningEffort: OpenAIReasoningEffort = .modelDefault
+    private var openAIReasoningEffort: OpenAIReasoningEffort = .none
     var model: String {
         get { provider == .openAI ? openAIModel : custom.model }
         set {
@@ -163,6 +167,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         openAIModel = defaults.string(forKey: Self.keyPrefix + "model") ?? openAIModel
         provider = defaults.string(forKey: Self.keyPrefix + "provider").flatMap(RemoteTranslationProvider.init) ?? provider
         automaticallyTranslate = defaults.object(forKey: Self.keyPrefix + "automatic") as? Bool ?? automaticallyTranslate
+        translateInBackground = defaults.bool(forKey: Self.keyPrefix + "background")
+        if let limit = defaults.object(forKey: Self.keyPrefix + "pretranslationLimit") as? Int, limit >= 0 {
+            maximumPretranslatedPages = limit
+        }
         includePageImage = defaults.bool(forKey: Self.keyPrefix + "includePageImage")
         filterSFXWithLLM = defaults.bool(forKey: Self.keyPrefix + "filterSFXWithLLM")
         filterBackgroundWithLLM = defaults.bool(forKey: Self.keyPrefix + "filterBackgroundWithLLM")
@@ -254,7 +262,8 @@ struct ReaderTranslationSettings: Equatable, Sendable {
               ocr.detectorPixelThreshold.isFinite, (0...1).contains(ocr.detectorPixelThreshold),
               ocr.detectorConfidenceThreshold.isFinite, (0...1).contains(ocr.detectorConfidenceThreshold),
               ocr.detectorMinimumBoxSide.isFinite, (0...20).contains(ocr.detectorMinimumBoxSide),
-              (1...64).contains(maximumConcurrentRequests), ReaderTranslationDiskCache.limitChoices.contains(cacheLimitBytes)
+              (1...64).contains(maximumConcurrentRequests), (maximumPretranslatedPages ?? 0) >= 0,
+              ReaderTranslationDiskCache.limitChoices.contains(cacheLimitBytes)
         else { throw RemoteTranslationError.invalidRequest("Invalid OCR or overlay setting.") }
         guard [translationSourceLanguages, mangaTitleSourceLanguages, chapterTitleSourceLanguages, mangaDescriptionSourceLanguages, mangaTagSourceLanguages, sourceLabelSourceLanguages, authorSourceLanguages].allSatisfy({ languages in
             languages.count <= AutomaticSourceLanguageDetector.supportedLanguageCodes.count &&
@@ -301,7 +310,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         // Encode everything before mutating credentials or preferences.
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         var generation = max(credentialGeneration, UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration"))))
-        if !key.isEmpty {
+        if !key.isEmpty, (try? credentialStore.secret(for: selectedCredentialAccount)) != key {
             try credentialStore.save(key, for: selectedCredentialAccount)
             generation = max(generation, UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration")))) &+ 1
         }
@@ -313,6 +322,8 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         defaults.set(filterSFXWithLLM, forKey: Self.keyPrefix + "filterSFXWithLLM")
         defaults.set(filterBackgroundWithLLM, forKey: Self.keyPrefix + "filterBackgroundWithLLM")
         defaults.set(automaticallyTranslate, forKey: Self.keyPrefix + "automatic")
+        defaults.set(translateInBackground, forKey: Self.keyPrefix + "background")
+        defaults.set(maximumPretranslatedPages, forKey: Self.keyPrefix + "pretranslationLimit")
         defaults.set(translateMangaTitles, forKey: Self.keyPrefix + "mangaTitles")
         defaults.set(translateChapterTitles, forKey: Self.keyPrefix + "chapterTitles")
         defaults.set(translateAuthors, forKey: Self.keyPrefix + "authors")

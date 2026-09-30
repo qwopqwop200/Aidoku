@@ -818,7 +818,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Automatski prijevod";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Automatski prevodi stranice u čitaču koristeći spremljene API postavke i intenzitet rasuđivanja. Prije početka prevođenja ne provodi se zaseban test veze. Neuspjeli prijevodi ne isključuju ovu postavku. Upotrijebi opciju Testirajte API vezu za ručnu provjeru postavki.";
+"TRANSLATION_AUTOMATIC_HELP" = "Automatski prevodi i prikazuje stranice u čitaču. Gumb za prijevod u čitaču uključuje ili isključuje ovu postavku.";
 
 "TRANSLATION_TEST" = "Testirajte API vezu";
 
@@ -1155,3 +1155,12 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Opsežan japansko-engleski rječnik koji održava Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Rječnik japanskih vlastitih imena koji održava Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Frekvencijski rječnik temeljen na medijskom korpusu s https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Prevođenje uz prikaz izvornih stranica";
+"TRANSLATION_BACKGROUND_HELP" = "Prijevod se nastavlja tijekom čitanja i kada je gumb za prijevod isključen. Izvorne stranice ostaju vidljive. Prevođenje se privremeno zaustavlja kada aplikacija nije aktivna.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Stranice za prijevod unaprijed";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Najveći broj stranica za prijevod unaprijed, ne računajući vidljive stranice. Stranice se biraju prema prioritetu čitanja, uz prednost sljedećim stranicama.";
+"TRANSLATION_UNLIMITED" = "Neograničeno";
+"TRANSLATION_PAGE_SETTINGS" = "Prijevod stranica";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Samo vidljive stranice";

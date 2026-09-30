@@ -53,6 +53,8 @@ final class ReaderTranslationLayoutPreparer {
     private let loadedImages = NSMapTable<NSString, UIImage>(keyOptions: .strongMemory, valueOptions: .weakMemory)
     private var loadedImageKeys: [String] = []
     func sourceDidLoad(_ image: UIImage, page: Page) {
+        // Both reader halves share the original key; never replace full-source pixels with a half.
+        guard page.translationSourceRect == nil || page.translationSourceRect == ReaderTranslationSplitGeometry.unit else { return }
         let key = page.translationCacheKey
         loadedImageKeys.removeAll { $0 == key }
         loadedImageKeys.append(key)
@@ -89,12 +91,14 @@ final class ReaderTranslationLayoutPreparer {
             return
         }
         // An already prepared bitmap needs neither source-image decoding nor WebKit.
-        if window != nil, let imageSize = try? await renderCache.disk.imageSize(page: page.translationCacheKey) {
+        if window != nil, geometry.crop == ReaderTranslationSplitGeometry.unit, let imageSize = try? await renderCache.disk.imageSize(page: page.translationCacheKey) {
             var restored = true
             for crop in crops(geometry) {
                 let size = CGSize(width: imageSize.width * crop.width, height: imageSize.height * crop.height)
                 let key = renderKey(page, settings, geometry, size, crop)
-                if await renderCache.load(key, pageIdentity: identity) == nil { restored = false; break }
+                let displayed = regions.compactMap { $0.cropped(to: crop) }
+                let snapshotKey = ReaderTranslationRenderCache.snapshotKey(renderKey: key, regions: displayed)
+                if await renderCache.load(snapshotKey, pageIdentity: identity) == nil { restored = false; break }
             }
             if restored { return }
         }
@@ -111,7 +115,10 @@ final class ReaderTranslationLayoutPreparer {
     /// Unknown geometry is a cheap miss; nearby/visible rendering records it.
     func prepareTextOnly(page: Page, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
                          geometry: ReaderTranslationLayoutGeometry) async throws {
+        // Legacy saved sizes contain points only, without pixel scale or orientation.
+        // They cannot predict an integral CGImage split; defer split preparation until pixels load.
         guard !regions.isEmpty, geometry.viewport.width > 0, geometry.viewport.height > 0,
+              geometry.crop == ReaderTranslationSplitGeometry.unit,
               let imageSize = try await renderCache.disk.imageSize(page: page.translationCacheKey) else { return }
         let generation = await renderCache.disk.currentGeneration(settings: settings)
         for crop in crops(geometry) {
@@ -160,16 +167,18 @@ final class ReaderTranslationLayoutPreparer {
         let crops = geometry.crop == unit ? [unit] : [CGRect(x: 0, y: 0, width: 0.5, height: 1), CGRect(x: 0.5, y: 0, width: 0.5, height: 1)]
         for crop in crops {
             try Task.checkCancellation()
-            let size = CGSize(width: image.size.width * crop.width, height: image.size.height * crop.height)
+            guard let original = ReaderTranslationSplitGeometry.image(image, crop: crop) else { continue }
+            let size = original.size
             let viewport = geometry.viewport(for: size)
             let key = ReaderTranslationCacheIdentity.render(page: page.translationCacheKey, settings: settings, imageSize: size,
                                                             viewport: viewport, scale: geometry.scale, aspectFit: geometry.aspectFit,
                                                             crop: crop, dark: geometry.dark)
-            if renderCache.cachedImage(for: key) != nil { continue }
-            let identity = ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: settings)
             let displayed = regions.compactMap { $0.cropped(to: crop) }
+            let snapshotKey = ReaderTranslationRenderCache.snapshotKey(renderKey: key, regions: displayed)
+            if renderCache.cachedImage(for: snapshotKey) != nil { continue }
+            let identity = ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: settings)
             let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: displayed)
-            try await renderCache.prepare(key) { [renderCache, layoutPreparation] in
+            try await renderCache.prepare(snapshotKey) { [renderCache, layoutPreparation] in
                 let items = ReaderTranslationRegion.layoutItems(displayed, imageSize: size)
                 // Start layout immediately, while the source image is cropped,
                 // encoded and loaded into WebKit. The renderer joins this exact
@@ -198,19 +207,8 @@ final class ReaderTranslationLayoutPreparer {
                     // The asset will later meet the reader's original decoded
                     // crop, not WebKit's reduced background copy. Match the
                     // reader's CGImage split before fingerprinting those pixels.
-                    let original: UIImage?
-                    if crop == unit {
-                        original = image
-                    } else if let pixels = image.cgImage,
-                              let cropped = pixels.cropping(to: CGRect(
-                                x: crop.minX * CGFloat(pixels.width), y: crop.minY * CGFloat(pixels.height),
-                                width: crop.width * CGFloat(pixels.width), height: crop.height * CGFloat(pixels.height))) {
-                        original = UIImage(cgImage: cropped, scale: image.scale, orientation: image.imageOrientation)
-                    } else {
-                        original = nil
-                    }
-                    let digest = original.flatMap(ReaderTranslationRenderAsset.digestSource)
-                    let source = try ReaderTranslationBackgroundImage.prepare(image, crop: crop)
+                    let digest = ReaderTranslationRenderAsset.digestSource(original)
+                    let source = try ReaderTranslationBackgroundImage.prepare(original)
                     return (source, digest)
                 }
                 let (source, sourceDigest) = try await withTaskCancellationHandler { try await cropTask.value } onCancel: { cropTask.cancel() }
@@ -227,12 +225,27 @@ final class ReaderTranslationLayoutPreparer {
                     assetCache: renderCache, assetKey: key, assetSourceDigest: sourceDigest
                 )
                 try Task.checkCancellation()
-                await renderCache.store(snapshot, key: key, pageIdentity: identity, diskGeneration: generation)
+                await renderCache.store(snapshot, key: snapshotKey, pageIdentity: identity, diskGeneration: generation)
                 TranslationPerformanceDiagnostics.clientPhaseCompleted(
                     phase: "reader_snapshot", segmentCount: items.count,
                     elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - snapshotStart) * 1_000
                 )
             }
         }
+    }
+}
+
+/// Use the same pixel crop as ReaderPageView.splitImage. Fractional crop edges
+/// are expanded by Core Graphics before UIImage applies scale and orientation.
+enum ReaderTranslationSplitGeometry {
+    static let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
+
+    static func image(_ image: UIImage, crop: CGRect) -> UIImage? {
+        if crop == unit { return image }
+        guard let pixels = image.cgImage,
+              let cropped = pixels.cropping(to: CGRect(
+                x: crop.minX * CGFloat(pixels.width), y: crop.minY * CGFloat(pixels.height),
+                width: crop.width * CGFloat(pixels.width), height: crop.height * CGFloat(pixels.height))) else { return nil }
+        return UIImage(cgImage: cropped, scale: image.scale, orientation: image.imageOrientation)
     }
 }

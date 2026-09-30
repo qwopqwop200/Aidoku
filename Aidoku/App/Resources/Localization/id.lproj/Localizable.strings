@@ -922,7 +922,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Terjemahan Otomatis";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Menerjemahkan halaman pembaca secara otomatis menggunakan pengaturan API dan upaya penalaran yang tersimpan. Tidak ada uji koneksi terpisah sebelum terjemahan dimulai. Kegagalan terjemahan tidak menonaktifkan pengaturan ini. Gunakan Uji Koneksi API untuk memeriksa pengaturan secara manual.";
+"TRANSLATION_AUTOMATIC_HELP" = "Terjemahkan dan tampilkan halaman pembaca secara otomatis. Tombol terjemahan di pembaca mengaktifkan atau menonaktifkan pengaturan ini.";
 
 "TRANSLATION_TEST" = "Uji Koneksi API";
 
@@ -1180,3 +1180,12 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Kamus Jepang–Inggris lengkap yang dikelola oleh Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Kamus nama diri Jepang yang dikelola oleh Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Kamus frekuensi berdasarkan korpus media di https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Terjemahkan sambil menampilkan halaman asli";
+"TRANSLATION_BACKGROUND_HELP" = "Terus menerjemahkan saat Anda membaca dengan tombol terjemahan dinonaktifkan. Halaman asli tetap ditampilkan. Terjemahan dijeda saat aplikasi tidak aktif.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Jumlah halaman untuk diterjemahkan lebih awal";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Jumlah maksimum halaman yang diterjemahkan lebih awal, tidak termasuk halaman yang sedang terlihat. Halaman dipilih sesuai prioritas membaca, dengan mengutamakan halaman berikutnya.";
+"TRANSLATION_UNLIMITED" = "Tanpa batas";
+"TRANSLATION_PAGE_SETTINGS" = "Terjemahan Halaman";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Hanya Halaman yang Terlihat";

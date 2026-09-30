@@ -5,7 +5,7 @@ import UIKit
 @testable import Aidoku
 
 /// Golden oracle frozen from baseline formatter implementation before the fast-hex change.
-/// Intentionally independent of production digest/encoded; no persistent key version changes.
+/// Independent of production digest/encoded; explicit schema revisions track intentional cache invalidation.
 @Suite(.serialized) @MainActor
 struct ReaderTranslationDigestEquivalenceTests {
     @Test func knownSHA256Fixtures() {
@@ -86,7 +86,7 @@ private enum FrozenFormatterIdentity {
     static func ocr(page: String, settings: ReaderTranslationSettings) -> String {
         // OCR entries contain merged regions. A merger change must also
         // invalidate derived translations/layouts instead of replaying old boxes.
-        encoded(["reader-ocr-v63-recovered-flank-ownership", page, encoded(settings.ocrConfiguration)])
+        encoded(["reader-ocr-v83-captured-dialogue-recovery", page, encoded(settings.ocrConfiguration)])
     }
     static func translation(page: String, settings: ReaderTranslationSettings) -> String {
         let previous = unfilteredTranslation(page: page, settings: settings)
@@ -112,7 +112,7 @@ private enum FrozenFormatterIdentity {
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
         return encoded([
-            "reader-render-v116-source-restoration-geometry", translation(page: page, settings: settings), encoded(settings.overlay),
+            ReaderTranslationCacheIdentity.renderRevision, translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
             "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit", BrowserOverlayLetterFonts.shared.availabilityKey,
             ProcessInfo.processInfo.operatingSystemVersionString

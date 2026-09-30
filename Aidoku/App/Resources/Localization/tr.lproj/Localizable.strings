@@ -844,7 +844,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Otomatik Çeviri";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Kayıtlı API ayarlarınızı ve muhakeme çabasını kullanarak okuyucu sayfalarını otomatik çevirir. Çeviri başlamadan önce ayrı bir bağlantı testi yapılmaz. Çeviri hataları bu ayarı kapatmaz. Ayarlarınızı elle kontrol etmek için API Bağlantısını Test Edin seçeneğini kullanın.";
+"TRANSLATION_AUTOMATIC_HELP" = "Okuyucudaki sayfaları otomatik olarak çevirir ve gösterir. Okuyucudaki çeviri düğmesi bu ayarı açar veya kapatır.";
 
 "TRANSLATION_TEST" = "API Bağlantısını Test Edin";
 
@@ -1182,3 +1182,14 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) tarafından sürdürülen kapsamlı bir Japonca-İngilizce sözlük.";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) tarafından sürdürülen Japonca özel adlar sözlüğü.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe medya derlemine dayalı bir sıklık sözlüğü.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Özgün sayfalar gösterilirken çevir";
+"TRANSLATION_BACKGROUND_HELP" = "Çeviri düğmesi kapalıyken okuma sırasında çevirmeye devam eder. Özgün sayfalar gösterilmeye devam eder. Uygulama etkin değilken çeviri duraklatılır.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Önceden çevrilecek sayfa sayısı";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Görünür sayfalar hariç, önceden çevrilecek en fazla sayfa sayısı. Sayfalar okuma önceliğine göre seçilir ve sonraki sayfalara öncelik verilir.";
+"TRANSLATION_UNLIMITED" = "Sınırsız";
+
+"TRANSLATION_PAGE_SETTINGS" = "Sayfa Çevirisi";
+
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Yalnızca Görünür Sayfalar";

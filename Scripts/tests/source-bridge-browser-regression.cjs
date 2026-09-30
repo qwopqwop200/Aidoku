@@ -51,14 +51,14 @@ let browser;
   const panel=root.querySelector('[data-aidoku-image-ocr-overlay="source-readability-panel"]');const samples=[];
   for(const [l,t,w,h] of required)for(let y=t+.5;y<t+h;y+=2)for(let x=l+.5;x<l+w;x+=2)if(document.elementsFromPoint(x,y).includes(panel))samples.push([x,y]);return samples;
  });
- await page.evaluate(bridge);
+ await page.evaluate(fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0] + bridge);
  const proof=await page.evaluate(prior=>{
   const p=root.querySelector('[data-aidoku-image-ocr-overlay="source-readability-panel"]');
   return {lost:prior.filter(([x,y])=>!document.elementsFromPoint(x,y).includes(p)),released:!document.elementsFromPoint(70,200).includes(p),clipped:p.dataset.sourceBridgeClipped,rect:[p.offsetLeft,p.offsetTop,p.offsetWidth,p.offsetHeight]};
  },prior);
- assert.ok(prior.length>500);assert.deepEqual(proof.lost,[],'retain actual painted original, auxiliary and neighbor glyph coverage');assert.ok(proof.released,'release a real empty bridge pixel');assert.equal(proof.clipped,'true');assert.deepEqual(proof.rect,[20,20,240,350]);
+ assert.ok(prior.length>500);assert.deepEqual(proof.lost,[],'retain actual painted original, auxiliary and neighbor glyph coverage');assert.equal(proof.released,false,'retain a solid rectangle between source and translated lettering');assert.equal(proof.clipped,'true');assert.deepEqual(proof.rect,[20,20,240,350]);
  await page.evaluate(()=>{delete items[0].sourceBounds;const p=root.querySelector('[data-aidoku-image-ocr-overlay="source-readability-panel"]');p.style.clipPath='';delete p.dataset.sourceBridgeClipped;delete p.dataset.captionUnionClipped;});
- await page.evaluate(bridge);
+ await page.evaluate(fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0] + bridge);
  assert.equal(await page.evaluate(()=>root.querySelector('[data-aidoku-image-ocr-overlay="source-readability-panel"]').dataset.sourceBridgeClipped),undefined,'unknown source coverage must retain the original panel');
  console.log(`source bridge regression: 6 cases passed; ${prior.length} required coverage samples retained`);
  await browser.close();

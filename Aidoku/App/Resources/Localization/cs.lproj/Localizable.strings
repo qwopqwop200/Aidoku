@@ -427,7 +427,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Automatický překlad";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Automaticky překládá stránky ve čtečce podle uloženého nastavení API a úrovně uvažování. Před zahájením překladu se neprovádí samostatný test připojení. Chyby překladu toto nastavení nevypnou. Nastavení můžete ručně ověřit pomocí volby Test připojení API.";
+"TRANSLATION_AUTOMATIC_HELP" = "Automaticky překládá a zobrazuje stránky ve čtečce. Tlačítko překladu ve čtečce toto nastavení zapíná a vypíná.";
 
 "TRANSLATION_TEST" = "Test připojení API";
 
@@ -1153,3 +1153,12 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Obsáhlý japonsko-anglický slovník spravovaný skupinou Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Slovník japonských vlastních jmen spravovaný skupinou Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Frekvenční slovník založený na mediálním korpusu z https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Překládat při zobrazení originálů";
+"TRANSLATION_BACKGROUND_HELP" = "Překlad pokračuje při čtení i s vypnutým tlačítkem překladu. Původní stránky zůstávají viditelné. Když aplikace není aktivní, překlad se pozastaví.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Počet stránek k překladu předem";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Maximální počet stránek k překladu předem, bez započítání viditelných stránek. Stránky se vybírají podle priority čtení, přičemž přednost mají následující stránky.";
+"TRANSLATION_UNLIMITED" = "Neomezeně";
+"TRANSLATION_PAGE_SETTINGS" = "Překlad stránek";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Pouze viditelné stránky";

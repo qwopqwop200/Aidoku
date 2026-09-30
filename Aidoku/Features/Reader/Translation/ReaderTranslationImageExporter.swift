@@ -223,7 +223,8 @@ enum ReaderTranslationImageExporter {
         image: UIImage, imageSize: CGSize, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
         viewport: CGSize, scale: CGFloat, aspectFit: Bool, host: UIView, dark: Bool,
         preparedLayout: Task<Data, Error>?, assetCache: ReaderTranslationRenderCache? = nil, assetKey: String? = nil,
-        assetSourceDigest: String? = nil, priority: TranslationRequestPriority = .prefetch
+        assetSourceDigest: String? = nil, priority: TranslationRequestPriority = .prefetch,
+        captureGate: TranslationProviderRequestLimiter = gate
     ) async throws -> UIImage {
         guard viewport.width > 0, viewport.height > 0 else { throw ExportError.unavailable }
         let factor = min(max(1, scale), sqrt(4_000_000 / viewport.width / viewport.height))
@@ -246,10 +247,11 @@ enum ReaderTranslationImageExporter {
         // A bitmap evicted from the nearby-page budget can still have a settled
         // overlay asset. Replay it natively before joining the cold WebKit queue,
         // just as the visible-image path does; do not redo layout, DOM or PDF.
-        if let assetCache, let assetKey, let sourceDigest,
-           let asset = await assetCache.renderAsset(for: assetKey, priority: priority),
-           asset.matches(regions: regions, sourceSize: imageSize, sourceDigest: sourceDigest),
-           asset.displayRect == rect {
+        let replayAsset: @MainActor @Sendable () async throws -> UIImage? = {
+            guard let assetCache, let assetKey, let sourceDigest,
+                  let asset = await assetCache.renderAsset(for: assetKey, priority: priority),
+                  asset.matches(regions: regions, sourceSize: imageSize, sourceDigest: sourceDigest),
+                  asset.displayRect == rect else { return nil }
             do {
                 let page = try await compositeLoadedImage(image, asset: asset, size: pageSize, priority: priority)
                 try Task.checkCancellation()
@@ -260,17 +262,26 @@ enum ReaderTranslationImageExporter {
             } catch {
                 // Invalid PDF/mask data is a miss, not a permanently broken page.
                 await assetCache.removeRenderAsset(for: assetKey)
+                return nil
             }
         }
+        if let replay = try await replayAsset() { return replay }
         // Cache snapshots yield to a visible page waiting for its first presentation.
         ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_wait", count: regions.count)
         let queuedAt = ProcessInfo.processInfo.systemUptime
         ReaderTranslationDiagnostics.record("export_queued")
-        return try await gate.withPermit(priority: priority) { @MainActor in
+        return try await captureGate.withPermit(priority: priority) { @MainActor in
             ReaderTranslationDiagnostics.record("export_admitted", elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - queuedAt) * 1000)
             ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_acquired", count: regions.count)
             defer { ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_released", count: regions.count) }
             try Task.checkCancellation()
+            // A visible renderer may have completed this exact asset while
+            // the offscreen snapshot waited. Recheck all identities before
+            // allocating another WebKit document, PDF and composite.
+            if let replay = try await replayAsset() {
+                ReaderTranslationDiagnostics.record("snapshot_asset_replayed_after_wait")
+                return replay
+            }
             let result = try await renderSerial(image: image, regions: regions, settings: settings,
                 viewport: viewport, aspectFit: aspectFit, host: host, logicalImageSize: imageSize,
                 pixelSize: pageSize,
@@ -386,11 +397,20 @@ enum ReaderTranslationImageExporter {
             overlay.onRenderCommitted = { events.continuation.yield(true) }
             // Regions without drawable items clear the document instead of committing.
             overlay.onRenderCleared = { events.continuation.yield(true) }
+            // A terminal renderer failure already has an answer. Release the
+            // serialized export slot now instead of holding every page for the watchdog.
+            overlay.onRenderFailed = { events.continuation.yield(false) }
             let timeout = Task {
                 do { try await Task.sleep(nanoseconds: 20_000_000_000) } catch { return }
                 events.continuation.yield(false)
             }
-            defer { timeout.cancel(); overlay.onRenderCommitted = nil; overlay.onRenderCleared = nil; events.continuation.finish() }
+            defer {
+                timeout.cancel()
+                overlay.onRenderCommitted = nil
+                overlay.onRenderCleared = nil
+                overlay.onRenderFailed = nil
+                events.continuation.finish()
+            }
             var exportSettings = settings
             exportSettings.overlay.visible = true
             ReaderTranslationDiagnostics.renderingProfile("profile_export_render_begin", count: regions.count)

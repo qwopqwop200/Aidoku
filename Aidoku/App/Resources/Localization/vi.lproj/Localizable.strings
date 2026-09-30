@@ -794,7 +794,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Dịch tự động";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Tự động dịch các trang trong trình đọc bằng cài đặt API và mức độ suy luận đã lưu. Không chạy kiểm tra kết nối riêng trước khi bắt đầu dịch. Lỗi dịch không làm tắt cài đặt này. Dùng Kiểm tra kết nối API để kiểm tra cài đặt thủ công.";
+"TRANSLATION_AUTOMATIC_HELP" = "Tự động dịch và hiển thị các trang trong trình đọc. Nút dịch trong trình đọc dùng để bật hoặc tắt cài đặt này.";
 
 "TRANSLATION_TEST" = "Kiểm tra kết nối API";
 
@@ -1183,3 +1183,14 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Từ điển Nhật–Anh toàn diện do Electronic Dictionary Research and Development Group (EDRDG) duy trì.";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Từ điển tên riêng tiếng Nhật do Electronic Dictionary Research and Development Group (EDRDG) duy trì.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Từ điển tần suất dựa trên ngữ liệu truyền thông tại https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Dịch khi đang hiển thị trang gốc";
+"TRANSLATION_BACKGROUND_HELP" = "Tiếp tục dịch trong khi bạn đọc, ngay cả khi nút dịch đang tắt. Các trang gốc vẫn được hiển thị. Quá trình dịch tạm dừng khi ứng dụng không hoạt động.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Số trang dịch trước";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Số trang tối đa được dịch trước, không tính các trang đang hiển thị. Các trang được chọn theo mức ưu tiên đọc, ưu tiên các trang tiếp theo.";
+"TRANSLATION_UNLIMITED" = "Không giới hạn";
+
+"TRANSLATION_PAGE_SETTINGS" = "Dịch trang";
+
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Chỉ các trang đang hiển thị";

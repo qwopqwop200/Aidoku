@@ -6,6 +6,7 @@
 //
 
 import AidokuRunner
+import CryptoKit
 import Foundation
 import ZIPFoundation
 
@@ -18,6 +19,7 @@ actor ReaderTemporaryPageStore {
     private struct ArchiveEntryKey: Hashable {
         let archiveURL: URL
         let path: String
+        let revision: String
     }
 
     private var extractedArchiveEntries: [ArchiveEntryKey: URL] = [:]
@@ -25,6 +27,44 @@ actor ReaderTemporaryPageStore {
     init() {
         directory = Self.sessionsDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         directory.createDirectory()
+    }
+
+    /// Identify the encoded bytes before writing: a failed write must not make
+    /// distinct raw source pages share an empty-URL translation identity.
+    func prepareRawPage(_ page: Page, pageIndex: Int) -> Page {
+        Self.prepareRawPage(page, pageIndex: pageIndex, directory: directory)
+    }
+
+    /// The optional-store reader path still needs content identity, but need not
+    /// create a temporary directory with no reader owner to remove it.
+    nonisolated static func prepareInMemoryPage(_ page: Page, pageIndex: Int) async -> Page {
+        prepareRawPage(page, pageIndex: pageIndex, directory: nil)
+    }
+
+    private nonisolated static func prepareRawPage(_ page: Page, pageIndex: Int, directory: URL?) -> Page {
+        guard let image = page.image else { return page }
+        var prepared = page
+        prepared.index = pageIndex
+        // An image that cannot encode cannot provide a persistent content hash.
+        // Fail closed with a per-page identity rather than reuse another image.
+        prepared.imageContentIdentity = "reader-unencodable-image-v1-" + UUID().uuidString
+        guard !Task.isCancelled else { return prepared }
+        return autoreleasepool {
+            guard let data = image.pngData() else { return prepared }
+            let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+            prepared.imageContentIdentity = "reader-image-png-v1-" + digest
+            guard !Task.isCancelled, let directory else { return prepared }
+            let url = directory.appendingPathComponent(digest).appendingPathExtension("png")
+            do {
+                try data.write(to: url, options: .atomic)
+                prepared.image = nil
+                prepared.imageURL = url.absoluteString
+            } catch {
+                // Keep the original image and its digest when storage is full
+                // or this reader's temporary directory was removed.
+            }
+            return prepared
+        }
     }
 
     func store(
@@ -66,7 +106,8 @@ actor ReaderTemporaryPageStore {
         from archiveURL: URL,
         path: String
     ) -> URL? {
-        let key = ArchiveEntryKey(archiveURL: archiveURL, path: path)
+        let key = ArchiveEntryKey(archiveURL: archiveURL, path: path,
+                                  revision: ReaderLocalPageIdentity.fileRevision(archiveURL))
 
         if let cachedURL = extractedArchiveEntries[key], cachedURL.exists {
             return cachedURL

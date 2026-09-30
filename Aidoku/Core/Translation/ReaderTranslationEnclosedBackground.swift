@@ -11,6 +11,7 @@ struct ReaderTranslationBalloonInterior: Codable, Equatable, Sendable {
     let center: CGPoint
     let spans: [Double]
     var members: Int?
+    var contourVerified: Bool?
 
     /// The same interior in a crop's normalized coordinates, if the crop holds all of it.
     func cropped(to crop: CGRect) -> Self? {
@@ -18,11 +19,11 @@ struct ReaderTranslationBalloonInterior: Codable, Equatable, Sendable {
         return Self(rect: CGRect(x: (rect.minX - crop.minX) / crop.width, y: (rect.minY - crop.minY) / crop.height,
                                  width: rect.width / crop.width, height: rect.height / crop.height),
                     center: CGPoint(x: (center.x - crop.minX) / crop.width, y: (center.y - crop.minY) / crop.height),
-                    spans: spans.map { $0 < 0 ? $0 : ($0 - Double(crop.minX)) / Double(crop.width) }, members: members)
+                    spans: spans.map { $0 < 0 ? $0 : ($0 - Double(crop.minX)) / Double(crop.width) }, members: members, contourVerified: contourVerified)
     }
 
     var payload: [String: Any] {
-        ["rect": [rect.minX, rect.minY, rect.width, rect.height], "center": [center.x, center.y], "spans": spans]
+        ["rect": [rect.minX, rect.minY, rect.width, rect.height], "center": [center.x, center.y], "spans": spans, "contourVerified": contourVerified == true]
     }
 }
 
@@ -219,11 +220,17 @@ enum ReaderTranslationEnclosedBackground { // swiftlint:disable:this type_body_l
             let ux0 = max(0, Int(union.minX.rounded())), ux1 = min(width, Int(union.maxX.rounded()))
             let uy0 = max(0, Int(union.minY.rounded())), uy1 = min(height, Int(union.maxY.rounded()))
             guard ux1 > ux0, uy1 > uy0 else { return false }
+            // Translucent artwork can split a balloon's light paper. Track bounded
+            // secondary patches already occupied by this lettering, without treating
+            // dark contours or unrelated light areas as the balloon's outer edge.
+            var memberPaper: [Int32: Int] = [:], borderComponents: [Int32: Int] = [:]
             var covered = 0, border = 0, borderPaper = 0
             for y in uy0..<uy1 {
                 for x in ux0..<ux1 {
                     let point = CGPoint(x: CGFloat(x) + 0.5, y: CGFloat(y) + 0.5)
-                    let paper = labels[y * width + x] == Int32(id), member = a.contains(point) || b.contains(point)
+                    let label = labels[y * width + x]
+                    let paper = label == Int32(id), member = a.contains(point) || b.contains(point)
+                    if oneLettering, member, label >= 0, !paper { memberPaper[label, default: 0] += 1 }
                     if paper || member { covered += 1 }
                     // The joined rectangle's own edge beyond the members: where it runs on the balloon paper, the
                     // rectangle cannot cut a corner of an irregular balloon (its outline) or reach over art beside
@@ -231,8 +238,16 @@ enum ReaderTranslationEnclosedBackground { // swiftlint:disable:this type_body_l
                     if !member, x == ux0 || x == ux1 - 1 || y == uy0 || y == uy1 - 1 {
                         border += 1
                         if paper { borderPaper += 1 }
+                        else if oneLettering, label >= 0 { borderComponents[label, default: 0] += 1 }
                     }
                 }
+            }
+            for (label, count) in memberPaper {
+                let patch = stats[Int(label)], host = stats[id]
+                guard !patch.touchesEdge, count * 5 >= patch.count,
+                      patch.minX >= host.minX, patch.maxX <= host.maxX,
+                      patch.minY >= host.minY, patch.maxY <= host.maxY else { continue }
+                borderPaper += borderComponents[label, default: 0]
             }
             // A rectangle that leaves the paper is safe when the balloon itself can hold the unit: the overlay then
             // erases, plates and letters the unit inside the balloon's interior (`unitInterior`), not the rectangle.
@@ -316,24 +331,32 @@ enum ReaderTranslationEnclosedBackground { // swiftlint:disable:this type_body_l
             let id = Int32(stats.count)
             var value = Stats()
             var queue = [seed]
-            labels[seed] = id
+            // Queue horizontal runs instead of every pixel of the same light surface.
+            // Pending seeds are -2; completed runs retain the original component ID.
+            labels[seed] = -2
             var cursor = 0
             while cursor < queue.count {
                 let point = queue[cursor]; cursor += 1
-                let x = point % width, y = point / width
-                value.count += 1
-                value.minX = min(value.minX, x); value.maxX = max(value.maxX, x)
+                if labels[point] >= 0 { continue }
+                let y = point / width, row = y * width
+                var left = point, right = point
+                while left > row, labels[left - 1] < 0, pixels[left - 1] >= Self.light { left -= 1 }
+                while right < row + width - 1, labels[right + 1] < 0, pixels[right + 1] >= Self.light { right += 1 }
+                for index in left...right { labels[index] = id }
+                value.count += right - left + 1
+                value.minX = min(value.minX, left - row); value.maxX = max(value.maxX, right - row)
                 value.minY = min(value.minY, y); value.maxY = max(value.maxY, y)
-                if x == 0 || y == 0 || x == width - 1 || y == height - 1 { value.touchesEdge = true }
-                @inline(__always) func visit(_ next: Int) {
-                    guard labels[next] < 0, pixels[next] >= Self.light else { return }
-                    labels[next] = id
-                    queue.append(next)
+                if left == row || right == row + width - 1 || y == 0 || y == height - 1 { value.touchesEdge = true }
+                for offset in [-width, width] where y + offset / width >= 0 && y + offset / width < height {
+                    var next = left + offset
+                    let end = right + offset
+                    while next <= end {
+                        if labels[next] < 0 && pixels[next] >= Self.light {
+                            if labels[next] == -1 { labels[next] = -2; queue.append(next) }
+                            repeat { next += 1 } while next <= end && labels[next] < 0 && pixels[next] >= Self.light
+                        } else { next += 1 }
+                    }
                 }
-                if x > 0 { visit(point - 1) }
-                if x < width - 1 { visit(point + 1) }
-                if y > 0 { visit(point - width) }
-                if y < height - 1 { visit(point + width) }
             }
             stats.append(value)
             return Int(id)

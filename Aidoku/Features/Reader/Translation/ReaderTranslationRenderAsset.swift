@@ -50,12 +50,28 @@ struct ReaderTranslationRenderAsset: Codable, Sendable {
         guard !Task.isCancelled, let pixels = image.cgImage, let bytes = pixels.dataProvider?.data else { return nil }
         let colorSpace = pixels.colorSpace
         let name = colorSpace?.name.map { $0 as String } ?? ""
-        let description = "\(pixels.width),\(pixels.height),\(pixels.bytesPerRow),\(pixels.bitsPerPixel),\(pixels.bitsPerComponent),"
-            + "\(pixels.bitmapInfo.rawValue),\(image.scale),\(image.imageOrientation.rawValue),\(colorSpace?.model.rawValue ?? -1),\(name)"
+        let description = "source-visible-rows-v2,\(pixels.width),\(pixels.height),\(pixels.bitsPerPixel),\(pixels.bitsPerComponent),"
+            + "\(pixels.bitmapInfo.rawValue),\(image.scale),\(image.imageOrientation.rawValue),\(colorSpace?.model.rawValue ?? -1),\(name),"
+            + "\(pixels.renderingIntent.rawValue),\(pixels.shouldInterpolate)"
+        // Decoder allocations may use different strides or uninitialized row
+        // padding. Those bytes do not describe the image and must not invalidate
+        // a persisted asset after decoding the same page again.
+        let rowBytes = (pixels.width * pixels.bitsPerPixel + 7) / 8
+        guard rowBytes > 0, rowBytes <= pixels.bytesPerRow,
+              CFDataGetLength(bytes) >= (pixels.height - 1) * pixels.bytesPerRow + rowBytes,
+              let pointer = CFDataGetBytePtr(bytes) else { return nil }
+        defer { withExtendedLifetime(bytes) {} }
         var digest = SHA256()
         digest.update(data: Data(description.utf8))
         if let profile = colorSpace?.copyICCData() { digest.update(data: profile as Data) }
-        digest.update(data: bytes as Data)
+        if let decode = pixels.decode, let colorSpace {
+            let values = (0..<(colorSpace.numberOfComponents * 2)).map { String(Double(decode[$0])) }
+            digest.update(data: Data(values.joined(separator: ",").utf8))
+        }
+        for row in 0..<pixels.height {
+            guard !Task.isCancelled else { return nil }
+            digest.update(bufferPointer: UnsafeRawBufferPointer(start: pointer + row * pixels.bytesPerRow, count: rowBytes))
+        }
         guard !Task.isCancelled else { return nil }
         return digest.finalize().map { String(format: "%02x", $0) }.joined()
     }
@@ -158,11 +174,13 @@ final class ReaderTranslationImageIdentityCache<Value>: @unchecked Sendable {
         entries.removeAll { $0.image == nil || $0.image === image }
         while entries.count >= capacity { entries.removeFirst() }
         entries.append(entry)
-        lock.unlock()
         // Each image carries one sentinel per cache; replacing it releases the
         // previous sentinel, which removes only its own (already replaced) entry.
         objc_setAssociatedObject(image, Unmanaged.passUnretained(self).toOpaque(),
                                  Sentinel(cache: self, entry: entry), .OBJC_ASSOCIATION_RETAIN)
+        // Associate under the same lock as replacement: concurrent stores must
+        // not attach an older sentinel after a newer entry was inserted.
+        lock.unlock()
     }
 
     func removeAll() {

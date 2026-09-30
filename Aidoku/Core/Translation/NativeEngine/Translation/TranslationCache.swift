@@ -605,9 +605,16 @@ private final class TranslationDiskStore {
         _ translations: [RemoteTranslatedSegment],
         for key: TranslationCacheKey
     ) throws -> PutResult {
+        // Swift key equality treats canonically equivalent Unicode and signed
+        // zero as equal, although JSON encodes them differently. Keep the first
+        // persisted representation when replacing an equal key; otherwise the
+        // old filename becomes an untracked record that can win after restart.
+        let persistedKey = entries[key].flatMap {
+            fileOwners[$0.fileURL.lastPathComponent]
+        } ?? key
         let record = PersistentRecord(
             version: Self.recordVersion,
-            key: key,
+            key: persistedKey,
             translations: translations
         )
         let encoder = JSONEncoder()
@@ -623,7 +630,7 @@ private final class TranslationDiskStore {
             return PutResult(accepted: false, evictions: 0)
         }
 
-        let fileName = stableCacheFileName(for: key)
+        let fileName = stableCacheFileName(for: persistedKey)
         if let owner = fileOwners[fileName], owner != key {
             // Two independent hashes plus the encoded length make this
             // fantastically unlikely, but exact cache correctness wins over
@@ -667,7 +674,7 @@ private final class TranslationDiskStore {
             modifiedAt: Date()
         )
         entries[key] = metadata
-        fileOwners[fileName] = key
+        fileOwners[fileName] = persistedKey
         usedBytes += data.count
         return PutResult(accepted: true, evictions: evictions)
     }
@@ -744,6 +751,23 @@ private final class TranslationDiskStore {
                 byteCount: fileSize,
                 modifiedAt: modifiedAt
             )
+            if let previous = entries[record.key] {
+                // Repair duplicate equal keys produced by older versions.
+                // Prefer the latest persisted answer deterministically and
+                // charge only the file that remains on disk.
+                let incomingIsNewer = modifiedAt > previous.modifiedAt ||
+                    (modifiedAt == previous.modifiedAt && url.lastPathComponent > previous.fileURL.lastPathComponent)
+                if incomingIsNewer {
+                    try remove(record.key)
+                } else {
+                    do {
+                        try fileManager.removeItem(at: url)
+                    } catch {
+                        throw TranslationCacheError.persistenceFailure
+                    }
+                    continue
+                }
+            }
             entries[record.key] = metadata
             fileOwners[url.lastPathComponent] = record.key
             usedBytes += fileSize

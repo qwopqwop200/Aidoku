@@ -25,6 +25,36 @@ struct ReaderTranslationImageExportTests {
         return settings
     }
 
+    @Test func failedLayoutReleasesExporterWithoutWaitingForWatchdog() async throws {
+        let window = try host()
+        ReaderTranslationImageExporter.clearIdleRenderer()
+        defer { window.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let source = UIGraphicsImageRenderer(size: CGSize(width: 120, height: 160), format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 120, height: 160))
+        }
+        let region = ReaderTranslationRegion(id: "failure", rect: CGRect(x: 0.1, y: 0.3, width: 0.8, height: 0.3),
+            source: "Hello", translation: "번역")
+        let layout = Task<Data, Error> { throw CocoaError(.coderInvalidValue) }
+        let started = CACurrentMediaTime()
+        do {
+            _ = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+                image: source, imageSize: source.size, regions: [region], settings: settings(),
+                viewport: CGSize(width: 240, height: 320), scale: 1, aspectFit: true, host: window,
+                dark: false, preparedLayout: layout)
+            Issue.record("A failed layout must not produce an export")
+        } catch {
+            #expect(error is ReaderTranslationImageExporter.ExportError)
+        }
+        #expect(CACurrentMediaTime() - started < 5, "Known render failures must release the gate before the 20-second watchdog")
+        let output = try await ReaderTranslationImageExporter.render(image: source, regions: [region], settings: settings(),
+            viewport: CGSize(width: 240, height: 320), aspectFit: true, host: window)
+        #expect(output.size == source.size)
+        #expect(try pixelData(output) != pixelData(source))
+    }
+
     @Test func temporaryRendererNeverAppearsInTransparentHostOnCreationOrReuse() async throws {
         let window = try host()
         ReaderTranslationImageExporter.clearIdleRenderer()
@@ -213,6 +243,74 @@ struct ReaderTranslationImageExportTests {
                 Issue.record("Changed snapshot identity replayed a stale asset")
             } catch ReaderTranslationImageExporter.ExportError.unavailable {
                 // A cache miss needs the intentionally absent window.
+            }
+        }
+    }
+
+    @Test(arguments: [true, false])
+    func queuedSnapshotRechecksAssetWithoutRepeatingWebKit(matchingSource: Bool) async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let disk = ReaderTranslationDiskCache(directory: directory)
+        let cache = ReaderTranslationRenderCache(disk: disk)
+        defer { cache.clearMemory(); try? FileManager.default.removeItem(at: directory) }
+        let size = CGSize(width: 120, height: 160)
+        let bounds = CGRect(origin: .zero, size: size)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+            UIColor.white.setFill(); context.fill(bounds)
+            UIColor.blue.setFill(); context.fill(CGRect(x: 4, y: 5, width: 20, height: 30))
+        }
+        let typography = UIGraphicsPDFRenderer(bounds: bounds).pdfData { context in
+            context.beginPage()
+            UIColor.black.setFill(); context.cgContext.fill(CGRect(x: 40, y: 60, width: 25, height: 8))
+        }
+        let regions = [ReaderTranslationRegion(id: "queued", rect: CGRect(x: 0.2, y: 0.3, width: 0.6, height: 0.2),
+                                               source: "Hello", translation: "같은 결과")]
+        let asset = ReaderTranslationRenderAsset(typography: typography,
+            layers: .init(masks: [], surfaces: [], paintBounds: []), displayRect: bounds, sourceSize: size,
+            regions: regions, sourceDigest: matchingSource ? ReaderTranslationRenderAsset.digestSource(image) : "different-source")
+        let value = settings()
+        let generation = await disk.currentGeneration(settings: value)
+        let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
+        var acquired = false
+        var released = false
+        let blocker = Task {
+            try await limiter.withPermit { @MainActor in
+                acquired = true
+                while !released { try await Task.sleep(for: .milliseconds(5)) }
+            }
+        }
+        defer { blocker.cancel() }
+        let deadline = Date().addingTimeInterval(5)
+        while !acquired { try #require(Date() < deadline); try await Task.sleep(for: .milliseconds(5)) }
+        let pending = Task {
+            // No window: a second WebKit render must fail rather than hide a cache miss.
+            try await ReaderTranslationImageExporter.renderCacheSnapshot(
+                image: image, imageSize: size, regions: regions, settings: value,
+                viewport: size, scale: 1, aspectFit: false, host: UIView(), dark: false,
+                preparedLayout: nil, assetCache: cache, assetKey: "queued", captureGate: limiter)
+        }
+        defer { pending.cancel() }
+        while await limiter.queuedRequestCount != 1 {
+            try #require(Date() < deadline); try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(await cache.renderAsset(for: "queued") == nil)
+        // Another renderer finishes while this snapshot waits for admission.
+        await cache.storeRenderAsset(asset, key: "queued", diskGeneration: generation)
+        released = true
+        try await blocker.value
+        if matchingSource {
+            let output = try await pending.value
+            let expected = try await ReaderTranslationImageExporter.compositeLoadedImage(image, asset: asset,
+                size: size, priority: .foreground)
+            #expect(try pixelData(output) == pixelData(expected))
+        } else {
+            do {
+                _ = try await pending.value
+                Issue.record("A late asset with a different source must not be replayed")
+            } catch ReaderTranslationImageExporter.ExportError.unavailable {
+                // The mismatched identity needs the intentionally absent window.
             }
         }
     }

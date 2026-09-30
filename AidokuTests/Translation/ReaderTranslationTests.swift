@@ -480,6 +480,34 @@ struct ReaderTranslationTests {
         #expect(defaults.dictionaryRepresentation().keys.allSatisfy { !$0.lowercased().contains("apikey") })
     }
 
+    @Test func backgroundAndPretranslationSettingsPersistWithoutChangingCacheIdentity() throws {
+        let suite = "ReaderTranslationTests.Scheduling.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let original = ReaderTranslationSettings(defaults: defaults)
+        #expect(!original.translateInBackground)
+        #expect(original.maximumPretranslatedPages == nil)
+        var settings = original
+        settings.automaticallyTranslate = false
+        #expect(!settings.shouldProcessReaderPages)
+        settings.translateInBackground = true
+        #expect(settings.shouldProcessReaderPages)
+        settings.maximumPretranslatedPages = 3
+        try settings.save(defaults: defaults)
+        #expect(ReaderTranslationSettings(defaults: defaults) == settings)
+        #expect(settings.hasSameTranslation(as: original))
+        #expect(ReaderTranslationCacheIdentity.translation(page: "page", settings: settings) ==
+                ReaderTranslationCacheIdentity.translation(page: "page", settings: original))
+        settings.maximumPretranslatedPages = 0
+        try settings.save(defaults: defaults)
+        #expect(ReaderTranslationSettings(defaults: defaults).maximumPretranslatedPages == 0)
+        settings.maximumPretranslatedPages = nil
+        try settings.save(defaults: defaults)
+        #expect(ReaderTranslationSettings(defaults: defaults).maximumPretranslatedPages == nil)
+        settings.maximumPretranslatedPages = -1
+        #expect(throws: RemoteTranslationError.self) { try settings.save(defaults: defaults) }
+    }
+
     @Test @MainActor func overlayUsesOriginalPixelsAndReusesOCRAcrossLanguages() async throws {
         let source = Self.image()
         let imageView = UIImageView(image: source)

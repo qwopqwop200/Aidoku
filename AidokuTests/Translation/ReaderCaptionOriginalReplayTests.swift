@@ -9,9 +9,10 @@ import WebKit
 struct ReaderCaptionOriginalReplayTests {
     private static var directory: URL { URL.documentsDirectory.appendingPathComponent("CaptionOriginalReplay") }
 
-    @Test(.enabled(if: FileManager.default.fileExists(atPath:
-        URL.documentsDirectory.appendingPathComponent("CaptionOriginalReplay/credential.txt").path)))
+    @Test
     func originalThroughOCRTranslationAndRendering() async throws {
+        try #require(FileManager.default.fileExists(atPath:
+            URL.documentsDirectory.appendingPathComponent("CaptionOriginalReplay/credential.txt").path), "Required local replay fixture is missing")
         let directory = Self.directory
         let image = try #require(UIImage(contentsOfFile: directory.appendingPathComponent("original.png").path))
         let cgImage = try #require(image.cgImage)

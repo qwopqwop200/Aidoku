@@ -4,6 +4,47 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationLanguageFilterTests {
+    @Test func stripsOnlyDetachedForeignTailFromKoreanSentence() {
+        #expect(ReaderTranslationLanguageFilter.removingForeignScriptTail(
+            "가슴이 팽팽하게 부풀어 올라서...! 毛岁七", target: "ko") ==
+            "가슴이 팽팽하게 부풀어 올라서...!")
+        #expect(ReaderTranslationLanguageFilter.removingForeignScriptTail(
+            "서울 漢字 공부를 했어!", target: "ko") == "서울 漢字 공부를 했어!")
+        #expect(ReaderTranslationLanguageFilter.removingForeignScriptTail(
+            "오늘은 漢字", target: "ko") == "오늘은 漢字")
+        #expect(ReaderTranslationLanguageFilter.removingForeignScriptTail(
+            "한국어 문장입니다! 毛岁七", target: "ja") == "한국어 문장입니다! 毛岁七")
+    }
+
+    @Test func copiedBalloonSentenceNeedsTranslationButSignsAndShortNamesDoNot() {
+        var region = ReaderTranslationRegion(id: "dialogue", rect: CGRect(x: 0.2, y: 0.2, width: 0.1, height: 0.2),
+            source: "このびちゃびちゃの下着は貰うぞ")
+        #expect(!ReaderTranslationLanguageFilter.requiresBalloonTranslation(region, translation: region.source, target: "ko"))
+        region.balloonInterior = .init(rect: CGRect(x: 0.1, y: 0.1, width: 0.3, height: 0.4),
+            center: CGPoint(x: 0.25, y: 0.3), spans: [0.1, 0.4], contourVerified: true)
+        #expect(ReaderTranslationLanguageFilter.requiresBalloonTranslation(region, translation: region.source, target: "ko"))
+        #expect(!ReaderTranslationLanguageFilter.requiresBalloonTranslation(region, translation: "이 젖은 속옷은 가져가지", target: "ko"))
+        #expect(!ReaderTranslationLanguageFilter.requiresBalloonTranslation(region, translation: region.source, target: "ja"))
+    }
+    @Test func copiedBalloonRetriesOnlyTheMissedSentenceWithoutClassification() async throws {
+        let fixture = LanguageFilterFixture(), client = CopiedBalloonClient()
+        var settings = fixture.settings
+        settings.sourceLanguage = "ja"
+        settings.targetLanguage = "ko"
+        var dialogue = ReaderTranslationRegion(id: "dialogue", rect: CGRect(x: 0.2, y: 0.2, width: 0.1, height: 0.2),
+            source: "この大切な本は私が貰うぞ")
+        dialogue.balloonInterior = .init(rect: CGRect(x: 0.1, y: 0.1, width: 0.3, height: 0.4),
+            center: CGPoint(x: 0.25, y: 0.3), spans: [0.1, 0.4], contourVerified: true)
+        let other = ReaderTranslationRegion(id: "other", rect: CGRect(x: 0.6, y: 0.2, width: 0.1, height: 0.2), source: "ありがとう")
+        let output = try await ReaderTranslationService(client: client).translate(regions: [dialogue, other], settings: settings)
+        #expect(output.first(where: { $0.id == "dialogue" })?.translation == "이 소중한 책은 내가 가져가지")
+        let requests = await client.requests
+        #expect(requests.count == 2)
+        #expect(requests.last?.segments.map(\.text) == [dialogue.source])
+        #expect(requests.last?.filtersSFX != true)
+        #expect(requests.last?.filtersBackground != true)
+    }
+
     @Test func JapaneseDialogueCannotBecomeAKoreanCompletedCache() async throws {
         let fixture = LanguageFilterFixture()
         let source = "これからも毎日おいしいパンを作ってみんなに届けます"
@@ -305,6 +346,16 @@ private actor WrongLanguageThenKoreanClient: RemoteTranslating {
         calls += 1
         return .init(translations: request.segments.map {
             .init(id: $0.id, text: calls == 1 ? "「" + $0.text + "」" : "앞으로도 매일 맛있는 빵을 만들어 모두에게 전하겠습니다")
+        }, source: .network, providerRequestID: nil)
+    }
+}
+
+private actor CopiedBalloonClient: RemoteTranslating {
+    private(set) var requests: [RemoteTranslationRequest] = []
+    func translate(_ request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration) async throws -> RemoteTranslationBatchResult {
+        requests.append(request)
+        return .init(translations: request.segments.map {
+            .init(id: $0.id, text: $0.text == "ありがとう" ? "고마워" : requests.count == 1 ? $0.text : "이 소중한 책은 내가 가져가지")
         }, source: .network, providerRequestID: nil)
     }
 }

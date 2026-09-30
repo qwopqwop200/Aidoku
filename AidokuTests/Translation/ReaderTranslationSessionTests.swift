@@ -5,6 +5,130 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationSessionTests {
+    @Test(arguments: [true, false])
+    func backgroundTranslationKeepsOriginalAndButtonOff(startsEnabled: Bool) async throws {
+        let fixture = SessionFixture()
+        fixture.defaults.set(startsEnabled, forKey: ReaderTranslationSettings.keyPrefix + "automatic")
+        fixture.defaults.set(true, forKey: ReaderTranslationSettings.keyPrefix + "background")
+        let source = Self.page(0)
+        let image = UIImageView(image: Self.image())
+        let page = ReaderTranslationPage(imageView: image)
+        page.sourcePage = source
+        let cache = ReaderTranslationSessionCache()
+        let gate = SessionGate()
+        var calls = 0
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            calls += 1
+            await gate.wait()
+            try Task.checkCancellation()
+            return [Self.region]
+        }, availableMemory: { .max }, cache: cache)
+        let owner = SessionToolbarOwner()
+        owner.translationUpcomingPages = [source]
+        owner.translationVisiblePages = [page]
+        let coordinator = ReaderTranslationCoordinator(owner: owner, session: session,
+            readSettings: { fixture.settings },
+            setEnabled: { fixture.defaults.set($0, forKey: ReaderTranslationSettings.keyPrefix + "automatic") })
+        coordinator.install()
+        coordinator.resume()
+        defer { coordinator.close() }
+        try await waitUntil { calls == 1 }
+        if startsEnabled { coordinator.toggle() }
+        #expect(!fixture.settings.automaticallyTranslate)
+        #expect(session.state == .on)
+        #expect(!session.presentsTranslation)
+        await gate.release()
+        try await waitUntil { cache.contains(source.translationCacheKey) }
+        session.displayCachedVisiblePages([page])
+        #expect(image.subviews.allSatisfy { $0.isHidden })
+        let button = try #require(owner.navigationItem.rightBarButtonItems?.first {
+            $0.accessibilityIdentifier == "reader.translation.toggle"
+        })
+        #expect(button.accessibilityValue == NSLocalizedString("TRANSLATION_STATE_OFF"))
+        coordinator.toggle()
+        try await waitUntil { page.hasCompletedTranslation(settings: fixture.settings) }
+        #expect(fixture.settings.automaticallyTranslate)
+        #expect(image.subviews.contains { !$0.isHidden })
+        #expect(calls == 1)
+    }
+
+    @Test(arguments: [nil, 0, 2] as [Int?])
+    func pretranslationLimitIncludesVisibleSpreadAndMovesWithNavigation(limit: Int?) async throws {
+        let fixture = SessionFixture()
+        var settings = fixture.settings
+        settings.maximumPretranslatedPages = limit
+        let pages = (0..<8).map { Self.page($0) }
+        let cache = ReaderTranslationSessionCache()
+        let views = pages.map { _ in UIImageView(image: Self.image()) }
+        let presented = pages.enumerated().map { index, source in
+            let page = ReaderTranslationPage(imageView: views[index]); page.sourcePage = source; return page
+        }
+        var processed: Set<Int> = []
+        let session = ReaderTranslationSession(process: { page, _, _ in
+            processed.insert(page.index); return [Self.region]
+        }, availableMemory: { .max }, cache: cache)
+        defer { session.close() }
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [presented[2], presented[3]],
+            context: "bounded", currentPageIndex: 2)
+        session.enable(settings: settings)
+        let expected: Set<Int> = limit.map { $0 == 0 ? [2, 3] : [2, 3, 4, 5] } ?? Set(0..<8)
+        try await waitUntil { expected.allSatisfy { cache.contains(pages[$0].translationCacheKey) } }
+        #expect(processed == expected)
+        #expect(session.nextPageForRecognition(after: pages[3]) == nil)
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [presented[5]],
+            context: "bounded", currentPageIndex: 5)
+        let next: Set<Int> = limit.map { $0 == 0 ? [5] : [5, 6, 7] } ?? Set(0..<8)
+        try await waitUntil { next.allSatisfy { cache.contains(pages[$0].translationCacheKey) } }
+        #expect(processed == expected.union(next))
+        #expect(session.nextPageForRecognition(after: pages[5]) == nil)
+    }
+
+    @Test(arguments: [nil, 0, 3, 5, 8] as [Int?])
+    func pretranslationPreparesThreeAheadThenInterleavesNearbyOlderPages(limit: Int?) async throws {
+        let fixture = SessionFixture()
+        var settings = fixture.settings
+        settings.maximumPretranslatedPages = limit
+        let pages = (1...20).map { Self.page($0) }
+        let view = UIImageView(image: Self.image())
+        let visible = ReaderTranslationPage(imageView: view)
+        visible.sourcePage = pages[9]
+        let cache = ReaderTranslationSessionCache()
+        var processed: [Int] = []
+        var lookahead: [Int?] = []
+        weak var observedSession: ReaderTranslationSession?
+        let session = ReaderTranslationSession(process: { page, _, _ in
+            processed.append(page.index)
+            lookahead.append(observedSession?.nextPageForRecognition(after: page)?.index)
+            return [Self.region]
+        }, availableMemory: { .max }, cache: cache)
+        observedSession = session
+        defer { session.close() }
+        let fullOrder = [10, 11, 12, 13, 9, 14, 8, 15, 7, 16, 17, 18, 19, 20, 6, 5, 4, 3, 2, 1]
+        let expected = limit.map { Array(fullOrder.prefix($0 + 1)) } ?? fullOrder
+        session.update(items: pages.map(ReaderTranslationSession.Item.init), visible: [visible],
+            context: "forward-priority", currentPageIndex: 10)
+        session.enable(settings: settings)
+        let last = try #require(expected.last)
+        try await waitUntil { cache.contains(pages[last - 1].translationCacheKey) }
+        #expect(processed == expected)
+        #expect(lookahead == expected.dropFirst().map { Optional($0) } + [nil])
+    }
+
+    @Test func forwardPriorityKeepsVisiblePagesFirstAndHandlesChapterEdges() {
+        let pages = (1...20).map { ReaderTranslationSession.Item(Self.page($0)) }
+        let first = ReaderTranslationSession.ordered(pages, anchor: 1)
+        #expect(first.map(\.position) == Array(1...20))
+        let last = ReaderTranslationSession.ordered(pages, anchor: 20)
+        #expect(last.map(\.position) == Array((1...20).reversed()))
+        let nearStart = ReaderTranslationSession.ordered(pages, anchor: 2)
+        #expect(nearStart.map(\.position) == [2, 3, 4, 5, 1] + Array(6...20))
+        let nearEnd = ReaderTranslationSession.ordered(pages, anchor: 18)
+        #expect(nearEnd.map(\.position) == [18, 19, 20] + Array((1...17).reversed()))
+        let visible = Set([Self.page(10).translationCacheKey, Self.page(14).translationCacheKey])
+        let spread = ReaderTranslationSession.ordered(pages, anchor: 10, visibleKeys: visible)
+        #expect(spread.map(\.position) == [10, 14, 11, 12, 13, 9, 8, 15, 7, 16, 17, 18, 19, 20, 6, 5, 4, 3, 2, 1])
+    }
+
     @Test func newlyVisiblePageCancelsItsCompetingOffscreenExport() async throws {
         let fixture = SessionFixture()
         let pages = [Self.page(0), Self.page(1)]
@@ -93,6 +217,42 @@ struct ReaderTranslationSessionTests {
         try await waitUntil { page.hasCompletedTranslation(settings: fixture.settings) }
         #expect(view.subviews.contains { $0 is ReaderTranslationOverlayView })
         #expect(calls == 1)
+    }
+
+    @Test func unchangedBoundedWindowKeepsTextLayoutPreparationRunning() async throws {
+        let fixture = SessionFixture()
+        var settings = fixture.settings
+        settings.maximumPretranslatedPages = 8
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let cache = ReaderTranslationSessionCache()
+        let renderCache = ReaderTranslationRenderCache(disk: disk)
+        let pages = (0..<9).map { Self.page($0) }
+        for page in pages { try cache.store([Self.region], for: page.translationCacheKey, evict: false) }
+        let gate = SessionGate()
+        var entered = false
+        var completed = false
+        var wasCancelled = false
+        let session = ReaderTranslationSession(process: { _, _, _ in
+            Issue.record("Cache-only preparation must not invoke the provider")
+            return []
+        }, diskCache: disk, renderCache: renderCache, prepareTextLayout: { _, _, _ in
+            guard !entered else { return }
+            entered = true
+            await gate.wait()
+            wasCancelled = Task.isCancelled
+            completed = true
+        }, availableMemory: { .max }, cache: cache)
+        defer { session.close() }
+        let items = pages.map(ReaderTranslationSession.Item.init)
+        session.update(items: items, visible: [], context: "stable-window", processUncachedPages: false)
+        session.enable(settings: settings)
+        try await waitUntil { await gate.started }
+        session.update(items: items, visible: [], context: "stable-window", processUncachedPages: false)
+        await gate.release()
+        try await waitUntil { completed }
+        #expect(!wasCancelled, "An unchanged finite window must retain its in-flight text layout")
     }
 
     @Test func interruptedTextWarmResumesTheSameWindowAfterMemoryRecovery() async throws {
@@ -708,7 +868,9 @@ struct ReaderTranslationSessionTests {
             imageSize: original.size, viewport: view.bounds.size, scale: view.traitCollection.displayScale,
             aspectFit: view.contentMode == .scaleAspectFit, crop: CGRect(x: 0, y: 0, width: 1, height: 1),
             dark: view.traitCollection.userInterfaceStyle == .dark)
-        await cache.store(image, key: key,
+        let snapshotKey = ReaderTranslationRenderCache.snapshotKey(renderKey: key,
+            regions: [Self.region].compactMap { $0.cropped(to: CGRect(x: 0, y: 0, width: 1, height: 1)) })
+        await cache.store(image, key: snapshotKey,
             pageIdentity: ReaderTranslationCacheIdentity.translation(page: source.translationCacheKey, settings: settings),
             diskGeneration: 0)
     }
@@ -1101,7 +1263,7 @@ struct ReaderTranslationSessionTests {
         coordinator.resume()
         defer { coordinator.close() }
         try await waitUntil { prepared.count == 8 }
-        #expect(prepared == [3, 4, 2, 5, 1, 6, 0, 7])
+        #expect(prepared == [3, 4, 5, 6, 2, 7, 1, 0])
         #expect(session.state == .on)
         #expect(owner.translationVisiblePages.first?.hasCompletedTranslation(settings: fixture.settings) == true)
         // Ordering must not invalidate already persisted page identities.
@@ -1246,7 +1408,7 @@ struct ReaderTranslationSessionTests {
         await gate.release()
         try await waitUntil { indices.count == 8 }
         #expect(session.state == .on)
-        #expect(indices == [2, 3, 1, 4, 0, 5, 6, 7])
+        #expect(indices == [2, 3, 4, 5, 1, 6, 0, 7])
         #expect(efforts.allSatisfy { $0 == .high })
         #expect(visible.regions.first?.translation == "안녕")
         session.disable()
@@ -1823,7 +1985,9 @@ struct ReaderTranslationSessionTests {
             imageSize: image.size, viewport: view.bounds.size, scale: view.traitCollection.displayScale,
             aspectFit: true, crop: CGRect(x: 0, y: 0, width: 1, height: 1),
             dark: view.traitCollection.userInterfaceStyle == .dark)
-        await renderCache.store(snapshot, key: key,
+        let snapshotKey = ReaderTranslationRenderCache.snapshotKey(renderKey: key,
+            regions: [Self.region].compactMap { $0.cropped(to: CGRect(x: 0, y: 0, width: 1, height: 1)) })
+        await renderCache.store(snapshot, key: snapshotKey,
             pageIdentity: ReaderTranslationCacheIdentity.translation(page: source.translationCacheKey, settings: settings), diskGeneration: 0)
         coordinator.resume() // Leave the normal delayed synchronization pending.
         owner.translationUpcomingPages = [source]; owner.translationVisiblePages = [page]

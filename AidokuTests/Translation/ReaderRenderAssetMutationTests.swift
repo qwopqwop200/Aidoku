@@ -80,6 +80,34 @@ struct ReaderRenderAssetMutationTests {
         #expect(try JSONDecoder().decode(ReaderTranslationRenderAsset.self, from: stored).sourceDigest == "new")
     }
 
+    @Test(arguments: [false, true])
+    func staleGenerationCannotSupersedeValidEncoding(background: Bool) async throws {
+        let fixture = AssetMutationFixture()
+        defer { fixture.close() }
+        let staleGeneration = await fixture.disk.currentGeneration()
+        try await fixture.disk.clear()
+        let validGeneration = await fixture.disk.currentGeneration()
+        let writer = Task {
+            if background {
+                fixture.cache.storeRenderAssetAfterDisplay(fixture.asset("old"), key: "page",
+                    context: fixture.cache.renderAssetStorageContext(settings: fixture.settings))
+            } else {
+                await fixture.cache.storeRenderAsset(fixture.asset("old"), key: "page", diskGeneration: validGeneration)
+            }
+        }
+        try await waitUntil { fixture.encoder.started }
+        // A late result from before disk invalidation must not cancel or revoke
+        // the writer that has already been admitted under the current generation.
+        await fixture.cache.storeRenderAsset(fixture.asset("new"), key: "page", diskGeneration: staleGeneration)
+        fixture.encoder.release()
+        await writer.value
+        try await waitUntil { fixture.cache.pendingAssetWrites == 0 && fixture.cache.activeAssetEncodings == 0 }
+        let stored = try #require(try await fixture.disk.data(
+            for: ReaderTranslationRenderCache.renderAssetStorageKey("page"), kind: .layout))
+        #expect(try JSONDecoder().decode(ReaderTranslationRenderAsset.self, from: stored).sourceDigest == "old")
+        #expect(await fixture.cache.renderAsset(for: "page")?.sourceDigest == "old")
+    }
+
     private func waitUntil(_ predicate: () -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(4))
         while !predicate() {

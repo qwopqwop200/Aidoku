@@ -511,7 +511,7 @@
 
 "TRANSLATION_AUTOMATIC" = "الترجمة التلقائية";
 
-"TRANSLATION_AUTOMATIC_HELP" = "يترجم صفحات القارئ تلقائيًا باستخدام إعدادات API ومستوى الاستدلال المحفوظين. لا يُجرى اختبار اتصال منفصل قبل بدء الترجمة. فشل الترجمة لا يعطّل هذا الإعداد. استخدم «اختبار اتصال API» للتحقق من إعداداتك يدويًا.";
+"TRANSLATION_AUTOMATIC_HELP" = "ترجمة صفحات القارئ وعرضها تلقائيًا. يتيح زر الترجمة في القارئ تشغيل هذا الإعداد أو إيقافه.";
 
 "TRANSLATION_TEST" = "اختبار اتصال API";
 
@@ -1182,3 +1182,12 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "قاموس ياباني–إنجليزي شامل تتولى صيانته مجموعة البحث والتطوير في القواميس الإلكترونية (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "قاموس لأسماء الأعلام اليابانية تتولى صيانته مجموعة البحث والتطوير في القواميس الإلكترونية (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "قاموس لتكرار الكلمات يستند إلى مجموعة النصوص الإعلامية في https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "الترجمة أثناء عرض الصفحات الأصلية";
+"TRANSLATION_BACKGROUND_HELP" = "تستمر الترجمة أثناء القراءة حتى عند إيقاف زر الترجمة، مع إبقاء الصفحات الأصلية ظاهرة. تتوقف الترجمة مؤقتًا عندما يكون التطبيق غير نشط.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "عدد الصفحات للترجمة المسبقة";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "الحد الأقصى لعدد الصفحات التي تُترجم مسبقًا، دون احتساب الصفحات الظاهرة. تُختار الصفحات حسب أولوية القراءة مع تفضيل الصفحات التالية.";
+"TRANSLATION_UNLIMITED" = "بلا حد";
+"TRANSLATION_PAGE_SETTINGS" = "ترجمة الصفحات";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "الصفحات الظاهرة فقط";

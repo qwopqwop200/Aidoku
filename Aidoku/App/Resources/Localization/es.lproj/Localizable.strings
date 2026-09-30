@@ -844,7 +844,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Traducción automática";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Traduce automáticamente las páginas del lector con la configuración API y el esfuerzo de razonamiento guardados. No se realiza una prueba de conexión independiente antes de comenzar la traducción. Los errores de traducción no desactivan esta opción. Usa «Probar la conexión API» para comprobar la configuración manualmente.";
+"TRANSLATION_AUTOMATIC_HELP" = "Traduce y muestra automáticamente las páginas del lector. El botón de traducción del lector activa o desactiva esta opción.";
 
 "TRANSLATION_TEST" = "Probar la conexión API";
 
@@ -1150,3 +1150,12 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Un completo diccionario japonés-inglés mantenido por Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Un diccionario de nombres propios japoneses mantenido por Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Un diccionario de frecuencias basado en el corpus multimedia de https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Traducir mientras se muestran los originales";
+"TRANSLATION_BACKGROUND_HELP" = "Continúa traduciendo mientras lees con el botón de traducción desactivado. Las páginas originales permanecen visibles. La traducción se pausa cuando la aplicación está inactiva.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Páginas para traducir por adelantado";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Número máximo de páginas para traducir por adelantado, sin contar las visibles. Se seleccionan según la prioridad de lectura, dando preferencia a las páginas siguientes.";
+"TRANSLATION_UNLIMITED" = "Sin límite";
+"TRANSLATION_PAGE_SETTINGS" = "Traducción de páginas";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Solo páginas visibles";

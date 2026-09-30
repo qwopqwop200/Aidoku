@@ -192,19 +192,24 @@ enum BrowserSlantedSourceRestoration {
       const failures=options.failures;
       const attempt=colors=>{
         const r=aidokuRestoreSourcePanel(local,lw,lh,b,colors,
-          {readabilityGate:true,compactMask:true,protectArtMargin:true,slantedOwnership:true,vertical,sampleScale:1,
-            auxiliary,inferredRubyExclusions:geometry.exclusions});
-        const reason=!r?'panel':!r.erased?'nothing-erased':r.preservedCore>8?'preserved-core':!r.layoutSafe?'layout':
-          !aidokuSlantedSurfaceFits(r)?'surface:'+(r.surfaceQuality?.reason||'none'):
+          {readabilityGate:true,compactMask:true,protectArtMargin:true,slantedOwnership:true,vertical,sampleScale:1,chromaticBalloon:options.chromaticBalloon,
+            auxiliary,inferredRubyExclusions:geometry.exclusions,
+            rowEndMarks:vertical?auxiliary.filter(r=>r[1]+r[3]/2>b[1]+b[3]*.7&&r[3]<=b[2]*.65):[]});
+        const reason=!r?'panel':!r.erased?'nothing-erased':r.preservedCore>Math.max(8,Math.min(32,r.erased*.0005))?'preserved-core:'+r.preservedCore:!r.layoutSafe?'layout':
+          !(r.method==='chromatic-balloon-glyphs'||aidokuSlantedSurfaceFits(r,colors))?'surface:'+(r.surfaceQuality?.reason||'none'):
           aidokuSlantedResidualInk(local,lw,lh,b,r)?'residual':null;
         if(reason&&Array.isArray(failures))failures.push(reason);
         return reason?null:r;
       };
+      const observed=palette?.sourceInk;
+      const outlined=observed?.stroke&&Math.min(...observed.stroke)>=230&&
+        (observed.confidence?.stroke||0)>=.8&&(observed.confidence?.foreground||0)>=.6;
       let result=attempt(palette);
+      if(!result&&outlined)result=attempt(observed);
       // The page-axis sample may be dominated by artwork in the empty corners
       // of a steep quad. Retry its actual upright lettering, within the same
       // decoded crop and the color estimator's existing 24K-pixel limit.
-      if(!result&&typeof aidokuEstimateSourceColors==='function'){
+      if(typeof aidokuEstimateSourceColors==='function'){
         const scale=Math.min(1,Math.sqrt(24576/(b[2]*b[3]))),sw=Math.floor(b[2]*scale),sh=Math.floor(b[3]*scale);
         if(sw>=8&&sh>=8){
           const sample=new Uint8ClampedArray(sw*sh*4);
@@ -212,10 +217,23 @@ enum BrowserSlantedSourceRestoration {
             const j=(Math.floor(b[1]+(y+.5)*b[3]/sh)*lw+Math.floor(b[0]+(x+.5)*b[2]/sw))*4;
             sample.set(local.subarray(j,j+4),(y*sw+x)*4);
           }})();
-          const colors=aidokuEstimateSourceColors(sample,sw,sh);
+          const evidence=palette?.lettering;
+          const seed=evidence?.bands>=3&&evidence.components>=3&&evidence.support>=.02&&evidence.exterior<=.03
+            ?evidence.color:null;
+          const colors=aidokuEstimateSourceColors(sample,sw,sh,null,null,seed);
           if(colors?.foreground&&colors?.background){
-            result=attempt(colors)||aidokuSlantedFlatGlyphs(local,lw,lh,b,colors);
-            if(result&&aidokuSlantedResidualInk(local,lw,lh,b,result))result=null;
+            const distance=(a,b)=>Math.max(...a.map((v,k)=>Math.abs(v-b[k])));
+            const paper=palette?.background||palette?.captionBackground;
+            // A wide white halo can be mistaken for paper after rectification.
+            // The independent exposed page surface must corroborate its grey outer band.
+            if(colors.stroke&&paper&&Math.min(...colors.background)>=245&&
+                Math.max(...colors.foreground)-Math.min(...colors.foreground)>=100&&
+                distance(colors.stroke,paper)<=24&&distance(colors.background,paper)>distance(colors.stroke,paper)+6){
+              colors.stroke=colors.background;colors.background=paper;
+            }
+            if(colors.widthEvidence)colors.widthEvidence={...colors.widthEvidence,sampleScale:scale};
+            const detailed=attempt(colors)||(!result?aidokuSlantedFlatGlyphs(local,lw,lh,b,colors):null);
+            if(detailed&&!aidokuSlantedResidualInk(local,lw,lh,b,detailed))result=detailed;
           }
         }
       }
@@ -369,6 +387,29 @@ enum BrowserSlantedSourceRestoration {
       // paper beside an erased edge. Requiring four owned donors here kept
       // the old glyph's dark luminance after its native pixels were erased.
       aidokuSlantedLayoutProof(rgba,output,w,h,result.layoutSafe,luminance,lw,lh,cx,cy,c,s,ox,oy);
+      // Rectification can leave a one-cell seam wholly enclosed by proven
+      // surface. Admit only isolated groups of at most three cells whose
+      // luminance stays within that surrounding surface, or a single fringe
+      // cell touches three erased donors. No erasure is added; its actual
+      // luminance still participates in the glyph contrast check.
+      const proof=result.layoutSafe,visited=new Uint8Array(lw*lh);
+      for(let start=0;start<proof.length;start++){
+        if(proof[start]||visited[start])continue;
+        const cells=[start];visited[start]=1;let closed=true,lo=255,hi=0;
+        for(let head=0;head<cells.length;head++){
+          const i=cells[head],x=i%lw,y=i/lw|0;
+          if(x===0||y===0||x===lw-1||y===lh-1)closed=false;
+          for(let yy=Math.max(0,y-1);yy<=Math.min(lh-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(lw-1,x+1);xx++){
+            const j=yy*lw+xx;
+            if(proof[j]){lo=Math.min(lo,luminance[j]);hi=Math.max(hi,luminance[j]);}
+            else if(!visited[j]){visited[j]=1;cells.push(j);}
+          }
+        }
+        const isolatedFringe=cells.length===1&&[-lw-1,-lw,-lw+1,-1,1,lw-1,lw,lw+1]
+          .filter(d=>result.rgba[(cells[0]+d)*4+3]===255).length>=3;
+        if(closed&&cells.length<=3&&lo<=hi&&(isolatedFringe||cells.every(i=>luminance[i]>=lo-4&&luminance[i]<=hi+4)))
+          for(const i of cells)proof[i]=1;
+      }
       return {rgba:output,layoutSafe:result.layoutSafe,luminance,lw,lh,box:b,erased,
         localPixels:n,auxiliary,method:'rectified-'+result.method,surfaceQuality:result.surfaceQuality};
     }
@@ -377,10 +418,16 @@ enum BrowserSlantedSourceRestoration {
     // look locally smooth. Such a fit leaves pale letter silhouettes or paints
     // flat spots across the drawing. Require a well-supported reconstruction,
     // including the local residual when diffusion supplies the donor colors.
-    function aidokuSlantedSurfaceFits(result) {
+    function aidokuSlantedSurfaceFits(result,palette=null) {
       const q=result.surfaceQuality;
       if(!q?.safe)return false;
-      if(q.reason==='smooth')return q.rmse<=8&&q.outliers<=.025;
+      if(q.reason==='smooth'){
+        const fg=palette?.foreground;
+        const outlinedColor=fg&&Math.max(...fg)-Math.min(...fg)>=100&&
+          (palette.confidence?.foreground||0)>=.9&&(palette.confidence?.stroke||0)>=.85;
+        return q.rmse<=8&&q.outliers<=.025||q.samples>=128&&q.rmse<=10&&q.outliers<=.01||
+          outlinedColor&&q.samples>=128&&q.rmse<=12&&q.outliers<=.05;
+      }
       if(q.reason==='locally-smooth')return q.localRMSE<=1.5&&q.edgeFraction<=.015;
       return q.reason==='periodic'||q.reason==='exemplar-texture'||q.reason==='flat-glyph-boundary';
     }

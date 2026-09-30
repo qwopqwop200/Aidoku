@@ -281,7 +281,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Aŭtomata Tradukado";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Aŭtomate tradukas paĝojn en la legilo uzante viajn konservitajn API-agordojn kaj rezonadan nivelon. Neniu aparta konektotesto okazas antaŭ la komenco de tradukado. Tradukeraroj ne malŝaltas ĉi tiun agordon. Uzu la API-konektoteston por permane kontroli viajn agordojn.";
+"TRANSLATION_AUTOMATIC_HELP" = "Aŭtomate tradukas kaj montras paĝojn en la legilo. La tradukbutono en la legilo ŝaltas aŭ malŝaltas ĉi tiun agordon.";
 
 "TRANSLATION_TEST" = "Testu API-Konekton";
 
@@ -1181,3 +1181,12 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Ampleksa japan-angla vortaro prizorgata de Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Vortaro de japanaj propraj nomoj prizorgata de Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Frekvenca vortaro bazita sur la amaskomunikila tekstaro ĉe https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Traduki dum montrado de originaloj";
+"TRANSLATION_BACKGROUND_HELP" = "Tradukado daŭras dum vi legas kun malŝaltita tradukbutono. La originalaj paĝoj restas videblaj. Tradukado paŭzas kiam la aplikaĵo estas neaktiva.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Paĝoj por antaŭtraduki";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Maksimuma nombro de paĝoj por antaŭtraduki, ne inkluzivante videblajn paĝojn. Paĝoj estas elektataj laŭ legoprioritato, preferante la sekvajn paĝojn.";
+"TRANSLATION_UNLIMITED" = "Senlime";
+"TRANSLATION_PAGE_SETTINGS" = "Paĝtradukado";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Nur videblaj paĝoj";

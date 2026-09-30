@@ -423,7 +423,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Përkthim automatik";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Përkthen automatikisht faqet në lexues duke përdorur cilësimet e ruajtura të API-së dhe nivelin e arsyetimit. Nuk kryhet një test i veçantë i lidhjes para fillimit të përkthimit. Dështimet e përkthimit nuk e çaktivizojnë këtë cilësim. Përdorni testin e lidhjes API për t’i kontrolluar cilësimet manualisht.";
+"TRANSLATION_AUTOMATIC_HELP" = "Përkthen dhe shfaq automatikisht faqet në lexues. Butoni i përkthimit në lexues e aktivizon ose çaktivizon këtë cilësim.";
 
 "TRANSLATION_TEST" = "Testoni lidhjen API";
 
@@ -1159,3 +1159,14 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Një fjalor i plotë japonisht-anglisht i mirëmbajtur nga Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Një fjalor i emrave të përveçëm japonezë i mirëmbajtur nga Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Një fjalor frekuencash i bazuar në korpusin mediatik të https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Përkthe ndërsa shfaqen origjinalet";
+"TRANSLATION_BACKGROUND_HELP" = "Vazhdon përkthimin gjatë leximit edhe kur butoni i përkthimit është i çaktivizuar. Faqet origjinale mbeten të dukshme. Përkthimi pezullohet kur aplikacioni nuk është aktiv.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Faqe për përkthim paraprak";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Numri maksimal i faqeve për përkthim paraprak, pa përfshirë faqet e dukshme. Faqet zgjidhen sipas përparësisë së leximit, duke u dhënë përparësi faqeve pasuese.";
+"TRANSLATION_UNLIMITED" = "Pa kufi";
+
+"TRANSLATION_PAGE_SETTINGS" = "Përkthimi i faqeve";
+
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Vetëm faqet e dukshme";

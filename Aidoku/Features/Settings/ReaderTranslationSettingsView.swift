@@ -20,6 +20,7 @@ struct ReaderTranslationSettingsView: View {
     var body: some View {
         List {
             languageSection
+            pageTranslationSection
             translationTargetsSection
             providerSection
             translationOptionsSection
@@ -92,12 +93,6 @@ struct ReaderTranslationSettingsView: View {
 
     private var translationTargetsSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 6) {
-                Toggle(NSLocalizedString("TRANSLATION_AUTOMATIC"), isOn: persistedSettings.automaticallyTranslate)
-                    .accessibilityIdentifier("translation.automatic")
-                Text(NSLocalizedString("TRANSLATION_AUTOMATIC_HELP"))
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
             Toggle(NSLocalizedString("TRANSLATION_MANGA_TITLES"), isOn: persistedSettings.translateMangaTitles)
                 .accessibilityIdentifier("translation.mangaTitles")
             titleLanguageFilterLink("TRANSLATION_MANGA_TITLE_FILTER", selection: persistedSettings.mangaTitleSourceLanguages,
@@ -128,6 +123,35 @@ struct ReaderTranslationSettingsView: View {
             Text(NSLocalizedString("TRANSLATION_TARGETS"))
         } footer: {
             Text(NSLocalizedString("TRANSLATION_TITLES_HELP"))
+        }
+    }
+
+    private var pageTranslationSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(NSLocalizedString("TRANSLATION_AUTOMATIC"), isOn: persistedSettings.automaticallyTranslate)
+                    .accessibilityIdentifier("translation.automatic")
+                Text(NSLocalizedString("TRANSLATION_AUTOMATIC_HELP"))
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(NSLocalizedString("TRANSLATION_BACKGROUND"), isOn: persistedSettings.translateInBackground)
+                    .accessibilityIdentifier("translation.background")
+                Text(NSLocalizedString("TRANSLATION_BACKGROUND_HELP"))
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            Picker(NSLocalizedString("TRANSLATION_PRETRANSLATION_LIMIT"), selection: persistedSettings.maximumPretranslatedPages) {
+                Text(NSLocalizedString("TRANSLATION_UNLIMITED")).tag(Optional<Int>.none)
+                Text(NSLocalizedString("TRANSLATION_VISIBLE_PAGES_ONLY")).tag(Optional(0))
+                ForEach([1, 2, 3, 5, 10, 20, 50, 100], id: \.self) { count in
+                    Text(count, format: .number).tag(Optional(count))
+                }
+            }
+            .accessibilityIdentifier("translation.pretranslationLimit")
+        } header: {
+            Text(NSLocalizedString("TRANSLATION_PAGE_SETTINGS"))
+        } footer: {
+            Text(NSLocalizedString("TRANSLATION_PRETRANSLATION_LIMIT_HELP"))
         }
     }
 

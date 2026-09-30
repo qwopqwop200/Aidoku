@@ -1,9 +1,41 @@
+import CoreGraphics
 import CryptoKit
 import Foundation
 import Testing
 @testable import Aidoku
 
 struct ReaderTranslationPageIdentityTests {
+    @Test func hitomiRoutingRotationRestoresTranslationAfterReopeningDisk() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let hash = "f71c81e179c49d058275918fe1699f4427957c295d0ac933b3f36f6e0b6d5a79"
+        let original = Page(sourceId: "multi.hitomi", chapterId: "chapter", index: 1,
+            imageURL: "https://a1.gold-usergeneratedcontent.net/1790658001/2471/\(hash).avif")
+        var reopened = original
+        reopened.imageURL = "https://a2.gold-usergeneratedcontent.net/1790744401/2471/\(hash).avif"
+        #expect(original.translationCacheKey == reopened.translationCacheKey)
+        let settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        let regions = [ReaderTranslationRegion(id: "saved", rect: CGRect(x: 0, y: 0, width: 1, height: 1),
+                                              source: "Original", translation: "저장한 번역")]
+        let writer = ReaderTranslationDiskCache(directory: root)
+        try await writer.storeRegions(regions,
+            for: ReaderTranslationCacheIdentity.translation(page: original.translationCacheKey, settings: settings),
+            kind: .translation, generation: 0)
+        let reader = ReaderTranslationDiskCache(directory: root)
+        #expect(try await reader.translatedRegions(page: reopened.translationCacheKey, settings: settings) == regions)
+        reopened.context = ["variant": "different"]
+        #expect(original.translationCacheKey != reopened.translationCacheKey)
+        reopened = original
+        reopened.imageURL = original.imageURL! + "?token=other"
+        #expect(original.translationCacheKey != reopened.translationCacheKey)
+        reopened = original
+        reopened.imageURL = original.imageURL!.replacingOccurrences(of: ".avif", with: ".webp")
+        #expect(original.translationCacheKey != reopened.translationCacheKey)
+        reopened = original
+        reopened.imageURL = original.imageURL!.replacingOccurrences(of: hash, with: "a" + hash.dropFirst())
+        #expect(original.translationCacheKey != reopened.translationCacheKey)
+    }
+
     private func page() -> Page {
         Page(sourceId: "identity-source", chapterId: "chapter", index: 1,
              imageURL: "https://example.invalid/image")

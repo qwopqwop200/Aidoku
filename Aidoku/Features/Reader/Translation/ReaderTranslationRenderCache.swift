@@ -36,8 +36,16 @@ final class ReaderTranslationRenderCache {
     // Direct callers also suspend during encoding. Track only live operations so
     // removal/replacement invalidates them without retaining per-key tombstones.
     private var assetStores: [String: UUID] = [:]
+    // Only pending validation tickets are retained. A valid newer ticket retires
+    // older tickets; a rejected generation cannot disturb an accepted writer.
+    private var assetStoreAdmissions: [String: [UUID]] = [:]
+    private struct PendingAssetWrite {
+        let key: String
+        let task: Task<Void, Never>
+    }
+    private var pendingAssetValidations: [UUID: PendingAssetWrite] = [:]
     private var assetDiskMutations: [String: AssetWrite] = [:]
-    var pendingAssetWrites: Int { assetWrites.count }
+    var pendingAssetWrites: Int { assetWrites.count + pendingAssetValidations.count }
     private struct AssetRead {
         let id: UUID
         let task: Task<Void, Never>
@@ -87,6 +95,7 @@ final class ReaderTranslationRenderCache {
     deinit {
         preparations.values.forEach { $0.task.cancel() }
         assetWrites.values.forEach { $0.task.cancel() }
+        pendingAssetValidations.values.forEach { $0.task.cancel() }
         for read in assetReads.values {
             read.task.cancel()
             read.consumers.values.forEach { $0.resume(returning: nil) }
@@ -143,6 +152,14 @@ final class ReaderTranslationRenderCache {
     nonisolated static func layoutKey(renderKey: String, regions: [ReaderTranslationRegion]) -> String {
         ReaderTranslationCacheIdentity.encoded([
             "reader-layout-content-v5-lettering-quads", renderKey, ReaderTranslationRenderAsset.digest(regions)
+        ])
+    }
+
+    /// Viewport snapshots also contain translated text. Geometry alone cannot
+    /// distinguish a newly translated page from the bitmap it replaced.
+    nonisolated static func snapshotKey(renderKey: String, regions: [ReaderTranslationRegion]) -> String {
+        ReaderTranslationCacheIdentity.encoded([
+            "reader-snapshot-content-v1", renderKey, ReaderTranslationRenderAsset.digest(regions)
         ])
     }
 
@@ -248,6 +265,10 @@ final class ReaderTranslationRenderCache {
     }
 
     func removeRenderAsset(for key: String) async {
+        assetStoreAdmissions.removeValue(forKey: key)
+        for id in pendingAssetValidations.keys.filter({ pendingAssetValidations[$0]?.key == key }) {
+            pendingAssetValidations.removeValue(forKey: id)?.task.cancel()
+        }
         assetStores.removeValue(forKey: key)
         cancelAssetRead(key: key)
         assetWrites.removeValue(forKey: key)?.task.cancel()
@@ -283,30 +304,60 @@ final class ReaderTranslationRenderCache {
     /// never a display barrier. Both cache generations are checked before retention.
     func storeRenderAssetAfterDisplay(_ asset: ReaderTranslationRenderAsset, key: String, context: AssetStorageContext) {
         guard !Task.isCancelled, generation == context.generation, asset.isValid else { return }
-        assetWrites.removeValue(forKey: key)?.task.cancel()
-        guard assetWrites.count < 4 else { return }
-        let id = UUID()
-        assetStores[key] = id
+        // A same-key accepted writer is replaced only after validation, so allow
+        // its replacement without granting another encoding slot.
+        let replacing = assetWrites[key] == nil ? 0 : 1
+        guard pendingAssetWrites - replacing < 4 else { return }
+        let id = beginAssetStoreAdmission(key: key)
         let task = Task(priority: .utility) { [weak self] in
             let diskGeneration = await context.diskGeneration.value
             guard let self else { return }
             defer {
+                self.finishAssetStoreAdmission(key: key, id: id)
+                self.pendingAssetValidations.removeValue(forKey: id)
                 if self.assetWrites[key]?.id == id { self.assetWrites.removeValue(forKey: key) }
                 if self.assetStores[key] == id { self.assetStores.removeValue(forKey: key) }
             }
-            guard !Task.isCancelled, self.generation == context.generation, self.assetStores[key] == id else { return }
+            guard await self.acceptAssetStore(key: key, id: id, diskGeneration: diskGeneration,
+                                             issued: context.generation) else { return }
+            if let pending = self.pendingAssetValidations.removeValue(forKey: id) {
+                self.assetWrites[key] = AssetWrite(id: id, task: pending.task)
+            }
             await self.storeRenderAsset(asset, key: key, diskGeneration: diskGeneration, issued: context.generation, id: id)
         }
-        assetWrites[key] = AssetWrite(id: id, task: task)
+        pendingAssetValidations[id] = PendingAssetWrite(key: key, task: task)
     }
 
     func storeRenderAsset(_ asset: ReaderTranslationRenderAsset, key: String, diskGeneration: UInt64) async {
         let issued = generation
         guard !Task.isCancelled, asset.isValid else { return }
-        assetWrites.removeValue(forKey: key)?.task.cancel()
-        let id = UUID()
-        assetStores[key] = id
+        let id = beginAssetStoreAdmission(key: key)
+        defer { finishAssetStoreAdmission(key: key, id: id) }
+        guard await acceptAssetStore(key: key, id: id, diskGeneration: diskGeneration, issued: issued) else { return }
         await storeRenderAsset(asset, key: key, diskGeneration: diskGeneration, issued: issued, id: id)
+    }
+
+    private func beginAssetStoreAdmission(key: String) -> UUID {
+        let id = UUID()
+        assetStoreAdmissions[key, default: []].append(id)
+        return id
+    }
+
+    private func finishAssetStoreAdmission(key: String, id: UUID) {
+        assetStoreAdmissions[key]?.removeAll { $0 == id }
+        if assetStoreAdmissions[key]?.isEmpty == true { assetStoreAdmissions.removeValue(forKey: key) }
+    }
+
+    private func acceptAssetStore(key: String, id: UUID, diskGeneration: UInt64, issued: UUID) async -> Bool {
+        guard await disk.currentGeneration() == diskGeneration, !Task.isCancelled, generation == issued,
+              let index = assetStoreAdmissions[key]?.firstIndex(of: id) else { return false }
+        // Actor calls may finish out of order. Retire all earlier validation
+        // tickets so none can overtake this accepted write after its await.
+        assetStoreAdmissions[key]?.removeFirst(index + 1)
+        if assetStoreAdmissions[key]?.isEmpty == true { assetStoreAdmissions.removeValue(forKey: key) }
+        assetWrites.removeValue(forKey: key)?.task.cancel()
+        assetStores[key] = id
+        return true
     }
 
     private func storeRenderAsset(_ asset: ReaderTranslationRenderAsset, key: String, diskGeneration: UInt64,
@@ -401,13 +452,21 @@ final class ReaderTranslationRenderCache {
     }
 
     func prepare(_ key: String, operation: @escaping @MainActor () async throws -> Void) async throws {
-        if let existing = preparations[key] { try await existing.task.value; return }
-        let entry = Preparation(task: Task { try await operation() })
+        try Task.checkCancellation()
+        if let existing = preparations[key], !existing.task.isCancelled {
+            try await existing.task.value
+            try Task.checkCancellation()
+            return
+        }
+        // A cancelled export can still be unwinding its WebKit/native work.
+        // A new request must not join that doomed result while its owner exits.
+        let entry = Preparation(task: Task { try Task.checkCancellation(); try await operation() })
         preparations[key] = entry
         defer {
             if preparations[key]?.id == entry.id { preparations.removeValue(forKey: key) }
         }
         try await withTaskCancellationHandler { try await entry.task.value } onCancel: { entry.task.cancel() }
+        try Task.checkCancellation()
     }
 
     func store(_ image: UIImage, key: String, pageIdentity: String, diskGeneration: UInt64) async {
@@ -488,6 +547,8 @@ final class ReaderTranslationRenderCache {
         images.removeAll(); imageOrder.removeAll(); bitmapBytes = 0
         layouts.removeAll(); layoutOrder.removeAll(); layoutBytes = 0
         assetWrites.values.forEach { $0.task.cancel() }; assetWrites.removeAll()
+        pendingAssetValidations.values.forEach { $0.task.cancel() }; pendingAssetValidations.removeAll()
+        assetStoreAdmissions.removeAll()
         assetStores.removeAll()
         renderAssets.removeAll(); renderAssetOrder.removeAll(); renderAssetBytes = 0
         variants.removeAll()

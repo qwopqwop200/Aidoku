@@ -862,8 +862,12 @@ actor TranslationService {
         let sources = Dictionary(request.segments.map { ($0.id, $0.text) }, uniquingKeysWith: { first, _ in first })
         return translations.contains { segment in
             guard segment.isSFX != true, let source = sources[segment.id] else { return false }
+            // Validate the same text callers will see after ID restoration.
+            // Literal Unicode escapes otherwise hide source-language output
+            // from this guard and become Japanese again when displayed.
+            let displayedText = TranslationHTTPCodec.decodingLeakedEscapes(in: segment.text, source: source)
             return ReaderTranslationLanguageFilter.isUntranslatedJapaneseReply(
-                source: source, translation: segment.text, target: request.targetLanguage)
+                source: source, translation: displayedText, target: request.targetLanguage)
         }
     }
 
@@ -973,6 +977,7 @@ enum BoundedTranslationBatchExecutor {
         service: TranslationService,
         usesCache: Bool = true,
         maximumConcurrentRequests: Int = defaultMaximumConcurrentRequests,
+        maximumSpeculativeRequests: Int = 2,
         priority: TranslationRequestPriority = .foreground,
         onBatchCompleted: BatchCompletionHandler? = nil,
         onBatchPartial: BatchPartialHandler? = nil
@@ -1042,7 +1047,8 @@ enum BoundedTranslationBatchExecutor {
 
             while true {
                 try Task.checkCancellation()
-                let limit = priority.isForeground ? concurrency : min(2, max(1, maximumConcurrentRequests - 1))
+                let limit = priority.isForeground ? concurrency
+                    : min(min(2, max(1, maximumSpeculativeRequests)), max(1, maximumConcurrentRequests - 1))
                 while active < limit, nextSubmission < submissionOrder.count {
                     let index = submissionOrder[nextSubmission]
                     nextSubmission += 1

@@ -14,16 +14,31 @@ class DownloadCache {
     struct Directory: Sendable {
         var url: URL
         var subdirectories: [String: Directory] = [:]
+        var identity: StoredIdentity?
     }
 
-    private var rootDirectory = Directory(url: DownloadManager.directory)
+    struct StoredIdentity: Sendable {
+        let source: String?
+        let manga: String?
+        let chapter: String?
+
+        func matches(source: String, manga: String, chapter: String? = nil) -> Bool {
+            (self.source == nil || self.source == source) &&
+                (self.manga == nil || self.manga == manga) &&
+                (chapter == nil || self.chapter == nil || self.chapter == chapter)
+        }
+    }
+
+    private nonisolated let directoryURL: URL
+    private var rootDirectory: Directory
     private var loaded = false
     private var touchedManga = Set<String>()
     private var scanGeneration = UUID()
     private var scan: Task<Directory, Never>?
 
-    init() {
-        let directory = DownloadManager.directory
+    init(directory: URL = DownloadManager.directory) {
+        directoryURL = directory
+        rootDirectory = Directory(url: directory)
         let generation = scanGeneration
         let work = Task.detached(priority: .utility) { Self.scanDirectory(directory) }
         scan = work
@@ -53,7 +68,7 @@ class DownloadCache {
             guard !chapter.lastPathComponent.hasPrefix("."),
                   chapter.isDirectory || chapter.pathExtension.lowercased() == "cbz" else { continue }
             let key = chapter.isDirectory ? chapter.lastPathComponent : chapter.deletingPathExtension().lastPathComponent
-            result.subdirectories[key] = Directory(url: chapter)
+            result.subdirectories[key] = Directory(url: chapter, identity: storedIdentity(at: chapter))
         }
         return result
     }
@@ -91,7 +106,7 @@ class DownloadCache {
         loadIfNeeded(chapter.mangaIdentifier)
         if !loaded { touchedManga.insert(directory(for: chapter.mangaIdentifier).path) }
         let sourceDirectory = rootDirectory.subdirectories[chapter.sourceKey.directoryName]
-        let sourceDirectoryURL = DownloadManager.directory.appendingSafePathComponent(chapter.sourceKey)
+        let sourceDirectoryURL = directoryURL.appendingSafePathComponent(chapter.sourceKey)
         if sourceDirectory == nil {
             rootDirectory.subdirectories[chapter.sourceKey.directoryName] = Directory(
                 url: sourceDirectoryURL
@@ -109,7 +124,9 @@ class DownloadCache {
                 .subdirectories[chapter.sourceKey.directoryName]?
                 .subdirectories[chapter.mangaKey.directoryName]?
                 .subdirectories[chapter.chapterKey.directoryName] = Directory(
-                    url: directory(for: chapter)
+                    url: directory(for: chapter),
+                    identity: Self.storedIdentity(at: directory(for: chapter)) ??
+                        Self.storedIdentity(at: directory(for: chapter).appendingPathExtension("cbz"))
                 )
         }
     }
@@ -131,10 +148,10 @@ class DownloadCache {
     func removeAll() {
         scanGeneration = UUID()
         scan?.cancel(); scan = nil
-        rootDirectory = Directory(url: DownloadManager.directory)
+        rootDirectory = Directory(url: directoryURL)
         touchedManga.removeAll()
         loaded = true
-        DownloadManager.directory.removeItem()
+        directoryURL.removeItem()
     }
 }
 
@@ -149,7 +166,8 @@ extension DownloadCache {
         else {
             return false
         }
-        return mangaDirectory.subdirectories[identifier.chapterKey.directoryName] != nil
+        guard let chapter = mangaDirectory.subdirectories[identifier.chapterKey.directoryName] else { return false }
+        return chapter.identity?.matches(source: identifier.sourceKey, manga: identifier.mangaKey, chapter: identifier.chapterKey) ?? true
     }
 
     // check if any chapter subdirectories exist
@@ -162,7 +180,10 @@ extension DownloadCache {
         else {
             return false
         }
-        return mangaDirectory.subdirectories.contains { !$0.value.url.lastPathComponent.hasPrefix(".tmp") }
+        return mangaDirectory.subdirectories.contains {
+            !$0.value.url.lastPathComponent.hasPrefix(".tmp") &&
+                ($0.value.identity?.matches(source: identifier.sourceKey, manga: identifier.mangaKey) ?? true)
+        }
     }
 }
 
@@ -194,11 +215,12 @@ extension DownloadCache {
     }
 
     nonisolated func isSafe(manga: MangaIdentifier) -> Bool {
-        Self.isSafeDownloadPath(components: [manga.sourceKey, manga.mangaKey])
+        Self.isSafeDownloadPath(components: [manga.sourceKey, manga.mangaKey], root: directoryURL) &&
+            Self.matchesStoredManga(in: directory(for: manga), source: manga.sourceKey, manga: manga.mangaKey)
     }
 
     nonisolated func isSafe(chapter: ChapterIdentifier) -> Bool {
-        Self.isSafeChapterPath(source: chapter.sourceKey, manga: chapter.mangaKey, chapter: chapter.chapterKey)
+        Self.isSafeChapterPath(source: chapter.sourceKey, manga: chapter.mangaKey, chapter: chapter.chapterKey, root: directoryURL)
     }
 
     nonisolated static func isSafeChapterPath(source: String, manga: String, chapter: String,
@@ -218,26 +240,42 @@ extension DownloadCache {
         }
         let name = chapter.directoryName
         guard !name.isEmpty, name != ".", name != ".." else { return false }
+        guard matchesStoredManga(in: directory, source: source, manga: manga) else { return false }
         return [name, name + ".cbz", Self.tmpDirectoryPrefix + name, Self.tmpDirectoryPrefix + name + ".cbz"]
             .allSatisfy {
                 let target = directory.appendingPathComponent($0).standardizedFileURL
-                return target.resolvingSymlinksInPath().path == target.path
+                return target.resolvingSymlinksInPath().path == target.path &&
+                    (storedIdentity(at: target)?.matches(source: source, manga: manga, chapter: chapter) ?? true)
             }
     }
 
+    /// Sanitized folder names are not proof of identity. Honor the exact IDs
+    /// already saved in ComicInfo before reading, replacing or deleting a path.
+    /// Old downloads without Aidoku metadata retain their legacy behavior.
+    private nonisolated static func storedIdentity(at url: URL) -> StoredIdentity? {
+        guard let value = DownloadedChapterFile.comicInfo(in: url)?.extraData() else { return nil }
+        return StoredIdentity(source: value.sourceKey, manga: value.mangaKey, chapter: value.chapterKey)
+    }
+
+    private nonisolated static func matchesStoredManga(in directory: URL, source: String, manga: String) -> Bool {
+        directory.contentsIncludingHidden.allSatisfy { url in
+            storedIdentity(at: url)?.matches(source: source, manga: manga) ?? true
+        }
+    }
+
     nonisolated func directory(sourceKey: String) -> URL {
-        DownloadManager.directory
+        directoryURL
             .appendingSafePathComponent(sourceKey)
     }
 
     nonisolated func directory(for manga: MangaIdentifier) -> URL {
-        DownloadManager.directory
+        directoryURL
             .appendingSafePathComponent(manga.sourceKey)
             .appendingSafePathComponent(manga.mangaKey)
     }
 
     nonisolated func directory(for chapter: ChapterIdentifier) -> URL {
-        DownloadManager.directory
+        directoryURL
             .appendingSafePathComponent(chapter.sourceKey)
             .appendingSafePathComponent(chapter.mangaKey)
             .appendingSafePathComponent(chapter.chapterKey)
@@ -247,7 +285,7 @@ extension DownloadCache {
     nonisolated static let tmpDirectoryPrefix = ".tmp_"
 
     nonisolated func tmpDirectory(for chapter: ChapterIdentifier) -> URL {
-        DownloadManager.directory
+        directoryURL
             .appendingSafePathComponent(chapter.sourceKey)
             .appendingSafePathComponent(chapter.mangaKey)
             .appendingSafePathComponent("\(Self.tmpDirectoryPrefix)\(chapter.chapterKey)")

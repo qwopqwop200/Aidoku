@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),crypto=require('node:crypto');
+const source=fs.readFileSync(path.join(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
+const sample=new Function(source+';return aidokuObservedCaptionBackground;')();
+const f=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/white-outline-background.json')));
+const rgba=new Uint8ClampedArray(zlib.inflateSync(Buffer.from(f.rgba,'base64'))),before=rgba.slice(),evidence=structuredClone(f.result);
+assert.equal(crypto.createHash('sha256').update(rgba).digest('hex'),f.sha256);
+const result=sample(rgba,f.w,f.h,f.inner,f.result);
+assert.deepEqual(rgba,before);assert.deepEqual(f.result,evidence);
+assert.deepEqual(result.captionBackground,[199,194,205]);
+assert.ok(result.captionBackgroundEvidence.reason.startsWith('measured halo exclusion'));
+assert.ok(result.captionBackgroundEvidence.coverage>.45);
+// The backing estimate must not change physical source-ink or erasure evidence.
+for(const key of ['foreground','background','stroke','confidence','widthEvidence'])assert.deepEqual(result[key],f.result[key]);
+const unsupported={...f.result,widthEvidence:null};
+assert.deepEqual(sample(rgba,f.w,f.h,f.inner,unsupported).captionBackground,[246,246,246]);
+const whitePaper={...f.result,background:[250,250,250]};
+assert.deepEqual(sample(rgba,f.w,f.h,f.inner,whitePaper).captionBackground,[246,246,246]);
+const trusted={...f.result,confidence:{...f.result.confidence,background:.9}};
+assert.deepEqual(sample(rgba,f.w,f.h,f.inner,trusted).captionBackground,[246,246,246]);
+console.log('PASS actual white-outline background contamination: [246,246,246] ->',result.captionBackground);

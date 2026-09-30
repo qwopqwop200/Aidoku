@@ -596,7 +596,7 @@ enum NativeOCRAdjacentLineRecovery {
     static func extending(
         _ base: [ReaderTranslationRegion], with grouped: [ReaderTranslationRegion],
         baseLines: [NativeCoreMLOCRLine], recovered: [NativeCoreMLOCRLine], bridges: [NativeCoreMLOCRGapLine] = [],
-        imageBounds: CGRect
+        imageBounds: CGRect, inkContrast: ((CGRect, CGRect) -> Bool)? = nil
     ) -> [ReaderTranslationRegion] {
         guard !recovered.isEmpty, imageBounds.width > 0, imageBounds.height > 0 else { return base }
         func center(_ line: NativeCoreMLOCRLine) -> CGPoint? {
@@ -658,16 +658,34 @@ enum NativeOCRAdjacentLineRecovery {
             let target = targets[0]
             let pitch = mine.compactMap { NativeOCRScopeGeometry.bounds(for: $0.polygon) }
                 .map { min($0.width, $0.height) }.max() ?? 0
+            let edgeCompletion = bridges.contains { $0.edge && mine.contains($0.line) }
             let grown = pixels(region.rect)
             let old = targets.dropFirst().reduce(pixels(base[target].rect)) { $0.union(pixels(base[$1].rect)) }
             let crowds = base.indices.contains { other in
                 // A bridge's other flank is the caption it completes: coming close to it is expected.
                 guard !targets.contains(other), !allowed.contains(other) else { return false }
+                // A pixel/recognition-certified outer column can approach a sign
+                // seen through its balloon. Reject new overlap, not empty proximity.
+                if edgeCompletion {
+                    let obstacle = pixels(base[other].rect)
+                    return NativeOCRScopeGeometry.intersectionArea(grown, obstacle)
+                        > NativeOCRScopeGeometry.intersectionArea(old, obstacle) + 1
+                }
                 let before = gap(old, pixels(base[other].rect)), after = gap(grown, pixels(base[other].rect))
                 // Closer than half a pitch to another caption, either newly or touching it: a crowded
                 // cluster, where a larger caption collides with (or its plate covers) the neighbour.
                 // A bridged caption only has to keep its existing distances (it fills a gap inside its balloon).
-                return after < pitch * 0.5 && (after < before || (after == 0 && allowed.isEmpty))
+                guard after < pitch * 0.5 && (after < before || (after == 0 && allowed.isEmpty)) else { return false }
+                // A confirmed internal column may extend across a differently
+                // coloured horizontal sign visible through a translucent balloon.
+                // Only pixel evidence can distinguish that background from a peer.
+                if !allowed.isEmpty, region.sourceOrientation == .vertical,
+                   base[other].sourceOrientation == .horizontal,
+                   mine.allSatisfy({ line in
+                       guard let box = NativeOCRScopeGeometry.bounds(for: line.polygon) else { return false }
+                       return inkContrast?(box, pixels(base[other].rect)) == true
+                   }) { return false }
+                return true
             }
             guard !crowds else { continue }
             result[target] = ReaderTranslationRegion(
@@ -1107,6 +1125,7 @@ enum NativeOCRLetteringUnitRecovery {
 struct NativeCoreMLOCRGapLine: Equatable, Sendable {
     let line: NativeCoreMLOCRLine
     let flanks: [[CGPoint]]
+    var edge = false
 }
 
 /// Recovers a column (or line) that the detector missed between two confidently read columns of one caption.
@@ -1128,6 +1147,7 @@ enum NativeOCRGapLineRecovery {
         let vertical: Bool
         let flanks: [[CGPoint]]
         let flankTexts: [String]
+        var edge = false
     }
 
     static let maximumProposals = 8
@@ -1325,6 +1345,78 @@ enum NativeOCRGapLineRecovery {
         return result
     }
 
+    /// Extend a measured pair of upright dialogue columns by one pitch. Two real
+    /// siblings establish size/spacing; a missing outer column has no second flank
+    /// on its far side, so the interior-gap scanner cannot find it. Inspect at most
+    /// eight 64k-pixel crops, then require a confident, non-duplicate CJK read.
+    static func edgeProposals(
+        width: Int, height: Int, luminance: (Int, Int) -> Int, lines: [Line], blockers: [[CGPoint]]
+    ) -> [Proposal] {
+        guard lines.count <= 256 else { return [] }
+        let bounds = lines.map { NativeOCRScopeGeometry.bounds(for: $0.polygon) }
+        let occupied = blockers.compactMap(NativeOCRScopeGeometry.bounds(for:)) + bounds.compactMap { $0 }
+        var result: [Proposal] = [], budget = 262_144, styleChecks = 0
+        for first in lines.indices {
+            guard isCaption(lines[first].text), let a = oriented(lines[first].polygon), a.vertical,
+                  let ar = bounds[first], a.thickness <= CGFloat(min(width, height)) * 0.05 else { continue }
+            for second in lines.indices where second != first {
+                guard isCaption(lines[second].text), let b = oriented(lines[second].polygon), b.vertical,
+                      let br = bounds[second], b.center > a.center else { continue }
+                let thin = min(a.thickness, b.thickness), pitch = b.center - a.center
+                guard thin >= 6, max(a.thickness, b.thickness) <= thin * 1.3,
+                      pitch >= thin * 0.85, pitch <= thin * 1.4,
+                      abs(ar.minY - br.minY) <= thin * 0.25,
+                      min(ar.height, br.height) >= thin * 3,
+                      max(ar.height, br.height) <= min(ar.height, br.height) * 1.4 else { continue }
+                guard styleChecks < 32 else { return result }
+                styleChecks += 1
+                guard let ink = style(of: b, width: width, height: height, luminance: luminance),
+                      ink.dark, ink.separation >= 100 else { continue }
+                for center in [b.center + pitch, a.center - pitch] {
+                    var box = CGRect(x: center - thin * 0.5, y: min(ar.minY, br.minY) - thin * 0.15,
+                                     width: thin, height: max(ar.height, br.height) + thin * 1.1)
+                        .intersection(CGRect(x: 0, y: 0, width: width, height: height))
+                    var tailIndex: Int?
+                    // A detected one-glyph tail is kept and merged after recovery.
+                    // Stop at its top instead of rejecting the missing body beside it.
+                    for index in lines.indices {
+                        guard let tail = bounds[index], lines[index].text.count <= 2,
+                              tail.height <= thin * 1.2, abs(tail.midX - center) <= thin * 0.35,
+                              tail.minY > box.minY + thin * 3, tail.minY < box.maxY else { continue }
+                        box.size.height = tail.minY - box.minY
+                        tailIndex = index
+                    }
+                    guard !box.isEmpty, !occupied.contains(where: {
+                        NativeOCRScopeGeometry.intersectionArea($0, box) > min($0.width * $0.height, box.width * box.height) * 0.15
+                    }), !result.contains(where: {
+                        guard let r = NativeOCRScopeGeometry.bounds(for: $0.polygon) else { return true }
+                        return NativeOCRScopeGeometry.intersectionArea(r, box) > box.width * box.height * 0.3
+                    }) else { continue }
+                    let x0 = Int(box.minX.rounded(.up)), x1 = Int(box.maxX)
+                    let y0 = Int(box.minY.rounded(.up)), y1 = Int(box.maxY)
+                    let count = (x1 - x0) * (y1 - y0)
+                    guard count > 0, count <= 65_536, count <= budget else { continue }
+                    budget -= count
+                    var dark = 0, paper = 0, sum = 0, bands = Set<Int>()
+                    for y in y0..<y1 { for x in x0..<x1 {
+                        let value = luminance(x, y)
+                        if ink.isInk(value) { dark += 1; bands.insert(Int(CGFloat(y - y0) / thin)) }
+                        else { paper += 1; sum += value }
+                    } }
+                    guard dark > count / 25, dark < count / 2, bands.count >= 4, paper > 0,
+                          abs(Double(sum) / Double(paper) - ink.paper) < 32 else { continue }
+                    result.append(Proposal(polygon: [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
+                        CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)],
+                        vertical: true, flanks: [lines[center > b.center ? second : first].polygon,
+                            lines[tailIndex ?? (center > b.center ? first : second)].polygon],
+                        flankTexts: [lines[first].text, lines[second].text], edge: true))
+                    if result.count >= 8 { return result }
+                }
+            }
+        }
+        return result
+    }
+
     // swiftlint:disable:next function_parameter_count
     private static func gapProposal(
         a: Oriented, b: Oriented, ink: InkStyle, low: CGFloat, high: CGFloat, span: ClosedRange<CGFloat>,
@@ -1392,7 +1484,11 @@ enum NativeOCRGapLineRecovery {
             guard max(nearValley, farValley) <= density * 0.8 else { continue }
             // Same paper and no tone or art: the strip's non-ink pixels match the flank's paper.
             let stripStart = max(0, Int(center - stripWidth / 2)), stripEnd = min(acrossLimit, Int(center + stripWidth / 2) + 1)
-            let scanStart = max(0, Int(span.lowerBound - thickness / 2)), scanEnd = min(alongLimit, Int(span.upperBound + thickness / 2))
+            // The missing column can be one glyph longer than either neighbour.
+            // Include its complete final glyph instead of recognizing a clipped
+            // crop and leaving that glyph's lower strokes outside the erase mask.
+            let scanStart = max(0, Int(span.lowerBound - thickness / 2))
+            let scanEnd = min(alongLimit, Int(span.upperBound + thickness * (vertical ? 1.5 : 0.5)))
             guard stripEnd > stripStart, scanEnd > scanStart else { continue }
             var paper = [Int](repeating: 0, count: 64)
             var midtones = 0, counted = 0
@@ -2152,6 +2248,185 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
                 }
             }
 
+            if recovers, let current = recognition {
+                let acceptedIDs = Set(current.regions.map(\.sourceIndex))
+                let failed = strongRegions.filter { !acceptedIDs.contains($0.sourceIndex) }
+                let reactions = try NativeOCRShortReactionRecovery.recover(frame: frame, failed: failed, accepted: current.regions)
+                try cancellationCheck()
+                if !reactions.isEmpty {
+                    let selected = current.regions + reactions
+                    recognition = NativeCoreMLRecognitionResult(requestID: requestID, regions: selected,
+                        diagnostics: current.diagnostics.withAcceptedRegions(selected.count))
+                }
+            }
+
+            if recovers, let current = recognition {
+                let nextID = max(detection.boxes.count, (current.regions.map(\.sourceIndex).max() ?? 0) + 1)
+                let proposals = NativeOCRFusedColumnRecovery.proposals(current.regions, frame: frame, startingID: nextID)
+                try cancellationCheck()
+                if !proposals.isEmpty {
+                    let reread = try await recognizer.recognize(frame: frame, regions: proposals.flatMap(\.regions),
+                        requestID: requestID, confidenceThreshold: max(0.9, threshold), cancellationCheck: cancellationCheck)
+                    try cancellationCheck()
+                    guard reread.requestID == requestID else { throw CancellationError() }
+                    var selected = current.regions
+                    var recoveredFused = Set<Int>()
+                    for proposal in proposals {
+                        if let owner = proposal.fusedOwner, !recoveredFused.contains(owner) { continue }
+                        guard let replacements = NativeOCRFusedColumnRecovery.replacements(proposal, reads: reread.regions) else { continue }
+                        selected.removeAll { $0.sourceIndex == proposal.original.sourceIndex }
+                        selected += replacements
+                        recoveredFused.insert(proposal.original.sourceIndex)
+                        recoveredHorizontal.remove(proposal.original.sourceIndex)
+                    }
+                    recognition = NativeCoreMLRecognitionResult(requestID: requestID, regions: selected,
+                        diagnostics: current.diagnostics.addingRecovery(reread.diagnostics, acceptedCount: selected.count))
+                }
+            }
+
+            // A horizontal detector box may contain the heads of distinct vertical
+            // columns. Only replace it after every full-column re-read preserves
+            // its established suffix and confirms the corresponding head glyph.
+            if let current = recognition {
+                let proposals = NativeOCRCrossColumnRecovery.proposals(current.regions)
+                if !proposals.isEmpty {
+                    let reread = try await recognizer.recognize(frame: frame, regions: proposals.flatMap(\.regions),
+                        requestID: requestID, confidenceThreshold: max(0.75, threshold), cancellationCheck: cancellationCheck)
+                    try cancellationCheck()
+                    guard reread.requestID == requestID else { throw CancellationError() }
+                    var selected = current.regions
+                    for proposal in proposals {
+                        guard let replacements = NativeOCRCrossColumnRecovery.replacements(proposal, reads: reread.regions) else { continue }
+                        let replaced = Set(replacements.map(\.sourceIndex)).union([proposal.row.sourceIndex])
+                        selected.removeAll { replaced.contains($0.sourceIndex) }
+                        selected += replacements
+                        recoveredHorizontal.subtract(replaced)
+                    }
+                    recognition = NativeCoreMLRecognitionResult(requestID: requestID, regions: selected,
+                        diagnostics: current.diagnostics.addingRecovery(reread.diagnostics, acceptedCount: selected.count))
+                }
+            }
+
+            if let current = recognition {
+                let grid = NativeOCRGridColumnRecovery.proposals(current.regions, width: frame.width, height: frame.height,
+                                                                  startingID: detection.boxes.count)
+                let extraBase = max(detection.boxes.count, max(current.regions.map(\.sourceIndex).max() ?? 0,
+                                    grid.flatMap(\.regions).map(\.sourceIndex).max() ?? 0) + 1)
+                let proposals = grid.enumerated().map { index, proposal in
+                    NativeOCRGridColumnRecovery.pixelRefined(proposal, reads: current.regions,
+                                                             frame: frame, addedID: extraBase + index) ?? proposal
+                }
+                if !proposals.isEmpty {
+                    let reread = try await recognizer.recognize(frame: frame, regions: proposals.flatMap(\.regions),
+                        requestID: requestID, confidenceThreshold: max(0.8, threshold), cancellationCheck: cancellationCheck)
+                    try cancellationCheck()
+                    guard reread.requestID == requestID else { throw CancellationError() }
+                    var selected = current.regions
+                    for proposal in proposals {
+                        guard let replacements = NativeOCRGridColumnRecovery.replacements(proposal, reads: reread.regions) else { continue }
+                        selected.removeAll { proposal.replaced.contains($0.sourceIndex) }
+                        selected += replacements
+                        recoveredHorizontal.subtract(proposal.replaced)
+                    }
+                    recognition = NativeCoreMLRecognitionResult(requestID: requestID, regions: selected,
+                        diagnostics: current.diagnostics.addingRecovery(reread.diagnostics, acceptedCount: selected.count))
+                }
+            }
+
+            if let current = recognition {
+                let nextID = max(detection.boxes.count, (current.regions.map(\.sourceIndex).max() ?? 0) + 1)
+                let proposals = NativeOCRGridColumnRecovery.shortVerticalProposals(current.regions,
+                    frame: frame, startingID: nextID)
+                if !proposals.isEmpty {
+                    let reread = try await recognizer.recognize(frame: frame, regions: proposals.flatMap(\.regions),
+                        requestID: requestID, confidenceThreshold: max(0.8, threshold), cancellationCheck: cancellationCheck)
+                    try cancellationCheck()
+                    guard reread.requestID == requestID else { throw CancellationError() }
+                    var selected = current.regions
+                    for proposal in proposals {
+                        guard let replacements = NativeOCRGridColumnRecovery.replacements(proposal, reads: reread.regions),
+                              replacements.contains(where: { candidate in
+                                  proposal.replaced.contains(candidate.sourceIndex) &&
+                                  candidate.text.count > (current.regions.first {
+                                      $0.sourceIndex == candidate.sourceIndex
+                                  }?.text.count ?? 0)
+                              }) else { continue }
+                        selected.removeAll { proposal.replaced.contains($0.sourceIndex) }
+                        selected += replacements
+                        recoveredHorizontal.subtract(proposal.replaced)
+                    }
+                    recognition = NativeCoreMLRecognitionResult(requestID: requestID, regions: selected,
+                        diagnostics: current.diagnostics.addingRecovery(reread.diagnostics, acceptedCount: selected.count))
+                }
+            }
+
+            if let current = recognition {
+                let nextID = max(detection.boxes.count, (current.regions.map(\.sourceIndex).max() ?? 0) + 1)
+                let proposals = NativeOCRGridColumnRecovery.singleRowProposals(current.regions,
+                    frame: frame, startingID: nextID)
+                if !proposals.isEmpty {
+                    let reread = try await recognizer.recognize(frame: frame, regions: proposals.flatMap(\.regions),
+                        requestID: requestID, confidenceThreshold: max(0.8, threshold), cancellationCheck: cancellationCheck)
+                    try cancellationCheck()
+                    guard reread.requestID == requestID else { throw CancellationError() }
+                    var selected = current.regions
+                    for proposal in proposals {
+                        guard let replacements = NativeOCRGridColumnRecovery.replacements(proposal, reads: reread.regions),
+                              replacements.filter({ $0.text.count >= 3 }).count >= proposal.regions.count - 1,
+                              replacements.filter({ $0.confidence >= 0.9 }).count >= proposal.regions.count - 1,
+                              replacements.reduce(0, { $0 + $1.text.count }) >= proposal.regions.count * 2 else { continue }
+                        selected.removeAll { proposal.replaced.contains($0.sourceIndex) }
+                        selected += replacements
+                        recoveredHorizontal.subtract(proposal.replaced)
+                    }
+                    recognition = NativeCoreMLRecognitionResult(requestID: requestID, regions: selected,
+                        diagnostics: current.diagnostics.addingRecovery(reread.diagnostics, acceptedCount: selected.count))
+                }
+            }
+
+            if let current = recognition {
+                let nextID = max(detection.boxes.count, (current.regions.map(\.sourceIndex).max() ?? 0) + 1)
+                let proposals = NativeOCRGridColumnRecovery.tailRowProposals(current.regions,
+                    frame: frame, startingID: nextID)
+                if !proposals.isEmpty {
+                    let reread = try await recognizer.recognize(frame: frame, regions: proposals.flatMap(\.regions),
+                        requestID: requestID, confidenceThreshold: max(0.8, threshold), cancellationCheck: cancellationCheck)
+                    try cancellationCheck()
+                    guard reread.requestID == requestID else { throw CancellationError() }
+                    var selected = current.regions
+                    for proposal in proposals {
+                        guard let replacements = NativeOCRGridColumnRecovery.replacements(proposal, reads: reread.regions),
+                              replacements.count == proposal.regions.count,
+                              replacements.allSatisfy({ $0.confidence >= 0.9 && $0.text.count >= 5 }) else { continue }
+                        selected.removeAll { proposal.replaced.contains($0.sourceIndex) }
+                        selected += replacements
+                        recoveredHorizontal.subtract(proposal.replaced)
+                    }
+                    recognition = NativeCoreMLRecognitionResult(requestID: requestID, regions: selected,
+                        diagnostics: current.diagnostics.addingRecovery(reread.diagnostics, acceptedCount: selected.count))
+                }
+            }
+
+            if recovers, let current = recognition {
+                let proposals = NativeOCRStackedAsideRecovery.proposals(current.regions)
+                if !proposals.isEmpty {
+                    let reread = try await recognizer.recognize(frame: frame, regions: proposals.flatMap(\.regions),
+                        requestID: requestID, confidenceThreshold: max(0.85, threshold), cancellationCheck: cancellationCheck)
+                    try cancellationCheck()
+                    guard reread.requestID == requestID else { throw CancellationError() }
+                    var selected = current.regions
+                    for proposal in proposals {
+                        guard let replacements = NativeOCRStackedAsideRecovery.replacements(proposal, reads: reread.regions) else { continue }
+                        let ids = Set(proposal.originals.map(\.sourceIndex))
+                        selected.removeAll { ids.contains($0.sourceIndex) }
+                        selected += replacements
+                        recoveredHorizontal.subtract(ids)
+                    }
+                    recognition = NativeCoreMLRecognitionResult(requestID: requestID, regions: selected,
+                        diagnostics: current.diagnostics.addingRecovery(reread.diagnostics, acceptedCount: selected.count))
+                }
+            }
+
             // Stacked-row split: a strong box with no accepted read that holds a stack of short Latin rows.
             var splitLines: [NativeCoreMLOCRLine] = []
             let splitStarted = Self.nowMilliseconds()
@@ -2286,17 +2561,40 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
             if recovers, let confident = recognition?.regions.filter({
                 !recoveredHorizontal.contains($0.sourceIndex) && NativeOCRGapLineRecovery.flanks($0.text)
             }), confident.count >= 2 {
+                // A rejected detector envelope may contain several successfully read
+                // columns. It is not an occupied line and must not hide their missing
+                // sibling from the gap scanner. Keep ordinary rejected boxes blocking.
+                let acceptedIDs = Set((recognition?.regions ?? []).map(\.sourceIndex))
+                let gapBlockers = strongRegions.filter { region in
+                    guard !acceptedIDs.contains(region.sourceIndex),
+                          let box = NativeOCRScopeGeometry.bounds(for: region.polygon) else { return true }
+                    let enclosed = confident.filter { read in
+                        guard let line = NativeOCRScopeGeometry.bounds(for: read.polygon) else { return false }
+                        return NativeOCRScopeGeometry.intersectionArea(box, line) >= line.width * line.height * 0.9
+                    }
+                    return enclosed.count < 2
+                }.map(\.polygon) + recoveryCandidates.map(\.polygon)
                 let proposals = frame.bytes.withUnsafeBufferPointer { bytes in
                     let bytesPerRow = frame.bytesPerRow
-                    return NativeOCRGapLineRecovery.proposals(
+                    let baseProposals = NativeOCRGapLineRecovery.proposals(
                         width: frame.width, height: frame.height,
                         luminance: { x, y in
                             let offset = y * bytesPerRow + x * 4
                             return (Int(bytes[offset]) * 299 + Int(bytes[offset + 1]) * 587 + Int(bytes[offset + 2]) * 114) / 1000
                         },
                         lines: confident.map { .init(polygon: $0.polygon, text: $0.text) },
-                        blockers: strongRegions.map(\.polygon) + recoveryCandidates.map(\.polygon)
+                        blockers: gapBlockers
                     )
+                    // No outer-column result can be admitted once the shared cap is full.
+                    guard baseProposals.count < NativeOCRGapLineRecovery.maximumProposals else { return baseProposals }
+                    let edges = NativeOCRGapLineRecovery.edgeProposals(
+                        width: frame.width, height: frame.height,
+                        luminance: { x, y in
+                            let offset = y * bytesPerRow + x * 4
+                            return (Int(bytes[offset]) * 299 + Int(bytes[offset + 1]) * 587 + Int(bytes[offset + 2]) * 114) / 1000
+                        }, lines: (recognition?.regions ?? []).map { .init(polygon: $0.polygon, text: $0.text) },
+                        blockers: gapBlockers + baseProposals.map(\.polygon))
+                    return baseProposals + edges.prefix(max(0, NativeOCRGapLineRecovery.maximumProposals - baseProposals.count))
                 }
                 if !proposals.isEmpty {
                     try cancellationCheck()
@@ -2312,7 +2610,9 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
                     try cancellationCheck()
                     gapLines = reads.regions.sorted { $0.sourceIndex < $1.sourceIndex }.compactMap { read in
                         let index = read.sourceIndex - base
-                        guard proposals.indices.contains(index), read.confidence >= threshold,
+                        guard proposals.indices.contains(index),
+                              read.confidence >= (proposals[index].edge ? max(0.75, threshold) : threshold),
+                              !proposals[index].edge || NativeOCRGapLineRecovery.isCaption(read.text),
                               NativeOCRGapLineRecovery.accepts(read.text, proposal: proposals[index]) else { return nil }
                         let polygon = proposals[index].polygon
                         return NativeCoreMLOCRGapLine(
@@ -2320,7 +2620,7 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
                                 polygon: polygon, text: read.text, score: read.confidence,
                                 orientation: proposals[index].vertical ? .vertical : .horizontal, orientationIsEstimated: true
                             ),
-                            flanks: proposals[index].flanks
+                            flanks: proposals[index].flanks, edge: proposals[index].edge
                         )
                     }
                 }

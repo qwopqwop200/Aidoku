@@ -61,7 +61,7 @@ const script = fs.readFileSync(path.join(__dirname,
     });
     assert.equal(result.keptProtected,true);assert.equal(result.nestedVisible,true);assert.equal(result.merged,1);assert.deepEqual(result.union,[20,20,120,180]);
     assert.equal(result.trimmed,'true');assert.ok(result.cRight<290);
-    assert.equal(result.stroke,1.5);assert.equal(result.titleStroke,4);assert.equal(result.haloStroke,4);
+    assert.equal(result.stroke,2.2);assert.equal(result.titleStroke,4);assert.equal(result.haloStroke,4);
     assert.deepEqual(result.row,[262,262]);assert.deepEqual(JSON.parse(result.shifted),[7.75,0]);assert.equal(result.size,result.priorSize);
     assert.equal(result.text,'후헤헤\n깨끗하게\n닦아 놨잖아');
     const margins=await page.evaluate(()=>{

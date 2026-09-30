@@ -109,9 +109,11 @@ function overlayQuery(children, selector) {
     const descendants = list => list.flatMap(child => [child, ...descendants(child.children || [])]);
     return descendants(children).filter(child => kinds.includes(child.attributes?.['data-aidoku-image-ocr-overlay']));
 }
-function element() {
-    return treeNode({ dataset: {}, style: style(), attributes: {}, children: [],
+function element(tag) {
+    // Geometry-only fixtures have no canvas raster; production skips unavailable contexts.
+    return treeNode({ ...(tag === 'canvas' ? {getContext: () => null} : {}), dataset: {}, style: style(), attributes: {}, children: [],
         querySelectorAll(selector) { return overlayQuery(this.children, selector); },
+        querySelector(selector) { return this.querySelectorAll(selector)[0] || null; },
         setAttribute(name, value) { this.attributes[name] = value; },
         getBoundingClientRect() {
             const left = parseFloat(this.style.left), top = parseFloat(this.style.top);
@@ -132,7 +134,7 @@ vm.runInContext(decodeSwift(helpersMatch[1]) + typography + `
             const displayedText = 'translated text', fontFamily = 'sans-serif';
             const x = 20, y = 20, width = 160, height = 60;
             const paddingTop = 0, paddingRight = 0, paddingBottom = 0, paddingLeft = 0;
-            const scrollX = 0, scrollY = 0, cleanupImageGeometry = null;
+            const scrollX = 0, scrollY = 0, cleanupImageGeometry = null, sourceImage = null;
             const keptItems = [], keptZones = [];
             const inpaintingEnabled = Boolean(appearance?.inpaintingEnabled && appearance?.preserveSourceTextColor && appearance?.preserveSourceBackgroundColor);
             const captionTextReflows = new Map();
@@ -162,7 +164,8 @@ function render(overrides = {}) {
     const children = [];
     const root = treeNode({ dataset: {}, children,
         appendChild(child) { child.remove?.(); children.push(child); child.parentElement = this; },
-        querySelectorAll(selector) { return overlayQuery(children, selector); } });
+        querySelectorAll(selector) { return overlayQuery(children, selector); },
+        querySelector(selector) { return this.querySelectorAll(selector)[0] || null; } });
     node.setAttribute('data-aidoku-image-ocr-overlay', 'item');
     const fixture = {
         node, root, children, fontSize: 16, opacity: .84, restored: false,
@@ -172,7 +175,7 @@ function render(overrides = {}) {
         item: { id: 7, sourceColorEligible: true, lightSurface: true,
             sourceFrame: [0, 0, 400, 300], sourceBounds: [.05, .05, .4, .2] },
         document: { createElement: element, createRange() { return {
-            selectNodeContents() {}, getBoundingClientRect() {
+            selectNodeContents() {}, getClientRects() { return [this.getBoundingClientRect()]; }, getBoundingClientRect() {
                 return { left: 20, top: 20, right: 180, bottom: 80, width: 160, height: 60 };
             }
         }; } }
