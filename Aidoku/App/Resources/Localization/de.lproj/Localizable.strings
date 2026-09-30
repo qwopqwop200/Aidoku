@@ -1183,3 +1183,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Ein umfassendes japanisch-englisches Wörterbuch, gepflegt von der Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Ein Wörterbuch japanischer Eigennamen, gepflegt von der Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Ein Häufigkeitswörterbuch auf Grundlage des Medienkorpus von https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Quelle %@ in Version %d wird von dieser App nicht unterstützt. Installiere eine unterstützte Version.";

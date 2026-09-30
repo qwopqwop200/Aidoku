@@ -10,8 +10,8 @@ import Foundation
 public typealias ImageRef = Int32
 
 public struct Request: Sendable, Codable {
-    @URLAsString var url: URL?
-    let headers: [String: String]
+    @URLAsString public private(set) var url: URL?
+    public let headers: [String: String]
 
     public init(url: URL?, headers: [String: String]) {
         self.url = url
@@ -20,10 +20,10 @@ public struct Request: Sendable, Codable {
 }
 
 public struct Response: Sendable, Codable {
-    let code: UInt16
-    let headers: [String: String]
-    let request: Request
-    let image: ImageRef
+    public let code: UInt16
+    public let headers: [String: String]
+    public let request: Request
+    public let image: ImageRef
 
     public init(code: Int, headers: [String: String], request: Request, image: ImageRef) {
         self.code = UInt16(code)

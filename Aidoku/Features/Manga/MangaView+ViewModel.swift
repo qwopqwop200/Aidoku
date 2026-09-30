@@ -54,6 +54,7 @@ extension MangaView {
 
         private var fetchedDetails = false
         private var markedOpened = false
+        private let dataLoadOwnership = MangaDataLoadOwnership()
         private var cancellables = Set<AnyCancellable>()
 
         init(source: AidokuRunner.Source?, manga: AidokuRunner.Manga) {
@@ -164,7 +165,9 @@ extension MangaView.ViewModel {
                         else {
                             return
                         }
-                        self.source = SourceManager.shared.store.source(for: sourceKey)
+                        let updatedSource = SourceManager.shared.store.source(for: sourceKey)
+                        if self.source !== updatedSource { self.dataLoadOwnership.invalidate() }
+                        self.source = updatedSource
                     }
                 }
                 .store(in: &cancellables)
@@ -383,10 +386,13 @@ extension MangaView.ViewModel {
 
     // fetches manga data, from coredata if in library or from source if not
     func fetchData() async {
+        let requestID = dataLoadOwnership.begin()
+        defer { dataLoadOwnership.finish(expectedID: requestID) }
         let mangaId = manga.identifier
         let inLibrary = await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
             CoreDataManager.shared.hasLibraryManga(mangaId: mangaId, context: context)
         }
+        guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled else { return }
         bookmarked = inLibrary
         if inLibrary {
             // load data from db
@@ -398,7 +404,7 @@ extension MangaView.ViewModel {
                     $0.toNewChapter()
                 }
             }
-
+            guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled else { return }
             var newManga = self.manga
             newManga.chapters = chapters
             withAnimation {
@@ -408,38 +414,58 @@ extension MangaView.ViewModel {
         } else if let source {
             // load new data from source
             let publisher = await source.partialMangaPublisher
-            let token = await publisher?.sink { @Sendable newManga in
-                Task { @MainActor in
-                    withAnimation {
-                        self.manga = self.manga.copy(from: newManga)
-                        self.chapters = self.filteredChapters()
+            guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled, self.source === source else { return }
+            let token = await publisher?.sink { @Sendable [weak self] newManga in
+                Task { @MainActor [weak self] in
+                    guard let self, self.source === source else { return }
+                    self.dataLoadOwnership.performPartial(expectedID: requestID) {
+                        withAnimation {
+                            self.manga = self.manga.copy(from: newManga)
+                            self.chapters = self.filteredChapters()
+                        }
                     }
                 }
             }
             do {
+                guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled, self.source === source else {
+                    if let publisher, let token { await publisher.removeSink(token: token) }
+                    return
+                }
                 let newManga = try await PartialResultSubscription.$id.withValue(token) {
                     try Task.checkCancellation()
                     return try await source.getMangaUpdate(manga: manga, needsDetails: true, needsChapters: true)
                 }
-                withAnimation {
-                    manga = newManga
-                    chapters = filteredChapters()
+                if dataLoadOwnership.isCurrent(requestID), !Task.isCancelled, self.source === source {
+                    withAnimation {
+                        manga = newManga
+                        chapters = filteredChapters()
+                    }
                 }
             } catch {
-                withAnimation {
-                    self.error = error
+                if dataLoadOwnership.isCurrent(requestID), !Task.isCancelled, self.source === source {
+                    withAnimation {
+                        self.error = error
+                    }
                 }
             }
+            dataLoadOwnership.closePartialResults(expectedID: requestID)
             if let publisher, let token { await publisher.removeSink(token: token) }
         }
-        await fetchDownloadedChapters()
+        guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled else { return }
+        await fetchDownloadedChapters(expectedRequestID: requestID)
+        guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled else { return }
         await loadDownloadStatus()
+        guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled else { return }
         updateReadButton()
         initialDataLoaded = true
     }
 
-    func fetchDownloadedChapters() async {
-        let downloadedChapters = await DownloadManager.shared.getDownloadedChapters(for: manga.identifier)
+    func fetchDownloadedChapters(expectedRequestID: UUID? = nil) async {
+        let mangaId = manga.identifier
+        let downloaded = await DownloadManager.shared.getDownloadedChapters(for: mangaId)
+        guard !Task.isCancelled, manga.identifier == mangaId else { return }
+        if let expectedRequestID, !dataLoadOwnership.isCurrent(expectedRequestID) { return }
+        let downloadedChapters = downloaded
             .filter { chapter in
                 !(manga.chapters ?? chapters).contains(where: { $0.key.directoryName == chapter.chapterId.directoryName })
             }
@@ -504,11 +530,16 @@ extension MangaView.ViewModel {
             return
         }
 
+        let requestID = dataLoadOwnership.begin()
+        dataLoadOwnership.closePartialResults(expectedID: requestID)
+        defer { dataLoadOwnership.finish(expectedID: requestID) }
         let mangaId = manga.identifier
 
         let inLibrary = await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
             CoreDataManager.shared.hasLibraryManga(mangaId: mangaId, context: context)
         }
+
+        guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled, self.source === source else { return }
 
         do {
             let oldManga = self.manga
@@ -517,6 +548,8 @@ extension MangaView.ViewModel {
                 needsDetails: true,
                 needsChapters: true
             )
+
+            guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled, self.source === source else { return }
 
             // update manga in db
             if inLibrary {
@@ -575,9 +608,13 @@ extension MangaView.ViewModel {
                         return mangaObject.toNewManga()
                     }
 
+                guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled, self.source === source else { return }
+
                 if newManga.chapters != nil {
                     await markUpdatesViewed()
                 }
+
+                guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled, self.source === source else { return }
 
                 if var resultManga {
                     resultManga.chapters = newManga.chapters
@@ -587,7 +624,8 @@ extension MangaView.ViewModel {
                 NotificationCenter.default.post(name: .updateManga, object: newManga.identifier)
             }
 
-            await loadHistory()
+            await loadHistory(expectedRequestID: requestID)
+            guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled, self.source === source else { return }
 
             withAnimation {
                 manga = newManga
@@ -595,17 +633,21 @@ extension MangaView.ViewModel {
             }
 
             // ensure downloaded chapters are in the correct section if they were added/removed from the main list
-            await fetchDownloadedChapters()
+            await fetchDownloadedChapters(expectedRequestID: requestID)
+            guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled, self.source === source else { return }
 
             // sync history with tracker
             await syncTrackerProgress()
         } catch {
+            guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled, self.source === source else { return }
             withAnimation {
                 self.error = error
             }
         }
 
+        guard dataLoadOwnership.isCurrent(requestID), !Task.isCancelled, self.source === source else { return }
         updateReadButton()
+        initialDataLoaded = true
     }
 
     private func loadDownloadStatus() async {
@@ -627,8 +669,12 @@ extension MangaView.ViewModel {
         bookmarked = inLibrary
     }
 
-    private func loadHistory() async {
-        readingHistory = await CoreDataManager.shared.getReadingHistory(mangaId: manga.identifier)
+    private func loadHistory(expectedRequestID: UUID? = nil) async {
+        let mangaId = manga.identifier
+        let history = await CoreDataManager.shared.getReadingHistory(mangaId: mangaId)
+        guard !Task.isCancelled, manga.identifier == mangaId else { return }
+        if let expectedRequestID, !dataLoadOwnership.isCurrent(expectedRequestID) { return }
+        readingHistory = history
     }
 
     private func checkTrackerSync(item: TrackItem) async {

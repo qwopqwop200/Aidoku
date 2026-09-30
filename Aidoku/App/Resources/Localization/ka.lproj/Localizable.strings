@@ -1180,3 +1180,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "ვრცელი იაპონურ-ინგლისური ლექსიკონი, რომელსაც უვლის Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "იაპონური საკუთარი სახელების ლექსიკონი, რომელსაც უვლის Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "სიხშირული ლექსიკონი, რომელიც ეფუძნება https://jiten.moe-ის მედიაკორპუსს.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "წყაროს %@ ვერსია %d ამ აპში მხარდაჭერილი არ არის. დააინსტალირეთ მხარდაჭერილი ვერსია.";

@@ -1162,3 +1162,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) പരിപാലിക്കുന്ന സമഗ്രമായ ജാപ്പനീസ്–ഇംഗ്ലീഷ് നിഘണ്ടു.";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) പരിപാലിക്കുന്ന ജാപ്പനീസ് വ്യക്തിനാമങ്ങളുടെ നിഘണ്ടു.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe-യിലെ മാധ്യമ പാഠശേഖരത്തെ അടിസ്ഥാനമാക്കിയുള്ള പദ ആവൃത്തി നിഘണ്ടു.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "%@ ഉറവിടത്തിന്റെ %d പതിപ്പ് ഈ ആപ്പ് പിന്തുണയ്ക്കുന്നില്ല. പിന്തുണയ്ക്കുന്ന പതിപ്പ് ഇൻസ്റ്റാൾ ചെയ്യുക.";

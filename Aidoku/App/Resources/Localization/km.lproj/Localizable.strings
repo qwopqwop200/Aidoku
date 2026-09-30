@@ -1182,3 +1182,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "វចនានុក្រមជប៉ុន–អង់គ្លេសដ៏ទូលំទូលាយ ដែលថែទាំដោយក្រុមស្រាវជ្រាវ និងអភិវឌ្ឍន៍វចនានុក្រមអេឡិចត្រូនិក (EDRDG)។";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "វចនានុក្រមនាមអសាធារណៈជប៉ុន ដែលថែទាំដោយក្រុមស្រាវជ្រាវ និងអភិវឌ្ឍន៍វចនានុក្រមអេឡិចត្រូនិក (EDRDG)។";
 "RECOMMENDED_JITEN_DESCRIPTION" = "វចនានុក្រមប្រេកង់ពាក្យ ផ្អែកលើបណ្ដុំអត្ថបទប្រព័ន្ធផ្សព្វផ្សាយនៅ https://jiten.moe។";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "កម្មវិធីនេះមិនគាំទ្រប្រភព %@ កំណែ %d ទេ។ សូមដំឡើងកំណែដែលគាំទ្រ។";

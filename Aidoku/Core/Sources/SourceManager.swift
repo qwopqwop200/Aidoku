@@ -20,6 +20,8 @@ actor SourceManager {
 
     private var sourcesByKey: [String: AidokuRunner.Source] = [:]
     private var disabledSourceKeys: Set<String> = []
+    private var unavailableSourceReasons: [String: String] = [:]
+    private var sourceLoadOwnership = SourceLoadOwnership()
     private var importingSourceKeys: Set<String> = []
     private var clearingSources = false
     private var importWaiters: [CheckedContinuation<Void, Never>] = []
@@ -69,14 +71,26 @@ extension SourceManager {
     }
 
     func reloadSources() async {
-        await installDefaultLocalSourceIfNeeded()
-        sourcesByKey = await getInstalledSources()
-        loadSourceLanguages()
-
-        await publishSourceState()
-        notifySourcesLoaded(keys: sourcesByKey.keys)
-
-        await loadLegacySourceFilters()
+        var ticket = sourceLoadOwnership.beginSnapshot()
+        while true {
+            await waitForImports()
+            guard let refreshed = sourceLoadOwnership.refreshedSnapshot(ticket) else { return }
+            ticket = refreshed
+            await installDefaultLocalSourceIfNeeded()
+            let snapshot = await getInstalledSources()
+            guard sourceLoadOwnership.isCurrent(ticket) else {
+                guard let refreshed = sourceLoadOwnership.refreshedSnapshot(ticket) else { return }
+                ticket = refreshed
+                continue
+            }
+            sourcesByKey = snapshot.sources
+            unavailableSourceReasons = snapshot.unavailableReasons
+            loadSourceLanguages()
+            await publishSourceState()
+            guard sourceLoadOwnership.isCurrent(ticket) else { return }
+            notifySourcesLoaded(keys: sourcesByKey.keys)
+            return
+        }
     }
 
     // One-time migration for new and existing installations. Keep this outside the local.*
@@ -111,38 +125,36 @@ extension SourceManager {
         return await createCustomSource(.local) != nil
     }
 
-    private func getInstalledSources() async -> [String: AidokuRunner.Source] {
+    private struct InstalledSourceSnapshot {
+        var sources: [String: AidokuRunner.Source] = [:]
+        var unavailableReasons: [String: String] = [:]
+    }
+
+    private func getInstalledSources() async -> InstalledSourceSnapshot {
         let objects: [SourceObjectData] = await CoreDataManager.shared.container.performBackgroundTask { context in
             CoreDataManager.shared.getSources(context: context).map { $0.toData() }
         }
-        var sourcesByKey: [String: AidokuRunner.Source] = [:]
+        var snapshot = InstalledSourceSnapshot()
         for dbSource in objects where !disabledSourceKeys.contains(dbSource.id) {
-            if let source = await dbSource.toNewSource() {
-                if sourcesByKey[source.key] != nil {
-                    // remove duplicate coredata sources
-                    CoreDataManager.shared.remove(dbSource.objectID)
+            do {
+                if let source = try await dbSource.loadNewSource() {
+                    if snapshot.sources[source.key] != nil {
+                        CoreDataManager.shared.remove(dbSource.objectID)
+                    } else {
+                        snapshot.sources[source.key] = source
+                    }
                 } else {
-                    sourcesByKey[source.key] = source
+                    snapshot.unavailableReasons[dbSource.id] = NSLocalizedString("SOURCE_IMPORT_FAIL_TEXT")
                 }
-            } else {
-                LogManager.logger.error("Failed to load source \(dbSource.id)")
+            } catch {
+                snapshot.unavailableReasons[dbSource.id] = error.aidokuDescription()
+                LogManager.logger.error("Failed to load source \(dbSource.id): \(error)")
             }
         }
-        return sourcesByKey
+        return snapshot
     }
 
-    private func loadLegacySourceFilters() async {
-        await withTaskGroup(of: Void.self) { group in
-            for source in sourcesByKey.values {
-                if let legacySource = source.legacySource {
-                    group.addTask {
-                        _ = try? await legacySource.getFilters()
-                    }
-                }
-            }
-        }
-        NotificationCenter.default.post(name: .loadedSourceFilters, object: nil)
-    }
+
 }
 
 // MARK: Source List Loading
@@ -341,6 +353,7 @@ extension SourceManager {
                 }
                 info.disabled = disabled
                 info.externalInfo = sourceById[info.sourceId]
+                info.unavailableReason = unavailableSourceReasons[info.sourceId]
                 return info
             }
         if sorted {
@@ -488,6 +501,15 @@ extension SourceManager {
     }
 
     func importSource(from url: URL) async -> AidokuRunner.Source? {
+        do { return try await importSourceValidated(from: url) }
+        catch {
+            LogManager.logger.error("Failed to import source: \(error)")
+            return nil
+        }
+    }
+
+    /// Interactive import callers retain the typed rejection, including unsupported id/version.
+    func importSourceValidated(from url: URL) async throws -> AidokuRunner.Source? {
         // download and unzip source aix
         guard let temporaryDirectory = FileManager.default.createTemporaryDirectory() else { return nil }
         defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
@@ -521,31 +543,16 @@ extension SourceManager {
 
         // try initializing the source
         let payload = temporaryDirectory.appendingPathComponent("Payload")
-        var newSource: AidokuRunner.Source?
-        let legacySource: Source?
-
+        let importedSource: AidokuRunner.Source
         do {
-            newSource = try await AidokuRunner.Source(url: payload)
-            legacySource = nil
+            importedSource = try await NativeSourceRegistration.loadPackage(at: payload)
         } catch {
-            newSource = nil
-            legacySource = try? Source(from: payload)
-
-            if legacySource == nil {
-                LogManager.logger.error("Failed to load source: \(error)")
-                return nil
-            }
+            LogManager.logger.error("Failed to load source: \(error)")
+            throw error
         }
+        let sourceKey = importedSource.key
 
         // ensure source key is valid
-        let sourceKey: String
-        if let newSource {
-            sourceKey = newSource.key
-        } else if let legacySource {
-            sourceKey = legacySource.id
-        } else {
-            return nil
-        }
         guard isValidSourceKey(sourceKey) else {
             LogManager.logger.error("Invalid source key: \(sourceKey)")
             return nil
@@ -553,7 +560,9 @@ extension SourceManager {
 
         // Preserve the installed package until both initialization and persistence succeed.
         guard !clearingSources, importingSourceKeys.insert(sourceKey).inserted else { return nil }
+        sourceLoadOwnership.invalidate(sourceKey: sourceKey)
         defer {
+            sourceLoadOwnership.invalidate(sourceKey: sourceKey)
             importingSourceKeys.remove(sourceKey)
             let waiters = importWaiters
             importWaiters = []
@@ -591,18 +600,11 @@ extension SourceManager {
 
         // update initialized location
         let result: AidokuRunner.Source
-        if newSource != nil {
-            do {
-                result = try await AidokuRunner.Source(key: sourceKey, url: destination)
-            } catch {
-                LogManager.logger.error("Failed to load moved source: \(error)")
-                return nil
-            }
-        } else if let legacySource {
-            legacySource.url = destination
-            result = .legacy(source: legacySource)
-        } else {
-            return nil
+        do {
+            result = try await NativeSourceRegistration.loadPackage(at: destination, expectedKey: sourceKey)
+        } catch {
+            LogManager.logger.error("Failed to load moved source: \(error)")
+            throw error
         }
 
         // remove old source version (on update) and add new version to coredata
@@ -634,17 +636,19 @@ extension SourceManager {
             }
         }
 
-        if let legacySource {
-            Task {
-                _ = try? await legacySource.getFilters()
-            }
+        unavailableSourceReasons.removeValue(forKey: result.key)
+        if disabledSourceKeys.contains(result.key) {
+            sourcesByKey.removeValue(forKey: result.key)
+        } else {
+            sourcesByKey[result.key] = result
         }
-
-        sourcesByKey[result.key] = result
-        sourceLanguageCodes.formUnion(result.languages)
-
+        loadSourceLanguages()
         await publishSourceState()
-        notifySourcesLoaded(keys: [result.key])
+        if disabledSourceKeys.contains(result.key) {
+            notifySourcesUnloaded(keys: [result.key])
+        } else {
+            notifySourcesLoaded(keys: [result.key])
+        }
 
         return result
     }
@@ -689,7 +693,7 @@ extension SourceManager {
 
                 // make sure key is unique
                 var counter = 1
-                while sourcesByKey[key] != nil || disabledSourceKeys.contains(key) {
+                while sourcesByKey[key] != nil || disabledSourceKeys.contains(key) || importingSourceKeys.contains(key) {
                     key = "\(keyPrefix).\(nameEncoded)-\(counter)"
                     counter += 1
                 }
@@ -719,6 +723,17 @@ extension SourceManager {
                 }
         }
         let source = config.toSource()
+        await waitForImports(sourceKey: source.key)
+        importingSourceKeys.insert(source.key)
+        sourceLoadOwnership.invalidate(sourceKey: source.key)
+        let ticket = sourceLoadOwnership.capture(sourceKey: source.key)
+        defer {
+            sourceLoadOwnership.invalidate(sourceKey: source.key)
+            importingSourceKeys.remove(source.key)
+            let waiters = importWaiters
+            importWaiters = []
+            waiters.forEach { $0.resume() }
+        }
 
         // Publish only after persistence succeeds, so failed registration can be retried.
         let saved = await CoreDataManager.shared.container.performBackgroundTask { context in
@@ -737,27 +752,53 @@ extension SourceManager {
 
         if source.key == LocalSourceRunner.sourceKey {
             UserDefaults.standard.set(true, forKey: Self.localDefaultRegistrationKey)
+        }
+        guard sourceLoadOwnership.isCurrent(ticket, sourceKey: source.key) else { return source.key }
+        if source.key == LocalSourceRunner.sourceKey {
             disabledSourceKeys.remove(source.key)
             AppSettings.browse.disabledSources.set(disabledSourceKeys)
         }
+        guard !disabledSourceKeys.contains(source.key) else { return source.key }
         sourcesByKey[source.key] = source
+        loadSourceLanguages()
 
         await publishSourceState()
+        guard sourceLoadOwnership.isCurrent(ticket, sourceKey: source.key), !disabledSourceKeys.contains(source.key) else { return source.key }
         notifySourcesLoaded(keys: [source.key])
 
         return source.key
     }
 
     func updateCustomSource(key: String, config: CustomSourceConfig, updateSourceList: Bool = false) async {
-        let newDbSource = await CoreDataManager.shared.container.performBackgroundTask { context in
+        await waitForImports(sourceKey: key)
+        importingSourceKeys.insert(key)
+        sourceLoadOwnership.invalidate(sourceKey: key)
+        let ticket = sourceLoadOwnership.capture(sourceKey: key)
+        defer {
+            sourceLoadOwnership.invalidate(sourceKey: key)
+            importingSourceKeys.remove(key)
+            let waiters = importWaiters
+            importWaiters = []
+            waiters.forEach { $0.resume() }
+        }
+        let newDbSource: SourceObjectData? = await CoreDataManager.shared.container.performBackgroundTask { context in
             let source = CoreDataManager.shared.getSource(key: key, context: context)
             source?.customSource = config.encode() as NSObject
-            try? context.save()
-            return source?.toData()
+            do {
+                try context.save()
+                return source?.toData()
+            } catch {
+                context.rollback()
+                LogManager.logger.error("Failed to save custom source: \(error)")
+                return nil
+            }
         }
-        if updateSourceList, let newSource = await newDbSource?.toNewSource() {
+        if updateSourceList, let newSource = await newDbSource?.toNewSource(),
+           sourceLoadOwnership.isCurrent(ticket, sourceKey: newSource.key), !disabledSourceKeys.contains(key) {
             sourcesByKey[newSource.key] = newSource
+            loadSourceLanguages()
             await publishSourceState()
+            guard sourceLoadOwnership.isCurrent(ticket, sourceKey: newSource.key), !disabledSourceKeys.contains(key) else { return }
             notifySourcesLoaded(keys: [newSource.key])
         }
     }
@@ -771,7 +812,9 @@ extension SourceManager {
     func clearSources() async {
         await waitForImports()
         clearingSources = true
+        sourceLoadOwnership.invalidateAll()
         defer {
+            sourceLoadOwnership.invalidateAll()
             clearingSources = false
             let waiters = importWaiters
             importWaiters = []
@@ -799,6 +842,9 @@ extension SourceManager {
         for object in objects {
             sourceKeys.append(object.id)
 
+            if let source = sourcesByKey[object.id], source.runner is NativeSourceRunnerLifecycle {
+                await source.clearCache()
+            }
             removeSettings(from: object.id)
             await removeEnhancedTrackerItems(for: object.id)
 
@@ -814,6 +860,7 @@ extension SourceManager {
         AppSettings.browse.disabledSources.reset()
 
         sourcesByKey = [:]
+        unavailableSourceReasons = [:]
         disabledSourceKeys = []
         sourceLanguageCodes = []
 
@@ -824,7 +871,9 @@ extension SourceManager {
     func remove(sourceKey: String, skipUpdateNotification: Bool = false) async {
         await waitForImports(sourceKey: sourceKey)
         importingSourceKeys.insert(sourceKey)
+        sourceLoadOwnership.invalidate(sourceKey: sourceKey)
         defer {
+            sourceLoadOwnership.invalidate(sourceKey: sourceKey)
             importingSourceKeys.remove(sourceKey)
             let waiters = importWaiters
             importWaiters = []
@@ -848,15 +897,23 @@ extension SourceManager {
         }
         guard let data else { return }
 
+        // Invalidate a removed native adapter only after persistence succeeds.
+        if let source = sourcesByKey[sourceKey], source.runner is NativeSourceRunnerLifecycle {
+            await source.clearCache()
+        }
         if let path = data.path {
             let url = FileManager.default.applicationSupportDirectory.appendingPathComponent(path)
             try? FileManager.default.removeItem(at: url)
         }
 
         sourcesByKey.removeValue(forKey: sourceKey)
+        unavailableSourceReasons.removeValue(forKey: sourceKey)
         removeSettings(from: sourceKey)
         unpin(sourceKey: sourceKey, skipUpdateNotification: true)
-        await enable(sourceKey: sourceKey, skipUpdateNotification: true)
+        if disabledSourceKeys.remove(sourceKey) != nil {
+            AppSettings.browse.disabledSources.set(disabledSourceKeys)
+        }
+        loadSourceLanguages()
         await removeEnhancedTrackerItems(for: sourceKey)
 
         if !skipUpdateNotification {
@@ -921,27 +978,52 @@ extension SourceManager {
     func disable(sourceKey: String) async {
         let (inserted, _) = disabledSourceKeys.insert(sourceKey)
         if inserted {
+            sourceLoadOwnership.invalidate(sourceKey: sourceKey)
             AppSettings.browse.disabledSources.set(disabledSourceKeys)
             sourcesByKey.removeValue(forKey: sourceKey)
+            loadSourceLanguages()
             await publishSourceState()
             notifySourcesUnloaded(keys: [sourceKey])
         }
     }
 
     func enable(sourceKey: String, skipUpdateNotification: Bool = false) async {
+        await waitForImports(sourceKey: sourceKey)
         let removed = disabledSourceKeys.remove(sourceKey) != nil
         if removed {
+            sourceLoadOwnership.invalidate(sourceKey: sourceKey)
+            let ticket = sourceLoadOwnership.capture(sourceKey: sourceKey)
             AppSettings.browse.disabledSources.set(disabledSourceKeys)
             let object: SourceObjectData? = await CoreDataManager.shared.container.performBackgroundTask { context in
                 CoreDataManager.shared.getSource(key: sourceKey, context: context)?.toData()
             }
-            guard let object, let source = await object.toNewSource() else {
-                LogManager.logger.error("Failed to load source \(sourceKey)")
-                return
+            do {
+                guard let object, let source = try await object.loadNewSource() else {
+                    guard sourceLoadOwnership.isCurrent(ticket, sourceKey: sourceKey), !disabledSourceKeys.contains(sourceKey) else { return }
+                    unavailableSourceReasons[sourceKey] = NSLocalizedString("SOURCE_IMPORT_FAIL_TEXT")
+                    await publishSourceState()
+                    guard sourceLoadOwnership.isCurrent(ticket, sourceKey: sourceKey), !disabledSourceKeys.contains(sourceKey) else { return }
+                    notifySourcesUnloaded(keys: [sourceKey], skipUpdateNotification: skipUpdateNotification)
+                    return
+                }
+                guard object.id == sourceKey,
+                      sourceLoadOwnership.isCurrent(ticket, sourceKey: source.key), !disabledSourceKeys.contains(sourceKey) else { return }
+                sourcesByKey[source.key] = source
+                unavailableSourceReasons.removeValue(forKey: sourceKey)
+                sourceLoadOwnership.invalidate(sourceKey: sourceKey)
+                let committedTicket = sourceLoadOwnership.capture(sourceKey: sourceKey)
+                loadSourceLanguages()
+                await publishSourceState()
+                guard sourceLoadOwnership.isCurrent(committedTicket, sourceKey: sourceKey), !disabledSourceKeys.contains(sourceKey) else { return }
+                notifySourcesLoaded(keys: [source.key], skipUpdateNotification: skipUpdateNotification)
+            } catch {
+                guard sourceLoadOwnership.isCurrent(ticket, sourceKey: sourceKey), !disabledSourceKeys.contains(sourceKey) else { return }
+                unavailableSourceReasons[sourceKey] = error.aidokuDescription()
+                LogManager.logger.error("Failed to load source \(sourceKey): \(error)")
+                await publishSourceState()
+                guard sourceLoadOwnership.isCurrent(ticket, sourceKey: sourceKey), !disabledSourceKeys.contains(sourceKey) else { return }
+                notifySourcesUnloaded(keys: [sourceKey], skipUpdateNotification: skipUpdateNotification)
             }
-            sourcesByKey[source.key] = source
-            await publishSourceState()
-            notifySourcesLoaded(keys: [source.key], skipUpdateNotification: skipUpdateNotification)
         }
     }
 

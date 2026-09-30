@@ -1176,3 +1176,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Ένα ολοκληρωμένο ιαπωνικό-αγγλικό λεξικό που συντηρείται από την Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Ένα λεξικό ιαπωνικών κύριων ονομάτων που συντηρείται από την Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Ένα λεξικό συχνοτήτων βασισμένο στο σώμα κειμένων πολυμέσων του https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Η πηγή %@ έκδοση %d δεν υποστηρίζεται από αυτήν την εφαρμογή. Εγκαταστήστε μια υποστηριζόμενη έκδοση.";

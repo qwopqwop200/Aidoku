@@ -1083,3 +1083,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "전자 사전 연구 개발 그룹(EDRDG)이 관리하는 종합 일본어·영어 사전입니다.";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "전자 사전 연구 개발 그룹(EDRDG)이 관리하는 일본어 고유명사 사전입니다.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe의 미디어 말뭉치를 기반으로 한 빈도 사전입니다.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "%@ 소스의 %d 버전은 이 앱에서 지원하지 않습니다. 지원되는 버전을 설치해 주세요.";

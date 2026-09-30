@@ -1159,3 +1159,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) பராமரிக்கும் விரிவான ஜப்பானிய–ஆங்கில அகராதி.";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) பராமரிக்கும் ஜப்பானிய சிறப்புப் பெயர் அகராதி.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe தளத்தின் ஊடக உரைத்தொகுப்பை அடிப்படையாகக் கொண்ட சொல் நிகழ்வெண் அகராதி.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "%@ மூலத்தின் %d பதிப்பை இந்தச் செயலி ஆதரிக்கவில்லை. ஆதரிக்கப்படும் பதிப்பை நிறுவவும்.";

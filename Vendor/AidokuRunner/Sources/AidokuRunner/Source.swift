@@ -21,8 +21,8 @@ public final class Source: Sendable {
     public let imageUrl: URL?
 
     public let config: SourceInfo.Configuration?
-    private let staticListings: [Listing]
-    private let staticFilters: [Filter]
+    public let staticListings: [Listing]
+    public let staticFilters: [Filter]
     public let staticSettings: [Setting]
 
     public let runner: Runner
@@ -103,7 +103,7 @@ public final class Source: Sendable {
 
     public init(
         url: URL,
-        interpreterConfig: InterpreterConfiguration = .init()
+        nativeRunnerRegistry: NativeSourceRunnerRegistry = .shared
     ) async throws {
         guard url.isFileURL else { throw InitError.invalidUrl }
         var isDirectory = ObjCBool(false)
@@ -113,7 +113,7 @@ public final class Source: Sendable {
         // load source info from json
         let jsonUrl = url.appending("source.json")
         guard FileManager.default.fileExists(atPath: jsonUrl.filePath()) else {
-            throw InitError.missingExecutable
+            throw InitError.missingInfo
         }
         let decoder = JSONDecoder()
         let sourceInfo = try decoder.decode(SourceInfo.self, from: Data(contentsOf: jsonUrl))
@@ -154,24 +154,26 @@ public final class Source: Sendable {
             staticSettings = []
         }
 
-        // load source wasm executable
-        let executableUrl = url.appending("main.wasm")
-        guard FileManager.default.fileExists(atPath: executableUrl.filePath()) else {
-            throw InitError.missingExecutable
+        // Installed manifests select an explicitly supported native implementation.
+        // Source executable bytes are never read or executed.
+        guard let nativeRunner = try await nativeRunnerRegistry.makeRunner(
+            context: .init(directoryURL: url, manifest: sourceInfo)
+        ) else {
+            throw InitError.unsupportedNativeSource(sourceKey: key, version: version)
         }
-        let data = try Data(contentsOf: executableUrl)
-        let bytes = [UInt8](data)
-        self.runner = try await Interpreter(
-            sourceKey: key,
-            bytes: bytes,
-            config: interpreterConfig
-        )
+        self.runner = nativeRunner
 
         if runner.features.providesBaseUrl {
-            if let baseUrl = try? await runner.getBaseUrl(), !urls.contains(baseUrl) {
-                urls.insert(baseUrl, at: 0)
+            do {
+                if let baseUrl = try await runner.getBaseUrl(), !urls.contains(baseUrl) {
+                    urls.insert(baseUrl, at: 0)
+                }
+            } catch {
+                if error is CancellationError { throw error }
+                try Task.checkCancellation()
             }
         }
+        try Task.checkCancellation()
         self.urls = urls
 
         let settings = Self.getExtraSettings(config: config, languages: languages, urls: urls) + staticSettings
@@ -181,12 +183,17 @@ public final class Source: Sendable {
 
     @discardableResult
     public func restart() async throws -> Bool {
-        guard let runner = runner as? Interpreter else { return false }
-        try await runner.restart()
-        return true
+        if let nativeRunner = runner as? NativeSourceRunnerLifecycle {
+            try await nativeRunner.restart()
+            return true
+        }
+        return false
     }
 
     public func clearCache() async {
+        if let nativeRunner = runner as? NativeSourceRunnerLifecycle {
+            await nativeRunner.clearCache()
+        }
         await WKWebsiteDataStore.forSource(key: key).clearRecords()
     }
 
@@ -246,11 +253,21 @@ public final class Source: Sendable {
         return extraSettings
     }
 
-    enum InitError: Error {
+    public enum InitError: Error, Equatable, LocalizedError {
         case invalidUrl
         case missingInfo
-        case missingExecutable
         case invalidBaseUrl
+        case unsupportedNativeSource(sourceKey: String, version: Int)
+
+        public var errorDescription: String? {
+            switch self {
+                case .invalidUrl: "Invalid source directory."
+                case .missingInfo: "Source manifest is missing."
+                case .invalidBaseUrl: "Invalid source base URL."
+                case let .unsupportedNativeSource(sourceKey, version):
+                    "No native implementation supports source \(sourceKey), version \(version)."
+            }
+        }
     }
 
     // swiftlint:disable:next cyclomatic_complexity

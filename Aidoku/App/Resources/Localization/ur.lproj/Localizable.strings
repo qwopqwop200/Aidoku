@@ -1176,3 +1176,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) کے زیر انتظام ایک جامع جاپانی–انگریزی لغت۔";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) کے زیر انتظام جاپانی اسمائے خاص کی لغت۔";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe کے میڈیا متون کے ذخیرے پر مبنی الفاظ کی تعدد والی لغت۔";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "اس ایپ میں ماخذ %@ کے ورژن %d کی حمایت نہیں ہے۔ حمایت یافتہ ورژن نصب کریں۔";

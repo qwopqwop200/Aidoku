@@ -1180,3 +1180,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) द्वारा अनुरक्षित एक व्यापक जापानी–अंग्रेज़ी शब्दकोश।";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) द्वारा अनुरक्षित जापानी व्यक्तिवाचक संज्ञाओं का शब्दकोश।";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe के मीडिया पाठ-संग्रह पर आधारित शब्द आवृत्ति शब्दकोश।";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "इस ऐप में स्रोत %@ का संस्करण %d समर्थित नहीं है। समर्थित संस्करण इंस्टॉल करें।";

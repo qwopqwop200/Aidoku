@@ -25,6 +25,7 @@ struct AddSourceView: View {
     @State private var showKavitaSetup = false
     @State private var showSuwayomiSetup = false
     @State private var showImportFailAlert = false
+    @State private var importFailureMessage = NSLocalizedString("SOURCE_IMPORT_FAIL_TEXT")
 
     @State private var searchFocused: Bool? = false
 
@@ -154,11 +155,17 @@ struct AddSourceView: View {
                             return
                         }
                         Task {
-                            let result = await SourceManager.shared.importSource(from: url)
-                            if result == nil {
+                            do {
+                                let result = try await SourceManager.shared.importSourceValidated(from: url)
+                                if result == nil {
+                                    importFailureMessage = NSLocalizedString("SOURCE_IMPORT_FAIL_TEXT")
+                                    showImportFailAlert = true
+                                } else {
+                                    dismiss()
+                                }
+                            } catch {
+                                importFailureMessage = error.aidokuDescription()
                                 showImportFailAlert = true
-                            } else {
-                                dismiss()
                             }
                         }
                     }
@@ -168,7 +175,7 @@ struct AddSourceView: View {
             .alert(NSLocalizedString("IMPORT_FAIL"), isPresented: $showImportFailAlert) {
                 Button(NSLocalizedString("OK"), role: .cancel) {}
             } message: {
-                Text(NSLocalizedString("SOURCE_IMPORT_FAIL_TEXT"))
+                Text(importFailureMessage)
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

@@ -555,11 +555,7 @@ extension AppDelegate {
                             animated: true
                         )
                     } else { // /sourceId
-                        let vc: UIViewController = if let legacySource = source.legacySource {
-                            SourceViewController(source: legacySource)
-                        } else {
-                            NewSourceViewController(source: source)
-                        }
+                        let vc = NewSourceViewController(source: source)
                         navigationController?.pushViewController(vc, animated: true)
                     }
                 }
@@ -580,12 +576,13 @@ extension AppDelegate {
             }
         } else if url.pathExtension == "aix" {
             Task {
-                let result = await SourceManager.shared.importSource(from: url)
-                if result == nil {
-                    presentAlert(
-                        title: NSLocalizedString("IMPORT_FAIL"),
-                        message: NSLocalizedString("SOURCE_IMPORT_FAIL_TEXT")
-                    )
+                do {
+                    let result = try await SourceManager.shared.importSourceValidated(from: url)
+                    if result == nil {
+                        presentAlert(title: NSLocalizedString("IMPORT_FAIL"), message: NSLocalizedString("SOURCE_IMPORT_FAIL_TEXT"))
+                    }
+                } catch {
+                    presentAlert(title: NSLocalizedString("IMPORT_FAIL"), message: error.aidokuDescription())
                 }
             }
         } else if url.pathExtension == "json" || url.pathExtension == "aib" {

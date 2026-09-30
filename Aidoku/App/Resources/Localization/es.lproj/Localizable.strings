@@ -1150,3 +1150,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Un completo diccionario japonés-inglés mantenido por Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Un diccionario de nombres propios japoneses mantenido por Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Un diccionario de frecuencias basado en el corpus multimedia de https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Esta aplicación no admite la fuente %@ versión %d. Instala una versión compatible.";

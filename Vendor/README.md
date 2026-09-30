@@ -1,25 +1,26 @@
 # Local source dependencies
 
-The app uses the local `AidokuRunner` package, which uses the local `Wasm3`
-package, and the local `HoshiDicts` package. These source copies came from the dependencies resolved for the
-2026-09-19 audit. They are required by the app's Xcode package graph, rather than
-unused reference copies.
+The app uses the local native-only `AidokuRunner` model/protocol package,
+`HoshiDicts`, and `Nuke`. Installed source metadata selects an explicitly
+registered Swift implementation by exact source ID and version. The package no
+longer depends on Wasm3 and does not execute `main.wasm`; unsupported sources
+are rejected. See `Docs/native-source-auth.md` for the recovered source inventory
+and native ports.
 
 - AidokuRunner upstream: https://github.com/Aidoku/AidokuRunner
-- Wasm3 Swift wrapper upstream: https://github.com/Skittyblock/Wasm3
-- Wasm3 interpreter upstream: https://github.com/wasm3/wasm3
 - HoshiDicts upstream: https://github.com/Manhhao/hoshidicts
+- Native source ports: https://github.com/Aidoku-Community/sources
 
-Preserve the upstream notices. AidokuRunner's README contains its own copyright
-and distribution terms; it is not relicensed by this directory. Wasm3's included
-license remains with that package.
-HoshiDicts and its included libraries retain their respective license notices.
+Preserve the upstream notices. AidokuRunner's README contains its copyright and
+distribution terms; it is not relicensed by this directory. The removed Wasm3
+runtime's license is preserved in `Docs/licenses/Wasm3-LICENSE`. Native source
+port notices are in `Docs/NativeSource-MIT.txt`. HoshiDicts and its included
+libraries retain their respective license notices.
 
-Local corrections cover callback/runtime ownership, cancellation and WebView
-completion, serialized model decoding, raw memory bounds, C/Swift structure
-layout, malformed modules and allocation failure recovery, and WASI memory/file
-boundaries. Keep C headers and implementation layout synchronized, including
-build configurations used by the Swift wrapper.
+The native package retains metadata decoding, bounded Postcard serialization,
+and task-owned partial-result publication. Run `swift test --package-path
+Vendor/AidokuRunner --jobs 2` after changing it, plus the affected integrated iOS
+source/authentication suites. The removed runtime's test suites no longer apply.
 
 HoshiDicts includes the library's source and literal-include header closure,
 including architecture-specific libdeflate code. Its deployment target matches
@@ -29,31 +30,6 @@ Unicode/JSON handling, query error propagation, and thread-safe codec dispatch.
 Its generated Unicode table is retained as data. The CLI and unrelated examples
 are not part of this package. Zstandard remains a resolved package dependency.
 
-
-AidokuRunner network bridges opt in to forwarding caller cancellation while
-joining the underlying operation before releasing WASM runtime ownership.
-Network rate waits exit on cancellation instead of retrying a cancelled sleep;
-interpreter entry rejects already-cancelled work. Configured rate windows and
-per-runtime serialization are unchanged. `NetworkCancellationTests` covers
-cooperative and noncooperative completion plus cancelled permit waits.
-
-JavaScript and WebView async imports also forward cancellation while joining
-the actual operation; WebView evaluation avoids a detached inner task boundary.
-Partial home/manga results carry the caller's subscription token through the
-interpreter, so superseded requests cannot publish into or remove a newer sink.
-`JavaScriptCancellationTests` and `PartialResultOwnershipTests` exercise these
-lifetimes, including never-resolving JavaScript promises.
-
-Run both packages' test suites after changing either dependency:
-
-```sh
-swift test --package-path Vendor/Wasm3
-swift test --package-path Vendor/AidokuRunner
-```
-
-Run the app's integrated iOS tests as well: package tests do not exercise reader
-rendering, app settings, or the app's complete build flags. Compare and carry
-forward these changes deliberately when updating the upstream sources.
 
 Hoshi native regression sources and runners live in `Scripts/tests/hoshi-*`,
 `Scripts/tests/run-hoshi-*`, and `Vendor/HoshiDicts/Tests/ImportRegression`.

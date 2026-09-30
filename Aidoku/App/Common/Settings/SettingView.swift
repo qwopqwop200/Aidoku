@@ -48,7 +48,8 @@ struct SettingView: View {
     @State private var password = ""
     @State private var skippedFirst = false
     @StateObject private var oauthAttempt = SettingsLoginAttempt()
-    @State private var loginLoading = false
+    @StateObject private var basicAttempt = SettingsLoginAttempt()
+    @StateObject private var webAttempt = SettingsLoginAttempt()
     @State private var loginReload = false
     @State private var session: ASWebAuthenticationSession?
     @State private var pageIsActive = false
@@ -806,7 +807,7 @@ extension SettingView {
                     showLoginWebConfirm = true
             }
         } label: {
-            if loginLoading || oauthAttempt.isLoading {
+            if basicAttempt.isLoading || oauthAttempt.isLoading {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .frame(width: 20, height: 20)
@@ -815,7 +816,7 @@ extension SettingView {
                     .lineLimit(1)
             }
         }
-        .disabled(disabled || loginLoading || oauthAttempt.isLoading)
+        .disabled(disabled || basicAttempt.isLoading || oauthAttempt.isLoading)
         .alert(setting.title, isPresented: $showLoginAlert) {
             // todo: if useEmail is true, we could verify that the email entered is valid before enabling the log in button
             let useEmail = value.useEmail ?? false
@@ -854,7 +855,11 @@ extension SettingView {
             Button(NSLocalizedString("CANCEL"), role: .cancel) {}
             Button(NSLocalizedString("OK")) {
                 oauthAttempt.cancel()
+                basicAttempt.cancel()
+                webAttempt.cancel()
                 session?.cancel()
+                session = nil
+                SettingsStore.shared.remove(key: key + ".codeVerifier")
                 SettingsStore.shared.remove(key: key + Self.usernameKeySuffix)
                 SettingsStore.shared.remove(key: key + Self.passwordKeySuffix)
                 SettingsStore.shared.remove(key: key + Self.cookieKeysKeySuffix)
@@ -888,8 +893,11 @@ extension SettingView {
                 .interactiveDismissDisabled()
         }
         .onDisappear {
+            if oauthAttempt.isLoading { SettingsStore.shared.remove(key: key + ".codeVerifier") }
             oauthAttempt.cancel()
+            basicAttempt.cancel()
             session?.cancel()
+            session = nil
         }
         .onAppear {
             username = SettingsStore.shared.get(key: key + Self.usernameKeySuffix)
@@ -951,24 +959,18 @@ extension SettingView {
             SettingsStore.shared.set(key: key, value: "logged_in") // set key to indicate logged in
         }
         if let source, source.features.handlesBasicLogin {
-            loginLoading = true
-            Task {
-                do {
-                    let success = try await source.handleBasicLogin(key: setting.key, username: username, password: password)
-                    if success {
-                        commit()
-                    } else {
-                        showLoginFailAlert = true
-                    }
-                } catch {
-                    LogManager.logger.error("Error handling basic login for \(source.key): \(error)")
-                    showLoginFailAlert = true
-                }
-                loginLoading = false
-
+            let attempt = basicAttempt.begin()
+            basicAttempt.authenticate(attempt: attempt, operation: {
+                try await source.handleBasicLogin(key: setting.key, username: username, password: password)
+            }, commit: {
+                commit()
+                self.username = username
+                self.password = password
+            }, failed: {
+                showLoginFailAlert = true
                 self.username = SettingsStore.shared.get(key: key + Self.usernameKeySuffix)
                 self.password = SettingsStore.shared.get(key: key + Self.passwordKeySuffix)
-            }
+            })
         } else {
             commit()
         }
@@ -1006,6 +1008,7 @@ extension SettingView {
             }
             .navigationTitle(setting.title)
             .navigationBarTitleDisplayMode(.inline)
+            .onDisappear { webAttempt.cancel() }
             .onChange(of: loginCookies) { newValue in
                 let key = key(setting.key)
                 let keys = Array(newValue.keys)
@@ -1022,17 +1025,13 @@ extension SettingView {
                 }
 
                 if let source, source.features.handlesWebLogin {
-                    Task {
-                        do {
-                            let success = try await source.handleWebLogin(key: setting.key, cookies: newValue)
-                            if success {
-                                showLoginWebView = false
-                                commit()
-                            }
-                        } catch {
-                            LogManager.logger.error("Error handling web login for \(source.key): \(error)")
-                        }
-                    }
+                    let attempt = webAttempt.begin()
+                    webAttempt.authenticate(attempt: attempt, operation: {
+                        try await source.handleWebLogin(key: setting.key, cookies: newValue)
+                    }, commit: {
+                        showLoginWebView = false
+                        commit()
+                    }, failed: {})
                 } else {
                     commit()
                 }
@@ -1080,8 +1079,9 @@ extension SettingView {
             url = nil
         }
 
-        guard var url else {
-            LogManager.logger.error("Invalid login URL: \(value.url ?? "missing")")
+        guard var url, NativeWebLoginPolicy.isHTTPURL(url) else {
+            showLoginFailAlert = true
+            LogManager.logger.error("Invalid login URL")
             return
         }
 
@@ -1090,10 +1090,15 @@ extension SettingView {
         var codeVerifier: String?
         var clientId: String?
         var redirectUri: String?
+        var expectedState: String?
+        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            redirectUri = components.queryItems?.first(where: { $0.name == "redirect_uri" })?.value
+            expectedState = components.queryItems?.first(where: { $0.name == "state" })?.value
+        }
 
         if value.pkce ?? false {
             guard var urlComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-                LogManager.logger.error("Malformed URL: \(url)")
+                LogManager.logger.error("Malformed login URL")
                 return
             }
             codeVerifier = generateCodeVerifier()
@@ -1102,13 +1107,22 @@ extension SettingView {
             var queryItems = urlComponents.queryItems ?? []
             clientId = queryItems.first(where: { $0.name == "client_id" })?.value
             redirectUri = queryItems.first(where: { $0.name == "redirect_uri" })?.value
+            // Replace PKCE parameters rather than allowing duplicate, contradictory values.
+            queryItems.removeAll { ["code_challenge", "code_challenge_method", "response_type"].contains($0.name) }
+            if expectedState == nil || expectedState?.isEmpty == true {
+                expectedState = UUID().uuidString
+                queryItems.removeAll { $0.name == "state" }
+                queryItems.append(URLQueryItem(name: "state", value: expectedState))
+            }
             queryItems.append(URLQueryItem(name: "code_challenge", value: codeChallenge))
             queryItems.append(URLQueryItem(name: "code_challenge_method", value: "S256"))
             queryItems.append(URLQueryItem(name: "response_type", value: "code"))
             urlComponents.queryItems = queryItems
 
             guard let pkceUrl = urlComponents.url else {
-                LogManager.logger.error("Unable to create PKCE URL: \(urlComponents)")
+                SettingsStore.shared.remove(key: key + ".codeVerifier")
+                showLoginFailAlert = true
+                LogManager.logger.error("Unable to create PKCE URL")
                 return
             }
             url = pkceUrl
@@ -1122,26 +1136,37 @@ extension SettingView {
         ) { callback, error in
             Task { @MainActor in
                 guard oauthAttempt.isCurrent(attempt) else { return }
-                guard let callback else {
+                session = nil
+                guard error == nil, let callback,
+                      NativeWebLoginPolicy.validatesCallback(
+                        callback, scheme: value.callbackScheme ?? "aidoku", redirectURI: redirectUri, expectedState: expectedState
+                      ) else {
+                    SettingsStore.shared.remove(key: key + ".codeVerifier")
                     oauthAttempt.finish(attempt)
-                    LogManager.logger.error("No callback URL received")
+                    if (error as? ASWebAuthenticationSessionError)?.code != .canceledLogin {
+                        showLoginFailAlert = true
+                    }
                     return
                 }
 
                 if value.pkce ?? false, let tokenUrlString = value.tokenUrl {
                     guard
                         let codeVerifier,
-                        let urlComponents = URLComponents(url: callback, resolvingAgainstBaseURL: false),
-                        let code = urlComponents.queryItems?.first(where: { $0.name == "code" })?.value
+                        let callbackItems = NativeWebLoginPolicy.callbackParameters(callback),
+                        let code = callbackItems.first(where: { $0.name == "code" })?.value, !code.isEmpty
                     else {
+                        SettingsStore.shared.remove(key: key + ".codeVerifier")
                         oauthAttempt.finish(attempt)
+                        showLoginFailAlert = true
                         LogManager.logger.error("Missing code verifier or code")
                         return
                     }
 
-                    guard let tokenUrl = URL(string: tokenUrlString) else {
+                    guard let tokenUrl = URL(string: tokenUrlString), NativeWebLoginPolicy.isHTTPURL(tokenUrl) else {
+                        SettingsStore.shared.remove(key: key + ".codeVerifier")
                         oauthAttempt.finish(attempt)
-                        LogManager.logger.error("Invalid token URL: \(tokenUrlString)")
+                        showLoginFailAlert = true
+                        LogManager.logger.error("Invalid token URL")
                         return
                     }
 
@@ -1163,15 +1188,13 @@ extension SettingView {
 
                     request.httpBody = parameters.percentEncoded()
 
+                    SettingsStore.shared.remove(key: key + ".codeVerifier")
                     oauthAttempt.exchange(request, attempt: attempt, commit: { result in
                         SettingsStore.shared.set(key: key, value: result)
                     }, failed: {
                         showLoginFailAlert = true
                     })
                 } else {
-                    if let error {
-                        LogManager.logger.error("Error during login: \(error.localizedDescription)")
-                    }
                     SettingsStore.shared.set(key: key, value: callback.absoluteString)
                     oauthAttempt.finish(attempt)
 
@@ -1194,7 +1217,12 @@ extension SettingView {
         guard let session else { oauthAttempt.finish(attempt); return }
 
         session.presentationContextProvider = Self.loginShimController
-        if !session.start() { oauthAttempt.finish(attempt) }
+        if !session.start() {
+            self.session = nil
+            SettingsStore.shared.remove(key: key + ".codeVerifier")
+            oauthAttempt.finish(attempt)
+            showLoginFailAlert = true
+        }
     }
 }
 
@@ -1581,6 +1609,29 @@ final class SettingsLoginAttempt: ObservableObject {
         guard isCurrent(attempt) else { return }
         task = nil
         isLoading = false
+    }
+
+    func authenticate(
+        attempt: UUID, operation: @escaping @MainActor () async throws -> Bool,
+        commit: @escaping @MainActor () -> Void,
+        failed: @escaping @MainActor () -> Void
+    ) {
+        guard isCurrent(attempt) else { return }
+        task?.cancel()
+        task = Task { [weak self] in
+            do {
+                let success = try await operation()
+                guard !Task.isCancelled, let self, self.isCurrent(attempt) else { return }
+                self.task = nil
+                if success { commit() } else { failed() }
+                self.finish(attempt)
+            } catch {
+                guard !Task.isCancelled, let self, self.isCurrent(attempt) else { return }
+                self.task = nil
+                failed()
+                self.finish(attempt)
+            }
+        }
     }
 
     func exchange(

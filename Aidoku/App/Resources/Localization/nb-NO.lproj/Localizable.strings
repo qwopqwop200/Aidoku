@@ -1181,3 +1181,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "En omfattende japansk-engelsk ordbok vedlikeholdt av Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "En ordbok over japanske egennavn vedlikeholdt av Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "En frekvensordbok basert på mediekorpuset på https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Kilden %@ versjon %d støttes ikke av denne appen. Installer en støttet versjon.";

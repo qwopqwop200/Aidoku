@@ -183,9 +183,9 @@ class SourceTableViewCell: UITableViewCell {
         titleLabel.text = info.name
         versionLabel.text = "v" + String(info.version)
         badgeView.isHidden = info.contentRating != .primarilyNsfw
-        subtitleLabel.text = SourceLanguage.displayName(for: SourceLanguage.primaryCode(for: info.languages))
+        subtitleLabel.text = info.unavailableReason ?? SourceLanguage.displayName(for: SourceLanguage.primaryCode(for: info.languages))
 
-        warningButton.isHidden = !info.external || info.externalInfo != nil
+        warningButton.isHidden = info.unavailableReason == nil && (!info.external || info.externalInfo != nil)
         getButton.isHidden = section != .updates
         buttonTitle = NSLocalizedString("BUTTON_UPDATE")
 

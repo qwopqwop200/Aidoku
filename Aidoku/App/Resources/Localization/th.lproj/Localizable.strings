@@ -1183,3 +1183,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "พจนานุกรมญี่ปุ่น–อังกฤษฉบับครอบคลุม ดูแลโดยกลุ่มวิจัยและพัฒนาพจนานุกรมอิเล็กทรอนิกส์ (EDRDG)";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "พจนานุกรมชื่อเฉพาะภาษาญี่ปุ่น ดูแลโดยกลุ่มวิจัยและพัฒนาพจนานุกรมอิเล็กทรอนิกส์ (EDRDG)";
 "RECOMMENDED_JITEN_DESCRIPTION" = "พจนานุกรมความถี่คำที่อ้างอิงคลังข้อความจากสื่อของ https://jiten.moe";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "แอปนี้ไม่รองรับแหล่งข้อมูล %@ เวอร์ชัน %d โปรดติดตั้งเวอร์ชันที่รองรับ";

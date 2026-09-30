@@ -335,11 +335,7 @@ extension BrowseViewController {
             !item.info.disabled,
             let source = SourceManager.shared.store.source(for: item.info.sourceId)
         {
-            let vc: UIViewController = if let legacySource = source.legacySource {
-                SourceViewController(source: legacySource)
-            } else {
-                NewSourceViewController(source: source)
-            }
+            let vc = NewSourceViewController(source: source)
             navigationController?.pushViewController(vc, animated: true)
         }
         tableView.deselectRow(at: indexPath, animated: true)
@@ -714,16 +710,22 @@ extension BrowseViewController: @MainActor SourceCellDelegate {
         let sourceId = cell.info?.sourceId
         cell.getButton.buttonState = .downloading
         Task {
-            let installedSource = await SourceManager.shared.importSource(from: url)
-            guard cell.info?.sourceId == sourceId else { return }
-            cell.getButton.buttonState = installedSource == nil ? .fail : .get
+            do {
+                let installedSource = try await SourceManager.shared.importSourceValidated(from: url)
+                guard cell.info?.sourceId == sourceId else { return }
+                cell.getButton.buttonState = installedSource == nil ? .fail : .get
+            } catch {
+                guard cell.info?.sourceId == sourceId else { return }
+                cell.getButton.buttonState = .fail
+                presentAlert(title: NSLocalizedString("IMPORT_FAIL"), message: error.aidokuDescription())
+            }
         }
     }
 
     func warningButtonPressed(cell: SourceTableViewCell) {
         let alert = UIAlertController(
-            title: NSLocalizedString("MISSING_SOURCE_LIST"),
-            message: NSLocalizedString("MISSING_SOURCE_LIST_INFO"),
+            title: NSLocalizedString(cell.info?.unavailableReason == nil ? "MISSING_SOURCE_LIST" : "UNAVAILABLE"),
+            message: cell.info?.unavailableReason ?? NSLocalizedString("MISSING_SOURCE_LIST_INFO"),
             preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: NSLocalizedString("OK"), style: .cancel) { _ in })

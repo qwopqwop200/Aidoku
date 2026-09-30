@@ -1182,3 +1182,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) tarafından sürdürülen kapsamlı bir Japonca-İngilizce sözlük.";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) tarafından sürdürülen Japonca özel adlar sözlüğü.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe medya derlemine dayalı bir sıklık sözlüğü.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "%@ kaynağının %d sürümü bu uygulama tarafından desteklenmiyor. Desteklenen bir sürüm yükleyin.";

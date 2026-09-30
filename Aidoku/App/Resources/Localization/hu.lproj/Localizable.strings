@@ -1180,3 +1180,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Átfogó japán–angol szótár, amelyet az Electronic Dictionary Research and Development Group (EDRDG) tart karban.";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Japán tulajdonnevek szótára, amelyet az Electronic Dictionary Research and Development Group (EDRDG) tart karban.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "A https://jiten.moe médiakorpuszán alapuló gyakorisági szótár.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "A(z) %@ forrás %d verzióját ez az alkalmazás nem támogatja. Telepítsen támogatott verziót.";

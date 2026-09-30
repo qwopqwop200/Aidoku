@@ -1180,3 +1180,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Kamus Jepang–Inggris lengkap yang dikelola oleh Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Kamus nama diri Jepang yang dikelola oleh Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Kamus frekuensi berdasarkan korpus media di https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Sumber %@ versi %d tidak didukung oleh aplikasi ini. Pasang versi yang didukung.";

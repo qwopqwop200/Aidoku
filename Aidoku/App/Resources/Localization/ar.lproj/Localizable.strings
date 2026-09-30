@@ -1182,3 +1182,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "قاموس ياباني–إنجليزي شامل تتولى صيانته مجموعة البحث والتطوير في القواميس الإلكترونية (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "قاموس لأسماء الأعلام اليابانية تتولى صيانته مجموعة البحث والتطوير في القواميس الإلكترونية (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "قاموس لتكرار الكلمات يستند إلى مجموعة النصوص الإعلامية في https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "المصدر %@ بالإصدار %d غير مدعوم في هذا التطبيق. ثبّت إصدارًا مدعومًا.";

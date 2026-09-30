@@ -9,14 +9,16 @@ import Combine
 import Foundation
 
 public class PostcardDecoder: TopLevelDecoder {
-    public init() {
-        // nothing to initialize
+    private let maximumSequenceElements: Int
+
+    /// Bounds cumulative declared sequence entries before standard Codable arrays allocate.
+    public init(maximumSequenceElements: Int = 1_000_000) {
+        self.maximumSequenceElements = max(0, maximumSequenceElements)
     }
 
     public func decode<T>(_: T.Type, from data: Data) throws -> T where T: Decodable {
-        let decodingContainer: DecodingContainer = .init(data: data, currentIndex: data.startIndex)
-        let decoding = PostcardDecoding(decodingContainer: decodingContainer)
-        return try T(from: decoding)
+        let decodingContainer = DecodingContainer(data: data, maximumSequenceElements: maximumSequenceElements)
+        return try decodingContainer.decode(T.self)
     }
 }
 
@@ -24,9 +26,21 @@ private class DecodingContainer {
     var data: Data
     var currentIndex: Data.Index
 
-    init(data: Data, currentIndex: Data.Index) {
+    private var remainingSequenceElements: Int
+
+    init(data: Data, maximumSequenceElements: Int) {
         self.data = data
-        self.currentIndex = currentIndex
+        self.currentIndex = data.startIndex
+        self.remainingSequenceElements = maximumSequenceElements
+    }
+
+    func decodeSequenceLength(elementsPerEntry: Int = 1) throws -> Int {
+        let length = try decode(UInt64.self)
+        guard let length = Int(exactly: length), length <= remainingSequenceElements / elementsPerEntry else {
+            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Sequence element budget exceeded"))
+        }
+        remainingSequenceElements -= length * elementsPerEntry
+        return length
     }
 
     func decodeNil() throws -> Bool {
@@ -38,6 +52,9 @@ private class DecodingContainer {
         }
         let byte = data[currentIndex]
         currentIndex += 1
+        guard byte <= 1 else {
+            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid optional discriminant"))
+        }
         return byte == 0
     }
 
@@ -50,7 +67,10 @@ private class DecodingContainer {
         }
         let byte = data[currentIndex]
         currentIndex += 1
-        return byte != 0
+        guard byte <= 1 else {
+            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid boolean discriminant"))
+        }
+        return byte == 1
     }
 
     func decode(_: String.Type) throws -> String {
@@ -149,7 +169,41 @@ private class DecodingContainer {
     }
 
     func decode<T>(_: T.Type) throws -> T where T: Decodable {
-        try T(from: PostcardDecoding(decodingContainer: self))
+        if let dictionaryType = T.self as? any PostcardDictionaryDecoding.Type {
+            guard let value = try dictionaryType.decodePostcard(from: self) as? T else {
+                throw DecodingError.typeMismatch(T.self, .init(codingPath: [], debugDescription: "Invalid dictionary type"))
+            }
+            return value
+        }
+        return try T(from: PostcardDecoding(decodingContainer: self))
+    }
+}
+
+// Dictionary's keyed Codable path requires all keys up front. Postcard has no value
+// type tags to scan past arbitrary values, so decode its known key/value types directly.
+private protocol PostcardDictionaryDecoding {
+    static func decodePostcard(from container: DecodingContainer) throws -> Any
+}
+
+extension Dictionary: PostcardDictionaryDecoding where Key: Decodable, Value: Decodable {
+    fileprivate static func decodePostcard(from container: DecodingContainer) throws -> Any {
+        guard Key.self == String.self || Key.self == Int.self else {
+            // Other key types already use an unkeyed sequence of alternating keys and values.
+            return try Self(from: PostcardDecoding(decodingContainer: container))
+        }
+        let count = try container.decodeSequenceLength(elementsPerEntry: 2)
+        var result = Self()
+        for _ in 0..<count {
+            let string = try container.decode(String.self)
+            // Match the encoder's historical numeric coding-key metadata, even for String keys.
+            if Int(string) != nil { _ = try container.decode(UInt64.self) }
+            let key = Key.self == String.self ? string as? Key : Int(string) as? Key
+            guard let key else {
+                throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid dictionary key"))
+            }
+            result[key] = try container.decode(Value.self)
+        }
+        return result
     }
 }
 
@@ -278,7 +332,7 @@ private class PostcardKeyedDecoding<Key: CodingKey>: KeyedDecodingContainerProto
     }
 
     func decode<T>(_: T.Type, forKey _: Key) throws -> T where T: Decodable {
-        try T(from: PostcardDecoding(decodingContainer: decodingContainer))
+        try decodingContainer.decode(T.self)
     }
 
     func decodeIfPresent(_ type: Bool.Type, forKey key: Key) throws -> Bool? {
@@ -456,11 +510,7 @@ private class PostcardUnkeyedDecoding: UnkeyedDecodingContainer {
         self.codingPath = codingPath
         self.userInfo = userInfo
 
-        let length = try decodingContainer.decode(UInt64.self)
-        guard let length = Int(exactly: length) else {
-            throw DecodingError.dataCorrupted(.init(codingPath: codingPath, debugDescription: "Invalid sequence length"))
-        }
-        count = length
+        count = try decodingContainer.decodeSequenceLength()
     }
 
     func decodeNil() throws -> Bool {
@@ -541,7 +591,7 @@ private class PostcardUnkeyedDecoding: UnkeyedDecodingContainer {
 
     func decode<T>(_: T.Type) throws -> T where T: Decodable {
         currentCount += 1
-        return try T(from: PostcardDecoding(decodingContainer: decodingContainer))
+        return try decodingContainer.decode(T.self)
     }
 
     func decodeIfPresent(_ type: Bool.Type) throws -> Bool? {
@@ -722,67 +772,93 @@ private class PostcardSingleValueDecoding: SingleValueDecodingContainer {
         self.userInfo = userInfo
     }
 
+    private var nilDecodingError: (any Error)?
+
     func decodeNil() -> Bool {
-        (try? decodingContainer.decodeNil()) ?? false
+        do {
+            return try decodingContainer.decodeNil()
+        } catch {
+            nilDecodingError = error
+            return false
+        }
+    }
+
+    private func checkNilError() throws {
+        if let nilDecodingError { throw nilDecodingError }
     }
 
     func decode(_ type: Bool.Type) throws -> Bool {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 
     func decode(_ type: String.Type) throws -> String {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 
     func decode(_ type: Double.Type) throws -> Double {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 
     func decode(_ type: Float.Type) throws -> Float {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 
     func decode(_ type: Int.Type) throws -> Int {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 
     func decode(_ type: Int8.Type) throws -> Int8 {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 
     func decode(_ type: Int16.Type) throws -> Int16 {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 
     func decode(_ type: Int32.Type) throws -> Int32 {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 
     func decode(_ type: Int64.Type) throws -> Int64 {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 
     func decode(_ type: UInt.Type) throws -> UInt {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 
     func decode(_ type: UInt8.Type) throws -> UInt8 {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 
     func decode(_ type: UInt16.Type) throws -> UInt16 {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 
     func decode(_ type: UInt32.Type) throws -> UInt32 {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 
     func decode(_ type: UInt64.Type) throws -> UInt64 {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 
     func decode<T>(_ type: T.Type) throws -> T where T: Decodable {
-        try decodingContainer.decode(type)
+        try checkNilError()
+        return try decodingContainer.decode(type)
     }
 }

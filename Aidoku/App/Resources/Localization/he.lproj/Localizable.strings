@@ -1180,3 +1180,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "מילון יפני–אנגלי מקיף המתוחזק בידי קבוצת המחקר והפיתוח של מילונים אלקטרוניים (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "מילון שמות פרטיים ביפנית המתוחזק בידי קבוצת המחקר והפיתוח של מילונים אלקטרוניים (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "מילון תדירויות המבוסס על מאגר טקסטים ממדיה באתר https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "המקור %@ בגרסה %d אינו נתמך באפליקציה זו. יש להתקין גרסה נתמכת.";

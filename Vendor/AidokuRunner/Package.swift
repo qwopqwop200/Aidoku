@@ -13,20 +13,18 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(path: "../Wasm3"),
         .package(url: "https://github.com/scinfu/SwiftSoup.git", from: "2.10.1"),
         .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", from: "0.59.1")
     ],
     targets: [
         .target(
             name: "AidokuRunner",
-            dependencies: ["Wasm3", "SwiftSoup"],
+            dependencies: ["SwiftSoup"],
             plugins: [.plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLintPlugins")]
         ),
         .testTarget(
             name: "AidokuRunnerTests",
-            dependencies: ["AidokuRunner"],
-            resources: [.copy("Resources/Payload")]
+            dependencies: ["AidokuRunner"]
         )
     ],
     swiftLanguageModes: [.v6]

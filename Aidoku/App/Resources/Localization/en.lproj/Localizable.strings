@@ -1128,3 +1128,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "A comprehensive Japanese–English dictionary maintained by the Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "A Japanese proper-name dictionary maintained by the Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "A frequency dictionary based on the media corpus at https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Source %@ version %d is not supported by this app. Install a supported version.";

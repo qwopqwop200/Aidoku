@@ -10,6 +10,7 @@ import WebKit
 
 struct OIDCLoginView: View {
     let loginURL: URL
+    let cookieURL: URL
     let cookieHandler: ([HTTPCookie]) -> Void
 
     @State private var webViewURL: URL?
@@ -18,7 +19,7 @@ struct OIDCLoginView: View {
 
     var body: some View {
         PlatformNavigationStack {
-            OIDCLoginControllerView(loginURL: loginURL, webViewURL: $webViewURL) { cookies in
+            OIDCLoginControllerView(loginURL: loginURL, cookieURL: cookieURL, webViewURL: $webViewURL) { cookies in
                 cookieHandler(cookies)
                 dismiss()
             }
@@ -38,11 +39,16 @@ struct OIDCLoginView: View {
 
 private struct OIDCLoginControllerView: UIViewControllerRepresentable {
     let loginURL: URL
+    let cookieURL: URL
     @Binding var webViewURL: URL?
     let cookieHandler: ([HTTPCookie]) -> Void
 
     func makeUIViewController(context: Context) -> OIDCLoginController {
-        .init(loginURL: loginURL, cookieHandler: cookieHandler)
+        .init(loginURL: loginURL, cookieURL: cookieURL, cookieHandler: cookieHandler)
+    }
+
+    static func dismantleUIViewController(_ controller: OIDCLoginController, coordinator: ()) {
+        controller.cancel()
     }
 
     func updateUIViewController(_ uiViewController: OIDCLoginController, context: Context) {
@@ -50,19 +56,27 @@ private struct OIDCLoginControllerView: UIViewControllerRepresentable {
     }
 }
 
+@MainActor
 private class OIDCLoginController: UIViewController, WKNavigationDelegate {
     let loginURL: URL
+    let cookieURL: URL
     let cookieHandler: ([HTTPCookie]) -> Void
+
+    private var isActive = true
+    private var isCompleting = false
 
     lazy var webView: WKWebView = {
         let config = WKWebViewConfiguration()
+        // Setup has no source key yet. Isolate credentials from every previous browser login.
+        config.websiteDataStore = .nonPersistent()
         let webView = WKWebView(frame: self.view.bounds, configuration: config)
         webView.navigationDelegate = self
         return webView
     }()
 
-    init(loginURL: URL, cookieHandler: @escaping ([HTTPCookie]) -> Void) {
+    init(loginURL: URL, cookieURL: URL, cookieHandler: @escaping ([HTTPCookie]) -> Void) {
         self.loginURL = loginURL
+        self.cookieURL = cookieURL
         self.cookieHandler = cookieHandler
         super.init(nibName: nil, bundle: nil)
     }
@@ -79,18 +93,29 @@ private class OIDCLoginController: UIViewController, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
-        if let url = navigationAction.request.url, url.scheme == "aidoku" {
-            fetchCookies()
+        guard isActive, !isCompleting, let url = navigationAction.request.url else { return .cancel }
+        if SourceLoginBrowserPolicy.isOIDCCallback(url) {
+            guard navigationAction.targetFrame?.isMainFrame ?? navigationAction.sourceFrame.isMainFrame else { return .cancel }
+            isCompleting = true
+            let cookies = await webView.configuration.websiteDataStore.httpCookieStore.allCookies()
+            guard isActive, !Task.isCancelled else { return .cancel }
+            let scopedCookies = SourceLoginBrowserPolicy.cookies(cookies, for: cookieURL)
+            guard !scopedCookies.isEmpty else {
+                isCompleting = false
+                return .cancel
+            }
+            isActive = false
+            cookieHandler(scopedCookies)
             return .cancel
-        } else {
-            return .allow
         }
+        guard let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme) else { return .cancel }
+        return .allow
     }
 
-    func fetchCookies() {
-        let cookieStore = webView.configuration.websiteDataStore.httpCookieStore
-        cookieStore.getAllCookies { cookies in
-            self.cookieHandler(cookies)
-        }
+    func cancel() {
+        isActive = false
+        webView.cancelSourceRequest()
+        webView.stopLoading()
+        webView.navigationDelegate = nil
     }
 }

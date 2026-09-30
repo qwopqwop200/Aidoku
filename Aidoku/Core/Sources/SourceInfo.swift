@@ -19,6 +19,7 @@ struct SourceInfo: Hashable {
     var contentRating: SourceContentRating
     var disabled: Bool = false
     var external: Bool = true
+    var unavailableReason: String?
 
     var externalInfo: ExternalSourceInfo?
 

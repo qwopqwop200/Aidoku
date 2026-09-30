@@ -1153,3 +1153,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Повний японсько-англійський словник, який підтримує група Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Словник японських власних назв, який підтримує група Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Частотний словник на основі медіакорпусу https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Джерело %@ версії %d не підтримується цим застосунком. Установіть підтримувану версію.";

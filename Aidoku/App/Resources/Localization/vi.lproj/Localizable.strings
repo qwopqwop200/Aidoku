@@ -1183,3 +1183,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Từ điển Nhật–Anh toàn diện do Electronic Dictionary Research and Development Group (EDRDG) duy trì.";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Từ điển tên riêng tiếng Nhật do Electronic Dictionary Research and Development Group (EDRDG) duy trì.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Từ điển tần suất dựa trên ngữ liệu truyền thông tại https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Ứng dụng này không hỗ trợ nguồn %@ phiên bản %d. Hãy cài đặt phiên bản được hỗ trợ.";

@@ -14,6 +14,8 @@ public enum PartialResultSubscription {
 }
 
 public actor SinglePublisher<T: Sendable> {
+    public init() {}
+
     private var sink: ((T) -> Void)?
     public private(set) var subscriptionID: UUID?
 

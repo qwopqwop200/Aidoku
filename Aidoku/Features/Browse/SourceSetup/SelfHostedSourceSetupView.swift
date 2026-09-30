@@ -274,7 +274,10 @@ struct SelfHostedSourceSetupView: View {
                             showLoginSheet = true
                         }
                         .sheet(isPresented: $showLoginSheet) {
-                            OIDCLoginView(loginURL: loginURL) { cookies in
+                            OIDCLoginView(
+                                loginURL: loginURL,
+                                cookieURL: URL(string: "api/account", relativeTo: server.urlWithTrailingSlash()) ?? loginURL
+                            ) { cookies in
                                 Task {
                                     await logIn(cookies: cookies)
                                 }

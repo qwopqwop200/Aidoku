@@ -50,60 +50,6 @@ struct SourceBrowseSafetyTests {
         #expect(source.page == 0)
     }
 
-    @Test func filterChildrenDoNotRetainTheirParent() {
-        weak var weakParent: FilterCell?
-        weak var weakStack: FilterStackView?
-        autoreleasepool {
-            let parent = FilterCell(filter: SelectFilter(name: "sort", options: ["a", "b"]), selectedFilters: SelectedFilters())
-            weakParent = parent
-            weakStack = parent.detailView
-            #expect(parent.detailView?.cells.count == 2)
-        }
-        #expect(weakParent == nil)
-        #expect(weakStack == nil)
-    }
-
-    @Test func headerMenuDoesNotRetainHeader() {
-        weak var weakHeader: MangaListSelectionHeader?
-        autoreleasepool {
-            let header = MangaListSelectionHeader(frame: .zero)
-            header.options = ["a", "b"]
-            weakHeader = header
-        }
-        #expect(weakHeader == nil)
-    }
-
-    @Test func settingWithShortTitlesFallsBackToValue() {
-        let controller = SettingSelectViewController(item: SettingItem(type: "select", values: ["a", "b"], titles: ["A"]))
-        controller.loadViewIfNeeded()
-        let cell = controller.tableView(controller.tableView, cellForRowAt: IndexPath(row: 1, section: 0))
-        #expect(cell.textLabel?.text == "b")
-    }
-
-    @Test func legacySettingsControlsReleaseControllerAndCells() {
-        weak var weakController: SettingsTableViewController?
-        weak var weakCell: UITableViewCell?
-        autoreleasepool {
-            let controller = SettingsTableViewController()
-            weakController = controller
-            let cell = controller.stepperCell(for: SettingItem(type: "stepper", key: "audit.stepper", requires: "audit.requires"))
-            weakCell = cell
-        }
-        #expect(weakController == nil)
-        #expect(weakCell == nil)
-    }
-
-    @Test func settingsSummaryWithShortTitlesFallsBackToValue() {
-        let key = "audit.summary." + UUID().uuidString
-        UserDefaults.standard.set("b", forKey: key)
-        defer { UserDefaults.standard.removeObject(forKey: key) }
-        let controller = SettingsTableViewController()
-        controller.loadViewIfNeeded()
-        let cell = controller.tableView(controller.tableView, cellForRowAt: .init(row: 0, section: 0),
-                                        settingItem: SettingItem(type: "select", key: key, values: ["a", "b"], titles: ["A"]))
-        #expect(cell.detailTextLabel?.text == "b")
-    }
-
     @Test func emptyHomeListHasNonnegativeLayoutHeight() {
         let (_, height) = CollectionView.mangaListLayout(itemsPerPage: 0, totalItems: 0)
         #expect(height.isFinite && height >= 0)

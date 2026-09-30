@@ -627,6 +627,8 @@ extension KavitaSourceRunner {
     func handleBasicLogin(key _: String, username: String, password: String) async throws -> Bool {
         let server = try helper.getConfiguredServer()
         let response = await Self.getLoginResponse(server: server, username: username, password: password)
+        // Network helpers may finish after cancellation; credentials belong to the active login attempt.
+        try Task.checkCancellation()
 
         guard
             let response,
@@ -638,6 +640,7 @@ extension KavitaSourceRunner {
             return false
         }
 
+        try Task.checkCancellation()
         UserDefaults.standard.setValue(nil, forKey: "\(sourceKey).login_key") // clear manual api key
         UserDefaults.standard.setValue(apiKey, forKey: "\(sourceKey).apiKey")
         UserDefaults.standard.setValue(token, forKey: "\(sourceKey).token")
@@ -662,6 +665,8 @@ extension KavitaSourceRunner {
         }
 
         let response = await Self.getLoginResponse(server: server, cookies: [httpCookie])
+        // Network helpers may finish after cancellation; credentials belong to the active login attempt.
+        try Task.checkCancellation()
 
         guard
             let response,
@@ -671,6 +676,7 @@ extension KavitaSourceRunner {
             return false
         }
 
+        try Task.checkCancellation()
         UserDefaults.standard.setValue(nil, forKey: "\(sourceKey).login_key") // clear manual api key
         UserDefaults.standard.setValue(apiKey, forKey: "\(sourceKey).apiKey")
         UserDefaults.standard.setValue(cookie, forKey: "\(sourceKey).cookie")
@@ -706,6 +712,7 @@ extension KavitaSourceRunner {
                 } else {
                     let server = try helper.getConfiguredServer()
                     let response = await Self.getLoginResponse(server: server, apiKey: apiKey)
+                    try Task.checkCancellation()
 
                     guard
                         let response,
@@ -717,6 +724,7 @@ extension KavitaSourceRunner {
                         return
                     }
 
+                    try Task.checkCancellation()
                     UserDefaults.standard.setValue(apiKey, forKey: "\(sourceKey).apiKey")
                     UserDefaults.standard.setValue(token, forKey: "\(sourceKey).token")
                     UserDefaults.standard.setValue(refreshToken, forKey: "\(sourceKey).refreshToken")
@@ -914,12 +922,8 @@ extension KavitaSourceRunner {
 
     static func getLoginResponse(server: URL, cookies: [HTTPCookie]) async -> LoginResponse? {
         guard
-            let cookie = cookies.first(where: {
-                let domain = $0.domain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
-                let host = server.host?.lowercased() ?? ""
-                return $0.name == ".AspNetCore.Cookies" && (host == domain || host.hasSuffix("." + domain))
-            }),
-            let accountUrl = URL(string: "api/account", relativeTo: server)
+            let accountUrl = URL(string: "api/account", relativeTo: server),
+            let cookie = SourceLoginBrowserPolicy.cookies(cookies, for: accountUrl).first(where: { $0.name == ".AspNetCore.Cookies" })
         else {
             return nil
         }

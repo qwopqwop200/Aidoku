@@ -8,45 +8,6 @@
 import AidokuRunner
 import Foundation
 
-extension InterpreterConfiguration {
-    static func defaultConfig(for sourceId: String) -> Self {
-        .init(
-            printHandler: { message in
-                LogManager.logger.log("[\(sourceId)] \(message)")
-            },
-            requestHandler: { originalRequest in
-                let request = if let url = originalRequest.url {
-                    await AidokuRunner.Source.modify(url: url, request: originalRequest)
-                } else {
-                    originalRequest
-                }
-
-                do {
-                    let (data, response) = try await SourceNetwork.shared.data(for: request)
-
-                    let httpResponse = response as? HTTPURLResponse
-                    if let httpResponse {
-                        // check if cloudflare blocked the request
-                        if CloudflareHandler.shared.shouldHandle(response: httpResponse, data: data) {
-                            do {
-                                return try await CloudflareHandler.shared.handle(request: request)
-                            } catch let error as CloudflareHandler.HandleError {
-                                LogManager.logger.error("Failed to handle CloudFlare: \(error)")
-                                return (data, response)
-                            }
-                        }
-                    }
-
-                    return (data, response)
-                } catch {
-                    LogManager.logger.error("Error performing network request for \(sourceId): \(error)")
-                    throw error
-                }
-            }
-        )
-    }
-}
-
 private final class URLSessionUnsecureDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
     func urlSession(
         _ session: URLSession,
@@ -61,14 +22,13 @@ private final class URLSessionUnsecureDelegate: NSObject, URLSessionDelegate, @u
 
 extension AidokuRunner.Source {
     convenience init(key: String, url: URL) async throws {
-        try await self.init(
-            url: url,
-            interpreterConfig: .defaultConfig(for: key)
-        )
+        try NativeSourceRegistration.ensureRegistered()
+        try await self.init(url: url)
     }
 
     var isExternal: Bool {
-        runner is Interpreter
+        // An installed package remains external when its executable is replaced by Swift.
+        url != nil
     }
 
     func toInfo() -> SourceInfo {

@@ -101,12 +101,11 @@ and boundary regression scripts retain ASan/UBSan. Package suites:
 
 ```sh
 swift test --package-path Vendor/Nuke --jobs 2
-swift test --package-path Vendor/Wasm3 --jobs 2
 swift test --package-path Vendor/AidokuRunner --jobs 2
 ```
 
-AidokuRunner resolves package dependencies and its JavaScript test loads a live
-image from aidoku.app. Report network/environment failures explicitly.
+AidokuRunner resolves package dependencies and tests native manifest registration,
+models and partial-result ownership. Report network/environment failures explicitly.
 
 ## Test optimization contracts
 

@@ -1181,3 +1181,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Ampleksa japan-angla vortaro prizorgata de Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Vortaro de japanaj propraj nomoj prizorgata de Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Frekvenca vortaro bazita sur la amaskomunikila tekstaro ĉe https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Fonto %@ versio %d ne estas subtenata de ĉi tiu aplikaĵo. Instalu subtenatan version.";

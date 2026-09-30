@@ -1153,3 +1153,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Kompleksowy słownik japońsko-angielski utrzymywany przez Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Słownik japońskich nazw własnych utrzymywany przez Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Słownik frekwencyjny oparty na korpusie mediów z https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Źródło %@ w wersji %d nie jest obsługiwane przez tę aplikację. Zainstaluj obsługiwaną wersję.";

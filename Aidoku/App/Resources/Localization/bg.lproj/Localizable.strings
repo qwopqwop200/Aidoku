@@ -1153,3 +1153,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Изчерпателен японско-английски речник, поддържан от Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Речник на японските собствени имена, поддържан от Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Честотен речник, базиран на медийния корпус на https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Източникът %@ версия %d не се поддържа от това приложение. Инсталирайте поддържана версия.";

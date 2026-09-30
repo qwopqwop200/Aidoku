@@ -1153,3 +1153,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "由电子词典研究开发组（EDRDG）维护的综合日英词典。";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "由电子词典研究开发组（EDRDG）维护的日语专有名词词典。";
 "RECOMMENDED_JITEN_DESCRIPTION" = "基于 https://jiten.moe 媒体语料库的词频词典。";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "此应用不支持来源 %@ 的版本 %d。请安装受支持的版本。";

@@ -1183,3 +1183,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Een uitgebreid Japans-Engels woordenboek, onderhouden door de Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Een woordenboek met Japanse eigennamen, onderhouden door de Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Een frequentiewoordenboek gebaseerd op het mediacorpus van https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Bron %@ versie %d wordt niet ondersteund door deze app. Installeer een ondersteunde versie.";

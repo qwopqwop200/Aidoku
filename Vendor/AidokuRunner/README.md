@@ -1,6 +1,8 @@
 # AidokuRunner
 
-A source runner for [Aidoku](https://github.com/Aidoku/Aidoku) sources. Sources are interpreted using [Wasm3](https://github.com/Skittyblock/Wasm3).
+A source runner for [Aidoku](https://github.com/Aidoku/Aidoku) sources. This local derivative retains the upstream models and runner protocol but uses explicitly registered native Swift implementations. It does not depend on Wasm3 or execute source archive binaries. Unsupported source IDs or manifest versions fail with an explicit error.
+
+The upstream runner originally interpreted sources using [Wasm3](https://github.com/Skittyblock/Wasm3). Its copyright and distribution terms below remain unchanged.
 
 ## Licensing
 

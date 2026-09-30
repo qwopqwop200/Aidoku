@@ -1159,3 +1159,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Një fjalor i plotë japonisht-anglisht i mirëmbajtur nga Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Një fjalor i emrave të përveçëm japonezë i mirëmbajtur nga Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Një fjalor frekuencash i bazuar në korpusin mediatik të https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Burimi %@ versioni %d nuk mbështetet nga ky aplikacion. Instaloni një version të mbështetur.";

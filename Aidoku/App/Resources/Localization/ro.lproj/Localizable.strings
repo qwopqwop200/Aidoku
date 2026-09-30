@@ -1148,3 +1148,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Un dicționar japonez-englez cuprinzător, întreținut de Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Un dicționar de nume proprii japoneze, întreținut de Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Un dicționar de frecvență bazat pe corpusul media de la https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Sursa %@ versiunea %d nu este acceptată de această aplicație. Instalați o versiune acceptată.";

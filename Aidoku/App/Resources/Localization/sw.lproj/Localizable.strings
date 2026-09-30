@@ -1160,3 +1160,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Kamusi pana ya Kijapani–Kiingereza inayodumishwa na Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Kamusi ya majina maalumu ya Kijapani inayodumishwa na Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Kamusi ya marudio ya maneno inayotegemea mkusanyiko wa maandishi ya vyombo vya habari katika https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Chanzo %@ toleo %d hakitumiki katika programu hii. Sakinisha toleo linalotumika.";

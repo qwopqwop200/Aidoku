@@ -1153,3 +1153,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Obsáhlý japonsko-anglický slovník spravovaný skupinou Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Slovník japonských vlastních jmen spravovaný skupinou Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Frekvenční slovník založený na mediálním korpusu z https://jiten.moe.";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Zdroj %@ verze %d tato aplikace nepodporuje. Nainstalujte podporovanou verzi.";

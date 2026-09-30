@@ -11,11 +11,7 @@ import CoreData
 extension SourceObject {
     func load(from source: AidokuRunner.Source) {
         id = source.key
-        apiVersion = if let legacySource = source.legacySource {
-            legacySource.apiVersion
-        } else {
-            source.apiVersion
-        }
+        apiVersion = source.apiVersion
         if let url = source.url {
             path = url.pathComponents[url.pathComponents.count - 2..<url.pathComponents.count]
                 .joined(separator: "/")
@@ -44,25 +40,16 @@ struct SourceObjectData: Sendable {
 }
 
 extension SourceObjectData {
-    func toSource() -> Source? {
-        if apiVersion == "0.6", let path {
-            return try? Source(from: FileManager.default.applicationSupportDirectory.appendingPathComponent(path))
-        }
-        return nil
+    func toNewSource() async -> AidokuRunner.Source? {
+        try? await loadNewSource()
     }
 
-    func toNewSource() async -> AidokuRunner.Source? {
-        if apiVersion == "0.6" {
-            let source = toSource()
-            return source.flatMap({ .legacy(source: $0) })
-        } else if
-            let data = customSource,
-            let config = try? CustomSourceConfig(from: data)
-        {
+    func loadNewSource() async throws -> AidokuRunner.Source? {
+        if let data = customSource, let config = try? CustomSourceConfig(from: data) {
             return config.toSource()
         } else if let path {
             let url = FileManager.default.applicationSupportDirectory.appendingPathComponent(path)
-            return try? await AidokuRunner.Source(key: id, url: url)
+            return try await NativeSourceRegistration.loadPackage(at: url, expectedKey: id)
         }
         return nil
     }
@@ -79,7 +66,7 @@ extension SourceObjectData {
         if apiVersion == "0.6" {
             if
                 let data = try? Data(contentsOf: url.appendingPathComponent("source.json")),
-                let manifest = try? JSONDecoder().decode(Source.SourceManifest.self, from: data)
+                let manifest = try? JSONDecoder().decode(LegacySourceManifest.self, from: data)
             {
                 return .init(
                     sourceId: id,
@@ -89,7 +76,7 @@ extension SourceObjectData {
                     languages: manifest.languages?.map(\.code) ?? [manifest.info.lang],
                     version: manifest.info.version,
                     contentRating: .init(rawValue: manifest.info.nsfw ?? 0) ?? .safe,
-                    external: false,
+                    external: true,
                     externalInfo: nil
                 )
             }
@@ -106,7 +93,7 @@ extension SourceObjectData {
                     languages: sourceInfo.info.languages,
                     version: sourceInfo.info.version,
                     contentRating: sourceInfo.info.contentRating ?? .safe,
-                    external: false,
+                    external: true,
                     externalInfo: nil
                 )
             }

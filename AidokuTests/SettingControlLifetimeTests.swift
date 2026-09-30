@@ -44,10 +44,9 @@ import UIKit
     }
 
     @Test func stepperReleasesHandlerWithControl() async throws {
-        // Native iOS 26 UIStepper has an independently confirmed framework cycle
-        // (stepper-native-retain.txt). Test the actual production ownership unit:
-        // the cell and lease must die and release their callback on pool return.
-        weak var releasedCell: StepperTableViewCell?
+        // Native iOS 26 UIStepper has an independently confirmed framework cycle.
+        // The modern settings lease must release its callback on pool return.
+        var hostedLease: SettingStepperLease?
         weak var releasedLease: SettingStepperLease?
         weak var captured: Capture?
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
@@ -58,47 +57,47 @@ import UIKit
             let controller = UIViewController()
             window.rootViewController = controller
             window.isHidden = false
-            let cell = StepperTableViewCell(style: .default, reuseIdentifier: nil)
-            cell.frame = CGRect(x: 0, y: 0, width: 320, height: 44)
-            releasedCell = cell
-            releasedLease = cell.stepperLease
+            let lease = SettingStepperLease()
+            hostedLease = lease
+            releasedLease = lease
+            let control = lease.control
+            control.frame = CGRect(x: 0, y: 0, width: 320, height: 44)
             let object = Capture()
             captured = object
-            cell.stepperView.handleChange { _ in _ = object }
-            controller.view.addSubview(cell)
+            control.handleChange { _ in _ = object }
+            controller.view.addSubview(control)
             window.layoutIfNeeded()
-            cell.layoutIfNeeded()
+            control.layoutIfNeeded()
             return window
         }
         await DisplayCycle.wait()
+        #expect(hostedLease != nil)
         autoreleasepool {
             hostedWindow?.rootViewController?.view.subviews.forEach { $0.removeFromSuperview() }
             hostedWindow?.isHidden = true
             hostedWindow?.rootViewController = nil
             hostedWindow = nil
+            hostedLease = nil
         }
         for _ in 0..<200 {
-            let didRelease = autoreleasepool { releasedCell == nil && releasedLease == nil && captured == nil }
+            let didRelease = autoreleasepool { releasedLease == nil && captured == nil }
             if didRelease { break }
             try await Task.sleep(for: .milliseconds(10))
         }
-        #expect(releasedCell == nil)
         #expect(releasedLease == nil)
         #expect(captured == nil)
     }
 
-    @Test func repeatedSettingsCellsReuseControlAndResetAllBindings() {
+    @Test func repeatedSettingsLeasesReuseControlAndResetAllBindings() {
         var originalIdentity: ObjectIdentifier?
         var createdAfterWarmup = 0
         for index in 0..<100 {
-            weak var releasedCell: StepperTableViewCell?
             weak var releasedLease: SettingStepperLease?
             weak var releasedCapture: Capture?
             autoreleasepool {
-                let cell = StepperTableViewCell(style: .default, reuseIdentifier: nil)
-                releasedCell = cell
-                releasedLease = cell.stepperLease
-                let control = cell.stepperView
+                let lease = SettingStepperLease()
+                releasedLease = lease
+                let control = lease.control
                 let identity = ObjectIdentifier(control)
                 if let originalIdentity { #expect(identity == originalIdentity) }
                 else { originalIdentity = identity }
@@ -131,65 +130,10 @@ import UIKit
                 control.isContinuous = false
                 control.isEnabled = false
             }
-            #expect(releasedCell == nil)
             #expect(releasedLease == nil)
             #expect(releasedCapture == nil)
             if index == 0 { createdAfterWarmup = SettingStepperLease.createdControlCount }
             #expect(SettingStepperLease.createdControlCount == createdAfterWarmup)
-        }
-    }
-
-    @Test func recycledStepperIgnoresPreviousCellsRequirementNotifications() async throws {
-        let requirement = "audit.stepper.requirement.\(UUID().uuidString)"
-        defer { UserDefaults.standard.removeObject(forKey: requirement) }
-        for inverted in [false, true] {
-            UserDefaults.standard.set(!inverted, forKey: requirement)
-            let controller = SettingsTableViewController()
-            var originalIdentity: ObjectIdentifier?
-            weak var releasedCell: StepperTableViewCell?
-            autoreleasepool {
-                var item = SettingItem(type: "stepper")
-                if inverted { item.requiresFalse = requirement }
-                else { item.requires = requirement }
-                let cell = controller.stepperCell(for: item) as! StepperTableViewCell
-                originalIdentity = ObjectIdentifier(cell.stepperView)
-                releasedCell = cell
-                #expect(cell.stepperView.isEnabled)
-                // Enqueue an old callback before release as well as delivering one after reuse.
-                NotificationCenter.default.post(name: .init(requirement), object: nil)
-            }
-            #expect(releasedCell == nil)
-            let replacement = try #require(controller.stepperCell(for: SettingItem(type: "stepper")) as? StepperTableViewCell)
-            #expect(ObjectIdentifier(replacement.stepperView) == originalIdentity)
-            UserDefaults.standard.set(inverted, forKey: requirement)
-            NotificationCenter.default.post(name: .init(requirement), object: nil)
-            await DisplayCycle.wait()
-            #expect(replacement.stepperView.isEnabled)
-        }
-    }
-
-    @Test func legacyStepperValidatesSourceRangesAndStepSizes() throws {
-        let controller = SettingsTableViewController()
-        for (minimum, maximum) in [(10.0, 5.0), (1, 1), (.infinity, 10), (0, .nan)] {
-            var item = SettingItem(type: "stepper")
-            item.minimumValue = minimum
-            item.maximumValue = maximum
-            let cell = try #require(controller.stepperCell(for: item) as? StepperTableViewCell)
-            #expect(!cell.stepperView.isEnabled)
-            #expect(cell.stepperView.allTargets.isEmpty)
-            #expect(cell.detailLabel.text == NSLocalizedString("SETTING_INVALID_STEPPER_RANGE"))
-        }
-        for step in [0.0, -1, .infinity, .nan, 2] {
-            for (minimum, maximum) in [(-300.0, -200.0), (200, 300)] {
-                var item = SettingItem(type: "stepper")
-                item.minimumValue = minimum
-                item.maximumValue = maximum
-                item.stepValue = step
-                let cell = try #require(controller.stepperCell(for: item) as? StepperTableViewCell)
-                #expect(cell.stepperView.minimumValue == minimum)
-                #expect(cell.stepperView.maximumValue == maximum)
-                #expect(cell.stepperView.stepValue == (step == 2 ? 2 : 1))
-            }
         }
     }
 

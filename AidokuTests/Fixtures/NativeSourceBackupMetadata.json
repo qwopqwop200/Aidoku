@@ -1,0 +1,2261 @@
+[
+  {
+    "manifest": {
+      "info": {
+        "id": "ja.mangarawbest",
+        "name": "Manga Raw Best",
+        "version": 2,
+        "url": "https://mangaraw.best",
+        "contentRating": 2,
+        "languages": [
+          "ja"
+        ]
+      },
+      "listings": [
+        {
+          "id": "views",
+          "name": "人気"
+        },
+        {
+          "id": "views_week",
+          "name": "週間人気"
+        },
+        {
+          "id": "created_at",
+          "name": "新着"
+        }
+      ]
+    },
+    "filters": [
+      {
+        "type": "sort",
+        "id": "sort",
+        "title": "並び替え",
+        "canAscend": false,
+        "options": [
+          "更新順",
+          "作成順",
+          "古い順",
+          "閲覧数",
+          "閲覧数(日)",
+          "閲覧数(週)",
+          "名前 A-Z",
+          "名前 Z-A"
+        ]
+      },
+      {
+        "type": "select",
+        "id": "search_type",
+        "title": "検索対象",
+        "options": [
+          "名前",
+          "作者"
+        ],
+        "ids": [
+          "name",
+          "artist"
+        ],
+        "default": "name"
+      },
+      {
+        "type": "multi-select",
+        "id": "status",
+        "title": "状態",
+        "options": [
+          "進行中",
+          "完了"
+        ],
+        "ids": [
+          "2",
+          "1"
+        ]
+      },
+      {
+        "type": "multi-select",
+        "id": "genre",
+        "title": "ジャンル",
+        "isGenre": true,
+        "canExclude": true,
+        "options": [
+          "アクション",
+          "アクション・アドベンチャー",
+          "アドベンチャー",
+          "お嬢様",
+          "くらし・生活",
+          "ギャグ",
+          "ギャグ・コメディ",
+          "ゲーム",
+          "コメディ",
+          "サスペンス",
+          "サスペンス・ミステリー",
+          "スポーツ",
+          "ドラマ",
+          "ドラマ化",
+          "ハーレム",
+          "バトル",
+          "ファンタジー",
+          "ホラー",
+          "ほのぼの・癒し",
+          "ミステリー",
+          "ラブコメ",
+          "ロマンス",
+          "不倫・浮気",
+          "人情",
+          "人生のスライス",
+          "冒険",
+          "剣道・剣術",
+          "少女",
+          "少女マンガ",
+          "少年",
+          "巨乳",
+          "幽霊・妖怪・モンスター",
+          "成人向け",
+          "成年",
+          "学園",
+          "学校",
+          "学校生活",
+          "天使・悪魔",
+          "恋愛",
+          "日常",
+          "漫画・アニメ",
+          "異世界",
+          "超自然的",
+          "転生",
+          "野球",
+          "錬金術",
+          "青年",
+          "高校生",
+          "魔法",
+          "Ecchi",
+          "SF",
+          "SF・ファンタジー"
+        ],
+        "ids": [
+          "12",
+          "14",
+          "3",
+          "42",
+          "15",
+          "40",
+          "24",
+          "48",
+          "1",
+          "39",
+          "11",
+          "47",
+          "34",
+          "29",
+          "26",
+          "17",
+          "4",
+          "8",
+          "53",
+          "33",
+          "35",
+          "2",
+          "27",
+          "16",
+          "38",
+          "18",
+          "19",
+          "55",
+          "52",
+          "32",
+          "51",
+          "45",
+          "10",
+          "30",
+          "9",
+          "54",
+          "41",
+          "46",
+          "7",
+          "50",
+          "22",
+          "31",
+          "44",
+          "25",
+          "49",
+          "37",
+          "21",
+          "36",
+          "5",
+          "23",
+          "6",
+          "13"
+        ]
+      }
+    ],
+    "settings": [
+      {
+        "type": "group",
+        "title": "画像サーバー",
+        "items": [
+          {
+            "type": "select",
+            "key": "imageServer",
+            "title": "サーバー",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ],
+            "titles": [
+              "サーバー 1 (直接)",
+              "サーバー 2 (wp.com)",
+              "サーバー 3 (DuckDuckGo)"
+            ],
+            "default": "1",
+            "refreshes": [
+              "content"
+            ]
+          }
+        ],
+        "footer": "画像が表示されない場合はサーバーを変更してください。サーバー 2 と 3 は画像プロキシ経由で配信されます。"
+      }
+    ],
+    "provenance": {
+      "backupPath": "/Users/ijunjae/PycharmProjects/new_aidoku/output/pipeline-speed-0929/depth-after/ApplicationSupport/Sources/ja.mangarawbest/source.json",
+      "manifestSHA256": "cf3e0287679e4907706f4dbcc6af54b7a0700caed0a5b78db6c0338cbb1e83b7",
+      "wasmSHA256": "405eb3d5110d37359ef21e64306f06e97abbd330051d0f18c79c9604cb06930d"
+    }
+  },
+  {
+    "manifest": {
+      "info": {
+        "id": "ja.mangarawjp",
+        "name": "MangaRawJP",
+        "version": 2,
+        "url": "https://mangarawjp.tv",
+        "contentRating": 2,
+        "languages": [
+          "ja"
+        ]
+      },
+      "config": {
+        "hidesFiltersWhileSearching": true
+      }
+    },
+    "filters": [
+      {
+        "type": "sort",
+        "id": "sort",
+        "canAscend": false,
+        "options": [
+          "最近の更新",
+          "ランキング"
+        ]
+      }
+    ],
+    "settings": [],
+    "provenance": {
+      "backupPath": "/Users/ijunjae/PycharmProjects/new_aidoku/output/pipeline-speed-0929/depth-after/ApplicationSupport/Sources/ja.mangarawjp/source.json",
+      "manifestSHA256": "91a4d52cc2e1ac8c3848002905daaf139425a318dea7942c8c98264a06b81a14",
+      "wasmSHA256": "4f76b92f9720bc0ebeaa63edc7659993d9275fcac40bd757ea48fbc63f85a03c"
+    }
+  },
+  {
+    "manifest": {
+      "info": {
+        "id": "ja.rawdevart",
+        "name": "Rawdevart",
+        "version": 3,
+        "url": "https://rawdevart.art",
+        "contentRating": 1,
+        "languages": [
+          "ja"
+        ],
+        "minAppVersion": "0.7.1"
+      },
+      "listings": [
+        {
+          "id": "latest",
+          "name": "Latest"
+        },
+        {
+          "id": "popular",
+          "name": "Popular"
+        },
+        {
+          "id": "trending",
+          "name": "Trending Today"
+        }
+      ],
+      "config": {
+        "hidesFiltersWhileSearching": true
+      }
+    },
+    "filters": [
+      {
+        "id": "status",
+        "type": "select",
+        "title": "Status",
+        "options": [
+          "All",
+          "Ongoing",
+          "Completed"
+        ],
+        "ids": [
+          "",
+          "ongoing",
+          "completed"
+        ]
+      },
+      {
+        "id": "sort",
+        "type": "sort",
+        "title": "Sort by",
+        "canAscend": false,
+        "options": [
+          "Date updated",
+          "Most viewed",
+          "Most viewed today"
+        ],
+        "default": {
+          "index": 0,
+          "ascending": false
+        }
+      }
+    ],
+    "settings": [],
+    "provenance": {
+      "backupPath": "/Users/ijunjae/PycharmProjects/new_aidoku/output/pipeline-speed-0929/depth-after/ApplicationSupport/Sources/ja.rawdevart/source.json",
+      "manifestSHA256": "f1d64b8efab5b5b522fad60271f85fce19bb76d07c52fdb1ce9b4244a483e5d3",
+      "wasmSHA256": "a24ebc2e491d0dde22f2602a3c0db5c32e517df8254ad6f856ddfa71571b950d"
+    }
+  },
+  {
+    "manifest": {
+      "info": {
+        "id": "ja.rawkuma",
+        "name": "Rawkuma",
+        "version": 6,
+        "url": "https://rawkuma.net",
+        "contentRating": 1,
+        "languages": [
+          "ja"
+        ]
+      },
+      "listings": [
+        {
+          "id": "/latest-update/",
+          "name": "Latest Update"
+        }
+      ],
+      "config": {
+        "breakingChangeVersion": 5
+      }
+    },
+    "filters": [
+      {
+        "type": "sort",
+        "id": "sort",
+        "canAscend": true,
+        "options": [
+          "Popular",
+          "Rating",
+          "Updated",
+          "Bookmarked",
+          "Title"
+        ]
+      },
+      {
+        "type": "multi-select",
+        "id": "genre",
+        "title": "Genre",
+        "isGenre": true,
+        "canExclude": true,
+        "options": [
+          "Action",
+          "Adaptions",
+          "Adult",
+          "Adventure",
+          "Comedy",
+          "Crime",
+          "Drama",
+          "Ecchi",
+          "Fantasy",
+          "Game",
+          "Gender Bender",
+          "Harem",
+          "Hentai",
+          "Historical",
+          "Horror",
+          "isekai",
+          "Josei",
+          "Lolicon",
+          "magic",
+          "Martial Arts",
+          "Mature",
+          "Mecha",
+          "Mystery",
+          "Police",
+          "Psychological",
+          "Romance",
+          "School Life",
+          "Sci-fi",
+          "Seinen",
+          "Shotacon",
+          "Shoujo",
+          "Shoujo Ai",
+          "Shounen",
+          "Shounen Ai",
+          "Slice of Life",
+          "Smut",
+          "Sports",
+          "Supernatural",
+          "Thriller",
+          "Tragedy",
+          "Yaoi",
+          "Yuri"
+        ],
+        "ids": [
+          "action",
+          "adaptions",
+          "adult",
+          "adventure",
+          "comedy",
+          "crime",
+          "drama",
+          "ecchi",
+          "fantasy",
+          "game",
+          "gender-bender",
+          "harem",
+          "hentai",
+          "historical",
+          "horror",
+          "isekai",
+          "josei",
+          "lolicon",
+          "magic",
+          "martial-arts",
+          "mature",
+          "mecha",
+          "mystery",
+          "police",
+          "psychological",
+          "romance",
+          "school-life",
+          "sci-fi",
+          "seinen",
+          "shotacon",
+          "shoujo",
+          "shoujo-ai",
+          "shounen",
+          "shounen-ai",
+          "slice-of-life",
+          "smut",
+          "sports",
+          "supernatural",
+          "thriller",
+          "tragedy",
+          "yaoi",
+          "yuri"
+        ]
+      },
+      {
+        "type": "multi-select",
+        "id": "type",
+        "title": "Type",
+        "options": [
+          "Manga",
+          "Manhua",
+          "Manhwa",
+          "Novel"
+        ],
+        "ids": [
+          "manga",
+          "manhua",
+          "manhwa",
+          "novel"
+        ]
+      },
+      {
+        "type": "multi-select",
+        "id": "status",
+        "title": "Status",
+        "options": [
+          "Cancelled",
+          "Completed",
+          "On Hiatus",
+          "Ongoing",
+          "Unknown"
+        ],
+        "ids": [
+          "cancelled",
+          "completed",
+          "on-hiatus",
+          "ongoing",
+          "unknown"
+        ]
+      },
+      {
+        "type": "select",
+        "id": "inclusion",
+        "title": "Inclusion mode",
+        "options": [
+          "AND",
+          "OR"
+        ],
+        "default": "OR",
+        "hideFromHeader": true
+      },
+      {
+        "type": "select",
+        "id": "exclusion",
+        "title": "Exclusion mode",
+        "options": [
+          "AND",
+          "OR"
+        ],
+        "default": "OR",
+        "hideFromHeader": true
+      }
+    ],
+    "settings": [],
+    "provenance": {
+      "backupPath": "/Users/ijunjae/PycharmProjects/new_aidoku/output/pipeline-speed-0929/depth-after/ApplicationSupport/Sources/ja.rawkuma/source.json",
+      "manifestSHA256": "b905bc2ca3769e02940565eaf6faf2e9fab4b2791091de1f3c59aa4395fcce58",
+      "wasmSHA256": "4fe3b13606267648218b6e264c0c7ca93d807166b29e9b0409e9814fc535ef1a"
+    }
+  },
+  {
+    "manifest": {
+      "info": {
+        "id": "ja.rawotaku",
+        "name": "Raw Otaku",
+        "version": 2,
+        "url": "https://rawotaku.com",
+        "contentRating": 1,
+        "languages": [
+          "ja"
+        ],
+        "minAppVersion": "0.9"
+      },
+      "listings": [
+        {
+          "id": "latest-updated",
+          "name": "最新の更新"
+        },
+        {
+          "id": "new-release",
+          "name": "新作リリース"
+        },
+        {
+          "id": "most-viewed",
+          "name": "最も見られました"
+        }
+      ],
+      "config": {
+        "hidesFiltersWhileSearching": true
+      }
+    },
+    "filters": [
+      {
+        "id": "sort",
+        "title": "選別",
+        "type": "sort",
+        "canAscend": false,
+        "options": [
+          "デフォルト",
+          "最新の更新",
+          "最も見られました",
+          "Title [A-Z]",
+          "Title [Z-A]"
+        ]
+      },
+      {
+        "id": "type",
+        "title": "タイプ",
+        "type": "select",
+        "options": [
+          "全て",
+          "Raw Manga",
+          "BLコミック",
+          "TLコミック",
+          "オトナコミック",
+          "女性マンガ",
+          "少女マンガ",
+          "少年マンガ",
+          "青年マンガ"
+        ]
+      },
+      {
+        "id": "status",
+        "title": "地位",
+        "type": "select",
+        "options": [
+          "全て",
+          "Publishing",
+          "Finished"
+        ]
+      }
+    ],
+    "settings": [],
+    "provenance": {
+      "backupPath": "/Users/ijunjae/PycharmProjects/new_aidoku/output/pipeline-speed-0929/depth-after/ApplicationSupport/Sources/ja.rawotaku/source.json",
+      "manifestSHA256": "911abd9a7c0734e0f2054d132c8925457a3790fd057b4b9bb50fc4393650185e",
+      "wasmSHA256": "bdeb9d742df8123ba8e29ab669e00363dd063dd0ec103d31e97aed8dfe7a54ac"
+    }
+  },
+  {
+    "manifest": {
+      "info": {
+        "id": "ja.senmanga",
+        "name": "Sen Manga",
+        "version": 2,
+        "url": "https://raw.senmanga.com",
+        "contentRating": 1,
+        "languages": [
+          "ja"
+        ],
+        "minAppVersion": "0.7.1"
+      },
+      "config": {
+        "breakingChangeVersion": 2
+      }
+    },
+    "filters": [
+      {
+        "type": "sort",
+        "id": "order",
+        "title": "並び替え",
+        "canAscend": false,
+        "options": [
+          "人気",
+          "タイトル",
+          "更新順",
+          "評価"
+        ]
+      },
+      {
+        "type": "select",
+        "id": "status",
+        "title": "状態",
+        "options": [
+          "全て",
+          "連載中",
+          "完結",
+          "休載",
+          "打ち切り"
+        ],
+        "ids": [
+          "",
+          "Ongoing",
+          "Completed",
+          "Hiatus",
+          "Cancelled"
+        ]
+      },
+      {
+        "type": "select",
+        "id": "type",
+        "title": "タイプ",
+        "options": [
+          "全て",
+          "Manga",
+          "Manhwa",
+          "Manhua"
+        ],
+        "ids": [
+          "",
+          "Manga",
+          "Manhwa",
+          "Manhua"
+        ]
+      }
+    ],
+    "settings": [],
+    "provenance": {
+      "backupPath": "/Users/ijunjae/PycharmProjects/new_aidoku/output/pipeline-speed-0929/depth-after/ApplicationSupport/Sources/ja.senmanga/source.json",
+      "manifestSHA256": "bf3e35800ad0926a60dbbe126023a592314d403319b694c15495e13bddeda5aa",
+      "wasmSHA256": "30fba4d1da10874cce11dd2dd486900eecf75a5f47d99caa43b081a302d202b5"
+    }
+  },
+  {
+    "manifest": {
+      "info": {
+        "id": "ja.soraraw",
+        "name": "Soraraw",
+        "version": 5,
+        "url": "https://soraraw.com",
+        "contentRating": 2,
+        "languages": [
+          "ja"
+        ],
+        "minAppVersion": "0.9"
+      },
+      "listings": [
+        {
+          "id": "newest",
+          "name": "新着"
+        },
+        {
+          "id": "rising",
+          "name": "急上昇"
+        },
+        {
+          "id": "trending",
+          "name": "ランキング"
+        },
+        {
+          "id": "lifetime",
+          "name": "殿堂入り"
+        }
+      ],
+      "config": {
+        "supportsAuthorSearch": true,
+        "hidesFiltersWhileSearching": true
+      }
+    },
+    "filters": [],
+    "settings": [],
+    "provenance": {
+      "backupPath": "/Users/ijunjae/PycharmProjects/new_aidoku/output/pipeline-speed-0929/depth-after/ApplicationSupport/Sources/ja.soraraw/source.json",
+      "manifestSHA256": "d6f731606e827d9f4075caf6260b3ae0c9e96d2c15fdf5c7dd5f46b7a471724c",
+      "wasmSHA256": "9c0b43a9689993038584e4a802f7ee4f1297756edf5565d045d3b667a04e1f57"
+    }
+  },
+  {
+    "manifest": {
+      "info": {
+        "id": "ja.spoilerplus",
+        "name": "SpoilerPlus",
+        "version": 1,
+        "url": "https://spoilerplus.tv",
+        "contentRating": 2,
+        "languages": [
+          "ja"
+        ],
+        "minAppVersion": "0.7.1"
+      },
+      "config": {
+        "hidesFiltersWhileSearching": true
+      }
+    },
+    "filters": [
+      {
+        "type": "sort",
+        "id": "sort",
+        "canAscend": false,
+        "options": [
+          "最近の更新",
+          "ランキング"
+        ]
+      }
+    ],
+    "settings": [],
+    "provenance": {
+      "backupPath": "/Users/ijunjae/PycharmProjects/new_aidoku/output/pipeline-speed-0929/depth-after/ApplicationSupport/Sources/ja.spoilerplus/source.json",
+      "manifestSHA256": "62917fa3cd5159084a441b1c04339cdcea7ef3d473e2f7597ed537a4f21316e4",
+      "wasmSHA256": "d1851fc2ce0a24e645935d064095276bfce90cdd562d34119fcf842cbf02cfe3"
+    }
+  },
+  {
+    "manifest": {
+      "info": {
+        "id": "ko.yomii",
+        "name": "Yomii",
+        "altNames": [
+          "일일툰",
+          "11toon"
+        ],
+        "version": 7,
+        "url": "https://11toon.com",
+        "contentRating": 1,
+        "languages": [
+          "ko"
+        ]
+      },
+      "listings": [
+        {
+          "id": "latest",
+          "name": "최신만화",
+          "kind": 0
+        },
+        {
+          "id": "popular",
+          "name": "인기만화",
+          "kind": 0
+        },
+        {
+          "id": "daily100",
+          "name": "매일 추천 100",
+          "kind": 0
+        },
+        {
+          "id": "completed",
+          "name": "완결만화",
+          "kind": 0
+        }
+      ],
+      "config": {
+        "hidesFiltersWhileSearching": true,
+        "maximumParallelRequests": 5
+      }
+    },
+    "filters": [
+      {
+        "id": "sort",
+        "title": "정렬",
+        "type": "sort",
+        "canAscend": false,
+        "options": [
+          "최신순",
+          "인기순"
+        ],
+        "default": {
+          "index": 0,
+          "ascending": false
+        }
+      },
+      {
+        "id": "genre",
+        "title": "장르",
+        "type": "select",
+        "isGenre": true,
+        "usesTagStyle": true,
+        "options": [
+          "전체",
+          "SF",
+          "무협",
+          "TS",
+          "개그",
+          "드라마",
+          "러브코미디",
+          "먹방",
+          "백합",
+          "붕탁",
+          "스릴러",
+          "스포츠",
+          "시대",
+          "액션",
+          "순정",
+          "일상+치유",
+          "추리",
+          "판타지",
+          "학원",
+          "호러",
+          "BL",
+          "17",
+          "이세계",
+          "전생",
+          "라노벨",
+          "애니화",
+          "TL",
+          "공포",
+          "하렘",
+          "요리"
+        ],
+        "ids": [
+          "",
+          "SF",
+          "무협",
+          "TS",
+          "개그",
+          "드라마",
+          "러브코미디",
+          "먹방",
+          "백합",
+          "붕탁",
+          "스릴러",
+          "스포츠",
+          "시대",
+          "액션",
+          "순정",
+          "일상+치유",
+          "추리",
+          "판타지",
+          "학원",
+          "호러",
+          "BL",
+          "17",
+          "이세계",
+          "전생",
+          "라노벨",
+          "애니화",
+          "TL",
+          "공포",
+          "하렘",
+          "요리"
+        ],
+        "default": ""
+      }
+    ],
+    "settings": [],
+    "provenance": {
+      "backupPath": "/Users/ijunjae/PycharmProjects/new_aidoku/output/pipeline-speed-0929/depth-after/ApplicationSupport/Sources/ko.yomii/source.json",
+      "manifestSHA256": "a0d5bb4ea74436203751b3be37a941850fbccb28fa578bca903180c03ee0ed19",
+      "wasmSHA256": "d1fa9dbcb1167d2e54356888daafad693b292b165e9aa76d35968b158766a670"
+    }
+  },
+  {
+    "manifest": {
+      "info": {
+        "id": "multi.ehentai",
+        "name": "E-Hentai",
+        "version": 2,
+        "url": "https://e-hentai.org",
+        "contentRating": 2,
+        "languages": [
+          "All",
+          "ja",
+          "en",
+          "zh",
+          "nl",
+          "fr",
+          "de",
+          "hu",
+          "it",
+          "ko",
+          "pl",
+          "pt-BR",
+          "ru",
+          "es",
+          "th",
+          "vi"
+        ]
+      },
+      "config": {
+        "languageSelectType": "single",
+        "supportsAuthorSearch": true,
+        "supportsTagSearch": true
+      }
+    },
+    "filters": [
+      {
+        "type": "text",
+        "id": "artist",
+        "title": "Artist",
+        "placeholder": "Artist name"
+      },
+      {
+        "type": "text",
+        "id": "group",
+        "title": "Group",
+        "placeholder": "Group name"
+      },
+      {
+        "type": "sort",
+        "id": "sort",
+        "title": "Sort",
+        "canAscend": false,
+        "options": [
+          "Latest",
+          "Popular",
+          "Top Yesterday",
+          "Top Month",
+          "Top Year",
+          "Top All"
+        ]
+      },
+      {
+        "type": "multi-select",
+        "id": "categories",
+        "title": "Categories",
+        "options": [
+          "Doujinshi",
+          "Manga",
+          "Artist CG",
+          "Game CG",
+          "Western",
+          "Non-H",
+          "Image Set",
+          "Cosplay",
+          "Asian Porn",
+          "Misc"
+        ],
+        "ids": [
+          "f_doujinshi",
+          "f_manga",
+          "f_artistcg",
+          "f_gamecg",
+          "f_western",
+          "f_non-h",
+          "f_imageset",
+          "f_cosplay",
+          "f_asianporn",
+          "f_misc"
+        ],
+        "defaultIncluded": [
+          "f_doujinshi",
+          "f_manga",
+          "f_artistcg",
+          "f_gamecg",
+          "f_western",
+          "f_non-h",
+          "f_imageset",
+          "f_cosplay",
+          "f_asianporn",
+          "f_misc"
+        ]
+      },
+      {
+        "type": "select",
+        "id": "min_rating",
+        "title": "Minimum Rating",
+        "options": [
+          "Any",
+          "2 stars",
+          "3 stars",
+          "4 stars",
+          "5 stars"
+        ],
+        "ids": [
+          "0",
+          "2",
+          "3",
+          "4",
+          "5"
+        ],
+        "default": "0"
+      },
+      {
+        "type": "text",
+        "id": "tags",
+        "title": "Tags",
+        "placeholder": "tag1, -excluded, ~or_tag"
+      },
+      {
+        "type": "text",
+        "id": "min_pages",
+        "title": "Minimum Pages",
+        "placeholder": "e.g. 10"
+      },
+      {
+        "type": "text",
+        "id": "max_pages",
+        "title": "Maximum Pages",
+        "placeholder": "e.g. 100"
+      },
+      {
+        "type": "select",
+        "id": "expunged",
+        "title": "Browse Expunged Galleries",
+        "options": [
+          "Off",
+          "On"
+        ],
+        "ids": [
+          "off",
+          "on"
+        ],
+        "default": "off"
+      },
+      {
+        "type": "multi-select",
+        "id": "disable_custom",
+        "title": "Disable Custom Filter",
+        "options": [
+          "Language",
+          "Uploader",
+          "Tags"
+        ],
+        "ids": [
+          "f_sfl",
+          "f_sfu",
+          "f_sft"
+        ]
+      }
+    ],
+    "settings": [
+      {
+        "type": "group",
+        "title": "Account",
+        "footer": "Enter your E-Hentai cookies to access ExHentai.",
+        "items": [
+          {
+            "type": "text",
+            "key": "ipb_member_id",
+            "title": "ipb_member_id",
+            "placeholder": "Cookie value from e-hentai.org",
+            "refreshes": [
+              "listings",
+              "content"
+            ]
+          },
+          {
+            "type": "text",
+            "key": "ipb_pass_hash",
+            "title": "ipb_pass_hash",
+            "placeholder": "Cookie value from e-hentai.org",
+            "refreshes": [
+              "listings",
+              "content"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "group",
+        "title": "Source",
+        "items": [
+          {
+            "type": "select",
+            "key": "domain",
+            "title": "Domain",
+            "values": [
+              "e-hentai.org",
+              "exhentai.org"
+            ],
+            "titles": [
+              "E-Hentai",
+              "ExHentai"
+            ],
+            "default": "e-hentai.org",
+            "refreshes": [
+              "listings",
+              "content"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "group",
+        "title": "Title Preferences",
+        "items": [
+          {
+            "type": "select",
+            "key": "titlePreference",
+            "title": "Preferred Title",
+            "values": [
+              "english",
+              "japanese"
+            ],
+            "titles": [
+              "English / Original",
+              "Japanese"
+            ],
+            "default": "english"
+          }
+        ]
+      },
+      {
+        "type": "group",
+        "title": "Blocklist",
+        "items": [
+          {
+            "type": "editable-list",
+            "key": "blocklist",
+            "title": "Add Blocked Tag",
+            "lineLimit": 1,
+            "inline": true,
+            "placeholder": "Tag to block (e.g. guro, f:loli)",
+            "default": [],
+            "refreshes": [
+              "listings",
+              "content"
+            ]
+          }
+        ]
+      }
+    ],
+    "provenance": {
+      "backupPath": "/Users/ijunjae/PycharmProjects/new_aidoku/output/pipeline-speed-0929/depth-after/ApplicationSupport/Sources/multi.ehentai/source.json",
+      "manifestSHA256": "e53c2a7aa6957fc43c19fb9db965162b39b3f8ba073b2ef3f68a02ec6424cc95",
+      "wasmSHA256": "cc87cafb94c179eeb067e92bf2190d6cb6ca91b58ef917408bc7f053754bc6d3"
+    }
+  },
+  {
+    "manifest": {
+      "info": {
+        "id": "multi.hitomi",
+        "name": "Hitomi",
+        "version": 2,
+        "url": "https://hitomi.la",
+        "contentRating": 2,
+        "languages": [
+          "All",
+          "en",
+          "id",
+          "jv",
+          "ca",
+          "ceb",
+          "cs",
+          "da",
+          "de",
+          "et",
+          "es",
+          "eo",
+          "fr",
+          "it",
+          "hi",
+          "hu",
+          "pl",
+          "pt",
+          "vi",
+          "tr",
+          "ru",
+          "uk",
+          "ar",
+          "ko",
+          "zh",
+          "ja"
+        ]
+      },
+      "listings": [
+        {
+          "id": "date_added",
+          "name": "Recently Added"
+        },
+        {
+          "id": "popular_today",
+          "name": "Popular Today"
+        },
+        {
+          "id": "popular_week",
+          "name": "Popular Week"
+        },
+        {
+          "id": "popular_month",
+          "name": "Popular Month"
+        },
+        {
+          "id": "popular_year",
+          "name": "Popular Year"
+        }
+      ],
+      "config": {
+        "languageSelectType": "single",
+        "supportsAuthorSearch": true,
+        "supportsTagSearch": true,
+        "searchSuggestions": {
+          "urlTemplate": "https://tagindex.hitomi.la/{namespace}/{queryPath}.json",
+          "format": "tuples",
+          "queryMode": "token",
+          "defaultNamespace": "global",
+          "namespaces": [
+            "global",
+            "artist",
+            "group",
+            "series",
+            "character",
+            "tag",
+            "male",
+            "female",
+            "language",
+            "type"
+          ],
+          "minimumQueryLength": 1,
+          "lowercaseQuery": true,
+          "tokenSpaceReplacement": "_",
+          "queryCharacterReplacements": {
+            " ": "_",
+            "/": "slash",
+            ".": "dot"
+          },
+          "headers": {
+            "Referer": "https://hitomi.la/"
+          },
+          "namespaceURLTemplate": "https://tagindex.hitomi.la/{namespace}.json"
+        }
+      }
+    },
+    "filters": [
+      {
+        "type": "text",
+        "id": "artist",
+        "title": "Artist",
+        "placeholder": "Artist name"
+      },
+      {
+        "type": "text",
+        "id": "group",
+        "title": "Group",
+        "placeholder": "Group name"
+      },
+      {
+        "type": "sort",
+        "title": "Sort",
+        "canAscend": false,
+        "options": [
+          "Date Added",
+          "Date Published",
+          "Popular: Today",
+          "Popular: Week",
+          "Popular: Month",
+          "Popular: Year"
+        ]
+      },
+      {
+        "type": "select",
+        "id": "type",
+        "title": "Type",
+        "options": [
+          "Any",
+          "Artist CG",
+          "Doujinshi",
+          "Game CG",
+          "Image Set",
+          "Manga"
+        ],
+        "ids": [
+          "",
+          "artistcg",
+          "doujinshi",
+          "gamecg",
+          "imageset",
+          "manga"
+        ]
+      }
+    ],
+    "settings": [
+      {
+        "type": "group",
+        "title": "Title Preferences",
+        "items": [
+          {
+            "type": "select",
+            "key": "titlePreference",
+            "title": "Preferred Title Language",
+            "values": [
+              "english",
+              "japanese"
+            ],
+            "titles": [
+              "English",
+              "Japanese"
+            ],
+            "default": "english"
+          }
+        ]
+      }
+    ],
+    "provenance": {
+      "backupPath": "/Users/ijunjae/PycharmProjects/new_aidoku/output/pipeline-speed-0929/depth-after/ApplicationSupport/Sources/multi.hitomi/source.json",
+      "manifestSHA256": "3d30ac30cbe182ef38ce56ecf91776689f17c6cb33c370c25e1e4c6483500446",
+      "wasmSHA256": "ac7bf949b9c3f3ace416ea20f5ad18c0694c15d83c6c1d62d20df2a1faac7d40"
+    }
+  },
+  {
+    "manifest": {
+      "info": {
+        "id": "multi.nhentai",
+        "name": "nhentai",
+        "version": 17,
+        "url": "https://nhentai.net",
+        "contentRating": 2,
+        "languages": [
+          "All",
+          "en",
+          "ja",
+          "zh"
+        ]
+      },
+      "listings": [
+        {
+          "id": "popular-today",
+          "name": "Popular Today"
+        },
+        {
+          "id": "popular-week",
+          "name": "Popular Week"
+        },
+        {
+          "id": "popular",
+          "name": "Popular All"
+        },
+        {
+          "id": "latest",
+          "name": "Latest"
+        }
+      ],
+      "config": {
+        "languageSelectType": "single",
+        "supportsAuthorSearch": true,
+        "supportsArtistSearch": true,
+        "supportsTagSearch": true,
+        "searchSuggestions": {
+          "urlTemplate": "https://nhentai.net/api/v2/tags/search",
+          "format": "objects",
+          "queryMode": "token",
+          "namespaces": [
+            "artist",
+            "group",
+            "parody",
+            "character",
+            "tag",
+            "language",
+            "category"
+          ],
+          "jsonRequestBody": {
+            "queryField": "query",
+            "namespaceField": "type",
+            "limitField": "limit",
+            "limit": 10
+          },
+          "objectFields": {
+            "text": "name",
+            "namespace": "type",
+            "count": "count"
+          },
+          "minimumQueryLength": 1,
+          "lowercaseQuery": true,
+          "minimumRequestIntervalMilliseconds": 2100,
+          "tokenSpaceReplacement": "_",
+          "quoteTokens": true,
+          "headers": {
+            "Referer": "https://nhentai.net/"
+          }
+        }
+      }
+    },
+    "filters": [
+      {
+        "type": "text",
+        "id": "author",
+        "title": "Artist",
+        "placeholder": "Artist name"
+      },
+      {
+        "type": "text",
+        "id": "groups",
+        "title": "Group",
+        "placeholder": "Group name"
+      },
+      {
+        "type": "sort",
+        "title": "Sort",
+        "canAscend": false,
+        "options": [
+          "Latest",
+          "Popular Today",
+          "Popular Week",
+          "Popular All"
+        ]
+      },
+      {
+        "type": "multi-select",
+        "id": "tags",
+        "title": "Tags",
+        "isGenre": true,
+        "canExclude": true,
+        "options": [
+          "4terabyte",
+          "4uu",
+          "a kyokufuri",
+          "abortion",
+          "absorption",
+          "additional eyes",
+          "adventitious mouth",
+          "adventitious penis",
+          "adventitious vagina",
+          "afro",
+          "age progression",
+          "age regression",
+          "ahegao",
+          "ai generated",
+          "aji ponntarou",
+          "akaimelon",
+          "akigami satoru",
+          "albino",
+          "alien",
+          "alien girl",
+          "all the way through",
+          "amputee",
+          "anal",
+          "anal birth",
+          "anal intercourse",
+          "anal prolapse",
+          "analphagia",
+          "angel",
+          "animal on animal",
+          "animated",
+          "animegao",
+          "anorexic",
+          "anthology",
+          "apparel bukkake",
+          "apron",
+          "ari and mura",
+          "armpit licking",
+          "armpit sex",
+          "artbook",
+          "artistcg",
+          "asmrflute",
+          "asphyxiation",
+          "ass expansion",
+          "assjob",
+          "aunt",
+          "autofellatio",
+          "autopaizuri",
+          "bakachikubi",
+          "bald",
+          "ball caressing",
+          "ball sucking",
+          "ball-less shemale",
+          "balljob",
+          "balls expansion",
+          "bandages",
+          "bandaid",
+          "bankoku ayuya",
+          "bat girl",
+          "bathing room",
+          "bbm",
+          "bbw",
+          "bdsm",
+          "beach",
+          "bear",
+          "bear girl",
+          "beauty mark",
+          "bee girl",
+          "benii kenkyuujo",
+          "bestiality",
+          "big areolae",
+          "big ass",
+          "big balls",
+          "big breasts",
+          "big clit",
+          "big lips",
+          "big muscles",
+          "big nipples",
+          "big penis",
+          "big vagina",
+          "bike shorts",
+          "bikini",
+          "birth",
+          "bisexual",
+          "bite mark",
+          "blackmail",
+          "blind",
+          "blindfold",
+          "blood",
+          "bloomers",
+          "blowjob",
+          "blowjob face",
+          "body modification",
+          "body painting",
+          "body swap",
+          "body writing",
+          "bodystocking",
+          "bodysuit",
+          "bondage",
+          "brain fuck",
+          "breast expansion",
+          "breast feeding",
+          "breast reduction",
+          "bride",
+          "brother",
+          "bukkake",
+          "bull",
+          "bunny boy",
+          "bunny girl",
+          "buranran",
+          "burping",
+          "business suit",
+          "butler",
+          "butt plug",
+          "cannibalism",
+          "caption",
+          "cashier",
+          "cat",
+          "catboy",
+          "catfight",
+          "catgirl",
+          "cbt",
+          "centaur",
+          "cervix penetration",
+          "cervix prolapse",
+          "chastity belt",
+          "cheating",
+          "cheerleader",
+          "chikan",
+          "chinese dress",
+          "chiyou yoyuchi",
+          "chloroform",
+          "christmas",
+          "clamp",
+          "classroom",
+          "clit growth",
+          "clit insertion",
+          "clit stimulation",
+          "clone",
+          "closed eyes",
+          "clothed female nude male",
+          "clothed male nude female",
+          "clothed paizuri",
+          "clown",
+          "coach",
+          "cock ring",
+          "cockphagia",
+          "cockslapping",
+          "collar",
+          "comic",
+          "compilation",
+          "condom",
+          "confinement",
+          "conjoined",
+          "coprophagia",
+          "corpse",
+          "corruption",
+          "corset",
+          "cosplaying",
+          "cousin",
+          "cowgirl",
+          "cowman",
+          "crossdressing",
+          "crotch tattoo",
+          "crown",
+          "crying",
+          "cum bath",
+          "cum in eye",
+          "cum swap",
+          "cumflation",
+          "cunnilingus",
+          "cuntboy",
+          "cuntbusting",
+          "dark nipples",
+          "dark sclera",
+          "dark skin",
+          "daughter",
+          "deepthroat",
+          "deer girl",
+          "defaced",
+          "defloration",
+          "deko ga areba boko ga aru.",
+          "demon",
+          "demon girl",
+          "denki anma",
+          "detached sleeves",
+          "diaper",
+          "dick growth",
+          "dickgirl on dickgirl",
+          "dickgirl on female",
+          "dickgirl on male",
+          "dickgirls only",
+          "dicknipples",
+          "dilf",
+          "dinosaur",
+          "dismantling",
+          "dog",
+          "dog boy",
+          "dog girl",
+          "doll joints",
+          "dolphin",
+          "domination loss",
+          "double anal",
+          "double blowjob",
+          "double penetration",
+          "double vaginal",
+          "dougi",
+          "doujinshi",
+          "dragon",
+          "drill hair",
+          "drugs",
+          "drunk",
+          "ear fuck",
+          "eel",
+          "eggs",
+          "electric shocks",
+          "elf",
+          "emotionless sex",
+          "enema",
+          "exhibitionism",
+          "exposed clothing",
+          "extraneous ads",
+          "eye penetration",
+          "eye-covering bang",
+          "eyemask",
+          "eyepatch",
+          "facesitting",
+          "facial hair",
+          "fairy",
+          "fanny packing",
+          "farting",
+          "father",
+          "females only",
+          "femdom",
+          "feminization",
+          "fff threesome",
+          "ffm threesome",
+          "fft threesome",
+          "filming",
+          "fingering",
+          "first person perspective",
+          "fish",
+          "fishnets",
+          "fisting",
+          "focus anal",
+          "focus blowjob",
+          "focus paizuri",
+          "food on body",
+          "foot insertion",
+          "foot licking",
+          "footjob",
+          "forced exposure",
+          "forniphilia",
+          "fox",
+          "fox boy",
+          "fox girl",
+          "freckles",
+          "frog",
+          "frog girl",
+          "frottage",
+          "full body tattoo",
+          "full censorship",
+          "full color",
+          "full tour",
+          "full-packaged futanari",
+          "fundoshi",
+          "futanari",
+          "futanarization",
+          "gag",
+          "gang rape",
+          "gaping",
+          "garter belt",
+          "gasmask",
+          "gender bender",
+          "gender change",
+          "gender morph",
+          "genital piercing",
+          "gensou no yume",
+          "ghost",
+          "giant",
+          "giant sperm",
+          "giantess",
+          "gigantic breasts",
+          "gijinka",
+          "glasses",
+          "glory hole",
+          "gloves",
+          "goblin",
+          "gokkun",
+          "gorilla",
+          "gothic lolita",
+          "goudoushi",
+          "granddaughter",
+          "grandfather",
+          "grandmother",
+          "great akuta",
+          "group",
+          "growth",
+          "guro",
+          "guusuka",
+          "gyaru",
+          "gyaru-oh",
+          "gymshorts",
+          "haigure",
+          "hair buns",
+          "hairjob",
+          "hairy",
+          "hairy armpits",
+          "halo",
+          "handicapped",
+          "handjob",
+          "hanging",
+          "harem",
+          "harness",
+          "harpy",
+          "haruharu dou",
+          "headless",
+          "headphones",
+          "heterochromia",
+          "hidden sex",
+          "high heels",
+          "hijab",
+          "hiuh",
+          "hiyoko set",
+          "hololive",
+          "hood",
+          "horns",
+          "horse",
+          "horse boy",
+          "horse cock",
+          "horse girl",
+          "hotpants",
+          "how to",
+          "huge breasts",
+          "huge penis",
+          "human cattle",
+          "human on furry",
+          "human pet",
+          "humiliation",
+          "imageset",
+          "impregnation",
+          "incest",
+          "incomplete",
+          "infantilism",
+          "infirmary",
+          "inflation",
+          "insect",
+          "insect boy",
+          "insect girl",
+          "inseki",
+          "internal urination",
+          "inverted nipples",
+          "invisible",
+          "ishoku dougen",
+          "josou seme",
+          "kakoriri",
+          "kakucho parts",
+          "kame burning",
+          "kappa",
+          "karakuri korokke",
+          "karuno kamo",
+          "katamari dragon",
+          "kazefuki poni",
+          "kemonomimi",
+          "kigurumi",
+          "kigurumi pajama",
+          "kimono",
+          "kindergarten uniform",
+          "kissing",
+          "kitamatsuya",
+          "kitano ken",
+          "kiyama haru",
+          "kiyomiya ryou",
+          "kneepit sex",
+          "knotted penis",
+          "kodomo doushi",
+          "kodomo only",
+          "kunoichi",
+          "lab coat",
+          "lactation",
+          "large insertions",
+          "large tattoo",
+          "latex",
+          "layer cake",
+          "leash",
+          "leg lock",
+          "legjob",
+          "leotard",
+          "levi",
+          "lingerie",
+          "lipstick mark",
+          "living clothes",
+          "lizard girl",
+          "lizard guy",
+          "lolicon",
+          "long tongue",
+          "low bestiality",
+          "low guro",
+          "low incest",
+          "low lolicon",
+          "low scat",
+          "low shotacon",
+          "low smegma",
+          "mabuki",
+          "machine",
+          "maggot",
+          "magical girl",
+          "maid",
+          "makeup",
+          "male on dickgirl",
+          "males only",
+          "manga",
+          "mashi miyuki",
+          "masked face",
+          "masturbation",
+          "mature",
+          "mecha girl",
+          "melonbooks",
+          "menstruation",
+          "mermaid",
+          "merman",
+          "mesugaki",
+          "mesuiki",
+          "metal armor",
+          "midget",
+          "miki hime",
+          "miko",
+          "mikoshiro nagitoh",
+          "mil peeu",
+          "milf",
+          "military",
+          "milking",
+          "mimamoriencyo",
+          "mind break",
+          "mind control",
+          "mine mura",
+          "minigirl",
+          "miniguy",
+          "minotaur",
+          "misakitou",
+          "misc",
+          "missing cover",
+          "miyamoto smoke",
+          "mmf threesome",
+          "mmm threesome",
+          "mmt threesome",
+          "moheji",
+          "mokataki",
+          "momoroco",
+          "monkey",
+          "monkey boy",
+          "monkey girl",
+          "monoeye",
+          "monster",
+          "monster girl",
+          "moral degeneration",
+          "mosaic censorship",
+          "mother",
+          "mouse boy",
+          "mouse girl",
+          "mouth mask",
+          "mtf threesome",
+          "mugishibori",
+          "multi-work series",
+          "multimouth blowjob",
+          "multipanel sequence",
+          "multiple arms",
+          "multiple assjob",
+          "multiple breasts",
+          "multiple footjob",
+          "multiple handjob",
+          "multiple orgasms",
+          "multiple pairings",
+          "multiple paizuri",
+          "multiple penises",
+          "multiple straddling",
+          "multiple tails",
+          "muscle",
+          "muscle growth",
+          "mute",
+          "nagoyama",
+          "nakadashi",
+          "navel birth",
+          "navel fuck",
+          "nazi",
+          "necrophilia",
+          "netorare",
+          "netorase",
+          "niece",
+          "nijisanji",
+          "nikujuu",
+          "ninja",
+          "nipple birth",
+          "nipple expansion",
+          "nipple fuck",
+          "nipple piercing",
+          "nipple stimulation",
+          "no penetration",
+          "nofi",
+          "non-h",
+          "non-h imageset",
+          "nose fuck",
+          "nose hook",
+          "nudism",
+          "nudity only",
+          "nun",
+          "nurse",
+          "nyama",
+          "object insertion only",
+          "octopus",
+          "oil",
+          "old lady",
+          "old man",
+          "omorashi",
+          "onahole",
+          "oni",
+          "onsen",
+          "oppai loli",
+          "orc",
+          "orgasm denial",
+          "osuwaani",
+          "otokofutanari",
+          "out of order",
+          "oyakodon",
+          "painted nails",
+          "paizuri",
+          "pantyhose",
+          "pantyjob",
+          "parasite",
+          "pasties",
+          "pegging",
+          "penis birth",
+          "penis bumps",
+          "penis enlargement",
+          "penis reduction",
+          "personality excretion",
+          "petplay",
+          "petrification",
+          "phimosis",
+          "phone sex",
+          "piercing",
+          "pig",
+          "pig girl",
+          "pig man",
+          "pillory",
+          "pirate",
+          "piss drinking",
+          "pixie cut",
+          "plant girl",
+          "pole dancing",
+          "policeman",
+          "policewoman",
+          "ponygirl",
+          "ponytail",
+          "poor grammar",
+          "possession",
+          "pregnant",
+          "prehensile hair",
+          "priest",
+          "prolapse",
+          "property tag",
+          "prostate massage",
+          "prostitution",
+          "pubic stubble",
+          "public use",
+          "rabbit",
+          "raccoon boy",
+          "raccoon girl",
+          "race queen",
+          "randoseru",
+          "rape",
+          "real doll",
+          "redraw",
+          "reikoku na haizara",
+          "replaced",
+          "retractable penis",
+          "rienia",
+          "rim",
+          "rimjob",
+          "robot",
+          "rough grammar",
+          "rough translation",
+          "ruined orgasm",
+          "ryona",
+          "sake-chan",
+          "saliva",
+          "sarashi",
+          "scanmark",
+          "scar",
+          "scat",
+          "scat insertion",
+          "school gym uniform",
+          "school swimsuit",
+          "schoolboy uniform",
+          "schoolgirl uniform",
+          "screenshots",
+          "scrotal lingerie",
+          "selfcest",
+          "sentou",
+          "sex toys",
+          "shapening",
+          "shared senses",
+          "shark boy",
+          "shark girl",
+          "shaved head",
+          "sheep girl",
+          "shemale",
+          "shibari",
+          "shimaidon",
+          "shimapan",
+          "shimon ryuushirou",
+          "shinsen",
+          "shisha no mukuro",
+          "shotacon",
+          "shrinking",
+          "shuhan",
+          "sister",
+          "sketch lines",
+          "skinsuit",
+          "slave",
+          "sleeping",
+          "slime",
+          "slime boy",
+          "slime girl",
+          "slug",
+          "small breasts",
+          "small penis",
+          "smalldom",
+          "smegma",
+          "smell",
+          "smoking",
+          "snail girl",
+          "snake",
+          "snake boy",
+          "snake girl",
+          "snuff",
+          "sockjob",
+          "sole dickgirl",
+          "sole female",
+          "sole male",
+          "sole pussyboy",
+          "solo action",
+          "souchou shin",
+          "soushuuhen",
+          "spanking",
+          "speculum",
+          "spider",
+          "spider girl",
+          "split tongue",
+          "squid boy",
+          "squid girl",
+          "squirrel girl",
+          "squirting",
+          "ssbbm",
+          "ssbbw",
+          "stewardess",
+          "stirrup legwear",
+          "stockings",
+          "stomach deformation",
+          "story arc",
+          "straitjacket",
+          "strap-on",
+          "stretching",
+          "stuck in wall",
+          "sumata",
+          "sundress",
+          "sunglasses",
+          "sweating",
+          "swimsuit",
+          "swinging",
+          "syringe",
+          "tabi socks",
+          "table masturbation",
+          "tail",
+          "tail plug",
+          "tailjob",
+          "tailphagia",
+          "tall girl",
+          "tall man",
+          "tankoubon",
+          "tanlines",
+          "teacher",
+          "tentacles",
+          "themeless",
+          "thick eyebrows",
+          "thigh high boots",
+          "tiara",
+          "tickling",
+          "tiger",
+          "tights",
+          "time stop",
+          "tomboy",
+          "tomgirl",
+          "torture",
+          "tracksuit",
+          "trampling",
+          "transformation",
+          "transparent clothing",
+          "tribadism",
+          "triple anal",
+          "triple penetration",
+          "triple vaginal",
+          "tsunodzuka",
+          "ttf threesome",
+          "ttm threesome",
+          "ttt threesome",
+          "tube",
+          "tuna empire",
+          "tutor",
+          "twins",
+          "twintails",
+          "unbirth",
+          "uncensored",
+          "uncle",
+          "underwater",
+          "underwater sex",
+          "unicorn",
+          "unusual insertions",
+          "unusual pupils",
+          "unusual teeth",
+          "urethra insertion",
+          "urination",
+          "vacbed",
+          "vaginal birth",
+          "vaginal sticker",
+          "vampire",
+          "variant set",
+          "very long hair",
+          "virginity",
+          "vomit",
+          "vore",
+          "voyeurism",
+          "vtuber",
+          "waiter",
+          "waitress",
+          "watermarked",
+          "webtoon",
+          "weight gain",
+          "western cg",
+          "western imageset",
+          "western non-h",
+          "wet clothes",
+          "whip",
+          "widow",
+          "widower",
+          "wings",
+          "witch",
+          "wolf",
+          "wolf boy",
+          "wolf girl",
+          "wooden horse",
+          "worm",
+          "wormhole",
+          "wrestling",
+          "x-ray",
+          "yandere",
+          "yaoi",
+          "yukkuri",
+          "yuri",
+          "zombie",
+          "zurikishi"
+        ]
+      }
+    ],
+    "settings": [
+      {
+        "type": "group",
+        "title": "View Preferences",
+        "items": [
+          {
+            "type": "segment",
+            "key": "isListView",
+            "title": "Home Detail View",
+            "options": [
+              "Grid",
+              "List"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "group",
+        "title": "Title Preferences",
+        "items": [
+          {
+            "type": "select",
+            "key": "titlePreference",
+            "title": "Preferred Title Language",
+            "values": [
+              "english",
+              "japanese"
+            ],
+            "titles": [
+              "English",
+              "Japanese"
+            ],
+            "default": "english"
+          }
+        ]
+      },
+      {
+        "type": "group",
+        "title": "Blocklist",
+        "items": [
+          {
+            "type": "editable-list",
+            "key": "blocklist",
+            "title": "Add Blocked Tag",
+            "lineLimit": 1,
+            "inline": true,
+            "placeholder": "Tag to block",
+            "default": [
+              "example"
+            ],
+            "refreshes": [
+              "content"
+            ]
+          }
+        ]
+      }
+    ],
+    "provenance": {
+      "backupPath": "/Users/ijunjae/PycharmProjects/new_aidoku/output/pipeline-speed-0929/depth-after/ApplicationSupport/Sources/multi.nhentai/source.json",
+      "manifestSHA256": "2321d4c01d07a7852ac631aac39d02a702a6b814887ce2946a8450cb101a8992",
+      "wasmSHA256": "eb39593169a6f9540a8678c7a2898ceeebb85aa30ddf604679a71d5c7cb341b1"
+    }
+  }
+]

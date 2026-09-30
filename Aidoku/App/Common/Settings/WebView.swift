@@ -73,13 +73,21 @@ struct WebView: UIViewRepresentable {
         private var revision = UUID()
         private var needsRefresh = false
         typealias Snapshot = (cookies: [String: String], storage: [String: String])
-        private let extract: @MainActor (WKWebView, String?, [String]) async -> Snapshot
+        private let extract: @MainActor (WKWebView, URL, [String]) async -> Snapshot
 
         init(
             parent: WebView,
-            extract: @escaping @MainActor (WKWebView, String?, [String]) async -> Snapshot = { webView, host, keys in
-                let cookies = await webView.getCookies(for: host)
-                let storage = await webView.getLocalStorage(keys: keys)
+            extract: @escaping @MainActor (WKWebView, URL, [String]) async -> Snapshot = { webView, url, keys in
+                let browserCookies = await webView.configuration.websiteDataStore.httpCookieStore.allCookies()
+                // Source settings expose flat cookie values, without a credential request endpoint.
+                // Retain API-path cookies rather than incorrectly scope them to the login page.
+                let cookies = SourceLoginBrowserPolicy.cookieValues(browserCookies, for: url, includePath: false)
+                // Identity-provider localStorage must never become a source credential.
+                let storage = if SourceLoginBrowserPolicy.sameOrigin(webView.url, url) {
+                    await webView.getLocalStorage(keys: keys)
+                } else {
+                    [String: String]()
+                }
                 return (cookies, storage)
             }
         ) {
@@ -125,9 +133,10 @@ struct WebView: UIViewRepresentable {
                     guard let webView = self.webView else { break }
                     let url = self.parent.url
                     let keys = self.parent.localStorageKeys
-                    let snapshot = await self.extract(webView, url.host, keys)
+                    let documentURL = webView.url
+                    let snapshot = await self.extract(webView, url, keys)
                     guard !Task.isCancelled, self.revision == current, self.isObservingCookies else { return }
-                    guard self.parent.url == url, self.parent.localStorageKeys == keys else {
+                    guard self.parent.url == url, self.parent.localStorageKeys == keys, webView.url == documentURL else {
                         self.needsRefresh = true
                         continue
                     }

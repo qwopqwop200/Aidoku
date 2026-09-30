@@ -190,7 +190,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encodeNil()
         count += prependLength ? 1 : 0
@@ -201,7 +201,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encode(value)
         count += prependLength ? 1 : 0
@@ -212,7 +212,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encode(value)
         count += prependLength ? 1 : 0
@@ -223,7 +223,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encode(value)
         count += prependLength ? 1 : 0
@@ -234,7 +234,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encode(value)
         count += prependLength ? 1 : 0
@@ -245,7 +245,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encode(value)
         count += prependLength ? 1 : 0
@@ -256,7 +256,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encode(value)
         count += prependLength ? 1 : 0
@@ -267,7 +267,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encode(value)
         count += prependLength ? 1 : 0
@@ -278,7 +278,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encode(value)
         count += prependLength ? 1 : 0
@@ -289,7 +289,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encode(value)
         count += prependLength ? 1 : 0
@@ -300,7 +300,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encode(value)
         count += prependLength ? 1 : 0
@@ -311,7 +311,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encode(value)
         count += prependLength ? 1 : 0
@@ -322,7 +322,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encode(value)
         count += prependLength ? 1 : 0
@@ -333,7 +333,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encode(value)
         count += prependLength ? 1 : 0
@@ -344,7 +344,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         data.encode(value)
         count += prependLength ? 1 : 0
@@ -355,7 +355,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         let encoding = PostcardEncoding(to: data)
         try encoding.encodeValue(value)
@@ -370,7 +370,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         let container = PostcardKeyedEncoding<NestedKey>(to: data)
         count += prependLength ? 1 : 0
@@ -382,7 +382,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         count += prependLength ? 1 : 0
         return PostcardUnkeyedEncoding(to: data)
@@ -398,7 +398,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         return superEncoder()
     }
@@ -408,7 +408,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         if let value {
             data.encode(UInt8(1))
@@ -424,7 +424,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         if let value {
             data.encode(UInt8(1))
@@ -440,7 +440,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(key.stringValue)
         }
         if let intValue = key.intValue {
-            data.encode(UInt64(intValue))
+            data.encode(UInt64(bitPattern: Int64(intValue)))
         }
         if let value {
             data.encode(UInt8(1))

@@ -149,9 +149,6 @@
             "name" : "KomgaReleaseDateSafetyTests"
           },
           {
-            "name" : "LegacySourcePaginationTests"
-          },
-          {
             "name" : "LibraryCategoryHeaderLifetimeTests"
           },
           {
@@ -477,6 +474,129 @@
           },
           {
             "name" : "TranslationStreamingTests"
+          },
+          {
+            "name" : "CloudflareResponsePolicyTests"
+          },
+          {
+            "name" : "EHentaiNativeSourceTests"
+          },
+          {
+            "name" : "HitomiNativeUtilityTests"
+          },
+          {
+            "name" : "MangarawJPImageCodecTests"
+          },
+          {
+            "name" : "NHentaiNativeSourceTests"
+          },
+          {
+            "name" : "NativeHitomiSourceTests"
+          },
+          {
+            "name" : "NativeJapaneseGroupATests"
+          },
+          {
+            "name" : "NativeRawOtakuSourceTests"
+          },
+          {
+            "name" : "NativeRawkumaSourceTests"
+          },
+          {
+            "name" : "NativeSenMangaSourceTests"
+          },
+          {
+            "name" : "NativeSoraRawSourceTests"
+          },
+          {
+            "name" : "NativeSourceBackupCoverageTests"
+          },
+          {
+            "name" : "NativeSourceRoutingTests"
+          },
+          {
+            "name" : "NativeSpoilerPlusSourceTests"
+          },
+          {
+            "name" : "NativeWebLoginPolicyTests"
+          },
+          {
+            "name" : "NativeLoginAttemptTests"
+          },
+          {
+            "name" : "SoraRawImageCodecTests"
+          },
+          {
+            "name" : "SourceLoginBrowserPolicyTests"
+          },
+          {
+            "name" : "NativeJapaneseBAuditTests"
+          },
+          {
+            "name" : "NativeSourceIntegrationAuditTests"
+          },
+          {
+            "name" : "NativeHitomiAuditTests"
+          },
+          {
+            "name" : "NativeJapaneseAAuditTests"
+          },
+          {
+            "name" : "NativeAuthCloudflareAuditTests"
+          },
+          {
+            "name" : "NativeGallerySourceAuditTests"
+          },
+          {
+            "name" : "NativeImageCodecAuditTests"
+          },
+          {
+            "name" : "NativeYomiiSourceTests"
+          },
+          {
+            "name" : "ReauditAuthenticationTests"
+          },
+          {
+            "name" : "ReauditCloudflareTests"
+          },
+          {
+            "name" : "ReauditEHentaiTests"
+          },
+          {
+            "name" : "ReauditHitomiTests"
+          },
+          {
+            "name" : "ReauditMangarawBestTests"
+          },
+          {
+            "name" : "ReauditMangarawJPTests"
+          },
+          {
+            "name" : "ReauditNHentaiTests"
+          },
+          {
+            "name" : "ReauditRawOtakuTests"
+          },
+          {
+            "name" : "ReauditRawdevartTests"
+          },
+          {
+            "name" : "ReauditRawkumaTests"
+          },
+          {
+            "name" : "ReauditSoraRawTests"
+          },
+          {
+            "name" : "ReauditSpoilerPlusTests"
+          },
+          {
+            "name" : "ReauditYomiiTests"
+          },
+          {
+            "name" : "ReauditMangaLoadOwnershipTests"
+          },
+          {
+            "name" : "ReauditSourceIntegrationTests"
           }
         ]
       },

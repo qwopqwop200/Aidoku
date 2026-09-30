@@ -1143,3 +1143,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "電子辞書研究開発グループ（EDRDG）が管理する総合的な日英辞書です。";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "電子辞書研究開発グループ（EDRDG）が管理する日本語の固有名詞辞書です。";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe のメディアコーパスに基づく頻度辞書です。";
+
+// Unsupported installed source package version
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "ソース %@ のバージョン %d はこのアプリでサポートされていません。対応するバージョンをインストールしてください。";

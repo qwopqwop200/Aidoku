@@ -13,6 +13,8 @@ struct ExternalSourceTableCell: View {
 
     var onInstall: (() -> Void)?
     var onGet: (() async -> Bool)?
+    @State private var importFailureMessage: String?
+    @State private var showImportFailure = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -67,16 +69,23 @@ struct ExternalSourceTableCell: View {
                         let url = externalInfo.fileURL
                     else { return false }
 
-                    let result = await SourceManager.shared.importSource(from: url)
-
-                    if result != nil {
-                        onInstall?()
+                    do {
+                        let result = try await SourceManager.shared.importSourceValidated(from: url)
+                        if result != nil { onInstall?() }
+                        return result != nil
+                    } catch {
+                        importFailureMessage = error.aidokuDescription()
+                        showImportFailure = true
+                        return false
                     }
-
-                    return result != nil
                 }
             }
         }
         .padding(.vertical, 4)
+        .alert(NSLocalizedString("IMPORT_FAIL"), isPresented: $showImportFailure) {
+            Button(NSLocalizedString("OK"), role: .cancel) {}
+        } message: {
+            Text(importFailureMessage ?? NSLocalizedString("SOURCE_IMPORT_FAIL_TEXT"))
+        }
     }
 }
