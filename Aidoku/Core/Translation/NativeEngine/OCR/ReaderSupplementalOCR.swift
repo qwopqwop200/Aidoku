@@ -66,17 +66,31 @@ enum ReaderSupplementalOCR {
             }
         }
         let replacements = supplemental.map(bounds)
-        return native.filter { line in
-            let box = bounds(line)
-            guard !box.isNull, box.width > 0, box.height > 0 else { return true }
-            return !replacements.contains { replacement in
-                let intersection = box.intersection(replacement)
-                guard !intersection.isNull else { return false }
-                let area = intersection.width * intersection.height
-                return area / (box.width * box.height) >= 0.5
-                    || (area / (replacement.width * replacement.height) >= 0.8
-                        && box.height <= replacement.height * 2)
+        func replaces(_ box: CGRect, with replacement: CGRect) -> Bool {
+            guard !box.isNull, box.width > 0, box.height > 0 else { return false }
+            let intersection = box.intersection(replacement)
+            guard !intersection.isNull else { return false }
+            let area = intersection.width * intersection.height
+            return area / (box.width * box.height) >= 0.5
+                || (area / (replacement.width * replacement.height) >= 0.8
+                    && box.height <= replacement.height * 2)
+        }
+        let nativeBounds = native.map(bounds)
+        let retained = native.indices.filter { index in
+            !replacements.contains { replaces(nativeBounds[index], with: $0) }
+        }.map { native[$0] }
+        let completed = supplemental.enumerated().map { index, line in
+            var evidence = line.erasurePolygons
+            for original in native.indices where replaces(nativeBounds[original], with: replacements[index]) {
+                for polygon in native[original].erasurePolygons where !evidence.contains(polygon) {
+                    guard evidence.count < 64 else { break }
+                    evidence.append(polygon)
+                }
             }
-        } + supplemental
+            return NativeCoreMLOCRLine(polygon: line.polygon, text: line.text, score: line.score,
+                orientation: line.orientation, orientationIsEstimated: line.orientationIsEstimated,
+                sourceTileBounds: line.sourceTileBounds, erasurePolygons: evidence)
+        }
+        return retained + completed
     }
 }

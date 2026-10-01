@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),zlib=require('node:zlib'),assert=require('node:assert/strict'),path=require('node:path');
-const dir=path.join(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const dir=path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const typography=fs.readFileSync(path.join(dir,'BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0];
 const color=fs.readFileSync(path.join(dir,'BrowserSourceTextColor.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const api=vm.runInNewContext('const getComputedStyle = node => node.style;'+color+typography+';({detect:aidokuEnclosedCaptionOutline,style:aidokuObservedCaptionStyle,apply:aidokuPreserveObservedCaptionStyle})');

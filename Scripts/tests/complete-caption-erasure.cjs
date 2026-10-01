@@ -1,7 +1,7 @@
 // Captured native-prepared crops. Independent source-ink labels cover the
 // previously rejected glyphs, including punctuation cut by the OCR boundary.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),crypto=require('node:crypto');
-const dir=path.join(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const dir=path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const script=n=>fs.readFileSync(path.join(dir,n+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const restore=new Function(script('BrowserSourceTextColor')+script('BrowserSourcePanelRestoration')+';return aidokuRestoreSourcePanel;')();
 for(const f of JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/complete-caption-erasure.json'))).fixtures){

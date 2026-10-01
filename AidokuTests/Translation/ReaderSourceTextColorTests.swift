@@ -675,14 +675,14 @@ struct ReaderSourceTextColorTests {
         return host
     }
 
-    private func makeOverlay(size: CGSize) throws -> (UIWindow, ReaderTranslationOverlayView) {
+    private func makeOverlay(size: CGSize) throws -> (UIWindow, LegacyReaderTranslationOverlayView) {
         let host = try makeHost()
-        let overlay = ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: size))
+        let overlay = LegacyReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: size))
         host.rootViewController?.view.addSubview(overlay)
         return (host, overlay)
     }
 
-    private func wait(_ overlay: ReaderTranslationOverlayView, after revision: UInt64) async throws {
+    private func wait(_ overlay: LegacyReaderTranslationOverlayView, after revision: UInt64) async throws {
         for _ in 0..<600 {
             overlay.layoutIfNeeded()
             if let diagnostic = overlay.lastDiagnostic, diagnostic.revision > revision, diagnostic.outcome == .committed { return }

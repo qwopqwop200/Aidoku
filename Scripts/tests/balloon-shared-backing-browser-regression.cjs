@@ -1,7 +1,7 @@
 // Verify the production shared-card admission gate against actual DOM geometry.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
-const source=fs.readFileSync(process.env.CAPTION_SOURCE||path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
+const source=fs.readFileSync(process.env.CAPTION_SOURCE||path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'),'utf8');
 const begin=source.indexOf('              const opaqueCard=layer=>{',source.indexOf('fitBalloon: '));
 assert.ok(begin>0,'shared backing admission must exist');
 const gate=source.slice(begin,source.indexOf('              measurementNode.style.cssText=',begin)).replace(/\\([\\"])/g,'$1');

@@ -1,0 +1,254 @@
+[
+  {
+    "page": "dark-translucent",
+    "index": 0,
+    "frame": {
+      "x": 39,
+      "y": 135.5,
+      "width": 253.5,
+      "height": 85.796875
+    },
+    "deviceScale": 3,
+    "usesPattern": true,
+    "dimensions": [
+      253.65625,
+      85.65625,
+      253.65625,
+      85.328125
+    ]
+  },
+  {
+    "page": "dark-translucent",
+    "index": 1,
+    "frame": {
+      "x": 284.25,
+      "y": 253.46875,
+      "width": 51.578125,
+      "height": 182.3125
+    },
+    "deviceScale": 3,
+    "usesPattern": false,
+    "dimensions": [
+      51.328125,
+      182.328125,
+      51.328125,
+      182.328125
+    ]
+  },
+  {
+    "page": "landscape-fill",
+    "index": 0,
+    "frame": {
+      "x": 70,
+      "y": 39,
+      "width": 455,
+      "height": 62.390625
+    },
+    "deviceScale": 3,
+    "usesPattern": false,
+    "dimensions": [
+      455.0,
+      62.328125,
+      455.0,
+      62.328125
+    ]
+  },
+  {
+    "page": "landscape-fill",
+    "index": 1,
+    "frame": {
+      "x": 511,
+      "y": 124.796875,
+      "width": 91,
+      "height": 132.59375
+    },
+    "deviceScale": 3,
+    "usesPattern": false,
+    "dimensions": [
+      91.0,
+      132.65625,
+      91.0,
+      132.65625
+    ]
+  },
+  {
+    "page": "vertical-japanese-punctuation",
+    "index": 0,
+    "frame": {
+      "x": 284.6875,
+      "y": 253.46875,
+      "width": 50.6875,
+      "height": 182.3125
+    },
+    "deviceScale": 3,
+    "usesPattern": false,
+    "dimensions": [
+      50.65625,
+      182.328125,
+      50.65625,
+      182.328125
+    ]
+  },
+  {
+    "page": "horizontal-korean",
+    "index": 0,
+    "frame": {
+      "x": 39,
+      "y": 135.5,
+      "width": 253.5,
+      "height": 85.796875
+    },
+    "deviceScale": 3,
+    "usesPattern": true,
+    "dimensions": [
+      253.65625,
+      85.65625,
+      253.65625,
+      85.328125
+    ]
+  },
+  {
+    "page": "original-plus-translation",
+    "index": 0,
+    "frame": {
+      "x": 39,
+      "y": 135.5,
+      "width": 253.5,
+      "height": 85.796875
+    },
+    "deviceScale": 3,
+    "usesPattern": true,
+    "dimensions": [
+      253.65625,
+      85.65625,
+      253.65625,
+      85.328125
+    ]
+  },
+  {
+    "page": "original-plus-translation",
+    "index": 1,
+    "frame": {
+      "x": 284.25,
+      "y": 253.46875,
+      "width": 51.578125,
+      "height": 182.3125
+    },
+    "deviceScale": 3,
+    "usesPattern": false,
+    "dimensions": [
+      51.328125,
+      182.328125,
+      51.328125,
+      182.328125
+    ]
+  },
+  {
+    "page": "mixed-multiple-cards",
+    "index": 0,
+    "frame": {
+      "x": 39,
+      "y": 135.5,
+      "width": 253.5,
+      "height": 85.796875
+    },
+    "deviceScale": 3,
+    "usesPattern": true,
+    "dimensions": [
+      253.65625,
+      85.65625,
+      253.65625,
+      85.328125
+    ]
+  },
+  {
+    "page": "mixed-multiple-cards",
+    "index": 1,
+    "frame": {
+      "x": 284.25,
+      "y": 253.46875,
+      "width": 51.578125,
+      "height": 182.3125
+    },
+    "deviceScale": 3,
+    "usesPattern": false,
+    "dimensions": [
+      51.328125,
+      182.328125,
+      51.328125,
+      182.328125
+    ]
+  },
+  {
+    "page": "mixed-multiple-cards",
+    "index": 2,
+    "frame": {
+      "x": 39,
+      "y": 387.53125,
+      "width": 187.1875,
+      "height": 91.15625
+    },
+    "deviceScale": 3,
+    "usesPattern": false,
+    "dimensions": [
+      187.328125,
+      91.0,
+      187.328125,
+      91.0
+    ]
+  },
+  {
+    "page": "small-korean-word-fit",
+    "index": 0,
+    "frame": {
+      "x": 78,
+      "y": 285.640625,
+      "width": 39,
+      "height": 24.125
+    },
+    "deviceScale": 3,
+    "usesPattern": false,
+    "dimensions": [
+      39.0,
+      24.0,
+      39.0,
+      24.0
+    ]
+  },
+  {
+    "page": "rotated-polygon",
+    "index": 0,
+    "frame": {
+      "x": 39,
+      "y": 387.53125,
+      "width": 187.1875,
+      "height": 91.15625
+    },
+    "deviceScale": 3,
+    "usesPattern": false,
+    "dimensions": [
+      187.328125,
+      91.0,
+      187.328125,
+      91.0
+    ]
+  },
+  {
+    "page": "vertical-source",
+    "index": 0,
+    "frame": {
+      "x": 284.25,
+      "y": 253.46875,
+      "width": 51.578125,
+      "height": 182.3125
+    },
+    "deviceScale": 3,
+    "usesPattern": false,
+    "dimensions": [
+      51.328125,
+      182.328125,
+      51.328125,
+      182.328125
+    ]
+  }
+]

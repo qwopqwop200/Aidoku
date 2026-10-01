@@ -278,10 +278,7 @@ struct ReaderTranslationRenderSpeedTests {
             if await gate.started,
                let overlay = window.subviews.compactMap({ $0 as? ReaderTranslationOverlayView }).first {
                 overlay.layoutIfNeeded()
-                let loaded = try? await overlay.webView.evaluateJavaScript(
-                    "document.getElementById('reader-source-image')?.naturalWidth > 0"
-                ) as? Bool
-                if loaded == true { loadedOverlay = overlay }
+                if overlay.sourceImage === image { loadedOverlay = overlay }
             }
             try await Task.sleep(for: .milliseconds(10))
         }

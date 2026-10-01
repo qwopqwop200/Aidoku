@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {webkit} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
-const source = fs.readFileSync(path.join(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
+const source = fs.readFileSync(path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'),'utf8');
 const start = source.indexOf('    const frameSource=');
 const end = source.indexOf('    // Readability floor for rotated plates.',start);
 assert.ok(start > 0 && end > start);

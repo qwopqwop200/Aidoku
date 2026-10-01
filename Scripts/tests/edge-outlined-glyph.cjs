@@ -1,6 +1,6 @@
 // Real cached source crop: the OCR edge bisects two white-ringed glyph components.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),crypto=require('node:crypto');
-const base=path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const base=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const source=n=>fs.readFileSync(path.join(base,n+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const restore=new Function(source('BrowserSourceTextColor')+source('BrowserSourcePanelRestoration')+';return aidokuRestoreChromaticBalloonGlyphs;')();
 const f=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/edge-outlined-glyph.json')));

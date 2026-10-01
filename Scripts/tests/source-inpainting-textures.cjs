@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),zlib=require('node:zlib');
 const {resize}=require('./source-color-test-harness.cjs');
 const arg=name=>process.argv.includes(name)?process.argv[process.argv.indexOf(name)+1]:null;
-const source=path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const source=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const script=file=>fs.readFileSync(file,'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const restore=new Function(script(arg('--restoration-source')||path.join(source,'BrowserSourcePanelRestoration.swift'))+';return aidokuRestoreSourcePanel;')();
 const document={createElement(){let d;return{getContext(){return{drawImage(image,sx,sy,sw,sh,dx,dy,w,h){d={image,sx,sy,sw,sh,w,h};},getImageData(){return{data:resize(d.image,d.sx,d.sy,d.sw,d.sh,d.w,d.h)};}};}};}};

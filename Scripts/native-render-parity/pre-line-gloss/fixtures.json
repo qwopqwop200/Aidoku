@@ -1,0 +1,642 @@
+[
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20
+  }
+]

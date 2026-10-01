@@ -118,7 +118,7 @@ subprocess.run(['node', '-e', 'const SCRIPT=' + json.dumps(trace_script) + ';' +
 # Replay real stored crop pixels through the current production segmenter, with/without tracing.
 production_harness = r''' 
 const fs=require('node:fs'),zlib=require('node:zlib'),assert=require('node:assert/strict');
-const source=fs.readFileSync(ROOT+'/Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceGlyphSegmentation.swift','utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
+const source=fs.readFileSync(ROOT+'/AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourceGlyphSegmentation.swift','utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const fixtures=JSON.parse(fs.readFileSync(ROOT+'/Scripts/tests/fixtures/source-inpainting-art-guard.json')).fixtures;
 const context={createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData(){},drawImage(){}};
 globalThis.document={createElement:()=>({getContext:()=>context,toDataURL:()=> 'data:image/png;base64,eA=='})};

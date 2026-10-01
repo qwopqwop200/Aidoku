@@ -1,7 +1,7 @@
 // Native crops from device-cache pages. No translation strings or page IDs
 // participate in production decisions; each fixture retains its original palette.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),crypto=require('node:crypto');
-const dir=path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const dir=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const read=n=>fs.readFileSync(path.join(dir,n+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const api=new Function(read('BrowserSourceTextColor')+read('BrowserSourcePanelRestoration')+';return {restore:aidokuRestoreSourcePanel,discover:aidokuDiscoverOutlinedSource};')();
 for(const f of JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/discovered-outline-restoration.json'))).fixtures){

@@ -4,7 +4,7 @@ const load=s=>JSON.parse(fs.readFileSync(path.join(root,s)));
 const payload=load('native-after/incident-10.payload.json'),dump=load('before-panel-reflow/incident-10.items.json');
 const item=payload.items.find(x=>String(x.id)==='8'),caption=dump.items.find(x=>x.region==='8');
 const layer=dump.layers.find(x=>x.region==='8'&&x.kind==='source-readability-panel');assert.ok(item&&caption&&layer);
-const script=fs.readFileSync(path.join(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0];
+const script=fs.readFileSync(path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0];
 (async()=>{const browser=await webkit.launch();try{const page=await browser.newPage({viewport:{width:430,height:574}});
  for(const mode of ['fit','no-room']){
   await page.setContent('<style>body{margin:0}</style><div id="root"></div>');

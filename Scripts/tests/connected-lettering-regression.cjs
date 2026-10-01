@@ -2,7 +2,7 @@
 // (glyphs fused with a background shape or a rule), while rules, thin drawing
 // lines, marks between the text lines and textured surroundings keep their pixels.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
-const source=fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift'),'utf8');
 const script=source.match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const complete=new Function(script+';return aidokuCompleteConnectedLettering;')();
 

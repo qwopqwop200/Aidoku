@@ -1,7 +1,7 @@
 // Actual native crops: dense donor recovery is restricted to upright OCR.
 // Rectified mask candidates can recruit neighboring lettering after resampling.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),z=require('node:zlib');
-const directory=path.join(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const directory=path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const script=name=>fs.readFileSync(path.join(directory,name+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const restore=new Function(script('BrowserSourceTextColor')+script('BrowserSourcePanelRestoration')+script('BrowserSlantedSourceRestoration')+';return aidokuRestoreSlantedSource;')();
 for(const row of JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/slanted-dense-recovery-guard.json')))){

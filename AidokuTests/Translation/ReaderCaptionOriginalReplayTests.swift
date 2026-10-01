@@ -50,7 +50,7 @@ struct ReaderCaptionOriginalReplayTests {
         web.loadHTMLString("<meta name='viewport' content='width=device-width,initial-scale=1'><body style='margin:0'>", baseURL: nil)
         for _ in 0..<200 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
         let source = "data:image/png;base64," + (try Data(contentsOf: directory.appendingPathComponent("original.png"))).base64EncodedString()
-        _ = try await web.callAsyncJavaScript(ReaderTranslationOverlayView.backgroundScript,
+        _ = try await web.callAsyncJavaScript(LegacyReaderTranslationOverlayView.backgroundScript,
             arguments: ["source": source, "fit": "contain", "revision": 1], in: nil, contentWorld: .page)
         let result = try await web.callAsyncJavaScript(BrowserPageImageOverlayRenderer.renderScript,
             arguments: ["items": values, "appearance": appearance, "revision": "1", "session": "original-replay"],

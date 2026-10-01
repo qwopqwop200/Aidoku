@@ -2,7 +2,7 @@
 // bounded allowance. No duplicate acceptance algorithm lives in this fixture.
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const assert=require('node:assert/strict'),test=require('node:test');
-const source=fs.readFileSync(process.env.SURFACE_OVERLAY_PATH||path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
+const source=fs.readFileSync(process.env.SURFACE_OVERLAY_PATH||path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'),'utf8');
 const start=source.indexOf('        const panelGeometry=restoredPanelGeometry.get(item);');
 const end=source.indexOf("        if(node.dataset.captionFontRecovery==='accepted'&&preRecoveryProfile){",start);
 assert.ok(start>=0&&end>start);

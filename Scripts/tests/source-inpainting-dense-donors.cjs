@@ -1,6 +1,6 @@
 // Real captured narrow balloons and textured negatives, executing production.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),z=require('node:zlib');
-const source=fs.readFileSync(path.join(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift'),'utf8');
+const source=fs.readFileSync(path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift'),'utf8');
 const script=source.match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const api=new Function(script+';return {restore:aidokuRestoreSourcePanel,attempts:aidokuRestoreSourcePanelAttempts};')();
 for(const fixture of JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/source-inpainting-dense-donors.json')))){

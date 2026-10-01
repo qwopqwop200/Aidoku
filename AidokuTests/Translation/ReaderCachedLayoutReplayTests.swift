@@ -72,7 +72,7 @@ struct ReaderCachedLayoutReplayTests {
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: viewport[0], height: viewport[1]))
         web.loadHTMLString("<meta name='viewport' content='width=device-width,initial-scale=1'><body style='margin:0'>", baseURL: nil)
         for _ in 0..<200 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
-        _ = try await web.callAsyncJavaScript(ReaderTranslationOverlayView.backgroundScript,
+        _ = try await web.callAsyncJavaScript(LegacyReaderTranslationOverlayView.backgroundScript,
             arguments: ["source": source, "fit": "contain", "revision": 1], in: nil, contentWorld: .page)
         _ = try await web.callAsyncJavaScript(BrowserPageImageOverlayRenderer.renderInstallAndCallScript,
             arguments: ["items": items, "appearance": appearance, "revision": "1", "session": "cached-replay",

@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const at = process.argv.indexOf('--source');
-const file = at < 0 ? path.resolve(__dirname, '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift') : process.argv[at + 1];
+const file = at < 0 ? path.resolve(__dirname, '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift') : process.argv[at + 1];
 const script = fs.readFileSync(file, 'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const { marks, restore } = new Function(script + ';return {marks:aidokuRowEndMarks,restore:aidokuRestoreSourcePanel};')();
 let passed = 0;

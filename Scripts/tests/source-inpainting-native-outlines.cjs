@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), zlib = require('node:zlib'), crypto = require('node:crypto');
 const source = fs.readFileSync(path.join(__dirname,
-  '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift'), 'utf8');
+  '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift'), 'utf8');
 const script = source.match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const restore = new Function(script + ';return aidokuRestoreSourcePanel;')();
 const fixtures = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/source-inpainting-native-outlines.json'))).fixtures;

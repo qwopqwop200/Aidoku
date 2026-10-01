@@ -2,8 +2,18 @@
 // Exact integer/IEEE ports of hot per-pixel loops of the overlay renderer (see BrowserSourceTextColor.swift).
 // No allocator, no std: scratch memory is laid out by the JavaScript glue. sqrt is imported from Math.sqrt so it
 // is the same function the JavaScript paths use.
+#[cfg(target_arch = "wasm32")]
 #[panic_handler] fn panic(_: &core::panic::PanicInfo) -> ! { core::arch::wasm32::unreachable() }
-#[link(wasm_import_module = "env")]
+#[cfg(not(target_arch = "wasm32"))]
+#[panic_handler] fn panic(_: &core::panic::PanicInfo) -> ! { unsafe { abort() } }
+#[cfg(not(target_arch = "wasm32"))]
+extern "C" { fn abort() -> !; }
+// Prebuilt core contains exception metadata even with panic=abort. This no-unwind
+// native runtime must abort if a personality routine is ever reached.
+#[cfg(not(target_arch = "wasm32"))]
+#[no_mangle]
+pub extern "C" fn rust_eh_personality() -> ! { unsafe { abort() } }
+#[cfg_attr(target_arch = "wasm32", link(wasm_import_module = "env"))]
 extern "C" { #[link_name = "sqrt"] fn js_sqrt(x: f64) -> f64; }
 #[inline(always)] fn sqrt(x: f64) -> f64 { unsafe { js_sqrt(x) } }
 // Exact for the finite, |x| < 2^52 values used here.

@@ -19,6 +19,7 @@ struct DictionaryVocabDetailsView: View {
     @State private var definitionContent: String = ""
     @State private var lookupEntries: [[String: Any]] = []
     @State private var popupHeight: CGFloat = 300
+    @State private var definitionWidth: CGFloat = 260
 
     @State private var sourceManga: AidokuRunner.Manga?
     @State private var sourceChapter: AidokuRunner.Chapter?
@@ -49,12 +50,11 @@ struct DictionaryVocabDetailsView: View {
             List {
                 if !isEditing {
                     Section(NSLocalizedString("DEFINITION")) {
-                        PopupWebView(
-                            content: definitionContent,
+                        NativeDictionaryPopupView(
                             position: .zero,
                             scale: CGFloat(userConfig.popupScale),
+                            contentWidth: definitionWidth,
                             clearSelection: false,
-                            dictionaryStyles: dictionaryStyles,
                             lookupEntries: lookupEntries,
                             isScrollEnabled: false,
                             onContentHeightChanged: { height in
@@ -62,6 +62,15 @@ struct DictionaryVocabDetailsView: View {
                             }
                         )
                         .frame(height: popupHeight)
+                        .background {
+                            GeometryReader { geometry in
+                                Color.clear
+                                    .onAppear { definitionWidth = max(1, geometry.size.width - 24) }
+                                    .onChange(of: geometry.size.width) { _, width in
+                                        definitionWidth = max(1, width - 24)
+                                    }
+                            }
+                        }
                     }
                 }
 

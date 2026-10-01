@@ -49,6 +49,38 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
         XCTAssertEqual(decoded, grouped)
     }
 
+    func testProbabilitySupportDoesNotRecruitAnotherRecognitionOwner() throws {
+        let width = 80, height = 40
+        var values = [Float](repeating: 0, count: width * height)
+        for y in 10..<20 { for x in 10..<20 { values[y * width + x] = 0.9 } }
+        for y in 10..<20 { for x in 22..<28 { values[y * width + x] = 0.9 } }
+        func polygon(_ left: CGFloat, _ right: CGFloat) -> [CGPoint] {
+            [CGPoint(x: left, y: 10), CGPoint(x: right, y: 10), CGPoint(x: right, y: 20), CGPoint(x: left, y: 20)]
+        }
+        let boxes = [NativeCoreMLDetectionBox(polygon: polygon(10, 20), score: 0.9),
+                     NativeCoreMLDetectionBox(polygon: polygon(22, 28), score: 0.9)]
+        let result = try NativeCoreMLDBPostprocessor.addingErasureSupport(
+            map: .init(width: width, height: height, values: values), boxes: boxes, sourceWidth: width, sourceHeight: height)
+        XCTAssertEqual(result.map(\.polygon), boxes.map(\.polygon))
+        XCTAssertFalse(result[0].erasurePolygons.isEmpty)
+        XCTAssertTrue(result[0].erasurePolygons.flatMap { $0 }.allSatisfy { $0.x <= 20 })
+        XCTAssertTrue(result[1].erasurePolygons.flatMap { $0 }.allSatisfy { $0.x >= 22 })
+    }
+
+    func testProbabilitySupportChecksCancellationDuringBoundedScan() throws {
+        let width = 128, height = 128
+        let box = NativeCoreMLDetectionBox(polygon: [CGPoint(x: 24, y: 24), CGPoint(x: 100, y: 24),
+            CGPoint(x: 100, y: 100), CGPoint(x: 24, y: 100)], score: 0.9)
+        var checks = 0
+        XCTAssertThrowsError(try NativeCoreMLDBPostprocessor.addingErasureSupport(
+            map: .init(width: width, height: height, values: [Float](repeating: 0.9, count: width * height)),
+            boxes: [box], sourceWidth: width, sourceHeight: height, cancellationCheck: {
+                checks += 1
+                if checks == 4 { throw CancellationError() }
+            }))
+        XCTAssertEqual(checks, 4)
+    }
+
     func testPipelinePassesThresholdChangesWithoutRecreatingModels() async throws {
         let frame = try XCTUnwrap(NativeOCRRGBAFrame(width: 16, height: 16, bytes: [UInt8](repeating: 255, count: 16 * 16 * 4)))
         let context = try XCTUnwrap(CGContext(data: nil, width: 16, height: 16, bitsPerComponent: 8,

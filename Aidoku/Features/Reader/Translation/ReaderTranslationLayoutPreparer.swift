@@ -23,7 +23,7 @@ struct ReaderTranslationLayoutGeometry: Sendable {
         let container = pageContainer ?? (aspectFit ? viewport : CGSize(width: viewport.width, height: 0))
         return ReaderTranslationCacheIdentity.encoded([
             ReaderTranslationCacheIdentity.encoded(container), String(Double(scale)), String(aspectFit),
-            String(fitHeight), String(dark), String(Double(crop.width)), BrowserOverlayLetterFonts.shared.availabilityKey
+            String(fitHeight), String(dark), String(Double(crop.width)), NativeTranslationTypography.availabilityKey
         ])
     }
 
@@ -43,7 +43,7 @@ struct ReaderTranslationLayoutGeometry: Sendable {
 }
 
 /// One cancellable offscreen renderer prepares the actual translation overlay pixels.
-/// Geometry/image encoding stay off MainActor; OCR/API work has its own queue.
+/// Geometry and source preparation stay off MainActor; OCR/API work has its own queue.
 @MainActor
 final class ReaderTranslationLayoutPreparer {
     typealias LayoutPreparation = @Sendable (
@@ -73,7 +73,7 @@ final class ReaderTranslationLayoutPreparer {
     private let layoutPreparation: LayoutPreparation
 
     init(renderCache: ReaderTranslationRenderCache? = nil, imageBudget: TranslationImageWorkBudget = .shared, layoutPreparation: @escaping LayoutPreparation = {
-        try await BrowserPageImageOverlayRenderer.prepareLayoutData(
+        try await NativeTranslationLayoutPlanner.prepareLayoutData(
             items: $0, imageSize: $1, sourceRect: $2, settings: $3, targetLanguage: $4, viewport: $5
         )
     }) {
@@ -90,8 +90,8 @@ final class ReaderTranslationLayoutPreparer {
             try await prepareTextOnly(page: page, regions: regions, settings: settings, geometry: geometry)
             return
         }
-        // An already prepared bitmap needs neither source-image decoding nor WebKit.
-        if window != nil, geometry.crop == ReaderTranslationSplitGeometry.unit, let imageSize = try? await renderCache.disk.imageSize(page: page.translationCacheKey) {
+        // An already prepared bitmap needs neither source-image decoding nor source preparation.
+        if geometry.crop == ReaderTranslationSplitGeometry.unit, let imageSize = try? await renderCache.disk.imageSize(page: page.translationCacheKey) {
             var restored = true
             for crop in crops(geometry) {
                 let size = CGSize(width: imageSize.width * crop.width, height: imageSize.height * crop.height)
@@ -102,7 +102,7 @@ final class ReaderTranslationLayoutPreparer {
             }
             if restored { return }
         }
-        // Admit before loading pixels and hold admission through WebKit capture.
+        // Admit before loading pixels and hold admission through native composition.
         // Network-only translation may continue, but OCR/download image work
         // cannot accumulate alongside a speculative full-page renderer.
         try await imageBudget.withPermit(priority: .prefetch) {
@@ -181,7 +181,7 @@ final class ReaderTranslationLayoutPreparer {
             try await renderCache.prepare(snapshotKey) { [renderCache, layoutPreparation] in
                 let items = ReaderTranslationRegion.layoutItems(displayed, imageSize: size)
                 // Start layout immediately, while the source image is cropped,
-                // encoded and loaded into WebKit. The renderer joins this exact
+                // prepared for native composition. The renderer joins this exact
                 // task, so a slow layout can never start a duplicate calculation.
                 let layout = Task { () throws -> Data in
                     if let data = await renderCache.layoutData(for: layoutKey) { return data }
@@ -199,13 +199,13 @@ final class ReaderTranslationLayoutPreparer {
                 }
                 defer { layout.cancel() }
                 try Task.checkCancellation()
-                guard let window, renderCache.shouldKeepImage(for: identity) else {
+                guard renderCache.shouldKeepImage(for: identity) else {
                     _ = try await withTaskCancellationHandler { try await layout.value } onCancel: { layout.cancel() }
                     return
                 }
                 let cropTask = Task.detached(priority: .utility) {
                     // The asset will later meet the reader's original decoded
-                    // crop, not WebKit's reduced background copy. Match the
+                    // crop, not a reduced background copy. Match the
                     // reader's CGImage split before fingerprinting those pixels.
                     let digest = ReaderTranslationRenderAsset.digestSource(original)
                     let source = try ReaderTranslationBackgroundImage.prepare(original)
@@ -216,12 +216,12 @@ final class ReaderTranslationLayoutPreparer {
                 let snapshotStart = ProcessInfo.processInfo.systemUptime
                 // This page is offscreen: produce the final cache bitmap directly.
                 // Attaching a live overlay first would render the same source and
-                // translation twice, because its capture starts the PDF renderer.
+                // translation twice, because its capture would repeat composition.
                 // Keep the shared image permit and serialized full-page exporter.
                 let snapshot = try await ReaderTranslationImageExporter.renderCacheSnapshot(
                     image: source, imageSize: size, regions: displayed, settings: settings,
                     viewport: viewport, scale: geometry.scale, aspectFit: geometry.aspectFit,
-                    host: window, dark: geometry.dark, preparedLayout: layout,
+                    host: window ?? UIView(), dark: geometry.dark, preparedLayout: layout,
                     assetCache: renderCache, assetKey: key, assetSourceDigest: sourceDigest
                 )
                 try Task.checkCancellation()

@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const directory = path.join(__dirname, '../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const directory = path.join(__dirname, '../../AidokuTests/Translation/LegacyBrowserOverlay');
 const script = name => fs.readFileSync(path.join(directory, name + '.swift'), 'utf8')
     .match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const w = 80, h = 80, n = w * h;

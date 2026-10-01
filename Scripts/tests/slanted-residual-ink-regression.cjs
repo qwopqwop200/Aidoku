@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const source = name => fs.readFileSync(path.resolve(__dirname,
-  '../../Aidoku/Core/Translation/NativeEngine/Overlay/' + name + '.swift'), 'utf8')
+  '../../AidokuTests/Translation/LegacyBrowserOverlay/' + name + '.swift'), 'utf8')
   .match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const {restore, fits, geometry} = new Function(source('BrowserSourceTextColor') + source('BrowserSourcePanelRestoration') +
   source('BrowserSlantedSourceRestoration') +

@@ -924,7 +924,7 @@ private struct ReaderTranslationCachePolicy: Equatable {
 }
 
 enum ReaderTranslationCacheIdentity {
-    static let renderRevision = "reader-render-v153-revert-polygon-segmentation"
+    static let renderRevision = "reader-render-v156-native-live-paint"
     static func digest(_ value: String) -> String { digest(Data(value.utf8)) }
     private static let hexadecimalDigits = Array("0123456789abcdef".utf8)
     static func digest(_ value: Data) -> String {
@@ -967,7 +967,7 @@ enum ReaderTranslationCacheIdentity {
     // swiftlint:disable:next function_parameter_count
     static func render(page: String, settings: ReaderTranslationSettings, imageSize: CGSize, viewport: CGSize,
                        scale: CGFloat, aspectFit: Bool, crop: CGRect, dark: Bool,
-                       letteringFontKey: String = BrowserOverlayLetterFonts.shared.availabilityKey) -> String {
+                       letteringFontKey: String = NativeTranslationTypography.availabilityKey) -> String {
         // Auto Layout rounds view edges to display pixels. Mathematical prefetch
         // sizes differ by tiny fractions (568.016 pt vs 568 pt); those are one raster.
         let pixelScale = max(1, scale)

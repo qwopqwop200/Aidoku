@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { webkit } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const source = fs.readFileSync(path.join(__dirname,
-  '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'), 'utf8')
+  '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayTypography.swift'), 'utf8')
   .split('static let script = #"""')[1].split('"""#')[0];
 (async () => {
   const browser = await webkit.launch();

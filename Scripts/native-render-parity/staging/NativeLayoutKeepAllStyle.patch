@@ -1,0 +1,9 @@
+Planner.style after BUILD36 release and Style.HorizontalWrapping publication:
+- construct var style from the existing initializer
+- preserve current strictLineBreak and all current geometry/font properties
+- style.horizontalWrapping = item.wrappingScript == "korean" && !style.strictLineBreak
+    ? .keepAllWithEmergency : .normal
+- return style
+Initial factory policy is BrowserOverlayView2510–2519.
+Released-column normal CSS policy is not represented by sourceVertical or
+balancedColumn; runtime main style reset must explicitly set .normal.

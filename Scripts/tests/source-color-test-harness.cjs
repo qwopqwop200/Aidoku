@@ -8,7 +8,7 @@ const vm = require('node:vm');
 const { performance } = require('node:perf_hooks');
 
 const source = fs.readFileSync(path.resolve(__dirname,
-    '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift'), 'utf8');
+    '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourceTextColor.swift'), 'utf8');
 const script = source.match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const ink = [180, 42, 59], panel = [246, 234, 217];
 

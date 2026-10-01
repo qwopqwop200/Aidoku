@@ -1,6 +1,6 @@
 // Extract the live production certificate; no copied implementation.
 const fs=require('fs'),path=require('path'),assert=require('assert'),vm=require('vm');
-const source=fs.readFileSync(process.env.CAPTION_SOURCE||path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
+const source=fs.readFileSync(process.env.CAPTION_SOURCE||path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'),'utf8');
 const start=source.indexOf('const certifyOccludedExterior='),end=source.indexOf('\n        // Certify each',start);
 assert(start>=0&&end>start);
 const run=(c,core,glyph,budget=262144)=>vm.runInNewContext('let exteriorProofBudget=budget;'+source.slice(start,end)+';certifyOccludedExterior(c,core,glyph)',{c,core,glyph,budget,Uint8Array,Int32Array,Set,Math,Array});

@@ -1,0 +1,168 @@
+    struct CanvasAffineGeometry {
+        let localFrame: CGRect
+        /// Projected Float coordinates used by the Metal vertex path. This quad is not a clip capability.
+        let pixelQuad: [CGPoint]
+        var pixelBounds: CGRect {
+            let xs = pixelQuad.map(\.x), ys = pixelQuad.map(\.y)
+            return CGRect(x: xs.min()!, y: ys.min()!, width: xs.max()! - xs.min()!, height: ys.max()! - ys.min()!)
+        }
+        /// A conservative integer sampling window. Its bounding box never establishes clip/backing ownership.
+        func samplingCrop(viewportPixelSize: CGSize) -> CGRect? {
+            guard NativeCanvasTextureResampler.validSize(viewportPixelSize) else { return nil }
+            let bound = pixelBounds
+            let left = max(0, floor(bound.minX) - 1), top = max(0, floor(bound.minY) - 1)
+            let right = min(viewportPixelSize.width, ceil(bound.maxX) + 1)
+            let bottom = min(viewportPixelSize.height, ceil(bound.maxY) + 1)
+            guard left < right, top < bottom else { return nil }
+            return CGRect(x: left, y: top, width: right - left, height: bottom - top)
+        }
+    }
+    static func affineCanvasGeometry(domRect: CGRect, userToPixelTransform transform: CGAffineTransform) throws -> CanvasAffineGeometry {
+        let input = [transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty,
+                     domRect.origin.x, domRect.origin.y, domRect.size.width, domRect.size.height]
+        guard input.allSatisfy(\.isFinite), domRect.size.width > 0, domRect.size.height > 0 else { throw Failure.invalidGeometry }
+        let sx = hypot(Double(transform.a), Double(transform.b)), sy = hypot(Double(transform.c), Double(transform.d))
+        let determinant = Double(transform.a) * Double(transform.d) - Double(transform.b) * Double(transform.c)
+        guard sx.isFinite, sy.isFinite, sx > 0, sy > 0, determinant.isFinite, determinant != 0 else { throw Failure.invalidGeometry }
+        // HTMLCanvasElement snappedIntRect, followed by literal CGUtilities
+        // cgRoundToDevicePixelsNonIdentity. Translation does not enter rounding.
+        let initial = [domRect.origin.x, domRect.origin.y,
+                       domRect.origin.x + domRect.size.width, domRect.origin.y + domRect.size.height].map { Float(floor($0 + 0.5)) }
+        guard initial.allSatisfy(\.isFinite) else { throw Failure.invalidGeometry }
+        let dx = Float(Double(initial[0]) * sx).rounded(.toNearestOrAwayFromZero)
+        let dy = Float(Double(initial[1]) * sy).rounded(.toNearestOrAwayFromZero)
+        var dr = Float(Double(initial[2]) * sx).rounded(.toNearestOrAwayFromZero)
+        var db = Float(Double(initial[3]) * sy).rounded(.toNearestOrAwayFromZero)
+        guard [dx, dy, dr, db].allSatisfy(\.isFinite) else { throw Failure.invalidGeometry }
+        if dr == dx && initial[2] != initial[0] { dr += 1 }
+        if db == dy && initial[3] != initial[1] { db += 1 }
+        let x = Float(Double(dx) / sx), y = Float(Double(dy) / sy)
+        let w = Float(Double(dr) / sx) - x, h = Float(Double(db) / sy) - y
+        guard [x, y, w, h].allSatisfy(\.isFinite), w > 0, h > 0 else { throw Failure.invalidGeometry }
+        let r = x + w, b = y + h
+        let matrix = SIMD4(Float(transform.a), Float(transform.b), Float(transform.c), Float(transform.d))
+        let translation = SIMD2(Float(transform.tx), Float(transform.ty))
+        guard [matrix.x, matrix.y, matrix.z, matrix.w, translation.x, translation.y].allSatisfy(\.isFinite) else { throw Failure.invalidGeometry }
+        let corners = [SIMD2(x, y), SIMD2(r, y), SIMD2(r, b), SIMD2(x, b)]
+        let quad = try corners.map { point -> CGPoint in
+            let px = matrix.x * point.x + matrix.z * point.y + translation.x
+            let py = matrix.y * point.x + matrix.w * point.y + translation.y
+            guard px.isFinite, py.isFinite else { throw Failure.invalidGeometry }
+            return CGPoint(x: CGFloat(px), y: CGFloat(py))
+        }
+        return CanvasAffineGeometry(localFrame: CGRect(x: CGFloat(x), y: CGFloat(y), width: CGFloat(w), height: CGFloat(h)), pixelQuad: quad)
+    }
+
+    /// Rasterizes a canvas through an affine transform into a top-row-first
+    /// device-pixel crop. This crop is a sampling window, not a clipping proof.
+    /// Nil backing returns filtered PMA8 source; nonnil backing is composited
+    /// once in Float and must be copied by a caller with trusted clip/backing.
+    static func affineCanvasImage(image: CGImage, domRect: CGRect,
+                                  userToPixelTransform transform: CGAffineTransform,
+                                  viewportPixelSize: CGSize, cropPixels: CGRect,
+                                  backgroundRGBA: Data? = nil, session: Session? = nil) throws -> CGImage {
+        try Task.checkCancellation()
+        let components = [transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty,
+                          domRect.origin.x, domRect.origin.y, domRect.size.width, domRect.size.height]
+        guard components.allSatisfy(\.isFinite), domRect.size.width > 0, domRect.size.height > 0,
+              validSize(viewportPixelSize), validSize(cropPixels.size),
+              [cropPixels.origin.x, cropPixels.origin.y].allSatisfy({ $0.isFinite && $0 >= 0 && $0.rounded(.towardZero) == $0 }),
+              cropPixels.maxX <= viewportPixelSize.width, cropPixels.maxY <= viewportPixelSize.height,
+              Double(cropPixels.size.width) * Double(cropPixels.size.height) <= Double(maximumPixels),
+              image.width > 0, image.height > 0, image.width <= maximumDimension, image.height <= maximumDimension,
+              image.width <= maximumPixels / image.height else { throw Failure.invalidGeometry }
+        let width = Int(cropPixels.size.width), height = Int(cropPixels.size.height)
+        guard backgroundRGBA == nil || backgroundRGBA!.count == width * height * 4 else { throw Failure.invalidGeometry }
+        let resolved = try affineCanvasGeometry(domRect: domRect, userToPixelTransform: transform)
+        let x = Float(resolved.localFrame.origin.x), y = Float(resolved.localFrame.origin.y)
+        let r = x + Float(resolved.localFrame.size.width), b = y + Float(resolved.localFrame.size.height)
+        let vertices: [SIMD4<Float>] = [SIMD4(x,y,0,0), SIMD4(r,y,1,0), SIMD4(x,b,0,1),
+                                      SIMD4(r,y,1,0), SIMD4(r,b,1,1), SIMD4(x,b,0,1)]
+        var geometry = AffineGeometry(matrix: SIMD4(Float(transform.a), Float(transform.b), Float(transform.c), Float(transform.d)),
+                                      translation: SIMD2(Float(transform.tx), Float(transform.ty)),
+                                      viewport: SIMD2(Float(viewportPixelSize.width), Float(viewportPixelSize.height)))
+        guard [geometry.matrix.x, geometry.matrix.y, geometry.matrix.z, geometry.matrix.w,
+               geometry.translation.x, geometry.translation.y].allSatisfy(\.isFinite) else { throw Failure.invalidGeometry }
+        // Reject finite input whose GPU arithmetic would produce nonfinite clip vertices.
+        for vertex in vertices {
+            let px = geometry.matrix.x * vertex.x + geometry.matrix.z * vertex.y + geometry.translation.x
+            let py = geometry.matrix.y * vertex.x + geometry.matrix.w * vertex.y + geometry.translation.y
+            guard px.isFinite, py.isFinite else { throw Failure.invalidGeometry }
+        }
+        guard let resources = Resources.shared else { throw Failure.unavailable }
+        resources.lock.lock(); defer { resources.lock.unlock() }
+        try Task.checkCancellation()
+        let source = try session?.source(image, resources: resources) ?? resources.uploadedSource(image)
+        // Anchor tiles to the full device plane, never to a caller's crop.
+        // Raster interpolation then remains identical across distinct crop requests.
+        let tileEdge = 256
+        let floatDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba32Float,
+            width: tileEdge, height: tileEdge, mipmapped: false)
+        floatDescriptor.storageMode = .shared; floatDescriptor.usage = [.renderTarget, .shaderRead]
+        let byteDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm,
+            width: tileEdge, height: tileEdge, mipmapped: false)
+        byteDescriptor.storageMode = .shared; byteDescriptor.usage = [.shaderRead, .shaderWrite]
+        guard let filtered = resources.device.makeTexture(descriptor: floatDescriptor),
+              let output = resources.device.makeTexture(descriptor: byteDescriptor) else { throw Failure.allocation }
+        var resultBytes = Data(count: width * height * 4)
+        let cropX = Int(cropPixels.origin.x), cropY = Int(cropPixels.origin.y)
+        let firstX = cropX / tileEdge * tileEdge, firstY = cropY / tileEdge * tileEdge
+        for tileY in stride(from: firstY, to: cropY + height, by: tileEdge) {
+            for tileX in stride(from: firstX, to: cropX + width, by: tileEdge) {
+                try Task.checkCancellation()
+                let visibleX = max(cropX, tileX), visibleY = max(cropY, tileY)
+                let tileWidth = min(cropX + width, tileX + tileEdge) - visibleX
+                let tileHeight = min(cropY + height, tileY + tileEdge) - visibleY
+                let localX = visibleX - tileX, localY = visibleY - tileY
+                let resultX = visibleX - cropX, resultY = visibleY - cropY
+                if let backgroundRGBA {
+                    var tile = Data(count: tileEdge * tileEdge * 4)
+                    for row in 0..<tileHeight {
+                        let sourceOffset = ((resultY + row) * width + resultX) * 4
+                        let targetOffset = ((localY + row) * tileEdge + localX) * 4
+                        tile.replaceSubrange(targetOffset..<(targetOffset + tileWidth * 4),
+                            with: backgroundRGBA[sourceOffset..<(sourceOffset + tileWidth * 4)])
+                    }
+                    tile.withUnsafeBytes { output.replace(region: MTLRegionMake2D(0, 0, tileEdge, tileEdge),
+                        mipmapLevel: 0, withBytes: $0.baseAddress!, bytesPerRow: tileEdge * 4) }
+                }
+                let pass = MTLRenderPassDescriptor()
+                pass.colorAttachments[0].texture = filtered; pass.colorAttachments[0].loadAction = .clear
+                pass.colorAttachments[0].storeAction = .store; pass.colorAttachments[0].clearColor = MTLClearColorMake(0,0,0,0)
+                guard let command = resources.queue.makeCommandBuffer(),
+                      let render = command.makeRenderCommandEncoder(descriptor: pass) else { throw Failure.allocation }
+                render.setRenderPipelineState(resources.affinePipeline)
+                render.setViewport(MTLViewport(originX: -Double(tileX), originY: -Double(tileY),
+                    width: Double(viewportPixelSize.width), height: Double(viewportPixelSize.height), znear: 0, zfar: 1))
+                vertices.withUnsafeBytes { render.setVertexBytes($0.baseAddress!, length: $0.count, index: 0) }
+                render.setVertexBytes(&geometry, length: MemoryLayout<AffineGeometry>.stride, index: 1)
+                render.setFragmentTexture(source, index: 0)
+                render.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6); render.endEncoding()
+                guard let compute = command.makeComputeCommandEncoder() else { throw Failure.allocation }
+                compute.setComputePipelineState(backgroundRGBA == nil ? resources.affineCopyPipeline : resources.affineOverPipeline)
+                compute.setTexture(filtered, index: 0); compute.setTexture(output, index: 1)
+                compute.dispatchThreads(MTLSize(width: tileEdge, height: tileEdge, depth: 1),
+                    threadsPerThreadgroup: MTLSize(width: 16, height: 16, depth: 1)); compute.endEncoding()
+                try Task.checkCancellation()
+                command.commit(); command.waitUntilCompleted()
+                guard command.error == nil, command.status == .completed else { throw Failure.execution }
+                try Task.checkCancellation()
+                var bytes = Data(count: tileWidth * tileHeight * 4)
+                bytes.withUnsafeMutableBytes { output.getBytes($0.baseAddress!, bytesPerRow: tileWidth * 4,
+                    from: MTLRegionMake2D(localX, localY, tileWidth, tileHeight), mipmapLevel: 0) }
+                for row in 0..<tileHeight {
+                    let destination = ((resultY + row) * width + resultX) * 4
+                    resultBytes.replaceSubrange(destination..<(destination + tileWidth * 4),
+                        with: bytes[(row * tileWidth * 4)..<((row + 1) * tileWidth * 4)])
+                }
+            }
+        }
+        try Task.checkCancellation()
+        guard let provider = CGDataProvider(data: resultBytes as CFData), let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let result = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
+                space: space, bitmapInfo: CGBitmapInfo(rawValue: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue),
+                provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent) else { throw Failure.allocation }
+        return result
+    }
+    private struct AffineGeometry { var matrix: SIMD4<Float>; var translation: SIMD2<Float>; var viewport: SIMD2<Float> }
+

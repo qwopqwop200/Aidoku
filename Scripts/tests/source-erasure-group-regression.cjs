@@ -1,11 +1,11 @@
 // Exercise the actual production group reconciliation and certification helpers.
 // node Scripts/tests/source-erasure-group-regression.cjs
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const view=fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
+const view=fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'),'utf8');
 const start=view.indexOf('        // Each source mask was classified'),end=view.indexOf('        // Preserve all ordinary and already-shared certificates',start);
 assert.ok(start>=0&&end>start,'production group reconciliation block must be present');
 const block=view.slice(start,end);
-const typography=fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'),'utf8');
+const typography=fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayTypography.swift'),'utf8');
 const match=typography.match(/static let script = #"""\n([\s\S]*?)\n    """#/);
 assert.ok(match,'production certification helpers must be present');
 const run=new Function('restoredPanelGeometry','erasureRetries','root','certifiedErasure','certificationBudget',

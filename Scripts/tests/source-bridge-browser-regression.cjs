@@ -3,7 +3,7 @@
 // oversized source preservation. Both blocks are extracted from production.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
-const source=fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'),'utf8');
 function extract(from,to){const a=source.indexOf(from),b=source.indexOf(to,a);assert.ok(a>=0&&b>a);return source.slice(a,b).replace(/\\([\\"])/g,'$1');}
 const oversized=extract('    // Oversized failed source restoration','    // Commit each opaque caption');
 const bridge='(()=>{'+extract('      const sourceRect=item=>{','      const finalInks=')+extract('      // A rejected partition retains','    // Every plate is final. Grow translations').replace(/\s*}\s*$/,'')+'})();';
@@ -20,7 +20,7 @@ let browser;
    const n=document.createElement('div');n.dataset.aidokuImageOcrOverlay='item';n.dataset.aidokuRegion='owner';n.textContent='읽을 수 있는 번역';n.style.cssText='position:absolute;left:110px;top:180px;width:180px;height:24px;font:16px/24px sans-serif;color:black';root.append(n);
    if(mode==='collision'){const other=n.cloneNode(true);other.dataset.aidokuRegion='neighbor';root.append(other);}
   },mode);
-  await page.evaluate(fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1]+'\n'+fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0]+'\n'+oversized);
+  await page.evaluate(fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourceTextColor.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1]+'\n'+fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0]+'\n'+oversized);
   const result=await page.evaluate(()=>{
    const n=root.querySelector('[data-aidoku-region="owner"][data-aidoku-image-ocr-overlay="item"]'),p=root.querySelector('[data-aidoku-image-ocr-overlay="source-readability-panel"]');
    const r=document.createRange();r.selectNodeContents(n);const ink=r.getBoundingClientRect(),b=p.getBoundingClientRect();
@@ -51,14 +51,14 @@ let browser;
   const panel=root.querySelector('[data-aidoku-image-ocr-overlay="source-readability-panel"]');const samples=[];
   for(const [l,t,w,h] of required)for(let y=t+.5;y<t+h;y+=2)for(let x=l+.5;x<l+w;x+=2)if(document.elementsFromPoint(x,y).includes(panel))samples.push([x,y]);return samples;
  });
- await page.evaluate(fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0] + bridge);
+ await page.evaluate(fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0] + bridge);
  const proof=await page.evaluate(prior=>{
   const p=root.querySelector('[data-aidoku-image-ocr-overlay="source-readability-panel"]');
   return {lost:prior.filter(([x,y])=>!document.elementsFromPoint(x,y).includes(p)),released:!document.elementsFromPoint(70,200).includes(p),clipped:p.dataset.sourceBridgeClipped,rect:[p.offsetLeft,p.offsetTop,p.offsetWidth,p.offsetHeight]};
  },prior);
  assert.ok(prior.length>500);assert.deepEqual(proof.lost,[],'retain actual painted original, auxiliary and neighbor glyph coverage');assert.equal(proof.released,false,'retain a solid rectangle between source and translated lettering');assert.equal(proof.clipped,'true');assert.deepEqual(proof.rect,[20,20,240,350]);
  await page.evaluate(()=>{delete items[0].sourceBounds;const p=root.querySelector('[data-aidoku-image-ocr-overlay="source-readability-panel"]');p.style.clipPath='';delete p.dataset.sourceBridgeClipped;delete p.dataset.captionUnionClipped;});
- await page.evaluate(fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0] + bridge);
+ await page.evaluate(fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0] + bridge);
  assert.equal(await page.evaluate(()=>root.querySelector('[data-aidoku-image-ocr-overlay="source-readability-panel"]').dataset.sourceBridgeClipped),undefined,'unknown source coverage must retain the original panel');
  console.log(`source bridge regression: 6 cases passed; ${prior.length} required coverage samples retained`);
  await browser.close();

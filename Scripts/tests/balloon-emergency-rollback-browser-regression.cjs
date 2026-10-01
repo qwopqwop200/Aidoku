@@ -1,7 +1,7 @@
 // Exercise the actual balloon-fit loop and its failed-fit DOM rollback in WebKit.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
-const base=path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const base=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const source=fs.readFileSync(process.env.CAPTION_SOURCE||path.join(base,'BrowserOverlayView.swift'),'utf8');
 const start=source.indexOf('fitBalloon: ')+'fitBalloon: '.length;
 const fitSource=source.slice(start,source.indexOf('            // Native planning only sees',start)).trim().replace(/,$/,'').replace(/\\([\\"])/g,'$1');

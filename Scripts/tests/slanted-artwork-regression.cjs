@@ -1,6 +1,6 @@
 // Production rectified erasure against independent clean-page and artwork oracles.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const source=n=>fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/'+n+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
+const source=n=>fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/'+n+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const {restore,fits,depth,card}=new Function(source('BrowserSourceTextColor')+source('BrowserSourcePanelRestoration')+source('BrowserSlantedSourceRestoration')+';return {restore:aidokuRestoreSlantedSource,fits:aidokuSlantedInkFits,depth:aidokuConvexDepth,card:aidokuRotatedCard}')();
 let passed=0;
 function test(name,fn){fn();passed++;console.log('PASS',name);}

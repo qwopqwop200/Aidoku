@@ -67,6 +67,8 @@ struct ReaderTranslationImageExportTests {
             UIColor.white.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 120, height: 160))
         }
+        let originalSubviews = view.subviews.map(ObjectIdentifier.init)
+        let originalHostAlpha = view.alpha
         let region = ReaderTranslationRegion(id: "visibility", rect: CGRect(x: 0.1, y: 0.3, width: 0.8, height: 0.3),
             source: "Hello", translation: "번역 표시 검증")
         for _ in 0..<2 {
@@ -74,22 +76,59 @@ struct ReaderTranslationImageExportTests {
                 viewport: CGSize(width: 240, height: 320), aspectFit: true, host: view)
             #expect(output.size == source.size)
             #expect(try pixelData(output) != pixelData(source), "Invisible UIKit hosting must still export translated typography")
-            #expect(view.renderer?.alpha == 0, "A DOM commit must not reveal the temporary renderer")
-            #expect(view.renderer?.superview == nil)
+            #expect(view.renderer == nil, "Native bitmap rendering must not attach a presentation renderer")
+            #expect(view.subviews.map(ObjectIdentifier.init) == originalSubviews,
+                    "Export must preserve the transparent host on initial rendering and reuse")
+            #expect(view.alpha == originalHostAlpha)
         }
-        #expect(view.attachmentAlphas == [0, 0], "Both newly created and reused renderers must be invisible before attachment")
+        #expect(view.attachmentAlphas.isEmpty && view.addedSubviewCount == 0,
+                "Both initial native export and reuse must leave the presentation hierarchy untouched")
     }
 
     private final class ExportVisibilityHost: UIView {
         var attachmentAlphas: [CGFloat] = []
+        var addedSubviewCount = 0
         weak var renderer: ReaderTranslationOverlayView?
 
         override func didAddSubview(_ subview: UIView) {
             super.didAddSubview(subview)
+            addedSubviewCount += 1
             guard let overlay = subview as? ReaderTranslationOverlayView else { return }
             renderer = overlay
             attachmentAlphas.append(overlay.alpha)
         }
+    }
+
+    @Test func stretchedViewportExportsFullValidPixelBudgetWithoutOversizedIntermediate() async throws {
+        let window = try host()
+        defer { window.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
+        let sourceSize = CGSize(width: 4_000, height: 3_000)
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.preferredRange = .standard
+        let source = UIGraphicsImageRenderer(size: sourceSize, format: format).image { context in
+            UIColor.green.setFill(); context.fill(CGRect(origin: .zero, size: sourceSize))
+            UIColor.blue.setFill(); context.fill(CGRect(x: 3_800, y: 2_800, width: 150, height: 150))
+        }
+        let region = ReaderTranslationRegion(id: "anisotropic", rect: CGRect(x: 0.25, y: 0.35, width: 0.5, height: 0.2),
+            source: "Hello", translation: "서로 다른 축의 출력 배율")
+        // The final image is exactly 12 MP. A uniform 4000/390 scale incorrectly
+        // allocates 4000 x 7180 pixels for this deliberately stretched viewport.
+        let output = try await ReaderTranslationImageExporter.render(image: source, regions: [region], settings: settings(),
+            viewport: CGSize(width: 390, height: 700), aspectFit: false, host: window)
+        let cgImage = try #require(output.cgImage)
+        #expect(cgImage.width == 4_000 && cgImage.height == 3_000)
+        #expect(output.size == sourceSize, "Valid output must retain both axes of source density")
+        let pixels = try pixelData(output)
+        func color(x: Int, y: Int) -> [UInt8] {
+            Array(pixels[(y * cgImage.width + x) * 4..<(y * cgImage.width + x) * 4 + 4])
+        }
+        #expect(color(x: 100, y: 100) == [0, 255, 0, 255])
+        #expect(color(x: 3_875, y: 2_875) == [0, 0, 255, 255], "Stretched render must preserve distant source artwork")
+        var changed = 0
+        for y in 900..<1_900 { for x in 900..<3_100 {
+            let offset = (y * cgImage.width + x) * 4
+            if pixels[offset] != 0 || pixels[offset + 1] != 255 || pixels[offset + 2] != 0 { changed += 1 }
+        } }
+        #expect(changed > 100, "The full-density output must include translated native typography")
     }
 
     @Test func cacheSnapshotPreservesTransparentLetterboxAndLogicalImageSize() async throws {
@@ -235,20 +274,19 @@ struct ReaderTranslationImageExportTests {
                   bounds: CGSize(width: viewport.width + 1, height: viewport.height))
         ]
         for invalid in cases {
-            do {
-                _ = try await ReaderTranslationImageExporter.renderCacheSnapshot(
-                    image: invalid.source, imageSize: invalid.size, regions: invalid.content, settings: settings,
-                    viewport: invalid.bounds, scale: 2, aspectFit: !webtoon, host: UIView(), dark: false,
-                    preparedLayout: nil, assetCache: cache, assetKey: "snapshot")
-                Issue.record("Changed snapshot identity replayed a stale asset")
-            } catch ReaderTranslationImageExporter.ExportError.unavailable {
-                // A cache miss needs the intentionally absent window.
-            }
+            let result = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+                image: invalid.source, imageSize: invalid.size, regions: invalid.content, settings: settings,
+                viewport: invalid.bounds, scale: 2, aspectFit: !webtoon, host: UIView(), dark: false,
+                preparedLayout: nil, assetCache: cache, assetKey: "snapshot")
+            let fresh = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+                image: invalid.source, imageSize: invalid.size, regions: invalid.content, settings: settings,
+                viewport: invalid.bounds, scale: 2, aspectFit: !webtoon, host: nil, dark: false, preparedLayout: nil)
+            #expect(try pixelData(result) == pixelData(fresh), "Changed identity must render current native content")
         }
     }
 
     @Test(arguments: [true, false])
-    func queuedSnapshotRechecksAssetWithoutRepeatingWebKit(matchingSource: Bool) async throws {
+    func queuedSnapshotRechecksNativeAssetAfterAdmission(matchingSource: Bool) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let disk = ReaderTranslationDiskCache(directory: directory)
         let cache = ReaderTranslationRenderCache(disk: disk)
@@ -285,7 +323,7 @@ struct ReaderTranslationImageExportTests {
         let deadline = Date().addingTimeInterval(5)
         while !acquired { try #require(Date() < deadline); try await Task.sleep(for: .milliseconds(5)) }
         let pending = Task {
-            // No window: a second WebKit render must fail rather than hide a cache miss.
+            // Native rendering admits this job even without a presentation window.
             try await ReaderTranslationImageExporter.renderCacheSnapshot(
                 image: image, imageSize: size, regions: regions, settings: value,
                 viewport: size, scale: 1, aspectFit: false, host: UIView(), dark: false,
@@ -306,12 +344,11 @@ struct ReaderTranslationImageExportTests {
                 size: size, priority: .foreground)
             #expect(try pixelData(output) == pixelData(expected))
         } else {
-            do {
-                _ = try await pending.value
-                Issue.record("A late asset with a different source must not be replayed")
-            } catch ReaderTranslationImageExporter.ExportError.unavailable {
-                // The mismatched identity needs the intentionally absent window.
-            }
+            let output = try await pending.value
+            let fresh = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+                image: image, imageSize: size, regions: regions, settings: value, viewport: size,
+                scale: 1, aspectFit: false, host: nil, dark: false, preparedLayout: nil)
+            #expect(try pixelData(output) == pixelData(fresh), "A mismatched asset must render the current source")
         }
     }
 
@@ -528,25 +565,19 @@ struct ReaderTranslationImageExportTests {
             overlay.layoutIfNeeded()
             try await Task.sleep(for: .milliseconds(30))
         }
-        _ = try await overlay.webView.callAsyncJavaScript(
-            "await document.fonts.ready; await new Promise(resolve => setTimeout(resolve, 200));",
-            arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
+        let snapshot = try #require(overlay.renderedImage)
         let size = ReaderTranslationImageExporter.outputSize(for: image)
-        let configuration = WKSnapshotConfiguration()
-        configuration.rect = ReaderTranslationGeometry.displayRect(CGRect(x: 0, y: 0, width: 1, height: 1),
-            imageSize: image.size, bounds: overlay.bounds, aspectFit: true)
-        configuration.snapshotWidth = NSNumber(value: Double(size.width / max(1, overlay.traitCollection.displayScale)))
-        let snapshot: UIImage = try await withCheckedThrowingContinuation { continuation in
-            overlay.webView.takeSnapshot(with: configuration) { image, error in
-                if let image { continuation.resume(returning: image) }
-                else { continuation.resume(throwing: error ?? ReaderTranslationImageExporter.ExportError.renderFailed) }
-            }
-        }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         format.preferredRange = .standard
+        let displayRect = ReaderTranslationGeometry.displayRect(CGRect(x: 0, y: 0, width: 1, height: 1),
+            imageSize: image.size, bounds: overlay.bounds, aspectFit: true)
         return UIGraphicsImageRenderer(size: size, format: format).image { _ in
-            snapshot.draw(in: CGRect(origin: .zero, size: size))
+            image.draw(in: CGRect(origin: .zero, size: size))
+            snapshot.draw(in: CGRect(x: -displayRect.minX * size.width / displayRect.width,
+                y: -displayRect.minY * size.height / displayRect.height,
+                width: viewport.width * size.width / displayRect.width,
+                height: viewport.height * size.height / displayRect.height))
         }
     }
 

@@ -3,11 +3,11 @@
 // keep rectangular silhouettes, and keep the selected readable font intact.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
-const source=fs.readFileSync(process.env.CAPTION_SOURCE||path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
+const source=fs.readFileSync(process.env.CAPTION_SOURCE||path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'),'utf8');
 const start=source.indexOf('    // Commit each opaque caption as one rectangle');
 const block=source.slice(start,source.indexOf('    // Every plate is final. Grow translations',start)).replace(/\\([\\"])/g,'$1');
 assert.ok(start>0);
-const typographySource=fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'),'utf8');
+const typographySource=fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayTypography.swift'),'utf8');
 const typographyScript=typographySource.split('static let script = #\"\"\"')[1].split('\"\"\"#')[0];
 let browser;
 (async()=>{

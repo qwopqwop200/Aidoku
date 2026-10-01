@@ -2,14 +2,17 @@ import UIKit
 import CryptoKit
 
 /// The source artwork stays in the image pipeline. Only the settled typography
-/// and source-repair patches persist, so a reload needs no WebKit document.
+/// and source-repair patches persist as a native PNG, so reloads avoid layout work.
 struct ReaderTranslationRenderAsset: Codable, Sendable {
-    static let currentVersion = 2
+    // Version 3 stores the native transparent overlay, never a WebKit PDF.
+    static let currentVersion = 3
     static let maximumContentBytes = 16 * 1_024 * 1_024
     static let maximumEncodedBytes = 24 * 1_024 * 1_024
 
     let version: Int
     let typography: Data
+    /// Native PNG density; a larger viewport must rerender rather than upscale lettering.
+    let typographySize: CGSize?
     let layers: ReaderTranslationImageExporter.ExportLayers
     let displayRect: CGRect
     let sourceSize: CGSize
@@ -17,9 +20,11 @@ struct ReaderTranslationRenderAsset: Codable, Sendable {
     let sourceDigest: String?
 
     init(typography: Data, layers: ReaderTranslationImageExporter.ExportLayers,
-         displayRect: CGRect, sourceSize: CGSize, regions: [ReaderTranslationRegion], sourceDigest: String?) {
+         displayRect: CGRect, sourceSize: CGSize, regions: [ReaderTranslationRegion], sourceDigest: String?,
+         typographySize: CGSize? = nil) {
         version = Self.currentVersion
         self.typography = typography
+        self.typographySize = typographySize
         self.layers = layers
         self.displayRect = displayRect
         self.sourceSize = sourceSize
@@ -88,6 +93,7 @@ struct ReaderTranslationRenderAsset: Codable, Sendable {
             values.count == 4 && values.allSatisfy(\.isFinite) && values[2] > 0 && values[3] > 0
         }
         return version == Self.currentVersion && !typography.isEmpty && !regionsDigest.isEmpty && sourceDigest != nil
+            && (typographySize.map { $0.width.isFinite && $0.height.isFinite && $0.width > 0 && $0.height > 0 } ?? true)
             && byteCost <= Self.maximumContentBytes
             && sourceSize.width.isFinite && sourceSize.height.isFinite && sourceSize.width > 0 && sourceSize.height > 0
             && validFrame([displayRect.minX, displayRect.minY, displayRect.width, displayRect.height])
@@ -99,6 +105,11 @@ struct ReaderTranslationRenderAsset: Codable, Sendable {
             && layers.paintBounds.allSatisfy(validFrame)
             && (layers.sourceRestorations?.count ?? 0) <= 1_024
             && (layers.sourceRestorations ?? []).allSatisfy(validFrame)
+    }
+
+    func supportsOutputSize(_ size: CGSize) -> Bool {
+        guard let typographySize else { return true } // Reference PDF fixtures are resolution independent.
+        return typographySize.width >= size.width && typographySize.height >= size.height
     }
 
     func matches(regions: [ReaderTranslationRegion], sourceSize: CGSize, sourceDigest: String?) -> Bool {

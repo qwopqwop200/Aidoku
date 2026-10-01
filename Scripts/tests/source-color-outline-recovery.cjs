@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const source = fs.readFileSync(path.join(__dirname, '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourceTextColor.swift'), 'utf8');
 const script = source.match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const context = vm.createContext({});
 vm.runInContext(script + '\nglobalThis.api={darkPair:aidokuDarkSurfaceSourceOutline,outline:aidokuReadableSourceOutline,adjust:aidokuAdjustInkForContrast,contrast:aidokuSourceColorContrast,lum:aidokuSourceColorLuminance};', context);

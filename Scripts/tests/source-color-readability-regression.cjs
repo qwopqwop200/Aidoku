@@ -15,7 +15,7 @@ function option(name, fallback) {
     assert.ok(args[index + 1] && !args[index + 1].startsWith('--'), `${name} requires a value`);
     return args[index + 1];
 }
-const overlayDirectory = path.resolve(__dirname, '../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const overlayDirectory = path.resolve(__dirname, '../../AidokuTests/Translation/LegacyBrowserOverlay');
 const sourcePath = option('--source', path.join(overlayDirectory, 'BrowserSourceTextColor.swift'));
 const overlayPath = option('--overlay', path.join(overlayDirectory, 'BrowserOverlayView.swift'));
 const source = fs.readFileSync(sourcePath, 'utf8');

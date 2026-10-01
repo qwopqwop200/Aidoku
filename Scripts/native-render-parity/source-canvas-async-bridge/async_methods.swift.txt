@@ -1,0 +1,180 @@
+
+    /// Inherits the render worker's actor. The plan/CoreText values are never sent
+    /// to the MainActor; only immutable image/numeric requests leave this job.
+    nonisolated(nonsending) static func renderOnWorker(layout: NativeTranslationLayout, image: UIImage?,
+        settings: IPhoneOverlaySettings, scale: CGFloat, dark: Bool, renderBounds: CGRect?,
+        composeSource: Bool, outputPixelSize: CGSize?, collectDiagnostics: Bool,
+        capturePDF: Bool, pdfDeviceScale: CGFloat) async throws -> Result {
+        let plan = try prepareRenderSynchronously(layout: layout, image: image, settings: settings,
+            scale: scale, dark: dark, renderBounds: renderBounds, composeSource: composeSource,
+            outputPixelSize: outputPixelSize, collectDiagnostics: collectDiagnostics,
+            capturePDF: capturePDF, pdfDeviceScale: pdfDeviceScale)
+        try Task.checkCancellation()
+        // Preserve the synchronous PDF/ordinary route whenever there is no admitted
+        // minified source operation. Eligibility is geometric, not a fixture switch.
+        guard !capturePDF, asyncSourceJobIsEligible(plan) else { return try finishPreparedSynchronously(plan) }
+        return try await finishPreparedAsynchronously(plan)
+    }
+
+    static func asyncSourceJobIsEligible(_ plan: PreparedRender) -> Bool {
+        guard plan.bounds.origin == .zero,
+              plan.pixels.width / plan.bounds.width == plan.pixels.height / plan.bounds.height,
+              plan.pixels.width * plan.pixels.height <= 4_000_000 else { return false }
+        let scale = plan.pixels.width / plan.bounds.width
+        let initial = plan.sourcePatches.filter { patch in
+            patch.liveOrder == nil && !plan.cards.contains(where: { $0.glyphCoverPatch?.image === patch.image })
+        }
+        let late = plan.sourcePatches.filter { $0.liveOrder != nil }
+        let commands = orderedPaintCommands(cards: plan.cards, gloss: plan.gloss, settings: plan.settings, latePatches: late)
+        let orderedSources = commands.compactMap { command -> SourcePatch? in
+            switch command.operation {
+            case .forced(let index): return late[index]
+            case .cover(let index): return plan.cards[index].glyphCoverPatch
+            default: return nil
+            }
+        }
+        return (initial + orderedSources).contains {
+            admittedHierarchySourceFrame($0, viewport: plan.bounds.size, scale: scale) != nil
+        }
+    }
+
+    /// Pure refusal predicate, evaluated before reading/allocating a prefix.
+    static func admittedHierarchySourceFrame(_ patch: SourcePatch, viewport: CGSize, scale: CGFloat) -> CGRect? {
+        guard patch.cleanupClip == nil, scale.isFinite, scale > 0,
+              viewport.width.isFinite, viewport.height.isFinite, viewport.width > 0, viewport.height > 0,
+              viewport.width * scale <= 16_384, viewport.height * scale <= 16_384,
+              viewport.width * viewport.height * scale * scale <= 4_000_000,
+              let frame = NativeSourceCanvasImageFrame.liveFrame(domRect: patch.rect),
+              CGRect(origin: .zero, size: viewport).contains(frame),
+              patch.image.width > 0, patch.image.height > 0,
+              patch.image.width <= 16_384, patch.image.height <= 16_384,
+              patch.image.width <= 12_000_000 / patch.image.height,
+              patch.image.bitsPerComponent == 8, patch.image.bitsPerPixel == 32,
+              patch.image.colorSpace?.name == CGColorSpace.sRGB,
+              [.premultipliedFirst, .premultipliedLast, .noneSkipFirst, .noneSkipLast].contains(patch.image.alphaInfo) else { return nil }
+        let width = frame.width * scale, height = frame.height * scale
+        let values = [viewport.width * scale, viewport.height * scale,
+            frame.minX * scale, frame.minY * scale, width, height]
+        guard values.allSatisfy({ $0.isFinite && $0.rounded(.towardZero) == $0 }),
+              width > 0, height > 0, width * height <= 4_000_000,
+              width <= CGFloat(patch.image.width), height <= CGFloat(patch.image.height),
+              width < CGFloat(patch.image.width) || height < CGFloat(patch.image.height) else { return nil }
+        return frame
+    }
+
+    /// Explicitly owned bitmap: it is not borrowed from a UIGraphics renderer
+    /// callback and may remain worker-private across an awaited UI request.
+    final class WorkerLiveBitmap {
+        private(set) var context: CGContext?
+        private(set) var backing: NativeCanvasBacking?
+        init(pixels: CGSize, bounds: CGRect) throws {
+            guard pixels.width.isFinite, pixels.height.isFinite, pixels.width > 0, pixels.height > 0,
+                  pixels.width.rounded(.towardZero) == pixels.width, pixels.height.rounded(.towardZero) == pixels.height,
+                  pixels.width <= 16_384, pixels.height <= 16_384, pixels.width * pixels.height <= 4_000_000,
+                  let space = CGColorSpace(name: CGColorSpace.sRGB),
+                  let context = CGContext(data: nil, width: Int(pixels.width), height: Int(pixels.height),
+                    bitsPerComponent: 8, bytesPerRow: Int(pixels.width) * 4, space: space,
+                    bitmapInfo: CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.premultipliedFirst.rawValue) else { throw RenderError.invalidGeometry }
+            context.translateBy(x: 0, y: pixels.height)
+            context.scaleBy(x: 1, y: -1)
+            context.scaleBy(x: pixels.width / bounds.width, y: pixels.height / bounds.height)
+            context.translateBy(x: -bounds.minX, y: -bounds.minY)
+            self.context = context
+            backing = NativeCanvasBacking.freshCanonicalBitmap(context: context, pixelExtent: pixels)
+            guard backing != nil else { close(); throw RenderError.invalidGeometry }
+        }
+        func close() { backing = nil; context = nil }
+    }
+
+    /// UIKit's thread-local graphics stack exists only for synchronous CPU blocks.
+    /// No pushed context survives suspension or a change of executor thread.
+    static func withWorkerGraphicsContext<T>(_ context: CGContext, _ body: () throws -> T) rethrows -> T {
+        try autoreleasepool {
+            UIGraphicsPushContext(context)
+            defer { UIGraphicsPopContext() }
+            return try body()
+        }
+    }
+
+    nonisolated(nonsending) static func paintHierarchySourcePatch(_ patch: SourcePatch,
+        context: CGContext, backing: NativeCanvasBacking?, viewport: CGSize) async throws -> Bool {
+        try Task.checkCancellation()
+        let matrix = context.ctm
+        guard matrix.a > 0, matrix.d == -matrix.a, matrix.b == 0, matrix.c == 0,
+              let frame = admittedHierarchySourceFrame(patch, viewport: viewport, scale: matrix.a),
+              let backing, backing.matchesFreshState(context),
+              let bytes = backing.backgroundRGBA(context: context, userRect: CGRect(origin: .zero, size: viewport)),
+              let space = CGColorSpace(name: CGColorSpace.sRGB), let provider = CGDataProvider(data: bytes as CFData),
+              let prefix = CGImage(width: context.width, height: context.height, bitsPerComponent: 8,
+                bitsPerPixel: 32, bytesPerRow: context.width * 4, space: space,
+                bitmapInfo: CGBitmapInfo(rawValue: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue),
+                provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent) else { return false }
+        let request = NativeSourceCanvasHierarchyCompositor.Request(prefix: prefix, source: patch.image,
+            viewport: viewport, scale: matrix.a, sourceFrame: frame)
+        let composited: CGImage?
+        do { composited = try await NativeSourceCanvasHierarchyCompositor.compose(request) }
+        catch is CancellationError { throw CancellationError() }
+        catch { if Task.isCancelled { throw CancellationError() }; return false }
+        try Task.checkCancellation()
+        guard let composited, composited.width == context.width, composited.height == context.height else { return false }
+        withWorkerGraphicsContext(context) {
+            context.saveGState()
+            defer { context.restoreGState() }
+            context.interpolationQuality = .none
+            UIImage(cgImage: composited).draw(in: CGRect(origin: .zero, size: viewport), blendMode: .copy, alpha: 1)
+        }
+        try Task.checkCancellation()
+        return true
+    }
+
+    nonisolated(nonsending) static func finishPreparedAsynchronously(_ plan: PreparedRender) async throws -> Result {
+        let bitmap = try WorkerLiveBitmap(pixels: plan.pixels, bounds: plan.bounds)
+        let canvasSession = NativeCanvasTextureResampler.Session()
+        defer { canvasSession.close(); bitmap.close() }
+        guard let context = bitmap.context else { throw RenderError.invalidGeometry }
+        for patch in plan.sourcePatches {
+            if patch.liveOrder != nil || plan.cards.contains(where: { $0.glyphCoverPatch?.image === patch.image }) { continue }
+            try Task.checkCancellation()
+            if try await paintHierarchySourcePatch(patch, context: context, backing: bitmap.backing, viewport: plan.bounds.size) { continue }
+            try Task.checkCancellation()
+            withWorkerGraphicsContext(context) {
+                drawSourcePatch(patch, context: context, usesLiveTextureSampling: true, canvasSession: canvasSession,
+                    canvasBacking: bitmap.backing, allowsOpaqueAffineSampling: true)
+            }
+        }
+        let latePatches = plan.sourcePatches.filter { $0.liveOrder != nil }
+        let ordered = orderedPaintCommands(cards: plan.cards, gloss: plan.gloss, settings: plan.settings, latePatches: latePatches)
+        for command in ordered {
+            try Task.checkCancellation()
+            let patch: SourcePatch?
+            switch command.operation {
+            case .forced(let index): patch = latePatches[index]
+            case .cover(let index): patch = plan.cards[index].glyphCoverPatch
+            default: patch = nil
+            }
+            if let patch, try await paintHierarchySourcePatch(patch, context: context, backing: bitmap.backing, viewport: plan.bounds.size) { continue }
+            try Task.checkCancellation()
+            withWorkerGraphicsContext(context) {
+                drawPaintCommand(command, cards: plan.cards, gloss: plan.gloss, settings: plan.settings,
+                    context: context, pixelSnapScale: nil, latePatches: latePatches, usesLiveTextureSampling: true,
+                    canvasSession: canvasSession, canvasBacking: bitmap.backing, allowsOpaqueAffineSampling: true)
+            }
+        }
+        try withWorkerGraphicsContext(context) {
+            for card in plan.glossCards {
+                try Task.checkCancellation()
+                drawGloss(card, context: context, pixelSnapScale: nil)
+            }
+            if !plan.sourcePieces.isEmpty {
+                if let source = plan.source, let geometry = plan.restoration.cleanupGeometry {
+                    drawKeptSourceCopy(source: source, geometry: geometry, pieces: plan.sourcePieces, context: context)
+                } else if let image = plan.image {
+                    context.saveGState(); context.addRects(plan.sourcePieces); context.clip()
+                    image.draw(in: plan.layout.sourceRect); context.restoreGState()
+                }
+            }
+        }
+        try Task.checkCancellation()
+        guard let overlay = context.makeImage() else { throw RenderError.invalidGeometry }
+        return try finishPreparedResult(plan, overlayCGImage: overlay, exportPDFData: nil)
+    }

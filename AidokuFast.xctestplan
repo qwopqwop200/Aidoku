@@ -1,539 +1,825 @@
 {
-  "configurations" : [
+  "configurations": [
     {
-      "id" : "2342EBB1-A5DB-4B66-9F31-F4AA25A1AA61",
-      "name" : "Default",
-      "options" : {
-
-      }
+      "id": "2342EBB1-A5DB-4B66-9F31-F4AA25A1AA61",
+      "name": "Default",
+      "options": {}
     }
   ],
-  "defaultOptions" : {
-    "codeCoverage" : false
+  "defaultOptions": {
+    "codeCoverage": false
   },
-  "testTargets" : [
+  "testTargets": [
     {
-      "parallelizable" : false,
-      "selectedTests" : {
-        "suites" : [
+      "parallelizable": false,
+      "selectedTests": {
+        "suites": [
           {
-            "name" : "ReaderTranslationDiskReadBudgetAuditTests"
+            "name": "NativeReaderOverlayRenderingTests"
           },
           {
-            "name" : "ReaderTranslationPreviewInvalidationTests"
+            "name": "NativeKeptSourceCopyTests"
           },
           {
-            "name" : "ReaderRenderPreparationCancellationTests"
+            "name": "NativeColumnPanelAnchorFlowTests"
           },
           {
-            "name" : "NativeTranslationEscapedLanguageCacheTests"
+            "name": "NativeTypographyHarmonyScaleTests"
           },
           {
-            "name" : "ReaderLocalPageIdentityTests"
+            "name": "NativeTypographyHarmonyCallerTests"
           },
           {
-            "name" : "DownloadIdentityAuditTests"
+            "name": "NativeSourceHeadingChildrenTests"
           },
           {
-            "name" : "ReaderTemporaryIdentityTests"
+            "name": "NativeCaptionFixedBoxReflowTests"
           },
           {
-            "name" : "ReaderTranslationCapabilityPersistenceTests"
+            "name": "NativeBlockWordRangeTests"
           },
           {
-            "name" : "ReaderTranslationSplitCacheGeometryTests"
+            "name": "NativeKeepAllAutoLinesTests"
           },
           {
-            "name" : "ReaderTranslationCachePolicyAuditTests"
+            "name": "NativeKeepAllFlowTests"
           },
           {
-            "name" : "ReaderRenderCacheIdentityAuditTests"
+            "name": "NativeInitialReferenceFlowTests"
           },
           {
-            "name" : "NativeTranslationCacheIdentityAuditTests"
+            "name": "NativePreformattedTabTests"
           },
           {
-            "name" : "ProviderCacheIdentityAuditTests"
+            "name": "NativeDisplayCleanupGeometryTests"
           },
           {
-            "name" : "MetadataDownloadCacheAuditTests"
+            "name": "NativeSourceColumnAnchorTests"
           },
           {
-            "name" : "ReaderPageSnapshotIdentityTests"
+            "name": "NativePanelCleanupGeometryTests"
           },
           {
-            "name" : "Agent2UtilityRegressionTests"
+            "name": "NativeCaptionPackingRendererTests"
           },
           {
-            "name" : "ArchiveTests"
+            "name": "NativeCaptionLineSpacingTests"
           },
           {
-            "name" : "AutomaticBackupIntervalTests"
+            "name": "NativePlateGrowthScrollTests"
           },
           {
-            "name" : "BackupSafetyTests"
+            "name": "NativeTranslationPixelKernelBridgeTests"
           },
           {
-            "name" : "BilingualSubtitleTests"
+            "name": "NativeResidualTopologyTests"
           },
           {
-            "name" : "BlockingCancellationForwardingTests"
+            "name": "NativeFinalRestorationTrialTests"
           },
           {
-            "name" : "BoundedConcurrentMapTests"
+            "name": "NativeGlyphCoverTests"
           },
           {
-            "name" : "BuiltInSourceModelTests"
+            "name": "ReaderTranslationDiskReadBudgetAuditTests"
           },
           {
-            "name" : "CachePersistenceAdmissionTests"
+            "name": "ReaderTranslationPreviewInvalidationTests"
           },
           {
-            "name" : "CategoryOrderingTests"
+            "name": "ReaderRenderPreparationCancellationTests"
           },
           {
-            "name" : "ComicInfoTests"
+            "name": "NativeTranslationEscapedLanguageCacheTests"
           },
           {
-            "name" : "CoverImagePipelineCacheTests"
+            "name": "ReaderLocalPageIdentityTests"
           },
           {
-            "name" : "CoverRecoveryTests"
+            "name": "DownloadIdentityAuditTests"
           },
           {
-            "name" : "CropBordersProcessorRegressionTests"
+            "name": "ReaderTemporaryIdentityTests"
           },
           {
-            "name" : "DictionaryFileOperationsTests"
+            "name": "ReaderTranslationCapabilityPersistenceTests"
           },
           {
-            "name" : "DictionaryOperationSchedulingTests"
+            "name": "ReaderTranslationSplitCacheGeometryTests"
           },
           {
-            "name" : "DictionaryReadingOrderTests"
+            "name": "ReaderTranslationCachePolicyAuditTests"
           },
           {
-            "name" : "DictionaryTextAnalysisQueueTests"
+            "name": "ReaderRenderCacheIdentityAuditTests"
           },
           {
-            "name" : "DiscoverySchedulingTests"
+            "name": "NativeTranslationCacheIdentityAuditTests"
           },
           {
-            "name" : "DownloadAuditTests"
+            "name": "ProviderCacheIdentityAuditTests"
           },
           {
-            "name" : "DownloadCompressedAdmissionTests"
+            "name": "MetadataDownloadCacheAuditTests"
           },
           {
-            "name" : "DownloadDescriptionPersistenceTests"
+            "name": "ReaderPageSnapshotIdentityTests"
           },
           {
-            "name" : "DownloadHostAdmissionTests"
+            "name": "Agent2UtilityRegressionTests"
           },
           {
-            "name" : "DownloadMetadataTests"
+            "name": "ArchiveTests"
           },
           {
-            "name" : "DownloadMetadataWriteFailureTests"
+            "name": "AutomaticBackupIntervalTests"
           },
           {
-            "name" : "DownloadPathContainmentTests"
+            "name": "BackupSafetyTests"
           },
           {
-            "name" : "DownloadPathSafetyRegressionTests"
+            "name": "BilingualSubtitleTests"
           },
           {
-            "name" : "DownloadPrefetchCancellationTests"
+            "name": "BlockingCancellationForwardingTests"
           },
           {
-            "name" : "DownloadQueueOwnershipTests"
+            "name": "BoundedConcurrentMapTests"
           },
           {
-            "name" : "DownloadQueuePathSafetyTests"
+            "name": "BuiltInSourceModelTests"
           },
           {
-            "name" : "DownloadSchedulingContinuityTests"
+            "name": "CachePersistenceAdmissionTests"
           },
           {
-            "name" : "DownloadTransportAdmissionTests"
+            "name": "CategoryOrderingTests"
           },
           {
-            "name" : "FixedAPIDateFormatTests"
+            "name": "ComicInfoTests"
           },
           {
-            "name" : "FollowupDiscoveryTests"
+            "name": "CoverImagePipelineCacheTests"
           },
           {
-            "name" : "FormEncodingTests"
+            "name": "CoverRecoveryTests"
           },
           {
-            "name" : "HistoryBatchClearAcknowledgmentTests"
+            "name": "CropBordersProcessorRegressionTests"
           },
           {
-            "name" : "HistoryIdentityIngestionTests"
+            "name": "DictionaryFileOperationsTests"
           },
           {
-            "name" : "HistoryIngestionSchedulingTests"
+            "name": "DictionaryOperationSchedulingTests"
           },
           {
-            "name" : "HistoryMetadataCacheTests"
+            "name": "DictionaryReadingOrderTests"
           },
           {
-            "name" : "HistoryOptimisticConflictTests"
+            "name": "DictionaryTextAnalysisQueueTests"
           },
           {
-            "name" : "HorizontalInlineOwnershipRegressionTests"
+            "name": "DiscoverySchedulingTests"
           },
           {
-            "name" : "JSONAnyValueTests"
+            "name": "DownloadAuditTests"
           },
           {
-            "name" : "KavitaCancellationTests"
+            "name": "DownloadCompressedAdmissionTests"
           },
           {
-            "name" : "KomgaReleaseDateSafetyTests"
+            "name": "DownloadDescriptionPersistenceTests"
           },
           {
-            "name" : "LegacySourcePaginationTests"
+            "name": "DownloadHostAdmissionTests"
           },
           {
-            "name" : "LibraryCategoryHeaderLifetimeTests"
+            "name": "DownloadMetadataTests"
           },
           {
-            "name" : "LibraryCategorySelectionBoundsTests"
+            "name": "DownloadMetadataWriteFailureTests"
           },
           {
-            "name" : "LibraryFollowupWorkTests"
+            "name": "DownloadPathContainmentTests"
           },
           {
-            "name" : "LibraryIncrementalOrderRegressionTests"
+            "name": "DownloadPathSafetyRegressionTests"
           },
           {
-            "name" : "LibrarySnapshotSchedulingTests"
+            "name": "DownloadPrefetchCancellationTests"
           },
           {
-            "name" : "LibraryUndoPreservationTests"
+            "name": "DownloadQueueOwnershipTests"
           },
           {
-            "name" : "LocalDeletionSaveFailureTests"
+            "name": "DownloadQueuePathSafetyTests"
           },
           {
-            "name" : "LocalFileNameParserTests"
+            "name": "DownloadSchedulingContinuityTests"
           },
           {
-            "name" : "LocalImageImportTests"
+            "name": "DownloadTransportAdmissionTests"
           },
           {
-            "name" : "LocalImportSchedulingTests"
+            "name": "FixedAPIDateFormatTests"
           },
           {
-            "name" : "LocalPathContainmentTests"
+            "name": "FollowupDiscoveryTests"
           },
           {
-            "name" : "LocalSourceDefaultsTests"
+            "name": "FormEncodingTests"
           },
           {
-            "name" : "MangaDescriptionTranslationTests"
+            "name": "HistoryBatchClearAcknowledgmentTests"
           },
           {
-            "name" : "NativeOCRPreparationPipelineTests"
+            "name": "HistoryIdentityIngestionTests"
           },
           {
-            "name" : "NativeOCRRecognitionRegressionTests"
+            "name": "HistoryIngestionSchedulingTests"
           },
           {
-            "name" : "NativeOCRRegionSeparatorTests"
+            "name": "HistoryMetadataCacheTests"
           },
           {
-            "name" : "NativeOCRStackedAsideRecoveryTests"
+            "name": "HistoryOptimisticConflictTests"
           },
           {
-            "name" : "NativeOCRTextLineMergerTests"
+            "name": "HorizontalInlineOwnershipRegressionTests"
           },
           {
-            "name" : "NotificationDelegateTests"
+            "name": "JSONAnyValueTests"
           },
           {
-            "name" : "ObserverObjectFilteringTests"
+            "name": "KavitaCancellationTests"
           },
           {
-            "name" : "OCRGeometryOverflowRegressionTests"
+            "name": "KomgaReleaseDateSafetyTests"
           },
           {
-            "name" : "PageInterceptorProcessorTests"
+            "name": "LegacySourcePaginationTests"
           },
           {
-            "name" : "PartialDownloadTests"
+            "name": "LibraryCategoryHeaderLifetimeTests"
           },
           {
-            "name" : "PerformanceOOMOptimizationTests"
+            "name": "LibraryCategorySelectionBoundsTests"
           },
           {
-            "name" : "PersistentHistoryStoreTests"
+            "name": "LibraryFollowupWorkTests"
           },
           {
-            "name" : "QualityTranslationAuditTransportTests"
+            "name": "LibraryIncrementalOrderRegressionTests"
           },
           {
-            "name" : "ReaderAdmissionRecoveryTests"
+            "name": "LibrarySnapshotSchedulingTests"
           },
           {
-            "name" : "ReaderBoundedCacheExpansionTests"
+            "name": "LibraryUndoPreservationTests"
           },
           {
-            "name" : "ReaderChapterHandoffTests"
+            "name": "LocalDeletionSaveFailureTests"
           },
           {
-            "name" : "ReaderEntryLoadingTests"
+            "name": "LocalFileNameParserTests"
           },
           {
-            "name" : "ReaderExportStageLifetimeTests"
+            "name": "LocalImageImportTests"
           },
           {
-            "name" : "ReaderFailureLocalizationTests"
+            "name": "LocalImportSchedulingTests"
           },
           {
-            "name" : "ReaderHistoryCompletionAcknowledgmentTests"
+            "name": "LocalPathContainmentTests"
           },
           {
-            "name" : "ReaderImageCacheRecoveryTests"
+            "name": "LocalSourceDefaultsTests"
           },
           {
-            "name" : "ReaderImageContentIdentityTests"
+            "name": "MangaDescriptionTranslationTests"
           },
           {
-            "name" : "ReaderImageDownloadDemandTests"
+            "name": "NativeOCRPreparationPipelineTests"
           },
           {
-            "name" : "ReaderMemoryRecoveryTests"
+            "name": "NativeOCRRecognitionRegressionTests"
           },
           {
-            "name" : "ReaderMinimumMovementLayoutTests"
+            "name": "NativeOCRRegionSeparatorTests"
           },
           {
-            "name" : "ReaderOverlayPlacementIdentityTests"
+            "name": "NativeOCRStackedAsideRecoveryTests"
           },
           {
-            "name" : "ReaderOverlayRenderOptimizationTests"
+            "name": "NativeOCRTextLineMergerTests"
           },
           {
-            "name" : "ReaderPageControllerStoreTests"
+            "name": "NotificationDelegateTests"
           },
           {
-            "name" : "ReaderPagedDemandSchedulingTests"
+            "name": "ObserverObjectFilteringTests"
           },
           {
-            "name" : "ReaderPagePrefetchReservationsTests"
+            "name": "OCRGeometryOverflowRegressionTests"
           },
           {
-            "name" : "ReaderPrefetchDataReuseTests"
+            "name": "PageInterceptorProcessorTests"
           },
           {
-            "name" : "ReaderRawImageProcessingTests"
+            "name": "PartialDownloadTests"
           },
           {
-            "name" : "ReaderRenderAssetMutationTests"
+            "name": "PerformanceOOMOptimizationTests"
           },
           {
-            "name" : "ReaderRenderAssetReadBenchmarkTests"
+            "name": "PersistentHistoryStoreTests"
           },
           {
-            "name" : "ReaderRenderAssetReadSchedulingTests"
+            "name": "QualityTranslationAuditTransportTests"
           },
           {
-            "name" : "ReaderRenderSchedulingTests"
+            "name": "ReaderAdmissionRecoveryTests"
           },
           {
-            "name" : "ReaderSchedulingOptimizationTests"
+            "name": "ReaderBoundedCacheExpansionTests"
           },
           {
-            "name" : "ReaderSessionCacheAdmissionTests"
+            "name": "ReaderChapterHandoffTests"
           },
           {
-            "name" : "ReaderSmallTextDOMGuardTests"
+            "name": "ReaderEntryLoadingTests"
           },
           {
-            "name" : "ReaderSupplementalOCRTests"
+            "name": "ReaderExportStageLifetimeTests"
           },
           {
-            "name" : "ReaderTextNavigationRecoveryTests"
+            "name": "ReaderFailureLocalizationTests"
           },
           {
-            "name" : "ReaderTextProgressRestorationTests"
+            "name": "ReaderHistoryCompletionAcknowledgmentTests"
           },
           {
-            "name" : "ReaderToolbarLocalizationTests"
+            "name": "ReaderImageCacheRecoveryTests"
           },
           {
-            "name" : "ReaderTranslationAssetEncodingLimitTests"
+            "name": "ReaderImageContentIdentityTests"
           },
           {
-            "name" : "ReaderTranslationConcurrencyTests"
+            "name": "ReaderImageDownloadDemandTests"
           },
           {
-            "name" : "ReaderTranslationConnectionTestModelTests"
+            "name": "ReaderMemoryRecoveryTests"
           },
           {
-            "name" : "ReaderTranslationDigestEquivalenceTests"
+            "name": "ReaderMinimumMovementLayoutTests"
           },
           {
-            "name" : "ReaderTranslationForegroundDownloadAdmissionTests"
+            "name": "ReaderOverlayPlacementIdentityTests"
           },
           {
-            "name" : "ReaderTranslationLanguageFilterTests"
+            "name": "ReaderOverlayRenderOptimizationTests"
           },
           {
-            "name" : "ReaderTranslationLoadedMemoryHitTests"
+            "name": "ReaderPageControllerStoreTests"
           },
           {
-            "name" : "ReaderTranslationManualConnectionTests"
+            "name": "ReaderPagedDemandSchedulingTests"
           },
           {
-            "name" : "ReaderTranslationMergeCacheTests"
+            "name": "ReaderPagePrefetchReservationsTests"
           },
           {
-            "name" : "ReaderTranslationNetworkTests"
+            "name": "ReaderPrefetchDataReuseTests"
           },
           {
-            "name" : "ReaderTranslationOverlapTests"
+            "name": "ReaderRawImageProcessingTests"
           },
           {
-            "name" : "ReaderTranslationPageIdentityTests"
+            "name": "ReaderRenderAssetMutationTests"
           },
           {
-            "name" : "ReaderTranslationPanelIntegrationTests"
+            "name": "ReaderRenderAssetReadBenchmarkTests"
           },
           {
-            "name" : "ReaderTranslationPanelOrderTests"
+            "name": "ReaderRenderAssetReadSchedulingTests"
           },
           {
-            "name" : "ReaderTranslationPreparedOCRCacheTests"
+            "name": "ReaderRenderSchedulingTests"
           },
           {
-            "name" : "ReaderTranslationProgressTests"
+            "name": "ReaderSchedulingOptimizationTests"
           },
           {
-            "name" : "ReaderTranslationProviderTests"
+            "name": "ReaderSessionCacheAdmissionTests"
           },
           {
-            "name" : "ReaderTranslationRemovedFeaturesTests"
+            "name": "ReaderSmallTextDOMGuardTests"
           },
           {
-            "name" : "ReaderTranslationTests"
+            "name": "ReaderSupplementalOCRTests"
           },
           {
-            "name" : "ReaderTranslationValidationRaceTests"
+            "name": "ReaderTextNavigationRecoveryTests"
           },
           {
-            "name" : "ReaderTranslationValidationTests"
+            "name": "ReaderTextProgressRestorationTests"
           },
           {
-            "name" : "ReaderTranslationViewportSchedulingTests"
+            "name": "ReaderToolbarLocalizationTests"
           },
           {
-            "name" : "ReaderWebtoonSchedulingTests"
+            "name": "ReaderTranslationAssetEncodingLimitTests"
           },
           {
-            "name" : "RegressionWebFixtureTests"
+            "name": "ReaderTranslationConcurrencyTests"
           },
           {
-            "name" : "RomajiCandidatePruningTests"
+            "name": "ReaderTranslationConnectionTestModelTests"
           },
           {
-            "name" : "SettingControlLifetimeTests"
+            "name": "ReaderTranslationDigestEquivalenceTests"
           },
           {
-            "name" : "SettingsAuditRegressionTests"
+            "name": "ReaderTranslationForegroundDownloadAdmissionTests"
           },
           {
-            "name" : "SettingsLoginWebSchedulingTests"
+            "name": "ReaderTranslationLanguageFilterTests"
           },
           {
-            "name" : "SharedImageInboxTests"
+            "name": "ReaderTranslationLoadedMemoryHitTests"
           },
           {
-            "name" : "SourceBrowseSafetyTests"
+            "name": "ReaderTranslationManualConnectionTests"
           },
           {
-            "name" : "SourceListingPaginationTests"
+            "name": "ReaderTranslationMergeCacheTests"
           },
           {
-            "name" : "SourcePaginationTests"
+            "name": "ReaderTranslationNetworkTests"
           },
           {
-            "name" : "SourceRequestCookieScopeTests"
+            "name": "ReaderTranslationOverlapTests"
           },
           {
-            "name" : "TemporarySharedImageSessionTests"
+            "name": "ReaderTranslationPageIdentityTests"
           },
           {
-            "name" : "TilePaddingDuplicateRegressionTests"
+            "name": "ReaderTranslationPanelIntegrationTests"
           },
           {
-            "name" : "TitleTranslationTests"
+            "name": "ReaderTranslationPanelOrderTests"
           },
           {
-            "name" : "TrackerFollowupSchedulingTests"
+            "name": "ReaderTranslationPreparedOCRCacheTests"
           },
           {
-            "name" : "TrackerOAuthSchedulingTests"
+            "name": "ReaderTranslationProgressTests"
           },
           {
-            "name" : "TrackerPresentationTests"
+            "name": "ReaderTranslationProviderTests"
           },
           {
-            "name" : "TrackerSyncTests"
+            "name": "ReaderTranslationRemovedFeaturesTests"
           },
           {
-            "name" : "TranslatedDownloadTests"
+            "name": "ReaderTranslationTests"
           },
           {
-            "name" : "TranslatedTitleLabelNotificationTests"
+            "name": "ReaderTranslationValidationRaceTests"
           },
           {
-            "name" : "TranslationCacheAuditTests"
+            "name": "ReaderTranslationValidationTests"
           },
           {
-            "name" : "TranslationCacheFailureQueueProbeTests"
+            "name": "ReaderTranslationViewportSchedulingTests"
           },
           {
-            "name" : "TranslationCacheScalingTests"
+            "name": "ReaderWebtoonSchedulingTests"
           },
           {
-            "name" : "TranslationDiskEvictionFailureTests"
+            "name": "RegressionWebFixtureTests"
           },
           {
-            "name" : "TranslationEndpointPolicyTests"
+            "name": "RomajiCandidatePruningTests"
           },
           {
-            "name" : "TranslationErrorLocalizationTests"
+            "name": "SettingControlLifetimeTests"
           },
           {
-            "name" : "TranslationHTTPCodecTests"
+            "name": "SettingsAuditRegressionTests"
           },
           {
-            "name" : "TranslationImageSupportTests"
+            "name": "SettingsLoginWebSchedulingTests"
           },
           {
-            "name" : "TranslationJoinedPriorityTests"
+            "name": "SharedImageInboxTests"
           },
           {
-            "name" : "TranslationPromotionSourceTests"
+            "name": "SourceBrowseSafetyTests"
           },
           {
-            "name" : "TranslationPerformanceFileLogTests"
+            "name": "SourceListingPaginationTests"
           },
           {
-            "name" : "TranslationStreamingTests"
+            "name": "SourcePaginationTests"
+          },
+          {
+            "name": "SourceRequestCookieScopeTests"
+          },
+          {
+            "name": "TemporarySharedImageSessionTests"
+          },
+          {
+            "name": "TilePaddingDuplicateRegressionTests"
+          },
+          {
+            "name": "TitleTranslationTests"
+          },
+          {
+            "name": "TrackerFollowupSchedulingTests"
+          },
+          {
+            "name": "TrackerOAuthSchedulingTests"
+          },
+          {
+            "name": "TrackerPresentationTests"
+          },
+          {
+            "name": "TrackerSyncTests"
+          },
+          {
+            "name": "TranslatedDownloadTests"
+          },
+          {
+            "name": "TranslatedTitleLabelNotificationTests"
+          },
+          {
+            "name": "TranslationCacheAuditTests"
+          },
+          {
+            "name": "TranslationCacheFailureQueueProbeTests"
+          },
+          {
+            "name": "TranslationCacheScalingTests"
+          },
+          {
+            "name": "TranslationDiskEvictionFailureTests"
+          },
+          {
+            "name": "TranslationEndpointPolicyTests"
+          },
+          {
+            "name": "TranslationErrorLocalizationTests"
+          },
+          {
+            "name": "TranslationHTTPCodecTests"
+          },
+          {
+            "name": "TranslationImageSupportTests"
+          },
+          {
+            "name": "TranslationJoinedPriorityTests"
+          },
+          {
+            "name": "TranslationPromotionSourceTests"
+          },
+          {
+            "name": "TranslationPerformanceFileLogTests"
+          },
+          {
+            "name": "TranslationStreamingTests"
+          },
+          {
+            "name": "NativeLatePlateTrimTests"
+          },
+          {
+            "name": "NativeLateBalloonStagesTests"
+          },
+          {
+            "name": "NativePageEdgeFitTests"
+          },
+          {
+            "name": "NativeInitialJoinedUnitTests"
+          },
+          {
+            "name": "NativeCaptionPanelBackgroundTests"
+          },
+          {
+            "name": "NativeLightLetteringAdapterTests"
+          },
+          {
+            "name": "NativePaintOrderAdapterTests"
+          },
+          {
+            "name": "NativeFixedLinePitchTests"
+          },
+          {
+            "name": "NativePDFCropTests"
+          },
+          {
+            "name": "NativeArtworkProtectionTests"
+          },
+          {
+            "name": "NativeEnclosedPaperFinishTests"
+          },
+          {
+            "name": "NativeEarlyPlateContrastTests"
+          },
+          {
+            "name": "NativePanelPhaseTests"
+          },
+          {
+            "name": "NativeRecoveredLineAdapterTests"
+          },
+          {
+            "name": "NativeTextPaintGeometryTests"
+          },
+          {
+            "name": "NativeBlockWordLayoutTests"
+          },
+          {
+            "name": "NativeCleanupGeometryTests"
+          },
+          {
+            "name": "NativeEarlyMarginAdapterTests"
+          },
+          {
+            "name": "NativeExteriorSurfacePoolTests"
+          },
+          {
+            "name": "NativeCertifiedExteriorSurfaceTests"
+          },
+          {
+            "name": "NativeTypographyCleanupFrameTests"
+          },
+          {
+            "name": "NativeLateBalloonCleanupFrameTests"
+          },
+          {
+            "name": "NativeKeepAllOverflowNormalTests"
+          },
+          {
+            "name": "NativeCTFontStrokePainterTests"
+          },
+          {
+            "name": "NativeVerticalLetterSpacingTests"
+          },
+          {
+            "name": "NativeNormalTextFlowTests"
+          },
+          {
+            "name": "NativeHorizontalFlexStackTests"
+          },
+          {
+            "name": "NativeBalloonUnitPartsStyleTests"
+          },
+          {
+            "name": "NativeSkippedCaptionBridgeTests"
+          },
+          {
+            "name": "NativeTypographyHarmonyAxisCallerTests"
+          },
+          {
+            "name": "NativePanelRememberedPaddingTests"
+          },
+          {
+            "name": "NativeCaptionPanelWholeRangeTests"
+          },
+          {
+            "name": "NativeSourceMaskClipTests"
+          },
+          {
+            "name": "NativeGlossWhitespaceAdapterTests"
+          },
+          {
+            "name": "NativePreLineTypographyTests"
+          },
+          {
+            "name": "NativeTypographyCohortCallerTests"
+          },
+          {
+            "name": "NativeRestorationCanvasPolicyTests"
+          },
+          {
+            "name": "NativeRestorationCandidateTests"
+          },
+          {
+            "name": "NativePreLineTextFlowTests"
+          },
+          {
+            "name": "NativeVisibleControlGlyphTests"
+          },
+          {
+            "name": "NativeSourceCanvasClipTests"
+          },
+          {
+            "name": "NativeFinalTypographyDiagnosticsTests"
+          },
+          {
+            "name": "NativePanelErasureMembershipTests"
+          },
+          {
+            "name": "NativeTypographyGrowthBudgetTests"
+          },
+          {
+            "name": "NativeMinimalRestoredPlateTests"
+          },
+          {
+            "name": "NativeLateWordRepairCallerTests"
+          },
+          {
+            "name": "NativeObservedQueueOrderTests"
+          },
+          {
+            "name": "NativeCaptionPolishKeptZoneTests"
+          },
+          {
+            "name": "NativeSourceCanvasImageFrameTests"
+          },
+          {
+            "name": "NativeCaptionBackingRemovalTests"
+          },
+          {
+            "name": "NativeFontSizePrecisionTests"
+          },
+          {
+            "name": "NativeCTFontVerticalPainterTests"
+          },
+          {
+            "name": "NativeVerticalGlyphOriginsTests"
+          },
+          {
+            "name": "NativeVerticalPaintLayoutTests"
+          },
+          {
+            "name": "NativeCanvasTextureResamplerTests"
+          },
+          {
+            "name": "NativeCaptionCSSProvenanceTests"
+          },
+          {
+            "name": "NativeRememberedInkProvenanceTests"
+          },
+          {
+            "name": "NativeSettledBitmapReplayTests"
+          },
+          {
+            "name": "NativeCaptionPanelCommittedRectTests"
+          },
+          {
+            "name": "NativeSourcePanelOverflowTests"
+          },
+          {
+            "name": "NativeStackParentOverflowTests"
+          },
+          {
+            "name": "NativeHorizontalGlobalFillPainterTests"
+          },
+          {
+            "name": "NativeCollapsedRowIntrinsicWidthTests"
+          },
+          {
+            "name": "NativeForeignBackgroundGradientTests"
+          },
+          {
+            "name": "NativeCollapsedRowLayoutTests"
+          },
+          {
+            "name": "NativeCanvasBackingTests"
+          },
+          {
+            "name": "NativeCSSCoveragePathTests"
+          },
+          {
+            "name": "NativeOversizedTitleCoverWriterTests"
+          },
+          {
+            "name": "NativeLayerTreeCaptureTests"
+          },
+          {
+            "name": "NativeForeignBackgroundCompositorTests"
+          },
+          {
+            "name": "NativeSourceCanvasHierarchyCompositorTests"
+          },
+          {
+            "name": "NativeTranslationRenderAdmissionTests"
+          },
+          {
+            "name": "NativeRenderAsyncBridgeTests"
+          },
+          {
+            "name": "NativeSourceCanvasSnapshotOutputTests"
           }
         ]
       },
-      "target" : {
-        "containerPath" : "container:Aidoku.xcodeproj",
-        "identifier" : "FBB44E712EC635620032EFBB",
-        "name" : "AidokuTests"
+      "target": {
+        "containerPath": "container:Aidoku.xcodeproj",
+        "identifier": "FBB44E712EC635620032EFBB",
+        "name": "AidokuTests"
       }
     }
   ],
-  "version" : 1
+  "version": 1
 }

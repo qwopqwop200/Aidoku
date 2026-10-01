@@ -1,7 +1,7 @@
 // Production paper proposals preserve neighboring ink and require a committed
 // source cleanup before outline-only text can replace a panel.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
-const source=fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift'),'utf8');
 const script=source.match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const api=new Function(script+';return {paper:aidokuEnclosedPaperRestore,local:aidokuLocalComponentRestore,outline:aidokuOutlineSourceResolved};')();
 const w=80,h=90,b=[20,20,30,45],rgba=new Uint8ClampedArray(w*h*4).fill(255);

@@ -1,0 +1,23 @@
+{
+  "scope": "Immutable actual iOS BUILD56 WK reference captures, no new oracle generation",
+  "references": [
+    {
+      "scene": "red",
+      "resourceName": "NativeGradientActual56Red.bin",
+      "PNGHash": "69c5b246bf9de9411b672ade31734ff40b51f3de75c8048453815a603e25cfa2",
+      "RGBAHash": "29045ce6342433fdecb081015541f72b07e7866c2d7ce422c59d05de51affe74",
+      "width": 960,
+      "height": 480,
+      "sourcePath": "build/native-render-parity/verify-gradient-backend-build56-snapshot/red/web.png"
+    },
+    {
+      "scene": "blue",
+      "resourceName": "NativeGradientActual56Blue.bin",
+      "PNGHash": "3b16591e1f92895287587f73ed5ca958a2c2acc99866ad2a6d17c1a4a7cacbb5",
+      "RGBAHash": "1944e325538ee83e06d277308f472f45c4c388b4c5fda79324d2ccd3a0a25e54",
+      "width": 960,
+      "height": 480,
+      "sourcePath": "build/native-render-parity/verify-gradient-backend-build56-snapshot/blue/web.png"
+    }
+  ]
+}

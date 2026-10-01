@@ -2,7 +2,7 @@
 const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),vm=require('node:vm');
 const [fixture,baseline,output,captureDirectory]=process.argv.slice(2);
 if(captureDirectory)fs.mkdirSync(captureDirectory,{recursive:true});
-const root=path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const root=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const script=file=>fs.readFileSync(file,'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const adapter=fs.readFileSync(path.join(root,'BrowserSourceGlyphConservative.swift'),'utf8');
 const load=old=>{

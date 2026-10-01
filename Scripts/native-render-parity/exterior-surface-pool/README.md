@@ -1,0 +1,11 @@
+# Mixed interior/exterior surface probes
+
+`python3 Scripts/native-render-parity/exterior-surface-pool-check.py` runs the unchanged frozen inspectSurface loop (BrowserOverlayView 4060–4144) against actual production NativeTranslationSurfacePool.range. 80/80 cases agree, including 25 accepted probes. Exact fields include source luminance range, local lookup debit, page pool budget, tile readiness and unsafe rejection. The source image read and exterior plane admission are supplied by the caller; this proof does not claim iOS Canvas resampling parity.
+
+`python3 Scripts/native-render-parity/run-exterior-surface-pool-tests.py` compiles the production scan and unchanged app NativeExteriorSurfacePoolTests: three semantic tests pass on host. Actual iOS BUILD33: all three tests passed.
+
+`python3 Scripts/native-render-parity/early-margin/inspect-webtoon.py` compiles actual production restoration/Typography dependencies and inspects the BUILD32 synthetic webtoon source. Card0 now grows to the frozen font28.25 and [131,2,107,248] geometry with the original65,536 local allowance. Actual iOS BUILD33 card1 also reached11.25; its width53.75 versus frozen52.5 and CSS-nowrap whitespace/vertical padding remain unresolved and owned by typography. The full image differs45,498 pixels; no equality claim. Set WEBTOON_TRACE=1 to instrument only immutable host snapshots of growthLayout; the app sources are never altered by the tracing option.
+
+`NativeCertifiedExteriorSurfaceTests` tests the actual Context against a real source CGImage whose exterior differs20RGB from the plane. All3 flag combinations pass on host:24RGB admission requires both balanced-column and independent source-erasure certificate. This regression does not change either18/24 tolerance.
+
+Normalized Context mapping proof: `NATIVE_MARGIN_TEST_FILTER="NativeCertifiedExteriorSurfaceTests|NativeTypographyCleanupFrameTests" python3 Scripts/native-render-parity/early-margin/typecheck.py` compiles actual production dependencies and runs3 tolerance flags +2 normalized-frame cases. Both suites passed on host, including stale-frame negative control after refresh. This verifies pixel coordinate transport while original prepared payload remains unchanged.

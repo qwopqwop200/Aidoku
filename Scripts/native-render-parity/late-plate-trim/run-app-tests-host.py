@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+"""Run actual app frozen-corpus test on host; UIKit renderer adapter tests require iOS."""
+import json,subprocess
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[3];OUT=ROOT/'build/native-render-parity/late-plate-trim-app-tests';OUT.mkdir(parents=True,exist_ok=True)
+source=(ROOT/'AidokuTests/Translation/NativeEngine/NativeLatePlateTrimTests.swift').read_text().replace('@testable import Aidoku\n','');source=source[:source.index('    private func adapterFixture')]+ '}\n'
+start=source.index('    private func fixtures()');end=source.index('    private func ds',start)
+fixture=ROOT/'build/native-render-parity/late-plate-trim/app-manifest.json';inputs=json.loads((ROOT/'build/native-render-parity/late-plate-trim/fixtures.json').read_text());expected=json.loads((ROOT/'build/native-render-parity/late-plate-trim/expected.json').read_text());fixture.write_text(json.dumps(dict(cases=[dict(input=i,expected=e) for i,e in zip(inputs,expected)])))
+source=source[:start]+'    private func fixtures() throws -> [[String:Any]] { (try JSONSerialization.jsonObject(with:Data(contentsOf:URL(fileURLWithPath:'+json.dumps(str(fixture))+'))) as! [String:Any])["cases"] as! [[String:Any]] }\n'+source[end:]
+(OUT/'NativeLatePlateTrimTests.swift').write_text(source);entry=OUT/'HostTests.swift';entry.write_text('import Foundation\nimport Testing\n@main struct HostTests { static func main() async { exit(await Testing.__swiftPMEntryPoint()) } }\n')
+dev=Path(subprocess.check_output(['xcode-select','-p'],text=True).strip());frameworks=dev/'Platforms/MacOSX.platform/Developer/Library/Frameworks';macro=dev/'Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing/libTestingMacros.dylib'
+subprocess.run(['xcrun','swiftc','-O','-swift-version','6','-strict-concurrency=complete','-F',str(frameworks),'-load-plugin-library',str(macro),str(ROOT/'Aidoku/Core/Translation/NativeEngine/Overlay/NativeLatePlateTrim.swift'),str(OUT/'NativeLatePlateTrimTests.swift'),str(entry),'-Xlinker','-rpath','-Xlinker',str(frameworks),'-o',str(OUT/'tests')],check=True,cwd=ROOT)
+r=subprocess.run([str(OUT/'tests')],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,cwd=ROOT);(OUT/'tests.log').write_text(r.stdout);print(r.stdout);passed=r.returncode==0 and 'Test run with 1 test' in r.stdout;(OUT/'report.json').write_text(json.dumps(dict(passed=passed,tests=1,fixtures=40,scope='Unchanged actual completeFrozenPlateTrimPreservesSourceFringeAndRollback() and actual entry construction; only app import/bundle resource transport replaced, UIKit adapter tests excluded honestly.'),indent=2));raise SystemExit(0 if passed else 1)
