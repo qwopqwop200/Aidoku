@@ -258,7 +258,7 @@ assert.deepEqual(details[0], details[1]);
     }
     const real=harness();
     const restoration=fs.readFileSync(path.resolve(__dirname,
-        '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift'),'utf8')
+        '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift'),'utf8')
         .match(/static let script = """\n([\s\S]*?)\n    """/)[1];
     vm.runInContext(restoration+'\nglobalThis.restorePanel=aidokuRestoreSourcePanel;',real.context);
     for(const box of [[36,39,234,215],[85,40,35,187]]){

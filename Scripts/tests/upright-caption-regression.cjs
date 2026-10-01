@@ -2,7 +2,7 @@
 // rotate upright translated lettering, and cannot be enlarged to make it fit.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
-const source=fs.readFileSync(path.join(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'),'utf8')
+const source=fs.readFileSync(path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayTypography.swift'),'utf8')
   .split('static let script = #"""')[1].split('"""#')[0];
 (async()=>{
  const browser=await webkit.launch();

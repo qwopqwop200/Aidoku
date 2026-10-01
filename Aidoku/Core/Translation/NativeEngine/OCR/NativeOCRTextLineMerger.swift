@@ -39,6 +39,7 @@ enum NativeOCRTextLineMerger {
         let confidence: Double
         let box: CGRect
         let polygon: [CGPoint]
+        var erasurePolygons: [[CGPoint]] = []
         let orientationHint: BrowserOCRSourceOrientation
         var orientation: Orientation
         var singleVerticalColumn: Bool
@@ -178,8 +179,8 @@ enum NativeOCRTextLineMerger {
                 score: line.confidence,
                 orientationRaw: line.orientation.source.rawValue,
                 singleVerticalColumn: line.singleVerticalColumn,
-                auxiliaryInkRects: rubyInk.filter { line.box.contains($0.parent) }.map(\.reading),
-                auxiliaryInkPolygons: rubyInk.filter { line.box.contains($0.parent) }.map(\.polygon)
+                auxiliaryInkRects: rubyInk.filter { line.box.contains($0.parent) }.map(\.reading) + line.erasurePolygons.map(boundingBox),
+                auxiliaryInkPolygons: rubyInk.filter { line.box.contains($0.parent) }.map(\.polygon) + line.erasurePolygons
             ))
         }
         return (merged + retained).sorted { $0.index < $1.index }.map(\.line)
@@ -190,15 +191,17 @@ enum NativeOCRTextLineMerger {
     private static func suppressedRubyInk(in lines: [Line], retained: [Line]) -> [(parent: CGRect, reading: CGRect, polygon: [CGPoint])] {
         let kept = Set(retained.map(\.index))
         let spatial = NativeOCRSpatialIndex(boxes: retained.map(\.box))
-        return lines.filter { !kept.contains($0.index) }.compactMap { reading in
+        return lines.filter { !kept.contains($0.index) }.flatMap { reading -> [(parent: CGRect, reading: CGRect, polygon: [CGPoint])] in
             let candidates = spatial.indices(intersecting: reading.box.insetBy(
                 dx: -reading.box.width, dy: -reading.box.height)).filter { index in
                 let pair = [retained[index], reading]
                 return !suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(suppressSlantedHorizontalRuby(suppressSlantedVerticalRuby(pair))))
                     .contains { $0.index == reading.index }
             }
-            guard candidates.count == 1, let index = candidates.first else { return nil }
-            return (retained[index].box, reading.box, reading.polygon)
+            guard candidates.count == 1, let index = candidates.first else { return [] }
+            return [(retained[index].box, reading.box, reading.polygon)] + reading.erasurePolygons.map {
+                (retained[index].box, boundingBox($0), $0)
+            }
         }
     }
 
@@ -277,6 +280,19 @@ enum NativeOCRTextLineMerger {
         return text
     }
 
+    private static func boundedErasurePolygons(_ polygons: [[CGPoint]]) -> [[CGPoint]] {
+        var result: [[CGPoint]] = []
+        for polygon in polygons.prefix(256) {
+            guard (3...32).contains(polygon.count), polygon.allSatisfy({ $0.x.isFinite && $0.y.isFinite }),
+                  !result.contains(polygon) else { continue }
+            let bounds = boundingBox(polygon)
+            guard !bounds.isNull, bounds.width > 0, bounds.height > 0 else { continue }
+            result.append(polygon)
+            if result.count >= 64 { break }
+        }
+        return result
+    }
+
     private static func fallback(
         _ lines: [NativeCoreMLOCRLine]
     ) -> [PaddleOCRLine] {
@@ -288,7 +304,9 @@ enum NativeOCRTextLineMerger {
                 text: line.text,
                 score: line.score.isFinite ? min(max(line.score, 0), 1) : 0,
                 orientationRaw: line.orientation.rawValue,
-                singleVerticalColumn: line.orientation == .vertical
+                singleVerticalColumn: line.orientation == .vertical,
+                auxiliaryInkRects: boundedErasurePolygons(line.erasurePolygons).map(boundingBox),
+                auxiliaryInkPolygons: boundedErasurePolygons(line.erasurePolygons)
             )
         }
     }
@@ -318,6 +336,7 @@ enum NativeOCRTextLineMerger {
             confidence: min(max(native.score, 0), 1),
             box: box,
             polygon: native.polygon,
+            erasurePolygons: boundedErasurePolygons(native.erasurePolygons),
             orientationHint: native.orientationIsEstimated ? .unknown : native.orientation,
             orientation: orientation,
             singleVerticalColumn: orientation == .vertical,
@@ -345,7 +364,7 @@ enum NativeOCRTextLineMerger {
                 let points = line.polygon.map { CGPoint(x: $0.x * cos(tilt) + $0.y * sin(tilt),
                                                        y: -$0.x * sin(tilt) + $0.y * cos(tilt)) }
                 return Line(index: line.index, text: line.text, confidence: line.confidence,
-                    box: boundingBox(points), polygon: rectanglePolygon(boundingBox(points)), orientationHint: line.orientationHint,
+                    box: boundingBox(points), polygon: rectanglePolygon(boundingBox(points)), erasurePolygons: line.erasurePolygons, orientationHint: line.orientationHint,
                     orientation: line.orientation, singleVerticalColumn: line.singleVerticalColumn)
             }
             let body = aligned(parent)
@@ -387,7 +406,7 @@ enum NativeOCRTextLineMerger {
                 }
                 // Line geometry is immutable; all text/identity stays original.
                 return Line(index: copy.index, text: copy.text, confidence: copy.confidence,
-                    box: boundingBox(points), polygon: rectanglePolygon(boundingBox(points)), orientationHint: copy.orientationHint,
+                    box: boundingBox(points), polygon: rectanglePolygon(boundingBox(points)), erasurePolygons: copy.erasurePolygons, orientationHint: copy.orientationHint,
                     orientation: copy.orientation, singleVerticalColumn: copy.singleVerticalColumn)
             }
             let body = aligned(parent)
@@ -688,7 +707,7 @@ enum NativeOCRTextLineMerger {
             guard top[index] > line.box.minY || bottom[index] < line.box.maxY else { return geometry }
             let polygon = line.polygon.map { CGPoint(x: $0.x, y: min(max($0.y, top[index]), bottom[index])) }
             var trimmed = Line(index: line.index, text: line.text, confidence: line.confidence, box: boundingBox(polygon),
-                               polygon: polygon, orientationHint: line.orientationHint, orientation: line.orientation,
+                               polygon: polygon, erasurePolygons: line.erasurePolygons, orientationHint: line.orientationHint, orientation: line.orientation,
                                singleVerticalColumn: line.singleVerticalColumn, clippedByTile: line.clippedByTile)
             trimmed.sourceTileBounds = line.sourceTileBounds
             return makeRegionGeometry((geometry.index, trimmed))
@@ -886,7 +905,7 @@ enum NativeOCRTextLineMerger {
                                    y: x * sine + y * cosine + (inverse ? origin.y : 0))
                 }
                 return Line(index: line.index, text: line.text, confidence: line.confidence,
-                            box: boundingBox(polygon), polygon: polygon,
+                            box: boundingBox(polygon), polygon: polygon, erasurePolygons: line.erasurePolygons,
                             orientationHint: line.orientationHint, orientation: line.orientation,
                             singleVerticalColumn: line.singleVerticalColumn, clippedByTile: line.clippedByTile)
             }
@@ -1388,7 +1407,7 @@ enum NativeOCRTextLineMerger {
                     && separatedIntervalGap(line.box.minX, line.box.maxX, next.box.minX, next.box.maxX) <= line.box.width * 0.5
             }) else { return line }
             var vertical = Line(index: line.index, text: line.text, confidence: line.confidence, box: line.box,
-                polygon: line.polygon, orientationHint: .vertical, orientation: .vertical, singleVerticalColumn: true)
+                polygon: line.polygon, erasurePolygons: line.erasurePolygons, orientationHint: .vertical, orientation: .vertical, singleVerticalColumn: true)
             vertical.clippedByTile = line.clippedByTile; vertical.sourceTileBounds = line.sourceTileBounds
             let anchors = nearby.filter { paddedVerticalGlyphAdvance(vertical, lines[$0]) }
             return anchors.count == 1 ? vertical : line
@@ -1574,7 +1593,7 @@ enum NativeOCRTextLineMerger {
             guard neighbours.contains(where: { $0.box.midX < line.box.midX && $0.box.maxX < line.box.maxX }),
                   neighbours.contains(where: { $0.box.midX > line.box.midX && $0.box.minX > line.box.minX }) else { return line }
             return Line(index: line.index, text: line.text, confidence: line.confidence,
-                box: line.box, polygon: line.polygon, orientationHint: .horizontal,
+                box: line.box, polygon: line.polygon, erasurePolygons: line.erasurePolygons, orientationHint: .horizontal,
                 orientation: .horizontal, singleVerticalColumn: false, sourceTileBounds: line.sourceTileBounds)
         }
     }
@@ -1662,6 +1681,7 @@ enum NativeOCRTextLineMerger {
             confidence: confidence,
             box: box,
             polygon: polygon,
+            erasurePolygons: boundedErasurePolygons(ordered.flatMap { $0.line.erasurePolygons }),
             orientationHint: orientation.source,
             orientation: orientation,
             singleVerticalColumn: orientation == .vertical
@@ -1925,6 +1945,7 @@ enum NativeOCRTextLineMerger {
             confidence: line.confidence,
             box: line.box,
             polygon: line.polygon,
+            erasurePolygons: line.erasurePolygons,
             orientationHint: line.orientationHint,
             orientation: line.orientation,
             singleVerticalColumn: line.singleVerticalColumn
@@ -2007,6 +2028,8 @@ enum NativeOCRTextLineMerger {
                 where right > left && !suppressed.contains(right) {
                 if canSuppressDuplicate(ordered[right], keeping: ordered[left]) {
                     suppressed.insert(right)
+                    retained[retained.count - 1].erasurePolygons = boundedErasurePolygons(
+                        retained[retained.count - 1].erasurePolygons + ordered[right].erasurePolygons)
                 }
             }
         }
@@ -2876,6 +2899,7 @@ enum NativeOCRTextLineMerger {
             confidence: geometricAreaWeightedConfidence(ordered),
             box: box,
             polygon: mergedSourcePolygon(ordered.map(\.line), fallback: box),
+            erasurePolygons: boundedErasurePolygons(ordered.flatMap { $0.line.erasurePolygons }),
             orientationHint: orientation.source,
             orientation: orientation,
             singleVerticalColumn: orientation == .vertical && oneVerticalColumn

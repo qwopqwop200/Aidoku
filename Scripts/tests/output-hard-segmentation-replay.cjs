@@ -1,6 +1,6 @@
 // Replay actual renderer arguments against both versions of the glyph segmenter.
 const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib');
-const [fixture,baseline,output]=process.argv.slice(2),root=path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const [fixture,baseline,output]=process.argv.slice(2),root=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const text=file=>fs.readFileSync(file,'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const adapter=fs.readFileSync(path.join(root,'BrowserSourceGlyphConservative.swift'),'utf8');
 const adapt=s=>{for(const [,a,b] of adapter.matchAll(/of:\s*"([^"]+)"\s*,\s*with:\s*"([^"]+)"/g))s=s.replace(a,b);return s;};

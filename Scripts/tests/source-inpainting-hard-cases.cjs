@@ -3,7 +3,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),crypto=require('node:crypto');
 const {resize}=require('./source-color-test-harness.cjs');
 const arg=name=>process.argv.includes(name)?process.argv[process.argv.indexOf(name)+1]:null;
-const root=path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const root=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const script=file=>fs.readFileSync(file,'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const document={createElement(){let d;return{getContext(){return{drawImage(image,sx,sy,sw,sh,dx,dy,w,h){d={image,sx,sy,sw,sh,w,h};},getImageData(){return{data:resize(d.image,d.sx,d.sy,d.sw,d.sh,d.w,d.h)};}};}};}};
 const [sample,display]=new Function('document',script(arg('--color-source')||path.join(root,'BrowserSourceTextColor.swift'))+';return [aidokuSourceColorSampler,aidokuSourceDisplayInk];')(document);

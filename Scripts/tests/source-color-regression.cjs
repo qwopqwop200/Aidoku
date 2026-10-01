@@ -20,7 +20,7 @@ function option(name, fallback) {
     return args[index + 1];
 }
 const sourcePath = option('--source', path.resolve(__dirname,
-    '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift'));
+    '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourceTextColor.swift'));
 const swift = fs.readFileSync(sourcePath, 'utf8');
 const script = swift.match(/static let script = """\r?\n([\s\S]*?)\r?\n    """/);
 assert.ok(script, 'production Swift multiline script must be present');

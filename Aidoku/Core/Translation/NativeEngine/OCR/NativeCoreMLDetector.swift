@@ -7,6 +7,14 @@ import Foundation
 struct NativeCoreMLDetectionBox: Equatable, Sendable {
     let polygon: [CGPoint]
     let score: Double
+    /// Probability-supported ink belongs to erasure only, never recognition geometry.
+    let erasurePolygons: [[CGPoint]]
+
+    init(polygon: [CGPoint], score: Double, erasurePolygons: [[CGPoint]] = []) {
+        self.polygon = polygon
+        self.score = score
+        self.erasurePolygons = erasurePolygons
+    }
 }
 
 @available(iOS 18.0, *)
@@ -1156,9 +1164,14 @@ final class NativeCoreMLDetector: @unchecked Sendable {
                             )
                         }
                     )
+                    let boxes = try NativeCoreMLDBPostprocessor.addingErasureSupport(
+                        map: map, boxes: result.boxes, sourceWidth: frame.width, sourceHeight: frame.height,
+                        geometry: .init(originX: region.x, originY: region.y,
+                            fullWidth: prepared.resizedWidth, fullHeight: prepared.resizedHeight),
+                        cancellationCheck: { try requireCurrent(issuedGeneration, cancellationCheck: cancellationCheck) })
                     dbPostprocessingMilliseconds += Self.nowMilliseconds()
                         - stageStarted
-                    return result
+                    return .init(boxes: boxes, candidateComponents: result.candidateComponents)
                 }
 
                 var usedRegion = preferredRegion ?? fullRegion

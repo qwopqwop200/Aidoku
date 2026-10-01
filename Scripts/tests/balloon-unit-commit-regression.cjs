@@ -1,6 +1,6 @@
 // Execute the production measurement closure at the exhausted search budget.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
-const source=fs.readFileSync(path.join(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
+const source=fs.readFileSync(path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'),'utf8');
 const start=source.indexOf('        const blocks=(f,w,commit=false)=>{');
 const end=source.indexOf('        const place=',start);
 assert.ok(start>0&&end>start);

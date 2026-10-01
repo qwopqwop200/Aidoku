@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { webkit } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const source = fs.readFileSync(path.join(__dirname,
-    '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'), 'utf8');
+    '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'), 'utf8');
 const start = source.indexOf('    // Final ink belongs to the measured balloon body');
 const end = source.indexOf('    // Plates are final.', start);
 assert.ok(start > 0 && end > start);

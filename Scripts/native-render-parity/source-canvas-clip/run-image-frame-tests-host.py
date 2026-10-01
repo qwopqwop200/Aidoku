@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+"""Run only the actual display-clip helper's captured WKPDF regression suite."""
+from pathlib import Path
+import hashlib,json,subprocess
+ROOT=Path(__file__).resolve().parents[3]
+OUT=ROOT/'build/native-render-parity/source-canvas-clip/image-frame-app-tests';OUT.mkdir(parents=True,exist_ok=True)
+helper=ROOT/'Aidoku/Core/Translation/NativeEngine/Overlay/NativeSourceCanvasImageFrame.swift'
+source=ROOT/'AidokuTests/Translation/NativeEngine/NativeSourceCanvasImageFrameTests.swift'
+snapshot=OUT/'NativeSourceCanvasImageFrame.swift';snapshot.write_bytes(helper.read_bytes())
+test=OUT/'Tests.swift';test.write_text(source.read_text().replace('@testable import Aidoku\n','')+'\n@main struct HostTests {static func main() async {exit(await Testing.__swiftPMEntryPoint())}}\n')
+dev=Path(subprocess.check_output(['xcode-select','-p'],text=True).strip())
+framework=dev/'Platforms/MacOSX.platform/Developer/Library/Frameworks'
+macro=dev/'Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing/libTestingMacros.dylib'
+cmd=['xcrun','swiftc','-O','-swift-version','6','-strict-concurrency=complete','-F',str(framework),'-load-plugin-library',str(macro),str(snapshot),str(test),'-Xlinker','-rpath','-Xlinker',str(framework),'-o',str(OUT/'tests')]
+r=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True);(OUT/'compile.log').write_text(r.stdout);print(r.stdout,end='')
+if not r.returncode:
+ r=subprocess.run([str(OUT/'tests')],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True);(OUT/'tests.log').write_text(r.stdout);print(r.stdout,end='')
+(OUT/'report.json').write_text(json.dumps(dict(passed=r.returncode==0,testFunctions=1,parameterCases=8,scope='Actual live source-canvas integer-edge helper and actual app suite, optimized strictSwift6 host. Seven iOS42 DOM/imageDo controls plus one macOS negative-half control pending actualiOS43. Exact integer destination geometry; no live fullRGBA or savedDOM frame change inferred.',sourceSHA256={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [helper,source]},artifactSHA256={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in [snapshot,test,OUT/'tests',OUT/'tests.log'] if p.exists()}),indent=2))
+raise SystemExit(r.returncode)

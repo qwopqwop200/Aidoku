@@ -3,6 +3,84 @@ import Foundation
 import XCTest
 @testable import Aidoku
 final class NativeCoreMLDetectorSafetyTests: XCTestCase {
+    func testProbabilitySupportRecoversWeakEdgesWithoutChangingRecognitionBoxes() throws {
+        let w = 128, h = 96
+        var values = [Float](repeating: 0, count: w * h)
+        for y in 20..<50 { for x in 20..<40 { values[y * w + x] = 0.92 } }
+        for y in 28..<38 { for x in 40..<47 { values[y * w + x] = 0.2 } }
+        for y in 31..<35 { for x in 49..<53 { values[y * w + x] = 0.4 } }
+        for y in 80..<85 { for x in 110..<115 { values[y * w + x] = 0.4 } }
+        let map = NativeCoreMLDetectionMap(width: w, height: h, values: values)
+        let original = try NativeCoreMLDBPostprocessor.decode(map: map, sourceWidth: w, sourceHeight: h).boxes
+        XCTAssertEqual(original.count, 1)
+        let supported = try NativeCoreMLDBPostprocessor.addingErasureSupport(map: map, boxes: original, sourceWidth: w, sourceHeight: h)
+        XCTAssertEqual(supported.map(\.polygon), original.map(\.polygon))
+        XCTAssertEqual(supported.map(\.score), original.map(\.score))
+        XCTAssertFalse(supported[0].erasurePolygons.isEmpty)
+        XCTAssertTrue(supported[0].erasurePolygons.flatMap { $0 }.contains { $0.x >= 53 })
+        XCTAssertFalse(supported[0].erasurePolygons.flatMap { $0 }.contains { $0.x >= 100 })
+        XCTAssertThrowsError(try NativeCoreMLDBPostprocessor.addingErasureSupport(
+            map: map, boxes: original, sourceWidth: w, sourceHeight: h, cancellationCheck: { throw CancellationError() }))
+    }
+
+    func testProbabilitySupportRetainsPartialMapSourceTransform() throws {
+        var full = [Float](repeating: 0, count: 128 * 96)
+        for y in 25..<55 { for x in 40..<62 { full[y * 128 + x] = 0.9 } }
+        for y in 31..<45 { for x in 62..<67 { full[y * 128 + x] = 0.2 } }
+        let map = NativeCoreMLDetectionMap(width: 128, height: 96, values: full)
+        let boxes = try NativeCoreMLDBPostprocessor.decode(map: map, sourceWidth: 256, sourceHeight: 192).boxes
+        let expected = try NativeCoreMLDBPostprocessor.addingErasureSupport(map: map, boxes: boxes, sourceWidth: 256, sourceHeight: 192)
+        var crop: [Float] = []
+        for y in 8..<72 { crop.append(contentsOf: full[(y * 128 + 16)..<(y * 128 + 80)]) }
+        let actual = try NativeCoreMLDBPostprocessor.addingErasureSupport(
+            map: .init(width: 64, height: 64, values: crop), boxes: boxes, sourceWidth: 256, sourceHeight: 192,
+            geometry: .init(originX: 16, originY: 8, fullWidth: 128, fullHeight: 96))
+        XCTAssertEqual(actual, expected)
+    }
+
+    func testErasureEvidenceSurvivesGroupingAndEncodingWithoutGrowingLayout() throws {
+        let body = [CGPoint(x: 20, y: 20), CGPoint(x: 80, y: 20), CGPoint(x: 80, y: 50), CGPoint(x: 20, y: 50)]
+        let support = [CGPoint(x: 76, y: 21), CGPoint(x: 96, y: 21), CGPoint(x: 96, y: 49), CGPoint(x: 76, y: 49)]
+        let native = NativeCoreMLOCRLine(polygon: body, text: "HELLO", score: 0.99, orientation: .horizontal, erasurePolygons: [support])
+        let grouped = try XCTUnwrap(NativeOCRTextLineMerger.merge([native], imageWidth: 140, imageHeight: 100).first)
+        XCTAssertEqual(grouped.boundingRect, CGRect(x: 20, y: 20, width: 60, height: 30))
+        XCTAssertTrue(grouped.auxiliaryInkPolygons.contains(support))
+        let decoded = try JSONDecoder().decode(PaddleOCRLine.self, from: JSONEncoder().encode(grouped))
+        XCTAssertEqual(decoded, grouped)
+    }
+
+    func testProbabilitySupportDoesNotRecruitAnotherRecognitionOwner() throws {
+        let width = 80, height = 40
+        var values = [Float](repeating: 0, count: width * height)
+        for y in 10..<20 { for x in 10..<20 { values[y * width + x] = 0.9 } }
+        for y in 10..<20 { for x in 22..<28 { values[y * width + x] = 0.9 } }
+        func polygon(_ left: CGFloat, _ right: CGFloat) -> [CGPoint] {
+            [CGPoint(x: left, y: 10), CGPoint(x: right, y: 10), CGPoint(x: right, y: 20), CGPoint(x: left, y: 20)]
+        }
+        let boxes = [NativeCoreMLDetectionBox(polygon: polygon(10, 20), score: 0.9),
+                     NativeCoreMLDetectionBox(polygon: polygon(22, 28), score: 0.9)]
+        let result = try NativeCoreMLDBPostprocessor.addingErasureSupport(
+            map: .init(width: width, height: height, values: values), boxes: boxes, sourceWidth: width, sourceHeight: height)
+        XCTAssertEqual(result.map(\.polygon), boxes.map(\.polygon))
+        XCTAssertFalse(result[0].erasurePolygons.isEmpty)
+        XCTAssertTrue(result[0].erasurePolygons.flatMap { $0 }.allSatisfy { $0.x <= 20 })
+        XCTAssertTrue(result[1].erasurePolygons.flatMap { $0 }.allSatisfy { $0.x >= 22 })
+    }
+
+    func testProbabilitySupportChecksCancellationDuringBoundedScan() throws {
+        let width = 128, height = 128
+        let box = NativeCoreMLDetectionBox(polygon: [CGPoint(x: 24, y: 24), CGPoint(x: 100, y: 24),
+            CGPoint(x: 100, y: 100), CGPoint(x: 24, y: 100)], score: 0.9)
+        var checks = 0
+        XCTAssertThrowsError(try NativeCoreMLDBPostprocessor.addingErasureSupport(
+            map: .init(width: width, height: height, values: [Float](repeating: 0.9, count: width * height)),
+            boxes: [box], sourceWidth: width, sourceHeight: height, cancellationCheck: {
+                checks += 1
+                if checks == 4 { throw CancellationError() }
+            }))
+        XCTAssertEqual(checks, 4)
+    }
+
     func testPipelinePassesThresholdChangesWithoutRecreatingModels() async throws {
         let frame = try XCTUnwrap(NativeOCRRGBAFrame(width: 16, height: 16, bytes: [UInt8](repeating: 255, count: 16 * 16 * 4)))
         let context = try XCTUnwrap(CGContext(data: nil, width: 16, height: 16, bitsPerComponent: 8,

@@ -7,7 +7,7 @@ const zlib = require('node:zlib');
 const crypto = require('node:crypto');
 const { resize } = require('./source-color-test-harness.cjs');
 const arg = name => process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : null;
-const root = path.resolve(__dirname, '../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const root = path.resolve(__dirname, '../../AidokuTests/Translation/LegacyBrowserOverlay');
 const script = file => fs.readFileSync(file, 'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const document = { createElement() {
     let draw;

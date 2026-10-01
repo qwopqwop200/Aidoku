@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const at = process.argv.indexOf('--source');
-const file = at < 0 ? path.resolve(__dirname, '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift') : process.argv[at + 1];
+const file = at < 0 ? path.resolve(__dirname, '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift') : process.argv[at + 1];
 const script = fs.readFileSync(file, 'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const restore = new Function(script + ';return aidokuRestoreSourcePanel;')();
 let passed = 0;
@@ -232,7 +232,7 @@ for (const f of speckles) test('faint paper speckle keeps layout safe / ' + f.na
     assert.deepEqual(rgba, before);
     for (const i of f.safePixels) assert.equal(out.layoutSafe[i], 1, 'faint isolated noise is not a new drawing obstacle');
 });
-const overlay = fs.readFileSync(path.resolve(__dirname, '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'), 'utf8');
+const overlay = fs.readFileSync(path.resolve(__dirname, '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'), 'utf8');
 const budgetScript = overlay.slice(overlay.indexOf('const cleanupCacheState ='), overlay.indexOf('const appendSourceCleanup ='));
 function budgetHarness(items, globalState = {}, source = {}) {
     const sourceImage = Object.assign({complete:true,naturalWidth:3000,naturalHeight:3000,src:'fixture',addEventListener(){}},source);

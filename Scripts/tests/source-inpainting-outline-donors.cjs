@@ -1,6 +1,6 @@
 // Real native Canvas captures: outlined ink joining a similarly hued backing.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),crypto=require('node:crypto');
-const dir=path.join(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const dir=path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const script=name=>fs.readFileSync(path.join(dir,name+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const fixtures=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/source-inpainting-outline-donors.json'))).fixtures;
 for(const wasm of [false,true]){

@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const source = fs.readFileSync(path.join(__dirname,
-  '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift'), 'utf8')
+  '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift'), 'utf8')
   .match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const api = new Function(source + ';return {restore:aidokuRestoreSourcePanel,infer:aidokuInferVerticalRuby};')();
 const fixtures = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/source-inpainting-inferred-ruby.json')));

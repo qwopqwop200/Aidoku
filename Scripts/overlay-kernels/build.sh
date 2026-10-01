@@ -8,4 +8,4 @@ kernel_dir=$(mktemp -d "${TMPDIR:-/tmp}/aidoku-overlay-kernels.XXXXXX")
 trap 'rm -rf "$kernel_dir"' EXIT
 rustc --target wasm32-unknown-unknown -C opt-level=3 -C panic=abort -C strip=symbols -C debuginfo=0 --crate-type cdylib \
   -C link-arg=-zstack-size=16384 -C link-arg=--initial-memory=131072 kernels.rs -o "$kernel_dir/kernels.wasm"
-python3 embed.py "$kernel_dir/kernels.wasm" ../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift
+python3 embed.py "$kernel_dir/kernels.wasm" ../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourceTextColor.swift

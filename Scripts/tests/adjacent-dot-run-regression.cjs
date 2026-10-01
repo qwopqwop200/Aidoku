@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const source=fs.readFileSync(path.join(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
+const source=fs.readFileSync(path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const find=new Function(source+';return aidokuAdjacentDotRun;')();
 function scene({x=105,count=12,ys=null,line=false}={}){
  const w=160,h=300,p=new Uint8ClampedArray(w*h*4).fill(245);for(let i=3;i<p.length;i+=4)p[i]=255;

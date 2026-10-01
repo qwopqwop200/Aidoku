@@ -1,7 +1,7 @@
 // Frozen real raster captures, explicitly rotated with independent source/ruby
 // and illustration masks. Includes light/dark, faint/colored and missing ruby.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib');
-const source=n=>fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/'+n+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
+const source=n=>fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/'+n+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const {restore,geometry}=new Function(source('BrowserSourceTextColor')+source('BrowserSourcePanelRestoration')+source('BrowserSlantedSourceRestoration')+';return {restore:aidokuRestoreSlantedSource,geometry:aidokuSlantedLocalGeometry}')();
 const fixtures=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/slanted-ruby-pixels.json'))).cases;
 const unpack=s=>new Uint8ClampedArray(zlib.inflateSync(Buffer.from(s,'base64')));

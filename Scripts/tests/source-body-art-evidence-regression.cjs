@@ -3,7 +3,7 @@
 // 0876 paint hashes include the reviewed donor-border correction; ownership masks
 // remain byte-identical, and neighboring lettering and frame lines stay visible.
 const fs=require('node:fs'),path=require('node:path'),z=require('node:zlib'),crypto=require('node:crypto'),assert=require('node:assert/strict');
-const source=fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift'),'utf8');
 const script=source.match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const restore=new Function(script+';return aidokuRestoreSourcePanel;')();
 const hash=a=>crypto.createHash('sha256').update(a).digest('hex');
@@ -31,7 +31,7 @@ p[105]=0;f[105]=1;assert.deepEqual(proof(p,f,20,[[4,4,3,3]],0,0),{body:false,ful
 console.log('4 unresolved/auxiliary ownership controls passed');
 // A new art-preserving candidate preceding an established partial candidate
 // must not consume its placement first (actual holdout 1141 regression).
-const view=fs.readFileSync(path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
+const view=fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'),'utf8');
 const start=view.indexOf('let partialProofBudget='),finish=view.indexOf('// Retry remaining opaque captions',start);
 assert.ok(start>=0&&finish>start);
 const transaction=new Function('s','with(s){'+view.slice(start,finish)+'}');

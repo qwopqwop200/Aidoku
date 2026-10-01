@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const root=path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const root=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const script=name=>fs.readFileSync(path.join(root,name+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const fill=new Function(script('BrowserSourcePanelRestoration')+script('BrowserForcedInpaintQuality')+';return aidokuCertifiedSurfaceFill')();
 const w=100,h=90,n=w*h,clean=new Uint8ClampedArray(n*4),ink=new Uint8ClampedArray(n*4),mask=new Uint8Array(n),blocked=new Uint8Array(n);

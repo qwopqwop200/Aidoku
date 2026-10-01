@@ -1,659 +1,948 @@
 {
-  "configurations" : [
+  "configurations": [
     {
-      "id" : "2342EBB1-A5DB-4B66-9F31-F4AA25A1AA61",
-      "name" : "Default",
-      "options" : {
-
-      }
+      "id": "2342EBB1-A5DB-4B66-9F31-F4AA25A1AA61",
+      "name": "Default",
+      "options": {}
     }
   ],
-  "defaultOptions" : {
-    "codeCoverage" : false
+  "defaultOptions": {
+    "codeCoverage": false
   },
-  "testTargets" : [
+  "testTargets": [
     {
-      "parallelizable" : false,
-      "selectedTests" : {
-        "suites" : [
+      "parallelizable": false,
+      "selectedTests": {
+        "suites": [
           {
-            "name" : "ReaderTranslationDiskReadBudgetAuditTests"
+            "name": "ReaderTranslationDiskReadBudgetAuditTests"
           },
           {
-            "name" : "ReaderTranslationPreviewInvalidationTests"
+            "name": "ReaderTranslationPreviewInvalidationTests"
           },
           {
-            "name" : "ReaderRenderPreparationCancellationTests"
+            "name": "ReaderRenderPreparationCancellationTests"
           },
           {
-            "name" : "NativeTranslationEscapedLanguageCacheTests"
+            "name": "NativeTranslationEscapedLanguageCacheTests"
           },
           {
-            "name" : "ReaderLocalPageIdentityTests"
+            "name": "ReaderLocalPageIdentityTests"
           },
           {
-            "name" : "DownloadIdentityAuditTests"
+            "name": "DownloadIdentityAuditTests"
           },
           {
-            "name" : "ReaderTemporaryIdentityTests"
+            "name": "ReaderTemporaryIdentityTests"
           },
           {
-            "name" : "ReaderTranslationCapabilityPersistenceTests"
+            "name": "ReaderTranslationCapabilityPersistenceTests"
           },
           {
-            "name" : "ReaderTranslationSplitCacheGeometryTests"
+            "name": "ReaderTranslationSplitCacheGeometryTests"
           },
           {
-            "name" : "ReaderTranslationCachePolicyAuditTests"
+            "name": "ReaderTranslationCachePolicyAuditTests"
           },
           {
-            "name" : "ReaderRenderCacheIdentityAuditTests"
+            "name": "ReaderRenderCacheIdentityAuditTests"
           },
           {
-            "name" : "NativeTranslationCacheIdentityAuditTests"
+            "name": "NativeTranslationCacheIdentityAuditTests"
           },
           {
-            "name" : "ProviderCacheIdentityAuditTests"
+            "name": "ProviderCacheIdentityAuditTests"
           },
           {
-            "name" : "MetadataDownloadCacheAuditTests"
+            "name": "MetadataDownloadCacheAuditTests"
           },
           {
-            "name" : "ReaderPageSnapshotIdentityTests"
+            "name": "ReaderPageSnapshotIdentityTests"
           },
           {
-            "name" : "Agent2UtilityRegressionTests"
+            "name": "Agent2UtilityRegressionTests"
           },
           {
-            "name" : "ArchiveTests"
+            "name": "ArchiveTests"
           },
           {
-            "name" : "AutomaticBackupIntervalTests"
+            "name": "AutomaticBackupIntervalTests"
           },
           {
-            "name" : "BackupSafetyTests"
+            "name": "BackupSafetyTests"
           },
           {
-            "name" : "BilingualSubtitleTests"
+            "name": "BilingualSubtitleTests"
           },
           {
-            "name" : "BlockingCancellationForwardingTests"
+            "name": "BlockingCancellationForwardingTests"
           },
           {
-            "name" : "BoundedConcurrentMapTests"
+            "name": "BoundedConcurrentMapTests"
           },
           {
-            "name" : "BuiltInSourceModelTests"
+            "name": "BuiltInSourceModelTests"
           },
           {
-            "name" : "CachePersistenceAdmissionTests"
+            "name": "CachePersistenceAdmissionTests"
           },
           {
-            "name" : "CategoryOrderingTests"
+            "name": "CategoryOrderingTests"
           },
           {
-            "name" : "ComicInfoTests"
+            "name": "ComicInfoTests"
           },
           {
-            "name" : "CoverImagePipelineCacheTests"
+            "name": "CoverImagePipelineCacheTests"
           },
           {
-            "name" : "CoverRecoveryTests"
+            "name": "CoverRecoveryTests"
           },
           {
-            "name" : "CropBordersProcessorRegressionTests"
+            "name": "CropBordersProcessorRegressionTests"
           },
           {
-            "name" : "DictionaryFileOperationsTests"
+            "name": "DictionaryFileOperationsTests"
           },
           {
-            "name" : "DictionaryOperationSchedulingTests"
+            "name": "DictionaryOperationSchedulingTests"
           },
           {
-            "name" : "DictionaryReadingOrderTests"
+            "name": "DictionaryReadingOrderTests"
           },
           {
-            "name" : "DictionaryTextAnalysisQueueTests"
+            "name": "DictionaryTextAnalysisQueueTests"
           },
           {
-            "name" : "DiscoverySchedulingTests"
+            "name": "DiscoverySchedulingTests"
           },
           {
-            "name" : "DownloadAuditTests"
+            "name": "DownloadAuditTests"
           },
           {
-            "name" : "DownloadCompressedAdmissionTests"
+            "name": "DownloadCompressedAdmissionTests"
           },
           {
-            "name" : "DownloadDescriptionPersistenceTests"
+            "name": "DownloadDescriptionPersistenceTests"
           },
           {
-            "name" : "DownloadHostAdmissionTests"
+            "name": "DownloadHostAdmissionTests"
           },
           {
-            "name" : "DownloadMetadataTests"
+            "name": "DownloadMetadataTests"
           },
           {
-            "name" : "DownloadMetadataWriteFailureTests"
+            "name": "DownloadMetadataWriteFailureTests"
           },
           {
-            "name" : "DownloadPathContainmentTests"
+            "name": "DownloadPathContainmentTests"
           },
           {
-            "name" : "DownloadPathSafetyRegressionTests"
+            "name": "DownloadPathSafetyRegressionTests"
           },
           {
-            "name" : "DownloadPrefetchCancellationTests"
+            "name": "DownloadPrefetchCancellationTests"
           },
           {
-            "name" : "DownloadQueueOwnershipTests"
+            "name": "DownloadQueueOwnershipTests"
           },
           {
-            "name" : "DownloadQueuePathSafetyTests"
+            "name": "DownloadQueuePathSafetyTests"
           },
           {
-            "name" : "DownloadSchedulingContinuityTests"
+            "name": "DownloadSchedulingContinuityTests"
           },
           {
-            "name" : "DownloadTransportAdmissionTests"
+            "name": "DownloadTransportAdmissionTests"
           },
           {
-            "name" : "FixedAPIDateFormatTests"
+            "name": "FixedAPIDateFormatTests"
           },
           {
-            "name" : "FollowupDiscoveryTests"
+            "name": "FollowupDiscoveryTests"
           },
           {
-            "name" : "FormEncodingTests"
+            "name": "FormEncodingTests"
           },
           {
-            "name" : "HistoryBatchClearAcknowledgmentTests"
+            "name": "HistoryBatchClearAcknowledgmentTests"
           },
           {
-            "name" : "HistoryIdentityIngestionTests"
+            "name": "HistoryIdentityIngestionTests"
           },
           {
-            "name" : "HistoryIngestionSchedulingTests"
+            "name": "HistoryIngestionSchedulingTests"
           },
           {
-            "name" : "HistoryMetadataCacheTests"
+            "name": "HistoryMetadataCacheTests"
           },
           {
-            "name" : "HistoryOptimisticConflictTests"
+            "name": "HistoryOptimisticConflictTests"
           },
           {
-            "name" : "HorizontalInlineOwnershipRegressionTests"
+            "name": "HorizontalInlineOwnershipRegressionTests"
           },
           {
-            "name" : "JSONAnyValueTests"
+            "name": "JSONAnyValueTests"
           },
           {
-            "name" : "KavitaCancellationTests"
+            "name": "KavitaCancellationTests"
           },
           {
-            "name" : "KomgaReleaseDateSafetyTests"
+            "name": "KomgaReleaseDateSafetyTests"
           },
           {
-            "name" : "LibraryCategoryHeaderLifetimeTests"
+            "name": "LibraryCategoryHeaderLifetimeTests"
           },
           {
-            "name" : "LibraryCategorySelectionBoundsTests"
+            "name": "LibraryCategorySelectionBoundsTests"
           },
           {
-            "name" : "LibraryFollowupWorkTests"
+            "name": "LibraryFollowupWorkTests"
           },
           {
-            "name" : "LibraryIncrementalOrderRegressionTests"
+            "name": "LibraryIncrementalOrderRegressionTests"
           },
           {
-            "name" : "LibrarySnapshotSchedulingTests"
+            "name": "LibrarySnapshotSchedulingTests"
           },
           {
-            "name" : "LibraryUndoPreservationTests"
+            "name": "LibraryUndoPreservationTests"
           },
           {
-            "name" : "LocalDeletionSaveFailureTests"
+            "name": "LocalDeletionSaveFailureTests"
           },
           {
-            "name" : "LocalFileNameParserTests"
+            "name": "LocalFileNameParserTests"
           },
           {
-            "name" : "LocalImageImportTests"
+            "name": "LocalImageImportTests"
           },
           {
-            "name" : "LocalImportSchedulingTests"
+            "name": "LocalImportSchedulingTests"
           },
           {
-            "name" : "LocalPathContainmentTests"
+            "name": "LocalPathContainmentTests"
           },
           {
-            "name" : "LocalSourceDefaultsTests"
+            "name": "LocalSourceDefaultsTests"
           },
           {
-            "name" : "MangaDescriptionTranslationTests"
+            "name": "MangaDescriptionTranslationTests"
           },
           {
-            "name" : "NativeOCRPreparationPipelineTests"
+            "name": "NativeOCRPreparationPipelineTests"
           },
           {
-            "name" : "NativeOCRRecognitionRegressionTests"
+            "name": "NativeOCRRecognitionRegressionTests"
           },
           {
-            "name" : "NativeOCRRegionSeparatorTests"
+            "name": "NativeOCRRegionSeparatorTests"
           },
           {
-            "name" : "NativeOCRStackedAsideRecoveryTests"
+            "name": "NativeOCRStackedAsideRecoveryTests"
           },
           {
-            "name" : "NativeOCRTextLineMergerTests"
+            "name": "NativeOCRTextLineMergerTests"
           },
           {
-            "name" : "NotificationDelegateTests"
+            "name": "NotificationDelegateTests"
           },
           {
-            "name" : "ObserverObjectFilteringTests"
+            "name": "ObserverObjectFilteringTests"
           },
           {
-            "name" : "OCRGeometryOverflowRegressionTests"
+            "name": "OCRGeometryOverflowRegressionTests"
           },
           {
-            "name" : "PageInterceptorProcessorTests"
+            "name": "PageInterceptorProcessorTests"
           },
           {
-            "name" : "PartialDownloadTests"
+            "name": "PartialDownloadTests"
           },
           {
-            "name" : "PerformanceOOMOptimizationTests"
+            "name": "PerformanceOOMOptimizationTests"
           },
           {
-            "name" : "PersistentHistoryStoreTests"
+            "name": "PersistentHistoryStoreTests"
           },
           {
-            "name" : "QualityTranslationAuditTransportTests"
+            "name": "QualityTranslationAuditTransportTests"
           },
           {
-            "name" : "ReaderAdmissionRecoveryTests"
+            "name": "ReaderAdmissionRecoveryTests"
           },
           {
-            "name" : "ReaderBoundedCacheExpansionTests"
+            "name": "ReaderBoundedCacheExpansionTests"
           },
           {
-            "name" : "ReaderChapterHandoffTests"
+            "name": "ReaderChapterHandoffTests"
           },
           {
-            "name" : "ReaderEntryLoadingTests"
+            "name": "ReaderEntryLoadingTests"
           },
           {
-            "name" : "ReaderExportStageLifetimeTests"
+            "name": "ReaderExportStageLifetimeTests"
           },
           {
-            "name" : "ReaderFailureLocalizationTests"
+            "name": "ReaderFailureLocalizationTests"
           },
           {
-            "name" : "ReaderHistoryCompletionAcknowledgmentTests"
+            "name": "ReaderHistoryCompletionAcknowledgmentTests"
           },
           {
-            "name" : "ReaderImageCacheRecoveryTests"
+            "name": "ReaderImageCacheRecoveryTests"
           },
           {
-            "name" : "ReaderImageContentIdentityTests"
+            "name": "ReaderImageContentIdentityTests"
           },
           {
-            "name" : "ReaderImageDownloadDemandTests"
+            "name": "ReaderImageDownloadDemandTests"
           },
           {
-            "name" : "ReaderMemoryRecoveryTests"
+            "name": "ReaderMemoryRecoveryTests"
           },
           {
-            "name" : "ReaderMinimumMovementLayoutTests"
+            "name": "ReaderMinimumMovementLayoutTests"
           },
           {
-            "name" : "ReaderOverlayPlacementIdentityTests"
+            "name": "ReaderOverlayPlacementIdentityTests"
           },
           {
-            "name" : "ReaderOverlayRenderOptimizationTests"
+            "name": "ReaderOverlayRenderOptimizationTests"
           },
           {
-            "name" : "ReaderPageControllerStoreTests"
+            "name": "ReaderPageControllerStoreTests"
           },
           {
-            "name" : "ReaderPagedDemandSchedulingTests"
+            "name": "ReaderPagedDemandSchedulingTests"
           },
           {
-            "name" : "ReaderPagePrefetchReservationsTests"
+            "name": "ReaderPagePrefetchReservationsTests"
           },
           {
-            "name" : "ReaderPrefetchDataReuseTests"
+            "name": "ReaderPrefetchDataReuseTests"
           },
           {
-            "name" : "ReaderRawImageProcessingTests"
+            "name": "ReaderRawImageProcessingTests"
           },
           {
-            "name" : "ReaderRenderAssetMutationTests"
+            "name": "ReaderRenderAssetMutationTests"
           },
           {
-            "name" : "ReaderRenderAssetReadBenchmarkTests"
+            "name": "ReaderRenderAssetReadBenchmarkTests"
           },
           {
-            "name" : "ReaderRenderAssetReadSchedulingTests"
+            "name": "ReaderRenderAssetReadSchedulingTests"
           },
           {
-            "name" : "ReaderRenderSchedulingTests"
+            "name": "ReaderRenderSchedulingTests"
           },
           {
-            "name" : "ReaderSchedulingOptimizationTests"
+            "name": "ReaderSchedulingOptimizationTests"
           },
           {
-            "name" : "ReaderSessionCacheAdmissionTests"
+            "name": "ReaderSessionCacheAdmissionTests"
           },
           {
-            "name" : "ReaderSmallTextDOMGuardTests"
+            "name": "ReaderSmallTextDOMGuardTests"
           },
           {
-            "name" : "ReaderSupplementalOCRTests"
+            "name": "ReaderSupplementalOCRTests"
           },
           {
-            "name" : "ReaderTextNavigationRecoveryTests"
+            "name": "ReaderTextNavigationRecoveryTests"
           },
           {
-            "name" : "ReaderTextProgressRestorationTests"
+            "name": "ReaderTextProgressRestorationTests"
           },
           {
-            "name" : "ReaderToolbarLocalizationTests"
+            "name": "ReaderToolbarLocalizationTests"
           },
           {
-            "name" : "ReaderTranslationAssetEncodingLimitTests"
+            "name": "ReaderTranslationAssetEncodingLimitTests"
           },
           {
-            "name" : "ReaderTranslationConcurrencyTests"
+            "name": "ReaderTranslationConcurrencyTests"
           },
           {
-            "name" : "ReaderTranslationConnectionTestModelTests"
+            "name": "ReaderTranslationConnectionTestModelTests"
           },
           {
-            "name" : "ReaderTranslationDigestEquivalenceTests"
+            "name": "ReaderTranslationDigestEquivalenceTests"
           },
           {
-            "name" : "ReaderTranslationForegroundDownloadAdmissionTests"
+            "name": "ReaderTranslationForegroundDownloadAdmissionTests"
           },
           {
-            "name" : "ReaderTranslationLanguageFilterTests"
+            "name": "ReaderTranslationLanguageFilterTests"
           },
           {
-            "name" : "ReaderTranslationLoadedMemoryHitTests"
+            "name": "ReaderTranslationLoadedMemoryHitTests"
           },
           {
-            "name" : "ReaderTranslationManualConnectionTests"
+            "name": "ReaderTranslationManualConnectionTests"
           },
           {
-            "name" : "ReaderTranslationMergeCacheTests"
+            "name": "ReaderTranslationMergeCacheTests"
           },
           {
-            "name" : "ReaderTranslationNetworkTests"
+            "name": "ReaderTranslationNetworkTests"
           },
           {
-            "name" : "ReaderTranslationOverlapTests"
+            "name": "ReaderTranslationOverlapTests"
           },
           {
-            "name" : "ReaderTranslationPageIdentityTests"
+            "name": "ReaderTranslationPageIdentityTests"
           },
           {
-            "name" : "ReaderTranslationPanelIntegrationTests"
+            "name": "ReaderTranslationPanelIntegrationTests"
           },
           {
-            "name" : "ReaderTranslationPanelOrderTests"
+            "name": "ReaderTranslationPanelOrderTests"
           },
           {
-            "name" : "ReaderTranslationPreparedOCRCacheTests"
+            "name": "ReaderTranslationPreparedOCRCacheTests"
           },
           {
-            "name" : "ReaderTranslationProgressTests"
+            "name": "ReaderTranslationProgressTests"
           },
           {
-            "name" : "ReaderTranslationProviderTests"
+            "name": "ReaderTranslationProviderTests"
           },
           {
-            "name" : "ReaderTranslationRemovedFeaturesTests"
+            "name": "ReaderTranslationRemovedFeaturesTests"
           },
           {
-            "name" : "ReaderTranslationTests"
+            "name": "ReaderTranslationTests"
           },
           {
-            "name" : "ReaderTranslationValidationRaceTests"
+            "name": "ReaderTranslationValidationRaceTests"
           },
           {
-            "name" : "ReaderTranslationValidationTests"
+            "name": "ReaderTranslationValidationTests"
           },
           {
-            "name" : "ReaderTranslationViewportSchedulingTests"
+            "name": "ReaderTranslationViewportSchedulingTests"
           },
           {
-            "name" : "ReaderWebtoonSchedulingTests"
+            "name": "ReaderWebtoonSchedulingTests"
           },
           {
-            "name" : "RegressionWebFixtureTests"
+            "name": "RegressionWebFixtureTests"
           },
           {
-            "name" : "RomajiCandidatePruningTests"
+            "name": "RomajiCandidatePruningTests"
           },
           {
-            "name" : "SettingControlLifetimeTests"
+            "name": "SettingControlLifetimeTests"
           },
           {
-            "name" : "SettingsAuditRegressionTests"
+            "name": "SettingsAuditRegressionTests"
           },
           {
-            "name" : "SettingsLoginWebSchedulingTests"
+            "name": "SettingsLoginWebSchedulingTests"
           },
           {
-            "name" : "SharedImageInboxTests"
+            "name": "SharedImageInboxTests"
           },
           {
-            "name" : "SourceBrowseSafetyTests"
+            "name": "SourceBrowseSafetyTests"
           },
           {
-            "name" : "SourceListingPaginationTests"
+            "name": "SourceListingPaginationTests"
           },
           {
-            "name" : "SourcePaginationTests"
+            "name": "SourcePaginationTests"
           },
           {
-            "name" : "SourceRequestCookieScopeTests"
+            "name": "SourceRequestCookieScopeTests"
           },
           {
-            "name" : "TemporarySharedImageSessionTests"
+            "name": "TemporarySharedImageSessionTests"
           },
           {
-            "name" : "TilePaddingDuplicateRegressionTests"
+            "name": "TilePaddingDuplicateRegressionTests"
           },
           {
-            "name" : "TitleTranslationTests"
+            "name": "TitleTranslationTests"
           },
           {
-            "name" : "TrackerFollowupSchedulingTests"
+            "name": "TrackerFollowupSchedulingTests"
           },
           {
-            "name" : "TrackerOAuthSchedulingTests"
+            "name": "TrackerOAuthSchedulingTests"
           },
           {
-            "name" : "TrackerPresentationTests"
+            "name": "TrackerPresentationTests"
           },
           {
-            "name" : "TrackerSyncTests"
+            "name": "TrackerSyncTests"
           },
           {
-            "name" : "TranslatedDownloadTests"
+            "name": "TranslatedDownloadTests"
           },
           {
-            "name" : "TranslatedTitleLabelNotificationTests"
+            "name": "TranslatedTitleLabelNotificationTests"
           },
           {
-            "name" : "TranslationCacheAuditTests"
+            "name": "TranslationCacheAuditTests"
           },
           {
-            "name" : "TranslationCacheFailureQueueProbeTests"
+            "name": "TranslationCacheFailureQueueProbeTests"
           },
           {
-            "name" : "TranslationCacheScalingTests"
+            "name": "TranslationCacheScalingTests"
           },
           {
-            "name" : "TranslationDiskEvictionFailureTests"
+            "name": "TranslationDiskEvictionFailureTests"
           },
           {
-            "name" : "TranslationEndpointPolicyTests"
+            "name": "TranslationEndpointPolicyTests"
           },
           {
-            "name" : "TranslationErrorLocalizationTests"
+            "name": "TranslationErrorLocalizationTests"
           },
           {
-            "name" : "TranslationHTTPCodecTests"
+            "name": "TranslationHTTPCodecTests"
           },
           {
-            "name" : "TranslationImageSupportTests"
+            "name": "TranslationImageSupportTests"
           },
           {
-            "name" : "TranslationJoinedPriorityTests"
+            "name": "TranslationJoinedPriorityTests"
           },
           {
-            "name" : "TranslationPromotionSourceTests"
+            "name": "TranslationPromotionSourceTests"
           },
           {
-            "name" : "TranslationPerformanceFileLogTests"
+            "name": "TranslationPerformanceFileLogTests"
           },
           {
-            "name" : "TranslationStreamingTests"
+            "name": "TranslationStreamingTests"
           },
           {
-            "name" : "CloudflareResponsePolicyTests"
+            "name": "CloudflareResponsePolicyTests"
           },
           {
-            "name" : "EHentaiNativeSourceTests"
+            "name": "EHentaiNativeSourceTests"
           },
           {
-            "name" : "HitomiNativeUtilityTests"
+            "name": "HitomiNativeUtilityTests"
           },
           {
-            "name" : "MangarawJPImageCodecTests"
+            "name": "MangarawJPImageCodecTests"
           },
           {
-            "name" : "NHentaiNativeSourceTests"
+            "name": "NHentaiNativeSourceTests"
           },
           {
-            "name" : "NativeHitomiSourceTests"
+            "name": "NativeHitomiSourceTests"
           },
           {
-            "name" : "NativeJapaneseGroupATests"
+            "name": "NativeJapaneseGroupATests"
           },
           {
-            "name" : "NativeRawOtakuSourceTests"
+            "name": "NativeRawOtakuSourceTests"
           },
           {
-            "name" : "NativeRawkumaSourceTests"
+            "name": "NativeRawkumaSourceTests"
           },
           {
-            "name" : "NativeSenMangaSourceTests"
+            "name": "NativeSenMangaSourceTests"
           },
           {
-            "name" : "NativeSoraRawSourceTests"
+            "name": "NativeSoraRawSourceTests"
           },
           {
-            "name" : "NativeSourceBackupCoverageTests"
+            "name": "NativeSourceBackupCoverageTests"
           },
           {
-            "name" : "NativeSourceRoutingTests"
+            "name": "NativeSourceRoutingTests"
           },
           {
-            "name" : "NativeSpoilerPlusSourceTests"
+            "name": "NativeSpoilerPlusSourceTests"
           },
           {
-            "name" : "NativeWebLoginPolicyTests"
+            "name": "NativeWebLoginPolicyTests"
           },
           {
-            "name" : "NativeLoginAttemptTests"
+            "name": "NativeLoginAttemptTests"
           },
           {
-            "name" : "SoraRawImageCodecTests"
+            "name": "SoraRawImageCodecTests"
           },
           {
-            "name" : "SourceLoginBrowserPolicyTests"
+            "name": "SourceLoginBrowserPolicyTests"
           },
           {
-            "name" : "NativeJapaneseBAuditTests"
+            "name": "NativeJapaneseBAuditTests"
           },
           {
-            "name" : "NativeSourceIntegrationAuditTests"
+            "name": "NativeSourceIntegrationAuditTests"
           },
           {
-            "name" : "NativeHitomiAuditTests"
+            "name": "NativeHitomiAuditTests"
           },
           {
-            "name" : "NativeJapaneseAAuditTests"
+            "name": "NativeJapaneseAAuditTests"
           },
           {
-            "name" : "NativeAuthCloudflareAuditTests"
+            "name": "NativeAuthCloudflareAuditTests"
           },
           {
-            "name" : "NativeGallerySourceAuditTests"
+            "name": "NativeGallerySourceAuditTests"
           },
           {
-            "name" : "NativeImageCodecAuditTests"
+            "name": "NativeImageCodecAuditTests"
           },
           {
-            "name" : "NativeYomiiSourceTests"
+            "name": "NativeYomiiSourceTests"
           },
           {
-            "name" : "ReauditAuthenticationTests"
+            "name": "ReauditAuthenticationTests"
           },
           {
-            "name" : "ReauditCloudflareTests"
+            "name": "ReauditCloudflareTests"
           },
           {
-            "name" : "ReauditEHentaiTests"
+            "name": "ReauditEHentaiTests"
           },
           {
-            "name" : "ReauditHitomiTests"
+            "name": "ReauditHitomiTests"
           },
           {
-            "name" : "ReauditMangarawBestTests"
+            "name": "ReauditMangarawBestTests"
           },
           {
-            "name" : "ReauditMangarawJPTests"
+            "name": "ReauditMangarawJPTests"
           },
           {
-            "name" : "ReauditNHentaiTests"
+            "name": "ReauditNHentaiTests"
           },
           {
-            "name" : "ReauditRawOtakuTests"
+            "name": "ReauditRawOtakuTests"
           },
           {
-            "name" : "ReauditRawdevartTests"
+            "name": "ReauditRawdevartTests"
           },
           {
-            "name" : "ReauditRawkumaTests"
+            "name": "ReauditRawkumaTests"
           },
           {
-            "name" : "ReauditSoraRawTests"
+            "name": "ReauditSoraRawTests"
           },
           {
-            "name" : "ReauditSpoilerPlusTests"
+            "name": "ReauditSpoilerPlusTests"
           },
           {
-            "name" : "ReauditYomiiTests"
+            "name": "ReauditYomiiTests"
           },
           {
-            "name" : "ReauditMangaLoadOwnershipTests"
+            "name": "ReauditMangaLoadOwnershipTests"
           },
           {
-            "name" : "ReauditSourceIntegrationTests"
+            "name": "ReauditSourceIntegrationTests"
+          },
+          {
+            "name": "NativeReaderOverlayRenderingTests"
+          },
+          {
+            "name": "NativeKeptSourceCopyTests"
+          },
+          {
+            "name": "NativeColumnPanelAnchorFlowTests"
+          },
+          {
+            "name": "NativeTypographyHarmonyScaleTests"
+          },
+          {
+            "name": "NativeTypographyHarmonyCallerTests"
+          },
+          {
+            "name": "NativeSourceHeadingChildrenTests"
+          },
+          {
+            "name": "NativeCaptionFixedBoxReflowTests"
+          },
+          {
+            "name": "NativeBlockWordRangeTests"
+          },
+          {
+            "name": "NativeKeepAllAutoLinesTests"
+          },
+          {
+            "name": "NativeKeepAllFlowTests"
+          },
+          {
+            "name": "NativeInitialReferenceFlowTests"
+          },
+          {
+            "name": "NativePreformattedTabTests"
+          },
+          {
+            "name": "NativeDisplayCleanupGeometryTests"
+          },
+          {
+            "name": "NativeSourceColumnAnchorTests"
+          },
+          {
+            "name": "NativePanelCleanupGeometryTests"
+          },
+          {
+            "name": "NativeCaptionPackingRendererTests"
+          },
+          {
+            "name": "NativeCaptionLineSpacingTests"
+          },
+          {
+            "name": "NativePlateGrowthScrollTests"
+          },
+          {
+            "name": "NativeTranslationPixelKernelBridgeTests"
+          },
+          {
+            "name": "NativeResidualTopologyTests"
+          },
+          {
+            "name": "NativeFinalRestorationTrialTests"
+          },
+          {
+            "name": "NativeGlyphCoverTests"
+          },
+          {
+            "name": "LegacySourcePaginationTests"
+          },
+          {
+            "name": "NativeLatePlateTrimTests"
+          },
+          {
+            "name": "NativeLateBalloonStagesTests"
+          },
+          {
+            "name": "NativePageEdgeFitTests"
+          },
+          {
+            "name": "NativeInitialJoinedUnitTests"
+          },
+          {
+            "name": "NativeCaptionPanelBackgroundTests"
+          },
+          {
+            "name": "NativeLightLetteringAdapterTests"
+          },
+          {
+            "name": "NativePaintOrderAdapterTests"
+          },
+          {
+            "name": "NativeFixedLinePitchTests"
+          },
+          {
+            "name": "NativePDFCropTests"
+          },
+          {
+            "name": "NativeArtworkProtectionTests"
+          },
+          {
+            "name": "NativeEnclosedPaperFinishTests"
+          },
+          {
+            "name": "NativeEarlyPlateContrastTests"
+          },
+          {
+            "name": "NativePanelPhaseTests"
+          },
+          {
+            "name": "NativeRecoveredLineAdapterTests"
+          },
+          {
+            "name": "NativeTextPaintGeometryTests"
+          },
+          {
+            "name": "NativeBlockWordLayoutTests"
+          },
+          {
+            "name": "NativeCleanupGeometryTests"
+          },
+          {
+            "name": "NativeEarlyMarginAdapterTests"
+          },
+          {
+            "name": "NativeExteriorSurfacePoolTests"
+          },
+          {
+            "name": "NativeCertifiedExteriorSurfaceTests"
+          },
+          {
+            "name": "NativeTypographyCleanupFrameTests"
+          },
+          {
+            "name": "NativeLateBalloonCleanupFrameTests"
+          },
+          {
+            "name": "NativeKeepAllOverflowNormalTests"
+          },
+          {
+            "name": "NativeCTFontStrokePainterTests"
+          },
+          {
+            "name": "NativeVerticalLetterSpacingTests"
+          },
+          {
+            "name": "NativeNormalTextFlowTests"
+          },
+          {
+            "name": "NativeHorizontalFlexStackTests"
+          },
+          {
+            "name": "NativeBalloonUnitPartsStyleTests"
+          },
+          {
+            "name": "NativeSkippedCaptionBridgeTests"
+          },
+          {
+            "name": "NativeTypographyHarmonyAxisCallerTests"
+          },
+          {
+            "name": "NativePanelRememberedPaddingTests"
+          },
+          {
+            "name": "NativeCaptionPanelWholeRangeTests"
+          },
+          {
+            "name": "NativeSourceMaskClipTests"
+          },
+          {
+            "name": "NativeGlossWhitespaceAdapterTests"
+          },
+          {
+            "name": "NativePreLineTypographyTests"
+          },
+          {
+            "name": "NativeTypographyCohortCallerTests"
+          },
+          {
+            "name": "NativeRestorationCanvasPolicyTests"
+          },
+          {
+            "name": "NativeRestorationCandidateTests"
+          },
+          {
+            "name": "NativePreLineTextFlowTests"
+          },
+          {
+            "name": "NativeVisibleControlGlyphTests"
+          },
+          {
+            "name": "NativeSourceCanvasClipTests"
+          },
+          {
+            "name": "NativeFinalTypographyDiagnosticsTests"
+          },
+          {
+            "name": "NativePanelErasureMembershipTests"
+          },
+          {
+            "name": "NativeTypographyGrowthBudgetTests"
+          },
+          {
+            "name": "NativeMinimalRestoredPlateTests"
+          },
+          {
+            "name": "NativeLateWordRepairCallerTests"
+          },
+          {
+            "name": "NativeObservedQueueOrderTests"
+          },
+          {
+            "name": "NativeCaptionPolishKeptZoneTests"
+          },
+          {
+            "name": "NativeSourceCanvasImageFrameTests"
+          },
+          {
+            "name": "NativeCaptionBackingRemovalTests"
+          },
+          {
+            "name": "NativeFontSizePrecisionTests"
+          },
+          {
+            "name": "NativeCTFontVerticalPainterTests"
+          },
+          {
+            "name": "NativeVerticalGlyphOriginsTests"
+          },
+          {
+            "name": "NativeVerticalPaintLayoutTests"
+          },
+          {
+            "name": "NativeCanvasTextureResamplerTests"
+          },
+          {
+            "name": "NativeCaptionCSSProvenanceTests"
+          },
+          {
+            "name": "NativeRememberedInkProvenanceTests"
+          },
+          {
+            "name": "NativeSettledBitmapReplayTests"
+          },
+          {
+            "name": "NativeCaptionPanelCommittedRectTests"
+          },
+          {
+            "name": "NativeSourcePanelOverflowTests"
+          },
+          {
+            "name": "NativeStackParentOverflowTests"
+          },
+          {
+            "name": "NativeHorizontalGlobalFillPainterTests"
+          },
+          {
+            "name": "NativeCollapsedRowIntrinsicWidthTests"
+          },
+          {
+            "name": "NativeForeignBackgroundGradientTests"
+          },
+          {
+            "name": "NativeCollapsedRowLayoutTests"
+          },
+          {
+            "name": "NativeCanvasBackingTests"
+          },
+          {
+            "name": "NativeCSSCoveragePathTests"
+          },
+          {
+            "name": "NativeOversizedTitleCoverWriterTests"
+          },
+          {
+            "name": "NativeLayerTreeCaptureTests"
+          },
+          {
+            "name": "NativeForeignBackgroundCompositorTests"
+          },
+          {
+            "name": "NativeSourceCanvasHierarchyCompositorTests"
+          },
+          {
+            "name": "NativeTranslationRenderAdmissionTests"
+          },
+          {
+            "name": "NativeRenderAsyncBridgeTests"
+          },
+          {
+            "name": "NativeSourceCanvasSnapshotOutputTests"
           }
         ]
       },
-      "target" : {
-        "containerPath" : "container:Aidoku.xcodeproj",
-        "identifier" : "FBB44E712EC635620032EFBB",
-        "name" : "AidokuTests"
+      "target": {
+        "containerPath": "container:Aidoku.xcodeproj",
+        "identifier": "FBB44E712EC635620032EFBB",
+        "name": "AidokuTests"
       }
     }
   ],
-  "version" : 1
+  "version": 1
 }

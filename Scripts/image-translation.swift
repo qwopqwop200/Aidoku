@@ -80,13 +80,19 @@ do {
     generated += ocr
     let rotation = try read(sources.appendingPathComponent("NativeEngine/Overlay/BrowserOverlayRotation.swift"))
     generated += rotation.replacingOccurrences(of: "import UIKit", with: "import AppKit")
-    let overlay = try read(sources.appendingPathComponent("NativeEngine/Overlay/BrowserOverlayView.swift"))
+    // This macOS WebKit replay is the frozen comparison oracle for the native iOS migration.
+    let overlay = try read(root.appendingPathComponent(
+        "Scripts/native-render-parity/reference-source/BrowserOverlayView.swift"))
     generated += try slice(reader, "enum ReaderTranslationGeometry", "@available(iOS 18.0, *)")
-    let background = try read(root.appendingPathComponent("Aidoku/Features/Reader/Translation/ReaderTranslationOverlayView.swift"))
+    let background = try read(root.appendingPathComponent(
+        "Scripts/native-render-parity/reference-source/ReaderTranslationOverlayView.swift"))
     generated += try slice(background, "enum ReaderTranslationBackgroundImage", "    /// Live and export overlays") + "}\n"
     let exporter = try read(root.appendingPathComponent("Aidoku/Features/Reader/Translation/ReaderTranslationImageExporter.swift"))
     generated += "enum HostProductionExportSizing {\n" + (try slice(exporter, "    static func outputSize(for pixels:", "    static func render(image:")) + "}\n"
-    generated += "enum HostProductionExporter {\n" + (try slice(exporter, "    struct ExportLayers:", "    /// Core Image contexts")) + "}\n"
+    // The host audit retains the frozen WebKit oracle; production iOS export is native.
+    let referenceExporter = try read(root.appendingPathComponent(
+        "Scripts/native-render-parity/reference-source/ReaderTranslationImageExporter.swift"))
+    generated += "enum HostProductionExporter {\n" + (try slice(referenceExporter, "    struct ExportLayers:", "    /// Core Image contexts")) + "}\n"
 
     generated += "enum HostProductionLayout {\n" + (try slice(overlay, "    nonisolated static func layoutPayload(", "    func clear(")) + "}\n"
     generated += "enum HostProductionRenderer {\n"
@@ -120,7 +126,8 @@ do {
     for name in ["IPhoneOverlaySettings", "BrowserOverlayColumnLayout", "BrowserOverlayBalloonUnitLayout", "BrowserOverlayCollisionGeometry", "BrowserOverlayTypography", "BrowserSourceInkCleanup", "BrowserSourceTextColor", "BrowserSourcePanelRestoration",
                  "BrowserSourceGlyphConservative", "BrowserSourceGlyphSegmentation", "BrowserForcedInpaintQuality",
                  "BrowserForcedSourceInpainting", "BrowserForcedComponentInpainting", "BrowserSlantedSourceRestoration"] {
-        files.append(sources.appendingPathComponent("NativeEngine/Overlay/" + name + ".swift"))
+        // This CLI deliberately renders the frozen WebKit reference; production uses the native renderer.
+        files.append(root.appendingPathComponent("Scripts/native-render-parity/reference-source/" + name + ".swift"))
     }
     // Diagnostics are injected only into generated copies; app sources stay untouched.
     if let index = files.firstIndex(where: { $0.lastPathComponent == "NativeCoreMLOCRPipeline.swift" }) {

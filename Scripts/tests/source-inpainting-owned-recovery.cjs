@@ -1,6 +1,6 @@
 // Single-letter production crop: component count must not force a full panel.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),z=require('node:zlib');
-const source=path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift');
+const source=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift');
 const script=fs.readFileSync(source,'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const restore=new Function(script+';return aidokuRestoreSourcePanel;')();
 for(const r of JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/source-inpainting-owned-recovery.json')))){

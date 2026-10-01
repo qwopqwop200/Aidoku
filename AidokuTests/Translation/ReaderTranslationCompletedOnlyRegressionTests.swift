@@ -94,7 +94,7 @@ struct ReaderTranslationCompletedOnlyRegressionTests {
             let overlay = view as? ReaderTranslationOverlayView
             #expect(overlay != nil)
             #expect(view.isHidden)
-            #expect(overlay?.webView.isHidden == true)
+            #expect(overlay?.renderedImageView.isHidden == true)
             #expect(overlay?.lastDiagnostic?.outcome != .committed)
         }
     }

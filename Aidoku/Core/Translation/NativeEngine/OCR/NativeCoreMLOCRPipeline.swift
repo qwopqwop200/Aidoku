@@ -240,6 +240,7 @@ struct NativeCoreMLOCRLine: Equatable, Sendable {
     /// Page-space tile bounds, supplied by tiled readers after offsetting the
     /// polygon. The merger uses interior edges to identify truncated retries.
     let sourceTileBounds: CGRect?
+    let erasurePolygons: [[CGPoint]]
 
     init(
         polygon: [CGPoint],
@@ -247,7 +248,8 @@ struct NativeCoreMLOCRLine: Equatable, Sendable {
         score: Double,
         orientation: BrowserOCRSourceOrientation,
         orientationIsEstimated: Bool = false,
-        sourceTileBounds: CGRect? = nil
+        sourceTileBounds: CGRect? = nil,
+        erasurePolygons: [[CGPoint]] = []
     ) {
         self.polygon = polygon
         self.text = text
@@ -255,6 +257,7 @@ struct NativeCoreMLOCRLine: Equatable, Sendable {
         self.orientation = orientation
         self.orientationIsEstimated = orientationIsEstimated
         self.sourceTileBounds = sourceTileBounds
+        self.erasurePolygons = erasurePolygons
     }
 }
 
@@ -471,7 +474,7 @@ enum NativeOCRAdjacentLineRecovery {
               rows.contains(where: { isAdjacent(line.polygon, to: $0) || isSameRow(line.polygon, as: $0) })
         else { return line }
         return NativeCoreMLOCRLine(polygon: line.polygon, text: line.text, score: line.score, orientation: .horizontal,
-                                   orientationIsEstimated: false, sourceTileBounds: line.sourceTileBounds)
+                                   orientationIsEstimated: false, sourceTileBounds: line.sourceTileBounds, erasurePolygons: line.erasurePolygons)
     }
 
     /// `candidate` sits on the row of the horizontal `anchor`: shared height band, similar glyph size,
@@ -2536,7 +2539,9 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
                         return NativeCoreMLOCRLine(
                             polygon: quad ?? NativeOCRScopeGeometry.canonicalQuad(read.polygon) ?? read.polygon,
                             text: read.text, score: read.confidence,
-                            orientation: latin ? .horizontal : Self.orientation(for: read.polygon), orientationIsEstimated: !latin
+                            orientation: latin ? .horizontal : Self.orientation(for: read.polygon), orientationIsEstimated: !latin,
+                            erasurePolygons: detection.boxes.indices.contains(read.sourceIndex)
+                                ? detection.boxes[read.sourceIndex].erasurePolygons : []
                         )
                     }
             }
@@ -2551,7 +2556,9 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
                 ).map { read in
                     NativeCoreMLOCRLine(
                         polygon: NativeOCRScopeGeometry.canonicalQuad(read.polygon) ?? read.polygon, text: read.text,
-                        score: read.confidence, orientation: Self.orientation(for: read.polygon), orientationIsEstimated: true
+                        score: read.confidence, orientation: Self.orientation(for: read.polygon), orientationIsEstimated: true,
+                        erasurePolygons: detection.boxes.indices.contains(read.sourceIndex)
+                            ? detection.boxes[read.sourceIndex].erasurePolygons : []
                     )
                 }
             }
@@ -2643,7 +2650,13 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
             let lines = (recognition?.regions ?? [])
                 .sorted { $0.sourceIndex < $1.sourceIndex }
                 .map { region in
-                    if let completed = units.lines[region.sourceIndex] { return completed }
+                    if let completed = units.lines[region.sourceIndex] {
+                        return NativeCoreMLOCRLine(polygon: completed.polygon, text: completed.text, score: completed.score,
+                            orientation: completed.orientation, orientationIsEstimated: completed.orientationIsEstimated,
+                            sourceTileBounds: completed.sourceTileBounds,
+                            erasurePolygons: completed.erasurePolygons + (detection.boxes.indices.contains(region.sourceIndex)
+                                ? detection.boxes[region.sourceIndex].erasurePolygons : []))
+                    }
                     // Latin word classification already uses horizontal layout.
                     // Its polygon must use the same baseline, even if the model
                     // recognized it in a quarter-turned primary crop (SALE).
@@ -2656,7 +2669,9 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
                         orientation: recoveredHorizontal.contains(region.sourceIndex) || latinQuad != nil ? .horizontal : Self.orientation(
                             for: region.polygon
                         ),
-                        orientationIsEstimated: true
+                        orientationIsEstimated: true,
+                        erasurePolygons: detection.boxes.indices.contains(region.sourceIndex)
+                            ? detection.boxes[region.sourceIndex].erasurePolygons : []
                     )
                 }
                 .map { NativeOCRAdjacentLineRecovery.orientingSingleLatinLetter($0, rows: latinRows) }

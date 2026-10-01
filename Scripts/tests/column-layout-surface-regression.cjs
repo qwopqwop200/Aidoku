@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const source = fs.readFileSync(path.resolve(__dirname, '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'), 'utf8');
+const source = fs.readFileSync(path.resolve(__dirname, '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'), 'utf8');
 const start = source.indexOf('    const columnItems = items.filter');
 const end = source.indexOf('    const inpaintingEnabled =', start);
 assert.ok(start > 0 && end > start);

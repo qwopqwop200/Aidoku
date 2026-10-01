@@ -1,6 +1,6 @@
 // Execute the production plate-release pass, including its final CSS assignment.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
-const dir=path.join(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const dir=path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const helpers=fs.readFileSync(path.join(dir,'BrowserSourceTextColor.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const view=fs.readFileSync(path.join(dir,'BrowserOverlayView.swift'),'utf8');
 const start=view.indexOf('    // Complete glyph erasure and text readability are separate decisions.');

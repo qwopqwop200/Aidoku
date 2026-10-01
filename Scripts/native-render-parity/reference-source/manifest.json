@@ -1,0 +1,26 @@
+{
+  "gitHead": "9003c6e248516b9485ae4ee2ba2436ba83b34406",
+  "files": {
+    "Aidoku/Features/Reader/Translation/ReaderTranslationOverlayView.swift": "2675d20ce62f09513f3bf3014bc5f400d2b8f2d6c432529a96a15a08b0530ec9",
+    "Aidoku/Features/Reader/Translation/ReaderTranslationImageExporter.swift": "cb0e46f31423fa2bb78351ba0ea1e44fd2b611aff1150aa2d8ea7087c4af72e9",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift": "bc24fbbf26f1aa1e29a712a5b7eed6854d1f482f66f69929aeb6752110f02db2",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/IPhoneOverlayLocalization.swift": "f4f672590c599e7c55ee783e3cb9a45c23cb3de3a6f458c8fae0e4b269997c53",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserForcedInpaintQuality.swift": "7daf5792e882ffc1ab6b8c77ff72be99f33b362216c75293da2e8c9a6a7f7b63",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift": "439bb538820eb9d270be480e68141ddfc0dc2bfdb1bed53d697a4815f072e7d2",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserProgressiveImageOverlayPolicy.swift": "878cc377b7533cc0233e57385c64b61747656cf36728ae1c9dbd4ed9e8c97ef9",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayRotation.swift": "d02f7bcdd5f1ac3999461a58a0f397b22f7a1fd5b9ae75aaa8ff0018ce59757c",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceGlyphSegmentation.swift": "3912faf4d9378ef6ad45f20309360e893bfdc0e6e5f9c2113abf6e1bcdfa61d1",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSlantedSourceRestoration.swift": "36680fd2989535fe66e350d11cc27b5c25c733066a3153289f8802ac8bfa3fd8",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserForcedSourceInpainting.swift": "65ded784772fed183c312e9374ff323c8949500fd99ed6f7bf9016b1dc57035f",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserForcedComponentInpainting.swift": "7dbf2836118c5b97a368ed69e321509b1c7587debaa483532baabfe72f1b1727",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayBalloonUnitLayout.swift": "0e8ebedc0f55c34147133beafeea2b8ac50b7324b833727ba2c82549611f2c42",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceGlyphConservative.swift": "f0bff734432155a100ee33549942f1ec8d351610b6d3c6e7b0a6758380c1e6a9",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayCollisionGeometry.swift": "3bda9cf80c0320637d9648e767cc8d65e74516e95bd4504afdf82750d9f8730b",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayLetterFonts.swift": "9a7e6379b1027e27ae009f4831c3554710d8ad01fdcb4edbf46b1d9c3f24a438",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceInkCleanup.swift": "7b3c63b8b5f1eda5614d25adc77c6d0c88825f52dbf60242e98663ba977b15ba",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/IPhoneOverlaySettings.swift": "c1ccadbd854930bac68866b6d22e8781d430f6b371cd504da8d35c4bed3f534b",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift": "7d7c1c416f03410bee2a287e584f5c2046eac76323ab9856a4a2e195c825c9db",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift": "baa96f2831d3b0bb9614e14a97b2d1b85bd5f484b321a6f96257249936343fd3",
+    "Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayColumnLayout.swift": "b70d3ba2be141be68b99c07474df7dc07a15831f7f267c7fbd27a478ad5840c0"
+  }
+}

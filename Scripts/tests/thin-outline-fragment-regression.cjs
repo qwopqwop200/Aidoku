@@ -1,6 +1,6 @@
 // Real native crop supplied by the replay; no image display or provider request.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const base=path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const base=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const source=n=>fs.readFileSync(path.join(base,n+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const color=source('BrowserSourceTextColor'),script=source('BrowserSourcePanelRestoration');
 const make=s=>new Function(color+s+';return aidokuRestoreChromaticBalloonGlyphs;')();

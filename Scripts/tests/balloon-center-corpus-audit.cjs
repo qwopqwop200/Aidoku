@@ -22,7 +22,7 @@ const ids = fromSet ? setEntries.map(entry => String(
 if (!ids.length || ids.length > 256 || new Set(ids).size !== ids.length || ids.some(id => !id || id === 'undefined'))
   throw Error('Invalid page ID set');
 const typography = fs.readFileSync(path.resolve(__dirname,
-  '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'), 'utf8');
+  '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayTypography.swift'), 'utf8');
 const start = typography.indexOf('    const aidokuContainBalloonText =');
 const end = typography.indexOf('    // Last geometry-only polish', start);
 if (start < 0 || end < start) throw Error('Final balloon typography function was not found');

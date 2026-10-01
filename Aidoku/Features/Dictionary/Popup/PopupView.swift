@@ -342,13 +342,13 @@ struct PopupView: View {
                 controlsHeight = $0
             }
 
-            PopupWebView(
-                content: content,
+            NativeDictionaryPopupView(
                 position: CGPoint(x: layout.position.x - layout.width / 2, y: layout.position.y - layout.height / 2 + controlsHeight),
                 scale: CGFloat(userConfig.popupScale),
+                contentWidth: layout.width - 24,
                 clearSelection: clearSelection,
-                dictionaryStyles: dictionaryStyles,
                 lookupEntries: lookupEntries,
+                allowsMining: userConfig.allowsMining,
                 scanNonJapaneseText: userConfig.scanNonJapaneseText,
                 scanLength: userConfig.scanLength,
                 backTrigger: backTrigger,
@@ -533,49 +533,6 @@ struct PopupView: View {
 
     static func buildContent(lookupResults: [LookupResult], userConfig: UserConfig) -> (content: String, lookupEntries: [[String: Any]]) {
         let entries = buildLookupEntries(lookupResults: lookupResults)
-
-//        let collapsedDictionaries = userConfig.collapseMode == .custom
-//        ? ((try? JSONEncoder().encode(DictionaryManager.shared.collapsedDictionaries))
-//            .flatMap { String(data: $0, encoding: .utf8) } ?? "[]") : "[]"
-//        let audioSources = (try? JSONEncoder().encode(userConfig.enabledAudioSources))
-//            .flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
-//        let excludedDictionaries = (try? JSONEncoder().encode(DictionaryManager.shared.excludedDictionaries))
-//            .flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
-//        let scaledCSS = userConfig.customCSS.replacingOccurrences(of: #"(-?(?:\d+(?:\.\d+)?|\.\d+))px"#, with: "calc($1px * var(--popup-scale))", options: .regularExpression)
-//        let customCSS = (try? JSONSerialization.data(withJSONObject: scaledCSS, options: .fragmentsAllowed))
-//            .flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
-        let customCSS = "a{text-decoration:none;color:#FF2F52;}"
-
-        let content = """
-        <script>
-            window.collapseMode = "Expand All";
-            window.expandFirstDictionary = false;
-            window.collapsedDictionaries = [];
-            window.twoColumnLayout = false;
-            window.compactGlossaries = true;
-            window.showExpressionTags = false;
-            window.harmonicFrequency = false;
-            window.deduplicatePitchAccents = false;
-            window.compactPitchAccents = true;
-            window.audioSources = [];
-            window.audioEnableAutoplay = false;
-            window.audioPlaybackMode = "interrupt";
-            window.cardFormatCount = \(userConfig.allowsMining ? 1 : 0);
-            window.validFormatFlags = [true];
-            window.isAnkiConnectReachable = false;
-            window.excludedDictionaries = [];
-            window.needsAudio = false;
-            window.allowDupes = false;
-            window.disableShowNotes = false;
-            window.useAnkiConnect = false;
-            window.embedMedia = false;
-            window.compactGlossariesAnki = false;
-            window.customCSS = "\(customCSS)";
-            window.swipeThreshold = 0;
-        </script>
-        <div id="entries-container"></div>
-        """
-
-        return (content, entries)
+        return (entries.isEmpty ? "" : "native-dictionary-content", entries)
     }
 }

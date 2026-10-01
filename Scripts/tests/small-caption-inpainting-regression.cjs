@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {webkit} = require('playwright');
-const source = fs.readFileSync(path.join(__dirname, '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'), 'utf8');
 const start = source.indexOf('    // Short captions need only a glyph outline');
 const end = source.indexOf('    let captionReadBudget=', start);
 assert.ok(start > 0 && end > start);

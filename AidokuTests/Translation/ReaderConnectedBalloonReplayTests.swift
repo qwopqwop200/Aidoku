@@ -68,7 +68,7 @@ struct ReaderConnectedBalloonReplayTests {
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(origin: .zero, size: viewport)
         window.rootViewController = UIViewController()
-        let overlay = ReaderTranslationOverlayView(frame: window.bounds)
+        let overlay = LegacyReaderTranslationOverlayView(frame: window.bounds)
         window.rootViewController?.view.addSubview(overlay)
         window.makeKeyAndVisible()
         defer { overlay.cancelWork(); window.isHidden = true; previous?.makeKey(); ReaderTranslationImageExporter.clearIdleRenderer() }

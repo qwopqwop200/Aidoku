@@ -4,10 +4,10 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname,
-  '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'), 'utf8');
+  '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayTypography.swift'), 'utf8');
 const script = source.split('static let script = #"""')[1].split('"""#')[0];
 const colorSource = fs.readFileSync(path.join(__dirname,
-  '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift'), 'utf8');
+  '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourceTextColor.swift'), 'utf8');
 const contrastScript = colorSource.slice(colorSource.indexOf('    const aidokuSourceColorLuminance ='),
   colorSource.indexOf('    // Outline-free display keeps chromatic source ink.'));
 const api = vm.runInNewContext(script + contrastScript + ';({linePitch:aidokuCaptionLinePitch,strokes:aidokuStrokeClusters,restoredFloor:aidokuRestoredFontFloor,captionFloor:aidokuCaptionFontFloor,attached:aidokuHasAttachedLeadingInk,balloonFonts:aidokuBalloonFontSizes,erasure:aidokuRestoredErasureCovers,residual:aidokuHasResidualLettering,artworkFonts:aidokuArtworkFontSizes,compact:aidokuCompactPanel,visible:aidokuVisiblePanelColors,adjust:aidokuAdjustInkForContrast,fonts:aidokuFontClusters,inks:aidokuInkClusters,lines:aidokuKoreanLines,fragments:aidokuKoreanFragments,improves:aidokuKoreanWrapImproves,frame:aidokuCaptionInkFrame,candidates:aidokuCohortFontCandidates,flowFits:aidokuFontFlowFits,anchor:aidokuSourceAnchorShift,backing:aidokuTextBackingRect,needsBacking:aidokuNeedsTextBacking,keepsContrast:aidokuTextBackingKeepsContrast,contrast:aidokuSourceColorContrast,flowRank:aidokuKoreanFlowRank,wordWidth:aidokuKoreanWordWidth,rows:aidokuAlignedGroups,columnRows:aidokuColumnRowLinks,pageStyles:aidokuPageStyleGroups,styleColor:aidokuStyleColorClass,reduplication:aidokuReduplicationBreak,interfaceRows:aidokuInterfaceRows,clusterTargets:aidokuFontClusterTargets,keptZones:aidokuKeptLetteringZones,subtract:aidokuSubtractRects,condensedWidth:aidokuCondensedWidth,condensedSizes:aidokuCondensedSizes,wordBound:aidokuCondensedWordBound})');
@@ -390,7 +390,7 @@ test('real bold heading keeps its erasure plate when the final D survives recons
   const zlib=require('node:zlib');
   const f=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/panel-erasure-connected-ink.json')));
   const source=fs.readFileSync(path.join(__dirname,
-    '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift'),'utf8')
+    '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift'),'utf8')
     .match(/static let script = """\n([\s\S]*?)\n    """/)[1];
   const restore=new Function(source+';return aidokuRestoreSourcePanel;')();
   const pixels=new Uint8ClampedArray(zlib.inflateSync(Buffer.from(f.rgba,'base64')));

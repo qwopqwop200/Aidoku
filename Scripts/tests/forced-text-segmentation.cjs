@@ -7,10 +7,10 @@ const zlib = require('node:zlib');
 const crypto = require('node:crypto');
 
 let source = fs.readFileSync(path.resolve(__dirname,
-    '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceGlyphSegmentation.swift'), 'utf8')
+    '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourceGlyphSegmentation.swift'), 'utf8')
     .match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const adapter = fs.readFileSync(path.resolve(__dirname,
-    '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceGlyphConservative.swift'), 'utf8');
+    '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourceGlyphConservative.swift'), 'utf8');
 const replacements = [...adapter.matchAll(/of:\s*"([^"]+)"\s*,\s*with:\s*"([^"]+)"/g)];
 assert.equal(replacements.length, 3, 'all production conservative substitutions are audited');
 for (const [, before, after] of replacements) {

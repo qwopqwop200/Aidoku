@@ -1,6 +1,6 @@
 // A fitted unit must certify the opaque box it adds, including between ragged lines.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
-const source=fs.readFileSync(path.join(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
+const source=fs.readFileSync(path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'),'utf8');
 const pass=source.indexOf('// Lettering is final. A joined balloon unit');
 const start=source.indexOf('        const outside=(rects,dx,dy,fs)=>{',pass);
 const end=source.indexOf('        const before=',start);

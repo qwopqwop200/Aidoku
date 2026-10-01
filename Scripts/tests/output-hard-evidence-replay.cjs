@@ -1,7 +1,7 @@
 // Observed corpus replay. These measurements are evidence, not annotated accuracy.
 const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib');
 const [input,output,baseline]=process.argv.slice(2);
-const root=path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const root=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const script=file=>fs.readFileSync(file,'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 function api(dir){return new Function(script(path.join(dir,'BrowserSourceTextColor.swift'))+
  script(path.join(root,'BrowserSourceGlyphSegmentation.swift'))+

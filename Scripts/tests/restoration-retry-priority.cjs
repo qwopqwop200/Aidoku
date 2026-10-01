@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname,
-  '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift'), 'utf8');
+  '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift'), 'utf8');
 const start = source.indexOf('function aidokuRestoreSourcePanel(rgba');
 const end = source.indexOf('function aidokuRestoreSourcePanelAttempts(', start);
 assert.ok(start >= 0 && end > start);

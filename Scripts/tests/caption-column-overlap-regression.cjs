@@ -1,6 +1,6 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
-const script=fs.readFileSync(path.join(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0];
+const script=fs.readFileSync(path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0];
 (async()=>{const browser=await webkit.launch();try{const page=await browser.newPage();
 for(const mode of ['outline-overlap','clear','kept-obstacle','panel','same-column']){
  await page.setContent(`<div id="root" style="position:absolute;left:0;top:0"><div data-aidoku-image-ocr-overlay="item" data-aidoku-region="1" data-source-background-color="${mode==='panel'?'rgb(0,0,0)':'inpainted'}" style="position:absolute;left:30px;top:50px;width:45px;height:100px;font:20px/25px Arial;-webkit-text-stroke:4px black;white-space:nowrap">AB<br>CD</div><div data-aidoku-image-ocr-overlay="item" data-aidoku-region="2" data-source-background-color="inpainted" style="position:absolute;left:${mode==='clear'?90:58}px;top:50px;width:45px;height:100px;font:20px/25px Arial;-webkit-text-stroke:4px orange;white-space:nowrap">EF<br>GH</div></div>`);

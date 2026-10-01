@@ -1,0 +1,3202 @@
+[
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": false
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": false
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "pre-line",
+    "balances": true
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 0,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 1,
+    "text": "  가나다   라마바  ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 2,
+    "text": "가나다\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 3,
+    "text": "가나다\r\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 4,
+    "text": "가나다\r라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 5,
+    "text": "가나다\t\t라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 6,
+    "text": "가나다  \n  라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 7,
+    "text": "가나다\n\n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 8,
+    "text": "\n가나다",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 9,
+    "text": "가나다\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 10,
+    "text": "가나다\n\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 11,
+    "text": "\n\n",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 12,
+    "text": "  \t  ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 13,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 14,
+    "text": " 가나다 ",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 15,
+    "text": "가나다\n \n라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 16,
+    "text": "ALPHA  BETA\nGAMMA\tDELTA",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 17,
+    "text": "한줄매우긴제목단어\n둘째 제목",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 18,
+    "text": "가나다\f라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 50,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "normal",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  },
+  {
+    "id": 19,
+    "text": "가나다 라마바",
+    "width": 100,
+    "overflow": "anywhere",
+    "font": 16,
+    "pitch": 20,
+    "whiteSpace": "normal",
+    "balances": true
+  }
+]

@@ -1,0 +1,11 @@
+--- Aidoku/Core/Translation/ReaderTranslationDiskCache.swift
++++ Aidoku/Core/Translation/ReaderTranslationDiskCache.swift
+@@ -924,7 +924,7 @@
+ }
+ 
+ enum ReaderTranslationCacheIdentity {
+-    static let renderRevision = "reader-render-v155-native-final-paint"
++    static let renderRevision = "reader-render-v156-native-live-paint"
+     static func digest(_ value: String) -> String { digest(Data(value.utf8)) }
+     private static let hexadecimalDigits = Array("0123456789abcdef".utf8)
+     static func digest(_ value: Data) -> String {

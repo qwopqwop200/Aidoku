@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), zlib = require('node:zlib'), crypto = require('node:crypto');
 const at = process.argv.indexOf('--source');
-const file = at < 0 ? path.resolve(__dirname, '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourcePanelRestoration.swift') : process.argv[at + 1];
+const file = at < 0 ? path.resolve(__dirname, '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift') : process.argv[at + 1];
 const script = fs.readFileSync(file, 'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const restore = new Function(script + ';return aidokuRestoreSourcePanel;')();
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');

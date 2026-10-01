@@ -1,0 +1,24 @@
+const fs=require('node:fs'),path=require('node:path');const [root,input,output]=process.argv.slice(2);
+const s=fs.readFileSync(path.join(root,'Scripts/native-render-parity/reference-source/BrowserOverlayView.swift'),'utf8');
+const a=s.indexOf('    if(opacity===1&&items.length<=256',s.indexOf('// Final plate linkage.')),b=s.indexOf('    // Glyph-shaped covers.',a),body=s.slice(a,b);
+const rect=r=>({left:r[0],top:r[1],right:r[0]+r[2],bottom:r[1]+r[3],width:r[2],height:r[3]});
+function style(values){const s={...values};Object.defineProperty(s,'cssText',{get(){return JSON.stringify(this)},set(v){const n=JSON.parse(v);for(const k of Object.keys(this))delete this[k];Object.assign(this,n)}});return s;}
+function run(j){
+ const items=j.items.map(i=>({...i,sourceBounds:i.source,auxiliaryInkRects:i.aux||[],sourceFontSize:i.sourceFont}));
+ const root={dataset:{}};let drawn=0,crops=[];
+ const panels=j.panels.map(p=>({dataset:{aidokuRegion:p.id,aidokuImageOcrOverlay:'source-readability-panel',...(p.coverage?{panelCoverage:JSON.stringify(p.coverage)}:{}),...(p.sourceErasure?{sourceErasure:'true'}:{}),...(p.preservedCaption?{sourcePreservedCaption:'true'}:{}),...(p.foreignFills?{foreignFills:'[]'}:{})},parentElement:p.rootChild===false?null:root,style:style({left:String(p.box[0]),top:String(p.box[1]),width:String(p.box[2]),height:String(p.box[3]),backgroundColor:`rgb(${p.color.join(',')})`,visibility:p.shown===false?'hidden':'visible',display:'block',transform:p.transformed?'matrix(1,0,0,1,1,1)':'none',clipPath:p.unknownClip?'inset(1px)':'none'}),getBoundingClientRect(){return rect(['left','top','width','height'].map(k=>parseFloat(this.style[k])))}}));
+ const nodes=j.nodes.map(n=>{
+  const parent=n.inPanel?panels.find(p=>p.dataset.aidokuRegion===n.id):root,base=rect(n.ink),orig=parent===root?null:parent.getBoundingClientRect();
+  return{dataset:{aidokuRegion:n.id,sourceSampledTextRGB:n.colors?.[0]?.join(',')||'',sourceSampledStrokeRGB:n.colors?.[1]?.join(',')||''},style:style({left:'0',top:'0',fontSize:String(n.font),visibility:n.shown===false?'hidden':'visible',display:'block',transform:n.transformed?'matrix(1,0,0,1,1,1)':'none'}),clientWidth:100,clientHeight:100,scrollWidth:n.fits===false?102:100,scrollHeight:100,parentElement:parent,getBoundingClientRect(){const p=orig&&parent.getBoundingClientRect(),dx=parseFloat(this.style.left)+(p?p.left-orig.left:0),dy=parseFloat(this.style.top)+(p?p.top-orig.top:0);return{...base,left:base.left+dx,right:base.right+dx,top:base.top+dy,bottom:base.bottom+dy}}};
+ });
+ const backingLayers=j.panels.filter(p=>p.backing).map(p=>({dataset:{aidokuRegion:p.id}}));
+ root.querySelectorAll=q=>q.includes('source-readability-backing')?backingLayers:q.includes('source-readability-panel')?panels:q.includes('"item"')?nodes:[];
+ const restoredPanelGeometry=new Map();for(let i=0;i<j.panels.length;i++){const p=j.panels[i];if(p.restoration)restoredPanelGeometry.set(items.find(i=>i.id===p.id),{canvas:{isConnected:true,style:{visibility:'visible',display:'block'},getBoundingClientRect:()=>rect(p.restoration)}})}
+ const context={};
+ const sourcePixelReader={read(_c,x,y,w,h){crops.push([x,y,w,h]);drawn+=w*h;const out=new Uint8ClampedArray(w*h*4);for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++){const sx=x+xx,sy=y+yy,art=j.art.findLast(r=>sx>=r[0]&&sy>=r[1]&&sx<r[0]+r[2]&&sy<r[1]+r[3]),color=art?art.slice(4):j.background;out.set(color,(yy*w+xx)*4)}return out}};
+ const document={createRange:()=>({selectNodeContents(n){this.n=n},getBoundingClientRect(){return this.n.getBoundingClientRect()}}),createElement:()=>({getContext:()=>context})},getComputedStyle=n=>n.style;
+ const sourceImage={complete:true,naturalWidth:j.iw,naturalHeight:j.ih},cleanupImageGeometry={frame:j.frame},opacity=j.opacity,appearance={preserveSourceBackgroundColor:j.preserveBackground},CSS={supports:()=>true},performance={now:()=>0};
+ new Function('root','items','sourceImage','sourcePixelReader','cleanupImageGeometry','opacity','appearance','document','getComputedStyle','restoredPanelGeometry','CSS','performance','scrollX','scrollY',body)(root,items,sourceImage,sourcePixelReader,cleanupImageGeometry,opacity,appearance,document,getComputedStyle,restoredPanelGeometry,CSS,performance,0,0);
+ return{links:panels.flatMap((p,i)=>p.dataset.plateLinkRelease?[{index:i,id:p.dataset.aidokuRegion,box:['left','top','width','height'].map(k=>parseFloat(p.style[k])),coverage:p.dataset.panelCoverage?JSON.parse(p.dataset.panelCoverage):null,release:JSON.parse(p.dataset.plateLinkRelease),move:nodes.find(n=>n.dataset.aidokuRegion===p.dataset.aidokuRegion).dataset.plateLinkMove?JSON.parse(nodes.find(n=>n.dataset.aidokuRegion===p.dataset.aidokuRegion).dataset.plateLinkMove):null}]:[]),remaining:1048576-drawn,crops};
+}
+fs.writeFileSync(output,JSON.stringify(JSON.parse(fs.readFileSync(input,'utf8')).map(run)));

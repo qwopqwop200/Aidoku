@@ -1,6 +1,6 @@
 // Exercise production geometry, color and glyph code with independent pixel labels.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const root=path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const root=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const script=name=>fs.readFileSync(path.join(root,name+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const api=new Function(script('BrowserSourceTextColor')+script('BrowserSourceGlyphSegmentation')+
   ';return {geometry:aidokuOCRGeometryMask,colors:aidokuEstimateOCRSourceColors,segment:aidokuForcedTextMask}')();

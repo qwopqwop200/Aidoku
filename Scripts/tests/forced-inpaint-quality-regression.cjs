@@ -3,7 +3,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 
 const source=fs.readFileSync(path.join(__dirname,
-  '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserForcedInpaintQuality.swift'),'utf8');
+  '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserForcedInpaintQuality.swift'),'utf8');
 const script=source.match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const fill=new Function(script+';return aidokuForcedDonorFill;')();
 const w=120,h=90,n=w*h,clean=new Uint8ClampedArray(n*4),ink=new Uint8ClampedArray(n*4),mask=new Uint8Array(n);

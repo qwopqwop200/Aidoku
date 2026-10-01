@@ -135,14 +135,15 @@ final class ReaderTranslationRenderCache {
         defer { ReaderTranslationDiagnostics.record("layout_disk_lookup", elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - startedAt) * 1000) }
         let issued = generation
         guard let data = try? await disk.data(for: key, kind: .layout), !Task.isCancelled, generation == issued,
-              (try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]) != nil else { return nil }
+              let layout = try? JSONDecoder().decode(NativeTranslationLayout.self, from: data),
+              layout.version == NativeTranslationLayout.currentVersion else { return nil }
         retainLayout(data, key: key)
         return data
     }
 
     func storeLayout(_ data: Data, key: String, diskGeneration: UInt64) async {
         let issued = generation
-        guard !Task.isCancelled, await disk.currentGeneration() == diskGeneration, generation == issued else { return }
+        guard !Task.isCancelled, await disk.currentGeneration() == diskGeneration, !Task.isCancelled, generation == issued else { return }
         retainLayout(data, key: key)
         try? await disk.store(data, for: key, kind: .layout, generation: diskGeneration)
     }
@@ -151,7 +152,7 @@ final class ReaderTranslationRenderCache {
     /// retranslated under the same settings must not replay an older payload.
     nonisolated static func layoutKey(renderKey: String, regions: [ReaderTranslationRegion]) -> String {
         ReaderTranslationCacheIdentity.encoded([
-            "reader-layout-content-v5-lettering-quads", renderKey, ReaderTranslationRenderAsset.digest(regions)
+            "reader-layout-native-v1", renderKey, ReaderTranslationRenderAsset.digest(regions)
         ])
     }
 
@@ -159,14 +160,14 @@ final class ReaderTranslationRenderCache {
     /// distinguish a newly translated page from the bitmap it replaced.
     nonisolated static func snapshotKey(renderKey: String, regions: [ReaderTranslationRegion]) -> String {
         ReaderTranslationCacheIdentity.encoded([
-            "reader-snapshot-content-v1", renderKey, ReaderTranslationRenderAsset.digest(regions)
+            "reader-snapshot-native-v1", renderKey, ReaderTranslationRenderAsset.digest(regions)
         ])
     }
 
     /// This namespace shares layout invalidation/eviction, but never goes through
-    /// layoutData's JSON-array decoder. Text-only layouts remain independently usable.
+    /// layoutData's native-plan decoder. Layouts remain independently usable.
     nonisolated static func renderAssetStorageKey(_ key: String) -> String {
-        "reader-render-asset-v1-" + key
+        "reader-render-asset-native-v1-" + key
     }
 
     private func retainRenderAsset(_ asset: ReaderTranslationRenderAsset, key: String) {
@@ -289,7 +290,7 @@ final class ReaderTranslationRenderCache {
 
     nonisolated static func loadedImageKey(renderKey: String, regionsDigest: String, sourceDigest: String, size: CGSize) -> String {
         ReaderTranslationCacheIdentity.encoded([
-            "reader-loaded-composite-v1", renderKey, regionsDigest, sourceDigest, ReaderTranslationCacheIdentity.encoded(size)
+            "reader-loaded-composite-native-v1", renderKey, regionsDigest, sourceDigest, ReaderTranslationCacheIdentity.encoded(size)
         ])
     }
 
@@ -373,7 +374,7 @@ final class ReaderTranslationRenderCache {
         retainRenderAsset(asset, key: key)
         let data = await encodedAsset(asset)
         guard let data, data.count <= ReaderTranslationRenderAsset.maximumEncodedBytes, !Task.isCancelled,
-              await disk.currentGeneration() == diskGeneration, generation == issued,
+              await disk.currentGeneration() == diskGeneration, !Task.isCancelled, generation == issued,
               assetStores[key] == id else { return }
         // A read may already be decoding the previous disk value. It must not
         // overwrite this newer committed value when its decoder returns. Existing
@@ -471,7 +472,7 @@ final class ReaderTranslationRenderCache {
 
     func store(_ image: UIImage, key: String, pageIdentity: String, diskGeneration: UInt64) async {
         let issued = generation
-        guard !Task.isCancelled, await disk.currentGeneration() == diskGeneration, generation == issued,
+        guard !Task.isCancelled, await disk.currentGeneration() == diskGeneration, !Task.isCancelled, generation == issued,
               shouldKeepImage(for: pageIdentity) else { return }
         retain(image, key: key, pageIdentity: pageIdentity)
     }

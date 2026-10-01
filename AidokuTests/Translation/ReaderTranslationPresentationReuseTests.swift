@@ -1,11 +1,10 @@
 import Testing
 import UIKit
-import WebKit
 @testable import Aidoku
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationPresentationReuseTests {
-    @Test func sameSourceFitChangeUpdatesBackgroundWithoutReloadingDocument() async throws {
+    @Test func sameSourceFitChangeReusesNativeCanvas() async throws {
         let (host, overlay) = try makeOverlay()
         let previous = host.windowScene?.windows.first { $0.isKeyWindow && $0 !== host }
         host.makeKeyAndVisible()
@@ -13,20 +12,15 @@ struct ReaderTranslationPresentationReuseTests {
         let source = image()
         let settings = ReaderTranslationSettings()
         overlay.update(regions: [], imageSize: source.size, aspectFit: true, settings: settings, image: source)
-        try await wait(overlay) { "document.getElementById('reader-source-image')?.style.objectFit === 'contain'" }
-        _ = try await overlay.webView.evaluateJavaScript("""
-            document.documentElement.dataset.presentationIdentity = 'same-document';
-            document.getElementById('reader-source-image').dataset.reuseIdentity = 'same-image';
-            """)
+        try await wait { overlay.sourceImage === source && overlay.renderedAspectFit }
+        let canvas = overlay.renderedImageView
         overlay.update(regions: [], imageSize: source.size, aspectFit: true, settings: settings, image: source)
-        #expect(try await overlay.webView.evaluateJavaScript(
-            "document.getElementById('reader-source-image')?.dataset.reuseIdentity") as? String == "same-image")
+        #expect(overlay.sourceImage === source)
+        #expect(overlay.renderedImageView === canvas)
         overlay.update(regions: [], imageSize: source.size, aspectFit: false, settings: settings, image: source)
-        try await wait(overlay) { "document.getElementById('reader-source-image')?.style.objectFit === 'fill'" }
-        #expect(try await overlay.webView.evaluateJavaScript(
-            "document.documentElement.dataset.presentationIdentity") as? String == "same-document")
-        #expect(try await overlay.webView.evaluateJavaScript(
-            "document.querySelectorAll('#reader-source-image').length") as? Int == 1)
+        try await wait { overlay.sourceImage === source && !overlay.renderedAspectFit }
+        #expect(overlay.renderedImageView === canvas)
+        #expect(overlay.subviews.filter { $0 is UIImageView }.count == 1)
     }
 
     @Test func textOnlyReuseRemovesPreviousSourceAndDoesNotRestoreCancelledEncoding() async throws {
@@ -37,16 +31,15 @@ struct ReaderTranslationPresentationReuseTests {
         let source = image()
         let settings = ReaderTranslationSettings()
         overlay.update(regions: [], imageSize: source.size, aspectFit: true, settings: settings, image: source)
-        try await wait(overlay) { "document.getElementById('reader-source-image')?.complete === true" }
+        try await wait { overlay.sourceImage === source }
         overlay.update(regions: [], imageSize: source.size, aspectFit: false, settings: settings, image: nil)
-        try await wait(overlay) { "document.getElementById('reader-source-image') === null" }
+        try await wait { overlay.sourceImage == nil }
         // A new source immediately followed by nil also cancels queued encoding.
         let replacement = image()
         overlay.update(regions: [], imageSize: replacement.size, aspectFit: true, settings: settings, image: replacement)
         overlay.update(regions: [], imageSize: replacement.size, aspectFit: false, settings: settings, image: nil)
         try await Task.sleep(for: .milliseconds(150))
-        #expect(try await overlay.webView.evaluateJavaScript(
-            "document.getElementById('reader-source-image') === null") as? Bool == true)
+        #expect(overlay.sourceImage == nil)
     }
 
     private func makeOverlay() throws -> (UIWindow, ReaderTranslationOverlayView) {
@@ -59,10 +52,9 @@ struct ReaderTranslationPresentationReuseTests {
         return (host, overlay)
     }
 
-    private func wait(_ overlay: ReaderTranslationOverlayView, predicate: () -> String) async throws {
+    private func wait(predicate: () -> Bool) async throws {
         for _ in 0..<400 {
-            if !overlay.webView.isLoading,
-               (try? await overlay.webView.evaluateJavaScript(predicate())) as? Bool == true { return }
+            if predicate() { return }
             try await Task.sleep(for: .milliseconds(20))
         }
         Issue.record("Background presentation did not reach the requested state")

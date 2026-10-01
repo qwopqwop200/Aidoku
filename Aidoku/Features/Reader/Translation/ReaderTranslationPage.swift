@@ -140,8 +140,10 @@ final class ReaderTranslationPage {
         // A deferred renderer has no visible frame to reuse: keeping it would
         // leave ON showing an empty wrapper whose bitmap can never attach.
         // Preserve committed live frames and cached bitmaps for cheap toggles.
-        if let overlay, overlay.defersPresentationUntilSnapshot, overlay.webView.isHidden {
+        if let overlay, overlay.defersPresentationUntilSnapshot, overlay.renderedImageView.isHidden {
             releaseOverlay()
+        } else {
+            overlay?.cancelWork()
         }
     }
 
@@ -158,8 +160,8 @@ final class ReaderTranslationPage {
         releaseOverlay()
     }
 
-    /// Navigate only the future visible document. No pixels, regions, or layout
-    /// are submitted until the normal completed-result publication path.
+    /// Reserve the future native presentation view without allocating pixels
+    /// or preparing layout before the completed-result publication path.
     @discardableResult
     func preparePendingOverlayNavigation(settings: ReaderTranslationSettings) -> Bool {
         guard settings.overlay.visible, let imageView, imageView.image != nil,
@@ -299,11 +301,11 @@ final class ReaderTranslationPage {
     func showCompletedTranslation(settings: ReaderTranslationSettings) {
         previewRegions = nil
         guard hasCompletedTranslation(settings: settings) else { return }
-        // A recovered WebContent process intentionally uses a text-only
-        // document; it cannot become snapshot-capable until a new overlay.
-        // Repeated session publication must not restart that recovery.
+        // A completed native frame remains valid when optional cache storage
+        // is unavailable. Repeated session publication must reuse that frame.
+        let needsRender = overlay.map { $0.needsRendering && !$0.isRendering } ?? false
         if (overlay == nil && cachedOverlay == nil) || lastSettings?.overlay != settings.overlay ||
-            (renderCache != nil && overlay?.canCacheRendering == false && overlay?.contentTerminationCount == 0),
+            overlay?.hasFailedRendering == true || needsRender,
             !regions.isEmpty, let image = imageView?.image {
             try? publish(regions, image: image, settings: settings, generation: generation)
         }
@@ -324,11 +326,6 @@ final class ReaderTranslationPage {
         // OCR and partial batches have different geometry after SFX filtering.
         // Leave the source image untouched until the whole translation is ready.
         guard completedTranslation, !result.isEmpty else { releaseOverlay(); return }
-        // A terminated empty speculative document has never displayed pixels.
-        // Do not inherit its text-only recovery state into the first final render.
-        if isPreparingEmptyOverlay, let overlay, overlay.contentTerminationCount > 0 {
-            discardPendingOverlayNavigation()
-        }
         if completedTranslation, let renderCache, let sourcePage, imageView.bounds.width > 0, imageView.bounds.height > 0 {
             let viewport = imageView.bounds.size
             let dark = imageView.traitCollection.userInterfaceStyle == .dark
@@ -347,8 +344,8 @@ final class ReaderTranslationPage {
             if renderLookupKey == key, renderLookupTask != nil { return }
             renderLookupTask?.cancel()
             renderLookupKey = key
-            // Source encoding/WebKit startup can run while the cache actor is
-            // busy. Generation is required for persistence, not attaching UI.
+            // Native composition can run while the cache actor is busy.
+            // Generation is required for persistence, not attaching UI.
             let diskGeneration = Task { await renderCache.disk.currentGeneration(settings: settings) }
             let pageIdentity = ReaderTranslationCacheIdentity.translation(page: sourcePage.translationCacheKey, settings: settings)
             renderCache.cancelPreparation(for: key)
@@ -482,6 +479,20 @@ final class ReaderTranslationPage {
             guard let self, self.overlay === overlay else { return }
             ReaderTranslationDiagnostics.record("visible_live_committed", page: diagnosticContext?.page ?? -1,
                                                 count: regions.count, context: diagnosticContext)
+        }
+        overlay.onRenderFailed = { [weak self, weak overlay, weak imageView] in
+            guard let self, let overlay, self.overlay === overlay, imageView?.image === image else { return }
+            ReaderTranslationDiagnostics.record("visible_live_failed", context: diagnosticContext)
+            if showsProvisional {
+                provisionalCommitPending = false
+                provisionalTask?.cancel()
+                provisionalTask = nil
+                if provisionalPending != nil { scheduleProvisionalRender(image: image, settings: settings) }
+            } else if overlay.renderedImage == nil {
+                // Keep the reader's original page visible and permit a later completed
+                // publication to retry, rather than retaining an empty failed wrapper.
+                releaseOverlay()
+            }
         }
         let issued = generation
         overlay.defersPresentationUntilSnapshot = target != nil

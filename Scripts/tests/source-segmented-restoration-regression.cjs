@@ -1,7 +1,7 @@
 // Frozen real native crops exercise segmented recovery without claiming that a
 // partial erasure permits transparent translated text. No output-folder inputs.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),z=require('node:zlib');
-const directory=process.env.OVERLAY_SOURCE_DIR||path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const directory=process.env.OVERLAY_SOURCE_DIR||path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const script=name=>fs.readFileSync(path.join(directory,name+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const restore=new Function(script('BrowserSourcePanelRestoration')+';return aidokuRestoreSourcePanel;')();
 const unpack=s=>new Uint8ClampedArray(z.inflateSync(Buffer.from(s,'base64')));

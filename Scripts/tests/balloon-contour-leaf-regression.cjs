@@ -8,7 +8,7 @@ const { webkit } = require(process.env.PLAYWRIGHT_MODULE || '/Users/ijunjae/Pych
 
 const output = process.argv[2] || path.resolve(__dirname, '../../../output/visual-quality');
 const source = fs.readFileSync(path.resolve(__dirname,
-  '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayTypography.swift'), 'utf8');
+  '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayTypography.swift'), 'utf8');
 const script = source.split('static let script = #"""')[1].split('"""#')[0];
 assert.ok(script.includes('aidokuContainBalloonText'));
 

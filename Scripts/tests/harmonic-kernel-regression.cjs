@@ -4,7 +4,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const directory = path.resolve(__dirname, '../../Aidoku/Core/Translation/NativeEngine/Overlay');
+const directory = path.resolve(__dirname, '../../AidokuTests/Translation/LegacyBrowserOverlay');
 const script = name => fs.readFileSync(path.join(directory, name + '.swift'), 'utf8')
     .match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const restoration = script('BrowserSourcePanelRestoration');
