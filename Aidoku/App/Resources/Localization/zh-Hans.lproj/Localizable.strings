@@ -924,7 +924,7 @@
 
 "TRANSLATION_AUTOMATIC" = "自动翻译";
 
-"TRANSLATION_AUTOMATIC_HELP" = "使用已保存的 API 设置和推理强度，自动翻译阅读器中的页面。翻译会直接开始，不会单独测试连接。翻译失败不会关闭此设置。可使用“测试API连接”手动检查设置。";
+"TRANSLATION_AUTOMATIC_HELP" = "自动翻译并显示阅读器中的页面。阅读器中的翻译按钮可开启或关闭此设置。";
 
 "TRANSLATION_TEST" = "测试API连接";
 
@@ -1153,6 +1153,17 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "由电子词典研究开发组（EDRDG）维护的综合日英词典。";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "由电子词典研究开发组（EDRDG）维护的日语专有名词词典。";
 "RECOMMENDED_JITEN_DESCRIPTION" = "基于 https://jiten.moe 媒体语料库的词频词典。";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "显示原文时继续翻译";
+"TRANSLATION_BACKGROUND_HELP" = "阅读时，即使翻译按钮已关闭，也会继续翻译，同时仍显示原始页面。应用处于非活跃状态时，翻译会暂停。";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "预先翻译页数";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "预先翻译的最大页数，不计入当前显示的页面。按阅读优先级选择页面，优先选择后续页面。";
+"TRANSLATION_UNLIMITED" = "不限";
+
+"TRANSLATION_PAGE_SETTINGS" = "页面翻译";
+
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "仅当前显示的页面";
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "此应用不支持来源 %@ 的版本 %d。请安装受支持的版本。";

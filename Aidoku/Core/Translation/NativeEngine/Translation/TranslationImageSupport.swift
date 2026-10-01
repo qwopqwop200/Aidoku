@@ -7,11 +7,23 @@ final class TranslationImageSupport: @unchecked Sendable {
     static let shared = TranslationImageSupport()
     static let changed = Notification.Name("TranslationImageSupport.changed")
 
-    enum Status: String { case unknown, supported, unsupported }
+    enum Status: String, Sendable { case unknown, supported, unsupported }
+    struct Snapshot: Equatable, Sendable {
+        let status: Status
+        let revision: Int
+    }
     private let defaults: UserDefaults
     private let lock = NSLock()
 
     init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+
+    func snapshot(for configuration: RemoteTranslationConfiguration) -> Snapshot {
+        lock.lock()
+        defer { lock.unlock() }
+        let key = key(configuration)
+        return Snapshot(status: Status(rawValue: defaults.string(forKey: key) ?? "") ?? .unknown,
+                        revision: defaults.integer(forKey: key + ".revision"))
+    }
 
     func status(for configuration: RemoteTranslationConfiguration) -> Status {
         lock.lock()

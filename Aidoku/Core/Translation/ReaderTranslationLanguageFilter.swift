@@ -3,6 +3,33 @@ import NaturalLanguage
 
 /// Apply the source-language policy after raw OCR caching, before requests or overlays.
 enum ReaderTranslationLanguageFilter {
+    /// A provider can append a stray OCR fragment after a complete Korean
+    /// sentence. Drop only a separate, multi-character Han/kana tail after
+    /// sentence punctuation; names embedded in the sentence remain intact.
+    static func removingForeignScriptTail(_ translation: String, target: String) -> String {
+        guard canonical(target) == "ko" else { return translation }
+        let scalars = Array(translation.unicodeScalars)
+        func korean(_ scalar: Unicode.Scalar) -> Bool {
+            (0xAC00...0xD7A3).contains(scalar.value) || (0x1100...0x11FF).contains(scalar.value) ||
+                (0x3130...0x318F).contains(scalar.value)
+        }
+        func foreign(_ scalar: Unicode.Scalar) -> Bool {
+            (0x3040...0x30FF).contains(scalar.value) || (0xFF66...0xFF9D).contains(scalar.value) ||
+                (0x3400...0x9FFF).contains(scalar.value) || (0x20000...0x323AF).contains(scalar.value)
+        }
+        let end = scalars.lastIndex { !CharacterSet.whitespacesAndNewlines.contains($0) }.map { $0 + 1 } ?? 0
+        guard end > 0 else { return translation }
+        var start = end
+        while start > 0 && foreign(scalars[start - 1]) { start -= 1 }
+        guard end - start >= 2, start > 0,
+              CharacterSet.whitespacesAndNewlines.contains(scalars[start - 1]) else { return translation }
+        let prefix = String(String.UnicodeScalarView(scalars[..<start]))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard prefix.unicodeScalars.filter(korean).count >= 4,
+              let last = prefix.last, "!?！？…。".contains(last) else { return translation }
+        return prefix
+    }
+
     /// A Japanese sentence re-punctuated by the provider is not a Korean translation.
     /// Exact copies remain valid for explicit SFX/background preservation; short names,
     /// symbols and mixed Korean output are deliberately outside this narrow rejection.
@@ -22,9 +49,20 @@ enum ReaderTranslationLanguageFilter {
         }
     }
 
+    /// Geometrically established balloon prose cannot be silently kept as Japanese in a Korean page.
+    /// Short names, effects, signs and unverified background components remain preservation candidates.
+    static func requiresBalloonTranslation(_ region: ReaderTranslationRegion, translation: String, target: String) -> Bool {
+        guard canonical(target) == "ko", region.balloonInterior?.contourVerified == true,
+              region.source.trimmingCharacters(in: .whitespacesAndNewlines) == translation.trimmingCharacters(in: .whitespacesAndNewlines)
+        else { return false }
+        let letters = region.source.unicodeScalars.filter { $0.properties.isAlphabetic }
+        let kana = letters.filter { (0x3040...0x30FF).contains($0.value) }
+        return letters.count >= 10 && kana.count >= 3 && !letters.contains { (0xAC00...0xD7A3).contains($0.value) }
+    }
+
     static func containsUntranslatedJapaneseReply(_ regions: [ReaderTranslationRegion], target: String) -> Bool {
         regions.contains { region in
-            region.translation.map { isUntranslatedJapaneseReply(source: region.source, translation: $0, target: target) } ?? false
+            region.translation.map { isUntranslatedJapaneseReply(source: region.source, translation: $0, target: target) || requiresBalloonTranslation(region, translation: $0, target: target) } ?? false
         }
     }
 

@@ -1,6 +1,6 @@
 // PLAYWRIGHT_MODULE=/path/to/playwright node Scripts/tests/compact-caption-browser-regression.cjs
 // Exercise final caption geometry in WebKit: preserve old erasure footprints,
-// expose empty artwork corners, and keep the selected readable font intact.
+// keep rectangular silhouettes, and keep the selected readable font intact.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const source=fs.readFileSync(process.env.CAPTION_SOURCE||path.resolve(__dirname,'../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserOverlayView.swift'),'utf8');
@@ -55,7 +55,7 @@ let browser;
     const s=getComputedStyle(n),rgba=s.backgroundColor.match(/[\d.]+/g)?.map(Number);
     return s.visibility==='visible'&&Number(s.opacity)===1&&rgba?.length>=3&&(rgba.length===3||rgba[3]===1);
    });
-   const missedErasure=[],clippedGlyphs=[],filledCorners=[];
+   const missedErasure=[],clippedGlyphs=[],filledCorners=[],notches=[];
    let erasureSamples=0,glyphSamples=0,emptyCornerSamples=0,emptyCornerWitness=null;
    // Exhaustive CSS-pixel centers, rather than rectangle metadata: a tiny
    // omitted source strip or a real path hole must fail even if bounds match.
@@ -87,10 +87,13 @@ let browser;
    }
    for(const panel of panels){
     if(panel.dataset.captionUnionClipped!=='true')continue;
-    const [l,t,r,b]=rect(panel.getBoundingClientRect());
+    const coverage=JSON.parse(panel.dataset.panelCoverage||'[]');
+    if(coverage.length!==1)notches.push('multiple-footprints');
+    const [l,t,w,h]=coverage[0]||[0,0,0,0],r=l+w,b=t+h;
     for(let y=t+.5;y<b;y++)for(let x=l+.5;x<r;x++){
      if(original.some(box=>contains(box,x,y))||inkBounds.some(box=>contains(box,x,y)))continue;
      emptyCornerSamples++;
+     if(!document.elementsFromPoint(x,y).includes(panel)&&notches.length<8)notches.push([x,y]);
      if(!emptyCornerWitness)emptyCornerWitness={panel,x,y};
      if(opaqueAt(x,y)&&filledCorners.length<8)filledCorners.push([x,y]);
     }
@@ -100,21 +103,21 @@ let browser;
     const {panel,x,y}=emptyCornerWitness,saved=panel.style.clipPath;
     panel.style.clipPath='none';clipActuallyExposesCorner=opaqueAt(x,y);panel.style.clipPath=saved;
    }
-   return {erasureSamples,glyphSamples,emptyCornerSamples,missedErasure,clippedGlyphs,filledCorners,clipActuallyExposesCorner,
+   return {erasureSamples,glyphSamples,emptyCornerSamples,missedErasure,clippedGlyphs,filledCorners,notches,clipActuallyExposesCorner,
     clippedPanels:panels.filter(p=>p.dataset.captionUnionClipped==='true'&&getComputedStyle(p).clipPath!=='none').length};
   },{original});
   assert.ok(rasterCoverage.erasureSamples>0&&rasterCoverage.glyphSamples>0,'hit-test validation must sample real geometry');
   assert.deepEqual(rasterCoverage.missedErasure,[],'every original erasure pixel is covered by a painted opaque panel');
   assert.deepEqual(rasterCoverage.clippedGlyphs,[],'final glyph boxes survive the actual ancestor clip and stacking');
-  assert.deepEqual(rasterCoverage.filledCorners,[],'new empty corners expose the page through the actual clip');
+  assert.deepEqual(rasterCoverage.notches,[],'one solid painted rectangle without cut corners');
 
   for(const [l,t,r,b] of original)for(let y=t+.5;y<b;y++)for(let x=l+.5;x<r;x++){
    assert.ok(result.some(({box:[ll,tt,rr,bb]})=>x>=ll-.01&&x<=rr+.01&&y>=tt-.01&&y<=bb+.01),'old source erasure remains covered');
   }
   if(text==='짧은 대사'&&minimumFontSize===7){
-   assert.ok(result.some(r=>r.compact),'staggered caption must expose empty artwork');
+   assert.ok(result.some(r=>r.compact),'staggered caption keeps a compact rectangular partition');
    assert.ok(rasterCoverage.clippedPanels>0&&rasterCoverage.emptyCornerSamples>0&&rasterCoverage.clipActuallyExposesCorner,
-    'staggered fixture must expose a formerly painted corner specifically through clip-path');
+    'staggered fixture must exercise a formerly empty corner now covered by a solid rectangle');
    assert.ok(result.every(r=>r.font===16),'compaction keeps the selected font');
    const covered=result.reduce((a,{box:[l,t,r,b]})=>a+(r-l)*(b-t),0);
    assert.ok(covered<260*180,'compaction reduces bounding rectangle coverage');

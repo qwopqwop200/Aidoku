@@ -347,7 +347,7 @@
 
 "TRANSLATION_AUTOMATIC" = "स्वचालित अनुवाद";
 
-"TRANSLATION_AUTOMATIC_HELP" = "सहेजी गई API सेटिंग और रीजनिंग स्तर के साथ रीडर के पन्नों का अपने आप अनुवाद करता है। अनुवाद शुरू होने से पहले अलग से कनेक्शन जाँच नहीं होती। अनुवाद विफल होने पर यह सेटिंग बंद नहीं होती। अपनी सेटिंग स्वयं जाँचने के लिए «एपीआई कनेक्शन का परीक्षण करें» का उपयोग करें।";
+"TRANSLATION_AUTOMATIC_HELP" = "रीडर के पृष्ठों का अपने आप अनुवाद करके दिखाएँ। रीडर का अनुवाद बटन इस सेटिंग को चालू या बंद करता है।";
 
 "TRANSLATION_TEST" = "एपीआई कनेक्शन का परीक्षण करें";
 
@@ -1180,6 +1180,15 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) द्वारा अनुरक्षित एक व्यापक जापानी–अंग्रेज़ी शब्दकोश।";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) द्वारा अनुरक्षित जापानी व्यक्तिवाचक संज्ञाओं का शब्दकोश।";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe के मीडिया पाठ-संग्रह पर आधारित शब्द आवृत्ति शब्दकोश।";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "मूल पृष्ठ दिखाते समय अनुवाद करें";
+"TRANSLATION_BACKGROUND_HELP" = "अनुवाद बटन बंद होने पर भी पढ़ते समय अनुवाद जारी रहता है। मूल पृष्ठ दिखाई देते रहते हैं। ऐप निष्क्रिय होने पर अनुवाद रुक जाता है।";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "पहले से अनुवाद किए जाने वाले पृष्ठ";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "पहले से अनुवाद किए जाने वाले पृष्ठों की अधिकतम संख्या। दिखाई दे रहे पृष्ठ इसमें नहीं गिने जाते। पृष्ठ पढ़ने की प्राथमिकता के अनुसार चुने जाते हैं, जिसमें आगे के पृष्ठों को प्राथमिकता मिलती है।";
+"TRANSLATION_UNLIMITED" = "असीमित";
+"TRANSLATION_PAGE_SETTINGS" = "पृष्ठों का अनुवाद";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "केवल दिखाई दे रहे पृष्ठ";
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "इस ऐप में स्रोत %@ का संस्करण %d समर्थित नहीं है। समर्थित संस्करण इंस्टॉल करें।";

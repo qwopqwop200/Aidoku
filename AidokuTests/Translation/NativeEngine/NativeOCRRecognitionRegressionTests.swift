@@ -5,6 +5,27 @@ import Testing
 @testable import Aidoku
 
 struct NativeOCRRecognitionRegressionTests {
+    @Test(arguments: [33, 48, 99, 157, 319, 320, 641, 1280, 1500])
+    func dynamicTensorUsesExactCropWidthWithoutPadding(width: Int) throws {
+        let height = 48
+        let frame = try #require(NativeOCRRGBAFrame(
+            width: width, height: height,
+            bytes: [UInt8](repeating: 255, count: width * height * 4)
+        ))
+        let polygon = [CGPoint(x: 0, y: 0), CGPoint(x: width, y: 0),
+                       CGPoint(x: width, y: height), CGPoint(x: 0, y: height)]
+        let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(
+            polygon: polygon, dynamicWidth: true, maximumWidth: 1280
+        ))
+        let expectedWidth = min(width, 1280)
+        #expect(plan.resizedWidth == expectedWidth)
+        #expect(plan.bucket.width == expectedWidth)
+        #expect(plan.bucket.timeSteps == (expectedWidth + 3) / 8)
+        let tensor = try #require(NativeCoreMLRecognitionPreprocessor.prepare(frame: frame, plan: plan))
+        #expect(tensor.values.count == 3 * 48 * expectedWidth)
+        #expect(tensor.resizedWidth == tensor.bucket.width)
+    }
+
     @Test func rejectedSteepLatinHasABoundedAlternativeReadingAxis() throws {
         // Original detector quad of the real -57-degree "intensity" fixture.
         let polygon = [CGPoint(x: 255, y: 789), CGPoint(x: 391, y: 575),
@@ -272,7 +293,7 @@ private final class OCRPixelPredictor: NativeCoreMLRecognitionPredicting, @unche
         try await Task.sleep(for: .milliseconds(1))
         let source = input.dataPointer.assumingMemoryBound(to: Float.self)
         let batchStride = input.strides[0].intValue
-        let timeSteps = input.shape[3].intValue / 8
+        let timeSteps = (input.shape[3].intValue + 3) / 8
         let outputs = try (0..<input.shape[0].intValue).map { batch -> MLMultiArray in
             let output = try MLMultiArray(shape: [2, NSNumber(value: timeSteps)], dataType: .float32)
             let pointer = output.dataPointer.assumingMemoryBound(to: Float.self)

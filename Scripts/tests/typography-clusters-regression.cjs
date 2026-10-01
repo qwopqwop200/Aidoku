@@ -10,7 +10,7 @@ const colorSource = fs.readFileSync(path.join(__dirname,
   '../../Aidoku/Core/Translation/NativeEngine/Overlay/BrowserSourceTextColor.swift'), 'utf8');
 const contrastScript = colorSource.slice(colorSource.indexOf('    const aidokuSourceColorLuminance ='),
   colorSource.indexOf('    // Outline-free display keeps chromatic source ink.'));
-const api = vm.runInNewContext(script + contrastScript + ';({restoredFloor:aidokuRestoredFontFloor,captionFloor:aidokuCaptionFontFloor,attached:aidokuHasAttachedLeadingInk,balloonFonts:aidokuBalloonFontSizes,erasure:aidokuRestoredErasureCovers,residual:aidokuHasResidualLettering,artworkFonts:aidokuArtworkFontSizes,compact:aidokuCompactPanel,visible:aidokuVisiblePanelColors,adjust:aidokuAdjustInkForContrast,fonts:aidokuFontClusters,inks:aidokuInkClusters,lines:aidokuKoreanLines,fragments:aidokuKoreanFragments,improves:aidokuKoreanWrapImproves,frame:aidokuCaptionInkFrame,candidates:aidokuCohortFontCandidates,flowFits:aidokuFontFlowFits,anchor:aidokuSourceAnchorShift,backing:aidokuTextBackingRect,needsBacking:aidokuNeedsTextBacking,keepsContrast:aidokuTextBackingKeepsContrast,contrast:aidokuSourceColorContrast,flowRank:aidokuKoreanFlowRank,wordWidth:aidokuKoreanWordWidth,rows:aidokuAlignedGroups,columnRows:aidokuColumnRowLinks,pageStyles:aidokuPageStyleGroups,styleColor:aidokuStyleColorClass,reduplication:aidokuReduplicationBreak,interfaceRows:aidokuInterfaceRows,clusterTargets:aidokuFontClusterTargets,keptZones:aidokuKeptLetteringZones,subtract:aidokuSubtractRects,condensedWidth:aidokuCondensedWidth,condensedSizes:aidokuCondensedSizes,wordBound:aidokuCondensedWordBound})');
+const api = vm.runInNewContext(script + contrastScript + ';({linePitch:aidokuCaptionLinePitch,strokes:aidokuStrokeClusters,restoredFloor:aidokuRestoredFontFloor,captionFloor:aidokuCaptionFontFloor,attached:aidokuHasAttachedLeadingInk,balloonFonts:aidokuBalloonFontSizes,erasure:aidokuRestoredErasureCovers,residual:aidokuHasResidualLettering,artworkFonts:aidokuArtworkFontSizes,compact:aidokuCompactPanel,visible:aidokuVisiblePanelColors,adjust:aidokuAdjustInkForContrast,fonts:aidokuFontClusters,inks:aidokuInkClusters,lines:aidokuKoreanLines,fragments:aidokuKoreanFragments,improves:aidokuKoreanWrapImproves,frame:aidokuCaptionInkFrame,candidates:aidokuCohortFontCandidates,flowFits:aidokuFontFlowFits,anchor:aidokuSourceAnchorShift,backing:aidokuTextBackingRect,needsBacking:aidokuNeedsTextBacking,keepsContrast:aidokuTextBackingKeepsContrast,contrast:aidokuSourceColorContrast,flowRank:aidokuKoreanFlowRank,wordWidth:aidokuKoreanWordWidth,rows:aidokuAlignedGroups,columnRows:aidokuColumnRowLinks,pageStyles:aidokuPageStyleGroups,styleColor:aidokuStyleColorClass,reduplication:aidokuReduplicationBreak,interfaceRows:aidokuInterfaceRows,clusterTargets:aidokuFontClusterTargets,keptZones:aidokuKeptLetteringZones,subtract:aidokuSubtractRects,condensedWidth:aidokuCondensedWidth,condensedSizes:aidokuCondensedSizes,wordBound:aidokuCondensedWordBound})');
 const plain = x => JSON.parse(JSON.stringify(x));
 test('only a later panel with a different color needs a lettering backing', () => {
   const panels=[{rect:[0,0,50,50],color:'white'},{rect:[0,25,25,50],color:'purple'}];
@@ -678,4 +678,36 @@ test('condensing is only for word-bound measures: overflowing at full width, fit
   assert.equal(api.wordBound(95,95), false);
   // Too long even condensed.
   assert.equal(api.wordBound(100,89), false);
+});
+
+test('stroke widths share page style cohorts without adding outlines or bridging styles', () => {
+  const r=(id,width,glyph=10,key='white-orange')=>({id,width,glyph,font:8,key});
+  const rows=[r('a',2.56),r('b',2.88),r('c',2.7),r('bare',0),r('other',1,10,'black-white'),r('large',4,20)];
+  const groups=plain(api.strokes(rows));
+  assert.equal(groups.length,1);
+  assert.equal(groups[0].width,2.7);
+  assert.deepEqual(groups[0].members.map(r=>r.id).sort(),['a','b','c']);
+  assert.equal(plain(api.strokes([...rows].reverse()))[0].width,2.7);
+  assert.equal(api.strokes([r('a',2),r('b',2),r('outlier',8)])[0].width,2);
+  assert.equal(api.strokes(Array.from({length:257},(_,i)=>r(i,2))).length,0);
+});
+
+test('line pitch separates painted Korean glyphs including both stroke halves', () => {
+  const metrics=[{ascent:10,descent:2},{ascent:11,descent:2},{ascent:9,descent:3}];
+  assert.equal(api.linePitch(metrics,3,14),16.35);
+  assert(api.linePitch(metrics,3,14)>api.linePitch(metrics,0,14));
+});
+test('line pitch follows actual adjacent glyph metrics instead of the font box', () => {
+  assert.equal(api.linePitch([{ascent:18,descent:1},{ascent:5,descent:1}],2,20),8.5);
+  assert.equal(api.linePitch([{ascent:5,descent:1},{ascent:18,descent:1}],2,20),21.5);
+});
+test('single lines and missing canvas ink metrics do not trigger spacing changes', () => {
+  assert.equal(api.linePitch([{ascent:10,descent:2}],2,14),0);
+  assert.equal(api.linePitch([{ascent:undefined,descent:2},{ascent:10,descent:2}],2,14),0);
+});
+
+test('small outlined real caption keeps intermediate leading after correcting its oversized stroke', () => {
+  const metrics=[{ascent:4.5,descent:.9375},{ascent:4.5,descent:.9375}];
+  assert.equal(api.linePitch(metrics,1.2,6),8);
+  assert(api.linePitch(metrics,0,6)<7.160156);
 });

@@ -112,3 +112,32 @@ Other test suites, each run from the repository root:
 ## Localization rules
 
 Any new UI string must use `NSLocalizedString`, with an English entry in `en.lproj` and a translation in **every** locale listed in the project's `knownRegions`. This applies to both `Localizable.strings` and `InfoPlist.strings`. `AidokuShare` has its own `Localizable.strings`. Do not localize stored setting values, provider names, API protocol names, or font family identifiers; localize only their display labels. When a translation reorders format arguments, use positional arguments (`%1$@`). The validator fails on missing or extra keys, English left untranslated, and incompatible format arguments.
+
+## Image translation pipeline CLI
+
+For quick image translation/OCR analysis, use `Scripts/image-translation.swift` directly on Apple Silicon macOS 15+ with Xcode command-line tools. From this Git root, passing only an image, image list, or folder runs the production Core ML OCR, recovery/grouping, remote translation and JavaScript renderer:
+
+```sh
+swift Scripts/image-translation.swift /path/to/page.png
+swift Scripts/image-translation.swift /path/to/images
+swift Scripts/image-translation.swift --list /path/to/images.json
+swift Scripts/image-translation.swift --ocr-only /path/to/page.png
+```
+
+The runner automatically reads this repository's ignored `.env`, including the API key and the actual installed iPhone settings imported into it. Defaults are a saved phone snapshot, not the app's factory settings or a live phone query on every run. Precedence is CLI arguments > shell environment > `.env` > built-in fallbacks. Keep credentials in `.env`; never commit, print, or copy them into reports. `.env.example` contains no credential. Refresh the snapshot from a connected phone with:
+
+```sh
+python3 Scripts/image-translation/sync-iphone-settings.py --device <DEVICE_ID> --bundle-id <INSTALLED_AIDOKU_BUNDLE_ID>
+```
+
+This reads the installed app's preferences and preserves the existing local API key. It imports protocol/reasoning, languages, image/filter flags, OCR model/sizes/confidence/detector thresholds, and supported overlay appearance settings. Scheduling/cache preferences are retained as provenance; this CLI uses bounded image workers (default `AIDOKU_IMAGE_JOBS=8`, overridden by `--jobs N`), overlaps translation across images, and uses the production layout planner with AppKit/Core Text font metrics. OCR and rendering each retain one admission slot. Supply the actual reader container with `--viewport WIDTHxHEIGHT` or `AIDOKU_RENDER_VIEWPORT`; the 430x932 default is portrait screen geometry, not a live reader measurement. Image-attached provider calls are capped at three. Bundled serif fonts and mask/PDF composition are supported; macOS font metrics and iPhone performance/pixel output can still differ.
+
+Runs save numbered intermediate JSON, OCR/stage PNGs, detector probability maps, renderer segmentation masks or restoration differences, final JSON/HTML/PNG, and an interactive `analysis-index.html` under `../output/image-translation/run-<UUID>/`. Open the analysis report to inspect OCR text/confidence, reading direction, geometric angles, recovery/merging, balloon interiors, segmentation and final rendering. OCR-only runs have no renderer masks. Rebuild reports from existing output without running OCR or a server:
+
+```sh
+swift Scripts/image-translation.swift --visualize-run /path/to/run-UUID
+```
+
+Final composites are also collected in `RUN_DIRECTORY/final/`. Use `swift Scripts/image-translation.swift --render-run RUN_DIRECTORY` to recompose completed results from saved render payloads without OCR/API calls. Use `--resume-run RUN_DIRECTORY` with the same image inputs/order/settings to skip completed results and continue an interrupted run.
+
+See `Scripts/image-translation/README.md` and `swift Scripts/image-translation.swift --help` for all options. Focused checks are `python3 Scripts/tests/run-image-environment-smoke.py`, `python3 Scripts/tests/run-image-analysis-smoke.py`, and `python3 Scripts/tests/run-image-translation-smoke.py` (real host OCR/rendering and a local mock server). Apply the existing verification-scope rules; documentation-only changes need no build or test run. The launcher reuses its incremental Swift/Core ML cache in `build/image-translation-host`.

@@ -326,7 +326,7 @@
 
 "TRANSLATION_AUTOMATIC" = "ავტომატური თარგმანი";
 
-"TRANSLATION_AUTOMATIC_HELP" = "ავტომატურად თარგმნის კითხვის რეჟიმის გვერდებს შენახული API პარამეტრებისა და მსჯელობის ძალისხმევის გამოყენებით. თარგმანის დაწყებამდე კავშირის ცალკე შემოწმება არ სრულდება. თარგმანის წარუმატებლობა ამ პარამეტრს არ გამორთავს. პარამეტრების ხელით შესამოწმებლად გამოიყენეთ „API კავშირის შემოწმება“.";
+"TRANSLATION_AUTOMATIC_HELP" = "ავტომატურად თარგმნის და აჩვენებს გვერდებს კითხვის რეჟიმში. თარგმნის ღილაკი კითხვის რეჟიმში ამ პარამეტრს რთავს ან თიშავს.";
 
 "TRANSLATION_TEST" = "API კავშირის შემოწმება";
 
@@ -1180,6 +1180,15 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "ვრცელი იაპონურ-ინგლისური ლექსიკონი, რომელსაც უვლის Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "იაპონური საკუთარი სახელების ლექსიკონი, რომელსაც უვლის Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "სიხშირული ლექსიკონი, რომელიც ეფუძნება https://jiten.moe-ის მედიაკორპუსს.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "თარგმნა ორიგინალის ჩვენებისას";
+"TRANSLATION_BACKGROUND_HELP" = "თარგმნა გრძელდება კითხვისას მაშინაც, როცა თარგმნის ღილაკი გამორთულია. ორიგინალი გვერდები ხილული რჩება. თარგმნა შეჩერდება, როცა აპი არააქტიურია.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "წინასწარ სათარგმნი გვერდების რაოდენობა";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "წინასწარ სათარგმნი გვერდების მაქსიმალური რაოდენობა, ხილული გვერდების გარდა. გვერდები კითხვის პრიორიტეტის მიხედვით შეირჩევა და უპირატესობა მომდევნო გვერდებს ენიჭება.";
+"TRANSLATION_UNLIMITED" = "შეუზღუდავი";
+"TRANSLATION_PAGE_SETTINGS" = "გვერდების თარგმნა";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "მხოლოდ ხილული გვერდები";
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "წყაროს %@ ვერსია %d ამ აპში მხარდაჭერილი არ არის. დააინსტალირეთ მხარდაჭერილი ვერსია.";

@@ -532,6 +532,22 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
                 (larger.region.sourceOrientation == .vertical
                     ? smallBox.height <= largeBox.height * 1.1 && smallBox.midX > largeBox.minX + largeBox.width * 0.5
                     : smallBox.width <= largeBox.width * 1.1 && smallBox.midY < largeBox.minY + largeBox.height * 0.5)
+            // Separate stacked multi-column blocks preserve the smaller aside even on
+            // connected balloon paper. Estimate lettering from individual source columns;
+            // the whitespace in a block's enclosing rectangle inflates its glyph estimate.
+            if !ruby, gapY >= 0, a.region.sourceOrientation == .vertical, b.region.sourceOrientation == .vertical {
+                func columnSize(_ unit: Unit) -> CGFloat? {
+                    let widths = sourceLines.compactMap { line -> CGFloat? in
+                        guard line.orientation == .vertical, line.text.count >= 3,
+                              let x0 = line.polygon.map(\.x).min(), let x1 = line.polygon.map(\.x).max(),
+                              let y0 = line.polygon.map(\.y).min(), let y1 = line.polygon.map(\.y).max() else { return nil }
+                        let box = CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0)
+                        return unit.box.insetBy(dx: -1, dy: -1).contains(box) ? box.width : nil
+                    }.sorted()
+                    return widths.count >= 2 ? widths[widths.count / 2] : nil
+                }
+                if let sa = columnSize(a), let sb = columnSize(b), max(sa, sb) > min(sa, sb) * 1.25 { return nil }
+            }
             // Two full blocks of clearly different lettering size are a text and an aside.
             if !ruby, min(a.letters, b.letters) >= 4, large > small * 1.6 { return nil }
             let vertical = larger.region.sourceOrientation == .vertical

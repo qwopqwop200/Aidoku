@@ -285,6 +285,40 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
         XCTAssertEqual(NativeOCRGapLineRecovery.admitted([gap]) { _, _, _ in false }, [gap])
     }
 
+    func testEdgeRecoveryRequiresCaptionPitchInkAndUnoccupiedPaper() {
+        func column(_ x: CGFloat) -> [CGPoint] {
+            [CGPoint(x: x, y: 94), CGPoint(x: x + 42, y: 94),
+             CGPoint(x: x + 42, y: 316), CGPoint(x: x, y: 316)]
+        }
+        let lines = [NativeOCRGapLineRecovery.Line(polygon: column(204), text: "なのに何で"),
+                     NativeOCRGapLineRecovery.Line(polygon: column(249), text: "水中発破の許可")]
+        func page(_ missing: Bool, paper: Int = 240) -> (Int, Int) -> Int {
+            { x, y in
+                for left in missing ? [210, 255, 300] : [210, 255] {
+                    if x >= left, x < left + 30, y >= 100, y < 316 {
+                        let cy = (y - 100) % 36, cx = x - left
+                        if cy < 30 && ((5..<10).contains(cy) || (20..<25).contains(cy) || (13..<18).contains(cx)) { return 20 }
+                    }
+                }
+                return x >= 294 ? paper : 240
+            }
+        }
+        let found = NativeOCRGapLineRecovery.edgeProposals(width: 1000, height: 1000,
+            luminance: page(true), lines: lines, blockers: [])
+        XCTAssertEqual(found.count, 1)
+        XCTAssertEqual(found.first?.edge, true)
+        XCTAssertEqual(NativeOCRScopeGeometry.bounds(for: found.first?.polygon ?? [])?.midX ?? 0, 315, accuracy: 1)
+        XCTAssertTrue(NativeOCRGapLineRecovery.edgeProposals(width: 1000, height: 1000,
+            luminance: page(false), lines: lines, blockers: []).isEmpty)
+        XCTAssertTrue(NativeOCRGapLineRecovery.edgeProposals(width: 1000, height: 1000,
+            luminance: page(true, paper: 130), lines: lines, blockers: []).isEmpty)
+        XCTAssertTrue(NativeOCRGapLineRecovery.edgeProposals(width: 1000, height: 1000,
+            luminance: page(true), lines: lines, blockers: [column(294)]).isEmpty)
+        let short = lines.map { NativeOCRGapLineRecovery.Line(polygon: $0.polygon, text: "あっ") }
+        XCTAssertTrue(NativeOCRGapLineRecovery.edgeProposals(width: 1000, height: 1000,
+            luminance: page(true), lines: short, blockers: []).isEmpty)
+    }
+
     func testDBPostprocessFindsScoresAndUnclipsRectangle() throws {
         let map = rectangularMap(
             width: 64,

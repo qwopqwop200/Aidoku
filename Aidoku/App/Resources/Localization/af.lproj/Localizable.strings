@@ -317,7 +317,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Outomatiese vertaling";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Vertaal leserbladsye outomaties met jou gestoorde API-instellings en redeneerinspanning. Geen afsonderlike verbindingstoets word uitgevoer voordat vertaling begin nie. Vertaalfoute skakel nie hierdie instelling af nie. Gebruik Toets API-verbinding om jou instellings handmatig na te gaan.";
+"TRANSLATION_AUTOMATIC_HELP" = "Vertaal en vertoon leserbladsye outomaties. Die vertaalknoppie in die leser skakel hierdie instelling aan of af.";
 
 "TRANSLATION_TEST" = "Toets API-verbinding";
 
@@ -1181,6 +1181,15 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "’n Omvattende Japannees-Engelse woordeboek wat deur die Electronic Dictionary Research and Development Group (EDRDG) onderhou word.";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "’n Woordeboek van Japannese eiename wat deur die Electronic Dictionary Research and Development Group (EDRDG) onderhou word.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "’n Frekwensiewoordeboek gebaseer op die mediakorpus by https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Vertaal terwyl oorspronklike bladsye vertoon word";
+"TRANSLATION_BACKGROUND_HELP" = "Hou aan vertaal terwyl jy lees met die vertaalknoppie afgeskakel. Die oorspronklike bladsye bly sigbaar. Vertaling word onderbreek wanneer die toepassing onaktief is.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Bladsye om vooraf te vertaal";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Maksimum aantal bladsye om vooraf te vertaal, uitgesluit sigbare bladsye. Bladsye word volgens leesprioriteit gekies, met voorkeur aan volgende bladsye.";
+"TRANSLATION_UNLIMITED" = "Onbeperk";
+"TRANSLATION_PAGE_SETTINGS" = "Bladsyvertaling";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Slegs sigbare bladsye";
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Bron %@ weergawe %d word nie deur hierdie toepassing ondersteun nie. Installeer ’n ondersteunde weergawe.";

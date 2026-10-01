@@ -5,6 +5,83 @@ import Nuke
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationAPIPipelineTests {
+    @Test func settledBackgroundPreparationUsesOnlyThreePageSlots() async throws {
+        let recorder = APIPipelineRecorder(blocked: [0, 1, 2, 3])
+        let preloader = deepPreloader(recorder)
+        let work = Task { try await preloader.translate(page(0), settings: settings()) }
+        defer { work.cancel(); preloader.cancel() }
+        try await waitUntil { Set(await recorder.published) == [0, 1, 2] }
+        #expect(await recorder.ocr == [0, 1, 2])
+        #expect(await recorder.maximumActive == 3)
+        preloader.cancel()
+        try await waitUntil { Set(await recorder.cancelled) == [0, 1, 2] }
+        await #expect(throws: CancellationError.self) { try await work.value }
+    }
+
+    @Test(arguments: [false, true])
+    func deeperPreparationShrinksForVisibleWorkOrLowerHeadroom(memoryPressure: Bool) async throws {
+        let recorder = APIPipelineRecorder(blocked: [0, 1, 2])
+        let budget = HandoffMemoryBudget()
+        let preloader = deepPreloader(recorder, budget: budget)
+        var settled = true
+        preloader.lookaheadLimit = { _, _ in settled ? 2 : 1 }
+        let value = settings()
+        let first = Task { try await preloader.translate(page(0), settings: value) }
+        defer { first.cancel(); preloader.cancel() }
+        try await waitUntil { Set(await recorder.published) == [0, 1, 2] }
+        if memoryPressure { budget.set(1_536 * 1_024 * 1_024) } else { settled = false }
+        let second = Task { try await preloader.translate(page(0), settings: value) }
+        defer { second.cancel() }
+        try await waitUntil { await recorder.cancelled == [2] }
+        #expect(await recorder.ocr == [0, 1, 2])
+        await recorder.release(0)
+        #expect(try await second.value.first?.translation == "complete-ko-0")
+        await #expect(throws: CancellationError.self) { try await first.value }
+    }
+
+    @Test func navigationAdoptsSecondLookaheadAndStopsOtherOffscreenRequests() async throws {
+        let recorder = APIPipelineRecorder(blocked: [0, 1, 2])
+        let preloader = deepPreloader(recorder)
+        let value = settings()
+        let first = Task { try await preloader.translate(page(0), settings: value) }
+        defer { first.cancel(); preloader.cancel() }
+        try await waitUntil { Set(await recorder.published) == [0, 1, 2] }
+        preloader.nextPageExcluding = nil
+        preloader.cancel(preservingRecognitionFor: page(2))
+        let destination = Task { try await preloader.translate(page(2), settings: value) }
+        defer { destination.cancel() }
+        try await waitUntil { Set(await recorder.cancelled) == [0, 1] }
+        await recorder.release(2)
+        #expect(try await destination.value.first?.translation == "complete-ko-2")
+        #expect(await recorder.ocr == [0, 1, 2])
+        #expect(await recorder.started.filter { $0 == 2 }.count == 1)
+        await #expect(throws: CancellationError.self) { try await first.value }
+    }
+
+    @Test(arguments: [1, 2])
+    func userConcurrencyLimitPreventsSecondLookahead(concurrency: Int) async throws {
+        let recorder = APIPipelineRecorder(blocked: [0, 1, 2])
+        let preloader = deepPreloader(recorder)
+        let work = Task { try await preloader.translate(page(0), settings: settings(concurrency: concurrency)) }
+        defer { work.cancel(); preloader.cancel() }
+        try await waitUntil { await recorder.ocr == [0, 1] }
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(await recorder.ocr == [0, 1])
+        #expect(await recorder.maximumActive <= concurrency)
+    }
+
+    private func deepPreloader(_ recorder: APIPipelineRecorder, budget: HandoffMemoryBudget = HandoffMemoryBudget()) -> ReaderTranslationPreloader {
+        let result = ReaderTranslationPreloader(
+            translator: { try await recorder.translate($0, settings: $1, progress: $2) },
+            recognizer: { page, _ in try await recorder.recognize(page.index) },
+            availableMemory: { budget.value })
+        result.lookaheadLimit = { _, _ in 2 }
+        result.nextPageExcluding = { current, excluded in
+            ((current.index + 1)..<5).map { page($0) }.first { !excluded.contains($0.translationCacheKey) }
+        }
+        return result
+    }
+
     @Test func distantSourceKeepsCompressedDiskDataWithoutRetainingDecodedPixels() async throws {
         let dataCache = try DataCache(name: "handoff-images-" + UUID().uuidString)
         defer { dataCache.removeAll() }
@@ -338,8 +415,6 @@ struct ReaderTranslationAPIPipelineTests {
         preloader.cancel(preservingRecognitionFor: page(1))
         // The post-debounce anchor update repeats cancellation.
         preloader.cancel(preservingRecognitionFor: page(1))
-        try await waitUntil { await recorder.cancelled == [2] }
-        preloader.nextPage = nil
         let second = Task { try await preloader.translate(page(1), settings: settings()) }
         defer { second.cancel() }
         await recorder.release(1)
@@ -347,7 +422,87 @@ struct ReaderTranslationAPIPipelineTests {
         await #expect(throws: CancellationError.self) { try await first.value }
         #expect(await recorder.ocr.filter { $0 == 1 }.count == 1)
         #expect(await recorder.started.filter { $0 == 1 }.count == 1)
-        #expect(await recorder.cancelled == [2])
+        await recorder.release(2)
+        try await waitUntil { await recorder.completed.contains(2) }
+        #expect(await recorder.cancelled.isEmpty)
+        #expect(await recorder.ocr.filter { $0 == 2 }.count == 1)
+        #expect(await recorder.started.filter { $0 == 2 }.count == 1)
+        #expect(await recorder.maximumActive == 2)
+    }
+
+    @Test(arguments: [1, 16], [false, true])
+    func samePageHandoffKeepsOCRLookahead(concurrency: Int, recognitionInFlight: Bool) async throws {
+        let recorder = APIPipelineRecorder(blocked: [1], blockedOCR: recognitionInFlight ? [2] : [])
+        let preloader = preloader(recorder)
+        preloader.nextPage = { $0.index == 1 ? page(2) : nil }
+        let value = settings(concurrency: concurrency)
+        let first = Task { try await preloader.translate(page(1), settings: value) }
+        defer { preloader.cancel(); first.cancel() }
+        try await waitUntil { await recorder.ocr == [1, 2] }
+        preloader.cancel(preservingRecognitionFor: page(1))
+        preloader.cancel(preservingRecognitionFor: page(1))
+        let second = Task { try await preloader.translate(page(1), settings: value) }
+        defer { second.cancel() }
+        await recorder.releaseRecognition(2)
+        await recorder.release(1)
+        #expect(try await second.value.first?.translation == "complete-ko-1")
+        #expect(try await preloader.translate(page(2), settings: value).first?.translation == "complete-ko-2")
+        await #expect(throws: CancellationError.self) { try await first.value }
+        #expect(await recorder.ocr == [1, 2], "Observer handoff must not repeat the neighbor's OCR")
+        #expect(await recorder.started.sorted() == [1, 2])
+        #expect(await recorder.maximumActive <= min(concurrency, 2))
+    }
+
+    @Test(arguments: [1, 16], ["pressure", "off"])
+    func samePageOCRRetentionStillHonorsCancellation(concurrency: Int, reason: String) async throws {
+        let budget = HandoffMemoryBudget()
+        let recorder = APIPipelineRecorder(blocked: [1], blockedOCR: [2])
+        let preloader = ReaderTranslationPreloader(
+            translator: { try await recorder.translate($0, settings: $1, progress: $2) },
+            recognizer: { page, _ in try await recorder.recognize(page.index) },
+            availableMemory: { budget.value })
+        preloader.nextPage = { $0.index == 1 ? page(2) : nil }
+        let first = Task { try await preloader.translate(page(1), settings: settings(concurrency: concurrency)) }
+        defer { preloader.cancel(); first.cancel() }
+        try await waitUntil { await recorder.ocr == [1, 2] }
+        if reason == "pressure" { budget.lower() }
+        preloader.cancel(preservingRecognitionFor: page(1))
+        if reason == "off" { preloader.cancel() }
+        try await waitUntil { await recorder.cancelledOCR == [2] }
+        if reason == "pressure" {
+            #expect(await recorder.cancelled.isEmpty, "Pressure discards the neighbor, keeping the visible demand")
+        } else {
+            try await waitUntil { await recorder.cancelled == [1] }
+        }
+    }
+
+    @Test func retainedDemandAndNeighborBothStopWhenTranslationIsDisabled() async throws {
+        let recorder = APIPipelineRecorder(blocked: [1, 2])
+        let preloader = preloader(recorder)
+        preloader.nextPage = { _ in page(2) }
+        let first = Task { try await preloader.translate(page(1), settings: settings()) }
+        defer { preloader.cancel(); first.cancel() }
+        try await waitUntil { Set(await recorder.published) == [1, 2] }
+        preloader.cancel(preservingRecognitionFor: page(1))
+        preloader.cancel()
+        try await waitUntil { Set(await recorder.cancelled) == [1, 2] }
+        await #expect(throws: CancellationError.self) { try await first.value }
+    }
+
+    @Test func retainedDemandIsCancelledWhenReplacedByAnotherDestination() async throws {
+        let recorder = APIPipelineRecorder(blocked: [1, 2])
+        let preloader = preloader(recorder)
+        preloader.nextPage = { $0.index == 1 ? page(2) : nil }
+        let first = Task { try await preloader.translate(page(1), settings: settings()) }
+        defer { preloader.cancel(); first.cancel() }
+        try await waitUntil { Set(await recorder.published) == [1, 2] }
+        preloader.cancel(preservingRecognitionFor: page(1))
+        #expect(try await preloader.translate(page(20), settings: settings()).first?.translation == "complete-ko-20")
+        try await waitUntil { await recorder.cancelled.contains(1) }
+        await recorder.release(2)
+        try await waitUntil { await recorder.completed.contains(2) }
+        await #expect(throws: CancellationError.self) { try await first.value }
+        #expect(await recorder.started.filter { $0 == 1 }.count == 1)
     }
 
     @Test func cachedPageTurnsReuseTheUpcomingOCRAndAPIThroughPauseAndAnchorUpdate() async throws {
@@ -646,6 +801,7 @@ private final class HandoffMemoryBudget: @unchecked Sendable {
     private var available = UInt64.max
     var value: UInt64 { lock.withLock { available } }
     func lower() { lock.withLock { available = 256 * 1_024 * 1_024 } }
+    func set(_ value: UInt64) { lock.withLock { available = value } }
 }
 
 private final class HandoffImageURLProtocol: URLProtocol {
@@ -673,6 +829,7 @@ private actor APIPipelineSnapshots {
 
 private actor APIPipelineRecorder {
     var ocr: [Int] = []
+    var cancelledOCR: [Int] = []
     var started: [Int] = []
     var published: [Int] = []
     var completed: [Int] = []
@@ -692,9 +849,11 @@ private actor APIPipelineRecorder {
     func releaseRecognition(_ index: Int) { blockedOCR.remove(index) }
     func recognize(_ index: Int) async throws -> [ReaderTranslationRegion] {
         ocr.append(index)
-        while blockedOCR.contains(index) { try await Task.sleep(for: .milliseconds(5)) }
-        await Task.yield()
-        try Task.checkCancellation()
+        do {
+            while blockedOCR.contains(index) { try await Task.sleep(for: .milliseconds(5)) }
+            await Task.yield()
+            try Task.checkCancellation()
+        } catch { cancelledOCR.append(index); throw error }
         return [Self.region(index)]
     }
     func translate(

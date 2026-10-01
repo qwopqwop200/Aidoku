@@ -151,7 +151,7 @@
 
 "TRANSLATION_AUTOMATIC" = "യാന്ത്രിക വിവർത്തനം";
 
-"TRANSLATION_AUTOMATIC_HELP" = "സംരക്ഷിച്ച API ക്രമീകരണങ്ങളും ചിന്തയ്ക്കായി ചെലവഴിക്കുന്ന ശ്രമത്തിന്റെ നിലയും ഉപയോഗിച്ച് റീഡറിലെ പേജുകൾ സ്വയമേവ വിവർത്തനം ചെയ്യുന്നു. വിവർത്തനം തുടങ്ങുംമുമ്പ് പ്രത്യേക കണക്ഷൻ പരിശോധന നടത്തില്ല. വിവർത്തനം പരാജയപ്പെട്ടാലും ഈ ക്രമീകരണം ഓഫാകില്ല. ക്രമീകരണങ്ങൾ സ്വയം പരിശോധിക്കാൻ «API കണക്ഷൻ പരിശോധിക്കുക» ഉപയോഗിക്കുക.";
+"TRANSLATION_AUTOMATIC_HELP" = "റീഡറിലെ പേജുകൾ സ്വയമേവ വിവർത്തനം ചെയ്ത് കാണിക്കുന്നു. റീഡറിലെ വിവർത്തന ബട്ടൺ ഉപയോഗിച്ച് ഈ ക്രമീകരണം ഓണാക്കുകയോ ഓഫാക്കുകയോ ചെയ്യാം.";
 
 "TRANSLATION_TEST" = "API കണക്ഷൻ പരിശോധിക്കുക";
 
@@ -1162,6 +1162,15 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) പരിപാലിക്കുന്ന സമഗ്രമായ ജാപ്പനീസ്–ഇംഗ്ലീഷ് നിഘണ്ടു.";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) പരിപാലിക്കുന്ന ജാപ്പനീസ് വ്യക്തിനാമങ്ങളുടെ നിഘണ്ടു.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe-യിലെ മാധ്യമ പാഠശേഖരത്തെ അടിസ്ഥാനമാക്കിയുള്ള പദ ആവൃത്തി നിഘണ്ടു.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "യഥാർത്ഥ പേജുകൾ കാണിക്കുമ്പോഴും വിവർത്തനം ചെയ്യുക";
+"TRANSLATION_BACKGROUND_HELP" = "വിവർത്തന ബട്ടൺ ഓഫാക്കി വായിക്കുമ്പോഴും വിവർത്തനം തുടരും. യഥാർത്ഥ പേജുകൾ തന്നെ കാണിക്കും. ആപ്പ് സജീവമല്ലാതാകുമ്പോൾ വിവർത്തനം താൽക്കാലികമായി നിർത്തും.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "മുൻകൂട്ടി വിവർത്തനം ചെയ്യേണ്ട പേജുകളുടെ എണ്ണം";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "നിലവിൽ ദൃശ്യമാകുന്ന പേജുകൾ ഒഴികെ മുൻകൂട്ടി വിവർത്തനം ചെയ്യേണ്ട പേജുകളുടെ പരമാവധി എണ്ണം. തുടർന്നുള്ള പേജുകൾക്ക് മുൻഗണന നൽകി വായനാ മുൻഗണന അനുസരിച്ച് പേജുകൾ തിരഞ്ഞെടുക്കുന്നു.";
+"TRANSLATION_UNLIMITED" = "പരിധിയില്ല";
+"TRANSLATION_PAGE_SETTINGS" = "പേജ് വിവർത്തനം";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "ദൃശ്യമാകുന്ന പേജുകൾ മാത്രം";
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "%@ ഉറവിടത്തിന്റെ %d പതിപ്പ് ഈ ആപ്പ് പിന്തുണയ്ക്കുന്നില്ല. പിന്തുണയ്ക്കുന്ന പതിപ്പ് ഇൻസ്റ്റാൾ ചെയ്യുക.";

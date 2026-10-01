@@ -31,6 +31,7 @@ actor ReaderTranslationDiskCache {
     private var database: ReaderCacheDatabase?
     private var generation: UInt64 = 0
     private var metadataGeneration: UInt64 = 0
+    private var translationWriteEpoch: UInt64 = 0
     private let tracksSavedSettings: Bool
     private var activePolicy: ReaderTranslationCachePolicy?
     private var pendingTouches: [String] = []
@@ -78,6 +79,67 @@ actor ReaderTranslationDiskCache {
         return generation
     }
 
+    struct TranslationWriteToken: Sendable {
+        fileprivate let epoch: UInt64
+        fileprivate let policy: String
+        fileprivate let capabilityRevision: Int
+        fileprivate let wasUnsupported: Bool
+    }
+
+    struct TranslationWriteDestination: Sendable {
+        let key: String
+        let generation: UInt64
+    }
+
+    /// Capture before the provider request. A text-only capability fallback may
+    /// change the key, but must not invalidate the successful response itself.
+    func captureTranslationWrite(settings: ReaderTranslationSettings) -> TranslationWriteToken? {
+        do {
+            try prepare()
+            let requested = ReaderTranslationCachePolicy(settings)
+            if activePolicy == nil { try applyPolicy(requested) }
+            guard activePolicy?.writePolicy == requested.writePolicy else { return nil }
+            let capability = TranslationImageSupport.shared.snapshot(for: settings.configuration)
+            return TranslationWriteToken(
+                epoch: translationWriteEpoch,
+                policy: requested.writePolicy,
+                capabilityRevision: capability.revision,
+                wasUnsupported: capability.status == .unsupported
+            )
+        } catch { return nil }
+    }
+
+    /// Clear and real settings changes fence writers even when settings later
+    /// return to their original values. Only one transition to unsupported is
+    /// accepted; restoring image support requires a fresh image-backed response.
+    func resolveTranslationWrite(page: String, settings: ReaderTranslationSettings,
+                                 token: TranslationWriteToken) -> TranslationWriteDestination? {
+        do {
+            try prepare()
+            let requested = ReaderTranslationCachePolicy(settings)
+            guard token.epoch == translationWriteEpoch,
+                  token.policy == requested.writePolicy,
+                  activePolicy?.writePolicy == requested.writePolicy else { return nil }
+            let capability = TranslationImageSupport.shared.snapshot(for: settings.configuration)
+            if settings.includePageImage {
+                let same = capability.revision == token.capabilityRevision
+                let fallback = !token.wasUnsupported && capability.revision == token.capabilityRevision + 1 &&
+                    capability.status == .unsupported
+                guard same || fallback else { return nil }
+            }
+            let key = ReaderTranslationCacheIdentity.translation(page: page, settings: settings)
+            // Refresh after deriving the destination so its generation includes
+            // a capability change that raced the initial prepare().
+            try prepare()
+            guard token.epoch == translationWriteEpoch, activePolicy?.writePolicy == requested.writePolicy else { return nil }
+            if settings.includePageImage {
+                let after = TranslationImageSupport.shared.snapshot(for: settings.configuration)
+                guard after.revision == capability.revision, after.status == capability.status else { return nil }
+            }
+            return TranslationWriteDestination(key: key, generation: generation)
+        } catch { return nil }
+    }
+
     private func storageGeneration(for kind: Kind) -> UInt64 {
         kind == .metadata ? metadataGeneration : generation
     }
@@ -92,6 +154,7 @@ actor ReaderTranslationDiskCache {
     private func applyPolicy(_ policy: ReaderTranslationCachePolicy) throws {
         guard activePolicy != policy, let database else { return }
         let changed = try database.applyPolicy(policy)
+        if let activePolicy, activePolicy.writePolicy != policy.writePolicy { translationWriteEpoch &+= 1 }
         if changed.page { generation &+= 1 }
         if changed.metadata { metadataGeneration &+= 1 }
         activePolicy = policy
@@ -105,7 +168,15 @@ actor ReaderTranslationDiskCache {
     }
 
     func setByteLimit(_ value: Int64) throws {
-        byteLimit = min(Self.maximumBytes, max(0, value))
+        let nextLimit = min(Self.maximumBytes, max(0, value))
+        if byteLimit >= ReaderCacheDatabase.minimumBytes, nextLimit < ReaderCacheDatabase.minimumBytes {
+            // Disabling storage deletes its contents just like clear(). Old work
+            // must stay invalid after a later re-enable, including metadata.
+            generation &+= 1
+            metadataGeneration &+= 1
+            translationWriteEpoch &+= 1
+        }
+        byteLimit = nextLimit
         try prepare()
         try trim()
     }
@@ -113,6 +184,7 @@ actor ReaderTranslationDiskCache {
     func clear() throws {
         generation &+= 1
         metadataGeneration &+= 1
+        translationWriteEpoch &+= 1
         activePolicy = nil
         touchFlushTask?.cancel(); touchFlushTask = nil
         pendingTouches.removeAll()
@@ -141,6 +213,10 @@ actor ReaderTranslationDiskCache {
             }
         } catch is CancellationError {
             throw CancellationError()
+        } catch let error as CocoaError where error.code == .fileReadTooLarge {
+            // A caller's read budget does not establish corruption. Preserve the
+            // durable payload for a later read with enough memory headroom.
+            return nil
         } catch {
             try database?.delete(name)
             return nil
@@ -826,6 +902,7 @@ private struct ReaderTranslationCachePolicy: Equatable {
     let translation: String
     let metadata: String
     let layout: String
+    let writePolicy: String
 
     init(_ settings: ReaderTranslationSettings) {
         var persisted = settings
@@ -836,11 +913,18 @@ private struct ReaderTranslationCachePolicy: Equatable {
         })
         layout = ReaderTranslationCacheIdentity.encoded([ReaderTranslationCacheIdentity.renderRevision,
             ReaderTranslationCacheIdentity.encoded(settings.overlay)])
+        // Keep user choices in the fence while excluding the capability revision
+        // and its derived image/text instruction variant.
+        persisted.includePageImage = false
+        writePolicy = ReaderTranslationCacheIdentity.encoded([
+            ReaderTranslationCacheIdentity.translation(page: "cache-policy", settings: persisted),
+            String(settings.includePageImage), layout
+        ])
     }
 }
 
 enum ReaderTranslationCacheIdentity {
-    static let renderRevision = "reader-render-v119-small-caption-inpainting"
+    static let renderRevision = "reader-render-v153-revert-polygon-segmentation"
     static func digest(_ value: String) -> String { digest(Data(value.utf8)) }
     private static let hexadecimalDigits = Array("0123456789abcdef".utf8)
     static func digest(_ value: Data) -> String {
@@ -860,7 +944,7 @@ enum ReaderTranslationCacheIdentity {
     static func ocr(page: String, settings: ReaderTranslationSettings) -> String {
         // OCR entries contain merged regions. A merger change must also
         // invalidate derived translations/layouts instead of replaying old boxes.
-        encoded(["reader-ocr-v63-recovered-flank-ownership", page, encoded(settings.ocrConfiguration)])
+        encoded(["reader-ocr-v88-exact-rec-width-no-padding", page, encoded(settings.ocrConfiguration)])
     }
     static func translation(page: String, settings: ReaderTranslationSettings) -> String {
         let previous = unfilteredTranslation(page: page, settings: settings)

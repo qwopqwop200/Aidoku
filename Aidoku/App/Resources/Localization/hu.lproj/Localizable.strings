@@ -431,7 +431,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Automatikus fordítás";
 
-"TRANSLATION_AUTOMATIC_HELP" = "A mentett API-beállításokkal és gondolkodási intenzitással automatikusan lefordítja az olvasó oldalait. A fordítás megkezdése előtt nem fut külön kapcsolatteszt. A fordítási hibák nem kapcsolják ki ezt a beállítást. A beállítások kézi ellenőrzéséhez használja az API-kapcsolat tesztelését.";
+"TRANSLATION_AUTOMATIC_HELP" = "Automatikusan lefordítja és megjeleníti az olvasó oldalait. Az olvasó fordításgombja be- vagy kikapcsolja ezt a beállítást.";
 
 "TRANSLATION_TEST" = "API-kapcsolat tesztelése";
 
@@ -1180,6 +1180,15 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Átfogó japán–angol szótár, amelyet az Electronic Dictionary Research and Development Group (EDRDG) tart karban.";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Japán tulajdonnevek szótára, amelyet az Electronic Dictionary Research and Development Group (EDRDG) tart karban.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "A https://jiten.moe médiakorpuszán alapuló gyakorisági szótár.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Fordítás az eredeti oldalak megjelenítése közben";
+"TRANSLATION_BACKGROUND_HELP" = "A fordítás olvasás közben kikapcsolt fordításgomb mellett is folytatódik. Az eredeti oldalak maradnak láthatók. A fordítás szünetel, amikor az alkalmazás nem aktív.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Előre lefordítandó oldalak";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Az előre lefordítandó oldalak maximális száma, a látható oldalak nélkül. Az oldalak kiválasztása az olvasási prioritást követi, előnyben részesítve a következő oldalakat.";
+"TRANSLATION_UNLIMITED" = "Korlátlan";
+"TRANSLATION_PAGE_SETTINGS" = "Oldalak fordítása";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Csak a látható oldalak";
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "A(z) %@ forrás %d verzióját ez az alkalmazás nem támogatja. Telepítsen támogatott verziót.";

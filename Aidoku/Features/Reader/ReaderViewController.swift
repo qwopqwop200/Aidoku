@@ -533,19 +533,13 @@ extension ReaderViewController {
         let chapter = chapter ?? self.chapter
 
         let chapterId = ChapterIdentifier(sourceKey: manga.sourceKey, mangaKey: manga.key, chapterKey: chapter.key)
-        let (completed, progress) = await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
+        let (completed, _) = await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
             CoreDataManager.shared.getProgress(
                 chapterId: chapterId,
                 context: context
             )
         }
-        let hasHistory = completed || progress != nil
-
-        // don't add history if there is none and we're at the first page
-        if currentPage == 1 && !hasHistory {
-            return
-        }
-
+        // Opening the first page counts as reading, even without prior history.
         await HistoryManager.shared.setProgress(
             chapterId: chapterId,
             chapter: chapter,

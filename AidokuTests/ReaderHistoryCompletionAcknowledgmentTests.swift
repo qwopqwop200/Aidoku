@@ -1,10 +1,40 @@
 import AidokuRunner
+import CoreData
 import Testing
 import UIKit
 @testable import Aidoku
 
 @Suite(.serialized) @MainActor
 struct ReaderHistoryCompletionAcknowledgmentTests {
+    @Test(arguments: [0, 10], [false, true])
+    func firstPageCreatesHistoryOnlyForLoadedNonIncognitoChapter(totalPages: Int, incognito: Bool) async throws {
+        let restore = configureDefaults(deleteDownloads: false)
+        defer { restore() }
+        UserDefaults.standard.set(incognito, forKey: "General.incognitoMode")
+        let reader = makeReader()
+        let id = ChapterIdentifier(sourceKey: reader.manga.sourceKey, mangaKey: reader.manga.key, chapterKey: reader.chapter.key)
+
+        // Exercise the same save boundary used when leaving the reader, without turning a page.
+        await reader.updateReadPosition(currentPage: 1, totalPages: totalPages, position: 0.25)
+
+        let stored = try await CoreDataManager.shared.container.performBackgroundTask { context -> (Int, Int, Bool, Double?)? in
+            guard let history = CoreDataManager.shared.getHistory(chapterId: id, context: context) else { return nil }
+            let result = (Int(history.progress), Int(history.total), history.completed, history.scrollPosition?.doubleValue)
+            context.delete(history)
+            try context.save()
+            return result
+        }
+        if totalPages > 0 && !incognito {
+            let history = try #require(stored)
+            #expect(history.0 == 1)
+            #expect(history.1 == totalPages)
+            #expect(!history.2, "Opening a chapter must not mark it completed")
+            #expect(history.3 == 0.25, "First-page text scroll progress must be retained")
+        } else {
+            #expect(stored == nil)
+        }
+    }
+
     @Test func failedCompletionCanRetryAndSuccessfulCompletionDeduplicates() async throws {
         let restore = configureDefaults(deleteDownloads: false)
         defer { restore() }

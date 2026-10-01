@@ -147,7 +147,7 @@ struct ReaderTranslationConcurrencyTests {
                                         preparedImageJPEG: unsupported ? nil : Data([0xff, 0xd8, 0xff, 0xd9]))
         }
         defer { work.cancel() }
-        let expectedConcurrency = unsupported ? 4 : 2
+        let expectedConcurrency = unsupported ? 4 : 3
         try await waitUntil { await client.active == expectedConcurrency }
         #expect(await client.peak == expectedConcurrency)
         await client.release()
@@ -173,6 +173,37 @@ struct ReaderTranslationConcurrencyTests {
         #expect(try await first.value.count == 300)
         #expect(try await second.value.count == 300)
         #expect(await client.peak <= 4)
+    }
+
+    @Test func twoImageLookaheadsLeaveOneProviderSlotForVisibleDemand() async throws {
+        let client = ConcurrencyProbe()
+        let service = ReaderTranslationService(client: client)
+        var configured = settings(concurrency: 8)
+        configured.includePageImage = true
+        let value = configured
+        let jpeg = Data([0xff, 0xd8, 0xff, 0xd9])
+        let first = Task {
+            try await service.translate(regions: regions(prefix: "ahead-one", count: 300), settings: value,
+                                        preparedImageJPEG: jpeg, priority: .prefetch)
+        }
+        let second = Task {
+            try await service.translate(regions: regions(prefix: "ahead-two", count: 300), settings: value,
+                                        preparedImageJPEG: jpeg, priority: .promotable(TranslationRequestPromotion()))
+        }
+        defer { first.cancel(); second.cancel() }
+        try await waitUntil { await client.active == 2 }
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(await client.calls == 2, "Each offscreen page must submit only one blocked batch")
+        let visible = Task {
+            try await service.translate(regions: regions(prefix: "visible", count: 1), settings: value, preparedImageJPEG: jpeg)
+        }
+        defer { visible.cancel() }
+        try await waitUntil { await client.active == 3 }
+        await client.release()
+        #expect(try await first.value.count == 300)
+        #expect(try await second.value.count == 300)
+        #expect(try await visible.value.first?.translation == "translated visible text 0")
+        #expect(await client.peak == 3)
     }
 
     @Test func queuedForegroundPrecedesPrefetchAndCancelledWaiterDoesNotConsumePermit() async throws {
@@ -233,7 +264,7 @@ struct ReaderTranslationConcurrencyTests {
                                         settings: settings(concurrency: 4), priority: .promotable(promotion))
         }
         defer { work.cancel() }
-        try await waitUntil { await client.active == 2 }
+        try await waitUntil { await client.active == 1 }
         promotion.promote()
         try await waitUntil { await client.active == 4 }
         #expect(await client.peak == 4)
@@ -252,7 +283,7 @@ struct ReaderTranslationConcurrencyTests {
                                             settings: settings(concurrency: 4), priority: .promotable(promotion))
             }
             defer { work.cancel() }
-            try await waitUntil { await client.active == 2 }
+            try await waitUntil { await client.active == 1 }
             if cancel {
                 work.cancel()
                 await #expect(throws: CancellationError.self) { try await work.value }
@@ -260,7 +291,7 @@ struct ReaderTranslationConcurrencyTests {
                 await client.release()
                 #expect(try await work.value.count == 300)
             }
-            #expect(await client.peak == 2)
+            #expect(await client.peak == 1)
         }
     }
 

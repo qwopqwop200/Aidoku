@@ -78,7 +78,7 @@ struct TranslationStreamingTests {
         _ = try await client.translate(Self.request(["待て"]), configuration: configuration)
         await client.prepare(configuration: configuration)
         #expect(await transport.translation.kinds == [.compact, .standard])
-        #expect(client.compactOutput.state(for: "https://llm.example/v1/responses") == .unsupported)
+        #expect(client.compactOutput.state(for: try RemoteTranslationClient.compactCapabilityKey(for: configuration)) == .unsupported)
         #expect(await transport.metadataCalls == 1)
     }
 
@@ -109,7 +109,7 @@ struct TranslationStreamingTests {
         let transport = ScriptedStreamingTransport(mode: .streamed)
         let client = RemoteTranslationClient(credentialStore: StreamingTestCredential(), transport: transport)
         let configuration = Self.configuration(apiProtocol: .responses)
-        let endpoint = try configuration.validatedEndpoint().absoluteString
+        let endpoint = try RemoteTranslationClient.compactCapabilityKey(for: configuration)
         #expect(client.compactOutput.beginMetadataProbe(endpoint: endpoint, account: "test", now: ProcessInfo.processInfo.systemUptime))
         let translation = Task { try await client.translate(Self.request(["待て"]), configuration: configuration) }
         try await Self.waitForMetadataWaiters(client.compactOutput, count: 1)
@@ -125,7 +125,7 @@ struct TranslationStreamingTests {
         let transport = ScriptedStreamingTransport(mode: .streamed)
         let client = RemoteTranslationClient(credentialStore: StreamingTestCredential(), transport: transport)
         let configuration = Self.configuration(apiProtocol: .responses)
-        let endpoint = try configuration.validatedEndpoint().absoluteString
+        let endpoint = try RemoteTranslationClient.compactCapabilityKey(for: configuration)
         #expect(client.compactOutput.beginMetadataProbe(endpoint: endpoint, account: "test", now: ProcessInfo.processInfo.systemUptime))
         let translation = Task { try await client.translate(Self.request(["待て"]), configuration: configuration) }
         try await Self.waitForMetadataWaiters(client.compactOutput, count: 1)
@@ -409,7 +409,7 @@ struct TranslationStreamingTests {
         #expect(partials.values.count == 3) // One per streamed object.
         let kinds = await transport.kinds
         #expect(kinds == [.standard, .compact])
-        #expect(client.compactOutput.state(for: "https://llm.example/v1/chat/completions") == .verified)
+        #expect(client.compactOutput.state(for: try RemoteTranslationClient.compactCapabilityKey(for: Self.configuration())) == .verified)
     }
 
     @Test func clientFallsBackOnceWhenCompactOptionsAreRejected() async throws {
@@ -421,7 +421,7 @@ struct TranslationStreamingTests {
         let third = try await client.translate(request, configuration: Self.configuration())
         #expect(first == second && second == third)
         #expect(await transport.kinds == [.standard, .compact, .standard, .standard])
-        #expect(client.compactOutput.state(for: "https://llm.example/v1/chat/completions") == .unsupported)
+        #expect(client.compactOutput.state(for: try RemoteTranslationClient.compactCapabilityKey(for: Self.configuration())) == .unsupported)
     }
 
     @Test func clientFallsBackWhenUnverifiedCompactAnswerIsMalformed() async throws {
@@ -454,7 +454,7 @@ struct TranslationStreamingTests {
             #expect(first == second && second == third)
             let succeeds = mode == .streamed
             #expect(await transport.kinds == (succeeds ? [.standard, .compact, .compact] : [.standard, .compact, .standard, .standard]))
-            #expect(client.compactOutput.state(for: "https://llm.example/v1/responses") == (succeeds ? .verified : .unsupported))
+            #expect(client.compactOutput.state(for: try RemoteTranslationClient.compactCapabilityKey(for: configuration)) == (succeeds ? .verified : .unsupported))
         }
         let unknown = ScriptedStreamingTransport(mode: .streamed, fingerprint: nil)
         let client = RemoteTranslationClient(credentialStore: StreamingTestCredential(), transport: unknown)

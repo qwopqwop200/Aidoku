@@ -162,10 +162,11 @@ class ReaderPagedViewModel {
         let language = chapter.language ?? source?.languages.first
         let isDownloaded = DownloadManager.shared.isChapterDownloaded(chapter: identifier)
         if isDownloaded {
-            return await DownloadManager.shared.getDownloadedPages(for: identifier)
+            let pages = await DownloadManager.shared.getDownloadedPages(for: identifier)
                 .map {
                     $0.toOld(sourceId: sourceId, chapterId: chapter.key, language: language)
                 }
+            return await ReaderLocalPageIdentity.prepare(pages)
         } else {
             guard var sourcePages = try? await source?.getPageList(
                 manga: manga,
@@ -185,22 +186,18 @@ class ReaderPagedViewModel {
                     chapterId: chapter.key,
                     language: language
                 )
-                if
-                    let temporaryPageStore,
-                    let image = page.image,
-                    let fileURL = await temporaryPageStore.store(
-                        image,
-                        chapterKey: chapter.key,
-                        pageIndex: sourcePages.count
-                    )
-                {
-                    page.image = nil
-                    page.imageURL = fileURL.absoluteString
+                if page.image != nil {
+                    if let temporaryPageStore {
+                        page = await temporaryPageStore.prepareRawPage(page, pageIndex: sourcePages.count)
+                    } else {
+                        page = await ReaderTemporaryPageStore.prepareInMemoryPage(page, pageIndex: sourcePages.count)
+                    }
                 }
+                guard !Task.isCancelled else { return [] }
                 pages.append(page)
             }
 
-            return pages.reversed()
+            return await ReaderLocalPageIdentity.prepare(pages.reversed())
         }
     }
 }

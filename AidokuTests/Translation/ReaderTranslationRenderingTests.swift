@@ -6,6 +6,68 @@ import WebKit
 @Suite(.serialized)
 @MainActor
 struct ReaderTranslationRenderingTests {
+    enum ToggleSettingsDelivery: CaseIterable {
+        case none, beforePresentation, afterPresentation
+    }
+
+    @Test(arguments: ToggleSettingsDelivery.allCases)
+    func offOnDuringSnapshotStillPresentsCompletedPage(settingsDelivery: ToggleSettingsDelivery) async throws {
+        let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
+        let host = try window(frame: frame)
+        host.rootViewController = UIViewController()
+        let view = UIImageView(frame: frame)
+        view.image = image()
+        host.rootViewController?.view.addSubview(view)
+        host.makeKeyAndVisible()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let page = ReaderTranslationPage(imageView: view)
+        page.sourcePage = Page(sourceId: "toggle-presentation", chapterId: "render", index: 0)
+        page.renderCache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
+        defer {
+            page.reset(); host.isHidden = true
+            ReaderTranslationImageExporter.clearIdleRenderer()
+            try? FileManager.default.removeItem(at: root)
+        }
+        var settings = fixtureSettings()
+        settings.automaticallyTranslate = true
+        page.displayPrepared([ReaderTranslationRegion(id: "toggle", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2),
+            source: "Hello", translation: "다시 켜도 페이지가 보여야 한다")], settings: settings)
+        let pending = try #require(view.subviews.first as? ReaderTranslationOverlayView)
+        #expect(pending.webView.isHidden)
+        page.hidePreparedTranslation()
+        if settingsDelivery != .none {
+            settings.automaticallyTranslate = false
+            page.applySettings(settings)
+            settings.automaticallyTranslate = true
+            if settingsDelivery == .beforePresentation { page.applySettings(settings) }
+        }
+        page.showCompletedTranslation(settings: settings)
+        if settingsDelivery == .afterPresentation { page.applySettings(settings) }
+        let deadline = Date().addingTimeInterval(30)
+        while !page.isUsingCachedRendering {
+            if Date() > deadline { throw URLError(.timedOut) }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let canvas = try #require(view.subviews.first as? UIImageView)
+        #expect(canvas.image != nil)
+        #expect(!canvas.isHidden)
+        #expect(page.hasCompletedTranslation(settings: settings))
+        // Completed pixels remain reusable, including settings notifications
+        // delivered on either side of the session's OFF/ON transition.
+        for _ in 0..<3 {
+            page.hidePreparedTranslation()
+            settings.automaticallyTranslate = false
+            page.applySettings(settings)
+            #expect(view.subviews.first === canvas)
+            #expect(canvas.isHidden)
+            settings.automaticallyTranslate = true
+            page.applySettings(settings)
+            page.showCompletedTranslation(settings: settings)
+            #expect(view.subviews.first === canvas)
+            #expect(!canvas.isHidden)
+        }
+    }
+
     @Test func cachedPageRevealsOnlyFinalBitmap() async throws {
         let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
         let host = try window(frame: frame)
@@ -872,7 +934,12 @@ struct ReaderTranslationRenderingTests {
     // Fixtures contain actual OCR geometry and provider translations, never keys.
 
     private func fixtureSettings() -> ReaderTranslationSettings {
-        var settings = ReaderTranslationSettings()
+        // Rendering assertions must not inherit the host app's saved OFF state.
+        let name = "ReaderTranslationRenderingTests-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: name)!
+        defer { defaults.removePersistentDomain(forName: name) }
+        var settings = ReaderTranslationSettings(defaults: defaults)
+        settings.automaticallyTranslate = true
         settings.sourceLanguage = "auto"
         settings.includePageImage = false // Fixture translator receives text; never inherit device preferences.
         settings.translationSourceLanguages = []

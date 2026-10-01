@@ -716,6 +716,19 @@ pub unsafe extern "C" fn harmonic_fill(p: *const u8, w: i32, n: i32, queue: *con
         for k in 0..t {
             let i = *queue.add(k) as usize; let bits = *links.add(k); if bits == 0 { continue; }
             let (left, right, up, down) = ((i - 1) * 3, (i + 1) * 3, (i - wu) * 3, (i + wu) * 3);
+            if bits == 15 {
+                for c in 0..3 {
+                    let at = i * 3 + c;
+                    let average = (((*work.add(left+c) as f64 + *work.add(right+c) as f64)
+                        + *work.add(up+c) as f64) + *work.add(down+c) as f64) / 4.0;
+                    if accelerated != 0 {
+                        let change = (average - *work.add(at) as f64) * 1.6;
+                        *work.add(at) = (*work.add(at) as f64 + change) as f32;
+                        if check { let m = fabs(change); if m > maximum { maximum = m; } }
+                    } else { *work.add(at) = average as f32; }
+                }
+                continue;
+            }
             let count = ((bits & 1) + ((bits >> 1) & 1) + ((bits >> 2) & 1) + ((bits >> 3) & 1)) as f64;
             for c in 0..3 {
                 let at = i * 3 + c;

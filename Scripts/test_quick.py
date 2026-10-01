@@ -19,12 +19,29 @@ def host_commands():
     # Explicit smoke scope. The larger sampler/corpus matrix remains in CI.
     commands = [
         ['node', 'Scripts/tests/' + name + '.cjs'] for name in [
+            'unrecoverable-title-panel-regression',
+            'forced-inpaint-quality-regression',
+            'certified-inpaint-surface-regression',
+            'component-exemplar-inpaint-regression',
             'source-color-regression',
             'source-color-readability-regression',
+            'released-caption-outline-regression',
+            'source-inpainting-outline-donors',
             'source-inpainting-regression',
+            'readable-polygon-erasure',
             'row-end-marks-regression',
             'connected-lettering-regression',
             'render-body-sync-regression',
+            'source-inpainting-frame-fringe',
+            'chromatic-glyph-erasure',
+            'outlined-caption-restoration',
+            'discovered-outline-restoration',
+            'complete-caption-erasure',
+            'caption-enclosed-style-regression',
+            'restoration-retry-priority',
+            'narrow-paper-balloons',
+            'edge-outlined-glyph',
+            'white-outline-background',
             'column-layout-surface-regression',
         ]
     ]

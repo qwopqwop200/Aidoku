@@ -1,0 +1,38 @@
+{
+  "status": "read-only preliminary audit; waiting for merge-ready",
+  "runtime_findings": [
+    {
+      "file": "Aidoku/Features/Reader/Translation/ReaderTranslationCoordinator.swift",
+      "finding": "prepareCachedImageBody retains a WebKit-host-only retry on ExportError.unavailable; native exporter uses unavailable for invalid image/geometry, never absent host. An invalid decoded image with a detached/background reader can wait indefinitely for a host instead of returning its real failure.",
+      "planned_fix": "Remove the specialized host-only catch, retain generic settings/geometry revalidation then propagate. Pass available owner view as optional native style host."
+    },
+    {
+      "file": "Aidoku/Features/Reader/Translation/ReaderTranslationLayoutPreparer.swift",
+      "finding": "Native snapshot passes window ?? UIView() although host is optional.",
+      "planned_fix": "Pass optional window without allocating a placeholder view."
+    }
+  ],
+  "test_findings": [
+    {
+      "file": "AidokuTests/Translation/ReaderTranslationInitialPresentationTests.swift",
+      "test": "brokenPDFIsEvictedInsteadOfPublishingUntranslatedPixels",
+      "finding": "Old test expects host:nil cold fallback to throw unavailable after corrupt cache eviction; native renderer now regenerates without a window.",
+      "owner": "main_ios_tests notified; adapt to successful replacement assertion"
+    }
+  ],
+  "source_provider_audit": {
+    "registered_native_sources": 12,
+    "native_registration": "NativeSourceRegistration.loadPackage reads manifest only, version-scoped registry rejects unsupported packages without executing bundled WASM.",
+    "networking": "NativeSourceNetwork uses shared source request modifiers/SourceNetwork with native cookies; CloudflareHandler remains legitimate interactive website verification.",
+    "content_identity": "ReaderImageContentIdentity stable Hitomi hash-addressed identity, local file revision, and base64 digest changes are existing dirtymain work to preserve.",
+    "webkit_remaining": "Cloudflare browser/auth, popup browsing/user-agent detection, and WK cookie cleanup are legitimate website networking UI; do not delete by keyword.",
+    "tests": "Source/auth suites contain no @Test disabled, enabled:false or XCTSkip runtime skip found; semantic skips refer to behavior under test, not omitted tests.",
+    "modifications": "none"
+  },
+  "constraints": [
+    "No simulator/Xcode/build launched",
+    "No app/test source edits before merge-ready",
+    "No vendor edits",
+    "No frozen WebKit oracle deletion"
+  ]
+}

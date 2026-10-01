@@ -232,7 +232,7 @@
 
 "TRANSLATION_AUTOMATIC" = "خودکار ترجمہ";
 
-"TRANSLATION_AUTOMATIC_HELP" = "محفوظ شدہ API ترتیبات اور استدلال کی سطح استعمال کرکے ریڈر کے صفحات کا خودکار ترجمہ کرتا ہے۔ ترجمہ شروع ہونے سے پہلے الگ سے کنکشن کی جانچ نہیں ہوتی۔ ترجمہ ناکام ہونے سے یہ ترتیب بند نہیں ہوتی۔ اپنی ترتیبات دستی طور پر جانچنے کے لیے «API کنکشن کی جانچ کریں» استعمال کریں۔";
+"TRANSLATION_AUTOMATIC_HELP" = "ریڈر میں صفحات کا خودکار ترجمہ کرتا ہے اور انہیں دکھاتا ہے۔ ریڈر میں ترجمے کا بٹن اس ترتیب کو فعال یا غیر فعال کرتا ہے۔";
 
 "TRANSLATION_TEST" = "API کنکشن کی جانچ کریں۔";
 
@@ -1176,6 +1176,17 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) کے زیر انتظام ایک جامع جاپانی–انگریزی لغت۔";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) کے زیر انتظام جاپانی اسمائے خاص کی لغت۔";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe کے میڈیا متون کے ذخیرے پر مبنی الفاظ کی تعدد والی لغت۔";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "اصل صفحات دکھاتے ہوئے ترجمہ کریں";
+"TRANSLATION_BACKGROUND_HELP" = "پڑھتے وقت ترجمے کا بٹن بند ہونے پر بھی ترجمہ جاری رہتا ہے۔ اصل صفحات نظر آتے رہتے ہیں۔ ایپ فعال نہ ہونے پر ترجمہ عارضی طور پر رک جاتا ہے۔";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "پیشگی ترجمے کے لیے صفحات کی تعداد";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "اسکرین پر نظر آنے والے صفحات کے علاوہ پیشگی ترجمے کے لیے صفحات کی زیادہ سے زیادہ تعداد۔ صفحات پڑھنے کی ترجیح کے مطابق منتخب ہوتے ہیں، جس میں آگے آنے والے صفحات کو ترجیح دی جاتی ہے۔";
+"TRANSLATION_UNLIMITED" = "لامحدود";
+
+"TRANSLATION_PAGE_SETTINGS" = "صفحات کا ترجمہ";
+
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "صرف اسکرین پر نظر آنے والے صفحات";
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "اس ایپ میں ماخذ %@ کے ورژن %d کی حمایت نہیں ہے۔ حمایت یافتہ ورژن نصب کریں۔";

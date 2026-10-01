@@ -458,7 +458,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Tłumaczenie automatyczne";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Automatycznie tłumaczy strony w czytniku, korzystając z zapisanych ustawień API i poziomu rozumowania. Przed rozpoczęciem tłumaczenia nie jest wykonywany osobny test połączenia. Błędy tłumaczenia nie wyłączają tego ustawienia. Aby ręcznie sprawdzić ustawienia, użyj opcji Przetestuj połączenie API.";
+"TRANSLATION_AUTOMATIC_HELP" = "Automatycznie tłumaczy i wyświetla strony w czytniku. Przycisk tłumaczenia w czytniku włącza lub wyłącza to ustawienie.";
 
 "TRANSLATION_TEST" = "Przetestuj połączenie API";
 
@@ -1153,6 +1153,15 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Kompleksowy słownik japońsko-angielski utrzymywany przez Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Słownik japońskich nazw własnych utrzymywany przez Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Słownik frekwencyjny oparty na korpusie mediów z https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Tłumacz podczas wyświetlania oryginałów";
+"TRANSLATION_BACKGROUND_HELP" = "Kontynuuje tłumaczenie podczas czytania z wyłączonym przyciskiem tłumaczenia. Oryginalne strony pozostają widoczne. Tłumaczenie jest wstrzymywane, gdy aplikacja jest nieaktywna.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Liczba stron tłumaczonych z wyprzedzeniem";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Maksymalna liczba stron tłumaczonych z wyprzedzeniem, z wyłączeniem widocznych stron. Strony są wybierane według priorytetu czytania, z pierwszeństwem dla kolejnych stron.";
+"TRANSLATION_UNLIMITED" = "Bez limitu";
+"TRANSLATION_PAGE_SETTINGS" = "Tłumaczenie stron";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Tylko widoczne strony";
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Źródło %@ w wersji %d nie jest obsługiwane przez tę aplikację. Zainstaluj obsługiwaną wersję.";

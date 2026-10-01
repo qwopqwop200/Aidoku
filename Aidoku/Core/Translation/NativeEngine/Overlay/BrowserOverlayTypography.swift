@@ -15,6 +15,531 @@ enum BrowserOverlayTypography {
 
     // Large functions keep each outermost loop in `(()=>{...})();` (see BrowserOverlayView.renderScript).
     static let script = #"""
+    // Stroke paints outside the glyph, while CSS line-height only advances its
+    // baseline. Measure the actual wrapped lines after final stroke selection.
+    const aidokuCaptionLinePitch = (metrics, stroke, font) => {
+      if(metrics.length<2||metrics.some(m=>!Number.isFinite(m.ascent)||!Number.isFinite(m.descent))||
+          !Number.isFinite(stroke)||stroke<0||!(font>0))return 0;
+      let pitch=0;
+      for(let i=1;i<metrics.length;i++)
+        pitch=Math.max(pitch,metrics[i-1].descent+metrics[i].ascent+stroke+Math.max(.2,font*.025));
+      // Dense, small outlined columns still need modest leading even after
+      // their oversized outline has been corrected. Keep this below the old
+      // 1.43em spacing while retaining separation beyond the cramped baseline.
+      return font<=8&&stroke>=font*.15?Math.max(pitch,font*4/3):pitch;
+    };
+    const aidokuSeparateCaptionLines = (root, items) => {
+      if(items.length>256)return;
+      const nodes=[...root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')];
+      const canvas=document.createElement('canvas'),context=canvas.getContext('2d');
+      if(!context)return;
+      let budget=8192;
+      const rects=node=>{const range=document.createRange();range.selectNodeContents(node);
+        return [...range.getClientRects()].filter(r=>r.width>0&&r.height>0);};
+      const intersects=(a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
+      for(const item of items){
+        const node=nodes.find(n=>n.dataset.aidokuRegion===String(item.id));
+        if(!node||node.parentNode!==root||item.vertical||item.rotation||item.balloonInterior||!item.sourceVertical||
+            node.dataset.sourceBackgroundColor!=='inpainted'||node.dataset.aidokuImageOcrKeepSource==='true')continue;
+        const style=getComputedStyle(node),font=parseFloat(style.fontSize),stroke=parseFloat(style.webkitTextStrokeWidth)||0;
+        const pitch=parseFloat(style.lineHeight),frame=item.sourceFrame;
+        if(style.visibility==='hidden'||style.display==='none'||style.writingMode!=='horizontal-tb'||
+            !Number.isFinite(pitch)||!Array.isArray(frame)||!frame.every(Number.isFinite)||node.textContent.length>1024)continue;
+        const transform=new DOMMatrix(style.transform==='none'?undefined:style.transform);
+        if(!transform.is2D||Math.abs(transform.b)+Math.abs(transform.c)+Math.abs(transform.d-1)>.001)continue;
+        const lines=[],walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT),range=document.createRange();
+        let textNode,exhausted=false,leadingRange=null,leadingTop=Infinity;
+        while((textNode=walker.nextNode())){
+          for(let offset=0;offset<textNode.length;){
+            const char=String.fromCodePoint(textNode.textContent.codePointAt(offset)),end=offset+char.length;
+            if(--budget<0){exhausted=true;break;}
+            range.setStart(textNode,offset);range.setEnd(textNode,end);offset=end;
+            if(!char.trim())continue;
+            const r=range.getBoundingClientRect();if(!r.width||!r.height)continue;
+            if(r.top<leadingTop){leadingTop=r.top;leadingRange=range.cloneRange();}
+            let line=lines.find(l=>Math.abs(l.top-r.top)<.5);
+            if(!line){line={top:r.top,text:''};lines.push(line);}line.text+=char;
+          }
+          if(exhausted)break;
+        }
+        if(exhausted)break;
+        if(lines.length<2)continue;
+        lines.sort((a,b)=>a.top-b.top);
+        context.font=`${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        const metrics=lines.map(line=>{const m=context.measureText(line.text);
+          return {ascent:m.actualBoundingBoxAscent,descent:m.actualBoundingBoxDescent};});
+        const needed=aidokuCaptionLinePitch(metrics,stroke,font);
+        if(needed<=pitch+.25||needed>font*1.8)continue;
+        const original=node.style.cssText,prior=rects(node),top=leadingTop;
+        const foreign=nodes.filter(n=>n!==node&&getComputedStyle(n).visibility!=='hidden').flatMap(rects);
+        const hits=boxes=>foreign.filter(r=>boxes.some(p=>intersects(p,r))).length;
+        node.style.lineHeight=`${Math.ceil(needed*64)/64}px`;
+        node.style.height=`${Math.max(parseFloat(style.height)||0,node.scrollHeight)}px`;
+        let after=rects(node);
+        // A centred flex child can overflow both ends; scrollHeight alone
+        // undercounts that overflow. Include the measured complete line stack.
+        const stackHeight=Math.max(...after.map(r=>r.bottom))-Math.min(...after.map(r=>r.top));
+        node.style.height=`${Math.max(parseFloat(node.style.height),stackHeight+
+          (parseFloat(style.paddingTop)||0)+(parseFloat(style.paddingBottom)||0))}px`;
+        // Hold the original first line in place; added leading belongs below it.
+        node.style.top=`${parseFloat(style.top)+top-leadingRange.getBoundingClientRect().top}px`;
+        after=rects(node);
+        if(!after.length||after.some(r=>r.top-stroke/2<frame[1]||r.bottom+stroke/2>frame[1]+frame[3])||
+            hits(after)>hits(prior)){node.style.cssText=original;continue;}
+        node.dataset.captionLinePitch=String(needed);node.dataset.captionLineSpacing='measured';
+      }
+      canvas.width=0;canvas.height=0;
+    };
+    // Opaque fallback cards have one rectangular silhouette. Their source and
+    // translated footprints may be disjoint; subtracting the bridge makes
+    // notches and stairs. Keep their bounded envelope, including every old
+    // covered footprint. Glyph-shaped restoration canvases are unaffected.
+    const aidokuSolidPanelCoverage = rectangles => {
+      if(!Array.isArray(rectangles)||!rectangles.length||rectangles.length>512||
+          rectangles.some(r=>!Array.isArray(r)||r.length!==4||!r.every(Number.isFinite)||r[2]<=0||r[3]<=0))return [];
+      const l=Math.min(...rectangles.map(r=>r[0])),t=Math.min(...rectangles.map(r=>r[1]));
+      const right=Math.max(...rectangles.map(r=>r[0]+r[2])),bottom=Math.max(...rectangles.map(r=>r[1]+r[3]));
+      return [[l,t,right-l,bottom-t]];
+    };
+    // Free-standing vertical lettering starts at its source top. Centre fitting
+    // is appropriate inside balloons, but makes a short translation float halfway
+    // down a long erased column. Require an explicit paragraph column: missing
+    // contour verification is not evidence that a caption lies outside a balloon.
+    // Measure final line boxes after panel/font fitting.
+    const aidokuAnchorVerticalCaptionTops = (root, items) => {
+      if(items.length>256)return;
+      const nodes=[...root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')];
+      const ink=node=>{const range=document.createRange();range.selectNodeContents(node);
+        return [...range.getClientRects()].filter(r=>r.width>0&&r.height>0);};
+      for(const item of items){
+        const f=item.sourceFrame,b=item.sourceBounds;
+        if(!item.sourceVertical||item.vertical||item.rotation||item.balloonInterior||!item.columnLayout?.balancedColumn||
+            !f||!b||b[3]*f[3]<b[2]*f[2]*1.5)continue;
+        const node=nodes.find(n=>n.dataset.aidokuRegion===String(item.id));
+        if(!node||node.parentNode!==root||node.dataset.aidokuImageOcrKeepSource==='true'||
+            node.dataset.sourceBackgroundColor!=='inpainted'||getComputedStyle(node).visibility==='hidden')continue;
+        const rects=ink(node);if(!rects.length)continue;
+        const top=Math.min(...rects.map(r=>r.top)),bottom=Math.max(...rects.map(r=>r.bottom));
+        const target=f[1]+b[1]*f[3],dy=target-top;
+        if(Math.abs(dy)<.25||target<f[1]||bottom+dy>f[1]+f[3])continue;
+        const foreign=nodes.filter(n=>n!==node&&getComputedStyle(n).visibility!=='hidden').flatMap(ink);
+        const hits=offset=>foreign.filter(r=>rects.some(p=>p.left<r.right&&p.right>r.left&&
+          p.top+offset<r.bottom&&p.bottom+offset>r.top)).length;
+        if(hits(dy)>hits(0))continue;
+        const prior=node.style.top;
+        node.style.top=`${parseFloat(getComputedStyle(node).top)+dy}px`;
+        const moved=ink(node);
+        if(!moved.length||Math.abs(Math.min(...moved.map(r=>r.top))-target)>.5){node.style.top=prior;continue;}
+        node.dataset.sourceTopAnchored='true';node.dataset.sourceTopAnchor=String(target);
+      }
+    };
+    // Final glyph outlines can reach beyond the layout cards after font recovery
+    // or stroke clustering. Separate only transparent, upright captions, keeping
+    // their vertical source anchor and original reading order. All destination
+    // outlines must clear other text and retained source lettering.
+    const aidokuSeparateCaptionColumns = (root, items) => {
+      if(items.length>128)return;
+      const nodes=[...root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')];
+      const measure=n=>{const range=document.createRange();range.selectNodeContents(n);
+        const pad=(parseFloat(getComputedStyle(n).webkitTextStrokeWidth)||0)/2+.5;
+        return [...range.getClientRects()].filter(r=>r.width>0&&r.height>0)
+          .map(r=>({l:r.left-pad,t:r.top-pad,r:r.right+pad,b:r.bottom+pad}));};
+      const hit=(a,b)=>Math.min(a.r,b.r)-Math.max(a.l,b.l)>.05&&Math.min(a.b,b.b)-Math.max(a.t,b.t)>.05;
+      const move=(r,x)=>({...r,l:r.l+x,r:r.r+x});
+      const entries=nodes.filter(n=>getComputedStyle(n).visibility!=='hidden'&&getComputedStyle(n).display!=='none')
+        .map(n=>({n,item:items.find(i=>String(i.id)===n.dataset.aidokuRegion),rects:measure(n)}));
+      const kept=items.filter(i=>i.keptLettering&&i.sourceFrame&&i.sourceBounds).map(i=>{
+        const f=i.sourceFrame,b=i.sourceBounds;
+        return {l:f[0]+b[0]*f[2]-1,t:f[1]+b[1]*f[3]-1,r:f[0]+(b[0]+b[2])*f[2]+1,b:f[1]+(b[1]+b[3])*f[3]+1};
+      });
+      const eligible=e=>e.item&&e.item.sourceVertical&&!e.item.vertical&&!e.item.rotation&&!e.item.balloonInterior&&
+        e.item.sourceFrame&&e.item.sourceBounds&&e.n.parentNode===root&&e.n.dataset.sourceBackgroundColor==='inpainted'&&
+        e.n.dataset.aidokuImageOcrKeepSource!=='true'&&e.rects.length;
+      let budget=4096;
+      for(let pass=0;pass<3;pass++)for(let ai=0;ai<entries.length;ai++)for(let bi=ai+1;bi<entries.length;bi++){
+        if(--budget<0)return;
+        let a=entries[ai],b=entries[bi];if(!eligible(a)||!eligible(b))continue;
+        if(a.item.sourceFrame.some((v,i)=>v!==b.item.sourceFrame[i]))continue;
+        const center=e=>e.item.sourceFrame[0]+(e.item.sourceBounds[0]+e.item.sourceBounds[2]/2)*e.item.sourceFrame[2];
+        if(center(a)>center(b))[a,b]=[b,a];
+        if(center(a)===center(b)||!a.rects.some(r=>b.rects.some(o=>hit(r,o))))continue;
+        let gap=0;
+        for(const r of a.rects)for(const o of b.rects)if(Math.min(r.b,o.b)>Math.max(r.t,o.t))gap=Math.max(gap,r.r-o.l+1);
+        if(!(gap>0))continue;
+        const bounded=(e,dx)=>{
+          const f=e.item.sourceFrame,bounds=e.item.sourceBounds,limit=Math.min(16,Math.max(3,bounds[2]*f[2]));
+          const total=(Number(e.n.dataset.captionColumnShift)||0)+dx;
+          return Math.abs(total)<=limit&&e.rects.every(r=>r.l+dx>=f[0]&&r.r+dx<=f[0]+f[2]);
+        };
+        const foreign=entries.filter(e=>e!==a&&e!==b).flatMap(e=>e.rects).concat(kept);
+        for(const [dx,ex] of [[-gap/2,gap/2],[-gap,0],[0,gap]]){
+          if(!bounded(a,dx)||!bounded(b,ex))continue;
+          const ar=a.rects.map(r=>move(r,dx)),br=b.rects.map(r=>move(r,ex));
+          if(ar.some(r=>br.some(o=>hit(r,o)))||ar.concat(br).some(r=>foreign.some(o=>hit(r,o))))continue;
+          const oldA=a.n.style.left,oldB=b.n.style.left;
+          a.n.style.left=`${parseFloat(getComputedStyle(a.n).left)+dx}px`;
+          b.n.style.left=`${parseFloat(getComputedStyle(b.n).left)+ex}px`;
+          const actualA=measure(a.n),actualB=measure(b.n);
+          if(!actualA.length||!actualB.length||actualA.some(r=>actualB.some(o=>hit(r,o)))||
+              actualA.concat(actualB).some(r=>foreign.some(o=>hit(r,o)))){
+            a.n.style.left=oldA;b.n.style.left=oldB;continue;
+          }
+          a.rects=actualA;b.rects=actualB;
+          for(const [e,x] of [[a,dx],[b,ex]])e.n.dataset.captionColumnShift=String((Number(e.n.dataset.captionColumnShift)||0)+x);
+          break;
+        }
+      }
+    };
+    // Detector quad angle controls erasure, not the baseline of an upright title.
+    // Keep the existing plate unchanged and prove the upright glyph boxes fit it.
+    const aidokuUprightCaptionText = (root, items) => {
+      const nodes=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'));
+      const plates=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-rotated-panel"]'));
+      const ink=n=>{const r=document.createRange();r.selectNodeContents(n);return [...r.getClientRects()].filter(r=>r.width>0&&r.height>0);};
+      const meets=(a,b)=>a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom;
+      for(const item of items){
+        if(item.uprightQuadText!==true||item.vertical||!Number.isFinite(item.rotation)||Math.abs(item.rotation)>=Math.PI/43)continue;
+        const node=nodes.find(n=>n.dataset.aidokuRegion===String(item.id));
+        const plate=plates.find(n=>n.dataset.aidokuRegion===String(item.id));
+        if(!node||!plate||node.style.visibility==='hidden'||node.dataset.uprightQuad==='true')continue;
+        const style=getComputedStyle(node),original=node.style.cssText,frame=item.sourceFrame;
+        if(!Array.isArray(frame)||frame.length!==4||!frame.every(Number.isFinite))continue;
+        const matrix=new DOMMatrix(getComputedStyle(plate).transform),inverse=matrix.inverse();
+        const r=plate.getBoundingClientRect(),cx=(r.left+r.right)/2,cy=(r.top+r.bottom)/2;
+        const w=parseFloat(plate.style.width),h=parseFloat(plate.style.height);
+        if(!(w>0&&h>0)||!matrix.is2D||Math.abs(matrix.e)+Math.abs(matrix.f)>0.01)continue;
+        const clip=getComputedStyle(plate).clipPath;
+        let polygon=null;
+        if(clip&&clip!=='none'){
+          if(!/^polygon\([\d., px-]+\)$/u.test(clip))continue;
+          polygon=clip.slice(8,-1).split(',').map(p=>p.trim().split(/\s+/u).map(parseFloat));
+          if(polygon.length<3||polygon.some(p=>p.length!==2||!p.every(Number.isFinite)))continue;
+        }
+        const inClip=(x,y)=>{
+          if(!polygon)return true;
+          let side=0;
+          for(let i=0;i<polygon.length;i++){
+            const a=polygon[i],b=polygon[(i+1)%polygon.length],cross=(b[0]-a[0])*(y-a[1])-(b[1]-a[1])*(x-a[0]);
+            if(Math.abs(cross)<.001)continue;
+            if(side&&Math.sign(cross)!==side)return false;
+            side=Math.sign(cross);
+          }return true;
+        };
+        const foreign=nodes.filter(n=>n!==node&&n.style.visibility!=='hidden').flatMap(ink);
+        const prior=ink(node),hits=foreign.filter(r=>prior.some(p=>meets(p,r))).length;
+        const font=parseFloat(style.fontSize),pitch=parseFloat(style.lineHeight)/font||1.2;
+        const stroke=(parseFloat(style.webkitTextStrokeWidth)||0)/2;
+        // A quarter-pixel inset covers floating-point / antialiasing uncertainty.
+        const inside=(x,y)=>{
+          if(x<frame[0]+.25||y<frame[1]+.25||x>frame[0]+frame[2]-.25||y>frame[1]+frame[3]-.25)return false;
+          const p=inverse.transformPoint({x:x-cx,y:y-cy});
+          return Math.abs(p.x)<=w/2-.25&&Math.abs(p.y)<=h/2-.25&&inClip(p.x+w/2,p.y+h/2);
+        };
+        const transform=style.transform==='none'?new DOMMatrix():new DOMMatrix(style.transform);
+        const scale=Math.hypot(transform.a,transform.b);
+        if(!(scale>0&&scale<=1.01))continue;
+        node.style.transform=scale<.999?`scaleX(${scale})`:'none';
+        node.style.clipPath='none';
+        let accepted=false;
+        // Bounded fallback: do not trade a straight title for unreadably small type.
+        for(let step=0;step<=8;step++){
+          const size=Math.max(Math.min(font,9),font*(1-step*.025));
+          node.style.fontSize=`${size}px`;node.style.lineHeight=`${size*pitch}px`;
+          const rects=ink(node);
+          if(rects.length&&node.scrollWidth<=node.clientWidth+1&&node.scrollHeight<=node.clientHeight+1&&
+              rects.every(r=>[[r.left-stroke,r.top-stroke],[r.right+stroke,r.top-stroke],
+                [r.right+stroke,r.bottom+stroke],[r.left-stroke,r.bottom+stroke]].every(([x,y])=>inside(x,y)))&&
+              foreign.filter(r=>rects.some(p=>meets(p,r))).length<=hits){accepted=true;break;}
+        }
+        if(accepted){node.dataset.uprightQuad='true';node.dataset.uprightQuadProof='fixed-source-plate';}
+        else{node.style.cssText=original;node.dataset.uprightQuadProof='insufficient-plate';}
+      }
+    };
+    // Near-upright display lettering must not leave a visibly tilted fallback
+    // plate after its text is straightened. Enclose the old plate, clipped to
+    // the page, without extending its page-axis footprint or exposing source ink.
+    const aidokuUprightCaptionPlate = (root, items) => {
+      for(const item of items){
+        if(item.uprightQuadText!==true||item.vertical||item.sourceLettering!=='display'||
+            !Number.isFinite(item.rotation)||Math.abs(item.rotation)>=Math.PI/43)continue;
+        const id=String(item.id);
+        const node=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'))
+          .find(n=>n.dataset.aidokuRegion===id);
+        const plate=Array.from(root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-rotated-panel"]'))
+          .find(n=>n.dataset.aidokuRegion===id);
+        if(!node||!plate||node.dataset.uprightQuad!=='true'||node.style.visibility==='hidden')continue;
+        const s=getComputedStyle(plate),frame=item.sourceFrame;
+        if(s.backgroundImage!=='none'||!Array.isArray(frame)||frame.length!==4||!frame.every(Number.isFinite))continue;
+        const m=new DOMMatrix(s.transform),r=plate.getBoundingClientRect();
+        const w=parseFloat(s.width),h=parseFloat(s.height),cx=(r.left+r.right)/2,cy=(r.top+r.bottom)/2;
+        if(!m.is2D||Math.abs(m.e)+Math.abs(m.f)>.01||!(w>0&&h>0)||
+            Math.abs(Math.hypot(m.a,m.b)-1)>.001||Math.abs(Math.hypot(m.c,m.d)-1)>.001)continue;
+        // Only a page-boundary clip may be replaced. Balloon / custom clips
+        // represent proven surfaces and must keep their original silhouette.
+        if(s.clipPath!=='none'){
+          if(!/^polygon\([\d., px-]+\)$/u.test(s.clipPath))continue;
+          const points=s.clipPath.slice(8,-1).split(',').map(p=>p.trim().split(/\s+/u).map(parseFloat));
+          const corners=[[frame[0],frame[1]],[frame[0]+frame[2],frame[1]],
+            [frame[0]+frame[2],frame[1]+frame[3]],[frame[0],frame[1]+frame[3]]];
+          if(points.length!==4||points.some(p=>p.length!==2||!p.every(Number.isFinite)))continue;
+          const mapped=points.map(([x,y])=>{const p=m.transformPoint({x:x-w/2,y:y-h/2});return [p.x+cx,p.y+cy];});
+          if(!corners.every(c=>mapped.some(p=>Math.hypot(p[0]-c[0],p[1]-c[1])<.1)))continue;
+        }
+        const left=Math.max(frame[0],r.left),top=Math.max(frame[1],r.top);
+        const right=Math.min(frame[0]+frame[2],r.right),bottom=Math.min(frame[1]+frame[3],r.bottom);
+        if(!(right>left&&bottom>top))continue;
+        // Keep fractional CSS coordinates; rounding inward can reveal old ink.
+        Object.assign(plate.style,{left:`${left}px`,top:`${top}px`,width:`${right-left}px`,height:`${bottom-top}px`,
+          transform:'none',clipPath:'none',borderRadius:'0px'});
+        plate.dataset.uprightQuadProof='enclosed-source-plate';
+      }
+    };
+    // Later font growth and card spacing can undo an earlier balloon fit.
+    // Recheck the final line boxes against the measured contour, without
+    // moving erasure surfaces or borrowing room from a neighbouring caption.
+    // A fitted caption does not imply a fitted backing plate. Trim only to a
+    // complete rectangle that still covers every source and glyph it was backing.
+    const aidokuContainBalloonPanels = (root, items) => {
+      if(items.length>256)return;
+      const panels=[...root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]')];
+      const nodes=[...root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')];
+      if(panels.length>512||nodes.length>512)return;
+      let checks=131072;
+      const intersects=(a,b)=>a[0]<b[0]+b[2]&&b[0]<a[0]+a[2]&&a[1]<b[1]+b[3]&&b[1]<a[1]+a[3];
+      const sourceRects=item=>{
+        const f=item.sourceFrame,b=item.sourceBounds;
+        if(!f||!b)return [];
+        return [b,...(item.auxiliaryInkRects||[])].filter(r=>Array.isArray(r)&&r.length===4&&r.every(Number.isFinite))
+          .map(r=>[f[0]+r[0]*f[2],f[1]+r[1]*f[3],r[2]*f[2],r[3]*f[3]]);
+      };
+      const sources=items.flatMap(sourceRects);
+      const inks=nodes.filter(n=>n.style.visibility!=='hidden').flatMap(n=>{
+        const range=document.createRange();range.selectNodeContents(n);
+        const pad=.5+(parseFloat(getComputedStyle(n).webkitTextStrokeWidth)||0)/2;
+        return [...range.getClientRects()].filter(r=>r.width>0&&r.height>0)
+          .map(r=>[r.left-pad,r.top-pad,r.width+2*pad,r.height+2*pad]);
+      });
+      if(sources.length>2048||inks.length>2048)return;
+      for(const panel of panels){
+        const item=items.find(i=>String(i.id)===panel.dataset.aidokuRegion),b=item?.balloonInterior,f=item?.sourceFrame;
+        if(!b?.contourVerified||!f||item.rotation||panel.dataset.sourceErasure==='true')continue;
+        const style=getComputedStyle(panel);
+        if(style.transform!=='none'||style.visibility==='hidden'||style.display==='none')continue;
+        const spans=b.spans,rect=b.rect;
+        if(!Array.isArray(spans)||spans.length<4||spans.length>1024||spans.length%2||
+            !spans.every(Number.isFinite)||!Array.isArray(rect)||rect.length!==4||!rect.every(Number.isFinite))continue;
+        const top=f[1]+rect[1]*f[3],height=rect[3]*f[3],bands=spans.length/2;
+        if(!(height>0))continue;
+        const inside=r=>{
+          if(r[1]<top||r[1]+r[3]>top+height)return false;
+          const first=Math.max(0,Math.floor((r[1]-top)/height*bands));
+          const last=Math.min(bands-1,Math.ceil((r[1]+r[3]-top)/height*bands)-1);
+          for(let y=first;y<=last;y++){
+            if(--checks<0||spans[y*2]<0||spans[y*2+1]<=spans[y*2]||
+                r[0]<f[0]+spans[y*2]*f[2]||r[0]+r[2]>f[0]+spans[y*2+1]*f[2])return false;
+          }
+          return true;
+        };
+        const p=panel.getBoundingClientRect();let coverage;
+        try{coverage=JSON.parse(panel.dataset.panelCoverage||'null')||[[p.left,p.top,p.width,p.height]];}catch(_){continue;}
+        if(!Array.isArray(coverage)||coverage.length>512||!coverage.every(r=>Array.isArray(r)&&r.length===4&&r.every(Number.isFinite)))continue;
+        if(coverage.every(inside))continue;
+        // Never uncover a foreign source/ink partially backed by this plate.
+        const required=[...sources,...inks].filter(r=>coverage.some(c=>intersects(c,r)));
+        if(!required.length)continue;
+        const envelope=aidokuSolidPanelCoverage(required)[0];
+        if(!envelope||!inside(envelope)){
+          // Reflow a caption and its rectangular backing together. A safe source
+          // rectangle may fit even when the old line breaks made the ink wider.
+          const node=nodes.find(n=>n.dataset.aidokuRegion===String(item.id));
+          const source=aidokuSolidPanelCoverage(sources.filter(r=>coverage.some(c=>intersects(c,r))))[0];
+          if(!node||node.parentElement!==root||!source||!inside(source)||getComputedStyle(node).transform!=='none'){
+            panel.dataset.finalBalloonPanelRejected='source-or-ink-outside';continue;
+          }
+          const saved=node.style.cssText,children=[...node.childNodes],n=node.getBoundingClientRect();
+          const font=parseFloat(getComputedStyle(node).fontSize),ratio=parseFloat(getComputedStyle(node).lineHeight)/font;
+          const nx=(parseFloat(node.style.left)||0)-n.left,ny=(parseFloat(node.style.top)||0)-n.top;
+          const foreign=nodes.filter(o=>o!==node&&o.style.visibility!=='hidden').flatMap(o=>{
+            const r=document.createRange();r.selectNodeContents(o);return [...r.getClientRects()].filter(q=>q.width>0&&q.height>0)
+              .map(q=>[q.left,q.top,q.width,q.height]);
+          });
+          let fit=null;
+          if(font>0&&ratio>0){
+            node.replaceChildren(document.createTextNode(item.text||node.innerText));
+            for(const extra of [0,4,8,12,16]){
+              if(fit)break;
+              for(const up of [0,extra/2,extra]){
+                const y=source[1]-up-1,h=source[3]+extra+2;
+                if(y<top||y+h>top+height)continue;
+                let left=-Infinity,right=Infinity;
+                const first=Math.max(0,Math.floor((y-top)/height*bands)),last=Math.min(bands-1,Math.ceil((y+h-top)/height*bands)-1);
+                for(let row=first;row<=last;row++){
+                  if(--checks<0||spans[row*2]<0){left=Infinity;break;}
+                  left=Math.max(left,f[0]+spans[row*2]*f[2]+.5);right=Math.min(right,f[0]+spans[row*2+1]*f[2]-.5);
+                }
+                const candidate=[left,y,right-left,h];
+                if(!(candidate[2]>4)||left>source[0]||right<source[0]+source[2]||candidate[2]*h>p.width*p.height*1.15||
+                    !inside(candidate)||foreign.some(r=>intersects(r,candidate)))continue;
+                for(let step=0;step<=4;step++){
+                  const size=font-step*.25;if(size<Math.max(5,font*.85))break;
+                  Object.assign(node.style,{left:`${left+nx}px`,top:`${y+ny}px`,width:`${candidate[2]}px`,height:`${h}px`,
+                    padding:'1px',fontSize:`${size}px`,lineHeight:`${size*ratio}px`,whiteSpace:'pre-wrap'});
+                  const range=document.createRange();range.selectNodeContents(node);
+                  const pad=.5+(parseFloat(getComputedStyle(node).webkitTextStrokeWidth)||0)/2;
+                  const lines=[...range.getClientRects()].filter(r=>r.width>0&&r.height>0);
+                  if(lines.length&&node.scrollWidth<=node.clientWidth+1&&node.scrollHeight<=node.clientHeight+1&&
+                      lines.every(r=>r.left-pad>=left&&r.right+pad<=right&&r.top-pad>=y&&r.bottom+pad<=y+h)){
+                    fit=candidate;break;
+                  }
+                }
+                if(fit)break;
+              }
+            }
+          }
+          if(!fit){node.style.cssText=saved;node.replaceChildren(...children);panel.dataset.finalBalloonPanelRejected='no-safe-rectangle';continue;}
+          const px=(parseFloat(panel.style.left)||0)-p.left,py=(parseFloat(panel.style.top)||0)-p.top;
+          Object.assign(panel.style,{left:`${fit[0]+px}px`,top:`${fit[1]+py}px`,width:`${fit[2]}px`,height:`${fit[3]}px`,clipPath:'none'});
+          panel.dataset.panelCoverage=JSON.stringify([fit]);panel.dataset.finalBalloonPanelFit='reflowed-rectangle';
+          node.dataset.sourcePanelCoverage=panel.dataset.panelCoverage;node.dataset.finalBalloonBackingReflow='true';
+          continue;
+        }
+        let chosen=envelope;
+        for(const pad of [2,1,0]){
+          const r=[envelope[0]-pad,envelope[1]-pad,envelope[2]+2*pad,envelope[3]+2*pad];
+          if(r[0]>=p.left&&r[1]>=p.top&&r[0]+r[2]<=p.right&&r[1]+r[3]<=p.bottom&&inside(r)){chosen=r;break;}
+        }
+        if(chosen[0]<p.left||chosen[1]<p.top||chosen[0]+chosen[2]>p.right||chosen[1]+chosen[3]>p.bottom)continue;
+        const clip=`inset(${chosen[1]-p.top}px ${p.right-chosen[0]-chosen[2]}px ${p.bottom-chosen[1]-chosen[3]}px ${chosen[0]-p.left}px)`;
+        panel.style.clipPath=clip;panel.dataset.panelCoverage=JSON.stringify([chosen]);
+        panel.dataset.finalBalloonPanelFit='rectangular';
+        for(const node of nodes)if(node.dataset.aidokuRegion===String(item.id))node.dataset.sourcePanelCoverage=panel.dataset.panelCoverage;
+      }
+    };
+
+    const aidokuContainBalloonText = (root, items) => {
+      if(items.length>256)return;
+      let contourChecks=131072;
+      const nodes=[...root.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]')];
+      const byID=new Map();
+      for(const node of nodes)if(!byID.has(node.dataset.aidokuRegion))byID.set(node.dataset.aidokuRegion,node);
+      const lines=n=>{const range=document.createRange();range.selectNodeContents(n);
+        const boxes=[...range.getClientRects()].filter(r=>r.width>0&&r.height>0);
+        // Range.getClientRects may include a block wrapper enclosing every
+        // actual line (for example, text-wrap: balance). That envelope is not
+        // painted ink and cannot fit the taper of a speech balloon even when
+        // each of its lines does. Compare the leaf line rectangles instead.
+        return boxes.filter((r,i)=>!boxes.some((other,j)=>i!==j&&r.height>other.height*1.65&&
+          other.left>=r.left-.05&&other.right<=r.right+.05&&
+          other.top>=r.top-.05&&other.bottom<=r.bottom+.05&&
+          other.height<r.height-.1));
+      };
+      const inkCache=new Map(),cachedLines=node=>{
+        if(!inkCache.has(node))inkCache.set(node,lines(node));
+        return inkCache.get(node);
+      };
+      const overlaps=(a,b)=>a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom;
+      for(const item of items){
+        const balloon=item.balloonInterior,f=item.sourceFrame;
+        if(!balloon?.contourVerified||item.rotation||item.vertical||!f)continue;
+        const node=byID.get(String(item.id));
+        if(!node||node.dataset.aidokuImageOcrKeepSource==='true'||node.style.visibility==='hidden')continue;
+        const style=getComputedStyle(node);
+        if(style.transform!=='none'||style.writingMode!=='horizontal-tb')continue;
+        const b=balloon.rect,s=balloon.spans;
+        if(!b||b.length!==4||!s||s.length<4||s.length>1024||s.length%2||!b.every(Number.isFinite)||!s.every(Number.isFinite))continue;
+        const top=f[1]+b[1]*f[3],height=b[3]*f[3],bands=s.length/2;
+        if(!(height>0))continue;
+        const pad=.5+(parseFloat(style.webkitTextStrokeWidth)||0)/2;
+        const allowance=(rects,dy)=>{
+          if(rects.length>256)return null;
+          let low=-Infinity,high=Infinity;
+          for(const r of rects){
+            const y0=r.top+dy-pad,y1=r.bottom+dy+pad;
+            if(y0<top||y1>top+height)return null;
+            const first=Math.max(0,Math.floor((y0-top)/height*bands));
+            const last=Math.min(bands-1,Math.ceil((y1-top)/height*bands)-1);
+            for(let row=first;row<=last;row++){
+              if(--contourChecks<0)return null;
+              if(s[row*2]<0||s[row*2+1]<=s[row*2])return null;
+              low=Math.max(low,f[0]+s[row*2]*f[2]+pad-r.left);
+              high=Math.min(high,f[0]+s[row*2+1]*f[2]-pad-r.right);
+            }
+          }
+          return low<=high?[low,high]:null;
+        };
+        const initial=cachedLines(node),room=allowance(initial,0);
+        if(!initial.length)continue;
+        const alreadyInside=Boolean(room&&room[0]<=0&&room[1]>=0);
+        // Centre the painted lines in the measured paper, not the OCR box.
+        // A shaped balloon may have no safe rectangle at its exact centroid;
+        // search neighbouring rows while every glyph remains inside its bands.
+        const center=Array.isArray(balloon.center)&&balloon.center.length===2&&
+          balloon.center.every(Number.isFinite)?balloon.center:
+          [b[0]+b[2]/2,b[1]+b[3]/2];
+        const targetX=f[0]+center[0]*f[2],targetY=f[1]+center[1]*f[3];
+        const midpoint=rects=>({x:(Math.min(...rects.map(r=>r.left))+Math.max(...rects.map(r=>r.right)))/2,
+          y:(Math.min(...rects.map(r=>r.top))+Math.max(...rects.map(r=>r.bottom)))/2});
+        const originalCenter=midpoint(initial);
+        const initialDistance=Math.hypot(targetX-originalCenter.x,targetY-originalCenter.y);
+        if(alreadyInside&&initialDistance<.75)continue;
+        const saved=node.style.cssText,size=parseFloat(style.fontSize),pitch=parseFloat(style.lineHeight)/size;
+        if(!(size>0&&pitch>0))continue;
+        const left=parseFloat(style.left)||0,y=parseFloat(style.top)||0;
+        const foreign=nodes.filter(n=>n!==node&&n.style.visibility!=='hidden').flatMap(cachedLines);
+        const oldHits=foreign.filter(r=>initial.some(a=>overlaps(a,r))).length;
+        const plates=[...root.querySelectorAll('[data-aidoku-image-ocr-overlay="source-readability-panel"]')]
+          .filter(p=>p.dataset.aidokuRegion===String(item.id));
+        const parentBox=node.parentElement&&node.parentElement!==root?
+          node.parentElement.getBoundingClientRect():null;
+        const covers=plates.flatMap(p=>{try{return JSON.parse(p.dataset.panelCoverage||'null')||
+          (()=>{const r=p.getBoundingClientRect();return [[r.left,r.top,r.width,r.height]];})();}catch(_){return [];}});
+        // A tapered bubble can be much wider several text lines below its
+        // source. Search the measured contour, not just an eight-pixel halo
+        // around the detector box. Keep the move bounded to one local bubble.
+        const verticalLimit=alreadyInside?Math.min(24,Math.max(8,height*.22)):
+          Math.min(48,Math.max(12,height*.5));
+        // A prior text-flow pass can place a caption far from its *verified*
+        // balloon. Its x correction may exceed the local 24px polish budget;
+        // contour, neighbour, and backing checks still certify the destination.
+        const horizontalLimit=alreadyInside?verticalLimit:
+          Math.min(160,Math.max(24,Math.abs(targetX-originalCenter.x)+4));
+        const preferredY=Math.max(-verticalLimit,Math.min(verticalLimit,targetY-originalCenter.y));
+        const steps=[preferredY];
+        for(let distance=2;distance<=verticalLimit;distance+=2)
+          steps.push(preferredY-distance,preferredY+distance);
+        steps.push(0);
+        const uniqueSteps=[...new Set(steps.filter(dy=>Math.abs(dy)<=verticalLimit))];
+        let accepted=false;
+        // Preserve size first. At most seven quarter-pixel size trials; no
+        // reduction below the existing readability floor or by more than 15%.
+        for(let step=0;step<=(alreadyInside?0:6)&&!accepted;step++){
+          const next=size-step*.25;if(next<Math.min(size,Math.max(5,size*.85)))break;
+          node.style.cssText=saved;node.style.fontSize=`${next}px`;node.style.lineHeight=`${next*pitch}px`;
+          const rects=lines(node);if(!rects.length)continue;
+          const desiredX=targetX-midpoint(rects).x;
+          for(const dy of uniqueSteps){
+            const room=allowance(rects,dy);if(!room)continue;
+            const dx=Math.max(room[0],Math.min(room[1],desiredX));if(Math.abs(dx)>horizontalLimit)continue;
+            const moved=rects.map(r=>({left:r.left+dx,right:r.right+dx,top:r.top+dy,bottom:r.bottom+dy}));
+            if(foreign.filter(r=>moved.some(a=>overlaps(a,r))).length>oldHits)continue;
+            if(parentBox&&moved.some(r=>r.left-pad<parentBox.left||r.right+pad>parentBox.right||
+              r.top-pad<parentBox.top||r.bottom+pad>parentBox.bottom))continue;
+            if(plates.length&&(!covers.length||moved.some(r=>!covers.some(c=>r.left-pad>=c[0]-.05&&
+              r.top-pad>=c[1]-.05&&r.right+pad<=c[0]+c[2]+.05&&r.bottom+pad<=c[1]+c[3]+.05))))continue;
+            node.style.left=`${left+dx}px`;node.style.top=`${y+dy}px`;
+            const actualRects=lines(node),actual=allowance(actualRects,0),actualCenter=actualRects.length?midpoint(actualRects):null;
+            const closer=!alreadyInside||actualCenter&&
+              Math.hypot(targetX-actualCenter.x,targetY-actualCenter.y)<initialDistance-.1;
+            if(closer&&actual&&actual[0]<=.05&&actual[1]>=-.05){
+              inkCache.set(node,actualRects);
+              node.dataset.finalBalloonFit=JSON.stringify({dx,dy,before:size,after:next});accepted=true;break;
+            }
+            node.style.left=`${left}px`;node.style.top=`${y}px`;
+          }
+        }
+        if(!accepted){node.style.cssText=saved;if(!alreadyInside)node.dataset.finalBalloonFitRejected='no-safe-slot';}
+      }
+    };
     // Last geometry-only polish: never refit text or change translation content.
     // Work is bounded by the existing 256-region page limit, with no pixel buffers.
     const aidokuPolishCaptionPanels = (root, items, opacity, keptItems = [], readSource = null, keptZones = []) => {
@@ -66,8 +591,11 @@ enum BrowserOverlayTypography {
       // outside outline, but cap ordinary dialogue independently of source SFX.
       for(const e of entries){
         if(!eligible(e))continue;
+        // Released captions already carry a bounded source-style outline;
+        // do not undo its deliberate readability width in this generic cap.
+        if(e.node.dataset.glyphPlateReleased==='true'&&e.node.dataset.sourceStrokeColor==='preserved')continue;
         const s=getComputedStyle(e.node),size=parseFloat(s.fontSize),width=parseFloat(s.webkitTextStrokeWidth);
-        const cap=Math.max(.6,Math.min(1.5,size*.075));
+        const cap=Math.max(1,Math.min(2.2,size*.11));
         const fill=rgb(s.color),outline=rgb(s.webkitTextStrokeColor),background=rgb(e.node.dataset.sourceAppliedBackgroundRGB);
         // A light ring may be the only contrast on a dark fill/dark plate.
         // Preserve that readability aid; dark outlines around light dialogue
@@ -78,6 +606,11 @@ enum BrowserOverlayTypography {
         if(width>cap&&s.webkitTextStrokeColor!==s.color&&safe){
           e.node.style.webkitTextStrokeWidth=`${cap}px`;e.node.style.paintOrder='stroke fill';
           e.node.dataset.dialogueStrokeCapped='true';e.ink=ink(e.node);
+        }else if(width>0&&s.webkitTextStrokeColor!==s.color&&width<Math.min(cap,Math.max(1,size*.1))){
+          // Paint the fill last so strengthening the outside ring cannot close
+          // Hangul counters. Never invent an outline on originally bare text.
+          e.node.style.webkitTextStrokeWidth=`${Math.min(cap,Math.max(1,size*.1))}px`;
+          e.node.style.paintOrder='stroke fill';e.node.dataset.dialogueStrokeStrengthened='true';
         }
       }
       // The pixel gate already certified each balanced column's top. Later
@@ -1175,6 +1708,162 @@ enum BrowserOverlayTypography {
           const fonts=group.map(r=>r.font).sort((a,b)=>a-b),upper=fonts.slice(Math.floor(fonts.length/2));
           return {members:group.map(r=>r.index),font:upper[Math.floor((upper.length-1)/2)]};
         });
+    };
+    // A source fill and its measured enclosing band are one style. Earlier
+    // contrast passes can flatten the band into the fill, or discard it after
+    // erasure. Restore only this caption's own independently observed pair;
+    // neighbouring captions and cleanup-only halo evidence cannot supply one.
+    const aidokuEnclosedCaptionOutline = (rgba,w,h,b,glyph,ink,allowNeutral=false) => {
+      const n=w*h,valid=rgb=>Array.isArray(rgb)&&rgb.length===3&&rgb.every(Number.isFinite);
+      if(!Number.isInteger(w)||!Number.isInteger(h)||w<8||h<8||n>262144||rgba?.length!==n*4||
+          !valid(ink)||!Array.isArray(b)||b.length!==4||!b.every(Number.isFinite)||!(glyph>=8)||
+          Math.min(...ink)>170||Math.max(...ink)-Math.min(...ink)<40&&Math.max(...ink)>48)return null;
+      if(Math.max(...ink)-Math.min(...ink)<40&&!allowNeutral)return null;
+      const pale=new Uint8Array(n),seen=new Uint8Array(n),queue=new Int32Array(n);
+      const axis=ink.map(c=>255-c),norm=axis.reduce((sum,c)=>sum+c*c,0);
+      for(let i=0;i<n;i++){const p=i*4;if(rgba[p+3]<250)return null;
+        pale[i]=Math.min(rgba[p],rgba[p+1],rgba[p+2])>=225&&
+          Math.max(rgba[p],rgba[p+1],rgba[p+2])-Math.min(rgba[p],rgba[p+1],rgba[p+2])<=24?1:0;}
+      let islands=0,filaments=0,total=0;const sums=[0,0,0];
+      for(let seed=0;seed<n;seed++){
+        if(!pale[seed]||seen[seed])continue;
+        let head=0,tail=1,left=w,top=h,right=0,bottom=0,edge=false,ring=0,boundary=0;
+        queue[0]=seed;seen[seed]=1;
+        while(head<tail){const i=queue[head++],x=i%w,y=(i-x)/w;
+          left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);
+          if(x===0||y===0||x===w-1||y===h-1)edge=true;
+          const visit=j=>{if(pale[j]){if(!seen[j]){seen[j]=1;queue[tail++]=j;}}else{
+            boundary++;const p=j*4;
+            // Permit only antialias mixtures between this measured ink and white.
+            const t=((255-rgba[p])*axis[0]+(255-rgba[p+1])*axis[1]+(255-rgba[p+2])*axis[2])/norm;
+            if(t>.06&&t<=1.2&&Math.abs(rgba[p]-(255-axis[0]*t))<=25&&
+                Math.abs(rgba[p+1]-(255-axis[1]*t))<=25&&Math.abs(rgba[p+2]-(255-axis[2]*t))<=25)ring++;
+          }};
+          if(x)visit(i-1);if(x+1<w)visit(i+1);if(y)visit(i-w);if(y+1<h)visit(i+w);
+        }
+        const width=right-left+1,height=bottom-top+1;
+        if(edge||tail<8||left<b[0]-2||right>b[2]+2||top<b[1]-2||bottom>b[3]+2||
+            width>glyph*1.5||height>glyph*1.5||ring<boundary*.8)continue;
+        islands++;total+=tail;
+        if(Math.max(width,height)>=glyph*.25&&(Math.max(width,height)/Math.min(width,height)>=2.4||tail/(width*height)<.42))filaments++;
+        for(let k=0;k<tail;k++)for(let c=0;c<3;c++)sums[c]+=rgba[queue[k]*4+c];
+      }
+      // Solid glyph counters are usually compact holes. Require several long,
+      // thin closed interiors, repeated across the independently owned caption.
+      if(islands<4||filaments<2||filaments<islands*.25||total<24)return null;
+      return {foreground:sums.map(v=>Math.round(v/total)),stroke:[...ink],
+        confidence:{foreground:.85,stroke:.85},components:islands,filaments,
+        proof:'closed thin interiors bounded by observed ink'};
+    };
+    const aidokuChromaticOutlineMinimum = (fill, stroke, fontSize) => {
+      const valid=rgb=>Array.isArray(rgb)&&rgb.length===3&&rgb.every(v=>Number.isFinite(v)&&v>=0&&v<=255);
+      if(!valid(fill)||!valid(stroke)||!(fontSize>0)||Math.min(...fill)<225||
+          Math.max(...stroke)-Math.min(...stroke)<60)return 0;
+      const pair=aidokuSourceColorContrast(fill,true,1,stroke);
+      // A pale interior with a medium-luminance coloured edge has less contrast
+      // than white/black or white/purple. A hairline cannot carry that pair at
+      // phone scale; strengthen only the observed outer band, leaving fill whole.
+      return pair>=3&&pair<4.5?Math.max(1.8,Math.min(2.4,fontSize*.24)):0;
+    };
+    const aidokuObservedCaptionStyle = (sample, fontSize) => {
+      const valid=rgb=>Array.isArray(rgb)&&rgb.length===3&&rgb.every(v=>Number.isFinite(v)&&v>=0&&v<=255);
+      if(!valid(sample?.foreground)||!valid(sample?.stroke)||!Number.isFinite(fontSize)||fontSize<=0||
+          (sample.confidence?.foreground||0)<.55||(sample.confidence?.stroke||0)<.55)return null;
+      const fill=sample.foreground,stroke=sample.stroke;
+      if(aidokuSourceColorContrast(fill,true,1,stroke)<3)return null;
+      if(valid(sample.background)&&aidokuSourceColorLuminance(sample.background)<.08&&
+          aidokuSourceColorLuminance(fill)>.7&&aidokuSourceColorLuminance(stroke)<.08)return null;
+      // Stroke-first painting leaves the entire interior visible. The bounded
+      // outside half-band follows the target glyph size, never the long OCR box.
+      const relative=sample.widthEvidence?.relativeToGlyph;
+      const ratio=Number.isFinite(relative)&&relative>0?Math.max(.1,Math.min(.2,relative*2)):.14;
+      const darkEdge=valid(sample.background)&&aidokuSourceColorLuminance(sample.background)<.08&&
+        aidokuSourceColorLuminance(fill)<.08&&aidokuSourceColorLuminance(stroke)>.7;
+      return {fill:[...fill],stroke:[...stroke],width:Math.max(darkEdge?2:1,
+        aidokuChromaticOutlineMinimum(fill,stroke,fontSize),Math.min(3.5,fontSize*ratio))};
+    };
+    const aidokuPreserveObservedCaptionStyle = (root, items, sampleForItem) => {
+      if(items.length>256||typeof sampleForItem!=='function')return;
+      for(const item of items){
+        if(!item.sourceColorEligible||item.keepsSourceLettering||item.rotation)continue;
+        const node=root.querySelector(`[data-aidoku-image-ocr-overlay="item"][data-aidoku-region="${item.id}"]`);
+        if(!node||node.style.visibility==='hidden'||node.dataset.displayLettering||
+            !['inpainted','slanted-glyph-restored'].includes(node.dataset.sourceBackgroundColor))continue;
+        let sample=sampleForItem(item);
+        try {
+          const enclosed=JSON.parse(node.dataset.enclosedCaptionOutline||'null');
+          const ring=JSON.parse(node.dataset.outlinedLettering||'null');
+          const near=(a,b)=>Array.isArray(a)&&Array.isArray(b)&&a.length===3&&b.length===3&&
+            a.every((v,i)=>Number.isFinite(v)&&Number.isFinite(b[i])&&Math.abs(v-b[i])<=32);
+          // Neutral counters do not overturn the paper audit's observed ink.
+          // That audit calls a coloured outline on matching white paper bare
+          // ink; independently closed, thin chromatic interiors resolve it.
+          const neutral=Array.isArray(enclosed?.stroke)&&Math.max(...enclosed.stroke)-Math.min(...enclosed.stroke)<40;
+          const closedProof=enclosed?.proof==='closed thin interiors bounded by observed ink'&&
+            enclosed.components>=4&&enclosed.filaments>=2&&enclosed.filaments/enclosed.components>=.25;
+          const reversedPaper=(neutral||!closedProof)&&ring?.kind==='paper'&&ring.hug>=.7&&ring.uniform>=.6&&
+            near(ring.core,sample?.foreground)&&near(ring.core,enclosed?.stroke)&&near(ring.outline,enclosed?.foreground);
+          if(enclosed&&!reversedPaper)sample=enclosed;
+          if(reversedPaper)node.dataset.enclosedCaptionOutlineRejected='paper-role-conflict';
+        }catch(_){}
+        const palette=aidokuObservedCaptionStyle(sample,parseFloat(getComputedStyle(node).fontSize));
+        if(!palette)continue;
+        node.style.color=`rgb(${palette.fill.join(',')})`;
+        node.style.webkitTextStrokeColor=`rgb(${palette.stroke.join(',')})`;
+        node.style.webkitTextStrokeWidth=`${palette.width}px`;
+        node.style.paintOrder='stroke fill';
+        node.dataset.sourceAppliedTextRGB=palette.fill.join(',');
+        node.dataset.sourceAppliedStrokeRGB=palette.stroke.join(',');
+        node.dataset.sourceTextOutline='true';node.dataset.sourceStrokeColor='preserved';
+        node.dataset.observedCaptionStyle='true';node.dataset.sourceTextColorAdjusted='false';
+        delete node.dataset.inkCluster;delete node.dataset.finalInkCluster;
+      }
+    };
+    // Reuse the page's complete-link style cohorts for outline widths too.
+    // Zero-width text never acquires an outline; one thick outlier cannot
+    // dictate the cohort. Apply after fitting, so later font caps cannot undo it.
+    const aidokuStrokeClusters = records => {
+      const eligible=records.filter(r=>Number.isFinite(r.width)&&r.width>0);
+      return aidokuPageStyleGroups(eligible,1.25).map(group=>{
+        const members=group.members.map(i=>eligible[i]);
+        const widths=members.map(r=>r.width).sort((a,b)=>a-b);
+        return {members,width:widths[Math.floor(widths.length/2)]};
+      });
+    };
+    const aidokuClusterStrokeWidths = (root, items) => {
+      if(items.length>256)return;
+      const records=[];
+      const rgb=text=>{const values=String(text||'').match(/[0-9.]+/g)?.map(Number);
+        return values&&values.length>=3&&(values.length<4||values[3]===1)?values.slice(0,3):null;};
+      for(const item of items){
+        const node=root.querySelector(`[data-aidoku-image-ocr-overlay="item"][data-aidoku-region="${item.id}"]`);
+        if(!node||node.style.visibility==='hidden')continue;
+        const css=getComputedStyle(node),fill=rgb(css.color),stroke=rgb(css.webkitTextStrokeColor);
+        const width=parseFloat(css.webkitTextStrokeWidth),font=parseFloat(css.fontSize);
+        if(!fill||!stroke||!(width>0))continue;
+        const key=[item.fontScript||'',item.sourceVertical?'v':'h',css.fontFamily,css.fontWeight,
+          node.dataset.sourceStrokeColor||'default',aidokuStyleColorClass(fill),aidokuStyleColorClass(stroke)].join('|');
+        records.push({node,key,glyph:Number(item.sourceFontSize),font,width});
+      }
+      for(const group of aidokuStrokeClusters(records))for(const record of group.members){
+        record.node.style.webkitTextStrokeWidth=`${group.width}px`;
+        record.node.dataset.strokeClusterWidth=String(group.width);
+        record.node.dataset.strokeClusterCount=String(group.members.length);
+      }
+      // A cohort containing an older release width must not re-inflate its
+      // neighbours' corrected strokes. Bound every preserved outline, including
+      // singleton styles, by the final target font after size fitting.
+      for(const record of records){
+        if(record.node.dataset.sourceStrokeColor!=='preserved')continue;
+        const current=parseFloat(record.node.style.webkitTextStrokeWidth);
+        const darkMeasured=record.node.dataset.darkSourceOutlinePreserved==='true';
+        const css=getComputedStyle(record.node);
+        const chromaticMinimum=aidokuChromaticOutlineMinimum(rgb(css.color),rgb(css.webkitTextStrokeColor),record.font);
+        const cap=Math.max(darkMeasured?2:1,chromaticMinimum,Math.min(3.5,record.font*.2));
+        const width=Math.max(chromaticMinimum,Math.min(current,cap));
+        if(current!==width){record.node.style.webkitTextStrokeWidth=`${width}px`;
+          record.node.dataset.strokeClusterWidth=String(width);}
+      }
     };
     const aidokuInkLab = rgb => {
       const [r,g,b]=rgb.map(v=>v/255).map(v=>v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4));

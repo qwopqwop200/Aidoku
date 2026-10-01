@@ -922,7 +922,7 @@
 "TRANSLATION_CUSTOM_HELP" = "Enter an HTTPS base URL or full API endpoint and a model supported by your server. Each server URL has its own saved key; changing the URL clears any key you are entering. Responses and Chat Completions use structured JSON output.";
 
 "TRANSLATION_AUTOMATIC" = "Automatic Translation";
-"TRANSLATION_AUTOMATIC_HELP" = "Automatically translates reader pages using your saved API settings and reasoning effort. No separate connection test runs before translation starts. Translation failures do not turn this setting off. Use Test API Connection to check your settings manually.";
+"TRANSLATION_AUTOMATIC_HELP" = "Automatically translate and display reader pages. The translation button in the reader turns this setting on or off.";
 
 "TRANSLATION_TEST" = "Test API Connection";
 "TRANSLATION_TEST_RUNNING" = "Testing Connection…";
@@ -1128,6 +1128,15 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "A comprehensive Japanese–English dictionary maintained by the Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "A Japanese proper-name dictionary maintained by the Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "A frequency dictionary based on the media corpus at https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Translate While Showing Originals";
+"TRANSLATION_BACKGROUND_HELP" = "Continue translating while you read with the translation button off. Original pages remain visible. Translation pauses when the app is inactive.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Pages to Pretranslate";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Maximum pages to translate in advance, excluding visible pages. Pages are chosen by reading priority, favoring upcoming pages.";
+"TRANSLATION_UNLIMITED" = "Unlimited";
+"TRANSLATION_PAGE_SETTINGS" = "Page Translation";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Visible Pages Only";
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Source %@ version %d is not supported by this app. Install a supported version.";

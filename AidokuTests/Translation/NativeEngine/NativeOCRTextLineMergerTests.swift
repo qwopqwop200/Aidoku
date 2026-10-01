@@ -8,6 +8,151 @@ import UIKit
 
 struct NativeOCRTextLineMergerTests {
     @Test(arguments: [0.5, 1.0, 2.0])
+    func touchingOutlinedCaptionColumnsKeepReadingOrder(scale: CGFloat) {
+        // Actual phone-cache quads from the adjacent orange caption. Neutral text retains lengths.
+        func detected(_ text: String, _ points: [[CGFloat]]) -> NativeCoreMLOCRLine {
+            .init(polygon: points.map { CGPoint(x: $0[0] * scale, y: $0[1] * scale) },
+                  text: text, score: 0.95, orientation: .vertical)
+        }
+        let left = detected("ちゃんと読まなきゃ…", [[1479, 104], [1530, 104], [1530, 536], [1479, 536]])
+        let right = detected("ええと……間違えないで……", [[1530, 103], [1591, 103], [1583, 661], [1523, 660]])
+        for rows in [[left, right], [right, left]] {
+            let result = merge(rows, width: Int(2600 * scale), height: Int(1950 * scale))
+            #expect(result.map(\.text) == [right.text + left.text])
+            #expect(result.first?.singleVerticalColumn == false)
+        }
+        let separated = NativeOCRTextLineMerger.merge([left, right], imageWidth: Int(2600 * scale),
+            imageHeight: Int(1950 * scale), separationCheck: { _, _, _ in true })
+        #expect(separated.count == 2, "Independent pixel evidence must still prevent a geometry-only join")
+    }
+
+    @Test func horizontalLatinWordKeepsItsInitialAboveJapaneseText() {
+        let rows = [line("A", 200, 100, 60, 68, orientation: .horizontal),
+                    line("B", 260, 100, 60, 68, orientation: .horizontal),
+                    line("組の先生", 173, 143, 113, 284, orientation: .vertical)]
+        let output = merge(rows, width: 600, height: 600)
+        #expect(output.filter { $0.sourceOrientation == .horizontal }.map(\.text).joined().filter { !$0.isWhitespace } == "AB")
+        #expect(output.contains { $0.text == "組の先生" })
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0])
+    func verticalInitialAndPaddedKanaRemainInTheirColumns(scale: CGFloat) {
+        func detected(_ text: String, _ points: [[CGFloat]], _ orientation: BrowserOCRSourceOrientation) -> NativeCoreMLOCRLine {
+            .init(polygon: points.map { CGPoint(x: $0[0] * scale, y: $0[1] * scale) },
+                  text: text, score: 0.99, orientation: orientation)
+        }
+        let rows = [
+            detected("それでは", [[3133,184],[3226,187],[3219,459],[3126,456]], .vertical),
+            detected("お", [[3009,198],[3082,198],[3082,266],[3009,266]], .horizontal),
+            detected("A", [[3078,200],[3137,200],[3137,268],[3078,268]], .horizontal),
+            detected("組の先生", [[3051,246],[3157,243],[3164,524],[3058,527]], .vertical),
+            detected("願", [[3009,259],[3081,259],[3081,331],[3009,331]], .horizontal),
+            detected("いします", [[2992,294],[3112,294],[3112,586],[2992,586]], .vertical)
+        ]
+        for input in [rows, Array(rows.reversed())] {
+            let output = merge(input, width: Int(3497 * scale), height: Int(2235 * scale))
+            #expect(output.map(\.text) == ["それではA組の先生お願いします"])
+        }
+        let isolated = merge([rows[2]], width: Int(3497 * scale), height: Int(2235 * scale))
+        #expect(isolated.first?.sourceOrientation == .horizontal)
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0])
+    func paddedColumnUsesIndependentNeighbourPitch(scale: CGFloat) {
+        // Fresh phone-cache geometry. Neutral text keeps observed column lengths.
+        let rows = [
+            line("を行いま", 618 * scale, 428 * scale, 128 * scale, 349 * scale, orientation: .vertical),
+            line("明日の予定", 685 * scale, 427 * scale, 94 * scale, 370 * scale, orientation: .vertical),
+            line("時刻表を", 761 * scale, 427 * scale, 94 * scale, 370 * scale, orientation: .vertical),
+            line("それでは", 836 * scale, 427 * scale, 94 * scale, 370 * scale, orientation: .vertical)
+        ]
+        for input in [rows, Array(rows.reversed())] {
+            let result = merge(input, width: Int(3497 * scale), height: Int(2235 * scale))
+            #expect(result.count == 1)
+            #expect(result.first?.text == "それでは時刻表を明日の予定を行いま")
+        }
+        #expect(merge(Array(rows.prefix(2)), width: Int(3497 * scale), height: Int(2235 * scale)).count == 2,
+                "Two padded boxes alone cannot prove separate columns")
+        let blocked = NativeOCRTextLineMerger.merge(rows, imageWidth: Int(3497 * scale), imageHeight: Int(2235 * scale),
+                                                   separationCheck: { _, _, _ in true })
+        #expect(blocked.count == 4)
+    }
+
+    @Test func shortVerticalOpeningWithMisreadDotsStaysWithDialogue() {
+        func line(_ text: String, _ points: [[CGFloat]]) -> NativeCoreMLOCRLine {
+            NativeCoreMLOCRLine(polygon: points.map { CGPoint(x: $0[0], y: $0[1]) },
+                text: text, score: 0.95, orientation: .vertical)
+        }
+        let rows = [
+            line("るよ～…つ", [[652, 2238], [724, 2237], [729, 2559], [658, 2560]]),
+            line("明日の予定は", [[728, 2234], [813, 2234], [813, 2690], [728, 2690]]),
+            line("お…出かける", [[809, 2234], [893, 2234], [893, 2626], [809, 2626]]),
+            line("うう", [[899, 2241], [961, 2239], [967, 2377], [905, 2380]]),
+            line("0000", [[910, 2356], [954, 2356], [954, 2455], [910, 2455]])
+        ]
+        let output = merge(rows, width: 2160, height: 2880)
+        #expect(output.count == 1, "\(output.map(\.text))")
+        #expect(output.first?.text.contains("うう") == true)
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0])
+    func verticalDialogueNeverAbsorbsLatinSignBelowBalloon(scale: CGFloat) {
+        // Actual incident geometry; neutral dialogue retains the source lengths.
+        let rows = [line("明日の予定は", 736 * scale, 162 * scale, 72 * scale, 382 * scale, orientation: .vertical),
+                    line("映画を見る", 657 * scale, 163 * scale, 72 * scale, 378 * scale, orientation: .vertical),
+                    line("か？", 573 * scale, 162 * scale, 78 * scale, 136 * scale, orientation: .vertical),
+                    line("Bunn", 658 * scale, 598 * scale, 70 * scale, 192 * scale, orientation: .vertical)]
+        let output = merge(rows, width: Int(2160 * scale), height: Int(2880 * scale))
+        #expect(output.count == 2)
+        #expect(output.contains { $0.text == "Bunn" })
+        #expect(output.first { $0.text.contains("明日") }?.boundingRect.maxY == 544 * scale)
+    }
+
+    @Test @MainActor func suppliedBalloonRecognizesAsOneCompleteUtterance() async throws {
+        let bundle = Bundle(for: VerticalSingleGlyphFixtureBundle.self)
+        let url = try #require(bundle.url(forResource: "VerticalSingleGlyphBalloon", withExtension: "png"))
+        let image = try #require(UIImage(contentsOfFile: url.path)?.cgImage)
+        let regions = try await ReaderOCRService.shared.recognize(image: image, tier: .medium)
+        let output = regions.map(\.source)
+        let destination = URL.documentsDirectory.appendingPathComponent("vertical-single-glyph-ocr.json")
+        try JSONEncoder().encode(regions.map(ReaderTranslationStoredRegion.init)).write(to: destination)
+        #expect(regions.count == 1, "\(output)")
+        #expect(output.first?.contains("早く") == true, "\(output)")
+        #expect(output.first?.contains("動いて") == true, "\(output)")
+        await ReaderOCRService.shared.purge()
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0])
+    func horizontalSingleGlyphsCompleteVerticalColumnsBeforeRegionGrouping(scale: CGFloat) {
+        // Device-cache geometry from a 2160x2880 page. A full-size middle
+        // glyph is labelled horizontal and its padded box overlaps both
+        // vertical fragments. Neutral text preserves the observed lengths.
+        let rows = [
+            line("続き", 295 * scale, 1793 * scale, 77 * scale, 139 * scale, orientation: .vertical),
+            line("ま", 300 * scale, 1905 * scale, 67 * scale, 81 * scale, orientation: .horizontal),
+            line("すよ…!?", 295 * scale, 1975 * scale, 75 * scale, 257 * scale, orientation: .vertical)
+        ]
+        for input in [rows, Array(rows.reversed())] {
+            let output = merge(input, width: Int(2160 * scale), height: Int(2880 * scale))
+            #expect(output.map(\.text) == ["続きますよ…!?"], "\(output.map(\.text))")
+            #expect(output.first?.sourceOrientation == .vertical)
+        }
+        // Keep separator evidence authoritative even for ambiguous glyphs.
+        let blocked = NativeOCRTextLineMerger.merge(rows, imageWidth: Int(2160 * scale), imageHeight: Int(2880 * scale),
+                                                   separationCheck: { _, _, _ in true })
+        #expect(blocked.count == 3)
+    }
+
+    @Test func twoSquareGlyphsCanFormAVerticalColumn() {
+        let rows = [line("早", 367, 2047, 76, 81, orientation: .horizontal),
+                    line("く", 370, 2125, 73, 80, orientation: .horizontal)]
+        #expect(merge(rows, width: 2160, height: 2880).map(\.text) == ["早く"])
+        let horizontal = [line("早", 100, 100, 40, 40, orientation: .horizontal),
+                          line("く", 143, 100, 40, 40, orientation: .horizontal)]
+        #expect(merge(horizontal, width: 500, height: 500).map(\.text) == ["早く"])
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0])
     func scriptSwitchAtASizeJumpDoesNotJoinAcrossThePanelBorder(scale: Double) {
         // Real comic-8426 detector polygons (1350x1920): a tilted phone number cut by a panel border
         // lines up with a smaller katakana list entry on the next panel's phone.
@@ -1799,6 +1944,20 @@ NativeCoreMLOCRLine(polygon: [CGPoint(x: 675, y: 435), CGPoint(x: 688, y: 438), 
         #expect(merge([options, menu], width: 600, height: 400).count == 2)
     }
 
+    @Test func differentlyColouredLargerSignDoesNotJoinVerticalDialogue() {
+        let sign = line("看板", 1615, 89, 132, 283, orientation: .vertical)
+        let dialogue = [line("いるか？", 1764, 90, 76, 267, orientation: .vertical),
+                        line("晴れて", 1840, 89, 83, 205, orientation: .vertical),
+                        line("明日は", 1922, 91, 82, 262, orientation: .vertical),
+                        line("おや？", 2004, 93, 82, 203, orientation: .vertical)]
+        let all = dialogue + [sign]
+        let merged = NativeOCRTextLineMerger.merge(all, imageWidth: 2160, imageHeight: 2880,
+            inkContrast: { a, b in (a.minX < 1750) != (b.minX < 1750) })
+        #expect(merged.contains { $0.text == "看板" })
+        #expect(merged.contains { $0.text == "おや？明日は晴れているか？" })
+        #expect(!merged.contains { $0.text.contains("看板") && $0.text.contains("明日") })
+    }
+
     @Test func visualNovelSpeakerNameKeepsItsOwnRegion() {
         // Real diverse-0569 name box and dialogue line (dataset polygons).
         let name = line("Maja", 157, 537, 80, 40, orientation: .horizontal)
@@ -1966,3 +2125,5 @@ NativeCoreMLOCRLine(polygon: [CGPoint(x: 675, y: 435), CGPoint(x: 688, y: 438), 
         )
     }
 }
+
+private final class VerticalSingleGlyphFixtureBundle: NSObject {}

@@ -770,11 +770,12 @@ struct NativeCoreMLRecognitionBucket: Equatable, Hashable, Sendable {
     let timeSteps: Int
 
     init?(width: Int) {
-        guard (160...2_000).contains(width), width.isMultiple(of: 32) else {
+        guard (32...2_000).contains(width) else {
             return nil
         }
         self.width = width
-        timeSteps = width / 8
+        // Two width strides followed by pooling: floor(ceil(width / 4) / 2).
+        timeSteps = (width + 3) / 8
     }
 
     private init?(width: Int, timeSteps: Int) {
@@ -792,12 +793,8 @@ struct NativeCoreMLRecognitionBucket: Equatable, Hashable, Sendable {
             min(2_000, maximumWidth) / 32 * 32
         )
         if dynamicWidth {
-            let bounded = min(alignedMaximum, max(160, desiredWidth))
-            let aligned = min(
-                alignedMaximum,
-                ((bounded + 31) / 32) * 32
-            )
-            return Self(width: aligned)!
+            // Exact crop width: no bucket rounding and no minimum-width padding.
+            return Self(width: min(max(32, maximumWidth), max(32, desiredWidth)))!
         }
         let admitted = all.filter { $0.width <= alignedMaximum }
         let available = admitted.isEmpty ? [all[0]] : admitted
@@ -1043,14 +1040,14 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
     static let outputFeatureName =
         "\(indexOutputFeatureName)+\(scoreOutputFeatureName)"
     /// Maximum bounded dynamic-width contract reported in diagnostics.
-    static let inputShape = [1, 3, 48, 2_000]
-    static let outputShape = [2, 250]
+    static let inputShape = [1, 3, 48, 1_280]
+    static let outputShape = [2, 160]
     static let expectedDictionaryCharacterCount = 18_709
     static let maximumConcurrentPreparations = 4
     static let maximumPreparedRegionCount = 8
     static let maximumPreparedWindowRegionCount = maximumPreparedRegionCount / 2
     static let maximumPreparedTensorBytes =
-        maximumPreparedRegionCount * 3 * 48 * 2_000
+        maximumPreparedRegionCount * 3 * 48 * 1_280
             * MemoryLayout<Float>.stride
     static let defaultRecognitionCacheCapacity = 512
     /// Below this process headroom a window predicts one chunk at a time, so
@@ -1195,7 +1192,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
             NativeCoreMLRecognizer.supportsIdleLongWidthPreparation,
         recognitionCacheCapacity: Int =
             NativeCoreMLRecognizer.defaultRecognitionCacheCapacity,
-        maximumRecognitionWidth: Int = 2_000,
+        maximumRecognitionWidth: Int = IPhoneOCRSettings.defaultRecognizerMaximumWidth,
         auditObserver: (@Sendable (NativeCoreMLRecognitionAuditEvent) -> Void)? = nil
     ) {
         self.auditObserver = auditObserver
@@ -2997,8 +2994,7 @@ enum NativeCoreMLCTCDecoder {
         let actualShape = output.shape.map(\.intValue)
         if actualShape.count == 2,
            actualShape[0] == 2,
-           (20...400).contains(actualShape[1]),
-           actualShape[1].isMultiple(of: 4) {
+           (4...400).contains(actualShape[1]) {
             return try decodeCompact(
                 output: output,
                 dictionary: dictionary,

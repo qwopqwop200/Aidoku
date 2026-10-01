@@ -1,0 +1,79 @@
+Usage: swift Scripts/image-translation.swift [OPTIONS] IMAGE_OR_FOLDER ...
+
+Inputs:
+  --list FILE             UTF-8 paths (one per line), or a JSON array of paths.
+                          Relative entries resolve beside the list file.
+  --recursive             Include subfolders (default: only immediate images).
+  --limit N               Process only the first N images.
+  --output DIR            Fresh run subdirectory inside DIR (default: output/image-translation).
+
+Pipeline:
+  --tier medium|small|tiny Core ML model tier (default: medium).
+  --source LANGUAGE       Source language (default: auto).
+  --target LANGUAGE       Target language (default: ko).
+  --confidence NUMBER     Recognition threshold, 0...1 (default: 0.75).
+  --detector-side N       Detector maximum side (default: 1600).
+  --recognizer-width N    Recognizer maximum width (default: 1600).
+  --base-url URL          Translation server base URL (or AIDOKU_TRANSLATION_BASE_URL).
+  --model MODEL           Translation model (or AIDOKU_TRANSLATION_MODEL).
+  --protocol responses|chatCompletions (default: chatCompletions).
+  --key-env NAME          API key environment variable (default: AIDOKU_TRANSLATION_API_KEY).
+  --allow-local-http      Permit HTTP for canonical localhost only.
+  --include-image         Attach the normalized input as JPEG to translation requests.
+  --filter-sfx            Enable the production provider SFX filter.
+  --filter-background     Enable the production provider background lettering filter.
+  --rtl                   Apply the production right-to-left panel ranking.
+  --ocr-only              Run OCR/grouping only, without contacting a provider.
+  --translations FILE     Offline replay: JSON object mapping source text to translated text.
+  --quiet                 Print milestones only; full values remain in JSON files.
+  --help                  Show this help without compiling or loading models.
+
+Requires macOS 15+, Apple Silicon, and Xcode command-line tools. Runs the current
+production Core ML OCR, recovery, grouping, batch planner, and remote client.
+Models and Swift objects are reused from build/image-translation-host.
+Each image gets JSON stages, HTTP request/response bodies (never auth headers),
+OCR visualization, final translation JSON, an HTML overlay and final PNG.
+The host overlay uses the production layout planner and JavaScript renderer;
+UIKit native layout and iPhone Core ML timings are not identical to this Mac run.
+Exit: 0 all succeeded; 1 any image failed; 2 invalid arguments/configuration.
+
+Analysis is generated automatically: analysis-index.html, per-image analysis.html,
+analysis.json and analysis/*.png. Toggle OCR stages, directions/angles, recovery
+candidates, balloon spans, grouping members and detector probabilities. Renderer
+calls also save source crops, actual masks and overlays (64 calls / 8M pixels).
+Rebuild analysis from saved outputs without OCR/models/server:
+  swift Scripts/image-translation.swift --visualize-run RUN_OR_IMAGE_DIRECTORY
+
+Defaults load automatically from REPOSITORY_ROOT/.env, regardless of working
+folder. Priority: explicit CLI options > shell environment > .env > built-in defaults.
+Settings include AIDOKU_TRANSLATION_{BASE_URL,MODEL,API_KEY,PROTOCOL,SOURCE,TARGET,
+INCLUDE_IMAGE,FILTER_SFX,FILTER_BACKGROUND,RTL,ALLOW_LOCAL_HTTP} and
+AIDOKU_OCR_{TIER,CONFIDENCE,DETECTOR_SIDE,RECOGNIZER_WIDTH}. See .env.example.
+--no-include-image, --no-filter-sfx, --no-filter-background, --no-rtl disable
+corresponding boolean defaults for one invocation. .env is never printed/copied.
+The connected iPhone profile additionally supplies detector pixel/box thresholds,
+minimum box size, reasoning/timeout, source-language allowlist and overlay JSON.
+Numbered runtime-settings.json records effective settings without credentials.
+Refresh the saved profile with:
+  python3 Scripts/image-translation/sync-iphone-settings.py --device DEVICE_ID
+
+Final composites are also collected in RUN_DIRECTORY/final/ with numbered source
+filenames and shown at the top of each analysis report.
+--render-run RUN_DIR     Recompose completed images from saved render payloads;
+                        no OCR or translation API calls. Repairs old final PNGs.
+--resume-run RUN_DIR     Resume the same input list/order, skipping completed
+                        final.json results; use the same settings and inputs.
+
+--jobs N                Bounded image workers, 1...64 (AIDOKU_IMAGE_JOBS; default 8).
+                        Overlap translation requests and pipeline stages. OCR and
+                        WebKit rendering each retain one slot; output order is stable.
+
+--viewport WIDTHxHEIGHT Reader container in screen points (AIDOKU_RENDER_VIEWPORT).
+                        Default 430x932 portrait; each page is aspect-fitted.
+                        Supply actual reader geometry for a device comparison.
+--layout-fixture FILE   Emit production layout payload JSON for a neutral fixture;
+                        no OCR, provider call, or .env loading.
+Rendering shares the app layout planner, bundled serif handler, background pixel
+budget and mask/PDF export policy. AppKit font metrics and the default viewport
+are not a live iPhone measurement. Old --render-run payloads retain old layout;
+rerun source images to generate the new production layout.

@@ -1,0 +1,108 @@
+import Testing
+import UIKit
+import WebKit
+@testable import Aidoku
+
+/// Explicit replay of the user-supplied original, kept in Documents/ConnectedBalloonReplay.
+@Suite(.serialized)
+@MainActor
+struct ReaderConnectedBalloonReplayTests {
+    @Test
+    func originalPage() async throws {
+        let directory = URL.documentsDirectory.appendingPathComponent("ConnectedBalloonReplay")
+        let image = try #require(UIImage(contentsOfFile: directory.appendingPathComponent("original.png").path)?.cgImage)
+        let audit = ConnectedRecognitionAudit()
+        let profile = NativeCoreMLOCRModelProfile.profile(for: .medium)
+        let pipeline = NativeCoreMLOCRPipeline(
+            detector: NativeCoreMLDetector(modelResourceName: profile.detectorResourceName, maximumSide: 2000),
+            recognizer: NativeCoreMLRecognizer(modelResourceName: profile.recognizerResourceName,
+                dictionaryResourceName: profile.dictionaryResourceName,
+                expectedDictionaryCharacterCount: profile.expectedDictionaryCharacterCount, maximumRecognitionWidth: 1600, auditObserver: { audit.record($0) }),
+            postprocessConfiguration: profile.postprocessConfiguration)
+        let raw = try await pipeline.recognize(image: image, requestID: "connected-balloon", confidenceThreshold: 0.35,
+            detectorConfiguration: .init(threshold: 0.3, boxThreshold: 0.3, unclipRatio: 1.5,
+                                         maximumCandidates: 3000, recoveryBoxThreshold: 0.2))
+        try JSONSerialization.data(withJSONObject: raw.lines.map {
+            ["text": $0.text, "score": $0.score, "polygon": $0.polygon.map { [$0.x, $0.y] },
+             "orientation": $0.orientation.rawValue] as [String: Any]
+        }, options: .prettyPrinted).write(to: directory.appendingPathComponent("raw.json"))
+        try audit.data().write(to: directory.appendingPathComponent("recognizer.json"))
+        await pipeline.purgeResources()
+        let regions = try await ReaderOCRService.shared.recognize(image: image, configuration: .init(
+            detectorMaximumSide: 2000, confidenceThreshold: 0.35, detectorPixelThreshold: 0.3, detectorConfidenceThreshold: 0.3))
+        try JSONEncoder().encode(regions.map(ReaderTranslationStoredRegion.init))
+            .write(to: directory.appendingPathComponent("regions.json"))
+        try await render(regions, image: image, directory: directory)
+        #expect(regions.count == 4)
+        let right = try #require(regions.first { $0.source.hasPrefix("チェリノ") })
+        // Source erasure must not include the balloon outline in the detector's padding.
+        #expect(right.rect.minY > 0.075)
+        #expect(right.rect.maxY < 0.2)
+        #expect(right.rect.minX > 0.225)
+        #expect(regions.contains { $0.source == "チェリノに会ったらよろしくね" })
+        #expect(regions.contains { $0.source == "あと蚊が出たら殺しといて!" })
+        #expect(regions.contains { $0.source == "分かりました" })
+        #expect(regions.contains { $0.source == "■学園転覆" })
+        await ReaderOCRService.shared.purge()
+    }
+    private func render(_ regions: [ReaderTranslationRegion], image: CGImage, directory: URL) async throws {
+        // Fixed Korean fixture translations isolate OCR/layout from provider variability.
+        let translations = ["チェリノに会ったらよろしくね": "체리노를 만나면 안부 전해 줘",
+                            "あと蚊が出たら殺しといて!": "그리고 모기가 나오면 잡아 줘!",
+                            "分かりました": "알겠습니다", "■学園転覆": "■학원 전복"]
+        let translated = regions.map { original in
+            var region = original
+            region.translation = translations[original.source] ?? original.source
+            return region
+        }
+        var settings = ReaderTranslationSettings()
+        settings.overlay = ReaderTranslationSettings.defaultOverlay
+        settings.overlay.inpaintingEnabled = true
+        settings.overlay.preserveSourceBackgroundColor = true
+        settings.overlay.preserveSourceTextColor = true
+        settings.overlay.opacity = 1
+        let size = CGSize(width: image.width, height: image.height)
+        let viewport = CGSize(width: 430, height: 430 * size.height / size.width)
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.keyWindow
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(origin: .zero, size: viewport)
+        window.rootViewController = UIViewController()
+        let overlay = ReaderTranslationOverlayView(frame: window.bounds)
+        window.rootViewController?.view.addSubview(overlay)
+        window.makeKeyAndVisible()
+        defer { overlay.cancelWork(); window.isHidden = true; previous?.makeKey(); ReaderTranslationImageExporter.clearIdleRenderer() }
+        let uiImage = UIImage(cgImage: image)
+        overlay.update(regions: translated, imageSize: size, aspectFit: true, settings: settings, image: uiImage)
+        for _ in 0..<400 where overlay.lastDiagnostic == nil { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(overlay.lastDiagnostic?.outcome == .committed)
+        let audit = try await overlay.webView.evaluateJavaScript("""
+        JSON.stringify(Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay]')).map(n=>({
+          kind:n.dataset.aidokuImageOcrOverlay,id:n.dataset.aidokuRegion,data:{...n.dataset},style:n.getAttribute('style')})))
+        """)
+        let auditData = Data((try #require(audit as? String)).utf8)
+        try auditData.write(to: directory.appendingPathComponent("audit.json"))
+        let rows = try #require(JSONSerialization.jsonObject(with: auditData) as? [[String: Any]])
+        #expect(!rows.contains { $0["kind"] as? String == "source-readability-panel" })
+        let snapshot = try await ReaderTranslationImageExporter.renderCacheSnapshot(
+            image: uiImage, imageSize: size, regions: translated, settings: settings,
+            viewport: viewport, scale: 3, aspectFit: true, host: window, dark: false, preparedLayout: nil)
+        try #require(snapshot.pngData()).write(to: directory.appendingPathComponent("render.png"))
+    }
+
+}
+
+private final class ConnectedRecognitionAudit: @unchecked Sendable {
+    private let lock = NSLock()
+    private var rows: [[String: Any]] = []
+    func record(_ event: NativeCoreMLRecognitionAuditEvent) {
+        guard case let .decoded(_, region, text, confidence, threshold, cacheHit) = event else { return }
+        lock.lock(); defer { lock.unlock() }
+        rows.append(["index": region.sourceIndex, "text": text, "confidence": confidence, "threshold": threshold,
+                     "cached": cacheHit, "polygon": region.polygon.map { [$0.x, $0.y] }])
+    }
+    func data() throws -> Data {
+        lock.lock(); defer { lock.unlock() }
+        return try JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted])
+    }
+}

@@ -934,7 +934,7 @@
 
 "TRANSLATION_AUTOMATIC" = "自動翻訳";
 
-"TRANSLATION_AUTOMATIC_HELP" = "保存済みのAPI設定と推論の強度を使って、リーダーのページを自動翻訳します。別途接続テストを行わずに翻訳を開始します。翻訳に失敗しても、この設定はオフになりません。設定を手動で確認するには「API接続のテスト」を使用してください。";
+"TRANSLATION_AUTOMATIC_HELP" = "リーダーのページを自動で翻訳して表示します。リーダー内の翻訳ボタンで、この設定のオンとオフを切り替えられます。";
 
 "TRANSLATION_TEST" = "API接続のテスト";
 
@@ -1143,6 +1143,15 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "電子辞書研究開発グループ（EDRDG）が管理する総合的な日英辞書です。";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "電子辞書研究開発グループ（EDRDG）が管理する日本語の固有名詞辞書です。";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe のメディアコーパスに基づく頻度辞書です。";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "元のページを表示中も翻訳";
+"TRANSLATION_BACKGROUND_HELP" = "翻訳ボタンをオフにして読んでいる間も翻訳を続けます。画面には元のページを表示したままにします。アプリが非アクティブになると翻訳を一時停止します。";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "先読み翻訳するページ数";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "表示中のページを除き、先読み翻訳する最大ページ数です。これから読むページを優先し、読む際の優先順位に従ってページを選びます。";
+"TRANSLATION_UNLIMITED" = "無制限";
+"TRANSLATION_PAGE_SETTINGS" = "ページ翻訳";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "表示中のページのみ";
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "ソース %@ のバージョン %d はこのアプリでサポートされていません。対応するバージョンをインストールしてください。";

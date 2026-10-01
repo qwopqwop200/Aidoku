@@ -130,7 +130,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Tafsiri ya Kiotomatiki";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Hutafsiri kurasa kwenye kisomaji kiotomatiki kwa kutumia mipangilio ya API na juhudi za kufikiri zilizohifadhiwa. Hakuna jaribio tofauti la muunganisho linaloendeshwa kabla ya tafsiri kuanza. Hitilafu za tafsiri hazizimi mpangilio huu. Tumia Jaribu Muunganisho wa API kukagua mipangilio yako mwenyewe.";
+"TRANSLATION_AUTOMATIC_HELP" = "Hutafsiri na kuonyesha kurasa kwenye kisomaji kiotomatiki. Kitufe cha tafsiri kwenye kisomaji huwasha au kuzima mpangilio huu.";
 
 "TRANSLATION_TEST" = "Jaribu Muunganisho wa API";
 
@@ -1160,6 +1160,17 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Kamusi pana ya Kijapani–Kiingereza inayodumishwa na Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Kamusi ya majina maalumu ya Kijapani inayodumishwa na Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Kamusi ya marudio ya maneno inayotegemea mkusanyiko wa maandishi ya vyombo vya habari katika https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Tafsiri huku ukionyesha kurasa asili";
+"TRANSLATION_BACKGROUND_HELP" = "Huendelea kutafsiri unaposoma hata kitufe cha tafsiri kikiwa kimezimwa. Kurasa asili zinaendelea kuonyeshwa. Tafsiri husitishwa kwa muda programu ikiwa haitumiki.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Kurasa za kutafsiri mapema";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Idadi ya juu ya kurasa za kutafsiri mapema, bila kuhesabu kurasa zinazoonekana. Kurasa huchaguliwa kwa kipaumbele cha kusoma, huku kurasa zinazofuata zikipewa kipaumbele.";
+"TRANSLATION_UNLIMITED" = "Bila kikomo";
+
+"TRANSLATION_PAGE_SETTINGS" = "Tafsiri ya kurasa";
+
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Kurasa zinazoonekana pekee";
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Chanzo %@ toleo %d hakitumiki katika programu hii. Sakinisha toleo linalotumika.";

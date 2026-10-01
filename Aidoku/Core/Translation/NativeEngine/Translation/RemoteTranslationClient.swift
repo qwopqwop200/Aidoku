@@ -148,16 +148,26 @@ final class CompactChatOutputRegistry: @unchecked Sendable {
     }
 }
 
-private actor CustomProtocolPreferenceRegistry {
+actor CustomProtocolPreferenceRegistry {
     struct Key: Hashable, Sendable {
         let provider: RemoteTranslationProvider
         let endpointNamespace: String
+        let configuredProtocol: RemoteTranslationProtocol
+        let model: String
+        let credentialAccount: String
+        let credentialGeneration: UInt64
     }
 
     enum Selection: Sendable {
         case preferred(RemoteTranslationProtocol)
         case probeLeader(token: UUID, configured: RemoteTranslationProtocol)
         case probeFollower(token: UUID, configured: RemoteTranslationProtocol)
+
+        /// Followers may observe the shared probe but do not own its lifetime.
+        var failureOwnershipToken: UUID? {
+            if case let .probeLeader(token, _) = self { return token }
+            return nil
+        }
     }
 
     private struct Entry {
@@ -274,10 +284,11 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         guard !Task.isCancelled, configuration.provider == .custom,
               configuration.apiProtocol != .responses || configuration.reasoningEffort == .none,
               let endpoint = try? configuration.validatedEndpoint(),
-              compactOutput.beginMetadataProbe(endpoint: endpoint.absoluteString,
+              let compactKey = try? Self.compactCapabilityKey(for: configuration),
+              compactOutput.beginMetadataProbe(endpoint: compactKey,
                   account: configuration.credentialAccount, now: ProcessInfo.processInfo.systemUptime)
         else { return }
-        defer { compactOutput.finishMetadataProbe(endpoint: endpoint.absoluteString, account: configuration.credentialAccount) }
+        defer { compactOutput.finishMetadataProbe(endpoint: compactKey, account: configuration.credentialAccount) }
         do {
             let secret = try credentialStore.secret(for: configuration.credentialAccount)
             guard !secret.isEmpty, secret.utf8.count <= KeychainTranslationCredentialStore.maximumSecretBytes,
@@ -295,7 +306,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                   TranslationHTTPCodec.identifiesStructuredOutputServer(responseBody: Data(),
                     apiProtocol: configuration.apiProtocol,
                     vllmVersionHeader: response.response.value(forHTTPHeaderField: "X-vLLM-Version")) else { return }
-            compactOutput.markEligible(endpoint.absoluteString)
+            compactOutput.markEligible(compactKey)
             ReaderTranslationDiagnostics.record("api_compact_metadata_ready")
         } catch {
             // Metadata is optional. Ordinary translation retains its existing
@@ -354,14 +365,12 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             configured: configuration.apiProtocol
         )
         let preferredProtocol: RemoteTranslationProtocol
-        let probeToken: UUID?
+        let probeToken = selection.failureOwnershipToken
         switch selection {
         case let .preferred(apiProtocol):
             preferredProtocol = apiProtocol
-            probeToken = nil
-        case let .probeLeader(token, configured):
+        case let .probeLeader(_, configured):
             preferredProtocol = configured
-            probeToken = token
         case let .probeFollower(token, configured):
             try await Task.sleep(
                 nanoseconds: Self.protocolProbeGraceNanoseconds
@@ -370,7 +379,6 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                 key: key,
                 probeToken: token
             ) ?? configured
-            probeToken = token
         }
 
         let preferredConfiguration = try Self.configuration(
@@ -479,7 +487,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                 .elapsedMilliseconds(since: keychainStartedAt)
         )
 
-        let compactKey = endpoint.absoluteString
+        let compactKey = try Self.compactCapabilityKey(for: configuration)
         if Self.usesCompactOutput(configuration: configuration, request: request, state: .eligible) {
             try await compactOutput.waitForMetadata(endpoint: compactKey, account: configuration.credentialAccount)
         }
@@ -753,13 +761,27 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         }
     }
 
+    /// A gateway may route models or credentials to different backends. A
+    /// rejection or verification from one route must not affect another route.
+    static func compactCapabilityKey(for configuration: RemoteTranslationConfiguration) throws -> String {
+        let fields = [configuration.provider.rawValue, configuration.apiProtocol.rawValue,
+            try configuration.validatedEndpoint().absoluteString, configuration.model,
+            configuration.credentialAccount, String(configuration.credentialGeneration),
+            configuration.reasoningEffort.rawValue]
+        return String(decoding: try JSONEncoder().encode(fields), as: UTF8.self)
+    }
+
     private static func protocolPreferenceKey(
         for configuration: RemoteTranslationConfiguration
     ) throws -> CustomProtocolPreferenceRegistry.Key {
         let namespace = try protocolEndpointNamespace(for: configuration)
         return CustomProtocolPreferenceRegistry.Key(
             provider: configuration.provider,
-            endpointNamespace: namespace.absoluteString
+            endpointNamespace: namespace.absoluteString,
+            configuredProtocol: configuration.apiProtocol,
+            model: configuration.model,
+            credentialAccount: configuration.credentialAccount,
+            credentialGeneration: configuration.credentialGeneration
         )
     }
 

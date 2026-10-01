@@ -17,6 +17,51 @@
       "selectedTests" : {
         "suites" : [
           {
+            "name" : "ReaderTranslationDiskReadBudgetAuditTests"
+          },
+          {
+            "name" : "ReaderTranslationPreviewInvalidationTests"
+          },
+          {
+            "name" : "ReaderRenderPreparationCancellationTests"
+          },
+          {
+            "name" : "NativeTranslationEscapedLanguageCacheTests"
+          },
+          {
+            "name" : "ReaderLocalPageIdentityTests"
+          },
+          {
+            "name" : "DownloadIdentityAuditTests"
+          },
+          {
+            "name" : "ReaderTemporaryIdentityTests"
+          },
+          {
+            "name" : "ReaderTranslationCapabilityPersistenceTests"
+          },
+          {
+            "name" : "ReaderTranslationSplitCacheGeometryTests"
+          },
+          {
+            "name" : "ReaderTranslationCachePolicyAuditTests"
+          },
+          {
+            "name" : "ReaderRenderCacheIdentityAuditTests"
+          },
+          {
+            "name" : "NativeTranslationCacheIdentityAuditTests"
+          },
+          {
+            "name" : "ProviderCacheIdentityAuditTests"
+          },
+          {
+            "name" : "MetadataDownloadCacheAuditTests"
+          },
+          {
+            "name" : "ReaderPageSnapshotIdentityTests"
+          },
+          {
             "name" : "Agent2UtilityRegressionTests"
           },
           {
@@ -195,6 +240,9 @@
           },
           {
             "name" : "NativeOCRRegionSeparatorTests"
+          },
+          {
+            "name" : "NativeOCRStackedAsideRecoveryTests"
           },
           {
             "name" : "NativeOCRTextLineMergerTests"

@@ -163,18 +163,32 @@ final class ReaderTranslationCoordinator {
             }
         )
         preloader.nextPage = { [weak session = self.session] page in session?.nextPageForRecognition(after: page) }
+        preloader.nextPageExcluding = { [weak session = self.session] page, excluded in
+            session?.nextPageForRecognition(after: page, excluding: excluded)
+        }
+        preloader.lookaheadLimit = { [weak owner] page, settings in
+            guard let owner else { return 1 }
+            if !settings.automaticallyTranslate && settings.translateInBackground { return 2 }
+            let visible = owner.translationVisiblePages
+            guard !visible.isEmpty, visible.allSatisfy({
+                $0.sourcePage?.translationCacheKey != page.translationCacheKey && $0.hasCompletedTranslation(settings: settings)
+            }) else { return 1 }
+            return 2
+        }
         preloader.onPrepared = { [weak session = self.session] page, regions, settings in
             session?.receivePrepared(page, regions: regions, settings: settings)
         }
         self.session.onStateChanged = { [weak self] state in
-            self?.button.image = UIImage(systemName: state == .on ? "character.bubble.fill" : "character.bubble")
-            self?.button.tintColor = state == .on ? .systemGreen : .secondaryLabel
-            self?.button.accessibilityValue = NSLocalizedString(state == .on ? "TRANSLATION_STATE_ON" : "TRANSLATION_STATE_OFF")
+            guard let self else { return }
+            let enabled = state == .on && readSettings().automaticallyTranslate
+            button.image = UIImage(systemName: enabled ? "character.bubble.fill" : "character.bubble")
+            button.tintColor = enabled ? .systemGreen : .secondaryLabel
+            button.accessibilityValue = NSLocalizedString(enabled ? "TRANSLATION_STATE_ON" : "TRANSLATION_STATE_OFF")
         }
         self.session.onFailure = { [weak self] error in
             guard let self else { return }
             button.accessibilityHint = Self.localizedFailureDescription(error)
-            showFailureNotice(error)
+            if readSettings().automaticallyTranslate { showFailureNotice(error) }
         }
         observers.append(NotificationCenter.default.addObserver(
             forName: ReaderTranslationPage.sourceImageReady, object: nil, queue: .main
@@ -195,6 +209,11 @@ final class ReaderTranslationCoordinator {
                 }
                 self.session.sourceImageDidLoad(source.page)
             }
+        })
+        observers.append(NotificationCenter.default.addObserver(
+            forName: TranslationImageSupport.changed, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.session.refreshImageSupport() }
         })
         for name in [ReaderTranslationSettings.changed, ReaderTranslationPage.imageChanged, UIApplication.didBecomeActiveNotification] {
             observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
@@ -326,12 +345,20 @@ final class ReaderTranslationCoordinator {
 
     @objc func toggle() {
         dismissFailureNotice()
-        if session.state != .off || readSettings().automaticallyTranslate {
+        if readSettings().automaticallyTranslate {
             synchronizationTask?.cancel()
             synchronizationTask = nil
-            session.disable(preservingVisibleRendering: true)
             setEnabled(false)
-            updateMetadataActivity(active: false)
+            session.setTranslationVisible(false)
+            var settings = readSettings()
+            settings.rightToLeftPanelOrder = owner?.translationReadsRightToLeft ?? false
+            if settings.translateInBackground {
+                session.enable(settings: settings)
+                visiblePagesDidChange()
+            } else {
+                session.disable(preservingVisibleRendering: true)
+            }
+            updateMetadataActivity(active: settings.shouldProcessReaderPages)
         } else {
             button.accessibilityHint = nil
             setEnabled(true)
@@ -394,7 +421,8 @@ final class ReaderTranslationCoordinator {
     func visiblePagesDidChange() {
         guard isVisible, let owner else { return }
         promoteVisibleDisplays()
-        updateMetadataActivity(active: readSettings().automaticallyTranslate)
+        session.setTranslationVisible(readSettings().automaticallyTranslate)
+        updateMetadataActivity(active: readSettings().shouldProcessReaderPages)
         let identity = owner.translationChapterKey + ":" + String(owner.translationCurrentPageIndex)
         let moved = navigationIdentity != identity
         var delay: UInt64 = 80_000_000
@@ -425,7 +453,7 @@ final class ReaderTranslationCoordinator {
         // scrolling keeps cancelling lookahead and postponing its restart by 350ms.
         // OCR/provider work stays paused until the navigation debounce expires.
         if moved, !isScrubbing, session.state == .on, !owner.translationVisiblePages.isEmpty,
-           readSettings().automaticallyTranslate {
+           readSettings().shouldProcessReaderPages {
             let visible = owner.translationVisiblePages
             let context = visible.first.flatMap { page in
                 page.imageView.map { ReaderTranslationLayoutGeometry(page: page, imageView: $0).context }
@@ -470,7 +498,7 @@ final class ReaderTranslationCoordinator {
         }
         var settings = readSettings()
         settings.rightToLeftPanelOrder = owner.translationReadsRightToLeft
-        if settings.automaticallyTranslate { session.enable(settings: settings) } else { session.disable(preservingVisibleRendering: true) }
+        if settings.shouldProcessReaderPages { session.enable(settings: settings) } else { session.disable(preservingVisibleRendering: true) }
     }
 }
 
@@ -527,10 +555,12 @@ extension ReaderTranslationCoordinator {
             try Task.checkCancellation()
             guard owner != nil else { throw CancellationError() }
             guard let settings = imagePreparationSettings() else { return nil }
+            let translationIdentity = ReaderTranslationCacheIdentity.translation(page: pageKey, settings: settings)
             let result = try await session.cachedRegions(for: page, settings: settings)
             try Task.checkCancellation()
             guard owner != nil else { throw CancellationError() }
-            guard imagePreparationSettings() == settings else { continue }
+            guard imagePreparationSettings() == settings,
+                  translationIdentity == ReaderTranslationCacheIdentity.translation(page: pageKey, settings: settings) else { continue }
             guard let result else {
                 ReaderTranslationDiagnostics.record("loaded_translation_miss")
                 return nil
@@ -563,7 +593,7 @@ extension ReaderTranslationCoordinator {
                         image: image, regions: regions, settings: settings, viewport: current.viewport,
                         scale: current.scale, aspectFit: current.aspectFit, dark: current.dark,
                         host: activeHost, cache: cache, key: key,
-                        pageIdentity: ReaderTranslationCacheIdentity.translation(page: pageKey, settings: settings),
+                        pageIdentity: translationIdentity,
                         priority: .promotable(promotion)
                     )
                 }

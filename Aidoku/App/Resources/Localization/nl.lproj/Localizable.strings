@@ -484,7 +484,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Automatische vertaling";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Vertaalt pagina’s in de lezer automatisch met je opgeslagen API-instellingen en redeneerinspanning. Voordat de vertaling begint, wordt geen afzonderlijke verbindingstest uitgevoerd. Vertaalfouten schakelen deze instelling niet uit. Gebruik API-verbinding testen om je instellingen handmatig te controleren.";
+"TRANSLATION_AUTOMATIC_HELP" = "Vertaalt pagina’s in de lezer automatisch en toont de vertaling. Met de vertaalknop in de lezer zet je deze instelling aan of uit.";
 
 "TRANSLATION_TEST" = "API-verbinding testen";
 
@@ -1183,6 +1183,15 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Een uitgebreid Japans-Engels woordenboek, onderhouden door de Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Een woordenboek met Japanse eigennamen, onderhouden door de Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Een frequentiewoordenboek gebaseerd op het mediacorpus van https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Vertalen terwijl originelen zichtbaar zijn";
+"TRANSLATION_BACKGROUND_HELP" = "Blijft vertalen terwijl je leest met de vertaalknop uit. De oorspronkelijke pagina’s blijven zichtbaar. Het vertalen wordt gepauzeerd wanneer de app niet actief is.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Aantal vooraf te vertalen pagina’s";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Maximaal aantal vooraf te vertalen pagina’s, exclusief de zichtbare pagina’s. Pagina’s worden gekozen op basis van leesprioriteit, waarbij volgende pagina’s voorrang krijgen.";
+"TRANSLATION_UNLIMITED" = "Onbeperkt";
+"TRANSLATION_PAGE_SETTINGS" = "Paginavertaling";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Alleen zichtbare pagina’s";
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Bron %@ versie %d wordt niet ondersteund door deze app. Installeer een ondersteunde versie.";

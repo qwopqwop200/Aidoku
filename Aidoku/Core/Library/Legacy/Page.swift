@@ -24,6 +24,8 @@ struct Page: Hashable {
     @HashedReaderBase64 var base64: String? = nil
     var text: String?
     var image: PlatformImage?
+    // Stable encoded-content identity survives temporary file relocation.
+    var imageContentIdentity: String?
     var zipURL: String?
     var language: String?
 

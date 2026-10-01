@@ -574,7 +574,7 @@ struct ReaderTranslationDiskCacheTests {
         changed.overlay.opacity = 0.5
         changed.cacheLimitBytes = 10_000_000_000
         #expect(ReaderTranslationCacheIdentity.translation(page: "page", settings: changed) == key)
-        changed.ocr.detectorMaximumSide = 800
+        changed.ocr.detectorPixelThreshold = 0.25
         #expect(ReaderTranslationCacheIdentity.ocr(page: "page", settings: changed) != ocrKey)
         func render(_ settings: ReaderTranslationSettings, width: CGFloat = 390, crop: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1)) -> String {
             ReaderTranslationCacheIdentity.render(page: "page", settings: settings, imageSize: CGSize(width: 600, height: 800),
@@ -1014,18 +1014,19 @@ struct ReaderTranslationDiskCacheTests {
         case "ocrRecognition": settings.ocr.confidenceThreshold = 0.8
         case "ocrMinimumSize": settings.ocr.detectorMinimumBoxSide = 2
         case "ocrModel": settings.ocr.modelTier = .tiny
-        case "ocrResolution": settings.ocr.detectorMaximumSide = 1280; settings.ocr.recognizerMaximumWidth = 1280
+        case "ocrResolution": settings.ocr.detectorMaximumSide = 800; settings.ocr.recognizerMaximumWidth = 2000
         default: settings.translationSourceLanguages = ["ja"]
         }
         try await cache.synchronizeSettings(settings)
         #expect(try await cache.regions(for: "title", kind: .metadata) == metadata)
-        #expect(try await !cache.contains("page", kind: .translation))
+        // Legacy resolution overrides cannot invalidate the fixed reader configuration.
+        #expect(try await cache.contains("page", kind: .translation) == (change == "ocrResolution"))
         #expect(await cache.currentGeneration(settings: original, kind: .metadata) == metadataGeneration)
         try await cache.storeRegions(metadata, for: "in-flight", kind: .metadata, generation: metadataGeneration)
         let queued = await cache.currentGeneration(settings: original, kind: .metadata)
         try await cache.store(Data("queued".utf8), for: "queued", kind: .metadata, generation: queued)
         try await cache.store(Data("late".utf8), for: "late", kind: .translation, generation: pageGeneration)
-        #expect(try await cache.statistics().entries == 3)
+        #expect(try await cache.statistics().entries == (change == "ocrResolution" ? 5 : 3))
         let reopened = ReaderTranslationDiskCache(directory: root)
         try await reopened.synchronizeSettings(settings)
         #expect(try await reopened.regions(for: "in-flight", kind: .metadata) == metadata)

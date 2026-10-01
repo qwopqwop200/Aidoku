@@ -9,14 +9,14 @@ enum IPhoneOCRModelTier: String, Codable, CaseIterable, Sendable {
 }
 
 enum IPhoneOCRSettings {
-    static let defaultDetectorMaximumSide = 1_600
-    static let defaultRecognizerMaximumWidth = 1_600
+    static let defaultDetectorMaximumSide = 1_280
+    static let defaultRecognizerMaximumWidth = 1_280
 }
 
 struct ReaderOCRConfiguration: Equatable, Codable, Sendable {
     var modelTier: IPhoneOCRModelTier = .medium
-    var detectorMaximumSide = 1_600
-    var recognizerMaximumWidth = 1_600
+    var detectorMaximumSide = IPhoneOCRSettings.defaultDetectorMaximumSide
+    var recognizerMaximumWidth = IPhoneOCRSettings.defaultRecognizerMaximumWidth
     var confidenceThreshold = 0.75
     var detectorPixelThreshold: Double
     var detectorConfidenceThreshold: Double
@@ -24,8 +24,8 @@ struct ReaderOCRConfiguration: Equatable, Codable, Sendable {
 
     init(
         modelTier: IPhoneOCRModelTier = .medium,
-        detectorMaximumSide: Int = 1_600,
-        recognizerMaximumWidth: Int = 1_600,
+        detectorMaximumSide: Int = IPhoneOCRSettings.defaultDetectorMaximumSide,
+        recognizerMaximumWidth: Int = IPhoneOCRSettings.defaultRecognizerMaximumWidth,
         confidenceThreshold: Double = 0.75,
         detectorPixelThreshold: Double? = nil,
         detectorConfidenceThreshold: Double? = nil,
@@ -38,6 +38,15 @@ struct ReaderOCRConfiguration: Equatable, Codable, Sendable {
         self.detectorPixelThreshold = detectorPixelThreshold ?? (modelTier == .tiny ? 0.2 : 0.3)
         self.detectorConfidenceThreshold = detectorConfidenceThreshold ?? (modelTier == .tiny ? 0.4 : 0.6)
         self.detectorMinimumBoxSide = detectorMinimumBoxSide
+    }
+
+    // Reader settings always use the validated mobile ceilings. Explicit configurations
+    // remain available to the offline OCR tooling and model regression fixtures.
+    fileprivate var fixedReaderResolution: Self {
+        var value = self
+        value.detectorMaximumSide = IPhoneOCRSettings.defaultDetectorMaximumSide
+        value.recognizerMaximumWidth = IPhoneOCRSettings.defaultRecognizerMaximumWidth
+        return value
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -82,7 +91,7 @@ struct ReaderCustomTranslationSettings: Equatable, Codable, Sendable {
     var baseURL = ""
     var model = ""
     var apiProtocol: RemoteTranslationProtocol = .responses
-    var reasoningEffort: OpenAIReasoningEffort = .modelDefault
+    var reasoningEffort: OpenAIReasoningEffort = .none
 }
 
 struct ReaderTranslationSettings: Equatable, Sendable {
@@ -92,6 +101,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
 
     var provider: RemoteTranslationProvider = .openAI
     var automaticallyTranslate = true
+    var translateInBackground = false
+    // nil means the whole chapter; zero prepares only visible pages.
+    var maximumPretranslatedPages: Int?
+    var shouldProcessReaderPages: Bool { automaticallyTranslate || translateInBackground }
     var includePageImage = false
     var shouldAttachPageImage: Bool {
         includePageImage && TranslationImageSupport.shared.status(for: configuration) != .unsupported
@@ -113,7 +126,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var chapterTitleSourceLanguages: [String] = []
     var custom = ReaderCustomTranslationSettings()
     private var openAIModel = "gpt-5-mini"
-    private var openAIReasoningEffort: OpenAIReasoningEffort = .modelDefault
+    private var openAIReasoningEffort: OpenAIReasoningEffort = .none
     var model: String {
         get { provider == .openAI ? openAIModel : custom.model }
         set {
@@ -163,6 +176,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         openAIModel = defaults.string(forKey: Self.keyPrefix + "model") ?? openAIModel
         provider = defaults.string(forKey: Self.keyPrefix + "provider").flatMap(RemoteTranslationProvider.init) ?? provider
         automaticallyTranslate = defaults.object(forKey: Self.keyPrefix + "automatic") as? Bool ?? automaticallyTranslate
+        translateInBackground = defaults.bool(forKey: Self.keyPrefix + "background")
+        if let limit = defaults.object(forKey: Self.keyPrefix + "pretranslationLimit") as? Int, limit >= 0 {
+            maximumPretranslatedPages = limit
+        }
         includePageImage = defaults.bool(forKey: Self.keyPrefix + "includePageImage")
         filterSFXWithLLM = defaults.bool(forKey: Self.keyPrefix + "filterSFXWithLLM")
         filterBackgroundWithLLM = defaults.bool(forKey: Self.keyPrefix + "filterBackgroundWithLLM")
@@ -204,7 +221,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
            let value = try? JSONDecoder().decode(IPhoneOverlaySettings.self, from: data) { overlay = value }
         overlay.enforceSourceReplacement()
         if let data = defaults.data(forKey: Self.keyPrefix + "ocr"),
-           let value = try? JSONDecoder().decode(ReaderOCRConfiguration.self, from: data) { ocr = value }
+           let value = try? JSONDecoder().decode(ReaderOCRConfiguration.self, from: data) { ocr = value.fixedReaderResolution }
         ocr.modelTier = modelTier
         openAIReasoningEffort = defaults.string(forKey: Self.keyPrefix + "reasoningEffort")
             .flatMap(OpenAIReasoningEffort.init(rawValue:)) ?? openAIReasoningEffort
@@ -230,7 +247,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     }
 
     var ocrConfiguration: ReaderOCRConfiguration {
-        var value = ocr
+        var value = ocr.fixedReaderResolution
         value.modelTier = modelTier
         return value
     }
@@ -248,13 +265,12 @@ struct ReaderTranslationSettings: Equatable, Sendable {
 
     func validate() throws {
         guard overlay.opacity.isFinite, (0.2...1).contains(overlay.opacity),
-              [800, 1_200, 1_600, 2_000].contains(ocr.detectorMaximumSide),
-              [800, 1_200, 1_600, 2_000].contains(ocr.recognizerMaximumWidth),
               ocr.confidenceThreshold.isFinite, (0...1).contains(ocr.confidenceThreshold),
               ocr.detectorPixelThreshold.isFinite, (0...1).contains(ocr.detectorPixelThreshold),
               ocr.detectorConfidenceThreshold.isFinite, (0...1).contains(ocr.detectorConfidenceThreshold),
               ocr.detectorMinimumBoxSide.isFinite, (0...20).contains(ocr.detectorMinimumBoxSide),
-              (1...64).contains(maximumConcurrentRequests), ReaderTranslationDiskCache.limitChoices.contains(cacheLimitBytes)
+              (1...64).contains(maximumConcurrentRequests), (maximumPretranslatedPages ?? 0) >= 0,
+              ReaderTranslationDiskCache.limitChoices.contains(cacheLimitBytes)
         else { throw RemoteTranslationError.invalidRequest("Invalid OCR or overlay setting.") }
         guard [translationSourceLanguages, mangaTitleSourceLanguages, chapterTitleSourceLanguages, mangaDescriptionSourceLanguages, mangaTagSourceLanguages, sourceLabelSourceLanguages, authorSourceLanguages].allSatisfy({ languages in
             languages.count <= AutomaticSourceLanguageDetector.supportedLanguageCodes.count &&
@@ -301,7 +317,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         // Encode everything before mutating credentials or preferences.
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         var generation = max(credentialGeneration, UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration"))))
-        if !key.isEmpty {
+        if !key.isEmpty, (try? credentialStore.secret(for: selectedCredentialAccount)) != key {
             try credentialStore.save(key, for: selectedCredentialAccount)
             generation = max(generation, UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration")))) &+ 1
         }
@@ -313,6 +329,8 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         defaults.set(filterSFXWithLLM, forKey: Self.keyPrefix + "filterSFXWithLLM")
         defaults.set(filterBackgroundWithLLM, forKey: Self.keyPrefix + "filterBackgroundWithLLM")
         defaults.set(automaticallyTranslate, forKey: Self.keyPrefix + "automatic")
+        defaults.set(translateInBackground, forKey: Self.keyPrefix + "background")
+        defaults.set(maximumPretranslatedPages, forKey: Self.keyPrefix + "pretranslationLimit")
         defaults.set(translateMangaTitles, forKey: Self.keyPrefix + "mangaTitles")
         defaults.set(translateChapterTitles, forKey: Self.keyPrefix + "chapterTitles")
         defaults.set(translateAuthors, forKey: Self.keyPrefix + "authors")

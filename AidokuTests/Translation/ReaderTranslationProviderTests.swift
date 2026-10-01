@@ -43,14 +43,37 @@ struct ReaderTranslationProviderTests {
         fixture.defaults.set(Data(legacy.utf8), forKey: ReaderTranslationSettings.keyPrefix + "ocr")
         let restored = ReaderTranslationSettings(defaults: fixture.defaults)
         #expect(restored.ocr.modelTier == tier)
-        #expect(restored.ocr.detectorMaximumSide == 800)
-        #expect(restored.ocr.recognizerMaximumWidth == 1_200)
+        #expect(restored.ocr.detectorMaximumSide == 1_280)
+        #expect(restored.ocr.recognizerMaximumWidth == 1_280)
         #expect(restored.ocr.confidenceThreshold == 0.85)
         let original = NativeCoreMLOCRModelProfile.profile(for: tier).postprocessConfiguration
         #expect(restored.ocr.detectorPostprocessConfiguration == original)
         #expect(ReaderOCRConfiguration(modelTier: tier).detectorPostprocessConfiguration == original)
         try restored.autosave(defaults: fixture.defaults, credentialStore: fixture.keys)
         #expect(ReaderTranslationSettings(defaults: fixture.defaults).ocr == restored.ocr)
+    }
+
+    @Test func readerResolutionRemainsFixedForRuntimePersistenceAndCacheIdentity() throws {
+        let fixture = ProviderSettingsFixture()
+        defer { fixture.cleanUp() }
+        var settings = ReaderTranslationSettings(defaults: fixture.defaults)
+        let original = settings
+        settings.ocr.detectorMaximumSide = 2_000
+        settings.ocr.recognizerMaximumWidth = 800
+        #expect(settings.ocrConfiguration.detectorMaximumSide == 1_280)
+        #expect(settings.ocrConfiguration.recognizerMaximumWidth == 1_280)
+        #expect(NativeCoreMLRecognitionPreprocessor.targetHeight == 48)
+        #expect(settings.hasSameTranslation(as: original))
+        #expect(ReaderTranslationCacheIdentity.ocr(page: "page", settings: settings) ==
+                ReaderTranslationCacheIdentity.ocr(page: "page", settings: original))
+        try settings.autosave(defaults: fixture.defaults, credentialStore: fixture.keys)
+        let restored = ReaderTranslationSettings(defaults: fixture.defaults)
+        #expect(restored.ocr.detectorMaximumSide == 1_280)
+        #expect(restored.ocr.recognizerMaximumWidth == 1_280)
+        let data = try #require(fixture.defaults.data(forKey: ReaderTranslationSettings.keyPrefix + "ocr"))
+        let saved = try JSONDecoder().decode(ReaderOCRConfiguration.self, from: data)
+        #expect(saved.detectorMaximumSide == 1_280)
+        #expect(saved.recognizerMaximumWidth == 1_280)
     }
 
     @Test(arguments: IPhoneOCRModelTier.allCases)
@@ -86,8 +109,8 @@ struct ReaderTranslationProviderTests {
         """
         fixture.defaults.set(Data(legacy.utf8), forKey: ReaderTranslationSettings.keyPrefix + "ocr")
         let settings = ReaderTranslationSettings(defaults: fixture.defaults)
-        #expect(settings.ocr == ReaderOCRConfiguration(modelTier: .tiny, detectorMaximumSide: 800,
-                    recognizerMaximumWidth: 1_200, confidenceThreshold: 0.85,
+        #expect(settings.ocr == ReaderOCRConfiguration(modelTier: .tiny, detectorMaximumSide: 1_280,
+                    recognizerMaximumWidth: 1_280, confidenceThreshold: 0.85,
                     detectorPixelThreshold: 0.35, detectorConfidenceThreshold: 0.65, detectorMinimumBoxSide: 3))
     }
 

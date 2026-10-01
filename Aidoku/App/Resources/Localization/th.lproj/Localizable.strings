@@ -753,7 +753,7 @@
 
 "TRANSLATION_AUTOMATIC" = "การแปลอัตโนมัติ";
 
-"TRANSLATION_AUTOMATIC_HELP" = "แปลหน้าในตัวอ่านโดยอัตโนมัติด้วยการตั้งค่า API และระดับการใช้เหตุผลที่บันทึกไว้ ไม่มีการทดสอบการเชื่อมต่อแยกก่อนเริ่มแปล การแปลล้มเหลวจะไม่ปิดการตั้งค่านี้ ใช้ ทดสอบการเชื่อมต่อ API เพื่อตรวจสอบการตั้งค่าด้วยตนเอง";
+"TRANSLATION_AUTOMATIC_HELP" = "แปลและแสดงหน้าในตัวอ่านโดยอัตโนมัติ ปุ่มแปลในตัวอ่านใช้เปิดหรือปิดการตั้งค่านี้";
 
 "TRANSLATION_TEST" = "ทดสอบการเชื่อมต่อ API";
 
@@ -1183,6 +1183,17 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "พจนานุกรมญี่ปุ่น–อังกฤษฉบับครอบคลุม ดูแลโดยกลุ่มวิจัยและพัฒนาพจนานุกรมอิเล็กทรอนิกส์ (EDRDG)";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "พจนานุกรมชื่อเฉพาะภาษาญี่ปุ่น ดูแลโดยกลุ่มวิจัยและพัฒนาพจนานุกรมอิเล็กทรอนิกส์ (EDRDG)";
 "RECOMMENDED_JITEN_DESCRIPTION" = "พจนานุกรมความถี่คำที่อ้างอิงคลังข้อความจากสื่อของ https://jiten.moe";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "แปลขณะแสดงหน้าต้นฉบับ";
+"TRANSLATION_BACKGROUND_HELP" = "แปลต่อขณะอ่านแม้ปุ่มแปลจะปิดอยู่ โดยยังคงแสดงหน้าต้นฉบับ การแปลจะหยุดชั่วคราวเมื่อแอปอยู่ในสถานะไม่ใช้งาน";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "จำนวนหน้าที่แปลล่วงหน้า";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "จำนวนหน้าสูงสุดที่จะแปลล่วงหน้า โดยไม่นับหน้าที่แสดงอยู่ เลือกหน้าตามลำดับความสำคัญในการอ่าน โดยให้ความสำคัญกับหน้าถัดไปก่อน";
+"TRANSLATION_UNLIMITED" = "ไม่จำกัด";
+
+"TRANSLATION_PAGE_SETTINGS" = "การแปลหน้า";
+
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "เฉพาะหน้าที่แสดงอยู่";
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "แอปนี้ไม่รองรับแหล่งข้อมูล %@ เวอร์ชัน %d โปรดติดตั้งเวอร์ชันที่รองรับ";

@@ -5,7 +5,9 @@ extension Page {
     var translationCacheKey: String {
         if let translationOriginalKey { return translationOriginalKey }
         let settingsKey = ImageProcessingSettingsKey.getProcessorSettingsKey()
-        var parts = [sourceId, chapterId, String(index), imageURL ?? "", zipURL ?? "", settingsKey]
+        let imageIdentity = imageContentIdentity ?? imageURL.flatMap { URL(string: $0) }
+            .flatMap { ReaderImageContentIdentity.stableRemoteURL($0, sourceKey: sourceId) }?.absoluteString ?? imageURL ?? ""
+        var parts = [sourceId, chapterId, String(index), imageIdentity, zipURL ?? "", settingsKey]
         // Sources may choose different image bytes/headers from the same URL
         // using page context. Keep legacy nil/empty-context keys stable, while
         // separating any contextual source request before OCR/cache hydration.

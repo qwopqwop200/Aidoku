@@ -431,7 +431,7 @@
 
 "TRANSLATION_AUTOMATIC" = "Traducere automată";
 
-"TRANSLATION_AUTOMATIC_HELP" = "Traduce automat paginile din cititor folosind setările API și nivelul de raționament salvate. Nu se efectuează un test separat al conexiunii înainte de începerea traducerii. Erorile de traducere nu dezactivează această setare. Folosiți testul conexiunii API pentru a verifica manual setările.";
+"TRANSLATION_AUTOMATIC_HELP" = "Traduce și afișează automat paginile din cititor. Butonul de traducere din cititor activează sau dezactivează această setare.";
 
 "TRANSLATION_TEST" = "Testați conexiunea API";
 
@@ -1148,6 +1148,15 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "Un dicționar japonez-englez cuprinzător, întreținut de Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "Un dicționar de nume proprii japoneze, întreținut de Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "Un dicționar de frecvență bazat pe corpusul media de la https://jiten.moe.";
+
+// Reader background translation and preparation limits
+"TRANSLATION_BACKGROUND" = "Tradu în timp ce afișezi originalele";
+"TRANSLATION_BACKGROUND_HELP" = "Continuă traducerea în timpul lecturii cu butonul de traducere dezactivat. Paginile originale rămân vizibile. Traducerea este întreruptă cât timp aplicația este inactivă.";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Numărul de pagini de tradus în avans";
+"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Numărul maxim de pagini de tradus în avans, fără a include paginile vizibile. Paginile sunt alese în funcție de prioritatea de lectură, acordând întâietate paginilor următoare.";
+"TRANSLATION_UNLIMITED" = "Nelimitat";
+"TRANSLATION_PAGE_SETTINGS" = "Traducerea paginilor";
+"TRANSLATION_VISIBLE_PAGES_ONLY" = "Doar paginile vizibile";
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Sursa %@ versiunea %d nu este acceptată de această aplicație. Instalați o versiune acceptată.";

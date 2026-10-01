@@ -237,8 +237,9 @@ struct ReaderTranslationOverlapTests {
         #expect(await recorder.completed.isEmpty)
         await recorder.release()
         try await waitUntil { await recorder.completed.count == 5 }
-        #expect(await recorder.ocr == [2, 3, 1, 4, 0])
-        #expect(await recorder.api == [2, 3, 1, 4, 0])
+        // The reader secures the next three forward pages before its backward safety net.
+        #expect(await recorder.ocr == [2, 3, 4, 1, 0])
+        #expect(await recorder.api == [2, 3, 4, 1, 0])
     }
 
     @Test func leavingCancelsAPIAndSpeculativeOCRWithoutStartingMorePages() async throws {
