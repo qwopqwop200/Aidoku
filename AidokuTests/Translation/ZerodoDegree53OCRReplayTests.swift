@@ -69,7 +69,7 @@ struct ZerodoDegree53OCRReplayTests {
                         detectorPixelThreshold: 0.3,
                         detectorConfidenceThreshold: 0.3))
                 try JSONEncoder().encode(regions.map(ReaderTranslationStoredRegion.init))
-                    .write(to: directory.appendingPathComponent(name + ".regions.json"))
+                    .write(to: directory.appendingPathComponent(name + ".actual.regions.json"))
 
                 // Deliberately distinct Korean text activates the painted-caption path.
                 // This is a geometry probe, not a translation.

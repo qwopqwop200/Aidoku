@@ -22,6 +22,12 @@ for pattern in ['NativeRestoration*.swift','NativeObservedRestore*.swift','Nativ
 sources.add(o/'NativeTranslationRenderer+CaptionReflow.swift'); sources.add(o/'NativeTranslationRenderer+TextFrame.swift'); sources.add(o/'NativeCaptionFixedBoxReflow.swift'); sources.add(o/'NativeTranslationRenderer+SlantedTrials.swift'); sources.add(o/'NativeSlantedQuadOutsideBox.swift')
 sources.add(o/'NativeCTFontVerticalPainter.swift'); sources.add(o/'NativeVerticalLetterSpacing.swift'); sources.add(o/'NativeCTFontStrokePainter.swift'); sources.update(o.glob('NativeNormal*.swift')); sources.add(o/'NativeRawTextBalance.swift'); sources.update(o.glob('NativeKeepAll*.swift')); sources.update(o.glob('NativePre*.swift')); sources.update(o.glob('NativeVisible*.swift')); sources.update(o.glob('NativeEarly*.swift')); sources.update(o.glob('NativeTypography*.swift')); sources.add(o/'NativeTranslationSurfacePool.swift'); sources.add(o/'NativeEnclosedPaperFinish.swift')
 sources.add(o/'NativeTranslationRenderer+TypographyHarmony.swift'); sources.add(o/'NativeTranslationRenderer+CohortSnap.swift'); sources.add(o/'NativeTranslationRenderer+LateWordRepair.swift'); sources.add(o/'NativeLateWordRepair.swift'); sources.add(o/'NativeTranslationRenderer+PlateGrowth.swift'); sources.add(o/'NativeTranslationRenderer+PlateCoverage.swift'); sources.add(o/'NativeSourceSurfaceGeometry.swift'); sources.add(o/'NativeSourceInkCleanup.swift'); sources.add(o/'NativeTextPaintGeometry.swift'); sources.add(o/'NativeVerticalContentFit.swift'); sources.add(o/'NativeTypedArrayFill.swift'); sources.add(o/'NativeTranslationRenderer+CaptionOwnerGraph.swift')
+# Current production dependencies of PlateGrowth/Restoration/Typography. Keep
+# their actual implementations; the transport below only replaces app hosting.
+for name in ['NativeTranslationRenderer+DisplayPeerCap', 'NativeClosedBalloonExclusion',
+             'NativeObservedGlyphOwnership', 'NativeCTFontHorizontalFillPainter',
+             'NativeCollapsedRowIntrinsicWidth', 'NativeDottedPaperFrame', 'NativeVerticalGlyphOrigins']:
+    sources.add(o / (name + '.swift'))
 growth_override=os.environ.get('AIDOKU_PLATE_GROWTH_SOURCE')
 if growth_override: sources.discard(o/'NativeTranslationRenderer+PlateGrowth.swift'); sources.add(Path(growth_override))
 staged=os.environ.get('AIDOKU_ARTWORK_POST_POLISH')

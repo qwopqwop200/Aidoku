@@ -1,5 +1,13 @@
 # Korean balloon fitting regression checks
 
+> Native migration: the WebKit/JavaScript algorithms and measurements below
+> describe the preserved pre-migration reference. Current Node regressions read
+> the test-only `AidokuTests/Translation/LegacyBrowserOverlay` sources; production
+> translation uses native Swift/Core Text/Core Graphics and native Rust kernels.
+> Historical simulator counts and old optional fixture instructions are not a
+> current-main result. Use the native suites and commands in
+> [TESTING.md](../TESTING.md) and [the runtime map](../../Docs/native-runtime.md).
+
 The overlay may reduce Korean text by at most 15% (floor 7.5 CSS px) and
 reflow it inside a reconstructed balloon. Font and ink cohorts are retained;
 this is a bounded per-caption fit, not a page-wide font-size replacement.

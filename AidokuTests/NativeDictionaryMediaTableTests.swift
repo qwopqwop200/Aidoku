@@ -7,7 +7,6 @@ import UIKit
 @MainActor
 struct NativeDictionaryMediaTableTests {
     @Test func structuredImageUsesPreferredDimensionsAndCSSUnits() {
-        guard #available(iOS 18.0, *) else { return }
         let font = UIFont.systemFont(ofSize: 15)
         let natural = CGSize(width: 200, height: 100)
         let em = NativeDictionaryMedia.geometry(["preferredWidth": 2, "width": 200, "height": 100, "sizeUnits": "em"],
@@ -24,7 +23,6 @@ struct NativeDictionaryMediaTableTests {
     }
 
     @Test func nativeSVGCreatesActualPixelsAndMonochromeRetainsAlpha() throws {
-        guard #available(iOS 18.0, *) else { return }
         let svg = ##"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><path d="M2 2H8V8H2Z" fill="#00ff00"/></svg>"##
         let value = NativeDictionaryMedia.attachment(["path": "fixture.svg", "preferredWidth": 2, "sizeUnits": "em", "appearance": "monochrome"],
             dictionary: "fixture", attributes: [.font: UIFont.systemFont(ofSize: 15), .foregroundColor: UIColor.red],
@@ -52,7 +50,6 @@ struct NativeDictionaryMediaTableTests {
     }
 
     @Test func structuredTableSpansAndStylesReachSelectableNativeCells() throws {
-        guard #available(iOS 18.0, *) else { return }
         let value: [String: Any] = ["type": "structured-content", "content": ["tag": "table", "content": [
             ["tag": "tr", "content": [["tag": "th", "rowSpan": 2, "content": "語"],
                 ["tag": "td", "colSpan": 2, "data": ["kind": "meaning"], "content": "日本語"]]],
@@ -79,7 +76,6 @@ struct NativeDictionaryMediaTableTests {
     }
 
     @Test func stylesheetAppliesClassDataSelectorsHTMLMediaAndRecordsResidualCSS() throws {
-        guard #available(iOS 18.0, *) else { return }
         let rendered = NativeDictionaryContent.glossary("<p class='definition' lang='ja' data-sc-kind='term'>日本語</p>",
             dictionary: "fixture", scale: 1, stylesheet: ".definition[data-sc-kind=term] { font-weight: bold; color: rgb(1, 2, 3); display: grid; gap: 4px; }")
         let font = try #require(rendered.attribute(.font, at: 0, effectiveRange: nil) as? UIFont)
@@ -88,7 +84,6 @@ struct NativeDictionaryMediaTableTests {
         #expect((rendered.attribute(.nativeDictionaryCSSDiagnostics, at: 0, effectiveRange: nil) as? [String])?.contains("gap") == true)
     }
     @Test func themeImportantVariablesAndHiddenRubyFollowNativeCascade() throws {
-        guard #available(iOS 18.0, *) else { return }
         let content = "<div style='--ink:#123456'><ruby class='hidden'>消える<rt>きえる</rt></ruby><span class='term'>語</span></div>"
         let stylesheet = ".hidden{display:none}.term{font-size:20px!important;color:var(--ink)!important;font-weight:bold!important}"
             + "@media(prefers-color-scheme:dark){.term{color:white}}"
@@ -114,7 +109,6 @@ struct NativeDictionaryMediaTableTests {
     }
 
     @Test func nestedTablesAndGridKeepNativeSelectableChildrenAndHiddenRows() throws {
-        guard #available(iOS 18.0, *) else { return }
         let content = "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px'><span>左</span>"
             + "<table><tr style='display:none'><td>隠す</td></tr><tr style='color:#123456'>"
             + "<td>外<table><tr><td>内</td></tr></table></td></tr></table></div>"
@@ -138,7 +132,6 @@ struct NativeDictionaryMediaTableTests {
     }
 
     @Test func stylesheetBoxesRemainInteractiveInsideWrappersAndTableCells() throws {
-        guard #available(iOS 18.0, *) else { return }
         let stylesheet = ".row{display:flex;gap:8px;color:var(--Ink)}"
         let content = "<div style='--Ink:#123456'><section class='row'><span>A</span><span>B</span></section></div>"
         let blocks = NativeDictionaryContent.glossaryBlocks(content, dictionary: "fixture", scale: 1, stylesheet: stylesheet)
@@ -154,7 +147,6 @@ struct NativeDictionaryMediaTableTests {
     }
 
     @Test func headerPreservesInheritedSizeAndExplicitBorderlessCells() throws {
-        guard #available(iOS 18.0, *) else { return }
         let blocks = NativeDictionaryContent.glossaryBlocks("<table><tr style='font-size:2em'>"
             + "<th style='border:none'>語</th><td style='border-style:hidden'>訳</td></tr></table>", dictionary: "fixture", scale: 1)
         let table = try #require(blocks.compactMap { if case .table(let model) = $0 { return model }; return nil }.first)

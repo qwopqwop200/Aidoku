@@ -215,7 +215,8 @@ final class ReaderTranslationRenderCache {
                     let asset = try? await assetReadGate.withPermit(priority: .promotable(promotion)) {
                         guard !Task.isCancelled,
                               let data = try? await disk.data(for: Self.renderAssetStorageKey(key), kind: .layout,
-                                                              maximumBytes: ReaderTranslationRenderAsset.maximumEncodedBytes),
+                                                              maximumBytes: ReaderTranslationRenderAsset.maximumEncodedBytes,
+                                                              discardOversized: true),
                               data.count <= ReaderTranslationRenderAsset.maximumEncodedBytes,
                               !Task.isCancelled else { return nil as ReaderTranslationRenderAsset? }
                         let decoding = Task.detached(priority: promotion.isForeground ? .userInitiated : .utility) {
@@ -368,7 +369,7 @@ final class ReaderTranslationRenderCache {
               generation == issued, assetStores[key] == id else { return }
         // These are already completed rendering bytes. Make them replayable while
         // optional JSON encoding/persistence runs, otherwise another display can
-        // miss both tiers and repeat the WebKit export. This shares the same Data
+        // miss both tiers and repeat the native render. This shares the same Data
         // under the existing byte-bounded LRU; no decoded bitmap is retained here.
         cancelAssetRead(key: key, replacement: asset)
         retainRenderAsset(asset, key: key)
@@ -459,7 +460,7 @@ final class ReaderTranslationRenderCache {
             try Task.checkCancellation()
             return
         }
-        // A cancelled export can still be unwinding its WebKit/native work.
+        // A cancelled export can still be unwinding its native rendering work.
         // A new request must not join that doomed result while its owner exits.
         let entry = Preparation(task: Task { try Task.checkCancellation(); try await operation() })
         preparations[key] = entry

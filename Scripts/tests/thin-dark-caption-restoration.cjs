@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Captured native-resolution crops: thin dark ink with a measured white ring.
 // Independent source-core masks were derived from connected dark components
 // and their observed bright perimeter, not from the candidate restoration.

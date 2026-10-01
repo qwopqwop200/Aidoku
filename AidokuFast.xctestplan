@@ -282,9 +282,6 @@
             "name": "ReaderEntryLoadingTests"
           },
           {
-            "name": "ReaderExportStageLifetimeTests"
-          },
-          {
             "name": "ReaderFailureLocalizationTests"
           },
           {
@@ -709,9 +706,6 @@
           },
           {
             "name": "NativeGlyphCoverTests"
-          },
-          {
-            "name": "LegacySourcePaginationTests"
           },
           {
             "name": "NativeLatePlateTrimTests"

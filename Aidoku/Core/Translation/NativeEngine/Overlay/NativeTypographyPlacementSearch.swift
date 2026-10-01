@@ -41,7 +41,8 @@ enum NativeTypographyPlacementSearch {
 
         /// The source policy rounds pixel origins with Math.round and searches
         /// dy then dx; equal-distance ties keep the first encountered placement.
-        func nearestShift(frame: CGRect, size: CGFloat, region: CGRect, reachGlyph: CGFloat) -> CGPoint? {
+        func nearestShift(frame: CGRect, size: CGFloat, region: CGRect, reachGlyph: CGFloat,
+                          diagnostic: (([String: Any]) -> Void)? = nil) -> CGPoint? {
             guard size > 0, reachGlyph > 0,
                   [frame.minX, frame.minY, frame.maxX, frame.maxY, size, reachGlyph,
                    region.minX, region.minY, region.maxX, region.maxY].allSatisfy(\.isFinite) else { return nil }
@@ -70,6 +71,18 @@ enum NativeTypographyPlacementSearch {
                     if blocked != 0 { continue }
                     best = (dx, dy, distance)
                 }
+            }
+            if let diagnostic {
+                var record: [String: Any] = ["stage": "growth-shift-search", "font": size,
+                    "frame": [frame.minX, frame.minY, frame.width, frame.height],
+                    "crop": [crop.minX, crop.minY, crop.width, crop.height],
+                    "region": [region.minX, region.minY, region.width, region.height],
+                    "scale": [sx, sy], "origin": [ox, oy], "block": [blockWidth, blockHeight],
+                    "bounds": [leftBound, topBound, rightBound, bottomBound], "reach": reach,
+                    "blockedPixels": Int(sums[sums.count - 1])]
+                if let best { record["best"] = [best.dx, best.dy, best.distance] }
+                else { record["best"] = NSNull() }
+                diagnostic(record)
             }
             return best.map { CGPoint(x: CGFloat($0.dx) / sx, y: CGFloat($0.dy) / sy) }
         }

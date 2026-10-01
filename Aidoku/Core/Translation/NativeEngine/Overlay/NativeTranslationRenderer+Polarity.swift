@@ -54,6 +54,7 @@ extension NativeTranslationRenderer {
             cards[index].style.foreground = color(fill.map { CGFloat($0) })
             if cards[index].style.outlineWidth > 0 {
                 cards[index].style.outline = nil; cards[index].style.outlineWidth = 0; cards[index].strokePreserved = false
+                cards[index].style.outlinePaintOrder = .fillThenStroke
             }
             cards[index].clusterRGB = nil
             cards[index].polarityRecord = ["fill": [originalFill, fill], "plate": [originalPlate, plate]]

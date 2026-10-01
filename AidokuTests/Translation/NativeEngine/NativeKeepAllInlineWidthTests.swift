@@ -102,4 +102,51 @@ struct NativeKeepAllInlineWidthTests {
         #expect(!layout.glyphBounds.isEmpty)
         #expect(!NativeTranslationTypography.diagnosticRuns(layout: layout).isEmpty)
     }
+
+    @Test func recordedAuthoredParagraphKeepsItsLaterSoftSpaceHanging() throws {
+        let text = "가문의 번영과\n종의 존속을 꾀했다"
+        let paragraphStyle = NativeTranslationTypography.Style(fontName: "AppleSDGothicNeo-Bold", fontScript: "korean",
+            fontSize: 11.75, tracking: -0.141, lineHeight: 14.02197265625,
+            optimizesKoreanWrapping: false, balancesHorizontalLines: false,
+            horizontalWrapping: .keepAllWithEmergency)
+        let layout = NativeTranslationTypography.layout(text: text,
+            in: CGSize(width: 42.015625, height: 127.1875), style: paragraphStyle)
+        let rows = NativeTranslationTypography.diagnosticRuns(layout: layout)
+        #expect(rows.map { $0["text"] as? String } == ["가문의 \n", "번영과\n", "종의 \n", "존속을 \n", "꾀했다"])
+        #expect(layout.visibleUTF16Range == NSRange(location: 0, length: text.utf16.count))
+        // Frozen page 11 has identical origins for its three three-Hangul rows.
+        // The fourth shaped range ends at 18, which is the original text length,
+        // but its space is a soft wrap before 꾀했다, not a paragraph end.
+        let expected: [CGFloat] = [65.50493621826172, 65.50493621826172,
+            70.51631164550781, 65.50493621826172, 65.50493621826172]
+        #expect(rows.count == expected.count)
+        for (row, expectedX) in zip(rows, expected) {
+            let origin = try x(row)
+            let point = try #require(NativeTextPaintGeometry.paintOrigin(
+                CGPoint(x: 59.53125 + origin, y: 0), deviceScale: nil))
+            #expect(point.x == expectedX)
+        }
+    }
+
+    @Test(arguments: ["가문의 \n번영과", "가문의  \n번영과 ", "가문의 \n\n번영과", " 가문의 \n번영과"])
+    func authoredSpacesAndEmptyParagraphsRetainForcedBreakAlignment(text: String) throws {
+        var ordinary = style()
+        ordinary.balancesHorizontalLines = false
+        ordinary.horizontalWrapping = .normal
+        var keepAll = ordinary
+        keepAll.horizontalWrapping = .keepAllWithEmergency
+        let size = CGSize(width: 200, height: 100)
+        let control = NativeTranslationTypography.layout(text: text, in: size, style: ordinary)
+        let actual = NativeTranslationTypography.layout(text: text, in: size, style: keepAll)
+        let oldRows = NativeTranslationTypography.diagnosticRuns(layout: control)
+        let newRows = NativeTranslationTypography.diagnosticRuns(layout: actual)
+        #expect(actual.shapedText == text && actual.shapedText == control.shapedText)
+        #expect(actual.visibleUTF16Range == NSRange(location: 0, length: text.utf16.count))
+        #expect(oldRows.count == newRows.count)
+        for (before, after) in zip(oldRows, newRows) {
+            let oldX = try x(before), newX = try x(after)
+            #expect(oldX == newX)
+            #expect((before["runs"] as? NSArray)?.isEqual(to: after["runs"] as? [Any] ?? []) == true)
+        }
+    }
 }

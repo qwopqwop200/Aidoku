@@ -25,7 +25,6 @@ import UIKit
         #expect(recognizer.orderedClusterIndices([0, 1]) == [1, 0])
     }
     @Test func dictionaryOverlayMapsWholeUnicodeCharactersToLookupHits() throws {
-        guard #available(iOS 18.0, *) else { return }
         for text in ["𠮷野家", "か\u{3099}くせい"] {
             let rect = CGRect(x: 0, y: 0, width: 240, height: 60)
             let suffixes = text.indices.map { String(text[$0...]) }

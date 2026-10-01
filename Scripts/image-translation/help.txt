@@ -28,19 +28,22 @@ Pipeline:
   --quiet                 Print milestones only; full values remain in JSON files.
   --help                  Show this help without compiling or loading models.
 
-Requires macOS 15+, Apple Silicon, and Xcode command-line tools. Runs the current
+Requires macOS 15+, Apple Silicon, Xcode command-line tools and Rust (rustc). Runs the current
 production Core ML OCR, recovery, grouping, batch planner, and remote client.
 Models and Swift objects are reused from build/image-translation-host.
 Each image gets JSON stages, HTTP request/response bodies (never auth headers),
-OCR visualization, final translation JSON, an HTML overlay and final PNG.
-The host overlay uses the production layout planner and JavaScript renderer;
-UIKit native layout and iPhone Core ML timings are not identical to this Mac run.
+OCR visualization, translation JSON, native layout/layer diagnostics, PDF text,
+final PNG and a static HTML image preview. Rendering shares the native app
+Core Graphics/Core Text renderer and native Rust pixel kernels; it executes no
+WebKit, JavaScript or WebAssembly. macOS font metrics and Core ML timing may
+differ from iPhone output; this run is not device pixel-parity evidence.
 Exit: 0 all succeeded; 1 any image failed; 2 invalid arguments/configuration.
 
 Analysis is generated automatically: analysis-index.html, per-image analysis.html,
 analysis.json and analysis/*.png. Toggle OCR stages, directions/angles, recovery
 candidates, balloon spans, grouping members and detector probabilities. Renderer
-calls also save source crops, actual masks and overlays (64 calls / 8M pixels).
+diagnostics save bounded source/repair crops and initial/final repair-alpha masks;
+these are native repair patches, not historical JavaScript glyph bitmasks.
 Rebuild analysis from saved outputs without OCR/models/server:
   swift Scripts/image-translation.swift --visualize-run RUN_OR_IMAGE_DIRECTORY
 
@@ -60,20 +63,22 @@ Refresh the saved profile with:
 Final composites are also collected in RUN_DIRECTORY/final/ with numbered source
 filenames and shown at the top of each analysis report.
 --render-run RUN_DIR     Recompose completed images from saved render payloads;
-                        no OCR or translation API calls. Repairs old final PNGs.
---resume-run RUN_DIR     Resume the same input list/order, skipping completed
-                        final.json results; use the same settings and inputs.
+                        no OCR or translation API calls. Supported historical
+                        payloads migrate to native layout/settings.
+--resume-run RUN_DIR     Resume the same input list/order/settings. Completed
+                        native results are retained; completed historical renders
+                        are recomposed natively from saved inputs without OCR/API calls.
 
 --jobs N                Bounded image workers, 1...64 (AIDOKU_IMAGE_JOBS; default 8).
                         Overlap translation requests and pipeline stages. OCR and
-                        WebKit rendering each retain one slot; output order is stable.
+                        native rendering each retain one slot; output order is stable.
 
 --viewport WIDTHxHEIGHT Reader container in screen points (AIDOKU_RENDER_VIEWPORT).
                         Default 430x932 portrait; each page is aspect-fitted.
                         Supply actual reader geometry for a device comparison.
 --layout-fixture FILE   Emit production layout payload JSON for a neutral fixture;
                         no OCR, provider call, or .env loading.
-Rendering shares the app layout planner, bundled serif handler, background pixel
-budget and mask/PDF export policy. AppKit font metrics and the default viewport
+Rendering shares the app layout planner, Core Text font registration, bounded
+background sizing and native mask/PDF export policy. AppKit font metrics and the default viewport
 are not a live iPhone measurement. Old --render-run payloads retain old layout;
 rerun source images to generate the new production layout.

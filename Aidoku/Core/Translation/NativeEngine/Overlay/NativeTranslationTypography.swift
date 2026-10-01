@@ -32,6 +32,8 @@ enum NativeTranslationTypography {
     enum HorizontalWrapping { case normal, keepAll, keepAllWithEmergency }
     enum HorizontalWhitespace { case preWrap, normal, preLine }
 
+    enum OutlinePaintOrder: String { case strokeThenFill, fillThenStroke }
+
     struct Style {
         var fontName: String?
         var fontScript: String
@@ -41,6 +43,7 @@ enum NativeTranslationTypography {
         var foreground: CGColor
         var outline: CGColor?
         var outlineWidth: CGFloat
+        var outlinePaintOrder: OutlinePaintOrder
         var tracking: CGFloat
         /// Initial CSS letter spacing is relative to font size. A later
         /// explicit pixel assignment keeps its value through font-only trials.
@@ -56,6 +59,7 @@ enum NativeTranslationTypography {
         var horizontalWhitespace: HorizontalWhitespace
         fileprivate var explicitLineFlow: Bool = false
         fileprivate var usesKeepAllInlineItemWidths: Bool = false
+        fileprivate var keepAllParagraphEndRows: [Bool]? = nil
         var usesBlockWordLayout: Bool
         var usesPreformattedBlockRows: Bool
         var preservesBlockRows: Bool { usesBlockWordLayout || usesPreformattedBlockRows }
@@ -78,6 +82,7 @@ enum NativeTranslationTypography {
             foreground: CGColor = CGColor(gray: 0, alpha: 1),
             outline: CGColor? = nil,
             outlineWidth: CGFloat = 0,
+            outlinePaintOrder: OutlinePaintOrder = .strokeThenFill,
             tracking: CGFloat? = nil,
             lineHeight: CGFloat? = nil,
             optimizesKoreanWrapping: Bool = true,
@@ -105,6 +110,7 @@ enum NativeTranslationTypography {
             self.foreground = foreground
             self.outline = outline
             self.outlineWidth = outlineWidth
+            self.outlinePaintOrder = outlinePaintOrder
             self.tracking = tracking ?? fontSize * -0.012
             self.lineHeight = lineHeight ?? fontSize * (vertical ? 1 : 1.2)
             self.optimizesKoreanWrapping = optimizesKoreanWrapping
@@ -701,9 +707,15 @@ enum NativeTranslationTypography {
 
     private static func layoutKeepAllFlow(text: String, in available: CGSize, style: Style,
                                          overflowAnywhere: Bool) -> Layout? {
-        guard !text.contains(where: \.isNewline) else { return nil }
+        // Preserved LF ends a paragraph; it does not turn keep-all into
+        // Core Text's ordinary character wrapping within either paragraph.
+        // Other authored controls retain their existing shaping path.
+        guard !text.contains(where: { $0.isNewline && $0 != "\n" }) else { return nil }
         var width = available.width / style.horizontalScale
         let source = text as NSString
+        guard source.length <= 8192 else { return nil }
+        let analysis = NativeKeepAllBreakOpportunities.analyze(text: text)
+        guard analysis.paragraphs.count <= 512 else { return nil }
         var paintedStyle = style
         paintedStyle.intrinsicText = text
         paintedStyle.horizontalWrapping = .normal
@@ -726,25 +738,46 @@ enum NativeTranslationTypography {
                 attributedString(text: source.substring(with: range), style: paintedStyle)), nil, nil, nil))
         }
         if !overflowAnywhere {
-            let minimum = NativeKeepAllBreakOpportunities.analyze(text: text).items
+            let minimum = analysis.items
                 .filter { $0.kind == .text }.map { measure($0.range) }.max() ?? 0
             let intrinsic = CGFloat((Float(minimum) * 64).rounded(.up)) / 64
             width = max(width, intrinsic)
             paintedStyle.intrinsicMinimumContentWidth = intrinsic
         }
-        guard let auto = NativeKeepAllAutoLines.greedy(text: text, maximumWidth: width,
-            overflowAnywhere: overflowAnywhere, width: measure, emergencyBreak: { range, room in
-                var end = range.location, chosen = 0
-                while end < NSMaxRange(range) {
-                    end = NSMaxRange(source.rangeOfComposedCharacterSequence(at: end))
-                    if measure(NSRange(location: range.location, length: end - range.location)) > room { break }
-                    chosen = end - range.location
-                }
-                return chosen
-            }) else { return nil }
-        let balanced = style.balancesHorizontalLines ? NativeKeepAllTextBalance.solve(text: text,
-            originalAutoRanges: auto, maximumWidth: width, itemWidth: { Float(measure($0)) }) : nil
-        let ranges = balanced?.flowRanges ?? auto
+        var ranges: [NSRange] = [], paragraphEnds: [Bool] = []
+        for paragraph in analysis.paragraphs {
+            let paragraphRange = paragraph.range
+            if paragraphRange.length == 0 {
+                ranges.append(paragraphRange); paragraphEnds.append(true)
+                continue
+            }
+            let paragraphText = source.substring(with: paragraphRange)
+            func originalRange(_ range: NSRange) -> NSRange {
+                NSRange(location: paragraphRange.location + range.location, length: range.length)
+            }
+            guard let auto = NativeKeepAllAutoLines.greedy(text: paragraphText, maximumWidth: width,
+                overflowAnywhere: overflowAnywhere, width: { measure(originalRange($0)) }, emergencyBreak: { range, room in
+                    let original = originalRange(range)
+                    var end = original.location, chosen = 0
+                    while end < NSMaxRange(original) {
+                        end = NSMaxRange(source.rangeOfComposedCharacterSequence(at: end))
+                        if measure(NSRange(location: original.location, length: end - original.location)) > room { break }
+                        chosen = end - original.location
+                    }
+                    return chosen
+                }) else { return nil }
+            let balances = style.balancesHorizontalLines &&
+                (analysis.paragraphs.count == 1 || style.balancesExplicitParagraphs)
+            let balanced = balances ? NativeKeepAllTextBalance.solve(text: paragraphText,
+                originalAutoRanges: auto, maximumWidth: width, itemWidth: { Float(measure(originalRange($0))) }) : nil
+            let paragraphRows = (balanced?.flowRanges ?? auto).map(originalRange)
+            ranges.append(contentsOf: paragraphRows)
+            paragraphEnds.append(contentsOf: paragraphRows.map { NSMaxRange($0) == NSMaxRange(paragraphRange) })
+            guard ranges.count <= 512 else { return nil }
+        }
+        // Core Text ranges below refer to text with newly inserted soft LF.
+        // Keep authored paragraph ends in their original coordinate space.
+        paintedStyle.keepAllParagraphEndRows = paragraphEnds
         let rows = ranges.map { range -> String in
             let row = source.substring(with: range)
             return style.horizontalWhitespace == .normal
@@ -855,6 +888,7 @@ enum NativeTranslationTypography {
     static func draw(
         layout: Layout, in context: CGContext, at origin: CGPoint = .zero,
         additionalFillStrokeWidth: CGFloat = 0,
+        outlinePaintOrder: OutlinePaintOrder = .strokeThenFill,
         pixelSnapScale: CGFloat? = nil
     ) {
         guard var frame = layout.frame else { return }
@@ -885,9 +919,9 @@ enum NativeTranslationTypography {
                 if let width = value as? NSNumber, width.doubleValue != 0 { hasStroke = true }
             }
             if hasStroke {
-                // CSS paint-order:stroke fill paints the entire stroke first.
-                // Quartz's negative stroke-width mode instead fills then strokes,
-                // covering the fill at inner contours and thickening white rings.
+                // Preserve the CSS producer's order: normal paints fill then
+                // stroke, while explicit stroke fill leaves the full interior.
+                // Both passes reuse identical shaping and glyph coordinates.
                 let stroke = NSMutableAttributedString(attributedString: painted)
                 let fill = NSMutableAttributedString(attributedString: painted)
                 painted.enumerateAttributes(in: full) { attributes, range, _ in
@@ -901,7 +935,8 @@ enum NativeTranslationTypography {
                 }
                 fill.removeAttribute(NSAttributedString.Key(kCTStrokeWidthAttributeName as String), range: full)
                 fill.removeAttribute(NSAttributedString.Key(kCTStrokeColorAttributeName as String), range: full)
-                frames = [stroke, fill].map {
+                let passes = outlinePaintOrder == .strokeThenFill ? [stroke, fill] : [fill, stroke]
+                frames = passes.map {
                     CTFramesetterCreateFrame(CTFramesetterCreateWithAttributedString($0), CFRange(location: 0, length: 0),
                         CTFrameGetPath(frame), layout.frameAttributes)
                 }
@@ -925,7 +960,7 @@ enum NativeTranslationTypography {
                     let base = origin.y + layout.offset.y + layout.frameSize.height - origins[index].y + movement.y
                     let x = origin.x + (layout.offset.x + origins[index].x) * layout.paintScaleX + movement.x
                     let anchor = NativeTextPaintGeometry.paintOrigin(CGPoint(x: x, y: base), deviceScale: pixelSnapScale) ?? CGPoint(x: x, y: base)
-                    if paintPass == 0, frames.count == 2,
+                    if frames.count == 2, paintPass == (outlinePaintOrder == .strokeThenFill ? 0 : 1),
                        NativeCTFontStrokePainter.draw(line: line, context: context, anchor: anchor,
                                                       horizontalScale: layout.paintScaleX) { continue }
                     if let prepared = NativeCTFontHorizontalFillPainter.prepare(line: line, horizontalScale: layout.paintScaleX),
@@ -1288,8 +1323,13 @@ enum NativeTranslationTypography {
             let range = CTLineGetStringRange(line)
             let source = originalText as NSString
             let end = min(source.length, range.location + range.length)
-            let forcedOrFinal = end == source.length || end > 0 && end <= source.length &&
-                (source.character(at: end - 1) == 10 || source.character(at: end - 1) == 13)
+            let forcedOrFinal: Bool
+            if let paragraphEnds = style.keepAllParagraphEndRows, index < paragraphEnds.count {
+                forcedOrFinal = paragraphEnds[index]
+            } else {
+                forcedOrFinal = end == source.length || end > 0 && end <= source.length &&
+                    (source.character(at: end - 1) == 10 || source.character(at: end - 1) == 13)
+            }
             let trailing = CGFloat(CTLineGetTrailingWhitespaceWidth(line))
             let establishedWidth = style.preservesBlockRows ? max(0, rawWidth)
                 : originalText.contains(where: \.isNewline) && forcedOrFinal

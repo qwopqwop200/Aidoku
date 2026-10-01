@@ -71,6 +71,20 @@ struct ReaderTranslationDigestEquivalenceTests {
             let expected = FrozenFormatterIdentity.render(page: page, settings: settings, imageSize: size, viewport: viewport,
                 scale: CGFloat(variant + 1), aspectFit: variant != 2, crop: crop, dark: variant == 2)
             #expect(actual == expected)
+            // This independent formatter recipe tracks two intentional revisions:
+            // bounded column recovery invalidates OCR and its page-derived keys;
+            // v158 typography and source donors invalidate the native visual namespace.
+            let priorRenderer = FrozenFormatterIdentity.render(page: page, settings: settings, imageSize: size, viewport: viewport,
+                scale: CGFloat(variant + 1), aspectFit: variant != 2, crop: crop, dark: variant == 2,
+                renderRevision: "reader-render-v153-revert-polygon-segmentation",
+                letteringFontKey: BrowserOverlayLetterFonts.shared.availabilityKey)
+            #expect(actual != priorRenderer)
+            // The immediately preceding native renderer uses the same font key
+            // and every other input. Only its render revision is obsolete.
+            let priorNativeRenderer = FrozenFormatterIdentity.render(page: page, settings: settings, imageSize: size, viewport: viewport,
+                scale: CGFloat(variant + 1), aspectFit: variant != 2, crop: crop, dark: variant == 2,
+                renderRevision: "reader-render-v157-native-restoration-quality")
+            #expect(actual != priorNativeRenderer)
         }
     }
 }
@@ -84,9 +98,9 @@ private enum FrozenFormatterIdentity {
         return digest((try? encoder.encode(value)) ?? Data())
     }
     static func ocr(page: String, settings: ReaderTranslationSettings) -> String {
-        // OCR entries contain merged regions. A merger change must also
-        // invalidate derived translations/layouts instead of replaying old boxes.
-        encoded(["reader-ocr-v83-captured-dialogue-recovery", page, encoded(settings.ocrConfiguration)])
+        // Frozen formatting stays independent; only the intentional OCR schema
+        // revision changes for verified bounded column recovery.
+        encoded(["reader-ocr-v89-bounded-column-recovery", page, encoded(settings.ocrConfiguration)])
     }
     static func translation(page: String, settings: ReaderTranslationSettings) -> String {
         let previous = unfilteredTranslation(page: page, settings: settings)
@@ -105,16 +119,18 @@ private enum FrozenFormatterIdentity {
     // Every geometry/appearance input must be included to reject stale pixels after a reader change.
     // swiftlint:disable:next function_parameter_count
     static func render(page: String, settings: ReaderTranslationSettings, imageSize: CGSize, viewport: CGSize,
-                       scale: CGFloat, aspectFit: Bool, crop: CGRect, dark: Bool) -> String {
+                       scale: CGFloat, aspectFit: Bool, crop: CGRect, dark: Bool,
+                       renderRevision: String = "reader-render-v158-native-typography-and-source-donors",
+                       letteringFontKey: String = NativeTranslationTypography.availabilityKey) -> String {
         // Auto Layout rounds view edges to display pixels. Mathematical prefetch
         // sizes differ by tiny fractions (568.016 pt vs 568 pt); those are one raster.
         let pixelScale = max(1, scale)
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
         return encoded([
-            ReaderTranslationCacheIdentity.renderRevision, translation(page: page, settings: settings), encoded(settings.overlay),
+            renderRevision, translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
-            "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit", BrowserOverlayLetterFonts.shared.availabilityKey,
+            "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit", letteringFontKey,
             ProcessInfo.processInfo.operatingSystemVersionString
         ])
     }

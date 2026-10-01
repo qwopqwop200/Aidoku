@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Verify the production shared-card admission gate against actual DOM geometry.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');

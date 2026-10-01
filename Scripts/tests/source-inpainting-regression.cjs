@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Production reconstruction, with known-background oracles and captured corpus crops.
 // node Scripts/tests/source-inpainting-regression.cjs [--source path/to/BrowserSourcePanelRestoration.swift]
 const assert = require('node:assert/strict');

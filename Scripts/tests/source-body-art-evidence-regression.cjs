@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Real captured crops pin the separation of resolved lettering from preserved
 // frame-connected artwork. Hashes pin both restoration paint and layout safety.
 // 0876 paint hashes include the reviewed donor-border correction; ownership masks

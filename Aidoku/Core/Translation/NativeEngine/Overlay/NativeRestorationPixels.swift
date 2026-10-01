@@ -50,6 +50,10 @@ struct NativeRestorationPixels {
     var erasureComplete = false
     var sourceErasureVerified: Bool?
     var glyphsVerified = false
+    /// Applied only after pixel completion; cannot authorize extra fringe erasure.
+    var polygonGlyphsVerified = false
+    // Bounded source-frame evidence, separate from every erasure certificate.
+    var dottedFrameProtection: NativeDottedPaperFrame.Protection?
     var localProposal = false
     var sourceRemainingInk: Int?
     var sourceCorePixels: Int?
@@ -188,24 +192,25 @@ struct NativeRestorationPixels {
 
     static func restore(_ p: Self, box: CGRect, auxiliary: [CGRect], excluded: [CGRect], palette: Palette?,
                         vertical: Bool, polygon: [CGPoint], slanted: Bool,
-                        sourceOptions: NativeObservedRestoreOptions? = nil) -> Self? {
+                        sourceOptions: NativeObservedRestoreOptions? = nil,
+                        inferredRubyExclusions: [CGRect]? = nil) -> Self? {
         guard !Task.isCancelled else { return nil }
         var options = sourceOptions ?? NativeObservedRestoreOptions()
-        options.auxiliary = auxiliary; options.excluded = excluded; options.inferredRubyExclusions = excluded
+        options.auxiliary = auxiliary; options.excluded = excluded
+        // Inference retains every original OCR descriptor even when separate
+        // pixel ownership resolves a containing title's hard write exclusion.
+        options.inferredRubyExclusions = inferredRubyExclusions ?? excluded
         options.vertical = vertical; options.slantedOwnership = slanted
+        if !slanted {
+            options.glyphOwnership = NativeObservedGlyphOwnership.make(width: p.width, height: p.height,
+                box: box, polygon: polygon, auxiliary: auxiliary)
+        }
         func protectedResult(_ candidate: Self?) -> Self? {
-            guard var candidate else { return nil }
-            var invalidated = false
-            for rect in excluded {
-                for index in candidate.indices(rect) {
-                    if candidate.rgba[index * 4 + 3] != 0 { invalidated = true }
-                    candidate.rgba[index * 4 + 3] = 0
-                    candidate.layoutSafe?[index] = 0
-                }
-                if ([box] + auxiliary).contains(where: { $0.intersects(rect) }) { invalidated = true }
-            }
-            if invalidated { candidate.erasureComplete = false; candidate.glyphsVerified = false }
-            return candidate.paintedCount > 0 ? candidate : nil
+            var candidate = candidate
+            // This late qualification leaves all restoration/fringe bytes intact.
+            // Exclusion clipping still has the final authority to invalidate it.
+            if candidate?.polygonGlyphsVerified == true { candidate?.glyphsVerified = true }
+            return protectExclusions(candidate, original: p, box: box, auxiliary: auxiliary, excluded: excluded, palette: palette)
         }
         if !slanted, let grid = NativeSourceGlyphSegmentation.ruledGridRestore(rgba: p.rgba, width: p.width, height: p.height,
                 box: box, vertical: vertical, auxiliary: auxiliary, excluded: excluded) {
@@ -229,6 +234,69 @@ struct NativeRestorationPixels {
             result = completed
         }
         return protectedResult(result)
+    }
+
+    /// Foreign OCR bounds can overlap in empty paper between adjacent balloons.
+    /// Preserve an existing proof only when immutable source pixels, including
+    /// their immediate rim, independently certify that the overlap is paper.
+    /// A transparent patch alone is insufficient: an earlier stage may already
+    /// have clipped foreign or unresolved source ink out of that patch.
+    static func protectExclusions(_ candidate: Self?, original: Self, box: CGRect, auxiliary: [CGRect],
+                                  excluded: [CGRect], palette: Palette?) -> Self? {
+        guard var candidate, candidate.width == original.width, candidate.height == original.height else { return nil }
+        func paperOnly(_ overlap: CGRect) -> Bool {
+            guard let background = palette?.verifiedBackground, background.minimum >= 248,
+                  background.maximum - background.minimum <= 6 else { return false }
+            let rim = overlap.insetBy(dx: -1, dy: -1)
+            guard rim.minX >= 0, rim.minY >= 0, rim.maxX <= CGFloat(original.width),
+                  rim.maxY <= CGFloat(original.height) else { return false }
+            let samples = original.indices(rim)
+            return !samples.isEmpty && samples.allSatisfy { index in
+                let color = original.color(index)
+                return original.rgba[index * 4 + 3] == 255 && color.maximum - color.minimum <= 6 &&
+                    color.distance(background) <= 8
+            }
+        }
+        let owned = [box] + auxiliary
+        let background = candidate.observedBacking ?? palette?.verifiedBackground
+        let sourceInk = [candidate.observedFill ?? palette?.verifiedForeground,
+                         candidate.observedStroke ?? palette?.stroke].compactMap { $0 }
+        func clipsObservedSourceInk(_ index: Int) -> Bool {
+            let point = CGPoint(x: index % original.width, y: index / original.width)
+            guard owned.contains(where: { $0.contains(point) }), let background else { return false }
+            let color = original.color(index)
+            // Match the existing page-erasure proof's original ink evidence.
+            // A changed/background pixel alone is not an owned glyph certificate.
+            return original.rgba[index * 4 + 3] == 255 && candidate.color(index).distance(color) > 24 &&
+                color.distance(background) >= 40 && sourceInk.contains { color.distance($0) <= 36 }
+        }
+        var invalidated = false, observedInkClipped = false
+        for rect in excluded {
+            for index in candidate.indices(rect) {
+                if candidate.rgba[index * 4 + 3] != 0 {
+                    let pixel = CGRect(x: index % original.width, y: index / original.width, width: 1, height: 1)
+                    if !paperOnly(pixel) {
+                        invalidated = true
+                        observedInkClipped = observedInkClipped || clipsObservedSourceInk(index)
+                    }
+                }
+                candidate.rgba[index * 4 + 3] = 0
+                candidate.layoutSafe?[index] = 0
+            }
+            for owned in [box] + auxiliary where owned.intersects(rect) {
+                if !paperOnly(owned.intersection(rect)) { invalidated = true }
+            }
+        }
+        if invalidated {
+            candidate.erasureComplete = false
+            candidate.glyphsVerified = false
+        }
+        // Preserve the independent source-erasure certificate established by
+        // the producing algorithm. A foreign bounding-box intersection does
+        // not prove that original owned lettering was clipped. Revoke this
+        // certificate only when this operation actually clips observed source ink.
+        if observedInkClipped { candidate.sourceErasureVerified = false }
+        return candidate.paintedCount > 0 ? candidate : nil
     }
 
     /// Flood the page paper, then erase only its bounded OCR-owned holes. This retains

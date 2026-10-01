@@ -77,7 +77,11 @@ extension NativeTranslationRenderer {
                 var style = original.style
                 style.fontSize = CGFloat(candidate.font);style.lineHeight = CGFloat(candidate.pitch)
                 style.tracking = -style.fontSize * 0.012;style.horizontalScale = CGFloat(candidate.scale)
-                style.optimizesKoreanWrapping = false;style.balancesHorizontalLines = false;style.alignsToTop = false
+                style.optimizesKoreanWrapping = false;style.alignsToTop = false
+                // A size-only CSS trial retains the card's automatic balance.
+                // It does not insert controlled word-aware child rows.
+                style.balancesHorizontalLines = item.wrappingScript == "korean" && !item.vertical &&
+                    item.text.utf16.count <= 180 && !item.text.contains(where: \.isNewline)
                 var measurementStyle = style
                 measurementStyle.outline = nil;measurementStyle.outlineWidth = 0;measurementStyle.outlineGlow = 0
                 let measured = NativeTranslationTypography.layout(text:item.text,in:available,style:measurementStyle)

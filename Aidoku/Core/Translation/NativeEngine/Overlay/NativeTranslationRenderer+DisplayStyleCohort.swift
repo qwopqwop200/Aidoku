@@ -99,6 +99,7 @@ extension NativeTranslationRenderer {
             if let fill=decision.fill {cards[index].style.foreground=color(fill.map {CGFloat($0)})}
             if decision.dropStroke {
                 cards[index].style.outline=nil;cards[index].style.outlineWidth=0;cards[index].strokePreserved=false
+                cards[index].style.outlinePaintOrder = .fillThenStroke
                 cards[index].sourceStrokeKind="none"
             }
             cards[index].typography=remeasureTypography(cards[index])

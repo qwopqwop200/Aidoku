@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), zlib = require('node:zlib'), crypto = require('node:crypto');
 const script = fs.readFileSync(path.join(__dirname,

@@ -370,7 +370,11 @@ final class ReaderTranslationPage {
                     try? await renderCache.disk.storeImageSize(image.size,
                         page: sourcePage.translationCacheKey, generation: storedGeneration)
                 }
-                if renderLookupKey == key { renderLookupTask = nil }
+                // storeImageSize suspends too: a cancelled lookup must not
+                // clear a replacement for the same render key on resumption.
+                guard !Task.isCancelled, generation == issued, imageView.image === image,
+                      renderLookupKey == key else { return }
+                renderLookupTask = nil
             }
             return
         }
@@ -508,6 +512,12 @@ final class ReaderTranslationPage {
             // Hidden presentations are rebuilt on demand after ON. A layout
             // callback while OFF must not resurrect a visible renderer.
             guard !overlay.isHidden else { releaseOverlay(); return }
+            // An invalidated native viewport needs a fresh target even while the
+            // previous target still waits for its disk generation. Its cancelled
+            // lookup cannot clear or publish over the replacement after suspension.
+            renderLookupTask?.cancel()
+            renderLookupTask = nil
+            renderLookupKey = nil
             try? publish(regions, image: image, settings: settings, generation: generation)
         }
         overlay.isHidden = !settings.overlay.visible
@@ -602,7 +612,7 @@ final class ReaderTranslationPage {
 
     /// Attach a finished composite to an adjacent reader view before a swipe.
     /// A cache miss leaves the source alone; only the session's bounded renderer
-    /// may create missing pixels. Never create a WebKit view per preload page.
+    /// may create missing pixels. Preloaded pages only attach completed cached bitmaps.
     func displayPreparedSnapshot(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings, memoryOnly: Bool = false) {
         guard let imageView, let image = imageView.image, let sourcePage, let renderCache,
               imageView.bounds.width > 0, imageView.bounds.height > 0 else { return }

@@ -70,6 +70,7 @@ extension NativeTranslationRenderer {
         var refit: (_ id: String, _ cap: Double, _ strict: Bool, _ current: [Card]) -> (card: Card?, size: Double?)
         var peerFont: (_ id: String, _ font: Double, _ beforeInterior: Bool) -> Double
         var interiorGaps: (_ id: String, _ font: Double, _ current: [Card]) -> Int
+        var state: (_ id: String) -> NativeTypographyPlateGrowth.GrowthState? = { _ in nil }
     }
     struct PlateGrowthDiagnostic {
         let id: String
@@ -231,6 +232,34 @@ extension NativeTranslationRenderer {
         proposed.typography=remeasureTypography(proposed)
         proposed.finalFontSize=CGFloat(p.font)
         return proposed
+    }
+
+    /// The retained title is a visible compact text node. Its hidden original
+    /// card can retain the OCR-sized frame for source geometry, but that frame
+    /// is not an opaque displayed obstacle for restored typography.
+    static func retainedGlossGrowthObstacles(cards: [Card], gloss: NativeTranslationEffectGloss.Refinement) -> [String: [CGRect]] {
+        guard cards.count <= 256, gloss.notes.count <= 256 else { return [:] }
+        var result: [String: [CGRect]] = [:]
+        for note in gloss.notes {
+            guard note.title, note.retainedTypography != nil,
+                  gloss.hiddenIDs.contains(note.id) || gloss.removedLayerIDs.contains(note.id), note.text.utf16.count <= 512,
+                  note.placement.angle == nil || note.placement.angle == 0,
+                  [note.placement.size, note.placement.width, note.placement.lineHeight].allSatisfy({ $0.isFinite && $0 > 0 }),
+                  note.placement.moves.count == 1,
+                  let move = note.placement.moves.first, move.x.isFinite, move.y.isFinite,
+                  note.origin.x.isFinite, note.origin.y.isFinite,
+                  let card = cards.first(where: { $0.item.id == note.id }), !card.item.keptLettering else { continue }
+            let style = glossStyle(card: card, size: note.placement.size, lineHeight: note.placement.lineHeight,
+                title: note.title, retained: note.retainedTypography)
+            let typography = NativeTranslationTypography.layout(text: glossText(note.text, title: note.title),
+                in: note.contentSize, style: style)
+            guard let local = NativeTranslationTypography.wholeRangeBounds(layout: typography, style: style, available: note.contentSize),
+                  valid(local) else { continue }
+            let displayed = local.offsetBy(dx: note.origin.x + move.x, dy: note.origin.y + move.y)
+            guard valid(displayed) else { continue }
+            result[note.id, default: []].append(displayed)
+        }
+        return result
     }
 
     /// Original ordering: plate growth, restored growth, then their combined
@@ -559,6 +588,7 @@ extension NativeTranslationRenderer {
         // Original collect order: all plate growers, then one restored-surface
         // growth pass. Upfront refining runs only initial cohort/word repair.
         if let session=growthSession {
+            session.context.growth.displayedGlossObstacles = retainedGlossGrowthObstacles(cards: pageCards.cards, gloss: gloss)
             let foregrounds=Dictionary(uniqueKeysWithValues:pageCards.cards.map {($0.item.id,$0.style.foreground)})
             let grown: [NativeTranslationLayoutItem]
             do {
@@ -578,6 +608,8 @@ extension NativeTranslationRenderer {
                 style.foreground=item.typesettingForeground.map {color($0.map {CGFloat($0)})} ?? style.foreground
                 style.outline=item.typesettingOutlineRGB.map {color($0.map {CGFloat($0)})} ?? style.outline
                 style.outlineWidth=item.typesettingOutlineWidth ?? style.outlineWidth
+                if item.typesettingOutlineRGB != nil, item.typesettingOutlineRGB != next.item.typesettingOutlineRGB ||
+                    item.typesettingOutlineWidth != next.item.typesettingOutlineWidth { style.outlinePaintOrder = .strokeThenFill }
                 commitRestoredPlateGrowth(item,to:&next,style:style);pageCards.cards[index]=next
                 events[item.id,default:[]].append(["phase":"initial-restored","before":before,"after":shape(next)])
             }
@@ -602,10 +634,18 @@ extension NativeTranslationRenderer {
                 style.foreground=item.typesettingForeground.map {color($0.map {CGFloat($0)})} ?? style.foreground
                 style.outline=item.typesettingOutlineRGB.map {color($0.map {CGFloat($0)})} ?? style.outline
                 style.outlineWidth=item.typesettingOutlineWidth ?? style.outlineWidth
+                if item.typesettingOutlineRGB != nil, item.typesettingOutlineRGB != next.item.typesettingOutlineRGB ||
+                    item.typesettingOutlineWidth != next.item.typesettingOutlineWidth { style.outlinePaintOrder = .strokeThenFill }
                 commitRestoredPlateGrowth(item,to:&next,style:style)
                 return (next,item.fontSize>=record.original.fontSize*1.08 ? Double(item.fontSize):nil)
             },peerFont:{id,font,before in Double(session.peerFont(id:id,font:CGFloat(font),beforeInterior:before))},
-            interiorGaps:{id,font,current in session.interiorGaps(id:id,font:CGFloat(font),items:currentItems(current))})
+            interiorGaps:{id,font,current in session.interiorGaps(id:id,font:CGFloat(font),items:currentItems(current))},
+            state:{id in
+                let history = session.context.growth
+                guard history.original[id] != nil else { return nil }
+                return .init(extended:history.extended.contains(id), base:Double(history.base[id] ?? 0),
+                    interiorBase:history.interior.contains(id) ? history.interiorBase[id].map(Double.init) : nil)
+            })
         } else {restoredBridge=nil}
         // Restored growth is supplied by its own persistent typography session;
         // a final font alone cannot fabricate its original/base/interior flags.
@@ -651,12 +691,18 @@ extension NativeTranslationRenderer {
             return Policy.plateFilled(plate:card.sourcePanels[index].rect,font:Double(card.finalFontSize),
                 wordWidths:card.item.text.split(whereSeparator:{$0.isWhitespace}).map {wordWidth(String($0),Double(card.finalFontSize),card)},
                 inkHeight:Double(wholeInk(card).height),displayCardGrowth:card.displayCardGrowth)
-        },interiorGaps:{id,font in restoredBridge?.interiorGaps(id,font,pageCards.cards) ?? 0})
+        },interiorGaps:{id,font in restoredBridge?.interiorGaps(id,font,pageCards.cards) ?? 0},
+          growthState:{id in restoredBridge?.state(id)})
         for grower in growers {
             var record=diagnostics[grower.id] ?? .init(id:grower.id,originalFont:grower.base,font:grower.size)
             record.font=grower.size;record.cohort=grower.cohortTarget;record.released=grower.releasedTarget
             record.styleCap=grower.styleCap;record.interiorRefit=grower.interiorRefit
             diagnostics[grower.id]=record
+        }
+        let displayCaps = capRotatedDisplayPeers(cards: &pageCards.cards, cleanup: cleanup,
+            hiddenIDs: gloss.hiddenIDs, removedIDs: gloss.removedLayerIDs)
+        for (id, sizes) in displayCaps {
+            events[id, default: []].append(["phase": "display-peer-cap", "beforeFont": sizes[0], "afterFont": sizes[1]])
         }
         for index in pageCards.cards.indices {
             let id=pageCards.cards[index].item.id

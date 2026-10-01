@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Raster ground truth across scripts, hue, polarity, gradients and antialiased outlines.
 // --measure-only --color-source FILE --restoration-source FILE --report FILE
 const assert = require('node:assert/strict');

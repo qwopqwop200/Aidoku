@@ -527,8 +527,8 @@ extension ReaderTranslationCoordinator {
     }
 
     /// Return a finished source-aspect image before the loader exposes the source.
-    /// Warm render assets replay without a window; only legacy text-only entries
-    /// wait for a host, using layout/activation events instead of polling UIKit.
+    /// Cached assets and cold native renders work without a window. Requests
+    /// wait only for measured reader geometry, using layout events instead of polling.
     func prepareCachedImage(
         image: UIImage, page: Page,
         geometry: @escaping @MainActor () -> ReaderTranslationImageGeometry?
@@ -580,7 +580,6 @@ extension ReaderTranslationCoordinator {
             }
             let key = renderKey(settings, current)
             let host = (owner as? UIViewController)?.viewIfLoaded
-            let activeHost = UIApplication.shared.applicationState == .active && host?.window?.windowScene != nil ? host : nil
             let cache = owner?.translationPersistsCache == true ? session.renderCache : nil
             let promotion = TranslationRequestPromotion()
             displayPromotions.append((pageKey, promotion))
@@ -592,7 +591,7 @@ extension ReaderTranslationCoordinator {
                     try await ReaderTranslationImageExporter.renderLoadedImage(
                         image: image, regions: regions, settings: settings, viewport: current.viewport,
                         scale: current.scale, aspectFit: current.aspectFit, dark: current.dark,
-                        host: activeHost, cache: cache, key: key,
+                        host: host, cache: cache, key: key,
                         pageIdentity: translationIdentity,
                         priority: .promotable(promotion)
                     )
@@ -602,23 +601,6 @@ extension ReaderTranslationCoordinator {
                 guard owner != nil else { throw CancellationError() }
                 // A request event cancelled the child. Re-read settings so OFF
                 // can return the source immediately and background can use RAM.
-                continue
-            } catch ReaderTranslationImageExporter.ExportError.unavailable {
-                try Task.checkCancellation()
-                guard owner != nil else { throw CancellationError() }
-                if imagePreparationSettings() != settings || geometry() != current { continue }
-                // A warm asset does not need this condition. A cache miss asks
-                // for WebKit only after its attached, active host becomes ready.
-                guard let host else { throw ReaderTranslationImageExporter.ExportError.unavailable }
-                guard UIApplication.shared.applicationState != .active || host.window?.windowScene == nil else {
-                    throw ReaderTranslationImageExporter.ExportError.unavailable
-                }
-                ReaderTranslationDiagnostics.record("loaded_host_wait")
-                try await ReaderTranslationLayoutAwaiter.wait(in: host) { [weak self, weak host] in
-                    guard self?.imagePreparationSettings() == settings, let latest = geometry(), latest.isValid,
-                          renderKey(settings, latest) == key else { return true }
-                    return host?.window?.windowScene != nil && UIApplication.shared.applicationState == .active
-                }
                 continue
             } catch {
                 try Task.checkCancellation()

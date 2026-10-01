@@ -4,6 +4,16 @@ import Foundation
 extension NativeObservedRestoreState {
     typealias Helpers = NativeObservedRestorationHelpers
 
+    /// Shared ownership decision before preserved-pixel qualifications. Keeping
+    /// body ownership separate from complete erasure prevents frame-connected
+    /// drawing from becoming permission to release the entire OCR rectangle.
+    var ownershipCertificate: (glyphs: Bool, erasure: Bool) {
+        let glyphs = unresolved == 0 && !auxiliary.contains {
+            Helpers.rectHasInk(protectedInk, frameInk: frameInk, w: pixels.width, rect: $0)
+        }
+        return (glyphs, glyphs && frameInterior == 0)
+    }
+
     var followHalo: Bool {
         measuredHalo && options.outlineFringe && palette.stroke.map {
             $0.distance(background) >= 40 || $0.minimum >= 230 && palette.strokeConfidence >= 0.7 && $0.distance(foreground) >= 80
@@ -42,12 +52,47 @@ extension NativeObservedRestoreState {
         guard Double(substantial) <= box.width * box.height * density else { return false }
         unresolved = Helpers.countUnresolvedInk(protectedInk, frameInk: frameInk, w: pixels.width, box: box)
         guard options.slantedOwnership || options.segmentedSurfaceRecovery || unresolved <= max(8, Int(Double(coreCount) * 0.04)) else { return false }
+        if options.excludedDonorPolicy == .observedSource && !options.excluded.isEmpty && separation >= 80 {
+            // Broad OCR bounds may include source backing. Reuse the palette
+            // classifier's bounded tolerance; unrelated ink, outline and art
+            // retain their donor barrier and its full eight-pixel margin.
+            var forbidden = protectedInk
+            var foreignInk = [UInt8](repeating: 0, count: pixels.count)
+            let tolerance = max(10, min(48, separation * 0.4))
+            for i in 0..<pixels.count where frameInk[i] != 0 || drawingSurface[i] != 0 { forbidden[i] = 1 }
+            for rect in options.excluded { for i in pixels.indices(rect) {
+                let color = pixels.color(i)
+                let outline = palette.stroke.map { $0.distance(background) >= 40 && color.distance($0) <= tolerance } == true
+                if raw[i] != 0 || observedInk[i] != 0 || color.distance(background) > tolerance ||
+                    color.distance(foreground) <= tolerance || outline {
+                    forbidden[i] = 1; foreignInk[i] = 1
+                }
+            } }
+            sourceDonorBlocked = Helpers.blockProtectedDonors(forbidden, w: pixels.width, h: pixels.height, queue: &queue).blocked
+            // Exemplar patches use a nine-pixel footprint, not the diffusion
+            // donor dilation. Explicitly keep the same foreign-ink margin in
+            // its source footprint; default kernel inputs are unaffected.
+            if foreignInk.contains(1) {
+                let margin = Helpers.blockProtectedDonors(foreignInk, w: pixels.width, h: pixels.height, queue: &queue).blocked
+                for i in 0..<pixels.count where margin[i] != 0 { forbidden[i] = 1 }
+            }
+            sourceDonorForbidden = forbidden
+        }
         for rect in options.excluded { for i in pixels.indices(rect) { protectedInk[i] = 1; mask[i] = 0; seedRadius[i] = 0 } }
         let donors = Helpers.blockProtectedDonors(protectedInk, w: pixels.width, h: pixels.height, queue: &queue)
         donorBlocked = donors.blocked; donorDistance = donors.distance
         for i in 0..<pixels.count where drawingSurface[i] != 0 { donorBlocked[i] = 1 }
         if background.maximum < 225 {
             for rect in auxiliary { for i in pixels.indices(rect.insetBy(dx: -12, dy: -12)) where pixels.color(i).minimum > 240 { donorBlocked[i] = 1 } }
+        }
+        if var sourceDonors = sourceDonorBlocked {
+            for i in 0..<pixels.count where drawingSurface[i] != 0 { sourceDonors[i] = 1 }
+            if background.maximum < 225 {
+                for rect in auxiliary { for i in pixels.indices(rect.insetBy(dx: -12, dy: -12)) where pixels.color(i).minimum > 240 {
+                    sourceDonors[i] = 1
+                } }
+            }
+            sourceDonorBlocked = sourceDonors
         }
         var tail = Helpers.maskQueue(mask, queue: &queue, n: pixels.count), flags: [UInt8] = [0]
         let extents = accepted.filter { $0.points.count >= 8 }.map { max($0.rect.width, $0.rect.height) }.sorted()
@@ -72,9 +117,7 @@ extension NativeObservedRestoreState {
         let interior = Helpers.frameInterior(frameInk, w: pixels.width, box: box)
         frameInterior = interior.pixels; innerArea = interior.area
         if options.segmentedSurfaceRecovery && frameInterior > 0 && unresolved > max(8, Int(Double(coreCount) * 0.04)) { return false }
-        sourceErasureVerified = unresolved == 0 && frameInterior == 0 && !auxiliary.contains {
-            Helpers.rectHasInk(protectedInk, frameInk: frameInk, w: pixels.width, rect: $0)
-        }
+        sourceErasureVerified = ownershipCertificate.erasure
         if hasPeriodicTexture && !periodicInk && texturePoints.reduce(0, { $0 + Int(mask[$1]) }) > max(8, Int(Double(texturePoints.count) * 0.05)) {
             return false
         }
@@ -107,15 +150,36 @@ extension NativeObservedRestoreState {
         output.preservedCore = preservedCore; output.preservedPixels = preservedPixels
         output.surfaceQuality = quality?.payload
         output.layoutSafe = Helpers.layoutSafe(protectedInk, drawingSurface: drawingSurface, n: pixels.count)
-        output.glyphsVerified = unresolved == 0 && !auxiliary.contains {
-            Helpers.rectHasInk(protectedInk, frameInk: frameInk, w: pixels.width, rect: $0)
-        } && preservedCore == 0 && preservedPixels == 0
+        output.glyphsVerified = ownershipCertificate.glyphs && preservedCore == 0 && preservedPixels == 0
+        // establishMask can infer ruby after the caller's polygon proof was
+        // built. Retain the existing ink/frame veto for these added regions;
+        // body-contained explicit metadata is handled by the polygon proof.
+        let inferredAuxiliaryHasInk = options.glyphOwnership != nil && auxiliary.contains { rect in
+            !options.auxiliary.contains(rect) &&
+                Helpers.rectHasInk(protectedInk, frameInk: frameInk, w: pixels.width, rect: rect)
+        }
+        output.polygonGlyphsVerified = options.glyphOwnership?.certifiesBodyGlyphs(protectedInk: protectedInk, frameInk: frameInk) == true &&
+            !inferredAuxiliaryHasInk && preservedCore == 0 && preservedPixels == 0
         output.sourceErasureVerified = sourceErasureVerified && preservedCore == 0 && preservedPixels == 0
         output.erasureComplete = sourceErasureVerified && preservedCore == 0 && preservedPixels == 0
         return output
     }
 
-    func diffuse(_ quality: Pixels.Surface?) -> Pixels? {
+    /// Reconstruction may use independently classified source backing, but
+    /// strict geometry has already decided admission, growth and paint alpha.
+    /// Failure to requalify a smooth source surface retains the strict donors.
+    func reconstructionDonors(_ quality: Pixels.Surface?) -> (quality: Pixels.Surface?, blocked: [UInt8]?, forbidden: [UInt8]) {
+        guard quality?.safe == true, quality?.reason == "smooth",
+              let blocked = sourceDonorBlocked, let forbidden = sourceDonorForbidden,
+              let measured = Pixels.surface(pixels, mask: mask, blocked: blocked, dense: options.denseDonorSampling),
+              measured.safe && measured.reason == "smooth" else { return (quality, nil, protectedInk) }
+        return (measured, blocked, forbidden)
+    }
+
+    func diffuse(_ quality: Pixels.Surface?, colorDonors: [UInt8]? = nil) -> Pixels? {
+        let strictDonors = colorDonors == nil ? nil : donorBlocked
+        if let colorDonors { donorBlocked = colorDonors }
+        defer { if let strictDonors { donorBlocked = strictDonors } }
         var p = pixels.rgba, tail = queueTail, paint = mask
         let originalMask = mask
         let planarFront: [(Int, [UInt8])]? = quality.map { $0.safe && $0.reason == "smooth" } == true ?

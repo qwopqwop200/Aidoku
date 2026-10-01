@@ -116,6 +116,7 @@ extension NativeTranslationRenderer {
             cards[index].style.foreground = color(result.foreground.map { CGFloat($0) })
             cards[index].style.outline = color(result.outline.map { CGFloat($0) })
             cards[index].style.outlineWidth = CGFloat(result.outlineWidth)
+            cards[index].style.outlinePaintOrder = .strokeThenFill
             cards[index].strokePreserved = true
             cards[index].sourceStrokeKind = "preserved"
             cards[index].clusterRGB = nil

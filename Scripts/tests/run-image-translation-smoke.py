@@ -80,7 +80,26 @@ class Provider(http.server.BaseHTTPRequestHandler):
 def run(arguments, expected=0):
     global use_binary
     command = [str(BINARY)] if use_binary else ['swift', str(ENTRY)]
-    environment = {**os.environ, 'AIDOKU_TRANSLATION_API_KEY': SECRET, 'AIDOKU_PIPELINE_ROOT': str(ROOT)}
+    environment = {key: value for key, value in os.environ.items() if not key.startswith('AIDOKU_')}
+    # Override every persisted option so a developer's ignored phone profile
+    # cannot change this test's model, endpoint, geometry, filters or credentials.
+    environment.update({
+        'AIDOKU_PIPELINE_ROOT': str(ROOT), 'AIDOKU_TRANSLATION_API_KEY': SECRET,
+        'AIDOKU_TRANSLATION_KEY_ENV': 'AIDOKU_TRANSLATION_API_KEY',
+        'AIDOKU_TRANSLATION_BASE_URL': '', 'AIDOKU_TRANSLATION_MODEL': '',
+        'AIDOKU_TRANSLATION_PROTOCOL': 'chatCompletions',
+        'AIDOKU_TRANSLATION_SOURCE': 'ja', 'AIDOKU_TRANSLATION_TARGET': 'ko',
+        'AIDOKU_TRANSLATION_REASONING': 'modelDefault', 'AIDOKU_TRANSLATION_TIMEOUT': '60',
+        'AIDOKU_TRANSLATION_SOURCE_LANGUAGES': '[]', 'AIDOKU_TRANSLATION_ALLOW_LOCAL_HTTP': 'false',
+        'AIDOKU_TRANSLATION_INCLUDE_IMAGE': 'false', 'AIDOKU_TRANSLATION_FILTER_SFX': 'false',
+        'AIDOKU_TRANSLATION_FILTER_BACKGROUND': 'false', 'AIDOKU_TRANSLATION_RTL': 'false',
+        'AIDOKU_OCR_TIER': 'medium', 'AIDOKU_OCR_CONFIDENCE': '0.75',
+        'AIDOKU_OCR_DETECTOR_SIDE': '1600', 'AIDOKU_OCR_RECOGNIZER_WIDTH': '1600',
+        'AIDOKU_OCR_DETECTOR_PIXEL_THRESHOLD': '0.3', 'AIDOKU_OCR_DETECTOR_CONFIDENCE_THRESHOLD': '0.3',
+        'AIDOKU_OCR_DETECTOR_MINIMUM_BOX_SIDE': '3', 'AIDOKU_RENDER_VIEWPORT': '430x932', 'AIDOKU_IMAGE_JOBS': '2',
+        'AIDOKU_IPHONE_OVERLAY_JSON': json.dumps({'visible': True, 'opacity': 1,
+            'preserveSourceTextColor': True, 'preserveSourceBackgroundColor': True, 'inpaintingEnabled': True}),
+    })
     fingerprint = ROOT / 'build/image-translation-host/fingerprint'
     if fingerprint.exists():
         environment['AIDOKU_PIPELINE_FINGERPRINT'] = fingerprint.read_text()
@@ -135,15 +154,47 @@ with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
     analysis = json.loads((replay_dir / '0001/analysis.json').read_text())
     assert analysis['finalImage'] == 'final.png' and analysis['segmentation']
     assert any(trace['captures'] for trace in analysis['segmentation']), 'Actual renderer segmentation paths must be exercised'
-    render_dom = json.loads(next((replay_dir / '0001').glob('*render-dom.json')).read_text())['value']
-    assert 'SecurityError' not in json.dumps(render_dom)
+    diagnostics = json.loads(next((replay_dir / '0001').glob('*native-render-diagnostics.json')).read_text())['value']
+    assert 'cards' in diagnostics and not diagnostics['initialPatchCaptureFailures'], diagnostics
+    render_result = json.loads(next((replay_dir / '0001').glob('*render-result.json')).read_text())['value']
+    assert render_result['engine'] == 'native-coretext-coregraphics'
+    assert render_result['renderedItemCount'] > 0 and render_result['layoutVersion'] > 0
+    assert not list((replay_dir / '0001').glob('*render-dom.json'))
+    assert (replay_dir / '0001/final-typography.pdf').read_bytes().startswith(b'%PDF-')
+    assert (replay_dir / '0001/final-layers.json').exists()
+    assert (replay_dir / '0001/native-layout.json').exists()
+    final_html = (replay_dir / '0001/final.html').read_text()
+    assert 'data:image/png;base64,' in final_html and '<script' not in final_html.lower()
     for trace in analysis['segmentation']:
+        assert trace['engine'] == 'native-coretext-coregraphics' and not trace['captureFailures']
         assert len(trace['captures']) <= 64
         for capture in trace['captures']:
+            assert capture['function'] == 'NativeTranslationRestoration'
+            assert capture['kind'] == 'native-repair-alpha' and capture['status'] == 'captured'
+            assert 0 <= capture['selectedPixels'] <= capture['width'] * capture['height']
             for field in ['source', 'mask', 'overlay']:
                 if field in capture: assert (replay_dir / '0001' / capture[field]).stat().st_size > 50
     translated = json.loads((replay_dir / '0001/final.json').read_text())
     assert all(region['translation'] == '어서! 빨리 움직여!' for region in translated['regions'])
+    assert translated['renderEngine'] == 'native-coretext-coregraphics'
+    # Completed browser-era runs must recompose through native code when resumed,
+    # while retaining OCR and user translations without any provider request.
+    saved_payload = next((replay_dir / '0001').glob('*render-payload.json'))
+    legacy_payload = json.loads(saved_payload.read_text())
+    for key in ['nativeLayout', 'nativeSettings', 'hostRenderer']:
+        legacy_payload['value'].pop(key, None)
+    saved_payload.write_text(json.dumps(legacy_payload, ensure_ascii=False))
+    translated.pop('renderEngine')
+    (replay_dir / '0001/final.json').write_text(json.dumps(translated, ensure_ascii=False))
+    ocr_before = {file.name: file.read_bytes() for file in (replay_dir / '0001').glob('*native-ocr.json')}
+    (replay_dir / '0001/final.png').unlink()
+    run(['--resume-run', replay_dir, '--translations', replay, '--quiet', first])
+    migrated = json.loads((replay_dir / '0001/final.json').read_text())
+    assert migrated['renderEngine'] == 'native-coretext-coregraphics'
+    assert migrated['regions'] == translated['regions']
+    assert (replay_dir / '0001/final.png').stat().st_size > 100
+    assert {file.name: file.read_bytes() for file in (replay_dir / '0001').glob('*native-ocr.json')} == ocr_before
+    assert all(row.get('resumed') for row in json.loads((replay_dir / 'summary.json').read_text()))
     # Real production client + codec/transport against a loopback mock.
     server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Provider)
     thread = threading.Thread(target=server.serve_forever, daemon=True)

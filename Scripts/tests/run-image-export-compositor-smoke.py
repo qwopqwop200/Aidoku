@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Neutral macOS PDF/layer compositor checks against extracted production policies."""
+"""Native macOS PDF/layer compositor checks against extracted production policies."""
 from pathlib import Path
 import subprocess
 import tempfile
@@ -46,7 +46,7 @@ print("Host geometry and PDF compositor fixture passed")
 
 
 def shared_sources():
-    overlay = (ROOT / "Aidoku/Features/Reader/Translation/ReaderTranslationOverlayView.swift").read_text()
+    background = (ROOT / "Aidoku/Features/Reader/Translation/ReaderTranslationBackgroundImage.swift").read_text()
     reader = (ROOT / "Aidoku/Core/Translation/ReaderTranslationService.swift").read_text()
     exporter = (ROOT / "Aidoku/Features/Reader/Translation/ReaderTranslationImageExporter.swift").read_text()
     def slice_text(text, start, end):
@@ -54,10 +54,13 @@ def shared_sources():
         return text[begin:text.index(end, begin)]
     return (
         "import Foundation\nimport CoreGraphics\n"
-        + slice_text(overlay, "enum ReaderTranslationBackgroundImage {", "    /// Live and export overlays") + "}\n"
+        + slice_text(background, "enum ReaderTranslationBackgroundImage {", "    static func prepare(") + "}\n"
         + slice_text(reader, "enum ReaderTranslationGeometry {", "@available(iOS 18.0, *)")
         + "enum HostProductionExportSizing {\n"
         + slice_text(exporter, "    static func outputSize(for pixels: CGSize)", "    static func render(") + "}\n"
+        + "enum NativeTranslationRenderer {\n"
+        + "struct SourcePatch {let image: CGImage; let rect: CGRect}\n"
+        + "struct Result {let sourcePatches: [SourcePatch]; let paintBounds: [CGRect]; let sourceRestorationRects: [CGRect]}\n}\n"
         + "enum HostProductionExporter {\n"
         + slice_text(exporter, "    struct ExportLayers:", "    /// Core Image contexts") + "}\n"
     )

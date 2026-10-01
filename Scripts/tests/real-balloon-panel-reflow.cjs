@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright'),root=process.argv[2];
 const load=s=>JSON.parse(fs.readFileSync(path.join(root,s)));

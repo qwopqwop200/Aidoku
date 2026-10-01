@@ -283,13 +283,28 @@ extension NativeTypographyPlateGrowth {
         var interiorRefit: Double?
     }
 
+    /// The restored surface search can change its proof route during a cap
+    /// retry. Later consistency passes must observe that accepted live state.
+    struct GrowthState {
+        var extended: Bool
+        var base: Double
+        var interiorBase: Double?
+    }
+
     /// All plate growers are collected first, then restored-surface growers.
     /// Reads are live: each successful refit changes the members seen next.
     static func reconcile(_ growers: inout [Grower], members: () -> [Member], kept: [Member],
                           run: (_ id: String, _ cap: Double, _ strict: Bool) -> Double?,
                           readableHold: (_ id: String) -> Double,
                           plateFilled: (_ id: String) -> Bool,
-                          interiorGaps: (_ id: String, _ font: Double) -> Int) {
+                          interiorGaps: (_ id: String, _ font: Double) -> Int,
+                          growthState: ((_ id: String) -> GrowthState?)? = nil) {
+        func refresh(_ index: Int) {
+            guard let current = growthState?(growers[index].id) else { return }
+            growers[index].extended = current.extended
+            growers[index].base = current.base
+            growers[index].interiorBase = current.interiorBase
+        }
         func eligibleMembers() -> [Member] { members().filter { $0.source > 0 && $0.visible && $0.rotation == 0 && $0.nearUprightRotation == 0 } }
         func median(_ peers: [Member]) -> Double {
             let sizes = peers.map(\.cohortFont).sorted(); return sizes.isEmpty ? .nan : sizes[(sizes.count - 1) / 2]
@@ -330,6 +345,7 @@ extension NativeTypographyPlateGrowth {
             growers[i].size = size; growers[i].cohortTarget = target
         }
         for i in growers.indices {
+            refresh(i)
             let g = growers[i]
             guard g.size != nil, g.extended, g.base > 0, g.source > 0,
                   let own = members().first(where: { $0.id == g.id }) else { continue }
@@ -343,6 +359,7 @@ extension NativeTypographyPlateGrowth {
             growers[i].size = capped; growers[i].styleCap = limit
         }
         for i in growers.indices {
+            refresh(i)
             let g = growers[i]
             guard g.size != nil, let base = g.interiorBase, base > 0,
                   let own = members().first(where: { $0.id == g.id }) else { continue }

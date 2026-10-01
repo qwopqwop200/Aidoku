@@ -117,12 +117,11 @@ struct NativeOCRRecognitionRegressionTests {
                 : [CGPoint(x: x, y: y), CGPoint(x: x + w, y: y),
                    CGPoint(x: x + w, y: y + h), CGPoint(x: x, y: y + h)]
             let actual = try #require(NativeCoreMLRecognitionPreprocessor.prepare(frame: frame, polygon: polygon))
-            #if DEBUG
-            let reference = try #require(NativeCoreMLRecognitionPreprocessor.prepareReferenceForTesting(frame: frame, polygon: polygon))
+            let reference = try #require(NativeOCRRecognitionSamplingReference.prepare(frame: frame, polygon: polygon))
             #expect(actual.resizedWidth == reference.resizedWidth)
             #expect(actual.rotatedCounterClockwise == reference.rotatedCounterClockwise)
-            #expect(actual.values.map { $0.bitPattern } == reference.values.map { $0.bitPattern })
-            #endif
+            let identicalFloatBits = actual.values.elementsEqual(reference.values) { $0.bitPattern == $1.bitPattern }
+            #expect(identicalFloatBits, "The optimized sampler must preserve every reference Float bit")
         }
     }
 

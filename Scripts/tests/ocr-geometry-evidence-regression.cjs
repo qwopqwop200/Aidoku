@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Exercise production geometry, color and glyph code with independent pixel labels.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const root=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');

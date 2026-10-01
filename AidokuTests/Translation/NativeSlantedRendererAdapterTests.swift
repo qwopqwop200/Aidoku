@@ -155,4 +155,31 @@ import Testing
         if clear { #expect(cards[0].item.typesettingDisplayGrowth == nil) }
     }
 
+    @Test func sizeOnlySlantedStyleRetainsAutomaticBalanceWithoutRewritingChildren() throws {
+        var (item, layout, settings) = try fixture(korean: true)
+        let text = "우정, 노력, 미래 예지. 우리들의 청춘은 차원이 다르게 지려."
+        let context = NativeTranslationRenderer.SlantedContext(layout: layout, source: nil, settings: settings)
+        let appearance = NativeTranslationRestoration.Appearance(foreground: CGColor(gray: 0, alpha: 1),
+            background: CGColor(gray: 1, alpha: 1), restored: false)
+        let trial = NativeSlantedTypographyTrial.Candidate(rect: item.rect, font: 9, pitch: 10.740234375,
+            padding: [0,1,0,1])
+        let style = context.style(item: item, appearance: appearance, candidate: trial)
+        #expect(style.balancesHorizontalLines)
+        #expect(!style.preservesBlockRows && !style.optimizesKoreanWrapping)
+        let shaped = NativeTranslationTypography.layout(text: text,
+            in: CGSize(width: 98.625, height: 128.703125), style: style)
+        #expect(shaped.shapedText == "우정, 노력, 미래 예지. \n우리들의 청춘은 \n차원이 다르게 지려.")
+        let encodedItem = try JSONEncoder().encode(item)
+        let encodedObject = try JSONSerialization.jsonObject(with: encodedItem)
+        var payload = try #require(encodedObject as? [String: Any])
+        payload["text"] = "첫 문단\n둘째 문단"
+        let authoredData = try JSONSerialization.data(withJSONObject: payload)
+        let authored = try JSONDecoder().decode(NativeTranslationLayoutItem.self, from: authoredData)
+        #expect(!context.style(item: authored, appearance: appearance, candidate: trial).balancesHorizontalLines)
+        payload["text"] = text; payload["vertical"] = true
+        let verticalData = try JSONSerialization.data(withJSONObject: payload)
+        let vertical = try JSONDecoder().decode(NativeTranslationLayoutItem.self, from: verticalData)
+        #expect(!context.style(item: vertical, appearance: appearance, candidate: trial).balancesHorizontalLines)
+    }
+
 }

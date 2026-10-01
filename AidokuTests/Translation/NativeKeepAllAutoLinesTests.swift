@@ -54,4 +54,26 @@ import Testing
             itemWidth:{Float(measure($0))})
         #expect(balanced==nil)
     }
+
+    @Test(arguments: [CGFloat(0), CGFloat(1.0 / 128), CGFloat(1.0 / 64), CGFloat(1.0 / 32)])
+    func layoutUnitAllowanceDoesNotHideRealOverflow(excess: CGFloat) throws {
+        let text = "가나", width: CGFloat = 40
+        let ranges = try #require(NativeKeepAllAutoLines.greedy(text: text, maximumWidth: width,
+            width: { range in range.length == 2 ? width + excess : width / 2 },
+            emergencyBreak: { _, _ in 1 }))
+        if excess <= 1.0 / 64 {
+            #expect(ranges == [NSRange(location: 0, length: 2)])
+        } else {
+            #expect(ranges == [NSRange(location: 0, length: 1), NSRange(location: 1, length: 1)])
+        }
+    }
+
+    @Test func subLayoutUnitWordExcessRetainsTheObservedCaptionRows() throws {
+        // Actual frozen Web page1 region5: 41.583740px word in a 41.578125px
+        // used content box. Its sub-layout-unit excess is not an emergency break.
+        let text = "세계는 다시 돌아온 것이다……"
+        let ranges = try #require(greedy(text: text, font: 9.75, available: 41.578125))
+        let rows = ranges.map { (text as NSString).substring(with: $0) }
+        #expect(rows == ["세계는 ", "다시 ", "돌아온 ", "것이다……"])
+    }
 }

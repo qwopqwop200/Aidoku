@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Texture metrics use known clean backgrounds; random texture cannot be recovered pixel for pixel.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),zlib=require('node:zlib');
 const {resize}=require('./source-color-test-harness.cjs');

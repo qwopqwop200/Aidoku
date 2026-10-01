@@ -1,6 +1,13 @@
 import CoreGraphics
 import Foundation
 
+/// Source pixel transport dependency. Production uses calibrated CoreGraphics;
+/// deterministic quality fixtures may supply their explicitly defined filter.
+protocol NativeSourcePixelReading: AnyObject {
+    func read(x: Double, y: Double, sourceWidth: Double, sourceHeight: Double,
+              width: Int, height: Int) throws -> [UInt8]
+}
+
 /// Per-page sampling admission, phase cache and policy chain. Only original source
 /// pixels enter observers: translated glyphs never become evidence for a later revision.
 final class NativeSourceColorSamplingStage {
@@ -62,12 +69,12 @@ final class NativeSourceColorSamplingStage {
     private let enabled: Bool
     private let phase: String
     let budget: Budget
-    private let pixelReader: NativeSourcePixelReader?
+    private let pixelReader: (any NativeSourcePixelReading)?
     private var unavailable = false
     private(set) var stats = Stats()
 
     init(image: CGImage, enabled: Bool, phase: String = "ocr", budget: Budget = Budget(),
-         pixelReader: NativeSourcePixelReader? = nil) {
+         pixelReader: (any NativeSourcePixelReading)? = nil) {
         self.image = image
         self.enabled = enabled
         self.phase = phase == "translation" ? "translation" : "ocr"
@@ -80,7 +87,10 @@ final class NativeSourceColorSamplingStage {
               bounds[0] >= 0, bounds[1] >= 0, bounds[2] > 0, bounds[3] > 0,
               bounds[0] + bounds[2] <= 1.000001, bounds[1] + bounds[3] <= 1.000001 else { return nil }
         let key = Self.cacheKey(bounds: bounds, geometry: geometry)
-        if let cached = PhaseCache.shared.lookup(image: image, phase: phase, key: key) {
+        // Custom source filtering has a distinct observation contract. Do not
+        // share its results with the canonical source-image/phase cache.
+        let usesCanonicalPixels = pixelReader == nil || pixelReader is NativeSourcePixelReader
+        if usesCanonicalPixels, let cached = PhaseCache.shared.lookup(image: image, phase: phase, key: key) {
             stats.hits += 1
             return cached.result
         }
@@ -109,7 +119,7 @@ final class NativeSourceColorSamplingStage {
         var result: Payload?
         defer {
             stats.milliseconds += (ProcessInfo.processInfo.systemUptime - started) * 1_000
-            PhaseCache.shared.store(result, image: image, phase: phase, key: key)
+            if usesCanonicalPixels { PhaseCache.shared.store(result, image: image, phase: phase, key: key) }
         }
         do {
             let rgba = try read(x: x, y: y, sourceWidth: sw, sourceHeight: sh, width: width, height: height)
@@ -140,7 +150,7 @@ final class NativeSourceColorSamplingStage {
                     guard cw >= 8, ch >= 8, pixels <= budget.pixels - reserved,
                           pixels <= budget.detailPixels, detailSpent + pixels <= detailLimit else { continue }
                     spendDetail(pixels, spent: &detailSpent)
-                    let detail = try NativeSourcePixelReader.draw(image: image, x: x, y: y,
+                    let detail = try read(x: x, y: y,
                         sourceWidth: sw, sourceHeight: sh, width: cw, height: ch)
                     let candidate = NativeSourceColorSampler.estimate(rgba: detail, width: cw, height: ch)
                     guard let fill = Self.rgb(candidate?["foreground"]), Self.confidence(candidate, "foreground") >= 0.6 else { continue }
@@ -561,7 +571,7 @@ final class NativeSourceColorSamplingStage {
 
 /// Canvas-equivalent crop coordinates over CGImage. Exact native-size crops can
 /// reuse one verified page raster, while fractional and scaled draws stay independent.
-final class NativeSourcePixelReader {
+final class NativeSourcePixelReader: NativeSourcePixelReading {
     private let image: CGImage
     private let limit: Int
     private let threshold: Int

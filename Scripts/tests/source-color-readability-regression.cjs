@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Run with: node Scripts/tests/source-color-readability-regression.cjs
 // Optional --source and --overlay paths run the same assertions against a baseline.
 // Execute the production source-color helpers, initial item styling, and final

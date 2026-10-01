@@ -106,15 +106,33 @@ with tempfile.TemporaryDirectory(prefix='aidoku-env-') as temporary:
     (profile/'.env').unlink()
     defaults=run(['--ocr-only']);assert defaults['tier']=='medium' and defaults['confidence']==.75 and not defaults['keyPresent']
     assert 'AIDOKU_TRANSLATION_INCLUDE_IMAGE' in run(['--ocr-only'],{'AIDOKU_TRANSLATION_INCLUDE_IMAGE':'invalid'},expected=2)
-    phone=subprocess.run([str(binary),str(ROOT),'--ocr-only'],env=environment,capture_output=True,text=True,check=True)
-    actual=json.loads(phone.stdout)
-    assert actual['protocol']=='responses' and actual['source']=='ja' and actual['target']=='ko'
-    imported = dict(line.split('=',1) for line in (ROOT/'.env').read_text().splitlines() if line.startswith('AIDOKU_OCR_'))
-    assert actual['confidence']==float(imported['AIDOKU_OCR_CONFIDENCE'])
-    assert actual['detector']==int(imported['AIDOKU_OCR_DETECTOR_SIDE']) and actual['recognizer']==int(imported['AIDOKU_OCR_RECOGNIZER_WIDTH'])
-    assert actual['pixelThreshold']==.3 and actual['boxThreshold']==.3 and actual['minimumBoxSide']==3
+    # A saved phone profile is input data, not the developer's private .env.
+    # Exercise all imported fields from a deterministic profile on every checkout.
+    imported_settings = {
+        'AIDOKU_TRANSLATION_PROTOCOL': 'responses',
+        'AIDOKU_TRANSLATION_SOURCE': 'ja', 'AIDOKU_TRANSLATION_TARGET': 'ko',
+        'AIDOKU_TRANSLATION_API_KEY': secret,
+        'AIDOKU_OCR_CONFIDENCE': '0.81', 'AIDOKU_OCR_DETECTOR_SIDE': '1280',
+        'AIDOKU_OCR_RECOGNIZER_WIDTH': '960',
+        'AIDOKU_OCR_DETECTOR_PIXEL_THRESHOLD': '0.3',
+        'AIDOKU_OCR_DETECTOR_CONFIDENCE_THRESHOLD': '0.3',
+        'AIDOKU_OCR_DETECTOR_MINIMUM_BOX_SIDE': '3',
+        'AIDOKU_TRANSLATION_INCLUDE_IMAGE': 'true',
+        'AIDOKU_TRANSLATION_FILTER_SFX': 'true',
+        'AIDOKU_TRANSLATION_FILTER_BACKGROUND': 'true',
+        'AIDOKU_TRANSLATION_REASONING': 'none', 'AIDOKU_TRANSLATION_TIMEOUT': '120',
+        'AIDOKU_TRANSLATION_SOURCE_LANGUAGES': json.dumps(['en', 'ja']),
+        'AIDOKU_IPHONE_OVERLAY_JSON': json.dumps({
+            'inpaintingEnabled': True, 'preserveSourceTextColor': True,
+            'preserveSourceBackgroundColor': True}),
+    }
+    (profile / '.env').write_text(''.join(f"{key}='{value}'\n" for key, value in imported_settings.items()))
+    actual = run(['--ocr-only'])
+    assert actual['protocol'] == 'responses' and actual['source'] == 'ja' and actual['target'] == 'ko'
+    assert actual['confidence'] == .81 and actual['detector'] == 1280 and actual['recognizer'] == 960
+    assert actual['pixelThreshold'] == .3 and actual['boxThreshold'] == .3 and actual['minimumBoxSide'] == 3
     assert actual['image'] and actual['sfx'] and actual['background'] and actual['keyPresent']
-    assert actual['reasoning']=='none' and actual['timeout']==120 and actual['languages']==['en','ja']
+    assert actual['reasoning'] == 'none' and actual['timeout'] == 120 and actual['languages'] == ['en', 'ja']
     assert actual['appearance']['inpaintingEnabled'] and actual['appearance']['preserveSourceTextColor']
 
 assert subprocess.run(['git','check-ignore','-q','.env'],cwd=ROOT).returncode==0

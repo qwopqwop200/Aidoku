@@ -3,7 +3,9 @@ import Foundation
 
 extension NativeRestorationPixels {
     static func narrowPaperGlyphs(_ p: Self, box: CGRect, palette: Palette?, options: NativeObservedRestoreOptions) -> Self? {
-        guard options.vertical, options.auxiliary.isEmpty, box.width >= 12, box.width <= 64,
+        guard options.vertical,
+              options.auxiliary.isEmpty || options.glyphOwnership?.certifiesRedundantAuxiliary(options.auxiliary) == true,
+              box.width >= 12, box.width <= 64,
               box.height >= box.width * 2, box.height <= box.width * 7, p.count <= 65_536,
               box.minX >= 3, box.minY >= 3, box.maxX <= CGFloat(p.width - 3), box.maxY <= CGFloat(p.height - 3) else { return nil }
         var ink = [UInt8](repeating: 0, count: p.count), safe = ink, paper = 0, total = 0, sums = [Double](repeating: 0, count: 3)
@@ -50,6 +52,12 @@ extension NativeRestorationPixels {
         let bg = NativeRestorationRGB(sums.map { floor($0 / Double(paper) + 0.5) })
         var mask = ink.map { _ in UInt8(0) }
         for index in owned { for i in parts[index].component.points { mask[i] = 1 } }
+        // Duplicate body metadata does not authorize unresolved auxiliary ink.
+        // Require every actual ink pixel in those rectangles to belong to one
+        // of the independently accepted body components before certifying it.
+        guard !options.auxiliary.contains(where: { rect in
+            p.indices(rect).contains { ink[$0] != 0 && mask[$0] == 0 }
+        }) else { return nil }
         let original = mask
         for i in 0..<p.count where original[i] != 0 {
             for j in p.indices(CGRect(x: i % p.width - 2, y: i / p.width - 2, width: 5, height: 5)) {

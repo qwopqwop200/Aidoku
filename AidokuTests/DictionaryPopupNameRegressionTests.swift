@@ -1,82 +1,66 @@
 import Testing
-import WebKit
 import UIKit
 @testable import Aidoku
 
 @Suite(.serialized)
 @MainActor
 struct DictionaryPopupNameRegressionTests {
-    @Test func prototypeDictionaryNamesRenderAndNormalDOMIsPreserved() async throws {
-        let url = try #require(Bundle.main.url(forResource: "popup", withExtension: "js"))
-        let production = try String(contentsOf: url, encoding: .utf8)
-        let old = "const grouped = {};"
-        let fixed = "const grouped = Object.create(null);"
-        // Both variants use the complete production script. This remains useful
-        // before and after integration; only the one grouping declaration differs.
-        let baseline = production.replacingOccurrences(of: fixed, with: old)
-        let candidate = production.replacingOccurrences(of: old, with: fixed)
-        #expect(baseline.components(separatedBy: old).count == 2)
-        #expect(candidate.components(separatedBy: fixed).count == 2)
-        var ordinaryDOM: [String] = []
-        for (script, isBaseline) in [(baseline, true), (candidate, false)] {
-            for name in ["Ordinary Dictionary", "constructor", "__proto__", "toString"] {
-                let bridge = PopupNameBridge()
-                let config = WKWebViewConfiguration()
-                config.userContentController.add(bridge, name: "buttonRects")
-                let web = WKWebView(frame: .init(x: 0, y: 0, width: 390, height: 600), configuration: config)
-                let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-                let previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
-                let window = UIWindow(windowScene: scene)
-                window.frame = web.frame
-                let controller = UIViewController()
-                window.rootViewController = controller
-                controller.view.addSubview(web)
-                window.makeKeyAndVisible()
-                defer {
-                    web.removeFromSuperview()
-                    window.isHidden = true
-                    window.rootViewController = nil
-                    previousKeyWindow?.makeKey()
+    @Test func prototypeDictionaryNamesPreserveNativeGlossariesAndIndependentGroups() throws {
+        let names = ["Ordinary Dictionary", "constructor", "__proto__", "toString"]
+        for content in ["definition", "<b>definition</b><br>normal markup"] {
+            let entry: [String: Any] = ["expression": "日本", "reading": "", "glossaries": names.map { name in
+                ["dictionary": name, "content": content, "definitionTags": "", "termTags": ""]
+            }]
+            let popup = NativeDictionaryPopupView(position: .zero, clearSelection: false,
+                lookupEntries: [entry], allowsMining: false)
+            let coordinator = popup.makeCoordinator()
+            defer { NativeDictionaryPopupView.dismantleUIView(UIScrollView(), coordinator: coordinator) }
+            coordinator.history = [[entry]]
+            coordinator.render([entry])
+            let views = descendants(of: coordinator.stack)
+            let disclosures = views.compactMap { $0 as? UIButton }.filter {
+                $0.accessibilityIdentifier == "dictionary.disclosure"
+            }
+            try #require(disclosures.count == names.count)
+            #expect(disclosures.map { $0.title(for: .normal) } == names.map(Optional.some))
+            let definitions = views.compactMap { $0 as? UITextView }.filter { $0.text.contains("definition") }
+            try #require(definitions.count == names.count)
+            let ordinary = try #require(definitions.first?.attributedText)
+            for definition in definitions {
+                #expect(definition.isSelectable && !definition.isEditable)
+                #expect(definition.attributedText.isEqual(to: ordinary),
+                        "A dictionary name must not alter or discard its definition markup")
+                #expect(definition.text == (content == "definition" ? "definition" : "definition\nnormal markup"))
+                if content != "definition" {
+                    let font = definition.attributedText.attribute(.font, at: 0, effectiveRange: nil) as? UIFont
+                    #expect(font?.fontDescriptor.symbolicTraits.contains(.traitBold) == true)
                 }
-                web.loadHTMLString("<html><body><div id='entries-container'></div></body></html>", baseURL: nil)
-                for _ in 0..<200 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
-                #expect(!web.isLoading)
-                _ = try await web.evaluateJavaScript(script + "\n;null;")
-                let raw = try await web.callAsyncJavaScript("""
-                    window.cardFormatCount = 0;
-                    window.useAnkiConnect = true;
-                    window.isAnkiConnectReachable = false;
-                    window.dictionaryStyles = Object.create(null);
-                    window.lookupEntries = [{expression:'日本',reading:'',frequencies:[],pitches:[],
-                        glossaries:[{dictionary:dictionaryName,content:'definition',definitionTags:'',termTags:''}]}];
-                    window.entryCount = 1;
-                    try {
-                        await window.renderPopup();
-                        const target = document.getElementById('entries-container');
-                        return {ok:true,html:target.innerHTML,text:target.textContent,
-                            count:target.querySelectorAll('.glossary-group').length};
-                    } catch(error) { return {ok:false,error:String(error)}; }
-                    """, arguments: ["dictionaryName": name], in: nil, contentWorld: .page)
-                let result = try #require(raw as? [String: Any])
-                let expectedSuccess = !isBaseline || name == "Ordinary Dictionary"
-                #expect((result["ok"] as? Bool) == expectedSuccess)
-                if expectedSuccess {
-                    #expect((result["count"] as? Int) == 1)
-                    #expect((result["text"] as? String)?.contains("definition") == true)
-                } else {
-                    #expect((result["error"] as? String)?.contains("push") == true)
+            }
+            #expect(!views.contains { NSStringFromClass(type(of: $0)).contains("WKWebView") })
+            // Names which were JavaScript object properties must remain separate,
+            // usable native sections, including after rebuilding the popup.
+            for index in names.indices {
+                let current = descendants(of: coordinator.stack).compactMap { $0 as? UIButton }.filter {
+                    $0.accessibilityIdentifier == "dictionary.disclosure"
                 }
-                if name == "Ordinary Dictionary" {
-                    ordinaryDOM.append(try #require(result["html"] as? String))
+                try #require(current.count == names.count)
+                current[index].sendActions(for: .touchUpInside)
+                #expect(current.enumerated().allSatisfy {
+                    $0.element.accessibilityValue == ($0.offset == index ? "collapsed" : "expanded")
+                })
+                coordinator.render([entry])
+                let refreshed = descendants(of: coordinator.stack).compactMap { $0 as? UIButton }.filter {
+                    $0.accessibilityIdentifier == "dictionary.disclosure"
                 }
-                config.userContentController.removeScriptMessageHandler(forName: "buttonRects")
+                try #require(refreshed.count == names.count)
+                #expect(refreshed[index].accessibilityValue == "collapsed")
+                refreshed[index].sendActions(for: .touchUpInside)
+                #expect(refreshed.allSatisfy { $0.accessibilityValue == "expanded" })
             }
         }
-        #expect(ordinaryDOM.count == 2 && ordinaryDOM[0] == ordinaryDOM[1])
     }
-}
 
-@MainActor
-private final class PopupNameBridge: NSObject, WKScriptMessageHandler {
-    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {}
+    private func descendants(of view: UIView) -> [UIView] {
+        [view] + view.subviews.flatMap { descendants(of: $0) }
+    }
 }

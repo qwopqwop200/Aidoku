@@ -12,7 +12,6 @@ struct OCRDetectorPrecisionDeviceTests {
     /// Every bundled fp16 detector tier must load with the production
     /// configuration and return float32 output through the production pipeline.
     @Test func bundledFloat16DetectorsRunThroughProductionPipeline() async throws {
-        guard #available(iOS 18.0, *) else { return }
         let width = 800, height = 1_100
         var bytes = [UInt8](repeating: 255, count: width * height * 4)
         // Dark horizontal strokes resembling a text line.

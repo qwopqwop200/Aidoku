@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "origin": "Original recorded page5 ID4 translation crops for a test-only raster certificate; page identity never participates in acceptance.",
+  "format": "sRGB RGBA8, row-major, top-left origin, opaque alpha255; original PNG decoded only, no resized/redrawn/recolored pixels",
+  "cropPixelRect": [
+    168,
+    766,
+    410,
+    910
+  ],
+  "fillRGB": [
+    188,
+    80,
+    121
+  ],
+  "outlineRGB": [
+    230,
+    239,
+    243
+  ],
+  "fontSize": 30.25,
+  "outlineWidth": 1.36125,
+  "horizontalScale": 0.9,
+  "rotationRadians": -0.13511210106706387,
+  "text": "스위츠",
+  "records": [
+    {
+      "name": "native26",
+      "offset": 0,
+      "length": 139392,
+      "width": 242,
+      "height": 144,
+      "RGBA8SHA256": "f2073e5354bd2e0bc2b95eb31191e567d71311c76d4bdf1bfb980d1be3f0e6ec",
+      "sourcePNG": "/Users/ijunjae/Library/Developer/CoreSimulator/Devices/AA441ADA-456B-41F8-B643-ECBF93AC0718/data/Containers/Data/Application/736E3BD3-DDC3-4342-B508-5E521C610146/Documents/PipelineSpeed/current-web-recorded-input-parity/phase-0-page-5.native-export.png",
+      "sourcePNGSHA256": "252d276e374c0865522db5a7206c459eb86fca581831efe6745a15b976cb70af",
+      "sourcePNGModifiedUTC": "2026-10-01T12:57:59.435901+00:00"
+    },
+    {
+      "name": "frozen26",
+      "offset": 139392,
+      "length": 139392,
+      "width": 242,
+      "height": 144,
+      "RGBA8SHA256": "af2c6f4b9e1b76dba2881f7032f85941ad169a286024eca87212de7f0c5a1a8d",
+      "sourcePNG": "/Users/ijunjae/Library/Developer/CoreSimulator/Devices/AA441ADA-456B-41F8-B643-ECBF93AC0718/data/Containers/Data/Application/736E3BD3-DDC3-4342-B508-5E521C610146/Documents/PipelineSpeed/current-web-recorded-input-parity/frozen-web-page-5/snapshot.png",
+      "sourcePNGSHA256": "98c775dfd3cbfe79f66d364426a63cd0fc267c326e03732523699a637ebd4bf8",
+      "sourcePNGModifiedUTC": "2026-10-01T12:57:58.387687+00:00"
+    },
+    {
+      "name": "incorrectStrokeFirst24",
+      "offset": 278784,
+      "length": 139392,
+      "width": 242,
+      "height": 144,
+      "RGBA8SHA256": "4e4dd3d3bf2555a65f7d10529053399abb88172a6f1145c92b726705f38e2683",
+      "sourcePNG": "/tmp/aidoku-depth-focused24/phase-0-page-5.native-export.png",
+      "sourcePNGSHA256": "0b5f4b9d1142822bc7bb78d69e4be5603c3d3e11e7b93553765544560bda4a83",
+      "sourcePNGModifiedUTC": "2026-10-01T11:57:06.378353+00:00"
+    }
+  ],
+  "archiveSHA256": "66a673099e45e3146295f6d47034019469750a76bdcbdf31acab14122c3720d6",
+  "archiveByteCount": 418176,
+  "expectedResults": {
+    "native26": "accept: matched semantic/style contract and bounded one-pixel contours with 0.35% fill-area delta",
+    "incorrectStrokeFirst24": "reject: +88.18% fill-area delta and1046pixels beyond one-pixel reference fill",
+    "removedGlyph": "reject: synthetic clear of first glyph keeps metadata unchanged but materially changes ink"
+  }
+}

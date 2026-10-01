@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // The overlay render body must stay free of top-level `await`. One await in
 // this very long async function makes JavaScriptCore compile the whole body as
 // a generator before its first statement runs: about 70 ms per render on the

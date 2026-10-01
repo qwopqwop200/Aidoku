@@ -4,6 +4,10 @@ import Foundation
 /// Options travel with every retry. A retry changes only its named admission policy;
 /// successful earlier masks retain their original pixel and donor visitation order.
 struct NativeObservedRestoreOptions {
+    enum ExcludedDonorPolicy { case strictBounds, observedSource }
+    /// Broad OCR bounds protect writes; the adapter may separately request
+    /// source-classified color donors. Explicit kernel inputs remain strict.
+    var excludedDonorPolicy = ExcludedDonorPolicy.strictBounds
     var chromaticBalloon = false
     var vertical = false
     var slantedOwnership = false
@@ -26,6 +30,7 @@ struct NativeObservedRestoreOptions {
     var segmentedSurfaceRecovery = false
     var flatPalette = false
     var secondaryInk: NativeRestorationRGB?
+    var glyphOwnership: NativeObservedGlyphOwnership?
 }
 
 final class NativeObservedRestoreState {
@@ -52,6 +57,8 @@ final class NativeObservedRestoreState {
     var distance: [UInt8]
     var donorBlocked: [UInt8]
     var donorDistance: [UInt8]
+    var sourceDonorBlocked: [UInt8]?
+    var sourceDonorForbidden: [UInt8]?
     var drawingSurface: [UInt8]
     var queue: [Int] = []
     var queueTail = 0
@@ -476,9 +483,11 @@ extension NativeRestorationPixels {
             }
             return retryPrevious()
         }
+        var reconstruction = state.reconstructionDonors(quality)
         if let quality, quality.safe && quality.reason == "smooth" && quality.rmse > 3 && state.frameInterior == 0,
-           let texture = exemplarFill(p, mask: state.mask, blocked: state.protectedInk, palette: palette, surface: quality) {
-            var result = state.certified(texture, quality: quality)
+           let colorQuality = reconstruction.quality,
+           let texture = exemplarFill(p, mask: state.mask, blocked: reconstruction.forbidden, palette: palette, surface: colorQuality) {
+            var result = state.certified(texture, quality: colorQuality)
             result.surfaceQuality?["reason"] = "exemplar-texture"
             return result
         }
@@ -495,12 +504,15 @@ extension NativeRestorationPixels {
                     expanded.safe && expanded.reason == "smooth" && expanded.rmse <= 3 && expanded.outliers == 0 && expanded.samples >= 64 {
                     quality = expanded
                     state.queueTail = tail
+                    reconstruction = state.reconstructionDonors(quality)
                 } else { for k in priorTail..<tail { state.mask[state.queue[k]] = 0 } }
             }
         }
         if let quality, (quality.rmse <= 3 || state.measuredHalo && quality.rmse <= 8 && quality.outliers <= 0.02 && state.frameInterior == 0) &&
-            (!options.compactMask || quality.samples >= 64) { return state.certified(planeFill(p, mask: state.mask, surface: quality), quality: quality) }
-        if let result = state.diffuse(quality) { return result }
+            (!options.compactMask || quality.samples >= 64), let colorQuality = reconstruction.quality {
+            return state.certified(planeFill(p, mask: state.mask, surface: colorQuality), quality: colorQuality)
+        }
+        if let result = state.diffuse(reconstruction.quality, colorDonors: reconstruction.blocked) { return result }
         if !options.protectArtMargin && state.mask.contains(1) {
             var next = options; next.protectArtMargin = true
             return exactObserved(p, box: box, palette: palette, options: next, context: context)

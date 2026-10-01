@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Regression for the bounded source-glyph mask used by the no-panel fallback.
 // Optional --real DIR replays the two cached phone pages without bundling them.
 const assert = require('node:assert/strict');

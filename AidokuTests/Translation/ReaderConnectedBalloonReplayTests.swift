@@ -1,6 +1,5 @@
 import Testing
 import UIKit
-import WebKit
 @testable import Aidoku
 
 /// Explicit replay of the user-supplied original, kept in Documents/ConnectedBalloonReplay.
@@ -63,31 +62,31 @@ struct ReaderConnectedBalloonReplayTests {
         settings.overlay.opacity = 1
         let size = CGSize(width: image.width, height: image.height)
         let viewport = CGSize(width: 430, height: 430 * size.height / size.width)
-        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        let previous = scene.keyWindow
-        let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(origin: .zero, size: viewport)
-        window.rootViewController = UIViewController()
-        let overlay = LegacyReaderTranslationOverlayView(frame: window.bounds)
-        window.rootViewController?.view.addSubview(overlay)
-        window.makeKeyAndVisible()
-        defer { overlay.cancelWork(); window.isHidden = true; previous?.makeKey(); ReaderTranslationImageExporter.clearIdleRenderer() }
+        let output = directory.appendingPathComponent("native-replay")
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let uiImage = UIImage(cgImage: image)
-        overlay.update(regions: translated, imageSize: size, aspectFit: true, settings: settings, image: uiImage)
-        for _ in 0..<400 where overlay.lastDiagnostic == nil { try await Task.sleep(for: .milliseconds(50)) }
-        #expect(overlay.lastDiagnostic?.outcome == .committed)
-        let audit = try await overlay.webView.evaluateJavaScript("""
-        JSON.stringify(Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay]')).map(n=>({
-          kind:n.dataset.aidokuImageOcrOverlay,id:n.dataset.aidokuRegion,data:{...n.dataset},style:n.getAttribute('style')})))
-        """)
-        let auditData = Data((try #require(audit as? String)).utf8)
-        try auditData.write(to: directory.appendingPathComponent("audit.json"))
-        let rows = try #require(JSONSerialization.jsonObject(with: auditData) as? [[String: Any]])
-        #expect(!rows.contains { $0["kind"] as? String == "source-readability-panel" })
+        let rendered = try await NativeTranslationRenderer.render(image: uiImage, imageSize: size,
+            items: ReaderTranslationRegion.layoutItems(translated, imageSize: size), settings: settings.overlay,
+            targetLanguage: settings.targetLanguage, viewport: viewport, scale: 3, aspectFit: true,
+            dark: false, collectDiagnostics: true)
+        #expect(rendered.renderedItemCount > 0)
+        let auditData = try #require(rendered.diagnosticData)
+        try auditData.write(to: output.appendingPathComponent("audit.json"))
+        try rendered.layoutData.write(to: output.appendingPathComponent("native-layout.json"))
+        let auditObject = try JSONSerialization.jsonObject(with: auditData)
+        let audit = try #require(auditObject as? [String: Any])
+        let cards = try #require(audit["cards"] as? [[String: Any]])
+        try #require(!cards.isEmpty)
+        for card in cards {
+            let panels = try #require(card["panels"] as? [[String: Any]])
+            #expect(panels.isEmpty, "Connected balloon prose must not retain a source readability panel")
+        }
+        // Persist the same complete-page native export used by the reader cache.
         let snapshot = try await ReaderTranslationImageExporter.renderCacheSnapshot(
             image: uiImage, imageSize: size, regions: translated, settings: settings,
-            viewport: viewport, scale: 3, aspectFit: true, host: window, dark: false, preparedLayout: nil)
-        try #require(snapshot.pngData()).write(to: directory.appendingPathComponent("render.png"))
+            viewport: viewport, scale: 3, aspectFit: true, host: nil, dark: false, preparedLayout: nil)
+        let png = try #require(snapshot.pngData())
+        try png.write(to: output.appendingPathComponent("render.png"))
     }
 
 }

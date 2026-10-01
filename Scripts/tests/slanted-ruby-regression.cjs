@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Frozen real raster captures, explicitly rotated with independent source/ruby
 // and illustration masks. Includes light/dark, faint/colored and missing ruby.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib');

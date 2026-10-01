@@ -89,12 +89,19 @@ enum NativeSlantedRestoration {
                 for k in 0..<4 { sample[(y * sw + x) * 4 + k] = local.rgba[j + k] }
             } }
             let evidence = palette?.metadata["lettering"] as? [String: Any]
-            let seed = (evidence?["bands"] as? NSNumber)?.doubleValue ?? 0 >= 3 &&
+            var seed = (evidence?["bands"] as? NSNumber)?.doubleValue ?? 0 >= 3 &&
                 ((evidence?["components"] as? NSNumber)?.doubleValue ?? 0) >= 3 &&
                 ((evidence?["support"] as? NSNumber)?.doubleValue ?? 0) >= 0.02 &&
                 ((evidence?["exterior"] as? NSNumber)?.doubleValue ?? .infinity) <= 0.03
                 ? Pixels.rgb(evidence?["color"])?.channels : nil
-            if var descriptor = NativeSourceColorSampler.estimate(rgba: sample, width: sw, height: sh, inkSeed: seed),
+            // A page-axis lettering hint can actually sample the backing of a
+            // steep quad. Such a seed cannot satisfy the estimator's own ink
+            // separation and would suppress its independent color-mode search.
+            let minimumInkDistance = 60.0
+            if let proposed = seed, let backing = palette?.verifiedBackground,
+               NativeRestorationRGB(proposed).distance(backing) < minimumInkDistance { seed = nil }
+            if var descriptor = NativeSourceColorSampler.estimate(rgba: sample, width: sw, height: sh, inkSeed: seed,
+                                                                 minimumInkDistance: minimumInkDistance),
                let fg = Pixels.rgb(descriptor["foreground"]), let bg = Pixels.rgb(descriptor["background"]) {
                 let paper = palette?.verifiedBackground ?? Pixels.rgb(palette?.metadata["captionBackground"])
                 if let stroke = Pixels.rgb(descriptor["stroke"]), let paper, bg.minimum >= 245,
@@ -128,11 +135,18 @@ enum NativeSlantedRestoration {
             for _ in 0..<2 { erased += NativeSlantedPixels.fillHoles(page.rgba, output: &output, w: page.width, h: page.height,
                 axis: axis, bg: bg.channels, scale: norm, regions: [b] + auxiliary, cx: cx, cy: cy, c: c, s: s, ox: ox, oy: oy) }
         }
+        let sourceFrame = result.method == "chromatic-balloon-glyphs"
+            ? (result.discoveredOutline ?? result.observedFill).flatMap { NativeSlantedProof.sourceFrameMask(page, foreground: $0) } : nil
+        if let sourceFrame { erased -= NativeSlantedProof.retainSourceFrame(sourceFrame, output: &output) }
         guard let fg = result.observedFill, let bg = result.observedBacking,
               !partiallyExposed(page, output: output, box: box, foreground: fg.channels, background: bg.channels, cx: cx, cy: cy, c: c, s: s) else { return nil }
         NativeSlantedPixels.layoutProof(page.rgba, output: output, w: page.width, h: page.height, safe: &safe, luminance: &luminance,
             lw: lw, lh: lh, cx: cx, cy: cy, c: c, s: s, ox: ox, oy: oy)
         closeProofSeams(safe: &safe, luminance: luminance, restored: result.rgba, w: lw, h: lh)
+        if let sourceFrame {
+            NativeSlantedProof.excludeSourceFrame(sourceFrame, w: page.width, h: page.height, safe: &safe, lw: lw, lh: lh,
+                cx: cx, cy: cy, c: c, s: s, ox: ox, oy: oy)
+        }
         var pixels = Pixels(width: page.width, height: page.height); pixels.rgba = output
         pixels.method = "rectified-" + (result.method ?? "undefined"); pixels.surfaceQuality = quality
         return Result(pixels: pixels, proof: ProofRaster(width: lw, height: lh, box: b, safe: safe, luminance: luminance, auxiliary: auxiliary))

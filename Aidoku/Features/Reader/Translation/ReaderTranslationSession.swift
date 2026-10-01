@@ -155,7 +155,7 @@ final class ReaderTranslationSession {
     }
 
     /// Display-frequency fast path: mount only existing bitmaps. Cache misses
-    /// must not start disk reads, WebKit, OCR, or change the scheduling window.
+    /// must not start disk reads, native rendering, OCR, or change the scheduling window.
     func displayCachedVisiblePages(_ pages: [ReaderTranslationPage]) {
         guard state == .on, presentsTranslation, let settings, let renderCache else { return }
         for page in pages {
@@ -762,7 +762,7 @@ final class ReaderTranslationSession {
             }
         }
         // The bitmap is mounted before UIKit exposes a neighboring page. These
-        // views never start their own WebKit/OCR/API work, and cancelled swipes
+        // views never start their own rendering/OCR/API work, and cancelled swipes
         // leave the already composed preview attached.
         if Date() >= memoryNotBefore {
             let visibleIDs = Set(visible.map(ObjectIdentifier.init))
@@ -777,7 +777,7 @@ final class ReaderTranslationSession {
         try Task.checkCancellation()
         guard state == .on, workGeneration == generation, activeKey == key else { throw CancellationError() }
         // The initial callback runs after OCR admission is released and before
-        // provider work. Reserve at most the same one future visible document.
+        // provider work. Reserve at most one future native presentation view.
         if presentsTranslation, !regions.isEmpty, !navigationPaused, canStartHeavyWork, let settings,
            let page = visible.first(where: { $0.sourcePage?.translationCacheKey == key }) {
             if pendingNavigationPage !== page { discardPendingNavigation() }

@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Real captured caption geometry; exercise safe fit, refusal and rollback.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');

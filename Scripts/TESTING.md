@@ -3,9 +3,10 @@
 ## Default iOS tests: AidokuFast
 
 The Aidoku scheme now defaults to **AidokuFast** with Release optimization.
-Normal Xcode Test / Cmd-U uses this plan. It selects 153 measured fast regression
-suites covering codecs, source pagination, cache bounds, cancellation, scheduling,
-storage, and basic geometry. The previous approximately three-minute exhaustive
+Normal Xcode Test / Cmd-U uses this plan. Its selected suites are declared in `AidokuFast.xctestplan` and cover codecs,
+native source adapters, cache bounds, cancellation, scheduling, storage, geometry
+and native rendering. Historical measured suite counts below apply to their
+recorded snapshots, not the current plan. The previous approximately three-minute exhaustive
 scope is retained as **AidokuFull**, explicitly selected when needed.
 
 ```sh
@@ -19,7 +20,7 @@ change, or large source rebuild can exceed that; compilation is never secretly
 skipped or killed to manufacture a pass. iOS has no automatic timeout. The
 existing optional `--seconds` limit still reports incomplete on timeout.
 
-The expensive network-contention experiment, live CoreML inference, WebKit image
+The expensive network-contention experiment, live CoreML inference, native/frozen-Web image
 matrices, render/page-turn benchmarks, and external/opt-in fixtures have been
 removed from the routine plan. They remain in AidokuFull. Existing test assertions
 and input matrices are unchanged. Add new lightweight suites to AidokuFast's
@@ -28,6 +29,9 @@ selects XCTest classes, not Swift Testing suites); new suites are always include
 
 Explicit `--ios <suite>` runs against AidokuFull so a focused slow test is not
 silently filtered by the default plan. It retains its Debug configuration default.
+Pass bare suite names, without an `AidokuTests/` prefix or `/method` suffix.
+Method filters are rejected before building because they can silently select zero
+Swift Testing tests even when other requested suites run; select the whole affected suite.
 
 Measured on 2026-09-25 with the booted Test-Optimization simulator and warm
 Release cache: **788 tests / 153 suites passed, 0 failures, 0 skips**,
@@ -68,12 +72,8 @@ Keep the rate and aggregate sharing mode: they define the contention workload.
 Stop that fixture process after the test run. Then run the current sources:
 
 ```sh
-xcodebuild test -project Aidoku.xcodeproj -scheme Aidoku -testPlan AidokuFull \
-  -configuration Release -destination 'platform=iOS Simulator,id=<simulator-UDID>' \
-  -derivedDataPath build/simulator-fast-release -skipPackagePluginValidation \
-  -parallel-testing-enabled NO -jobs 4 SWIFT_COMPILATION_MODE=singlefile \
-  ENABLE_TESTABILITY=YES ONLY_ACTIVE_ARCH=YES \
-  CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES CODE_SIGN_IDENTITY=-
+python3 Scripts/test_quick.py --full-ios --device <simulator-UDID> \
+  --result-bundle build/full-native-main.xcresult
 ```
 
 Retain the project development team and entitlements. Disabling signing loses
@@ -81,21 +81,131 @@ simulator Keychain access (`errSecMissingEntitlement`, -34018). Let Xcode genera
 the simulator entitlements; manually signing the finished app is not equivalent.
 Do not clean the stable cache between normal runs.
 
-The AidokuFull plan includes real CoreML, WebKit, network contention, and negative
-observation windows. It is not guaranteed to finish in a minute. On 2026-09-28,
+The full runner defaults to Release `-O`, `singlefile`, active architecture,
+two build jobs and one test worker/simulator. It has no default deadline. It
+rebuilds current sources incrementally and reads the resulting xcresult summary:
+nonzero executed tests, passed count equal to total, zero failures, zero skips
+and zero expected failures are required for success. A filtered or zero-test run
+is not a full pass. Choose a new result-bundle path; existing evidence is not
+overwritten. The persistent `.log` and `.summary.json` accompany the bundle.
+Wall time, build activity and Swift Testing body time are reported separately;
+unavailable body timing stays unknown.
+
+The AidokuFull plan includes real CoreML, native rendering, frozen WebKit
+reference captures, network contention and negative observation windows. It is not guaranteed to finish in a minute. On 2026-09-28,
 105 prerequisite-dependent test declarations were removed at the user's request.
-The current suite has no conditional skip traits. Removed dataset, provider,
-soak, populated-library, and physical-device scenarios are no longer covered
-by AidokuFull; the older timing snapshots below describe the historical suite.
+That cleanup described the suite at its recorded revision. Later work restored
+additional native fixture/device declarations; current prerequisites are asserted
+by those tests and cannot be silently converted into skips or empty successes.
+The older timing snapshots below describe their historical suite.
 Four removed declarations silently continued past missing image fixtures; their
 empty successful runs are no longer included in the full-suite count. The 50
 resulting empty suite files and their unreachable fixture/benchmark helpers were
 also removed; this cleanup does not remove additional executable tests.
 
+The obsolete `run_webtoon_screen_tests.py` screenshot wrapper was retired: no
+current test produces its `AuditWebtoon/capture-ready` protocol, so it could only
+fail after a valid lifecycle run. `ReaderWebtoonLifecycleTests` remains in the
+app test target and full plan; it does not claim external screenshot coverage.
+
 ## Broader host and package checks
 
-The complete source-color matrix is in `.github/workflows/source-color.yml`;
-keep its fixture arguments. Additional browser regressions can use
+For an explicitly requested full host run:
+
+```sh
+python3 Scripts/test_quick.py --full-host --host-result-directory build/full-host-results
+```
+
+The manifest in `Scripts/tests/full-host-matrix.json` specifies every command
+and required fixture argument. This mode has no 55-second smoke deadline, runs
+all listed commands even after failures and rejects skipped tests. Do not replace
+the manifest with a file glob: corpus and browser scripts have different input
+contracts. `--host-result-directory` must name a new directory; it preserves a
+log and JSON result for each command plus aggregate `results.json`. Host execution
+and AidokuFull are separate validation scopes.
+
+
+The 107-command host matrix and the following three iOS suites form the
+maintained translation quality gates. The native suites execute 418 original
+scenario groups from 394 immutable fixture records. They preserve the reviewed
+admission, glyph/ruby coverage, artwork/neighbor protection, ownership, input
+immutability and budget contracts, with the explicit assertion changes below. Host results alone do not establish native
+quality; run unfiltered AidokuFull for a requested full iOS verification.
+
+| Historical offline diagnostic | Native production suite | Scenario groups |
+| --- | --- | ---: |
+| `source-inpainting-segmentation.cjs` | `NativeSourceSegmentationMatrixTests` |147 |
+| `slanted-artwork-regression.cjs` | `NativeSlantedRestorationMatrixTests` |44 |
+| `slanted-ruby-regression.cjs` | `NativeSlantedRestorationMatrixTests` |202 |
+| `slanted-dense-recovery-guard.cjs` | `NativeSlantedRestorationMatrixTests` |4 |
+| `slanted-native-outlines.cjs` | `NativeSlantedRestorationMatrixTests` |2 |
+| `source-body-art-evidence-regression.cjs` | `NativeSourceOwnershipMatrixTests` |12 |
+| `source-segmented-restoration-regression.cjs` | `NativeSourceOwnershipMatrixTests` |7 |
+
+The suite totals are 147 segmentation scenarios, 252 slanted restoration
+scenarios and 19 ownership scenarios. Xcode reports 219 case executions across
+22 declarations: the 200 ruby records run inside one aggregate test. The CI
+result verifier requires the exact per-suite declarations and argument counts.
+
+The original Web scripts, source captures and fixture hashes remain frozen. The
+native tests deliberately replace two painted-area contracts with source-derived
+semantic checks; they do not claim every old numeric assertion is unchanged:
+
+- Dense lettering formerly required exactly 2,798 painted pixels. Native checks
+  require all 500 annotated owned letter pixels to be erased and all 20,652
+  protected artwork pixels to remain unpainted, with the original admission and
+  restoration-method checks retained.
+- The two outlined captures formerly required at least 54,000 and 57,000 painted
+  pixels. Native checks require every annotated owned colored core and white band
+  to be removed and every protected artwork pixel to remain unpainted. Painting
+  extra padding is not a quality criterion. Exact source hashes, immutable inputs
+  and unpainted crop borders remain required.
+
+The outline annotations come from the original RGB components and immutable OCR
+quad, never from the candidate renderer output. Capture 0 protects two punctuation
+components outside that quad with no auxiliary ownership; ambiguous mixed
+fringe/backing is unannotated. All six owned components retain their full core and
+white-band checks. The precise counts, ownership reasoning and mask hashes are in
+`Scripts/tests/fixtures/slanted-native-outlines.semantic-provenance.json` and
+`full-host-matrix.json`. Capture 1 retains its original semantic mask.
+
+The six body/art cases still require exact restored RGBA and ownership-mask hashes.
+The test-only [final-export raster acceptance rules](native-render-parity/README.md#run)
+do not relax glyph, artwork, ownership or admission assertions. Python regression modules, including
+the native-quality result parser, run through the existing mandatory unittest
+command; the native graphics adapter smoke remains an explicit host command.
+
+For focused quality verification, select all three suites together:
+
+```sh
+python3 Scripts/test_quick.py --ios NativeSourceSegmentationMatrixTests NativeSlantedRestorationMatrixTests NativeSourceOwnershipMatrixTests --configuration Release --device <UDID> --jobs 2
+```
+
+The CI `native-quality` job resolves an available iOS simulator dynamically,
+runs those suites on one simulator and rejects skipped or zero-execution
+results. The seven original scripts and frozen Web sources remain unchanged
+for offline diagnosis; invoke them explicitly with `node Scripts/tests/NAME.cjs`.
+Their known historical failures are not production quality failures or hidden
+passes. They are not entries skipped by `--full-host`. The exact mapping and
+original script/archive hashes are recorded in `full-host-matrix.json`.
+
+The maintained Hoshi boundary runner compiles and runs the source, reader and C
+API assertion suites sequentially with AddressSanitizer and UndefinedBehaviorSanitizer:
+
+```sh
+python3 Scripts/tests/run-hoshi-boundaries-regression.py
+```
+
+It uses the vendored sources and the exact Zstd revision in `Package.resolved`,
+reusing a verified checkout or fetching that revision. See
+[`Scripts/tests/README-hoshi-boundaries.md`](tests/README-hoshi-boundaries.md) for
+build-cache and prerequisite details.
+
+
+The remaining frozen-Web reference gate is in `.github/workflows/source-color.yml`;
+keep its fixture arguments. These Node regressions read test-only historical
+overlay sources. They are a separate reference gate and cannot establish that
+the native Swift/Rust renderer ran or matched an image. Additional browser regressions can use
 `PLAYWRIGHT_MODULE` pointing to an installed Playwright package. Native storage
 and boundary regression scripts retain ASan/UBSan. Package suites:
 
@@ -107,15 +217,50 @@ swift test --package-path Vendor/AidokuRunner --jobs 2
 AidokuRunner resolves package dependencies and tests native manifest registration,
 models and partial-result ownership. Report network/environment failures explicitly.
 
+## Native integration validation snapshot: 2026-10-01
+
+These are completed runs of their recorded source snapshots. Static inventory
+contains 520 Swift test files and 2,435 declarations; expanded parameter executions
+are reported separately. Historical failures remain in their original evidence.
+
+| Run | Recorded result | Build activity | Test body | Wrapper wall time |
+| --- | --- | ---: | ---: | ---: |
+| `full-host-3` | 107/107 commands passed; 2,715 inputs unchanged | Not separately reported | Not separately reported | 368.647 s |
+| `full-ios-8` | 2,433 passed, 2 failed, 0 skipped; 3,982 expanded passes and 2 failures | 37.202 s | 582.570 s | 645.721 s |
+| `focused-ios-27` | 14 declarations / 25 expanded executions passed, 0 skipped | 22.821 s | 0.270 s | 29.007 s |
+| `full-ios-9` | 2,435/2,435 declarations and 3,984 expanded executions passed; 0 failures/skips/expected failures; 2,723 inputs unchanged | 2.279 s | 582.234 s | 593.854 s |
+
+The two full-ios-8 failures were a synthetic rectangle's numeric JSON type and
+an outdated expected render-cache revision. Both suites passed after those
+fixture/oracle repairs in focused-ios-27. The failed full run stays failed.
+The subsequent unfiltered Release AidokuFull run, `full-ios-9`, passed using
+those unchanged compiled sources and the same cache. Its build-activity figure
+is a no-source-change check, distinct from focused-ios-27's incremental build.
+One iPhone 17 Pro iOS 26.5 simulator and two build jobs were used. These simulator
+validation times are not renderer benchmarks or physical-device results.
+
+The final run also passed 22 recorded-page comparisons across two preload depths
+and all 16 final-export fixtures. Fifteen final fixtures were exact; the remaining
+fixture differed by at most three channel values on 2,325 pixels. Saved PNGs were
+independently decoded and checked against the recorded metrics.
+
+Saved pixel/JSON/PDF verification independently accepted the bounded glyph/panel
+contour evidence on focused26 pages 5 and 9 and rejected 17 malformed or
+material-change controls. It preserves raw raster differences and does not
+replace source-protection, kernel, typography or cache checks. The base final16
+report policy is unchanged. See [the parity contract](native-render-parity/README.md#run)
+and [the audit](test-skip-audit.json) for exact artifact paths, hashes, source
+counts, original failures and the separate host, iOS and image-proof scopes.
+
 ## Test optimization contracts
 
 - Retry tests inject a controllable wait and assert the original retry delays;
   production delays and cancellation guards remain unchanged.
-- Browser fixtures share at most one idle WKWebView, load a fresh document per
+- Frozen-reference browser fixtures share at most one idle WKWebView, load a fresh document per
   case, fence attached viewport presentation before measurement, and restore
   native appearance on release. Concurrent checkouts stay
   separate. Do not add persistent scripts/message handlers to pooled views.
-- Source-color Node tests reuse compiled scripts, but each harness gets a fresh
+- Frozen source-color Node tests reuse compiled scripts, but each harness gets a fresh
   VM context, intrinsics, canvas state, and image buffers.
 - Keep fixture matrices, meaningful overlap/negative observation windows, and
   stress/soak workloads. Measure build, launch, and test body separately.

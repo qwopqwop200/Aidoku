@@ -189,7 +189,14 @@ struct ReaderLookaheadOptimizationTests {
             $0.cropped(to: CGRect(x: 0, y: 0, width: 1, height: 1))
         }
         let data = try #require(cache.cachedLayout(for: ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: regions)))
-        #expect((try JSONSerialization.jsonObject(with: data) as? [[String: Any]])?.isEmpty == false)
+        let layout = try JSONDecoder().decode(NativeTranslationLayout.self, from: data)
+        #expect(layout.version == NativeTranslationLayout.currentVersion)
+        #expect(layout.imageSize == size)
+        #expect(layout.viewport == geometry.viewport(for: size))
+        #expect(!layout.items.isEmpty)
+        #expect(layout.items.contains { $0.text == ReaderTranslationPersistentPipelineTests.region.translation })
+        #expect(layout.items.allSatisfy { $0.sourceFrame == [layout.sourceRect.minX, layout.sourceRect.minY,
+            layout.sourceRect.width, layout.sourceRect.height] })
         #expect(cache.bitmapBytes == 0)
         let hit = ReaderTranslationLayoutPreparer(renderCache: cache, layoutPreparation: { _, _, _, _, _, _ in
             Issue.record("A cached text layout must not be measured again")
@@ -205,14 +212,24 @@ struct ReaderLookaheadOptimizationTests {
         let disk = ReaderTranslationDiskCache(directory: root)
         let cache = ReaderTranslationRenderCache(disk: disk)
         let source = ReaderTranslationPersistentPipelineTests.image()
-        await cache.storeLayout(Data("[]".utf8), key: "snapshot", diskGeneration: 0)
+        let viewport = CGSize(width: 390, height: 800)
+        let frame = ReaderTranslationGeometry.displayRect(CGRect(x: 0, y: 0, width: 1, height: 1),
+            imageSize: source.size, bounds: CGRect(origin: .zero, size: viewport), aspectFit: true)
+        let layout = try await NativeTranslationLayoutPlanner.prepareLayoutData(
+            items: ReaderTranslationRegion.layoutItems([ReaderTranslationPersistentPipelineTests.region], imageSize: source.size),
+            imageSize: source.size, sourceRect: frame, settings: ReaderTranslationSettings.defaultOverlay,
+            targetLanguage: "ko", viewport: viewport)
+        await cache.storeLayout(layout, key: "snapshot", diskGeneration: 0)
         await cache.store(source, key: "snapshot", pageIdentity: "page", diskGeneration: 0)
         #expect(cache.cachedImage(for: "snapshot") === source)
         #expect(try await !disk.contains("snapshot", kind: .snapshot))
         cache.clearMemory()
         let reopened = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
         #expect(await reopened.load("snapshot") == nil)
-        #expect(await reopened.layoutData(for: "snapshot") == Data("[]".utf8))
+        let reopenedLayout = try #require(await reopened.layoutData(for: "snapshot"))
+        #expect(reopenedLayout == layout, "The valid native text layout must persist byte-for-byte independently of artwork")
+        #expect(try JSONDecoder().decode(NativeTranslationLayout.self, from: reopenedLayout).items.isEmpty == false)
+        #expect(reopened.bitmapBytes == 0)
     }
 
     @Test func bitmapAndTextCachesHaveHardByteBounds() async throws {

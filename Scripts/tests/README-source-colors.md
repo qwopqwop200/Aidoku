@@ -1,5 +1,13 @@
 # Source color regressions
 
+> Native migration: the WebKit/JavaScript algorithms and measurements below
+> describe the preserved pre-migration reference. Current Node regressions read
+> the test-only `AidokuTests/Translation/LegacyBrowserOverlay` sources; production
+> translation uses native Swift/Core Text/Core Graphics and native Rust kernels.
+> Historical simulator counts and old optional fixture instructions are not a
+> current-main result. Use the native suites and commands in
+> [TESTING.md](../TESTING.md) and [the runtime map](../../Docs/native-runtime.md).
+
 Run from the repository root with Node.js 18 or newer (no npm dependencies):
 
 ```sh

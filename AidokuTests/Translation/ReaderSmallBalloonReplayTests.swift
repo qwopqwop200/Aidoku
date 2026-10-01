@@ -1,6 +1,5 @@
 import Testing
 import UIKit
-import WebKit
 @testable import Aidoku
 
 /// Explicit real-image regression for the two narrow neighbouring speech balloons.
@@ -31,71 +30,60 @@ struct ReaderSmallBalloonReplayTests {
         settings.preserveSourceBackgroundColor = true
         settings.preserveSourceTextColor = true
         settings.opacity = 1
-        let layoutItems = BrowserPageImageOverlayRenderer.layoutPayload(
-            items: ReaderTranslationRegion.layoutItems(regions, imageSize: size),
-            imageSize: size, sourceRect: frame, settings: settings, targetLanguage: "ko", viewport: layoutViewport)
-        let generatedPayload: [String: Any] = ["items": layoutItems, "viewport": [430, 932], "scale": 3,
-            "imageSize": [cgImage.width, cgImage.height], "displayRect": [frame.minX, frame.minY, frame.width, frame.height],
-            "appearance": ["inpaintingEnabled": true, "preserveSourceBackgroundColor": true,
-                           "preserveSourceTextColor": true, "opacity": 1, "minimumReadableFontSize": 5]]
-        try JSONSerialization.data(withJSONObject: generatedPayload, options: [.sortedKeys])
-            .write(to: directory.appendingPathComponent("payload.json"))
-        try #require(FileManager.default.fileExists(atPath: directory.appendingPathComponent("payload.json").path),
-                     "Install the captured payload.json and original.image in Documents/CachedLayoutReplay before this explicit replay")
-        let payload = try #require(JSONSerialization.jsonObject(with: Data(contentsOf:
-            directory.appendingPathComponent("payload.json"))) as? [String: Any])
-        let viewport = try #require(payload["viewport"] as? [Double])
-        let items = try #require(payload["items"])
-        let appearance = try #require(payload["appearance"])
-        let image = try #require(UIImage(contentsOfFile: directory.appendingPathComponent("original.image").path))
-        let encodedSource = try ReaderTranslationBackgroundImage.dataURL(for: image)
-        let source = try #require(encodedSource)
-        let prepared = try ReaderTranslationBackgroundImage.prepare(image)
-        try #require(prepared.pngData())
-            .write(to: directory.appendingPathComponent("prepared.png"))
-        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: viewport[0], height: viewport[1]))
-        web.loadHTMLString("<meta name='viewport' content='width=device-width,initial-scale=1'><body style='margin:0'>", baseURL: nil)
-        for _ in 0..<200 where web.isLoading { try await Task.sleep(for: .milliseconds(20)) }
-        _ = try await web.callAsyncJavaScript(LegacyReaderTranslationOverlayView.backgroundScript,
-            arguments: ["source": source, "fit": "contain", "revision": 1], in: nil, contentWorld: .page)
-        _ = try await web.callAsyncJavaScript(BrowserPageImageOverlayRenderer.renderInstallAndCallScript,
-            arguments: ["items": items, "appearance": appearance, "revision": "1", "session": "cached-replay",
-                        "libraryVersion": BrowserPageImageOverlayRenderer.renderLibraryVersion],
-            in: nil, contentWorld: .page)
-        let audit = try await web.evaluateJavaScript("""
-        JSON.stringify(Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay]')).map(n=>({
-          kind:n.dataset.aidokuImageOcrOverlay,id:n.dataset.aidokuRegion,
-          data:{...n.dataset},style:n.getAttribute('style'),
-          ink:(()=>{const r=document.createRange();r.selectNodeContents(n);return [...r.getClientRects()]
-            .filter(v=>v.width>0&&v.height>0).map(v=>[v.x,v.y,v.width,v.height]);})()})))
-        """)
-        let auditText = try #require(audit as? String)
-        try Data(auditText.utf8).write(to: directory.appendingPathComponent("audit.json"))
-        let snapshot = try await web.takeSnapshot(configuration: nil)
-        try #require(snapshot.pngData()).write(to: directory.appendingPathComponent("render.png"))
-        let count = try await web.evaluateJavaScript("document.querySelectorAll('[data-aidoku-image-ocr-overlay=item]').length")
-        #expect((count as? Int ?? 0) > 0)
-        let verified = try await web.callAsyncJavaScript("""
-        return (()=>{
-          const nodes=[...document.querySelectorAll('[data-aidoku-image-ocr-overlay=item]')];
-          const one=nodes.find(n=>n.dataset.aidokuRegion==='1'),two=nodes.find(n=>n.dataset.aidokuRegion==='2');
-          if(one?.dataset.sourceBackgroundColor!=='inpainted'||two?.dataset.slantedSourceErased!=='true')return false;
-          if(document.querySelector('[data-aidoku-image-ocr-overlay=source-readability-panel], [data-aidoku-image-ocr-overlay=source-rotated-panel]'))return false;
-          if(nodes.some(n=>n.dataset.sourceTopAnchored==='true'))return false;
-          const punctuation=document.createRange();punctuation.selectNodeContents(one);
-          const rows=[...punctuation.getClientRects()].filter(r=>r.width>0&&r.height>0);
-          if(Math.max(...rows.map(r=>r.top))-Math.min(...rows.map(r=>r.top))>1)return false;
-          for(const id of ['0','3']){
-            const node=nodes.find(n=>n.dataset.aidokuRegion===id);
-            const range=document.createRange();range.selectNodeContents(node);
-            const rects=[...range.getClientRects()].filter(r=>r.width>0&&r.height>0);
-            const center=(Math.min(...rects.map(r=>r.top))+Math.max(...rects.map(r=>r.bottom)))/2;
-            const item=items.find(i=>String(i.id)===id),b=item.sourceBounds,f=item.sourceFrame;
-            if(Math.abs(center-(f[1]+(b[1]+b[3]/2)*f[3]))>8)return false;
-          }
-          return true;
-        })()
-        """, arguments: ["items": items], in: nil, contentWorld: .page)
-        #expect(verified as? Bool == true, "Both narrow balloons must erase without panels; dialogue must not be top anchored")
+        let rendered = try await NativeTranslationRenderer.render(image: UIImage(cgImage: cgImage), imageSize: size,
+            items: ReaderTranslationRegion.layoutItems(regions, imageSize: size), settings: settings,
+            targetLanguage: "ko", viewport: layoutViewport, scale: 3, aspectFit: true, collectDiagnostics: true)
+        let diagnostic = try #require(rendered.diagnosticData)
+        try diagnostic.write(to: directory.appendingPathComponent("native-audit.json"))
+        try #require(rendered.image.pngData()).write(to: directory.appendingPathComponent("native-render.png"))
+        let report = try #require(JSONSerialization.jsonObject(with: diagnostic) as? [String: Any])
+        let cards = try #require(report["cards"] as? [[String: Any]])
+        #expect(rendered.renderedItemCount > 0)
+        let one = try #require(cards.first { $0["id"] as? String == "1" })
+        let two = try #require(cards.first { $0["id"] as? String == "2" })
+        #expect(one["sourceBackgroundKind"] as? String == "inpainted")
+        // This source remains rotated and is admitted by the strict page-ink
+        // path, whose committed provenance is distinct from upright inpainting.
+        #expect(two["sourceBackgroundKind"] as? String == "slanted-glyph-restored")
+        let rotation = try #require(two["rotation"] as? Double)
+        #expect(abs(rotation) > 0)
+        let attempts = try #require(report["restorationAttempts"] as? [[String: Any]])
+        let admission = try #require(attempts.first { $0["id"] as? String == "2" && $0["phase"] as? String == "slanted-page-admission" })
+        #expect(admission["admitted"] as? Bool == true && admission["quadProof"] as? Bool == true)
+        #expect(two["restored"] as? Bool == true)
+        #expect(two["erasureComplete"] as? Bool == true)
+        for card in cards {
+            #expect(card["drawsPanel"] as? Bool == false)
+            #expect((card["panels"] as? [Any])?.isEmpty == true,
+                    "Both narrow balloons must erase without readability or rotated source panels")
+            #expect(card["sourceTopAnchored"] as? Bool == false,
+                    "Dialogue in these balloons must not be anchored at the source top")
+        }
+        let punctuation = try rangeRects(one)
+        try #require(!punctuation.isEmpty)
+        let punctuationBottom = try #require(punctuation.map(\.minY).max())
+        let punctuationTop = try #require(punctuation.map(\.minY).min())
+        #expect(punctuationBottom - punctuationTop <= 1,
+                "Narrow punctuation must remain on one horizontal row")
+        for index in [0, 3] {
+            try #require(regions.indices.contains(index))
+            let card = try #require(cards.first { $0["id"] as? String == String(index) })
+            let rects = try rangeRects(card)
+            try #require(!rects.isEmpty)
+            let top = try #require(rects.map(\.minY).min())
+            let bottom = try #require(rects.map(\.maxY).max())
+            let center = (top + bottom) / 2
+            #expect(abs(center - (frame.minY + regions[index].rect.midY * frame.height)) <= 8,
+                    "Translated dialogue must remain centered on its source balloon")
+        }
+        await ReaderOCRService.shared.purge()
+    }
+
+    private func rangeRects(_ card: [String: Any]) throws -> [CGRect] {
+        let values = try #require(card["pageRangeBounds"] as? [[Double]])
+        return try values.map { value in
+            try #require(value.count == 4)
+            return CGRect(x: value[0], y: value[1], width: value[2], height: value[3])
+        }.filter { $0.width > 0 && $0.height > 0 }
     }
 }

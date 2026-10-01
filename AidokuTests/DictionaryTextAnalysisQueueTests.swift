@@ -4,7 +4,6 @@ import Testing
 @Suite(.serialized)
 struct DictionaryTextAnalysisQueueTests {
     @Test func cancelledWaiterLeavesQueueBeforeActiveOCRFinishes() async throws {
-        guard #available(iOS 18.0, *) else { return }
         let queue = DictionaryTextAnalysisQueue()
         try await queue.waitForTurn()
         let waiting = Task {
@@ -28,7 +27,6 @@ struct DictionaryTextAnalysisQueueTests {
     }
 
     @Test func cancellingMiddleWaiterPreservesSurvivingFIFOAndSingleAdmission() async throws {
-        guard #available(iOS 18.0, *) else { return }
         let queue = DictionaryTextAnalysisQueue()
         let recorder = QueueOrderRecorder()
         try await queue.waitForTurn()

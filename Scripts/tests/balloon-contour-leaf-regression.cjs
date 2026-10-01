@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Real cached speech balloons. The final fit must use painted line boxes rather
 // than WebKit's extra enclosing Range rectangle, and may move within the same
 // measured contour when the source box sits in its tapered shoulder.

@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Exercise the actual production group reconciliation and certification helpers.
 // node Scripts/tests/source-erasure-group-regression.cjs
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');

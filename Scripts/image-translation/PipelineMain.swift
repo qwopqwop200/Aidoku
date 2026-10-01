@@ -2,7 +2,6 @@ import AppKit
 import Foundation
 import CoreGraphics
 import ImageIO
-import WebKit
 
 struct HostOptions {
     var inputs: [URL] = []
@@ -264,7 +263,7 @@ struct HostPageResult: @unchecked Sendable {
 @main
 struct ImageTranslationMain {
     static func main() {
-        // NSApplication services the WebKit and spelling main run loops in a CLI process.
+        // NSApplication services native AppKit font and spelling facilities in this CLI process.
         setvbuf(stdout, nil, _IOLBF, 0)
         let app = NSApplication.shared
         app.setActivationPolicy(.prohibited)
@@ -310,6 +309,7 @@ struct ImageTranslationMain {
                 var count = 0
                 for directory in directories where FileManager.default.fileExists(atPath: directory.appendingPathComponent("final.json").path) {
                     let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+                        .sorted { $0.lastPathComponent > $1.lastPathComponent }
                     guard let payload = files.first(where: { $0.lastPathComponent.hasSuffix("-render-payload.json") }),
                         let object = try JSONSerialization.jsonObject(with: Data(contentsOf: payload)) as? [String: Any],
                         let value = object["value"] as? [String: Any] else { continue }
@@ -319,6 +319,7 @@ struct ImageTranslationMain {
                         try await renderPayload(value, image: image, root: root, directory: directory)
                     }
                     try dump.requireComplete()
+                    try markNativeRender(in: directory)
                     try HostAnalysis.publishFinal(imageDirectory: directory, runDirectory: run)
                     try HostAnalysis.generate(imageDirectory: directory, root: root)
                     count += 1; print("Recomposited: \(directory.lastPathComponent)/final.png")
@@ -384,6 +385,28 @@ struct ImageTranslationMain {
                 if options.resumeRun != nil, let data = try? Data(contentsOf: directory.appendingPathComponent("final.json")),
                let saved = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 guard saved["input"] as? String == url.path else { throw HostError.message("Resume input order differs at \(directory.lastPathComponent)") }
+                if saved["mode"] as? String == "translation", saved["renderEngine"] as? String != "native-coretext-coregraphics" {
+                    // Upgrade a completed browser-rendered run from its saved payload without
+                    // repeating OCR, provider requests, or replacing the user's translations.
+                    let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+                        .sorted { $0.lastPathComponent > $1.lastPathComponent }
+                    guard let payload = files.first(where: { $0.lastPathComponent.hasSuffix("-render-payload.json") }),
+                          let object = try JSONSerialization.jsonObject(with: Data(contentsOf: payload)) as? [String: Any],
+                          let value = object["value"] as? [String: Any] else {
+                        throw HostError.message("Completed legacy translation has no saved render payload")
+                    }
+                    let image = try loadImage(directory.appendingPathComponent("input.png"))
+                    let dump = HostDumpContext(directory: directory, quiet: options.quiet)
+                    try await HostDump.$context.withValue(dump) {
+                        try await renderGate.withPermit { @MainActor in
+                            try await renderPayload(value, image: image, root: root, directory: directory)
+                        }
+                    }
+                    try dump.requireComplete()
+                    try markNativeRender(in: directory)
+                    try HostAnalysis.publishFinal(imageDirectory: directory, runDirectory: run)
+                    row["nativeRenderMigrated"] = true
+                }
                 row["status"] = "success"; row["regions"] = (saved["regions"] as? [Any])?.count ?? 0
                 row["resumed"] = true
                 print("Already completed: \(directory.lastPathComponent)"); return HostPageResult(index: index, row: row)
@@ -474,6 +497,7 @@ struct ImageTranslationMain {
                     HostDump.capture("final-regions", regions)
                     let final = try JSONSerialization.data(withJSONObject: ["input": url.path, "width": image.width,
                         "height": image.height, "mode": options.ocrOnly ? "ocr-only" : "translation",
+                        "renderEngine": options.ocrOnly ? "none" : "native-coretext-coregraphics",
                         "regions": HostDump.json(regions)], options: [.prettyPrinted, .sortedKeys])
                     try final.write(to: directory.appendingPathComponent("final.json"), options: .atomic)
                     try HostAnalysis.publishFinal(imageDirectory: directory, runDirectory: run)
@@ -530,106 +554,126 @@ struct ImageTranslationMain {
     }
 }
 
-@MainActor
-final class HostNavigation: NSObject, WKNavigationDelegate {
-    private var continuation: CheckedContinuation<Void, Error>?
-    func load(_ url: URL, in webView: WKWebView) async throws {
-        try await withCheckedThrowingContinuation { continuation in
-            self.continuation = continuation
-            webView.navigationDelegate = self
-            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
-        }
-    }
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { continuation?.resume(); continuation = nil }
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        continuation?.resume(throwing: error); continuation = nil
-    }
-    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        continuation?.resume(throwing: error); continuation = nil
-    }
-    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        continuation?.resume(throwing: HostError.message("WebKit content process terminated")); continuation = nil
-    }
-}
 extension ImageTranslationMain {
     static func render(_ regions: [ReaderTranslationRegion], image: CGImage, target: String, root: URL, directory: URL,
                        settings: IPhoneOverlaySettings, viewport: CGSize) async throws {
+        var settings = settings
+        settings.visible = true // Export the translated page even when the reader overlay is currently hidden.
         let imageSize = CGSize(width: image.width, height: image.height)
         let fitted = HostRenderGeometry.displayRect(imageSize: imageSize, viewport: viewport).size
         let sourceRect = CGRect(origin: .zero, size: fitted)
         let overlayItems = ReaderTranslationRegion.layoutItems(regions, imageSize: imageSize)
         let items = HostProductionLayout.layoutPayload(items: overlayItems, imageSize: imageSize, sourceRect: sourceRect,
             settings: settings, targetLanguage: target, viewport: fitted)
+        let nativeItems = try JSONDecoder().decode([NativeTranslationLayoutItem].self,
+            from: JSONSerialization.data(withJSONObject: items))
+        let layout = NativeTranslationLayout(imageSize: imageSize, sourceRect: sourceRect, viewport: fitted,
+            items: nativeItems, sourceObjectFit: "fill")
         let arguments: [String: Any] = ["items": items, "revision": "1", "session": "host-pipeline",
             "appearance": HostOverlayAppearance.value(settings: settings, fonts: HostLetterFonts(root: root)),
             "hostViewport": [fitted.width, fitted.height], "hostDisplayRect": [0, 0, fitted.width, fitted.height],
-            "hostLayout": "production-layout-appkit-metrics"]
+            "hostLayout": "production-layout-appkit-metrics", "hostRenderer": "native-coretext-coregraphics",
+            "nativeLayout": try JSONSerialization.jsonObject(with: JSONEncoder().encode(layout)),
+            "nativeSettings": try JSONSerialization.jsonObject(with: JSONEncoder().encode(settings))]
         HostDump.capture("render-payload", arguments)
         try await renderPayload(arguments, image: image, root: root, directory: directory)
     }
+    static func markNativeRender(in directory: URL) throws {
+        let url = directory.appendingPathComponent("final.json")
+        guard var value = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any] else {
+            throw HostError.message("Invalid saved final metadata")
+        }
+        value["renderEngine"] = "native-coretext-coregraphics"
+        try JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .sortedKeys]).write(to: url, options: .atomic)
+    }
+
+    /// Replay the stored planner output through the same native renderer used by the reader.
+    /// Older payloads retain all item geometry and are migrated without OCR or a provider call.
     static func renderPayload(_ arguments: [String: Any], image: CGImage, root: URL, directory: URL) async throws {
-        let savedViewport = arguments["hostViewport"] as? [Double]
+        try Task.checkCancellation()
+        _ = HostLetterFonts(root: root)
+        let imageSize = CGSize(width: image.width, height: image.height)
+        // Fresh planner payloads carry CGFloat values; JSON replay carries Double.
+        // Normalize both representations before validating the exact stored geometry.
+        let savedViewport = (arguments["hostViewport"] as? [CGFloat])?.map(Double.init)
+            ?? arguments["hostViewport"] as? [Double]
+        if arguments["hostViewport"] != nil, savedViewport?.count != 2 {
+            throw HostError.message("Invalid saved render viewport")
+        }
         let width = savedViewport?.first ?? Double(image.width)
         let height = savedViewport?.last ?? Double(image.height)
-        let displayRect = CGRect(x: 0, y: 0, width: width, height: height)
-        // Inline the source so WebKit permits pixel reads in this local-file document.
-        let sourceDataURL = try HostRenderGeometry.backgroundDataURL(for: image)
-        let html = """
-        <!doctype html><html><head><meta charset="utf-8"><style>
-        html,body{margin:0;padding:0;width:\(width)px;height:\(height)px;overflow:hidden;background:white}
-        #reader-source-image{display:block;width:\(width)px;height:\(height)px}
-        </style></head><body><img id="reader-source-image" src="\(sourceDataURL)"></body></html>
-        """
-        let htmlURL = directory.appendingPathComponent("final.html")
-        try html.write(to: htmlURL, atomically: true, encoding: .utf8)
-        let configuration = WKWebViewConfiguration()
-        HostLetterFonts(root: root).register(in: configuration, contentWorld: .page)
-        let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: width, height: height), configuration: configuration)
-        let window = NSWindow(contentRect: webView.frame, styleMask: .borderless, backing: .buffered, defer: false)
-        window.contentView = webView
-        window.setFrameOrigin(NSPoint(x: -10000, y: -10000))
-        window.orderFrontRegardless()
-        defer { window.orderOut(nil); webView.navigationDelegate = nil }
-        let navigation = HostNavigation()
-        try await navigation.load(htmlURL, in: webView)
-        let waitForImage = "const im=document.getElementById('reader-source-image'); if(!im.complete) await new Promise((ok,fail)=>{im.onload=ok;im.onerror=()=>fail(new Error('source image load failed'));}); if(!im.naturalWidth) throw new Error('source image decode failed'); return true;"
-        _ = try await webView.callAsyncJavaScript(waitForImage, arguments: [:], in: nil, contentWorld: .page)
-        let renderStarted = ProcessInfo.processInfo.systemUptime
-        let result = try await webView.callAsyncJavaScript(HostProductionRenderer.renderScript, arguments: arguments,
-                                                          in: nil, contentWorld: .page)
-        HostDump.capture("render-result", result as Any)
-        let trace = try await webView.callAsyncJavaScript("return globalThis.__aidokuHostSegmentationTrace || {captures:[],dropped:0};", arguments: [:], in: nil, contentWorld: .page)
-        try HostSegmentationTrace.save(trace, directory: directory)
-        _ = try await webView.callAsyncJavaScript("await document.fonts.ready; document.body.getBoundingClientRect(); return true;",
-                                                  arguments: [:], in: nil, contentWorld: .page)
-        let diagnostics = try await webView.callAsyncJavaScript("""
-        const root=document.querySelector('[data-aidoku-image-ocr-overlay="root"]');
-        return {root:root?{...root.dataset}:null,nodes:[...(root?.querySelectorAll('*')||[])].map(n=>({
-          tag:n.tagName,text:n.tagName==='CANVAS'?null:n.textContent,dataset:{...n.dataset},style:n.getAttribute('style'),
-          bounds:{x:n.getBoundingClientRect().x,y:n.getBoundingClientRect().y,width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height}
-        }))};
-        """, arguments: [:], in: nil, contentWorld: .page)
-        HostDump.capture("render-dom", diagnostics as Any)
-        let exportJSON = try await webView.callAsyncJavaScript(HostProductionExporter.prepareExportScript,
-            arguments: [:], in: nil, contentWorld: .page) as? String
-        guard let exportJSON, let exportData = exportJSON.data(using: .utf8) else { throw HostError.message("Missing export layers") }
-        let layers = try JSONDecoder().decode(HostProductionExporter.ExportLayers.self, from: exportData)
-        let pdfConfiguration = WKPDFConfiguration()
-        pdfConfiguration.rect = displayRect
-        let typography = try await webView.pdf(configuration: pdfConfiguration)
-        let outputSize = HostRenderGeometry.outputPixelSize(for: CGSize(width: image.width, height: image.height))
-        let outputImage = try HostExportCompositor.composite(image: image, layers: layers, typography: typography,
+        guard [width, height].allSatisfy({ $0.isFinite && $0 > 0 && $0 <= 16_384 }) else {
+            throw HostError.message("Invalid saved render viewport")
+        }
+        let viewport = CGSize(width: width, height: height)
+        let displayRect = CGRect(origin: .zero, size: viewport)
+        var settings: IPhoneOverlaySettings
+        if let stored = arguments["nativeSettings"] as? [String: Any] {
+            settings = try HostOverlayAppearance.settings(saved: stored)
+        } else {
+            let appearance = arguments["appearance"] as? [String: Any] ?? [:]
+            settings = try HostOverlayAppearance.settings(saved: [
+                "opacity": appearance["opacity"] ?? 0.84,
+                "preserveSourceTextColor": appearance["preserveSourceTextColor"] ?? false,
+                "preserveSourceBackgroundColor": appearance["preserveSourceBackgroundColor"] ?? false,
+                "inpaintingEnabled": appearance["inpaintingEnabled"] ?? false
+            ])
+        }
+        settings.visible = true // Matches ReaderTranslationImageExporter.renderSerial.
+        let layout: NativeTranslationLayout
+        if let stored = arguments["nativeLayout"] as? [String: Any] {
+            layout = try JSONDecoder().decode(NativeTranslationLayout.self,
+                from: JSONSerialization.data(withJSONObject: stored))
+            guard layout.imageSize == imageSize, layout.viewport == viewport, layout.sourceRect == displayRect else {
+                throw HostError.message("Saved native layout does not match the source image and viewport")
+            }
+        } else {
+            guard let items = arguments["items"] as? [[String: Any]] else {
+                throw HostError.message("Missing saved render items")
+            }
+            layout = NativeTranslationLayout(imageSize: imageSize, sourceRect: displayRect, viewport: viewport,
+                items: try JSONDecoder().decode([NativeTranslationLayoutItem].self,
+                    from: JSONSerialization.data(withJSONObject: items)), sourceObjectFit: "fill")
+        }
+        let started = ProcessInfo.processInfo.systemUptime
+        let outputSize = HostRenderGeometry.outputPixelSize(for: imageSize)
+        // The page gate serializes this synchronous native operation. PDF capture does not
+        // depend on an attached UIKit window or the reader's live display-only minifier.
+        let renderSettings = settings
+        let worker = Task.detached(priority: .userInitiated) {
+            try NativeTranslationRenderer.renderSynchronously(layout: layout, image: UIImage(cgImage: image),
+                settings: renderSettings, scale: outputSize.width / displayRect.width, renderBounds: displayRect,
+                composeSource: false, outputPixelSize: outputSize, collectDiagnostics: true, capturePDF: true, pdfDeviceScale: 1)
+        }
+        let rendered = try await withTaskCancellationHandler { try await worker.value } onCancel: { worker.cancel() }
+        try Task.checkCancellation()
+        guard let typography = rendered.exportPDFData else { throw HostError.message("Native typography PDF was not captured") }
+        let layers = try HostExportCompositor.layers(for: rendered)
+        let output = try HostExportCompositor.composite(image: image, layers: layers, typography: typography,
             displayRect: displayRect, size: outputSize)
-        try savePNG(outputImage, to: directory.appendingPathComponent("final.png"))
-        HostDump.capture("render-timing", ["milliseconds": (ProcessInfo.processInfo.systemUptime - renderStarted) * 1000,
-            "width": outputImage.width, "height": outputImage.height, "layout": arguments["hostLayout"] ?? "legacy-payload-replay", "viewport": [width, height], "metricsPlatform": "AppKit-CoreText"])
-        // Persist a replayable self-contained render call after the image has loaded.
-        let encoded = String(decoding: try JSONSerialization.data(withJSONObject: arguments, options: [.sortedKeys]), as: UTF8.self)
-        let safeArguments = encoded.replacingOccurrences(of: "<", with: "\\u003c")
-        let safeScript = HostProductionRenderer.renderScript.replacingOccurrences(of: "</script", with: "<\\/script", options: .caseInsensitive)
-        let replay = "<script>const replay=async()=>{const args=" + safeArguments +
-            "; const render=async function({items,revision,session,appearance}){\n" + safeScript +
-            "\n}; try{window.renderResult=await render(args);}catch(e){document.body.dataset.renderError=String(e);}}; const im=document.getElementById('reader-source-image'); if(im.complete&&im.naturalWidth)replay();else im.addEventListener('load',replay,{once:true});</script>"
-        try html.replacingOccurrences(of: "</body>", with: replay + "</body>").write(to: htmlURL, atomically: true, encoding: .utf8)
+        try typography.write(to: directory.appendingPathComponent("final-typography.pdf"), options: .atomic)
+        try JSONEncoder().encode(layers).write(to: directory.appendingPathComponent("final-layers.json"), options: .atomic)
+        try rendered.layoutData.write(to: directory.appendingPathComponent("native-layout.json"), options: .atomic)
+        if let diagnostics = rendered.diagnosticData {
+            let decoded = try JSONSerialization.jsonObject(with: diagnostics)
+            HostDump.capture("native-render-diagnostics", decoded)
+            try HostSegmentationTrace.save(rendered: rendered, diagnostics: decoded, source: image,
+                sourceRect: displayRect, directory: directory)
+        }
+        HostDump.capture("render-result", ["engine": "native-coretext-coregraphics", "renderedItemCount": rendered.renderedItemCount,
+            "limitations": rendered.limitations, "layoutVersion": layout.version])
+        try savePNG(output, to: directory.appendingPathComponent("final.png"))
+        HostDump.capture("render-timing", ["milliseconds": (ProcessInfo.processInfo.systemUptime - started) * 1000,
+            "width": output.width, "height": output.height, "layout": arguments["hostLayout"] ?? "legacy-payload-replay",
+            "viewport": [width, height], "metricsPlatform": "AppKit-CoreText", "engine": "native-coretext-coregraphics"])
+        // HTML is a portable view of the native result. Offline recomposition is performed
+        // by --render-run with the stored payload; opening this page executes no renderer.
+        let encodedImage = try imageData(output, type: "public.png").base64EncodedString()
+        let html = """
+        <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Native translation result</title><style>html,body{margin:0;background:#202124}img{display:block;max-width:100%;height:auto;margin:auto}</style>
+        </head><body data-renderer="native-coretext-coregraphics"><img alt="Translated page" width="\(output.width)" height="\(output.height)" src="data:image/png;base64,\(encodedImage)"></body></html>
+        """
+        try html.write(to: directory.appendingPathComponent("final.html"), atomically: true, encoding: .utf8)
     }
 }

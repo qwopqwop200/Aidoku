@@ -1,0 +1,107 @@
+{
+  "status": "Source-only reclassification; no candidate pixels used for any annotation decision",
+  "sourceSHA256": "a6ee054307366e76adb3fd3041c71ef1f17a05f5cf4067243a66afc0581ae788",
+  "maskSHA256": "a7adbb29c20d14fa046d299eb47babe613767bb9ecf85bb059f38baac614a077",
+  "quad": [
+    57.167861343152516,
+    46.49099099986599,
+    262.37472278220486,
+    488.9803995926894
+  ],
+  "angle": -0.09279941325670689,
+  "auxiliary": [],
+  "components": [
+    {
+      "pixels": 5716,
+      "whollyOwned": true,
+      "bounds": [
+        84,
+        98,
+        262,
+        228
+      ]
+    },
+    {
+      "pixels": 1435,
+      "whollyOwned": true,
+      "bounds": [
+        200,
+        214,
+        259,
+        279
+      ]
+    },
+    {
+      "pixels": 439,
+      "whollyOwned": true,
+      "bounds": [
+        136,
+        269,
+        173,
+        287
+      ]
+    },
+    {
+      "pixels": 2299,
+      "whollyOwned": true,
+      "bounds": [
+        120,
+        300,
+        200,
+        385
+      ]
+    },
+    {
+      "pixels": 4089,
+      "whollyOwned": true,
+      "bounds": [
+        169,
+        359,
+        256,
+        472
+      ]
+    },
+    {
+      "pixels": 494,
+      "whollyOwned": true,
+      "bounds": [
+        230,
+        490,
+        268,
+        521
+      ]
+    },
+    {
+      "pixels": 909,
+      "whollyOwned": false,
+      "bounds": [
+        182,
+        511,
+        219,
+        576
+      ]
+    },
+    {
+      "pixels": 691,
+      "whollyOwned": false,
+      "bounds": [
+        159,
+        513,
+        173,
+        574
+      ]
+    }
+  ],
+  "ownedCore": 14472,
+  "unownedCore": 1600,
+  "ownedWhiteBand": 12723,
+  "unownedNearWhiteBand": 1956,
+  "unownedSolidWhiteBand": 809,
+  "ambiguousUnownedFringe": 1147,
+  "protectedArtwork": 16305,
+  "sourceCriteria": "Original foreground-color components are wholly owned only when every pixel center is in the immutable rotated OCR quad. Unowned trailing punctuation is protected. Original halo pixels are assigned to their nearest source-color component within the original 8-pixel Manhattan radius. Unowned solid-white pixels (all channels >=250, spread<=5) are protected; mixed off-white fringe/backing is unannotated because geometric proximity alone cannot prove stroke ownership. All six owned glyphs retain their prior complete white-band assertion.",
+  "fixture": "slanted-native-outlines.json",
+  "captureIndex": 0,
+  "annotationSource": "Original source RGB and literal OCR quad; renderer output is not an annotation input.",
+  "capture1": "Unchanged source annotations: 13227 owned core pixels, 12040 white-band pixels, 9748 protected artwork pixels."
+}

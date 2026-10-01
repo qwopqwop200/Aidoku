@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Replay actual renderer arguments against both versions of the glyph segmenter.
 const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib');
 const [fixture,baseline,output]=process.argv.slice(2),root=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');

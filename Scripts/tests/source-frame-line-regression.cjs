@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Production frame restoration must distinguish a crossing rule from an art contour.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

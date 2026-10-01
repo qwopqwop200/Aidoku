@@ -10,9 +10,39 @@ final class LegacyReaderTranslationOverlayView: UIView, WKNavigationDelegate {
     private static let encodingGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     var diagnosticContext: ReaderTranslationDiagnostics.Context?
     let webView: WKWebView
-    private let renderer = BrowserPageImageOverlayRenderer(javaScriptEvaluator: { webView, script, arguments in
-        let frozen = arguments["items"] == nil ? script : LegacyReaderTranslationRenderScript.renderScript
-        return try await BrowserPageImageOverlayRenderer.evaluateJavaScript(webView, frozen, arguments)
+    // Optional instrumentation transforms only this instance's runtime copy;
+    // the checked-in frozen oracle and ordinary parity captures stay unchanged.
+    var referenceScriptTransform: ((String) throws -> String)?
+    // Opt-in same-input oracle: parse the original UTF-8 payload in JavaScript,
+    // avoiding NSNumber conversion changing a coordinate across floor/ceil.
+    var referenceSerializedLayoutJSON: String?
+    static let serializedLayoutInputScript = """
+    const aidokuReferencePayload = JSON.parse(aidokuReferenceLayoutJSON);
+    items = Array.isArray(aidokuReferencePayload) ? aidokuReferencePayload : aidokuReferencePayload?.items;
+    if (!Array.isArray(items)) throw new TypeError("Reference layout must contain an items array");
+    """
+    private(set) var lastReferenceError: String?
+    private lazy var renderer = BrowserPageImageOverlayRenderer(javaScriptEvaluator: { [weak self] webView, script, arguments in
+        do {
+            self?.lastReferenceError = nil
+            var frozen = arguments["items"] == nil ? script : LegacyReaderTranslationRenderScript.renderScript
+            if arguments["items"] != nil, let transform = self?.referenceScriptTransform {
+                frozen = try transform(frozen)
+            }
+            var referenceArguments = arguments
+            if arguments["items"] != nil, let serialized = self?.referenceSerializedLayoutJSON {
+                referenceArguments["aidokuReferenceLayoutJSON"] = serialized
+                frozen = Self.serializedLayoutInputScript + "\n" + frozen
+            }
+            return try await BrowserPageImageOverlayRenderer.evaluateJavaScript(webView, frozen, referenceArguments)
+        } catch {
+            let failure = error as NSError
+            let keys = ["WKJavaScriptExceptionMessage", "WKJavaScriptExceptionLineNumber",
+                "WKJavaScriptExceptionColumnNumber", "WKJavaScriptExceptionSourceURL"]
+            let details = keys.compactMap { key in failure.userInfo[key].map { "\(key)=\($0)" } }
+            self?.lastReferenceError = ([String(reflecting: error), "\(failure.domain):\(failure.code)"] + details).joined(separator: "\n")
+            throw error
+        }
     })
     private var ready = false
     private var documentReady = false

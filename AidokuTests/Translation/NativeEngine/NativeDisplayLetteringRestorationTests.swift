@@ -29,9 +29,14 @@ import Testing
         settings.preserveSourceColors = true
         return (card,layout,image,settings)
     }
-    @Test func actualPixelMaskAndCoreTextTrialReplaceOneReadabilityPlate() throws {
+    @Test(arguments: [false, true])
+    func actualPixelMaskAndCoreTextTrialReplaceOneReadabilityPlate(explicitPixelTracking: Bool) throws {
         let (initial,layout,image,settings) = try fixture()
         var card = initial
+        if explicitPixelTracking {
+            card.style.tracking = -0.25; card.style.trackingScalesWithFont = false
+            card.typography = NativeTranslationRenderer.remeasureTypography(card)
+        }
         card.item.typesettingQuoteMode = 3; card.style.usesBlockWordLayout = true
         card.item.typesettingPreservedBlockWrapper = true; card.item.typesettingBlockDisplay = true
         card.style.blockWordLayoutUsesTopPadding = true
@@ -54,6 +59,12 @@ import Testing
         #expect(cards[0].textZ == 3 && (cards[0].textRootOrder ?? 0) > 0)
         #expect(cards[0].sourceStrokeKind == "preserved" && cards[0].style.outlineWidth >= 2)
         #expect(cards[0].finalFontSize >= 36*0.4 && cards[0].finalFontSize > card.finalFontSize)
+        // CSS em tracking follows a font-only trial; a prior explicit pixel
+        // assignment retains its value when the display font grows.
+        let tracking = explicitPixelTracking ? card.style.tracking
+            : card.style.tracking * cards[0].finalFontSize / card.finalFontSize
+        #expect(cards[0].style.tracking == tracking)
+        #expect((cards[0].style.tracking == card.style.tracking) == explicitPixelTracking)
         #expect(report.remainingColour == 393216-88*72 && report.remainingBlackWhite == 262144-88*72)
         let patch = try #require(restoration.patches.first),bytes = try #require(patch.image.dataProvider?.data) as Data
         #expect(bytes[3] == 0 && bytes[(34*88+22)*4+3] == 255)

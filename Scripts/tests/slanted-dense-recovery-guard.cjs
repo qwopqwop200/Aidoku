@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Actual native crops: dense donor recovery is restricted to upright OCR.
 // Rectified mask candidates can recruit neighboring lettering after resampling.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),z=require('node:zlib');

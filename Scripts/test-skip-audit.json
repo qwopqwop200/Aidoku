@@ -1,0 +1,667 @@
+{
+  "scope": "First-party Swift test sources, Python/Node test drivers, and Xcode test plans after the native renderer merge. Vendor code, frozen implementation oracles, and benchmark data selection are not disabled test declarations.",
+  "frameworkSkippedDeclarationsFound": 0,
+  "frameworkSkippedDeclarationsDeleted": [],
+  "silentAvailabilityBranchesRemoved": [
+    {
+      "path": "AidokuTests/DictionaryReadingOrderTests.swift",
+      "previousLine": 28,
+      "test": "dictionaryOverlayMapsWholeUnicodeCharactersToLookupHits",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/DictionaryTextAnalysisQueueTests.swift",
+      "previousLine": 7,
+      "test": "cancelledWaiterLeavesQueueBeforeActiveOCRFinishes",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/DictionaryTextAnalysisQueueTests.swift",
+      "previousLine": 31,
+      "test": "cancellingMiddleWaiterPreservesSurvivingFIFOAndSingleAdmission",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryMediaTableTests.swift",
+      "previousLine": 10,
+      "test": "structuredImageUsesPreferredDimensionsAndCSSUnits",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryMediaTableTests.swift",
+      "previousLine": 27,
+      "test": "nativeSVGCreatesActualPixelsAndMonochromeRetainsAlpha",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryMediaTableTests.swift",
+      "previousLine": 55,
+      "test": "structuredTableSpansAndStylesReachSelectableNativeCells",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryMediaTableTests.swift",
+      "previousLine": 82,
+      "test": "stylesheetAppliesClassDataSelectorsHTMLMediaAndRecordsResidualCSS",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryMediaTableTests.swift",
+      "previousLine": 91,
+      "test": "themeImportantVariablesAndHiddenRubyFollowNativeCascade",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryMediaTableTests.swift",
+      "previousLine": 117,
+      "test": "nestedTablesAndGridKeepNativeSelectableChildrenAndHiddenRows",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryMediaTableTests.swift",
+      "previousLine": 141,
+      "test": "stylesheetBoxesRemainInteractiveInsideWrappersAndTableCells",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryMediaTableTests.swift",
+      "previousLine": 157,
+      "test": "headerPreservesInheritedSizeAndExplicitBorderlessCells",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryPopupTests.swift",
+      "previousLine": 10,
+      "test": "structuredDictionaryContentPreservesTextFormattingAndSafeLinks",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryPopupTests.swift",
+      "previousLine": 32,
+      "test": "htmlGlossariesUseNativeParserAndPreserveDefinitions",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryPopupTests.swift",
+      "previousLine": 60,
+      "test": "furiganaAlignsKanaAndCompatibilityKanji",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryPopupTests.swift",
+      "previousLine": 70,
+      "test": "nativePitchGroupsSmallKanaIntoMorae",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryPopupTests.swift",
+      "previousLine": 78,
+      "test": "supplementaryCharactersKeepCorrectKanjiLinkRanges",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryPopupTests.swift",
+      "previousLine": 87,
+      "test": "popupDisplaysAllResultsThroughNativeViewsAndHonorsMiningPreference",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/NativeDictionaryPopupTests.swift",
+      "previousLine": 120,
+      "test": "deinflectionTapExplainsConjugationAndRerenderRetainsCollapsedGroups",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/PerformanceOOMOptimizationTests.swift",
+      "previousLine": 70,
+      "test": "boundedDetectorPreservesNonAlignedHighContrastSampling",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/PerformanceOOMOptimizationTests.swift",
+      "previousLine": 88,
+      "test": "boundedDetectorInputMatchesMLTensorResize",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/Translation/OCRDetectorPrecisionDeviceTests.swift",
+      "previousLine": 15,
+      "test": "bundledFloat16DetectorsRunThroughProductionPipeline",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/Translation/OCRGeometryOverflowRegressionTests.swift",
+      "previousLine": 7,
+      "test": "rejectsFiniteCoordinatesOutsideIntegerRange",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/Translation/OCRGeometryOverflowRegressionTests.swift",
+      "previousLine": 14,
+      "test": "boundsExtremeAspectRatioBeforeIntegerConversion",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/Translation/ReaderSlantedTextTests.swift",
+      "previousLine": 144,
+      "test": "nativeCardsRetainAngleAcrossReuseAndResetForAnUprightReplacement",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/Translation/ReaderSourcePanelRestorationTests.swift",
+      "previousLine": 109,
+      "test": "suppressedRubyRetainsInkThroughArchiveWithoutMovingBody",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/Translation/ReaderTranslationInitialPresentationTests.swift",
+      "previousLine": 44,
+      "test": "exportedAssetReplaysIdenticalPixelsAfterCacheReopens",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    },
+    {
+      "path": "AidokuTests/Translation/ReaderTranslationInitialPresentationTests.swift",
+      "previousLine": 174,
+      "test": "coordinatorRestoresWarmImageBeforeActivationWithoutOCRProviderOrWindow",
+      "action": "removed redundant silent availability return; preserved test declaration and assertions",
+      "reason": "AidokuTests Debug/Release deployment target is iOS 26.0; the guarded iOS 18 API is available on all supported test runtimes."
+    }
+  ],
+  "silentlyOptionalReplayCasesMadeRequired": {
+    "path": "AidokuTests/Translation/ReaderTranslationNativePixelParityTests.swift",
+    "cases": [
+      "real-comic-0001",
+      "real-comic-0007",
+      "real-comic-0015",
+      "real-comic-0025"
+    ],
+    "reason": "Missing manifest previously reduced the strict final-image gate from sixteen fixtures to twelve while reporting success. Missing or incomplete real-page manifest now fails."
+  },
+  "obsoleteTestRemovalsByOtherOwners": [
+    {
+      "path": "AidokuTests/Translation/ReaderExportStageLifetimeTests.swift",
+      "owner": "main_ios_tests",
+      "tests": [
+        "abortTearsDownBeforeDrainAndKeepsPermit(untilDeadline:)",
+        "successfulStagePreservesBytesAndDoesNotTeardownLater()"
+      ],
+      "parameterizedCases": 3,
+      "reason": "The WebKit export stage and its production lifetime helper are removed by the native renderer. Native render admission and async bridge suites exercise their replacement. Associated Fast-plan suite entry removed here."
+    },
+    {
+      "path": "AidokuTests/Translation/ReaderTranslationImageExportTests.swift",
+      "owner": "main_ios_tests",
+      "tests": [
+        "idleRendererSurvivesTranslationGapOnlyWithExtraHeadroom()",
+        "idleRendererImmediatelyDropsOnPressureAndBackground()",
+        "idleRendererSlotNeverRetainsMoreThanOneAndClearsOnce()"
+      ],
+      "reason": "The legacy idle WebKit renderer cache is removed; the native renderer does not retain idle web views."
+    },
+    {
+      "path": "Scripts/tests/dictionary-popup-regression.cjs",
+      "owner": "main_script_tests",
+      "reason": "Browser-only popup.js/selection.js runtime was deleted. NativeDictionaryPopupTests, NativeDictionaryMediaTableTests and rewritten DictionaryPopupSecurityTests exercise the replacement. This obsolete regression was not a skipped test."
+    }
+  ],
+  "retained": [
+    "All active test declarations and parameterized cases. Final-export raster acceptance uses the bounded rounding policy below to implement the user request that a few pixel differences should not block; this is an asserted acceptance rule, not a skipped test or expected failure.",
+    "AidokuFast intentionally selects a subset; it is not a disabled-test list. AidokuFull has no selected/skipped tests.",
+    "Issue.record plus return remains a failed assertion path.",
+    "Malformed input tests that assert rejection before returning retain their coverage.",
+    "iOS-only code in platform-shared typography tests executes in the full iOS plan.",
+    "Required external replay fixtures are failures when absent; they are not hidden as skipped tests."
+  ],
+  "guard": "Scripts/test_test_plans.py detects multiline Swift conditional/disabled traits, XCTest skips, Python AST framework skips, Node skip/todo markers, and skipped/disabled Xcode targets.",
+  "stalePlanEntriesRemoved": [
+    {
+      "suite": "LegacySourcePaginationTests",
+      "reason": "Main commit 110f78 removed SourceViewModel and its legacy pagination suite as part of the native source migration. The renderer branch retained a stale Fast-plan selection. Existing SourcePaginationTests and SourceListingPaginationTests exercise native concurrency, retry, and stale response rejection.",
+      "testDeclarationsDeletedByThisAudit": 0
+    }
+  ],
+  "sourceSnapshot": {
+    "recordedUTC": "2026-10-01T13:59:13.029576+00:00",
+    "swiftTestSourceFiles": 520,
+    "lexicalTestDeclarations": 2345,
+    "xctestMethodDeclarations": 90,
+    "combinedTestDeclarations": 2435,
+    "countMethod": "Swift Testing attributes after removing comments/string tokens; test-prefixed methods in XCTestCase files.",
+    "fastSelectedSuites": 305,
+    "fullTargets": 1,
+    "fullPlanUnfiltered": true,
+    "sourceInventorySHA256": "3823760d47050248717ab6ed6c9df19dbbb78fd7505726b511a521d561e88d9a",
+    "note": "Current static declaration inventory, not executed parameter cases. Historical runtime evidence remains separate."
+  },
+  "validation": {
+    "previousHostGuardRun": {
+      "command": "python3 -m unittest Scripts.test_test_plans -v",
+      "declarationsRun": 6,
+      "passed": 6,
+      "skipped": 0,
+      "seconds": 0.309,
+      "runtimeScope": "Host static guard tests only; the parent owns the full iOS execution."
+    },
+    "latestStaticSourceAudit": {
+      "recordedUTC": "2026-10-01T13:59:13.029576+00:00",
+      "swiftTestSourceFiles": 520,
+      "frameworkSkipMarkersFound": 0,
+      "expectedFailureWrappersFound": 0,
+      "fullPlanUnfiltered": true,
+      "method": "Static Swift tokenizer and test-plan inspection; no compiler, simulator, model or runtime tests. Host skip guards remain mandatory in full-host unittest discovery."
+    },
+    "stagedReportPolicyChecks": {
+      "checks": 13,
+      "passed": 13,
+      "scope": "Preserved all-exact full7 16-fixture report under its historical exact gate and under the new gate, plus11synthetic allowed/rejected manifests. Runs used copies/symlinked read-only images outside the repository; historical report data was unchanged. No iOS build or execution. These13 checks describe the earlier sparse-delta1 policy, not validation of the later low-delta4 policy.",
+      "cases": [
+        "preserved16exact",
+        "same16newpolicy",
+        "one-pixel-one-level",
+        "two-pixels-over-fraction",
+        "single-pixel-two-level",
+        "different-dimensions",
+        "legacy-gate-rejects-rounding",
+        "spoofed-zero-metrics",
+        "missing-diff-artifact",
+        "partial-manifest",
+        "unknown-policy",
+        "rounding-mislabeled-exact",
+        "counter-mismatch"
+      ]
+    },
+    "lowColorDeltaReportChecks": {
+      "checks": 27,
+      "passed": 27,
+      "scope": "Read-only decoded-image calibration plus outside-repository manifest copies; no app build.16 preserved exact fixtures pass under historical exact, historical sparse and current low-delta policies. Synthetic controls cover levels1–4, level5, alpha, dimensions, status/count/metric tampering and substantial glyph displacement/thickness/extra line. These27 checks concern the earlier max4-only stage, not the later bounded sparse category.",
+      "realEvidence": {
+        "run": "focused-ios-17",
+        "page0ID10": {
+          "changedPixels": 152,
+          "maximumChannelDelta": 4,
+          "accepted": true
+        },
+        "page8": {
+          "changedPixels": 12620,
+          "maximumChannelDelta": 3,
+          "accepted": true
+        },
+        "page0Whole": {
+          "changedPixels": 5804,
+          "maximumChannelDelta": 255,
+          "accepted": false
+        }
+      },
+      "doesNotClaim": "Low-delta policy accepts only6of22 saved focused17 page comparisons; remaining large color/shape differences still fail. It does not establish a passing later full run."
+    },
+    "boundedSparseReportChecks": {
+      "checks": 41,
+      "passed": 41,
+      "scope": "Outside-repository PNG/report checks only; no new app build. Current focused19 final images remain unchanged. Boundary cases cover16/17 channel levels, sparse10/11pixels out of10000, every changed pixel charged, floor999/1000pixels, dimensions, measured metadata equality, counters and missing dark glyphs. Historical exact/sparse1/max4 reports retain their rules.",
+      "actualFocused19": {
+        "page0ID10": {
+          "changedPixels": 152,
+          "maximumChannelDelta": 4,
+          "accepted": true
+        },
+        "page8": {
+          "changedPixels": 12620,
+          "maximumChannelDelta": 3,
+          "accepted": true
+        },
+        "page0Whole": {
+          "changedPixels": 5804,
+          "maximumChannelDelta": 255,
+          "accepted": false
+        },
+        "page5Whole": {
+          "changedPixels": 32728,
+          "maximumChannelDelta": 234,
+          "accepted": false
+        },
+        "acceptedPageComparisons": 6,
+        "totalPageComparisons": 22
+      },
+      "sourcePreservationWitness": {
+        "visibleOriginalCropTexels": 73,
+        "maximumOriginalToWhiteDelta": 10,
+        "scope": "Crop texels before scaling, not a final-output count or a claim that page5 passes."
+      }
+    },
+    "historicalAssessmentScope": "The earlier report-policy checks and staging-time validation notes remain historical. Later actual executions are recorded separately below; pending full runs are never inferred from focused results.",
+    "latestCompletedFullHost": {
+      "run": "full-host-3",
+      "result": "Passed",
+      "totalCommands": 107,
+      "recordedCommands": 107,
+      "passedCommands": 107,
+      "wallSeconds": 368.64662062501884,
+      "sourceInputsChecked": 2715,
+      "changedSourceInputs": [],
+      "evidence": [
+        {
+          "path": "build/native-main-integration/full-host-3-command-logs/results.json",
+          "sha256": "68f5ff81c80e4420ba473f81923cd8bab5428c5155c47500489b10cbe5caaf88"
+        },
+        {
+          "path": "build/native-main-integration/full-host-3-source-verification.json",
+          "sha256": "584adecd2056ea3066a04aeb54187cafcf7621d166afb4b5abaeb97922c95146"
+        }
+      ],
+      "scope": "Complete maintained host command matrix on its frozen inputs. It predates the new test-only contour helpers and does not replace iOS execution or establish device performance."
+    },
+    "latestCompletedFullIOS": {
+      "run": "full-ios-9",
+      "configuration": "Release",
+      "testPlan": "AidokuFull",
+      "filters": [],
+      "result": "Passed",
+      "passedTestDeclarations": 2435,
+      "failedTestDeclarations": 0,
+      "skippedTestDeclarations": 0,
+      "expectedFailures": 0,
+      "totalTestDeclarations": 2435,
+      "deviceCaseCounts": [
+        {
+          "passedTests": 3984,
+          "failedTests": 0,
+          "skippedTests": 0,
+          "expectedFailures": 0
+        }
+      ],
+      "runnerWallSeconds": 592.3778244580026,
+      "wrapperWallSeconds": 593.8541210000112,
+      "buildActivitySeconds": 2.278838038444519,
+      "swiftTestingBodySeconds": 582.234,
+      "sourceInputsChecked": 2723,
+      "changedSourceInputs": [],
+      "failedTests": [],
+      "evidence": [
+        {
+          "path": "build/native-main-integration/full-ios-9.summary.json",
+          "sha256": "c60ab9d96f24728a42ef9a349133e188ddf961fe455ed0eda65f0543d295203a"
+        },
+        {
+          "path": "build/native-main-integration/full-ios-9-source-verification.json",
+          "sha256": "69d324159aefb9b8772aecb53f1fbe49a42e8a73df32ba21bdd0c9b897c48018"
+        }
+      ],
+      "scope": "Completed unfiltered Release simulator run, one iPhone 17 Pro iOS 26.5 destination and two build jobs. Reused unchanged compiled sources from focused-ios-27. Counts are declarations; device counts expand parameters. No physical-device claim.",
+      "finalImages": {
+        "completedFixtureCount": 16,
+        "exactFixtureCount": 15,
+        "acceptedLowDeltaFixtureCount": 1,
+        "acceptedSparseDeltaFixtureCount": 0,
+        "acceptedCommonDisplacementFixtureCount": 0
+      },
+      "recordedPageComparisons": {
+        "total": 22,
+        "accepted": 22,
+        "exact": 8,
+        "contourCertified": 4,
+        "commonDisplacementCertified": 2
+      }
+    },
+    "focusedRepairValidation": {
+      "run": "focused-ios-27",
+      "configuration": "Release",
+      "testPlan": "AidokuFull",
+      "filters": [
+        "NativeFinalExportPanelContourAcceptanceTests",
+        "ReaderTranslationDigestEquivalenceTests"
+      ],
+      "result": "Passed",
+      "passedTestDeclarations": 14,
+      "failedTestDeclarations": 0,
+      "skippedTestDeclarations": 0,
+      "expectedFailures": 0,
+      "totalTestDeclarations": 14,
+      "deviceCaseCounts": [
+        {
+          "passedTests": 25,
+          "failedTests": 0,
+          "skippedTests": 0,
+          "expectedFailures": 0
+        }
+      ],
+      "runnerWallSeconds": 28.58692729199538,
+      "wrapperWallSeconds": 29.00737237499561,
+      "buildActivitySeconds": 22.821390986442566,
+      "swiftTestingBodySeconds": 0.27,
+      "sourceInputsChecked": 2723,
+      "changedSourceInputs": [],
+      "failedTests": [],
+      "evidence": [
+        {
+          "path": "build/native-main-integration/focused-ios-27.summary.json",
+          "sha256": "f1d72b714138b0e6afff8593d30b4b2ffe24a9751e219e4638753ce50ed6c013"
+        },
+        {
+          "path": "build/native-main-integration/focused-ios-27-source-verification.json",
+          "sha256": "0576430fa798c5e0052e6415476aeb35fb1bb5c271a36a2ab34bc0c3d11755d2"
+        }
+      ],
+      "scope": "Both repaired suites passed: 14 declarations and 25 expanded executions, zero skips. This is focused confirmation, not a replacement for the subsequent unfiltered full run."
+    },
+    "independentContourProof": {
+      "result": "Passed",
+      "scope": "Independent PNG + live JSON glyph proof; residual panel proof from original serialized PDFs. No Swift certificate booleans read; no global maintained-gate replacement.",
+      "negativeControls": 17,
+      "rejectedNegativeControls": 17,
+      "allInputsStillMatchHashes": true,
+      "actualFocused26": [
+        {
+          "page": 5,
+          "accepted": true,
+          "rawChangedPixels": 8220,
+          "rawMaximumChannelDifference": 32,
+          "pixelsOverLowDeltaLimit": 1498,
+          "pixelsAboveSixteen": 446,
+          "uncoveredPixelsAboveSixteen": 0
+        },
+        {
+          "page": 9,
+          "accepted": true,
+          "rawChangedPixels": 3207,
+          "rawMaximumChannelDifference": 104,
+          "pixelsOverLowDeltaLimit": 795,
+          "pixelsAboveSixteen": 378,
+          "uncoveredPixelsAboveSixteen": 0
+        }
+      ],
+      "negativeControlScope": "Missing all fill, missing first glyph, one-pixel heavier stroke, mismatched text, boolean/infinite font, wrong outline width and unbounded scalar geometry on each page, plus balanced same-component stroke redistribution.",
+      "evidence": [
+        {
+          "path": "../output/native-main-integration/script-tests/contour-independent/verify.py",
+          "sha256": "dde9dfad8442395fd7c29d18464d9b1ffeff202ef5bb2e90bd10ad53bc32f0de"
+        },
+        {
+          "path": "../output/native-main-integration/script-tests/contour-independent/report.json",
+          "sha256": "b44fa4896b21f4e7b2935a9af2a86abcaf9e1dfb445b06603d23337417340c82"
+        },
+        {
+          "path": "../output/native-main-integration/script-tests/contour-independent/review.json",
+          "sha256": "c8716fb9caa4551a32808315e8ffdb87e44135ba8c74ff3401bc0b47812acb04"
+        }
+      ],
+      "helperSHA256AtProof": {
+        "AidokuTests/Translation/NativeFinalExportContourAudit.swift": "01a089ab222fa738ad16610a72706028a40d38ac247f9adcba0a17bdd5383213",
+        "AidokuTests/Translation/NativeFinalExportGlyphContourAcceptance.swift": "99794cf1f979b6a20c58ca41a42d1d94ba31a3d9cf8199d1ba1d9d044803e4a6",
+        "AidokuTests/Translation/NativeFinalExportPanelContourAcceptance.swift": "15802ccbe603ab147be68db5623def6cad6127829bd556ffba03abab63f502eb"
+      },
+      "limits": "Independent decoding of saved focused26 page5/page9 PNGs and live JSON; remaining panel pixel checked against the actual serialized native PDF contour. No Swift certificate booleans trusted. This is corpus evidence, not an all-input proof or a new build. Raw metrics and historical reports are unchanged."
+    },
+    "completedFullIOSBeforeFinalRepair": {
+      "run": "full-ios-8",
+      "configuration": "Release",
+      "testPlan": "AidokuFull",
+      "filters": [],
+      "result": "Failed",
+      "passedTestDeclarations": 2433,
+      "failedTestDeclarations": 2,
+      "skippedTestDeclarations": 0,
+      "expectedFailures": 0,
+      "totalTestDeclarations": 2435,
+      "deviceCaseCounts": [
+        {
+          "passedTests": 3982,
+          "failedTests": 2,
+          "skippedTests": 0,
+          "expectedFailures": 0
+        }
+      ],
+      "runnerWallSeconds": 643.961730791023,
+      "wrapperWallSeconds": 645.7212679999939,
+      "buildActivitySeconds": 37.2015939950943,
+      "swiftTestingBodySeconds": 582.57,
+      "sourceInputsChecked": 2723,
+      "changedSourceInputs": [],
+      "failedTests": [
+        "NativeFinalExportPanelContourAcceptanceTests/onlyTheMatchedRoundedEdgeReceivesEvidence()",
+        "ReaderTranslationDigestEquivalenceTests/persistedOCRTranslationAndRenderKeyContractsRemainExact()"
+      ],
+      "evidence": [
+        {
+          "path": "build/native-main-integration/full-ios-8.summary.json",
+          "sha256": "8028ba05e14596d3d04d434f38d909bc8049a948d33c284a9c800b24707aa61e"
+        },
+        {
+          "path": "build/native-main-integration/full-ios-8-source-verification.json",
+          "sha256": "fb39d1396427fc80d63c2f14201c9e9a26e5688a0c3843630367c9a5146bdefb"
+        }
+      ],
+      "scope": "Completed unfiltered simulator run: zero runtime skips, but two failures. Its failure record remains unchanged after repair. Counts are declarations; deviceCaseCounts include expanded parameter executions.",
+      "subsequentRepairs": [
+        {
+          "test": "NativeFinalExportPanelContourAcceptanceTests/onlyTheMatchedRoundedEdgeReceivesEvidence()",
+          "cause": "Synthetic Web rectangle used CGFloat dictionary values, unlike the Double-valued decoded JSON contract.",
+          "repair": "Encode synthetic rectangle coordinates as Double; keep the production parser and acceptance assertions unchanged."
+        },
+        {
+          "test": "ReaderTranslationDigestEquivalenceTests/persistedOCRTranslationAndRenderKeyContractsRemainExact()",
+          "cause": "Independent expected render-key recipe still named the earlier v157 render revision.",
+          "repair": "Update the expected render revision to the current production contract; preserve exact OCR, translation and render-key assertions."
+        }
+      ]
+    }
+  },
+  "finalExportRasterAcceptance": {
+    "authorization": "The user asked not to reject insignificant pixel differences. Numeric bounds and the composed color rule are implementation choices; the user did not prescribe these thresholds.",
+    "policy": "same dimensions; RGBA channel delta <= 4 anywhere; delta <= 16 on at most 0.1% pixels over delta 4; or bounded common axis displacement <= 1 physical pixel",
+    "helper": "AidokuTests/Translation/NativeFinalExportRasterAcceptance.swift",
+    "appliedAtSnapshot": [
+      "ReaderTranslationDepthDeviceTests.recordedPagesMatchFrozenWebRendererAcrossDepths",
+      "ReaderTranslationNativePixelParityTests.nativeFinalImagesMeetFrozenWebRendererAcceptance"
+    ],
+    "retainedExactChecks": "Raw exact-equality metrics, hashes and decoded diff images remain in saved reports. Cross-depth cache PNG bytes, source-erasure, source protection, layout/typography invariants, pixel-kernel gates and all other explicit exact tests remain required.",
+    "boundaryTests": "Existing low-color, dimension/malformed, material glyph and common-displacement tests remain. A fourth color-policy test adds mixed low/moderate counts, strong-count3096/3097, unchanged maximum16/17 and missing/high-contrast negatives. Strong counts must be nonnegative, <=raw changed, and consistent with maximum delta.",
+    "doesNotClaim": "The full-ios-7 result predates this helper and is not a validation run of the revised acceptance policy.",
+    "finalFixtureReport": {
+      "gate": "final-export-raster-acceptance",
+      "acceptancePolicy": "same dimensions; RGBA channel delta <= 4 anywhere; delta <= 16 on at most 0.1% pixels over delta 4; or bounded common axis displacement <= 1 physical pixel",
+      "statuses": [
+        "exact",
+        "accepted-low-delta",
+        "accepted-sparse-delta",
+        "accepted-common-displacement",
+        "mismatch",
+        "error"
+      ],
+      "details": "All raw RGBA metrics, hashes and diff images remain. Separate exact, low-delta, sparse-delta and common-displacement counters; independent PNG certificate recomputation required. All16 fixtures remain; no source/region exceptions."
+    },
+    "independentReportCheck": "Independently decoded raw changed/max and pixels-over4 must exactly equal reported values under the new composed policy. Historical policies retain their original all-changed sparse budgets and optional fields. Existing common-displacement proof and budget are unchanged.",
+    "commonDisplacementAssessment": {
+      "scope": "Final export only, same positive dimensions; all changed <= floor(total/1000); one common axis coverage displacement <=1 physical pixel; opaque equal constant two-pixel border, exact global and projected per-channel mass, <=1 residual quantization level, envelope <=65536 pixels. No source, kernel, cache, or semantic exemption.",
+      "evidence": "focused21 page10:1153 changed/max186; reference and actual differ by exactly one downward physical row; entering/leaving border and all column/channel mass exactly equal. Other captures and historical runtime rows are unchanged.",
+      "validation": "42/42 external Python acceptance/report controls plus static AST/JSON/no-skip and git apply --check passed; Swift tests not compiled or run at this staging snapshot. Three mandatory new Swift tests staged. Source inventory/runtime counts remain historical pending final integration."
+    },
+    "composedColorAssessment": {
+      "scope": "Unrestricted delta<=4 composes with delta<=16 on at most0.1% pixels whose maximum RGBA delta exceeds4. Raw changed/max remain unchanged. Existing common-displacement proof and full-change budget are untouched.",
+      "actualFocused24": {
+        "page11": {
+          "rawChangedPixels": 5572,
+          "maximumChannelDelta": 16,
+          "pixelsOverLowDeltaLimit": 1901,
+          "lowDeltaChangedPixels": 3671,
+          "quota": 3096,
+          "bothPhasesAgree": true
+        },
+        "correctedPage4": "Still rejected:2674raw/max255; common shape mass/border/projection fail. No threshold increase or fixture exemption."
+      },
+      "validation": "28/28 external PNG/report controls pass, including both actual page11 phases accepted and corrected page4 phases rejected, quota boundaries, missing/high-delta glyph, forged strong/raw/max counts, and historical policy preservation. Swift/iOS not compiled or run. Source inventory and previous runtime entries remain historical pending final verification."
+    },
+    "depthContourSupplement": {
+      "scope": "Test-only supplemental gate in ReaderTranslationDepthDeviceTests.recordedPagesMatchFrozenWebRendererAcrossDepths after the base raster gate fails. The final16 suite and report.py retain their existing declared base policy and statuses.",
+      "helpers": [
+        "AidokuTests/Translation/NativeFinalExportContourAudit.swift",
+        "AidokuTests/Translation/NativeFinalExportGlyphContourAcceptance.swift",
+        "AidokuTests/Translation/NativeFinalExportPanelContourAcceptance.swift"
+      ],
+      "globalContract": "Equal positive dimensions, exact alpha at every pixel, and the original whole-image count of pixels with RGBA delta >4 at most floor(totalPixels/1000), i.e. 0.1%. Every original pixel above delta16 must be covered by actual verified glyph or rounded-panel evidence. No page-ID waiver or blanket crop exemption; raw changed/max/strong counts remain unchanged.",
+      "glyphContract": "Required live text/font/line/style/paint-order and bounded scalar geometry match before known-palette projection. Both fill masks and boundaries match bidirectionally within one physical pixel; binary area and soft coverage drift are each <=1%, coverage redistribution <=10%, and connected components match one-to-one with <=1% soft-mass drift per component. Every crop pixel above delta8 must lie on the verified boundary and fit the audited palette. Missing/malformed/nonfinite or excessive geometry fails closed.",
+      "panelContract": "Matching standalone opaque rounded-panel geometry/fill, <=1/64 CSS unit placement difference and <=0.1% material-area drift. Certified residuals must be outside glyph ink, within one physical pixel of the actual rounded contour, <=delta32, and consistent with the same-fill blend direction. Other pixels retain the unchanged global quota and base color rules.",
+      "boundedWork": "Scale <=4; glyph crop <=65536 pixels and total glyph crop budget262144. No unrestricted alignment search.",
+      "evidenceContract": "Depth artifacts retain additionalAcceptanceContract, contourCertificate and the explicitly selected referenceDirectory; the independent proof is recorded in validation.independentContourProof.",
+      "retainedMandatoryGates": "Source/protected-art pixels, restoration ownership, text/layout/font assertions, native pixel kernels and cross-depth cache bytes keep their exact or separately declared assertions. A contour certificate does not mark raw pixels exact."
+    }
+  },
+  "runtimeValidation": {
+    "run": "full-ios-7",
+    "configuration": "Release",
+    "testPlan": "AidokuFull",
+    "filters": [],
+    "result": "Failed",
+    "passedTestDeclarations": 2340,
+    "failedTestDeclarations": 2,
+    "skippedTestDeclarations": 0,
+    "expectedFailures": 0,
+    "totalTestDeclarations": 2342,
+    "deviceCaseCounts": [
+      {
+        "passedTests": 3811,
+        "failedTests": 2,
+        "skippedTests": 0,
+        "expectedFailures": 0
+      }
+    ],
+    "sourceInputsChecked": 2690,
+    "changedSourceInputs": [],
+    "failedTests": [
+      "ReaderSmallBalloonReplayTests/originalPage()",
+      "ReaderTranslationDepthDeviceTests/recordedPagesMatchFrozenWebRendererAcrossDepths()"
+    ],
+    "evidence": {
+      "summary": "build/native-main-integration/full-ios-7.summary.json",
+      "summarySHA256": "2920e3f79420e2c0443a618d2e0eb289fcffab759013a56e7a05ecb453d42b12",
+      "sourceVerification": "build/native-main-integration/full-ios-7-source-verification.json",
+      "sourceVerificationSHA256": "5c37dc971bc47f7f696284c368c2871dd91680d484518a260def59a82855308a"
+    },
+    "scope": "This completed unfiltered run proves zero runtime skips for its frozen sources, but failed two tests. It predates the four newly added declarations and revised final-export acceptance. Focused runs do not replace a later complete run of final sources."
+  }
+}

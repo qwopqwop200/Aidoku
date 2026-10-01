@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Production contrast and source-outline guards; no DOM or rasterizer emulation.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

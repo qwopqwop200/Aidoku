@@ -3,6 +3,63 @@ import Foundation
 enum NativeSlantedProof {
     typealias Pixels = NativeRestorationPixels
     typealias RGB = NativeRestorationRGB
+
+    /// Rectification can sever a one-pixel connection to a colored panel rim.
+    /// Keep the original page's edge-connected ink out of the projected repair.
+    static func sourceFrameMask(_ page: Pixels, foreground: RGB) -> [UInt8]? {
+        let span = foreground.maximum - foreground.minimum
+        guard page.width > 0, page.height > 0, page.count <= 262_144,
+              page.rgba.count == page.count * 4, span >= 60 else { return nil }
+        let hue = foreground.channels.map { ($0 - foreground.minimum) * 255 / span }
+        var mask = [UInt8](repeating: 0, count: page.count)
+        for i in 0..<page.count {
+            let color = page.color(i), distance = color.maximum - color.minimum
+            if distance >= 65,
+               zip(color.channels.map { ($0 - color.minimum) * 255 / distance }, hue).map({ abs($0 - $1) }).max()! <= 28 {
+                mask[i] = 1
+            }
+        }
+        var queue: [Int] = []
+        func append(_ i: Int) {
+            if mask[i] == 1 { mask[i] = 2; queue.append(i) }
+        }
+        for x in 0..<page.width { append(x); append((page.height - 1) * page.width + x) }
+        for y in 0..<page.height { append(y * page.width); append(y * page.width + page.width - 1) }
+        var cursor = 0
+        while cursor < queue.count {
+            let i = queue[cursor], x = i % page.width, y = i / page.width
+            cursor += 1
+            if x > 0 { append(i - 1) }; if x + 1 < page.width { append(i + 1) }
+            if y > 0 { append(i - page.width) }; if y + 1 < page.height { append(i + page.width) }
+        }
+        guard !queue.isEmpty else { return nil }
+        for i in mask.indices { mask[i] = mask[i] == 2 ? 1 : 0 }
+        return mask
+    }
+
+    static func retainSourceFrame(_ mask: [UInt8], output: inout [UInt8]) -> Int {
+        var removed = 0
+        for i in mask.indices where mask[i] != 0 && output[i * 4 + 3] != 0 {
+            output[i * 4 + 3] = 0; removed += 1
+        }
+        return removed
+    }
+
+    /// Apply after proof seam completion: no local proof sample may claim a
+    /// source-frame tap, including taps that were never painted by restoration.
+    static func excludeSourceFrame(_ mask: [UInt8], w: Int, h: Int, safe: inout [UInt8], lw: Int, lh: Int,
+                                   cx: Double, cy: Double, c: Double, s: Double, ox: Double, oy: Double) {
+        for y in 0..<lh { for x in 0..<lw {
+            let dx = Double(x) + 0.5 - ox, dy = Double(y) + 0.5 - oy
+            let fx = floor(cx + dx * c - dy * s - 0.5), fy = floor(cy + dx * s + dy * c - 0.5)
+            let x0 = Int(max(0, min(Double(w - 1), fx))), x1 = Int(max(0, min(Double(w - 1), fx + 1)))
+            let y0 = Int(max(0, min(Double(h - 1), fy))), y1 = Int(max(0, min(Double(h - 1), fy + 1)))
+            if mask[y0 * w + x0] != 0 || mask[y0 * w + x1] != 0 || mask[y1 * w + x0] != 0 || mask[y1 * w + x1] != 0 {
+                safe[y * lw + x] = 0
+            }
+        } }
+    }
+
     static func surfaceFits(_ result: Pixels, palette: Pixels.Palette?) -> Bool {
         guard let q = result.surfaceQuality, q["safe"] as? Bool == true else { return false }
         func number(_ key: String) -> Double { (q[key] as? NSNumber)?.doubleValue ?? .nan }
@@ -103,9 +160,13 @@ enum NativeSlantedProof {
     }
 
     static func pageErasureInQuad(original: Pixels, result: Pixels, sx: Double, sy: Double, ox: Double, oy: Double,
-                                  quad: [Double], angle: Double, auxiliary: [[Double]], palette: Pixels.Palette?) -> (result: Pixels, dropped: Int)? {
+                                  quad: [Double], angle: Double, auxiliary: [[Double]], palette: Pixels.Palette?,
+                                  audit: (([String: Any]) -> Void)? = nil) -> (result: Pixels, dropped: Int)? {
         guard let initialSafe = result.layoutSafe, initialSafe.count == original.count, sx > 0, sy > 0,
-              quad.count == 4, quad.allSatisfy(\.isFinite), let fg = palette?.verifiedForeground, let bg = palette?.verifiedBackground else { return nil }
+              quad.count == 4, quad.allSatisfy(\.isFinite), let fg = palette?.verifiedForeground, let bg = palette?.verifiedBackground else {
+            audit?(["reason": "invalid-input-or-unverified-palette"])
+            return nil
+        }
         var output = result, safe = initialSafe, changed = [UInt8](repeating: 0, count: original.count)
         for i in 0..<original.count where output.rgba[i * 4 + 3] != 0 && output.color(i).distance(original.color(i)) > 24 { changed[i] = 1 }
         let c = cos(angle), s = sin(angle), cx = quad[0] + quad[2] / 2, cy = quad[1] + quad[3] / 2
@@ -123,20 +184,38 @@ enum NativeSlantedProof {
         for part in original.components(changed) {
             let count = part.points.filter(on).count
             if count == part.points.count { inside += count; continue }
-            if count > 0 { return nil }; outside += part.points.count
+            if count > 0 {
+                audit?(["reason": "changed-component-crosses-ownership", "inside": inside, "outside": outside,
+                        "componentPixels": part.points.count, "componentOwnedPixels": count,
+                        "componentRect": [part.rect.minX, part.rect.minY, part.rect.width, part.rect.height].map(Double.init),
+                        "componentIndices": part.points])
+                return nil
+            }
+            outside += part.points.count
             for i in part.points {
                 output.rgba[i * 4 + 3] = 0
                 for j in original.neighbors(i) { safe[j] = 0 }; safe[i] = 0
             }
         }
-        guard inside > 0, outside <= inside else { return nil }
+        guard inside > 0, outside <= inside else {
+            audit?(["reason": "insufficient-owned-erasure", "inside": inside, "outside": outside])
+            return nil
+        }
         var residual = 0
         for i in 0..<original.count where changed[i] == 0 {
             let (_, _, dx, dy) = coordinates(i)
             if max(abs(dx * c + dy * s) - quad[2] / 2, abs(-dx * s + dy * c) - quad[3] / 2) > -1 { continue }
             if original.color(i).distance(fg) <= 36 && original.color(i).distance(bg) >= 40 { residual += 1 }
         }
-        guard Double(residual) <= max(8, Double(inside) * 0.03) else { return nil }
-        output.layoutSafe = safe; return (output, outside)
+        guard Double(residual) <= max(8, Double(inside) * 0.03) else {
+            audit?(["reason": "remaining-owned-ink", "inside": inside, "outside": outside, "residual": residual])
+            return nil
+        }
+        audit?(["reason": "accepted", "inside": inside, "outside": outside, "residual": residual])
+        output.layoutSafe = safe
+        // The source contour only permits additional layout queries after this
+        // unchanged ownership/residual gate succeeds; it certifies no new erasure.
+        output.dottedFrameProtection?.pageErasureVerified = true
+        return (output, outside)
     }
 }

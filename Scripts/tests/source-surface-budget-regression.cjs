@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Tests the production restored-surface gate, including a retry under a fresh
 // bounded allowance. No duplicate acceptance algorithm lives in this fixture.
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');

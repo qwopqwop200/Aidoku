@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');

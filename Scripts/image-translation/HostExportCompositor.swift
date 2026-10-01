@@ -4,11 +4,37 @@ import CoreImage
 import ImageIO
 
 /// macOS drawing adapter for ReaderTranslationImageExporter.composite.
-/// ExportLayers and prepareExportScript are extracted from that production source.
+/// ExportLayers is extracted from that production source; its inputs come from
+/// the native renderer’s actual PDF capture and source repair images.
 /// The original, repair masks, bounded backdrop crops, PDF text, and source restoration
 /// are painted in the same order; no GPU snapshot or matte-derived alpha is involved.
 enum HostExportCompositor {
     private static let compositeContext = CIContext(options: [.workingColorSpace: NSNull()])
+
+    /// Match ReaderTranslationImageExporter.encodeSourceMasks without serializing UIKit images.
+    static func layers(for rendered: NativeTranslationRenderer.Result) throws -> HostProductionExporter.ExportLayers {
+        var pixels = 0
+        let masks = try rendered.sourcePatches.map { patch -> HostProductionExporter.ExportLayers.Mask in
+            try Task.checkCancellation()
+            let width = patch.image.width, height = patch.image.height
+            guard width > 0, height > 0, width <= 8_192, height <= 8_192,
+                  width * height <= 4_000_000, pixels + width * height <= 16_000_000 else {
+                throw failed("Invalid native source repair dimensions")
+            }
+            pixels += width * height
+            let data = NSMutableData()
+            guard let destination = CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil) else {
+                throw failed("Cannot encode native source repair")
+            }
+            CGImageDestinationAddImage(destination, patch.image, nil)
+            guard CGImageDestinationFinalize(destination) else { throw failed("Cannot encode native source repair") }
+            return .init(frame: [patch.rect.minX, patch.rect.minY, patch.rect.width, patch.rect.height],
+                opacity: 1, png: "data:image/png;base64," + (data as Data).base64EncodedString())
+        }
+        func values(_ rect: CGRect) -> [CGFloat] { [rect.minX, rect.minY, rect.width, rect.height] }
+        return .init(masks: masks, surfaces: [], paintBounds: rendered.paintBounds.map(values),
+            sourceRestorations: rendered.sourceRestorationRects.map(values))
+    }
 
     static func composite(image: CGImage, layers: HostProductionExporter.ExportLayers, typography: Data,
                           displayRect: CGRect, size: CGSize) throws -> CGImage {

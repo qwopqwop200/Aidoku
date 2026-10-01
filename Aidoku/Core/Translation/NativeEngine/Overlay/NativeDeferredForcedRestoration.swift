@@ -34,6 +34,9 @@ final class NativeDeferredForcedRestoration {
         var reports: [Report] = []
         func report(_ item: NativeTranslationLayoutItem, _ status: Report.Status, _ pixels: Int = 0) {
             reports.append(Report(itemID: item.id, status: status, pixels: pixels))
+            if result.collectDiagnostics {
+                result.recordAttempt(item, phase: "deferred-forced", details: ["status": status.rawValue, "pixels": pixels])
+            }
         }
         let protected = layout.items.filter(\.keptLettering).flatMap { other in
             ([other.sourceBounds] + other.auxiliaryInkRects).compactMap(cropper.pixelRect)
@@ -89,8 +92,16 @@ final class NativeDeferredForcedRestoration {
                 options.excludedPolygons = foreignPolygons; options.vertical = item.sourceVertical
                 options.glyphSize = glyph * scale; options.trailing = min(72, max(24, glyph * 2 * scale))
                 options.requireSafeDonors = safeDonors
-                if let fallback = NativeForcedSourceInpainting.restore(rgba: prepared.pixels.rgba,
-                    width: prepared.pixels.width, height: prepared.pixels.height, box: prepared.box, palette: palette, options: options).result {
+                let outcome = NativeForcedSourceInpainting.restore(rgba: prepared.pixels.rgba,
+                    width: prepared.pixels.width, height: prepared.pixels.height, box: prepared.box, palette: palette, options: options)
+                if result.collectDiagnostics {
+                    result.recordAttempt(item, phase: "forced-fallback", details: [
+                        "componentAccepted": false, "fallbackAccepted": outcome.result != nil,
+                        "failure": outcome.failure, "requireSafeDonors": safeDonors,
+                        "width": prepared.pixels.width, "height": prepared.pixels.height
+                    ])
+                }
+                if let fallback = outcome.result {
                     var pixels = NativeRestorationPixels(width: prepared.pixels.width, height: prepared.pixels.height)
                     pixels.rgba = fallback.rgba; pixels.layoutSafe = fallback.layoutSafe
                     pixels.erasureComplete = fallback.sourceErasureVerified; pixels.glyphsVerified = fallback.sourceGlyphsVerified

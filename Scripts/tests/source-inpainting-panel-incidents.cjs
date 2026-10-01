@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Native WebKit crops keep the actual device OCR, compression, palette and scale.
 // These assert source removal and bounded artwork coverage, not just acceptance.
 const assert = require('node:assert/strict');

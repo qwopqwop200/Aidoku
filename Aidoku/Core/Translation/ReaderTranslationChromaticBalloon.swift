@@ -73,7 +73,85 @@ enum ReaderTranslationChromaticBalloon {
             values[i] = joined
             removed.formUnion(members.filter { $0 != i })
         }
-        return values.enumerated().compactMap { removed.contains($0.offset) ? nil : $0.element }
+        let joined = values.enumerated().compactMap { removed.contains($0.offset) ? nil : $0.element }
+        return attachingUnrecognizedThinEndMarks(joined, image: image)
+    }
+
+    /// A narrow terminal stroke can fall below the recognizer's confidence
+    /// gate. Retain its measured ink only after three aligned glyph columns and
+    /// a verified balloon contour establish its owner; do not invent source text.
+    static func attachingUnrecognizedThinEndMarks(_ input: [ReaderTranslationRegion], image: CGImage) -> [ReaderTranslationRegion] {
+        guard input.count <= 256, input.allSatisfy({ $0.auxiliaryInkRects.count <= 64 }) else { return input }
+        let width = CGFloat(image.width), height = CGFloat(image.height)
+        let frame = CGRect(x: 0, y: 0, width: width, height: height)
+        func pixels(_ r: CGRect) -> CGRect {
+            CGRect(x: r.minX * width, y: r.minY * height, width: r.width * width, height: r.height * height)
+        }
+        func finite(_ b: CGRect) -> Bool {
+            b.minX.isFinite && b.minY.isFinite && b.width.isFinite && b.height.isFinite && b.width > 0 && b.height > 0
+        }
+        var result = input, scanned = 0
+        for i in input.indices {
+            let region = input[i], body = pixels(region.rect)
+            guard scanned < 4, finite(body), frame.contains(body), body.width * body.height <= 2_000_000,
+                  region.confidence >= 0.8, region.sourceOrientation == .vertical, region.sourceSingleVerticalColumn == false,
+                  (5...40).contains(region.source.count),
+                  region.source.unicodeScalars.contains(where: { (0x3040...0x30FF).contains($0.value) }),
+                  let contour = region.balloonInterior, contour.contourVerified == true,
+                  region.auxiliaryInkRects.count < 64 else { continue }
+            let columns = region.auxiliaryInkRects.map(pixels).filter {
+                finite($0) && body.insetBy(dx: -1, dy: -1).contains($0) && $0.width >= 8 &&
+                    $0.height >= $0.width * 2 && $0.height <= $0.width * 8
+            }.sorted { $0.midX < $1.midX }
+            guard (3...6).contains(columns.count), let left = columns.first,
+                  columns.allSatisfy({ $0.width >= left.width * 0.5 && $0.width <= left.width * 2 &&
+                      abs($0.minY - left.minY) <= max($0.width, left.width) * 0.4 }),
+                  zip(columns, columns.dropFirst()).allSatisfy({ a, b in
+                      let pitch = b.midX - a.midX
+                      return pitch >= min(a.width, b.width) * 1.3 && pitch <= max(a.width, b.width) * 3
+                  }) else { continue }
+            let scan = CGRect(x: left.minX - left.width * 0.25, y: left.minY + left.height * 0.6,
+                width: left.width * 1.5, height: body.maxY + body.height * 0.3 - (left.minY + left.height * 0.6))
+                .intersection(frame)
+            guard finite(scan), scan.width * scan.height <= 65_536 else { continue }
+            scanned += 1
+            guard let color = ReaderTranslationBalloonMerger.outlinedInk(in: image, rect: body),
+                  let ink = punctuationInkBounds(image: image, rect: scan, color: color,
+                      verticalRule: true, requiresSingleComponent: true),
+                  ink.height >= ink.width * 6, ink.width <= left.width * 0.35,
+                  ink.height >= left.width, ink.height <= body.height * 0.9,
+                  abs(ink.midX - left.midX) <= left.width * 0.25,
+                  ink.minY >= left.maxY - left.width * 0.3, ink.minY <= left.maxY + left.width * 0.4,
+                  ink.maxY >= body.maxY + left.width * 0.25 else { continue }
+            let normalized = CGRect(x: ink.minX / width, y: ink.minY / height, width: ink.width / width, height: ink.height / height)
+            guard insideVerifiedContour(normalized, contour: contour, margin: 2 / width),
+                  !region.auxiliaryInkRects.contains(where: {
+                      let overlap = $0.intersection(normalized)
+                      return !overlap.isNull && overlap.width * overlap.height >= normalized.width * normalized.height * 0.9
+                  }),
+                  !input.indices.contains(where: { j in
+                      j != i && (input[j].rect.intersects(normalized) || input[j].auxiliaryInkRects.contains(where: { $0.intersects(normalized) }))
+                  }) else { continue }
+            result[i].auxiliaryInkRects.append(normalized)
+            result[i].auxiliaryInkPolygons.append([CGPoint(x: normalized.minX, y: normalized.minY),
+                CGPoint(x: normalized.maxX, y: normalized.minY), CGPoint(x: normalized.maxX, y: normalized.maxY),
+                CGPoint(x: normalized.minX, y: normalized.maxY)])
+        }
+        return result
+    }
+
+    private static func insideVerifiedContour(_ rect: CGRect, contour: ReaderTranslationBalloonInterior, margin: CGFloat) -> Bool {
+        guard contour.rect.minX.isFinite, contour.rect.minY.isFinite,
+              contour.rect.width.isFinite, contour.rect.height.isFinite, contour.rect.height > 0,
+              contour.rect.contains(rect), (2...256).contains(contour.spans.count), contour.spans.count.isMultiple(of: 2) else { return false }
+        let bands = contour.spans.count / 2
+        let first = max(0, min(bands - 1, Int(floor((rect.minY - contour.rect.minY) / contour.rect.height * CGFloat(bands)))))
+        let last = max(first, min(bands - 1, Int(floor((rect.maxY - contour.rect.minY) / contour.rect.height * CGFloat(bands)))))
+        return (first...last).allSatisfy { band in
+            let left = contour.spans[band * 2], right = contour.spans[band * 2 + 1]
+            return left.isFinite && right.isFinite && left >= 0 && right <= 1 && right > left &&
+                rect.minX >= CGFloat(left) + margin && rect.maxX <= CGFloat(right) - margin
+        }
     }
 
     /// Large handwritten kana may be decoded as a lone Latin glyph in an overlapping
@@ -177,7 +255,8 @@ enum ReaderTranslationChromaticBalloon {
         return result.enumerated().compactMap { removed.contains($0.offset) ? nil : $0.element }
     }
 
-    private static func punctuationInkBounds(image: CGImage, rect: CGRect, color: (Double, Double, Double), verticalRule: Bool = false) -> CGRect? {
+    private static func punctuationInkBounds(image: CGImage, rect: CGRect, color: (Double, Double, Double),
+                                             verticalRule: Bool = false, requiresSingleComponent: Bool = false) -> CGRect? {
         let cropRect = rect.integral.intersection(CGRect(x: 0, y: 0, width: image.width, height: image.height))
         guard let crop = image.cropping(to: cropRect) else { return nil }
         let scale = min(1, 128 / max(cropRect.width, cropRect.height))
@@ -199,7 +278,7 @@ enum ReaderTranslationChromaticBalloon {
                     abs((rgb[1] - low) * 255 / span - color.1), abs((rgb[2] - low) * 255 / span - color.2)) <= 32
             }
         }
-        var l = w, r = -1, t = h, b = -1, count = 0
+        var l = w, r = -1, t = h, b = -1, count = 0, components = 0
         for start in mask.indices where mask[start] {
             var queue = [start], head = 0, left = w, right = -1, top = h, bottom = -1
             mask[start] = false
@@ -215,6 +294,8 @@ enum ReaderTranslationChromaticBalloon {
             guard queue.count >= 3, left > 0, right < w - 1, top > 0, bottom < h - 1 else { continue }
             if verticalRule && (bottom - top + 1 < (right - left + 1) * 4 ||
                 queue.count * 10 < (right - left + 1) * (bottom - top + 1) * 6) { continue }
+            components += 1
+            if requiresSingleComponent && components > 1 { return nil }
             l = min(l, left); r = max(r, right); t = min(t, top); b = max(b, bottom); count += queue.count
         }
         guard count >= 12, r > l, b > t else { return nil }

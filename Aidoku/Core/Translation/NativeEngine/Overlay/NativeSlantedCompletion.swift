@@ -29,9 +29,25 @@ extension NativeSlantedRestoration {
             }
             let compact = tail <= 128 && Double(painted) >= Double(tail) * 0.3 && inside == tail &&
                 right - left <= 16 && bottom - top <= 16 && Double(tail) < Double((right - left + 1) * (bottom - top + 1)) * 0.8
-            let small = tail <= 32 && Double(painted) >= Double(tail) * 0.08 && inside == tail && right - left <= 8 && bottom - top <= 8
+            // Rectification can reduce a detached, antialiased stroke to one
+            // already-owned native pixel. A seed alone is not enough: require
+            // existing erasure beyond all four sides of this small component,
+            // inside the same bounded donor neighborhood, before completing it.
+            var enclosedStroke = false
+            if w > 2 && h > 2 && tail <= 32 && painted > 0 && inside == tail && right - left <= 8 && bottom - top <= 8 {
+                var sides = 0
+                for y in max(1, top - 3)...min(h - 2, bottom + 3) {
+                    for x in max(1, left - 3)...min(w - 2, right + 3) where output[(y * w + x) * 4 + 3] != 0 {
+                        if x < left { sides |= 1 }; if x > right { sides |= 2 }
+                        if y < top { sides |= 4 }; if y > bottom { sides |= 8 }
+                    }
+                }
+                enclosedStroke = sides == 15
+            }
+            let small = tail <= 32 && (Double(painted) >= Double(tail) * 0.08 || enclosedStroke) &&
+                inside == tail && right - left <= 8 && bottom - top <= 8
             var reading = false
-            if vertical && tail >= 2 && tail <= 256 && inside == tail && ur - ul <= 14 && ub - ut <= 40 &&
+            if w > 2 && h > 2 && vertical && tail >= 2 && tail <= 256 && inside == tail && ur - ul <= 14 && ub - ut <= 40 &&
                 fg.max()! <= 100 && bg.min()! >= 220 && auxiliary.contains(where: {
                     ul >= $0[0] - 2 && ur <= $0[0] + $0[2] + 2 && ut >= $0[1] && ut <= $0[1] + $0[3] + 96
                 }) {

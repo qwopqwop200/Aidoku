@@ -80,25 +80,27 @@ do {
     generated += ocr
     let rotation = try read(sources.appendingPathComponent("NativeEngine/Overlay/BrowserOverlayRotation.swift"))
     generated += rotation.replacingOccurrences(of: "import UIKit", with: "import AppKit")
-    // This macOS WebKit replay is the frozen comparison oracle for the native iOS migration.
-    let overlay = try read(root.appendingPathComponent(
-        "Scripts/native-render-parity/reference-source/BrowserOverlayView.swift"))
+    let overlay = try read(sources.appendingPathComponent("NativeEngine/Overlay/BrowserOverlayView.swift"))
     generated += try slice(reader, "enum ReaderTranslationGeometry", "@available(iOS 18.0, *)")
-    let background = try read(root.appendingPathComponent(
-        "Scripts/native-render-parity/reference-source/ReaderTranslationOverlayView.swift"))
-    generated += try slice(background, "enum ReaderTranslationBackgroundImage", "    /// Live and export overlays") + "}\n"
+    let background = try read(root.appendingPathComponent("Aidoku/Features/Reader/Translation/ReaderTranslationBackgroundImage.swift"))
+    generated += background.replacingOccurrences(of: "import UIKit", with: "import AppKit")
     let exporter = try read(root.appendingPathComponent("Aidoku/Features/Reader/Translation/ReaderTranslationImageExporter.swift"))
     generated += "enum HostProductionExportSizing {\n" + (try slice(exporter, "    static func outputSize(for pixels:", "    static func render(image:")) + "}\n"
-    // The host audit retains the frozen WebKit oracle; production iOS export is native.
-    let referenceExporter = try read(root.appendingPathComponent(
-        "Scripts/native-render-parity/reference-source/ReaderTranslationImageExporter.swift"))
-    generated += "enum HostProductionExporter {\n" + (try slice(referenceExporter, "    struct ExportLayers:", "    /// Core Image contexts")) + "}\n"
+    generated += "enum HostProductionExporter {\n" + (try slice(exporter, "    struct ExportLayers:", "    /// Core Image contexts")) + "}\n"
 
-    generated += "enum HostProductionLayout {\n" + (try slice(overlay, "    nonisolated static func layoutPayload(", "    func clear(")) + "}\n"
-    generated += "enum HostProductionRenderer {\n"
-    generated += try slice(overlay, "    static let releaseResourcesScript", "    static let clearScript")
-    generated += try slice(overlay, "    static let renderScript =", "struct BrowserOverlayItem").replacingOccurrences(of: "BrowserOverlayTypography.script +", with: "BrowserOverlayTypography.script + HostSegmentationTrace.script +")
-        .replacingOccurrences(of: "BrowserSourceInkCleanup.script +", with: "BrowserSourceInkCleanup.script.replacingOccurrences(of: \"const aidokuSourceInkMask =\", with: \"let aidokuSourceInkMask =\") +")
+    // The compatibility name is retained for saved CLI payload callers; geometry
+    // comes directly from the same typed native layout planner as the reader.
+    generated += """
+    enum HostProductionLayout {
+        static func layoutPayload(items: [BrowserOverlayItem], imageSize: CGSize, sourceRect: CGRect,
+                                  settings: IPhoneOverlaySettings, targetLanguage: String, viewport: CGSize,
+                                  measurementCache: BrowserOverlayTextMeasurementCache? = BrowserOverlayTextMeasurementCache()) -> [[String: Any]] {
+            NativeTranslationLayoutPlanner.payload(items: items, imageSize: imageSize, sourceRect: sourceRect,
+                settings: settings, targetLanguage: targetLanguage, viewport: viewport, measurementCache: measurementCache)
+        }
+    }
+    """
+    generated += "\n"
     generated += try slice(overlay, "struct BrowserOverlayItem:", "struct BrowserOverlayVisibility")
     generated += try slice(overlay, "struct BrowserOverlayTextMeasurementCacheStatistics", "struct BrowserOverlayPositionedLayoutCacheInput")
     generated += try slice(overlay, "struct BrowserOverlayTextFlow", "struct BrowserSidePanelSessionHistory")
@@ -123,12 +125,15 @@ do {
                  "BoundedURLSessionTransport", "RemoteTranslationClient"] {
         files.append(sources.appendingPathComponent("NativeEngine/Translation/" + name + ".swift"))
     }
-    for name in ["IPhoneOverlaySettings", "BrowserOverlayColumnLayout", "BrowserOverlayBalloonUnitLayout", "BrowserOverlayCollisionGeometry", "BrowserOverlayTypography", "BrowserSourceInkCleanup", "BrowserSourceTextColor", "BrowserSourcePanelRestoration",
-                 "BrowserSourceGlyphConservative", "BrowserSourceGlyphSegmentation", "BrowserForcedInpaintQuality",
-                 "BrowserForcedSourceInpainting", "BrowserForcedComponentInpainting", "BrowserSlantedSourceRestoration"] {
-        // This CLI deliberately renders the frozen WebKit reference; production uses the native renderer.
-        files.append(root.appendingPathComponent("Scripts/native-render-parity/reference-source/" + name + ".swift"))
+    for name in ["IPhoneOverlaySettings", "BrowserOverlayColumnLayout", "BrowserOverlayBalloonUnitLayout",
+                 "BrowserOverlayCollisionGeometry", "BrowserOverlayTypography", "BrowserSourceInkCleanup"] {
+        files.append(sources.appendingPathComponent("NativeEngine/Overlay/" + name + ".swift"))
     }
+    // Compile production rendering algorithms in full. Only the iOS window
+    // capability is platform-specific; the host uses the native PDF export path.
+    files += try manager.contentsOfDirectory(at: sources.appendingPathComponent("NativeEngine/Overlay"), includingPropertiesForKeys: nil)
+        .filter { $0.pathExtension == "swift" && $0.lastPathComponent.hasPrefix("Native") &&
+            $0.lastPathComponent != "NativeSourceCanvasHierarchyCompositor.swift" }.sorted { $0.path < $1.path }
     // Diagnostics are injected only into generated copies; app sources stay untouched.
     if let index = files.firstIndex(where: { $0.lastPathComponent == "NativeCoreMLOCRPipeline.swift" }) {
         var pipeline = try read(files[index])
@@ -151,17 +156,35 @@ do {
         files[index] = copy
     }
     files.append(root.appendingPathComponent("Aidoku/Extensions/Foundation/NSLocalizedString.swift"))
-    files += [support.appendingPathComponent("HostTypographyBridge.swift"), support.appendingPathComponent("HostLetterFonts.swift"), support.appendingPathComponent("HostTranslationParity.swift"), support.appendingPathComponent("HostRenderGeometry.swift"), support.appendingPathComponent("HostExportCompositor.swift"), support.appendingPathComponent("HostSupport.swift"), support.appendingPathComponent("HostEnvironment.swift"), support.appendingPathComponent("PipelineMain.swift"), support.appendingPathComponent("HostAnalysis.swift"), support.appendingPathComponent("HostSegmentationTrace.swift")]
+    files += [support.appendingPathComponent("HostNativeGraphics.swift"), support.appendingPathComponent("HostTypographyBridge.swift"), support.appendingPathComponent("HostLetterFonts.swift"), support.appendingPathComponent("HostTranslationParity.swift"), support.appendingPathComponent("HostRenderGeometry.swift"), support.appendingPathComponent("HostExportCompositor.swift"), support.appendingPathComponent("HostSupport.swift"), support.appendingPathComponent("HostEnvironment.swift"), support.appendingPathComponent("PipelineMain.swift"), support.appendingPathComponent("HostAnalysis.swift"), support.appendingPathComponent("HostSegmentationTrace.swift")]
     let snapshotDirectory = cache.appendingPathComponent("sources")
     try manager.createDirectory(at: snapshotDirectory, withIntermediateDirectories: true)
     files = try files.map { file in
         let copy = snapshotDirectory.appendingPathComponent(file.lastPathComponent)
-        let raw = try read(file)
+        var raw = try read(file)
+        if file.lastPathComponent == "NativeTranslationTypography.swift" {
+            let lookup = "Bundle.main.url(forResource: \"AidokuSerifKR-Bold\", withExtension: \"woff2\")"
+            guard raw.contains(lookup) else { throw NSError(domain: "NativeFontResourceAdapter", code: 1) }
+            raw = raw.replacingOccurrences(of: lookup,
+                with: "HostLetterFonts.resourceURL(name: \"AidokuSerifKR-Bold\", extension: \"woff2\")")
+        }
         let data = Data(raw.replacingOccurrences(of: "import UIKit", with: "import AppKit").utf8)
         if (try? Data(contentsOf: copy)) != data { try data.write(to: copy, options: .atomic) }
         return copy
     }
+    // Native original Rust kernels are linked through the same public C ABI as
+    // the iOS target. Include the resulting library in the executable identity.
+    var kernelEnvironment = ProcessInfo.processInfo.environment
+    kernelEnvironment["PLATFORM_NAME"] = "macosx"
+    kernelEnvironment["ARCHS"] = "arm64"
+    kernelEnvironment["DERIVED_FILE_DIR"] = root.appendingPathComponent("build/native-overlay-kernels-host").path
+    let kernelStatus = try run("/usr/bin/env", ["python3", root.appendingPathComponent("Scripts/overlay-kernels/native/build.py").path], environment: kernelEnvironment)
+    guard kernelStatus == 0 else { exit(kernelStatus) }
+    let kernelLibrary = root.appendingPathComponent("build/native-overlay-kernels-host/libAidokuOverlayKernels.a")
     var hash = SHA256()
+    hash.update(data: try Data(contentsOf: kernelLibrary))
+    hash.update(data: try Data(contentsOf: root.appendingPathComponent("Scripts/overlay-kernels/native/kernels.h")))
+    hash.update(data: try Data(contentsOf: root.appendingPathComponent("Scripts/overlay-kernels/native/module.modulemap")))
     hash.update(data: Data(generated.utf8))
     for file in files { hash.update(data: try Data(contentsOf: file)) }
     hash.update(data: Data((try read(URL(fileURLWithPath: #filePath))).utf8))
@@ -185,8 +208,10 @@ do {
         let map = cache.appendingPathComponent("output-map.json")
         try JSONSerialization.data(withJSONObject: outputMap, options: [.sortedKeys]).write(to: map)
         fputs("Building current Swift pipeline (incremental, -O)…\n", stderr)
-        let code = try run("/usr/bin/xcrun", ["swiftc", "-O", "-incremental", "-enable-batch-mode", "-parse-as-library",
-            "-module-name", "ImageTranslationHost", "-target", "arm64-apple-macos15.0", "-output-file-map", map.path]
+        let code = try run("/usr/bin/xcrun", ["swiftc", "-O", "-incremental", "-enable-batch-mode", "-j", "2", "-parse-as-library",
+            "-module-name", "ImageTranslationHost", "-target", "arm64-apple-macos15.0", "-output-file-map", map.path,
+            "-I", root.appendingPathComponent("Scripts/overlay-kernels/native").path,
+            "-L", root.appendingPathComponent("build/native-overlay-kernels-host").path, "-lAidokuOverlayKernels"]
             + allFiles.map(\.path) + ["-o", binary.path])
         guard code == 0 else { exit(code) }
         try fingerprint.write(to: stamp, atomically: true, encoding: .utf8)

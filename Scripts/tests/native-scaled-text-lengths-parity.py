@@ -22,6 +22,14 @@ def main():
         start = source.index('    static func usedLayoutItem(')
         end = source.index('    static func remeasureTypography(', start)
         stub = (FIX / 'Stub.swift').read_text().replace('// PRODUCTION_USED_LAYOUT_ITEM', source[start:end])
+        # Preserve the production raw-padding transport dependency as well as
+        # usedLayoutItem; the fixture still asserts all eight used lengths.
+        layout = (OVERLAY / 'NativeTranslationLayout.swift').read_text()
+        padding_start = layout.index('    var paddingTop: CGFloat { didSet')
+        padding_end = layout.index('    var rotation: CGFloat', padding_start)
+        stub_start = stub.index('    var paddingTop:CGFloat')
+        stub_end = stub.index('    var rect:CGRect', stub_start)
+        stub = stub[:stub_start] + layout[padding_start:padding_end] + stub[stub_end:]
         (folder / 'Stub.swift').write_text(stub)
         (folder / 'input.json').write_text(json.dumps(cases))
         subprocess.run(['swiftc', '-O', str(folder / 'Stub.swift'), str(OVERLAY / 'NativeTranslationRenderer+TextFrame.swift'), str(FIX / 'main.swift'), '-o', str(folder / 'probe')], check=True)

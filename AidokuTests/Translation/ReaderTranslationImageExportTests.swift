@@ -27,8 +27,7 @@ struct ReaderTranslationImageExportTests {
 
     @Test func failedLayoutReleasesExporterWithoutWaitingForWatchdog() async throws {
         let window = try host()
-        ReaderTranslationImageExporter.clearIdleRenderer()
-        defer { window.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
+        defer { window.isHidden = true }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         let source = UIGraphicsImageRenderer(size: CGSize(width: 120, height: 160), format: format).image { context in
@@ -57,8 +56,7 @@ struct ReaderTranslationImageExportTests {
 
     @Test func temporaryRendererNeverAppearsInTransparentHostOnCreationOrReuse() async throws {
         let window = try host()
-        ReaderTranslationImageExporter.clearIdleRenderer()
-        defer { window.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
+        defer { window.isHidden = true }
         let view = ExportVisibilityHost(frame: window.bounds)
         window.addSubview(view)
         let format = UIGraphicsImageRendererFormat()
@@ -101,7 +99,7 @@ struct ReaderTranslationImageExportTests {
 
     @Test func stretchedViewportExportsFullValidPixelBudgetWithoutOversizedIntermediate() async throws {
         let window = try host()
-        defer { window.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
+        defer { window.isHidden = true }
         let sourceSize = CGSize(width: 4_000, height: 3_000)
         let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.preferredRange = .standard
         let source = UIGraphicsImageRenderer(size: sourceSize, format: format).image { context in
@@ -133,7 +131,7 @@ struct ReaderTranslationImageExportTests {
 
     @Test func cacheSnapshotPreservesTransparentLetterboxAndLogicalImageSize() async throws {
         let window = try host()
-        defer { window.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
+        defer { window.isHidden = true }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         // The preloader may supply fewer source pixels than its logical page size.
@@ -163,7 +161,7 @@ struct ReaderTranslationImageExportTests {
 
     @Test func cacheSnapshotBoundsFourMillionPixelsAndPaintsTallPageBottom() async throws {
         let window = try host()
-        defer { window.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
+        defer { window.isHidden = true }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         let source = UIGraphicsImageRenderer(size: CGSize(width: 100, height: 600), format: format).image { context in
@@ -206,7 +204,6 @@ struct ReaderTranslationImageExportTests {
         defer {
             cache.clearMemory()
             window.isHidden = true
-            ReaderTranslationImageExporter.clearIdleRenderer()
             try? FileManager.default.removeItem(at: directory)
         }
         let format = UIGraphicsImageRendererFormat()
@@ -668,58 +665,6 @@ struct ReaderTranslationImageExportTests {
         #expect(pixels.prefix(100 * rowBytes).allSatisfy { $0 > 240 })
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try output.pngData()?.write(to: folder.appendingPathComponent("webtoon-export.png"))
-    }
-
-    @Test func idleRendererSurvivesTranslationGapOnlyWithExtraHeadroom() {
-        let minimum = TranslationImageWorkBudget.minimumHeadroom
-        let comfortable = minimum + 256 * 1_024 * 1_024
-        var discarded: [Int] = []
-        let slot = ReaderTranslationIdleRendererSlot<Int> { discarded.append($0) }
-        // Typical API gaps exceed the old unconditional two-second expiry.
-        slot.store(1, now: 0)
-        #expect(slot.take(now: 4.8, availableMemory: comfortable, isActive: true) == 1)
-        slot.store(2, now: 5)
-        #expect(slot.take(now: 13.8, availableMemory: comfortable, isActive: true) == 2)
-        #expect(discarded.isEmpty)
-        slot.store(3, now: 14)
-        #expect(slot.take(now: 24, availableMemory: comfortable, isActive: true) == nil)
-        #expect(discarded == [3])
-        // Keep the existing short lease on tighter-memory devices.
-        slot.store(4, now: 25)
-        #expect(slot.take(now: 27, availableMemory: comfortable - 1, isActive: true) == nil)
-        #expect(discarded == [3, 4])
-    }
-
-    @Test func idleRendererImmediatelyDropsOnPressureAndBackground() {
-        let minimum = TranslationImageWorkBudget.minimumHeadroom
-        let comfortable = minimum + 256 * 1_024 * 1_024
-        var discarded: [Int] = []
-        let slot = ReaderTranslationIdleRendererSlot<Int> { discarded.append($0) }
-        slot.store(1, now: 0)
-        #expect(slot.trim(now: 0.1, availableMemory: minimum - 1, isActive: true))
-        #expect(slot.take(now: 0.2, availableMemory: comfortable, isActive: true) == nil)
-        slot.store(2, now: 1)
-        #expect(slot.trim(now: 1.1, availableMemory: comfortable, isActive: false))
-        #expect(slot.take(now: 1.2, availableMemory: comfortable, isActive: true) == nil)
-        slot.store(3, now: 2)
-        // A high-headroom lease contracts as soon as headroom falls.
-        #expect(slot.trim(now: 5, availableMemory: minimum, isActive: true))
-        #expect(discarded == [1, 2, 3])
-    }
-
-    @Test func idleRendererSlotNeverRetainsMoreThanOneAndClearsOnce() {
-        let comfortable = TranslationImageWorkBudget.minimumHeadroom + 256 * 1_024 * 1_024
-        var discarded: [Int] = []
-        let slot = ReaderTranslationIdleRendererSlot<Int> { discarded.append($0) }
-        slot.store(1, now: 0)
-        slot.store(2, now: 1)
-        #expect(discarded == [1])
-        #expect(slot.take(now: 1.1, availableMemory: comfortable, isActive: true) == 2)
-        #expect(slot.take(now: 1.2, availableMemory: comfortable, isActive: true) == nil)
-        slot.store(3, now: 2)
-        #expect(slot.clear())
-        #expect(!slot.clear())
-        #expect(discarded == [1, 3])
     }
 
     private func pixelData(_ image: UIImage) throws -> [UInt8] {

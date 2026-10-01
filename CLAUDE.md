@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Aidoku is an iOS/iPadOS/macOS manga reader (UIKit + SwiftUI, Core Data). This fork adds on-device PP-OCRv6 (Core ML) OCR and OpenAI / custom OpenAI-compatible page translation with WebKit-rendered overlays.
+Aidoku is an iOS/iPadOS/macOS manga reader (UIKit + SwiftUI, Core Data). This fork adds on-device PP-OCRv6 (Core ML) OCR and OpenAI / custom OpenAI-compatible page translation with native UIKit/Core Graphics/Core Text overlays and native dictionary popups.
 
 ## Build & test
 
@@ -50,6 +50,10 @@ and DerivedData path; do not launch the entire suite for every small edit:
 
 ```sh
 python3 Scripts/test_quick.py --ios TrackerSyncTests --device <simulator-UDID>
+
+# Explicitly requested complete plans
+python3 Scripts/test_quick.py --full-ios --device <UDID>
+python3 Scripts/test_quick.py --full-host
 ```
 
 This uses `xcodebuild test` so source changes are rebuilt before execution. iOS
@@ -77,9 +81,8 @@ swiftlint lint
 Other test suites, each run from the repository root:
 
 - **Localization** (CI): `python3 -m unittest discover -s Scripts -v` and `python3 Scripts/validate_localizations.py`. See `Scripts/LOCALIZATION.md`.
-- **Overlay source color and inpainting regressions** (CI, Node 18+, no npm deps): `node Scripts/tests/<name>.cjs`. The full list with fixture arguments is in `.github/workflows/source-color.yml`. These runners **extract the JavaScript embedded in Swift string literals** (for example `static let script = """ ... """` in `BrowserSourceTextColor.swift`). If you change that JS, run them. If you reformat the literal's delimiters, the extraction regex breaks. Background and methodology are in `Scripts/tests/README-*.md`. `typography-clusters-regression.cjs` runs with `node --test`.
-- **Webtoon screen tests** (real simulator screenshots): `python3 Scripts/run_webtoon_screen_tests.py --device <booted UDID> --bundle app.aidoku.Aidoku -- -project Aidoku.xcodeproj -scheme Aidoku -only-testing:AidokuTests/ReaderWebtoonLifecycleTests test`
-- **Vendored packages**: `swift test --package-path Vendor/Wasm3` and `swift test --package-path Vendor/AidokuRunner`. Hoshi native regressions are `Scripts/tests/run-hoshi-*.py`. The blocking-task priority check is `python3 Scripts/tests/run-blocking-priority-regression.py`.
+- **Overlay source color and inpainting regressions** (CI, Node 18+, no npm deps): `node Scripts/tests/<name>.cjs`. The full list with fixture arguments is in `.github/workflows/source-color.yml`. These runners extract the **frozen historical JavaScript** from test-only Swift literals under `AidokuTests/Translation/LegacyBrowserOverlay`. They preserve reference-algorithm evidence; they do not exercise the native app. Native Swift/Rust behavior is validated by native suites and pixel-parity comparisons. Keep the reference unchanged during native fixes; reformatting its literal delimiters breaks extraction. Background and methodology are in `Scripts/tests/README-*.md`. `typography-clusters-regression.cjs` runs with `node --test`.
+- **Vendored packages**: `swift test --package-path Vendor/Nuke --jobs 2` and `swift test --package-path Vendor/AidokuRunner --jobs 2`. Hoshi native regressions are `Scripts/tests/run-hoshi-*.py`. The blocking-task priority check is `python3 Scripts/tests/run-blocking-priority-regression.py`.
 
 ## Lint conventions (`.swiftlint.yml`)
 
@@ -95,17 +98,18 @@ Other test suites, each run from the repository root:
 - `Aidoku/Features`: screens (Reader, Library, Browse, Manga, Settings, and so on).
 - `Aidoku/Extensions`: extensions to Apple and third-party types, organized by framework.
 
-**Sources.** `SourceManager` (`Core/Sources/SourceManager.swift`) owns every installed source as an `AidokuRunner.Source`. External sources are WASM modules executed by `Vendor/AidokuRunner` on top of `Vendor/Wasm3`. `Core/Sources/Legacy` adapts the older source ABI. Built-in providers (Local CBZ, Komga, Kavita, Suwayomi) live in `Core/Sources/BuiltIn`.
+**Sources.** `SourceManager` (`Core/Sources/SourceManager.swift`) owns every installed source as an `AidokuRunner.Source`. Installed package metadata selects an exact source ID/version registered by `NativeSourceRegistration`; supported adapters execute native Swift in `Core/Sources/BuiltIn`. `Vendor/AidokuRunner` supplies native models/protocols and registry dispatch. Unsupported sources fail explicitly; neither historical source WASM nor a JavaScript fallback is executed. Built-in providers include Local CBZ, Komga, Kavita and Suwayomi. WebKit remains for browser-dependent authentication, interactive challenges and user-agent discovery; see `Docs/native-source-auth.md`.
 
 **Persistence.** Core Data lives behind `CoreDataManager`, with one extension file per entity (`CoreDataManager+Chapter.swift` and so on). The model is `Aidoku.xcdatamodeld`.
 
-**Vendored dependencies.** `Vendor/` contains AidokuRunner, Wasm3, and HoshiDicts (a native dictionary library). These are **locally patched forks**, not pristine upstream copies. Read `Vendor/README.md` before editing or updating them. Keep C headers and implementations in sync. For changes to a vendored package, run its affected package tests and relevant fast app checks. Run full app tests only under the verification-scope exceptions above.
+**Vendored dependencies.** `Vendor/` contains the native-only AidokuRunner, Nuke, and HoshiDicts (a native dictionary library). These are **locally patched forks**, not pristine upstream copies. Read `Vendor/README.md` before editing or updating them. Keep C headers and implementations in sync. For changes to a vendored package, run its affected package tests and relevant fast app checks. Run full app tests only under the verification-scope exceptions above.
 
 **Translation pipeline** (`Core/Translation`, `Features/Reader/Translation`):
 - `ReaderTranslationService` orchestrates per-page work: image preparation, OCR, balloon merging and panel ordering, remote translation, and disk caching (`ReaderTranslationDiskCache`, `ReaderTranslationCacheCodec`). `TranslationImageWorkBudget` bounds the image work.
 - `NativeEngine/OCR` runs PP-OCRv6 Core ML detection and recognition. The models and character dictionaries are in `Aidoku/Resources/Translation`.
 - `NativeEngine/Translation` handles remote OpenAI-compatible clients, batching, reuse identity, endpoint policy, and Keychain-stored credentials.
-- `NativeEngine/Overlay` renders translated text in a WebKit view (`BrowserOverlayView`). Much of the source-color estimation, text erasure and inpainting, slanted-text restoration, and typography logic is **JavaScript embedded in Swift strings**. The Node regressions above test that JavaScript. The reader WebKit view, exported images (`ReaderTranslationImageExporter`), and native overlays share the same geometry (for example `BrowserOverlayRotation`).
+- `NativeEngine/Overlay` uses `NativeTranslationRenderer` for native text layout, source-color estimation, original-text erasure, restoration and composition. Core Text/Core Graphics draw text and image exports; bounded Core Animation/Metal and UIKit capture helpers reproduce supported live paint operations. Original Rust pixel kernels link through a C ABI as a native static library. `ReaderTranslationOverlayView` and `ReaderTranslationImageExporter` consume the same native pipeline; caches include the renderer version. `NativeDictionaryPopupView` renders dictionary content with UIKit.
+- `AidokuTests/Translation/LegacyBrowserOverlay` and `Scripts/native-render-parity/reference-source` preserve the test-only WebKit/JavaScript/WASM oracle. Node reference tests do not validate native execution. Native tests and strict actual image comparisons are separate gates; keep frozen inputs and expected pixels immutable. See `Docs/native-runtime.md` and `Scripts/native-render-parity/README.md` for boundaries and measured limitations.
 
 **Share extension.** `AidokuShare` hands images to the app through an app group and URL scheme defined in `Aidoku/Aidoku.xcconfig`. The xcconfig also sets bundle IDs and the `CANONICAL_BUILD` Swift flag.
 
@@ -115,7 +119,7 @@ Any new UI string must use `NSLocalizedString`, with an English entry in `en.lpr
 
 ## Image translation pipeline CLI
 
-For quick image translation/OCR analysis, use `Scripts/image-translation.swift` directly on Apple Silicon macOS 15+ with Xcode command-line tools. From this Git root, passing only an image, image list, or folder runs the production Core ML OCR, recovery/grouping, remote translation and JavaScript renderer:
+For quick image translation/OCR analysis, use `Scripts/image-translation.swift` directly on Apple Silicon macOS 15+ with Xcode command-line tools and Rust (`rustc`). From this Git root, passing only an image, image list, or folder runs the production Core ML OCR, recovery/grouping, remote translation and native Core Graphics/Core Text renderer:
 
 ```sh
 swift Scripts/image-translation.swift /path/to/page.png
@@ -130,14 +134,14 @@ The runner automatically reads this repository's ignored `.env`, including the A
 python3 Scripts/image-translation/sync-iphone-settings.py --device <DEVICE_ID> --bundle-id <INSTALLED_AIDOKU_BUNDLE_ID>
 ```
 
-This reads the installed app's preferences and preserves the existing local API key. It imports protocol/reasoning, languages, image/filter flags, OCR model/sizes/confidence/detector thresholds, and supported overlay appearance settings. Scheduling/cache preferences are retained as provenance; this CLI uses bounded image workers (default `AIDOKU_IMAGE_JOBS=8`, overridden by `--jobs N`), overlaps translation across images, and uses the production layout planner with AppKit/Core Text font metrics. OCR and rendering each retain one admission slot. Supply the actual reader container with `--viewport WIDTHxHEIGHT` or `AIDOKU_RENDER_VIEWPORT`; the 430x932 default is portrait screen geometry, not a live reader measurement. Image-attached provider calls are capped at three. Bundled serif fonts and mask/PDF composition are supported; macOS font metrics and iPhone performance/pixel output can still differ.
+This reads the installed app's preferences and preserves the existing local API key. It imports protocol/reasoning, languages, image/filter flags, OCR model/sizes/confidence/detector thresholds, and supported overlay appearance settings. Scheduling/cache preferences are retained as provenance; this CLI uses bounded image workers (default `AIDOKU_IMAGE_JOBS=8`, overridden by `--jobs N`), overlaps translation across images, and uses the production layout planner with AppKit/Core Text font metrics. OCR and rendering each retain one admission slot. Supply the actual reader container with `--viewport WIDTHxHEIGHT` or `AIDOKU_RENDER_VIEWPORT`; the 430x932 default is portrait screen geometry, not a live reader measurement. Image-attached provider calls are capped at three. Bundled serif fonts are registered with Core Text; source restoration and mask/PDF composition use the production native renderer and original Rust kernels compiled as a native static library; macOS font metrics and iPhone performance/pixel output can still differ.
 
-Runs save numbered intermediate JSON, OCR/stage PNGs, detector probability maps, renderer segmentation masks or restoration differences, final JSON/HTML/PNG, and an interactive `analysis-index.html` under `../output/image-translation/run-<UUID>/`. Open the analysis report to inspect OCR text/confidence, reading direction, geometric angles, recovery/merging, balloon interiors, segmentation and final rendering. OCR-only runs have no renderer masks. Rebuild reports from existing output without running OCR or a server:
+Runs save numbered intermediate JSON, OCR/stage PNGs, detector probability maps, native restoration masks and repaired crops, final JSON/PDF/PNG and a static HTML preview, and an interactive `analysis-index.html` under `../output/image-translation/run-<UUID>/`. Open the analysis report to inspect OCR text/confidence, reading direction, geometric angles, recovery/merging, balloon interiors, segmentation and final rendering. OCR-only runs have no renderer masks. `final.html` displays the saved PNG; opening it does not execute an overlay renderer. Native repair-alpha diagnostics record actual repair patches, not the former JavaScript glyph-mask instrumentation. Rebuild reports from existing output without running OCR or a server:
 
 ```sh
 swift Scripts/image-translation.swift --visualize-run /path/to/run-UUID
 ```
 
-Final composites are also collected in `RUN_DIRECTORY/final/`. Use `swift Scripts/image-translation.swift --render-run RUN_DIRECTORY` to recompose completed results from saved render payloads without OCR/API calls. Use `--resume-run RUN_DIRECTORY` with the same image inputs/order/settings to skip completed results and continue an interrupted run.
+Final composites are also collected in `RUN_DIRECTORY/final/`. Use `swift Scripts/image-translation.swift --render-run RUN_DIRECTORY` to recompose completed results from saved render payloads without OCR/API calls. Use `--resume-run RUN_DIRECTORY` with the same image inputs/order/settings to retain completed native results and continue an interrupted run. Completed historical browser renders are recomposed from saved inputs with the native renderer, without OCR/API calls.
 
 See `Scripts/image-translation/README.md` and `swift Scripts/image-translation.swift --help` for all options. Focused checks are `python3 Scripts/tests/run-image-environment-smoke.py`, `python3 Scripts/tests/run-image-analysis-smoke.py`, and `python3 Scripts/tests/run-image-translation-smoke.py` (real host OCR/rendering and a local mock server). Apply the existing verification-scope rules; documentation-only changes need no build or test run. The launcher reuses its incremental Swift/Core ML cache in `build/image-translation-host`.

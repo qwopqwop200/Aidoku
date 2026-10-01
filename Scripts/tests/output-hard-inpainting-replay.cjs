@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Replay captured production repair arguments; real pages have no ground-truth clean image.
 const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),vm=require('node:vm');
 const [fixture,baseline,output,captureDirectory]=process.argv.slice(2);

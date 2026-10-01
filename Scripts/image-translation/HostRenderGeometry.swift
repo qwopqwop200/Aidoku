@@ -45,11 +45,11 @@ enum HostRenderGeometry {
         guard let context = CGContext(data: nil, width: Int(size.width), height: Int(size.height),
             bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
-            throw geometryError("Cannot allocate bounded WebKit background")
+            throw geometryError("Cannot allocate bounded native background")
         }
         context.interpolationQuality = .high
         context.draw(image, in: CGRect(origin: .zero, size: size))
-        guard let resized = context.makeImage() else { throw geometryError("Cannot resize WebKit background") }
+        guard let resized = context.makeImage() else { throw geometryError("Cannot resize native background") }
         try Task.checkCancellation()
         return resized
     }
@@ -58,10 +58,10 @@ enum HostRenderGeometry {
         let background = try preparedBackground(image)
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil) else {
-            throw geometryError("Cannot encode WebKit background")
+            throw geometryError("Cannot encode native background")
         }
         CGImageDestinationAddImage(destination, background, nil)
-        guard CGImageDestinationFinalize(destination) else { throw geometryError("Cannot encode WebKit background") }
+        guard CGImageDestinationFinalize(destination) else { throw geometryError("Cannot encode native background") }
         try Task.checkCancellation()
         return "data:image/png;base64," + (data as Data).base64EncodedString()
     }

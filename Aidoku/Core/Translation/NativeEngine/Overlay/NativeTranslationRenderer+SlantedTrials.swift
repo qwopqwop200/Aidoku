@@ -49,8 +49,10 @@ extension NativeTranslationRenderer {
             style.usesBlockWordLayout = item.typesettingText != nil && item.typesettingQuoteMode != nil
             style.usesPreformattedBlockRows = item.typesettingText != nil && item.typesettingPreformattedRows == true
             style.blockWordLayoutUsesTopPadding = style.preservesBlockRows && item.typesettingBlockDisplay == true
-            // The frozen slanted card changes CSS size, never reinserts Korean lines during a trial.
-            style.balancesHorizontalLines = false
+            // The frozen slanted card changes CSS size while retaining its
+            // automatic text-wrap balance; controlled children remain separate.
+            style.balancesHorizontalLines = item.wrappingScript == "korean" && !item.vertical &&
+                item.text.utf16.count <= 180 && !item.text.contains(where: \.isNewline)
             return style
         }
         func shape(item: NativeTranslationLayoutItem, appearance: NativeTranslationRestoration.Appearance,
@@ -127,7 +129,8 @@ extension NativeTranslationRenderer {
             case .page(let descriptor, let pixels):
                 let bytes = NativeSlantedPixels.compositeLuminance(pixels.rgba, local: descriptor.pixels.rgba, n: pixels.width * pixels.height)
                 return .init(id: id, method: pixels.method ?? method, isPage: true, width: pixels.width, height: pixels.height,
-                             safe: pixels.layoutSafe ?? [], luminance: bytes)
+                             safe: pixels.layoutSafe ?? [], luminance: bytes,
+                             verifiedNarrowFrame: NativeDottedPaperFrame.permitsNarrowReflow(pixels))
             }
         }
         func fits(item: NativeTranslationLayoutItem, entry: Trial.Entry, surface: Trial.Surface, candidate: Trial.Candidate,
@@ -325,7 +328,9 @@ extension NativeTranslationRenderer {
             cards[index].typographyDisplayGrowth = result.metadata["displayGrowth"]
             cards[index].sourceBackgroundKind = result.metadata["sourceBackgroundColor"]
             let item = context.applying(result, to: originalItem), c = result.candidate
-            cards[index].item = item; cards[index].typography = shaped.1; cards[index].style = shaped.2
+            cards[index].item = item; cards[index].typography = shaped.1
+            let outlinePaintOrder = cards[index].style.outlinePaintOrder
+            cards[index].style = shaped.2; cards[index].style.outlinePaintOrder = outlinePaintOrder
             cards[index].style.foreground = NativeTranslationRenderer.color(result.foreground.map { CGFloat($0) })
             cards[index].finalFontSize = CGFloat(c.font)
             let physicalLeft = c.rect.midX - c.rect.width * c.condense / 2
@@ -372,7 +377,9 @@ extension NativeTranslationRenderer {
             if clipped.result.candidate.font != result.candidate.font,
                let shaped = context.shape(item: original, appearance: appearance, candidate: clipped.result.candidate, guardPixels: 1) {
                 cards[index].item = context.applying(clipped.result, to: original)
-                cards[index].typography = shaped.1; cards[index].style = shaped.2
+                cards[index].typography = shaped.1
+                let outlinePaintOrder = cards[index].style.outlinePaintOrder
+                cards[index].style = shaped.2; cards[index].style.outlinePaintOrder = outlinePaintOrder
                 cards[index].finalFontSize = CGFloat(clipped.result.candidate.font)
             }
             if result.accepted { cards[index].slantedTrial = clipped.result; context.results[id] = clipped.result }

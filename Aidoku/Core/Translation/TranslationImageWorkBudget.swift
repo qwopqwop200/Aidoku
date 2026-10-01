@@ -30,7 +30,6 @@ final class TranslationImageWorkBudget: Sendable {
             await MainActor.run {
                 ImagePipeline.shared.configuration.imageCache?.removeAll()
                 ReaderTranslationRenderCache.shared.clearMemory()
-                ReaderTranslationImageExporter.clearIdleRenderer()
             }
         }, purgeModels: {
             if #available(iOS 18.0, *) { await ReaderOCRService.shared.purge() }

@@ -1,9 +1,9 @@
 import Foundation
 import CoreGraphics
 
-/// Late (post-harmony) whole-word repair. Query callbacks operate on the live trial,
+/// Whole-word repair before harmony and after its final cohort pass. Query callbacks operate on the live trial,
 /// including its inherited style and explicit block children; a failed trial restores
-/// the complete caption. This file is staged until the next application checkpoint.
+/// the complete caption. Each phase retains its own bounded page allowance.
 enum NativeLateWordRepair {
     struct Profile {
         var ink: [CGRect]
@@ -35,6 +35,8 @@ enum NativeLateWordRepair {
         var balloonRestored = false
         var hasWordMeasure = true
         var hasScale = false
+        var late = true
+        var preGrowthFont: Double?
         var font: Double
         var pitchRatio: Double
         var sourceGlyph: Double
@@ -86,7 +88,7 @@ enum NativeLateWordRepair {
             input.hasSurfaceQuery, input.hasPanelGeometry, !input.containsNewline,
             input.utf16Length <= 180, input.rootChild, !input.hidden, !input.transformed,
             input.inpainted, input.textInside, input.restored || input.balloonRestored,
-            input.hasWordMeasure, !input.hasScale, budget.late > 0 else { return nil }
+            input.hasWordMeasure, (!input.late || !input.hasScale), budget.late > 0 else { return nil }
         let savedCaption = snapshot()
         let savedType = budget.type, savedSurface = budget.surface, savedExterior = budget.exterior
         var accepted = false
@@ -96,7 +98,7 @@ enum NativeLateWordRepair {
             budget.type = savedType; budget.surface = savedSurface; budget.exterior = savedExterior
             if !accepted { restore(savedCaption) }
         }
-        guard let original, original.bad > 0, input.font > 0,
+        guard let original, (input.late ? original.bad : original.splits) > 0, input.font > 0,
             let box = original.bounds, box.width > 0, box.height > 0,
             let inkLuminance = input.sourceInkLuminance, inkLuminance.isFinite,
             input.sourceGlyph > 0, input.sourceGlyph.isFinite else { return nil }
@@ -111,13 +113,14 @@ enum NativeLateWordRepair {
         var centers = [CGPoint(x:box.midX,y:box.midY)]
         let sourceCenter = CGPoint(x:input.source.midX,y:input.source.midY)
         if !centers.contains(where:{abs($0.x-sourceCenter.x)<0.5 && abs($0.y-sourceCenter.y)<0.5}) { centers.append(sourceCenter) }
-        let minimum = max(ceil(input.font*0.95*4)/4,min(input.font,8.5))
+        let minimum = input.late ? max(ceil(input.font*0.95*4)/4,min(input.font,8.5)) :
+            max(input.preGrowthFont ?? input.font,input.font*0.85,min(input.font,8.5))
         var sizes = [input.font]
         var size = floor(input.font*4)/4-0.25
         while size >= minimum-0.001 { if sizes.count<5 { sizes.append(size) }; size -= 0.25 }
         var attempts = 0
         for font in sizes {
-            for condense in [1.0,0.9] {
+            for condense in input.late ? [1.0,0.9] : [1.0] {
                 let word = wordWidth(font)*condense
                 let scaled = box.width*font/input.font
                 let widths = Set([word+1,word*1.12,scaled*1.2,scaled*1.45,scaled*1.8,word*1.5].map{floor($0*4)/4})
@@ -135,8 +138,8 @@ enum NativeLateWordRepair {
                             font:font,condense:condense,maxLines:min(original.lines,Int(floor(height/pitch))),anchor:anchor,pitch:pitch)
                         guard candidate.maxLines>=1, let measured = measure(candidate), measured.contentFits else { continue }
                         let p = measured.profile
-                        guard p.lines<=original.lines, p.bad==0, p.splits<=original.splits,
-                            p.isolated<=original.isolated,p.fragments<=original.fragments,
+                        let wholeWords = input.late ? p.bad==0 && p.splits<=original.splits && p.isolated<=original.isolated : p.splits==0
+                        guard p.lines<=original.lines, wholeWords,p.fragments<=original.fragments,
                             p.punctuationOnly<=original.punctuationOnly,p.badStarts<=original.badStarts,p.badEnds<=original.badEnds,
                             let next=p.bounds,next.width>0,next.height>0,
                             next.minX>=window.minX,next.maxX<=window.maxX,next.minY>=window.minY,next.maxY<=window.maxY else { continue }
@@ -147,7 +150,7 @@ enum NativeLateWordRepair {
                         budget.lookup=allowance
                         let fits=surface(probe,inkLuminance,&budget)
                         budget.surface -= allowance-budget.lookup; budget.lookup=previous
-                        guard fits,abs(measured.live.midX-anchor.x)<=1.5,abs(measured.live.midY-anchor.y)<=1.5,accept() else { continue }
+                        guard fits,abs(measured.live.midX-anchor.x)<=1.5,abs(measured.live.midY-anchor.y)<=1.5,(!input.late || accept()) else { continue }
                         accepted=true
                         let spent=max(1,(savedType-budget.type)*64+savedSurface-budget.surface+savedExterior-budget.exterior)
                         return Result(candidate:candidate,profile:p,originalBad:original.bad,originalFont:input.font,attempts:attempts,spent:spent)

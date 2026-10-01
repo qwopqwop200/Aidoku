@@ -218,6 +218,14 @@ enum HostAnalysis {
         for file in stageFiles {
             if let data = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any], let name = data["stage"] as? String {
                 if name.contains("metric") || name.contains("phases") || name.contains("timing") { metrics.append(data) }
+                if name == "native-render-diagnostics", let value = data["value"] as? [String: Any] {
+                    metrics.append(["stage": name, "value": ["cards": (value["cards"] as? [Any])?.count ?? 0,
+                        "initialPatches": (value["initialPatches"] as? [Any])?.count ?? 0,
+                        "finalPatches": (value["finalPatches"] as? [Any])?.count ?? 0,
+                        "captureFailures": value["initialPatchCaptureFailures"] ?? [],
+                        "initialPatchCaptureFailures": value["initialPatchCaptureFailures"] ?? [],
+                        "finalPatchCaptureFailures": value["finalPatchCaptureFailures"] ?? []]])
+                }
                 if name == "render-dom", let value = data["value"] as? [String: Any], let root = value["root"] as? [String: Any] {
                     metrics.append(["stage": "render-dom-root", "value": root])
                 }

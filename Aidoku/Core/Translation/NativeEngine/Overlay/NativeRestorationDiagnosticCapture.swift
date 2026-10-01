@@ -3,7 +3,7 @@ import Foundation
 import ImageIO
 
 /// An immutable diagnostic snapshot of actual native patches. Encoding runs
-/// only when the renderer requests diagnostics, before later canvas trials.
+/// only when the renderer requests diagnostics, at the caller's initial or final stage.
 enum NativeRestorationDiagnosticCapture {
     struct Report {
         var records: [[String: Any]] = []
@@ -48,6 +48,11 @@ enum NativeRestorationDiagnosticCapture {
             }
             let appearance = patch.itemID.flatMap { restoration.appearances[$0] }
             let candidate = patch.candidate
+            // Deferred repairs intentionally have no mutable candidate. Their
+            // finalForcedErasure certificate is set only after the production
+            // admission requires complete glyph erasure with no preserved ink.
+            let acceptedFinalForced = patch.finalForcedErasure && appearance?.finalForcedErasure == true &&
+                appearance?.erasureComplete == true && appearance?.sourceGlyphsVerified == true
             var record: [String: Any] = [
                 "id": patch.itemID as Any? ?? NSNull(),
                 "frame": [patch.rect.minX, patch.rect.minY, patch.rect.width, patch.rect.height],
@@ -56,8 +61,11 @@ enum NativeRestorationDiagnosticCapture {
                 "finalForcedErasure": patch.finalForcedErasure,
                 "independentArtworkCover": patch.independentArtworkCover,
                 "method": (candidate?.method ?? appearance?.restorationMethod) as Any? ?? NSNull(),
+                "surfaceQuality": patch.surfaceQuality as Any? ?? NSNull(),
                 "erasureComplete": candidate?.erasureComplete ?? appearance?.erasureComplete ?? false,
                 "sourceGlyphsVerified": candidate?.sourceGlyphsVerified ?? appearance?.sourceGlyphsVerified ?? false,
+                "sourceErasureVerified": candidate?.sourceErasureVerified ?? acceptedFinalForced,
+                "sourceErasureProof": candidate != nil ? "candidate" : acceptedFinalForced ? "accepted-final-forced" : "unverified",
                 "provisional": candidate?.provisional ?? appearance?.provisional ?? false,
                 "candidateRevision": candidate?.revision as Any? ?? NSNull()
             ]
@@ -68,7 +76,6 @@ enum NativeRestorationDiagnosticCapture {
             }
             if let candidate {
                 record["sourceRemainingInk"] = candidate.sourceRemainingInk as Any? ?? NSNull()
-                record["sourceErasureVerified"] = candidate.sourceErasureVerified
                 record["localRestorationProposal"] = candidate.localRestorationProposal
             }
             report.records.append(record)

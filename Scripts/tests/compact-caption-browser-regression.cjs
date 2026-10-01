@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // PLAYWRIGHT_MODULE=/path/to/playwright node Scripts/tests/compact-caption-browser-regression.cjs
 // Exercise final caption geometry in WebKit: preserve old erasure footprints,
 // keep rectangular silhouettes, and keep the selected readable font intact.

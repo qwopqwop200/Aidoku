@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Read-only SDK typecheck against Root's actual built Aidoku module.
-No app build or simulator access. Run after Root declares BUILD52 complete:
-51's module predates the retained background declaration fields.
+No app build or simulator access. Use a successful current native-only Aidoku
+build with matching sources/settings; the label records that exact prerequisite.
 """
 from pathlib import Path
 import argparse, subprocess, json, hashlib
@@ -24,17 +24,17 @@ if not module.is_file(): raise SystemExit('Root-built arm64 Aidoku module missin
 developer=Path(subprocess.check_output(['xcode-select','-p'],text=True).strip())
 sdk=subprocess.check_output(['xcrun','--sdk','iphonesimulator','--show-sdk-path'],text=True).strip()
 framework=developer/'Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks'
-macro=developer/'Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing/libTestingMacros.dylib'
+toolchain=developer/'Toolchains/XcodeDefault.xctoolchain'
+plugins=toolchain/'usr/lib/swift/host/plugins/testing'
+plugin_server=toolchain/'usr/bin/swift-plugin-server'
 command=['xcrun','swiftc','-typecheck','-swift-version','6','-strict-concurrency=complete','-sdk',sdk,
  '-cxx-interoperability-mode=default','-Xcc','-std=gnu++17','-module-cache-path',str(out/'ModuleCache'),
  '-target','arm64-apple-ios18.0-simulator','-F',str(framework),'-F',str(products),'-F',str(products/'PackageFrameworks'),
  '-I',str(products),'-I',str(root/'Scripts/overlay-kernels/native'),'-Xcc',
  '-fmodule-map-file='+str(root/'Scripts/overlay-kernels/native/module.modulemap'),
- '-load-plugin-library',str(macro),str(helper)]
-for component in ['wasm3-c','wasm3-support']:
-    command[-1:-1]=['-Xcc','-I'+str(root/'Vendor/Wasm3/Sources'/component/'include')]
+ '-external-plugin-path',str(plugins)+'#'+str(plugin_server),str(helper)]
 generated=products.parents[1]/'Intermediates.noindex/GeneratedModuleMaps-iphonesimulator'
-for name in ['wasm3-c.modulemap','wasm3-support.modulemap','SVGKit.modulemap','CocoaLumberjack.modulemap']:
+for name in ['SVGKit.modulemap','CocoaLumberjack.modulemap']:
     mapping=generated/name
     if not mapping.is_file(): raise SystemExit('Required actual generated module map missing: '+str(mapping))
     command[-1:-1]=['-Xcc','-fmodule-map-file='+str(mapping)]

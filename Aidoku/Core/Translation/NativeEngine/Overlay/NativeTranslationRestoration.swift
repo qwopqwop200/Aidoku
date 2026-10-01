@@ -94,6 +94,16 @@ enum NativeTranslationRestoration {
         var paperProposalRemaining = 2_097_152
         var deferredForced: NativeDeferredForcedRestoration?
         var cleanupGeometry: NativeSourceSurfaceGeometry.Geometry?
+        var collectDiagnostics = false
+        var restorationAttempts: [[String: Any]] = []
+
+        mutating func recordAttempt(_ item: NativeTranslationLayoutItem, phase: String, details: [String: Any]) {
+            guard collectDiagnostics else { return }
+            var record = details
+            record["id"] = item.id
+            record["phase"] = phase
+            restorationAttempts.append(record)
+        }
     }
 
     typealias SlantedAdmission = (NativeTranslationLayoutItem, Appearance, NativeSlantedRestoration.ProofRaster, CGFloat) -> Bool
@@ -102,8 +112,10 @@ enum NativeTranslationRestoration {
 
     static func prepare(image: CGImage?, layout: NativeTranslationLayout, settings: IPhoneOverlaySettings,
                         acceptSlanted: SlantedAdmission? = nil, acceptPageSlanted: SlantedPageAdmission? = nil,
-                        cleanupGeometry: NativeSourceSurfaceGeometry.Geometry? = nil) throws -> Result {
+                        cleanupGeometry: NativeSourceSurfaceGeometry.Geometry? = nil,
+                        collectDiagnostics: Bool = false) throws -> Result {
         var result = Result()
+        result.collectDiagnostics = collectDiagnostics
         result.cleanupGeometry = cleanupGeometry
         let cleanupFrame = cleanupGeometry?.frame ?? layout.sourceRect
         guard settings.preserveSourceTextColor || settings.preserveSourceBackgroundColor || settings.usesSourceInpainting else { return result }
@@ -196,6 +208,12 @@ enum NativeTranslationRestoration {
                             slantedProof = proposal.result.proof; slantedScale = proposal.scale
                         }
                     }
+                    if collectDiagnostics {
+                        result.recordAttempt(item, phase: "slanted-preparation", details: [
+                            "reasons": failures.reasons, "rasterAvailable": slantedRasterAvailable,
+                            "admitted": prepared != nil, "backgroundConfidence": palette?.backgroundConfidence ?? 0
+                        ])
+                    }
                     // The caller's initial glyph proof runs before this fallback spends
                     // a second crop allowance, preserving the page's shared budget order.
                     let unproven = !failures.reasons.isEmpty && failures.reasons.allSatisfy { ["panel", "preserved-core", "budget"].contains($0) }
@@ -215,6 +233,14 @@ enum NativeTranslationRestoration {
                     }
                 }
                 if repaired == nil, let descriptor = prepared {
+                    if collectDiagnostics {
+                        func rect(_ r: CGRect) -> [Double] { [r.minX, r.minY, r.width, r.height].map(Double.init) }
+                        result.recordAttempt(item, phase: "source-crop", details: [
+                            "detached": detached, "crop": rect(descriptor.crop), "box": rect(descriptor.box),
+                            "width": descriptor.pixels.width, "height": descriptor.pixels.height,
+                            "auxiliary": descriptor.auxiliary.map(rect), "excluded": descriptor.excluded.map(rect)
+                        ])
+                    }
                     var options = NativeObservedRestoreOptions()
                     options.chromaticBalloon = item.balloonInterior?.contourVerified == true
                     options.sampleScale = Double(min(descriptor.sx, descriptor.sy))
@@ -234,14 +260,49 @@ enum NativeTranslationRestoration {
                             angle: Double(item.rotation), auxiliary: item.auxiliaryInkRects.compactMap(cropper.pixelRect).map(NativeSlantedGeometry.array), palette: palette) {
                             let appearance = Appearance(foreground: sampledForeground?.cgColor, background: palette?.verifiedBackground?.cgColor,
                                 restored: false, stroke: sampledStroke?.cgColor, sourceSample: sample)
-                            repaired = acceptPageSlanted?(item, appearance, descriptor, gated.result) == true ? gated.result : nil
+                            let admitted = acceptPageSlanted?(item, appearance, descriptor, gated.result) == true
+                            repaired = admitted ? gated.result : nil
+                            if collectDiagnostics {
+                                result.recordAttempt(item, phase: "slanted-page-admission", details: [
+                                    "admitted": admitted, "quadProof": true
+                                ])
+                            }
                             if repaired != nil { repaired?.erasureComplete = true; repaired?.glyphsVerified = true }
-                        } else { repaired = nil }
+                        } else {
+                            if collectDiagnostics {
+                                result.recordAttempt(item, phase: "slanted-page-admission", details: [
+                                    "admitted": false, "quadProof": false,
+                                    "observedRepair": repaired != nil,
+                                    "preservedCore": repaired?.preservedCore ?? 0,
+                                    "preservedPixels": repaired?.preservedPixels ?? 0
+                                ])
+                            }
+                            repaired = nil
+                        }
                     } else {
+                        let balloonProof = NativeClosedBalloonExclusion.prove(prepared: descriptor, item: item,
+                            palette: palette, imageSize: CGSize(width: image.width, height: image.height))
+                        let ownedExclusions = balloonProof?.excluded ?? descriptor.excluded
+                        if collectDiagnostics, ownedExclusions != descriptor.excluded {
+                            result.recordAttempt(item, phase: "closed-balloon-owned-rectangle", details: [
+                                "originalExclusions": descriptor.excluded.count, "resolvedExclusions": ownedExclusions.count
+                            ])
+                        }
+                        if !ownedExclusions.isEmpty && abs(item.rotation) <= 0.01 {
+                            options.excludedDonorPolicy = .observedSource
+                        }
                         repaired = NativeRestorationPixels.restore(descriptor.pixels, box: descriptor.box,
-                            auxiliary: descriptor.auxiliary, excluded: descriptor.excluded, palette: palette,
+                            auxiliary: descriptor.auxiliary, excluded: ownedExclusions, palette: palette,
                             vertical: item.sourceVertical, polygon: localPolygon(polygon(item), in: descriptor),
-                            slanted: abs(item.rotation) > 0.01, sourceOptions: options)
+                            slanted: abs(item.rotation) > 0.01, sourceOptions: options,
+                            inferredRubyExclusions: descriptor.excluded)
+                        if let balloonProof, var candidate = repaired {
+                            let added = balloonProof.certifyLayout(of: &candidate)
+                            repaired = candidate
+                            if collectDiagnostics, added > 0 {
+                                result.recordAttempt(item, phase: "closed-balloon-readable-paper", details: ["pixels": added])
+                            }
+                        }
                     }
                 }
                 if var proposal = repaired, let descriptor = prepared {

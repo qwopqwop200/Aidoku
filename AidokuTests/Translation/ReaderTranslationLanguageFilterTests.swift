@@ -175,30 +175,32 @@ struct ReaderTranslationLanguageFilterTests {
         #expect(try await reopened.translate(fixture.page, settings: settings).map(\.id) == Self.mixed.map(\.id))
     }
 
-    @Test func legacyTranslationIsFilteredAfterRestartWithoutProcessingAgain() async throws {
+    @Test(arguments: ["auto", "ja"])
+    func legacyTranslationIsFilteredAfterRestartWithoutProcessingAgain(source: String) async throws {
+        // These are separate pre-filter cache histories. Sharing a database
+        // would intentionally invalidate the first source-language policy when
+        // the second session opens, obscuring the legacy-key reuse contract.
         let fixture = LanguageFilterFixture()
         let originals = Self.mixed.map { var region = $0; region.translation = "saved-" + region.id; return region }
-        // Cover both an old auto/all cache and old fixed Japanese (previously unfiltered).
-        for source in ["auto", "ja"] {
-            var settings = fixture.settings
-            settings.sourceLanguage = source
-            settings.translationSourceLanguages = ["ja"]
-            let key = ReaderTranslationCacheIdentity.unfilteredTranslation(page: fixture.page.translationCacheKey, settings: settings)
-            try await fixture.disk.storeRegions(originals, for: key, kind: .translation, generation: 0)
-            let view = UIImageView(image: Self.image())
-            let page = ReaderTranslationPage(imageView: view)
-            page.sourcePage = fixture.page
-            let session = ReaderTranslationSession(validate: { _ in }, process: { _, _, _ in
-                Issue.record("Saved all-language results must not trigger OCR or API again")
-                return []
-            }, diskCache: ReaderTranslationDiskCache(directory: fixture.root))
-            session.update(items: [.init(fixture.page)], visible: [page], context: "chapter")
-            session.enable(settings: settings)
-            try await waitUntil { page.hasCompletedTranslation(settings: settings) }
-            #expect(page.regions.map(\.id) == (source == "auto" ? ["ja"] : ["ja", "han"]))
-            #expect(page.regions.allSatisfy { $0.translation == "saved-" + $0.id })
-            session.close()
-        }
+        var settings = fixture.settings
+        settings.sourceLanguage = source
+        settings.translationSourceLanguages = ["ja"]
+        let key = ReaderTranslationCacheIdentity.unfilteredTranslation(page: fixture.page.translationCacheKey, settings: settings)
+        try await fixture.disk.storeRegions(originals, for: key, kind: .translation, generation: 0)
+        #expect(try await fixture.disk.regions(for: key, kind: .translation) == originals)
+        let view = UIImageView(image: Self.image())
+        let page = ReaderTranslationPage(imageView: view)
+        page.sourcePage = fixture.page
+        let session = ReaderTranslationSession(validate: { _ in }, process: { _, _, _ in
+            Issue.record("Saved all-language results must not trigger OCR or API again")
+            return []
+        }, diskCache: ReaderTranslationDiskCache(directory: fixture.root))
+        defer { session.close() }
+        session.update(items: [.init(fixture.page)], visible: [page], context: "chapter")
+        session.enable(settings: settings)
+        try await waitUntil { page.hasCompletedTranslation(settings: settings) }
+        #expect(page.regions.map(\.id) == (source == "auto" ? ["ja"] : ["ja", "han"]))
+        #expect(page.regions.allSatisfy { $0.translation == "saved-" + $0.id })
     }
 
     @Test func filteredSubsetNeverPoisonsAnExpandedOrAllLanguageCache() async throws {

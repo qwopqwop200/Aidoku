@@ -67,7 +67,6 @@ struct PerformanceOOMOptimizationTests {
     }
 
     @Test func boundedDetectorPreservesNonAlignedHighContrastSampling() async throws {
-        guard #available(iOS 18.0, *) else { return }
         let width = 1281, height = 64
         var bytes = [UInt8](repeating: 255, count: width * height * 4)
         for y in 0..<height {
@@ -85,7 +84,6 @@ struct PerformanceOOMOptimizationTests {
     }
 
     @Test func boundedDetectorInputMatchesMLTensorResize() async throws {
-        guard #available(iOS 18.0, *) else { return }
         // Deliberately non-aligned dimensions and row padding exercise the
         // half-pixel convention and ensure padding is not sampled as artwork.
         let width = 257, height = 389, stride = 257 * 4 + 16

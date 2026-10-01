@@ -1,10 +1,22 @@
-name: Source Color Regressions
+name: Native Translation and Frozen Reference Regressions
 
 on:
   pull_request:
     paths:
       - ".github/workflows/source-color.yml"
-      - "Aidoku/Core/Translation/NativeEngine/Overlay/**"
+      - "Aidoku/Core/Translation/**"
+      - "Aidoku.xcodeproj/**"
+      - "AidokuFast.xctestplan"
+      - "AidokuFull.xctestplan"
+      - "Scripts/verify_native_quality_result.py"
+      - "Aidoku/Features/Reader/Translation/**"
+      - "AidokuTests/Translation/**"
+      - "Scripts/image-translation.swift"
+      - "Scripts/image-translation/**"
+      - "Scripts/overlay-kernels/**"
+      - "Scripts/test_*.py"
+      - "Scripts/tests/**"
+      - "Scripts/tests/run-image-*.py"
       - "Scripts/tests/source-color-*.cjs"
       - "Scripts/tests/export-source-background-fixtures.py"
       - "Scripts/tests/source-inpainting-*.cjs"
@@ -27,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Test production color estimation and sampling
+      - name: Test frozen browser-reference color estimation and sampling
         run: |
           # Run every regression and fail at the end, so one red runner does not hide the others.
           status=0
@@ -54,14 +66,93 @@ jobs:
           node Scripts/tests/render-body-sync-regression.cjs || status=1
           node Scripts/tests/balloon-unit-commit-regression.cjs || status=1
           node Scripts/tests/balloon-unit-plate-footprint-regression.cjs || status=1
-          node Scripts/tests/source-inpainting-segmentation.cjs || status=1
           node Scripts/tests/source-inpainting-panel-incidents.cjs || status=1
           node Scripts/tests/source-inpainting-frame-fringe.cjs || status=1
           node Scripts/tests/source-inpainting-pink-tail.cjs || status=1
           node Scripts/tests/column-layout-surface-regression.cjs || status=1
           node Scripts/tests/source-inpainting-hard-cases.cjs || status=1
           node Scripts/tests/source-inpainting-textures.cjs || status=1
-          node Scripts/tests/slanted-artwork-regression.cjs || status=1
-          node Scripts/tests/slanted-ruby-regression.cjs || status=1
           node Scripts/tests/slanted-residual-ink-regression.cjs || status=1
           exit "$status"
+
+  native-host:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "26.6"
+      - name: Set up native pixel kernel toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Node for browser-reference fixtures
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install pinned Playwright and WebKit
+        run: |
+          npm install --prefix "$RUNNER_TEMP/aidoku-browser-tests" --no-package-lock --no-save playwright@1.63.0
+          "$RUNNER_TEMP/aidoku-browser-tests/node_modules/.bin/playwright" install webkit
+          echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/aidoku-browser-tests/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Test native host renderer, CLI and complete reference matrix
+        run: python3 Scripts/test_quick.py --full-host --host-result-directory "$RUNNER_TEMP/aidoku-full-host-results"
+      - name: Preserve every host command result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-full-host-results
+          path: ${{ runner.temp }}/aidoku-full-host-results
+          if-no-files-found: warn
+
+  native-quality:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "26.6"
+      - name: Set up native pixel kernel toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios-sim,x86_64-apple-ios
+      - name: Select an available iOS simulator
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, re, subprocess
+          state = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', '--json']))
+          runtimes = {}
+          for runtime in state['runtimes']:
+              version = tuple(int(value) for value in re.findall(r'\d+', runtime.get('version', '')))
+              if runtime.get('isAvailable') and runtime['identifier'].startswith('com.apple.CoreSimulator.SimRuntime.iOS-') and version >= (26,):
+                  runtimes[runtime['identifier']] = version
+          candidates = [(runtimes[runtime], device['name'], device['udid'], device['state'])
+                        for runtime, devices in state['devices'].items() if runtime in runtimes
+                        for device in devices if device.get('isAvailable') and device['name'].startswith('iPhone')]
+          if not candidates:
+              raise SystemExit('No available iOS26+ iPhone simulator; native quality verification cannot be skipped.')
+          version, name, udid, status = max(candidates)
+          if status != 'Booted':
+              subprocess.run(['xcrun', 'simctl', 'boot', udid], check=True)
+          subprocess.run(['xcrun', 'simctl', 'bootstatus', udid, '-b'], check=True)
+          with open(os.environ['GITHUB_ENV'], 'a') as environment:
+              environment.write('AIDOKU_QUALITY_SIMULATOR=' + udid + '\n')
+          print('Native quality simulator:', name, version, udid)
+          PYTHON
+      - name: Test complete native restoration quality matrices
+        run: |
+          python3 Scripts/test_quick.py --ios NativeSourceSegmentationMatrixTests NativeSlantedRestorationMatrixTests NativeSourceOwnershipMatrixTests \
+            --configuration Release --device "$AIDOKU_QUALITY_SIMULATOR" --jobs 2 \
+            --derived-data build/simulator-fast-release --result-bundle "$RUNNER_TEMP/aidoku-native-quality.xcresult"
+      - name: Require all three suites and every parameter case
+        if: always()
+        run: |
+          python3 Scripts/verify_native_quality_result.py "$RUNNER_TEMP/aidoku-native-quality.xcresult" \
+            --output "$RUNNER_TEMP/aidoku-native-quality.coverage.json"
+      - name: Preserve native quality execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-restoration-quality-results
+          path: ${{ runner.temp }}/aidoku-native-quality*
+          if-no-files-found: error

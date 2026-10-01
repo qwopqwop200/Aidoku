@@ -71,6 +71,8 @@ extension NativeTranslationRenderer {
             cards[index].style.foreground = color(update.fill.map { CGFloat($0) })
             cards[index].style.outline = update.stroke.map { color($0.map { CGFloat($0) }) }
             cards[index].style.outlineWidth = CGFloat(update.strokeWidth)
+            if update.stroke != nil { cards[index].style.outlinePaintOrder = .strokeThenFill }
+            else if removedStroke { cards[index].style.outlinePaintOrder = .fillThenStroke }
             cards[index].strokePreserved = update.stroke != nil
             if removedStroke { cards[index].sourceStrokeKind = "none" }
             cards[index].clusterRGB = nil

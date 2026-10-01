@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // PLAYWRIGHT_MODULE=/path/to/playwright node Scripts/tests/source-bridge-browser-regression.cjs
 // Bounded real WebKit checks for rejected-caption artwork coverage and explicit
 // oversized source preservation. Both blocks are extracted from production.

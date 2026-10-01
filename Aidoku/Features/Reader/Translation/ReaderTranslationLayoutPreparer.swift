@@ -221,7 +221,7 @@ final class ReaderTranslationLayoutPreparer {
                 let snapshot = try await ReaderTranslationImageExporter.renderCacheSnapshot(
                     image: source, imageSize: size, regions: displayed, settings: settings,
                     viewport: viewport, scale: geometry.scale, aspectFit: geometry.aspectFit,
-                    host: window ?? UIView(), dark: geometry.dark, preparedLayout: layout,
+                    host: window, dark: geometry.dark, preparedLayout: layout,
                     assetCache: renderCache, assetKey: key, assetSourceDigest: sourceDigest
                 )
                 try Task.checkCancellation()

@@ -1,12 +1,14 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Run the production short-caption release pass in WebKit. The separate
 // ReaderCaptionOriginalReplayTests verifies the user's exact original page.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const {webkit} = require('playwright');
+const {webkit} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const source = fs.readFileSync(path.join(__dirname, '../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'), 'utf8');
 const start = source.indexOf('    // Short captions need only a glyph outline');
-const end = source.indexOf('    let captionReadBudget=', start);
+// Extract only this pass; later independent title/caption policies have their own fixtures.
+const end = source.indexOf('    // A failed or budget-skipped local restoration', start);
 assert.ok(start > 0 && end > start);
 const body = source.slice(start, end);
 (async () => {

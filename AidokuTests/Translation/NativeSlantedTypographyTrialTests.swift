@@ -66,4 +66,50 @@ struct NativeSlantedTypographyTrialTests {
         #expect(!result.pendingReadableLift)
         #expect(budget == 0)
     }
+
+    @Test(arguments: ["safe", "unproven-frame", "not-page", "horizontal-source", "content-overflow", "auxiliary-ink", "excluded-ink", "dark-backing"])
+    func narrowSourceFrameReflowRetainsAllPixelAndContentGuards(_ condition: String) {
+        typealias Trial = NativeSlantedTypographyTrial
+        let candidate = Trial.Candidate(rect: CGRect(x: 0, y: 0, width: 13.3, height: 43.1),
+            font: 5, pitch: 5.9668, padding: [0.74, 0.55, 0.74, 0.55])
+        let entry = Trial.Entry(quad: candidate.rect, initial: candidate, text: "음(승인가)",
+            sourceVertical: condition != "horizontal-source", canMeasureWords: false, sourceForeground: [56, 56, 56])
+        let width = 40, height = 140
+        var safe: [UInt8] = (0..<(width * height)).map { $0 % width >= 6 && $0 % width <= 33 ? 1 : 0 }
+        if condition == "auxiliary-ink" { safe[50 * width + 20] = 0 }
+        if condition == "excluded-ink" { safe[75 * width + 18] = 0 }
+        let luminance = [UInt8](repeating: condition == "dark-backing" ? 12 : 245, count: width * height)
+        let surface = Trial.Surface(id: "owned-page", isPage: condition != "not-page", width: width, height: height,
+            safe: safe, luminance: luminance, verifiedNarrowFrame: condition != "unproven-frame")
+        var fractions: [Double] = []
+        let hooks = Trial.Hooks(measure: { c in
+            fractions.append(c.fraction)
+            let narrow = c.fraction <= 0.7
+            return Trial.Measurement(glyphs: narrow ? [[3, 10, 10, 32]] : [[0.5, 15, 12.5, 26]], lines: [],
+                lineCount: narrow ? 4 : 2, contentFits: condition != "content-overflow", wordBroken: false)
+        }, longestWord: { _ in 0 }, fits: { s, c, glyphs, color, audit in
+            // Exercise the actual glyph-footprint checker, not an accepting mock.
+            NativeSlantedInkSafety.rotatedPageInkFits(width: s.width, height: s.height, safe: s.safe, luminance: s.luminance,
+                sx: 1, sy: 1, ox: 0, oy: 0, rects: glyphs, node: [0, 0, 13.3, 43.1], angle: c.angle,
+                toImage: { [$0 * 3, $1 * 3] }, foreground: color, audit: &audit)
+        })
+        let result = Trial.run(entry, surface: surface, hooks: hooks)
+        if condition == "safe" {
+            #expect(result.accepted && result.candidate.fraction == 0.7)
+            #expect(result.measurement?.lineCount == 4 && result.candidate.font == 5)
+            #expect(result.safety?.unsafeCount == 0 && result.safety?.dim == 0)
+            #expect(result.foreground == entry.sourceForeground)
+        } else if condition == "dark-backing" {
+            // Polarity correction remains the original behavior when ownership is safe.
+            #expect(result.accepted && result.candidate.fraction == 0.7)
+            #expect(result.safety?.unsafeCount == 0 && result.foreground != entry.sourceForeground)
+        } else {
+            #expect(!result.accepted)
+        }
+        if ["unproven-frame", "not-page", "horizontal-source"].contains(condition) {
+            #expect(fractions.allSatisfy { $0 == 1 })
+        }
+        #expect(result.measurements <= 8)
+        #expect(surface.safe == safe && surface.luminance == luminance)
+    }
 }

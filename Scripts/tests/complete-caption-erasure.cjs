@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Captured native-prepared crops. Independent source-ink labels cover the
 // previously rejected glyphs, including punctuation cut by the OCR boundary.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),crypto=require('node:crypto');

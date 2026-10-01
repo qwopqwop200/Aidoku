@@ -129,4 +129,52 @@ import Testing
         #expect(cards[0].finalFontSize==before.finalFontSize && cards[0].item==before.item)
         #expect(cards[0].typographyDisplayGrowth==mode && cards[0].harmonyRecord.isEmpty)
     }
+
+    @Test(arguments: [CGFloat(-0.05258306161094181), 0, 0.05], [false, true])
+    func initialCohortExcludesSlantedPeersBeforeComputingMedian(_ angle: CGFloat, _ locked: Bool) throws {
+        // Independent source glyph sizes and initial fonts from a real three-
+        // caption cohort. Both accepted and failed rotated trials take the
+        // separate slanted branch; an ordinary upright peer still participates.
+        let fonts: [CGFloat] = [20.5, 16.5, 6.75]
+        let glyphs: [CGFloat] = [18.693103256950142, 18.801204592196928, 15.85761646654376]
+        let texts = ["헉", "헉…", "——이것은"]
+        let frame = CGRect(x: 0, y: 0, width: 400, height: 300)
+        let items = try fonts.indices.map { index -> NativeTranslationLayoutItem in
+            let object: [String: Any] = ["id": "registration-\(index)", "text": texts[index],
+                "x": 20 + index * 120, "y": 40, "width": 100, "height": 180,
+                "fontSize": fonts[index], "lineHeight": fonts[index] * 1.2,
+                "paddingTop": 0, "paddingRight": 0, "paddingBottom": 0, "paddingLeft": 0,
+                "rotation": index == 0 ? angle : 0, "sourceFontSize": glyphs[index],
+                "sourceBounds": [Double(20 + index * 120) / 400, 0.2, 0.08, 0.3],
+                "sourceFrame": [0, 0, 400, 300], "sourceColorEligible": true, "sourceTextOnly": false,
+                "fontScript": "korean", "wrappingScript": "korean", "allowsAutomaticFontRecovery": false]
+            return try JSONDecoder().decode(NativeTranslationLayoutItem.self,
+                from: JSONSerialization.data(withJSONObject: object))
+        }
+        let layout = NativeTranslationLayout(imageSize: frame.size, sourceRect: frame, viewport: frame.size, items: items)
+        let restoration = NativeTranslationRestoration.Result()
+        let session = NativeTypographyPostPolish.rendererGrowthSession(layout: layout, restoration: restoration,
+            settings: settings, sourceImage: nil)
+        session.collectInitialDiagnostics = true
+        let refined = try NativeTypographyPostPolish.refining(layout: layout, restoration: restoration,
+            settings: settings, sourceImage: nil, growthSession: session,
+            lockedIDs: locked ? [items[0].id] : [], phase: .initial)
+        let expectedTarget: Double = angle == 0 ? 16.5 : 11.75
+        for item in items.dropFirst() {
+            let original = try #require(session.initialTypographyTrace(id: item.id).first {
+                $0["stage"] as? String == "cohort-original"
+            })
+            #expect((original["target"] as? NSNumber)?.doubleValue == expectedTarget)
+            #expect(session.context.growth.admitted.contains(item.id))
+        }
+        #expect(session.context.growth.admitted.contains(items[0].id) == (angle == 0))
+        if angle != 0 || locked {
+            #expect(refined.items[0] == items[0])
+        }
+        let sourceGeometryUnchanged = zip(items, refined.items).allSatisfy { pair in
+            pair.0.sourceBounds == pair.1.sourceBounds && pair.0.sourceFrame == pair.1.sourceFrame &&
+                pair.0.rotation == pair.1.rotation
+        }
+        #expect(sourceGeometryUnchanged)
+    }
 }

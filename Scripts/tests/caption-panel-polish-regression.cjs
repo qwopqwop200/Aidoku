@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Run with PLAYWRIGHT_MODULE pointing to a Playwright installation.
 // Uses actual WebKit geometry and the production final pass; no layout mocks.
 const assert = require('node:assert/strict');

@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Exercise the production dispatcher with controlled recovery outcomes. Pixel
 // ownership belongs to the individual restorers; this tests retry arbitration.
 const assert = require('node:assert/strict');

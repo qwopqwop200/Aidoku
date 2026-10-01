@@ -183,4 +183,34 @@ import Testing
         #expect(condensed.sourcePanels[0].rect == flushed.sourcePanels[0].rect)
     }
 
+    @Test(arguments: [false, true])
+    func rowLabelsFollowCurrentAppliedBackgroundInsteadOfSampledSource(_ coloredPlate: Bool) throws {
+        var (cards, oldLayout, restoration) = try fixture(tightOwner: false, verticalSource: false)
+        for i in cards.indices {
+            let data = try JSONEncoder().encode(cards[i].item)
+            let object = try JSONSerialization.jsonObject(with: data)
+            var descriptor = try #require(object as? [String: Any])
+            descriptor["sourceBounds"] = [(40 + Double(i) * 30) / 200, 0.2, 0.06, 0.2]
+            cards[i].item = try JSONDecoder().decode(NativeTranslationLayoutItem.self,
+                from: JSONSerialization.data(withJSONObject: descriptor))
+        }
+        let sampledPaper = NativeTranslationRenderer.color([135, 221, 208])
+        restoration.appearances[cards[0].item.id] = .init(foreground: CGColor(gray: 0, alpha: 1),
+            background: sampledPaper, restored: false,
+            sourceSample: ["foreground": [0, 0, 0], "background": [135, 221, 208]])
+        if coloredPlate { cards[0].sourcePanels[0].background = [135, 221, 208] }
+        let layout = NativeTranslationLayout(imageSize: oldLayout.imageSize, sourceRect: oldLayout.sourceRect,
+            viewport: oldLayout.viewport, items: cards.map(\.item))
+        let before = cards
+        let session = NativeTypographyPostPolish.rendererGrowthSession(layout: layout, restoration: restoration,
+            settings: settings, sourceImage: nil)
+        try NativeTranslationRenderer.reconcileTypographyHarmony(cards: &cards, layout: layout, restoration: restoration,
+            settings: settings, source: nil, growthSession: session, lockedIDs: [])
+        #expect(cards[0].item.y == before[0].item.y)
+        #expect(cards[1].item.y == before[1].item.y - (coloredPlate ? 0 : 20))
+        #expect(cards.map(\.finalFontSize) == before.map(\.finalFontSize))
+        #expect(cards.map { $0.sourcePanels[0].rect } == before.map { $0.sourcePanels[0].rect })
+        #expect(cards.map { $0.item.sourceBounds } == before.map { $0.item.sourceBounds })
+    }
+
 }

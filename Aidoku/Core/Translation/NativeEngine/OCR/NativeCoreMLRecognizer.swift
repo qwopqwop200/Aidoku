@@ -9,11 +9,13 @@ struct NativeCoreMLRecognitionRegion: Equatable, Sendable {
     let sourceIndex: Int
     let polygon: [CGPoint]
     let useProvidedOrder: Bool
+    let minimumSequenceWidth: Int
 
-    init(sourceIndex: Int, polygon: [CGPoint], useProvidedOrder: Bool = false) {
+    init(sourceIndex: Int, polygon: [CGPoint], useProvidedOrder: Bool = false, minimumSequenceWidth: Int = 0) {
         self.sourceIndex = sourceIndex
         self.polygon = polygon
         self.useProvidedOrder = useProvidedOrder
+        self.minimumSequenceWidth = minimumSequenceWidth
     }
 }
 
@@ -794,7 +796,8 @@ struct NativeCoreMLRecognitionBucket: Equatable, Hashable, Sendable {
         )
         if dynamicWidth {
             // Exact crop width: no bucket rounding and no minimum-width padding.
-            return Self(width: min(max(32, maximumWidth), max(32, desiredWidth)))!
+            let boundedMaximum = min(2_000, max(32, maximumWidth))
+            return Self(width: min(boundedMaximum, max(32, desiredWidth)))!
         }
         let admitted = all.filter { $0.width <= alignedMaximum }
         let available = admitted.isEmpty ? [all[0]] : admitted
@@ -1049,6 +1052,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
     static let maximumPreparedTensorBytes =
         maximumPreparedRegionCount * 3 * 48 * 1_280
             * MemoryLayout<Float>.stride
+    static let maximumPreparedWindowTensorBytes = maximumPreparedTensorBytes / 2
     static let defaultRecognitionCacheCapacity = 512
     /// Below this process headroom a window predicts one chunk at a time, so
     /// a second in-flight Core ML activation set is never added.
@@ -1454,7 +1458,8 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                     polygon: region.polygon,
                     dynamicWidth: dynamicWidthEnabled,
                     maximumWidth: maximumRecognitionWidth,
-                    useProvidedOrder: region.useProvidedOrder
+                    useProvidedOrder: region.useProvidedOrder,
+                    minimumSequenceWidth: region.minimumSequenceWidth
                 )
                 try requireCurrent(
                     issuedGeneration,
@@ -1511,7 +1516,10 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                 var chunkStart = groupStart
                 while chunkStart < groupEnd {
                     let remaining = groupEnd - chunkStart
-                    let chunkSize = usesBatchFour ? min(4, remaining) : 1
+                    let maximumChunkSize = NativeOCRPreparationWindowBudget.maximumChunkRegionCount(
+                        bucket: plannedRegions[chunkStart].plan.bucket
+                    )
+                    let chunkSize = usesBatchFour ? min(maximumChunkSize, remaining) : 1
                     let chunk = Array(
                         plannedRegions[chunkStart..<(chunkStart + chunkSize)]
                     )
@@ -1524,8 +1532,9 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                 groupStart = groupEnd
             }
 
-            // Four current tensors plus at most four lookahead tensors retain
-            // the existing eight-region byte budget. Prepare the next window
+            // Current and lookahead windows each retain at most four tensors
+            // and half the byte budget. Wider offline crops use smaller chunks.
+            // Prepare the next window
             // while Core ML predicts the current one. Up to two chunks of a
             // window predict concurrently; cache admission, audit events, and
             // diagnostics stay strictly serial in the established width order.
@@ -1639,16 +1648,16 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         startingAt start: Int
     ) -> Int {
         var end = start
-        var regionCount = 0
+        var budget = NativeOCRPreparationWindowBudget()
         while end < chunks.count {
-            let nextCount = chunks[end].works.count
-            if end > start,
-               regionCount + nextCount > maximumPreparedWindowRegionCount {
+            let next = chunks[end].works
+            guard let first = next.first,
+                  budget.admit(regions: next.count, bucket: first.plan.bucket) else {
                 break
             }
-            regionCount += nextCount
             end += 1
         }
+        precondition(end > start, "Every OCR chunk must fit one preparation window")
         return end
     }
 
@@ -1665,6 +1674,11 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         let regionCount = chunks.reduce(0) { $0 + $1.works.count }
         precondition(!chunks.isEmpty)
         precondition(regionCount <= Self.maximumPreparedWindowRegionCount)
+        var budget = NativeOCRPreparationWindowBudget()
+        precondition(chunks.allSatisfy { chunk in
+            guard let first = chunk.works.first else { return false }
+            return budget.admit(regions: chunk.works.count, bucket: first.plan.bucket)
+        })
         try requireCurrent(
             issuedGeneration,
             cancellationCheck: cancellationCheck
@@ -2560,6 +2574,39 @@ private struct NativeCoreMLRegionPreparationResult: Sendable {
     let fingerprint: NativeCoreMLRecognitionCropFingerprint?
 }
 
+/// Accounts for the actual Float backing in one of the two retained preparation
+/// windows. Region-count and byte admission both remain bounded for wider offline
+/// configurations; default reader crops at or below 1280 retain existing grouping.
+@available(iOS 18.0, *)
+struct NativeOCRPreparationWindowBudget: Sendable {
+    private(set) var regionCount = 0
+    private(set) var tensorBytes = 0
+
+    init() {}
+
+    static func bytesPerRegion(bucket: NativeCoreMLRecognitionBucket) -> Int {
+        3 * NativeCoreMLRecognitionPreprocessor.targetHeight * bucket.width * MemoryLayout<Float>.stride
+    }
+
+    static func maximumChunkRegionCount(bucket: NativeCoreMLRecognitionBucket) -> Int {
+        min(NativeCoreMLRecognizer.maximumPreparedWindowRegionCount,
+            NativeCoreMLRecognizer.maximumPreparedWindowTensorBytes / bytesPerRegion(bucket: bucket))
+    }
+
+    mutating func admit(regions: Int, bucket: NativeCoreMLRecognitionBucket) -> Bool {
+        // Validate the count before multiplying: callers cannot overflow the byte
+        // calculation with invalid counts, and rejected admissions change no state.
+        guard regions > 0,
+              regions <= Self.maximumChunkRegionCount(bucket: bucket),
+              regions <= NativeCoreMLRecognizer.maximumPreparedWindowRegionCount - regionCount else { return false }
+        let bytes = regions * Self.bytesPerRegion(bucket: bucket)
+        guard bytes <= NativeCoreMLRecognizer.maximumPreparedWindowTensorBytes - tensorBytes else { return false }
+        regionCount += regions
+        tensorBytes += bytes
+        return true
+    }
+}
+
 @available(iOS 18.0, *)
 struct NativeCoreMLPreparedTensor: Equatable, Sendable {
     let values: [Float]
@@ -2626,7 +2673,8 @@ enum NativeCoreMLRecognitionPreprocessor {
         polygon: [CGPoint],
         dynamicWidth: Bool = false,
         maximumWidth: Int = 2_000,
-        useProvidedOrder: Bool = false
+        useProvidedOrder: Bool = false,
+        minimumSequenceWidth: Int = 0
     ) -> Plan? {
         guard let quad = makeQuad(polygon, useProvidedOrder: useProvidedOrder),
               let homography = makeHomography(quad)
@@ -2653,11 +2701,22 @@ enum NativeCoreMLRecognitionPreprocessor {
             Double(maximumTargetWidth),
             max(1, ceil(Double(targetHeight) * ratio))
         ))
+        // Every admitted contextual request must materialize its declared
+        // sequence width. Static models or a smaller cap cannot supply two
+        // distinct widths, so they must not masquerade as corroborating reads.
+        let padsShortSequence = minimumSequenceWidth != 0
+        if padsShortSequence {
+            guard dynamicWidth, desiredWidth < 160,
+                  minimumSequenceWidth == 160 || minimumSequenceWidth == 192,
+                  maximumWidth >= minimumSequenceWidth else { return nil }
+        }
+        // Sampling keeps the original resizedWidth; ordinary crops stay exact.
         let bucket = NativeCoreMLRecognitionBucket.containing(
-            desiredWidth: desiredWidth,
+            desiredWidth: padsShortSequence ? max(desiredWidth, minimumSequenceWidth) : desiredWidth,
             dynamicWidth: dynamicWidth,
             maximumWidth: maximumWidth
         )
+        guard !padsShortSequence || bucket.width == minimumSequenceWidth else { return nil }
         let resizedWidth = min(bucket.width, desiredWidth)
         return Plan(
             resizedWidth: resizedWidth,

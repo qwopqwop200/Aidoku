@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Observed corpus replay. These measurements are evidence, not annotated accuracy.
 const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib');
 const [input,output,baseline]=process.argv.slice(2);

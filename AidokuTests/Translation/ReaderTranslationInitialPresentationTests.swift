@@ -41,13 +41,12 @@ struct ReaderTranslationInitialPresentationTests {
 
     @Test(arguments: [false, true])
     func exportedAssetReplaysIdenticalPixelsAfterCacheReopens(webtoon: Bool) async throws {
-        guard #available(iOS 18.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.keyWindow
         let window = UIWindow(windowScene: scene)
         window.rootViewController = UIViewController()
         window.makeKeyAndVisible()
-        defer { window.isHidden = true; previous?.makeKey(); ReaderTranslationImageExporter.clearIdleRenderer() }
+        defer { window.isHidden = true; previous?.makeKey() }
         let fixture = FirstDisplayFixture()
         let encodedSource = try #require(ReaderTranslationPersistentPipelineTests.image().pngData())
         let source = try #require(UIImage(data: encodedSource))
@@ -69,7 +68,6 @@ struct ReaderTranslationInitialPresentationTests {
             try await Task.sleep(for: .milliseconds(10))
         }
         cache.clearMemory()
-        ReaderTranslationImageExporter.clearIdleRenderer()
         let reopened = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: fixture.root))
         let reloadedSource = try #require(UIImage(data: encodedSource))
         #expect(reloadedSource !== source, "Restart validation must decode the source again")
@@ -152,7 +150,7 @@ struct ReaderTranslationInitialPresentationTests {
         #expect(try await fixture.disk.statistics().entries == 0)
     }
 
-    @Test func brokenPDFIsEvictedInsteadOfPublishingUntranslatedPixels() async throws {
+    @Test func brokenAssetIsEvictedAndRenderedNativelyWithoutAWindow() async throws {
         let fixture = FirstDisplayFixture()
         let cache = ReaderTranslationRenderCache(disk: fixture.disk)
         defer { cache.clearMemory() }
@@ -160,18 +158,32 @@ struct ReaderTranslationInitialPresentationTests {
         let broken = ReaderTranslationRenderAsset(typography: Data("not a PDF".utf8), layers: asset.layers,
             displayRect: asset.displayRect, sourceSize: asset.sourceSize,
             regions: [FirstDisplayFixture.region], sourceDigest: asset.sourceDigest)
-        await cache.storeRenderAsset(broken, key: fixture.key(), diskGeneration: 0)
-        do {
-            _ = try await ReaderTranslationImageExporter.renderLoadedImage(image: fixture.source,
-                regions: [FirstDisplayFixture.region], settings: fixture.settings, viewport: fixture.source.size, scale: 1,
-                aspectFit: true, dark: false, host: nil, cache: cache, key: fixture.key())
-            Issue.record("An unusable PDF must not be reported as a completed translation")
-        } catch ReaderTranslationImageExporter.ExportError.unavailable {}
-        #expect(await cache.renderAsset(for: fixture.key()) == nil)
+        let key = fixture.key()
+        let generation = await fixture.disk.currentGeneration(settings: fixture.settings)
+        await cache.storeRenderAsset(broken, key: key, diskGeneration: generation)
+        #expect(await cache.renderAsset(for: key)?.typography == broken.typography)
+        let repaired = try await ReaderTranslationImageExporter.renderLoadedImage(image: fixture.source,
+            regions: [FirstDisplayFixture.region], settings: fixture.settings, viewport: fixture.source.size, scale: 1,
+            aspectFit: true, dark: false, host: nil, cache: cache, key: key)
+        // A fresh render has no access to the broken asset. Both paths must
+        // publish the translated page, even when no presentation host exists.
+        let fresh = try await ReaderTranslationImageExporter.renderLoadedImage(image: fixture.source,
+            regions: [FirstDisplayFixture.region], settings: fixture.settings, viewport: fixture.source.size, scale: 1,
+            aspectFit: true, dark: false, host: nil, cache: nil, key: key)
+        let repairedPixels = try allPixels(repaired)
+        #expect(repairedPixels == (try allPixels(fresh)))
+        #expect(repairedPixels != (try allPixels(fixture.source)), "Corrupt cache recovery must not expose the untranslated source")
+        try await waitUntil { cache.pendingAssetWrites == 0 }
+        let replacement = try #require(await cache.renderAsset(for: key))
+        #expect(replacement.typography != broken.typography)
+        #expect(replacement.sourceDigest == asset.sourceDigest)
+        #expect(replacement.regionsDigest == asset.regionsDigest)
+        let replay = try await ReaderTranslationImageExporter.compositeLoadedImage(fixture.source,
+            asset: replacement, size: repaired.size, priority: .foreground)
+        #expect(repairedPixels == (try allPixels(replay)))
     }
 
     @Test func coordinatorRestoresWarmImageBeforeActivationWithoutOCRProviderOrWindow() async throws {
-        guard #available(iOS 18.0, *) else { return }
         let fixture = FirstDisplayFixture()
         let cache = ReaderTranslationRenderCache(disk: fixture.disk)
         try await fixture.disk.storeRegions([FirstDisplayFixture.region],
@@ -399,6 +411,18 @@ struct ReaderTranslationInitialPresentationTests {
             if Date() >= deadline { throw FirstDisplayError.timeout }
             try await Task.sleep(for: .milliseconds(5))
         }
+    }
+
+    private func allPixels(_ image: UIImage) throws -> [UInt8] {
+        let pixels = try #require(image.cgImage)
+        var bytes = [UInt8](repeating: 0, count: pixels.width * pixels.height * 4)
+        try bytes.withUnsafeMutableBytes { buffer in
+            let context = try #require(CGContext(data: buffer.baseAddress, width: pixels.width, height: pixels.height,
+                bitsPerComponent: 8, bytesPerRow: pixels.width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.draw(pixels, in: CGRect(x: 0, y: 0, width: pixels.width, height: pixels.height))
+        }
+        return bytes
     }
 
     private func pixel(_ image: UIImage, at point: CGPoint) throws -> [UInt8] {

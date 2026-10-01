@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Shared deterministic Canvas harness for source-color sampler and corpus regressions.
 // Exercise the production sampler with deterministic area-averaged source pixels.
 // This harness covers crop geometry/budgets, not platform-specific Canvas filters.
@@ -93,6 +94,13 @@ function harness(helpers = null, readError = false, sourceOverride = null) {
     const evaluatedSampler = evaluatedScript.slice(evaluatedScript.indexOf('    const aidokuSourceColorSampler ='));
     const draws = [];
     const context = vm.createContext({ performance, Uint8ClampedArray,
+        // Controlled sampler tests supply palette recovery doubles; keep new
+        // observation dependencies explicit so missing helpers cannot be swallowed
+        // by the reference sampler's tainted-canvas failure boundary.
+        aidokuEstimateOCRSourceColors: (...args) => helpers?.aidokuEstimateSourceColors(...args),
+        aidokuInteriorCaptionSurface: (_rgba,_w,_h,_inner,result) => result,
+        aidokuObservedCaptionBackground: (_rgba,_w,_h,_inner,result) => result,
+        aidokuSourceObservedDisplayInk: result => result?.foreground || result?.displayForeground,
         aidokuObservedCaptionPalette: (_rgba,_w,_h,_inner,result) => result,
         aidokuSourceDisplayInk: result => result?.foreground || result?.displayForeground,
         aidokuRecoverHaloInk: () => null,

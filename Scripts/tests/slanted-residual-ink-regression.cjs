@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Reviewed failures must erase every annotated source stroke and expose the
 // restored interior to translation fitting, while preserving nearby artwork.
 const assert = require('node:assert/strict');

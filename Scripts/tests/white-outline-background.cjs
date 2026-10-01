@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),crypto=require('node:crypto');
 const source=fs.readFileSync(path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourceTextColor.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
 const sample=new Function(source+';return aidokuObservedCaptionBackground;')();

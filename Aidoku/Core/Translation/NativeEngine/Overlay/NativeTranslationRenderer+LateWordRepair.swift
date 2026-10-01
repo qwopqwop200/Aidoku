@@ -29,9 +29,9 @@ extension NativeTranslationRenderer {
 
     /// Fresh whole-word span children preserve inherited font/paint attributes;
     /// their parent is block/pre-wrap and their own white-space is nowrap.
-    static func lateWordRepairTrial(_ original:Card,candidate:NativeLateWordRepair.Candidate)->Card? {
+    static func lateWordRepairTrial(_ original:Card,candidate:NativeLateWordRepair.Candidate,late:Bool=true)->Card? {
         var next=original,style=original.style,item=original.item
-        let font=CGFloat(candidate.font),k=CGFloat(candidate.condense)
+        let font=CGFloat(candidate.font),k=late ? CGFloat(candidate.condense):original.style.horizontalScale
         style.fontSize=font;style.lineHeight=CGFloat(candidate.pitch)
         if style.trackingScalesWithFont {style.tracking = original.style.tracking*font/original.finalFontSize}
         style.horizontalScale=k;style.optimizesKoreanWrapping=false;style.balancesHorizontalLines=false
@@ -73,7 +73,7 @@ extension NativeTranslationRenderer {
         restoration:NativeTranslationRestoration.Result,layout:NativeTranslationLayout,
         growthSession:NativeTypographyPostPolish.RendererGrowthSession,
         registered:Bool,textInside:Bool,hiddenIDs:Set<String>,removedIDs:Set<String>,
-        budget:inout NativeLateWordRepair.Budget,accept:([Card])->Bool)->Bool {
+        budget:inout NativeLateWordRepair.Budget,late:Bool=true,accept:([Card])->Bool)->Bool {
         guard cards.indices.contains(index),registered,
             let patch=growthSession.context.patches[cards[index].item.id] else{return false}
         defer {growthSession.restoredExteriorRemaining=budget.exterior}
@@ -98,6 +98,7 @@ extension NativeTranslationRenderer {
         input.transformed=initial.effectiveTextRotation != 0
         input.inpainted=sourceKind=="inpainted";input.textInside=textInside
         input.restored=inPlace;input.balloonRestored=metadata["balloonFontFit"]=="restored-surface"
+        input.late=late;input.preGrowthFont=growthSession.context.growth.original[item.id].map {Double($0.fontSize)}
         input.hasScale=initial.style.horizontalScale != 1 || item.typesettingWidthScale != nil
         input.cropSafe=patch.surfaceQuality?["safe"] as? Bool ?? false
         let original=lateWordRepairProfile(initial)
@@ -112,7 +113,7 @@ extension NativeTranslationRenderer {
                 }
                 return Double(widths.max() ?? 0)+1
             },measure:{proposal in
-                guard let next=lateWordRepairTrial(initial,candidate:proposal),let range=cardWholeRangeRect(next) else{return nil}
+                guard let next=lateWordRepairTrial(initial,candidate:proposal,late:late),let range=cardWholeRangeRect(next) else{return nil}
                 live=next
                 return .init(profile:lateWordRepairProfile(next),contentFits:NativeTypographyPostPolish.contentFits(item:next.item,typography:next.typography),live:range)
             },surface:{profile,luminance,pool in
@@ -134,14 +135,43 @@ extension NativeTranslationRenderer {
                 return accept(cards)
             })
         guard let result else{cards[index]=initial;return false}
-        live.harmonyRecord["lateWordRepair"]=result.diagnostic
-        if result.candidate.condense<1 {live.harmonyRecord["wordRepairCondensed"]=result.candidate.condense}
+        if late {
+            live.harmonyRecord["lateWordRepair"]=result.diagnostic
+            if result.candidate.condense<1 {live.harmonyRecord["wordRepairCondensed"]=result.candidate.condense}
+        } else {
+            live.harmonyRecord["wordRepair"]=[Double(original.splits),Double(original.lines),Double(result.profile.lines),
+                Double(initial.finalFontSize),result.candidate.font,Double((original.bounds?.width ?? 0).rounded()),
+                Double(result.candidate.rect.width.rounded())]
+        }
         if result.candidate.font != Double(initial.finalFontSize) {live.sourceRestorationMetadata["sourcePanelFinalFont"]=String(result.candidate.font)}
         cards[index]=live;return true
     }
 }
 
 extension NativeTranslationRenderer {
+    /// The first whole-word pass runs after restored growth, before row and
+    /// page harmony capture their geometry. It repairs every Hangul stem split;
+    /// the late pass deliberately accepts a narrower set of bad breaks.
+    static func repairGrownTypographyWords(cards:inout [Card],restoration:NativeTranslationRestoration.Result,
+        layout:NativeTranslationLayout,growthSession:NativeTypographyPostPolish.RendererGrowthSession,
+        hiddenIDs:Set<String>,removedIDs:Set<String>) {
+        var budget=NativeLateWordRepair.Budget(late:growthSession.wordRepairRemaining,
+            type:growthSession.balloonTypeRemaining,surface:growthSession.balloonSurfaceRemaining,
+            exterior:growthSession.restoredExteriorRemaining,lookup:growthSession.restoredLookupRemaining)
+        defer {
+            growthSession.wordRepairRemaining=budget.late
+            growthSession.balloonTypeRemaining=budget.type;growthSession.balloonSurfaceRemaining=budget.surface
+            growthSession.restoredExteriorRemaining=budget.exterior;growthSession.restoredLookupRemaining=budget.lookup
+        }
+        for i in cards.indices {
+            let id=cards[i].item.id
+            guard !removedIDs.contains(id),growthSession.typographyEntryRegistered(id:id) else{continue}
+            let inside=(cards[i].sourcePanelTextFit ?? cards[i].sourceRestorationMetadata["sourcePanelTextFit"] ??
+                cards[i].artworkRecord?["sourcePanelTextFit"] ?? growthSession.sourcePanelTextFit(id:id))=="inside"
+            _ = repairLateTypographyWord(at:i,cards:&cards,restoration:restoration,layout:layout,growthSession:growthSession,
+                registered:true,textInside:inside,hiddenIDs:hiddenIDs,removedIDs:removedIDs,budget:&budget,late:false,accept:{_ in true})
+        }
+    }
     static func lateTypographyPageConflicts(_ cards:[Card],members:[NativeTypographyCohortSnap.Member],hiddenIDs:Set<String>)->Int {
         func spread(_ a:CGFloat,_ b:CGFloat)->CGFloat {max(a,b)/min(a,b)}
         var count=0

@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Row-end punctuation just past the OCR box: probe ownership and restoration.
 // node Scripts/tests/row-end-marks-regression.cjs [--source path/to/BrowserSourcePanelRestoration.swift]
 const assert = require('node:assert/strict');

@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // PLAYWRIGHT_MODULE=/path/to/playwright node Scripts/tests/unified-caption-browser-regression.cjs
 // Runs the production final commit in real WebKit, including layout and stacking.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');

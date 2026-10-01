@@ -1,4 +1,5 @@
-"""Kernel embedding must not dirty unchanged Swift sources or overwrite unrelated content."""
+"""Frozen Web oracle embedding tooling must not dirty unchanged sources or unrelated content.
+Production pixel kernels are native; this tests only the historical embedding utility."""
 import base64
 import os
 from pathlib import Path

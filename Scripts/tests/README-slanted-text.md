@@ -1,5 +1,13 @@
 # Slanted source text
 
+> Native migration: the WebKit/JavaScript algorithms and measurements below
+> describe the preserved pre-migration reference. Current Node regressions read
+> the test-only `AidokuTests/Translation/LegacyBrowserOverlay` sources; production
+> translation uses native Swift/Core Text/Core Graphics and native Rust kernels.
+> Historical simulator counts and old optional fixture instructions are not a
+> current-main result. Use the native suites and commands in
+> [TESTING.md](../TESTING.md) and [the runtime map](../../Docs/native-runtime.md).
+
 `BrowserOverlayRotation` derives local text/panel rectangles and rotation from
 an OCR quad in image pixels. Reader WebKit, exported images, and native overlays
 share its geometry. It supports 3–80 degrees in either direction, corrects the

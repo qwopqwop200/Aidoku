@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Execute the production final palette pass with committed geometry.
 // Policy regression only; WebKit screenshots verify native stroke rendering.
 const assert=require('node:assert/strict');

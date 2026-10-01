@@ -118,6 +118,7 @@ enum NativeTranslationRenderer {
         var textZ = 2
         var textRootOrder: Double?
         var sourceColumnAuthoredTop: CGFloat?
+        var sourceTopAnchored = false
         var lateSourcePatchOrder: Double?
         var rotatedPlateZ = 1
         var rotatedPlateOrder: Double?
@@ -284,7 +285,7 @@ enum NativeTranslationRenderer {
                         slantedContext.admit(item: item, appearance: appearance, proof: proof, scale: pixelScale)
                     }, acceptPageSlanted: { item,appearance,prepared,pixels in
                         slantedContext.admitPage(item: item, appearance: appearance, prepared: prepared, pixels: pixels)
-                    }, cleanupGeometry: cleanupGeometry)
+                    }, cleanupGeometry: cleanupGeometry, collectDiagnostics: collectDiagnostics)
                 : NativeTranslationRestoration.Result()
             let initialPatchCapture = collectDiagnostics ? NativeRestorationDiagnosticCapture.capture(restoration) : nil
             var layout = try NativeTranslationLayoutPlanner.refining(
@@ -323,6 +324,7 @@ enum NativeTranslationRenderer {
                     fontName: settings.preserveSourceColors && item.fontScript == "korean" ? appearance?.fontName : nil,
                     fontScript: item.fontScript, fontSize: item.fontSize, vertical: item.vertical,
                     foreground: item.typesettingForeground.map { color($0.map { CGFloat($0) }) } ?? foreground ?? panelInk ?? color(lightSurface ? [17, 18, 23] : [255, 255, 255]),
+                    outlinePaintOrder: .fillThenStroke,
                     tracking: -item.fontSize * 0.012, lineHeight: max(item.fontSize, item.lineHeight),
                     alignsToTop: item.balancedColumn)
                 style.balancesHorizontalLines = item.wrappingScript == "korean" && !item.vertical &&
@@ -330,6 +332,7 @@ enum NativeTranslationRenderer {
                 style.horizontalScale = item.typesettingWidthScale ?? 1
                 style.outline = item.typesettingOutlineRGB.map { color($0.map { CGFloat($0) }) }
                 style.outlineWidth = item.typesettingOutlineWidth ?? 0
+                if style.outline != nil, style.outlineWidth > 0 { style.outlinePaintOrder = .strokeThenFill }
                 style.optimizesKoreanWrapping = false
                 style.koreanQuoteMode = item.typesettingQuoteMode ?? 0
                 style.usesBlockWordLayout = item.typesettingText != nil && item.typesettingQuoteMode != nil
@@ -349,6 +352,7 @@ enum NativeTranslationRenderer {
                 let heavy = settings.preserveSourceColors && appearance?.letteringStyle == "gothic" &&
                     ((sourceWeight >= 0.14 && style.fontSize >= 14) ||
                      (sourceWeight >= 0.11 && sourceWeight >= pageWeight * 1.3 && style.fontSize >= 12))
+                if heavy { style.outlinePaintOrder = .strokeThenFill }
                 // Observed source surfaces receive a separate final readability plate when glyph safety remains unproven.
                 let preservesSurface = settings.preserveSourceBackgroundColor && item.sourceColorEligible
                 cards.append(Card(item: item, typography: typography, style: style, inkBeforeSurface: rgb(style.foreground),
@@ -397,6 +401,8 @@ enum NativeTranslationRenderer {
             let plateSession = PlateGrowthSession()
             defer { plateSession.close() }
             try growPlateTypography(cards: &cards, layout: layout, restoration: restoration, settings: settings, source: source, gloss: gloss, growthSession: growthSession, plateSession: plateSession)
+            repairGrownTypographyWords(cards: &cards, restoration: restoration, layout: layout, growthSession: growthSession,
+                hiddenIDs: gloss.hiddenIDs, removedIDs: gloss.removedLayerIDs)
             try reconcileTypographyHarmony(cards: &cards, layout: layout, restoration: restoration, settings: settings, source: source, growthSession: growthSession, lockedIDs: slantedContext.lockedIDs, plateSession: plateSession, hiddenIDs: gloss.hiddenIDs.union(gloss.removedLayerIDs), removedIDs: gloss.removedLayerIDs)
             prepareFinalTrials(cards: &cards,restoration: &restoration,gloss: gloss,layout: layout,settings: settings,source: source,balloonStage: true)
             fitLatePageEdges(cards: &cards, gloss: gloss, layout: layout)
@@ -446,6 +452,7 @@ enum NativeTranslationRenderer {
                     (appearance?.sourceSample?["displayLettering"] as? Bool != true) && card.style.outline == nil &&
                     ((weight >= 0.14 && card.style.fontSize >= 14) || (weight >= 0.11 && weight >= pageWeight * 1.3 && card.style.fontSize >= 12))
                 cards[index].heavyStrokeWidth = heavy ? (card.style.fontSize * 0.045 * 100).rounded() / 100 : 0
+                if heavy { cards[index].style.outlinePaintOrder = .strokeThenFill }
             }
             reappendRotatedPlates(cards: &cards, gloss: gloss)
             let effects = effectGloss(cards: cards, layout: layout, restoration: restoration, settings: settings, source: source)
@@ -456,12 +463,14 @@ enum NativeTranslationRenderer {
             let recovered = try recoverLines(cards: &cards, gloss: &gloss, layout: layout, source: source, settings: settings)
             var glossCards = gloss.notes.compactMap { note -> GlossCard? in
                 guard let card = cards.first(where: { $0.item.id == note.id }) else { return nil }
-                var style = glossStyle(card: card, size: note.placement.size, lineHeight: note.placement.lineHeight, title: note.title)
+                var style = glossStyle(card: card, size: note.placement.size, lineHeight: note.placement.lineHeight,
+                    title: note.title, retained: note.retainedTypography)
                 style.foreground = color(note.fill.map { CGFloat($0) })
                 style.outline = color(note.outline.map { CGFloat($0) })
                 style.outlineWidth = CGFloat(note.strokeWidth)
+                style.outlinePaintOrder = .strokeThenFill
                 return GlossCard(note: note, typography: NativeTranslationTypography.layout(text: glossText(note.text, title: note.title),
-                    in: CGSize(width: note.placement.width, height: ceil(note.placement.lineHeight * 3)), style: style), style: style)
+                    in: note.contentSize, style: style), style: style)
             }
             prepareFinalTrials(cards: &cards, restoration: &restoration, gloss: gloss, layout: layout, settings: settings, source: source, balloonStage: false)
             if let deferred = restoration.deferredForced {
@@ -678,6 +687,7 @@ enum NativeTranslationRenderer {
                 "sourceColumnAuthoredTop": card.sourceColumnAuthoredTop.map { Double($0) as Any } ?? NSNull(), "usesBlockWordLayout": card.style.usesBlockWordLayout, "usesPreformattedBlockRows": card.style.usesPreformattedBlockRows, "hasControlledText": item.typesettingText != nil, "preservesBlockWrapper": item.typesettingPreservedBlockWrapper == true,
                 "typesettingQuoteMode": item.typesettingQuoteMode.map { $0 as Any } ?? NSNull(), "foreground": rgb(card.style.foreground) ?? [],
                 "outline": rgb(card.style.outline) ?? [], "outlineWidth": Double(card.style.outlineWidth),
+                "outlinePaintOrder": card.style.outlinePaintOrder.rawValue,
                 "strokePreserved": card.strokePreserved, "glyphPlateReleased": card.glyphPlateReleased,
                 "glyphCover": card.glyphCoverRecord ?? NSNull(), "glyphCoverReject": card.glyphCoverReject ?? "",
                 "lightLettering": card.lightLetteringRecord ?? NSNull(), "lightLetteringReject": card.lightLetteringReject ?? "", "outlineGlow": card.outlineGlow,
@@ -688,6 +698,7 @@ enum NativeTranslationRenderer {
                 "textRootOrder": card.textRootOrder.map { $0 as Any } ?? NSNull(),
                 "lateSourcePatchOrder": card.lateSourcePatchOrder.map { $0 as Any } ?? NSNull(), "rotatedPlateZ": card.rotatedPlateZ, "artwork": card.artworkRecord ?? [:],
                 "drawsPanel": card.drawsPanel, "background": rgb(card.background) ?? [],
+                "sourceTopAnchored": card.sourceTopAnchored,
                 "sourceColorEligible": item.sourceColorEligible, "sourceBounds": item.sourceBounds.map { Double($0) },
                 "sourceFontSize": item.sourceFontSize.map { Double($0) } ?? 0,
                 "restored": appearance?.restored ?? false, "erasureComplete": appearance?.erasureComplete ?? false,
@@ -707,6 +718,11 @@ enum NativeTranslationRenderer {
                 "unitTextParts": card.unitTextParts.map { ["text": $0.text, "rect": box(textPartFrame($0,card: card)), "font": Double($0.style.fontSize)] as [String:Any] },
                 "panels": card.sourcePanels.map { ["rect": box($0.rect), "background": $0.background,
                     "coverage": $0.coverage.map(box), "radius": $0.radius, "sourceBridgeClipped": $0.sourceBridgeClipped, "overflowClip": $0.overflowClip] as [String: Any] }]
+            if let analysis = card.outlineEvidence {
+                record["outlineObservation"] = ["restored": analysis.restored, "slanted": analysis.slanted,
+                    "missingColumnRing": analysis.missingColumnRing, "ring": analysis.ringData ?? [:],
+                    "enclosed": analysis.enclosed ?? [:], "rejection": analysis.rejection ?? ""]
+            }
             record["latePlateTrim"] = card.latePlateTrimTrace
             record["finalPlateTrim"] = card.finalPlateTrim ?? []
             record["backings"] = card.backings.map { ["frame": box($0.frame), "coverage": $0.coverage.map(box), "color": $0.color] as [String: Any] }
@@ -725,11 +741,21 @@ enum NativeTranslationRenderer {
         let notes: [[String: Any]] = glossCards.map { card in
             ["id": card.note.id, "text": card.note.text, "title": card.note.title,
              "fontSize": Double(card.style.fontSize), "outlineWidth": Double(card.style.outlineWidth),
-             "foreground": rgb(card.style.foreground) ?? [], "outline": rgb(card.style.outline) ?? []]
+             "foreground": rgb(card.style.foreground) ?? [], "outline": rgb(card.style.outline) ?? [],
+             "retainedCardLayout": card.note.retainedTypography != nil,
+             "contentSize": [Double(card.note.contentSize.width), Double(card.note.contentSize.height)],
+             "placement": ["size": card.note.placement.size, "width": card.note.placement.width,
+                "rank": card.note.placement.rank, "edge": card.note.placement.edge,
+                "origin": [Double(card.note.origin.x), Double(card.note.origin.y)],
+                "moves": card.note.placement.moves.map { [Double($0.x), Double($0.y)] }]]
         }
+        let finalPatchCapture = NativeRestorationDiagnosticCapture.capture(restoration)
         return try? JSONSerialization.data(withJSONObject: ["cards": records, "gloss": notes,
+            "restorationAttempts": restoration.restorationAttempts,
             "initialPatches": initialPatchCapture?.records ?? [],
             "initialPatchCaptureFailures": initialPatchCapture?.failures ?? [],
+            "finalPatches": finalPatchCapture.records,
+            "finalPatchCaptureFailures": finalPatchCapture.failures,
             "cleanupFrame": restoration.cleanupGeometry.map { box($0.frame) } ?? [],
             "cleanupClip": restoration.cleanupGeometry.map { box($0.clip) } ?? [],
             "patches": restoration.patches.map { ["id": $0.itemID ?? "", "rect": box($0.rect),
@@ -886,7 +912,9 @@ enum NativeTranslationRenderer {
         text
     }
 
-    static func glossStyle(card: Card, size: Double, lineHeight: Double, title: Bool = false) -> NativeTranslationTypography.Style {
+    static func glossStyle(card: Card, size: Double, lineHeight: Double, title: Bool = false,
+                           retained: NativeTranslationEffectGloss.RetainedTypography? = nil) -> NativeTranslationTypography.Style {
+        if let retained { return retained.style(size: size, lineHeight: lineHeight) }
         var style = card.style
         let overflowNormal = style.horizontalWrapping == .keepAll || style.keepsWholeWords || style.strictLineBreak
         style.fontSize = CGFloat(size); style.lineHeight = CGFloat(lineHeight)
@@ -920,7 +948,8 @@ enum NativeTranslationRenderer {
                 normalizedSourceBounds: CGRect(x: item.sourceBounds[0], y: item.sourceBounds[1],
                     width: item.sourceBounds[2], height: item.sourceBounds[3]), sourceFontSize: item.sourceFontSize.map { Double($0) },
                 rotation: Double(item.rotation), hasRestorationProposal: restoration.patches.contains { $0.itemID == item.id },
-                origin: item.contentRect.origin, ink: cardInkRect(card), fontSize: Double(card.finalFontSize), panels: card.sourcePanels,
+                origin: item.contentRect.origin, ink: cardWholeRangeRect(card) ?? cardInkRect(card),
+                fontSize: Double(card.finalFontSize), panels: card.sourcePanels,
                 sampledForeground: NativeSourceColorSampler.rgb(sample["foreground"]),
                 sampledStroke: NativeSourceColorSampler.rgb(sample["stroke"]), sampledBackground: NativeSourceColorSampler.rgb(sample["background"]), backings: card.backings,
                 rotatedCoverFrames: (card.rotatesSourcePanels ? card.sourcePanels.map { rotatedBounds($0.rect, about: card.sourcePlateRect, angle: item.rotation) } : []) +
@@ -932,14 +961,29 @@ enum NativeTranslationRenderer {
             guard item.sourceBounds.count == 4 else { return nil }
             return CGRect(x: item.sourceBounds[0], y: item.sourceBounds[1], width: item.sourceBounds[2], height: item.sourceBounds[3])
         }
-        let result = NativeTranslationOversizedTitleGloss.refining(records: records, frame: layout.sourceRect,
+        func retainedTypography(_ card: Card) -> NativeTranslationEffectGloss.RetainedTypography {
+            .init(sourceStyle: card.style,
+                  horizontalPadding: card.item.paddingLeft + card.item.paddingRight,
+                  verticalPadding: card.item.paddingTop + card.item.paddingBottom)
+        }
+        var result = NativeTranslationOversizedTitleGloss.refining(records: records, frame: layout.sourceRect,
             image: source, keptSources: kept, erased: restoration.patches.map(\.rect),
             measure: { id,text,size,width,lineHeight,origin in
                 guard let card = snapshot.first(where: { $0.item.id == id }) else { return .zero }
-                let measured = NativeTranslationTypography.layout(text: glossText(text, title: true),
-                    in: CGSize(width: width, height: ceil(lineHeight * 3)), style: glossStyle(card: card, size: size, lineHeight: lineHeight, title: true))
-                return measured.inkBounds.offsetBy(dx: origin.x, dy: origin.y)
+                let retained = retainedTypography(card)
+                let style = retained.style(size: size, lineHeight: lineHeight)
+                let contentSize = retained.contentSize(width: width, lineHeight: lineHeight)
+                let measured = NativeTranslationTypography.layout(text: text, in: contentSize, style: style)
+                // The frozen search measures Range contents, not painted glyph
+                // ink. Padding and line boxes participate in placement sizing.
+                return NativeTranslationTypography.wholeRangeBounds(layout: measured, style: style, available: contentSize)?
+                    .offsetBy(dx: origin.x, dy: origin.y) ?? .zero
             })
+        for index in result.gloss.notes.indices {
+            if let card = snapshot.first(where: { $0.item.id == result.gloss.notes[index].id }) {
+                result.gloss.notes[index].retainedTypography = retainedTypography(card)
+            }
+        }
         for record in result.records {
             guard let index = cards.firstIndex(where: { $0.item.id == record.id }) else { continue }
             let delta = CGPoint(x: record.origin.x - cards[index].item.contentRect.minX,
@@ -1181,6 +1225,7 @@ enum NativeTranslationRenderer {
         }
         for entry in result {
             guard let index = cards.firstIndex(where: { $0.item.id == entry.id }) else { continue }
+            cards[index].sourceTopAnchored = cards[index].sourceTopAnchored || entry.sourceTopAnchored
             if entry.shift != .zero {
                 cards[index].item.x += entry.shift.x
                 let authoredTop = anchorsOnly ? cards[index].sourceColumnAuthoredTop : nil
@@ -1359,9 +1404,10 @@ enum NativeTranslationRenderer {
             entry.readabilityPanel = !card.sourcePanels.isEmpty; entry.hasBackgroundImage = false
             entry.panels += visible ? card.backings.map { .init(rect: $0.frame, color: $0.color, coverage: $0.coverage, backing: true, coverageClip: $0.coverageClip, coverageClipActive: $0.clipped) } : []
             if let note = gloss.notes.first(where: { $0.id == item.id }), let move = note.placement.moves.first {
-                let style = glossStyle(card: card, size: note.placement.size, lineHeight: note.placement.lineHeight, title: note.title)
+                let style = glossStyle(card: card, size: note.placement.size, lineHeight: note.placement.lineHeight,
+                    title: note.title, retained: note.retainedTypography)
                 let measured = NativeTranslationTypography.layout(text: glossText(note.text, title: note.title),
-                    in: CGSize(width: note.placement.width, height: ceil(note.placement.lineHeight * 3)), style: style)
+                    in: note.contentSize, style: style)
                 let bounds = measured.rangeBounds.reduce(CGRect.null) { $0.union($1) }
                 entry.ink = bounds.isNull ? .zero : bounds.offsetBy(dx: note.origin.x + move.x, dy: note.origin.y + move.y)
                 if let center = note.placement.center, let angle = note.placement.angle {
@@ -1485,7 +1531,8 @@ enum NativeTranslationRenderer {
                     visible: !gloss.hiddenIDs.contains(item.id) && !gloss.removedLayerIDs.contains(item.id),
                     backgroundKind: card.sourceBackgroundKind ?? "",
                     appliedForeground: rgb(card.style.foreground), appliedStrokeWidth: Double(card.style.outlineWidth),
-                    opaquePlate: card.sourcePanels.first?.background, sample: restoration.appearances[item.id]?.sourceSample ?? [:])
+                    opaquePlate: card.sourcePanels.first?.background, sample: restoration.appearances[item.id]?.sourceSample ?? [:],
+                    partialMainbodyProof: card.partialSourcePositionProof ? "outlined-source-position" : nil)
             }
             let size = CGSize(width: source.width, height: source.height)
             outlineEvidence = NativeSourceOutlineScan.scan(records: input, imageSize: size, displayFrame: frame,
@@ -1523,10 +1570,12 @@ enum NativeTranslationRenderer {
                 if let stroke = decision.stroke {
                     cards[index].style.outline = color(stroke.map { CGFloat($0) }); cards[index].strokePreserved = true
                     cards[index].sourceStrokeKind = "preserved"
+                    cards[index].style.outlinePaintOrder = .strokeThenFill
                 }
                 if decision.clearsStroke {
                     cards[index].style.outline = nil; cards[index].style.outlineWidth = 0; cards[index].strokePreserved = false
                     cards[index].sourceStrokeKind = "none"
+                    cards[index].style.outlinePaintOrder = .fillThenStroke
                 }
                 if let width = decision.strokeWidth { cards[index].style.outlineWidth = CGFloat(width) }
                 if let background = decision.background, let ownerIndex = cards[index].sourcePanels.lastIndex(where: { !$0.sourceErasure }) {
@@ -1550,10 +1599,12 @@ enum NativeTranslationRenderer {
             if let fill = rgb(cards[index].style.foreground), let outline = rgb(cards[index].style.outline),
                cards[index].style.outlineWidth > 0, !item.sourceTextOnly, item.rotation == 0, !item.vertical,
                item.sourceLettering == nil, item.wrappingScript == "korean", cards[index].style.horizontalScale == 1 {
+                let previousWidth = cards[index].style.outlineWidth
                 cards[index].style.outlineWidth = CGFloat(NativeTranslationSourceStylePostPolish.dialogueStrokeWidth(
                     fill: fill, outline: outline, background: cards[index].sourcePanels.first?.background,
                     font: Double(cards[index].finalFontSize), width: Double(cards[index].style.outlineWidth),
                     releasedPreserved: cards[index].sourcePanels.isEmpty && cards[index].strokePreserved))
+                if cards[index].style.outlineWidth != previousWidth { cards[index].style.outlinePaintOrder = .strokeThenFill }
             }
             if settings.preserveSourceTextColor {
                 let appearance = restoration.appearances[item.id], sample = appearance?.sourceSample ?? [:]
@@ -1566,11 +1617,13 @@ enum NativeTranslationRenderer {
                     surfaceRange: cardSurfaceEvidence(cards[index],restoration: restoration)?.range,
                     ring: cards[index].outlinedRecord ?? cards[index].outlineEvidence?.ringData ?? sample["outlinedLettering"] as? [String: Any],
                     enclosed: cards[index].outlineEvidence?.enclosed ?? sample["enclosedCaptionOutline"] as? [String: Any],
-                    certifiedSourcePosition: cards[index].partialSourcePositionProof)
+                    certifiedSourcePosition: cards[index].partialSourcePositionProof,
+                    appliedForeground: rgb(cards[index].style.foreground))
                 if let outline = result.outline {
                     cards[index].style.foreground = color(outline.foreground.map { CGFloat($0) })
                     cards[index].style.outline = color(outline.stroke.map { CGFloat($0) })
                     cards[index].style.outlineWidth = CGFloat(outline.width)
+                    cards[index].style.outlinePaintOrder = .strokeThenFill
                     cards[index].strokePreserved = true; cards[index].darkMeasured = result.darkPreserved
                 }
             }
@@ -1600,7 +1653,7 @@ enum NativeTranslationRenderer {
                 glossCards[index].style.outlineWidth = CGFloat(result.width)
                 let card = glossCards[index]
                 glossCards[index].typography = NativeTranslationTypography.layout(text: glossText(card.note.text, title: card.note.title),
-                    in: CGSize(width: card.note.placement.width, height: ceil(card.note.placement.lineHeight * 3)), style: card.style)
+                    in: card.note.contentSize, style: card.style)
             } else if let index = cards.firstIndex(where: { $0.item.id == result.id }) {
                 cards[index].style.outlineWidth = CGFloat(result.width)
                 let card = cards[index]
@@ -1626,7 +1679,8 @@ enum NativeTranslationRenderer {
             context.translateBy(x: -anchor.x, y: -anchor.y)
         }
         NativeTranslationTypography.draw(layout: card.typography, in: context,
-            at: CGPoint(x: note.origin.x + move.x, y: note.origin.y + move.y), pixelSnapScale: pixelSnapScale)
+            at: CGPoint(x: note.origin.x + move.x, y: note.origin.y + move.y),
+            outlinePaintOrder: card.style.outlinePaintOrder, pixelSnapScale: pixelSnapScale)
     }
 
     static func rgb(_ value: CGColor?) -> [Double]? {
@@ -1674,7 +1728,7 @@ enum NativeTranslationRenderer {
         return "fallback"
     }
 
-    private static func prepareSourcePanels(cards: inout [Card], restoration: NativeTranslationRestoration.Result,
+    static func prepareSourcePanels(cards: inout [Card], restoration: NativeTranslationRestoration.Result,
                                             layout: NativeTranslationLayout, settings: IPhoneOverlaySettings,
                                             growthSession: NativeTypographyPostPolish.RendererGrowthSession? = nil) {
         let frame = restoration.cleanupGeometry?.frame ?? layout.sourceRect
@@ -1687,7 +1741,16 @@ enum NativeTranslationRenderer {
                 ink: rgb(cards[index].style.foreground), preserveText: settings.preserveSourceTextColor,
                 displayInk: NativeSourceColorSampler.displayedInk(sample))
             cards[index].style.foreground = color(palette.foreground.map { CGFloat($0) })
+            // The frozen caption-palette producer skips rotated nodes. Their
+            // later release inherits the earlier producer's explicit order.
+            if item.rotation == 0 { cards[index].style.outlinePaintOrder = .fillThenStroke }
             cards[index].typography = remeasureTypography(cards[index])
+            if item.rotation == 0, let adjusted = growthSession?.restoreReadableInk(item: cards[index].item,
+                typography: cards[index].typography, foreground: palette.foreground) {
+                cards[index].inkBeforeSurface = adjusted == palette.foreground ? nil : palette.foreground
+                cards[index].style.foreground = color(adjusted.map { CGFloat($0) })
+                cards[index].typography = remeasureTypography(cards[index])
+            }
             guard let ink = cardWholeRangeRect(cards[index]), ink.width > 0, ink.height > 0 else { continue }
             let prior = growthSession?.rememberedInk(id: item.id)
             cards[index].sourcePanelTextFit = growthSession?.sourcePanelTextFit(id: item.id)
@@ -1752,6 +1815,7 @@ enum NativeTranslationRenderer {
                 contentFits: card.typography.size.width <= item.contentRect.width + 1 && card.typography.size.height <= item.contentRect.height + 1) else { continue }
             cards[index].style.foreground = color(outline.foreground.map { CGFloat($0) })
             cards[index].style.outline = color(outline.stroke.map { CGFloat($0) }); cards[index].style.outlineWidth = CGFloat(outline.width)
+            cards[index].style.outlinePaintOrder = .strokeThenFill
             cards[index].sourcePanels = []; cards[index].backings = []; cards[index].strokePreserved = false
             cards[index].partialSourcePositionProof = true; candidate.partialErasureCertified = true
             cards[index].sourceBackgroundKind = "inpainted"; cards[index].sourceStrokeKind = "readability-outline"
@@ -1786,6 +1850,8 @@ enum NativeTranslationRenderer {
                     cards[index].style.outline = color(stroke.map { CGFloat($0) })
                     cards[index].style.outlineWidth = max(0.5,min(1.5,card.finalFontSize*0.045))
                 }
+                // The rotated release changes only the stroke shorthand; it
+                // inherits the earlier producer's normal or stroke-first order.
                 cards[index].glyphPlateReleased = true
             } else {
                 guard item.sourceFrame.count == 4, item.sourceFrame.allSatisfy(\.isFinite) else { continue }
@@ -1847,6 +1913,10 @@ enum NativeTranslationRenderer {
                     font: Double(cards[index].finalFontSize),preserveText: settings.preserveSourceTextColor,
                     chromaticGlyphs: appearance.restorationMethod == "chromatic-balloon-glyphs" && glyphVerified)
                 cards[index].style.outlineWidth = CGFloat(finalRelease?.width ?? released.width)
+                cards[index].style.outlinePaintOrder = cards[index].style.outlineWidth > 0 ? .strokeThenFill : .fillThenStroke
+                // Releasing the plate replaces the complete CSS stroke, including
+                // the earlier fill-coloured weight enhancement when no ring remains.
+                cards[index].heavyStrokeWidth = 0
                 cards[index].strokePreserved = released.preserved && released.stroke != nil
                 cards[index].sourcePanels = []; cards[index].backings = []; cards[index].drawsPanel = false; cards[index].glyphCoverOwnerPanel = nil; cards[index].captionParentPlate = false; cards[index].glyphPlateReleased = true; cards[index].textZ = 3
                 appendTextToRoot(cards: &cards, index: index)
@@ -1883,9 +1953,10 @@ enum NativeTranslationRenderer {
         }
         for note in gloss.notes {
             guard let card = snapshot.first(where: { $0.item.id == note.id }), let move = note.placement.moves.first else { continue }
-            let style = glossStyle(card: card,size: note.placement.size,lineHeight: note.placement.lineHeight,title: note.title)
+            let style = glossStyle(card: card, size: note.placement.size, lineHeight: note.placement.lineHeight,
+                title: note.title, retained: note.retainedTypography)
             let measured = NativeTranslationTypography.layout(text: glossText(note.text,title: note.title),
-                in: CGSize(width: note.placement.width,height: ceil(note.placement.lineHeight*3)),style: style)
+                in: note.contentSize,style: style)
             var lines = NativeTranslationTypography.captionLineMetrics(layout: measured).map { $0.rect.offsetBy(dx: note.origin.x+move.x,dy: note.origin.y+move.y) }
             if let angle = note.placement.angle, let center = note.placement.center {
                 lines = lines.map { rotatedBounds($0,about: CGRect(origin: center,size: .zero),angle: CGFloat(angle)) }
@@ -1994,6 +2065,7 @@ enum NativeTranslationRenderer {
             guard let result else { continue }
             cards[index].style.foreground = color(result.fill.map { CGFloat($0) })
             cards[index].style.outline = result.stroke.map { color($0.map { CGFloat($0) }) }; cards[index].style.outlineWidth = CGFloat(result.strokeWidth)
+            cards[index].style.outlinePaintOrder = result.stroke == nil ? .fillThenStroke : .strokeThenFill
             if let glow = result.glowRadius { cards[index].outlineGlow = CGFloat(glow); cards[index].style.outlineGlow = CGFloat(glow) }; cards[index].lightLetteringRecord = result.record
             cards[index].strokePreserved = result.stroke != nil
             if let background = result.background, let panel = cards[index].sourcePanels.lastIndex(where: { !$0.sourceErasure }) {
@@ -2061,6 +2133,8 @@ enum NativeTranslationRenderer {
                     style.foreground = proposed.typesettingForeground.map { color($0.map { CGFloat($0) }) } ?? style.foreground
                     style.outline = proposed.typesettingOutlineRGB.map { color($0.map { CGFloat($0) }) } ?? style.outline
                     style.outlineWidth = proposed.typesettingOutlineWidth ?? style.outlineWidth
+                    if proposed.typesettingOutlineRGB != nil, proposed.typesettingOutlineRGB != card.item.typesettingOutlineRGB ||
+                        proposed.typesettingOutlineWidth != card.item.typesettingOutlineWidth { style.outlinePaintOrder = .strokeThenFill }
                     next.item = proposed; next.style = style; next.finalFontSize = style.fontSize; next.textShift = .zero
                     next.typography = NativeTranslationTypography.layout(text: proposed.typesettingText ?? proposed.text, in: proposed.contentRect.size, style: style)
                     accepted = next; return true
@@ -2087,6 +2161,7 @@ enum NativeTranslationRenderer {
                 cards[index].style.foreground = color(NativeFinalRestorationTrial.ShortCaptionOutcome.foreground.map { CGFloat($0) })
                 cards[index].style.outline = color(NativeFinalRestorationTrial.ShortCaptionOutcome.stroke.map { CGFloat($0) })
                 cards[index].style.outlineWidth = CGFloat(release.strokeWidth ?? 0); cards[index].strokePreserved = false
+                cards[index].style.outlinePaintOrder = .strokeThenFill
                 cards[index].typography = NativeTranslationTypography.layout(text: item.typesettingText ?? item.text,
                     in: item.contentRect.size, style: cards[index].style)
                 if card.captionParentPlate { appendTextToRoot(cards: &cards, index: index) }
@@ -2137,6 +2212,7 @@ enum NativeTranslationRenderer {
             cards[index].style.foreground = color(result.foreground.map { CGFloat($0) })
             cards[index].style.outline = result.stroke.map { color($0.map { CGFloat($0) }) }
             cards[index].style.outlineWidth = CGFloat(result.strokeWidth)
+            if result.replacesStroke { cards[index].style.outlinePaintOrder = .strokeThenFill }
             cards[index].strokePreserved = result.strokePreserved
             if result.stroke == nil { cards[index].sourceStrokeKind = "none" }
             else if result.strokePreserved { cards[index].sourceStrokeKind = "preserved" }
@@ -2311,15 +2387,18 @@ enum NativeTranslationRenderer {
                 var style = part.style
                 style.foreground = card.style.foreground; style.outline = card.style.outline
                 style.outlineWidth = card.style.outlineWidth; style.outlineGlow = card.style.outlineGlow
+                style.outlinePaintOrder = card.style.outlinePaintOrder
                 let typography = NativeTranslationTypography.layout(text: part.text, in: part.frame.size, style: style)
                 NativeTranslationTypography.draw(layout: typography, in: context, at: textPartFrame(part, card: card).origin,
-                    additionalFillStrokeWidth: style.outlineWidth == 0 && style.outlineGlow == 0 ? card.heavyStrokeWidth : 0, pixelSnapScale: pixelSnapScale)
+                    additionalFillStrokeWidth: style.outlineWidth == 0 && style.outlineGlow == 0 ? card.heavyStrokeWidth : 0,
+                    outlinePaintOrder: style.outlinePaintOrder, pixelSnapScale: pixelSnapScale)
             }
             return
         }
         // Typography centers in its content box, preserving the native planner's asymmetric padding.
         NativeTranslationTypography.draw(layout: card.typography, in: context, at: card.textOrigin,
-                                          additionalFillStrokeWidth: card.style.outlineWidth == 0 && card.style.outlineGlow == 0 ? card.heavyStrokeWidth : 0, pixelSnapScale: pixelSnapScale)
+                                          additionalFillStrokeWidth: card.style.outlineWidth == 0 && card.style.outlineGlow == 0 ? card.heavyStrokeWidth : 0,
+                                          outlinePaintOrder: card.style.outlinePaintOrder, pixelSnapScale: pixelSnapScale)
     }
 
     static func columnSourceErasureRects(_ card: Card, settings: IPhoneOverlaySettings) -> [CGRect] {

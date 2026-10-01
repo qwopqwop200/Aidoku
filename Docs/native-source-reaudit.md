@@ -1,5 +1,11 @@
 # Native source migration: second independent audit
 
+> Later integration: translation overlays, image export, dictionary popups and
+> translation pixel kernels now use the native renderer. The historical scope
+> and measurements below describe the source-runtime migration at its recorded
+> revision. Browser-dependent authentication/challenges still use WebKit. See
+> [the current runtime map](native-runtime.md).
+
 Date: 2026-09-30. Worktree: `worktrees/native-source-auth`.
 Branch: `codex/native-source-auth`, base `14627f57`.
 

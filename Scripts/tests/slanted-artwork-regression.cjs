@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Production rectified erasure against independent clean-page and artwork oracles.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const source=n=>fs.readFileSync(path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/'+n+'.swift'),'utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];

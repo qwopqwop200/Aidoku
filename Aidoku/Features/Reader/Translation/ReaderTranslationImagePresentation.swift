@@ -25,8 +25,8 @@ struct ReaderTranslationPreparedImage {
 
 typealias ReaderTranslationImagePreparer = @MainActor (UIImage, Page) async throws -> ReaderTranslationPreparedImage?
 
-/// Legacy text-only caches need a rendering host once. Layout and window events
-/// resume that request; decoded images never poll UIKit or wait on image display.
+/// Wait for measured reader geometry or a settings change before native rendering.
+/// Layout and window events resume the request without polling or awaiting image display.
 @MainActor
 final class ReaderTranslationLayoutAwaiter: UIView {
     nonisolated static let invalidated = Notification.Name("Reader.translation.presentationInvalidated")

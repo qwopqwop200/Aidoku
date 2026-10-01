@@ -75,6 +75,9 @@ extension NativeTranslationRenderer {
                 next.style.blockWordLayoutUsesTopPadding = false
                 next.item = usedLayoutItem(next.item)
                 next.style.fontSize = CGFloat(probe.size); next.style.lineHeight = CGFloat(probe.lineHeight)
+                if next.style.trackingScalesWithFont {
+                    next.style.tracking = card.style.tracking * CGFloat(probe.size) / card.finalFontSize
+                }
                 next.style.alignsToTop = false; next.style.horizontalAlignment = .center; next.style.horizontalScale = 1
                 next.textShift = .zero; next.textRotation = 0; next.lineOffsets = []; next.typographyWidth = nil
                 next.unitTextParts = []; next.unitTextPartsOrigin = nil; next.unitParts = nil
@@ -94,6 +97,7 @@ extension NativeTranslationRenderer {
                 cleanupClip:restoration.cleanupGeometry?.clip))
             next.style.foreground = color(fill.map { CGFloat($0) }); next.style.outline = color(stroke.map { CGFloat($0) })
             next.style.outlineWidth = CGFloat(accepted.probe.strokeWidth); next.style.outlineGlow = 0
+            next.style.outlinePaintOrder = .strokeThenFill
             next.outlineGlow = 0; next.strokePreserved = true; next.heavyStrokeWidth = 0
             next.sourcePanels = []; next.backings = []; next.columnFrameImages = []; next.foreignFills = []; next.drawsPanel = false
             next.sourcePlateOwnerRect = nil

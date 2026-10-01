@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Real UIKit-prepared source crops: successful core-only masks used to leave readable white ghosts.
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), zlib = require('node:zlib'), crypto = require('node:crypto');

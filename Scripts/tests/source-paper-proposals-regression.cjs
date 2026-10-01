@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Production paper proposals preserve neighboring ink and require a committed
 // source cleanup before outline-only text can replace a panel.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');

@@ -45,7 +45,8 @@ with tempfile.TemporaryDirectory(prefix='aidoku-composite-') as temporary:
     (directory/'final.json').write_text(json.dumps({'input':'synthetic-large-page','mode':'translation','regions':[]}))
     payload={'items':[{'id':'text','text':'합성 확인','x':900,'y':650,'width':300,'height':140,'fontSize':35,'lineHeight':45,
         'paddingTop':1,'paddingRight':1,'paddingBottom':1,'paddingLeft':1,'vertical':False,'rotation':0,'sourceTextOnly':False,'sourceColorEligible':False,'sourcePanelRestorationEligible':False,
-        'sourceCleanup':False,'keptLettering':False,'fontScript':'korean','wrappingScript':'korean'}],
+        'sourceCleanup':False,'keptLettering':False,'sourceBounds':[900/2600,650/1800,300/2600,140/1800],
+        'sourceFrame':[0,0,2600,1800],'fontScript':'korean','wrappingScript':'korean'}],
         'revision':1,'session':'raster-test','appearance':{'opacity':1,'minimumReadableFontSize':5,
         'preserveSourceTextColor':False,'preserveSourceBackgroundColor':False,'inpaintingEnabled':False,'sourceLetterFonts':False}}
     (directory/'001-render-payload.json').write_text(json.dumps({'stage':'render-payload','value':payload},ensure_ascii=False))
@@ -56,4 +57,14 @@ with tempfile.TemporaryDirectory(prefix='aidoku-composite-') as temporary:
         assert all(abs(a-b)<=2 for a,b in zip(pixel(x,y),expected)),(x,y,pixel(x,y),expected)
     assert any(pixel(x,y)!=(35,105,165) for x in range(910,1180,20) for y in range(660,780,20)), 'Translation layer must also be present'
     assert (run/'analysis-index.html').exists()
+    assert json.loads((directory/'final.json').read_text())['renderEngine'] == 'native-coretext-coregraphics'
+    visible_output = (directory/'final.png').read_bytes()
+    # Like the reader image exporter, saved-image rendering remains visible
+    # even when the user's live overlay preference is switched off.
+    payload['nativeSettings'] = {'visible': False, 'opacity': 1, 'preserveSourceTextColor': False,
+        'preserveSourceBackgroundColor': False, 'inpaintingEnabled': False}
+    (directory/'001-render-payload.json').write_text(json.dumps({'stage':'render-payload','value':payload},ensure_ascii=False))
+    subprocess.run(['swift',str(ROOT/'Scripts/image-translation.swift'),'--render-run',str(run)],cwd=ROOT,check=True)
+    assert (directory/'final.png').read_bytes() == visible_output, 'Saved export must ignore live overlay visibility'
+
 print('PASS: large-page source pixels, translated layer, final dimensions and saved-payload replay')

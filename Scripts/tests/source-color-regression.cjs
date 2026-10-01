@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Runs production source-color JavaScript without Swift, WebKit, or font rasterization.
 // Usage: node Scripts/tests/source-color-regression.cjs [--baseline] [--source file] [--filter text]
 // The fixtures below describe pixels, not a second implementation of the estimator.

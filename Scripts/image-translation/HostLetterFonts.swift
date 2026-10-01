@@ -1,42 +1,35 @@
 import Foundation
-import WebKit
+import CoreText
 
-/// The production BrowserOverlayLetterFonts reply contract, with repository
-/// resources replacing Bundle.main because the Swift host is not an app bundle.
-final class HostLetterFonts: NSObject, WKScriptMessageHandlerWithReply, @unchecked Sendable {
-    static let messageName = "aidokuLetterFont"
-    private static let resources: [String: String] = ["serif": "AidokuSerifKR-Bold"]
-    private let files: [String: URL]
+/// Register the reader's bundled face directly in Core Text for this CLI process.
+/// No browser resource handler or separate host font asset is involved.
+final class HostLetterFonts {
+    private static let resources = ["serif": "AidokuSerifKR-Bold"]
+    private let available: [String: Bool]
+
+    static func resourceURL(name: String, extension suffix: String) -> URL? {
+        guard let root = ProcessInfo.processInfo.environment["AIDOKU_PIPELINE_ROOT"] else { return nil }
+        let url = URL(fileURLWithPath: root).appendingPathComponent("Aidoku/Resources/Translation")
+            .appendingPathComponent(name).appendingPathExtension(suffix)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
 
     init(root: URL) {
-        var found: [String: URL] = [:]
-        let directory = root.appendingPathComponent("Aidoku/Resources/Translation")
-        for (key, name) in Self.resources {
-            let url = directory.appendingPathComponent(name).appendingPathExtension("woff2")
-            if FileManager.default.fileExists(atPath: url.path) { found[key] = url }
+        available = Self.resources.reduce(into: [:]) { result, entry in
+            let url = root.appendingPathComponent("Aidoku/Resources/Translation")
+                .appendingPathComponent(entry.value).appendingPathExtension("woff2")
+            guard FileManager.default.fileExists(atPath: url.path) else { return }
+            if CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil) {
+                result[entry.key] = true
+            } else {
+                let font = CTFontCreateWithName(entry.value as CFString, 12, nil)
+                if CTFontCopyPostScriptName(font) as String == entry.value { result[entry.key] = true }
+            }
         }
-        files = found
-        super.init()
     }
 
-    var appearanceValue: [String: Bool] { files.mapValues { _ in true } }
-
-    var availabilityKey: String {
-        "letter-styles-v1:" + files.keys.sorted().joined(separator: ",")
-    }
-
-    func register(in configuration: WKWebViewConfiguration, contentWorld: WKContentWorld) {
-        configuration.userContentController.addScriptMessageHandler(self, contentWorld: contentWorld, name: Self.messageName)
-    }
-
-    func userContentController(_ userContentController: WKUserContentController,
-                               didReceive message: WKScriptMessage) async -> (Any?, String?) {
-        guard let key = message.body as? String, let file = files[key],
-              let data = try? Data(contentsOf: file, options: .mappedIfSafe) else {
-            return (nil, "unavailable")
-        }
-        return (data.base64EncodedString(), nil)
-    }
+    var appearanceValue: [String: Bool] { available }
+    var availabilityKey: String { "native-letter-styles-v1:" + available.keys.sorted().joined(separator: ",") }
 }
 
 /// Decode and migrate the same persisted overlay type that the iPhone loads.

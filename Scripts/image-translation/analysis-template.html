@@ -46,7 +46,7 @@ pre{background:#0b1524;color:#bbd0eb;padding:12px;border-radius:6px;overflow:aut
 <div class="detail"><p id="selection">영역을 선택하면 원문과 기하학 정보를 보여줍니다.</p><div class="cropwrap"><div><canvas id="crop"></canvas><div class="caption">원본 크롭 + 검출 폴리곤</div></div><div><canvas id="deskew"></canvas><div class="caption">각도 보정 미리보기 — 실제 모델 입력 텐서가 아님</div></div></div>
 <details><summary>선택 영역의 원시 결과</summary><pre id="raw"></pre></details></div></section></div>
 <section class="panel full"><h2>렌더러 세그멘테이션 — 실제 호출에서 캡처한 마스크·복원 변화(크롭 로컬 좌표)</h2>
-<p style="padding:0 16px">검출 폴리곤은 글자 단위 픽셀 마스크와 다릅니다. 아래 마스크는 렌더러의 실제 함수 결과이며 최종 채택된 마스크라는 뜻은 아닙니다. 렌더링을 실행하지 않은 OCR-only 결과에는 없습니다.</p><div class="gallery" id="segmentation"></div></section>
+<p style="padding:0 16px">검출 폴리곤은 글자 단위 픽셀 마스크와 다릅니다. 네이티브 복원 알파는 실제 복원 패치의 투명도이며 글자 이진 마스크와 다릅니다. 초기 복원과 최종 저장 단계는 각 기록에 표시됩니다. 이전 실행의 이진 마스크는 당시 함수 결과를 표시합니다. 렌더링을 실행하지 않은 OCR-only 결과에는 없습니다.</p><div class="gallery" id="segmentation"></div></section>
 <section class="panel full"><h2>단계별 PNG — 저장하거나 서로 비교할 수 있는 시각화</h2><div class="gallery" id="previews"></div></section>
 <section class="panel full"><h2>실측 단계 시간·진단</h2><div class="timings" id="timings"></div></section>
 <script>
@@ -97,10 +97,10 @@ $('stage').onchange=()=>changeStage(Number($('stage').value));$('previous').oncl
 for(const id of ['polygons','directions','support','paper','members','heat','labels','rejected','opacity','compare'])$(id).oninput=()=>{fillTable();draw();};
 for(const id of ['search','confidence'])$(id).oninput=()=>{fillTable();draw();};
 $('zoom').oninput=()=>{$('main').style.width=`${$('main').width*Number($('zoom').value)}px`;};$('fit').onclick=()=>{const ratio=Math.max(.1,($('viewer').clientWidth-32)/$('main').width);$('main').style.width=`${$('main').width*ratio}px`;};
-if(DATA.finalImage){$('finalPanel').hidden=false;$('finalPreview').src=DATA.finalImage;$('finalLink').innerHTML=' · <a href="final.png">최종 PNG</a> · <a href="final.html">렌더링 재생</a>';finalImage.onload=draw;finalImage.src=DATA.finalImage;}else $('compare').disabled=true;
+if(DATA.finalImage){$('finalPanel').hidden=false;$('finalPreview').src=DATA.finalImage;$('finalLink').innerHTML=' · <a href="final.png">최종 PNG</a> · <a href="final.html">정적 이미지 미리보기</a>';finalImage.onload=draw;finalImage.src=DATA.finalImage;}else $('compare').disabled=true;
 for(const map of DATA.maps){if(map.png){const img=new Image();img.onload=draw;img.src=map.png;mapImages.push({map,img});}}
-let maskCount=0;for(const trace of DATA.segmentation){for(const c of trace.captures||[]){maskCount++;galleryCard($('segmentation'),`${maskCount}. ${c.function} · ${c.kind}`,c.overlay||c.mask,`${c.width}×${c.height} · ${c.selectedPixels??'—'} px · ${c.status} · ${c.failure||c.method||''} · 크롭 로컬 좌표 · ${JSON.stringify(c.evidence||{})}`);if(c.source)galleryCard($('segmentation'),`${maskCount}. 원본 크롭`,c.source,JSON.stringify(c.box));if(c.mask)galleryCard($('segmentation'),`${maskCount}. 이진 마스크`,c.mask,c.kind);if(c.repaired)galleryCard($('segmentation'),`${maskCount}. 실제 배경 복원`,c.repaired,JSON.stringify({method:c.method,quality:c.quality,maskMode:c.maskMode}));}
-if(trace.dropped){galleryCard($('segmentation'),'캡처 제한',null,`${trace.dropped}개 호출이 픽셀/개수 예산을 초과했습니다. 렌더링 결과 자체에는 영향을 주지 않습니다.`);}}
+let maskCount=0;for(const trace of DATA.segmentation){for(const c of trace.captures||[]){maskCount++;galleryCard($('segmentation'),`${maskCount}. ${c.function} · ${c.kind} · ${c.phase||'legacy'}`,c.overlay||c.mask,`${c.width}×${c.height} · ${c.selectedPixels??'—'} px · ${c.status} · ${c.failure||c.method||''} · 크롭 로컬 좌표 · ${JSON.stringify(c.evidence||{})}`);if(c.source)galleryCard($('segmentation'),`${maskCount}. 원본 크롭`,c.source,JSON.stringify(c.box));if(c.mask)galleryCard($('segmentation'),`${maskCount}. ${c.kind==='native-repair-alpha'?'복원 패치 알파':'이진 마스크'}`,c.mask,c.kind);if(c.repaired)galleryCard($('segmentation'),`${maskCount}. 실제 배경 복원`,c.repaired,JSON.stringify({method:c.method,quality:c.quality,maskMode:c.maskMode}));}
+if(trace.dropped){galleryCard($('segmentation'),'캡처 제한',null,`${trace.dropped}개 캡처가 픽셀/개수 예산 또는 입력 검증으로 생략되었습니다. 렌더링 결과 자체에는 영향을 주지 않습니다.`);}}
 for(const trace of DATA.segmentation)for(const c of trace.captures||[]){
   if(c.palette)galleryCard($('segmentation'),`${c.function} · 색/소유권 증거`,null,
     JSON.stringify({palette:c.palette,sourcePolygons:c.options?.polygons,neighbourPolygons:c.options?.excludedPolygons}));

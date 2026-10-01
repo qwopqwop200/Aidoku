@@ -9,7 +9,7 @@ Work from this directory, the Git root containing `Aidoku.xcodeproj`; the parent
 - `Aidoku/Features` and `Aidoku/Extensions`: screens and framework extensions.
 - `Aidoku/Resources/Translation`: OCR models and dictionaries.
 - `AidokuShare`: share extension; `AidokuTests`: app-hosted tests.
-- `Scripts`: Python tooling and JavaScript regressions; `Vendor`: patched dependencies. Read `Vendor/README.md` before modifying them.
+- `Scripts`: native host tooling and frozen-reference JavaScript regressions; `Vendor`: patched dependencies. Read `Vendor/README.md` before modifying them.
 
 ## Build, Test, and Development Commands
 
@@ -26,6 +26,10 @@ python3 Scripts/test_quick.py --fast-ios --device <UDID>
 
 # Affected suite only, when the fast plan does not cover the change
 python3 Scripts/test_quick.py --ios TrackerSyncTests --device <UDID> --configuration Release
+
+# Explicitly requested complete plans
+python3 Scripts/test_quick.py --full-ios --device <UDID>
+python3 Scripts/test_quick.py --full-host
 
 swiftlint lint
 python3 -m unittest discover -s Scripts -v
@@ -63,9 +67,9 @@ Use four spaces, `// ` comments, implicit returns where appropriate, and floatin
 
 Use the optimized test workflow documented in `Scripts/TESTING.md`. Start routine host checks with `python3 Scripts/test_quick.py`; for routine Swift checks use `--fast-ios --device <UDID>` (Release, AidokuFast). The shared Aidoku scheme defaults to AidokuFast. Use `--ios <suite> --device <UDID>` for explicit affected suites (AidokuFull), or `-testPlan AidokuFull` for exhaustive integration/performance validation. iOS compilation, launch, and tests have no default time limit. The 55-second default applies only to host smoke checks; `--seconds` is an explicit optional override. Timeout means incomplete; zero executed iOS tests must never pass. Broaden only under the mandatory verification-scope exceptions above; prefer a focused affected suite before AidokuFull.
 
-Preserve the optimized fixture helpers: condition-based waits, controlled retry clocks, isolated reusable WebKit fixtures, and cached Node script compilation. Keep assertions and fixture matrices intact. Heavy integration, benchmark, and external-fixture suites belong in opt-in AidokuFull rather than the routine AidokuFast plan; do not silently omit explicitly requested tests. Keep production retry delays unchanged. Record build, startup/test execution, and test-body timings separately. Verified timings and coverage limits are in `Scripts/TESTING.md`.
+Preserve the optimized fixture helpers: condition-based waits, controlled retry clocks, isolated reusable WebKit reference fixtures, and cached Node reference-script compilation. Keep assertions and fixture matrices intact. Heavy integration, benchmark, and external-fixture suites belong in opt-in AidokuFull rather than the routine AidokuFast plan; do not silently omit explicitly requested tests. Keep production retry delays unchanged. Record build, startup/test execution, and test-body timings separately. Verified timings and coverage limits are in `Scripts/TESTING.md`.
 
-Follow existing Swift Testing suites (`import Testing`, `@Test`), using descriptive behavior names and `*Tests.swift` filenames. Run affected suites for Swift changes and the relevant Node regressions for embedded overlay JavaScript; consult `.github/workflows/source-color.yml` for fixture arguments. Add regression coverage for behavior fixes. Report simulator, physical-device, and host-only validation separately; no numeric coverage threshold is prescribed here.
+Follow existing Swift Testing suites (`import Testing`, `@Test`), using descriptive behavior names and `*Tests.swift` filenames. Run affected native suites for Swift/Rust changes. Node overlay regressions exercise the frozen pre-migration Web renderer, not the production renderer; consult `.github/workflows/source-color.yml` for fixture arguments. Add regression coverage for behavior fixes. Report simulator, physical-device, and host-only validation separately; no numeric coverage threshold is prescribed here.
 
 ## Commit & Pull Request Guidelines
 
@@ -77,7 +81,7 @@ Use `NSLocalizedString` for UI text and update every supported locale, including
 
 ## Image translation pipeline CLI
 
-For quick image translation/OCR analysis, use `Scripts/image-translation.swift` directly on Apple Silicon macOS 15+ with Xcode command-line tools. From this Git root, passing only an image, image list, or folder runs the production Core ML OCR, recovery/grouping, remote translation and JavaScript renderer:
+For quick image translation/OCR analysis, use `Scripts/image-translation.swift` directly on Apple Silicon macOS 15+ with Xcode command-line tools and Rust (`rustc`). From this Git root, passing only an image, image list, or folder runs the production Core ML OCR, recovery/grouping, remote translation and native Core Graphics/Core Text renderer:
 
 ```sh
 swift Scripts/image-translation.swift /path/to/page.png
@@ -92,14 +96,14 @@ The runner automatically reads this repository's ignored `.env`, including the A
 python3 Scripts/image-translation/sync-iphone-settings.py --device <DEVICE_ID> --bundle-id <INSTALLED_AIDOKU_BUNDLE_ID>
 ```
 
-This reads the installed app's preferences and preserves the existing local API key. It imports protocol/reasoning, languages, image/filter flags, OCR model/sizes/confidence/detector thresholds, and supported overlay appearance settings. Scheduling/cache preferences are retained as provenance; this CLI uses bounded image workers (default `AIDOKU_IMAGE_JOBS=8`, overridden by `--jobs N`), overlaps translation across images, and uses the production layout planner with AppKit/Core Text font metrics. OCR and rendering each retain one admission slot. Supply the actual reader container with `--viewport WIDTHxHEIGHT` or `AIDOKU_RENDER_VIEWPORT`; the 430x932 default is portrait screen geometry, not a live reader measurement. Image-attached provider calls are capped at three. Bundled serif fonts and mask/PDF composition are supported; macOS font metrics and iPhone performance/pixel output can still differ.
+This reads the installed app's preferences and preserves the existing local API key. It imports protocol/reasoning, languages, image/filter flags, OCR model/sizes/confidence/detector thresholds, and supported overlay appearance settings. Scheduling/cache preferences are retained as provenance; this CLI uses bounded image workers (default `AIDOKU_IMAGE_JOBS=8`, overridden by `--jobs N`), overlaps translation across images, and uses the production layout planner with AppKit/Core Text font metrics. OCR and rendering each retain one admission slot. Supply the actual reader container with `--viewport WIDTHxHEIGHT` or `AIDOKU_RENDER_VIEWPORT`; the 430x932 default is portrait screen geometry, not a live reader measurement. Image-attached provider calls are capped at three. Bundled serif fonts are registered with Core Text; source restoration and mask/PDF composition use the production native renderer and original Rust kernels compiled as a native static library; macOS font metrics and iPhone performance/pixel output can still differ.
 
-Runs save numbered intermediate JSON, OCR/stage PNGs, detector probability maps, renderer segmentation masks or restoration differences, final JSON/HTML/PNG, and an interactive `analysis-index.html` under `../output/image-translation/run-<UUID>/`. Open the analysis report to inspect OCR text/confidence, reading direction, geometric angles, recovery/merging, balloon interiors, segmentation and final rendering. OCR-only runs have no renderer masks. Rebuild reports from existing output without running OCR or a server:
+Runs save numbered intermediate JSON, OCR/stage PNGs, detector probability maps, native restoration masks and repaired crops, final JSON/PDF/PNG and a static HTML preview, and an interactive `analysis-index.html` under `../output/image-translation/run-<UUID>/`. Open the analysis report to inspect OCR text/confidence, reading direction, geometric angles, recovery/merging, balloon interiors, segmentation and final rendering. OCR-only runs have no renderer masks. `final.html` displays the saved PNG; opening it does not execute an overlay renderer. Native repair-alpha diagnostics record actual repair patches, not the former JavaScript glyph-mask instrumentation. Rebuild reports from existing output without running OCR or a server:
 
 ```sh
 swift Scripts/image-translation.swift --visualize-run /path/to/run-UUID
 ```
 
-Final composites are also collected in `RUN_DIRECTORY/final/`. Use `swift Scripts/image-translation.swift --render-run RUN_DIRECTORY` to recompose completed results from saved render payloads without OCR/API calls. Use `--resume-run RUN_DIRECTORY` with the same image inputs/order/settings to skip completed results and continue an interrupted run.
+Final composites are also collected in `RUN_DIRECTORY/final/`. Use `swift Scripts/image-translation.swift --render-run RUN_DIRECTORY` to recompose completed results from saved render payloads without OCR/API calls. Use `--resume-run RUN_DIRECTORY` with the same image inputs/order/settings to retain completed native results and continue an interrupted run. Completed historical browser renders are recomposed from saved inputs with the native renderer, without OCR/API calls.
 
 See `Scripts/image-translation/README.md` and `swift Scripts/image-translation.swift --help` for all options. Focused checks are `python3 Scripts/tests/run-image-environment-smoke.py`, `python3 Scripts/tests/run-image-analysis-smoke.py`, and `python3 Scripts/tests/run-image-translation-smoke.py` (real host OCR/rendering and a local mock server). Apply the existing verification-scope rules; documentation-only changes need no build or test run. The launcher reuses its incremental Swift/Core ML cache in `build/image-translation-host`.

@@ -40,7 +40,10 @@ enum NativeKeepAllAutoLines {
         let analysis = NativeKeepAllBreakOpportunities.analyze(text: text)
         guard !analysis.hasPreservedTab, analysis.paragraphs.count == 1,
               !analysis.hasSoftHyphen, analysis.items.count <= 512 else { return nil }
-        let maximum = Float(maximumWidth)
+        // WebKit LineBuilder::availableWidth compensates for the 1/64 CSS
+        // layout-unit floor before comparing float text advances. This is a
+        // line-breaking allowance; painted surface/obstacle proofs are separate.
+        let maximum = Float(maximumWidth) + Float(1.0 / 64.0)
         var ranges: [NSRange] = [], lineStart = 0, total: Float = 0
         var hasWrapOpportunity = false, cursor = 0
         func finish(_ end: Int) -> Bool {

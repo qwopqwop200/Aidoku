@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Single-letter production crop: component count must not force a full panel.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),z=require('node:zlib');
 const source=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourcePanelRestoration.swift');

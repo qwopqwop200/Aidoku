@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Production final typography in WebKit. The detector's erasure plate must not
 // rotate upright translated lettering, and cannot be enlarged to make it fit.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');

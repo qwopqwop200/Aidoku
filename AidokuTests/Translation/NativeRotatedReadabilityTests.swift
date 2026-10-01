@@ -49,4 +49,29 @@ import Testing
         #expect(blocked[0].item == card.item && blocked[0].finalFontSize == 6)
         #expect(allowed[0].sourcePanels[0].rect.width > card.sourcePanels[0].rect.width || allowed[0].sourcePanels[0].rect.height > card.sourcePanels[0].rect.height)
     }
+    @Test func finalLiftRetainsRecordedAutomaticBalancedRows() throws {
+        let text = "우정, 노력, 미래 예지. 우리들의 청춘은 차원이 다르게 지려."
+        var (card, layout, settings) = try fixture(width: 100.625, height: 128.703125, text: text)
+        card.item.fontSize = 8; card.item.lineHeight = 9.546875
+        card.style.fontSize = 8; card.style.lineHeight = 9.546875
+        card.style.horizontalWrapping = .keepAllWithEmergency
+        card.style.tracking = -0.096
+        card.finalFontSize = 8
+        card.typography = NativeTranslationTypography.layout(text: text, in: card.item.contentRect.size, style: card.style)
+        layout = NativeTranslationLayout(imageSize: layout.imageSize, sourceRect: layout.sourceRect,
+            viewport: layout.viewport, items: [card.item])
+        var cards = [card]
+        let budget = try NativeTranslationRenderer.liftFinalRotatedReadability(
+            cards: &cards, gloss: .init(), layout: layout, source: nil, settings: settings)
+        #expect(budget.lifted == 1)
+        #expect(cards[0].finalFontSize == 9)
+        #expect(cards[0].style.balancesHorizontalLines)
+        // Actual frozen WK output for this 98.625pt inner width has three
+        // balanced rows. The previous adapter greedily packed the second row.
+        #expect(cards[0].typography.shapedText ==
+            "우정, 노력, 미래 예지. \n우리들의 청춘은 \n차원이 다르게 지려.")
+        #expect(cards[0].sourcePlateRect == card.sourcePlateRect)
+        #expect(cards[0].item.rotation == card.item.rotation)
+    }
+
 }

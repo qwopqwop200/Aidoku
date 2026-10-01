@@ -1,6 +1,5 @@
 import Testing
 import UIKit
-import WebKit
 @testable import Aidoku
 
 /// Explicit local replay: originals remain outside the repository and provider calls are not required.
@@ -87,54 +86,77 @@ struct ReaderFourDefectReplayTests {
             region.translation = translations[key] ?? value.source
             return region
         }
+        let output = directory.appendingPathComponent("native-replay")
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let uiImage = UIImage(cgImage: image)
         let prepared = try ReaderTranslationBackgroundImage.prepare(uiImage)
-        try #require(prepared.pngData()).write(to: directory.appendingPathComponent(name + ".prepared.png"))
+        let preparedPNG = try #require(prepared.pngData())
+        try preparedPNG.write(to: output.appendingPathComponent(name + ".prepared.png"))
         let size = CGSize(width: image.width, height: image.height), viewport = CGSize(width: 430, height: 574)
-        let frame = CGRect(x: 0, y: 0, width: 430, height: 430 * size.height / size.width)
-        let items = BrowserPageImageOverlayRenderer.layoutPayload(items: ReaderTranslationRegion.layoutItems(translated, imageSize: size),
-            imageSize: size, sourceRect: frame, settings: settings.overlay, targetLanguage: "ko", viewport: viewport)
-        let payload: [String: Any] = ["items": items, "imageSize": [image.width, image.height],
-            "viewport": [430, 574], "scale": 3, "displayRect": [0, 0, 430, frame.height],
-            "appearance": ["inpaintingEnabled": true, "minimumReadableFontSize": 5, "opacity": 1,
-                           "preserveSourceBackgroundColor": true, "preserveSourceTextColor": true]]
-        try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
-            .write(to: directory.appendingPathComponent("\(name).payload.json"))
-        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(origin: .zero, size: viewport)
-        window.rootViewController = UIViewController()
-        let overlay = LegacyReaderTranslationOverlayView(frame: window.bounds)
-        window.rootViewController?.view.addSubview(overlay)
-        window.makeKeyAndVisible()
-        defer { overlay.cancelWork(); window.isHidden = true }
-        overlay.update(regions: translated, imageSize: size, aspectFit: true, settings: settings, image: uiImage)
-        for _ in 0..<400 where overlay.lastDiagnostic == nil { try await Task.sleep(for: .milliseconds(50)) }
-        #expect(overlay.lastDiagnostic?.outcome == .committed)
-        let audit = try await overlay.webView.evaluateJavaScript("""
-        JSON.stringify(Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay]')).map(n=>({
-          kind:n.dataset.aidokuImageOcrOverlay,id:n.dataset.aidokuRegion,data:{...n.dataset}})))
-        """)
-        let auditData = Data((try #require(audit as? String)).utf8)
-        try auditData.write(to: directory.appendingPathComponent("\(name).audit.json"))
-        let auditRows = try #require(JSONSerialization.jsonObject(with: auditData) as? [[String: Any]])
-        let root = try #require(auditRows.first { $0["kind"] as? String == "root" }?["data"] as? [String: Any])
-        let encoded = try #require(root["panelRestorationAudit"] as? String)
-        let repairs = try #require(JSONSerialization.jsonObject(with: Data(encoded.utf8)) as? [[String: Any]])
+        let rendered = try await NativeTranslationRenderer.render(image: uiImage, imageSize: size,
+            items: ReaderTranslationRegion.layoutItems(translated, imageSize: size), settings: settings.overlay,
+            targetLanguage: settings.targetLanguage, viewport: viewport, scale: 3, aspectFit: true,
+            dark: false, collectDiagnostics: true)
+        #expect(rendered.renderedItemCount > 0)
+        let auditData = try #require(rendered.diagnosticData)
+        try auditData.write(to: output.appendingPathComponent(name + ".audit.json"))
+        try rendered.layoutData.write(to: output.appendingPathComponent(name + ".native-layout.json"))
+        let auditObject = try JSONSerialization.jsonObject(with: auditData)
+        let audit = try #require(auditObject as? [String: Any])
+        let cards = try #require(audit["cards"] as? [[String: Any]])
+        let failures = try #require(audit["finalPatchCaptureFailures"] as? [String])
+        #expect(failures.isEmpty)
+        let repairs = try #require(audit["finalPatches"] as? [[String: Any]])
         for (index, region) in translated.enumerated() where region.translation != region.source {
             let id = String(index)
-            #expect(!auditRows.contains { $0["kind"] as? String == "source-readability-panel" && $0["id"] as? String == id })
-            let repair = try #require(repairs.first { $0["id"] as? String == id })
+            let card = try #require(cards.first { $0["id"] as? String == id })
+            let panels = try #require(card["panels"] as? [[String: Any]])
+            #expect(panels.isEmpty, "Translated source lettering must not retain a readability panel")
+            // Initial proposals may defer to the verified final forced repair.
+            // Inspect the committed source patch, including its actual PNG pixels.
+            let matching = repairs.filter {
+                $0["id"] as? String == id && $0["independentArtworkCover"] as? Bool == false
+            }
+            try #require(matching.count == 1, "The translated source must have one committed primary repair")
+            let repair = matching[0]
             #expect(repair["sourceErasureVerified"] as? Bool == true)
+            // Source erasure is an independent certificate: preserving foreign
+            // lettering can revoke the broad glyph proof while keeping owned ink erased.
+            #expect(repair["erasureComplete"] as? Bool == true)
+            let erased = try repairedPixelCount(repair,
+                output: output.appendingPathComponent(name + ".final-patch-" + id + ".png"))
             let minimum = name == "overflow" ? 35000 : region.source.contains("興味") ? 40000 : 75000
-            #expect((repair["erased"] as? Int ?? 0) >= minimum, "Include the original white outlines, not just coloured cores")
+            #expect(erased >= minimum, "Include the original white outlines, not just coloured cores")
         }
-        // Use the same complete-page PDF rasterization as the reader cache;
-        // a DOM commit can precede the first GPU snapshot's painted tiles.
+        // Persist the same complete-page native export used by the reader cache.
         let snapshot = try await ReaderTranslationImageExporter.renderCacheSnapshot(
             image: uiImage, imageSize: size, regions: translated, settings: settings,
-            viewport: viewport, scale: 3, aspectFit: true, host: window, dark: false, preparedLayout: nil)
-        try #require(snapshot.pngData()).write(to: directory.appendingPathComponent("\(name).render.png"))
+            viewport: viewport, scale: 3, aspectFit: true, host: nil, dark: false, preparedLayout: nil)
+        let png = try #require(snapshot.pngData())
+        try png.write(to: output.appendingPathComponent(name + ".render.png"))
+    }
+
+    private func repairedPixelCount(_ repair: [String: Any], output: URL) throws -> Int {
+        let source = try #require(repair["png"] as? String)
+        let encoded = try #require(source.split(separator: ",", maxSplits: 1).last)
+        let data = try #require(Data(base64Encoded: String(encoded)))
+        let patch = try #require(UIImage(data: data)?.cgImage)
+        let width = try #require(repair["width"] as? Int)
+        let height = try #require(repair["height"] as? Int)
+        #expect(patch.width == width && patch.height == height)
+        try data.write(to: output)
+        var pixels = Data(count: patch.width * patch.height * 4)
+        let space = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        try pixels.withUnsafeMutableBytes { bytes in
+            let context = try #require(CGContext(data: bytes.baseAddress, width: patch.width, height: patch.height,
+                bitsPerComponent: 8, bytesPerRow: patch.width * 4, space: space,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
+            context.setBlendMode(.copy)
+            context.draw(patch, in: CGRect(x: 0, y: 0, width: patch.width, height: patch.height))
+        }
+        // The production restoration's paintedCount also counts rgba alpha > 0.
+        // Decode its actual PNG instead of trusting a reported count or layout-safe mask.
+        return stride(from: 3, to: pixels.count, by: 4).reduce(0) { $0 + (pixels[$1] > 0 ? 1 : 0) }
     }
 
 }

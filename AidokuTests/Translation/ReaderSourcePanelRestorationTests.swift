@@ -106,7 +106,6 @@ struct ReaderSourcePanelRestorationTests {
     }
 
     @Test func suppressedRubyRetainsInkThroughArchiveWithoutMovingBody() throws {
-        guard #available(iOS 18.0, *) else { return }
         func line(_ text: String, _ rect: CGRect) -> NativeCoreMLOCRLine {
             NativeCoreMLOCRLine(polygon: [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY),
                 CGPoint(x: rect.maxX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.maxY)],

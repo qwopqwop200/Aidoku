@@ -25,7 +25,6 @@ struct ReaderTranslationRenderingTests {
         page.renderCache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
         defer {
             page.reset(); host.isHidden = true
-            ReaderTranslationImageExporter.clearIdleRenderer()
             try? FileManager.default.removeItem(at: root)
         }
         var settings = fixtureSettings()
@@ -84,7 +83,6 @@ struct ReaderTranslationRenderingTests {
         page.renderCache = cache
         defer {
             page.reset(); host.isHidden = true
-            ReaderTranslationImageExporter.clearIdleRenderer()
             try? FileManager.default.removeItem(at: root)
         }
         var settings = fixtureSettings()
@@ -124,7 +122,7 @@ struct ReaderTranslationRenderingTests {
         let host = try window(frame: frame)
         host.rootViewController = UIViewController()
         host.makeKeyAndVisible()
-        defer { host.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
+        defer { host.isHidden = true }
         let source = image(), settings = fixtureSettings()
         let regions = [ReaderTranslationRegion(id: "dialogue", rect: CGRect(x: 0.07, y: 0.1, width: 0.7, height: 0.1),
             source: "HELLO WORLD", translation: "안녕, 세상! 함께 출발하자.")]
@@ -165,7 +163,7 @@ struct ReaderTranslationRenderingTests {
         let settings = fixtureSettings(), source = image()
         let generation = await cache.disk.currentGeneration(settings: settings)
         defer {
-            overlay.cancelWork(); host.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer()
+            overlay.cancelWork(); host.isHidden = true
             try? FileManager.default.removeItem(at: root)
         }
         overlay.defersPresentationUntilSnapshot = true
@@ -202,7 +200,7 @@ struct ReaderTranslationRenderingTests {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
         defer {
-            overlay.cancelWork(); host.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer()
+            overlay.cancelWork(); host.isHidden = true
             try? FileManager.default.removeItem(at: root)
         }
         overlay.defersPresentationUntilSnapshot = true

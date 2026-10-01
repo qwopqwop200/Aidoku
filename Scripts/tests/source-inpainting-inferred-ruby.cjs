@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Real missing-ruby capture: erase both reading glyphs without painting the
 // balloon contour or the neighboring drawing. Run with node --test.
 const assert = require('node:assert/strict');

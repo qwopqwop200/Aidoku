@@ -779,6 +779,7 @@ enum NativeTypographyPostPolish {
     }
     final class GrowthHistory {
         var original: [String: NativeTranslationLayoutItem] = [:]
+        var displayedGlossObstacles: [String: [CGRect]] = [:]
         var collectInitialDiagnostics = false
         var initialTypographyTrace: [String: [[String: Any]]] = [:]
         var registered = false
@@ -792,6 +793,7 @@ enum NativeTypographyPostPolish {
         var surfaceInspectionCharacters = 8192
         var surfaceInspectable: Set<String> = []
         var restoredLookupRemaining = 4_194_304
+        var wordRepairRemaining = 1_048_576
         var lateWordRepairRemaining = 1_048_576
         var balloonTypeRemaining = 32_768
         var balloonSurfaceRemaining = 2_097_152
@@ -815,6 +817,23 @@ enum NativeTypographyPostPolish {
         var table: NativeTypographyPlacementSearch.Table?
         var tableAttempted = false
         var movedAttempts = 0
+        private(set) var widthAttempts = 0
+        private(set) var widthPassExhausted = false
+
+        /// A pass searches several font sizes with one 36-width allowance.
+        /// Moved layouts retain their independent per-caption allowance.
+        func beginWidthPass() {
+            widthAttempts = 0
+            widthPassExhausted = false
+        }
+        func takeWidthAttempt() -> Bool {
+            guard widthAttempts < 36 else {
+                widthPassExhausted = true
+                return false
+            }
+            widthAttempts += 1
+            return true
+        }
     }
     struct Context {
         var restoration: NativeTranslationRestoration.Result
@@ -959,6 +978,12 @@ enum NativeTypographyPostPolish {
                 $0.minX >= item.x - 0.5 && $0.maxX <= item.rect.maxX + 0.5 && $0.minY >= item.y - 0.5 && $0.maxY <= bottom + 0.5
             }
         }
+        /// A retained gloss replaces its hidden parent in the displayed DOM.
+        /// This affects text collisions only, never source erasure ownership.
+        func placementObstacles(_ other: NativeTranslationLayoutItem) -> [CGRect] {
+            if !other.keptLettering, let displayed = growth.displayedGlossObstacles[other.id] { return displayed }
+            return [restored(other.id) ? candidate(other).inkFrame : other.rect]
+        }
         func clear(_ candidate: Candidate, others: [NativeTranslationLayoutItem], prior: Candidate? = nil) -> Bool {
             let ink = candidate.ink, priorInk = prior?.ink ?? []
             guard !ink.isEmpty else { return false }
@@ -972,7 +997,8 @@ enum NativeTypographyPostPolish {
                                       width: bounds[2] * sourceFrame.width, height: bounds[3] * sourceFrame.height)
                     }
                 } else {
-                    obstacles = restored(other.id) ? self.candidate(other).ink : [other.rect]
+                    obstacles = growth.displayedGlossObstacles[other.id] ??
+                        (restored(other.id) ? self.candidate(other).ink : [other.rect])
                 }
                 for glyph in ink {
                     for obstacle in obstacles {
@@ -1147,11 +1173,14 @@ enum NativeTypographyPostPolish {
         }
         func trace(_ stage: String, _ candidate: Candidate, target: CGFloat? = nil,
                    wordAware: Bool? = nil, contained: Bool? = nil, accepted: Bool? = nil) {
+            // Keep bounded trial details from crowding out accepted and return state.
+            let limit = stage == "growth-shaped-trial" ? 48 : 60
             guard growth.collectInitialDiagnostics,
-                  growth.initialTypographyTrace[candidate.item.id, default: []].count < 64 else { return }
+                  growth.initialTypographyTrace[candidate.item.id, default: []].count < limit else { return }
             let item = candidate.item, profile = candidate.profile
             var record: [String: Any] = ["stage": stage, "font": item.fontSize,
                 "text": item.typesettingText ?? item.text,
+                "surfaceInk": candidate.ink.map { [$0.minX,$0.minY,$0.width,$0.height] },
                 "controlled": item.typesettingText != nil,
                 "wordAwareMarker": item.captionFixedBoxReflowDisabled == true,
                 "blockDisplay": item.typesettingBlockDisplay == true,
@@ -1257,11 +1286,12 @@ enum NativeTypographyPostPolish {
         /// pass. Every proposal is a fresh full layout; neither a clipped line
         /// nor a successful size at a different measure proves this proposal.
         func growthLayout(_ item: NativeTranslationLayoutItem, size: CGFloat, allowWide: Bool, liftWide: Bool,
-                          lift: Bool, extended: Bool = false, display: Bool = false, extraBreaks: Int, original: Candidate,
+                          lift: Bool, extended: Bool = false, display: Bool = false, condensed: Bool = false, extraBreaks: Int, original: Candidate,
                           search: GrowthSearch, others: [NativeTranslationLayoutItem]) -> Candidate? {
             guard let patch = patches[item.id], item.sourceBounds.count == 4 else { return nil }
             guard (!extended || growth.balloonExtendedRemaining > 0),
                   (!display || growth.balloonDisplayRemaining > 0),
+                  (!condensed || growth.balloonCondensedRemaining > 0),
                   (!lift || (liftWide ? growth.balloonLiftWideRemaining : growth.balloonLiftRemaining) > 0) else { return nil }
             let savedType = growth.balloonTypeRemaining, savedSurface = growth.balloonSurfaceRemaining
             let savedExterior = reader.exteriorBudget, savedShift = growth.shiftBudget, savedMoves = search.movedAttempts
@@ -1270,13 +1300,14 @@ enum NativeTypographyPostPolish {
                     savedSurface - growth.balloonSurfaceRemaining + savedExterior - reader.exteriorBudget)
                 if extended { growth.balloonExtendedRemaining -= spent }
                 if display { growth.balloonDisplayRemaining -= spent }
+                if condensed { growth.balloonCondensedRemaining -= spent }
                 if lift {
                     let charged = spent + max(0, savedShift - growth.shiftBudget)
                     if liftWide { growth.balloonLiftWideRemaining -= charged }
                     else { growth.balloonLiftRemaining -= charged }
                     growth.shiftBudget = savedShift; search.movedAttempts = savedMoves
                 }
-                if extended || display || lift {
+                if extended || display || lift || condensed {
                     growth.balloonTypeRemaining = savedType; growth.balloonSurfaceRemaining = savedSurface
                     reader.exteriorBudget = savedExterior
                 }
@@ -1303,7 +1334,6 @@ enum NativeTypographyPostPolish {
             for center in measuredCenters where !centers.contains(where: { abs($0.x - center.x) < 0.5 && abs($0.y - center.y) < 0.5 }) {
                 centers.append(center)
             }
-            var attempts = 0
             var anchors = centers.map { (point: $0, measure: CGFloat?.none) }, anchorIndex = 0
             var misplaced: (frame: CGRect, width: CGFloat, anchor: CGPoint)?
             while anchorIndex < anchors.count {
@@ -1324,10 +1354,26 @@ enum NativeTypographyPostPolish {
                     if let index = widths.firstIndex(of: measure) { widths.remove(at: index) }
                     widths.insert(measure, at: 0)
                 }
-                let wordWidth = clampWidth(koreanWordWidth(text: item.text, style: fontStyle))
+                let longest = koreanWordWidth(text: item.text, style: fontStyle)
+                var wordWidth = clampWidth(longest)
+                var condense: CGFloat = condensed ? 0.9 : 1
+                var fullWidths: [CGFloat] = []
+                if condensed {
+                    // Only compression may fit these painted widths. Every
+                    // original full-width candidate must fail the same proof.
+                    let narrow = ceil((longest * condense + 1) * 4) / 4
+                    for width in widths + [wordWidth] where width >= longest && !fullWidths.contains(width) {
+                        fullWidths.append(width)
+                    }
+                    widths = Array(widths.filter { $0 > narrow && $0 < longest }.prefix(1))
+                        + (clampWidth(narrow) >= narrow ? [narrow] : [])
+                    wordWidth = narrow
+                    if widths.isEmpty { continue }
+                }
                 var lastWide = false
                 func place(_ width: CGFloat, wideAllowed: Bool) -> Candidate? {
-                    guard width >= min(size * 1.8, advance + 1), height > 0,
+                    let logicalWidth = width / condense
+                    guard logicalWidth >= min(size * 1.8, advance + 1), height > 0,
                           !moved || growth.shiftBudget > 0,
                           item.text.utf16.count <= growth.balloonTypeRemaining,
                           growth.balloonSurfaceRemaining > 0 else { return nil }
@@ -1345,6 +1391,9 @@ enum NativeTypographyPostPolish {
                     var proposed = resized(item, size: size)
                     proposed.x = anchor.x - width / 2; proposed.y = anchor.y - height / 2
                     proposed.width = width; proposed.height = height
+                    // Items retain painted dimensions; the native shaper
+                    // expands the available measure by horizontalScale once.
+                    if condensed { proposed.typesettingWidthScale = condense < 1 ? condense : nil }
                     proposed.paddingTop = 0; proposed.paddingRight = 0; proposed.paddingBottom = 0; proposed.paddingLeft = 0
                     proposed.typesettingText = nil; proposed.typesettingQuoteMode = nil; proposed.typesettingPreformattedRows = nil
                     let maxLines = min(original.profile.lines + 4, Int(floor(height / (size * ratio))))
@@ -1352,15 +1401,18 @@ enum NativeTypographyPostPolish {
                     var result: Candidate
                     lastWide = false
                     if let narrow = words(proposed, maxLines: maxLines, strict: true) { result = narrow }
-                    else if advance > width {
-                        guard wideAllowed, advance > (widths.max() ?? 0) - 1,
+                    else if advance > logicalWidth {
+                        guard wideAllowed, advance * condense > (widths.max() ?? 0) - 1,
                               let wide = words(proposed, maxLines: maxLines, wide: true) else { return nil }
                         if wide.profile.lines > original.profile.lines, size < item.fontSize * 1.25 { return nil }
                         result = wide; lastWide = true
                     } else { result = candidate(proposed) }
+                    if growth.collectInitialDiagnostics { trace("growth-shaped-trial", result, target: size) }
                     guard !liftWide || lastWide, contentFits(result),
                           fontFlowFits(result.profile, original.profile, extraWordBreaks: moved ? 0 : extraBreaks), result.profile.lines <= maxLines,
-                          growthKeepsLineLength(text: item.text, originalLines: original.profile.lines, lines: result.profile.lines) else { return nil }
+                          growthKeepsLineLength(text: item.text, originalLines: original.profile.lines, lines: result.profile.lines),
+                          !condensed || (result.profile.hangulIsolated <= original.profile.hangulIsolated &&
+                            result.profile.lines <= original.profile.lines + 1) else { return nil }
                     func refusedPlacement() -> Candidate? {
                         if misplaced == nil && !moved { misplaced = (result.inkFrame, width, anchor) }
                         return nil
@@ -1371,11 +1423,12 @@ enum NativeTypographyPostPolish {
                     let gy = lastWide ? max(size * 0.5, 0.75 + gap) : 0.75 + gap
                     let area = result.inkFrame.insetBy(dx: -gx, dy: -gy)
                     for other in others where other.id != item.id {
-                        let obstruction = restored(other.id) ? candidate(other).inkFrame : other.rect
-                        if !obstruction.isNull, area.intersects(obstruction) { return refusedPlacement() }
+                        if placementObstacles(other).contains(where: { !$0.isNull && area.intersects($0) }) {
+                            return refusedPlacement()
+                        }
                     }
                     let margin = lift ? CGSize(width: max(2, size * 0.25), height: max(2, size * 0.25))
-                        : extended ? CGSize(width: max(1, size * 0.1), height: max(0.75, size * 0.1)) : nil
+                        : extended || condensed ? CGSize(width: max(1, size * 0.1), height: max(0.75, size * 0.1)) : nil
                     guard clear(result, others: others), holdsSurface(result, expands: true, allowExterior: true,
                         margin: moved ? CGSize(width: max(1, size * 0.1), height: max(0.75, size * 0.1)) : margin,
                         lookupLimit: patch.surfaceQuality?["reason"] as? String == "ruled-grid" ? 262_144 : 65_536,
@@ -1387,11 +1440,17 @@ enum NativeTypographyPostPolish {
                 func rank(_ p: Profile) -> Int {
                     (p.hangulFragments + p.punctuationOnly + p.badStarts.count + p.badEnds.count) * 100 + p.breaks.count
                 }
+                if condensed, !fullWidths.isEmpty {
+                    condense = 1
+                    let fitsWithoutCompression = fullWidths.contains { place($0, wideAllowed: allowWide) != nil }
+                    condense = 0.9
+                    if fitsWithoutCompression { return nil }
+                }
                 for index in widths.indices {
                     if moved {
                         if search.movedAttempts >= 6 { break }; search.movedAttempts += 1
                     } else {
-                        if attempts >= 36 { return nil }; attempts += 1
+                        guard search.takeWidthAttempt() else { return nil }
                     }
                     guard var best = place(widths[index], wideAllowed: allowWide) else { continue }
                     var bestRank = rank(best.profile), bestWide = lastWide
@@ -1412,22 +1471,35 @@ enum NativeTypographyPostPolish {
                             if let plain = place(other, wideAllowed: false), rank(plain.profile) <= bestRank { best = plain; break }
                         }
                     }
+                    if growth.collectInitialDiagnostics { trace("growth-accepted", best, target: size, accepted: true) }
                     return best
                 }
-                if !moved, anchorIndex == centers.count, anchors.count == centers.count, let refused = misplaced {
+                if !condensed, !moved, anchorIndex == centers.count, anchors.count == centers.count, let refused = misplaced {
                     if !search.tableAttempted {
                         search.tableAttempted = true
                         if let safe = patch.layoutSafe, safe.count <= growth.shiftBudget {
                             growth.shiftBudget -= safe.count
-                            let obstacles = others.filter { $0.id != item.id }.map { other in
-                                restored(other.id) ? candidate(other).inkFrame : other.rect
-                            }
+                            let obstacles = others.filter { $0.id != item.id }.flatMap(placementObstacles)
                             search.table = NativeTypographyPlacementSearch.Table(safe: safe, width: patch.image.width,
                                 height: patch.image.height, crop: patch.rect, obstacles: obstacles)
+                            if growth.collectInitialDiagnostics,
+                               growth.initialTypographyTrace[item.id, default: []].count < 60 {
+                                growth.initialTypographyTrace[item.id, default: []].append([
+                                    "stage": "growth-shift-table", "font": size,
+                                    "obstacles": obstacles.filter { !$0.isNull && !$0.isInfinite }.map { [$0.minX, $0.minY, $0.width, $0.height] },
+                                    "crop": [patch.rect.minX, patch.rect.minY, patch.rect.width, patch.rect.height],
+                                    "raster": [patch.image.width, patch.image.height]])
+                            }
                         }
                     }
                     let glyph = sourceGlyph(item, frame: frame), reach = lift && belowReadableSource(glyph) ? 9 / 0.9 : glyph
-                    if let delta = search.table?.nearestShift(frame: refused.frame, size: size, region: region, reachGlyph: reach) {
+                    func recordShift(_ record: [String: Any]) {
+                        if growth.initialTypographyTrace[item.id, default: []].count < 60 {
+                            growth.initialTypographyTrace[item.id, default: []].append(record)
+                        }
+                    }
+                    if let delta = search.table?.nearestShift(frame: refused.frame, size: size, region: region, reachGlyph: reach,
+                        diagnostic: growth.collectInitialDiagnostics ? recordShift : nil) {
                         anchors.append((CGPoint(x: refused.anchor.x + delta.x, y: refused.anchor.y + delta.y), refused.width))
                     }
                 }
@@ -1568,8 +1640,7 @@ enum NativeTypographyPostPolish {
                     let block = result.inkFrame.insetBy(dx: -clearance, dy: -clearance)
                     if others.contains(where: { other in
                         guard other.id != item.id else { return false }
-                        let r = restored(other.id) ? candidate(other).inkFrame : other.rect
-                        return !r.isNull && block.intersects(r)
+                        return placementObstacles(other).contains { !$0.isNull && block.intersects($0) }
                     }) { continue }
                     let margin = CGSize(width: max(1, size * 0.1), height: max(0.75, size * 0.1))
                     var fits = holdsSurface(result, allowExterior: true, margin: margin, lookupLimit: 65_536,
@@ -1611,6 +1682,25 @@ enum NativeTypographyPostPolish {
             growth.readablePeer.removeValue(forKey: item.id)
             let glyph = sourceGlyph(item, frame: sourceFrame), font = item.fontSize
             guard glyph.isFinite, glyph > 0 else { return nil }
+            func returned(_ result: NativeTranslationLayoutItem?) -> NativeTranslationLayoutItem? {
+                // Record existing state only; diagnostics must not shape or probe a candidate again.
+                if growth.collectInitialDiagnostics,
+                   growth.initialTypographyTrace[item.id, default: []].count < 64 {
+                    var record: [String: Any] = ["stage": "growth-return", "returnedNil": result == nil,
+                        "originalFont": font, "currentFont": current.fontSize,
+                        "extended": growth.extended.contains(item.id), "interior": growth.interior.contains(item.id),
+                        "runs": growth.runs[item.id, default: 0], "extraBreaks": extraBreaks,
+                        "cap": cap.isFinite ? cap as Any : "Infinity"]
+                    record["base"] = growth.base[item.id].map { $0 as Any } ?? NSNull()
+                    record["interiorBase"] = growth.interiorBase[item.id].map { $0 as Any } ?? NSNull()
+                    if let result {
+                        record["font"] = result.fontSize
+                        record["rect"] = [result.x, result.y, result.width, result.height]
+                    }
+                    growth.initialTypographyTrace[item.id, default: []].append(record)
+                }
+                return result
+            }
             let target = quarterFloor(min(32, font * 1.8, max(glyph, styleGlyph) * 0.9, cap))
             let floored = glyph * 0.9 < 9
             if floored {
@@ -1632,9 +1722,10 @@ enum NativeTypographyPostPolish {
                 }
             }
             guard target >= font * 1.08 || !readable.isEmpty || !display.isEmpty else {
-                return current == item ? nil : item
+                return returned(current == item ? nil : item)
             }
             let original = candidate(item), search = GrowthSearch()
+            if growth.collectInitialDiagnostics { trace("growth-baseline", original) }
             var normal: [CGFloat] = []
             if target >= font * 1.08 {
                 let low = font * 1.08
@@ -1643,7 +1734,8 @@ enum NativeTypographyPostPolish {
             let passes: [([CGFloat], Bool, Bool, Bool, Bool)] = [(readable, false, true, false, false), (readable, true, true, false, false),
                 (display, true, false, false, true), (normal, true, false, false, false), (normal, true, false, true, false)]
             var kept: NativeTranslationLayoutItem?
-            for (sizes, wide, lift, extended, isDisplay) in passes {
+            growthPasses: for (sizes, wide, lift, extended, isDisplay) in passes {
+                search.beginWidthPass()
                 for size in sizes {
                     if let kept, size < kept.fontSize * 1.06 { continue }
                     if let fitted = growthLayout(item, size: size, allowWide: wide, liftWide: lift && wide,
@@ -1654,20 +1746,26 @@ enum NativeTypographyPostPolish {
                         if lift || extended || size >= max(normal.max() ?? 0, display.max() ?? 0) {
                             growth.base[item.id] = kept?.fontSize ?? size
                             if extended { growth.extended.insert(item.id) } else { growth.extended.remove(item.id) }
-                            return interiorGrowing(accepted, floor: size, repair: fitted.profile.breaks.count,
-                                                   cap: cap, styleGlyph: styleGlyph, original: original, others: others) ?? accepted
+                            return returned(interiorGrowing(accepted, floor: size, repair: fitted.profile.breaks.count,
+                                                   cap: cap, styleGlyph: styleGlyph, original: original, others: others) ?? accepted)
                         }
                         kept = accepted; break
+                    }
+                    if search.widthPassExhausted {
+                        // The ordinary failed search stops later passes. The
+                        // independently budgeted display/floor passes do not.
+                        if !lift && !isDisplay && kept == nil { break growthPasses }
+                        break
                     }
                 }
             }
             if let kept {
                 growth.base[item.id] = kept.fontSize; growth.extended.remove(item.id)
-                return interiorGrowing(kept, floor: kept.fontSize, cap: cap, styleGlyph: styleGlyph,
-                                       original: original, others: others) ?? kept
+                return returned(interiorGrowing(kept, floor: kept.fontSize, cap: cap, styleGlyph: styleGlyph,
+                                       original: original, others: others) ?? kept)
             }
-            return interiorGrowing(item, floor: font, cap: cap, styleGlyph: styleGlyph, original: original, others: others)
-                ?? (current == item ? nil : item)
+            return returned(interiorGrowing(item, floor: font, cap: cap, styleGlyph: styleGlyph, original: original, others: others)
+                ?? (current == item ? nil : item))
         }
         func condensed(_ item: NativeTranslationLayoutItem, cap: CGFloat,
                        others: [NativeTranslationLayoutItem]) -> NativeTranslationLayoutItem? {
@@ -1681,35 +1779,13 @@ enum NativeTypographyPostPolish {
             let initialFont = growth.original[item.id]?.fontSize ?? font
             let target = quarterFloor(min(32, initialFont * 1.8, glyph * 0.9, cap))
             guard target >= font * 1.08 else { return nil }
-            let original = candidate(item)
+            let original = candidate(item), search = GrowthSearch()
             for size in condensedSizes(base: font, target: target) {
                 guard growth.balloonCondensedRemaining > 0 else { break }
-                let savedType = growth.balloonTypeRemaining, savedSurface = growth.balloonSurfaceRemaining
-                let savedExterior = reader.exteriorBudget
-                defer {
-                    growth.balloonCondensedRemaining -= max(1, (savedType - growth.balloonTypeRemaining) * 64 +
-                        savedSurface - growth.balloonSurfaceRemaining + savedExterior - reader.exteriorBudget)
-                    growth.balloonTypeRemaining = savedType; growth.balloonSurfaceRemaining = savedSurface
-                    reader.exteriorBudget = savedExterior
+                if let result = growthLayout(item, size: size, allowWide: true, liftWide: false, lift: false,
+                    condensed: true, extraBreaks: 0, original: original, search: search, others: others) {
+                    return result.item
                 }
-                var proposed = resized(item, size: size)
-                proposed.typesettingText = nil; proposed.typesettingQuoteMode = nil; proposed.typesettingPreformattedRows = nil
-                let longest = koreanWordWidth(text: item.text, style: style(proposed))
-                guard condensedWordBound(longest: longest, available: item.contentRect.width) else { continue }
-                guard item.text.utf16.count <= growth.balloonTypeRemaining,
-                      growth.balloonSurfaceRemaining > 0 else { continue }
-                growth.balloonTypeRemaining -= item.text.utf16.count
-                proposed.typesettingWidthScale = 0.9
-                var final = candidate(proposed)
-                let allowance = max(2, Int(ceil(CGFloat(original.profile.lines) * 0.35)))
-                let wide = proposed.contentRect.width / 0.9 / size > 8
-                if let words = words(proposed, maxLines: original.profile.lines + allowance, wide: wide, strict: true),
-                   words.profile.penalty <= final.profile.penalty { final = words }
-                guard contentFits(final), contained(final, baseline: original),
-                      final.profile.lines <= original.profile.lines + allowance,
-                      fontFlowFits(final.profile, original.profile), clear(final, others: others, prior: original),
-                      holdsSurface(final, expands: true, usesBalloonBudget: true) else { continue }
-                return final.item
             }
             return nil
         }
@@ -1734,11 +1810,12 @@ enum NativeTypographyPostPolish {
         return high / low
     }
     private static func sourceBox(_ item: NativeTranslationLayoutItem, frame: CGRect,
-                                  appearance: NativeTranslationRestoration.Appearance?) -> SourceBox? {
+                                  appearance: NativeTranslationRestoration.Appearance?, labelOverride: String? = nil) -> SourceBox? {
         guard item.sourceBounds.count == 4 else { return nil }
         let bounds = item.sourceBounds
         let label: String
-        if let color = appearance?.background?.converted(to: CGColorSpace(name: CGColorSpace.sRGB)!, intent: .defaultIntent, options: nil),
+        if let labelOverride { label = labelOverride }
+        else if let color = appearance?.background?.converted(to: CGColorSpace(name: CGColorSpace.sRGB)!, intent: .defaultIntent, options: nil),
            let components = color.components, components.count >= 3,
            (components.prefix(3).max() ?? 0) - (components.prefix(3).min() ?? 0) > 40 / 255 {
             label = components.prefix(3).map { String(Int(floor($0 * 255 / 48 + 0.5))) }.joined(separator: ",")
@@ -1849,6 +1926,10 @@ enum NativeTypographyPostPolish {
             get { context.growth.restoredLookupRemaining }
             set { context.growth.restoredLookupRemaining = max(0, newValue) }
         }
+        var wordRepairRemaining: Int {
+            get { context.growth.wordRepairRemaining }
+            set { context.growth.wordRepairRemaining = newValue }
+        }
         var lateWordRepairRemaining: Int {
             get { context.growth.lateWordRepairRemaining }
             set { context.growth.lateWordRepairRemaining = newValue }
@@ -1888,6 +1969,33 @@ enum NativeTypographyPostPolish {
                 requiresCommittedRestoration: false, lookupBudget: &lookupBudget)
         }
 
+        /// The caption palette can change contrast after the initial surface
+        /// probe. Re-admit only an independently erased (or already admitted)
+        /// canvas, using the actual current glyphs and its unchanged safe mask.
+        func restoreReadableInk(item: NativeTranslationLayoutItem, typography: NativeTranslationTypography.Layout,
+                                foreground: [Double]) -> [Double]? {
+            guard context.settings.usesSourceInpainting, context.settings.renderedBackgroundOpacity == 1,
+                  context.growth.registered, context.growth.admitted.contains(item.id),
+                  context.growth.surfaceInspectable.contains(item.id),
+                  foreground.count == 3, foreground.allSatisfy(\.isFinite),
+                  let patch = context.patches[item.id], let candidate = patch.candidate,
+                  candidate.erasureComplete,
+                  candidate.sourceErasureVerified || context.restored(item.id) else { return nil }
+            let current = Candidate(item: item, shaped: typography,
+                profile: NativeTypographyPostPolish.profile(typography, originalText: item.text))
+            guard let range = context.inspectedSurface(current, allowExterior: true,
+                requiresCommittedRestoration: false), range.count == 2 else { return nil }
+            let contrast: ([Double]) -> Double = { ink in
+                NativeTranslationSourceStylePostPolish.luminanceContrast(
+                    NativeSourceColorSampler.luminance(ink), range[0], range[1])
+            }
+            let adjusted = NativeTranslationSourceStylePostPolish.adjustInkForContrast(foreground, contrast: contrast)
+            guard contrast(adjusted) >= 4.5 else { return nil }
+            context.growth.finalized.insert(item.id)
+            context.growth.restoredInside.insert(item.id)
+            return adjusted
+        }
+
         func peerFont(id: String, font: CGFloat, beforeInterior: Bool) -> CGFloat {
             let value = beforeInterior ? context.growth.interiorBase[id] ?? font : font
             return min(value, context.growth.readablePeer[id] ?? value)
@@ -1901,7 +2009,8 @@ enum NativeTypographyPostPolish {
         func holdsSurface(item: NativeTranslationLayoutItem, typography: NativeTranslationTypography.Layout,
                           foreground: CGColor? = nil) -> Bool {
             let candidate = Candidate(item: item, shaped: typography, profile: NativeTypographyPostPolish.profile(typography, originalText: item.text))
-            return context.holdsSurface(candidate, foreground: foreground, usesBalloonBudget: true)
+            return context.holdsSurface(candidate, expands: true, allowExterior: true,
+                foreground: foreground, usesBalloonBudget: true)
         }
     }
 
@@ -2006,11 +2115,12 @@ enum NativeTypographyPostPolish {
 
     static func refining(layout: NativeTranslationLayout, restoration: NativeTranslationRestoration.Result,
                          settings: IPhoneOverlaySettings, sourceImage: CGImage?, growthSession: RendererGrowthSession? = nil, lockedIDs: Set<String> = [],
-                         phase: RefinementPhase = .all,
+                         phase: RefinementPhase = .all, harmonyLabels: [String: String] = [:],
                          harmonyScale: ((NativeTranslationLayoutItem, CGFloat, [NativeTranslationLayoutItem]) -> NativeTranslationLayoutItem?)? = nil,
                          harmonyPlateGrowth: ((NativeTranslationLayoutItem, CGFloat, Bool, CGFloat?, [NativeTranslationLayoutItem]) -> NativeTranslationLayoutItem?)? = nil,
                          harmonyAxis: (([NativeTranslationLayoutItem], [SourceBox?], [AlignedGroup]) -> [NativeTranslationLayoutItem])? = nil,
-                         harmonyCohort: (([NativeTranslationLayoutItem]) -> [NativeTranslationLayoutItem])? = nil) throws -> NativeTranslationLayout {
+                         harmonyCohort: (([NativeTranslationLayoutItem]) -> [NativeTranslationLayoutItem])? = nil,
+                         harmonyStage: ((String, [NativeTranslationLayoutItem]) -> Void)? = nil) throws -> NativeTranslationLayout {
         guard settings.visible else { return layout }
         // Image data is owned by restoration. Page font work consumes its exact
         // masks instead of decoding a second image and inventing new protection.
@@ -2044,7 +2154,11 @@ enum NativeTypographyPostPolish {
         }
         var characterBudget = 8192
         context.growth.admitted.removeAll()
-        for item in items where item.sourceColorEligible && !item.sourceTextOnly && !item.vertical && item.text.utf16.count <= 180 {
+        // The slanted branch finishes before the frozen renderer registers
+        // page typography. Locking its own size must not let that separate
+        // lettering raise or lower the upright captions' cohort median.
+        for item in items where item.rotation == 0 && item.sourceColorEligible && !item.sourceTextOnly &&
+            !item.vertical && item.text.utf16.count <= 180 {
             let cost = item.text.utf16.count * 3
             if cost <= characterBudget { characterBudget -= cost; context.growth.admitted.insert(item.id) }
         }
@@ -2092,9 +2206,14 @@ enum NativeTypographyPostPolish {
         let boxes: [SourceBox?] = items.map { item in
             guard item.rotation == 0, (item.nearUprightRotation ?? 0) == 0, item.allowsAutomaticFontRecovery,
                   !item.keptLettering, !item.text.isEmpty else { return nil }
-            return sourceBox(item, frame: context.sourceFrame, appearance: restoration.appearances[item.id])
+            return sourceBox(item, frame: context.sourceFrame, appearance: restoration.appearances[item.id],
+                labelOverride: harmonyLabels[item.id])
         }
         let groups = alignedGroups(boxes)
+        func captureStage(_ name: String) {
+            if context.growth.collectInitialDiagnostics { harmonyStage?(name, items) }
+        }
+        captureStage("harmony-entry")
         func inconsistency(_ state: [NativeTranslationLayoutItem]) -> Int {
             var count = 0
             for i in state.indices {
@@ -2176,6 +2295,7 @@ enum NativeTypographyPostPolish {
             }
             if spread(group.members.map { items[$0].fontSize }) > initial - 0.03 || inconsistency(items) > before { items = saved }
         }
+        captureStage("after-row-size")
         // Page styles use orientation, source fill/outline/ground and label class.
         let styleIndices = items.indices.filter { i in
             guard let box = boxes[i] else { return false }
@@ -2242,6 +2362,7 @@ enum NativeTypographyPostPolish {
                     clearance(i, items) < min(priorClearance, max(2, items[i].fontSize * 0.2)) { items = saved }
             }
         }
+        captureStage("after-page-style")
         // Interface rows retain their source scale before the late word-bound pass.
         let interface = interfaceRows(boxes, texts: items.map(\.text),
                                       frame: [context.sourceFrame.minX, context.sourceFrame.minY, context.sourceFrame.width, context.sourceFrame.height])
@@ -2267,7 +2388,9 @@ enum NativeTypographyPostPolish {
             if !grown.isEmpty, inconsistency(items) > before { items = saved }
             else { interfaceMembers.formUnion(grown) }
         }
+        captureStage("after-interface")
         if let harmonyAxis { items = harmonyAxis(items, boxes, groups) }
+        captureStage("after-axis")
         // A longest eojeol may use the frozen 90% width transform once. Native
         // shaping measures the uncompressed line; the painter and glyph proof
         // both apply the same transform. No smaller horizontal scale is admitted.
@@ -2293,6 +2416,7 @@ enum NativeTypographyPostPolish {
             items[i] = changed
             if inconsistency(items) > before || clearance(i, items) < min(priorClearance, max(2, items[i].fontSize * 0.2)) { items = saved }
         }
+        captureStage("after-condensed")
         // Source columns sharing one row retain their original top/centre/bottom
         // edge. Only the cross-reading axis is adjusted, preserving reading order.
         for link in (harmonyAxis == nil ? columnRowLinks(boxes) : []) {
@@ -2311,6 +2435,7 @@ enum NativeTypographyPostPolish {
             if !okay { items = saved }
         }
         if let harmonyCohort { items = harmonyCohort(items) }
+        captureStage("after-cohort")
         return NativeTranslationLayout(imageSize: layout.imageSize, sourceRect: layout.sourceRect, viewport: layout.viewport, items: items,
                 readableRecoveryRemaining: context.growth.recoveryInitialized ? context.growth.recoveryBudget.readable : layout.readableRecoveryRemaining, sourceObjectFit: layout.sourceObjectFit)
     }

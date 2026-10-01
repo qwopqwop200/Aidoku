@@ -24,7 +24,7 @@ struct ReaderTranslationRenderSpeedTests {
         let window = UIWindow(windowScene: scene)
         window.rootViewController = UIViewController()
         window.makeKeyAndVisible()
-        defer { window.isHidden = true; previous?.makeKey(); ReaderTranslationImageExporter.clearIdleRenderer() }
+        defer { window.isHidden = true; previous?.makeKey() }
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
         let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
@@ -75,19 +75,18 @@ struct ReaderTranslationRenderSpeedTests {
             if pass % 3 == 1 { settings.mode = .originalAndTranslation }
             let selected = Array(items.prefix(pass < 4 ? 3 + pass * 3 : 12))
             let start = ProcessInfo.processInfo.systemUptime
-            let fresh = BrowserPageImageOverlayRenderer.layoutPayload(items: selected, imageSize: size, sourceRect: source,
+            let fresh = try NativeTranslationLayoutPlanner.plan(items: selected, imageSize: size, sourceRect: source,
                 settings: settings, targetLanguage: "ko", viewport: viewport)
             freshTime += ProcessInfo.processInfo.systemUptime - start
             let reusedStart = ProcessInfo.processInfo.systemUptime
-            let reused = BrowserPageImageOverlayRenderer.layoutPayload(items: selected, imageSize: size, sourceRect: source,
+            let reused = try NativeTranslationLayoutPlanner.plan(items: selected, imageSize: size, sourceRect: source,
                 settings: settings, targetLanguage: "ko", viewport: viewport, measurementCache: cache)
             reusedTime += ProcessInfo.processInfo.systemUptime - reusedStart
-            let expected = try JSONSerialization.data(withJSONObject: fresh, options: [.sortedKeys])
-            #expect(try JSONSerialization.data(withJSONObject: reused, options: [.sortedKeys]) == expected)
-            let worker = try await BrowserPageImageOverlayRenderer.prepareLayoutData(items: selected, imageSize: size,
+            #expect(reused == fresh)
+            let worker = try await NativeTranslationLayoutPlanner.prepareLayoutData(items: selected, imageSize: size,
                 sourceRect: source, settings: settings, targetLanguage: "ko", viewport: viewport)
-            let object = try JSONSerialization.jsonObject(with: worker)
-            #expect(try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) == expected)
+            let decoded = try JSONDecoder().decode(NativeTranslationLayout.self, from: worker)
+            #expect(decoded == fresh)
         }
         #expect(cache.passHits > 0)
         print("LAYOUT_REUSE_BENCH fresh_ms=\(freshTime * 1000) reused_ms=\(reusedTime * 1000)")
@@ -157,7 +156,7 @@ struct ReaderTranslationRenderSpeedTests {
         }
     }
 
-    @Test @MainActor func rendererJoinsPreparedLayoutAndRejectsSupersededOutput() async throws {
+    @Test @MainActor func legacyOracleJoinsPreparedLayoutAndRejectsSupersededOutput() async throws {
         let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 780))
         var committed: [String] = []
         let renderer = BrowserPageImageOverlayRenderer { _, _, arguments in
@@ -197,7 +196,7 @@ struct ReaderTranslationRenderSpeedTests {
         #expect(renderer.lastDiagnostic?.outcome == .committed)
     }
 
-    @Test @MainActor func renderCommitsBeforeCacheGenerationAndLayoutPersistence() async throws {
+    @Test @MainActor func legacyOracleCommitsBeforeCacheGenerationAndLayoutPersistence() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
         let disk = ReaderTranslationDiskCache(directory: root)
@@ -228,7 +227,7 @@ struct ReaderTranslationRenderSpeedTests {
         #expect(renderer.lastDiagnostic?.outcome == .committed)
     }
 
-    @Test @MainActor func offscreenWebKitLoadsWhileLayoutIsStillBlocked() async throws {
+    @Test @MainActor func offscreenNativePreparationKeepsMainActorResponsiveWhileLayoutIsBlocked() async throws {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.keyWindow
         let window = RenderCountingWindow(windowScene: scene)
@@ -255,10 +254,12 @@ struct ReaderTranslationRenderSpeedTests {
         reader.sourcePage = page
         let region = ReaderTranslationRegion(id: "one", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2),
                                              source: "source", translation: "준비된 번역")
+        let displayed = [region].compactMap { $0.cropped(to: ReaderTranslationSplitGeometry.unit) }
+        try #require(displayed.count == 1)
         var settings = ReaderTranslationSettings()
         settings.overlay = ReaderTranslationSettings.defaultOverlay
-        let payload = try await BrowserPageImageOverlayRenderer.prepareLayoutData(
-            items: [region.overlayItem(index: 0, imageSize: viewport)], imageSize: viewport,
+        let payload = try await NativeTranslationLayoutPlanner.prepareLayoutData(
+            items: ReaderTranslationRegion.layoutItems(displayed, imageSize: viewport), imageSize: viewport,
             sourceRect: CGRect(origin: .zero, size: viewport), settings: settings.overlay,
             targetLanguage: settings.targetLanguage, viewport: viewport
         )
@@ -272,27 +273,27 @@ struct ReaderTranslationRenderSpeedTests {
         }
         defer { preparation.cancel(); Task { await gate.release(payload) } }
         let deadline = Date().addingTimeInterval(10)
-        var loadedOverlay: ReaderTranslationOverlayView?
-        while loadedOverlay == nil {
+        while !(await gate.started) {
             guard Date() < deadline else { throw URLError(.timedOut) }
-            if await gate.started,
-               let overlay = window.subviews.compactMap({ $0 as? ReaderTranslationOverlayView }).first {
-                overlay.layoutIfNeeded()
-                if overlay.sourceImage === image { loadedOverlay = overlay }
-            }
             try await Task.sleep(for: .milliseconds(10))
         }
-        #expect(loadedOverlay?.didStoreSnapshot == false)
-        #expect(loadedOverlay?.lastDiagnostic == nil)
-        await gate.release(payload)
-        try await preparation.value
+        // This main-actor task still runs while the layout worker is suspended.
+        // Native preparation has no hidden WK view to mount or bootstrap.
         let key = ReaderTranslationCacheIdentity.render(page: page.translationCacheKey, settings: settings,
             imageSize: image.size, viewport: viewport, scale: geometry.scale, aspectFit: true,
             crop: CGRect(x: 0, y: 0, width: 1, height: 1), dark: geometry.dark)
-        #expect(cache.cachedImage(for: key) != nil)
-        #expect(window.overlayInsertions == 1, "Prerender must not render a live overlay before rendering its cache bitmap")
+        let snapshotKey = ReaderTranslationRenderCache.snapshotKey(renderKey: key, regions: displayed)
+        let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: displayed)
+        #expect(cache.cachedImage(for: snapshotKey) == nil)
+        #expect(cache.cachedLayout(for: layoutKey) == nil)
+        #expect(window.overlayInsertions == 0)
         #expect(await gate.calls == 1)
-        ReaderTranslationImageExporter.clearIdleRenderer()
+        await gate.release(payload)
+        try await preparation.value
+        #expect(cache.cachedImage(for: snapshotKey) != nil)
+        #expect(cache.cachedLayout(for: layoutKey) == payload)
+        #expect(window.overlayInsertions == 0, "Native offscreen rendering must not mount a live overlay")
+        #expect(await gate.calls == 1, "The released layout must be reused by bitmap composition")
     }
     @Test @MainActor func distantPageSavesOnlyLayoutAndBecomesAnImageWithoutRecalculating() async throws {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
@@ -321,6 +322,7 @@ struct ReaderTranslationRenderSpeedTests {
                                                         crop: CGRect(x: 0, y: 0, width: 1, height: 1), dark: geometry.dark)
         let displayed = regions.compactMap { $0.cropped(to: CGRect(x: 0, y: 0, width: 1, height: 1)) }
         let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: displayed)
+        let snapshotKey = ReaderTranslationRenderCache.snapshotKey(renderKey: key, regions: displayed)
         // Text-only preparation consumes dimensions recorded when OCR processed
         // the page; a brand-new cache deliberately cannot infer them from pixels.
         let generation = await disk.currentGeneration(settings: settings)
@@ -329,11 +331,11 @@ struct ReaderTranslationRenderSpeedTests {
         let preparer = ReaderTranslationLayoutPreparer(renderCache: cache)
         try await preparer.prepare(page: page, regions: regions, settings: settings, geometry: geometry, window: window)
         let saved = try #require(try await disk.data(for: layoutKey, kind: .layout))
-        #expect(cache.cachedImage(for: key) == nil)
+        #expect(cache.cachedImage(for: snapshotKey) == nil)
         #expect(window.subviews.allSatisfy { !($0 is ReaderTranslationOverlayView) })
         #expect(try await disk.imageSize(page: page.translationCacheKey) == image.size)
         #expect(try await disk.contains(layoutKey, kind: .layout))
-        #expect(try await disk.contains(key, kind: .snapshot) == false)
+        #expect(try await disk.contains(snapshotKey, kind: .snapshot) == false)
         #expect(try await disk.statistics().entries == 2)
         cache.setNearbyPages(pageKeys: [page.translationCacheKey], settings: settings)
         let restored = ReaderTranslationLayoutPreparer(renderCache: cache) { _, _, _, _, _, _ in
@@ -341,10 +343,9 @@ struct ReaderTranslationRenderSpeedTests {
             throw URLError(.cannotDecodeContentData)
         }
         try await restored.prepare(page: page, regions: regions, settings: settings, geometry: geometry, window: window)
-        #expect(cache.cachedImage(for: key) != nil)
+        #expect(cache.cachedImage(for: snapshotKey) != nil)
         var replayMilliseconds: [Double] = []
         for _ in 0..<renderRepetitions {
-            ReaderTranslationImageExporter.clearIdleRenderer()
             let reopened = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
             let replay = ReaderTranslationLayoutPreparer(renderCache: reopened) { _, _, _, _, _, _ in
                 Issue.record("Disk layout replay must not recalculate typography")
@@ -353,18 +354,17 @@ struct ReaderTranslationRenderSpeedTests {
             let start = ProcessInfo.processInfo.systemUptime
             try await replay.prepare(page: page, regions: regions, settings: settings, geometry: geometry, window: window)
             replayMilliseconds.append((ProcessInfo.processInfo.systemUptime - start) * 1000)
-            let bitmap = try #require(reopened.cachedImage(for: key))
+            let bitmap = try #require(reopened.cachedImage(for: snapshotKey))
             #expect(bitmap.size.width > 0 && bitmap.size.height > 0)
             #expect(reopened.cachedLayout(for: layoutKey) == saved)
             let output = URL.documentsDirectory.appendingPathComponent("cache-replay.png")
             try #require(bitmap.pngData()).write(to: output)
         }
         print("DISK_LAYOUT_REPLAY_MS=\(replayMilliseconds) median=\(median(replayMilliseconds))")
-        ReaderTranslationImageExporter.clearIdleRenderer()
         #expect(try await disk.data(for: layoutKey, kind: .layout) == saved)
         #expect(try await disk.imageSize(page: page.translationCacheKey) == image.size)
         #expect(try await disk.contains(layoutKey, kind: .layout))
-        #expect(try await disk.contains(key, kind: .snapshot) == false)
+        #expect(try await disk.contains(snapshotKey, kind: .snapshot) == false)
         let assetKey = ReaderTranslationRenderCache.renderAssetStorageKey(key)
         let deadline = Date().addingTimeInterval(20)
         while !(try await disk.contains(assetKey, kind: .layout)) {
@@ -376,12 +376,12 @@ struct ReaderTranslationRenderSpeedTests {
 
     /// Compare both paths in one binary so concurrent workspace changes and
     /// separate build/run startup cannot masquerade as a cache speed improvement.
-    @Test @MainActor func cachedSnapshotSinglePassMatchesLegacyPixels() async throws {
+    @Test @MainActor func cachedSnapshotMatchesNativeLivePixels() async throws {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.keyWindow
         let window = RenderCountingWindow(windowScene: scene)
         window.rootViewController = UIViewController(); window.makeKeyAndVisible()
-        defer { window.isHidden = true; previous?.makeKey(); ReaderTranslationImageExporter.clearIdleRenderer() }
+        defer { window.isHidden = true; previous?.makeKey() }
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
         let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
@@ -392,18 +392,17 @@ struct ReaderTranslationRenderSpeedTests {
         settings.overlay = ReaderTranslationSettings.defaultOverlay
         let rect = ReaderTranslationGeometry.displayRect(CGRect(x: 0, y: 0, width: 1, height: 1),
             imageSize: image.size, bounds: CGRect(origin: .zero, size: viewport), aspectFit: true)
-        let data = try await BrowserPageImageOverlayRenderer.prepareLayoutData(
+        let data = try await NativeTranslationLayoutPlanner.prepareLayoutData(
             items: ReaderTranslationRegion.overlayItems(regions, imageSize: image.size), imageSize: image.size,
             sourceRect: rect, settings: settings.overlay, targetLanguage: settings.targetLanguage, viewport: viewport)
         let prepared = Task<Data, Error> { data }
-        var legacyTimes: [Double] = [], directTimes: [Double] = []
+        var liveTimes: [Double] = [], directTimes: [Double] = []
         for index in 0..<renderRepetitions {
-            ReaderTranslationImageExporter.clearIdleRenderer()
-            let key = "legacy-\(index)"
+            let key = "live-\(index)"
             await cache.storeLayout(data, key: ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: regions), diskGeneration: 0)
             let overlay = ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: viewport))
             overlay.overrideUserInterfaceStyle = .light
-            let legacyStart = ProcessInfo.processInfo.systemUptime
+            let liveStart = ProcessInfo.processInfo.systemUptime
             let initialInsertions = window.overlayInsertions
             window.insertSubview(overlay, at: 0)
             overlay.update(regions: regions, imageSize: image.size, aspectFit: true, settings: settings, image: image,
@@ -415,11 +414,10 @@ struct ReaderTranslationRenderSpeedTests {
                 overlay.layoutIfNeeded()
                 try await Task.sleep(for: .milliseconds(25))
             }
-            legacyTimes.append((ProcessInfo.processInfo.systemUptime - legacyStart) * 1000)
-            #expect(window.overlayInsertions - initialInsertions == 2)
-            let legacy = try #require(cache.cachedImage(for: key)?.cgImage)
+            liveTimes.append((ProcessInfo.processInfo.systemUptime - liveStart) * 1000)
+            #expect(window.overlayInsertions - initialInsertions == 1)
+            let live = try #require(cache.cachedImage(for: key)?.cgImage)
             overlay.cancelWork(); overlay.removeFromSuperview()
-            ReaderTranslationImageExporter.clearIdleRenderer()
             let directStart = ProcessInfo.processInfo.systemUptime
             let directInsertions = window.overlayInsertions
             let direct = try await ReaderTranslationImageExporter.renderCacheSnapshot(
@@ -427,13 +425,28 @@ struct ReaderTranslationRenderSpeedTests {
                 viewport: viewport, scale: window.traitCollection.displayScale, aspectFit: true,
                 host: window, dark: false, preparedLayout: prepared)
             directTimes.append((ProcessInfo.processInfo.systemUptime - directStart) * 1000)
-            #expect(window.overlayInsertions - directInsertions == 1)
+            #expect(window.overlayInsertions - directInsertions == 0)
             let pixels = try #require(direct.cgImage)
-            #expect(legacy.width == pixels.width && legacy.height == pixels.height)
-            #expect(legacy.dataProvider?.data as Data? == pixels.dataProvider?.data as Data?)
+            #expect(live.width == pixels.width && live.height == pixels.height)
+            let identicalPixels = try Self.canonicalRGBA(live) == Self.canonicalRGBA(pixels)
+            #expect(identicalPixels, "Cached and live rendering must preserve every decoded pixel")
         }
-        print("SAME_BINARY_CACHE_RENDER_MS legacy=\(legacyTimes) direct=\(directTimes) legacyMedian=\(median(legacyTimes)) directMedian=\(median(directTimes))")
+        print("SAME_BINARY_CACHE_RENDER_MS live=\(liveTimes) direct=\(directTimes) liveMedian=\(median(liveTimes)) directMedian=\(median(directTimes))")
     }
+
+    private static func canonicalRGBA(_ image: CGImage) throws -> Data {
+        var bytes = Data(count: image.width * image.height * 4)
+        let space = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        try bytes.withUnsafeMutableBytes { buffer in
+            let context = try #require(CGContext(data: buffer.baseAddress, width: image.width, height: image.height,
+                bitsPerComponent: 8, bytesPerRow: image.width * 4, space: space,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
+            context.setBlendMode(.copy)
+            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        }
+        return bytes
+    }
+
 }
 
 @MainActor private final class RenderCountingWindow: UIWindow {

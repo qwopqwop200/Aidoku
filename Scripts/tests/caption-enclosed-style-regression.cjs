@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 const fs=require('node:fs'),vm=require('node:vm'),zlib=require('node:zlib'),assert=require('node:assert/strict'),path=require('node:path');
 const dir=path.join(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');
 const typography=fs.readFileSync(path.join(dir,'BrowserOverlayTypography.swift'),'utf8').split('static let script = #"""')[1].split('"""#')[0];

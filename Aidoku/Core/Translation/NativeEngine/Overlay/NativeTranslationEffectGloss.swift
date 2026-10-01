@@ -33,6 +33,31 @@ enum NativeTranslationEffectGloss {
         var appliedForeground: [Double]? = nil
         var plates: [Plate] = []
     }
+    /// An oversized preserved caption remains the existing text node. Its
+    /// padding, wrapping and em tracking survive the title placement search;
+    /// fresh effect notes deliberately use their separate whitespace contract.
+    struct RetainedTypography {
+        let sourceStyle: NativeTranslationTypography.Style
+        let horizontalPadding: CGFloat
+        let verticalPadding: CGFloat
+
+        func style(size: Double, lineHeight: Double) -> NativeTranslationTypography.Style {
+            var style = sourceStyle
+            if sourceStyle.trackingScalesWithFont, sourceStyle.fontSize.isFinite, sourceStyle.fontSize > 0 {
+                style.tracking = sourceStyle.tracking * CGFloat(size) / sourceStyle.fontSize
+            }
+            style.fontSize = CGFloat(size); style.lineHeight = CGFloat(lineHeight)
+            style.horizontalAlignment = .center
+            style.outline = nil; style.outlineWidth = 0; style.outlineGlow = 0
+            return style
+        }
+
+        func contentSize(width: Double, lineHeight: Double) -> CGSize {
+            CGSize(width: max(0, CGFloat(width) - horizontalPadding),
+                   height: max(0, CGFloat(ceil(lineHeight * 3)) - verticalPadding))
+        }
+    }
+
     struct Note {
         let id: String
         let text: String
@@ -46,6 +71,12 @@ enum NativeTranslationEffectGloss {
         let unit: [String]
         let anchor: Int
         let rawAngle: Double
+        var retainedTypography: RetainedTypography? = nil
+
+        var contentSize: CGSize {
+            retainedTypography?.contentSize(width: placement.width, lineHeight: placement.lineHeight) ??
+                CGSize(width: placement.width, height: ceil(placement.lineHeight * 3))
+        }
     }
     struct SourceZone {
         let rect: CGRect

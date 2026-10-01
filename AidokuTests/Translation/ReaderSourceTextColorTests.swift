@@ -389,92 +389,119 @@ struct ReaderSourceTextColorTests {
     }
 
     @Test func outlineFreeReadabilityKeepsManualFontsAndSourceSampling() async throws {
-        let web = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
-        defer { Self.webFixture.release(web) }
-        web.scrollView.contentInsetAdjustmentBehavior = .automatic
-        try await RegressionWebFixture.load("<!doctype html><html><body></body></html>", in: web)
-
-        // Seed the existing sampler cache, isolating renderer behavior from OCR/
-        // font-raster-dependent extraction already covered by the tests above.
-        // This runs the real renderScript and real WK computed styles, not a
-        // second implementation of its eligibility expression.
-        _ = try await web.callAsyncJavaScript(BrowserSourceTextColor.script + """
-        const canvas = document.createElement('canvas'); canvas.width = 100; canvas.height = 100;
-        const image = new Image(); image.id = 'reader-source-image';
-        image.src = canvas.toDataURL(); await image.decode(); document.body.appendChild(image);
-        const cache = new Map();
-        const samples = [
-          {foreground:[251,251,251]}, {foreground:[251,251,251]},
-          {foreground:[251,251,251]}, {foreground:[251,251,251]},
-          {foreground:[255,220,0]}, {foreground:[251,251,251],stroke:[96,54,28],
-            widthEvidence:{relativeToGlyph:0.05},confidence:{stroke:0.9}},
-          {foreground:[220,220,220],background:[255,255,255]},
-          {foreground:null,background:[25,28,32],stroke:[96,54,28],confidence:{stroke:0.9}}
-        ];
-        samples.forEach((sample,index) => cache.set([index / 10,0,0.09,1].join(','),
-          {background:[11,11,11],stroke:null,...sample,confidence:{background:1,stroke:0,...sample.confidence}}));
-        // Initialize the production namespace, so a cache version bump cannot
-        // silently turn this renderer fixture into an empty-image extraction.
-        aidokuSourceColorSampler(image, true);
-        const cacheName = Object.keys(globalThis).find(key => key.startsWith('__aidokuSourceTextColorsV'));
-        if (!cacheName) throw new Error('Production source-color cache was not initialized');
-        globalThis[cacheName].set(image, cache);
-        """, arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
+        // Inject the same independently specified source observations at the
+        // native style boundary, without depending on an obsolete JS cache key.
         let fonts: [Double] = [9, 12, 5, 8.99, 12, 12, 12, 12]
-        let items: [[String: Any]] = fonts.enumerated().map { index, font in
+        let sampleInputs: [[String: Any]] = [
+            ["foreground": [251.0, 251, 251]], ["foreground": [251.0, 251, 251]],
+            ["foreground": [251.0, 251, 251]], ["foreground": [251.0, 251, 251]],
+            ["foreground": [255.0, 220, 0]],
+            ["foreground": [251.0, 251, 251], "stroke": [96.0, 54, 28],
+             "widthEvidence": ["relativeToGlyph": 0.05], "confidence": ["stroke": 0.9]],
+            ["foreground": [220.0, 220, 220], "background": [255.0, 255, 255]],
+            ["background": [25.0, 28, 32], "stroke": [96.0, 54, 28], "confidence": ["stroke": 0.9]]
+        ]
+        let samples = sampleInputs.map { value in
+            var sample: [String: Any] = ["background": [11.0, 11, 11]]
+            sample.merge(value) { _, new in new }
+            var confidence: [String: Double] = ["background": 1, "stroke": 0]
+            confidence.merge(value["confidence"] as? [String: Double] ?? [:]) { _, new in new }
+            sample["confidence"] = confidence
+            return sample
+        }
+        let descriptors: [[String: Any]] = fonts.enumerated().map { index, font in
             ["id": String(index), "x": 20, "y": 110 + index * 70,
              "width": 140, "height": 60, "text": "한글", "vertical": false,
              "wrappingScript": "korean", "fontScript": "korean", "fontSize": font,
              "lineHeight": font + 2, "paddingTop": 4, "paddingRight": 4,
              "paddingBottom": 4, "paddingLeft": 4, "lightSurface": true,
              "clipsText": false, "allowsAutomaticFontRecovery": false,
-             "sourceColorEligible": true, "sourceBounds": [Double(index) / 10, 0, 0.09, 1]]
+             "sourceColorEligible": true, "sourceBounds": [Double(index) / 10, 0, 0.09, 1],
+             "sourceFrame": [0, 0, 100, 100]]
         }
-        for (step, flags) in [(true, false), (true, true), (false, true), (false, false), (true, false)].enumerated() {
-            let (text, panel) = flags
-            _ = try await web.callAsyncJavaScript(BrowserPageImageOverlayRenderer.renderScript,
-                arguments: ["revision": String(step + 1), "session": "neutral-edge-test", "items": items,
-                    "appearance": ["minimumReadableFontSize": 1, "opacity": 0.84,
-                        "preserveSourceTextColor": text, "preserveSourceBackgroundColor": panel]],
-                in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
-            let rows = try #require(try await web.callAsyncJavaScript("""
-            return Array.from(document.querySelectorAll('[data-aidoku-image-ocr-overlay="item"]'), n => {
-              const s = getComputedStyle(n);
-              const luminance=rgb=>rgb.split(',').map(Number).reduce((sum,v,i)=>{
-                const c=v/255;return sum+(c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4))*[.2126,.7152,.0722][i];},0);
-              const a=luminance(n.dataset.sourceAppliedTextRGB),b=luminance(n.dataset.sourceAppliedBackgroundRGB);
-              return {id:n.dataset.aidokuRegion,state:n.dataset.sourceStrokeColor,
-                fill:n.dataset.sourceAppliedTextRGB,sampledFill:n.dataset.sourceSampledTextRGB,
-                sampledStroke:n.dataset.sourceSampledStrokeRGB,appliedStroke:n.dataset.sourceAppliedStrokeRGB,
-                width:parseFloat(s.webkitTextStrokeWidth),font:parseFloat(s.fontSize),
-                paintOrder:s.paintOrder,origin:n.dataset.sourceReadabilityAssistOrigin || '',
-                adjusted:n.dataset.sourceTextColorAdjusted,textState:n.dataset.sourceTextColor,
-                contrast:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};
-            });
-            """, arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld) as? [[String: Any]])
-            #expect(rows.count == fonts.count)
-            for row in rows {
-                let identifier = try #require(row["id"] as? String)
-                let index = try #require(Int(identifier))
-                let font = try #require(row["font"] as? Double)
-                #expect(abs(font - fonts[index]) < 0.001, "Manual font must not be resized")
-                let width = try #require(row["width"] as? Double)
-                let state = row["state"] as? String
-                if text && index != 7 {
-                    let changed = row["fill"] as? String != row["sampledFill"] as? String
-                    #expect(row["adjusted"] as? String == (changed ? "true" : "false"))
-                    #expect(row["textState"] as? String == "preserved")
-                } else {
-                    #expect(row["textState"] as? String == "fallback")
-                }
-                if text && index == 4 { #expect(row["fill"] as? String == "255,220,0") }
-                else if panel && (!text || index == 7) { #expect((row["contrast"] as? Double ?? 0) >= 4.5) }
-                #expect(state == "none")
-                #expect(row["origin"] as? String == "")
-                #expect(row["appliedStroke"] as? String == "")
-                #expect(width == 0)
-                #expect(row["paintOrder"] as? String == "normal")
+        let items = try JSONDecoder().decode([NativeTranslationLayoutItem].self,
+            from: JSONSerialization.data(withJSONObject: descriptors))
+        let originalEvidence = try JSONSerialization.data(withJSONObject: samples, options: [.sortedKeys])
+        for (text, panel) in [(true, false), (true, true), (false, true), (false, false), (true, false)] {
+            var settings = ReaderTranslationSettings.defaultOverlay
+            settings.inpaintingEnabled = false
+            settings.opacity = 0.84
+            settings.preserveSourceTextColor = text
+            settings.preserveSourceBackgroundColor = panel
+            var restoration = NativeTranslationRestoration.Result()
+            var cards: [NativeTranslationRenderer.Card] = []
+            for (index, item) in items.enumerated() {
+                let sample = samples[index]
+                let foreground = text ? NativeSourceColorSampler.rgb(sample["foreground"]).map {
+                    NativeTranslationRenderer.color($0.map { CGFloat($0) })
+                } : nil
+                let surface = panel ? NativeSourceColorSampler.rgb(sample["background"]).map {
+                    NativeTranslationRenderer.color($0.map { CGFloat($0) })
+                } : nil
+                restoration.appearances[item.id] = .init(foreground: foreground, background: surface,
+                    restored: false, sourceSample: sample)
+                let fallback = surface.map { NativeTranslationRenderer.panelForeground($0, opacity: 0.84) }
+                    ?? NativeTranslationRenderer.color([17, 18, 23])
+                let style = NativeTranslationTypography.Style(fontScript: item.fontScript, fontSize: item.fontSize,
+                    foreground: foreground ?? fallback, lineHeight: item.lineHeight)
+                cards.append(.init(item: item,
+                    typography: NativeTranslationTypography.layout(text: item.text, in: item.contentRect.size, style: style),
+                    style: style, drawsPanel: true, background: surface ?? NativeTranslationRenderer.color([255, 254, 249]),
+                    usesFallbackVeil: surface == nil, lightSurface: true, heavyStrokeWidth: 0, finalFontSize: item.fontSize))
             }
+            NativeTranslationRenderer.applySourceStyles(to: &cards, restoration: restoration, settings: settings,
+                stage: .initialInk, itemCount: items.count)
+            NativeTranslationRenderer.applySourceStyles(to: &cards, restoration: restoration, settings: settings,
+                stage: .finalContrast, itemCount: items.count)
+            #expect(cards.count == fonts.count)
+            for (index, card) in cards.enumerated() {
+                #expect(abs(Double(card.style.fontSize) - fonts[index]) < 0.001, "Manual font must not be resized")
+                #expect(abs(Double(card.style.lineHeight) - (fonts[index] + 2)) < 0.001)
+                #expect(card.typography.visibleUTF16Range.length == card.item.text.utf16.count)
+                let fill = try #require(NativeTranslationRenderer.rgb(card.style.foreground))
+                if text && index != 7 {
+                    #expect(fill == NativeSourceColorSampler.rgb(samples[index]["foreground"]),
+                            "Native styling must retain the independently sampled text color")
+                } else if panel {
+                    let background = try #require(NativeTranslationRenderer.rgb(card.background))
+                    let a = NativeSourceColorSampler.luminance(fill), b = NativeSourceColorSampler.luminance(background)
+                    #expect((max(a, b) + 0.05) / (min(a, b) + 0.05) >= 4.5)
+                } else {
+                    #expect(fill == [17, 18, 23], "Disabled or absent sampled ink uses the native fallback")
+                }
+                if text && index == 4 { #expect(fill == [255, 220, 0]) }
+                #expect(card.sourceStrokeKind == "none")
+                #expect(card.style.outline == nil)
+                #expect(card.style.outlineWidth == 0)
+                #expect(card.paintOrderLift == nil)
+            }
+            let retained = items.map { restoration.appearances[$0.id]?.sourceSample ?? [:] }
+            let retainedEvidence = try JSONSerialization.data(withJSONObject: retained, options: [.sortedKeys])
+            #expect(retainedEvidence == originalEvidence,
+                    "Display color decisions must not overwrite original source sampling evidence")
+        }
+        // Also exercise complete native layout refinement and CoreText rendering:
+        // direct style tests alone cannot detect a later pass resizing manual text.
+        let viewport = CGSize(width: 390, height: 700)
+        let layout = NativeTranslationLayout(imageSize: CGSize(width: 100, height: 100),
+            sourceRect: CGRect(x: 0, y: 0, width: 100, height: 100), viewport: viewport, items: items)
+        var settings = ReaderTranslationSettings.defaultOverlay
+        settings.inpaintingEnabled = false
+        settings.preserveSourceTextColor = false
+        settings.preserveSourceBackgroundColor = false
+        let result = try NativeTranslationRenderer.renderSynchronously(layout: layout, image: nil,
+            settings: settings, collectDiagnostics: true)
+        let diagnosticData = try #require(result.diagnosticData)
+        let auditObject = try JSONSerialization.jsonObject(with: diagnosticData)
+        let audit = try #require(auditObject as? [String: Any])
+        let cards = try #require(audit["cards"] as? [[String: Any]])
+        #expect(cards.count == fonts.count)
+        for (index, font) in fonts.enumerated() {
+            let card = try #require(cards.first { $0["id"] as? String == String(index) })
+            let actualFont = try #require(card["fontSize"] as? Double)
+            #expect(abs(actualFont - font) < 0.001)
+            #expect(card["outlineWidth"] as? Double == 0)
+            #expect(card["sourceStrokeKind"] as? String == "none")
         }
     }
 

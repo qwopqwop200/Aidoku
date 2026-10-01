@@ -101,7 +101,7 @@ struct NativeOCRPreparationPipelineTests {
         #expect(probe.preparedValues == [42])
         #expect(probe.consumedValues == [42])
         #expect(NativeCoreMLRecognizer.maximumPreparedWindowRegionCount * 2 == NativeCoreMLRecognizer.maximumPreparedRegionCount)
-        #expect(NativeCoreMLRecognizer.maximumPreparedTensorBytes == 9_216_000)
+        #expect(NativeCoreMLRecognizer.maximumPreparedWindowTensorBytes * 2 == NativeCoreMLRecognizer.maximumPreparedTensorBytes)
     }
 }
 

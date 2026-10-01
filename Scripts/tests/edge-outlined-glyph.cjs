@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Real cached source crop: the OCR edge bisects two white-ringed glyph components.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),crypto=require('node:crypto');
 const base=path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay');

@@ -140,6 +140,8 @@ extension NativeTranslationRenderer {
         if let foreground=item.typesettingForeground { card.style.foreground=color(foreground.map { CGFloat($0) }) }
         if let outline=item.typesettingOutlineRGB {
             card.style.outline=color(outline.map { CGFloat($0) });card.style.outlineWidth=item.typesettingOutlineWidth ?? 0
+            if item.typesettingOutlineRGB != original.item.typesettingOutlineRGB ||
+                item.typesettingOutlineWidth != original.item.typesettingOutlineWidth { card.style.outlinePaintOrder = .strokeThenFill }
         }
         card.finalFontSize=item.fontSize;card.typography=remeasureTypography(card)
         return card
@@ -165,6 +167,7 @@ extension NativeTranslationRenderer {
         var proposals: [String: [(NativeTranslationLayoutItem, Card)]] = [:]
         var axisCards: [String: Card] = [:]
         var harmonyRows: [[String]] = []
+        var stageRecords: [String: [[String: Any]]] = [:]
         func pageItem(_ card: Card) -> NativeTranslationLayoutItem {
             var item = card.item
             item.fontSize = card.finalFontSize; item.lineHeight = card.style.lineHeight
@@ -196,8 +199,21 @@ extension NativeTranslationRenderer {
                 .map { .init(panel: original.sourcePanels[$0],cardID:original.item.id,panelIndex:$0) } ??
                 original.glyphCoverOwnerPanel.map { .init(panel:$0,cardID:original.item.id,panelIndex:-1) }
         }
+        // Frozen harmony uses the currently painted caption background. An
+        // original coloured source surface no longer labels an inpainted card.
+        let harmonyLabels = Dictionary(cards.map { card -> (String, String) in
+            let applied = card.sourcePanels.last(where: { !$0.sourceErasure })?.background ??
+                (card.drawsPanel ? rgb(card.background) : nil)
+            let label: String
+            if let applied, applied.count == 3, applied.allSatisfy(\.isFinite),
+               (applied.max() ?? 0) - (applied.min() ?? 0) > 40 {
+                label = applied.map { String(Int(floor($0 / 48 + 0.5))) }.joined(separator: ",")
+            } else { label = "" }
+            return (card.item.id, label)
+        }, uniquingKeysWith: { first, _ in first })
         let result = try NativeTypographyPostPolish.refining(layout: live, restoration: restoration, settings: settings,
             sourceImage: source, growthSession: growthSession, lockedIDs: lockedIDs, phase: .harmony,
+            harmonyLabels: harmonyLabels,
             harmonyScale: { item, size, others in
                 guard let original = currentCard(item) else { return nil }
                 let peers = others.compactMap(currentCard)
@@ -299,6 +315,25 @@ extension NativeTranslationRenderer {
                     ownerOf:{card,peers in ownerOf(card,state:peers.map(pageItem))})
                 let committed=Dictionary(liveCards.map {($0.item.id,remember($0))},uniquingKeysWith:{a,_ in a})
                 return state.map {committed[$0.id] ?? $0}
+            }, harmonyStage: { stage, state in
+                // Observe retained values only: no new shaping, pixel reads,
+                // surface probes or render work is introduced by this trace.
+                for item in state {
+                    let card = proposals[item.id]?.last(where: { $0.0 == item })?.1 ?? axisCards[item.id] ?? snapshot[item.id]
+                    var record: [String: Any] = ["stage": stage, "font": Double(item.fontSize),
+                        "rect": [Double(item.x), Double(item.y), Double(item.width), Double(item.height)],
+                        "lineHeight": Double(item.lineHeight), "text": item.typesettingText ?? item.text]
+                    if let card {
+                        record["retainedCardFont"] = Double(card.finalFontSize)
+                        record["foreground"] = rgb(card.style.foreground) ?? []
+                        record["outline"] = rgb(card.style.outline) ?? []
+                        record["outlineWidth"] = Double(card.style.outlineWidth)
+                        record["sourceBackgroundKind"] = card.sourceBackgroundKind
+                        record["drawsPanel"] = card.drawsPanel
+                        record["panels"] = card.sourcePanels.map { $0.background }
+                    }
+                    stageRecords[item.id, default: []].append(record)
+                }
             })
         let byID = Dictionary(result.items.map { ($0.id,$0) }, uniquingKeysWith: { first,_ in first })
         for i in cards.indices {
@@ -308,6 +343,9 @@ extension NativeTranslationRenderer {
                 continue
             }
             if let projected=currentCard(item) { cards[i]=projected }
+        }
+        for i in cards.indices {
+            if let stages = stageRecords[cards[i].item.id] { cards[i].harmonyRecord["stages"] = stages }
         }
     }
 }

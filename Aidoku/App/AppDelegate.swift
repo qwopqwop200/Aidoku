@@ -273,7 +273,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func applicationDidReceiveMemoryWarning(_ application: UIApplication) {
         ImagePipeline.shared.configuration.imageCache?.removeAll()
         ReaderTranslationRenderCache.shared.clearMemory()
-        ReaderTranslationImageExporter.clearIdleRenderer()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

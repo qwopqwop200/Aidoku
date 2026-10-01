@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Extract the live production certificate; no copied implementation.
 const fs=require('fs'),path=require('path'),assert=require('assert'),vm=require('vm');
 const source=fs.readFileSync(process.env.CAPTION_SOURCE||path.resolve(__dirname,'../../AidokuTests/Translation/LegacyBrowserOverlay/BrowserOverlayView.swift'),'utf8');

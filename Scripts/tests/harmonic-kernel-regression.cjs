@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Compare the actual embedded WASM fill with the production JavaScript fallback.
 // Covers linked and blocked donors, dense/sparse regions and shuffled traversal,
 // preserving the same queue ordering, Float32 rounding and stopping rules.

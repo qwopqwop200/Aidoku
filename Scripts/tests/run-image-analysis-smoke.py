@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Saved-run analysis/angle/coordinate and host-only JS instrumentation tests.
-No model, server, or production app compilation is needed.
+"""Saved-run analysis, coordinate geometry and actual native repair diagnostics.
+No model, server, or iOS app compilation is needed; the report viewer remains HTML.
 """
 import json
 import math
@@ -45,7 +45,10 @@ with tempfile.TemporaryDirectory(prefix='aidoku-analysis-') as temporary:
         ('grouped-regions', [{'id': 'group', 'rect': {'x': .25, 'y': .125, 'width': .5, 'height': .25}, 'source': 'merged',
              'sourceOrientation': 'horizontal', 'unitMemberRects': [{'x': .25, 'y': .125, 'width': .2, 'height': .25}],
              'balloonInterior': {'rect': {'x': .1, 'y': .05, 'width': .8, 'height': .8}, 'spans': [.1, .9, .2, .8]}}]),
-        ('rejected-reads', [{'polygon': polygon(0, 10, 10), 'text': '', 'confidence': .2}])]
+        ('rejected-reads', [{'polygon': polygon(0, 10, 10), 'text': '', 'confidence': .2}]),
+        ('native-render-diagnostics', {'cards': [{}, {}, {}], 'initialPatches': [{}], 'finalPatches': [{}, {}],
+             'initialPatchCaptureFailures': ['initial-capture-failure'],
+             'finalPatchCaptureFailures': ['final-capture-failure']})]
     for i, (name, value) in enumerate(stages):
         (image / f'{i+1:03d}-{name}.json').write_text(json.dumps({'stage': name, 'value': value}, ensure_ascii=False))
     result = subprocess.run(['swift', str(ROOT / 'Scripts/image-translation.swift'), '--visualize-run', str(run)], capture_output=True, text=True)
@@ -64,6 +67,11 @@ with tempfile.TemporaryDirectory(prefix='aidoku-analysis-') as temporary:
     assert grouped['memberRects'] == [[80, 30, 64, 60]]
     assert grouped['balloon']['rect'] == [32, 12, 256, 192]
     assert data['stages'][3]['records'][0]['category'] == 'rejected'
+    diagnostics = [row['value'] for row in data['metrics'] if row['stage'] == 'native-render-diagnostics']
+    assert diagnostics == [{'cards': 3, 'initialPatches': 1, 'finalPatches': 2,
+        'captureFailures': ['initial-capture-failure'],
+        'initialPatchCaptureFailures': ['initial-capture-failure'],
+        'finalPatchCaptureFailures': ['final-capture-failure']}], diagnostics
     assert all((image / stage['preview']).stat().st_size > 100 for stage in data['stages'])
     html = (image / 'analysis.html').read_text()
     assert dangerous not in html and '\\u003c' in html
@@ -90,47 +98,99 @@ vm.runInContext("document.getElementById('heat').checked=true;draw();changeStage
 '''
     subprocess.run(['node', '-e', 'const SCRIPT=' + json.dumps(script) + ';' + harness], check=True)
 
-# Validate trace output and that instrumentation preserves original returns/exceptions.
-source = (ROOT / 'Scripts/image-translation/HostSegmentationTrace.swift').read_text()
-trace_script = source.split('static let script = #"""', 1)[1].split('"""#', 1)[0]
-trace_harness = r'''
-const assert=require('node:assert/strict');
-let original=new Uint8Array([0,1,1,0]),throws=false;
-function aidokuReadablePolygonMask(){if(throws)throw Error('original failure');return original}
-function aidokuForcedTextMask(){return original}
-function aidokuSourcePolygonMask(){return original}
-const ctx={createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData(){},drawImage(){}};
-const document={createElement:()=>({getContext:()=>ctx,toDataURL:()=> 'data:image/png;base64,eA=='})};
-class ImageData{constructor(data,w,h){this.data=data}}
-eval(SCRIPT);
-const rgba=new Uint8ClampedArray(16);
-assert.equal(aidokuReadablePolygonMask(rgba,2,2,{x:1}),original);
-assert.equal(globalThis.__aidokuHostSegmentationTrace.captures[0].selectedPixels,2);
-assert(globalThis.__aidokuHostSegmentationTrace.captures[0].source);
-assert.equal(aidokuSourcePolygonMask(2,2,{}),original);
-assert.equal(globalThis.__aidokuHostSegmentationTrace.captures[1].kind,'polygon-ownership');
-throws=true;assert.throws(()=>aidokuReadablePolygonMask(rgba,2,2,{}),/original failure/);throws=false;
-for(let i=0;i<70;i++)aidokuForcedTextMask(rgba,2,2,{});
-assert.equal(globalThis.__aidokuHostSegmentationTrace.captures.length,64);
-assert.equal(globalThis.__aidokuHostSegmentationTrace.dropped,8);
+# Capture the native diagnostic writer itself. App geometry/restoration execution
+# is covered by the end-to-end native translation smoke and AidokuFull tests.
+TRACE_FIXTURE = r'''
+import Foundation
+import CoreGraphics
+import ImageIO
+
+enum HostError: Error { case message(String) }
+enum NativeTranslationRenderer {
+    struct SourcePatch { let image: CGImage; let rect: CGRect; let cleanupClip: CGRect? }
+    struct Result { let sourcePatches: [SourcePatch] }
+}
+enum HostDump {
+    static var value: [String: Any]?
+    static func capture(_ name: String, _ value: Any) {
+        precondition(name == "segmentation-trace")
+        Self.value = value as? [String: Any]
+    }
+}
+func image(_ bytes: [UInt8]) -> CGImage {
+    CGImage(width: 2, height: 2, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: 8,
+        space: CGColorSpace(name: CGColorSpace.sRGB)!,
+        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),
+        provider: CGDataProvider(data: Data(bytes) as CFData)!, decode: nil, shouldInterpolate: false, intent: .defaultIntent)!
+}
+@main struct Check {
+    static func main() throws {
+        let directory = URL(fileURLWithPath: CommandLine.arguments[1])
+        let patchBytes: [UInt8] = [0,0,0,0, 128,0,0,128, 0,255,0,255, 0,0,64,64]
+        let patch = image(patchBytes)
+        let source = image([255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255])
+        let png = NSMutableData()
+        let destination = CGImageDestinationCreateWithData(png, "public.png" as CFString, 1, nil)!
+        CGImageDestinationAddImage(destination, patch, nil)
+        precondition(CGImageDestinationFinalize(destination))
+        let rectangle = CGRect(x: 0, y: 0, width: 2, height: 2)
+        let result = NativeTranslationRenderer.Result(sourcePatches: [.init(image: patch, rect: rectangle, cleanupClip: rectangle)])
+        let diagnosticPatch: [String: Any] = ["png": "data:image/png;base64," + (png as Data).base64EncodedString(),
+            "frame": [0,0,2,2], "fixture": true]
+        let diagnostics: [String: Any] = ["initialPatches": [diagnosticPatch], "finalPatches": [diagnosticPatch],
+            "initialPatchCaptureFailures": ["initial-capture-failure"],
+            "finalPatchCaptureFailures": ["final-capture-failure"]]
+        try HostSegmentationTrace.save(rendered: result, diagnostics: diagnostics, source: source, sourceRect: rectangle, directory: directory)
+        let trace = HostDump.value!
+        precondition(trace["engine"] as? String == "native-coretext-coregraphics")
+        precondition(trace["dropped"] as? Int == 0)
+        let captures = trace["captures"] as! [[String: Any]]
+        precondition(captures.count == 2, "final diagnostic PNG must not duplicate the actual final-export capture")
+        precondition(captures.map { $0["phase"] as! String } == ["initial-restoration", "final-export"])
+        precondition(trace["captureFailures"] as? [String] == ["initial-capture-failure"])
+        precondition(trace["initialPatchCaptureFailures"] as? [String] == ["initial-capture-failure"])
+        precondition(trace["finalPatchCaptureFailures"] as? [String] == ["final-capture-failure"])
+        for record in captures {
+            precondition(record["kind"] as? String == "native-repair-alpha")
+            precondition(record["selectedPixels"] as? Int == 3)
+            for field in ["source", "mask", "patch", "overlay", "repaired"] {
+                let file = directory.appendingPathComponent(record[field] as! String)
+                let decoder = CGImageSourceCreateWithURL(file as CFURL, nil)!
+                let captured = CGImageSourceCreateImageAtIndex(decoder, 0, nil)!
+                precondition(captured.width == 2 && captured.height == 2)
+                if field == "mask" {
+                    let data = captured.dataProvider!.data! as Data
+                    precondition(captured.bitsPerPixel == 8)
+                    let values = (0..<2).flatMap { y in (0..<2).map { x in data[y * captured.bytesPerRow + x] } }
+                    precondition(values.sorted() == [0,64,128,255], "actual patch alpha, including partial coverage")
+                }
+            }
+        }
+        let repeated = NativeTranslationRenderer.Result(sourcePatches: Array(repeating: result.sourcePatches[0], count: 66))
+        try HostSegmentationTrace.save(rendered: repeated, diagnostics: [:], source: source, sourceRect: rectangle, directory: directory)
+        precondition((HostDump.value!["captures"] as! [Any]).count == 64)
+        precondition(HostDump.value!["dropped"] as? Int == 2)
+        try HostSegmentationTrace.save(rendered: .init(sourcePatches: []), diagnostics: ["initialPatches": [["png":"invalid"]],
+            "initialPatchCaptureFailures": ["fixture-failure"], "finalPatchCaptureFailures": ["final-fixture-failure"]],
+            source: source, sourceRect: rectangle, directory: directory)
+        precondition((HostDump.value!["captures"] as! [Any]).isEmpty)
+        precondition(HostDump.value!["dropped"] as? Int == 1)
+        precondition(HostDump.value!["captureFailures"] as? [String] == ["fixture-failure"])
+        precondition(HostDump.value!["initialPatchCaptureFailures"] as? [String] == ["fixture-failure"])
+        precondition(HostDump.value!["finalPatchCaptureFailures"] as? [String] == ["final-fixture-failure"])
+        precondition((patch.dataProvider!.data! as Data) == Data(patchBytes), "diagnostics changed render input")
+        print("PASS: native alpha captures, diagnostic evidence, image outputs, budget and failure propagation")
+    }
+}
 '''
-subprocess.run(['node', '-e', 'const SCRIPT=' + json.dumps(trace_script) + ';' + trace_harness], check=True)
-# Replay real stored crop pixels through the current production segmenter, with/without tracing.
-production_harness = r''' 
-const fs=require('node:fs'),zlib=require('node:zlib'),assert=require('node:assert/strict');
-const source=fs.readFileSync(ROOT+'/AidokuTests/Translation/LegacyBrowserOverlay/BrowserSourceGlyphSegmentation.swift','utf8').match(/static let script = """\n([\s\S]*?)\n    """/)[1];
-const fixtures=JSON.parse(fs.readFileSync(ROOT+'/Scripts/tests/fixtures/source-inpainting-art-guard.json')).fixtures;
-const context={createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData(){},drawImage(){}};
-globalThis.document={createElement:()=>({getContext:()=>context,toDataURL:()=> 'data:image/png;base64,eA=='})};
-globalThis.ImageData=class{constructor(data){this.data=data}};
-const original=new Function(source+';return aidokuForcedTextMask')();
-const traced=new Function(source+'\n'+SCRIPT+';return aidokuForcedTextMask')();
-for(const item of fixtures){const rgba=new Uint8ClampedArray(zlib.inflateSync(Buffer.from(item.rgba,'base64')));
- const options={vertical:item.vertical,sampleScale:item.scale};
- const baseline=original(rgba,item.w,item.h,item.b,item.palette,options),observed=traced(rgba,item.w,item.h,item.b,item.palette,options);
- assert.deepEqual(observed,baseline,'tracing preserves actual production mask and metadata');}
-assert(globalThis.__aidokuHostSegmentationTrace.captures.length>0);
-assert(globalThis.__aidokuHostSegmentationTrace.captures.some(c=>c.selectedPixels>0));
-'''
-subprocess.run(['node', '-e', 'const ROOT=' + json.dumps(str(ROOT)) + ';const SCRIPT=' + json.dumps(trace_script) + ';' + production_harness], check=True)
-print('PASS: saved-run export, coordinates, reading axes, safe HTML, interactive report and segmentation trace/budgets')
+with tempfile.TemporaryDirectory(prefix='aidoku-native-trace-') as temporary:
+    directory = Path(temporary)
+    fixture = directory / 'Check.swift'
+    fixture.write_text(TRACE_FIXTURE)
+    binary = directory / 'check'
+    subprocess.run(['xcrun', 'swiftc', '-parse-as-library',
+                    str(ROOT / 'Scripts/image-translation/HostAnalysis.swift'),
+                    str(ROOT / 'Scripts/image-translation/HostSegmentationTrace.swift'),
+                    str(fixture), '-o', str(binary)], check=True)
+    subprocess.run([str(binary), str(directory)], check=True)
+print('PASS: saved-run export, coordinates, reading axes, safe HTML, interactive report and native restoration diagnostics')

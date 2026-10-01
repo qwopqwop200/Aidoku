@@ -159,13 +159,13 @@ struct ReaderTranslationPersistentPipelineTests {
         #expect(try await fixture.disk.translatedRegions(page: sourcePage.translationCacheKey, settings: fixture.settings) == nil)
     }
 
-    @Test func preparationFansOutToBothChapterEndsAndReprioritizes() {
+    @Test func preparationSecuresThreeForwardPagesThenCoversBothChapterEnds() {
         let pages = (0..<8).map { Aidoku.Page(sourceId: "test", chapterId: "chapter", index: $0) }
         let items = pages.map(ReaderTranslationSession.Item.init)
-        #expect(ReaderTranslationSession.ordered(items, anchor: 3).map(\.page.index) == [3, 4, 2, 5, 1, 6, 0, 7])
+        #expect(ReaderTranslationSession.ordered(items, anchor: 3).map(\.page.index) == [3, 4, 5, 6, 2, 7, 1, 0])
         #expect(ReaderTranslationSession.ordered(items, anchor: 0).map(\.page.index) == Array(0..<8))
         #expect(ReaderTranslationSession.ordered(items, anchor: 7).map(\.page.index) == Array((0..<8).reversed()))
-        #expect(ReaderTranslationSession.ordered(items, anchor: 5).map(\.page.index) == [5, 6, 4, 7, 3, 2, 1, 0])
+        #expect(ReaderTranslationSession.ordered(items, anchor: 5).map(\.page.index) == [5, 6, 7, 4, 3, 2, 1, 0])
     }
 
     @Test func aNewReaderUsesSavedTranslationsWithoutCallingOCRorTheAPI() async throws {
@@ -178,7 +178,7 @@ struct ReaderTranslationPersistentPipelineTests {
         first.enable(settings: fixture.settings)
         let lastKey = ReaderTranslationCacheIdentity.translation(page: pages[0].translationCacheKey, settings: fixture.settings)
         try await waitUntil { try await fixture.disk.regions(for: lastKey, kind: .translation) != nil }
-        #expect(calls == [2, 3, 1, 4, 0])
+        #expect(calls == [2, 3, 4, 1, 0])
         first.close()
         let reopened = ReaderTranslationDiskCache(directory: fixture.root)
         var newCalls = 0
@@ -331,9 +331,10 @@ struct ReaderTranslationPersistentPipelineTests {
                                                         crop: CGRect(x: 0, y: 0, width: 1, height: 1), dark: dark)
         let displayed = [Self.region].compactMap { $0.cropped(to: CGRect(x: 0, y: 0, width: 1, height: 1)) }
         let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: displayed)
+        let snapshotKey = ReaderTranslationRenderCache.snapshotKey(renderKey: key, regions: displayed)
         try await waitUntil {
             imageView.layoutIfNeeded()
-            return cache.cachedImage(for: key) != nil
+            return cache.cachedImage(for: snapshotKey) != nil
         }
         try await waitUntil { page.isUsingCachedRendering }
         #expect(!imageView.subviews.contains { $0 is ReaderTranslationOverlayView })
@@ -355,8 +356,8 @@ struct ReaderTranslationPersistentPipelineTests {
         restored.sourcePage = fixture.page(0)
         restored.renderCache = reopenedCache
         restored.displayPrepared([Self.region], settings: fixture.settings)
-        #expect(reopenedCache.cachedImage(for: key) == nil)
-        try await waitUntil { reopenedCache.cachedImage(for: key) != nil }
+        #expect(reopenedCache.cachedImage(for: snapshotKey) == nil)
+        try await waitUntil { reopenedCache.cachedImage(for: snapshotKey) != nil }
         #expect(try await reopenedCache.disk.data(for: layoutKey, kind: .layout) != nil)
         #expect(reopenedCache.cachedLayout(for: layoutKey) != nil)
         restored.releaseOverlay()
@@ -588,23 +589,32 @@ struct ReaderTranslationPersistentPipelineTests {
                                                         scale: view.traitCollection.displayScale, aspectFit: true,
                                                         crop: CGRect(x: 0, y: 0, width: 1, height: 1),
                                                         dark: view.traitCollection.userInterfaceStyle == .dark)
+        let displayed = [Self.region].compactMap { $0.cropped(to: ReaderTranslationSplitGeometry.unit) }
+        let snapshotKey = ReaderTranslationRenderCache.snapshotKey(renderKey: key, regions: displayed)
         let gate = PersistentLayoutGate()
+        var speculativeWasCancelled = false
         let work = Task {
-            try await cache.prepare(key) {
+            try await cache.prepare(snapshotKey) {
                 await gate.wait()
-                await cache.store(image, key: key, pageIdentity: "page", diskGeneration: 0)
+                speculativeWasCancelled = Task.isCancelled
+                await cache.store(image, key: snapshotKey, pageIdentity: "page", diskGeneration: 0)
             }
         }
         try await waitUntil { await gate.started }
         page.displayPrepared([Self.region], settings: fixture.settings)
         #expect(view.subviews.contains { $0 is ReaderTranslationOverlayView },
-                "Visible WebKit startup must not wait for disk generation or an asynchronous bitmap lookup")
+                "Visible native rendering startup must not wait for disk generation or an asynchronous bitmap lookup")
         #expect(!page.isUsingCachedRendering)
         await gate.release()
         _ = try? await work.value
-        // The cancelled speculative result cannot replace the current live view.
-        #expect(cache.cachedImage(for: key) == nil)
-        #expect(view.subviews.contains { $0 is ReaderTranslationOverlayView })
+        // A fast native foreground render may already have populated this key.
+        // Only the cancelled speculative source image is forbidden to commit.
+        #expect(speculativeWasCancelled)
+        #expect(cache.cachedImage(for: snapshotKey) !== image)
+        try await waitUntil { page.isUsingCachedRendering }
+        let completed = try #require(cache.cachedImage(for: snapshotKey))
+        #expect(completed !== image)
+        #expect(!view.subviews.contains { $0 is ReaderTranslationOverlayView })
         page.reset()
     }
 

@@ -147,6 +147,33 @@ extension NativeRestorationPixels {
                 ink.stroke = ink.foreground; ink.foreground = stroke
                 if let candidate = exactObserved(p, box: box, palette: ink, options: options, context: context) { return finish(candidate, usedPalette: ink, method: "observed-outline-ink") }
             }
+            // An unmeasured white band may be exposed paper rather than a distinct
+            // outline. Retry its independent dark fill without that band hypothesis,
+            // retaining the original component, artwork, donor and ownership checks.
+            // A frame-connected drawing still prevents complete erasure certification.
+            if !options.slantedOwnership, let stroke = ink.stroke, ink.widthEvidence == nil,
+               ink.foreground.maximum <= 80, stroke.minimum >= 230,
+               ink.foregroundConfidence >= 0.75, ink.strokeConfidence >= 0.6,
+               ink.metadata["observedBackground"] as? Bool == true || palette.metadata["observedBackground"] as? Bool == true {
+                var exposed = ink
+                exposed.stroke = nil
+                exposed.metadata["stroke"] = NSNull()
+                exposed.metadata["outline"] = NSNull()
+                if let candidate = exactObserved(p, box: box, palette: exposed, options: options, context: context),
+                   candidate.glyphsVerified, candidate.preservedCore == 0, candidate.preservedPixels == 0,
+                   let quality = candidate.surfaceQuality, quality["safe"] as? Bool == true,
+                   quality["reason"] as? String == "smooth", (quality["rmse"] as? Double ?? .infinity) <= 3,
+                   (quality["outliers"] as? Double ?? .infinity) == 0, (quality["samples"] as? Int ?? 0) >= 64,
+                   let coefficients = quality["coefficients"] as? [[Double]], coefficients.count == 3,
+                   coefficients.allSatisfy({ $0.count == 3 }) {
+                    let center = NativeRestorationRGB(coefficients.map {
+                        $0[0] + $0[1] * Double(box.midX) / Double(p.width) + $0[2] * Double(box.midY) / Double(p.height)
+                    })
+                    if center.distance(stroke) <= 12, center.distance(ink.background) >= 20 {
+                        return finish(candidate, usedPalette: exposed, method: "observed-exposed-paper")
+                    }
+                }
+            }
         } else if !options.readabilityGate { return nil }
         if let flat = flatInpaintingPalette(p, box: box) {
             var next = options; next.compactMask = true; next.flatPalette = true
@@ -163,15 +190,19 @@ extension NativeRestorationPixels {
         let context = ObservedContext()
         func outlineRecovery() -> Self? {
             return Self.outlineRecovery(p, box: box, auxiliary: options.auxiliary, excluded: options.excluded,
-                                        palette: palette, vertical: options.vertical, allowDiscovery: !options.slantedOwnership)
+                                        palette: palette, vertical: options.vertical, allowDiscovery: !options.slantedOwnership,
+                                        slantedOwnership: options.slantedOwnership)
         }
         func refine(_ candidate: Self) -> Self {
             let completed = finishClearPaperCaption(p, box: box, palette: palette, options: options, repaired: candidate)
-            guard !options.slantedOwnership, completed.glyphsVerified else { return completed }
-            let sourceFill = rgb(palette?.sourceInk?["foreground"]) ?? palette?.verifiedForeground
-            let outlined = (completed.observedFill?.minimum ?? 0) >= 220
-            return refineFringe(p, repaired: completed, outlined: outlined,
-                                foreground: outlined ? completed.observedStroke : sourceFill)
+            var refined = completed
+            if !options.slantedOwnership, completed.glyphsVerified {
+                let sourceFill = rgb(palette?.sourceInk?["foreground"]) ?? palette?.verifiedForeground
+                let outlined = (completed.observedFill?.minimum ?? 0) >= 220
+                refined = refineFringe(p, repaired: completed, outlined: outlined,
+                                       foreground: outlined ? completed.observedStroke : sourceFill)
+            }
+            return NativeDottedPaperFrame.protecting(p, box: box, vertical: options.vertical, repaired: refined)
         }
         func preferred(_ candidate: Self) -> Self { candidate.erasureComplete ? candidate : (outlineRecovery() ?? candidate) }
         let candidate = exactObservedAttempts(p, box: box, palette: palette, options: options, context: context)
@@ -185,7 +216,7 @@ extension NativeRestorationPixels {
         }
         if options.slantedOwnership {
             return sampledChromatic(p, box: box, auxiliary: options.auxiliary, excluded: options.excluded,
-                                    palette: palette, vertical: options.vertical)
+                                    palette: palette, vertical: options.vertical, slantedOwnership: options.slantedOwnership)
         }
         if context.denseDonorCandidate {
             var next = options; next.denseDonorSampling = true

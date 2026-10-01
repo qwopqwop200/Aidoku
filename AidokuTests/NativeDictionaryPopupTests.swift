@@ -7,7 +7,6 @@ import SwiftUI
 @MainActor
 struct NativeDictionaryPopupTests {
     @Test func structuredDictionaryContentPreservesTextFormattingAndSafeLinks() throws {
-        guard #available(iOS 18.0, *) else { return }
         let input: [String: Any] = ["type": "structured-content", "content": [
             ["tag": "ruby", "content": [["tag": "span", "content": "日本語"], ["tag": "rt", "content": "にほんご"]]],
             ["tag": "strong", "content": "definition"],
@@ -29,7 +28,6 @@ struct NativeDictionaryPopupTests {
     }
 
     @Test func htmlGlossariesUseNativeParserAndPreserveDefinitions() {
-        guard #available(iOS 18.0, *) else { return }
         let output = NativeDictionaryContent.glossary("<p>첫 뜻 <b>강조</b></p><ul><li>다음 뜻</li></ul><script>bad()</script>",
                                                      dictionary: "constructor", scale: 1)
         #expect(output.string.contains("첫 뜻 강조"))
@@ -57,7 +55,6 @@ struct NativeDictionaryPopupTests {
     }
 
     @Test func furiganaAlignsKanaAndCompatibilityKanji() {
-        guard #available(iOS 18.0, *) else { return }
         let word = NativeDictionaryContent.expression("食べる", reading: "たべる", scale: 1)
         #expect(word.attribute(.nativeDictionaryRuby, at: 0, effectiveRange: nil) as? String == "た")
         #expect(word.attribute(.nativeDictionaryRuby, at: 1, effectiveRange: nil) == nil)
@@ -67,7 +64,6 @@ struct NativeDictionaryPopupTests {
     }
 
     @Test func nativePitchGroupsSmallKanaIntoMorae() {
-        guard #available(iOS 18.0, *) else { return }
         #expect(NativeDictionaryContent.morae("きょう") == ["きょ", "う"])
         let pitch = NativeDictionaryContent.pitch(reading: "きょう", accent: ["position": "LHL", "nasal": [1], "devoice": [2]], scale: 1)
         #expect(pitch.string.contains("[2]"))
@@ -75,7 +71,6 @@ struct NativeDictionaryPopupTests {
     }
 
     @Test func supplementaryCharactersKeepCorrectKanjiLinkRanges() {
-        guard #available(iOS 18.0, *) else { return }
         let output = NativeDictionaryContent.expression("🙂日本", scale: 1)
         #expect(output.length == 4)
         #expect(output.attribute(.link, at: 0, effectiveRange: nil) == nil)
@@ -84,7 +79,6 @@ struct NativeDictionaryPopupTests {
     }
 
     @Test func popupDisplaysAllResultsThroughNativeViewsAndHonorsMiningPreference() async throws {
-        guard #available(iOS 18.0, *) else { return }
         let entries: [[String: Any]] = ["constructor", "__proto__", "toString"].map { name in
             ["expression": "日本語", "reading": "にほんご", "glossaries": [
                 ["dictionary": name, "content": "Definition for \(name)"]
@@ -117,7 +111,6 @@ struct NativeDictionaryPopupTests {
     }
 
     @Test func deinflectionTapExplainsConjugationAndRerenderRetainsCollapsedGroups() throws {
-        guard #available(iOS 18.0, *) else { return }
         let entry: [String: Any] = ["expression": "食べた", "deinflectionTrace": [
             ["name": "past", "description": "Past tense of the verb"]
         ], "glossaries": [["dictionary": "example", "content": "eat"]]]

@@ -2264,8 +2264,9 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
             }
 
             if recovers, let current = recognition {
-                let nextID = max(detection.boxes.count, (current.regions.map(\.sourceIndex).max() ?? 0) + 1)
-                let proposals = NativeOCRFusedColumnRecovery.proposals(current.regions, frame: frame, startingID: nextID)
+                let (nextSourceIndex, idOverflow) = (current.regions.map(\.sourceIndex).max() ?? 0).addingReportingOverflow(1)
+                let nextID = max(detection.boxes.count, nextSourceIndex)
+                let proposals = idOverflow ? [] : NativeOCRFusedColumnRecovery.proposals(current.regions, frame: frame, startingID: nextID)
                 try cancellationCheck()
                 if !proposals.isEmpty {
                     let reread = try await recognizer.recognize(frame: frame, regions: proposals.flatMap(\.regions),
@@ -2280,6 +2281,68 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
                         selected.removeAll { $0.sourceIndex == proposal.original.sourceIndex }
                         selected += replacements
                         recoveredFused.insert(proposal.original.sourceIndex)
+                        recoveredHorizontal.remove(proposal.original.sourceIndex)
+                    }
+                    recognition = NativeCoreMLRecognitionResult(requestID: requestID, regions: selected,
+                        diagnostics: current.diagnostics.addingRecovery(reread.diagnostics, acceptedCount: selected.count))
+                }
+            }
+
+            if recovers, let current = recognition {
+                let (nextSourceIndex, idOverflow) = (current.regions.map(\.sourceIndex).max() ?? 0).addingReportingOverflow(1)
+                let nextID = max(detection.boxes.count, nextSourceIndex)
+                let proposals = idOverflow ? [] : NativeOCRFusedColumnRecovery.anchoredProposals(current.regions, frame: frame, startingID: nextID)
+                try cancellationCheck()
+                if !proposals.isEmpty {
+                    let reread = try await recognizer.recognize(frame: frame, regions: proposals.flatMap(\.regions),
+                        requestID: requestID, confidenceThreshold: max(0.9, threshold), cancellationCheck: cancellationCheck)
+                    try cancellationCheck()
+                    guard reread.requestID == requestID else { throw CancellationError() }
+                    var selected = current.regions
+                    for proposal in proposals {
+                        guard let replacement = NativeOCRFusedColumnRecovery.anchoredReplacement(proposal, reads: reread.regions) else { continue }
+                        selected.removeAll { $0.sourceIndex == proposal.original.sourceIndex }
+                        selected.append(replacement)
+                        recoveredHorizontal.remove(proposal.original.sourceIndex)
+                    }
+                    recognition = NativeCoreMLRecognitionResult(requestID: requestID, regions: selected,
+                        diagnostics: current.diagnostics.addingRecovery(reread.diagnostics, acceptedCount: selected.count))
+                }
+            }
+
+            if recovers, let current = recognition {
+                let proposals = NativeOCRShortFragmentRecovery.proposals(current.regions, width: frame.width, height: frame.height)
+                if !proposals.isEmpty {
+                    let reread = try await recognizer.recognize(frame: frame, regions: proposals.flatMap(\.regions),
+                        requestID: requestID, confidenceThreshold: max(0.9, threshold), cancellationCheck: cancellationCheck)
+                    try cancellationCheck()
+                    guard reread.requestID == requestID else { throw CancellationError() }
+                    var selected = current.regions
+                    for proposal in proposals {
+                        guard let replacement = NativeOCRShortFragmentRecovery.replacement(proposal, reads: reread.regions) else { continue }
+                        selected.removeAll { proposal.replaced.contains($0.sourceIndex) }
+                        selected.append(replacement)
+                        recoveredHorizontal.subtract(proposal.replaced)
+                    }
+                    recognition = NativeCoreMLRecognitionResult(requestID: requestID, regions: selected,
+                        diagnostics: current.diagnostics.addingRecovery(reread.diagnostics, acceptedCount: selected.count))
+                }
+            }
+
+            if recovers, let current = recognition {
+                let (nextSourceIndex, idOverflow) = (current.regions.map(\.sourceIndex).max() ?? 0).addingReportingOverflow(1)
+                let nextID = max(detection.boxes.count, nextSourceIndex)
+                let proposals = idOverflow ? [] : NativeOCRShortContextRecovery.proposals(current.regions, frame: frame, startingID: nextID)
+                if !proposals.isEmpty {
+                    let reread = try await recognizer.recognize(frame: frame, regions: proposals.flatMap(\.regions),
+                        requestID: requestID, confidenceThreshold: max(0.65, threshold), cancellationCheck: cancellationCheck)
+                    try cancellationCheck()
+                    guard reread.requestID == requestID else { throw CancellationError() }
+                    var selected = current.regions
+                    for proposal in proposals {
+                        guard let replacement = NativeOCRShortContextRecovery.replacement(proposal, reads: reread.regions, frame: frame) else { continue }
+                        selected.removeAll { $0.sourceIndex == proposal.original.sourceIndex }
+                        selected.append(replacement)
                         recoveredHorizontal.remove(proposal.original.sourceIndex)
                     }
                     recognition = NativeCoreMLRecognitionResult(requestID: requestID, regions: selected,

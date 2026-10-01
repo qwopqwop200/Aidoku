@@ -3,13 +3,15 @@ import Testing
 import UIKit
 @testable import Aidoku
 
-/// Opt-in device handoff check. Never prints credentials or server configuration.
+/// Real-OCR handoff with a deterministic provider and an explicit in-flight gate.
+/// The separate late-asset replay keeps immutable captured source regions.
+@Suite(.serialized)
 @MainActor
 struct ReaderTranslationDeviceHandoffTests {
     @Test
     func realPageLateAssetsPreserveEveryPixel() async throws {
         try #require(FileManager.default.fileExists(atPath:
-            URL.documentsDirectory.appendingPathComponent("PipelineSpeed/candidate/page-0.regions.json").path), "Required local replay fixture is missing")
+            URL.documentsDirectory.appendingPathComponent("PipelineSpeed/recorded/page-0.regions.json").path), "Required local replay fixture is missing")
         let root = URL.documentsDirectory.appendingPathComponent("PipelineSpeed")
         let output = root.appendingPathComponent("late-assets")
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
@@ -19,15 +21,17 @@ struct ReaderTranslationDeviceHandoffTests {
         window.frame = CGRect(x: 0, y: 0, width: 430, height: 800)
         window.rootViewController = UIViewController()
         window.makeKeyAndVisible()
-        defer { window.isHidden = true; previous?.makeKey(); ReaderTranslationImageExporter.clearIdleRenderer() }
-        let settings = ReaderTranslationSettings()
+        defer { window.isHidden = true; previous?.makeKey() }
+        let settings = try RecordedTranslationReplay.settings(in: root)
         var measurements: [[String: Any]] = []
         for index in 0..<3 {
             let image = try #require(UIImage(contentsOfFile: URL.documentsDirectory.appendingPathComponent(
                 "OptimizationFixtures/comic-000\(index + 1).png").path))
             let stored = try JSONDecoder().decode([ReaderTranslationStoredRegion].self, from: Data(contentsOf:
-                root.appendingPathComponent("candidate/page-\(index).regions.json")))
+                root.appendingPathComponent("recorded/page-\(index).regions.json")))
             let regions = stored.map(\.region)
+            try JSONEncoder().encode(regions.map(ReaderTranslationStoredRegion.init))
+                .write(to: output.appendingPathComponent("page-\(index)-fixed-input.regions.json"))
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
             let disk = ReaderTranslationDiskCache(directory: directory)
             let coldCache = ReaderTranslationRenderCache(disk: disk)
@@ -71,11 +75,12 @@ struct ReaderTranslationDeviceHandoffTests {
             let replayMS = (ProcessInfo.processInfo.systemUptime - resumedAt) * 1_000
             try await blocker.value
             #expect(cold.size == replay.size)
-            #expect(try Self.rgba(cold) == Self.rgba(replay), "Every rendered pixel must survive late-cache reuse")
+            let identicalPixels = try Self.rgba(cold) == Self.rgba(replay)
+            #expect(identicalPixels, "Every rendered pixel must survive late-cache reuse")
             try #require(cold.pngData()).write(to: output.appendingPathComponent("page-\(index)-cold.png"))
             try #require(replay.pngData()).write(to: output.appendingPathComponent("page-\(index)-replay.png"))
             measurements.append(["page": index, "regions": regions.count, "coldMS": coldMS,
-                "replayAfterAdmissionMS": replayMS, "identicalPixels": true,
+                "replayAfterAdmissionMS": replayMS, "identicalPixels": identicalPixels,
                 "availableMiB": ReaderTranslationSession.processAvailableMemory() / 1_048_576])
             try JSONSerialization.data(withJSONObject: measurements, options: [.prettyPrinted, .sortedKeys])
                 .write(to: output.appendingPathComponent("measurements.json"), options: .atomic)
@@ -104,11 +109,10 @@ struct ReaderTranslationDeviceHandoffTests {
             root.appendingPathComponent("run.json"))) as? [String: String])
         let phase = try #require(config["phase"])
         #expect(["baseline", "candidate"].contains(phase))
-        let output = root.appendingPathComponent(phase)
+        let output = root.appendingPathComponent("current-ocr-" + phase)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
-        let settings = ReaderTranslationSettings()
+        let settings = try RecordedTranslationReplay.settings(in: root)
         #expect(settings.targetLanguage == "ko")
-        #expect(settings.configuration.model == "gemma-4-26b-a4b-it")
         let owner = UUID()
         await ReaderTranslationService.shared.setReaderActive(true, owner: owner)
         defer { Task { await ReaderTranslationService.shared.setReaderActive(false, owner: owner) } }
@@ -117,12 +121,21 @@ struct ReaderTranslationDeviceHandoffTests {
             Page(sourceId: "", chapterId: "pipeline-speed-" + phase, index: index,
                  imageURL: URL.documentsDirectory.appendingPathComponent("OptimizationFixtures/" + name).absoluteString)
         }
-        let loader = ReaderTranslationImageLoader()
-        let preloader = ReaderTranslationPreloader(retainImage: { _ in false }, loader: loader)
-        preloader.nextPage = { page in page.index + 1 < pages.count ? pages[page.index + 1] : nil }
-        defer { preloader.cancel(); ReaderTranslationImageExporter.clearIdleRenderer() }
-        let started = ProcessInfo.processInfo.systemUptime
         let progress = DeviceHandoffProgress()
+        let translator: ReaderTranslationPage.ProgressiveTranslator = { regions, _, observer in
+            let translated = RecordedTranslationReplay.deterministicResponses(to: regions)
+            try await observer?(translated)
+            try await progress.holdResponse()
+            return translated
+        }
+        let loader = ReaderTranslationImageLoader()
+        let configuration = try RecordedTranslationReplay.ocrConfiguration(in: root)
+        let recognizer = RecordedTranslationReplay.recognizer(configuration: configuration, loader: loader)
+        let preloader = ReaderTranslationPreloader(translator: translator, recognizer: recognizer,
+            retainImage: { _ in false }, loader: loader)
+        preloader.nextPage = { page in page.index + 1 < pages.count ? pages[page.index + 1] : nil }
+        defer { preloader.cancel() }
+        let started = ProcessInfo.processInfo.systemUptime
         var firstFinished = false
         let first = Task {
             defer { firstFinished = true }
@@ -130,11 +143,12 @@ struct ReaderTranslationDeviceHandoffTests {
         }
         defer { first.cancel() }
         // Reproduce the pause and anchor-update pair during a real API wait.
-        while !(await progress.ready) && !firstFinished { try await Task.sleep(for: .milliseconds(20)) }
-        try await Task.sleep(for: .seconds(2))
-        try #require(!firstFinished, "The handoff must occur during demand, not after it completed")
+        while !(await progress.held) && !firstFinished { try await Task.sleep(for: .milliseconds(5)) }
+        try #require(await progress.held && !firstFinished,
+                     "The handoff must occur while the recorded provider response is in flight")
         preloader.cancel(preservingRecognitionFor: pages[0])
         preloader.cancel(preservingRecognitionFor: pages[0])
+        await progress.release()
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(x: 0, y: 0, width: 430, height: 800)
@@ -148,6 +162,12 @@ struct ReaderTranslationDeviceHandoffTests {
             let translatedAt = ProcessInfo.processInfo.systemUptime
             #expect(!regions.isEmpty)
             #expect(regions.contains { $0.translation != nil && $0.translation != $0.source })
+            #expect(Set(regions.map(\.id)).count == regions.count)
+            for region in regions {
+                #expect(!region.source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                #expect(region.translation == RecordedTranslationReplay.deterministicKoreanResponse(for: region.source),
+                        "The adopted provider response must remain attached to its current source region")
+            }
             try JSONEncoder().encode(regions.map(ReaderTranslationStoredRegion.init)).write(to: output.appendingPathComponent("page-\(page.index).regions.json"))
             let image = try await loader.load(page, cacheInMemory: false)
             let rendered = try await ReaderTranslationImageExporter.render(image: image, regions: regions, settings: settings,
@@ -169,5 +189,12 @@ struct ReaderTranslationDeviceHandoffTests {
 
 private actor DeviceHandoffProgress {
     private(set) var ready = false
+    private(set) var held = false
+    private var released = false
     func markReady() { ready = true }
+    func holdResponse() async throws {
+        held = true
+        while !released { try await Task.sleep(for: .milliseconds(5)) }
+    }
+    func release() { released = true }
 }

@@ -232,6 +232,8 @@ extension NativeTranslationSourceStylePostPolish {
         var partialSourcePositionProof = false
         var inkBeforeSurface: [Double]? = nil
         var surfaceHistogram: [Int]? = nil
+        /// An accepted source-outline producer explicitly selects stroke-first paint.
+        var replacesStroke = false
     }
 
     static func sourceColorContrast(_ color: [Double], light: Bool = true, opacity: Double = 1, panel: [Double]? = nil) -> Double {
@@ -308,6 +310,7 @@ extension NativeTranslationSourceStylePostPolish {
                 if let outline {
                     records[i].foreground = outline.foreground; records[i].stroke = outline.stroke
                     records[i].strokeWidth = outline.width; records[i].strokePreserved = true; records[i].cluster = nil
+                    records[i].replacesStroke = true
                     continue
                 }
                 func contrast(_ rgb: [Double]) -> Double {
@@ -500,7 +503,8 @@ extension NativeTranslationSourceStylePostPolish {
                                   rotation: Double, displayLettering: Bool, backgroundKind: String,
                                   appliedBackground: [Double]?, surfaceRange: [Double]?,
                                   ring: [String: Any]?, enclosed: [String: Any]?,
-                                  certifiedSourcePosition: Bool) -> (outline: Outline?, darkPreserved: Bool) {
+                                  certifiedSourcePosition: Bool,
+                                  appliedForeground: [Double]? = nil) -> (outline: Outline?, darkPreserved: Bool) {
         guard eligible else { return (nil, false) }
         var darkPair: Outline?
         if let ring, let pair = darkSurfaceSourceOutline(sample: sample, ring: ring, font: font,
@@ -513,8 +517,13 @@ extension NativeTranslationSourceStylePostPolish {
         }
         guard !keepsSourceLettering, rotation == 0, !displayLettering,
               ["inpainted", "slanted-glyph-restored"].contains(backgroundKind) else { return (darkPair, darkPair != nil) }
-        var selected = sample
-        if let enclosed {
+        var selected = sample, selectedDarkInterior = false
+        // Early observation can precede the final source-polarity decision.
+        // Dark interiors only corroborate an already applied dark fill here;
+        // they never turn retained white lettering into dark lettering.
+        let darkInteriorAdmitted = enclosed?["polarity"] as? String != "dark-on-dark" ||
+            (certifiedSourcePosition && appliedForeground.map { valid($0) && $0.max()! <= 32 } == true)
+        if let enclosed, darkInteriorAdmitted {
             func near(_ a: Any?, _ b: Any?) -> Bool {
                 guard let a = a as? [Double], let b = b as? [Double], valid(a), valid(b) else { return false }
                 return zip(a, b).allSatisfy { abs($0 - $1) <= 32 }
@@ -527,9 +536,15 @@ extension NativeTranslationSourceStylePostPolish {
             let reversed = (neutral || !closed) && ring?["kind"] as? String == "paper" &&
                 (ring?["hug"] as? Double ?? .nan) >= 0.7 && (ring?["uniform"] as? Double ?? .nan) >= 0.6 &&
                 near(ring?["core"], sample["foreground"]) && near(ring?["core"], enclosed["stroke"]) && near(ring?["outline"], enclosed["foreground"])
-            if !reversed { selected = enclosed }
+            if !reversed {
+                selected = enclosed
+                selectedDarkInterior = closed && enclosed["polarity"] as? String == "dark-on-dark"
+            }
         }
-        return (observedCaptionStyle(sample: selected, font: font) ?? darkPair, darkPair != nil)
+        let observed = observedCaptionStyle(sample: selected, font: font)
+        // Preserve the accepted dark-source observation through final stroke
+        // clustering, just as the independent dark surface ring path does.
+        return (observed ?? darkPair, darkPair != nil || observed != nil && selectedDarkInterior)
     }
 }
 

@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Replays cached speech captions in WebKit and checks that final typography
 // moves painted ink toward the measured balloon centre without leaving paper.
 const assert = require('node:assert/strict');

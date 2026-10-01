@@ -89,8 +89,32 @@ def run(directory: pathlib.Path, reference: pathlib.Path) -> None:
     inputs.write_text(json.dumps(fixtures(), ensure_ascii=False))
     main = directory / "main.swift"; shutil.copyfile(FIXTURES / "main.swift", main)
     executable = directory / "native-effect-gloss"
+    # The production image convenience initializer now shares its pixel reader
+    # with palette sampling. Compile that exact helper even though these policy
+    # fixtures supply their own deterministic readSource closure.
+    sampling = (OVERLAY / "NativeSourceColorSamplingStage.swift").read_text()
+    protocol_start = sampling.index("protocol NativeSourcePixelReading:")
+    protocol_end = sampling.index("/// Per-page sampling admission", protocol_start)
+    protocol = sampling[protocol_start:protocol_end]
+    marker = "final class NativeSourcePixelReader: NativeSourcePixelReading {"
+    assert sampling.count(marker) == 1
+    reader = directory / "NativeSourcePixelReader.swift"
+    reader.write_text("import CoreGraphics\nimport Foundation\n" + protocol + marker + sampling.split(marker, 1)[1])
+    # The retained-caption adapter carries the production typography Style.
+    # Copy its complete metadata declarations and initializer, preserving their
+    # behavior without pulling unrelated platform font/layout code into this
+    # deterministic grouping/placement-policy fixture.
+    typography_source = (OVERLAY / "NativeTranslationTypography.swift").read_text()
+    metadata_start = "    enum HorizontalAlignment {"
+    metadata_end = "    struct Layout {"
+    assert typography_source.count(metadata_start) == 1
+    assert typography_source.count(metadata_end) == 1
+    metadata = typography_source[typography_source.index(metadata_start):typography_source.index(metadata_end)]
+    typography = directory / "NativeTranslationTypographyMetadata.swift"
+    typography.write_text("import CoreGraphics\nimport Foundation\nenum NativeTranslationTypography {\n" + metadata + "}\n")
     subprocess.run(["xcrun", "swiftc", str(OVERLAY / "NativeTranslationGlossPlacement.swift"),
-                    str(OVERLAY / "NativeTranslationEffectGloss.swift"), str(main), "-o", str(executable)], check=True)
+                    str(OVERLAY / "NativeTranslationEffectGloss.swift"), str(reader), str(typography),
+                    str(main), "-o", str(executable)], check=True)
     native, browser = directory / "native.json", directory / "browser.json"
     subprocess.run([str(executable), str(inputs), str(native)], check=True)
     subprocess.run(["node", str(FIXTURES / "oracle.cjs"), str(inputs), str(reference), str(browser)], check=True)

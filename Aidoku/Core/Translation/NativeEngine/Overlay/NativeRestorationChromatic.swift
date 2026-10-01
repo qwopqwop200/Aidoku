@@ -7,7 +7,7 @@ extension NativeRestorationPixels {
     static func chromatic(_ p: Self, box: CGRect, auxiliary: [CGRect], excluded: [CGRect],
                           fill: NativeRestorationRGB, stroke: NativeRestorationRGB?, background: NativeRestorationRGB?,
                           vertical: Bool, recovery: Bool, coreDistance: Double = .infinity,
-                          darkOutlineVerified: Bool = true, glyphPixels: Double = 0) -> Self? {
+                          darkOutlineVerified: Bool = true, glyphPixels: Double = 0, slantedOwnership: Bool = false) -> Self? {
         let outlined = fill.minimum >= 220 && stroke.map { $0.maximum - $0.minimum >= 60 || $0.maximum <= 60 } == true
         let darkFill = fill.maximum <= 80 && stroke.map { $0.minimum >= 230 } == true && darkOutlineVerified
         let foreground = outlined ? stroke! : fill
@@ -205,7 +205,19 @@ extension NativeRestorationPixels {
                 guard x >= 2, y >= 2, x < p.width - 2, y < p.height - 2, mask[next] == 0, blocked[next] == 0 else { continue }
                 let color = p.color(next), span = color.maximum - color.minimum
                 let fringe = span >= 15 && zip(color.channels.map { ($0 - color.minimum) * 255 / span }, hue).map({ abs($0 - $1) }).max()! <= 32
-                if distance[index] >= 2 && !(color.minimum >= 200 && span <= 35) && !fringe { continue }
+                // Rectification blends pale art toward a neutral outline.
+                // Follow its measured white band only while it is closer to
+                // that band than to the independently observed backing. Two
+                // immediate antialias rings and the existing donor fringe are
+                // retained; pale illustrations cannot extend the halo walk.
+                let halo = outlined ? fill : stroke
+                let ownsPale: Bool
+                if slantedOwnership, neutral, let halo, let background, halo.distance(background) >= 12 {
+                    ownsPale = color.minimum >= 200 && span <= 35 && color.distance(halo) <= color.distance(background)
+                } else {
+                    ownsPale = color.minimum >= 200 && span <= 35
+                }
+                if distance[index] >= 2 && !ownsPale && !fringe { continue }
                 mask[next] = 1; distance[next] = distance[index] + 1; queue.append(next)
             }
         }
@@ -220,13 +232,20 @@ extension NativeRestorationPixels {
                 }
             }
         }
+        // Donor reachability does not prove that diffusion can reconstruct the
+        // backing: a large glyph may hide illustration edges. Rectified source
+        // replacement needs the existing independent donor-surface proof too.
+        let donorSurface = slantedOwnership ? surface(p, mask: mask, blocked: blocked) : nil
+        guard !slantedOwnership || donorSurface?.safe == true else { return nil }
         guard let seed = donorFront(p, queue: queue, mask: mask, blocked: blocked) else { return nil }
         var output = harmonicFill(p, mask: mask, blocked: blocked, seed: seed, orderedQueue: queue)
         output.erasureComplete = true
         output.sourceErasureVerified = true
         output.glyphsVerified = true
         output.method = "chromatic-balloon-glyphs"
-        output.surfaceQuality = ["safe": true, "reason": "chromatic-local-donors"]
+        var quality: [String: Any] = ["safe": true, "reason": "chromatic-local-donors"]
+        if let donorSurface { quality["donorSurface"] = donorSurface.payload }
+        output.surfaceQuality = quality
         output.discoveredOutline = outlined ? stroke : nil
         output.observedFill = fill
         output.observedStroke = outlined ? stroke : nil
@@ -268,11 +287,13 @@ extension NativeRestorationPixels {
         return pixels
     }
 
-    static func sampledChromatic(_ p: Self, box: CGRect, auxiliary: [CGRect], excluded: [CGRect], palette: Palette?, vertical: Bool) -> Self? {
+    static func sampledChromatic(_ p: Self, box: CGRect, auxiliary: [CGRect], excluded: [CGRect], palette: Palette?, vertical: Bool,
+                                 slantedOwnership: Bool = false) -> Self? {
         if let palette {
             let sourceInk = palette.sourceInk
             let resolvedOutline = palette.verifiedForeground != nil && palette.foreground.minimum >= 220 && palette.stroke != nil &&
-                palette.foregroundConfidence >= 0.7 && palette.strokeConfidence >= 0.7 && sourceInk?["stroke"] == nil &&
+                palette.foregroundConfidence >= 0.7 && palette.strokeConfidence >= 0.7 &&
+                (sourceInk?["stroke"] == nil || sourceInk?["stroke"] is NSNull) &&
                 sourceInk.flatMap { rgb($0["foreground"]) }.map { $0.distance(palette.stroke!) <= 32 } == true
             let selectedFill = resolvedOutline ? palette.verifiedForeground : sourceInk.flatMap { rgb($0["foreground"]) } ?? palette.verifiedForeground
             guard let fill = selectedFill else { return nil }
@@ -285,27 +306,29 @@ extension NativeRestorationPixels {
             let glyph = widths["glyphPixels"] as? Double ?? 0
             if let result = chromatic(p, box: box, auxiliary: auxiliary, excluded: excluded, fill: fill,
                                       stroke: stroke, background: palette.verifiedBackground, vertical: vertical, recovery: false,
-                                      darkOutlineVerified: measuredDark, glyphPixels: glyph) { return result }
+                                      darkOutlineVerified: measuredDark, glyphPixels: glyph, slantedOwnership: slantedOwnership) { return result }
             if fill.maximum - fill.minimum >= 90, (stroke?.minimum ?? 0) >= 230,
                (confidence["foreground"] as? Double ?? palette.foregroundConfidence) >= 0.75,
                (confidence["stroke"] as? Double ?? palette.strokeConfidence) >= 0.7,
                let result = chromatic(p, box: box, auxiliary: auxiliary, excluded: excluded, fill: fill,
                                       stroke: stroke, background: palette.verifiedBackground, vertical: vertical, recovery: false,
-                                      coreDistance: 48, darkOutlineVerified: measuredDark, glyphPixels: glyph) { return result }
+                                      coreDistance: 48, darkOutlineVerified: measuredDark, glyphPixels: glyph, slantedOwnership: slantedOwnership) { return result }
         }
         return nil
     }
 
     static func outlineRecovery(_ p: Self, box: CGRect, auxiliary: [CGRect], excluded: [CGRect], palette: Palette?,
-                                vertical: Bool, allowDiscovery: Bool = true) -> Self? {
-        if let result = sampledChromatic(p, box: box, auxiliary: auxiliary, excluded: excluded, palette: palette, vertical: vertical) { return result }
+                                vertical: Bool, allowDiscovery: Bool = true, slantedOwnership: Bool = false) -> Self? {
+        if let result = sampledChromatic(p, box: box, auxiliary: auxiliary, excluded: excluded, palette: palette, vertical: vertical,
+                                         slantedOwnership: slantedOwnership) { return result }
         if let palette {
             let sourceInk = palette.sourceInk
             let ring = sourceInk.flatMap { rgb($0["stroke"]) } ?? palette.stroke ??
                 sourceInk.flatMap { rgb($0["foreground"]) } ?? palette.verifiedForeground
             if let ring, ring.maximum - ring.minimum >= 60 {
                 if let result = chromatic(p, box: box, auxiliary: auxiliary, excluded: excluded, fill: NativeRestorationRGB([255, 255, 255]),
-                                          stroke: ring, background: palette.verifiedBackground, vertical: vertical, recovery: false) { return result }
+                                          stroke: ring, background: palette.verifiedBackground, vertical: vertical, recovery: false,
+                                          slantedOwnership: slantedOwnership) { return result }
             }
         }
         if allowDiscovery {
@@ -327,13 +350,25 @@ extension NativeRestorationPixels {
                 let stroke = NativeRestorationRGB(candidate.sums.map { floor($0 / Double(candidate.count) + 0.5) })
                 for recovery in [false, true] {
                     if let result = chromatic(p, box: box, auxiliary: auxiliary, excluded: excluded, fill: NativeRestorationRGB([255, 255, 255]),
-                                              stroke: stroke, background: palette?.verifiedBackground, vertical: vertical, recovery: recovery) { return result }
+                                              stroke: stroke, background: palette?.verifiedBackground, vertical: vertical, recovery: recovery,
+                                              slantedOwnership: slantedOwnership) { return result }
                 }
             }
         }
+        // A dark backing already satisfies the guessed black outline's core
+        // predicate. With a measured bright fill and no observed stroke, that
+        // hypothesis would relabel the backing around lettering as owned ink.
+        // Keep the established partial restoration and its artwork exclusions.
+        if let palette,
+           let fill = palette.sourceInk.flatMap({ rgb($0["foreground"]) }) ?? palette.verifiedForeground,
+           fill.minimum >= 220,
+           palette.sourceInk.flatMap({ rgb($0["stroke"]) }) == nil, palette.stroke == nil,
+           let background = palette.verifiedBackground,
+           background.maximum <= 90, background.maximum - background.minimum <= 35 { return nil }
         for recovery in [false, true] {
             if let result = chromatic(p, box: box, auxiliary: auxiliary, excluded: excluded, fill: NativeRestorationRGB([255, 255, 255]),
-                                      stroke: NativeRestorationRGB([0, 0, 0]), background: palette?.verifiedBackground, vertical: vertical, recovery: recovery) { return result }
+                                      stroke: NativeRestorationRGB([0, 0, 0]), background: palette?.verifiedBackground, vertical: vertical, recovery: recovery,
+                                      slantedOwnership: slantedOwnership) { return result }
         }
         return nil
     }

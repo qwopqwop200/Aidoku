@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Run the production centering pass in WebKit: moved neighbours must remain
 // collision obstacles while DOM measurements grow linearly with caption count.
 const assert = require('node:assert/strict');

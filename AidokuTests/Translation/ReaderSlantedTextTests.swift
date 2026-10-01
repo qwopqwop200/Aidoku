@@ -141,7 +141,6 @@ struct ReaderSlantedTextTests {
 
     @Test(arguments: [-78.0, -25, 25, 78])
     func nativeCardsRetainAngleAcrossReuseAndResetForAnUprightReplacement(degrees: Double) throws {
-        guard #available(iOS 18.0, *) else { return }
         let overlay = BrowserOverlayView(frame: CGRect(x: 0, y: 0, width: 430, height: 400))
         let angle = CGFloat(degrees * .pi / 180)
         let points = quad(angle: angle)

@@ -192,7 +192,9 @@ actor ReaderTranslationDiskCache {
         if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
     }
 
-    func data(for key: String, kind: Kind, maximumBytes: Int? = nil) throws -> Data? {
+    /// A memory read budget preserves oversized entries. A caller with a permanent
+    /// format limit may discard them atomically, before decoding or another write.
+    func data(for key: String, kind: Kind, maximumBytes: Int? = nil, discardOversized: Bool = false) throws -> Data? {
         try Task.checkCancellation()
         try prepare()
         let name = fileName(key, kind: kind)
@@ -214,8 +216,9 @@ actor ReaderTranslationDiskCache {
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as CocoaError where error.code == .fileReadTooLarge {
-            // A caller's read budget does not establish corruption. Preserve the
-            // durable payload for a later read with enough memory headroom.
+            // A caller's read budget does not establish corruption. Only a
+            // permanent format limit authorizes deleting this durable payload.
+            if discardOversized { try database?.delete(name) }
             return nil
         } catch {
             try database?.delete(name)
@@ -924,7 +927,7 @@ private struct ReaderTranslationCachePolicy: Equatable {
 }
 
 enum ReaderTranslationCacheIdentity {
-    static let renderRevision = "reader-render-v156-native-live-paint"
+    static let renderRevision = "reader-render-v158-native-typography-and-source-donors"
     static func digest(_ value: String) -> String { digest(Data(value.utf8)) }
     private static let hexadecimalDigits = Array("0123456789abcdef".utf8)
     static func digest(_ value: Data) -> String {
@@ -944,7 +947,7 @@ enum ReaderTranslationCacheIdentity {
     static func ocr(page: String, settings: ReaderTranslationSettings) -> String {
         // OCR entries contain merged regions. A merger change must also
         // invalidate derived translations/layouts instead of replaying old boxes.
-        encoded(["reader-ocr-v88-exact-rec-width-no-padding", page, encoded(settings.ocrConfiguration)])
+        encoded(["reader-ocr-v89-bounded-column-recovery", page, encoded(settings.ocrConfiguration)])
     }
     static func translation(page: String, settings: ReaderTranslationSettings) -> String {
         let previous = unfilteredTranslation(page: page, settings: settings)

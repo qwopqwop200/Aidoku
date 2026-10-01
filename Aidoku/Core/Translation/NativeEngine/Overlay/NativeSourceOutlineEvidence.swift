@@ -199,6 +199,68 @@ enum NativeSourceOutlineEvidence {
             exterior: exterior, kind: exterior == nil || exterior! < 0.5 ? "outline" : "paper", surface: surface), rejection: nil)
     }
 
+    /// Confirm a dark fill already selected at its certified source position.
+    /// The outer white halo can otherwise be classified as white ink on black
+    /// paper. Closed, thin dark interiors distinguish glyph strokes from the
+    /// exterior black canvas; round counters alone do not establish that role.
+    static func enclosedDarkCaptionOutline(rgba p: [UInt8], width w: Int, height h: Int,
+                                           box b: [Double], glyph: Double, background: [Double]) -> [String: Any]? {
+        guard w >= 8, h >= 8, w <= 262_144 / h else { return nil }
+        let n = w * h
+        guard p.count == n * 4,
+              b.count == 4, b.allSatisfy(\.isFinite), glyph.isFinite, glyph >= 8,
+              validRGB(background), background.max()! <= 32 else { return nil }
+        var dark = [UInt8](repeating: 0, count: n), pale = dark, seen = dark, owned = dark
+        for i in 0..<n {
+            if p[i * 4 + 3] < 250 { return nil }
+            let rgb = pixel(p, i)
+            dark[i] = rgb.max()! <= 48 && spread(rgb) <= 24 ? 1 : 0
+            pale[i] = rgb.min()! >= 225 && spread(rgb) <= 24 ? 1 : 0
+        }
+        let toWhite = distance(pale, w, h)
+        var islands = 0, filaments = 0, total = 0, sums = [Double](repeating: 0, count: 3)
+        for seed in 0..<n where dark[seed] != 0 && seen[seed] == 0 {
+            var queue = [seed], head = 0, left = w, top = h, right = 0, bottom = 0
+            var edge = false, boundary = 0, hugged = 0
+            seen[seed] = 1
+            while head < queue.count {
+                let i = queue[head], x = i % w, y = i / w
+                head += 1
+                left = min(left, x); right = max(right, x); top = min(top, y); bottom = max(bottom, y)
+                if x == 0 || y == 0 || x == w - 1 || y == h - 1 { edge = true }
+                for j in neighbors(i, w, h) {
+                    if dark[j] != 0 {
+                        if seen[j] == 0 { seen[j] = 1; queue.append(j) }
+                    } else {
+                        boundary += 1
+                        if toWhite[i] <= 3 { hugged += 1 }
+                    }
+                }
+            }
+            let width = right - left + 1, height = bottom - top + 1
+            if edge || queue.count < 8 || Double(left) < b[0] - 2 || Double(right) > b[2] + 2 ||
+                Double(top) < b[1] - 2 || Double(bottom) > b[3] + 2 ||
+                Double(width) > glyph * 1.5 || Double(height) > glyph * 1.5 || boundary < 1 ||
+                Double(hugged) < Double(boundary) * 0.95 { continue }
+            islands += 1; total += queue.count
+            if Double(max(width, height)) >= glyph * 0.25 &&
+                (Double(max(width, height)) / Double(min(width, height)) >= 2.4 ||
+                 Double(queue.count) / Double(width * height) < 0.42) { filaments += 1 }
+            for i in queue {
+                owned[i] = 1
+                for c in 0..<3 { sums[c] += Double(p[i * 4 + c]) }
+            }
+        }
+        guard islands >= 4, filaments >= 2, Double(filaments) >= Double(islands) * 0.25, total >= 24 else { return nil }
+        let toOwned = distance(owned, w, h)
+        let white = (0..<n).filter { pale[$0] != 0 && toOwned[$0] <= 3 }
+        guard white.count >= 24 else { return nil }
+        return ["foreground": sums.map { floor($0 / Double(total) + 0.5) }, "stroke": median(p, white),
+            "background": background, "confidence": ["foreground": 0.85, "stroke": 0.85],
+            "components": Double(islands), "filaments": Double(filaments),
+            "proof": "closed thin interiors bounded by observed ink", "polarity": "dark-on-dark"]
+    }
+
     static func enclosedCaptionOutline(rgba p: [UInt8], width w: Int, height h: Int, box b: [Double],
                                        glyph: Double, ink: [Double], allowNeutral: Bool = false) -> [String: Any]? {
         let n = w * h
@@ -234,10 +296,61 @@ enum NativeSourceOutlineEvidence {
             if Double(max(width, height)) >= glyph * 0.25 && (Double(max(width, height)) / Double(min(width, height)) >= 2.4 || Double(queue.count) / Double(width * height) < 0.42) { filaments += 1 }
             for i in queue { for c in 0..<3 { sums[c] += Double(p[i * 4 + c]) } }
         }
-        if islands < 4 || filaments < 2 || Double(filaments) < Double(islands) * 0.25 || total < 24 { return nil }
+        if islands < 4 || filaments < 2 || Double(filaments) < Double(islands) * 0.25 || total < 24 {
+            return shadowedEnclosedCaptionOutline(rgba: p, width: w, height: h, box: b, glyph: glyph, ink: ink)
+        }
         return ["foreground": sums.map { floor($0 / Double(total) + 0.5) }, "stroke": ink,
             "confidence": ["foreground": 0.85, "stroke": 0.85], "components": Double(islands), "filaments": Double(filaments),
             "proof": "closed thin interiors bounded by observed ink"]
+    }
+
+    /// A neutral inner shadow may separate white fill from its chromatic ring.
+    /// Observe the closed ring first, then measure its bright interior. This is
+    /// display evidence only and never grants source-erasure ownership.
+    private static func shadowedEnclosedCaptionOutline(rgba p: [UInt8], width w: Int, height h: Int,
+                                                       box b: [Double], glyph: Double, ink: [Double]) -> [String: Any]? {
+        let n = w * h, span = spread(ink)
+        guard span >= 90 else { return nil }
+        let hue = ink.map { ($0 - ink.min()!) * 255 / span }
+        var barrier = [UInt8](repeating: 0, count: n), seen = barrier
+        for i in 0..<n {
+            let rgb = pixel(p, i), chroma = spread(rgb)
+            if chroma >= 65 && (0..<3).allSatisfy({ abs((rgb[$0] - rgb.min()!) * 255 / chroma - hue[$0]) <= 28 }) {
+                barrier[i] = 1
+            }
+        }
+        var islands = 0, filaments = 0, total = 0, sums = [Double](repeating: 0, count: 3)
+        for seed in 0..<n where barrier[seed] == 0 && seen[seed] == 0 {
+            var queue = [seed], head = 0, left = w, top = h, right = 0, bottom = 0
+            var edge = false, bright = 0, white: [Int] = []
+            seen[seed] = 1
+            while head < queue.count {
+                let i = queue[head], x = i % w, y = i / w, rgb = pixel(p, i)
+                head += 1
+                left = min(left, x); right = max(right, x); top = min(top, y); bottom = max(bottom, y)
+                if x == 0 || y == 0 || x == w - 1 || y == h - 1 { edge = true }
+                if rgb.min()! >= 220 && spread(rgb) <= 35 { bright += 1 }
+                if rgb.min()! >= 225 && spread(rgb) <= 24 { white.append(i) }
+                for j in neighbors(i, w, h) where barrier[j] == 0 && seen[j] == 0 {
+                    seen[j] = 1; queue.append(j)
+                }
+            }
+            let width = right - left + 1, height = bottom - top + 1
+            guard !edge, white.count >= 8, Double(bright) >= max(3, Double(queue.count) * 0.45),
+                  Double(left) >= b[0] - 2, Double(right) <= b[2] + 2,
+                  Double(top) >= b[1] - 2, Double(bottom) <= b[3] + 2,
+                  Double(width) <= glyph * 1.5, Double(height) <= glyph * 1.5 else { continue }
+            islands += 1; total += white.count
+            if Double(max(width, height)) >= glyph * 0.25 &&
+                (Double(max(width, height)) / Double(min(width, height)) >= 2.4 || Double(queue.count) / Double(width * height) < 0.42) {
+                filaments += 1
+            }
+            for i in white { for c in 0..<3 { sums[c] += Double(p[i * 4 + c]) } }
+        }
+        guard islands >= 4, filaments >= 2, Double(filaments) >= Double(islands) * 0.25, total >= 24 else { return nil }
+        return ["foreground": sums.map { floor($0 / Double(total) + 0.5) }, "stroke": ink,
+            "confidence": ["foreground": 0.85, "stroke": 0.85], "components": Double(islands), "filaments": Double(filaments),
+            "proof": "closed thin interiors bounded by observed ink", "enclosure": "observed-chromatic-barrier"]
     }
 
     private static func structure(_ p: [UInt8], _ w: Int, _ h: Int, _ box: [Int], _ glyph: Double,

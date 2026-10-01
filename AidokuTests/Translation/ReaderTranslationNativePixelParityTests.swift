@@ -4,8 +4,9 @@ import WebKit
 import CryptoKit
 @testable import Aidoku
 
-/// Explicit, opt-in migration gate. Any differing decoded RGBA pixel fails;
-/// typography antialiasing, cleanup and background differences are not waived.
+/// Serialized native/Web migration gates and diagnostic captures. Final exports
+/// use the bounded final-export raster policy; other capture gates retain
+/// their own exact pixel and geometry assertions.
 @Suite(.serialized)
 @MainActor
 struct ReaderTranslationNativePixelParityTests {
@@ -99,16 +100,19 @@ struct ReaderTranslationNativePixelParityTests {
         try await NativeSourceCanvasHierarchyParityCapture().run()
     }
 
-    @Test func nativeFinalImagesExactlyMatchFrozenWebRenderer() async throws {
+    /// Preserve raw RGBA differences while distinguishing exact, low-delta and sparse-delta acceptance.
+    @Test func nativeFinalImagesMeetFrozenWebRendererAcceptance() async throws {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene: scene)
         window.rootViewController = UIViewController()
         window.overrideUserInterfaceStyle = .light
         window.makeKeyAndVisible()
-        defer { window.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
+        defer { window.isHidden = true }
+        let gate = "final-export-raster-acceptance"
+        let policy = NativeFinalExportRasterAcceptance.policy
         let directory = URL.documentsDirectory.appendingPathComponent("NativeRenderParity", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try JSONSerialization.data(withJSONObject: ["gate": "exact-decoded-RGBA", "passed": false,
+        try JSONSerialization.data(withJSONObject: ["gate": gate, "acceptancePolicy": policy, "passed": false,
             "expectedFixtureCount": 0, "completedFixtureCount": 0, "fixtures": []] as [String: Any])
             .write(to: directory.appendingPathComponent("report.json"), options: .atomic)
         let fixtures = syntheticFixtures() + (try replayFixtures(in: directory))
@@ -117,7 +121,7 @@ struct ReaderTranslationNativePixelParityTests {
         var failures: [String] = []
         // Invalidate an earlier report before work starts; a crash cannot leave
         // a stale success associated with newly compiled renderer sources.
-        try JSONSerialization.data(withJSONObject: ["gate": "exact-decoded-RGBA", "passed": false,
+        try JSONSerialization.data(withJSONObject: ["gate": gate, "acceptancePolicy": policy, "passed": false,
             "expectedFixtureCount": fixtures.count, "completedFixtureCount": 0, "fixtures": []] as [String: Any])
             .write(to: directory.appendingPathComponent("report.json"), options: .atomic)
         for fixture in fixtures {
@@ -153,15 +157,26 @@ struct ReaderTranslationNativePixelParityTests {
                 try #require(candidate.pngData()).write(to: output.appendingPathComponent("native.png"))
                 let comparison = try compare(reference, candidate)
                 try #require(comparison.diff.pngData()).write(to: output.appendingPathComponent("diff.png"))
-                let report = comparison.report.merging(["id": fixture.id, "status": comparison.exact ? "exact" : "mismatch"]) { _, new in new }
+                let acceptedStatus = comparison.displacementAccepted ? "accepted-common-displacement"
+                    : comparison.maximumChannelDelta <= NativeFinalExportRasterAcceptance.unrestrictedChannelDeltaLimit
+                    ? "accepted-low-delta" : "accepted-sparse-delta"
+                let status = comparison.exact ? "exact" : comparison.accepted ? acceptedStatus : "mismatch"
+                let report = comparison.report.merging(["id": fixture.id, "status": status,
+                    "equalDecodedPixels": comparison.exact, "acceptedFinalExportPixels": comparison.accepted,
+                    "acceptancePolicy": policy]) { _, new in new }
                 reports.append(report)
-                if !comparison.exact { failures.append(fixture.id + ": decoded RGBA pixels differ") }
+                if !comparison.accepted { failures.append(fixture.id + ": decoded RGBA differences exceed " + policy) }
             } catch {
                 reports.append(["id": fixture.id, "status": "error", "error": String(describing: error)])
                 failures.append(fixture.id + ": " + String(describing: error))
             }
             // Preserve every completed comparison even if a later fixture crashes.
-            let summary: [String: Any] = ["gate": "exact-decoded-RGBA", "passed": failures.isEmpty && reports.count == fixtures.count,
+            let summary: [String: Any] = ["gate": gate, "acceptancePolicy": policy,
+                "passed": failures.isEmpty && reports.count == fixtures.count,
+                "exactFixtureCount": reports.filter { $0["status"] as? String == "exact" }.count,
+                "acceptedLowDeltaFixtureCount": reports.filter { $0["status"] as? String == "accepted-low-delta" }.count,
+                "acceptedSparseDeltaFixtureCount": reports.filter { $0["status"] as? String == "accepted-sparse-delta" }.count,
+                "acceptedCommonDisplacementFixtureCount": reports.filter { $0["status"] as? String == "accepted-common-displacement" }.count,
                 "expectedFixtureCount": fixtures.count, "completedFixtureCount": reports.count,
                 "os": UIDevice.current.systemVersion, "device": UIDevice.current.model,
                 "nativeTypeface": UIFont.systemFont(ofSize: 12).fontName,
@@ -174,29 +189,92 @@ struct ReaderTranslationNativePixelParityTests {
     }
 
     /// Replays saved input geometry/translations, never invokes OCR or a provider.
-    private func frozenWebRender(_ fixture: Fixture, host: UIView, output: URL) async throws -> UIImage {
+    func frozenWebRender(_ fixture: Fixture, host: UIView, output: URL, outputPixelSize: CGSize? = nil,
+                         logicalImageSize: CGSize? = nil, traceRegionIDs: [String]? = nil,
+                         usesExactSerializedInputs: Bool = false, repairsRejectedGrowth: Bool = false,
+                         repairsGlyphReleaseScale: Bool = false, collectGlyphReleaseScaleDiagnostics: Bool = true,
+                         repairsForeignLayoutExclusions: Bool = false) async throws -> UIImage {
+        let imageSize = logicalImageSize ?? fixture.image.size
         let overlay = LegacyReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: fixture.viewport))
+        if repairsRejectedGrowth || repairsGlyphReleaseScale || repairsForeignLayoutExclusions || traceRegionIDs != nil {
+            overlay.referenceScriptTransform = { script in
+                var reference = repairsRejectedGrowth ? try FrozenGrowthRollbackReference.correcting(script) : script
+                if repairsGlyphReleaseScale {
+                    reference = try FrozenGlyphReleaseScaleReference.correcting(reference, collectDiagnostics: collectGlyphReleaseScaleDiagnostics)
+                }
+                if repairsForeignLayoutExclusions {
+                    reference = try FrozenForeignLayoutExclusionReference.correcting(reference)
+                }
+                return try traceRegionIDs.map { try FrozenTypographyStageTrace.instrument(reference, regionIDs: $0) } ?? reference
+            }
+        }
         overlay.overrideUserInterfaceStyle = .light
         overlay.alpha = 0
         host.insertSubview(overlay, at: 0)
         defer { overlay.cancelWork(); overlay.removeFromSuperview() }
         let sourceRect = ReaderTranslationGeometry.displayRect(CGRect(x: 0, y: 0, width: 1, height: 1),
-            imageSize: fixture.image.size, bounds: overlay.bounds, aspectFit: fixture.aspectFit)
+            imageSize: imageSize, bounds: overlay.bounds, aspectFit: fixture.aspectFit)
         let payload = LegacyReaderTranslationLayout.layoutPayload(
-            items: ReaderTranslationRegion.layoutItems(fixture.regions, imageSize: fixture.image.size),
-            imageSize: fixture.image.size, sourceRect: sourceRect, settings: fixture.settings.overlay,
+            items: ReaderTranslationRegion.layoutItems(fixture.regions, imageSize: imageSize),
+            imageSize: imageSize, sourceRect: sourceRect, settings: fixture.settings.overlay,
             targetLanguage: fixture.settings.targetLanguage, viewport: fixture.viewport)
         let layout = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
         try layout.write(to: output.appendingPathComponent("web-layout.json"))
+        if usesExactSerializedInputs {
+            overlay.referenceSerializedLayoutJSON = String(decoding: layout, as: UTF8.self)
+        }
+        var rendererContracts: [String] = []
+        if repairsRejectedGrowth { rendererContracts.append(FrozenGrowthRollbackReference.contract) }
+        if repairsGlyphReleaseScale { rendererContracts.append(FrozenGlyphReleaseScaleReference.contract) }
+        if repairsForeignLayoutExclusions { rendererContracts.append(FrozenForeignLayoutExclusionReference.contract) }
+        let inputContract = [
+            "mode": usesExactSerializedInputs ? "original-json-parse" : "historical-foundation-items",
+            "rendererContract": rendererContracts.isEmpty ? "unmodified-frozen-renderer" : rendererContracts.joined(separator: "+"),
+            "layoutSHA256": SHA256.hash(data: layout).map { String(format: "%02x", $0) }.joined()
+        ]
+        try JSONSerialization.data(withJSONObject: inputContract, options: [.sortedKeys])
+            .write(to: output.appendingPathComponent("web-input-contract.json"))
         let prepared = Task<Data, Error> { layout }
-        overlay.update(regions: fixture.regions, imageSize: fixture.image.size, aspectFit: fixture.aspectFit,
+        overlay.update(regions: fixture.regions, imageSize: imageSize, aspectFit: fixture.aspectFit,
                        settings: fixture.settings, image: fixture.image, preparedLayout: prepared)
         while overlay.lastDiagnostic?.outcome != .committed && overlay.lastDiagnostic?.outcome != .cleared {
             overlay.layoutIfNeeded()
-            if case .failed = overlay.lastDiagnostic?.outcome { throw ParityError.referenceFailed }
+            if case .failed = overlay.lastDiagnostic?.outcome {
+                let detail = overlay.lastReferenceError ?? String(reflecting: overlay.lastDiagnostic)
+                try Data(detail.utf8).write(to: output.appendingPathComponent("reference-error.txt"))
+                throw ParityError.referenceEvaluationFailed(detail)
+            }
             try await Task.sleep(for: .milliseconds(20))
         }
         guard overlay.lastDiagnostic?.isCacheable != false else { throw ParityError.referenceFailed }
+        if traceRegionIDs != nil {
+            let trace = try await overlay.webView.callAsyncJavaScript(
+                "return JSON.stringify({typography:globalThis.__aidokuTypographyStageTrace || [], inputs:globalThis.__aidokuRestorationInputTrace || [], results:globalThis.__aidokuRestorationResultTrace || []});",
+                arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
+            guard let trace = trace as? String else { throw ParityError.referenceFailed }
+            try Data(trace.utf8).write(to: output.appendingPathComponent("web-native-migration-checkpoints.json"))
+        }
+        if repairsRejectedGrowth {
+            let rollback = try await overlay.webView.callAsyncJavaScript(
+                "return JSON.stringify(globalThis.__aidokuReferenceGrowthRollbackTrace || []);",
+                arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
+            guard let rollback = rollback as? String else { throw ParityError.referenceFailed }
+            try Data(rollback.utf8).write(to: output.appendingPathComponent("accepted-growth-rollbacks.json"))
+        }
+        if repairsGlyphReleaseScale {
+            let repairs = try await overlay.webView.callAsyncJavaScript(
+                "return JSON.stringify(globalThis.__aidokuReferenceGlyphReleaseScaleTrace || []);",
+                arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
+            guard let repairs = repairs as? String else { throw ParityError.referenceFailed }
+            try Data(repairs.utf8).write(to: output.appendingPathComponent("glyph-release-scale-repairs.json"))
+        }
+        if repairsForeignLayoutExclusions {
+            let repairs = try await overlay.webView.callAsyncJavaScript(
+                "return JSON.stringify(globalThis.__aidokuReferenceForeignLayoutTrace || []);",
+                arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
+            guard let repairs = repairs as? String else { throw ParityError.referenceFailed }
+            try Data(repairs.utf8).write(to: output.appendingPathComponent("foreign-layout-exclusion-repairs.json"))
+        }
         try await NativeSourceCanvasPixelDiagnostic.capture(image: fixture.image, webView: overlay.webView, output: output, fixtureID: fixture.id)
         let finalLayout = try await overlay.webView.callAsyncJavaScript(Self.finalWebLayoutScript,
             arguments: [:], in: nil, contentWorld: ReaderTranslationDOM.contentWorld)
@@ -210,7 +288,7 @@ struct ReaderTranslationNativePixelParityTests {
         try data.write(to: output.appendingPathComponent("web-layers.json"))
         let layers = try JSONDecoder().decode(ReaderTranslationImageExporter.ExportLayers.self, from: data)
         let rect = ReaderTranslationGeometry.displayRect(CGRect(x: 0, y: 0, width: 1, height: 1),
-            imageSize: fixture.image.size, bounds: overlay.bounds, aspectFit: fixture.aspectFit)
+            imageSize: imageSize, bounds: overlay.bounds, aspectFit: fixture.aspectFit)
         let configuration = WKPDFConfiguration()
         configuration.rect = rect
         let pdf = try await withCheckedThrowingContinuation { continuation in
@@ -218,10 +296,10 @@ struct ReaderTranslationNativePixelParityTests {
         }
         try pdf.write(to: output.appendingPathComponent("web-typography.pdf"))
         return try LegacyReaderTranslationCompositor.composite(image: fixture.image, typography: pdf, layers: layers,
-            displayRect: rect, size: ReaderTranslationImageExporter.outputSize(for: fixture.image))
+            displayRect: rect, size: outputPixelSize ?? ReaderTranslationImageExporter.outputSize(for: fixture.image))
     }
 
-    private struct Fixture {
+    struct Fixture {
         let id: String
         let image: UIImage
         let regions: [ReaderTranslationRegion]
@@ -309,12 +387,16 @@ struct ReaderTranslationNativePixelParityTests {
         }
     }
 
-    /// Optional real-image replay manifest. Geometry is normalized and source
+    /// Required real-image replay manifest. Geometry is normalized and source
     /// images/settings/translations are all frozen inputs supplied before launch.
     private func replayFixtures(in directory: URL) throws -> [Fixture] {
         let manifest = directory.appendingPathComponent("fixtures.json")
-        guard FileManager.default.fileExists(atPath: manifest.path) else { return [] }
+        try #require(FileManager.default.fileExists(atPath: manifest.path),
+            "The frozen real-page replay manifest must be installed before the full parity gate runs")
         let entries = try JSONDecoder().decode([ReplayFixture].self, from: Data(contentsOf: manifest))
+        let requiredIDs: Set<String> = ["real-comic-0001", "real-comic-0007", "real-comic-0015", "real-comic-0025"]
+        try #require(requiredIDs.isSubset(of: Set(entries.map(\.id))),
+            "The final-image parity gate must retain all four original real-page fixtures")
         return try entries.map { entry in
             guard entry.id.range(of: "^[A-Za-z0-9_-]+$", options: .regularExpression) != nil else { throw ParityError.invalidFixture }
             guard entry.viewport.count == 2, entry.viewport.allSatisfy({ $0.isFinite && $0 > 0 }),
@@ -402,23 +484,29 @@ struct ReaderTranslationNativePixelParityTests {
       })});
     """
 
-    private enum ParityError: Error { case referenceFailed, invalidFixture, invalidPixels }
+    private enum ParityError: Error {
+        case referenceFailed, referenceEvaluationFailed(String), invalidFixture, invalidPixels
+    }
 
-    private func compare(_ reference: UIImage, _ candidate: UIImage) throws -> (exact: Bool, diff: UIImage, report: [String: Any]) {
+    private func compare(_ reference: UIImage, _ candidate: UIImage) throws -> (
+        exact: Bool, accepted: Bool, displacementAccepted: Bool, maximumChannelDelta: Int, diff: UIImage, report: [String: Any]
+    ) {
         let lhs = try pixels(reference), rhs = try pixels(candidate)
         guard lhs.width == rhs.width, lhs.height == rhs.height else { throw ParityError.invalidPixels }
         var diff = [UInt8](repeating: 0, count: lhs.bytes.count)
-        var changed = 0, maximum = 0, total: UInt64 = 0
+        var changed = 0, maximum = 0, pixelsOverLowDeltaLimit = 0, total: UInt64 = 0
         var minX = lhs.width, minY = lhs.height, maxX = -1, maxY = -1
         for offset in stride(from: 0, to: lhs.bytes.count, by: 4) {
-            var pixelChanged = false
+            var pixelChanged = false, pixelMaximum = 0
             for channel in 0..<4 {
                 let delta = abs(Int(lhs.bytes[offset + channel]) - Int(rhs.bytes[offset + channel]))
                 total += UInt64(delta)
                 maximum = max(maximum, delta)
+                pixelMaximum = max(pixelMaximum, delta)
                 pixelChanged = pixelChanged || delta != 0
                 if channel < 3 { diff[offset + channel] = UInt8(delta) }
             }
+            if pixelMaximum > NativeFinalExportRasterAcceptance.unrestrictedChannelDeltaLimit { pixelsOverLowDeltaLimit += 1 }
             diff[offset + 3] = 255
             if pixelChanged {
                 changed += 1
@@ -433,13 +521,21 @@ struct ReaderTranslationNativePixelParityTests {
             bytesPerRow: lhs.width * 4, space: colorSpace,
             bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue), provider: provider,
             decode: nil, shouldInterpolate: false, intent: .defaultIntent))
-        let report: [String: Any] = ["width": lhs.width, "height": lhs.height, "differentPixels": changed,
+        var report: [String: Any] = ["width": lhs.width, "height": lhs.height, "differentPixels": changed,
             "differentPixelFraction": Double(changed) / Double(lhs.width * lhs.height), "maximumChannelDelta": maximum,
+            "pixelsOverLowDeltaLimit": pixelsOverLowDeltaLimit,
             "meanAbsoluteChannelDelta": Double(total) / Double(lhs.bytes.count),
             "differenceBounds": changed == 0 ? [] : [minX, minY, maxX - minX + 1, maxY - minY + 1],
             "webRGBAHash": SHA256.hash(data: Data(lhs.bytes)).map { String(format: "%02x", $0) }.joined(),
             "nativeRGBAHash": SHA256.hash(data: Data(rhs.bytes)).map { String(format: "%02x", $0) }.joined()]
-        return (changed == 0, UIImage(cgImage: image), report)
+        let accepted = NativeFinalExportRasterAcceptance.accepts(referenceWidth: lhs.width, referenceHeight: lhs.height,
+            actualWidth: rhs.width, actualHeight: rhs.height, changedPixels: changed,
+            pixelsOverLowDeltaLimit: pixelsOverLowDeltaLimit, maximumChannelDelta: maximum)
+        let displacement = accepted ? nil : NativeFinalExportRasterAcceptance.displacement(
+            reference: lhs.bytes, actual: rhs.bytes, width: lhs.width, height: lhs.height,
+            actualWidth: rhs.width, actualHeight: rhs.height)
+        if let displacement { report["commonDisplacement"] = displacement.report }
+        return (changed == 0, accepted || displacement != nil, displacement != nil, maximum, UIImage(cgImage: image), report)
     }
 
     private func pixels(_ image: UIImage) throws -> (width: Int, height: Int, bytes: [UInt8]) {

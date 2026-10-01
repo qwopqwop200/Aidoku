@@ -26,7 +26,7 @@ struct ReaderSlowPageReplayTests {
         window.frame = CGRect(origin: .zero, size: viewport)
         window.rootViewController = UIViewController()
         window.makeKeyAndVisible()
-        defer { window.isHidden = true; ReaderTranslationImageExporter.clearIdleRenderer() }
+        defer { window.isHidden = true }
         var renderedPages = 0
         for file in files {
             let regions = try JSONDecoder().decode([ReaderTranslationStoredRegion].self, from: Data(contentsOf: file)).map(\.region)

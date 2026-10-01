@@ -50,8 +50,9 @@ enum NativeSourceOutlineScan {
                   isRestored || ["readability-panel", "rotated-panel"].contains(e.backgroundKind) else { continue }
             let sampled = sampledStroke(e), fg = rgb(e.sample["foreground"])
             let fallback = slanted && fg != nil && e.appliedForeground != nil && gap(fg!, e.appliedForeground!) > 24
-            let missing = isRestored && e.sourceVertical && !sampled &&
+            let unresolvedColumnRing = e.sourceVertical && !sampled &&
                 (fg != nil && confidence(e.sample, "foreground") >= 0.55 || e.partialMainbodyProof == "outlined-source-position")
+            let missing = isRestored && unresolvedColumnRing
             let skip = isRestored && !missing && (e.appliedStrokeWidth > 0 || !sampled && !fallback)
             if skip && !e.reserveObservedDarkInk { continue }
             if !isRestored && rgb(e.opaquePlate) == nil { continue }
@@ -77,7 +78,11 @@ enum NativeSourceOutlineScan {
             let box = [Int(floor((b[0] * iw - x0) * scale)), Int(floor((b[1] * ih - y0) * scale)),
                        Int(ceil(((b[0] + b[2]) * iw - x0) * scale)), Int(ceil(((b[1] + b[3]) * ih - y0) * scale))]
             var enclosed: [String: Any]?
-            if missing {
+            // A readability plate may be released later after ownership proof.
+            // Retain the same closed-interior observation now, using this already
+            // admitted source crop. Final style admission still requires the
+            // card to be inpainted; observing a pair does not release a plate.
+            if unresolvedColumnRing {
                 let lettering = e.sample["lettering"] as? [String: Any], sourceInk = e.sample["sourceInk"] as? [String: Any]
                 let candidate = rgb(e.sample["stroke"]) ?? rgb(lettering?["color"]) ?? fg
                 if let candidate {
@@ -95,6 +100,17 @@ enum NativeSourceOutlineScan {
                 e.sample["captionBackground"], (e.sample["surface"] as? [String: Any])?["color"]].map(rgb)
             let evidence = NativeSourceOutlineEvidence.ringPair(rgba: rgba, width: w, height: h,
                 box: box, glyph: glyphPixels * scale, candidates: candidates)
+            // Observe closed dark interiors before late plate release selects
+            // the final fill. The final style pass requires both the retained
+            // source-position proof and actually applied dark ink.
+            if enclosed == nil, e.partialMainbodyProof == "outlined-source-position", fg == nil,
+               confidence(e.sample, "background") >= 0.8,
+               let background = rgb(e.sample["captionBackground"]) ?? rgb(e.sample["background"]), validDark(background),
+               let ring = evidence.ring, ring.kind == "paper", ring.core.min()! >= 225,
+               ring.outline.max()! <= 32, ring.surface?.flat == true, ring.surface!.rgb.max()! <= 32 {
+                enclosed = NativeSourceOutlineEvidence.enclosedDarkCaptionOutline(rgba: rgba, width: w, height: h,
+                    box: box.map(Double.init), glyph: glyphPixels * scale, background: background)
+            }
             result[e.id] = Analysis(ring: evidence.ring, ringData: evidence.ring?.dictionary,
                 enclosed: enclosed, rejection: evidence.rejection, missingColumnRing: missing, restored: isRestored, slanted: slanted)
         }
@@ -103,6 +119,7 @@ enum NativeSourceOutlineScan {
     private static func rgb(_ value: Any?) -> [Double]? {
         guard let value = value as? [Double], value.count == 3, value.allSatisfy({ $0.isFinite && $0 >= 0 && $0 <= 255 }) else { return nil }; return value
     }
+    private static func validDark(_ color: [Double]) -> Bool { color.count == 3 && color.allSatisfy { $0.isFinite && $0 >= 0 && $0 <= 32 } }
     private static func confidence(_ sample: [String: Any], _ key: String) -> Double { (sample["confidence"] as? [String: Any])?[key] as? Double ?? 0 }
     private static func gap(_ a: [Double], _ b: [Double]) -> Double { zip(a, b).map { abs($0 - $1) }.max() ?? 0 }
 }

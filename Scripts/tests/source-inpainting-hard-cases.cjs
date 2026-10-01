@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Reproduced small-ink/display failures and preservation of periodic backings.
 // --color-source FILE --restoration-source FILE --measure-only --report FILE
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),crypto=require('node:crypto');

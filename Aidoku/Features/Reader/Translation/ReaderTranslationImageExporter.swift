@@ -12,10 +12,6 @@ enum ReaderTranslationImageExporter {
         let asset: ReaderTranslationRenderAsset
     }
 
-    // The native renderer has no retained document or content process.
-    // Keep this hook for reader teardown and callers compiled against it.
-    static func clearIdleRenderer() {}
-
     // Full pages, including tall webtoons, stay within a bounded bitmap allocation.
     static func outputSize(for image: UIImage) -> CGSize {
         outputSize(for: CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale))
@@ -195,7 +191,8 @@ enum ReaderTranslationImageExporter {
         viewport: CGSize, scale: CGFloat, aspectFit: Bool, host: UIView?, dark: Bool,
         preparedLayout: Task<Data, Error>?, assetCache: ReaderTranslationRenderCache? = nil, assetKey: String? = nil,
         assetSourceDigest: String? = nil, priority: TranslationRequestPriority = .prefetch,
-        captureGate: TranslationProviderRequestLimiter = gate
+        captureGate: TranslationProviderRequestLimiter = gate,
+        onNativeDiagnostic: (@MainActor @Sendable (Data) throws -> Void)? = nil
     ) async throws -> UIImage {
         guard viewport.width > 0, viewport.height > 0 else { throw ExportError.unavailable }
         let factor = min(max(1, scale), sqrt(4_000_000 / viewport.width / viewport.height))
@@ -256,7 +253,8 @@ enum ReaderTranslationImageExporter {
             let result = try await renderSerial(image: image, regions: regions, settings: settings,
                 viewport: viewport, aspectFit: aspectFit, host: host, logicalImageSize: imageSize,
                 pixelSize: pageSize,
-                preparedLayout: preparedLayout, dark: dark, sourceDigest: sourceDigest, priority: priority)
+                preparedLayout: preparedLayout, dark: dark, sourceDigest: sourceDigest, priority: priority,
+                onNativeDiagnostic: onNativeDiagnostic)
             try Task.checkCancellation()
             if let assetCache, let assetKey, let storage {
                 assetCache.storeRenderAssetAfterDisplay(result.asset, key: assetKey, context: storage)
@@ -273,48 +271,6 @@ enum ReaderTranslationImageExporter {
         format.scale = 1
         format.preferredRange = .standard
         return UIGraphicsImageRenderer(size: canvasSize, format: format).image { _ in page.draw(in: frame) }
-    }
-
-    /// Abort the owned renderer promptly, but retain the caller's permit until
-    /// the operation acknowledges completion, so cancellation cannot overlap work.
-    static func awaitExportStage<Value: Sendable>(
-        timeoutNanoseconds: UInt64 = 20_000_000_000,
-        teardown: @escaping @MainActor () -> Void,
-        operation: @escaping @MainActor () async throws -> Value
-    ) async throws -> Value {
-        try Task.checkCancellation()
-        let lifetime = ExportStageLifetime(teardown: teardown)
-        let timeout = Task { @MainActor in
-            do { try await Task.sleep(nanoseconds: timeoutNanoseconds) } catch { return }
-            lifetime.abort()
-        }
-        defer {
-            timeout.cancel()
-            if Task.isCancelled { lifetime.abort() }
-            lifetime.finish()
-        }
-        return try await withTaskCancellationHandler {
-            let value = try await operation()
-            try Task.checkCancellation()
-            guard !lifetime.aborted else { throw ExportError.renderFailed }
-            return value
-        } onCancel: {
-            Task { @MainActor in lifetime.abort() }
-        }
-    }
-
-    @MainActor
-    private final class ExportStageLifetime {
-        private(set) var aborted = false
-        private var finished = false
-        func finish() { finished = true }
-        private let teardown: @MainActor () -> Void
-        init(teardown: @escaping @MainActor () -> Void) { self.teardown = teardown }
-        func abort() {
-            guard !aborted, !finished else { return }
-            aborted = true
-            teardown()
-        }
     }
 
     private static func renderSerial(image: UIImage, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
@@ -641,52 +597,5 @@ enum ReaderTranslationImageExporter {
                 }
             }
         }
-    }
-}
-
-/// A single idle renderer lease. The caller releases page data before storing;
-/// this slot only extends process reuse when memory has an extra 256 MiB margin.
-/// Time and environment are explicit so expiry/pressure are deterministic in tests.
-@MainActor
-final class ReaderTranslationIdleRendererSlot<Value> {
-    private var entry: (value: Value, storedAt: TimeInterval)?
-    private let discard: (Value) -> Void
-
-    init(discard: @escaping (Value) -> Void) { self.discard = discard }
-
-    static func shouldRetain(age: TimeInterval, availableMemory: UInt64, isActive: Bool) -> Bool {
-        let minimum = TranslationImageWorkBudget.minimumHeadroom
-        guard isActive, availableMemory >= minimum, age >= 0 else { return false }
-        let lifetime: TimeInterval = availableMemory - minimum >= 256 * 1_024 * 1_024 ? 10 : 2
-        return age < lifetime
-    }
-
-    func store(_ value: Value, now: TimeInterval) {
-        clear()
-        entry = (value, now)
-    }
-
-    func take(now: TimeInterval, availableMemory: UInt64, isActive: Bool) -> Value? {
-        _ = trim(now: now, availableMemory: availableMemory, isActive: isActive)
-        defer { entry = nil }
-        return entry?.value
-    }
-
-    @discardableResult
-    func trim(now: TimeInterval, availableMemory: UInt64, isActive: Bool) -> Bool {
-        guard let entry else { return true }
-        guard Self.shouldRetain(age: now - entry.storedAt, availableMemory: availableMemory, isActive: isActive) else {
-            clear()
-            return true
-        }
-        return false
-    }
-
-    @discardableResult
-    func clear() -> Bool {
-        guard let previous = entry else { return false }
-        entry = nil
-        discard(previous.value)
-        return true
     }
 }

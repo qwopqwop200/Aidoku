@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Replays saved overlay payloads in WebKit and measures each verified speech
 // caption before/after the final contour-aware centering pass. Usage:
 // node balloon-center-corpus-audit.cjs PAYLOAD_DIR ITEMS_DIR OUTPUT_JSON [FIRST LAST]

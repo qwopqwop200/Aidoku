@@ -32,6 +32,7 @@ enum NativeSlantedTypographyTrial {
         var safe: [UInt8] = []
         var luminance: [UInt8] = []
         var expandedPaper = false
+        var verifiedNarrowFrame = false
     }
     struct Peer {
         var text: String
@@ -382,7 +383,8 @@ enum NativeSlantedTypographyTrial {
             for size in sizes(original: original, base: base, floor: floorSize, step: 0.5) { if trial(size, 1) { break } }
         }
         if currentSurface != nil && !result.accepted && !entry.vertical && entry.sourceVertical &&
-            (entry.quad.width >= entry.quad.height * 0.6 || currentSurface?.method == "rectified-narrow-paper-glyphs") {
+            (entry.quad.width >= entry.quad.height * 0.6 || currentSurface?.method == "rectified-narrow-paper-glyphs" ||
+                (currentSurface?.isPage == true && currentSurface?.verifiedNarrowFrame == true)) {
             outer: for size in sizes(original: original, base: base, floor: floorSize, step: reflowStep) {
                 for fraction in [0.9, 0.8, 0.7, 0.6, 0.5, 0.45] { if trial(size, fraction) { break outer } }
             }

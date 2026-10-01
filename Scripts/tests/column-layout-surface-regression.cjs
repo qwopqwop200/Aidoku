@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Execute the production pixel gate, with a deterministic canvas sampling stub.
 // Real font layout and rasterization are covered by ReaderColumnLayoutTests.
 const assert = require('node:assert/strict');

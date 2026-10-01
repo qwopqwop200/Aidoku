@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // An accepted in-place erasure is completed along the caption's own lettering
 // (glyphs fused with a background shape or a rule), while rules, thin drawing
 // lines, marks between the text lines and textured surroundings keep their pixels.

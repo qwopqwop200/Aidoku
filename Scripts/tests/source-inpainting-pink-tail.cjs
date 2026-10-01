@@ -1,3 +1,4 @@
+// Frozen historical Web renderer reference; production native rendering is tested by AidokuFull.
 // Captured native WebKit crop from the submitted pink vertical-tail incident.
 // The OCR body ends before the tail; only independently recovered auxiliary
 // ownership may authorize its erasure. Keep the source crop and border intact.

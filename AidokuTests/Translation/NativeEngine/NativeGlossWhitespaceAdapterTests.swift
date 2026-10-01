@@ -41,4 +41,57 @@ import Testing
         #expect(style.horizontalWrapping == (mode >= 3 ? .keepAllWithEmergency : .keepAll))
         #expect(!style.keepsWholeWords && style.strictLineBreak == source.strictLineBreak)
     }
+    @Test func preservedTitleRetainsCardWhitespacePaddingAndEmTracking() throws {
+        let source = NativeTranslationTypography.Style(fontScript: "korean", fontSize: 11.75,
+            tracking: -11.75 * 0.012, lineHeight: 14.02197265625,
+            optimizesKoreanWrapping: false, alignsToTop: false, balancesHorizontalLines: true,
+            horizontalWrapping: .keepAllWithEmergency, horizontalWhitespace: .preWrap)
+        let retained = NativeTranslationEffectGloss.RetainedTypography(sourceStyle: source,
+            horizontalPadding: 12, verticalPadding: 12)
+        let owner = try card(style: source)
+        let inherited = NativeTranslationRenderer.glossStyle(card: owner, size: 14, lineHeight: 16.8,
+            title: true, retained: retained)
+        #expect(inherited.horizontalWhitespace == .preWrap)
+        #expect(inherited.horizontalWrapping == .keepAllWithEmergency)
+        #expect(!inherited.alignsToTop && inherited.balancesHorizontalLines)
+        #expect(abs(inherited.tracking + 0.168) < 0.000001)
+        #expect(retained.contentSize(width: 119, lineHeight: 16.8) == CGSize(width: 107, height: 39))
+        let fresh = NativeTranslationRenderer.glossStyle(card: owner, size: 14, lineHeight: 16.8, title: true)
+        #expect(fresh.horizontalWhitespace == .preLine && fresh.alignsToTop && fresh.tracking == 0)
+    }
+
+    @Test func preservedTitleMeasuresRecordedRangeRatherThanGlyphInk() throws {
+        // Immutable current-Web page9 title candidate: outer119x51, padding6,
+        // range63.224x34. The existing card retains two balanced rows at14pt.
+        let source = NativeTranslationTypography.Style(fontScript: "korean", fontSize: 11.75,
+            tracking: -11.75 * 0.012, lineHeight: 14.02197265625,
+            optimizesKoreanWrapping: false, alignsToTop: false, balancesHorizontalLines: true,
+            horizontalWrapping: .keepAllWithEmergency, horizontalWhitespace: .preWrap)
+        let retained = NativeTranslationEffectGloss.RetainedTypography(sourceStyle: source,
+            horizontalPadding: 12, verticalPadding: 12)
+        let style = retained.style(size: 14, lineHeight: 16.8)
+        let size = retained.contentSize(width: 119, lineHeight: 16.8)
+        let shaped = NativeTranslationTypography.layout(text: "태연하게 대단한 일을", in: size, style: style)
+        let range = try #require(NativeTranslationTypography.wholeRangeBounds(layout: shaped, style: style, available: size))
+        #expect(shaped.lineCount == 2)
+        #expect(abs(range.width - 63.224) < 0.1)
+        #expect(abs(range.height - 34) < 0.1)
+        #expect(range.height > shaped.inkBounds.height)
+        #expect(NativeTypographyPostPolish.profile(shaped, originalText: "태연하게 대단한 일을").breaks.isEmpty)
+    }
+
+    @Test func preservedTitleKeepsExplicitPixelTrackingAndGuardsInvalidSourceSize() {
+        var source = NativeTranslationTypography.Style(fontScript: "korean", fontSize: 11.75,
+            tracking: -0.141, lineHeight: 14.02197265625)
+        source.trackingScalesWithFont = false
+        let fixed = NativeTranslationEffectGloss.RetainedTypography(sourceStyle: source,
+            horizontalPadding: 12, verticalPadding: 12)
+        #expect(fixed.style(size: 14, lineHeight: 16.8).tracking == -0.141)
+        source.trackingScalesWithFont = true
+        source.fontSize = 0
+        let invalid = NativeTranslationEffectGloss.RetainedTypography(sourceStyle: source,
+            horizontalPadding: 12, verticalPadding: 12)
+        #expect(invalid.style(size: 14, lineHeight: 16.8).tracking == -0.141)
+    }
+
 }
