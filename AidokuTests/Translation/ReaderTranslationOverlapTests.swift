@@ -4,6 +4,45 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationOverlapTests {
+    @Test(arguments: [false, true])
+    func cancelledEncodingCannotRetainItsLatePreparedImage(alreadyStored: Bool) async throws {
+        let slot = ReaderTranslationPreloader.LockedSlot<OverlapPreparedImage>()
+        let lifetime = OverlapPreparedImageLifetime()
+        let finishEncoding = OverlapEncodingPhase()
+        if alreadyStored { slot.store(OverlapPreparedImage(lifetime)) }
+        let encoding = Task.detached {
+            // An in-progress synchronous JPEG encoder cannot observe cancellation
+            // until it returns its bytes to the preparation slot.
+            let image = OverlapPreparedImage(lifetime)
+            await finishEncoding.wait()
+            slot.store(image)
+        }
+        defer {
+            encoding.cancel()
+            Task { await finishEncoding.open() }
+        }
+        try await waitUntil { lifetime.retainedBytes == (alreadyStored ? 2 : 1) * OverlapPreparedImage.byteCount }
+        encoding.cancel()
+        slot.discard()
+        #expect(lifetime.retainedBytes == OverlapPreparedImage.byteCount)
+        await finishEncoding.open()
+        await encoding.value
+        // Verify release before taking anything: take() itself would hide the leak.
+        #expect(lifetime.retainedBytes == 0)
+        #expect(slot.take() == nil)
+    }
+
+    @Test func preparedImageIsConsumedOnceBeforeTheSlotIsDiscarded() {
+        let slot = ReaderTranslationPreloader.LockedSlot<Data>()
+        let encoded = Data([0xff, 0xd8, 0xff, 0xd9])
+        slot.store(encoded)
+        #expect(slot.take() == encoded)
+        #expect(slot.take() == nil)
+        slot.discard()
+        slot.store(encoded)
+        #expect(slot.take() == nil)
+    }
+
     @Test func originalImageRemainsVisibleUntilTranslationCompletes() async throws {
         let recorder = OverlapRecorder(blockedAPI: 0)
         let preloader = preloader(recorder)
@@ -406,4 +445,37 @@ private actor OverlapRecorder {
     static func region(_ index: Int) -> ReaderTranslationRegion {
         .init(id: String(index), rect: CGRect(x: 0.1, y: 0.1, width: 0.2, height: 0.2), source: "Text")
     }
+}
+
+private actor OverlapEncodingPhase {
+    private var released = false
+    private var continuation: CheckedContinuation<Void, Never>?
+    func wait() async {
+        if released { return }
+        await withCheckedContinuation { continuation = $0 }
+    }
+    func open() {
+        released = true
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
+private final class OverlapPreparedImageLifetime: @unchecked Sendable {
+    private let lock = NSLock()
+    private var bytes = 0
+    var retainedBytes: Int { lock.withLock { bytes } }
+    func retain(_ count: Int) { lock.withLock { bytes += count } }
+    func release(_ count: Int) { lock.withLock { bytes -= count } }
+}
+
+private final class OverlapPreparedImage: @unchecked Sendable {
+    static let byteCount = 1_024 * 1_024
+    private let bytes = Data(repeating: 0, count: OverlapPreparedImage.byteCount)
+    private let lifetime: OverlapPreparedImageLifetime
+    init(_ lifetime: OverlapPreparedImageLifetime) {
+        self.lifetime = lifetime
+        lifetime.retain(Self.byteCount)
+    }
+    deinit { lifetime.release(Self.byteCount) }
 }

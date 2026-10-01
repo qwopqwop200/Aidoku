@@ -11,7 +11,7 @@ still use WebKit. The app as a whole therefore still has a browser component.
 | Translation requests | Swift URLSession transport, parsing and bounded batching | `RemoteTranslationClient`, `ReaderTranslationService` |
 | Translated text layout | Swift, Core Text and Core Graphics | `NativeTranslationRenderer`, `NativeTranslationLayoutPlanner` |
 | Source color, text removal and background repair | Swift plus original Rust kernels compiled as a native static library through a C ABI | `NativeTranslationPixelKernels`, `Scripts/overlay-kernels/native/build.py` |
-| Live translation display | Native bitmap painter and bounded UIKit/Core Animation/Metal helpers | `ReaderTranslationOverlayView`, `NativeSourceCanvasHierarchyCompositor` |
+| Live translation display | Worker-owned bitmap, direct Core Graphics source painting, Core Text and bounded native helpers | `ReaderTranslationOverlayView`, `NativeSourceCanvasHierarchyCompositor` |
 | Final image export and cache | Native image/PDF composition with versioned cache identity | `ReaderTranslationImageExporter`, `ReaderTranslationRenderCache` |
 | Dictionary popup | UIKit text, links and view layout | `NativeDictionaryPopupView` |
 | Installed source metadata and adapters | Native registry dispatch by exact ID/version; unsupported packages fail | `NativeSourceRegistration`, `Vendor/AidokuRunner` |
@@ -34,12 +34,43 @@ swift Scripts/image-translation.swift --render-run /path/to/saved-run
 The launcher builds current source with incremental object/model caches. It
 requires Apple Silicon macOS 15+, Xcode command-line tools and Rust. Rendering
 uses Core Text/Core Graphics, native restoration and PDF composition; `final.html`
-is a static PNG preview. The host adapter declines iOS window-specific live
-capture, while offline final-image composition remains native. Host font and
-raster behavior is not proof of exact iPhone output.
+is a static PNG preview. The host shares the app's worker-side Core Graphics
+source compositor; temporary window capture is no longer required. Host font
+and raster behavior is not proof of exact iPhone output.
 
 See [CLI configuration and outputs](../Scripts/image-translation/README.md),
 including `.env`, saved phone settings, replay and bounded concurrency.
+
+## Native allocation and painting policy
+
+Admitted source repairs draw into the worker's existing bitmap, avoiding a full
+page prefix copy, main-actor window capture and bitmap replay. Unsupported
+geometry retains the native fallback. Horizontal outlined text reuses the
+measured Core Text glyphs for fill/stroke passes; mixed stroke attributes,
+color glyphs, vertical and condensed text retain the appropriate existing path.
+Mixed stroke runs can change ligatures when reshaped, so they must not enter
+the glyph-reuse path.
+
+Cold image composition accepts the existing native bitmap and repair CGImages.
+PNG/Base64 encoding remains for persisted assets and explicitly requested layer
+diagnostics. Cached reads retain their encoded-asset compatibility path. The
+host similarly composes repair images directly and encodes the final PNG once
+for both the saved image and its HTML preview. The visual cache namespace is
+`reader-render-v159-native-direct-paint`; OCR and translation keys are unchanged.
+
+SQLite compressed reads borrow the BLOB only within the synchronous statement
+and return owned decoded bytes. Writes retain their source buffer until SQLite
+finalizes the statement. Cancelled preload JPEG slots cannot be refilled by a
+late producer. Hidden overlay rasters are released, and the overlay stays weak
+while waiting for a shared layout producer. Dictionary raster attachments decode
+at their display size and retain one size/trait-specific rendered bitmap;
+explicit pixelated images preserve their original pixels.
+
+`NativeEfficiencyMeasurementTests` is an opt-in simulator benchmark with one
+warmup and three samples per phase. It records wall time, sampled process RSS,
+physical footprint, actual returned payload bytes and output PNGs. These
+generated fixtures and a six-source-draw microbenchmark do not establish
+whole-app or physical-device memory/latency improvements.
 
 ## Reference code and verification
 
@@ -56,6 +87,17 @@ the original source, image and raw comparison remain archived.
 - Native Swift/Rust tests and native/reference RGBA captures validate the
   replacement. Reference expectations remain immutable; never regenerate them
   from native output.
+- Source-canvas sampling has its own test-only policy, independent of final
+  export and glyph acceptance. Full-size captures keep pixels outside the
+  affected source frame exact. Per-channel source-region mean error is at most
+  0.5 byte values, the 95th percentile at most 3, and the maximum 64; at most
+  0.5% of samples exceed 16. Compatibility half-size captures allow means up to
+  4, a 95th percentile of 12 and a 1% tail, plus filter fringes of at most 32
+  in the first physical pixel and 2 in the second. Pixels beyond that footprint
+  remain exact. Source bytes, dimensions, nonzero-alpha bounds, opaque alpha
+  and bounded alpha mass are checked separately. Real-capture controls require
+  one-pixel source shifts, missing patches, vertical inversion and alpha damage
+  to fail; raw exact RGBA statistics are retained alongside acceptance.
 - Final-export comparisons use the same prepared source pixels, logical image
   size and PDF composition route. The cache bitmap retains its independent
   exact comparison across preload depths. Mixing a fractional cache raster

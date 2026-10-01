@@ -40,7 +40,37 @@ outctx.draw(masked,in:media)
 assert(rgb(50,40)[0]>240 && rgb(50,40)[2]<10,"mask frame or orientation")
 assert(rgb(50,58)[0]<10 && rgb(50,58)[2]>240,"mask lower orientation")
 assert(rgb(80,50)==[0,0,255],"mask touched outside frame")
-print("Host geometry and PDF compositor fixture passed")
+// The native path shares repair CGImages; the portable layer schema remains replayable.
+let patchContext=CGContext(data:nil,width:40,height:40,bitsPerComponent:8,bytesPerRow:160,
+    space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue)!
+patchContext.setFillColor(CGColor(red:0.2,green:0.6,blue:0.4,alpha:0.5))
+patchContext.fill(CGRect(x:0,y:0,width:40,height:20))
+patchContext.setFillColor(CGColor(red:1,green:0,blue:0,alpha:1))
+patchContext.fill(CGRect(x:0,y:20,width:20,height:20))
+let patch=patchContext.makeImage()!
+let rendered=NativeTranslationRenderer.Result(sourcePatches:[.init(image:patch,rect:CGRect(x:35,y:30,width:40,height:40))],
+    paintBounds:[CGRect(x:40,y:40,width:10,height:10)],sourceRestorationRects:[CGRect(x:40,y:40,width:5,height:5)])
+let direct=try HostExportCompositor.composite(image:image,rendered:rendered,typography:data as Data,displayRect:media,size:media.size)
+let persisted=try HostExportCompositor.layers(for:rendered)
+let replayed=try JSONDecoder().decode(HostProductionExporter.ExportLayers.self,from:JSONEncoder().encode(persisted))
+assert(replayed.masks.count==1 && replayed.masks[0].png.hasPrefix("data:image/png;base64,"),"portable layer schema changed")
+let decoded=try HostExportCompositor.composite(image:image,layers:replayed,typography:data as Data,displayRect:media,size:media.size)
+func pixels(_ image:CGImage)->[UInt8]{
+    outctx.clear(media);outctx.draw(image,in:media)
+    return Array(UnsafeBufferPointer(start:bytes,count:40000))
+}
+let directPixels=pixels(direct), decodedPixels=pixels(decoded)
+let maximumDifference=zip(directPixels,decodedPixels).map{abs(Int($0)-Int($1))}.max()!
+assert(maximumDifference<=1,"native patch changed alpha/color/orientation: max difference \(maximumDifference)")
+// Native inputs retain the same per-patch bounds even though no PNG decoder runs.
+let oversized=CGContext(data:nil,width:8193,height:1,bitsPerComponent:8,bytesPerRow:8193*4,
+    space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue)!.makeImage()!
+let invalid=NativeTranslationRenderer.Result(sourcePatches:[.init(image:oversized,rect:media)],paintBounds:[],sourceRestorationRects:[])
+do {
+    _=try HostExportCompositor.composite(image:image,rendered:invalid,typography:data as Data,displayRect:media,size:media.size)
+    assertionFailure("oversized native repair accepted")
+} catch { assert((error as NSError).localizedDescription=="Invalid native source repair dimensions") }
+print("Host geometry, PDF compositor and direct native patch fixtures passed; max byte difference: \(maximumDifference)")
 }}
 '''
 

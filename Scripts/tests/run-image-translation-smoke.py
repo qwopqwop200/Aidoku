@@ -4,6 +4,7 @@
 Run: python3 Scripts/tests/run-image-translation-smoke.py
 No external provider or API key is used; the mock server binds only to loopback.
 """
+import base64
 import http.server
 import json
 import os
@@ -165,6 +166,8 @@ with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
     assert (replay_dir / '0001/native-layout.json').exists()
     final_html = (replay_dir / '0001/final.html').read_text()
     assert 'data:image/png;base64,' in final_html and '<script' not in final_html.lower()
+    embedded_png = re.search(r'src="data:image/png;base64,([A-Za-z0-9+/=]+)"', final_html).group(1)
+    assert base64.b64decode(embedded_png, validate=True) == (replay_dir / '0001/final.png').read_bytes()
     for trace in analysis['segmentation']:
         assert trace['engine'] == 'native-coretext-coregraphics' and not trace['captureFailures']
         assert len(trace['captures']) <= 64
@@ -177,6 +180,14 @@ with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
     translated = json.loads((replay_dir / '0001/final.json').read_text())
     assert all(region['translation'] == '어서! 빨리 움직여!' for region in translated['regions'])
     assert translated['renderEngine'] == 'native-coretext-coregraphics'
+    # Native payload replay uses the direct patch path and retains saved OCR/translations.
+    native_ocr_before = {file.name: file.read_bytes() for file in (replay_dir / '0001').glob('*native-ocr.json')}
+    run(['--render-run', replay_dir])
+    assert json.loads((replay_dir / '0001/final.json').read_text())['regions'] == translated['regions']
+    assert {file.name: file.read_bytes() for file in (replay_dir / '0001').glob('*native-ocr.json')} == native_ocr_before
+    replay_html = (replay_dir / '0001/final.html').read_text()
+    replay_png = re.search(r'src="data:image/png;base64,([A-Za-z0-9+/=]+)"', replay_html).group(1)
+    assert base64.b64decode(replay_png, validate=True) == (replay_dir / '0001/final.png').read_bytes()
     # Completed browser-era runs must recompose through native code when resumed,
     # while retaining OCR and user translations without any provider request.
     saved_payload = next((replay_dir / '0001').glob('*render-payload.json'))

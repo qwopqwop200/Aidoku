@@ -30,12 +30,21 @@ final class ReaderTranslationPreloader {
         func retain() { lock.withLock { retained = true } }
     }
     /// A small lock-protected slot shared by a page's recognition and translation tasks.
-    private final class LockedSlot<Value>: @unchecked Sendable {
+    final class LockedSlot<Value>: @unchecked Sendable {
         private let lock = NSLock()
         private var value: Value?
-        func store(_ newValue: Value?) { lock.withLock { value = newValue } }
+        private var discarded = false
+        func store(_ newValue: Value?) {
+            lock.withLock {
+                guard !discarded else { return }
+                value = newValue
+            }
+        }
         /// Consumes the value so a bounded JPEG is never retained past its one use.
         func take() -> Value? { lock.withLock { defer { value = nil }; return value } }
+        /// Encoding is synchronous: a producer can finish after cancellation emptied
+        /// the slot. Closing it atomically prevents that late result from retaining bytes.
+        func discard() { lock.withLock { discarded = true; value = nil } }
     }
     /// One consumer can start provider work once OCR preparation is complete,
     /// while the recognition task still joins its bounded persistence work.
@@ -74,7 +83,7 @@ final class ReaderTranslationPreloader {
         let preparedImageJPEG: LockedSlot<Data>
         var translation: Task<[ReaderTranslationRegion]?, Error>?
 
-        func cancel() { recognition.cancel(); translation?.cancel(); _ = preparedImageJPEG.take() }
+        func cancel() { recognition.cancel(); translation?.cancel(); preparedImageJPEG.discard() }
     }
     /// Cancellation belongs to the consumer until navigation hands its work to
     /// the next consumer. Old cancellation handlers must not kill adopted work.
@@ -289,6 +298,7 @@ final class ReaderTranslationPreloader {
         return Task.detached(priority: speculative ? .utility : .userInitiated) { [diskCache, loader, retainImage] in
             try await ReaderTranslationDiagnostics.measure("preload_translation", context: work.diagnosticContext) {
                 defer {
+                    work.preparedImageJPEG.discard()
                     work.lifetime.finish()
                     if speculative {
                         let key = work.key

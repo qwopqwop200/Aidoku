@@ -4,7 +4,7 @@ import WebKit
 import CryptoKit
 @testable import Aidoku
 
-/// Calls the production MainActor compositor from a real worker. The two flat
+/// Calls the production native compositor from a real worker. The two flat
 /// controls retain immutable53 A captures; the asymmetric PMA prefix is a new,
 /// literal WebKit differential, never a replacement for those references.
 @MainActor struct NativeSourceCanvasHierarchyParityCapture {
@@ -83,19 +83,28 @@ import CryptoKit
                 record["sourceCanonicalEqual"] = sourceEqual; record["sourceHash"] = hash(original.bytes)
                 record["prefixHash"] = hash(prefixPixels.bytes); record["screenScale"] = scale
                 record["prefixPattern"] = name == "asymmetric-pma" ? "two columns by three rows; PMA alpha64/173/192" : name
-                var immutableEqual = true
+                var immutableWebEqual = true
                 if let frozen = references[name], let text = frozen["png"], let bytes = Data(base64Encoded: text),
                    hash(bytes) == frozen["sha256"], let image = UIImage(data: bytes)?.cgImage {
                     try bytes.write(to: directory.appendingPathComponent("immutable53-web.png"))
                     let originalReference = try pixels(image)
                     record["nativeVsImmutable53"] = compare(originalReference, native)
                     record["freshWebVsImmutable53"] = compare(originalReference, reference)
-                    immutableEqual = originalReference.bytes == native.bytes && originalReference.bytes == reference.bytes
+                    immutableWebEqual = originalReference.bytes == reference.bytes
                 } else if name != "asymmetric-pma" { throw Failure.invalidSource }
-                let passed = sourceEqual && worker && immutableEqual && record["exactRGBA"] as? Bool == true
+                let acceptance = NativeSourceCanvasResamplingAcceptance.assess(reference: reference.bytes, candidate: native.bytes,
+                    width: native.width, height: native.height, frames: [placement], outputScale: scale, mode: .sourceDraw)
+                let controls = NativeSourceCanvasResamplingAcceptance.negativeControls(reference: reference.bytes, candidate: native.bytes,
+                    prefix: prefixPixels.bytes, width: native.width, height: native.height,
+                    frames: [placement], outputScale: scale, mode: .sourceDraw)
+                record["nativeResamplingAcceptance"] = acceptance.report
+                record["negativeControlsRejected"] = controls
+                let passed = sourceEqual && worker && immutableWebEqual && native.width == reference.width
+                    && native.height == reference.height && acceptance.accepted
+                    && controls.count == 4 && controls.values.allSatisfy { $0 }
                 record["passed"] = passed
                 try write(record, to: directory.appendingPathComponent("comparison.json")); records.append(record)
-                if !passed { failures.append(name + ": strict RGBA/source/worker/oracle mismatch") }
+                if !passed { failures.append(name + ": native sampling/source/worker/oracle/control mismatch") }
             } catch {
                 failures.append(name + ": " + String(describing: error))
                 try write(["error": String(describing: error)], to: directory.appendingPathComponent("failure.json"))
@@ -103,7 +112,7 @@ import CryptoKit
         }
         try write(["expectedCount": 3, "count": records.count, "passed": records.count == 3 && failures.isEmpty,
             "reports": records, "failures": failures, "screenScale": scale, "os": UIDevice.current.systemVersion,
-            "scope": "actual production UI compositor from worker; immutable53 flat2 plus literal asymmetric PMA Web differential; strict zero tolerance"],
+            "scope": "native worker source sampler; exact source/oracle/geometry/outside footprint; bounded source-only resampling; raw strict RGBA retained"],
             to: output.appendingPathComponent("report.json"))
         #expect(records.count == 3 && failures.isEmpty, Comment(rawValue: failures.joined(separator: "\n")))
     }

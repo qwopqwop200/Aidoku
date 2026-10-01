@@ -9,7 +9,7 @@ swift Scripts/image-translation.swift --list /path/to/images.json
 swift Scripts/image-translation.swift --help
 ```
 
-The launcher compiles current repository sources, including uncommitted changes, into a native host executable. It shares production Core ML OCR, recovery/grouping, provider translation, native layout, source restoration and Core Graphics/Core Text/PDF composition. Original Rust pixel kernels compile into a native static library. Rendering does not execute WebKit, JavaScript or WebAssembly. The macOS graphics adapter supplies UIKit-shaped drawing operations; the optional iOS window-capture capability is unavailable on this CLI.
+The launcher compiles current repository sources, including uncommitted changes, into a native host executable. It shares production Core ML OCR, recovery/grouping, provider translation, native layout, source restoration and Core Graphics/Core Text/PDF composition. Original Rust pixel kernels compile into a native static library. Rendering does not execute WebKit, JavaScript or WebAssembly. The macOS graphics adapter supplies UIKit-shaped drawing operations; source-canvas composition uses the same worker-side Core Graphics implementation as the app.
 
 The executable, object files and compiled Core ML models are reused under `build/image-translation-host`. Source, native-library and model changes invalidate affected cache entries. The command does not build or launch the iOS app or a simulator. Core Text/AppKit font metrics, spelling dictionaries, color management and Core ML execution may differ from iOS; host success does not establish iPhone pixel parity or performance.
 
@@ -55,7 +55,7 @@ Each image has `input.png`, `ocr-boxes.png` and `final.json`. Translation mode a
 
 `native-render-diagnostics` replaces the old DOM/style diagnostic. Native restoration capture records initial/final repair-alpha masks, patch crops and actual repaired pixels; these are not historical JavaScript glyph bitmasks. An initial/candidate patch does not establish final adoption. Captures retain their bounds and report omitted entries. OCR-only runs have no translated PNG or renderer masks.
 
-Native rendering uses the app's layout/settings normalization and bounded background/export sizing policies. Bundled fonts are registered with Core Text; export composes masks and PDF text with the native compositor. Translation attachments use white-backed JPEG preparation with a 2048-pixel maximum side. Image-attached provider calls are limited to three.
+Native rendering uses the app's layout/settings normalization and bounded background/export sizing policies. Bundled fonts are registered with Core Text; export composes in-memory repair images and PDF text with the native compositor. The portable `final-layers.json` still stores PNG/Base64 masks, but composition does not decode that transport. `final.png` and the self-contained HTML share one PNG encoding. Translation attachments use white-backed JPEG preparation with a 2048-pixel maximum side. Image-attached provider calls are limited to three.
 
 `--jobs N` / `AIDOKU_IMAGE_JOBS` controls 1...64 image workers (default 8). Translation overlaps across images; OCR and native rendering each hold one admission slot, bounding shared Core ML and raster work. Output numbering and summary order remain stable when requests finish out of order. Throughput depends on provider and stage costs.
 

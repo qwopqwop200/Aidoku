@@ -198,21 +198,12 @@ actor ReaderTranslationDiskCache {
         try Task.checkCancellation()
         try prepare()
         let name = fileName(key, kind: kind)
-        let data: Data
-        do {
-            guard let stored = try database?.data(name) else { return nil }
-            data = stored
-        } catch is DecodingError {
-            try database?.delete(name)
-            return nil
-        }
+        // SQLite failures still propagate; only payload decoding failures can
+        // invalidate an entry. Compressed bytes stay borrowed until unpack ends.
+        guard let decoded = try database?.unpackedData(name, maximumBytes: maximumBytes) else { return nil }
         let unpacked: Data
         do {
-            if let maximumBytes {
-                unpacked = try ReaderTranslationCacheCodec.unpack(data, maximumBytes: maximumBytes)
-            } else {
-                unpacked = try ReaderTranslationCacheCodec.unpack(data)
-            }
+            unpacked = try decoded.get()
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as CocoaError where error.code == .fileReadTooLarge {
@@ -557,11 +548,40 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         }
     }
 
-    func data(_ name: String) throws -> Data? {
-        guard let payload = try payload(name) else { return nil }
-        guard let base = payload.base else { return payload.data }
-        // Keep data(for:) compatible without making normal region reads re-encode JSON.
-        return try ReaderTranslationRegionArchive.restore(base: base, variant: payload.data)
+    /// Decode inside the statement lifetime so compressed BLOBs need no full
+    /// intermediate copy. The Result separates format failures from SQLite errors.
+    func unpackedData(_ name: String, maximumBytes: Int?) throws -> Result<Data, Error>? {
+        try statement("SELECT cache.data, region_bases.data FROM cache LEFT JOIN region_links USING(name) LEFT JOIN region_bases ON "
+            + "region_bases.name=region_links.base WHERE cache.name=?", name: name) { pointer in
+            let result = sqlite3_step(pointer)
+            if result == SQLITE_DONE { return nil }
+            guard result == SQLITE_ROW else { throw failure() }
+            return Result {
+                if sqlite3_column_type(pointer, 1) != SQLITE_NULL {
+                    // Shared archives keep their existing owned buffers; restore
+                    // produces independent JSON for the compatibility data API.
+                    let data = try ReaderTranslationRegionArchive.restore(base: blob(pointer, column: 1), variant: blob(pointer, column: 0))
+                    if let maximumBytes, data.count > maximumBytes { throw CocoaError(.fileReadTooLarge) }
+                    return data
+                }
+                return try unpackedBlob(pointer, column: 0, maximumBytes: maximumBytes)
+            }
+        }
+    }
+
+    private func unpackedBlob(_ pointer: OpaquePointer, column: Int32, maximumBytes: Int?) throws -> Data {
+        if let maximumBytes, maximumBytes < 0 { throw CocoaError(.fileReadTooLarge) }
+        let count = Int(sqlite3_column_bytes(pointer, column))
+        guard count > 0, let bytes = sqlite3_column_blob(pointer, column) else { return Data() }
+        let borrowed = Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: bytes), count: count, deallocator: .none)
+        guard ReaderTranslationCacheCodec.isPacked(borrowed) else {
+            if let maximumBytes, count > maximumBytes { throw CocoaError(.fileReadTooLarge) }
+            // The codec's raw fast path returns its input. Materialize it here so
+            // no SQLite pointer escapes step/reset/finalize, even for legacy JSON.
+            return Data(bytes: bytes, count: count)
+        }
+        if let maximumBytes { return try ReaderTranslationCacheCodec.unpack(borrowed, maximumBytes: maximumBytes) }
+        return try ReaderTranslationCacheCodec.unpack(borrowed)
     }
 
     func payload(_ name: String) throws -> (data: Data, base: Data?)? {
@@ -609,18 +629,22 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     }
 
     func replacePackedBase(_ data: Data, name: String) throws {
-        try statement("UPDATE region_bases SET data=?2 WHERE name=?1", name: name) { pointer in
-            let result = data.withUnsafeBytes { sqlite3_bind_blob(pointer, 2, $0.baseAddress, Int32($0.count), transient) }
-            guard result == SQLITE_OK else { throw failure() }
-            try step(pointer)
+        try data.withUnsafeBytes { bytes in
+            try statement("UPDATE region_bases SET data=?2 WHERE name=?1", name: name) { pointer in
+                let result = sqlite3_bind_blob(pointer, 2, bytes.baseAddress, Int32(bytes.count), nil)
+                guard result == SQLITE_OK else { throw failure() }
+                try step(pointer)
+            }
         }
     }
 
     func replacePackedData(_ data: Data, name: String) throws {
-        try statement("UPDATE cache SET data=?2 WHERE name=?1", name: name) { pointer in
-            let result = data.withUnsafeBytes { sqlite3_bind_blob(pointer, 2, $0.baseAddress, Int32($0.count), transient) }
-            guard result == SQLITE_OK else { throw failure() }
-            try step(pointer)
+        try data.withUnsafeBytes { bytes in
+            try statement("UPDATE cache SET data=?2 WHERE name=?1", name: name) { pointer in
+                let result = sqlite3_bind_blob(pointer, 2, bytes.baseAddress, Int32(bytes.count), nil)
+                guard result == SQLITE_OK else { throw failure() }
+                try step(pointer)
+            }
         }
     }
 
@@ -670,10 +694,12 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
                 // Matching bytes perform no UPDATE and keep the common hit cheap.
                 let baseSQL = "INSERT INTO region_bases(name,data) VALUES(?,?) " +
                     "ON CONFLICT(name) DO UPDATE SET data=excluded.data WHERE region_bases.data != excluded.data"
-                try statement(baseSQL, name: digest) { pointer in
-                    let result = packedBase.withUnsafeBytes { sqlite3_bind_blob(pointer, 2, $0.baseAddress, Int32($0.count), transient) }
-                    guard result == SQLITE_OK else { throw failure() }
-                    try step(pointer)
+                try packedBase.withUnsafeBytes { bytes in
+                    try statement(baseSQL, name: digest) { pointer in
+                        let result = sqlite3_bind_blob(pointer, 2, bytes.baseAddress, Int32(bytes.count), nil)
+                        guard result == SQLITE_OK else { throw failure() }
+                        try step(pointer)
+                    }
                 }
                 try statement("INSERT INTO region_links(name,base) VALUES(?,?)", name: name) { pointer in
                     guard sqlite3_bind_text(pointer, 2, digest, -1, transient) == SQLITE_OK else { throw failure() }
@@ -691,13 +717,16 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         let sql = legacyAccess == nil
             ? "INSERT INTO cache(name,data,accessed) VALUES(?,?,(SELECT COALESCE(MAX(accessed),0)+1 FROM cache)) ON CONFLICT(name) DO UPDATE SET data=excluded.data, accessed=excluded.accessed"
             : "INSERT OR IGNORE INTO cache(name,data,accessed) VALUES(?,?,?)"
-        try statement(sql, name: name) { pointer in
-            let result = data.isEmpty ? sqlite3_bind_zeroblob(pointer, 2, 0) : data.withUnsafeBytes { bytes in
-                sqlite3_bind_blob(pointer, 2, bytes.baseAddress, Int32(bytes.count), transient)
+        // SQLITE_STATIC is safe because statement() finalizes on every exit,
+        // including throws, before this borrowed-buffer scope ends.
+        try data.withUnsafeBytes { bytes in
+            try statement(sql, name: name) { pointer in
+                let result = bytes.isEmpty ? sqlite3_bind_zeroblob(pointer, 2, 0)
+                    : sqlite3_bind_blob(pointer, 2, bytes.baseAddress, Int32(bytes.count), nil)
+                guard result == SQLITE_OK else { throw failure() }
+                if let legacyAccess { sqlite3_bind_int64(pointer, 3, legacyAccess) }
+                try step(pointer)
             }
-            guard result == SQLITE_OK else { throw failure() }
-            if let legacyAccess { sqlite3_bind_int64(pointer, 3, legacyAccess) }
-            try step(pointer)
         }
     }
 
@@ -927,7 +956,7 @@ private struct ReaderTranslationCachePolicy: Equatable {
 }
 
 enum ReaderTranslationCacheIdentity {
-    static let renderRevision = "reader-render-v158-native-typography-and-source-donors"
+    static let renderRevision = "reader-render-v159-native-direct-paint"
     static func digest(_ value: String) -> String { digest(Data(value.utf8)) }
     private static let hexadecimalDigits = Array("0123456789abcdef".utf8)
     static func digest(_ value: Data) -> String {

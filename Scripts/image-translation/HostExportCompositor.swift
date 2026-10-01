@@ -16,12 +16,7 @@ enum HostExportCompositor {
         var pixels = 0
         let masks = try rendered.sourcePatches.map { patch -> HostProductionExporter.ExportLayers.Mask in
             try Task.checkCancellation()
-            let width = patch.image.width, height = patch.image.height
-            guard width > 0, height > 0, width <= 8_192, height <= 8_192,
-                  width * height <= 4_000_000, pixels + width * height <= 16_000_000 else {
-                throw failed("Invalid native source repair dimensions")
-            }
-            pixels += width * height
+            try validateSourcePatch(patch, pixels: &pixels)
             let data = NSMutableData()
             guard let destination = CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil) else {
                 throw failed("Cannot encode native source repair")
@@ -31,13 +26,40 @@ enum HostExportCompositor {
             return .init(frame: [patch.rect.minX, patch.rect.minY, patch.rect.width, patch.rect.height],
                 opacity: 1, png: "data:image/png;base64," + (data as Data).base64EncodedString())
         }
+        return geometry(for: rendered, masks: masks)
+    }
+
+    /// Composite native patches directly; PNG/Base64 is only needed for the saved layer artifact.
+    static func composite(image: CGImage, rendered: NativeTranslationRenderer.Result, typography: Data,
+                          displayRect: CGRect, size: CGSize) throws -> CGImage {
+        try composite(image: image, layers: geometry(for: rendered, masks: []), typography: typography,
+            displayRect: displayRect, size: size, sourcePatches: rendered.sourcePatches)
+    }
+
+    static func composite(image: CGImage, layers: HostProductionExporter.ExportLayers, typography: Data,
+                          displayRect: CGRect, size: CGSize) throws -> CGImage {
+        try composite(image: image, layers: layers, typography: typography, displayRect: displayRect, size: size, sourcePatches: nil)
+    }
+
+    private static func geometry(for rendered: NativeTranslationRenderer.Result,
+                                 masks: [HostProductionExporter.ExportLayers.Mask]) -> HostProductionExporter.ExportLayers {
         func values(_ rect: CGRect) -> [CGFloat] { [rect.minX, rect.minY, rect.width, rect.height] }
         return .init(masks: masks, surfaces: [], paintBounds: rendered.paintBounds.map(values),
             sourceRestorations: rendered.sourceRestorationRects.map(values))
     }
 
-    static func composite(image: CGImage, layers: HostProductionExporter.ExportLayers, typography: Data,
-                          displayRect: CGRect, size: CGSize) throws -> CGImage {
+    private static func validateSourcePatch(_ patch: NativeTranslationRenderer.SourcePatch, pixels: inout Int) throws {
+        let width = patch.image.width, height = patch.image.height
+        guard width > 0, height > 0, width <= 8_192, height <= 8_192,
+              width * height <= 4_000_000, pixels + width * height <= 16_000_000 else {
+            throw failed("Invalid native source repair dimensions")
+        }
+        pixels += width * height
+    }
+
+    private static func composite(image: CGImage, layers: HostProductionExporter.ExportLayers, typography: Data,
+                                  displayRect: CGRect, size: CGSize,
+                                  sourcePatches: [NativeTranslationRenderer.SourcePatch]?) throws -> CGImage {
         try Task.checkCancellation()
         guard displayRect.minX.isFinite, displayRect.minY.isFinite,
               displayRect.width.isFinite, displayRect.height.isFinite, displayRect.width > 0, displayRect.height > 0,
@@ -59,21 +81,31 @@ enum HostExportCompositor {
             return frame
         }
         var maskPixels = 0
-        let masks = try layers.masks.map { mask -> (CGImage, CGRect, CGFloat) in
-            try Task.checkCancellation()
-            guard mask.opacity.isFinite, (0...1).contains(mask.opacity), mask.png.hasPrefix("data:image/png;base64,"),
-                  let encoded = mask.png.split(separator: ",", maxSplits: 1).last,
-                  let data = Data(base64Encoded: String(encoded)),
-                  let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
-                  CGImageSourceGetCount(source) == 1,
-                  let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-                  let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
-                  let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
-                  width > 0, height > 0, width <= 8_192, height <= 8_192,
-                  width * height <= 4_000_000, maskPixels + width * height <= 16_000_000,
-                  let pixels = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw failed("Invalid export repair mask") }
-            maskPixels += width * height
-            return (pixels, try outputFrame(mask.frame), mask.opacity)
+        let masks: [(CGImage, CGRect, CGFloat)]
+        if let sourcePatches {
+            masks = try sourcePatches.map { patch in
+                try Task.checkCancellation()
+                try validateSourcePatch(patch, pixels: &maskPixels)
+                let rect = patch.rect
+                return (patch.image, try outputFrame([rect.minX, rect.minY, rect.width, rect.height]), 1)
+            }
+        } else {
+            masks = try layers.masks.map { mask -> (CGImage, CGRect, CGFloat) in
+                try Task.checkCancellation()
+                guard mask.opacity.isFinite, (0...1).contains(mask.opacity), mask.png.hasPrefix("data:image/png;base64,"),
+                      let encoded = mask.png.split(separator: ",", maxSplits: 1).last,
+                      let data = Data(base64Encoded: String(encoded)),
+                      let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
+                      CGImageSourceGetCount(source) == 1,
+                      let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+                      let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+                      let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
+                      width > 0, height > 0, width <= 8_192, height <= 8_192,
+                      width * height <= 4_000_000, maskPixels + width * height <= 16_000_000,
+                      let pixels = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw failed("Invalid export repair mask") }
+                maskPixels += width * height
+                return (pixels, try outputFrame(mask.frame), mask.opacity)
+            }
         }
         let surfaces = try layers.surfaces.map { surface in
             guard surface.radius.isFinite, surface.radius >= 0, surface.blur.isFinite, surface.blur >= 0,

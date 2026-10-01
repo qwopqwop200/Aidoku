@@ -9,7 +9,7 @@ enum ReaderTranslationImageExporter {
     private static let compositeGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private struct RenderedPage {
         let image: UIImage
-        let asset: ReaderTranslationRenderAsset
+        let asset: ReaderTranslationRenderAsset?
     }
 
     // Full pages, including tall webtoons, stay within a bounded bitmap allocation.
@@ -39,7 +39,7 @@ enum ReaderTranslationImageExporter {
         return try await gate.withPermit {
             try await renderSerial(image: image, regions: regions, settings: settings,
                                    viewport: viewport, aspectFit: aspectFit, host: host, onNativeDiagnostic: onNativeDiagnostic,
-                                   capturePDF: true, pdfDeviceScale: host.window?.screen.scale ?? UIScreen.main.scale,
+                                   retainAsset: false, capturePDF: true, pdfDeviceScale: host.window?.screen.scale ?? UIScreen.main.scale,
                                    onNativePDFCapture: onNativePDFCapture, onNativeLayersCapture: onNativeLayersCapture).image
         }
     }
@@ -150,10 +150,10 @@ enum ReaderTranslationImageExporter {
             defer { layout.cancel() }
             let result = try await renderSerial(image: image, regions: regions, settings: settings,
                 viewport: viewport, aspectFit: aspectFit, host: host, pixelSize: size,
-                preparedLayout: layout, dark: dark, sourceDigest: sourceDigest, priority: priority)
+                preparedLayout: layout, dark: dark, sourceDigest: sourceDigest, priority: priority, retainAsset: cache != nil)
             try Task.checkCancellation()
-            if let cache, let storage {
-                cache.storeRenderAssetAfterDisplay(result.asset, key: key, context: storage)
+            if let cache, let storage, let asset = result.asset {
+                cache.storeRenderAssetAfterDisplay(asset, key: key, context: storage)
                 if let bitmapKey, let pageIdentity {
                     cache.storeLoadedImage(result.image, key: bitmapKey, pageIdentity: pageIdentity, context: storage)
                 }
@@ -165,14 +165,24 @@ enum ReaderTranslationImageExporter {
     static func compositeLoadedImage(_ image: UIImage, asset: ReaderTranslationRenderAsset, size: CGSize,
                                      priority: TranslationRequestPriority,
                                      limiter: TranslationProviderRequestLimiter = compositeGate) async throws -> UIImage {
+        try await compositeLoadedImage(image, typography: .encoded(asset.typography), layers: asset.layers,
+            displayRect: asset.displayRect, size: size,
+            nativeBitmap: asset.version == ReaderTranslationRenderAsset.currentVersion && asset.typographySize != nil,
+            priority: priority, limiter: limiter)
+    }
+
+    private static func compositeLoadedImage(_ image: UIImage, typography: CompositeTypography, layers: ExportLayers,
+                                             sourcePatches: [NativeTranslationRenderer.SourcePatch] = [],
+                                             displayRect: CGRect, size: CGSize, nativeBitmap: Bool,
+                                             priority: TranslationRequestPriority,
+                                             limiter: TranslationProviderRequestLimiter = compositeGate) async throws -> UIImage {
         // Lock order is layout/render -> composite for cold work; warm work takes only
         // native. Neither path waits for the shared image/OCR admission permit.
         try await ReaderTranslationDiagnostics.measure("native_composite") {
             try await limiter.withPermit(priority: priority) {
                 let operation = Task.detached(priority: priority.isForeground ? .userInitiated : .utility) {
-                    try composite(image: image, typography: asset.typography, layers: asset.layers,
-                                  displayRect: asset.displayRect, size: size,
-                                  nativeBitmap: asset.version == ReaderTranslationRenderAsset.currentVersion && asset.typographySize != nil)
+                    try composite(image: image, typography: typography, layers: layers, sourcePatches: sourcePatches,
+                                  displayRect: displayRect, size: size, nativeBitmap: nativeBitmap)
                 }
                 let result = try await withTaskCancellationHandler { try await operation.value } onCancel: { operation.cancel() }
                 try Task.checkCancellation()
@@ -254,10 +264,10 @@ enum ReaderTranslationImageExporter {
                 viewport: viewport, aspectFit: aspectFit, host: host, logicalImageSize: imageSize,
                 pixelSize: pageSize,
                 preparedLayout: preparedLayout, dark: dark, sourceDigest: sourceDigest, priority: priority,
-                onNativeDiagnostic: onNativeDiagnostic)
+                onNativeDiagnostic: onNativeDiagnostic, retainAsset: assetCache != nil && assetKey != nil)
             try Task.checkCancellation()
-            if let assetCache, let assetKey, let storage {
-                assetCache.storeRenderAssetAfterDisplay(result.asset, key: assetKey, context: storage)
+            if let assetCache, let assetKey, let storage, let asset = result.asset {
+                assetCache.storeRenderAssetAfterDisplay(asset, key: assetKey, context: storage)
             }
             return snapshotCanvas(page: result.image, viewport: viewport, rect: rect, canvasSize: canvasSize, frame: frame)
         }
@@ -278,7 +288,7 @@ enum ReaderTranslationImageExporter {
                                      pixelSize: CGSize? = nil, preparedLayout: Task<Data, Error>? = nil, dark: Bool? = nil,
                                      sourceDigest: String? = nil, priority: TranslationRequestPriority = .foreground,
                                      onNativeDiagnostic: (@MainActor @Sendable (Data) throws -> Void)? = nil,
-                                     capturePDF: Bool = false, pdfDeviceScale: CGFloat = 1,
+                                     retainAsset: Bool = true, capturePDF: Bool = false, pdfDeviceScale: CGFloat = 1,
                                      onNativePDFCapture: (@MainActor @Sendable (Data) throws -> Void)? = nil,
                                      onNativeLayersCapture: (@MainActor @Sendable (Data) throws -> Void)? = nil) async throws -> RenderedPage {
         try await ReaderTranslationDiagnostics.measure("export_render") {
@@ -311,38 +321,43 @@ enum ReaderTranslationImageExporter {
             try Task.checkCancellation()
             if let onNativeDiagnostic, let data = rendered.diagnosticData { try onNativeDiagnostic(data) }
             if let onNativePDFCapture, let data = rendered.exportPDFData { try onNativePDFCapture(data) }
-            // Saving composites the vector capture directly over source pixels,
-            // avoiding an extra 8-bit transparent-raster rounding. Live cache
-            // routes continue to persist their native bitmap overlay.
-            let typography: Data
-            if let pdf = rendered.exportPDFData {
-                typography = pdf
-            } else {
-                let overlayImage = rendered.overlayImage
-                let encoding = Task.detached(priority: priority.isForeground ? .userInitiated : .utility) {
-                    try encodeTypography(overlayImage, size: size)
-                }
-                typography = try await withTaskCancellationHandler { try await encoding.value } onCancel: { encoding.cancel() }
-            }
-            try Task.checkCancellation()
+            // Cold work already owns settled pixels and source patches. Only
+            // persistence/explicit diagnostics need PNG or Base64 serialization.
+            // Saving keeps the vector path's original clipping and paint order.
             let patches = rendered.sourcePatches
-            let masks: [ExportLayers.Mask]
-            if patches.isEmpty {
-                masks = []
-            } else {
-                let encoding = Task.detached(priority: priority.isForeground ? .userInitiated : .utility) {
-                    try encodeSourceMasks(patches)
-                }
-                masks = try await withTaskCancellationHandler { try await encoding.value } onCancel: { encoding.cancel() }
-            }
-            try Task.checkCancellation()
-            let layers = ExportLayers(masks: masks, surfaces: [],
+            let layers = ExportLayers(masks: [], surfaces: [],
                 paintBounds: rendered.paintBounds.map { [$0.minX, $0.minY, $0.width, $0.height] },
                 sourceRestorations: rendered.sourceRestorationRects.map { [$0.minX, $0.minY, $0.width, $0.height] })
-            if let onNativeLayersCapture { try onNativeLayersCapture(JSONEncoder().encode(layers)) }
-            let asset = ReaderTranslationRenderAsset(typography: typography, layers: layers, displayRect: rect,
-                sourceSize: imageSize, regions: regions, sourceDigest: sourceDigest, typographySize: rendered.exportPDFData == nil ? size : nil)
-            let result = try await compositeLoadedImage(image, asset: asset, size: size, priority: priority)
+            let typography: CompositeTypography = rendered.exportPDFData.map { .encoded($0) } ?? .bitmap(rendered.overlayImage)
+            let result = try await compositeLoadedImage(image, typography: typography, layers: layers, sourcePatches: patches,
+                displayRect: rect, size: size, nativeBitmap: rendered.exportPDFData == nil, priority: priority)
+            let asset: ReaderTranslationRenderAsset?
+            if retainAsset || onNativeLayersCapture != nil {
+                let encoding = Task.detached(priority: priority.isForeground ? .userInitiated : .utility) {
+                    let masks = try encodeSourceMasks(patches)
+                    let savedLayers = ExportLayers(masks: masks, surfaces: layers.surfaces,
+                        paintBounds: layers.paintBounds, sourceRestorations: layers.sourceRestorations)
+                    let savedTypography: Data?
+                    if retainAsset {
+                        savedTypography = try rendered.exportPDFData ?? encodeTypography(rendered.overlayImage, size: size)
+                    } else {
+                        savedTypography = nil
+                    }
+                    return (savedLayers, savedTypography)
+                }
+                let (savedLayers, savedTypography) = try await withTaskCancellationHandler {
+                    try await encoding.value
+                } onCancel: { encoding.cancel() }
+                try Task.checkCancellation()
+                if let onNativeLayersCapture { try onNativeLayersCapture(JSONEncoder().encode(savedLayers)) }
+                asset = savedTypography.map {
+                    ReaderTranslationRenderAsset(typography: $0, layers: savedLayers, displayRect: rect,
+                        sourceSize: imageSize, regions: regions, sourceDigest: sourceDigest,
+                        typographySize: rendered.exportPDFData == nil ? size : nil)
+                }
+            } else {
+                asset = nil
+            }
             try Task.checkCancellation()
             ReaderTranslationDiagnostics.record("renderer_export_finished", count: rendered.renderedItemCount)
             return RenderedPage(image: result, asset: asset)
@@ -375,11 +390,18 @@ enum ReaderTranslationImageExporter {
 
     nonisolated private static func encodeTypography(_ overlay: UIImage, size: CGSize) throws -> Data {
         try Task.checkCancellation()
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        format.preferredRange = .standard
-        let typographyImage = UIGraphicsImageRenderer(size: size, format: format).image { _ in
-            overlay.draw(in: CGRect(origin: .zero, size: size))
+        let typographyImage: UIImage
+        if overlay.imageOrientation == .up, let pixels = overlay.cgImage,
+           CGFloat(pixels.width) == size.width, CGFloat(pixels.height) == size.height {
+            // UIImage.scale describes logical points; PNG stores its existing pixels.
+            typographyImage = overlay
+        } else {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            format.preferredRange = .standard
+            typographyImage = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+                overlay.draw(in: CGRect(origin: .zero, size: size))
+            }
         }
         try Task.checkCancellation()
         guard let data = typographyImage.pngData() else { throw ExportError.renderFailed }
@@ -410,8 +432,22 @@ enum ReaderTranslationImageExporter {
     /// composite gate already serializes production use.
     nonisolated(unsafe) private static let compositeContext = CIContext(options: [.workingColorSpace: NSNull()])
 
+    /// Encoded input remains available for persisted assets and historical exports.
+    /// Cold native work passes its existing bitmap instead of encoding and decoding it.
+    enum CompositeTypography: @unchecked Sendable {
+        case bitmap(UIImage)
+        case encoded(Data)
+    }
+
     nonisolated static func composite(image: UIImage, typography: Data, layers: ExportLayers,
-                                             displayRect: CGRect, size: CGSize, nativeBitmap: Bool = false) throws -> UIImage {
+                                     displayRect: CGRect, size: CGSize, nativeBitmap: Bool = false) throws -> UIImage {
+        try composite(image: image, typography: .encoded(typography), layers: layers,
+                      displayRect: displayRect, size: size, nativeBitmap: nativeBitmap)
+    }
+
+    nonisolated static func composite(image: UIImage, typography: CompositeTypography, layers: ExportLayers,
+                                     sourcePatches: [NativeTranslationRenderer.SourcePatch] = [],
+                                     displayRect: CGRect, size: CGSize, nativeBitmap: Bool = false) throws -> UIImage {
         try Task.checkCancellation()
         guard displayRect.minX.isFinite, displayRect.minY.isFinite,
               displayRect.width.isFinite, displayRect.height.isFinite, displayRect.width > 0, displayRect.height > 0,
@@ -435,7 +471,17 @@ enum ReaderTranslationImageExporter {
             return frame
         }
         var maskPixels = 0
-        let masks = try layers.masks.map { mask -> (UIImage, CGRect, CGFloat, CGRect?) in
+        var masks = try sourcePatches.map { patch -> (UIImage, CGRect, CGFloat, CGRect?) in
+            try Task.checkCancellation()
+            let width = patch.image.width, height = patch.image.height
+            guard width > 0, height > 0, width <= 8_192, height <= 8_192,
+                  width * height <= 4_000_000, maskPixels + width * height <= 16_000_000 else { throw ExportError.renderFailed }
+            maskPixels += width * height
+            // Saved masks use the complete canvas; cleanupClip applies only to live painting.
+            let frame = [patch.rect.minX, patch.rect.minY, patch.rect.width, patch.rect.height]
+            return (UIImage(cgImage: patch.image), try outputFrame(frame), 1, nil)
+        }
+        masks += try layers.masks.map { mask -> (UIImage, CGRect, CGFloat, CGRect?) in
             try Task.checkCancellation()
             guard mask.opacity.isFinite, (0...1).contains(mask.opacity),
                   mask.png.hasPrefix("data:image/png;base64,"),
@@ -469,29 +515,38 @@ enum ReaderTranslationImageExporter {
         let sourceRestorations = try (layers.sourceRestorations ?? []).map(outputFrame)
         let overlayImage: UIImage?
         let pdfPage: CGPDFPage?
-        // ImageIO recognizes PDF containers but does not expose raster pixel properties.
-        // Keep vector reference pages on Core Graphics' PDF path before image decoding.
-        if !typography.starts(with: Data("%PDF-".utf8)),
-           let source = CGImageSourceCreateWithData(typography as CFData,
-                                                   [kCGImageSourceShouldCache: false] as CFDictionary) {
-            guard CGImageSourceGetCount(source) == 1,
-                  let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-                  let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
-                  let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
-                  width > 0, height > 0, width <= 16_384, height <= 16_384, width * height <= 12_000_000,
-                  let pixels = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw ExportError.renderFailed }
-            overlayImage = UIImage(cgImage: pixels)
+        switch typography {
+        case .bitmap(let bitmap):
+            guard let pixels = bitmap.cgImage,
+                  pixels.width > 0, pixels.height > 0, pixels.width <= 16_384, pixels.height <= 16_384,
+                  pixels.width * pixels.height <= 12_000_000 else { throw ExportError.renderFailed }
+            overlayImage = bitmap
             pdfPage = nil
-        } else {
-            // Native image saving and frozen reference pages share Core Graphics
-            // vector composition. Live cached overlays retain their native PNG.
-            guard let provider = CGDataProvider(data: typography as CFData),
-                  let pdf = CGPDFDocument(provider), let page = pdf.page(at: 1) else { throw ExportError.renderFailed }
-            let bounds = page.getBoxRect(.mediaBox)
-            guard bounds.minX.isFinite, bounds.minY.isFinite, bounds.width.isFinite, bounds.height.isFinite,
-                  bounds.width > 0, bounds.height > 0 else { throw ExportError.renderFailed }
-            overlayImage = nil
-            pdfPage = page
+        case .encoded(let typography):
+            // ImageIO recognizes PDF containers but does not expose raster pixel properties.
+            // Keep vector reference pages on Core Graphics' PDF path before image decoding.
+            if !typography.starts(with: Data("%PDF-".utf8)),
+               let source = CGImageSourceCreateWithData(typography as CFData,
+                                                       [kCGImageSourceShouldCache: false] as CFDictionary) {
+                guard CGImageSourceGetCount(source) == 1,
+                      let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+                      let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+                      let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
+                      width > 0, height > 0, width <= 16_384, height <= 16_384, width * height <= 12_000_000,
+                      let pixels = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw ExportError.renderFailed }
+                overlayImage = UIImage(cgImage: pixels)
+                pdfPage = nil
+            } else {
+                // Native image saving and frozen reference pages share Core Graphics
+                // vector composition. Live cached overlays retain their native PNG.
+                guard let provider = CGDataProvider(data: typography as CFData),
+                      let pdf = CGPDFDocument(provider), let page = pdf.page(at: 1) else { throw ExportError.renderFailed }
+                let bounds = page.getBoxRect(.mediaBox)
+                guard bounds.minX.isFinite, bounds.minY.isFinite, bounds.width.isFinite, bounds.height.isFinite,
+                      bounds.width > 0, bounds.height > 0 else { throw ExportError.renderFailed }
+                overlayImage = nil
+                pdfPage = page
+            }
         }
         // Original pixels are drawn directly; they are never persisted in the overlay.
         func drawCleaned(_ context: CGContext) {

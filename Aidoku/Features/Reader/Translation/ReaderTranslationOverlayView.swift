@@ -20,9 +20,17 @@ final class ReaderTranslationOverlayView: UIView {
     var diagnosticContext: ReaderTranslationDiagnostics.Context?
     let renderedImageView = UIImageView()
     var renderedImage: UIImage? { renderedImageView.image }
-    private(set) var renderedLayoutData: Data?
+    private(set) var renderedLayoutData: Data? {
+        didSet { cachedRenderedLayout = nil; decodedRenderedLayout = false }
+    }
+    private var cachedRenderedLayout: NativeTranslationLayout?
+    private var decodedRenderedLayout = false
     var renderedLayout: NativeTranslationLayout? {
-        renderedLayoutData.flatMap { try? JSONDecoder().decode(NativeTranslationLayout.self, from: $0) }
+        if !decodedRenderedLayout {
+            cachedRenderedLayout = renderedLayoutData.flatMap { try? JSONDecoder().decode(NativeTranslationLayout.self, from: $0) }
+            decodedRenderedLayout = true
+        }
+        return cachedRenderedLayout
     }
     private(set) weak var sourceImage: UIImage?
     private(set) var renderedAspectFit = true
@@ -110,6 +118,9 @@ final class ReaderTranslationOverlayView: UIView {
         cancelWork()
         if !retainsCommittedFrame || sourceImage !== image {
             renderedImageView.isHidden = true
+            // Hiding a reused image view does not release its previous page bitmap.
+            // Only an explicitly retained provisional presentation needs that frame.
+            renderedImageView.image = nil
         }
         self.regions = regions
         self.imageSize = imageSize
@@ -180,10 +191,12 @@ final class ReaderTranslationOverlayView: UIView {
         let existingLayout = preparedLayout
         let dark = traitCollection.userInterfaceStyle == .dark
         let scale = traitCollection.displayScale
+        let diagnosticContext = diagnosticContext
         renderTask = Task { [weak self] in
-            guard let self else { return }
-            defer { if generation == issued { renderTask = nil } }
+            // Waiting for a shared prepared layout must not retain a detached view.
+            defer { if self?.generation == issued { self?.renderTask = nil } }
             let layout = Task { () throws -> Data in
+                try Task.checkCancellation()
                 let sourceRect = ReaderTranslationGeometry.displayRect(
                     ReaderTranslationSplitGeometry.unit, imageSize: imageSize,
                     bounds: CGRect(origin: .zero, size: size), aspectFit: aspectFit)
@@ -194,9 +207,14 @@ final class ReaderTranslationOverlayView: UIView {
                 }
                 if let existingLayout {
                     let data = try await existingLayout.value
+                    try Task.checkCancellation()
                     if matchesGeometry(data) { return data }
                 }
-                if let target, let layoutKey, let cached = await target.cache.layoutData(for: layoutKey), matchesGeometry(cached) { return cached }
+                if let target, let layoutKey, let cached = await target.cache.layoutData(for: layoutKey) {
+                    try Task.checkCancellation()
+                    if matchesGeometry(cached) { return cached }
+                }
+                try Task.checkCancellation()
                 return try await NativeTranslationLayoutPlanner.prepareLayoutData(
                     items: items, imageSize: imageSize, sourceRect: sourceRect,
                     settings: settings.overlay, targetLanguage: settings.targetLanguage, viewport: size)
@@ -214,7 +232,7 @@ final class ReaderTranslationOverlayView: UIView {
                         try await ReaderTranslationImageExporter.renderCacheSnapshot(
                             image: image, imageSize: imageSize, regions: regions, settings: settings,
                             viewport: size, scale: scale, aspectFit: aspectFit,
-                            host: window ?? self, dark: dark, preparedLayout: layout,
+                            host: self?.window ?? self, dark: dark, preparedLayout: layout,
                             assetCache: target.cache, assetKey: target.renderKey ?? target.key, priority: .foreground)
                     }
                     renderedCount = items.filter { !$0.keepsSourceLettering }.count
@@ -229,9 +247,13 @@ final class ReaderTranslationOverlayView: UIView {
                     renderedCount = result.renderedItemCount
                 }
                 try Task.checkCancellation()
-                guard generation == issued, ReaderTranslationGeometry.sameViewport(bounds.size, size),
+                guard let self, generation == issued, ReaderTranslationGeometry.sameViewport(bounds.size, size),
                       (traitCollection.userInterfaceStyle == .dark) == dark else { return }
                 renderedLayoutData = completedLayout
+                // Task results retain layout bytes even after completion. Keep the
+                // committed bytes once, and release this view's preparation handles.
+                preparedLayout = nil
+                snapshotTarget?.preparedLayout = nil
                 renderedAspectFit = aspectFit
                 if defersPresentationUntilSnapshot, target != nil {
                     // Retain a previously committed provisional frame while optional
@@ -265,14 +287,16 @@ final class ReaderTranslationOverlayView: UIView {
                 didStoreSnapshot = true
                 needsRendering = false
                 ReaderTranslationDiagnostics.record("visible_snapshot_only_finished", count: regions.count)
-                if let onSnapshotStored { onSnapshotStored(cached) }
-                else {
+                if let onSnapshotStored {
+                    pendingFrame = nil
+                    onSnapshotStored(cached)
+                } else {
                     if let pendingFrame { renderedImageView.image = pendingFrame }
                     pendingFrame = nil
                     renderedImageView.isHidden = false
                 }
             } catch {
-                guard !Task.isCancelled, generation == issued else { return }
+                guard let self, !Task.isCancelled, generation == issued else { return }
                 // Persistence never invalidates a frame already committed to the reader.
                 if lastDiagnostic?.revision == issuedRevision, lastDiagnostic?.outcome == .committed {
                     ReaderTranslationDiagnostics.record("cache_snapshot_failed")

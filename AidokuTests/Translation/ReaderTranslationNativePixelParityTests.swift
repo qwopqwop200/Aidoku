@@ -5,8 +5,9 @@ import CryptoKit
 @testable import Aidoku
 
 /// Serialized native/Web migration gates and diagnostic captures. Final exports
-/// use the bounded final-export raster policy; other capture gates retain
-/// their own exact pixel and geometry assertions.
+/// use the bounded final-export raster policy. Source-canvas draws and half-size
+/// native compatibility captures admit bounded resampling while retaining raw
+/// strict RGBA observations. Other gates retain their declared pixel/geometry assertions.
 @Suite(.serialized)
 @MainActor
 struct ReaderTranslationNativePixelParityTests {

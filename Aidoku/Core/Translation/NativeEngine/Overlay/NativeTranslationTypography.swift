@@ -892,6 +892,9 @@ enum NativeTranslationTypography {
         pixelSnapScale: CGFloat? = nil
     ) {
         guard var frame = layout.frame else { return }
+        if drawPreparedHorizontal(layout: layout, in: context, at: origin,
+            additionalFillStrokeWidth: additionalFillStrokeWidth,
+            outlinePaintOrder: outlinePaintOrder, pixelSnapScale: pixelSnapScale) { return }
         var paintedAttributes = layout.attributed
         if additionalFillStrokeWidth.isFinite, additionalFillStrokeWidth > 0, let attributed = layout.attributed {
             let stroked = NSMutableAttributedString(attributedString: attributed)
@@ -1004,6 +1007,70 @@ enum NativeTranslationTypography {
         }
         if glow { context.endTransparencyLayer() }
         context.restoreGState()
+    }
+
+    /// Outline color/width and paint order do not change glyph shaping. Reuse the
+    /// measured frame for supported horizontal runs instead of constructing two
+    /// more frames (three for additional fill stroke) on every paint. All lines
+    /// are preflighted before painting so unsupported fonts retain the fallback.
+    @discardableResult
+    static func drawPreparedHorizontal(
+        layout: Layout, in context: CGContext, at origin: CGPoint = .zero,
+        additionalFillStrokeWidth: CGFloat = 0,
+        outlinePaintOrder: OutlinePaintOrder = .strokeThenFill,
+        pixelSnapScale: CGFloat? = nil
+    ) -> Bool {
+        guard layout.frameAttributes == nil, layout.paintScaleX == 1,
+              let frame = layout.frame, let attributed = layout.attributed else { return false }
+        var hasStroke = additionalFillStrokeWidth.isFinite && additionalFillStrokeWidth > 0
+        if !hasStroke {
+            attributed.enumerateAttribute(NSAttributedString.Key(kCTStrokeWidthAttributeName as String),
+                in: NSRange(location: 0, length: attributed.length)) { value, _, _ in
+                if let width = value as? NSNumber, width.doubleValue != 0 { hasStroke = true }
+            }
+        }
+        guard hasStroke else { return false }
+        let lines = CTFrameGetLines(frame) as! [CTLine]
+        var origins = [CGPoint](repeating: .zero, count: lines.count)
+        CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins)
+        var prepared: [(fill: NativeCTFontHorizontalFillPainter.PreparedLine,
+                        stroke: NativeCTFontStrokePainter.PreparedLine, anchor: CGPoint)] = []
+        prepared.reserveCapacity(lines.count)
+        var glyphCount = 0
+        for (index, line) in lines.enumerated() {
+            let count = CTLineGetGlyphCount(line)
+            guard count >= 0, count <= 65_536 - glyphCount else { return false }
+            glyphCount += count
+            let movement = index < layout.lineOffsets.count ? layout.lineOffsets[index] : .zero
+            let base = origin.y + layout.offset.y + layout.frameSize.height - origins[index].y + movement.y
+            let x = origin.x + (layout.offset.x + origins[index].x) * layout.paintScaleX + movement.x
+            let point = CGPoint(x: x, y: base)
+            let anchor = NativeTextPaintGeometry.paintOrigin(point, deviceScale: pixelSnapScale) ?? point
+            guard Float(anchor.x).isFinite, Float(anchor.y).isFinite,
+                  let fill = NativeCTFontHorizontalFillPainter.prepare(line: line, ignoringStroke: true),
+                  let stroke = NativeCTFontStrokePainter.prepare(line: line, includesFill: true,
+                    additionalFillStrokeWidth: additionalFillStrokeWidth) else { return false }
+            prepared.append((fill, stroke, anchor))
+        }
+        context.saveGState()
+        defer { context.restoreGState() }
+        context.textMatrix = .identity
+        let glow = layout.outlineGlow.isFinite && layout.outlineGlow > 0 && layout.outlineGlowColor != nil
+        if glow {
+            context.setShadow(offset: .zero, blur: layout.outlineGlow, color: layout.outlineGlowColor)
+            context.beginTransparencyLayer(auxiliaryInfo: nil)
+        }
+        for strokePass in outlinePaintOrder == .strokeThenFill ? [true, false] : [false, true] {
+            for line in prepared {
+                if strokePass {
+                    NativeCTFontStrokePainter.draw(prepared: line.stroke, context: context, anchor: line.anchor)
+                } else {
+                    NativeCTFontHorizontalFillPainter.draw(prepared: line.fill, context: context, anchor: line.anchor)
+                }
+            }
+        }
+        if glow { context.endTransparencyLayer() }
+        return true
     }
 
     /// The pinned iOS WebKit metrics and fixed line cell govern glyph paint.

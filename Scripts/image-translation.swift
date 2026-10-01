@@ -129,11 +129,10 @@ do {
                  "BrowserOverlayCollisionGeometry", "BrowserOverlayTypography", "BrowserSourceInkCleanup"] {
         files.append(sources.appendingPathComponent("NativeEngine/Overlay/" + name + ".swift"))
     }
-    // Compile production rendering algorithms in full. Only the iOS window
-    // capability is platform-specific; the host uses the native PDF export path.
+    // Compile production rendering algorithms in full, including the worker's
+    // Core Graphics source-canvas compositor shared with native host rendering.
     files += try manager.contentsOfDirectory(at: sources.appendingPathComponent("NativeEngine/Overlay"), includingPropertiesForKeys: nil)
-        .filter { $0.pathExtension == "swift" && $0.lastPathComponent.hasPrefix("Native") &&
-            $0.lastPathComponent != "NativeSourceCanvasHierarchyCompositor.swift" }.sorted { $0.path < $1.path }
+        .filter { $0.pathExtension == "swift" && $0.lastPathComponent.hasPrefix("Native") }.sorted { $0.path < $1.path }
     // Diagnostics are injected only into generated copies; app sources stay untouched.
     if let index = files.firstIndex(where: { $0.lastPathComponent == "NativeCoreMLOCRPipeline.swift" }) {
         var pipeline = try read(files[index])

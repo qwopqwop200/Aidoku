@@ -2640,8 +2640,8 @@ enum NativeTranslationRenderer {
         return frame
     }
 
-    /// Explicitly owned bitmap: it is not borrowed from a UIGraphics renderer
-    /// callback and may remain worker-private across an awaited UI request.
+    /// Explicitly owned bitmap: admitted source patches and text draw directly
+    /// into its worker-private context without capturing a UIKit hierarchy.
     final class WorkerLiveBitmap {
         private(set) var context: CGContext?
         private(set) var backing: NativeCanvasBacking?
@@ -2680,29 +2680,12 @@ enum NativeTranslationRenderer {
         let matrix = context.ctm
         guard matrix.a > 0, matrix.d == -matrix.a, matrix.b == 0, matrix.c == 0,
               let frame = admittedHierarchySourceFrame(patch, viewport: viewport, scale: matrix.a),
-              let backing, backing.matchesFreshState(context),
-              let bytes = backing.backgroundRGBA(context: context, userRect: CGRect(origin: .zero, size: viewport)),
-              let space = CGColorSpace(name: CGColorSpace.sRGB), let provider = CGDataProvider(data: bytes as CFData),
-              let prefix = CGImage(width: context.width, height: context.height, bitsPerComponent: 8,
-                bitsPerPixel: 32, bytesPerRow: context.width * 4, space: space,
-                bitmapInfo: CGBitmapInfo(rawValue: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue),
-                provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent) else { return false }
-        let request = NativeSourceCanvasHierarchyCompositor.Request(prefix: prefix, source: patch.image,
-            viewport: viewport, scale: matrix.a, sourceFrame: frame)
-        let composited: CGImage?
-        do { composited = try await NativeSourceCanvasHierarchyCompositor.compose(request) }
-        catch is CancellationError { throw CancellationError() }
-        catch { if Task.isCancelled { throw CancellationError() }; return false }
-        try Task.checkCancellation()
-        guard let composited, composited.width == context.width, composited.height == context.height else { return false }
-        withWorkerGraphicsContext(context) {
-            context.saveGState()
-            defer { context.restoreGState() }
-            context.interpolationQuality = .none
-            UIImage(cgImage: composited).draw(in: CGRect(origin: .zero, size: viewport), blendMode: .copy, alpha: 1)
-        }
-        try Task.checkCancellation()
-        return true
+              let backing, backing.matchesFreshState(context) else { return false }
+        // Draw into the already-owned worker bitmap. Copying its full RGBA prefix,
+        // capturing a temporary view hierarchy, and replaying the whole page made
+        // every small source patch cost another pair of page-sized allocations.
+        return try NativeSourceCanvasHierarchyCompositor.draw(source: patch.image,
+            sourceFrame: frame, viewport: viewport, scale: matrix.a, in: context)
     }
 
     nonisolated(nonsending) static func finishPreparedAsynchronously(_ plan: PreparedRender) async throws -> Result {

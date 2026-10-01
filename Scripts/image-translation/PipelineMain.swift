@@ -648,11 +648,14 @@ extension ImageTranslationMain {
         let rendered = try await withTaskCancellationHandler { try await worker.value } onCancel: { worker.cancel() }
         try Task.checkCancellation()
         guard let typography = rendered.exportPDFData else { throw HostError.message("Native typography PDF was not captured") }
-        let layers = try HostExportCompositor.layers(for: rendered)
-        let output = try HostExportCompositor.composite(image: image, layers: layers, typography: typography,
+        let output = try HostExportCompositor.composite(image: image, rendered: rendered, typography: typography,
             displayRect: displayRect, size: outputSize)
         try typography.write(to: directory.appendingPathComponent("final-typography.pdf"), options: .atomic)
-        try JSONEncoder().encode(layers).write(to: directory.appendingPathComponent("final-layers.json"), options: .atomic)
+        // Persist the portable schema after composition so encoded patches are not retained while drawing.
+        try autoreleasepool {
+            let layers = try HostExportCompositor.layers(for: rendered)
+            try JSONEncoder().encode(layers).write(to: directory.appendingPathComponent("final-layers.json"), options: .atomic)
+        }
         try rendered.layoutData.write(to: directory.appendingPathComponent("native-layout.json"), options: .atomic)
         if let diagnostics = rendered.diagnosticData {
             let decoded = try JSONSerialization.jsonObject(with: diagnostics)
@@ -662,13 +665,14 @@ extension ImageTranslationMain {
         }
         HostDump.capture("render-result", ["engine": "native-coretext-coregraphics", "renderedItemCount": rendered.renderedItemCount,
             "limitations": rendered.limitations, "layoutVersion": layout.version])
-        try savePNG(output, to: directory.appendingPathComponent("final.png"))
+        let finalPNG = try imageData(output, type: "public.png")
+        try finalPNG.write(to: directory.appendingPathComponent("final.png"), options: .atomic)
         HostDump.capture("render-timing", ["milliseconds": (ProcessInfo.processInfo.systemUptime - started) * 1000,
             "width": output.width, "height": output.height, "layout": arguments["hostLayout"] ?? "legacy-payload-replay",
             "viewport": [width, height], "metricsPlatform": "AppKit-CoreText", "engine": "native-coretext-coregraphics"])
         // HTML is a portable view of the native result. Offline recomposition is performed
         // by --render-run with the stored payload; opening this page executes no renderer.
-        let encodedImage = try imageData(output, type: "public.png").base64EncodedString()
+        let encodedImage = finalPNG.base64EncodedString()
         let html = """
         <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
         <title>Native translation result</title><style>html,body{margin:0;background:#202124}img{display:block;max-width:100%;height:auto;margin:auto}</style>

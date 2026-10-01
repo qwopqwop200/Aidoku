@@ -1,5 +1,59 @@
 # Local regression tests
 
+## Native efficiency verification (2026-10-02)
+
+Eight agents worked in `codex/native-render-efficiency`, based on `24e9dfb7`.
+The focused simulator evidence contains **211 distinct test declarations / 343
+expanded cases, all passed, zero skipped**, taking the latest result for each
+declaration across `focused1`, `focused2`, `after3`, and `pixels2`. This is an
+aggregation of affected-suite runs, not a new execution of the full plan.
+`focused1` initially found a mixed-stroke ligature mismatch; the guarded fallback
+and all seven affected glyph/export suites passed in `focused2`.
+
+| Run | Build activity | Test body | Command wall time | Scope |
+| --- | ---: | ---: | ---: | --- |
+| baseline2 | 21.024 s | 11.179 s | 37.571 s | Baseline measurement harness, incremental build |
+| focused1 | 2.983 s | 21.003 s | 37.667 s | No source-change build; 202 pass, 1 subsequently fixed failure |
+| after3 | 83.148 s | 9.877 s | 98.038 s | Final production measurement, incremental build |
+| focused2 | 2.777 s | 14.213 s | 21.552 s | No source-change build; 60 affected declarations passed |
+| pixels2 | 20.626 s | 121.412 s | 146.704 s | Incremental test-only build; all 6 selected declarations passed |
+
+One iPhone 17 Pro iOS 26.5 simulator, Release `-O`, `singlefile`, two build jobs,
+serialized execution, and the existing `build/simulator-fast-release` cache were
+used. Every run records source hashes before/after. Direct method selections in
+`pixels2` were checked against the actual result-tree identifiers, including
+Swift Testing parentheses; all requested methods executed. Build activity and
+test body exclude some startup/result collection, so they do not sum to wall time.
+
+Final-export fixtures passed **16/16** (15 exact, one maximum channel delta 3).
+Recorded-page exports passed **22/22** using their existing documented reference
+contracts. Source-canvas captures passed **7/7** under the explicit bounded native
+resampling policy; **28/28** shifted/missing/flipped/alpha-damaged controls were
+rejected. Raw pixel differences and frozen references remain intact. The eight
+baseline/candidate measurement PNGs have exactly equal decoded pixels, and both
+layout JSONs are unchanged.
+
+The source-canvas six-patch microbenchmark fell from 247.061 to 0.643 ms median;
+the tall uncached loaded-image path fell from 452.891 to 434.025 ms and its sampled
+physical-footprint peak from 121.38 to 109.53 MiB. Three samples follow one warmup
+per phase. RSS is mixed and some phase footprints increased. The 2 ms sampler can
+miss short peaks. These are descriptive simulator results, not whole-app or
+physical-device performance claims.
+
+Host checks passed `run-image-native-graphics-smoke.py` (1.454 s) and
+`run-image-export-compositor-smoke.py` (1.229 s), each including its standalone
+compile. The actual current-source `run-image-translation-smoke.py` passed in
+147.061 s, including incremental Release compilation, Core ML OCR, local provider,
+render/save/replay/resume and concurrency/error checks. That combined host timer
+does not separate compilation from execution. An earlier `--help`/`--reuse-built`
+attempt is explicitly invalidated as current-source integration evidence because
+help bypasses compilation; its two standalone compile checks remain valid.
+
+Evidence: `../../output/native-efficiency/final-validation.json`,
+`REPORT.ko.md`, `affected-final-coverage.json`, `comparison-final.json`,
+`image-comparison.html`, and `runs/` in that output directory. No fixture baseline
+was replaced and no skipped/disabled test was added for this change.
+
 ## Default iOS tests: AidokuFast
 
 The Aidoku scheme now defaults to **AidokuFast** with Release optimization.

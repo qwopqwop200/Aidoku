@@ -32,9 +32,17 @@ enum HostSegmentationTrace {
             }
             context.draw(image, in: bounds)
             guard let bytes = context.data?.assumingMemoryBound(to: UInt8.self) else { throw HostError.message("Missing native repair pixels") }
-            let alpha = (0..<pixels).map { bytes[$0 * 4 + 3] }
-            let selected = alpha.reduce(0) { $0 + ($1 > 0 ? 1 : 0) }
-            let alphaData = Data(alpha)
+            var alphaData = Data(count: pixels)
+            let selected = alphaData.withUnsafeMutableBytes { storage -> Int in
+                let alpha = storage.bindMemory(to: UInt8.self)
+                var selected = 0
+                for index in 0..<pixels {
+                    let value = bytes[index * 4 + 3]
+                    alpha[index] = value
+                    if value > 0 { selected += 1 }
+                }
+                return selected
+            }
             guard let provider = CGDataProvider(data: alphaData as CFData), let mask = CGImage(width: width, height: height,
                 bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
                 bitmapInfo: CGBitmapInfo(rawValue: 0), provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent) else {

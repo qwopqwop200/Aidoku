@@ -65,14 +65,11 @@ struct NativeRenderAsyncBridgeTests {
     }
 
 
-    @Test @MainActor func orderedCommandsKeepPrefixAndLaterNodeAroundActualUIHop() async throws {
-        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .filter { $0.activationState == .foregroundActive }.flatMap(\.windows)
-        let eligible = windows.filter {
-            !$0.isHidden && $0.alpha > 0 && $0.rootViewController?.viewIfLoaded?.window === $0
-        }
-        let window = try #require(eligible.first(where: \.isKeyWindow) ?? eligible.first)
-        let scale = window.screen.scale
+    @Test(arguments: [1, 2, 3])
+    func orderedCommandsKeepPrefixAndLaterNodeOnWorker(scale: Int) async throws {
+        // Native source draws use requested pixel density without a foreground
+        // window or the current screen's scale. Keep exact scene-order sentinels.
+        let scale = CGFloat(scale)
         let pixel = try await Task.detached {
             let viewport = CGSize(width: 40, height: 32), frame = CGRect(origin: .zero, size: viewport)
             let bitmap = try NativeTranslationRenderer.WorkerLiveBitmap(

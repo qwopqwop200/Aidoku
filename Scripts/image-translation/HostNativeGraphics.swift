@@ -114,28 +114,6 @@ struct UIGraphicsImageRenderer {
     }
 }
 
-/// A macOS command-line process has no UIKit window-associated recording
-/// capability. Decline only that optional live-display fast path. Offline export
-/// calls the production PDF painter and retains all restoration/image features.
-@MainActor enum NativeSourceCanvasHierarchyCompositor {
-    nonisolated struct Request: Sendable {
-        let prefix: CGImage
-        let source: CGImage
-        let viewport: CGSize
-        let scale: CGFloat
-        let sourceFrame: CGRect
-        var opacity: CGFloat = 1
-        var blendMode: CGBlendMode = .normal
-        var outputSize: CGSize? = nil
-    }
-
-    static func compose(_ request: Request,
-                        checkCancellation: () throws -> Void = { try Task.checkCancellation() }) throws -> CGImage? {
-        try checkCancellation()
-        return nil
-    }
-}
-
 extension CGRect {
     func inset(by insets: UIEdgeInsets) -> CGRect {
         CGRect(x: minX + insets.left, y: minY + insets.top,

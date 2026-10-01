@@ -45,7 +45,8 @@ import UIKit
     }
 
     @Test(arguments: ["reader-render-v154-native-composition", "reader-render-v155-native-final-paint",
-                      "reader-render-v156-native-live-paint", "reader-render-v157-native-restoration-quality"])
+                      "reader-render-v156-native-live-paint", "reader-render-v157-native-restoration-quality",
+                      "reader-render-v158-native-typography-and-source-donors"])
     func completedPreviousRenderBitmapAssetAndPlanCannotSatisfyCurrentReaderKeys(previousRevision: String) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -77,7 +78,8 @@ import UIKit
     }
 
     @Test(arguments: ["reader-render-v154-native-composition", "reader-render-v155-native-final-paint",
-                      "reader-render-v156-native-live-paint", "reader-render-v157-native-restoration-quality"])
+                      "reader-render-v156-native-live-paint", "reader-render-v157-native-restoration-quality",
+                      "reader-render-v158-native-typography-and-source-donors"])
     func persistedPreviousRenderPolicyRetiresRenderBytesAndLateWritesWhilePreservingOCRTranslationAndMetadata(previousRevision: String) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

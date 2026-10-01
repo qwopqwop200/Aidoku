@@ -17,13 +17,32 @@ enum NativeCTFontHorizontalFillPainter {
         fileprivate let records: [Run]
     }
 
-    static func prepare(line: CTLine, horizontalScale: CGFloat = 1) -> PreparedLine? {
+    static func prepare(line: CTLine, horizontalScale: CGFloat = 1, ignoringStroke: Bool = false) -> PreparedLine? {
         // Nonuniform/condensed layer transforms need their own global-space
         // transport proof. Preserve the existing renderer for those lines.
         guard horizontalScale == 1 else { return nil }
+        let runs = CTLineGetGlyphRuns(line) as! [CTRun]
+        if ignoringStroke, let first = runs.first {
+            let initial = CTRunGetAttributes(first) as NSDictionary
+            let keys = [kCTStrokeWidthAttributeName, kCTStrokeColorAttributeName]
+            // Removing differing stroke attributes can merge shaped runs. For
+            // example, Off|ice can acquire an fi ligature on iOS when the fill
+            // pass removes that boundary. Reuse only uniform paint attributes;
+            // the caller reshapes the whole frame when this preflight declines.
+            for run in runs.dropFirst() {
+                let attributes = CTRunGetAttributes(run) as NSDictionary
+                for key in keys {
+                    switch (initial[key], attributes[key]) {
+                    case (nil, nil): continue
+                    case let (lhs?, rhs?) where CFEqual(lhs as CFTypeRef, rhs as CFTypeRef): continue
+                    default: return nil
+                    }
+                }
+            }
+        }
         var records: [Run] = []
         var glyphCount = 0
-        for raw in CTLineGetGlyphRuns(line) as! [CTRun] {
+        for raw in runs {
             guard CTRunGetTextMatrix(raw) == .identity else { return nil }
             let attributes = CTRunGetAttributes(raw) as NSDictionary
             guard let object = attributes[kCTFontAttributeName],
@@ -33,7 +52,7 @@ enum NativeCTFontHorizontalFillPainter {
                   CTFontGetSize(font).isFinite, CTFontGetSize(font) > 0,
                   !CTFontGetSymbolicTraits(font).contains(.traitColorGlyphs) else { return nil }
             let percent = CGFloat((attributes[kCTStrokeWidthAttributeName] as? NSNumber)?.doubleValue ?? 0)
-            guard percent == 0 else { return nil }
+            guard percent.isFinite, ignoringStroke || percent == 0 else { return nil }
             guard let color = attributes[kCTForegroundColorAttributeName],
                   CFGetTypeID(color as CFTypeRef) == CGColor.typeID else { return nil }
             let count = CTRunGetGlyphCount(raw)

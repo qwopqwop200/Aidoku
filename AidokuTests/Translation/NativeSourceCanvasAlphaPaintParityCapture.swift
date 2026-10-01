@@ -5,7 +5,7 @@ import CryptoKit
 @testable import Aidoku
 
 /// Actual iOS alpha/overlap observations, kept separate from the original opaque
-/// controls. Captures remain strict failures until the production path matches.
+/// controls. Strict RGBA is retained alongside a bounded native resampling contract.
 @MainActor
 struct NativeSourceCanvasAlphaPaintParityCapture {
     private let page = CGRect(x: 0, y: 0, width: 320, height: 160)
@@ -99,6 +99,9 @@ struct NativeSourceCanvasAlphaPaintParityCapture {
                         "originalMaskPNGHash": id == "actual-mask" ? originalMaskHash : "not-applicable"])
                 }
                 try writeJSON(sourceReports, to: output.appendingPathComponent("source-provenance.json"))
+                guard sourceReports.allSatisfy({ $0["nativeInputEqualsCanvasCanonical"] as? Bool == true }) else {
+                    throw Failure.invalidSource
+                }
                 var captures: [Capture] = []
                 // Capture both real WK outputs before any native comparison.
                 for requested in [160, 320] {
@@ -163,8 +166,9 @@ struct NativeSourceCanvasAlphaPaintParityCapture {
                 }
                 let (backing, metadataBytes, hierarchyPaints, prefixBeforeFinalSource) = try await withTaskCancellationHandler(
                     operation: { try await job.value }, onCancel: { job.cancel() })
-                #expect(hierarchyPaints == 1, "The unchanged real mask must exercise the actual async production minifier")
-                let metadata = try JSONSerialization.jsonObject(with: metadataBytes)
+                #expect(hierarchyPaints == 1, "The unchanged real mask must exercise the admitted native production source draw")
+                let metadata = try #require(try JSONSerialization.jsonObject(with: metadataBytes) as? [String: Any])
+                #expect(metadata["workerWasOffMain"] as? Bool == true)
                 try writeJSON(["screenScale": deviceScale, "width": backing.width, "height": backing.height,
                     "background": background, "CGContext": metadata, "hierarchyPaints": hierarchyPaints],
                     to: output.appendingPathComponent("native-live-backing-capture.json"))
@@ -247,7 +251,7 @@ struct NativeSourceCanvasAlphaPaintParityCapture {
                         snapshotDiagnostics.append(comparison)
                     }
                     try writeJSON(["expectedCount": 5, "count": snapshotDiagnostics.count,
-                        "scope": "Direct targetscale UIKit hierarchy capture; original flattened Metal strict comparisons preserved",
+                        "scope": "Optional target-scale UIKit diagnostics; historical flattened Metal raw comparisons retained",
                         "reports": snapshotDiagnostics], to: output.appendingPathComponent("direct-snapshot-diagnostics.json"))
                 }
                 for capture in captures {
@@ -283,23 +287,51 @@ struct NativeSourceCanvasAlphaPaintParityCapture {
                         var report = compare(capture.pixels, native)
                         report["background"] = background; report["mode"] = capture.name
                         report["screenScale"] = window.screen.scale; report["backingSize"] = [backing.width, backing.height]
-                        report["nativeWholePageResize"] = false
-                        report["nativeFinalSourceRetainedForSnapshot"] = backing.width != capture.pixels.width || backing.height != capture.pixels.height
+                        report["nativeWholePageResize"] = backing.width != capture.pixels.width || backing.height != capture.pixels.height
+                        report["nativeFinalSourceRetainedForSnapshot"] = false
                         report["nativeSnapshotRoute"] = backing.width == capture.pixels.width ? "production worker live backing" :
-                            "production NativeSourceCanvasHierarchyCompositor.compose explicit outputSize"
+                            "production native device-density canvas followed by explicit outputSize resampling"
                         report["webPNGHash"] = hash(try Data(contentsOf: output.appendingPathComponent("web-\(capture.name).png")))
                         report["nativePNGHash"] = hash(try Data(contentsOf: output.appendingPathComponent("native-\(capture.name).png")))
+                        guard native.width == capture.pixels.width, native.height == capture.pixels.height else {
+                            throw Failure.invalidCapture
+                        }
+                        let fullSize = native.width == backing.width && native.height == backing.height
+                        guard fullSize || (native.width * 2 == backing.width && native.height * 2 == backing.height) else {
+                            throw Failure.invalidCapture
+                        }
+                        let mode: NativeSourceCanvasResamplingAcceptance.Mode = fullSize ? .sourceDraw : .halfSizeCapture
+                        let outputScale = CGFloat(native.width) / viewport.width
+                        // Only the final minified source changed at full size;
+                        // the earlier binary-alpha/overlap scene remains exact.
+                        let frames = fullSize ? [finalSource.rect] : patches.map(\.rect)
+                        let acceptance = NativeSourceCanvasResamplingAcceptance.assess(reference: capture.pixels.bytes,
+                            candidate: native.bytes, width: native.width, height: native.height,
+                            frames: frames, outputScale: outputScale, mode: mode)
+                        // This resized prefix only constructs missing/shifted-source
+                        // negative controls; the real capture bytes stay untouched.
+                        let controlContext = try #require(CGContext(data: nil, width: native.width, height: native.height,
+                            bitsPerComponent: 8, bytesPerRow: native.width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                            bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue))
+                        controlContext.interpolationQuality = .none
+                        controlContext.draw(prefixBeforeFinalSource, in: CGRect(x: 0, y: 0, width: native.width, height: native.height))
+                        let controlPrefix = try pixels(try #require(controlContext.makeImage()))
+                        let controls = NativeSourceCanvasResamplingAcceptance.negativeControls(reference: capture.pixels.bytes,
+                            candidate: native.bytes, prefix: controlPrefix.bytes, width: native.width, height: native.height,
+                            frames: frames, outputScale: outputScale, mode: mode)
+                        report["nativeResamplingAcceptance"] = acceptance.report
+                        report["negativeControlsRejected"] = controls
                         reports.append(report)
                         try writeJSON(report, to: output.appendingPathComponent("comparison-\(capture.name).json"))
-                        if report["exactRGBA"] as? Bool != true {
-                            failures.append("\(background)/\(capture.name): \(report["changedPixels"] ?? "dimension mismatch") pixels differ")
+                        if !acceptance.accepted || controls.count != 4 || !controls.values.allSatisfy({ $0 }) {
+                            failures.append("\(background)/\(capture.name): native resampling or corruption-control rejection failed")
                         }
                     } catch { failures.append("\(background)/\(capture.name) native: \(error)") }
                 }
             } catch { failures.append("\(background): \(error)") }
         }
         try writeJSON(["expectedCount": 4, "count": reports.count, "passed": reports.count == 4 && failures.isEmpty,
-            "scope": "actual iOS binary-alpha, overlap, unchanged BUILD44 mask vs production native live backing and direct target-size scene capture; zero tolerance",
+            "scope": "actual iOS binary-alpha/overlap and unchanged BUILD44 mask; bounded native source/half-size resampling; raw strict RGBA retained",
             "os": UIDevice.current.systemVersion, "device": UIDevice.current.model, "screenScale": window.screen.scale,
             "originalMaskPNGHash": originalMaskHash, "sourceFrames": [[10, 10, 93, 77], [49, 31, 71, 93], [135, 7, 91, 121]],
             "reports": reports, "failures": failures], to: directory.appendingPathComponent("report.json"))

@@ -73,7 +73,7 @@ struct ReaderTranslationDigestEquivalenceTests {
             #expect(actual == expected)
             // This independent formatter recipe tracks two intentional revisions:
             // bounded column recovery invalidates OCR and its page-derived keys;
-            // v158 typography and source donors invalidate the native visual namespace.
+            // v159 direct native source painting invalidates the visual namespace.
             let priorRenderer = FrozenFormatterIdentity.render(page: page, settings: settings, imageSize: size, viewport: viewport,
                 scale: CGFloat(variant + 1), aspectFit: variant != 2, crop: crop, dark: variant == 2,
                 renderRevision: "reader-render-v153-revert-polygon-segmentation",
@@ -83,7 +83,7 @@ struct ReaderTranslationDigestEquivalenceTests {
             // and every other input. Only its render revision is obsolete.
             let priorNativeRenderer = FrozenFormatterIdentity.render(page: page, settings: settings, imageSize: size, viewport: viewport,
                 scale: CGFloat(variant + 1), aspectFit: variant != 2, crop: crop, dark: variant == 2,
-                renderRevision: "reader-render-v157-native-restoration-quality")
+                renderRevision: "reader-render-v158-native-typography-and-source-donors")
             #expect(actual != priorNativeRenderer)
         }
     }
@@ -120,7 +120,7 @@ private enum FrozenFormatterIdentity {
     // swiftlint:disable:next function_parameter_count
     static func render(page: String, settings: ReaderTranslationSettings, imageSize: CGSize, viewport: CGSize,
                        scale: CGFloat, aspectFit: Bool, crop: CGRect, dark: Bool,
-                       renderRevision: String = "reader-render-v158-native-typography-and-source-donors",
+                       renderRevision: String = "reader-render-v159-native-direct-paint",
                        letteringFontKey: String = NativeTranslationTypography.availabilityKey) -> String {
         // Auto Layout rounds view edges to display pixels. Mathematical prefetch
         // sizes differ by tiny fractions (568.016 pt vs 568 pt); those are one raster.
