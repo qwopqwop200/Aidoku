@@ -155,28 +155,6 @@ struct NativeCoreMLRecognitionPrediction: @unchecked Sendable {
     let outputs: [MLMultiArray]
     let modelWasLoaded: Bool
     let modelLoadMilliseconds: Double
-
-    var output: MLMultiArray { outputs[0] }
-
-    init(
-        output: MLMultiArray,
-        modelWasLoaded: Bool,
-        modelLoadMilliseconds: Double
-    ) {
-        outputs = [output]
-        self.modelWasLoaded = modelWasLoaded
-        self.modelLoadMilliseconds = modelLoadMilliseconds
-    }
-
-    init(
-        outputs: [MLMultiArray],
-        modelWasLoaded: Bool,
-        modelLoadMilliseconds: Double
-    ) {
-        self.outputs = outputs
-        self.modelWasLoaded = modelWasLoaded
-        self.modelLoadMilliseconds = modelLoadMilliseconds
-    }
 }
 
 @available(iOS 18.0, *)
@@ -788,21 +766,18 @@ struct NativeCoreMLRecognitionBucket: Equatable, Hashable, Sendable {
     static func containing(
         desiredWidth: Int,
         dynamicWidth: Bool = false,
-        maximumWidth: Int = 2_000
+        maximumWidth: Int = IPhoneOCRSettings.defaultRecognizerMaximumWidth
     ) -> Self {
-        let alignedMaximum = max(
-            160,
-            min(2_000, maximumWidth) / 32 * 32
-        )
+        let boundedMaximum = min(2_000, max(32, maximumWidth))
+        let boundedWidth = min(boundedMaximum, max(32, desiredWidth))
         if dynamicWidth {
             // Exact crop width: no bucket rounding and no minimum-width padding.
-            let boundedMaximum = min(2_000, max(32, maximumWidth))
-            return Self(width: min(boundedMaximum, max(32, desiredWidth)))!
+            return Self(width: boundedWidth)!
         }
-        let admitted = all.filter { $0.width <= alignedMaximum }
-        let available = admitted.isEmpty ? [all[0]] : admitted
-        return available.first { desiredWidth <= $0.width }
-            ?? available[available.count - 1]
+        // Fixed functions still need their compiled tensor width. The crop
+        // planner caps content separately, so a 1184-pixel line uses rec1280
+        // without shrinking all the way to the preceding 640-pixel bucket.
+        return all.first { boundedWidth <= $0.width } ?? all[all.count - 1]
     }
 }
 
@@ -1042,13 +1017,16 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
     static let scoreOutputFeatureName = "ctc_scores"
     static let outputFeatureName =
         "\(indexOutputFeatureName)+\(scoreOutputFeatureName)"
-    /// Maximum bounded dynamic-width contract reported in diagnostics.
-    static let inputShape = [1, 3, 48, 1_280]
-    static let outputShape = [2, 160]
+    /// Production dynamic-width ceiling reported in diagnostics. Explicit
+    /// offline fixture configurations may use the model's wider contract.
+    static let inputShape = [1, 3, 48, IPhoneOCRSettings.maximumRecognizerWidth]
+    static let outputShape = [2, (IPhoneOCRSettings.maximumRecognizerWidth + 3) / 8]
     static let expectedDictionaryCharacterCount = 18_709
     static let maximumConcurrentPreparations = 4
     static let maximumPreparedRegionCount = 8
     static let maximumPreparedWindowRegionCount = maximumPreparedRegionCount / 2
+    // Retain enough space for fixed-model 1280 tensors as well as the smaller
+    // production dynamic tensors, preserving four-crop window admission.
     static let maximumPreparedTensorBytes =
         maximumPreparedRegionCount * 3 * 48 * 1_280
             * MemoryLayout<Float>.stride
@@ -1204,17 +1182,19 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         maximumConcurrentPredictions = 2
         self.maximumRecognitionWidth = maximumRecognitionWidth
         let residentModelLimit = idleLongWidthPreparationEnabled ? 3 : 2
-        let alignedMaximumWidth = max(
-            160,
-            min(2_000, maximumRecognitionWidth) / 32 * 32
-        )
+        let maximumStaticBucketWidth = NativeCoreMLRecognitionBucket.containing(
+            desiredWidth: maximumRecognitionWidth,
+            maximumWidth: maximumRecognitionWidth
+        ).width
         preparationVariants = dynamicWidthEnabled
-            ? [NativeCoreMLRecognitionModelVariant(width: 320, batchSize: 1)!]
+            ? [NativeCoreMLRecognitionModelVariant(
+                width: min(320, max(32, maximumRecognitionWidth)), batchSize: 1
+            )!]
             : (Self.commonPreparationVariants
                 + (idleLongWidthPreparationEnabled
                     ? [Self.longWidthPreparationVariant]
                     : [])).filter {
-                        $0.bucket.width <= alignedMaximumWidth
+                        $0.bucket.width <= maximumStaticBucketWidth
                     }
         idlePreparationEnabled = idleLongWidthPreparationEnabled
         recognitionCropCache = NativeCoreMLRecognitionCropCache(
@@ -1269,12 +1249,13 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         recognitionCacheCapacity: Int = 0,
         dynamicWidth: Bool = false,
         maximumConcurrentPredictions: Int = 2,
+        maximumRecognitionWidth: Int = IPhoneOCRSettings.defaultRecognizerMaximumWidth,
         auditObserver: (@Sendable (NativeCoreMLRecognitionAuditEvent) -> Void)? = nil
     ) throws {
         self.auditObserver = auditObserver
         dynamicWidthEnabled = dynamicWidth
         self.maximumConcurrentPredictions = min(2, max(1, maximumConcurrentPredictions))
-        maximumRecognitionWidth = 2_000
+        self.maximumRecognitionWidth = maximumRecognitionWidth
         guard dictionary.count == Self.expectedDictionaryCharacterCount
         else {
             throw NativeCoreMLRecognizerError.dictionaryCharacterCount(
@@ -2672,7 +2653,7 @@ enum NativeCoreMLRecognitionPreprocessor {
     static func plan(
         polygon: [CGPoint],
         dynamicWidth: Bool = false,
-        maximumWidth: Int = 2_000,
+        maximumWidth: Int = IPhoneOCRSettings.defaultRecognizerMaximumWidth,
         useProvidedOrder: Bool = false,
         minimumSequenceWidth: Int = 0
     ) -> Plan? {
@@ -2717,7 +2698,7 @@ enum NativeCoreMLRecognitionPreprocessor {
             maximumWidth: maximumWidth
         )
         guard !padsShortSequence || bucket.width == minimumSequenceWidth else { return nil }
-        let resizedWidth = min(bucket.width, desiredWidth)
+        let resizedWidth = min(bucket.width, desiredWidth, max(32, maximumWidth))
         return Plan(
             resizedWidth: resizedWidth,
             bucket: bucket,

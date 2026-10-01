@@ -1019,14 +1019,13 @@ struct ReaderTranslationDiskCacheTests {
         }
         try await cache.synchronizeSettings(settings)
         #expect(try await cache.regions(for: "title", kind: .metadata) == metadata)
-        // Legacy resolution overrides cannot invalidate the fixed reader configuration.
-        #expect(try await cache.contains("page", kind: .translation) == (change == "ocrResolution"))
+        #expect(try await cache.contains("page", kind: .translation) == false)
         #expect(await cache.currentGeneration(settings: original, kind: .metadata) == metadataGeneration)
         try await cache.storeRegions(metadata, for: "in-flight", kind: .metadata, generation: metadataGeneration)
         let queued = await cache.currentGeneration(settings: original, kind: .metadata)
         try await cache.store(Data("queued".utf8), for: "queued", kind: .metadata, generation: queued)
         try await cache.store(Data("late".utf8), for: "late", kind: .translation, generation: pageGeneration)
-        #expect(try await cache.statistics().entries == (change == "ocrResolution" ? 5 : 3))
+        #expect(try await cache.statistics().entries == 3)
         let reopened = ReaderTranslationDiskCache(directory: root)
         try await reopened.synchronizeSettings(settings)
         #expect(try await reopened.regions(for: "in-flight", kind: .metadata) == metadata)

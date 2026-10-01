@@ -95,7 +95,7 @@ def run(arguments, expected=0):
         'AIDOKU_TRANSLATION_INCLUDE_IMAGE': 'false', 'AIDOKU_TRANSLATION_FILTER_SFX': 'false',
         'AIDOKU_TRANSLATION_FILTER_BACKGROUND': 'false', 'AIDOKU_TRANSLATION_RTL': 'false',
         'AIDOKU_OCR_TIER': 'medium', 'AIDOKU_OCR_CONFIDENCE': '0.75',
-        'AIDOKU_OCR_DETECTOR_SIDE': '1600', 'AIDOKU_OCR_RECOGNIZER_WIDTH': '1600',
+        'AIDOKU_OCR_DETECTOR_SIDE': '1184', 'AIDOKU_OCR_RECOGNIZER_WIDTH': '1184',
         'AIDOKU_OCR_DETECTOR_PIXEL_THRESHOLD': '0.3', 'AIDOKU_OCR_DETECTOR_CONFIDENCE_THRESHOLD': '0.3',
         'AIDOKU_OCR_DETECTOR_MINIMUM_BOX_SIDE': '3', 'AIDOKU_RENDER_VIEWPORT': '430x932', 'AIDOKU_IMAGE_JOBS': '2',
         'AIDOKU_IPHONE_OVERLAY_JSON': json.dumps({'visible': True, 'opacity': 1,
@@ -138,6 +138,8 @@ with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
     assert len(resumed) == 2 and all(row.get('resumed') for row in resumed), resumed
     final = json.loads((run_dir / '0001/final.json').read_text())
     assert any('早く' in region['source'] for region in final['regions']), final
+    runtime = json.loads(next((run_dir / '0001').glob('*runtime-settings.json')).read_text())['value']
+    assert runtime['ocr']['detectorMaximumSide'] == 1184 and runtime['ocr']['recognizerMaximumWidth'] == 1184
     assert list((run_dir / '0001').glob('*detector-output.json'))
     assert list((run_dir / '0001').glob('*native-ocr.json'))
     assert (run_dir / 'analysis-index.html').exists()

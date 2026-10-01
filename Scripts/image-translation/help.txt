@@ -12,8 +12,8 @@ Pipeline:
   --source LANGUAGE       Source language (default: auto).
   --target LANGUAGE       Target language (default: ko).
   --confidence NUMBER     Recognition threshold, 0...1 (default: 0.75).
-  --detector-side N       Detector maximum side (default: 1600).
-  --recognizer-width N    Recognizer maximum width (default: 1600).
+  --detector-side N       Detector maximum side (default: 1184; bounded to 32...1184).
+  --recognizer-width N    Recognizer width (default: 1184; bounded to 32...1184, height 48).
   --base-url URL          Translation server base URL (or AIDOKU_TRANSLATION_BASE_URL).
   --model MODEL           Translation model (or AIDOKU_TRANSLATION_MODEL).
   --protocol responses|chatCompletions (default: chatCompletions).

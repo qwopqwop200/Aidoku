@@ -19,131 +19,6 @@ struct NativeCoreMLDetectionBox: Equatable, Sendable {
 
 @available(iOS 18.0, *)
 struct NativeCoreMLDetectionCanvas: Equatable, Hashable, Sendable {
-    // Browser controls can change the visible viewport height. Keep exact
-    // fixed-shape functions for the observed iPhone portrait aspect family;
-    // choosing a nearby padded shape is not
-    // equivalent for PP-OCRv6 because its detector contains spatial global
-    // reductions.
-    static let portrait480 = Self(
-        functionName: "detPortrait480x1920",
-        width: 480,
-        height: 1_920
-    )
-    static let portrait640 = Self(
-        functionName: "detPortrait640x1920",
-        width: 640,
-        height: 1_920
-    )
-    static let portrait704 = Self(
-        functionName: "detPortrait704x1920",
-        width: 704,
-        height: 1_920
-    )
-    static let portrait1088 = Self(
-        functionName: "detPortrait1088x1920",
-        width: 1_088,
-        height: 1_920
-    )
-    static let portrait1120 = Self(
-        functionName: "detPortrait1120x1920",
-        width: 1_120,
-        height: 1_920
-    )
-    static let portrait1280 = Self(
-        functionName: "detPortrait1280x1920",
-        width: 1_280,
-        height: 1_920
-    )
-    static let portrait1440 = Self(
-        functionName: "detPortrait1440x1920",
-        width: 1_440,
-        height: 1_920
-    )
-    static let portrait1536 = Self(
-        functionName: "detPortrait1536x1920",
-        width: 1_536,
-        height: 1_920
-    )
-    static let portrait = portrait1120
-    static let landscape480 = Self(
-        functionName: "detLandscape1920x480",
-        width: 1_920,
-        height: 480
-    )
-    static let landscape640 = Self(
-        functionName: "detLandscape1920x640",
-        width: 1_920,
-        height: 640
-    )
-    static let landscape704 = Self(
-        functionName: "detLandscape1920x704",
-        width: 1_920,
-        height: 704
-    )
-    static let landscape896 = Self(
-        functionName: "detLandscape1920x896",
-        width: 1_920,
-        height: 896
-    )
-    static let landscape960 = Self(
-        functionName: "detLandscape1920x960",
-        width: 1_920,
-        height: 960
-    )
-    static let landscape1088 = Self(
-        functionName: "detLandscape1920x1088",
-        width: 1_920,
-        height: 1_088
-    )
-    static let landscape1120 = Self(
-        functionName: "detLandscape1920x1120",
-        width: 1_920,
-        height: 1_120
-    )
-    static let landscape1280 = Self(
-        functionName: "detLandscape1920x1280",
-        width: 1_920,
-        height: 1_280
-    )
-    static let landscape1440 = Self(
-        functionName: "detLandscape1920x1440",
-        width: 1_920,
-        height: 1_440
-    )
-    static let landscape1536 = Self(
-        functionName: "detLandscape1920x1536",
-        width: 1_920,
-        height: 1_536
-    )
-    static let landscape = landscape1120
-    static let square = Self(
-        functionName: "detSquare1920",
-        width: 1_920,
-        height: 1_920
-    )
-    static let all = [
-        portrait480,
-        portrait640,
-        portrait704,
-        portrait1088,
-        portrait1120,
-        portrait1280,
-        portrait1440,
-        portrait1536,
-        landscape480,
-        landscape640,
-        landscape704,
-        landscape896,
-        landscape960,
-        landscape1088,
-        landscape1120,
-        landscape1280,
-        landscape1440,
-        landscape1536,
-        square,
-    ]
-
-    let functionName: String
     let width: Int
     let height: Int
 
@@ -161,17 +36,13 @@ struct NativeCoreMLDetectionCanvas: Equatable, Hashable, Sendable {
         else {
             return nil
         }
-        self.init(
-            functionName: "dynamic",
-            width: inputShape[3],
-            height: inputShape[2]
-        )
+        self.init(width: inputShape[3], height: inputShape[2])
     }
 
     static func exact(
         sourceWidth: Int,
         sourceHeight: Int,
-        maximumSide: Int = NativeCoreMLDetectionPreprocessor.canvasSide
+        maximumSide: Int = IPhoneOCRSettings.defaultDetectorMaximumSide
     ) -> Self? {
         guard let dimensions = NativeCoreMLDetectionPreprocessor
             .resizeDimensions(
@@ -182,15 +53,10 @@ struct NativeCoreMLDetectionCanvas: Equatable, Hashable, Sendable {
         else {
             return nil
         }
-        return Self(
-            functionName: "dynamic",
-            width: dimensions.width,
-            height: dimensions.height
-        )
+        return Self(width: dimensions.width, height: dimensions.height)
     }
 
-    private init(functionName: String, width: Int, height: Int) {
-        self.functionName = functionName
+    private init(width: Int, height: Int) {
         self.width = width
         self.height = height
     }
@@ -381,49 +247,6 @@ enum NativeCoreMLDetectorError: Error, Equatable, LocalizedError {
 }
 
 @available(iOS 18.0, *)
-protocol NativeCoreMLDetectionPredicting: AnyObject, Sendable {
-    var modelName: String { get }
-    var inputFeatureName: String { get }
-    var outputFeatureName: String { get }
-    var computeUnits: String { get }
-
-    func predict(
-        input: MLTensor
-    ) async throws -> NativeCoreMLDetectionPrediction
-
-    func prepare(canvas: NativeCoreMLDetectionCanvas) async throws
-    func prepare(
-        canvas: NativeCoreMLDetectionCanvas,
-        cancellationCheck: @escaping @Sendable () throws -> Void
-    ) async throws
-    /// Loads the shape-independent model without running a prediction.
-    func warmUpModel(
-        cancellationCheck: @escaping @Sendable () throws -> Void
-    ) async throws
-    func purgeResources() async
-}
-
-@available(iOS 18.0, *)
-extension NativeCoreMLDetectionPredicting {
-    var computeUnits: String { "all" }
-    func warmUpModel(
-        cancellationCheck: @escaping @Sendable () throws -> Void
-    ) async throws {
-        try cancellationCheck()
-    }
-    func prepare(canvas: NativeCoreMLDetectionCanvas) async throws {}
-    func prepare(
-        canvas: NativeCoreMLDetectionCanvas,
-        cancellationCheck: @escaping @Sendable () throws -> Void
-    ) async throws {
-        try cancellationCheck()
-        try await prepare(canvas: canvas)
-        try cancellationCheck()
-    }
-    func purgeResources() async {}
-}
-
-@available(iOS 18.0, *)
 struct NativeCoreMLDetectionPrediction: Sendable {
     let output: MLTensor
     let modelWasLoaded: Bool
@@ -431,9 +254,7 @@ struct NativeCoreMLDetectionPrediction: Sendable {
 }
 
 @available(iOS 18.0, *)
-private final class NativeCoreMLDetectorModelPredictor:
-    NativeCoreMLDetectionPredicting
-{
+private final class NativeCoreMLDetectorModelPredictor: Sendable {
     private struct ModelHandle: @unchecked Sendable {
         let model: MLModel
     }
@@ -466,7 +287,7 @@ private final class NativeCoreMLDetectorModelPredictor:
         }
 
         func model(
-            for canvas: NativeCoreMLDetectionCanvas,
+            for canvas: NativeCoreMLDetectionCanvas? = nil,
             admissionCheck: @escaping @Sendable () throws -> Void = {}
         ) async throws -> ModelAccess {
             try admissionCheck()
@@ -478,7 +299,7 @@ private final class NativeCoreMLDetectorModelPredictor:
                     wasLoaded: false,
                     loadMilliseconds: 0,
                     revision: issuedRevision,
-                    isPrepared: preparedCanvases.contains(canvas)
+                    isPrepared: canvas.map { preparedCanvases.contains($0) } ?? false
                 )
             }
             let asset = self.asset
@@ -621,10 +442,6 @@ private final class NativeCoreMLDetectorModelPredictor:
         )
     }
 
-    func prepare(canvas: NativeCoreMLDetectionCanvas) async throws {
-        try await prepare(canvas: canvas, cancellationCheck: {})
-    }
-
     func prepare(
         canvas: NativeCoreMLDetectionCanvas,
         cancellationCheck: @escaping @Sendable () throws -> Void
@@ -635,7 +452,7 @@ private final class NativeCoreMLDetectorModelPredictor:
         )
         guard !modelAccess.isPrepared else { return }
         try cancellationCheck()
-        // Loading a multifunction MLProgram does not compile its GPU kernels.
+        // Loading a dynamic-shape MLProgram does not compile its GPU kernels.
         // Run one exact-shape zero prediction and materialize the result so the
         // first visible OCR frame does not pay that specialization cost.
         let input = MLTensor(
@@ -680,10 +497,7 @@ private final class NativeCoreMLDetectorModelPredictor:
     func warmUpModel(
         cancellationCheck: @escaping @Sendable () throws -> Void
     ) async throws {
-        _ = try await modelStore.model(
-            for: .square,
-            admissionCheck: cancellationCheck
-        )
+        _ = try await modelStore.model(admissionCheck: cancellationCheck)
     }
 
     func purgeResources() async {
@@ -732,11 +546,9 @@ final class NativeCoreMLDetector: @unchecked Sendable {
     static let modelResourceName = "PP-OCRv6-Medium-DetShapes"
     static let inputFeatureName = "x"
     static let outputFeatureName = "fetch_name_0"
-    static let inputShape = [1, 3, 1_920, 1_920]
-    static let outputShape = [1, 1, 1_920, 1_920]
 
     private struct Resources: Sendable {
-        let predictor: any NativeCoreMLDetectionPredicting
+        let predictor: NativeCoreMLDetectorModelPredictor
         let loadMilliseconds: Double
     }
 
@@ -767,7 +579,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
     init(
         bundle: Bundle = .main,
         modelResourceName: String = NativeCoreMLDetector.modelResourceName,
-        maximumSide: Int = NativeCoreMLDetectionPreprocessor.canvasSide
+        maximumSide: Int = IPhoneOCRSettings.defaultDetectorMaximumSide
     ) {
         // The split has been evaluated on the bundled Medium probability maps.
         // Other model tiers retain their established postprocessing behavior.
@@ -805,32 +617,6 @@ final class NativeCoreMLDetector: @unchecked Sendable {
                 loadMilliseconds: Self.nowMilliseconds() - started
             )
         }
-    }
-
-    init(predictor: any NativeCoreMLDetectionPredicting) {
-        allowsWeakBridgeSplit = false
-        let resources = Resources(
-            predictor: predictor,
-            loadMilliseconds: 0
-        )
-        resourceLoader = { resources }
-        // Test predictors use the historical square tensor contract so unit
-        // tests can exercise cancellation and postprocessing on tiny images
-        // without loading a 1,920-pixel production source.
-        canvasSelector = { _, _ in .square }
-        loadedResources = resources
-    }
-
-    static func supportsSourceDimensions(
-        width: Int,
-        height: Int,
-        maximumSide: Int = NativeCoreMLDetectionPreprocessor.canvasSide
-    ) -> Bool {
-        NativeCoreMLDetectionCanvas.exact(
-            sourceWidth: width,
-            sourceHeight: height,
-            maximumSide: maximumSide
-        ) != nil
     }
 
     func cancelCurrent() {
@@ -1333,7 +1119,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
 
     private func predict(
         input: MLTensor,
-        using predictor: any NativeCoreMLDetectionPredicting,
+        using predictor: NativeCoreMLDetectorModelPredictor,
         generation issuedGeneration: UInt64,
         cancellationCheck: @escaping @Sendable () throws -> Void
     ) async throws -> NativeCoreMLDetectionPrediction {
@@ -1430,9 +1216,7 @@ struct NativeCoreMLDetectionPreparedTensor: Sendable {
     let inputTensorCreationMilliseconds: Double
     let tensorGraphMilliseconds: Double
 
-    /// Test/debug materialization. Production passes the lazy tensor graph
-    /// directly into Core ML so resize/normalization can stay on ML compute
-    /// devices without a multi-megabyte CPU-side Float intermediate tensor.
+    /// Test/debug materialization of the bounded detector input.
     func values() async -> [Float] {
         await input.shapedArray(of: Float.self).scalars
     }
@@ -1440,7 +1224,9 @@ struct NativeCoreMLDetectionPreparedTensor: Sendable {
 
 @available(iOS 18.0, *)
 enum NativeCoreMLDetectionPreprocessor {
-    static let canvasSide = 2_000
+    // The packaged model also serves explicit high-resolution replay fixtures.
+    // Reader pipelines use the lower IPhoneOCRSettings maximum.
+    static let modelMaximumSide = 2_000
     private static let channelMean: [Float] = [0.485, 0.456, 0.406]
     private static let channelStandardDeviation: [Float] = [
         0.229,
@@ -1451,12 +1237,12 @@ enum NativeCoreMLDetectionPreprocessor {
     static func resizeDimensions(
         sourceWidth: Int,
         sourceHeight: Int,
-        maximumSide: Int = canvasSide
+        maximumSide: Int = IPhoneOCRSettings.defaultDetectorMaximumSide
     ) -> (width: Int, height: Int)? {
         guard sourceWidth > 0, sourceHeight > 0 else { return nil }
         let alignedMaximumSide = max(
             32,
-            min(canvasSide, maximumSide) / 32 * 32
+            min(modelMaximumSide, maximumSide) / 32 * 32
         )
         let sourceMaximumSide = max(sourceWidth, sourceHeight)
         let scale = sourceMaximumSide > alignedMaximumSide
@@ -1480,8 +1266,7 @@ enum NativeCoreMLDetectionPreprocessor {
 
     static func prepare(
         frame: NativeOCRRGBAFrame,
-        canvas: NativeCoreMLDetectionCanvas = .square,
-        useBoundedMemory: Bool = true,
+        canvas: NativeCoreMLDetectionCanvas,
         cancellationCheck: () throws -> Void = {}
     ) async throws -> NativeCoreMLDetectionPreparedTensor {
         try cancellationCheck()
@@ -1495,97 +1280,11 @@ enum NativeCoreMLDetectionPreprocessor {
         else {
             throw NativeCoreMLDetectorError.modelInputCreationFailed
         }
-        // Every source size previously built its own GPU resize/normalization
-        // graph below the 4 MP cutoff. Its full-resolution intermediates and
-        // runtime caches survive individual pages and even model eviction.
-        // Sample directly into the bounded canvas for ALL page sizes; retain
-        // full-resolution RGBA only for the unchanged recognition crops.
-        if useBoundedMemory {
-            return try await prepareBounded(frame: frame, canvas: canvas, dimensions: dimensions,
-                                      cancellationCheck: cancellationCheck)
-        }
-        let inputTensorStarted = nowMilliseconds()
-        let contiguousRGBA = makeContiguousRGBA(frame: frame)
-        let rgba = MLTensor(
-            shape: [1, frame.height, frame.width, 4],
-            scalars: contiguousRGBA,
-            scalarType: UInt8.self
-        )
-        let inputTensorElapsed = nowMilliseconds() - inputTensorStarted
-        try cancellationCheck()
-        let tensorGraphStarted = nowMilliseconds()
-#if targetEnvironment(simulator)
-        let tensorComputePolicy = MLComputePolicy.cpuOnly
-#else
-        let tensorComputePolicy = MLComputePolicy(.all)
-#endif
-        let input = withMLTensorComputePolicy(tensorComputePolicy) {
-            let channelIndices = MLTensor([
-                Int32(2),
-                Int32(1),
-                Int32(0),
-            ])
-            let bgr = rgba
-                .transposed(permutation: [0, 3, 1, 2])
-                .gathering(atIndices: channelIndices, alongAxis: 1)
-                .cast(to: Float.self)
-                .resized(
-                    to: (dimensions.height, dimensions.width),
-                    method: .bilinear(alignCorners: false)
-                )
-            let mean = MLTensor(
-                shape: [1, 3, 1, 1],
-                scalars: channelMean
-            )
-            let standardDeviation = MLTensor(
-                shape: [1, 3, 1, 1],
-                scalars: channelStandardDeviation
-            )
-            var padded = (bgr / Float(255) - mean) / standardDeviation
-            if dimensions.width < canvas.width {
-                let rightPadding = MLTensor(
-                    zeros: [
-                        1,
-                        3,
-                        dimensions.height,
-                        canvas.width - dimensions.width,
-                    ],
-                    scalarType: Float.self
-                )
-                padded = MLTensor(
-                    concatenating: [padded, rightPadding],
-                    alongAxis: 3
-                )
-            }
-            if dimensions.height < canvas.height {
-                let bottomPadding = MLTensor(
-                    zeros: [
-                        1,
-                        3,
-                        canvas.height - dimensions.height,
-                        canvas.width,
-                    ],
-                    scalarType: Float.self
-                )
-                padded = MLTensor(
-                    concatenating: [padded, bottomPadding],
-                    alongAxis: 2
-                )
-            }
-            return padded
-        }
-        let tensorGraphElapsed = nowMilliseconds() - tensorGraphStarted
-        guard input.shape == canvas.inputShape else {
-            throw NativeCoreMLDetectorError.modelInputCreationFailed
-        }
-        try cancellationCheck()
-        return NativeCoreMLDetectionPreparedTensor(
-            input: input,
-            canvas: canvas,
-            resizedWidth: dimensions.width,
-            resizedHeight: dimensions.height,
-            inputTensorCreationMilliseconds: inputTensorElapsed,
-            tensorGraphMilliseconds: tensorGraphElapsed
+        // Sample directly into the bounded canvas. Only recognition crops
+        // retain full-resolution RGBA; detector intermediates stay page-bounded.
+        return try await prepareBounded(
+            frame: frame, canvas: canvas, dimensions: dimensions,
+            cancellationCheck: cancellationCheck
         )
     }
 
@@ -1829,39 +1528,6 @@ enum NativeCoreMLDetectionPreprocessor {
             let weight = values[targetLength * orthogonalSize + offset]
             return (lower, min(lower + 1, sourceLength - 1), lower.isMultiple(of: 2) ? weight : 1 - weight)
         }
-    }
-
-    private static func makeContiguousRGBA(
-        frame: NativeOCRRGBAFrame
-    ) -> [UInt8] {
-        let tightBytesPerRow = frame.width * 4
-        let visibleByteCount = tightBytesPerRow * frame.height
-        if frame.bytesPerRow == tightBytesPerRow,
-           frame.bytes.count == visibleByteCount
-        {
-            return frame.bytes
-        }
-        var result = [UInt8](repeating: 0, count: visibleByteCount)
-        result.withUnsafeMutableBytes { destination in
-            frame.bytes.withUnsafeBytes { source in
-                guard let destinationBase = destination.baseAddress,
-                      let sourceBase = source.baseAddress
-                else {
-                    return
-                }
-                for row in 0..<frame.height {
-                    destinationBase
-                        .advanced(by: row * tightBytesPerRow)
-                        .copyMemory(
-                            from: sourceBase.advanced(
-                                by: row * frame.bytesPerRow
-                            ),
-                            byteCount: tightBytesPerRow
-                        )
-                }
-            }
-        }
-        return result
     }
 
     private static func nowMilliseconds() -> Double {

@@ -9,29 +9,6 @@ import Testing
 @Suite(.serialized)
 struct OCRDetectorPrecisionDeviceTests {
 
-    /// Every bundled fp16 detector tier must load with the production
-    /// configuration and return float32 output through the production pipeline.
-    @Test func bundledFloat16DetectorsRunThroughProductionPipeline() async throws {
-        let width = 800, height = 1_100
-        var bytes = [UInt8](repeating: 255, count: width * height * 4)
-        // Dark horizontal strokes resembling a text line.
-        for row in 500..<530 { for column in 200..<600 where column % 40 < 28 {
-            let offset = row * width * 4 + column * 4
-            bytes[offset] = 0; bytes[offset + 1] = 0; bytes[offset + 2] = 0
-        } }
-        let frame = try #require(NativeOCRRGBAFrame(width: width, height: height, bytesPerRow: width * 4, bytes: bytes))
-        for tier in IPhoneOCRModelTier.allCases {
-            let profile = NativeCoreMLOCRModelProfile.profile(for: tier)
-            let detector = NativeCoreMLDetector(modelResourceName: profile.detectorResourceName,
-                                                maximumSide: IPhoneOCRSettings.defaultDetectorMaximumSide)
-            let result = try await detector.detect(frame: frame, requestID: "fp16-\(tier.rawValue)",
-                                                   configuration: profile.postprocessConfiguration)
-            #expect(result.width == width && result.height == height)
-            print("OCR_PRECISION_TIER \(tier.rawValue) boxes=\(result.boxes.count) ms=\(result.diagnostics.totalMilliseconds)")
-            await detector.purgeResources()
-        }
-    }
-
     @Test
     @MainActor func capturedPanelIncidents() async throws {
         try #require(FileManager.default.fileExists(atPath:
@@ -55,7 +32,7 @@ struct OCRDetectorPrecisionDeviceTests {
             #expect(!result.lines.isEmpty)
             await pipeline.purgeResources()
             let regions = try await ReaderOCRService.shared.recognize(image: image, configuration: .init(
-                detectorMaximumSide: 2000, confidenceThreshold: 0.35, detectorPixelThreshold: 0.3, detectorConfidenceThreshold: 0.3))
+                detectorMaximumSide: 2000, recognizerMaximumWidth: 1280, confidenceThreshold: 0.35, detectorPixelThreshold: 0.3, detectorConfidenceThreshold: 0.3))
             await ReaderOCRService.shared.purge()
             let grouped: [[String: Any]] = regions.map { ["id": $0.id, "source": $0.source,
                 "rect": [$0.rect.minX, $0.rect.minY, $0.rect.width, $0.rect.height]] }

@@ -41,6 +41,31 @@ and raster behavior is not proof of exact iPhone output.
 See [CLI configuration and outputs](../Scripts/image-translation/README.md),
 including `.env`, saved phone settings, replay and bounded concurrency.
 
+## OCR resolution limits
+
+Reader settings and the image-translation CLI use a detector longest-side ceiling
+of **1184** and recognizer crops of at most **48 × 1184**. Existing larger saved
+values are bounded on load/use/save; smaller valid choices are retained. The CLI
+also bounds explicit flags, environment profiles and imported phone settings to
+32...1184. Recognition height remains 48. OCR cache keys include the effective
+configuration, so earlier 1280 results cannot satisfy the new settings.
+
+The bundled models support dynamic input dimensions. Historical fixed-function
+names such as `rec1280b1` describe compiled tensor contracts, not the app's current
+crop limit. Low-level explicit model/replay configuration keeps its documented
+wider range for frozen regression fixtures; it does not change reader or CLI
+limits. Historical service replay fixtures explicitly retain their captured
+1280 recognition width so a new app default cannot silently change their inputs.
+Tests in `NativeOCRResolutionContractTests` exercise real inference for all three
+bundled detector and recognizer tiers at the 1184 limit.
+
+Unused fixed detector canvas tables, the unused detector predictor-injection
+interface and the alternate full-image preprocessing switch were removed. The
+independent full-image sampling reference now lives only in its regression test.
+The one-off efficiency measurement suite became `NativeRenderPipelineTests`,
+retaining live/export/source correctness assertions without sampling memory,
+repeating benchmarks or writing reports from the app test target.
+
 ## Native allocation and painting policy
 
 Admitted source repairs draw into the worker's existing bitmap, avoiding a full
@@ -66,11 +91,12 @@ while waiting for a shared layout producer. Dictionary raster attachments decode
 at their display size and retain one size/trait-specific rendered bitmap;
 explicit pixelated images preserve their original pixels.
 
-`NativeEfficiencyMeasurementTests` is an opt-in simulator benchmark with one
-warmup and three samples per phase. It records wall time, sampled process RSS,
-physical footprint, actual returned payload bytes and output PNGs. These
-generated fixtures and a six-source-draw microbenchmark do not establish
-whole-app or physical-device memory/latency improvements.
+The archived `NativeEfficiencyMeasurementTests` benchmark used one warmup and
+three samples per phase. Its historical report records wall time, sampled process
+RSS, physical footprint, returned payload bytes and output PNGs. The replacement
+`NativeRenderPipelineTests` retains the correctness checks without measurements
+or report output. Historical generated fixtures and the six-source-draw
+microbenchmark do not establish whole-app or physical-device improvements.
 
 ## Reference code and verification
 
@@ -130,7 +156,7 @@ the original source, image and raw comparison remain archived.
 The previous worktree's 16-fixture final-image matrix passed with zero decoded
 RGBA differences at its recorded BUILD66 snapshot, and bounded source-canvas
 checks passed at BUILD69. These are historical results, not current full-main
-verification. The expanded current-main replay covers all 12 recorded inputs
+verification. The recorded integration replay covers all 12 recorded inputs
 (one verified empty page) at two preload depths, yielding 22 nonempty final-image
 comparisons against the checked-in frozen Web renderer. The stale September 29
 optimization captures remain archived diagnostics, not replacement goldens.
@@ -141,7 +167,7 @@ comparisons and 18 material mismatches; none qualified for the then-current
 sparse one-byte allowance. Later production fixes and independently checked
 reference corrections are recorded separately from that historical baseline.
 
-Current verification evidence, completed on 2026-10-01:
+Historical integration verification, completed on 2026-10-01:
 
 | Scope | Observed result |
 | --- | --- |
@@ -157,7 +183,7 @@ those test inputs, focused-ios-27 passed all 14 declarations; full-ios-9 then
 reused those unchanged compiled sources. No clean rebuild was performed. Both
 full runs and their source manifests remain separate historical evidence.
 
-The final run used one iPhone 17 Pro simulator with iOS 26.5 and two build jobs.
+That integration run used one iPhone 17 Pro simulator with iOS 26.5 and two build jobs.
 Its 12-page depth trials observed a maximum 402.207 MiB during the complete test
 sequence; this is simulator process memory, not a physical-device measurement
 or a renderer-only benchmark. Browser-dependent authentication remains outside

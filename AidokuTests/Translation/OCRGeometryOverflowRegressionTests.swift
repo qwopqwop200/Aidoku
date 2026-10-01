@@ -12,9 +12,11 @@ struct OCRGeometryOverflowRegressionTests {
     @Test func boundsExtremeAspectRatioBeforeIntegerConversion() throws {
         let polygon = [CGPoint(x: 0, y: 0), CGPoint(x: 1e18, y: 0),
                        CGPoint(x: 1e18, y: 2), CGPoint(x: 0, y: 2)]
-        let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: polygon, dynamicWidth: true))
-        // Dynamic recognition preserves exact widths up to the model's 2,000-pixel
-        // ceiling; the former 1,984 limit came from rounding down to a 32-pixel grid.
+        let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(
+            polygon: polygon, dynamicWidth: true, maximumWidth: 2_000
+        ))
+        // Explicit offline fixtures preserve the model's 2,000-pixel ceiling;
+        // the former 1,984 limit came from rounding down to a 32-pixel grid.
         #expect(plan.resizedWidth == 2_000)
         #expect(plan.bucket.width == 2_000)
         #expect(plan.bucket.timeSteps == 250)
@@ -25,9 +27,9 @@ struct OCRGeometryOverflowRegressionTests {
             dynamicWidth: true,
             maximumWidth: IPhoneOCRSettings.defaultRecognizerMaximumWidth
         ))
-        #expect(readerPlan.resizedWidth == 1_280)
-        #expect(readerPlan.bucket.width == 1_280)
-        #expect(readerPlan.bucket.timeSteps == 160)
+        #expect(readerPlan.resizedWidth == 1_184)
+        #expect(readerPlan.bucket.width == 1_184)
+        #expect(readerPlan.bucket.timeSteps == 148)
     }
 
     @Test(arguments: [Int.min, -1, 0, 31, 32, 2_001, Int.max])

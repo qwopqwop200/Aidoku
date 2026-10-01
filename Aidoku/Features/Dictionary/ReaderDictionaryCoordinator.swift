@@ -83,10 +83,6 @@ final class ReaderDictionaryCoordinator {
 
         let popupID = UUID()
         let userConfig = UserConfig()
-        var dictionaryStyles: [String: String] = [:]
-        for style in LookupEngine.shared.getStyles() {
-            dictionaryStyles[String(style.dict_name)] = String(style.styles)
-        }
         let availableFrame = if owner.barsHidden {
             // add extra padding to vertical edges to prevent device rounded corners from cutting off popup
             owner.view.bounds.inset(by: UIEdgeInsets(
@@ -117,7 +113,6 @@ final class ReaderDictionaryCoordinator {
             userConfig: userConfig,
             selectionData: .init(text: clozeText, sentence: sentence, rect: anchorRect, clozeOffset: clozeOffset),
             lookupResults: entries,
-            dictionaryStyles: dictionaryStyles,
             availableFrame: availableFrame,
             isVertical: isVertical,
             isFullWidth: layout.isFullWidth,
@@ -144,9 +139,7 @@ final class ReaderDictionaryCoordinator {
             },
             onSwipeDismiss: { [weak self] in
                 self?.dismissTopPopup()
-            },
-            onPause: nil,
-            wasPaused: false
+            }
         )
 
         let containerController = UIViewController()

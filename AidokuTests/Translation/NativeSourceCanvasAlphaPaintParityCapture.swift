@@ -14,7 +14,7 @@ struct NativeSourceCanvasAlphaPaintParityCapture {
     private struct Pixels { let width: Int; let height: Int; let bytes: Data }
     private struct Capture { let name: String; let pixels: Pixels }
 
-    func run(includeSnapshotDiagnostics: Bool = false) async throws {
+    func run() async throws {
         let directory = URL.documentsDirectory.appendingPathComponent("NativeSourceCanvasAlphaPaintParity", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         // Freshness guard before resource loading/navigation: an interrupted
@@ -144,14 +144,14 @@ struct NativeSourceCanvasAlphaPaintParityCapture {
                             context.fill(context.boundingBoxOfClipPath)
                         } else { context.clear(context.boundingBoxOfClipPath) }
                     }
-                    var hierarchyPaints = 0
+                    var directSourcePaints = 0
                     var prefixBeforeFinalSource: CGImage?
                     for (index, patch) in workerPatches.enumerated() {
                         if index == workerPatches.count - 1 { prefixBeforeFinalSource = context.makeImage() }
                         try Task.checkCancellation()
-                        if try await NativeTranslationRenderer.paintHierarchySourcePatch(patch,
+                        if try NativeTranslationRenderer.paintDirectSourcePatch(patch,
                             context: context, backing: bitmap.backing, viewport: viewport) {
-                            hierarchyPaints += 1
+                            directSourcePaints += 1
                         } else {
                             try Task.checkCancellation()
                             NativeTranslationRenderer.withWorkerGraphicsContext(context) {
@@ -162,98 +162,19 @@ struct NativeSourceCanvasAlphaPaintParityCapture {
                     }
                     try Task.checkCancellation()
                     guard let image = context.makeImage(), let prefixBeforeFinalSource else { throw Failure.invalidPixels }
-                    return (image, try JSONSerialization.data(withJSONObject: metadata, options: [.sortedKeys]), hierarchyPaints, prefixBeforeFinalSource)
+                    return (image, try JSONSerialization.data(withJSONObject: metadata, options: [.sortedKeys]), directSourcePaints, prefixBeforeFinalSource)
                 }
-                let (backing, metadataBytes, hierarchyPaints, prefixBeforeFinalSource) = try await withTaskCancellationHandler(
+                let (backing, metadataBytes, directSourcePaints, prefixBeforeFinalSource) = try await withTaskCancellationHandler(
                     operation: { try await job.value }, onCancel: { job.cancel() })
-                #expect(hierarchyPaints == 1, "The unchanged real mask must exercise the admitted native production source draw")
+                #expect(directSourcePaints == 1, "The unchanged real mask must exercise the admitted native production source draw")
                 let metadata = try #require(try JSONSerialization.jsonObject(with: metadataBytes) as? [String: Any])
                 #expect(metadata["workerWasOffMain"] as? Bool == true)
                 try writeJSON(["screenScale": deviceScale, "width": backing.width, "height": backing.height,
-                    "background": background, "CGContext": metadata, "hierarchyPaints": hierarchyPaints],
+                    "background": background, "CGContext": metadata, "directSourcePaints": directSourcePaints],
                     to: output.appendingPathComponent("native-live-backing-capture.json"))
                 _ = try save(backing, prefix: "native-live-backing", output: output)
                 _ = try save(prefixBeforeFinalSource, prefix: "native-prefix-before-final-source", output: output)
-                // Optional controls keep earlier snapshot-contract experiments reproducible.
-                // The flattened Metal result below is retained as a historical diagnostic.
                 let finalSource = try #require(patches.last)
-                let smallWeb = try #require(captures.first(where: { $0.name == "live-160" }))
-                if includeSnapshotDiagnostics {
-                    var snapshotDiagnostics: [[String: Any]] = []
-                    for route in ["flattened-backing", "preserved-final-source"] {
-                        let image: CGImage?
-                        if route == "flattened-backing" {
-                            image = try NativeSourceCanvasSnapshotHierarchy.captureFlattened(backing: backing,
-                                viewport: viewport, contentsScale: deviceScale, captureScale: deviceScale / 2)
-                        } else {
-                            image = try NativeSourceCanvasSnapshotHierarchy.capturePreserved(prefix: prefixBeforeFinalSource,
-                                source: finalSource.image, sourceFrame: finalSource.rect, viewport: viewport,
-                                contentsScale: deviceScale, captureScale: deviceScale / 2)
-                        }
-                        let captured = try save(try #require(image), prefix: "native-direct-" + route, output: output)
-                        var comparison = compare(smallWeb.pixels, captured)
-                        comparison["route"] = route
-                        comparison["background"] = background
-                        comparison["contentsScale"] = deviceScale
-                        comparison["captureScale"] = deviceScale / 2
-                        comparison["diagnosticOnly"] = true
-                        snapshotDiagnostics.append(comparison)
-                    }
-                    // A separate target-texture control uses the production public CA
-                    // capture core, one immutable full-backing image leaf and default filters.
-                    let coreJob = Task.detached { () throws -> CGImage in
-                        guard Self.isWorkerThread() else { throw Failure.invalidCapture }
-                        return try NativeLayerTreeCapture.capture(size: viewport, scale: deviceScale / 2, makeRoot: {
-                            CATransaction.begin(); CATransaction.setDisableActions(true)
-                            defer { CATransaction.commit() }
-                            let root = CALayer()
-                            root.frame = CGRect(origin: .zero, size: viewport)
-                            root.contentsScale = deviceScale
-                            let leaf = CALayer()
-                            leaf.frame = root.bounds
-                            leaf.contentsScale = deviceScale
-                            leaf.contents = backing
-                            leaf.contentsGravity = .resize
-                            // Same fixed image-leaf orientation used by the production
-                            // foreign-background compositor. The graph is not flipped.
-                            leaf.transform = CATransform3DMakeScale(1, -1, 1)
-                            root.addSublayer(leaf)
-                            return root
-                        }).image
-                    }
-                    let coreImage = try await withTaskCancellationHandler(
-                        operation: { try await coreJob.value }, onCancel: { coreJob.cancel() })
-                    let corePixels = try save(coreImage, prefix: "native-direct-core-layer", output: output)
-                    var coreComparison = compare(smallWeb.pixels, corePixels)
-                    coreComparison["route"] = "core-layer-default-filter"
-                    coreComparison["background"] = background
-                    coreComparison["contentsScale"] = deviceScale
-                    coreComparison["captureScale"] = deviceScale / 2
-                    coreComparison["diagnosticOnly"] = true
-                    snapshotDiagnostics.append(coreComparison)
-                    for route in ["flattened-backing", "preserved-final-source"] {
-                        let image: CGImage?
-                        if route == "flattened-backing" {
-                            image = try NativeSourceCanvasSnapshotTargetRect.captureFlattened(backing: backing,
-                                viewport: viewport, contentsScale: deviceScale, captureScale: deviceScale / 2)
-                        } else {
-                            image = try NativeSourceCanvasSnapshotTargetRect.capturePreserved(prefix: prefixBeforeFinalSource,
-                                source: finalSource.image, sourceFrame: finalSource.rect, viewport: viewport,
-                                contentsScale: deviceScale, captureScale: deviceScale / 2)
-                        }
-                        let captured = try save(try #require(image), prefix: "native-explicit-rect-" + route, output: output)
-                        var comparison = compare(smallWeb.pixels, captured)
-                        comparison["route"] = "explicit-rect-" + route
-                        comparison["background"] = background
-                        comparison["contentsScale"] = deviceScale
-                        comparison["captureScale"] = deviceScale / 2
-                        comparison["diagnosticOnly"] = true
-                        snapshotDiagnostics.append(comparison)
-                    }
-                    try writeJSON(["expectedCount": 5, "count": snapshotDiagnostics.count,
-                        "scope": "Optional target-scale UIKit diagnostics; historical flattened Metal raw comparisons retained",
-                        "reports": snapshotDiagnostics], to: output.appendingPathComponent("direct-snapshot-diagnostics.json"))
-                }
                 for capture in captures {
                     do {
                         // Preserve the original flattened-image observation separately.

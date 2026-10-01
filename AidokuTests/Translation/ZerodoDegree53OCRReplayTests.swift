@@ -64,7 +64,7 @@ struct ZerodoDegree53OCRReplayTests {
                     directory.appendingPathComponent(name + ".png").path))
                 let cgImage = try #require(image.cgImage)
                 let regions = try await ReaderOCRService.shared.recognize(image: cgImage,
-                    configuration: .init(detectorMaximumSide: 2000,
+                    configuration: .init(detectorMaximumSide: 2000, recognizerMaximumWidth: 1280,
                         confidenceThreshold: 0.35,
                         detectorPixelThreshold: 0.3,
                         detectorConfidenceThreshold: 0.3))

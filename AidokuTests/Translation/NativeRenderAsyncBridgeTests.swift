@@ -55,13 +55,13 @@ struct NativeRenderAsyncBridgeTests {
         let viewport = CGSize(width: 80, height: 80)
         let rect = CGRect(x: 5, y: 7, width: 12, height: 14)
         let patch = NativeTranslationRenderer.SourcePatch(image: image, rect: rect)
-        #expect(NativeTranslationRenderer.admittedHierarchySourceFrame(patch, viewport: viewport, scale: 3) == rect)
+        #expect(NativeTranslationRenderer.admittedDirectSourceFrame(patch, viewport: viewport, scale: 3) == rect)
         let clipped = NativeTranslationRenderer.SourcePatch(image: image, rect: rect, cleanupClip: rect)
-        #expect(NativeTranslationRenderer.admittedHierarchySourceFrame(clipped, viewport: viewport, scale: 3) == nil)
-        #expect(NativeTranslationRenderer.admittedHierarchySourceFrame(patch, viewport: viewport, scale: 1.25) == nil)
+        #expect(NativeTranslationRenderer.admittedDirectSourceFrame(clipped, viewport: viewport, scale: 3) == nil)
+        #expect(NativeTranslationRenderer.admittedDirectSourceFrame(patch, viewport: viewport, scale: 1.25) == nil)
         let expansion = NativeTranslationRenderer.SourcePatch(image: image, rect: CGRect(x: 5, y: 7, width: 60, height: 60))
-        #expect(NativeTranslationRenderer.admittedHierarchySourceFrame(expansion, viewport: viewport, scale: 3) == nil)
-        #expect(NativeTranslationRenderer.admittedHierarchySourceFrame(patch, viewport: CGSize(width: 2_000, height: 2_000), scale: 3) == nil)
+        #expect(NativeTranslationRenderer.admittedDirectSourceFrame(expansion, viewport: viewport, scale: 3) == nil)
+        #expect(NativeTranslationRenderer.admittedDirectSourceFrame(patch, viewport: CGSize(width: 2_000, height: 2_000), scale: 3) == nil)
     }
 
 
@@ -92,7 +92,7 @@ struct NativeRenderAsyncBridgeTests {
             for command in commands {
                 if case .forced = command.operation {
                     #expect(UIGraphicsGetCurrentContext() == nil)
-                    accepted = try await NativeTranslationRenderer.paintHierarchySourcePatch(patch,
+                    accepted = try NativeTranslationRenderer.paintDirectSourcePatch(patch,
                         context: context, backing: bitmap.backing, viewport: viewport)
                     #expect(UIGraphicsGetCurrentContext() == nil)
                 } else {

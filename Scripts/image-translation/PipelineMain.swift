@@ -17,8 +17,8 @@ struct HostOptions {
     var source = "auto"
     var target = "ko"
     var confidence = 0.75
-    var detectorSide = 1600
-    var recognizerWidth = 1600
+    var detectorSide = IPhoneOCRSettings.defaultDetectorMaximumSide
+    var recognizerWidth = IPhoneOCRSettings.defaultRecognizerMaximumWidth
     var detectorPixelThreshold: Double?
     var detectorConfidenceThreshold: Double?
     var detectorMinimumBoxSide = 3.0
@@ -171,6 +171,9 @@ struct HostOptions {
             }
             index += 1
         }
+        // Saved phone profiles and explicit options share the reader's supported OCR range.
+        detectorSide = min(max(IPhoneOCRSettings.minimumInputDimension, detectorSide), IPhoneOCRSettings.maximumDetectorSide)
+        recognizerWidth = min(max(IPhoneOCRSettings.minimumInputDimension, recognizerWidth), IPhoneOCRSettings.maximumRecognizerWidth)
         guard !(ocrOnly && translations != nil) else { throw HostError.message("Choose either --ocr-only or --translations") }
         // Let production validators handle language and endpoint policy before expensive model loading.
         try RemoteTranslationRequest(sourceLanguage: source, targetLanguage: target, sourceText: "validation").validate()
@@ -425,6 +428,7 @@ struct ImageTranslationMain {
                     HostDump.capture("runtime-settings", ["baseURL": options.baseURL, "model": options.model,
                         "protocol": options.apiProtocol.rawValue, "reasoningEffort": options.reasoningEffort.rawValue,
                         "timeout": options.timeout, "sourceLanguage": options.source, "targetLanguage": options.target,
+                        "ocr": HostDump.json(options.ocrConfiguration),
                         "translationSourceLanguages": options.translationSourceLanguages, "includePageImage": options.includeImage,
                         "filterSFXWithLLM": options.filterSFX, "filterBackgroundWithLLM": options.filterBackground,
                         "rightToLeftPanelOrder": options.rtl, "jobs": options.jobs, "appearance": try options.appearance, "viewport": [options.viewport.width, options.viewport.height]])

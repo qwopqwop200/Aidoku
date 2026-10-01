@@ -1922,6 +1922,8 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
         self.frameConverter = frameConverter
     }
 
+    // Reader settings and CLI options enforce the reader resolution limits.
+    // Explicit dimensions remain available for model and historical replay tests.
     convenience init(
         modelTier: IPhoneOCRModelTier,
         detectorMaximumSide: Int =

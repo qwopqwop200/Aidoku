@@ -9,8 +9,11 @@ enum IPhoneOCRModelTier: String, Codable, CaseIterable, Sendable {
 }
 
 enum IPhoneOCRSettings {
-    static let defaultDetectorMaximumSide = 1_280
-    static let defaultRecognizerMaximumWidth = 1_280
+    static let minimumInputDimension = 32
+    static let maximumDetectorSide = 1_184
+    static let maximumRecognizerWidth = 1_184
+    static let defaultDetectorMaximumSide = maximumDetectorSide
+    static let defaultRecognizerMaximumWidth = maximumRecognizerWidth
 }
 
 struct ReaderOCRConfiguration: Equatable, Codable, Sendable {
@@ -40,12 +43,12 @@ struct ReaderOCRConfiguration: Equatable, Codable, Sendable {
         self.detectorMinimumBoxSide = detectorMinimumBoxSide
     }
 
-    // Reader settings always use the validated mobile ceilings. Explicit configurations
-    // remain available to the offline OCR tooling and model regression fixtures.
-    fileprivate var fixedReaderResolution: Self {
+    // Bound saved and in-memory reader settings to the mobile ceilings while
+    // preserving smaller limits. The dynamic models require at least 32 pixels.
+    fileprivate var boundedReaderResolution: Self {
         var value = self
-        value.detectorMaximumSide = IPhoneOCRSettings.defaultDetectorMaximumSide
-        value.recognizerMaximumWidth = IPhoneOCRSettings.defaultRecognizerMaximumWidth
+        value.detectorMaximumSide = min(max(detectorMaximumSide, IPhoneOCRSettings.minimumInputDimension), IPhoneOCRSettings.maximumDetectorSide)
+        value.recognizerMaximumWidth = min(max(recognizerMaximumWidth, IPhoneOCRSettings.minimumInputDimension), IPhoneOCRSettings.maximumRecognizerWidth)
         return value
     }
 
@@ -221,8 +224,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
            let value = try? JSONDecoder().decode(IPhoneOverlaySettings.self, from: data) { overlay = value }
         overlay.enforceSourceReplacement()
         if let data = defaults.data(forKey: Self.keyPrefix + "ocr"),
-           let value = try? JSONDecoder().decode(ReaderOCRConfiguration.self, from: data) { ocr = value.fixedReaderResolution }
-        ocr.modelTier = modelTier
+           let value = try? JSONDecoder().decode(ReaderOCRConfiguration.self, from: data) { ocr = value.boundedReaderResolution }
         openAIReasoningEffort = defaults.string(forKey: Self.keyPrefix + "reasoningEffort")
             .flatMap(OpenAIReasoningEffort.init(rawValue:)) ?? openAIReasoningEffort
         maximumConcurrentRequests = defaults.object(forKey: Self.keyPrefix + "concurrency") as? Int ?? maximumConcurrentRequests
@@ -247,9 +249,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     }
 
     var ocrConfiguration: ReaderOCRConfiguration {
-        var value = ocr.fixedReaderResolution
-        value.modelTier = modelTier
-        return value
+        ocr.boundedReaderResolution
     }
 
     func hasSameTranslation(as other: Self) -> Bool {

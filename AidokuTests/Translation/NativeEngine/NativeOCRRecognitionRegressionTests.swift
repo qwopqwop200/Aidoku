@@ -5,7 +5,7 @@ import Testing
 @testable import Aidoku
 
 struct NativeOCRRecognitionRegressionTests {
-    @Test(arguments: [33, 48, 99, 157, 319, 320, 641, 1280, 1500])
+    @Test(arguments: [33, 48, 99, 157, 319, 320, 641, 1183, 1184, 1185, 1280, 1500])
     func dynamicTensorUsesExactCropWidthWithoutPadding(width: Int) throws {
         let height = 48
         let frame = try #require(NativeOCRRGBAFrame(
@@ -15,15 +15,30 @@ struct NativeOCRRecognitionRegressionTests {
         let polygon = [CGPoint(x: 0, y: 0), CGPoint(x: width, y: 0),
                        CGPoint(x: width, y: height), CGPoint(x: 0, y: height)]
         let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(
-            polygon: polygon, dynamicWidth: true, maximumWidth: 1280
+            polygon: polygon, dynamicWidth: true
         ))
-        let expectedWidth = min(width, 1280)
+        let expectedWidth = min(width, 1184)
         #expect(plan.resizedWidth == expectedWidth)
         #expect(plan.bucket.width == expectedWidth)
         #expect(plan.bucket.timeSteps == (expectedWidth + 3) / 8)
         let tensor = try #require(NativeCoreMLRecognitionPreprocessor.prepare(frame: frame, plan: plan))
         #expect(tensor.values.count == 3 * 48 * expectedWidth)
         #expect(tensor.resizedWidth == tensor.bucket.width)
+    }
+
+    @Test(arguments: [64, 319, 320, 321, 640, 641, 960, 1184])
+    func fixedModelTensorPreservesContentLimitWithoutDroppingToSmallerBucket(maximumWidth: Int) throws {
+        let polygon = [CGPoint(x: 0, y: 0), CGPoint(x: 1500, y: 0),
+                       CGPoint(x: 1500, y: 48), CGPoint(x: 0, y: 48)]
+        let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(
+            polygon: polygon, maximumWidth: maximumWidth
+        ))
+        let expectedBucket = maximumWidth <= 320 ? 320 : maximumWidth <= 640 ? 640 : 1280
+        #expect(plan.resizedWidth == maximumWidth)
+        #expect(plan.bucket.width == expectedBucket)
+        let variant = try #require(NativeCoreMLRecognitionModelVariant(bucket: plan.bucket, batchSize: 1))
+        #expect(variant.functionName == "rec\(expectedBucket)b1")
+        #expect(variant.inputShape == [1, 3, 48, expectedBucket])
     }
 
     @Test func rejectedSteepLatinHasABoundedAlternativeReadingAxis() throws {
@@ -231,6 +246,8 @@ extension NativeOCRRecognitionRegressionTests {
         let frame = try #require(NativeOCRRGBAFrame(width: width, height: height, bytes: bytes))
         // Mixed widths, with every third crop repeating its predecessor's
         // pixels so a later chunk depends on an earlier chunk's insertions.
+        // Preserve the fixture's 1200/1800 widths: the reader's 1184 cap merges
+        // those buckets and moves duplicate crops into the same prediction.
         let regions = (0..<27).map { index -> NativeCoreMLRecognitionRegion in
             let row = index.isMultiple(of: 3) && index > 0 ? index - 1 : index
             let right = [8, 40, 100, 150][row % 4]
@@ -251,6 +268,7 @@ extension NativeOCRRecognitionRegressionTests {
                 recognitionCacheCapacity: 12,
                 dynamicWidth: dynamicWidth,
                 maximumConcurrentPredictions: concurrency,
+                maximumRecognitionWidth: 2_000,
                 auditObserver: { audit.append($0) }
             )
             var results: [[NativeCoreMLRecognizedRegion]] = []

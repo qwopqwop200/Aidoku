@@ -1,7 +1,6 @@
 import UIKit
 import ImageIO
 import SVGKit
-import SwiftSoup
 
 /// Dictionary media uses native raster decoders and SVGKit's Core Animation vector tree.
 /// Structured dimensions are in dictionary units, independent of image pixel density.

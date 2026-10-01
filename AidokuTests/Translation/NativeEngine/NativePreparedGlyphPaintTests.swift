@@ -125,25 +125,13 @@ struct NativePreparedGlyphPaintTests {
         let splitColor = NSMutableAttributedString(attributedString: attributed(text, extraWidth: 0))
         splitColor.addAttribute(NSAttributedString.Key(kCTStrokeColorAttributeName as String),
             value: CGColor(gray: 0, alpha: 1), range: NSRange(location: 0, length: 3))
-        func signature(_ line: CTLine) -> String {
-            (CTLineGetGlyphRuns(line) as! [CTRun]).map { run in
-                let range = CTRunGetStringRange(run), count = CTRunGetGlyphCount(run)
-                var glyphs = [CGGlyph](repeating: 0, count: count)
-                var positions = [CGPoint](repeating: .zero, count: count)
-                CTRunGetGlyphs(run, CFRange(location: 0, length: 0), &glyphs)
-                CTRunGetPositions(run, CFRange(location: 0, length: 0), &positions)
-                return "\(range.location):\(range.length) glyphs=\(glyphs) x=\(positions.map(\.x))"
-            }.joined(separator: "; ")
-        }
         let untouched = try pixels { _ in }
         for (kind, value) in [("width", splitWidth), ("color", splitColor as NSAttributedString)] {
             let legacy = frames(value)
             let original = try #require(lines(legacy.combined).first)
-            let filled = try #require(lines(legacy.fill).first)
-            print("Split stroke \(kind), measured: \(signature(original.0)); legacy fill: \(signature(filled.0))")
             let refused = try pixels { context in
                 let prepared = NativeCTFontHorizontalFillPainter.prepare(line: original.0, ignoringStroke: true)
-                #expect(prepared == nil)
+                #expect(prepared == nil, "Mixed stroke \(kind) must decline measured glyph reuse")
                 if let prepared {
                     NativeCTFontHorizontalFillPainter.draw(prepared: prepared, context: context, anchor: original.1)
                 }

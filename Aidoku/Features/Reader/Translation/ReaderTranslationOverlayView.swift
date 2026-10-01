@@ -52,7 +52,6 @@ final class ReaderTranslationOverlayView: UIView {
     private(set) var layoutCacheKey: String?
     var onCacheGeometryChanged: (() -> Void)?
     var onRenderCommitted: (() -> Void)?
-    var onRenderCleared: (() -> Void)?
     var onRenderFailed: (() -> Void)?
     var onSnapshotStored: ((UIImage) -> Void)?
     var defersPresentationUntilSnapshot = false
@@ -86,28 +85,6 @@ final class ReaderTranslationOverlayView: UIView {
         renderTask?.cancel()
         renderTask = nil
         pendingFrame = nil
-    }
-
-    func resetForExportReuse() {
-        cancelWork()
-        onRenderCommitted = nil
-        onRenderCleared = nil
-        onRenderFailed = nil
-        onSnapshotStored = nil
-        snapshotTarget = nil
-        layoutCacheKey = nil
-        sourceImage = nil
-        renderedImageView.image = nil
-        renderedImageView.isHidden = true
-        renderedLayoutData = nil
-        lastDiagnostic = nil
-        items = []
-        regions = []
-        preparedLayout = nil
-        imageSize = .zero
-        renderedSize = .zero
-        dirty = false
-        needsRendering = false
     }
 
     func update(

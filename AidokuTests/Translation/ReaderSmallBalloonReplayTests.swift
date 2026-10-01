@@ -14,7 +14,7 @@ struct ReaderSmallBalloonReplayTests {
     private func replay(_ directory: URL) async throws {
         let cgImage = try #require(UIImage(contentsOfFile: directory.appendingPathComponent("original.image").path)?.cgImage)
         var regions = try await ReaderOCRService.shared.recognize(image: cgImage, configuration: .init(
-            detectorMaximumSide: 2000, confidenceThreshold: 0.35, detectorPixelThreshold: 0.3, detectorConfidenceThreshold: 0.3))
+            detectorMaximumSide: 2000, recognizerMaximumWidth: 1280, confidenceThreshold: 0.35, detectorPixelThreshold: 0.3, detectorConfidenceThreshold: 0.3))
         for index in regions.indices {
             let x = regions[index].rect.midX
             regions[index].translation = x > 0.93 ? "치..." : x > 0.85 ? "음(승인가)" : x > 0.5 ? "퐁냐!" : "자○지냐냥?"

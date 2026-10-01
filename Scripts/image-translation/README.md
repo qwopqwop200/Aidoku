@@ -17,6 +17,8 @@ The executable, object files and compiled Core ML models are reused under `build
 
 The repository's ignored `.env` loads automatically, including when the launcher is invoked by absolute path from another directory. Precedence is **CLI > shell environment > .env > built-in defaults**. `.env.example` contains no credential. Credentials are excluded from printed settings and artifacts. Dotenv supports `KEY=value`, quoted literals, comments and optional `export`; it does not evaluate shell expressions.
 
+OCR defaults to a detector maximum side of 1184 and a recognizer maximum width of 1184 at height 48. Positive CLI/environment sizes are bounded to the reader's supported 32...1184 range, including historical phone snapshots. Effective OCR settings are recorded in the input and runtime-settings diagnostics; model function names retain their bundled package identities.
+
 Import a phone's saved settings with:
 
 ```sh

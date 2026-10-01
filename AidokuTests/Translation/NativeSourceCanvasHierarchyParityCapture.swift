@@ -73,7 +73,7 @@ import CryptoKit
                     viewport: page.size, scale: scale, sourceFrame: placement)
                 let job = Task.detached {
                     let worker = Self.isWorkerThread()
-                    let image = try await NativeSourceCanvasHierarchyCompositor.compose(request)
+                    let image = try NativeSourceCanvasHierarchyCompositor.compose(request)
                     return (image, worker)
                 }
                 let (result, worker) = try await withTaskCancellationHandler(operation: { try await job.value }, onCancel: { job.cancel() })

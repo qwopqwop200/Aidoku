@@ -76,9 +76,9 @@ struct PerformanceOOMOptimizationTests {
         }
         let frame = try #require(NativeOCRRGBAFrame(width: width, height: height, bytes: bytes))
         let canvas = try #require(NativeCoreMLDetectionCanvas(inputShape: [1, 3, height, 1312]))
-        let reference = try await NativeCoreMLDetectionPreprocessor.prepare(frame: frame, canvas: canvas, useBoundedMemory: false)
+        let expected = try await referenceDetectorInput(frame: frame, canvas: canvas)
         let bounded = try await NativeCoreMLDetectionPreprocessor.prepare(frame: frame, canvas: canvas)
-        let expected = await reference.values(), actual = await bounded.values()
+        let actual = await bounded.values()
         let error = zip(expected, actual).reduce(Float(0)) { max($0, abs($1.0 - $1.1)) }
         #expect(error < 0.001)
     }
@@ -97,9 +97,9 @@ struct PerformanceOOMOptimizationTests {
         let canvas = try #require(NativeCoreMLDetectionCanvas(inputShape: [1, 3, 192, 128]))
         let dimensions = try #require(NativeCoreMLDetectionPreprocessor.resizeDimensions(sourceWidth: width,
             sourceHeight: height, maximumSide: 192))
-        let reference = try await NativeCoreMLDetectionPreprocessor.prepare(frame: frame, canvas: canvas, useBoundedMemory: false)
+        let expected = try await referenceDetectorInput(frame: frame, canvas: canvas)
         let bounded = try await NativeCoreMLDetectionPreprocessor.prepareBounded(frame: frame, canvas: canvas, dimensions: dimensions)
-        let expected = await reference.values(), actual = await bounded.values()
+        let actual = await bounded.values()
         #expect(expected.count == actual.count)
         let error = zip(expected, actual).map { abs($0 - $1) }.max() ?? .infinity
         print("BOUNDED_DETECTOR_MAX_ERROR=\(error)")
@@ -118,6 +118,118 @@ struct PerformanceOOMOptimizationTests {
                 #expect(abs(actual[channel * 192 * 128 + y * 128 + x] - channels[channel]) < 0.0001)
             }
         }
+    }
+
+    /// Independent full-image MLTensor reference retained only for sampling parity.
+    /// Production always uses the bounded CPU sampler.
+    private func referenceDetectorInput(
+        frame: NativeOCRRGBAFrame,
+        canvas: NativeCoreMLDetectionCanvas
+    ) async throws -> [Float] {
+        let dimensions = try #require(NativeCoreMLDetectionPreprocessor.resizeDimensions(
+            sourceWidth: frame.width, sourceHeight: frame.height,
+            maximumSide: max(canvas.width, canvas.height)
+        ))
+        let contiguousRGBA = Self.makeContiguousRGBA(frame: frame)
+        let rgba = MLTensor(
+            shape: [1, frame.height, frame.width, 4],
+            scalars: contiguousRGBA,
+            scalarType: UInt8.self
+        )
+#if targetEnvironment(simulator)
+        let tensorComputePolicy = MLComputePolicy.cpuOnly
+#else
+        let tensorComputePolicy = MLComputePolicy(.all)
+#endif
+        let input = withMLTensorComputePolicy(tensorComputePolicy) {
+            let channelIndices = MLTensor([
+                Int32(2),
+                Int32(1),
+                Int32(0),
+            ])
+            let bgr = rgba
+                .transposed(permutation: [0, 3, 1, 2])
+                .gathering(atIndices: channelIndices, alongAxis: 1)
+                .cast(to: Float.self)
+                .resized(
+                    to: (dimensions.height, dimensions.width),
+                    method: .bilinear(alignCorners: false)
+                )
+            let mean = MLTensor(
+                shape: [1, 3, 1, 1],
+                scalars: [Float(0.485), 0.456, 0.406]
+            )
+            let standardDeviation = MLTensor(
+                shape: [1, 3, 1, 1],
+                scalars: [Float(0.229), 0.224, 0.225]
+            )
+            var padded = (bgr / Float(255) - mean) / standardDeviation
+            if dimensions.width < canvas.width {
+                let rightPadding = MLTensor(
+                    zeros: [
+                        1,
+                        3,
+                        dimensions.height,
+                        canvas.width - dimensions.width,
+                    ],
+                    scalarType: Float.self
+                )
+                padded = MLTensor(
+                    concatenating: [padded, rightPadding],
+                    alongAxis: 3
+                )
+            }
+            if dimensions.height < canvas.height {
+                let bottomPadding = MLTensor(
+                    zeros: [
+                        1,
+                        3,
+                        canvas.height - dimensions.height,
+                        canvas.width,
+                    ],
+                    scalarType: Float.self
+                )
+                padded = MLTensor(
+                    concatenating: [padded, bottomPadding],
+                    alongAxis: 2
+                )
+            }
+            return padded
+        }
+        return await input.shapedArray(of: Float.self).scalars
+    }
+
+    private static func makeContiguousRGBA(
+        frame: NativeOCRRGBAFrame
+    ) -> [UInt8] {
+        let tightBytesPerRow = frame.width * 4
+        let visibleByteCount = tightBytesPerRow * frame.height
+        if frame.bytesPerRow == tightBytesPerRow,
+           frame.bytes.count == visibleByteCount
+        {
+            return frame.bytes
+        }
+        var result = [UInt8](repeating: 0, count: visibleByteCount)
+        result.withUnsafeMutableBytes { destination in
+            frame.bytes.withUnsafeBytes { source in
+                guard let destinationBase = destination.baseAddress,
+                      let sourceBase = source.baseAddress
+                else {
+                    return
+                }
+                for row in 0..<frame.height {
+                    destinationBase
+                        .advanced(by: row * tightBytesPerRow)
+                        .copyMemory(
+                            from: sourceBase.advanced(
+                                by: row * frame.bytesPerRow
+                            ),
+                            byteCount: tightBytesPerRow
+                        )
+                }
+            }
+        }
+        return result
     }
 
     @Test func bufferedTouchesPreserveEvictionOrder() async throws {

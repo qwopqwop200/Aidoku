@@ -3,6 +3,34 @@ import Foundation
 import XCTest
 @testable import Aidoku
 final class NativeCoreMLDetectorSafetyTests: XCTestCase {
+    func testDefaultDetectorCanvasUses1184PixelLimitAndRetainsSmallerSources() throws {
+        let cases: [(width: Int, height: Int, expectedWidth: Int, expectedHeight: Int)] = [
+            (2_560, 1_920, 1_184, 896),
+            (1_920, 2_560, 896, 1_184),
+            (2_560, 2_560, 1_184, 1_184),
+            (640, 960, 640, 960),
+            (1, 10_000, 32, 1_184),
+        ]
+        for sample in cases {
+            let canvas = try XCTUnwrap(NativeCoreMLDetectionCanvas.exact(
+                sourceWidth: sample.width, sourceHeight: sample.height
+            ))
+            XCTAssertEqual(canvas.inputShape, [1, 3, sample.expectedHeight, sample.expectedWidth])
+            XCTAssertEqual(canvas.outputShape, [1, 1, sample.expectedHeight, sample.expectedWidth])
+        }
+    }
+
+    func testExplicitDetectorReplayShapesRemainWithinPackagedModelRange() throws {
+        let canvas = try XCTUnwrap(NativeCoreMLDetectionCanvas.exact(
+            sourceWidth: 2_560, sourceHeight: 1_920, maximumSide: 2_000
+        ))
+        XCTAssertEqual(canvas.inputShape, [1, 3, 1_504, 1_984])
+        XCTAssertEqual(NativeCoreMLDetectionCanvas(inputShape: canvas.inputShape), canvas)
+        XCTAssertNotNil(NativeCoreMLDetectionCanvas(inputShape: [1, 3, 1_184, 1_184]))
+        XCTAssertNil(NativeCoreMLDetectionCanvas(inputShape: [1, 3, 1_185, 1_184]))
+        XCTAssertNil(NativeCoreMLDetectionCanvas(inputShape: [1, 3, 2_016, 1_184]))
+    }
+
     func testProbabilitySupportRecoversWeakEdgesWithoutChangingRecognitionBoxes() throws {
         let w = 128, h = 96
         var values = [Float](repeating: 0, count: w * h)

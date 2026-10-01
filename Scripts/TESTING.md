@@ -1,6 +1,58 @@
 # Local regression tests
 
-## Native efficiency verification (2026-10-02)
+## Native cleanup and 1184 OCR verification (2026-10-02)
+
+Eight agents cleaned the native rendering changes based on `fd251859` and bounded
+reader/CLI OCR to detector 1184 and recognizer 48 × 1184. Lower valid preferences
+are preserved. Explicit internal model/replay inputs retain their historical
+contracts; seven recorded service replays now specify their prior 1280 recognizer
+width instead of depending on the changing reader default.
+
+The 15 affected suites contain **141 test declarations / 306 expanded cases**.
+Taking the latest result per declaration, all passed with zero skipped. This is
+focused verification, not a new full-plan execution. Both before/after source
+manifests match within each run, and production code was unchanged between runs.
+
+| Run | Build activity | Swift Testing body | Command wall time | Result |
+| --- | ---: | ---: | ---: | --- |
+| focused1 | 631.245 s | 6.413 s | 666.474 s | 140 passed, one fixture corrected afterward |
+| focused2 | 26.876 s | 0.338 s | 32.450 s | All 19 declarations in the three affected OCR suites passed |
+
+Both used incremental Release `-O`, `singlefile`, two build jobs and the existing
+`build/simulator-fast-release` cache. The first build recompiled sources at the
+new worktree path; it was not a cache-cleared build. The second compiled changed
+test files only. One iPhone 17 Pro iOS 26.5 simulator was used. Command wall time
+also includes XCTest execution, startup and result collection; it is not the sum
+of build activity and the Swift Testing body measurement.
+
+`NativeOCRResolutionContractTests` passed actual inference for all three bundled
+model tiers: detector input/output widths 1184 and recognizer inputs 48 × 1184.
+Settings tests cover old 1280 values, bounds, persisted drafts and cache identity;
+recognizer tests observe actual prepared 1184 tensors and four-crop batches.
+The initial cache test depended on the old injected 2000 maximum to keep 1200 and
+1800 buckets distinct. It now states that fixture requirement explicitly; its
+nonzero cross-chunk cache-hit assertion and serial/concurrent comparison remain
+unchanged. No production workaround or weakened assertion was added.
+
+The old memory/timing/report-writing harness was replaced by
+`NativeRenderPipelineTests`, preserving live/export/source correctness fixtures.
+Inactive snapshot experiments and their orphaned helpers were removed; frozen
+references and active negative controls remain intact. Recorded high-resolution
+incident suites were compiled with explicit historical settings, but were not
+re-executed as part of this focused run.
+
+The current-source host OCR/render integration passed in **168.075 s**, including
+incremental Release compilation, native OCR, local provider, PNG save/HTML
+identity, replay/resume, parallel provider and error handling. That combined host
+timer does not separate compilation from execution. The CLI settings/import
+smoke also passed, including old-value clamping and lower-value preservation.
+The private `.env`, model packages, frozen images and reference kernels were not
+modified.
+
+Evidence: `../../output/native-cleanup-1184/final-validation.json`,
+`affected-final-coverage.json`, and `runs/` in that output directory.
+
+## Native efficiency verification snapshot (2026-10-02)
 
 Eight agents worked in `codex/native-render-efficiency`, based on `24e9dfb7`.
 The focused simulator evidence contains **211 distinct test declarations / 343
@@ -42,8 +94,9 @@ physical-device performance claims.
 
 Host checks passed `run-image-native-graphics-smoke.py` (1.454 s) and
 `run-image-export-compositor-smoke.py` (1.229 s), each including its standalone
-compile. The actual current-source `run-image-translation-smoke.py` passed in
-147.061 s, including incremental Release compilation, Core ML OCR, local provider,
+compile. The `run-image-translation-smoke.py` execution against that source
+snapshot passed in 147.061 s, including incremental Release compilation, Core ML
+OCR, local provider,
 render/save/replay/resume and concurrency/error checks. That combined host timer
 does not separate compilation from execution. An earlier `--help`/`--reuse-built`
 attempt is explicitly invalidated as current-source integration evidence because
@@ -56,7 +109,7 @@ was replaced and no skipped/disabled test was added for this change.
 
 ## Default iOS tests: AidokuFast
 
-The Aidoku scheme now defaults to **AidokuFast** with Release optimization.
+The Aidoku scheme defaults to **AidokuFast** with Release optimization.
 Normal Xcode Test / Cmd-U uses this plan. Its selected suites are declared in `AidokuFast.xctestplan` and cover codecs,
 native source adapters, cache bounds, cancellation, scheduling, storage, geometry
 and native rendering. Historical measured suite counts below apply to their

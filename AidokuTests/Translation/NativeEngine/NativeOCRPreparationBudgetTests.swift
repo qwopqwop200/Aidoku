@@ -6,9 +6,10 @@ import Testing
 
 @Suite(.serialized)
 struct NativeOCRPreparationBudgetTests {
-    @Test func defaultReaderBudgetEqualsEightIndependentPreparedFloatBuffers() throws {
-        #expect(IPhoneOCRSettings.defaultRecognizerMaximumWidth == 1_280)
-        #expect(NativeCoreMLRecognizer.inputShape == [1, 3, 48, 1_280])
+    @Test func compatibilityBudgetEqualsEightIndependentPreparedFloatBuffers() throws {
+        #expect(IPhoneOCRSettings.defaultRecognizerMaximumWidth == 1_184)
+        #expect(NativeCoreMLRecognizer.inputShape == [1, 3, 48, 1_184])
+        #expect(NativeCoreMLRecognizer.outputShape == [2, 148])
         #expect(NativeCoreMLRecognizer.maximumPreparedRegionCount == 8)
         #expect(NativeCoreMLRecognizer.maximumPreparedWindowRegionCount == 4)
         // Distinct source bands prevent equal-value CoW reuse from making this
@@ -21,7 +22,7 @@ struct NativeOCRPreparationBudgetTests {
         let tensors = try (0..<8).map { index in
             let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(
                 polygon: polygon(width: 1_280, y: index * 48), dynamicWidth: true,
-                maximumWidth: IPhoneOCRSettings.defaultRecognizerMaximumWidth
+                maximumWidth: 1_280
             ))
             return try #require(NativeCoreMLRecognitionPreprocessor.prepare(frame: frame, plan: plan))
         }
@@ -98,12 +99,34 @@ struct NativeOCRPreparationBudgetTests {
         let recognizer = try NativeCoreMLRecognizer(
             predictor: predictor,
             dictionary: [String](repeating: "word", count: NativeCoreMLRecognizer.expectedDictionaryCharacterCount),
-            recognitionCacheCapacity: 0, dynamicWidth: true
+            recognitionCacheCapacity: 0, dynamicWidth: true, maximumRecognitionWidth: 2_000
         )
         let result = try await recognizer.recognize(frame: frame, regions: regions)
         let batches = width == 1_280 ? [4, 4, 1] : [2, 2, 2, 2, 1]
         #expect(result.diagnostics.modelFunctionSequence == batches.map { "rec\(width)b\($0)" })
         #expect(predictor.inputShapes == batches.map { [$0, 3, 48, width] })
+        #expect(result.diagnostics.predictedRegions == 9)
+        #expect(result.diagnostics.skippedInvalidRegions == 0)
+        #expect(result.regions.map(\.sourceIndex) == Array(0..<9))
+        #expect(result.regions.map(\.text) == [String](repeating: "word", count: 9))
+        await recognizer.purgeResources()
+    }
+
+    @Test(arguments: [1_184, 1_185, 1_280, 2_000])
+    func defaultRecognizerCapsLongLinesAndKeepsFourRegionBatches(sourceWidth: Int) async throws {
+        let frame = try makeFrame(width: sourceWidth, height: 48 * 9)
+        let regions = (0..<9).map { index in
+            NativeCoreMLRecognitionRegion(sourceIndex: index, polygon: polygon(width: sourceWidth, y: index * 48))
+        }
+        let predictor = OCRPreparationBudgetPredictor()
+        let recognizer = try NativeCoreMLRecognizer(
+            predictor: predictor,
+            dictionary: [String](repeating: "word", count: NativeCoreMLRecognizer.expectedDictionaryCharacterCount),
+            dynamicWidth: true
+        )
+        let result = try await recognizer.recognize(frame: frame, regions: regions)
+        #expect(result.diagnostics.modelFunctionSequence == ["rec1184b4", "rec1184b4", "rec1184b1"])
+        #expect(predictor.inputShapes == [[4, 3, 48, 1_184], [4, 3, 48, 1_184], [1, 3, 48, 1_184]])
         #expect(result.diagnostics.predictedRegions == 9)
         #expect(result.diagnostics.skippedInvalidRegions == 0)
         #expect(result.regions.map(\.sourceIndex) == Array(0..<9))

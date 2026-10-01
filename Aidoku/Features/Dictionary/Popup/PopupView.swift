@@ -141,29 +141,18 @@ struct PopupLayout {
 
 @available(iOS 18.0, *)
 struct PopupView: View {
-//    @Environment(UserConfig.self) private var userConfig
     private var userConfig: UserConfig
-//    @Binding var isVisible: Bool
     let selectionData: SelectionData?
-    let lookupResults: [LookupResult]
-    let dictionaryStyles: [String: String]
     let availableFrame: CGRect
     let isVertical: Bool
     let isFullWidth: Bool
     let chapterId: ChapterIdentifier?
     let page: Int
-//    let coverURL: URL?
-//    let documentTitle: String?
     var clearSelection: Bool
     var onTextSelected: ((SelectionData) -> Int?)?
     var onTapOutside: (() -> Void)?
     var onSwipeDismiss: (() -> Void)?
-    var onPause: (() -> Void)?
-//    var sasayakiCue: SasayakiMatch?
-//    var sasayakiPlayer: SasayakiPlayer?
-    var wasPaused = false
 
-    @State private var content: String = ""
     @State private var lookupEntries: [[String: Any]] = []
     @State private var controlsHeight: CGFloat = 0
     @State private var backCount: Int = 0
@@ -173,50 +162,31 @@ struct PopupView: View {
 
     init(
         userConfig: UserConfig,
-//        isVisible: Binding<Bool>,
         selectionData: SelectionData?,
         lookupResults: [LookupResult],
-        dictionaryStyles: [String: String],
         availableFrame: CGRect,
         isVertical: Bool,
         isFullWidth: Bool,
         chapterId: ChapterIdentifier?,
         page: Int,
-//        coverURL: URL?,
-//        documentTitle: String?,
         clearSelection: Bool,
         onTextSelected: ((SelectionData) -> Int?)? = nil,
         onTapOutside: (() -> Void)? = nil,
-        onSwipeDismiss: (() -> Void)? = nil,
-        onPause: (() -> Void)? = nil,
-//        sasayakiCue: SasayakiMatch? = nil,
-//        sasayakiPlayer: SasayakiPlayer? = nil,
-        wasPaused: Bool = false
+        onSwipeDismiss: (() -> Void)? = nil
     ) {
         self.userConfig = userConfig
-//        _isVisible = isVisible
         self.selectionData = selectionData
-        self.lookupResults = lookupResults
-        self.dictionaryStyles = dictionaryStyles
         self.availableFrame = availableFrame
         self.isVertical = isVertical
         self.isFullWidth = isFullWidth
         self.chapterId = chapterId
         self.page = page
-//        self.coverURL = coverURL
-//        self.documentTitle = documentTitle
         self.clearSelection = clearSelection
         self.onTextSelected = onTextSelected
         self.onTapOutside = onTapOutside
         self.onSwipeDismiss = onSwipeDismiss
-        self.onPause = onPause
-//        self.sasayakiCue = sasayakiCue
-//        self.sasayakiPlayer = sasayakiPlayer
-        self.wasPaused = wasPaused
 
-        let cache = Self.buildContent(lookupResults: lookupResults, userConfig: userConfig)
-        _content = State(initialValue: cache.content)
-        _lookupEntries = State(initialValue: cache.lookupEntries)
+        _lookupEntries = State(initialValue: Self.buildLookupEntries(lookupResults: lookupResults))
     }
 
     private var layout: PopupLayout? {
@@ -283,60 +253,12 @@ struct PopupView: View {
         }
     }
 
-//    @ViewBuilder
-//    private func sasayakiControls(for cue: SasayakiMatch, player: SasayakiPlayer) -> some View {
-//        VStack(spacing: 0) {
-//            HStack(spacing: 20) {
-//                Button {
-//                    Task { @MainActor in
-//                        await WordAudioPlayer.shared.stop()
-//                        player.playCue(from: cue, stop: true)
-//                    }
-//                } label: {
-//                    Image(systemName: "arrow.clockwise")
-//                }
-//
-//                Button {
-//                    Task { @MainActor in
-//                        await WordAudioPlayer.shared.stop()
-//                        if wasPaused {
-//                            onPause?()
-//                        } else {
-//                            player.togglePlayback()
-//                        }
-//                    }
-//                } label: {
-//                    Image(systemName: player.isPlaying || wasPaused ? "pause.fill" : "play.fill")
-//                }
-//
-//                Button {
-//                    Task { @MainActor in
-//                        await WordAudioPlayer.shared.stop()
-//                        player.playCue(from: cue, stop: false)
-//                        onSwipeDismiss?()
-//                    }
-//                } label: {
-//                    Image(systemName: "forward.frame")
-//                }
-//            }
-//            .font(.body)
-//            .foregroundStyle(.secondary)
-//            .padding(.vertical, 8)
-//            .frame(maxWidth: .infinity)
-//            .contentShape(Rectangle())
-//            Divider()
-//        }
-//    }
-
     private func popupContent(selectionData: SelectionData, layout: PopupLayout) -> some View {
         VStack(spacing: 0) {
             VStack(spacing: 0) {
                 if userConfig.popupActionBar || backCount > 0 || forwardCount > 0 {
                     actionBar
                 }
-//                if let cue = sasayakiCue, let player = sasayakiPlayer, player.hasAudio {
-//                    sasayakiControls(for: cue, player: player)
-//                }
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
                 controlsHeight = $0
@@ -395,7 +317,7 @@ struct PopupView: View {
         ZStack(alignment: .topLeading) {
             if #available(iOS 26.0, *), !userConfig.popupDisableTransparency {
                 GlassEffectContainer {
-                    if let selectionData, let layout, !content.isEmpty {
+                    if let selectionData, let layout, !lookupEntries.isEmpty {
                         popupContent(selectionData: selectionData, layout: layout)
                             .glassEffect(.regular, in: .rect(cornerRadius: 8))
                             .position(layout.position)
@@ -403,7 +325,7 @@ struct PopupView: View {
                 }
             } else {
                 Group {
-                    if let selectionData, let layout, !content.isEmpty {
+                    if let selectionData, let layout, !lookupEntries.isEmpty {
                         popupContent(selectionData: selectionData, layout: layout)
                             .background(
                                 userConfig.popupDisableTransparency ? AnyShapeStyle(Color(.systemBackground)) : AnyShapeStyle(.ultraThinMaterial),
@@ -425,10 +347,6 @@ struct PopupView: View {
         clozeText: String,
         formatId: UUID
     ) async -> Bool {
-//        var sasayakiAudioData: Data?
-//        if AnkiManager.shared.needsSasayakiAudio, let cue = sasayakiCue, let player = sasayakiPlayer, player.hasAudio {
-//            sasayakiAudioData = await player.cueSentenceAudio(cue, sentence: sentence)
-//        }
         guard let chapterId else { return false }
 
         return await AnkiManager.shared.addNote(
@@ -439,15 +357,12 @@ struct PopupView: View {
                 page: page,
                 clozeOffset: clozeOffset,
                 clozeText: clozeText
-//                documentTitle: documentTitle,
-//                coverURL: coverURL,
-//                sasayakiAudioData: sasayakiAudioData
             ),
             formatId: formatId
         )
     }
 
-    private static func buildLookupEntries(lookupResults: [LookupResult]) -> [[String: Any]] {
+    static func buildLookupEntries(lookupResults: [LookupResult]) -> [[String: Any]] {
         var entries: [[String: Any]] = []
         for result in lookupResults {
             let expression = String(result.term.expression)
@@ -529,10 +444,5 @@ struct PopupView: View {
             ])
         }
         return entries
-    }
-
-    static func buildContent(lookupResults: [LookupResult], userConfig: UserConfig) -> (content: String, lookupEntries: [[String: Any]]) {
-        let entries = buildLookupEntries(lookupResults: lookupResults)
-        return (entries.isEmpty ? "" : "native-dictionary-content", entries)
     }
 }

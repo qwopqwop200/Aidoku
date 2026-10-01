@@ -12,6 +12,8 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = 'Reader.translation.'
+OCR_MINIMUM_SIZE = 32
+OCR_MAXIMUM_SIZE = 1184
 
 
 def profile(prefs):
@@ -40,8 +42,8 @@ def profile(prefs):
         'AIDOKU_TRANSLATION_RTL': False,
         'AIDOKU_OCR_TIER': ocr.get('modelTier', get('modelTier', 'medium')),
         'AIDOKU_OCR_CONFIDENCE': ocr['confidenceThreshold'],
-        'AIDOKU_OCR_DETECTOR_SIDE': ocr['detectorMaximumSide'],
-        'AIDOKU_OCR_RECOGNIZER_WIDTH': ocr['recognizerMaximumWidth'],
+        'AIDOKU_OCR_DETECTOR_SIDE': min(OCR_MAXIMUM_SIZE, max(OCR_MINIMUM_SIZE, ocr['detectorMaximumSide'])),
+        'AIDOKU_OCR_RECOGNIZER_WIDTH': min(OCR_MAXIMUM_SIZE, max(OCR_MINIMUM_SIZE, ocr['recognizerMaximumWidth'])),
         'AIDOKU_OCR_DETECTOR_PIXEL_THRESHOLD': ocr.get('detectorPixelThreshold', .3),
         'AIDOKU_OCR_DETECTOR_CONFIDENCE_THRESHOLD': ocr.get('detectorConfidenceThreshold', .6),
         'AIDOKU_OCR_DETECTOR_MINIMUM_BOX_SIDE': ocr.get('detectorMinimumBoxSide', 3),

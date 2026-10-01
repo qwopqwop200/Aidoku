@@ -29,7 +29,7 @@ struct ReaderCachedLayoutReplayTests {
         let cg = try #require(image.cgImage)
         if FileManager.default.fileExists(atPath: directory.appendingPathComponent("refresh-ocr").path) {
             let recognized = try await ReaderOCRService.shared.recognize(image: cg, configuration: .init(
-                detectorMaximumSide: 2000, confidenceThreshold: 0.35,
+                detectorMaximumSide: 2000, recognizerMaximumWidth: 1280, confidenceThreshold: 0.35,
                 detectorPixelThreshold: 0.3, detectorConfidenceThreshold: 0.3))
             try JSONEncoder().encode(recognized.map(ReaderTranslationStoredRegion.init))
                 .write(to: output.appendingPathComponent("recognized.json"))

@@ -2577,8 +2577,8 @@ enum NativeTranslationRenderer {
         return CGSize(width: dimension(viewport.width * scale), height: dimension(viewport.height * scale))
     }
 
-    /// Inherits the render worker's actor. The plan/CoreText values are never sent
-    /// to the MainActor; only immutable image/numeric requests leave this job.
+    /// Inherits the render worker's actor. The plan, CoreText values and direct
+    /// source bitmap stay within this job.
     nonisolated(nonsending) static func renderOnWorker(layout: NativeTranslationLayout, image: UIImage?,
         settings: IPhoneOverlaySettings, scale: CGFloat, dark: Bool, renderBounds: CGRect?,
         composeSource: Bool, outputPixelSize: CGSize?, collectDiagnostics: Bool,
@@ -2590,11 +2590,11 @@ enum NativeTranslationRenderer {
         try Task.checkCancellation()
         // Preserve the synchronous PDF/ordinary route whenever there is no admitted
         // minified source operation. Eligibility is geometric, not a fixture switch.
-        guard !capturePDF, asyncSourceJobIsEligible(plan) else { return try finishPreparedSynchronously(plan) }
-        return try await finishPreparedAsynchronously(plan)
+        guard !capturePDF, directSourceJobIsEligible(plan) else { return try finishPreparedSynchronously(plan) }
+        return try finishPreparedOnWorker(plan)
     }
 
-    static func asyncSourceJobIsEligible(_ plan: PreparedRender) -> Bool {
+    static func directSourceJobIsEligible(_ plan: PreparedRender) -> Bool {
         guard plan.bounds.origin == .zero,
               plan.pixels.width / plan.bounds.width == plan.pixels.height / plan.bounds.height,
               plan.pixels.width * plan.pixels.height <= 4_000_000 else { return false }
@@ -2612,12 +2612,12 @@ enum NativeTranslationRenderer {
             }
         }
         return (initial + orderedSources).contains {
-            admittedHierarchySourceFrame($0, viewport: plan.bounds.size, scale: scale) != nil
+            admittedDirectSourceFrame($0, viewport: plan.bounds.size, scale: scale) != nil
         }
     }
 
-    /// Pure refusal predicate, evaluated before reading/allocating a prefix.
-    static func admittedHierarchySourceFrame(_ patch: SourcePatch, viewport: CGSize, scale: CGFloat) -> CGRect? {
+    /// Pure refusal predicate, evaluated before touching the worker bitmap.
+    static func admittedDirectSourceFrame(_ patch: SourcePatch, viewport: CGSize, scale: CGFloat) -> CGRect? {
         guard patch.cleanupClip == nil, scale.isFinite, scale > 0,
               viewport.width.isFinite, viewport.height.isFinite, viewport.width > 0, viewport.height > 0,
               viewport.width * scale <= 16_384, viewport.height * scale <= 16_384,
@@ -2674,12 +2674,12 @@ enum NativeTranslationRenderer {
         }
     }
 
-    nonisolated(nonsending) static func paintHierarchySourcePatch(_ patch: SourcePatch,
-        context: CGContext, backing: NativeCanvasBacking?, viewport: CGSize) async throws -> Bool {
+    static func paintDirectSourcePatch(_ patch: SourcePatch,
+        context: CGContext, backing: NativeCanvasBacking?, viewport: CGSize) throws -> Bool {
         try Task.checkCancellation()
         let matrix = context.ctm
         guard matrix.a > 0, matrix.d == -matrix.a, matrix.b == 0, matrix.c == 0,
-              let frame = admittedHierarchySourceFrame(patch, viewport: viewport, scale: matrix.a),
+              let frame = admittedDirectSourceFrame(patch, viewport: viewport, scale: matrix.a),
               let backing, backing.matchesFreshState(context) else { return false }
         // Draw into the already-owned worker bitmap. Copying its full RGBA prefix,
         // capturing a temporary view hierarchy, and replaying the whole page made
@@ -2688,7 +2688,7 @@ enum NativeTranslationRenderer {
             sourceFrame: frame, viewport: viewport, scale: matrix.a, in: context)
     }
 
-    nonisolated(nonsending) static func finishPreparedAsynchronously(_ plan: PreparedRender) async throws -> Result {
+    static func finishPreparedOnWorker(_ plan: PreparedRender) throws -> Result {
         let bitmap = try WorkerLiveBitmap(pixels: plan.pixels, bounds: plan.bounds)
         let canvasSession = NativeCanvasTextureResampler.Session()
         defer { canvasSession.close(); bitmap.close() }
@@ -2696,7 +2696,7 @@ enum NativeTranslationRenderer {
         for patch in plan.sourcePatches {
             if patch.liveOrder != nil || plan.cards.contains(where: { $0.glyphCoverPatch?.image === patch.image }) { continue }
             try Task.checkCancellation()
-            if try await paintHierarchySourcePatch(patch, context: context, backing: bitmap.backing, viewport: plan.bounds.size) { continue }
+            if try paintDirectSourcePatch(patch, context: context, backing: bitmap.backing, viewport: plan.bounds.size) { continue }
             try Task.checkCancellation()
             withWorkerGraphicsContext(context) {
                 drawSourcePatch(patch, context: context, usesLiveTextureSampling: true, canvasSession: canvasSession,
@@ -2713,7 +2713,7 @@ enum NativeTranslationRenderer {
             case .cover(let index): patch = plan.cards[index].glyphCoverPatch
             default: patch = nil
             }
-            if let patch, try await paintHierarchySourcePatch(patch, context: context, backing: bitmap.backing, viewport: plan.bounds.size) { continue }
+            if let patch, try paintDirectSourcePatch(patch, context: context, backing: bitmap.backing, viewport: plan.bounds.size) { continue }
             try Task.checkCancellation()
             withWorkerGraphicsContext(context) {
                 drawPaintCommand(command, cards: plan.cards, gloss: plan.gloss, settings: plan.settings,

@@ -193,7 +193,7 @@ struct ReaderSevenDefectReplayTests {
                 .write(to: directory.appendingPathComponent(name + ".cached.payload.json"))
         }
         let regions = try await ReaderOCRService.shared.recognize(image: #require(image.cgImage), configuration: .init(
-            detectorMaximumSide: 2000, confidenceThreshold: 0.35, detectorPixelThreshold: 0.3, detectorConfidenceThreshold: 0.3))
+            detectorMaximumSide: 2000, recognizerMaximumWidth: 1280, confidenceThreshold: 0.35, detectorPixelThreshold: 0.3, detectorConfidenceThreshold: 0.3))
         try JSONEncoder().encode(regions.map(ReaderTranslationStoredRegion.init))
             .write(to: directory.appendingPathComponent(name + ".actual.regions.json"))
         if name == "phone-1" {

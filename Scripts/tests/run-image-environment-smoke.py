@@ -5,11 +5,13 @@ from pathlib import Path
 import subprocess
 import tempfile
 import os
+import runpy
 
 ROOT = Path(__file__).resolve().parents[2]
 source = (ROOT / 'Scripts/image-translation/PipelineMain.swift').read_text().split('@MainActor\n@main', 1)[0]
+settings = (ROOT / 'Aidoku/Core/Translation/ReaderTranslationSettings.swift').read_text()
+source += 'enum IPhoneOCRModelTier' + settings.split('enum IPhoneOCRModelTier', 1)[1].split('struct ReaderOCRConfiguration', 1)[0]
 stubs = '''
-enum IPhoneOCRModelTier: String { case tiny, small, medium }
 enum RemoteTranslationProtocol: String { case responses, chatCompletions }
 enum RemoteTranslationProvider { case custom }
 enum OpenAIReasoningEffort: String { case modelDefault, none }
@@ -105,6 +107,16 @@ with tempfile.TemporaryDirectory(prefix='aidoku-env-') as temporary:
     error=run(expected=2);assert 'line 1' in error and 'unclosed-secret-value' not in error
     (profile/'.env').unlink()
     defaults=run(['--ocr-only']);assert defaults['tier']=='medium' and defaults['confidence']==.75 and not defaults['keyPresent']
+    assert defaults['detector']==1184 and defaults['recognizer']==1184
+    for size, effective in [(1,32),(32,32),(800,800),(1184,1184),(1280,1184),(1600,1184)]:
+        cli=run(['--ocr-only','--detector-side',str(size),'--recognizer-width',str(size)])
+        shell=run(['--ocr-only'],{'AIDOKU_OCR_DETECTOR_SIDE':str(size),'AIDOKU_OCR_RECOGNIZER_WIDTH':str(size)})
+        assert cli['detector']==effective and cli['recognizer']==effective,cli
+        assert shell['detector']==effective and shell['recognizer']==effective,shell
+    for flag, key in [('--detector-side','AIDOKU_OCR_DETECTOR_SIDE'),('--recognizer-width','AIDOKU_OCR_RECOGNIZER_WIDTH')]:
+        for invalid in ['0','-1','nan','infinity','1.5']:
+            assert 'positive integer' in run(['--ocr-only',flag,invalid],expected=2)
+            assert key in run(['--ocr-only'],{key:invalid},expected=2)
     assert 'AIDOKU_TRANSLATION_INCLUDE_IMAGE' in run(['--ocr-only'],{'AIDOKU_TRANSLATION_INCLUDE_IMAGE':'invalid'},expected=2)
     # A saved phone profile is input data, not the developer's private .env.
     # Exercise all imported fields from a deterministic profile on every checkout.
@@ -129,13 +141,23 @@ with tempfile.TemporaryDirectory(prefix='aidoku-env-') as temporary:
     (profile / '.env').write_text(''.join(f"{key}='{value}'\n" for key, value in imported_settings.items()))
     actual = run(['--ocr-only'])
     assert actual['protocol'] == 'responses' and actual['source'] == 'ja' and actual['target'] == 'ko'
-    assert actual['confidence'] == .81 and actual['detector'] == 1280 and actual['recognizer'] == 960
+    assert actual['confidence'] == .81 and actual['detector'] == 1184 and actual['recognizer'] == 960
     assert actual['pixelThreshold'] == .3 and actual['boxThreshold'] == .3 and actual['minimumBoxSide'] == 3
     assert actual['image'] and actual['sfx'] and actual['background'] and actual['keyPresent']
     assert actual['reasoning'] == 'none' and actual['timeout'] == 120 and actual['languages'] == ['en', 'ja']
     assert actual['appearance']['inpaintingEnabled'] and actual['appearance']['preserveSourceTextColor']
 
+phone_profile = runpy.run_path(str(ROOT / 'Scripts/image-translation/sync-iphone-settings.py'))['profile']
+for size, effective in [(1,32),(800,800),(1184,1184),(1280,1184),(1600,1184)]:
+    imported = phone_profile({
+        'Reader.translation.provider': 'custom',
+        'Reader.translation.custom': {'baseURL':'https://example.test/v1','model':'fixture','apiProtocol':'responses'},
+        'Reader.translation.ocr': {'confidenceThreshold':.75,'detectorMaximumSide':size,'recognizerMaximumWidth':size},
+        'Reader.translation.overlay': {},
+    })
+    assert imported['AIDOKU_OCR_DETECTOR_SIDE']==effective and imported['AIDOKU_OCR_RECOGNIZER_WIDTH']==effective
+
 assert subprocess.run(['git','check-ignore','-q','.env'],cwd=ROOT).returncode==0
 assert subprocess.run(['git','check-ignore','-q','.env.example'],cwd=ROOT).returncode==1
 assert subprocess.run(['git','ls-files','--error-unmatch','.env'],cwd=ROOT,capture_output=True).returncode!=0
-print('PASS: dotenv parsing, cwd independence, .env/shell/CLI precedence, viewport validation, flags, no evaluation/secret output, Git exclusion')
+print('PASS: dotenv parsing, cwd independence, .env/shell/CLI precedence, OCR limits and phone import, viewport validation, flags, no evaluation/secret output, Git exclusion')
