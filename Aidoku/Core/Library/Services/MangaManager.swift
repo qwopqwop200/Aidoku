@@ -766,7 +766,8 @@ extension MangaManager {
             } else {
                 cover.pngData()
             }
-            try data?.write(to: targetUrl)
+            guard let data else { return nil }
+            try data.write(to: targetUrl)
         } catch {
             LogManager.logger.error("MangaManager.setMangaCover: \(error.localizedDescription)")
             return nil
@@ -873,13 +874,17 @@ extension MangaManager {
         }
     }
 
-    private static func migrate(
+    static func migrate(
         copy: Bool,
         forceRemoveFromLibrary: Bool,
         from oldManga: AidokuRunner.Manga,
         to newManga: AidokuRunner.Manga,
         withChapters newChapters: [AidokuRunner.Chapter],
     ) async -> (AidokuRunner.Manga, AidokuRunner.Manga)? {
+        // The same destination already owns this history, downloads and settings.
+        // Replacing or removing its source would discard those persistent records.
+        guard oldManga.identifier != newManga.identifier else { return nil }
+
         // add new item to library if copying
         if copy {
             let inLibrary = await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in

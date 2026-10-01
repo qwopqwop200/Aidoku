@@ -45,6 +45,9 @@ enum NativeSkippedCaptionBridge {
                 let bottom = min(requirement.maxY, old.maxY, layer.maxY)
                 if right > left, bottom > top {
                     pieces.append(CGRect(x: left, y: top, width: right-left, height: bottom-top))
+                    // The unchanged policy rejects more than 512 pieces before
+                    // merging; further intersections cannot make it eligible.
+                    if pieces.count > 512 { return nil }
                 }
             }
         }

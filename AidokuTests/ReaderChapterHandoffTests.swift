@@ -43,6 +43,29 @@ struct ReaderChapterHandoffTests {
         #expect(await gate.active == 0)
     }
 
+    @Test func consumedWebtoonPreloadDoesNotBecomeEmptyCacheHitOnReload() async throws {
+        let gate = ChapterRequestGate()
+        let model = try #require(makeModel(gate, webtoon: true) as? ReaderWebtoonViewModel)
+        let chapter = AidokuRunner.Chapter(key: "a")
+        let preload = Task { await model.preload(chapter: chapter) }
+        defer { preload.cancel() }
+        try await waitFor { await gate.active == 1 }
+        await gate.finish("a")
+        let pages = await preload.value
+        #expect(pages.count == 3)
+
+        model.setPages(chapter: chapter, pages: pages)
+        #expect(model.preloadedChapter == nil)
+        #expect(model.preloadedPages.isEmpty)
+
+        let reload = Task { await model.loadPages(chapter: chapter) }
+        defer { reload.cancel() }
+        try await waitFor { await gate.starts.count == 2 }
+        await gate.finish("a")
+        await reload.value
+        #expect(model.pages.map(\.imageURL) == pages.map(\.imageURL))
+    }
+
     @Test func cancelledSpeculationDoesNotBecomeReusableFailure() async throws {
         let gate = ChapterRequestGate()
         let model = makeModel(gate)

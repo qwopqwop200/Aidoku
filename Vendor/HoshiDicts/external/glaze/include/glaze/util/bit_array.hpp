@@ -41,7 +41,8 @@ namespace glz
       {
          const auto chunk = pos / n_chunk_bits;
          const auto offset = pos % n_chunk_bits;
-         const auto maskbit = Chunk{1} << offset;
+         // Small chunks promote to int during the shift; the bounded bit still fits Chunk.
+         const auto maskbit = static_cast<Chunk>(Chunk{1} << offset);
          return reference{&data[chunk], maskbit};
       }
 
@@ -92,8 +93,9 @@ namespace glz
          }
          else {
             int res{};
-            for (int i = static_cast<int>(data.size()) - 1; i > -1; --i) {
-               const auto trailing_zeros = std::countr_zero(data[i]);
+            // Index zero is in the first chunk, as in operator[].
+            for (const auto item : data) {
+               const auto trailing_zeros = std::countr_zero(item);
                res += trailing_zeros;
                if (trailing_zeros < n_chunk_bits) {
                   return res;

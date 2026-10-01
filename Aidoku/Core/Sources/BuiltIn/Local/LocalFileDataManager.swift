@@ -295,9 +295,8 @@ extension LocalFileDataManager {
                 filePath
             )
             request.fetchLimit = 1
-            if let remaining = try? context.count(for: request), remaining > 0 {
-                return nil
-            }
+            // An unreadable reference count is not proof that the file is unused.
+            guard let remaining = try? context.count(for: request), remaining == 0 else { return nil }
         }
 
         return filePath

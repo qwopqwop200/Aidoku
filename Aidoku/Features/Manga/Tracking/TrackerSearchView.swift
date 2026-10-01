@@ -16,6 +16,7 @@ struct TrackerSearchView: View {
     @State private var includeNsfw: Bool
 
     @State private var loading = true
+    @State private var isRegistering = false
     @State private var searchBarFocused: Bool? = false
     @State private var showSearchOptions = false
     @State private var results: [TrackSearchItem] = []
@@ -68,7 +69,7 @@ struct TrackerSearchView: View {
             }
             .listStyle(.plain)
             .overlay {
-                if loading {
+                if loading || isRegistering {
                     ProgressView().progressViewStyle(.circular)
                 } else if let searchError {
                     ErrorView(error: searchError)
@@ -93,7 +94,7 @@ struct TrackerSearchView: View {
                     DoneButton {
                         track()
                     }
-                    .disabled(selectedItem == nil || loading)
+                    .disabled(selectedItem == nil || loading || isRegistering)
                 }
             }
             .sheet(isPresented: $showSearchOptions) {
@@ -178,17 +179,17 @@ struct TrackerSearchView: View {
     }
 
     func track() {
-        guard !loading else { return }
+        guard !loading, !isRegistering else { return }
         guard
             let selectedItem,
             let result = results.first(where: { $0.id == selectedItem })
         else { return }
 
-        loading = true
+        isRegistering = true
 
         Task {
+            defer { isRegistering = false }
             let saved = await TrackerManager.shared.register(tracker: tracker, manga: manga, item: result)
-            loading = false
             if saved {
                 dismiss()
             } else {

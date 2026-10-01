@@ -73,7 +73,7 @@ struct NativeRestorationPixels {
     var paintedCount: Int { stride(from: 3, to: rgba.count, by: 4).reduce(0) { $0 + (rgba[$1] > 0 ? 1 : 0) } }
 
     init?(image: CGImage, width: Int, height: Int) {
-        guard width > 0, height > 0, width * height <= 262_144 else { return nil }
+        guard width > 0, height > 0, width <= 262_144 / height else { return nil }
         self.width = width; self.height = height
         rgba = [UInt8](repeating: 0, count: width * height * 4)
         let success = rgba.withUnsafeMutableBytes { buffer -> Bool in

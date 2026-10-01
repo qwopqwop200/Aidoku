@@ -58,6 +58,7 @@ enum NativeTranslationTypography {
         var horizontalWrapping: HorizontalWrapping
         var horizontalWhitespace: HorizontalWhitespace
         fileprivate var explicitLineFlow: Bool = false
+        fileprivate var wholeWordFallbackResolved: Bool = false
         fileprivate var usesKeepAllInlineItemWidths: Bool = false
         fileprivate var keepAllParagraphEndRows: [Bool]? = nil
         var usesBlockWordLayout: Bool
@@ -206,7 +207,9 @@ enum NativeTranslationTypography {
                     frameAttributes: shaped.frameAttributes, paintScaleX: shaped.paintScaleX,
                     lineOffsets: shaped.lineOffsets, outlineGlow: shaped.outlineGlow, outlineGlowColor: shaped.outlineGlowColor)
             }
-            return layoutKeepingWholeWords(text: text, in: available, style: style)
+            if !style.wholeWordFallbackResolved {
+                return layoutKeepingWholeWords(text: text, in: available, style: style)
+            }
         }
         if !style.vertical && !style.preservesBlockRows && !style.strictLineBreak && !style.keepsWholeWords &&
             style.horizontalWhitespace == .normal && style.horizontalWrapping == .normal,
@@ -801,6 +804,9 @@ enum NativeTranslationTypography {
         guard !words.isEmpty else { return .empty }
         var paintedStyle = style
         paintedStyle.intrinsicText = text
+        // A rejected keep-all adapter (for example soft hyphens or its input
+        // budget) must not recursively select this same fallback again.
+        paintedStyle.wholeWordFallbackResolved = true
         paintedStyle.keepsWholeWords = false
         paintedStyle.optimizesKoreanWrapping = false
         paintedStyle.balancesHorizontalLines = false
@@ -1829,9 +1835,9 @@ enum NativeTranslationTypography {
                 let last = previousInk[end - 1]
                 guard last >= first else { continue }
                 let lineText = String(characters[first...last])
-                let line = CTLineCreateWithAttributedString(NSAttributedString(string: lineText, attributes: measurementAttributes))
                 let used = width?(lineText) ?? ((measuresScalars ? scalarAdvances[last + 1] - scalarAdvances[first]
-                    : CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))) +
+                    : CGFloat(CTLineGetTypographicBounds(CTLineCreateWithAttributedString(
+                        NSAttributedString(string: lineText, attributes: measurementAttributes)), nil, nil, nil))) +
                     CGFloat(max(0, lineText.unicodeScalars.count - 1)) * style.tracking)
                 guard used.isFinite, used >= 0 else { return nil }
                 if used > available.width + 0.1 { break }

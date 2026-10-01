@@ -3,10 +3,12 @@ import contextlib
 import io
 import json
 from pathlib import Path
+import signal
 import tempfile
 import subprocess
+import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import test_quick
 
@@ -220,6 +222,30 @@ class QuickIOSRunnerTests(unittest.TestCase):
 
 
 class QuickHostRunnerTests(unittest.TestCase):
+    def test_timeout_and_interrupt_kill_workers_even_after_parent_exits(self):
+        for interruption, expected in ((subprocess.TimeoutExpired(['host'], 1), 124),
+                                       (KeyboardInterrupt(), 130)):
+            with self.subTest(interruption=type(interruption).__name__):
+                process = Mock(pid=4321)
+                process.wait.side_effect = [interruption, 0, 0]
+                with patch.object(test_quick.subprocess, 'Popen', return_value=process), \
+                        patch.object(test_quick.os, 'killpg') as kill, \
+                        contextlib.redirect_stdout(io.StringIO()):
+                    code = test_quick.run_commands([['host']], 1, time.monotonic(), None, False)
+                self.assertEqual(code, expected)
+                self.assertEqual([call.args for call in kill.call_args_list],
+                                 [(4321, signal.SIGTERM), (4321, signal.SIGKILL)])
+
+    def test_timeout_cleanup_tolerates_group_exit_before_forced_kill(self):
+        process = Mock(pid=4321)
+        process.wait.side_effect = [subprocess.TimeoutExpired(['host'], 1),
+                                    subprocess.TimeoutExpired(['host'], 0.5), 0]
+        with patch.object(test_quick.subprocess, 'Popen', return_value=process), \
+                patch.object(test_quick.os, 'killpg', side_effect=[None, ProcessLookupError()]), \
+                contextlib.redirect_stdout(io.StringIO()):
+            code = test_quick.run_commands([['host']], 1, time.monotonic(), None, False)
+        self.assertEqual(code, 124)
+
     def run_host(self, full=False, statuses=(0, 0), output=b'host checks passed\n', extra=()):
         commands, timeouts = [], []
 

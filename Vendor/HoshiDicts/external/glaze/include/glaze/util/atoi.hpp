@@ -852,6 +852,8 @@ namespace glz::detail
          return false;
       }
 
+      const auto integer_start = c;
+
       // maximum number of digits need is: 3, 5, 10, 20, for byte sizes of 1, 2, 4, 8
       // we need to store one extra space for a digit for sizes of 1, 2, and 4 because we avoid checking for overflow
       // since we store in a uint64_t
@@ -881,7 +883,9 @@ namespace glz::detail
       while (digit_table[uint8_t(*c)]) {
          consume_digit();
       }
-      auto n = int64_t(std::distance(digits.begin(), next_digit));
+      // Storage is capped, but the decimal position must count every integer
+      // digit. Otherwise a 21-digit magnitude aliases its first 20 digits.
+      auto n = int64_t(c - integer_start);
 
       if (*c == '.') {
          ++c;

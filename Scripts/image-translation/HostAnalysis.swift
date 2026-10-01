@@ -97,10 +97,15 @@ enum HostAnalysis {
         }
         return result
     }
+    /// Stage numbers have a minimum width, so 1000 must follow 999 on long or resumed runs.
+    static func stageFiles(in directory: URL) throws -> [URL] {
+        try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "json" && $0.lastPathComponent.first?.isNumber == true }
+            .sorted { $0.lastPathComponent.compare($1.lastPathComponent, options: .numeric) == .orderedAscending }
+    }
     static func stages(in directory: URL, width: Double, height: Double) throws -> [[String: Any]] {
         var result: [[String: Any]] = []
-        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension == "json" && $0.lastPathComponent.first?.isNumber == true }.sorted { $0.path < $1.path }
+        let files = try stageFiles(in: directory)
         for file in files {
             guard let root = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any],
                   let name = root["stage"] as? String else { continue }
@@ -212,8 +217,7 @@ enum HostAnalysis {
             stages[index]["preview"] = "analysis/" + filename
             try preview(image, stage: stages[index], to: output.appendingPathComponent(filename))
         }
-        let stageFiles = try FileManager.default.contentsOfDirectory(at: imageDirectory, includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension == "json" && $0.lastPathComponent.first?.isNumber == true }.sorted { $0.path < $1.path }
+        let stageFiles = try Self.stageFiles(in: imageDirectory)
         var metrics: [[String: Any]] = [], maps: [[String: Any]] = [], segmentation: [[String: Any]] = []
         for file in stageFiles {
             if let data = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any], let name = data["stage"] as? String {

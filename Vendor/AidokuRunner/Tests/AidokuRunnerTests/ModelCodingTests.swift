@@ -52,6 +52,37 @@ struct PostcardBoundaryTests {
     private struct DictionaryKey: Codable, Hashable { let value: String }
     private struct ZeroSized: Codable {}
 
+    @Test func varIntAppendPreservesSlicePrefixAndCanonicalEncoding() throws {
+        let prefix = Data([0x11, 0x22, 0x33, 0x44])
+        for value in [UInt64(0), 127, 128, 16_384, UInt64.max] {
+            var encoded = Data()
+            varInt(value, data: &encoded)
+            var slice = prefix[2...]
+            varInt(value, data: &slice)
+            #expect(Array(slice) == [0x33, 0x44] + Array(encoded))
+            var index = slice.startIndex + 2
+            let decoded: UInt64 = try decodeVarInt(slice, currentIndex: &index)
+            #expect(decoded == value)
+            #expect(index == slice.endIndex)
+        }
+        var shortSlice = prefix[2...]
+        varInt(UInt16.max, data: &shortSlice)
+        #expect(Array(shortSlice) == [0x33, 0x44, 0xff, 0xff, 0x03])
+        var mediumSlice = prefix[2...]
+        varInt(UInt32.max, data: &mediumSlice)
+        #expect(Array(mediumSlice) == [0x33, 0x44, 0xff, 0xff, 0xff, 0xff, 0x0f])
+    }
+
+    @Test func varIntRejectsCursorOutsideSlice() {
+        let data = Data([0, 0, 1])[2...]
+        for invalidIndex in [Int.min, 0, data.endIndex + 1, Int.max] {
+            var index = invalidIndex
+            #expect(throws: (any Error).self) {
+                let _: UInt64 = try decodeVarInt(data, currentIndex: &index)
+            }
+        }
+    }
+
     @Test func responseHeaderDictionariesRoundTrip() throws {
         let request = Request(url: URL(string: "https://example.invalid/page"), headers: ["Cookie": "x=y"])
         let response = Response(code: 200, headers: ["Content-Type": "image/png", "X-Test": "value"], request: request, image: 42)

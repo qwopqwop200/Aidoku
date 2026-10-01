@@ -10,14 +10,18 @@ import UIKit
 actor AniListApi {
     private let encoder = JSONEncoder()
 
-    // Registered under Skitty's AniList account
-    nonisolated let oauth = OAuthClient(
-        id: "anilist",
-        clientId: "8912",
-        baseUrl: "https://anilist.co/api/v2/oauth"
-    )
+    nonisolated let oauth: OAuthClient
+    private let session: URLSession
+    private var scoreType: (generation: UUID, value: String)?
 
-    var scoreType: String?
+    init(
+        // Registered under Skitty's AniList account
+        oauth: OAuthClient = OAuthClient(id: "anilist", clientId: "8912", baseUrl: "https://anilist.co/api/v2/oauth"),
+        session: URLSession = .shared
+    ) {
+        self.oauth = oauth
+        self.session = session
+    }
 }
 
 // MARK: - Data
@@ -79,7 +83,11 @@ extension AniListApi {
         request.httpMethod = "POST"
         request.httpBody = try encoder.encode(data)
 
-        let response: GraphQLResponse<T> = try await URLSession.shared.object(from: request)
+        guard let issued = OAuthClient.generation(for: request), await oauth.accountGeneration == issued else {
+            throw CancellationError()
+        }
+        let response: GraphQLResponse<T> = try await session.object(from: request)
+        guard !Task.isCancelled, await oauth.accountGeneration == issued else { throw CancellationError() }
         // check if token is invalid
         if response.errors?.contains(where: { $0.status == 400 }) ?? false {
             // don't show the relogin alert if we're not logged in in the first place
@@ -93,12 +101,18 @@ extension AniListApi {
     }
 
     func getStoreType() async -> String {
-        if let scoreType {
-            return scoreType
+        if await oauth.tokens == nil { await oauth.loadTokens() }
+        let generation = await oauth.accountGeneration
+        if let scoreType, scoreType.generation == generation {
+            return scoreType.value
         }
         let user = await getUser()
-        scoreType = user?.mediaListOptions?.scoreFormat
-        return scoreType ?? "POINT_10"
+        guard !Task.isCancelled, await oauth.accountGeneration == generation else { return "POINT_10" }
+        if let value = user?.mediaListOptions?.scoreFormat {
+            scoreType = (generation, value)
+            return value
+        }
+        return "POINT_10"
     }
 }
 

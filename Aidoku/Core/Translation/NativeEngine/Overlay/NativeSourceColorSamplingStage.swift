@@ -83,7 +83,7 @@ final class NativeSourceColorSamplingStage {
     }
 
     func sample(bounds: [Double], geometry: Payload? = nil) -> Payload? {
-        guard enabled, !unavailable, bounds.count == 4, bounds.allSatisfy(\.isFinite),
+        guard enabled, !unavailable, !Task.isCancelled, bounds.count == 4, bounds.allSatisfy(\.isFinite),
               bounds[0] >= 0, bounds[1] >= 0, bounds[2] > 0, bounds[3] > 0,
               bounds[0] + bounds[2] <= 1.000001, bounds[1] + bounds[3] <= 1.000001 else { return nil }
         let key = Self.cacheKey(bounds: bounds, geometry: geometry)
@@ -119,7 +119,9 @@ final class NativeSourceColorSamplingStage {
         var result: Payload?
         defer {
             stats.milliseconds += (ProcessInfo.processInfo.systemUptime - started) * 1_000
-            if usesCanonicalPixels { PhaseCache.shared.store(result, image: image, phase: phase, key: key) }
+            // Observers may return early on cancellation. Such a partial palette
+            // must not become a persistent answer for a later live render.
+            if usesCanonicalPixels, !Task.isCancelled { PhaseCache.shared.store(result, image: image, phase: phase, key: key) }
         }
         do {
             let rgba = try read(x: x, y: y, sourceWidth: sw, sourceHeight: sh, width: width, height: height)
@@ -344,7 +346,7 @@ final class NativeSourceColorSamplingStage {
                     "strokeReason": strokeEvidence != nil ? "observed narrow enclosing band" : "no independent enclosing band"])
             if let strokeEvidence { result?["foreground"] = strokeEvidence["foreground"] }
         } catch { unavailable = true }
-        return result
+        return Task.isCancelled ? nil : result
     }
 
     private func spendDetail(_ pixels: Int, spent: inout Int) {
@@ -541,7 +543,7 @@ final class NativeSourceColorSamplingStage {
             return mask
         }
         let core = raster(polygons)
-        let radius = min(12, max(0, margin.isFinite ? Int(ceil(margin)) : 0))
+        let radius = margin.isFinite ? Int(min(12, max(0, ceil(margin)))) : 0
         var mask = core
         if radius > 0 {
             var horizontal = [UInt8](repeating: 0, count: width * height)

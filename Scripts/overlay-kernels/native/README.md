@@ -1,6 +1,6 @@
 # Native overlay pixel kernels
 
-The app compiles the same `../kernels.rs` source as the existing WASM reference. The 25 pixel functions keep their C ABI and algorithm order. Native-only panic and exception metadata terminate with `abort`; native `sqrt` uses Apple's system implementation. No WASM runtime is involved in the app's pixel rendering.
+The app compiles the same `../kernels.rs` source used by the native renderer. The 25 pixel functions keep their C ABI and algorithm order. Native-only panic and exception metadata terminate with `abort`; native `sqrt` uses Apple's system implementation. No WASM runtime is involved in the app's pixel rendering.
 
 Install a Rust toolchain and the Apple target libraries once:
 
@@ -20,4 +20,4 @@ python3 Scripts/overlay-kernels/native/build.py
 
 It uses the fixed `build/native-overlay-kernels-host` cache. Swift host tools need `-Xcc -fmodule-map-file=Scripts/overlay-kernels/native/module.modulemap -Lbuild/native-overlay-kernels-host -lAidokuOverlayKernels`. A Rust-only host dynamic library additionally needs `-l System`.
 
-The differential fixtures in `Scripts/native-render-parity/kernel-parity/run.py` compare native CPU outputs against the frozen pre-migration WASM oracle. They establish kernel parity; full-page typography and restoration policies need their separate image comparisons.
+Validate kernel behavior and buffer safety with `NativeTranslationPixelKernelBridgeTests`; the historical WASM comparison harness has been removed.

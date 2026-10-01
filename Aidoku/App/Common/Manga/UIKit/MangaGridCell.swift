@@ -189,7 +189,7 @@ class MangaGridCell: UICollectionViewCell {
         imageGeneration += 1
         identifier = nil
         url = nil
-        imageView.stopAnimatingGIF()
+        imageView.prepareForReuse()
         titleLabel.text = nil
         imageView.image = UIImage(named: "MangaPlaceholder")
         imageTask?.cancel()
@@ -266,12 +266,12 @@ extension MangaGridCell {
         imageTask = nil
         guard let url else {
             self.url = nil
-            self.imageView.stopAnimatingGIF()
+            self.imageView.prepareForReuse()
             self.imageView.image = UIImage(named: "MangaPlaceholder")
             return
         }
 
-        self.imageView.stopAnimatingGIF()
+        self.imageView.prepareForReuse()
 
         let source: AidokuRunner.Source? = if let sourceKey = identifier?.sourceKey {
             await resolveImageSource(sourceKey)

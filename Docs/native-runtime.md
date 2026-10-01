@@ -98,124 +98,14 @@ RSS, physical footprint, returned payload bytes and output PNGs. The replacement
 or report output. Historical generated fixtures and the six-source-draw
 microbenchmark do not establish whole-app or physical-device improvements.
 
-## Reference code and verification
+## Verification
 
-The previous renderer remains only as an independent test oracle. Known defects
-in that oracle require a separately labeled, narrowly corrected runtime copy;
-the original source, image and raw comparison remain archived.
+The previous Web renderer, its JavaScript/WASM oracle, comparison captures and
+legacy regression tests have been removed. Native rendering, restoration,
+export, cache and resource-lifetime suites validate the current implementation
+directly. Existing native input fixtures remain where they support these tests.
+No legacy-renderer pixel-equivalence gate remains.
 
-- `AidokuTests/Translation/LegacyBrowserOverlay` compiles the frozen reference
-  into the test target, not the production app.
-- `Scripts/native-render-parity/reference-source` preserves original source and
-  hashes. Its WebKit, JavaScript and embedded WASM are reference inputs.
-- Node source-color and restoration scripts test the historical algorithm.
-  Passing those tests alone does not validate the native runtime.
-- Native Swift/Rust tests and native/reference RGBA captures validate the
-  replacement. Reference expectations remain immutable; never regenerate them
-  from native output.
-- Source-canvas sampling has its own test-only policy, independent of final
-  export and glyph acceptance. Full-size captures keep pixels outside the
-  affected source frame exact. Per-channel source-region mean error is at most
-  0.5 byte values, the 95th percentile at most 3, and the maximum 64; at most
-  0.5% of samples exceed 16. Compatibility half-size captures allow means up to
-  4, a 95th percentile of 12 and a 1% tail, plus filter fringes of at most 32
-  in the first physical pixel and 2 in the second. Pixels beyond that footprint
-  remain exact. Source bytes, dimensions, nonzero-alpha bounds, opaque alpha
-  and bounded alpha mass are checked separately. Real-capture controls require
-  one-pixel source shifts, missing patches, vertical inversion and alpha damage
-  to fail; raw exact RGBA statistics are retained alongside acceptance.
-- Final-export comparisons use the same prepared source pixels, logical image
-  size and PDF composition route. The cache bitmap retains its independent
-  exact comparison across preload depths. Mixing a fractional cache raster
-  with WebKit's whole-point PDF crop is recorded as a diagnostic comparison.
-- To honor the user's request that a few pixel differences not block migration,
-  the implementation uses a bounded final-export policy: identical positive
-  dimensions and channel differences of at most four byte values anywhere.
-  Larger channel differences may reach 16 only when pixels exceeding four
-  account for at most 0.1% of the image; lower-delta pixels do not spend that
-  separate sparse budget. These numeric bounds are implementation choices.
-  Exact equality and raw changed-pixel/max-delta
-  metrics remain recorded, and independent source, text, geometry and restoration
-  checks remain mandatory. A separate certificate permits an isolated common
-  shift of at most one physical pixel along one axis: it requires unchanged
-  alpha, exact total and projected channel mass, an unchanged opaque border,
-  at most 0.1% changed pixels and a bounded 65,536-pixel envelope. The whole
-  envelope must fit one displacement and coverage weight; missing text, altered
-  weight, independent moves and a two-pixel shift fail this check. Font-size or
-  erasure differences do not qualify as small raster rounding.
-- A test-only contour fallback (`NativeFinalExportContourAudit`,
-  `NativeFinalExportGlyphContourAcceptance`, and
-  `NativeFinalExportPanelContourAcceptance`) can certify larger edge deltas only
-  from matching live text, font, colors, transforms and per-character geometry,
-  followed by glyph coverage/component or panel-contour pixel evidence. Alpha
-  stays exact, the whole-image quota above delta four remains 0.1%, and every
-  pixel above delta 16 must be covered by a successful certificate. The fallback
-  contains no page-specific waiver and preserves the complete raw comparison.
-  Missing glyphs, heavier strokes and mismatched descriptors remain failures.
-
-The previous worktree's 16-fixture final-image matrix passed with zero decoded
-RGBA differences at its recorded BUILD66 snapshot, and bounded source-canvas
-checks passed at BUILD69. These are historical results, not current full-main
-verification. The recorded integration replay covers all 12 recorded inputs
-(one verified empty page) at two preload depths, yielding 22 nonempty final-image
-comparisons against the checked-in frozen Web renderer. The stale September 29
-optimization captures remain archived diagnostics, not replacement goldens.
-
-The historical unfiltered `full-ios-7` run reported 2,340 passing tests,
-two failing tests and zero skipped tests. Its final export replay had four exact
-comparisons and 18 material mismatches; none qualified for the then-current
-sparse one-byte allowance. Later production fixes and independently checked
-reference corrections are recorded separately from that historical baseline.
-
-Historical integration verification, completed on 2026-10-01:
-
-| Scope | Observed result |
-| --- | --- |
-| Full host matrix, `full-host-3` | 107/107 commands passed in 368.647 seconds; all 2,715 recorded source inputs stayed unchanged. |
-| Recorded-page native/Web replay in `full-ios-9` | All 22 nonempty comparisons across two depths passed in 75.539 seconds: eight exact, eight bounded color differences, four contour certificates and two common-displacement certificates. |
-| Independent contour verifier | Original PNG/live-layout evidence for pages 5 and 9 passed; all 17 destructive or malformed negative controls were rejected. |
-| Final 16-fixture native/Web export matrix in `full-ios-9` | All passed: 15 exact; one with 2,325 changed pixels and maximum channel delta three. Independently decoded PNGs confirm the report. |
-| Unfiltered iOS, `full-ios-9` | 2,435/2,435 declarations passed; 3,984 expanded executions; zero failures, skips or expected failures. All 2,723 recorded source inputs stayed unchanged. Build activity 2.279 seconds, test body 582.234 seconds, wall time 593.854 seconds. |
-
-The earlier `full-ios-8` run had 2,433 passes and two failures: a panel fixture's
-numeric JSON type and a stale expected render-cache revision. After correcting
-those test inputs, focused-ios-27 passed all 14 declarations; full-ios-9 then
-reused those unchanged compiled sources. No clean rebuild was performed. Both
-full runs and their source manifests remain separate historical evidence.
-
-That integration run used one iPhone 17 Pro simulator with iOS 26.5 and two build jobs.
-Its 12-page depth trials observed a maximum 402.207 MiB during the complete test
-sequence; this is simulator process memory, not a physical-device measurement
-or a renderer-only benchmark. Browser-dependent authentication remains outside
-the native translation and dictionary paths.
-
-Three opt-in reference repairs are documented independently of native output:
-
-1. Accepted-growth rollback restores the complete last accepted style, children,
-   coordinates and dataset after an unsupported exterior trial. It cannot leave
-   a rejected font displayed, and the native surface proof remains unchanged.
-2. Scaled glyph release converts the measured physical box back to logical CSS
-   coordinates before reparenting, preventing a second scale and lost suffixes.
-   Its diagnostic probe observes the completed stroke reset and must reproduce
-   the same pixels as the uninstrumented correction.
-3. Foreign layout exclusions restrict the chromatic reference's placement mask
-   using original neighboring OCR bounds. Its ordinary caller supplied only ruby
-   hints, allowing some foreign ink to remain layout-safe. The correction changes
-   no source or restored RGBA and no erasure certificate; painted foreign overlap
-   fails explicitly. Raw historical and rollback-only page images remain saved.
-
-These transforms operate on a runtime copy, preserve checked-in frozen source,
-leave the default 16-fixture oracle unchanged, and retain identical source,
-regions, settings and logical geometry. Corrected final images still pass through
-the same independent comparison policy; no reference is built from native pixels.
-
-See [pixel-comparison evidence and limitations](../Scripts/native-render-parity/README.md)
-and [current test commands](../Scripts/TESTING.md). Report host, simulator,
-physical-device and historical-reference validation separately. A full-suite
-claim requires an actual current-source execution with nonzero tests; a
-prerequisite failure or skipped case is not a passing test.
-
-The source-runtime migration has a separate provenance trail in
-[native-source-auth.md](native-source-auth.md) and
-[native-source-reaudit.md](native-source-reaudit.md). Their dated descriptions of
-then-existing translation WebKit/WASM refer to the earlier revision.
+See [test commands](../Scripts/TESTING.md). Web login and Cloudflare still use
+WebKit; the CLI's interactive analysis report uses JavaScript to display saved
+native results. Neither runs the removed translation renderer.

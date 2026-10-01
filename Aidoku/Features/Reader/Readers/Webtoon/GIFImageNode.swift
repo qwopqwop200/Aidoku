@@ -96,7 +96,8 @@ class GIFImageNode: ASControlNode {
 
         Task { @MainActor [weak self] in
             guard let self, generation == imageGeneration else { return }
-            imageView?.stopAnimatingGIF()
+            // Pausing leaves Gifu's frame store alive on this retained node.
+            imageView?.prepareForReuse()
             imageView?.image = nil
         }
     }

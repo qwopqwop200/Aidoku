@@ -1,6 +1,5 @@
 import Testing
 import UIKit
-import WebKit
 @testable import Aidoku
 
 @Suite(.serialized) @MainActor
@@ -33,7 +32,7 @@ struct ReaderTranslationResponsivenessTests {
             )
         }
         let start = ProcessInfo.processInfo.systemUptime
-        let payload = try await BrowserPageImageOverlayRenderer.prepareLayoutData(
+        let payload = try await NativeTranslationLayoutPlanner.prepareLayoutData(
             items: items, imageSize: viewport, sourceRect: CGRect(origin: .zero, size: viewport),
             settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko", viewport: viewport
         )
@@ -69,75 +68,18 @@ struct ReaderTranslationResponsivenessTests {
         let viewport = CGSize(width: 390, height: 780)
         let items = Array(denseItems.prefix(8))
         let cache = BrowserOverlayTextMeasurementCache()
-        let cached = BrowserPageImageOverlayRenderer.layoutPayload(
+        let cached = NativeTranslationLayoutPlanner.payload(
             items: items, imageSize: viewport, sourceRect: CGRect(origin: .zero, size: viewport),
             settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko", viewport: viewport,
             measurementCache: cache
         )
-        let uncached = BrowserPageImageOverlayRenderer.layoutPayload(
+        let uncached = NativeTranslationLayoutPlanner.payload(
             items: items, imageSize: viewport, sourceRect: CGRect(origin: .zero, size: viewport),
             settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko", viewport: viewport,
             measurementCache: nil
         )
         #expect((cached as NSArray).isEqual(to: uncached))
         #expect(cache.passStatistics.hits > 0)
-    }
-
-    @Test func cancellingDenseLayoutLetsTheNextRenderProceed() async throws {
-        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 780))
-        var publishedCounts: [Int] = []
-        var cancelled = false
-        var cleared = false
-        let renderer = BrowserPageImageOverlayRenderer { _, _, arguments in
-            let count = (arguments["items"] as? [[String: Any]])?.count ?? 0
-            publishedCounts.append(count)
-            return ["status": "committed", "revision": arguments["revision"] ?? "", "itemCount": count]
-        }
-        renderer.render(on: webView, items: denseItems, imageSize: webView.bounds.size, sourceRect: webView.bounds,
-                        settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko") {
-            cancelled = $0.outcome == .stale
-        }
-        try await Task.sleep(for: .milliseconds(30))
-        renderer.cancelPendingRender()
-        renderer.render(on: webView, items: [], imageSize: webView.bounds.size, sourceRect: webView.bounds,
-                        settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko") { _ in cleared = true }
-        let deadline = Date().addingTimeInterval(2)
-        while !cancelled || !cleared {
-            if Date() > deadline { renderer.cancelPendingRender(); throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(publishedCounts == [0])
-    }
-
-    @Test func denseOverlaySchedulingDoesNotBlockMainActor() async throws {
-        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 780))
-        var completed = false
-        var renderedCount = 0
-        let renderer = BrowserPageImageOverlayRenderer { _, _, arguments in
-            renderedCount = (arguments["items"] as? [[String: Any]])?.count ?? 0
-            return ["status": "committed", "revision": arguments["revision"] ?? "", "itemCount": renderedCount]
-        }
-        let began = ProcessInfo.processInfo.systemUptime
-        renderer.render(on: webView, items: denseItems, imageSize: webView.bounds.size, sourceRect: webView.bounds,
-                        settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko") { _ in completed = true }
-        let elapsed = ProcessInfo.processInfo.systemUptime - began
-        print("TRANSLATION_RENDER_MAIN_SECONDS=\(elapsed)")
-        #expect(elapsed < 0.1)
-        let deadline = Date().addingTimeInterval(30)
-        var previousTick = ProcessInfo.processInfo.systemUptime
-        var largestGap: Double = 0
-        while !completed {
-            if Date() > deadline { renderer.cancelPendingRender(); throw URLError(.timedOut) }
-            try await Task.sleep(nanoseconds: 10_000_000)
-            let tick = ProcessInfo.processInfo.systemUptime
-            largestGap = max(largestGap, tick - previousTick)
-            previousTick = tick
-        }
-        print("TRANSLATION_RENDER_TOTAL_SECONDS=\(ProcessInfo.processInfo.systemUptime - began)")
-        print("TRANSLATION_MAIN_TICK_MAX_SECONDS=\(largestGap)")
-        #expect(largestGap < 0.25)
-        #expect(renderedCount == 48)
-        #expect(renderer.lastDiagnostic?.outcome == .committed)
     }
 
     private var denseItems: [BrowserOverlayItem] {

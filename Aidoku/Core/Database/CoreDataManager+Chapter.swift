@@ -130,14 +130,16 @@ extension CoreDataManager {
                 continue
             }
             existing[object.id] = object
-            guard let chapter = incoming[object.id] else {
-                if object.fileInfo == nil { context.delete(object) }
-                continue
-            }
+            guard let chapter = incoming[object.id] else { continue }
             let becameUnlocked = object.locked && !chapter.element.locked
             object.load(from: chapter.element, mangaId: mangaId, sourceOrder: chapter.offset)
             object.manga = manga
             if becameUnlocked { newChaptersCreated.append(object) }
+        }
+        // A later duplicate can own the download. Consolidate its relationships
+        // before deciding whether an absent chapter can safely be removed.
+        for (key, object) in existing where incoming[key] == nil && object.fileInfo == nil {
+            context.delete(object)
         }
         var inserted: Set<String> = []
         for (offset, chapter) in chapters.enumerated() where existing[chapter.key] == nil && inserted.insert(chapter.key).inserted {

@@ -21,6 +21,6 @@ let package = Package(
         .target(name: "NukeUI", dependencies: ["Nuke"]),
         .target(name: "NukeVideo", dependencies: ["Nuke"]),
         .target(name: "NukeExtensions", dependencies: ["Nuke"]),
-        .testTarget(name: "NukeRequestIdentityTests", dependencies: ["Nuke"])
+        .testTarget(name: "NukeRequestIdentityTests", dependencies: ["Nuke", "NukeVideo", "NukeUI"])
     ]
 )

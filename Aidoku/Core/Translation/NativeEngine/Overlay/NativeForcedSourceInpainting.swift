@@ -166,9 +166,11 @@ enum NativeForcedSourceInpainting {
         }
         var output = [UInt8](repeating: 0, count: n * 4), layoutSafe = [UInt8](repeating: 0, count: n)
         for i in queue { for c in 0..<3 { output[i * 4 + c] = p[i * 4 + c] }; output[i * 4 + 3] = 255; layoutSafe[i] = 1 }
-        coreMasked = (0..<n).filter { ownedCore[$0] != 0 && colorAt($0, foreground) <= 28 && painted[$0] != 0 }.count
+        coreMasked = 0
+        for i in 0..<n where ownedCore[i] != 0 && colorAt(i, foreground) <= 28 && painted[i] != 0 { coreMasked += 1 }
         coverage = coreTotal > 0 ? Double(coreMasked) / Double(coreTotal) : 1
-        outlineMasked = (0..<n).filter { ownedCore[$0] != 0 && nearCore[$0] != 0 && colorAt($0, stroke) <= 32 && painted[$0] != 0 }.count
+        outlineMasked = 0
+        for i in 0..<n where ownedCore[i] != 0 && nearCore[i] != 0 && colorAt(i, stroke) <= 32 && painted[i] != 0 { outlineMasked += 1 }
         outlineCoverage = outlineTotal > 0 ? Double(outlineMasked) / Double(outlineTotal) : 1
         if coverage < 0.995 || outlineCoverage < 0.995 { return fail("source-ink-outside-mask") }
         var edge = 0, postInk = 0
@@ -177,9 +179,11 @@ enum NativeForcedSourceInpainting {
             if (x <= 3 || x >= w - 4 || y <= 3 || y >= h - 4) && colorAt(i, foreground) <= 40 { edge += 1 }
             if let foreground, NativeResidualProof.pixelDistance(output, i, foreground) <= 28 { postInk += 1 }
         }
-        let remaining = (0..<n).filter { i in
-            ownedCore[i] != 0 && painted[i] != 0 && colorAt(i, foreground) <= 28 && foreground.map { NativeResidualProof.pixelDistance(output, i, $0) <= 28 } == true
-        }.count
+        var remaining = 0
+        for i in 0..<n where ownedCore[i] != 0 && painted[i] != 0 && colorAt(i, foreground) <= 28 &&
+            foreground.map({ NativeResidualProof.pixelDistance(output, i, $0) <= 28 }) == true {
+            remaining += 1
+        }
         if Double(remaining) > max(4, Double(coreTotal) * 0.01) { return fail("source-ink-in-reconstruction") }
         return Outcome(result: Result(rgba: output, layoutSafe: layoutSafe, erased: queue.count, method: method, quality: quality,
             sourceTouchesCropEdge: edge, postFillPaletteInkPixels: postInk, sourceRemainingInk: remaining, sourceCorePixels: coreTotal,

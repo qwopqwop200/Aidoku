@@ -1,8 +1,23 @@
 import CoreGraphics
+import CoreML
 import Foundation
 import XCTest
 @testable import Aidoku
 final class NativeCoreMLDetectorSafetyTests: XCTestCase {
+    func testDetectorOutputRejectsMatchingTensorWithInvalidRank() async throws {
+        // Matching shapes are insufficient: decoding indexes the spatial axes
+        // of a four-dimensional model output before materializing its values.
+        let output = MLTensor(shape: [1, 1], scalars: [Float(0.9)])
+        do {
+            _ = try await NativeCoreMLDetectionOutput.makeMap(
+                output: output, width: 1, height: 1, expectedShape: [1, 1]
+            )
+            XCTFail("Expected invalid detector output rank to be rejected")
+        } catch let error as NativeCoreMLDetectorError {
+            XCTAssertEqual(error, .modelOutputShape(expected: [1, 1], actual: [1, 1]))
+        }
+    }
+
     func testDefaultDetectorCanvasUses1184PixelLimitAndRetainsSmallerSources() throws {
         let cases: [(width: Int, height: Int, expectedWidth: Int, expectedHeight: Int)] = [
             (2_560, 1_920, 1_184, 896),

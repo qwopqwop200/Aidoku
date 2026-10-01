@@ -525,7 +525,9 @@ namespace glz
       template <class F>
       bool try_bloom_insert(uint32_t h, F&& append_fn)
       {
-         if (index_ && size_ <= bloom_threshold && !bloom_maybe_contains(h)) {
+         // Erasure invalidates the index; subsequent small-map linear inserts
+         // need not update its bloom filter. Rebuild before trusting that filter.
+         if (index_ && index_->size != 0 && size_ <= bloom_threshold && !bloom_maybe_contains(h)) {
             // Definitely not present — skip the search
             append_fn();
             bloom_set(h);

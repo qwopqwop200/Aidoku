@@ -37,7 +37,7 @@ struct ReaderPostOCRPerformanceTests {
             func run(_ reuse: Bool) -> [[String: Any]] {
                 let cache = BrowserOverlayTextMeasurementCache(reusesMeasurementStrings: reuse)
                 let start = ProcessInfo.processInfo.systemUptime
-                let result = BrowserPageImageOverlayRenderer.layoutPayload(items: items,
+                let result = NativeTranslationLayoutPlanner.payload(items: items,
                     imageSize: CGSize(width: 800, height: 1200), sourceRect: CGRect(x: 0, y: 0, width: 390, height: 585),
                     settings: settings, targetLanguage: "ko", viewport: CGSize(width: 390, height: 780), measurementCache: cache)
                 let elapsed = (ProcessInfo.processInfo.systemUptime - start) * 1000

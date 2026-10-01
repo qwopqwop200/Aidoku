@@ -184,6 +184,11 @@ with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
     assert translated['renderEngine'] == 'native-coretext-coregraphics'
     # Native payload replay uses the direct patch path and retains saved OCR/translations.
     native_ocr_before = {file.name: file.read_bytes() for file in (replay_dir / '0001').glob('*native-ocr.json')}
+    saved_payload = next((replay_dir / '0001').glob('*render-payload.json'))
+    latest_payload = replay_dir / '0001/1000-render-payload.json'
+    latest_payload.write_bytes(saved_payload.read_bytes())
+    stale_payload = replay_dir / '0001/999-render-payload.json'
+    stale_payload.write_text(json.dumps({'stage': 'render-payload', 'value': {'hostViewport': []}}))
     run(['--render-run', replay_dir])
     assert json.loads((replay_dir / '0001/final.json').read_text())['regions'] == translated['regions']
     assert {file.name: file.read_bytes() for file in (replay_dir / '0001').glob('*native-ocr.json')} == native_ocr_before
@@ -192,7 +197,7 @@ with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
     assert base64.b64decode(replay_png, validate=True) == (replay_dir / '0001/final.png').read_bytes()
     # Completed browser-era runs must recompose through native code when resumed,
     # while retaining OCR and user translations without any provider request.
-    saved_payload = next((replay_dir / '0001').glob('*render-payload.json'))
+    saved_payload = latest_payload
     legacy_payload = json.loads(saved_payload.read_text())
     for key in ['nativeLayout', 'nativeSettings', 'hostRenderer']:
         legacy_payload['value'].pop(key, None)

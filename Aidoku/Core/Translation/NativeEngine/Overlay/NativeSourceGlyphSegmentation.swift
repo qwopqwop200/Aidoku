@@ -78,8 +78,11 @@ enum NativeSourceGlyphSegmentation {
                     (shape.map(\.y).min() ?? 0) < CGFloat(height) && (shape.map(\.y).max() ?? 0) > 0
             }.prefix(64)
             for shape in shapes {
-                let x0 = max(0, Int(floor(shape.map(\.x).min() ?? 0))), x1 = min(width, Int(ceil(shape.map(\.x).max() ?? 0)))
-                let y0 = max(0, Int(floor(shape.map(\.y).min() ?? 0))), y1 = min(height, Int(ceil(shape.map(\.y).max() ?? 0)))
+                // Clamp in floating point before converting off-canvas coordinates.
+                let x0 = Int(max(0, min(CGFloat(width), floor(shape.map(\.x).min() ?? 0))))
+                let x1 = Int(max(0, min(CGFloat(width), ceil(shape.map(\.x).max() ?? 0))))
+                let y0 = Int(max(0, min(CGFloat(height), floor(shape.map(\.y).min() ?? 0))))
+                let y1 = Int(max(0, min(CGFloat(height), ceil(shape.map(\.y).max() ?? 0))))
                 guard x0 < x1, y0 < y1 else { continue }
                 for y in y0..<y1 {
                     for x in x0..<x1 {
@@ -145,9 +148,10 @@ enum NativeSourceGlyphSegmentation {
             bright(index) || observedSurface && bg.map { pixelDistance(rgba, index: index, color: $0) <= 28 } == true
         }
         let ownership = geometryMask(width: width, height: height, polygons: options.polygons, excluded: options.excludedPolygons, margin: 7)
-        let x0 = max(2, Int(floor(box.minX - 7))), y0 = max(2, Int(floor(box.minY - 7)))
-        let x1 = min(width - 3, Int(ceil(box.maxX + 7)))
-        let y1 = min(height - 3, Int(ceil(box.maxY + min(46, max(14, box.height * 0.13)))))
+        let x0 = Int(max(2, min(CGFloat(width), floor(box.minX - 7))))
+        let y0 = Int(max(2, min(CGFloat(height), floor(box.minY - 7))))
+        let x1 = Int(min(CGFloat(width - 3), max(1, ceil(box.maxX + 7))))
+        let y1 = Int(min(CGFloat(height - 3), max(1, ceil(box.maxY + min(46, max(14, box.height * 0.13))))))
         guard x0 <= x1, y0 <= y1 else { return nil }
         var raw = [UInt8](repeating: 0, count: n), mask = raw, coreCandidate = raw
         for y in y0...y1 {
@@ -263,6 +267,7 @@ enum NativeSourceGlyphSegmentation {
         if let ownership { for index in mask.indices where ownership.mask[index] == 0 { mask[index] = 0 } }
         var candidateCount = 0, candidateCovered = 0, outlineCount = 0, outlineCovered = 0
         var outlineCandidate = [UInt8](repeating: 0, count: n)
+        if outlined, let bg, !validColor(bg) { return nil }
         let separateOutline = outlined && bg != nil && stroke.map { distance($0, bg!) >= 48 } == true
         let outlineRadius = separateOutline ? Int(min(14, max(4, ceil(options.glyphSize * 0.13)))) : 4
         for index in coreCandidate.indices where coreCandidate[index] != 0 {
@@ -763,13 +768,16 @@ enum NativeSourceGlyphSegmentation {
     }
 
     static func inferVerticalRuby(raw: [UInt8], rgba: [UInt8], width: Int, height: Int, box: CGRect, background: [Double]) -> [CGRect] {
-        guard box.height >= box.width * 2.5, box.width >= 12, validColor(background), (background.min() ?? 0) >= 220,
+        guard [box.minX, box.minY, box.width, box.height].allSatisfy(\.isFinite),
+              box.height >= box.width * 2.5, box.width >= 12, validColor(background), (background.min() ?? 0) >= 220,
               width > 0, height > 0, width <= 750_000 / height, raw.count == width * height, rgba.count == raw.count * 4 else { return [] }
         let left = box.maxX - box.width * 0.15, right = min(CGFloat(width - 3), box.maxX + min(96, box.width * 0.8)), limit = box.width * 0.6
         struct Ruby { let c: Component; let solid: Bool }
         var candidates: [Ruby] = []
-        let y0 = max(3, Int(floor(box.minY))), y1 = Int(ceil(min(CGFloat(height - 3), box.maxY)))
-        let x0 = max(3, Int(floor(left))), x1 = Int(ceil(right))
+        let y0 = Int(max(3, min(CGFloat(height), floor(box.minY))))
+        let y1 = Int(max(0, ceil(min(CGFloat(height - 3), box.maxY))))
+        let x0 = Int(max(3, min(CGFloat(width), floor(left))))
+        let x1 = Int(max(0, ceil(right)))
         guard y0 < y1, x0 < x1 else { return [] }
         let starts = (y0..<y1).flatMap { y in (x0..<x1).map { y * width + $0 } }
         for c in components(raw, width: width, height: height, diagonal: true, seeds: starts) {
@@ -777,8 +785,8 @@ enum NativeSourceGlyphSegmentation {
             // wholly outside that strip must not become an inferred annotation.
             let startsInProbe = c.pixels.contains { index in
                 let x = index % width, y = index / width
-                return y >= max(3, Int(floor(box.minY))) && CGFloat(y) < min(CGFloat(height - 3), box.maxY) &&
-                    x >= max(3, Int(floor(left))) && CGFloat(x) < right
+                return y >= y0 && CGFloat(y) < min(CGFloat(height - 3), box.maxY) &&
+                    x >= x0 && CGFloat(x) < right
             }
             guard startsInProbe, c.pixels.count >= 3, CGFloat(c.left) >= left, CGFloat(c.right) <= right,
                   CGFloat(c.top) >= box.minY, CGFloat(c.bottom) <= box.maxY, c.left >= 3, c.top >= 3, c.right < width - 3, c.bottom < height - 3,
@@ -807,7 +815,7 @@ enum NativeSourceGlyphSegmentation {
                     if pixelDistance(rgba, index: y * width + x, color: background) > 32 { clear = false; break }
                 }
             }
-            let corridor0 = Int(ceil(box.maxX + 3)), corridor1 = l - 3
+            let corridor0 = Int(max(0, min(CGFloat(width), ceil(box.maxX + 3)))), corridor1 = l - 3
             if corridor0 < corridor1 {
                 for y in t...d where clear {
                     for x in corridor0..<corridor1 where pixelDistance(rgba, index: y * width + x, color: background) > 32 { clear = false; break }

@@ -3,6 +3,18 @@ import Testing
 @testable import AidokuRunner
 
 struct PartialResultOwnershipTests {
+    @Test func demoPartialKeepsOriginalRequestSubscriber() async throws {
+        let runner = DemoSourceRunner()
+        let publisher = try #require(runner.partialMangaPublisher)
+        let values = Values()
+        let old = await publisher.sink { _ in }
+        _ = await publisher.sink { _ in values.append(1) }
+        _ = await PartialResultSubscription.$id.withValue(old) {
+            await runner.getMangaUpdate(manga: .init(sourceKey: "demo", key: "1", title: "Demo"), needsDetails: true, needsChapters: false)
+        }
+        #expect(values.snapshot.isEmpty)
+    }
+
     @Test func lateRemovalAndLatePartialCannotAffectReplacementSubscriber() async {
         let publisher = SinglePublisher<Int>()
         let first = Values(), second = Values()

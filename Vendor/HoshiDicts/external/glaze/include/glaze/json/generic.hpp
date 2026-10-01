@@ -303,6 +303,20 @@ namespace glz
    template <class T, num_mode Mode, template <class> class MapType>
    error_ctx convert_from_generic(T& result, const generic_json<Mode, MapType>& source);
 
+   namespace detail
+   {
+      template <std::integral T>
+         requires(!std::same_as<T, bool>)
+      inline error_ctx generic_double_to_integer(T& result, const double value)
+      {
+         if (!generic_double_fits_integer<T>(value)) {
+            return error_ctx{0, error_code::parse_number_failure};
+         }
+         result = static_cast<T>(value);
+         return {};
+      }
+   }
+
    // Specialization for bool
    template <num_mode Mode, template <class> class MapType>
    inline error_ctx convert_from_generic(bool& result, const generic_json<Mode, MapType>& source)
@@ -361,7 +375,7 @@ namespace glz
          result = static_cast<uint64_t>(source.template get<int64_t>());
       }
       else {
-         result = static_cast<uint64_t>(source.template get<double>());
+         return detail::generic_double_to_integer(result, source.template get<double>());
       }
       return {};
    }
@@ -382,7 +396,7 @@ namespace glz
             result = source.template get<int64_t>();
          }
          else {
-            result = static_cast<int64_t>(source.template get<double>());
+            return detail::generic_double_to_integer(result, source.template get<double>());
          }
       }
       else {
@@ -390,7 +404,7 @@ namespace glz
             result = source.template get<int64_t>();
          }
          else {
-            result = static_cast<int64_t>(source.template get<double>());
+            return detail::generic_double_to_integer(result, source.template get<double>());
          }
       }
       return {};
@@ -409,7 +423,9 @@ namespace glz
 
    // Specialization for integer types (convert from integer types or double)
    template <class T, num_mode Mode, template <class> class MapType>
-      requires(std::integral<T> && !std::same_as<T, bool> && !std::same_as<T, int64_t> && !std::same_as<T, uint64_t>)
+      requires(std::integral<T> && !std::same_as<T, bool> &&
+               !(std::same_as<T, int64_t> && Mode != num_mode::f64) &&
+               !(std::same_as<T, uint64_t> && Mode == num_mode::u64))
    error_ctx convert_from_generic(T& result, const generic_json<Mode, MapType>& source)
    {
       if (!source.is_number()) {
@@ -423,7 +439,7 @@ namespace glz
             result = static_cast<T>(source.template get<int64_t>());
          }
          else {
-            result = static_cast<T>(source.template get<double>());
+            return detail::generic_double_to_integer(result, source.template get<double>());
          }
       }
       else if constexpr (Mode == num_mode::i64) {
@@ -431,11 +447,11 @@ namespace glz
             result = static_cast<T>(source.template get<int64_t>());
          }
          else {
-            result = static_cast<T>(source.template get<double>());
+            return detail::generic_double_to_integer(result, source.template get<double>());
          }
       }
       else {
-         result = static_cast<T>(source.template get<double>());
+         return detail::generic_double_to_integer(result, source.template get<double>());
       }
       return {};
    }

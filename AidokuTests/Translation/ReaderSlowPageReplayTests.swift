@@ -32,7 +32,7 @@ struct ReaderSlowPageReplayTests {
             let regions = try JSONDecoder().decode([ReaderTranslationStoredRegion].self, from: Data(contentsOf: file)).map(\.region)
             guard regions.count == 22 else { continue }
             let items = ReaderTranslationRegion.layoutItems(regions, imageSize: image.size)
-            let payload = BrowserPageImageOverlayRenderer.layoutPayload(items: items, imageSize: image.size,
+            let payload = NativeTranslationLayoutPlanner.payload(items: items, imageSize: image.size,
                 sourceRect: CGRect(origin: .zero, size: viewport), settings: settings.overlay,
                 targetLanguage: "ko", viewport: viewport)
             let data = try JSONSerialization.data(withJSONObject: payload)

@@ -178,26 +178,34 @@ final class TaskFetchOriginalData: AsyncPipelineTask<(Data, URLResponse?)> {
         if let resumableData, ResumableData.isResumedResponse(response) {
             data = resumableData.data
             resumedDataCount = Int64(resumableData.data.count)
-            let expectedSize = response.expectedContentLength + resumedDataCount
-            if expectedSize > 0, expectedSize <= Int.max {
-                data.reserveCapacity(Int(expectedSize))
-            }
             signpost(self, "LoadImageData", .event, "Resumed with data \(Formatter.bytes(resumedDataCount))")
         }
         resumableData = nil // Get rid of resumable data
 
         // Check the expected size early to avoid a large `reserveCapacity`
         // allocation when the server reports a content length above the limit.
+        let (expectedSize, overflow) = response.expectedContentLength.addingReportingOverflow(resumedDataCount)
+        guard !overflow else {
+            throw .dataDownloadExceededMaximumSize
+        }
         if let maximumResponseDataSize = pipeline.configuration.maximumResponseDataSize {
-            let expectedSize = response.expectedContentLength + resumedDataCount
             if expectedSize > 0, expectedSize > maximumResponseDataSize {
                 throw .dataDownloadExceededMaximumSize
             }
+        }
+        if resumedDataCount > 0, expectedSize > 0, expectedSize <= Int.max {
+            data.reserveCapacity(Int(expectedSize))
         }
     }
 
     /// Processes a data chunk. Returns `false` when the size limit is exceeded.
     private func dataTask(didReceiveData chunk: Data, response: URLResponse) throws(ImagePipeline.Error) {
+        if let maximumResponseDataSize = pipeline.configuration.maximumResponseDataSize {
+            guard data.count <= maximumResponseDataSize,
+                  chunk.count <= maximumResponseDataSize - data.count else {
+                throw .dataDownloadExceededMaximumSize
+            }
+        }
         // Append data and save response
         if data.isEmpty {
             data = chunk
@@ -208,10 +216,6 @@ final class TaskFetchOriginalData: AsyncPipelineTask<(Data, URLResponse?)> {
             data.append(chunk)
         }
         urlResponse = response
-
-        if let maximumResponseDataSize = pipeline.configuration.maximumResponseDataSize, data.count > maximumResponseDataSize {
-            throw .dataDownloadExceededMaximumSize
-        }
 
         let progress = TaskProgress(completed: Int64(data.count), total: response.expectedContentLength + resumedDataCount)
         send(progress: progress)

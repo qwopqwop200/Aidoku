@@ -33,3 +33,24 @@ hint, not guaranteed bandwidth or preemption. Existing DataLoading conformers
 remain supported; request identity, concurrency limits and last-subscriber
 cancellation are unchanged. Aidoku's asynchronous source-loader wrapper retains
 and forwards the latest priority while its URLSession is being prepared.
+
+Safety audit corrections:
+- `DataCache.flush(for:)` drains a pending global removal before later staged
+  writes, so flushing one key cannot lose a write made after `removeAll()`.
+- Memory-cache instances unregister their block notification observer on release.
+- Resumed responses validate total-length overflow and the configured download
+  limit before reserving memory; chunks validate the limit before appending.
+- Disposed image tasks cannot restart transport after a failed cache decode or
+  install a late preview in memory cache. Encoded disk writes honor the request's
+  `disableDiskCacheWrites` option.
+- Combine subscriptions start once on positive demand and remain terminal after
+  cancellation/completion, releasing downstream state and cancelling a task
+  created concurrently with cancellation.
+- LazyImage request comparison includes decode scale and thumbnail options.
+- Video resource reads validate offsets and clamp lengths to available bytes,
+  including Data slices with nonzero start indices.
+
+These changes retain successful response bytes, request method/body/headers,
+decoding and rendering algorithms, and existing image/cache size policies.
+Focused regressions live in `Tests/NukeRequestIdentityTests`; that target also
+depends on NukeUI and NukeVideo to exercise their actual implementation.

@@ -1044,14 +1044,14 @@ namespace glz
 
          constexpr U min_val = min_max.first;
          constexpr U max_val = min_max.second;
-         constexpr auto range = static_cast<size_t>(max_val - min_val);
+         constexpr auto range = static_cast<size_t>(static_cast<uint64_t>(max_val) - static_cast<uint64_t>(min_val));
 
          // Strategy 1: Dense sequential (most common case)
          constexpr bool is_sequential = [&]() {
             if (range + 1 != N) return false;
             // Direct indexing requires metadata order, not merely a dense value set.
             for (size_t i = 0; i < N; ++i) {
-               if (static_cast<size_t>(vals[i] - min_val) != i) return false;
+               if (static_cast<size_t>(static_cast<uint64_t>(vals[i]) - static_cast<uint64_t>(min_val)) != i) return false;
             }
             return true;
          }();
@@ -1112,7 +1112,7 @@ namespace glz
             info.table.fill(static_cast<uint8_t>(N));
 
             for (size_t i = 0; i < N; ++i) {
-               info.table[static_cast<size_t>(vals[i] - min_val)] = static_cast<uint8_t>(i);
+               info.table[static_cast<size_t>(static_cast<uint64_t>(vals[i]) - static_cast<uint64_t>(min_val))] = static_cast<uint8_t>(i);
             }
             return info;
          }
@@ -1244,7 +1244,7 @@ namespace glz
             return static_cast<size_t>(value);
          }
          else if constexpr (Info.type == offset) {
-            return static_cast<size_t>(value - Info.min_value);
+            return static_cast<size_t>(static_cast<uint64_t>(value) - static_cast<uint64_t>(Info.min_value));
          }
          else if constexpr (Info.type == two_element) {
             // Compare against first value: if match return 0, else check second
@@ -1271,8 +1271,8 @@ namespace glz
             return Info.table[bit];
          }
          else if constexpr (Info.type == small_range) {
-            const auto idx = static_cast<int64_t>(value) - Info.min_value;
-            if (idx < 0 || static_cast<size_t>(idx) >= Info.table_size) [[unlikely]] {
+            const auto idx = static_cast<uint64_t>(value) - static_cast<uint64_t>(Info.min_value);
+            if (idx >= Info.table_size) [[unlikely]] {
                return N; // Invalid: out of range
             }
             return Info.table[static_cast<size_t>(idx)]; // Returns N if slot is empty
@@ -2974,14 +2974,14 @@ namespace glz
 
          constexpr U min_val = min_max.first;
          constexpr U max_val = min_max.second;
-         constexpr auto range = static_cast<size_t>(max_val - min_val);
+         constexpr auto range = static_cast<size_t>(static_cast<uint64_t>(max_val) - static_cast<uint64_t>(min_val));
 
          // Check for sequential IDs
          constexpr bool is_sequential = [&]() {
             if (range + 1 != N) return false;
             // Direct indexing requires metadata order, not merely a dense value set.
             for (size_t i = 0; i < N; ++i) {
-               if (static_cast<size_t>(vals[i] - min_val) != i) return false;
+               if (static_cast<size_t>(static_cast<uint64_t>(vals[i]) - static_cast<uint64_t>(min_val)) != i) return false;
             }
             return true;
          }();
@@ -3039,7 +3039,7 @@ namespace glz
             info.table.fill(static_cast<uint8_t>(N));
 
             for (size_t i = 0; i < N; ++i) {
-               info.table[static_cast<size_t>(vals[i] - min_val)] = static_cast<uint8_t>(i);
+               info.table[static_cast<size_t>(static_cast<uint64_t>(vals[i]) - static_cast<uint64_t>(min_val))] = static_cast<uint8_t>(i);
             }
             return info;
          }
@@ -3186,7 +3186,7 @@ namespace glz
             return static_cast<size_t>(id);
          }
          else if constexpr (Info.type == offset) {
-            return static_cast<size_t>(id - Info.min_value);
+            return static_cast<size_t>(static_cast<uint64_t>(id) - static_cast<uint64_t>(Info.min_value));
          }
          else if constexpr (Info.type == two_element) {
             // Compare against first value: if match return 0, else check second
@@ -3212,8 +3212,8 @@ namespace glz
             return Info.table[bit];
          }
          else if constexpr (Info.type == small_range) {
-            const auto idx = static_cast<int64_t>(id) - Info.min_value;
-            if (idx < 0 || static_cast<size_t>(idx) >= Info.table_size) [[unlikely]] {
+            const auto idx = static_cast<uint64_t>(id) - static_cast<uint64_t>(Info.min_value);
+            if (idx >= Info.table_size) [[unlikely]] {
                return N;
             }
             return Info.table[static_cast<size_t>(idx)];

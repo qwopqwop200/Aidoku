@@ -283,6 +283,7 @@ final class DemoSourceRunner: Runner, Sendable {
     }
 
     func getMangaUpdate(manga: Manga, needsDetails: Bool, needsChapters: Bool) async -> Manga {
+        let owner = PartialResultSubscription.id
         var manga = manga
 
         if needsDetails {
@@ -299,7 +300,7 @@ final class DemoSourceRunner: Runner, Sendable {
             manga.viewer = .leftToRight
             manga.updateStrategy = .never
 
-            await partialMangaPublisher?.send(manga)
+            await partialMangaPublisher?.send(manga, to: owner)
         }
 
         if needsChapters {

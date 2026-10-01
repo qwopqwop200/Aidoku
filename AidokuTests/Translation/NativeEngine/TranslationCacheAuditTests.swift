@@ -84,4 +84,30 @@ struct TranslationCacheAuditTests {
         try await cache.clear(memory: true, disk: false)
         #expect(try await cache.value(for: key)?.source == .diskCache)
     }
+
+    @Test func failedExplicitFlushRetainsBackgroundPersistenceRetry() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let configuration = TranslationCacheConfiguration(maxSizeMiB: 1)
+        let cache = try TranslationCache(configuration: configuration, storageRootURL: root)
+        let directory = root.appendingPathComponent("browser-app/translation-cache-v1")
+        let saved = root.appendingPathComponent("saved-cache")
+        try FileManager.default.moveItem(at: directory, to: saved)
+        try Data("unavailable".utf8).write(to: directory)
+        let key = try key(), translations = answer(key)
+        await cache.insert(translations, for: key)
+        #expect(await cache.statistics().pendingDiskWrites == 1)
+        await #expect(throws: TranslationCacheError.self) { try await cache.flush() }
+
+        try FileManager.default.removeItem(at: directory)
+        try FileManager.default.moveItem(at: saved, to: directory)
+        // No insert, lookup or flush may rescue the pending write in this test.
+        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+        while await cache.statistics().pendingDiskWrites != 0, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(await cache.statistics().pendingDiskWrites == 0)
+        let reopened = try TranslationCache(configuration: configuration, storageRootURL: root)
+        #expect(try await reopened.value(for: key)?.translations == translations)
+    }
 }

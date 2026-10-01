@@ -37,4 +37,18 @@ struct NativeKeepAllOverflowNormalTests {
         let text = "그대는 작은 글씨를 더 넓게 읽고 싶었지만 줄바꿈 규칙을 정확하게 이해하지 못한 것이랍니다 그래서 본 영애가 직접 조판을 검증하는 것이와요"
         #expect(rows(text, width: 75) == ["그대는 작은 ", "글씨를 더 ", "넓게 읽고 ", "싶었지만 ", "줄바꿈 ", "규칙을 ", "정확하게 ", "이해하지 ", "못한 ", "것이랍니다 ", "그래서 ", "본 영애가 ", "직접 조판을 ", "검증하는 ", "것이와요"])
     }
+
+    @Test func normalKeepAllDeclinedSoftHyphenTerminates() {
+        let text = "ab\u{00AD}cd"
+        #expect(rows(text, width: 100, whitespace: .normal) == [text])
+    }
+
+    @Test func normalKeepAllDeclinedLengthBudgetTerminates() {
+        // Above the adapter's 8192-code-unit limit without growing the
+        // physical text frame to the entire unbroken input's width.
+        let text = String(repeating: "a ", count: 4096) + "a"
+        let result = rows(text, width: 100, whitespace: .normal)
+        #expect(!result.isEmpty)
+        #expect(result.joined(separator: " ") == text)
+    }
 }

@@ -71,7 +71,11 @@ enum NativeOCRShortReactionRecovery {
     }
 
     static func repeatedDotCount(_ rgba: [UInt8], width: Int, height: Int, columnWidth: CGFloat) -> Int {
-        guard width > 0, height > 0, rgba.count == width * height * 4 else { return 0 }
+        guard width > 0, height > 0 else { return 0 }
+        let pixels = width.multipliedReportingOverflow(by: height)
+        guard !pixels.overflow else { return 0 }
+        let bytes = pixels.partialValue.multipliedReportingOverflow(by: 4)
+        guard !bytes.overflow, rgba.count == bytes.partialValue else { return 0 }
         var ink = [Bool](repeating: false, count: width * height)
         for i in ink.indices {
             let r = Int(rgba[i * 4]), g = Int(rgba[i * 4 + 1]), b = Int(rgba[i * 4 + 2])

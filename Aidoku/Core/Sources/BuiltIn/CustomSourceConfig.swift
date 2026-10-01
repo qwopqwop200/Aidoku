@@ -49,7 +49,7 @@ extension CustomSourceConfig {
             ))
         }
 
-        var currentIndex = 1
+        var currentIndex = data.index(after: data.startIndex)
 
         func decodeString() throws -> String {
             let length: UInt64 = try decodeVarInt(data, currentIndex: &currentIndex)
@@ -65,7 +65,7 @@ extension CustomSourceConfig {
             return String(data: stringData, encoding: .utf8) ?? ""
         }
 
-        switch data[0] {
+        switch data[data.startIndex] {
             case 0:
                 self = .demo
             case 1:

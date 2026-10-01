@@ -47,7 +47,11 @@ struct GIFImage: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ uiView: GIFImageView, coordinator: Coordinator) {
-        uiView.stopAnimatingGIF()
+        // A dismantled representable is no longer displayed. Pausing alone
+        // retains Gifu's decoded frame buffer until UIKit releases the view.
+        uiView.prepareForReuse()
+        uiView.image = nil
         coordinator.data = nil
+        coordinator.image = nil
     }
 }

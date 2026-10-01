@@ -28,6 +28,7 @@ extension NativeSpatialSourceCrop {
         let y = max(0, floor(min(Double(bounds.minY), extent.map { Double($0.minY) }.min() ?? .infinity)) - margin)
         let sourceWidth = min(iw, ceil(max(Double(bounds.maxX), extent.map { Double($0.maxX) }.max() ?? -.infinity)) + margin) - x
         let sourceHeight = min(ih, ceil(max(Double(bounds.maxY), extent.map { Double($0.maxY) }.max() ?? -.infinity)) + margin) - y
+        guard [x, y, sourceWidth, sourceHeight].allSatisfy(\.isFinite), sourceWidth > 0, sourceHeight > 0 else { return nil }
         let allowance: Int
         if upright != nil { allowance = 524_288 }
         else { allowance = min(524_288, restorationBudget / max(1, remaining)); remaining -= 1 }

@@ -20,6 +20,7 @@ actor LocalFileManager {
     private let dataManager: LocalFileDataManager
     private let localDirectory: URL
     private let scanCheckpoint: (@Sendable () async -> Void)?
+    private let closeListenerDescriptor: @Sendable (CInt) -> Void
 
     private var lastScanTime = Date.distantPast
     private var scanTask: Task<Void, Never>?
@@ -29,7 +30,6 @@ actor LocalFileManager {
     static let allowedTextExtensions = Set(["txt", "md"])
     static let allowedPageExtensions = allowedImageExtensions.union(allowedTextExtensions)
 
-    private var localFolderFileDescriptor: CInt?
     private var localFolderSource: DispatchSourceFileSystemObject?
 
     private var scanDemand = LocalFileScanDemand()
@@ -46,11 +46,13 @@ actor LocalFileManager {
     init(
         dataManager: LocalFileDataManager = .shared, startsListener: Bool = true,
         localDirectory: URL = FileManager.default.documentDirectory.appendingPathComponent("Local", isDirectory: true),
-        scanCheckpoint: (@Sendable () async -> Void)? = nil
+        scanCheckpoint: (@Sendable () async -> Void)? = nil,
+        closeListenerDescriptor: @escaping @Sendable (CInt) -> Void = { close($0) }
     ) {
         self.dataManager = dataManager
         self.localDirectory = localDirectory
         self.scanCheckpoint = scanCheckpoint
+        self.closeListenerDescriptor = closeListenerDescriptor
         if startsListener {
             Task { await startFileSystemListener() }
         }
@@ -703,13 +705,30 @@ extension LocalFileManager {
 
     private func scanLocalFilesPass() async throws {
         let fileManager = FileManager.default
-        let documentsDir = fileManager.documentDirectory
         let localFolder = localDirectory
-        localFolder.createDirectory()
+        try fileManager.createDirectory(at: localFolder, withIntermediateDirectories: true)
 
         // get all manga folders
-        let mangaFolders = localFolder.contents.filter { $0.isDirectory }
+        let localContents = try fileManager.contentsOfDirectory(
+            at: localFolder, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles
+        )
+        let mangaFolders = try localContents.filter { try $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true }
         await scanCheckpoint?()
+        try Task.checkCancellation()
+
+        // Complete every directory read before reconciling deletions. A failed
+        // read must never look like an empty folder and erase saved metadata.
+        let folderChapters = try mangaFolders.map { folder in
+            try Task.checkCancellation()
+            let chapters = try fileManager.contentsOfDirectory(
+                at: folder, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
+            ).filter {
+                Self.allowedFileExtensions.contains($0.pathExtension.lowercased())
+            }.sorted {
+                $0.path.localizedStandardCompare($1.path) == .orderedAscending
+            }
+            return (folder, chapters)
+        }
         try Task.checkCancellation()
 
         let (toRemove, toAdd) = try await dataManager.findMangaDiskChanges(mangaFolders: mangaFolders)
@@ -720,18 +739,9 @@ extension LocalFileManager {
         }
 
         // for each manga folder, ensure chapters in db match local files
-        for folder in mangaFolders {
+        for (folder, cbzFiles) in folderChapters {
             try Task.checkCancellation()
             let mangaId = folder.lastPathComponent.normalized
-
-            // find cbz files in this folder
-            let cbzFiles = folder.contents
-                .filter {
-                    Self.allowedFileExtensions.contains($0.pathExtension.lowercased())
-                }
-                .sorted {
-                    $0.path.localizedStandardCompare($1.path) == .orderedAscending
-                }
 
             // add manga to db that exist on disk but not in db yet
             if toAdd.contains(mangaId) {
@@ -773,25 +783,24 @@ extension LocalFileManager {
 extension LocalFileManager {
     // start listening for file system changes in the local folder
     func startFileSystemListener() {
+        guard localFolderSource == nil else { return }
         let localFolder = localDirectory
         localFolder.createDirectory()
 
         let fd = open(localFolder.path, O_EVTONLY)
         guard fd >= 0 else { return }
-        localFolderFileDescriptor = fd
 
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fd,
             eventMask: [.write, .delete, .rename],
             queue: DispatchQueue.global(qos: .background)
         )
-        source.setEventHandler {
+        source.setEventHandler { [weak self] in
             // run a scan when a file is changed
-            Task { await LocalFileManager.shared.scanLocalFiles() }
+            Task { await self?.scanLocalFiles() }
         }
-        source.setCancelHandler {
-            Task { await LocalFileManager.shared.closeLocalFolderFileDescriptor() }
-        }
+        let closeDescriptor = closeListenerDescriptor
+        source.setCancelHandler { closeDescriptor(fd) }
         localFolderSource = source
         source.resume()
     }
@@ -802,12 +811,6 @@ extension LocalFileManager {
 //        localFolderSource = nil
 //    }
 
-    private func closeLocalFolderFileDescriptor() {
-        if let fd = self.localFolderFileDescriptor {
-            close(fd)
-            self.localFolderFileDescriptor = nil
-        }
-    }
 }
 
 // Paths may be nested, but all writes/deletions must remain strictly below Local.

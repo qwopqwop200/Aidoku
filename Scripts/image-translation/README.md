@@ -92,6 +92,6 @@ python3 Scripts/tests/run-image-translation-smoke.py
 
 The last command uses real host Core ML OCR, native rendering and a loopback mock provider, including offline replay, folder/list selection, failure continuation, concurrent translation and credential exclusion. It builds once and runs all cases against that executable. `--reuse-built` checks an existing successful executable only; it does not validate changed sources. Follow the affected-test policy unless full verification is explicitly requested.
 
-Frozen browser source-color/inpainting tests under `Scripts/tests` validate the historical reference algorithm. They are separate from native host tests. Saved color/component counts are diagnostic evidence, not labelled OCR accuracy or mask-IoU scores. See `Scripts/native-render-parity/README.md` for strict iOS native/reference comparisons and their measured limits.
+Native host tests validate the production CLI and renderer. Saved color/component counts are diagnostic evidence, not labelled OCR accuracy or mask-IoU scores. The previous browser-renderer comparison harness has been removed.
 
 Exit codes: `0` all inputs succeeded, `1` preparation or per-image failures, `2` invalid CLI/configuration/input selection. Provider errors remain failures; the runner does not fabricate translations.

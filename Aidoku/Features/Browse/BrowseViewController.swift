@@ -700,6 +700,7 @@ extension BrowseViewController {
 
 extension BrowseViewController: @MainActor SourceCellDelegate {
     func getButtonPressed(cell: SourceTableViewCell) {
+        guard cell.getButton.buttonState != .downloading else { return }
         guard
             let externalInfo = cell.info?.externalInfo,
             let url = externalInfo.fileURL

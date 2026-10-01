@@ -242,6 +242,44 @@ struct BackupSafetyTests {
         #expect(chapter.fileInfo?.path == "chapter.cbz")
     }
 
+    @Test func chapterRefreshPreservesDownloadOwnedByLaterMissingDuplicate() throws {
+        let context = try context()
+        let manga = MangaObject(context: context)
+        manga.sourceId = "source"
+        manga.id = "manga"
+        manga.title = "Manga"
+        var duplicates: [ChapterObject] = []
+        for index in 0..<2 {
+            let chapter = ChapterObject(context: context)
+            chapter.sourceId = manga.sourceId
+            chapter.mangaId = manga.id
+            chapter.id = "missing"
+            chapter.sourceOrder = Int16(index)
+            chapter.manga = manga
+            duplicates.append(chapter)
+        }
+        let file = LocalFileInfoObject(context: context)
+        file.path = "downloaded.cbz"
+        duplicates[1].fileInfo = file
+        let update = MangaUpdateObject(context: context)
+        update.sourceId = manga.sourceId
+        update.mangaId = manga.id
+        update.chapterId = "missing"
+        update.chapter = duplicates[1]
+        try context.save()
+
+        let added = CoreDataManager.shared.setChapters([], mangaId: manga.identifier, context: context)
+        try context.save()
+        context.reset()
+
+        let chapters = try context.fetch(ChapterObject.fetchRequest())
+        #expect(added.isEmpty)
+        #expect(chapters.count == 1)
+        #expect(chapters.first?.fileInfo?.path == "downloaded.cbz")
+        #expect(chapters.first?.mangaUpdate?.chapterId == "missing")
+        #expect(try context.fetch(MangaUpdateObject.fetchRequest()).count == 1)
+    }
+
     @Test func vocabularyRestorePreservesExistingLocalImage() throws {
         let context = try context()
         let original = VocabObject(context: context)

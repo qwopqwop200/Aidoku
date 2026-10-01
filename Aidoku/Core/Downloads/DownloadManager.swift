@@ -6,6 +6,7 @@
 //
 
 import AidokuRunner
+import Darwin
 import Foundation
 import ZIPFoundation
 
@@ -249,18 +250,15 @@ extension DownloadManager {
                 tmpDirectory.removeItem()
                 await cache.remove(chapter: chapter)
 
-                // check if all chapters have been removed (then remove manga directory)
+                // Prune an empty manga without cancelling unrelated queue work.
+                // New staging paths may arrive while cache removal is awaited.
                 let manga = chapter.mangaIdentifier
-                let hasRemainingChapters = cache.directory(for: manga)
-                    .contentsIncludingHidden
-                    .contains {
-                        guard $0.isDirectory || $0.pathExtension == "cbz" else { return false }
-                        guard $0.lastPathComponent.hasPrefix(DownloadCache.tmpDirectoryPrefix) else { return true }
-                        // a failed download counts as remaining
-                        return cache.hasFailureMarker(inTmpDirectory: $0)
+                if Self.pruneEmptyMangaDirectory(cache.directory(for: manga)) {
+                    let sourceDirectory = cache.directory(sourceKey: manga.sourceKey)
+                    sourceDirectory.withUnsafeFileSystemRepresentation { path in
+                        if let path { _ = Darwin.rmdir(path) }
                     }
-                if !hasRemainingChapters {
-                    await deleteChapters(for: manga)
+                    NotificationCenter.default.post(name: .downloadsRemoved, object: manga)
                 } else {
                     NotificationCenter.default.post(name: .downloadRemoved, object: chapter)
                 }
@@ -270,6 +268,38 @@ extension DownloadManager {
         invalidateDownloadedMangaCache()
     }
 
+    /// Enumeration failures and chapters arriving after enumeration must leave
+    /// their containing directory intact. Never recursively delete at this step.
+    nonisolated static func pruneEmptyMangaDirectory(
+        _ directory: URL,
+        contents: (URL) throws -> [URL] = {
+            try FileManager.default.contentsOfDirectory(at: $0, includingPropertiesForKeys: [.isDirectoryKey])
+        }
+    ) -> Bool {
+        do {
+            let entries = try contents(directory)
+            for entry in entries {
+                let values = try entry.resourceValues(forKeys: [.isDirectoryKey])
+                guard values.isDirectory == false, entry.pathExtension.lowercased() != "cbz" else { return false }
+            }
+            for entry in entries {
+                // unlink cannot erase a directory that replaces a listed file.
+                let removed: Bool = entry.withUnsafeFileSystemRepresentation { path -> Bool in
+                    guard let path else { return false }
+                    return Darwin.unlink(path) == 0
+                }
+                guard removed else { return false }
+            }
+            // rmdir is atomic with respect to newly created child entries.
+            return directory.withUnsafeFileSystemRepresentation { path -> Bool in
+                guard let path else { return false }
+                return Darwin.rmdir(path) == 0
+            }
+        } catch {
+            return false
+        }
+    }
+
     /// Remove all downloads from a manga.
     func deleteChapters(for manga: MangaIdentifier) async {
         guard cache.isSafe(manga: manga) else { return }
@@ -277,11 +307,11 @@ extension DownloadManager {
         cache.directory(for: manga).removeItem()
         await cache.remove(manga: manga)
 
-        // remove source directory if there are no more manga folders
+        // Remove only an empty source; never recursively erase another manga
+        // after a failed enumeration or a concurrent download starts.
         let sourceDirectory = cache.directory(sourceKey: manga.sourceKey)
-        let hasRemainingManga = !sourceDirectory.contents.isEmpty
-        if !hasRemainingManga {
-            sourceDirectory.removeItem()
+        sourceDirectory.withUnsafeFileSystemRepresentation { path in
+            if let path { _ = Darwin.rmdir(path) }
         }
 
         NotificationCenter.default.post(name: .downloadsRemoved, object: manga)

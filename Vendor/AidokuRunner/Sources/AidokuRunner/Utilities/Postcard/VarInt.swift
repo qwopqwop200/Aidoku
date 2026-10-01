@@ -20,45 +20,42 @@ func zigZag(_ n: Int64) -> UInt64 {
 }
 
 func varInt(_ n: UInt16, data: inout Data) {
-    let start = data.count
     var value = n
-    for offset in 0..<3 {
-        data.append(UInt8(truncatingIfNeeded: value.littleEndian))
+    for _ in 0..<3 {
+        data.append(UInt8(truncatingIfNeeded: value.littleEndian) | (value >= 128 ? 0x80 : 0))
         if value < 128 {
             break
         }
-        data[start + offset] |= 0x80
         value >>= 7
     }
 }
 
 func varInt(_ n: UInt32, data: inout Data) {
-    let start = data.count
     var value = n
-    for offset in 0..<5 {
-        data.append(UInt8(truncatingIfNeeded: value.littleEndian))
+    for _ in 0..<5 {
+        data.append(UInt8(truncatingIfNeeded: value.littleEndian) | (value >= 128 ? 0x80 : 0))
         if value < 128 {
             break
         }
-        data[start + offset] |= 0x80
         value >>= 7
     }
 }
 
 public func varInt(_ n: UInt64, data: inout Data) {
-    let start = data.count
     var value = n
-    for offset in 0..<10 {
-        data.append(UInt8(truncatingIfNeeded: value.littleEndian))
+    for _ in 0..<10 {
+        data.append(UInt8(truncatingIfNeeded: value.littleEndian) | (value >= 128 ? 0x80 : 0))
         if value < 128 {
             break
         }
-        data[start + offset] |= 0x80
         value >>= 7
     }
 }
 
 public func decodeVarInt<T: FixedWidthInteger>(_ data: Data, currentIndex: inout Data.Index) throws -> T {
+    guard currentIndex >= data.startIndex, currentIndex <= data.endIndex else {
+        throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid varint index"))
+    }
     var result: T = 0
     var shift = 0
     while currentIndex < data.endIndex {

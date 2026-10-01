@@ -831,7 +831,12 @@ final class NativeCoreMLDetector: @unchecked Sendable {
                     issuedGeneration,
                     cancellationCheck: cancellationCheck
                 )
-                let result = try loadResources()
+                let result = try loadResources(cancellationCheck: {
+                    try requireCurrent(
+                        issuedGeneration,
+                        cancellationCheck: cancellationCheck
+                    )
+                })
                 try requireCurrent(
                     issuedGeneration,
                     cancellationCheck: cancellationCheck
@@ -1559,7 +1564,8 @@ enum NativeCoreMLDetectionOutput {
         fullHeight: Int,
         expectedShape: [Int]
     ) async throws -> NativeCoreMLDetectionMap {
-        guard output.shape == expectedShape,
+        guard expectedShape.count == 4,
+              output.shape == expectedShape,
               fullWidth > 0,
               fullHeight > 0,
               fullWidth <= expectedShape[3],

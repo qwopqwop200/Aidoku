@@ -916,10 +916,10 @@ extension SourceManager {
         loadSourceLanguages()
         await removeEnhancedTrackerItems(for: sourceKey)
 
-        if !skipUpdateNotification {
-            await publishSourceState()
-            notifySourcesUnloaded(keys: [sourceKey])
-        }
+        // Batch callers suppress the browse refresh, but consumers must still
+        // release the removed source and observe its unloaded state.
+        await publishSourceState()
+        notifySourcesUnloaded(keys: [sourceKey], skipUpdateNotification: skipUpdateNotification)
     }
 
     nonisolated func removeSettings(from sourceKey: String) {

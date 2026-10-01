@@ -4618,8 +4618,8 @@ struct BrowserOverlayLayoutPlanner {
                 other.maxY + spacing,
             ]
         }).map { min(max(minimumY, $0), maximumY) })
-        return xValues.flatMap { x in
-            yValues.map { y in
+        return xValues.lazy.flatMap { x in
+            yValues.lazy.map { y in
                 CGRect(
                     x: x,
                     y: y,

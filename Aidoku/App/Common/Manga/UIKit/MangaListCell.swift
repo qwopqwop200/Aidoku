@@ -167,7 +167,7 @@ class MangaListCell: UICollectionViewCell {
         imageGeneration += 1
         identifier = nil
         url = nil
-        coverImageView.stopAnimatingGIF()
+        coverImageView.prepareForReuse()
         titleLabel.text = nil
         coverImageView.image = UIImage(named: "MangaPlaceholder")
         imageTask?.cancel()
@@ -294,12 +294,12 @@ extension MangaListCell {
         imageTask = nil
         guard let url else {
             self.url = nil
-            self.coverImageView.stopAnimatingGIF()
+            self.coverImageView.prepareForReuse()
             self.coverImageView.image = UIImage(named: "MangaPlaceholder")
             return
         }
 
-        self.coverImageView.stopAnimatingGIF()
+        self.coverImageView.prepareForReuse()
 
         let source: AidokuRunner.Source? = if let sourceKey = identifier?.sourceKey {
             await resolveImageSource(sourceKey)

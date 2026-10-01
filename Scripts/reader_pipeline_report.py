@@ -61,7 +61,7 @@ def summarize(events, page=None, token=None):
             key = trace + (event[:-4],)
             if pending[key] > 0:
                 pending[key] -= 1
-        if (number(row, 'outcome') != 0 or any(word in event for word in
+        if (number(row, 'outcome') != 0 or any(word in event.lower() for word in
                 ('failed', 'failure', 'fallback', 'wrong_language', 'mismatch', 'before_layout', 'cancelled'))):
             problems.append({key: row[key] for key in ('time', 'event', 'page', 'page_token', 'trace', 'code', 'outcome') if key in row})
     timings = []

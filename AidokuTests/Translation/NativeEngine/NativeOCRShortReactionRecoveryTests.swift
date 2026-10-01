@@ -4,6 +4,14 @@ import UIKit
 @testable import Aidoku
 
 struct NativeOCRShortReactionRecoveryTests {
+    @Test func malformedDimensionsAreRejectedBeforeByteCountArithmetic() {
+        for (width, height) in [(Int.max, 2), (Int.max / 4 + 1, 1), (0, 1), (-1, 1), (1, 1)] {
+            #expect(NativeOCRShortReactionRecovery.repeatedDotCount(
+                [], width: width, height: height, columnWidth: 66
+            ) == 0)
+        }
+    }
+
     @Test func leadingPunctuationKeepsIndependentlyCountedDots() {
         #expect(NativeOCRShortReactionRecovery.preservingLeadingDots("●・つ！", count: 6) == "……つ！")
         #expect(NativeOCRShortReactionRecovery.preservingLeadingDots("っ！", count: 6) == "っ！")

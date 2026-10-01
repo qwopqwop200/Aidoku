@@ -645,7 +645,9 @@ extension ReaderPageView {
         translationPage.reset()
         translationPage.sourcePage = nil
         currentPage = nil
-        imageView.stopAnimatingGIF()
+        // Retained page controllers must release decoded GIF frames as well
+        // as their still image when they leave the working set.
+        imageView.prepareForReuse()
         imageView.image = nil
         currentImageRequest = nil
         progressView.isHidden = true

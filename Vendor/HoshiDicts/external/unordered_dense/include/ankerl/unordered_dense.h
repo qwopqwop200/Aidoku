@@ -714,7 +714,17 @@ private:
     void increase_capacity() {
         auto ba = Allocator(m_blocks.get_allocator());
         pointer block = std::allocator_traits<Allocator>::allocate(ba, num_elements_in_block);
+#    if ANKERL_UNORDERED_DENSE_HAS_EXCEPTIONS()
+        try {
+#    endif
         m_blocks.push_back(block);
+#    if ANKERL_UNORDERED_DENSE_HAS_EXCEPTIONS()
+        } catch (...) {
+            // The segment is not owned by m_blocks until insertion succeeds.
+            std::allocator_traits<Allocator>::deallocate(ba, block, num_elements_in_block);
+            throw;
+        }
+#    endif
     }
 
     // Moves everything from other

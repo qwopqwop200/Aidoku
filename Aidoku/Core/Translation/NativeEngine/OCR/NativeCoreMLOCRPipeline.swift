@@ -2742,6 +2742,7 @@ final class NativeCoreMLOCRPipeline: @unchecked Sendable {
                 .map { NativeOCRAdjacentLineRecovery.orientingSingleLatinLetter($0, rows: latinRows) }
             let recognitionMilliseconds =
                 recognition?.diagnostics.totalMilliseconds ?? 0
+            try cancellationCheck()
             return NativeCoreMLOCRResult(
                 requestID: requestID,
                 width: detection.width,

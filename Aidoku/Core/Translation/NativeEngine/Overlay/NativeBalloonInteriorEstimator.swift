@@ -80,8 +80,12 @@ final class NativeBalloonInteriorEstimator {
             while read<length {
                 let v=queue[read],vx=v%w,vy=v/w;read+=1
                 if vx>=bx0 && vx<bx1 && vy>=by0 && vy<by1 {inBox+=1}
-                var neighbors:[Int]=[];if vx>0 {neighbors.append(v-1)};if vx<w-1 {neighbors.append(v+1)};if vy>0 {neighbors.append(v-w)};if vy<h-1 {neighbors.append(v+w)}
-                for q in neighbors where open[q] != 0 && labels[q]==0 {labels[q]=components;queue[length]=q;length+=1}
+                // Preserve left/right/up/down discovery order without allocating
+                // a temporary neighbor array for every visited pixel.
+                if vx>0 && open[v-1] != 0 && labels[v-1]==0 {labels[v-1]=components;queue[length]=v-1;length+=1}
+                if vx<w-1 && open[v+1] != 0 && labels[v+1]==0 {labels[v+1]=components;queue[length]=v+1;length+=1}
+                if vy>0 && open[v-w] != 0 && labels[v-w]==0 {labels[v-w]=components;queue[length]=v-w;length+=1}
+                if vy<h-1 && open[v+w] != 0 && labels[v+w]==0 {labels[v+w]=components;queue[length]=v+w;length+=1}
             }
             if Double(inBox)>=Double(boxArea)*0.08 {keep.insert(components)}
             if inBox>bestCount {bestCount=inBox;best=components}
@@ -96,8 +100,10 @@ final class NativeBalloonInteriorEstimator {
         for y in 0..<h {for x in [0,w-1] {let s=y*w+x;if fill[s]==0 && outside[s]==0 {outside[s]=1;queue[length]=s;length+=1}}}
         while read<length {
             let v=queue[read],vx=v%w,vy=v/w;read+=1
-            var neighbors:[Int]=[];if vx>0 {neighbors.append(v-1)};if vx<w-1 {neighbors.append(v+1)};if vy>0 {neighbors.append(v-w)};if vy<h-1 {neighbors.append(v+w)}
-            for q in neighbors where fill[q]==0 && outside[q]==0 {outside[q]=1;queue[length]=q;length+=1}
+            if vx>0 && fill[v-1]==0 && outside[v-1]==0 {outside[v-1]=1;queue[length]=v-1;length+=1}
+            if vx<w-1 && fill[v+1]==0 && outside[v+1]==0 {outside[v+1]=1;queue[length]=v+1;length+=1}
+            if vy>0 && fill[v-w]==0 && outside[v-w]==0 {outside[v-w]=1;queue[length]=v-w;length+=1}
+            if vy<h-1 && fill[v+w]==0 && outside[v+w]==0 {outside[v+w]=1;queue[length]=v+w;length+=1}
         }
         var area=0,covered=0,pageEdge=0,rowMin=[Int](repeating:-1,count:h),rowMax=[Int](repeating:-1,count:h)
         for y in 0..<h {for x in 0..<w {

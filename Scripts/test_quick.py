@@ -20,42 +20,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def host_commands():
-    # Frozen browser-reference smoke checks plus host tooling. Native renderer
-    # behavior is exercised by the iOS suites and the explicit full-host matrix.
-    commands = [
-        ['node', 'Scripts/tests/' + name + '.cjs'] for name in [
-            'unrecoverable-title-panel-regression',
-            'forced-inpaint-quality-regression',
-            'certified-inpaint-surface-regression',
-            'component-exemplar-inpaint-regression',
-            'source-color-regression',
-            'source-color-readability-regression',
-            'released-caption-outline-regression',
-            'source-inpainting-outline-donors',
-            'source-inpainting-regression',
-            'row-end-marks-regression',
-            'connected-lettering-regression',
-            'render-body-sync-regression',
-            'source-inpainting-frame-fringe',
-            'chromatic-glyph-erasure',
-            'outlined-caption-restoration',
-            'discovered-outline-restoration',
-            'complete-caption-erasure',
-            'caption-enclosed-style-regression',
-            'restoration-retry-priority',
-            'narrow-paper-balloons',
-            'edge-outlined-glyph',
-            'white-outline-background',
-            'column-layout-surface-regression',
-        ]
-    ]
-    commands += [
-        ['node', '--test', 'Scripts/tests/typography-clusters-regression.cjs'],
-        ['node', '--test', 'Scripts/tests/source-inpainting-inferred-ruby.cjs'],
+    # Native runtime checks live in the iOS suites and explicit full-host matrix.
+    return [
         [sys.executable, '-m', 'unittest', 'discover', '-s', 'Scripts', '-v'],
         [sys.executable, 'Scripts/validate_localizations.py'],
     ]
-    return commands
 
 
 def log_tail(log, limit=12000):
@@ -270,7 +239,7 @@ def main():
                        'complete AidokuFull (incremental build)' if args.full_ios else
                        'selected iOS tests from AidokuFull (incremental build)') if is_ios else
                       'complete checked-in host matrix' if args.full_host else
-                      'frozen browser-reference and host tooling smoke checks'), flush=True)
+                      'host tooling smoke checks'), flush=True)
     with ExitStack() as resources:
         if cache is not None:
             cache.mkdir(parents=True, exist_ok=True)
@@ -331,8 +300,14 @@ def run_commands(commands, deadline, started, bundle, full_host, host_results=No
                 try:
                     process.wait(timeout=0.5)
                 except subprocess.TimeoutExpired:
+                    pass
+                # The group leader may exit before a compiler/test worker that
+                # ignored SIGTERM. Stop the entire invocation even in that case.
+                try:
                     os.killpg(process.pid, signal.SIGKILL)
-                    process.wait(timeout=1)
+                except ProcessLookupError:
+                    pass
+                process.wait(timeout=1)
                 record_host(index, command, 'incomplete', None, time.monotonic() - command_started, error=type(error).__name__)
                 print(log_tail(log))
                 print(f'INCOMPLETE after {time.monotonic() - started:.1f}s; not a pass', flush=True)

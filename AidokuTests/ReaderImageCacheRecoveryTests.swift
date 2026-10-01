@@ -5,6 +5,43 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderImageCacheRecoveryTests {
+    @Test func downloadedPNGBytesAndPixelsSurviveCoalescingAndDiskReplay() async throws {
+        let cache = try DataCache(name: "reader-original-byte-identity-" + UUID().uuidString)
+        defer { cache.removeAll() }
+        func pipeline() -> ImagePipeline {
+            ImagePipeline {
+                let config = URLSessionConfiguration.ephemeral
+                config.protocolClasses = [RecoveryImageURLProtocol.self]
+                $0.dataLoader = DataLoader(configuration: config)
+                $0.dataCache = cache
+                $0.dataCachePolicy = .storeOriginalData
+                $0.imageCache = nil
+                $0.maximumResponseDataSize = RecoveryImageURLProtocol.png.count
+            }
+        }
+        let original = RecoveryImageURLProtocol.png
+        let url = try #require(URL(string: "https://cache-recovery.invalid/identity/\(UUID())"))
+        let request = ImageRequest(url: url)
+        let cold = pipeline()
+        async let first = cold.data(for: request)
+        async let second = cold.data(for: request)
+        let downloads = try await (first, second)
+        #expect(downloads.0.0 == original && downloads.1.0 == original)
+        #expect(RecoveryImageURLProtocol.count(url) == 1)
+        cache.flush()
+        let warm = pipeline()
+        #expect(try await warm.data(for: request).0 == original)
+        let image = try await warm.image(for: request)
+        let expectedImage = try #require(UIImage(data: original)?.cgImage)
+        let actualImage = try #require(image.cgImage)
+        let expected = try #require(NativeOCRCGImageAdapter.makeRGBAFrame(from: expectedImage))
+        let actual = try #require(NativeOCRCGImageAdapter.makeRGBAFrame(from: actualImage))
+        #expect(actual.width == expected.width && actual.height == expected.height)
+        #expect(actual.bytes == expected.bytes)
+        #expect(warm.cache.cachedData(for: request) == original)
+        #expect(RecoveryImageURLProtocol.count(url) == 1)
+    }
+
     @Test(arguments: [false, true])
     func corruptBase64DiskEntryFallsBackToSource(webtoon: Bool) async throws {
         let cache = try DataCache(name: "reader-corrupt-base64-" + UUID().uuidString)

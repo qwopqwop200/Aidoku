@@ -90,6 +90,9 @@ final class Cache<Key: Hashable & Sendable, Value: Sendable>: @unchecked Sendabl
 
     deinit {
         memoryPressure.cancel()
+        if let notificationObserver {
+            NotificationCenter.default.removeObserver(notificationObserver)
+        }
         lock.deinitialize(count: 1)
         lock.deallocate()
     }

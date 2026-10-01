@@ -16,6 +16,33 @@ struct ReaderTranslationConcurrencyTests {
         #expect(translated.compactMap(\.translation) == input.map { "translated " + $0.source })
     }
 
+    @Test func providerFailureWaitsForPartialCallbackToFinish() async throws {
+        let lifetime = PartialCallbackLifetime()
+        let service = ReaderTranslationService(client: FailingPartialProbe(lifetime: lifetime))
+        let work = Task {
+            do {
+                _ = try await service.translate(regions: regions(prefix: "partial", count: 1), settings: settings(concurrency: 1),
+                    onPartialProgress: { _ in await lifetime.holdCallback() })
+                Issue.record("The provider should fail")
+            } catch {
+                #expect(error as? RemoteTranslationError == .missingCredential)
+            }
+            await lifetime.recordReturn()
+        }
+        defer {
+            work.cancel()
+            Task { await lifetime.releaseCallback() }
+        }
+        try await waitUntil { await lifetime.callbackCancelled }
+        // Keep the cancelled callback suspended independently of cancellation.
+        // The service must join it before its failure reaches the caller.
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(await !lifetime.returned)
+        await lifetime.releaseCallback()
+        await work.value
+        #expect(await lifetime.callbackFinished)
+    }
+
     @Test func providerQueueHonorsAllMetadataPrioritiesAfterPages() async throws {
         let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
         let recorder = PermitRecorder()
@@ -380,4 +407,43 @@ private actor CacheFailureProbe: RemoteTranslating {
 private actor CacheBatchProgress {
     var indices: [Int] = []
     func append(_ index: Int) { indices.append(index) }
+}
+
+private actor PartialCallbackLifetime {
+    var callbackStarted = false
+    var callbackCancelled = false
+    var callbackFinished = false
+    var returned = false
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func holdCallback() async {
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                self.continuation = continuation
+                callbackStarted = true
+            }
+        } onCancel: {
+            Task { await self.recordCancellation() }
+        }
+        callbackFinished = true
+    }
+
+    private func recordCancellation() { callbackCancelled = true }
+    func recordReturn() { returned = true }
+    func releaseCallback() { continuation?.resume(); continuation = nil }
+}
+
+private struct FailingPartialProbe: RemoteTranslating {
+    let lifetime: PartialCallbackLifetime
+
+    func translate(_ request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration) async throws -> RemoteTranslationBatchResult {
+        throw RemoteTranslationError.missingCredential
+    }
+
+    func translate(_ request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration,
+                   onPartial: RemoteTranslationPartialHandler?) async throws -> RemoteTranslationBatchResult {
+        onPartial?(request.segments.map { .init(id: $0.id, text: "partial translation") })
+        while await !lifetime.callbackStarted { try await Task.sleep(for: .milliseconds(5)) }
+        throw RemoteTranslationError.missingCredential
+    }
 }

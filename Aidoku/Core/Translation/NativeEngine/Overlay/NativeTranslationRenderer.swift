@@ -929,7 +929,7 @@ enum NativeTranslationRenderer {
     }
 
     static func sampleSource(_ source: CGImage, rect: CGRect, frame: CGRect, width: Int, height: Int) -> [UInt8]? {
-        guard valid(rect), valid(frame), width > 0, height > 0, width * height <= 262_144 else { return nil }
+        guard valid(rect), valid(frame), width > 0, height > 0, width <= 262_144 / height else { return nil }
         let x = Double((rect.minX - frame.minX) / frame.width) * Double(source.width)
         let y = Double((rect.minY - frame.minY) / frame.height) * Double(source.height)
         return try? NativeSourcePixelReader.draw(image: source, x: x, y: y,
@@ -1656,13 +1656,10 @@ enum NativeTranslationRenderer {
                     in: card.note.contentSize, style: card.style)
             } else if let index = cards.firstIndex(where: { $0.item.id == result.id }) {
                 cards[index].style.outlineWidth = CGFloat(result.width)
-                let card = cards[index]
-                cards[index].typography = NativeTranslationTypography.layout(text: card.item.typesettingText ?? card.item.text,
-                    in: card.item.contentRect.size, style: card.style)
             }
         }
+        // Commit paint changes once, including each card's controlled rows and line offsets.
         for index in cards.indices {
-            let card = cards[index]
             cards[index].typography = remeasureTypography(cards[index])
         }
     }

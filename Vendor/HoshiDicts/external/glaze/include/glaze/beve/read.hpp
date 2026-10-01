@@ -146,7 +146,14 @@ namespace glz
             return;
          }
 
-         const auto num_bytes = (value.size() + 7) / 8;
+         if (n > value.size()) [[unlikely]] {
+            ctx.error = error_code::exceeded_static_array_size;
+            return;
+         }
+
+         // The wire count owns the payload length. A smaller bitset must not
+         // consume bytes from the next value; a larger one cannot fit the target.
+         const auto num_bytes = n / 8 + (n % 8 != 0);
          for (size_t byte_i{}, i{}; byte_i < num_bytes; ++byte_i, ++it) {
             if (invalid_end(ctx, it, end)) {
                return;

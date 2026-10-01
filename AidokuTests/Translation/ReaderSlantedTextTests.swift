@@ -1,12 +1,10 @@
 import Testing
 import UIKit
-import WebKit
 @testable import Aidoku
 
 @Suite(.serialized)
 @MainActor
 struct ReaderSlantedTextTests {
-    private static let webFixture = RegressionWebFixture()
 
     private nonisolated static var directory: URL { URL.documentsDirectory.appendingPathComponent("SlantedText") }
 
@@ -125,7 +123,7 @@ struct ReaderSlantedTextTests {
         let item = BrowserOverlayItem(
             stableRegionID: 1, rect: NativeOCRScopeGeometry.bounds(for: points) ?? .zero,
             sourceText: "Skip", translatedText: "건너뛰기", confidence: 1, sourceOrientation: .horizontal, sourcePolygon: points)
-        let payload = BrowserPageImageOverlayRenderer.layoutPayload(
+        let payload = NativeTranslationLayoutPlanner.payload(
             items: [item], imageSize: size,
             sourceRect: CGRect(origin: .zero, size: size), settings: ReaderTranslationSettings.defaultOverlay,
             targetLanguage: "ko", viewport: size).first
@@ -139,41 +137,6 @@ struct ReaderSlantedTextTests {
             maximumFontSize: 14, measurementCache: nil) == nil)
     }
 
-    @Test(arguments: [-78.0, -25, 25, 78])
-    func nativeCardsRetainAngleAcrossReuseAndResetForAnUprightReplacement(degrees: Double) throws {
-        let overlay = BrowserOverlayView(frame: CGRect(x: 0, y: 0, width: 430, height: 400))
-        let angle = CGFloat(degrees * .pi / 180)
-        let points = quad(angle: angle)
-        let bounds = try #require(NativeOCRScopeGeometry.bounds(for: points))
-        func item(_ polygon: [CGPoint]) -> BrowserOverlayItem {
-            .init(stableRegionID: 7, rect: bounds, sourceText: "傾いた文字", translatedText: "기울어진 글자",
-                  confidence: 1, sourceOrientation: .horizontal, sourcePolygon: polygon)
-        }
-        func cards(_ view: UIView) -> [UIView] {
-            (view.accessibilityIdentifier == "aidoku.reader.overlay.item" ? [view] : []) + view.subviews.flatMap(cards)
-        }
-        func fonts(_ view: UIView) -> [CGFloat] {
-            (view as? UILabel).map { [$0.font.pointSize] } ?? view.subviews.flatMap(fonts)
-        }
-        for polygon in [points, points, []] {
-            overlay.render([item(polygon)], imageSize: overlay.bounds.size, sourceRect: overlay.bounds,
-                settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko")
-            overlay.layoutIfNeeded()
-            let card = try #require(cards(overlay).first)
-            #expect(abs(atan2(card.transform.b, card.transform.a) - (polygon.isEmpty ? 0 : angle)) < 0.001)
-            if !polygon.isEmpty {
-                #expect(abs(card.center.x - 200) < 0.01 && abs(card.center.y - 180) < 0.01)
-                #expect(bounds.insetBy(dx: -0.1, dy: -0.1).contains(card.frame))
-            } else {
-                let reference = BrowserOverlayView(frame: overlay.bounds)
-                reference.render([item([])], imageSize: reference.bounds.size, sourceRect: reference.bounds,
-                    settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko")
-                reference.layoutIfNeeded()
-                #expect(fonts(card) == fonts(try #require(cards(reference).first)))
-                #expect(card.layer.mask == nil)
-            }
-        }
-    }
 
     @Test func narrowSlantedVerticalColumnOffersAnUprightKoreanCard() throws {
         // A slanted vertical column two syllables wide cannot hold a Korean
@@ -187,7 +150,7 @@ struct ReaderSlantedTextTests {
             let item = BrowserOverlayItem(stableRegionID: 3, rect: bounds, sourceText: "何でコイツは標的にならなかったんだ",
                                           translatedText: translation, confidence: 1, sourceOrientation: .vertical,
                                           sourceSingleVerticalColumn: true, sourcePolygon: points)
-            return try #require(BrowserPageImageOverlayRenderer.layoutPayload(
+            return try #require(NativeTranslationLayoutPlanner.payload(
                 items: [item], imageSize: size,
                 sourceRect: CGRect(origin: .zero, size: size), settings: ReaderTranslationSettings.defaultOverlay,
                 targetLanguage: "ko", viewport: size).first)
@@ -214,7 +177,7 @@ struct ReaderSlantedTextTests {
             let item = BrowserOverlayItem(stableRegionID: 4, rect: bounds, sourceText: "どうなってるんだよ",
                                           translatedText: "어떻게 된 거야", confidence: 1, sourceOrientation: vertical ? .vertical : .horizontal,
                                           sourceSingleVerticalColumn: vertical, sourcePolygon: points)
-            return try #require(BrowserPageImageOverlayRenderer.layoutPayload(
+            return try #require(NativeTranslationLayoutPlanner.payload(
                 items: [item], imageSize: size,
                 sourceRect: CGRect(origin: .zero, size: size), settings: ReaderTranslationSettings.defaultOverlay,
                 targetLanguage: "ko", viewport: size).first)
@@ -256,63 +219,6 @@ struct ReaderSlantedTextTests {
             sourceRect: CGRect(x: 0, y: 0, width: 430, height: 400), settings: settings) == nil)
     }
 
-    @Test func canvasGlyphBoundsContainTheActualWebKitInk() async throws {
-        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        let window = UIWindow(windowScene: scene); window.rootViewController = UIViewController(); window.makeKeyAndVisible()
-        defer { window.isHidden = true }
-        let web = Self.webFixture.acquire(frame: CGRect(x: 0, y: 0, width: 430, height: 260))
-        defer { Self.webFixture.release(web) }
-        web.scrollView.contentInsetAdjustmentBehavior = .never
-        window.rootViewController?.view.addSubview(web)
-        window.rootViewController?.view.layoutIfNeeded()
-        web.layoutIfNeeded()
-        try await RegressionWebFixture.load("""
-        <meta name='viewport' content='width=device-width,initial-scale=1'><style>
-        html,body{margin:0;height:260px;background:white}div{position:absolute;left:30px;top:20px;width:360px;height:210px;
-        display:flex;align-items:center;justify-content:center;text-align:center;white-space:pre-wrap;
-        font:700 31.5px 'Apple SD Gothic Neo',-apple-system,sans-serif;line-height:1.193;letter-spacing:-.012em;color:black}
-        </style><div>역겨워! 목욕할 시간이야.\nQuick brown fox 123!</div>
-        """, in: web)
-
-        // Reattached WebKit views settle viewport/scroll geometry during presentation.
-        // Measure glyphs after the same paint fence used for the snapshot.
-        _ = try await web.callAsyncJavaScript("await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))", arguments: [:], in: nil, contentWorld: .page)
-        let rects = try #require(try await web.evaluateJavaScript(#"""
-        (()=>{const n=document.querySelector('div'),t=n.firstChild,s=getComputedStyle(n),c=document.createElement('canvas').getContext('2d');
-        c.font=`${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;const range=document.createRange(),out=[];let offset=0;
-        for(const ch of t.textContent){const next=offset+ch.length;if(!/\s/u.test(ch)){
-          range.setStart(t,offset);range.setEnd(t,next);const m=c.measureText(ch);
-          for(const r of range.getClientRects()){const baseline=r.top+(r.height-m.fontBoundingBoxAscent-m.fontBoundingBoxDescent)/2+m.fontBoundingBoxAscent;
-            out.push([r.left-m.actualBoundingBoxLeft-1,baseline-m.actualBoundingBoxAscent-1,
-              r.left+m.actualBoundingBoxRight+1,baseline+m.actualBoundingBoxDescent+1]);}}offset=next;}return out;})()
-        """#) as? [[Double]])
-        let snapshot: UIImage = try await withCheckedThrowingContinuation { continuation in
-            web.takeSnapshot(with: nil) { image, error in
-                if let image { continuation.resume(returning: image) }
-                else { continuation.resume(throwing: error ?? CancellationError()) }
-            }
-        }
-        let cg = try #require(snapshot.cgImage)
-        try FileManager.default.createDirectory(at: Self.directory, withIntermediateDirectories: true)
-        try snapshot.pngData()?.write(to: Self.directory.appendingPathComponent("font-footprint.png"))
-        try JSONSerialization.data(withJSONObject: rects).write(to: Self.directory.appendingPathComponent("font-footprint-rects.json"))
-        var pixels = [UInt8](repeating: 0, count: cg.width * cg.height * 4)
-        try pixels.withUnsafeMutableBytes { buffer in
-            let context = try #require(CGContext(data: buffer.baseAddress, width: cg.width, height: cg.height,
-                bitsPerComponent: 8, bytesPerRow: cg.width * 4, space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
-            context.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height))
-        }
-        let scale = Double(cg.width) / 430
-        var ink = 0, outside = 0
-        for y in 0..<cg.height { for x in 0..<cg.width where pixels[(y * cg.width + x) * 4] < 180 && pixels[(y * cg.width + x) * 4 + 3] >= 250 {
-            ink += 1
-            let px = (Double(x) + 0.5) / scale, py = (Double(y) + 0.5) / scale
-            if !rects.contains(where: { px >= $0[0] && py >= $0[1] && px <= $0[2] && py <= $0[3] }) { outside += 1 }
-        } }
-        #expect(ink > 300)
-        #expect(outside == 0, "measured footprint must contain the rendered glyphs: \(outside)/\(ink)")
-    }
 
     // Fixed, reviewed dataset text/geometry. This isolates actual WebKit
     // layout/rasterization from changes in a remote translation provider.

@@ -72,7 +72,9 @@ extension URL {
         if #available(iOS 16.0, macOS 13.0, *) {
             path(percentEncoded: true)
         } else {
-            path
+            // URL.path has already decoded separators on older systems.
+            // Deep-link callers must split before decoding source-provided IDs.
+            URLComponents(url: self, resolvingAgainstBaseURL: false)?.percentEncodedPath ?? path
         }
     }
 }

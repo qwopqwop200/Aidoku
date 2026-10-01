@@ -6,6 +6,41 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderPagedDemandSchedulingTests {
+    @Test func rebuildingControllersReleasesDiscardedPageLoads() throws {
+        try withReader(preload: 3) { reader, _ in
+            let old = reader.pageViewControllers
+            reader.loadPage(at: 10)
+            reader.loadPage(at: 11)
+            #expect(old[10].page != nil)
+            #expect(old[11].page != nil)
+
+            reader.loadPageControllers(chapter: try #require(reader.chapter))
+
+            #expect(old[10].page == nil)
+            #expect(old[11].page == nil)
+            #expect(old[10].pageView?.imageView.image == nil)
+            #expect(reader.pageViewControllers[10] !== old[10])
+        }
+    }
+
+    @Test func chapterRebuildPreservesTransferredPreviewResources() throws {
+        try withReader(preload: 0, adjacentChapters: true) { reader, _ in
+            let old = reader.pageViewControllers
+            let preview = try #require(old.last)
+            preview.setPage(Page(sourceId: "demand-tests", chapterId: "next", index: 0))
+            reader.loadPage(at: 10)
+            let next = AidokuRunner.Chapter(key: "next")
+            reader.chapter = next
+            reader.viewModel.pages = (0..<50).map { Page(sourceId: "demand-tests", chapterId: "next", index: $0) }
+
+            reader.loadPageControllers(chapter: next)
+
+            #expect(reader.pageViewControllers.contains { $0 === preview })
+            #expect(preview.page?.chapterId == "next")
+            #expect(old[11].page == nil)
+        }
+    }
+
     @Test func zeroLookaheadStillLoadsDestinationAndReleasesDistantPages() throws {
         try withReader(preload: 0) { reader, pager in
             let controllers = reader.pageViewControllers

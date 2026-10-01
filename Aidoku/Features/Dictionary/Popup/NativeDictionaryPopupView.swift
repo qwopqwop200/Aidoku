@@ -174,6 +174,20 @@ struct NativeDictionaryPopupView: UIViewRepresentable {
             tasks.forEach { $0.cancel() }; tasks.removeAll()
             stack.arrangedSubviews.forEach { stack.removeArrangedSubview($0); $0.removeFromSuperview() }
             let scale = min(3, max(0.5, parent.scale.isFinite ? parent.scale : 1))
+            // The query cannot change during this synchronous main-actor render.
+            // Copy its styles once, keeping the first entry for duplicate names.
+            var dictionaryStyles: [String: String]?
+            func stylesheet(for name: String) -> String {
+                if dictionaryStyles == nil {
+                    var styles: [String: String] = [:]
+                    for style in LookupEngine.shared.getStyles() {
+                        let name = String(style.dict_name)
+                        if styles[name] == nil { styles[name] = String(style.styles) }
+                    }
+                    dictionaryStyles = styles
+                }
+                return dictionaryStyles?[name] ?? ""
+            }
             for (entryIndex, entry) in entries.enumerated() {
                 let card = UIStackView()
                 card.axis = .vertical; card.spacing = 5 * scale
@@ -308,7 +322,7 @@ struct NativeDictionaryPopupView: UIViewRepresentable {
                         let tag = UILabel(); tag.text = tags; tag.font = .systemFont(ofSize: 11 * scale); tag.textColor = .secondaryLabel
                         body.addArrangedSubview(tag)
                     }
-                    let stylesheet = LookupEngine.shared.getStyles().first { String($0.dict_name) == name }.map { String($0.styles) } ?? ""
+                    let stylesheet = stylesheet(for: name)
                     let availableWidth = max(1, parent.contentWidth)
                     for block in NativeDictionaryContent.glossaryBlocks(glossary["content"] as? String ?? "",
                         dictionary: name, scale: scale, stylesheet: stylesheet, availableWidth: availableWidth) {

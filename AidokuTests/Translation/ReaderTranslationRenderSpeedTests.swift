@@ -1,7 +1,6 @@
 import CoreGraphics
 import Testing
 import UIKit
-import WebKit
 @testable import Aidoku
 
 @Suite(.serialized)
@@ -154,77 +153,6 @@ struct ReaderTranslationRenderSpeedTests {
                         == reference(rects, external: external))
             }
         }
-    }
-
-    @Test @MainActor func legacyOracleJoinsPreparedLayoutAndRejectsSupersededOutput() async throws {
-        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 780))
-        var committed: [String] = []
-        let renderer = BrowserPageImageOverlayRenderer { _, _, arguments in
-            let items = arguments["items"] as? [[String: Any]] ?? []
-            committed.append(contentsOf: items.compactMap { $0["text"] as? String })
-            return ["status": "committed", "revision": arguments["revision"] ?? "", "itemCount": items.count]
-        }
-        let gate = RenderLayoutGate()
-        let old = Task { try await gate.value() }
-        defer { old.cancel(); Task { await gate.release(Data("[]".utf8)) } }
-        var obsoleteFinished = false
-        renderer.render(on: webView, items: [], imageSize: webView.bounds.size, sourceRect: webView.bounds,
-                        settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko", preparedLayout: old) {
-            obsoleteFinished = $0.outcome == .stale
-        }
-        await Task.yield()
-        let payload = try JSONSerialization.data(withJSONObject: [["text": "준비된 번역", "x": 12, "y": 18]])
-        let fresh = Task<Data, Error> { payload }
-        var freshFinished = false
-        renderer.render(on: webView, items: [], imageSize: webView.bounds.size, sourceRect: webView.bounds,
-                        settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko", preparedLayout: fresh) {
-            freshFinished = $0.outcome == .committed
-        }
-        let deadline = Date().addingTimeInterval(3)
-        while !freshFinished {
-            guard Date() < deadline else { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        await gate.release(try JSONSerialization.data(withJSONObject: [["text": "오래된 번역"]]))
-        while !obsoleteFinished {
-            guard Date() < deadline else { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(committed == ["준비된 번역"])
-        // Late completion of the old shared task must not invalidate the
-        // current revision's pending bitmap capture.
-        #expect(renderer.lastDiagnostic?.outcome == .committed)
-    }
-
-    @Test @MainActor func legacyOracleCommitsBeforeCacheGenerationAndLayoutPersistence() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: root) }
-        let disk = ReaderTranslationDiskCache(directory: root)
-        let gate = RenderLayoutGate()
-        let generation = Task<UInt64, Never> { _ = try? await gate.value(); return 0 }
-        defer { generation.cancel(); Task { await gate.release(Data()) } }
-        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
-        let renderer = BrowserPageImageOverlayRenderer { _, _, arguments in
-            let persisted = try await disk.contains("visible-layout", kind: .layout)
-            #expect(!persisted,
-                    "Disk persistence must follow, not precede, screen rendering")
-            return ["status": "committed", "revision": arguments["revision"] ?? "", "itemCount": 0]
-        }
-        renderer.render(on: webView, items: [], imageSize: webView.bounds.size, sourceRect: webView.bounds,
-            settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko",
-            layoutCache: disk, layoutCacheKey: "visible-layout", cacheGenerationTask: generation)
-        let deadline = Date().addingTimeInterval(3)
-        while renderer.lastDiagnostic?.outcome != .committed {
-            guard Date() < deadline else { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        #expect(try await !disk.contains("visible-layout", kind: .layout))
-        await gate.release(Data())
-        while try await !disk.contains("visible-layout", kind: .layout) {
-            guard Date() < deadline else { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        #expect(renderer.lastDiagnostic?.outcome == .committed)
     }
 
     @Test @MainActor func offscreenNativePreparationKeepsMainActorResponsiveWhileLayoutIsBlocked() async throws {

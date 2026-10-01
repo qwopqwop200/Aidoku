@@ -328,8 +328,16 @@ actor TranslationCache {
     func flush() throws {
         persistenceTask?.cancel()
         persistenceTask = nil
-        try persistPendingDiskWrites()
-        lastPersistenceFailure = nil
+        do {
+            try persistPendingDiskWrites()
+            lastPersistenceFailure = nil
+        } catch {
+            // Scene backgrounding can race temporary storage unavailability.
+            // Keep the retry owned by these pending answers after cancelling
+            // the old debounce task above.
+            if !pendingDiskWrites.isEmpty { schedulePersistence() }
+            throw error
+        }
     }
 
     func clear(memory: Bool = true, disk: Bool = true) throws {

@@ -37,8 +37,10 @@ final class NativeSpatialSourceCrop {
     }
     func pixelRect(_ r: [CGFloat]) -> CGRect? {
         guard r.count == 4, r.allSatisfy(\.isFinite), r[2] > 0, r[3] > 0 else { return nil }
-        return CGRect(x: r[0] * CGFloat(image.width), y: r[1] * CGFloat(image.height),
-                      width: r[2] * CGFloat(image.width), height: r[3] * CGFloat(image.height))
+        let rect = CGRect(x: r[0] * CGFloat(image.width), y: r[1] * CGFloat(image.height),
+                          width: r[2] * CGFloat(image.width), height: r[3] * CGFloat(image.height))
+        guard [rect.origin.x, rect.origin.y, rect.width, rect.height, rect.maxX, rect.maxY].allSatisfy(\.isFinite) else { return nil }
+        return rect
     }
     func normalized(_ r: CGRect) -> [CGFloat] {
         [r.minX / CGFloat(image.width), r.minY / CGFloat(image.height), r.width / CGFloat(image.width), r.height / CGFloat(image.height)]

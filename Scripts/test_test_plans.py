@@ -82,10 +82,6 @@ class TestPlanScopeTests(unittest.TestCase):
                 name = node.func.attr if isinstance(node.func, ast.Attribute) else (
                     node.func.id if isinstance(node.func, ast.Name) else None)
                 self.assertNotIn(name, skip_names, f'{path}:{node.lineno}')
-        for extension in ('*.js', '*.cjs', '*.mjs'):
-            for path in (ROOT / 'Scripts/tests').glob(extension):
-                self.assertNotRegex(path.read_text(),
-                    r'\b(?:test|it|describe)\s*\.\s*(?:skip|todo)\s*\(|\bskip\s*:\s*true\b', str(path))
 
     def test_suite_files_have_executable_tests(self):
         for path in (ROOT / 'AidokuTests').rglob('*.swift'):

@@ -325,7 +325,7 @@ struct NativeOCRRegionSeparatorTests {
         var overlay = ReaderTranslationSettings.defaultOverlay
         overlay.enforceSourceReplacement()
         overlay.visible = true
-        let payload = BrowserPageImageOverlayRenderer.layoutPayload(
+        let payload = NativeTranslationLayoutPlanner.payload(
             items: ReaderTranslationRegion.layoutItems([left, right], imageSize: size), imageSize: size,
             sourceRect: CGRect(origin: .zero, size: size), settings: overlay, targetLanguage: "ko", viewport: size)
         #expect(payload.count == 2)

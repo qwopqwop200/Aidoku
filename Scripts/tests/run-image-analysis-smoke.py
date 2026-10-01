@@ -51,10 +51,13 @@ with tempfile.TemporaryDirectory(prefix='aidoku-analysis-') as temporary:
              'finalPatchCaptureFailures': ['final-capture-failure']})]
     for i, (name, value) in enumerate(stages):
         (image / f'{i+1:03d}-{name}.json').write_text(json.dumps({'stage': name, 'value': value}, ensure_ascii=False))
+    for sequence in [999, 1000]:
+        (image / f'{sequence}-grouped-regions.json').write_text(json.dumps({'stage': 'grouped-regions', 'value': []}))
     result = subprocess.run(['swift', str(ROOT / 'Scripts/image-translation.swift'), '--visualize-run', str(run)], capture_output=True, text=True)
     assert result.returncode == 0, result.stdout + result.stderr
     data = json.loads((image / 'analysis.json').read_text())
-    assert len(data['stages']) == 4
+    assert len(data['stages']) == 6
+    assert [stage['source'] for stage in data['stages'][-2:]] == ['999-grouped-regions.json', '1000-grouped-regions.json']
     detected = data['stages'][0]['records'][0]
     assert detected['direction'] == 'unknown' and detected['tiltDegrees'] is None
     assert abs(detected['longAxisDegrees'] - 13) < 1e-6

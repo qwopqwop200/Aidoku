@@ -258,7 +258,15 @@ public final class DataCache: DataCaching, @unchecked Sendable {
     /// operations for the given key are finished.
     public func flush(for key: String) {
         queue.sync {
-            guard let change = lock.withLock({ staging.changes[key] }) else { return }
+            let pending = lock.withLock { (staging.changeRemoveAll != nil, staging.changes[key]) }
+            // A pending removeAll must reach disk before any newer additions.
+            // Flushing only this key would otherwise let the later removeAll
+            // erase it after its staged change has already been discarded.
+            if pending.0 {
+                flushChangesIfNeeded()
+                return
+            }
+            guard let change = pending.1 else { return }
             perform(change)
             lock.withLock { staging.flushed(change) }
         }

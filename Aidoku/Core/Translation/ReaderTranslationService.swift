@@ -804,47 +804,56 @@ actor ReaderTranslationService {
             partialContinuation?.finish()
             partialConsumer?.cancel()
         }
-        _ = try await BoundedTranslationBatchExecutor.translate(
-            plans.map(\.request), configuration: settings.configuration, service: service,
-            // The scheduler reserves foreground capacity until a lookahead is promoted.
-            maximumConcurrentRequests: concurrency,
-            maximumSpeculativeRequests: speculativeBatchLimit,
-            priority: priority,
-            onBatchCompleted: { index, result in
-                try Task.checkCancellation()
-                // Classification can copy a complete balloon sentence unchanged. Retry only those
-                // independently measured utterances once, without background/SFX filtering.
-                let plan = plans[index]
-                let missed = Set(result.translations.compactMap { translated -> String? in
-                    guard let input = plan.inputIndicesBySegmentID[translated.id],
-                          ReaderTranslationLanguageFilter.requiresBalloonTranslation(regions[input],
-                            translation: translated.text, target: settings.targetLanguage) else { return nil }
-                    return translated.id
-                })
-                var completed = result
-                if !missed.isEmpty {
-                    var recovery = RemoteTranslationRequest(sourceLanguage: plan.request.sourceLanguage,
-                        targetLanguage: plan.request.targetLanguage,
-                        segments: plan.request.segments.filter { missed.contains($0.id) },
-                        context: plan.request.context, glossary: plan.request.glossary)
-                    recovery.copyImageRepresentation(from: plan.request)
-                    let retry = try await service.translate(recovery, configuration: settings.configuration, usesCache: false, priority: priority)
-                    let replacements = Dictionary(retry.translations.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-                    for id in missed {
-                        guard let input = plan.inputIndicesBySegmentID[id], let value = replacements[id],
-                              !ReaderTranslationLanguageFilter.requiresBalloonTranslation(regions[input],
-                                translation: value.text, target: settings.targetLanguage) else {
-                            throw RemoteTranslationError.invalidResponse("balloon dialogue was not translated")
+        do {
+            _ = try await BoundedTranslationBatchExecutor.translate(
+                plans.map(\.request), configuration: settings.configuration, service: service,
+                // The scheduler reserves foreground capacity until a lookahead is promoted.
+                maximumConcurrentRequests: concurrency,
+                maximumSpeculativeRequests: speculativeBatchLimit,
+                priority: priority,
+                onBatchCompleted: { index, result in
+                    try Task.checkCancellation()
+                    // Classification can copy a complete balloon sentence unchanged. Retry only those
+                    // independently measured utterances once, without background/SFX filtering.
+                    let plan = plans[index]
+                    let missed = Set(result.translations.compactMap { translated -> String? in
+                        guard let input = plan.inputIndicesBySegmentID[translated.id],
+                              ReaderTranslationLanguageFilter.requiresBalloonTranslation(regions[input],
+                                translation: translated.text, target: settings.targetLanguage) else { return nil }
+                        return translated.id
+                    })
+                    var completed = result
+                    if !missed.isEmpty {
+                        var recovery = RemoteTranslationRequest(sourceLanguage: plan.request.sourceLanguage,
+                            targetLanguage: plan.request.targetLanguage,
+                            segments: plan.request.segments.filter { missed.contains($0.id) },
+                            context: plan.request.context, glossary: plan.request.glossary)
+                        recovery.copyImageRepresentation(from: plan.request)
+                        let retry = try await service.translate(recovery, configuration: settings.configuration, usesCache: false, priority: priority)
+                        let replacements = Dictionary(retry.translations.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                        for id in missed {
+                            guard let input = plan.inputIndicesBySegmentID[id], let value = replacements[id],
+                                  !ReaderTranslationLanguageFilter.requiresBalloonTranslation(regions[input],
+                                    translation: value.text, target: settings.targetLanguage) else {
+                                throw RemoteTranslationError.invalidResponse("balloon dialogue was not translated")
+                            }
                         }
+                        completed = .init(translations: result.translations.map { replacements[$0.id] ?? $0 },
+                                          source: .network, providerRequestID: retry.providerRequestID)
                     }
-                    completed = .init(translations: result.translations.map { replacements[$0.id] ?? $0 },
-                                      source: .network, providerRequestID: retry.providerRequestID)
-                }
-                let snapshot = await progress.complete(index: index, result: completed)
-                try await onProgress?(snapshot)
-            },
-            onBatchPartial: partialHandler
-        )
+                    let snapshot = await progress.complete(index: index, result: completed)
+                    try await onProgress?(snapshot)
+                },
+                onBatchPartial: partialHandler
+            )
+        } catch {
+            // Cancellation alone does not join an in-progress UI callback.
+            // Drain its lifetime before failure escapes to a replacement page.
+            partialContinuation?.finish()
+            partialConsumer?.cancel()
+            await partialConsumer?.value
+            throw error
+        }
         partialContinuation?.finish()
         partialConsumer?.cancel()
         await partialConsumer?.value

@@ -164,7 +164,7 @@ struct NativeDictionaryCSS {
         else if text.hasSuffix("em") { result = CGFloat(number) * font.pointSize }
         else if text.hasSuffix("%") { result = CGFloat(number) * relativeTo / 100 }
         else { result = CGFloat(number) }
-        return result
+        return result.isFinite ? result : nil
     }
     private static func calculatedLength(_ source: String, font: UIFont, relativeTo: CGFloat) -> CGFloat? {
         let compact = source.replacingOccurrences(of: "\\s+", with: "", options: .regularExpression)
@@ -220,15 +220,17 @@ struct NativeDictionaryCSS {
             return UIColor(red: CGFloat((rgb >> 16) & 255) / 255, green: CGFloat((rgb >> 8) & 255) / 255,
                            blue: CGFloat(rgb & 255) / 255, alpha: hex.count == 8 ? CGFloat(raw & 255) / 255 : 1)
         }
-        if value.hasPrefix("rgb"), let begin = value.firstIndex(of: "("), let end = value.lastIndex(of: ")") {
+        if value.hasPrefix("rgb"), let begin = value.firstIndex(of: "("), let end = value.lastIndex(of: ")"), begin < end {
             let channels = value[value.index(after: begin)..<end].split(whereSeparator: { $0 == "," || $0 == " " || $0 == "/" })
             guard channels.count >= 3 else { return nil }
             let colors = channels.prefix(3).compactMap { text -> CGFloat? in
                 let percent = text.hasSuffix("%")
-                return Double(text.replacingOccurrences(of: "%", with: "")).map { CGFloat($0) / (percent ? 100 : 255) }
+                guard let number = Double(text.replacingOccurrences(of: "%", with: "")), number.isFinite else { return nil }
+                return CGFloat(number) / (percent ? 100 : 255)
             }
             guard colors.count == 3 else { return nil }
             let alpha = channels.count > 3 ? CGFloat(Double(channels[3]) ?? 1) : 1
+            guard alpha.isFinite else { return nil }
             return UIColor(red: colors[0], green: colors[1], blue: colors[2], alpha: alpha)
         }
         return nil
@@ -263,7 +265,7 @@ struct NativeDictionaryCSS {
             let text = String(describing: height)
             let unitless = Double(text)
             let spacing = unitless.map { CGFloat($0) * font.pointSize } ?? length(height, font: font, relativeTo: font.pointSize)
-            if let spacing, spacing > 0 { paragraph.minimumLineHeight = spacing; paragraph.maximumLineHeight = spacing }
+            if let spacing, spacing.isFinite, spacing > 0 { paragraph.minimumLineHeight = spacing; paragraph.maximumLineHeight = spacing }
         }
         if let value = length(normalized["margin-left"], font: font, relativeTo: 260) { paragraph.headIndent += max(0, value) }
         if let value = length(normalized["margin-right"], font: font, relativeTo: 260) { paragraph.tailIndent -= max(0, value) }

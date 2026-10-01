@@ -1,4 +1,4 @@
-name: Native Translation and Frozen Reference Regressions
+name: Native Translation Regressions
 
 on:
   pull_request:
@@ -14,67 +14,15 @@ on:
       - "Scripts/image-translation.swift"
       - "Scripts/image-translation/**"
       - "Scripts/overlay-kernels/**"
+      - "Vendor/HoshiDicts/**"
       - "Scripts/test_*.py"
       - "Scripts/tests/**"
       - "Scripts/tests/run-image-*.py"
-      - "Scripts/tests/source-color-*.cjs"
-      - "Scripts/tests/export-source-background-fixtures.py"
-      - "Scripts/tests/source-inpainting-*.cjs"
-      - "Scripts/tests/slanted-*.cjs"
-      - "Scripts/tests/column-layout-surface-regression.cjs"
-      - "Scripts/tests/row-end-marks-regression.cjs"
-      - "Scripts/tests/connected-lettering-regression.cjs"
-      - "Scripts/tests/render-body-sync-regression.cjs"
-      - "Scripts/tests/balloon-unit-commit-regression.cjs"
-      - "Scripts/tests/balloon-unit-plate-footprint-regression.cjs"
-      - "Scripts/tests/fixtures/source-color-*.json"
-      - "Scripts/tests/fixtures/source-inpainting-*.json"
-      - "Scripts/tests/fixtures/slanted-*.json"
 
 permissions:
   contents: read
 
 jobs:
-  source-colors:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Test frozen browser-reference color estimation and sampling
-        run: |
-          # Run every regression and fail at the end, so one red runner does not hide the others.
-          status=0
-          node Scripts/tests/source-color-regression.cjs || status=1
-          node Scripts/tests/edge-outlined-glyph.cjs || status=1
-          node Scripts/tests/observed-core-balloon.cjs || status=1
-          node Scripts/tests/white-outline-background.cjs || status=1
-          node Scripts/tests/restoration-retry-priority.cjs || status=1
-          node Scripts/tests/source-color-sampler-regression.cjs || status=1
-          node Scripts/tests/source-color-diversity-regression.cjs || status=1
-          node Scripts/tests/source-color-stroke-regression.cjs || status=1
-          node Scripts/tests/source-color-stroke-regression.cjs --annotations Scripts/tests/fixtures/source-color-stroke-expansion.json --captures Scripts/tests/fixtures/source-color-stroke-expansion-captures.json || status=1
-          node Scripts/tests/source-color-diversity-regression.cjs --fixtures Scripts/tests/fixtures/source-color-expansion.json || status=1
-          node Scripts/tests/source-color-diversity-regression.cjs --fixtures Scripts/tests/fixtures/source-color-round-three.json || status=1
-          node Scripts/tests/source-color-background-regression.cjs || status=1
-          node Scripts/tests/source-color-background-regression.cjs --labels Scripts/tests/fixtures/source-color-background-expansion.json --captures Scripts/tests/fixtures/source-color-background-expansion-captures.json || status=1
-          node Scripts/tests/source-color-background-regression.cjs --labels Scripts/tests/fixtures/source-color-background-round-three.json --captures Scripts/tests/fixtures/source-color-background-round-three-captures.json || status=1
-          node Scripts/tests/source-color-readability-regression.cjs || status=1
-          node Scripts/tests/released-caption-outline-regression.cjs || status=1
-          node Scripts/tests/source-inpainting-outline-donors.cjs || status=1
-          node Scripts/tests/source-inpainting-regression.cjs || status=1
-          node Scripts/tests/row-end-marks-regression.cjs || status=1
-          node Scripts/tests/connected-lettering-regression.cjs || status=1
-          node Scripts/tests/render-body-sync-regression.cjs || status=1
-          node Scripts/tests/balloon-unit-commit-regression.cjs || status=1
-          node Scripts/tests/balloon-unit-plate-footprint-regression.cjs || status=1
-          node Scripts/tests/source-inpainting-panel-incidents.cjs || status=1
-          node Scripts/tests/source-inpainting-frame-fringe.cjs || status=1
-          node Scripts/tests/source-inpainting-pink-tail.cjs || status=1
-          node Scripts/tests/column-layout-surface-regression.cjs || status=1
-          node Scripts/tests/source-inpainting-hard-cases.cjs || status=1
-          node Scripts/tests/source-inpainting-textures.cjs || status=1
-          node Scripts/tests/slanted-residual-ink-regression.cjs || status=1
-          exit "$status"
-
   native-host:
     runs-on: macos-26
     steps:
@@ -85,16 +33,7 @@ jobs:
           xcode-version: "26.6"
       - name: Set up native pixel kernel toolchain
         uses: dtolnay/rust-toolchain@stable
-      - name: Set up Node for browser-reference fixtures
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Install pinned Playwright and WebKit
-        run: |
-          npm install --prefix "$RUNNER_TEMP/aidoku-browser-tests" --no-package-lock --no-save playwright@1.63.0
-          "$RUNNER_TEMP/aidoku-browser-tests/node_modules/.bin/playwright" install webkit
-          echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/aidoku-browser-tests/node_modules/playwright" >> "$GITHUB_ENV"
-      - name: Test native host renderer, CLI and complete reference matrix
+      - name: Test native host renderer, CLI and native checks
         run: python3 Scripts/test_quick.py --full-host --host-result-directory "$RUNNER_TEMP/aidoku-full-host-results"
       - name: Preserve every host command result
         if: always()

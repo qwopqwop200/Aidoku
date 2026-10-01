@@ -336,7 +336,7 @@ actor RawOtakuSourceRunner: NativeSourceRunnerLifecycle {
     func processPageImage(response: AidokuRunner.Response, context: PageContext?) async throws -> UIImage? {
         guard let image = images[response.image] else { throw SourceError.deserializeError }
         guard let context, let slice = context["slice"].flatMap(Int.init), let slices = context["slices"].flatMap(Int.init),
-              slices >= 2, slice >= 0, slice < slices, let cgImage = image.cgImage else { return image }
+              (2...64).contains(slices), slice >= 0, slice < slices, let cgImage = image.cgImage else { return image }
         let top = cgImage.height * slice / slices
         let bottom = cgImage.height * (slice + 1) / slices
         guard bottom > top, let crop = cgImage.cropping(to: CGRect(x: 0, y: CGFloat(top), width: CGFloat(cgImage.width), height: CGFloat(bottom - top))) else { return image }

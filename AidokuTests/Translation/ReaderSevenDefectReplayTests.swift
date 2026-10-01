@@ -182,7 +182,7 @@ struct ReaderSevenDefectReplayTests {
             let viewport = CGSize(width: 430, height: 574)
             let frameHeight = 430 * image.size.height / image.size.width
             let frame = CGRect(x: 0, y: (viewport.height - frameHeight) / 2, width: 430, height: frameHeight)
-            let items = BrowserPageImageOverlayRenderer.layoutPayload(
+            let items = NativeTranslationLayoutPlanner.payload(
                 items: ReaderTranslationRegion.layoutItems(saved, imageSize: image.size), imageSize: image.size,
                 sourceRect: frame, settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko", viewport: viewport)
             let payload: [String: Any] = ["items": items, "imageSize": [image.size.width, image.size.height],
@@ -289,7 +289,7 @@ struct ReaderSevenDefectReplayTests {
             let size = image.size, viewport = CGSize(width: 430, height: 574)
             let frameHeight = 430 * size.height / size.width
             let frame = CGRect(x: 0, y: (viewport.height - frameHeight) / 2, width: 430, height: frameHeight)
-            let layout = BrowserPageImageOverlayRenderer.layoutPayload(
+            let layout = NativeTranslationLayoutPlanner.payload(
                 items: ReaderTranslationRegion.layoutItems(translated, imageSize: size), imageSize: size,
                 sourceRect: frame, settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko", viewport: viewport)
             var payload = old; payload["items"] = layout

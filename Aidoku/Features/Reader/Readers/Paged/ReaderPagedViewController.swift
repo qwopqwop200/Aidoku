@@ -265,6 +265,7 @@ extension ReaderPagedViewController {
             }
         }
 
+        let previousControllers = pageControllers
         pageControllers = ReaderPageControllerStore()
         activePageControllers.removeAll()
 
@@ -357,6 +358,12 @@ extension ReaderPagedViewController {
             }
         }
 
+        // A replaced controller may still own a source load or be waiting for
+        // translation geometry that the discarded view will never receive.
+        // Preserve only controllers actually transferred to the new store.
+        for (_, controller) in previousControllers.materialized where !pageControllers.contains(controller) {
+            controller.clearPage()
+        }
         for (_, controller) in pageControllers.materialized { trackPageResources(controller) }
         rebuildPageIndices()
     }

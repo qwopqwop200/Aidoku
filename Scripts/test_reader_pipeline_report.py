@@ -5,6 +5,16 @@ from reader_pipeline_report import read_events, summarize
 
 
 class ReaderPipelineReportTests(unittest.TestCase):
+    def test_production_camel_case_provider_failure_is_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'events.log'
+            path.write_text('time=1 pid=7 seq=1 pipeline_event=providerFailure '
+                            'trace=5 page_token=abc attempt=1 retry=1 reason=0 elapsed_ms=25\n')
+            report = summarize(read_events([path]))
+        self.assertEqual(report['problems'], [dict(time='1', event='providerFailure',
+                                                   page_token='abc', trace='5')])
+        self.assertEqual(report['phases'][0]['event'], 'providerFailure')
+
     def test_offscreen_events_join_visible_page_and_sinks_do_not_deduplicate_each_other(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'events.log'

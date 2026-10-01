@@ -1,6 +1,5 @@
 import Testing
 import UIKit
-import WebKit
 @testable import Aidoku
 
 @Suite(.serialized)
@@ -281,49 +280,6 @@ struct ReaderTranslationRenderingTests {
         #expect(overlay.lastDiagnostic?.renderedItemCount == 1)
     }
 
-    @Test func backgroundReplacementPreservesDocumentAndReadablePixels() async throws {
-        let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
-        let host = try window(frame: frame)
-        host.rootViewController = UIViewController()
-        let overlay = LegacyReaderTranslationOverlayView(frame: frame)
-        host.rootViewController?.view.addSubview(overlay)
-        host.makeKeyAndVisible()
-        defer { overlay.cancelWork(); host.isHidden = true }
-        let deadline = Date().addingTimeInterval(20)
-        while overlay.webView.isLoading || overlay.webView.url == nil {
-            if Date() > deadline { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(20))
-        }
-        _ = try await overlay.webView.evaluateJavaScript("document.documentElement.dataset.testIdentity = 'retained'")
-        for (color, channel) in [(UIColor.red, 0), (UIColor.blue, 2)] {
-            let source = UIGraphicsImageRenderer(size: CGSize(width: 32, height: 32)).image { context in
-                color.setFill()
-                context.fill(CGRect(x: 0, y: 0, width: 32, height: 32))
-            }
-            overlay.update(regions: [], imageSize: source.size, aspectFit: true,
-                           settings: fixtureSettings(), image: source)
-            var matched = false
-            while !matched {
-                if Date() > deadline { throw URLError(.timedOut) }
-                let pixels = try await overlay.webView.evaluateJavaScript("""
-                (() => {
-                  const image = document.getElementById('reader-source-image');
-                  if (!image?.complete || !image.naturalWidth) return [];
-                  const canvas = document.createElement('canvas');
-                  canvas.width = canvas.height = 1;
-                  const context = canvas.getContext('2d');
-                  context.drawImage(image, 0, 0, 1, 1);
-                  return Array.from(context.getImageData(0, 0, 1, 1).data);
-                })()
-                """) as? [Int] ?? []
-                matched = pixels.count == 4 && pixels[channel] > 240 && pixels[2 - channel] < 15
-                if !matched { try await Task.sleep(for: .milliseconds(20)) }
-            }
-            let marker = try await overlay.webView.evaluateJavaScript("document.documentElement.dataset.testIdentity") as? String
-            #expect(marker == "retained")
-            #expect(try await overlay.webView.evaluateJavaScript("document.querySelectorAll('#reader-source-image').length") as? Int == 1)
-        }
-    }
 
     @Test func oversizedBackgroundAndCropStayBounded() throws {
         for size in [CGSize(width: 4000, height: 20000), CGSize(width: 1, height: 100000),
@@ -384,65 +340,6 @@ struct ReaderTranslationRenderingTests {
         #expect(overlay.lastDiagnostic?.revision == revision, "Repeated demand must preserve the committed native frame")
         #expect(overlay.lastDiagnostic?.outcome == .committed)
         #expect(!overlay.renderedImageView.isHidden)
-    }
-
-    @Test func cachedLayoutIdentityUpdatesWithRegionsAndClearsForTextOnlyRecovery() {
-        let overlay = LegacyReaderTranslationOverlayView(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { overlay.cancelWork(); try? FileManager.default.removeItem(at: root) }
-        let cache = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
-        let target = ReaderTranslationSnapshotTarget(cache: cache, key: "render", pageIdentity: "page", diskGeneration: 0,
-                                                     viewport: overlay.bounds.size, dark: false)
-        var region = ReaderTranslationRegion(id: "identity", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2), source: "Hello")
-        region.translation = "first"
-        overlay.update(regions: [region], imageSize: overlay.bounds.size, aspectFit: false,
-                       settings: fixtureSettings(), snapshotTarget: target)
-        let first = overlay.layoutCacheKey
-        #expect(first == ReaderTranslationRenderCache.layoutKey(renderKey: target.key, regions: [region]))
-        region.translation = "changed"
-        overlay.update(regions: [region], imageSize: overlay.bounds.size, aspectFit: false,
-                       settings: fixtureSettings(), snapshotTarget: target)
-        #expect(overlay.layoutCacheKey != first)
-        #expect(overlay.layoutCacheKey == ReaderTranslationRenderCache.layoutKey(renderKey: target.key, regions: [region]))
-        overlay.webViewWebContentProcessDidTerminate(overlay.webView)
-        #expect(overlay.layoutCacheKey == nil)
-        overlay.resetForExportReuse()
-        #expect(overlay.layoutCacheKey == nil)
-    }
-
-    @Test func contentTerminationBudgetSurvivesProgressUpdates() {
-        let overlay = LegacyReaderTranslationOverlayView(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
-        defer { overlay.cancelWork() }
-        let settings = fixtureSettings()
-        for _ in 0..<8 {
-            overlay.webViewWebContentProcessDidTerminate(overlay.webView)
-            overlay.update(regions: [], imageSize: CGSize(width: 390, height: 700), aspectFit: false, settings: settings)
-        }
-        #expect(overlay.contentTerminationCount == 3)
-        #expect(overlay.hasExhaustedRecovery)
-        #expect(overlay.webView.isHidden)
-        #expect(!overlay.canCacheRendering)
-    }
-
-    @Test func stalledDocumentRecoversWithoutNewTranslationData() async throws {
-        let frame = CGRect(x: 0, y: 0, width: 390, height: 700)
-        let host = try window(frame: frame)
-        host.rootViewController = UIViewController()
-        let overlay = LegacyReaderTranslationOverlayView(frame: frame)
-        host.rootViewController?.view.addSubview(overlay)
-        host.makeKeyAndVisible()
-        defer { overlay.cancelWork(); host.isHidden = true }
-        // Simulate a document load whose completion callback never arrives.
-        overlay.webView.navigationDelegate = nil
-        var settings = fixtureSettings()
-        settings.overlay = ReaderTranslationSettings.defaultOverlay
-        let region = ReaderTranslationRegion(id: "recovery", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2), source: "Hello")
-        overlay.update(regions: [region], imageSize: frame.size, aspectFit: false, settings: settings)
-        try await Task.sleep(for: .seconds(1))
-        #expect(overlay.lastDiagnostic == nil)
-        overlay.webView.navigationDelegate = overlay
-        try await waitForLegacyRender(overlay)
-        #expect(overlay.lastDiagnostic?.renderedItemCount == 1)
     }
 
     @Test func sessionKeepsOriginalUntilPreloaderFinishesThePage() async throws {
@@ -591,7 +488,7 @@ struct ReaderTranslationRenderingTests {
         }
         let items = regions.enumerated().map { $0.element.overlayItem(index: $0.offset, imageSize: size) }
         #expect(items.allSatisfy { $0.sourceOrientation == .vertical && $0.sourceSingleVerticalColumn == false && $0.confidence == 0.99 })
-        let payload = BrowserPageImageOverlayRenderer.layoutPayload(
+        let payload = NativeTranslationLayoutPlanner.payload(
             items: items, imageSize: size, sourceRect: overlay.bounds, settings: settings.overlay,
             targetLanguage: "ko", viewport: size
         )
@@ -736,7 +633,7 @@ struct ReaderTranslationRenderingTests {
         let viewport = CGSize(width: 390, height: 780)
         let bounds = ReaderTranslationGeometry.displayRect(CGRect(x: 0, y: 0, width: 1, height: 1),
             imageSize: size, bounds: CGRect(origin: .zero, size: viewport), aspectFit: true)
-        let payload = BrowserPageImageOverlayRenderer.layoutPayload(
+        let payload = NativeTranslationLayoutPlanner.payload(
             items: ReaderTranslationRegion.overlayItems(regions, imageSize: size), imageSize: size,
             sourceRect: bounds, settings: ReaderTranslationSettings.defaultOverlay,
             targetLanguage: "ko", viewport: viewport)
@@ -878,7 +775,7 @@ struct ReaderTranslationRenderingTests {
             sourceText: "こんにちは", translatedText: "안녕", confidence: 1,
             sourceOrientation: .vertical)
         func payload(_ item: BrowserOverlayItem, _ settings: IPhoneOverlaySettings) throws -> [String: Any] {
-            try #require(BrowserPageImageOverlayRenderer.layoutPayload(items: [item],
+            try #require(NativeTranslationLayoutPlanner.payload(items: [item],
                 imageSize: CGSize(width: 600, height: 900), sourceRect: CGRect(x: 20, y: 30, width: 300, height: 450),
                 settings: settings, targetLanguage: "ko", viewport: CGSize(width: 390, height: 780)).first)
         }
@@ -948,14 +845,6 @@ struct ReaderTranslationRenderingTests {
         throw CancellationError()
     }
 
-    private func waitForLegacyRender(_ overlay: LegacyReaderTranslationOverlayView) async throws {
-        for _ in 0..<200 {
-            overlay.layoutIfNeeded()
-            if overlay.lastDiagnostic?.outcome == .committed { return }
-            try await Task.sleep(for: .milliseconds(50))
-        }
-        throw URLError(.timedOut)
-    }
 
     private func image() -> UIImage {
         let format = UIGraphicsImageRendererFormat()

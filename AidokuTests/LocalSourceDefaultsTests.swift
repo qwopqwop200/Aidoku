@@ -16,7 +16,8 @@ struct LocalSourceDefaultsTests {
             CoreDataManager.shared.getSources(context: context).filter { $0.id == LocalSourceRunner.sourceKey }.count
         }
         #expect(count == 1)
-        await manager.remove(sourceKey: LocalSourceRunner.sourceKey)
+        await manager.remove(sourceKey: LocalSourceRunner.sourceKey, skipUpdateNotification: true)
+        #expect(await MainActor.run { SourceStore.shared.source(for: LocalSourceRunner.sourceKey) == nil })
         await manager.reloadSources()
         #expect(await manager.source(for: LocalSourceRunner.sourceKey) == nil)
         #expect(await manager.ensureLocalSourceForImport())

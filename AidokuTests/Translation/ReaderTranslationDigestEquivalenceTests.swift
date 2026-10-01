@@ -74,11 +74,6 @@ struct ReaderTranslationDigestEquivalenceTests {
             // This independent formatter recipe tracks two intentional revisions:
             // bounded column recovery invalidates OCR and its page-derived keys;
             // v159 direct native source painting invalidates the visual namespace.
-            let priorRenderer = FrozenFormatterIdentity.render(page: page, settings: settings, imageSize: size, viewport: viewport,
-                scale: CGFloat(variant + 1), aspectFit: variant != 2, crop: crop, dark: variant == 2,
-                renderRevision: "reader-render-v153-revert-polygon-segmentation",
-                letteringFontKey: BrowserOverlayLetterFonts.shared.availabilityKey)
-            #expect(actual != priorRenderer)
             // The immediately preceding native renderer uses the same font key
             // and every other input. Only its render revision is obsolete.
             let priorNativeRenderer = FrozenFormatterIdentity.render(page: page, settings: settings, imageSize: size, viewport: viewport,

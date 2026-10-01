@@ -28,7 +28,7 @@ struct ZerodoDegree53OCRReplayTests {
             let frameHeight = 430 * size.height / size.width
             let frame = CGRect(x: 0, y: (viewport.height - frameHeight) / 2,
                 width: 430, height: frameHeight)
-            let items = BrowserPageImageOverlayRenderer.layoutPayload(
+            let items = NativeTranslationLayoutPlanner.payload(
                 items: ReaderTranslationRegion.layoutItems(geometryOnly, imageSize: size),
                 imageSize: size, sourceRect: frame,
                 settings: ReaderTranslationSettings.defaultOverlay,
@@ -83,7 +83,7 @@ struct ZerodoDegree53OCRReplayTests {
                 let frameHeight = 430 * size.height / size.width
                 let frame = CGRect(x: 0, y: (viewport.height - frameHeight) / 2,
                     width: 430, height: frameHeight)
-                let items = BrowserPageImageOverlayRenderer.layoutPayload(
+                let items = NativeTranslationLayoutPlanner.payload(
                     items: ReaderTranslationRegion.layoutItems(geometryOnly, imageSize: size),
                     imageSize: size, sourceRect: frame,
                     settings: ReaderTranslationSettings.defaultOverlay,

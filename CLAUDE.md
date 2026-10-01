@@ -81,7 +81,7 @@ swiftlint lint
 Other test suites, each run from the repository root:
 
 - **Localization** (CI): `python3 -m unittest discover -s Scripts -v` and `python3 Scripts/validate_localizations.py`. See `Scripts/LOCALIZATION.md`.
-- **Overlay source color and inpainting regressions** (CI, Node 18+, no npm deps): `node Scripts/tests/<name>.cjs`. The full list with fixture arguments is in `.github/workflows/source-color.yml`. These runners extract the **frozen historical JavaScript** from test-only Swift literals under `AidokuTests/Translation/LegacyBrowserOverlay`. They preserve reference-algorithm evidence; they do not exercise the native app. Native Swift/Rust behavior is validated by native suites and pixel-parity comparisons. Keep the reference unchanged during native fixes; reformatting its literal delimiters breaks extraction. Background and methodology are in `Scripts/tests/README-*.md`. `typography-clusters-regression.cjs` runs with `node --test`.
+Native renderer regression tests run through `Scripts/test_quick.py`; see `Scripts/TESTING.md`. Previous Web renderer and JS/WASM comparison harnesses have been removed.
 - **Vendored packages**: `swift test --package-path Vendor/Nuke --jobs 2` and `swift test --package-path Vendor/AidokuRunner --jobs 2`. Hoshi native regressions are `Scripts/tests/run-hoshi-*.py`. The blocking-task priority check is `python3 Scripts/tests/run-blocking-priority-regression.py`.
 
 ## Lint conventions (`.swiftlint.yml`)
@@ -109,7 +109,7 @@ Other test suites, each run from the repository root:
 - `NativeEngine/OCR` runs PP-OCRv6 Core ML detection and recognition. The models and character dictionaries are in `Aidoku/Resources/Translation`.
 - `NativeEngine/Translation` handles remote OpenAI-compatible clients, batching, reuse identity, endpoint policy, and Keychain-stored credentials.
 - `NativeEngine/Overlay` uses `NativeTranslationRenderer` for native text layout, source-color estimation, original-text erasure, restoration and composition. Core Text/Core Graphics draw text and image exports; bounded Core Animation/Metal and UIKit capture helpers reproduce supported live paint operations. Original Rust pixel kernels link through a C ABI as a native static library. `ReaderTranslationOverlayView` and `ReaderTranslationImageExporter` consume the same native pipeline; caches include the renderer version. `NativeDictionaryPopupView` renders dictionary content with UIKit.
-- `AidokuTests/Translation/LegacyBrowserOverlay` and `Scripts/native-render-parity/reference-source` preserve the test-only WebKit/JavaScript/WASM oracle. Node reference tests do not validate native execution. Native tests and strict actual image comparisons are separate gates; keep frozen inputs and expected pixels immutable. See `Docs/native-runtime.md` and `Scripts/native-render-parity/README.md` for boundaries and measured limitations.
+Native renderer regression tests run through `Scripts/test_quick.py`; see `Scripts/TESTING.md`. Previous Web renderer and JS/WASM comparison harnesses have been removed.
 
 **Share extension.** `AidokuShare` hands images to the app through an app group and URL scheme defined in `Aidoku/Aidoku.xcconfig`. The xcconfig also sets bundle IDs and the `CANONICAL_BUILD` Swift flag.
 

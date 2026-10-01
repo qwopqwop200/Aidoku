@@ -9,7 +9,7 @@ Work from this directory, the Git root containing `Aidoku.xcodeproj`; the parent
 - `Aidoku/Features` and `Aidoku/Extensions`: screens and framework extensions.
 - `Aidoku/Resources/Translation`: OCR models and dictionaries.
 - `AidokuShare`: share extension; `AidokuTests`: app-hosted tests.
-- `Scripts`: native host tooling and frozen-reference JavaScript regressions; `Vendor`: patched dependencies. Read `Vendor/README.md` before modifying them.
+- `Scripts`: native host tooling and regression tests; `Vendor`: patched dependencies. Read `Vendor/README.md` before modifying them.
 
 ## Build, Test, and Development Commands
 
@@ -34,7 +34,6 @@ python3 Scripts/test_quick.py --full-host
 swiftlint lint
 python3 -m unittest discover -s Scripts -v
 python3 Scripts/validate_localizations.py
-node Scripts/tests/source-color-regression.cjs
 ```
 
 ### Default verification scope (mandatory)
@@ -67,9 +66,9 @@ Use four spaces, `// ` comments, implicit returns where appropriate, and floatin
 
 Use the optimized test workflow documented in `Scripts/TESTING.md`. Start routine host checks with `python3 Scripts/test_quick.py`; for routine Swift checks use `--fast-ios --device <UDID>` (Release, AidokuFast). The shared Aidoku scheme defaults to AidokuFast. Use `--ios <suite> --device <UDID>` for explicit affected suites (AidokuFull), or `-testPlan AidokuFull` for exhaustive integration/performance validation. iOS compilation, launch, and tests have no default time limit. The 55-second default applies only to host smoke checks; `--seconds` is an explicit optional override. Timeout means incomplete; zero executed iOS tests must never pass. Broaden only under the mandatory verification-scope exceptions above; prefer a focused affected suite before AidokuFull.
 
-Preserve the optimized fixture helpers: condition-based waits, controlled retry clocks, isolated reusable WebKit reference fixtures, and cached Node reference-script compilation. Keep assertions and fixture matrices intact. Heavy integration, benchmark, and external-fixture suites belong in opt-in AidokuFull rather than the routine AidokuFast plan; do not silently omit explicitly requested tests. Keep production retry delays unchanged. Record build, startup/test execution, and test-body timings separately. Verified timings and coverage limits are in `Scripts/TESTING.md`.
+Preserve the optimized fixture helpers: condition-based waits and controlled retry clocks. Keep assertions and fixture matrices intact. Heavy integration, benchmark, and external-fixture suites belong in opt-in AidokuFull rather than the routine AidokuFast plan; do not silently omit explicitly requested tests. Keep production retry delays unchanged. Record build, startup/test execution, and test-body timings separately. Verified timings and coverage limits are in `Scripts/TESTING.md`.
 
-Follow existing Swift Testing suites (`import Testing`, `@Test`), using descriptive behavior names and `*Tests.swift` filenames. Run affected native suites for Swift/Rust changes. Node overlay regressions exercise the frozen pre-migration Web renderer, not the production renderer; consult `.github/workflows/source-color.yml` for fixture arguments. Add regression coverage for behavior fixes. Report simulator, physical-device, and host-only validation separately; no numeric coverage threshold is prescribed here.
+Follow existing Swift Testing suites (`import Testing`, `@Test`), using descriptive behavior names and `*Tests.swift` filenames. Run affected native suites for Swift/Rust changes. Add regression coverage for behavior fixes. Report simulator, physical-device, and host-only validation separately; no numeric coverage threshold is prescribed here.
 
 ## Commit & Pull Request Guidelines
 
@@ -107,3 +106,5 @@ swift Scripts/image-translation.swift --visualize-run /path/to/run-UUID
 Final composites are also collected in `RUN_DIRECTORY/final/`. Use `swift Scripts/image-translation.swift --render-run RUN_DIRECTORY` to recompose completed results from saved render payloads without OCR/API calls. Use `--resume-run RUN_DIRECTORY` with the same image inputs/order/settings to retain completed native results and continue an interrupted run. Completed historical browser renders are recomposed from saved inputs with the native renderer, without OCR/API calls.
 
 See `Scripts/image-translation/README.md` and `swift Scripts/image-translation.swift --help` for all options. Focused checks are `python3 Scripts/tests/run-image-environment-smoke.py`, `python3 Scripts/tests/run-image-analysis-smoke.py`, and `python3 Scripts/tests/run-image-translation-smoke.py` (real host OCR/rendering and a local mock server). Apply the existing verification-scope rules; documentation-only changes need no build or test run. The launcher reuses its incremental Swift/Core ML cache in `build/image-translation-host`.
+
+The previous Web renderer, JavaScript/WASM comparison harnesses, and their tests have been removed at the user’s request. Validate the native runtime directly; do not restore legacy renderer oracles.

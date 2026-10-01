@@ -31,7 +31,9 @@ namespace glz
    }
 }
 
+#include <cmath>
 #include <cstddef>
+#include <limits>
 #include <map>
 #include <variant>
 #include <vector>
@@ -49,6 +51,23 @@ namespace glz
 
 namespace glz
 {
+   namespace detail
+   {
+      template <std::integral T>
+         requires(!std::same_as<T, bool>)
+      inline bool generic_double_fits_integer(const double value) noexcept
+      {
+         if (!std::isfinite(value)) return false;
+         // Floating-to-integer conversion truncates first. Use an exact,
+         // exclusive power-of-two upper bound: converting INT64_MAX or
+         // UINT64_MAX to double rounds up to an unrepresentable integer.
+         const double truncated = std::trunc(value);
+         const double upper = std::ldexp(1.0, std::numeric_limits<T>::digits);
+         const double lower = std::is_signed_v<T> ? -upper : 0.0;
+         return truncated >= lower && truncated < upper;
+      }
+   }
+
    // Number storage mode for generic JSON types
    enum class num_mode {
       f64, // double only - fast, JavaScript-compatible (default)
@@ -185,7 +204,13 @@ namespace glz
                return static_cast<T>(get<int64_t>());
             }
          }
-         return static_cast<T>(get<double>());
+         const auto& value = get<double>();
+         if constexpr (std::integral<T> && !std::same_as<T, bool>) {
+            if (!detail::generic_double_fits_integer<T>(value)) {
+               glaze_error("Number is outside the destination integer range.");
+            }
+         }
+         return static_cast<T>(value);
       }
 
       template <class T>

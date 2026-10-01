@@ -88,11 +88,11 @@ struct ReaderTranslationTests {
         #expect(items.map(\.keepsSourceLettering) == [false, false, true])
         let viewport = CGSize(width: 402, height: 874)
         let sourceRect = CGRect(x: 0, y: 295.1, width: 402, height: 283.8)
-        let payload = BrowserPageImageOverlayRenderer.layoutPayload(
+        let payload = NativeTranslationLayoutPlanner.payload(
             items: items, imageSize: size, sourceRect: sourceRect,
             settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko", viewport: viewport)
         // The logo is never typeset: it follows the captions as a protected-lettering descriptor.
-        let captions = BrowserPageImageOverlayRenderer.layoutPayload(
+        let captions = NativeTranslationLayoutPlanner.payload(
             items: Array(items.prefix(2)), imageSize: size,
             sourceRect: sourceRect, settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko", viewport: viewport)
         #expect(payload.count == captions.count + 1)
@@ -141,7 +141,7 @@ struct ReaderTranslationTests {
         ]
         let size = CGSize(width: 800, height: 1200)
         let items = ReaderTranslationRegion.layoutItems(regions, imageSize: size)
-        let payload = BrowserPageImageOverlayRenderer.layoutPayload(
+        let payload = NativeTranslationLayoutPlanner.payload(
             items: items, imageSize: size,
             sourceRect: CGRect(x: 0, y: 100, width: 402, height: 603), settings: ReaderTranslationSettings.defaultOverlay,
             targetLanguage: "ko", viewport: CGSize(width: 402, height: 874))
@@ -195,7 +195,7 @@ struct ReaderTranslationTests {
         ]
         let size = CGSize(width: 800, height: 1200)
         let items = ReaderTranslationRegion.layoutItems(regions, imageSize: size)
-        let payload = BrowserPageImageOverlayRenderer.layoutPayload(
+        let payload = NativeTranslationLayoutPlanner.payload(
             items: items, imageSize: size,
             sourceRect: CGRect(x: 0, y: 100, width: 402, height: 603), settings: ReaderTranslationSettings.defaultOverlay,
             targetLanguage: "ko", viewport: CGSize(width: 402, height: 874))

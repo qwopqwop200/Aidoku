@@ -311,9 +311,8 @@ struct ImageTranslationMain {
                 let directories = try FileManager.default.contentsOfDirectory(at: run, includingPropertiesForKeys: nil).sorted { $0.path < $1.path }
                 var count = 0
                 for directory in directories where FileManager.default.fileExists(atPath: directory.appendingPathComponent("final.json").path) {
-                    let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-                        .sorted { $0.lastPathComponent > $1.lastPathComponent }
-                    guard let payload = files.first(where: { $0.lastPathComponent.hasSuffix("-render-payload.json") }),
+                    let files = try HostAnalysis.stageFiles(in: directory)
+                    guard let payload = files.last(where: { $0.lastPathComponent.hasSuffix("-render-payload.json") }),
                         let object = try JSONSerialization.jsonObject(with: Data(contentsOf: payload)) as? [String: Any],
                         let value = object["value"] as? [String: Any] else { continue }
                     let image = try loadImage(directory.appendingPathComponent("input.png"))
@@ -391,9 +390,8 @@ struct ImageTranslationMain {
                 if saved["mode"] as? String == "translation", saved["renderEngine"] as? String != "native-coretext-coregraphics" {
                     // Upgrade a completed browser-rendered run from its saved payload without
                     // repeating OCR, provider requests, or replacing the user's translations.
-                    let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-                        .sorted { $0.lastPathComponent > $1.lastPathComponent }
-                    guard let payload = files.first(where: { $0.lastPathComponent.hasSuffix("-render-payload.json") }),
+                    let files = try HostAnalysis.stageFiles(in: directory)
+                    guard let payload = files.last(where: { $0.lastPathComponent.hasSuffix("-render-payload.json") }),
                           let object = try JSONSerialization.jsonObject(with: Data(contentsOf: payload)) as? [String: Any],
                           let value = object["value"] as? [String: Any] else {
                         throw HostError.message("Completed legacy translation has no saved render payload")
@@ -503,9 +501,11 @@ struct ImageTranslationMain {
                         "height": image.height, "mode": options.ocrOnly ? "ocr-only" : "translation",
                         "renderEngine": options.ocrOnly ? "none" : "native-coretext-coregraphics",
                         "regions": HostDump.json(regions)], options: [.prettyPrinted, .sortedKeys])
+                    // final.json is the resume completion marker; failed diagnostic writes
+                    // must not leave an incomplete page eligible to be skipped next time.
+                    try dump.requireComplete()
                     try final.write(to: directory.appendingPathComponent("final.json"), options: .atomic)
                     try HostAnalysis.publishFinal(imageDirectory: directory, runDirectory: run)
-                    try dump.requireComplete()
                     row["regions"] = regions.count
                 }
                 row["status"] = "success"

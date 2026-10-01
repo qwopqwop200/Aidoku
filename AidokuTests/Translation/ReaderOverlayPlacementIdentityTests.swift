@@ -18,7 +18,7 @@ struct ReaderOverlayPlacementIdentityTests {
     @Test func webPayloadExcludesAmbiguousIDsButKeepsIndependentRepeatedDialogue() {
         let values = [item(9, x: 20, y: 80, text: "중복 하나"), item(9, x: 22, y: 82, text: "중복 둘"),
                       item(10, x: 20, y: 140), item(11, x: 100, y: 140)]
-        let payload = BrowserPageImageOverlayRenderer.layoutPayload(items: values,
+        let payload = NativeTranslationLayoutPlanner.payload(items: values,
             imageSize: CGSize(width: 390, height: 780), sourceRect: CGRect(x: 0, y: 0, width: 390, height: 780),
             settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko", viewport: CGSize(width: 390, height: 780))
         #expect(payload.compactMap { $0["id"] as? String } == ["10", "11"])

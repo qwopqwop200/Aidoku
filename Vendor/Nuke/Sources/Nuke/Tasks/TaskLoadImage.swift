@@ -49,6 +49,7 @@ final class TaskLoadImage: AsyncPipelineTask<ImageResponse> {
     // MARK: Fetch Image
 
     private func fetchImage() {
+        guard !isDisposed else { return }
         guard !request.options.contains(.returnCacheDataDontLoad) else {
             return send(error: .dataMissingInCache)
         }
@@ -135,6 +136,7 @@ final class TaskLoadImage: AsyncPipelineTask<ImageResponse> {
     }
 
     private func didReceiveDecompressedImage(_ response: ImageResponse, isCompleted: Bool) {
+        guard !isDisposed else { return }
         storeImageInCaches(response)
         send(value: response, isCompleted: isCompleted)
     }
@@ -175,7 +177,8 @@ final class TaskLoadImage: AsyncPipelineTask<ImageResponse> {
     }
 
     private func shouldStoreResponseInDataCache(_ response: ImageResponse) -> Bool {
-        guard !response.container.isPreview,
+        guard !request.options.contains(.disableDiskCacheWrites),
+              !response.container.isPreview,
               !(response.cacheType == .disk) else {
             return false
         }

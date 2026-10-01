@@ -288,7 +288,7 @@ private final class NativeCoreMLModelPredictor:
             if let model = models[modelKey] {
                 try admissionCheck()
                 if allowsEviction {
-                    markDemanded(variant)
+                    markDemanded(modelKey)
                 }
                 return ModelAccess(
                     handle: model,
@@ -1389,7 +1389,12 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                 issuedGeneration,
                 cancellationCheck: cancellationCheck
             )
-            let resourceAccess = try await resourceStore.load()
+            let resourceAccess = try await resourceStore.load(admissionCheck: {
+                try self.requireCurrent(
+                    issuedGeneration,
+                    cancellationCheck: cancellationCheck
+                )
+            })
             try requireCurrent(
                 issuedGeneration,
                 cancellationCheck: cancellationCheck

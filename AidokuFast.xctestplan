@@ -342,9 +342,6 @@
             "name": "ReaderSessionCacheAdmissionTests"
           },
           {
-            "name": "ReaderSmallTextDOMGuardTests"
-          },
-          {
             "name": "ReaderSupplementalOCRTests"
           },
           {
@@ -424,9 +421,6 @@
           },
           {
             "name": "ReaderWebtoonSchedulingTests"
-          },
-          {
-            "name": "RegressionWebFixtureTests"
           },
           {
             "name": "RomajiCandidatePruningTests"

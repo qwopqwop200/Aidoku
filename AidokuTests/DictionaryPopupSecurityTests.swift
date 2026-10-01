@@ -5,6 +5,25 @@ import UIKit
 @Suite(.serialized)
 @MainActor
 struct DictionaryPopupSecurityTests {
+    @Test func malformedCSSCannotCreateReversedRangesOrNonfiniteLayoutValues() throws {
+        for value in ["rgb)(1,2,3", "rgb(", "rgba(1,2,3,nan)", "rgb(inf,2,3)", "rgb(1e999,2,3)"] {
+            #expect(NativeDictionaryCSS.color(value) == nil)
+        }
+        let font = UIFont.systemFont(ofSize: 15)
+        #expect(NativeDictionaryCSS.length("1e308em", font: font, relativeTo: 300) == nil)
+        #expect(NativeDictionaryCSS.length("1e308%", font: font, relativeTo: 300) == nil)
+        #expect(NativeDictionaryCSS.length("2em", font: font, relativeTo: 300) == 30)
+        #expect(NativeDictionaryCSS.color("rgb(1, 2, 3)") == UIColor(red: 1 / 255.0, green: 2 / 255.0, blue: 3 / 255.0, alpha: 1))
+
+        let attributes = NativeDictionaryCSS.attributes(["line-height": "1e308"], inherited: [.font: font])
+        let paragraph = try #require(attributes[.paragraphStyle] as? NSParagraphStyle)
+        #expect(paragraph.minimumLineHeight.isFinite && paragraph.maximumLineHeight.isFinite)
+        let baseline = NativeDictionaryContent.glossary("<span>definition</span>", dictionary: "security", scale: 1)
+        let malformed = NativeDictionaryContent.glossary("<span style='color:rgb)(1,2,3'>definition</span>",
+            dictionary: "security", scale: 1)
+        #expect(malformed.isEqual(to: baseline))
+    }
+
     @Test func structuredGlossaryRejectsExecutableContentAndPreservesNormalMarkup() throws {
         let normal: [[String: Any]] = [
             ["tag": "ruby", "content": [["tag": "span", "content": "日本語"], ["tag": "rt", "content": "にほんご"]]],
