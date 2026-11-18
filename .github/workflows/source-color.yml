@@ -14,6 +14,9 @@ on:
       - "Scripts/image-translation.swift"
       - "Scripts/image-translation/**"
       - "Scripts/overlay-kernels/**"
+      - "Scripts/native-source-cv/**"
+      - "Vendor/NativeSourceCV/**"
+      - "Vendor/SourceInference/**"
       - "Vendor/HoshiDicts/**"
       - "Scripts/test_*.py"
       - "Scripts/tests/**"
@@ -33,6 +36,8 @@ jobs:
           xcode-version: "26.6"
       - name: Set up native pixel kernel toolchain
         uses: dtolnay/rust-toolchain@stable
+      - name: Prepare native image dependencies for the host
+        run: python3 Scripts/native-source-cv/bootstrap.py --platform macos-arm64
       - name: Test native host renderer, CLI and native checks
         run: python3 Scripts/test_quick.py --full-host --host-result-directory "$RUNNER_TEMP/aidoku-full-host-results"
       - name: Preserve every host command result
@@ -55,6 +60,8 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-ios-sim,x86_64-apple-ios
+      - name: Prepare native image dependencies for the simulator
+        run: python3 Scripts/native-source-cv/bootstrap.py --platform "ios-$(uname -m)-simulator"
       - name: Select an available iOS simulator
         run: |
           python3 - <<'PYTHON'

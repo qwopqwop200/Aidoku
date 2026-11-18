@@ -13,21 +13,28 @@ actor MyAnimeListApi {
 
     let baseApiUrl = "https://api.myanimelist.net/v2"
 
-    // Registered under Skitty's MAL account
-    nonisolated let oauth = OAuthClient(
-        id: "myanimelist",
-        clientId: "50cc1b37e2af29f668b087485ba46a46",
-        baseUrl: "https://myanimelist.net/v1/oauth2",
-        challengeMethod: .plain
-    )
+    nonisolated let oauth: OAuthClient
+    private let session: URLSession
+
+    init(
+        // Registered under Skitty's MAL account
+        oauth: OAuthClient = OAuthClient(
+            id: "myanimelist",
+            clientId: "50cc1b37e2af29f668b087485ba46a46",
+            baseUrl: "https://myanimelist.net/v1/oauth2",
+            challengeMethod: .plain
+        ),
+        session: URLSession = .shared
+    ) {
+        self.oauth = oauth
+        self.session = session
+    }
 
     private func requestData(url: URL) async throws -> Data {
         try await requestData(urlRequest: oauth.authorizedRequest(for: url))
     }
 
-    func refreshAccessToken(replacingAuthorization: String? = nil) async -> OAuthResponse? {
-        guard let refreshToken = await oauth.tokens?.refreshToken else { return nil }
-
+    private func exchangeRefreshToken(_ refreshToken: String) async -> OAuthResponse? {
         guard let url = URL(string: oauth.baseUrl + "/token") else { return nil }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -36,17 +43,15 @@ actor MyAnimeListApi {
             "refresh_token": refreshToken,
             "grant_type": "refresh_token"
         ].percentEncoded()
-        let refreshRequest = request
-        return await oauth.refreshTokens(replacingAuthorization: replacingAuthorization) {
-            try? await URLSession.shared.object(from: refreshRequest)
-        }
+        return try? await session.object(from: request)
     }
 
     private func requestData(urlRequest: URLRequest) async throws -> Data {
         let currentGeneration = await oauth.accountGeneration
         let issued = OAuthClient.generation(for: urlRequest) ?? currentGeneration
         guard currentGeneration == issued else { throw CancellationError() }
-        var (data, response) = try await URLSession.shared.data(for: urlRequest)
+        try Task.checkCancellation()
+        var (data, response) = try await session.data(for: urlRequest)
         guard await oauth.accountGeneration == issued else { throw CancellationError() }
         let statusCode = (response as? HTTPURLResponse)?.statusCode
 
@@ -67,7 +72,7 @@ actor MyAnimeListApi {
             }
 
             // refresh access token
-            if await refreshAccessToken(replacingAuthorization: urlRequest.value(forHTTPHeaderField: "Authorization")) != nil {
+            if await oauth.refreshTokens(for: urlRequest, operation: exchangeRefreshToken) != nil {
                 // try request again with refreshed token
                 let newAuthorization = await oauth.authorizedRequest(for: URL(string: oauth.baseUrl + "/token")!)
                     .value(forHTTPHeaderField: "Authorization")
@@ -75,7 +80,7 @@ actor MyAnimeListApi {
                     guard await oauth.accountGeneration == issued else { throw CancellationError() }
                     var newRequest = urlRequest
                     newRequest.setValue(newAuthorization, forHTTPHeaderField: "Authorization")
-                    (data, response) = try await URLSession.shared.data(for: newRequest)
+                    (data, response) = try await session.data(for: newRequest)
                 }
             }
         }
@@ -94,37 +99,22 @@ actor MyAnimeListApi {
 
 // MARK: - Data
 extension MyAnimeListApi {
-    func search(query: String) async throws -> MyAnimeListSearchResponse {
+    func search(query: String, includeNsfw: Bool) async throws -> MyAnimeListSearchResponse {
         var url = URL(string: baseApiUrl + "/manga")!
         url.queryParameters = [
             "q": query.take(first: 64), // Search query can't be greater than 64 characters
-            "nsfw": "true"
+            "nsfw": String(includeNsfw),
+            "fields": "id,title,main_picture,synopsis,status,media_type,my_list_status"
         ]
         return try await self.request(url: url)
     }
 
-    func getMangaDetails(id: Int) async throws -> MyAnimeListManga? {
-        guard var url = URL(string: baseApiUrl + "/manga/\(id)") else { return nil }
-        url.queryParameters = [
-            "fields": "id,title,synopsis,num_chapters,main_picture,status,media_type,start_date,my_list_status"
-        ]
-        return try await self.request(url: url)
-    }
-
-    func getMangaWithStatus(id: Int) async -> MyAnimeListManga? {
-        guard var url = URL(string: baseApiUrl + "/manga/\(id)") else { return nil }
+    func getMangaWithStatus(id: Int) async throws -> MyAnimeListManga {
+        guard var url = URL(string: baseApiUrl + "/manga/\(id)") else { throw URLError(.badURL) }
         url.queryParameters = [
             "fields": "num_volumes,num_chapters,my_list_status"
         ]
-        return try? await self.request(url: url)
-    }
-
-    func getMangaStatus(id: Int) async -> MyAnimeListMangaStatus? {
-        guard var url = URL(string: baseApiUrl + "/manga/\(id)") else { return nil }
-        url.queryParameters = [
-            "fields": "my_list_status"
-        ]
-        return (try? await self.request(url: url) as MyAnimeListManga)?.myListStatus
+        return try await self.request(url: url)
     }
 
     func updateMangaStatus(id: Int, status: MyAnimeListMangaStatus) async throws {

@@ -1,3 +1,5 @@
+import AidokuRunner
+import CoreData
 import SwiftUI
 import Testing
 import UIKit
@@ -28,6 +30,55 @@ struct SourceBrowseSafetyTests {
         controller.loadViewIfNeeded()
         controller.updateExternalSources()
         #expect(controller.tableView.numberOfSections == 0)
+    }
+
+    @Test func homeBookmarksMatchRequestedSourcesAcrossBatches() async throws {
+        let manager = CoreDataManager.shared
+        let context = manager.context
+        let source = UUID().uuidString
+        let other = UUID().uuidString
+        func manga(_ source: String, _ key: String) -> AidokuRunner.Manga {
+            .init(sourceKey: source, key: key, title: key)
+        }
+        let first = manga(source, "first")
+        let last = manga(source, "last")
+        let fromOther = manga(other, "other")
+        let unrequested = manga(other, "matching-key")
+        let stored = [first, last, fromOther, unrequested]
+        defer {
+            for book in stored { manager.removeManga(mangaId: book.identifier, context: context) }
+            try? context.save()
+        }
+        for book in stored { manager.addToLibrary(manga: book, chapters: [], context: context) }
+        try context.save()
+
+        let links: [HomeComponent.Value.Link] = [
+            .init(title: "URL", value: .url("https://example.com")),
+            .init(title: "Label"), first.intoLink(), fromOther.intoLink(), first.intoLink()
+        ]
+        var entries = links.compactMap(\.manga)
+        #expect(entries.map(\.key) == ["first", "other", "first"])
+        entries += (0..<900).map { manga(source, "absent-\($0)") }
+        entries += [last, manga(source, "matching-key")]
+        let bookmarks = await manager.bookmarkedMangaKeys(for: entries)
+        #expect(bookmarks == ["first", "last", "other"])
+    }
+
+    @Test func refreshedUpdatesRespectActiveQueryAndSurviveClearingIt() throws {
+        let model = BrowseViewModel()
+        model.installedSources = [.init(sourceId: "a", name: "Alpha", languages: ["en"], version: 1, contentRating: .safe)]
+        model.pinnedSources = [.init(sourceId: "b", name: "Beta", languages: ["en"], version: 1, contentRating: .safe)]
+        model.search(query: "ALP")
+        let json = """
+        [{"id":"b","name":"Beta","version":2},{"id":"a","name":"Alpha","version":2},{"id":"c","name":"Extra","version":2}]
+        """
+        model.unfilteredExternalSources = try JSONDecoder().decode([ExternalSourceInfo].self, from: Data(json.utf8))
+        model.loadUpdates()
+        #expect(model.updatesSources.map(\.sourceId) == ["a"])
+        model.search(query: "bet")
+        #expect(model.updatesSources.map(\.sourceId) == ["b"])
+        model.search(query: nil)
+        #expect(model.updatesSources.map(\.sourceId) == ["a", "b"])
     }
 
     @Test func emptyCarouselScrollDoesNotDivideByZero() {

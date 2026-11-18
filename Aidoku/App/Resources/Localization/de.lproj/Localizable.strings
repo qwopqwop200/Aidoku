@@ -545,7 +545,7 @@
 
 "TRANSLATION_AUTO" = "Automatisch erkennen";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 erfordert iOS 18 oder neuer. Mittel ist das Standardmodell. Klein benötigt weniger Speicher; Winzig hat ein kleineres Zeichenwörterbuch. Diese Modelle erkennen keinen koreanischen Text. Übersetzungen ins Koreanische werden unterstützt.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 erfordert iOS 18 oder neuer. Manga v0.3 ist das Standardmodell für die Erkennung von Textbereichen und das Auslesen des Textes. Andere OCR-Modelle stehen ebenfalls zur Auswahl.";
 
 
 
@@ -1195,3 +1195,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Quelle %@ in Version %d wird von dieser App nicht unterstützt. Installiere eine unterstützte Version.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 unterstützt nur japanischen und chinesischen Ausgangstext (vereinfachte und traditionelle Schriftzeichen). Auch die automatische Erkennung und die manuelle Auswahl der Ausgangssprache sind auf diese Sprachen beschränkt. Übersetzungen ins Koreanische und in andere Zielsprachen sind weiterhin möglich. Bei Auswahl von Manga werden die Schwellenwerte für die Textbereichserkennung auf 0.85 und 0.25 gesetzt; die Standardgröße für die Textbereichserkennung beträgt 1120 px.";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alle unterstützten OCR-Sprachen";

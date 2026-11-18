@@ -131,6 +131,32 @@ struct ReaderTranslationBalloonMergerTests {
         #expect(ReaderTranslationBalloonMerger.apply([head, tail], image: image, sourceLines: [unrelated]).count == 2)
     }
 
+    @Test(arguments: ["」", "』", "”"])
+    func stackedCaptionStyleDoesNotJoinAClosedUtterance(closingQuote: String) throws {
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1
+        let image = try #require(UIGraphicsImageRenderer(size: CGSize(width: 300, height: 400), format: format).image { ctx in
+            UIColor.darkGray.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 300, height: 400))
+            for x in [105, 135, 165] {
+                for y in stride(from: 25, to: 340, by: 12) {
+                    UIColor.white.setFill(); ctx.fill(CGRect(x: x, y: y, width: 10, height: 10))
+                    UIColor.magenta.setFill(); ctx.fill(CGRect(x: x + 1, y: y + 1, width: 8, height: 8))
+                }
+            }
+        }.cgImage)
+        func head(_ text: String) -> ReaderTranslationRegion {
+            ReaderTranslationRegion(id: "head", rect: CGRect(x: 100.0 / 300, y: 20.0 / 400, width: 90.0 / 300, height: 170.0 / 400),
+                source: text, sourceOrientation: .vertical, sourceSingleVerticalColumn: false)
+        }
+        let tail = ReaderTranslationRegion(id: "tail", rect: CGRect(x: 100.0 / 300, y: 210.0 / 400, width: 30.0 / 300, height: 130.0 / 400),
+            source: "続きの文", sourceOrientation: .vertical, sourceSingleVerticalColumn: true)
+        let continuation = head("本文最後の列")
+        #expect(ReaderTranslationBalloonMerger.apply([continuation, tail], image: image).map(\.source) == ["本文最後の列続きの文"])
+        let closed = head("終わった発話" + closingQuote + " \n")
+        for input in [[closed, tail], [tail, closed]] {
+            #expect(ReaderTranslationBalloonMerger.apply(input, image: image) == input)
+        }
+    }
+
     @Test func outlinedCaptionInkMatchesAcrossColumnWidthsButRejectsOtherSpeakers() throws {
         func sample(_ second: UIColor, firstColour: UIColor = .magenta) -> CGImage {
             let format = UIGraphicsImageRendererFormat(); format.scale = 1
@@ -204,6 +230,50 @@ struct ReaderTranslationBalloonMergerTests {
         ]))
         #expect(result.map(\.id) == columns.map(\.id))
         #expect(result.map(\.source) == columns.map(\.source))
+    }
+
+    @Test func clearTextHeightBridgeStillRespectsWiderBalloonLobes() throws {
+        func page(neck: Bool) throws -> CGImage {
+            let context = try #require(CGContext(data: nil, width: 400, height: 400,
+                bitsPerComponent: 8, bytesPerRow: 400, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: 0))
+            context.setFillColor(gray: 0.2, alpha: 1)
+            context.fill(CGRect(x: 0, y: 0, width: 400, height: 400))
+            context.setFillColor(gray: 1, alpha: 1)
+            context.fill(CGRect(x: 140, y: 80, width: 120, height: 240))
+            if neck {
+                context.setFillColor(gray: 0.2, alpha: 1)
+                context.fill(CGRect(x: 194, y: 80, width: 12, height: 55))
+                context.fill(CGRect(x: 194, y: 265, width: 12, height: 55))
+            }
+            return try #require(context.makeImage())
+        }
+        let input = [
+            ReaderTranslationRegion(id: "right", rect: CGRect(x: 0.525, y: 0.35, width: 0.05, height: 0.3),
+                source: "明日の", sourceOrientation: .vertical, sourceSingleVerticalColumn: true),
+            ReaderTranslationRegion(id: "left", rect: CGRect(x: 0.425, y: 0.35, width: 0.05, height: 0.3),
+                source: "予定は", sourceOrientation: .vertical, sourceSingleVerticalColumn: true)
+        ]
+        for regions in [input, input.reversed().map { $0 }] {
+            #expect(ReaderTranslationBalloonMerger.apply(regions, image: try page(neck: false)).count == 1)
+            #expect(ReaderTranslationBalloonMerger.apply(regions, image: try page(neck: true)) == regions)
+        }
+        let paragraphs = [
+            ReaderTranslationRegion(id: "right", rect: CGRect(x: 0.525, y: 0.35, width: 0.1, height: 0.3),
+                source: "明日の予定を聞く", sourceOrientation: .vertical, sourceSingleVerticalColumn: false),
+            ReaderTranslationRegion(id: "left", rect: CGRect(x: 0.375, y: 0.35, width: 0.1, height: 0.3),
+                source: "時間はどうしよう", sourceOrientation: .vertical, sourceSingleVerticalColumn: false)
+        ]
+        let lines = [150.0, 170.0, 210.0, 230.0].map { x in
+            ReaderTranslationBalloonMerger.SourceLine(polygon: [
+                CGPoint(x: x, y: 140), CGPoint(x: x + 20, y: 140),
+                CGPoint(x: x + 20, y: 260), CGPoint(x: x, y: 260)
+            ], text: "長い文章", orientation: .vertical)
+        }
+        for regions in [paragraphs, paragraphs.reversed().map { $0 }] {
+            #expect(ReaderTranslationBalloonMerger.apply(regions, image: try page(neck: false), sourceLines: lines).count == 1)
+            #expect(ReaderTranslationBalloonMerger.apply(regions, image: try page(neck: true), sourceLines: lines) == regions)
+            #expect(ReaderTranslationBalloonMerger.apply(regions, image: try image([]), sourceLines: lines) == regions)
+        }
     }
 
     @Test func separateBalloonsAndOpenBackgroundDoNotJoin() throws {

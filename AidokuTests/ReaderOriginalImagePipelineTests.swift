@@ -2,10 +2,79 @@ import AidokuRunner
 import Nuke
 import Testing
 import UIKit
+import ZIPFoundation
 @testable import Aidoku
 
 @Suite(.serialized) @MainActor
 struct ReaderOriginalImagePipelineTests {
+    @Test(arguments: [false, true])
+    func coldArchiveBytesShareTheDisplayDecoder(deflated: Bool) async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".cbz")
+        defer { url.removeItem() }
+        let store = ReaderTemporaryPageStore()
+        let pipeline = ImagePipeline { $0.imageCache = ImageCache() }
+        let loader = ReaderTranslationImageLoader(pipeline: pipeline, temporaryStore: store)
+        let page = Page(sourceId: "", chapterId: "archive", imageURL: "page.png", zipURL: url.absoluteString)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 19, height: 11), format: format).image { context in
+            UIColor.blue.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 19, height: 11))
+        }
+        let png = try #require(image.pngData())
+        let archive = try Archive(url: url, accessMode: .create)
+        try archive.addEntry(with: "page.png", type: .file, uncompressedSize: Int64(png.count),
+                             compressionMethod: deflated ? .deflate : .none) { start, length in
+            png.subdata(in: Int(start)..<(Int(start) + length))
+        }
+        try archive.addEntry(with: "empty.gif", type: .file, uncompressedSize: Int64(0)) { _, _ in Data() }
+        #expect(await store.archiveImageSource(from: url, path: "empty.gif") == nil)
+        let empty = try #require(await store.storeArchiveEntry(from: url, path: "empty.gif"))
+        #expect(try await pipeline.data(for: ImageRequest(url: empty)).0.isEmpty)
+        let source = try #require(await store.archiveImageSource(from: url, path: "page.png"))
+        let request = await ReaderPageView.imageRequest(url: url, sourceKey: page.sourceId, archiveRequest: source.request)
+        #expect(request.url == nil)
+        #expect(try await source.decodedBytes() == 19 * 11 * 4)
+        let data = try await pipeline.data(for: source.request).0
+        #expect(data == png)
+        let translated = try await loader.load(page)
+        let displayed = try await pipeline.image(for: request)
+        #expect(translated === displayed)
+        await store.removeAll()
+    }
+
+    @Test func translationAndDisplayShareExtractedPixelsAndRespectArchiveReplacement() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".cbz")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = ReaderTemporaryPageStore()
+        let pipeline = ImagePipeline { $0.imageCache = ImageCache() }
+        let loader = ReaderTranslationImageLoader(pipeline: pipeline, temporaryStore: store)
+        let page = Page(sourceId: "", chapterId: "archive", imageURL: "page.png", zipURL: url.absoluteString)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        for width in [8, 24] {
+            let size = CGSize(width: width, height: 8)
+            let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+                UIColor.red.setFill()
+                context.fill(CGRect(origin: .zero, size: size))
+            }
+            let png = try #require(image.pngData())
+            if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+            let archive = try Archive(url: url, accessMode: .create)
+            try archive.addEntry(with: "page.png", type: .file, uncompressedSize: Int64(png.count)) { start, length in
+                png.subdata(in: Int(start)..<(Int(start) + length))
+            }
+            let extracted = try #require(await store.storeArchiveEntry(from: url, path: "page.png"))
+            let request = await ReaderPageView.imageRequest(url: extracted, sourceKey: page.sourceId)
+            let displayed = try await pipeline.image(for: request)
+            let translated = try await loader.load(page, cacheInMemory: false)
+            #expect(translated === displayed)
+            #expect(TranslationImageWorkBudget.decodedBytes(at: extracted) == UInt64(width * 8 * 4))
+            #expect(try Data(contentsOf: extracted) == png)
+        }
+        await store.removeAll()
+    }
+
     @Test func retiredSettingsCannotEnableProcessingOrReuseOldCache() async throws {
         let defaults = UserDefaults.standard
         let keys = ["Reader.cropBorders", "Reader.downsampleImages", "Reader.upscaleImages", "Reader.upscaleMaxHeight", "Data.enabledModelFile"]

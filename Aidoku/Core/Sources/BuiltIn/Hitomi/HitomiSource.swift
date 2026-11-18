@@ -188,6 +188,28 @@ actor HitomiSourceRunner: AidokuRunner.NativeSourceRunnerLifecycle {
         if lang != "all", positives.contains(where: {
             !$0.hasPrefix("language:") && HitomiSearch.nozomiURL(query: $0, language: lang) != nil
         }) { positives.removeAll { $0 == "language:\(lang)" } }
+        guard page <= Int.max / HitomiSearch.pageSize else { throw URLError(.badURL) }
+        let sortNames = ["index", "published", "today", "week", "month", "year"]
+        let baseIndex = URL(string: "\(Self.ltn)/\(sort == 0 ? "" : "popular/")\(sortNames[sort])-\(lang).nozomi")!
+        let singleTerm = positives.count == 1 && sort == 0 ? HitomiSearch.nozomiURL(query: positives[0], language: lang) : nil
+        if negatives.isEmpty, author == nil, type == nil, positives.isEmpty || singleTerm != nil {
+            // A single ordered index needs only this page and one ID to establish hasNextPage.
+            let window: (ids: [Int64], hasNext: Bool)?
+            do {
+                window = try await search.nozomiPage(url: singleTerm ?? baseIndex, page: page, lookAhead: true)
+            } catch HitomiSearch.Failure.invalidRange {
+                // Mirrors can reject Range. Fall back to the original full-index request.
+                window = nil
+            } catch {
+                if error is CancellationError { throw error }
+                try Task.checkCancellation()
+                guard singleTerm != nil else { throw error }
+                window = ([], false) // Namespaced searches have always treated unavailable terms as empty.
+            }
+            if let window {
+                return try await AidokuRunner.MangaPageResult(entries: mangas(window.ids), hasNextPage: window.hasNext)
+            }
+        }
         var positiveResults: [[Int64]] = []
         for term in positives {
             if term.contains(":"), HitomiSearch.nozomiURL(query: term, language: lang) != nil {
@@ -209,10 +231,9 @@ actor HitomiSourceRunner: AidokuRunner.NativeSourceRunnerLifecycle {
             if let result = try await optionalIDs(term: term, language: lang) { negativeIDs.formUnion(result) }
             try Task.checkCancellation()
         }
-        let sortNames = ["index", "published", "today", "week", "month", "year"]
         var result: [Int64]
         if (positives.isEmpty && author == nil) || sort != 0 {
-            result = try await search.allNozomi(url: URL(string: "\(Self.ltn)/\(sort == 0 ? "" : "popular/")\(sortNames[sort])-\(lang).nozomi")!)
+            result = try await search.allNozomi(url: baseIndex)
         } else { result = [] }
         // Preserve the recovered adapter's empty-base replacement semantics and index ordering.
         for ids in positiveResults {
@@ -226,9 +247,8 @@ actor HitomiSourceRunner: AidokuRunner.NativeSourceRunnerLifecycle {
         }
         try Task.checkCancellation()
         result.removeAll { negativeIDs.contains($0) }
-        guard page <= Int.max / 25 else { throw URLError(.badURL) }
-        let start = (page - 1) * 25
-        let end = min(start + 25, result.count)
+        let start = (page - 1) * HitomiSearch.pageSize
+        let end = min(start + HitomiSearch.pageSize, result.count)
         let selected = start < result.count ? Array(result[start..<end]) : []
         return try await AidokuRunner.MangaPageResult(entries: mangas(selected), hasNextPage: end < result.count)
     }

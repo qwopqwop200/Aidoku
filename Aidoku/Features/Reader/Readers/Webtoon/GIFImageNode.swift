@@ -22,6 +22,8 @@ class GIFImageNode: ASControlNode {
     }
 
     private var imageGeneration = UUID()
+    private var reuseGeneration: UInt = 0
+    @MainActor private var installedAnimationGeneration: UInt?
 
     var image: UIImage? {
         didSet {
@@ -75,6 +77,11 @@ class GIFImageNode: ASControlNode {
     @discardableResult
     func commitImage() -> Bool {
         guard let imageView else { return false }
+        // A new page can arrive before the deferred nil-image commit runs.
+        if let installedAnimationGeneration, installedAnimationGeneration != reuseGeneration {
+            imageView.prepareForReuse()
+            self.installedAnimationGeneration = nil
+        }
         imageView.image = image
         guard onImageAssigned?(imageView) != false else {
             imageView.stopAnimatingGIF()
@@ -83,6 +90,7 @@ class GIFImageNode: ASControlNode {
         }
         if let animatedData, image != nil {
             imageView.animate(withGIFData: animatedData)
+            installedAnimationGeneration = reuseGeneration
             self.animatedData = nil
         }
         NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: imageView)
@@ -90,16 +98,9 @@ class GIFImageNode: ASControlNode {
     }
 
     func reset() {
+        reuseGeneration &+= 1
         animatedData = nil
         image = nil
-        let generation = imageGeneration
-
-        Task { @MainActor [weak self] in
-            guard let self, generation == imageGeneration else { return }
-            // Pausing leaves Gifu's frame store alive on this retained node.
-            imageView?.prepareForReuse()
-            imageView?.image = nil
-        }
     }
 
     @MainActor

@@ -1,6 +1,7 @@
 // OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 import Foundation
 import CoreGraphics
+import CryptoKit
 import UIKit
 
 /// Immutable, versioned native layout. Coordinates are points in the supplied viewport;
@@ -49,6 +50,8 @@ struct NativeTranslationBalloonInterior: Codable, Equatable, Sendable {
     let center: [CGFloat]
     let spans: [Double]
     let contourVerified: Bool
+    var modelEstimated: Bool? = nil
+    var nativeMaskSHA256: String? = nil
 
     var normalizedRect: CGRect {
         guard rect.count == 4 else { return .zero }
@@ -139,8 +142,15 @@ struct NativeTranslationLayoutItem: Codable, Equatable, Sendable {
     let clipsText: Bool
     let keptLettering: Bool
     let sourceTextOnly: Bool
+    let originalSourceSHA256: String?
     let sourceVertical: Bool
     let sourceSingleColumn: Bool
+    // Preserve upstream separation evidence through typed layout persistence.
+    // Otherwise raw-item merge guards silently lose their paragraph/owner keys.
+    let paragraphID: NativeTranslationParagraphID?
+    let paragraphIndex: Int?
+    let rfBodyIndex: Int?
+    let rfBodyConfidence: Double?
     let fontScript: String
     let wrappingScript: String
     let lightSurface: Bool
@@ -154,11 +164,34 @@ struct NativeTranslationLayoutItem: Codable, Equatable, Sendable {
     let uprightQuadText: Bool
     let sourceBounds: [CGFloat]
     let sourcePolygon: [[CGFloat]]
+    let sourceOriginalText: String?
+    let sourceConfidence: Double?
     let auxiliaryInkRects: [[CGFloat]]
     let auxiliaryInkPolygons: [[[CGFloat]]]
     let unitMemberRects: [[CGFloat]]
     let sourceFrame: [CGFloat]
     let sourceFontSize: CGFloat?
+    let textExpansionPolicy: NativeTextExpansionPolicy?
+    let textPlacementGuide: NativeTextPlacementGuide?
+    let textAlignment: String?
+    let balloonLayoutRectNormalized: [Double]?
+    let typographyGroupID: String?
+    let lineHeightEm: Double?
+    let trackingEm: Double?
+    let balloonPlacement: NativeBalloonPlacement?
+    let sourceClusterAlignment: NativeSourceClusterAlignment?
+    /// Optional source inference decision, independent of colour preservation.
+    /// Mixed is never a whole-translation bold decision without destination spans.
+    let sourceFontWeight: String?
+    let renderBold: Bool?
+
+    var sourceRenderBold: Bool? {
+        switch sourceFontWeight {
+        case "bold": return true
+        case "regular", "mixed": return false
+        default: return renderBold
+        }
+    }
     let sourceLettering: String?
     let sourceQuad: [CGFloat]?
     let rotationPlannedFontSize: CGFloat?
@@ -199,12 +232,14 @@ struct NativeTranslationLayoutItem: Codable, Equatable, Sendable {
         case width, height, fontSize, lineHeight, unitPlannedCard, captionFixedBoxReflowDisabled, typesettingBlockDisplay, typesettingPreservedBlockWrapper, typesettingPreformattedRows, typesettingDisplayGrowth
         case paddingTop, paddingRight, paddingBottom, paddingLeft
         case rotation, vertical, clipsText, keptLettering
-        case sourceTextOnly, sourceVertical, sourceSingleColumn, fontScript
+        case sourceTextOnly, sourceVertical, sourceSingleColumn, fontScript, originalSourceSHA256
+        case paragraphID, paragraphIndex, rfBodyIndex, rfBodyConfidence
         case wrappingScript, lightSurface, sourceColorEligible, sourcePanelRestorationEligible
         case sourceCleanupLexical, sourceCleanup, sourceRubyEligible, recoveredLine
+        case sourceOriginalText, sourceConfidence
         case allowsAutomaticFontRecovery, uprightQuadText, sourceBounds, sourcePolygon
         case auxiliaryInkRects, auxiliaryInkPolygons, unitMemberRects, sourceFrame
-        case sourceFontSize, sourceLettering, sourceQuad, rotationPlannedFontSize
+        case textExpansionPolicy, textPlacementGuide, textAlignment, balloonLayoutRectNormalized, typographyGroupID, lineHeightEm, trackingEm, balloonPlacement, sourceClusterAlignment, sourceFontSize, sourceFontWeight, renderBold, sourceLettering, sourceQuad, rotationPlannedFontSize
         case nearUprightRotation, uprightAlternative, columnLayout, smallTextReference
         case balloonInterior, balloonUnit, balancedColumn, sourceErasureRGB, drawsUprightQuadText, smallTextReferenceResolved
     }
@@ -242,8 +277,13 @@ struct NativeTranslationLayoutItem: Codable, Equatable, Sendable {
         clipsText = try values.decodeIfPresent(Bool.self, forKey: .clipsText) ?? true
         keptLettering = try values.decodeIfPresent(Bool.self, forKey: .keptLettering) ?? false
         sourceTextOnly = try values.decodeIfPresent(Bool.self, forKey: .sourceTextOnly) ?? true
+        originalSourceSHA256 = try values.decodeIfPresent(String.self, forKey: .originalSourceSHA256)
         sourceVertical = try values.decodeIfPresent(Bool.self, forKey: .sourceVertical) ?? false
         sourceSingleColumn = try values.decodeIfPresent(Bool.self, forKey: .sourceSingleColumn) ?? false
+        paragraphID = try values.decodeIfPresent(NativeTranslationParagraphID.self, forKey: .paragraphID)
+        paragraphIndex = try values.decodeIfPresent(Int.self, forKey: .paragraphIndex)
+        rfBodyIndex = try values.decodeIfPresent(Int.self, forKey: .rfBodyIndex)
+        rfBodyConfidence = try values.decodeIfPresent(Double.self, forKey: .rfBodyConfidence)
         fontScript = try values.decodeIfPresent(String.self, forKey: .fontScript) ?? "latin"
         wrappingScript = try values.decodeIfPresent(String.self, forKey: .wrappingScript) ?? "latin"
         lightSurface = try values.decodeIfPresent(Bool.self, forKey: .lightSurface) ?? true
@@ -257,11 +297,58 @@ struct NativeTranslationLayoutItem: Codable, Equatable, Sendable {
         uprightQuadText = try values.decodeIfPresent(Bool.self, forKey: .uprightQuadText) ?? false
         sourceBounds = try values.decode([CGFloat].self, forKey: .sourceBounds)
         sourcePolygon = try values.decodeIfPresent([[CGFloat]].self, forKey: .sourcePolygon) ?? []
+        sourceOriginalText = try values.decodeIfPresent(String.self, forKey: .sourceOriginalText)
+        sourceConfidence = try values.decodeIfPresent(Double.self, forKey: .sourceConfidence)
         auxiliaryInkRects = try values.decodeIfPresent([[CGFloat]].self, forKey: .auxiliaryInkRects) ?? []
         auxiliaryInkPolygons = try values.decodeIfPresent([[[CGFloat]]].self, forKey: .auxiliaryInkPolygons) ?? []
         unitMemberRects = try values.decodeIfPresent([[CGFloat]].self, forKey: .unitMemberRects) ?? []
         sourceFrame = try values.decode([CGFloat].self, forKey: .sourceFrame)
         sourceFontSize = try values.decodeIfPresent(CGFloat.self, forKey: .sourceFontSize)
+        textExpansionPolicy = try values.decodeIfPresent(NativeTextExpansionPolicy.self, forKey: .textExpansionPolicy)
+        if let textExpansionPolicy, !textExpansionPolicy.valid {
+            throw DecodingError.dataCorruptedError(forKey: .textExpansionPolicy, in: values, debugDescription: "Invalid render expansion policy")
+        }
+        textPlacementGuide = try values.decodeIfPresent(NativeTextPlacementGuide.self, forKey: .textPlacementGuide)
+        textAlignment = try values.decodeIfPresent(String.self, forKey: .textAlignment)
+        if let textPlacementGuide, !textPlacementGuide.valid {
+            throw DecodingError.dataCorruptedError(forKey: .textPlacementGuide, in: values, debugDescription: "Invalid source placement guide")
+        }
+        if let textAlignment, !["left", "center", "right"].contains(textAlignment) {
+            throw DecodingError.dataCorruptedError(forKey: .textAlignment, in: values, debugDescription: "Invalid text alignment")
+        }
+        balloonLayoutRectNormalized = try values.decodeIfPresent([Double].self, forKey: .balloonLayoutRectNormalized)
+        typographyGroupID = try values.decodeIfPresent(String.self, forKey: .typographyGroupID)
+        lineHeightEm = try values.decodeIfPresent(Double.self, forKey: .lineHeightEm)
+        trackingEm = try values.decodeIfPresent(Double.self, forKey: .trackingEm)
+        if let slot = balloonLayoutRectNormalized {
+            guard slot.count == 4, slot.allSatisfy(\.isFinite), slot[2] > 0, slot[3] > 0,
+                  CGRect(x: 0, y: 0, width: 1, height: 1).contains(CGRect(x: slot[0], y: slot[1], width: slot[2], height: slot[3])) else {
+                throw DecodingError.dataCorruptedError(forKey: .balloonLayoutRectNormalized, in: values, debugDescription: "Invalid body layout slot")
+            }
+        }
+        if let em = lineHeightEm, !em.isFinite || !(1...4).contains(em) {
+            throw DecodingError.dataCorruptedError(forKey: .lineHeightEm, in: values, debugDescription: "Invalid line pitch")
+        }
+        if let trackingEm, trackingEm != 0 {
+            throw DecodingError.dataCorruptedError(forKey: .trackingEm, in: values, debugDescription: "Unsupported tracking")
+        }
+        balloonPlacement = try values.decodeIfPresent(NativeBalloonPlacement.self, forKey: .balloonPlacement)
+        if let balloonPlacement, !balloonPlacement.valid {
+            throw DecodingError.dataCorruptedError(forKey: .balloonPlacement, in: values, debugDescription: "Invalid balloon placement packet")
+        }
+        sourceClusterAlignment = try values.decodeIfPresent(NativeSourceClusterAlignment.self, forKey: .sourceClusterAlignment)
+        if let sourceClusterAlignment, !sourceClusterAlignment.valid {
+            throw DecodingError.dataCorruptedError(forKey: .sourceClusterAlignment, in: values, debugDescription: "Invalid source alignment packet")
+        }
+        sourceFontWeight = try values.decodeIfPresent(String.self, forKey: .sourceFontWeight)
+        renderBold = try values.decodeIfPresent(Bool.self, forKey: .renderBold)
+        if let sourceFontWeight {
+            guard ["regular", "bold", "mixed"].contains(sourceFontWeight),
+                  renderBold == nil || renderBold == (sourceFontWeight == "bold") else {
+                throw DecodingError.dataCorruptedError(forKey: .sourceFontWeight, in: values,
+                    debugDescription: "Invalid or inconsistent source weight/renderBold decision")
+            }
+        }
         sourceLettering = try values.decodeIfPresent(String.self, forKey: .sourceLettering)
         sourceQuad = try values.decodeIfPresent([CGFloat].self, forKey: .sourceQuad)
         rotationPlannedFontSize = try values.decodeIfPresent(CGFloat.self, forKey: .rotationPlannedFontSize)
@@ -292,15 +379,87 @@ private actor NativeTranslationLayoutWorker {
     static let shared = NativeTranslationLayoutWorker()
     private let measurementCache = BrowserOverlayTextMeasurementCache()
 
+    // Never retain pixels, decoded cards, request inventories, or cancelled Tasks.
+    // Consecutive callers on the actor can share at most two small immutable initial plans.
+    private var recent: [(identity: SHA256.Digest, data: Data)] = []
+    private static let maximumEntryBytes = 1_024 * 1_024
+
+    private struct Input: Encodable {
+        struct Owner: Encodable {
+            let batch: Int
+            let segment: String
+        }
+        let items: [BrowserOverlayItem]
+        let owners: [Owner?]
+        let batches: [TranslationCacheKey]
+        let imageSize: CGSize
+        let sourceRect: CGRect
+        let viewport: CGSize
+        let settings: IPhoneOverlaySettings
+        // These two runtime inputs are intentionally absent from settings' preference codec.
+        let reservesSurfaceBorder: Bool
+        let geometryParameters: NativeTextBoxGeometryParameters
+        let targetLanguage: String
+        let typography: String
+        let includesOriginalSourceDigest: Bool
+    }
+
+    private func identity(items: [BrowserOverlayItem], imageSize: CGSize, sourceRect: CGRect, settings: IPhoneOverlaySettings,
+                          targetLanguage: String, viewport: CGSize, includesOriginalSourceDigest: Bool) -> SHA256.Digest? {
+        var indices: [TranslationCacheKey: Int] = [:]
+        var batches: [TranslationCacheKey] = []
+        let owners = items.map { item -> Input.Owner? in
+            guard let owner = item.translationReuseIdentity else { return nil }
+            // Adjacent cards normally share the same copy-on-write provider batch. Equality
+            // fast-paths shared array storage; hashing its entire segment inventory per card does not.
+            if let last = batches.last, last == owner.cacheKey {
+                return .init(batch: batches.count - 1, segment: owner.segmentID)
+            }
+            if let index = indices[owner.cacheKey] { return .init(batch: index, segment: owner.segmentID) }
+            let index = batches.count
+            indices[owner.cacheKey] = index
+            batches.append(owner.cacheKey)
+            return .init(batch: index, segment: owner.segmentID)
+        }
+        let input = Input(items: items, owners: owners, batches: batches, imageSize: imageSize, sourceRect: sourceRect,
+                          viewport: viewport, settings: settings, reservesSurfaceBorder: settings.reservesSurfaceBorder,
+                          geometryParameters: settings.textBoxGeometryParameters, targetLanguage: targetLanguage,
+                          typography: NativeTranslationTypography.availabilityKey, includesOriginalSourceDigest: includesOriginalSourceDigest)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        guard let encoded = try? encoder.encode(input) else { return nil }
+        return SHA256.hash(data: encoded)
+    }
+
     func data(items: [BrowserOverlayItem], imageSize: CGSize, sourceRect: CGRect,
-              settings: IPhoneOverlaySettings, targetLanguage: String, viewport: CGSize) throws -> Data {
+              settings: IPhoneOverlaySettings, targetLanguage: String, viewport: CGSize,
+              prepared: Data? = nil) throws -> Data {
         try Task.checkCancellation()
         return try autoreleasepool {
+            let includesOriginalSourceDigest = !items.isEmpty && NativeTranslationLayoutPlanner.includesOriginalSourceDigest
+            let key = items.isEmpty ? nil : identity(items: items, imageSize: imageSize, sourceRect: sourceRect, settings: settings,
+                               targetLanguage: targetLanguage, viewport: viewport, includesOriginalSourceDigest: includesOriginalSourceDigest)
+            if let key, let index = recent.firstIndex(where: { $0.identity == key }) {
+                let hit = recent.remove(at: index)
+                recent.append(hit)
+                try Task.checkCancellation()
+                // Only bytes emitted for the exact current inventory can be adopted. An older
+                // disk layout or a final paint plan is never trusted on matching geometry alone.
+                if let prepared, prepared == hit.data { return prepared }
+                return hit.data
+            }
             let layout = try NativeTranslationLayoutPlanner.plan(
                 items: items, imageSize: imageSize, sourceRect: sourceRect, settings: settings,
-                targetLanguage: targetLanguage, viewport: viewport, measurementCache: measurementCache)
+                targetLanguage: targetLanguage, viewport: viewport, measurementCache: measurementCache,
+                includesOriginalSourceDigest: includesOriginalSourceDigest)
             try Task.checkCancellation()
-            return try JSONEncoder().encode(layout)
+            let data = try JSONEncoder().encode(layout)
+            try Task.checkCancellation()
+            if let key, data.count <= Self.maximumEntryBytes {
+                if recent.count == 2 { recent.removeFirst() }
+                recent.append((key, data))
+            }
+            return data
         }
     }
 }
@@ -310,6 +469,11 @@ private actor NativeTranslationLayoutWorker {
 enum NativeTranslationLayoutPlanner {
     enum Failure: Error { case invalidGeometry }
 
+    // Resolve the same runtime policy once for both input identity and every card in this plan.
+    fileprivate static var includesOriginalSourceDigest: Bool {
+        NativeCausalUnownedInkLiveRecovery.runtimeEnabled || NativeCausalRFOriginalContextRecovery.runtimeEnabled
+    }
+
     static func validGeometry(imageSize: CGSize, sourceRect: CGRect, viewport: CGSize) -> Bool {
         imageSize.width > 0 && imageSize.height > 0 && sourceRect.width > 0 && sourceRect.height > 0 &&
             viewport.width > 0 && viewport.height > 0 &&
@@ -318,18 +482,22 @@ enum NativeTranslationLayoutPlanner {
     }
 
     static func prepareLayoutData(items: [BrowserOverlayItem], imageSize: CGSize, sourceRect: CGRect,
-                                  settings: IPhoneOverlaySettings, targetLanguage: String, viewport: CGSize) async throws -> Data {
+                                  settings: IPhoneOverlaySettings, targetLanguage: String, viewport: CGSize,
+                                  prepared: Data? = nil) async throws -> Data {
         try await NativeTranslationLayoutWorker.shared.data(items: items, imageSize: imageSize, sourceRect: sourceRect,
-                                                           settings: settings, targetLanguage: targetLanguage, viewport: viewport)
+                                                            settings: settings, targetLanguage: targetLanguage, viewport: viewport,
+                                                            prepared: prepared)
     }
 
     static func plan(items: [BrowserOverlayItem], imageSize: CGSize, sourceRect: CGRect,
                      settings: IPhoneOverlaySettings, targetLanguage: String, viewport: CGSize,
-                     measurementCache: BrowserOverlayTextMeasurementCache? = BrowserOverlayTextMeasurementCache()) throws -> NativeTranslationLayout {
+                     measurementCache: BrowserOverlayTextMeasurementCache? = BrowserOverlayTextMeasurementCache(),
+                     includesOriginalSourceDigest: Bool = includesOriginalSourceDigest) throws -> NativeTranslationLayout {
         try Task.checkCancellation()
         guard validGeometry(imageSize: imageSize, sourceRect: sourceRect, viewport: viewport) else { throw Failure.invalidGeometry }
         let cards = payload(items: items, imageSize: imageSize, sourceRect: sourceRect, settings: settings,
-                            targetLanguage: targetLanguage, viewport: viewport, measurementCache: measurementCache)
+                            targetLanguage: targetLanguage, viewport: viewport, measurementCache: measurementCache,
+                            includesOriginalSourceDigest: includesOriginalSourceDigest)
         try Task.checkCancellation()
         // Convert the compatibility descriptor once at the worker boundary. Both renderers
         // consume exactly the same planned geometry; the stored native format is typed/versioned.
@@ -395,7 +563,7 @@ enum NativeTranslationLayoutPlanner {
 
     private static func style(_ item: NativeTranslationLayoutItem, appearance: NativeTranslationRestoration.Appearance?)
         -> NativeTranslationTypography.Style {
-        NativeTranslationTypography.Style(fontName: item.fontScript == "korean" ? appearance?.fontName : nil, fontScript: item.fontScript, fontSize: item.fontSize, vertical: item.vertical,
+        var style = NativeTranslationTypography.Style(fontName: item.fontScript == "korean" ? appearance?.fontName : nil, fontScript: item.fontScript, fontSize: item.fontSize, vertical: item.vertical,
             foreground: appearance?.foreground ?? CGColor(gray: item.lightSurface ? 0 : 1, alpha: 1),
             outline: nil, outlineWidth: 0,
             tracking: -item.fontSize * 0.012, lineHeight: max(item.fontSize, item.lineHeight),
@@ -405,6 +573,12 @@ enum NativeTranslationLayoutPlanner {
             horizontalWrapping: item.wrappingScript == "korean" && item.typesettingStrictLineBreak != true
                 ? .keepAllWithEmergency : .normal,
             strictLineBreak: item.typesettingStrictLineBreak ?? false)
+        if let bold = item.sourceRenderBold {
+            style.bold = bold
+            // A fixed named face can override bold=false; use the regular script family.
+            if !bold { style.fontName = nil }
+        }
+        return style
     }
 
     /// The original upright-from-slant candidate loop. The native page-axis
@@ -735,36 +909,6 @@ enum NativeTranslationLayoutPlanner {
         return result
     }
 
-    private static func holds(_ rect: CGRect, paper: NativeTranslationBalloonInterior, frame: CGRect) -> Bool {
-        guard paper.rect.count == 4, paper.spans.count >= 2, paper.spans.count.isMultiple(of: 2) else { return false }
-        let normalized = paper.normalizedRect
-        let bounds = CGRect(x: frame.minX + normalized.minX * frame.width, y: frame.minY + normalized.minY * frame.height,
-                            width: normalized.width * frame.width, height: normalized.height * frame.height)
-        guard bounds.height > 0, bounds.contains(rect) else { return false }
-        let bands = paper.spans.count / 2, step = bounds.height / CGFloat(bands)
-        let first = max(0, Int(floor((rect.minY - bounds.minY) / step)))
-        let last = min(bands - 1, Int(ceil((rect.maxY - bounds.minY) / step)) - 1)
-        guard first <= last else { return false }
-        for band in first...last {
-            let left = paper.spans[band * 2], right = paper.spans[band * 2 + 1]
-            guard left >= 0, right > left, frame.minX + CGFloat(left) * frame.width <= rect.minX,
-                  frame.minX + CGFloat(right) * frame.width >= rect.maxX else { return false }
-        }
-        return true
-    }
-
-    private static func clears(_ rect: CGRect, excluding ids: Set<String>, cards: [NativeTranslationLayoutItem], frame: CGRect) -> Bool {
-        for item in cards where !ids.contains(item.id) {
-            if !item.keptLettering && rect.intersects(item.rect) { return false }
-            for bounds in [item.sourceBounds] + item.auxiliaryInkRects where bounds.count == 4 {
-                let source = CGRect(x: frame.minX + bounds[0] * frame.width, y: frame.minY + bounds[1] * frame.height,
-                                    width: bounds[2] * frame.width, height: bounds[3] * frame.height)
-                if rect.intersects(source) { return false }
-            }
-        }
-        return true
-    }
-
     /// Port of the shared browser column inspection. Inspect exposed pixels once for all
     /// proposed columns, independently of palette/inpainting settings, at the same 4096 budget.
     private static func inspectedColumnSurfaces(cards: [NativeTranslationLayoutItem], frame: CGRect,
@@ -888,7 +1032,8 @@ enum NativeTranslationLayoutPlanner {
         settings: IPhoneOverlaySettings,
         targetLanguage: String,
         viewport: CGSize,
-        measurementCache: BrowserOverlayTextMeasurementCache? = BrowserOverlayTextMeasurementCache()
+        measurementCache: BrowserOverlayTextMeasurementCache? = BrowserOverlayTextMeasurementCache(),
+        includesOriginalSourceDigest: Bool = includesOriginalSourceDigest
     ) -> [[String: Any]] {
         guard imageSize.width > 0, imageSize.height > 0,
               imageSize.width.isFinite, imageSize.height.isFinite,
@@ -1282,6 +1427,8 @@ enum NativeTranslationLayoutPlanner {
                      "paddingBottom": upright.contentInsets.bottom, "paddingLeft": upright.contentInsets.left]
                 } as Any? ?? NSNull(),
                 "sourceTextOnly": !segment.content.hasTranslation,
+                "originalSourceSHA256": includesOriginalSourceDigest
+                    ? NativeCausalUnownedInkLiveRecovery.sourceTextDigest(segment.item.sourceText) as Any : NSNull(),
                 "sourceFontSize": BrowserOverlayTypography.sourceSize(text: segment.item.sourceText, rect: segment.source) as Any? ?? NSNull(),
                 "sourceColorEligible": settings.mode == .translateOnly &&
                     settings.textPlacement == .replace,
@@ -1315,6 +1462,8 @@ enum NativeTranslationLayoutPlanner {
                 "sourceBounds": [segment.item.rect.minX / imageSize.width, segment.item.rect.minY / imageSize.height,
                                  segment.item.rect.width / imageSize.width, segment.item.rect.height / imageSize.height],
                 "sourcePolygon": segment.item.sourcePolygon.map { [$0.x / imageSize.width, $0.y / imageSize.height] },
+                "sourceOriginalText": segment.item.sourceText,
+                "sourceConfidence": segment.item.confidence,
                 "auxiliaryInkRects": segment.item.auxiliaryInkRects.map {
                     [$0.minX / imageSize.width, $0.minY / imageSize.height, $0.width / imageSize.width, $0.height / imageSize.height]
                 },

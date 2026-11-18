@@ -8,7 +8,7 @@ import UIKit
 @Suite(.serialized) @MainActor
 struct ReaderSchedulingOptimizationTests {
     nonisolated private static let region = ReaderTranslationRegion(id: "one", rect: CGRect(x: 0.1, y: 0.1, width: 0.7, height: 0.1),
-                                                        source: "HELLO WORLD", translation: "번역", sourceOrientation: .horizontal)
+                                                        source: "こんにちは", translation: "번역", sourceOrientation: .horizontal)
 
     private func settings(_ defaults: UserDefaults) -> ReaderTranslationSettings {
         var settings = ReaderTranslationSettings(defaults: defaults)
@@ -31,7 +31,7 @@ struct ReaderSchedulingOptimizationTests {
             regions.map { var value = $0; value.translation = "번역"; return value }
         }, recognizer: { page, _ in
             [ReaderTranslationRegion(id: String(page.index), rect: CGRect(x: 0.1, y: 0.1, width: 0.7, height: 0.1),
-                                     source: "HELLO WORLD", sourceOrientation: .horizontal)]
+                                     source: "こんにちは", sourceOrientation: .horizontal)]
         }, availableMemory: { .max }, storeRecognition: { regions, key, generation in
             // If the OCR permit were still held here, this acquisition could not
             // complete until the store returned.

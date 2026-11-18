@@ -31,6 +31,44 @@ use_binary = '--reuse-built' in sys.argv
 BINARY = ROOT / 'build/image-translation-host/image-translation'
 
 
+def mock_translations(body):
+    if 'structured_outputs' in body:
+        pattern = body['structured_outputs']['regex']
+        ids = [key.replace(r'\.', '.') for key in re.findall(r'"id":"([^"]+)"', pattern)]
+        required = {field for field in ('text_role',) if f'"{field}":' in pattern}
+    else:
+        schema = body['response_format']['json_schema']['schema']
+        item = schema['properties']['translations']['items']
+        branches = item.get('anyOf', [item])
+        assert branches
+
+        def id_values(branch):
+            definition = branch['properties']['id']
+            if '$ref' in definition:
+                reference = definition['$ref']
+                assert reference.startswith('#/'), reference
+                definition = schema
+                for component in reference[2:].split('/'):
+                    definition = definition[component.replace('~1', '/').replace('~0', '~')]
+            return definition['enum']
+
+        ids = id_values(branches[0])
+        required = set(branches[0]['required'])
+        for branch in branches:
+            assert id_values(branch) == ids
+            assert set(branch['required']) == required == set(branch['properties'])
+            assert branch['additionalProperties'] is False
+    assert ids, body
+    # Emit an ordinary dialogue branch, including all requested classification fields.
+    translations = []
+    for key in ids:
+        item = {'id': key}
+        if 'text_role' in required: item['text_role'] = 'dialogue'
+        item['text'] = '어서! 빨리 움직여!'
+        translations.append(item)
+    return translations
+
+
 class Provider(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -51,14 +89,8 @@ class Provider(http.server.BaseHTTPRequestHandler):
             overlap.wait(4)
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
         assert self.headers['Authorization'] == f'Bearer {SECRET}'
-        if 'structured_outputs' in body:
-            ids = [key.replace(r'\.', '.') for key in re.findall(r'"id":"([^"]+)"', body['structured_outputs']['regex'])]
-        else:
-            schema = body['response_format']['json_schema']['schema']
-            ids = schema['properties']['translations']['items']['properties']['id']['enum']
-        assert ids, body
         requests.append(body)
-        content = json.dumps({'translations': [{'id': key, 'text': '어서! 빨리 움직여!'} for key in ids]}, ensure_ascii=False)
+        content = json.dumps({'translations': mock_translations(body)}, ensure_ascii=False, separators=(',', ':'))
         if body.get('stream'):
             chunk = {'choices': [{'index': 0, 'delta': {'content': content}, 'finish_reason': None}]}
             terminal = {'choices': [{'index': 0, 'delta': {}, 'finish_reason': 'stop'}]}
@@ -115,7 +147,16 @@ def run(arguments, expected=0):
 def latest_summary(output):
     runs = list(output.glob('run-*'))
     assert len(runs) == 1, runs
-    return runs[0], json.loads((runs[0] / 'summary.json').read_text())
+    summary = json.loads((runs[0] / 'summary.json').read_text())
+    progress = json.loads((runs[0] / 'progress.json').read_text())
+    failures = sum(row['status'] == 'failed' for row in summary)
+    assert progress['status'] == 'finished' and progress['pending'] == 0, progress
+    assert progress['completed'] == progress['total'] == len(summary), progress
+    assert progress['failed'] == failures and progress['succeeded'] == len(summary) - failures, progress
+    assert (runs[0] / 'progress.html').exists()
+    assert 'http-equiv="refresh"' not in (runs[0] / 'progress.html').read_text()
+    assert len(json.loads((runs[0] / 'input-manifest.json').read_text())) == len(summary)
+    return runs[0], summary
 
 
 with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
@@ -155,10 +196,17 @@ with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
     assert (replay_dir / '0001/final.png').stat().st_size > 100
     assert (replay_dir / '0001/final.html').exists()
     analysis = json.loads((replay_dir / '0001/analysis.json').read_text())
-    assert analysis['finalImage'] == 'final.png' and analysis['segmentation']
-    assert any(trace['captures'] for trace in analysis['segmentation']), 'Actual renderer segmentation paths must be exercised'
+    assert analysis['finalImage'] == 'final.png' and not analysis['segmentation']
     diagnostics = json.loads(next((replay_dir / '0001').glob('*native-render-diagnostics.json')).read_text())['value']
-    assert 'cards' in diagnostics and not diagnostics['initialPatchCaptureFailures'], diagnostics
+    # Offline replay only substitutes translations; rendering uses the production main
+    # ensemble route with AOT restoration (AIDOKU_LEGACY_PANEL_RENDERER=1 is the rollback).
+    assert diagnostics['entrypoint'] == 'NativeTranslationRenderer/NativeMainEnsemblePipeline', diagnostics
+    assert diagnostics['mainPipelineApplied'] is True and diagnostics['complete'] is True, diagnostics
+    assert diagnostics['expectedTranslationItems'] > 0, diagnostics
+    assert diagnostics['paintedTranslationItems'] == diagnostics['expectedTranslationItems'], diagnostics
+    assert diagnostics['itemAccounting'] and all(row['status'] == 'painted' for row in diagnostics['itemAccounting']), diagnostics
+    restoration = diagnostics['restoration']
+    assert restoration['appliedHasRemovalPixels'] is True and restoration['alphaPolicy'].startswith('aot-'), restoration
     render_result = json.loads(next((replay_dir / '0001').glob('*render-result.json')).read_text())['value']
     assert render_result['engine'] == 'native-coretext-coregraphics'
     assert render_result['renderedItemCount'] > 0 and render_result['layoutVersion'] > 0
@@ -167,22 +215,12 @@ with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
     assert (replay_dir / '0001/final-layers.json').exists()
     assert (replay_dir / '0001/native-layout.json').exists()
     final_html = (replay_dir / '0001/final.html').read_text()
-    assert 'data:image/png;base64,' in final_html and '<script' not in final_html.lower()
-    embedded_png = re.search(r'src="data:image/png;base64,([A-Za-z0-9+/=]+)"', final_html).group(1)
-    assert base64.b64decode(embedded_png, validate=True) == (replay_dir / '0001/final.png').read_bytes()
-    for trace in analysis['segmentation']:
-        assert trace['engine'] == 'native-coretext-coregraphics' and not trace['captureFailures']
-        assert len(trace['captures']) <= 64
-        for capture in trace['captures']:
-            assert capture['function'] == 'NativeTranslationRestoration'
-            assert capture['kind'] == 'native-repair-alpha' and capture['status'] == 'captured'
-            assert 0 <= capture['selectedPixels'] <= capture['width'] * capture['height']
-            for field in ['source', 'mask', 'overlay']:
-                if field in capture: assert (replay_dir / '0001' / capture[field]).stat().st_size > 50
+    assert 'src="final.png"' in final_html and '<script' not in final_html.lower()
+    assert 'data:image/png;base64,' not in final_html
     translated = json.loads((replay_dir / '0001/final.json').read_text())
     assert all(region['translation'] == '어서! 빨리 움직여!' for region in translated['regions'])
     assert translated['renderEngine'] == 'native-coretext-coregraphics'
-    # Native payload replay uses the direct patch path and retains saved OCR/translations.
+    # Native payload replay uses the main ensemble path and retains saved OCR/translations.
     native_ocr_before = {file.name: file.read_bytes() for file in (replay_dir / '0001').glob('*native-ocr.json')}
     saved_payload = next((replay_dir / '0001').glob('*render-payload.json'))
     latest_payload = replay_dir / '0001/1000-render-payload.json'
@@ -193,8 +231,7 @@ with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
     assert json.loads((replay_dir / '0001/final.json').read_text())['regions'] == translated['regions']
     assert {file.name: file.read_bytes() for file in (replay_dir / '0001').glob('*native-ocr.json')} == native_ocr_before
     replay_html = (replay_dir / '0001/final.html').read_text()
-    replay_png = re.search(r'src="data:image/png;base64,([A-Za-z0-9+/=]+)"', replay_html).group(1)
-    assert base64.b64decode(replay_png, validate=True) == (replay_dir / '0001/final.png').read_bytes()
+    assert 'src="final.png"' in replay_html and '<script' not in replay_html.lower()
     # Completed browser-era runs must recompose through native code when resumed,
     # while retaining OCR and user translations without any provider request.
     saved_payload = latest_payload
@@ -220,20 +257,30 @@ with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
     try:
         remote_output = directory / 'remote output'
         run(['--quiet', '--output', remote_output, '--base-url', f'http://127.0.0.1:{server.server_port}/v1',
-             '--model', 'smoke-fixture', '--protocol', 'chatCompletions', '--no-filter-sfx', '--no-filter-background', '--allow-local-http', '--source', 'ja', '--include-image', first])
+             '--model', 'smoke-fixture', '--protocol', 'chatCompletions', '--allow-local-http', '--source', 'ja', first])
         remote_dir, summary = latest_summary(remote_output)
-        assert requests and requests[0].get('stream'), 'No streaming provider request executed'
-        assert list((remote_dir / '0001').glob('*translation-partial.json')), 'Streaming publications were not captured'
+        assert requests and not any(request.get('stream') for request in requests), 'Page requests must use the standard single-call path'
+        assert not list((remote_dir / '0001').glob('*translation-partial.json'))
         assert (remote_dir / '0001/final.png').exists()
         assert list((remote_dir / '0001').glob('*http-request.json'))
         assert list((remote_dir / '0001').glob('*http-response.json'))
         for file in remote_dir.rglob('*.json'):
             assert SECRET not in file.read_text(), file
+        # Identical concurrent requests share one provider attempt, so the overlap probe
+        # needs a distinct second page: pad the fixture to shift its region bounds.
+        distinct_second = directory / 'parallel/second/page.png'
+        distinct_second.parent.mkdir(parents=True)
+        dimensions = subprocess.run(['sips', '-g', 'pixelHeight', '-g', 'pixelWidth', str(FIXTURE)],
+                                    check=True, capture_output=True, text=True).stdout
+        height = int(re.search(r'pixelHeight: (\d+)', dimensions).group(1))
+        width = int(re.search(r'pixelWidth: (\d+)', dimensions).group(1))
+        subprocess.run(['sips', '--padToHeightWidth', str(height + 32), str(width + 32), '--padColor', 'FFFFFF',
+                        str(FIXTURE), '--out', str(distinct_second)], check=True, capture_output=True)
         parallel_probe = True
         parallel_output = directory / 'parallel output'
         run(['--jobs', '2', '--quiet', '--output', parallel_output, '--base-url', f'http://127.0.0.1:{server.server_port}/v1',
-             '--model', 'smoke-fixture', '--protocol', 'chatCompletions', '--no-filter-sfx', '--no-filter-background',
-             '--allow-local-http', first, second])
+             '--model', 'smoke-fixture', '--protocol', 'chatCompletions',
+             '--allow-local-http', first, distinct_second])
         parallel_dir, summary = latest_summary(parallel_output)
         assert peak_requests == 2, f'Translation did not overlap: peak={peak_requests}'
         assert len(summary) == 2 and all(row['status'] == 'success' for row in summary), summary

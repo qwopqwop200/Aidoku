@@ -1,0 +1,7 @@
+module AidokuNativeCV {
+    header "AidokuNativeCV.h"
+    header "AidokuSourceFeatures.h"
+    header "AidokuAllSourceSignals.h"
+    export *
+    link framework "Foundation"
+}

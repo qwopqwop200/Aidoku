@@ -869,7 +869,7 @@
 
 "TRANSLATION_AUTO" = "自動検出";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6にはiOS 18以降が必要です。標準は中型で、小型はメモリ使用量を抑えます。超小型は文字辞書の収録数が少なくなります。これらのモデルは韓国語のOCRに対応していませんが、韓国語への翻訳には対応しています。";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6にはiOS 18以降が必要です。テキストの検出と認識には、標準でManga v0.3を使用します。他のOCRモデルも選択できます。";
 
 
 
@@ -1155,3 +1155,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "ソース %@ のバージョン %d はこのアプリでサポートされていません。対応するバージョンをインストールしてください。";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3が認識できる原文は、日本語と中国語（簡体字・繁体字）のみです。原文言語の自動判定と選択も、これらの言語に限定されます。韓国語など、他の言語への翻訳は可能です。Mangaを選択すると、検出のしきい値に0.85と0.25が適用されます。標準の検出サイズは1120pxです。";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "対応するすべてのOCR言語";

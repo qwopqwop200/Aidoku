@@ -69,10 +69,7 @@ struct HomeScrollerView: View {
                         ForEach(entries.indices, id: \.self) { offset in
                             let entry = entries[offset]
                             let label = VStack(alignment: .leading) {
-                                let mangaKey: String? = switch entry.value {
-                                    case .manga(let manga): manga.key
-                                    default: nil
-                                }
+                                let mangaKey = entry.manga?.key
                                 MangaCoverView(
                                     source: source,
                                     coverImage: entry.imageUrl ?? "",
@@ -204,24 +201,7 @@ struct HomeScrollerView: View {
 
     func loadBookmarked() async {
         guard !entries.isEmpty else { return }
-        let bookmarks = await CoreDataManager.shared.container.performBackgroundTask { context in
-            var keys: Set<String> = .init()
-            for entry in entries {
-                let mangaId: MangaIdentifier? = switch entry.value {
-                    case .manga(let manga): manga.identifier
-                    default: nil
-                }
-                if let mangaId {
-                    if CoreDataManager.shared.hasLibraryManga(
-                        mangaId: mangaId,
-                        context: context
-                    ) {
-                        keys.insert(mangaId.mangaKey)
-                    }
-                }
-            }
-            return keys
-        }
+        let bookmarks = await CoreDataManager.shared.bookmarkedMangaKeys(for: entries.compactMap(\.manga))
         guard !Task.isCancelled else { return }
         bookmarkedItems = bookmarks
         loadedBookmarks = true
@@ -284,6 +264,11 @@ struct PlaceholderMangaScroller: View {
 }
 
 extension HomeComponent.Value.Link {
+    var manga: AidokuRunner.Manga? {
+        guard case let .manga(manga) = value else { return nil }
+        return manga
+    }
+
     var subtitleTranslationKind: TitleTranslationKind {
         if case .manga = value {
             return .description

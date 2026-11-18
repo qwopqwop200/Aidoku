@@ -13,7 +13,6 @@ struct CategoriesView: View {
     @State private var groupTitles: Set<String> = []
     @State private var loadedGroupTitles = false
 
-    @State private var categoryTitle: String = ""
     @State private var showRenameFailedAlert = false
 
     var body: some View {
@@ -87,27 +86,11 @@ struct CategoriesView: View {
     }
 
     func onMove(from source: IndexSet, to destination: Int) {
-        let sourceIndices = source.sorted()
-        var adjustedDestination = destination
-
-        // if moving down, adjust destination for each item removed before it
-        // e.g. moving [0] to the end of a three item list will have destination 3,
-        //      but we need to move it to index 2
-        if let first = sourceIndices.first, first < destination {
-            adjustedDestination -= sourceIndices.count
-        }
-
-        let context = CoreDataManager.shared.context
-
-        for offset in sourceIndices.reversed() {
-            let category = categories[offset]
-            CoreDataManager.shared.moveCategory(title: category, toPosition: adjustedDestination, context: context)
-        }
-
-        categories = CoreDataManager.shared.getCategoryTitles(context: context)
-
-        CoreDataManager.shared.save()
-
+        guard (0...categories.count).contains(destination), source.allSatisfy(categories.indices.contains) else { return }
+        var ordered = categories
+        ordered.move(fromOffsets: source, toOffset: destination)
+        guard ordered != categories, CoreDataManager.shared.saveCategoryOrder(ordered, groups: false) else { return }
+        categories = ordered
         NotificationCenter.default.post(name: .updateCategories, object: nil)
     }
 

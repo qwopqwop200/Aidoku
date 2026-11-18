@@ -37,11 +37,10 @@ actor HitomiSearch {
     }
 
     static func decodeNozomi(_ data: Data) -> [Int64] {
-        let bytes = [UInt8](data)
-        return stride(from: 0, to: bytes.count - bytes.count % 4, by: 4).map { offset in
-            let high = UInt32(bytes[offset]) << 24 | UInt32(bytes[offset + 1]) << 16
-            let low = UInt32(bytes[offset + 2]) << 8 | UInt32(bytes[offset + 3])
-            return Int64(high | low)
+        data.withUnsafeBytes { bytes in
+            (0..<(bytes.count / 4)).map { index in
+                Int64(UInt32(bigEndian: bytes.loadUnaligned(fromByteOffset: index * 4, as: UInt32.self)))
+            }
         }
     }
 
@@ -67,20 +66,38 @@ actor HitomiSearch {
         return URL(string: "\(baseURL)/\(encoded)")
     }
 
-    func nozomiPage(url: URL, page: Int) async throws -> (ids: [Int64], hasNext: Bool) {
+    func nozomiPage(url: URL, page: Int, lookAhead: Bool = false) async throws -> (ids: [Int64], hasNext: Bool) {
         guard page > 0 else { throw Failure.invalidPage }
         let (offset, overflow) = UInt64(page - 1).multipliedReportingOverflow(by: UInt64(Self.pageSize * 4))
-        let (end, endOverflow) = offset.addingReportingOverflow(UInt64(Self.pageSize * 4 - 1))
-        guard !overflow, !endOverflow else { throw Failure.invalidPage }
-        let data = try await rangeData(url: url, range: offset...end, allowEnd: true)
-        let ids = Self.decodeNozomi(data)
-        return (ids, ids.count == Self.pageSize)
+        let requestedIDs = Self.pageSize + (lookAhead ? 1 : 0)
+        let (end, endOverflow) = offset.addingReportingOverflow(UInt64(requestedIDs * 4 - 1))
+        guard !overflow, !endOverflow else {
+            if lookAhead { return ([], false) }
+            throw Failure.invalidPage
+        }
+        let range = offset...end
+        let (body, response) = try await fetchIndex(Self.request(url: url, range: range))
+        if lookAhead, let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode),
+           ![400, 405, 416, 501].contains(http.statusCode) {
+            // Only range-specific rejections can justify retrying a full GET.
+            throw URLError(.badServerResponse)
+        }
+        let data = try Self.extractRange(body, response: response, range: range, allowEnd: true)
+        if lookAhead, let http = response as? HTTPURLResponse, [206, 416].contains(http.statusCode) {
+            // Single-index searches historically rejected full indexes over maximumBytes.
+            // A mirror that omits the total must use the full-index validation path.
+            guard let header = http.value(forHTTPHeaderField: "Content-Range"),
+                  let size = header.split(separator: "/").last.flatMap({ UInt64($0) }) else { throw Failure.invalidRange }
+            guard size <= UInt64(Self.maximumBytes) else { throw Failure.resourceLimit }
+        }
+        var ids = Self.decodeNozomi(data)
+        let hasNext = ids.count == requestedIDs
+        if lookAhead, hasNext { ids.removeLast() }
+        return (ids, hasNext)
     }
 
     func allNozomi(url: URL) async throws -> [Int64] {
-        try Task.checkCancellation()
-        let (data, response) = try await fetch(Self.request(url: url))
-        try Task.checkCancellation()
+        let (data, response) = try await fetchIndex(Self.request(url: url))
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw URLError(.badServerResponse)
         }
@@ -130,8 +147,7 @@ actor HitomiSearch {
         nodes.removeAll(keepingCapacity: true)
         let generation = cacheGeneration
         let url = URL(string: "\(Self.baseURL)/galleriesindex/version?_=0")!
-        let (data, response) = try await fetch(Self.request(url: url))
-        try Task.checkCancellation()
+        let (data, response) = try await fetchIndex(Self.request(url: url))
         guard let http = response as? HTTPURLResponse, http.statusCode == 200, data.count <= 128,
               let raw = String(data: data, encoding: .utf8) else { throw Failure.invalidVersion }
         let version = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -157,10 +173,15 @@ actor HitomiSearch {
     }
 
     private func rangeData(url: URL, range: ClosedRange<UInt64>, allowEnd: Bool = false) async throws -> Data {
-        try Task.checkCancellation()
-        let (data, response) = try await fetch(Self.request(url: url, range: range))
-        try Task.checkCancellation()
+        let (data, response) = try await fetchIndex(Self.request(url: url, range: range))
         return try Self.extractRange(data, response: response, range: range, allowEnd: allowEnd)
+    }
+
+    private func fetchIndex(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        try Task.checkCancellation()
+        let result = try await fetch(request)
+        try Task.checkCancellation()
+        return result
     }
 
     static func extractRange(_ data: Data, response: URLResponse, range: ClosedRange<UInt64>, allowEnd: Bool = false) throws -> Data {
@@ -177,11 +198,9 @@ actor HitomiSearch {
                 if allowEnd { return Data() }
                 throw Failure.invalidRange
             }
-            let start = Int(range.lowerBound)
             let last = min(range.upperBound, UInt64(data.count - 1))
-            let slice = data.subdata(in: start..<(Int(last) + 1))
-            guard allowEnd || UInt64(slice.count) == range.upperBound - range.lowerBound + 1 else { throw Failure.invalidRange }
-            return slice
+            guard allowEnd || last == range.upperBound else { throw Failure.invalidRange }
+            return data[(data.startIndex + Int(range.lowerBound))..<(data.startIndex + Int(last) + 1)]
         }
         guard http.statusCode == 206, let header = http.value(forHTTPHeaderField: "Content-Range"),
               header.hasPrefix("bytes ") else { throw Failure.invalidRange }
@@ -227,10 +246,9 @@ actor HitomiSearch {
 
     static func decodeGalleryIDs(_ data: Data) throws -> [Int64] {
         guard data.count >= 4, data.count <= maximumBytes else { throw Failure.malformedIndex }
-        var reader = BinaryReader(bytes: Array(data.prefix(4)))
-        let count = Int(try reader.u32())
-        guard count == (data.count - 4) / 4, (data.count - 4) % 4 == 0 else { throw Failure.malformedIndex }
-        return decodeNozomi(Data(data.dropFirst(4)))
+        let count = data.withUnsafeBytes { Int(UInt32(bigEndian: $0.loadUnaligned(as: UInt32.self))) }
+        guard count * 4 == data.count - 4 else { throw Failure.malformedIndex }
+        return decodeNozomi(data.dropFirst(4))
     }
 
     private static func compareKeys(_ lhs: [UInt8], _ rhs: [UInt8]) -> Int {

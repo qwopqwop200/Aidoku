@@ -73,6 +73,9 @@ class BrowseViewModel {
 
         unfilteredExternalSources = []
         updatesSources = []
+        if storedUpdatesSources != nil {
+            storedUpdatesSources = []
+        }
 
         // ensure external sources have unique ids
         var sourceById: [String: ExternalSourceInfo] = [:]
@@ -131,8 +134,14 @@ class BrowseViewModel {
         guard let appVersionString = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String else { return }
         let appVersion = SemanticVersion(appVersionString)
 
-        updatesSources = unfilteredExternalSources
+        // A reload during a search still needs to refresh the full update list.
+        let installed = storedInstalledSources ?? installedSources
+        let pinned = storedPinnedSources ?? pinnedSources
+        var installedVersions = Dictionary(installed.lazy.map { ($0.sourceId, $0.version) }, uniquingKeysWith: { first, _ in first })
+        installedVersions.merge(pinned.lazy.map { ($0.sourceId, $0.version) }, uniquingKeysWith: { first, _ in first })
+        let updates = unfilteredExternalSources
             .compactMap { info -> SourceInfo? in
+                guard let version = installedVersions[info.id], info.version > version else { return nil }
                 // check version availability
                 if let minAppVersion = info.minAppVersion {
                     let minAppVersion = SemanticVersion(minAppVersion)
@@ -147,19 +156,7 @@ class BrowseViewModel {
                     }
                 }
 
-                if let installedSource = installedSources.first(where: { $0.sourceId == info.id }) {
-                    if info.version > installedSource.version {
-                        return info.toInfo()
-                    }
-                    return nil
-                }
-                if let pinnedSource = pinnedSources.first(where: { $0.sourceId == info.id }) {
-                    if info.version > pinnedSource.version {
-                        return info.toInfo()
-                    }
-                    return nil
-                }
-                return nil
+                return info.toInfo()
             }
             .sorted { lhs, rhs in
                 let languageOrder = SourceLanguage.compare(lhs.languages, rhs.languages)
@@ -168,6 +165,12 @@ class BrowseViewModel {
                 }
                 return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             }
+        if let query = query?.lowercased(), !query.isEmpty {
+            storedUpdatesSources = updates
+            updatesSources = updates.filter { $0.name.lowercased().contains(query) }
+        } else {
+            updatesSources = updates
+        }
     }
 
     // filter sources by search query

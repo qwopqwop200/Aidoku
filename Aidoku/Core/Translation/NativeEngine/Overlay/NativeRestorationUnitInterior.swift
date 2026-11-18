@@ -14,6 +14,7 @@ extension NativeTranslationRestoration {
         let f = frame.map { [$0.minX, $0.minY, $0.width, $0.height] } ?? item.sourceFrame
         guard members.count >= 2, members.count <= 8, b.count == 4, f.count == 4,
               f.allSatisfy(\.isFinite), f[2] > 0, f[3] > 0, let interior = item.balloonInterior,
+              interior.modelEstimated != true,
               interior.rect.count == 4, interior.rect.allSatisfy(\.isFinite), interior.rect[2] > 0, interior.rect[3] > 0,
               interior.spans.count >= 2, interior.spans.count.isMultiple(of: 2), interior.spans.allSatisfy(\.isFinite),
               members.allSatisfy({ r in r.count == 4 && r.allSatisfy(\.isFinite) && r[2] > 0 && r[3] > 0 &&

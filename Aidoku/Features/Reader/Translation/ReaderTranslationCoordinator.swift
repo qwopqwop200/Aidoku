@@ -11,6 +11,7 @@ protocol ReaderTranslationOwner: AnyObject {
     var translationCurrentPageIndex: Int { get }
     var translationReadsRightToLeft: Bool { get }
     var translationPersistsCache: Bool { get }
+    func translationWidePageLayout(for page: Page?) -> ReaderTranslationWidePageLayout
 }
 
 extension ReaderTranslationOwner {
@@ -20,6 +21,7 @@ extension ReaderTranslationOwner {
     var translationPreviewPages: [ReaderTranslationPage] { [] }
     var translationReadsRightToLeft: Bool { false }
     var translationPersistsCache: Bool { true }
+    func translationWidePageLayout(for page: Page?) -> ReaderTranslationWidePageLayout { .whole }
     var translationCurrentPageIndex: Int {
         guard let key = translationVisiblePages.first?.sourcePage?.translationCacheKey else { return 0 }
         return translationUpcomingPages.firstIndex { $0.translationCacheKey == key } ?? 0
@@ -32,6 +34,9 @@ extension ReaderViewController: ReaderTranslationOwner {
     var translationVisiblePages: [ReaderTranslationPage] { reader?.translationPages() ?? [] }
     var translationPreviewPages: [ReaderTranslationPage] { reader?.translationPreviewPages() ?? [] }
     var translationChapterKey: String { chapter.key }
+    func translationWidePageLayout(for page: Page?) -> ReaderTranslationWidePageLayout {
+        (reader as? ReaderPagedViewController)?.translationWidePageLayout(for: page) ?? .whole
+    }
 }
 
 // Only isolated adjacent turns use the shorter debounce. Keep startup, jumps,
@@ -131,6 +136,7 @@ final class ReaderTranslationCoordinator {
 
     init(
         owner: any ReaderTranslationOwner,
+        temporaryPageStore: ReaderTemporaryPageStore? = nil,
         session: ReaderTranslationSession? = nil,
         readSettings: @escaping () -> ReaderTranslationSettings = { ReaderTranslationSettings() },
         setEnabled: @escaping (Bool) -> Void = { ReaderTranslationSettings.setAutomaticTranslation($0) }
@@ -141,29 +147,33 @@ final class ReaderTranslationCoordinator {
             let key = page.translationCacheKey
             guard let position = owner.translationChapterItems.firstIndex(where: { $0.key == key }) else { return false }
             return abs(position - owner.translationCurrentPageIndex) <= 2
-        })
+        }, loader: ReaderTranslationImageLoader(temporaryStore: temporaryPageStore))
         self.owner = owner
         self.readSettings = readSettings
         self.setEnabled = setEnabled
         self.session = session ?? ReaderTranslationSession(
-            process: { [preloader] page, settings, progress in
-                try await preloader.translate(page, settings: settings, onProgress: progress)
+            processRecord: { [preloader] page, settings, progress in
+                try await preloader.translateRecord(page, settings: settings, onProgress: progress)
             },
             cancelProcessing: { [preloader] in preloader.cancel() },
             cancelProcessingForPage: { [preloader] page in preloader.cancel(preservingRecognitionFor: page) },
             diskCache: persistsCache ? .shared : nil, renderCache: persistsCache ? .shared : nil,
-            prepareLayout: { [weak owner, layoutPreparer] page, regions, settings in
-                guard persistsCache, let visible = owner?.translationVisiblePages.first, let imageView = visible.imageView,
+            prepareRecordLayout: { [weak owner, layoutPreparer] page, record, settings in
+                guard persistsCache, let claim = record.sourceRasterClaim,
+                      let visible = owner?.translationVisiblePages.first, let imageView = visible.imageView,
                       let window = imageView.window, imageView.bounds.width > 0, imageView.bounds.height > 0 else { throw CancellationError() }
                 try await layoutPreparer.prepare(
-                    page: page, regions: regions, settings: settings,
-                    geometry: ReaderTranslationLayoutGeometry(page: visible, imageView: imageView), window: window
+                    page: page, regions: record.regions, settings: settings,
+                    geometry: ReaderTranslationLayoutGeometry(page: visible, imageView: imageView,
+                        widePageLayout: owner?.translationWidePageLayout(for: page) ?? .whole), window: window,
+                    expectedSource: claim
                 )
             },
             prepareTextLayout: { [weak owner, layoutPreparer] page, regions, settings in
                 guard persistsCache, let visible = owner?.translationVisiblePages.first, let imageView = visible.imageView else { return }
                 try await layoutPreparer.prepareTextOnly(page: page, regions: regions, settings: settings,
-                    geometry: ReaderTranslationLayoutGeometry(page: visible, imageView: imageView))
+                    geometry: ReaderTranslationLayoutGeometry(page: visible, imageView: imageView,
+                        widePageLayout: owner?.translationWidePageLayout(for: page) ?? .whole))
             }
         )
         preloader.nextPage = { [weak session = self.session] page in session?.nextPageForRecognition(after: page) }
@@ -179,8 +189,18 @@ final class ReaderTranslationCoordinator {
             }) else { return 1 }
             return 2
         }
-        preloader.onPrepared = { [weak session = self.session] page, regions, settings in
-            session?.receivePrepared(page, regions: regions, settings: settings)
+        preloader.onEvidencePrepared = { [weak session = self.session] page, settings, evidence, sourceRasterClaim in
+            session?.receivePreparedEvidence(evidence, page: page, settings: settings, sourceRasterClaim: sourceRasterClaim)
+        }
+        preloader.onPreparedRecord = { [weak session = self.session] page, record, settings in
+            session?.receivePrepared(page, record: record, settings: settings)
+        }
+        if session == nil {
+            // Foreground and speculative writes share one bounded, ordered
+            // commit path, so an older result cannot finish after its successor.
+            preloader.onPersistPreparedRecord = { [weak session = self.session] page, record, destination in
+                await session?.persistPreparedRecord(record, page: page, destination: destination)
+            }
         }
         self.session.onStateChanged = { [weak self] state in
             guard let self else { return }
@@ -460,7 +480,8 @@ final class ReaderTranslationCoordinator {
            readSettings().shouldProcessReaderPages {
             let visible = owner.translationVisiblePages
             let context = visible.first.flatMap { page in
-                page.imageView.map { ReaderTranslationLayoutGeometry(page: page, imageView: $0).context }
+                page.imageView.map { ReaderTranslationLayoutGeometry(page: page, imageView: $0,
+                    widePageLayout: owner.translationWidePageLayout(for: nil)).context }
             }
             session.update(items: owner.translationChapterItems,
                 visible: visible, context: owner.translationChapterKey,
@@ -483,7 +504,8 @@ final class ReaderTranslationCoordinator {
         let visibleKeys = visible.compactMap { $0.sourcePage?.translationCacheKey }
         session.refreshVisiblePages(visible, previews: readSettings().automaticallyTranslate ? owner.translationPreviewPages : [])
         let renderContext = visible.first.flatMap { page in
-            page.imageView.map { ReaderTranslationLayoutGeometry(page: page, imageView: $0).context }
+            page.imageView.map { ReaderTranslationLayoutGeometry(page: page, imageView: $0,
+                widePageLayout: owner.translationWidePageLayout(for: nil)).context }
         }
         session.update(items: owner.translationChapterItems, visible: visible, context: owner.translationChapterKey,
                        currentPageIndex: owner.translationCurrentPageIndex, renderContext: renderContext)
@@ -509,8 +531,8 @@ extension ReaderTranslationCoordinator {
     /// These observers belong to one render request. Turning translation off or
     /// closing the reader cancels even a queued exporter, releasing its source.
     private func performImagePreparation(
-        _ operation: @escaping @MainActor () async throws -> UIImage
-    ) async throws -> UIImage {
+        _ operation: @escaping @MainActor () async throws -> ReaderTranslationImageExporter.LoadedPresentation
+    ) async throws -> ReaderTranslationImageExporter.LoadedPresentation {
         let rendering = Task { try await operation() }
         let names = [ReaderTranslationSettings.changed, ReaderTranslationLayoutAwaiter.invalidated,
                      UIApplication.willResignActiveNotification, UIApplication.didEnterBackgroundNotification]
@@ -559,7 +581,7 @@ extension ReaderTranslationCoordinator {
             guard owner != nil else { throw CancellationError() }
             guard let settings = imagePreparationSettings() else { return nil }
             let translationIdentity = ReaderTranslationCacheIdentity.translation(page: pageKey, settings: settings)
-            let result = try await session.cachedRegions(for: page, settings: settings)
+            let result = try await session.cachedRegions(for: page, settings: settings, sourceImage: image)
             try Task.checkCancellation()
             guard owner != nil else { throw CancellationError() }
             guard imagePreparationSettings() == settings,
@@ -569,6 +591,11 @@ extension ReaderTranslationCoordinator {
                 return nil
             }
             ReaderTranslationDiagnostics.record("loaded_translation_hit", count: result.count)
+            // cachedRegions verified this reader's decoded source. Lend it to a nearby
+            // renderer while this presentation waits for geometry or an export permit.
+            if page.memoizedTranslationSource(for: image) != nil {
+                layoutPreparer.sourceDidLoad(image, page: page)
+            }
             let regions = result.compactMap { $0.cropped(to: crop) }
             guard !regions.isEmpty else { return nil }
             guard let current = geometry(), current.isValid else {
@@ -588,10 +615,10 @@ extension ReaderTranslationCoordinator {
             displayPromotions.append((pageKey, promotion))
             promoteVisibleDisplays()
             defer { displayPromotions.removeAll { $0.promotion === promotion } }
-            let rendered: UIImage
+            let rendered: ReaderTranslationImageExporter.LoadedPresentation
             do {
                 rendered = try await performImagePreparation {
-                    try await ReaderTranslationImageExporter.renderLoadedImage(
+                    try await ReaderTranslationImageExporter.renderLoadedPresentation(
                         image: image, regions: regions, settings: settings, viewport: current.viewport,
                         scale: current.scale, aspectFit: current.aspectFit, dark: current.dark,
                         host: host, cache: cache, key: key,
@@ -615,11 +642,12 @@ extension ReaderTranslationCoordinator {
             guard owner != nil else { throw CancellationError() }
             guard imagePreparationSettings() == settings, let latest = geometry(), latest.isValid,
                   renderKey(settings, latest) == key else { continue }
-            return ReaderTranslationPreparedImage(image: rendered, regions: result, settings: settings,
+            return ReaderTranslationPreparedImage(image: rendered.image, regions: result, settings: settings,
+                freshSettledGeometry: rendered.freshSettledSource ? current : nil,
                 isCurrent: { [weak self] in
                     guard self?.imagePreparationSettings() == settings, let latest = geometry(), latest.isValid else { return false }
                     return renderKey(settings, latest) == key
-                })
+                }, matchesSourceImage: { [weak image] candidate in candidate === image })
         }
     }
 }

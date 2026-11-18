@@ -20,18 +20,26 @@ final class ReaderTranslationPage {
     weak var imageView: UIImageView?
     var sourcePage: Page? {
         didSet {
+            if oldValue != nil, oldValue?.translationCacheKey != sourcePage?.translationCacheKey ||
+                oldValue?.translationSourceRect != sourcePage?.translationSourceRect ||
+                oldValue?.translationSplitSource != sourcePage?.translationSplitSource {
+                reset()
+            }
             diagnosticContext = sourcePage.map { ReaderTranslationDiagnostics.makeContext(pageKey: $0.translationCacheKey) }
         }
     }
     var diagnosticContext: ReaderTranslationDiagnostics.Context?
     var renderCache: ReaderTranslationRenderCache?
     private weak var analyzedImage: UIImage?
+    private var preparedEvidence: ReaderTranslationPreparedEvidence?
     private var analyzedConfiguration: ReaderOCRConfiguration?
     private weak var recognizedImage: UIImage?
     private var recognizedConfiguration: ReaderOCRConfiguration?
     private var recognizedRegions: [ReaderTranslationRegion]?
     private var lastSettings: ReaderTranslationSettings?
     private var completedTranslation = false
+    private var sourceObservation: Task<Void, Never>?
+    private weak var observingImage: UIImage?
     private var isExportingTranslation = false
     private(set) var regions: [ReaderTranslationRegion] = []
     private var generation = UUID()
@@ -41,7 +49,7 @@ final class ReaderTranslationPage {
     private var cachedOverlay: ReaderTranslationCachedPageView?
     private var renderLookupTask: Task<Void, Never>?
     private var renderLookupKey: String?
-    private var previewRegions: [ReaderTranslationRegion]?
+    private var preview: (original: [ReaderTranslationRegion], crop: CGRect, displayed: [ReaderTranslationRegion])?
     /// Streamed, not yet validated translation shown on the visible page. It
     /// only ever uses the live overlay without a snapshot target, so it never
     /// writes render/layout caches, and the completed result replaces it.
@@ -95,6 +103,7 @@ final class ReaderTranslationPage {
 
     deinit {
         task?.cancel()
+        sourceObservation?.cancel()
         renderLookupTask?.cancel()
         if let settingsObserver { NotificationCenter.default.removeObserver(settingsObserver) }
         if let memoryObserver { NotificationCenter.default.removeObserver(memoryObserver) }
@@ -109,9 +118,13 @@ final class ReaderTranslationPage {
     }
 
     func reset() {
+        sourceObservation?.cancel()
+        sourceObservation = nil
+        observingImage = nil
         cancel()
+        preparedEvidence = nil
         discardProvisionalTranslation()
-        previewRegions = nil
+        preview = nil
         regions = []
         recognizedImage = nil
         recognizedConfiguration = nil
@@ -121,6 +134,23 @@ final class ReaderTranslationPage {
         lastSettings = nil
         completedTranslation = false
         releaseOverlay()
+    }
+
+    func observeCurrentSource(_ finished: @escaping @MainActor () -> Void) {
+        guard let source = sourcePage, let image = imageView?.image,
+              observingImage !== image else { return }
+        sourceObservation?.cancel()
+        observingImage = image
+        sourceObservation = Task { [weak self] in
+            let claim = await source.observeTranslationSource(for: image)
+            guard !Task.isCancelled, let self, imageView?.image === image,
+                  sourcePage?.translationCacheKey == source.translationCacheKey,
+                  sourcePage?.translationSourceRect == source.translationSourceRect,
+                  sourcePage?.translationSplitSource == source.translationSplitSource else { return }
+            sourceObservation = nil
+            observingImage = nil
+            if claim != nil { finished() }
+        }
     }
 
     func cancel(preservingPendingOverlayNavigation: Bool = false) {
@@ -137,10 +167,10 @@ final class ReaderTranslationPage {
         renderLookupTask = nil
         renderLookupKey = nil
         // The snapshot callback belongs to the generation just invalidated.
-        // A deferred renderer has no visible frame to reuse: keeping it would
+        // A pending cache-targeted renderer has no visible frame to reuse: keeping it would
         // leave ON showing an empty wrapper whose bitmap can never attach.
         // Preserve committed live frames and cached bitmaps for cheap toggles.
-        if let overlay, overlay.defersPresentationUntilSnapshot, overlay.renderedImageView.isHidden {
+        if let overlay, overlay.canCacheRendering, overlay.renderedImageView.isHidden {
             releaseOverlay()
         } else {
             overlay?.cancelWork()
@@ -152,7 +182,7 @@ final class ReaderTranslationPage {
         cancel()
         discardProvisionalTranslation()
         overlay?.isHidden = true
-        cachedOverlay?.isHidden = true
+        cachedOverlay?.setPresentationHidden(true)
     }
 
     func showOriginal() {
@@ -185,6 +215,7 @@ final class ReaderTranslationPage {
     }
 
     func releaseOverlay() {
+        preparedEvidence = nil
         isPreparingEmptyOverlay = false
         hasLoadedCachedPresentation = false
         showsProvisional = false
@@ -193,6 +224,7 @@ final class ReaderTranslationPage {
         renderLookupTask?.cancel()
         renderLookupTask = nil
         renderLookupKey = nil
+        cachedOverlay?.releaseHighlight()
         cachedOverlay?.removeFromSuperview()
         cachedOverlay = nil
         overlay?.cancelWork()
@@ -216,16 +248,18 @@ final class ReaderTranslationPage {
             } else {
                 // UIImage orientation must be applied before computing OCR coordinates.
                 let pixels = await Task.detached(priority: .userInitiated) { () -> CGImage? in
-                    if image.imageOrientation == .up, let pixels = image.cgImage { return pixels }
-                    let format = UIGraphicsImageRendererFormat()
-                    format.scale = image.scale
-                    return UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
-                        image.draw(at: .zero)
-                    }.cgImage
+                    ReaderTranslationImagePreparation.uprightSourceImage(image).cgImage
                 }.value
                 try Task.checkCancellation()
                 guard let pixels else { throw NativeCoreMLDetectorError.imageConversionFailed }
-                recognized = try await recognize(pixels, settings.ocrConfiguration)
+                guard generation == issued, imageView?.image === image else { throw CancellationError() }
+                let evidence = ReaderTranslationPreparedEvidence()
+                defer { withExtendedLifetime(evidence) {} }
+                try evidence.bind(original: pixels)
+                preparedEvidence = evidence
+                recognized = try await NativeRFOCRSourceReuse.$leasedIdentity.withValue(evidence.verifiedIdentity(for: pixels)) {
+                    try await recognize(pixels, settings.ocrConfiguration)
+                }
             }
             try Task.checkCancellation()
             guard generation == issued, imageView?.image === image else { throw CancellationError() }
@@ -235,38 +269,51 @@ final class ReaderTranslationPage {
             let filteringTask = Task.detached(priority: .utility) {
                 try Task.checkCancellation()
                 let prepared = ReaderTranslationImagePreparation.apply(recognized, image: image, settings: settings)
-                let filtered = ReaderTranslationLanguageFilter.apply(prepared, settings: settings)
+                let eligible = ReaderTranslationLanguageFilter.apply(prepared, settings: settings)
                 try Task.checkCancellation()
-                return filtered
+                return (prepared, eligible)
             }
-            let eligible = try await withTaskCancellationHandler {
+            let selection = try await withTaskCancellationHandler {
                 try await filteringTask.value
             } onCancel: { filteringTask.cancel() }
             try Task.checkCancellation()
+            let (sourceOwners, eligible) = selection
+            let eligibleIDs = Set(eligible.map(\.id))
+            let preservingOwners: @Sendable ([ReaderTranslationRegion]) -> [ReaderTranslationRegion] = { translated in
+                ReaderTranslationLanguageFilter.preservingExcludedSource(
+                    original: sourceOwners, translated: translated, eligibleIDs: eligibleIDs)
+            }
             if translate && !eligible.isEmpty {
-                if let translateRegions { return try await translateRegions(eligible, settings) }
+                if let translateRegions { return preservingOwners(try await translateRegions(eligible, settings)) }
                 let progress: ReaderTranslationService.Progress = { [weak self] _ in
                     try Task.checkCancellation()
                     try await self?.validateProgress(image: image, generation: issued)
                 }
-                if let progressiveTranslate { return try await progressiveTranslate(eligible, settings, progress) }
+                if let progressiveTranslate { return preservingOwners(try await progressiveTranslate(eligible, settings, progress)) }
                 return try await ReaderTranslationService.shared.translate(
-                    regions: eligible, settings: settings, image: image, onProgress: progress
+                    regions: sourceOwners, settings: settings, image: image, onProgress: progress
                 )
             }
-            return eligible.map {
+            let untranslated = eligible.map {
                 var region = $0
                 region.translation = nil
                 region.translationReuseIdentity = nil
                 return region
             }
+            return preservingOwners(untranslated)
         }
         self.task = task
         defer { if generation == issued { self.task = nil } }
-        let result = try await withTaskCancellationHandler {
-            try await task.value
-        } onCancel: {
-            task.cancel()
+        let result: [ReaderTranslationRegion]
+        do {
+            result = try await withTaskCancellationHandler {
+                try await task.value
+            } onCancel: {
+                task.cancel()
+            }
+        } catch {
+            if generation == issued { preparedEvidence = nil }
+            throw error
         }
         try Task.checkCancellation()
         guard generation == issued, let imageView, imageView.image === image else { throw CancellationError() }
@@ -299,7 +346,7 @@ final class ReaderTranslationPage {
     }
 
     func showCompletedTranslation(settings: ReaderTranslationSettings) {
-        previewRegions = nil
+        preview = nil
         guard hasCompletedTranslation(settings: settings) else { return }
         // A completed native frame remains valid when optional cache storage
         // is unavailable. Repeated session publication must reuse that frame.
@@ -310,7 +357,7 @@ final class ReaderTranslationPage {
             try? publish(regions, image: image, settings: settings, generation: generation)
         }
         overlay?.isHidden = !settings.overlay.visible
-        cachedOverlay?.isHidden = !settings.overlay.visible
+        cachedOverlay?.setPresentationHidden(!settings.overlay.visible)
     }
 
     private func publish(
@@ -335,8 +382,9 @@ final class ReaderTranslationPage {
                 crop: sourcePage.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1),
                 dark: imageView.traitCollection.userInterfaceStyle == .dark
             )
-            let key = ReaderTranslationRenderCache.snapshotKey(renderKey: renderKey, regions: result)
-            if let cached = renderCache.cachedImage(for: key) {
+            let regionsDigest = ReaderTranslationRenderAsset.digest(result)
+            let key = ReaderTranslationRenderCache.snapshotKey(renderKey: renderKey, regionsDigest: regionsDigest)
+            if let cached = renderCache.cachedSnapshot(for: key, source: image) {
                 ReaderTranslationDiagnostics.record("visible_bitmap_hit", page: sourcePage.index + 1, count: result.count)
                 displaySnapshot(cached, source: image, settings: settings)
                 return
@@ -350,12 +398,12 @@ final class ReaderTranslationPage {
             let pageIdentity = ReaderTranslationCacheIdentity.translation(page: sourcePage.translationCacheKey, settings: settings)
             renderCache.cancelPreparation(for: key)
             ReaderTranslationDiagnostics.record("visible_bitmap_miss", page: sourcePage.index + 1, count: result.count)
+            let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: renderKey, regionsDigest: regionsDigest)
             let target = ReaderTranslationSnapshotTarget(
                 cache: renderCache, key: key, pageIdentity: pageIdentity,
                 diskGeneration: nil, viewport: viewport, dark: dark,
-                preparedLayout: renderCache.cachedLayout(for: ReaderTranslationRenderCache.layoutKey(renderKey: renderKey, regions: result))
-                    .map { data in Task { data } },
-                pendingDiskGeneration: diskGeneration, renderKey: renderKey
+                preparedLayout: renderCache.cachedLayout(for: layoutKey).map { data in Task { data } },
+                pendingDiskGeneration: diskGeneration, renderKey: renderKey, layoutKey: layoutKey
             )
             displayLive(result, image: image, settings: settings, target: target, retainsFrame: showsProvisional)
             showsProvisional = false
@@ -388,7 +436,9 @@ final class ReaderTranslationPage {
     /// so no cleanup). Updates are coalesced: at most one render per
     /// `provisionalRenderInterval`, never while the previous one is still
     /// committing. A completed presentation is never replaced.
-    func displayProvisional(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings) {
+    func displayProvisional(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
+                            evidence: ReaderTranslationPreparedEvidence? = nil) {
+        if let evidence { preparedEvidence = evidence }
         guard settings.overlay.visible, let image = imageView?.image, cachedOverlay == nil,
               !(completedTranslation && analyzedImage === image), overlay == nil || showsProvisional else { return }
         let rect = sourcePage?.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
@@ -463,6 +513,7 @@ final class ReaderTranslationPage {
                              target: ReaderTranslationSnapshotTarget?, retainsFrame: Bool = false) {
         hasLoadedCachedPresentation = false
         guard let imageView else { return }
+        cachedOverlay?.releaseHighlight()
         cachedOverlay?.removeFromSuperview()
         cachedOverlay = nil
         let overlay = overlay ?? ReaderTranslationOverlayView()
@@ -499,7 +550,6 @@ final class ReaderTranslationPage {
             }
         }
         let issued = generation
-        overlay.defersPresentationUntilSnapshot = target != nil
         overlay.onSnapshotStored = { [weak self, weak overlay, weak imageView] snapshot in
             guard let self, let overlay, self.overlay === overlay, generation == issued,
                   imageView?.image === image, completedTranslation, lastSettings == settings,
@@ -523,17 +573,19 @@ final class ReaderTranslationPage {
         overlay.isHidden = !settings.overlay.visible
         overlay.update(
             regions: result, imageSize: image.size, aspectFit: imageView.contentMode == .scaleAspectFit,
-            settings: settings, image: image, snapshotTarget: target, retainsCommittedFrame: retainsFrame
+            settings: settings, image: image, snapshotTarget: target, retainsCommittedFrame: retainsFrame,
+            evidence: preparedEvidence
         )
         overlay.layoutIfNeeded()
     }
 
     /// Called inside the loader's synchronous source + presentation commit.
-    func displayLoadedImage(_ prepared: ReaderTranslationPreparedImage) {
-        guard let source = imageView?.image, prepared.isCurrent() else { return }
-        if hasLoadedCachedPresentation, analyzedImage === source, cachedOverlay?.image === prepared.image,
+    func displayLoadedImage(_ prepared: ReaderTranslationPreparedImage, isKnownStatic: Bool = false) {
+        guard !Task.isCancelled, let source = imageView?.image, prepared.isCurrent(for: source) else { return }
+        if hasLoadedCachedPresentation, analyzedImage === source, cachedOverlay?.snapshotImage === prepared.image,
            lastSettings == prepared.settings {
-            cachedOverlay?.isHidden = !prepared.settings.overlay.visible
+            if !isKnownStatic { disallowSettledHighlight() }
+            cachedOverlay?.setPresentationHidden(!prepared.settings.overlay.visible)
             return
         }
         reset()
@@ -544,21 +596,33 @@ final class ReaderTranslationPage {
         analyzedConfiguration = prepared.settings.ocrConfiguration
         lastSettings = prepared.settings
         completedTranslation = true
-        displaySnapshot(prepared.image, source: source, settings: prepared.settings, sourceSized: true)
+        displaySnapshot(prepared.image, source: source, settings: prepared.settings, sourceSized: true,
+                        settledGeometry: isKnownStatic ? prepared.freshSettledGeometry : nil)
         hasLoadedCachedPresentation = true
     }
 
-    private func displaySnapshot(_ snapshot: UIImage, source: UIImage, settings: ReaderTranslationSettings, sourceSized: Bool = false) {
+    func disallowSettledHighlight() {
+        cachedOverlay?.disallowHighlight()
+    }
+
+    private func displaySnapshot(
+        _ snapshot: UIImage, source: UIImage, settings: ReaderTranslationSettings, sourceSized: Bool = false,
+        settledGeometry: ReaderTranslationImageGeometry? = nil
+    ) {
         guard let imageView else { return }
         releaseOverlay()
-        let canvas = ReaderTranslationCachedPageView(image: snapshot)
+        let canvas = ReaderTranslationCachedPageView()
+        canvas.snapshotImage = snapshot
+        canvas.sourceImage = source
+        canvas.sourceView = imageView
+        canvas.settledGeometry = settledGeometry
         canvas.frame = imageView.bounds
         canvas.initialSize = imageView.bounds.size
         canvas.initialStyle = imageView.traitCollection.userInterfaceStyle
         canvas.initialScale = imageView.traitCollection.displayScale
         if sourceSized { canvas.contentMode = imageView.contentMode }
         canvas.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        canvas.isHidden = !settings.overlay.visible
+        canvas.setPresentationHidden(!settings.overlay.visible)
         canvas.accessibilityIdentifier = "reader.translation.cachedOverlay"
         canvas.onGeometryChanged = { [weak self, weak canvas, weak imageView] in
             guard let self, let canvas, cachedOverlay === canvas, imageView?.image === source else { return }
@@ -569,11 +633,12 @@ final class ReaderTranslationPage {
             if sourceSized, imageView?.traitCollection.userInterfaceStyle == canvas.initialStyle {
                 canvas.initialSize = canvas.bounds.size
                 canvas.initialScale = canvas.traitCollection.displayScale
+                canvas.setPresentationHidden(false)
                 return
             }
             releaseOverlay()
-            if let previewRegions {
-                displayPreparedSnapshot(previewRegions, settings: settings)
+            if let preview {
+                displayPreparedSnapshot(preview.original, settings: settings)
             } else {
                 try? publish(regions, image: source, settings: settings, generation: generation)
             }
@@ -587,9 +652,11 @@ final class ReaderTranslationPage {
                                             count: Int(imageView.bounds.width), code: Int(imageView.bounds.height), context: diagnosticContext)
     }
 
-    func displayPrepared(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings, completed: Bool = true) {
+    func displayPrepared(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings, completed: Bool = true,
+                         evidence: ReaderTranslationPreparedEvidence? = nil) {
         guard completed else { return }
-        previewRegions = nil
+        if let evidence { preparedEvidence = evidence }
+        preview = nil
         guard let image = imageView?.image else { return }
         let rect = sourcePage?.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
         let displayed = result.compactMap { $0.cropped(to: rect) }
@@ -602,7 +669,7 @@ final class ReaderTranslationPage {
             // OFF retains a hidden renderer. Restore the completed presentation
             // after ON even when its content has not changed.
             overlay?.isHidden = !settings.overlay.visible
-            cachedOverlay?.isHidden = !settings.overlay.visible
+            cachedOverlay?.setPresentationHidden(!settings.overlay.visible)
             return
         }
         cancel(preservingPendingOverlayNavigation: true)
@@ -617,9 +684,14 @@ final class ReaderTranslationPage {
         guard let imageView, let image = imageView.image, let sourcePage, let renderCache,
               imageView.bounds.width > 0, imageView.bounds.height > 0 else { return }
         let crop = sourcePage.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
-        let displayed = result.compactMap { $0.cropped(to: crop) }
+        let displayed: [ReaderTranslationRegion]
+        if let preview, preview.crop == crop, preview.original == result {
+            displayed = preview.displayed
+        } else {
+            displayed = result.compactMap { $0.cropped(to: crop) }
+        }
         if isUsingCachedRendering, analyzedImage === image, lastSettings == settings, regions == displayed {
-            cachedOverlay?.isHidden = !settings.overlay.visible
+            cachedOverlay?.setPresentationHidden(!settings.overlay.visible)
             return
         }
         if isUsingCachedRendering {
@@ -627,7 +699,7 @@ final class ReaderTranslationPage {
             // bitmap is not ready. Empty results will never have a bitmap.
             cancel()
             releaseOverlay()
-            previewRegions = nil
+            preview = nil
             completedTranslation = false
         }
         let viewport = imageView.bounds.size
@@ -636,8 +708,8 @@ final class ReaderTranslationPage {
             imageSize: image.size, viewport: viewport, scale: imageView.traitCollection.displayScale,
             aspectFit: imageView.contentMode == .scaleAspectFit, crop: crop, dark: dark)
         let key = ReaderTranslationRenderCache.snapshotKey(renderKey: renderKey, regions: displayed)
-        if let snapshot = renderCache.cachedImage(for: key) {
-            acceptPreview(snapshot, result: result, image: image, crop: crop, settings: settings)
+        if let snapshot = renderCache.cachedSnapshot(for: key, source: image) {
+            acceptPreview(snapshot, result: result, displayed: displayed, image: image, crop: crop, settings: settings)
             return
         }
         guard !memoryOnly else { return }
@@ -645,23 +717,22 @@ final class ReaderTranslationPage {
         renderLookupTask?.cancel()
         renderLookupKey = key
         let issued = generation
-        let identity = ReaderTranslationCacheIdentity.translation(page: sourcePage.translationCacheKey, settings: settings)
         renderLookupTask = Task { [weak self, weak imageView] in
-            let snapshot = await renderCache.load(key, pageIdentity: identity, cancelPreparation: false)
+            let snapshot = await renderCache.loadSnapshot(key, source: image)
             guard !Task.isCancelled, let self, let imageView, generation == issued,
                   imageView.image === image, renderLookupKey == key else { return }
             renderLookupTask = nil
             guard let snapshot, ReaderTranslationGeometry.sameViewport(imageView.bounds.size, viewport),
                   (imageView.traitCollection.userInterfaceStyle == .dark) == dark else { return }
-            acceptPreview(snapshot, result: result, image: image, crop: crop, settings: settings)
+            acceptPreview(snapshot, result: result, displayed: displayed, image: image, crop: crop, settings: settings)
         }
     }
 
-    private func acceptPreview(_ snapshot: UIImage, result: [ReaderTranslationRegion], image: UIImage,
-                               crop: CGRect, settings: ReaderTranslationSettings) {
+    private func acceptPreview(_ snapshot: UIImage, result: [ReaderTranslationRegion], displayed: [ReaderTranslationRegion],
+                               image: UIImage, crop: CGRect, settings: ReaderTranslationSettings) {
         cancel()
-        previewRegions = result
-        regions = result.compactMap { $0.cropped(to: crop) }
+        preview = (result, crop, displayed)
+        regions = displayed
         analyzedImage = image
         analyzedConfiguration = settings.ocrConfiguration
         lastSettings = settings
@@ -682,18 +753,18 @@ final class ReaderTranslationPage {
             lastSettings = settings
             if !settings.automaticallyTranslate {
                 overlay?.isHidden = true
-                cachedOverlay?.isHidden = true
+                cachedOverlay?.setPresentationHidden(true)
             } else if hadPresentation {
                 showCompletedTranslation(settings: settings)
             }
             return
         }
-        if let previewRegions {
+        if let preview {
             releaseOverlay()
             if old.hasSameTranslation(as: settings), settings.automaticallyTranslate {
-                displayPreparedSnapshot(previewRegions, settings: settings)
+                displayPreparedSnapshot(preview.original, settings: settings)
             } else {
-                self.previewRegions = nil
+                self.preview = nil
                 completedTranslation = false
                 lastSettings = settings
             }
@@ -720,21 +791,64 @@ final class ReaderTranslationPage {
         }
         guard hadPresentation else { lastSettings = settings; return }
         try? publish(regions, image: image, settings: settings, generation: generation)
-        if wasHidden || !settings.automaticallyTranslate { overlay?.isHidden = true; cachedOverlay?.isHidden = true }
+        if wasHidden || !settings.automaticallyTranslate {
+            overlay?.isHidden = true
+            cachedOverlay?.setPresentationHidden(true)
+        }
     }
 }
 
 @MainActor private final class ReaderTranslationCachedPageView: UIImageView {
+    var snapshotImage: UIImage?
+    weak var sourceImage: UIImage?
+    weak var sourceView: UIImageView?
+    var settledGeometry: ReaderTranslationImageGeometry?
+    private let highlight = ReaderTranslationSettledHighlight()
     var initialSize = CGSize.zero
     var initialStyle: UIUserInterfaceStyle = .unspecified
     var initialScale: CGFloat = 0
     var onGeometryChanged: (() -> Void)?
+
+    func setPresentationHidden(_ hidden: Bool) {
+        isHidden = hidden
+        if settledGeometry != nil, sourceView?.image !== sourceImage {
+            releaseHighlight()
+            // A stale typed bitmap must not cover a replacement source.
+            if image != nil { image = nil }
+            return
+        }
+        let visibleAlternate: Bool
+        if !hidden, let sourceView, let sourceImage, sourceView.image === sourceImage,
+           let snapshotImage, let settledGeometry, ReaderTranslationSettledHighlight.matches(settledGeometry, in: sourceView) {
+            visibleAlternate = highlight.isActive(in: sourceView) ||
+                highlight.acquire(view: sourceView, source: sourceImage, settled: snapshotImage,
+                                  geometry: settledGeometry, isKnownStatic: true)
+        } else {
+            visibleAlternate = false
+        }
+        if !visibleAlternate { releaseHighlight() }
+        // Remain attached as a geometry watcher, but never draw both planes.
+        let next = visibleAlternate ? nil : snapshotImage
+        if image !== next { image = next }
+    }
+
+    func disallowHighlight() {
+        settledGeometry = nil
+        setPresentationHidden(isHidden)
+    }
+
+    func releaseHighlight() {
+        highlight.release()
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
+        if settledGeometry != nil, !isHidden { setPresentationHidden(false) }
         if !ReaderTranslationGeometry.sameViewport(bounds.size, initialSize) { onGeometryChanged?() }
     }
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
+        if settledGeometry != nil, !isHidden { setPresentationHidden(false) }
         if traitCollection.userInterfaceStyle != initialStyle || traitCollection.displayScale != initialScale { onGeometryChanged?() }
     }
 }

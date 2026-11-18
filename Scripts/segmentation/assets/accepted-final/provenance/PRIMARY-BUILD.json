@@ -1,0 +1,33 @@
+{
+  "fingerprint": "a1d4e806eb05aab2d7719c09e5e8fc7721d998ed9e3caac10afb4013ac540cb9",
+  "sources": {
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Aidoku/Core/Translation/NativeEngine/Layout/NativeRFDETRSemanticGrid.swift": "604e1f226f4a8399308d0e733b7fc71881d8b1dc564ffa6db0a864d90273f58b",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Aidoku/Core/Translation/NativeEngine/Layout/NativeRFDETRLayoutModels.swift": "8d89f169ad38b8d0093193b7fcc8ba9bcc268ee70ed99fd2e0c1691b1fd50ede",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Aidoku/Core/Translation/NativeEngine/Ensemble/NativeEnsembleRemovalSourceFactory.swift": "d7cea8ab6fd44f73c1d5141b09182151b0bf23af7ead1ece2e556b682d1ba305",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Aidoku/Core/Translation/NativeEngine/Ensemble/NativePixelRFFeatures.swift": "cb7ae8ad5396daad1eb55138899b3809e69504b1ad7a8ae91703cf4fec0e74ab",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Aidoku/Core/Translation/NativeEngine/Ensemble/NativePixelRFForest.swift": "ef776a8906e0e1d810b4072b3072b93bf5a21edf97ceed88d84ac13f9731f926",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Aidoku/Core/Translation/NativeEngine/Ensemble/NativePixelRFEvidence.swift": "a754d0eb93601aa408c9e2891c2308188e9d67f03cb7a5aba6b887633dbeefea",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Aidoku/Core/Translation/NativeEngine/Ensemble/NativePixelRFSegmentation.swift": "9aabf1de809f8f4cfca84200be9073427171f7a214a4f982d743499ada11e449",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Scripts/segmentation/NativePixelRFSegmentationReplay.swift": "878c54c81ac27b4518f2cc1dfee5b54a87b5ae21c5a5dfb33d6c3feeb09274e9"
+  },
+  "seconds": 9.468329208000796,
+  "command": [
+    "xcrun",
+    "swiftc",
+    "-O",
+    "-parse-as-library",
+    "-module-cache-path",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/build/segmentation-gt-replay-module-cache",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Aidoku/Core/Translation/NativeEngine/Layout/NativeRFDETRSemanticGrid.swift",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Aidoku/Core/Translation/NativeEngine/Layout/NativeRFDETRLayoutModels.swift",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Aidoku/Core/Translation/NativeEngine/Ensemble/NativeEnsembleRemovalSourceFactory.swift",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Aidoku/Core/Translation/NativeEngine/Ensemble/NativePixelRFFeatures.swift",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Aidoku/Core/Translation/NativeEngine/Ensemble/NativePixelRFForest.swift",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Aidoku/Core/Translation/NativeEngine/Ensemble/NativePixelRFEvidence.swift",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Aidoku/Core/Translation/NativeEngine/Ensemble/NativePixelRFSegmentation.swift",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/Aidoku/Scripts/segmentation/NativePixelRFSegmentationReplay.swift",
+    "-o",
+    "/Users/ijunjae/PycharmProjects/new_aidoku/segmentation-improvement-20261109/boundary-lean/native-pixel-rf-segmentation"
+  ],
+  "binarySHA256": "008618ec1d92e4379708aa9d3f27fd97b6156b909baf9d40021514908848ea2e"
+}

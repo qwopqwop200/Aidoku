@@ -4,6 +4,141 @@ import UIKit
 @testable import Aidoku
 
 @Suite(.serialized) @MainActor
+struct ReaderTranslationSourceRevisionTests {
+    @Test func visibleSameLocatorRevisionRejectsOldBitmapAndExportAndProcessesNewSourceOnce() async throws {
+        let fixture = SessionFixture()
+        fixture.defaults.set(true, forKey: ReaderTranslationSettings.keyPrefix + "automatic")
+        let settings = fixture.settings
+        // Distinct, immutable raster bytes at an otherwise identical locator.
+        let source = Aidoku.Page(sourceId: "fixture", chapterId: "revision", index: 0,
+                                 imageURL: "https://example.invalid/same-page")
+        func pixels(_ color: UIColor) -> UIImage {
+            UIGraphicsImageRenderer(size: CGSize(width: 32, height: 24)).image { context in
+                color.setFill()
+                context.fill(CGRect(x: 0, y: 0, width: 32, height: 24))
+            }
+        }
+        let imageA = pixels(.red), imageB = pixels(.blue)
+        let claimA = try #require(await Task.detached { ReaderTranslationSourceRasterClaim.observe(fullProcessedSource: imageA) }.value)
+        let claimB = try #require(await Task.detached { ReaderTranslationSourceRasterClaim.observe(fullProcessedSource: imageB) }.value)
+        try #require(claimA != claimB)
+        try #require(imageA.size == imageB.size)
+        let old = ReaderTranslationRegionArchive.Record(regions: [Self.translated("이전 원본")], sourceRasterClaim: claimA)
+        let revised = ReaderTranslationRegionArchive.Record(regions: [Self.translated("새 원본")], sourceRasterClaim: claimB)
+
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let renderCache = ReaderTranslationRenderCache(disk: disk)
+        let gateA = SessionGate(), gateB = SessionGate()
+        defer { Task { await gateA.release(); await gateB.release() } }
+        let temporaryStore = ReaderTemporaryPageStore()
+        defer { Task { await temporaryStore.removeAll() } }
+        let reader = ReaderPageView(temporaryPageStore: temporaryStore)
+        reader.isTranslationPreload = true // Deterministic: no Live Text/dictionary or broadcast to other readers.
+        let view = reader.imageView
+        let page = reader.translationPage
+        page.sourcePage = source
+        reader.setPageImage(imageA)
+        view.bounds.size = CGSize(width: 32, height: 24)
+        view.contentMode = .scaleAspectFit
+        let key = source.translationCacheKey
+        var response = old
+        var requests: [ReaderTranslationSourceRasterClaim] = []
+        let session = ReaderTranslationSession(processRecord: { requested, _, _ in
+            #expect(requested.translationCacheKey == key)
+            let record = response
+            if let claim = record.sourceRasterClaim { requests.append(claim) }
+            if record.sourceRasterClaim == claimA { await gateA.wait() }
+            else { await gateB.wait() }
+            try Task.checkCancellation()
+            return record
+        }, diskCache: disk, renderCache: renderCache, availableMemory: { .max })
+        defer { session.close(); reader.releasePageResources() }
+        let items = [ReaderTranslationSession.Item(source)]
+        session.update(items: items, visible: [page], context: "revision", currentPageIndex: 0)
+        session.enable(settings: settings)
+        try await waitUntil { await gateA.started }
+
+        // Seed a synthetic pixel-bound snapshot; no renderer or model is
+        // needed to prove actual A mounting and unmounting in the reader.
+        let crop = ReaderTranslationSplitGeometry.unit
+        let renderKey = ReaderTranslationCacheIdentity.render(page: key, settings: settings, imageSize: imageA.size,
+            viewport: view.bounds.size, scale: view.traitCollection.displayScale, aspectFit: true,
+            crop: crop, dark: view.traitCollection.userInterfaceStyle == .dark)
+        let snapshotKey = ReaderTranslationRenderCache.snapshotKey(renderKey: renderKey, regions: old.regions.compactMap { $0.cropped(to: crop) })
+        let oldBitmap = pixels(.green)
+        await renderCache.store(oldBitmap, key: snapshotKey,
+            pageIdentity: ReaderTranslationCacheIdentity.translation(page: key, settings: settings),
+            diskGeneration: await disk.currentGeneration(), source: imageA, sourceDigest: claimA.processedFullSourceSHA256)
+        try #require(renderCache.cachedSnapshot(for: snapshotKey, source: imageA) === oldBitmap)
+        await gateA.release()
+        try await waitUntil { page.canExportTranslation && page.isUsingCachedRendering }
+        #expect((view.subviews.first as? UIImageView)?.image === oldBitmap)
+
+        response = revised
+        reader.setPageImage(imageB)
+        // Keep B unlaid-out while checking the Session and export gate.
+        view.bounds.size = .zero
+        #expect(page.sourcePage?.translationCacheKey == key)
+        #expect(view.image === imageB)
+        session.refreshVisiblePages([page])
+        session.sourceImageDidLoad(source)
+        try await waitUntil { await gateB.started }
+        #expect(requests == [claimA, claimB])
+
+        // A lookahead result can have been admitted before B replaced the
+        // image but return while its fresh demand is still in flight.
+        session.receivePrepared(source, record: old, settings: settings)
+        session.displayCachedVisiblePages([page])
+        #expect(!page.canExportTranslation)
+        #expect(!page.hasCompletedTranslation(settings: settings))
+        #expect(page.regions.isEmpty)
+        #expect(!page.isUsingCachedRendering)
+        #expect(view.subviews.allSatisfy { ($0 as? UIImageView)?.image !== oldBitmap })
+        do {
+            _ = try await page.exportTranslatedImage(host: reader)
+            Issue.record("A stale result must not be exported on revised pixels")
+        } catch ReaderTranslationImageExporter.ExportError.unavailable {
+            // The public export gate (not just a cache lookup) refused A.
+        }
+
+        await gateB.release()
+        try await waitUntil { page.canExportTranslation }
+        #expect(page.regions.map(\.translation) == revised.regions.map(\.translation))
+        session.receivePrepared(source, record: old, settings: settings)
+        #expect(try await session.cachedRegions(for: source, settings: settings, sourceImage: imageB) == revised.regions)
+        #expect(page.regions.map(\.translation) == revised.regions.map(\.translation))
+        let diskKey = ReaderTranslationCacheIdentity.translation(page: key, settings: settings)
+        let currentGeneration = await disk.currentGeneration(settings: settings)
+        // A delayed speculative write from the previous source must not
+        // replace the revised result in SQLite after the new view is visible.
+        try await waitUntil {
+            (try? await disk.regionRecord(for: diskKey, kind: .translation, matching: claimB)) != nil
+        }
+        await session.persistPreparedRecord(old, page: source, destination: .init(key: diskKey, generation: currentGeneration))
+        await session.flushPendingDiskStores()
+        #expect(try await disk.regionRecord(for: diskKey, kind: .translation)?.sourceRasterClaim == claimB)
+        session.refreshVisiblePages([page])
+        session.sourceImageDidLoad(source)
+        #expect(requests == [claimA, claimB])
+    }
+
+    private static func translated(_ text: String) -> ReaderTranslationRegion {
+        .init(id: "revision", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.4),
+              source: "こんにちは", translation: text)
+    }
+
+    private func waitUntil(_ condition: () async -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(4)
+        while !(await condition()) {
+            guard Date() < deadline else { throw SessionTestError.timeout }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+    }
+}
+
+@Suite(.serialized) @MainActor
 struct ReaderTranslationSessionTests {
     @Test(arguments: [true, false])
     func backgroundTranslationKeepsOriginalAndButtonOff(startsEnabled: Bool) async throws {

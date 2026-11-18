@@ -20,20 +20,27 @@ public class ChapterObject: NSManagedObject {
         mangaId: MangaIdentifier,
         sourceOrder: Int? = nil
     ) {
-        self.sourceId = mangaId.sourceKey
-        self.mangaId = mangaId.mangaKey
-        id = chapter.key
-        title = chapter.title
-        scanlator = chapter.scanlators.flatMap { $0.isEmpty ? nil : $0.joined(separator: ", ") }
-        url = chapter.url?.absoluteString
-        lang = chapter.language ?? ""
-        self.chapter = chapter.chapterNumber != nil ? NSNumber(value: chapter.chapterNumber ?? -1) : nil
-        volume = chapter.volumeNumber != nil ? NSNumber(value: chapter.volumeNumber ?? -1) : nil
-        dateUploaded = chapter.dateUploaded
-        thumbnail = chapter.thumbnail
-        locked = chapter.locked
+        // Core Data marks a chapter updated even when a setter receives its current value.
+        if self.sourceId != mangaId.sourceKey { self.sourceId = mangaId.sourceKey }
+        if self.mangaId != mangaId.mangaKey { self.mangaId = mangaId.mangaKey }
+        if id != chapter.key { id = chapter.key }
+        if title != chapter.title { title = chapter.title }
+        let scanlator = chapter.scanlators.flatMap { $0.isEmpty ? nil : $0.joined(separator: ", ") }
+        if self.scanlator != scanlator { self.scanlator = scanlator }
+        let url = chapter.url?.absoluteString
+        if self.url != url { self.url = url }
+        let lang = chapter.language ?? ""
+        if self.lang != lang { self.lang = lang }
+        let chapterNumber = chapter.chapterNumber.map(NSNumber.init(value:))
+        if self.chapter != chapterNumber { self.chapter = chapterNumber }
+        let volumeNumber = chapter.volumeNumber.map(NSNumber.init(value:))
+        if volume != volumeNumber { volume = volumeNumber }
+        if dateUploaded != chapter.dateUploaded { dateUploaded = chapter.dateUploaded }
+        if thumbnail != chapter.thumbnail { thumbnail = chapter.thumbnail }
+        if locked != chapter.locked { locked = chapter.locked }
         if let sourceOrder {
-            self.sourceOrder = Int16(clamping: sourceOrder)
+            let order = Int16(clamping: sourceOrder)
+            if self.sourceOrder != order { self.sourceOrder = order }
         }
     }
 

@@ -531,7 +531,7 @@
 
 "TRANSLATION_AUTO" = "Rileva automaticamente";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 richiede iOS 18 o versioni successive. Medio è il modello predefinito. Piccolo usa meno memoria e Minuscolo ha un dizionario di caratteri più limitato. Questi modelli non riconoscono il testo coreano, ma è possibile tradurre in coreano.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 richiede iOS 18 o versioni successive. Manga v0.3 è il modello predefinito sia per il rilevamento che per il riconoscimento del testo. Gli altri modelli OCR restano disponibili.";
 
 
 
@@ -1162,3 +1162,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "La fonte %@ versione %d non è supportata da questa app. Installa una versione supportata.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 supporta solo testi di origine in giapponese e cinese (semplificato e tradizionale). Anche il rilevamento automatico e la selezione della lingua di origine sono limitati a queste lingue. È comunque possibile tradurre in coreano o in altre lingue di destinazione. Selezionando Manga, vengono applicate soglie di rilevamento del testo pari a 0.85 e 0.25; la dimensione di rilevamento predefinita è di 1120 px.";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Tutte le lingue OCR supportate";

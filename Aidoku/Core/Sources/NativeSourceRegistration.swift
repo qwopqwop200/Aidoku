@@ -47,9 +47,7 @@ enum NativeSourceRegistration {
         try registration.get()
     }
 
-    /// Read modern package metadata and initialize only its registered native port.
-    /// No archive executable is read or executed.
-    static func loadPackage(at url: URL, expectedKey: String? = nil) async throws -> AidokuRunner.Source {
+    static func packageKey(at url: URL, expectedKey: String? = nil) throws -> String {
         try ensureRegistered()
         let data = try Data(contentsOf: url.appendingPathComponent("source.json"))
         let manifest: AidokuRunner.SourceInfo
@@ -62,7 +60,17 @@ enum NativeSourceRegistration {
             throw error
         }
         guard expectedKey == nil || expectedKey == manifest.info.id else { throw PackageError.keyMismatch }
-        return try await AidokuRunner.Source(key: manifest.info.id, url: url)
+        guard NativeSourceRunnerRegistry.shared.supports(sourceKey: manifest.info.id, version: manifest.info.version) else {
+            throw AidokuRunner.Source.InitError.unsupportedNativeSource(sourceKey: manifest.info.id, version: manifest.info.version)
+        }
+        return manifest.info.id
+    }
+
+    static func loadPackage(at url: URL, expectedKey: String? = nil) async throws -> AidokuRunner.Source {
+        let key = try packageKey(at: url, expectedKey: expectedKey)
+        let source = try await AidokuRunner.Source(url: url)
+        guard key == source.key else { throw PackageError.keyMismatch }
+        return source
     }
 
     enum PackageError: Error, Equatable {

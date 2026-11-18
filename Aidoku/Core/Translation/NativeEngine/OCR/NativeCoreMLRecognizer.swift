@@ -3,19 +3,44 @@ import CoreGraphics
 @preconcurrency import CoreML
 import CryptoKit
 import Foundation
+#if os(iOS)
+import UIKit
+#endif
+
+@available(iOS 18.0, *)
+enum NativeCoreMLRecognitionPhotometricMode: String, Sendable {
+    case original
+    case luminanceContrast
+}
 
 @available(iOS 18.0, *)
 struct NativeCoreMLRecognitionRegion: Equatable, Sendable {
     let sourceIndex: Int
     let polygon: [CGPoint]
+    let samplingPolygon: [CGPoint]?
+    let isThinFinePrintRecovery: Bool
+    let finePrintRetryPolygons: [[CGPoint]]
     let useProvidedOrder: Bool
     let minimumSequenceWidth: Int
+    let recognitionColumnEvidence: NativeOCRDetectorColumnEvidence?
+    let photometricMode: NativeCoreMLRecognitionPhotometricMode
 
-    init(sourceIndex: Int, polygon: [CGPoint], useProvidedOrder: Bool = false, minimumSequenceWidth: Int = 0) {
+    init(
+        sourceIndex: Int, polygon: [CGPoint], samplingPolygon: [CGPoint]? = nil,
+        isThinFinePrintRecovery: Bool = false, finePrintRetryPolygons: [[CGPoint]] = [],
+        useProvidedOrder: Bool = false, minimumSequenceWidth: Int = 0,
+        recognitionColumnEvidence: NativeOCRDetectorColumnEvidence? = nil,
+        photometricMode: NativeCoreMLRecognitionPhotometricMode = .original
+    ) {
         self.sourceIndex = sourceIndex
         self.polygon = polygon
+        self.samplingPolygon = samplingPolygon
+        self.isThinFinePrintRecovery = isThinFinePrintRecovery
+        self.finePrintRetryPolygons = finePrintRetryPolygons
         self.useProvidedOrder = useProvidedOrder
         self.minimumSequenceWidth = minimumSequenceWidth
+        self.recognitionColumnEvidence = recognitionColumnEvidence
+        self.photometricMode = photometricMode
     }
 }
 
@@ -25,6 +50,101 @@ struct NativeCoreMLRecognizedRegion: Equatable, Sendable {
     let polygon: [CGPoint]
     let text: String
     let confidence: Double
+    var tokenObservations: [NativeCoreMLCTCTokenObservation] = []
+}
+
+@available(iOS 18.0, *)
+struct NativeCoreMLCTCTokenObservation: Equatable, Sendable {
+    let text: String
+    let confidence: Double
+    var emissionSpan: NativeCoreMLCTCEmissionSpan? = nil
+}
+
+/// Sequence coordinates from the existing greedy path, not source glyph bounds.
+/// A repeated label extends its half-open span; a blank separates equal labels.
+@available(iOS 18.0, *)
+struct NativeCoreMLCTCEmissionSpan: Equatable, Sendable {
+    let steps: Range<Int>
+    let timeStepCount: Int
+    let precedingBlankSteps: Int
+}
+
+@available(iOS 18.0, *)
+struct NativeCoreMLGreedyRecognition: Equatable, Sendable {
+    let text: String
+    let confidence: Double
+    /// Nil means unavailable; an empty array is an observed blank CTC path.
+    var tokenObservations: [NativeCoreMLCTCTokenObservation]? = nil
+}
+
+/// Explicit full-bank observation of an existing pass, before acceptance.
+/// There is no row limit or retained bank here. A bounded external sink must
+/// throw on overflow/failure, never silently truncate or claim completeness.
+/// The sink serializes callbacks across all tasks sharing this page scope.
+@available(iOS 18.0, *)
+final class NativeCoreMLRecognitionObservations: @unchecked Sendable {
+    @TaskLocal static var current: NativeCoreMLRecognitionObservations?
+
+    struct Request: Equatable, Sendable {
+        let requestID: String
+        let generation: UInt64
+        let callerConfidenceThreshold: Double
+        let appliedConfidenceThreshold: Double
+    }
+
+    enum AdmissionReason: String, Equatable, Sendable {
+        case accepted, empty, belowThreshold, nonFiniteConfidence
+    }
+
+    struct Decoded: Equatable, Sendable {
+        let request: Request
+        let region: NativeCoreMLRecognitionRegion
+        let finalText: String
+        let finalConfidence: Double
+        let tokenObservations: [NativeCoreMLCTCTokenObservation]
+        /// Nil means not retained by the earlier pass that populated this
+        /// cache entry. It never means an empty greedy decode.
+        let greedyObservation: NativeCoreMLGreedyRecognition?
+        let cacheHit: Bool
+        let admitted: Bool
+        let reason: AdmissionReason
+    }
+
+    enum Event: Equatable, Sendable {
+        /// Actual invocation, including a real zero-crop call. A missing event
+        /// is unobserved, never an inferred empty pass.
+        case began(request: Request, requestedRegions: Int)
+        case requested(request: Request, region: NativeCoreMLRecognitionRegion)
+        case decoded(Decoded)
+        /// Successful pass only. Errors/cancellation/sink failures do not emit
+        /// this certificate; an enclosing page must also complete before seal.
+        case finished(request: Request, decodedRegions: Int)
+    }
+
+    private let lock = NSLock()
+    private let observer: @Sendable (Event) throws -> Void
+
+    init(observer: @escaping @Sendable (Event) throws -> Void) {
+        self.observer = observer
+    }
+
+    func record(_ event: Event) throws {
+        try lock.withLock { try observer(event) }
+    }
+}
+
+@available(iOS 18.0, *)
+private struct NativeCoreMLRecognitionObservationPass: Sendable {
+    let sink: NativeCoreMLRecognitionObservations
+    let request: NativeCoreMLRecognitionObservations.Request
+
+    func began(requestedRegions: Int) throws {
+        try sink.record(.began(request: request, requestedRegions: requestedRegions))
+    }
+
+    func finished(decodedRegions: Int) throws {
+        try sink.record(.finished(request: request, decodedRegions: decodedRegions))
+    }
 }
 
 /// Explicit in-memory diagnostic events for an existing recognition pass.
@@ -43,6 +163,65 @@ enum NativeCoreMLRecognitionAuditEvent: Sendable {
         threshold: Double,
         cacheHit: Bool
     )
+}
+
+/// Execution accounting is separate from committed recognition diagnostics.
+/// In particular, a failed/cancelled attempt is not a successful prediction.
+@available(iOS 18.0, *)
+struct NativeCoreMLRecognitionExecutionSnapshot: Equatable, Sendable {
+    let requestID: String
+    let generation: UInt64
+    var predictionAttempts = 0
+    var attemptedCrops = 0
+    var attemptedBatchSlots = 0
+    var discardedLookaheadChunks = 0
+    var discardedPlannedCrops = 0
+    var discardedCompletedPredictions = 0
+    var discardedCompletedCrops = 0
+}
+
+/// Created only for an explicitly observed recognition generation. Concurrent
+/// prediction tasks update scalars; the final callback runs once, outside lock.
+@available(iOS 18.0, *)
+final class NativeCoreMLRecognitionExecutionCounters: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: NativeCoreMLRecognitionExecutionSnapshot
+    private var finished = false
+    private let observer: @Sendable (NativeCoreMLRecognitionExecutionSnapshot) -> Void
+
+    init(requestID: String, generation: UInt64,
+         observer: @escaping @Sendable (NativeCoreMLRecognitionExecutionSnapshot) -> Void) {
+        value = .init(requestID: requestID, generation: generation)
+        self.observer = observer
+    }
+
+    func attempted(crops: Int, batchSlots: Int) {
+        lock.withLock {
+            guard !finished else { return }
+            value.predictionAttempts += 1
+            value.attemptedCrops += crops
+            value.attemptedBatchSlots += batchSlots
+        }
+    }
+
+    func discardedLookahead(plannedCrops: Int, completedPredictions: Int, completedCrops: Int) {
+        lock.withLock {
+            guard !finished else { return }
+            value.discardedLookaheadChunks += 1
+            value.discardedPlannedCrops += plannedCrops
+            value.discardedCompletedPredictions += completedPredictions
+            value.discardedCompletedCrops += completedCrops
+        }
+    }
+
+    func finish() {
+        let snapshot: NativeCoreMLRecognitionExecutionSnapshot? = lock.withLock {
+            guard !finished else { return nil }
+            finished = true
+            return value
+        }
+        if let snapshot { observer(snapshot) }
+    }
 }
 
 @available(iOS 18.0, *)
@@ -81,7 +260,8 @@ struct NativeCoreMLRecognitionDiagnostics: Equatable, Sendable {
         return result
     }
 
-    func addingRecovery(_ recovery: Self, acceptedCount: Int) -> Self {
+    func addingRecovery(_ recovery: Self, acceptedCount: Int,
+                        includingRecoveryRequests: Bool = false) -> Self {
         Self(
             requestID: requestID,
             generation: generation,
@@ -93,7 +273,7 @@ struct NativeCoreMLRecognitionDiagnostics: Equatable, Sendable {
             outputFeatureName: outputFeatureName,
             inputShape: inputShape,
             outputShape: outputShape,
-            requestedRegions: requestedRegions,
+            requestedRegions: requestedRegions + (includingRecoveryRequests ? recovery.requestedRegions : 0),
             predictedRegions: predictedRegions + recovery.predictedRegions,
             cacheHitRegions: cacheHitRegions + recovery.cacheHitRegions,
             acceptedRegions: acceptedCount,
@@ -243,6 +423,7 @@ private final class NativeCoreMLModelPredictor:
     /// two- or three-function resident limit based on device memory.
     private actor ModelStore {
         private let asset: MLModelAsset
+        private let assetURL: URL
         private let maximumResidentModels: Int
         private let usesDynamicModel: Bool
         private var models: [NativeCoreMLRecognitionModelVariant: ModelHandle]
@@ -257,6 +438,19 @@ private final class NativeCoreMLModelPredictor:
         /// Oldest first, newest last.
         private var recency: [NativeCoreMLRecognitionModelVariant] = []
         private var revision: UInt64 = 0
+        // A Core ML handle can serialize independent dynamic shapes internally.
+        // Acquire a second copy only while a real prediction is already active.
+        private var activePredictions = 0
+        private var replicaInUse = false
+        private var replica: ModelStore?
+        private var replicaFailed = false
+        private var replicaUse: UInt64 = 0
+        private var idleExpiry: Task<Void, Never>?
+        private var replicaIdleDeadline: ContinuousClock.Instant?
+        private var foreground = true
+        private var pressureCooldownUntil: ContinuousClock.Instant?
+        private enum ReplicaPressure: Error { case insufficientHeadroom, retired }
+
         private let sharedLoads = NativeCoreMLSharedLoadCoordinator<
             NativeCoreMLRecognitionModelVariant,
             LoadedModel
@@ -264,13 +458,179 @@ private final class NativeCoreMLModelPredictor:
 
         init(
             asset: MLModelAsset,
+            assetURL: URL,
             maximumResidentModels: Int,
             usesDynamicModel: Bool
         ) {
             precondition((2...3).contains(maximumResidentModels))
             self.asset = asset
+            self.assetURL = assetURL
             self.maximumResidentModels = maximumResidentModels
             self.usesDynamicModel = usesDynamicModel
+        }
+
+        deinit { idleExpiry?.cancel() }
+
+        private static var hasReplicaHeadroom: Bool {
+            let available = ReaderTranslationSession.processAvailableMemory()
+            // The simulator's sentinel means that no headroom reading was available.
+            return available != .max && available >= 3 * 1_024 * 1_024 * 1_024
+        }
+
+        private func dropIdleReplica() {
+            idleExpiry?.cancel()
+            idleExpiry = nil
+            replicaIdleDeadline = nil
+            replica = nil
+        }
+
+        func trimReplicaForPressure() {
+            // The process budget may still be high when UIKit has signalled
+            // real system pressure. Let accepted work finish on its live handle.
+            // Detached idle/pending handles cannot become resident again.
+            pressureCooldownUntil = ContinuousClock.now.advanced(by: .seconds(3))
+            replicaUse &+= 1
+            dropIdleReplica()
+        }
+
+        func setForeground(_ active: Bool) {
+            foreground = active
+            guard !active else { return }
+            // Release optional residency. The reader owns cancellation of active work.
+            replicaUse &+= 1
+            dropIdleReplica()
+        }
+
+        // Between pages keep an eligible second handle for a short reading
+        // interval. Pressure is checked at least every two seconds of idle time.
+        private func keepIdleReplica(after use: UInt64, until deadline: ContinuousClock.Instant) -> Bool {
+            guard replicaUse == use, !replicaInUse, replica != nil else { return false }
+            guard Self.hasReplicaHeadroom else {
+                trimReplicaForPressure()
+                return false
+            }
+            guard foreground, ContinuousClock.now < deadline else {
+                dropIdleReplica()
+                return false
+            }
+            return true
+        }
+
+        func withPredictionModel<T: Sendable>(
+            for variant: NativeCoreMLRecognitionModelVariant,
+            perform: @Sendable (ModelAccess) async throws -> T
+        ) async throws -> T {
+            try Task.checkCancellation()
+            if !usesDynamicModel {
+                guard let access = try await model(for: variant) else {
+                    throw NativeCoreMLRecognizerError.modelInputCreationFailed
+                }
+                let result = try await perform(access)
+                try markPrepared(variant, access: access)
+                return result
+            }
+
+            let issuedRevision = revision
+            if replica != nil, !Self.hasReplicaHeadroom {
+                trimReplicaForPressure()
+            } else if let deadline = replicaIdleDeadline, !replicaInUse, ContinuousClock.now >= deadline {
+                dropIdleReplica()
+            }
+            let pressureAllowsReplica = pressureCooldownUntil.map { ContinuousClock.now >= $0 } ?? true
+            let useReplica = foreground && pressureAllowsReplica && activePredictions > 0 && !replicaInUse
+                && !replicaFailed && Self.hasReplicaHeadroom
+            activePredictions += 1
+            if useReplica {
+                replicaInUse = true
+                replicaIdleDeadline = nil
+                replicaUse &+= 1
+                idleExpiry?.cancel()
+                idleExpiry = nil
+                if replica == nil {
+                    // Core ML reuses an MLModel instance when the same MLModelAsset
+                    // is loaded twice. An independent asset opens the same compiled weights.
+                    do {
+                        let independentAsset = try MLModelAsset(url: assetURL)
+                        replica = ModelStore(asset: independentAsset, assetURL: assetURL,
+                                             maximumResidentModels: maximumResidentModels, usesDynamicModel: true)
+                    } catch {
+                        replicaFailed = true
+                    }
+                }
+            }
+            defer {
+                activePredictions -= 1
+                if useReplica { replicaInUse = false }
+                if !replicaInUse, replica != nil {
+                    if !Self.hasReplicaHeadroom {
+                        trimReplicaForPressure()
+                    } else if Task.isCancelled || !foreground {
+                        dropIdleReplica()
+                    } else if useReplica {
+                        let use = replicaUse
+                        let deadline = ContinuousClock.now.advanced(by: .seconds(8))
+                        replicaIdleDeadline = deadline
+                        idleExpiry = Task { [weak self] in
+                            repeat {
+                                let next = min(deadline, ContinuousClock.now.advanced(by: .seconds(2)))
+                                do { try await Task.sleep(until: next, clock: .continuous) } catch { return }
+                            } while await self?.keepIdleReplica(after: use, until: deadline) == true
+                        }
+                    }
+                }
+            }
+
+            var store = self
+            var access: ModelAccess?
+            if useReplica, let secondary = replica {
+                do {
+                    access = try await secondary.model(for: variant, admissionCheck: {
+                        try Task.checkCancellation()
+                        guard Self.hasReplicaHeadroom else { throw ReplicaPressure.insufficientHeadroom }
+                    })
+                    // Low headroom can be reported during an asynchronous compilation.
+                    guard replica === secondary, foreground else { throw ReplicaPressure.retired }
+                    guard Self.hasReplicaHeadroom else { throw ReplicaPressure.insufficientHeadroom }
+                    store = secondary
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    // Replica load failures leave the existing primary available.
+                    // Suppress repeated failing loads until the model store is purged.
+                    guard revision == issuedRevision else { throw CancellationError() }
+                    try Task.checkCancellation()
+                    if let reason = error as? ReplicaPressure {
+                        if reason == .insufficientHeadroom { trimReplicaForPressure() }
+                        else { dropIdleReplica() }
+                    } else {
+                        replicaFailed = true
+                        dropIdleReplica()
+                    }
+                    access = nil
+                }
+            }
+            guard revision == issuedRevision else { throw CancellationError() }
+            try Task.checkCancellation()
+            if access == nil { access = try await model(for: variant) }
+            guard let access else { throw NativeCoreMLRecognizerError.modelInputCreationFailed }
+            guard revision == issuedRevision else { throw CancellationError() }
+            try Task.checkCancellation()
+            let result: T
+            do {
+                result = try await perform(access)
+            } catch {
+                // An accepted inference is counted once. Retire a failed replica
+                // for future demand without issuing a second prediction here.
+                if store !== self, revision == issuedRevision,
+                   !(error is CancellationError), !Task.isCancelled {
+                    replicaFailed = true
+                    dropIdleReplica()
+                }
+                throw error
+            }
+            guard revision == issuedRevision else { throw CancellationError() }
+            try await store.markPrepared(variant, access: access)
+            return result
         }
 
         func model(
@@ -447,6 +807,11 @@ private final class NativeCoreMLModelPredictor:
 
         func purge() async {
             revision &+= 1
+            replicaUse &+= 1
+            let retainedReplica = replica
+            dropIdleReplica()
+            replicaFailed = false
+            await retainedReplica?.purge()
             await sharedLoads.purge()
             models.removeAll(keepingCapacity: false)
             preparedVariants.removeAll(keepingCapacity: false)
@@ -488,6 +853,33 @@ private final class NativeCoreMLModelPredictor:
 
     private let modelStore: ModelStore
 
+#if os(iOS)
+    private final class ReplicaActivityObservation: @unchecked Sendable {
+        private let tokens: [NSObjectProtocol]
+
+        @MainActor init(store: ModelStore) async {
+            // Sample the current state in the callback task as well: a rapid
+            // foreground transition may precede delivery of a queued notification.
+            let activity = [UIApplication.didBecomeActiveNotification, UIApplication.didEnterBackgroundNotification,
+                      UIApplication.willResignActiveNotification].map { name in
+                NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak store] _ in
+                    Task { @MainActor in
+                        await store?.setForeground(UIApplication.shared.applicationState == .active)
+                    }
+                }
+            }
+            let warning = NotificationCenter.default.addObserver(
+                forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main
+            ) { [weak store] _ in Task { await store?.trimReplicaForPressure() } }
+            tokens = activity + [warning]
+            await store.setForeground(UIApplication.shared.applicationState == .active)
+        }
+
+        deinit { for token in tokens { NotificationCenter.default.removeObserver(token) } }
+    }
+    private let replicaActivity: ReplicaActivityObservation?
+#endif
+
     init(
         modelURL: URL,
         modelName: String,
@@ -495,7 +887,8 @@ private final class NativeCoreMLModelPredictor:
         outputFeatureName: String,
         maximumResidentModels: Int
     ) async throws {
-        let asset = try MLModelAsset(url: NativeCoreMLModelStore.shared.modelURL(for: modelURL))
+        let assetURL = try NativeCoreMLModelStore.shared.modelURL(for: modelURL)
+        let asset = try MLModelAsset(url: assetURL)
         let availableFunctions = Set(try await asset.functionNames)
         let expectedFunctions = Set(
             NativeCoreMLRecognitionModelVariant.production.map(\.functionName)
@@ -513,9 +906,14 @@ private final class NativeCoreMLModelPredictor:
         }
         modelStore = ModelStore(
             asset: asset,
+            assetURL: assetURL,
             maximumResidentModels: maximumResidentModels,
             usesDynamicModel: usesDynamicModel
         )
+#if os(iOS)
+        if usesDynamicModel { replicaActivity = await ReplicaActivityObservation(store: modelStore) }
+        else { replicaActivity = nil }
+#endif
         self.modelName = modelName
         self.inputFeatureName = inputFeatureName
         self.outputFeatureName = outputFeatureName
@@ -534,39 +932,38 @@ private final class NativeCoreMLModelPredictor:
         else {
             throw NativeCoreMLRecognizerError.modelInputCreationFailed
         }
-        guard let modelAccess = try await modelStore.model(for: variant)
-        else {
-            throw NativeCoreMLRecognizerError.modelInputCreationFailed
+        return try await modelStore.withPredictionModel(for: variant) { [self] modelAccess in
+            let provider = try MLDictionaryFeatureProvider(dictionary: [
+                inputFeatureName: MLFeatureValue(multiArray: input),
+            ])
+            // The async Core ML API is intentionally used instead of wrapping the
+            // synchronous prediction call in a detached task. Core ML can observe
+            // Swift task cancellation and abort an obsolete GPU submission on a
+            // best-effort basis when a newer browser frame supersedes it.
+            let prediction = try await modelAccess.handle.model.prediction(
+                from: provider
+            )
+            guard let indices = prediction.featureValue(
+                for: NativeCoreMLRecognizer.indexOutputFeatureName
+            )?.multiArrayValue,
+                  let scores = prediction.featureValue(
+                      for: NativeCoreMLRecognizer.scoreOutputFeatureName
+                  )?.multiArrayValue
+            else {
+                throw NativeCoreMLRecognizerError.modelOutputMissing
+            }
+            return NativeCoreMLRecognitionPrediction(
+                outputs: try Self.packCompactOutputs(
+                    indices: indices,
+                    scores: scores,
+                    variant: variant,
+                    topIndices: prediction.featureValue(for: "ctc_topk_indices")?.multiArrayValue,
+                    topScores: prediction.featureValue(for: "ctc_topk_scores")?.multiArrayValue
+                ),
+                modelWasLoaded: modelAccess.wasLoaded,
+                modelLoadMilliseconds: modelAccess.loadMilliseconds
+            )
         }
-        let provider = try MLDictionaryFeatureProvider(dictionary: [
-            inputFeatureName: MLFeatureValue(multiArray: input),
-        ])
-        // The async Core ML API is intentionally used instead of wrapping the
-        // synchronous prediction call in a detached task. Core ML can observe
-        // Swift task cancellation and abort an obsolete GPU submission on a
-        // best-effort basis when a newer browser frame supersedes it.
-        let prediction = try await modelAccess.handle.model.prediction(
-            from: provider
-        )
-        guard let indices = prediction.featureValue(
-            for: NativeCoreMLRecognizer.indexOutputFeatureName
-        )?.multiArrayValue,
-              let scores = prediction.featureValue(
-                  for: NativeCoreMLRecognizer.scoreOutputFeatureName
-              )?.multiArrayValue
-        else {
-            throw NativeCoreMLRecognizerError.modelOutputMissing
-        }
-        try await modelStore.markPrepared(variant, access: modelAccess)
-        return NativeCoreMLRecognitionPrediction(
-            outputs: try Self.packCompactOutputs(
-                indices: indices,
-                scores: scores,
-                variant: variant
-            ),
-            modelWasLoaded: modelAccess.wasLoaded,
-            modelLoadMilliseconds: modelAccess.loadMilliseconds
-        )
     }
 
     func preferredBucketOrder(availableWidths: [Int]) async -> [Int] {
@@ -680,9 +1077,22 @@ private final class NativeCoreMLModelPredictor:
     private static func packCompactOutputs(
         indices: MLMultiArray,
         scores: MLMultiArray,
-        variant: NativeCoreMLRecognitionModelVariant
+        variant: NativeCoreMLRecognitionModelVariant,
+        topIndices: MLMultiArray? = nil,
+        topScores: MLMultiArray? = nil
     ) throws -> [MLMultiArray] {
         let expected = [variant.batchSize, variant.bucket.timeSteps]
+        guard (topIndices == nil) == (topScores == nil) else {
+            throw NativeCoreMLRecognizerError.modelOutputMissing
+        }
+        let alternatives = topIndices == nil ? 0 : 4
+        if let topIndices, let topScores {
+            let shape = [variant.batchSize, variant.bucket.timeSteps, alternatives]
+            guard topIndices.shape.map(\.intValue) == shape, topScores.shape.map(\.intValue) == shape,
+                  topIndices.dataType == .int32, topScores.dataType == .float32 else {
+                throw NativeCoreMLRecognizerError.modelOutputMissing
+            }
+        }
         guard indices.shape.map(\.intValue) == expected,
               scores.shape.map(\.intValue) == expected,
               indices.dataType == .int32,
@@ -705,11 +1115,13 @@ private final class NativeCoreMLModelPredictor:
         let scoreBatchStride = scores.strides[0].intValue
         let indexTimeStride = indices.strides[1].intValue
         let scoreTimeStride = scores.strides[1].intValue
+        let topIndexStrides = topIndices?.strides.map(\.intValue)
+        let topScoreStrides = topScores?.strides.map(\.intValue)
         var outputs: [MLMultiArray] = []
         outputs.reserveCapacity(variant.batchSize)
         for batchIndex in 0..<variant.batchSize {
             let compact = try MLMultiArray(
-                shape: [2, variant.bucket.timeSteps].map(
+                shape: [2 + alternatives * 2, variant.bucket.timeSteps].map(
                     NSNumber.init(value:)
                 ),
                 dataType: .float32
@@ -732,6 +1144,23 @@ private final class NativeCoreMLModelPredictor:
                         scoreBatchOffset + step * scoreTimeStride
                     ]
             }
+            if let topIndices, let topScores, let topIndexStrides, let topScoreStrides {
+                let topIndexPointer = topIndices.dataPointer.assumingMemoryBound(to: Int32.self)
+                let topScorePointer = topScores.dataPointer.assumingMemoryBound(to: Float.self)
+                let indexTimeStride = topIndexStrides[1], scoreTimeStride = topScoreStrides[1]
+                let indexBatchOffset = batchIndex * topIndexStrides[0]
+                let scoreBatchOffset = batchIndex * topScoreStrides[0]
+                for rank in 0..<alternatives {
+                    let indexRankOffset = indexBatchOffset + rank * topIndexStrides[2]
+                    let scoreRankOffset = scoreBatchOffset + rank * topScoreStrides[2]
+                    let indexDestination = destination + (2 + rank * 2) * rowStride
+                    let scoreDestination = indexDestination + rowStride
+                    for step in 0..<variant.bucket.timeSteps {
+                        indexDestination[step * timeStride] = Float(topIndexPointer[indexRankOffset + step * indexTimeStride])
+                        scoreDestination[step * timeStride] = topScorePointer[scoreRankOffset + step * scoreTimeStride]
+                    }
+                }
+            }
             outputs.append(compact)
         }
         return outputs
@@ -750,7 +1179,7 @@ struct NativeCoreMLRecognitionBucket: Equatable, Hashable, Sendable {
     let timeSteps: Int
 
     init?(width: Int) {
-        guard (32...2_000).contains(width) else {
+        guard (32...2_400).contains(width) else {
             return nil
         }
         self.width = width
@@ -768,7 +1197,7 @@ struct NativeCoreMLRecognitionBucket: Equatable, Hashable, Sendable {
         dynamicWidth: Bool = false,
         maximumWidth: Int = IPhoneOCRSettings.defaultRecognizerMaximumWidth
     ) -> Self {
-        let boundedMaximum = min(2_000, max(32, maximumWidth))
+        let boundedMaximum = min(2_400, max(32, maximumWidth))
         let boundedWidth = min(boundedMaximum, max(32, desiredWidth))
         if dynamicWidth {
             // Exact crop width: no bucket rounding and no minimum-width padding.
@@ -862,11 +1291,17 @@ private struct NativeCoreMLRecognitionCropFingerprint: Hashable, Sendable {
 
     init(tensor: NativeCoreMLPreparedTensor) {
         var hasher = SHA256()
-        let metadata = [
+        var metadata = [
             UInt64(tensor.resizedWidth).littleEndian,
             UInt64(tensor.bucket.width).littleEndian,
             tensor.rotatedCounterClockwise ? UInt64(1) : UInt64(0),
         ]
+        // Keep every original-mode fingerprint byte-identical. Explicit input
+        // transforms get a separate identity even when their contrast gate
+        // abstains and leaves the sampled tensor unchanged.
+        if tensor.photometricMode != .original {
+            metadata.append(UInt64(1).littleEndian)
+        }
         metadata.withUnsafeBytes { bytes in
             hasher.update(bufferPointer: bytes)
         }
@@ -904,6 +1339,8 @@ private struct NativeCoreMLRecognitionCropFingerprint: Hashable, Sendable {
 private struct NativeCoreMLCachedRecognition: Equatable, Sendable {
     let text: String
     let confidence: Double
+    var tokenObservations: [NativeCoreMLCTCTokenObservation] = []
+    var greedyObservation: NativeCoreMLGreedyRecognition? = nil
 }
 
 /// A small lock-protected LRU. Values contain no source pixels or tensors;
@@ -911,21 +1348,25 @@ private struct NativeCoreMLCachedRecognition: Equatable, Sendable {
 @available(iOS 18.0, *)
 private final class NativeCoreMLRecognitionCropCache: @unchecked Sendable {
     private struct Entry {
-        let value: NativeCoreMLCachedRecognition
-        var recency: UInt64
+        let fingerprint: NativeCoreMLRecognitionCropFingerprint
+        var value: NativeCoreMLCachedRecognition
+        var older: Int?
+        var newer: Int?
     }
 
     private let lock = NSLock()
     private let capacity: Int
-    private var clock: UInt64 = 0
     private var epoch: UInt64 = 0
-    private var entries: [
-        NativeCoreMLRecognitionCropFingerprint: Entry
-    ] = [:]
+    // Stable slots form the LRU list. At capacity a cold insert recycles the
+    // oldest slot, so eviction never scans the other decoded crops under lock.
+    private var slots: [NativeCoreMLRecognitionCropFingerprint: Int] = [:]
+    private var entries: [Entry] = []
+    private var oldest: Int?
+    private var newest: Int?
 
     init(capacity: Int) {
         self.capacity = max(0, capacity)
-        entries.reserveCapacity(max(0, capacity))
+        slots.reserveCapacity(self.capacity)
     }
 
     func currentEpoch() -> UInt64 {
@@ -943,11 +1384,9 @@ private final class NativeCoreMLRecognitionCropCache: @unchecked Sendable {
         }
         return lock.withLock {
             fingerprints.map { fingerprint in
-                guard var entry = entries[fingerprint] else { return nil }
-                clock &+= 1
-                entry.recency = clock
-                entries[fingerprint] = entry
-                return entry.value
+                guard let slot = slots[fingerprint] else { return nil }
+                touch(slot)
+                return entries[slot].value
             }
         }
     }
@@ -965,7 +1404,7 @@ private final class NativeCoreMLRecognitionCropCache: @unchecked Sendable {
             )
         }
         return lock.withLock {
-            fingerprints.map { entries[$0]?.value }
+            fingerprints.map { key in slots[key].map { entries[$0].value } }
         }
     }
 
@@ -977,25 +1416,54 @@ private final class NativeCoreMLRecognitionCropCache: @unchecked Sendable {
         guard capacity > 0 else { return }
         lock.withLock {
             guard epoch == expectedEpoch else { return }
-            clock &+= 1
-            entries[fingerprint] = Entry(value: value, recency: clock)
-            guard entries.count > capacity,
-                  let oldest = entries.min(by: {
-                      $0.value.recency < $1.value.recency
-                  })?.key
-            else {
+            if let slot = slots[fingerprint] {
+                entries[slot].value = value
+                touch(slot)
                 return
             }
-            entries.removeValue(forKey: oldest)
+            let slot: Int
+            if entries.count == capacity, let oldest {
+                slot = oldest
+                slots.removeValue(forKey: entries[slot].fingerprint)
+                unlink(slot)
+                entries[slot] = Entry(fingerprint: fingerprint, value: value)
+            } else {
+                slot = entries.count
+                entries.append(Entry(fingerprint: fingerprint, value: value))
+            }
+            slots[fingerprint] = slot
+            appendNewest(slot)
         }
     }
 
     func removeAll() {
         lock.withLock {
             epoch &+= 1
-            entries.removeAll(keepingCapacity: false)
-            clock = 0
+            slots.removeAll()
+            entries.removeAll()
+            oldest = nil
+            newest = nil
         }
+    }
+
+    private func touch(_ slot: Int) {
+        guard newest != slot else { return }
+        unlink(slot)
+        appendNewest(slot)
+    }
+
+    private func unlink(_ slot: Int) {
+        let older = entries[slot].older
+        let newer = entries[slot].newer
+        if let older { entries[older].newer = newer } else { oldest = newer }
+        if let newer { entries[newer].older = older } else { newest = older }
+    }
+
+    private func appendNewest(_ slot: Int) {
+        entries[slot].older = newest
+        entries[slot].newer = nil
+        if let newest { entries[newest].newer = slot } else { oldest = slot }
+        newest = slot
     }
 }
 
@@ -1009,9 +1477,9 @@ private final class NativeCoreMLRecognitionCropCache: @unchecked Sendable {
 /// before the next region, and can never publish a stale result.
 @available(iOS 18.0, *)
 final class NativeCoreMLRecognizer: @unchecked Sendable {
-    static let modelResourceName = "PP-OCRv6-Medium-RecWidths"
+    static let modelResourceName = "PP-OCRv6-Manga-RecWidths"
     static let dictionaryResourceName =
-        "ppocrv6_medium_rec_character_dict"
+        "ppocrv6_manga_rec_character_dict"
     static let inputFeatureName = "x"
     static let indexOutputFeatureName = "ctc_indices"
     static let scoreOutputFeatureName = "ctc_scores"
@@ -1021,7 +1489,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
     /// offline fixture configurations may use the model's wider contract.
     static let inputShape = [1, 3, 48, IPhoneOCRSettings.maximumRecognizerWidth]
     static let outputShape = [2, (IPhoneOCRSettings.maximumRecognizerWidth + 3) / 8]
-    static let expectedDictionaryCharacterCount = 18_709
+    static let expectedDictionaryCharacterCount = 19_054
     static let maximumConcurrentPreparations = 4
     static let maximumPreparedRegionCount = 8
     static let maximumPreparedWindowRegionCount = maximumPreparedRegionCount / 2
@@ -1149,12 +1617,26 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
     private let preparationVariants: [NativeCoreMLRecognitionModelVariant]
     private let idlePreparationEnabled: Bool
     private let dynamicWidthEnabled: Bool
+    private let mangaPublisherWidthEnabled: Bool
     /// One or two chunk predictions in flight within a prepared window.
     private let maximumConcurrentPredictions: Int
     private let maximumRecognitionWidth: Int
+    var recoverySequenceWidthLimit: Int { dynamicWidthEnabled ? maximumRecognitionWidth : 0 }
     private let recognitionCropCache: NativeCoreMLRecognitionCropCache
     private let auditObserver: (@Sendable (NativeCoreMLRecognitionAuditEvent) -> Void)?
+    private let languageModelLoader: @Sendable () throws -> NativeMangaNGram?
+    private let observeEmissionSpans: Bool
+    private let executionObserver: (@Sendable (NativeCoreMLRecognitionExecutionSnapshot) -> Void)?
     private var storedDiagnostics: NativeCoreMLRecognitionDiagnostics?
+
+    /// Resolve the page recorder at callback time, including on reused recognizers.
+    /// Keep the explicit observer independent; neither observer controls acceptance.
+    private func emitAudit(_ event: @autoclosure () -> NativeCoreMLRecognitionAuditEvent) {
+        guard auditObserver != nil || NativeCausalRawDecodeDiagnostics.current != nil else { return }
+        let value = event()
+        auditObserver?(value)
+        NativeCausalRawDecodeDiagnostics.observe(value)
+    }
 
     var lastDiagnostics: NativeCoreMLRecognitionDiagnostics? {
         diagnosticsLock.lock()
@@ -1174,11 +1656,23 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
             NativeCoreMLRecognizer.supportsIdleLongWidthPreparation,
         recognitionCacheCapacity: Int =
             NativeCoreMLRecognizer.defaultRecognitionCacheCapacity,
-        maximumRecognitionWidth: Int = IPhoneOCRSettings.defaultRecognizerMaximumWidth,
+        maximumRecognitionWidth: Int? = nil,
+        observeEmissionSpans: Bool = false,
+        executionObserver: (@Sendable (NativeCoreMLRecognitionExecutionSnapshot) -> Void)? = nil,
         auditObserver: (@Sendable (NativeCoreMLRecognitionAuditEvent) -> Void)? = nil
     ) {
+        let maximumRecognitionWidth = maximumRecognitionWidth ?? (modelResourceName == "PP-OCRv6-Manga-RecWidths"
+            ? IPhoneOCRSettings.mangaMaximumRecognizerWidth : IPhoneOCRSettings.defaultRecognizerMaximumWidth)
         self.auditObserver = auditObserver
+        self.observeEmissionSpans = observeEmissionSpans
+        self.executionObserver = executionObserver
+        if modelResourceName == "PP-OCRv6-Manga-RecWidths" {
+            languageModelLoader = { try NativeMangaNGram.bundled(in: bundle) }
+        } else {
+            languageModelLoader = { nil }
+        }
         dynamicWidthEnabled = modelResourceName.hasSuffix("-RecWidths")
+        mangaPublisherWidthEnabled = modelResourceName == "PP-OCRv6-Manga-RecWidths"
         maximumConcurrentPredictions = 2
         self.maximumRecognitionWidth = maximumRecognitionWidth
         let residentModelLimit = idleLongWidthPreparationEnabled ? 3 : 2
@@ -1250,10 +1744,16 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         dynamicWidth: Bool = false,
         maximumConcurrentPredictions: Int = 2,
         maximumRecognitionWidth: Int = IPhoneOCRSettings.defaultRecognizerMaximumWidth,
+        observeEmissionSpans: Bool = false,
+        executionObserver: (@Sendable (NativeCoreMLRecognitionExecutionSnapshot) -> Void)? = nil,
         auditObserver: (@Sendable (NativeCoreMLRecognitionAuditEvent) -> Void)? = nil
     ) throws {
         self.auditObserver = auditObserver
+        self.observeEmissionSpans = observeEmissionSpans
+        self.executionObserver = executionObserver
+        languageModelLoader = { nil }
         dynamicWidthEnabled = dynamicWidth
+        mangaPublisherWidthEnabled = false
         self.maximumConcurrentPredictions = min(2, max(1, maximumConcurrentPredictions))
         self.maximumRecognitionWidth = maximumRecognitionWidth
         guard dictionary.count == Self.expectedDictionaryCharacterCount
@@ -1381,6 +1881,23 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         cancellationCheck: @escaping @Sendable () throws -> Void
     ) async throws -> NativeCoreMLRecognitionResult {
         let issuedGeneration = generation.begin()
+        let observationSink = NativeCoreMLRecognitionObservations.current
+        let threshold = min(max(confidenceThreshold, 0), 1)
+        let observationPass = observationSink.map {
+            NativeCoreMLRecognitionObservationPass(sink: $0, request: .init(requestID: requestID,
+                generation: issuedGeneration, callerConfidenceThreshold: confidenceThreshold,
+                appliedConfidenceThreshold: threshold))
+        }
+        let observer = executionObserver
+        let rawRecorder = NativeCausalRawDecodeDiagnostics.current
+        let execution: NativeCoreMLRecognitionExecutionCounters? = observer != nil || rawRecorder != nil
+            ? .init(requestID: requestID, generation: issuedGeneration, observer: { snapshot in
+                observer?(snapshot)
+                rawRecorder?.recordExecution(snapshot)
+            }) : nil
+        // Structured prediction tasks have drained before this runs, including
+        // on cancellation/error. A reused recognizer cannot redirect this page.
+        defer { execution?.finish() }
         let recognitionCacheEpoch = recognitionCropCache.currentEpoch()
         let started = Self.nowMilliseconds()
 
@@ -1389,6 +1906,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                 issuedGeneration,
                 cancellationCheck: cancellationCheck
             )
+            try observationPass?.began(requestedRegions: regions.count)
             let resourceAccess = try await resourceStore.load(admissionCheck: {
                 try self.requireCurrent(
                     issuedGeneration,
@@ -1416,6 +1934,9 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
             )
 
             var recognized: [NativeCoreMLRecognizedRegion] = []
+            var multilineCandidates: [NativeCoreMLRecognizedRegion] = []
+            var leadingDashCandidates: [NativeCoreMLRecognitionRegion] = []
+            var emptyFinePrintCandidates: [NativeCoreMLRecognitionRegion] = []
             recognized.reserveCapacity(regions.count)
             var predictedRegions = 0
             var cacheHitRegions = 0
@@ -1427,7 +1948,6 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
             var modelFunctionLoadSequence: [String] = []
             var modelFunctionLoads = 0
             var modelFunctionLoadMilliseconds = 0.0
-            let threshold = min(max(confidenceThreshold, 0), 1)
             var plannedRegions: [NativeCoreMLPlannedRegionWork] = []
             plannedRegions.reserveCapacity(regions.count)
 
@@ -1436,16 +1956,19 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                     issuedGeneration,
                     cancellationCheck: cancellationCheck
                 )
-                if let auditObserver {
-                    auditObserver(.requested(requestID: requestID, region: region))
+                emitAudit(.requested(requestID: requestID, region: region))
+                if let observationPass {
+                    try observationPass.sink.record(.requested(request: observationPass.request, region: region))
                 }
                 let preprocessingStarted = Self.nowMilliseconds()
                 let plan = NativeCoreMLRecognitionPreprocessor.plan(
-                    polygon: region.polygon,
+                    polygon: region.samplingPolygon ?? region.polygon,
                     dynamicWidth: dynamicWidthEnabled,
                     maximumWidth: maximumRecognitionWidth,
+                    mangaPublisherWidth: mangaPublisherWidthEnabled,
                     useProvidedOrder: region.useProvidedOrder,
-                    minimumSequenceWidth: region.minimumSequenceWidth
+                    minimumSequenceWidth: region.minimumSequenceWidth,
+                    photometricMode: region.photometricMode
                 )
                 try requireCurrent(
                     issuedGeneration,
@@ -1554,6 +2077,8 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                     predictor: resourceAccess.resources.predictor,
                     dictionary: resourceAccess.resources.dictionary,
                     recognitionCacheEpoch: recognitionCacheEpoch,
+                    execution: execution,
+                    observationPass: observationPass,
                     generation: issuedGeneration,
                     cancellationCheck: cancellationCheck
                 ) { step in
@@ -1574,8 +2099,12 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                     predictedRegions += step.predictedRegions
                     cacheHitRegions += step.cacheHitRegions
                     recognized.append(contentsOf: step.recognizedRegions)
+                    multilineCandidates.append(contentsOf: step.multilineCandidates)
+                    leadingDashCandidates.append(contentsOf: step.leadingDashCandidates)
+                    emptyFinePrintCandidates.append(contentsOf: step.emptyFinePrintCandidates)
                 }
             })
+
             recognized.sort { $0.sourceIndex < $1.sourceIndex }
 
             try requireCurrent(
@@ -1593,8 +2122,8 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                     resourceAccess.resources.predictor.inputFeatureName,
                 outputFeatureName:
                     resourceAccess.resources.predictor.outputFeatureName,
-                inputShape: Self.inputShape,
-                outputShape: Self.outputShape,
+                inputShape: [1, 3, 48, maximumRecognitionWidth],
+                outputShape: [2, (maximumRecognitionWidth + 3) / 8],
                 requestedRegions: regions.count,
                 predictedRegions: predictedRegions,
                 cacheHitRegions: cacheHitRegions,
@@ -1618,6 +2147,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                 decodingMilliseconds: decodingMilliseconds,
                 totalMilliseconds: Self.nowMilliseconds() - started
             )
+            try observationPass?.finished(decodedRegions: predictedRegions + cacheHitRegions)
             store(diagnostics)
             return NativeCoreMLRecognitionResult(
                 requestID: requestID,
@@ -1800,6 +2330,8 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         predictor: any NativeCoreMLRecognitionPredicting,
         dictionary: [String],
         recognitionCacheEpoch: UInt64,
+        execution: NativeCoreMLRecognitionExecutionCounters?,
+        observationPass: NativeCoreMLRecognitionObservationPass?,
         generation issuedGeneration: UInt64,
         cancellationCheck: @escaping @Sendable () throws -> Void,
         accumulate: (NativeCoreMLRecognitionStreamingChunkStep) -> Void
@@ -1829,6 +2361,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                     (index, attempt, await self.predictChunkGroups(
                         lookup,
                         predictor: predictor,
+                        execution: execution,
                         generation: issuedGeneration,
                         cancellationCheck: cancellationCheck
                     ))
@@ -1908,6 +2441,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                     threshold: threshold,
                     dictionary: dictionary,
                     recognitionCacheEpoch: recognitionCacheEpoch,
+                    observationPass: observationPass,
                     generation: issuedGeneration,
                     cancellationCheck: cancellationCheck
                 )
@@ -1941,6 +2475,11 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                             if attempt == attempts[completedIndex] {
                                 completed[completedIndex] = value
                             }
+                        }
+                        if let execution, let discarded = completed[next], let peek = lookups[next] {
+                            execution.discardedLookahead(plannedCrops: peek.uncachedWorks.count,
+                                completedPredictions: discarded.groups.count,
+                                completedCrops: discarded.groups.reduce(0) { $0 + $1.works.count })
                         }
                         completed[next] = nil
                     }
@@ -2021,6 +2560,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
     private func predictChunkGroups(
         _ lookup: NativeCoreMLChunkCacheLookup,
         predictor: any NativeCoreMLRecognitionPredicting,
+        execution: NativeCoreMLRecognitionExecutionCounters?,
         generation issuedGeneration: UInt64,
         cancellationCheck: @escaping @Sendable () throws -> Void
     ) async -> NativeCoreMLChunkPredictionOutcome {
@@ -2052,6 +2592,8 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                     prediction = try await predict(
                         input: input,
                         using: predictor,
+                        actualCrops: group.count,
+                        execution: execution,
                         generation: issuedGeneration,
                         cancellationCheck: cancellationCheck
                     )
@@ -2104,27 +2646,54 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         threshold: Double,
         dictionary: [String],
         recognitionCacheEpoch: UInt64,
+        observationPass: NativeCoreMLRecognitionObservationPass?,
         generation issuedGeneration: UInt64,
         cancellationCheck: @escaping @Sendable () throws -> Void
     ) throws -> NativeCoreMLRecognitionStreamingChunkStep {
         var recognizedRegions: [NativeCoreMLRecognizedRegion] = []
-        for (preparedWork, cached) in zip(lookup.works, lookup.cachedValues) {
-            guard let cached else { continue }
-            if let auditObserver {
-                auditObserver(.decoded(
-                    requestID: requestID, region: preparedWork.work.region,
-                    text: cached.text, confidence: cached.confidence,
-                    threshold: threshold, cacheHit: true
-                ))
+        var multilineCandidates: [NativeCoreMLRecognizedRegion] = []
+        var leadingDashCandidates: [NativeCoreMLRecognitionRegion] = []
+        var emptyFinePrintCandidates: [NativeCoreMLRecognitionRegion] = []
+        func admit(_ read: NativeCoreMLCachedRecognition, for preparedWork: NativeCoreMLPreparedRegionWork, cacheHit: Bool) throws {
+            if let observationPass {
+                let admitted = !read.text.isEmpty && read.confidence >= threshold
+                let reason: NativeCoreMLRecognitionObservations.AdmissionReason = admitted ? .accepted
+                    : read.text.isEmpty ? .empty : !read.confidence.isFinite ? .nonFiniteConfidence : .belowThreshold
+                try observationPass.sink.record(.decoded(.init(request: observationPass.request,
+                    region: preparedWork.work.region, finalText: read.text, finalConfidence: read.confidence,
+                    tokenObservations: read.tokenObservations, greedyObservation: read.greedyObservation,
+                    cacheHit: cacheHit, admitted: admitted, reason: reason)))
             }
-            if !cached.text.isEmpty, cached.confidence >= threshold {
+            emitAudit(.decoded(
+                requestID: requestID, region: preparedWork.work.region,
+                text: read.text, confidence: read.confidence,
+                threshold: threshold, cacheHit: cacheHit
+            ))
+            if !read.text.isEmpty, read.confidence >= threshold {
                 recognizedRegions.append(NativeCoreMLRecognizedRegion(
                     sourceIndex: preparedWork.work.region.sourceIndex,
                     polygon: preparedWork.work.region.polygon,
-                    text: cached.text,
-                    confidence: cached.confidence
+                    text: read.text,
+                    confidence: read.confidence, tokenObservations: read.tokenObservations
                 ))
             }
+            if preparedWork.work.region.recognitionColumnEvidence != nil {
+                let candidate = NativeCoreMLRecognizedRegion(
+                    sourceIndex: preparedWork.work.region.sourceIndex,
+                    polygon: preparedWork.work.region.polygon,
+                    text: read.text, confidence: read.confidence
+                )
+                if NativeOCRMultilineColumnRecovery.eligible(candidate) { multilineCandidates.append(candidate) }
+            }
+            if read.text.isEmpty || read.confidence < 0.35 {
+                leadingDashCandidates.append(preparedWork.work.region)
+            }
+            if read.text.isEmpty, preparedWork.work.region.isThinFinePrintRecovery {
+                emptyFinePrintCandidates.append(preparedWork.work.region)
+            }
+        }
+        for (preparedWork, cached) in zip(lookup.works, lookup.cachedValues) {
+            if let cached { try admit(cached, for: preparedWork, cacheHit: true) }
         }
 
         var preprocessingMilliseconds = 0.0
@@ -2167,7 +2736,10 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                 let decoded = try NativeCoreMLCTCDecoder.decode(
                     output: output,
                     dictionary: dictionary,
-                    expectedShape: Self.outputShape
+                    expectedShape: Self.outputShape,
+                    languageModel: languageModelLoader(),
+                    observeEmissionSpans: observeEmissionSpans,
+                    observeGreedy: observationPass != nil
                 )
                 decodingMilliseconds += Self.nowMilliseconds()
                     - decodingStarted
@@ -2175,40 +2747,25 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
                     issuedGeneration,
                     cancellationCheck: cancellationCheck
                 )
+                let read = NativeCoreMLCachedRecognition(text: decoded.text,
+                    confidence: decoded.confidence, tokenObservations: decoded.tokenObservations,
+                    greedyObservation: decoded.greedyObservation)
                 recognitionCropCache.insert(
-                    NativeCoreMLCachedRecognition(
-                        text: decoded.text,
-                        confidence: decoded.confidence
-                    ),
+                    read,
                     for: preparedWork.fingerprint,
                     ifCurrent: recognitionCacheEpoch
                 )
-                if let auditObserver {
-                    auditObserver(.decoded(
-                        requestID: requestID, region: preparedWork.work.region,
-                        text: decoded.text, confidence: decoded.confidence,
-                        threshold: threshold, cacheHit: false
-                    ))
-                }
-                if !decoded.text.isEmpty,
-                   decoded.confidence >= threshold {
-                    recognizedRegions.append(
-                        NativeCoreMLRecognizedRegion(
-                            sourceIndex:
-                                preparedWork.work.region.sourceIndex,
-                            polygon: preparedWork.work.region.polygon,
-                            text: decoded.text,
-                            confidence: decoded.confidence
-                        )
-                    )
-                }
+                try admit(read, for: preparedWork, cacheHit: false)
             }
         }
         if let error = outcome.error {
             throw error
         }
         return NativeCoreMLRecognitionStreamingChunkStep(
+            multilineCandidates: multilineCandidates,
             recognizedRegions: recognizedRegions,
+            leadingDashCandidates: leadingDashCandidates,
+            emptyFinePrintCandidates: emptyFinePrintCandidates,
             predictedRegions: predictedRegions,
             cacheHitRegions: lookup.cacheHitRegions,
             skippedInvalidRegions: 0,
@@ -2237,6 +2794,8 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
     private func predict(
         input: MLMultiArray,
         using predictor: any NativeCoreMLRecognitionPredicting,
+        actualCrops: Int,
+        execution: NativeCoreMLRecognitionExecutionCounters?,
         generation issuedGeneration: UInt64,
         cancellationCheck: @escaping @Sendable () throws -> Void
     ) async throws -> NativeCoreMLRecognitionPrediction {
@@ -2244,6 +2803,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
             issuedGeneration,
             cancellationCheck: cancellationCheck
         )
+        execution?.attempted(crops: actualCrops, batchSlots: input.shape[0].intValue)
         let output = try await predictor.predict(input: input)
         try requireCurrent(
             issuedGeneration,
@@ -2346,6 +2906,16 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
             var line = String(rawLine)
             if line.hasSuffix("\r") {
                 line.removeLast()
+            }
+            // An unescaped JSON string contains its token's exact UTF-8 bytes.
+            // Let JSONDecoder handle escapes, surrounding whitespace and malformed lines.
+            let bytes = line.utf8
+            if bytes.count >= 2, bytes.first == UInt8(ascii: "\""), bytes.last == UInt8(ascii: "\"") {
+                let token = bytes.dropFirst().dropLast()
+                if token.allSatisfy({ $0 >= 0x20 && $0 != UInt8(ascii: "\"") && $0 != UInt8(ascii: "\\") }) {
+                    characters.append(String(decoding: token, as: UTF8.self))
+                    continue
+                }
             }
             guard let lineData = line.data(using: .utf8) else {
                 throw NativeCoreMLRecognizerError.dictionaryMalformed(
@@ -2470,7 +3040,10 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
 
 @available(iOS 18.0, *)
 private struct NativeCoreMLRecognitionStreamingChunkStep: Sendable {
+    let multilineCandidates: [NativeCoreMLRecognizedRegion]
     let recognizedRegions: [NativeCoreMLRecognizedRegion]
+    let leadingDashCandidates: [NativeCoreMLRecognitionRegion]
+    let emptyFinePrintCandidates: [NativeCoreMLRecognitionRegion]
     let predictedRegions: Int
     let cacheHitRegions: Int
     let skippedInvalidRegions: Int
@@ -2599,12 +3172,14 @@ struct NativeCoreMLPreparedTensor: Equatable, Sendable {
     let resizedWidth: Int
     let bucket: NativeCoreMLRecognitionBucket
     let rotatedCounterClockwise: Bool
+    var photometricMode: NativeCoreMLRecognitionPhotometricMode = .original
 }
 
 @available(iOS 18.0, *)
 enum NativeCoreMLRecognitionPreprocessor {
     static let targetHeight = 48
     static let maximumTargetWidth = 2_000
+    static let mangaWidthPolicyVersion = "manga-publisher-rounded48-640-over2000-2400-v1"
 
     struct Plan: Sendable {
         let resizedWidth: Int
@@ -2615,6 +3190,7 @@ enum NativeCoreMLRecognitionPreprocessor {
         fileprivate let orientedWidth: Int
         fileprivate let orientedHeight: Int
         fileprivate let homography: Homography
+        let photometricMode: NativeCoreMLRecognitionPhotometricMode
     }
 
     fileprivate struct Quad: Sendable {
@@ -2659,8 +3235,10 @@ enum NativeCoreMLRecognitionPreprocessor {
         polygon: [CGPoint],
         dynamicWidth: Bool = false,
         maximumWidth: Int = IPhoneOCRSettings.defaultRecognizerMaximumWidth,
+        mangaPublisherWidth: Bool = false,
         useProvidedOrder: Bool = false,
-        minimumSequenceWidth: Int = 0
+        minimumSequenceWidth: Int = 0,
+        photometricMode: NativeCoreMLRecognitionPhotometricMode = .original
     ) -> Plan? {
         guard let quad = makeQuad(polygon, useProvidedOrder: useProvidedOrder),
               let homography = makeHomography(quad)
@@ -2679,21 +3257,37 @@ enum NativeCoreMLRecognitionPreprocessor {
         let cropHeight = max(1, Int(floor(height)))
         guard cropWidth > 1, cropHeight > 1 else { return nil }
 
-        let rotated = Double(cropHeight) / Double(cropWidth) >= 1.5
+        // Decide the reading axis before raster rounding. Flooring short edges
+        // can turn a 1.49 aspect ratio into 1.5 and rotate the same lettering
+        // differently at different detector resolutions.
+        let rotated = height / width >= 1.5
         let orientedWidth = rotated ? cropHeight : cropWidth
         let orientedHeight = rotated ? cropWidth : cropHeight
         let ratio = Double(orientedWidth) / Double(max(1, orientedHeight))
-        let desiredWidth = Int(min(
+        let legacyWidth = Int(min(
             Double(maximumTargetWidth),
             max(1, ceil(Double(targetHeight) * ratio))
         ))
+        // Publisher's rule uses the natural width BEFORE clipping: ordinary
+        // lines cap at 640, only natural widths above 2000 can use up to 2400.
+        // Keep explicit contextual sequence samples on their existing contract.
+        let desiredWidth: Int
+        if mangaPublisherWidth && minimumSequenceWidth == 0 {
+            let naturalWidth = (Double(targetHeight) * ratio).rounded(.toNearestOrEven)
+            desiredWidth = Int(max(1, min(naturalWidth > 2_000 ? 2_400 : 640, naturalWidth)))
+        } else {
+            desiredWidth = legacyWidth
+        }
         // Every admitted contextual request must materialize its declared
         // sequence width. Static models or a smaller cap cannot supply two
         // distinct widths, so they must not masquerade as corroborating reads.
         let padsShortSequence = minimumSequenceWidth != 0
         if padsShortSequence {
-            guard dynamicWidth, desiredWidth < 160,
-                  minimumSequenceWidth == 160 || minimumSequenceWidth == 192,
+            let supportedContextWidth = minimumSequenceWidth == 160 || minimumSequenceWidth == 192
+                ? desiredWidth < 160
+                : [256, 320, 384, 448, 512, 576, 640, 704, 768, 832].contains(minimumSequenceWidth)
+                    && desiredWidth < minimumSequenceWidth
+            guard dynamicWidth, supportedContextWidth,
                   maximumWidth >= minimumSequenceWidth else { return nil }
         }
         // Sampling keeps the original resizedWidth; ordinary crops stay exact.
@@ -2712,7 +3306,8 @@ enum NativeCoreMLRecognitionPreprocessor {
             cropHeight: cropHeight,
             orientedWidth: orientedWidth,
             orientedHeight: orientedHeight,
-            homography: homography
+            homography: homography,
+            photometricMode: photometricMode
         )
     }
 
@@ -2743,6 +3338,9 @@ enum NativeCoreMLRecognitionPreprocessor {
             return min(max(orientedX / (plan.rotatedCounterClockwise ? cropHeight : cropWidth), 0), 1)
         }
 
+        let axis = isAffine && homography.b == 0 && homography.d == 0
+            ? sampleAxisAligned(frame: frame, plan: plan, columns: columnCoordinates) : nil
+
         // This remains the exact scalar Paddle/OpenCV sampling contract, but
         // all CGPoint construction and nested per-channel closures are removed.
         // The immutable source and disjoint output slots also make this kernel
@@ -2755,6 +3353,13 @@ enum NativeCoreMLRecognitionPreprocessor {
                     valid = false
                     return
                 }
+                if plan.rotatedCounterClockwise, let axis,
+                   let first = axis.y.first, let last = axis.y.last,
+                   abs(last.near - first.near) / frame.bytesPerRow < axis.y.count {
+                    sampleUpscaledVertical(source: source, output: output, xAxis: axis.x,
+                                           yAxis: axis.y, targetWidth: targetWidth, planeSize: planeSize)
+                    return
+                }
                 for row in 0..<targetHeight {
                     let orientedY =
                         (Double(row) + 0.5) * orientedHeight
@@ -2763,48 +3368,62 @@ enum NativeCoreMLRecognitionPreprocessor {
                         ? min(max((Double(plan.cropWidth - 1) - orientedY) / cropWidth, 0), 1)
                         : min(max(orientedY / cropHeight, 0), 1)
                     for column in 0..<plan.resizedWidth {
-                        let u = plan.rotatedCounterClockwise ? rowCoordinate : columnCoordinates[column]
-                        let v = plan.rotatedCounterClockwise ? columnCoordinates[column] : rowCoordinate
-                        var projectedX = homography.a * u
-                            + homography.b * v + homography.c
-                        var projectedY = homography.d * u
-                            + homography.e * v + homography.f
-                        if !isAffine {
-                            let denominator = homography.g * u
-                                + homography.h * v + 1
-                            guard denominator.isFinite,
-                                  abs(denominator) > 0.000_000_1
-                            else {
+                        let xWeight, yWeight: Double
+                        let topLeft, topRight, bottomLeft, bottomRight: Int
+                        if let axis {
+                            let x = axis.x[plan.rotatedCounterClockwise ? row : column]
+                            let y = axis.y[plan.rotatedCounterClockwise ? column : row]
+                            xWeight = x.weight
+                            yWeight = y.weight
+                            topLeft = y.near + x.near
+                            topRight = y.near + x.far
+                            bottomLeft = y.far + x.near
+                            bottomRight = y.far + x.far
+                        } else {
+                            let u = plan.rotatedCounterClockwise ? rowCoordinate : columnCoordinates[column]
+                            let v = plan.rotatedCounterClockwise ? columnCoordinates[column] : rowCoordinate
+                            var projectedX = homography.a * u
+                                + homography.b * v + homography.c
+                            var projectedY = homography.d * u
+                                + homography.e * v + homography.f
+                            if !isAffine {
+                                let denominator = homography.g * u
+                                    + homography.h * v + 1
+                                guard denominator.isFinite,
+                                      abs(denominator) > 0.000_000_1
+                                else {
+                                    valid = false
+                                    return
+                                }
+                                projectedX /= denominator
+                                projectedY /= denominator
+                            }
+                            let sourceX = min(max(
+                                projectedX,
+                                0
+                            ), sourceMaximumX)
+                            let sourceY = min(max(
+                                projectedY,
+                                0
+                            ), sourceMaximumY)
+                            guard sourceX.isFinite, sourceY.isFinite else {
                                 valid = false
                                 return
                             }
-                            projectedX /= denominator
-                            projectedY /= denominator
+                            let x0 = Int(floor(sourceX))
+                            let y0 = Int(floor(sourceY))
+                            let x1 = min(x0 + 1, frame.width - 1)
+                            let y1 = min(y0 + 1, frame.height - 1)
+                            xWeight = sourceX - Double(x0)
+                            yWeight = sourceY - Double(y0)
+                            topLeft = y0 * frame.bytesPerRow + x0 * 4
+                            topRight = y0 * frame.bytesPerRow + x1 * 4
+                            bottomLeft = y1 * frame.bytesPerRow + x0 * 4
+                            bottomRight = y1 * frame.bytesPerRow + x1 * 4
+
                         }
-                        let sourceX = min(max(
-                            projectedX,
-                            0
-                        ), sourceMaximumX)
-                        let sourceY = min(max(
-                            projectedY,
-                            0
-                        ), sourceMaximumY)
-                        guard sourceX.isFinite, sourceY.isFinite else {
-                            valid = false
-                            return
-                        }
-                        let x0 = Int(floor(sourceX))
-                        let y0 = Int(floor(sourceY))
-                        let x1 = min(x0 + 1, frame.width - 1)
-                        let y1 = min(y0 + 1, frame.height - 1)
-                        let xWeight = sourceX - Double(x0)
-                        let yWeight = sourceY - Double(y0)
                         let inverseXWeight = 1 - xWeight
                         let inverseYWeight = 1 - yWeight
-                        let topLeft = y0 * frame.bytesPerRow + x0 * 4
-                        let topRight = y0 * frame.bytesPerRow + x1 * 4
-                        let bottomLeft = y1 * frame.bytesPerRow + x0 * 4
-                        let bottomRight = y1 * frame.bytesPerRow + x1 * 4
 
                         @inline(__always)
                         func interpolate(_ channel: Int) -> Float {
@@ -2832,12 +3451,146 @@ enum NativeCoreMLRecognitionPreprocessor {
             }
         }
         guard valid else { return nil }
+        if plan.photometricMode == .luminanceContrast {
+            applyLuminanceContrast(values: &values, resizedWidth: plan.resizedWidth, targetWidth: targetWidth)
+        }
         return NativeCoreMLPreparedTensor(
             values: values,
             resizedWidth: plan.resizedWidth,
             bucket: plan.bucket,
-            rotatedCounterClockwise: plan.rotatedCounterClockwise
+            rotatedCounterClockwise: plan.rotatedCounterClockwise,
+            photometricMode: plan.photometricMode
         )
+    }
+
+    /// On a rotated axis-aligned crop, an output row holds its source X fixed.
+    /// Adjacent columns can therefore reuse the exact horizontal interpolation
+    /// when bilinear sampling revisits either of the same two source rows.
+    private static func sampleUpscaledVertical(
+        source: UnsafePointer<UInt8>, output: UnsafeMutablePointer<Float>,
+        xAxis: [AxisSample], yAxis: [AxisSample], targetWidth: Int, planeSize: Int
+    ) {
+        typealias RGB = (red: Double, green: Double, blue: Double)
+        for (row, x) in xAxis.enumerated() {
+            let inverseX = 1 - x.weight
+            let leftColumn = source + x.near
+            let rightColumn = source + x.far
+            @inline(__always)
+            func horizontal(_ rowOffset: Int) -> RGB {
+                let left = leftColumn + rowOffset
+                let right = rightColumn + rowOffset
+                return (
+                    Double(left[0]) * inverseX + Double(right[0]) * x.weight,
+                    Double(left[1]) * inverseX + Double(right[1]) * x.weight,
+                    Double(left[2]) * inverseX + Double(right[2]) * x.weight
+                )
+            }
+            var nearOffset = -1, farOffset = -1
+            var top: RGB = (0, 0, 0), bottom: RGB = (0, 0, 0)
+            let line = output + row * targetWidth
+            for (column, y) in yAxis.enumerated() {
+                if y.near != nearOffset {
+                    let previousTop = top
+                    top = y.near == farOffset ? bottom : horizontal(y.near)
+                    bottom = y.far == nearOffset ? previousTop : horizontal(y.far)
+                    nearOffset = y.near
+                    farOffset = y.far
+                }
+                let inverseY = 1 - y.weight
+                line[column] = Float((top.blue * inverseY + bottom.blue * y.weight) / 127.5 - 1)
+                line[planeSize + column] = Float((top.green * inverseY + bottom.green * y.weight) / 127.5 - 1)
+                line[planeSize * 2 + column] = Float((top.red * inverseY + bottom.red * y.weight) / 127.5 - 1)
+            }
+        }
+    }
+
+    private struct AxisSample {
+        let near: Int
+        let far: Int
+        let weight: Double
+    }
+
+    /// Exact separable axis-aligned warp. Generic affine/projective paths
+    /// still exercise their existing per-cell projection and validity rules.
+    private static func sampleAxisAligned(frame: NativeOCRRGBAFrame, plan: Plan, columns: [Double]) -> (x: [AxisSample], y: [AxisSample])? {
+        let homography = plan.homography
+        let rotated = plan.rotatedCounterClockwise
+        let cropWidth = Double(plan.cropWidth)
+        let cropHeight = Double(plan.cropHeight)
+        let orientedHeight = Double(plan.orientedHeight)
+        let rows = (0..<targetHeight).map { row in
+            let y = (Double(row) + 0.5) * orientedHeight / Double(targetHeight) - 0.5
+            return rotated ? min(max((Double(plan.cropWidth - 1) - y) / cropWidth, 0), 1) : min(max(y / cropHeight, 0), 1)
+        }
+        func samples(_ coordinates: [Double], horizontal: Bool) -> [AxisSample]? {
+            let maximum = horizontal ? frame.width - 1 : frame.height - 1
+            let stride = horizontal ? 4 : frame.bytesPerRow
+            var result: [AxisSample] = []
+            result.reserveCapacity(coordinates.count)
+            for coordinate in coordinates {
+                // Keep multiply/add order used by the generic branch. The
+                // omitted coordinate has zero coefficient; its only possible
+                // IEEE difference is the sign of zero, which clamps to the
+                // same source pixel and normalizes identically.
+                let projected = horizontal
+                    ? homography.a * coordinate + homography.b * 0 + homography.c
+                    : homography.d * 0 + homography.e * coordinate + homography.f
+                let source = min(max(projected, 0), Double(maximum))
+                guard source.isFinite else { return nil }
+                let near = Int(floor(source))
+                let far = min(near + 1, maximum)
+                let weight = source - Double(near)
+                result.append(.init(near: near * stride, far: far * stride, weight: weight))
+            }
+            return result
+        }
+        guard let xs = samples(rotated ? rows : columns, horizontal: true),
+              let ys = samples(rotated ? columns : rows, horizontal: false) else { return nil }
+        return (xs, ys)
+    }
+
+    /// Optional numeric model-input transform only. Statistics exclude padding
+    /// and use the actual sampled crop, never DB masks or inferred characters.
+    /// P2/P98 limit outliers; a 32...192 level span and <=2x gain avoid amplifying
+    /// flat input or changing already high-contrast observations. Gamma is 1.
+    /// Output is grayscale; source pixels, geometry and normalized padding stay
+    /// untouched. Monotonic luminance preserves polarity, not chromatic detail.
+    private static func applyLuminanceContrast(values: inout [Float], resizedWidth: Int, targetWidth: Int) {
+        let plane = targetHeight * targetWidth
+        var histogram = [Int](repeating: 0, count: 256)
+        func luminance(_ index: Int) -> Double {
+            (0.0722 * Double(values[index]) + 0.7152 * Double(values[plane + index])
+                + 0.2126 * Double(values[plane * 2 + index]) + 1) * 127.5
+        }
+        for row in 0..<targetHeight {
+            for column in 0..<resizedWidth {
+                let value = luminance(row * targetWidth + column)
+                histogram[min(255, max(0, Int(value.rounded())))] += 1
+            }
+        }
+        let count = targetHeight * resizedWidth
+        func percentile(_ percent: Int) -> Int {
+            let rank = (count - 1) * percent / 100
+            var cumulative = 0
+            for value in 0..<256 {
+                cumulative += histogram[value]
+                if cumulative > rank { return value }
+            }
+            return 255
+        }
+        let low = percentile(2), high = percentile(98), span = high - low
+        guard (32...192).contains(span) else { return }
+        let gain = min(2, 255 / Double(span)), midpoint = Double(low + high) / 2
+        for row in 0..<targetHeight {
+            for column in 0..<resizedWidth {
+                let index = row * targetWidth + column
+                let transformed = min(255, max(0, (luminance(index) - midpoint) * gain + 127.5))
+                let normalized = Float(transformed / 127.5 - 1)
+                values[index] = normalized
+                values[plane + index] = normalized
+                values[plane * 2 + index] = normalized
+            }
+        }
     }
 
 #if DEBUG
@@ -3027,6 +3780,9 @@ enum NativeCoreMLRecognitionPreprocessor {
 struct NativeCoreMLDecodedText: Equatable, Sendable {
     let text: String
     let confidence: Double
+    var tokenObservations: [NativeCoreMLCTCTokenObservation] = []
+    var languageModelCorrections: Int = 0
+    var greedyObservation: NativeCoreMLGreedyRecognition? = nil
 }
 
 @available(iOS 18.0, *)
@@ -3034,17 +3790,28 @@ enum NativeCoreMLCTCDecoder {
     static func decode(
         output: MLMultiArray,
         dictionary: [String],
-        expectedShape: [Int]
+        expectedShape: [Int],
+        languageModel: NativeMangaNGram? = nil,
+        observeEmissionSpans: Bool = false,
+        observeGreedy: Bool = false
     ) throws -> NativeCoreMLDecodedText {
         let actualShape = output.shape.map(\.intValue)
         if actualShape.count == 2,
-           actualShape[0] == 2,
+           (actualShape[0] == 2 || actualShape[0] == 10),
            (4...400).contains(actualShape[1]) {
-            return try decodeCompact(
+            var decoded = try decodeCompact(
                 output: output,
                 dictionary: dictionary,
-                timeSteps: actualShape[1]
+                timeSteps: actualShape[1],
+                observeEmissionSpans: observeEmissionSpans
             )
+            if observeGreedy {
+                decoded.greedyObservation = .init(text: decoded.text, confidence: decoded.confidence,
+                    tokenObservations: decoded.tokenObservations)
+            }
+            guard actualShape[0] == 10, let languageModel else { return decoded }
+            return try correctCompact(output: output, decoded: decoded, dictionary: dictionary,
+                timeSteps: actualShape[1], model: languageModel)
         }
         guard actualShape == expectedShape,
               output.strides.count == 3
@@ -3065,55 +3832,110 @@ enum NativeCoreMLCTCDecoder {
         let batchOffset = output.strides[0].intValue
         let timeStride = output.strides[1].intValue
         let classStride = output.strides[2].intValue
+        var decoded: NativeCoreMLDecodedText
         switch output.dataType {
         case .float32:
             let pointer = output.dataPointer.assumingMemoryBound(
                 to: Float.self
             )
-            return decode(
+            decoded = decode(
                 pointer: pointer,
                 batchOffset: 0 * batchOffset,
                 timeSteps: timeSteps,
                 classes: classes,
                 timeStride: timeStride,
                 classStride: classStride,
-                dictionary: dictionary
+                dictionary: dictionary,
+                observeEmissionSpans: observeEmissionSpans
             )
         case .float16:
             let pointer = output.dataPointer.assumingMemoryBound(
                 to: Float16.self
             )
-            return decode(
+            decoded = decode(
                 pointer: pointer,
                 batchOffset: 0 * batchOffset,
                 timeSteps: timeSteps,
                 classes: classes,
                 timeStride: timeStride,
                 classStride: classStride,
-                dictionary: dictionary
+                dictionary: dictionary,
+                observeEmissionSpans: observeEmissionSpans
             )
         case .double:
             let pointer = output.dataPointer.assumingMemoryBound(
                 to: Double.self
             )
-            return decode(
+            decoded = decode(
                 pointer: pointer,
                 batchOffset: 0 * batchOffset,
                 timeSteps: timeSteps,
                 classes: classes,
                 timeStride: timeStride,
                 classStride: classStride,
-                dictionary: dictionary
+                dictionary: dictionary,
+                observeEmissionSpans: observeEmissionSpans
             )
         default:
             throw NativeCoreMLRecognizerError.unsupportedModelOutputType
         }
+        if observeGreedy {
+            decoded.greedyObservation = .init(text: decoded.text, confidence: decoded.confidence,
+                tokenObservations: decoded.tokenObservations)
+        }
+        return decoded
+    }
+
+    private static func correctCompact(output: MLMultiArray, decoded: NativeCoreMLDecodedText,
+                                       dictionary: [String], timeSteps: Int, model: NativeMangaNGram) throws -> NativeCoreMLDecodedText {
+        let pointer = output.dataPointer.assumingMemoryBound(to: Float.self)
+        let rowStride = output.strides[0].intValue, timeStride = output.strides[1].intValue
+        var previous = -1
+        var candidates: [[NativeMangaNGram.Choice]] = []
+        for step in 0..<timeSteps {
+            let index = Int(pointer[step * timeStride])
+            let score = Double(pointer[rowStride + step * timeStride])
+            if index > 0 {
+                let base = NativeMangaNGram.Choice(text: dictionary[index - 1], probability: score)
+                if index != previous { candidates.append([base]) }
+                if score >= (candidates.last?.first?.probability ?? 0) {
+                    var choices = [base], seen: Set<Int> = [index]
+                    for rank in 0..<4 {
+                        let raw = pointer[(2 + rank * 2) * rowStride + step * timeStride]
+                        let probability = pointer[(3 + rank * 2) * rowStride + step * timeStride]
+                        guard raw.isFinite, raw.rounded(.towardZero) == raw, raw >= 0, raw <= Float(dictionary.count),
+                              probability.isFinite, probability >= 0, probability <= 1.001 else {
+                            throw NativeCoreMLRecognizerError.unsupportedModelOutputType
+                        }
+                        let alternative = Int(raw)
+                        if alternative > 0, seen.insert(alternative).inserted {
+                            choices.append(.init(text: dictionary[alternative - 1], probability: Double(probability)))
+                        }
+                    }
+                    candidates[candidates.count - 1] = choices
+                }
+            }
+            previous = index
+        }
+        guard candidates.count == decoded.tokenObservations.count else {
+            throw NativeCoreMLRecognizerError.unsupportedModelOutputType
+        }
+        let result = model.correct(candidates)
+        guard result.changedTokens > 0 else { return decoded }
+        // Acceptance confidence remains the original visual confidence. LM
+        // scores neither inflate nor replace the detector/recognizer signal.
+        return NativeCoreMLDecodedText(text: result.choices.map(\.text).joined(), confidence: decoded.confidence,
+            tokenObservations: zip(result.choices, decoded.tokenObservations).map { choice, original in
+                .init(text: choice.text, confidence: choice.text == original.text ? original.confidence : choice.probability,
+                      emissionSpan: original.emissionSpan)
+            }, languageModelCorrections: result.changedTokens, greedyObservation: decoded.greedyObservation)
     }
 
     private static func decodeCompact(
         output: MLMultiArray,
         dictionary: [String],
-        timeSteps: Int
+        timeSteps: Int,
+        observeEmissionSpans: Bool
     ) throws -> NativeCoreMLDecodedText {
         guard output.dataType == .float32,
               output.strides.count == 2,
@@ -3124,10 +3946,7 @@ enum NativeCoreMLCTCDecoder {
         let pointer = output.dataPointer.assumingMemoryBound(to: Float.self)
         let rowStride = output.strides[0].intValue
         let timeStride = output.strides[1].intValue
-        var previousIndex = -1
-        var text = ""
-        var confidenceSum = 0.0
-        var confidenceCount = 0
+        var collapse = Collapse(timeSteps: timeSteps, observeEmissionSpans: observeEmissionSpans)
         for step in 0..<timeSteps {
             let rawIndex = pointer[step * timeStride]
             let score = pointer[rowStride + step * timeStride]
@@ -3142,19 +3961,9 @@ enum NativeCoreMLCTCDecoder {
                 throw NativeCoreMLRecognizerError.unsupportedModelOutputType
             }
             let index = Int(rawIndex)
-            if index > 0, index != previousIndex {
-                text += dictionary[index - 1]
-                confidenceSum += Double(score)
-                confidenceCount += 1
-            }
-            previousIndex = index
+            collapse.append(index: index, confidence: Double(score), step: step, dictionary: dictionary)
         }
-        return NativeCoreMLDecodedText(
-            text: text,
-            confidence: confidenceCount == 0
-                ? 0
-                : confidenceSum / Double(confidenceCount)
-        )
+        return collapse.result
     }
 
     private static func decode<Element: BinaryFloatingPoint>(
@@ -3164,12 +3973,10 @@ enum NativeCoreMLCTCDecoder {
         classes: Int,
         timeStride: Int,
         classStride: Int,
-        dictionary: [String]
+        dictionary: [String],
+        observeEmissionSpans: Bool
     ) -> NativeCoreMLDecodedText {
-        var previousIndex = -1
-        var text = ""
-        var confidenceSum = 0.0
-        var confidenceCount = 0
+        var collapse = Collapse(timeSteps: timeSteps, observeEmissionSpans: observeEmissionSpans)
         for step in 0..<timeSteps {
             let stepOffset = batchOffset + step * timeStride
             var maximumIndex = 0
@@ -3183,18 +3990,51 @@ enum NativeCoreMLCTCDecoder {
                     maximumIndex = characterClass
                 }
             }
-            if maximumIndex > 0, maximumIndex != previousIndex {
-                text += dictionary[maximumIndex - 1]
-                confidenceSum += maximumValue
-                confidenceCount += 1
-            }
-            previousIndex = maximumIndex
+            collapse.append(index: maximumIndex, confidence: maximumValue, step: step, dictionary: dictionary)
         }
-        return NativeCoreMLDecodedText(
-            text: text,
-            confidence: confidenceCount == 0
-                ? 0
-                : confidenceSum / Double(confidenceCount)
-        )
+        return collapse.result
+    }
+
+    /// Both output ABIs use the same first-emission confidence contract.
+    /// Later repeated scores never replace the original acceptance signal.
+    private struct Collapse {
+        let timeSteps: Int
+        let observeEmissionSpans: Bool
+        var previousIndex = -1
+        var precedingBlankSteps = 0
+        var text = ""
+        var confidenceSum = 0.0
+        var tokens: [NativeCoreMLCTCTokenObservation] = []
+
+        mutating func append(index: Int, confidence: Double, step: Int, dictionary: [String]) {
+            if index > 0, index != previousIndex {
+                let token = dictionary[index - 1]
+                text += token
+                confidenceSum += confidence
+                tokens.append(.init(text: token, confidence: confidence,
+                    emissionSpan: observeEmissionSpans ? .init(steps: step..<(step + 1),
+                        timeStepCount: timeSteps, precedingBlankSteps: precedingBlankSteps) : nil))
+            } else if index > 0, observeEmissionSpans, let span = tokens.last?.emissionSpan {
+                tokens[tokens.count - 1].emissionSpan = .init(steps: span.steps.lowerBound..<(step + 1),
+                    timeStepCount: timeSteps, precedingBlankSteps: span.precedingBlankSteps)
+            }
+            precedingBlankSteps = index == 0 ? precedingBlankSteps + 1 : 0
+            previousIndex = index
+        }
+
+        var result: NativeCoreMLDecodedText {
+            .init(text: text, confidence: tokens.isEmpty ? 0 : confidenceSum / Double(tokens.count), tokenObservations: tokens)
+        }
+    }
+}
+
+/// Read-only replay identity; uses the production crop-cache fingerprint without inference.
+@available(iOS 18.0, *)
+extension NativeCoreMLRecognitionPreprocessor {
+    static func tensorIdentityForReplay(_ tensor: NativeCoreMLPreparedTensor) -> String {
+        let fingerprint = NativeCoreMLRecognitionCropFingerprint(tensor: tensor)
+        return String(format: "%016llx%016llx%016llx%016llx",
+                      fingerprint.word0, fingerprint.word1,
+                      fingerprint.word2, fingerprint.word3)
     }
 }

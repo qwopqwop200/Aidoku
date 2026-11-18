@@ -120,7 +120,7 @@ struct NativeCaptionFixedBoxReflowTests {
         #expect(refined.items[0].smallTextReference == nil)
         #expect(refined.readableRecoveryRemaining == 0)
     }
-    @Test func realForeignParentChildVetoesFinalReleaseUntilItAppendsToRoot() throws {
+    @Test func realForeignParentChildAndRetiredInpaintingBothRetainSourcePlate() throws {
         let (owner,layout,initialSettings)=try fixture(id:"owner")
         var child=try fixture(id:"foreign").0
         child.sourcePanels=[]
@@ -148,10 +148,14 @@ struct NativeCaptionFixedBoxReflowTests {
         NativeTranslationRenderer.appendTextToRoot(cards:&cards,index:1)
         NativeTranslationRenderer.refreshCaptionOwnerGraph(cards:&cards)
         #expect(!cards[0].sourcePanels[0].hasForeignChildren)
+        // Source inpainting is retired: even without the foreign child, the
+        // legacy certified-plate release cannot remove the source plate.
+        #expect(!settings.usesSourceInpainting)
         NativeTranslationRenderer.releaseCertifiedPlates(cards:&cards,restoration:restoration,gloss:gloss,layout:layout,settings:settings)
-        #expect(cards[0].sourcePanels.isEmpty && cards[0].glyphPlateReleased)
+        #expect(cards[0].sourcePanels.count==1 && !cards[0].glyphPlateReleased)
+        #expect(cards[0].sourcePanels[0].rect==owner.sourcePanels[0].rect)
     }
-    @Test func finalColumnReleaseReplacesControlledBlocksWithWrappingRawText() throws {
+    @Test func retiredInpaintingRetainsControlledColumnAndSourcePlate() throws {
         let rawText="드디어 선생님이 왔다",controlledText="드디어\n선생님이\n왔다"
         let object:[String:Any]=["id":"released-column","text":rawText,
             "x":130,"y":110,"width":44,"height":60,"fontSize":8.75,"lineHeight":10.5,
@@ -183,39 +187,14 @@ struct NativeCaptionFixedBoxReflowTests {
         var cards=[card]
         NativeTranslationRenderer.releaseCertifiedPlates(cards:&cards,restoration:restoration,
             gloss:.init(),layout:layout,settings:settings)
-        let released=cards[0]
-        #expect(released.glyphPlateReleased && released.sourcePanels.isEmpty)
-        #expect(!released.item.balancedColumn && released.item.balancedColumn==item.balancedColumn)
-        #expect(released.item.typesettingText==nil && released.item.typesettingQuoteMode==nil)
-        #expect(!released.style.usesBlockWordLayout)
-        #expect(released.style.horizontalWrapping == .normal && !released.style.keepsWholeWords)
-        #expect(released.style.horizontalWhitespace == .normal)
-        #expect(released.item.text==rawText && released.item.sourceBounds==item.sourceBounds)
-        #expect(released.typography.shapedText.unicodeScalars.filter { !$0.properties.isWhitespace }
-            == rawText.unicodeScalars.filter { !$0.properties.isWhitespace })
-        #expect(released.typography.lineCount==3)
-        #expect(released.finalFontSize==CGFloat(7.02907) && released.style.lineHeight==CGFloat(8.434884))
-        // Frozen final column uses height:auto in normal block flow. Its CSS
-        // height counts used line boxes; painted ink/outline may extend beyond
-        // those boxes and is not the height:auto or font-shrink condition.
-        let flowHeight = released.item.paddingTop + released.item.paddingBottom
-            + CGFloat(released.typography.lineCount) * floor(max(released.finalFontSize,released.style.lineHeight))
-        #expect(released.item.height==flowHeight && released.item.height==28)
-        let lineBoxes=NativeTranslationTypography.captionLineMetrics(layout:released.typography)
-        #expect(lineBoxes.count==3 && lineBoxes.allSatisfy { $0.rect.width<=released.textLayoutSize.width+0.5 })
-        // The same narrow raw paragraph with the stale block flag is the
-        // previous failure: one overflowing clipped row, not column wrapping.
-        var staleStyle=released.style;staleStyle.usesBlockWordLayout=true
-        let stale=NativeTranslationTypography.layout(text:rawText,in:released.textLayoutSize,style:staleStyle)
-        #expect(stale.lineCount==1 && !stale.fits)
-        // A descriptor already admitted as a coordinated column retains that
-        // provenance; raw block display alone must not create the marker.
-        var admitted=card;admitted.item.balancedColumn=true
-        var admittedCards=[admitted]
-        NativeTranslationRenderer.releaseCertifiedPlates(cards:&admittedCards,restoration:restoration,
-            gloss:.init(),layout:layout,settings:settings)
-        #expect(admittedCards[0].glyphPlateReleased && admittedCards[0].item.balancedColumn)
-        #expect(admittedCards[0].typography.lineCount==released.typography.lineCount)
+        // Source inpainting is retired, so certified evidence no longer releases
+        // the legacy plate or rewrites the controlled column into raw text.
+        #expect(!settings.usesSourceInpainting)
+        let retained=cards[0]
+        #expect(!retained.glyphPlateReleased && retained.sourcePanels.count==1)
+        #expect(retained.item==card.item && retained.item.typesettingText==controlledText)
+        #expect(retained.style.usesBlockWordLayout && retained.finalFontSize==card.finalFontSize)
+        #expect(retained.typography.lineCount==card.typography.lineCount)
     }
     @Test func transparentGlyphCoverRetainsItsActualForeignChildIdentity() throws {
         let (owner,_,_)=try fixture(id:"owner")

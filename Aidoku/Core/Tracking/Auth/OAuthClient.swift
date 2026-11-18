@@ -24,52 +24,78 @@ actor OAuthClient {
     var codeVerifier = ""
     private(set) var tokens: OAuthResponse?
     private(set) var accountGeneration = UUID()
-    private var refresh: (id: UUID, task: Task<OAuthResponse?, Never>)?
+    private var refreshTask: Task<Void, Never>?
+    private var refreshWaiters: [UUID: CheckedContinuation<OAuthResponse?, Never>] = [:]
     private nonisolated static let generationProperty = "Aidoku.OAuth.accountGeneration"
 
     nonisolated static func generation(for request: URLRequest) -> UUID? {
         (URLProtocol.property(forKey: generationProperty, in: request) as? String).flatMap(UUID.init(uuidString:))
     }
 
-    deinit { refresh?.task.cancel() }
+    deinit { refreshTask?.cancel() }
 
     @discardableResult
     func beginAuthentication() -> UUID {
         accountGeneration = UUID()
         UserDefaults.standard.removeObject(forKey: "Tracker.\(id).user_id")
-        refresh?.task.cancel()
-        refresh = nil
+        refreshTask?.cancel()
+        resumeRefreshWaiters(with: nil)
         return accountGeneration
     }
 
     func commitAuthentication(_ response: OAuthResponse?, generation: UUID) -> OAuthResponse? {
         guard !Task.isCancelled, accountGeneration == generation, let response else { return nil }
+        // Requests made while the login was pending may still carry the previous credentials.
+        beginAuthentication()
         tokens = response
         saveTokens()
         UserDefaults.standard.set(response.accessToken, forKey: "Tracker.\(id).token")
         return response
     }
 
-    /// Sharing survives cancellation of one search, but never an account change.
-    func refreshTokens(replacingAuthorization: String?,
-                       operation: @escaping @Sendable () async -> OAuthResponse?) async -> OAuthResponse? {
-        guard !Task.isCancelled else { return nil }
+    /// A refresh may rotate a single-use token, so finish the exchange even if its initiating caller leaves.
+    func refreshTokens(for request: URLRequest, operation: @escaping @Sendable (String) async -> OAuthResponse?) async -> OAuthResponse? {
         if tokens == nil { loadTokens() }
-        let issued = accountGeneration
-        let currentAuthorization = "\(tokens?.tokenType ?? "Bearer") \(tokens?.accessToken ?? "")"
-        if let replacingAuthorization, replacingAuthorization != currentAuthorization { return tokens }
-        if let refresh {
-            let result = await refresh.task.value
-            return !Task.isCancelled && accountGeneration == issued ? result : nil
+        guard let issued = Self.generation(for: request) else { return nil }
+        let waiterID = UUID()
+        let result: OAuthResponse? = await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard !Task.isCancelled, accountGeneration == issued else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let authorization = "\(tokens?.tokenType ?? "Bearer") \(tokens?.accessToken ?? "")"
+                guard request.value(forHTTPHeaderField: "Authorization") == authorization else {
+                    continuation.resume(returning: tokens)
+                    return
+                }
+                guard let refreshToken = tokens?.refreshToken else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                refreshWaiters[waiterID] = continuation
+                guard refreshTask == nil else { return }
+                refreshTask = Task { [weak self] in
+                    guard !Task.isCancelled else { return }
+                    let response = await operation(refreshToken)
+                    await self?.finishRefresh(response, generation: issued)
+                }
+            }
+        } onCancel: {
+            Task { await self.cancelRefreshWaiter(waiterID) }
         }
-        let id = UUID()
-        let task = Task { [weak self] () -> OAuthResponse? in
-            let result = await operation()
-            return await self?.finishRefresh(result, generation: issued, id: id)
-        }
-        refresh = (id, task)
-        let result = await task.value
         return !Task.isCancelled && accountGeneration == issued ? result : nil
+    }
+
+    private func cancelRefreshWaiter(_ id: UUID) {
+        refreshWaiters.removeValue(forKey: id)?.resume(returning: nil)
+    }
+
+    private func resumeRefreshWaiters(with result: OAuthResponse?) {
+        refreshTask = nil
+        let waiters = refreshWaiters.values
+        refreshWaiters.removeAll()
+        for waiter in waiters { waiter.resume(returning: result) }
     }
 
     func cachedUserID() -> String? {
@@ -82,11 +108,13 @@ actor OAuthClient {
         return value
     }
 
-    private func finishRefresh(_ result: OAuthResponse?, generation: UUID, id: UUID) -> OAuthResponse? {
-        guard !Task.isCancelled, accountGeneration == generation else { return nil }
-        if let result { tokens = result; saveTokens() }
-        if refresh?.id == id { refresh = nil }
-        return result
+    private func finishRefresh(_ result: OAuthResponse?, generation: UUID) {
+        guard accountGeneration == generation else { return }
+        if let result {
+            tokens = result
+            saveTokens()
+        }
+        resumeRefreshWaiters(with: result)
     }
 
     init(
@@ -154,18 +182,6 @@ extension OAuthClient {
         let response: OAuthResponse? = try? await URLSession.shared.object(from: request)
         return commitAuthentication(response, generation: issued)
     }
-
-//    func refreshAccessToken(refreshToken: String) async -> OAuthResponse? {
-//        guard let url = URL(string: baseUrl + "/token") else { return nil }
-//        var request = URLRequest(url: url)
-//        request.httpMethod = "POST"
-//        request.httpBody = [
-//            "grant_type": "refresh_token",
-//            "refresh_token": refreshToken
-//        ].percentEncoded()
-//        tokens = try? await URLSession.shared.object(from: request)
-//        return tokens
-//    }
 
     func loadTokens() {
         let loaded: OAuthResponse

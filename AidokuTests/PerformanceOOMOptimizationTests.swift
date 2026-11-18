@@ -126,7 +126,9 @@ struct PerformanceOOMOptimizationTests {
         frame: NativeOCRRGBAFrame,
         canvas: NativeCoreMLDetectionCanvas
     ) async throws -> [Float] {
-        let dimensions = try #require(NativeCoreMLDetectionPreprocessor.resizeDimensions(
+        // Content never gains source samples to reach the model stride; the
+        // stride remainder is zero padding, exactly as production prepares it.
+        let dimensions = try #require(NativeCoreMLDetectionPreprocessor.contentDimensions(
             sourceWidth: frame.width, sourceHeight: frame.height,
             maximumSide: max(canvas.width, canvas.height)
         ))

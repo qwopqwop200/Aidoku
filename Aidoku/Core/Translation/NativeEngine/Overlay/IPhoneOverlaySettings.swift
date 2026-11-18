@@ -55,12 +55,14 @@ enum IPhoneAppearanceMode: String, Codable, CaseIterable, Sendable {
 struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
     // Rendering-only metric; not persisted as a user preference.
     var reservesSurfaceBorder = true
+    // Runtime-only renderer tuning; deliberately excluded from persisted preferences.
+    var textBoxGeometryParameters = NativeTextBoxGeometryParameters.baseline
     var visible: Bool
     var mode: IPhoneOverlayMode
     var colorMode: IPhoneOverlayColorMode
     var preserveSourceTextColor = false
     var preserveSourceBackgroundColor = false
-    var inpaintingEnabled = true
+    var inpaintingEnabled = false
     // Keep legacy fields decodable; the single UI control writes both atomically.
     var preserveSourceColors: Bool {
         get { preserveSourceTextColor && preserveSourceBackgroundColor }
@@ -82,12 +84,12 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
             }
         }
     }
-    var usesSourceInpainting: Bool { inpaintingEnabled && preserveSourceColors }
+    // Legacy preferences remain decodable, but cannot reactivate removed source repair.
+    var usesSourceInpainting: Bool { false }
     var opacity: Double
-    /// Source replacement erases and rebuilds the page's own lettering surface.
-    /// A translucent replacement would only re-expose the original text, so the
-    /// background opacity preference applies to the white and dark appearances.
-    var renderedBackgroundOpacity: Double { usesSourceInpainting ? 1 : min(1, max(0, opacity)) }
+    /// Sampled-color replacement boxes must be opaque to hide the original lettering.
+    /// Legacy opacity preferences are retained for decoding only.
+    var renderedBackgroundOpacity: Double { 1 }
     var textPlacement: IPhoneOverlayTextPlacement
     var subtitlePosition: IPhoneSubtitlePosition
     var subtitleMaxLines: Int
@@ -139,7 +141,9 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
         )
         preserveSourceTextColor = try container.decodeIfPresent(Bool.self, forKey: .preserveSourceTextColor) ?? false
         preserveSourceBackgroundColor = try container.decodeIfPresent(Bool.self, forKey: .preserveSourceBackgroundColor) ?? false
-        inpaintingEnabled = try container.decodeIfPresent(Bool.self, forKey: .inpaintingEnabled) ?? true
+        inpaintingEnabled = false
+        preserveSourceTextColor = false
+        preserveSourceBackgroundColor = false
         opacity = try container.decode(Double.self, forKey: .opacity)
         textPlacement = try container.decode(
             IPhoneOverlayTextPlacement.self,
@@ -164,14 +168,10 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
     /// The current iPhone product always renders translated text directly over
     /// its source bbox.
     mutating func enforceSourceReplacement() {
-        // Inpainting follows source appearance; the retired switch must not
-        // leave an installed user's source rendering permanently disabled.
-        inpaintingEnabled = true
-        // Older installs could enable only one source-color channel. Promote
-        // either choice to the single source appearance exposed by settings.
-        if preserveSourceTextColor || preserveSourceBackgroundColor {
-            appearance = .source
-        }
+        inpaintingEnabled = false
+        preserveSourceTextColor = false
+        preserveSourceBackgroundColor = false
+        opacity = 1
         mode = .translateOnly
         textPlacement = .replace
         subtitlePosition = .bottom

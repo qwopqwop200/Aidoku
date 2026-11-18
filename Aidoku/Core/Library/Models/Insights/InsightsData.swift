@@ -60,13 +60,12 @@ struct InsightsData {
 
     static func get() async -> InsightsData {
         await CoreDataManager.shared.container.performBackgroundTask { context in
-            let (currentStreak, longestStreak) = CoreDataManager.shared.getStreakLengths(context: context)
             let basicStats = CoreDataManager.shared.getBasicStats(context: context)
             let chartData = CoreDataManager.shared.getChapterYearlyReadingData(context: context)
             let heatmapData = CoreDataManager.shared.getReadingHeatmapData(context: context)
             return InsightsData(
-                currentStreak: currentStreak,
-                longestStreak: longestStreak,
+                currentStreak: basicStats.currentStreak,
+                longestStreak: basicStats.longestStreak,
                 heatmapData: heatmapData,
                 chartData: chartData,
                 pagesTotal: basicStats.pagesTotal,

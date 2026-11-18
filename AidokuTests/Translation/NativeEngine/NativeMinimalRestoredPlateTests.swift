@@ -39,27 +39,21 @@ import Testing
         settings.preserveSourceColors = true
         return (card,layout,restoration,settings)
     }
-    @Test func transparentCertifiedPaperShrinksWithoutMovingShapedGlyphs() throws {
-        let (card,layout,restoration,settings) = try fixture()
-        let ink = NativeTranslationRenderer.cardInkRect(card), baseline = card.sourcePanels[0].rect
+    /// Source inpainting is retired, so certified restoration evidence can no
+    /// longer shrink the legacy panel renderer's source plate. The main AOT
+    /// renderer owns restoration; this stage must retain the original plate.
+    @Test(arguments: ["certified", "painted", "forced", "incomplete"])
+    func retiredSourceInpaintingRetainsOriginalPlate(variant: String) throws {
+        let (card,layout,restoration,settings) = try fixture(painted: variant == "painted" || variant == "forced",
+            forced: variant == "forced",candidateComplete: variant != "incomplete")
+        #expect(!settings.usesSourceInpainting)
         var cards = [card]
         NativeTranslationRenderer.minimalRestoredPlates(cards: &cards,gloss: .init(),layout: layout,
             restoration: restoration,settings: settings)
-        let expected = ink.insetBy(dx: -3,dy: -3).intersection(baseline)
-        #expect(cards[0].sourcePanels[0].rect == expected)
-        #expect(cards[0].sourcePanels[0].coverage == [expected])
+        #expect(cards[0].sourcePanels.count == 1 && cards[0].sourcePanels[0].rect == card.sourcePanels[0].rect)
+        #expect(cards[0].sourcePanels[0].coverage == card.sourcePanels[0].coverage)
         #expect(cards[0].item == card.item && cards[0].finalFontSize == card.finalFontSize)
         #expect(cards[0].textOrigin == card.textOrigin && cards[0].typography.glyphBounds == card.typography.glyphBounds)
-    }
-    @Test func finalForcedRasterGeometryRetainsPartialAlphaRepairExactlyLikeCandidate() throws {
-        let (card,layout,candidate,settings) = try fixture(painted: true)
-        let (forcedCard,_,forced,_) = try fixture(painted: true,forced: true)
-        var first = [card], second = [forcedCard]
-        NativeTranslationRenderer.minimalRestoredPlates(cards: &first,gloss: .init(),layout: layout,restoration: candidate,settings: settings)
-        NativeTranslationRenderer.minimalRestoredPlates(cards: &second,gloss: .init(),layout: layout,restoration: forced,settings: settings)
-        #expect(first[0].sourcePanels[0].rect == second[0].sourcePanels[0].rect)
-        #expect(first[0].sourcePanels[0].rect.minX == 0 && first[0].sourcePanels[0].rect.minY == 0)
-        #expect(first[0].sourcePanels[0].rect.width < 40 && first[0].sourcePanels[0].rect.height < 32)
     }
     @Test func sourceFrameImagesGrowthAndProvisionalProofRetainOriginalPlate() throws {
         let (card,layout,restoration,settings) = try fixture()
@@ -84,23 +78,6 @@ import Testing
         var cards = [card]
         NativeTranslationRenderer.minimalRestoredPlates(cards: &cards,gloss: gloss,layout: layout,restoration: restoration,settings: settings)
         #expect(cards[0].sourcePanels[0].rect == card.sourcePanels[0].rect)
-    }
-    @Test(arguments: [true, false])
-    func currentCanvasCompletionOverridesStaleAppearanceForPlateShrink(candidateComplete: Bool) throws {
-        let (card,layout,initialRestoration,settings) = try fixture(candidateComplete:candidateComplete)
-        var restoration = initialRestoration
-        let candidate = try #require(restoration.patches[0].candidate)
-        #expect(candidate.erasureComplete == candidateComplete)
-        restoration.appearances[card.item.id] = .init(foreground:nil,background:nil,restored:true,
-            erasureComplete:!candidateComplete)
-        let original = card.sourcePanels[0].rect
-        let ink = NativeTranslationRenderer.cardInkRect(card)
-        var cards = [card]
-        NativeTranslationRenderer.minimalRestoredPlates(cards:&cards,gloss:.init(),layout:layout,
-            restoration:restoration,settings:settings)
-        let expected = candidateComplete ? ink.insetBy(dx:-3,dy:-3).intersection(original):original
-        #expect(cards[0].sourcePanels[0].rect == expected)
-        #expect(cards[0].item == card.item && cards[0].typography.glyphBounds == card.typography.glyphBounds)
     }
     @Test(arguments: ["inpainted", "readability-panel", "display-restored"])
     func sourceAlignmentReceivesActualBackgroundModeIndependentlyOfCanvasCompletion(mode: String) throws {

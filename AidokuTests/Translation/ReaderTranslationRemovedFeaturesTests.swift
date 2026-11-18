@@ -4,7 +4,9 @@ import Testing
 @testable import Aidoku
 
 struct ReaderTranslationRemovedFeaturesTests {
-    @Test func legacyFlagsCannotAttachImagesOrFilterSounds() throws {
+    // Legacy image/SFX flags no longer select a request shape: every page request
+    // is the mandatory image + SFX/background classification route.
+    @Test func legacyFlagsCannotChangeTheMandatoryPageRequest() throws {
         let name = "AidokuTests.RemovedFeatures.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
@@ -24,12 +26,19 @@ struct ReaderTranslationRemovedFeaturesTests {
         #expect(!ReaderTranslationImagePreparation.needsImage(regions, settings: settings))
         let requests = try ReaderTranslationService.requests(regions: regions, settings: settings)
         #expect(requests.flatMap(\.segments).map(\.text) == regions.map(\.source))
-        for request in requests {
+        for var request in requests {
+            #expect(request.translatesPageLettering == true)
+            #expect(request.filtersSFX == true && request.filtersBackground == true)
+            // A page request without its image is rejected, never downgraded to text-only.
+            #expect(throws: RemoteTranslationError.self) {
+                try TranslationHTTPCodec.requestBody(configuration: settings.configuration, request: request)
+            }
+            request.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9])
             let body = try TranslationHTTPCodec.requestBody(configuration: settings.configuration, request: request)
             let text = String(decoding: body, as: UTF8.self)
-            #expect(!text.contains("input_image"))
-            #expect(!text.contains("image_url"))
-            #expect(!text.contains("base64"))
+            #expect(text.components(separatedBy: "input_image").count == 2)
+            #expect(!text.contains("AIDOKU_SKIP"))
+            #expect(!text.contains("Legacy custom instruction"))
         }
     }
 
@@ -41,10 +50,11 @@ struct ReaderTranslationRemovedFeaturesTests {
         let settings = ReaderTranslationSettings(defaults: defaults)
         for kind in TitleTranslationKind.allCases {
             let metadata = TitleTranslation.effectiveSettings(settings, kind: kind)
-            #expect(metadata.configuration.instructions.hasPrefix(RemoteTranslationConfiguration.defaultInstructions))
+            #expect(metadata.configuration.instructions == kind.instructions)
+            #expect(!metadata.configuration.instructions.contains("vocal expression"))
             #expect(!metadata.configuration.instructions.contains("Legacy custom instruction"))
             #expect(TitleTranslation.effectiveSettings(metadata, kind: kind).configuration == metadata.configuration)
-            if kind != .tag { #expect(!metadata.metadataInstructions.isEmpty) }
+            #expect(!metadata.metadataInstructions.isEmpty)
             try metadata.autosave(defaults: defaults)
             #expect(ReaderTranslationSettings(defaults: defaults).configuration.instructions == RemoteTranslationConfiguration.defaultInstructions)
         }
@@ -93,11 +103,14 @@ struct ReaderTranslationRemovedFeaturesTests {
         }
     }
 
+    // The source-colors appearance was retired from Settings with source repair;
+    // a persisted source selection migrates to the plain white appearance.
     @Test func appearanceSelectionUpdatesSourceColorsAndPaletteTogether() throws {
         var settings = ReaderTranslationSettings.defaultOverlay
         settings.appearance = .source
         #expect(settings.preserveSourceTextColor && settings.preserveSourceBackgroundColor)
-        #expect(settings.usesSourceInpainting)
+        // Source inpainting was removed; AOT restoration owns erasure for every appearance.
+        #expect(!settings.usesSourceInpainting)
         for appearance in [IPhoneOverlayAppearance.white, .dark] {
             settings.appearance = appearance
             #expect(!settings.preserveSourceTextColor && !settings.preserveSourceBackgroundColor)
@@ -108,8 +121,9 @@ struct ReaderTranslationRemovedFeaturesTests {
         }
         settings.appearance = .source
         let restored = try JSONDecoder().decode(IPhoneOverlaySettings.self, from: JSONEncoder().encode(settings))
-        #expect(restored.appearance == .source)
-        #expect(restored.usesSourceInpainting)
+        #expect(restored.appearance == .white)
+        #expect(!restored.preserveSourceTextColor && !restored.preserveSourceBackgroundColor)
+        #expect(!restored.usesSourceInpainting)
     }
 
 

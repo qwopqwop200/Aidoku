@@ -56,7 +56,7 @@ extension SourceObjectData {
 
     func toInfo() -> SourceInfo? {
         if let data = customSource, let config = try? CustomSourceConfig(from: data) {
-            return config.toSource().toInfo()
+            return config.toInfo()
         }
         guard let path else { return nil }
 

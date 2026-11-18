@@ -884,7 +884,7 @@
 "TRANSLATION_TARGET" = "Translate To";
 "TRANSLATION_SOURCE" = "Source Language";
 "TRANSLATION_AUTO" = "Detect Automatically";
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 requires iOS 18 or later. Medium is the default; Small uses less memory. Tiny has a smaller character dictionary. These models do not support Korean OCR. Korean translation output is supported.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 requires iOS 18 or later. Manga v0.3 is the default model for both text detection and recognition. Other OCR models remain available.";
 "TRANSLATION_CLEAR_CACHE" = "Clear Translation Cache";
 "TRANSLATION_CACHE_CLEARED" = "Translation cache cleared.";
 "TRANSLATION_NOTICES" = "OCR & Translation Licenses";
@@ -1140,3 +1140,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Source %@ version %d is not supported by this app. Install a supported version.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 supports only Japanese and Chinese (Simplified and Traditional) source text. Automatic source detection and source-language choices are limited to these languages. You can still translate into Korean or other target languages. Choosing Manga applies detector thresholds of 0.85 and 0.25; its default detection size is 1120 px.";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "All supported OCR languages";

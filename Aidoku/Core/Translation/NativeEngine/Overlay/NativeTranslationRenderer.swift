@@ -9,7 +9,9 @@ private actor NativeTranslationRenderWorker {
     private let admission = NativeTranslationRenderAdmission()
 
     func render(layout: NativeTranslationLayout, image: UIImage?, settings: IPhoneOverlaySettings,
-                scale: CGFloat, dark: Bool, renderBounds: CGRect?, composeSource: Bool, outputPixelSize: CGSize?, collectDiagnostics: Bool, capturePDF: Bool, pdfDeviceScale: CGFloat) async throws -> NativeTranslationRenderer.Result {
+                scale: CGFloat, dark: Bool, renderBounds: CGRect?, composeSource: Bool, outputPixelSize: CGSize?, collectDiagnostics: Bool, includeLayoutData: Bool, capturePDF: Bool, pdfDeviceScale: CGFloat,
+                preparedDB:NativeMainEnsemblePreparedDB?) async throws -> NativeTranslationRenderer.Result {
+        defer {withExtendedLifetime(preparedDB) {}}
         let lease = try await admission.acquire()
         let result: NativeTranslationRenderer.Result
         do {
@@ -17,7 +19,7 @@ private actor NativeTranslationRenderWorker {
             result = try await NativeTranslationRenderer.renderOnWorker(layout: layout, image: image,
                 settings: settings, scale: scale, dark: dark, renderBounds: renderBounds,
                 composeSource: composeSource, outputPixelSize: outputPixelSize,
-                collectDiagnostics: collectDiagnostics, capturePDF: capturePDF, pdfDeviceScale: pdfDeviceScale)
+                collectDiagnostics: collectDiagnostics, includeLayoutData: includeLayoutData, capturePDF: capturePDF, pdfDeviceScale: pdfDeviceScale,preparedDB:preparedDB)
         } catch {
             await lease.release()
             throw error
@@ -31,6 +33,8 @@ private actor NativeTranslationRenderWorker {
 /// Native bitmap composition. The transparent layer is shared by live presentation and cache/export replay,
 /// so those routes never rasterize the same translated glyphs through different rendering engines.
 enum NativeTranslationRenderer {
+    enum AuditCardStage: String { case preCohort, finalCard }
+    typealias AuditCardObserver = (AuditCardStage, Card) -> Void
     struct SourcePatch: @unchecked Sendable {
         let image: CGImage
         let rect: CGRect
@@ -57,6 +61,8 @@ enum NativeTranslationRenderer {
         let sourceRestorationRects: [CGRect]
         let paintBounds: [CGRect]
         let sourcePatches: [SourcePatch]
+        /// True only for a complete source page, not an overlay to blend over it.
+        var includesSourcePage = false
     }
 
     enum RenderError: Error {
@@ -71,6 +77,31 @@ enum NativeTranslationRenderer {
         let frame: CGRect
         let typography: NativeTranslationTypography.Layout
         let style: NativeTranslationTypography.Style
+    }
+
+    /// Independent translated-text support in page coordinates. Erasure paint
+    /// retains its own rectangle/polygon; only a separately certified proposal
+    /// may supply this domain. Nil keeps the legacy text-box clip unchanged.
+    struct TextPaintDomain {
+        let rect: CGRect
+        let polygon: [CGPoint]
+
+        init?(rect: CGRect, polygon: [CGPoint], within bounds: CGRect) {
+            guard NativeTranslationRenderer.valid(rect), !rect.isInfinite,
+                  NativeTranslationRenderer.valid(bounds), bounds.contains(rect),
+                  [rect.minX, rect.minY, rect.maxX, rect.maxY].allSatisfy(\.isFinite),
+                  polygon.isEmpty || (3...4096).contains(polygon.count),
+                  polygon.allSatisfy({ $0.x.isFinite && $0.y.isFinite }) else { return nil }
+            if !polygon.isEmpty {
+                let area = polygon.indices.reduce(CGFloat.zero) { value, index in
+                    let next = polygon[(index + 1) % polygon.count]
+                    return value + polygon[index].x * next.y - next.x * polygon[index].y
+                }
+                guard area.isFinite, abs(area) > 0 else { return nil }
+            }
+            self.rect = rect
+            self.polygon = polygon
+        }
     }
 
     struct Card {
@@ -160,6 +191,9 @@ enum NativeTranslationRenderer {
         var finalUprightText = false
         var panelStraightened = false
         var straightenedPanelRect: CGRect?
+        var textBoxClip: [CGPoint] = []
+        var textBoxBackgroundClip: CGRect?
+        var textPaintDomain: TextPaintDomain?
         var preservedGloss = false
         var preservedErasure = false
         var sourcePanels: [NativeTranslationSourceStylePostPolish.Panel] = []
@@ -171,7 +205,7 @@ enum NativeTranslationRenderer {
         var drawsPanel: Bool
         var background: CGColor
         var usesFallbackVeil: Bool
-        let lightSurface: Bool
+        var lightSurface: Bool
         var heavyStrokeWidth: CGFloat
         var finalFontSize: CGFloat
     }
@@ -201,39 +235,60 @@ enum NativeTranslationRenderer {
         return lower
     }
 
+    nonisolated static func ensembleSourceImage(_ image: UIImage) -> UIImage {
+        #if canImport(UIKit)
+        ReaderTranslationImagePreparation.uprightSourceImage(image)
+        #else
+        // The macOS ImageIO ingress already applies image orientation.
+        image
+        #endif
+    }
+
     static func render(image: UIImage?, imageSize: CGSize, items: [BrowserOverlayItem], settings: IPhoneOverlaySettings,
                        targetLanguage: String, viewport: CGSize, scale: CGFloat = 1, aspectFit: Bool = true,
                        dark: Bool = false, preparedLayout: Data? = nil, renderBounds: CGRect? = nil,
-                       composeSource: Bool = true, outputPixelSize: CGSize? = nil, collectDiagnostics: Bool = false, capturePDF: Bool = false, pdfDeviceScale: CGFloat = 1) async throws -> Result {
+                       composeSource: Bool = true, outputPixelSize: CGSize? = nil, collectDiagnostics: Bool = false, capturePDF: Bool = false, pdfDeviceScale: CGFloat = 1,
+                       ocrConfiguration:ReaderOCRConfiguration? = nil, includeLayoutData: Bool = true) async throws -> Result {
         try Task.checkCancellation()
         guard valid(viewport), scale.isFinite, scale > 0 else { throw RenderError.invalidGeometry }
         try validate(viewport: outputPixelSize ?? renderBounds?.size ?? viewport, scale: outputPixelSize == nil ? scale : 1)
-        let frame = sourceRect(imageSize: imageSize, viewport: viewport, aspectFit: aspectFit)
-        var layout: NativeTranslationLayout
-        if let preparedLayout,
-           let candidate = try? JSONDecoder().decode(NativeTranslationLayout.self, from: preparedLayout),
-           candidate.version == NativeTranslationLayout.currentVersion,
-           candidate.imageSize == imageSize, candidate.sourceRect == frame,
-           ReaderTranslationGeometry.sameViewport(candidate.viewport, viewport) {
-            layout = candidate
-        } else {
-            let data = try await NativeTranslationLayoutPlanner.prepareLayoutData(
-                items: settings.visible ? items : [], imageSize: imageSize, sourceRect: frame,
-                settings: settings, targetLanguage: targetLanguage, viewport: viewport)
-            layout = try JSONDecoder().decode(NativeTranslationLayout.self, from: data)
+        var preparedDB:NativeMainEnsemblePreparedDB?
+        var renderImage = image
+        if #available(iOS 18.0,*), NativeMainEnsembleRenderer.enabled, settings.visible, let image {
+            // Pass the same normalized CGImage object through DB admission and the worker.
+            let upright = ensembleSourceImage(image)
+            if let source = upright.cgImage {
+                guard let ocrConfiguration else { throw NativeMainEnsemblePreparedDB.Failure.expectedConfigurationUnavailable }
+                preparedDB = try await ReaderOCRService.shared.ensureSourceProbability(original: source, configuration: ocrConfiguration)
+                renderImage = upright
+            }
         }
+        defer {withExtendedLifetime(preparedDB) {}}
+        let frame = sourceRect(imageSize: imageSize, viewport: viewport, aspectFit: aspectFit)
+        let data = try await NativeTranslationLayoutPlanner.prepareLayoutData(
+            items: settings.visible ? items : [], imageSize: imageSize, sourceRect: frame,
+            settings: settings, targetLanguage: targetLanguage, viewport: viewport, prepared: preparedLayout)
+        var layout = try JSONDecoder().decode(NativeTranslationLayout.self, from: data)
         layout = NativeTranslationLayout(imageSize: layout.imageSize, sourceRect: layout.sourceRect, viewport: layout.viewport,
             items: layout.items, readableRecoveryRemaining: layout.readableRecoveryRemaining, sourceObjectFit: aspectFit ? "contain" : "fill")
         try Task.checkCancellation()
         return try await NativeTranslationRenderWorker.shared.render(
-            layout: layout, image: image, settings: settings, scale: scale, dark: dark,
-            renderBounds: renderBounds, composeSource: composeSource, outputPixelSize: outputPixelSize, collectDiagnostics: collectDiagnostics, capturePDF: capturePDF, pdfDeviceScale: pdfDeviceScale)
+            layout: layout, image: renderImage, settings: settings, scale: scale, dark: dark,
+            renderBounds: renderBounds, composeSource: composeSource, outputPixelSize: outputPixelSize, collectDiagnostics: collectDiagnostics, includeLayoutData: includeLayoutData, capturePDF: capturePDF, pdfDeviceScale: pdfDeviceScale,preparedDB:preparedDB)
     }
 
     /// Callers outside the async entrypoint must serialize this CPU-heavy operation themselves.
     static func renderSynchronously(layout: NativeTranslationLayout, image: UIImage?, settings: IPhoneOverlaySettings,
                                     scale: CGFloat = 1, dark: Bool = false, renderBounds: CGRect? = nil,
-                                    composeSource: Bool = true, outputPixelSize: CGSize? = nil, collectDiagnostics: Bool = false, capturePDF: Bool = false, pdfDeviceScale: CGFloat = 1) throws -> Result {
+                                    composeSource: Bool = true, outputPixelSize: CGSize? = nil, collectDiagnostics: Bool = false, capturePDF: Bool = false, pdfDeviceScale: CGFloat = 1,
+                                    preparedDB:NativeMainEnsemblePreparedDB? = nil) throws -> Result {
+        if #available(iOS 18.0, macOS 15.0, *), NativeMainEnsembleRenderer.enabled, settings.visible,
+           let image, let source = ensembleSourceImage(image).cgImage {
+            return try NativeMainEnsembleRenderer.render(layout: layout, source: source, scale: scale,
+                renderBounds: renderBounds, outputPixelSize: outputPixelSize, composeSource: composeSource,
+                collectDiagnostics: collectDiagnostics, includeLayoutData: true,
+                capturePDF: capturePDF, pdfDeviceScale: pdfDeviceScale,preparedDB:preparedDB)
+        }
         let plan = try prepareRenderSynchronously(layout: layout, image: image, settings: settings,
             scale: scale, dark: dark, renderBounds: renderBounds, composeSource: composeSource,
             outputPixelSize: outputPixelSize, collectDiagnostics: collectDiagnostics, capturePDF: capturePDF,
@@ -261,262 +316,137 @@ enum NativeTranslationRenderer {
         let sourcePatches: [SourcePatch]
         let sourcePieces: [CGRect]
         let limitations: [String]
-        let diagnosticData: Data?
+        fileprivate(set) var diagnosticData: Data?
+        fileprivate(set) var retainedWidthArtifact: NativeWidthFinalArtifactAdmission.Artifact? = nil
+
+        // Reconstructing any world drops the document; immutable fields cannot be mutated in-place.
+        init(inputLayout: NativeTranslationLayout,
+            layout: NativeTranslationLayout,
+            image: UIImage?,
+            source: CGImage?,
+            restoration: NativeTranslationRestoration.Result,
+            cards: [Card],
+            glossCards: [GlossCard],
+            gloss: NativeTranslationEffectGloss.Refinement,
+            settings: IPhoneOverlaySettings,
+            bounds: CGRect,
+            pixels: CGSize,
+            scale: CGFloat,
+            composeSource: Bool,
+            capturePDF: Bool,
+            pdfDeviceScale: CGFloat,
+            sourcePatches: [SourcePatch],
+            sourcePieces: [CGRect],
+            limitations: [String],
+            diagnosticData: Data?) {
+            self.inputLayout = inputLayout
+            self.layout = layout
+            self.image = image
+            self.source = source
+            self.restoration = restoration
+            self.cards = cards
+            self.glossCards = glossCards
+            self.gloss = gloss
+            self.settings = settings
+            self.bounds = bounds
+            self.pixels = pixels
+            self.scale = scale
+            self.composeSource = composeSource
+            self.capturePDF = capturePDF
+            self.pdfDeviceScale = pdfDeviceScale
+            self.sourcePatches = sourcePatches
+            self.sourcePieces = sourcePieces
+            self.limitations = limitations
+            self.diagnosticData = diagnosticData
+        }
     }
+    /// Diagnostic annotation preserves the exact prepared world and its sealed width artifact.
+    static func replacingDiagnosticData(_ plan: PreparedRender, with data: Data?) -> PreparedRender {
+        var result = plan
+        result.diagnosticData = data
+        return result
+    }
+
     /// Callers outside the async entrypoint must serialize this CPU-heavy operation themselves.
     static func prepareRenderSynchronously(layout: NativeTranslationLayout, image: UIImage?, settings: IPhoneOverlaySettings,
                                     scale: CGFloat = 1, dark: Bool = false, renderBounds: CGRect? = nil,
-                                    composeSource: Bool = true, outputPixelSize: CGSize? = nil, collectDiagnostics: Bool = false, capturePDF: Bool = false, pdfDeviceScale: CGFloat = 1) throws -> PreparedRender {
-        try Task.checkCancellation()
-        let inputLayout = layout
-        let bounds = renderBounds ?? CGRect(origin: .zero, size: layout.viewport)
-        guard valid(bounds), valid(layout.viewport), scale.isFinite, scale > 0 else { throw RenderError.invalidGeometry }
-        try validate(viewport: outputPixelSize ?? bounds.size, scale: outputPixelSize == nil ? scale : 1)
-        guard layout.version == NativeTranslationLayout.currentVersion else { throw RenderError.incompatibleLayout }
-        guard valid(layout.sourceRect), valid(layout.imageSize), layout.items.count <= 4_096 else { throw RenderError.invalidGeometry }
-        return try autoreleasepool {
-            let needsSourceSampling = settings.visible && layout.items.contains { !$0.keptLettering && !$0.text.isEmpty }
-            let source = needsSourceSampling ? try restorationImage(image) : nil
-            let cleanupGeometry = source.flatMap { normalizedCleanupGeometry(layout: layout, naturalSize: CGSize(width: $0.width, height: $0.height)) }
-            let slantedContext = SlantedContext(layout: layout, source: source, settings: settings, cleanupGeometry: cleanupGeometry)
-            var restoration = settings.visible
-                ? try NativeTranslationRestoration.prepare(image: source, layout: layout, settings: settings,
-                    acceptSlanted: { item,appearance,proof,pixelScale in
-                        slantedContext.admit(item: item, appearance: appearance, proof: proof, scale: pixelScale)
-                    }, acceptPageSlanted: { item,appearance,prepared,pixels in
-                        slantedContext.admitPage(item: item, appearance: appearance, prepared: prepared, pixels: pixels)
-                    }, cleanupGeometry: cleanupGeometry, collectDiagnostics: collectDiagnostics)
-                : NativeTranslationRestoration.Result()
-            let initialPatchCapture = collectDiagnostics ? NativeRestorationDiagnosticCapture.capture(restoration) : nil
-            var layout = try NativeTranslationLayoutPlanner.refining(
-                layout: slantedContext.applyInitial(to: adjustInitialJoinedUnits(layout: layout, restoration: restoration)), restoration: restoration, settings: settings, sourceImage: source, lockedIDs: slantedContext.lockedIDs)
-            let growthSession = NativeTypographyPostPolish.rendererGrowthSession(
-                layout: layout, restoration: restoration, settings: settings, sourceImage: source)
-            growthSession.collectInitialDiagnostics = collectDiagnostics
-            layout = try NativeTypographyPostPolish.refining(
-                layout: layout, restoration: restoration, settings: settings, sourceImage: source, growthSession: growthSession, lockedIDs: slantedContext.lockedIDs, phase: .initial)
-            var cards: [Card] = []
-            var limitations = restoration.limitations
-            let sourceWeights = restoration.sourceLetterWeights
-            let pageWeight = sourceWeights.count >= 3 ? sourceWeights[sourceWeights.count / 2] : Double.nan
-            for var item in settings.visible ? layout.items : [] where !item.keptLettering && !item.text.isEmpty {
-                try Task.checkCancellation()
-                let authoredOrigin = CGPoint(x: item.x, y: item.y)
-                let initialCaptionCSS = InitialCaptionCSS(item: item)
-                item = usedLayoutItem(item)
-                guard valid(item.rect), valid(item.contentRect),
-                      [item.fontSize, item.lineHeight, item.rotation].allSatisfy(\.isFinite),
-                      item.fontSize >= BrowserOverlayLayoutPlanner.minimumRenderedFontSize else { continue }
-                // Invalid cached metrics must not let a CoreText frame allocate arbitrary amounts of memory.
-                guard item.fontSize <= 2_048, item.lineHeight <= 4_096,
-                      [item.paddingTop, item.paddingLeft, item.paddingBottom, item.paddingRight].allSatisfy({ $0.isFinite && $0 >= 0 }),
-                      item.text.utf16.count <= 32_768 else { throw RenderError.invalidGeometry }
-                let appearance = restoration.appearances[item.id]
-                let restoredCanvasAttached = restoration.patches.contains { $0.itemID == item.id && !$0.independentArtworkCover }
-                if item.uprightQuadText, !item.vertical, item.rotation != 0, let source {
-                    item.drawsUprightQuadText = try quadInkFitsUprightBox(item, image: source, appearance: appearance)
-                }
-                let foreground = settings.preserveSourceTextColor ? appearance?.foreground : nil
-                let surface = settings.preserveSourceBackgroundColor ? appearance?.background : nil
-                let panelInk = surface.map { panelForeground($0, opacity: CGFloat(settings.renderedBackgroundOpacity)) }
-                let lightSurface = panelInk.map { ($0.components?.first ?? 1) < 1 } ?? item.lightSurface
-                var style = NativeTranslationTypography.Style(
-                    fontName: settings.preserveSourceColors && item.fontScript == "korean" ? appearance?.fontName : nil,
-                    fontScript: item.fontScript, fontSize: item.fontSize, vertical: item.vertical,
-                    foreground: item.typesettingForeground.map { color($0.map { CGFloat($0) }) } ?? foreground ?? panelInk ?? color(lightSurface ? [17, 18, 23] : [255, 255, 255]),
-                    outlinePaintOrder: .fillThenStroke,
-                    tracking: -item.fontSize * 0.012, lineHeight: max(item.fontSize, item.lineHeight),
-                    alignsToTop: item.balancedColumn)
-                style.balancesHorizontalLines = item.wrappingScript == "korean" && !item.vertical &&
-                    item.text.utf16.count <= 180 && !item.text.contains("\n")
-                style.horizontalScale = item.typesettingWidthScale ?? 1
-                style.outline = item.typesettingOutlineRGB.map { color($0.map { CGFloat($0) }) }
-                style.outlineWidth = item.typesettingOutlineWidth ?? 0
-                if style.outline != nil, style.outlineWidth > 0 { style.outlinePaintOrder = .strokeThenFill }
-                style.optimizesKoreanWrapping = false
-                style.koreanQuoteMode = item.typesettingQuoteMode ?? 0
-                style.usesBlockWordLayout = item.typesettingText != nil && item.typesettingQuoteMode != nil
-                style.usesPreformattedBlockRows = item.typesettingText != nil && item.typesettingPreformattedRows == true
-                style.blockWordLayoutUsesTopPadding = (style.usesBlockWordLayout || style.usesPreformattedBlockRows) && item.typesettingBlockDisplay == true
-                style.strictLineBreak = item.typesettingStrictLineBreak ?? false
-                style.horizontalWrapping = item.wrappingScript == "korean" && !style.strictLineBreak ? .keepAllWithEmergency : .normal
-                let typography = fitted(text: item.typesettingText ?? item.text, size: item.contentRect.size, style: &style, item: item)
-                if !typography.fits { limitations.append("text-overflow:\(item.id)") }
-                if item.smallTextReference != nil, !item.smallTextReferenceResolved {
-                    limitations.append("small-text-reference-unresolved:\(item.id)")
-                }
-                if style.fontName == "AidokuSerifKR-Bold", !NativeTranslationTypography.isBundledSerifAvailable {
-                    limitations.append("serif-font-unavailable:\(item.id)")
-                }
-                let sourceWeight = appearance?.sourceStrokeWeight ?? 0
-                let heavy = settings.preserveSourceColors && appearance?.letteringStyle == "gothic" &&
-                    ((sourceWeight >= 0.14 && style.fontSize >= 14) ||
-                     (sourceWeight >= 0.11 && sourceWeight >= pageWeight * 1.3 && style.fontSize >= 12))
-                if heavy { style.outlinePaintOrder = .strokeThenFill }
-                // Observed source surfaces receive a separate final readability plate when glyph safety remains unproven.
-                let preservesSurface = settings.preserveSourceBackgroundColor && item.sourceColorEligible
-                cards.append(Card(item: item, typography: typography, style: style, inkBeforeSurface: rgb(style.foreground),
-                    authoredTextOrigin: authoredOrigin, initialCaptionCSS: initialCaptionCSS,
-                    sourceBackgroundKind: initialSourceBackgroundKind(item: item, appearance: appearance, settings: settings, restoredCanvasAttached: restoredCanvasAttached),
-                    cleanupSourceFrame: restoration.cleanupGeometry?.frame ?? layout.sourceRect,
-                    drawsPanel: !restoredCanvasAttached && !preservesSurface,
-                    background: surface ?? color(lightSurface ? [255, 254, 249] : [7, 9, 13]),
-                    usesFallbackVeil: surface == nil, lightSurface: lightSurface,
-                    heavyStrokeWidth: heavy ? (style.fontSize * 0.045 * 100).rounded() / 100 : 0,
-                    finalFontSize: style.fontSize))
-            }
-            prepareSourcePanels(cards: &cards, restoration: restoration, layout: layout, settings: settings, growthSession: growthSession)
-            applyCaptionFixedBoxReflow(cards: &cards, layout: layout, settings: settings)
-            let artworkBudget = try protectInitialArtwork(cards: &cards, restoration: &restoration,
-                layout: layout, source: source, settings: settings, surfaceQuery: { card,rects,foreground,remaining in
-                    guard let ink = rgb(foreground), let range = growthSession.inspectSurface(item: card.item,
-                        typography: card.typography, rects: rects, allowExterior: true, lookupBudget: &remaining), range.count == 2 else { return false }
-                    return NativeTranslationSourceStylePostPolish.luminanceContrast(NativeSourceColorSampler.luminance(ink),range[0],range[1]) >= 4.5
-                }, restoredSourcePanelIDs: Set(cards.filter { growthSession.context.restored($0.item.id) }.map { $0.item.id }))
-            growthSession.artworkSurfaceRemaining = artworkBudget.surface
-            for card in cards {
-                if let record = card.artworkRecord, let original = Double(record["artworkOriginalFont"] ?? "") {
-                    growthSession.commitArtwork(item: card.item, originalFont: CGFloat(original),
-                        restoredInside: record["artworkFit"] == "restored-surface")
-                }
-            }
-            applySourceStyles(to: &cards, restoration: restoration, settings: settings, stage: .initialInk, itemCount: layout.items.count)
-            let balloons = BalloonRelayoutContext(layout: layout, source: source, restoration: restoration, cards: cards)
-            polishPanelGeometry(cards: &cards, gloss: .init(), layout: layout, restoration: restoration, settings: settings, phase: .anchorBacking, restoredSourcePanelIDs: Set(cards.filter { growthSession.context.restored($0.item.id) }.map { $0.item.id }), rememberedPadding: Dictionary(cards.map { ($0.item.id, growthSession.rememberedInk(id: $0.item.id)?.pad ?? 0) }, uniquingKeysWith: { _, last in last }))
-            applyEarlyMargins(cards: &cards, restoration: &restoration, layout: layout, source: source, settings: settings,
-                growth: growthSession, balloons: balloons)
-            polishPanelGeometry(cards: &cards, gloss: .init(), layout: layout, restoration: restoration, settings: settings, phase: .compactOnly, restoredSourcePanelIDs: Set(cards.filter { growthSession.context.restored($0.item.id) }.map { $0.item.id }), rememberedPadding: Dictionary(cards.map { ($0.item.id, growthSession.rememberedInk(id: $0.item.id)?.pad ?? 0) }, uniquingKeysWith: { _, last in last }))
-            applyEarlyPlateContrast(cards: &cards, layout: layout, restoration: restoration, settings: settings)
-            if settings.renderedBackgroundOpacity == 1, settings.preserveSourceBackgroundColor, layout.items.count <= 256 {
-                let currentLayout = NativeTranslationLayout(imageSize: layout.imageSize, sourceRect: layout.sourceRect,
-                    viewport: layout.viewport, items: layout.items.map { item in cards.first(where: { $0.item.id == item.id })?.item ?? item },
-                    readableRecoveryRemaining: layout.readableRecoveryRemaining, sourceObjectFit: layout.sourceObjectFit)
-                commitLocalRestorationProposals(cards: &cards, restoration: &restoration, growth: growthSession, layout: currentLayout)
-            }
-            applySlantedTrials(cards: &cards, restoration: &restoration, layout: layout, source: source, settings: settings, context: slantedContext)
-            var gloss = oversizedTitleGloss(cards: &cards, layout: layout, restoration: restoration, settings: settings, source: source)
-            balloons.refresh(cards: cards, restoration: restoration)
-            packCaptions(cards: &cards, gloss: gloss, layout: layout, restoration: restoration, settings: settings, source: source, balloons: balloons, collectDiagnostics: collectDiagnostics,
-                rememberedPadding: Dictionary(cards.map { ($0.item.id, growthSession.rememberedInk(id: $0.item.id)?.pad ?? 0) }, uniquingKeysWith: { _, last in last }))
-            let plateSession = PlateGrowthSession()
-            defer { plateSession.close() }
-            try growPlateTypography(cards: &cards, layout: layout, restoration: restoration, settings: settings, source: source, gloss: gloss, growthSession: growthSession, plateSession: plateSession)
-            repairGrownTypographyWords(cards: &cards, restoration: restoration, layout: layout, growthSession: growthSession,
-                hiddenIDs: gloss.hiddenIDs, removedIDs: gloss.removedLayerIDs)
-            try reconcileTypographyHarmony(cards: &cards, layout: layout, restoration: restoration, settings: settings, source: source, growthSession: growthSession, lockedIDs: slantedContext.lockedIDs, plateSession: plateSession, hiddenIDs: gloss.hiddenIDs.union(gloss.removedLayerIDs), removedIDs: gloss.removedLayerIDs)
-            prepareFinalTrials(cards: &cards,restoration: &restoration,gloss: gloss,layout: layout,settings: settings,source: source,balloonStage: true)
-            fitLatePageEdges(cards: &cards, gloss: gloss, layout: layout)
-            applySourceAlignment(cards: &cards, gloss: gloss, layout: layout, restoration: restoration, settings: settings, source: source)
-            if settings.renderedBackgroundOpacity == 1 { commitBalloonUnits(cards: &cards,gloss: gloss,layout: layout,restoration: restoration, restoredSourcePanelIDs: Set(cards.filter { growthSession.context.restored($0.item.id) }.map { $0.item.id })) }
-            applySourceStyles(to: &cards,restoration: restoration,settings: settings,stage: .finalContrast, itemCount: layout.items.count)
-            minimalRestoredPlates(cards: &cards, gloss: gloss, layout: layout, restoration: restoration, settings: settings)
-            containJoinedBalloonUnits(cards: &cards, gloss: gloss, layout: layout, restoration: restoration, settings: settings, balloons: balloons)
-            splitBalloonUnitParts(cards: &cards, gloss: gloss, layout: layout, restoration: restoration, settings: settings, balloons: balloons)
-            holdLateReadableFloor(cards: &cards, gloss: gloss, layout: layout, restoration: restoration, settings: settings)
-            clipLateBalloonPanels(cards: &cards, gloss: gloss, layout: layout, settings: settings, balloons: balloons)
-            centerLateBalloonBodies(cards: &cards, gloss: gloss, layout: layout, settings: settings)
-            try restoreSourceFrameLines(cards: &cards, gloss: gloss, layout: layout, source: source, settings: settings)
-            _ = try liftFinalRotatedReadability(cards: &cards, gloss: gloss, layout: layout, source: source, settings: settings)
-            repairKoreanStacks(cards: &cards, gloss: gloss, layout: layout, restoration: restoration, source: source, settings: settings)
-            applyPaintOrderLifts(cards: &cards, gloss: gloss, layout: layout, settings: settings)
-            var displayRestoreMetadata = Dictionary(cards.map { card in
-                (card.item.id, DisplayCohortMetadata(backgroundKind: card.sourceBackgroundKind,
-                    strokeKind: card.sourceStrokeKind, surfaceRange: cardSurfaceEvidence(card, restoration: restoration)?.range))
-            }, uniquingKeysWith: { _,last in last })
-            _ = try restoreDisplayLettering(cards: &cards, gloss: gloss, layout: layout, restoration: &restoration,
-                settings: settings, source: source, metadata: &displayRestoreMetadata)
-            preparePrimaryOutlines(cards: &cards, gloss: gloss, layout: layout, source: source, restoration: restoration, settings: settings)
-            preserveLetteringPolarity(cards: &cards, gloss: gloss, layout: layout, restoration: restoration, settings: settings)
-            let displayMetadata = Dictionary(cards.map { card in
-                (card.item.id, DisplayCohortMetadata(backgroundKind: card.sourceBackgroundKind,
-                    strokeKind: card.sourceStrokeKind, surfaceRange: cardSurfaceEvidence(card, restoration: restoration)?.range))
-            }, uniquingKeysWith: { first,_ in first })
-            reconcileDisplayStyleCohorts(cards: &cards, layout: layout, restoration: restoration, settings: settings, gloss: gloss, metadata: displayMetadata)
-            applyLetteringUnitPalette(cards: &cards, gloss: gloss, layout: layout, restoration: restoration, settings: settings)
-            applyDisplayGroups(cards: &cards, gloss: gloss, layout: layout, settings: settings)
-            let trimmed = applyLatePlateTrim(cards: &cards, gloss: gloss, layout: layout, restoration: restoration, source: source, settings: settings, collectDiagnostics: collectDiagnostics)
-            for index in cards.indices { cards[index].finalPlateTrim = trimmed[cards[index].item.id] }
-            _ = try linkFinalPlates(cards: &cards, gloss: gloss, layout: layout, restoration: restoration, source: source, settings: settings)
-            applyGlyphCover(cards: &cards, restoration: &restoration, layout: layout, source: source, settings: settings, gloss: gloss)
-            for index in cards.indices where cards[index].glyphCoverPatch != nil {
-                let card = cards[index]
-                cards[index].glyphCoverLayerZ = card.rotatesSourcePanels ? card.rotatedPlateZ : (card.captionParentPlate ? card.sourcePanelZ : 1)
-                cards[index].glyphCoverLayerOrder = card.rotatesSourcePanels
-                    ? card.rotatedPlateOrder ?? Double(cards.count * 3 + index) : Double(cards.count + index)
-            }
-            extendWidenedDisplayClip(cards: &cards)
-            applyLightLettering(cards: &cards,layout: layout,restoration: restoration,settings: settings,source: source)
-            for index in cards.indices {
-                let card = cards[index], appearance = restoration.appearances[card.item.id], weight = appearance?.sourceStrokeWeight ?? 0
-                let heavy = settings.preserveSourceColors && appearance?.letteringStyle == "gothic" &&
-                    (appearance?.sourceSample?["displayLettering"] as? Bool != true) && card.style.outline == nil &&
-                    ((weight >= 0.14 && card.style.fontSize >= 14) || (weight >= 0.11 && weight >= pageWeight * 1.3 && card.style.fontSize >= 12))
-                cards[index].heavyStrokeWidth = heavy ? (card.style.fontSize * 0.045 * 100).rounded() / 100 : 0
-                if heavy { cards[index].style.outlinePaintOrder = .strokeThenFill }
-            }
-            reappendRotatedPlates(cards: &cards, gloss: gloss)
-            let effects = effectGloss(cards: cards, layout: layout, restoration: restoration, settings: settings, source: source)
-            gloss.notes += effects.notes
-            gloss.hiddenIDs.formUnion(effects.hiddenIDs); gloss.removedLayerIDs.formUnion(effects.removedLayerIDs)
-            gloss.sourceZones += effects.sourceZones; gloss.rejected.merge(effects.rejected) { _, latest in latest }
-            gloss.units += effects.units
-            let recovered = try recoverLines(cards: &cards, gloss: &gloss, layout: layout, source: source, settings: settings)
-            var glossCards = gloss.notes.compactMap { note -> GlossCard? in
-                guard let card = cards.first(where: { $0.item.id == note.id }) else { return nil }
-                var style = glossStyle(card: card, size: note.placement.size, lineHeight: note.placement.lineHeight,
-                    title: note.title, retained: note.retainedTypography)
-                style.foreground = color(note.fill.map { CGFloat($0) })
-                style.outline = color(note.outline.map { CGFloat($0) })
-                style.outlineWidth = CGFloat(note.strokeWidth)
-                style.outlinePaintOrder = .strokeThenFill
-                return GlossCard(note: note, typography: NativeTranslationTypography.layout(text: glossText(note.text, title: note.title),
-                    in: note.contentSize, style: style), style: style)
-            }
-            prepareFinalTrials(cards: &cards, restoration: &restoration, gloss: gloss, layout: layout, settings: settings, source: source, balloonStage: false)
-            if let deferred = restoration.deferredForced {
-                _ = try deferred.apply(to: &restoration, hasReadabilityPanel: { item in
-                    guard let card = cards.first(where: { $0.item.id == item.id }),
-                          !gloss.hiddenIDs.contains(item.id), !gloss.removedLayerIDs.contains(item.id) else { return false }
-                    return readabilityOwnerPanel(card) != nil
-                })
-            }
-            for patch in restoration.patches where patch.finalForcedErasure {
-                if let index = cards.firstIndex(where: { $0.item.id == patch.itemID }) {
-                    cards[index].lateSourcePatchOrder = nextRootOrder(cards: cards)
-                }
-            }
-            releaseCertifiedPlates(cards: &cards, restoration: restoration, gloss: gloss, layout: layout, settings: settings)
-            polishFinalGeometry(cards: &cards, gloss: gloss, layout: layout, restoration: restoration, anchorsOnly: false)
-            polishCaptionPanels(cards: &cards, glossCards: glossCards, gloss: gloss, layout: layout, settings: settings, source: source, keptZones: captionPolishKeptZones(layout: layout, restoration: restoration, recovered: recovered))
-            containBalloonText(cards: &cards, gloss: gloss, layout: layout)
-            polishPanelGeometry(cards: &cards, gloss: gloss, layout: layout, restoration: restoration, settings: settings, containBalloon: true)
-            polishFinalGeometry(cards: &cards, gloss: gloss, layout: layout, restoration: restoration, anchorsOnly: true)
-            reconcileFinalStrokes(cards: &cards, glossCards: &glossCards, gloss: gloss, layout: layout, source: source, restoration: restoration, settings: settings)
-            separateCaptions(cards: &cards, glossCards: glossCards, gloss: gloss, layout: layout, restoration: restoration)
-            for index in cards.indices where cards[index].style.outlineWidth > 0 || cards[index].style.outlineGlow > 0 { cards[index].heavyStrokeWidth = 0 }
-            try Task.checkCancellation()
-            let pixels = outputPixelSize.map { pixelSize(viewport: $0, scale: 1) } ?? pixelSize(viewport: bounds.size, scale: scale)
-            let sourcePatches = snapshotSourcePatches(restoration: restoration, cards: cards, gloss: gloss, visible: settings.visible)
-            let sourcePieces = settings.visible && settings.renderedBackgroundOpacity == 1 && image != nil
-                ? sourceRestorationRects(cards: cards, glossCards: glossCards, gloss: gloss, layout: layout, restoration: restoration, recovered: recovered, settings: settings) : []
-            let diagnosticData = collectDiagnostics ? diagnostics(cards: cards, glossCards: glossCards, gloss: gloss,
-                restoration: restoration, growthSession: growthSession, initialPatchCapture: initialPatchCapture) : nil
-            return PreparedRender(inputLayout: inputLayout, layout: layout, image: image, source: source,
-                restoration: restoration, cards: cards, glossCards: glossCards, gloss: gloss, settings: settings,
-                bounds: bounds, pixels: pixels, scale: scale, composeSource: composeSource,
-                capturePDF: capturePDF, pdfDeviceScale: pdfDeviceScale,
-                sourcePatches: sourcePatches, sourcePieces: sourcePieces,
-                limitations: limitations, diagnosticData: diagnosticData)
+                                    composeSource: Bool = true, outputPixelSize: CGSize? = nil, collectDiagnostics: Bool = false, capturePDF: Bool = false, pdfDeviceScale: CGFloat = 1, recordStage: ((String) -> Void)? = nil, auditCardObserver: AuditCardObserver? = nil) throws -> PreparedRender {
+        try prepareTextBoxes(layout: layout, image: image, settings: settings, scale: scale,
+            renderBounds: renderBounds, composeSource: composeSource, outputPixelSize: outputPixelSize,
+            collectDiagnostics: collectDiagnostics, capturePDF: capturePDF, pdfDeviceScale: pdfDeviceScale,
+            recordStage: recordStage, auditCardObserver: auditCardObserver)
+    }
+
+    static func paintPrepared(_ plan: PreparedRender, context: CGContext,
+                              canvasBacking: NativeCanvasBacking?,
+                              canvasSession: NativeCanvasTextureResampler.Session?) -> Bool {
+        // Paint every opaque replacement before any translated text, so a neighboring
+        // panel cannot cover an already painted translation. Bitmap and PDF share this path.
+        context.saveGState()
+        defer { context.restoreGState() }
+        context.clip(to: plan.layout.sourceRect)
+        for card in plan.cards {
+            if Task.isCancelled { return true }
+            draw(card, context: context, opacity: 1, paintsText: false, paintsSourcePanels: false,
+                 pixelSnapScale: plan.capturePDF ? plan.pdfDeviceScale : nil)
         }
+        // Explicit legacy column erasures must survive sampled background panels
+        // and export clipping, while staying behind every translated glyph.
+        for card in plan.cards where !card.sourceLayersSuppressed && !plan.gloss.removedLayerIDs.contains(card.item.id) {
+            if Task.isCancelled { return true }
+            drawColumnSourceErasure(card, context: context, settings: plan.settings)
+        }
+        for card in plan.cards {
+            if Task.isCancelled { return true }
+            draw(card, context: context, opacity: 1, paintsBackground: false, paintsSourcePanels: false,
+                 pixelSnapScale: plan.capturePDF ? plan.pdfDeviceScale : nil)
+        }
+        return false
+    }
+
+
+    static func retainedWidthPreparedRender(_ receipt: NativeWidthFinalArtifactAdmission.Receipt,
+        diagnosticData: Data?) -> PreparedRender {
+        let s = receipt.snapshot
+        var sealed = PreparedRender(inputLayout: s.inputLayout,
+            layout: s.layout,
+            image: s.image,
+            source: s.source,
+            restoration: s.restoration,
+            cards: receipt.cards,
+            glossCards: s.glossCards,
+            gloss: s.gloss,
+            settings: s.settings,
+            bounds: s.bounds,
+            pixels: s.pixels,
+            scale: s.scale,
+            composeSource: s.composeSource,
+            capturePDF: s.capturePDF,
+            pdfDeviceScale: s.pdfDeviceScale,
+            sourcePatches: s.sourcePatches,
+            sourcePieces: s.sourcePieces,
+            limitations: s.limitations,
+            diagnosticData: diagnosticData)
+        sealed.retainedWidthArtifact = NativeWidthFinalArtifactAdmission.Artifact(
+            image: receipt.image, data: receipt.data, mediaBox: receipt.mediaBox)
+        return sealed
     }
 
     static func finishPreparedSynchronously(_ plan: PreparedRender) throws -> Result {
         try autoreleasepool {
-            let layout = plan.layout, image = plan.image, source = plan.source
-            let restoration = plan.restoration, cards = plan.cards, glossCards = plan.glossCards, gloss = plan.gloss
-            let settings = plan.settings, bounds = plan.bounds, pixels = plan.pixels
+            try Task.checkCancellation()
+            if let captured = plan.retainedWidthArtifact {
+                guard plan.capturePDF == (captured.data != nil), captured.image.width == Int(plan.pixels.width),
+                    captured.image.height == Int(plan.pixels.height) else { throw RenderError.invalidGeometry }
+                // Same approved document, same immutable full world and downstream compositor.
+                // No new capture; cancellation is checked again inside finishPreparedResult.
+                return try finishPreparedResult(plan, overlayCGImage: captured.image, exportPDFData: captured.data)
+            }
+            guard !plan.cards.contains(where: { $0.harmonyRecord["widthRequiresRetainedArtifact"] as? Bool == true }) else {
+                throw RenderError.invalidGeometry
+            }
+            let bounds = plan.bounds, pixels = plan.pixels
             let capturePDF = plan.capturePDF, pdfDeviceScale = plan.pdfDeviceScale
-            let sourcePatches = plan.sourcePatches, sourcePieces = plan.sourcePieces
             let format = UIGraphicsImageRendererFormat()
             format.scale = 1
             format.preferredRange = .standard
@@ -526,33 +456,15 @@ enum NativeTranslationRenderer {
             let canvasSession: NativeCanvasTextureResampler.Session? = capturePDF ? nil : .init()
             defer { canvasSession?.close() }
             let paint: (CGContext, NativeCanvasBacking?) -> Void = { context, canvasBacking in
-                UIGraphicsPushContext(context)
-                defer { UIGraphicsPopContext() }
-                for patch in capturePDF ? [] : sourcePatches {
-                    if patch.liveOrder != nil || cards.contains(where: { $0.glyphCoverPatch?.image === patch.image }) { continue }
-                    if Task.isCancelled { cancelled = true; break }
-                    drawSourcePatch(patch, context: context, usesLiveTextureSampling: !capturePDF, canvasSession: canvasSession, canvasBacking: canvasBacking, allowsOpaqueAffineSampling: !capturePDF)
-                }
-                drawPaintScene(cards: cards, gloss: gloss, settings: settings, context: context,
-                    pixelSnapScale: capturePDF ? pdfDeviceScale : nil, latePatches: capturePDF ? [] : sourcePatches.filter { $0.liveOrder != nil },
-                    usesLiveTextureSampling: !capturePDF, canvasSession: canvasSession, canvasBacking: canvasBacking, allowsOpaqueAffineSampling: !capturePDF)
-                for card in glossCards {
-                    if Task.isCancelled { cancelled = true; break }
-                    drawGloss(card, context: context, pixelSnapScale: capturePDF ? pdfDeviceScale : nil)
-                }
-                if !capturePDF, !sourcePieces.isEmpty {
-                    if let source, let geometry = restoration.cleanupGeometry {
-                        drawKeptSourceCopy(source: source, geometry: geometry, pieces: sourcePieces, context: context)
-                    } else if let image {
-                        context.saveGState(); context.addRects(sourcePieces); context.clip()
-                        image.draw(in: layout.sourceRect); context.restoreGState()
-                    }
+                if paintPrepared(plan, context: context, canvasBacking: canvasBacking, canvasSession: canvasSession) {
+                    cancelled = true
                 }
             }
             let overlayCGImage: CGImage
             let exportPDFData: Data?
             if capturePDF {
-                let capture = try NativeTranslationPDFCapture.capture(bounds: bounds, pixels: pixels, deviceScale: pdfDeviceScale, paint: { paint($0, nil) })
+                let capture = try NativeTranslationPDFCapture.capture(bounds: bounds, pixels: pixels,
+                    deviceScale: pdfDeviceScale, alignsToLogicalBounds: true, paint: { paint($0, nil) })
                 overlayCGImage = capture.image; exportPDFData = capture.data
             } else {
                 let bitmap = UIGraphicsImageRenderer(size: pixels, format: format).image { renderer in
@@ -572,6 +484,11 @@ enum NativeTranslationRenderer {
 
     static func finishPreparedResult(_ plan: PreparedRender, overlayCGImage: CGImage, exportPDFData: Data?) throws -> Result {
         try autoreleasepool {
+            try Task.checkCancellation()
+            if plan.cards.contains(where: { $0.harmonyRecord["widthRequiresRetainedArtifact"] as? Bool == true }) {
+                guard let receipt = plan.retainedWidthArtifact, receipt.data == exportPDFData,
+                      receipt.image === overlayCGImage else { throw RenderError.invalidGeometry }
+            }
             let inputLayout = plan.inputLayout, layout = plan.layout, image = plan.image
             let cards = plan.cards, glossCards = plan.glossCards, gloss = plan.gloss
             let settings = plan.settings, bounds = plan.bounds, pixels = plan.pixels, scale = plan.scale
@@ -619,6 +536,11 @@ enum NativeTranslationRenderer {
             fontScript: item.fontScript, fontSize: item.fontSize, vertical: item.vertical,
             foreground: (settings.preserveSourceTextColor ? appearance.foreground : nil) ?? panelInk ?? color(light ? [17, 18, 23] : [255, 255, 255]),
             tracking: -item.fontSize * 0.012, lineHeight: max(item.fontSize, item.lineHeight), alignsToTop: item.balancedColumn)
+        if let bold = item.sourceRenderBold {
+            style.bold = bold
+            // A fixed named face can override bold=false; use the regular script family.
+            if !bold { style.fontName = nil }
+        }
         style.balancesHorizontalLines = item.wrappingScript == "korean" && !item.vertical && item.text.utf16.count <= 180 && !item.text.contains("\n")
         style.optimizesKoreanWrapping = false
         let measured = fitted(text: item.text, size: item.contentRect.size, style: &style)
@@ -1174,8 +1096,8 @@ enum NativeTranslationRenderer {
     }
 
     static func polishFinalGeometry(cards: inout [Card], gloss: NativeTranslationEffectGloss.Refinement,
-                                            layout: NativeTranslationLayout, restoration: NativeTranslationRestoration.Result,
-                                            anchorsOnly: Bool) {
+                                            layout: NativeTranslationLayout,
+                                            restoration: NativeTranslationRestoration.Result, anchorsOnly: Bool) {
         let snapshot = cards
         let input = cards.compactMap { card -> NativeTranslationFinalGeometry.Entry? in
             let item = card.item
@@ -2220,7 +2142,8 @@ enum NativeTranslationRenderer {
         }
     }
 
-    static func fitted(text: String, size: CGSize, style: inout NativeTranslationTypography.Style, item: NativeTranslationLayoutItem? = nil) -> NativeTranslationTypography.Layout {
+    static func fitted(text: String, size: CGSize, style: inout NativeTranslationTypography.Style,
+                       item: NativeTranslationLayoutItem? = nil) -> NativeTranslationTypography.Layout {
         let maximum = style.fontSize
         let ratio = max(1, style.lineHeight / max(1, maximum))
         var result = NativeTranslationTypography.layout(text: text, in: size, style: style)
@@ -2230,28 +2153,48 @@ enum NativeTranslationRenderer {
             probe.typesettingWidthScale = style.horizontalScale
             return NativeTypographyPostPolish.contentFits(item: probe, typography: measured)
         }
-        guard !fits(result), maximum > BrowserOverlayLayoutPlanner.minimumRenderedFontSize else { return result }
         func at(_ fontSize: CGFloat) -> NativeTranslationTypography.Layout {
             style.fontSize = fontSize
             style.lineHeight = fontSize * ratio
             style.tracking = -fontSize * 0.012
             return NativeTranslationTypography.layout(text: text, in: size, style: style)
         }
-        var lower = BrowserOverlayLayoutPlanner.minimumRenderedFontSize
-        var upper = maximum
-        result = at(lower)
-        guard fits(result) else { return result }
-        for _ in 0..<9 {
-            let candidate = (lower + upper) / 2
-            if fits(at(candidate)) { lower = candidate } else { upper = candidate }
-        }
-        return at(floor(lower * 4) / 4)
+        let minimum = BrowserOverlayLayoutPlanner.minimumRenderedFontSize
+        if fits(result) { return result }
+        if maximum > minimum, let font = NativeTranslationFontFitSearch.largestFitting(minimum: minimum, maximum: maximum,
+            fits: { result = at($0); return fits(result) }) { return at(font) }
+        return result
     }
 
     static func draw(_ card: Card, context: CGContext, opacity: CGFloat, paintsBackground: Bool = true, paintsText: Bool = true, paintsSourcePanels: Bool = true, pixelSnapScale: CGFloat? = nil, canvasBacking: NativeCanvasBacking? = nil) {
+        if card.sourceBackgroundKind == "solid-text-box", paintsText, paintsBackground || paintsSourcePanels {
+            // Mixed callers must not let the erasure clip leak into text paint.
+            // The native prepared plan already uses these same two passes.
+            draw(card, context: context, opacity: opacity, paintsBackground: paintsBackground,
+                paintsText: false, paintsSourcePanels: paintsSourcePanels,
+                pixelSnapScale: pixelSnapScale, canvasBacking: canvasBacking)
+            draw(card, context: context, opacity: opacity, paintsBackground: false,
+                paintsText: true, paintsSourcePanels: false,
+                pixelSnapScale: pixelSnapScale, canvasBacking: canvasBacking)
+            return
+        }
         let item = card.item
         context.saveGState()
         defer { context.restoreGState() }
+        if card.sourceBackgroundKind == "solid-text-box" {
+            let textOnly = paintsText && !paintsBackground && !paintsSourcePanels
+            let domain = textOnly ? card.textPaintDomain : nil
+            // Balloon contours constrain text, never cut pieces out of the opaque panel.
+            if textOnly { context.clip(to: domain?.rect ?? card.sourcePlateRect) }
+            let polygon = textOnly ? (domain?.polygon ?? card.textBoxClip) : []
+            if let first = polygon.first {
+                let path = CGMutablePath()
+                path.move(to: first)
+                for point in polygon.dropFirst() { path.addLine(to: point) }
+                path.closeSubpath()
+                context.addPath(path); context.clip()
+            }
+        }
         func rotate(_ angle: CGFloat? = nil, about anchor: CGRect? = nil) {
             let anchor = anchor ?? card.sourcePlateRect
             context.translateBy(x: anchor.midX, y: anchor.midY)
@@ -2331,19 +2274,25 @@ enum NativeTranslationRenderer {
         }
         if paintsBackground, card.drawsPanel {
             context.saveGState()
-            if item.rotation != 0, card.straightenedPanelRect == nil { rotate(); drawSlantedClip(card, context: context) }
+            if card.sourceBackgroundKind != "solid-text-box", let clip = card.textBoxBackgroundClip {
+                context.clip(to: clip)
+            }
+            if item.rotation != 0, card.straightenedPanelRect == nil { rotate() }
             let frame = card.straightenedPanelRect ?? card.sourcePlateRect
-            let radius: CGFloat = card.straightenedPanelRect == nil ? 6 : 0
-            if let pixelSnapScale {
+            let radius: CGFloat = 0
+            // Solid replacement panels share bitmap geometry. Snapping their
+            // fill independently of the owner clip can uncover an interior strip.
+            let panelSnapScale = card.sourceBackgroundKind == "solid-text-box" ? nil : pixelSnapScale
+            if let pixelSnapScale = panelSnapScale {
                 context.addPath(NativeTranslationPDFCapture.roundedPath(frame, radius: radius, deviceScale: pixelSnapScale))
             } else { context.addPath(CGPath(roundedRect: frame, cornerWidth: radius, cornerHeight: radius, transform: nil)) }
             context.clip()
-            if let pixelSnapScale, card.style.vertical, item.clipsText, !card.glyphPlateReleased {
+            if let pixelSnapScale = panelSnapScale, card.style.vertical, item.clipsText, !card.glyphPlateReleased {
                 context.clip(to: NativeTranslationPDFCapture.snappedRect(frame,deviceScale: pixelSnapScale))
             }
             context.setAlpha(pixelSnapScale == nil ? opacity : (opacity*255).rounded()/255)
             context.setFillColor(card.background)
-            context.fill(pixelSnapScale.map { NativeTranslationPDFCapture.snappedRect(frame, deviceScale: $0) } ?? frame)
+            context.fill(panelSnapScale.map { NativeTranslationPDFCapture.snappedRect(frame, deviceScale: $0) } ?? frame)
             // PDF preserves the browser's vector-versus-tiled gradient branch; bitmap presentation keeps alpha.
             if card.usesFallbackVeil {
                 if let pixelSnapScale {
@@ -2373,7 +2322,7 @@ enum NativeTranslationRenderer {
         }
         if card.effectiveTextRotation != 0 { rotate(card.effectiveTextRotation, about: item.rect) }
         drawSlantedClip(card, context: context)
-        if item.clipsText, !card.glyphPlateReleased {
+        if item.clipsText, !card.glyphPlateReleased, card.textPaintDomain == nil {
             if let pixelSnapScale, card.style.vertical {
                 context.addPath(NativeTranslationPDFCapture.roundedPath(item.rect,radius: 6,deviceScale: pixelSnapScale)); context.clip()
                 context.clip(to: NativeTranslationPDFCapture.snappedRect(item.rect,deviceScale: pixelSnapScale))
@@ -2435,13 +2384,23 @@ enum NativeTranslationRenderer {
         return Double(result.ink) <= max(2, Double(result.area) * 0.005)
     }
 
-    private static func finalPaintBounds(cards: [Card], glossCards: [GlossCard], gloss: NativeTranslationEffectGloss.Refinement, settings: IPhoneOverlaySettings) -> [CGRect] {
+    static func finalPaintBounds(cards: [Card], glossCards: [GlossCard], gloss: NativeTranslationEffectGloss.Refinement, settings: IPhoneOverlaySettings) -> [CGRect] {
         var result = cards.filter { !gloss.removedLayerIDs.contains($0.item.id) }.flatMap { card in card.sourcePanels.map { card.rotatesSourcePanels ? rotatedBounds($0.rect,about: card.sourcePlateRect,angle: card.item.rotation) : $0.rect } }
         result += cards.filter { !gloss.removedLayerIDs.contains($0.item.id) }.compactMap { card in
             !card.rotatesSourcePanels ? card.glyphCoverOwnerPanel.map(\.rect):nil
         }
         result += cards.filter { !gloss.removedLayerIDs.contains($0.item.id) && !gloss.hiddenIDs.contains($0.item.id) }.flatMap { columnSourceErasureRects($0,settings: settings) }
         for card in cards where !gloss.hiddenIDs.contains(card.item.id) && !gloss.removedLayerIDs.contains(card.item.id) {
+            // The opaque backing owns its paint support independently of text placement.
+            // A text-node-only export clip otherwise cuts away source coverage when
+            // a fitted paragraph moves inside its fixed balloon backing.
+            if card.sourceBackgroundKind == "solid-text-box", card.drawsPanel {
+                let backing = card.straightenedPanelRect ?? card.sourcePlateRect
+                if valid(backing) { result.append(backing) }
+            }
+            // The separately certified text domain may extend beyond erasure
+            // support. Export clipping must retain it, including thick strokes.
+            if let domain = card.textPaintDomain { result.append(domain.rect) }
             let node = physicalTextNodeRect(card)
             let range = cardInkRect(card)
             if valid(node), valid(range) { result.append(node.union(range).insetBy(dx: -2, dy: -2)) }
@@ -2503,15 +2462,14 @@ enum NativeTranslationRenderer {
             effectZones: gloss.sourceZones.map { .init(id: $0.id,rect: $0.rect) },glyphLines: glyphs,covers: covers,image: sourceElement).pieces
     }
 
-    /// Match the former browser's background sampling raster budget, including UIImage orientation.
-    private static func restorationImage(_ image: UIImage?) throws -> CGImage? {
+    /// Normalize orientation without reducing original colour evidence.
+    static func restorationImage(_ image: UIImage?) throws -> CGImage? {
         guard let image else { return nil }
         try Task.checkCancellation()
         let pixels = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
         guard valid(pixels) else { throw RenderError.sourceImageUnavailable }
-        let reduction = min(1, 8_192 / max(pixels.width, pixels.height), sqrt(4_000_000 / pixels.width / pixels.height))
-        let size = CGSize(width: max(1, floor(pixels.width * reduction)), height: max(1, floor(pixels.height * reduction)))
-        if image.imageOrientation == .up, reduction == 1, let source = image.cgImage { return source }
+        let size = CGSize(width: max(1, floor(pixels.width)), height: max(1, floor(pixels.height)))
+        if image.imageOrientation == .up, let source = image.cgImage { return source }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         format.preferredRange = .standard
@@ -2557,7 +2515,7 @@ enum NativeTranslationRenderer {
         !rect.isNull && [rect.minX, rect.minY, rect.width, rect.height].allSatisfy(\.isFinite) && rect.width > 0 && rect.height > 0
     }
 
-    private static func validate(viewport: CGSize, scale: CGFloat) throws {
+    static func validate(viewport: CGSize, scale: CGFloat) throws {
         guard valid(viewport), scale.isFinite, scale > 0 else { throw RenderError.invalidGeometry }
         let pixels = pixelSize(viewport: viewport, scale: scale)
         let width = pixels.width, height = pixels.height
@@ -2565,7 +2523,7 @@ enum NativeTranslationRenderer {
               width * height <= 12_000_000 else { throw RenderError.bitmapTooLarge }
     }
 
-    private static func pixelSize(viewport: CGSize, scale: CGFloat) -> CGSize {
+    static func pixelSize(viewport: CGSize, scale: CGFloat) -> CGSize {
         func dimension(_ value: CGFloat) -> CGFloat {
             let nearest = value.rounded()
             // Affine scale division can produce 4000.0000000000005 for an exact 4000-pixel target.
@@ -2578,8 +2536,15 @@ enum NativeTranslationRenderer {
     /// source bitmap stay within this job.
     nonisolated(nonsending) static func renderOnWorker(layout: NativeTranslationLayout, image: UIImage?,
         settings: IPhoneOverlaySettings, scale: CGFloat, dark: Bool, renderBounds: CGRect?,
-        composeSource: Bool, outputPixelSize: CGSize?, collectDiagnostics: Bool,
-        capturePDF: Bool, pdfDeviceScale: CGFloat) async throws -> Result {
+        composeSource: Bool, outputPixelSize: CGSize?, collectDiagnostics: Bool, includeLayoutData: Bool,
+        capturePDF: Bool, pdfDeviceScale: CGFloat,preparedDB:NativeMainEnsemblePreparedDB?) async throws -> Result {
+        if #available(iOS 18.0, macOS 15.0, *), NativeMainEnsembleRenderer.enabled, settings.visible,
+           let image, let source = ensembleSourceImage(image).cgImage {
+            return try NativeMainEnsembleRenderer.render(layout: layout, source: source, scale: scale,
+                renderBounds: renderBounds, outputPixelSize: outputPixelSize, composeSource: composeSource,
+                collectDiagnostics: collectDiagnostics, includeLayoutData: includeLayoutData,
+                capturePDF: capturePDF, pdfDeviceScale: pdfDeviceScale,preparedDB:preparedDB)
+        }
         let plan = try prepareRenderSynchronously(layout: layout, image: image, settings: settings,
             scale: scale, dark: dark, renderBounds: renderBounds, composeSource: composeSource,
             outputPixelSize: outputPixelSize, collectDiagnostics: collectDiagnostics,
@@ -2587,7 +2552,7 @@ enum NativeTranslationRenderer {
         try Task.checkCancellation()
         // Preserve the synchronous PDF/ordinary route whenever there is no admitted
         // minified source operation. Eligibility is geometric, not a fixture switch.
-        guard !capturePDF, directSourceJobIsEligible(plan) else { return try finishPreparedSynchronously(plan) }
+        guard plan.retainedWidthArtifact == nil, !capturePDF, directSourceJobIsEligible(plan) else { return try finishPreparedSynchronously(plan) }
         return try finishPreparedOnWorker(plan)
     }
 

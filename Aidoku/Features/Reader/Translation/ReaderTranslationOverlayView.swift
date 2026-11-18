@@ -11,6 +11,7 @@ struct ReaderTranslationSnapshotTarget {
     var pendingDiskGeneration: Task<UInt64, Never>? = nil
     // Bitmap keys include text; reusable layout/assets retain their render namespace.
     var renderKey: String? = nil
+    var layoutKey: String? = nil
 }
 
 /// Presents a native raster shared with cache and image export. The reader owns
@@ -37,24 +38,23 @@ final class ReaderTranslationOverlayView: UIView {
     private var renderTask: Task<Void, Never>?
     var isRendering: Bool { renderTask != nil }
     private(set) var needsRendering = false
-    private var pendingFrame: UIImage?
     private var generation = UUID()
     private var revision: UInt64 = 0
     private var dirty = false
     private var renderedSize = CGSize.zero
-    private var imageSize = CGSize.zero
+    private var imageSize: CGSize?
     private var aspectFit = true
     private var items: [BrowserOverlayItem] = []
     private var regions: [ReaderTranslationRegion] = []
     private var preparedLayout: Task<Data, Error>?
     private var settings = ReaderTranslationSettings()
     private var snapshotTarget: ReaderTranslationSnapshotTarget?
+    private var preparedEvidence: ReaderTranslationPreparedEvidence?
     private(set) var layoutCacheKey: String?
     var onCacheGeometryChanged: (() -> Void)?
     var onRenderCommitted: (() -> Void)?
     var onRenderFailed: (() -> Void)?
     var onSnapshotStored: ((UIImage) -> Void)?
-    var defersPresentationUntilSnapshot = false
     var canCacheRendering: Bool { snapshotTarget != nil }
     var hasFailedRendering: Bool {
         guard let lastDiagnostic else { return false }
@@ -84,13 +84,13 @@ final class ReaderTranslationOverlayView: UIView {
         generation = UUID()
         renderTask?.cancel()
         renderTask = nil
-        pendingFrame = nil
     }
 
     func update(
         regions: [ReaderTranslationRegion], imageSize: CGSize, aspectFit: Bool,
         settings: ReaderTranslationSettings, image: UIImage? = nil, snapshotTarget: ReaderTranslationSnapshotTarget? = nil,
-        preparedLayout: Task<Data, Error>? = nil, retainsCommittedFrame: Bool = false
+        preparedLayout: Task<Data, Error>? = nil, retainsCommittedFrame: Bool = false,
+        evidence: ReaderTranslationPreparedEvidence? = nil
     ) {
         cancelWork()
         if !retainsCommittedFrame || sourceImage !== image {
@@ -106,8 +106,9 @@ final class ReaderTranslationOverlayView: UIView {
         sourceImage = image
         self.preparedLayout = preparedLayout ?? snapshotTarget?.preparedLayout
         self.snapshotTarget = snapshotTarget
+        preparedEvidence = evidence
         layoutCacheKey = snapshotTarget.map {
-            ReaderTranslationRenderCache.layoutKey(renderKey: $0.renderKey ?? $0.key, regions: regions)
+            $0.layoutKey ?? ReaderTranslationRenderCache.layoutKey(renderKey: $0.renderKey ?? $0.key, regions: regions)
         }
         items = ReaderTranslationRegion.layoutItems(regions, imageSize: imageSize)
         lastDiagnostic = nil
@@ -121,6 +122,8 @@ final class ReaderTranslationOverlayView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         renderedImageView.frame = bounds
+        // A navigation placeholder can be laid out before it receives a page.
+        guard let imageSize else { return }
         if let target = snapshotTarget,
            !ReaderTranslationGeometry.sameViewport(target.viewport, bounds.size) ||
             target.dark != (traitCollection.userInterfaceStyle == .dark) {
@@ -132,7 +135,7 @@ final class ReaderTranslationOverlayView: UIView {
               dirty || !ReaderTranslationGeometry.sameViewport(renderedSize, bounds.size) else { return }
         dirty = false
         renderedSize = bounds.size
-        beginRender()
+        beginRender(imageSize: imageSize)
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -144,16 +147,12 @@ final class ReaderTranslationOverlayView: UIView {
         }
     }
 
-    private func revealUncachedFrame() {
+    private func discardCacheTarget() {
         snapshotTarget = nil
         layoutCacheKey = nil
-        if let pendingFrame { renderedImageView.image = pendingFrame }
-        pendingFrame = nil
-        needsRendering = false
-        renderedImageView.isHidden = false
     }
 
-    private func beginRender() {
+    private func beginRender(imageSize: CGSize) {
         cancelWork()
         needsRendering = true
         revision &+= 1
@@ -161,15 +160,19 @@ final class ReaderTranslationOverlayView: UIView {
         let issuedRevision = revision
         let size = bounds.size
         let image = sourceImage
-        let settings = settings, imageSize = imageSize, aspectFit = aspectFit
+        let settings = settings, aspectFit = aspectFit
         let items = settings.overlay.visible ? items : []
         let regions = regions
         let target = snapshotTarget, layoutKey = layoutCacheKey
+        let evidence = preparedEvidence
         let existingLayout = preparedLayout
         let dark = traitCollection.userInterfaceStyle == .dark
         let scale = traitCollection.displayScale
         let diagnosticContext = diagnosticContext
         renderTask = Task { [weak self] in
+            // A reset/navigation may remove Page/Session owners while this
+            // task still awaits native composition. Keep its own artifact.
+            defer { withExtendedLifetime(evidence) {} }
             // Waiting for a shared prepared layout must not retain a detached view.
             defer { if self?.generation == issued { self?.renderTask = nil } }
             let layout = Task { () throws -> Data in
@@ -218,7 +221,8 @@ final class ReaderTranslationOverlayView: UIView {
                         image: image, imageSize: imageSize, items: items, settings: settings.overlay,
                         targetLanguage: settings.targetLanguage, viewport: size,
                         scale: NativeTranslationRenderer.boundedRasterScale(viewport: size, requestedScale: scale),
-                        aspectFit: aspectFit, dark: dark, preparedLayout: data, composeSource: false)
+                        aspectFit: aspectFit, dark: dark, preparedLayout: data, composeSource: false,
+                        ocrConfiguration:settings.ocrConfiguration)
                     output = result.overlayImage
                     completedLayout = result.layoutData
                     renderedCount = result.renderedItemCount
@@ -232,15 +236,11 @@ final class ReaderTranslationOverlayView: UIView {
                 preparedLayout = nil
                 snapshotTarget?.preparedLayout = nil
                 renderedAspectFit = aspectFit
-                if defersPresentationUntilSnapshot, target != nil {
-                    // Retain a previously committed provisional frame while optional
-                    // cache publication prepares the final replacement bitmap.
-                    pendingFrame = output
-                } else {
-                    renderedImageView.image = output
-                    renderedImageView.isHidden = false
-                    needsRendering = false
-                }
+                // A cache-targeted render already contains the final viewport bitmap.
+                // Show those exact pixels before waiting for optional cache writes.
+                renderedImageView.image = output
+                renderedImageView.isHidden = false
+                needsRendering = false
                 lastDiagnostic = .init(operation: .render, revision: issuedRevision,
                     outcome: .committed, renderedItemCount: renderedCount)
                 ReaderTranslationDiagnostics.record("visible_render_committed", count: renderedCount, context: diagnosticContext)
@@ -253,31 +253,25 @@ final class ReaderTranslationOverlayView: UIView {
                 else { diskGeneration = await target.pendingDiskGeneration?.value }
                 try Task.checkCancellation()
                 guard generation == issued else { return }
-                guard let diskGeneration else { revealUncachedFrame(); return }
+                guard let diskGeneration, let image else { discardCacheTarget(); return }
                 await target.cache.storeLayout(completedLayout, key: layoutKey, diskGeneration: diskGeneration)
                 try Task.checkCancellation()
                 guard generation == issued else { return }
-                await target.cache.store(output, key: target.key, pageIdentity: target.pageIdentity, diskGeneration: diskGeneration)
+                await target.cache.store(output, key: target.key, pageIdentity: target.pageIdentity,
+                    diskGeneration: diskGeneration, source: image)
                 try Task.checkCancellation()
                 guard generation == issued else { return }
-                guard let cached = target.cache.cachedImage(for: target.key) else { revealUncachedFrame(); return }
+                guard let cached = target.cache.cachedSnapshot(for: target.key, source: image) else { discardCacheTarget(); return }
                 didStoreSnapshot = true
                 needsRendering = false
                 ReaderTranslationDiagnostics.record("visible_snapshot_only_finished", count: regions.count)
-                if let onSnapshotStored {
-                    pendingFrame = nil
-                    onSnapshotStored(cached)
-                } else {
-                    if let pendingFrame { renderedImageView.image = pendingFrame }
-                    pendingFrame = nil
-                    renderedImageView.isHidden = false
-                }
+                onSnapshotStored?(cached)
             } catch {
                 guard let self, !Task.isCancelled, generation == issued else { return }
                 // Persistence never invalidates a frame already committed to the reader.
                 if lastDiagnostic?.revision == issuedRevision, lastDiagnostic?.outcome == .committed {
                     ReaderTranslationDiagnostics.record("cache_snapshot_failed")
-                    revealUncachedFrame()
+                    discardCacheTarget()
                     return
                 }
                 lastDiagnostic = .init(operation: .render, revision: issuedRevision,

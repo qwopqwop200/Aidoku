@@ -97,4 +97,36 @@ struct HistoryBatchClearAcknowledgmentTests {
             #expect(manager.getProgress(chapterId: kept, context: reopened).progress == 3)
         }
     }
+
+    @Test func removingChaptersClearsDuplicateRowsAndTheirSessionsOnlyForTheSelectedIdentities() async throws {
+        try await fixture { url, model, kept, removed in
+            let manager = CoreDataManager.shared
+            let context = try open(url, model: model, readOnly: false)
+            defer { try? close(context) }
+            let duplicate = HistoryObject(context: context)
+            duplicate.sourceId = removed.sourceKey
+            duplicate.mangaId = removed.mangaKey
+            duplicate.chapterId = removed.chapterKey
+            let session = ReadingSessionObject(context: context)
+            session.startDate = Date()
+            session.endDate = Date()
+            session.history = duplicate
+
+            let otherManga = ChapterIdentifier(sourceKey: removed.sourceKey, mangaKey: kept.mangaKey, chapterKey: removed.chapterKey)
+            let otherSource = ChapterIdentifier(sourceKey: UUID().uuidString, mangaKey: removed.mangaKey, chapterKey: removed.chapterKey)
+            manager.setProgress(1, chapterId: otherManga, context: context)
+            manager.setProgress(2, chapterId: otherSource, context: context)
+            try context.save()
+            context.reset()
+
+            try manager.removeHistory(chapterIds: [removed], context: context)
+            try context.save()
+            context.reset()
+            #expect(!manager.hasHistory(chapterId: removed, context: context))
+            #expect(try context.count(for: ReadingSessionObject.fetchRequest()) == 0)
+            #expect(manager.hasHistory(chapterId: kept, context: context))
+            #expect(manager.hasHistory(chapterId: otherManga, context: context))
+            #expect(manager.hasHistory(chapterId: otherSource, context: context))
+        }
+    }
 }

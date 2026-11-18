@@ -45,6 +45,29 @@ struct ReaderTranslationPanelOrderTests {
         #expect(ranks(boxes) == [1, 0, 3, 2, 4])
     }
 
+    @Test func horizontalLetteringInSeparateBandDoesNotBlockVerticalDialogueOrder() {
+        let boxes: [ReaderTranslationPanelOrder.Input] = [
+            .init(rect: CGRect(x: 0.1, y: 0.02, width: 0.1, height: 0.1), isVertical: true),
+            .init(rect: CGRect(x: 0.7, y: 0.02, width: 0.1, height: 0.1), isVertical: true),
+            .init(rect: CGRect(x: 0.2, y: 0.28, width: 0.2, height: 0.1), isVertical: false),
+            input(0.3, 0.65)
+        ]
+        #expect(ranks(boxes) == [1, 0, 2, 3])
+        // The same geometry without a ruled panel supplies no supported rank.
+        #expect(ranks(boxes, pixels: [UInt8](repeating: 255, count: 1600)) == [0, 1, 2, 3])
+    }
+
+    @Test func mixedLetteringBandKeepsOrderWhileSeparateVerticalBandReverses() {
+        let boxes: [ReaderTranslationPanelOrder.Input] = [
+            .init(rect: CGRect(x: 0.1, y: 0.02, width: 0.1, height: 0.1), isVertical: true),
+            .init(rect: CGRect(x: 0.7, y: 0.02, width: 0.1, height: 0.1), isVertical: false),
+            .init(rect: CGRect(x: 0.1, y: 0.28, width: 0.1, height: 0.1), isVertical: true),
+            .init(rect: CGRect(x: 0.7, y: 0.28, width: 0.1, height: 0.1), isVertical: true),
+            input(0.3, 0.65)
+        ]
+        #expect(ranks(boxes) == [0, 1, 3, 2, 4])
+    }
+
     @Test func bandOrderingKeepsIsolatedDiagonalTextInItsDetectorSlot() {
         let boxes: [ReaderTranslationPanelOrder.Input] = [
             .init(rect: CGRect(x: 0.1, y: 0.28, width: 0.1, height: 0.1), isVertical: true),

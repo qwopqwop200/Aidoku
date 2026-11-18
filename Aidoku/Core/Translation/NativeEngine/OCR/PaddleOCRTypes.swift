@@ -22,7 +22,10 @@ struct PaddleOCRLine: Codable, Equatable, Sendable {
     let singleVerticalColumn: Bool?
     /// Suppressed readings still own ink, independently of body/layout geometry.
     let auxiliaryInkRects: [CGRect]
+    let detectorSeedEvidence: [NativeOCRDetectorSeedEvidence]?
     let auxiliaryInkPolygons: [[CGPoint]]
+
+    var acceptedSource: NativeOCRSourceMetadata = .init()
 
     private enum CodingKeys: String, CodingKey {
         case poly
@@ -31,6 +34,7 @@ struct PaddleOCRLine: Codable, Equatable, Sendable {
         case orientation
         case singleVerticalColumn
         case auxiliaryInkRects
+        case detectorSeedEvidence
         case auxiliaryInkPolygons
     }
 
@@ -41,7 +45,9 @@ struct PaddleOCRLine: Codable, Equatable, Sendable {
         orientationRaw: String?,
         singleVerticalColumn: Bool? = nil,
         auxiliaryInkRects: [CGRect] = [],
-        auxiliaryInkPolygons: [[CGPoint]] = []
+        auxiliaryInkPolygons: [[CGPoint]] = [],
+        detectorSeedEvidence: [NativeOCRDetectorSeedEvidence]? = nil,
+        acceptedSource: NativeOCRSourceMetadata = .init()
     ) {
         self.poly = poly
         self.text = text
@@ -50,6 +56,8 @@ struct PaddleOCRLine: Codable, Equatable, Sendable {
         self.singleVerticalColumn = singleVerticalColumn
         self.auxiliaryInkRects = auxiliaryInkRects
         self.auxiliaryInkPolygons = auxiliaryInkPolygons
+        self.detectorSeedEvidence = detectorSeedEvidence
+        self.acceptedSource = acceptedSource
     }
 
     init(from decoder: any Decoder) throws {
@@ -61,6 +69,7 @@ struct PaddleOCRLine: Codable, Equatable, Sendable {
             String.self,
             forKey: .orientation
         )
+        detectorSeedEvidence = try container.decodeIfPresent([NativeOCRDetectorSeedEvidence].self, forKey: .detectorSeedEvidence)
         auxiliaryInkRects = try container.decodeIfPresent([CGRect].self, forKey: .auxiliaryInkRects) ?? []
         auxiliaryInkPolygons = try container.decodeIfPresent([[CGPoint]].self, forKey: .auxiliaryInkPolygons) ?? []
         singleVerticalColumn = try container.decodeIfPresent(
@@ -71,6 +80,7 @@ struct PaddleOCRLine: Codable, Equatable, Sendable {
 
     func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(detectorSeedEvidence, forKey: .detectorSeedEvidence)
         if !auxiliaryInkPolygons.isEmpty { try container.encode(auxiliaryInkPolygons, forKey: .auxiliaryInkPolygons) }
         if !auxiliaryInkRects.isEmpty { try container.encode(auxiliaryInkRects, forKey: .auxiliaryInkRects) }
         try container.encode(poly, forKey: .poly)

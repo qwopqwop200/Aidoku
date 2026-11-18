@@ -186,7 +186,7 @@ extension NativeRestorationPixels {
         return nil
     }
 
-    static func exactObservedRestore(_ p: Self, box: CGRect, palette: Palette?, options: NativeObservedRestoreOptions) -> Self? {
+    static func exactObservedRestorePrimary(_ p: Self, box: CGRect, palette: Palette?, options: NativeObservedRestoreOptions) -> Self? {
         let context = ObservedContext()
         func outlineRecovery() -> Self? {
             return Self.outlineRecovery(p, box: box, auxiliary: options.auxiliary, excluded: options.excluded,
@@ -227,5 +227,49 @@ extension NativeRestorationPixels {
         var next = options; next.enclosedWordRecovery = true; next.shortGlyphRecovery = true; next.segmentedSurfaceRecovery = !distinct
         if let candidate = exactObservedAttempts(p, box: box, palette: palette, options: next, context: context) { return refine(preferred(candidate)) }
         return outlineRecovery().map(refine)
+    }
+
+    private static func nativeErasurePalette(_ witness: [String: Any], matching p: Self,
+                        box: CGRect, options: NativeObservedRestoreOptions) -> Palette? {
+        // A full-resolution witness cannot certify resampled pixels. Ownership,
+        // exclusions and every other policy option pass unchanged to the same
+        // original kernel, including ordinary nonnil glyphOwnership.
+        guard !Task.isCancelled, p.width > 0, p.height > 0, p.width <= 262_144 / p.height,
+              p.rgba.count == p.width * p.height * 4, options.sampleScale == 1,
+              let raw = witness["palette"] as? [String: Any], NativeSourceColorSamplingStage.validNativeErasureBand(raw),
+              let window = witness["window"] as? [String: Any],
+              window["vertical"] as? Bool == options.vertical,
+              let w = window["width"] as? Int, let h = window["height"] as? Int,
+              w > 0, h > 0, w <= 262_144 / h,
+              let inner = (window["inner"] as? [NSNumber])?.map(\.doubleValue),
+              inner.count == 4, inner.allSatisfy(\.isFinite),
+              abs(Double(box.width) - inner[2]) <= 0.000001,
+              abs(Double(box.height) - inner[3]) <= 0.000001 else { return nil }
+        let x = Double(box.minX) - inner[0], y = Double(box.minY) - inner[1]
+        guard x.isFinite, y.isFinite, x >= 0, y >= 0,
+              x <= Double(p.width - w), y <= Double(p.height - h),
+              abs(x - x.rounded()) <= 0.000001, abs(y - y.rounded()) <= 0.000001 else { return nil }
+        let x0 = Int(x.rounded()), y0 = Int(y.rounded())
+        var bytes = [UInt8](); bytes.reserveCapacity(w*h*4)
+        for row in 0..<h {
+            let offset = ((y0 + row)*p.width + x0)*4
+            bytes.append(contentsOf: p.rgba[offset..<(offset+w*4)])
+        }
+        guard !Task.isCancelled,
+              NativeSourceColorSamplingStage.nativeErasureWindowSHA(bytes) == window["RGBA_SHA256"] as? String else {
+            return nil
+        }
+        return Self.palette(raw)
+    }
+
+    static func exactObservedRestore(_ p: Self, box: CGRect, palette: Palette?, options: NativeObservedRestoreOptions) -> Self? {
+        if let result = exactObservedRestorePrimary(p, box: box, palette: palette, options: options) { return result }
+        guard !Task.isCancelled, let witness = palette?.metadata["nativeErasurePaletteAlternative"] as? [String: Any],
+              let original = nativeErasurePalette(witness, matching: p, box: box, options: options),
+              var result = exactObservedRestorePrimary(p, box: box, palette: original, options: options),
+              result.glyphsVerified, result.erasureComplete,
+              result.preservedCore == 0, result.preservedPixels == 0, !Task.isCancelled else { return nil }
+        result.usedNativeErasurePaletteRetry = true
+        return result
     }
 }

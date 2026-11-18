@@ -48,9 +48,7 @@ actor BangumiApi {
         return await oauth.commitAuthentication(response, generation: issued)
     }
 
-    func refreshAccessToken(replacingAuthorization: String? = nil) async -> OAuthResponse? {
-        guard let refreshToken = await oauth.tokens?.refreshToken else { return nil }
-
+    private func exchangeRefreshToken(_ refreshToken: String) async -> OAuthResponse? {
         guard let url = URL(string: oauth.baseUrl + "/access_token") else { return nil }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -66,10 +64,7 @@ actor BangumiApi {
         ]
         request.httpBody = body.percentEncoded()
 
-        let refreshRequest = request
-        return await oauth.refreshTokens(replacingAuthorization: replacingAuthorization) {
-            try? await URLSession.shared.object(from: refreshRequest)
-        }
+        return try? await URLSession.shared.object(from: request)
     }
 }
 
@@ -184,7 +179,7 @@ extension BangumiApi {
             }
 
             // Try to refresh token and retry request
-            guard await refreshAccessToken(replacingAuthorization: urlRequest.value(forHTTPHeaderField: "Authorization")) != nil else {
+            guard await oauth.refreshTokens(for: urlRequest, operation: exchangeRefreshToken) != nil else {
                 return (data, response)
             }
 

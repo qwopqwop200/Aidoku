@@ -29,10 +29,6 @@ struct BackupsView: View {
         case autoBackup
     }
 
-    init() {
-        self._backupUrls = State(initialValue: BackupManager.backupUrls)
-    }
-
     var body: some View {
         let list = List {
             Section {
@@ -96,13 +92,14 @@ struct BackupsView: View {
         .onAppear {
             guard !loadedInitialBackupInfo else { return }
             loadedInitialBackupInfo = true
+            backupUrls = BackupManager.backupUrls
             loadBackupInfo()
         }
         .onDisappear {
             metadataRefresh.cancel()
             loadedInitialBackupInfo = false
         }
-        .onReceive(NotificationCenter.default.publisher(for: .updateBackupList)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .updateBackupList).receive(on: RunLoop.main)) { _ in
             backupUrls = BackupManager.backupUrls
             loadBackupInfo()
         }
@@ -207,7 +204,7 @@ struct BackupsView: View {
         .foregroundStyle(.primary)
         .swipeActions {
             Button(role: .destructive) {
-                onDelete(at: IndexSet(integer: backupUrls.firstIndex(of: url)!))
+                if let index = backupUrls.firstIndex(of: url) { onDelete(at: IndexSet(integer: index)) }
             } label: {
                 Label(NSLocalizedString("DELETE"), systemImage: "trash")
             }
@@ -255,9 +252,7 @@ struct BackupsView: View {
             Task {
                 await BackupManager.shared.removeBackup(url: url)
             }
-            backups.removeValue(forKey: url)
         }
-        backupUrls.remove(atOffsets: offsets)
     }
 
     func showRenamePrompt(targetRenameBackupUrl: URL, initialName: String?) {

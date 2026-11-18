@@ -43,9 +43,7 @@ extension ShikimoriApi {
         return await oauth.commitAuthentication(response, generation: issued)
     }
 
-    func refreshAccessToken(replacingAuthorization: String? = nil) async -> OAuthResponse? {
-        guard let refreshToken = await oauth.tokens?.refreshToken else { return nil }
-
+    private func exchangeRefreshToken(_ refreshToken: String) async -> OAuthResponse? {
         guard let url = URL(string: oauth.baseUrl + "/oauth/token") else { return nil }
         var request = URLRequest(url: url)
         let boundary = "--" + String(UUID().hashValue)
@@ -58,10 +56,7 @@ extension ShikimoriApi {
             "refresh_token": refreshToken,
             "grant_type": "refresh_token"
         ], boundary: boundary)
-        let refreshRequest = request
-        return await oauth.refreshTokens(replacingAuthorization: replacingAuthorization) {
-            try? await URLSession.shared.object(from: refreshRequest)
-        }
+        return try? await URLSession.shared.object(from: request)
     }
 
     // MARK: API Methods - Data
@@ -250,7 +245,7 @@ private extension ShikimoriApi {
             }
 
             // refresh access token
-            if await refreshAccessToken(replacingAuthorization: urlRequest.value(forHTTPHeaderField: "Authorization")) != nil {
+            if await oauth.refreshTokens(for: urlRequest, operation: exchangeRefreshToken) != nil {
                 // try request again with refreshed token
                 let retryUrl = URL(string: oauth.baseUrl + "/oauth/token")!
                 let newRequest = await authorizedRequest(for: retryUrl)

@@ -10,11 +10,14 @@ import SwiftUI
 
 @MainActor
 class UserDefaultsObserver: ObservableObject {
-    @Published var observedValues: [String: Any?] = [:]
+    @Published private(set) var observedValues: [String: Any?] = [:]
 
     private var cancellable: AnyCancellable?
+    private var hasPendingChange = false
 
     init(keys: [String], defaults: UserDefaults = .standard, notificationCenter: NotificationCenter = .default) {
+        let keys = Set(keys.filter { !$0.isEmpty })
+        guard !keys.isEmpty else { return }
         var observedValues: [String: Any?] = [:]
         for key in keys {
             let value = defaults.object(forKey: key)
@@ -28,19 +31,28 @@ class UserDefaultsObserver: ObservableObject {
                 guard let self else { return }
                 var updated = self.observedValues
                 var changed = false
-                for key in keys where !key.isEmpty {
+                for key in keys {
                     let newValue = defaults.object(forKey: key)
                     if !Self.isEqual(updated[key, default: nil], newValue) {
                         updated[key] = newValue
                         changed = true
                     }
                 }
-                if changed { self.observedValues = updated }
+                if changed {
+                    self.hasPendingChange = true
+                    self.observedValues = updated
+                }
             }
     }
 
     convenience init(key: String) {
         self.init(keys: [key])
+    }
+
+    /// SwiftUI may subscribe again and receive the current snapshot when a row reappears.
+    func consumePendingChange() -> Bool {
+        defer { hasPendingChange = false }
+        return hasPendingChange
     }
 
     private static func isEqual(_ lhs: Any?, _ rhs: Any?) -> Bool {

@@ -65,7 +65,7 @@
 
 "TRANSLATION_AUTO" = "Tambua Kiotomatiki";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 inahitaji iOS 18 au toleo jipya zaidi. Kati ni modeli chaguomsingi. Ndogo hutumia kumbukumbu kidogo zaidi na Ndogo sana ina kamusi ndogo zaidi ya herufi. Modeli hizi hazitambui maandishi ya Kikorea, lakini tafsiri kwenda Kikorea inawezekana.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 inahitaji iOS 18 au toleo jipya zaidi. Manga v0.3 ndiyo modeli chaguomsingi ya kugundua maeneo ya maandishi na kutambua herufi zake. Modeli nyingine za OCR bado zinapatikana.";
 
 
 
@@ -1174,3 +1174,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Chanzo %@ toleo %d hakitumiki katika programu hii. Sakinisha toleo linalotumika.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 inasaidia maandishi asilia ya Kijapani na Kichina (kilichorahisishwa na cha jadi) pekee. Utambuzi wa kiotomatiki wa lugha asilia na machaguo ya lugha asilia pia yamewekewa mipaka ya lugha hizi. Bado unaweza kutafsiri kwenda Kikorea au lugha nyingine lengwa. Kuchagua Manga huweka viwango vya kugundua maandishi kuwa 0.85 na 0.25; ukubwa chaguomsingi wa ugunduzi ni pikseli 1120.";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Lugha zote zinazotumika na OCR";

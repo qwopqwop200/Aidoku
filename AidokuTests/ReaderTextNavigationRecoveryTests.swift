@@ -50,6 +50,37 @@ struct ReaderTextNavigationRecoveryTests {
         #expect((spy.lastPage ?? Int.max) <= spy.pageCount)
     }
 
+    @Test func scrubbingCommitsExactProgressAndSubpageScrollingKeepsUpdatingTheBookmark() async throws {
+        let source = makeSource(TextNavigationGate())
+        let spy = TextRecoveryDelegate()
+        let reader = ReaderTextViewController(source: source,
+            manga: .init(sourceKey: source.key, key: "slider", title: "Slider"), readingProgressLoader: { _ in 0 })
+        reader.delegate = spy
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let old = scene.keyWindow
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = reader
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil; old?.makeKey() }
+        reader.loadViewIfNeeded()
+        reader.view.layoutIfNeeded()
+        await reader.loadInitialChapter(.init(key: "slider"))
+        try await wait { spy.pageCount > 1 && spy.lastPosition != nil }
+        let target = (Double(spy.pageCount / 2) + 0.25) / Double(spy.pageCount)
+        reader.sliderMoved(value: target)
+        reader.sliderStopped(value: target)
+        let bookmark = try #require(spy.lastPosition)
+        #expect(abs(bookmark - target) < 0.001)
+        let initialPageReports = spy.pageReports
+        let initialPositionReports = spy.positionReports
+        let scroll = try #require(reader.view.subviews.compactMap { $0 as? UIScrollView }.first)
+        scroll.contentOffset.y += 1
+        reader.scrollViewDidScroll(scroll)
+        #expect(spy.pageReports == initialPageReports)
+        #expect(spy.positionReports > initialPositionReports)
+        #expect((spy.lastPosition ?? 0) > bookmark)
+    }
+
     private func makeSource(_ gate: TextNavigationGate) -> AidokuRunner.Source {
         .init(url: nil, key: "text-recovery-\(UUID())", name: "Text recovery", version: 1,
             languages: ["en"], contentRating: .safe, runner: TextRecoveryRunner(gate: gate))
@@ -88,12 +119,23 @@ private final class TextRecoveryRunner: AidokuRunner.Runner {
     var chapterSelections: [String] = []
     var lastPosition: Double?
     var lastPage: Int?
+    var pageReports = 0
+    var positionReports = 0
     var pageCount = 0
     func hideBars() {}
     func getNextChapter() -> AidokuRunner.Chapter? { .init(key: "adjacent") }
     func getPreviousChapter() -> AidokuRunner.Chapter? { .init(key: "adjacent") }
     func setChapter(_ chapter: AidokuRunner.Chapter) { chapterSelections.append(chapter.key) }
-    func setCurrentPage(_ page: Int, position: Double?) { lastPage = page; if let position { lastPosition = position } }
+    func setCurrentPage(_ page: Int, position: Double?) {
+        pageReports += 1
+        lastPage = page
+        lastPosition = position
+    }
+    func updateTextScrollPosition(_ position: Double, onPage page: Int) {
+        positionReports += 1
+        lastPosition = position
+        lastPage = page
+    }
     func setCurrentPages(_ pages: ClosedRange<Int>) {}
     func setPages(_ pages: [Aidoku.Page]) { pageCount = pages.count }
     func displayPage(_ page: Int) {}

@@ -21,6 +21,7 @@ protocol ReaderHoldingDelegate: AnyObject {
     func setChapter(_ chapter: AidokuRunner.Chapter)
 
     func setCurrentPage(_ page: Int, position: Double?)
+    func updateTextScrollPosition(_ position: Double, onPage page: Int)
     func setCurrentPages(_ pages: ClosedRange<Int>)
     func setPages(_ pages: [Page])
     func displayPage(_ page: Int) // show page on toolbar but don't set it as current page
@@ -35,6 +36,10 @@ protocol ReaderHoldingDelegate: AnyObject {
 }
 
 extension ReaderHoldingDelegate {
+    func updateTextScrollPosition(_ position: Double, onPage page: Int) {
+        setCurrentPage(page, position: position)
+    }
+
     func translationVisibilityDidChange() {}
     @MainActor
     func prepareCachedTranslationForDisplay(

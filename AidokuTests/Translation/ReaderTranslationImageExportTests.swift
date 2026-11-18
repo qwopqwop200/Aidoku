@@ -24,17 +24,32 @@ struct ReaderTranslationImageExportTests {
         return settings
     }
 
+    /// Give each synthetic OCR owner real source glyphs at its stated location.
+    private func drawSourceText(_ region: ReaderTranslationRegion, in size: CGSize, color: UIColor = .black) {
+        let box = CGRect(x: region.rect.minX * size.width, y: region.rect.minY * size.height,
+                         width: region.rect.width * size.width, height: region.rect.height * size.height)
+        let text = region.source as NSString
+        let base = UIFont.systemFont(ofSize: 32, weight: .semibold)
+        let measure = text.size(withAttributes: [.font: base])
+        let factor = min(box.width / measure.width, box.height / measure.height)
+        let font = base.withSize(min(72, 32 * factor * 0.9))
+        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
+        let ink = text.size(withAttributes: attributes)
+        text.draw(at: CGPoint(x: box.midX - ink.width / 2, y: box.midY - ink.height / 2), withAttributes: attributes)
+    }
+
     @Test func failedLayoutReleasesExporterWithoutWaitingForWatchdog() async throws {
         let window = try host()
         defer { window.isHidden = true }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
+        let region = ReaderTranslationRegion(id: "failure", rect: CGRect(x: 0.1, y: 0.3, width: 0.8, height: 0.3),
+            source: "Hello", translation: "번역")
         let source = UIGraphicsImageRenderer(size: CGSize(width: 120, height: 160), format: format).image { context in
             UIColor.white.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 120, height: 160))
+            drawSourceText(region, in: CGSize(width: 120, height: 160))
         }
-        let region = ReaderTranslationRegion(id: "failure", rect: CGRect(x: 0.1, y: 0.3, width: 0.8, height: 0.3),
-            source: "Hello", translation: "번역")
         let layout = Task<Data, Error> { throw CocoaError(.coderInvalidValue) }
         let started = CACurrentMediaTime()
         do {
@@ -60,14 +75,15 @@ struct ReaderTranslationImageExportTests {
         window.addSubview(view)
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
+        let region = ReaderTranslationRegion(id: "visibility", rect: CGRect(x: 0.1, y: 0.3, width: 0.8, height: 0.3),
+            source: "Hello", translation: "번역 표시 검증")
         let source = UIGraphicsImageRenderer(size: CGSize(width: 120, height: 160), format: format).image { context in
             UIColor.white.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 120, height: 160))
+            drawSourceText(region, in: CGSize(width: 120, height: 160))
         }
         let originalSubviews = view.subviews.map(ObjectIdentifier.init)
         let originalHostAlpha = view.alpha
-        let region = ReaderTranslationRegion(id: "visibility", rect: CGRect(x: 0.1, y: 0.3, width: 0.8, height: 0.3),
-            source: "Hello", translation: "번역 표시 검증")
         for _ in 0..<2 {
             let output = try await ReaderTranslationImageExporter.render(image: source, regions: [region], settings: settings(),
                 viewport: CGSize(width: 240, height: 320), aspectFit: true, host: view)
@@ -101,12 +117,13 @@ struct ReaderTranslationImageExportTests {
         defer { window.isHidden = true }
         let sourceSize = CGSize(width: 4_000, height: 3_000)
         let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.preferredRange = .standard
+        let region = ReaderTranslationRegion(id: "anisotropic", rect: CGRect(x: 0.25, y: 0.35, width: 0.5, height: 0.2),
+            source: "Hello", translation: "서로 다른 축의 출력 배율")
         let source = UIGraphicsImageRenderer(size: sourceSize, format: format).image { context in
             UIColor.green.setFill(); context.fill(CGRect(origin: .zero, size: sourceSize))
             UIColor.blue.setFill(); context.fill(CGRect(x: 3_800, y: 2_800, width: 150, height: 150))
+            drawSourceText(region, in: sourceSize)
         }
-        let region = ReaderTranslationRegion(id: "anisotropic", rect: CGRect(x: 0.25, y: 0.35, width: 0.5, height: 0.2),
-            source: "Hello", translation: "서로 다른 축의 출력 배율")
         // The final image is exactly 12 MP. A uniform 4000/390 scale incorrectly
         // allocates 4000 x 7180 pixels for this deliberately stretched viewport.
         let output = try await ReaderTranslationImageExporter.render(image: source, regions: [region], settings: settings(),
@@ -120,10 +137,12 @@ struct ReaderTranslationImageExportTests {
         }
         #expect(color(x: 100, y: 100) == [0, 255, 0, 255])
         #expect(color(x: 3_875, y: 2_875) == [0, 0, 255, 255], "Stretched render must preserve distant source artwork")
+        let original = try pixelData(source)
         var changed = 0
         for y in 900..<1_900 { for x in 900..<3_100 {
             let offset = (y * cgImage.width + x) * 4
-            if pixels[offset] != 0 || pixels[offset + 1] != 255 || pixels[offset + 2] != 0 { changed += 1 }
+            if pixels[offset] != original[offset] || pixels[offset + 1] != original[offset + 1] ||
+                pixels[offset + 2] != original[offset + 2] { changed += 1 }
         } }
         #expect(changed > 100, "The full-density output must include translated native typography")
     }
@@ -134,12 +153,13 @@ struct ReaderTranslationImageExportTests {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         // The preloader may supply fewer source pixels than its logical page size.
+        let region = ReaderTranslationRegion(id: "letterbox", rect: CGRect(x: 0.25, y: 0.35, width: 0.5, height: 0.2),
+            source: "Hello", translation: "중앙 번역")
         let source = UIGraphicsImageRenderer(size: CGSize(width: 150, height: 200), format: format).image { context in
             UIColor.green.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 150, height: 200))
+            drawSourceText(region, in: CGSize(width: 150, height: 200))
         }
-        let region = ReaderTranslationRegion(id: "letterbox", rect: CGRect(x: 0.25, y: 0.35, width: 0.5, height: 0.2),
-            source: "Hello", translation: "중앙 번역")
         let output = try await ReaderTranslationImageExporter.renderCacheSnapshot(
             image: source, imageSize: CGSize(width: 600, height: 800), regions: [region], settings: settings(),
             viewport: CGSize(width: 390, height: 700), scale: 2, aspectFit: true, host: window,
@@ -163,31 +183,38 @@ struct ReaderTranslationImageExportTests {
         defer { window.isHidden = true }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
+        let region = ReaderTranslationRegion(id: "bottom", rect: CGRect(x: 0.15, y: 0.85, width: 0.7, height: 0.07),
+            source: "Bottom", translation: "화면 밖 아래쪽 번역")
         let source = UIGraphicsImageRenderer(size: CGSize(width: 100, height: 600), format: format).image { context in
             UIColor.white.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 100, height: 600))
+            drawSourceText(region, in: CGSize(width: 100, height: 600), color: .blue)
         }
-        let region = ReaderTranslationRegion(id: "bottom", rect: CGRect(x: 0.15, y: 0.85, width: 0.7, height: 0.07),
-            source: "Bottom", translation: "화면 밖 아래쪽 번역")
-        let output = try await ReaderTranslationImageExporter.renderCacheSnapshot(
-            image: source, imageSize: CGSize(width: 1000, height: 6000), regions: [region], settings: settings(),
-            viewport: CGSize(width: 1000, height: 6000), scale: 3, aspectFit: false, host: window,
-            dark: true, preparedLayout: nil)
+        func snapshot(_ target: ReaderTranslationRegion) async throws -> UIImage {
+            try await ReaderTranslationImageExporter.renderCacheSnapshot(
+                image: source, imageSize: CGSize(width: 1000, height: 6000), regions: [target], settings: settings(),
+                viewport: CGSize(width: 1000, height: 6000), scale: 3, aspectFit: false, host: window,
+                dark: true, preparedLayout: nil)
+        }
+        let output = try await snapshot(region)
         let cgImage = try #require(output.cgImage)
         #expect(cgImage.width * cgImage.height <= 4_000_000)
         #expect(cgImage.width > 800 && cgImage.height > 4800)
         let pixels = try pixelData(output)
-        var darkPixels = 0
-        for y in (cgImage.height * 4 / 5)..<cgImage.height {
-            for x in 0..<cgImage.width {
-                let offset = (y * cgImage.width + x) * 4
-                if pixels[offset] < 100 && pixels[offset + 1] < 100 && pixels[offset + 2] < 100 {
-                    darkPixels += 1
-                }
-            }
+        // Changing only the Korean text isolates translated ink from the source and its erasure.
+        let comparison = ReaderTranslationRegion(id: region.id, rect: region.rect, source: region.source,
+                                                 translation: "다른 말 아래쪽 글자")
+        let comparisonImage = try await snapshot(comparison)
+        let reference = try pixelData(comparisonImage)
+        try #require(reference.count == pixels.count)
+        var changedPixels = 0
+        let bottom = (cgImage.height * 4 / 5) * cgImage.width * 4
+        for offset in stride(from: bottom, to: pixels.count, by: 4) {
+            if abs(Int(pixels[offset]) - Int(reference[offset])) > 32 ||
+                abs(Int(pixels[offset + 1]) - Int(reference[offset + 1])) > 32 ||
+                abs(Int(pixels[offset + 2]) - Int(reference[offset + 2])) > 32 { changedPixels += 1 }
         }
-        // Source is entirely white: lower-page dark pixels must come from the translated DOM.
-        #expect(darkPixels > 30)
+        #expect(changedPixels > 30, "Changing the translation must change visible ink in the bottom of the tall snapshot")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try #require(output.pngData()).write(to: folder.appendingPathComponent("tall-cache-bottom.png"))
     }
@@ -203,20 +230,21 @@ struct ReaderTranslationImageExportTests {
         defer {
             cache.clearMemory()
             window.isHidden = true
-            try? FileManager.default.removeItem(at: directory)
+            Task { try? await disk.clear() }
         }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
+        let regions = [ReaderTranslationRegion(id: "asset-replay", rect: CGRect(x: 0.3, y: 0.4, width: 0.5, height: 0.2),
+            source: "Hello", translation: "동일한 번역")]
         let image = UIGraphicsImageRenderer(size: CGSize(width: 150, height: 200), format: format).image { context in
             UIColor.white.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 150, height: 200))
             UIColor.systemBlue.setFill()
             context.fill(CGRect(x: 9, y: 17, width: 27, height: 33))
+            drawSourceText(regions[0], in: CGSize(width: 150, height: 200))
         }
         let logicalSize = CGSize(width: 600, height: 800)
         let viewport = webtoon ? CGSize(width: 390, height: 520) : CGSize(width: 390, height: 700)
-        let regions = [ReaderTranslationRegion(id: "asset-replay", rect: CGRect(x: 0.3, y: 0.4, width: 0.5, height: 0.2),
-            source: "Hello", translation: "동일한 번역")]
         let settings = settings()
         let generation = await disk.currentGeneration(settings: settings)
         let start = ProcessInfo.processInfo.systemUptime
@@ -253,6 +281,7 @@ struct ReaderTranslationImageExportTests {
         // A caller accidentally reusing the same key must not paint stale content.
         let changed = UIGraphicsImageRenderer(size: image.size, format: format).image { context in
             UIColor.black.setFill(); context.fill(CGRect(origin: .zero, size: image.size))
+            drawSourceText(regions[0], in: image.size, color: .white)
         }
         let otherRegions = [ReaderTranslationRegion(id: "asset-replay", rect: regions[0].rect,
             source: "Hello", translation: "변경된 번역")]
@@ -286,26 +315,33 @@ struct ReaderTranslationImageExportTests {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let disk = ReaderTranslationDiskCache(directory: directory)
         let cache = ReaderTranslationRenderCache(disk: disk)
-        defer { cache.clearMemory(); try? FileManager.default.removeItem(at: directory) }
+        defer {
+            cache.clearMemory()
+            Task { try? await disk.clear() }
+        }
         let size = CGSize(width: 120, height: 160)
         let bounds = CGRect(origin: .zero, size: size)
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
+        let regions = [ReaderTranslationRegion(id: "queued", rect: CGRect(x: 0.2, y: 0.3, width: 0.6, height: 0.2),
+                                               source: "Hello", translation: "같은 결과")]
         let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
             UIColor.white.setFill(); context.fill(bounds)
             UIColor.blue.setFill(); context.fill(CGRect(x: 4, y: 5, width: 20, height: 30))
+            drawSourceText(regions[0], in: size)
         }
         let typography = UIGraphicsPDFRenderer(bounds: bounds).pdfData { context in
             context.beginPage()
             UIColor.black.setFill(); context.cgContext.fill(CGRect(x: 40, y: 60, width: 25, height: 8))
         }
-        let regions = [ReaderTranslationRegion(id: "queued", rect: CGRect(x: 0.2, y: 0.3, width: 0.6, height: 0.2),
-                                               source: "Hello", translation: "같은 결과")]
         let asset = ReaderTranslationRenderAsset(typography: typography,
             layers: .init(masks: [], surfaces: [], paintBounds: []), displayRect: bounds, sourceSize: size,
             regions: regions, sourceDigest: matchingSource ? ReaderTranslationRenderAsset.digestSource(image) : "different-source")
         let value = settings()
         let generation = await disk.currentGeneration(settings: value)
+        let broken = ReaderTranslationRenderAsset(typography: Data([0xff]), layers: asset.layers, displayRect: bounds, sourceSize: size,
+            regions: regions, sourceDigest: ReaderTranslationRenderAsset.digestSource(image))
+        await cache.storeRenderAsset(broken, key: "queued", diskGeneration: generation)
         let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
         var acquired = false
         var released = false
@@ -329,7 +365,7 @@ struct ReaderTranslationImageExportTests {
         while await limiter.queuedRequestCount != 1 {
             try #require(Date() < deadline); try await Task.sleep(for: .milliseconds(5))
         }
-        #expect(await cache.renderAsset(for: "queued") == nil)
+        #expect(await cache.renderAsset(for: "queued") == broken)
         // Another renderer finishes while this snapshot waits for admission.
         await cache.storeRenderAsset(asset, key: "queued", diskGeneration: generation)
         released = true
@@ -346,6 +382,13 @@ struct ReaderTranslationImageExportTests {
                 scale: 1, aspectFit: false, host: nil, dark: false, preparedLayout: nil)
             #expect(try pixelData(output) == pixelData(fresh), "A mismatched asset must render the current source")
         }
+        // The failed first replay cannot supersede a different asset that arrived while it waited.
+        while cache.pendingAssetWrites != 0 {
+            try #require(Date() < deadline); try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(await cache.renderAsset(for: "queued") == asset)
+        let reopened = ReaderTranslationRenderCache(disk: disk)
+        #expect(await reopened.renderAsset(for: "queued") == asset)
     }
 
     @Test func fullPageIncludesTranslationWithoutLetterboxingOrUI() async throws {
@@ -391,15 +434,38 @@ struct ReaderTranslationImageExportTests {
             UIColor.red.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 600, height: 80))
         }
-        let regions = [ReaderTranslationRegion(id: "blur", rect: CGRect(x: 0.2, y: 0.25, width: 0.6, height: 0.3),
-            source: "Original source strokes", translation: "원문 가림과 번역을 함께 저장")]
         let viewport = CGSize(width: 390, height: 700)
-        let output = try await ReaderTranslationImageExporter.render(image: source, regions: regions, settings: settings(),
-            viewport: viewport, aspectFit: true, host: view)
-        let reference = try await completeRender(image: source, regions: regions, viewport: viewport, host: view)
-        // Do not use another WebKit snapshot as the oracle: it can share the same blur bug.
+        // The tall strokes imply a large source font. Single-glyph targets leave the
+        // protected bands clear while still letting us observe the translated ink.
+        func export(_ target: String) async throws -> (UIImage, String) {
+            let region = ReaderTranslationRegion(id: "blur", rect: CGRect(x: 0.2, y: 0.25, width: 0.6, height: 0.3),
+                source: "Original source strokes", translation: target)
+            var maskDigest: String?
+            let output = try await ReaderTranslationImageExporter.render(image: source, regions: [region], settings: settings(),
+                viewport: viewport, aspectFit: true, host: view, onNativeDiagnostic: { data in
+                    let audit = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+                    let restoration = audit?["restoration"] as? [String: Any]
+                    #expect(audit?["paintedTranslationItems"] as? Int == 1)
+                    #expect(restoration?["outsideOriginalMaskChangedPixels"] as? Int == 0)
+                    maskDigest = restoration?["inferenceMaskSHA256"] as? String
+                })
+            return (output, try #require(maskDigest))
+        }
+        let (output, mask) = try await export("가")
+        let (reference, referenceMask) = try await export("마")
+        #expect(mask == referenceMask)
         try expectSourcePixelsUnchanged(output, source, rows: 0..<160)
         try expectSourcePixelsUnchanged(output, source, rows: 640..<800)
+        let first = try pixelData(output)
+        let second = try pixelData(reference)
+        try #require(first.count == second.count)
+        let changedInsideCard = (200..<440).contains { y in
+            (120..<480).contains { x in
+                let p = (y * 600 + x) * 4
+                return first[p] < 32 && second[p] > 96
+            }
+        }
+        #expect(changedInsideCard)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try output.pngData()?.write(to: folder.appendingPathComponent("backdrop-export.png"))
         try reference.pngData()?.write(to: folder.appendingPathComponent("backdrop-reference.png"))
@@ -447,6 +513,8 @@ struct ReaderTranslationImageExportTests {
         defer { window.isHidden = true }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
+        let regions = [ReaderTranslationRegion(id: "sharp", rect: CGRect(x: 0.3, y: 0.3, width: 0.4, height: 0.2),
+            source: "Original", translation: "번역 글자는 선명하게")]
         let source = UIGraphicsImageRenderer(size: CGSize(width: 2040, height: 2880), format: format).image { context in
             UIColor.white.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 2040, height: 2880))
@@ -455,9 +523,8 @@ struct ReaderTranslationImageExportTests {
                 context.fill(CGRect(x: x, y: 0, width: 1, height: 500))
                 context.fill(CGRect(x: x, y: 2380, width: 1, height: 500))
             }
+            drawSourceText(regions[0], in: CGSize(width: 2040, height: 2880))
         }
-        let regions = [ReaderTranslationRegion(id: "sharp", rect: CGRect(x: 0.3, y: 0.3, width: 0.4, height: 0.2),
-            source: "Original", translation: "번역 글자는 선명하게")]
         let output = try await ReaderTranslationImageExporter.render(image: source, regions: regions, settings: settings(),
             viewport: CGSize(width: 390, height: 700), aspectFit: true, host: #require(window.rootViewController?.view))
         try expectSourcePixelsUnchanged(output, source, rows: 0..<500)
@@ -502,12 +569,13 @@ struct ReaderTranslationImageExportTests {
         defer { window.isHidden = true }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
+        let region = ReaderTranslationRegion(id: "bottom", rect: CGRect(x: 0.15, y: 0.94, width: 0.7, height: 0.035),
+            source: "Bottom of page", translation: "마지막 페이지도 저장")
         let source = UIGraphicsImageRenderer(size: CGSize(width: 400, height: 3000), format: format).image { context in
             UIColor.white.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 400, height: 3000))
+            drawSourceText(region, in: CGSize(width: 400, height: 3000))
         }
-        let region = ReaderTranslationRegion(id: "bottom", rect: CGRect(x: 0.15, y: 0.94, width: 0.7, height: 0.035),
-            source: "Bottom of page", translation: "마지막 페이지도 저장")
         let output = try await ReaderTranslationImageExporter.render(image: source, regions: [region], settings: settings(),
             viewport: CGSize(width: 390, height: 2925), aspectFit: false, host: #require(window.rootViewController?.view))
         #expect(output.size == source.size)
@@ -516,6 +584,7 @@ struct ReaderTranslationImageExportTests {
         #expect(pixels != original)
         let rowBytes = Int(output.size.width) * 4
         let bottom = pixels[(2800 * rowBytes)..<(2980 * rowBytes)]
+        #expect(!bottom.elementsEqual(original[(2800 * rowBytes)..<(2980 * rowBytes)]))
         #expect(bottom.contains { $0 < 100 })
         #expect(pixels.prefix(100 * rowBytes).allSatisfy { $0 > 240 })
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

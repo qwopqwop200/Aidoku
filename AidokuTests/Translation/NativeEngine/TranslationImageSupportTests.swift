@@ -43,8 +43,7 @@ struct TranslationImageSupportTests {
         ("Three days later, the travelers returned.", "narration"),
         ("The secret of the ancient forest", "story_text"),
         ("Fresh bread sold here every morning", "background"),
-        ("BOOM!", "sfx"),
-        ("What could this possibly mean?", "unknown")
+        ("BOOM!", "sfx")
     ]
 
     // Shared immutable bytes only; settings, services and transports remain isolated per case.
@@ -62,7 +61,8 @@ struct TranslationImageSupportTests {
 
     @Test(arguments: [RemoteTranslationProtocol.responses, .chatCompletions], 0..<16)
     func readerFilterAndImageMatrix(apiProtocol: RemoteTranslationProtocol, mode: Int) async throws {
-        // Four filter combinations x disabled/supported/rejected/known-unsupported images.
+        // Legacy filter preferences cannot weaken the mandatory page contract.
+        // Missing images fail locally; a rejected image never falls back to text.
         var settings = settings()
         settings.custom.apiProtocol = apiProtocol
         settings.filterSFXWithLLM = mode & 1 != 0
@@ -80,65 +80,68 @@ struct TranslationImageSupportTests {
         }
         let jpeg = try Self.fixtureJPEG.get()
         let providedImage = imageMode == 1 || imageMode == 2 ? jpeg : nil
+        if imageMode != 1 {
+            var failed = false
+            do {
+                _ = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: providedImage)
+            } catch {
+                failed = true
+                if providedImage == nil {
+                    guard case RemoteTranslationError.invalidRequest = error else { throw error }
+                }
+            }
+            #expect(failed)
+            #expect(await transport.images == (imageMode == 2 ? [true] : []))
+            return
+        }
         let output = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: providedImage)
         #expect(output.count == regions.count)
         for (index, sample) in Self.roleSamples.enumerated() {
-            let retained = (sample.1 == "sfx" && settings.filterSFXWithLLM)
-                || (sample.1 == "background" && settings.filterBackgroundWithLLM)
-            #expect(output[index].translation == (retained ? sample.0 : "translated:" + sample.0))
-            #expect(output[index].preservesOriginalText == retained)
+            // Background-role lettering keeps its source text; it is never overlaid as translated speech.
+            #expect(output[index].translation == (sample.1 == "background" ? sample.0 : "translated:" + sample.0))
+            // Classified SFX and background lettering keep their original pixels.
+            #expect(output[index].preservesOriginalText == ["background", "sfx"].contains(sample.1))
         }
         let overlays = ReaderTranslationRegion.overlayItems(output, imageSize: Self.fixtureSize)
         #expect(overlays.count == output.filter { !$0.preservesOriginalText }.count)
-        #expect(await transport.images == (imageMode == 2 ? [true, false] : [imageMode == 1]))
+        #expect(await transport.images == [true])
         let bodies = await transport.bodies
-        for (index, body) in bodies.enumerated() {
+        for body in bodies {
             let root = try #require(JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
-            let instructions: String
             let schema: [String: Any]
             let imageURLs: [String]
             if apiProtocol == .responses {
-                instructions = try #require(root["instructions"] as? String)
                 schema = try #require(((root["text"] as? [String: Any])?["format"] as? [String: Any])?["schema"] as? [String: Any])
                 let content = try #require((root["input"] as? [[String: Any]])?.first?["content"] as? [[String: Any]])
                 imageURLs = content.filter { $0["type"] as? String == "input_image" }.compactMap { $0["image_url"] as? String }
             } else {
-                instructions = try #require((root["messages"] as? [[String: Any]])?.first?["content"] as? String)
                 schema = try #require(((root["response_format"] as? [String: Any])?["json_schema"] as? [String: Any])?["schema"] as? [String: Any])
                 let content = (root["messages"] as? [[String: Any]])?.last?["content"] as? [[String: Any]] ?? []
                 imageURLs = content.filter { $0["type"] as? String == "image_url" }.compactMap { ($0["image_url"] as? [String: Any])?["url"] as? String }
             }
             let translations = try #require((schema["properties"] as? [String: Any])?["translations"] as? [String: Any])
-            let properties = try #require((translations["items"] as? [String: Any])?["properties"] as? [String: Any])
-            #expect((properties["is_sfx"] != nil) == settings.filterSFXWithLLM)
-            #expect((properties["text_role"] != nil) == settings.filterBackgroundWithLLM)
-            let attached = imageMode == 1 || (imageMode == 2 && index == 0)
-            #expect(imageURLs.count == (attached ? 1 : 0))
-            if attached {
-                let imageURL = try #require(imageURLs.first)
-                #expect(imageURL.hasPrefix("data:image/jpeg;base64,"))
-                #expect(Data(base64Encoded: String(imageURL.dropFirst("data:image/jpeg;base64,".count))) == jpeg)
+            let item = try #require(translations["items"] as? [String: Any])
+            let branches = item["anyOf"] as? [[String: Any]] ?? [item]
+            #expect(!branches.isEmpty)
+            for branch in branches {
+                let required = try #require(branch["required"] as? [String])
+                let properties = try #require(branch["properties"] as? [String: Any])
+                #expect(Set(required) == ["id", "text", "text_role"])
+                #expect(Set(required) == Set(properties.keys))
             }
-            if attached {
-                #expect(!instructions.contains("No image is attached"))
-                #expect(!instructions.contains("Text-only SFX classification"))
-                #expect(!instructions.contains("Text-only text_role classification"))
-            } else {
-                #expect(!instructions.contains("An image is attached"))
-                #expect(!instructions.contains("Image context: The attached image"))
-                #expect(!instructions.contains("use the image and context"))
-                #expect(instructions.contains("Text-only SFX classification") == settings.filterSFXWithLLM)
-                #expect(instructions.contains("Text-only text_role classification") == settings.filterBackgroundWithLLM)
-            }
+            #expect((root["temperature"] as? NSNumber)?.doubleValue == 1.0)
+            #expect(imageURLs.count == 1)
+            let imageURL = try #require(imageURLs.first)
+            #expect(imageURL.hasPrefix("data:image/jpeg;base64,"))
+            #expect(Data(base64Encoded: String(imageURL.dropFirst("data:image/jpeg;base64,".count))) == jpeg)
         }
-        // The first rejection changes image semantics; warm the resulting text cache,
-        // then prove the next read neither retranslates nor changes preserved text.
+        // Repeated reads reuse the complete image-backed result.
         let second = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: providedImage)
         #expect(second.map(\.translation) == output.map(\.translation))
         let count = await transport.images.count
         _ = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: providedImage)
         #expect(await transport.images.count == count)
-        #expect(count == (imageMode == 2 ? 3 : 1))
+        #expect(count == 1)
     }
 
     private func settings() -> ReaderTranslationSettings {
@@ -149,6 +152,8 @@ struct TranslationImageSupportTests {
         settings.sourceLanguage = "auto"
         settings.targetLanguage = "ko"
         settings.includePageImage = true
+        // English role samples; the default manga tier admits only CJK sources.
+        settings.usesOCRLanguagePolicy = false
         return settings
     }
 
@@ -180,34 +185,35 @@ struct TranslationImageSupportTests {
         #expect(!bodies[1].contains("image_url"))
     }
 
-    @Test func manualProbeFallsBackAndExplicitRetestRestoresImages() async throws {
+    @Test func manualProbeRejectsUnsupportedImagesAndExplicitRetestUsesImages() async throws {
         let suite = "ImageProbe.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let support = TranslationImageSupport(defaults: defaults)
         let settings = settings()
         let transport = ImageSupportTransport()
-        let first = try await ReaderTranslationConnectionTest.translate(settings: settings, apiKey: "test-only",
-            savedCredentials: ImageSupportCredentials(), transport: transport, imageSupport: support)
-        #expect(first == "안녕하세요")
-        #expect(support.status(for: settings.configuration) == .unsupported)
-        #expect(await transport.images == [true, false])
-        let revision = support.revision(for: settings.configuration)
+        var failed = false
+        do {
+            _ = try await ReaderTranslationConnectionTest.translate(settings: settings, apiKey: "test-only",
+                savedCredentials: ImageSupportCredentials(), transport: transport, imageSupport: support)
+        } catch { failed = true }
+        #expect(failed)
+        #expect(await transport.images == [true])
         await transport.acceptImages()
-        _ = try await ReaderTranslationConnectionTest.translate(settings: settings, apiKey: "test-only",
+        let second = try await ReaderTranslationConnectionTest.translate(settings: settings, apiKey: "test-only",
             savedCredentials: ImageSupportCredentials(), transport: transport, imageSupport: support)
-        #expect(await transport.images == [true, false, true])
-        #expect(support.status(for: settings.configuration) == .supported)
-        #expect(support.revision(for: settings.configuration) > revision)
+        #expect(second == "안녕하세요")
+        #expect(await transport.images == [true, true])
     }
 
-    @Test func disabledImageSettingKeepsProbeTextOnly() async throws {
+    @Test func legacyDisabledImageSettingCannotMakePageProbeTextOnly() async throws {
         var settings = settings()
         settings.includePageImage = false
         let transport = ImageSupportTransport()
+        await transport.acceptImages()
         _ = try await ReaderTranslationConnectionTest.translate(settings: settings, apiKey: "test-only",
             savedCredentials: ImageSupportCredentials(), transport: transport)
-        #expect(await transport.images == [false])
+        #expect(await transport.images == [true])
     }
 
     @Test func protocolAndImageFallbackComposeWithoutRepeatingMissingEndpoint() async throws {
@@ -222,14 +228,13 @@ struct TranslationImageSupportTests {
     }
 
     @Test(arguments: [RemoteTranslationProtocol.responses, .chatCompletions], 0..<4)
-    func imageFallbackKeepsFiltersAndUsesTextOnlyInstructions(apiProtocol: RemoteTranslationProtocol, filters: Int) async throws {
+    func nonPageImageFallbackKeepsRequestedFields(apiProtocol: RemoteTranslationProtocol, filters: Int) async throws {
         var settings = settings()
         settings.custom.apiProtocol = apiProtocol
         let transport = ImageSupportTransport()
         let client = RemoteTranslationClient(credentialStore: ImageSupportCredentials(), transport: transport)
         var request = RemoteTranslationRequest(sourceLanguage: "en", targetLanguage: "ko",
-            segments: [.init(id: "dialogue", text: "Hello", bounds: [0.1, 0.1, 0.2, 0.2])],
-            context: ["Nearby dialogue"], glossary: [.init(source: "Alice", target: "앨리스")])
+            segments: [.init(id: "dialogue", text: "Hello", bounds: [0.1, 0.1, 0.2, 0.2])])
         request.imageJPEG = Data([1])
         request.prepareImageRepresentation()
         request.filtersSFX = filters & 1 != 0
@@ -248,19 +253,15 @@ struct TranslationImageSupportTests {
         for body in bodies.dropFirst() {
             let root = try #require(JSONSerialization.jsonObject(with: Data(body.utf8)) as? NSDictionary)
             #expect(root == expected)
-            #expect(body.contains("Nearby dialogue"))
-            #expect(body.contains("Alice"))
-            #expect(!body.contains("An image is attached"))
-            #expect(!body.contains("Image context: The attached image"))
-            #expect(!body.contains("use the image and context"))
-            #expect(!body.contains("Require visual evidence"))
-            #expect(!body.contains("Inspect the original lettering"))
+            // Requests no longer carry context or glossary fields.
+            #expect(!body.contains("Nearby dialogue"))
             #expect(!body.contains("data:image"))
             #expect(!body.contains("input_image"))
             #expect(!body.contains("image_url"))
-            if filters != 0 { #expect(body.contains("No image is attached")) }
-            if filters & 1 != 0 { #expect(body.contains("Text-only SFX classification")) }
-            if filters & 2 != 0 { #expect(body.contains("Text-only text_role classification")) }
+            let fields = try ImageSupportTransport.requiredFields(in: root as! [String: Any], responses: apiProtocol == .responses)
+            #expect(!fields.contains("is_sfx"))
+            #expect(fields.contains("text_role") == (filters & 3 != 0))
+            #expect(!fields.contains("editorial_role"))
         }
     }
 
@@ -298,26 +299,26 @@ struct TranslationImageSupportTests {
         #expect(await transport.images == [true, false])
     }
 
-    @Test func knownUnsupportedReaderNeedsNoImageAndCacheChangesOnRecovery() async throws {
+    @Test func knownUnsupportedReaderStillRequiresImageAndKeepsPageCacheIdentity() async throws {
         let settings = settings()
         let support = TranslationImageSupport.shared
         let initialKey = ReaderTranslationCacheIdentity.translation(page: "page", settings: settings)
         support.record(.unsupported, for: settings.configuration)
-        #expect(!settings.shouldAttachPageImage)
+        #expect(settings.shouldAttachPageImage)
         let fallbackKey = ReaderTranslationCacheIdentity.translation(page: "page", settings: settings)
         let transport = ImageSupportTransport()
+        await transport.acceptImages()
         let service = ReaderTranslationService(client: RemoteTranslationClient(
             credentialStore: ImageSupportCredentials(), transport: transport))
         let translated = try await service.translate(regions: [.init(id: "line", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2),
-            source: "Please open the door and come inside.")], settings: settings)
+            source: "Please open the door and come inside.")], settings: settings, preparedImageJPEG: Self.fixtureJPEG.get())
         #expect(translated.first?.translation == "안녕하세요")
-        #expect(await transport.images == [false])
+        #expect(await transport.images == [true])
         support.record(.supported, for: settings.configuration)
         #expect(settings.shouldAttachPageImage)
         let recoveredKey = ReaderTranslationCacheIdentity.translation(page: "page", settings: settings)
-        #expect(initialKey != fallbackKey)
-        #expect(fallbackKey != recoveredKey)
-        #expect(initialKey != recoveredKey)
+        #expect(initialKey == fallbackKey)
+        #expect(fallbackKey == recoveredKey)
         var changed = settings
         changed.model = "other-model"
         #expect(support.status(for: changed.configuration) == .unknown)
@@ -377,6 +378,23 @@ private actor ImageSupportTransport: TranslationHTTPTransport {
     }
     func acceptImages() { rejectsImages = false }
 
+    static func requiredFields(in root: [String: Any], responses: Bool) throws -> Set<String> {
+        let formatRoot = try #require(root[responses ? "text" : "response_format"] as? [String: Any])
+        let format = try #require(formatRoot[responses ? "format" : "json_schema"] as? [String: Any])
+        let schema = try #require(format["schema"] as? [String: Any])
+        let translations = try #require((schema["properties"] as? [String: Any])?["translations"] as? [String: Any])
+        let item = try #require(translations["items"] as? [String: Any])
+        let branches = item["anyOf"] as? [[String: Any]] ?? [item]
+        let required = Set(try #require(branches.first?["required"] as? [String]))
+        for branch in branches {
+            let fields = try #require(branch["required"] as? [String])
+            let properties = try #require(branch["properties"] as? [String: Any])
+            #expect(Set(fields) == required && Set(properties.keys) == required)
+            #expect(branch["additionalProperties"] as? Bool == false)
+        }
+        return required
+    }
+
     func data(for request: URLRequest, maximumResponseBytes: Int, bypassesProxy: Bool) async throws -> TranslationHTTPResponse {
         let body = try #require(request.httpBody)
         bodies.append(String(decoding: body, as: UTF8.self))
@@ -400,15 +418,13 @@ private actor ImageSupportTransport: TranslationHTTPTransport {
         }
         let data = try #require(JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
         let segments = try #require(data["segments"] as? [[String: Any]])
+        let required = try Self.requiredFields(in: root, responses: responses)
         let translations: [[String: Any]] = segments.map { segment in
             let source = segment["text"] as? String ?? ""
             let role = roles?[source] ?? "dialogue"
-            // Deliberately translate even excluded roles: the production parser
-            // must restore their exact source text instead of trusting this output.
+            // Classification must not replace any translated role with source text.
             var translated: [String: Any] = ["id": segment["id"]!, "text": roles == nil ? "안녕하세요" : "translated:" + source]
-            let bodyText = String(decoding: body, as: UTF8.self)
-            if bodyText.contains("\"is_sfx\":") { translated["is_sfx"] = role == "sfx" }
-            if bodyText.contains("\"text_role\":") { translated["text_role"] = role }
+            if required.contains("text_role") { translated["text_role"] = role }
             return translated
         }
         let output = try JSONSerialization.data(withJSONObject: ["translations": translations])

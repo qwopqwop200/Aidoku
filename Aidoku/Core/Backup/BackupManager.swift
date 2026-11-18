@@ -22,6 +22,7 @@ actor BackupManager {
     private static let backupTaskIdentifier = (Bundle.main.bundleIdentifier ?? "") + ".backup"
     private static let maxAutoBackups = 4
     private var isCreatingAutoBackup = false
+    private let dataOperations = LocalFileOperationGate()
 
     private static let excludedSettings: Set<String> = [
         AppSettings.browse.sourceLists.key, // stored separately
@@ -63,7 +64,9 @@ actor BackupManager {
                 dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
                 target = Self.directory.appendingPathComponent("aidoku_\(dateFormatter.string(from: backup.date))_\(UUID().uuidString).aib")
             }
-            try encoder.encode(backup).write(to: target, options: .atomic)
+            let data = try encoder.encode(backup)
+            guard !Task.isCancelled else { return false }
+            try data.write(to: target, options: .atomic)
             NotificationCenter.default.post(name: .updateBackupList, object: nil)
             return true
         } catch {
@@ -74,12 +77,25 @@ actor BackupManager {
 
     @discardableResult
     func saveNewBackup(name: String = "", options: BackupOptions) async -> Bool {
-        save(backup: await createBackup(name: name, options: options))
+        await withExclusiveDataAccess { await saveSnapshot(name: name, options: options) }
     }
 
-    func importBackup(from url: URL) -> Bool {
-        Self.directory.createDirectory()
-        var targetLocation = Self.directory.appendingPathComponent(url.lastPathComponent)
+    private func saveSnapshot(name: String = "", options: BackupOptions) async -> Bool {
+        let backup = await createBackup(name: name, options: options)
+        guard !Task.isCancelled else { return false }
+        return save(backup: backup)
+    }
+
+    // The source lists, database, and settings are read or written across actor suspensions.
+    func withExclusiveDataAccess(_ operation: () async -> Bool) async -> Bool {
+        do { try await dataOperations.acquire() } catch { return false }
+        defer { dataOperations.release() }
+        return await operation()
+    }
+
+    func importBackup(from url: URL, into directory: URL = BackupManager.directory) -> Bool {
+        let fileManager = FileManager.default
+        var targetLocation = directory.appendingPathComponent(url.lastPathComponent)
         while targetLocation.exists {
             targetLocation = targetLocation.deletingLastPathComponent().appendingPathComponent(
                 targetLocation.deletingPathExtension().lastPathComponent.appending("_1")
@@ -92,7 +108,14 @@ actor BackupManager {
             }
         }
         do {
-            try FileManager.default.copyItem(at: url, to: targetLocation)
+            try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+            let stagingDirectory = try fileManager.url(
+                for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: directory, create: true
+            )
+            defer { try? fileManager.removeItem(at: stagingDirectory) }
+            let stagedFile = stagingDirectory.appendingPathComponent("backup")
+            try fileManager.copyItem(at: url, to: stagedFile)
+            try fileManager.moveItem(at: stagedFile, to: targetLocation)
             NotificationCenter.default.post(name: .updateBackupList, object: nil)
             return true
         } catch {
@@ -255,7 +278,12 @@ actor BackupManager {
     }
 
     func removeBackup(url: URL) {
-        try? FileManager.default.removeItem(at: url)
+        do {
+            try FileManager.default.removeItem(at: url)
+            NotificationCenter.default.post(name: .updateBackupList, object: url)
+        } catch {
+            LogManager.logger.error("Could not remove backup: \(error.localizedDescription)")
+        }
     }
 }
 
@@ -306,13 +334,21 @@ extension BackupManager {
         guard (backup.trackItems ?? []).allSatisfy({ valid16($0.chapterOffset) }) else { throw BackupError.track }
         guard (backup.vocabulary ?? []).allSatisfy({ valid16($0.page, $0.clozeOffset) }) else { throw BackupError.vocabulary }
 
-        func index<T, K: Hashable>(_ rows: [T], key: (T) -> K) -> [K: T] {
-            Dictionary(rows.map { (key($0), $0) }, uniquingKeysWith: { first, _ in first })
+        func index<T: NSManagedObject, K: Hashable>(
+            _ request: NSFetchRequest<T>, when needed: Bool = true, key: @escaping (T) -> K
+        ) throws -> [K: T] {
+            guard needed else { return [:] }
+            let rows = try context.fetch(request)
+            return Dictionary(rows.lazy.map { (key($0), $0) }, uniquingKeysWith: { first, _ in first })
         }
         func delete<T: NSManagedObject>(_ request: NSFetchRequest<T>) throws {
             for row in try context.fetch(request) { context.delete(row) }
         }
-        var manga = index(try context.fetch(MangaObject.fetchRequest()), key: { $0.identifier })
+        let relinkChapterManga = backup.chapters != nil || backup.manga != nil
+        let relinkChapterHistory = backup.chapters != nil || backup.history != nil
+        var manga = try index(
+            MangaObject.fetchRequest(), when: relinkChapterManga || backup.library?.isEmpty == false, key: { $0.identifier }
+        )
         if let items = backup.manga {
             // Metadata is shared by downloads, history and unselected sections. Update it in place.
             for item in items {
@@ -320,9 +356,11 @@ extension BackupManager {
                 manga[key] = item.toObject(context: context, existing: manga[key])
             }
         }
-        var categories = index(try context.fetch(CategoryObject.fetchRequest()), key: { $0.title ?? "" })
+        var categories = try index(
+            CategoryObject.fetchRequest(), when: backup.categories != nil || backup.library?.isEmpty == false, key: { $0.title ?? "" }
+        )
         if let items = backup.categories {
-            let titles = Set(items.map { $0.title ?? "" })
+            let titles = Set(items.lazy.map { $0.title ?? "" })
             for (title, row) in categories where !titles.contains(title) {
                 context.delete(row)
                 categories.removeValue(forKey: title)
@@ -333,10 +371,10 @@ extension BackupManager {
             }
         }
         if let items = backup.library {
-            var library = index(try context.fetch(LibraryMangaObject.fetchRequest()), key: {
+            var library = try index(LibraryMangaObject.fetchRequest(), key: {
                 $0.manga?.identifier ?? MangaIdentifier(sourceKey: "", mangaKey: "")
             })
-            let keys = Set(items.map(\.identifier))
+            let keys = Set(items.lazy.map(\.identifier))
             for (key, row) in library where !keys.contains(key) { context.delete(row) }
             for item in items {
                 guard let parent = manga[item.identifier] else { throw BackupError.library }
@@ -348,9 +386,11 @@ extension BackupManager {
                 library[item.identifier] = row
             }
         }
-        var history = index(try context.fetch(HistoryObject.fetchRequest()), key: { $0.identifier })
+        var history = try index(
+            HistoryObject.fetchRequest(), when: relinkChapterHistory || backup.readingSessions?.isEmpty == false, key: { $0.identifier }
+        )
         if let items = backup.history {
-            let keys = Set(items.map { ChapterIdentifier(sourceKey: $0.sourceId, mangaKey: $0.mangaId, chapterKey: $0.chapterId) })
+            let keys = Set(items.lazy.map { ChapterIdentifier(sourceKey: $0.sourceId, mangaKey: $0.mangaId, chapterKey: $0.chapterId) })
             for (key, row) in history where !keys.contains(key) {
                 // Sessions cascade from history. An unselected section must survive a partial restore.
                 if backup.readingSessions == nil && (row.sessions?.count ?? 0) > 0 { continue }
@@ -362,9 +402,11 @@ extension BackupManager {
                 history[key] = item.toObject(context: context, existing: history[key])
             }
         }
-        var chapters = index(try context.fetch(ChapterObject.fetchRequest()), key: { $0.identifier })
+        var chapters = try index(
+            ChapterObject.fetchRequest(), when: relinkChapterManga || relinkChapterHistory || backup.updates?.isEmpty == false, key: { $0.identifier }
+        )
         if let items = backup.chapters {
-            let keys = Set(items.map { ChapterIdentifier(sourceKey: $0.sourceId, mangaKey: $0.mangaId, chapterKey: $0.id) })
+            let keys = Set(items.lazy.map { ChapterIdentifier(sourceKey: $0.sourceId, mangaKey: $0.mangaId, chapterKey: $0.id) })
             for (key, row) in chapters where !keys.contains(key) {
                 if row.fileInfo != nil || (backup.updates == nil && row.mangaUpdate != nil) { continue }
                 context.delete(row)
@@ -375,16 +417,18 @@ extension BackupManager {
                 chapters[key] = item.toObject(context: context, existing: chapters[key])
             }
         }
-        // Relink both restored and retained records, including history-only restores.
+        // Reconnect relationships whose endpoints were restored.
         for (key, row) in chapters {
-            row.manga = manga[key.mangaIdentifier]
-            row.history = history[key]
+            if relinkChapterManga { row.manga = manga[key.mangaIdentifier] }
+            if relinkChapterHistory { row.history = history[key] }
         }
         if let items = backup.readingSessions {
             try delete(ReadingSessionObject.fetchRequest())
             for item in items where item.endDate > item.startDate && item.pagesRead > 0 {
                 let row = item.toObject(context: context)
-                row.history = history[item.identifier] ?? CoreDataManager.shared.getOrCreateHistory(chapterId: item.identifier, context: context)
+                let parent = history[item.identifier] ?? CoreDataManager.shared.getOrCreateHistory(chapterId: item.identifier, context: context)
+                history[item.identifier] = parent
+                row.history = parent
             }
         }
         if let items = backup.updates {
@@ -401,8 +445,8 @@ extension BackupManager {
         if let items = backup.vocabulary {
             // Images stay on this device; preserve links for matching vocabulary entries.
             let existing = try context.fetch(VocabObject.fetchRequest())
-            let images = Dictionary(existing.compactMap { row -> (BackupVocabEntry, String)? in
-                guard let entry = BackupVocabEntry(row), let image = row.localImageId else { return nil }
+            let images = Dictionary(existing.lazy.compactMap { row -> (BackupVocabEntry, String)? in
+                guard let image = row.localImageId, let entry = BackupVocabEntry(row) else { return nil }
                 return (entry, image)
             }, uniquingKeysWith: { first, _ in first })
             existing.forEach(context.delete)
@@ -411,26 +455,41 @@ extension BackupManager {
                 row.localImageId = images[item]
             }
         }
-        if let items = backup.sources {
-            let sources = index(try context.fetch(SourceObject.fetchRequest()), key: { $0.id ?? "" })
+        if let items = backup.sources, items.contains(where: { $0.config != nil }) {
+            var sources = try index(SourceObject.fetchRequest(), key: { $0.id ?? "" })
             for item in items where item.config != nil {
                 guard item.apiVersion != nil else { throw BackupError.sources }
                 if let existing = sources[item.id] {
                     existing.apiVersion = item.apiVersion
                     existing.customSource = item.config as NSObject?
                 } else {
-                    _ = item.toObject(context: context)
+                    sources[item.id] = item.toObject(context: context)
                 }
             }
         }
     }
 
+    @discardableResult
     func restore(from url: URL) async -> Bool {
-        guard let backup = Backup.load(from: url) else { return false }
-        return await doRestore(from: backup)
+        // Keep the selected file version if a queued restore outlives a rename or automatic pruning.
+        let data = try? Data(contentsOf: url, options: .mappedIfSafe)
+        return await withExclusiveDataAccess {
+            guard let data, let backup = Backup.decode(data) else {
+                await Self.presentRestoreError(NSLocalizedString("CORRUPTED_BACKUP"))
+                return false
+            }
+            return await doRestore(from: backup)
+        }
     }
 
-    @discardableResult
+    @MainActor
+    private static func presentRestoreError(_ reason: String) {
+        UIApplication.shared.appDelegate?.presentAlert(
+            title: NSLocalizedString("BACKUP_ERROR"),
+            message: String(format: NSLocalizedString("BACKUP_ERROR_TEXT"), reason)
+        )
+    }
+
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func doRestore(from backup: Backup) async -> Bool {
         await MainActor.run {
@@ -524,24 +583,13 @@ extension BackupManager {
         let missingSourceKeys = await SourceManager.shared.missingExternalSourceKeys(in: Set(backupSourceKeys))
 
         await Task { @MainActor [backupError] in
-            let delegate = UIApplication.shared.appDelegate
             if let backupError {
-                // show error alert
-                delegate?.presentAlert(
-                    title: NSLocalizedString("BACKUP_ERROR"),
-                    message: String(
-                        format: NSLocalizedString("BACKUP_ERROR_TEXT"),
-                        (backupError as? BackupError)?.stringValue ?? NSLocalizedString("UNKNOWN")
-                    )
+                Self.presentRestoreError((backupError as? BackupError)?.stringValue ?? NSLocalizedString("UNKNOWN"))
+            } else if !missingSourceKeys.isEmpty {
+                UIApplication.shared.appDelegate?.presentAlert(
+                    title: NSLocalizedString("MISSING_SOURCES"),
+                    message: NSLocalizedString("MISSING_SOURCES_TEXT") + missingSourceKeys.map { "\n\($0)" }.joined()
                 )
-            } else {
-                // show missing sources alert if there are any
-                if !missingSourceKeys.isEmpty {
-                    delegate?.presentAlert(
-                        title: NSLocalizedString("MISSING_SOURCES"),
-                        message: NSLocalizedString("MISSING_SOURCES_TEXT") + missingSourceKeys.map { "\n\($0)" }.joined()
-                    )
-                }
             }
         }.value
 
@@ -623,10 +671,11 @@ extension BackupManager {
         BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.backupTaskIdentifier, using: nil) { @Sendable [weak self] task in
             guard let self, let task = task as? BGProcessingTask else { return }
 
-            Task { @Sendable in
+            let work = Task { @Sendable in
                 let success = await self.createAutoBackup()
                 task.setTaskCompleted(success: success)
             }
+            task.expirationHandler = { work.cancel() }
         }
 #endif
     }
@@ -642,26 +691,20 @@ extension BackupManager {
         }
     }
 
+    private var nextAutoBackupDate: Date? {
+        let settings = AppSettings.backups.autoBackups
+        guard settings.enabled.get(), let interval = Self.autoBackupInterval(for: settings.interval.get()) else { return nil }
+        return settings.lastBackup.get() + interval
+    }
+
     func scheduleAutoBackup() {
-        guard AppSettings.backups.autoBackups.enabled.get() else {
+        guard let nextUpdateTime = nextAutoBackupDate else {
 #if !targetEnvironment(simulator)
             BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.backupTaskIdentifier)
 #endif
             return
         }
-
-        let lastUpdated = AppSettings.backups.autoBackups.lastBackup.get()
-        guard let interval = Self.autoBackupInterval(for: AppSettings.backups.autoBackups.interval.get()) else {
-            // Backups can restore arbitrary strings. An unknown interval must
-            // not become zero and recursively start another successful backup.
-#if !targetEnvironment(simulator)
-            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.backupTaskIdentifier)
-#endif
-            return
-        }
-        let nextUpdateTime = lastUpdated + interval
-
-        if nextUpdateTime < Date.now {
+        if nextUpdateTime <= Date.now {
             // interval time has passed, create auto backup now
             Task {
                 await createAutoBackup()
@@ -685,12 +728,25 @@ extension BackupManager {
         }
     }
 
-    @discardableResult
-    private func createAutoBackup() async -> Bool {
-        guard AppSettings.backups.autoBackups.enabled.get(), !isCreatingAutoBackup else { return false }
+    // A previously submitted request may arrive after a foreground backup or a settings restore.
+    func performAutoBackupIfDue(_ operation: () async -> Bool) async -> Bool {
+        guard !isCreatingAutoBackup else { return false }
         isCreatingAutoBackup = true
         defer { isCreatingAutoBackup = false }
+        return await withExclusiveDataAccess {
+            guard let due = nextAutoBackupDate, due <= Date.now else { return true }
+            return await operation()
+        }
+    }
 
+    @discardableResult
+    private func createAutoBackup() async -> Bool {
+        let handled = await performAutoBackupIfDue { await saveAutoBackup() }
+        if handled { scheduleAutoBackup() }
+        return handled
+    }
+
+    private func saveAutoBackup() async -> Bool {
         let libraryEntries = AppSettings.backups.autoBackups.libraryEntries.get()
         let history = AppSettings.backups.autoBackups.history.get()
         let chapters = AppSettings.backups.autoBackups.chapters.get()
@@ -703,7 +759,7 @@ extension BackupManager {
         let sourceLists = AppSettings.backups.autoBackups.sourceLists.get()
         let sensitiveSettings = AppSettings.backups.autoBackups.sensitiveSettings.get()
 
-        let saved = await self.saveNewBackup(
+        let saved = await saveSnapshot(
             options: .init(
                 automatic: true,
                 libraryEntries: libraryEntries,
@@ -726,7 +782,6 @@ extension BackupManager {
         AppSettings.backups.autoBackups.lastBackup.set(Date.now)
 
         cleanUpAutoBackups()
-        scheduleAutoBackup() // schedule the next one
         return true
     }
 

@@ -1,4 +1,5 @@
 import AidokuRunner
+import ImageIO
 import Testing
 import UIKit
 import ZIPFoundation
@@ -6,6 +7,38 @@ import ZIPFoundation
 
 @MainActor
 struct LocalImageImportTests {
+    @Test func archivePreviewCountsVisiblePagesAndPreservesThumbnailPixelsAndOrder() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let source = folder.appendingPathComponent("source.png")
+        let archiveURL = folder.appendingPathComponent("preview.cbz")
+        var expected: [Data] = []
+        do {
+            let archive = try Archive(url: archiveURL, accessMode: .create)
+            for (name, color) in [("10.png", UIColor.red), ("2.png", .green), ("1.png", .blue), ("11.png", .white)] {
+                try writeImage(to: source, color: color)
+                try archive.addEntry(with: name, fileURL: source, compressionMethod: .deflate)
+                let data = try Data(contentsOf: source)
+                let imageSource = try #require(CGImageSourceCreateWithData(data as CFData, nil))
+                let thumbnail = try #require(CGImageSourceCreateThumbnailAtIndex(imageSource, 0, [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceCreateThumbnailWithTransform: true,
+                    kCGImageSourceThumbnailMaxPixelSize: 400
+                ] as CFDictionary))
+                expected.append(try #require(UIImage(cgImage: thumbnail).pngData()))
+            }
+            for name in ["3.txt", "2.desc.txt", "__MACOSX/0.png", ".hidden/0.png"] {
+                try archive.addEntry(with: name, fileURL: source)
+            }
+        }
+        let result = await LocalFileManager.shared.loadImportFileInfo(url: archiveURL)
+        let info = try #require(result)
+        #expect(info.pageCount == 5)
+        #expect(info.fileType == .cbz)
+        #expect(info.previewImages.compactMap { $0.pngData() } == [expected[2], expected[1], expected[0]])
+    }
+
     @Test func invalidDescriptionDoesNotHideLaterValidDescription() throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         folder.createDirectory()
@@ -20,6 +53,23 @@ struct LocalImageImportTests {
         let pages = LocalFileManager.shared.readPages(from: url)
         #expect(pages.count == 1)
         #expect(pages.first?.description == "valid")
+    }
+
+    @Test func archivePagesKeepNumericOrderAndSidecarPrecedence() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        folder.createDirectory()
+        defer { folder.removeItem() }
+        let url = folder.appendingPathComponent("chapter.cbz")
+        let archive = try Archive(url: url, accessMode: .create)
+        let file = folder.appendingPathComponent("payload")
+        for path in ["p10.JPG", "extras/002.desc.txt", "__MACOSX/1.jpg", "p2.md", ".hidden/1.png", "002.desc.txt", "p1.avif"] {
+            try Data(path.utf8).write(to: file)
+            try archive.addEntry(with: path, fileURL: file)
+        }
+        let pages = LocalFileManager.shared.readPages(from: url)
+        #expect(pages.map(\.content) == ["p1.avif", "p2.md", "p10.JPG"].map { .zipFile(url: url, filePath: $0) })
+        #expect(pages.map(\.description) == [nil, "002.desc.txt", nil])
+        #expect(pages.map(\.hasDescription) == [false, true, false])
     }
 
     @Test func defaultCoverUsesFirstImageAndPreservesChosenCover() throws {

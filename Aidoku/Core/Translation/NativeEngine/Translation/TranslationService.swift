@@ -330,6 +330,12 @@ actor TranslationService {
         self.providerRequestLimiter = providerRequestLimiter
     }
 
+    /// Preserve the client's bounded capability warm-up without creating a
+    /// second client or bypassing the shared translation/cache boundary.
+    func prepare(configuration: RemoteTranslationConfiguration) async {
+        await client.prepare(configuration: configuration)
+    }
+
     /// Reads matching translations without entering provider admission.
     func cachedResult(
         _ request: RemoteTranslationRequest,
@@ -348,7 +354,7 @@ actor TranslationService {
             try Task.checkCancellation()
             guard admittedGeneration == purgeGeneration, purgeTask == nil else { continue }
             guard let cached = lookup.value,
-                  !Self.containsWrongLanguage(cached.translations, request: canonical.request) else { return nil }
+                  !ReaderTranslationLanguageFilter.containsWrongLanguage(cached.translations, request: canonical.request) else { return nil }
             return try canonical.restoringCallerSegmentIDs(in: RemoteTranslationBatchResult(
                 translations: cached.translations, source: cached.source, providerRequestID: nil
             ))
@@ -411,7 +417,7 @@ actor TranslationService {
             else {
                 continue
             }
-            if let cached = lookup.value, !Self.containsWrongLanguage(cached.translations, request: canonicalRequest.request) {
+            if let cached = lookup.value, !ReaderTranslationLanguageFilter.containsWrongLanguage(cached.translations, request: canonicalRequest.request) {
                 let canonicalResult = RemoteTranslationBatchResult(
                     translations: cached.translations,
                     source: cached.source,
@@ -514,7 +520,7 @@ actor TranslationService {
             else {
                 continue
             }
-            guard let cached, !Self.containsWrongLanguage(cached.translations, request: canonicalRequest.request) else { return nil }
+            guard let cached, !ReaderTranslationLanguageFilter.containsWrongLanguage(cached.translations, request: canonicalRequest.request) else { return nil }
             let canonicalResult = RemoteTranslationBatchResult(
                 translations: cached.translations,
                 source: cached.source,
@@ -556,10 +562,6 @@ actor TranslationService {
         return try canonicalRequest.restoringCallerSegmentIDs(
             in: networkResult
         )
-    }
-
-    func flushCache() async throws {
-        try await cache.flush()
     }
 
     func cancelAll() {
@@ -740,8 +742,12 @@ actor TranslationService {
                     ReaderTranslationDiagnostics.record("api_invalid_response", count: attempt,
                                                         code: knownReasons.firstIndex(of: reason).map { $0 + 1 } ?? 0)
                 }
+                // Page batches have one primary call, including malformed or
+                // untranslated answers. Non-page callers retain format
+                // repair; HTTP/transport failures already propagate unchanged.
+                let allowsFormatRepair = request.translatesPageLettering != true
                 let isRepairable = Self.isStructuredOutputRetryable(error)
-                if isRepairable, attempt == 1, request.segments.count > 1 {
+                if allowsFormatRepair, isRepairable, attempt == 1, request.segments.count > 1 {
                     // Split on the first malformed multi-segment answer to avoid
                     // another full-batch round trip. Reduce the problem while keeping
                     // the original IDs, context, validation and cancellation.
@@ -750,8 +756,7 @@ actor TranslationService {
                     let middle = request.segments.count / 2
                     let parts = [Array(request.segments[..<middle]), Array(request.segments[middle...])].map { segments in
                         var part = RemoteTranslationRequest(sourceLanguage: request.sourceLanguage,
-                            targetLanguage: request.targetLanguage, segments: segments,
-                            context: request.context, glossary: request.glossary)
+                            targetLanguage: request.targetLanguage, segments: segments)
                         part.copyImageRepresentation(from: request)
                         part.filtersSFX = request.filtersSFX
                         part.filtersBackground = request.filtersBackground
@@ -788,6 +793,7 @@ actor TranslationService {
                     return RemoteTranslationBatchResult(translations: recovered, source: .network, providerRequestID: nil)
                 }
                 let willRetry =
+                    allowsFormatRepair &&
                     isRepairable &&
                     attempt <= maximumStructuredOutputRetries
                 TranslationPerformanceDiagnostics.providerAttemptFailed(
@@ -852,23 +858,10 @@ actor TranslationService {
             )
         }
         let result = try await client.translate(request, configuration: configuration, onPartial: onPartial)
-        guard !containsWrongLanguage(result.translations, request: request) else {
+        guard !ReaderTranslationLanguageFilter.containsWrongLanguage(result.translations, request: request) else {
             throw RemoteTranslationError.invalidResponse("translation is still in source language")
         }
         return result
-    }
-
-    private static func containsWrongLanguage(_ translations: [RemoteTranslatedSegment], request: RemoteTranslationRequest) -> Bool {
-        let sources = Dictionary(request.segments.map { ($0.id, $0.text) }, uniquingKeysWith: { first, _ in first })
-        return translations.contains { segment in
-            guard segment.isSFX != true, let source = sources[segment.id] else { return false }
-            // Validate the same text callers will see after ID restoration.
-            // Literal Unicode escapes otherwise hide source-language output
-            // from this guard and become Japanese again when displayed.
-            let displayedText = TranslationHTTPCodec.decodingLeakedEscapes(in: segment.text, source: source)
-            return ReaderTranslationLanguageFilter.isUntranslatedJapaneseReply(
-                source: source, translation: displayedText, target: request.targetLanguage)
-        }
     }
 
     private static func isStructuredOutputRetryable(_ error: Error) -> Bool {

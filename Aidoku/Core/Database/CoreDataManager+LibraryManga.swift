@@ -51,6 +51,29 @@ extension CoreDataManager {
         return (try? context.count(for: request)) ?? 0 > 0
     }
 
+    func bookmarkedMangaKeys(for entries: [AidokuRunner.Manga]) async -> Set<String> {
+        guard !entries.isEmpty else { return [] }
+        return await container.performBackgroundTask { context in
+            var keysBySource: [String: [String]] = [:]
+            for entry in entries {
+                keysBySource[entry.sourceKey, default: []].append(entry.key)
+            }
+            var bookmarks = Set<String>()
+            for (source, keys) in keysBySource {
+                // Keep each IN predicate below SQLite's older 999-parameter limit.
+                for batch in keys.chunked(into: 900) {
+                    let request = NSFetchRequest<NSDictionary>(entityName: "LibraryManga")
+                    request.resultType = .dictionaryResultType
+                    request.propertiesToFetch = ["manga.id"]
+                    request.predicate = NSPredicate(format: "manga.sourceId == %@ AND manga.id IN %@", source, batch)
+                    let rows = (try? context.fetch(request)) ?? []
+                    bookmarks.formUnion(rows.compactMap { $0["manga.id"] as? String })
+                }
+            }
+            return bookmarks
+        }
+    }
+
     /// Set LibraryManga opened date to current date.
     func setOpened(mangaId: MangaIdentifier) async {
         await container.performBackgroundTask { context in

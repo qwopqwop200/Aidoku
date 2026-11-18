@@ -43,6 +43,7 @@ actor SpoilerPlusSourceRunner: NativeSourceRunnerLifecycle {
         let data: Data
         if cache, let entry = mangaCache, entry.url == url { data = entry.data }
         else {
+            if cache { cacheGeneration &+= 1 }
             let generation = cacheGeneration
             data = try await body(request(url))
             if cache, generation == cacheGeneration { mangaCache = (url, data) }

@@ -146,6 +146,20 @@ struct EHentaiNativeSourceTests {
         #expect(request.url?.absoluteString == "https://example.invalid/fallback.jpg")
     }
 
+    @Test func oversizedResponsesKeepTheSourceLimitAndRefreshCookie() async throws {
+        let storage = Preferences(["domain": "exhentai.org"])
+        let runner = EHentaiSourceRunner(fetch: { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil,
+                                           headerFields: ["Set-Cookie": "igneous=updated; Path=/"])!
+            throw SourceResponseBody.TooLarge(response: response)
+        }, preference: { storage.get($0) }, setPreference: { storage.set($0, $1) })
+        do {
+            _ = try await runner.getSearchMangaList(query: "term", page: 1, filters: [])
+            Issue.record("Expected the gallery size limit")
+        } catch EHentaiSourceRunner.Failure.resourceLimit {}
+        #expect(storage.get("igneous") == "updated")
+    }
+
     @Test func dynamicListingsAndHomeKeepWatchedAndToplistComponents() async throws {
         let transport = Transport { _, _ in Data(Self.compact.utf8) }
         let runner = EHentaiSourceRunner(fetch: { try await transport.fetch($0) }, preference: { key in

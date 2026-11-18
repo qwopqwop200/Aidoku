@@ -373,8 +373,8 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
         // its tunnel is inactive. Waiting for connectivity makes the settings
         // test and every OCR translation appear frozen.
         configuration.waitsForConnectivity = false
-        configuration.timeoutIntervalForRequest = 300
-        configuration.timeoutIntervalForResource = 300
+        configuration.timeoutIntervalForRequest = RemoteTranslationConfiguration.maximumTimeout
+        configuration.timeoutIntervalForResource = RemoteTranslationConfiguration.maximumTimeout
         configuration.httpMaximumConnectionsPerHost =
             BoundedTranslationBatchExecutor.allowedMaximumConcurrentRequests
         if bypassesProxy {

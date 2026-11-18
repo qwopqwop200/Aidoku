@@ -9,6 +9,9 @@ import runpy
 
 ROOT = Path(__file__).resolve().parents[2]
 source = (ROOT / 'Scripts/image-translation/PipelineMain.swift').read_text().split('@MainActor\n@main', 1)[0]
+start = source.index('    func makeTranslationService(')
+end = source.index('    var configuration:', start)
+source = source[:start] + source[end:]  # Runtime cache/transport assembly has independent service tests.
 settings = (ROOT / 'Aidoku/Core/Translation/ReaderTranslationSettings.swift').read_text()
 source += 'enum IPhoneOCRModelTier' + settings.split('enum IPhoneOCRModelTier', 1)[1].split('struct ReaderOCRConfiguration', 1)[0]
 stubs = '''
@@ -27,7 +30,7 @@ struct RemoteTranslationRequest {
 struct RemoteTranslationConfiguration {
     let provider: RemoteTranslationProvider; let apiProtocol: RemoteTranslationProtocol
     let baseURL: String; let model: String; let credentialAccount: String
-    let reasoningEffort: OpenAIReasoningEffort; let timeout: Double
+    let credentialGeneration: UInt64; let reasoningEffort: OpenAIReasoningEffort; let timeout: Double
     let allowsInsecureLocalhostForDevelopment: Bool
     func validatedEndpoint() throws -> URL { URL(string: baseURL)! }
 }
@@ -72,6 +75,7 @@ with tempfile.TemporaryDirectory(prefix='aidoku-env-') as temporary:
         str(ROOT/'Scripts/image-translation/HostLetterFonts.swift'),
         str(ROOT/'Scripts/image-translation/HostRenderGeometry.swift'),
         str(ROOT/'Aidoku/Core/Translation/NativeEngine/Overlay/IPhoneOverlaySettings.swift'),
+        str(ROOT/'Aidoku/Core/Translation/NativeEngine/Overlay/NativeTextBoxGeometryParameters.swift'),
         str(main),'-o',str(binary)],check=True)
     profile = directory / 'profile'; profile.mkdir()
     secret = 'env-fixture-secret-$(touch should-not-exist)'
@@ -94,9 +98,11 @@ with tempfile.TemporaryDirectory(prefix='aidoku-env-') as temporary:
     assert shell['model']=='shell' and shell['target']=='ko'
     assert shell['viewport']==[414,896]
     cli=run(['--model','cli','--tier','small','--confidence','.5','--source','auto','--target','ko','--protocol','chatCompletions',
-             '--no-include-image','--no-filter-sfx','--no-filter-background','--no-rtl'],{'AIDOKU_TRANSLATION_MODEL':'shell'})
+             '--no-rtl'],{'AIDOKU_TRANSLATION_MODEL':'shell'})
     assert cli['model']=='cli' and cli['tier']=='small' and cli['confidence']==.5 and cli['protocol']=='chatCompletions'
-    assert not any(cli[k] for k in ['image','sfx','background','rtl'])
+    assert not cli['rtl'] and all(cli[k] for k in ['image','sfx','background'])
+    for retired in ['--no-include-image', '--no-filter-sfx', '--no-filter-background']:
+        assert 'Unknown option' in run([retired], expected=2)
     cli_viewport=run(['--viewport','430x932','--jobs','2'],{'AIDOKU_RENDER_VIEWPORT':'414x896'})
     assert cli_viewport['viewport']==[430,932] and cli_viewport['jobs']==2
     for invalid in ['0x932','430x-1','nanx932','430xinf','16385x932','430x932x2']:
@@ -106,18 +112,29 @@ with tempfile.TemporaryDirectory(prefix='aidoku-env-') as temporary:
     (profile/'.env').write_text("AIDOKU_TRANSLATION_API_KEY='unclosed-secret-value\n")
     error=run(expected=2);assert 'line 1' in error and 'unclosed-secret-value' not in error
     (profile/'.env').unlink()
-    defaults=run(['--ocr-only']);assert defaults['tier']=='medium' and defaults['confidence']==.75 and not defaults['keyPresent']
-    assert defaults['detector']==1184 and defaults['recognizer']==1184
-    for size, effective in [(1,32),(32,32),(800,800),(1184,1184),(1280,1184),(1600,1184)]:
+    defaults=run(['--ocr-only']);assert defaults['tier']=='manga' and defaults['confidence']==.30 and not defaults['keyPresent']
+    assert defaults['detector']==1120 and defaults['recognizer']==2400
+    manga=run(['--ocr-only','--tier','manga'])
+    assert manga['tier']=='manga' and manga['detector']==1120 and manga['recognizer']==2400
+    assert run(['--ocr-only','--tier','manga','--detector-side','1120'])['detector']==1120
+    assert run(['--ocr-only','--tier','manga'],{'AIDOKU_OCR_DETECTOR_SIDE':'800'})['detector']==800
+    assert 'Manga OCR supports only' in run(['--ocr-only','--source','en'],expected=2)
+    assert run(['--ocr-only','--tier','medium','--source','en'])['source']=='en'
+    for source_language in ['auto','ja','zh','zh-Hans','zh-Hant']:
+        assert run(['--ocr-only','--source',source_language])['source']==source_language
+    assert 'Manga OCR supports only' in run(['--ocr-only'],{'AIDOKU_TRANSLATION_SOURCE_LANGUAGES':'["en"]'},expected=2)
+    for size in [1, 32, 800, 1184, 1280, 1600, 2400, 3000]:
+        detector = min(1184, max(32, size))
+        recognizer = min(2400, max(32, size))
         cli=run(['--ocr-only','--detector-side',str(size),'--recognizer-width',str(size)])
         shell=run(['--ocr-only'],{'AIDOKU_OCR_DETECTOR_SIDE':str(size),'AIDOKU_OCR_RECOGNIZER_WIDTH':str(size)})
-        assert cli['detector']==effective and cli['recognizer']==effective,cli
-        assert shell['detector']==effective and shell['recognizer']==effective,shell
+        assert cli['detector']==detector and cli['recognizer']==recognizer,cli
+        assert shell['detector']==detector and shell['recognizer']==recognizer,shell
     for flag, key in [('--detector-side','AIDOKU_OCR_DETECTOR_SIDE'),('--recognizer-width','AIDOKU_OCR_RECOGNIZER_WIDTH')]:
         for invalid in ['0','-1','nan','infinity','1.5']:
             assert 'positive integer' in run(['--ocr-only',flag,invalid],expected=2)
             assert key in run(['--ocr-only'],{key:invalid},expected=2)
-    assert 'AIDOKU_TRANSLATION_INCLUDE_IMAGE' in run(['--ocr-only'],{'AIDOKU_TRANSLATION_INCLUDE_IMAGE':'invalid'},expected=2)
+    assert 'AIDOKU_TRANSLATION_RTL' in run(['--ocr-only'],{'AIDOKU_TRANSLATION_RTL':'invalid'},expected=2)
     # A saved phone profile is input data, not the developer's private .env.
     # Exercise all imported fields from a deterministic profile on every checkout.
     imported_settings = {
@@ -133,7 +150,7 @@ with tempfile.TemporaryDirectory(prefix='aidoku-env-') as temporary:
         'AIDOKU_TRANSLATION_FILTER_SFX': 'true',
         'AIDOKU_TRANSLATION_FILTER_BACKGROUND': 'true',
         'AIDOKU_TRANSLATION_REASONING': 'none', 'AIDOKU_TRANSLATION_TIMEOUT': '120',
-        'AIDOKU_TRANSLATION_SOURCE_LANGUAGES': json.dumps(['en', 'ja']),
+        'AIDOKU_TRANSLATION_SOURCE_LANGUAGES': json.dumps(['zh', 'ja']),
         'AIDOKU_IPHONE_OVERLAY_JSON': json.dumps({
             'inpaintingEnabled': True, 'preserveSourceTextColor': True,
             'preserveSourceBackgroundColor': True}),
@@ -144,18 +161,20 @@ with tempfile.TemporaryDirectory(prefix='aidoku-env-') as temporary:
     assert actual['confidence'] == .81 and actual['detector'] == 1184 and actual['recognizer'] == 960
     assert actual['pixelThreshold'] == .3 and actual['boxThreshold'] == .3 and actual['minimumBoxSide'] == 3
     assert actual['image'] and actual['sfx'] and actual['background'] and actual['keyPresent']
-    assert actual['reasoning'] == 'none' and actual['timeout'] == 120 and actual['languages'] == ['en', 'ja']
-    assert actual['appearance']['inpaintingEnabled'] and actual['appearance']['preserveSourceTextColor']
+    assert actual['reasoning'] == 'none' and actual['timeout'] == 120 and actual['languages'] == ['zh', 'ja']
+    # The current opaque text-box renderer disables the retired inpainting/color toggles.
+    assert not actual['appearance']['inpaintingEnabled'] and not actual['appearance']['preserveSourceTextColor']
 
 phone_profile = runpy.run_path(str(ROOT / 'Scripts/image-translation/sync-iphone-settings.py'))['profile']
-for size, effective in [(1,32),(800,800),(1184,1184),(1280,1184),(1600,1184)]:
+for size in [1, 800, 1184, 1280, 1600, 2400, 3000]:
     imported = phone_profile({
         'Reader.translation.provider': 'custom',
         'Reader.translation.custom': {'baseURL':'https://example.test/v1','model':'fixture','apiProtocol':'responses'},
         'Reader.translation.ocr': {'confidenceThreshold':.75,'detectorMaximumSide':size,'recognizerMaximumWidth':size},
         'Reader.translation.overlay': {},
     })
-    assert imported['AIDOKU_OCR_DETECTOR_SIDE']==effective and imported['AIDOKU_OCR_RECOGNIZER_WIDTH']==effective
+    assert imported['AIDOKU_OCR_DETECTOR_SIDE'] == min(1184, max(32, size))
+    assert imported['AIDOKU_OCR_RECOGNIZER_WIDTH'] == min(2400, max(32, size))
 
 assert subprocess.run(['git','check-ignore','-q','.env'],cwd=ROOT).returncode==0
 assert subprocess.run(['git','check-ignore','-q','.env.example'],cwd=ROOT).returncode==1

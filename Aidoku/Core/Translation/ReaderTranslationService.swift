@@ -6,7 +6,15 @@ struct ReaderTranslationRegion: Equatable, Sendable {
     let id: String
     let rect: CGRect // Normalized image coordinates, top-left origin.
     let source: String
+    // Source reread receipts; original accepted-source table remains immutable.
+    var sourceColumnRecognition: NativeCausalPacketColumnRecognition.Correction? = nil
+    var sourceRFParagraphRecognition: NativeCausalRFParagraphRecognition.Correction? = nil
     var translation: String?
+    /// A classified effect retains its source pixels even though its translated
+    /// text is stored for diagnostics and cache reuse.
+    var keepsClassifiedSFXSource = false
+    /// Changed symbol-only output may need typesetting; identical output keeps source pixels.
+    var rendersUnchangedSymbols = false
     var polygon: [CGPoint] = [] // Normalized; retain the detector/merger geometry.
     var confidence: Double = 1
     var sourceImageAspectRatio: Double? = nil
@@ -15,8 +23,22 @@ struct ReaderTranslationRegion: Equatable, Sendable {
     var sourceOrientation: BrowserOCRSourceOrientation = .unknown
     var sourceSingleVerticalColumn: Bool?
     var translationReuseIdentity: NativeTranslationReuseIdentity?
+    /// Explicit optional-recovery failure; nil also permits legitimate preserved lettering.
+    var translationRecoveryFailure: String? = nil
     var auxiliaryInkRects: [CGRect] = [] // Normalized suppressed-ruby ink; not layout bounds.
     var auxiliaryInkPolygons: [[CGPoint]] = []
+    var detectorSeedEvidence: [NativeOCRDetectorSeedEvidence]? = nil
+    var acceptedSource: NativeOCRSourceMetadata = .init()
+    /// Original premerge BODY geometry in GLOBAL SOURCE PIXELS. Cached geometry
+    /// is saved directly from real members; never reconstructed from final rect.
+    var cachedSourceMemberPolygons: [[CGPoint]] = []
+    var sourceMemberPolygons: [[CGPoint]] {
+        acceptedSource.bodySourcePolygons ?? cachedSourceMemberPolygons
+    }
+    var sourceOCRAlternatives: [ReaderTranslationSourceOCRAlternative] = [] // Legacy stored data; never read or sent for translation.
+    var sourceRoleEvidence: NativeTranslationRoleEvidence? = nil // Source-bound geometry, never a role answer.
+    /// Compact model/OCR evidence only; no source masks or images survive here.
+    var postLLMContentEvidence: NativePostLLMContentReclassifier.Evidence? = nil
     /// Clean paper of the balloon that holds only this caption (native, measured with the OCR).
     var balloonInterior: ReaderTranslationBalloonInterior?
     /// Normalized OCR boxes of the blocks joined into this balloon unit (see
@@ -35,9 +57,46 @@ struct ReaderTranslationRegion: Equatable, Sendable {
     /// This avoids opaque boxes over numbers, punctuation, unchanged names,
     /// and artwork that OCR mistook for a letter. Changed output still paints.
     var preservesOriginalText: Bool {
-        guard let translation else { return false }
+        if translationRecoveryFailure != nil { return true }
+        if keepsClassifiedSFXSource && translation != nil { return true }
+        return NativeSourceTextPreservation.matches(source: source, translated: translation)
+    }
+
+    func effectiveTranslation(_ segment: RemoteTranslatedSegment) -> RemoteTranslatedSegment {
+        NativePostLLMContentReclassifier.resolved(segment, evidence: postLLMContentEvidence)
+    }
+
+    @discardableResult
+    mutating func applyTranslation(_ segment: RemoteTranslatedSegment) -> Bool {
+        let segment = effectiveTranslation(segment)
+        // A false OCR detection is not lettering: keep its original pixels and
+        // ignore any schema-required text returned with the error role.
+        if segment.textRole == .error {
+            let changed = translation != source || rendersUnchangedSymbols || keepsClassifiedSFXSource
+            translation = source
+            keepsClassifiedSFXSource = false
+            rendersUnchangedSymbols = false
+            return changed
+        }
+        let classifiedSFX = segment.isSFX == true || segment.textRole == .sfx
+        let keepSFX = classifiedSFX
+        let effectiveText = segment.textRole == .background ? source : segment.text
         let original = source.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !original.isEmpty && original == translation.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sourceScalars = original.unicodeScalars
+        let renderSymbols = !keepSFX && segment.textRole != .background &&
+            effectiveText.trimmingCharacters(in: .whitespacesAndNewlines) != original &&
+            !sourceScalars.isEmpty && sourceScalars.allSatisfy {
+                CharacterSet.punctuationCharacters.contains($0) || CharacterSet.symbols.contains($0) ||
+                    CharacterSet.whitespacesAndNewlines.contains($0)
+            }
+        let changed = translation != effectiveText || rendersUnchangedSymbols != renderSymbols ||
+            keepsClassifiedSFXSource != keepSFX
+        // Object lettering is translated by the provider for diagnostics, but
+        // its original pixels must not receive a speech-style overlay.
+        translation = effectiveText
+        keepsClassifiedSFXSource = keepSFX
+        rendersUnchangedSymbols = renderSymbols
+        return changed
     }
 
     /// The reply only re-spells its source (see `restatesSource`), so repainting
@@ -236,6 +295,120 @@ actor ReaderOCRService {
     static let shared = ReaderOCRService()
     private let gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private var pipeline: NativeCoreMLOCRPipeline?
+    private let layoutDetector: NativeRFDETRLayoutDetector
+    private let rawCanonicalLayoutDetector: NativeRFDETRLayoutDetector?
+
+    init() {
+        let auxiliary = NativeRFDETRLayoutResource.auxiliaryOCR
+        let canonical = NativeRFDETRLayoutResource.rawCanonicalOCR
+        layoutDetector = Self.makeLayoutDetector(auxiliary)
+        // Both roles resolve through the same bundle, installed-model store and decoder.
+        // When their complete requests match, the first result already belongs to this OCR call.
+        rawCanonicalLayoutDetector = NativeRFRawCachePolicy.enabled && auxiliary == canonical
+            ? nil : Self.makeLayoutDetector(canonical)
+    }
+
+    private static func makeLayoutDetector(_ producer: NativeRFDETRLayoutResource.OCRProducer) -> NativeRFDETRLayoutDetector {
+        NativeRFDETRLayoutDetector(maximumMaskQueries: producer.maximumMaskQueries, retainAllQueryMasks: producer.retainAllQueryMasks,
+            expectedWeightsSHA256: producer.weightsSHA256, expectedSourceRevision: producer.revision, resolveModelURL: {
+                try await Task.detached(priority: .utility) {
+                    try NativeCoreMLModelStore.shared.modelURL(for: producer.modelURL())
+                }.value
+            })
+    }
+    // Separate DET-only cold-cache lifecycle: never constructs/prepares REC.
+    private var probabilityOnlyDetector:NativeCoreMLDetector?
+    private var probabilityOnlyConfiguration:ReaderOCRConfiguration?
+
+    /// Existing OCR gate serializes fresh OCR and cold/cached probability ensure.
+    /// The caller retains this local lease/snapshot through rendering.
+    func ensureSourceProbability(original:CGImage,configuration:ReaderOCRConfiguration,
+        allowOneCurrentDetector:Bool = true) async throws -> NativeMainEnsemblePreparedDB {
+        try await gate.withPermit {
+            try await NativeOCRDirectionGeometry.$mainMangaPolicy.withValue(configuration.modelTier == .manga) {
+                try await self.ensureSourceProbabilitySerial(original:original,configuration:configuration,
+                    allowOneCurrentDetector:allowOneCurrentDetector)
+            }
+        }
+    }
+
+    private func ensureSourceProbabilitySerial(original:CGImage,configuration:ReaderOCRConfiguration,
+        allowOneCurrentDetector:Bool) async throws -> NativeMainEnsemblePreparedDB {
+        try Task.checkCancellation()
+        let source = try NativeMainEnsemblePreparedDB.SourceBinding(original: original)
+        let store = NativeMainEnsembleEvidenceStore.shared
+        let lease = try store.lease(source: source)
+        var retained=false
+        defer {if !retained {lease.release()}}
+        let usingPipeline:NativeCoreMLOCRPipeline?
+        let detector:NativeCoreMLDetector?
+        if let pipeline, Self.sameDetector(loadedConfiguration, configuration) {
+            usingPipeline=pipeline;detector=nil
+        } else {
+            usingPipeline=nil
+            if probabilityOnlyDetector == nil || !Self.sameDetector(probabilityOnlyConfiguration, configuration) {
+                await probabilityOnlyDetector?.purgeResources()
+                let profile=NativeCoreMLOCRModelProfile.profile(for:configuration.modelTier)
+                probabilityOnlyDetector=NativeCoreMLDetector(modelResourceName:profile.detectorResourceName,
+                    maximumSide:configuration.detectorMaximumSide)
+                probabilityOnlyConfiguration=configuration
+            }
+            detector=probabilityOnlyDetector
+        }
+        let postprocess=configuration.detectorPostprocessConfiguration
+        let request: NativeCoreMLDetector.ProbabilityRequest
+        if let usingPipeline {
+            request=try await usingPipeline.prepareSourceProbabilityRequest(image:original,configuration:postprocess)
+        } else {
+            guard let detector,let frame=await NativeOCRCGImageAdapter.makeRGBAFrameOffMain(from:original) else {
+                throw NativeMainEnsemblePreparedDB.Failure.requiredDBUnavailable
+            }
+            request=try await detector.prepareProbabilityRequest(frame:frame,configuration:postprocess)
+        }
+        let metadata = request.expectation
+        guard metadata.producer.resizedWidth<=original.width,metadata.producer.resizedHeight<=original.height else {
+            throw NativeMainEnsembleDBCapability.Failure.upsampled
+        }
+        let expected=NativeMainEnsembleDBCapability.Key(source:.init(canonicalIdentity:source.identity,
+            detectorInputIdentity:metadata.detectorInputIdentity,width:original.width,height:original.height),producer:metadata.producer)
+        if let resident = try store.currentPreparedProbability(source: source, expected: expected, lease: lease,
+                                                               consumerConfigurationSHA256: metadata.consumerConfigurationSHA256) {
+            retained = true
+            ReaderTranslationDiagnostics.record("render_db_current_hit", count: 0)
+            return resident
+        }
+        var captured:NativeMainAOTRemovalMaskBuilder.SourceProbability?
+        let resolution=try await NativeMainEnsembleDBCapability.resolve(expected:expected,
+            resident:nil,replay:nil,allowOneCurrentDetector:allowOneCurrentDetector) {
+            let capture=NativeMainEnsembleDBCapture()
+            let observer = NativeMainEnsembleOCRProbability.observer(source: source, register: { try capture.store($0) })
+            try await request.observe({ sample in
+                let report = observer(sample)
+                capture.record(report)
+                return report
+            }, { try Task.checkCancellation() })
+            let actual=try capture.take()
+            guard let record=actual.capability else {throw NativeMainEnsemblePreparedDB.Failure.observerUnavailable}
+            // Authored only AFTER this actual DET callback. No historical rebranding.
+            let fresh=NativeMainEnsembleDBCapability.Record(source:record.source,producer:record.producer,
+                grid:record.grid,mapSHA256:record.mapSHA256,origin:.freshCurrentDetector,
+                consumerConfigurationSHA256:record.consumerConfigurationSHA256)
+            captured = .init(original:original,width:actual.width,height:actual.height,values:actual.values,capability:fresh)
+            return fresh
+        }
+        guard let probability=captured else {
+            throw NativeMainEnsemblePreparedDB.Failure.requiredDBUnavailable
+        }
+        try Task.checkCancellation()
+        try store.register(probability: probability, source: source)
+        let result=try NativeMainEnsemblePreparedDB(probability:probability,source:source,expected:expected,
+            detectorCalls:resolution.detectorCalls,lease:lease,
+            currentConsumerConfigurationSHA256:metadata.consumerConfigurationSHA256)
+        retained=true
+        ReaderTranslationDiagnostics.record("render_db_one_det_fallback",count:resolution.detectorCalls)
+        return result
+    }
+
     private var loadedConfiguration: ReaderOCRConfiguration?
     private var pipelineEpoch: UInt64 = 0
     private var warmUpTask: Task<Void, Never>?
@@ -252,22 +425,76 @@ actor ReaderOCRService {
             TranslationPerformanceFileLog.record(.ocrQueue, fields: [
                 .elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: queuedAt)
             ])
-            return try await self.recognizeSerial(image: image, configuration: configuration)
+            guard configuration.modelTier == .manga else {
+                return try await self.recognizeSerial(image: image, configuration: configuration)
+            }
+            let sourceReuse = NativeRFOCRSourceReuse(original: image)
+            defer { sourceReuse.close() }
+            return try await NativeRFOCRSourceReuse.$active.withValue(sourceReuse) {
+                try await self.recognizeSerial(image: image, configuration: configuration)
+            }
         }
     }
 
+    /// Saved OCR already owns its regions. Refresh only RF evidence after regrouping;
+    /// never recognize text again or reapply final-owner admission.
+    func refreshingPostLLMEvidence(regions: [ReaderTranslationRegion], image: CGImage) async throws -> [ReaderTranslationRegion] {
+        try Task.checkCancellation()
+        let cleared = regions.map { region in
+            var region = region
+            region.postLLMContentEvidence = nil
+            return region
+        }
+        // This refresh owns post-response classification evidence only.
+        // Provider-direct comparison keeps sourceRoleEvidence, OCR owners and
+        // the actual LLM request untouched, and avoids a dedicated RF refresh.
+        // Fresh final4/postmerge admission still extracts its required signals.
+        guard NativePostLLMContentReclassifier.activePolicy != .providerOnly else { return cleared }
+        return try await gate.withPermit {
+            try Task.checkCancellation()
+            guard ProcessInfo.processInfo.environment["AIDOKU_DISABLE_RF_LAYOUT"] != "1",
+                  ReaderTranslationSession.processAvailableMemory() >= TranslationImageWorkBudget.minimumHeadroom else {
+                return cleared
+            }
+            do {
+                let layout = try await self.layoutDetector.detect(image: image)
+                try Task.checkCancellation()
+                let refreshed = NativeFinalOutputContentFilter.attachingEvidence(cleared, layout: layout)
+                try Task.checkCancellation()
+                return refreshed
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                try Task.checkCancellation()
+                ReaderTranslationDiagnostics.record("post_llm_rf_layout_fallback")
+                return cleared
+            }
+        }
+    }
+
+    private static func sameDetector(_ lhs: ReaderOCRConfiguration?, _ rhs: ReaderOCRConfiguration) -> Bool {
+        lhs?.modelTier == rhs.modelTier && lhs?.detectorMaximumSide == rhs.detectorMaximumSide
+    }
+
     private static func sameModels(_ lhs: ReaderOCRConfiguration?, _ rhs: ReaderOCRConfiguration) -> Bool {
-        lhs?.modelTier == rhs.modelTier && lhs?.detectorMaximumSide == rhs.detectorMaximumSide &&
-            lhs?.recognizerMaximumWidth == rhs.recognizerMaximumWidth
+        sameDetector(lhs, rhs) && lhs?.recognizerMaximumWidth == rhs.recognizerMaximumWidth
     }
 
     /// Callers hold `gate`: replacement awaits the old pipeline's purge.
     private func currentPipeline(for configuration: ReaderOCRConfiguration) async -> NativeCoreMLOCRPipeline {
         if let pipeline, Self.sameModels(loadedConfiguration, configuration) { return pipeline }
         await pipeline?.purgeResources()
+        // A saved-page probability miss may already have loaded this exact detector.
+        // Transfer ownership so the full pipeline keeps its resident Core ML handle.
+        var existingDetector: NativeCoreMLDetector?
+        if Self.sameDetector(probabilityOnlyConfiguration, configuration) {
+            existingDetector = probabilityOnlyDetector
+            probabilityOnlyDetector = nil
+            probabilityOnlyConfiguration = nil
+        }
         let created = NativeCoreMLOCRPipeline(
             modelTier: configuration.modelTier, detectorMaximumSide: configuration.detectorMaximumSide,
-            recognizerMaximumWidth: configuration.recognizerMaximumWidth
+            recognizerMaximumWidth: configuration.recognizerMaximumWidth, existingDetector: existingDetector
         )
         pipeline = created
         loadedConfiguration = configuration
@@ -336,28 +563,132 @@ actor ReaderOCRService {
         // Pass the complete source once. The detector owns aspect-preserving
         // resize and maps detections back to original-image coordinates.
         ReaderTranslationDiagnostics.record("ocr_begin")
+        // RF text scopes are available for the FIRST OCR recognition pass.
+        // Both models remain serialized under the existing image admission slot.
+        let auxiliaryLayout: NativeRFDETRLayoutResult?
+        if ProcessInfo.processInfo.environment["AIDOKU_DISABLE_RF_LAYOUT"] != "1",
+           ReaderTranslationSession.processAvailableMemory() >= TranslationImageWorkBudget.minimumHeadroom {
+            do {
+                auxiliaryLayout = try await layoutDetector.detect(image: image)
+                ReaderTranslationDiagnostics.record("rf_layout_end", count: auxiliaryLayout?.primitives.count ?? 0)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                auxiliaryLayout = nil
+                ReaderTranslationDiagnostics.record("rf_layout_fallback")
+            }
+        } else {
+            auxiliaryLayout = nil
+            ReaderTranslationDiagnostics.record("rf_layout_skipped")
+        }
+        try Task.checkCancellation()
+        // This is the upright ORIGINAL CG object entering OCR, not DeviceRGB frame bytes.
+        let boundProbability: NativeMainEnsembleOCRProbability.Observer? =
+            (NativeMainEnsembleRenderer.enabled || NativeOCRRFGapRecovery.runtimeEnabled)
+                ? NativeMainEnsembleOCRProbability.fullPageObserver(original: image) : nil
+        let probabilityContext = ReaderTranslationDiagnostics.context
+        let probabilityObserver: NativeMainEnsembleOCRProbability.Observer? = boundProbability.map { bound in
+            { @Sendable sample in
+                let report = bound(sample)
+                ReaderTranslationDiagnostics.record("ocr_probability_" + report.status.rawValue,
+                    count: report.registered ? sample.values.count : 0, context: probabilityContext)
+                return report
+            }
+        }
+        let rawCanonicalLayout: NativeRFDETRLayoutResult?
+        if configuration.modelTier == .manga, auxiliaryLayout != nil, let rawCanonicalLayoutDetector {
+            rawCanonicalLayout = try await rawCanonicalLayoutDetector.detect(image: image)
+        } else { rawCanonicalLayout = nil }
+        try Task.checkCancellation()
         let result = try await pipeline.recognize(
             image: image, requestID: UUID().uuidString,
             confidenceThreshold: configuration.confidenceThreshold,
-            detectorConfiguration: configuration.detectorPostprocessConfiguration
+            detectorConfiguration: configuration.detectorPostprocessConfiguration,
+            probabilityObserver: probabilityObserver,
+            rfLayout: rawCanonicalLayout ?? auxiliaryLayout
         )
         try Task.checkCancellation()
         ReaderTranslationDiagnostics.record("ocr_end", count: result.lines.count)
+        // Also release when the raw canonical path was not entered.
+        NativeRFOCRSourceReuse.active?.releasePixels()
         TranslationPerformanceFileLog.record(.ocrFrame, fields: [.elapsedMilliseconds: result.frameConversionMilliseconds])
         TranslationPerformanceFileLog.record(.ocrDetection, fields: [.elapsedMilliseconds: result.detectionMilliseconds])
         TranslationPerformanceFileLog.record(.ocrRecognition, fields: [.elapsedMilliseconds: result.recognitionMilliseconds])
         let postprocessStartedAt = ProcessInfo.processInfo.systemUptime
-        let lineCount = result.lines.count + result.recoveryCandidates.count + result.isolatedLines.count + result.splitLines.count
-        let separator = lineCount >= 2 ? NativeOCRRegionSeparator(image: image) : nil
+        if let auxiliaryLayout { NativeMainEnsembleEvidenceStore.shared.register(rf: auxiliaryLayout) }
+        let representatives = NativeOCRLegacyComplementFilter.representatives(result.lines, width: result.width, height: result.height)
+        var lines = NativeOCRAcceptedSource.bindingPrimary(representatives, width: result.width, height: result.height)
+        let simpleParagraphRoute = NativeParagraphFragmentGrouping.simpleGroupingEnabled
+        // Only incumbent grouping substitutes its stable layout view. SIMPLE
+        // reads the literal accepted native extents and keeps their source table.
+        if !simpleParagraphRoute { lines = lines.map { line -> NativeCoreMLOCRLine in
+            guard let membership=line.acceptedSource.membership,membership.body.count == 1,
+                  let index=membership.body.first,
+                  let layout=membership.table.packets[index].layoutPolygon,
+                  layout.count == 4,layout.allSatisfy({ $0.x.isFinite && $0.y.isFinite }) else { return line }
+            return NativeCoreMLOCRLine(polygon:layout,text:line.text,score:line.score,
+                orientation:line.orientation,orientationIsEstimated:line.orientationIsEstimated,
+                sourceTileBounds:line.sourceTileBounds,erasurePolygons:line.erasurePolygons,
+                detectorSeedEvidence:line.detectorSeedEvidence,acceptedSource:line.acceptedSource)
+        } }
+        let rfGapMilliseconds: Double = 0
+        let lineCount = lines.count + result.recoveryCandidates.count + result.isolatedLines.count + result.splitLines.count
+        let separator = !simpleParagraphRoute && lineCount >= 2 ? NativeOCRRegionSeparator(image: image) : nil
         // Text in two different enclosed light components (neighbouring balloons or caption
         // boxes), or in a balloon and on the artwork beside it, belongs to separate utterances.
         // A lone isolated line still needs it too: it qualifies only on open paper.
-        let enclosure = lineCount >= 2 || !result.isolatedLines.isEmpty
+        let enclosure = !simpleParagraphRoute && (lineCount >= 2 || !result.isolatedLines.isEmpty)
             ? ReaderTranslationEnclosedBackground.ComponentMap(image: image) : nil
-        let lines = result.lines
+        let sourceBounds = (lines + result.recoveryCandidates + result.isolatedLines + result.splitLines)
+            .compactMap { NativeOCRScopeGeometry.bounds(for: $0.polygon) }
+        let layoutOwnership = simpleParagraphRoute ? nil : auxiliaryLayout.map {
+            NativeRFDETRLayoutApplication.independentBalloonOwnership(sourceBounds: sourceBounds, result: $0)
+        }
         var phases: [String: Double] = ["native": result.totalMilliseconds, "ocrPasses": 1,
                                         "rowSplit": result.stackedRowSplitMilliseconds,
                                         "unit": result.unitMilliseconds, "unitLines": Double(result.unitLineCount)]
+        if NativeOCRRFGapRecovery.runtimeEnabled {
+            phases["rfGap"] = rfGapMilliseconds
+            phases["rfGapAccepted"] = Double(lines.count - representatives.count)
+        }
+        if let auxiliaryLayout {
+            phases["rfLayoutModel"] = auxiliaryLayout.modelMilliseconds
+            phases["rfLayoutPreprocess"] = auxiliaryLayout.preprocessingMilliseconds
+            phases["rfLayoutDecode"] = auxiliaryLayout.decodeMilliseconds
+            phases["rfLayoutOwnerPixelTests"] = Double(layoutOwnership?.verifiedPixelTests ?? 0)
+        }
+        if let raw = result.rawCanonicalReceipt {
+            phases["rawCanonicalGenerated"] = Double(raw.generated)
+            phases["rawCanonicalBBoxAdmitted"] = Double(raw.bboxAdmitted)
+            phases["rawCanonicalPreRECAdmitted"] = Double(raw.preRecognitionAdmitted)
+            phases["rawCanonicalRecognized"] = Double(raw.recognized)
+            phases["rawCanonicalRetained"] = Double(raw.retained)
+            phases["rawCanonicalDETThreshold"] = raw.detectorThreshold
+            phases["rawCanonicalRECThreshold"] = raw.recognitionThreshold
+        }
+        var joined: [ReaderTranslationRegion]
+        var layoutMergeDecisions: [String: Int] = [:]
+        if simpleParagraphRoute {
+            // This is a replacement, not a late correction after all legacy
+            // families. No candidate recovery, pixel separator or lexical pass
+            // runs here; the common final filter/role/cache path follows below.
+            let started = ProcessInfo.processInfo.systemUptime
+            let grouped = try NativeParagraphFragmentGrouping.simpleNativeResult(lines, width: result.width, height: result.height,
+                scopes: (auxiliaryLayout?.primitives ?? []).compactMap {
+                    $0.semanticClass == .text ? .init(owner: $0.queryID, box: $0.normalizedBounds, confidence: Double($0.confidence)) : nil
+                }, balloons: (auxiliaryLayout?.primitives ?? []).compactMap {
+                    $0.semanticClass == .balloon ? .init(owner: $0.queryID, box: $0.normalizedBounds, confidence: Double($0.confidence)) : nil
+                })
+            joined = grouped.regions
+            phases["simpleParagraph"] = (ProcessInfo.processInfo.systemUptime-started)*1000
+            phases["simpleParagraphInputAtoms"] = Double(grouped.inputAtoms)
+            phases["simpleParagraphOutputOwners"] = Double(grouped.outputOwners)
+            phases["simpleParagraph."+grouped.outcome.rawValue] = 1
+            phases["simpleParagraphBypassedLegacy"] = 1
+            phases["simpleParagraphRecoveryCandidatesNotAdmitted"] = Double(result.recoveryCandidates.count+result.isolatedLines.count+result.splitLines.count+result.gapLines.count)
+            lastPhaseMilliseconds = phases
+            ReaderTranslationDiagnostics.record("simple_paragraph_"+grouped.outcome.rawValue, count: joined.count)
+        } else {
         let wordStart = ProcessInfo.processInfo.systemUptime
         let wordCandidates = NativeOCRTextLineMerger.latinWordCandidates(lines)
         let recognizedWords: Set<String>
@@ -380,7 +711,20 @@ actor ReaderOCRService {
             return value
         }
         let imageBounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
+        let relaxSharedOwnerOutlinedGap = ProcessInfo.processInfo.environment["AIDOKU_RF_OWNER_RELAX_OUTLINED_GAP"] == "1"
         func separated(_ a: CGRect, _ b: CGRect, _ orientation: BrowserOCRSourceOrientation) -> Bool {
+            var sharesResolvedBalloon = false
+            if let layoutOwnership, let auxiliaryLayout {
+                let decision = layoutOwnership.mergeDecision(first: a, second: b,
+                    imageIdentity: auxiliaryLayout.imageIdentity)
+                layoutMergeDecisions["outcome." + decision.outcome, default: 0] += 1
+                layoutMergeDecisions["first." + decision.first.kind, default: 0] += 1
+                layoutMergeDecisions["second." + decision.second.kind, default: 0] += 1
+                // A shared model owner is NOT permission to join: all original
+                // native direction, gutter, source-style and speaker gates follow.
+                if decision.veto { return true }
+                sharesResolvedBalloon = decision.outcome == "sameOwner"
+            }
             if orientation == .vertical {
                 let first = ink(a), second = ink(b)
                 if first.count == 3, second.count == 3 {
@@ -388,7 +732,13 @@ actor ReaderOCRService {
                     // Outlined captions on artwork have observable gutters,
                     // even when recognition drops every quotation mark.
                     let gap = max(a.minX, b.minX) - min(a.maxX, b.maxX)
-                    if gap >= min(a.width, b.width) * 0.3 { return true }
+                    if gap >= min(a.width, b.width) * 0.3 {
+                        // Shared ownership only removes this gap-only veto. Native
+                        // gutter, speaker, geometry, style, separator and enclosure
+                        // checks still decide whether an actual join is admissible.
+                        guard relaxSharedOwnerOutlinedGap && sharesResolvedBalloon else { return true }
+                        layoutMergeDecisions["sharedOwnerOutlinedGapRelaxed", default: 0] += 1
+                    }
                 }
             }
             if separator?.separates(a, b, orientation: orientation) == true { return true }
@@ -415,9 +765,22 @@ actor ReaderOCRService {
             return value
         }
         func group(_ lines: [NativeCoreMLOCRLine]) -> [ReaderTranslationRegion] {
+            let columns = lines.enumerated().compactMap { index, line -> NativeIndependentColumnCohorts.Column? in
+                guard (3...16).contains(line.polygon.count), line.polygon.allSatisfy({ $0.x.isFinite && $0.y.isFinite }),
+                      line.orientation == .vertical, line.text.count >= 3, line.text.unicodeScalars.lazy.filter({ CharacterSet.letters.contains($0) }).count >= 2 else { return nil }
+                let xs=line.polygon.map(\.x), ys=line.polygon.map(\.y)
+                guard let minX=xs.min(), let maxX=xs.max(), let minY=ys.min(), let maxY=ys.max() else { return nil }
+                return .init(id:index,box:CGRect(x:minX,y:minY,width:maxX-minX,height:maxY-minY))
+            }
+            let boundaries = NativeIndependentColumnCohorts.boundaries(columns:columns) { a,b,font in
+                NativeOutlinedLobeProof.inspect(image:image,first:a,second:b,glyph:font) != nil
+            }
             let merged = NativeOCRTextLineMerger.merge(
                 lines, imageWidth: image.width, imageHeight: image.height, recognizedLatinWords: recognizedWords,
-                separationCheck: separated,
+                separationCheck: { a,b,orientation in
+                    if orientation == .vertical, NativeIndependentColumnCohorts.separates(a,b,boundaries:boundaries) { return true }
+                    return separated(a,b,orientation)
+                },
                 inkContrast: {
                     guard let a = textInk($0), let b = textInk($1) else { return false }
                     return max(abs(a.0 - b.0), abs(a.1 - b.1), abs(a.2 - b.2)) >= 100
@@ -431,7 +794,7 @@ actor ReaderOCRService {
                 let rect = line.boundingRect.intersection(imageBounds)
                 let source = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !rect.isNull, !rect.isEmpty, !source.isEmpty else { return nil }
-                return ReaderTranslationRegion(
+                var region = ReaderTranslationRegion(
                     id: "region-\(index)",
                     rect: CGRect(
                         x: rect.minX / imageBounds.width, y: rect.minY / imageBounds.height,
@@ -448,14 +811,17 @@ actor ReaderOCRService {
                     },
                     auxiliaryInkPolygons: line.auxiliaryInkPolygons.map {
                         $0.map { CGPoint(x: $0.x / imageBounds.width, y: $0.y / imageBounds.height) }
-                    }
+                    },
+                    detectorSeedEvidence: line.detectorSeedEvidence
                 )
+                region.acceptedSource = line.acceptedSource
+                return region
             }
             return ReaderTranslationBalloonMerger.apply(
                 regions, image: image,
                 sourceLines: lines.map { .init(polygon: $0.polygon, text: $0.text, orientation: $0.orientation) }, enclosure: enclosure)
         }
-        var joined = group(lines)
+        joined = group(lines)
         phases["mergeAndSeparator"] = (ProcessInfo.processInfo.systemUptime - mergeStart) * 1000
         lastPhaseMilliseconds = phases
         try Task.checkCancellation()
@@ -544,8 +910,14 @@ actor ReaderOCRService {
         // alone in its balloon against that paper instead of its OCR column (no pixel work in WebKit).
         let interiorStart = ProcessInfo.processInfo.systemUptime
         joined = ReaderTranslationEnclosedBackground.attachingBalloonInteriors(joined, image: image, map: enclosure)
+        let paragraphOwnerHints = joined
+        let separateCaptionOwners = enclosure?.separateCaptionOwnerIndices(of: joined.map {
+            CGRect(x: $0.rect.minX * imageBounds.width, y: $0.rect.minY * imageBounds.height,
+                   width: $0.rect.width * imageBounds.width, height: $0.rect.height * imageBounds.height)
+        }) ?? []
+        let captionSlotIDs = Set(separateCaptionOwners.map { joined[$0].id })
         let countBeforeChromaticJoin = joined.count
-        joined = ReaderTranslationChromaticBalloon.applying(joined, image: image)
+        joined = ReaderTranslationChromaticBalloon.applying(joined, image: image, preservingSourceSlots: captionSlotIDs)
         // A colored contour can complete a column whose fragments occupied different
         // light-paper patches. Give that completed column one bounded opportunity to
         // join its paragraph, using the same separation and enclosure guards.
@@ -559,23 +931,204 @@ actor ReaderOCRService {
                 let changed = joined.indices.filter { prior[joined[$0].id] != joined[$0].rect }
                 let refreshed = ReaderTranslationEnclosedBackground.attachingBalloonInteriors(
                     changed.map { joined[$0] }, image: image, map: enclosure)
-                let contours = ReaderTranslationChromaticBalloon.interiors(refreshed, image: image)
+                let contours = ReaderTranslationChromaticBalloon.interiors(refreshed, image: image, preservingSourceSlots: captionSlotIDs)
                 for (offset, index) in changed.enumerated() {
                     joined[index] = refreshed[offset]
-                    if let contour = contours[offset] { joined[index].balloonInterior = contour }
+                    if captionSlotIDs.contains(joined[index].id) {
+                        joined[index].balloonInterior = nil
+                    } else if let contour = contours[offset] { joined[index].balloonInterior = contour }
                 }
             }
+        }
+        if ProcessInfo.processInfo.environment["AIDOKU_DISABLE_OVERLAP_GROUPING"] != "1" {
+            joined = try NativeOverlappingSourceUnitGrouping.apply(joined, image: image, separates: separated)
         }
         lastPhaseMilliseconds["balloonInterior"] = (ProcessInfo.processInfo.systemUptime - interiorStart) * 1000
         // Cut-off fine print of a background document stays as printed art (kept lettering).
         joined = await ReaderTranslationNonContentText.markingOccludedDocumentText(joined)
+        let lexicalContinuation = NativeJapaneseLexicalContinuationGrouping.applying(
+            joined, width: imageBounds.width, height: imageBounds.height)
+        joined = lexicalContinuation.regions
+        joined = NativeParagraphFragmentGrouping.applying(
+            joined, lines: lines, ownerHints: paragraphOwnerHints, image: image, separates: separated)
+        // Transfer only independently measured round cores in its verified balloon;
+        // semantic text and geometry remain unchanged, physical DB evidence survives.
+        let sourceDotRails = NativeSourceDotRailOwnership.applying(
+            joined, width: image.width, height: image.height, reader: { scope, width, height in
+                try? NativeSourcePixelReader.draw(image: image, x: Double(scope.minX), y: Double(scope.minY),
+                    sourceWidth: Double(scope.width), sourceHeight: Double(scope.height), width: width, height: height)
+            })
+        joined = sourceDotRails.regions
+        if let auxiliaryLayout, ProcessInfo.processInfo.environment["AIDOKU_DISABLE_RF_BALLOON_CONTOURS"] != "1" {
+            var modelContours = 0
+            for index in joined.indices where joined[index].balloonInterior == nil {
+                let region = joined[index]
+                let normalized = region.unitMemberRects.isEmpty ? [region.rect] : region.unitMemberRects
+                let sourceRects = normalized.map {
+                    CGRect(x: $0.minX * imageBounds.width, y: $0.minY * imageBounds.height,
+                           width: $0.width * imageBounds.width, height: $0.height * imageBounds.height)
+                }
+                guard let contour = NativeRFDETRLayoutApplication.balloonContour(sourceBounds: sourceRects,
+                    result: auxiliaryLayout) else { continue }
+                joined[index].balloonInterior = .init(rect: contour.rect, center: contour.center, spans: contour.spans,
+                    contourVerified: false, modelEstimated: true)
+                modelContours += 1
+            }
+            lastPhaseMilliseconds["rfBalloonModelContours"] = Double(modelContours)
+        }
+        // causal96-live-ordered-source-begin
+        // Final original-source grouping, before ReaderTranslationService plans
+        // provider requests or looks up translations. No saved revisions needed.
+        if let auxiliaryLayout,
+           ReaderTranslationOrderedSourceRoute.anyEnabled {
+            let ordered = ReaderTranslationOrderedSourceRoute.apply(joined,
+                imageSize: imageBounds.size,
+                supports: auxiliaryLayout.primitives.compactMap { primitive in
+                    guard primitive.semanticClass == .text || primitive.semanticClass == .soundEffect else { return nil }
+                    return .init(queryID: primitive.queryID, isText: primitive.semanticClass == .text,
+                        confidence: Double(primitive.confidence), normalizedBounds: primitive.normalizedBounds)
+                }, enabled: ReaderTranslationOrderedSourceRoute.enabled,
+                separates: { separated($0, $1, .vertical) },
+                originalInk: { ReaderTranslationOrderedSourceRoute.originalNeutralGlyphInk($0, image: image) })
+            joined = ordered.regions
+            lastPhaseMilliseconds["orderedSourceJoinedGroups"] = Double(ordered.joinedGroups)
+            lastPhaseMilliseconds["orderedSourceJoinedOwners"] = Double(ordered.joinedOwners)
+            let intervals = ReaderTranslationOrderedSourceRoute.applySourceIntervals(joined,
+                imageSize: imageBounds.size,
+                supports: auxiliaryLayout.primitives.compactMap { primitive in
+                    guard primitive.semanticClass == .text || primitive.semanticClass == .soundEffect else { return nil }
+                    return .init(queryID: primitive.queryID, isText: primitive.semanticClass == .text,
+                        confidence: Double(primitive.confidence), normalizedBounds: primitive.normalizedBounds)
+                }, enabled: ReaderTranslationOrderedSourceRoute.sourceIntervalsEnabled,
+                separates: { separated($0, $1, .vertical) },
+                originalInk: { ReaderTranslationOrderedSourceRoute.originalNeutralGlyphInk($0, image: image) })
+            joined = intervals.regions
+            lastPhaseMilliseconds["sourceIntervalJoinedGroups"] = Double(intervals.joinedGroups)
+            lastPhaseMilliseconds["sourceIntervalJoinedOwners"] = Double(intervals.joinedOwners)
+        }
+        // causal96-live-ordered-source-end
+        if let auxiliaryLayout {
+            let before = joined.count
+            joined = NativeParagraphFragmentGrouping.reconcilingObservations(joined, scopes: auxiliaryLayout.primitives.compactMap {
+                $0.semanticClass == .text ? .init(owner: $0.queryID, box: $0.normalizedBounds, confidence: Double($0.confidence)) : nil
+            }, balloons: auxiliaryLayout.primitives.compactMap {
+                $0.semanticClass == .balloon ? .init(owner: $0.queryID, box: $0.normalizedBounds, confidence: Double($0.confidence)) : nil
+            })
+            lastPhaseMilliseconds["reconciledSourceObservations"] = Double(before - joined.count)
+        }
+        } // Full incumbent grouping rollback; SIMPLE never enters these families.
+        let finalOwners = NativeFinalOutputDuplicateResolver.applying(joined)
+        joined = finalOwners.regions
+        lastPhaseMilliseconds["finalOutputDuplicatesSuppressed"] = Double(finalOwners.suppressed)
+        if let filteringLayout = rawCanonicalLayout ?? auxiliaryLayout {
+            let before = joined.count
+            joined = NativeFinalOutputContentFilter.applying(joined, layout: filteringLayout, auxiliaryLayout: auxiliaryLayout)
+            lastPhaseMilliseconds["finalOutputContentSuppressed"] = Double(before - joined.count)
+        }
+        let complementOwners = NativeFinalOutputDuplicateResolver.applyingComplementOwners(joined)
+        joined = complementOwners.regions
+        lastPhaseMilliseconds["finalOutputComplementDuplicatesSuppressed"] = Double(complementOwners.suppressed)
+        for (key, count) in layoutMergeDecisions {
+            lastPhaseMilliseconds["rfMergeDecision." + key] = Double(count)
+        }
         TranslationPerformanceFileLog.record(.ocrPostprocess, fields: [
             .segments: Double(joined.count),
             .elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: postprocessStartedAt)
         ])
         try Task.checkCancellation()
+        if NativeMainEnsembleRenderer.enabled {
+            do {
+                let evidenceSource = try NativeMainEnsemblePreparedDB.SourceBinding(ocrEvidenceOriginal: image)
+                let binding = NativeMainEnsembleOCREvidence.liveBinding(source: evidenceSource)
+                func auditEvidence(_ key: String) {
+                    lastPhaseMilliseconds["mainOCREvidence." + key, default: 0] += 1
+                }
+                var stages: [NativeMainEnsembleOCREvidence.StageRows] = []
+                func appendEvidence(_ stage: NativeMainEnsembleOCREvidence.StageRows) -> Bool {
+                    do {
+                        _ = try NativeMainEnsembleOCREvidence.Packet(binding: binding, stages: stages + [stage])
+                        stages.append(stage)
+                        return true
+                    } catch {
+                        auditEvidence(stage.stage.rawValue + ".packetBudgetFailure")
+                        return false
+                    }
+                }
+                do {
+                    for stage in try result.ensembleStageSnapshot?.project(binding: binding, audit: auditEvidence) ?? [] {
+                        _ = appendEvidence(stage)
+                    }
+                } catch { auditEvidence("snapshot.projectionFailure") }
+                if result.ensembleStageSnapshot == nil { lastPhaseMilliseconds["mainOCRSnapshotUnavailable"] = 1 }
+                do {
+                    let native = try NativeOCREnsembleStageSnapshot.projectNativeLines(lines, binding: binding,
+                        audit: { auditEvidence("nativeLines." + $0) })
+                    if !appendEvidence(native) {
+                        auditEvidence("nativeLines.missingGeometry")
+                        _ = appendEvidence(try NativeOCREnsembleStageSnapshot.projectNativeLines(lines,
+                            binding: binding, includeSeeds: false))
+                    }
+                } catch { auditEvidence("nativeLines.projectionFailure") }
+                var seedBudget = NativeOCREnsembleStageSnapshot.SeedBudget()
+                let rows: [[String: Any]] = joined.map { region in
+                    var row: [String: Any] = ["id": region.id, "source": region.source,
+                        "confidence": region.confidence,
+                        "sourceOrientation": region.sourceOrientation.rawValue,
+                        "rect": ["x": region.rect.minX, "y": region.rect.minY,
+                                 "width": region.rect.width, "height": region.rect.height],
+                        "polygon": region.polygon.map { [Double($0.x), Double($0.y)] },
+                        "sourceMemberPolygons": region.sourceMemberPolygons.map { $0.map { [Double($0.x),Double($0.y)] } },
+                        "unitMemberRects": region.unitMemberRects.map {
+                            ["x": $0.minX, "y": $0.minY, "width": $0.width, "height": $0.height]
+                        }]
+                    if let translated = region.translation { row["translation"] = translated }
+                    if let vertical = region.sourceSingleVerticalColumn { row["sourceSingleVerticalColumn"] = vertical }
+                    if let seeds = NativeOCREnsembleStageSnapshot.optionalSeedRows(region.detectorSeedEvidence,
+                        budget: &seedBudget, audit: { auditEvidence("finalRegions." + $0) }) {
+                        row["detectorSeedEvidence"] = seeds
+                    }
+                    row["sourceOCRAlternatives"] = region.sourceOCRAlternatives.map { alternative in
+                        ["originalText": alternative.originalText, "exactReading": alternative.exactReading,
+                         "paddedReading": alternative.paddedReading, "primaryConfidence": alternative.primaryConfidence,
+                         "exactConfidence": alternative.exactConfidence, "paddedConfidence": alternative.paddedConfidence,
+                         "rect": ["x": alternative.rect.minX, "y": alternative.rect.minY,
+                                  "width": alternative.rect.width, "height": alternative.rect.height]] as [String: Any]
+                    }
+                    return row
+                }
+                do {
+                    let projected = try NativeMainEnsembleOCREvidence.project(rows: rows, stage: .finalRegions,
+                        space: .normalizedTopLeft, binding: binding)
+                    if !appendEvidence(projected) {
+                        auditEvidence("finalRegions.missingGeometry")
+                        let baseRows = rows.map { row in
+                            row.filter { !["detectorSeedEvidence", "sourceOCRAlternatives"].contains($0.key) }
+                        }
+                        _ = appendEvidence(try NativeMainEnsembleOCREvidence.project(rows: baseRows, stage: .finalRegions,
+                            space: .normalizedTopLeft, binding: binding))
+                    }
+                } catch { auditEvidence("finalRegions.projectionFailure") }
+                let packet = try NativeMainEnsembleOCREvidence.Packet(binding: binding, stages: stages)
+                try NativeMainEnsembleEvidenceStore.shared.register(ocr: packet, original: image, source: evidenceSource)
+                lastPhaseMilliseconds["mainOCREvidenceRows"] = Double(rows.count)
+                lastPhaseMilliseconds["mainOCREvidenceStages"] = Double(stages.count)
+            } catch is CancellationError { throw CancellationError() }
+            catch {
+                // OCR itself succeeded. Preserve its results while explicitly
+                // recording that optional ensemble evidence could not be bound.
+                lastPhaseMilliseconds["mainOCREvidenceRegistrationFailure"] = 1
+            }
+        }
+        if let auxiliaryLayout {
+            for index in joined.indices {
+                joined[index].sourceRoleEvidence = NativeTranslationRoleEvidenceBuilder.make(
+                    region: joined[index], imageIdentity: auxiliaryLayout.imageIdentity,
+                    layout: auxiliaryLayout, ownership: layoutOwnership)
+            }
+        }
         return joined
     }
+
 
     func purge() async {
         cancelWarmUp()
@@ -583,12 +1136,20 @@ actor ReaderOCRService {
     }
 
     private func purgeSerial() async {
+        if NativeAOTTensorCachePolicy.enabled {
+            await NativeAOTExactTensorCache.discardWhenIdle()
+        }
         await pipeline?.purgeResources()
+        await probabilityOnlyDetector?.purgeResources()
+        probabilityOnlyDetector=nil;probabilityOnlyConfiguration=nil
+        await layoutDetector.purgeResources()
+        await rawCanonicalLayoutDetector?.purgeResources()
         pipeline = nil
         loadedConfiguration = nil
         pipelineEpoch &+= 1
     }
 }
+
 
 actor ReaderTranslationService {
     static let shared = ReaderTranslationService(warmsOCROnReaderOpen: true)
@@ -667,7 +1228,7 @@ actor ReaderTranslationService {
             guard activeReaders.isEmpty else { continue }
             let generation = metadataGeneration
             let id = UUID()
-            let task = Task { try await self.translate(regions: regions, settings: settings, priority: .metadata(priority)) }
+            let task = Task { try await self.translateMetadataText(regions: regions, settings: settings, priority: priority) }
             metadataTasks[id] = task
             do {
                 let result = try await withTaskCancellationHandler {
@@ -684,6 +1245,42 @@ actor ReaderTranslationService {
                 guard task.isCancelled, generation != metadataGeneration else { throw error }
             }
         }
+    }
+
+    /// Metadata has no page image or visual roles. Keep its admission and
+    /// cancellation policy above, but never enter the mandatory page route.
+    private func translateMetadataText(
+        regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
+        priority: MetadataTranslationPriority
+    ) async throws -> [ReaderTranslationRegion] {
+        try Task.checkCancellation()
+        let sourceOwners = regions
+        let regions = ReaderTranslationLanguageFilter.apply(regions, settings: settings)
+        let eligibleIDs = Set(regions.map(\.id))
+        guard !regions.isEmpty else {
+            return ReaderTranslationLanguageFilter.preservingExcludedSource(
+                original: sourceOwners, translated: [], eligibleIDs: eligibleIDs)
+        }
+        let plans = NativeTranslationBatchPlanner.makeBatches(
+            candidates: regions.enumerated().map {
+                NativeTranslationBatchCandidate(inputIndex: $0.offset,
+                    segment: .init(id: $0.element.id, text: $0.element.source))
+            },
+            sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage)
+        let service = try translationService()
+        let concurrency = max(1, min(BoundedTranslationBatchExecutor.allowedMaximumConcurrentRequests,
+            settings.maximumConcurrentRequests))
+        await limiter.setMaximumConcurrentRequests(concurrency)
+        let progress = try ReaderTranslationProgress(regions: regions, plans: plans, configuration: settings.configuration)
+        let results = try await BoundedTranslationBatchExecutor.translate(
+            plans.map(\.request), configuration: settings.configuration, service: service,
+            maximumConcurrentRequests: concurrency, priority: .metadata(priority))
+        for (index, result) in results.enumerated() {
+            _ = await progress.complete(index: index, result: result)
+        }
+        try Task.checkCancellation()
+        return ReaderTranslationLanguageFilter.preservingExcludedSource(
+            original: sourceOwners, translated: await progress.snapshot(), eligibleIDs: eligibleIDs)
     }
 
     init(client: RemoteTranslating = RemoteTranslationClient(), warmsOCROnReaderOpen: Bool = false) {
@@ -703,35 +1300,64 @@ actor ReaderTranslationService {
         return service
     }
 
+    private static func mandatoryPageSettings(_ settings: ReaderTranslationSettings) -> ReaderTranslationSettings {
+        var result = settings
+        result.includePageImage = true
+        result.filterSFXWithLLM = true
+        result.filterBackgroundWithLLM = true
+        return result
+    }
+
     static func plans(regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings) -> [NativeTranslationBatchPlan] {
+        let settings = mandatoryPageSettings(settings)
         var candidates = regions.enumerated().map {
             let rect = $0.element.rect
             let bounds = [Double(rect.minX), Double(rect.minY), Double(rect.width), Double(rect.height)]
             return NativeTranslationBatchCandidate(inputIndex: $0.offset,
                 segment: .init(id: $0.element.id, text: $0.element.source,
-                    bounds: (settings.filterSFXWithLLM || settings.filterBackgroundWithLLM) && bounds.allSatisfy { $0.isFinite && (0...1).contains($0) } ? bounds : nil))
+                    bounds: (settings.shouldAttachPageImage || settings.filterSFXWithLLM || settings.filterBackgroundWithLLM) && bounds.allSatisfy { $0.isFinite && (0...1).contains($0) } ? bounds : nil))
         }
         let ranks = regions.compactMap(\.translationOrder)
         if settings.rightToLeftPanelOrder, ranks.count == regions.count, Set(ranks).count == ranks.count {
             candidates.sort { ranks[$0.inputIndex] < ranks[$1.inputIndex] }
         }
         let plans = NativeTranslationBatchPlanner.makeBatches(candidates: candidates,
-            sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage, context: [], glossary: [],
-            includesNeighborContext: true)
+            sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage)
         return plans.map { plan in
             var request = plan.request
-            request.filtersSFX = settings.filterSFXWithLLM ? true : nil
-            request.filtersBackground = settings.filterBackgroundWithLLM ? true : nil
+            request.filtersSFX = true
+            request.filtersBackground = true
             request.translatesPageLettering = true
             return NativeTranslationBatchPlan(request: request, inputIndicesBySegmentID: plan.inputIndicesBySegmentID)
         }
     }
 
     static func requests(regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings) throws -> [RemoteTranslationRequest] {
+        let settings = mandatoryPageSettings(settings)
         let regions = ReaderTranslationLanguageFilter.apply(regions, settings: settings)
         let requests = plans(regions: regions, settings: settings).map(\.request)
         for request in requests { try request.validate() }
         return requests
+    }
+
+    /// Diagnose the same effective classification in Reader, CLI and saved
+    /// response evaluation. Raw provider results remain the application input.
+    static func unresolvedPrimaryTranslationIDs(
+        plan: NativeTranslationBatchPlan, result: RemoteTranslationBatchResult,
+        regions: [ReaderTranslationRegion], targetLanguage: String
+    ) -> Set<String> {
+        let effective = RemoteTranslationBatchResult(translations: result.translations.map { segment in
+            guard let input = plan.inputIndicesBySegmentID[segment.id], regions.indices.contains(input) else { return segment }
+            return regions[input].effectiveTranslation(segment)
+        }, source: result.source, providerRequestID: result.providerRequestID)
+        let copies = ReaderTranslationLanguageFilter.untranslatedAdmittedDialogueIDs(request: plan.request, result: effective)
+        return copies.union(effective.translations.compactMap { segment in
+            guard let input = plan.inputIndicesBySegmentID[segment.id], regions.indices.contains(input),
+                segment.isSFX != true, segment.textRole != .sfx, segment.textRole != .background, segment.textRole != .error,
+                ReaderTranslationLanguageFilter.requiresBalloonTranslation(
+                    regions[input], translation: segment.text, target: targetLanguage) else { return nil }
+            return segment.id
+        })
     }
 
     typealias Progress = @Sendable ([ReaderTranslationRegion]) async throws -> Void
@@ -741,19 +1367,26 @@ actor ReaderTranslationService {
     /// after this call returns, and completed batches always win over it.
     func translate(
         regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings, image: UIImage? = nil,
-        preparedImageJPEG: Data? = nil, onProgress: Progress? = nil,
+        preparedImageJPEG: Data? = nil, preparedPage: RemoteTranslationPageImage? = nil, onProgress: Progress? = nil,
         priority: TranslationRequestPriority = .foreground,
         onPartialProgress: Progress? = nil
     ) async throws -> [ReaderTranslationRegion] {
         try Task.checkCancellation()
+        let settings = Self.mandatoryPageSettings(settings)
+        let sourceOwners = regions
         let regions = ReaderTranslationLanguageFilter.apply(regions, settings: settings)
-        guard !regions.isEmpty else { try await onProgress?([]); return [] }
+        let eligibleIDs = Set(regions.map(\.id))
+        let preservingOwners: @Sendable ([ReaderTranslationRegion]) -> [ReaderTranslationRegion] = { translated in
+            ReaderTranslationLanguageFilter.preservingExcludedSource(
+                original: sourceOwners, translated: translated, eligibleIDs: eligibleIDs)
+        }
+        guard !regions.isEmpty else {
+            let kept = preservingOwners([])
+            try await onProgress?(kept)
+            return kept
+        }
         let service = try translationService()
-        let attachesImage = settings.shouldAttachPageImage
-        // A remembered text-only fallback sends no image and must not retain
-        // the image-upload concurrency cap merely because the preference is on.
-        let concurrency = max(1, min(attachesImage ? 3 : BoundedTranslationBatchExecutor.allowedMaximumConcurrentRequests,
-                                     settings.maximumConcurrentRequests))
+        let concurrency = max(1, min(3, settings.maximumConcurrentRequests))
         await limiter.setMaximumConcurrentRequests(concurrency)
         // Each of the two offscreen pages submits one batch at a time, leaving
         // the third provider slot available for visible demand. Promotion may
@@ -766,21 +1399,25 @@ actor ReaderTranslationService {
             speculativeBatchLimit = 2
         }
         try Task.checkCancellation()
-        let imageJPEG = try attachesImage
-            ? (preparedImageJPEG ?? image.map(ReaderTranslationImagePreparation.translationJPEG)) : nil
-        guard !attachesImage || imageJPEG != nil else {
-            throw RemoteTranslationError.invalidRequest("Page image attachment is enabled, but no page image was provided.")
+        guard preparedPage == nil || (preparedImageJPEG == nil && image == nil) else {
+            throw RemoteTranslationError.invalidRequest("Provide one page image representation.")
         }
-        let imageDataURL = imageJPEG.map { "data:image/jpeg;base64," + $0.base64EncodedString() }
+        let pageImage = try preparedPage
+            ?? preparedImageJPEG.map { RemoteTranslationPageImage(jpeg: $0, sourceIdentity: nil) }
+            ?? image.map(ReaderTranslationImagePreparation.preparedPage)
+        guard let pageImage else {
+            throw RemoteTranslationError.invalidRequest("Page translation requires a page image.")
+        }
+        let imageDataURL = "data:image/jpeg;base64," + pageImage.jpeg.base64EncodedString()
         let plans = Self.plans(regions: regions, settings: settings).map { plan in
             var request = plan.request
-            request.imageJPEG = imageJPEG
+            pageImage.apply(to: &request)
             request.preparedImageDataURL = imageDataURL
             return NativeTranslationBatchPlan(request: request, inputIndicesBySegmentID: plan.inputIndicesBySegmentID)
         }
         let progress = try ReaderTranslationProgress(regions: regions, plans: plans, configuration: settings.configuration)
         // Clear translations whose language/model/prompt identity no longer matches before publishing any batch.
-        try await onProgress?(await progress.snapshot())
+        try await onProgress?(preservingOwners(await progress.snapshot()))
         // Streamed segments arrive synchronously on the network queue. One
         // ordered consumer applies them, so a partial never overtakes a later
         // partial and never replaces a completed batch.
@@ -796,7 +1433,7 @@ actor ReaderTranslationService {
                     guard !Task.isCancelled else { break }
                     guard let snapshot = await progress.partial(index: index, segments: segments) else { continue }
                     guard !Task.isCancelled else { break }
-                    try? await onPartialProgress(snapshot)
+                    try? await onPartialProgress(preservingOwners(snapshot))
                 }
             }
         }
@@ -813,36 +1450,16 @@ actor ReaderTranslationService {
                 priority: priority,
                 onBatchCompleted: { index, result in
                     try Task.checkCancellation()
-                    // Classification can copy a complete balloon sentence unchanged. Retry only those
-                    // independently measured utterances once, without background/SFX filtering.
+                    // One provider call per page-lettering batch. Diagnose any
+                    // untranslated primary result locally; never issue a second
+                    // classification or literal-recovery request here.
                     let plan = plans[index]
-                    let missed = Set(result.translations.compactMap { translated -> String? in
-                        guard let input = plan.inputIndicesBySegmentID[translated.id],
-                              ReaderTranslationLanguageFilter.requiresBalloonTranslation(regions[input],
-                                translation: translated.text, target: settings.targetLanguage) else { return nil }
-                        return translated.id
-                    })
-                    var completed = result
-                    if !missed.isEmpty {
-                        var recovery = RemoteTranslationRequest(sourceLanguage: plan.request.sourceLanguage,
-                            targetLanguage: plan.request.targetLanguage,
-                            segments: plan.request.segments.filter { missed.contains($0.id) },
-                            context: plan.request.context, glossary: plan.request.glossary)
-                        recovery.copyImageRepresentation(from: plan.request)
-                        let retry = try await service.translate(recovery, configuration: settings.configuration, usesCache: false, priority: priority)
-                        let replacements = Dictionary(retry.translations.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-                        for id in missed {
-                            guard let input = plan.inputIndicesBySegmentID[id], let value = replacements[id],
-                                  !ReaderTranslationLanguageFilter.requiresBalloonTranslation(regions[input],
-                                    translation: value.text, target: settings.targetLanguage) else {
-                                throw RemoteTranslationError.invalidResponse("balloon dialogue was not translated")
-                            }
-                        }
-                        completed = .init(translations: result.translations.map { replacements[$0.id] ?? $0 },
-                                          source: .network, providerRequestID: retry.providerRequestID)
-                    }
-                    let snapshot = await progress.complete(index: index, result: completed)
-                    try await onProgress?(snapshot)
+                    let missed = Self.unresolvedPrimaryTranslationIDs(
+                        plan: plan, result: result, regions: regions, targetLanguage: settings.targetLanguage)
+                    ReaderTranslationDiagnostics.record("primary_untranslated", count: missed.count)
+                    let snapshot = await progress.complete(index: index, result: result,
+                        unresolvedRecoveryIDs: missed)
+                    try await onProgress?(preservingOwners(snapshot))
                 },
                 onBatchPartial: partialHandler
             )
@@ -858,7 +1475,7 @@ actor ReaderTranslationService {
         partialConsumer?.cancel()
         await partialConsumer?.value
         try Task.checkCancellation()
-        return await progress.snapshot()
+        return preservingOwners(await progress.snapshot())
     }
 
     func clearCache() async throws {
@@ -878,7 +1495,9 @@ actor ReaderTranslationProgress {
         var expected: [Int: NativeTranslationReuseIdentity] = [:]
         for plan in plans {
             for (id, identity) in try NativeTranslationReuseIdentity.identitiesBySegmentID(configuration: configuration, request: plan.request) {
-                if let index = plan.inputIndicesBySegmentID[id] { expected[index] = identity }
+                if let index = plan.inputIndicesBySegmentID[id] {
+                    expected[index] = identity
+                }
             }
         }
         self.expected = expected
@@ -886,11 +1505,13 @@ actor ReaderTranslationProgress {
         // replace their own regions, retaining OCR geometry without rebuilding
         // two full overlay arrays on every progressive publication.
         for index in regions.indices {
-            guard let old = regions[index].translationReuseIdentity,
+            guard regions[index].translationRecoveryFailure == nil,
+                  let old = regions[index].translationReuseIdentity,
                   let identity = expected[index], regions[index].translation != nil,
                   old == identity || old.canRemainVisibleWhileRefreshing(expected: identity) else {
                 self.regions[index].translation = nil
                 self.regions[index].translationReuseIdentity = nil
+                self.regions[index].keepsClassifiedSFXSource = false
                 continue
             }
         }
@@ -904,22 +1525,29 @@ actor ReaderTranslationProgress {
         guard inputIndices.indices.contains(index), !completedBatches.contains(index) else { return nil }
         var changed = false
         for segment in segments {
-            if let inputIndex = inputIndices[index][segment.id], let identity = expected[inputIndex],
-               regions[inputIndex].translation != segment.text || regions[inputIndex].translationReuseIdentity != identity {
-                regions[inputIndex].translation = segment.text
-                regions[inputIndex].translationReuseIdentity = identity
-                changed = true
+            if let inputIndex = inputIndices[index][segment.id], let identity = expected[inputIndex] {
+                let reusableIdentity = regions[inputIndex].translationRecoveryFailure == nil ? identity : nil
+                let translationChanged = regions[inputIndex].applyTranslation(segment)
+                if translationChanged || regions[inputIndex].translationReuseIdentity != reusableIdentity {
+                    regions[inputIndex].translationReuseIdentity = reusableIdentity
+                    changed = true
+                }
             }
         }
         return changed ? regions : nil
     }
 
-    func complete(index: Int, result: RemoteTranslationBatchResult) -> [ReaderTranslationRegion] {
+    func complete(index: Int, result: RemoteTranslationBatchResult,
+                  unresolvedRecoveryIDs: Set<String> = []) -> [ReaderTranslationRegion] {
         completedBatches.insert(index)
         for segment in result.translations {
             if let inputIndex = inputIndices[index][segment.id], let identity = expected[inputIndex] {
-                regions[inputIndex].translation = segment.text
-                regions[inputIndex].translationReuseIdentity = identity
+                regions[inputIndex].applyTranslation(segment)
+                // Retained primary data remains visible but is not reusable as
+                // a successfully recovered translation on a later request.
+                regions[inputIndex].translationReuseIdentity = unresolvedRecoveryIDs.contains(segment.id) ? nil : identity
+                regions[inputIndex].translationRecoveryFailure = unresolvedRecoveryIDs.contains(segment.id)
+                    ? "primary_untranslated" : nil
             }
         }
         return regions

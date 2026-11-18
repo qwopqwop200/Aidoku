@@ -68,10 +68,16 @@ class AddToCategoryViewController: BaseTableViewController {
     @objc func done() {
         guard !isSaving else { return }
         isSaving = true
+        navigationItem.leftBarButtonItem?.isEnabled = false
         navigationItem.rightBarButtonItem?.isEnabled = false
+        let sheet = navigationController ?? self
+        let wasModalInPresentation = sheet.isModalInPresentation
+        sheet.isModalInPresentation = true
         Task {
             defer {
                 isSaving = false
+                sheet.isModalInPresentation = wasModalInPresentation
+                navigationItem.leftBarButtonItem?.isEnabled = true
                 navigationItem.rightBarButtonItem?.isEnabled = true
             }
             if await saveSelectedCategories() { close() }
@@ -81,17 +87,15 @@ class AddToCategoryViewController: BaseTableViewController {
     /// One selection is one transaction; failed saves cannot publish success.
     func saveSelectedCategories() async -> Bool {
         do {
-            try await CoreDataManager.shared.container.performBackgroundTask { [selectedCategories, manga] context in
-                for info in manga {
-                    CoreDataManager.shared.addCategoriesToManga(
-                        mangaId: info.id,
-                        categories: selectedCategories,
-                        context: context
-                    )
-                }
-                do { try context.save() } catch { context.rollback(); throw error }
+            let ids = Set(manga.lazy.map(\.id))
+            let titles = Set(selectedCategories)
+            let changed = try await CoreDataManager.shared.container.performBackgroundTask { context in
+                try CoreDataManager.shared.addCategorySelection(titles, to: ids, context: context)
+                guard context.hasChanges else { return false }
+                try context.save()
+                return true
             }
-            NotificationCenter.default.post(name: .updateMangaCategories, object: manga)
+            if changed { NotificationCenter.default.post(name: .updateMangaCategories, object: manga) }
             return true
         } catch {
             LogManager.logger.error("AddToCategoryViewController.save: \(error.localizedDescription)")
@@ -108,6 +112,7 @@ class AddToCategoryViewController: BaseTableViewController {
 extension AddToCategoryViewController {
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        guard !isSaving else { return }
         if let cell = tableView.cellForRow(at: indexPath), let category = dataSource.itemIdentifier(for: indexPath) {
             if disabledCategories.contains(category) {
                 return
@@ -121,7 +126,7 @@ extension AddToCategoryViewController {
                     selectedCategories.append(category)
                 }
             } else {
-                selectedCategories.append(category)
+                selectedCategories = [category]
                 done()
             }
         }

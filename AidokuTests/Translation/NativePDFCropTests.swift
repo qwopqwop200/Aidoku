@@ -4,6 +4,40 @@ import Testing
 @testable import Aidoku
 
 @Suite struct NativePDFCropTests {
+    @Test(arguments: [CGFloat(1e40), CGFloat(-1e40), CGFloat(2_147_483_648)])
+    func invalidCaptureOriginDoesNotInvokePainter(origin: CGFloat) {
+        var painted = false
+        #expect(throws: NativeTranslationPDFCapture.CaptureError.self) {
+            _ = try NativeTranslationPDFCapture.captureDocument(
+                bounds: CGRect(x: origin, y: 0, width: 8, height: 6),
+                pixels: CGSize(width: 8, height: 6)) { _ in painted = true }
+        }
+        #expect(!painted)
+    }
+
+    @Test func fractionalBitmapDimensionsAreRejectedBeforeDrawing() {
+        #expect(!NativeTranslationPDFCapture.validPixelSize(CGSize(width: 8.75, height: 6.5)))
+        var painted = false
+        #expect(throws: NativeTranslationPDFCapture.CaptureError.self) {
+            _ = try NativeTranslationPDFCapture.captureDocument(
+                bounds: CGRect(x: 0, y: 0, width: 8, height: 6),
+                pixels: CGSize(width: 8.75, height: 6.5)) { _ in painted = true }
+        }
+        #expect(!painted)
+    }
+
+    @Test func derivedRasterTransformRejectsOverflowAndPreservesNegativeOrigins() throws {
+        #expect(throws: NativeTranslationPDFCapture.CaptureError.self) {
+            _ = try NativeTranslationPDFCapture.validatedRasterTransform(
+                media: CGRect(x: 0, y: 0, width: CGFloat.leastNonzeroMagnitude, height: 1),
+                pixels: CGSize(width: 8, height: 6))
+        }
+        let transform = try NativeTranslationPDFCapture.validatedRasterTransform(
+            media: CGRect(x: -3, y: -4, width: 8, height: 6),
+            pixels: CGSize(width: 16, height: 12))
+        #expect(transform == CGAffineTransform(a: 2, b: 0, c: 0, d: 2, tx: 6, ty: 8))
+    }
+
     private func pixels(_ image: CGImage) throws -> Data {
         let context = try #require(CGContext(data: nil, width: image.width, height: image.height,
             bitsPerComponent: 8, bytesPerRow: image.width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,

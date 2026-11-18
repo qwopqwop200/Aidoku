@@ -81,7 +81,9 @@ actor CloudflareHandler: NSObject {
         CloudflareResponsePolicy.isChallenge(response: response, data: data)
     }
 
-    func handle(request: URLRequest) async throws -> (Data, URLResponse) {
+    func handle(request: URLRequest, fetch: @Sendable (URLRequest) async throws -> (Data, URLResponse) = {
+        try await SourceNetwork.shared.data(for: $0)
+    }) async throws -> (Data, URLResponse) {
         try Task.checkCancellation()
         guard let url = request.url, request.httpBodyStream == nil else { throw HandleError.invalidRequest }
 
@@ -90,7 +92,7 @@ actor CloudflareHandler: NSObject {
         if CloudflareResponsePolicy.mayRetryCachedClearance(request),
            let clearance = CloudflareResponsePolicy.usableClearance(for: url),
            clearance.value != CloudflareResponsePolicy.clearance(in: request) {
-            let result = try await SourceNetwork.shared.data(for: CloudflareResponsePolicy.request(request, applying: clearance))
+            let result = try await fetch(CloudflareResponsePolicy.request(request, applying: clearance))
             try Task.checkCancellation()
             if let response = result.1 as? HTTPURLResponse, !shouldHandle(response: response, data: result.0) {
                 return result
@@ -102,7 +104,7 @@ actor CloudflareHandler: NSObject {
         let newRequest = CloudflareResponsePolicy.usableClearance(for: url).map {
             CloudflareResponsePolicy.request(request, applying: $0)
         } ?? request
-        let (data, response) = try await SourceNetwork.shared.data(for: newRequest)
+        let (data, response) = try await fetch(newRequest)
         try Task.checkCancellation()
         if
             let response = response as? HTTPURLResponse,

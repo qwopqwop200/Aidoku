@@ -1,3 +1,4 @@
+import AidokuRunner
 import Foundation
 import Testing
 import ZIPFoundation
@@ -5,6 +6,28 @@ import ZIPFoundation
 
 @Suite(.serialized)
 struct DownloadMetadataTests {
+    @Test @MainActor func folderReaderKeepsNaturalOrderAndPageDescriptions() async throws {
+        let source = "folder-pages-" + UUID().uuidString
+        let identifier = ChapterIdentifier(sourceKey: source, mangaKey: "book", chapterKey: "ch")
+        let root = DownloadManager.directory.appendingPathComponent(source)
+        let chapter = root.appendingPathComponent("book").appendingPathComponent("ch")
+        defer { root.removeItem() }
+        chapter.createDirectory()
+        for name in ["10.JPG", "2.md", ".hidden.png", "10.plist", "1.avif", "002.desc.txt", "800.desc.txt"] {
+            try Data(name.utf8).write(to: chapter.appendingPathComponent(name))
+        }
+        let pages = await DownloadManager().getDownloadedPages(for: identifier)
+        let files = chapter.contents
+        let expected: [AidokuRunner.PageContent] = [
+            .url(url: try #require(files.first { $0.lastPathComponent == "1.avif" })),
+            .text("2.md"),
+            .url(url: try #require(files.first { $0.lastPathComponent == "10.JPG" }))
+        ]
+        #expect(pages.map(\.content) == expected)
+        #expect(pages.map(\.description) == [nil, "002.desc.txt", nil])
+        #expect(pages.map(\.hasDescription) == [false, true, false])
+    }
+
     @Test func archiveAndFolderReadMetadataAndCountOnlyPages() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

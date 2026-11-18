@@ -13,7 +13,28 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = 'Reader.translation.'
 OCR_MINIMUM_SIZE = 32
-OCR_MAXIMUM_SIZE = 1184
+OCR_MAXIMUM_DETECTOR_SIDE = 1184
+OCR_MAXIMUM_RECOGNIZER_WIDTH = 1184
+MANGA_MAXIMUM_RECOGNIZER_WIDTH = 2400
+
+
+def ocr_profile(ocr, tier):
+    """Mirror effective ReaderOCRConfiguration after loading saved preferences."""
+    manga = tier == 'manga'
+    recognizer_limit = MANGA_MAXIMUM_RECOGNIZER_WIDTH if manga else OCR_MAXIMUM_RECOGNIZER_WIDTH
+    pixel_threshold, box_threshold = (.85, .25) if manga else ((.2, .4) if tier == 'tiny' else (.3, .6))
+    confidence = ocr['confidenceThreshold']
+    if confidence == .75 or manga and confidence in (.50, .45):
+        confidence = .30 if manga else .50
+    return {
+        'AIDOKU_OCR_TIER': tier,
+        'AIDOKU_OCR_CONFIDENCE': confidence,
+        'AIDOKU_OCR_DETECTOR_SIDE': min(OCR_MAXIMUM_DETECTOR_SIDE, max(OCR_MINIMUM_SIZE, ocr['detectorMaximumSide'])),
+        'AIDOKU_OCR_RECOGNIZER_WIDTH': min(recognizer_limit, max(OCR_MINIMUM_SIZE, ocr['recognizerMaximumWidth'])),
+        'AIDOKU_OCR_DETECTOR_PIXEL_THRESHOLD': ocr.get('detectorPixelThreshold', pixel_threshold),
+        'AIDOKU_OCR_DETECTOR_CONFIDENCE_THRESHOLD': ocr.get('detectorConfidenceThreshold', box_threshold),
+        'AIDOKU_OCR_DETECTOR_MINIMUM_BOX_SIDE': ocr.get('detectorMinimumBoxSide', 3),
+    }
 
 
 def profile(prefs):
@@ -25,6 +46,7 @@ def profile(prefs):
     custom = get('custom'); ocr = get('ocr'); overlay = get('overlay')
     if not all(isinstance(value, dict) for value in [custom, ocr, overlay]):
         raise ValueError('Installed app preferences are missing custom/OCR/overlay settings.')
+    tier = ocr.get('modelTier', get('modelTier', 'manga'))
     values = {
         'AIDOKU_IMAGE_JOBS': get('concurrency', 16),
         'AIDOKU_TRANSLATION_BASE_URL': custom['baseURL'],
@@ -35,18 +57,9 @@ def profile(prefs):
         'AIDOKU_TRANSLATION_SOURCE': get('sourceLanguage', 'auto'),
         'AIDOKU_TRANSLATION_TARGET': get('targetLanguage', 'ko'),
         'AIDOKU_TRANSLATION_SOURCE_LANGUAGES': get('translationSourceLanguages', []),
-        'AIDOKU_TRANSLATION_INCLUDE_IMAGE': get('includePageImage', False),
-        'AIDOKU_TRANSLATION_FILTER_SFX': get('filterSFXWithLLM', False),
-        'AIDOKU_TRANSLATION_FILTER_BACKGROUND': get('filterBackgroundWithLLM', False),
         # The app does not currently persist/load a panel-order preference.
         'AIDOKU_TRANSLATION_RTL': False,
-        'AIDOKU_OCR_TIER': ocr.get('modelTier', get('modelTier', 'medium')),
-        'AIDOKU_OCR_CONFIDENCE': ocr['confidenceThreshold'],
-        'AIDOKU_OCR_DETECTOR_SIDE': min(OCR_MAXIMUM_SIZE, max(OCR_MINIMUM_SIZE, ocr['detectorMaximumSide'])),
-        'AIDOKU_OCR_RECOGNIZER_WIDTH': min(OCR_MAXIMUM_SIZE, max(OCR_MINIMUM_SIZE, ocr['recognizerMaximumWidth'])),
-        'AIDOKU_OCR_DETECTOR_PIXEL_THRESHOLD': ocr.get('detectorPixelThreshold', .3),
-        'AIDOKU_OCR_DETECTOR_CONFIDENCE_THRESHOLD': ocr.get('detectorConfidenceThreshold', .6),
-        'AIDOKU_OCR_DETECTOR_MINIMUM_BOX_SIDE': ocr.get('detectorMinimumBoxSide', 3),
+        **ocr_profile(ocr, tier),
         'AIDOKU_IPHONE_OVERLAY_JSON': overlay,
         # Retain app scheduling/cache preferences as provenance. CLI uses concurrency above; chapter/cache scheduling stays app-only.
         'AIDOKU_IPHONE_SCHEDULING_JSON': {

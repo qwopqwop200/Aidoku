@@ -161,16 +161,13 @@ actor TranslationCache {
         recordsMiss: Bool
     ) throws -> CachedTranslation? {
         if configuration.memoryEnabled, let entry = memoryEntries[key] {
-            if !cachedTranslationsAreValid(entry.translations, for: key) {
-                removeMemoryEntry(key)
-            } else {
-                promoteMemoryEntry(key)
-                memoryHits &+= 1
-                return CachedTranslation(
-                    translations: entry.translations,
-                    source: .memoryCache
-                )
-            }
+            // Provider admission and disk decoding both validate these immutable values.
+            promoteMemoryEntry(key)
+            memoryHits &+= 1
+            return CachedTranslation(
+                translations: entry.translations,
+                source: .memoryCache
+            )
         }
 
         if configuration.diskEnabled {

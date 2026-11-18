@@ -1,0 +1,53 @@
+{
+  "scope": "native SDK compile/link + Swift bridge typecheck; no full app build or device execution",
+  "platforms": {
+    "host": {
+      "swiftTypecheckSeconds": 1.728,
+      "linkSeconds": 0.292,
+      "errorPathSmoke": "passed"
+    },
+    "device": {
+      "swiftTypecheckSeconds": 0.495,
+      "linkSeconds": 0.219
+    },
+    "simulator": {
+      "swiftTypecheckSeconds": 0.48,
+      "linkSeconds": 0.209
+    }
+  },
+  "resources": {
+    "projectReferences": "explicit folder SourceModels and opaque SourceReferenceFonts.bundle",
+    "headsVerifiedSHA256": 59,
+    "publicFontsVerifiedSHA256": 8,
+    "publicFontOFLVerifiedSHA256": 8
+  },
+  "dependencies": {
+    "opencv": "4.11.0",
+    "freetype": "2.14.3",
+    "officialSlices": [
+      "ios-arm64",
+      "ios-x86_64-simulator"
+    ],
+    "minimalSourceSlices": [
+      "ios-arm64-simulator",
+      "macos-arm64"
+    ]
+  },
+  "hostSystemFontResolver": {
+    "HiraginoSans-W3": 0,
+    "HiraginoSans-W6": 0,
+    "HiraMaruPro-W4": 0,
+    "HiraMinProN-W3": 0
+  },
+  "sourceSHA256": {
+    "Vendor/NativeSourceCV/NativeSourceCV.cpp": "39adfdec290ac9725ae2e48c861e2c378e7ecb1b78706438a2e4e49b8e48de0b",
+    "Vendor/NativeSourceCV/SourceFeatureBridge.mm": "6da3a3e30706e73fc357ce44251639f4ecfe84d63df042f604dbfe16f87356bc",
+    "Vendor/SourceInference/FontTemplateFeatures.mm": "d12199393ad86d736c0a647717c5d7f762aa7c753a033fb0a01195dd2c7782e0",
+    "Vendor/SourceInference/Sources/SourceCoreFeatures.cpp": "e41b2c067ef852a1809ef66ab1d84b8bb0db542886b08a5492a63edcd0ad4112"
+  },
+  "limitations": [
+    "iOS device/simulator binaries compiled and linked but not launched.",
+    "Bundling verified by PBX references and source hashes; integrated app build reserved for parent.",
+    "Actual iOS availability of pinned system font PostScript names requires device runtime verification."
+  ]
+}

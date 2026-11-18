@@ -67,13 +67,13 @@ struct ReaderTranslationOverlapTests {
         #expect(await recorder.completed.isEmpty)
         await recorder.release()
         try await waitUntil { visible.hasCompletedTranslation(settings: value) }
-        #expect(visible.regions.first?.source == "Text")
+        #expect(visible.regions.first?.source == OverlapRecorder.region(0).source)
         #expect(visible.regions.first?.translation == "translated")
         #expect(!imageView.subviews.isEmpty)
         #expect(visible.canExportTranslation)
     }
 
-    @Test func providerStartsDuringOCRPersistenceWithoutReleasingTheRecognitionBarrier() async throws {
+    @Test func providerAndNextOCRStartDuringPersistenceAndWritesStayInOrder() async throws {
         let recorder = OverlapRecorder()
         let preloader = ReaderTranslationPreloader(
             translator: { regions, _, _ in try await recorder.translate(regions) },
@@ -82,16 +82,13 @@ struct ReaderTranslationOverlapTests {
         preloader.nextPage = { _ in page(1) }
         let work = Task { try await preloader.translate(page(0), settings: settings) }
         defer { preloader.cancel(); work.cancel() }
+        try await waitUntil { await recorder.reached(ocr: [0, 1], api: [0]) }
         try await waitUntil { await recorder.persistingOCR == [0] }
-        // Disk persistence is deliberately held. API work should already run,
-        // but the existing recognition barrier still bounds the next OCR page.
-        try await waitUntil { await recorder.completed == [0] }
         #expect(await recorder.persistedOCR.isEmpty)
-        #expect(await recorder.ocr == [0])
+        #expect(await recorder.ocr == [0, 1])
         await recorder.releaseRecognitionStore()
         #expect(try await work.value.first?.translation == "translated")
-        try await waitUntil { await recorder.ocr == [0, 1] }
-        #expect(await recorder.persistedOCR.contains(0))
+        try await waitUntil { await recorder.persistedOCR == [0, 1] }
     }
 
     @Test func compressedLookaheadDownloadsDuringCurrentOCRWithoutDecodingAnotherPage() async throws {
@@ -124,13 +121,14 @@ struct ReaderTranslationOverlapTests {
         value.rightToLeftPanelOrder = false
         value.includePageImage = false
         let key = ReaderTranslationCacheIdentity.ocr(page: page(1).translationCacheKey, settings: value)
+        let proof = try #require(ReaderTranslationSourceRasterClaim(processedFullSourceSHA256: String(repeating: "e", count: 64)))
         try await disk.storeRegions([OverlapRecorder.region(1)], for: key, kind: .ocr,
-                                    generation: await disk.currentGeneration(settings: value))
+                                    generation: await disk.currentGeneration(settings: value), sourceRasterClaim: proof)
         let recorder = OverlapRecorder()
         let preloader = ReaderTranslationPreloader(diskCache: disk,
             translator: { regions, _, _ in try await recorder.translate(regions) },
             recognizer: { page, _ in try await recorder.recognize(page.index) },
-            dataPrefetcher: { page in await recorder.prefetch(page.index) })
+            dataPrefetcher: { page in await recorder.prefetch(page.index) }, fixtureSourceRasterClaim: { _ in proof })
         preloader.nextPage = { _ in page(1) }
         defer { preloader.cancel() }
         _ = try await preloader.translate(page(0), settings: value)
@@ -246,7 +244,10 @@ struct ReaderTranslationOverlapTests {
         let disk = ReaderTranslationDiskCache(directory: root)
         defer { try? FileManager.default.removeItem(at: root) }
         let recorder = OverlapRecorder(blockedAPI: 0)
-        let preloader = preloader(recorder, disk: disk)
+        let proof = try #require(ReaderTranslationSourceRasterClaim(processedFullSourceSHA256: String(repeating: "b", count: 64)))
+        let preloader = ReaderTranslationPreloader(diskCache: disk,
+            translator: { regions, _, _ in try await recorder.translate(regions) },
+            recognizer: { page, _ in try await recorder.recognize(page.index) }, fixtureSourceRasterClaim: { _ in proof })
         preloader.nextPage = { _ in page(1) }
         let work = Task { try await preloader.translate(page(0), settings: settings) }
         let key = ReaderTranslationCacheIdentity.ocr(page: page(1).translationCacheKey, settings: settings)
@@ -257,7 +258,7 @@ struct ReaderTranslationOverlapTests {
                                                   translator: { regions, _, _ in regions }, recognizer: { _, _ in
             Issue.record("Completed lookahead OCR must be restored from disk")
             throw URLError(.cannotDecodeContentData)
-        })
+        }, fixtureSourceRasterClaim: { _ in proof })
         let restored = try await reopened.translate(page(1), settings: settings)
         #expect(restored.first?.id == "1")
         #expect(await recorder.ocr == [0, 1])
@@ -326,9 +327,13 @@ struct ReaderTranslationOverlapTests {
         let disk = ReaderTranslationDiskCache(directory: root)
         defer { try? FileManager.default.removeItem(at: root) }
         let key = ReaderTranslationCacheIdentity.translation(page: page(1).translationCacheKey, settings: settings)
-        try await disk.storeRegions([OverlapRecorder.region(1)], for: key, kind: .translation, generation: await disk.currentGeneration())
+        let proof = try #require(ReaderTranslationSourceRasterClaim(processedFullSourceSHA256: String(repeating: "f", count: 64)))
+        try await disk.storeRegions([OverlapRecorder.region(1)], for: key, kind: .translation,
+                                    generation: await disk.currentGeneration(), sourceRasterClaim: proof)
         let recorder = OverlapRecorder(blockedAPI: 0)
-        let preloader = preloader(recorder, disk: disk)
+        let preloader = ReaderTranslationPreloader(diskCache: disk,
+            translator: { regions, _, _ in try await recorder.translate(regions) },
+            recognizer: { page, _ in try await recorder.recognize(page.index) }, fixtureSourceRasterClaim: { _ in proof })
         let session = session(preloader, disk: disk)
         defer { session.close() }
         session.update(items: (0..<3).map { .init(page($0)) }, visible: [], context: "chapter", currentPageIndex: 0)
@@ -443,7 +448,7 @@ private actor OverlapRecorder {
         return regions.map { var region = $0; region.translation = "translated"; return region }
     }
     static func region(_ index: Int) -> ReaderTranslationRegion {
-        .init(id: String(index), rect: CGRect(x: 0.1, y: 0.1, width: 0.2, height: 0.2), source: "Text")
+        .init(id: String(index), rect: CGRect(x: 0.1, y: 0.1, width: 0.2, height: 0.2), source: "こんにちは")
     }
 }
 

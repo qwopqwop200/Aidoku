@@ -7,9 +7,30 @@ enum ReaderTranslationImageExporter {
     enum ExportError: Error { case unavailable, renderFailed }
     private static let gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private static let compositeGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
+    private struct SettledAssetTarget {
+        let cache: ReaderTranslationRenderCache
+        let key: String
+        let storage: ReaderTranslationRenderCache.AssetStorageContext
+
+        init?(cache: ReaderTranslationRenderCache?, key: String?, storage: ReaderTranslationRenderCache.AssetStorageContext?) {
+            guard let cache, let key, let storage else { return nil }
+            self.cache = cache
+            self.key = key
+            self.storage = storage
+        }
+    }
+
     private struct RenderedPage {
         let image: UIImage
         let asset: ReaderTranslationRenderAsset?
+        let freshSettledSource: Bool
+    }
+
+    struct LoadedPresentation: Sendable {
+        let image: UIImage
+        /// Only the typed cold renderer can establish this provenance. A cached
+        /// UIImage, even if identical in pixels, does not establish it.
+        let freshSettledSource: Bool
     }
 
     // Full pages, including tall webtoons, stay within a bounded bitmap allocation.
@@ -36,7 +57,7 @@ enum ReaderTranslationImageExporter {
                                  onNativePDFCapture: onNativePDFCapture, onNativeLayersCapture: onNativeLayersCapture)
             }
         }
-        return try await gate.withPermit {
+        return try await gate.withPermit { @MainActor in
             try await renderSerial(image: image, regions: regions, settings: settings,
                                    viewport: viewport, aspectFit: aspectFit, host: host, onNativeDiagnostic: onNativeDiagnostic,
                                    retainAsset: false, capturePDF: true, pdfDeviceScale: host.window?.screen.scale ?? UIScreen.main.scale,
@@ -54,6 +75,17 @@ enum ReaderTranslationImageExporter {
         host: UIView?, cache: ReaderTranslationRenderCache?, key: String, pageIdentity: String? = nil,
         priority: TranslationRequestPriority = .foreground
     ) async throws -> UIImage {
+        try await renderLoadedPresentation(image: image, regions: regions, settings: settings, viewport: viewport, scale: scale,
+            aspectFit: aspectFit, dark: dark, host: host, cache: cache, key: key, pageIdentity: pageIdentity, priority: priority).image
+    }
+
+    // swiftlint:disable:next function_parameter_count
+    static func renderLoadedPresentation(
+        image: UIImage, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
+        viewport: CGSize, scale: CGFloat, aspectFit: Bool, dark: Bool,
+        host: UIView?, cache: ReaderTranslationRenderCache?, key: String, pageIdentity: String? = nil,
+        priority: TranslationRequestPriority = .foreground
+    ) async throws -> LoadedPresentation {
         try Task.checkCancellation()
         guard viewport.width.isFinite, viewport.height.isFinite, viewport.width > 0, viewport.height > 0,
               scale.isFinite, image.size.width > 0, image.size.height > 0 else { throw ExportError.unavailable }
@@ -74,10 +106,21 @@ enum ReaderTranslationImageExporter {
         let bitmapKey = sourceDigest.map {
             ReaderTranslationRenderCache.loadedImageKey(renderKey: key, regionsDigest: digests.regions, sourceDigest: $0, size: size)
         }
+        @MainActor @Sendable func cachedComposite() -> UIImage? {
+            guard let cache else { return nil }
+            if let bitmapKey, let loaded = cache.cachedImage(for: bitmapKey) { return loaded }
+            // The offscreen renderer already composited the page. A viewport
+            // with no letterbox can serve the loader at its exact pixel size.
+            guard rect == CGRect(origin: .zero, size: viewport) else { return nil }
+            let snapshotKey = ReaderTranslationRenderCache.snapshotKey(renderKey: key, regionsDigest: digests.regions)
+            guard let snapshot = cache.cachedSnapshot(for: snapshotKey, source: image, sourceAspectViewport: viewport),
+                  snapshot.imageOrientation == .up, snapshot.scale == 1, snapshot.size == size else { return nil }
+            return snapshot
+        }
         try Task.checkCancellation()
-        if let bitmapKey, let image = cache?.cachedImage(for: bitmapKey) {
+        if let image = cachedComposite() {
             ReaderTranslationDiagnostics.record("loaded_composite_memory_hit")
-            return image
+            return LoadedPresentation(image: image, freshSettledSource: false)
         }
         // A completed bitmap needs no asset I/O or decoding. Start the optional
         // disk replay only after the content/source-aware memory lookup misses.
@@ -100,15 +143,16 @@ enum ReaderTranslationImageExporter {
                     cache.storeLoadedImage(result, key: bitmapKey, pageIdentity: pageIdentity, context: storage)
                 }
                 ReaderTranslationDiagnostics.record("render_asset_replayed")
-                return result
+                return LoadedPresentation(image: result, freshSettledSource: false)
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
-                // Corrupt disk data is a cache miss. Do not retry the same
-                // broken recipe on every image-load attempt.
-                await cache?.removeRenderAsset(for: key)
+                // A newer writer may have replaced this key while the composite was running.
+                // The request skips this failed value on its second lookup.
+                ReaderTranslationDiagnostics.record("render_asset_replay_failed")
             }
         }
+        defer { if let cached { cache?.discardFailedMemoryAsset(cached, key: key) } }
         // The reader already owns decoded pixels. Reacquiring the shared OCR/
         // image permit here could deadlock against a preloader awaiting display.
         let queuedAt = ProcessInfo.processInfo.systemUptime
@@ -116,13 +160,16 @@ enum ReaderTranslationImageExporter {
         return try await gate.withPermit(priority: priority) { @MainActor in
             ReaderTranslationDiagnostics.record("export_admitted", elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - queuedAt) * 1000)
             try Task.checkCancellation()
-            if let bitmapKey, let image = cache?.cachedImage(for: bitmapKey) { return image }
+            if let image = cachedComposite() {
+                return LoadedPresentation(image: image, freshSettledSource: false)
+            }
             // A prefetch may have completed while this request waited for
             // native rendering. Its viewport bitmap has a different key, but its settled
             // asset can still satisfy this load without another document render.
+            var rejected = cached
             let prepared = await cache?.renderAsset(for: key, priority: priority)
             try Task.checkCancellation()
-            if let prepared, prepared.sourceSize == image.size, prepared.displayRect == rect, prepared.supportsOutputSize(size),
+            if let prepared, prepared != cached, prepared.sourceSize == image.size, prepared.displayRect == rect, prepared.supportsOutputSize(size),
                prepared.regionsDigest == digests.regions,
                sourceDigest != nil, prepared.sourceDigest == sourceDigest {
                 do {
@@ -131,34 +178,28 @@ enum ReaderTranslationImageExporter {
                         cache.storeLoadedImage(result, key: bitmapKey, pageIdentity: pageIdentity, context: storage)
                     }
                     ReaderTranslationDiagnostics.record("render_asset_replayed")
-                    return result
+                    return LoadedPresentation(image: result, freshSettledSource: false)
                 } catch is CancellationError {
                     throw CancellationError()
                 } catch {
-                    await cache?.removeRenderAsset(for: key)
+                    cache?.discardFailedMemoryAsset(prepared, key: key)
+                    rejected = rejected ?? prepared
+                    ReaderTranslationDiagnostics.record("render_asset_replay_failed")
                 }
             }
             try Task.checkCancellation()
-            let layout = Task { () throws -> Data in
-                let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: regions)
-                if let data = await cache?.layoutData(for: layoutKey) { return data }
-                return try await NativeTranslationLayoutPlanner.prepareLayoutData(
-                    items: ReaderTranslationRegion.layoutItems(regions, imageSize: image.size),
-                    imageSize: image.size, sourceRect: rect, settings: settings.overlay,
-                    targetLanguage: settings.targetLanguage, viewport: viewport)
-            }
-            defer { layout.cancel() }
             let result = try await renderSerial(image: image, regions: regions, settings: settings,
                 viewport: viewport, aspectFit: aspectFit, host: host, pixelSize: size,
-                preparedLayout: layout, dark: dark, sourceDigest: sourceDigest, priority: priority, retainAsset: cache != nil)
+                dark: dark, sourceDigest: sourceDigest, priority: priority, retainAsset: cache != nil,
+                settledTarget: rejected == nil ? SettledAssetTarget(cache: cache, key: key, storage: storage) : nil)
             try Task.checkCancellation()
-            if let cache, let storage, let asset = result.asset {
-                cache.storeRenderAssetAfterDisplay(asset, key: key, context: storage)
+            if let cache, let storage {
+                if let asset = result.asset { cache.storeRenderAssetAfterDisplay(asset, key: key, context: storage, replacing: rejected) }
                 if let bitmapKey, let pageIdentity {
                     cache.storeLoadedImage(result.image, key: bitmapKey, pageIdentity: pageIdentity, context: storage)
                 }
             }
-            return result.image
+            return LoadedPresentation(image: result.image, freshSettledSource: result.freshSettledSource)
         }
     }
 
@@ -225,25 +266,27 @@ enum ReaderTranslationImageExporter {
         // A bitmap evicted from the nearby-page budget can still have a settled
         // overlay asset. Replay it before joining the cold layout/render queue,
         // just as the visible-image path does; do not repeat layout or text painting.
-        let replayAsset: @MainActor @Sendable () async throws -> UIImage? = {
+        @MainActor @Sendable func replayAsset(excluding failed: ReaderTranslationRenderAsset?) async throws
+            -> (image: UIImage?, failed: ReaderTranslationRenderAsset?) {
             guard let assetCache, let assetKey, let sourceDigest,
-                  let asset = await assetCache.renderAsset(for: assetKey, priority: priority),
+                  let asset = await assetCache.renderAsset(for: assetKey, priority: priority), asset != failed,
                   asset.matches(regions: regions, sourceSize: imageSize, sourceDigest: sourceDigest),
-                  asset.displayRect == rect, asset.supportsOutputSize(pageSize) else { return nil }
+                  asset.displayRect == rect, asset.supportsOutputSize(pageSize) else { return (nil, nil) }
             do {
                 let page = try await compositeLoadedImage(image, asset: asset, size: pageSize, priority: priority)
                 try Task.checkCancellation()
                 ReaderTranslationDiagnostics.record("snapshot_asset_replayed")
-                return snapshotCanvas(page: page, viewport: viewport, rect: rect, canvasSize: canvasSize, frame: frame)
+                return (snapshotCanvas(page: page, viewport: viewport, rect: rect, canvasSize: canvasSize, frame: frame), nil)
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
-                // Invalid overlay/mask data is a miss, not a permanently broken page.
-                await assetCache.removeRenderAsset(for: assetKey)
-                return nil
+                ReaderTranslationDiagnostics.record("snapshot_asset_replay_failed")
+                return (nil, asset)
             }
         }
-        if let replay = try await replayAsset() { return replay }
+        let first = try await replayAsset(excluding: nil)
+        if let replay = first.image { return replay }
+        defer { if let failed = first.failed, let assetKey { assetCache?.discardFailedMemoryAsset(failed, key: assetKey) } }
         // Cache snapshots yield to a visible page waiting for its first presentation.
         ReaderTranslationDiagnostics.renderingProfile("profile_capture_gate_wait", count: regions.count)
         let queuedAt = ProcessInfo.processInfo.systemUptime
@@ -256,18 +299,22 @@ enum ReaderTranslationImageExporter {
             // A visible renderer may have completed this exact asset while
             // the offscreen snapshot waited. Recheck all identities before
             // allocating another layout, transparent overlay and composite.
-            if let replay = try await replayAsset() {
+            let second = try await replayAsset(excluding: first.failed)
+            if let replay = second.image {
                 ReaderTranslationDiagnostics.record("snapshot_asset_replayed_after_wait")
                 return replay
             }
+            if let failed = second.failed, let assetKey { assetCache?.discardFailedMemoryAsset(failed, key: assetKey) }
+            let rejected = first.failed ?? second.failed
             let result = try await renderSerial(image: image, regions: regions, settings: settings,
                 viewport: viewport, aspectFit: aspectFit, host: host, logicalImageSize: imageSize,
                 pixelSize: pageSize,
                 preparedLayout: preparedLayout, dark: dark, sourceDigest: sourceDigest, priority: priority,
-                onNativeDiagnostic: onNativeDiagnostic, retainAsset: assetCache != nil && assetKey != nil)
+                onNativeDiagnostic: onNativeDiagnostic, retainAsset: assetCache != nil && assetKey != nil,
+                settledTarget: rejected == nil ? SettledAssetTarget(cache: assetCache, key: assetKey, storage: storage) : nil)
             try Task.checkCancellation()
             if let assetCache, let assetKey, let storage, let asset = result.asset {
-                assetCache.storeRenderAssetAfterDisplay(asset, key: assetKey, context: storage)
+                assetCache.storeRenderAssetAfterDisplay(asset, key: assetKey, context: storage, replacing: rejected)
             }
             return snapshotCanvas(page: result.image, viewport: viewport, rect: rect, canvasSize: canvasSize, frame: frame)
         }
@@ -288,7 +335,8 @@ enum ReaderTranslationImageExporter {
                                      pixelSize: CGSize? = nil, preparedLayout: Task<Data, Error>? = nil, dark: Bool? = nil,
                                      sourceDigest: String? = nil, priority: TranslationRequestPriority = .foreground,
                                      onNativeDiagnostic: (@MainActor @Sendable (Data) throws -> Void)? = nil,
-                                     retainAsset: Bool = true, capturePDF: Bool = false, pdfDeviceScale: CGFloat = 1,
+                                     retainAsset: Bool = true, settledTarget: SettledAssetTarget? = nil,
+                                     capturePDF: Bool = false, pdfDeviceScale: CGFloat = 1,
                                      onNativePDFCapture: (@MainActor @Sendable (Data) throws -> Void)? = nil,
                                      onNativeLayersCapture: (@MainActor @Sendable (Data) throws -> Void)? = nil) async throws -> RenderedPage {
         try await ReaderTranslationDiagnostics.measure("export_render") {
@@ -317,7 +365,8 @@ enum ReaderTranslationImageExporter {
                 aspectFit: aspectFit, dark: dark ?? (host?.traitCollection.userInterfaceStyle == .dark),
                 preparedLayout: layoutData, renderBounds: rect, composeSource: false, outputPixelSize: size,
                 collectDiagnostics: onNativeDiagnostic != nil || onNativePDFCapture != nil,
-                capturePDF: capturePDF, pdfDeviceScale: pdfDeviceScale)
+                capturePDF: capturePDF, pdfDeviceScale: pdfDeviceScale, ocrConfiguration: settings.ocrConfiguration,
+                includeLayoutData: false)
             try Task.checkCancellation()
             if let onNativeDiagnostic, let data = rendered.diagnosticData { try onNativeDiagnostic(data) }
             if let onNativePDFCapture, let data = rendered.exportPDFData { try onNativePDFCapture(data) }
@@ -327,16 +376,35 @@ enum ReaderTranslationImageExporter {
             let patches = rendered.sourcePatches
             let layers = ExportLayers(masks: [], surfaces: [],
                 paintBounds: rendered.paintBounds.map { [$0.minX, $0.minY, $0.width, $0.height] },
-                sourceRestorations: rendered.sourceRestorationRects.map { [$0.minX, $0.minY, $0.width, $0.height] })
+                sourceRestorations: rendered.sourceRestorationRects.map { [$0.minX, $0.minY, $0.width, $0.height] },
+                includesSourcePage: rendered.includesSourcePage ? true : nil)
             let typography: CompositeTypography = rendered.exportPDFData.map { .encoded($0) } ?? .bitmap(rendered.overlayImage)
             let result = try await compositeLoadedImage(image, typography: typography, layers: layers, sourcePatches: patches,
                 displayRect: rect, size: size, nativeBitmap: rendered.exportPDFData == nil, priority: priority)
+            let freshSettledSource = rendered.includesSourcePage && rendered.exportPDFData == nil &&
+                layers.validSettledSource(displayRect: rect, hasSourcePatches: !patches.isEmpty)
+            // Only the completed, source-inclusive bitmap can be handed off alone.
+            // Diagnostic captures and legacy mask/PDF exports retain synchronous errors.
+            let bitmap = rendered.overlayImage
+            let deferredPNG: Bool
+            if retainAsset, priority.isForeground, freshSettledSource, onNativeDiagnostic == nil,
+               onNativeLayersCapture == nil, onNativePDFCapture == nil, let settledTarget,
+               bitmap.imageOrientation == .up, let pixels = bitmap.cgImage, result.cgImage === pixels,
+               CGSize(width: pixels.width, height: pixels.height) == size {
+                deferredPNG = settledTarget.cache.prepareSettledAssetAfterDisplay(key: settledTarget.key,
+                    context: settledTarget.storage, bitmapBytes: pixels.bytesPerRow * pixels.height) {
+                    let png = try encodeTypography(bitmap, size: size)
+                    return ReaderTranslationRenderAsset(typography: png, layers: layers, displayRect: rect,
+                        sourceSize: imageSize, regions: regions, sourceDigest: sourceDigest, typographySize: size)
+                }
+            } else { deferredPNG = false }
             let asset: ReaderTranslationRenderAsset?
-            if retainAsset || onNativeLayersCapture != nil {
+            if (retainAsset && !deferredPNG) || onNativeLayersCapture != nil {
                 let encoding = Task.detached(priority: priority.isForeground ? .userInitiated : .utility) {
                     let masks = try encodeSourceMasks(patches)
                     let savedLayers = ExportLayers(masks: masks, surfaces: layers.surfaces,
-                        paintBounds: layers.paintBounds, sourceRestorations: layers.sourceRestorations)
+                        paintBounds: layers.paintBounds, sourceRestorations: layers.sourceRestorations,
+                        includesSourcePage: layers.includesSourcePage)
                     let savedTypography: Data?
                     if retainAsset {
                         savedTypography = try rendered.exportPDFData ?? encodeTypography(rendered.overlayImage, size: size)
@@ -360,7 +428,7 @@ enum ReaderTranslationImageExporter {
             }
             try Task.checkCancellation()
             ReaderTranslationDiagnostics.record("renderer_export_finished", count: rendered.renderedItemCount)
-            return RenderedPage(image: result, asset: asset)
+            return RenderedPage(image: result, asset: asset, freshSettledSource: freshSettledSource)
         }
     }
 
@@ -409,14 +477,14 @@ enum ReaderTranslationImageExporter {
         return data
     }
 
-    struct ExportLayers: Codable, Sendable {
-        struct Mask: Codable, Sendable {
+    struct ExportLayers: Codable, Equatable, Sendable {
+        struct Mask: Codable, Equatable, Sendable {
             let frame: [CGFloat]
             let opacity: CGFloat
             let png: String
             var cleanupClip: [CGFloat]? = nil
         }
-        struct Surface: Codable, Sendable {
+        struct Surface: Codable, Equatable, Sendable {
             let frame: [CGFloat]
             let radius: CGFloat
             let blur: CGFloat
@@ -426,6 +494,13 @@ enum ReaderTranslationImageExporter {
         let surfaces: [Surface]
         let paintBounds: [[CGFloat]]
         var sourceRestorations: [[CGFloat]]? = nil
+        /// Absent in historical records: retain their original overlay-only behavior.
+        var includesSourcePage: Bool? = nil
+
+        func validSettledSource(displayRect: CGRect, hasSourcePatches: Bool) -> Bool {
+            masks.isEmpty && surfaces.isEmpty && (sourceRestorations?.isEmpty ?? true) && !hasSourcePatches &&
+                paintBounds == [[displayRect.minX, displayRect.minY, displayRect.width, displayRect.height]]
+        }
     }
 
     /// Core Image contexts are thread-safe and expensive to create; the
@@ -458,6 +533,22 @@ enum ReaderTranslationImageExporter {
         let scale = size.width / displayRect.width
         let scaleY = size.height / displayRect.height
         guard scale.isFinite, scaleY.isFinite else { throw ExportError.renderFailed }
+        let settledSource = layers.includesSourcePage == true
+        guard !settledSource || layers.validSettledSource(displayRect: displayRect, hasSourcePatches: !sourcePatches.isEmpty)
+        else { throw ExportError.renderFailed }
+        // Fresh main-ensemble output already owns every destination pixel.
+        // Rebox its canonical sRGB buffer at the export scale instead of
+        // allocating and drawing another full page. Keep encoded replay,
+        // resizing, noncanonical profiles and legacy overlays on the renderer.
+        if settledSource, nativeBitmap, case .bitmap(let bitmap) = typography,
+           bitmap.imageOrientation == .up, bitmap.images == nil,
+           bitmap.renderingMode == .automatic, bitmap.capInsets == .zero,
+           let pixels = bitmap.cgImage, CGSize(width: pixels.width, height: pixels.height) == size,
+           pixels.bitsPerComponent == 8, pixels.bitsPerPixel == 32,
+           pixels.alphaInfo == .premultipliedLast, pixels.colorSpace?.name == CGColorSpace.sRGB {
+            try Task.checkCancellation()
+            return bitmap.scale == 1 ? bitmap : UIImage(cgImage: pixels, scale: 1, orientation: .up)
+        }
         func outputFrame(_ values: [CGFloat]) throws -> CGRect {
             guard values.count == 4, values.allSatisfy(\.isFinite), values[2] > 0, values[3] > 0 else {
                 throw ExportError.renderFailed
@@ -500,11 +591,7 @@ enum ReaderTranslationImageExporter {
             maskPixels += width * height
             return (UIImage(cgImage: pixels), try outputFrame(mask.frame), mask.opacity, try mask.cleanupClip.map(outputFrame))
         }
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        format.preferredRange = .standard
         let destination = CGRect(origin: .zero, size: size)
-        let renderer = UIGraphicsImageRenderer(size: size, format: format)
         let surfaces = try layers.surfaces.map { surface in
             guard surface.radius.isFinite, surface.radius >= 0, surface.blur.isFinite, surface.blur >= 0,
                   surface.saturation.isFinite, surface.saturation >= 0 else { throw ExportError.renderFailed }
@@ -532,8 +619,22 @@ enum ReaderTranslationImageExporter {
                       let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
                       let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
                       let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
-                      width > 0, height > 0, width <= 16_384, height <= 16_384, width * height <= 12_000_000,
-                      let pixels = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw ExportError.renderFailed }
+                      width > 0, height > 0, width <= 16_384, height <= 16_384, width * height <= 12_000_000 else {
+                    throw ExportError.renderFailed
+                }
+                // A settled full-page PNG already contains the source and typography. Decode it
+                // on this worker before handing it to UIKit, without a second page-size canvas.
+                let matchesOutput = settledSource && nativeBitmap && CGSize(width: width, height: height) == size &&
+                    CGImageSourceGetType(source) as String? == "public.png"
+                let options: CFDictionary? = matchesOutput ? [
+                    kCGImageSourceShouldCache: true, kCGImageSourceShouldCacheImmediately: true
+                ] as CFDictionary : nil
+                guard let pixels = CGImageSourceCreateImageAtIndex(source, 0, options) else { throw ExportError.renderFailed }
+                if matchesOutput, pixels.bitsPerComponent == 8, pixels.bitsPerPixel == 32,
+                   pixels.alphaInfo == .premultipliedLast, pixels.colorSpace?.name == CGColorSpace.sRGB {
+                    try Task.checkCancellation()
+                    return UIImage(cgImage: pixels)
+                }
                 overlayImage = UIImage(cgImage: pixels)
                 pdfPage = nil
             } else {
@@ -550,6 +651,8 @@ enum ReaderTranslationImageExporter {
         }
         // Original pixels are drawn directly; they are never persisted in the overlay.
         func drawCleaned(_ context: CGContext) {
+            // The settled page already includes alpha and original/restored pixels.
+            guard !settledSource else { return }
             image.draw(in: destination)
             for (mask, rect, opacity, cleanupClip) in masks {
                 context.saveGState()
@@ -592,6 +695,10 @@ enum ReaderTranslationImageExporter {
             image.draw(in: destination)
             context.restoreGState()
         }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.preferredRange = .standard
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
         // Without backdrop surfaces nothing samples the cleaned page, so paint
         // it straight into the output: the same draws in the same order and
         // format, without a second full-page bitmap and copy.

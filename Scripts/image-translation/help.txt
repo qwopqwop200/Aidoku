@@ -8,22 +8,32 @@ Inputs:
   --output DIR            Fresh run subdirectory inside DIR (default: output/image-translation).
 
 Pipeline:
-  --tier medium|small|tiny Core ML model tier (default: medium).
+  --admitted-aot-request FILE  Separate explicit trusted-admission route: installed whole-page AOT1024
+                              plus freshly shaped native text; no OCR/API calls. Default route unchanged.
+                              Requires source/mask/current-inventory identity and caller-admitted style/frames.
+                              Automatic mask/color policies remain HOLD; not a whole-dataset quality claim.
+  --tier medium|small|tiny|manga Core ML model tier (default: manga; Japanese/Chinese source text only).
   --source LANGUAGE       Source language (default: auto).
   --target LANGUAGE       Target language (default: ko).
-  --confidence NUMBER     Recognition threshold, 0...1 (default: 0.75).
-  --detector-side N       Detector maximum side (default: 1184; bounded to 32...1184).
-  --recognizer-width N    Recognizer width (default: 1184; bounded to 32...1184, height 48).
+  --confidence NUMBER     Recognition threshold, 0...1 (Manga default 0.30, other tiers 0.50).
+  --detector-side N       Detector maximum side, 32...1184 (Manga default 1120, other tiers 1184).
+  --recognizer-width N    Recognizer maximum width, height 48 (Manga 32...2400, others 32...1184; defaults to the tier maximum).
   --base-url URL          Translation server base URL (or AIDOKU_TRANSLATION_BASE_URL).
   --model MODEL           Translation model (or AIDOKU_TRANSLATION_MODEL).
   --protocol responses|chatCompletions (default: chatCompletions).
   --key-env NAME          API key environment variable (default: AIDOKU_TRANSLATION_API_KEY).
+  --credential-generation N  Nonsecret key/account/tenant generation (or
+                          AIDOKU_TRANSLATION_CREDENTIAL_GENERATION). Enables exact
+                          provider disk caching; absent generation uses memory only.
+                          Increment after key/tenant changes; never supply a secret/hash.
   --allow-local-http      Permit HTTP for canonical localhost only.
-  --include-image         Attach the normalized input as JPEG to translation requests.
-  --filter-sfx            Enable the production provider SFX filter.
-  --filter-background     Enable the production provider background lettering filter.
   --rtl                   Apply the production right-to-left panel ranking.
   --ocr-only              Run OCR/grouping only, without contacting a provider.
+  --manga-detector-search FILE  Offline Manga-only probability-map and DB parameter sweep request.
+  --manga-recognizer-search FILE  Recognize cached Manga search candidates at confidence floor 0.01.
+  --deduplicate-individual-geometry DIR
+                          Apply native candidate deduplication to SHA-bound geometry requests on stdin.
+                          No model/provider calls; writes retained geometry and suppression receipts.
   --translations FILE     Offline replay: JSON object mapping source text to translated text.
   --quiet                 Print milestones only; full values remain in JSON files.
   --help                  Show this help without compiling or loading models.
@@ -50,24 +60,104 @@ Rebuild analysis from saved outputs without OCR/models/server:
 Defaults load automatically from REPOSITORY_ROOT/.env, regardless of working
 folder. Priority: explicit CLI options > shell environment > .env > built-in defaults.
 Settings include AIDOKU_TRANSLATION_{BASE_URL,MODEL,API_KEY,PROTOCOL,SOURCE,TARGET,
-INCLUDE_IMAGE,FILTER_SFX,FILTER_BACKGROUND,RTL,ALLOW_LOCAL_HTTP} and
+RTL,ALLOW_LOCAL_HTTP,CREDENTIAL_GENERATION} and
 AIDOKU_OCR_{TIER,CONFIDENCE,DETECTOR_SIDE,RECOGNIZER_WIDTH}. See .env.example.
---no-include-image, --no-filter-sfx, --no-filter-background, --no-rtl disable
-corresponding boolean defaults for one invocation. .env is never printed/copied.
+Page translation always sends the image and requests SFX/background roles in one
+provider response. --no-rtl disables panel ordering. .env is never printed/copied.
 The connected iPhone profile additionally supplies detector pixel/box thresholds,
 minimum box size, reasoning/timeout, source-language allowlist and overlay JSON.
 Numbered runtime-settings.json records effective settings without credentials.
 Refresh the saved profile with:
   python3 Scripts/image-translation/sync-iphone-settings.py --device DEVICE_ID
 
+Source-paint individual geometry uses bbox confidence 0.085 followed by polygon
+deduplication at IoU 0.96. Ranking uses mean detector probability times polygon area;
+neither GT coordinates nor recognition text is used. Only near-equivalent quads are
+suppressed; missing probability evidence and invalid quads remain unchanged.
+AIDOKU_OCR_GEOMETRY_DEDUP_IOU overrides the deduplication threshold (0 < value <= 1).
+This compresses geometry candidates; it does not certify final OCR precision.
+AIDOKU_OCR_GEOMETRY_REPRESENTATIVE_POLICY optionally names a JSON policy with
+model and configuration fields. It elects geometry BEFORE legacy area-ranked
+NMS, using DB probability, independent producer agreement, detector/observed
+recognition agreement and RF class rectangles; no pixel/absolute-shape features.
+Close source-backed alternatives may survive as bounded ambiguity fallbacks.
+Identical cyclic/winding quads are emitted once, without merging source ownership.
+The policy is explicit/opt-in; a missing policy preserves existing behavior.
+This selects individual geometry, not recognized lines or merged paragraphs.
+AIDOKU_OCR_GEOMETRY_WITNESS_ADMISSION=1 enables positive corroboration before
+election: two direct retained witnesses from different producer families and
+different quads, IoU >= 0.9 and no weaker measured DB. Source-stage anchors stay.
+AIDOKU_OCR_GEOMETRY_SIGNAL_ADMISSION=1 additionally requires near-equivalent
+geometry plus stronger DB and no weaker detector/observed-rec/RF agreement.
+Missing evidence stays retained. Proof indices are local to their own stages.
+Election references the full same-frame bbox-admitted evidence inventory even
+when emission was pruned; removing an output must not silently change its peers'
+ranking evidence. RF classes use canonical frame0/text1/balloon2/SFX3 IDs.
+AIDOKU_OCR_RF_SEMANTIC_POLICY optionally names a model-bound RF semantic policy
+applied after election. It combines all 300 queries' mask/class probabilities
+with observed-recognition agreement; source-stage anchors remain retained.
+Its native class order is text0/SFX1/balloon2/frame3, distinct from the canonical
+rectangle order above. Missing RF/recognition evidence retains geometry.
+The semantic field is opt-in and checksum-validated through the host RF cache.
+This filters geometry proposals; it does not recognize alternative crops anew.
+An optional finalCoverThreshold enables terminal direct overlap suppression;
+finalCoverRanking=representative-quality uses exactly aligned frozen election
+scores. Missing/nonfinite/misaligned scores retain rows. This final step may
+remove a redundant source anchor; the earlier semantic-class rules still preserve
+anchors. Every removed row has a directly retained original representative.
+All boundary heads calibrate source original/current/layout inputs only.
+Historical all-baseline input and utility-positive candidate-selection routes
+were removed; the supported learned policy is mean-depth6 (376: single-mean).
+AIDOKU_OCR_PAINT_GENERATION_POLICY optionally names a source-paint-generator-plan-v1
+JSON execution plan with disabledMechanisms. Redundant measurement branches are
+skipped before their work/output allocation, preserving shared support needed by
+retained sibling branches. Invalid/missing plans enable all remaining generators. Retired algorithms
+cannot be re-enabled by a policy. Plans
+contain only global mechanism names, with no page/GT/coordinate conditions.
+The jointly verified generation plan also sets
+AIDOKU_OCR_LEARNED_BOUNDARY_INPUTS=source-stages for all three boundary heads.
+This prevents refinement-on-refinement inference, before feature extraction.
+AIDOKU_OCR_REFINEMENT_PROPOSAL_EMISSION=source-context-only-v1 keeps axis,
+dehalo and component-span measurements as immutable source context without
+materializing them as extra geometry proposals. Baseline/final emit share the
+same plan; full refinement contexts and identity reservations remain intact.
+AIDOKU_OCR_LEARNED_BOUNDARY_CONSENSUS=reciprocal-corrected-080 skips redundant
+noncanonical legacy/376 corrected-stage predictions when original/current
+localizations have a unique reciprocal match. The global
+AIDOKU_OCR_LEARNED_BOUNDARY_CONSENSUS_IOU is finite in [0.8,1] (default0.8).
+Canonical paint seeds, mixed source aliases and real ID reservations remain.
+AIDOKU_OCR_LAYOUT_PROPOSAL_EMISSION=context-only-v1 retains layout measurements
+for all heads, canonical paint seeds and reservations, omitting only final layout
+proposal materialization. It never filters baseline source context.
+AIDOKU_OCR_LEARNED_PROPOSAL_EMISSION=reciprocal-computed-heads-v1 omits final
+pure learned alternatives agreeing at IoU>=0.90 with their input and an independent
+computed head on the exact same input, supported by original detector confidence.
+Exact observed/paint quad aliases and ambiguous joins remain. All computed heads,
+paint seeds and ID reservations are retained; no candidate DB score is borrowed.
+Successful physical producer jobs always share an invocation-local ledger
+within one immutable frame/evidence lifetime, before repeated measurement work.
+Paint plans can additionally disable individual mechanism/layer branches before
+mask construction; palettes remain available as observed mixture evidence.
+All these hooks are opt-in. Use a jointly verified plan rather than combining
+independent ablation counts; generator removals can depend on one another.
+Pixel work uses one selected seed per original/current/layout source entry,
+plus deduplicated source-owned fragment/search scopes. Calibration alternatives
+never feed back into pixel work. Exact source RGB windows share an 8 MiB cache.
+
 Final composites are also collected in RUN_DIRECTORY/final/ with numbered source
 filenames and shown at the top of each analysis report.
 --render-run RUN_DIR     Recompose completed images from saved render payloads;
                         no OCR or translation API calls. Supported historical
                         payloads migrate to native layout/settings.
+                        Optional second path creates a new, compact visual preview
+                        without modifying the original run or cached final pixels.
 --resume-run RUN_DIR     Resume the same input list/order/settings. Completed
                         native results are retained; completed historical renders
                         are recomposed natively from saved inputs without OCR/API calls.
+--retranslate-run RUN_DIR
+                        Reuse completed OCR regions from this run, then translate
+                        and render into a separate --output run. Use the same input
+                        list/order; no detection or recognition is repeated.
 
 --jobs N                Bounded image workers, 1...64 (AIDOKU_IMAGE_JOBS; default 8).
                         Overlap translation requests and pipeline stages. OCR and
@@ -76,9 +166,27 @@ filenames and shown at the top of each analysis report.
 --viewport WIDTHxHEIGHT Reader container in screen points (AIDOKU_RENDER_VIEWPORT).
                         Default 430x932 portrait; each page is aspect-fitted.
                         Supply actual reader geometry for a device comparison.
+--native-raw-text-render SPEC_JSON OUTPUT_DIR
+                        Execute the production raw text painter on supplied text,
+                        style and geometry with a neutral background. No source
+                        image, OCR, model inference or provider calls.
 --layout-fixture FILE   Emit production layout payload JSON for a neutral fixture;
                         no OCR, provider call, or .env loading.
+--audit-render-run DIR  Stream current native PDF bytes and numeric diagnostics
+                        as JSONL from saved native layout/settings and input.png.
+                        Read-only corpus audit: no PNG/PDF artifacts, OCR, provider,
+                        planner fallback, or .env loading. Pipe to an evaluator;
+                        this stream is not intended for a terminal preview.
+--prepare-render-run DIR Stream numeric preparation diagnostics from saved inputs;
+                        no final source composition, PDF export or embedded media.
+                        Preparation is not final-pixel/visual quality validation.
 Rendering shares the app layout planner, Core Text font registration, bounded
 background sizing and native mask/PDF export policy. AppKit font metrics and the default viewport
 are not a live iPhone measurement. Old --render-run payloads retain old layout;
 rerun source images to generate the new production layout.
+
+RF semantic policies can optionally enable jointEvidenceAdmission. This terminal
+step combines frozen quality, RF text field, observed recognition agreement and
+cross-producer polygon support from the complete bbox-admitted reference bank.
+Missing reference/evidence preserves candidates; own-family votes are excluded,
+and replacements point directly to final retained rows. It does not merge quads.

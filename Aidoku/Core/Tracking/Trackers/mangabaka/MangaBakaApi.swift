@@ -21,9 +21,7 @@ actor MangaBakaApi {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-    private func refreshAccessToken(replacingAuthorization: String? = nil) async -> OAuthResponse? {
-        guard let refreshToken = await oauth.tokens?.refreshToken else { return nil }
-
+    private func exchangeRefreshToken(_ refreshToken: String) async -> OAuthResponse? {
         guard let url = URL(string: oauth.baseUrl + "/token") else { return nil }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -33,10 +31,7 @@ actor MangaBakaApi {
             "grant_type": "refresh_token",
             "redirect_uri": "aidoku://mangabaka-auth"
         ].percentEncoded()
-        let refreshRequest = request
-        return await oauth.refreshTokens(replacingAuthorization: replacingAuthorization) {
-            try? await URLSession.shared.object(from: refreshRequest)
-        }
+        return try? await URLSession.shared.object(from: request)
     }
 
     private func requestData(urlRequest: URLRequest) async throws -> Data {
@@ -65,7 +60,7 @@ actor MangaBakaApi {
             }
 
             // refresh access token
-            if await refreshAccessToken(replacingAuthorization: urlRequest.value(forHTTPHeaderField: "Authorization")) != nil {
+            if await oauth.refreshTokens(for: urlRequest, operation: exchangeRefreshToken) != nil {
                 // try request again with refreshed token
                 let newAuthorization = await oauth.authorizedRequest(for: URL(string: oauth.baseUrl + "/token")!)
                     .value(forHTTPHeaderField: "Authorization")

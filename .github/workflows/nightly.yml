@@ -19,6 +19,8 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-ios
+      - name: Prepare native image dependencies for iOS
+        run: python3 Scripts/native-source-cv/bootstrap.py --platform ios-arm64
       - name: Get commit SHA
         id: commitinfo
         run: echo "sha_short=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"

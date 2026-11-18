@@ -360,18 +360,20 @@ public extension Source {
     }
 
     func getMangaUpdate(manga: Manga, needsDetails: Bool, needsChapters: Bool) async throws -> Manga {
+        try Task.checkCancellation()
         var manga = try await runner.getMangaUpdate(
             manga: manga,
             needsDetails: needsDetails,
             needsChapters: needsChapters
         )
 
+        try Task.checkCancellation()
         manga.sourceKey = key
 
         // set default language for chapters
-        if languages.count == 1, let language = languages.first, let chapters = manga.chapters {
-            for chapterIdx in chapters.indices {
-                manga.chapters?[chapterIdx].language = chapters[chapterIdx].language ?? language
+        if languages.count == 1, let language = languages.first, let indices = manga.chapters?.indices {
+            for index in indices where manga.chapters?[index].language == nil {
+                manga.chapters?[index].language = language
             }
         }
 
@@ -379,7 +381,10 @@ public extension Source {
     }
 
     func getPageList(manga: Manga, chapter: Chapter) async throws -> [Page] {
-        try await runner.getPageList(manga: manga, chapter: chapter)
+        try Task.checkCancellation()
+        let pages = try await runner.getPageList(manga: manga, chapter: chapter)
+        try Task.checkCancellation()
+        return pages
     }
 
     func getMangaList(listing: Listing, page: Int) async throws -> MangaPageResult {

@@ -1,0 +1,5 @@
+# Verified upstream downloads and per-platform archives are installed by bootstrap.py.
+/FreeType.xcframework/
+/opencv2.xcframework/
+/freetype/
+/include/opencv2/

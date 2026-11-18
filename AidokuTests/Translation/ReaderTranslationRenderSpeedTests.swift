@@ -16,6 +16,119 @@ struct ReaderTranslationRenderSpeedTests {
         return (sorted[(sorted.count - 1) / 2] + sorted[sorted.count / 2]) / 2
     }
 
+    @Test @MainActor func pairedCachedSnapshotPageTurns() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        let cache = ReaderTranslationRenderCache(disk: disk)
+        let view = SnapshotInsertionProbe(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        view.contentMode = .scaleAspectFit
+        let reader = ReaderTranslationPage(imageView: view)
+        reader.renderCache = cache
+        defer { reader.reset(); cache.clearMemory() }
+        let defaultsName = UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: defaultsName))
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        var settings = ReaderTranslationSettings(defaults: defaults)
+        settings.overlay.visible = true
+        let regions = [ReaderTranslationPersistentPipelineTests.region]
+        let crop = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let displayed = regions.compactMap { $0.cropped(to: crop) }
+        let pixels = CGSize(width: 1200, height: 1800)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        format.preferredRange = .standard
+        let renderer = UIGraphicsImageRenderer(size: pixels, format: format)
+        let generation = await disk.currentGeneration()
+        var fixtures: [(page: Page, source: UIImage, snapshot: UIImage, key: String)] = []
+        for index in 0..<2 {
+            let page = Page(sourceId: "snapshot-benchmark", chapterId: "fixture", index: index)
+            let source = renderer.image { context in
+                UIColor.white.setFill()
+                context.fill(CGRect(origin: .zero, size: pixels))
+                UIColor.darkGray.setFill()
+                for band in 0..<80 {
+                    context.fill(CGRect(x: 20 + (band * 23 + index * 53) % 90,
+                                        y: band * 22, width: 980, height: 6 + band % 4))
+                }
+            }
+            let snapshot = renderer.image { context in
+                source.draw(at: .zero)
+                UIColor.black.setFill()
+                context.fill(CGRect(x: 50, y: 85 + index * 50, width: 600, height: 40))
+            }
+            let key = ReaderTranslationCacheIdentity.render(page: page.translationCacheKey, settings: settings,
+                imageSize: pixels, viewport: view.bounds.size, scale: view.traitCollection.displayScale,
+                aspectFit: true, crop: crop, dark: view.traitCollection.userInterfaceStyle == .dark)
+            let snapshotKey = ReaderTranslationRenderCache.snapshotKey(renderKey: key, regions: displayed)
+            let digest = try #require(ReaderTranslationRenderAsset.digestSource(source))
+            await cache.store(snapshot, key: snapshotKey, pageIdentity: page.translationCacheKey,
+                              diskGeneration: generation, source: source, sourceDigest: digest)
+            let cg = try #require(source.cgImage)
+            for different in [UIImage(cgImage: cg, scale: 2, orientation: .up),
+                              UIImage(cgImage: cg, scale: 1, orientation: .left)] {
+                #expect(cache.cachedSnapshot(for: snapshotKey, source: different) == nil)
+                #expect(await cache.loadSnapshot(snapshotKey, source: different) == nil)
+            }
+            fixtures.append((page, source, snapshot, snapshotKey))
+        }
+        reader.sourcePage = fixtures[1].page
+        view.image = fixtures[1].source
+        reader.displayPreparedSnapshot(regions, settings: settings)
+        try #require(view.insertedAt != nil)
+        var times: [String: [Double]] = [:]
+        let modes = ["identical_source", "same_cgimage_wrapper", "distinct_cgimage"]
+        for round in 0..<36 {
+            for leg in 0..<3 {
+                let fixture = fixtures[(round * 3 + leg) % 2]
+                let mode = modes[(round + leg) % 3]
+                let cg = try #require(fixture.source.cgImage)
+                let source: UIImage
+                switch mode {
+                case "identical_source":
+                    source = fixture.source
+                case "same_cgimage_wrapper":
+                    source = UIImage(cgImage: cg)
+                    try #require(source !== fixture.source && source.cgImage === cg)
+                default:
+                    let bytes = try #require(cg.dataProvider?.data)
+                    let provider = try #require(CGDataProvider(data: bytes))
+                    let space = try #require(cg.colorSpace)
+                    let copy = try #require(CGImage(width: cg.width, height: cg.height, bitsPerComponent: cg.bitsPerComponent,
+                        bitsPerPixel: cg.bitsPerPixel, bytesPerRow: cg.bytesPerRow, space: space, bitmapInfo: cg.bitmapInfo,
+                        provider: provider, decode: cg.decode, shouldInterpolate: cg.shouldInterpolate, intent: cg.renderingIntent))
+                    try #require(copy !== cg)
+                    source = UIImage(cgImage: copy)
+                }
+                #expect((cache.cachedSnapshot(for: fixture.key, source: source) == nil) == (mode == "distinct_cgimage"))
+                view.insertedAt = nil
+                let start = ProcessInfo.processInfo.systemUptime
+                reader.sourcePage = fixture.page
+                view.image = source
+                reader.displayPreparedSnapshot(regions, settings: settings)
+                // The callback timestamps insertion; this wait only observes completion.
+                while view.insertedAt == nil && ProcessInfo.processInfo.systemUptime - start < 5 {
+                    try await Task.sleep(for: .milliseconds(1))
+                }
+                let end = try #require(view.insertedAt)
+                #expect((view.subviews.first as? UIImageView)?.image === fixture.snapshot)
+                times[mode, default: []].append((end - start) * 1000)
+            }
+        }
+        var stats: [String: [String: Double]] = [:]
+        for (key, values) in times {
+            let ordered = values.sorted()
+            stats[key] = ["n": Double(values.count), "p50_ms": ordered[(values.count - 1) / 2],
+                          "p95_ms": ordered[Int(ceil(Double(values.count) * 0.95)) - 1]]
+        }
+        let result: [String: Any] = ["samples_ms": times, "nearest_rank": stats,
+            "scope": "Adjacent reader slot changes until cached UIKit subview insertion. 36 balanced triplets, 1200x1800 generated decoded rasters and RAM snapshots. Same UIImage, new wrapper over the same immutable CGImage and a newly constructed pixel-identical CGImage. Distinct backing requires digest validation. Fixture construction excluded. No gesture, provider, OCR, disk snapshot, window or screen refresh."]
+        let data = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
+        try data.write(to: URL.documentsDirectory.appendingPathComponent("ReaderSnapshotTurnBenchmark.json"), options: .atomic)
+        print("READER_SNAPSHOT_TURN_BENCHMARK " + String(decoding: data, as: UTF8.self))
+    }
+
     @Test(arguments: [false, true]) @MainActor
     func loadedReaderImageIsComposedBeforePageEntersWindow(webtoon: Bool) async throws {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
@@ -168,10 +281,7 @@ struct ReaderTranslationRenderSpeedTests {
         let disk = ReaderTranslationDiskCache(directory: directory, byteLimit: 10_000_000)
         let cache = ReaderTranslationRenderCache(disk: disk)
         let viewport = CGSize(width: 320, height: 480)
-        let image = UIGraphicsImageRenderer(size: viewport).image { context in
-            UIColor.white.setFill()
-            context.fill(CGRect(origin: .zero, size: viewport))
-        }
+        let image = ReaderTranslationPersistentPipelineTests.image()
         let imageView = UIImageView(image: image)
         imageView.frame = CGRect(origin: .zero, size: viewport)
         imageView.contentMode = .scaleAspectFit
@@ -180,15 +290,16 @@ struct ReaderTranslationRenderSpeedTests {
         var page = Page(sourceId: "render-speed-test", chapterId: UUID().uuidString, index: 0)
         page.image = image
         reader.sourcePage = page
-        let region = ReaderTranslationRegion(id: "one", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2),
-                                             source: "source", translation: "준비된 번역")
+        let region = ReaderTranslationPersistentPipelineTests.region
         let displayed = [region].compactMap { $0.cropped(to: ReaderTranslationSplitGeometry.unit) }
         try #require(displayed.count == 1)
         var settings = ReaderTranslationSettings()
         settings.overlay = ReaderTranslationSettings.defaultOverlay
+        let sourceRect = ReaderTranslationGeometry.displayRect(ReaderTranslationSplitGeometry.unit,
+            imageSize: image.size, bounds: imageView.bounds, aspectFit: true)
         let payload = try await NativeTranslationLayoutPlanner.prepareLayoutData(
-            items: ReaderTranslationRegion.layoutItems(displayed, imageSize: viewport), imageSize: viewport,
-            sourceRect: CGRect(origin: .zero, size: viewport), settings: settings.overlay,
+            items: ReaderTranslationRegion.layoutItems(displayed, imageSize: image.size), imageSize: image.size,
+            sourceRect: sourceRect, settings: settings.overlay,
             targetLanguage: settings.targetLanguage, viewport: viewport
         )
         let gate = RenderLayoutGate()
@@ -375,6 +486,16 @@ struct ReaderTranslationRenderSpeedTests {
         return bytes
     }
 
+}
+
+@MainActor private final class SnapshotInsertionProbe: UIImageView {
+    var insertedAt: TimeInterval?
+    override func didAddSubview(_ subview: UIView) {
+        super.didAddSubview(subview)
+        if subview.accessibilityIdentifier == "reader.translation.cachedOverlay" && !subview.isHidden {
+            insertedAt = ProcessInfo.processInfo.systemUptime
+        }
+    }
 }
 
 @MainActor private final class RenderCountingWindow: UIWindow {

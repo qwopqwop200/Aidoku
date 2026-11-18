@@ -10,7 +10,7 @@ enum DownloadImageTranslator {
     private static let pipelineGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 2)
     private struct Prepared: Sendable {
         let regions: [ReaderTranslationRegion]
-        let imageJPEG: Data?
+        let pageImage: RemoteTranslationPageImage?
     }
 
     typealias Processor = @MainActor (UIImage, ReaderTranslationSettings) async throws -> [ReaderTranslationRegion]
@@ -59,7 +59,7 @@ enum DownloadImageTranslator {
         // No decoded image crosses the provider wait. Only compact regions
         // and the optional bounded JPEG are retained while another page OCRs.
         let regions = try await ReaderTranslationService.shared.translate(regions: prepared.regions,
-            settings: settings, preparedImageJPEG: prepared.imageJPEG, priority: .prefetch)
+            settings: settings, preparedPage: prepared.pageImage, priority: .prefetch)
         guard !regions.isEmpty else { return data }
         return try await translate(data, settings: settings) { _, _ in regions }
     }
@@ -124,8 +124,8 @@ enum DownloadImageTranslator {
         guard let pixels = image.cgImage else { throw ReaderTranslationImageExporter.ExportError.unavailable }
         let recognized = try await ReaderOCRService.shared.recognize(image: pixels, configuration: settings.ocrConfiguration)
         let regions = ReaderTranslationImagePreparation.apply(recognized, image: image, settings: settings)
-        let jpeg = try settings.shouldAttachPageImage ? ReaderTranslationImagePreparation.translationJPEG(image) : nil
-        return Prepared(regions: regions, imageJPEG: jpeg)
+        let pageImage = try settings.shouldAttachPageImage ? ReaderTranslationImagePreparation.preparedPage(image) : nil
+        return Prepared(regions: regions, pageImage: pageImage)
     }
 
     private nonisolated static func decode(_ data: Data) throws -> UIImage {

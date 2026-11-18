@@ -154,7 +154,76 @@ struct MangaDescriptionTranslationTests {
         #expect(chunks.joined() == original)
         #expect(chunks.allSatisfy { $0.utf8.count <= RemoteTranslationRequest.maximumSegmentTextBytes })
     }
+
+    @Test func pureSynopsisChunkChecks() {
+        for check in SynopsisChunkingChecks.run() {
+            #expect(check.passed, Comment(rawValue: check.name))
+        }
+    }
+
+    @Test func oversizedProtectedDestinationKeepsOriginalWithoutRequests() async {
+        let fixture = DescriptionFixture()
+        var settings = ReaderTranslationSettings()
+        settings.translateMangaDescriptions = true
+        settings.mangaDescriptionSourceLanguages = []
+        settings.targetLanguage = "ko"
+        let original = "Read [the story](https://example.org/" +
+            String(repeating: "a", count: RemoteTranslationRequest.maximumSegmentTextBytes) + ")."
+        let client = DescriptionClient()
+        let result = await MangaDescriptionTranslation.translate(original, settings: settings,
+            service: ReaderTranslationService(client: client), diskCache: fixture.disk)
+        #expect(result == original)
+        #expect(await client.requests.isEmpty)
+    }
 }
+
+// BEGIN SYNOPSIS_CHUNK_CHECKS (Foundation only; requires SYNOPSIS_CHUNK_HELPER)
+enum SynopsisChunkingChecks {
+    static func run() -> [(name: String, passed: Bool)] {
+        var checks: [(name: String, passed: Bool)] = []
+        func check(_ name: String, _ value: Bool) { checks.append((name, value)) }
+        func checkSlices(_ name: String, _ source: String, limit: Int, protected token: String? = nil) {
+            let chunks = SynopsisChunking.chunks(source, maximumBytes: limit)
+            check(name + ": exact UTF-8", Array(chunks.joined().utf8) == Array(source.utf8))
+            check(name + ": bounded nonempty chunks", chunks.allSatisfy { !$0.isEmpty && $0.utf8.count <= limit })
+            if let token { check(name + ": protected token intact", chunks.contains { $0.contains(token) }) }
+        }
+
+        check("empty", SynopsisChunking.chunks("", maximumBytes: 16).isEmpty)
+        check("whitespace boundary", SynopsisChunking.chunks("alpha beta gamma", maximumBytes: 10) == ["alpha ", "beta gamma"])
+        check("punctuation boundary", SynopsisChunking.chunks("甲。乙。丙。", maximumBytes: 9) == ["甲。", "乙。", "丙。"])
+        checkSlices("Unicode and exact whitespace", "  e\u{301}\t👨‍👩‍👧‍👦\r\n한국어  \n\nend  ", limit: 32)
+        let url = "https://example.org/a/b?q=c"
+        checkSlices("URL across boundary", "Opening words " + url + " and more words", limit: 32, protected: url)
+        let destination = #"](../part(one)/file\).html "a title")"#
+        let link = "[story" + destination
+        checkSlices("whole balanced escaped Markdown", "Opening words " + link + " after", limit: 48, protected: link)
+        let nested = "[a [nested] label](../page)"
+        checkSlices("nested label", "Opening words " + nested + " after", limit: 32, protected: nested)
+        let adjacent = String(repeating: "[story](../page)", count: 4)
+        checkSlices("adjacent links remain separable", adjacent, limit: 32, protected: "[story](../page)")
+        let longLabel = "[" + String(repeating: "long label ", count: 8) + "](../page)"
+        checkSlices("long label can split", longLabel, limit: 32, protected: "../page")
+        let angle = "<relative folder/file name>"
+        checkSlices("angle destination", "Opening words [story](" + angle + ") after", limit: 32, protected: angle)
+        let reference = "[story]: ../folder/chapter.html"
+        checkSlices("reference destination", "Introductory words\n" + reference + " \"title\"", limit: 32, protected: reference)
+        let longReference = "[" + String(repeating: "label ", count: 8) + "]: ../page"
+        checkSlices("long reference label can split", longReference, limit: 32, protected: "../page")
+        checkSlices("mailto URL", "Contact mailto:reader@example.org today", limit: 32, protected: "mailto:reader@example.org")
+        checkSlices("unbroken ordinary text", String(repeating: "界", count: 30), limit: 16)
+        let exact = "https://x.co/" + String(repeating: "a", count: 19)
+        checkSlices("exact-limit URL", "Before " + exact + " after", limit: 32, protected: exact)
+        check("normal packing permits three chunks", SynopsisChunking.chunks("Before " + exact + " after", maximumBytes: 32).count == 3)
+        checkSlices("exact-limit destination in larger link", "Before [label](" + exact + ") after", limit: 32, protected: exact)
+        let oversized = "Before https://x.co/" + String(repeating: "a", count: 40) + " after"
+        check("oversized link falls back whole line", SynopsisChunking.chunks(oversized, maximumBytes: 32) == [oversized])
+        let grapheme = "a" + String(repeating: "\u{301}", count: 20)
+        check("oversized grapheme falls back", SynopsisChunking.chunks(grapheme, maximumBytes: 32) == [grapheme])
+        return checks
+    }
+}
+// END SYNOPSIS_CHUNK_CHECKS
 
 private actor DescriptionClient: RemoteTranslating {
     let fails: Bool

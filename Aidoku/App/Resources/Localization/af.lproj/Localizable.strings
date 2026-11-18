@@ -252,7 +252,7 @@
 
 "TRANSLATION_AUTO" = "Bespeur outomaties";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 vereis iOS 18 of later. Medium is die verstekmodel. Klein gebruik minder geheue; Baie klein het 'n kleiner karakterwoordeboek. Koreaanse teksherkenning word nie ondersteun nie, maar vertaling na Koreaans word ondersteun.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 vereis iOS 18 of later. Manga v0.3 is die verstekmodel vir beide teksopsporing en teksherkenning. Ander OCR-modelle bly beskikbaar.";
 
 
 
@@ -1193,3 +1193,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Bron %@ weergawe %d word nie deur hierdie toepassing ondersteun nie. Installeer ’n ondersteunde weergawe.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 ondersteun slegs Japannese en Chinese bronteks (vereenvoudig en tradisioneel). Outomatiese identifikasie van die brontaal en die keuse van brontale is tot hierdie tale beperk. Jy kan steeds na Koreaans of ander teikentale vertaal. Wanneer jy Manga kies, word opsporingsdrempels van 0.85 en 0.25 toegepas; die verstekgrootte vir teksopsporing is 1120 px.";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alle ondersteunde OCR-tale";

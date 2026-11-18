@@ -46,9 +46,7 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
                 segments: [
                     .init(id: "segment-0", text: "同じ文字"),
                     .init(id: "segment-1", text: "変更された隣の文字"),
-                ],
-                context: ["前の字幕"],
-                glossary: [.init(source: "猫", target: "고양이")]
+                ]
             ),
             segmentID: "segment-0"
         )
@@ -57,9 +55,7 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
             request: RemoteTranslationRequest(
                 sourceLanguage: "ja",
                 targetLanguage: "ko",
-                segments: Array(baseRequest.segments.reversed()),
-                context: baseRequest.context,
-                glossary: baseRequest.glossary
+                segments: Array(baseRequest.segments.reversed())
             ),
             segmentID: "segment-0"
         )
@@ -83,9 +79,7 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
             segments: [
                 .init(id: "tracker-900", text: original.segments[0].text),
                 .init(id: "tracker-901", text: original.segments[1].text),
-            ],
-            context: original.context,
-            glossary: original.glossary
+            ]
         )
         let originalIdentities =
             try NativeTranslationReuseIdentity.identitiesBySegmentID(
@@ -143,10 +137,6 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
         let requestVariants = [
             makeRequest(sourceLanguage: "auto"),
             makeRequest(targetLanguage: "en"),
-            makeRequest(context: ["다른 문맥"]),
-            makeRequest(
-                glossary: [.init(source: "猫", target: "냥이")]
-            ),
             makeRequest(firstText: "違う文字"),
         ]
         for variant in requestVariants {
@@ -176,7 +166,7 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
         XCTAssertEqual(transportOnlyChange, base)
     }
 
-    func testProvisionalDisplayAllowsBatchAndContextRefreshOnly()
+    func testProvisionalDisplayAllowsBatchRefreshOnly()
         throws
     {
         let configuration = makeConfiguration()
@@ -186,10 +176,7 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
         )
         let changedBatch = try identity(
             configuration: configuration,
-            request: makeRequest(
-                context: ["새 문맥"],
-                secondText: "바뀐 이웃"
-            )
+            request: makeRequest(secondText: "바뀐 이웃")
         )
         let changedModel = try identity(
             configuration: makeConfiguration(model: "gpt-5"),
@@ -198,12 +185,6 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
         let changedLanguage = try identity(
             configuration: configuration,
             request: makeRequest(targetLanguage: "en")
-        )
-        let changedGlossary = try identity(
-            configuration: configuration,
-            request: makeRequest(
-                glossary: [.init(source: "猫", target: "냥이")]
-            )
         )
         let changedOwnText = try identity(
             configuration: configuration,
@@ -220,9 +201,6 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
             base.canRemainVisibleWhileRefreshing(expected: changedLanguage)
         )
         XCTAssertFalse(
-            base.canRemainVisibleWhileRefreshing(expected: changedGlossary)
-        )
-        XCTAssertFalse(
             base.canRemainVisibleWhileRefreshing(expected: changedOwnText)
         )
     }
@@ -232,10 +210,7 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
     {
         let configuration = makeConfiguration()
         let oldRequest = makeRequest()
-        let nextRequest = makeRequest(
-            context: ["새 문맥"],
-            secondText: "바뀐 이웃"
-        )
+        let nextRequest = makeRequest(secondText: "바뀐 이웃")
         let oldFirst = try identity(
             configuration: configuration,
             request: oldRequest,
@@ -314,6 +289,41 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
         XCTAssertNil(merged[0].translationReuseIdentity)
     }
 
+    func testSourceBoundRoleFieldsInvalidateProvisionalDisplay() throws {
+        let base = try identity(configuration: makeConfiguration(), request: makeRequest())
+        let encoded = try JSONEncoder().encode(base.cacheKey)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        // Change each persisted field independently, leaving image bytes,
+        // source text, geometry, model and prompt exactly the same.
+        for field in ["roleEvidenceSourceImageIdentity", "roleVerificationPolicy"] {
+            var changed = object
+            changed[field] = "changed-source-or-policy"
+            let key = try JSONDecoder().decode(TranslationCacheKey.self,
+                from: JSONSerialization.data(withJSONObject: changed))
+            let next = NativeTranslationReuseIdentity(cacheKey: key, segmentID: base.segmentID)
+            XCTAssertFalse(base.canRemainVisibleWhileRefreshing(expected: next), field)
+            XCTAssertFalse(base.hasSameTranslationConfiguration(as: next), field)
+        }
+    }
+
+    func testOwnRoleEvidenceInvalidatesDisplayWhileNeighborRefreshRemainsAllowed() throws {
+        let text = "同じ文字"
+        let bounds = [0.1, 0.1, 0.2, 0.2]
+        let evidence = try XCTUnwrap(TranslationBackgroundRolePolicy.make(source: text,
+            bounds: bounds, imageIdentity: String(repeating: "a", count: 64), contour: nil, rf: nil))
+        func request(ownEvidence: NativeTranslationRoleEvidence?, neighborEvidence: NativeTranslationRoleEvidence?) -> RemoteTranslationRequest {
+            RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", segments: [
+                .init(id: "segment-0", text: text, bounds: bounds, roleEvidence: ownEvidence),
+                .init(id: "segment-1", text: text, bounds: bounds, roleEvidence: neighborEvidence)
+            ])
+        }
+        let base = try identity(configuration: makeConfiguration(), request: request(ownEvidence: nil, neighborEvidence: nil))
+        let own = try identity(configuration: makeConfiguration(), request: request(ownEvidence: evidence, neighborEvidence: nil))
+        let neighbor = try identity(configuration: makeConfiguration(), request: request(ownEvidence: nil, neighborEvidence: evidence))
+        XCTAssertFalse(base.canRemainVisibleWhileRefreshing(expected: own))
+        XCTAssertTrue(base.canRemainVisibleWhileRefreshing(expected: neighbor))
+    }
+
     private func identity(
         configuration: RemoteTranslationConfiguration,
         request: RemoteTranslationRequest,
@@ -356,10 +366,6 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
     private func makeRequest(
         sourceLanguage: String = "ja",
         targetLanguage: String = "ko",
-        context: [String] = ["前の字幕"],
-        glossary: [TranslationGlossaryEntry] = [
-            .init(source: "猫", target: "고양이"),
-        ],
         firstText: String = "同じ文字",
         secondText: String = "次の文字"
     ) -> RemoteTranslationRequest {
@@ -369,9 +375,7 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
             segments: [
                 .init(id: "segment-0", text: firstText),
                 .init(id: "segment-1", text: secondText),
-            ],
-            context: context,
-            glossary: glossary
+            ]
         )
     }
 }

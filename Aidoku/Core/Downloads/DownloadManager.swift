@@ -75,31 +75,26 @@ actor DownloadManager {
         } else {
             var descriptionFiles: [URL] = []
 
-            var pages = directory.contents
-                .sorted {
-                    $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
-                }
-                .compactMap { url -> AidokuRunner.Page? in
-                    guard !url.lastPathComponent.hasPrefix(".") else {
+            var files = directory.contents.compactMap { url -> (name: String, url: URL, isText: Bool)? in
+                let name = url.lastPathComponent
+                guard !name.hasPrefix(".") else { return nil }
+                let ext = url.pathExtension.lowercased()
+                let isText = LocalFileManager.allowedTextExtensions.contains(ext)
+                guard isText || LocalFileManager.allowedImageExtensions.contains(ext) else { return nil }
+                return (name, url, isText)
+            }
+            files.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            var pages = files.compactMap { file -> AidokuRunner.Page? in
+                if file.isText {
+                    if file.name.hasSuffix("desc.txt") {
+                        descriptionFiles.append(file.url)
                         return nil
                     }
-                    if LocalFileManager.allowedTextExtensions.contains(url.pathExtension.lowercased()) {
-                        // add description file to list
-                        if url.lastPathComponent.hasSuffix("desc.txt") {
-                            descriptionFiles.append(url)
-                            return nil
-                        }
-                        // otherwise, load file as text
-                        let text: String? = try? String(contentsOf: url)
-                        guard let text else { return nil }
-                        return AidokuRunner.Page(content: .text(text))
-                    } else if LocalFileManager.allowedImageExtensions.contains(url.pathExtension.lowercased()) {
-                        // load file as image
-                        return AidokuRunner.Page(content: .url(url: url, context: nil))
-                    } else {
-                        return nil
-                    }
+                    guard let text = try? String(contentsOf: file.url) else { return nil }
+                    return AidokuRunner.Page(content: .text(text))
                 }
+                return AidokuRunner.Page(content: .url(url: file.url, context: nil))
+            }
 
             // load descriptions from files
             for descriptionFile in descriptionFiles {

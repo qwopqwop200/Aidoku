@@ -4,6 +4,63 @@ import Testing
 @testable import Aidoku
 
 struct NativeHitomiAuditTests {
+    @Test(arguments: [false, true])
+    func singleIndexSearchPreservesPagesWhenMirrorHonorsOrIgnoresRange(ignoresRange: Bool) async throws {
+        let fixture = Fixture(indexes: ["/index-all.nozomi": Array(1...25_000)], ignoresRange: ignoresRange)
+        let runner = HitomiSourceRunner(fetch: { try await fixture.fetch($0) }, preference: { _ in nil })
+        let first = try await runner.getSearchMangaList(query: nil, page: 1, filters: [])
+        let last = try await runner.getSearchMangaList(query: nil, page: 1000, filters: [])
+        let pastEnd = try await runner.getSearchMangaList(query: nil, page: 1001, filters: [])
+        #expect(first.entries.map(\.key) == (1...25).map(String.init))
+        #expect(first.hasNextPage)
+        #expect(last.entries.map(\.key) == (24_976...25_000).map(String.init))
+        #expect(!last.hasNextPage)
+        #expect(pastEnd.entries.isEmpty && !pastEnd.hasNextPage)
+        #expect(await fixture.indexRanges == ["bytes=0-103", "bytes=99900-100003", "bytes=100000-100103"])
+        #expect(await fixture.indexBodySizes == (ignoresRange ? [100_000, 100_000, 100_000] : [104, 100, 0]))
+    }
+
+    @Test func singleTermSearchFallsBackWhenAMirrorRejectsRange() async throws {
+        let fixture = Fixture(indexes: ["/tag/foo-korean.nozomi": Array(1...28)], rangeErrorStatus: 400)
+        let runner = HitomiSourceRunner(fetch: { try await fixture.fetch($0) }, preference: { $0 == "language" ? "ko" : nil })
+        let page = try await runner.getSearchMangaList(query: "tag:foo", page: 2, filters: [])
+        #expect(page.entries.map(\.key) == ["26", "27", "28"])
+        #expect(!page.hasNextPage)
+        #expect(await fixture.indexRanges == ["bytes=100-203", nil])
+    }
+
+    @Test func rateLimitedTagDoesNotRetryTheFullIndex() async throws {
+        let fixture = Fixture(indexes: ["/tag/foo-all.nozomi": [1]], rangeErrorStatus: 429)
+        let runner = HitomiSourceRunner(fetch: { try await fixture.fetch($0) }, preference: { _ in nil })
+        let page = try await runner.getSearchMangaList(query: "tag:foo", page: 1, filters: [])
+        #expect(page.entries.isEmpty && !page.hasNextPage)
+        #expect(await fixture.indexRanges == ["bytes=0-103"])
+    }
+
+    @Test(arguments: ["*", "100000001"])
+    func rangeSearchPreservesWholeIndexSizeLimit(total: String) async throws {
+        let fixture = Fixture(indexes: ["/index-all.nozomi": Array(1...26)])
+        let runner = HitomiSourceRunner(fetch: { request in
+            let (data, response) = try await fixture.fetch(request)
+            guard request.value(forHTTPHeaderField: "Range") != nil else { return (data, response) }
+            let partial = HTTPURLResponse(url: request.url!, statusCode: 206, httpVersion: nil,
+                                          headerFields: ["Content-Range": "bytes 0-103/\(total)"])!
+            return (data, partial)
+        }, preference: { _ in nil })
+        if total == "*" {
+            let page = try await runner.getSearchMangaList(query: nil, page: 1, filters: [])
+            #expect(page.entries.map(\.key) == (1...25).map(String.init))
+            #expect(page.hasNextPage)
+            #expect(await fixture.indexRanges == ["bytes=0-103", nil])
+        } else {
+            do {
+                _ = try await runner.getSearchMangaList(query: nil, page: 1, filters: [])
+                Issue.record("Expected the complete index size limit to apply")
+            } catch HitomiSearch.Failure.resourceLimit {}
+            #expect(await fixture.indexRanges == ["bytes=0-103"])
+        }
+    }
+
     @Test func missingPlainTextDoesNotExpandIntoFollowingNamespaceResults() async throws {
         let fixture = Fixture(indexes: ["/artist/foo-all.nozomi": [123]])
         let runner = HitomiSourceRunner(fetch: { try await fixture.fetch($0) }, preference: { _ in nil })
@@ -77,19 +134,51 @@ struct NativeHitomiAuditTests {
 
     private actor Fixture {
         let indexes: [String: [UInt32]]
-        init(indexes: [String: [UInt32]]) { self.indexes = indexes }
+        let rangeErrorStatus: Int?
+        let ignoresRange: Bool
+        var indexRanges: [String?] = []
+        var indexBodySizes: [Int] = []
+        init(indexes: [String: [UInt32]], rangeErrorStatus: Int? = nil, ignoresRange: Bool = false) {
+            self.indexes = indexes
+            self.rangeErrorStatus = rangeErrorStatus
+            self.ignoresRange = ignoresRange
+        }
 
         func fetch(_ request: URLRequest) throws -> (Data, URLResponse) {
             let url = request.url!
             #expect(request.value(forHTTPHeaderField: "Referer") == "https://hitomi.la/")
             let data: Data
             let status: Int
+            var headers: [String: String] = [:]
             if let ids = indexes[url.path] {
-                data = Data(ids.flatMap { id in
+                let index = Data(ids.flatMap { id in
                     [UInt8(truncatingIfNeeded: id >> 24), UInt8(truncatingIfNeeded: id >> 16),
                      UInt8(truncatingIfNeeded: id >> 8), UInt8(truncatingIfNeeded: id)]
                 })
-                status = 200
+                let range = request.value(forHTTPHeaderField: "Range")
+                indexRanges.append(range)
+                if let range, !ignoresRange {
+                    let bounds = range.dropFirst(6).split(separator: "-").compactMap { Int($0) }
+                    if let rangeErrorStatus {
+                        data = Data()
+                        status = rangeErrorStatus
+                    } else if bounds.count != 2 {
+                        throw URLError(.badURL)
+                    } else if bounds[0] >= index.count {
+                        data = Data()
+                        status = 416
+                        headers["Content-Range"] = "bytes */\(index.count)"
+                    } else {
+                        let last = min(bounds[1], index.count - 1)
+                        data = index[bounds[0]...last]
+                        status = 206
+                        headers["Content-Range"] = "bytes \(bounds[0])-\(last)/\(index.count)"
+                    }
+                } else {
+                    data = index
+                    status = 200
+                }
+                indexBodySizes.append(data.count)
             } else if url.path == "/galleriesindex/version" {
                 data = Data("1234".utf8)
                 status = 200
@@ -108,7 +197,7 @@ struct NativeHitomiAuditTests {
                 data = Data()
                 status = 404
             }
-            return (data, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!)
+            return (data, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: headers)!)
         }
     }
 }

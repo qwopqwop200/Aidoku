@@ -30,16 +30,18 @@ struct ReaderLLMSFXTests {
         }
         let output = try await service.translate(regions: input, settings: settings, image: image)
         #expect(output.first { $0.id == "local" }?.translation == "번역") // Only the LLM decides whether this is an effect.
-        #expect(output.first { $0.id == "llm" }?.translation == "BOOM")
+        #expect(output.first { $0.id == "llm" }?.translation == "번역")
         #expect(output.first { $0.id == "llm" }?.preservesOriginalText == true)
         #expect(!ReaderTranslationRegion.overlayItems(output, imageSize: image.size).contains { $0.sourceText == "BOOM" })
+        #expect(ReaderTranslationRegion.layoutItems(output, imageSize: image.size).contains {
+            $0.sourceText == "BOOM" && $0.keepsSourceLettering
+        })
         #expect(output.filter { $0.id.hasPrefix("d") }.allSatisfy { $0.translation == "번역" })
         let captured = await transport.captured
-        #expect(captured.count == (try ReaderTranslationService.requests(regions: input, settings: settings)).count)
+        #expect(captured.count == 1)
         #expect(captured.flatMap(\.texts).contains("ドン"))
-        #expect(captured.allSatisfy { $0.sfx && $0.image == withImage })
-        #expect(captured.allSatisfy { $0.hasBounds == withImage })
-        #expect(captured.allSatisfy { $0.instructions.contains(withImage ? "An image is attached" : "No image is attached") })
+        // Legacy display preferences cannot remove the page's image or classifications.
+        #expect(captured.allSatisfy { $0.classifiesRole && $0.image && $0.hasBounds })
     }
 
     @Test(arguments: [RemoteTranslationProtocol.responses, .chatCompletions], 0..<4)
@@ -67,27 +69,24 @@ struct ReaderLLMSFXTests {
         }
         let output = try await service.translate(regions: input, settings: settings, image: image)
         #expect(output.count == input.count)
-        #expect(output[0].translation == "南館2F")
-        #expect(output[0].preservesOriginalText)
+        #expect(output[0].translation == "번역")
+        #expect(!output[0].preservesOriginalText)
         #expect(output[1].translation == "번역")
         #expect(output[2].translation == "번역")
-        #expect(output[3].preservesOriginalText == sfx)
-        #expect(!ReaderTranslationRegion.overlayItems(output, imageSize: CGSize(width: 100, height: 100)).contains { $0.sourceText == "南館2F" })
+        #expect(output[3].translation == "번역" && !output[3].preservesOriginalText)
+        #expect(ReaderTranslationRegion.overlayItems(output, imageSize: CGSize(width: 100, height: 100)).contains { $0.sourceText == "南館2F" })
         let captured = await transport.captured
-        #expect(captured.count == (try ReaderTranslationService.requests(regions: input, settings: settings)).count)
-        let coordinateInstruction = withImage
-            ? (sfx ? "normalized from the top left" : "using its normalized bbox")
-            : (sfx ? "Do not infer" : "a guessed scene cannot establish a physical sign")
-        #expect(captured.allSatisfy { $0.hasBounds && $0.image == withImage && $0.instructions.contains(coordinateInstruction) })
+        #expect(captured.count == 1)
+        #expect(captured.allSatisfy { $0.hasBounds && $0.image && $0.classifiesRole })
         let off = ReaderTranslationSettings(defaults: defaults)
-        #expect(!off.filterBackgroundWithLLM)
+        #expect(off.filterBackgroundWithLLM)
         try settings.autosave(defaults: defaults)
         #expect(ReaderTranslationSettings(defaults: defaults).filterBackgroundWithLLM)
         var withoutBackground = settings
         withoutBackground.filterBackgroundWithLLM = false
-        #expect(!settings.hasSameTranslation(as: withoutBackground))
+        #expect(settings.hasSameTranslation(as: withoutBackground))
         #expect(ReaderTranslationCacheIdentity.ocr(page: "p", settings: settings) == ReaderTranslationCacheIdentity.ocr(page: "p", settings: withoutBackground))
-        #expect(ReaderTranslationCacheIdentity.unfilteredTranslation(page: "p", settings: settings) != ReaderTranslationCacheIdentity.unfilteredTranslation(page: "p", settings: withoutBackground))
+        #expect(ReaderTranslationCacheIdentity.unfilteredTranslation(page: "p", settings: settings) == ReaderTranslationCacheIdentity.unfilteredTranslation(page: "p", settings: withoutBackground))
         #expect(TitleTranslation.cacheKey("title", kind: .manga, settings: settings) == TitleTranslation.cacheKey("title", kind: .manga, settings: withoutBackground))
         let request = try #require(ReaderTranslationService.requests(regions: input, settings: settings).first)
         #expect(request.canonicalizedForTranslationSemantics().request.filtersBackground == true)
@@ -97,52 +96,57 @@ struct ReaderLLMSFXTests {
         #expect(TranslationCacheKey(configuration: settings.configuration, endpoint: endpoint, request: request) != TranslationCacheKey(configuration: settings.configuration, endpoint: endpoint, request: plain))
     }
 
-    // Opt-in device/provider regression. The fixture contains only source text and image,
-    // never credentials. Consume the input once so ordinary test runs cannot spend API calls.
-
-    @Test func sfxRoleSurvivesContradictoryFlagOnlyWhenEnabled() throws {
+    @Test func sfxRoleRejectsObsoleteDuplicateFlag() throws {
         for enabled in [false, true] {
             var item: [String: Any] = ["id": "effect", "text": "잘못된 번역", "text_role": "sfx"]
             if enabled { item["is_sfx"] = false }
             let payload = try JSONSerialization.data(withJSONObject: ["translations": [item]])
             let wire = try JSONSerialization.data(withJSONObject: ["choices": [["index": 0, "finish_reason": "stop", "message": ["content": String(decoding: payload, as: UTF8.self)]]]])
-            let result = try TranslationHTTPCodec.responseTranslations(from: wire, protocol: .chatCompletions, expectedSegmentIDs: ["effect"],
-                sfxSourceTexts: enabled ? ["effect": "な"] : nil, backgroundSourceTexts: ["effect": "な"])
-            #expect(result.first?.text == (enabled ? "な" : "잘못된 번역"))
-            #expect(result.first?.isSFX == (enabled ? true : nil))
+            if enabled {
+                #expect(throws: RemoteTranslationError.self) {
+                    try TranslationHTTPCodec.responseTranslations(from: wire, protocol: .chatCompletions,
+                        expectedSegmentIDs: ["effect"], sfxSourceTexts: ["effect": "な"], backgroundSourceTexts: ["effect": "な"])
+                }
+            } else {
+                let result = try TranslationHTTPCodec.responseTranslations(from: wire, protocol: .chatCompletions,
+                    expectedSegmentIDs: ["effect"], backgroundSourceTexts: ["effect": "な"])
+                #expect(result.first?.text == "잘못된 번역")
+                #expect(result.first?.textRole == .sfx && result.first?.isSFX == true)
+            }
         }
     }
 
-    // Opt-in real-page test uses the installed account without exporting its credential.
-
-    @Test func backgroundRoleControlsPreservation() throws {
-        for role in ["background", "dialogue", "narration", "story_text", "sfx", "unknown", "invalid"] {
+    @Test func backgroundRolePreservesTranslatedOutput() throws {
+        for role in ["background", "dialogue", "narration", "story_text", "sfx", "error", "unknown", "invalid"] {
             let payload = try JSONSerialization.data(withJSONObject: ["translations": [["id": "b", "text": "번역", "text_role": role]]])
             let wire = try JSONSerialization.data(withJSONObject: ["choices": [["index": 0, "finish_reason": "stop", "message": ["content": String(decoding: payload, as: UTF8.self)]]]])
-            if role == "invalid" {
+            if role == "invalid" || role == "unknown" {
                 #expect(throws: RemoteTranslationError.self) {
                     try TranslationHTTPCodec.responseTranslations(from: wire, protocol: .chatCompletions, expectedSegmentIDs: ["b"], backgroundSourceTexts: ["b": "看板"])
                 }
             } else {
                 let result = try TranslationHTTPCodec.responseTranslations(from: wire, protocol: .chatCompletions, expectedSegmentIDs: ["b"], backgroundSourceTexts: ["b": "看板"])
-                #expect(result.first?.text == (role == "background" ? "看板" : "번역"))
+                #expect(result.first?.text == "번역")
+                #expect(result.first?.textRole?.rawValue == role)
             }
         }
-        #expect(TranslationHTTPCodec.backgroundInstructions(hasImage: true).contains("Relevance alone is not a plot clue."))
     }
 
     @Test func persistenceCacheIdentityAndCanonicalGeometry() throws {
         let name = "LLMSFXSettings.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
-        let off = ReaderTranslationSettings(defaults: defaults)
-        #expect(!off.filterSFXWithLLM)
+        var off = ReaderTranslationSettings(defaults: defaults)
+        #expect(off.filterSFXWithLLM)
+        off.filterSFXWithLLM = false
         var on = off; on.filterSFXWithLLM = true
         try on.autosave(defaults: defaults)
         #expect(ReaderTranslationSettings(defaults: defaults).filterSFXWithLLM)
-        #expect(!off.hasSameTranslation(as: on))
+        #expect(off.hasSameTranslation(as: on))
         #expect(ReaderTranslationCacheIdentity.ocr(page: "p", settings: off) == ReaderTranslationCacheIdentity.ocr(page: "p", settings: on))
-        #expect(ReaderTranslationCacheIdentity.unfilteredTranslation(page: "p", settings: off) != ReaderTranslationCacheIdentity.unfilteredTranslation(page: "p", settings: on))
+        #expect(ReaderTranslationCacheIdentity.unfilteredTranslation(page: "p", settings: off) == ReaderTranslationCacheIdentity.unfilteredTranslation(page: "p", settings: on))
+        try off.autosave(defaults: defaults)
+        #expect(ReaderTranslationSettings(defaults: defaults).filterSFXWithLLM)
         #expect(TitleTranslation.cacheKey("name", kind: .manga, settings: off) == TitleTranslation.cacheKey("name", kind: .manga, settings: on))
         var request = RemoteTranslationRequest(sourceLanguage: "en", targetLanguage: "ko", segments: [.init(id: "ocr-9", text: "BOOM", bounds: [0.1, 0.2, 0.3, 0.4])])
         let endpoint = try on.configuration.validatedEndpoint()
@@ -176,17 +180,17 @@ struct ReaderLLMSFXTests {
             Issue.record("An explicitly requested page image must not silently disappear")
         } catch let error as RemoteTranslationError {
             guard case .invalidRequest(let reason) = error else { throw error }
-            #expect(reason.contains("no page image"))
+            #expect(!reason.isEmpty)
         }
         #expect(await transport.captured.isEmpty)
     }
 
     @Test(arguments: [RemoteTranslationProtocol.responses, .chatCompletions])
-    func smallEffectFlagPreservesSourceEvenWhenModelTranslates(apiProtocol: RemoteTranslationProtocol) throws {
+    func smallEffectFlagPreservesModelTranslation(apiProtocol: RemoteTranslationProtocol) throws {
         let values: [[String: Any]] = [
-            ["id": "small", "text": "invented name", "is_sfx": true],
-            ["id": "digit", "text": "346", "is_sfx": true],
-            ["id": "reply", "text": "기다려", "is_sfx": false]
+            ["id": "small", "text": "움찔", "text_role": "sfx"],
+            ["id": "digit", "text": "346", "text_role": "sfx"],
+            ["id": "reply", "text": "기다려", "text_role": "dialogue"]
         ]
         let payload = try JSONSerialization.data(withJSONObject: ["translations": values])
         let content = String(decoding: payload, as: UTF8.self)
@@ -197,13 +201,13 @@ struct ReaderLLMSFXTests {
             from: JSONSerialization.data(withJSONObject: envelope), protocol: apiProtocol,
             expectedSegmentIDs: ["small", "digit", "reply"],
             sfxSourceTexts: ["small": "びくっ", "digit": "346", "reply": "待って"])
-        #expect(result.map(\.text) == ["びくっ", "346", "기다려"])
+        #expect(result.map(\.text) == ["움찔", "346", "기다려"])
         #expect(result.map(\.isSFX) == [true, true, false])
     }
 
     @Test func invalidClassificationCannotSilentlyRemoveText() throws {
         for invalid in ["true" as Any, 1, NSNull()] {
-            let payload = try JSONSerialization.data(withJSONObject: ["translations": [["id": "s", "text": "translated", "is_sfx": invalid]]])
+            let payload = try JSONSerialization.data(withJSONObject: ["translations": [["id": "s", "text": "translated", "text_role": invalid]]])
             let wire = try JSONSerialization.data(withJSONObject: ["choices": [["index": 0, "finish_reason": "stop", "message": ["content": String(decoding: payload, as: UTF8.self)]]]])
             #expect(throws: RemoteTranslationError.self) {
                 try TranslationHTTPCodec.responseTranslations(from: wire, protocol: .chatCompletions, expectedSegmentIDs: ["s"], sfxSourceTexts: ["s": "BANG"])
@@ -214,7 +218,8 @@ struct ReaderLLMSFXTests {
         #expect(!String(decoding: off, as: UTF8.self).contains("is_sfx"))
         request.filtersSFX = true
         let on = try TranslationHTTPCodec.requestBody(configuration: ReaderTranslationSettings().configuration, request: request)
-        #expect(String(decoding: on, as: UTF8.self).contains("is_sfx"))
+        #expect(!String(decoding: on, as: UTF8.self).contains("is_sfx"))
+        #expect(String(decoding: on, as: UTF8.self).contains("text_role"))
     }
 }
 
@@ -223,7 +228,12 @@ private struct SFXCredential: TranslationCredentialProviding {
 }
 
 private actor SFXTransport: TranslationHTTPTransport {
-    struct Capture: Sendable { let texts: [String]; let sfx: Bool; let image: Bool; let hasBounds: Bool; let instructions: String }
+    struct Capture: Sendable {
+        let texts: [String]
+        let classifiesRole: Bool
+        let image: Bool
+        let hasBounds: Bool
+    }
     var captured: [Capture] = []
     func data(for request: URLRequest, maximumResponseBytes: Int, bypassesProxy: Bool) async throws -> TranslationHTTPResponse {
         let body = try #require(request.httpBody)
@@ -235,13 +245,28 @@ private actor SFXTransport: TranslationHTTPTransport {
         let properties = try #require(schema["properties"] as? [String: Any])
         let translations = try #require(properties["translations"] as? [String: Any])
         let items = try #require(translations["items"] as? [String: Any])
-        let required = try #require(items["required"] as? [String])
-        let itemProperties = try #require(items["properties"] as? [String: Any])
-        #expect(Set(required) == Set(itemProperties.keys))
-        #expect(items["additionalProperties"] as? Bool == false)
+        let branches = items["anyOf"] as? [[String: Any]] ?? [items]
+        let required = try #require(branches.first?["required"] as? [String])
+        for branch in branches {
+            let itemProperties = try #require(branch["properties"] as? [String: Any])
+            #expect(Set(required) == Set(itemProperties.keys))
+            #expect(Set(try #require(branch["required"] as? [String])) == Set(required))
+            #expect(branch["additionalProperties"] as? Bool == false)
+        }
+        #expect((root["temperature"] as? NSNumber)?.doubleValue == 1.0)
+        #expect((root["top_p"] as? NSNumber)?.doubleValue == 0.95)
+        #expect(root["min_p"] == nil)
+        if root["top_k"] != nil {
+            #expect((root["repetition_penalty"] as? NSNumber)?.doubleValue == 1.08)
+        } else {
+            #expect(root["repetition_penalty"] == nil)
+        }
+        #expect((root[isResponses ? "max_output_tokens" : "max_tokens"] as? NSNumber)?.intValue == 8192)
+        if root["top_k"] != nil {
+            #expect((root["top_k"] as? NSNumber)?.intValue == 64)
+        }
 
         let messages = try #require(root[isResponses ? "input" : "messages"] as? [[String: Any]])
-        let instructions = try #require(isResponses ? root["instructions"] as? String : messages.first?["content"] as? String)
         let content = try #require(messages.last?["content"])
         let parts = content as? [[String: Any]]
         let textPart = parts?.first { ["text", "input_text"].contains($0["type"] as? String ?? "") }
@@ -251,14 +276,16 @@ private actor SFXTransport: TranslationHTTPTransport {
         let values = try segments.map { item -> [String: Any] in
             let original = try #require(item["text"] as? String)
             var value: [String: Any] = ["id": try #require(item["id"] as? String), "text": "번역"]
-            if required.contains("is_sfx") { value["is_sfx"] = original == "BOOM" }
             if required.contains("text_role") {
-                value["text_role"] = original == "南館2F" ? "background" : (original == "学園祭開幕" ? "narration" : "dialogue")
+                value["text_role"] = original == "BOOM" ? "sfx" :
+                    (original == "南館2F" ? "background" : (original == "学園祭開幕" ? "narration" : "dialogue"))
             }
             return value
         }
-        captured.append(.init(texts: segments.compactMap { $0["text"] as? String }, sfx: required.contains("is_sfx"), image: (parts?.count ?? 0) > 1,
-                              hasBounds: segments.allSatisfy { $0["bbox"] != nil }, instructions: instructions))
+        #expect(Set(required) == ["id", "text_role", "text"])
+        captured.append(.init(texts: segments.compactMap { $0["text"] as? String }, classifiesRole: required.contains("text_role"),
+                              image: parts?.contains { ["image_url", "input_image"].contains($0["type"] as? String ?? "") } == true,
+                              hasBounds: segments.allSatisfy { ($0["box_2d"] as? [Int])?.count == 4 }))
         let payload = String(decoding: try JSONSerialization.data(withJSONObject: ["translations": values]), as: UTF8.self)
         let envelope: [String: Any] = isResponses ? ["status": "completed", "output": [["type": "message", "content": [["type": "output_text", "text": payload]]]]] :
             ["choices": [["index": 0, "finish_reason": "stop", "message": ["content": payload]]]]

@@ -366,7 +366,7 @@
 
 "TRANSLATION_AUTO" = "Automatikus észlelés";
 
-"TRANSLATION_OCR_HELP" = "A PP-OCRv6 használatához iOS 18 vagy újabb verzió szükséges. Az alapértelmezett modell a Közepes. A Kicsi kevesebb memóriát használ, az Apró pedig kisebb karakterkészlettel rendelkezik. Ezek a modellek nem ismerik fel a koreai szöveget, de a koreaira fordítás támogatott.";
+"TRANSLATION_OCR_HELP" = "A PP-OCRv6 használatához iOS 18 vagy újabb verzió szükséges. A szöveg észlelésének és felismerésének alapértelmezett modellje a Manga v0.3. Más OCR-modellek is választhatók.";
 
 
 
@@ -1192,3 +1192,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "A(z) %@ forrás %d verzióját ez az alkalmazás nem támogatja. Telepítsen támogatott verziót.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "A Manga v0.3 kizárólag japán és kínai (egyszerűsített és hagyományos) forrásszöveget támogat. A forrásnyelv automatikus felismerése és a választható forrásnyelvek köre is ezekre a nyelvekre korlátozódik. Koreai és más célnyelvekre továbbra is lehet fordítani. A Manga kiválasztása 0,85 és 0,25 értékre állítja az észlelési küszöbértékeket; az alapértelmezett észlelési méret 1120 px.";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Az OCR által támogatott összes nyelv";

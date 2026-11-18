@@ -11,7 +11,7 @@ import SwiftUI
 import AidokuRunner
 
 class LibraryViewController: OldMangaCollectionViewController {
-    let viewModel = LibraryViewModel()
+    let viewModel: LibraryViewModel
 
     // MARK: Bar Buttons
     private lazy var downloadBarButton = makeBarButton(
@@ -21,7 +21,7 @@ class LibraryViewController: OldMangaCollectionViewController {
         sharesBackground: false
     )
     private lazy var lockBarButton = makeBarButton(
-        systemName: locked ? "lock" : "lock.open",
+        systemName: viewModel.locked ? "lock" : "lock.open",
         action: #selector(performToggleLock),
         titleKey: "TOGGLE_LOCK"
     )
@@ -55,7 +55,12 @@ class LibraryViewController: OldMangaCollectionViewController {
     private lazy var emptyStackView = EmptyPageStackView()
     private lazy var lockedStackView = LockedPageStackView()
 
-    private lazy var locked = viewModel.isCategoryLocked()
+    private enum DisplayedRows: Equatable {
+        case hidden
+        case library(UInt64)
+    }
+
+    private var appliedRows: DisplayedRows?
     private var ignoreOptionChange = false
     private var lastSearch: String?
 
@@ -72,7 +77,12 @@ class LibraryViewController: OldMangaCollectionViewController {
         }
     }
 
-    override init() {
+    override convenience init() {
+        self.init(viewModel: LibraryViewModel())
+    }
+
+    init(viewModel: LibraryViewModel) {
+        self.viewModel = viewModel
         super.init()
     }
 
@@ -283,16 +293,12 @@ class LibraryViewController: OldMangaCollectionViewController {
 
         let updateDownloadCounts: (Notification) -> Void = { [weak self] notification in
             guard let self else { return }
-            if let id = notification.object as? ChapterIdentifier {
-                Task {
-                    await self.viewModel.fetchDownloadCounts(for: id.mangaIdentifier)
-                    self.updateDataSource()
-                }
-            } else if let id = notification.object as? MangaIdentifier {
-                Task {
-                    await self.viewModel.fetchDownloadCounts(for: id)
-                    self.updateDataSource()
-                }
+            let id = (notification.object as? ChapterIdentifier)?.mangaIdentifier
+                ?? (notification.object as? MangaIdentifier)
+            guard id != nil || (notification.name == .downloadsRemoved && notification.object == nil) else { return }
+            Task {
+                await self.viewModel.fetchDownloadCounts(for: id)
+                self.updateDataSource()
             }
         }
         addObserver(forName: .downloadFinished) { notification in
@@ -313,7 +319,7 @@ class LibraryViewController: OldMangaCollectionViewController {
         addObserver(forName: .updateLibraryLock) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
-                self.locked = self.viewModel.isCategoryLocked()
+                self.viewModel.locked = self.viewModel.isCategoryLocked()
                 self.updateLockState()
             }
         }
@@ -322,20 +328,21 @@ class LibraryViewController: OldMangaCollectionViewController {
             Task { @MainActor in
                 await self.viewModel.refreshCategories()
                 self.collectionView.collectionViewLayout = self.makeCollectionViewLayout()
-                self.updateDataSource()
+                if AppSettings.library.lockLibrary.get() {
+                    self.viewModel.locked = self.viewModel.isCategoryLocked()
+                }
+                self.updateLockState()
                 if !self.isEditing {
                     self.updateToolbar() // show/hide add category button
                 }
                 self.updateHeaderCategories()
-                // update lock state
-                if AppSettings.library.lockLibrary.get() {
-                    NotificationCenter.default.post(name: .updateLibraryLock, object: nil)
-                }
             }
         }
         addObserver(forName: .updateMangaCategories) { [weak self] _ in
-            guard let self, self.viewModel.currentCategory != nil else { return }
             Task { @MainActor in
+                guard let self, self.viewModel.currentCategory != nil || self.viewModel.activeFilters.contains(where: { $0.type == .category }) else {
+                    return
+                }
                 await self.viewModel.loadLibrary()
                 self.updateDataSource()
             }
@@ -370,30 +377,22 @@ class LibraryViewController: OldMangaCollectionViewController {
 
         addObserver(forName: AppSettings.library.pinTitles.key) { [weak self] _ in
             guard let self else { return }
-            self.viewModel.pinType = self.viewModel.getPinType()
             Task { @MainActor in
+                self.viewModel.pinType = self.viewModel.getPinType()
                 await self.viewModel.loadLibrary()
                 self.updateDataSource()
             }
         }
 
-        // refresh badges
-        addObserver(forName: AppSettings.library.unreadChapterBadges.key) { [weak self] _ in
-            if AppSettings.library.unreadChapterBadges.get() {
-                self?.viewModel.badgeType.insert(.unread)
-            } else {
-                self?.viewModel.badgeType.remove(.unread)
+        let refreshBadges: (Notification) -> Void = { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.viewModel.badgeType = self.viewModel.getBadgeType()
+                self.updateVisibleItemAppearance()
             }
-            self?.reloadItems()
         }
-        addObserver(forName: AppSettings.library.downloadedChapterBadges.key) { [weak self] _ in
-            if AppSettings.library.downloadedChapterBadges.get() {
-                self?.viewModel.badgeType.insert(.downloaded)
-            } else {
-                self?.viewModel.badgeType.remove(.downloaded)
-            }
-            self?.reloadItems()
-        }
+        addObserver(forName: AppSettings.library.unreadChapterBadges.key, using: refreshBadges)
+        addObserver(forName: AppSettings.library.downloadedChapterBadges.key, using: refreshBadges)
         addObserver(forName: .filteredChapters) { [weak self] notification in
             guard let self, let id = notification.object as? MangaIdentifier else { return }
             Task {
@@ -406,17 +405,14 @@ class LibraryViewController: OldMangaCollectionViewController {
         addObserver(forName: .updateHistory) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
-                await self.viewModel.fetchUnreads()
-                if self.viewModel.pinType != .unread {
-                    await self.viewModel.loadLibrary()
-                }
+                await self.viewModel.loadLibrary()
                 self.updateDataSource()
             }
         }
         addObserver(forName: .historyAdded) { [weak self] notification in
             guard let self, let chapters = notification.object as? [ChapterIdentifier] else { return }
             Task { @MainActor in
-                let manga = Array(Set(chapters.map { MangaInfo(id: $0.mangaIdentifier) }))
+                let manga = Set(chapters.lazy.map(\.mangaIdentifier))
                 await self.viewModel.updateHistory(for: manga, read: true)
                 self.updateDataSource()
             }
@@ -424,11 +420,11 @@ class LibraryViewController: OldMangaCollectionViewController {
         addObserver(forName: .historyRemoved) { [weak self] notification in
             guard let self else { return }
             Task { @MainActor in
-                var manga: [MangaInfo] = []
+                var manga: Set<MangaIdentifier> = []
                 if let chapters = notification.object as? [ChapterIdentifier] {
-                    manga = Array(Set(chapters.map { MangaInfo(id: $0.mangaIdentifier) }))
+                    manga = Set(chapters.lazy.map(\.mangaIdentifier))
                 } else if let mangaId = notification.object as? MangaIdentifier {
-                    manga = [MangaInfo(id: mangaId)]
+                    manga = [mangaId]
                 }
                 await self.viewModel.updateHistory(for: manga, read: false)
                 self.updateDataSource()
@@ -437,8 +433,9 @@ class LibraryViewController: OldMangaCollectionViewController {
         addObserver(forName: .historySet) { [weak self] notification in
             guard let self, let item = notification.object as? (chapterId: ChapterIdentifier, page: Int) else { return }
             Task { @MainActor in
-                await self.viewModel.mangaRead(mangaId: item.chapterId.mangaIdentifier)
-                self.updateDataSource()
+                if await self.viewModel.mangaRead(mangaId: item.chapterId.mangaIdentifier) {
+                    self.updateDataSource()
+                }
             }
         }
 
@@ -446,7 +443,7 @@ class LibraryViewController: OldMangaCollectionViewController {
         addObserver(forName: UIApplication.willResignActiveNotification) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
-                self.locked = self.viewModel.isCategoryLocked()
+                self.viewModel.locked = self.viewModel.isCategoryLocked()
                 self.updateLockState()
             }
         }
@@ -475,23 +472,25 @@ class LibraryViewController: OldMangaCollectionViewController {
         return layout
     }
 
-    // cells with badges
-    override func configure(cell: MangaGridCell, info: MangaInfo, indexPath: IndexPath) {
-        super.configure(cell: cell, info: info, indexPath: indexPath)
-
-        cell.badgeNumber = viewModel.badgeType.contains(.unread) ? info.unread : 0
-        cell.badgeNumber2 = viewModel.badgeType.contains(.downloaded) ? info.downloads : 0
-
-        cell.setEditing(self.isEditing, animated: false)
+    func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        updateAppearance(of: cell, at: indexPath)
     }
 
-    override func configure(cell: MangaListCell, info: MangaInfo, indexPath: IndexPath) {
-        super.configure(cell: cell, info: info, indexPath: indexPath)
-
-        cell.badgeNumber = viewModel.badgeType.contains(.unread) ? info.unread : 0
-        cell.badgeNumber2 = viewModel.badgeType.contains(.downloaded) ? info.downloads : 0
-
-        cell.setEditing(isEditing, animated: false)
+    private func updateAppearance(of cell: UICollectionViewCell, at indexPath: IndexPath) {
+        guard let info = dataSource.itemIdentifier(for: indexPath) else { return }
+        let unread = viewModel.badgeType.contains(.unread) ? info.unread : 0
+        let downloads = viewModel.badgeType.contains(.downloaded) ? info.downloads : 0
+        if let cell = cell as? MangaGridCell {
+            cell.badgeNumber = unread
+            cell.badgeNumber2 = downloads
+            cell.setEditing(isEditing, animated: false)
+            cell.setSelected(cell.isSelected, animated: false)
+        } else if let cell = cell as? MangaListCell {
+            cell.badgeNumber = unread
+            cell.badgeNumber2 = downloads
+            cell.setEditing(isEditing, animated: false)
+            cell.setSelected(cell.isSelected, animated: false)
+        }
     }
 
     override func setEditing(_ editing: Bool, animated: Bool) {
@@ -516,7 +515,7 @@ class LibraryViewController: OldMangaCollectionViewController {
 extension LibraryViewController {
     func updateNavbarItems() {
         if isEditing {
-            let allItemsSelected = collectionView.indexPathsForSelectedItems?.count ?? 0 == dataSource.snapshot().itemIdentifiers.count
+            let allItemsSelected = collectionView.indexPathsForSelectedItems?.count ?? 0 == dataSource.snapshot().numberOfItems
             navigationItem.leftBarButtonItem = if allItemsSelected {
                 makeBarButton(
                     action: #selector(deselectAllItems),
@@ -623,25 +622,23 @@ extension LibraryViewController {
     }
 
     @objc func selectAllItems() {
-        for item in dataSource.snapshot().itemIdentifiers {
-            if let indexPath = dataSource.indexPath(for: item) {
-                collectionView.selectItem(at: indexPath, animated: false, scrollPosition: [])
+        for section in 0..<collectionView.numberOfSections {
+            for item in 0..<collectionView.numberOfItems(inSection: section) {
+                collectionView.selectItem(at: IndexPath(item: item, section: section), animated: false, scrollPosition: [])
             }
         }
         updateNavbarItems()
         updateToolbar()
-        reloadItems()
+        updateVisibleItemAppearance()
     }
 
     @objc func deselectAllItems() {
-        for item in dataSource.snapshot().itemIdentifiers {
-            if let indexPath = dataSource.indexPath(for: item) {
-                collectionView.deselectItem(at: indexPath, animated: false)
-            }
+        for indexPath in collectionView.indexPathsForSelectedItems ?? [] {
+            collectionView.deselectItem(at: indexPath, animated: false)
         }
         updateNavbarItems()
         updateToolbar()
-        reloadItems()
+        updateVisibleItemAppearance()
     }
 
     @objc func updateLibraryRefresh(refreshControl: UIRefreshControl? = nil) {
@@ -702,17 +699,17 @@ extension LibraryViewController {
     }
 
     @objc func removeSelectedFromLibrary() {
-        let inCategory = viewModel.isInRealCategory
+        let category = viewModel.isInRealCategory ? viewModel.currentCategory : nil
         let selectedItems = (collectionView.indexPathsForSelectedItems ?? []).compactMap { dataSource.itemIdentifier(for: $0) }
         confirmAction(
-            actions: inCategory ? [
+            actions: category != nil ? [
                 UIAlertAction(
                     title: NSLocalizedString("REMOVE_FROM_CATEGORY"),
                     style: .destructive
                 ) { _ in
                     Task {
                         let identifiers = selectedItems
-                        await self.removeFromCategory(mangaInfo: identifiers)?.value
+                        if let category { await self.removeFromCategory(mangaInfo: identifiers, category: category).value }
                         self.updateNavbarItems()
                         self.updateToolbar()
                     }
@@ -747,65 +744,66 @@ extension LibraryViewController {
 // MARK: - Data Source Updating
 extension LibraryViewController {
     func clearDataSource() {
+        appliedRows = nil
         let snapshot = NSDiffableDataSourceSnapshot<Section, MangaInfo>()
         dataSource.apply(snapshot)
     }
 
-    func updateDataSource() {
-        var snapshot = NSDiffableDataSourceSnapshot<Section, MangaInfo>()
-
-        if !locked {
-            if !viewModel.pinnedManga.isEmpty {
-                snapshot.appendSections(Section.allCases)
-                snapshot.appendItems(viewModel.pinnedManga, toSection: .pinned)
-            } else {
-                snapshot.appendSections([.regular])
+    @discardableResult
+    func updateDataSource() -> Bool {
+        let canShowRows = !viewModel.locked && viewModel.hasCurrentCategorySnapshot
+        let rows: DisplayedRows = canShowRows ? .library(viewModel.displayRevision) : .hidden
+        let shouldApply = rows != appliedRows
+        if shouldApply {
+            var snapshot = NSDiffableDataSourceSnapshot<Section, MangaInfo>()
+            if canShowRows {
+                if !viewModel.pinnedManga.isEmpty {
+                    snapshot.appendSections(Section.allCases)
+                    snapshot.appendItems(viewModel.pinnedManga, toSection: .pinned)
+                } else {
+                    snapshot.appendSections([.regular])
+                }
+                snapshot.appendItems(viewModel.manga, toSection: .regular)
             }
-
-            snapshot.appendItems(viewModel.manga, toSection: .regular)
+            appliedRows = rows
+            dataSource.apply(snapshot, animatingDifferences: canShowRows)
         }
-
-        dataSource.apply(snapshot)
 
         // handle empty library or category
         if navigationItem.searchController?.searchBar.text?.isEmpty ?? true {
-            emptyStackView.isHidden = !snapshot.itemIdentifiers.isEmpty
+            emptyStackView.isHidden = canShowRows && (!viewModel.manga.isEmpty || !viewModel.pinnedManga.isEmpty)
         }
-        collectionView.isScrollEnabled = emptyStackView.isHidden && lockedStackView.isHidden
+        collectionView.isScrollEnabled = canShowRows && emptyStackView.isHidden && lockedStackView.isHidden
         collectionView.refreshControl = collectionView.isScrollEnabled ? refreshControl : nil
+        return shouldApply
     }
 
-    func reloadItems() {
-        var snapshot = dataSource.snapshot()
-        snapshot.reconfigureItems(snapshot.itemIdentifiers)
-        dataSource.apply(snapshot)
+    private func updateVisibleItemAppearance() {
+        for indexPath in collectionView.indexPathsForVisibleItems {
+            if let cell = collectionView.cellForItem(at: indexPath) {
+                updateAppearance(of: cell, at: indexPath)
+            }
+        }
     }
 }
 
 // MARK: - Locking
 extension LibraryViewController {
     func lock() {
-        locked = true
+        viewModel.locked = true
         updateLockState()
     }
 
     func unlock() {
-        locked = false
+        viewModel.locked = false
         updateLockState()
     }
 
-    func attemptUnlock() async {
-        do {
-            let success = try await LAContext().evaluatePolicy(
-                .defaultPolicy,
-                localizedReason: NSLocalizedString("AUTH_FOR_LIBRARY")
-            )
-            guard success else { return }
-        } catch {
-            // The error is displayed to users, so we can ignore it.
-            return
-        }
-
+    func attemptUnlock(authenticate: () async throws -> Bool = {
+        try await LAContext().evaluatePolicy(.defaultPolicy, localizedReason: NSLocalizedString("AUTH_FOR_LIBRARY"))
+    }) async {
+        let revision = viewModel.categoryRevision
+        guard (try? await authenticate()) == true, revision == viewModel.categoryRevision else { return }
         unlock()
     }
 
@@ -817,7 +815,7 @@ extension LibraryViewController {
 
     @objc func performToggleLock() {
         Task {
-            if locked {
+            if viewModel.locked {
                 await attemptUnlock()
             } else {
                 lock()
@@ -826,7 +824,7 @@ extension LibraryViewController {
     }
 
     func updateLockState() {
-        if locked {
+        if viewModel.locked {
             // only update if lock view not already showing
             if emptyStackView.alpha != 0 {
                 collectionView.isScrollEnabled = false
@@ -844,7 +842,7 @@ extension LibraryViewController {
                 self.emptyStackView.alpha = 1
             }
         }
-        lockBarButton.image = UIImage(systemName: locked ? "lock" : "lock.open")
+        lockBarButton.image = UIImage(systemName: viewModel.locked ? "lock" : "lock.open")
 
         lockedStackView.text = viewModel.currentCategory == nil
             ? NSLocalizedString("LIBRARY_LOCKED")
@@ -1262,7 +1260,7 @@ extension LibraryViewController: LibraryCategorySelectionHeaderDelegate {
                 guard viewModel.filterGroups.indices.contains(indexPath.row) else { return }
                 viewModel.currentCategory = viewModel.filterGroups[indexPath.row].title
             }
-            locked = viewModel.isCategoryLocked()
+            viewModel.locked = viewModel.isCategoryLocked()
             updateLockState()
             deselectAllItems()
             updateToolbar()
@@ -1560,13 +1558,13 @@ extension LibraryViewController {
                 ))
             }
 
-            if self.viewModel.isInRealCategory {
+            if self.viewModel.isInRealCategory, let category = self.viewModel.currentCategory {
                 bottomMenuChildren.append(UIAction(
                     title: NSLocalizedString("REMOVE_FROM_CATEGORY"),
                     image: UIImage(systemName: "folder.badge.minus"),
                     attributes: .destructive
                 ) { _ in
-                    self.removeFromCategory(mangaInfo: mangaInfo)
+                    self.removeFromCategory(mangaInfo: mangaInfo, category: category)
                 })
             }
 
@@ -1675,41 +1673,46 @@ extension LibraryViewController {
     }
 
     @discardableResult
-    func removeFromCategory(mangaInfo: [MangaInfo]) -> Task<Void, Never>? {
-        guard let currentCategory = viewModel.currentCategory else { return nil }
-        let mangaCount = mangaInfo.count
-        let actionName =
-            mangaCount > 1
-            ? String(
-                format: NSLocalizedString("REMOVING_%i_ITEMS_FROM_CATEGORY_%@"),
-                mangaCount, currentCategory)
-            : String(
-                format: NSLocalizedString("REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@"),
-                currentCategory)
-        undoManager.setActionName(actionName)
-
-        undoManager.registerUndo(withTarget: self) { target in
-            target.undoManager.registerUndo(withTarget: target) { redoTarget in
-                redoTarget.removeFromCategory(mangaInfo: mangaInfo)
-            }
-
-            Task {
-                for manga in mangaInfo {
-                    await CoreDataManager.shared.addCategoriesToManga(mangaId: manga.id, categories: [currentCategory])
-                }
-
-                NotificationCenter.default.post(name: .updateMangaCategories, object: nil)
-            }
-        }
+    func removeFromCategory(mangaInfo: [MangaInfo], category: String) -> Task<Void, Never> {
+        let ids = Set(mangaInfo.lazy.map(\.id))
+        let actionName = ids.count > 1
+            ? String(format: NSLocalizedString("REMOVING_%i_ITEMS_FROM_CATEGORY_%@"), ids.count, category)
+            : String(format: NSLocalizedString("REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@"), category)
 
         return Task { [weak self] in
-            guard let self else { return }
-
-            for manga in mangaInfo {
-                await CoreDataManager.shared.removeCategoriesFromManga(mangaId: manga.id, categories: [currentCategory])
+            guard let self, !Task.isCancelled else { return }
+            do {
+                let context = CoreDataManager.shared.container.newBackgroundContext()
+                let removed = try await context.perform {
+                    try CoreDataManager.shared.removeCategoryMembership(category, mangaIds: ids, context: context)
+                }
+                try Task.checkCancellation()
+                guard !removed.isEmpty else { return }
+                try await context.perform { try context.save() }
+                registerCategoryUndo(removed, restoring: true, actionName: actionName)
+                NotificationCenter.default.post(name: .updateMangaCategories, object: nil)
+            } catch is CancellationError {
+                return
+            } catch {
+                LogManager.logger.error("Failed to remove category memberships: \(error.localizedDescription)")
             }
-            await self.viewModel.loadLibrary()
-            self.updateDataSource()
         }
+    }
+
+    private func registerCategoryUndo(_ removed: CoreDataManager.RemovedCategoryMembership, restoring: Bool, actionName: String) {
+        undoManager.registerUndo(withTarget: self) { target in
+            // Foundation records the inverse on its redo stack only during this callback.
+            let context = CoreDataManager.shared.container.newBackgroundContext()
+            do {
+                try context.performAndWait {
+                    try CoreDataManager.shared.replayCategoryMembership(removed, restoring: restoring, context: context)
+                }
+                target.registerCategoryUndo(removed, restoring: !restoring, actionName: actionName)
+                NotificationCenter.default.post(name: .updateMangaCategories, object: nil)
+            } catch {
+                LogManager.logger.error("Failed to replay category memberships: \(error.localizedDescription)")
+            }
+        }
+        undoManager.setActionName(actionName)
     }
 }

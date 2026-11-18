@@ -266,6 +266,35 @@ struct NativeOCRRegionSeparatorTests {
         #expect(interior.cropped(to: CGRect(x: 0.5, y: 0, width: 0.5, height: 1)) == nil)
     }
 
+    @Test(arguments: [false, true], [false, true])
+    func asymmetricBalloonNeckDoesNotShareParagraphOwnership(transpose: Bool, returning: Bool) throws {
+        func image(narrow: Bool) -> CGImage {
+            grayImage(width: 320, height: 320, background: 70) { px, py in
+                let x = transpose ? py : px, y = transpose ? px : py
+                let neck = narrow && (86...94).contains(x)
+                let paper = (25...210).contains(x) && (neck ? (85...115).contains(y) : (35...165).contains(y))
+                // This distant return is the same component but not the paper through the reading gap.
+                let returnPaper = returning && (30...165).contains(y) &&
+                    ((80...100).contains(x) && (35...60).contains(y) ||
+                     (80...100).contains(x) && (140...165).contains(y) || (80...84).contains(x))
+                return paper || returnPaper ? 255 : nil
+            }
+        }
+        func box(_ x: CGFloat) -> CGRect {
+            transpose ? CGRect(x: 90, y: x, width: 20, height: 20) : CGRect(x: x, y: 90, width: 20, height: 20)
+        }
+        let first = box(55), second = box(160)
+        for narrow in [false, true] {
+            let map = ReaderTranslationEnclosedBackground.ComponentMap(image: image(narrow: narrow))
+            let component = try #require(map.balloon(of: first))
+            #expect(component == map.balloon(of: second))
+            for lobe in [false, true] {
+                #expect(map.sharesBalloonInterior(first, second, component: component, lobe: lobe) == !narrow)
+                #expect(map.sharesBalloonInterior(second, first, component: component, lobe: lobe) == !narrow)
+            }
+        }
+    }
+
     @Test func sharedBalloonInteriorKeepsJoinedLobesApart() throws {
         // Two round lobes joined by a narrow neck, one column in each: two balloons, not one unit.
         // A third balloon holds two columns side by side in one lobe: one unit.

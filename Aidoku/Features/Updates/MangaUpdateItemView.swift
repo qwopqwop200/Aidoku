@@ -25,7 +25,7 @@ struct MangaUpdateItemView: View {
         self.updates = updates
         self.count = updates.count
         self.manga = updates.first?.manga
-        self.viewed = updates.first?.viewed == true
+        self.viewed = updates.allSatisfy(\.viewed)
     }
 
     var body: some View {

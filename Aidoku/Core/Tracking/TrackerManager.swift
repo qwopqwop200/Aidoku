@@ -200,6 +200,7 @@ actor TrackerManager {
     }
 
     func setProgress(mangaId: MangaIdentifier, chapters: [AidokuRunner.Chapter], progress: ChapterReadProgress) async {
+        guard !chapters.isEmpty else { return }
         let trackItems: [TrackItem] = await CoreDataManager.shared.container.performBackgroundTask { context in
             CoreDataManager.shared.getTracks(
                 mangaId: mangaId,
@@ -227,6 +228,8 @@ actor TrackerManager {
             }
         }
 
+        // Reading an unrelated title must not consume another link's pending retry attempts.
+        guard !newUpdates.isEmpty else { return }
         queuePageUpdates(newUpdates)
         await processPendingUpdates()
     }
@@ -355,6 +358,17 @@ actor TrackerManager {
         return false
     }
 
+    /// Page trackers have already supplied their merged chapter histories when a title opens.
+    func syncTitleTrackerProgress(manga: AidokuRunner.Manga, chapters: [AidokuRunner.Chapter]) async {
+        let trackItems = await CoreDataManager.shared.container.performBackgroundTask { context in
+            CoreDataManager.shared.getTracks(mangaId: manga.identifier, context: context).map { $0.toItem() }
+        }
+        for item in trackItems {
+            guard let tracker = trackerResolver(item.trackerId), !(tracker is PageTracker) else { continue }
+            await syncProgressFromTracker(tracker: tracker, trackItem: item, manga: manga, chapters: chapters)
+        }
+    }
+
     /// Sync progress from tracker to local history.
     func syncProgressFromTracker(
         tracker: Tracker,
@@ -401,24 +415,25 @@ actor TrackerManager {
         // fetch remote history from linked page trackers
         var result: [String: ChapterReadProgress] = [:]
 
-        let (trackItems, originalHistory) = await CoreDataManager.shared.container.performBackgroundTask { context in
-            let tracks = CoreDataManager.shared.getTracks(mangaId: manga.identifier, context: context).map { $0.toItem() }
+        let (pageLinks, originalHistory) = await CoreDataManager.shared.container.performBackgroundTask { [trackerResolver] context in
+            let links = CoreDataManager.shared.getTracks(mangaId: manga.identifier, context: context).compactMap { link -> (String, PageTracker)? in
+                guard let id = link.trackerId, let target = trackerResolver(id) as? PageTracker,
+                      tracker == nil || target.id == tracker?.id else { return nil }
+                return (link.id ?? "", target)
+            }
+            guard !links.isEmpty else { return (links, nil as [String: TrackerHistorySnapshot]?) }
             let request = HistoryObject.fetchRequest()
             request.predicate = NSPredicate(format: "sourceId == %@ AND mangaId == %@", manga.sourceKey, manga.key)
             let snapshots = (try? context.fetch(request)).map { histories in
                 Dictionary(histories.map { ($0.chapterId, TrackerHistorySnapshot($0)) }, uniquingKeysWith: { first, _ in first })
             }
-            return (tracks, snapshots)
+            return (links, snapshots)
         }
         guard let originalHistory else { return }
 
-        for item in trackItems {
-            guard let targetTracker = trackerResolver(item.trackerId) as? PageTracker else { continue }
-            if let tracker, targetTracker.id != tracker.id {
-                continue // if a specific tracker is provided, only sync that one
-            }
+        for (trackID, targetTracker) in pageLinks {
             do {
-                let batchProgress = try await targetTracker.getProgress(trackId: item.id, chapters: chapters)
+                let batchProgress = try await targetTracker.getProgress(trackId: trackID, chapters: chapters)
                 if result.isEmpty {
                     result = batchProgress
                 } else {

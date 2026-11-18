@@ -49,7 +49,7 @@ class ReaderPageView: UIView {
         }
     }
     private var imageLoadGeneration = UUID()
-    private var lastTranslationLayoutSize = CGSize.zero
+    private var lastLayoutSize = CGSize.zero
     static let base64Gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private var sourceId: String?
     private var shouldShowLiveTextButton = false
@@ -150,8 +150,9 @@ class ReaderPageView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
 
-        if lastTranslationLayoutSize != bounds.size {
-            lastTranslationLayoutSize = bounds.size
+        if lastLayoutSize != bounds.size {
+            lastLayoutSize = bounds.size
+            fixImageSize()
             NotificationCenter.default.post(name: ReaderTranslationLayoutAwaiter.geometryChanged, object: self)
         }
 
@@ -203,7 +204,9 @@ extension ReaderPageView {
     private func loadPage(_ page: Page, skipProcessing: Bool) async -> Bool {
         guard !Task.isCancelled else { return false }
         if var image = page.image {
-            if !skipProcessing {
+            // A split is cropped from the already displayed (processed) page.
+            // Navigating back to its inline half must behave like its saved PNG.
+            if !skipProcessing, page.translationSourceRect == nil {
                 var processors: [ImageProcessing] = []
                 if UserDefaults.standard.bool(forKey: "Reader.cropBorders") {
                     processors.append(CropBordersProcessor())
@@ -219,6 +222,17 @@ extension ReaderPageView {
             return await setPageImage(zipURL: url, filePath: filePath)
         } else if let urlString = page.imageURL, let url = URL(string: urlString) {
             if url.isFileURL, page.translationSourceRect != nil {
+                if let source = page.translationSplitSource {
+                    let issued = imageLoadGeneration
+                    let priority: TaskPriority = imageLoadPriority == .high ? .userInitiated : .utility
+                    let load = Task.detached(priority: priority) { () -> UIImage? in
+                        guard !Task.isCancelled, let data = try? Data(contentsOf: url) else { return nil }
+                        return source.decodeStoredPNG(data)
+                    }
+                    let image = await withTaskCancellationHandler { await load.value } onCancel: { load.cancel() }
+                    guard !Task.isCancelled, issued == imageLoadGeneration, let image else { return false }
+                    return await prepareAndDisplayImage(image)
+                }
                 guard !Task.isCancelled, let image = UIImage(contentsOfFile: url.path) else { return false }
                 return await prepareAndDisplayImage(image)
             }
@@ -256,20 +270,22 @@ extension ReaderPageView {
     }
 
     /// Creates the image request used to fetch a page image.
-    static func imageRequest(url: URL, context: PageContext? = nil, sourceKey: String? = nil) async -> ImageRequest {
-        let source: AidokuRunner.Source? = if let sourceKey {
+    static func imageRequest(url: URL, context: PageContext? = nil, sourceKey: String? = nil,
+                             archiveRequest: ImageRequest? = nil) async -> ImageRequest {
+        let source: AidokuRunner.Source? = if archiveRequest == nil, let sourceKey {
             await SourceManager.shared.source(for: sourceKey)
         } else {
             nil
         }
-        var request = await imageRequest(url: url, context: context, source: source)
+        var request = await imageRequest(url: url, context: context, source: source, archiveRequest: archiveRequest)
         if sourceKey?.hasPrefix(TemporarySharedImageSession.sourcePrefix) == true {
             request.options.formUnion([.disableDiskCache, .disableMemoryCache])
         }
         return request
     }
 
-    static func imageRequest(url: URL, context: PageContext? = nil, source: AidokuRunner.Source?) async -> ImageRequest {
+    static func imageRequest(url: URL, context: PageContext? = nil, source: AidokuRunner.Source?,
+                             archiveRequest: ImageRequest? = nil) async -> ImageRequest {
         let urlRequest = if !url.isFileURL, let source {
             await source.getModifiedImageRequest(url: url, context: context)
         } else {
@@ -294,6 +310,10 @@ extension ReaderPageView {
             processors.append(DownsampleProcessor(width: UIScreen.main.bounds.width))
         }
 
+        if var archiveRequest {
+            archiveRequest.processors = processors
+            return archiveRequest
+        }
         var request = ImageRequest(
             urlRequest: urlRequest,
             processors: processors,
@@ -308,7 +328,7 @@ extension ReaderPageView {
         return request
     }
 
-    func setPageImage(url: URL, context: PageContext? = nil, sourceId: String? = nil) async -> Bool {
+    func setPageImage(url: URL, context: PageContext? = nil, sourceId: String? = nil, archiveRequest: ImageRequest? = nil) async -> Bool {
         // remove text view if it exists
         if let textView {
             textView.willMove(toParent: nil)
@@ -317,7 +337,7 @@ extension ReaderPageView {
             self.textView = nil
         }
 
-        let request = await Self.imageRequest(url: url, context: context, sourceKey: sourceId)
+        let request = await Self.imageRequest(url: url, context: context, sourceKey: sourceId, archiveRequest: archiveRequest)
 
         // Store current image request for reload functionality
         self.currentImageRequest = request
@@ -464,13 +484,18 @@ extension ReaderPageView {
     }
 
     func setPageImage(zipURL: URL, filePath: String) async -> Bool {
+        let issued = imageLoadGeneration
+        if let source = await temporaryPageStore.archiveImageSource(from: zipURL, path: filePath) {
+            guard !Task.isCancelled, imageLoadGeneration == issued else { return false }
+            return await setPageImage(url: zipURL, sourceId: sourceId, archiveRequest: source.request)
+        }
         guard let extractedURL = await temporaryPageStore.storeArchiveEntry(
             from: zipURL,
             path: filePath
         ) else {
             return false
         }
-        guard !Task.isCancelled else { return false }
+        guard !Task.isCancelled, imageLoadGeneration == issued else { return false }
 
         if filePath.lowercased().hasSuffix(".txt") {
             guard
@@ -511,17 +536,20 @@ extension ReaderPageView {
     }
 
     func fixImageSize() {
-        guard imageView.image != nil, imageView.image!.size.width > 0 else { return }
+        guard let size = imageView.image?.size, size.width > 0, size.height > 0 else { return }
+        let height = size.height * (bounds.width / size.width)
+        let fitHeight = height > bounds.height || UIScreen.main.bounds.width > UIScreen.main.bounds.height // double pages
+        let multiplier = fitHeight ? size.width / size.height : size.height / size.width
+        let aspectConstraint = fitHeight ? imageWidthConstraint : imageHeightConstraint
+        if aspectConstraint?.isActive == true, aspectConstraint?.secondItem === imageView, aspectConstraint?.multiplier == multiplier {
+            return
+        }
 
         imageHeightConstraint?.isActive = false
         imageWidthConstraint?.isActive = false
 
-        if
-            case let height = imageView.image!.size.height * (bounds.width / imageView.image!.size.width),
-            height > bounds.height || UIScreen.main.bounds.width > UIScreen.main.bounds.height // fix for double pages
-        {
+        if fitHeight {
             // max height, variable width
-            let multiplier = imageView.image!.size.width / imageView.image!.size.height
             imageWidthConstraint = imageView.widthAnchor.constraint(
                 equalTo: imageView.heightAnchor,
                 multiplier: multiplier
@@ -529,7 +557,6 @@ extension ReaderPageView {
             imageHeightConstraint = imageView.heightAnchor.constraint(equalTo: heightAnchor)
         } else {
             // max width, variable height
-            let multiplier = imageView.image!.size.height / imageView.image!.size.width
             imageWidthConstraint = imageView.widthAnchor.constraint(equalTo: widthAnchor)
             imageHeightConstraint = imageView.heightAnchor.constraint(
                 equalTo: imageView.widthAnchor,
@@ -616,9 +643,10 @@ extension ReaderPageView {
             self.textView = nil
         }
         if imageView.image !== image { translationPage.reset() }
+        if gifData != nil { translationPage.disallowSettledHighlight() }
         imageView.image = image
         fixImageSize()
-        if let prepared { translationPage.displayLoadedImage(prepared) }
+        if let prepared { translationPage.displayLoadedImage(prepared, isKnownStatic: gifData == nil) }
         if !isTranslationPreload, let image, let source = translationPage.sourcePage {
             ReaderTranslationPage.sourceDidLoad(image, page: source)
         }
@@ -805,22 +833,8 @@ extension ReaderPageView {
     }
 
     /// Splits the current image into left and right halves
-    func splitImage() -> (left: UIImage, right: UIImage)? {
-        guard let image = imageView.image, let cgImage = image.cgImage else { return nil }
-        let splitX = CGFloat(cgImage.width) / 2
-        let height = CGFloat(cgImage.height)
-        guard
-            let leftCGImage = cgImage.cropping(
-                to: CGRect(x: 0, y: 0, width: splitX, height: height)
-            ),
-            let rightCGImage = cgImage.cropping(
-                to: CGRect(x: splitX, y: 0, width: splitX, height: height)
-            )
-        else { return nil }
-
-        return (
-            UIImage(cgImage: leftCGImage, scale: image.scale, orientation: image.imageOrientation),
-            UIImage(cgImage: rightCGImage, scale: image.scale, orientation: image.imageOrientation)
-        )
+    func splitImage() -> ReaderTranslationSplitSource.Sides? {
+        guard let image = imageView.image else { return nil }
+        return ReaderTranslationSplitSource.makeSides(from: image, originalKey: currentPage?.translationCacheKey)
     }
 }

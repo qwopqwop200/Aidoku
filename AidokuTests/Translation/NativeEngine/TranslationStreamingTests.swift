@@ -180,13 +180,13 @@ struct TranslationStreamingTests {
     @Test func compactStreamingBodyReplacesSchemaWithExactGrammar() throws {
         let request = Self.request(["おい", "待て"])
         let options = RemoteTranslationClient.compactChatOptions(configuration: Self.configuration(), request: request)
-        #expect(options == .init(compactStructuredOutput: true, stream: true, maximumOutputTokens: 256 + 2 * 96 + 4 * 4))
+        #expect(options == .init(compactStructuredOutput: true, stream: true))
         let body = try TranslationHTTPCodec.requestBody(configuration: Self.configuration(), request: request, chatOptions: options)
         let root = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
         #expect(root["response_format"] == nil)
         #expect(root["stream"] as? Bool == true)
-        #expect(root["max_tokens"] as? Int == 464)
-        #expect(root["temperature"] as? Int == 0)
+        #expect(root["max_tokens"] as? Int == 8192)
+        #expect((root["temperature"] as? NSNumber)?.doubleValue == 1.0)
         #expect(root["reasoning_effort"] as? String == "none")
         let pattern = try #require((root["structured_outputs"] as? [String: Any])?["regex"] as? String)
         #expect((root["structured_outputs"] as? [String: Any])?.count == 1)
@@ -199,9 +199,20 @@ struct TranslationStreamingTests {
         // The prompt is identical to the standard request; only wire options differ.
         let standard = try #require(JSONSerialization.jsonObject(with: TranslationHTTPCodec.requestBody(
             configuration: Self.configuration(), request: request)) as? [String: Any])
-        #expect(standard["stream"] == nil && standard["max_tokens"] == nil && standard["structured_outputs"] == nil)
+        #expect(standard["stream"] == nil && (standard["max_tokens"] as? Int) == 8192 && standard["structured_outputs"] == nil)
         #expect(standard["response_format"] != nil)
         #expect((standard["messages"] as? NSArray) == (root["messages"] as? NSArray))
+    }
+
+    @Test func thinkingUsesCompletionTokenBudget() throws {
+        let request = Self.request(["待て"])
+        let configuration = Self.configuration(reasoning: .low)
+        let root = try #require(JSONSerialization.jsonObject(with: TranslationHTTPCodec.requestBody(
+            configuration: configuration, request: request)) as? [String: Any])
+        #expect(root["max_tokens"] == nil)
+        #expect((root["max_completion_tokens"] as? NSNumber)?.intValue == 8192)
+        #expect(root["min_p"] == nil)
+        #expect((root["repetition_penalty"] as? NSNumber)?.doubleValue == 1.08)
     }
 
     @Test func compactResponsesPreservesPromptImageAndReasoningWithoutStreaming() throws {
@@ -217,7 +228,7 @@ struct TranslationStreamingTests {
                 let standard = try #require(JSONSerialization.jsonObject(with: TranslationHTTPCodec.requestBody(
                     configuration: configuration, request: request)) as? [String: Any])
                 #expect(compact["text"] == nil)
-                #expect(compact["stream"] == nil && compact["max_tokens"] == nil && compact["max_output_tokens"] == nil)
+                #expect(compact["stream"] == nil && compact["max_tokens"] == nil && (compact["max_output_tokens"] as? Int) == 8192)
                 var expected = standard
                 expected.removeValue(forKey: "text")
                 expected["structured_outputs"] = ["regex": try TranslationHTTPCodec.compactOutputPattern(
@@ -230,22 +241,18 @@ struct TranslationStreamingTests {
 
     @Test func compactGrammarCarriesClassificationKeysInPromptOrder() throws {
         let pattern = try TranslationHTTPCodec.compactOutputPattern(segmentIDs: ["a.b", "c:d"], filtersSFX: true, filtersBackground: true)
-        #expect(try Self.matches(pattern, #"{"translations":[{"id":"a.b","is_sfx":false,"text_role":"dialogue","text":"x"},{"id":"c:d","is_sfx":true,"text_role":"sfx","text":"ドン"}]}"#))
-        #expect(try !Self.matches(pattern, #"{"translations":[{"id":"aXb","is_sfx":false,"text_role":"dialogue","text":"x"},{"id":"c:d","is_sfx":true,"text_role":"sfx","text":"y"}]}"#))
-        #expect(try !Self.matches(pattern, #"{"translations":[{"id":"a.b","is_sfx":false,"text_role":"shout","text":"x"},{"id":"c:d","is_sfx":true,"text_role":"sfx","text":"y"}]}"#))
+        #expect(try Self.matches(pattern, #"{"translations":[{"id":"a.b","text_role":"dialogue","text":"x"},{"id":"c:d","text_role":"sfx","text":"ドン"}]}"#))
+        #expect(try !Self.matches(pattern, #"{"translations":[{"id":"aXb","text_role":"dialogue","text":"x"},{"id":"c:d","text_role":"sfx","text":"y"}]}"#))
+        #expect(try !Self.matches(pattern, #"{"translations":[{"id":"a.b","text_role":"shout","text":"x"},{"id":"c:d","text_role":"sfx","text":"y"}]}"#))
         #expect(!TranslationHTTPCodec.supportsCompactOutput(segmentIDs: ["a b"]))
         #expect(throws: RemoteTranslationError.self) {
             try TranslationHTTPCodec.compactOutputPattern(segmentIDs: ["a\"b"], filtersSFX: false, filtersBackground: false)
         }
     }
 
-    @Test func outputTokenCapIsGenerousAndOnlyWithoutReasoning() {
+    @Test func outputTokenCapIsSharedWithReasoning() throws {
         let short = Self.request(Array(repeating: "ドン", count: 64))
-        // 64 real Korean segments measured at 988 compact / 1489 indented tokens.
-        #expect(TranslationHTTPCodec.maximumOutputTokens(for: short) == 256 + 64 * (96 + 8))
-        #expect(TranslationHTTPCodec.maximumOutputTokens(for: short) > 4 * 1489)
-        let long = Self.request([String(repeating: "長", count: 2_000)])
-        #expect(TranslationHTTPCodec.maximumOutputTokens(for: long) == 256 + 96 + 8_000)
+        #expect(TranslationHTTPCodec.maxOutputTokens == 8192)
         #expect(RemoteTranslationClient.compactChatOptions(configuration: Self.configuration(reasoning: .low), request: short)
             .maximumOutputTokens == nil)
         #expect(RemoteTranslationClient.compactChatOptions(configuration: Self.configuration(reasoning: .modelDefault), request: short)
@@ -367,12 +374,12 @@ struct TranslationStreamingTests {
     }
 
     @Test func streamedEnvelopeUsesNonStreamingValidation() throws {
-        let content = #"{"translations":[{"id":"s","is_sfx":true,"text":"쾅"},{"id":"t","is_sfx":false,"text":"안녕"}]}"#
+        let content = #"{"translations":[{"id":"s","text_role":"sfx","text":"쾅"},{"id":"t","text_role":"dialogue","text":"안녕"}]}"#
         let parsed = try TranslationHTTPCodec.streamedChatTranslations(
             from: try Self.sse([String(content.prefix(20)), String(content.dropFirst(20))]),
             expectedSegmentIDs: ["s", "t"], sfxSourceTexts: ["s": "ドン", "t": "こんにちは"])
-        #expect(parsed == [RemoteTranslatedSegment(id: "s", text: "ドン", isSFX: true),
-                           RemoteTranslatedSegment(id: "t", text: "안녕", isSFX: false)])
+        #expect(parsed == [RemoteTranslatedSegment(id: "s", text: "쾅", isSFX: true, textRole: .sfx),
+                           RemoteTranslatedSegment(id: "t", text: "안녕", isSFX: false, textRole: .dialogue)])
         let wrapped = try JSONSerialization.data(withJSONObject: ["choices": [["index": 0, "finish_reason": "stop",
             "message": ["role": "assistant", "content": content]]]])
         #expect(try TranslationHTTPCodec.responseTranslations(from: wrapped, protocol: .chatCompletions, expectedSegmentIDs: ["s", "t"],
@@ -475,9 +482,8 @@ struct TranslationStreamingTests {
         settings.custom.apiProtocol = .chatCompletions
         settings.custom.baseURL = "https://llm.example/v1"
         settings.model = "gemma"
-        settings.includePageImage = false
-        settings.filterSFXWithLLM = false
-        settings.filterBackgroundWithLLM = false
+        // Page translation always attaches the image and classifies SFX/background roles.
+        let jpeg = Data([0xff, 0xd8, 0xff, 0xd9])
         let regions = ["おい、待てよ！", "どこへ行く？", "ドン"].enumerated().map {
             ReaderTranslationRegion(id: "r\($0.offset)", rect: CGRect(x: 0.1, y: 0.1 + 0.2 * Double($0.offset), width: 0.2, height: 0.1),
                                     source: $0.element)
@@ -490,7 +496,8 @@ struct TranslationStreamingTests {
             _ = try await client.translate(Self.request(["warm"]), configuration: settings.configuration)
             let service = ReaderTranslationService(client: client)
             let partials = PartialRecorder()
-            let result = try await service.translate(regions: regions, settings: settings, onPartialProgress: streamsPartials ? { snapshot in
+            let result = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: jpeg,
+                                                     onPartialProgress: streamsPartials ? { snapshot in
                 partials.append(snapshot.compactMap { $0.translation.map { RemoteTranslatedSegment(id: "x", text: $0) } })
             } : nil)
             results.append(result)
@@ -498,7 +505,9 @@ struct TranslationStreamingTests {
         }
         #expect(results[0] == results[1])
         #expect(results[1].allSatisfy { $0.translation?.hasPrefix("ko:") == true })
-        #expect(partialCounts == [0, partialCounts[1]] && partialCounts[1] > 0)
+        // The mandatory one-call page route uses the portable (non-streamed) schema,
+        // so compact-grammar streaming partials never reach page progress.
+        #expect(partialCounts == [0, 0])
     }
 
     @Test func servicePartialsUseCallerIDsAndCompletedBatchesWin() async throws {
@@ -601,17 +610,25 @@ private actor ScriptedStreamingTransport: TranslationHTTPTransport {
             #expect(compact == (root["text"] == nil))
             let input = try #require(root["input"] as? [[String: Any]])
             let content = try #require(input.first?["content"] as? [[String: Any]])
-            text = try #require(content.first?["text"] as? String)
+            // A page image, when attached, precedes the segment JSON.
+            text = try #require(content.first(where: { $0["type"] as? String == "input_text" })?["text"] as? String)
         } else {
             #expect(compact == (root["stream"] as? Bool == true))
             #expect(compact == (root["response_format"] == nil))
             let messages = try #require(root["messages"] as? [[String: Any]])
-            text = try #require(messages.last?["content"] as? String)
+            if let plain = messages.last?["content"] as? String {
+                text = plain
+            } else {
+                let parts = try #require(messages.last?["content"] as? [[String: Any]])
+                text = try #require(parts.first(where: { $0["type"] as? String == "text" })?["text"] as? String)
+            }
         }
         kinds.append(compact ? .compact : .standard)
         let payload = try #require(JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
         let segments = try #require(payload["segments"] as? [[String: Any]])
-        let items = segments.map { "{\"id\":\"\($0["id"] as! String)\",\"text\":\"ko:\($0["text"] as! String)\"}" }
+        // Role-classifying page requests require text_role between id and text.
+        let role = String(decoding: httpBody, as: UTF8.self).contains("text_role") ? "\"text_role\":\"dialogue\"," : ""
+        let items = segments.map { "{\"id\":\"\($0["id"] as! String)\"," + role + "\"text\":\"ko:\($0["text"] as! String)\"}" }
         let content = "{\"translations\":[" + items.joined(separator: ",") + "]}"
         if compact, mode == .rejectCompact {
             return TranslationHTTPResponse(data: Data("{\"error\":{\"message\":\"bad\"}}".utf8),

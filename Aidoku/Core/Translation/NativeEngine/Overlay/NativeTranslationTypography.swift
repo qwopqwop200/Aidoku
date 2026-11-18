@@ -12,18 +12,23 @@ import AppKit
 /// The caller owns panel transforms, so a rotated label uses the same shaped
 /// glyphs and fitting decision as its unrotated version.
 enum NativeTranslationTypography {
-    // The same renamed OFL face used by the browser painter. Core Text can
-    // register its WOFF2 directly, avoiding a second font asset or web loading.
+    // The app bundles this renamed OFL face; the native host registers the
+    // same WOFF2 from its resource directory before rendering. Registration
+    // belongs to the Core Text process, not necessarily Bundle.main.
     private static let bundledSerifRegistered: Bool = {
+        func isRegistered() -> Bool {
+            let font = CTFontCreateWithName("AidokuSerifKR-Bold" as CFString, 12, nil)
+            return CTFontCopyPostScriptName(font) as String == "AidokuSerifKR-Bold"
+        }
+        if isRegistered() { return true }
         guard let url = Bundle.main.url(forResource: "AidokuSerifKR-Bold", withExtension: "woff2") else { return false }
         if CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil) { return true }
         // Another consumer may have registered the process-wide face already.
-        let font = CTFontCreateWithName("AidokuSerifKR-Bold" as CFString, 12, nil)
-        return CTFontCopyPostScriptName(font) as String == "AidokuSerifKR-Bold"
+        return isRegistered()
     }()
 
     static var availabilityKey: String {
-        "native-typography-v1:serif-\(bundledSerifRegistered ? "available" : "unavailable")"
+        "native-typography-v2:serif-\(bundledSerifRegistered ? "available" : "unavailable")"
     }
 
     static var isBundledSerifAvailable: Bool { bundledSerifRegistered }
@@ -37,6 +42,10 @@ enum NativeTranslationTypography {
     struct Style {
         var fontName: String?
         var fontScript: String
+        /// Translated Korean may retain a few Japanese characters. Keep the
+        /// source hint for source-only labels, but choose Korean metrics when
+        /// Hangul dominates a translated label's Japanese hint.
+        var prefersDominantKoreanScript: Bool
         var fontSize: CGFloat
         var bold: Bool
         var vertical: Bool
@@ -77,6 +86,7 @@ enum NativeTranslationTypography {
         init(
             fontName: String? = nil,
             fontScript: String = "",
+            prefersDominantKoreanScript: Bool = false,
             fontSize: CGFloat,
             bold: Bool = true,
             vertical: Bool = false,
@@ -105,6 +115,7 @@ enum NativeTranslationTypography {
         ) {
             self.fontName = fontName
             self.fontScript = fontScript
+            self.prefersDominantKoreanScript = prefersDominantKoreanScript
             self.fontSize = fontSize
             self.bold = bold
             self.vertical = vertical
@@ -152,6 +163,9 @@ enum NativeTranslationTypography {
         fileprivate let frameAttributes: CFDictionary?
         fileprivate var paintScaleX: CGFloat = 1
         fileprivate var lineOffsets: [CGPoint] = []
+        /// Exact widths used by the committed horizontal alignment producer.
+        /// Raw CT advance is not equivalent for trailing whitespace or inline items.
+        fileprivate var committedRowAlignmentWidths: [CGFloat]? = nil
         fileprivate var verticalPaintOffsets: [CGPoint] = []
         fileprivate var blockRowIntrinsicWidths: [CGFloat?] = []
         fileprivate var outlineGlow: CGFloat = 0
@@ -159,6 +173,10 @@ enum NativeTranslationTypography {
         /// Original UTF16 ownership for each shaped display code unit. A
         /// generated soft break owns a zero-length source boundary.
         var sourceUTF16Ownership: [NSRange]? = nil
+        fileprivate(set) var sourceOwnershipNormalization: SourceOwnershipNormalization = .exact
+        /// Explicit producer provenance. Missing after an uninstrumented transform
+        /// is unknown, not proof that manual wrapping did not occur.
+        var fromManualWrap: Bool? = nil
 
         fileprivate static var empty: Self {
             Self(
@@ -199,13 +217,16 @@ enum NativeTranslationTypography {
             let supported = !text.unicodeScalars.contains { [9,10,12,13].contains($0.value) }
             let collapsed = text.split(separator: " ", omittingEmptySubsequences: true).joined(separator: " ")
             if supported, let shaped = layoutKeepAllFlow(text: collapsed, in: available, style: style, overflowAnywhere: false) {
+                let ownership = collapsedOwnership(source: text, collapsed: collapsed, layout: shaped)
                 return Layout(size: shaped.size, inkBounds: shaped.inkBounds,
                     visibleUTF16Range: NSRange(location: 0, length: text.utf16.count), lineCount: shaped.lineCount,
                     fits: shaped.fits, glyphBounds: shaped.glyphBounds, rangeBounds: shaped.rangeBounds,
                     lineRanges: shaped.lineRanges, shapedText: shaped.shapedText, frame: shaped.frame,
                     frameSize: shaped.frameSize, offset: shaped.offset, attributed: shaped.attributed,
                     frameAttributes: shaped.frameAttributes, paintScaleX: shaped.paintScaleX,
-                    lineOffsets: shaped.lineOffsets, outlineGlow: shaped.outlineGlow, outlineGlowColor: shaped.outlineGlowColor)
+                    lineOffsets: shaped.lineOffsets, committedRowAlignmentWidths: shaped.committedRowAlignmentWidths,
+                    outlineGlow: shaped.outlineGlow, outlineGlowColor: shaped.outlineGlowColor,
+                    sourceUTF16Ownership: ownership, sourceOwnershipNormalization: .certifiedASCIISpaceCollapse)
             }
             if !style.wholeWordFallbackResolved {
                 return layoutKeepingWholeWords(text: text, in: available, style: style)
@@ -229,6 +250,12 @@ enum NativeTranslationTypography {
         let preferred = !style.preservesBlockRows && wordAware == nil && style.balancesHorizontalLines && !style.vertical && !style.strictLineBreak
             ? preferredWholeWordLines(text: text, width: available.width, style: style) : nil
         let shapedText = style.usesPreformattedBlockRows ? text : style.usesBlockWordLayout ? blockWordText(text) : wordAware ?? balanced ?? preferred?.joined(separator: "\n") ?? text
+        // These producers preserve input scalars and may insert LF only.
+        // Verify that contract instead of searching repeated text or guessing
+        // ownership after wrapping. Other normalization paths remain unknown.
+        let insertedOwnership: [NSRange]? = !style.vertical && !style.usesPreformattedBlockRows &&
+            !style.usesBlockWordLayout && (wordAware != nil || balanced != nil || preferred != nil)
+            ? insertedLFOwnership(source: text, displayed: shapedText) : nil
         let attributed = attributedString(text: shapedText, style: style)
         let framesetter = CTFramesetterCreateWithAttributedString(attributed)
         let extent = max(style.fontSize, style.lineHeight) * CGFloat(text.utf16.count + 2) * 2
@@ -261,7 +288,10 @@ enum NativeTranslationTypography {
         let count = CFArrayGetCount(lines)
         let range = CTFrameGetVisibleStringRange(frame)
         let blockIntrinsic = collapsedBlockRowIntrinsicWidths(text: text, style: style)
-        let movements = horizontalPaintMovements(frame: frame, frameSize: frameSize, originalText: style.intrinsicText ?? text, shapedText: shapedText, style: style, scaleX: scaleX, blockIntrinsic: blockIntrinsic)
+        let horizontalPaint = horizontalPaintMovements(frame: frame, frameSize: frameSize,
+            originalText: style.intrinsicText ?? text, shapedText: shapedText, style: style,
+            scaleX: scaleX, blockIntrinsic: blockIntrinsic)
+        let movements = horizontalPaint.movements
         let bounds = inkBounds(frame: frame, frameSize: frameSize, vertical: style.vertical)
         let outlineInset = style.outline == nil ? 0 : style.outlineWidth / 2
         let ink = bounds.isEmpty ? bounds : bounds.insetBy(dx: -outlineInset, dy: -outlineInset)
@@ -314,15 +344,22 @@ enum NativeTranslationTypography {
             CGRect(x: rect.minX * scaleX, y: rect.minY, width: rect.width * scaleX, height: rect.height)
         }
         let paintedInk = glyphs.reduce(CGRect.null) { $0.union($1) }
-        // The upright vertical painter moves physical glyph ink independently
-        // of selection and CSS line boxes. Its native containment metadata
-        // must follow those same glyph positions; CSS scroll fitting remains
-        // a separate predicate in NativeTypographyPostPolish.
+        // Painting can shift physical ink away from the original Core Text
+        // bounds. Native containment follows the actual painted positions;
+        // horizontal occupied-size and complete-frame predicates stay exact.
+        let horizontalRowsMoved = !style.vertical && movements.contains { abs($0.y) > 0.000001 }
+        let rowGap = horizontalRowsMoved && !fits
+            ? minimumHorizontalPaintedRowGap(frame:frame,glyphBounds:glyphs,lineRanges:lineRanges) : nil
+        // Newly admitted horizontal fits must also keep adjacent stroke rows
+        // apart. Old unmoved and upright vertical fit semantics stay exact.
+        let newHorizontalAdmissionClear = !horizontalRowsMoved || fits ||
+            rowGap.map { $0 >= max(CGFloat(0.25),style.fontSize*0.04) } == true
         let resolvedOccupied = verticalMovements.isEmpty || paintedInk.isNull ? occupied : paintedInk.size
-        let resolvedFits = verticalMovements.isEmpty || paintedInk.isNull ? fits
+        let resolvedFits = verticalMovements.isEmpty && !horizontalRowsMoved || paintedInk.isNull ? fits
             : complete && resolvedOccupied.width <= available.width + 0.5 &&
                 resolvedOccupied.height <= available.height + 0.5 &&
-                CGRect(origin: .zero, size: available).insetBy(dx: -0.5, dy: -0.5).contains(paintedInk)
+                CGRect(origin: .zero, size: available).insetBy(dx: -0.5, dy: -0.5).contains(paintedInk) &&
+                newHorizontalAdmissionClear
         return Layout(
             size: CGSize(width: resolvedOccupied.width * scaleX, height: resolvedOccupied.height), inkBounds: scaled(paintedInk.isNull ? painted : paintedInk),
             visibleUTF16Range: complete
@@ -330,13 +367,276 @@ enum NativeTranslationTypography {
                 : NSRange(location: max(0, range.location), length: min(text.utf16.count, max(0, range.length))),
             lineCount: count, fits: resolvedFits, glyphBounds: glyphs.map(scaled),
             rangeBounds: rangeBounds(frame: frame, frameSize: frameSize, offset: offset, scaleX: scaleX,
-                text: shapedText, originalText: style.intrinsicText ?? text, style: style, movements: movements, blockIntrinsic: blockIntrinsic),
+                text: shapedText, originalText: style.intrinsicText ?? text, style: style, movements: movements, blockIntrinsic: blockIntrinsic, reuse: horizontalPaint.geometry),
             lineRanges: lineRanges,
             shapedText: shapedText, frame: frame, frameSize: frameSize, offset: offset,
             attributed: attributed, frameAttributes: frameAttributes, paintScaleX: scaleX, lineOffsets: movements,
+            committedRowAlignmentWidths: horizontalPaint.widths,
             verticalPaintOffsets: verticalMovements, blockRowIntrinsicWidths: blockIntrinsic,
-            outlineGlow: max(0, style.outlineGlow), outlineGlowColor: style.outline
+            outlineGlow: max(0, style.outlineGlow), outlineGlowColor: style.outline,
+            sourceUTF16Ownership: insertedOwnership
         )
+    }
+
+    /// Compose only verified collapsed-input provenance; never search text.
+    private static func collapsedOwnership(source: String, collapsed: String, layout: Layout) -> [NSRange]? {
+        guard let outer = SourceUTF16Transport.ownership(text: source,
+            ranges: [NSRange(location: 0, length: source.utf16.count)], mode: .collapseSpaces),
+            outer.displayed.utf16.elementsEqual(collapsed.utf16),
+            let inner = layout.sourceUTF16Ownership,
+            inner.count == layout.shapedText.utf16.count,
+            let context = SourceUTF16Transport.prepareLift(through: outer, sourceUTF16Length: source.utf16.count)
+        else { return nil }
+        var result: [NSRange] = []
+        result.reserveCapacity(inner.count)
+        var cursor = 0
+        for range in inner {
+            guard range.location >= cursor, let lifted = context.lift(range) else { return nil }
+            result.append(lifted)
+            cursor = range.location + range.length
+        }
+        return result
+    }
+
+    private enum SourceUTF16Transport {
+        enum OwnershipMode { case collapseSpaces, trimSpaces, preserve }
+        struct Ownership {
+            let displayed: String
+            let units: [NSRange]
+        }
+        static func scalarBoundary(_ offset: Int, in input: [UInt16]) -> Bool {
+            guard offset >= 0, offset <= input.count else { return false }
+            return offset == 0 || offset == input.count ||
+                !((0xD800...0xDBFF).contains(input[offset - 1]) &&
+                  (0xDC00...0xDFFF).contains(input[offset]))
+        }
+        static func ownership(text: String, ranges: [NSRange], mode: OwnershipMode,
+                              paragraphEnds: [Bool]? = nil) -> Ownership? {
+            // Bounds before materializing the UTF16 array or coverage bitmap.
+            let source = text as NSString
+            guard source.length <= 8192, ranges.count <= 512,
+                  paragraphEnds == nil || paragraphEnds?.count == ranges.count else { return nil }
+            let input = Array(text.utf16)
+            // Both target producers decline authored CR/CRLF; the separate
+            // pre-line CR-drop producer must supply its own provenance.
+            guard !input.contains(13) else { return nil }
+            let allowsSpaces: Bool
+            switch mode {
+            case .collapseSpaces, .trimSpaces: allowsSpaces = true
+            case .preserve: allowsSpaces = false
+            }
+            var rows: [String] = [], maps: [[NSRange]] = []
+            var previousEnd = 0
+            for range in ranges {
+                guard range.location >= previousEnd, range.location <= input.count,
+                      range.length >= 0, range.length <= input.count - range.location,
+                      scalarBoundary(range.location, in: input),
+                      scalarBoundary(range.location + range.length, in: input) else { return nil }
+                previousEnd = range.location + range.length
+                let part = source.substring(with: range)
+                var owned: [NSRange] = []
+                let row: String
+                switch mode {
+                case .collapseSpaces:
+                    // Same Character-based split as the existing normal producer.
+                    let tokens = part.split(separator: " ", omittingEmptySubsequences: true)
+                    var tokenEnd: Int?
+                    for token in tokens {
+                        let start = range.location + part.utf16.distance(
+                            from: part.utf16.startIndex, to: token.startIndex)
+                        let end = range.location + part.utf16.distance(
+                            from: part.utf16.startIndex, to: token.endIndex)
+                        if let tokenEnd {
+                            guard start > tokenEnd,
+                                  input[tokenEnd..<start].allSatisfy({ $0 == 32 }) else { return nil }
+                            owned.append(NSRange(location: tokenEnd, length: start - tokenEnd))
+                        }
+                        owned.append(contentsOf: (start..<end).map { NSRange(location: $0, length: 1) })
+                        tokenEnd = end
+                    }
+                    row = tokens.joined(separator: " ")
+                case .trimSpaces, .preserve:
+                    var start = range.location, end = previousEnd
+                    if case .trimSpaces = mode {
+                        while start < end && input[start] == 32 { start += 1 }
+                        while end > start && input[end - 1] == 32 { end -= 1 }
+                    }
+                    guard scalarBoundary(start, in: input), scalarBoundary(end, in: input) else { return nil }
+                    row = source.substring(with: NSRange(location: start, length: end - start))
+                    owned = (start..<end).map { NSRange(location: $0, length: 1) }
+                }
+                guard owned.count == row.utf16.count else { return nil }
+                rows.append(row); maps.append(owned)
+            }
+            var ledger: [NSRange] = []
+            for index in rows.indices {
+                if index > 0 {
+                    let left = maps[index - 1].last.map { $0.location + $0.length }
+                        ?? ranges[index - 1].location
+                    let right = maps[index].first?.location ?? ranges[index].location
+                    guard right >= left else { return nil }
+                    let gap = input[left..<right]
+                    let feeds = (left..<right).filter { input[$0] == 10 }
+                    let ownedBreak: NSRange
+                    if !feeds.isEmpty {
+                        guard paragraphEnds?[index - 1] == true, feeds.count == 1,
+                              gap.allSatisfy({ $0 == 10 || allowsSpaces && $0 == 32 }) else { return nil }
+                        ownedBreak = NSRange(location: feeds[0], length: 1)
+                    } else if !gap.isEmpty {
+                        guard allowsSpaces, gap.allSatisfy({ $0 == 32 }) else { return nil }
+                        ownedBreak = NSRange(location: right, length: 0)
+                    } else {
+                        ownedBreak = NSRange(location: right, length: 0)
+                    }
+                    ledger.append(ownedBreak)
+                }
+                ledger.append(contentsOf: maps[index])
+            }
+            let displayed = rows.joined(separator: "\n")
+            guard ledger.count == displayed.utf16.count,
+                  ledger.count <= 8192 + 511 else { return nil }
+            var covered = [Bool](repeating: false, count: input.count)
+            var cursor = 0
+            for range in ledger {
+                guard range.location >= cursor, range.location <= input.count,
+                      range.length >= 0, range.length <= input.count - range.location else { return nil }
+                for unit in range.location..<(range.location + range.length) {
+                    guard !covered[unit] else { return nil }
+                    covered[unit] = true
+                }
+                cursor = range.location + range.length
+            }
+            let omitted = input.indices.filter { !covered[$0] }
+            // Whole-source contract: only known trimmed ASCII spaces and exactly
+            // one terminal paragraph LF may be omitted. Never omit letters/CR/TAB.
+            let terminalLF: Int? = {
+                guard paragraphEnds?.last == true, let last = ranges.last else { return nil }
+                let end = last.location + last.length
+                let tail = input[end...]
+                let feeds = (end..<input.count).filter { input[$0] == 10 }
+                guard feeds.count == 1,
+                      tail.allSatisfy({ $0 == 10 || allowsSpaces && $0 == 32 }) else { return nil }
+                return feeds[0]
+            }()
+            guard omitted.allSatisfy({ allowsSpaces && input[$0] == 32 || $0 == terminalLF }) else { return nil }
+            return Ownership(displayed: displayed, units: ledger)
+        }
+        // A unit ledger may own one half of a surrogate pair. This pure-integer
+        // operation never substrings it; text row ranges are checked above.
+        struct LiftContext {
+            fileprivate let units: [NSRange]
+            fileprivate let gapPrefix: [Int]
+            func lift(_ range: NSRange) -> NSRange? {
+                guard range.location >= 0, range.location <= units.count,
+                      range.length >= 0, range.length <= units.count - range.location else { return nil }
+                if range.length == 0 {
+                    let boundary = range.location < units.count ? units[range.location].location
+                        : units.last.map { $0.location + $0.length } ?? 0
+                    return NSRange(location: boundary, length: 0)
+                }
+                let last = range.location + range.length - 1
+                guard gapPrefix[last] == gapPrefix[range.location] else { return nil }
+                let first = units[range.location], final = units[last]
+                return NSRange(location: first.location, length: final.location + final.length - first.location)
+            }
+        }
+        static func prepareLift(through outer: Ownership,
+                                sourceUTF16Length: Int) -> LiftContext? {
+            guard sourceUTF16Length >= 0, sourceUTF16Length <= 8192,
+                  outer.units.count <= 8192 + 511,
+                  outer.units.count == outer.displayed.utf16.count else { return nil }
+            var cursor = 0, gaps = 0
+            var prefix: [Int] = []
+            prefix.reserveCapacity(outer.units.count)
+            for (index, value) in outer.units.enumerated() {
+                guard value.location >= cursor, value.location <= sourceUTF16Length,
+                      value.length >= 0, value.length <= sourceUTF16Length - value.location else { return nil }
+                if index > 0 && value.location > cursor { gaps += 1 }
+                prefix.append(gaps)
+                cursor = value.location + value.length
+            }
+            return LiftContext(units: outer.units, gapPrefix: prefix)
+        }
+    }
+
+    /// Exact insertion-only transport, not a source-image/OCR correspondence.
+    /// A generated LF owns no input units. Authored newlines are intentionally
+    /// declined here because their provenance belongs to the row producer.
+    static func insertedLFOwnership(source: String, displayed: String) -> [NSRange]? {
+        guard source.utf16.count <= 131_072, displayed.utf16.count <= 262_144,
+              !source.contains(where: \.isNewline) else { return nil }
+        let input = Array(source.unicodeScalars)
+        var cursor = 0, sourceOffset = 0
+        var result: [NSRange] = []
+        result.reserveCapacity(displayed.utf16.count)
+        for scalar in displayed.unicodeScalars {
+            if cursor < input.count, scalar.value == input[cursor].value {
+                let width = scalar.utf16.count
+                for unit in 0..<width {
+                    result.append(NSRange(location: sourceOffset + unit, length: 1))
+                }
+                sourceOffset += width
+                cursor += 1
+            } else if scalar.value == 10 {
+                result.append(NSRange(location: sourceOffset, length: 0))
+            } else {
+                return nil
+            }
+        }
+        guard cursor == input.count, sourceOffset == source.utf16.count,
+              result.count == displayed.utf16.count else { return nil }
+        return result
+    }
+
+    /// Keep physical Core Text row ownership and already stroked/moved ink
+    /// together. Empty or ambiguous rows cannot prove a new fit admission.
+    private static func horizontalPaintedRows(frame: CTFrame,
+        glyphBounds: [CGRect], lineRanges: [NSRange]) -> [CGRect]? {
+        guard !glyphBounds.isEmpty, glyphBounds.count <= 256 else { return nil }
+        let lines = CTFrameGetLines(frame), count = CFArrayGetCount(lines)
+        guard count > 0, count <= 256, count == lineRanges.count else { return nil }
+        var cursor = 0, inspected = 0, previousEnd = 0
+        var rows: [CGRect] = []
+        for lineIndex in 0..<count {
+            let line = unsafeBitCast(CFArrayGetValueAtIndex(lines,lineIndex),to:CTLine.self)
+            let range = CTLineGetStringRange(line), expected = lineRanges[lineIndex]
+            guard range.location == expected.location, range.length == expected.length,
+                  range.location == previousEnd, range.length > 0 else { return nil }
+            previousEnd = range.location+range.length
+            let runs = CTLineGetGlyphRuns(line)
+            var row = CGRect.null
+            for runIndex in 0..<CFArrayGetCount(runs) {
+                let run = unsafeBitCast(CFArrayGetValueAtIndex(runs,runIndex),to:CTRun.self)
+                for glyphIndex in 0..<CTRunGetGlyphCount(run) {
+                    inspected += 1
+                    guard inspected <= 16_384 else { return nil }
+                    guard !CTRunGetImageBounds(run,nil,CFRange(location:glyphIndex,length:1)).isEmpty else { continue }
+                    guard cursor < glyphBounds.count else { return nil }
+                    let glyph = glyphBounds[cursor]
+                    guard glyph.minX.isFinite, glyph.minY.isFinite, glyph.width.isFinite,
+                          glyph.height.isFinite, !glyph.isNull, !glyph.isEmpty else { return nil }
+                    row = row.union(glyph); cursor += 1
+                }
+            }
+            guard !row.isNull else { return nil }
+            rows.append(row)
+        }
+        guard cursor == glyphBounds.count else { return nil }
+        return rows
+    }
+
+    /// Stroked, positioned Core Text rows; nil is unavailable, never a safe gap.
+    static func minimumPaintedRowGap(layout: Layout) -> CGFloat? {
+        guard let frame = layout.frame,
+              let rows = horizontalPaintedRows(frame: frame, glyphBounds: layout.glyphBounds,
+                lineRanges: layout.lineRanges), rows.count > 1 else { return nil }
+        return zip(rows, rows.dropFirst()).map { $0.1.minY - $0.0.maxY }.min()
+    }
+
+    private static func minimumHorizontalPaintedRowGap(frame: CTFrame,
+        glyphBounds: [CGRect], lineRanges: [NSRange]) -> CGFloat? {
+        guard let rows = horizontalPaintedRows(frame:frame,glyphBounds:glyphBounds,lineRanges:lineRanges) else { return nil }
+        return zip(rows,rows.dropFirst()).map { $1.minY-$0.maxY }.min() ?? CGFloat.greatestFiniteMagnitude
     }
 
     /// CSS nowrap span text collapses ASCII segment whitespace and removes
@@ -668,8 +968,10 @@ enum NativeTranslationTypography {
             lineRanges: shaped.lineRanges, shapedText: shaped.shapedText, frame: shaped.frame,
             frameSize: shaped.frameSize, offset: shaped.offset, attributed: shaped.attributed,
             frameAttributes: shaped.frameAttributes, paintScaleX: shaped.paintScaleX,
-            lineOffsets: shaped.lineOffsets, outlineGlow: shaped.outlineGlow,
-            outlineGlowColor: shaped.outlineGlowColor, sourceUTF16Ownership: ownership)
+            lineOffsets: shaped.lineOffsets, committedRowAlignmentWidths: shaped.committedRowAlignmentWidths,
+            outlineGlow: shaped.outlineGlow,
+            outlineGlowColor: shaped.outlineGlowColor, sourceUTF16Ownership: ownership,
+            sourceOwnershipNormalization: style.horizontalWhitespace == .normal ? .certifiedASCIISpaceCollapse : .exact)
     }
 
     /// The normal/collapsed mode is explicit producer provenance. Initial
@@ -699,13 +1001,19 @@ enum NativeTranslationTypography {
                 return chosen
             }) else { return nil }
         let shaped = layout(text: flow.displayRows.joined(separator: "\n"), in: available, style: paintedStyle)
+        let carried = SourceUTF16Transport.ownership(text: text, ranges: flow.sourceRanges, mode: .collapseSpaces)
+        let ownership = carried.flatMap {
+            $0.displayed.utf16.elementsEqual(shaped.shapedText.utf16) ? $0.units : nil
+        }
         return Layout(size: shaped.size, inkBounds: shaped.inkBounds,
             visibleUTF16Range: NSRange(location: 0, length: text.utf16.count), lineCount: shaped.lineCount,
             fits: shaped.fits, glyphBounds: shaped.glyphBounds, rangeBounds: shaped.rangeBounds,
             lineRanges: shaped.lineRanges, shapedText: shaped.shapedText, frame: shaped.frame,
             frameSize: shaped.frameSize, offset: shaped.offset, attributed: shaped.attributed,
             frameAttributes: shaped.frameAttributes, paintScaleX: shaped.paintScaleX,
-            lineOffsets: shaped.lineOffsets, outlineGlow: shaped.outlineGlow, outlineGlowColor: shaped.outlineGlowColor)
+            lineOffsets: shaped.lineOffsets, committedRowAlignmentWidths: shaped.committedRowAlignmentWidths,
+            outlineGlow: shaped.outlineGlow, outlineGlowColor: shaped.outlineGlowColor,
+            sourceUTF16Ownership: ownership, sourceOwnershipNormalization: .certifiedASCIISpaceCollapse)
     }
 
     private static func layoutKeepAllFlow(text: String, in available: CGSize, style: Style,
@@ -736,9 +1044,15 @@ enum NativeTranslationTypography {
                 (CharacterSet.whitespacesAndNewlines.contains($0) && $0.value != 32)
             }
 
+        // Intrinsic sizing, greedy flow and balance revisit the same ranges.
+        // Cache only this immutable shaping context, with bounded call lifetime.
+        var measuredWidths: [NSRange: CGFloat] = [:]
         func measure(_ range: NSRange) -> CGFloat {
-            CGFloat(CTLineGetTypographicBounds(CTLineCreateWithAttributedString(
+            if let cached = measuredWidths[range] { return cached }
+            let width = CGFloat(CTLineGetTypographicBounds(CTLineCreateWithAttributedString(
                 attributedString(text: source.substring(with: range), style: paintedStyle)), nil, nil, nil))
+            if measuredWidths.count < 512 { measuredWidths[range] = width }
+            return width
         }
         if !overflowAnywhere {
             let minimum = analysis.items
@@ -781,6 +1095,9 @@ enum NativeTranslationTypography {
         // Core Text ranges below refer to text with newly inserted soft LF.
         // Keep authored paragraph ends in their original coordinate space.
         paintedStyle.keepAllParagraphEndRows = paragraphEnds
+        let carried = SourceUTF16Transport.ownership(text: text, ranges: ranges,
+            mode: style.horizontalWhitespace == .normal ? .trimSpaces : .preserve,
+            paragraphEnds: paragraphEnds)
         let rows = ranges.map { range -> String in
             let row = source.substring(with: range)
             return style.horizontalWhitespace == .normal
@@ -793,7 +1110,11 @@ enum NativeTranslationTypography {
             lineRanges: shaped.lineRanges, shapedText: shaped.shapedText, frame: shaped.frame,
             frameSize: shaped.frameSize, offset: shaped.offset, attributed: shaped.attributed,
             frameAttributes: shaped.frameAttributes, paintScaleX: shaped.paintScaleX,
-            lineOffsets: shaped.lineOffsets, outlineGlow: shaped.outlineGlow, outlineGlowColor: shaped.outlineGlowColor)
+            lineOffsets: shaped.lineOffsets, committedRowAlignmentWidths: shaped.committedRowAlignmentWidths,
+            outlineGlow: shaped.outlineGlow, outlineGlowColor: shaped.outlineGlowColor,
+            sourceUTF16Ownership: carried.flatMap {
+                $0.displayed.utf16.elementsEqual(shaped.shapedText.utf16) ? $0.units : nil
+            }, sourceOwnershipNormalization: style.horizontalWhitespace == .normal ? .certifiedASCIISpaceCollapse : .exact)
     }
 
     /// CSS white-space:normal / word-break:keep-all / overflow-wrap:normal.
@@ -842,6 +1163,7 @@ enum NativeTranslationTypography {
             shapedText: shaped.shapedText, frame: shaped.frame, frameSize: shaped.frameSize,
             offset: CGPoint(x: shaped.offset.x + dx, y: shaped.offset.y), attributed: shaped.attributed,
             frameAttributes: shaped.frameAttributes, paintScaleX: shaped.paintScaleX, lineOffsets: shaped.lineOffsets,
+            committedRowAlignmentWidths: shaped.committedRowAlignmentWidths,
             outlineGlow: shaped.outlineGlow, outlineGlowColor: shaped.outlineGlowColor)
     }
 
@@ -886,8 +1208,11 @@ enum NativeTranslationTypography {
             lineCount: layout.lineCount, fits: layout.fits, glyphBounds: newGlyphs, rangeBounds: newRanges,
             lineRanges: layout.lineRanges, shapedText: layout.shapedText, frame: frame, frameSize: layout.frameSize,
             offset: layout.offset, attributed: layout.attributed, frameAttributes: layout.frameAttributes,
-            paintScaleX: layout.paintScaleX, lineOffsets: applied, blockRowIntrinsicWidths: layout.blockRowIntrinsicWidths,
-            outlineGlow: layout.outlineGlow, outlineGlowColor: layout.outlineGlowColor)
+            paintScaleX: layout.paintScaleX, lineOffsets: applied,
+            committedRowAlignmentWidths: layout.committedRowAlignmentWidths, blockRowIntrinsicWidths: layout.blockRowIntrinsicWidths,
+            outlineGlow: layout.outlineGlow, outlineGlowColor: layout.outlineGlowColor,
+            sourceUTF16Ownership: layout.sourceUTF16Ownership,
+            sourceOwnershipNormalization: layout.sourceOwnershipNormalization)
         return result
     }
 
@@ -1375,8 +1700,9 @@ enum NativeTranslationTypography {
     /// Each line uses a primary-face CSS baseline; fallback
     /// runs affect the painted glyph, never the DOM selection line metrics.
     private static func horizontalPaintMovements(frame: CTFrame, frameSize: CGSize, originalText: String,
-                                                 shapedText: String, style: Style, scaleX: CGFloat, blockIntrinsic: [CGFloat?] = []) -> [CGPoint] {
-        guard !style.vertical else { return [] }
+        shapedText: String, style: Style, scaleX: CGFloat, blockIntrinsic: [CGFloat?] = [])
+        -> (movements: [CGPoint], widths: [CGFloat]?, geometry: ScopedHorizontalPaintGeometry?) {
+        guard !style.vertical else { return ([], nil, nil) }
         let lines = CTFrameGetLines(frame), count = CFArrayGetCount(lines)
         var origins = [CGPoint](repeating: .zero, count: count)
         CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins)
@@ -1384,16 +1710,20 @@ enum NativeTranslationTypography {
             CGFloat(CTLineGetTypographicBounds(CTLineCreateWithAttributedString(attributedString(text: $0, style: style)), nil, nil, nil))
         }.max() ?? 0
         let alignment: CGFloat = style.horizontalAlignment == .left ? 0 : style.horizontalAlignment == .right ? 1 : 0.5
+        let minimumContent = style.preservesBlockRows ? 0 : minimumHorizontalContentWidth(text: originalText, style: style)
         let flex = NativeTextPaintGeometry.anonymousFlexBox(contentWidth: frameSize.width,
-            maximumContentWidth: maximum, minimumContentWidth: style.preservesBlockRows ? 0 : minimumHorizontalContentWidth(text: originalText, style: style), justification: alignment)
+            maximumContentWidth: maximum, minimumContentWidth: minimumContent, justification: alignment)
         let itemWidths = keepAllInlineItemWidths(frame: frame, text: shapedText, style: style)
         let primary = font(text: originalText, style: style)
         let ascent = ceil(CTFontGetAscent(primary)), descent = ceil(CTFontGetDescent(primary))
         let pitch = floor(max(style.fontSize, style.lineHeight))
-        return (0..<count).map { index in
+        var rawAdvances: [CGFloat] = [], rawRanges: [CFRange] = []
+        var widths: [CGFloat] = []
+        let movements = (0..<count).map { index in
             let line = unsafeBitCast(CFArrayGetValueAtIndex(lines, index), to: CTLine.self)
             let rawWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
             let range = CTLineGetStringRange(line)
+            rawAdvances.append(rawWidth); rawRanges.append(range)
             let source = originalText as NSString
             let end = min(source.length, range.location + range.length)
             let forcedOrFinal: Bool
@@ -1408,6 +1738,7 @@ enum NativeTranslationTypography {
                 : originalText.contains(where: \.isNewline) && forcedOrFinal
                     ? max(0, min(flex?.width ?? frameSize.width, rawWidth)) : max(0, rawWidth - trailing)
             let width = (index < itemWidths.count ? itemWidths[index] : nil) ?? establishedWidth
+            widths.append(width * scaleX)
             let lineFlex = style.preservesBlockRows
                 ? blockRowBox(contentWidth: frameSize.width, advance: (index < blockIntrinsic.count ? blockIntrinsic[index] : nil) ?? width, style: style)
                 : flex
@@ -1418,6 +1749,11 @@ enum NativeTranslationTypography {
             let dy = baseline - (frameSize.height - origins[index].y)
             return CGPoint(x: (desiredX - origins[index].x) * scaleX, y: dy)
         }
+        let geometry = !Task.isCancelled
+            ? ScopedHorizontalPaintGeometry(frame: frame, size: frameSize, scaleX: scaleX, source: originalText,
+                text: shapedText, style: style, origins: origins, advances: rawAdvances, ranges: rawRanges,
+                naturalWidth: maximum, minimumContent: minimumContent, ascent: ascent, descent: descent) : nil
+        return (movements, widths.allSatisfy { $0.isFinite && $0 >= 0 } ? widths : nil, geometry)
     }
 
     /// The line-break control character has a Core Text advance but no CSS
@@ -1501,36 +1837,44 @@ enum NativeTranslationTypography {
     /// the anonymous flex text box, then clip the terminal edge to that box.
     /// This policy geometry deliberately stays separate from glyph-path ink.
     private static func rangeBounds(frame: CTFrame, frameSize: CGSize, offset: CGPoint, scaleX: CGFloat,
-                                    text: String, originalText: String, style: Style, movements: [CGPoint] = [], blockIntrinsic: [CGFloat?] = []) -> [CGRect] {
+                                    text: String, originalText: String, style: Style, movements: [CGPoint] = [], blockIntrinsic: [CGFloat?] = [], reuse: ScopedHorizontalPaintGeometry? = nil) -> [CGRect] {
         let lines = CTFrameGetLines(frame), count = CFArrayGetCount(lines)
-        var origins = [CGPoint](repeating: .zero, count: count)
-        CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins)
+        let saved = reuse.flatMap { $0.matches(frame: frame, size: frameSize, scaleX: scaleX,
+            source: originalText, text: text, style: style, count: count) ? $0 : nil }
+        var origins = saved?.origins ?? [CGPoint](repeating: .zero, count: count)
+        if saved == nil { CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins) }
         var scalars: [(start: Int, end: Int, space: Bool)] = [], position = 0
         for scalar in text.unicodeScalars {
             let next = position + scalar.utf16.count
             scalars.append((position, next, CharacterSet.whitespacesAndNewlines.contains(scalar))); position = next
         }
-        let naturalWidth = originalText.components(separatedBy: .newlines).map {
+        let naturalWidth = saved?.naturalWidth ?? originalText.components(separatedBy: .newlines).map {
             CGFloat(CTLineGetTypographicBounds(CTLineCreateWithAttributedString(attributedString(text: $0, style: style)), nil, nil, nil))
         }.max() ?? 0
         let alignment: CGFloat = style.horizontalAlignment == .left ? 0 : style.horizontalAlignment == .right ? 1 : 0.5
-        let flex = NativeTextPaintGeometry.anonymousFlexBox(contentWidth: frameSize.width, maximumContentWidth: naturalWidth, minimumContentWidth: style.preservesBlockRows ? 0 : minimumHorizontalContentWidth(text: originalText, style: style), justification: alignment)
+        let flex = NativeTextPaintGeometry.anonymousFlexBox(contentWidth: frameSize.width, maximumContentWidth: naturalWidth, minimumContentWidth: saved?.minimumContent ?? (style.preservesBlockRows ? 0 : minimumHorizontalContentWidth(text: originalText, style: style)), justification: alignment)
         let anonymousInlineX = flex?.origin ?? 0
-        let primary = font(text: originalText, style: style)
-        let primaryBounds = (ascent: ceil(CTFontGetAscent(primary)), descent: ceil(CTFontGetDescent(primary)))
-        let minimumInline = originalText.filter { !$0.isWhitespace }.map {
-            CGFloat(CTLineGetTypographicBounds(CTLineCreateWithAttributedString(attributedString(text: String($0), style: style)), nil, nil, nil))
-        }.max() ?? 0
+        let primaryBounds: (ascent: CGFloat, descent: CGFloat)
+        if let saved { primaryBounds = (saved.ascent, saved.descent) }
+        else { let primary = font(text: originalText, style: style); primaryBounds = (ceil(CTFontGetAscent(primary)), ceil(CTFontGetDescent(primary))) }
+        let minimumInline: CGFloat
+        if style.vertical {
+            minimumInline = originalText.filter { !$0.isWhitespace }.map {
+                CGFloat(CTLineGetTypographicBounds(CTLineCreateWithAttributedString(attributedString(text: String($0), style: style)), nil, nil, nil))
+            }.max() ?? 0
+        } else {
+            minimumInline = 0 // Unused: verticalInline is nil in this exact branch.
+        }
         let verticalInline = style.vertical ? NativeTextPaintGeometry.anonymousFlexBox(contentWidth: frameSize.height,
             maximumContentWidth: naturalWidth, minimumContentWidth: minimumInline) : nil
         let inlineY = offset.y + (frameSize.height - (verticalInline?.width ?? frameSize.height)) / 2
         var boxes: [CGRect] = []
         for index in 0..<count {
             let line = unsafeBitCast(CFArrayGetValueAtIndex(lines, index), to: CTLine.self)
-            let range = CTLineGetStringRange(line)
+            let range = saved?.ranges[index] ?? CTLineGetStringRange(line)
             var origin = origins[index]
             if index < movements.count { origin.x += movements[index].x / scaleX; origin.y -= movements[index].y }
-            let advance = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+            let advance = saved?.advances[index] ?? CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
             let inlineX = style.preservesBlockRows
                 ? (blockRowBox(contentWidth: frameSize.width, advance: (index < blockIntrinsic.count ? blockIntrinsic[index] : nil) ?? advance, style: style)?.origin ?? 0)
                 : anonymousInlineX
@@ -1569,6 +1913,129 @@ enum NativeTranslationTypography {
             }
         }
         return boxes
+    }
+
+    /// Quality measurements from the committed horizontal rows, not glyph-box
+    /// clustering. Read-only: the same offsets and absolute anchors are used by draw().
+    /// Source word cuts remain unknown when display text has no verified ownership ledger.
+    static func horizontalRowMetrics(layout: Layout, originalText: String, origin: CGPoint = .zero,
+                                     pixelSnapScale: CGFloat? = nil) -> [[String: Any]]? {
+        guard layout.frameAttributes == nil, origin.x.isFinite, origin.y.isFinite else { return nil }
+        guard let frame = layout.frame else { return layout.shapedText.isEmpty ? [] : nil }
+        let lines = CTFrameGetLines(frame), count = CFArrayGetCount(lines)
+        guard count == layout.lineRanges.count else { return nil }
+        let shaped = layout.shapedText as NSString
+        let source = originalText as NSString
+        let ledger = layout.sourceUTF16Ownership
+        let verified = sourceOwnershipCoverage(layout, originalText: originalText) != nil
+        let directOwnership = ledger == nil && verified
+        let ledgerValid = ledger != nil && verified
+        var origins = [CGPoint](repeating: .zero, count: count)
+        CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins)
+        func isWord(_ character: Character) -> Bool {
+            character.unicodeScalars.contains { $0.properties.isAlphabetic || $0.properties.numericType != nil }
+        }
+        func cutsWord(at boundary: Int) -> Bool? {
+            guard boundary > 0, boundary < source.length else { return false }
+            let utf16Index = originalText.utf16.index(originalText.utf16.startIndex, offsetBy: boundary)
+            guard let index = String.Index(utf16Index, within: originalText),
+                  index > originalText.startIndex, index < originalText.endIndex else { return nil }
+            // A boundary inside a composed character is not a word-boundary observation.
+            guard originalText.indices.contains(index) else { return nil }
+            return isWord(originalText[originalText.index(before: index)]) && isWord(originalText[index])
+        }
+        var rows: [[String: Any]] = []
+        for index in 0..<count {
+            let line = unsafeBitCast(CFArrayGetValueAtIndex(lines, index), to: CTLine.self)
+            let raw = CTLineGetStringRange(line)
+            guard raw.location >= 0, raw.length >= 0, raw.location <= shaped.length,
+                  raw.length <= shaped.length - raw.location else { return nil }
+            let range = NSRange(location: raw.location, length: raw.length)
+            let text = shaped.substring(with: range)
+            let graphemes = text.filter { !$0.isWhitespace }
+            let letters = graphemes.filter(isWord)
+            let movement = index < layout.lineOffsets.count ? layout.lineOffsets[index] : .zero
+            let anchor = CGPoint(x: origin.x + (layout.offset.x + origins[index].x) * layout.paintScaleX + movement.x,
+                y: origin.y + layout.offset.y + layout.frameSize.height - origins[index].y + movement.y)
+            guard anchor.x.isFinite, anchor.y.isFinite else { return nil }
+            let painted = NativeTextPaintGeometry.paintOrigin(anchor, deviceScale: pixelSnapScale) ?? anchor
+            var sourceRange: NSRange?
+            if ledgerValid, let ledger {
+                let owned = ledger[range.location..<NSMaxRange(range)].filter { $0.length > 0 }
+                if let first = owned.first,
+                   zip(owned, owned.dropFirst()).allSatisfy({
+                       $0.1.location >= $0.0.location && NSMaxRange($0.0) >= $0.1.location
+                   }) {
+                    let end = owned.reduce(first.location) { max($0, NSMaxRange($1)) }
+                    sourceRange = NSRange(location: first.location, length: end - first.location)
+                }
+            } else if directOwnership { sourceRange = range }
+            let cut = sourceRange.flatMap { cutsWord(at: NSMaxRange($0)) }
+            let singleHangul = letters.count == 1 && letters.first?.unicodeScalars.contains(where: isHangulScript) == true
+            rows.append([
+                "index": index, "shapedUTF16Range": [range.location, range.length],
+                "sourceUTF16Range": sourceRange.map { [$0.location, $0.length] } as Any? ?? NSNull(),
+                "graphemeCount": graphemes.count,
+                "scalarCount": text.unicodeScalars.filter { !$0.properties.isWhitespace }.count,
+                "letterGraphemeCount": letters.count, "singleHangulLetterRow": singleHangul,
+                "endsInsideSourceTokenProxy": cut as Any? ?? NSNull(),
+                "pixelSnappingApplied": NativeTextPaintGeometry.paintOrigin(anchor, deviceScale: pixelSnapScale) != nil,
+                "unsnappedBaseline": [Double(anchor.x), Double(anchor.y)],
+                "paintedBaseline": [Double(painted.x), Double(painted.y)]
+            ])
+        }
+        for index in rows.indices {
+            guard index + 1 < rows.count else {
+                rows[index]["tokenCutAfterRowProxy"] = false
+                continue
+            }
+            guard let current = rows[index]["sourceUTF16Range"] as? [Int],
+                  let next = rows[index + 1]["sourceUTF16Range"] as? [Int],
+                  current[0] + current[1] == next[0],
+                  let cut = rows[index]["endsInsideSourceTokenProxy"] as? Bool else {
+                rows[index]["tokenCutAfterRowProxy"] = NSNull()
+                continue
+            }
+            rows[index]["tokenCutAfterRowProxy"] = cut
+        }
+        return rows
+    }
+
+    /// Alignment anchors of the committed CT-frame painter, not original-source
+    /// alignment truth. Preserve unknown for non-frame, transformed or bidi runs.
+    /// The caller supplies its frozen current alignment model separately.
+    static func committedRowAlignmentAnchors(layout: Layout, alignment: HorizontalAlignment,
+        origin: CGPoint = .zero, pixelSnapScale: CGFloat? = nil) -> [CGFloat]? {
+        guard layout.frameAttributes == nil, layout.paintScaleX == 1,
+              origin.x.isFinite, origin.y.isFinite, let frame = layout.frame,
+              let alignmentWidths = layout.committedRowAlignmentWidths else { return nil }
+        let lines = CTFrameGetLines(frame)
+        let count = CFArrayGetCount(lines)
+        guard count == layout.lineRanges.count, count == alignmentWidths.count else { return nil }
+        var origins = [CGPoint](repeating: .zero, count: count)
+        CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins)
+        let fraction: CGFloat = alignment == .left ? 0 : alignment == .right ? 1 : 0.5
+        var result: [CGFloat] = []
+        for index in 0..<count {
+            let line = unsafeBitCast(CFArrayGetValueAtIndex(lines, index), to: CTLine.self)
+            let actual = CTLineGetStringRange(line)
+            guard actual.location == layout.lineRanges[index].location,
+                  actual.length == layout.lineRanges[index].length else { return nil }
+            let runs = CTLineGetGlyphRuns(line)
+            for r in 0..<CFArrayGetCount(runs) {
+                let run = unsafeBitCast(CFArrayGetValueAtIndex(runs, r), to: CTRun.self)
+                guard !CTRunGetStatus(run).contains(.rightToLeft), CTRunGetTextMatrix(run) == .identity else { return nil }
+            }
+            let width = alignmentWidths[index]
+            let shift = index < layout.lineOffsets.count ? layout.lineOffsets[index] : .zero
+            let point = CGPoint(x: origin.x + layout.offset.x + origins[index].x + shift.x,
+                y: origin.y + layout.offset.y + layout.frameSize.height - origins[index].y + shift.y)
+            let painted = NativeTextPaintGeometry.paintOrigin(point, deviceScale: pixelSnapScale) ?? point
+            let x = painted.x + width * fraction
+            guard width.isFinite, width >= 0, x.isFinite else { return nil }
+            result.append(x)
+        }
+        return result
     }
 
     /// Opt-in diagnostics from the committed Core Text frame. Origins and run
@@ -1760,6 +2227,13 @@ enum NativeTranslationTypography {
         let characters = text.unicodeScalars.map { Character(String($0)) }
         let count = characters.count
         guard count > 0 else { return nil }
+        let protectedCuts = NativeParentheticalNameWrap.protectedUTF16Cuts(text)
+        var sourceOffsets: [Int] = []
+        if !protectedCuts.isEmpty {
+            sourceOffsets.reserveCapacity(count + 1)
+            sourceOffsets.append(0)
+            for character in characters { sourceOffsets.append(sourceOffsets.last! + String(character).utf16.count) }
+        }
         let pitch = max(style.fontSize, style.lineHeight)
         let limit = min(count, max(1, maxLines ?? Int(max(1, min(CGFloat(count), floor(available.height / pitch))))))
         if let maxLines, maxLines < 1 { return nil }
@@ -1831,6 +2305,8 @@ enum NativeTranslationTypography {
             while first < count && spaces[first] { first += 1 }
             guard first < count else { continue }
             for end in (start + 1)...count {
+                if !protectedCuts.isEmpty,
+                   protectedCuts.contains(sourceOffsets[start]) || protectedCuts.contains(sourceOffsets[end]) { continue }
                 if end < count && spaces[end] { continue }
                 let last = previousInk[end - 1]
                 guard last >= first else { continue }
@@ -1901,9 +2377,39 @@ enum NativeTranslationTypography {
             (0xFFDA...0xFFDC).contains(scalar.value)
     }
 
+    /// Effective automatic script used for shaping and typography cohorts.
+    /// Explicit font names are independent of this script and retain priority.
+    static func resolvedFontScript(text: String, style: Style) -> String {
+        var inferred = style.fontScript.isEmpty ? script(for: text) : style.fontScript
+        if style.prefersDominantKoreanScript, inferred == "japanese" {
+            var hangulCount = 0, kanaCount = 0
+            // Counting needs no materialized scalar arrays or retained cache.
+            for scalar in text.unicodeScalars {
+                if isHangulScript(scalar) { hangulCount += 1 }
+                else if (0x3040...0x30FF).contains(scalar.value) || (0x31F0...0x31FF).contains(scalar.value) ||
+                    (0xFF66...0xFF9D).contains(scalar.value) { kanaCount += 1 }
+            }
+            if hangulCount > kanaCount { inferred = "korean" }
+        }
+        return inferred
+    }
+
     private static func font(text: String, style: Style) -> CTFont {
         if style.fontName == "AidokuSerifKR-Bold" { _ = bundledSerifRegistered }
-        let inferredScript = style.fontScript.isEmpty ? script(for: text) : style.fontScript
+        // Arbitrary named fonts can be registered after a render. Do not cache
+        // their temporarily missing-face fallback across registration changes.
+        guard style.fontName == nil || (style.fontName == "AidokuSerifKR-Bold" && bundledSerifRegistered) else {
+            return uncachedFont(text: text, style: style)
+        }
+        let key = NativeTypographyFontCache.Key(name: style.fontName,
+            script: resolvedFontScript(text: text, style: style), size: Double(style.fontSize).bitPattern,
+            bold: style.bold, vertical: style.vertical)
+        return NativeTypographyFontCache.get(key) { uncachedFont(text: text, style: style) }
+    }
+
+    private static func uncachedFont(text: String, style: Style) -> CTFont {
+        if style.fontName == "AidokuSerifKR-Bold" { _ = bundledSerifRegistered }
+        let inferredScript = resolvedFontScript(text: text, style: style)
         let named: String?
         if let requested = style.fontName {
             named = requested
@@ -1941,7 +2447,10 @@ enum NativeTranslationTypography {
 
     private static func script(for text: String) -> String {
         let values = text.unicodeScalars.map(\.value)
-        if values.contains(where: { (0xAC00...0xD7AF).contains($0) || (0x1100...0x11FF).contains($0) }) { return "korean" }
+        // Use the same script coverage as Korean shaping/wrapping. Isolated
+        // compatibility jamo (for example consonant reactions) otherwise
+        // select a Latin primary face and receive an unweighted cascade font.
+        if text.unicodeScalars.contains(where: isHangulScript) { return "korean" }
         if values.contains(where: { (0x3040...0x30FF).contains($0) }) { return "japanese" }
         if values.contains(where: { (0x3400...0x9FFF).contains($0) }) { return "han" }
         return "word"
@@ -1995,5 +2504,769 @@ enum NativeTranslationTypography {
             }
         }
         return result
+    }
+}
+// Committed native row frontiers retain the original input and baseline.
+// Safety and source-style authority remain the renderer caller's responsibility.
+extension NativeTranslationTypography {
+    private struct ParagraphRowKey: Hashable {
+        let start: Int
+        let rows: Int
+    }
+
+    /// Native attributedString measurements, no alternate font/scale solver.
+    /// False completeness is a resource outcome, never physical infeasibility.
+    static func committedParagraphFrontier(
+        text: String, width: CGFloat, style: Style,
+        utf16Work: inout Int, geometryWork: inout Int,
+        referenceLayout: Layout? = nil
+    ) -> (programs: [CommittedParagraphProgram], complete: Bool) {
+        guard !style.vertical, !style.preservesBlockRows, !text.isEmpty,
+              !style.keepsWholeWords, !style.strictLineBreak,
+              style.fontSize.isFinite, style.fontSize > 0,
+              style.outlineWidth.isFinite, style.outlineWidth >= 0,
+              width.isFinite, width > 0, style.horizontalScale.isFinite,
+              style.horizontalScale >= 0.5, style.horizontalScale <= 1 else { return ([], false) }
+        let source = text as NSString
+        guard source.length > 0, source.length <= utf16Work else { return ([], false) }
+        utf16Work -= source.length
+        var scalarAt: [Int: Unicode.Scalar] = [:], scalarOffset = 0
+        for scalar in text.unicodeScalars {
+            scalarAt[scalarOffset] = scalar
+            scalarOffset += scalar.utf16.count
+        }
+        var boundaries = [0], hardEnds: Set<Int> = [], offset = 0
+        for character in text {
+            let length = String(character).utf16.count
+            let next = offset.addingReportingOverflow(length)
+            guard !next.overflow else { return ([], false) }
+            offset = next.partialValue; boundaries.append(offset)
+            if character.isNewline { hardEnds.insert(offset) }
+        }
+        let typesetter = CTTypesetterCreateWithAttributedString(attributedString(text: text, style: style))
+        struct Row {
+            let range: NSRange
+            let fill: CGFloat
+            let cuts: Int
+            let singleton: Int
+        }
+        struct Node {
+            let score: [CGFloat]
+            let ranges: [NSRange]
+            let short: Int
+            let ragged: CGFloat
+        }
+        var cache: [NSRange: Row] = [:], exhausted = false
+        func measured(_ range: NSRange) -> Row? {
+            if let old = cache[range] { return old }
+            guard range.length <= utf16Work else { exhausted = true; return nil }
+            utf16Work -= range.length
+            let line = CTTypesetterCreateLine(typesetter, CFRange(location: range.location, length: range.length))
+            let actual = CTLineGetStringRange(line)
+            guard actual.location == range.location, actual.length == range.length else { return nil }
+            let advance = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+            let ink = CTLineGetImageBounds(line, nil)
+            let value = source.substring(with: range)
+            let plain = Array(value.unicodeScalars.filter { !$0.properties.isWhitespace })
+            let hasInk = !plain.isEmpty && !ink.isNull && !ink.isInfinite
+            let supportedWidth = hasInk
+                ? max(advance, ink.maxX) - min(0, ink.minX) + style.outlineWidth : advance
+            let fill = supportedWidth * style.horizontalScale / width
+            guard fill.isFinite else { return nil }
+            let end = range.location + range.length
+            func token(_ scalar: Unicode.Scalar?) -> Bool {
+                scalar.map { CharacterSet.alphanumerics.contains($0) } ?? false
+            }
+            let before = value.unicodeScalars.last
+            let after = scalarAt[end]
+            let cuts = token(before) && token(after) ? 1 : 0
+            let letters = value.filter { character in
+                !character.isWhitespace && character.unicodeScalars.contains {
+                    $0.properties.isAlphabetic || $0.properties.numericType != nil
+                }
+            }
+            let singleton = letters.count == 1 && letters.first?.unicodeScalars.contains(where: isHangulScript) == true ? 1 : 0
+            let row = Row(range: range, fill: fill, cuts: cuts, singleton: singleton)
+            cache[range] = row
+            return row
+        }
+        func preferred(_ a: [CGFloat], _ b: [CGFloat]) -> Bool {
+            for (x, y) in zip(a, b) where x != y { return x < y }
+            return false
+        }
+        var output: [CommittedParagraphProgram] = []
+        for mode in ["balance-inspired", "pretty-inspired"] {
+            var allRanges: [NSRange] = [], cuts = 0, singles = 0, short = 0
+            var ragged: CGFloat = 0, segmentStart = 0
+            for segmentEnd in boundaries.dropFirst() where hardEnds.contains(segmentEnd) || segmentEnd == source.length {
+                var cursor = segmentStart, targetRows = 0
+                while cursor < segmentEnd {
+                    guard geometryWork > 0 else { return ([], false) }
+                    geometryWork -= 1
+                    let count = CTTypesetterSuggestLineBreak(typesetter, cursor, Double(width / style.horizontalScale))
+                    guard count > 0, count <= source.length - cursor else { return ([], false) }
+                    let end = min(segmentEnd, cursor + count)
+                    guard boundaries.contains(end) else { return ([], false) }
+                    cursor = end; targetRows += 1
+                }
+                if let referenceLayout {
+                    guard let observed = horizontalRowMetrics(layout: referenceLayout, originalText: text),
+                          referenceLayout.visibleUTF16Range.length == source.length else { return ([], false) }
+                    let owned = observed.compactMap { $0["sourceUTF16Range"] as? [Int] }
+                    guard owned.count == observed.count else { return ([], false) }
+                    let rowsInSegment = owned.filter { $0[0] >= segmentStart && $0[0] < segmentEnd }
+                    guard !rowsInSegment.isEmpty,
+                          rowsInSegment.allSatisfy({ $0[0] + $0[1] <= segmentEnd }) else { return ([], false) }
+                    targetRows = rowsInSegment.count
+                }
+                let positions = boundaries.filter { $0 >= segmentStart && $0 <= segmentEnd }
+                var table: [ParagraphRowKey: Node] = [
+                    .init(start: segmentEnd, rows: 0): .init(score: [0, 0, 0, 0], ranges: [], short: 0, ragged: 0)
+                ]
+                // Bottom-up: no input-length-dependent recursion/stack depth.
+                for remaining in 1...targetRows {
+                    for start in positions.dropLast().reversed() {
+                        for end in positions where end > start {
+                            guard geometryWork > 0 else { return ([], false) }
+                            geometryWork -= 1
+                            guard let tail = table[.init(start: end, rows: remaining - 1)] else { continue }
+                            guard let row = measured(NSRange(location: start, length: end - start)) else {
+                                if exhausted { return ([], false) }
+                                continue
+                            }
+                            guard row.fill <= 1 + 1e-9 else { continue }
+                            let last = end == segmentEnd
+                            let lastPenalty = last && targetRows > 1 ? pow(max(0, 0.35 - row.fill), 2) : 0
+                            let empty = pow(1 - row.fill, 2)
+                            let score = [CGFloat(row.cuts) + tail.score[0], CGFloat(row.singleton) + tail.score[1],
+                                (mode == "balance-inspired" ? empty : lastPenalty) + tail.score[2],
+                                (mode == "balance-inspired" ? lastPenalty : last ? 0 : empty) + tail.score[3]]
+                            let node = Node(score: score, ranges: [row.range] + tail.ranges,
+                                short: (last && targetRows > 1 && row.fill < 0.35 ? 1 : 0) + tail.short,
+                                ragged: (last ? 0 : empty) + tail.ragged)
+                            let key = ParagraphRowKey(start: start, rows: remaining)
+                            if table[key] == nil || preferred(score, table[key]!.score) { table[key] = node }
+                        }
+                    }
+                }
+                guard let best = table[.init(start: segmentStart, rows: targetRows)] else { break }
+                allRanges += best.ranges; cuts += Int(best.score[0]); singles += Int(best.score[1])
+                short += best.short; ragged += best.ragged; segmentStart = segmentEnd
+            }
+            if segmentStart == source.length {
+                output.append(.init(originalRanges: allRanges, mode: mode, emergencyCuts: cuts,
+                    singletonRows: singles, shortLastLines: short, normalizedRaggedness: ragged, completeFrontier: true))
+            }
+        }
+        return (output, true)
+    }
+
+    struct CommittedParagraphProgram {
+        let originalRanges: [NSRange]
+        let mode: String
+        let emergencyCuts: Int
+        let singletonRows: Int
+        let shortLastLines: Int
+        let normalizedRaggedness: CGFloat
+        let completeFrontier: Bool
+    }
+
+    /// Exact original UTF ledger, including spaces, astral code units and hard
+    /// breaks. Soft LF is source-empty. Input/card identities never change.
+    static func layoutCommittedParagraph(
+        text: String, in available: CGSize, style: Style,
+        program: CommittedParagraphProgram
+    ) -> Layout? {
+        guard !style.vertical, !style.preservesBlockRows,
+              !style.keepsWholeWords, !style.strictLineBreak,
+              style.horizontalWhitespace == .preWrap,
+              !text.isEmpty, !program.originalRanges.isEmpty,
+              available.width.isFinite, available.height.isFinite,
+              available.width > 0, available.height > 0 else { return nil }
+        let source = text as NSString, units = Array(text.utf16)
+        var boundaries: Set<Int> = [0]
+        var offset = 0
+        for character in text {
+            let (next, overflow) = offset.addingReportingOverflow(String(character).utf16.count)
+            guard !overflow else { return nil }
+            offset = next; boundaries.insert(offset)
+        }
+        guard offset == source.length else { return nil }
+
+        var displayed = "", ownership: [NSRange] = [], expectedRows: [NSRange] = []
+        var cursor = 0, displayCursor = 0
+        for (index, range) in program.originalRanges.enumerated() {
+            guard range.location == cursor, range.length > 0,
+                  range.location >= 0, range.location <= source.length,
+                  range.length <= source.length - range.location,
+                  boundaries.contains(range.location),
+                  boundaries.contains(range.location + range.length) else { return nil }
+            let end = range.location + range.length
+            // A row cannot cross an authored hard break. CRLF remains atomic.
+            for position in range.location..<end {
+                switch units[position] {
+                case 13:
+                    let terminator = position + 1 < units.count && units[position + 1] == 10
+                        ? position + 2 : position + 1
+                    guard terminator == end else { return nil }
+                case 10, 11, 12, 0x85, 0x2028, 0x2029:
+                    guard position + 1 == end else { return nil }
+                default: break
+                }
+            }
+            displayed += source.substring(with: range)
+            ownership += (range.location..<end).map { NSRange(location: $0, length: 1) }
+            var count = range.length
+            let last = units[end - 1]
+            let hard = [10, 11, 12, 13, 0x85, 0x2028, 0x2029].contains(last)
+            if index + 1 < program.originalRanges.count && !hard {
+                displayed += "\n"
+                ownership.append(NSRange(location: end, length: 0))
+                count += 1
+            }
+            expectedRows.append(NSRange(location: displayCursor, length: count))
+            displayCursor += count; cursor = end
+        }
+        guard cursor == source.length, ownership.count == displayed.utf16.count else { return nil }
+        // Only internal row-flow machinery changes. Face, foreground, stroke,
+        // relative outline width, font/pitch/tracking/scale remain caller-owned.
+        var paint = style
+        paint.horizontalWrapping = .normal
+        paint.optimizesKoreanWrapping = false
+        paint.balancesHorizontalLines = false
+        paint.explicitLineFlow = true
+        paint.intrinsicText = text
+        let shaped = layout(text: displayed, in: available, style: paint)
+        guard shaped.fits, shaped.shapedText.utf16.elementsEqual(displayed.utf16),
+              shaped.visibleUTF16Range.location == 0,
+              shaped.visibleUTF16Range.length == displayed.utf16.count,
+              shaped.lineRanges == expectedRows else { return nil }
+        // In particular, never overwrite visibleUTF to original length before
+        // proving the entire committed display program really survived native fit.
+        return Layout(size: shaped.size, inkBounds: shaped.inkBounds,
+            visibleUTF16Range: NSRange(location: 0, length: source.length),
+            lineCount: shaped.lineCount, fits: shaped.fits,
+            glyphBounds: shaped.glyphBounds, rangeBounds: shaped.rangeBounds,
+            lineRanges: shaped.lineRanges, shapedText: shaped.shapedText,
+            frame: shaped.frame, frameSize: shaped.frameSize, offset: shaped.offset,
+            attributed: shaped.attributed, frameAttributes: shaped.frameAttributes,
+            paintScaleX: shaped.paintScaleX, lineOffsets: shaped.lineOffsets,
+            committedRowAlignmentWidths: shaped.committedRowAlignmentWidths,
+            verticalPaintOffsets: shaped.verticalPaintOffsets,
+            blockRowIntrinsicWidths: shaped.blockRowIntrinsicWidths,
+            outlineGlow: shaped.outlineGlow, outlineGlowColor: shaped.outlineGlowColor,
+            sourceUTF16Ownership: ownership, fromManualWrap: true)
+    }
+}
+
+
+extension NativeTranslationTypography {
+    static func committedParagraphCandidates(text: String, in size: CGSize, style: Style,
+        reference: Layout, utf16Work: inout Int, geometryWork: inout Int)
+        -> (baseline: Layout, layouts: [Layout], complete: Bool) {
+        let inputWork = text.utf16.count
+        guard inputWork <= utf16Work, reference.lineCount >= 0,
+              reference.lineCount <= geometryWork else { return (reference, [], false) }
+        utf16Work -= inputWork; geometryWork -= reference.lineCount
+        guard committedParagraphRawComplete(reference, original: text) else { return (reference, [], false) }
+        guard reference.visibleUTF16Range == NSRange(location: 0, length: text.utf16.count),
+              let before = horizontalRowMetrics(layout: reference, originalText: text),
+              before.allSatisfy({ $0["tokenCutAfterRowProxy"] is Bool }) else { return (reference, [], false) }
+        let beforeCuts = before.filter { $0["tokenCutAfterRowProxy"] as? Bool == true }.count
+        let beforeSingles = before.filter { $0["singleHangulLetterRow"] as? Bool == true }.count
+        let frontier = committedParagraphFrontier(text: text, width: size.width, style: style,
+            utf16Work: &utf16Work, geometryWork: &geometryWork, referenceLayout: reference)
+        guard frontier.complete else { return (reference, [], false) }
+        var result: [Layout] = []
+        for program in frontier.programs {
+            let reservation = text.utf16.count.addingReportingOverflow(program.originalRanges.count)
+            guard !reservation.overflow, reservation.partialValue <= utf16Work,
+                  geometryWork > 0 else { return (reference, [], false) }
+            utf16Work -= reservation.partialValue; geometryWork -= 1
+            guard let candidate = layoutCommittedParagraph(text: text, in: size, style: style, program: program),
+                  committedParagraphRawComplete(candidate, original: text),
+                  let rows = horizontalRowMetrics(layout: candidate, originalText: text),
+                  rows.allSatisfy({ $0["tokenCutAfterRowProxy"] is Bool }),
+                  rows.filter({ $0["tokenCutAfterRowProxy"] as? Bool == true }).count <= beforeCuts,
+                  rows.filter({ $0["singleHangulLetterRow"] as? Bool == true }).count <= beforeSingles else { continue }
+            let shapedGuardUnits = reference.shapedText.utf16.count.addingReportingOverflow(candidate.shapedText.utf16.count)
+            let guardUnits = shapedGuardUnits.partialValue.addingReportingOverflow(text.utf16.count)
+            let guardUTF = guardUnits.partialValue.multipliedReportingOverflow(by: 2)
+            let guardRows = reference.lineCount.addingReportingOverflow(candidate.lineCount)
+            guard !shapedGuardUnits.overflow, !guardUnits.overflow, !guardUTF.overflow, !guardRows.overflow,
+                  guardUTF.partialValue <= utf16Work, guardRows.partialValue <= geometryWork else {
+                return (reference, [], false)
+            }
+            utf16Work -= guardUTF.partialValue; geometryWork -= guardRows.partialValue
+            guard NativeParagraphReadabilityGuard.permits(candidate: candidate, baseline: reference,
+                original: text, width: size.width, style: style) == true else { continue }
+            result.append(candidate)
+        }
+        return (reference, result, true)
+    }
+
+    static func committedParagraphRawComplete(_ l: Layout, original: String) -> Bool {
+        guard let frame = l.frame else {
+            return original.isEmpty && sourceOwnershipCoverage(l, originalText: original, normalization: .exact)?.whole == true
+        }
+        let displayed = l.shapedText.utf16.count
+        let visible = CTFrameGetVisibleStringRange(frame)
+        guard visible.location == 0, visible.length == displayed else { return false }
+        let lines = CTFrameGetLines(frame)
+        var cursor = 0
+        for i in 0..<CFArrayGetCount(lines) {
+            let line = unsafeBitCast(CFArrayGetValueAtIndex(lines, i), to: CTLine.self)
+            let r = CTLineGetStringRange(line)
+            guard r.location == cursor, r.length >= 0, r.length <= displayed - cursor else { return false }
+            cursor += r.length
+            let runs = CTLineGetGlyphRuns(line)
+            for j in 0..<CFArrayGetCount(runs) {
+                let run = unsafeBitCast(CFArrayGetValueAtIndex(runs, j), to: CTRun.self)
+                let count = CTRunGetGlyphCount(run)
+                var indices = [CFIndex](repeating: 0, count: count)
+                CTRunGetStringIndices(run, CFRange(location: 0, length: 0), &indices)
+                guard indices.allSatisfy({ $0 >= r.location && $0 < r.location + r.length }) else { return false }
+            }
+        }
+        guard cursor == displayed else { return false }
+        return sourceOwnershipCoverage(l, originalText: original, normalization: .exact)?.whole == true
+    }
+}
+// Single value/cursor proof used by diagnostics and completeness gates.
+extension NativeTranslationTypography {
+    enum SourceOwnershipNormalization { case exact, certifiedASCIISpaceCollapse }
+    struct SourceOwnershipCoverage { let whole: Bool }
+
+    static func sourceOwnershipCoverage(_ layout: Layout, originalText: String,
+        normalization: SourceOwnershipNormalization? = nil) -> SourceOwnershipCoverage? {
+        let source = Array(originalText.utf16), display = Array(layout.shapedText.utf16)
+        guard let ledger = layout.sourceUTF16Ownership else {
+            return display.elementsEqual(source) ? .init(whole: true) : nil
+        }
+        guard ledger.count == display.count else { return nil }
+        let policy = normalization ?? layout.sourceOwnershipNormalization
+        var cursor = 0, whole = true
+        for (unit, owner) in zip(display, ledger) {
+            guard owner.location >= cursor, owner.location <= source.count,
+                  owner.length >= 0, owner.length <= source.count - owner.location else { return nil }
+            if owner.length == 0 {
+                guard unit == 10 else { return nil }
+                if owner.location != cursor {
+                    guard policy == .certifiedASCIISpaceCollapse,
+                          source[cursor..<owner.location].allSatisfy({ $0 == 32 }) else { return nil }
+                    whole = false // Provenance verifies the omission, not full-source coverage.
+                }
+            } else if owner.length == 1 {
+                guard unit == source[owner.location] else { return nil }
+                if owner.location != cursor { whole = false }
+            } else {
+                guard policy == .certifiedASCIISpaceCollapse, unit == 32,
+                      source[owner.location..<owner.location + owner.length].allSatisfy({ $0 == 32 }) else { return nil }
+                if owner.location != cursor { whole = false }
+            }
+            cursor = owner.location + owner.length
+        }
+        return .init(whole: whole && cursor == source.count)
+    }
+}
+
+/// Additive candidate guard only. A model/heuristic observation, never a GT label.
+/// Requires a verified original UTF ledger and exact native row-shaping parity.
+enum NativeParagraphReadabilityGuard {
+    typealias T = NativeTranslationTypography
+    struct Metrics {
+        let cuts: Int
+        let singletons: Int
+        let punctuationOnlyRows: Int
+        let lonelyQuoteRows: Int
+        let openingAtSoftEnd: Int
+        let closingAtSoftStart: Int
+        let shortLastRows: Int
+        let attachedTerminalSplits: Int
+        let punctuationClusterSplits: Int
+        let meanNonfinalEmptySquared: Double
+        let fills: [Double]
+        let actualSoftNonfinalRows: Int
+        let actualNonfinalEmptySquaredSum: Double
+        func noWorse(than old: Metrics) -> Bool {
+            cuts <= old.cuts && singletons <= old.singletons &&
+                punctuationOnlyRows <= old.punctuationOnlyRows && lonelyQuoteRows <= old.lonelyQuoteRows &&
+                openingAtSoftEnd <= old.openingAtSoftEnd && closingAtSoftStart <= old.closingAtSoftStart &&
+                shortLastRows <= old.shortLastRows &&
+                attachedTerminalSplits <= old.attachedTerminalSplits &&
+                punctuationClusterSplits <= old.punctuationClusterSplits &&
+                meanNonfinalEmptySquared <= old.meanNonfinalEmptySquared + 1e-9
+        }
+    }
+    static func opening(_ c: Character) -> Bool {
+        c.unicodeScalars.contains { $0.properties.generalCategory == .openPunctuation ||
+            $0.properties.generalCategory == .initialPunctuation }
+    }
+    static func closing(_ c: Character) -> Bool {
+        c.unicodeScalars.contains { $0.properties.generalCategory == .closePunctuation ||
+            $0.properties.generalCategory == .finalPunctuation }
+    }
+    static func quote(_ c: Character) -> Bool {
+        "「」『』“”‘’\"'".contains(c)
+    }
+    static func observed(layout: T.Layout, original: String, width: CGFloat, style: T.Style, auditWork: ReadabilityAuditBudget? = nil) -> Metrics? {
+        if let auditWork, !auditWork.nativeReserved, !auditWork.reserveNative(layout, original: original) { return nil }
+        let auditStarted = auditWork?.clock()
+        defer { if let auditWork, let auditStarted { auditWork.elapsed("sharedObservedTotal", auditStarted) } }
+        guard !style.vertical, width.isFinite, width > 0,
+              T.committedParagraphRawComplete(layout, original: original),
+              let rows = T.horizontalRowMetrics(layout: layout, originalText: original),
+              rows.count == layout.lineCount,
+              rows.allSatisfy({ $0["tokenCutAfterRowProxy"] is Bool }) else { return nil }
+        let advances = T.lineAdvances(layout: layout)
+        let native = auditWork == nil ? T.diagnosticRuns(layout: layout) : []
+        guard advances.count == rows.count, auditWork != nil || native.count == rows.count else { return nil }
+        let shaped = layout.shapedText as NSString
+        let units = Array(original.utf16)
+        // Direct source Character boundaries, not translated-string heuristics.
+        // This measured whitelist is intentionally not a full UAX #14 claim.
+        let terminal = ".,!?…。，！？：；:;"
+        var starts: [Int: Character] = [:], ends: [Int: Character] = [:], offset = 0
+        for character in original {
+            starts[offset] = character
+            offset += String(character).utf16.count
+            ends[offset] = character
+        }
+        let typesetter = CTTypesetterCreateWithAttributedString(T.attributedString(text: layout.shapedText, style: style))
+        var punct = 0, lonely = 0, openEnd = 0, closeStart = 0, short = 0
+        var ragged = 0.0, nonfinal = 0, fills: [Double] = []
+        var attached = 0, cluster = 0
+        var previousWasSoft = false
+        for (index, row) in rows.enumerated() {
+            let range = layout.lineRanges[index]
+            if let auditWork, !auditWork.takeLine() { return nil }
+            let line = CTTypesetterCreateLine(typesetter, CFRange(location: range.location, length: range.length))
+            let actualRange = CTLineGetStringRange(line)
+            if let auditWork {
+                guard actualRange.location == range.location, actualRange.length == range.length,
+                      abs(CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)) - advances[index]) <= 1e-9 else { return nil }
+                let parityStarted = auditWork.clock()
+                auditWork.add("reconstructedLines", 1)
+                let runs = CTLineGetGlyphRuns(line)
+                let count = CFArrayGetCount(runs)
+                guard auditWork.takeRuns(count, factor: 8) else { return nil }
+                auditWork.add("reconstructedRuns", count)
+                for i in 0..<count {
+                    let run = unsafeBitCast(CFArrayGetValueAtIndex(runs, i), to: CTRun.self)
+                    let glyphCount = CTRunGetGlyphCount(run)
+                    guard auditWork.takeGlyphs(glyphCount) else { return nil }
+                    auditWork.add("reconstructedGlyphs", glyphCount)
+                }
+                guard auditWork.parity(layout, index: index, reconstructed: line) else { return nil }
+                auditWork.elapsed("reconstructedNativeParity", parityStarted)
+            } else {
+                guard actualRange.location == range.location, actualRange.length == range.length,
+                      let observedRuns = native[index]["runs"] as? [[String: Any]],
+                      abs(CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)) - advances[index]) <= 1e-9 else { return nil }
+                let runs = CTLineGetGlyphRuns(line)
+                guard observedRuns.count == CFArrayGetCount(runs) else { return nil }
+                for j in 0..<CFArrayGetCount(runs) {
+                    let run = unsafeBitCast(CFArrayGetValueAtIndex(runs, j), to: CTRun.self)
+                    let count = CTRunGetGlyphCount(run)
+                    var glyphs = [CGGlyph](repeating: 0, count: count)
+                    var positions = [CGPoint](repeating: .zero, count: count)
+                    var widths = [CGSize](repeating: .zero, count: count)
+                    CTRunGetGlyphs(run, CFRange(location: 0, length: 0), &glyphs)
+                    CTRunGetPositions(run, CFRange(location: 0, length: 0), &positions)
+                    CTRunGetAdvances(run, CFRange(location: 0, length: 0), &widths)
+                    let attrs = CTRunGetAttributes(run) as NSDictionary
+                    guard let value = attrs[kCTFontAttributeName],
+                          CFGetTypeID(value as CFTypeRef) == CTFontGetTypeID() else { return nil }
+                    let font = value as! CTFont, observed = observedRuns[j]
+                    guard observed["glyphs"] as? [Int] == glyphs.map(Int.init),
+                          observed["positions"] as? [[Double]] == positions.map({ [Double($0.x), Double($0.y)] }),
+                          observed["advances"] as? [[Double]] == widths.map({ [Double($0.width), Double($0.height)] }),
+                          observed["fontName"] as? String == CTFontCopyPostScriptName(font) as String,
+                          observed["fontSize"] as? Double == Double(CTFontGetSize(font)) else { return nil }
+                }
+            }
+            guard let sourceRange = row["sourceUTF16Range"] as? [Int], sourceRange.count == 2,
+                  sourceRange[0] >= 0, sourceRange[1] >= 0, sourceRange[0] <= units.count,
+                  sourceRange[1] <= units.count - sourceRange[0] else { return nil }
+            let end = sourceRange[0] + sourceRange[1]
+            let characters = shaped.substring(with: range).filter { !$0.isWhitespace }
+            let hard = end > 0 && [10, 11, 12, 13, 0x85, 0x2028, 0x2029].contains(units[end - 1])
+            let final = end == units.count || hard
+            if !final {
+                guard let left = ends[end], let right = starts[end] else { return nil }
+                if !left.isWhitespace && !right.isWhitespace && !left.isNewline && !right.isNewline {
+                    if terminal.contains(right), left.unicodeScalars.contains(where: {
+                        CharacterSet.alphanumerics.contains($0)
+                    }) { attached += 1 }
+                    if terminal.contains(left) && terminal.contains(right) { cluster += 1 }
+                }
+            }
+            let punctuationOnly = !characters.isEmpty && characters.unicodeScalars.allSatisfy {
+                CharacterSet.punctuationCharacters.contains($0)
+            }
+            if punctuationOnly { punct += 1 }
+            if characters.count == 1, let c = characters.first, quote(c) { lonely += 1 }
+            if !final, let last = characters.last, opening(last) { openEnd += 1 }
+            if previousWasSoft, let first = characters.first, closing(first) { closeStart += 1 }
+            previousWasSoft = !final
+            let advance = advances[index], ink = CTLineGetImageBounds(line, nil)
+            let supported = characters.isEmpty || ink.isNull || ink.isInfinite
+                ? advance : max(advance, ink.maxX) - min(0, ink.minX) + style.outlineWidth
+            let fill = Double(supported * style.horizontalScale / width)
+            guard fill.isFinite, fill >= 0 else { return nil }
+            fills.append(fill)
+            if final {
+                if !characters.isEmpty && fill < 0.35 { short += 1 }
+            } else { ragged += pow(max(0, 1 - fill), 2); nonfinal += 1 }
+        }
+        return Metrics(cuts: rows.filter { $0["tokenCutAfterRowProxy"] as? Bool == true }.count,
+            singletons: rows.filter { $0["singleHangulLetterRow"] as? Bool == true }.count,
+            punctuationOnlyRows: punct, lonelyQuoteRows: lonely, openingAtSoftEnd: openEnd,
+            closingAtSoftStart: closeStart, shortLastRows: short,
+            attachedTerminalSplits: attached, punctuationClusterSplits: cluster,
+            meanNonfinalEmptySquared: nonfinal > 0 ? ragged / Double(nonfinal) : 0, fills: fills,
+            actualSoftNonfinalRows: nonfinal, actualNonfinalEmptySquaredSum: ragged)
+    }
+    static func permits(candidate: T.Layout, baseline: T.Layout, original: String,
+                        width: CGFloat, style: T.Style) -> Bool? {
+        guard let old = observed(layout: baseline, original: original, width: width, style: style),
+              let new = observed(layout: candidate, original: original, width: width, style: style)
+        else { return nil } // unknown is not success
+        return new.noWorse(than: old)
+    }
+}
+
+/// Audit-only work ledger. Nil work preserves the existing collector path.
+final class ReadabilityAuditBudget {
+    var utf16 = 1_048_576, rows = 16_384, runs = 32_768, glyphs = 1_048_576
+    var lineCreations = 4_096, outputBytes = 1_048_576
+    var reason = "unknown-native-parity"
+
+    // Per-observation counters/timing; page admission quotas are never reset.
+    var nativeReserved = false
+    var counts: [String: Int] = [:]
+    var milliseconds: [String: Double] = [:]
+    func beginObservation() {
+        reason = "unknown-native-parity"; nativeReserved = false
+        counts.removeAll(keepingCapacity: true); milliseconds.removeAll(keepingCapacity: true)
+    }
+    func clock() -> Double { ProcessInfo.processInfo.systemUptime }
+    func elapsed(_ name: String, _ start: Double) {
+        milliseconds[name, default: 0] += (clock() - start) * 1000
+    }
+    func add(_ name: String, _ n: Int) { counts[name, default: 0] += n }
+    /// Exact legacy parity fields, directly from the real CTFrame, no diagnostic dictionaries.
+    func parity(_ layout: NativeTranslationTypography.Layout, index: Int, reconstructed: CTLine) -> Bool {
+        guard let frame = layout.frame else { reason = "unknown-no-frame"; return false }
+        let lines = CTFrameGetLines(frame)
+        guard index >= 0, index < CFArrayGetCount(lines) else { reason = "unknown-line-index"; return false }
+        let actual = unsafeBitCast(CFArrayGetValueAtIndex(lines, index), to: CTLine.self)
+        let aa = CTLineGetGlyphRuns(actual), bb = CTLineGetGlyphRuns(reconstructed)
+        guard CFArrayGetCount(aa) == CFArrayGetCount(bb) else { reason = "unknown-run-parity"; return false }
+        for j in 0..<CFArrayGetCount(aa) {
+            let a = unsafeBitCast(CFArrayGetValueAtIndex(aa, j), to: CTRun.self)
+            let b = unsafeBitCast(CFArrayGetValueAtIndex(bb, j), to: CTRun.self)
+            let n = CTRunGetGlyphCount(a)
+            guard n == CTRunGetGlyphCount(b) else { reason = "unknown-glyph-count-parity"; return false }
+            guard takeGlyphs(n, factor: 9) else { return false }
+            let aAttrs = CTRunGetAttributes(a) as NSDictionary, bAttrs = CTRunGetAttributes(b) as NSDictionary
+            guard let av = aAttrs[kCTFontAttributeName], let bv = bAttrs[kCTFontAttributeName],
+                CFGetTypeID(av as CFTypeRef) == CTFontGetTypeID(),
+                CFGetTypeID(bv as CFTypeRef) == CTFontGetTypeID() else { reason = "unknown-run-font"; return false }
+            let af = av as! CTFont, bf = bv as! CTFont
+            let range = CTRunGetStringRange(a), length = layout.shapedText.utf16.count
+            guard range.location >= 0, range.length >= 0, range.location <= length,
+                range.length <= length - range.location else { reason = "unknown-native-run-range"; return false }
+            let matrix = CTRunGetTextMatrix(a)
+            guard [CTFontGetSize(af), CTFontGetAscent(af), CTFontGetDescent(af), CTFontGetLeading(af),
+                matrix.a, matrix.b, matrix.c, matrix.d, matrix.tx, matrix.ty].allSatisfy(\.isFinite)
+                else { reason = "unknown-native-run-nonfinite"; return false }
+            guard CTFontCopyPostScriptName(af) as String == CTFontCopyPostScriptName(bf) as String,
+                CTFontGetSize(af) == CTFontGetSize(bf) else { reason = "unknown-font-parity"; return false }
+            var ag = [CGGlyph](repeating: 0, count: n), bg = ag
+            var ap = [CGPoint](repeating: .zero, count: n), bp = ap
+            var ad = [CGSize](repeating: .zero, count: n), bd = ad
+            let all = CFRange(location: 0, length: 0)
+            CTRunGetGlyphs(a, all, &ag); CTRunGetGlyphs(b, all, &bg)
+            CTRunGetPositions(a, all, &ap); CTRunGetPositions(b, all, &bp)
+            CTRunGetAdvances(a, all, &ad); CTRunGetAdvances(b, all, &bd)
+            var vertical = [CGSize](repeating: .zero, count: n)
+            CTFontGetVerticalTranslationsForGlyphs(af, &ag, &vertical, n)
+            add("parityArraySlots", n * 7)
+            guard vertical.allSatisfy({ $0.width.isFinite && $0.height.isFinite })
+                else { reason = "unknown-native-vertical-translation-nonfinite"; return false }
+            guard ag == bg, ap == bp, ad == bd else { reason = "unknown-glyph-position-advance-parity"; return false }
+        }
+        return true
+    }
+    var exhaustionReason: String? = nil
+    func take(_ remaining: inout Int, _ n: Int, _ factor: Int, _ label: String) -> Bool {
+        let v = n.multipliedReportingOverflow(by: factor)
+        guard n >= 0, factor >= 0, !v.overflow, v.partialValue <= remaining else {
+            reason = "budget-" + label; exhaustionReason = reason; return false
+        }
+        remaining -= v.partialValue; return true
+    }
+    func takeUTF(_ n: Int, factor: Int = 1) -> Bool { take(&utf16, n, factor, "utf16") }
+    func takeRows(_ n: Int, factor: Int = 1) -> Bool { take(&rows, n, factor, "rows") }
+    func takeRuns(_ n: Int, factor: Int = 1) -> Bool { take(&runs, n, factor, "runs") }
+    func takeGlyphs(_ n: Int, factor: Int = 1) -> Bool { take(&glyphs, n, factor, "glyphs") }
+    func takeLine() -> Bool { take(&lineCreations, 1, 1, "line-creations") }
+    func reserveOutput(id: String, stage: String) -> Bool {
+        guard take(&outputBytes, 4_096, 1, "output") else { return false }
+        for _ in id.utf8 { guard take(&outputBytes, 1, 6, "output") else { return false } }
+        for _ in stage.utf8 { guard take(&outputBytes, 1, 6, "output") else { return false } }
+        return true // fixed scalar schema below; no row-fill or retained Card arrays
+    }
+    func reserveNative(_ layout: NativeTranslationTypography.Layout, original: String) -> Bool {
+        var source = 0, shaped = 0
+        for _ in original.utf16 { guard takeUTF(1) else { return false }; source += 1 }
+        for _ in layout.shapedText.utf16 { guard takeUTF(1) else { return false }; shaped += 1 }
+        if let ledger = layout.sourceUTF16Ownership, ledger.count != shaped {
+            reason = "unknown-malformed-ledger"; return false
+        }
+        guard let frame = layout.frame else { reason = "unknown-no-frame"; return false }
+        guard [layout.frameSize.width, layout.frameSize.height, layout.offset.x, layout.offset.y,
+            layout.paintScaleX].allSatisfy(\.isFinite)
+            else { reason = "unknown-native-layout-nonfinite"; return false }
+        let lines = CTFrameGetLines(frame), count = CFArrayGetCount(lines)
+        guard count == layout.lineRanges.count, takeRows(count, factor: 32) else { return false }
+        add("actualFrameRows", count); add("sourceUTF16", source); add("shapedUTF16", shaped)
+        var origins = [CGPoint](repeating: .zero, count: count)
+        CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins)
+        guard origins.allSatisfy({ $0.x.isFinite && $0.y.isFinite }),
+            layout.lineOffsets.prefix(count).allSatisfy({ $0.x.isFinite && $0.y.isFinite })
+            else { reason = "unknown-native-origin-nonfinite"; return false }
+        let total = source.addingReportingOverflow(shaped)
+        let factor = count.multipliedReportingOverflow(by: 32)
+        guard !total.overflow, !factor.overflow,
+              takeUTF(total.partialValue, factor: max(32, factor.partialValue)) else { return false }
+        for i in 0..<count {
+            let line = unsafeBitCast(CFArrayGetValueAtIndex(lines, i), to: CTLine.self)
+            let runs = CTLineGetGlyphRuns(line), count = CFArrayGetCount(runs)
+            guard takeRuns(count, factor: 32) else { return false }
+            add("actualFrameRuns", count)
+            for j in 0..<count {
+                let run = unsafeBitCast(CFArrayGetValueAtIndex(runs, j), to: CTRun.self)
+                let glyphCount = CTRunGetGlyphCount(run)
+                guard takeGlyphs(glyphCount, factor: 32) else { return false }
+                add("actualFrameGlyphs", glyphCount)
+                add("nonIdentityRunMatrix", CTRunGetTextMatrix(run).isIdentity ? 0 : 1)
+                add("runStatusNonZero", CTRunGetStatus(run).rawValue == 0 ? 0 : 1)
+            }
+        }
+        nativeReserved = true
+        return true
+    }
+}
+
+
+/// Scalar-only actual Card observer. Horizontal logical-row axes, not transformed page ink/GT.
+extension NativeParagraphReadabilityGuard {
+    static func auditObservation(_ card: NativeTranslationRenderer.Card, stage: String,
+                                 work: ReadabilityAuditBudget) -> [String: Any]? {
+        work.beginObservation()
+        let started = work.clock()
+        guard work.reserveOutput(id: card.item.id, stage: stage) else { return nil }
+        var record: [String: Any] = ["cardID": card.item.id, "stage": stage,
+            "authority": "actual-native-currentstyle-not-original-GT", "originalGT": NSNull(),
+            "metrics": NSNull(), "status": "unknown",
+            "measurementDefinition": "legacy-horizontal-logical-row-nativeguard-width-normalized",
+            "styleRoot": ["itemVertical": card.item.vertical, "styleVertical": card.style.vertical,
+                "rotated": card.effectiveTextRotation != 0, "unitParts": !card.unitTextParts.isEmpty,
+                "heavyStroke": card.heavyStrokeWidth != 0, "glow": card.style.outlineGlow != 0]]
+        let prechargeStarted = work.clock()
+        let original = card.item.typesettingText ?? card.item.text
+        let native = work.reserveNative(card.typography, original: original)
+        work.elapsed("nativePrecharge", prechargeStarted)
+        defer { work.nativeReserved = false }
+        func finish(_ reason: String? = nil) -> [String: Any] {
+            if let reason { record["reason"] = reason }
+            work.elapsed("total", started)
+            record["nativeWorkCounts"] = work.counts
+            record["observerMilliseconds"] = work.milliseconds
+            return record
+        }
+        guard native else { return finish(work.reason) }
+        guard card.effectiveTextRotation.isFinite, card.heavyStrokeWidth.isFinite,
+            card.style.outlineGlow.isFinite else { return finish("unknown-nonfinite-style") }
+        if card.item.vertical || card.style.vertical {
+            record["status"] = "unsupported"; return finish("unsupported-vertical-horizontal-definition")
+        }
+        if !card.unitTextParts.isEmpty {
+            record["status"] = "unsupported"; return finish("unsupported-unit-parts-painter-relayout")
+        }
+        guard let m = observed(layout: card.typography, original: original,
+            width: card.item.contentRect.width, style: card.style, auditWork: work) else { return finish(work.reason) }
+        record["status"] = "observed"
+        record["actualRowCount"] = m.fills.count
+        record["actualSoftNonfinalRows"] = m.actualSoftNonfinalRows
+        record["actualNonfinalEmptySquaredSum"] = m.actualNonfinalEmptySquaredSum
+        record["metrics"] = ["cuts": m.cuts, "singletons": m.singletons,
+            "punctuationOnlyRows": m.punctuationOnlyRows, "lonelyQuoteRows": m.lonelyQuoteRows,
+            "openingAtSoftEnd": m.openingAtSoftEnd, "closingAtSoftStart": m.closingAtSoftStart,
+            "shortLastRows": m.shortLastRows, "attachedTerminalSplits": m.attachedTerminalSplits,
+            "punctuationClusterSplits": m.punctuationClusterSplits,
+            "meanNonfinalEmptySquared": m.meanNonfinalEmptySquared]
+        return finish()
+    }
+}
+
+extension NativeTranslationTypography {
+    private struct ScopedHorizontalPaintGeometry {
+        let frame: CTFrame, size: CGSize, scaleX: CGFloat, source: String, text: String, style: Style
+        let origins: [CGPoint], advances: [CGFloat], ranges: [CFRange]
+        let naturalWidth: CGFloat, minimumContent: CGFloat, ascent: CGFloat, descent: CGFloat
+        static func sameNumber(_ a: CGFloat,_ b: CGFloat) -> Bool { Double(a).bitPattern == Double(b).bitPattern }
+        static func sameUTF(_ a: String?, _ b: String?) -> Bool {
+            switch (a,b) { case (nil,nil): return true; case let (a?,b?): return a.utf16.elementsEqual(b.utf16); default: return false }
+        }
+        static func sameStyle(_ a: Style,_ b: Style) -> Bool {
+            return sameUTF(a.fontName, b.fontName) &&
+                a.fontScript.utf16.elementsEqual(b.fontScript.utf16) &&
+                a.prefersDominantKoreanScript == b.prefersDominantKoreanScript &&
+                Double(a.fontSize).bitPattern == Double(b.fontSize).bitPattern &&
+                a.bold == b.bold &&
+                a.vertical == b.vertical &&
+                ObjectIdentifier(a.foreground) == ObjectIdentifier(b.foreground) &&
+                a.outline.map(ObjectIdentifier.init) == b.outline.map(ObjectIdentifier.init) &&
+                Double(a.outlineWidth).bitPattern == Double(b.outlineWidth).bitPattern &&
+                a.outlinePaintOrder == b.outlinePaintOrder &&
+                Double(a.tracking).bitPattern == Double(b.tracking).bitPattern &&
+                a.trackingScalesWithFont == b.trackingScalesWithFont &&
+                Double(a.lineHeight).bitPattern == Double(b.lineHeight).bitPattern &&
+                a.optimizesKoreanWrapping == b.optimizesKoreanWrapping &&
+                a.koreanQuoteMode == b.koreanQuoteMode &&
+                a.alignsToTop == b.alignsToTop &&
+                Double(a.horizontalScale).bitPattern == Double(b.horizontalScale).bitPattern &&
+                a.balancesHorizontalLines == b.balancesHorizontalLines &&
+                a.keepsWholeWords == b.keepsWholeWords &&
+                a.horizontalWrapping == b.horizontalWrapping &&
+                a.horizontalWhitespace == b.horizontalWhitespace &&
+                a.explicitLineFlow == b.explicitLineFlow &&
+                a.wholeWordFallbackResolved == b.wholeWordFallbackResolved &&
+                a.usesKeepAllInlineItemWidths == b.usesKeepAllInlineItemWidths &&
+                a.keepAllParagraphEndRows == b.keepAllParagraphEndRows &&
+                a.usesBlockWordLayout == b.usesBlockWordLayout &&
+                a.usesPreformattedBlockRows == b.usesPreformattedBlockRows &&
+                a.preservesBlockRows == b.preservesBlockRows &&
+                a.blockWordLayoutUsesTopPadding == b.blockWordLayoutUsesTopPadding &&
+                a.horizontalAlignment == b.horizontalAlignment &&
+                a.blockRowHorizontalAlignment == b.blockRowHorizontalAlignment &&
+                Double(a.outlineGlow).bitPattern == Double(b.outlineGlow).bitPattern &&
+                a.strictLineBreak == b.strictLineBreak &&
+                a.balancesExplicitParagraphs == b.balancesExplicitParagraphs &&
+                sameUTF(a.intrinsicText, b.intrinsicText) &&
+                a.intrinsicMinimumContentWidth.map { Double($0).bitPattern } == b.intrinsicMinimumContentWidth.map { Double($0).bitPattern } &&
+                a.paintsVisibleFormFeeds == b.paintsVisibleFormFeeds
+        }
+        func matches(frame: CTFrame,size: CGSize,scaleX: CGFloat,source: String,text: String,style: Style,count: Int) -> Bool {
+            !Task.isCancelled && self.frame === frame &&
+            Self.sameNumber(self.size.width,size.width) && Self.sameNumber(self.size.height,size.height) &&
+            Self.sameNumber(self.scaleX,scaleX) &&
+            !style.vertical && size.width.isFinite && size.height.isFinite && scaleX.isFinite &&
+            self.source.utf16.elementsEqual(source.utf16) && self.text.utf16.elementsEqual(text.utf16) &&
+            Self.sameStyle(self.style,style) && origins.count == count && advances.count == count && ranges.count == count
+        }
     }
 }

@@ -198,23 +198,9 @@ actor ReaderTranslationDiskCache {
         try Task.checkCancellation()
         try prepare()
         let name = fileName(key, kind: kind)
-        // SQLite failures still propagate; only payload decoding failures can
-        // invalidate an entry. Compressed bytes stay borrowed until unpack ends.
-        guard let decoded = try database?.unpackedData(name, maximumBytes: maximumBytes) else { return nil }
-        let unpacked: Data
-        do {
-            unpacked = try decoded.get()
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch let error as CocoaError where error.code == .fileReadTooLarge {
-            // A caller's read budget does not establish corruption. Only a
-            // permanent format limit authorizes deleting this durable payload.
-            if discardOversized { try database?.delete(name) }
-            return nil
-        } catch {
-            try database?.delete(name)
-            return nil
-        }
+        guard let unpacked = try database?.unpackedData(
+            name, maximumBytes: maximumBytes, discardOversized: discardOversized
+        ) else { return nil }
         try recordRead(name)
         return unpacked
     }
@@ -242,83 +228,116 @@ actor ReaderTranslationDiskCache {
         return try database?.exists(fileName(key, kind: kind)) ?? false
     }
 
+    struct ReplacementCondition: Sendable {
+        let maximumBytes: Int
+        let matches: @Sendable (Data) -> Bool
+    }
+
     /// Clear invalidates in-flight writers. A transaction preserves the previous entry on write failure.
     func store(_ data: Data, for key: String, kind: Kind, generation expected: UInt64) throws {
+        _ = try store(data, for: key, kind: kind, generation: expected, replacing: nil)
+    }
+
+    func store(_ data: Data, for key: String, kind: Kind, generation expected: UInt64,
+               replacing condition: ReplacementCondition?) throws -> Bool {
         try Task.checkCancellation()
         try prepare()
-        guard storageGeneration(for: kind) == expected else { return }
-        guard kind != .snapshot else { return }
+        guard storageGeneration(for: kind) == expected, kind != .snapshot else { return false }
         let name = fileName(key, kind: kind)
         let packed = ReaderTranslationCacheCodec.pack(data)
-        guard Int64(packed.count) <= byteLimit, database != nil else { return }
-        try storePayload(packed, name: name)
+        guard Int64(packed.count) <= byteLimit, try storePayload(packed, name: name, replacing: condition) else { return false }
         try trim()
+        return true
     }
 
     func regions(for key: String, kind: Kind) throws -> [ReaderTranslationRegion]? {
+        try regionRecord(for: key, kind: kind)?.regions
+    }
+
+    /// A source-checked lookup must supply the observed full processed raster,
+    /// not a page locator or a digest inferred from an old cache row.
+    func regionRecord(for key: String, kind: Kind, matching sourceRasterClaim: ReaderTranslationSourceRasterClaim? = nil)
+        throws -> ReaderTranslationRegionArchive.Record? {
         try Task.checkCancellation()
         try prepare()
         let name = fileName(key, kind: kind)
-        guard let payload = try database?.payload(name) else { return nil }
-        let regions: [ReaderTranslationRegion]
-        do {
-            if let base = payload.base {
-                regions = try ReaderTranslationRegionArchive.regions(base: base, variant: payload.data)
-            } else {
-                let raw = try ReaderTranslationCacheCodec.unpack(payload.data)
-                regions = try JSONDecoder().decode([ReaderTranslationStoredRegion].self, from: raw).map(\.region)
-            }
-        } catch {
-            try database?.delete(name)
-            return nil
-        }
+        guard let record = try database?.regionRecord(name) else { return nil }
+        if let sourceRasterClaim, record.sourceRasterClaim != sourceRasterClaim { return nil }
         try recordRead(name)
-        return regions
+        return record
     }
 
     /// A legacy all-language translation can be narrowed without another OCR/API
     /// request. Never treat a filtered subset as a complete all-language page.
     func translatedRegions(page: String, settings: ReaderTranslationSettings) throws -> [ReaderTranslationRegion]? {
+        try translatedRegionRecord(page: page, settings: settings)?.regions
+    }
+
+    func containsTranslationCandidate(page: String, settings: ReaderTranslationSettings) throws -> Bool {
+        if try contains(ReaderTranslationCacheIdentity.translation(page: page, settings: settings), kind: .translation) {
+            return true
+        }
+        guard !settings.rightToLeftPanelOrder, ReaderTranslationLanguageFilter.identity(settings: settings) != nil else { return false }
+        return try contains(ReaderTranslationCacheIdentity.unfilteredTranslation(page: page, settings: settings), kind: .translation)
+    }
+
+    func translatedRegionRecord(page: String, settings: ReaderTranslationSettings,
+                                matching sourceRasterClaim: ReaderTranslationSourceRasterClaim? = nil,
+                                persistDerived: Bool = true)
+        throws -> ReaderTranslationRegionArchive.Record? {
         let key = ReaderTranslationCacheIdentity.translation(page: page, settings: settings)
-        if let cached = try regions(for: key, kind: .translation) {
-            guard !ReaderTranslationLanguageFilter.containsUntranslatedJapaneseReply(cached, target: settings.targetLanguage) else {
+        if let record = try regionRecord(for: key, kind: .translation, matching: sourceRasterClaim) {
+            let cached = record.regions
+            guard !cached.contains(where: { $0.translationRecoveryFailure != nil }) else { return nil }
+            let eligible = ReaderTranslationLanguageFilter.apply(cached, settings: settings)
+            guard !ReaderTranslationLanguageFilter.containsUntranslatedJapaneseReply(eligible, target: settings.targetLanguage) else {
                 ReaderTranslationDiagnostics.record("translation_cache_wrong_language")
                 return nil
             }
-            return cached
+            return record
         }
         guard !settings.rightToLeftPanelOrder, ReaderTranslationLanguageFilter.identity(settings: settings) != nil,
-              let cached = try regions(for: ReaderTranslationCacheIdentity.unfilteredTranslation(page: page, settings: settings),
-                                       kind: .translation) else { return nil }
-        guard !ReaderTranslationLanguageFilter.containsUntranslatedJapaneseReply(cached, target: settings.targetLanguage) else { return nil }
-        let filtered = ReaderTranslationLanguageFilter.apply(cached, settings: settings)
+              let record = try regionRecord(for: ReaderTranslationCacheIdentity.unfilteredTranslation(page: page, settings: settings),
+                                           kind: .translation, matching: sourceRasterClaim) else { return nil }
+        let cached = record.regions
+        guard !cached.contains(where: { $0.translationRecoveryFailure != nil }) else { return nil }
+        let eligible = ReaderTranslationLanguageFilter.apply(cached, settings: settings)
+        guard !ReaderTranslationLanguageFilter.containsUntranslatedJapaneseReply(eligible, target: settings.targetLanguage) else { return nil }
+        let preserved = ReaderTranslationLanguageFilter.preservingExcludedSource(
+            original: cached, translated: eligible, eligibleIDs: Set(eligible.map(\.id)))
         try Task.checkCancellation()
-        try storeRegions(filtered, for: key, kind: .translation, generation: generation)
-        return filtered
+        if persistDerived {
+            try storeRegions(preserved, for: key, kind: .translation, generation: generation, sourceRasterClaim: record.sourceRasterClaim)
+        }
+        return .init(regions: preserved, sourceRasterClaim: record.sourceRasterClaim)
     }
 
-    func storeRegions(_ regions: [ReaderTranslationRegion], for key: String, kind: Kind, generation: UInt64) throws {
+    func storeRegions(_ regions: [ReaderTranslationRegion], for key: String, kind: Kind, generation: UInt64,
+                      sourceRasterClaim: ReaderTranslationSourceRasterClaim? = nil) throws {
         try Task.checkCancellation()
         try prepare()
         guard storageGeneration(for: kind) == generation else { return }
-        if regions.isEmpty {
+        guard kind != .translation || !regions.contains(where: { $0.translationRecoveryFailure != nil }) else { return }
+        if regions.isEmpty, sourceRasterClaim == nil {
             try store(Data("[]".utf8), for: key, kind: kind, generation: generation)
             return
         }
-        let archive = try ReaderTranslationRegionArchive(regions)
+        let archive = try ReaderTranslationRegionArchive(regions, sourceRasterClaim: sourceRasterClaim)
         guard Int64(archive.base.count + archive.variant.count) <= byteLimit else { return }
         try storePayload(archive.variant, name: fileName(key, kind: kind), base: archive.base)
         try trim()
     }
 
-    private func storePayload(_ data: Data, name: String, base: Data? = nil) throws {
-        guard let database else { return }
+    @discardableResult
+    private func storePayload(_ data: Data, name: String, base: Data? = nil, replacing condition: ReplacementCondition? = nil) throws -> Bool {
+        guard let database else { return false }
         // Preserve exact read-before-write LRU order in the content transaction.
         // A failed write rolls back touches too, so keep them queued for retry.
-        try database.store(data, name: name, base: base, touching: pendingTouches)
+        guard try database.store(data, name: name, base: base, touching: pendingTouches, replacing: condition) else { return false }
         touchFlushTask?.cancel()
         touchFlushTask = nil
         pendingTouches.removeAll()
+        return true
     }
 
     func remove(_ key: String, kind: Kind) throws {
@@ -454,6 +473,14 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     static let minimumBytes: Int64 = 65_536
     private var handle: OpaquePointer?
     private let url: URL
+    private var lookupTable = "cache"
+    private struct RegionRead {
+        let name: String
+        let version: Int64
+        let record: ReaderTranslationRegionArchive.Record
+        let cost: Int
+    }
+    private var recentRegions: [RegionRead] = []
     private let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
     init(url: URL) throws {
@@ -474,6 +501,14 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         try execute("PRAGMA synchronous=FULL")
         try execute("PRAGMA cache_size=-2048")
         try execute("CREATE TABLE IF NOT EXISTS cache (name TEXT PRIMARY KEY, data BLOB NOT NULL, accessed INTEGER NOT NULL) WITHOUT ROWID")
+        // In a WITHOUT ROWID table a primary-key search can visit overflow BLOBs even on a miss.
+        // This narrow index lets page and viewport lookups reject absent keys without reading artwork.
+        do {
+            try execute("CREATE UNIQUE INDEX IF NOT EXISTS cache_key_only ON cache(name)")
+            lookupTable = "cache INDEXED BY cache_key_only"
+        } catch let error as NSError where [SQLITE_FULL, SQLITE_BUSY, SQLITE_LOCKED].contains(Int32(error.code)) {
+            // Keep an existing database usable when this optional migration must wait until reopen.
+        }
         try execute("CREATE INDEX IF NOT EXISTS cache_lru ON cache(accessed, name)")
         try execute("DROP INDEX IF EXISTS cache_snapshot_lru")
         try execute("CREATE TABLE IF NOT EXISTS totals (entries INTEGER NOT NULL, bytes INTEGER NOT NULL)")
@@ -541,7 +576,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     }
 
     func exists(_ name: String) throws -> Bool {
-        try statement("SELECT 1 FROM cache WHERE name=?", name: name) { pointer in
+        try statement("SELECT 1 FROM \(lookupTable) WHERE name=?", name: name) { pointer in
             let result = sqlite3_step(pointer)
             guard result == SQLITE_ROW || result == SQLITE_DONE else { throw failure() }
             return result == SQLITE_ROW
@@ -549,14 +584,15 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     }
 
     /// Decode inside the statement lifetime so compressed BLOBs need no full
-    /// intermediate copy. The Result separates format failures from SQLite errors.
-    func unpackedData(_ name: String, maximumBytes: Int?) throws -> Result<Data, Error>? {
-        try statement("SELECT cache.data, region_bases.data FROM cache LEFT JOIN region_links USING(name) LEFT JOIN region_bases ON "
+    /// intermediate copy. Capture the snapshot version only when a row needs removal.
+    func unpackedData(_ name: String, maximumBytes: Int?, discardOversized: Bool) throws -> Data? {
+        var rejectedVersion: Int64?
+        let data: Data? = try statement("SELECT cache.data, region_bases.data FROM \(lookupTable) LEFT JOIN region_links USING(name) LEFT JOIN region_bases ON "
             + "region_bases.name=region_links.base WHERE cache.name=?", name: name) { pointer in
             let result = sqlite3_step(pointer)
             if result == SQLITE_DONE { return nil }
             guard result == SQLITE_ROW else { throw failure() }
-            return Result {
+            do {
                 if sqlite3_column_type(pointer, 1) != SQLITE_NULL {
                     // Shared archives keep their existing owned buffers; restore
                     // produces independent JSON for the compatibility data API.
@@ -565,8 +601,18 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
                     return data
                 }
                 return try unpackedBlob(pointer, column: 0, maximumBytes: maximumBytes)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch let error as CocoaError where error.code == .fileReadTooLarge && !discardOversized {
+                return nil
+            } catch {
+                // The active SELECT pins the rejected bytes and this version together.
+                rejectedVersion = try integer("PRAGMA data_version")
+                return nil
             }
         }
+        if let rejectedVersion { try delete(name, ifVersionIs: rejectedVersion) }
+        return data
     }
 
     private func unpackedBlob(_ pointer: OpaquePointer, column: Int32, maximumBytes: Int?) throws -> Data {
@@ -584,13 +630,53 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         return try ReaderTranslationCacheCodec.unpack(borrowed)
     }
 
-    func payload(_ name: String) throws -> (data: Data, base: Data?)? {
-        try statement("SELECT cache.data, region_bases.data FROM cache LEFT JOIN region_links USING(name) LEFT JOIN region_bases ON "
+    func regionRecord(_ name: String) throws -> ReaderTranslationRegionArchive.Record? {
+        if let index = recentRegions.firstIndex(where: { $0.name == name }) {
+            let hit = recentRegions.remove(at: index)
+            if hit.version == (try integer("PRAGMA data_version")) {
+                recentRegions.append(hit)
+                return hit.record
+            }
+        }
+        // A missing row has no version to validate. On a hit the SELECT still
+        // holds its read snapshot while the connection samples data_version.
+        guard let payload = try withPayload(name, { data, base in
+            (data: data, base: base, version: try integer("PRAGMA data_version"))
+        }) else { return nil }
+        let record: ReaderTranslationRegionArchive.Record
+        do {
+            if let base = payload.base {
+                record = try ReaderTranslationRegionArchive.record(base: base, variant: payload.data)
+            } else {
+                record = try ReaderTranslationRegionArchive.record(legacy: payload.data)
+            }
+        } catch {
+            try delete(name, ifVersionIs: payload.version)
+            return nil
+        }
+        // Large archives still decode on demand. Budget expanded bytes and
+        // Swift region storage so highly compressible pages cannot flood RAM.
+        let cost = record.decodedByteCount + record.regions.count * MemoryLayout<ReaderTranslationRegion>.stride
+        if cost <= 256 * 1024 {
+            recentRegions.removeAll { $0.version != payload.version }
+            // Nearby pages with small records can share the same 1 MiB budget.
+            // Keep a count bound for empty pages and evict in read order.
+            var retainedBytes = recentRegions.reduce(cost) { $0 + $1.cost }
+            while retainedBytes > 1024 * 1024 || recentRegions.count >= 8 {
+                retainedBytes -= recentRegions.removeFirst().cost
+            }
+            recentRegions.append(.init(name: name, version: payload.version, record: record, cost: cost))
+        }
+        return record
+    }
+
+    private func withPayload<T>(_ name: String, _ read: (Data, Data?) throws -> T) throws -> T? {
+        try statement("SELECT cache.data, region_bases.data FROM \(lookupTable) LEFT JOIN region_links USING(name) LEFT JOIN region_bases ON "
             + "region_bases.name=region_links.base WHERE cache.name=?", name: name) { pointer in
             let result = sqlite3_step(pointer)
             if result == SQLITE_DONE { return nil }
             guard result == SQLITE_ROW else { throw failure() }
-            return (blob(pointer, column: 0), sqlite3_column_type(pointer, 1) == SQLITE_NULL ? nil : blob(pointer, column: 1))
+            return try read(blob(pointer, column: 0), sqlite3_column_type(pointer, 1) == SQLITE_NULL ? nil : blob(pointer, column: 1))
         }
     }
 
@@ -669,12 +755,40 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     }
 
     func delete(_ name: String) throws {
+        recentRegions.removeAll { $0.name == name }
         try statement("DELETE FROM cache WHERE name=?", name: name, body: step)
     }
 
-    func store(_ data: Data, name: String, base: Data? = nil, preservingAccess: Bool = false, touching names: [String] = []) throws {
+    // A replacement can commit after a failing read releases its SQLite snapshot.
+    // Hold the writer lock through the check and delete, including identical-byte replacements.
+    private func delete(_ name: String, ifVersionIs version: Int64) throws {
         try execute("BEGIN IMMEDIATE")
         do {
+            if try integer("PRAGMA data_version") == version { try delete(name) }
+            try execute("COMMIT")
+        } catch {
+            try? execute("ROLLBACK")
+            throw error
+        }
+    }
+
+    @discardableResult
+    func store(_ data: Data, name: String, base: Data? = nil, preservingAccess: Bool = false, touching names: [String] = [],
+               replacing condition: ReaderTranslationDiskCache.ReplacementCondition? = nil) throws -> Bool {
+        recentRegions.removeAll { $0.name == name }
+        try execute("BEGIN IMMEDIATE")
+        do {
+            if let condition {
+                // Replay repairs compare the actual row while holding the SQLite writer lock.
+                let matches = try statement("SELECT data FROM \(lookupTable) WHERE name=?", name: name) { pointer in
+                    let status = sqlite3_step(pointer)
+                    if status == SQLITE_DONE { return false }
+                    guard status == SQLITE_ROW else { throw failure() }
+                    return try condition.matches(unpackedBlob(pointer, column: 0, maximumBytes: condition.maximumBytes))
+                }
+                guard matches else { try execute("ROLLBACK"); return false }
+                try Task.checkCancellation()
+            }
             for name in names { try touch(name) }
             let accessed: Int64? = preservingAccess ? try statement("SELECT accessed FROM cache WHERE name=?", name: name) { pointer in
                 guard sqlite3_step(pointer) == SQLITE_ROW else { throw failure() }
@@ -707,6 +821,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
                 }
             }
             try execute("COMMIT")
+            return true
         } catch {
             try? execute("ROLLBACK")
             throw error
@@ -744,8 +859,8 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         }) {
             try Task.checkCancellation()
             cursor = name
-            guard let payload = try payload(name),
-                  let raw = try? ReaderTranslationCacheCodec.unpack(payload.base ?? payload.data),
+            guard let source = try withPayload(name, { data, base in base ?? data }),
+                  let raw = try? ReaderTranslationCacheCodec.unpack(source),
                   let regions = try? JSONDecoder().decode([ReaderTranslationStoredRegion].self, from: raw),
                   regions.count == 1, regions[0].id == "title", regions[0].rect == .zero else { continue }
             let destination = "metadata-" + name.dropFirst("translation-".count)
@@ -777,6 +892,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     /// The initial policy adopts existing records. Subsequent settings changes
     /// remove all obsolete translations/layouts, including their unreferenced bases.
     func applyPolicy(_ policy: ReaderTranslationCachePolicy) throws -> (page: Bool, metadata: Bool) {
+        recentRegions.removeAll()
         try execute("BEGIN IMMEDIATE")
         do {
             func previous(_ key: String) throws -> String? {
@@ -821,6 +937,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         // The indexed oldest row is O(log n); no in-memory directory inventory or full sort.
         // Batch deletions amortize commits and auto-vacuum while accounting for actual allocation.
         while try allocatedBytes() > byteLimit {
+            recentRegions.removeAll()
             let before = try integer("SELECT entries FROM totals")
             guard before > 0 else { break }
             let excess = try allocatedBytes() - byteLimit
@@ -886,15 +1003,22 @@ struct ReaderTranslationStoredRegion: Codable {
     let singleColumn: Bool?
     let auxiliaryInkRects: [CGRect]?
     let auxiliaryInkPolygons: [[CGPoint]]?
+    let sourceOCRAlternatives: [ReaderTranslationSourceOCRAlternative]?
+    let sourceRoleEvidence: NativeTranslationRoleEvidence?
+    let postLLMContentEvidence: NativePostLLMContentReclassifier.Evidence?
     let sourceImageAspectRatio: Double?
     let translationOrder: Int?
     let translationOrderVersion: String?
     let reuseKey: TranslationCacheKey?
     let reuseSegment: String?
+    let translationRecoveryFailure: String?
+    let keepsClassifiedSFXSource: Bool?
+    let rendersUnchangedSymbols: Bool?
     let balloonInterior: ReaderTranslationBalloonInterior?
     let occludedFinePrint: Bool?
     let unitMemberRects: [CGRect]?
     let recoveredLine: Bool?
+    let sourceMemberPolygons: [[CGPoint]]?
 
     init(_ value: ReaderTranslationRegion) {
         id = value.id; rect = value.rect; source = value.source; translation = value.translation
@@ -902,14 +1026,21 @@ struct ReaderTranslationStoredRegion: Codable {
         singleColumn = value.sourceSingleVerticalColumn
         auxiliaryInkRects = value.auxiliaryInkRects.isEmpty ? nil : value.auxiliaryInkRects
         auxiliaryInkPolygons = value.auxiliaryInkPolygons.isEmpty ? nil : value.auxiliaryInkPolygons
+        sourceOCRAlternatives = value.sourceOCRAlternatives.isEmpty ? nil : value.sourceOCRAlternatives
+        sourceRoleEvidence = value.sourceRoleEvidence
+        postLLMContentEvidence = value.postLLMContentEvidence
         sourceImageAspectRatio = value.sourceImageAspectRatio
         translationOrder = value.translationOrder
         translationOrderVersion = value.translationOrderVersion
         reuseKey = value.translationReuseIdentity?.cacheKey; reuseSegment = value.translationReuseIdentity?.segmentID
+        translationRecoveryFailure = value.translationRecoveryFailure
+        keepsClassifiedSFXSource = value.keepsClassifiedSFXSource ? true : nil
+        rendersUnchangedSymbols = value.rendersUnchangedSymbols ? true : nil
         balloonInterior = value.balloonInterior
         occludedFinePrint = value.isOccludedFinePrint ? true : nil
         unitMemberRects = value.unitMemberRects.isEmpty ? nil : value.unitMemberRects
         recoveredLine = value.isRecoveredLine ? true : nil
+        sourceMemberPolygons = value.sourceMemberPolygons.isEmpty ? nil : value.sourceMemberPolygons
     }
     var region: ReaderTranslationRegion {
         var region = ReaderTranslationRegion(id: id, rect: rect, source: source, translation: translation, polygon: polygon,
@@ -917,10 +1048,17 @@ struct ReaderTranslationStoredRegion: Codable {
                                              sourceSingleVerticalColumn: singleColumn)
         region.auxiliaryInkRects = auxiliaryInkRects ?? []
         region.auxiliaryInkPolygons = auxiliaryInkPolygons ?? []
+        region.sourceOCRAlternatives = sourceOCRAlternatives ?? []
+        region.sourceRoleEvidence = sourceRoleEvidence
+        region.postLLMContentEvidence = postLLMContentEvidence
+        region.cachedSourceMemberPolygons = sourceMemberPolygons ?? []
         region.sourceImageAspectRatio = sourceImageAspectRatio
         region.translationOrder = translationOrder
         region.translationOrderVersion = translationOrderVersion
         if let reuseKey, let reuseSegment { region.translationReuseIdentity = .init(cacheKey: reuseKey, segmentID: reuseSegment) }
+        region.translationRecoveryFailure = translationRecoveryFailure
+        region.keepsClassifiedSFXSource = keepsClassifiedSFXSource ?? false
+        region.rendersUnchangedSymbols = rendersUnchangedSymbols ?? false
         region.balloonInterior = balloonInterior
         region.isOccludedFinePrint = occludedFinePrint ?? false
         region.unitMemberRects = unitMemberRects ?? []
@@ -943,20 +1081,19 @@ private struct ReaderTranslationCachePolicy: Equatable {
         metadata = ReaderTranslationCacheIdentity.encoded(TitleTranslationKind.allCases.map {
             TitleTranslation.cacheKey("cache-policy", kind: $0, settings: settings)
         })
-        layout = ReaderTranslationCacheIdentity.encoded([ReaderTranslationCacheIdentity.renderRevision,
-            ReaderTranslationCacheIdentity.encoded(settings.overlay)])
-        // Keep user choices in the fence while excluding the capability revision
-        // and its derived image/text instruction variant.
-        persisted.includePageImage = false
-        writePolicy = ReaderTranslationCacheIdentity.encoded([
-            ReaderTranslationCacheIdentity.translation(page: "cache-policy", settings: persisted),
-            String(settings.includePageImage), layout
-        ])
+        layout = ReaderTranslationCacheIdentity.renderVariantIdentity(ReaderTranslationCacheIdentity.encoded([ReaderTranslationCacheIdentity.renderRevision,
+            NativeSourceSegmentationExecution.policySHA256,
+            ReaderTranslationCacheIdentity.encoded(settings.overlay)]))
+        // Page translation has one image-required content identity. Fence the
+        // user image setting separately from that already-derived identity.
+        writePolicy = ReaderTranslationCacheIdentity.encoded([translation, String(settings.includePageImage), layout])
     }
 }
 
 enum ReaderTranslationCacheIdentity {
-    static let renderRevision = "reader-render-v159-native-direct-paint"
+    // Old layouts may erase and repaint unchanged source symbols.
+    // OCR/provider/translation identities stay unchanged; only render/layout is invalidated.
+    static let renderRevision = "reader-render-v316-unchanged-symbol-source-preservation"
     static func digest(_ value: String) -> String { digest(Data(value.utf8)) }
     private static let hexadecimalDigits = Array("0123456789abcdef".utf8)
     static func digest(_ value: Data) -> String {
@@ -973,10 +1110,102 @@ enum ReaderTranslationCacheIdentity {
         encoder.outputFormatting = .sortedKeys
         return digest((try? encoder.encode(value)) ?? Data())
     }
-    static func ocr(page: String, settings: ReaderTranslationSettings) -> String {
+    static func ocr(page: String, settings: ReaderTranslationSettings,
+                    rawCanonicalRevision: String = NativeOCRRawCanonicalPolicy.version) -> String {
         // OCR entries contain merged regions. A merger change must also
         // invalidate derived translations/layouts instead of replaying old boxes.
-        encoded(["reader-ocr-v89-bounded-column-recovery", page, encoded(settings.ocrConfiguration)])
+        // A detector content/padding ABI change invalidates OCR and its
+        // derived translations/layouts, not just the transient DB capability.
+        let detectorPreprocessingABI: String
+        if #available(iOS 18.0, *) {
+            detectorPreprocessingABI = NativeCoreMLDetectionPreprocessor.provenanceABI
+        } else { detectorPreprocessingABI = "native-db-unavailable-before-ios18" }
+        let base = encoded(["reader-ocr-" + NativeParagraphFragmentGrouping.policyVersion,
+            detectorPreprocessingABI,
+            NativeOCRPremergePolicyBundle.cacheVersion, NativeFinalOutputDuplicateResolver.policyVersion,
+            NativeFinalOutputContentFilter.admissionPolicyVersion, NativePostMergeSignalFilter.policyVersion,
+            rawCanonicalRevision,
+            NativePostLLMContentReclassifier.policyVersion,
+            page, encoded(settings.ocrConfiguration)])
+        // Cached merged OCR predates the route and has no transient primary
+        // ancestry. Enabling it must obtain fresh native sources exactly once;
+        // translation/render identities already derive from this OCR identity.
+        let nomination = NativeCausalRFNominationPolicy.configured()
+        let nominationBase = nomination == .legacy ? base : encoded([base, nomination.cacheVersion])
+        let samplingBase = NativeCausalRFLongitudinalSampling.configuredFraction == 0 ? nominationBase
+            : encoded([nominationBase, NativeCausalRFLongitudinalSampling.cacheVersion])
+        let acceptance = NativeCausalRFParagraphRecognition.Policy.configured()
+        let gridBase = acceptance.parameterGrid
+            ? encoded([samplingBase, "rf-padded-actual-read-grid-v1", String(acceptance.minimumConfidence)]) : samplingBase
+        let componentBase = NativeCausalRFComponentParagraphRequests.runtimeEnabled
+            ? encoded([gridBase, NativeCausalRFComponentParagraphRequests.cacheVersion]) : gridBase
+        let adaptiveBase = NativeCausalRFAdaptiveSampling.runtimeEnabled
+            ? encoded([componentBase, NativeCausalRFAdaptiveSampling.cacheVersion]) : componentBase
+        let freshContextBase = NativeCausalRFOriginalContextRecovery.runtimeEnabled
+            ? encoded([adaptiveBase, NativeCausalRFOriginalContextRecovery.policy]) : adaptiveBase
+        // Experimental source readers must never replay merged OCR produced
+        // under different sampling/affiliation parameters. Absent flags retain
+        // the existing default identity byte-for-byte.
+        let sourceReaderKeys = ["AIDOKU_OCR_RF_CLOSED_COLUMN_NOMINATION",
+            "AIDOKU_OCR_UNRETAINED_READ_SUPPORT", "AIDOKU_OCR_ORIGINAL_PACKET_EXTENT",
+            "AIDOKU_OCR_ORIGINAL_PACKET_CROSS_EXTENT", "AIDOKU_OCR_ORIGINAL_PACKET_SEGMENTS",
+            "AIDOKU_OCR_ORIGINAL_PRIMARY_SOURCE_JOIN",
+            "AIDOKU_OCR_ORIGINAL_PACKET_MIN_CONFIDENCE", "AIDOKU_OCR_CAUSAL_UNOWNED_CONTEXT",
+            "AIDOKU_OCR_CAUSAL_UNOWNED_COMPETITION",
+            "AIDOKU_OCR_RF_GAP_RECOVERY", "AIDOKU_OCR_RECOVERY_BUDGET", "AIDOKU_OCR_SEQUENCE_CONTEXT_RECOVERY",
+            "AIDOKU_OCR_RF_ENDPOINT_COMPLETION", "AIDOKU_OCR_ENDPOINT_INK_REFINEMENT", "AIDOKU_OCR_RF_ENDPOINT_LEGACY_AXES",
+            "AIDOKU_OCR_CLIPPED_EDGE_INK",
+            "AIDOKU_OCR_RF_LANE_GAP",
+            "AIDOKU_OCR_SOURCE_INK_COLUMNS",
+            "AIDOKU_OCR_SOURCE_INK_PARTITIONS",
+            "AIDOKU_OCR_INK_ANNOTATION_BANDS",
+            "AIDOKU_OCR_RF_ORIENTED_PIXEL", "AIDOKU_OCR_RF_ORIENTED_REREAD", "AIDOKU_OCR_RF_ORIENTED_WIDTH",
+            "AIDOKU_OCR_ORIENTED_PATHS"]
+        let environment = ProcessInfo.processInfo.environment
+        let sourceReaderValues = sourceReaderKeys.compactMap { key in environment[key].map { key + "=" + $0 } }
+        let rfPrimaryBase: String
+        if #available(iOS 18.0, *) {
+            // Unclip is a model-profile default, not a persisted OCR setting.
+            // Bind it explicitly so a wider detector cannot replay old boxes.
+            rfPrimaryBase = encoded([freshContextBase, NativeOCRRFPrimaryEnsemble.policyVersion,
+                settings.ocrConfiguration.modelTier == .manga
+                    ? NativeOCRDirectionGeometry.policyVersion : "direction-profile-legacy",
+                settings.ocrConfiguration.modelTier == .manga
+                    ? NativeCoreMLRecognitionPreprocessor.mangaWidthPolicyVersion : "recognition-width-legacy",
+                settings.ocrConfiguration.modelTier == .manga
+                    ? NativeOCRIndependentLanes.policyVersion : "independent-lanes-disabled",
+                "db-unclip=" + String(settings.ocrConfiguration.detectorPostprocessConfiguration.unclipRatio)])
+        } else {
+            rfPrimaryBase = freshContextBase
+        }
+        let readerBase = sourceReaderValues.isEmpty ? rfPrimaryBase
+            : encoded([rfPrimaryBase, "original-source-readers-v214", encoded(sourceReaderValues)])
+        let roleEvidenceBase = encoded([readerBase, "quoted-dot-enclosed-components-v246", TranslationBackgroundRolePolicy.version])
+        let sourceAnchorBase: String
+        if #available(iOS 18.0, *), NativeOCRRawCanonicalRuntime.sourceAnchorMode != .disabled {
+            sourceAnchorBase = encoded([roleEvidenceBase, "raw-source-anchor-mode-v1",
+                NativeOCRRawCanonicalRuntime.sourceAnchorMode.rawValue])
+        } else { sourceAnchorBase = roleEvidenceBase }
+        let deduplicationBase: String
+        if #available(iOS 18.0, *), let configuration = NativeOCRRawCanonicalRuntime.simpleDeduplication {
+            deduplicationBase = encoded([sourceAnchorBase, NativeSimpleOCRDedup.policyVersion, encoded(configuration)])
+        } else { deduplicationBase = sourceAnchorBase }
+        let recognitionAdmissionBase: String
+        if let configuration = NativeSimpleRecognitionAdmission.configuration {
+            recognitionAdmissionBase = encoded([deduplicationBase, NativeSimpleRecognitionAdmission.policyVersion,
+                encoded(configuration)])
+        } else { recognitionAdmissionBase = deduplicationBase }
+        let geometryBase: String
+        if let configuration = NativeSimpleOCRBoundaryExpansionRuntime.configuration {
+            geometryBase = encoded([recognitionAdmissionBase, NativeSimpleOCRBoundaryExpansion.policyVersion,
+                encoded(configuration)])
+        } else { geometryBase = recognitionAdmissionBase }
+        let alternateBase: String
+        if #available(iOS 18.0, *), NativeCoreMLDBPostprocessor.alternateCellEnvelopeEnabled {
+            alternateBase = encoded([geometryBase, NativeOCRRawCanonicalPolicy.detectorAlternatePolicyVersion])
+        } else { alternateBase = geometryBase }
+        return ReaderTranslationOrderedSourceRoute.anyEnabled
+            ? encoded([alternateBase, ReaderTranslationOrderedSourceRoute.activeCacheVersion]) : alternateBase
     }
     static func translation(page: String, settings: ReaderTranslationSettings) -> String {
         let previous = unfilteredTranslation(page: page, settings: settings)
@@ -986,14 +1215,21 @@ enum ReaderTranslationCacheIdentity {
     }
     static func unfilteredTranslation(page: String, settings: ReaderTranslationSettings) -> String {
         let config = settings.configuration
-        return encoded([
-            "reader-translation-v2-neighbor-context", ocr(page: page, settings: settings), config.provider.rawValue, config.apiProtocol.rawValue,
+        let base = encoded([
+            "reader-translation-v7-symbol-preservation-state", NativePostLLMContentReclassifier.policyVersion,
+            ocr(page: page, settings: settings), config.provider.rawValue, config.apiProtocol.rawValue,
             config.baseURL, config.model, config.credentialAccount, String(config.credentialGeneration), config.reasoningEffort.rawValue,
-            config.instructions, settings.sourceLanguage, settings.targetLanguage, TranslationHTTPCodec.letteringPolicy
-        ]
-            + (settings.includePageImage ? ["page-image-v2-auto-fallback", String(TranslationImageSupport.shared.revision(for: config))] : [])
-            + (settings.filterSFXWithLLM ? [settings.shouldAttachPageImage ? TranslationHTTPCodec.sfxPolicy : TranslationHTTPCodec.textOnlySFXPolicy] : [])
-            + (settings.filterBackgroundWithLLM ? [settings.shouldAttachPageImage ? TranslationHTTPCodec.backgroundPolicy : TranslationHTTPCodec.textOnlyBackgroundPolicy] : []))
+            config.instructions, settings.sourceLanguage, settings.targetLanguage, TranslationHTTPCodec.letteringPolicy,
+            // Existing page translations include this retired recovery version in their keys.
+            "literal-recovery-v1-preserve-filters-bounded-isolation",
+            "page-image-required-v1", TranslationHTTPCodec.sfxPolicy, TranslationHTTPCodec.backgroundPolicy
+        ])
+        // Stored variants contain already-corrected translations/kept-SFX
+        // state. Rekey those derived results, never OCR or raw HTTP responses.
+        // Established rollback retains its exact historical cache identity.
+        let policy = NativePostLLMContentReclassifier.activePolicy
+        return policy == .established ? base
+            : encoded([base, "post-llm-derived-translation-v1", policy.version])
     }
     // Every geometry/appearance input must be included to reject stale pixels after a reader change.
     // swiftlint:disable:next function_parameter_count
@@ -1005,11 +1241,17 @@ enum ReaderTranslationCacheIdentity {
         let pixelScale = max(1, scale)
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
-        return encoded([
-            renderRevision, translation(page: page, settings: settings), encoded(settings.overlay),
+        return renderVariantIdentity(encoded([
+            renderRevision, NativeSourceSegmentationExecution.policySHA256,
+            translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
             "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit", letteringFontKey,
             ProcessInfo.processInfo.operatingSystemVersionString
-        ])
+        ]))
+    }
+
+    static func renderVariantIdentity(_ base: String) -> String {
+        let variants = NativeRenderVariantPolicy.projection
+        return variants.isEmpty ? base : encoded([base, encoded(variants)])
     }
 }

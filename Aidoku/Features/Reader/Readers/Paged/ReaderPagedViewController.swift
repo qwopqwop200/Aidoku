@@ -83,11 +83,19 @@ class ReaderPagedViewController: BaseObservingViewController {
     private var actualPageIndices: [Int] = []
     private var splitPages: [Int: [Page]] = [:]
     private var splitPersistenceCount = 0
+    func translationWidePageLayout(for page: Page?) -> ReaderTranslationWidePageLayout {
+        guard splitWideImages else { return .whole }
+        // A nil target describes the display setting for layout invalidation only.
+        guard let page, splitPersistenceCount >= 2 else { return .halves }
+        let originalKey = page.translationCacheKey
+        let alreadySplit = splitPages.values.contains { $0.first?.translationOriginalKey == originalKey }
+        return alreadySplit ? .halves : .pendingSplit
+    }
     private var previousPreviewSplitPages: [Page]?
     private var nextPreviewSplitPages: [Page]?
 
     private var isTransitioning = false
-    private var pendingVisiblePageIDs: Set<ObjectIdentifier> = []
+    private var transitionPageIDs: Set<ObjectIdentifier> = []
     private var navigationWindow = ReaderPagedNavigationWindow()
     private var programmaticMove = false
     private var pendingSpreadRebuild = false
@@ -151,8 +159,9 @@ class ReaderPagedViewController: BaseObservingViewController {
                 let viewController = pageViewController.viewControllers?.first,
                 let currentIndex = getIndex(of: viewController, pos: .first)
             else { return }
-            let safeRange = max(0, currentIndex - pagesToPreload)...min(pageControllers.count - 1, currentIndex + pagesToPreload)
-            for (idx, controller) in loadedPageControllers where !safeRange.contains(idx) {
+            let protected = transitionPageIDs.union(visiblePageControllers().map(ObjectIdentifier.init))
+            for (idx, controller) in loadedPageControllers
+                where abs(idx - currentIndex) > max(0, pagesToPreload) && !protected.contains(ObjectIdentifier(controller)) {
                 controller.clearPage()
             }
         }
@@ -230,10 +239,16 @@ class ReaderPagedViewController: BaseObservingViewController {
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
 
-        if usesAutoPageLayout {
-            usesDoublePages = size.width > size.height
-            refreshChapter(startPage: currentPage)
-        }
+        updateAutomaticPageLayout(for: size)
+    }
+
+    func updateAutomaticPageLayout(for size: CGSize) {
+        let doublePages = size.width > size.height
+        guard usesAutoPageLayout, usesDoublePages != doublePages else { return }
+        usesDoublePages = doublePages
+        guard chapter != nil else { return }
+        // Only the spread changes. Its page controllers still own the same chapter images.
+        move(toPage: max(1, min(currentPage, displayPageCount)), animated: false)
     }
 }
 
@@ -455,7 +470,6 @@ extension ReaderPagedViewController {
             case .rtl: currentPage > page
             default: currentPage < page
         }
-        isTransitioning = true
         programmaticMove = true
         currentPage = page
 
@@ -470,6 +484,7 @@ extension ReaderPagedViewController {
         }
 
         let previousViewControllers = pageViewController.viewControllers ?? []
+        beginTransition(to: [targetViewController])
         pageViewController.setViewControllers(
             [targetViewController],
             direction: forward ? .forward : .reverse,
@@ -494,7 +509,8 @@ extension ReaderPagedViewController {
         guard vcIndex < pageControllers.count else { return }
 
         let targetVC = pageControllers[vcIndex]
-        targetVC.pageView?.imageLoadPriority = index == currentPage || pendingVisiblePageIDs.contains(ObjectIdentifier(targetVC)) || visiblePageControllers().contains(where: { $0 === targetVC }) ? .high : .low
+        let visible = transitionPageIDs.contains(ObjectIdentifier(targetVC)) || visiblePageControllers().contains(where: { $0 === targetVC })
+        targetVC.pageView?.imageLoadPriority = index == currentPage || visible ? .high : .low
         let sourceId = viewModel.source?.key ?? viewModel.manga.sourceKey
 
         if let splitPageArray = splitPages[actualPageIndex] {
@@ -508,8 +524,11 @@ extension ReaderPagedViewController {
     }
 
     private func visiblePageControllers() -> [ReaderPageViewController] {
-        guard let currentVCs = pageViewController.viewControllers else { return [] }
-        return currentVCs.flatMap { controller -> [ReaderPageViewController] in
+        pages(in: pageViewController.viewControllers ?? [])
+    }
+
+    private func pages(in controllers: [UIViewController]) -> [ReaderPageViewController] {
+        controllers.flatMap { controller -> [ReaderPageViewController] in
             if let pageVC = controller as? ReaderPageViewController {
                 return [pageVC]
             }
@@ -520,11 +539,17 @@ extension ReaderPagedViewController {
         }
     }
 
+    private func beginTransition(to incoming: [UIViewController]) {
+        isTransitioning = true
+        let participants = visiblePageControllers() + pages(in: incoming)
+        transitionPageIDs = Set(participants.map(ObjectIdentifier.init))
+    }
+
     func loadPages(in range: ClosedRange<Int>) {
         // Rebase decoded images and in-flight loads on every completed navigation.
         // Visible controllers remain protected during UIKit's transition callback.
         let visibleControllers = visiblePageControllers()
-        let visible = Set(visibleControllers.map(ObjectIdentifier.init)).union(pendingVisiblePageIDs)
+        let visible = Set(visibleControllers.map(ObjectIdentifier.init)).union(transitionPageIDs)
         var visiblePages = Set(visibleControllers.compactMap { controller in
             pageControllers.firstIndex(of: controller).map { pageIndex(from: $0) }
         })
@@ -728,36 +753,26 @@ extension ReaderPagedViewController {
         move(toPage: currentPage, animated: false)
     }
 
-    private func makeSplitPages(leftImage: UIImage, rightImage: UIImage, pageIndex: Int) -> [Page] {
+    private func makeSplitPages(_ split: ReaderTranslationSplitSource.Sides, pageIndex: Int) -> [Page] {
         let sourceId = viewModel.source?.key ?? viewModel.manga.sourceKey
         let chapterId = chapter?.id ?? ""
         let reverseOrderSetting = UserDefaults.standard.bool(forKey: "Reader.reverseSplitOrder")
         let reverseOrder = readingMode == .rtl ? reverseOrderSetting : !reverseOrderSetting
         let originalPage = viewModel.pages[safe: pageIndex - 1] ?? viewModel.pages.first
 
-        let leftPage = Page(
-            sourceId: sourceId,
-            chapterId: chapterId,
-            index: pageIndex,
-            image: leftImage,
-            language: originalPage?.language,
-            translationOriginalKey: originalPage?.translationCacheKey,
-            translationSourceRect: CGRect(x: 0, y: 0, width: 0.5, height: 1)
-        )
-        let rightPage = Page(
-            sourceId: sourceId,
-            chapterId: chapterId,
-            index: pageIndex,
-            image: rightImage,
-            language: originalPage?.language,
-            translationOriginalKey: originalPage?.translationCacheKey,
-            translationSourceRect: CGRect(x: 0.5, y: 0, width: 0.5, height: 1)
-        )
+        func makePage(_ half: ReaderTranslationSplitSource.Half) -> Page {
+            Page(sourceId: sourceId, chapterId: chapterId, index: pageIndex,
+                 image: half.image, language: originalPage?.language,
+                 translationOriginalKey: split.originalKey ?? originalPage?.translationCacheKey,
+                 translationSourceRect: half.crop, translationSplitSource: half.source)
+        }
+        let leftPage = makePage(split.left)
+        let rightPage = makePage(split.right)
         return reverseOrder ? [leftPage, rightPage] : [rightPage, leftPage]
     }
 
-    private func storeSplitPages(left: UIImage, right: UIImage, at pageIndex: Int) {
-        let pages = makeSplitPages(leftImage: left, rightImage: right, pageIndex: pageIndex)
+    private func storeSplitPages(_ split: ReaderTranslationSplitSource.Sides, at pageIndex: Int) {
+        let pages = makeSplitPages(split, pageIndex: pageIndex)
         splitPages[pageIndex] = pages
         cacheSplitPages(pages, at: pageIndex)
     }
@@ -770,11 +785,11 @@ extension ReaderPagedViewController {
             splitPages[pageIndex] == nil,
             controller.isWideImage,
             pageControllers.contains(controller),
-            let (leftImage, rightImage) = controller.pageView?.splitImage()
+            let split = controller.pageView?.splitImage()
         else { return }
 
         if pageIndex <= 0 || pageIndex > viewModel.pages.count {
-            let pages = makeSplitPages(leftImage: leftImage, rightImage: rightImage, pageIndex: pageIndex)
+            let pages = makeSplitPages(split, pageIndex: pageIndex)
             if pageIndex <= 0 {
                 previousPreviewSplitPages = pages
             } else {
@@ -782,7 +797,7 @@ extension ReaderPagedViewController {
             }
             return
         }
-        storeSplitPages(left: leftImage, right: rightImage, at: pageIndex)
+        storeSplitPages(split, at: pageIndex)
         rebuildPageIndices()
         guard let stored = splitPages[pageIndex] else { return }
         applySplit(replacing: controller, with: stored)
@@ -966,7 +981,7 @@ extension ReaderPagedViewController: ReaderReaderDelegate {
             let currentViewController = pageViewController.viewControllers?.first,
             let targetViewController = pageViewController(pageViewController, viewControllerBefore: currentViewController)
         {
-            isTransitioning = true
+            beginTransition(to: [targetViewController])
             let animated = UserDefaults.standard.bool(forKey: "Reader.animatePageTransitions")
             pageViewController.setViewControllers(
                 [targetViewController],
@@ -989,7 +1004,7 @@ extension ReaderPagedViewController: ReaderReaderDelegate {
             let currentViewController = pageViewController.viewControllers?.last,
             let targetViewController = pageViewController(pageViewController, viewControllerAfter: currentViewController)
         {
-            isTransitioning = true
+            beginTransition(to: [targetViewController])
             let animated = UserDefaults.standard.bool(forKey: "Reader.animatePageTransitions")
             pageViewController.setViewControllers(
                 [targetViewController],
@@ -1100,7 +1115,7 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
         transitionCompleted completed: Bool
     ) {
         isTransitioning = false
-        pendingVisiblePageIDs.removeAll()
+        transitionPageIDs.removeAll()
         if !completed,
            let settledController = pageViewController.viewControllers?.first,
            let settledIndex = getIndex(of: settledController, pos: .first) {
@@ -1224,18 +1239,7 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
         _ pageViewController: UIPageViewController,
         willTransitionTo pendingViewControllers: [UIViewController]
     ) {
-        isTransitioning = true
-        // UIKit can still report the outgoing controller as current during a
-        // drag. Both incoming pages are visible demand, not speculative work.
-        pendingVisiblePageIDs = Set(pendingViewControllers.flatMap { controller -> [ObjectIdentifier] in
-            if let page = controller as? ReaderPageViewController {
-                return [ObjectIdentifier(page)]
-            }
-            if let spread = controller as? ReaderDoublePageViewController {
-                return [ObjectIdentifier(spread.firstPageController), ObjectIdentifier(spread.secondPageController)]
-            }
-            return []
-        })
+        beginTransition(to: pendingViewControllers)
         setLiveTextButtonHidden(true)
 
         if UserDefaults.standard.bool(forKey: "Reader.hideBarsOnSwipe") {

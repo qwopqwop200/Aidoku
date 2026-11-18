@@ -328,6 +328,16 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
     ) async throws -> RemoteTranslationBatchResult {
         try Task.checkCancellation()
         try request.validate()
+        // Page-lettering classification is a single-pass decision. Do not
+        // silently spend additional provider calls on focused role checks,
+        // source-alignment retries, protocol fallback, or image downgrade.
+        // A failed primary request remains a failure for the caller to report.
+        if request.translatesPageLettering == true {
+            guard request.imageJPEG != nil, request.filtersSFX == true, request.filtersBackground == true else {
+                throw RemoteTranslationError.invalidRequest("page translation requires image, SFX and background roles")
+            }
+            return try await translateOnce(request, configuration: configuration, onPartial: onPartial)
+        }
         var effectiveRequest = request
         if !rechecksImageSupport, imageSupport.status(for: configuration) == .unsupported {
             effectiveRequest.imageJPEG = nil
@@ -337,12 +347,61 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             if effectiveRequest.imageJPEG != nil {
                 imageSupport.record(.supported, for: configuration)
             }
-            return result
+            let verified = try await recoveringSourceRoles(effectiveRequest, result: result, configuration: configuration)
+            return try await recoveringIndependentSourceAlignment(effectiveRequest, result: verified,
+                configuration: configuration)
         } catch is UnsupportedImageInput {
             try Task.checkCancellation()
             imageSupport.record(.unsupported, for: configuration)
             effectiveRequest.imageJPEG = nil // Also clears the prepared base64 data URL.
-            return try await translateUsingSupportedProtocol(effectiveRequest, configuration: configuration, onPartial: onPartial)
+            let result = try await translateUsingSupportedProtocol(effectiveRequest, configuration: configuration, onPartial: onPartial)
+            let verified = try await recoveringSourceRoles(effectiveRequest, result: result, configuration: configuration)
+            return try await recoveringIndependentSourceAlignment(effectiveRequest, result: verified,
+                configuration: configuration)
+        }
+    }
+
+    private func recoveringSourceRoles(_ request: RemoteTranslationRequest, result: RemoteTranslationBatchResult,
+        configuration: RemoteTranslationConfiguration) async throws -> RemoteTranslationBatchResult {
+        var receipts = [TranslationRoleVerificationPlanner.Verification]()
+        for focused in TranslationRoleVerificationPlanner.candidates(request: request, result: result) {
+            try Task.checkCancellation()
+            let started = ProcessInfo.processInfo.systemUptime
+            do {
+                let response = try await translateUsingSupportedProtocol(focused, configuration: configuration, onPartial: nil)
+                receipts.append(.init(request: focused, result: response))
+                let changed = TranslationRoleVerificationPlanner.merging(request: request,
+                    original: result, verifications: [.init(request: focused, result: response)]) != result
+                let event: [String: Any] = ["policy": TranslationRoleVerificationPlanner.version,
+                    "segmentIDs": focused.segments.map(\.id), "completed": true, "admittedChange": changed,
+                    "sourceImageIdentity": focused.roleEvidenceSourceImageIdentity as Any? ?? NSNull(),
+                    "providerRequestID": response.providerRequestID as Any? ?? NSNull(),
+                    "roles": response.translations.map { $0.textRole?.rawValue ?? "unmeasured" }]
+                if let data = try? JSONSerialization.data(withJSONObject: event, options: [.sortedKeys]) {
+                    FileHandle.standardError.write(Data("causal_role_verification ".utf8))
+                    FileHandle.standardError.write(data)
+                    FileHandle.standardError.write(Data([10]))
+                }
+            } catch is CancellationError { throw CancellationError() }
+            catch {
+                // An optional recheck cannot destroy the completed primary
+                // response. It also cannot be counted as a successful fix.
+                TranslationPerformanceDiagnostics.clientPhaseCompleted(phase: "role_verification_failed",
+                    segmentCount: focused.segments.count,
+                    elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: started))
+            }
+        }
+        return TranslationRoleVerificationPlanner.merging(request: request, original: result, verifications: receipts)
+    }
+
+    private func recoveringIndependentSourceAlignment(
+        _ request: RemoteTranslationRequest, result: RemoteTranslationBatchResult,
+        configuration: RemoteTranslationConfiguration
+    ) async throws -> RemoteTranslationBatchResult {
+        try await TranslationHTTPCodec.recoveringIndependentSourceAlignment(request: request, result: result) { isolated in
+            // Call below this recovery entry point: an independently confirmed
+            // coinciding translation is accepted without recursively retrying.
+            try await self.translateUsingSupportedProtocol(isolated, configuration: configuration, onPartial: nil)
         }
     }
 
@@ -487,6 +546,13 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                 .elapsedMilliseconds(since: keychainStartedAt)
         )
 
+        if request.translatesPageLettering == true {
+            // Compact-output negotiation may retry after a rejected grammar.
+            // The one-call page path uses the portable schema directly.
+            return try await exchange(request, configuration: configuration, endpoint: endpoint, apiKey: apiKey,
+                chatOptions: .standard, onPartial: onPartial).batch
+        }
+
         let compactKey = try Self.compactCapabilityKey(for: configuration)
         if Self.usesCompactOutput(configuration: configuration, request: request, state: .eligible) {
             try await compactOutput.waitForMetadata(endpoint: compactKey, account: configuration.credentialAccount)
@@ -542,17 +608,14 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         configuration: RemoteTranslationConfiguration,
         request: RemoteTranslationRequest
     ) -> TranslationHTTPCodec.ChatWireOptions {
-        // Responses keeps its existing buffered protocol and token policy.
-        // Only Chat Completions uses the SSE decoder and max_tokens option.
+        // Responses remains buffered; Chat Completions can stream.
         if configuration.apiProtocol == .responses {
             return .init(compactStructuredOutput: true)
         }
         return TranslationHTTPCodec.ChatWireOptions(
             compactStructuredOutput: true,
             stream: true,
-            // Reasoning tokens count toward max_tokens; only cap direct answers.
-            maximumOutputTokens: configuration.reasoningEffort == .none
-                ? TranslationHTTPCodec.maximumOutputTokens(for: request) : nil
+            maximumOutputTokens: nil
         )
     }
 
@@ -730,7 +793,10 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                 source: .network,
                 providerRequestID: requestID
             ),
-            identifiesStructuredOutputServer: !chatOptions.compactStructuredOutput && !isEventStream &&
+            // Only custom, non-page requests consume this capability hint.
+            // Avoid decoding the response envelope again for every reader page.
+            identifiesStructuredOutputServer: configuration.provider == .custom && request.translatesPageLettering != true &&
+                !chatOptions.compactStructuredOutput && !isEventStream &&
                 TranslationHTTPCodec.identifiesStructuredOutputServer(
                     responseBody: body, apiProtocol: configuration.apiProtocol,
                     vllmVersionHeader: response.value(forHTTPHeaderField: "X-vLLM-Version")

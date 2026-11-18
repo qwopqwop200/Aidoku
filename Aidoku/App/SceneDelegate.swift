@@ -69,6 +69,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         contentHideView.removeFromSuperview()
         UIApplication.shared.appDelegate?.importPendingSharedImages()
         Task { await DownloadManager.shared.applicationDidBecomeActive() }
+        Task { await MangaManager.shared.refreshLibraryIfOverdue() }
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {

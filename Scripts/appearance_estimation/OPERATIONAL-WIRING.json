@@ -1,0 +1,131 @@
+{
+  "status": "APPLIED_AND_PARENT_VALIDATED_MACOS_MAIN_AND_IOS_APP",
+  "productionCaller": [
+    "Scripts/image-translation.swift includes HostOperationalAppearance.swift in actual build inventory",
+    "Scripts/image-translation/PipelineMain.swift preparePayload + auditRenderRun install HostOperationalAppearance",
+    "NativeMainEnsembleRenderer.page -> NativeLiveSourceAppearance.annotate BEFORE NativeMainEnsemblePipeline/render/shaping",
+    "HostOperationalAppearance -> explicit AUX highres03de all-query RF -> source_style_runtime.py new private source-only request",
+    "SourceStyleRuntime.construct_page: selected packed SourceMaskProducer all owners -> own masks/context exclusion -> packed all-head appearance -> optimized_runtime.measure_packet(style,member_polygons) -> infer_packets(same-page group)",
+    "NativeOperationalAppearance.apply -> source appearance heads + initial display fill; sourceFontSize ORIGINAL pixels in source-local native viewport; display request and final fit remain separate",
+    "sourceSegmentationMasks -> selected own-mask builder before AOT; segmentation worker owns final protection/coverage validation",
+    "NativeAOTRawTextPainter -> source style primitive -> NativeSourceStylePaint actual observed bands/shadow -> mandatoryBW strokes -> fills",
+    "iOS NativeLiveSourceAppearance missing installed host backend -> NativeOperationalSourceInference.defaultBackend -> upfront concrete built-in policies + real AUX MLModel tensor/weights/revision validation -> source segmentation -> full appearance graph -> actual accepted198 estimate(styles:) before shaping"
+  ],
+  "operationalAssets": {
+    "appearance": "Scripts/appearance_estimation/assets/accepted",
+    "appearanceFiles": 231,
+    "appearanceBytes": 43775298,
+    "helperIntegrity": "Original expected SHA values retained. Only NativePrimary policy absolute path keys relocated inside packed closure; original policy SHA and relocation recorded in PACKAGE.json.",
+    "activeSelectorUpdated": "../appearance-estimation-20261109/ACTIVE-ESTIMATOR.json",
+    "segmentation": "Scripts/segmentation/assets/accepted-final via default SourceMaskRuntime/Producer constructors",
+    "font": "Active accepted198 packed model via estimator.load_model. Override path: AIDOKU_SOURCE_FONT_MODEL.",
+    "python": "Aidoku/.venv-source-inference/bin/python; override AIDOKU_OPERATIONAL_APPEARANCE_PYTHON",
+    "auxHighres": "Aidoku/Resources/Translation/KoharuHighres648FP16.mlpackage; HostResources.prepare compiles to host bundle; MAIN OCR/layout RF defaults unchanged",
+    "portableNativeHeads": "Aidoku/Resources/Translation/SourceModels: generic frozen59-head registry including appearance/font/segmentation; individual artifact SHA verification; small SHA-verified appearance metadata. All required physical policy functions now present."
+  },
+  "inputContract": {
+    "source": "original source-local RGB uint8, RF27 quantized native support + separate unrounded affinity scores, coarseRF4, individual/merged source geometry, original OCR/confidence/role/prior",
+    "mask": "fresh own predicted mask per source owner, never GT or page-union substitute",
+    "ocr": "8 maps rasterized from current source-bound OCR observations; missing channels remain unavailable; no historical OCR/page lookup",
+    "members": "Both actual constructors share authoritative GLOBAL original member recovery. Fixed 15%-padded integral source crop remains unchanged; true member/merged polygon intersections are localized only for source features. Returned sourceMemberPolygons retains original global geometry, sourceMemberPolygonsCrop carries feature-local intersections, sourceFeatureGeometryClipping audits changed/dropped polygons. Predicted masks are not bbox-clipped.",
+    "provenance": "Native independently hashes input RGB/RF and fresh own/context/p/q/OCR buffer outputs, checks geometry equality, current packed checkpoint identity and RF03de provenance",
+    "nativeFontUnits": "Callback runs AFTER renderer localization to original source pixels. sourceFontSize and source style widths/offsets stay source pixels; paint scales by final translated font/source font; source display request separate from measured em.",
+    "GTPageLookup": false,
+    "cachedStylePredictionRead": false
+  },
+  "validation": {
+    "pythonContract": "7 PASS, CLI fresh-output reuse and source/model binding rejection",
+    "portableHeads": "20 heads *3 independent numeric vectors=60 native results equal sklearn within1e-12; Foundation-only isolated compilation",
+    "packedAppearance": "Real accepted infer CLI vs packed helper CLI exact ENTIRE prediction equality on synthetic RGB/mask/RF/seg/OCR source inputs; all accepted policy validations retained",
+    "realConstructor": "PASS actual selected native segmentation binaries + packed full appearance + active accepted-font198 on synthetic original RGB/RF/OCR; returned positive original-source-pixel em22.0. Degenerate synthetic font PCA emitted runtime warnings; not a quality/accuracy claim.",
+    "actualPaint": "PASS independent native raster test:2 source bands and observed composite shadow actually visible, mandatoryBW outline present, all16 translated fill pixels retained, intrinsic source opacity stays unknown",
+    "actualAuxMetadata": "PASS loaded existing selected CoreML AUX model: weights03de2f77281974f5084cdd8652ace2b55dc15ac0378aed66654e62537cdda255,revision53fef6f1301f4cbd8324ddc24f554b3767fc9e45,resolution648. Copied package source bytes unchanged.",
+    "syntax": "Changed shared Swift files frontend parse PASS; Python modules compile PASS",
+    "sharedHostBuild": "PASS current source incremental MAIN",
+    "actualPageEndToEnd": true,
+    "deviceBuild": false,
+    "wholeImagesViewed": false,
+    "nativeGeometry": "PASS standalone Swift production resolver and true fixed-crop polygon intersection: skew polygons remain nonrectangular, global originals unchanged, exact-bound geometry stable, feature vertices bounded; direct/matched/grouped/legacy-empty/malformed global cases. Python operational contract7 PASS; three changed Swift files frontend parse PASS. Parent must rebuild actual MAIN before retry.",
+    "nativeDiffuseGlow": "PASS standalone actual OpenCV implementation and complete recursive Python policy summary/paint parity on7 synthetic source cases: glow, AA, crisp, none, texture, clipped, tinted.",
+    "nativeAppearanceGraph": "PASS current frozen source isolated full native graph executable runs actual packaged heads on one fresh source-only synthetic RGB/predicted-mask/RF/seg/OCR packet. Every Python reference output field matches recursively (numeric tolerance3e-5); no cached predictions/model oracle. Optimized graph snapshot also compiled/executed; final late medoid pruning snapshot compiled/executed -Onone. Resource identity constant substituted only. App/iOS execution remains parent-owned.",
+    "lateFilesChangedSinceFocusedGraphSnapshot": [],
+    "nativeLatePolicies": "Rawls reports frozen all6 helpers:12 fresh synthetic finalstyle fields exact; full88 features and NaNmask exact,max0; host compile PASS. No remaining code blocker.",
+    "hostBindingRegression": "PASS actual HostOperationalAppearance.checkpointBinding + NativeOperationalAppearance.apply compiled standalone: Python fresh packet equals10 independently hashed native fields; mixed-case artifact ordering reproduces old failure; old/mutated checkpoint binding rejected. One production host source changed; no Python model/runtime/hash bypass.",
+    "iOSAppHostedSourcePipeline": "PASS actual bounded sourcesegmentation/appearance/font +synthetic operators +resource closure,8 tests0failed0skipped"
+  },
+  "remaining": [],
+  "coordination": "Segworker01a1c7a7-abb0-79c3-be32-7aea5533fe6b restored frozen helper exact SHA, packaged segmentation and final own-mask builder integration; shared sources frozen and parent informed. Parent font/prepare files not edited.",
+  "freeze": {
+    "ownedProductionSources": "frozen; no further source edits during parent final verification",
+    "graphSnapshotSHA256": {
+      "NativeAppearanceAdaptiveWidth50.swift": "4e6da7f17e38bf6aab773ea9d5d3ebb00f2dcfae9b11e3bf7b6349daa3190aff",
+      "NativeAppearanceBackgroundFeatures102.swift": "a8917f1f86cda6dab23f89e6aec339071ec96dc9afc8b60239f0aa67d9afe628",
+      "NativeAppearanceColorNeighborhoods.swift": "c02e82c9ecb6f0cbcd22b061184c7a94ae6ff6b6762d84ec8b32b9c9f7e33152",
+      "NativeAppearanceDiffuseGlow.swift": "3cc7d956c41a2c10ef94f0fb71d9da9d925e01c5e2cb383ad0a89ed62c7f0779",
+      "NativeAppearanceEuclideanDistance.swift": "8abf922b15922536851dfe6fd4967a3d384f334e9f334cd160e4aa3174872aba",
+      "NativeAppearanceFinalBackground.swift": "bd1b0776ce0a080f77c52837d102ef20908689577202b5172c0546026786154a",
+      "NativeAppearanceForest.swift": "3ba754fb14b00cbeb11fc7f9ba9fc486b55d5ede76b64a0935fe1c5ae1996fea",
+      "NativeAppearanceGlyphBackground24.swift": "bc8d41a019acc4382995307886fb10f0bbbefd5a7728129b59df95c3b5e0d927",
+      "NativeAppearanceImageOperations.swift": "4d104e8cce16b70cad4ef93e4236d55bf5dfb1737ef5272ae6e8444f7c298906",
+      "NativeAppearanceInferenceGraph.swift": "3843dfe8d2966115d28a06afe83e776e477d106bbf826258ea15080872be6e76",
+      "NativeAppearanceLateGradient.swift": "fc52e56fa78d17b6919efe1428d4d1aa22d667f02831b658047880d7fa12592c",
+      "NativeAppearanceLateGradientBright.swift": "16762dcb80f0941b1d96278a6a3c326eb23fbdaf89ab4674105fc76bedab2c10",
+      "NativeAppearanceLateGradientGeometry.swift": "65e84a17dfc8c208a1f64c58126e6ea64c23ea95f8cc7962c6f0ac66de071fc2",
+      "NativeAppearanceLateGradientPalette.swift": "08db5e4deb295883944b096371260999ebbed77ca1336b49bbed34e5dc1d62a7",
+      "NativeAppearanceLateGradientQuality.swift": "fe47cd228a83a6c93fd99bc00707aa9785b209a59c539e63b430b816ed8a7657",
+      "NativeAppearanceLateGradientShell.swift": "4b849511a788246bce5c37bf0d3f7bed140e8ae780be8e4feca96a54da251a76",
+      "NativeAppearanceModelHeads.swift": "859d68ecd845ac3f64bb0136c6f290f6f98a255d0b830b9559de82705a656b8e",
+      "NativeAppearanceNestedOutline.swift": "025717eeeb529281b92f25eff67a15a2df7a6728ce6529723f23efa1e284c142",
+      "NativeAppearanceNormalProfiles.swift": "9bb4cda424f6240c907bd645637cc8998b58bffbf0bb59c26b6d04a2a6d835c9",
+      "NativeAppearanceNumeric.swift": "cc704e5b69ec1fd361992398eeca72217a4b314659083c8856381a10105f641a",
+      "NativeAppearanceOutlineWidthEvidence.swift": "2f33f5f97556e9848cee4face67e5ff4495edbbb35a1152d76964d4b31eb7128",
+      "NativeAppearancePalettes.swift": "10946dfa457cec9b16c7cf306dfd08976937850c0b7a3988895b38b9df91cd1f",
+      "NativeAppearancePhysicalImage.swift": "f94a9d376a402d15278dabc462fcd1a9c25375082a2d0b5a50dab68e4dd46d41",
+      "NativeAppearancePixelFeatures71.swift": "b9ad4af03a9831989b6f3dae2865ce40c06e843f55a6f350051e40e6bf9bcda2",
+      "NativeAppearanceShadowDisplacement.swift": "bb4851daa1d2a0703afb62fa0981de4ef4ed78df0c61178fb544736ac4ed520d",
+      "NativeAppearanceShadowObservation.swift": "e68a6d3f01e232e9832975e71eb61a9cd288516cba4132a960e0b0b3937086be",
+      "NativeAppearanceSourceFeatures209.swift": "ae8341a27a7af050ddd96ed305835cd357743571de0b7816593bb881b776171e",
+      "NativeAppearanceWidth.swift": "35c2fcea2a0fedf4ed211f17206065461ccc4d975dea744fc33fefb860038281",
+      "NativeFrozenSourceModel.swift": "f5ada3b5b984d8aebb236bf7f513776b26cc205bd3cd2bc9993dc2fd229de22e",
+      "NativeOpenCVImageOperations.swift": "354a12ecc82c9803eb538b5f3016d5c67e9e0be25cd6caf63143769ef49407a1",
+      "SourceNativeInput.swift": "a745908c8a98674479d57c33ac18a3931d8e5382bc99cef583df44bf38725b1f"
+    },
+    "geometryConsumers": [
+      "NativeSourceInputFactory.swift",
+      "Scripts/image-translation/HostOperationalAppearance.swift"
+    ],
+    "latePolicies": "Rawls acknowledged frozen; no further production edits",
+    "boundedPostFreezeFix": {
+      "reason": "Actual earlier MAIN snapshot failed Source polygon lies outside crop coordinates",
+      "productionFiles": [
+        "Aidoku/Core/Translation/NativeEngine/Ensemble/NativeSourceInputFactory.swift",
+        "Aidoku/Core/Translation/NativeEngine/Ensemble/NativeOperationalSourceInference.swift",
+        "Scripts/image-translation/HostOperationalAppearance.swift",
+        "Scripts/appearance_estimation/operational_appearance.py"
+      ],
+      "status": "fixed and refrozen; parent actual MAIN retry pending",
+      "maskModification": false,
+      "cropExpanded": false
+    },
+    "boundedFixSHA256": {
+      "Aidoku/Core/Translation/NativeEngine/Ensemble/NativeSourceInputFactory.swift": "00a39cecfb3a4321af8fdacfb8da784a9519090fcdf2f7716f0c2caefe2ac35f",
+      "Aidoku/Core/Translation/NativeEngine/Ensemble/NativeOperationalSourceInference.swift": "2847b8b68e2ef57b50372a59ff66ac29333564e8bb19576a2a59164f87054071",
+      "Scripts/image-translation/HostOperationalAppearance.swift": "90917dabafa1a19e7a6576e5e6e499eb0d1b6146bf9ba6cc53c5e3f8a63450e8",
+      "Scripts/appearance_estimation/operational_appearance.py": "31764e06d3c1f0b1d0872285262b82e62668f3f538003c863f72f5896e71d8a7"
+    },
+    "bindingFix": {
+      "reason": "Foundation .sortedKeys mixed-case order differs from Python sort_keys, giving different checkpoint SHA on identical artifacts",
+      "productionFile": "Scripts/image-translation/HostOperationalAppearance.swift",
+      "sha256": "695e0f88b3dc2800b9802225ab8c25e02595cf770ab551b91ba87ac2466969fa",
+      "status": "fixed,focused-regression-passed,refrozen;actual-MAIN-rerun-parent-owned",
+      "diagnostics": "bounded owner ordinal + mismatched binding key names; no source packet dump"
+    }
+  },
+  "parentVerification": {
+    "report": "../../../main-optimization-integration-20261111/RESULT.json",
+    "productionFontSelection": "Scripts/font_size_estimation/ACTIVE-ESTIMATOR.json",
+    "sameFontArtifactSHA256": "30f0072a07ec393fb26a3ea6d0b306fac836bf5290d0e16f3a94b3e2b0107f05",
+    "iOSScope": "arm64 simulator; physical device not executed",
+    "visualQualityCertified": false
+  }
+}

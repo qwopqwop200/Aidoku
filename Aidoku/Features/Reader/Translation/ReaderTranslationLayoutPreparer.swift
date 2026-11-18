@@ -1,19 +1,25 @@
 import UIKit
 
+enum ReaderTranslationWidePageLayout: String, Sendable {
+    case whole, halves, pendingSplit
+}
+
 struct ReaderTranslationLayoutGeometry: Sendable {
     let viewport: CGSize
     let scale: CGFloat
     let aspectFit: Bool
     let crop: CGRect
+    private let widePageLayout: ReaderTranslationWidePageLayout
     let dark: Bool
     private let pageContainer: CGSize?
     private let fitHeight: Bool
 
-    @MainActor init(page: ReaderTranslationPage, imageView: UIImageView) {
+    @MainActor init(page: ReaderTranslationPage, imageView: UIImageView, widePageLayout: ReaderTranslationWidePageLayout = .whole) {
         viewport = imageView.bounds.size
         scale = imageView.traitCollection.displayScale
         aspectFit = imageView.contentMode == .scaleAspectFit
         crop = page.sourcePage?.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
+        self.widePageLayout = widePageLayout
         dark = imageView.traitCollection.userInterfaceStyle == .dark
         pageContainer = (imageView.superview as? ReaderPageView)?.bounds.size
         fitHeight = UIScreen.main.bounds.width > UIScreen.main.bounds.height
@@ -23,8 +29,19 @@ struct ReaderTranslationLayoutGeometry: Sendable {
         let container = pageContainer ?? (aspectFit ? viewport : CGSize(width: viewport.width, height: 0))
         return ReaderTranslationCacheIdentity.encoded([
             ReaderTranslationCacheIdentity.encoded(container), String(Double(scale)), String(aspectFit),
-            String(fitHeight), String(dark), String(Double(crop.width)), NativeTranslationTypography.availabilityKey
+            String(fitHeight), String(dark), String(Double(crop.width)), widePageLayout.rawValue, NativeTranslationTypography.availabilityKey
         ])
+    }
+
+    func targetNeedsSplit(_ size: CGSize) -> Bool {
+        widePageLayout != .whole && size.height > 0 && size.width > size.height
+    }
+
+    func targetCrops(for image: UIImage) throws -> [CGRect] {
+        guard image.cgImage != nil, targetNeedsSplit(image.size) else { return [ReaderTranslationSplitGeometry.unit] }
+        // The displayed page may still become a spread once a persistence slot opens.
+        guard widePageLayout != .pendingSplit else { throw CancellationError() }
+        return [CGRect(x: 0, y: 0, width: 0.5, height: 1), CGRect(x: 0.5, y: 0, width: 0.5, height: 1)]
     }
 
     func viewport(for image: CGSize) -> CGSize {
@@ -83,7 +100,8 @@ final class ReaderTranslationLayoutPreparer {
     }
 
     func prepare(page: Page, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
-                 geometry: ReaderTranslationLayoutGeometry, window: UIWindow? = nil) async throws {
+                 geometry: ReaderTranslationLayoutGeometry, window: UIWindow? = nil,
+                 expectedSource: ReaderTranslationSourceRasterClaim? = nil) async throws {
         guard !regions.isEmpty, geometry.viewport.width > 0, geometry.viewport.height > 0 else { return }
         let identity = ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: settings)
         guard renderCache.shouldKeepImage(for: identity) else {
@@ -91,23 +109,19 @@ final class ReaderTranslationLayoutPreparer {
             return
         }
         // An already prepared bitmap needs neither source-image decoding nor source preparation.
-        if geometry.crop == ReaderTranslationSplitGeometry.unit, let imageSize = try? await renderCache.disk.imageSize(page: page.translationCacheKey) {
-            var restored = true
-            for crop in crops(geometry) {
-                let size = CGSize(width: imageSize.width * crop.width, height: imageSize.height * crop.height)
-                let key = renderKey(page, settings, geometry, size, crop)
-                let displayed = regions.compactMap { $0.cropped(to: crop) }
-                let snapshotKey = ReaderTranslationRenderCache.snapshotKey(renderKey: key, regions: displayed)
-                if await renderCache.load(snapshotKey, pageIdentity: identity) == nil { restored = false; break }
-            }
-            if restored { return }
+        if expectedSource == nil, let imageSize = try? await renderCache.disk.imageSize(page: page.translationCacheKey),
+           !geometry.targetNeedsSplit(imageSize) {
+            let unit = ReaderTranslationSplitGeometry.unit
+            let key = renderKey(page, settings, geometry, imageSize, unit)
+            let snapshotKey = ReaderTranslationRenderCache.snapshotKey(renderKey: key, regions: regions.compactMap { $0.cropped(to: unit) })
+            if await renderCache.load(snapshotKey, pageIdentity: identity) != nil { return }
         }
         // Admit before loading pixels and hold admission through native composition.
         // Network-only translation may continue, but OCR/download image work
         // cannot accumulate alongside a speculative full-page renderer.
         try await imageBudget.withPermit(priority: .prefetch) {
             try await self.prepareAdmitted(page: page, regions: regions, settings: settings,
-                                           geometry: geometry, window: window)
+                                           geometry: geometry, window: window, expectedSource: expectedSource)
         }
     }
 
@@ -118,29 +132,22 @@ final class ReaderTranslationLayoutPreparer {
         // Legacy saved sizes contain points only, without pixel scale or orientation.
         // They cannot predict an integral CGImage split; defer split preparation until pixels load.
         guard !regions.isEmpty, geometry.viewport.width > 0, geometry.viewport.height > 0,
-              geometry.crop == ReaderTranslationSplitGeometry.unit,
-              let imageSize = try await renderCache.disk.imageSize(page: page.translationCacheKey) else { return }
+              let imageSize = try await renderCache.disk.imageSize(page: page.translationCacheKey),
+              !geometry.targetNeedsSplit(imageSize) else { return }
         let generation = await renderCache.disk.currentGeneration(settings: settings)
-        for crop in crops(geometry) {
-            try Task.checkCancellation()
-            let size = CGSize(width: imageSize.width * crop.width, height: imageSize.height * crop.height)
-            let viewport = geometry.viewport(for: size)
-            let key = renderKey(page, settings, geometry, size, crop)
-            let displayed = regions.compactMap { $0.cropped(to: crop) }
-            let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: displayed)
-            if await renderCache.layoutData(for: layoutKey) != nil { continue }
-            let items = ReaderTranslationRegion.layoutItems(displayed, imageSize: size)
-            let sourceRect = ReaderTranslationGeometry.displayRect(CGRect(x: 0, y: 0, width: 1, height: 1), imageSize: size,
-                bounds: CGRect(origin: .zero, size: viewport), aspectFit: geometry.aspectFit)
-            let data = try await layoutPreparation(items, size, sourceRect, settings.overlay, settings.targetLanguage, viewport)
-            try Task.checkCancellation()
-            await renderCache.storeLayout(data, key: layoutKey, diskGeneration: generation)
-        }
-    }
-
-    private func crops(_ geometry: ReaderTranslationLayoutGeometry) -> [CGRect] {
-        let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
-        return geometry.crop == unit ? [unit] : [CGRect(x: 0, y: 0, width: 0.5, height: 1), CGRect(x: 0.5, y: 0, width: 0.5, height: 1)]
+        try Task.checkCancellation()
+        let unit = ReaderTranslationSplitGeometry.unit
+        let viewport = geometry.viewport(for: imageSize)
+        let key = renderKey(page, settings, geometry, imageSize, unit)
+        let displayed = regions.compactMap { $0.cropped(to: unit) }
+        let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: displayed)
+        if await renderCache.layoutData(for: layoutKey) != nil { return }
+        let items = ReaderTranslationRegion.layoutItems(displayed, imageSize: imageSize)
+        let sourceRect = ReaderTranslationGeometry.displayRect(unit, imageSize: imageSize,
+            bounds: CGRect(origin: .zero, size: viewport), aspectFit: geometry.aspectFit)
+        let data = try await layoutPreparation(items, imageSize, sourceRect, settings.overlay, settings.targetLanguage, viewport)
+        try Task.checkCancellation()
+        await renderCache.storeLayout(data, key: layoutKey, diskGeneration: generation)
     }
 
     private func renderKey(_ page: Page, _ settings: ReaderTranslationSettings, _ geometry: ReaderTranslationLayoutGeometry,
@@ -150,7 +157,8 @@ final class ReaderTranslationLayoutPreparer {
     }
 
     private func prepareAdmitted(page: Page, regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
-                                 geometry: ReaderTranslationLayoutGeometry, window: UIWindow?) async throws {
+                                 geometry: ReaderTranslationLayoutGeometry, window: UIWindow?,
+                                 expectedSource: ReaderTranslationSourceRasterClaim?) async throws {
         try Task.checkCancellation()
         let cache = renderCache.disk
         let image: UIImage
@@ -161,11 +169,18 @@ final class ReaderTranslationLayoutPreparer {
             let operation = Task.detached(priority: .utility) { try await loader.load(page) }
             image = try await withTaskCancellationHandler { try await operation.value } onCancel: { operation.cancel() }
         }
+        if let expectedSource {
+            let observation = Task.detached(priority: .utility) {
+                ReaderTranslationSourceRasterClaim.observe(fullProcessedSource: image)
+            }
+            let actual = await withTaskCancellationHandler { await observation.value } onCancel: { observation.cancel() }
+            try Task.checkCancellation()
+            guard actual == expectedSource else { throw CancellationError() }
+        }
         let generation = await cache.currentGeneration(settings: settings)
         try? await cache.storeImageSize(image.size, page: page.translationCacheKey, generation: generation)
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
-        let crops = geometry.crop == unit ? [unit] : [CGRect(x: 0, y: 0, width: 0.5, height: 1), CGRect(x: 0.5, y: 0, width: 0.5, height: 1)]
-        for crop in crops {
+        for crop in try geometry.targetCrops(for: image) {
             try Task.checkCancellation()
             guard let original = ReaderTranslationSplitGeometry.image(image, crop: crop) else { continue }
             let size = original.size
@@ -175,7 +190,7 @@ final class ReaderTranslationLayoutPreparer {
                                                             crop: crop, dark: geometry.dark)
             let displayed = regions.compactMap { $0.cropped(to: crop) }
             let snapshotKey = ReaderTranslationRenderCache.snapshotKey(renderKey: key, regions: displayed)
-            if renderCache.cachedImage(for: snapshotKey) != nil { continue }
+            if await renderCache.loadSnapshot(snapshotKey, source: original) != nil { continue }
             let identity = ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: settings)
             let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: key, regions: displayed)
             try await renderCache.prepare(snapshotKey) { [renderCache, layoutPreparation] in
@@ -225,7 +240,9 @@ final class ReaderTranslationLayoutPreparer {
                     assetCache: renderCache, assetKey: key, assetSourceDigest: sourceDigest
                 )
                 try Task.checkCancellation()
-                await renderCache.store(snapshot, key: snapshotKey, pageIdentity: identity, diskGeneration: generation)
+                await renderCache.store(snapshot, key: snapshotKey, pageIdentity: identity, diskGeneration: generation,
+                    source: original, sourceDigest: sourceDigest,
+                    sourceAspect: .init(source: original, renderedSource: source, viewport: viewport, aspectFit: geometry.aspectFit))
                 TranslationPerformanceDiagnostics.clientPhaseCompleted(
                     phase: "reader_snapshot", segmentCount: items.count,
                     elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - snapshotStart) * 1_000

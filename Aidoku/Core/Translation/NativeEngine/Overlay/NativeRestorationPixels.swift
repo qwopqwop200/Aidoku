@@ -49,6 +49,7 @@ struct NativeRestorationPixels {
     var rgba: [UInt8]
     var erasureComplete = false
     var sourceErasureVerified: Bool?
+    var usedNativeErasurePaletteRetry = false
     var glyphsVerified = false
     /// Applied only after pixel completion; cannot authorize extra fringe erasure.
     var polygonGlyphsVerified = false
@@ -295,7 +296,9 @@ struct NativeRestorationPixels {
         // the producing algorithm. A foreign bounding-box intersection does
         // not prove that original owned lettering was clipped. Revoke this
         // certificate only when this operation actually clips observed source ink.
-        if observedInkClipped { candidate.sourceErasureVerified = false }
+        if observedInkClipped || (invalidated && candidate.usedNativeErasurePaletteRetry) {
+            candidate.sourceErasureVerified = false
+        }
         return candidate.paintedCount > 0 ? candidate : nil
     }
 

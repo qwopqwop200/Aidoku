@@ -37,6 +37,21 @@ tooling checks. Native restoration quality matrices also run in
 `.github/workflows/source-color.yml`, with executed-case verification through
 `Scripts/verify_native_quality_result.py`.
 
+The source-top alignment smoke requires a completed current standard host cache;
+it never rebuilds production, downloads models, reads a corpus or calls an API.
+Prepare that fixed cache first (build-only exits before reading the input path):
+
+```sh
+AIDOKU_IMAGE_HOST_CACHE=build/current-main-host AIDOKU_HOST_BUILD_ONLY=1 \
+  swift Scripts/image-translation.swift --prepare-render-run .
+python3 Scripts/tests/run-native-source-top-alignment-smoke.py --cache build/current-main-host
+```
+
+Its 24 alignment and 15 transaction controls use current MAIN definitions and
+verified compiled snapshots, not frozen experiment helpers. Missing, busy or
+stale caches fail rather than skip; the runner's separate output cache is
+`build/native-source-top-alignment-smoke`.
+
 ## Resource and build policy
 
 Use one simulator and two compiler jobs. Retain Release `-O`,

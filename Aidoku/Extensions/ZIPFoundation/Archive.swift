@@ -17,13 +17,13 @@ extension Archive {
     func entry(at path: String) -> Entry? {
         if let entry = self[path] { return entry }
         let target = path.lowercased()
-        return first { entry in
-            var entryPath = entry.path
-            if entryPath.hasPrefix("./") {
-                entryPath = String(entryPath.dropFirst(2))
-            }
-            return entryPath.lowercased() == target
-                || (entryPath.removingPercentEncoding ?? entryPath).lowercased() == target
-        }
+        return first { $0.path.matchesArchivePath(lowercased: target) }
+    }
+}
+
+extension String {
+    func matchesArchivePath(lowercased target: String) -> Bool {
+        let path = hasPrefix("./") ? String(dropFirst(2)) : self
+        return path.lowercased() == target || (path.removingPercentEncoding ?? path).lowercased() == target
     }
 }

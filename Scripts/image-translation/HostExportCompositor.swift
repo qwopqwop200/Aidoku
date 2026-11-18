@@ -8,11 +8,19 @@ import ImageIO
 /// the native renderer’s actual PDF capture and source repair images.
 /// The original, repair masks, bounded backdrop crops, PDF text, and source restoration
 /// are painted in the same order; no GPU snapshot or matte-derived alpha is involved.
+protocol HostExportCompositingOutput {
+    var sourcePatches: [NativeTranslationRenderer.SourcePatch] { get }
+    var paintBounds: [CGRect] { get }
+    var sourceRestorationRects: [CGRect] { get }
+    var includesSourcePage: Bool { get }
+}
+extension NativeTranslationRenderer.Result: HostExportCompositingOutput {}
+
 enum HostExportCompositor {
     private static let compositeContext = CIContext(options: [.workingColorSpace: NSNull()])
 
     /// Match ReaderTranslationImageExporter.encodeSourceMasks without serializing UIKit images.
-    static func layers(for rendered: NativeTranslationRenderer.Result) throws -> HostProductionExporter.ExportLayers {
+    static func layers(for rendered: some HostExportCompositingOutput) throws -> HostProductionExporter.ExportLayers {
         var pixels = 0
         let masks = try rendered.sourcePatches.map { patch -> HostProductionExporter.ExportLayers.Mask in
             try Task.checkCancellation()
@@ -30,7 +38,7 @@ enum HostExportCompositor {
     }
 
     /// Composite native patches directly; PNG/Base64 is only needed for the saved layer artifact.
-    static func composite(image: CGImage, rendered: NativeTranslationRenderer.Result, typography: Data,
+    static func composite(image: CGImage, rendered: some HostExportCompositingOutput, typography: Data,
                           displayRect: CGRect, size: CGSize) throws -> CGImage {
         try composite(image: image, layers: geometry(for: rendered, masks: []), typography: typography,
             displayRect: displayRect, size: size, sourcePatches: rendered.sourcePatches)
@@ -41,11 +49,12 @@ enum HostExportCompositor {
         try composite(image: image, layers: layers, typography: typography, displayRect: displayRect, size: size, sourcePatches: nil)
     }
 
-    private static func geometry(for rendered: NativeTranslationRenderer.Result,
+    private static func geometry(for rendered: some HostExportCompositingOutput,
                                  masks: [HostProductionExporter.ExportLayers.Mask]) -> HostProductionExporter.ExportLayers {
         func values(_ rect: CGRect) -> [CGFloat] { [rect.minX, rect.minY, rect.width, rect.height] }
         return .init(masks: masks, surfaces: [], paintBounds: rendered.paintBounds.map(values),
-            sourceRestorations: rendered.sourceRestorationRects.map(values))
+            sourceRestorations: rendered.sourceRestorationRects.map(values),
+            includesSourcePage: rendered.includesSourcePage ? true : nil)
     }
 
     private static func validateSourcePatch(_ patch: NativeTranslationRenderer.SourcePatch, pixels: inout Int) throws {
@@ -69,6 +78,9 @@ enum HostExportCompositor {
         }
         let scale = size.width / displayRect.width, scaleY = size.height / displayRect.height
         guard scale.isFinite, scaleY.isFinite else { throw failed("Invalid export scale") }
+        let settledSource = layers.includesSourcePage == true
+        guard !settledSource || layers.validSettledSource(displayRect: displayRect,
+            hasSourcePatches: !(sourcePatches?.isEmpty ?? true)) else { throw failed("Invalid settled source ownership") }
         func outputFrame(_ values: [CGFloat]) throws -> CGRect {
             guard values.count == 4, values.allSatisfy(\.isFinite), values[2] > 0, values[3] > 0 else {
                 throw failed("Invalid export layer frame")
@@ -123,6 +135,7 @@ enum HostExportCompositor {
         let destination = CGRect(origin: .zero, size: size)
         let output = try bitmapContext(size: size)
         func drawCleaned(_ context: CGContext) {
+            guard !settledSource else { return }
             draw(image, in: destination, context: context)
             for (mask, rect, opacity) in masks { draw(mask, in: rect, context: context, opacity: opacity) }
         }

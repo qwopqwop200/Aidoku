@@ -22,6 +22,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     static let isSideloaded = Bundle.main.bundleIdentifier != canonicalID
 
+    private lazy var sourceStartup = Task { await SourceManager.shared.start() }
     private var networkObserverId: UUID?
     private var importingSharedImages = false
 
@@ -197,11 +198,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         BackupManager.shared.register()
         MangaManager.shared.register()
 
-        ReaderTemporaryPageStore.removeAllSessions()
-        TemporarySharedImageSession.removeAllSessions()
+        Self.removePreviousReaderSessions(in: [ReaderTemporaryPageStore.sessionsDirectory, TemporarySharedImageSession.root])
 
         Task {
-            await SourceManager.shared.start()
+            await sourceStartup.value
             await BackupManager.shared.scheduleAutoBackup()
             if #available(iOS 18.0, *) {
                 DictionaryManager.shared.autoUpdateDictionaries()
@@ -242,7 +242,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             object: nil
         )
 
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleLibraryUpdateIntervalChange(_:)),
+            name: .init(AppSettings.library.updateInterval.key),
+            object: nil
+        )
+
         return true
+    }
+
+    @objc private func handleLibraryUpdateIntervalChange(_: Notification) {
+        Task { await MangaManager.shared.scheduleLibraryRefresh() }
     }
 
     @objc private func handleNotifyNewChaptersToggle(_ note: Notification) {
@@ -252,6 +263,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             let granted = await NotificationManager.shared.requestAuthorization()
             if !granted {
                 await MainActor.run {
+                    guard AppSettings.library.notifyNewChapters.get() else { return }
                     AppSettings.library.notifyNewChapters.set(false)
                     NotificationCenter.default.post(
                         name: .init(AppSettings.library.notifyNewChapters.key),
@@ -288,6 +300,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 
 extension AppDelegate {
+    /// Capture the old session IDs before a newly opened reader can create its directory.
+    @discardableResult
+    nonisolated static func removePreviousReaderSessions(in roots: [URL]) -> Task<Void, Never>? {
+        let fileManager = FileManager.default
+        let oldSessions = roots.flatMap { root -> [URL] in
+            guard let values = try? root.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]) else { return [] }
+            guard values.isDirectory == true, values.isSymbolicLink != true else {
+                try? fileManager.removeItem(at: root)
+                return []
+            }
+            return (try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
+        }
+        guard !oldSessions.isEmpty else { return nil }
+        return Task.detached(priority: .utility) {
+            for session in oldSessions { try? fileManager.removeItem(at: session) }
+        }
+    }
+
     func performMigration() {
         var settingsVersion = AppSettings.flags.currentVersion.get()
         let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
@@ -482,7 +512,7 @@ extension AppDelegate {
     }
 
     /// Dismisses a shown loading indicator.
-    func hideLoadingIndicator(completion: (() -> Void)? = nil) async {
+    func hideLoadingIndicator() async {
         await withCheckedContinuation { continuation in
             loadingAlert.dismiss(animated: true) {
                 self.loadingIndicator.stopAnimating()
@@ -519,58 +549,10 @@ extension AppDelegate {
                         }
                     }
                 }
-            } else if let host = url.host, let source = SourceManager.shared.store.source(for: host) {
-                // todo: we should support opening items in library even if the source isn't installed
-                Task { @MainActor in
-                    // support percent encoding characters like "/" for manga and chapter keys
-                    let pathComponents = url.percentEncodedPath
-                        .split(separator: "/")
-                        .map { String($0).removingPercentEncoding ?? String($0) }
-
-                    if !pathComponents.isEmpty { // /sourceId/mangaId
-                        let mangaKey = pathComponents[0]
-                        guard
-                            let navigationController,
-                            let manga = try? await source.getMangaUpdate(
-                                manga: AidokuRunner.Manga(sourceKey: source.id, key: mangaKey, title: ""),
-                                needsDetails: true,
-                                needsChapters: false
-                            )
-                        else {
-                            return
-                        }
-                        let chapterKey = pathComponents[safe: 1]
-                        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-                        let action = components?.queryItems?.first(where: { $0.name == "action" })?.value.flatMap(MangaView.OpenAction.init)
-
-                        navigationController.pushViewController(
-                            MangaViewController(
-                                source: source,
-                                manga: manga,
-                                parent: navigationController.topViewController,
-                                chapterKey: chapterKey, // /sourceId/mangaId/chapterId
-                                openAction: action // ?action={read,readNext,readLatest}
-                            ),
-                            animated: true
-                        )
-                    } else { // /sourceId
-                        let vc = NewSourceViewController(source: source)
-                        navigationController?.pushViewController(vc, animated: true)
-                    }
-                }
             } else {
-                // check for tracker auth callback
-                // this shouldn't really be called since authentication should be performed within the app
-                if let tracker = TrackerManager.trackers.first(where: {
-                    ($0 as? OAuthTracker)?.callbackHost == url.host
-                }) as? OAuthTracker {
-                    Task {
-                        await tracker.handleAuthenticationCallback(url: url)
-                    }
-                } else {
-                    Task {
-                        await handleDeepLink(url: url)
-                    }
+                Task {
+                    await sourceStartup.value
+                    await handleSourceURL(url) { await SourceManager.shared.source(for: $0) }
                 }
             }
         } else if url.pathExtension == "aix" {
@@ -615,12 +597,7 @@ extension AppDelegate {
                     presentAlert(title: NSLocalizedString("IMPORT_FAIL"), message: NSLocalizedString("FILE_IMPORT_FAIL_TEXT"))
                 }
             }
-        } else if
-            url.isFileURL && (
-                LocalFileManager.allowedFileExtensions.contains(url.pathExtension.lowercased())
-                || UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) == true
-            )
-        {
+        } else if url.isFileURL, UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) == true {
             Task {
                 let fileInfo = await LocalFileManager.shared.loadImportFileInfo(url: url)
                 if let fileInfo {
@@ -639,6 +616,50 @@ extension AppDelegate {
             Task {
                 await handleDeepLink(url: url)
             }
+        }
+    }
+
+    func handleSourceURL(_ url: URL, lookup: (String) async -> AidokuRunner.Source?) async {
+        if let host = url.host, let source = await lookup(host) {
+            // support percent encoding characters like "/" for manga and chapter keys
+            let pathComponents = url.percentEncodedPath
+                .split(separator: "/")
+                .map { String($0).removingPercentEncoding ?? String($0) }
+
+            if !pathComponents.isEmpty { // /sourceId/mangaId
+                let mangaKey = pathComponents[0]
+                guard
+                    let navigationController,
+                    let manga = try? await source.getMangaUpdate(
+                        manga: AidokuRunner.Manga(sourceKey: source.id, key: mangaKey, title: ""),
+                        needsDetails: true,
+                        needsChapters: false
+                    )
+                else {
+                    return
+                }
+                let chapterKey = pathComponents[safe: 1]
+                let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                let action = components?.queryItems?.first(where: { $0.name == "action" })?.value.flatMap(MangaView.OpenAction.init)
+
+                navigationController.pushViewController(
+                    MangaViewController(
+                        source: source,
+                        manga: manga,
+                        parent: navigationController.topViewController,
+                        chapterKey: chapterKey, // /sourceId/mangaId/chapterId
+                        openAction: action // ?action={read,readNext,readLatest}
+                    ),
+                    animated: true
+                )
+            } else { // /sourceId
+                let vc = NewSourceViewController(source: source)
+                navigationController?.pushViewController(vc, animated: true)
+            }
+        } else if let tracker = TrackerManager.trackers.lazy.compactMap({ $0 as? OAuthTracker }).first(where: { $0.callbackHost == url.host }) {
+            await tracker.handleAuthenticationCallback(url: url)
+        } else {
+            await handleDeepLink(url: url)
         }
     }
 

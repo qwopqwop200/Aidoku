@@ -18,61 +18,57 @@ extension CoreDataManager {
         (try? context.fetch(MangaUpdateObject.fetchRequest())) ?? []
     }
 
-    /// Get a particular manga update object.
-    func getMangaUpdate(
-        chapterId: ChapterIdentifier,
-        context: NSManagedObjectContext
-    ) -> MangaUpdateObject? {
-        let request = MangaUpdateObject.fetchRequest()
-        request.predicate = NSPredicate(
-            format: "chapterId == %@ AND mangaId == %@ AND sourceId == %@ ",
-            chapterId.chapterKey, chapterId.mangaKey, chapterId.sourceKey
-        )
-        request.fetchLimit = 1
-        return (try? context.fetch(request))?.first
-    }
-
     /// Gets sorted manga update objects.
     func getRecentMangaUpdates(limit: Int, offset: Int, context: NSManagedObjectContext) -> [MangaUpdateObject] {
         let request = MangaUpdateObject.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+        request.relationshipKeyPathsForPrefetching = ["chapter", "chapter.manga"]
         request.fetchLimit = limit
         request.fetchOffset = offset
         return (try? context.fetch(request)) ?? []
     }
 
-    func hasMangaUpdate(
-        chapterId: ChapterIdentifier,
-        context: NSManagedObjectContext
-    ) -> Bool {
-        getMangaUpdate(
-            chapterId: chapterId,
-            context: context
-        ) != nil
-    }
-
-    /// Creates a new manga update object if does not exist
-    func createMangaUpdate(
+    /// Creates updates in source order and returns the number of new feed entries.
+    @discardableResult
+    func createMangaUpdates(
         mangaId: MangaIdentifier,
-        chapterObject: ChapterObject,
+        chapters: [ChapterObject],
+        language: String?,
+        scanlators: [String],
         context: NSManagedObjectContext
-    ) {
-        if hasMangaUpdate(
-            chapterId: .init(
-                sourceKey: mangaId.sourceKey,
-                mangaKey: mangaId.mangaKey,
-                chapterKey: chapterObject.id
-            ),
-            context: context
-        ) {
-            return
+    ) throws -> Int {
+        let selectedScanlators = Set(scanlators)
+        let eligible = chapters.filter { chapter in
+            guard language == nil || chapter.lang == language else { return false }
+            guard !selectedScanlators.isEmpty else { return true }
+            // ChapterObject stores multiple scanlators joined with ", ".
+            let stored = chapter.scanlator ?? ""
+            if selectedScanlators.contains(stored) { return true }
+            return stored.components(separatedBy: ", ").contains(where: selectedScanlators.contains)
         }
-        let mangaUpdateObject = MangaUpdateObject(context: context)
-        mangaUpdateObject.sourceId = mangaId.sourceKey
-        mangaUpdateObject.mangaId = mangaId.mangaKey
-        mangaUpdateObject.chapterId = chapterObject.id
-        mangaUpdateObject.date = Date()
-        mangaUpdateObject.chapter = chapterObject
+        var known: Set<String> = []
+        for start in stride(from: 0, to: eligible.count, by: 500) {
+            let batch = eligible[start..<min(start + 500, eligible.count)]
+            let request = MangaUpdateObject.fetchRequest()
+            request.predicate = NSPredicate(
+                format: "sourceId == %@ AND mangaId == %@ AND chapterId IN %@",
+                mangaId.sourceKey, mangaId.mangaKey, batch.map(\.id)
+            )
+            request.returnsObjectsAsFaults = false
+            known.formUnion(try context.fetch(request).compactMap(\.chapterId))
+        }
+
+        var inserted = 0
+        for chapter in eligible where known.insert(chapter.id).inserted {
+            let update = MangaUpdateObject(context: context)
+            update.sourceId = mangaId.sourceKey
+            update.mangaId = mangaId.mangaKey
+            update.chapterId = chapter.id
+            update.date = Date()
+            update.chapter = chapter
+            inserted += 1
+        }
+        return inserted
     }
 
     /// Removes manga update objects by their composite keys
@@ -131,5 +127,32 @@ extension CoreDataManager {
             LogManager.logger.error("CoreDataManager.setMangaUpdatesViewed: \(error.localizedDescription)")
             return []
         }
+    }
+}
+
+/// The two library refresh paths share a write turn per title, from initial reads through save.
+/// Each operation keeps its own context and its existing save/error handling.
+actor MangaUpdateWriter {
+    static let shared = MangaUpdateWriter()
+    private var waiting: [MangaIdentifier: [CheckedContinuation<Void, Never>]] = [:]
+
+    func perform<Result>(
+        for id: MangaIdentifier,
+        in container: NSPersistentContainer = CoreDataManager.shared.container,
+        _ changes: @escaping @Sendable (NSManagedObjectContext) throws -> Result
+    ) async rethrows -> Result {
+        if waiting[id] != nil {
+            await withCheckedContinuation { waiting[id, default: []].append($0) }
+        } else {
+            waiting[id] = []
+        }
+        defer {
+            if waiting[id]?.isEmpty == false {
+                waiting[id]?.removeFirst().resume()
+            } else {
+                waiting[id] = nil
+            }
+        }
+        return try await container.performBackgroundTask(changes)
     }
 }

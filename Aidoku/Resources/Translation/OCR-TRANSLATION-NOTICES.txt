@@ -38,7 +38,7 @@ MLPrograms with one `main` function and dynamic inputs. Medium detector height
 and width range from 32 through 4,000; Small and Tiny detector dimensions range
 from 32 through 2,000. Recognizers accept batch sizes 1 through 4 at height 48;
 Medium width ranges from 160 through 3,200 and Small/Tiny width from 160 through
-2,000. Medium is the default tier, and each tier has its own detector,
+2,000. Manga is the default tier, and each tier has its own detector,
 recognizer, and character dictionary. Korean OCR and PP-OCRv5 models are not
 bundled.
 
@@ -55,7 +55,45 @@ each tier and role.
 
 All three detectors (Medium, Small, Tiny) are stored as float16-compute
 MLPrograms, re-converted from the float32 conversions with coremltools; their
-input and output remain float32. All recognizers remain float32.
+input and output remain float32. Medium/Small/Tiny recognizers remain float32;
+the Manga v0.3 recognizer uses float16 compute with float32 probabilities.
+
+
+## PP-OCRv6 Manga v0.3
+
+- Author: Kellenok
+- Source: https://huggingface.co/Kellenok/PP-OCRv6_manga
+- Revision: 6dabccae4be17cbe362028eed1572546a0a987f2
+- License: Apache License 2.0 (full text below)
+- Models: manga_det_v0.3 (PP-OCRv6 tiny) and manga_rec_v0.3 (PP-OCRv6 small).
+- Language-model data: lm/manga_lm3.npz, SHA-256
+  2ebdc0a75861e0809a3940da3aa8fc049ff600d029ce4ec5594b518533e38580.
+
+Aidoku converts these fine-tuned ONNX weights to iOS 18 Core ML MLPrograms.
+Both models use float16 compute with float32 tensor I/O. Recognition emits
+int32 CTC indices, float32 probabilities and four ranked candidates per time
+step, avoiding transfer of full character probabilities. Detector dimensions
+range from32 to1184; recognizer width ranges from32 to2400 at height48 and
+batch sizes1 through8. The dictionary contains19,053 source symbols plus
+space; blank is handled separately by the decoder.
+
+The official interpolated3-gram numeric tables are packed losslessly into
+manga_ngram_v03.bin. The publisher does not distribute its arbiter code; the
+native implementation scores those tables and only substitutes visually
+plausible, uncertain letter candidates. Confident visual characters, standalone
+punctuation, CTC length and original visual acceptance confidence are retained.
+
+Selecting Manga applies pixel threshold 0.15, box threshold 0.25 and unclip 1.4.
+Its default detector side is 960; reader recognition stays bounded at 1184 and
+recognition confidence stays 0.75. Existing native line geometry, BGR sampling,
+reading order and furigana handling remain in use. The upstream demo's long-strip
+area scaling and special 2400-pixel recognition rule are not used on the reader.
+This Japanese/Chinese model is the factory default for both detection and recognition.
+Manga source-language selection and filtering are limited to Japanese/Chinese;
+translation targets and text-only metadata translation remain independent.
+
+Rebuild with Scripts/models/convert_manga_ocr.py and its pinned requirements.
+CoreMLSources.json records upstream and converted weight/dictionary hashes.
 
 
 

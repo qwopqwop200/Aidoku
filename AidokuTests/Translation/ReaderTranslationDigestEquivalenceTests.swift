@@ -71,14 +71,16 @@ struct ReaderTranslationDigestEquivalenceTests {
             let expected = FrozenFormatterIdentity.render(page: page, settings: settings, imageSize: size, viewport: viewport,
                 scale: CGFloat(variant + 1), aspectFit: variant != 2, crop: crop, dark: variant == 2)
             #expect(actual == expected)
-            // This independent formatter recipe tracks two intentional revisions:
-            // bounded column recovery invalidates OCR and its page-derived keys;
-            // v159 direct native source painting invalidates the visual namespace.
-            // The immediately preceding native renderer uses the same font key
-            // and every other input. Only its render revision is obsolete.
+            // Intentional fences: the v5 wide-complement de-dup revision invalidates
+            // OCR and every page-derived key; v316 invalidates only the visual namespace.
+            let priorRawCanonical = FrozenFormatterIdentity.priorRawCanonicalRevision
+            #expect(ReaderTranslationCacheIdentity.ocr(page: page, settings: settings, rawCanonicalRevision: priorRawCanonical)
+                == FrozenFormatterIdentity.ocr(page: page, settings: settings, rawCanonicalRevision: priorRawCanonical))
+            #expect(ReaderTranslationCacheIdentity.ocr(page: page, settings: settings)
+                != FrozenFormatterIdentity.ocr(page: page, settings: settings, rawCanonicalRevision: priorRawCanonical))
             let priorNativeRenderer = FrozenFormatterIdentity.render(page: page, settings: settings, imageSize: size, viewport: viewport,
                 scale: CGFloat(variant + 1), aspectFit: variant != 2, crop: crop, dark: variant == 2,
-                renderRevision: "reader-render-v158-native-typography-and-source-donors")
+                renderRevision: "reader-render-v256-native-source-style-cohort-reflow")
             #expect(actual != priorNativeRenderer)
         }
     }
@@ -92,10 +94,81 @@ private enum FrozenFormatterIdentity {
         encoder.outputFormatting = .sortedKeys
         return digest((try? encoder.encode(value)) ?? Data())
     }
-    static func ocr(page: String, settings: ReaderTranslationSettings) -> String {
-        // Frozen formatting stays independent; only the intentional OCR schema
-        // revision changes for verified bounded column recovery.
-        encoded(["reader-ocr-v89-bounded-column-recovery", page, encoded(settings.ocrConfiguration)])
+    /// Intentional raw-canonical fence after the wide-complement de-dup fix.
+    /// Bumping NativeOCRRawCanonicalPolicy.version must also update this literal.
+    static let rawCanonicalRevision = "main-source-anchor-long104-legacy-short-consensus-isolated-groups-wide-complement-dedup-v5"
+    static let priorRawCanonicalRevision = "main-source-anchor-long104-legacy-short-consensus-isolated-groups-wide-v4"
+    // Independent replica of the persisted OCR key recipe. Schema literals and the
+    // composition order are frozen here; policy versions owned by their modules
+    // and runtime/env-selected routes are read from production, as before.
+    static func ocr(page: String, settings: ReaderTranslationSettings,
+                    rawCanonicalRevision: String = rawCanonicalRevision) -> String {
+        let detectorPreprocessingABI: String
+        if #available(iOS 18.0, *) {
+            detectorPreprocessingABI = NativeCoreMLDetectionPreprocessor.provenanceABI
+        } else { detectorPreprocessingABI = "native-db-unavailable-before-ios18" }
+        var key = encoded(["reader-ocr-" + NativeParagraphFragmentGrouping.policyVersion, detectorPreprocessingABI,
+            NativeOCRPremergePolicyBundle.cacheVersion, NativeFinalOutputDuplicateResolver.policyVersion,
+            NativeFinalOutputContentFilter.admissionPolicyVersion, NativePostMergeSignalFilter.policyVersion,
+            rawCanonicalRevision, NativePostLLMContentReclassifier.policyVersion,
+            page, encoded(settings.ocrConfiguration)])
+        let nomination = NativeCausalRFNominationPolicy.configured()
+        if nomination != .legacy { key = encoded([key, nomination.cacheVersion]) }
+        if NativeCausalRFLongitudinalSampling.configuredFraction != 0 {
+            key = encoded([key, NativeCausalRFLongitudinalSampling.cacheVersion])
+        }
+        let acceptance = NativeCausalRFParagraphRecognition.Policy.configured()
+        if acceptance.parameterGrid {
+            key = encoded([key, "rf-padded-actual-read-grid-v1", String(acceptance.minimumConfidence)])
+        }
+        if NativeCausalRFComponentParagraphRequests.runtimeEnabled {
+            key = encoded([key, NativeCausalRFComponentParagraphRequests.cacheVersion])
+        }
+        if NativeCausalRFAdaptiveSampling.runtimeEnabled { key = encoded([key, NativeCausalRFAdaptiveSampling.cacheVersion]) }
+        if NativeCausalRFOriginalContextRecovery.runtimeEnabled {
+            key = encoded([key, NativeCausalRFOriginalContextRecovery.policy])
+        }
+        if #available(iOS 18.0, *) {
+            let manga = settings.ocrConfiguration.modelTier == .manga
+            key = encoded([key, NativeOCRRFPrimaryEnsemble.policyVersion,
+                manga ? NativeOCRDirectionGeometry.policyVersion : "direction-profile-legacy",
+                manga ? NativeCoreMLRecognitionPreprocessor.mangaWidthPolicyVersion : "recognition-width-legacy",
+                manga ? NativeOCRIndependentLanes.policyVersion : "independent-lanes-disabled",
+                "db-unclip=" + String(settings.ocrConfiguration.detectorPostprocessConfiguration.unclipRatio)])
+        }
+        let sourceReaderKeys = ["AIDOKU_OCR_RF_CLOSED_COLUMN_NOMINATION",
+            "AIDOKU_OCR_UNRETAINED_READ_SUPPORT", "AIDOKU_OCR_ORIGINAL_PACKET_EXTENT",
+            "AIDOKU_OCR_ORIGINAL_PACKET_CROSS_EXTENT", "AIDOKU_OCR_ORIGINAL_PACKET_SEGMENTS",
+            "AIDOKU_OCR_ORIGINAL_PRIMARY_SOURCE_JOIN",
+            "AIDOKU_OCR_ORIGINAL_PACKET_MIN_CONFIDENCE", "AIDOKU_OCR_CAUSAL_UNOWNED_CONTEXT",
+            "AIDOKU_OCR_CAUSAL_UNOWNED_COMPETITION",
+            "AIDOKU_OCR_RF_GAP_RECOVERY", "AIDOKU_OCR_RECOVERY_BUDGET", "AIDOKU_OCR_SEQUENCE_CONTEXT_RECOVERY",
+            "AIDOKU_OCR_RF_ENDPOINT_COMPLETION", "AIDOKU_OCR_ENDPOINT_INK_REFINEMENT", "AIDOKU_OCR_RF_ENDPOINT_LEGACY_AXES",
+            "AIDOKU_OCR_CLIPPED_EDGE_INK", "AIDOKU_OCR_RF_LANE_GAP", "AIDOKU_OCR_SOURCE_INK_COLUMNS",
+            "AIDOKU_OCR_SOURCE_INK_PARTITIONS", "AIDOKU_OCR_INK_ANNOTATION_BANDS",
+            "AIDOKU_OCR_RF_ORIENTED_PIXEL", "AIDOKU_OCR_RF_ORIENTED_REREAD", "AIDOKU_OCR_RF_ORIENTED_WIDTH",
+            "AIDOKU_OCR_ORIENTED_PATHS"]
+        let environment = ProcessInfo.processInfo.environment
+        let sourceReaderValues = sourceReaderKeys.compactMap { name in environment[name].map { name + "=" + $0 } }
+        if !sourceReaderValues.isEmpty { key = encoded([key, "original-source-readers-v214", encoded(sourceReaderValues)]) }
+        key = encoded([key, "quoted-dot-enclosed-components-v246", TranslationBackgroundRolePolicy.version])
+        if #available(iOS 18.0, *), NativeOCRRawCanonicalRuntime.sourceAnchorMode != .disabled {
+            key = encoded([key, "raw-source-anchor-mode-v1", NativeOCRRawCanonicalRuntime.sourceAnchorMode.rawValue])
+        }
+        if #available(iOS 18.0, *), let configuration = NativeOCRRawCanonicalRuntime.simpleDeduplication {
+            key = encoded([key, NativeSimpleOCRDedup.policyVersion, encoded(configuration)])
+        }
+        if let configuration = NativeSimpleRecognitionAdmission.configuration {
+            key = encoded([key, NativeSimpleRecognitionAdmission.policyVersion, encoded(configuration)])
+        }
+        if let configuration = NativeSimpleOCRBoundaryExpansionRuntime.configuration {
+            key = encoded([key, NativeSimpleOCRBoundaryExpansion.policyVersion, encoded(configuration)])
+        }
+        if #available(iOS 18.0, *), NativeCoreMLDBPostprocessor.alternateCellEnvelopeEnabled {
+            key = encoded([key, NativeOCRRawCanonicalPolicy.detectorAlternatePolicyVersion])
+        }
+        return ReaderTranslationOrderedSourceRoute.anyEnabled
+            ? encoded([key, ReaderTranslationOrderedSourceRoute.activeCacheVersion]) : key
     }
     static func translation(page: String, settings: ReaderTranslationSettings) -> String {
         let previous = unfilteredTranslation(page: page, settings: settings)
@@ -105,28 +178,38 @@ private enum FrozenFormatterIdentity {
     }
     static func unfilteredTranslation(page: String, settings: ReaderTranslationSettings) -> String {
         let config = settings.configuration
-        return encoded([
-            "reader-translation-v2-neighbor-context", ocr(page: page, settings: settings), config.provider.rawValue, config.apiProtocol.rawValue,
+        // Page translation has one image-required identity: the user image opt-out
+        // and LLM role filters are mandatory for pages and fenced by the write policy.
+        let base = encoded([
+            "reader-translation-v7-symbol-preservation-state", NativePostLLMContentReclassifier.policyVersion,
+            ocr(page: page, settings: settings), config.provider.rawValue, config.apiProtocol.rawValue,
             config.baseURL, config.model, config.credentialAccount, String(config.credentialGeneration), config.reasoningEffort.rawValue,
-            config.instructions, settings.sourceLanguage, settings.targetLanguage, TranslationHTTPCodec.letteringPolicy
-        ] + (settings.includePageImage ? ["page-image-v2-auto-fallback", String(TranslationImageSupport.shared.revision(for: config))] : []) + (settings.filterSFXWithLLM ? [settings.shouldAttachPageImage ? TranslationHTTPCodec.sfxPolicy : TranslationHTTPCodec.textOnlySFXPolicy] : []) + (settings.filterBackgroundWithLLM ? [settings.shouldAttachPageImage ? TranslationHTTPCodec.backgroundPolicy : TranslationHTTPCodec.textOnlyBackgroundPolicy] : []))
+            config.instructions, settings.sourceLanguage, settings.targetLanguage, TranslationHTTPCodec.letteringPolicy,
+            "literal-recovery-v1-preserve-filters-bounded-isolation",
+            "page-image-required-v1", TranslationHTTPCodec.sfxPolicy, TranslationHTTPCodec.backgroundPolicy
+        ])
+        let policy = NativePostLLMContentReclassifier.activePolicy
+        return policy == .established ? base : encoded([base, "post-llm-derived-translation-v1", policy.version])
     }
     // Every geometry/appearance input must be included to reject stale pixels after a reader change.
     // swiftlint:disable:next function_parameter_count
     static func render(page: String, settings: ReaderTranslationSettings, imageSize: CGSize, viewport: CGSize,
                        scale: CGFloat, aspectFit: Bool, crop: CGRect, dark: Bool,
-                       renderRevision: String = "reader-render-v159-native-direct-paint",
+                       renderRevision: String = "reader-render-v316-unchanged-symbol-source-preservation",
                        letteringFontKey: String = NativeTranslationTypography.availabilityKey) -> String {
         // Auto Layout rounds view edges to display pixels. Mathematical prefetch
         // sizes differ by tiny fractions (568.016 pt vs 568 pt); those are one raster.
         let pixelScale = max(1, scale)
         let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
                               height: (viewport.height * pixelScale).rounded() / pixelScale)
-        return encoded([
-            renderRevision, translation(page: page, settings: settings), encoded(settings.overlay),
+        let base = encoded([
+            renderRevision, NativeSourceSegmentationExecution.policySHA256,
+            translation(page: page, settings: settings), encoded(settings.overlay),
             encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
             "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit", letteringFontKey,
             ProcessInfo.processInfo.operatingSystemVersionString
         ])
+        let variants = NativeRenderVariantPolicy.projection
+        return variants.isEmpty ? base : encoded([base, encoded(variants)])
     }
 }

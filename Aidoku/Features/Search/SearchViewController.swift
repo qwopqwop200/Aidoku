@@ -19,18 +19,20 @@ class SearchViewController: UIViewController {
 
     private var sources: [AidokuRunner.Source] = [] {
         didSet {
-            viewModel.sources = sources
+            viewModel.updateSources(sources)
             loadSourceLanguages()
         }
     }
     private var searchText: String = "" {
         didSet {
-            updateHostingControllers()
+            if searchText != oldValue {
+                mainHostingController.rootView = mainView
+            }
         }
     }
     private var searchCommitToggle: Bool = false {
         didSet {
-            updateHostingControllers()
+            mainHostingController.rootView = mainView
         }
     }
     private var filters: [FilterValue] = [] {
@@ -230,6 +232,7 @@ class SearchViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        viewModel.setSearchVisible(true)
         // fixes scope bar being hidden when dismissing and re-presenting the view
         if let containerView = searchController.searchBar.value(forKey: "_scopeBarContainerView") as? UIView {
             containerView.alpha = 1
@@ -237,9 +240,13 @@ class SearchViewController: UIViewController {
         }
     }
 
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        viewModel.setSearchVisible(false)
+    }
+
     func search(for query: String) {
         loadViewIfNeeded()
-        viewModel.isLoading = !query.isEmpty
         searchText = query
         searchController.searchBar.text = query
 

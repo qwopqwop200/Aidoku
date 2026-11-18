@@ -729,7 +729,7 @@
 
 "TRANSLATION_AUTO" = "Tự động phát hiện";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 yêu cầu iOS 18 trở lên. Mô hình mặc định là Trung bình. Nhỏ dùng ít bộ nhớ hơn và Rất nhỏ có từ điển ký tự hạn chế hơn. Các mô hình này không nhận dạng văn bản tiếng Hàn, nhưng vẫn hỗ trợ dịch sang tiếng Hàn.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 yêu cầu iOS 18 trở lên. Manga v0.3 là mô hình mặc định cho cả phát hiện và nhận dạng văn bản. Bạn vẫn có thể chọn các mô hình OCR khác.";
 
 
 
@@ -1197,3 +1197,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Ứng dụng này không hỗ trợ nguồn %@ phiên bản %d. Hãy cài đặt phiên bản được hỗ trợ.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 chỉ hỗ trợ văn bản nguồn bằng tiếng Nhật và tiếng Trung (Giản thể và Phồn thể). Tính năng tự động xác định ngôn ngữ nguồn và các lựa chọn ngôn ngữ nguồn cũng chỉ giới hạn ở các ngôn ngữ này. Bạn vẫn có thể dịch sang tiếng Hàn hoặc các ngôn ngữ đích khác. Khi chọn Manga, ngưỡng phát hiện được đặt thành 0.85 và 0.25; kích thước phát hiện mặc định là 1120 px.";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Tất cả ngôn ngữ được OCR hỗ trợ";

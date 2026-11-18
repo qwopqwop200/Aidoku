@@ -230,7 +230,7 @@
 
 "TRANSLATION_AUTO" = "Oppdag automatisk";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 krever iOS 18 eller nyere. Middels er standardmodellen. Liten bruker mindre minne, og Veldig liten har en mindre tegnordbok. Modellene gjenkjenner ikke koreansk tekst, men oversettelse til koreansk støttes.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 krever iOS 18 eller nyere. Manga v0.3 er standardmodellen for både tekstlokalisering og tekstgjenkjenning. Andre OCR-modeller er fortsatt tilgjengelige.";
 
 
 
@@ -1193,3 +1193,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Kilden %@ versjon %d støttes ikke av denne appen. Installer en støttet versjon.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 støtter bare kildetekst på japansk og kinesisk (forenklet og tradisjonell). Automatisk identifisering av kildespråket og valg av kildespråk er begrenset til disse språkene. Du kan fortsatt oversette til koreansk eller andre målspråk. Når du velger Manga, brukes deteksjonstersklene 0.85 og 0.25; standardstørrelsen for tekstlokalisering er 1120 px.";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alle støttede OCR-språk";

@@ -20,7 +20,16 @@ extension MangaView {
 
         @Published var readingHistory: [String: (page: Int, date: Int)] = [:]
         @Published var downloadProgress: [String: Float] = [:] // chapterId: progress
-        @Published var downloadStatus: [String: DownloadStatus] = [:] // chapterId: status
+        @Published var downloadStatus: [String: DownloadStatus] = [:] {
+            didSet { cachedHasRemovableDownloads = nil }
+        }
+        private var cachedHasRemovableDownloads: Bool?
+        var hasRemovableDownloads: Bool {
+            if let cachedHasRemovableDownloads { return cachedHasRemovableDownloads }
+            let result = downloadStatus.values.contains { $0 == .finished || $0 == .failed }
+            cachedHasRemovableDownloads = result
+            return result
+        }
 
         @Published var bookmarked = false
         @Published var hasCategories = false
@@ -52,7 +61,9 @@ extension MangaView {
 
         @Published var error: Error?
 
+        private var downloadRemovalRevision: UInt64 = 0
         private var fetchedDetails = false
+        private var restoringChapterFilters = false
         private var markedOpened = false
         private let dataLoadOwnership = MangaDataLoadOwnership()
         private var cancellables = Set<AnyCancellable>()
@@ -199,8 +210,7 @@ extension MangaView.ViewModel {
                     for chapterId in chapters where chapterId.mangaIdentifier == self.manga.identifier {
                         self.readingHistory[chapterId.chapterKey] = (page: -1, date: date)
                     }
-                    self.updateReadButton()
-                    self.checkForAllReadMarkOpened()
+                    self.checkForAllReadMarkOpened(self.updateReadButton())
                 }
             }
             .store(in: &cancellables)
@@ -238,8 +248,7 @@ extension MangaView.ViewModel {
                         page: item.page,
                         date: Int(Date().timeIntervalSince1970)
                     )
-                    self.updateReadButton()
-                    self.checkForAllReadMarkOpened()
+                    self.checkForAllReadMarkOpened(self.updateReadButton())
                 }
             }
             .store(in: &cancellables)
@@ -261,17 +270,7 @@ extension MangaView.ViewModel {
             .sink { [weak self] output in
                 guard let self, let downloads = output.object as? [Download] else { return }
                 Task { @MainActor in
-                    let chapters = downloads.compactMap {
-                        if $0.mangaIdentifier == self.manga.identifier {
-                            $0.chapter
-                        } else {
-                            nil
-                        }
-                    }
-                    for chapter in chapters {
-                        self.downloadStatus[chapter.key] = .queued
-                        self.downloadProgress[chapter.key] = 0
-                    }
+                    self.downloadsWereQueued(downloads)
                 }
             }
             .store(in: &cancellables)
@@ -286,8 +285,11 @@ extension MangaView.ViewModel {
                     else {
                         return
                     }
-                    self.downloadStatus[download.chapterIdentifier.chapterKey] = .downloading
-                    self.downloadProgress[download.chapterIdentifier.chapterKey] = Float(download.progress) / Float(download.total)
+                    let key = download.chapterIdentifier.chapterKey
+                    if self.downloadStatus[key] != .downloading {
+                        self.downloadStatus[key] = .downloading
+                    }
+                    self.downloadProgress[key] = Float(download.progress) / Float(download.total)
                 }
             }
             .store(in: &cancellables)
@@ -349,9 +351,8 @@ extension MangaView.ViewModel {
         }
     }
 
-    private func checkForAllReadMarkOpened() {
-        guard !markedOpened else { return }
-        if getNextChapter() == .allRead {
+    private func checkForAllReadMarkOpened(_ result: ChapterResult) {
+        if !markedOpened, result == .allRead {
             markedOpened = true
             Task {
                 await CoreDataManager.shared.setOpened(mangaId: manga.identifier)
@@ -372,15 +373,21 @@ extension MangaView.ViewModel {
         }
 
         let filters = CoreDataManager.shared.getMangaChapterFilters(mangaId: manga.identifier, context: context)
+        restoringChapterFilters = true
         chapterSortOption = .init(flags: filters.flags)
         chapterSortAscending = filters.flags & ChapterFlagMask.sortAscending != 0
         chapterFilters = ChapterFilterOption.parseOptions(flags: filters.flags)
         chapterLangFilter = filters.language
         chapterScanlatorFilter = filters.scanlators ?? []
+        restoringChapterFilters = false
+        chapters = filteredChapters()
 
         async let history: Void = loadHistory()
         await fetchData()
         await history
+        if chapterFilters.contains(where: { $0.type == .unread }) {
+            chapters = filteredChapters()
+        }
         updateReadButton()
     }
 
@@ -460,14 +467,19 @@ extension MangaView.ViewModel {
         initialDataLoaded = true
     }
 
-    func fetchDownloadedChapters(expectedRequestID: UUID? = nil) async {
+    func fetchDownloadedChapters(
+        expectedRequestID: UUID? = nil,
+        load: @MainActor (MangaIdentifier) async -> [DownloadedChapterInfo] = { await DownloadManager.shared.getDownloadedChapters(for: $0) }
+    ) async {
         let mangaId = manga.identifier
-        let downloaded = await DownloadManager.shared.getDownloadedChapters(for: mangaId)
-        guard !Task.isCancelled, manga.identifier == mangaId else { return }
+        let revision = downloadRemovalRevision
+        let downloaded = await load(mangaId)
+        guard !Task.isCancelled, revision == downloadRemovalRevision, manga.identifier == mangaId else { return }
         if let expectedRequestID, !dataLoadOwnership.isCurrent(expectedRequestID) { return }
+        let listedDirectoryNames = downloaded.isEmpty ? [] : Set((manga.chapters ?? chapters).lazy.map { $0.key.directoryName })
         let downloadedChapters = downloaded
             .filter { chapter in
-                !(manga.chapters ?? chapters).contains(where: { $0.key.directoryName == chapter.chapterId.directoryName })
+                !listedDirectoryNames.contains(chapter.chapterId.directoryName)
             }
             .map { $0.toChapter() }
             .sorted { (lhs: AidokuRunner.Chapter, rhs: AidokuRunner.Chapter) in
@@ -506,21 +518,7 @@ extension MangaView.ViewModel {
 
         // sync progress from regular trackers if auto sync enabled
         if AppSettings.tracking.autoSyncFromTracker.get() {
-            let trackItems: [TrackItem] = await CoreDataManager.shared.container.performBackgroundTask { @Sendable [manga] context in
-                CoreDataManager.shared.getTracks(
-                    mangaId: manga.identifier,
-                    context: context
-                ).map { $0.toItem() }
-            }
-            for trackItem in trackItems {
-                guard let tracker = TrackerManager.getTracker(id: trackItem.trackerId) else { continue }
-                await TrackerManager.shared.syncProgressFromTracker(
-                    tracker: tracker,
-                    trackItem: trackItem,
-                    manga: manga,
-                    chapters: chapters
-                )
-            }
+            await TrackerManager.shared.syncTitleTrackerProgress(manga: manga, chapters: chapters)
         }
     }
 
@@ -554,7 +552,7 @@ extension MangaView.ViewModel {
             // update manga in db
             if inLibrary {
                 let resultManga: AidokuRunner.Manga? =
-                    await CoreDataManager.shared.container.performBackgroundTask { [
+                    try await MangaUpdateWriter.shared.perform(for: mangaId) { [
                         newManga,
                         chapterLangFilter,
                         chapterScanlatorFilter
@@ -579,18 +577,13 @@ extension MangaView.ViewModel {
                                 context: context
                             )
                             if !newChapters.isEmpty {
-                                // add manga updates
-                                for chapter in newChapters
-                                where
-                                    chapterLangFilter != nil ? chapter.lang == chapterLangFilter : true
-                                    && !chapterScanlatorFilter.isEmpty ? chapterScanlatorFilter.contains(chapter.scanlator ?? "") : true
-                                {
-                                    CoreDataManager.shared.createMangaUpdate(
-                                        mangaId: mangaId,
-                                        chapterObject: chapter,
-                                        context: context
-                                    )
-                                }
+                                try CoreDataManager.shared.createMangaUpdates(
+                                    mangaId: mangaId,
+                                    chapters: newChapters,
+                                    language: chapterLangFilter,
+                                    scanlators: chapterScanlatorFilter,
+                                    context: context
+                                )
                                 libraryObject.lastChapter = chapters.compactMap { $0.dateUploaded }.max()
                                 libraryObject.lastUpdatedChapters = Date.now
                             }
@@ -603,7 +596,7 @@ extension MangaView.ViewModel {
                             libraryObject.lastOpened = now.addingTimeInterval(1) // ensure item isn't re-pinned, since it's already open
                         }
 
-                        try? context.save()
+                        try context.save()
 
                         return mangaObject.toNewManga()
                     }
@@ -651,10 +644,14 @@ extension MangaView.ViewModel {
     }
 
     private func loadDownloadStatus() async {
+        var statuses = downloadStatus
         for chapter in (manga.chapters ?? chapters) + otherDownloadedChapters {
-            downloadStatus[chapter.key] = DownloadManager.shared.getDownloadStatus(
+            statuses[chapter.key] = DownloadManager.shared.getDownloadStatus(
                 for: .init(sourceKey: manga.sourceKey, mangaKey: manga.key, chapterKey: chapter.key)
             )
+        }
+        if statuses != downloadStatus {
+            downloadStatus = statuses
         }
     }
 
@@ -767,6 +764,7 @@ extension MangaView.ViewModel {
     }
 
     private func refilterChapters() {
+        guard !restoringChapterFilters else { return }
         withAnimation {
             chapters = filteredChapters()
         }
@@ -796,26 +794,51 @@ extension MangaView.ViewModel {
         }
     }
 
-    private func removeDownloads(_ notification: Notification) {
-        if let chapters = notification.object as? [ChapterIdentifier] {
-            for chapter in chapters where chapter.mangaIdentifier == manga.identifier {
-                downloadProgress.removeValue(forKey: chapter.chapterKey)
-                downloadStatus[chapter.chapterKey] = DownloadStatus.none
+    func downloadsWereQueued(_ downloads: [Download]) {
+        let mangaId = manga.identifier
+        let keys = downloads.compactMap { $0.mangaIdentifier == mangaId ? $0.chapter.key : nil }
+        setDownloadIndicators(for: keys, status: .queued, progress: 0)
+    }
+
+    private func setDownloadIndicators(for keys: [String], status: DownloadStatus, progress: Float?) {
+        var statuses = downloadStatus
+        var progressByChapter = downloadProgress
+        var statusChanged = false
+        var progressChanged = false
+        for key in keys {
+            if statuses[key] != status {
+                statuses[key] = status
+                statusChanged = true
             }
-        } else if
-            let manga = notification.object as? MangaIdentifier,
-            manga == self.manga.identifier
-        { // all chapters
+            if progressByChapter[key] != progress {
+                progressByChapter[key] = progress
+                progressChanged = true
+            }
+        }
+        if statusChanged { downloadStatus = statuses }
+        if progressChanged { downloadProgress = progressByChapter }
+    }
+
+    func removeDownloads(_ notification: Notification) {
+        if let chapters = notification.object as? [ChapterIdentifier] {
+            let mangaId = manga.identifier
+            let keys = chapters.compactMap { $0.mangaIdentifier == mangaId ? $0.chapterKey : nil }
+            setDownloadIndicators(for: keys, status: .none, progress: nil)
+        } else if notification.name == .downloadsRemoved,
+                  notification.object == nil || (notification.object as? MangaIdentifier) == manga.identifier {
+            downloadRemovalRevision &+= 1
             downloadProgress = [:]
             downloadStatus = [:]
+            otherDownloadedChapters = []
+            if chapterFilters.contains(where: { $0.type == .downloaded }) {
+                chapters = filteredChapters()
+            }
+            updateReadButton()
         }
     }
 
-    private func sortedChapters() -> [AidokuRunner.Chapter] {
-        guard let chapters = manga.chapters, !chapters.isEmpty else {
-            return []
-        }
-        return switch chapterSortOption {
+    private func sortedChapters(_ chapters: [AidokuRunner.Chapter]) -> [AidokuRunner.Chapter] {
+        switch chapterSortOption {
             case .sourceOrder:
                 chapterSortAscending ? chapters.reversed() : chapters
             case .chapter:
@@ -834,7 +857,7 @@ extension MangaView.ViewModel {
     }
 
     private func filteredChapters() -> [AidokuRunner.Chapter] {
-        var chapters = sortedChapters()
+        guard var chapters = manga.chapters, !chapters.isEmpty else { return [] }
 
         // filter by language and scanlators
         if chapterLangFilter != nil || !chapterScanlatorFilter.isEmpty {
@@ -878,7 +901,7 @@ extension MangaView.ViewModel {
             }
         }
 
-        return chapters
+        return sortedChapters(chapters)
     }
 
     enum ChapterResult: Equatable {
@@ -907,7 +930,8 @@ extension MangaView.ViewModel {
         return .allRead
     }
 
-    private func updateReadButton() {
+    @discardableResult
+    private func updateReadButton() -> ChapterResult {
         let nextChapter = getNextChapter()
         switch nextChapter {
             case .none:
@@ -926,6 +950,7 @@ extension MangaView.ViewModel {
                 readingInProgress = readingHistory[nextChapter.id]?.date ?? 0 > 0
                 self.nextChapter = nextChapter
         }
+        return nextChapter
     }
 
     private func generateChapterFlags() -> Int {

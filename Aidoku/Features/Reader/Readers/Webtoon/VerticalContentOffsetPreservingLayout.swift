@@ -34,7 +34,9 @@ class VerticalContentOffsetPreservingLayout: UICollectionViewFlowLayout {
 
     private var verticalAttributes: [UICollectionViewLayoutAttributes] = []
 
-    private var currentAttributes: [IndexPath: UICollectionViewLayoutAttributes] = [:]
+    private var sectionRanges: [Range<Int>] = []
+    // Accumulated cell heights exclude line spacing, matching the page slider.
+    private var cumulativeHeights: [CGFloat] = [0]
 
     override init() {
         super.init()
@@ -53,55 +55,39 @@ class VerticalContentOffsetPreservingLayout: UICollectionViewFlowLayout {
         guard let collectionView else { return }
 
         // calculate collection view size
-        currentAttributes = [:]
-        verticalAttributes = []
+        sectionRanges.removeAll(keepingCapacity: true)
+        verticalAttributes.removeAll(keepingCapacity: true)
+        cumulativeHeights.removeAll(keepingCapacity: true)
+        cumulativeHeights.append(0)
 
         var origin: CGFloat = 0
+        var cumulativeHeight: CGFloat = 0
         let width = collectionView.bounds.size.width
+        let transform = CGAffineTransform(scaleX: scale, y: scale)
 
         for section in 0..<collectionView.numberOfSections {
+            let firstIndex = verticalAttributes.count
             for itemIndex in 0..<collectionView.numberOfItems(inSection: section) {
                 let indexPath = IndexPath(item: itemIndex, section: section)
                 let attributes = UICollectionViewLayoutAttributes(forCellWith: indexPath)
 
                 let size = CGSize(width: width, height: getHeight(for: indexPath))
                 attributes.frame = CGRect(origin: CGPoint(x: 0, y: origin), size: size)
-                currentAttributes[indexPath] = attributes
+                if scale != 1 {
+                    attributes.transform = transform
+                    attributes.center = CGPoint(x: width / 2, y: origin + size.height / 2).applying(transform)
+                }
                 verticalAttributes.append(attributes)
-
-                origin += attributes.frame.size.height + minimumLineSpacing
+                cumulativeHeight += attributes.frame.height
+                cumulativeHeights.append(cumulativeHeight)
+                origin += size.height + minimumLineSpacing
             }
+            sectionRanges.append(firstIndex..<verticalAttributes.count)
         }
 
         // scale for zoom
         let size = CGSize(width: width, height: origin)
-        let transform = CGAffineTransform(scaleX: scale, y: scale)
         contentSize = size.applying(transform)
-
-        if scale != 1 {
-            // adjust cells for zoom
-            for section in 0..<collectionView.numberOfSections {
-                for itemIndex in 0..<collectionView.numberOfItems(inSection: section) {
-                    let indexPath = IndexPath(item: itemIndex, section: section)
-                    if let origFrame = currentAttributes[indexPath]?.frame {
-                        let frame = CGRect(
-                            origin: CGPoint(
-                                x: origFrame.origin.x / size.width * contentSize.width,
-                                y: origFrame.origin.y / origin * contentSize.height
-                            ),
-                            size: origFrame.size.applying(transform)
-                        )
-                        // setting frame without transform doesn't scale content,
-                        // and setting frame with transform messes up the scale
-                        currentAttributes[indexPath]?.transform = transform
-                        currentAttributes[indexPath]?.center = CGPoint(
-                            x: frame.origin.x + frame.width / 2,
-                            y: frame.origin.y + frame.height / 2
-                        )
-                    }
-                }
-            }
-        }
 
         // preserve offset when inserting cells above
         if isInsertingCellsAbove {
@@ -131,18 +117,20 @@ class VerticalContentOffsetPreservingLayout: UICollectionViewFlowLayout {
     }
 
     func getHeightFor(section: Int, range: Range<Int>? = nil) -> CGFloat {
-        var height: CGFloat = 0
-        let range = range ?? 0..<(collectionView?.numberOfItems(inSection: section) ?? 0)
-        for idx in range {
-            let indexPath = IndexPath(item: idx, section: section)
-            let attributes = currentAttributes[indexPath]
-            height += attributes?.frame.height ?? 0
-        }
-        return height * scale
+        guard sectionRanges.indices.contains(section) else { return 0 }
+        let sectionRange = sectionRanges[section]
+        let items = 0..<sectionRange.count
+        let range = range?.clamped(to: items) ?? items
+        let start = sectionRange.lowerBound + range.lowerBound
+        let end = sectionRange.lowerBound + range.upperBound
+        return (cumulativeHeights[end] - cumulativeHeights[start]) * scale
     }
 
     override func layoutAttributesForItem(at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
-        currentAttributes[indexPath]
+        guard sectionRanges.indices.contains(indexPath.section) else { return nil }
+        let section = sectionRanges[indexPath.section]
+        guard (0..<section.count).contains(indexPath.item) else { return nil }
+        return verticalAttributes[section.lowerBound + indexPath.item]
     }
 
     override func layoutAttributesForElements(in rect: CGRect) -> [UICollectionViewLayoutAttributes]? {

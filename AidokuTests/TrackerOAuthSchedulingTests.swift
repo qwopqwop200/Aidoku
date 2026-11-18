@@ -9,10 +9,11 @@ struct TrackerOAuthSchedulingTests {
         let id = await client.id
         defer { clean(id) }
         await client.setTokens(oldTokens)
+        let oldRequest = await client.authorizedRequest(for: URL(string: "https://fixture.invalid/data")!)
         let barrier = OAuthRefreshBarrier()
         let tasks = (0..<20).map { _ in
             Task {
-                let response = await client.refreshTokens(replacingAuthorization: "Bearer old") { await barrier.run() }
+                let response = await client.refreshTokens(for: oldRequest) { await barrier.run($0) }
                 let request = await client.authorizedRequest(for: URL(string: "https://fixture.invalid/data")!)
                 return (response?.accessToken, request.value(forHTTPHeaderField: "Authorization"))
             }
@@ -25,7 +26,7 @@ struct TrackerOAuthSchedulingTests {
             #expect(result.0 == "new")
             #expect(result.1 == "Bearer new")
         }
-        #expect(await barrier.started == 1)
+        #expect(await barrier.refreshTokens == ["refresh-old"])
     }
 
     @Test func cancellationOfOneConsumerDoesNotCancelSharedRefresh() async throws {
@@ -33,11 +34,22 @@ struct TrackerOAuthSchedulingTests {
         let id = await client.id
         defer { clean(id) }
         await client.setTokens(oldTokens)
+        let oldRequest = await client.authorizedRequest(for: URL(string: "https://fixture.invalid/data")!)
         let barrier = OAuthRefreshBarrier()
-        let first = Task { await client.refreshTokens(replacingAuthorization: "Bearer old") { await barrier.run() } }
+        let first = Task {
+            let result = await client.refreshTokens(for: oldRequest) { await barrier.run($0) }
+            await barrier.consumerFinished()
+            return result
+        }
         try await waitUntil { await barrier.started == 1 }
-        let second = Task { await client.refreshTokens(replacingAuthorization: "Bearer old") { await barrier.run() } }
+        let second = Task { await client.refreshTokens(for: oldRequest) { await barrier.run($0) } }
         first.cancel()
+        do {
+            try await waitUntil { await barrier.finished == 1 }
+        } catch {
+            await barrier.release(newTokens)
+            throw error
+        }
         await barrier.release(newTokens)
         #expect(await first.value == nil)
         #expect(await second.value?.accessToken == "new")
@@ -49,13 +61,49 @@ struct TrackerOAuthSchedulingTests {
         let id = await client.id
         defer { clean(id) }
         await client.setTokens(oldTokens)
+        let oldRequest = await client.authorizedRequest(for: URL(string: "https://fixture.invalid/data")!)
         let barrier = OAuthRefreshBarrier()
-        let task = Task { await client.refreshTokens(replacingAuthorization: "Bearer old") { await barrier.run() } }
+        let task = Task { await client.refreshTokens(for: oldRequest) { await barrier.run($0) } }
         try await waitUntil { await barrier.started == 1 }
         await client.setTokens(nil)
         await barrier.release(newTokens)
         #expect(await task.value == nil)
         #expect(await client.tokens == nil)
+    }
+
+    @Test func successfulLoginRetiresRefreshStartedDuringAuthentication() async throws {
+        let client = makeClient()
+        let id = await client.id
+        defer { clean(id) }
+        await client.setTokens(oldTokens)
+        let login = await client.beginAuthentication()
+        let request = await client.authorizedRequest(for: URL(string: "https://fixture.invalid/data")!)
+        let barrier = OAuthRefreshBarrier()
+        let refresh = Task {
+            let result = await client.refreshTokens(for: request) { await barrier.run($0) }
+            await barrier.consumerFinished()
+            return result
+        }
+        try await waitUntil { await barrier.started == 1 }
+        let replacement = newTokens
+        #expect(await client.commitAuthentication(replacement, generation: login) == replacement)
+        do {
+            try await waitUntil { await barrier.finished == 1 }
+        } catch {
+            await barrier.release(oldTokens)
+            throw error
+        }
+        await barrier.release(oldTokens)
+        #expect(await refresh.value == nil)
+        #expect(await client.tokens == replacement)
+
+        // Even a server that reissues the same access-token string cannot admit the retired request.
+        await client.setTokens(oldTokens)
+        let result = await client.refreshTokens(for: request) { _ in
+            Issue.record("retired request exchanged the new account's credentials")
+            return nil
+        }
+        #expect(result == nil)
     }
 
     @Test func lateLoginCannotReplaceNewerAccount() async {
@@ -118,10 +166,13 @@ struct TrackerOAuthSchedulingTests {
 
 private enum OAuthSchedulingTimeout: Error { case expired }
 private actor OAuthRefreshBarrier {
-    private(set) var started = 0
+    private(set) var refreshTokens: [String] = []
+    private(set) var finished = 0
+    var started: Int { refreshTokens.count }
+    func consumerFinished() { finished += 1 }
     private var continuation: CheckedContinuation<OAuthResponse?, Never>?
-    func run() async -> OAuthResponse? {
-        started += 1
+    func run(_ refreshToken: String) async -> OAuthResponse? {
+        refreshTokens.append(refreshToken)
         return await withCheckedContinuation { continuation = $0 }
     }
     func release(_ value: OAuthResponse) { continuation?.resume(returning: value); continuation = nil }

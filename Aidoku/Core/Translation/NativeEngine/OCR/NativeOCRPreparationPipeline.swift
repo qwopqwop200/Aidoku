@@ -1,5 +1,3 @@
-import Foundation
-
 /// One current window and one lookahead window. Preparation overlaps serial
 /// inference without allowing an unbounded queue of image tensors. Both phases
 /// are children of the caller: failure/cancellation joins outstanding work.

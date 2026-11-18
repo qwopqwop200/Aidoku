@@ -33,6 +33,9 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
     }
     var prepareTranslationForDisplay: ReaderTranslationImagePreparer?
     private var preparedTranslation: ReaderTranslationPreparedImage?
+    // GIFImageNode consumes animatedData before its asynchronous decoder
+    // has necessarily installed any frames. Keep the loader's evidence.
+    private var preparedSourceIsKnownStatic = false
     private var hasLoadFailure = false
     private var lastTranslationLayoutSize = CGSize.zero
     var text: String?
@@ -95,19 +98,21 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
         node.contentMode = .scaleToFill
         node.shouldAnimateSizeChanges = false
         node.isUserInteractionEnabled = false
-        node.onImageAssigned = { [weak self] imageView in
-            guard let self else { return false }
+        node.onImageAssigned = { [weak self, weak node] imageView in
+            guard let self, let node else { return false }
             guard let image = imageView.image else {
                 self._translationPage?.reset()
                 return true
             }
+            let isKnownStatic = self.preparedSourceIsKnownStatic && node.animatedData == nil
+            if !isKnownStatic { self._translationPage?.disallowSettledHighlight() }
             if let prepared = self.preparedTranslation {
-                guard prepared.isCurrent() else {
+                guard prepared.isCurrent(for: image) else {
                     self._translationPage?.reset()
                     self.refreshPreparedImage(image)
                     return false
                 }
-                self.translationPage?.displayLoadedImage(prepared)
+                self.translationPage?.displayLoadedImage(prepared, isKnownStatic: isKnownStatic)
             }
             return true
         }
@@ -406,7 +411,7 @@ extension ReaderWebtoonPageNode {
     // Request admission owns UI-backed progress state and must resume on main
     // after source hooks. Nuke processing and fallback decoding stay off-main.
     @MainActor
-    private func loadImage(url: URL, context: PageContext?) async {
+    private func loadImage(url: URL, context: PageContext?, archiveRequest: ImageRequest? = nil) async {
         let issued = pageLoadGeneration
         let urlRequest = if !url.isFileURL, let source {
             await source.getModifiedImageRequest(url: url, context: context)
@@ -441,14 +446,17 @@ extension ReaderWebtoonPageNode {
         // preload range. Never enqueue obsolete work or overwrite a newer task.
         guard !Task.isCancelled, issued == pageLoadGeneration else { return }
 
-        var request = ImageRequest(
+        var request = archiveRequest ?? ImageRequest(
             urlRequest: urlRequest,
             processors: processors,
             priority: isVisible ? .high : .low,
             userInfo: [.processesKey: usePageProcessor]
         )
 
-        if let localIdentity = await ReaderImageContentIdentity.localFileRequestIdentity(url) {
+        if archiveRequest != nil {
+            request.processors = processors
+            if source?.key.hasPrefix(TemporarySharedImageSession.sourcePrefix) == true { request.options.insert(.disableMemoryCache) }
+        } else if let localIdentity = await ReaderImageContentIdentity.localFileRequestIdentity(url) {
             request.imageID = localIdentity
         } else if !usePageProcessor {
             ReaderImageContentIdentity.applyStableRemoteIdentity(to: &request, sourceKey: source?.key)
@@ -602,14 +610,20 @@ extension ReaderWebtoonPageNode {
     }
 
     private func loadImage(zipURL: URL, filePath: String) async {
+        let issued = pageLoadGeneration
+        if let source = await temporaryPageStore.archiveImageSource(from: zipURL, path: filePath) {
+            guard !Task.isCancelled, pageLoadGeneration == issued else { return }
+            await loadImage(url: zipURL, context: nil, archiveRequest: source.request)
+            return
+        }
         guard let extractedURL = await self.temporaryPageStore.storeArchiveEntry(
             from: zipURL,
             path: filePath
         ) else {
-            if !Task.isCancelled { await showLoadFailure() }
+            if !Task.isCancelled, pageLoadGeneration == issued { await showLoadFailure() }
             return
         }
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled, pageLoadGeneration == issued else { return }
         await loadImage(url: extractedURL, context: nil)
     }
 
@@ -630,7 +644,9 @@ extension ReaderWebtoonPageNode {
 
     @MainActor
     @discardableResult
-    private func prepareAndDisplayImage(_ sourceImage: UIImage?, gifData: Data? = nil) async -> Bool {
+    private func prepareAndDisplayImage(
+        _ sourceImage: UIImage?, gifData: Data? = nil, refreshingSourceIsKnownStatic: Bool = true
+    ) async -> Bool {
         guard !Task.isCancelled else { return false }
         guard let sourceImage else {
             showLoadFailure()
@@ -655,7 +671,8 @@ extension ReaderWebtoonPageNode {
                 // Keep decoded source pixels for OCR and save/share. The backing view
                 // receives them together with this source-aspect translated canvas.
                 _translationPage?.reset()
-                preparedTranslation = prepared
+                preparedTranslation = prepared.flatMap { $0.matchesSourceImage(sourceImage) ? $0 : nil }
+                preparedSourceIsKnownStatic = refreshingSourceIsKnownStatic && gifData == nil
                 imageNode.animatedData = gifData
                 image = sourceImage
                 imageNode.image = sourceImage
@@ -689,14 +706,15 @@ extension ReaderWebtoonPageNode {
         Task { @MainActor [weak self] in
             await finishingLoad?.value
             guard let self, issued == pageLoadGeneration, self.image === image,
-                  preparedTranslation?.isCurrent() == false else { return }
+                  preparedTranslation?.isCurrent(for: image) == false else { return }
             // A late Texture backing view can bind after rotation/settings changed.
             // Retry from the retained decoded image; generation deduplicates callbacks.
             pageLoadGeneration = UUID()
             let refresh = pageLoadGeneration
             pageLoadTask = Task { @MainActor [weak self] in
                 guard let self else { return }
-                await prepareAndDisplayImage(image, gifData: imageNode.animatedData)
+                await prepareAndDisplayImage(image, gifData: imageNode.animatedData,
+                                             refreshingSourceIsKnownStatic: preparedSourceIsKnownStatic)
                 if pageLoadGeneration == refresh { pageLoadTask = nil }
             }
         }

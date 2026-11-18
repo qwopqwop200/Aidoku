@@ -20,7 +20,13 @@ struct ReaderTranslationPreparedImage {
     let image: UIImage
     let regions: [ReaderTranslationRegion]
     let settings: ReaderTranslationSettings
+    var freshSettledGeometry: ReaderTranslationImageGeometry? = nil
     var isCurrent: @MainActor () -> Bool = { true }
+    var matchesSourceImage: @MainActor (UIImage) -> Bool = { _ in true }
+
+    func isCurrent(for sourceImage: UIImage) -> Bool {
+        matchesSourceImage(sourceImage) && isCurrent()
+    }
 }
 
 typealias ReaderTranslationImagePreparer = @MainActor (UIImage, Page) async throws -> ReaderTranslationPreparedImage?

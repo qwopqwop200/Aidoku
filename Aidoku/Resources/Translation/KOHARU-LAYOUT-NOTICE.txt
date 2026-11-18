@@ -1,0 +1,17 @@
+Koharu Layout HighRes RF-DETR Seg 2XL model
+
+Source: https://huggingface.co/mayocream/koharu-layout-highres
+Pinned revision: 53fef6f1301f4cbd8324ddc24f554b3767fc9e45
+Original weights SHA-256: 03de2f77281974f5084cdd8652ace2b55dc15ac0378aed66654e62537cdda255
+Converted weight.bin SHA-256: 8f81dd930a875d18b397030e8c2e605498090de541a09a9e4f44c48ff7b27f43
+
+This local Core ML conversion uses a fixed 648x648 input instead of the
+upstream training resolution of 1920x1920. Neural weights use FP16;
+input/output tensors are FP32. Run with CPU_AND_GPU, not an assumed ANE path.
+Strict stock/device parity has not passed. Layout predictions are auxiliary
+evidence, not OCR, semantic reading order or ground-truth annotations.
+
+The model is Copyright 2026 Mayo Takanashi, licensed under Apache-2.0.
+RF-DETR software is Apache-2.0. Training used Manga109 images distributed
+separately under Manga109 terms. The model license does not grant rights to
+Manga109 images or third-party comic content. No training images are included.

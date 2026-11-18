@@ -48,3 +48,13 @@ wrong-image reuse. Source interceptor request/response semantics stay intact.
 Run `swift test --package-path Vendor/Nuke` and the app's image-cache/reader
 regressions when changing this patch. Carry the fix forward deliberately during
 upstream updates.
+
+## Native source CV
+
+`NativeSourceCV` pins OpenCV4.11.0 and FreeType2.14.3 for macOS MAIN and iOS
+(device and simulator), with static XCFramework slices, a C/ObjC Swift module,
+and incremental native-only build tooling. See `NativeSourceCV/README.md` for
+upstream provenance, SHA256 identities, supported slices and notices. Feature
+algorithms remain in the separate `SourceInference` directory. Public reference
+fonts/OFL and native dependency notices ship in `SourceReferenceFonts.bundle`;
+system Hiragino faces are resolved through CoreText file URLs and never copied.

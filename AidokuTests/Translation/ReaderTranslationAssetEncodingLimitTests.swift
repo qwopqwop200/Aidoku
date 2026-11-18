@@ -34,6 +34,79 @@ struct ReaderTranslationAssetEncodingLimitTests {
         #expect(await fixture.cache.renderAsset(for: "ready") == nil)
     }
 
+    @Test func settledPNGReturnsBeforeEncodingAndSharesOneReplay() async throws {
+        let fixture = EncodingLimitFixture()
+        let pngGate = BlockingAssetEncoder()
+        defer { pngGate.release(); fixture.close() }
+        let context = fixture.cache.renderAssetStorageContext(settings: fixture.settings)
+        let frame = UIGraphicsImageRenderer(size: CGSize(width: 24, height: 36)).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 2, y: 3, width: 14, height: 22))
+        }
+        let expectedBytes = try #require(frame.pngData())
+        let asset = ReaderTranslationRenderAsset(typography: expectedBytes,
+            layers: .init(masks: [], surfaces: [], paintBounds: []),
+            displayRect: CGRect(origin: .zero, size: frame.size), sourceSize: frame.size, regions: [], sourceDigest: "source")
+        #expect(fixture.cache.prepareSettledAssetAfterDisplay(key: "png", context: context, bitmapBytes: 32_768) {
+            _ = pngGate.encode(asset)
+            return asset
+        })
+        try await waitUntil { pngGate.started == 1 }
+        #expect(!fixture.cache.prepareSettledAssetAfterDisplay(key: "second", context: context, bitmapBytes: 32_768) {
+            Issue.record("A second decoded page was retained")
+            return asset
+        })
+        let replay = Task { await fixture.cache.renderAsset(for: "png") }
+        try await waitUntil { fixture.cache.pendingAssetReads == 1 }
+        pngGate.release()
+        let stored = try #require(await replay.value)
+        #expect(stored.typography == expectedBytes)
+        #expect(stored.regionsDigest == asset.regionsDigest)
+        #expect(pngGate.started == 1)
+        fixture.encoder.release()
+        try await waitUntil { fixture.cache.pendingAssetWrites == 0 }
+        fixture.cache.clearMemory()
+        #expect(await fixture.cache.renderAsset(for: "png")?.typography == expectedBytes)
+    }
+
+    @Test(arguments: [false, true])
+    func invalidatedSettledPNGDoesNotPublishOrFreeItsRasterEarly(clear: Bool) async throws {
+        let fixture = EncodingLimitFixture()
+        let pngGate = BlockingAssetEncoder()
+        defer { pngGate.release(); fixture.close() }
+        let asset = fixture.asset(0)
+        let context = fixture.cache.renderAssetStorageContext(settings: fixture.settings)
+        #expect(fixture.cache.prepareSettledAssetAfterDisplay(key: "old", context: context, bitmapBytes: 1024) {
+            _ = pngGate.encode(asset)
+            return asset
+        })
+        try await waitUntil { pngGate.started == 1 }
+        if clear { fixture.cache.clearMemory() }
+        else { await fixture.cache.removeRenderAsset(for: "old") }
+        let next = fixture.cache.renderAssetStorageContext(settings: fixture.settings)
+        #expect(!fixture.cache.prepareSettledAssetAfterDisplay(key: "new", context: next, bitmapBytes: 1024) { asset })
+        pngGate.release()
+        try await waitUntil { fixture.cache.activeAssetEncodings == 0 }
+        #expect(await fixture.cache.renderAsset(for: "old") == nil)
+        #expect(fixture.encoder.started == 0)
+    }
+
+    @Test func failedSettledPNGLeavesPreviousAssetAndFreesAdmission() async throws {
+        let fixture = EncodingLimitFixture()
+        defer { fixture.close() }
+        fixture.encoder.release()
+        let previous = fixture.asset(0)
+        let generation = await fixture.disk.currentGeneration(settings: fixture.settings)
+        await fixture.cache.storeRenderAsset(previous, key: "png", diskGeneration: generation)
+        let context = fixture.cache.renderAssetStorageContext(settings: fixture.settings)
+        #expect(fixture.cache.prepareSettledAssetAfterDisplay(key: "png", context: context, bitmapBytes: 1024) {
+            throw ReaderTranslationImageExporter.ExportError.renderFailed
+        })
+        try await waitUntil { fixture.cache.pendingAssetWrites == 0 }
+        #expect(await fixture.cache.renderAsset(for: "png")?.typography == previous.typography)
+        #expect(fixture.cache.activeAssetEncodings == 0)
+    }
+
     @Test func sameKeyReplacementKeepsFourLiveEncodesAndPersistsLatest() async throws {
         let fixture = EncodingLimitFixture()
         defer { fixture.close() }

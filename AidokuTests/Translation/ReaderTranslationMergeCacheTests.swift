@@ -66,13 +66,19 @@ struct ReaderTranslationMergeCacheTests {
         let oldKey = ReaderTranslationCacheIdentity.encoded([
             previousVersion, page.translationCacheKey, ReaderTranslationCacheIdentity.encoded(settings.ocrConfiguration)
         ])
-        let old = ReaderTranslationRegion(id: "old", rect: CGRect(x: 0.1, y: 0.1, width: 0.1, height: 0.1), source: "split")
-        let joined = ReaderTranslationRegion(id: "joined", rect: CGRect(x: 0.1, y: 0.1, width: 0.1, height: 0.4), source: "joined sentence")
+        // Default manga-tier settings exclude Latin OCR as a preserved source owner
+        // (translation = source); use model-supported Japanese so the identity
+        // translator's output is the recognizer's exact regions.
+        let old = ReaderTranslationRegion(id: "old", rect: CGRect(x: 0.1, y: 0.1, width: 0.1, height: 0.1), source: "わかれた")
+        let joined = ReaderTranslationRegion(id: "joined", rect: CGRect(x: 0.1, y: 0.1, width: 0.1, height: 0.4),
+            source: "つながったセリフです")
+        let proof = try #require(ReaderTranslationSourceRasterClaim(processedFullSourceSHA256: String(repeating: "c", count: 64)))
         try await disk.storeRegions([old], for: oldKey, kind: .ocr, generation: 0)
         let currentKey = ReaderTranslationCacheIdentity.ocr(page: page.translationCacheKey, settings: settings)
         #expect(try await disk.regions(for: oldKey, kind: .ocr) == [old])
         #expect(try await disk.regions(for: currentKey, kind: .ocr) == nil)
-        let first = ReaderTranslationPreloader(diskCache: disk, translator: { regions, _, _ in regions }, recognizer: { _, _ in [joined] })
+        let first = ReaderTranslationPreloader(diskCache: disk, translator: { regions, _, _ in regions },
+            recognizer: { _, _ in [joined] }, fixtureSourceRasterClaim: { _ in proof })
         #expect(try await first.translate(page, settings: settings) == [joined])
         first.cancel()
         #expect(try await disk.regions(for: currentKey, kind: .ocr) == [joined])
@@ -81,7 +87,7 @@ struct ReaderTranslationMergeCacheTests {
                                                   translator: { regions, _, _ in regions }, recognizer: { _, _ in
             Issue.record("Current merger results must remain reusable after restart")
             return []
-        })
+        }, fixtureSourceRasterClaim: { _ in proof })
         #expect(try await reopened.translate(page, settings: settings) == [joined])
         reopened.cancel()
     }

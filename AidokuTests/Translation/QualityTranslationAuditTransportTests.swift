@@ -20,10 +20,10 @@ struct QualityTranslationAuditTransportTests {
         request.setValue("Bearer " + secret, forHTTPHeaderField: "Authorization")
         var item: [String: Any] = ["id": "segment-0", "text": "reply Bearer " + secret]
         switch classification {
-        case .true: item["is_sfx"] = true
-        case .false: item["is_sfx"] = false
+        case .true: item["text_role"] = "sfx"
+        case .false: item["text_role"] = "dialogue"
         case .missing: break
-        case .invalid: item["is_sfx"] = 1 // NSNumber is not necessarily a JSON boolean.
+        case .invalid: item["text_role"] = 1
         }
         let content = String(decoding: try JSONSerialization.data(withJSONObject: ["translations": [item]]), as: UTF8.self)
         var envelope: [String: Any] = apiProtocol == .responses

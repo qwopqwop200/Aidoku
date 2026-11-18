@@ -97,18 +97,19 @@ final class ReaderTranslationAPIValidator {
             sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage,
             segments: [.init(id: "connection-test", text: sample)]
         )
-        if settings.includePageImage {
-            // Exercise the same image request format without uploading a user page.
-            let format = UIGraphicsImageRendererFormat()
-            format.scale = 1
-            format.opaque = true
-            let size = CGSize(width: 32, height: 32)
-            let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
-                UIColor.white.setFill()
-                context.fill(CGRect(origin: .zero, size: size))
-            }
-            request.imageJPEG = try ReaderTranslationImagePreparation.translationJPEG(image)
+        request.translatesPageLettering = true
+        request.filtersSFX = true
+        request.filtersBackground = true
+        // Exercise the required page request format without uploading a user page.
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let size = CGSize(width: 32, height: 32)
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
         }
+        request.imageJPEG = try ReaderTranslationImagePreparation.translationJPEG(image)
         let response = try await client.translate(request, configuration: settings.configuration)
         try Task.checkCancellation()
         guard response.translations.count == 1,

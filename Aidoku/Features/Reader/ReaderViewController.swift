@@ -32,7 +32,11 @@ class ReaderViewController: BaseObservingViewController {
     private var tapZone: TapZone?
     private let temporaryPageStore = ReaderTemporaryPageStore()
 
-    private var chapterList: [AidokuRunner.Chapter]
+    private var chapterList: [AidokuRunner.Chapter] = []
+    private var chapterIndexByKey: [String: Int] = [:]
+    private var presentedChapters: [AidokuRunner.Chapter]?
+    private var presentedChapter: AidokuRunner.Chapter
+    private var chapterListRevision = 0
     private var chaptersToMark: [AidokuRunner.Chapter] = []
     private var completedChapterKeys: Set<String> = []
     private var completingChapterKeys: Set<String> = []
@@ -58,14 +62,16 @@ class ReaderViewController: BaseObservingViewController {
     private var currentPage = 1
     private var currentPosition: Double?
     private var sessionReadPages: Set<Int> = []
-    private var sessionStartDate: Date?
-    private var sessionLastInteraction: Date?
+    private var sessionStartUptime: TimeInterval?
+    private var sessionHasInteraction = false
+    private var isReadingViewVisible = false
+    private var pendingPositionSave: Task<Void, Never>?
 
     weak var reader: ReaderReaderDelegate?
 
     // Dictionary popup state
     private lazy var dictionaryCoordinator = ReaderDictionaryCoordinator(owner: self)
-    private lazy var translationCoordinator = ReaderTranslationCoordinator(owner: self)
+    private lazy var translationCoordinator = ReaderTranslationCoordinator(owner: self, temporaryPageStore: temporaryPageStore)
     private var _dictionaryLongPressSelection: Any?
     @available(iOS 18.0, *)
     private var dictionaryLongPressSelection: TextRecognizer.Result? {
@@ -177,7 +183,8 @@ class ReaderViewController: BaseObservingViewController {
         self.source = source
         self.manga = manga
         self.chapter = chapter
-        self.chapterList = manga.chapters ?? []
+        self.presentedChapter = chapter
+        self.presentedChapters = manga.chapters
         self.chaptersToMark = [chapter]
         self.defaultReadingMode = switch manga.viewer {
             case .rightToLeft: .rtl
@@ -188,6 +195,7 @@ class ReaderViewController: BaseObservingViewController {
         }
         self.forceStartPage = startPage
         super.init()
+        replaceChapterList(manga.chapters ?? [])
     }
 
     deinit {
@@ -378,8 +386,9 @@ class ReaderViewController: BaseObservingViewController {
             // Only switch if we're currently in a text reader
             if self.reader is ReaderTextViewController || self.reader is ReaderPagedTextViewController {
                 // Save current position before switching so the new reader can restore it
+                let save = self.sessionStartUptime == nil ? nil : self.queueReadPosition()
                 Task {
-                    await self.updateReadPosition()
+                    await save?.value
                     await MainActor.run {
                         self.setReader(.text)
                         self.reader?.setChapter(self.chapter, startPage: self.currentPage)
@@ -391,23 +400,18 @@ class ReaderViewController: BaseObservingViewController {
         addObserver(forName: ReaderTextTheme.changeNotification) { [weak self] _ in
             self?.updateTextThemeOverride()
         }
-        addObserver(forName: UIScene.willDeactivateNotification) { [weak self] _ in
-            guard let self else { return }
-            Task {
-                await self.updateReadPosition()
-            }
+        addObserver(forName: UIScene.willDeactivateNotification) { [weak self] notification in
+            guard let self, let scene = notification.object as? UIScene, self.viewIfLoaded?.window?.windowScene === scene else { return }
+            self.endReadingSession()
 
             if #available(iOS 26.0, *) {
                 statusBarHidden = false
             }
         }
-        addObserver(forName: UIScene.didActivateNotification) { [weak self] _ in
-            guard let self else { return }
-            if self.sessionStartDate == nil {
-                self.sessionReadPages = [self.currentPage]
-                self.sessionStartDate = Date.now
-                self.sessionLastInteraction = nil
-            }
+        addObserver(forName: UIScene.didActivateNotification) { [weak self] notification in
+            guard let self, self.isReadingViewVisible, let scene = notification.object as? UIScene,
+                  self.viewIfLoaded?.window?.windowScene === scene else { return }
+            self.beginReadingSession(including: self.currentPage)
         }
         if #available(iOS 26.0, *) {
             addObserver(forName: UIScene.willEnterForegroundNotification) { [weak self] _ in
@@ -415,9 +419,6 @@ class ReaderViewController: BaseObservingViewController {
                     self?.hideBars()
                 }
             }
-        }
-        addObserver(forName: "Reader.autoScroll") { [weak self] _ in
-            self?.updateAutoScrollButton()
         }
         addObserver(forName: AppSettings.reader.autoScrollPosition.key) { [weak self] _ in
             guard let self else { return }
@@ -430,9 +431,10 @@ class ReaderViewController: BaseObservingViewController {
         super.viewDidAppear(animated)
         translationCoordinator.resume()
 
-        sessionReadPages = [self.currentPage]
-        sessionStartDate = Date.now
-        sessionLastInteraction = nil
+        isReadingViewVisible = true
+        if view.window?.windowScene?.activationState == .foregroundActive {
+            beginReadingSession(including: currentPage)
+        }
 
         if navigationController?.toolbar.alpha == 0 {
             hideBars()
@@ -461,10 +463,8 @@ class ReaderViewController: BaseObservingViewController {
 
         removeCompletedDownloadsAfterPendingHistory()
 
-        guard currentPage >= 1 else { return }
-        Task {
-            await updateReadPosition()
-        }
+        isReadingViewVisible = false
+        endReadingSession()
     }
 
     override func viewDidDisappear(_ animated: Bool) {
@@ -513,62 +513,122 @@ extension ReaderViewController {
     }
 
     func updateReadPosition(
-        currentPage: Int? = nil,
-        totalPages: Int? = nil,
+        currentPage: Int,
+        totalPages: Int,
         chapter: AidokuRunner.Chapter? = nil,
         position: Double? = nil,
+        dateRead: Date = .now,
         capturedSession: HistoryManager.ReadingSessionData? = nil
     ) async {
-        let effectiveTotalPages = totalPages ?? toolbarView.totalPages ?? 0
-        let effectiveCurrentPage = currentPage ?? self.currentPage
-
         guard
             !isTemporaryImageSession,
             !AppSettings.general.incognitoMode.get(),
-            effectiveTotalPages > 0 // ensure chapter pages are loaded
+            currentPage >= 1, totalPages > 0
         else {
             return
         }
 
-        let savedPosition = currentPage == nil ? currentPosition : position
-        let savedSession = currentPage == nil ? takeReadingSession() : capturedSession
-        let currentPage = effectiveCurrentPage
         let chapter = chapter ?? self.chapter
 
         let chapterId = ChapterIdentifier(sourceKey: manga.sourceKey, mangaKey: manga.key, chapterKey: chapter.key)
-        let (completed, _) = await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
-            CoreDataManager.shared.getProgress(
-                chapterId: chapterId,
-                context: context
-            )
-        }
         // Opening the first page counts as reading, even without prior history.
         await HistoryManager.shared.setProgress(
             chapterId: chapterId,
             chapter: chapter,
             manga: manga,
             progress: currentPage,
-            totalPages: effectiveTotalPages,
-            scrollPosition: savedPosition,
-            completed: completed
+            totalPages: totalPages,
+            scrollPosition: position,
+            dateRead: dateRead,
+            session: capturedSession
         )
-        if let savedSession { await HistoryManager.shared.addSession(chapterId: chapterId, data: savedSession) }
     }
 
-    private func takeReadingSession() -> HistoryManager.ReadingSessionData? {
-        guard !isTemporaryImageSession, let sessionStartDate else { return nil }
-        self.sessionStartDate = nil
-        guard !sessionReadPages.isEmpty, sessionLastInteraction != nil else { return nil }
-        return .init(startDate: sessionStartDate, endDate: .now, pagesRead: sessionReadPages.count)
+    func beginReadingSession(including page: Int?, uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        guard !isTemporaryImageSession, !AppSettings.general.incognitoMode.get(), sessionStartUptime == nil else { return }
+        sessionStartUptime = uptime
+        sessionReadPages = []
+        if let page, page >= 1 { sessionReadPages.insert(page) }
+        sessionHasInteraction = false
+    }
+
+    @discardableResult
+    func endReadingSession(now: Date = .now, uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) -> Task<Void, Never>? {
+        guard let start = sessionStartUptime else { return nil }
+        sessionStartUptime = nil
+        let session: HistoryManager.ReadingSessionData? = if sessionHasInteraction && !sessionReadPages.isEmpty {
+            .init(startDate: now.addingTimeInterval(-max(0, uptime - start)), endDate: now, pagesRead: sessionReadPages.count)
+        } else { nil }
+        return queueReadPosition(dateRead: now, session: session)
+    }
+
+    // Capture the chapter and position at the event, before waiting for earlier saves.
+    private func queueReadPosition(dateRead: Date = .now, session: HistoryManager.ReadingSessionData? = nil) -> Task<Void, Never>? {
+        guard !isTemporaryImageSession, !AppSettings.general.incognitoMode.get(),
+              currentPage >= 1, let total = toolbarView.totalPages, total > 0 else { return nil }
+        let page = currentPage, position = currentPosition, chapter = chapter
+        let previous = pendingPositionSave
+        let save = Task {
+            await previous?.value
+            await updateReadPosition(currentPage: page, totalPages: total, chapter: chapter, position: position,
+                                     dateRead: dateRead, capturedSession: session)
+        }
+        pendingPositionSave = save
+        return save
+    }
+
+    private func replaceChapterList(_ chapters: [AidokuRunner.Chapter]) {
+        chapterListRevision += 1
+        var indices = Dictionary<String, Int>(minimumCapacity: chapters.count)
+        var repeated = IndexSet()
+        for (offset, chapter) in chapters.enumerated() {
+            if indices[chapter.key] == nil {
+                indices[chapter.key] = indices.count
+            } else {
+                repeated.insert(offset)
+            }
+        }
+        chapterIndexByKey = indices
+        chapterList = chapters
+        if !repeated.isEmpty { chapterList.remove(atOffsets: repeated) }
+        if let index = indices[chapter.key] { updateChapterMetadata(chapterList[index]) }
+    }
+
+    private func updateChapterMetadata(_ updated: AidokuRunner.Chapter) {
+        guard chapter != updated else { return }
+        chapter = updated
+        if isViewLoaded { loadNavbarTitle() }
+    }
+
+    func updatePresentedChapter(_ requested: AidokuRunner.Chapter, chapters: [AidokuRunner.Chapter]?) {
+        if let chapters, chapters != presentedChapters {
+            replaceChapterList(chapters)
+        }
+        presentedChapters = chapters
+        let previous = presentedChapter
+        presentedChapter = requested
+        guard requested != previous else { return }
+        let updated = chapterIndexByKey[requested.key].map { chapterList[$0] } ?? requested
+        if requested.key == chapter.key {
+            updateChapterMetadata(updated)
+            return
+        }
+        // The reader may have turned to another chapter since SwiftUI presented it.
+        guard requested.key != previous.key else { return }
+        setChapter(updated)
+        loadCurrentChapter()
     }
 
     func loadChapterList() async {
+        let revision = chapterListRevision
         let updatedManga = try? await source?.getMangaUpdate(
             manga: manga,
             needsDetails: false,
             needsChapters: true
         )
-        chapterList = updatedManga?.chapters ?? []
+        if let chapters = updatedManga?.chapters, revision == chapterListRevision, !Task.isCancelled {
+            replaceChapterList(chapters)
+        }
     }
 
     func loadCurrentChapter() {
@@ -673,7 +733,7 @@ extension ReaderViewController {
         )
         view.chapterSet = { [weak self] chapter in
             guard let self else { return }
-            if chapter != self.chapter {
+            if chapter.key != self.chapter.key {
                 self.setChapter(chapter)
                 self.loadCurrentChapter()
             }
@@ -1006,11 +1066,8 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
     }
 
     private func adjacentChapter(after chapter: AidokuRunner.Chapter, markDuplicates shouldMark: Bool) -> AidokuRunner.Chapter? {
-        guard
-            var index = chapterList.firstIndex(of: chapter)
-        else {
-            return nil
-        }
+        guard var index = chapterIndexByKey[chapter.key] else { return nil }
+        let reference = chapterList[index]
 
         let skipDuplicates = UserDefaults.standard.bool(forKey: "Reader.skipDuplicateChapters")
         let markDuplicates = UserDefaults.standard.bool(forKey: "Reader.markDuplicateChapters")
@@ -1026,7 +1083,7 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
                 || DownloadManager.shared.getDownloadStatus(for: identifier) == .finished
 
             if readable {
-                let isDuplicate = areDuplicates(new, chapter)
+                let isDuplicate = areDuplicates(new, reference)
 
                 if nextChapterInList == nil {
                     nextChapterInList = new
@@ -1035,7 +1092,7 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
                     chaptersToMark.append(new)
                 }
                 if !isDuplicate {
-                    return skipDuplicates ? findBestChapterMatch(from: index, step: -1, relativeTo: chapter) : nextChapterInList
+                    return skipDuplicates ? findBestChapterMatch(from: index, step: -1, relativeTo: reference) : nextChapterInList
                 } else if !skipDuplicates && !markDuplicates {
                     return new
                 }
@@ -1054,11 +1111,8 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
     }
 
     private func adjacentChapter(before chapter: AidokuRunner.Chapter, markDuplicates shouldMark: Bool) -> AidokuRunner.Chapter? {
-        guard
-            var index = chapterList.firstIndex(of: chapter)
-        else {
-            return nil
-        }
+        guard var index = chapterIndexByKey[chapter.key] else { return nil }
+        let reference = chapterList[index]
         // find previous non-duplicate chapter
         let markDuplicates = UserDefaults.standard.bool(forKey: "Reader.markDuplicateChapters")
 
@@ -1071,9 +1125,9 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
                 || DownloadManager.shared.getDownloadStatus(for: identifier) == .finished
 
             if readable {
-                let isDuplicate = areDuplicates(new, chapter)
+                let isDuplicate = areDuplicates(new, reference)
                 if !isDuplicate {
-                    return findBestChapterMatch(from: index, step: 1, relativeTo: chapter)
+                    return findBestChapterMatch(from: index, step: 1, relativeTo: reference)
                 }
                 if shouldMark && markDuplicates {
                     chaptersToMark.append(new)
@@ -1084,24 +1138,19 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
         return nil
     }
 
-    func setChapter(_ chapter: AidokuRunner.Chapter) {
-        guard chapter != self.chapter else { return }
+    func setChapter(_ requested: AidokuRunner.Chapter) {
+        let chapter = chapterIndexByKey[requested.key].map { chapterList[$0] } ?? requested
+        if chapter.key == self.chapter.key {
+            updateChapterMetadata(chapter)
+            return
+        }
         translationCoordinator.cancel()
 
-        // store current history data since it will change when new chapter loads
-        let currentPage = currentPage
-        let totalPages = toolbarView.totalPages ?? 0
-        let oldChapter = self.chapter
-        let position = currentPosition
-        let session = takeReadingSession()
-        sessionReadPages = []
-        sessionStartDate = Date.now
-        sessionLastInteraction = nil
-        currentPosition = nil
-        Task {
-            await updateReadPosition(currentPage: currentPage, totalPages: totalPages, chapter: oldChapter,
-                position: position, capturedSession: session)
+        if sessionStartUptime != nil {
+            endReadingSession()
+            beginReadingSession(including: nil)
         }
+        currentPosition = nil
 
         self.chapter = chapter
         self.chaptersToMark = [chapter]
@@ -1117,28 +1166,33 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
         setCurrentPages(page...page, position: position)
     }
 
+    func updateTextScrollPosition(_ position: Double, onPage page: Int) {
+        setCurrentPages(page...page, position: position, refreshPresentation: false)
+    }
+
     func setCurrentPages(_ pages: ClosedRange<Int>) {
         setCurrentPages(pages, position: nil)
     }
 
-    private func setCurrentPages(_ pages: ClosedRange<Int>, position: Double? = nil) {
-        defer { translationCoordinator.visiblePagesDidChange() }
+    private func setCurrentPages(_ pages: ClosedRange<Int>, position: Double? = nil, refreshPresentation: Bool = true) {
+        defer { if refreshPresentation { translationCoordinator.visiblePagesDidChange() } }
         guard let totalPages = toolbarView.totalPages else { return }
 
-        updateDescriptionButton(pages: pages)
-        updateAutoScrollButton()
-
-        sessionLastInteraction = Date.now
-        for page in pages {
-            guard page >= 1 && page <= totalPages else { continue }
-            sessionReadPages.insert(page)
+        if sessionStartUptime != nil {
+            for page in pages where page >= 1 && page <= totalPages {
+                sessionHasInteraction = true
+                sessionReadPages.insert(page)
+            }
         }
 
         let page = max(1, min(pages.lowerBound, totalPages))
         currentPage = page
         currentPosition = position
-        toolbarView.currentPage = page
-        toolbarView.updateSliderPosition()
+        if refreshPresentation {
+            updateDescriptionButton(pages: pages)
+            toolbarView.currentPage = page
+            toolbarView.updateSliderPosition()
+        }
         // Mark as completed when reaching the last page
         // Exception: Don't mark for the pre-pagination placeholder (single text page before
         // ReaderPagedTextViewController has paginated it). Once paginated, even single-page

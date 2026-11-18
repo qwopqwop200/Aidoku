@@ -38,12 +38,13 @@ struct BackupInfo: Hashable, Identifiable, Sendable {
     var counts: Counts
 
     static func load(from url: URL) -> BackupInfo? {
-        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init)
-        if let info = loadFromBinaryPlist(url: url, size: size) {
+        guard let data = try? Data(contentsOf: url, options: .mappedIfSafe) else { return nil }
+        let size = Int64(data.count)
+        if let scanner = BinaryPlistScanner(data: data),
+           let info = loadFromBinaryPlist(scanner, url: url, size: size) {
             return info
         }
-        // xml/ json don't have any way to get counts like plist, so resort to full decode
-        guard let backup = Backup.load(from: url) else { return nil }
+        guard let backup = Backup.decode(data) else { return nil }
         return BackupInfo(url: url, size: size, backup: backup)
     }
 
@@ -81,15 +82,8 @@ struct BackupInfo: Hashable, Identifiable, Sendable {
     }
 
     // swiftlint:disable:next cyclomatic_complexity
-    private static func loadFromBinaryPlist(url: URL, size: Int64?) -> BackupInfo? {
-        guard
-            // mapped so that the pages holding the backup items themselves are never faulted in
-            let data = try? Data(contentsOf: url, options: .mappedIfSafe),
-            let scanner = BinaryPlistScanner(data: data),
-            let entries = scanner.dictionary(for: scanner.rootRef)
-        else {
-            return nil
-        }
+    private static func loadFromBinaryPlist(_ scanner: BinaryPlistScanner, url: URL, size: Int64) -> BackupInfo? {
+        guard let entries = scanner.dictionary(for: scanner.rootRef) else { return nil }
 
         var name: String?
         var date: Date?

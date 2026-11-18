@@ -4,6 +4,21 @@ import Testing
 @testable import Aidoku
 
 @Suite struct NativeRestorationCanvasPolicyTests {
+    @available(iOS 16.0, *)
+    @Test func maskCanonicalizationPreservesBinaryPixelsAndRejectsGrayBeforeMutation() throws {
+        var mask: [UInt8] = [0, 255, 1, 0, 1]
+        try NativeMainEnsemblePipeline.canonicalizeMaskBytes(&mask)
+        #expect(mask == [0, 255, 255, 0, 255])
+        try NativeMainEnsemblePipeline.canonicalizeMaskBytes(&mask)
+        #expect(mask == [0, 255, 255, 0, 255])
+        var invalid: [UInt8] = [1, 2, 255]
+        do {
+            try NativeMainEnsemblePipeline.canonicalizeMaskBytes(&invalid)
+            Issue.record("Expected nonbinary mask rejection")
+        } catch NativeMainEnsemblePipeline.Failure.invalidMask {}
+        #expect(invalid == [1, 2, 255])
+    }
+
     @Test func offCropFiniteCoordinatesAreClampedBeforeIntegerConversion() {
         let pixels = NativeRestorationPixels(width:16,height:16)
         for magnitude: CGFloat in [1e20, 1e308] {
@@ -103,4 +118,150 @@ import Testing
         }
     }
 
+}
+
+extension NativeRestorationCanvasPolicyTests {
+    private enum RemovalReadinessProbeFailure: Error { case backendReached }
+
+    private func removalReadinessImage(_ pixel: [UInt8]) throws -> CGImage {
+        let bytes = Data(pixel + pixel + pixel + pixel)
+        let provider = try #require(CGDataProvider(data: bytes as CFData))
+        return try #require(CGImage(width: 2, height: 2, bitsPerComponent: 8, bitsPerPixel: 32,
+            bytesPerRow: 8, space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent))
+    }
+
+    @Test(arguments: [false, true])
+    func zeroRetainedOwnersPreserveExactOriginalWithoutEnteringBackendOrCachedRestoration(hasProposedMask: Bool) throws {
+        typealias R = NativeAOTRemovalReadiness
+        let original = try removalReadinessImage([17, 63, 109, 255])
+        let cachedRestoration = try removalReadinessImage([240, 230, 220, 255])
+        let proposedMask: [UInt8] = hasProposedMask ? [0, 255, 255, 0] : [0, 0, 0, 0]
+        let plan = try R.restorationPlan(retainedOwners: 0, hasRemovalPixels: proposedMask.contains { $0 != 0 })
+        var backendCalls = 0
+        // This closure is the real resolve boundary, not a pipeline mock. A
+        // mistakenly authorized backend entry fails even before yielding pixels.
+        let result = try R.resolve(plan, original: original) {
+            backendCalls += 1
+            throw RemovalReadinessProbeFailure.backendReached
+        }
+        let cachedResult = R.resolve(plan, original: original) {
+            backendCalls += 1
+            return cachedRestoration
+        }
+        #expect(backendCalls == 0)
+        #expect(result === original && cachedResult === original)
+        #expect(result !== cachedRestoration && cachedResult !== cachedRestoration)
+        #expect(try NativeMandatoryDisplayStroke.rgba(result) == NativeMandatoryDisplayStroke.rgba(original))
+        #expect(plan.preserveOriginal && !plan.appliedHasRemovalPixels)
+        #expect(plan.proposedHasRemovalPixels == hasProposedMask)
+        #expect(plan.audit["backendMayRun"] as? Bool == false)
+        #expect(plan.audit["callerRestorationMayBeReused"] as? Bool == false)
+        #expect(plan.audit["restorationDisposition"] as? String == R.RestorationInputAuthority.sourcePassThrough.rawValue)
+        #expect(plan.audit["erasureMode"] as? String == "replace-retained-text")
+        #expect(plan.audit["upstreamTranslationCompletenessVerified"] as? Bool == false)
+        #expect(plan.audit["qualityAccepted"] as? Bool == false)
+    }
+
+    @Test(arguments: [1, 4096])
+    func retainedOwnersWithRemovalPixelsResolveActualRestorationExactlyOnce(retainedOwners: Int) throws {
+        typealias R = NativeAOTRemovalReadiness
+        let original = try removalReadinessImage([17, 63, 109, 255])
+        let restored = try removalReadinessImage([240, 230, 220, 255])
+        let plan = try R.restorationPlan(retainedOwners: retainedOwners, hasRemovalPixels: true)
+        var backendCalls = 0
+        let result = R.resolve(plan, original: original) {
+            backendCalls += 1
+            return restored
+        }
+        #expect(backendCalls == 1 && result === restored && result !== original)
+        #expect(try NativeMandatoryDisplayStroke.rgba(result) == NativeMandatoryDisplayStroke.rgba(restored))
+        #expect(!plan.preserveOriginal && plan.appliedHasRemovalPixels)
+        #expect(plan.audit["retainedTranslationOwners"] as? Int == retainedOwners)
+        #expect(plan.audit["backendMayRun"] as? Bool == true)
+        #expect(plan.audit["originalSourcePassThrough"] as? Bool == false)
+        // Authorization is not an upstream completeness or restoration-quality proof.
+        #expect(plan.audit["upstreamTranslationCompletenessVerified"] as? Bool == false)
+        #expect(plan.audit["qualityAccepted"] as? Bool == false)
+    }
+
+    @Test(arguments: [false, true])
+    func explicitEraseOnlyRequiresAnActualMaskBeforeCallingRestoration(hasProposedMask: Bool) throws {
+        typealias R = NativeAOTRemovalReadiness
+        let original = try removalReadinessImage([17, 63, 109, 255])
+        let restored = try removalReadinessImage([240, 230, 220, 255])
+        let plan = try R.restorationPlan(retainedOwners: 0, hasRemovalPixels: hasProposedMask, mode: .eraseOnly)
+        var backendCalls = 0
+        let result = R.resolve(plan, original: original) {
+            backendCalls += 1
+            return restored
+        }
+        #expect(backendCalls == (hasProposedMask ? 1 : 0))
+        #expect(result === (hasProposedMask ? restored : original))
+        #expect(plan.preserveOriginal == !hasProposedMask)
+        #expect(plan.appliedHasRemovalPixels == hasProposedMask)
+        #expect(plan.audit["erasureMode"] as? String == "explicit-erase-only")
+        #expect(plan.audit["retainedTranslationOwners"] as? Int == 0)
+        #expect(plan.audit["qualityAccepted"] as? Bool == false)
+    }
+
+    @Test(arguments: [-1, 4097, Int.min, Int.max])
+    func restorationPlanRejectsInvalidRetainedCountsBeforeAnyResolve(retainedOwners: Int) {
+        typealias R = NativeAOTRemovalReadiness
+        for mode in [R.ErasureMode.retainedText, .eraseOnly] {
+            for hasMask in [false, true] {
+                do {
+                    _ = try R.restorationPlan(retainedOwners: retainedOwners, hasRemovalPixels: hasMask, mode: mode)
+                    Issue.record("Invalid retained owner count was accepted")
+                } catch R.Failure.invalidRetainedOwnerCount(let rejected) {
+                    #expect(rejected == retainedOwners)
+                } catch {
+                    Issue.record("Wrong failure for invalid retained owner count: \(error)")
+                }
+            }
+        }
+    }
+
+    @Test(arguments: [1, 4096])
+    func retainedOwnersWithoutMaskAndEraseOnlyWithOwnersFailWithTheirSpecificContracts(retainedOwners: Int) {
+        typealias R = NativeAOTRemovalReadiness
+        do {
+            _ = try R.restorationPlan(retainedOwners: retainedOwners, hasRemovalPixels: false)
+            Issue.record("Retained replacement was authorized without a removal mask")
+        } catch R.Failure.translatedOwnersWithoutRemovalMask(let rejected) {
+            #expect(rejected == retainedOwners)
+        } catch {
+            Issue.record("Wrong missing-mask failure: \(error)")
+        }
+        for hasMask in [false, true] {
+            do {
+                _ = try R.restorationPlan(retainedOwners: retainedOwners, hasRemovalPixels: hasMask, mode: .eraseOnly)
+                Issue.record("Explicit erase-only accepted retained text owners")
+            } catch R.Failure.eraseOnlyHasRetainedOwners(let rejected) {
+                #expect(rejected == retainedOwners)
+            } catch {
+                Issue.record("Wrong erase-only owner failure: \(error)")
+            }
+        }
+    }
+
+    @Test func authorizedRestorationPropagatesBackendFailureWithoutSilentlyReturningOriginal() throws {
+        typealias R = NativeAOTRemovalReadiness
+        let original = try removalReadinessImage([17, 63, 109, 255])
+        for mode in [R.ErasureMode.retainedText, .eraseOnly] {
+            let plan = try R.restorationPlan(retainedOwners: mode == .retainedText ? 1 : 0,
+                hasRemovalPixels: true, mode: mode)
+            var backendCalls = 0
+            do {
+                _ = try R.resolve(plan, original: original) {
+                    backendCalls += 1
+                    throw RemovalReadinessProbeFailure.backendReached
+                }
+                Issue.record("An authorized backend failure was swallowed")
+            } catch RemovalReadinessProbeFailure.backendReached {
+                #expect(backendCalls == 1)
+            }
+        }
+    }
 }

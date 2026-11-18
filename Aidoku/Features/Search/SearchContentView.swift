@@ -48,7 +48,7 @@ struct SearchContentView: View {
                 )
                 .offset(y: -keyboardOffset / 2)
                 .ignoresSafeArea(.all)
-            } else if !searchText.isEmpty && viewModel.resultsIsEmpty {
+            } else if !searchText.isEmpty && viewModel.results.isEmpty {
                 if viewModel.isLoading {
                     ProgressView()
                         .progressViewStyle(.circular)
@@ -77,9 +77,6 @@ struct SearchContentView: View {
         .animation(.default, value: viewModel.results)
         .navigationTitle(NSLocalizedString("SEARCH"))
         .onChange(of: searchText) { newValue in
-            if newValue.isEmpty {
-                viewModel.results = []
-            }
             viewModel.search(query: newValue, delay: true)
         }
         .onChange(of: searchCommitToggle) { _ in
@@ -145,47 +142,37 @@ struct SearchContentView: View {
     var searchResults: some View {
         ForEach(viewModel.results) { searchResult in
             let source = searchResult.source
-            let result = searchResult.result
-            let id = {
-                var hasher = Hasher()
-                for entry in result.entries {
-                    hasher.combine(entry)
-                }
-                return hasher.finalize()
-            }()
-            if !result.entries.isEmpty {
-                Section {
-                    HomeScrollerView(
-                        source: source,
-                        component: .init(
-                            title: nil,
-                            value: .scroller(entries: result.entries.map { $0.intoLink() })
-                        )
+            Section {
+                HomeScrollerView(
+                    source: source,
+                    component: .init(
+                        title: nil,
+                        value: .scroller(entries: searchResult.links)
                     )
-                    .id("\(source.key).\(id)") // fixes issue with incorrect entries showing
-                    .environmentObject(path)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(.zero)
-                    .listRowSeparator(.hidden)
-                } header: {
-                    HStack {
-                        SourceIconView(
-                            sourceId: source.key,
-                            imageUrl: source.imageUrl,
-                            iconSize: 29
-                        )
-                        .scaleEffect(0.75)
-                        Text(source.name)
+                )
+                .id(searchResult.contentID)
+                .environmentObject(path)
+                .listRowBackground(Color.clear)
+                .listRowInsets(.zero)
+                .listRowSeparator(.hidden)
+            } header: {
+                HStack {
+                    SourceIconView(
+                        sourceId: source.key,
+                        imageUrl: source.imageUrl,
+                        iconSize: 29
+                    )
+                    .scaleEffect(0.75)
+                    Text(source.name)
 
-                        Spacer()
+                    Spacer()
 
-                        Button(NSLocalizedString("VIEW_MORE")) {
-                            openResult(searchResult)
-                        }
+                    Button(NSLocalizedString("VIEW_MORE")) {
+                        openResult(searchResult)
                     }
-                    .font(.body)
-                    .textCase(nil)
                 }
+                .font(.body)
+                .textCase(nil)
             }
         }
     }

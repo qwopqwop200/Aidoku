@@ -138,14 +138,7 @@ extension CoreDataManager {
         HistoryMetadataCache.shared.remove(chapterIds: chapterIds)
         return await container.performBackgroundTask { context in
             do {
-                for chapterId in chapterIds {
-                    if let object = self.getHistory(
-                        chapterId: chapterId,
-                        context: context
-                    ) {
-                        context.delete(object)
-                    }
-                }
+                try self.removeHistory(chapterIds: chapterIds, context: context)
                 try context.save()
                 HistoryMetadataCache.shared.remove(chapterIds: chapterIds)
                 return true
@@ -153,6 +146,19 @@ extension CoreDataManager {
                 context.rollback()
                 LogManager.logger.error("CoreDataManager.removeHistory(sourceId:mangaId:chapterIds:): \(error.localizedDescription)")
                 return false
+            }
+        }
+    }
+
+    func removeHistory(chapterIds: [ChapterIdentifier], context: NSManagedObjectContext) throws {
+        for (manga, chapters) in Dictionary(grouping: Set(chapterIds), by: \.mangaIdentifier) {
+            for keys in chapters.map(\.chapterKey).chunked(into: 500) {
+                let request = HistoryObject.fetchRequest()
+                request.predicate = NSPredicate(format: "sourceId == %@ AND mangaId == %@ AND chapterId IN %@",
+                                                manga.sourceKey, manga.mangaKey, keys)
+                for history in try context.fetch(request) {
+                    context.delete(history)
+                }
             }
         }
     }
@@ -253,6 +259,7 @@ extension CoreDataManager {
     }
 
     /// Set page progress for a chapter and creates a history object if it doesn't already exist.
+    @discardableResult
     func setProgress(
         _ progress: Int,
         chapterId: ChapterIdentifier,
@@ -261,7 +268,7 @@ extension CoreDataManager {
         dateRead: Date? = nil,
         completed: Bool? = nil,
         context: NSManagedObjectContext
-    ) {
+    ) -> HistoryObject {
         let historyObject = self.getOrCreateHistory(
             chapterId: chapterId,
             context: context
@@ -277,6 +284,7 @@ extension CoreDataManager {
         if let completed {
             historyObject.completed = completed
         }
+        return historyObject
     }
 
     /// Marks chapters as completed.

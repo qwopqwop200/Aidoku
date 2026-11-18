@@ -38,6 +38,7 @@ extension ReaderTranslationRegion {
             sourceImageAspectRatio: sourceImageAspectRatio, translationOrder: translationOrder,
             translationOrderVersion: translationOrderVersion, sourceOrientation: sourceOrientation,
             sourceSingleVerticalColumn: sourceSingleVerticalColumn, translationReuseIdentity: translationReuseIdentity)
+        result.translationRecoveryFailure = translationRecoveryFailure
         result.polygon = polygon.map { CGPoint(x: ($0.x - crop.minX) / crop.width, y: ($0.y - crop.minY) / crop.height) }
         result.balloonInterior = balloonInterior?.cropped(to: crop)
         result.isOccludedFinePrint = isOccludedFinePrint
@@ -75,7 +76,7 @@ extension ReaderTranslationRegion {
 final class ReaderTranslationSessionCache {
     static let byteLimit = 4 * 1_024 * 1_024
     private struct Entry {
-        let regions: [ReaderTranslationRegion]
+        let record: ReaderTranslationRegionArchive.Record
         let cost: Int
     }
     private var values: [String: Entry] = [:]
@@ -84,6 +85,11 @@ final class ReaderTranslationSessionCache {
 
     func contains(_ key: String) -> Bool { values[key] != nil }
     func store(_ regions: [ReaderTranslationRegion], for key: String, evict: Bool = true) throws {
+        try store(.init(regions: regions, sourceRasterClaim: nil), for: key, evict: evict)
+    }
+    func store(_ record: ReaderTranslationRegionArchive.Record, for key: String, evict: Bool = true) throws {
+        let regions = record.regions
+        guard !regions.contains(where: { $0.translationRecoveryFailure != nil }) else { remove(key); return }
         var cost = 128 + key.utf8.count
         var reuseKeys: Set<TranslationCacheKey> = []
         for region in regions {
@@ -111,14 +117,17 @@ final class ReaderTranslationSessionCache {
         if !evict, bytes - existingCost + cost > Self.byteLimit || projectedCount > 64 { return }
         remove(key)
         while bytes + cost > Self.byteLimit || values.count >= 64, let oldest = order.first { remove(oldest) }
-        values[key] = Entry(regions: regions, cost: cost)
+        values[key] = Entry(record: record, cost: cost)
         order.append(key)
         bytes += cost
     }
     func regions(for key: String) -> [ReaderTranslationRegion]? {
+        record(for: key)?.regions
+    }
+    func record(for key: String) -> ReaderTranslationRegionArchive.Record? {
         guard let entry = values[key] else { return nil }
         order.removeAll { $0 == key }; order.append(key)
-        return entry.regions
+        return entry.record
     }
     func retainPages(_ keys: Set<String>) {
         for key in Array(values.keys) where !keys.contains(key) { remove(key) }
@@ -136,8 +145,6 @@ private extension TranslationCacheKey {
                        credentialAccount, sourceLanguage, targetLanguage, instructions]
         var cost = 512 + strings.reduce(0) { $0 + ($1?.utf8.count ?? 0) }
         cost += segments.reduce(0) { $0 + 64 + $1.id.utf8.count + $1.text.utf8.count + ($1.bounds?.count ?? 0) * 8 }
-        cost += context.reduce(0) { $0 + 32 + $1.utf8.count }
-        cost += glossary.reduce(0) { $0 + 64 + $1.source.utf8.count + $1.target.utf8.count }
         return cost
     }
 }

@@ -1,0 +1,50 @@
+{
+  "enabled": true,
+  "version": "final-source-background-refinement-v5",
+  "modelVersion": "local-exterior-directional-glyph-relative-ranker-v5",
+  "helperSHA256": "086a348e0b1d734fc304c22fdfea3e99dca48f13ca1d545673f40d2f19054a7d",
+  "modelIdentities": {
+    "model.pkl": "14b031b06bfed250b39ebec048ab2a0b6ccd17d6703fa948636875ef1e845f5e",
+    "pixel-role-model.pkl": "c6ba78969e88669e47cc1b5b29419c1789d1ddbdc01ad76501ceb80e14cf96a9",
+    "width-model.pkl": "64b8abd11ac32a4a7022ac91a771be9ec23ce7a4605d091129b11d2af1761ea8",
+    "source-fill-palette-model.pkl": "1b3f16e1666ea73f8fe557e68590ae9c67be2c69a1d00587dc4644638ec60116",
+    "final-background-model.pkl": "45cbe7c3169d3ab0bdd03281c76cb4844d9dd4e3c7b2e2b4cec5998a7699827e",
+    "background-palette.pkl": "ce6b4f036a9c77c3796fdcf2b1dc69b5f495e39bc88c979c1bbe1542af9a5946"
+  },
+  "sourceArtifactSHA256": "45cbe7c3169d3ab0bdd03281c76cb4844d9dd4e3c7b2e2b4cec5998a7699827e",
+  "sourceArtifact": "final-background-model.pkl",
+  "configuration": {
+    "maximumIncumbentScore": 0.1,
+    "minimumNewScore": 0.95
+  },
+  "GTAtInference": false,
+  "stage": "Final background scalar after earlier heads, before independent primary/outer source observations",
+  "backgroundIndexSemantics": "Original ranker provenance; emitted RGB is post-head",
+  "warmSemantics": "Restore previousRGB and remove own evidence before recomputing",
+  "sourceSummary": "Native exterior X102 plus glyph24 plus directional24; frozen V4 choice followed by separate .95 directional comparator; existing RGB palette only",
+  "localFusionHelperSHA256": "f27f3ec6e4be05ff61fe948636996ac3088863679da0c5cf12f9ee5faf575c40",
+  "featureVersion": "exact-local-background-rf27-seg2-ocr8-interactions6-v1",
+  "featureCount": 102,
+  "relativeQualityHelperSHA256": "6f086ac387c19c54d099993122b47a4d248c2c9b1bf27ef811852ea27392924f",
+  "relativeQualityVersion": "source-relative-background-quality-v1",
+  "relativeFeatureVersion": "source102-pair-A-B-BminusA-absdiff-v1",
+  "relativeFeatureCount": 408,
+  "glyphQualityVersion": "source-glyph-background-relative-quality-v1",
+  "glyphQualityHelperSHA256": {
+    "glyph_background.py": "5aba926f414da0904c325c7f021b5a4be5f76d6bab5569674f1f7184cc483b69",
+    "glyph_background_quality.py": "d207231da15c9955b7b9c92e64a9e3bdffd5c1e443c4aa0e46a18eb497a581b0"
+  },
+  "glyphSourceFeatureCount": 24,
+  "glyphPairFeatureCount": 504,
+  "directionalQualityVersion": "source-directional-background-relative-quality-v1",
+  "directionalSourceVersion": "directional-glyph-exterior-background-v1",
+  "directionalQualityHelperSHA256": {
+    "source_local_background_fusion.py": "f27f3ec6e4be05ff61fe948636996ac3088863679da0c5cf12f9ee5faf575c40",
+    "glyph_background.py": "5aba926f414da0904c325c7f021b5a4be5f76d6bab5569674f1f7184cc483b69",
+    "directional_background.py": "55f1ea576f74d89e50934c9d5e65721d06799daf14f10c17cbe0171466be36c0",
+    "directional_background_quality.py": "6c0cfc61a99ab4e01464b6c1dbe03e39ec88c375e86b1b1dfd8675a7f27684af"
+  },
+  "directionalSourceFeatureCount": 150,
+  "directionalPairFeatureCount": 600,
+  "directionalGate": 0.95
+}

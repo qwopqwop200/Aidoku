@@ -96,7 +96,6 @@ class BrowseViewController: BaseTableViewController {
 
             Task {
                 await viewModel.loadExternalSources()
-                viewModel.loadUpdates()
                 updateDataSource()
             }
 
@@ -124,9 +123,6 @@ class BrowseViewController: BaseTableViewController {
                 await self.viewModel.loadInstalledSources()
                 await self.viewModel.loadPinnedSources()
                 self.viewModel.loadUpdates()
-                if let query = self.navigationItem.searchController?.searchBar.text, !query.isEmpty {
-                    self.viewModel.search(query: query)
-                }
                 self.updateDataSource()
             }
         }
@@ -135,7 +131,6 @@ class BrowseViewController: BaseTableViewController {
             guard let self = self else { return }
             Task {
                 await self.viewModel.loadExternalSources()
-                self.viewModel.loadUpdates()
                 self.updateDataSource()
             }
         }
@@ -241,7 +236,6 @@ extension BrowseViewController {
     @objc func refreshSourceLists(_ refreshControl: UIRefreshControl? = nil) {
         Task {
             await viewModel.loadExternalSources(reload: true)
-            self.viewModel.loadUpdates()
             updateExternalSources()
             refreshControl?.endRefreshing()
         }
@@ -570,12 +564,10 @@ extension BrowseViewController {
                 }
             }
         } else {
-            let previousItems = dataSource.snapshot().itemIdentifiers
+            let previousItems = Set(dataSource.snapshot().itemIdentifiers)
             let changedItems = snapshot.itemIdentifiers.filter { item in
-                guard let previous = previousItems.first(where: { $0 == item }) else {
-                    return false
-                }
-                return previous.info != item.info
+                guard let index = previousItems.firstIndex(of: item) else { return false }
+                return previousItems[index].info != item.info
             }
             snapshot.reconfigureItems(changedItems)
 

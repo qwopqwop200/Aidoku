@@ -123,11 +123,7 @@ private struct _SwiftUIReaderNavigationController: UIViewControllerRepresentable
             context.coordinator.reader = newReader
             uiViewController.setViewControllers([newReader], animated: false)
         } else {
-            // Otherwise, update the existing reader instance
-            if reader.chapter != chapter {
-                reader.setChapter(chapter)
-                reader.loadCurrentChapter()
-            }
+            reader.updatePresentedChapter(chapter, chapters: manga.chapters)
         }
     }
 }

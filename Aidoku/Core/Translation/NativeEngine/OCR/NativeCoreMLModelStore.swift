@@ -1,4 +1,5 @@
 import CryptoKit
+import Darwin
 import Foundation
 
 /// Core ML keys execution packages by model URL. Bundle URLs change on every
@@ -7,6 +8,7 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
     static let shared = NativeCoreMLModelStore()
     private let lock = NSLock()
     private var resolved: [URL: URL] = [:]
+    private var residentLeases: [URL: Int32] = [:]
     private var cleaned = false
     private let root: URL
     private let runtimeCache: URL?
@@ -21,6 +23,10 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
                 .appendingPathComponent($0, isDirectory: true)
                 .appendingPathComponent("com.apple.e5rt.e5bundlecache", isDirectory: true)
         }
+    }
+
+    deinit {
+        for descriptor in residentLeases.values { close(descriptor) }
     }
 
     func modelURL(for source: URL) throws -> URL {
@@ -45,6 +51,15 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
         let prefix = source.deletingPathExtension().lastPathComponent + "-"
         let destination = root.appendingPathComponent(prefix + digest + ".mlmodelc", isDirectory: true)
         try manager.createDirectory(at: root, withIntermediateDirectories: true)
+        // Multiple host workers and app extensions share this directory. An
+        // NSLock only protects one process; publication and garbage collection
+        // also need a filesystem lock, with shared leases for resident models.
+        let publication = open(root.appendingPathComponent(".publication.lock").path, O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
+        guard publication >= 0 else { throw CocoaError(.fileWriteUnknown) }
+        defer { close(publication) }
+        guard flock(publication, LOCK_EX) == 0 else { throw CocoaError(.fileWriteUnknown) }
+        let leaseDirectory = root.appendingPathComponent(".leases", isDirectory: true)
+        try manager.createDirectory(at: leaseDirectory, withIntermediateDirectories: true)
         var directory = root
         var attributes = URLResourceValues()
         attributes.isExcludedFromBackup = true
@@ -58,6 +73,14 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
         // Resolve after publication: Foundation can only fully canonicalize
         // an iOS container alias once the destination exists on disk.
         let published = destination.standardizedFileURL.resolvingSymlinksInPath()
+        let lease = open(leaseDirectory.appendingPathComponent(published.lastPathComponent + ".lock").path,
+                         O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
+        guard lease >= 0 else { throw CocoaError(.fileWriteUnknown) }
+        guard flock(lease, LOCK_SH) == 0 else {
+            close(lease)
+            throw CocoaError(.fileWriteUnknown)
+        }
+        if let prior = residentLeases.updateValue(lease, forKey: published) { close(prior) }
         resolved[source] = published
         // Remove superseded copies of this model, never a model already loaded
         // in this process. User documents and the bundled originals are untouched.
@@ -68,10 +91,44 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
         for old in try manager.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey])
         where old.lastPathComponent.hasPrefix(prefix) && old.pathExtension == "mlmodelc" && old.lastPathComponent != destination.lastPathComponent {
             if !residentNames.contains(old.lastPathComponent), try old.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true {
-                try? manager.removeItem(at: old)
+                let oldLease = open(leaseDirectory.appendingPathComponent(old.lastPathComponent + ".lock").path,
+                                    O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
+                if oldLease >= 0 {
+                    defer { close(oldLease) }
+                    // A different process may still hold MLModel/MLModelAsset
+                    // at this URL. Never unlink its weights underneath Core ML.
+                    if flock(oldLease, LOCK_EX | LOCK_NB) == 0 { try? manager.removeItem(at: old) }
+                }
             }
         }
         return published
+    }
+
+    /// Digest the ACTUAL published package used by MLModelAsset, not its name.
+    /// Canonical relative-path/length/content algorithm; no publication/inference.
+    /// POSIX realpath avoids Foundation /var versus /private/var alias drift.
+    func packageContentSHA256(at source:URL) throws -> String {
+        let source=source.standardizedFileURL.resolvingSymlinksInPath()
+        let files=try regularFiles(in:source)
+        guard !files.isEmpty else {throw CocoaError(.fileReadCorruptFile)}
+        guard let rootPointer=realpath(source.path,nil) else {throw CocoaError(.fileReadCorruptFile)}
+        let rootPath=String(cString:rootPointer);free(rootPointer)
+        var hash=SHA256()
+        for file in files {
+            try Task.checkCancellation()
+            guard let filePointer=realpath(file.path,nil) else {throw CocoaError(.fileReadCorruptFile)}
+            let path=String(cString:filePointer);free(filePointer)
+            guard path.hasPrefix(rootPath+"/") else {throw CocoaError(.fileReadCorruptFile)}
+            let relative=String(path.dropFirst(rootPath.count+1))
+            let size=try file.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0
+            hash.update(data:Data("\(relative.utf8.count):\(relative):\(size):".utf8))
+            let handle=try FileHandle(forReadingFrom:file)
+            do {
+                while let block=try handle.read(upToCount:1_048_576),!block.isEmpty {hash.update(data:block)}
+                try handle.close()
+            } catch {try? handle.close();throw error}
+        }
+        return hash.finalize().map {String(format:"%02x",$0)}.joined()
     }
 
     /// Run on a utility task at launch, before OCR. All production model loads

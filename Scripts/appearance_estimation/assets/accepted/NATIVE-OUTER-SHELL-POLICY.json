@@ -1,0 +1,29 @@
+{
+  "enabled": true,
+  "version": "source-visible-secondary-shell-policy-v1",
+  "minimumExcessCoherence": 0.009548144163528779,
+  "helperSHA256": {
+    "source_outer_shell_policy.py": "fed04aa0983484652b986f6cc2024c662fd934e34538922a54f18f30f7da2d48",
+    "source_outer_shell.py": "548ed2da943170e93a83489a974b36146a520ea7d92adabe6fdcb89bc9002767",
+    "source_outer_shell_geometry.py": "2eb76a1abc76baa533d0cabf852ea488b743d40d43788db8a07f1841b2b24354",
+    "source_gradient_contour.py": "67d1a384bbd4273267c949ed9f87588e57ddbbd8dbbf06a05549cc19c3b9f89f",
+    "source_gradient_core.py": "23dc00806f9057e80b7339279cc6ea34935a61b17d10d73c80a16bb9de63b185",
+    "native_gradient_contour.py": "4ad4e6d3168dba6e4891b0404f80d462135075c37e61a7c85b6f9ec94c4b543d",
+    "source_bright_ring.py": "e81c3ce1f011e59df966753e23ed4119abbdf1b6bd546106d1b08315adf1e7b0",
+    "pixel_role_estimation.py": "e856f93d4efdcd80ee1d8c905b48890188a30660162e5b52b65010954fbacdba",
+    "paint_feature_context.py": "9c3ef01d47bd4c1eaeee180e7d328e9169b9ffc587f1eec110fd9c2940df35a9",
+    "source_appearance.py": "54f4b8f3a4d805028a81d2526064e2738d2627b194107540063fddee67b1bfce"
+  },
+  "modelIdentities": {
+    "model.pkl": "14b031b06bfed250b39ebec048ab2a0b6ccd17d6703fa948636875ef1e845f5e",
+    "pixel-role-model.pkl": "c6ba78969e88669e47cc1b5b29419c1789d1ddbdc01ad76501ceb80e14cf96a9",
+    "width-model.pkl": "64b8abd11ac32a4a7022ac91a771be9ec23ce7a4605d091129b11d2af1761ea8",
+    "background-palette.pkl": "ce6b4f036a9c77c3796fdcf2b1dc69b5f495e39bc88c979c1bbe1542af9a5946",
+    "source-fill-palette-model.pkl": "1b3f16e1666ea73f8fe557e68590ae9c67be2c69a1d00587dc4644638ec60116",
+    "final-background-model.pkl": "45cbe7c3169d3ab0bdd03281c76cb4844d9dd4e3c7b2e2b4cec5998a7699827e"
+  },
+  "sourcePrimaryPolicySHA256": "ec8412218896426e2cadde179b0ca837d4f998facff9e8eb3ec274ca4c0830d2",
+  "GTAtInference": false,
+  "stage": "After final source primary RGB observation",
+  "semantics": "Visible native ordered bands only; unobserved directions remain censored. Nominal scalar width and earlier style heads are preserved."
+}

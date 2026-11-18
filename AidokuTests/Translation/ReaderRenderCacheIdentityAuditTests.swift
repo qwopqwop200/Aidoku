@@ -6,6 +6,41 @@ import UIKit
 @Suite(.serialized)
 @MainActor
 struct ReaderRenderCacheIdentityAuditTests {
+    @Test func nativePanelSamplingRevisionRejectsPreviousRenderedPixels() async throws {
+        let suite = UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = ReaderTranslationSettings(defaults: defaults)
+        let size = CGSize(width: 64, height: 64)
+        let crop = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let current = ReaderTranslationCacheIdentity.render(page: "neutral-page", settings: settings,
+            imageSize: size, viewport: size, scale: 1, aspectFit: true, crop: crop, dark: false)
+        let previous = ReaderTranslationCacheIdentity.encoded([
+            "reader-render-v255-native-owner-source-paint",
+            ReaderTranslationCacheIdentity.translation(page: "neutral-page", settings: settings),
+            ReaderTranslationCacheIdentity.encoded(settings.overlay),
+            ReaderTranslationCacheIdentity.encoded(size), ReaderTranslationCacheIdentity.encoded(size),
+            String(Double(1)), String(true), ReaderTranslationCacheIdentity.encoded(crop), String(false),
+            "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit",
+            NativeTranslationTypography.availabilityKey, ProcessInfo.processInfo.operatingSystemVersionString
+        ])
+        #expect(current != previous)
+        let regions = [ReaderTranslationRegion(id: "neutral-region", rect: crop, source: "A", translation: "B")]
+        #expect(ReaderTranslationRenderCache.layoutKey(renderKey: current, regions: regions)
+            != ReaderTranslationRenderCache.layoutKey(renderKey: previous, regions: regions))
+        let oldSnapshot = ReaderTranslationRenderCache.snapshotKey(renderKey: previous, regions: regions)
+        let newSnapshot = ReaderTranslationRenderCache.snapshotKey(renderKey: current, regions: regions)
+        #expect(oldSnapshot != newSnapshot)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let disk = ReaderTranslationDiskCache(directory: directory)
+        let cache = ReaderTranslationRenderCache(disk: disk)
+        let image = try makeImage(stride: 8, padding: 0)
+        await cache.store(image, key: oldSnapshot, pageIdentity: "neutral-page", diskGeneration: await disk.currentGeneration())
+        #expect(cache.cachedImage(for: oldSnapshot) === image)
+        #expect(cache.cachedImage(for: newSnapshot) == nil)
+    }
+
     @Test func changedTranslationCannotReplayPreviousViewportBitmap() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -33,6 +68,26 @@ struct ReaderRenderCacheIdentityAuditTests {
         #expect(ReaderTranslationRenderAsset.digestSource(otherPadding) == digest)
         let changed = try makeImage(stride: 16, padding: 113, pixel: 90)
         #expect(ReaderTranslationRenderAsset.digestSource(changed) != digest)
+    }
+
+    @Test func viewportSnapshotBindsSameURLAndGeometryToActualSourcePixels() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let disk = ReaderTranslationDiskCache(directory: directory)
+        let cache = ReaderTranslationRenderCache(disk: disk)
+        let image = try makeImage(stride: 8, padding: 0)
+        let equivalent = try makeImage(stride: 16, padding: 239)
+        let changed = try makeImage(stride: 8, padding: 0, pixel: 90)
+        let key = ReaderTranslationRenderCache.snapshotKey(renderKey: "same-url-and-geometry", regions: [])
+        let fingerprint = await Task.detached { ReaderTranslationRenderAsset.digestSource(image) }.value
+        #expect(fingerprint != nil)
+        await cache.store(image, key: key, pageIdentity: "same-page", diskGeneration: await disk.currentGeneration(),
+                         source: image, sourceDigest: fingerprint)
+        #expect(cache.cachedSnapshot(for: key, source: image) === image)
+        #expect(cache.cachedSnapshot(for: key, source: changed) == nil)
+        #expect(await cache.loadSnapshot(key, source: changed) == nil)
+        #expect(await cache.loadSnapshot(key, source: equivalent) === image)
+        #expect(cache.cachedSnapshot(for: key, source: equivalent) === image)
     }
 
     @Test func sourceDigestIncludesColorDecodeMapping() throws {

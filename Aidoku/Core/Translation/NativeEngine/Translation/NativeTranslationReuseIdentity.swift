@@ -1,12 +1,11 @@
 // OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
-import Foundation
 
 /// Identifies one translated segment using the exact cache identity of the
 /// remote request that produced it.
 ///
 /// The cache key covers provider, protocol, endpoint, model, credential
 /// generation, languages, the complete ordered batch, instructions,
-/// reasoning effort, subtitle context, and glossary. `segmentID` then selects
+/// reasoning effort. `segmentID` then selects
 /// one result from that batch. Keeping the complete batch in the identity is
 /// intentional: a model can translate the same text differently when its
 /// neighboring segments or batch position change.
@@ -44,10 +43,10 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
         )
     }
 
-    /// Keeps the last translation visible while only the ordered batch or
-    /// rolling subtitle context is refreshed. Cache reuse remains exact; this
+    /// Keeps the last translation visible while only the ordered batch
+    /// is refreshed. Cache reuse remains exact; this
     /// weaker comparison is display-only and rejects provider, model,
-    /// credential, language, prompt, reasoning, glossary, and the selected
+    /// credential, language, prompt, reasoning, and the selected
     /// segment's own OCR-text changes.
     func canRemainVisibleWhileRefreshing(
         expected: NativeTranslationReuseIdentity
@@ -56,23 +55,8 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
               let expectedSegment = expected.cacheKey.segments.first(where: { $0.id == expected.segmentID }) else { return false }
         return sourceSegment.text == expectedSegment.text &&
             sourceSegment.bounds == expectedSegment.bounds &&
-            cacheKey.imageDigest == expected.cacheKey.imageDigest &&
-            cacheKey.imageSupportRevision == expected.cacheKey.imageSupportRevision &&
-            cacheKey.sfxPolicy == expected.cacheKey.sfxPolicy &&
-            cacheKey.backgroundPolicy == expected.cacheKey.backgroundPolicy &&
-            cacheKey.letteringPolicy == expected.cacheKey.letteringPolicy &&
-            cacheKey.version == expected.cacheKey.version &&
-            cacheKey.provider == expected.cacheKey.provider &&
-            cacheKey.apiProtocol == expected.cacheKey.apiProtocol &&
-            cacheKey.endpointNamespace == expected.cacheKey.endpointNamespace &&
-            cacheKey.model == expected.cacheKey.model &&
-            cacheKey.credentialAccount == expected.cacheKey.credentialAccount &&
-            cacheKey.credentialGeneration == expected.cacheKey.credentialGeneration &&
-            cacheKey.sourceLanguage == expected.cacheKey.sourceLanguage &&
-            cacheKey.targetLanguage == expected.cacheKey.targetLanguage &&
-            cacheKey.instructions == expected.cacheKey.instructions &&
-            cacheKey.reasoningEffort == expected.cacheKey.reasoningEffort &&
-            cacheKey.glossary == expected.cacheKey.glossary
+            sourceSegment.roleEvidence == expectedSegment.roleEvidence &&
+            hasSameTranslationConfiguration(as: expected)
     }
 
     /// Geometry-only viewport changes may reorder or regroup an otherwise
@@ -83,6 +67,8 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
         as expected: NativeTranslationReuseIdentity
     ) -> Bool {
         cacheKey.imageDigest == expected.cacheKey.imageDigest &&
+            cacheKey.roleEvidenceSourceImageIdentity == expected.cacheKey.roleEvidenceSourceImageIdentity &&
+            cacheKey.roleVerificationPolicy == expected.cacheKey.roleVerificationPolicy &&
             cacheKey.imageSupportRevision == expected.cacheKey.imageSupportRevision &&
             cacheKey.sfxPolicy == expected.cacheKey.sfxPolicy &&
             cacheKey.backgroundPolicy == expected.cacheKey.backgroundPolicy &&
@@ -97,8 +83,7 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
             cacheKey.sourceLanguage == expected.cacheKey.sourceLanguage &&
             cacheKey.targetLanguage == expected.cacheKey.targetLanguage &&
             cacheKey.instructions == expected.cacheKey.instructions &&
-            cacheKey.reasoningEffort == expected.cacheKey.reasoningEffort &&
-            cacheKey.glossary == expected.cacheKey.glossary
+            cacheKey.reasoningEffort == expected.cacheKey.reasoningEffort
     }
 }
 

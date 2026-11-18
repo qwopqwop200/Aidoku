@@ -12,14 +12,18 @@ import UIKit
     }
     private func keys(_ settings: ReaderTranslationSettings, previousRevision: String) -> (old: String, current: String) {
         let crop = CGRect(x: 0, y: 0, width: 1, height: 1)
-        let historical = ReaderTranslationCacheIdentity.encoded([
-            previousRevision, ReaderTranslationCacheIdentity.translation(page: page, settings: settings),
+        var historicalParts = [previousRevision]
+        // V315 already included segmentation policy: isolate only the render revision delta.
+        if previousRevision == "reader-render-v315-current-db-capability" {
+            historicalParts.append(NativeSourceSegmentationExecution.policySHA256)
+        }
+        historicalParts += [ReaderTranslationCacheIdentity.translation(page: page, settings: settings),
             ReaderTranslationCacheIdentity.encoded(settings.overlay), ReaderTranslationCacheIdentity.encoded(size),
             ReaderTranslationCacheIdentity.encoded(size), String(Double(1)), String(true),
             ReaderTranslationCacheIdentity.encoded(crop), String(false),
             "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit",
-            "cache-revision-fixture-font", ProcessInfo.processInfo.operatingSystemVersionString
-        ])
+            "cache-revision-fixture-font", ProcessInfo.processInfo.operatingSystemVersionString]
+        let historical = ReaderTranslationCacheIdentity.encoded(historicalParts)
         return (historical, ReaderTranslationCacheIdentity.render(page: page, settings: settings, imageSize: size,
             viewport: size, scale: 1, aspectFit: true, crop: crop, dark: false, letteringFontKey: "cache-revision-fixture-font"))
     }
@@ -44,9 +48,59 @@ import UIKit
             sourceDigest: digest, typographySize: size)
     }
 
+    @Test func retainedBalloonRevisionInvalidatesV299() {
+        #expect(ReaderTranslationCacheIdentity.renderRevision == "reader-render-v316-unchanged-symbol-source-preservation")
+        let pair = keys(settings(), previousRevision: "reader-render-v299-source-local-boundary-veto")
+        #expect(pair.old != pair.current)
+    }
+
+    @Test func sourceBoundaryRevisionInvalidatesV298() {
+        #expect(ReaderTranslationCacheIdentity.renderRevision == "reader-render-v316-unchanged-symbol-source-preservation")
+        let pair = keys(settings(), previousRevision: "reader-render-v298-terminal-source-body-contract")
+        #expect(pair.old != pair.current)
+    }
+
+    @Test func terminalBodySourceContractRevisionInvalidatesV297() {
+        #expect(ReaderTranslationCacheIdentity.renderRevision == "reader-render-v316-unchanged-symbol-source-preservation")
+        let pair = keys(settings(), previousRevision: "reader-render-v297-source-preserving-body-anchor-recovery")
+        #expect(pair.old != pair.current)
+    }
+
     @Test(arguments: ["reader-render-v154-native-composition", "reader-render-v155-native-final-paint",
                       "reader-render-v156-native-live-paint", "reader-render-v157-native-restoration-quality",
-                      "reader-render-v158-native-typography-and-source-donors"])
+                      "reader-render-v158-native-typography-and-source-donors",
+                      "reader-render-v254-native-dense-requested-font-recovery",
+                      "reader-render-v255-native-owner-source-paint",
+                      "reader-render-v274-capacity-bounded-joint-tail-refinement",
+                      "reader-render-v275-balloon-exclusion-lexical-capacity-source-cream",
+                      "reader-render-v276-source-spacing-neutral-counter-contrast",
+                      "reader-render-v277-final-body-ink-separation",
+                      "reader-render-v278-observed-chromatic-core",
+                      "reader-render-v279-readable-page-edge-margin",
+                      "reader-render-v280-source-container-expansion-bound",
+                      "reader-render-v281-lobe-aware-contour-clearance",
+                      "reader-render-v282-retained-font-balloon-reflow",
+                      "reader-render-v283-observed-ink-selected-mask-fringe",
+                      "reader-render-v284-anchor-aware-terminal-word-reflow",
+                      "reader-render-v285-content-bound-terminal-raster",
+                      "reader-render-v286-interior-whole-word-priority",
+                      "reader-render-v287-bounded-interior-word-widths",
+                      "reader-render-v288-page-edge-peer-clearance",
+                      "reader-render-v290-source-aware-guard-and-page-incumbent",
+                      "reader-render-v291-paragraph-alignment-and-retained-source-risk",
+                      "reader-render-v292-bound-source-contour-without-fill-guard",
+                      "reader-render-v293-terminal-source-pixel-interior",
+                      "reader-render-v294-source-outer-rim-without-new-hole-occlusion",
+                      "reader-render-v295-source-near-rim-repair-without-new-hole-occlusion",
+                      "reader-render-v296-isolated-initial-body-target-fallback",
+                      "reader-render-v297-source-preserving-body-anchor-recovery",
+                      "reader-render-v298-terminal-source-body-contract",
+                      "reader-render-v299-source-local-boundary-veto",
+                      "reader-render-v300-retained-balloon-state",
+                      "reader-render-v303-contour-word-plans",
+                      "reader-render-v313-compact-visible-ink-row-spacing",
+                      "reader-render-v314-owned-white-core-mandatory-guard",
+                      "reader-render-v315-current-db-capability"])
     func completedPreviousRenderBitmapAssetAndPlanCannotSatisfyCurrentReaderKeys(previousRevision: String) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -79,7 +133,35 @@ import UIKit
 
     @Test(arguments: ["reader-render-v154-native-composition", "reader-render-v155-native-final-paint",
                       "reader-render-v156-native-live-paint", "reader-render-v157-native-restoration-quality",
-                      "reader-render-v158-native-typography-and-source-donors"])
+                      "reader-render-v158-native-typography-and-source-donors",
+                      "reader-render-v254-native-dense-requested-font-recovery",
+                      "reader-render-v255-native-owner-source-paint",
+                      "reader-render-v274-capacity-bounded-joint-tail-refinement",
+                      "reader-render-v275-balloon-exclusion-lexical-capacity-source-cream",
+                      "reader-render-v276-source-spacing-neutral-counter-contrast",
+                      "reader-render-v277-final-body-ink-separation",
+                      "reader-render-v278-observed-chromatic-core",
+                      "reader-render-v279-readable-page-edge-margin",
+                      "reader-render-v280-source-container-expansion-bound",
+                      "reader-render-v281-lobe-aware-contour-clearance",
+                      "reader-render-v282-retained-font-balloon-reflow",
+                      "reader-render-v283-observed-ink-selected-mask-fringe",
+                      "reader-render-v288-page-edge-peer-clearance",
+                      "reader-render-v290-source-aware-guard-and-page-incumbent",
+                      "reader-render-v291-paragraph-alignment-and-retained-source-risk",
+                      "reader-render-v292-bound-source-contour-without-fill-guard",
+                      "reader-render-v293-terminal-source-pixel-interior",
+                      "reader-render-v294-source-outer-rim-without-new-hole-occlusion",
+                      "reader-render-v295-source-near-rim-repair-without-new-hole-occlusion",
+                      "reader-render-v296-isolated-initial-body-target-fallback",
+                      "reader-render-v297-source-preserving-body-anchor-recovery",
+                      "reader-render-v298-terminal-source-body-contract",
+                      "reader-render-v299-source-local-boundary-veto",
+                      "reader-render-v300-retained-balloon-state",
+                      "reader-render-v303-contour-word-plans",
+                      "reader-render-v313-compact-visible-ink-row-spacing",
+                      "reader-render-v314-owned-white-core-mandatory-guard",
+                      "reader-render-v315-current-db-capability"])
     func persistedPreviousRenderPolicyRetiresRenderBytesAndLateWritesWhilePreservingOCRTranslationAndMetadata(previousRevision: String) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -94,9 +176,12 @@ import UIKit
             try await disk.store(Data("durable".utf8), for: "preserved", kind: kind,
                 generation: await disk.currentGeneration(kind: kind))
         }
-        let historicalPolicy = ReaderTranslationCacheIdentity.encoded([
-            previousRevision, ReaderTranslationCacheIdentity.encoded(settings.overlay)
-        ])
+        var historicalPolicyParts = [previousRevision]
+        if previousRevision == "reader-render-v315-current-db-capability" {
+            historicalPolicyParts.append(NativeSourceSegmentationExecution.policySHA256)
+        }
+        historicalPolicyParts.append(ReaderTranslationCacheIdentity.encoded(settings.overlay))
+        let historicalPolicy = ReaderTranslationCacheIdentity.encoded(historicalPolicyParts)
         var handle: OpaquePointer?
         #expect(sqlite3_open(directory.appendingPathComponent("cache.sqlite").path, &handle) == SQLITE_OK)
         defer { sqlite3_close(handle) }
@@ -117,4 +202,34 @@ import UIKit
         // Compare the actual bytes stored, not a second JSON serialization.
         #expect(try await reopened.data(for: "new-plan", kind: .layout) == currentPlan)
     }
+    @Test func jointSourcePageEdgeRevisionInvalidatesV300() {
+        #expect(ReaderTranslationCacheIdentity.renderRevision == "reader-render-v316-unchanged-symbol-source-preservation")
+        let pair = keys(settings(), previousRevision: "reader-render-v300-retained-balloon-state")
+        #expect(pair.old != pair.current)
+    }
+
+    @Test func ownedWhiteCoreGuardRevisionInvalidatesV313() {
+        #expect(ReaderTranslationCacheIdentity.renderRevision == "reader-render-v316-unchanged-symbol-source-preservation")
+        let pair = keys(settings(), previousRevision: "reader-render-v313-compact-visible-ink-row-spacing")
+        #expect(pair.old != pair.current)
+    }
+
+    @Test func unchangedSymbolSourcePreservationRevisionInvalidatesV315LayoutAndSnapshots() {
+        #expect(ReaderTranslationCacheIdentity.renderRevision == "reader-render-v316-unchanged-symbol-source-preservation")
+        let pair = keys(settings(), previousRevision: "reader-render-v315-current-db-capability")
+        #expect(pair.old != pair.current)
+        #expect(ReaderTranslationRenderCache.layoutKey(renderKey: pair.old, regions: regions) !=
+            ReaderTranslationRenderCache.layoutKey(renderKey: pair.current, regions: regions))
+        #expect(ReaderTranslationRenderCache.snapshotKey(renderKey: pair.old, regions: regions) !=
+            ReaderTranslationRenderCache.snapshotKey(renderKey: pair.current, regions: regions))
+        #expect(ReaderTranslationRenderCache.renderAssetStorageKey(pair.old) !=
+            ReaderTranslationRenderCache.renderAssetStorageKey(pair.current))
+    }
+
+    @Test func currentDBCapabilityRevisionInvalidatesV314() {
+        #expect(ReaderTranslationCacheIdentity.renderRevision == "reader-render-v316-unchanged-symbol-source-preservation")
+        let pair = keys(settings(), previousRevision: "reader-render-v314-owned-white-core-mandatory-guard")
+        #expect(pair.old != pair.current)
+    }
+
 }

@@ -28,14 +28,23 @@ struct Backup: Codable, Hashable, Identifiable, Sendable {
     var version: String?
 
     static func load(from url: URL) -> Backup? {
-        guard let json = try? Data(contentsOf: url) else { return nil }
+        guard let data = try? Data(contentsOf: url, options: .mappedIfSafe) else { return nil }
+        return decode(data)
+    }
 
-        if let backup = try? PropertyListDecoder().decode(Backup.self, from: json) {
-            return backup
-        } else {
+    static func decode(_ data: Data) -> Backup? {
+        func decodeJSON() -> Backup? {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .secondsSince1970
-            return try? decoder.decode(Backup.self, from: json)
+            return try? decoder.decode(Backup.self, from: data)
         }
+        func decodePlist() -> Backup? {
+            try? PropertyListDecoder().decode(Backup.self, from: data)
+        }
+
+        if data.first == UInt8(ascii: "{") {
+            return decodeJSON() ?? decodePlist()
+        }
+        return decodePlist() ?? decodeJSON()
     }
 }

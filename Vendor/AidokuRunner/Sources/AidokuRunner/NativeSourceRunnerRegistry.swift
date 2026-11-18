@@ -61,6 +61,11 @@ public final class NativeSourceRunnerRegistry: @unchecked Sendable {
         return runner
     }
 
+    /// Checks whether a staged package is supported without creating a runner for its temporary directory.
+    public func supports(sourceKey: String, version: Int) -> Bool {
+        lookup(sourceKey: sourceKey, version: version) != nil
+    }
+
     private func lookup(sourceKey: String, version: Int) -> Factory? {
         lock.lock()
         defer { lock.unlock() }

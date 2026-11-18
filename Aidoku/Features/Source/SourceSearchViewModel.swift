@@ -7,7 +7,6 @@
 
 import AidokuRunner
 import SwiftUI
-import CoreData
 
 @MainActor
 class SourceSearchViewModel: ObservableObject {
@@ -35,22 +34,7 @@ class SourceSearchViewModel: ObservableObject {
         getPage = { query, page, filters in
             try await source.getSearchMangaList(query: query, page: page, filters: filters)
         }
-        getBookmarks = Self.loadBookmarks
-    }
-
-    static func loadBookmarks(_ entries: [AidokuRunner.Manga]) async -> Set<String> {
-        await CoreDataManager.shared.container.performBackgroundTask { context in
-            var keys = Set<String>()
-            for (source, manga) in Dictionary(grouping: entries, by: \.sourceKey) {
-                let request = NSFetchRequest<NSDictionary>(entityName: "LibraryManga")
-                request.resultType = .dictionaryResultType
-                request.propertiesToFetch = ["manga.id"]
-                request.predicate = NSPredicate(format: "manga.sourceId == %@ AND manga.id IN %@", source, manga.map(\.key))
-                let results = (try? context.fetch(request)) ?? []
-                keys.formUnion(results.compactMap { $0["manga.id"] as? String })
-            }
-            return keys
-        }
+        getBookmarks = { await CoreDataManager.shared.bookmarkedMangaKeys(for: $0) }
     }
 
     init(

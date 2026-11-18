@@ -3,6 +3,7 @@ import UIKit
 import CoreImage
 import CoreText
 import ImageIO
+import Nuke
 @testable import Aidoku
 
 /// Output-identity guards for the overlay render/export caches and the
@@ -196,13 +197,100 @@ struct ReaderOverlayRenderOptimizationTests {
         let first = try #require(ReaderTranslationRenderAsset.digestSource(image))
         #expect(ReaderTranslationRenderAsset.sourceDigests.value(for: image) == first)
         #expect(ReaderTranslationRenderAsset.digestSource(image) == first)
-        // A fresh instance over the same pixels is hashed from scratch.
-        let twin = UIImage(cgImage: try #require(image.cgImage), scale: image.scale, orientation: image.imageOrientation)
-        #expect(ReaderTranslationRenderAsset.sourceDigests.value(for: twin) == nil)
+        let pixels = try #require(image.cgImage)
+        let twin = UIImage(cgImage: pixels, scale: image.scale, orientation: image.imageOrientation)
+        #expect(ReaderTranslationRenderAsset.sourceDigests.value(for: twin) == first)
         #expect(ReaderTranslationRenderAsset.digestSource(twin) == first)
+        for variant in [UIImage(cgImage: pixels, scale: 2, orientation: .up),
+                        UIImage(cgImage: pixels, scale: 1, orientation: .leftMirrored)] {
+            #expect(ReaderTranslationRenderAsset.sourceDigests.value(for: variant) == nil)
+            #expect(ReaderTranslationRenderAsset.digestSource(variant) != first)
+        }
         let other = Self.source(size: CGSize(width: 200, height: 151))
         #expect(ReaderTranslationRenderAsset.digestSource(other) != first)
         #expect(ReaderTranslationRenderAsset.sourceDigests.count <= ReaderTranslationRenderAsset.sourceDigests.capacity)
+    }
+
+    @Test func freshPipelineDecodeAttestsOnlyThatProcessedRasterAndItsStaticWrappers() async throws {
+        let source = Self.source(size: CGSize(width: 36, height: 28))
+        let data = try #require(source.pngData())
+        let pipeline = ImagePipeline { $0.imageCache = ImageCache() }
+        let request = ImageRequest(id: UUID().uuidString) { data }
+        let decoded = try await pipeline.image(for: request)
+        let cache = ReaderTranslationRenderAsset.sourceDigests
+        #expect(cache.value(for: decoded) == nil)
+        let digest = try #require(ReaderTranslationRenderAsset.digestSource(decoded))
+        let pixels = try #require(decoded.cgImage)
+        let wrapper = UIImage(cgImage: pixels, scale: decoded.scale, orientation: decoded.imageOrientation)
+        #expect(cache.value(for: wrapper) == digest)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let disk = ReaderTranslationDiskCache(directory: directory)
+        let renderCache = ReaderTranslationRenderCache(disk: disk)
+        let snapshot = Self.source(size: decoded.size, transparentBand: false)
+        let key = ReaderTranslationRenderCache.snapshotKey(renderKey: "fresh", regions: [])
+        let aspect = ReaderTranslationRenderCache.SourceAspectSnapshot(source: decoded, renderedSource: decoded,
+                                                                       viewport: decoded.size, aspectFit: true)
+        await renderCache.store(snapshot, key: key, pageIdentity: "page", diskGeneration: await disk.currentGeneration(),
+                                source: decoded, sourceDigest: digest, sourceAspect: aspect)
+        let presentation = try await ReaderTranslationImageExporter.renderLoadedPresentation(image: wrapper, regions: [],
+            settings: ReaderTranslationSettings(), viewport: decoded.size, scale: 1, aspectFit: true, dark: false,
+            host: nil, cache: renderCache, key: "fresh", pageIdentity: "page")
+        #expect(presentation.image === snapshot)
+        #expect(!presentation.freshSettledSource)
+        let revisit = try await pipeline.image(for: request)
+        #expect(cache.value(for: revisit) == digest)
+
+        let independent = try await pipeline.image(for: ImageRequest(id: UUID().uuidString) { data })
+        #expect(independent.cgImage !== pixels)
+        #expect(cache.value(for: independent) == nil)
+        #expect(ReaderTranslationRenderAsset.digestSource(independent) == digest)
+        let crop = try #require(pixels.cropping(to: CGRect(x: 3, y: 1, width: 17, height: 19)))
+        let processed = UIImage(cgImage: crop)
+        #expect(cache.value(for: processed) == nil)
+        #expect(ReaderTranslationRenderAsset.digestSource(processed) != digest)
+    }
+
+    @Test func animatedSourceCannotBorrowItsFirstFramesDigestOrViewport() async throws {
+        let first = Self.source(size: CGSize(width: 24, height: 24))
+        let second = Self.source(size: first.size, transparentBand: false)
+        let animated = try #require(UIImage.animatedImage(with: [first, second], duration: 0.4))
+        let digest = try #require(ReaderTranslationRenderAsset.digestSource(first))
+        #expect(ReaderTranslationRenderAsset.sourceDigests.value(for: animated) == nil)
+        #expect(ReaderTranslationRenderAsset.digestSource(animated) == nil)
+
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let disk = ReaderTranslationDiskCache(directory: directory)
+        let cache = ReaderTranslationRenderCache(disk: disk)
+        let generation = await disk.currentGeneration()
+        await cache.store(first, key: "still", pageIdentity: "page", diskGeneration: generation, source: first, sourceDigest: digest)
+        #expect(cache.cachedSnapshot(for: "still", source: animated) == nil)
+        #expect(await cache.loadSnapshot("still", source: animated) == nil)
+        await cache.store(first, key: "animated", pageIdentity: "page", diskGeneration: generation, source: animated, sourceDigest: digest)
+        #expect(cache.cachedSnapshot(for: "animated", source: first) == nil)
+        #expect(cache.cachedSnapshot(for: "animated", source: animated) === first)
+    }
+
+    @Test func sourceDigestCanOutliveItsWrapperWithoutKeepingItsPixelsAlive() throws {
+        let cache = ReaderTranslationRenderAsset.sourceDigests
+        var pixels: CGImage?
+        weak var original: UIImage?
+        weak var backing: CGImage?
+        let digest = try autoreleasepool {
+            let image = Self.source(size: CGSize(width: 38, height: 27))
+            original = image
+            pixels = try #require(image.cgImage)
+            backing = pixels
+            return try #require(ReaderTranslationRenderAsset.digestSource(image))
+        }
+        #expect(original == nil)
+        try autoreleasepool {
+            let wrapper = UIImage(cgImage: try #require(pixels))
+            #expect(cache.value(for: wrapper) == digest)
+        }
+        pixels = nil
+        #expect(backing == nil)
     }
 
     // MARK: Measurement cache

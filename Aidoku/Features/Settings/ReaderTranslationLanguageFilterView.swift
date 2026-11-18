@@ -14,13 +14,15 @@ struct ReaderTranslationLanguageFilterView: View {
     @Binding var selection: [String]
     var title = NSLocalizedString("TRANSLATION_SOURCE_FILTER")
     var help = NSLocalizedString("TRANSLATION_FILTER_HELP")
+    var allowedCodes = AutomaticSourceLanguageDetector.supportedLanguageCodes
+    var allTitle = NSLocalizedString("TRANSLATION_FILTER_ALL")
     var accessibilityPrefix = "translation.sourceFilter"
     @State private var search = ""
 
     private var filteredCodes: [String] {
         ReaderTranslationLanguageOptions.codes.filter {
-            search.isEmpty || $0.localizedStandardContains(search) ||
-                ReaderTranslationLanguageOptions.name($0).localizedStandardContains(search)
+            allowedCodes.contains($0) && (search.isEmpty || $0.localizedStandardContains(search) ||
+                ReaderTranslationLanguageOptions.name($0).localizedStandardContains(search))
         }
     }
 
@@ -28,7 +30,7 @@ struct ReaderTranslationLanguageFilterView: View {
         List {
             Section {
                 Button { selection = [] } label: {
-                    row(NSLocalizedString("TRANSLATION_FILTER_ALL"), selected: selection.isEmpty)
+                    row(allTitle, selected: selection.isEmpty)
                 }
                 .accessibilityIdentifier(accessibilityPrefix + ".all")
             } footer: {

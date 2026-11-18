@@ -2,6 +2,71 @@
   "schemaVersion": 1,
   "commands": [
     {
+      "name": "native-host: compact and dense CTC token provenance, including emission spans and n-gram correction",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-ctc-collapse-contract.py"
+      ]
+    },
+    {
+      "name": "native-host: immutable generic binary forest batch probability parity and fallback",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-binary-positive-batch-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: exact canonical DB Float32 digest without copying on little-endian targets",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-db-float-digest-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: segmentation derived joint domain and frozen dense-policy parity",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-segmentation-joint-domain-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: model-free source white core, mandatory BW raster and contour diagnostic resume fence",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-white-core-guard-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: source-top alignment and atomic group admission (completed standard host required)",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-source-top-alignment-smoke.py",
+        "--cache",
+        "build/image-translation-host"
+      ]
+    },
+    {
+      "name": "native-host: accepted-source lineage and iOS15 availability boundaries",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-accepted-source-lineage-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: independent exterior background budget and partition",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-owner-exterior-budget-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: conservative RF mask ownership broadphase",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-rf-mask-support-smoke.py"
+      ]
+    },
+    {
       "name": "maintained-host: -m unittest discover -s Scripts -v",
       "command": [
         "$PYTHON",

@@ -100,9 +100,9 @@ struct ReaderSessionCacheAdmissionTests {
     private static func identity(contextBytes: Int) -> NativeTranslationReuseIdentity {
         let endpoint = URL(string: "https://example.invalid/v1")!
         let configuration = RemoteTranslationConfiguration(provider: .openAI, apiProtocol: .chatCompletions,
-            baseURL: endpoint.absoluteString, model: "fixture", credentialAccount: "fixture")
-        let request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", sourceText: "hello",
-            context: [String(repeating: "x", count: contextBytes)])
+            baseURL: endpoint.absoluteString, model: "fixture", credentialAccount: "fixture",
+            instructions: String(repeating: "x", count: contextBytes))
+        let request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", sourceText: "hello")
         return NativeTranslationReuseIdentity(cacheKey: TranslationCacheKey(configuration: configuration,
             endpoint: endpoint, request: request), segmentID: RemoteTranslationRequest.singleSegmentID)
     }

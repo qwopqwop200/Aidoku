@@ -12,6 +12,7 @@ struct ReaderTranslationBalloonInterior: Codable, Equatable, Sendable {
     let spans: [Double]
     var members: Int?
     var contourVerified: Bool?
+    var modelEstimated: Bool?
 
     /// The same interior in a crop's normalized coordinates, if the crop holds all of it.
     func cropped(to crop: CGRect) -> Self? {
@@ -19,11 +20,13 @@ struct ReaderTranslationBalloonInterior: Codable, Equatable, Sendable {
         return Self(rect: CGRect(x: (rect.minX - crop.minX) / crop.width, y: (rect.minY - crop.minY) / crop.height,
                                  width: rect.width / crop.width, height: rect.height / crop.height),
                     center: CGPoint(x: (center.x - crop.minX) / crop.width, y: (center.y - crop.minY) / crop.height),
-                    spans: spans.map { $0 < 0 ? $0 : ($0 - Double(crop.minX)) / Double(crop.width) }, members: members, contourVerified: contourVerified)
+                    spans: spans.map { $0 < 0 ? $0 : ($0 - Double(crop.minX)) / Double(crop.width) }, members: members,
+                    contourVerified: contourVerified, modelEstimated: modelEstimated)
     }
 
     var payload: [String: Any] {
-        ["rect": [rect.minX, rect.minY, rect.width, rect.height], "center": [center.x, center.y], "spans": spans, "contourVerified": contourVerified == true]
+        ["rect": [rect.minX, rect.minY, rect.width, rect.height], "center": [center.x, center.y], "spans": spans,
+         "contourVerified": contourVerified == true, "modelEstimated": modelEstimated == true]
     }
 }
 
@@ -138,6 +141,9 @@ enum ReaderTranslationEnclosedBackground { // swiftlint:disable:this type_body_l
             var letteringBalloon: Int?
         }
         private var cache: [Key: Surface] = [:]
+        // A native-column boundary remains valid after those columns become wider paragraphs.
+        // Keep the original witnesses rather than re-estimating glyph size from merged boxes.
+        private var captionStepWitnesses: [Int: (CGRect, CGRect)] = [:]
 
         init(image: CGImage) {
             self.image = image
@@ -149,7 +155,12 @@ enum ReaderTranslationEnclosedBackground { // swiftlint:disable:this type_body_l
         /// another single light surface outside that balloon (a caption or page margin beside it).
         func separates(_ first: CGRect, _ second: CGRect) -> Bool {
             guard let a = surface(of: first), let b = surface(of: second) else { return false }
-            if let x = a.enclosing, let y = b.enclosing { return x != y }
+            if let x = a.enclosing, let y = b.enclosing {
+                if x != y { return true }
+                guard steppedCaptionBoundary(first, second, component: x) else { return false }
+                if captionStepWitnesses[x] == nil { captionStepWitnesses[x] = (first, second) }
+                return true
+            }
             func outside(_ text: Surface, _ balloon: Surface) -> Bool {
                 guard balloon.surrounded, let id = balloon.enclosing, let other = text.dominant, other != id else { return false }
                 return text.lightCount * 20 >= text.area * 3 && text.tally[id, default: 0] * 3 < text.lightCount &&
@@ -158,6 +169,70 @@ enum ReaderTranslationEnclosedBackground { // swiftlint:disable:this type_body_l
             if a.enclosing != nil, outside(b, a) { return true }
             if b.enclosing != nil, outside(a, b) { return true }
             return differentBalloons(a, b)
+        }
+
+        /// Touching rectangular captions can share paper while retaining separate layout slots.
+        /// Require two long, flat, outlined top edges at distinct heights before rejecting a
+        /// diagonal join whose rectangle leaves the paper. Curved balloon rims abstain.
+        private func steppedCaptionBoundary(_ a: CGRect, _ b: CGRect, component id: Int) -> Bool {
+            let font = min(a.width, b.width)
+            guard font > 0, min(a.height, b.height) >= font * 2,
+                  max(a.minX, b.minX) - min(a.maxX, b.maxX) >= 0,
+                  abs(a.minY - b.minY) >= font * 2,
+                  min(a.maxY, b.maxY) - max(a.minY, b.minY) >= font * 2,
+                  stats.indices.contains(id), width > 0, height > 0,
+                  !sharesBalloonInterior(a, b, component: id) else { return false }
+            let sx = CGFloat(width) / imageWidth, sy = CGFloat(height) / imageHeight
+            let value = stats[id]
+            func flatTop(_ rect: CGRect) -> Int? {
+                let center = min(width - 1, max(0, Int(rect.midX * sx)))
+                let bottom = min(value.maxY, max(value.minY, Int(rect.minY * sy)))
+                func top(_ x: Int) -> Int? {
+                    guard x >= value.minX, x <= value.maxX else { return nil }
+                    for y in value.minY...bottom where labels[y * width + x] == Int32(id) { return y }
+                    return nil
+                }
+                guard let edge = top(center), edge >= 2,
+                      CGFloat(bottom - edge) <= font * sy else { return nil }
+                let reach = max(2, Int(ceil(font * sx * 3)))
+                var left = center, right = center
+                for x in stride(from: center - 1, through: max(value.minX, center - reach), by: -1) {
+                    guard let y = top(x), abs(y - edge) <= 1 else { break }
+                    left = x
+                }
+                if center + 1 <= min(value.maxX, center + reach) {
+                    for x in (center + 1)...min(value.maxX, center + reach) {
+                        guard let y = top(x), abs(y - edge) <= 1 else { break }
+                        right = x
+                    }
+                }
+                guard CGFloat(right - left + 1) >= font * sx * 2 else { return nil }
+                var outlined = 0
+                for x in left...right {
+                    guard let y = top(x), y >= 2 else { continue }
+                    if min(pixels[(y - 1) * width + x], pixels[(y - 2) * width + x]) <= 180 { outlined += 1 }
+                }
+                guard outlined * 4 >= (right - left + 1) * 3 else { return nil }
+                return edge
+            }
+            guard let first = flatTop(a), let second = flatTop(b) else { return false }
+            return CGFloat(abs(first - second)) >= font * sy * 2
+        }
+
+        /// Current paragraph owners of an already observed native caption-step boundary.
+        /// Reuse the original evidence after grouping; paragraph width is not a glyph size.
+        func separateCaptionOwnerIndices(of rects: [CGRect]) -> Set<Int> {
+            guard !captionStepWitnesses.isEmpty else { return [] }
+            var owners = Set<Int>()
+            for (_, witnesses) in captionStepWitnesses {
+                for first in rects.indices where rects[first].insetBy(dx: -0.000_01, dy: -0.000_01).contains(witnesses.0) {
+                    for second in rects.indices where second != first &&
+                        rects[second].insetBy(dx: -0.000_01, dy: -0.000_01).contains(witnesses.1) {
+                        owners.insert(first); owners.insert(second)
+                    }
+                }
+            }
+            return owners
         }
 
         /// Text on two different balloon-shaped papers, each box mostly on its own paper and ringed by it
@@ -280,8 +355,24 @@ enum ReaderTranslationEnclosedBackground { // swiftlint:disable:this type_body_l
             }
             // Extent of the balloon across the reading gap versus through each text box.
             let value = stats[id]
-            func extent(at position: CGFloat) -> Int {
+            func extent(at position: CGFloat, through anchor: CGFloat? = nil) -> Int {
                 var low = Int.max, high = Int.min
+                // At the gutter measure the contiguous paper through the reading path.
+                // The same component can return elsewhere on this scanline (a curled
+                // balloon tail or another lobe); its distant span is not this neck.
+                if let anchor {
+                    let limit = sideBySide ? height : width
+                    let cross = min((sideBySide ? width : height) - 1, max(0, Int(position)))
+                    let center = min(limit - 1, max(0, Int(anchor)))
+                    func paper(_ along: Int) -> Bool {
+                        labels[sideBySide ? along * width + cross : cross * width + along] == Int32(id)
+                    }
+                    guard paper(center) else { return 0 }
+                    low = center; high = center
+                    while low > 0 && paper(low - 1) { low -= 1 }
+                    while high + 1 < limit && paper(high + 1) { high += 1 }
+                    return high - low + 1
+                }
                 if sideBySide {
                     let x = min(width - 1, max(0, Int(position)))
                     for y in value.minY...value.maxY where labels[y * width + x] == Int32(id) { low = min(low, y); high = max(high, y) }
@@ -291,7 +382,21 @@ enum ReaderTranslationEnclosedBackground { // swiftlint:disable:this type_body_l
                 }
                 return high >= low ? high - low + 1 : 0
             }
-            let neck = extent(at: sideBySide ? (band.minX + band.maxX) / 2 : (band.minY + band.maxY) / 2)
+            // A neck need not sit halfway between the lettering. Check the whole
+            // reading gap, with at most 17 evenly spaced slices in page-map pixels.
+            let start = sideBySide ? band.minX : band.minY, end = sideBySide ? band.maxX : band.maxY
+            let samples = min(16, max(1, Int((end - start).rounded(.up))))
+            var neck = Int.max
+            for sample in 0...samples {
+                let t = CGFloat(sample) / CGFloat(samples)
+                let position = start + 0.5 + max(0, end - start - 1) * t
+                let pathFraction = sideBySide ? (position - a.midX) / (b.midX - a.midX)
+                    : (position - a.midY) / (b.midY - a.midY)
+                let anchor = sideBySide
+                    ? (band.height > 0 ? band.midY : a.midY + (b.midY - a.midY) * pathFraction)
+                    : (band.width > 0 ? band.midX : a.midX + (b.midX - a.midX) * pathFraction)
+                neck = min(neck, extent(at: position, through: anchor))
+            }
             let first = extent(at: sideBySide ? a.midX : a.midY), second = extent(at: sideBySide ? b.midX : b.midY)
             return neck * 10 >= min(first, second) * 7 && (!lobe || neck * 10 >= max(first, second) * 8)
         }
@@ -469,6 +574,13 @@ enum ReaderTranslationEnclosedBackground { // swiftlint:disable:this type_body_l
                     return value.lightCount * 10 >= value.area * 3 && value.dominantCount * 10 >= value.lightCount * 6
                 }
                 guard indices.count >= 2 else { continue }
+                if let witnesses = captionStepWitnesses[id] {
+                    // Shared layout must not reunite source slots that OCR split using actual
+                    // outlined step evidence. A nil interior preserves each source rectangle.
+                    let firstOwners = indices.filter { rects[$0].insetBy(dx: -0.000_01, dy: -0.000_01).contains(witnesses.0) }
+                    let secondOwners = indices.filter { rects[$0].insetBy(dx: -0.000_01, dy: -0.000_01).contains(witnesses.1) }
+                    if firstOwners.contains(where: { first in secondOwners.contains(where: { $0 != first }) }) { continue }
+                }
                 let union = indices.dropFirst().reduce(rects[indices[0]]) { $0.union(rects[$1]) }
                 let component = stats[id]
                 let x0 = Int((union.minX * sx).rounded()), y0 = Int((union.minY * sy).rounded())

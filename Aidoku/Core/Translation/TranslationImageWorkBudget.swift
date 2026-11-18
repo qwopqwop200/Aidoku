@@ -71,11 +71,23 @@ final class TranslationImageWorkBudget: Sendable {
     }
 
     static func decodedBytes(in data: Data) -> UInt64 {
-        guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
+        decodedBytes(from: CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary))
+    }
+
+    static func decodedBytes(at url: URL) -> UInt64 {
+        decodedBytes(from: CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary))
+    }
+
+    private static func decodedBytes(from source: CGImageSource?) -> UInt64 {
+        guard let source,
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? NSNumber,
               let height = properties[kCGImagePropertyPixelHeight] as? NSNumber else { return 0 }
-        let (pixels, overflow) = width.uint64Value.multipliedReportingOverflow(by: height.uint64Value)
+        return decodedBytes(width: width.uint64Value, height: height.uint64Value)
+    }
+
+    static func decodedBytes(width: UInt64, height: UInt64) -> UInt64 {
+        let (pixels, overflow) = width.multipliedReportingOverflow(by: height)
         let (bytes, byteOverflow) = pixels.multipliedReportingOverflow(by: 4)
         return overflow || byteOverflow ? .max : bytes
     }

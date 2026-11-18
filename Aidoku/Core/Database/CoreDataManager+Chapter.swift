@@ -55,39 +55,6 @@ extension CoreDataManager {
         }
     }
 
-    /// Create a chapter object.
-    @discardableResult
-    func createChapter(
-        _ chapter: AidokuRunner.Chapter,
-        mangaId: MangaIdentifier,
-        sourceOrder: Int,
-        mangaObject: MangaObject? = nil,
-        context: NSManagedObjectContext
-    ) -> ChapterObject? {
-        guard let mangaObject = mangaObject ?? getManga(
-            mangaId: mangaId,
-            context: context
-        ) else {
-            return nil
-        }
-        let object = ChapterObject(context: context)
-        object.load(
-            from: chapter,
-            mangaId: mangaId,
-            sourceOrder: sourceOrder
-        )
-        object.manga = mangaObject
-        object.history = getHistory(
-            chapterId: .init(
-                sourceKey: mangaId.sourceKey,
-                mangaKey: mangaId.mangaKey,
-                chapterKey: chapter.id
-            ),
-            context: context
-        )
-        return object
-    }
-
     /// Check if a chapter exists in the data store.
     func hasChapter(chapterId: ChapterIdentifier, context: NSManagedObjectContext) -> Bool {
         let request = ChapterObject.fetchRequest()
@@ -118,7 +85,7 @@ extension CoreDataManager {
         guard let manga = getManga(mangaId: mangaId, context: context) else { return [] }
 
         // Index once: repeated first/removeAll scans made large catalog refreshes quadratic.
-        let incoming = Dictionary(chapters.enumerated().map { ($0.element.key, $0) }, uniquingKeysWith: { first, _ in first })
+        let incoming = Dictionary(chapters.indices.lazy.map { (chapters[$0].key, $0) }, uniquingKeysWith: { first, _ in first })
         var existing: [String: ChapterObject] = [:]
         var newChaptersCreated: [ChapterObject] = []
         for object in getChapters(mangaId: mangaId, context: context) {
@@ -130,10 +97,11 @@ extension CoreDataManager {
                 continue
             }
             existing[object.id] = object
-            guard let chapter = incoming[object.id] else { continue }
-            let becameUnlocked = object.locked && !chapter.element.locked
-            object.load(from: chapter.element, mangaId: mangaId, sourceOrder: chapter.offset)
-            object.manga = manga
+            guard let offset = incoming[object.id] else { continue }
+            let chapter = chapters[offset]
+            let becameUnlocked = object.locked && !chapter.locked
+            object.load(from: chapter, mangaId: mangaId, sourceOrder: offset)
+            if object.manga !== manga { object.manga = manga }
             if becameUnlocked { newChaptersCreated.append(object) }
         }
         // A later duplicate can own the download. Consolidate its relationships
@@ -141,9 +109,31 @@ extension CoreDataManager {
         for (key, object) in existing where incoming[key] == nil && object.fileInfo == nil {
             context.delete(object)
         }
-        var inserted: Set<String> = []
-        for (offset, chapter) in chapters.enumerated() where existing[chapter.key] == nil && inserted.insert(chapter.key).inserted {
-            if let object = createChapter(chapter, mangaId: mangaId, sourceOrder: offset, mangaObject: manga, context: context) {
+        let missing = chapters.indices.filter { offset in
+            let key = chapters[offset].key
+            return existing[key] == nil && incoming[key] == offset
+        }
+        for start in stride(from: 0, to: missing.count, by: 500) {
+            let batch = missing[start..<min(start + 500, missing.count)]
+            let request = HistoryObject.fetchRequest()
+            request.predicate = NSPredicate(
+                format: "sourceId == %@ AND mangaId == %@ AND chapterId IN %@",
+                mangaId.sourceKey, mangaId.mangaKey, batch.map { chapters[$0].key }
+            )
+            request.returnsObjectsAsFaults = false
+            let histories = (try? context.fetch(request)).map { Dictionary(grouping: $0, by: \.chapterId) }
+            for offset in batch {
+                let chapter = chapters[offset]
+                let object = ChapterObject(context: context)
+                object.load(from: chapter, mangaId: mangaId, sourceOrder: offset)
+                object.manga = manga
+                let matches = histories?[chapter.key]
+                if histories == nil || (matches?.count ?? 0) > 1 {
+                    // Keep the existing single-row choice for legacy duplicate history.
+                    object.history = getHistory(chapterId: object.identifier, context: context)
+                } else if let history = matches?.first {
+                    object.history = history
+                }
                 newChaptersCreated.append(object)
             }
         }

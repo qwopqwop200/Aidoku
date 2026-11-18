@@ -1229,4 +1229,22 @@ enum NativeTranslationPixelKernels {
         }
     }
 
+    /// bins_inside takes a const input and completes synchronously. The immutable
+    /// Swift buffer is borrowed only inside this closure; no pointer can escape.
+    static func bins_insideImmutable(rgba:[UInt8],w:Int32,h:Int32,
+        counts:NativeKernelBuffer<Int32>,sums:NativeKernelBuffer<Int32>,order:NativeKernelBuffer<Int32>) throws -> Int32 {
+        let n=try pixelCount(w,h)
+        guard rgba.count>=n*4 else {throw KernelError.invalidBuffer}
+        try counts.require(4096);try sums.require(12288);try order.require(4096)
+        let scratch:[AnyObject]=[counts,sums,order]
+        let byteCost=rgba.count+counts.byteCount+sums.byteCount+order.byteCount
+        guard byteCost<=512*1024*1024 else {throw KernelError.invalidBuffer}
+        return withExtendedLifetime(scratch) {
+            rgba.withUnsafeBufferPointer { bytes in
+                AidokuOverlayKernels.bins_inside(bytes.baseAddress!,w,h,0,Double(w),0,Double(h),1,
+                    counts.pointer,sums.pointer,order.pointer)
+            }
+        }
+    }
+
 }

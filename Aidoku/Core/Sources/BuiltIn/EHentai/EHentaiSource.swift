@@ -13,6 +13,7 @@ actor EHentaiSourceRunner: AidokuRunner.NativeSourceRunnerLifecycle {
     private let preference: @Sendable (String) -> String?
     private let listPreference: @Sendable (String) -> [String]
     private let setPreference: @Sendable (String, String?) -> Void
+    private static let maximumMetadataBytes = 20_000_000
     private static let userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     enum Failure: Error { case accessDenied, noPages, invalidGallery, invalidImage, resourceLimit }
 
@@ -32,13 +33,22 @@ actor EHentaiSourceRunner: AidokuRunner.NativeSourceRunnerLifecycle {
 
     nonisolated private static func fetchSourceRequest(_ original: URLRequest) async throws -> (Data, URLResponse) {
         let request = if let url = original.url { await AidokuRunner.Source.modify(url: url, request: original) } else { original }
-        let (data, response) = try await SourceNetwork.shared.data(for: request)
+        let (data, response) = try await fetchMetadata(request)
         try Task.checkCancellation()
         if let http = response as? HTTPURLResponse, CloudflareHandler.shared.shouldHandle(response: http, data: data) {
-            do { return try await CloudflareHandler.shared.handle(request: request) }
+            do { return try await CloudflareHandler.shared.handle(request: request, fetch: { try await fetchMetadata($0) }) }
             catch is CloudflareHandler.HandleError { return (data, response) }
         }
         return (data, response)
+    }
+
+    nonisolated private static func fetchMetadata(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        let session = try await SourceNetwork.shared.session()
+        return try await SourceResponseBody.read(request, session: session) { response in
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+                  !CloudflareResponsePolicy.isChallenge(response: http, data: Data()) else { return .unrestricted }
+            return .limited(maximumMetadataBytes)
+        }
     }
 
     func restart() async throws { try Task.checkCancellation() }
@@ -66,6 +76,10 @@ actor EHentaiSourceRunner: AidokuRunner.NativeSourceRunnerLifecycle {
         }
         return parts.joined(separator: "; ")
     }
+    func imageRequestAuthority() -> [String] {
+        [domain, cookies()]
+    }
+
     private func rewrite(_ string: String) throws -> String {
         guard var components = URLComponents(string: string), let host = components.host,
               ["e-hentai.org", "exhentai.org"].contains(host.lowercased()),
@@ -103,11 +117,19 @@ actor EHentaiSourceRunner: AidokuRunner.NativeSourceRunnerLifecycle {
     }
     private func data(_ request: URLRequest) async throws -> Data {
         try Task.checkCancellation()
-        let (data, response) = try await fetch(request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await fetch(request)
+        } catch let error as SourceResponseBody.TooLarge {
+            try Task.checkCancellation()
+            refreshIgneous(error.response)
+            throw Failure.resourceLimit
+        }
         try Task.checkCancellation()
         refreshIgneous(response)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
-        guard data.count <= 20_000_000 else { throw Failure.resourceLimit }
+        guard data.count <= Self.maximumMetadataBytes else { throw Failure.resourceLimit }
         return data
     }
     private func document(_ data: Data, url: String) throws -> Document {
@@ -372,9 +394,12 @@ actor EHentaiSourceRunner: AidokuRunner.NativeSourceRunnerLifecycle {
                     do {
                         let (data, response) = try await fetch(request)
                         try Task.checkCancellation()
-                        guard data.count <= 20_000_000, let http = response as? HTTPURLResponse,
+                        guard data.count <= Self.maximumMetadataBytes, let http = response as? HTTPURLResponse,
                               (200..<300).contains(http.statusCode) else { return (identifier, nil, response) }
                         return (identifier, data, response)
+                    } catch let error as SourceResponseBody.TooLarge {
+                        try Task.checkCancellation()
+                        return (identifier, nil, error.response)
                     } catch is CancellationError {
                         throw CancellationError()
                     } catch { try Task.checkCancellation(); return (identifier, nil, nil) }

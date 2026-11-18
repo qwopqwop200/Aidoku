@@ -50,6 +50,43 @@ struct TrackerFollowupSchedulingTests {
         await fixture.close()
     }
 
+    @Test func pageTrackerIsNotFetchedAgainByAutomaticTitleSync() async throws {
+        let fixture = FollowupTrackingFixture()
+        try await fixture.prepare()
+        let read = Task { await fixture.manager.syncPageTrackerHistory(manga: fixture.manga, chapters: fixture.chapters) }
+        try await waitUntil { await fixture.tracker.readStarted }
+        await fixture.tracker.releaseRead()
+        await read.value
+        await fixture.manager.syncTitleTrackerProgress(manga: fixture.manga, chapters: fixture.chapters)
+        #expect(await fixture.tracker.readCount == 1)
+        await fixture.close()
+    }
+
+    @Test func untrackedPageTurnsPreservePendingProgressUntilExplicitRetry() async throws {
+        let fixture = FollowupTrackingFixture()
+        try await fixture.prepare()
+        await fixture.tracker.setWriteFailure(true)
+        let chapter = fixture.chapters[0]
+        await fixture.manager.setProgress(mangaId: fixture.manga.identifier, chapter: chapter, progress: .init(completed: false, page: 4))
+        try await waitUntil { await fixture.tracker.writes.count == 1 }
+        await fixture.tracker.releaseWrite()
+        await fixture.manager.waitForPendingPageUpdates()
+
+        let other = MangaIdentifier(sourceKey: fixture.source, mangaKey: "untracked")
+        for page in 1...3 {
+            await fixture.manager.setProgress(mangaId: other, chapter: chapter, progress: .init(completed: false, page: page))
+            await fixture.manager.waitForPendingPageUpdates()
+        }
+        #expect(await fixture.tracker.writes.count == 1)
+        #expect(await fixture.manager.pendingPageUpdateCount == 1)
+        await fixture.tracker.setWriteFailure(false)
+        await fixture.manager.processPendingUpdates()
+        await fixture.manager.waitForPendingPageUpdates()
+        #expect(await fixture.tracker.writes.count == 2)
+        #expect(await fixture.manager.pendingPageUpdateCount == 0)
+        await fixture.close()
+    }
+
     @Test func keyedQueuePreservesNewerIntentAndLatestArrivalOrder() {
         func update(_ chapter: String, page: Int, failures: Int = 0) -> PageTrackUpdate {
             .init(trackerId: "fixture", trackId: "track", chapterId: .init(sourceKey: "fixture", mangaKey: "m", chapterKey: chapter),
@@ -133,15 +170,16 @@ private actor HeldFollowupTracker: PageTracker {
     nonisolated let name = "Fixture"
     nonisolated let icon: UIImage? = nil
     nonisolated let isLoggedIn = true
-    private(set) var readStarted = false
+    private(set) var readCount = 0
+    var readStarted: Bool { readCount > 0 }
     private(set) var writes: [String] = []
     private var readContinuation: CheckedContinuation<Void, Never>?
     private var writeContinuation: CheckedContinuation<Void, Never>?
     private var writeFailure = false
     func setWriteFailure(_ value: Bool) { writeFailure = value }
     func getProgress(trackId: String, chapters: [AidokuRunner.Chapter]) async throws -> [String: ChapterReadProgress] {
-        readStarted = true
-        await withCheckedContinuation { readContinuation = $0 }
+        readCount += 1
+        if readCount == 1 { await withCheckedContinuation { readContinuation = $0 } }
         return ["one": .init(completed: false, page: 2, date: nil)]
     }
     func setProgress(trackId: String, chapterId: ChapterIdentifier, progress: ChapterReadProgress) async throws {

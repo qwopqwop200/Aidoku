@@ -9,11 +9,33 @@ struct NativeCoreMLDetectionBox: Equatable, Sendable {
     let score: Double
     /// Probability-supported ink belongs to erasure only, never recognition geometry.
     let erasurePolygons: [[CGPoint]]
+    /// Map- and neighbor-supported fine print may sample a little more context
+    /// for recognition. It never enlarges detection or erasure ownership.
+    let recognitionPolygon: [CGPoint]?
+    let isThinFinePrintRecovery: Bool
+    let finePrintRetryPolygons: [[CGPoint]]
+    /// Independently measured DB recognition children; erasure polygons never substitute for these.
+    let recognitionColumnEvidence: NativeOCRDetectorColumnEvidence?
+    /// Exact original DB component cells for downstream source ownership.
+    let detectorSeedEvidence: NativeOCRDetectorSeedEvidence?
+    /// A separately sampled proposal from this same detector parent.
+    let alternateRecognitionPolygon: [CGPoint]?
 
-    init(polygon: [CGPoint], score: Double, erasurePolygons: [[CGPoint]] = []) {
+    init(polygon: [CGPoint], score: Double, erasurePolygons: [[CGPoint]] = [],
+         recognitionPolygon: [CGPoint]? = nil, isThinFinePrintRecovery: Bool = false,
+         finePrintRetryPolygons: [[CGPoint]] = [],
+         recognitionColumnEvidence: NativeOCRDetectorColumnEvidence? = nil,
+         detectorSeedEvidence: NativeOCRDetectorSeedEvidence? = nil,
+         alternateRecognitionPolygon: [CGPoint]? = nil) {
         self.polygon = polygon
         self.score = score
         self.erasurePolygons = erasurePolygons
+        self.recognitionPolygon = recognitionPolygon
+        self.isThinFinePrintRecovery = isThinFinePrintRecovery
+        self.finePrintRetryPolygons = finePrintRetryPolygons
+        self.recognitionColumnEvidence = recognitionColumnEvidence
+        self.detectorSeedEvidence = detectorSeedEvidence
+        self.alternateRecognitionPolygon = alternateRecognitionPolygon
     }
 }
 
@@ -274,6 +296,7 @@ private final class NativeCoreMLDetectorModelPredictor: Sendable {
 
     private actor ModelStore {
         private let asset: MLModelAsset
+        private let computeUnits: MLComputeUnits
         private var model: ModelHandle?
         private var preparedCanvases: Set<NativeCoreMLDetectionCanvas> = []
         private var revision: UInt64 = 0
@@ -282,8 +305,9 @@ private final class NativeCoreMLDetectorModelPredictor: Sendable {
             LoadedModel
         >()
 
-        init(asset: MLModelAsset) {
+        init(asset: MLModelAsset, computeUnits: MLComputeUnits) {
             self.asset = asset
+            self.computeUnits = computeUnits
         }
 
         func model(
@@ -303,16 +327,11 @@ private final class NativeCoreMLDetectorModelPredictor: Sendable {
                 )
             }
             let asset = self.asset
+            let computeUnits = self.computeUnits
             let access = try await sharedLoads.load(for: "dynamic") {
                     let configuration = MLModelConfiguration()
-#if targetEnvironment(simulator)
-                    configuration.computeUnits = .cpuOnly
-#else
-                    // The range-shaped fp16 detector runs on the GPU either way;
-                    // `.all` only adds a ~5-6 s Neural Engine compile on first load.
-                    configuration.computeUnits = .cpuAndGPU
-#endif
-                    configuration.modelDisplayName = "PP-OCRv6 Medium Dynamic"
+                    configuration.computeUnits = computeUnits
+                    configuration.modelDisplayName = "PP-OCRv6 Dynamic"
                     configuration.optimizationHints.reshapeFrequency =
                         .frequent
                     configuration.optimizationHints.specializationStrategy =
@@ -387,15 +406,26 @@ private final class NativeCoreMLDetectorModelPredictor: Sendable {
     let modelName: String
     let inputFeatureName: String
     let outputFeatureName: String
-    var computeUnits: String {
+    private let modelUnits: MLComputeUnits
+    var computeUnits: String { modelUnits == .cpuOnly ? "cpuOnly" : "cpuAndGPU" }
+
+    private let modelStore: ModelStore
+    let modelPackageSHA256: String
+    private var tensorPolicy: MLComputePolicy {
 #if targetEnvironment(simulator)
-        "cpuOnly"
+        MLComputePolicy(modelUnits)
 #else
-        "cpuAndGPU"
+        MLComputePolicy(.all)
+#endif
+    }
+    var dbExecutionContract:String {
+#if targetEnvironment(simulator)
+        computeUnits+"|MLTensor="+computeUnits+"|reshape=frequent|specialization=fastPrediction"
+#else
+        computeUnits+"|MLTensor=all|reshape=frequent|specialization=fastPrediction"
 #endif
     }
 
-    private let modelStore: ModelStore
 
     init(
         modelURL: URL,
@@ -403,7 +433,16 @@ private final class NativeCoreMLDetectorModelPredictor: Sendable {
         inputFeatureName: String,
         outputFeatureName: String
     ) throws {
-        modelStore = ModelStore(asset: try MLModelAsset(url: NativeCoreMLModelStore.shared.modelURL(for: modelURL)))
+        let published=try NativeCoreMLModelStore.shared.modelURL(for:modelURL)
+        modelPackageSHA256=try NativeCoreMLModelStore.shared.packageContentSHA256(at:published)
+#if targetEnvironment(simulator)
+        // The Manga graph's dynamic padding produces nonfinite source cells on
+        // the simulator CPU backend. The same input and weights are finite on GPU.
+        modelUnits = modelName == "PP-OCRv6-Manga-DetShapes" ? .cpuAndGPU : .cpuOnly
+#else
+        modelUnits = .cpuAndGPU
+#endif
+        modelStore = ModelStore(asset: try MLModelAsset(url:published), computeUnits: modelUnits)
         self.modelName = modelName
         self.inputFeatureName = inputFeatureName
         self.outputFeatureName = outputFeatureName
@@ -418,20 +457,11 @@ private final class NativeCoreMLDetectorModelPredictor: Sendable {
             throw NativeCoreMLDetectorError.modelInputCreationFailed
         }
         let modelAccess = try await modelStore.model(for: canvas)
-        let prediction: [String: MLTensor]
-#if targetEnvironment(simulator)
-        prediction = try await withMLTensorComputePolicy(.cpuOnly) {
+        let prediction = try await withMLTensorComputePolicy(tensorPolicy) {
             try await modelAccess.handle.model.prediction(
                 from: [inputFeatureName: input]
             )
         }
-#else
-        prediction = try await withMLTensorComputePolicy(.init(.all)) {
-            try await modelAccess.handle.model.prediction(
-                from: [inputFeatureName: input]
-            )
-        }
-#endif
         guard let output = prediction[outputFeatureName] else {
             throw NativeCoreMLDetectorError.modelOutputMissing
         }
@@ -459,20 +489,11 @@ private final class NativeCoreMLDetectorModelPredictor: Sendable {
             zeros: canvas.inputShape,
             scalarType: Float.self
         )
-        let prediction: [String: MLTensor]
-#if targetEnvironment(simulator)
-        prediction = try await withMLTensorComputePolicy(.cpuOnly) {
+        let prediction = try await withMLTensorComputePolicy(tensorPolicy) {
             try await modelAccess.handle.model.prediction(
                 from: [inputFeatureName: input]
             )
         }
-#else
-        prediction = try await withMLTensorComputePolicy(.init(.all)) {
-            try await modelAccess.handle.model.prediction(
-                from: [inputFeatureName: input]
-            )
-        }
-#endif
         guard let output = prediction[outputFeatureName],
               output.shape == canvas.outputShape
         else {
@@ -543,7 +564,7 @@ private final class NativeCoreMLDetectionGeneration: @unchecked Sendable {
 /// PP-OCRv6 text detection using one bounded dynamic-spatial Core ML model.
 @available(iOS 18.0, *)
 final class NativeCoreMLDetector: @unchecked Sendable {
-    static let modelResourceName = "PP-OCRv6-Medium-DetShapes"
+    static let modelResourceName = "PP-OCRv6-Manga-DetShapes"
     static let inputFeatureName = "x"
     static let outputFeatureName = "fetch_name_0"
 
@@ -562,6 +583,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
     private let resourceLock = NSLock()
     private let diagnosticsLock = NSLock()
     private let allowsWeakBridgeSplit: Bool
+    private let configuredMaximumSide: Int
     private let resourceLoader: @Sendable () throws -> Resources
     private let canvasSelector:
         @Sendable (_ sourceWidth: Int, _ sourceHeight: Int)
@@ -583,7 +605,8 @@ final class NativeCoreMLDetector: @unchecked Sendable {
     ) {
         // The split has been evaluated on the bundled Medium probability maps.
         // Other model tiers retain their established postprocessing behavior.
-        allowsWeakBridgeSplit = modelResourceName == Self.modelResourceName
+        configuredMaximumSide=maximumSide
+        allowsWeakBridgeSplit = modelResourceName == "PP-OCRv6-Medium-DetShapes"
         canvasSelector = { width, height in
             NativeCoreMLDetectionCanvas.exact(
                 sourceWidth: width,
@@ -701,7 +724,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
     func detect(
         image: CGImage,
         requestID: String = UUID().uuidString,
-        configuration: NativeCoreMLDBPostprocessConfiguration = .production,
+        configuration: NativeCoreMLDBPostprocessConfiguration = .manga,
         cancellationCheck: @escaping @Sendable () throws -> Void = {}
     ) async throws -> NativeCoreMLDetectionResult {
         try await performDetection(
@@ -720,7 +743,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
     func detect(
         frame: NativeOCRRGBAFrame,
         requestID: String = UUID().uuidString,
-        configuration: NativeCoreMLDBPostprocessConfiguration = .production,
+        configuration: NativeCoreMLDBPostprocessConfiguration = .manga,
         cancellationCheck: @escaping @Sendable () throws -> Void = {}
     ) async throws -> NativeCoreMLDetectionResult {
         try await performDetection(
@@ -739,7 +762,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
     func detect(
         frame: NativeOCRRGBAFrame,
         requestID: String = UUID().uuidString,
-        configuration: NativeCoreMLDBPostprocessConfiguration = .production,
+        configuration: NativeCoreMLDBPostprocessConfiguration = .manga,
         recognitionScopes: [CGRect]?,
         cancellationCheck: @escaping @Sendable () throws -> Void = {}
     ) async throws -> NativeCoreMLDetectionResult {
@@ -753,12 +776,65 @@ final class NativeCoreMLDetector: @unchecked Sendable {
         )
     }
 
+    /// Per-call observer; old overloads continue without retaining probability maps.
+    func detect(
+        frame: NativeOCRRGBAFrame,
+        requestID: String,
+        configuration: NativeCoreMLDBPostprocessConfiguration,
+        recognitionScopes: [CGRect]?,
+        probabilityObserver: NativeMainEnsembleOCRProbability.Observer?,
+        cancellationCheck: @escaping @Sendable () throws -> Void
+    ) async throws -> NativeCoreMLDetectionResult {
+        try await performDetection(
+            providedFrame: frame, image: nil, requestID: requestID,
+            configuration: configuration, recognitionScopes: recognitionScopes,
+            probabilityObserver: probabilityObserver, cancellationCheck: cancellationCheck
+        )
+    }
+
+    /// Captures one immutable frame, normalized tensor and detector for a single cache lookup.
+    /// Only a cache miss invokes the observer. Actual emission still attests its own resources.
+    struct ProbabilityRequest: Sendable {
+        let expectation: NativeCoreMLDBProvenance.Expectation
+        let observe: @Sendable (
+            _ observer: @escaping NativeMainEnsembleOCRProbability.Observer,
+            _ cancellationCheck: @escaping @Sendable () throws -> Void
+        ) async throws -> Void
+    }
+
+    func prepareProbabilityRequest(frame:NativeOCRRGBAFrame,
+        configuration:NativeCoreMLDBPostprocessConfiguration) async throws -> ProbabilityRequest {
+        try Task.checkCancellation()
+        guard let canvas=canvasSelector(frame.width,frame.height) else {throw NativeCoreMLDetectorError.modelInputCreationFailed}
+        let prepared=try await NativeCoreMLDetectionPreprocessor.prepare(frame:frame,canvas:canvas)
+        let access=try await Task.detached(priority:.utility) { [self] in
+            try self.loadResources(cancellationCheck:{try Task.checkCancellation()})
+        }.value
+        try Task.checkCancellation()
+        let predictor=access.resources.predictor
+        let producer=NativeCoreMLDBProvenance.producer(resource:predictor.modelName,
+            packageSHA256:predictor.modelPackageSHA256,computeUnits:predictor.dbExecutionContract,prepared:prepared)
+        let expectation = NativeCoreMLDBProvenance.Expectation(producer:producer,detectorInputIdentity:prepared.inputSHA256,
+            consumerConfigurationSHA256:NativeCoreMLDBProvenance.consumerConfigurationSHA256(
+                configuration:configuration,maximumSide:configuredMaximumSide,
+                mainMangaPolicy:NativeOCRDirectionGeometry.mainMangaPolicy))
+        return ProbabilityRequest(expectation: expectation) { [self] observer, check in
+            _ = try await performDetection(
+                providedFrame: frame, image: nil, requestID: UUID().uuidString,
+                configuration: configuration, recognitionScopes: nil,
+                probabilityObserver: observer, probabilityOnlyInput: prepared, cancellationCheck: check
+            )
+        }
+    }
+
     private func performDetection(
         providedFrame: NativeOCRRGBAFrame?,
         image: CGImage?,
         requestID: String,
         configuration: NativeCoreMLDBPostprocessConfiguration,
         recognitionScopes: [CGRect]?,
+        probabilityObserver: NativeMainEnsembleOCRProbability.Observer? = nil,
+        probabilityOnlyInput: NativeCoreMLDetectionPreparedTensor? = nil,
         cancellationCheck: @escaping @Sendable () throws -> Void
     ) async throws -> NativeCoreMLDetectionResult {
         let issuedGeneration = generation.begin()
@@ -799,24 +875,22 @@ final class NativeCoreMLDetector: @unchecked Sendable {
             }
 
             let preprocessingStarted = Self.nowMilliseconds()
-            let prepared = try await Task.detached(
-                priority: .userInitiated
-            ) { [self] in
-                try requireCurrent(
-                    issuedGeneration,
-                    cancellationCheck: cancellationCheck
-                )
-                return try await NativeCoreMLDetectionPreprocessor.prepare(
-                    frame: frame,
-                    canvas: canvas,
-                    cancellationCheck: {
-                        try requireCurrent(
-                            issuedGeneration,
-                            cancellationCheck: cancellationCheck
-                        )
-                    }
-                )
-            }.value
+            let prepared: NativeCoreMLDetectionPreparedTensor
+            if let probabilityOnlyInput {
+                guard probabilityOnlyInput.canvas == canvas else { throw NativeCoreMLDetectorError.modelInputCreationFailed }
+                prepared = probabilityOnlyInput
+            } else {
+                prepared = try await Task.detached(priority: .userInitiated) { [self] in
+                    try requireCurrent(issuedGeneration, cancellationCheck: cancellationCheck)
+                    return try await NativeCoreMLDetectionPreprocessor.prepare(
+                        frame: frame,
+                        canvas: canvas,
+                        cancellationCheck: {
+                            try requireCurrent(issuedGeneration, cancellationCheck: cancellationCheck)
+                        }
+                    )
+                }.value
+            }
             let preprocessingElapsed = Self.nowMilliseconds()
                 - preprocessingStarted
             try requireCurrent(
@@ -891,6 +965,8 @@ final class NativeCoreMLDetector: @unchecked Sendable {
             }
 
             let postprocessingStarted = Self.nowMilliseconds()
+            // Detached model work does not inherit task-local request policy.
+            let directionPolicy=NativeOCRDirectionGeometry.mainMangaPolicy
             let postprocessing = try await Task.detached(
                 priority: .userInitiated
             ) { [self] in
@@ -930,39 +1006,106 @@ final class NativeCoreMLDetector: @unchecked Sendable {
                     return map
                 }
 
+                var sourceProbabilityDigest: String?
+
                 func decode(
                     _ map: NativeCoreMLDetectionMap,
                     region: NativeCoreMLDetectionMapRegion
                 ) throws -> NativeCoreMLDBPostprocessResult {
+                    // A cache miss needs the source grid alone. Its observer still validates
+                    // every cell and the actual producer before the evidence store can admit it.
+                    guard probabilityOnlyInput == nil else { return .init(boxes: [], candidateComponents: 0) }
                     let stageStarted = Self.nowMilliseconds()
-                    let result = try NativeCoreMLDBPostprocessor.decode(
-                        map: map,
-                        sourceWidth: frame.width,
-                        sourceHeight: frame.height,
-                        geometry: NativeCoreMLDetectionMapGeometry(
-                            originX: region.x,
-                            originY: region.y,
-                            fullWidth: prepared.resizedWidth,
-                            fullHeight: prepared.resizedHeight
-                        ),
-                        configuration: configuration,
-                        allowsWeakBridgeSplit: allowsWeakBridgeSplit
-                            && configuration.withRecoveryBoxThreshold(nil) == .production,
-                        cancellationCheck: {
-                            try requireCurrent(
-                                issuedGeneration,
-                                cancellationCheck: cancellationCheck
-                            )
-                        }
-                    )
-                    let boxes = try NativeCoreMLDBPostprocessor.addingErasureSupport(
-                        map: map, boxes: result.boxes, sourceWidth: frame.width, sourceHeight: frame.height,
-                        geometry: .init(originX: region.x, originY: region.y,
-                            fullWidth: prepared.resizedWidth, fullHeight: prepared.resizedHeight),
+                    let result = try NativeOCRDirectionGeometry.$mainMangaPolicy.withValue(directionPolicy) {
+                        try NativeCoreMLDBPostprocessor.decode(
+                            map: map,
+                            sourceWidth: frame.width,
+                            sourceHeight: frame.height,
+                            geometry: NativeCoreMLDetectionMapGeometry(
+                                originX: region.x,
+                                originY: region.y,
+                                fullWidth: prepared.resizedWidth,
+                                fullHeight: prepared.resizedHeight
+                            ),
+                            configuration: configuration,
+                            allowsWeakBridgeSplit: allowsWeakBridgeSplit
+                                && configuration.withRecoveryBoxThreshold(nil) == .production,
+                            allowsThinFinePrintRecovery: allowsWeakBridgeSplit,
+                            cancellationCheck: {
+                                try requireCurrent(
+                                    issuedGeneration,
+                                    cancellationCheck: cancellationCheck
+                                )
+                            }
+                        )
+                    }
+                    // OCR retains its detection evidence; source replacement no longer needs erasure masks.
+                    let boxes = result.boxes
+                    let mapGeometry = NativeCoreMLDetectionMapGeometry(originX: region.x, originY: region.y,
+                        fullWidth: prepared.resizedWidth, fullHeight: prepared.resizedHeight)
+                    let columns = try NativeOCRDBChildColumnEvidence.extract(map: map, boxes: boxes,
+                        sourceWidth: frame.width, sourceHeight: frame.height, geometry: mapGeometry,
                         cancellationCheck: { try requireCurrent(issuedGeneration, cancellationCheck: cancellationCheck) })
+                    var seeds = try NativeOCRDBOwnershipCandidates.collect(map: map, boxes: boxes,
+                        sourceWidth: frame.width, sourceHeight: frame.height, geometry: mapGeometry,
+                        cancellationCheck: { try requireCurrent(issuedGeneration, cancellationCheck: cancellationCheck) })
+                    // Retain bounded source-resolution evidence, not the detector map.
+                    // Existing owner transport carries this through live and saved layouts.
+                    var probabilityBudget = NativeOCRSourceROIProbabilityEvidence.maximumPageBytes
+                    for index in boxes.indices where seeds[index] != nil {
+                        try requireCurrent(issuedGeneration, cancellationCheck: cancellationCheck)
+                        let points = boxes[index].polygon
+                        guard !points.isEmpty, points.allSatisfy({ $0.x.isFinite && $0.y.isFinite }) else { continue }
+                        // Clamp in floating point before conversion, including finite
+                        // but unrepresentable persisted or extreme geometry values.
+                        let x0 = Int(max(0, min(CGFloat(frame.width), floor(points.map(\.x).min()!) - 16)))
+                        let y0 = Int(max(0, min(CGFloat(frame.height), floor(points.map(\.y).min()!) - 16)))
+                        let x1 = Int(max(0, min(CGFloat(frame.width), ceil(points.map(\.x).max()!) + 16)))
+                        let y1 = Int(max(0, min(CGFloat(frame.height), ceil(points.map(\.y).max()!) + 16)))
+                        guard x1 > x0, y1 > y0, (x1 - x0) <= probabilityBudget / (y1 - y0),
+                              (x1 - x0) <= NativeOCRSourceROIProbabilityEvidence.maximumPixels / (y1 - y0) else { continue }
+                        if sourceProbabilityDigest == nil {
+                            sourceProbabilityDigest = frame.bytes.withUnsafeBufferPointer {
+                                NativeOCRSourceROIProbabilityEvidence.sourceIdentity(rgba: $0, width: frame.width,
+                                    height: frame.height, bytesPerRow: frame.bytesPerRow)
+                            }
+                        }
+                        guard let digest = sourceProbabilityDigest,
+                              let evidence = NativeOCRSourceROIProbabilityEvidence.capture(
+                                sourceWidth: frame.width, sourceHeight: frame.height, sourceDigest: digest,
+                                roi: .init(x: x0, y: y0, width: x1 - x0, height: y1 - y0),
+                                detector: .init(originX: region.x, originY: region.y, width: map.width, height: map.height,
+                                                fullWidth: prepared.resizedWidth, fullHeight: prepared.resizedHeight),
+                                probabilities: map.values) else { continue }
+                        seeds[index]?.sourceProbabilityROI = evidence
+                        probabilityBudget -= evidence.upperBounds.count
+                    }
+                    let alternates: [Int: [CGPoint]]
+                    if NativeCoreMLDBPostprocessor.alternateCellEnvelopeEnabled,
+                       resourceAccess.resources.predictor.modelName == "PP-OCRv6-Manga-DetShapes",
+                       configuration == .manga, configuredMaximumSide == 1_120,
+                       !NativeCoreMLDetectionPreprocessor.usesIsotropicContent,
+                       recognitionScopes == nil, region == fullRegion {
+                        alternates = try NativeCoreMLDBPostprocessor.alternateCellEnvelopes(
+                            polygons: boxes.map(\.polygon), sourceWidth: frame.width, sourceHeight: frame.height,
+                            mapWidth: map.width, mapHeight: map.height,
+                            cancellationCheck: { try requireCurrent(issuedGeneration, cancellationCheck: cancellationCheck) }
+                        )
+                    } else {
+                        alternates = [:]
+                    }
+                    let measuredBoxes = boxes.indices.map { index in
+                        let box = boxes[index]
+                        return NativeCoreMLDetectionBox(polygon: box.polygon, score: box.score,
+                            erasurePolygons: box.erasurePolygons, recognitionPolygon: box.recognitionPolygon,
+                            isThinFinePrintRecovery: box.isThinFinePrintRecovery,
+                            finePrintRetryPolygons: box.finePrintRetryPolygons,
+                            recognitionColumnEvidence: columns[index], detectorSeedEvidence: seeds[index],
+                            alternateRecognitionPolygon: alternates[index])
+                    }
                     dbPostprocessingMilliseconds += Self.nowMilliseconds()
                         - stageStarted
-                    return .init(boxes: boxes, candidateComponents: result.candidateComponents)
+                    return .init(boxes: measuredBoxes, candidateComponents: result.candidateComponents)
                 }
 
                 var usedRegion = preferredRegion ?? fullRegion
@@ -1003,6 +1146,27 @@ final class NativeCoreMLDetector: @unchecked Sendable {
                         cancellationCheck: cancellationCheck
                     )
                     postprocessed = try decode(map, region: fullRegion)
+                }
+
+                // Reuse only the final ALREADY materialized map. Never force another
+                // full-map materialization, prediction, or OCR pass for this handoff.
+                if let probabilityObserver {
+                    try requireCurrent(issuedGeneration, cancellationCheck: cancellationCheck)
+                    _ = probabilityObserver(.init(
+                        sourceWidth: frame.width, sourceHeight: frame.height,
+                        resizedWidth: prepared.resizedWidth, resizedHeight: prepared.resizedHeight,
+                        region: CGRect(x: usedRegion.x, y: usedRegion.y,
+                            width: usedRegion.width, height: usedRegion.height),
+                        width: map.width, height: map.height, values: map.values,
+                        producer:NativeCoreMLDBProvenance.producer(
+                            resource:resourceAccess.resources.predictor.modelName,
+                            packageSHA256:resourceAccess.resources.predictor.modelPackageSHA256,
+                            computeUnits:resourceAccess.resources.predictor.dbExecutionContract,prepared:prepared),
+                        detectorInputIdentity:prepared.inputSHA256,
+                        consumerConfigurationSHA256:NativeCoreMLDBProvenance.consumerConfigurationSHA256(
+                            configuration:configuration,maximumSide:configuredMaximumSide,mainMangaPolicy:directionPolicy)
+                    ))
+                    try requireCurrent(issuedGeneration, cancellationCheck: cancellationCheck)
                 }
 
                 let filteredResult: NativeCoreMLDBPostprocessResult
@@ -1074,9 +1238,9 @@ final class NativeCoreMLDetector: @unchecked Sendable {
                         : resourceAccess.resources.loadMilliseconds)
                         + prediction.modelLoadMilliseconds,
                 inputTensorCreationMilliseconds:
-                    prepared.inputTensorCreationMilliseconds,
+                    probabilityOnlyInput == nil ? prepared.inputTensorCreationMilliseconds : 0,
                 tensorGraphMilliseconds:
-                    prepared.tensorGraphMilliseconds,
+                    probabilityOnlyInput == nil ? prepared.tensorGraphMilliseconds : 0,
                 preprocessingMilliseconds:
                     preprocessingElapsed,
                 predictionMilliseconds: predictionElapsed,
@@ -1215,6 +1379,7 @@ private struct NativeCoreMLDetectionPostprocessingWork: Sendable {
 @available(iOS 18.0, *)
 struct NativeCoreMLDetectionPreparedTensor: Sendable {
     let input: MLTensor
+    let inputSHA256: String
     let canvas: NativeCoreMLDetectionCanvas
     let resizedWidth: Int
     let resizedHeight: Int
@@ -1232,6 +1397,19 @@ enum NativeCoreMLDetectionPreprocessor {
     // The packaged model also serves explicit high-resolution replay fixtures.
     // Reader pipelines use the lower IPhoneOCRSettings maximum.
     static let modelMaximumSide = 2_000
+    /// Experimental input geometry is process-scoped, never selected from
+    /// source identity, OCR text or evaluation labels. The default retains the
+    /// packaged detector's established stride-rounded sampling.
+    static let usesIsotropicContent = ProcessInfo.processInfo.environment["AIDOKU_DET_ISOTROPIC_CONTENT"] == "1"
+    static var provenanceABI: String {
+        usesIsotropicContent
+            ? "native-db-bounded-bilinear-bgr-planar-float32-v3-isotropic-content"
+            : "native-db-bounded-bilinear-bgr-planar-float32-v2-no-upsample-content"
+    }
+    static var normalizationConfigurationSHA256:String {
+        let parts=channelMean.map {String($0.bitPattern)}+channelStandardDeviation.map {String($0.bitPattern)}
+        return NativeCoreMLDBProvenance.sha(provenanceABI+"|padding=zero|"+parts.joined(separator:"|"))
+    }
     private static let channelMean: [Float] = [0.485, 0.456, 0.406]
     private static let channelStandardDeviation: [Float] = [
         0.229,
@@ -1239,16 +1417,17 @@ enum NativeCoreMLDetectionPreprocessor {
         0.225,
     ]
 
+    private static func alignedMaximumSide(_ maximumSide: Int) -> Int {
+        max(32, min(modelMaximumSide, maximumSide) / 32 * 32)
+    }
+
     static func resizeDimensions(
         sourceWidth: Int,
         sourceHeight: Int,
         maximumSide: Int = IPhoneOCRSettings.defaultDetectorMaximumSide
     ) -> (width: Int, height: Int)? {
         guard sourceWidth > 0, sourceHeight > 0 else { return nil }
-        let alignedMaximumSide = max(
-            32,
-            min(modelMaximumSide, maximumSide) / 32 * 32
-        )
+        let alignedMaximumSide = alignedMaximumSide(maximumSide)
         let sourceMaximumSide = max(sourceWidth, sourceHeight)
         let scale = sourceMaximumSide > alignedMaximumSide
             ? Double(alignedMaximumSide) / Double(sourceMaximumSide)
@@ -1269,17 +1448,39 @@ enum NativeCoreMLDetectionPreprocessor {
         )
     }
 
+    /// Separate source content from the stride-aligned model canvas. The
+    /// existing aligned sizing is retained for unaffected downscaled pages;
+    /// an axis must never gain source samples just to reach the model stride.
+    static func contentDimensions(
+        sourceWidth: Int, sourceHeight: Int,
+        maximumSide: Int = IPhoneOCRSettings.defaultDetectorMaximumSide,
+        isotropic: Bool = usesIsotropicContent
+    ) -> (width: Int, height: Int)? {
+        guard let aligned = resizeDimensions(sourceWidth: sourceWidth,
+            sourceHeight: sourceHeight, maximumSide: maximumSide) else { return nil }
+        if isotropic {
+            let scale = min(1, Double(alignedMaximumSide(maximumSide)) / Double(max(sourceWidth, sourceHeight)))
+            // Preserve a single geometric scale; rounding changes an axis by
+            // at most half a content pixel. Stride accommodation is padding.
+            return (
+                min(sourceWidth, max(1, Int((Double(sourceWidth) * scale).rounded()))),
+                min(sourceHeight, max(1, Int((Double(sourceHeight) * scale).rounded())))
+            )
+        }
+        return (min(sourceWidth, aligned.width), min(sourceHeight, aligned.height))
+    }
+
     static func prepare(
         frame: NativeOCRRGBAFrame,
         canvas: NativeCoreMLDetectionCanvas,
         cancellationCheck: () throws -> Void = {}
     ) async throws -> NativeCoreMLDetectionPreparedTensor {
         try cancellationCheck()
-        let dimensions = resizeDimensions(
+        guard let dimensions = contentDimensions(
             sourceWidth: frame.width,
             sourceHeight: frame.height,
             maximumSide: max(canvas.width, canvas.height)
-        ) ?? (canvas.width, canvas.height)
+        ) else { throw NativeCoreMLDetectorError.modelInputCreationFailed }
         guard dimensions.width <= canvas.width,
               dimensions.height <= canvas.height
         else {
@@ -1298,6 +1499,7 @@ enum NativeCoreMLDetectionPreprocessor {
         dimensions: (width: Int, height: Int), cancellationCheck: () throws -> Void = {}
     ) async throws -> NativeCoreMLDetectionPreparedTensor {
         guard dimensions.width > 0, dimensions.height > 0,
+              dimensions.width <= frame.width, dimensions.height <= frame.height,
               dimensions.width <= canvas.width, dimensions.height <= canvas.height else {
             throw NativeCoreMLDetectorError.modelInputCreationFailed
         }
@@ -1314,7 +1516,8 @@ enum NativeCoreMLDetectionPreprocessor {
             sourceXs: sourceXs, sourceYs: sourceYs, cancellationCheck: cancellationCheck
         )
         let input = MLTensor(shape: canvas.inputShape, scalars: values)
-        return NativeCoreMLDetectionPreparedTensor(input: input, canvas: canvas,
+        return NativeCoreMLDetectionPreparedTensor(input: input,
+            inputSHA256:NativeMainEnsembleDBCapability.digest(values),canvas: canvas,
             resizedWidth: dimensions.width, resizedHeight: dimensions.height,
             inputTensorCreationMilliseconds: nowMilliseconds() - started, tensorGraphMilliseconds: 0)
     }
@@ -1329,9 +1532,8 @@ enum NativeCoreMLDetectionPreprocessor {
     /// Bilinear resize + BGR normalization into the planar canvas. Every
     /// element uses exactly the same Float expression as the historical scalar
     /// loop; rows are only distributed across cores, so the result is
-    /// bit-identical. Padding (resized image smaller than the canvas) is zeroed;
-    /// when the image covers the canvas every element is written exactly once
-    /// and the multi-megabyte zero-fill is skipped.
+    /// bit-identical. Only padding is zeroed: content cells are all written by
+    /// the row bands, so initializing them first would duplicate those writes.
     static func fillBoundedInput(
         frame: NativeOCRRGBAFrame, canvasWidth: Int, canvasHeight: Int,
         width: Int, height: Int,
@@ -1372,7 +1574,19 @@ enum NativeCoreMLDetectionPreprocessor {
         return try [Float](unsafeUninitializedCapacity: count) { target, initializedCount in
             guard let output = target.baseAddress else { return }
             if !coversCanvas {
-                output.initialize(repeating: 0, count: count)
+                for channel in 0..<3 {
+                    let channelBase = output + channel * plane
+                    if width < canvasWidth {
+                        for row in 0..<height {
+                            (channelBase + row * canvasWidth + width)
+                                .initialize(repeating: 0, count: canvasWidth - width)
+                        }
+                    }
+                    if height < canvasHeight {
+                        (channelBase + height * canvasWidth)
+                            .initialize(repeating: 0, count: (canvasHeight - height) * canvasWidth)
+                    }
+                }
             }
             try frame.bytes.withUnsafeBufferPointer { sourceBuffer in
             try leftOffsets.withUnsafeBufferPointer { leftBuffer in
@@ -1493,9 +1707,9 @@ enum NativeCoreMLDetectionPreprocessor {
     static func resizeCoordinates(
         sourceLength: Int, targetLength: Int, vertical: Bool = false, resizesOtherAxis: Bool = false
     ) async -> [(Int, Int, Float)] {
-        if sourceLength == targetLength {
-            return (0..<targetLength).map { ($0, $0, 0) }
-        }
+        // Identity ramps obey the same cache contract as resized ramps. In
+        // particular, pages below the detector limit retain their source
+        // samples and should not rebuild two identical arrays per request.
         let key = ResizeCoordinateKey(sourceLength: sourceLength, targetLength: targetLength,
                                       vertical: vertical, resizesOtherAxis: resizesOtherAxis)
         if let cached = resizeCoordinateCache.value(for: key) { return cached }
@@ -1578,7 +1792,7 @@ enum NativeCoreMLDetectionOutput {
                 actual: output.shape
             )
         }
-        // The production canvas is the exact resized size, so a full-map
+        // When source content covers the stride-aligned canvas, a full-map
         // request covers the whole output. Materialize it directly instead of
         // building a slice graph that copies the same values once more.
         if region.x == 0, region.y == 0,

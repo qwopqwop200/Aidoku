@@ -1,0 +1,45 @@
+{
+  "schema": "rf-monotone-rule-list-v2",
+  "family": "supplemental",
+  "params": {
+    "sfxCoverage": 0.4,
+    "sfxShare": 0.6,
+    "sfxConfidence": 0.2,
+    "rawTextVeto": 0.1,
+    "rawTextShareVeto": 0.4,
+    "minimumRawTextForShareVeto": 0.02,
+    "dominance": 1.0,
+    "margin": 0.0,
+    "textOnlyVeto": 0.1,
+    "conflictVeto": 0.2,
+    "balloonProtection": 0.4,
+    "boundaryProtection": 0.2,
+    "frameInteriorProtection": 0.6,
+    "independentDetectorVeto": 0.5,
+    "independentDetectorNames": [
+      "detOriginal_secondSupport"
+    ]
+  },
+  "application": "additional-reject-after-frozen-baseline",
+  "missingOrInvalidEvidence": "preserve baseline decision",
+  "nativeGridApproximation": true,
+  "GTAtInference": false,
+  "IDsAtInference": false,
+  "requiredSupplementalNames": [
+    "rawTextSupport",
+    "rawSFXSupport",
+    "rawTextShare",
+    "maskTextOnlyCoverage",
+    "maskSFXOnlyCoverage",
+    "maskConflictCoverage",
+    "maskTextSFXUnionCoverage",
+    "maskSFXShare",
+    "maskTextShare",
+    "maskSFXConfidenceMean",
+    "balloonInteriorCoverage",
+    "balloonBoundaryCoverage",
+    "frameInteriorCoverage",
+    "frameBoundaryCoverage",
+    "detOriginal_secondSupport"
+  ]
+}

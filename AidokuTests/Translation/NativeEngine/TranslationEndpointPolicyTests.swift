@@ -149,8 +149,8 @@ struct TranslationEndpointPolicyTests {
                     bypassesProxy: bypassesProxy
                 )
             #expect(!configuration.waitsForConnectivity)
-            #expect(configuration.timeoutIntervalForRequest == 300)
-            #expect(configuration.timeoutIntervalForResource == 300)
+            #expect(configuration.timeoutIntervalForRequest == 600)
+            #expect(configuration.timeoutIntervalForResource == 600)
             #expect(configuration.httpMaximumConnectionsPerHost == 64)
         }
     }

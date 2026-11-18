@@ -5,6 +5,120 @@ import Testing
 @testable import Aidoku
 
 struct NativeOCRRecognitionRegressionTests {
+    @Test func dictionaryKeepsLiteralBytesAndReportsMalformedLines() throws {
+        let source = "\u{feff}\"e\u{301}\"\r\n\"\\\"\"\r\n \"\\\\\" \r\n\"\"\r\n"
+        let tokens = try NativeCoreMLRecognizer.parseDictionary(data: Data(source.utf8), expectedCharacterCount: 4)
+        #expect(tokens.map { Array($0.utf8) } == [[0x65, 0xcc, 0x81], [0x22], [0x5c], []])
+        for malformed in ["\"a\"\"b\"", "\"a\tb\"", "\"unterminated"] {
+            #expect(throws: NativeCoreMLRecognizerError.dictionaryMalformed(line: 5)) {
+                try NativeCoreMLRecognizer.parseDictionary(data: Data((source + malformed).utf8))
+            }
+        }
+    }
+
+    @Test func executionSummaryIncludesCancelledInvocationAndKeepsItsGeneration() async throws {
+        let frame = try #require(NativeOCRRGBAFrame(width: 32, height: 48,
+            bytes: [UInt8](repeating: 255, count: 32 * 48 * 4)))
+        let region = NativeCoreMLRecognitionRegion(sourceIndex: 0,
+            polygon: [CGPoint(x: 0, y: 0), CGPoint(x: 32, y: 0), CGPoint(x: 32, y: 48), CGPoint(x: 0, y: 48)])
+        let predictor = OCRPixelPredictor(delay: .seconds(30))
+        let recorder = OCRExecutionRecorder()
+        let recognizer = try NativeCoreMLRecognizer(predictor: predictor,
+            dictionary: (0..<NativeCoreMLRecognizer.expectedDictionaryCharacterCount).map { "token-\($0)" },
+            dynamicWidth: true, executionObserver: { recorder.append($0) })
+        let task = Task { try await recognizer.recognize(frame: frame, regions: [region], requestID: "cancelled-pass") }
+        // The fixture blocks in a cancellable sleep after entering predict.
+        for _ in 0..<100_000 where predictor.predictionCount == 0 { await Task.yield() }
+        #expect(predictor.predictionCount == 1)
+        task.cancel()
+        do { _ = try await task.value; Issue.record("Cancelled recognition unexpectedly succeeded") }
+        catch is CancellationError { }
+        let snapshots = recorder.snapshot
+        #expect(snapshots.count == 1)
+        let snapshot = try #require(snapshots.first)
+        #expect(snapshot.requestID == "cancelled-pass" && snapshot.generation > 0)
+        #expect(snapshot.predictionAttempts == 1 && snapshot.attemptedCrops == 1 && snapshot.attemptedBatchSlots == 1)
+        #expect(snapshot.discardedCompletedPredictions == 0 && snapshot.discardedCompletedCrops == 0)
+    }
+
+    @Test(arguments: [false, true])
+    func emissionSpansSurviveCropCacheWithoutAdditionalPredictions(observeSpans: Bool) async throws {
+        let frame = try #require(NativeOCRRGBAFrame(width: 32, height: 48,
+            bytes: [UInt8](repeating: 255, count: 32 * 48 * 4)))
+        let polygon = [CGPoint(x: 0, y: 0), CGPoint(x: 32, y: 0), CGPoint(x: 32, y: 48), CGPoint(x: 0, y: 48)]
+        let predictor = OCRPixelPredictor()
+        let recognizer = try NativeCoreMLRecognizer(predictor: predictor,
+            dictionary: (0..<NativeCoreMLRecognizer.expectedDictionaryCharacterCount).map { "token-\($0)" },
+            recognitionCacheCapacity: 8, dynamicWidth: true, observeEmissionSpans: observeSpans)
+        let first = try await recognizer.recognize(frame: frame,
+            regions: [.init(sourceIndex: 0, polygon: polygon)])
+        let predictionCount = predictor.predictionCount
+        let second = try await recognizer.recognize(frame: frame,
+            regions: [.init(sourceIndex: 7, polygon: polygon)])
+        let initial = try #require(first.regions.first)
+        let cached = try #require(second.regions.first)
+        #expect(initial.text == cached.text && initial.confidence == cached.confidence)
+        #expect(initial.tokenObservations == cached.tokenObservations)
+        #expect(cached.sourceIndex == 7 && cached.polygon == polygon)
+        let token = try #require(cached.tokenObservations.first)
+        #expect((token.emissionSpan != nil) == observeSpans)
+        if let span = token.emissionSpan {
+            #expect(span.steps == 0..<1 && span.precedingBlankSteps == 0 && span.timeStepCount > 0)
+        }
+        #expect(second.diagnostics.cacheHitRegions == 1 && second.diagnostics.predictedRegions == 0)
+        #expect(predictor.predictionCount == predictionCount)
+    }
+
+    @Test func alternateSamplingGeometryDoesNotEnlargeRecognizedOwnership() async throws {
+        var bytes = [UInt8](repeating: 255, count: 32 * 40 * 4)
+        for y in 0..<40 {
+            for x in 0..<32 { bytes[(y * 32 + x) * 4 + 2] = UInt8(y / 20) }
+        }
+        let frame = try #require(NativeOCRRGBAFrame(width: 32, height: 40, bytes: bytes))
+        let original = [CGPoint(x: 0, y: 0), CGPoint(x: 8, y: 0), CGPoint(x: 8, y: 4), CGPoint(x: 0, y: 4)]
+        let sampling = original.map { CGPoint(x: $0.x, y: $0.y + 20) }
+        let recognizer = try NativeCoreMLRecognizer(
+            predictor: OCRPixelPredictor(),
+            dictionary: (0..<NativeCoreMLRecognizer.expectedDictionaryCharacterCount).map { "line-\($0)" }
+        )
+        let result = try await recognizer.recognize(frame: frame, regions: [
+            NativeCoreMLRecognitionRegion(sourceIndex: 2, polygon: original, samplingPolygon: sampling, isThinFinePrintRecovery: true)
+        ])
+        #expect(result.regions.first?.text == "line-1")
+        #expect(result.regions.first?.polygon == original)
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0, 4.0])
+    func savedNearThresholdCropsKeepReadingAxisAcrossResolutions(scale: Double) throws {
+        // Saved low-confidence recognizer quads: run 2EAB1CCF, pages
+        // 0280/source20 (.533), 0354/source2 (.547), 0390/source10 (.445).
+        // All are below the tall-crop threshold; floored edge lengths had
+        // incorrectly rotated all three by 90 degrees at their saved scale.
+        let polygons: [[CGPoint]] = [
+            [CGPoint(x: 207, y: 286), CGPoint(x: 287, y: 310),
+             CGPoint(x: 248, y: 430), CGPoint(x: 167, y: 405)],
+            [CGPoint(x: 928, y: 661), CGPoint(x: 955, y: 648),
+             CGPoint(x: 975, y: 688), CGPoint(x: 948, y: 702)],
+            [CGPoint(x: 1497, y: 1806), CGPoint(x: 1511, y: 1801),
+             CGPoint(x: 1517, y: 1822), CGPoint(x: 1504, y: 1826)]
+        ]
+        for polygon in polygons {
+            let scaled = polygon.map { CGPoint(x: $0.x * scale, y: $0.y * scale) }
+            let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: scaled))
+            #expect(!plan.rotatedCounterClockwise)
+        }
+    }
+
+    @Test(arguments: [1.49, 1.5, 1.51], [0.5, 1.0, 2.0, 4.0])
+    func readingAxisUsesContinuousAspectRatio(ratio: Double, scale: Double) throws {
+        let width = 14.9 * scale
+        let height = width * ratio
+        let polygon = [CGPoint(x: 0, y: 0), CGPoint(x: width, y: 0),
+                       CGPoint(x: width, y: height), CGPoint(x: 0, y: height)]
+        let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: polygon))
+        #expect(plan.rotatedCounterClockwise == (ratio >= 1.5))
+    }
+
     @Test(arguments: [33, 48, 99, 157, 319, 320, 641, 1183, 1184, 1185, 1280, 1500])
     func dynamicTensorUsesExactCropWidthWithoutPadding(width: Int) throws {
         let height = 48
@@ -301,13 +415,15 @@ private final class OCRPixelPredictor: NativeCoreMLRecognitionPredicting, @unche
     private var active = 0
     private var maximumActive = 0
     private var count = 0
+    private let delay: Duration
+    init(delay: Duration = .milliseconds(1)) { self.delay = delay }
     var maximumActivePredictions: Int { lock.withLock { maximumActive } }
     var predictionCount: Int { lock.withLock { count } }
 
     func predict(input: MLMultiArray) async throws -> NativeCoreMLRecognitionPrediction {
         lock.withLock { active += 1; count += 1; maximumActive = max(maximumActive, active) }
         defer { lock.withLock { active -= 1 } }
-        try await Task.sleep(for: .milliseconds(1))
+        try await Task.sleep(for: delay)
         let source = input.dataPointer.assumingMemoryBound(to: Float.self)
         let batchStride = input.strides[0].intValue
         let timeSteps = (input.shape[3].intValue + 3) / 8
@@ -324,6 +440,13 @@ private final class OCRPixelPredictor: NativeCoreMLRecognitionPredicting, @unche
     }
 
     func purgeResources() async {}
+}
+
+private final class OCRExecutionRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [NativeCoreMLRecognitionExecutionSnapshot] = []
+    func append(_ value: NativeCoreMLRecognitionExecutionSnapshot) { lock.withLock { values.append(value) } }
+    var snapshot: [NativeCoreMLRecognitionExecutionSnapshot] { lock.withLock { values } }
 }
 
 /// Test-only sink: no files, console output, or source image storage.

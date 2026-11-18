@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import CryptoKit
 
 /// Source pixel transport dependency. Production uses calibrated CoreGraphics;
 /// deterministic quality fixtures may supply their explicitly defined filter.
@@ -14,14 +15,76 @@ final class NativeSourceColorSamplingStage {
     typealias Payload = [String: Any]
     typealias RGB = [Double]
 
+    struct VerifiedSourceStyle {
+        let foreground: RGB
+        let stroke: RGB
+        // Unknown is not zero. The observed band is not a calibrated pen width.
+        let sourceStrokeWidthPixels: Double?
+        let modelConfidence: Double
+    }
+
+    /// Call with original source ownership, never the translated text domain.
+    /// Raw sourceInk and a high scalar confidence alone do not establish roles.
+    func sampleVerifiedStyle(bounds: [Double], geometry: Payload? = nil) -> VerifiedSourceStyle? {
+        Self.verifiedStyle(sampleObservation(bounds: bounds, geometry: geometry, allowStyleBudgetRetry: phase == "translation"))
+    }
+
+    /// Original pixel predictions, not a readability palette or a ground-truth certificate.
+    func sampleOriginalStyle(bounds: [Double], geometry: Payload? = nil) -> Payload? {
+        sampleObservation(bounds: bounds, geometry: geometry, allowStyleBudgetRetry: phase == "translation")
+    }
+
+    static func verifiedStyle(_ result: Payload?) -> VerifiedSourceStyle? {
+        guard let result, let evidence = result["enclosingRoleEvidence"] as? Payload,
+              evidence["accepted"] as? Bool == true,
+              let endpoints = evidence["endpointEvidence"] as? Payload, endpoints["accepted"] as? Bool == true,
+              let fillEndpoint = endpoints["fill"] as? Payload, let strokeEndpoint = endpoints["stroke"] as? Payload,
+              number(fillEndpoint["pixels"]).isFinite, number(strokeEndpoint["pixels"]).isFinite,
+              number(strokeEndpoint["owned2x2Plateaus"]).isFinite,
+              number(fillEndpoint["pixels"]) >= 6, number(strokeEndpoint["pixels"]) >= 6,
+              Self.endpointSupported(fillEndpoint), Self.endpointSupported(strokeEndpoint),
+              let foreground = rgb(result["foreground"]), let stroke = rgb(result["stroke"]),
+              distance(foreground, stroke) >= 48 else { return nil }
+        let components = number(evidence["components"]), tested = number(evidence["tested"])
+        let supported = number(evidence["supported"]), steps = number(evidence["raySteps"])
+        let fillConfidence = confidence(result, "foreground"), strokeConfidence = confidence(result, "stroke")
+        guard [components, tested, supported, steps, fillConfidence, strokeConfidence].allSatisfy(\.isFinite),
+              components >= 2, tested >= 12, supported <= tested, supported >= tested * 0.7,
+              steps >= tested,
+              fillConfidence >= 0.6, fillConfidence <= 1, strokeConfidence >= 0.6, strokeConfidence <= 1 else { return nil }
+        return VerifiedSourceStyle(foreground: foreground, stroke: stroke, sourceStrokeWidthPixels: nil,
+            modelConfidence: min(fillConfidence, strokeConfidence))
+    }
+
+    private static func endpointSupported(_ evidence: Payload) -> Bool {
+        let plateaus = number(evidence["owned2x2Plateaus"]), corners = number(evidence["cubeCornerPixels"])
+        let range = (evidence["rgbCubeRange"] as? NSNumber)?.doubleValue
+        return plateaus.isFinite && corners.isFinite &&
+            (plateaus >= 2 || corners >= 6 || range.map { $0.isFinite && $0 >= 0 && $0 <= 24 } == true)
+    }
+
     final class Budget {
+        var letteringScalePixels = Int.max
         var pixels: Int
         var detailPixels: Int
+        // Independent CPU observation admission, not additional source captures.
+        var roleRetryPixels = Int.max
+        var roleExtraPixels = Int.max
+        var strokeForecastPixels = Int.max
+        var roleReconciliationPixels = Int.max
+        // Deriving a missing edge cannot consume the existing-hypothesis band
+        // observation. Production has no page/owner work quota; Int.max is the
+        // explicit unlimited sentinel, not a finite accuracy/work allowance.
+        var bodyStrokeDiscoveryPixels = Int.max
         var remainingSamples: Int?
-        init(pixels: Int = 393_216, detailPixels: Int = 98_304, remainingSamples: Int? = nil) {
-            self.pixels = pixels
-            self.detailPixels = detailPixels
+        let unlimited: Bool
+        init(pixels: Int = .max, detailPixels: Int = .max, remainingSamples: Int? = nil) {
+            // Keep the legacy initializer ABI for cached callers. Its former
+            // allowances no longer control production colour observations.
+            self.pixels = .max
+            self.detailPixels = .max
             self.remainingSamples = remainingSamples
+            unlimited = true
         }
     }
 
@@ -33,7 +96,7 @@ final class NativeSourceColorSamplingStage {
     }
 
     private final class PhaseCache: @unchecked Sendable {
-        struct Value { let result: Payload? }
+        struct Value { let result: Payload?; var styleResult: Payload? = nil }
         struct Entry {
             weak var image: CGImage?
             var phases: [String: [String: Value]] = [:]
@@ -48,7 +111,7 @@ final class NativeSourceColorSamplingStage {
             guard let entry = entries[identity], entry.image === image else { return nil }
             return entry.phases[phase]?[key]
         }
-        func store(_ result: Payload?, image: CGImage, phase: String, key: String) {
+        func store(_ result: Payload?, image: CGImage, phase: String, key: String, styleResult: Payload? = nil) {
             lock.lock(); defer { lock.unlock() }
             entries = entries.filter { $0.value.image != nil }
             let identity = ObjectIdentifier(image)
@@ -58,7 +121,7 @@ final class NativeSourceColorSamplingStage {
             var values = entry.phases[phase] ?? [:]
             if values.count >= 256, !order.isEmpty { values.removeValue(forKey: order.removeFirst()) }
             if values[key] == nil { order.append(key) }
-            values[key] = Value(result: result)
+            values[key] = Value(result: result, styleResult: styleResult)
             entry.orders[phase] = order
             entry.phases[phase] = values
             entries[identity] = entry
@@ -83,18 +146,62 @@ final class NativeSourceColorSamplingStage {
     }
 
     func sample(bounds: [Double], geometry: Payload? = nil) -> Payload? {
+        sampleObservation(bounds: bounds, geometry: geometry, allowStyleBudgetRetry: false)
+    }
+
+    private func sampleObservation(bounds: [Double], geometry: Payload?, allowStyleBudgetRetry: Bool) -> Payload? {
+        // Observe both the estimator's established coordinate scale and native
+        // source pixels. A coordinate-scale change alone must not erase an
+        // independently supported stroke or turn plain fill into a false halo.
+        let model = sampleObservationSingle(bounds: bounds, geometry: geometry,
+            allowStyleBudgetRetry: allowStyleBudgetRetry, nativeResolution: false)
+        let native = sampleObservationSingle(bounds: bounds, geometry: geometry,
+            allowStyleBudgetRetry: allowStyleBudgetRetry, nativeResolution: true)
+        guard !Task.isCancelled else { return nil }
+        guard let model else { return native }
+        guard let native else { return model }
+        let modelStyle = Self.verifiedStyle(model), nativeStyle = Self.verifiedStyle(native)
+        let agrees = Self.distance(Self.rgb(model["foreground"]), Self.rgb(native["foreground"])) <= 12
+            && Self.distance(Self.rgb(model["stroke"]), Self.rgb(native["stroke"])) <= 12
+        let useNative = nativeStyle != nil && (modelStyle == nil || agrees)
+        var selected = useNative ? native : model
+        selected["sourceSamplingSelection"] = useNative
+            ? "native owned ordered roles supported"
+            : "established-scale roles retained; native alternative not independently stronger"
+        func observation(_ value: Payload) -> Payload {
+            ["foreground": value["foreground"] ?? NSNull(), "stroke": value["stroke"] ?? NSNull(),
+             "ownedOrderedRolesSupported": Self.verifiedStyle(value) != nil,
+             "initialOwnedRoles": value["initialOwnedRoleObservation"] ?? NSNull(),
+             "sampling": value["sourceSamplingPolicy"] ?? NSNull()]
+        }
+        selected["sourceResolutionObservations"] = ["modelScale": observation(model), "native": observation(native)]
+        if !useNative, let witness = Self.nativeErasureWitness(native: native, model: model) {
+            selected["nativeErasurePaletteAlternative"] = witness
+        }
+        selected.removeValue(forKey: "nativeErasureWindow")
+        return selected
+    }
+
+    private func sampleObservationSingle(bounds: [Double], geometry: Payload?, allowStyleBudgetRetry: Bool,
+                                         nativeResolution: Bool) -> Payload? {
         guard enabled, !unavailable, !Task.isCancelled, bounds.count == 4, bounds.allSatisfy(\.isFinite),
               bounds[0] >= 0, bounds[1] >= 0, bounds[2] > 0, bounds[3] > 0,
               bounds[0] + bounds[2] <= 1.000001, bounds[1] + bounds[3] <= 1.000001 else { return nil }
-        let key = Self.cacheKey(bounds: bounds, geometry: geometry)
+        let key = (nativeResolution ? "unlimited-native-v3|" : "unlimited-model-scale-v3|")
+            + Self.cacheKey(bounds: bounds, geometry: geometry)
         // Custom source filtering has a distinct observation contract. Do not
         // share its results with the canonical source-image/phase cache.
         let usesCanonicalPixels = pixelReader == nil || pixelReader is NativeSourcePixelReader
         if usesCanonicalPixels, let cached = PhaseCache.shared.lookup(image: image, phase: phase, key: key) {
             stats.hits += 1
-            return cached.result
+            guard allowStyleBudgetRetry else { return cached.result }
+            var style = cached.styleResult ?? cached.result
+            style?["styleBudgetRetry"] = ["cacheHit": true, "requested": [String](),
+                "extraPixelPasses": 0, "extraRemaining": budget.roleExtraPixels, "additionalCapturePixels": 0]
+            return style
         }
-        let detailLimit = Int(floor(Double(budget.detailPixels) / Double(max(1, budget.remainingSamples ?? 1))))
+        let detailLimit = budget.unlimited ? Int.max
+            : Int(floor(Double(budget.detailPixels) / Double(max(1, budget.remainingSamples ?? 1))))
         if let remaining = budget.remainingSamples { budget.remainingSamples = max(0, remaining - 1) }
         var detailSpent = 0
         let iw = Double(image.width), ih = Double(image.height)
@@ -106,22 +213,35 @@ final class NativeSourceColorSamplingStage {
         let sw = min(iw, ceil((bounds[0] + bounds[2]) * iw) + margin) - x
         let sh = min(ih, ceil((bounds[1] + bounds[3]) * ih) + margin) - y
         guard sw > 0, sh > 0 else { return nil }
-        let sampleLimit = min(24_576, Int(floor(Double(budget.pixels) / Double(max(1, (budget.remainingSamples ?? 0) + 1)))))
+        // The single-buffer allocation ceiling is independent of extraction
+        // work: normal ROIs use original pixels, and later owners never starve.
+        let sampleLimit = budget.unlimited ? min(nativeResolution ? 4_194_304 : 24_576, Int(sw) * Int(sh))
+            : min(24_576, Int(floor(Double(budget.pixels) / Double(max(1, (budget.remainingSamples ?? 0) + 1)))))
         guard sampleLimit >= 1 else { return nil }
         let scale = min(1, sqrt(Double(sampleLimit) / (sw * sh)))
         let width = min(sampleLimit, max(1, Int(floor(sw * scale))))
         let height = min(sampleLimit / width, max(1, Int(floor(sh * scale))))
-        guard width * height <= budget.pixels else { return nil }
-        budget.pixels -= width * height
+        guard budget.unlimited || width * height <= budget.pixels else { return nil }
+        if !budget.unlimited { budget.pixels -= width * height }
         stats.pixels += width * height
         stats.samples += 1
         let started = ProcessInfo.processInfo.systemUptime
         var result: Payload?
+        var primaryResult: Payload?
+        var initialOwnedRoleObservation: Payload?
+        let samplingPolicy: Payload = ["workQuota": "none",
+            "sampleScale": scale, "capturedPixels": width * height,
+            "sourceROIPixels": sw * sh, "perBufferAllocationCeiling": 4_194_304]
         defer {
+            result?["sourceSamplingPolicy"] = samplingPolicy
+            primaryResult?["sourceSamplingPolicy"] = samplingPolicy
             stats.milliseconds += (ProcessInfo.processInfo.systemUptime - started) * 1_000
             // Observers may return early on cancellation. Such a partial palette
             // must not become a persistent answer for a later live render.
-            if usesCanonicalPixels, !Task.isCancelled { PhaseCache.shared.store(result, image: image, phase: phase, key: key) }
+            if usesCanonicalPixels, !Task.isCancelled {
+                PhaseCache.shared.store(allowStyleBudgetRetry ? primaryResult : result,
+                    image: image, phase: phase, key: key, styleResult: allowStyleBudgetRetry ? result : nil)
+            }
         }
         do {
             let rgba = try read(x: x, y: y, sourceWidth: sw, sourceHeight: sh, width: width, height: height)
@@ -136,6 +256,11 @@ final class NativeSourceColorSamplingStage {
             let excluded = (geometry?["excluded"] as? [Any] ?? []).compactMap(Self.polygon).map(localPolygon)
             let ownership = Self.geometryMask(width: width, height: height, polygons: polygons, excluded: excluded, margin: 1)
             result = Self.estimateOCR(rgba: rgba, width: width, height: height, ownership: ownership)
+            if let observed = result {
+                initialOwnedRoleObservation = ["foreground": observed["foreground"] ?? NSNull(),
+                    "stroke": observed["stroke"] ?? NSNull(),
+                    "foregroundConfidence": Self.confidence(observed, "foreground")]
+            }
             result = NativeCaptionSourcePalette.recoverSourcePanel(rgba: rgba, width: width, height: height, box: inner, result: result)
             result = Self.tightPaperRetry(rgba: rgba, width: width, height: height, box: inner, result: result)
             if var evidence = result?["widthEvidence"] as? Payload { evidence["sampleScale"] = scale; result?["widthEvidence"] = evidence }
@@ -148,7 +273,7 @@ final class NativeSourceColorSamplingStage {
                 (Self.confidence(result, "background") < 0.5 && Self.confidence(result, "foreground") <= 0.7)) {
                 for factor in [0.5, 0.75] {
                     let cw = Int(floor(Double(width) * factor)), ch = Int(floor(Double(height) * factor)), pixels = cw * ch
-                    let reserved = max(0, budget.remainingSamples ?? 0) * 64
+                    let reserved = budget.unlimited ? 0 : max(0, budget.remainingSamples ?? 0) * 64
                     guard cw >= 8, ch >= 8, pixels <= budget.pixels - reserved,
                           pixels <= budget.detailPixels, detailSpent + pixels <= detailLimit else { continue }
                     spendDetail(pixels, spent: &detailSpent)
@@ -211,9 +336,10 @@ final class NativeSourceColorSamplingStage {
                     guard stripWidth > 0, stripHeight > 0 else { break }
                     let stripX = x + (vertical ? 0 : fraction * (sw - stripWidth))
                     let stripY = y + (vertical ? fraction * (sh - stripHeight) : 0)
-                    let stripScale = min(1, sqrt(24_576 / (stripWidth * stripHeight)))
+                    let stripScale = budget.unlimited ? min(1, sqrt((nativeResolution ? 4_194_304 : 24_576) / (stripWidth * stripHeight)))
+                        : min(1, sqrt(24_576 / (stripWidth * stripHeight)))
                     let cw = Int(floor(stripWidth * stripScale)), ch = Int(floor(stripHeight * stripScale)), pixels = cw * ch
-                    let reserved = min(budget.pixels, max(0, budget.remainingSamples ?? 0) * 64)
+                    let reserved = budget.unlimited ? 0 : min(budget.pixels, max(0, budget.remainingSamples ?? 0) * 64)
                     guard cw >= 8, ch >= 8, pixels <= budget.pixels - reserved,
                           pixels <= budget.detailPixels, detailSpent + pixels <= detailLimit else { break }
                     spendDetail(pixels, spent: &detailSpent)
@@ -283,7 +409,9 @@ final class NativeSourceColorSamplingStage {
                 if let surface, Self.rgb(result?["background"]) == nil || Self.confidence(result, "background") < 0.5 ||
                     (Self.minimum(Self.rgb(result?["background"])) >= 230 && Self.spread(Self.rgb(surface["color"])) < 35) { result?["surface"] = surface }
             }
-            result = NativeCaptionSourcePalette.observedCaptionPalette(rgba: rgba, width: width, height: height, box: inner, result: result)
+            // Same immutable source ROI feeds three observers; policies and phase budgets remain independent.
+            let sourceFeatures = NativeSourceROIFeatures(rgba: rgba, width: width, height: height, box: inner)
+            result = NativeCaptionSourcePalette.observedCaptionPalette(rgba: rgba, width: width, height: height, box: inner, result: result, features: sourceFeatures)
             let displayed = NativeObservedSourcePalette.sourceObservedDisplayInk(sample: result)
             if !Self.chromatic(displayed), !(Self.chromatic(Self.rgb(result?["stroke"])) && Self.confidence(result, "stroke") >= 0.55),
                Self.rgb(result?["foreground"]) == nil || Self.minimum(Self.rgb(result?["foreground"])) >= 225 ||
@@ -301,7 +429,7 @@ final class NativeSourceColorSamplingStage {
                 (Self.rgb(result?["foreground"]) == nil && Self.rgb(result?["displayForeground"]) != nil) {
                 hint = ["foreground": Self.rgb(result?["foreground"]) ?? Self.rgb(result?["displayForeground"]) ?? [], "background": background]
             }
-            let glyphs = NativeObservedSourcePalette.observedGlyphPalette(rgba: rgba, width: width, height: height, box: inner, hint: hint)
+            let glyphs = NativeObservedSourcePalette.observedGlyphPalette(rgba: rgba, width: width, height: height, box: inner, hint: hint, features: sourceFeatures)
             var display = NativeObservedSourcePalette.resolveDisplayGlyphs(result: result, glyphs: glyphs)
             if let current = display, Self.minimum(current) >= 160, Self.spread(current) < 40, nativeGlyphs.count >= 2 {
                 let supportedMain = Self.confidence(result, "foreground") >= 0.85 && (glyphs ?? []).contains {
@@ -324,9 +452,13 @@ final class NativeSourceColorSamplingStage {
                 sourceInk = ["foreground": fill, "background": backing, "stroke": result?["stroke"] ?? NSNull(),
                              "widthEvidence": result?["widthEvidence"] ?? NSNull(), "confidence": result?["confidence"] as? Payload ?? [:]]
             }
-            let strokeEvidence = NativeObservedSourcePalette.observedStrokePalette(rgba: rgba, width: width, height: height,
-                box: inner, glyphs: glyphs, display: display, result: result, opaque: opaque)
-            var widthEvidence: Any? = result?["widthEvidence"]
+            let proposedStroke = NativeObservedSourcePalette.observedStrokePalette(rgba: rgba, width: width, height: height,
+                box: inner, glyphs: glyphs, display: display, result: result, opaque: opaque, features: sourceFeatures)
+            let reconciliation = Self.corroborateObservedStrokeRoles(rgba: rgba, width: width, height: height,
+                ownership: ownership, original: result, sourceInk: sourceInk, proposed: proposedStroke,
+                observationBudget: &budget.roleReconciliationPixels)
+            let strokeEvidence = reconciliation["selectedStrokeEvidence"] as? Payload
+            var widthEvidence: Any? = strokeEvidence == nil ? NSNull() : result?["widthEvidence"]
             if let strokeEvidence {
                 if let supplied = strokeEvidence["widthEvidence"] { widthEvidence = supplied }
                 else if Self.rgb(result?["stroke"]) != nil,
@@ -345,13 +477,236 @@ final class NativeSourceColorSamplingStage {
             result = Self.with(result, values: finalRoles, confidence: ["stroke": strokeEvidence != nil ? 0.7 : 0,
                     "strokeReason": strokeEvidence != nil ? "observed narrow enclosing band" : "no independent enclosing band"])
             if let strokeEvidence { result?["foreground"] = strokeEvidence["foreground"] }
+            result?["sourceRoleReconciliationEvidence"] = reconciliation
+            if let evidence = reconciliation["orderedRoleEvidence"] as? Payload { result?["enclosingRoleEvidence"] = evidence }
+            if reconciliation["orderedRoleEvidence"] is Payload {
+                result = Self.with(result, values: [:], confidence: [
+                    "strokeReason": "owned ordered source-pair support; independently observed RGB endpoints",
+                    "strokeConfidenceAuthority": "local source-role model support; not source accuracy or source width"])
+            }
+            if reconciliation["foregroundReplaced"] as? Bool == true {
+                result = Self.with(result, values: [:], confidence: [
+                    "foreground": reconciliation["foregroundModelConfidence"] ?? 0,
+                    "foregroundConfidenceAuthority": reconciliation["foregroundProvenance"] ?? "independent replacement FG; confidence unavailable",
+                    "reason": "independent owned source-role replacement; raw model retained separately in sourceInk"])
+            }
+            var paleBlocked = false, observedBlocked = false
+            let paleBlock: (() -> Void)? = allowStyleBudgetRetry ? { paleBlocked = true } : nil
+            let observedBlock: (() -> Void)? = allowStyleBudgetRetry ? { observedBlocked = true } : nil
+            if result?["enclosingRoleEvidence"] == nil,
+               let retry = NativeSourceColorSampler.enclosingPaleRoleRetry(rgba: rgba, width: width, height: height,
+                ownership: ownership, result: result, observationBudget: &budget.roleRetryPixels, onBudgetBlocked: paleBlock) { result = retry }
+            if let certified = NativeSourceColorSampler.certifyObservedColorPair(rgba: rgba, width: width, height: height,
+                ownership: ownership, result: result, observationBudget: &budget.roleRetryPixels, onBudgetBlocked: observedBlock) { result = certified }
+            if allowStyleBudgetRetry {
+                primaryResult = result
+                let before = budget.roleExtraPixels
+                var requested: [String] = []
+                if result?["enclosingRoleEvidence"] == nil, observedBlocked {
+                    requested.append("observed")
+                    if let verified = NativeSourceColorSampler.certifyObservedColorPair(rgba: rgba, width: width, height: height,
+                        ownership: ownership, result: result, observationBudget: &budget.roleExtraPixels) { result = verified }
+                }
+                if result?["enclosingRoleEvidence"] == nil, paleBlocked {
+                    requested.append("pale")
+                    if let verified = NativeSourceColorSampler.enclosingPaleRoleRetry(rgba: rgba, width: width, height: height,
+                        ownership: ownership, result: result, observationBudget: &budget.roleExtraPixels) { result = verified }
+                }
+                result?["styleBudgetRetry"] = ["paleBlocked": paleBlocked, "observedBlocked": observedBlocked,
+                    "requested": requested, "extraPixelPasses": before - budget.roleExtraPixels,
+                    "extraRemaining": budget.roleExtraPixels, "additionalCapturePixels": 0]
+            }
+            // An observer's abstention is not a contradictory RGB measurement.
+            // Freshly source-supported forecasts remain explicitly uncalibrated.
+            func retainStrokeForecast(_ palette: Payload?) -> Payload? {
+                guard var palette, strokeEvidence == nil,
+                      Self.rgb(palette["stroke"]) == nil, palette["enclosingRoleEvidence"] == nil,
+                      let raw = palette["sourceInk"] as? Payload else { return palette }
+                var forecast: Payload?
+                let forecastBefore = budget.strokeForecastPixels
+                let discoveryBefore = budget.bodyStrokeDiscoveryPixels
+                if Self.rgb(raw["stroke"]) != nil,
+                   (raw["widthEvidence"] as? Payload)?["method"] as? String ==
+                    "outer stroke boundary distance to validated ink; external Manhattan band",
+                   width * height <= budget.strokeForecastPixels {
+                    if budget.strokeForecastPixels != .max { budget.strokeForecastPixels -= width * height }
+                    forecast = NativeSourceColorSampler.supportedOriginalStrokeForecast(rgba: rgba,
+                        width: width, height: height, ownership: ownership, result: palette,
+                        independentObserverAbstained: true)
+                }
+                // Rejecting an observer's FG does not establish absence of its
+                // stroke. Observe the existing ordered FG's body/halo separately.
+                if forecast == nil {
+                    let proposedEdge = Self.rgb(proposedStroke?["stroke"])
+                    if Self.rgb(raw["stroke"]) != nil || proposedEdge != nil {
+                        forecast = NativeSourceColorSampler.supportedBodyStrokeForecast(rgba: rgba,
+                            width: width, height: height, ownership: ownership, result: palette,
+                            proposedStroke: proposedEdge, observationBudget: &budget.strokeForecastPixels)
+                    } else {
+                        forecast = NativeSourceColorSampler.supportedBodyStrokeForecast(rgba: rgba,
+                            width: width, height: height, ownership: ownership, result: palette,
+                            observationBudget: &budget.bodyStrokeDiscoveryPixels)
+                    }
+                }
+                palette["sourceStrokeObservationBudget"] = ["policy": "unlimited",
+                    "existingHypothesisPixelsSpent": forecastBefore == .max ? NSNull() : forecastBefore - budget.strokeForecastPixels as Any,
+                    "discoveryPixelsSpent": discoveryBefore == .max ? NSNull() : discoveryBefore - budget.bodyStrokeDiscoveryPixels as Any,
+                    "existingHypothesisRemaining": NSNull(), "discoveryRemaining": NSNull(),
+                    "additionalCapturePixels": 0]
+                guard let forecast, let predictedStroke = Self.rgb(forecast["color"]) else {
+                    palette["sourceStrokeForecastEvidence"] = ["accepted": false, "certified": false,
+                        "unknownReason": width * height > budget.strokeForecastPixels ?
+                            "source-stroke-forecast-budget-exhausted; absence not established" :
+                            "independent source-band observation abstained; absence not established"]
+                    return palette
+                }
+                palette["stroke"] = predictedStroke; palette["outline"] = predictedStroke
+                palette["sourceStrokeForecastEvidence"] = forecast
+                var confidence = palette["confidence"] as? Payload ?? [:]
+                confidence["stroke"] = forecast["sourceBandMethod"] as? String ==
+                    "outer stroke boundary distance to validated ink; external Manhattan band" ?
+                    (raw["confidence"] as? Payload)?["stroke"] ?? NSNull() : 0.5
+                confidence["strokeReason"] = forecast["reason"]
+                confidence["strokeConfidenceAuthority"] = "uncalibrated source-band model support; not enclosure certification"
+                palette["confidence"] = confidence
+                return palette
+            }
+            result = retainStrokeForecast(result)
+            if let primary = primaryResult {
+                if Self.rgb(primary["foreground"]) == Self.rgb(result?["foreground"]),
+                   Self.rgb(primary["background"]) == Self.rgb(result?["background"]),
+                   Self.rgb(primary["stroke"]) == nil,
+                   let evidence = result?["sourceStrokeForecastEvidence"] as? Payload,
+                   Self.rgb(evidence["color"]) != nil {
+                    primaryResult = Self.with(primary, values: ["stroke": result?["stroke"] ?? NSNull(),
+                        "outline": result?["outline"] ?? NSNull(), "sourceStrokeForecastEvidence": evidence],
+                        confidence: ["stroke": (result?["confidence"] as? Payload)?["stroke"] ?? NSNull(),
+                            "strokeReason": evidence["reason"] ?? NSNull(),
+                            "strokeConfidenceAuthority": "uncalibrated original model score; not enclosure certification"])
+                } else { primaryResult = retainStrokeForecast(primary) }
+            }
+            // Use the already captured original RGBA and exactly the colour
+            // observer's ownership. No extra capture or readability RGB enters.
+            func observeScale(_ palette: Payload?) -> Payload {
+                guard let vertical = geometry?["sourceVertical"] as? Bool else {
+                    return ["supported": false, "unknownReason": "original-source-direction-unavailable"]
+                }
+                guard width * height <= budget.letteringScalePixels else {
+                    return ["supported": false, "unknownReason": "lettering-observation-budget-exhausted"]
+                }
+                if budget.letteringScalePixels != .max { budget.letteringScalePixels -= width * height }
+                return Self.letteringScaleObservation(rgba: rgba, width: width, height: height, ownership: ownership,
+                    palette: palette, sourceVertical: vertical, croppedSourceWidth: sw, croppedSourceHeight: sh,
+                    croppedSourceX: x, croppedSourceY: y)
+            }
+            let scaleRecord = observeScale(result)
+            if result != nil { result?["sourceLetteringScale"] = scaleRecord }
+            // Original-pixel area, not output paint or a semantic style label.
+            // Compare only the two predicted ink endpoints inside OCR ownership;
+            // background colours and translated pixels cannot vote.
+            if let fill = Self.rgb(result?["foreground"]) {
+                let stroke = Self.rgb(result?["stroke"])
+                var fillPixels = 0, strokePixels = 0
+                for pixel in 0..<(width * height) {
+                    guard rgba[pixel * 4 + 3] >= 250,
+                          ownership.map({ $0[pixel] != 0 }) ?? true else { continue }
+                    let fillDistance = Self.pixelDistance(rgba, pixel * 4, fill)
+                    let strokeDistance = stroke.map { Self.pixelDistance(rgba, pixel * 4, $0) } ?? .infinity
+                    if fillDistance <= 24, fillDistance <= strokeDistance { fillPixels += 1 }
+                    else if strokeDistance <= 24 { strokePixels += 1 }
+                }
+                result?["sourceInkDominance"] = ["fillPixels": fillPixels, "strokePixels": strokePixels,
+                    "authority": "owned source endpoint pixel-area proxy; not semantic dominance or ground truth",
+                    "sampleScale": scale]
+            }
+            if nativeResolution, scale == 1, width * height > 24_576,
+               let raw = result?["sourceInk"] as? Payload {
+                result?["nativeErasureWindow"] = Self.captureNativeErasureWindow(
+                    rgba: rgba, width: width, height: height, inner: inner, vertical: vertical, raw: raw)
+            }
+            if primaryResult != nil {
+                if Self.verifiedStyle(primaryResult)?.foreground == Self.verifiedStyle(result)?.foreground,
+                   Self.verifiedStyle(primaryResult)?.stroke == Self.verifiedStyle(result)?.stroke {
+                    var primaryScale = scaleRecord
+                    if let style = Self.verifiedStyle(primaryResult) {
+                        primaryScale["colourModelConfidence"] = style.modelConfidence
+                    }
+                    primaryResult?["sourceLetteringScale"] = primaryScale
+                } else {
+                    let primaryScale = observeScale(primaryResult)
+                    primaryResult?["sourceLetteringScale"] = primaryScale
+                }
+            }
         } catch { unavailable = true }
+        result?["sourceSamplingPolicy"] = samplingPolicy
+        result?["initialOwnedRoleObservation"] = initialOwnedRoleObservation as Any? ?? NSNull()
         return Task.isCancelled ? nil : result
     }
 
+    private static let nativeErasureBandMethod = "outer stroke boundary distance to validated ink; external Manhattan band"
+    static func validNativeErasureBand(_ raw: [String: Any]) -> Bool {
+        guard let fill = Self.rgb(raw["foreground"]),
+              let backing = Self.rgb(raw["background"]),
+              let stroke = Self.rgb(raw["stroke"]),
+              fill != backing, fill != stroke, stroke != backing,
+              let width = raw["widthEvidence"] as? [String: Any],
+              width["method"] as? String == nativeErasureBandMethod,
+              (width["sampleScale"] as? NSNumber)?.doubleValue == 1,
+              let band = (width["samplePixels"] as? NSNumber)?.doubleValue,
+              let glyph = (width["glyphPixels"] as? NSNumber)?.doubleValue,
+              band.isFinite, band > 0, glyph.isFinite, glyph > 0 else { return false }
+        return true
+    }
+    static func nativeErasureWindowSHA(_ bytes: [UInt8]) -> String {
+        SHA256.hash(data: Data(bytes)).map { String(format: "%02x", $0) }.joined()
+    }
+    static func captureNativeErasureWindow(rgba: [UInt8], width: Int, height: Int, inner: [Double], vertical: Bool,
+                              raw: [String: Any]) -> [String: Any]? {
+        guard validNativeErasureBand(raw), width > 0, height > 0, width <= 262_144 / height,
+              rgba.count == width * height * 4, inner.count == 4, inner.allSatisfy(\.isFinite) else { return nil }
+        return ["width": width, "height": height, "inner": inner, "vertical": vertical, "RGBA_SHA256": nativeErasureWindowSHA(rgba)]
+    }
+    static func nativeErasureWitness(native: [String: Any], model: [String: Any]) -> [String: Any]? {
+        guard let sampling = native["sourceSamplingPolicy"] as? [String: Any],
+              let modelSampling = model["sourceSamplingPolicy"] as? [String: Any],
+              (sampling["sampleScale"] as? NSNumber)?.doubleValue == 1,
+              let modelScale = (modelSampling["sampleScale"] as? NSNumber)?.doubleValue,
+              modelScale.isFinite, modelScale > 0, modelScale < 1,
+              let raw = native["sourceInk"] as? [String: Any], validNativeErasureBand(raw),
+              let window = native["nativeErasureWindow"] as? [String: Any] else { return nil }
+        return ["palette": raw, "window": window, "modelScale": modelScale]
+    }
+
+    static func letteringScaleObservation(rgba: [UInt8], width: Int, height: Int, ownership: [UInt8]?,
+                                         palette: Payload?, sourceVertical: Bool,
+                                         croppedSourceWidth: Double, croppedSourceHeight: Double,
+                                         croppedSourceX: Double = 0, croppedSourceY: Double = 0) -> Payload {
+        guard let style = verifiedStyle(palette) else {
+            return ["supported": false, "unknownReason": "source-colour-pair-not-certified",
+                    "sourceVertical": sourceVertical]
+        }
+        guard let ownership, width > 0, height > 0,
+              width <= NativeSourceLetteringScale.qualityThresholds.maximumSamplePixels / height,
+              ownership.count == width * height else {
+            return ["supported": false, "unknownReason": "source-ownership-unavailable", "sourceVertical": sourceVertical]
+        }
+        let observation = NativeSourceLetteringScale.observe(rgba: rgba, width: width, height: height,
+            ownership: ownership.map { $0 == 0 ? 0 : 1 }, fill: style.foreground, stroke: style.stroke,
+            sourceVertical: sourceVertical)
+        var record = NativeSourceLetteringScale.originalTransport(observation: observation, sourceVertical: sourceVertical,
+            sampleWidth: width, sampleHeight: height, croppedSourceWidth: croppedSourceWidth,
+            croppedSourceHeight: croppedSourceHeight, croppedSourceX: croppedSourceX, croppedSourceY: croppedSourceY)
+        record["colourEvidence"] = "certified original owned fill/stroke; same captured RGBA/ownership"
+        record["sourceFill"] = style.foreground
+        record["sourceStroke"] = style.stroke
+        record["colourModelConfidence"] = style.modelConfidence
+        record["additionalCapturePixels"] = 0
+        return record
+    }
+
     private func spendDetail(_ pixels: Int, spent: inout Int) {
-        budget.pixels -= pixels
-        budget.detailPixels -= pixels
+        if budget.pixels != .max { budget.pixels -= pixels }
+        if budget.detailPixels != .max { budget.detailPixels -= pixels }
         spent += pixels
         stats.pixels += pixels
     }
@@ -382,6 +737,67 @@ final class NativeSourceColorSamplingStage {
     private static func pixelDistance(_ rgba: [UInt8], _ offset: Int, _ color: RGB) -> Double {
         (0..<3).map { abs(Double(rgba[offset + $0]) - color[$0]) }.max() ?? .infinity
     }
+    /// A stroke-only observer cannot relabel an independently supported raw
+    /// ordered pair. Alternative fill requires its own original-pixel proof.
+    static func corroborateObservedStrokeRoles(rgba: [UInt8], width: Int, height: Int,
+        ownership: [UInt8]?, original: Payload?, sourceInk: Payload?, proposed: Payload?,
+        observationBudget: inout Int) -> Payload {
+        var decision: Payload = ["selectedStrokeEvidence": proposed as Any? ?? NSNull(),
+            "foregroundReplaced": false, "observerPixelsSpent": 0, "additionalCapturePixels": 0,
+            "decision": "observer abstained or unchanged source roles"]
+        guard !Task.isCancelled else {
+            decision["selectedStrokeEvidence"] = NSNull()
+            decision["decision"] = "source-role reconciliation cancelled; no observation"
+            return decision
+        }
+        guard let original, let proposed, let candidateFill = rgb(proposed["foreground"]) else { return decision }
+        let currentFill = rgb(original["foreground"])
+        guard candidateFill != currentFill else { return decision }
+        let before = observationBudget
+        func certify(_ hypothesis: Payload) -> Payload? {
+            var input = original
+            input["foreground"] = hypothesis["foreground"]
+            input["stroke"] = NSNull(); input["sourceInk"] = hypothesis
+            input.removeValue(forKey: "enclosingRoleEvidence")
+            return NativeSourceColorSampler.certifySourceInkHypothesis(rgba: rgba, width: width, height: height,
+                ownership: ownership, result: input, observationBudget: &observationBudget)
+        }
+        // Near-identical observed endpoints are refinements, not role changes.
+        // Their score/provenance still belongs to the observer, not the old FG.
+        if distance(currentFill, candidateFill) > 12 {
+            if let sourceInk, distance(rgb(sourceInk["foreground"]), currentFill) <= 1,
+               let supported = certify(sourceInk), let proof = supported["enclosingRoleEvidence"] as? Payload {
+                decision["selectedStrokeEvidence"] = ["foreground": sourceInk["foreground"]!,
+                    "stroke": sourceInk["stroke"]!, "widthEvidence": NSNull()] as Payload
+                decision["orderedRoleEvidence"] = proof
+                decision["decision"] = "raw ordered source pair protected by owned endpoints and local exterior support"
+                decision["rejectedAlternateForeground"] = candidateFill
+                decision["observerPixelsSpent"] = before == .max ? NSNull() : before - observationBudget as Any
+                return decision
+            }
+            let alternative: Payload = ["foreground": candidateFill, "stroke": proposed["stroke"] ?? NSNull()]
+            guard let supported = certify(alternative),
+                  let proof = supported["enclosingRoleEvidence"] as? Payload else {
+                decision["selectedStrokeEvidence"] = NSNull()
+                decision["decision"] = "alternate FG lacks owned ordered support or observation budget; no role rewrite"
+                decision["rejectedAlternateForeground"] = candidateFill
+                decision["observerPixelsSpent"] = before == .max ? NSNull() : before - observationBudget as Any
+                return decision
+            }
+            decision["orderedRoleEvidence"] = proof
+            decision["foregroundModelConfidence"] = min(1, number(proof["supported"]) / max(1, number(proof["tested"])))
+            decision["foregroundProvenance"] = "independent replacement FG; owned ordered-local source-role support; not source accuracy"
+        } else {
+            let score = (proposed["foregroundModelConfidence"] as? NSNumber)?.doubleValue
+            decision["foregroundModelConfidence"] = score.map { $0.isFinite && (0...1).contains($0) ? $0 : 0 } ?? 0
+            decision["foregroundProvenance"] = proposed["foregroundProvenance"] ?? "independent endpoint refinement; model confidence unavailable"
+        }
+        decision["foregroundReplaced"] = true
+        decision["decision"] = "independently observed replacement FG; raw confidence not reused"
+        decision["observerPixelsSpent"] = before == .max ? NSNull() : before - observationBudget as Any
+        return decision
+    }
+
     private static func with(_ result: Payload?, values: Payload, confidence changes: Payload? = nil) -> Payload {
         var result = result ?? [:]
         for (key, value) in values { result[key] = value }
@@ -577,15 +993,17 @@ final class NativeSourcePixelReader: NativeSourcePixelReading {
     private let image: CGImage
     private let limit: Int
     private let threshold: Int
+    private let preservesSamplingGeometry: Bool
     private var page: [UInt8]?
     private var state = 0
     private var exactCrops = 0
     enum ReadError: Error { case invalidGeometry, bitmapUnavailable }
 
-    init(image: CGImage, limit: Int = 4_194_304, threshold: Int = 3) {
+    init(image: CGImage, limit: Int = 4_194_304, threshold: Int = 3, preservesSamplingGeometry: Bool = false) {
         self.image = image
         self.limit = limit
         self.threshold = threshold
+        self.preservesSamplingGeometry = preservesSamplingGeometry
     }
 
     func release() { page = nil; state = -1 }
@@ -594,20 +1012,34 @@ final class NativeSourcePixelReader: NativeSourcePixelReading {
         let exact = sourceWidth == Double(width) && sourceHeight == Double(height) && x == floor(x) && y == floor(y) &&
             x >= 0 && y >= 0 && width > 0 && height > 0 && x + Double(width) <= Double(image.width) && y + Double(height) <= Double(image.height)
         if state == 1, exact, let page { return slice(page, x: Int(x), y: Int(y), width: width, height: height) }
-        let drawn = try Self.draw(image: image, x: x, y: y, sourceWidth: sourceWidth, sourceHeight: sourceHeight, width: width, height: height)
+        let drawn = try Self.draw(image: image, x: x, y: y, sourceWidth: sourceWidth, sourceHeight: sourceHeight,
+                                  width: width, height: height, preservesSamplingGeometry: preservesSamplingGeometry)
         if state == 0, exact {
             exactCrops += 1
             if exactCrops >= threshold {
                 state = -1
                 if image.width <= limit / max(1, image.height),
                    let whole = try? Self.draw(image: image, x: 0, y: 0, sourceWidth: Double(image.width), sourceHeight: Double(image.height),
-                    width: image.width, height: image.height), slice(whole, x: Int(x), y: Int(y), width: width, height: height) == drawn {
+                    width: image.width, height: image.height, preservesSamplingGeometry: preservesSamplingGeometry),
+                   sliceMatches(whole, x: Int(x), y: Int(y), width: width, height: height, expected: drawn) {
                     page = whole
                     state = 1
                 }
             }
         }
         return drawn
+    }
+
+    /// Compare the promotion witness without allocating a second crop raster.
+    private func sliceMatches(_ page: [UInt8], x: Int, y: Int, width: Int, height: Int, expected: [UInt8]) -> Bool {
+        guard expected.count == width * height * 4 else { return false }
+        let rowBytes = width * 4
+        for row in 0..<height {
+            let begin = ((y + row) * image.width + x) * 4
+            let target = row * rowBytes
+            if !page[begin..<(begin + rowBytes)].elementsEqual(expected[target..<(target + rowBytes)]) { return false }
+        }
+        return true
     }
 
     private func slice(_ page: [UInt8], x: Int, y: Int, width: Int, height: Int) -> [UInt8] {
@@ -619,7 +1051,8 @@ final class NativeSourcePixelReader: NativeSourcePixelReading {
         return result
     }
 
-    static func draw(image: CGImage, x: Double, y: Double, sourceWidth: Double, sourceHeight: Double, width: Int, height: Int) throws -> [UInt8] {
+    static func draw(image: CGImage, x: Double, y: Double, sourceWidth: Double, sourceHeight: Double,
+                     width: Int, height: Int, preservesSamplingGeometry: Bool = false) throws -> [UInt8] {
         guard [x, y, sourceWidth, sourceHeight, x + sourceWidth, y + sourceHeight].allSatisfy(\.isFinite), sourceWidth > 0, sourceHeight > 0,
               width > 0, height > 0, width <= 4_194_304 / height else { throw ReadError.invalidGeometry }
         var rgba = [UInt8](repeating: 0, count: width * height * 4)
@@ -629,6 +1062,18 @@ final class NativeSourcePixelReader: NativeSourcePixelReading {
                 bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue) else { return false }
             context.interpolationQuality = .low
             let sx = Double(width) / sourceWidth, sy = Double(height) / sourceHeight
+            if preservesSamplingGeometry {
+                let destination = CGRect(x: -x * sx,
+                    y: Double(height) - (Double(image.height) - y) * sy,
+                    width: Double(image.width) * sx, height: Double(image.height) * sy)
+                guard sx.isFinite, sy.isFinite,
+                      [destination.minX, destination.minY, destination.maxX, destination.maxY].allSatisfy(\.isFinite)
+                else { return false }
+                // Panel measurements preserve their projected coordinates and
+                // the source filter's support, without Canvas texture rounding.
+                context.draw(image, in: destination)
+                return true
+            }
 #if os(iOS)
             // WebKit's CG image path keeps the full texture for a uniform reduction.
             // On iOS it aligns the adjusted destination origin AND size to device

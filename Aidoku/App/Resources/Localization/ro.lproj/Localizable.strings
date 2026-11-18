@@ -366,7 +366,7 @@
 
 "TRANSLATION_AUTO" = "Detectează automat";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 necesită iOS 18 sau o versiune mai nouă. Modelul implicit este Mediu. Mic folosește mai puțină memorie, iar Foarte mic are un dicționar de caractere mai restrâns. Modelele nu recunosc textul coreean, dar traducerea în coreeană este disponibilă.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 necesită iOS 18 sau o versiune mai nouă. Manga v0.3 este modelul implicit atât pentru detectarea, cât și pentru recunoașterea textului. Sunt disponibile și alte modele OCR.";
 
 
 
@@ -1160,3 +1160,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Sursa %@ versiunea %d nu este acceptată de această aplicație. Instalați o versiune acceptată.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 acceptă doar text sursă în japoneză și chineză (simplificată și tradițională). Detectarea automată a limbii sursă și opțiunile de selectare a limbii sursă sunt limitate la aceste limbi. Traducerea în coreeană sau în alte limbi țintă este în continuare posibilă. Selectarea modelului Manga aplică pragurile de detectare 0,85 și 0,25; dimensiunea implicită pentru detectare este de 1120 px.";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Toate limbile acceptate de OCR";

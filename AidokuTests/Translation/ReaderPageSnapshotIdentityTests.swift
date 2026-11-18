@@ -44,8 +44,9 @@ struct ReaderPageSnapshotIdentityTests {
         for (region, bitmap) in [(old, oldBitmap), (revised, newBitmap)] {
             let displayed = [region].compactMap { $0.cropped(to: unit) }
             let key = ReaderTranslationRenderCache.snapshotKey(renderKey: base, regions: displayed)
+            // Viewport snapshots are bound to the exact source pixels they composite.
             await cache.store(bitmap, key: key, pageIdentity: ReaderTranslationCacheIdentity.translation(page: page.sourcePage!.translationCacheKey, settings: settings),
-                              diskGeneration: generation)
+                              diskGeneration: generation, source: source)
         }
         func present(_ region: ReaderTranslationRegion) {
             switch mode {

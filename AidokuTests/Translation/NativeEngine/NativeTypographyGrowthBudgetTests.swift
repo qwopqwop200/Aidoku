@@ -124,23 +124,16 @@ import Testing
         return (session, item)
     }
 
-    @Test func readableInkReadmissionEnablesActualSourceSizedGrowthWithoutChangingGeometryOrMask() throws {
+    /// Source inpainting is retired: readable-ink readmission is a legacy panel
+    /// renderer repair and must stay inert even with complete, safe evidence.
+    @Test func retiredInpaintingRejectsReadableInkReadmissionWithoutChangingMask() throws {
         let (session, item) = try readableInkFixture()
+        #expect(!session.context.settings.usesSourceInpainting)
         let candidate = session.context.candidate(item)
-        #expect(!session.context.holdsSurface(candidate, requiresCommittedRestoration: false))
-        #expect(session.grow(item: item, others: [item], cap: .infinity, strict: false) == nil)
         let patch = try #require(session.context.patches[item.id]?.candidate)
         let originalRGBA = patch.rawRGBA, originalSafe = patch.safe, originalRevision = patch.revision
-        let adjustedValue = session.restoreReadableInk(item: item, typography: candidate.shaped, foreground: [233, 247, 245])
-        let adjusted = try #require(adjustedValue)
-        #expect(NativeTranslationSourceStylePostPolish.luminanceContrast(NativeSourceColorSampler.luminance(adjusted),
-            159.5 / 255, 160.5 / 255) >= 4.5)
-        #expect(session.sourcePanelTextFit(id: item.id) == "inside" && session.context.restored(item.id))
-        let grownValue = session.grow(item: item, others: [item], cap: .infinity, strict: false,
-            foreground: NativeTranslationRenderer.color(adjusted.map { CGFloat($0) }))
-        let grown = try #require(grownValue)
-        #expect(grown.fontSize > item.fontSize && grown.fontSize <= 18 * 0.9)
-        #expect(grown.sourceBounds == item.sourceBounds && grown.sourceFrame == item.sourceFrame && grown.text == item.text)
+        #expect(session.restoreReadableInk(item: item, typography: candidate.shaped, foreground: [233, 247, 245]) == nil)
+        #expect(!session.context.restored(item.id))
         let unchangedPixels = patch.rawRGBA == originalRGBA && patch.safe == originalSafe
         #expect(unchangedPixels && patch.revision == originalRevision)
     }
@@ -166,10 +159,10 @@ import Testing
         #expect(session.sourcePanelTextFit(id: item.id) == "caption" && !session.context.restored(item.id))
     }
 
-    @Test func previouslyAdmittedSurfaceStillRequiresCompleteErasureAndSafeCurrentGlyphs() throws {
+    @Test func previouslyAdmittedSurfaceCannotReactivateRetiredInpainting() throws {
         let (session, item) = try readableInkFixture(verified: false, member: true)
         #expect(session.restoreReadableInk(item: item, typography: session.context.candidate(item).shaped,
-            foreground: [233, 247, 245]) != nil)
+            foreground: [233, 247, 245]) == nil)
         let (incomplete, other) = try readableInkFixture(verified: false, complete: false, member: true)
         #expect(incomplete.restoreReadableInk(item: other, typography: incomplete.context.candidate(other).shaped,
             foreground: [233, 247, 245]) == nil)

@@ -40,38 +40,17 @@ private actor NativeBatchPlannerCountingTranslator: RemoteTranslating {
 }
 
 final class NativeTranslationBatchPlannerTests: XCTestCase {
-    func testReaderNeighborContextKeepsBatchShapeAndSafeCompleteUtterances() throws {
+    func testReaderBatchesWithoutAdditionalContext() throws {
         let candidates = (0..<70).map { index in
             NativeTranslationBatchCandidate(inputIndex: index,
                 segment: .init(id: "n-\(index)", text: "문맥 대사 \(index)"))
         }
-        func plans(_ enabled: Bool) -> [NativeTranslationBatchPlan] {
-            NativeTranslationBatchPlanner.makeBatches(candidates: candidates,
-                sourceLanguage: "ja", targetLanguage: "ko", context: [], glossary: [],
-                includesNeighborContext: enabled)
-        }
-        let baseline = plans(false), contextual = plans(true)
-        XCTAssertEqual(baseline.map { $0.request.segments }, contextual.map { $0.request.segments })
-        XCTAssertEqual(baseline.map(\.inputIndicesBySegmentID), contextual.map(\.inputIndicesBySegmentID))
-        var offset = 0
-        for plan in contextual {
+        let plans = NativeTranslationBatchPlanner.makeBatches(candidates: candidates,
+            sourceLanguage: "ja", targetLanguage: "ko")
+        XCTAssertEqual(plans.count, 2)
+        for plan in plans {
             try plan.request.validate()
-            let end = offset + plan.request.segments.count
-            let expected = [(offset - 1, "Previous"), (end, "Next")].compactMap { index, label in
-                candidates.indices.contains(index)
-                    ? "\(label) OCR utterance (context only): \(candidates[index].segment.text)" : nil
-            }
-            XCTAssertEqual(plan.request.context, expected)
-            XCTAssertLessThanOrEqual(plan.request.context.reduce(0) { $0 + $1.utf8.count }, 560)
-            offset = end
         }
-        let huge = NativeTranslationBatchCandidate(inputIndex: 0,
-            segment: .init(id: "long", text: String(repeating: "한", count: 81)))
-        XCTAssertTrue(NativeTranslationBatchPlanner.neighborContext(in: [huge, candidates[1]], range: 1..<2).isEmpty)
-        let explicit = NativeTranslationBatchPlanner.makeBatches(candidates: candidates,
-            sourceLanguage: "ja", targetLanguage: "ko", context: ["explicit context"], glossary: [],
-            includesNeighborContext: true)
-        XCTAssertTrue(explicit.allSatisfy { $0.request.context == ["explicit context"] })
     }
 
     func testPagesStayInOneRequestUntilHardLimitsPreservingReadingOrder()
@@ -115,10 +94,6 @@ final class NativeTranslationBatchPlannerTests: XCTestCase {
     }
 
     func testMappingAndSemanticFieldsSurviveEveryChunk() {
-        let context = ["prior subtitle"]
-        let glossary = [
-            TranslationGlossaryEntry(source: "猫", target: "고양이"),
-        ]
         let candidates = (0..<16).map { index in
             NativeTranslationBatchCandidate(
                 inputIndex: 100 + index,
@@ -131,17 +106,13 @@ final class NativeTranslationBatchPlannerTests: XCTestCase {
         let plans = NativeTranslationBatchPlanner.makeBatches(
             candidates: candidates,
             sourceLanguage: "ja",
-            targetLanguage: "ko",
-            context: context,
-            glossary: glossary
+            targetLanguage: "ko"
         )
 
         XCTAssertEqual(plans.flatMap { $0.request.segments }.count, 16)
         for plan in plans {
             XCTAssertEqual(plan.request.sourceLanguage, "ja")
             XCTAssertEqual(plan.request.targetLanguage, "ko")
-            XCTAssertEqual(plan.request.context, context)
-            XCTAssertEqual(plan.request.glossary, glossary)
             for segment in plan.request.segments {
                 let ordinal = Int(segment.id.dropFirst("mapped-".count))
                 XCTAssertEqual(
@@ -348,9 +319,7 @@ final class NativeTranslationBatchPlannerTests: XCTestCase {
         NativeTranslationBatchPlanner.makeBatches(
             candidates: candidates,
             sourceLanguage: "ja",
-            targetLanguage: "ko",
-            context: [],
-            glossary: []
+            targetLanguage: "ko"
         )
     }
 

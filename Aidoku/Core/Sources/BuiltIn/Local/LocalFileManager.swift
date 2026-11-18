@@ -65,10 +65,27 @@ actor LocalFileManager {
 }
 
 extension LocalFileManager {
+    private static func isImportPage(_ entry: Entry) -> Bool {
+        guard entry.type == .file,
+              !entry.path.lastPathComponent().hasPrefix("."),
+              !entry.path.split(separator: "/").contains(where: { $0 == "__MACOSX" || ($0 != "." && $0.hasPrefix(".")) }) else {
+            return false
+        }
+        let ext = entry.path.pathExtension().lowercased()
+        return allowedPageExtensions.contains(ext) && !(ext == "txt" && entry.path.hasSuffix("desc.txt"))
+    }
+
+    private static func hasImportPage(at url: URL) -> Bool {
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
+        guard let archive = try? Archive(url: url, accessMode: .read, pathEncoding: nil) else { return false }
+        return archive.contains(where: isImportPage)
+    }
+
     /// Import an archive received through Open In without requiring the import form.
     func importSharedArchive(from url: URL) async throws -> AidokuRunner.Manga {
         guard url.isFileURL, Self.allowedFileExtensions.contains(url.pathExtension.lowercased()),
-              loadImportFileInfo(url: url) != nil else {
+              Self.hasImportPage(at: url) else {
             throw LocalFileManagerError.invalidFileType
         }
         guard await SourceManager.shared.ensureLocalSourceForImport() else {
@@ -112,18 +129,7 @@ extension LocalFileManager {
 
         // find image entries (pages)
         let pageEntries = archive
-            .filter { entry in
-                let lastPathComponent = entry.path.lastPathComponent()
-                guard entry.type == .file, !lastPathComponent.hasPrefix("."),
-                      !entry.path.split(separator: "/").contains(where: { $0 == "__MACOSX" || ($0 != "." && $0.hasPrefix(".")) }) else {
-                    return false
-                }
-                let ext = entry.path.pathExtension().lowercased()
-                if ext == "txt" {
-                    return !entry.path.hasSuffix("desc.txt")
-                }
-                return Self.allowedPageExtensions.contains(ext)
-            }
+            .filter(Self.isImportPage)
             .sorted {
                 $0.path.localizedStandardCompare($1.path) == .orderedAscending
             }
@@ -133,29 +139,15 @@ extension LocalFileManager {
         }
 
         // extract the first three images for preview
-        let previewImages = pageEntries
+        let previewEntries = pageEntries.lazy
             .filter { LocalFileManager.allowedImageExtensions.contains($0.path.pathExtension().lowercased()) }
             .prefix(3)
-            .compactMap { entry -> PlatformImage? in
-                var imageData = Data()
-                do {
-                    _ = try archive.extract(
-                        entry,
-                        consumer: { data in
-                            imageData.append(data)
-                        }
-                    )
-                    guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),
-                          let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                            kCGImageSourceCreateThumbnailFromImageAlways: true,
-                            kCGImageSourceCreateThumbnailWithTransform: true,
-                            kCGImageSourceThumbnailMaxPixelSize: 400
-                          ] as CFDictionary) else { return nil }
-                    return PlatformImage(cgImage: thumbnail)
-                } catch {
-                    return nil
-                }
+        var previewImages: [PlatformImage] = []
+        for entry in previewEntries {
+            if let image = Self.previewImage(for: entry, in: archive) {
+                previewImages.append(image)
             }
+        }
 
         let fileType = switch pathExtension {
             case "cbz": LocalFileType.cbz
@@ -169,8 +161,29 @@ extension LocalFileManager {
             name: url.lastPathComponent,
             pageCount: pageEntries.count,
             fileType: fileType,
-            comicInfo: ComicInfo.load(from: url)
+            comicInfo: ComicInfo.load(from: archive)
         )
+    }
+
+    private static func previewImage(for entry: Entry, in archive: Archive) -> PlatformImage? {
+        var imageData = Data()
+        do {
+            _ = try archive.extract(
+                entry,
+                consumer: { data in
+                    imageData.append(data)
+                }
+            )
+            guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),
+                  let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceCreateThumbnailWithTransform: true,
+                    kCGImageSourceThumbnailMaxPixelSize: 400
+                  ] as CFDictionary) else { return nil }
+            return PlatformImage(cgImage: thumbnail)
+        } catch {
+            return nil
+        }
     }
 }
 
@@ -251,46 +264,30 @@ extension LocalFileManager {
             return []
         }
 
-        var descriptionFiles: [Entry] = []
-
-        var pages = archive
-            .filter { entry in
-                // ignore hidden files
-                let lastPathComponent = entry.path.lastPathComponent()
-                guard entry.type == .file, !lastPathComponent.hasPrefix("."),
-                      !entry.path.split(separator: "/").contains(where: { $0 == "__MACOSX" || ($0 != "." && $0.hasPrefix(".")) }) else {
-                    return false
+        var descriptionFiles: [(entry: Entry, index: Int)] = []
+        // ZIPFoundation decodes Entry.path on each access. Keep the decoded
+        // paths for sorting, and retain archive entries only for sidecar reads.
+        var paths = archive.compactMap { entry -> String? in
+            guard entry.type == .file else { return nil }
+            let path = entry.path
+            let name = path.lastPathComponent()
+            guard !name.hasPrefix("."),
+                  !path.split(separator: "/").contains(where: { $0 == "__MACOSX" || ($0 != "." && $0.hasPrefix(".")) }) else { return nil }
+            let ext = path.pathExtension().lowercased()
+            if ext == "txt", path.hasSuffix("desc.txt") {
+                if let number = name.split(separator: ".", maxSplits: 1).first.flatMap({ Int($0) }), number > 0 {
+                    descriptionFiles.append((entry, number - 1))
                 }
-                // ensure extension is allowed
-                let ext = entry.path.pathExtension().lowercased()
-                if ext == "txt" {
-                    if entry.path.hasSuffix("desc.txt") {
-                        descriptionFiles.append(entry)
-                        return false
-                    }
-                    return true
-                }
-                return Self.allowedPageExtensions.contains(ext)
+                return nil
             }
-            // sort by file name
-            .sorted {
-                $0.path.localizedStandardCompare($1.path) == .orderedAscending
-            }
-            .map { entry in
-                AidokuRunner.Page(content: .zipFile(url: archiveURL, filePath: entry.path))
-            }
+            return Self.allowedPageExtensions.contains(ext) ? path : nil
+        }
+        paths.sort { $0.localizedStandardCompare($1) == .orderedAscending }
+        var pages = paths.map {
+            AidokuRunner.Page(content: .zipFile(url: archiveURL, filePath: $0))
+        }
 
-        for entry in descriptionFiles {
-            guard
-                let index = entry.path
-                    .lastPathComponent()
-                    .split(separator: ".", maxSplits: 1)
-                    .first
-                    .flatMap({ Int($0) }),
-                index > 0,
-                index <= pages.count
-            else { continue }
-
+        for (entry, index) in descriptionFiles where index < pages.count {
             do {
                 var descriptionData = Data()
                 _ = try archive.extract(
@@ -299,8 +296,8 @@ extension LocalFileManager {
                         descriptionData.append(data)
                     }
                 )
-                pages[index - 1].hasDescription = true
-                pages[index - 1].description = String(data: descriptionData, encoding: .utf8)
+                pages[index].hasDescription = true
+                pages[index].description = String(data: descriptionData, encoding: .utf8)
             } catch {
                 LogManager.logger.error("Failed to extract page description text from archive: \(error)")
                 continue
@@ -410,25 +407,7 @@ extension LocalFileManager {
             throw LocalFileManagerError.cannotReadArchive
         }
 
-        // find image entries (pages)
-        let pageEntries = archive
-            .filter { entry in
-                let lastPathComponent = entry.path.lastPathComponent()
-                guard entry.type == .file, !lastPathComponent.hasPrefix("."),
-                      !entry.path.split(separator: "/").contains(where: { $0 == "__MACOSX" || ($0 != "." && $0.hasPrefix(".")) }) else {
-                    return false
-                }
-                let ext = entry.path.pathExtension().lowercased()
-                if ext == "txt" {
-                    return !entry.path.hasSuffix("desc.txt")
-                }
-                return Self.allowedPageExtensions.contains(ext)
-            }
-            .sorted {
-                $0.path.localizedStandardCompare($1.path) == .orderedAscending
-            }
-
-        guard !pageEntries.isEmpty else {
+        guard archive.contains(where: Self.isImportPage) else {
             throw LocalFileManagerError.noImagesFound
         }
 

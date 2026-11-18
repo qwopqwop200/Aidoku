@@ -20,34 +20,41 @@ extension HistoryManager {
         progress: Int,
         totalPages: Int? = nil,
         scrollPosition: Double? = nil,
-        completed: Bool
+        dateRead: Date = .now,
+        session: ReadingSessionData? = nil
     ) async {
         let mangaId = chapterId.mangaIdentifier
         let metadataGeneration = HistoryMetadataCache.shared.generation
-        let saved = await CoreDataManager.shared.container.performBackgroundTask { context in
+        let completed = await CoreDataManager.shared.container.performBackgroundTask { context -> Bool? in
             do {
+                var completed = false
                 try Self.saveMutationWithRetry(context: context) {
-                    CoreDataManager.shared.setRead(mangaId: mangaId, context: context)
-                    CoreDataManager.shared.setProgress(
+                    CoreDataManager.shared.setRead(mangaId: mangaId, date: dateRead, context: context)
+                    let history = CoreDataManager.shared.setProgress(
                         progress,
                         chapterId: chapterId,
                         totalPages: totalPages,
                         scrollPosition: scrollPosition,
+                        dateRead: dateRead,
                         context: context
                     )
+                    if let session {
+                        CoreDataManager.shared.createSession(history: history, data: session, context: context)
+                    }
+                    completed = history.completed
                     return true
                 }
                 if let manga {
                     HistoryMetadataCache.shared.store(manga: manga, chapters: [chapter], generation: metadataGeneration)
                 }
-                return true
+                return completed
             } catch {
                 context.rollback()
                 LogManager.logger.error("HistoryManager.setProgress: \(error)")
-                return false
+                return nil
             }
         }
-        guard saved else { return }
+        guard let completed else { return }
         NotificationCenter.default.post(name: .historySet, object: (chapterId, progress))
         if !completed {
             Task {
@@ -65,21 +72,6 @@ extension HistoryManager {
         let startDate: Date
         let endDate: Date
         let pagesRead: Int
-    }
-
-    func addSession(chapterId: ChapterIdentifier, data: ReadingSessionData) async {
-        await CoreDataManager.shared.container.performBackgroundTask { context in
-            CoreDataManager.shared.createSession(
-                chapterId: chapterId,
-                data: data,
-                context: context
-            )
-            do {
-                try context.save()
-            } catch {
-                LogManager.logger.error("HistoryManager.addSession: \(error)")
-            }
-        }
     }
 
     @discardableResult

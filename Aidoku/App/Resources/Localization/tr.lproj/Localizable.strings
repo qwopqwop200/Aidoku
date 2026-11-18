@@ -779,7 +779,7 @@
 
 "TRANSLATION_AUTO" = "Otomatik Olarak Algıla";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6, iOS 18 veya üstünü gerektirir. Varsayılan model Orta'dır. Küçük daha az bellek kullanır; Çok Küçük daha dar bir karakter sözlüğüne sahiptir. Bu modeller Korece metin tanımayı desteklemez, ancak Koreceye çeviri desteklenir.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6, iOS 18 veya üstünü gerektirir. Hem metin algılama hem de metin tanıma için varsayılan model Manga v0.3’dir. Diğer OCR modelleri de seçilebilir.";
 
 
 
@@ -1196,3 +1196,7 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "%@ kaynağının %d sürümü bu uygulama tarafından desteklenmiyor. Desteklenen bir sürüm yükleyin.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Desteklenen tüm OCR dilleri";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 yalnızca Japonca ve Çince (Basitleştirilmiş ve Geleneksel) kaynak metinleri destekler. Otomatik kaynak dil algılama ve kaynak dil seçenekleri bu dillerle sınırlıdır. Koreceye veya diğer hedef dillere çeviri yapılabilir. Manga seçildiğinde algılama eşikleri 0.85 ve 0.25 olarak ayarlanır; varsayılan algılama boyutu 1120 pikseldir.";

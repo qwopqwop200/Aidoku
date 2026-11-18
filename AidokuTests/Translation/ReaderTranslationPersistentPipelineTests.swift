@@ -208,17 +208,19 @@ struct ReaderTranslationPersistentPipelineTests {
         let translationKey = ReaderTranslationCacheIdentity.translation(page: page.translationCacheKey, settings: fixture.settings)
         #expect(try await fixture.disk.regions(for: translationKey, kind: .translation) == nil)
         let key = ReaderTranslationCacheIdentity.ocr(page: page.translationCacheKey, settings: fixture.settings)
-        let saved = try #require(try await fixture.disk.regions(for: key, kind: .ocr))
+        let savedRecord = try #require(try await fixture.disk.regionRecord(for: key, kind: .ocr))
+        let saved = savedRecord.regions
         #expect(!saved.isEmpty)
-        var withoutImage = page
-        withoutImage.image = nil // A miss would fail loading; an OCR hit needs no image/network.
+        // Preserve the original source on the production path. With a mutable
+        // locator, missing source bytes no longer authorize an OCR result.
+        #expect(savedRecord.sourceRasterClaim != nil)
         var changed = fixture.settings
         changed.targetLanguage = "en"
         let reopened = ReaderTranslationDiskCache(directory: fixture.root)
         let second = ReaderTranslationPreloader(diskCache: reopened, translator: { regions, _, _ in
             regions.map { var region = $0; region.translation = "cached OCR"; return region }
         })
-        let result = try await second.translate(withoutImage, settings: changed)
+        let result = try await second.translate(page, settings: changed)
         #expect(result.map(\.source) == saved.map(\.source))
         #expect(result.allSatisfy { $0.translation == "cached OCR" })
         await ReaderOCRService.shared.purge()

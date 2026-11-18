@@ -28,7 +28,7 @@ enum NativeCaptionSourcePalette {
         }.map(\.element)
     }
     private static func valid(_ rgba: [UInt8], _ width: Int, _ height: Int, _ box: CGRect? = nil) -> Bool {
-        guard width > 0, height > 0, height <= 24_576, width <= 24_576 / height,
+        guard width > 0, height > 0, height <= 4_194_304, width <= 4_194_304 / height,
               rgba.count == width * height * 4 else { return false }
         if let box {
             return [box.minX, box.minY, box.width, box.height].allSatisfy(\.isFinite) && box.width > 0 && box.height > 0
@@ -197,8 +197,18 @@ enum NativeCaptionSourcePalette {
     }
 
     static func observedCaptionPalette(rgba: [UInt8], width: Int, height: Int, box: CGRect, result: Payload?) -> Payload? {
+        observedCaptionPalette(rgba: rgba, width: width, height: height, box: box, result: result, features: nil)
+    }
+    static func observedCaptionPalette(rgba: [UInt8], width: Int, height: Int, box: CGRect, result: Payload?, features: NativeSourceROIFeatures?) -> Payload? {
         guard valid(rgba, width, height, box) else { return result }
         var bins: [Bin] = [], indices: [Int: Int] = [:], insideCount = 0, outsideCount = 0
+        if let features, features.matches(rgba: rgba, width: width, height: height, box: box) {
+            bins = features.three.map { value in
+                let bin = Bin(); bin.count = value.count; bin.sum = value.sum
+                bin.inside = value.inside; bin.outside = value.outside; return bin
+            }
+            insideCount = features.insideCount; outsideCount = features.outsideCount
+        } else {
         for y in 0..<height {
             for x in 0..<width {
                 let offset = (y * width + x) * 4
@@ -211,6 +221,7 @@ enum NativeCaptionSourcePalette {
                     bin.inside += 1; insideCount += 1
                 } else { bin.outside += 1; outsideCount += 1 }
             }
+        }
         }
         guard !bins.isEmpty else { return result }
         let ink = rgb(result?["foreground"]) ?? rgb(result?["displayForeground"]), stroke = rgb(result?["stroke"])
@@ -517,6 +528,10 @@ extension NativeCaptionSourcePalette {
     static func observedSourceSurface(rgba: [UInt8], width: Int, height: Int, box: [Double], result: Payload? = nil) -> Payload? {
         guard let box = boxRect(box) else { return nil }
         return observedSourceSurface(rgba: rgba, width: width, height: height, box: box, result: result)
+    }
+    static func observedCaptionPalette(rgba: [UInt8], width: Int, height: Int, box: [Double], result: Payload?, features: NativeSourceROIFeatures?) -> Payload? {
+        guard let box = boxRect(box) else { return result }
+        return observedCaptionPalette(rgba: rgba, width: width, height: height, box: box, result: result, features: features)
     }
     static func observedCaptionPalette(rgba: [UInt8], width: Int, height: Int, box: [Double], result: Payload? = nil) -> Payload? {
         guard let box = boxRect(box) else { return result }

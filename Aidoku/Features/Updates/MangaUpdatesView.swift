@@ -6,6 +6,7 @@
 //
 
 import AidokuRunner
+import CoreData
 import SwiftUI
 
 struct MangaUpdatesView: View {
@@ -18,7 +19,7 @@ struct MangaUpdatesView: View {
         var updates: [UpdateInfo]
     }
     struct UpdateInfo: Identifiable, Hashable {
-        let id: String
+        var id: ChapterIdentifier { chapterIdentifier }
         let chapterIdentifier: ChapterIdentifier
         let date: Date
         let manga: AidokuRunner.Manga
@@ -72,19 +73,11 @@ struct MangaUpdatesView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle(NSLocalizedString("MANGA_UPDATES"))
-        .onReceive(NotificationCenter.default.publisher(for: .mangaUpdatesViewed)) { notification in
+        .onReceive(NotificationCenter.default.publisher(for: .mangaUpdatesViewed).receive(on: DispatchQueue.main)) { notification in
             guard let objects = notification.object as? [MangaUpdateItem] else { return }
 
-            for section in 0..<entries.count {
-                for item in 0..<entries[section].items.count {
-                    guard let manga = entries[section].items[item].updates.first?.manga else { continue }
-                    if objects.contains(where: { $0.chapterId.mangaIdentifier == manga.identifier }) {
-                        for i in 0..<entries[section].items[item].updates.count {
-                            entries[section].items[item].updates[i].viewed = true
-                        }
-                    }
-                }
-            }
+            let viewed = Set(objects.lazy.map(\.chapterId))
+            Task { await operations.markViewed(viewed, in: $entries) }
         }
     }
 
@@ -135,27 +128,32 @@ struct MangaUpdatesView: View {
 }
 
 extension MangaUpdatesView {
+    nonisolated static func loadPage(limit: Int, offset: Int, context: NSManagedObjectContext) -> (updates: [UpdateInfo], fetched: Int) {
+        let rows = CoreDataManager.shared.getRecentMangaUpdates(limit: limit, offset: offset, context: context)
+        var mangaById: [MangaIdentifier: AidokuRunner.Manga] = [:]
+        for (mangaId, group) in Dictionary(grouping: rows, by: { $0.identifier.mangaIdentifier }) {
+            // Restored rows can lack a chapter relationship. Resolve those titles by their stored keys.
+            let linked = group.first?.chapter?.manga
+            let object = linked?.identifier == mangaId ? linked : CoreDataManager.shared.getManga(mangaId: mangaId, context: context)
+            mangaById[mangaId] = object?.toNewManga()
+        }
+        let updates: [UpdateInfo] = rows.compactMap { row in
+            let id = row.identifier
+            guard let manga = mangaById[id.mangaIdentifier] else { return nil }
+            return UpdateInfo(
+                chapterIdentifier: id,
+                date: row.date ?? Date(),
+                manga: manga,
+                chapter: row.chapter?.toChapter(),
+                viewed: row.viewed
+            )
+        }
+        return (updates, rows.count)
+    }
+
     private func loadNewEntries() async {
         let (newUpdates, fetchedCount) = await CoreDataManager.shared.container.performBackgroundTask { [offset] context in
-            let rows = CoreDataManager.shared.getRecentMangaUpdates(limit: limit, offset: offset, context: context)
-            let updates: [UpdateInfo] = rows.compactMap {
-                if let mangaObj = CoreDataManager.shared.getManga(
-                    mangaId: $0.identifier.mangaIdentifier,
-                    context: context
-                ) {
-                    return UpdateInfo(
-                        id: $0.id,
-                        chapterIdentifier: $0.identifier,
-                        date: $0.date ?? Date(),
-                        manga: mangaObj.toNewManga(),
-                        chapter: $0.chapter?.toChapter(),
-                        viewed: $0.viewed
-                    )
-                } else {
-                    return nil
-                }
-            }
-            return (updates, rows.count)
+            Self.loadPage(limit: limit, offset: offset, context: context)
         }
         guard !Task.isCancelled else { return }
         offset += fetchedCount
@@ -185,11 +183,7 @@ extension MangaUpdatesView {
                     to: Date.endOfDay()
                 ).day ?? 0
 
-                var updatesOfTheDay = updatesDict[day] ?? [:]
-                var newValue = updatesOfTheDay[obj.key] ?? []
-                newValue.append(info)
-                updatesOfTheDay[obj.key] = newValue
-                updatesDict[day] = updatesOfTheDay
+                updatesDict[day, default: [:]][obj.key, default: []].append(info)
             }
         }
         let newEntries: [UpdateSection] = updatesDict
@@ -210,9 +204,7 @@ extension MangaUpdatesView {
         withAnimation {
             entries = newEntries
             loadingMore = false
-            if reachedEnd && newEntries.isEmpty {
-                hasNoUpdates = true
-            }
+            hasNoUpdates = newEntries.isEmpty
         }
     }
 
@@ -283,6 +275,26 @@ extension MangaUpdatesView {
 final class MangaUpdatesOperationQueue: ObservableObject {
     private var tail: Task<Void, Never>?
     private var tailID = UUID()
+
+    func markViewed(_ ids: Set<ChapterIdentifier>, in entries: Binding<[MangaUpdatesView.UpdateSection]>) async {
+        // Apply post-save notifications after any page that has already read older values.
+        await run {
+            var sections = entries.wrappedValue
+            var changed = false
+            for section in sections.indices {
+                for item in sections[section].items.indices {
+                    for index in sections[section].items[item].updates.indices {
+                        let update = sections[section].items[item].updates[index]
+                        if !update.viewed && ids.contains(update.id) {
+                            sections[section].items[item].updates[index].viewed = true
+                            changed = true
+                        }
+                    }
+                }
+            }
+            if changed { entries.wrappedValue = sections }
+        }
+    }
 
     func run(_ operation: @escaping @MainActor () async -> Void) async {
         let predecessor = tail

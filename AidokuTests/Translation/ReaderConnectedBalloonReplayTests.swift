@@ -27,11 +27,12 @@ struct ReaderConnectedBalloonReplayTests {
         }, options: .prettyPrinted).write(to: directory.appendingPathComponent("raw.json"))
         try audit.data().write(to: directory.appendingPathComponent("recognizer.json"))
         await pipeline.purgeResources()
-        let regions = try await ReaderOCRService.shared.recognize(image: image, configuration: .init(
-            detectorMaximumSide: 2000, recognizerMaximumWidth: 1280, confidenceThreshold: 0.35, detectorPixelThreshold: 0.3, detectorConfidenceThreshold: 0.3))
+        let ocrConfiguration=ReaderOCRConfiguration(detectorMaximumSide:2000,recognizerMaximumWidth:1280,
+            confidenceThreshold:0.35,detectorPixelThreshold:0.3,detectorConfidenceThreshold:0.3)
+        let regions = try await ReaderOCRService.shared.recognize(image:image,configuration:ocrConfiguration)
         try JSONEncoder().encode(regions.map(ReaderTranslationStoredRegion.init))
             .write(to: directory.appendingPathComponent("regions.json"))
-        try await render(regions, image: image, directory: directory)
+        try await render(regions,image:image,directory:directory,ocrConfiguration:ocrConfiguration)
         #expect(regions.count == 4)
         let right = try #require(regions.first { $0.source.hasPrefix("チェリノ") })
         // Source erasure must not include the balloon outline in the detector's padding.
@@ -44,7 +45,8 @@ struct ReaderConnectedBalloonReplayTests {
         #expect(regions.contains { $0.source == "■学園転覆" })
         await ReaderOCRService.shared.purge()
     }
-    private func render(_ regions: [ReaderTranslationRegion], image: CGImage, directory: URL) async throws {
+    private func render(_ regions:[ReaderTranslationRegion],image:CGImage,directory:URL,
+                        ocrConfiguration:ReaderOCRConfiguration) async throws {
         // Fixed Korean fixture translations isolate OCR/layout from provider variability.
         let translations = ["チェリノに会ったらよろしくね": "체리노를 만나면 안부 전해 줘",
                             "あと蚊が出たら殺しといて!": "그리고 모기가 나오면 잡아 줘!",
@@ -55,6 +57,9 @@ struct ReaderConnectedBalloonReplayTests {
             return region
         }
         var settings = ReaderTranslationSettings()
+        settings.ocr=ocrConfiguration
+        // Both direct and cache snapshot rendering use the SAME effective reader
+        // config (including normal mobile ceilings), not an implicit manga default.
         settings.overlay = ReaderTranslationSettings.defaultOverlay
         settings.overlay.inpaintingEnabled = true
         settings.overlay.preserveSourceBackgroundColor = true
@@ -68,7 +73,7 @@ struct ReaderConnectedBalloonReplayTests {
         let rendered = try await NativeTranslationRenderer.render(image: uiImage, imageSize: size,
             items: ReaderTranslationRegion.layoutItems(translated, imageSize: size), settings: settings.overlay,
             targetLanguage: settings.targetLanguage, viewport: viewport, scale: 3, aspectFit: true,
-            dark: false, collectDiagnostics: true)
+            dark: false, collectDiagnostics: true,ocrConfiguration:settings.ocrConfiguration)
         #expect(rendered.renderedItemCount > 0)
         let auditData = try #require(rendered.diagnosticData)
         try auditData.write(to: output.appendingPathComponent("audit.json"))

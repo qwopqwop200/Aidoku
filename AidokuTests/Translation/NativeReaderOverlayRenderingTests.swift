@@ -154,10 +154,48 @@ struct NativeReaderOverlayRenderingTests {
         }
         let protected = BrowserOverlayItem(rect: CGRect(x: 10, y: 10, width: 50, height: 50), sourceText: "SFX",
             translatedText: "SFX", confidence: 1, keepsSourceLettering: true)
-        let result = try await NativeTranslationRenderer.render(image: source, imageSize: size, items: [protected],
-            settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko", viewport: size, aspectFit: false)
-        #expect(result.renderedItemCount == 0)
-        #expect(try pixels(result.image).bytes == pixels(source).bytes)
+        if #available(iOS 18.0,*) {
+            // Composition-only fixture: an explicit finite, source-bound DB input.
+            // It does not claim neural DET/REC/RF/style inference or reader-cache quality.
+            let original=try #require(source.cgImage)
+            let prepared=try NativeDBCompositionFixture.prepared(original:original)
+            try prepared.validate(original:original)
+            defer {withExtendedLifetime(prepared) {}}
+            let data=try await NativeTranslationLayoutPlanner.prepareLayoutData(items:[protected],imageSize:size,
+                sourceRect:CGRect(origin:.zero,size:size),settings:ReaderTranslationSettings.defaultOverlay,
+                targetLanguage:"ko",viewport:size)
+            let layout=try JSONDecoder().decode(NativeTranslationLayout.self,from:data)
+            // The pure shared composer accepts explicit inputs; no guard/global
+            // switch, model-file substitution or fake cached OCR is introduced.
+            let composed=try NativeMainEnsemblePipeline.render(original:original,
+                rawItems:layout.items.map {$0.payload},viewport:size,rfRegions:[],sourceProbability:prepared.probability)
+            let painted=try #require(composed.audit["paintedTranslationItems"] as? Int)
+            #expect(painted==0)
+            #expect(try pixels(UIImage(cgImage:composed.image)).bytes == pixels(source).bytes)
+        } else {
+            let result = try await NativeTranslationRenderer.render(image: source, imageSize: size, items: [protected],
+                settings: ReaderTranslationSettings.defaultOverlay, targetLanguage: "ko", viewport: size, aspectFit: false)
+            #expect(result.renderedItemCount == 0)
+            #expect(try pixels(result.image).bytes == pixels(source).bytes)
+        }
+    }
+
+    @available(iOS 18.0, *)
+    @Test func currentReaderRenderRequiresExplicitOCRConfigurationBeforeModelAdmission() async throws {
+        try #require(NativeMainEnsembleRenderer.enabled)
+        let size = CGSize(width: 80, height: 80)
+        let source = UIGraphicsImageRenderer(size: size, format: bitmapFormat()).image {
+            UIColor.gray.setFill(); $0.fill(CGRect(origin: .zero, size: size))
+        }
+        var settings = ReaderTranslationSettings.defaultOverlay
+        settings.visible = true
+        do {
+            _ = try await NativeTranslationRenderer.render(image: source, imageSize: size, items: [],
+                settings: settings, targetLanguage: "ko", viewport: size, aspectFit: false)
+            Issue.record("Current reader rendering accepted an implicit detector configuration")
+        } catch NativeMainEnsemblePreparedDB.Failure.expectedConfigurationUnavailable {
+            // The actual public reader entrypoint rejects before any model ensure.
+        }
     }
 
     @Test func cancelledLayoutAndRenderPublishNoResult() async {

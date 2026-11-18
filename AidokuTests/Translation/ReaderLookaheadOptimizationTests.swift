@@ -314,7 +314,7 @@ struct ReaderLookaheadOptimizationTests {
             return regions.map { var region = $0; region.translation = "미리 준비한 번역"; return region }
         }, recognizer: { page, _ in
             let region = ReaderTranslationRegion(id: String(page.index), rect: CGRect(x: 0.1, y: 0.1, width: 0.7, height: 0.1),
-                                                 source: "HELLO WORLD", sourceOrientation: .horizontal)
+                                                 source: "こんにちは", sourceOrientation: .horizontal)
             return [region]
         }, availableMemory: { .max })
         var layouts: [Int] = []
@@ -352,7 +352,7 @@ struct ReaderLookaheadOptimizationTests {
             return regions.map { var value = $0; value.translation = "준비된 번역"; return value }
         }, recognizer: { page, _ in
             [ReaderTranslationRegion(id: String(page.index), rect: CGRect(x: 0.1, y: 0.1, width: 0.7, height: 0.1),
-                source: "HELLO WORLD", sourceOrientation: .horizontal)]
+                source: "こんにちは", sourceOrientation: .horizontal)]
         }, availableMemory: { .max }, storePreparedTranslation: { regions, key, generation in
             await writeGate.wait()
             try? await disk.storeRegions(regions, for: key, kind: .translation, generation: generation)

@@ -46,7 +46,6 @@ struct SettingView: View {
     @State private var loginLocalStorage: [String: String] = [:]
     @State private var username = ""
     @State private var password = ""
-    @State private var skippedFirst = false
     @StateObject private var oauthAttempt = SettingsLoginAttempt()
     @StateObject private var basicAttempt = SettingsLoginAttempt()
     @StateObject private var webAttempt = SettingsLoginAttempt()
@@ -208,12 +207,7 @@ struct SettingView: View {
         content
             .id(setting.type.requiresKey ? key(setting.key) : String(setting.hashValue))
             .onReceive(userDefaultsObserver.$observedValues) { _ in
-                // skip the initial value load
-                if !skippedFirst {
-                    skippedFirst = true
-                    return
-                }
-                handleValueChange()
+                if userDefaultsObserver.consumePendingChange() { handleValueChange() }
             }
             .onReceive(requiresObserver.$observedValues) { _ in
                 if let requires = setting.requires {

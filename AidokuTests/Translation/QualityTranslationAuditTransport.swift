@@ -133,10 +133,11 @@ actor QualityTranslationAuditTransport: TranslationHTTPTransport {
         let translations = (object(envelope?.data(using: .utf8))["translations"] as? [[String: Any]] ?? []).compactMap { item -> Translation? in
             guard let id = item["id"] as? String else { return nil }
             let flag: Classification
-            if item["is_sfx"] == nil {
+            // Audit the one wire role; SFX is derived, not separately predicted.
+            if item["text_role"] == nil {
                 flag = .missing
-            } else if let value = item["is_sfx"] as? NSNumber, CFGetTypeID(value) == CFBooleanGetTypeID() {
-                flag = value.boolValue ? .true : .false
+            } else if let value = item["text_role"] as? String, let role = RemoteTranslationTextRole(rawValue: value) {
+                flag = role == .sfx ? .true : .false
             } else {
                 flag = .invalid
             }

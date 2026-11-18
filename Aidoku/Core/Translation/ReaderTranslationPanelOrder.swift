@@ -8,7 +8,7 @@ import Foundation
 /// must use the reader's explicit direction, never the OCR/source language.
 enum ReaderTranslationPanelOrder {
     // Shared by persisted OCR evidence and translation identity.
-    static let cacheVersion = "rtl-panel-order-v5-separated-bands"
+    static let cacheVersion = "rtl-panel-order-v6-band-orientation"
 
     struct Input: Sendable {
         let rect: CGRect // Normalized top-left image coordinates.
@@ -142,7 +142,7 @@ enum ReaderTranslationPanelOrder {
         // Build the permutation directly, rather than swapping detector slots:
         // slot swaps can undo a nested split or strand text in another panel.
         let order = leaves.flatMap { ids -> [Int] in
-            guard ids.count >= 2, ids.allSatisfy({ inputs[$0].isVertical }) else { return ids }
+            guard ids.count >= 2 else { return ids }
             // Partition at complete vertical whitespace between detected text blocks.
             // Never let a lower balloon prevent RTL ordering in the upper band.
             let topToBottom = ids.sorted { boxes[$0].minY < boxes[$1].minY }
@@ -159,6 +159,10 @@ enum ReaderTranslationPanelOrder {
             }
             var ordered = ids
             for band in bands where band.count >= 2 {
+                // Horizontal lettering in a disjoint band supplies no evidence
+                // against vertical dialogue above or below it. Mixed lettering
+                // within the same band still retains the detector's order.
+                guard band.allSatisfy({ inputs[$0].isVertical }) else { continue }
                 let slots = ids.indices.filter { band.contains(ids[$0]) }
                 let commonTop = band.map { boxes[$0].minY }.max() ?? 0
                 let commonBottom = band.map { boxes[$0].maxY }.min() ?? 0

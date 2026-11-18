@@ -12,8 +12,11 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
 
     static func apply(_ regions: [ReaderTranslationRegion], image: CGImage, sourceLines: [SourceLine] = [],
                       enclosure: ReaderTranslationEnclosedBackground.ComponentMap? = nil) -> [ReaderTranslationRegion] {
-        apply(regions, image: image, sourceLines: sourceLines, ink: OutlinedInkMemo(image: image),
-              enclosure: enclosure ?? ReaderTranslationEnclosedBackground.ComponentMap(image: image))
+        let boundaries = enclosure ?? ReaderTranslationEnclosedBackground.ComponentMap(image: image)
+        // Individual short glyph quads can look rotated while the complete
+        // quoted column is upright. Establish that column before the skew veto.
+        let stacks = joinRecognizedQuotedStacks(regions, image: image, enclosure: boundaries)
+        return apply(stacks, image: image, sourceLines: sourceLines, ink: OutlinedInkMemo(image: image), enclosure: boundaries)
     }
 
     /// `outlinedInk` is a pure function of the image and pixel rect. One merge
@@ -67,9 +70,11 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
                           enclosure: enclosure) + rotated)
                 .sorted { order[$0.id, default: 0] < order[$1.id, default: 0] }
         }
+        let staggered = ReaderTranslationStaggeredQuoteMerger.apply(regions, image: image, enclosure: enclosure)
+        let quoted = joinQuotedOutlinedColumns(staggered, image: image, ink: ink, enclosure: enclosure)
         let regions = joinParagraphBlocks(joinShortStaggeredReactions(
             joinRepeatedKanaLeadIns(
-                joinStackedCaptionFragments(regions, image: image, sourceLines: sourceLines, ink: ink),
+                joinStackedCaptionFragments(quoted, image: image, sourceLines: sourceLines, ink: ink),
                 image: image, ink: ink), image: image, ink: ink), image: image, sourceLines: sourceLines, ink: ink, enclosure: enclosure)
         let width = CGFloat(image.width), height = CGFloat(image.height)
         let candidates = regions.filter { $0.sourceOrientation == .vertical && $0.source.count >= 2 &&
@@ -126,6 +131,15 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
             var valid = true
             for (right, left) in zip(members, members.dropFirst()) {
                 func pixels(_ rect: CGRect) -> CGRect { CGRect(x: rect.minX * width, y: rect.minY * height, width: rect.width * width, height: rect.height * height) }
+                // A clear text-height gutter can still sit inside the neck between
+                // two much wider balloon lobes. Connected paper alone is not one
+                // utterance; retain the contour ownership veto used by the later
+                // balloon-unit pass before this earlier join loses its members.
+                if let balloon = enclosure.balloon(of: pixels(right.rect)),
+                   balloon == enclosure.balloon(of: pixels(left.rect)),
+                   !enclosure.sharesBalloonInterior(pixels(right.rect), pixels(left.rect), component: balloon, oneLettering: true) {
+                    valid = false; break
+                }
                 if separatesVerticalUtterances(right.source, box: pixels(right.rect), left.source, box: pixels(left.rect)) ||
                     ink.different(pixels(right.rect), pixels(left.rect)) ||
                     enclosure.separates(pixels(right.rect), pixels(left.rect)) ||
@@ -155,6 +169,8 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
                 sourceSingleVerticalColumn: false)
             joined.auxiliaryInkRects = members.flatMap(\.auxiliaryInkRects)
             joined.auxiliaryInkPolygons = members.flatMap(\.auxiliaryInkPolygons)
+            joined.detectorSeedEvidence = NativeOCRDetectorSeedEvidence.preservingUnion(members.map(\.detectorSeedEvidence))
+            joined.acceptedSource = .union(members.map(\.acceptedSource))
             joined.polygon = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
                               CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)]
             replacements[anchor.id] = joined
@@ -168,6 +184,37 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
     /// one lettering unit in reading order. Join right-to-left neighbours whose
     /// columns share the top line and the column size, separated by a clear gutter of
     /// about one column, on the same surface and in the same ink.
+    private static func joinRecognizedQuotedStacks(_ regions: [ReaderTranslationRegion], image: CGImage,
+                                                   enclosure: ReaderTranslationEnclosedBackground.ComponentMap) -> [ReaderTranslationRegion] {
+        let width = CGFloat(image.width), height = CGFloat(image.height)
+        let fragments = regions.map { region in
+            ReaderTranslationQuotedStack.Fragment(text: region.source,
+                rect: CGRect(x: region.rect.minX * width, y: region.rect.minY * height,
+                    width: region.rect.width * width, height: region.rect.height * height),
+                vertical: region.sourceOrientation == .vertical, translated: region.translation != nil)
+        }
+        let groups = ReaderTranslationQuotedStack.groups(fragments, separates: { enclosure.separates($0, $1) })
+        var replacements: [String: ReaderTranslationRegion] = [:], consumed = Set<String>()
+        for group in groups {
+            let members = group.map { regions[$0] }
+            let anchor = members[0], box = members.dropFirst().reduce(anchor.rect) { $0.union($1.rect) }
+            var joined = ReaderTranslationRegion(id: anchor.id, rect: box, source: members.map(\.source).joined(),
+                confidence: members.map(\.confidence).min() ?? anchor.confidence,
+                sourceImageAspectRatio: Double(width / height), sourceOrientation: .vertical,
+                sourceSingleVerticalColumn: true)
+            joined.unitMemberRects = members.flatMap { $0.unitMemberRects.isEmpty ? [$0.rect] : $0.unitMemberRects }
+            joined.auxiliaryInkRects = members.flatMap(\.auxiliaryInkRects)
+            joined.auxiliaryInkPolygons = members.flatMap(\.auxiliaryInkPolygons)
+            joined.detectorSeedEvidence = NativeOCRDetectorSeedEvidence.preservingUnion(members.map(\.detectorSeedEvidence))
+            joined.acceptedSource = .union(members.map(\.acceptedSource))
+            joined.isRecoveredLine = members.contains(where: \.isRecoveredLine)
+            joined.polygon = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
+                              CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)]
+            replacements[anchor.id] = joined; consumed.formUnion(members.map(\.id))
+        }
+        return regions.compactMap { replacements[$0.id] ?? (consumed.contains($0.id) ? nil : $0) }
+    }
+
     private static func joinParagraphBlocks(_ regions: [ReaderTranslationRegion], image: CGImage, sourceLines: [SourceLine],
                                             ink: OutlinedInkMemo,
                                             enclosure: ReaderTranslationEnclosedBackground.ComponentMap) -> [ReaderTranslationRegion] {
@@ -209,6 +256,8 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
                                                  sourceOrientation: .vertical, sourceSingleVerticalColumn: false)
             joined.auxiliaryInkRects = members.flatMap(\.auxiliaryInkRects)
             joined.auxiliaryInkPolygons = members.flatMap(\.auxiliaryInkPolygons)
+            joined.detectorSeedEvidence = NativeOCRDetectorSeedEvidence.preservingUnion(members.map(\.detectorSeedEvidence))
+            joined.acceptedSource = .union(members.map(\.acceptedSource))
             joined.polygon = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
                               CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)]
             replacements[anchor.id] = joined
@@ -230,10 +279,20 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
         guard font > 0, max(columns.0, columns.1) <= font * 1.2, gap >= font * 0.4, gap <= font * 2.1,
               abs(a.minY - b.minY) <= font * 0.6, overlap >= min(a.height, b.height) * 0.6,
               a.width >= font * 1.5, b.width >= font * 1.5 else { return false }
+        // The native column merger already preserves the wide gutter between
+        // independent paragraphs. Matching ink on open artwork or page paper
+        // must not undo that separation: require a shared bounded enclosure
+        // before treating full multi-column blocks as one lettering unit.
+        guard let paper = enclosure.component(of: a) ?? enclosure.balloon(of: a),
+              paper == (enclosure.component(of: b) ?? enclosure.balloon(of: b)) else { return false }
         let union = right.rect.union(left.rect)
         guard !regions.contains(where: { $0.id != right.id && $0.id != left.id && $0.rect.intersects(union) }),
               !separatesVerticalUtterances(right.source, box: a, left.source, box: b),
               !ink.different(a, b), !enclosure.separates(a, b) else { return false }
+        // Matching type and a blank paragraph gutter do not override separate
+        // lobes of the same balloon, even when both paragraphs start together.
+        if let balloon = enclosure.balloon(of: a), balloon == enclosure.balloon(of: b),
+           !enclosure.sharesBalloonInterior(a, b, component: balloon, oneLettering: true) { return false }
         return clearGutter(in: image, left: b, right: a, font: font)
     }
 
@@ -665,6 +724,7 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
                                                  sourceSingleVerticalColumn: host.region.sourceSingleVerticalColumn)
                 joined.auxiliaryInkRects = host.region.auxiliaryInkRects + [guest.region.rect] + guest.region.auxiliaryInkRects
                 joined.auxiliaryInkPolygons = host.region.auxiliaryInkPolygons + [guest.region.polygon] + guest.region.auxiliaryInkPolygons
+                joined.detectorSeedEvidence = nil // Changed ownership requires a complete producer-backed union.
                 joined.unitMemberRects = host.region.unitMemberRects
             } else {
                 let first = precedes(a, b, vertical: vertical) ? a.region : b.region
@@ -683,6 +743,8 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
                     sourceSingleVerticalColumn: vertical ? sameColumn : host.region.sourceSingleVerticalColumn)
                 joined.auxiliaryInkRects = first.auxiliaryInkRects + second.auxiliaryInkRects
                 joined.auxiliaryInkPolygons = first.auxiliaryInkPolygons + second.auxiliaryInkPolygons
+                joined.detectorSeedEvidence = NativeOCRDetectorSeedEvidence.preservingUnion([first.detectorSeedEvidence, second.detectorSeedEvidence])
+                joined.acceptedSource = .union([first.acceptedSource, second.acceptedSource])
                 // The members, not their union rectangle, bound the unit's erasure and plate: on an irregular
                 // balloon the union's corners lie on its outline or the art beyond it.
                 joined.unitMemberRects = (first.unitMemberRects.isEmpty ? [first.rect] : first.unitMemberRects) +
@@ -696,6 +758,13 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
             }
             joined.auxiliaryInkRects += absorbed.map(\.rect)
             joined.auxiliaryInkPolygons += absorbed.map(\.polygon)
+            if !absorbed.isEmpty { joined.detectorSeedEvidence = nil } // Added erase-only scope has no exact owner union.
+            if best.ruby {
+                joined.acceptedSource = NativeOCRSourceMetadata.union(([host.region] + absorbed).map(\.acceptedSource))
+                    .retainingReading(guest.region.acceptedSource)
+            } else {
+                joined.acceptedSource = .union(([a.region, b.region] + absorbed).map(\.acceptedSource))
+            }
             removed.formUnion(absorbed.map(\.id))
             let points = best.ruby ? host.points : joined.polygon.map { CGPoint(x: $0.x * width, y: $0.y * height) }
             var merged = Unit(region: joined, box: best.ruby ? host.box : pixels(joined.rect), balloon: a.balloon ?? b.balloon,
@@ -709,8 +778,11 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
             units.remove(at: best.j); units.remove(at: best.i)
             units.append(merged)
         }
-        guard !removed.isEmpty else { return input }
-        return input.compactMap { removed.contains($0.id) ? nil : replacements[$0.id] ?? $0 }
+        let completed = input.compactMap { removed.contains($0.id) ? nil : replacements[$0.id] ?? $0 }
+        // A request may continue across two measured lobes. Preserve their
+        // separate erasure/layout members while translating its argument and
+        // predicate together, after the ordinary within-lobe joins finish.
+        return ReaderTranslationLobedRequestMerger.apply(completed, image: image, enclosure: enclosure, separates: separates)
     }
 
     /// Within one balloon a text block's columns start together (top-aligned) or are centred.
@@ -788,12 +860,70 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
                     sourceOrientation: .vertical, sourceSingleVerticalColumn: false)
                 joined.auxiliaryInkRects = lead.auxiliaryInkRects + column.auxiliaryInkRects
                 joined.auxiliaryInkPolygons = lead.auxiliaryInkPolygons + column.auxiliaryInkPolygons
+                joined.detectorSeedEvidence = NativeOCRDetectorSeedEvidence.preservingUnion([lead.detectorSeedEvidence, column.detectorSeedEvidence])
+                joined.acceptedSource = .union([lead.acceptedSource, column.acceptedSource])
                 joined.polygon = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
                                   CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)]
                 replacements[anchor.id] = joined
                 consumed.formUnion([column.id, lead.id])
                 break
             }
+        }
+        return input.compactMap { replacements[$0.id] ?? (consumed.contains($0.id) ? nil : $0) }
+    }
+
+    /// One open quotation can wrap into a larger emphasized column on artwork.
+    /// The paired punctuation supplies content continuity; matching ink alone
+    /// never joins complete utterances or different speakers.
+    private static func joinQuotedOutlinedColumns(
+        _ input: [ReaderTranslationRegion], image: CGImage, ink: OutlinedInkMemo,
+        enclosure: ReaderTranslationEnclosedBackground.ComponentMap
+    ) -> [ReaderTranslationRegion] {
+        let width = CGFloat(image.width), height = CGFloat(image.height)
+        func pixels(_ rect: CGRect) -> CGRect {
+            CGRect(x: rect.minX * width, y: rect.minY * height, width: rect.width * width, height: rect.height * height)
+        }
+        let columns = input.filter { $0.sourceOrientation == .vertical && $0.sourceSingleVerticalColumn == true }
+            .sorted { $0.rect.midX > $1.rect.midX }
+        var replacements: [String: ReaderTranslationRegion] = [:], consumed = Set<String>()
+        for (right, left) in zip(columns, columns.dropFirst()) {
+            guard !consumed.contains(right.id), !consumed.contains(left.id) else { continue }
+            let first = right.source.trimmingCharacters(in: .whitespacesAndNewlines)
+            let last = left.source.trimmingCharacters(in: .whitespacesAndNewlines)
+            let closers: [Character: Character] = ["「": "」", "『": "』", "“": "”"]
+            guard let opening = first.first, let closing = closers[opening], last.last == closing,
+                  first.filter({ $0.isLetter }).count >= 3, last.filter({ $0.isLetter }).count >= 3,
+                  !first.dropFirst().contains(where: { "「」『』“”".contains($0) }),
+                  !last.dropLast().contains(where: { "「」『』“”".contains($0) }) else { continue }
+            let a = pixels(right.rect), b = pixels(left.rect), font = min(a.width, b.width)
+            let gap = a.minX - b.maxX, overlap = min(a.maxY, b.maxY) - max(a.minY, b.minY)
+            let box = right.rect.union(left.rect)
+            guard font > 0, max(a.width, b.width) <= font * 1.6,
+                  min(a.height, b.height) >= font * 3,
+                  gap >= 0, gap <= font * 0.75,
+                  abs(a.minY - b.minY) <= font * 0.75, abs(a.maxY - b.maxY) <= font * 0.35,
+                  overlap >= min(a.height, b.height) * 0.85,
+                  !input.contains(where: { $0.id != right.id && $0.id != left.id && $0.rect.intersects(box) }),
+                  ink.matching(a, b), !enclosure.separates(a, b),
+                  clearGutter(in: image, left: b, right: a, font: font) else { continue }
+            if let balloon = enclosure.balloon(of: a), balloon == enclosure.balloon(of: b),
+               !enclosure.sharesBalloonInterior(a, b, component: balloon, oneLettering: true) { continue }
+            let anchor = input.first { $0.id == right.id || $0.id == left.id }!
+            var joined = ReaderTranslationRegion(id: anchor.id, rect: box, source: right.source + left.source,
+                confidence: min(right.confidence, left.confidence), sourceImageAspectRatio: Double(width / height),
+                sourceOrientation: .vertical, sourceSingleVerticalColumn: false)
+            // Keep the measured columns (including the emphasis width difference)
+            // and producer ownership; never invent one filled union ink body.
+            joined.unitMemberRects = [right.rect, left.rect]
+            joined.auxiliaryInkRects = right.auxiliaryInkRects + left.auxiliaryInkRects
+            joined.auxiliaryInkPolygons = right.auxiliaryInkPolygons + left.auxiliaryInkPolygons
+            joined.detectorSeedEvidence = NativeOCRDetectorSeedEvidence.preservingUnion([right.detectorSeedEvidence, left.detectorSeedEvidence])
+            joined.acceptedSource = .union([right.acceptedSource, left.acceptedSource])
+            joined.isRecoveredLine = right.isRecoveredLine || left.isRecoveredLine
+            joined.polygon = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
+                              CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)]
+            replacements[anchor.id] = joined
+            consumed.formUnion([right.id, left.id])
         }
         return input.compactMap { replacements[$0.id] ?? (consumed.contains($0.id) ? nil : $0) }
     }
@@ -830,6 +960,8 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
                     sourceSingleVerticalColumn: false)
                 joined.auxiliaryInkRects = members.flatMap(\.auxiliaryInkRects)
                 joined.auxiliaryInkPolygons = members.flatMap(\.auxiliaryInkPolygons)
+                joined.detectorSeedEvidence = NativeOCRDetectorSeedEvidence.preservingUnion(members.map(\.detectorSeedEvidence))
+                joined.acceptedSource = .union(members.map(\.acceptedSource))
                 joined.polygon = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
                                   CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)]
                 replacements[anchor.id] = joined
@@ -886,6 +1018,10 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
                 let top = pixels(result[index].rect), bottom = pixels(tail.rect), font = bottom.width
                 let gap = bottom.minY - top.maxY
                 let next = tail.source.trimmingCharacters(in: .whitespacesAndNewlines)
+                let previous = result[index].source.trimmingCharacters(in: .whitespacesAndNewlines)
+                // A closed utterance stays separate even if recognition dropped the
+                // next opening quote. Matching outlined ink is style evidence only.
+                guard previous.last.map({ "」』”".contains($0) }) != true else { continue }
                 guard font > 0, next.count >= 2, !next.hasPrefix("「"), !next.hasPrefix("『"),
                       top.width >= font * 1.4, top.width <= font * 3.5,
                       bottom.minY > top.minY, bottom.maxY > top.maxY,
@@ -900,6 +1036,8 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
                     sourceOrientation: .vertical, sourceSingleVerticalColumn: false)
                 joined.auxiliaryInkRects = result[index].auxiliaryInkRects + tail.auxiliaryInkRects
                 joined.auxiliaryInkPolygons = result[index].auxiliaryInkPolygons + tail.auxiliaryInkPolygons
+                joined.detectorSeedEvidence = NativeOCRDetectorSeedEvidence.preservingUnion([result[index].detectorSeedEvidence, tail.detectorSeedEvidence])
+                joined.acceptedSource = .union([result[index].acceptedSource, tail.acceptedSource])
                 joined.polygon = [CGPoint(x: union.minX, y: union.minY), CGPoint(x: union.maxX, y: union.minY),
                                   CGPoint(x: union.maxX, y: union.maxY), CGPoint(x: union.minX, y: union.maxY)]
                 result[index] = joined
@@ -1003,7 +1141,13 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
         let bounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
         let leading = CGRect(x: rect.minX, y: rect.minY, width: min(rect.width, rect.height * 10), height: rect.height)
         guard let crop = image.cropping(to: leading.integral.intersection(bounds)) else { return nil }
-        let scale = min(1, 512 / CGFloat(crop.width), 128 / CGFloat(crop.height))
+        // Keep a vertical column's glyph strokes at the same useful resolution
+        // as a horizontal line. Capping every crop at 128 pixels tall can turn
+        // long-column black strokes into grey, or make an outlined column's
+        // background win the ink histogram, creating a false colour boundary.
+        let vertical = crop.height > crop.width * 2
+        let scale = min(1, (vertical ? 128 : 512) / CGFloat(crop.width),
+                        (vertical ? 384 : 128) / CGFloat(crop.height))
         let w = Int((CGFloat(crop.width) * scale).rounded()), h = Int((CGFloat(crop.height) * scale).rounded())
         guard w >= 8, h >= 8 else { return nil }
         var rgba = [UInt8](repeating: 0, count: w * h * 4)
@@ -1034,7 +1178,28 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
         let ink = dominant { r, g, b in
             max(abs(Double(r) - background.0), abs(Double(g) - background.1), abs(Double(b) - background.2)) >= 80
         }
-        return ink.count >= 20 ? ink.color : nil
+        guard ink.count >= 20 else { return nil }
+        // A tight outlined crop can put the halo in the dominant bin and the
+        // artwork surface in the contrasting bin. Trust that two-mode sample
+        // only when the original perimeter corroborates at least one mode.
+        // Either mode may meet the edge; this is sampling support, not a paint
+        // role assignment, and retains genuine caption/sign colour boundaries.
+        var rimCount = 0, backgroundSupport = 0, inkSupport = 0
+        func observeRim(_ x: Int, _ y: Int) {
+            let i = (y * w + x) * 4
+            let r = Double(rgba[i]), g = Double(rgba[i + 1]), b = Double(rgba[i + 2])
+            rimCount += 1
+            if max(abs(r - background.0), abs(g - background.1), abs(b - background.2)) <= 32 {
+                backgroundSupport += 1
+            }
+            if max(abs(r - ink.color.0), abs(g - ink.color.1), abs(b - ink.color.2)) <= 32 {
+                inkSupport += 1
+            }
+        }
+        for x in 0..<w { observeRim(x, 0); observeRim(x, h - 1) }
+        for y in 1..<(h - 1) { observeRim(0, y); observeRim(w - 1, y) }
+        guard backgroundSupport * 2 >= rimCount || inkSupport * 2 >= rimCount else { return nil }
+        return ink.color
     }
 
     private static func matching(_ a: (Double, Double, Double), _ b: (Double, Double, Double)) -> Bool {
@@ -1067,6 +1232,8 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
             var sumG = [Int](repeating: 0, count: 64)
             var sumB = [Int](repeating: 0, count: 64)
             var rows = [UInt16](repeating: 0, count: 64)
+            var darkCounts = [Int](repeating: 0, count: 64)
+            var darkRows = [UInt16](repeating: 0, count: 64)
             let rowStride = w * 4
             rgba.withUnsafeBufferPointer { pixels in
                 for y in 1..<(h - 1) {
@@ -1083,6 +1250,10 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
                         let key = (r / 64) * 16 + (g / 64) * 4 + b / 64
                         counts[key] += 1; sumR[key] += r; sumG[key] += g; sumB[key] += b
                         rows[key] |= band
+                        if min(r, g, b) < 128 {
+                            darkCounts[key] += 1
+                            darkRows[key] |= band
+                        }
                     }
                 }
             }
@@ -1094,6 +1265,15 @@ enum ReaderTranslationBalloonMerger { // swiftlint:disable:this type_body_length
             for key in 0..<64 where counts[key] > 0 && (bestKey < 0 || counts[key] > counts[bestKey]) {
                 bestKey = key
             }
+            // Repeated dark coloured strokes beside white are stronger original
+            // lettering evidence than bright skin/art beside white highlights.
+            // Keep the bright-caption fallback when no such stroke bin exists.
+            var darkKey = -1
+            for key in 0..<64 where darkCounts[key] >= 24 && darkRows[key].nonzeroBitCount >= 6 &&
+                (darkKey < 0 || darkCounts[key] > darkCounts[darkKey]) {
+                darkKey = key
+            }
+            if darkKey >= 0 { bestKey = darkKey }
             guard bestKey >= 0, counts[bestKey] >= 24, rows[bestKey].nonzeroBitCount >= 6 else { return nil }
             let best = (count: counts[bestKey], r: sumR[bestKey], g: sumG[bestKey], b: sumB[bestKey])
             // White outline antialiasing changes brightness/saturation, not the caption hue.

@@ -16,12 +16,13 @@ actor MangaManager {
 
     private static let taskIdentifier = (Bundle.main.bundleIdentifier ?? "") + ".libraryRefresh"
 
-    private var libraryRefreshTask: Task<(), Never>?
+    private static let continuedTaskIdentifier = (Bundle.main.bundleIdentifier ?? "") + ".continuedLibraryRefresh"
+
+    private var libraryRefreshTask: Task<Bool, Never>?
     private var libraryRefreshProgressTask: Task<(), Never>?
     private var onLibraryRefreshProgress: (@MainActor (Progress) -> Void)?
 
-    private var targetCategory: String?
-    private var skipReachabilityCheck: Bool = false
+    private var pendingBackgroundRefresh: (category: String?, skipReachabilityCheck: Bool)?
     private var nextAutomaticRefreshAttempt = Date.distantPast
 
     private static let maxConcurrentLibraryUpdateTasks = 10
@@ -61,17 +62,13 @@ actor MangaManager {
         }
 
         // 2. Fallback: Find first uncompleted chapter in sort order (Start Reading)
-        let sorted = sortAscending ? chapters : chapters.reversed()
-
-        return sorted.first(where: { chapter in
+        func canStart(_ chapter: AidokuRunner.Chapter) -> Bool {
+            guard readingHistory[chapter.id]?.page != -1 else { return false }
+            guard chapter.locked else { return true }
             let identifier = ChapterIdentifier(sourceKey: manga.sourceKey, mangaKey: manga.key, chapterKey: chapter.key)
-            let isDownloaded = DownloadManager.shared.getDownloadStatus(for: identifier) == .finished
-            let isUnlocked = !chapter.locked || isDownloaded
-            let history = readingHistory[chapter.id]
-            let isCompleted = history?.page ?? 0 == -1
-
-            return isUnlocked && !isCompleted
-        })
+            return DownloadManager.shared.getDownloadStatus(for: identifier) == .finished
+        }
+        return sortAscending ? chapters.first(where: canStart) : chapters.last(where: canStart)
     }
 
     /// Fetches the stored chapters for a manga in the user's sort order, along with the next chapter to read.
@@ -347,80 +344,98 @@ extension MangaManager {
 extension MangaManager {
     nonisolated func register() {
 #if !targetEnvironment(simulator)
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.taskIdentifier, using: nil) { @Sendable [weak self] task in
-            guard let self else { return }
-
-            task.expirationHandler = {
-                Task {
-                    await self.libraryRefreshTask?.cancel()
-                }
+        let launch: @Sendable (BGTask) -> Void = { [weak self] task in
+            guard let self else {
                 task.setTaskCompleted(success: false)
+                return
             }
-
-            Task { @Sendable in
-                await self.refreshLibrary(category: self.targetCategory, task: task as? ProgressReporting)
-
-                task.setTaskCompleted(success: true)
-            }
+            let delivery = LibraryBackgroundRefresh { success in task.setTaskCompleted(success: success) }
+            task.expirationHandler = { delivery.expire() }
+            delivery.start { await self.runBackgroundRefresh(task) }
+        }
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.taskIdentifier, using: nil, launchHandler: launch)
+        if #available(iOS 26.0, *) {
+            BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.continuedTaskIdentifier, using: nil, launchHandler: launch)
         }
 #endif
     }
 
-    func scheduleLibraryRefresh() {
-        let lastUpdated = AppSettings.library.lastUpdated.get()
-        let interval: Double = switch AppSettings.library.updateInterval.get() {
-            case "12hours": 43200
-            case "daily": 86400
-            case "2days": 172800
-            case "weekly": 604800
-            default: 0
+    private func runBackgroundRefresh(_ task: BGTask) async -> Bool {
+        if #available(iOS 26.0, *), task is BGContinuedProcessingTask {
+            let options = pendingBackgroundRefresh
+            pendingBackgroundRefresh = nil
+            return await refreshLibrary(
+                category: options?.category,
+                skipReachabilityCheck: options?.skipReachabilityCheck ?? false,
+                task: task as? ProgressReporting
+            )
         }
-        guard interval > 0 else {
-#if !targetEnvironment(simulator)
-            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.taskIdentifier)
-#endif
-            return
+        let action = automaticRefreshAction(canStart: true)
+        guard action == .start else {
+            scheduleSystemRefresh(action)
+            return true
         }
-        let nextUpdateTime = max(lastUpdated + interval, nextAutomaticRefreshAttempt)
+        return await refreshLibrary(task: task as? ProgressReporting)
+    }
 
-        if nextUpdateTime < Date.now {
+    private func automaticRefreshAction(canStart: Bool) -> LibraryAutomaticRefresh {
+        .action(
+            interval: AppSettings.library.updateInterval.get(),
+            lastUpdated: AppSettings.library.lastUpdated.get(),
+            retryAfter: nextAutomaticRefreshAttempt,
+            now: .now,
+            canStart: canStart
+        )
+    }
+
+    func refreshLibraryIfOverdue() async {
+        guard automaticRefreshAction(canStart: true) == .start, !AppSettings.flags.libraryRefreshInProgress.get() else { return }
+        await refreshLibrary()
+    }
+
+    func scheduleLibraryRefresh() async {
+        let active = await UIApplication.shared.applicationState == .active
+        let action = automaticRefreshAction(canStart: active)
+        if action == .start {
             guard !AppSettings.flags.libraryRefreshInProgress.get() else { return }
-            // interval time has passed, refresh now
-            Task {
-                await refreshLibrary()
-            }
+            Task { await refreshLibrary() }
         } else {
-#if !targetEnvironment(simulator)
-            // schedule task for the future
-            let request = BGProcessingTaskRequest(identifier: Self.taskIdentifier)
-            request.earliestBeginDate = nextUpdateTime
-            request.requiresExternalPower = false
-            request.requiresNetworkConnectivity = true
+            scheduleSystemRefresh(action)
+        }
+    }
 
-            Task {
+    private func scheduleSystemRefresh(_ action: LibraryAutomaticRefresh) {
+#if !targetEnvironment(simulator)
+        switch action {
+            case .disabled:
+                BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.taskIdentifier)
+            case .schedule(let date):
+                let request = BGProcessingTaskRequest(identifier: Self.taskIdentifier)
+                request.earliestBeginDate = date
+                request.requiresExternalPower = false
+                request.requiresNetworkConnectivity = true
                 do {
-                    try await BGTaskScheduler.shared.submit(request: request)
+                    try BGTaskScheduler.shared.submit(request)
                 } catch {
                     LogManager.logger.error("Could not schedule library refresh: \(error)")
                 }
-            }
-#endif
+            case .start:
+                break
         }
+#endif
     }
 
     func backgroundRefreshLibrary(category: String? = nil, skipReachabilityCheck: Bool = false) async {
-        targetCategory = category
-        self.skipReachabilityCheck = skipReachabilityCheck
-
 #if !targetEnvironment(simulator)
         if #available(iOS 26.0, *), AppSettings.library.backgroundRefresh.get(), !ProcessInfo.processInfo.isMacCatalystApp {
             let request = BGContinuedProcessingTaskRequest(
-                identifier: Self.taskIdentifier,
+                identifier: Self.continuedTaskIdentifier,
                 title: NSLocalizedString("REFRESHING_LIBRARY"),
                 subtitle: NSLocalizedString("PROCESSING_ENTRIES")
             )
             do {
-                try await BGTaskScheduler.shared.submit(request: request)
+                try BGTaskScheduler.shared.submit(request)
+                pendingBackgroundRefresh = (category, skipReachabilityCheck)
                 return
             } catch {
                 LogManager.logger.error("Failed to start background library refresh: \(error)")
@@ -428,62 +443,69 @@ extension MangaManager {
         }
 #endif
 
-        await refreshLibrary(category: category)
+        await refreshLibrary(category: category, skipReachabilityCheck: skipReachabilityCheck)
     }
 
     /// Refresh manga objects in library.
+    @discardableResult
     func refreshLibrary(
         category: String? = nil,
         forceAll: Bool = false,
+        skipReachabilityCheck: Bool = false,
         task: (ProgressReporting & Sendable)? = nil
-    ) async {
-        let tabController = await UIApplication.shared.firstKeyWindow?.rootViewController as? TabBarController
-
-        if libraryRefreshTask != nil {
-            // wait for already running library refresh
-            await libraryRefreshTask?.value
-        } else {
-            nextAutomaticRefreshAttempt = Date.now.addingTimeInterval(300)
-            // spawn new library refresh
-            AppSettings.flags.libraryRefreshInProgress.set(true)
-            libraryRefreshTask = Task {
-                await doLibraryRefresh(
-                    category: category,
-                    skipReachabilityCheck: skipReachabilityCheck,
-                    forceAll: forceAll,
-                    task: task,
-                    refreshStarted: {
-                        await tabController?.showLibraryRefreshView()
-
-                        self.onLibraryRefreshProgress = { progress in
-                            tabController?.setLibraryRefreshProgress(Float(progress.fractionCompleted))
-                            task?.progress.totalUnitCount = progress.totalUnitCount
-                            task?.progress.completedUnitCount = progress.completedUnitCount
-                            if #available(iOS 26.0, *), let task = task as? BGContinuedProcessingTask {
-                                task.updateTitle(
-                                    NSLocalizedString("REFRESHING_LIBRARY"),
-                                    subtitle: String(format: NSLocalizedString("%i_OF_%i"), progress.completedUnitCount, progress.totalUnitCount)
-                                )
-                            }
-                        }
-                    }
-                )
-                libraryRefreshTask = nil
-                AppSettings.flags.libraryRefreshInProgress.reset()
-            }
-            await libraryRefreshTask?.value
+    ) async -> Bool {
+        guard !Task.isCancelled else { return false }
+        if let libraryRefreshTask {
+            // A caller joining an existing refresh does not own its cancellation or completion effects.
+            return await libraryRefreshTask.value
         }
 
-        self.targetCategory = nil
-        self.skipReachabilityCheck = false
+        nextAutomaticRefreshAttempt = Date.now.addingTimeInterval(300)
+        AppSettings.flags.libraryRefreshInProgress.set(true)
+        let worker = Task {
+            let tabController = await UIApplication.shared.firstKeyWindow?.rootViewController as? TabBarController
+            await doLibraryRefresh(
+                category: category,
+                skipReachabilityCheck: skipReachabilityCheck,
+                forceAll: forceAll,
+                refreshStarted: {
+                    await tabController?.showLibraryRefreshView()
 
-        // wait 0.5s for final progress animation to complete
-        try? await Task.sleep(nanoseconds: 500_000_000)
-        await tabController?.hideAccessoryView()
+                    self.onLibraryRefreshProgress = { progress in
+                        tabController?.setLibraryRefreshProgress(Float(progress.fractionCompleted))
+                        task?.progress.totalUnitCount = progress.totalUnitCount
+                        task?.progress.completedUnitCount = progress.completedUnitCount
+                        if #available(iOS 26.0, *), let task = task as? BGContinuedProcessingTask {
+                            task.updateTitle(
+                                NSLocalizedString("REFRESHING_LIBRARY"),
+                                subtitle: String(format: NSLocalizedString("%i_OF_%i"), progress.completedUnitCount, progress.totalUnitCount)
+                            )
+                        }
+                    }
+                }
+            )
 
-        NotificationCenter.default.post(name: .updateLibrary, object: nil)
-
-        scheduleLibraryRefresh()
+            // Give the final progress update time to animate before removing its accessory.
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            libraryRefreshProgressTask?.cancel()
+            libraryRefreshProgressTask = nil
+            onLibraryRefreshProgress = nil
+            await tabController?.hideAccessoryView()
+            NotificationCenter.default.post(name: .updateLibrary, object: nil)
+            if Task.isCancelled {
+                nextAutomaticRefreshAttempt = Date.now.addingTimeInterval(300)
+            }
+            AppSettings.flags.libraryRefreshInProgress.reset()
+            libraryRefreshTask = nil
+            await scheduleLibraryRefresh()
+            return !Task.isCancelled
+        }
+        libraryRefreshTask = worker
+        return await withTaskCancellationHandler {
+            await worker.value
+        } onCancel: {
+            worker.cancel()
+        }
     }
 
     /// Check if a manga should skip updating based on skip options.
@@ -552,23 +574,25 @@ extension MangaManager {
         category: String?,
         skipReachabilityCheck: Bool,
         forceAll: Bool,
-        task: ProgressReporting? = nil,
         refreshStarted: (() async -> Void)? = nil
     ) async {
+        guard !Task.isCancelled else { return }
         // make sure user agent and sources have loaded before doing library refresh
         _ = await UserAgentProvider.shared.getUserAgent()
         await SourceManager.shared.waitForSourcesLoad()
 
+        guard !Task.isCancelled else { return }
         // process failed tracker updates first
         await TrackerManager.shared.processPendingUpdates()
 
+        guard !Task.isCancelled else { return }
         // fetch all library items from db
         let allManga = await CoreDataManager.shared.container.performBackgroundTask { context in
             CoreDataManager.shared.getLibraryManga(category: category, context: context).compactMap { $0.manga?.toManga() }
         }
 
         // ensure there are manga to update
-        guard !allManga.isEmpty else {
+        guard !allManga.isEmpty, !Task.isCancelled else {
             return
         }
 
@@ -605,8 +629,7 @@ extension MangaManager {
         let total = filteredManga.count
         var completed = 0
 
-        let isBackground = await UIApplication.shared.applicationState != .active
-        let notificationsEnabled = isBackground && NotificationManager.shared.isEnabled()
+        let notificationsEnabled = AppSettings.library.notifyNewChapters.get()
         var pendingNotifications: [NotificationManager.NewChaptersSummary] = []
 
         let newDetails = await {
@@ -626,6 +649,7 @@ extension MangaManager {
                     continue
                 }
 
+                guard !Task.isCancelled else { return results }
                 if updateMetadata {
                     results[manga.identifier] = Self.compactRefreshMetadata(newManga)
                 }
@@ -633,7 +657,7 @@ extension MangaManager {
                 let mangaId = manga.identifier
                 let mangaTitle = manga.title
 
-                let summary = await CoreDataManager.shared.container.performBackgroundTask { context -> NotificationManager.NewChaptersSummary? in
+                let summary = await MangaUpdateWriter.shared.perform(for: mangaId) { context -> NotificationManager.NewChaptersSummary? in
                     guard
                         let libraryObject = CoreDataManager.shared.getLibraryManga(
                             mangaId: mangaId,
@@ -649,40 +673,35 @@ extension MangaManager {
                         mangaObject.load(from: newManga)
                     }
 
-                    // update chapters
-                    guard let chapters = newManga.chapters, !chapters.isEmpty else { return nil }
-
-                    let newChapters = CoreDataManager.shared.setChapters(
+                    let chapters = newManga.chapters ?? []
+                    let newChapters = chapters.isEmpty ? [] : CoreDataManager.shared.setChapters(
                         chapters,
                         mangaId: mangaId,
                         context: context
                     )
-                    var notifiableCount = 0
-                    if !newChapters.isEmpty {
-                        // add manga updates
-                        let scanlatorFilter = mangaObject.scanlatorFilter ?? []
-                        for chapter in newChapters
-                        where
-                            mangaObject.langFilter != nil ? chapter.lang == mangaObject.langFilter : true
-                            && !scanlatorFilter.isEmpty ? scanlatorFilter.contains(chapter.scanlator ?? "") : true
-                        {
-                            CoreDataManager.shared.createMangaUpdate(
-                                mangaId: mangaId,
-                                chapterObject: chapter,
-                                context: context
-                            )
-                            notifiableCount += 1
+                    let notifiableCount: Int
+                    do {
+                        notifiableCount = try CoreDataManager.shared.createMangaUpdates(
+                            mangaId: mangaId,
+                            chapters: newChapters,
+                            language: mangaObject.langFilter,
+                            scanlators: mangaObject.scanlatorFilter ?? [],
+                            context: context
+                        )
+                        if !newChapters.isEmpty {
+                            libraryObject.lastChapter = chapters.compactMap { $0.dateUploaded }.max()
+                            libraryObject.lastUpdatedChapters = Date.now
                         }
-                        libraryObject.lastChapter = chapters.compactMap { $0.dateUploaded }.max()
-                        libraryObject.lastUpdatedChapters = Date.now
-                    }
-
-                    if updateMetadata || !newChapters.isEmpty {
-                        libraryObject.lastUpdated = Date.now
-                    }
-
-                    if context.hasChanges {
-                        try? context.save()
+                        if updateMetadata || !newChapters.isEmpty {
+                            libraryObject.lastUpdated = Date.now
+                        }
+                        if context.hasChanges {
+                            try context.save()
+                        }
+                    } catch {
+                        context.rollback()
+                        LogManager.logger.error("Failed to store library refresh: \(error.localizedDescription)")
+                        return nil
                     }
 
                     guard notifiableCount > 0 else { return nil }
@@ -706,9 +725,9 @@ extension MangaManager {
             return results
         }()
 
-        if notificationsEnabled, !pendingNotifications.isEmpty {
-            await NotificationManager.shared.notifyNewChapters(pendingNotifications)
-        }
+        // These summaries describe committed rows, including a write that finished during cancellation.
+        await NotificationManager.shared.notifyNewChapters(pendingNotifications)
+        guard !Task.isCancelled else { return }
 
         if updateMetadata {
             for mangaItem in filteredManga {
@@ -717,7 +736,10 @@ extension MangaManager {
             }
         }
 
-        AppSettings.library.lastUpdated.set(Date.now)
+        guard !Task.isCancelled else { return }
+        if category == nil {
+            AppSettings.library.lastUpdated.set(Date.now)
+        }
     }
 
     /// Final metadata publication needs no source chapter arrays. The current

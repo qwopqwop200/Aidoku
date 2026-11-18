@@ -753,7 +753,7 @@
 
 "TRANSLATION_AUTO" = "Otkrij automatski";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 zahtijeva iOS 18 ili noviji. Zadani model je Srednji. Mali koristi manje memorije, a Sitan ima manji rječnik znakova. Ovi modeli ne prepoznaju korejski tekst, ali podržan je prijevod na korejski.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 zahtijeva iOS 18 ili noviji. Manga v0.3 zadani je model za otkrivanje i prepoznavanje teksta. Dostupni su i drugi OCR modeli.";
 
 
 
@@ -1167,3 +1167,7 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Ova aplikacija ne podržava izvor %@ verzije %d. Instalirajte podržanu verziju.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 podržava samo izvorni tekst na japanskom i kineskom (pojednostavljeno i tradicionalno pismo). Automatsko određivanje i odabir izvornog jezika ograničeni su na te jezike. Prijevod na korejski i druge jezike i dalje je dostupan. Odabirom modela Manga primjenjuju se pragovi otkrivanja 0.85 i 0.25; zadana veličina slike za otkrivanje je 1120 piksela.";
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Svi podržani OCR jezici";

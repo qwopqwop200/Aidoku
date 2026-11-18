@@ -169,6 +169,11 @@ struct TranslatedDownloadTests {
         let original = UIGraphicsImageRenderer(size: CGSize(width: 600, height: 800), format: format).image { context in
             UIColor.white.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 600, height: 800))
+            // The main AOT renderer fails closed for a translated owner whose
+            // source has no removable ink; give the region real source lettering.
+            ("Hello" as NSString).draw(at: CGPoint(x: 110, y: 250), withAttributes: [
+                .font: UIFont.systemFont(ofSize: 44), .foregroundColor: UIColor.black
+            ])
         }
         let input = try #require(original.pngData())
         let translated = try await DownloadImageTranslator.translate(input, settings: ReaderTranslationSettings()) { _, _ in

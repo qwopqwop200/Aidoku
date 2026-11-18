@@ -10,7 +10,7 @@ struct ReaderTranslationConcurrencyTests {
         await client.release()
         let service = ReaderTranslationService(client: client)
         let input = regions(prefix: "page", count: 16)
-        let translated = try await service.translate(regions: input, settings: settings(concurrency: 8))
+        let translated = try await service.translate(regions: input, settings: settings(concurrency: 8), preparedImageJPEG: Self.jpeg)
         #expect(await client.calls == 1)
         #expect(translated.map(\.id) == input.map(\.id))
         #expect(translated.compactMap(\.translation) == input.map { "translated " + $0.source })
@@ -22,7 +22,7 @@ struct ReaderTranslationConcurrencyTests {
         let work = Task {
             do {
                 _ = try await service.translate(regions: regions(prefix: "partial", count: 1), settings: settings(concurrency: 1),
-                    onPartialProgress: { _ in await lifetime.holdCallback() })
+                    preparedImageJPEG: Self.jpeg, onPartialProgress: { _ in await lifetime.holdCallback() })
                 Issue.record("The provider should fail")
             } catch {
                 #expect(error as? RemoteTranslationError == .missingCredential)
@@ -86,7 +86,7 @@ struct ReaderTranslationConcurrencyTests {
         await service.setReaderActive(true, owner: owner)
         await service.setReaderActive(true, owner: otherOwner)
         try await waitUntil { await client.active == 0 }
-        let page = Task { try await service.translate(regions: regions(prefix: "page", count: 1), settings: value) }
+        let page = Task { try await service.translate(regions: regions(prefix: "page", count: 1), settings: value, preparedImageJPEG: Self.jpeg) }
         defer { page.cancel() }
         try await waitUntil { await client.active == 1 }
         await client.release()
@@ -138,19 +138,21 @@ struct ReaderTranslationConcurrencyTests {
         #expect(await client.calls == 2)
     }
 
-    @Test func readerHonorsConcurrencyAboveSixteen() async throws {
+    // Every page request attaches an image, so a configured limit above three is capped.
+    @Test func readerCapsImagePageRequestsAboveSixteen() async throws {
         let client = ConcurrencyProbe()
         let service = ReaderTranslationService(client: client)
         let value = settings(concurrency: 32)
         let regions = regions(prefix: "wide", count: 2_500)
         #expect(ReaderTranslationService.plans(regions: regions, settings: value).count > 32)
-        let work = Task { try await service.translate(regions: regions, settings: value) }
+        let work = Task { try await service.translate(regions: regions, settings: value, preparedImageJPEG: Self.jpeg) }
         defer { work.cancel() }
-        try await waitUntil { await client.active == 32 }
-        #expect(await client.peak == 32)
+        try await waitUntil { await client.active == 3 }
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(await client.peak == 3)
         await client.release()
         #expect(try await work.value.count == regions.count)
-        #expect(await client.peak == 32)
+        #expect(await client.peak == 3)
     }
 
     @Test(arguments: [false, true])
@@ -171,17 +173,18 @@ struct ReaderTranslationConcurrencyTests {
         let capturedSettings = value
         let work = Task {
             try await service.translate(regions: input, settings: capturedSettings,
-                                        preparedImageJPEG: unsupported ? nil : Data([0xff, 0xd8, 0xff, 0xd9]))
+                                        preparedImageJPEG: Self.jpeg)
         }
         defer { work.cancel() }
-        let expectedConcurrency = unsupported ? 4 : 3
+        // A known-unsupported record no longer downgrades the mandatory page image.
+        let expectedConcurrency = 3
         try await waitUntil { await client.active == expectedConcurrency }
         #expect(await client.peak == expectedConcurrency)
         await client.release()
         let result = try await work.value
         #expect(result.map(\.id) == input.map(\.id))
         #expect(result.compactMap(\.translation) == input.map { "translated " + $0.source })
-        #expect(await client.imageAttachments.allSatisfy { $0 == !unsupported })
+        #expect(await client.imageAttachments.allSatisfy { $0 })
         #expect(await client.peak == expectedConcurrency)
     }
 
@@ -189,17 +192,20 @@ struct ReaderTranslationConcurrencyTests {
         let client = ConcurrencyProbe()
         let service = ReaderTranslationService(client: client)
         let value = settings(concurrency: 4)
-        let first = Task { try await service.translate(regions: regions(prefix: "current", count: 300), settings: value) }
+        let first = Task {
+            try await service.translate(regions: regions(prefix: "current", count: 300), settings: value, preparedImageJPEG: Self.jpeg)
+        }
         defer { first.cancel() }
-        try await waitUntil { await client.active == 4 }
+        try await waitUntil { await client.active == 3 }
         let second = Task {
-            try await service.translate(regions: regions(prefix: "ahead", count: 300), settings: value, priority: .prefetch)
+            try await service.translate(regions: regions(prefix: "ahead", count: 300), settings: value,
+                                        preparedImageJPEG: Self.jpeg, priority: .prefetch)
         }
         defer { second.cancel() }
         await client.release()
         #expect(try await first.value.count == 300)
         #expect(try await second.value.count == 300)
-        #expect(await client.peak <= 4)
+        #expect(await client.peak <= 3)
     }
 
     @Test func twoImageLookaheadsLeaveOneProviderSlotForVisibleDemand() async throws {
@@ -288,16 +294,17 @@ struct ReaderTranslationConcurrencyTests {
         let promotion = TranslationRequestPromotion()
         let work = Task {
             try await service.translate(regions: regions(prefix: "promoted", count: 300),
-                                        settings: settings(concurrency: 4), priority: .promotable(promotion))
+                                        settings: settings(concurrency: 4), preparedImageJPEG: Self.jpeg,
+                                        priority: .promotable(promotion))
         }
         defer { work.cancel() }
         try await waitUntil { await client.active == 1 }
         promotion.promote()
-        try await waitUntil { await client.active == 4 }
-        #expect(await client.peak == 4)
+        try await waitUntil { await client.active == 3 }
+        #expect(await client.peak == 3)
         await client.release()
         #expect(try await work.value.count == 300)
-        #expect(await client.peak == 4)
+        #expect(await client.peak == 3)
     }
 
     @Test func unpromotedSchedulerCompletesAndCancelsWithoutWaitingForPromotion() async throws {
@@ -307,7 +314,8 @@ struct ReaderTranslationConcurrencyTests {
             let promotion = TranslationRequestPromotion()
             let work = Task {
                 try await service.translate(regions: regions(prefix: "unpromoted", count: 300),
-                                            settings: settings(concurrency: 4), priority: .promotable(promotion))
+                                            settings: settings(concurrency: 4), preparedImageJPEG: Self.jpeg,
+                                            priority: .promotable(promotion))
             }
             defer { work.cancel() }
             try await waitUntil { await client.active == 1 }
@@ -345,9 +353,13 @@ struct ReaderTranslationConcurrencyTests {
         #expect(await recorder.order == ["active", "destination", "ahead"])
     }
 
+    /// Page translation always attaches a page image; probes never decode it.
+    private static let jpeg = Data([0xff, 0xd8, 0xff, 0xd9])
     private func settings(concurrency: Int) -> ReaderTranslationSettings {
         var value = ReaderTranslationSettings(defaults: UserDefaults(suiteName: "concurrency-" + UUID().uuidString)!)
         value.maximumConcurrentRequests = concurrency
+        // Fixture lines are English; the default manga tier admits only CJK sources.
+        value.usesOCRLanguagePolicy = false
         return value
     }
     private func regions(prefix: String, count: Int) -> [ReaderTranslationRegion] {

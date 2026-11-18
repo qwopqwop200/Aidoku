@@ -25,20 +25,21 @@ struct ReaderTranslationNetworkTests {
         var settings = ReaderTranslationSettings()
         settings.provider = .openAI
         settings.targetLanguage = "ko"
-        let first = try await service.translate(regions: regions, settings: settings)
+        let jpeg = readerTestPageJPEG
+        let first = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: jpeg)
         #expect(first.first?.id == "region-9")
-        #expect(first.first?.translation == "ko:こんにちは")
-        _ = try await service.translate(regions: regions, settings: settings)
+        #expect(first.first?.translation == "Korean:こんにちは")
+        _ = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: jpeg)
         #expect(await transport.requests.count == 1)
         settings.targetLanguage = "en"
-        let second = try await service.translate(regions: regions, settings: settings)
-        #expect(second.first?.translation == "en:こんにちは")
+        let second = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: jpeg)
+        #expect(second.first?.translation == "English:こんにちは")
         #expect(await transport.requests.count == 2)
         settings.credentialGeneration += 1
-        _ = try await service.translate(regions: regions, settings: settings)
+        _ = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: jpeg)
         #expect(await transport.requests.count == 3)
         try await service.clearCache()
-        _ = try await service.translate(regions: regions, settings: settings)
+        _ = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: jpeg)
         #expect(await transport.requests.count == 4)
 
         let request = try #require(await transport.requests.first)
@@ -48,7 +49,8 @@ struct ReaderTranslationNetworkTests {
         let body = try #require(request.httpBody)
         let root = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
         #expect(root["store"] as? Bool == false)
-        #expect(!(String(data: body, encoding: .utf8) ?? "").contains("input_image"))
+        // Page translation always attaches the page image.
+        #expect((String(data: body, encoding: .utf8) ?? "").contains("input_image"))
         #expect(!(String(data: body, encoding: .utf8) ?? "").contains("unit-test-only"))
     }
 
@@ -64,6 +66,8 @@ struct ReaderTranslationNetworkTests {
         settings.custom.apiProtocol = apiProtocol
         settings.custom.baseURL = "https://first.example/gateway/v1"
         settings.model = "my-model"
+        // English fixture text; the default manga tier admits only CJK sources.
+        settings.usesOCRLanguagePolicy = false
         let firstAccount = settings.selectedCredentialAccount
         try keys.save("custom-first", for: firstAccount)
         try keys.save("openai-only", for: "openai")
@@ -73,9 +77,10 @@ struct ReaderTranslationNetworkTests {
         }
         let service = ReaderTranslationService(client: RemoteTranslationClient(credentialStore: keys, transport: transport))
         let regions = [ReaderTranslationRegion(id: "custom-region", rect: .zero, source: "Hello")]
-        let first = try await service.translate(regions: regions, settings: settings)
-        #expect(first.first?.translation == "ko:Hello")
-        _ = try await service.translate(regions: regions, settings: settings)
+        let jpeg = readerTestPageJPEG
+        let first = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: jpeg)
+        #expect(first.first?.translation == "Korean:Hello")
+        _ = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: jpeg)
         #expect(await transport.requests.count == 1)
         let request = try #require(await transport.requests.first)
         let suffix = apiProtocol == .responses ? "/responses" : "/chat/completions"
@@ -86,22 +91,22 @@ struct ReaderTranslationNetworkTests {
         #expect(root["model"] as? String == "my-model")
         #expect(apiProtocol == .responses ? root["input"] != nil : root["messages"] != nil)
         #expect(apiProtocol == .responses ? root["text"] != nil : root["response_format"] != nil)
-        #expect(!String(decoding: body, as: UTF8.self).contains("input_image"))
+        #expect(String(decoding: body, as: UTF8.self).contains(apiProtocol == .responses ? "input_image" : "image_url"))
 
         settings.custom.baseURL = "https://second.example/v1"
         do {
-            _ = try await service.translate(regions: first, settings: settings)
+            _ = try await service.translate(regions: first, settings: settings, preparedImageJPEG: jpeg)
             Issue.record("A new server must never reuse the first server's cached result or key")
         } catch let error as RemoteTranslationError { #expect(error == .missingCredential) }
         #expect(await transport.requests.count == 1)
         let secondAccount = settings.selectedCredentialAccount
         try keys.save("custom-second", for: secondAccount)
         defer { try? keys.deleteSecret(for: secondAccount) }
-        _ = try await service.translate(regions: first, settings: settings)
+        _ = try await service.translate(regions: first, settings: settings, preparedImageJPEG: jpeg)
         #expect(await transport.requests.count == 2)
         #expect(await transport.requests.last?.value(forHTTPHeaderField: "Authorization") == "Bearer custom-second")
         settings.provider = .openAI
-        _ = try await service.translate(regions: first, settings: settings)
+        _ = try await service.translate(regions: first, settings: settings, preparedImageJPEG: jpeg)
         #expect(await transport.requests.count == 3)
         #expect(await transport.requests.last?.url?.absoluteString == "https://api.openai.com/v1/responses")
         #expect(await transport.requests.last?.value(forHTTPHeaderField: "Authorization") == "Bearer openai-only")
@@ -118,7 +123,7 @@ struct ReaderTranslationNetworkTests {
         )
         let request = RemoteTranslationRequest(sourceLanguage: "auto", targetLanguage: "ko", sourceText: "Hello")
         let result = try await client.translate(request, configuration: configuration)
-        #expect(result.translations.first?.text == "ko:Hello")
+        #expect(result.translations.first?.text == "Korean:Hello")
         #expect(await transport.requests.map { $0.url!.path } == ["/proxy/v1/responses", "/proxy/v1/chat/completions"])
         _ = try await client.translate(request, configuration: configuration)
         #expect(await transport.requests.count == 3)
@@ -159,6 +164,9 @@ struct ReaderTranslationNetworkTests {
     }
 }
 
+/// Page translation always attaches a page image; this transport never decodes it.
+private let readerTestPageJPEG = Data([0xff, 0xd8, 0xff, 0xd9])
+
 private struct ReaderTestCredential: TranslationCredentialProviding {
     var missing = false
     func secret(for account: String) throws -> String {
@@ -186,15 +194,29 @@ private actor ReaderTranslationTransport: TranslationHTTPTransport {
         if isResponses {
             let input = try #require(root["input"] as? [[String: Any]])
             let content = try #require(input.first?["content"] as? [[String: Any]])
-            text = try #require(content.first?["text"] as? String)
+            // The page image precedes the segment JSON when roles are classified.
+            text = try #require(content.first(where: { $0["type"] as? String == "input_text" })?["text"] as? String)
         } else {
             let messages = try #require(root["messages"] as? [[String: Any]])
-            text = try #require(messages.first(where: { $0["role"] as? String == "user" })?["content"] as? String)
+            let user = messages.first(where: { $0["role"] as? String == "user" })?["content"]
+            if let plain = user as? String {
+                text = plain
+            } else {
+                let parts = try #require(user as? [[String: Any]])
+                text = try #require(parts.first(where: { $0["type"] as? String == "text" })?["text"] as? String)
+            }
         }
         let data = try #require(JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
         let language = try #require(data["target_language"] as? String)
-        let segments = try #require(data["segments"] as? [[String: String]])
-        let translations = segments.map { ["id": $0["id"] ?? "", "text": language + ":" + ($0["text"] ?? "")] }
+        // Page segments may also carry a numeric box_2d.
+        let segments = try #require(data["segments"] as? [[String: Any]])
+        // Mandatory page requests require a text_role for every item.
+        let classifiesRole = String(decoding: body, as: UTF8.self).contains("text_role")
+        let translations = segments.map { segment -> [String: String] in
+            var item = ["id": segment["id"] as? String ?? "", "text": language + ":" + (segment["text"] as? String ?? "")]
+            if classifiesRole { item["text_role"] = "dialogue" }
+            return item
+        }
         let output = try JSONSerialization.data(withJSONObject: ["translations": translations])
         let envelope: [String: Any] = isResponses ? [
             "status": "completed",
@@ -249,7 +271,8 @@ struct ReaderTranslationValidationTests {
         #expect(root["model"] as? String == "configured-model")
         let encodedEffort = apiProtocol == .responses ? (root["reasoning"] as? [String: Any])?["effort"] as? String : root["reasoning_effort"] as? String
         #expect(encodedEffort == (effort == .modelDefault ? nil : effort.rawValue))
-        #expect(!(String(decoding: body, as: UTF8.self)).contains("input_image"))
+        // The probe exercises the mandatory page format with a synthetic blank image.
+        #expect((String(decoding: body, as: UTF8.self)).contains(apiProtocol == .responses ? "input_image" : "image_url"))
         settings.automaticallyTranslate.toggle()
         settings.overlay.opacity = 0.5
         validator.refresh(settings)
@@ -399,7 +422,7 @@ struct ReaderTranslationManualConnectionTests {
             let translated = try await ReaderTranslationConnectionTest.translate(
                 settings: settings, apiKey: key, savedCredentials: keys, transport: transport
             )
-            #expect(translated == "ko:Hello, world!")
+            #expect(translated == "Korean:Hello, world!")
             let request = try #require(await transport.requests.last)
             #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer " + (key.isEmpty ? "saved-test-key" : key))
             let body = try #require(request.httpBody)

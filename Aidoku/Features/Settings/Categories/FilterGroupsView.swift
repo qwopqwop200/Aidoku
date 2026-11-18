@@ -105,27 +105,11 @@ struct FilterGroupsView: View {
     }
 
     func onMove(from source: IndexSet, to destination: Int) {
-        let sourceIndices = source.sorted()
-        var adjustedDestination = destination
-
-        // if moving down, adjust destination for each item removed before it
-        // e.g. moving [0] to the end of a three item list will have destination 3,
-        //      but we need to move it to index 2
-        if let first = sourceIndices.first, first < destination {
-            adjustedDestination -= sourceIndices.count
-        }
-
-        let context = CoreDataManager.shared.context
-
-        for offset in sourceIndices.reversed() {
-            let group = groups[offset]
-            CoreDataManager.shared.moveCategory(title: group.title, toPosition: adjustedDestination, context: context)
-        }
-
-        groups = CoreDataManager.shared.getFilterGroups(context: context)
-
-        CoreDataManager.shared.save()
-
+        guard (0...groups.count).contains(destination), source.allSatisfy(groups.indices.contains) else { return }
+        var ordered = groups
+        ordered.move(fromOffsets: source, toOffset: destination)
+        guard ordered != groups, CoreDataManager.shared.saveCategoryOrder(ordered.map(\.title), groups: true) else { return }
+        groups = ordered
         NotificationCenter.default.post(name: .updateCategories, object: nil)
     }
 }

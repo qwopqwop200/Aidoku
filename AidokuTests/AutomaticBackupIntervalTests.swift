@@ -20,7 +20,35 @@ struct AutomaticBackupIntervalTests {
         }
     }
 
+    @Test func staleBackgroundDeliverySkipsTheSnapshotAfterAForegroundBackup() async {
+        await withRestoredBackupScheduleDefaults { settings in
+            let timestamp = Date(timeIntervalSince1970: Date.now.timeIntervalSince1970.rounded(.down))
+            settings.enabled.set(true)
+            settings.interval.set("weekly")
+            settings.lastBackup.set(timestamp)
+            let manager = BackupManager()
+            let handled = await manager.performAutoBackupIfDue {
+                Issue.record("A fresh automatic backup must skip the database snapshot and retention scan")
+                return false
+            }
+            #expect(handled)
+            #expect(settings.lastBackup.get() == timestamp)
+        }
+    }
+
     @Test func invalidPersistedIntervalLeavesBackupTimestampUnchanged() async {
+        await withRestoredBackupScheduleDefaults { settings in
+            let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
+            settings.enabled.set(true)
+            settings.interval.set("corrupted-backup-interval")
+            settings.lastBackup.set(timestamp)
+            await BackupManager.shared.scheduleAutoBackup()
+            #expect(settings.lastBackup.get() == timestamp)
+            #expect(settings.interval.get() == "corrupted-backup-interval")
+        }
+    }
+
+    private func withRestoredBackupScheduleDefaults(_ operation: (BackupsSettings.AutoBackupsSettings) async -> Void) async {
         let settings = AppSettings.backups.autoBackups
         let keys = [settings.enabled.key, settings.interval.key, settings.lastBackup.key]
         let defaults = UserDefaults.standard
@@ -32,12 +60,6 @@ struct AutomaticBackupIntervalTests {
                 else { defaults.removeObject(forKey: key) }
             }
         }
-        let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
-        settings.enabled.set(true)
-        settings.interval.set("corrupted-backup-interval")
-        settings.lastBackup.set(timestamp)
-        await BackupManager.shared.scheduleAutoBackup()
-        #expect(settings.lastBackup.get() == timestamp)
-        #expect(settings.interval.get() == "corrupted-backup-interval")
+        await operation(settings)
     }
 }

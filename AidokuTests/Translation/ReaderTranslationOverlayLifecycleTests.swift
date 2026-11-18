@@ -36,6 +36,25 @@ import UIKit
         overlay.cancelWork()
     }
 
+    @Test func navigationPlaceholderWaitsForAnUpdateAndStillReportsRealLayoutErrors() async throws {
+        let source = image()
+        let overlay = ReaderTranslationOverlayView(frame: CGRect(origin: .zero, size: source.size))
+        defer { overlay.cancelWork() }
+        overlay.isHidden = true
+        overlay.setNeedsLayout()
+        overlay.layoutIfNeeded()
+        #expect(!overlay.isRendering)
+        #expect(overlay.lastDiagnostic == nil)
+
+        let failed = Task<Data, Error> { throw CocoaError(.coderInvalidValue) }
+        overlay.update(regions: [], imageSize: source.size, aspectFit: false, settings: settings(),
+                       image: source, preparedLayout: failed)
+        overlay.layoutIfNeeded()
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while overlay.isRendering && ContinuousClock.now < deadline { await Task.yield() }
+        #expect(overlay.hasFailedRendering)
+    }
+
     @Test func cancelledSharedLayoutWaitDoesNotKeepDetachedOverlayAlive() async throws {
         let gate = PendingOverlayLayout()
         let layout = Task<Data, Error> { await gate.value() }

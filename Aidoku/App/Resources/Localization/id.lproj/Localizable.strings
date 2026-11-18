@@ -857,7 +857,7 @@
 
 "TRANSLATION_AUTO" = "Deteksi Secara Otomatis";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 memerlukan iOS 18 atau lebih baru. Model bawaan adalah Sedang. Kecil menggunakan lebih sedikit memori dan Sangat Kecil memiliki kamus karakter yang lebih terbatas. Model ini tidak mengenali teks Korea, tetapi terjemahan ke bahasa Korea didukung.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 memerlukan iOS 18 atau lebih baru. Manga v0.3 adalah model bawaan untuk deteksi dan pengenalan teks. Model OCR lainnya tetap tersedia.";
 
 
 
@@ -1192,3 +1192,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Sumber %@ versi %d tidak didukung oleh aplikasi ini. Pasang versi yang didukung.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 hanya mendukung teks sumber dalam bahasa Jepang dan bahasa Tionghoa (aksara sederhana dan tradisional). Deteksi otomatis bahasa sumber dan pilihan bahasa sumber juga terbatas pada bahasa-bahasa tersebut. Anda tetap dapat menerjemahkan ke bahasa Korea atau bahasa tujuan lainnya. Memilih Manga menerapkan ambang deteksi 0.85 dan 0.25; ukuran deteksi bawaannya adalah 1120 px.";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Semua bahasa OCR yang didukung";

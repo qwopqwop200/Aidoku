@@ -216,7 +216,7 @@
 
 "TRANSLATION_AUTO" = "Detekti Aŭtomate";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 postulas iOS 18 aŭ pli novan version. Meza estas la defaŭlta modelo. Malgranda uzas malpli da memoro; Eta havas malpli grandan signovortaron. Tiuj modeloj ne rekonas korean tekston, sed tradukado al la korea estas subtenata.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 postulas iOS 18 aŭ pli novan version. Manga v0.3 estas la defaŭlta modelo por kaj detektado kaj rekonado de teksto. Aliaj OCR-modeloj restas disponeblaj.";
 
 
 
@@ -1193,3 +1193,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Fonto %@ versio %d ne estas subtenata de ĉi tiu aplikaĵo. Instalu subtenatan version.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 subtenas nur fontotekston en la japana kaj la ĉina (simpligitaj kaj tradiciaj skribsignoj). Aŭtomata identigo de la fontolingvo kaj la elektoj de fontolingvo ankaŭ limiĝas al tiuj lingvoj. Vi ankoraŭ povas traduki al la korea aŭ aliaj cellingvoj. Elekto de Manga aplikas detektajn sojlojn de 0.85 kaj 0.25; ĝia defaŭlta detekta grandeco estas 1120 px.";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Ĉiuj lingvoj subtenataj de OCR";

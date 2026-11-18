@@ -859,7 +859,7 @@
 
 "TRANSLATION_AUTO" = "自动检测";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 需要 iOS 18 或更高版本。默认使用中型模型，小型模型占用的内存更少，超小型模型的字符字典更小。这些模型不支持识别韩语文字，但支持翻译成韩语。";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 需要 iOS 18 或更高版本。文字检测和识别默认均使用 Manga v0.3，也可以选择其他 OCR 模型。";
 
 
 
@@ -1167,3 +1167,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "此应用不支持来源 %@ 的版本 %d。请安装受支持的版本。";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 仅支持识别日语和中文（简体、繁体）原文。自动检测原文语言和手动选择原文语言的范围也仅限于这些语言。仍可翻译成韩语等其他目标语言。选择 Manga 后，检测阈值会设为 0.85 和 0.25；默认检测尺寸为 1120px。";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "所有支持的 OCR 语言";

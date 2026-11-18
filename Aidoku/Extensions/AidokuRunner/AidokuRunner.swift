@@ -21,11 +21,6 @@ private final class URLSessionUnsecureDelegate: NSObject, URLSessionDelegate, @u
 }
 
 extension AidokuRunner.Source {
-    convenience init(key: String, url: URL) async throws {
-        try NativeSourceRegistration.ensureRegistered()
-        try await self.init(url: url)
-    }
-
     var isExternal: Bool {
         // An installed package remains external when its executable is replaced by Swift.
         url != nil

@@ -2,8 +2,7 @@ import Foundation
 import CoreGraphics
 import ImageIO
 
-/// Host equivalents of the UIKit page-image preparation and the reader's
-/// completed-batch balloon recovery. Keep the policy in step with the reader.
+/// Creates the white-backed JPEG used in page translation requests on macOS.
 enum HostTranslationParity {
     static func translationJPEG(_ image: CGImage) throws -> Data {
         guard image.width > 0, image.height > 0 else {
@@ -35,42 +34,5 @@ enum HostTranslationParity {
             throw RemoteTranslationError.invalidRequest("The page image could not be prepared for translation.")
         }
         return data as Data
-    }
-
-    /// Mirrors ReaderTranslationService's one retry after a completed filtered
-    /// batch silently preserves independently verified Japanese balloon prose.
-    static func recoveringBalloonDialogue(
-        request: RemoteTranslationRequest,
-        result: RemoteTranslationBatchResult,
-        regionsByID: [String: ReaderTranslationRegion],
-        retry: @Sendable (RemoteTranslationRequest) async throws -> RemoteTranslationBatchResult
-    ) async throws -> RemoteTranslationBatchResult {
-        try Task.checkCancellation()
-        let missed = Set(result.translations.compactMap { translated -> String? in
-            guard let region = regionsByID[translated.id],
-                  ReaderTranslationLanguageFilter.requiresBalloonTranslation(region,
-                    translation: translated.text, target: request.targetLanguage) else { return nil }
-            return translated.id
-        })
-        guard !missed.isEmpty else { return result }
-        var recovery = RemoteTranslationRequest(sourceLanguage: request.sourceLanguage,
-            targetLanguage: request.targetLanguage,
-            segments: request.segments.filter { missed.contains($0.id) },
-            context: request.context, glossary: request.glossary)
-        recovery.copyImageRepresentation(from: request)
-        HostDump.capture("balloon-translation-recovery-request", recovery)
-        let retried = try await retry(recovery)
-        HostDump.capture("balloon-translation-recovery-result", retried)
-        let replacements = Dictionary(retried.translations.map { ($0.id, $0) },
-            uniquingKeysWith: { first, _ in first })
-        for id in missed {
-            guard let region = regionsByID[id], let translated = replacements[id],
-                  !ReaderTranslationLanguageFilter.requiresBalloonTranslation(region,
-                    translation: translated.text, target: request.targetLanguage) else {
-                throw RemoteTranslationError.invalidResponse("balloon dialogue was not translated")
-            }
-        }
-        return .init(translations: result.translations.map { replacements[$0.id] ?? $0 },
-            source: .network, providerRequestID: retried.providerRequestID)
     }
 }

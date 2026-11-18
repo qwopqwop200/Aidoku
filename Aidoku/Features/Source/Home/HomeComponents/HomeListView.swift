@@ -151,10 +151,7 @@ struct HomeListView: View {
     @ViewBuilder
     func view(for entry: HomeComponent.Value.Link, position: Int) -> some View {
         let label = HStack(spacing: 12) {
-            let mangaKey: String? = switch entry.value {
-                case .manga(let manga): manga.key
-                default: nil
-            }
+            let mangaKey = entry.manga?.key
             MangaCoverView(
                 source: source,
                 coverImage: entry.imageUrl ?? "",
@@ -248,24 +245,7 @@ struct HomeListView: View {
 
     func loadBookmarked() async {
         guard !entries.isEmpty, usesBookmarksState else { return }
-        let bookmarks = await CoreDataManager.shared.container.performBackgroundTask { context in
-            var keys: Set<String> = .init()
-            for entry in entries {
-                let mangaId: MangaIdentifier? = switch entry.value {
-                    case .manga(let manga): manga.identifier
-                    default: nil
-                }
-                if let mangaId {
-                    if CoreDataManager.shared.hasLibraryManga(
-                        mangaId: mangaId,
-                        context: context
-                    ) {
-                        keys.insert(mangaId.mangaKey)
-                    }
-                }
-            }
-            return keys
-        }
+        let bookmarks = await CoreDataManager.shared.bookmarkedMangaKeys(for: entries.compactMap(\.manga))
         guard !Task.isCancelled else { return }
         bookmarkedItemsState = bookmarks
         loadedBookmarks = true

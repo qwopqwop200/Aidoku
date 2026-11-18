@@ -5,6 +5,69 @@ import UIKit
 
 @Suite(.serialized)
 struct ReaderTranslationTests {
+    @Test func unchangedSymbolsKeepSourcePixelsButChangedSymbolsStillTypeset() throws {
+        var region = ReaderTranslationRegion(id: "punctuation", rect: CGRect(x: 0.1, y: 0.1, width: 0.1, height: 0.3),
+                                             source: "…?")
+        region.applyTranslation(.init(id: region.id, text: "…?", isSFX: false, textRole: .dialogue))
+        #expect(region.preservesOriginalText && !region.rendersUnchangedSymbols)
+        let stored = try JSONEncoder().encode(ReaderTranslationStoredRegion(region))
+        let restored = try JSONDecoder().decode(ReaderTranslationStoredRegion.self, from: stored).region
+        #expect(!restored.rendersUnchangedSymbols && restored.preservesOriginalText)
+        #expect(ReaderTranslationRegion.layoutItems([region], imageSize: CGSize(width: 100, height: 100)).count == 1)
+        #expect(ReaderTranslationRegion.layoutItems([region], imageSize: CGSize(width: 100, height: 100))[0].keepsSourceLettering)
+        region.rendersUnchangedSymbols = true // A stale previously stored opt-in must not erase unchanged pixels.
+        #expect(region.preservesOriginalText)
+        region.applyTranslation(.init(id: region.id, text: "…!", isSFX: false, textRole: .dialogue))
+        #expect(region.rendersUnchangedSymbols && !region.preservesOriginalText)
+        #expect(!ReaderTranslationRegion.overlayItems([region], imageSize: CGSize(width: 100, height: 100)).isEmpty)
+        region.applyTranslation(.init(id: region.id, text: "…?", isSFX: true, textRole: .sfx))
+        #expect(region.preservesOriginalText)
+        region.applyTranslation(.init(id: region.id, text: "…?", isSFX: false, textRole: .background))
+        #expect(region.preservesOriginalText)
+        region.applyTranslation(.init(id: region.id, text: "잘못된 번역", isSFX: false, textRole: .error))
+        #expect(region.translation == region.source && region.preservesOriginalText)
+        #expect(ReaderTranslationRegion.overlayItems([region], imageSize: CGSize(width: 100, height: 100)).isEmpty)
+    }
+
+    @Test func exactUnicodeSymbolsPreservePixelsWithoutAffectingChangedOutput() throws {
+        for source in ["♡", "♥", "！？", "…?", "※", "☀︎"] {
+            var region = ReaderTranslationRegion(id: "symbols", rect: CGRect(x: 0.1, y: 0.1, width: 0.1, height: 0.3),
+                                                 source: source)
+            region.applyTranslation(.init(id: region.id, text: source, isSFX: false, textRole: .dialogue))
+            #expect(region.preservesOriginalText && !region.rendersUnchangedSymbols)
+            region.rendersUnchangedSymbols = true
+            let restored = try JSONDecoder().decode(ReaderTranslationStoredRegion.self,
+                from: JSONEncoder().encode(ReaderTranslationStoredRegion(region))).region
+            #expect(restored.preservesOriginalText)
+            #expect(ReaderTranslationRegion.overlayItems([restored], imageSize: CGSize(width: 100, height: 100)).isEmpty)
+            #expect(ReaderTranslationRegion.layoutItems([restored], imageSize: CGSize(width: 100, height: 100))
+                .first?.keepsSourceLettering == true)
+            region.applyTranslation(.init(id: region.id, text: source + "!", isSFX: false, textRole: .dialogue))
+            #expect(!region.preservesOriginalText)
+            // Changed output remains subject to the existing lettering filters;
+            // unchanged-source preservation must not override those decisions.
+        }
+    }
+
+    @Test func translatedSFXKeepsSourcePixelsAndPersistsItsRoleDecision() throws {
+        var region = ReaderTranslationRegion(id: "effect", rect: CGRect(x: 0.1, y: 0.1, width: 0.2, height: 0.2),
+                                             source: "ドン")
+        region.applyTranslation(.init(id: region.id, text: "쿵", isSFX: true, textRole: .sfx))
+        #expect(region.translation == "쿵" && region.preservesOriginalText)
+        #expect(ReaderTranslationRegion.overlayItems([region], imageSize: CGSize(width: 100, height: 100)).isEmpty)
+        #expect(ReaderTranslationRegion.layoutItems([region], imageSize: CGSize(width: 100, height: 100))
+            .first?.keepsSourceLettering == true)
+        let restored = try JSONDecoder().decode(ReaderTranslationStoredRegion.self,
+            from: JSONEncoder().encode(ReaderTranslationStoredRegion(region))).region
+        #expect(restored.keepsClassifiedSFXSource && restored.translation == "쿵" && restored.preservesOriginalText)
+        let archive = try ReaderTranslationRegionArchive([region])
+        let fromArchive = try #require(ReaderTranslationRegionArchive.regions(base: archive.base,
+            variant: archive.variant).first)
+        #expect(fromArchive.keepsClassifiedSFXSource && fromArchive.translation == "쿵" && fromArchive.preservesOriginalText)
+        region.applyTranslation(.init(id: region.id, text: "쿵", isSFX: false, textRole: .dialogue))
+        #expect(!region.keepsClassifiedSFXSource && !region.preservesOriginalText)
+    }
+
     @Test func unchangedTextKeepsSourcePixelsWithoutDroppingDialogueIDs() {
         let sources = ["18000", "١٢٣", "$60.00", "60Ko", "...", "Bang", "１２", "12"]
         let translations = ["18000", "١٢٣", "$60.00", "60Ko", "...", "Bang", "12", "열둘"]
@@ -417,6 +480,8 @@ struct ReaderTranslationTests {
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         var settings = ReaderTranslationSettings(defaults: defaults)
+        // This English fixture uses the unified OCR language contract.
+        settings.ocr = ReaderOCRConfiguration(modelTier: .medium)
         settings.sourceLanguage = "auto"
         settings.translationSourceLanguages = []
         let regions = [ReaderTranslationRegion(id: "sign", rect: CGRect(x: 0.1, y: 0.1, width: 0.3, height: 0.1), source: "BURGER MONSTER")]
@@ -474,7 +539,7 @@ struct ReaderTranslationTests {
         #expect(defaults.string(forKey: ReaderTranslationSettings.keyPrefix + "model") == nil)
         settings.model = "gpt-5-mini"
         settings.targetLanguage = "en"
-        settings.modelTier = .small
+        settings.ocr = ReaderOCRConfiguration(modelTier: .small)
         try settings.save(defaults: defaults)
         #expect(ReaderTranslationSettings(defaults: defaults) == settings)
         #expect(defaults.dictionaryRepresentation().keys.allSatisfy { !$0.lowercased().contains("apikey") })
@@ -524,6 +589,8 @@ struct ReaderTranslationTests {
             }
         })
         var settings = ReaderTranslationSettings()
+        // The injected recognizer returns English; keep the Manga gate unchanged.
+        settings.ocr = ReaderOCRConfiguration(modelTier: .medium)
         settings.targetLanguage = "ko"
         settings.sourceLanguage = "auto"
         settings.translationSourceLanguages = []

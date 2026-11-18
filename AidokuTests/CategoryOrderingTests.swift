@@ -1,5 +1,6 @@
 import CoreData
 import Foundation
+import SwiftUI
 import Testing
 @testable import Aidoku
 
@@ -58,6 +59,28 @@ struct CategoryOrderingTests {
             context.reset()
             #expect(manager.getCategoryTitles(context: context) == ["B", "A"])
             #expect(manager.getCategory(title: "Group", context: context)?.sort == 4)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func multiRowDragKeepsVisibleOrderDuplicateRecordsAndUnlistedSlots(groups: Bool) throws {
+        try withContext { context in
+            let manager = CoreDataManager.shared
+            for title in ["A", "B", "concurrent", "C", "D", "A"] {
+                _ = try manager.createCategory(title: title, group: groups, context: context)
+            }
+            let other = try manager.createCategory(title: "other", group: !groups, context: context)
+            other.sort = 42
+            try context.save()
+
+            var displayed = ["A", "B", "C", "D"]
+            displayed.move(fromOffsets: [0, 1], toOffset: 4)
+            #expect(try manager.saveCategoryOrder(displayed, groups: groups, context: context))
+            let stored = manager.getCategories(context: context).filter { $0.group == groups }.compactMap(\.title)
+            #expect(stored == ["C", "D", "concurrent", "A", "A", "B"])
+            #expect(other.sort == 42)
+            #expect(try manager.saveCategoryOrder(displayed, groups: groups, context: context))
+            #expect(!context.hasChanges)
         }
     }
 

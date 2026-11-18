@@ -926,7 +926,7 @@ private struct RightNavbarButton: View, Equatable {
         self.bookmarked = viewModel.bookmarked
         self.hasCategories = viewModel.hasCategories
         self.url = viewModel.manga.url
-        self.hasDownloads = viewModel.downloadStatus.contains(where: { $0.value == .finished || $0.value == .failed })
+        self.hasDownloads = viewModel.hasRemovableDownloads
         self.refresh = refreshController.refresh
 
         self.markAllRead = markAllRead

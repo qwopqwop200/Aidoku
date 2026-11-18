@@ -362,7 +362,7 @@
 
 "TRANSLATION_AUTO" = "Detekovat automaticky";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 vyžaduje iOS 18 nebo novější. Výchozí model je Střední. Malý využívá méně paměti a Maličký má menší slovník znaků. Modely nepodporují rozpoznávání korejského textu, ale překlad do korejštiny je podporován.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6 vyžaduje iOS 18 nebo novější. Manga v0.3 je výchozí model pro detekci i rozpoznávání textu. K dispozici jsou i další modely OCR.";
 
 
 
@@ -1165,3 +1165,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Zdroj %@ verze %d tato aplikace nepodporuje. Nainstalujte podporovanou verzi.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 podporuje pouze zdrojový text v japonštině a čínštině (zjednodušené i tradiční). Automatické určení zdrojového jazyka i výběr zdrojového jazyka jsou omezeny na tyto jazyky. Překlad do korejštiny i dalších cílových jazyků je nadále možný. Výběrem modelu Manga se nastaví prahové hodnoty detektoru na 0,85 a 0,25; výchozí velikost pro detekci je 1120 px.";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Všechny podporované jazyky OCR";

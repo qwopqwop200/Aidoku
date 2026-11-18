@@ -23,7 +23,7 @@ final class SourceListingViewModel: ObservableObject {
     init(
         getPage: @escaping (AidokuRunner.Listing, Int) async throws -> AidokuRunner.MangaPageResult,
         getHome: @escaping (AidokuRunner.Listing) async throws -> Home? = { _ in nil },
-        getBookmarks: @escaping ([AidokuRunner.Manga]) async -> Set<String> = SourceSearchViewModel.loadBookmarks
+        getBookmarks: @escaping ([AidokuRunner.Manga]) async -> Set<String> = { await CoreDataManager.shared.bookmarkedMangaKeys(for: $0) }
     ) {
         self.getPage = getPage
         self.getHome = getHome

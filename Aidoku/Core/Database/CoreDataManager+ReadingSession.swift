@@ -20,38 +20,19 @@ extension CoreDataManager {
     }
 
     func createSession(
-        chapterId: ChapterIdentifier,
+        history: HistoryObject,
         data: HistoryManager.ReadingSessionData,
         context: NSManagedObjectContext
     ) {
-        let historyObject = self.getOrCreateHistory(chapterId: chapterId, context: context)
-        if historyObject.dateRead == .distantPast {
-            // if history object was just created, populate it with info we have
-            historyObject.dateRead = data.endDate
-        }
         let session = ReadingSessionObject(context: context)
         session.startDate = data.startDate
         session.endDate = data.endDate
         session.pagesRead = Int16(clamping: data.pagesRead)
-        session.history = historyObject
+        session.history = history
     }
 
-    // get longest and current count of consecutive days with reading sessions
-    func getStreakLengths(context: NSManagedObjectContext) -> (current: Int, longest: Int) {
-
-        let fetchRequest = NSFetchRequest<NSDictionary>(entityName: "ReadingSession")
-        fetchRequest.resultType = .dictionaryResultType
-        fetchRequest.propertiesToFetch = ["endDate"]
-        let results = try? context.fetch(fetchRequest)
-        guard let results else { return (0, 0) }
-
-        // get all unique days with a reading session
-        let calendar = Calendar.current
-        let daysSet = Set(results.compactMap { dict in
-            (dict["endDate"] as? Date).map { calendar.startOfDay(for: $0) }
-        })
-        let days = Array(daysSet).sorted()
-
+    // Get the longest and current run of consecutive reading days.
+    private func streakLengths(for days: [Date], calendar: Calendar, today: Date) -> (current: Int, longest: Int) {
         // need at least two days to constitute a streak
         guard days.count >= 2 else { return (0, 0) }
         var current = 1
@@ -70,7 +51,6 @@ extension CoreDataManager {
         }
 
         // ensure current streak last day is today or yesterday
-        let today = calendar.startOfDay(for: Date.now)
         let lastDay = days.last!
         let diff = calendar.dateComponents([.day], from: lastDay, to: today).day ?? 0
         let isCurrent = (diff == 0 || diff == 1) && longest >= 2
@@ -82,6 +62,8 @@ extension CoreDataManager {
     }
 
     struct BasicStats {
+        var currentStreak: Int = 0
+        var longestStreak: Int = 0
         var pagesTotal: Int = 0
         var pagesMonth: Int = 0
         var pagesYear: Int = 0
@@ -93,8 +75,8 @@ extension CoreDataManager {
         var hoursYear: Int = 0
     }
 
-    // get page, series, and hour read counts (total, current month, and current year)
-    func getBasicStats(context: NSManagedObjectContext) -> BasicStats {
+    // Count reading days, pages, series, and hours from the same session rows.
+    func getBasicStats(context: NSManagedObjectContext, now: Date = .now) -> BasicStats {
         let fetchRequest = NSFetchRequest<NSDictionary>(entityName: "ReadingSession")
         fetchRequest.resultType = .dictionaryResultType
         fetchRequest.propertiesToFetch = [
@@ -108,9 +90,9 @@ extension CoreDataManager {
         }
 
         let calendar = Calendar.current
-        let now = Date()
-        let currentYear = calendar.component(.year, from: now)
-        let currentMonth = calendar.component(.month, from: now)
+        let today = calendar.startOfDay(for: now)
+        let currentPeriod = calendar.dateComponents([.year, .month], from: today)
+        var periodsByDay: [Date: DateComponents] = [:]
 
         var pagesTotal = 0, pagesMonth = 0, pagesYear = 0
         var durationTotal: Double = 0, durationMonth: Double = 0, durationYear: Double = 0
@@ -120,29 +102,36 @@ extension CoreDataManager {
         var seriesYearSet = Set<MangaIdentifier>()
 
         for dict in results {
+            guard let endDate = dict["endDate"] as? Date else { continue }
+            let day = calendar.startOfDay(for: endDate)
+            let period: DateComponents
+            if let existing = periodsByDay[day] {
+                period = existing
+            } else {
+                period = calendar.dateComponents([.year, .month], from: day)
+                periodsByDay[day] = period
+            }
+            // Unlinked sessions count toward a streak, even when they have no series to count.
             guard
                 let pagesRead = dict["pagesRead"] as? Int,
                 let startDate = dict["startDate"] as? Date,
-                let endDate = dict["endDate"] as? Date,
                 let sourceId = dict["history.sourceId"] as? String,
                 let mangaId = dict["history.mangaId"] as? String
             else { continue }
 
             let duration = endDate.timeIntervalSince(startDate)
-            let year = calendar.component(.year, from: endDate)
-            let month = calendar.component(.month, from: endDate)
             let seriesKey = MangaIdentifier(sourceKey: sourceId, mangaKey: mangaId)
 
             pagesTotal += pagesRead
             durationTotal += duration
             seriesTotalSet.insert(seriesKey)
 
-            if year == currentYear {
+            if period.year == currentPeriod.year {
                 pagesYear += pagesRead
                 durationYear += duration
                 seriesYearSet.insert(seriesKey)
 
-                if month == currentMonth {
+                if period.month == currentPeriod.month {
                     pagesMonth += pagesRead
                     durationMonth += duration
                     seriesMonthSet.insert(seriesKey)
@@ -150,7 +139,10 @@ extension CoreDataManager {
             }
         }
 
+        let streak = streakLengths(for: periodsByDay.keys.sorted(), calendar: calendar, today: today)
         return BasicStats(
+            currentStreak: streak.current,
+            longestStreak: streak.longest,
             pagesTotal: pagesTotal,
             pagesMonth: pagesMonth,
             pagesYear: pagesYear,

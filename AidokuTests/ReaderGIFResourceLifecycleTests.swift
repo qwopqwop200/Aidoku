@@ -60,12 +60,41 @@ import UIKit
         imageView.prepareForReuse()
     }
 
-    private func makeGIF() throws -> Data {
+    @Test(arguments: [false, true])
+    func immediateWebtoonReuseReplacesPreviousAnimation(animatedReplacement: Bool) async throws {
+        let node = GIFImageNode()
+        _ = node.view
+        let imageView = try #require(node.imageView)
+        defer { imageView.prepareForReuse() }
+
+        let data = try makeGIF()
+        let poster = try #require(UIImage(data: data))
+        node.image = poster
+        node.animatedData = data
+        #expect(node.commitImage())
+        #expect(imageView.isAnimatingGIF)
+
+        node.reset()
+        // Reusing even the same poster must consume the old page's frame store.
+        node.image = poster
+        if animatedReplacement {
+            node.animatedData = try makeGIF(colors: [.green, .yellow, .purple])
+        }
+        #expect(node.commitImage())
+        #expect(imageView.frameCount == (animatedReplacement ? 3 : 0))
+        #expect(imageView.isAnimatingGIF == animatedReplacement)
+        await Task.yield()
+        #expect(imageView.frameCount == (animatedReplacement ? 3 : 0))
+        #expect(imageView.isAnimatingGIF == animatedReplacement)
+        if !animatedReplacement { #expect(imageView.image === poster) }
+    }
+
+    private func makeGIF(colors: [UIColor] = [.red, .blue]) throws -> Data {
         let data = NSMutableData()
-        let destination = try #require(CGImageDestinationCreateWithData(data, "com.compuserve.gif" as CFString, 2, nil))
+        let destination = try #require(CGImageDestinationCreateWithData(data, "com.compuserve.gif" as CFString, colors.count, nil))
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
-        for color in [UIColor.red, .blue] {
+        for color in colors {
             let image = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 2), format: format).image { context in
                 color.setFill()
                 context.fill(CGRect(x: 0, y: 0, width: 2, height: 2))

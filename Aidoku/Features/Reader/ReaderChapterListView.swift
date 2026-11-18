@@ -35,7 +35,7 @@ struct ReaderChapterListView: View {
                                 }
                             }
                             Spacer()
-                            if chapter == self.chapter {
+                            if chapter.key == self.chapter.key {
                                 Image(systemName: "checkmark")
                                     .foregroundColor(.accentColor)
                             }

@@ -54,6 +54,71 @@ struct ReaderHistoryCompletionAcknowledgmentTests {
         #expect(probe.calls.count == 2, "Only durable success may permanently suppress repeats")
     }
 
+    @Test func progressNotificationIncludesTheCommittedReadingSession() async throws {
+        let restore = configureDefaults(deleteDownloads: false)
+        defer { restore() }
+        let reader = makeReader()
+        let id = ChapterIdentifier(sourceKey: reader.manga.sourceKey, mangaKey: reader.manga.key, chapterKey: reader.chapter.key)
+        let session = HistoryManager.ReadingSessionData(startDate: Date(timeIntervalSince1970: 100),
+                                                       endDate: Date(timeIntervalSince1970: 120), pagesRead: 3)
+        let manager = CoreDataManager.shared
+        await confirmation("reader progress is published after its session is saved") { confirmed in
+            let token = NotificationCenter.default.addObserver(forName: .historySet, object: nil, queue: nil) { notification in
+                guard let (chapterId, _) = notification.object as? (ChapterIdentifier, Int), chapterId == id else { return }
+                let context = manager.container.newBackgroundContext()
+                context.performAndWait {
+                    let history = manager.getHistory(chapterId: id, context: context)
+                    let sessions = history?.sessions?.allObjects as? [ReadingSessionObject]
+                    #expect(history?.progress == 3)
+                    #expect(sessions?.count == 1)
+                    #expect(sessions?.first?.pagesRead == 3)
+                    #expect(sessions?.first?.startDate == session.startDate)
+                    #expect(sessions?.first?.endDate == session.endDate)
+                }
+                confirmed()
+            }
+            defer { NotificationCenter.default.removeObserver(token) }
+            await reader.updateReadPosition(currentPage: 3, totalPages: 12, position: 0.25, capturedSession: session)
+        }
+        _ = await manager.removeHistory(chapterIds: [id])
+    }
+
+    @Test func foregroundIntervalsSaveOnceInOrderAcrossClockChanges() async throws {
+        let restore = configureDefaults(deleteDownloads: false)
+        defer { restore() }
+        let reader = makeReader()
+        let id = ChapterIdentifier(sourceKey: reader.manga.sourceKey, mangaKey: reader.manga.key, chapterKey: reader.chapter.key)
+        reader.loadViewIfNeeded()
+        reader.setPages((0..<8).map { Aidoku.Page(sourceId: id.sourceKey, chapterId: id.chapterKey, index: $0) })
+        reader.beginReadingSession(including: -1, uptime: 100)
+        reader.setCurrentPage(2, position: 0.25)
+        let firstEnd = Date(timeIntervalSince1970: 10_000)
+        let first = reader.endReadingSession(now: firstEnd, uptime: 130)
+        #expect(first != nil)
+        #expect(reader.endReadingSession(now: firstEnd, uptime: 131) == nil)
+
+        reader.beginReadingSession(including: 2, uptime: 4_000)
+        reader.setCurrentPage(4, position: 0.75)
+        let secondEnd = Date(timeIntervalSince1970: 5_000)
+        let second = reader.endReadingSession(now: secondEnd, uptime: 4_020)
+        #expect(second != nil)
+        await second?.value
+
+        let manager = CoreDataManager.shared
+        try await manager.container.performBackgroundTask { context in
+            let history = try #require(manager.getHistory(chapterId: id, context: context))
+            let sessions = try #require(history.sessions?.allObjects as? [ReadingSessionObject])
+            #expect(history.progress == 4 && history.scrollPosition?.doubleValue == 0.75 && history.dateRead == secondEnd)
+            #expect(sessions.count == 2)
+            let initial = try #require(sessions.first { $0.endDate == firstEnd })
+            let resumed = try #require(sessions.first { $0.endDate == secondEnd })
+            #expect(initial.startDate == firstEnd.addingTimeInterval(-30) && initial.pagesRead == 1)
+            #expect(resumed.startDate == secondEnd.addingTimeInterval(-20) && resumed.pagesRead == 2)
+            context.delete(history)
+            try context.save()
+        }
+    }
+
     @Test(arguments: [false, true])
     func closeWhileSavingDeletesOnlyAfterSuccessfulAcknowledgment(saved: Bool) async throws {
         let restore = configureDefaults(deleteDownloads: true)

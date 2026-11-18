@@ -1,9 +1,59 @@
 import UIKit
 import CryptoKit
 
+extension UIImage {
+    var translationStaticPixels: CGImage? { images == nil ? cgImage : nil }
+}
+
+private enum ReaderTranslationSourceObservation {
+    static let gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
+}
+
+extension Page {
+    func memoizedTranslationSource(for image: UIImage) -> ReaderTranslationSourceRasterClaim? {
+        if let crop = translationSourceRect, crop != ReaderTranslationSplitGeometry.unit {
+            return translationSplitSource?.memoizedClaim(for: image, originalKey: translationCacheKey, crop: crop)
+        }
+        return .memoized(fullProcessedSource: image)
+    }
+
+    func observeTranslationSource(for image: UIImage) async -> ReaderTranslationSourceRasterClaim? {
+        if let claim = memoizedTranslationSource(for: image) { return claim }
+        if let crop = translationSourceRect, crop != ReaderTranslationSplitGeometry.unit {
+            return await translationSplitSource?.claim(for: image, originalKey: translationCacheKey, crop: crop)
+        }
+        guard let pixels = image.cgImage, !Task.isCancelled else { return nil }
+        let decodedBytes = UInt64(pixels.bytesPerRow) * UInt64(pixels.height)
+        let budget = TranslationImageWorkBudget.shared
+        let observation = Task.detached(priority: .utility) {
+            // Display already owns these pixels. Do not wait on the decode
+            // permit, whose owner may be waiting for this presentation.
+            try? await ReaderTranslationSourceObservation.gate.withPermit {
+                try Task.checkCancellation()
+                try budget.checkHeadroom(decodedBytes: decodedBytes)
+                return ReaderTranslationSourceRasterClaim.observe(fullProcessedSource: image)
+            }
+        }
+        return await withTaskCancellationHandler { await observation.value } onCancel: { observation.cancel() }
+    }
+}
+
+extension ReaderTranslationSourceRasterClaim {
+    /// UI-safe lookup of a previously measured *full* processed raster.
+    static func memoized(fullProcessedSource image: UIImage) -> Self? {
+        ReaderTranslationRenderAsset.sourceDigests.value(for: image).flatMap { Self(processedFullSourceSHA256: $0) }
+    }
+
+    /// Call outside MainActor under existing admitted image work. This may
+    /// access lazily decoded bytes. A split image cannot attest a full record.
+    static func observe(fullProcessedSource image: UIImage) -> Self? {
+        ReaderTranslationRenderAsset.digestSource(image).flatMap { Self(processedFullSourceSHA256: $0) }
+    }
+}
+
 /// The source artwork stays in the image pipeline. Only the settled typography
 /// and source-repair patches persist as a native PNG, so reloads avoid layout work.
-struct ReaderTranslationRenderAsset: Codable, Sendable {
+struct ReaderTranslationRenderAsset: Codable, Equatable, Sendable {
     // Version 3 stores the native transparent overlay, never a WebKit PDF.
     static let currentVersion = 3
     static let maximumContentBytes = 16 * 1_024 * 1_024
@@ -40,19 +90,17 @@ struct ReaderTranslationRenderAsset: Codable, Sendable {
     /// Call off MainActor, because a provider may lazily decode its source.
     static func digestSource(_ image: UIImage) -> String? {
         guard !Task.isCancelled else { return nil }
-        // A UIImage and its CGImage are immutable: a digest per instance is
-        // stable, so repeated displays skip copying and hashing every pixel.
         if let cached = sourceDigests.value(for: image) { return cached }
         guard let digest = computeSourceDigest(image) else { return nil }
         sourceDigests.store(digest, for: image)
         return digest
     }
 
-    /// Weakly keyed by image identity; 64-byte values, bounded entry count.
-    static let sourceDigests = ReaderTranslationImageIdentityCache<String>(capacity: 32)
+    /// The hash includes the static CGImage's contents plus the wrapper's scale and orientation.
+    static let sourceDigests = ReaderTranslationImageIdentityCache<String>(capacity: 32, matchStaticBacking: true)
 
     private static func computeSourceDigest(_ image: UIImage) -> String? {
-        guard !Task.isCancelled, let pixels = image.cgImage, let bytes = pixels.dataProvider?.data else { return nil }
+        guard !Task.isCancelled, let pixels = image.translationStaticPixels, let bytes = pixels.dataProvider?.data else { return nil }
         let colorSpace = pixels.colorSpace
         let name = colorSpace?.name.map { $0 as String } ?? ""
         let description = "source-visible-rows-v2,\(pixels.width),\(pixels.height),\(pixels.bitsPerPixel),\(pixels.bitsPerComponent),"
@@ -118,22 +166,71 @@ struct ReaderTranslationRenderAsset: Codable, Sendable {
     }
 }
 
-/// A tiny, thread-safe cache of values derived from immutable `UIImage`
-/// instances. Keys are held weakly and compared by identity; an entry is
-/// dropped as soon as its image deallocates, on memory warnings, or when
-/// the least-recently-used slot is needed. Values are recomputable, so a
-/// miss only costs the original work.
+extension ReaderTranslationRenderAsset {
+    private static let pngSignature = Data([137, 80, 78, 71, 13, 10, 26, 10])
+
+    private var isSettledPNG: Bool {
+        guard let sourceDigest, ReaderTranslationSourceRasterClaim(processedFullSourceSHA256: sourceDigest) != nil else { return false }
+        return isValid && typographySize != nil && typography.starts(with: Self.pngSignature)
+            && layers.includesSourcePage == true && layers.validSettledSource(displayRect: displayRect, hasSourcePatches: false)
+    }
+
+    /// Preserve the original PNG as binary data; bind its bytes and all replay metadata together.
+    func encodeForDisk() -> Data? {
+        guard isSettledPNG else { return try? JSONEncoder().encode(self) }
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .binary
+        guard var payload = try? encoder.encode(self) else { return nil }
+        let checksum = SHA256.hash(data: payload)
+        payload.append(contentsOf: checksum)
+        payload.append(ReaderTranslationCacheCodec.settledRenderTrailer)
+        return payload
+    }
+
+    static func decodeFromDisk(_ data: Data) -> Self? {
+        guard data.count <= maximumEncodedBytes else { return nil }
+        guard ReaderTranslationCacheCodec.isSettledRenderArchive(data) else {
+            return try? JSONDecoder().decode(Self.self, from: data)
+        }
+        let checksumEnd = data.endIndex - ReaderTranslationCacheCodec.settledRenderTrailer.count
+        guard checksumEnd - data.startIndex >= SHA256.Digest.byteCount else { return nil }
+        let checksumStart = checksumEnd - SHA256.Digest.byteCount
+        let payload = data[..<checksumStart]
+        guard SHA256.hash(data: payload).elementsEqual(data[checksumStart..<checksumEnd]),
+              let asset = try? PropertyListDecoder().decode(Self.self, from: payload), asset.isSettledPNG else { return nil }
+        return asset
+    }
+}
+
+
+/// Weak, bounded LRU for recomputable image values. A static raster digest may
+/// outlive its first UIImage wrapper while the same CGImage is still in use.
 final class ReaderTranslationImageIdentityCache<Value>: @unchecked Sendable {
+    private struct Key {
+        let object: AnyObject
+        let scale: CGFloat
+        let orientation: UIImage.Orientation
+    }
+
     private final class Entry {
-        weak var image: UIImage?
+        weak var object: AnyObject?
+        let scale: CGFloat
+        let orientation: UIImage.Orientation
         let value: Value
-        init(image: UIImage, value: Value) {
-            self.image = image
+
+        init(key: Key, value: Value) {
+            object = key.object
+            scale = key.scale
+            orientation = key.orientation
             self.value = value
+        }
+
+        func matches(_ key: Key) -> Bool {
+            object === key.object && scale == key.scale && orientation == key.orientation
         }
     }
 
-    /// Associated with the keyed image; its release removes the entry.
+    /// Release wrapper-only entries promptly. Dead raster keys are also pruned on access.
     private final class Sentinel {
         weak var cache: ReaderTranslationImageIdentityCache?
         weak var entry: Entry?
@@ -145,17 +242,19 @@ final class ReaderTranslationImageIdentityCache<Value>: @unchecked Sendable {
             // An image may deallocate while this cache's lock is held (a weak
             // load inside the lock can be its final release). Remove later.
             guard let cache, let entry else { return }
-            DispatchQueue.global(qos: .utility).async { cache.remove(entry) }
+            DispatchQueue.global(qos: .utility).async { cache.removeIfExpired(entry) }
         }
     }
 
     let capacity: Int
+    private let matchStaticBacking: Bool
     private let lock = NSLock()
     private var entries: [Entry] = [] // Least recently used first.
     private var warningObserver: NSObjectProtocol?
 
-    init(capacity: Int) {
+    init(capacity: Int, matchStaticBacking: Bool = false) {
         self.capacity = max(1, capacity)
+        self.matchStaticBacking = matchStaticBacking
         warningObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: nil
         ) { [weak self] _ in self?.removeAll() }
@@ -167,22 +266,32 @@ final class ReaderTranslationImageIdentityCache<Value>: @unchecked Sendable {
 
     var count: Int {
         lock.lock(); defer { lock.unlock() }
-        return entries.filter { $0.image != nil }.count
+        entries.removeAll { $0.object == nil }
+        return entries.count
+    }
+
+    private func key(for image: UIImage) -> Key {
+        if matchStaticBacking, let pixels = image.translationStaticPixels {
+            return Key(object: pixels, scale: image.scale, orientation: image.imageOrientation)
+        }
+        return Key(object: image, scale: 1, orientation: .up)
     }
 
     func value(for image: UIImage) -> Value? {
+        let key = key(for: image)
         lock.lock(); defer { lock.unlock() }
-        entries.removeAll { $0.image == nil }
-        guard let index = entries.lastIndex(where: { $0.image === image }) else { return nil }
+        entries.removeAll { $0.object == nil }
+        guard let index = entries.lastIndex(where: { $0.matches(key) }) else { return nil }
         let entry = entries.remove(at: index)
         entries.append(entry)
         return entry.value
     }
 
     func store(_ value: Value, for image: UIImage) {
-        let entry = Entry(image: image, value: value)
+        let key = key(for: image)
+        let entry = Entry(key: key, value: value)
         lock.lock()
-        entries.removeAll { $0.image == nil || $0.image === image }
+        entries.removeAll { $0.object == nil || $0.matches(key) }
         while entries.count >= capacity { entries.removeFirst() }
         entries.append(entry)
         // Each image carries one sentinel per cache; replacing it releases the
@@ -199,8 +308,8 @@ final class ReaderTranslationImageIdentityCache<Value>: @unchecked Sendable {
         entries.removeAll()
     }
 
-    private func remove(_ entry: Entry) {
+    private func removeIfExpired(_ entry: Entry) {
         lock.lock(); defer { lock.unlock() }
-        entries.removeAll { $0 === entry }
+        if entry.object == nil { entries.removeAll { $0 === entry } }
     }
 }

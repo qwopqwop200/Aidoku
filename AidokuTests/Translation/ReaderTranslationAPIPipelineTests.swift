@@ -173,14 +173,15 @@ struct ReaderTranslationAPIPipelineTests {
         var value = settings()
         value.includePageImage = false
         let key = ReaderTranslationCacheIdentity.ocr(page: page(1).translationCacheKey, settings: value)
+        let proof = try #require(ReaderTranslationSourceRasterClaim(processedFullSourceSHA256: String(repeating: "d", count: 64)))
         try await disk.storeRegions([APIPipelineRecorder.region(1)], for: key, kind: .ocr,
-                                   generation: await disk.currentGeneration(settings: value))
+                                   generation: await disk.currentGeneration(settings: value), sourceRasterClaim: proof)
         let recorder = APIPipelineRecorder(blocked: [0])
         let preloader = ReaderTranslationPreloader(diskCache: disk,
             translator: { try await recorder.translate($0, settings: $1, progress: $2) },
             recognizer: { page, _ in try await recorder.recognize(page.index) },
             dataPrefetcher: { _ in Issue.record("Cached text must not download an image") },
-            availableMemory: { 512 * 1_024 * 1_024 })
+            availableMemory: { 512 * 1_024 * 1_024 }, fixtureSourceRasterClaim: { _ in proof })
         preloader.nextPage = { _ in page(1) }
         let first = Task { try await preloader.translate(page(0), settings: value) }
         defer { preloader.cancel(); first.cancel() }

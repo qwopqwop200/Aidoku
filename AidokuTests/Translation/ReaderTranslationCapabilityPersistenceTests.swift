@@ -37,6 +37,7 @@ struct ReaderTranslationCapabilityPersistenceTests {
             if regions.first?.id == "0" {
                 while true { try await Task.sleep(for: .milliseconds(20)) }
             }
+            #expect(regions.map(\.id) == ["1"])
             TranslationImageSupport.shared.record(.unsupported, for: settings.configuration)
             try await disk.synchronizeSettings(settings)
             return [Self.region(1, translated: true)]
@@ -48,6 +49,7 @@ struct ReaderTranslationCapabilityPersistenceTests {
             (try? await disk.translatedRegions(page: page(1).translationCacheKey, settings: settings)) != nil
         }
         let reopened = ReaderTranslationDiskCache(directory: root)
+        #expect(TranslationImageSupport.shared.snapshot(for: settings.configuration).status == .unsupported)
         #expect(try await reopened.translatedRegions(page: page(1).translationCacheKey, settings: settings)?.first?.translation == "문을 열고 들어오세요.")
     }
 
@@ -70,31 +72,38 @@ struct ReaderTranslationCapabilityPersistenceTests {
         #expect(requests == 0)
     }
 
-    @Test func recoveredImageSupportDiscardsCompletedSessionMemory() async throws {
+    @Test func recoveredImageSupportReusesCompletedTranslationUntilTargetChanges() async throws {
         let settings = settings()
         TranslationImageSupport.shared.record(.unsupported, for: settings.configuration)
         let cache = ReaderTranslationSessionCache()
         var requests = 0
-        let session = ReaderTranslationSession(process: { _, _, _ in
+        let session = ReaderTranslationSession(process: { _, current, _ in
             requests += 1
             var result = Self.region(0, translated: true)
-            result.translation = requests == 1 ? "텍스트 번역" : "이미지 번역"
+            #expect(current.shouldAttachPageImage)
+            if current.targetLanguage == "fr" { result.translation = "Entrez." }
             return [result]
         }, availableMemory: { .max }, cache: cache)
         defer { session.close() }
         let page = page(0)
         session.update(items: [.init(page)], visible: [], context: "recovery")
         session.enable(settings: settings)
-        try await waitUntil { cache.regions(for: page.translationCacheKey)?.first?.translation == "텍스트 번역" }
+        let original = [Self.region(0, translated: true)]
+        try await waitUntil { cache.regions(for: page.translationCacheKey) == original }
         TranslationImageSupport.shared.record(.supported, for: settings.configuration)
         session.refreshImageSupport()
-        try await waitUntil { cache.regions(for: page.translationCacheKey)?.first?.translation == "이미지 번역" }
-        #expect(requests == 2)
         session.refreshImageSupport()
+        #expect(try await session.cachedRegions(for: page, settings: settings) == original)
+        #expect(requests == 1)
+
+        var changed = settings
+        changed.targetLanguage = "fr"
+        session.enable(settings: changed)
+        try await waitUntil { cache.regions(for: page.translationCacheKey)?.first?.translation == "Entrez." }
         #expect(requests == 2)
     }
 
-    @Test func imageLookupRejectsOldMemoryBeforeRecoveryNotification() async throws {
+    @Test func imageLookupReusesMatchingMemoryBeforeRecoveryNotification() async throws {
         let settings = settings()
         TranslationImageSupport.shared.record(.unsupported, for: settings.configuration)
         let cache = ReaderTranslationSessionCache()
@@ -109,10 +118,13 @@ struct ReaderTranslationCapabilityPersistenceTests {
         defer { session.close() }
         session.update(items: [.init(page)], visible: [], context: "before-notification")
         session.enable(settings: settings)
-        #expect(try await session.cachedRegions(for: page, settings: settings)?.first?.translation == stored.translation)
+        #expect(try await session.cachedRegions(for: page, settings: settings) == [stored])
         TranslationImageSupport.shared.record(.supported, for: settings.configuration)
         // Deliberately do not refresh the session: notification delivery is queued.
-        #expect(try await session.cachedRegions(for: page, settings: settings) == nil)
+        #expect(try await session.cachedRegions(for: page, settings: settings) == [stored])
+        var otherTarget = settings
+        otherTarget.targetLanguage = "fr"
+        #expect(try await session.cachedRegions(for: page, settings: otherTarget) == nil)
         #expect(requests == 0, "A cache-only lookup must not start replacement translation")
     }
 
@@ -189,7 +201,9 @@ struct ReaderTranslationCapabilityPersistenceTests {
         settings.provider = .custom
         settings.custom.baseURL = "https://capability-persistence.invalid"
         settings.model = name
+        settings.modelTier = .medium
         settings.sourceLanguage = "en"
+        settings.targetLanguage = "ko"
         settings.includePageImage = true
         settings.maximumConcurrentRequests = 2
         return settings

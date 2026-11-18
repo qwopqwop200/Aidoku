@@ -55,7 +55,14 @@ struct BrowserPageImageOverlayDiagnostic: Equatable, Sendable {
     var isCacheable = true
 }
 
-struct BrowserOverlayItem: Equatable, Sendable {
+struct BrowserOverlayItem: Equatable, Encodable, Sendable {
+    // The prepared-plan fingerprint encodes translation ownership separately so a shared
+    // request's complete segment batch is serialized only once per page.
+    private enum CodingKeys: String, CodingKey {
+        case stableRegionID, rect, sourcePolygon, auxiliaryInkRects, auxiliaryInkPolygons
+        case sourceText, translatedText, confidence, sourceOrientation, sourceSingleVerticalColumn
+        case keepsSourceLettering, balloonInterior, unitMemberRects, recoveredLine
+    }
     /// Stable identity assigned by the temporal OCR tracker. Rendering must
     /// preserve this identity instead of treating every OCR/translation
     /// publication as a brand-new card.
@@ -605,12 +612,16 @@ struct BrowserOverlayTextFlow {
         switch sourceOrientation {
         case .vertical:
             if textPrefersVerticalWriting(text) { return true }
-            // A detected vertical reaction may contain one kana plus ellipsis
-            // dots misread as o/0. Its short transcription must not turn the
-            // source-mask axis horizontal.
+            // A short vertical line may contain a single Han/kana character
+            // and punctuation. Keep its observed axis when pixel geometry is
+            // tall; a square single glyph supplies no axis evidence. Permit
+            // o/0 dot confusions only alongside kana, not arbitrary Latin text.
             let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic || $0.properties.numericType != nil }
-            return rect.height >= rect.width * 1.2 &&
-                letters.contains { (0x3040...0x30FF).contains($0.value) } &&
+            guard rect.width.isFinite, rect.height.isFinite, rect.width > 0,
+                  rect.height >= rect.width * 1.2 else { return false }
+            if rect.height >= rect.width * 1.8,
+               !letters.isEmpty && letters.allSatisfy({ isVerticalCJK($0.value) }) { return true }
+            return letters.contains { (0x3040...0x30FF).contains($0.value) } &&
                 letters.allSatisfy { (0x3040...0x30FF).contains($0.value) || [48, 79, 111].contains($0.value) }
         case .horizontal:
             return false

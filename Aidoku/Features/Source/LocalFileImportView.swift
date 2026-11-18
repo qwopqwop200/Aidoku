@@ -622,7 +622,6 @@ extension LocalFileImportView.ContentView {
 
         @State private var searchText = ""
         @State private var series: [LocalSeriesInfo] = []
-        @State private var searchTask: Task<(), Never>?
 
         var body: some View {
             ScrollView {
@@ -656,18 +655,9 @@ extension LocalFileImportView.ContentView {
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always))
             .navigationTitle(NSLocalizedString("SELECT_SERIES"))
             .navigationBarTitleDisplayMode(.inline)
-            .onChange(of: searchText) { _ in
-                searchTask?.cancel()
-                searchTask = Task {
-                    let results = await LocalFileDataManager.shared.fetchLocalSeriesInfo(query: searchText)
-                    guard !Task.isCancelled else { return }
-                    withAnimation {
-                        series = results
-                    }
-                }
-            }
-            .task {
-                let results = await LocalFileDataManager.shared.fetchLocalSeriesInfo()
+            .task(id: searchText) {
+                let results = await LocalFileDataManager.shared.fetchLocalSeriesInfo(query: searchText)
+                guard !Task.isCancelled else { return }
                 withAnimation {
                     series = results
                 }

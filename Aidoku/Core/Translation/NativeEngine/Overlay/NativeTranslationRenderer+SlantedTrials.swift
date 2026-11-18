@@ -43,6 +43,11 @@ extension NativeTranslationRenderer {
                     NativeTranslationRenderer.color(light ? [17, 18, 23] : [255, 255, 255]),
                 tracking: -candidate.font * 0.012, lineHeight: candidate.pitch, alignsToTop: item.balancedColumn,
                 horizontalScale: candidate.condense)
+            if let bold = item.sourceRenderBold {
+                style.bold = bold
+                // A fixed named face can override bold=false; use the regular script family.
+                if !bold { style.fontName = nil }
+            }
             style.optimizesKoreanWrapping = false
             style.strictLineBreak = item.typesettingStrictLineBreak ?? false
             style.horizontalWrapping = item.wrappingScript == "korean" && !style.strictLineBreak ? .keepAllWithEmergency : .normal

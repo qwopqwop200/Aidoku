@@ -32,12 +32,13 @@ struct OCRGeometryOverflowRegressionTests {
         #expect(readerPlan.bucket.timeSteps == 148)
     }
 
-    @Test(arguments: [Int.min, -1, 0, 31, 32, 2_001, Int.max])
+    @Test(arguments: [Int.min, -1, 0, 31, 32, 2_001, 2_401, Int.max])
     func dynamicBucketClampsExtremeMaximumBeforeForceUnwrapping(maximumWidth: Int) {
         let bucket = NativeCoreMLRecognitionBucket.containing(
             desiredWidth: Int.max, dynamicWidth: true, maximumWidth: maximumWidth
         )
-        #expect(bucket.width == (maximumWidth <= 32 ? 32 : 2_000))
+        // Dynamic recognition is capped at the manga recognizer width (2400).
+        #expect(bucket.width == (maximumWidth <= 32 ? 32 : min(maximumWidth, 2_400)))
     }
 
     @Test(arguments: [Int.min, -1, 0, 31, Int.max])

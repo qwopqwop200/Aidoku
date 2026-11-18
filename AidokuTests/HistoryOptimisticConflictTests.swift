@@ -64,11 +64,14 @@ struct HistoryOptimisticConflictTests {
             let manager = CoreDataManager.shared
             manager.setProgress(1, chapterId: chapter, totalPages: 9, context: writer)
             try writer.save()
+            let session = HistoryManager.ReadingSessionData(startDate: Date(timeIntervalSince1970: 100),
+                                                           endDate: Date(timeIntervalSince1970: 120), pagesRead: 2)
             var attempts = 0
             try HistoryManager.saveMutationWithRetry(context: writer) {
                 attempts += 1
                 manager.setRead(mangaId: manga, context: writer)
-                manager.setProgress(3, chapterId: chapter, totalPages: 9, scrollPosition: 0.5, context: writer)
+                let history = manager.setProgress(3, chapterId: chapter, totalPages: 9, scrollPosition: 0.5, context: writer)
+                manager.createSession(history: history, data: session, context: writer)
                 if attempts == 1 {
                     manager.setCompleted(chapterIds: [chapter], context: competing)
                     try competing.save()
@@ -81,6 +84,8 @@ struct HistoryOptimisticConflictTests {
             #expect(history.completed)
             #expect(history.progress == 3 && history.total == 9)
             #expect(history.scrollPosition?.doubleValue == 0.5)
+            #expect(history.sessions?.count == 1)
+            #expect(try writer.count(for: ReadingSessionObject.fetchRequest()) == 1)
         }
     }
 

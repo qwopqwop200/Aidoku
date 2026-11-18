@@ -8,6 +8,61 @@ import XCTest
 /// implementation as the reference and compares IEEE bit patterns.
 @available(iOS 18.0, *)
 final class NativeOCRDetectionIdentityTests: XCTestCase {
+    func testPreparedProbabilityRequestRetainsExactFrameAcrossAnotherSameSizedRequest() async throws {
+        let detector = NativeCoreMLDetector()
+        let first = try Self.randomFrame(width: 128, height: 93, rowPadding: 4, seed: 11)
+        let other = try Self.randomFrame(width: 128, height: 93, rowPadding: 4, seed: 12)
+        let requested = try await detector.prepareProbabilityRequest(frame: first, configuration: .manga)
+        let unrelated = try await detector.prepareProbabilityRequest(frame: other, configuration: .manga)
+        XCTAssertNotEqual(requested.expectation.detectorInputIdentity, unrelated.expectation.detectorInputIdentity)
+
+        let capture = NativeOCRRFPrimaryEnsemble.MapCapture()
+        let observer = capture.observer(forwarding: nil)
+        let normal = try await detector.detect(frame: first, requestID: "normal", configuration: .manga,
+            recognitionScopes: nil, probabilityObserver: observer, cancellationCheck: { try Task.checkCancellation() })
+        let baseline = try XCTUnwrap(capture.take())
+        try await requested.observe(observer, { try Task.checkCancellation() })
+        let reused = try XCTUnwrap(capture.take())
+        XCTAssertEqual(reused.detectorInputIdentity, requested.expectation.detectorInputIdentity)
+        XCTAssertEqual(reused.producer, requested.expectation.producer)
+        XCTAssertEqual(reused.consumerConfigurationSHA256, baseline.consumerConfigurationSHA256)
+        XCTAssertEqual(reused.region, baseline.region)
+        XCTAssertEqual(NativeMainEnsembleDBCapability.digest(reused.values), NativeMainEnsembleDBCapability.digest(baseline.values))
+        XCTAssertGreaterThan(normal.diagnostics.inputTensorCreationMilliseconds, 0)
+        XCTAssertEqual(detector.lastDiagnostics?.inputTensorCreationMilliseconds, 0)
+        XCTAssertEqual(detector.lastDiagnostics?.dbPostprocessingMilliseconds, 0)
+        XCTAssertEqual(detector.lastDiagnostics?.candidateComponents, 0)
+        XCTAssertEqual(detector.lastDiagnostics?.detectedBoxes, 0)
+        XCTAssertEqual(reused.sourceWidth, first.width)
+        XCTAssertEqual(reused.sourceHeight, first.height)
+        XCTAssertEqual(reused.values.map(\.bitPattern), baseline.values.map(\.bitPattern))
+        XCTAssertEqual(reused.region, CGRect(x: 0, y: 0, width: reused.resizedWidth, height: reused.resizedHeight))
+        XCTAssertEqual(reused.width, reused.resizedWidth)
+        XCTAssertEqual(reused.height, reused.resizedHeight)
+
+        do {
+            try await requested.observe(observer, { throw CancellationError() })
+            XCTFail("Cancelled request should not predict")
+        } catch is CancellationError {}
+        XCTAssertNil(capture.take())
+    }
+
+    func testProbabilityROIReusesOnlyIdenticalDetectorRanges() throws {
+        let roi = NativeOCRSourceROIProbabilityEvidence.PixelRect(x: 0, y: 0, width: 8, height: 6)
+        let detector = NativeOCRSourceROIProbabilityEvidence.Detector(
+            originX: 1, originY: 1, width: 2, height: 2, fullWidth: 4, fullHeight: 3)
+        let digest = String(repeating: "a", count: 64)
+        let evidence = try XCTUnwrap(NativeOCRSourceROIProbabilityEvidence.capture(sourceWidth: 8,
+            sourceHeight: 6, sourceDigest: digest, roi: roi, detector: detector,
+            probabilities: [0.25, .nan, 1, 0.5]))
+        let unknown = [UInt8](repeating: 255, count: 8)
+        let first = [UInt8](arrayLiteral: 255, 255, 64, 64, 255, 255, 255, 255)
+        let second = [UInt8](arrayLiteral: 255, 255, 255, 255, 128, 128, 255, 255)
+        XCTAssertEqual(evidence.upperBounds, Data([unknown, unknown, first, first, second, second].joined()))
+        XCTAssertNil(NativeOCRSourceROIProbabilityEvidence.capture(sourceWidth: 8, sourceHeight: 6,
+            sourceDigest: digest, roi: roi, detector: detector, probabilities: [0.25, .nan, 1]))
+    }
+
     func testRGBAConversionPreservesTransparentColorSpaceAndPaddedImages() throws {
         // Poisoning the reference destination additionally proves that the
         // full .copy draw overwrites every byte, including alpha-zero pixels.
@@ -176,10 +231,90 @@ final class NativeOCRDetectionIdentityTests: XCTestCase {
 
     // MARK: - prepareBounded
 
+    func testContentGeometryNeverUpsamplesAndCanvasRemainsStrideAligned() throws {
+        let cases: [(Int, Int, Int, Int, Int, Int, Int)] = [
+            (700, 1000, 1120, 700, 1000, 704, 1024),
+            (1000, 700, 1120, 1000, 700, 1024, 704),
+            (37, 53, 1120, 37, 53, 64, 64),
+            (1, 10000, 1184, 1, 1184, 32, 1184),
+            (2560, 1920, 1120, 1120, 864, 1120, 864),
+            (640, 960, 1120, 640, 960, 640, 960)
+        ]
+        for (w,h,limit,cw,ch,aw,ah) in cases {
+            let content = try XCTUnwrap(NativeCoreMLDetectionPreprocessor.contentDimensions(
+                sourceWidth:w,sourceHeight:h,maximumSide:limit))
+            let canvas = try XCTUnwrap(NativeCoreMLDetectionCanvas.exact(
+                sourceWidth:w,sourceHeight:h,maximumSide:limit))
+            XCTAssertEqual(content.width,cw);XCTAssertEqual(content.height,ch)
+            XCTAssertEqual(canvas.width,aw);XCTAssertEqual(canvas.height,ah)
+            XCTAssertLessThanOrEqual(content.width,w);XCTAssertLessThanOrEqual(content.height,h)
+            XCTAssertEqual(canvas.width % 32,0);XCTAssertEqual(canvas.height % 32,0)
+        }
+        XCTAssertNil(NativeCoreMLDetectionPreprocessor.contentDimensions(sourceWidth:0,sourceHeight:1))
+        XCTAssertNotEqual(NativeCoreMLDetectionPreprocessor.provenanceABI,
+            "native-db-bounded-bilinear-bgr-planar-float32-v1")
+    }
+
+    func testSmallContentHasZeroPaddingAndRejectsExplicitUpsample() async throws {
+        let frame = try Self.randomFrame(width:7,height:13,rowPadding:12,seed:19)
+        let canvas = try XCTUnwrap(NativeCoreMLDetectionCanvas.exact(sourceWidth:7,sourceHeight:13))
+        let prepared = try await NativeCoreMLDetectionPreprocessor.prepare(frame:frame,canvas:canvas)
+        XCTAssertEqual(prepared.resizedWidth,7);XCTAssertEqual(prepared.resizedHeight,13)
+        let values = await prepared.values()
+        XCTAssertEqual(prepared.inputSHA256,NativeMainEnsembleDBCapability.digest(values))
+        let producer = NativeCoreMLDBProvenance.producer(resource:"fixture",
+            packageSHA256:String(repeating:"a",count:64),computeUnits:"synthetic",prepared:prepared)
+        XCTAssertEqual(producer.canvasWidth,32);XCTAssertEqual(producer.canvasHeight,32)
+        XCTAssertEqual(producer.resizedWidth,7);XCTAssertEqual(producer.resizedHeight,13)
+        XCTAssertEqual(producer.preprocessABI,NativeCoreMLDetectionPreprocessor.provenanceABI)
+        for c in 0..<3 { for y in 0..<canvas.height { for x in 0..<canvas.width {
+            if x >= 7 || y >= 13 { XCTAssertEqual(values[c*canvas.width*canvas.height+y*canvas.width+x].bitPattern,0) }
+        } } }
+        do {
+            _ = try await NativeCoreMLDetectionPreprocessor.prepareBounded(frame:frame,canvas:canvas,dimensions:(32,32))
+            XCTFail("Explicit upsample must be rejected, not silently cropped")
+        } catch let error as NativeCoreMLDetectorError {
+            XCTAssertEqual(error,.modelInputCreationFailed)
+        }
+    }
+
+    func testIsotropicCandidateUsesSingleScaleInsideUnchangedStrideCanvas() throws {
+        let cases = [(1_864, 2_835, 736, 1_120), (2_560, 1_920, 1_120, 840),
+                     (700, 1_000, 700, 1_000), (1, 10_000, 1, 1_120), (7, 13, 7, 13)]
+        for (width, height, expectedWidth, expectedHeight) in cases {
+            let aligned = try XCTUnwrap(NativeCoreMLDetectionPreprocessor.resizeDimensions(
+                sourceWidth: width, sourceHeight: height, maximumSide: 1_120))
+            let candidate = try XCTUnwrap(NativeCoreMLDetectionPreprocessor.contentDimensions(
+                sourceWidth: width, sourceHeight: height, maximumSide: 1_120, isotropic: true))
+            XCTAssertEqual(candidate.width, expectedWidth)
+            XCTAssertEqual(candidate.height, expectedHeight)
+            XCTAssertLessThanOrEqual(candidate.width, min(width, aligned.width))
+            XCTAssertLessThanOrEqual(candidate.height, min(height, aligned.height))
+            let baseline = try XCTUnwrap(NativeCoreMLDetectionPreprocessor.contentDimensions(
+                sourceWidth: width, sourceHeight: height, maximumSide: 1_120, isotropic: false))
+            XCTAssertEqual(baseline.width, min(width, aligned.width))
+            XCTAssertEqual(baseline.height, min(height, aligned.height))
+        }
+    }
+
+    func testPaddedDetectorOutputKeepsExactContentCellsWithoutResampling() async throws {
+        let scalars = (0..<(32*32)).map { Float($0) / Float(32*32) }
+        let map = try await NativeCoreMLDetectionOutput.makeMap(
+            output:MLTensor(shape:[1,1,32,32],scalars:scalars),
+            width:7,height:13,expectedShape:[1,1,32,32])
+        XCTAssertEqual(map.width,7);XCTAssertEqual(map.height,13)
+        for y in 0..<13 {for x in 0..<7 {
+            XCTAssertEqual(map.values[y*7+x].bitPattern,scalars[y*32+x].bitPattern)
+        }}
+    }
+
     func testParallelBoundedPreprocessingIsBitIdenticalToScalarReference() async throws {
         // (source width, height, row padding, maximum side, extra canvas padding)
         let cases: [(Int, Int, Int, Int, Int, Int)] = [
-            (37, 53, 0, 2_000, 0, 0),        // upscale to the 32 stride, odd size
+            (1, 1, 13, 32, 0, 0),          // minimal content, odd source row stride
+            (31, 32, 13, 32, 0, 0),        // right padding only
+            (32, 31, 13, 32, 0, 0),        // bottom padding only
+            (37, 53, 0, 2_000, 0, 0),        // source content retained; stride padding
             (257, 389, 16, 192, 0, 0),       // downscale, padded rows
             (1_281, 64, 0, 1_600, 0, 0),     // wide, one axis unchanged vertically
             (640, 960, 12, 1_600, 0, 0),     // identity resize (no MLTensor ramps)
@@ -192,10 +327,12 @@ final class NativeOCRDetectionIdentityTests: XCTestCase {
             let (width, height, padding, maximumSide, extraWidth, extraHeight) = entry
             let frame = try Self.randomFrame(width: width, height: height, rowPadding: padding,
                                              seed: UInt64(index + 1) &* 7_919)
-            let dimensions = try XCTUnwrap(NativeCoreMLDetectionPreprocessor.resizeDimensions(
+            let dimensions = try XCTUnwrap(NativeCoreMLDetectionPreprocessor.contentDimensions(
+                sourceWidth: width, sourceHeight: height, maximumSide: maximumSide))
+            let aligned = try XCTUnwrap(NativeCoreMLDetectionPreprocessor.resizeDimensions(
                 sourceWidth: width, sourceHeight: height, maximumSide: maximumSide))
             let canvas = try XCTUnwrap(NativeCoreMLDetectionCanvas(inputShape: [
-                1, 3, dimensions.height + extraHeight, dimensions.width + extraWidth,
+                1, 3, aligned.height + extraHeight, aligned.width + extraWidth,
             ]))
             let sourceXs = await NativeCoreMLDetectionPreprocessor.computeResizeCoordinates(
                 sourceLength: width, targetLength: dimensions.width,
@@ -224,7 +361,9 @@ final class NativeOCRDetectionIdentityTests: XCTestCase {
 
     func testCachedResizeCoordinatesMatchFreshComputation() async {
         for (source, target, vertical, other) in [(1_000, 608, false, true), (1_000, 608, true, false),
-                                                 (37, 64, true, true), (3_840, 1_600, false, true)] {
+                                                 (37, 64, true, true), (3_840, 1_600, false, true),
+                                                 (700, 700, false, false), (1_000, 1_000, true, false),
+                                                 (1, 1, true, true)] {
             let fresh = await NativeCoreMLDetectionPreprocessor.computeResizeCoordinates(
                 sourceLength: source, targetLength: target, vertical: vertical, resizesOtherAxis: other)
             for _ in 0..<2 {
@@ -242,9 +381,10 @@ final class NativeOCRDetectionIdentityTests: XCTestCase {
 
     func testBoundedPreprocessingObservesCancellationBetweenPasses() async throws {
         let frame = try Self.randomFrame(width: 700, height: 1_100, rowPadding: 0, seed: 3)
-        let dimensions = try XCTUnwrap(NativeCoreMLDetectionPreprocessor.resizeDimensions(
+        let dimensions = try XCTUnwrap(NativeCoreMLDetectionPreprocessor.contentDimensions(
             sourceWidth: 700, sourceHeight: 1_100, maximumSide: 1_600))
-        let canvas = try XCTUnwrap(NativeCoreMLDetectionCanvas(inputShape: [1, 3, dimensions.height, dimensions.width]))
+        let canvas = try XCTUnwrap(NativeCoreMLDetectionCanvas.exact(
+            sourceWidth: 700, sourceHeight: 1_100, maximumSide: 1_600))
         struct Stop: Error {}
         var calls = 0
         do {

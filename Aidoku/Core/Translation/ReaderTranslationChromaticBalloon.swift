@@ -4,12 +4,14 @@ import Foundation
 /// Independent colour contours for tinted/translucent balloons. The light-paper map cannot
 /// distinguish the artwork showing through them from an opening in the balloon itself.
 enum ReaderTranslationChromaticBalloon {
-    static func applying(_ regions: [ReaderTranslationRegion], image: CGImage) -> [ReaderTranslationRegion] {
+    static func applying(_ regions: [ReaderTranslationRegion], image: CGImage, preservingSourceSlots: Set<String> = []) -> [ReaderTranslationRegion] {
         let regions = attachingThinEndMarks(attachingRepeatedReactionLeadIn(attachingReactionPunctuation(regions, image: image), image: image), image: image)
-        let contours = interiors(regions, image: image)
+        let contours = interiors(regions, image: image, preservingSourceSlots: preservingSourceSlots)
         var values = regions
         for i in values.indices {
-            if let contour = contours[i] { values[i].balloonInterior = contour }
+            if preservingSourceSlots.contains(values[i].id) {
+                values[i].balloonInterior = nil
+            } else if let contour = contours[i] { values[i].balloonInterior = contour }
         }
         var removed = Set<Int>()
         let width = CGFloat(image.width), height = CGFloat(image.height)
@@ -67,6 +69,8 @@ enum ReaderTranslationChromaticBalloon {
             joined.unitMemberRects = ordered.flatMap { values[$0].unitMemberRects.isEmpty ? [values[$0].rect] : values[$0].unitMemberRects }
             joined.auxiliaryInkRects = members.flatMap { values[$0].auxiliaryInkRects }
             joined.auxiliaryInkPolygons = members.flatMap { values[$0].auxiliaryInkPolygons }
+            joined.detectorSeedEvidence = NativeOCRDetectorSeedEvidence.preservingUnion(members.map { values[$0].detectorSeedEvidence })
+            joined.acceptedSource = .union(members.map { values[$0].acceptedSource })
             joined.balloonInterior = contour
             joined.polygon = [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY),
                               CGPoint(x: rect.maxX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.maxY)]
@@ -177,6 +181,7 @@ enum ReaderTranslationChromaticBalloon {
             guard parents.count == 1, let i = parents.first else { continue }
             result[i].auxiliaryInkRects.append(input[j].rect)
             result[i].auxiliaryInkPolygons.append(input[j].polygon)
+            result[i].acceptedSource = result[i].acceptedSource.retainingReading(input[j].acceptedSource)
             removed.insert(j)
         }
         return result.enumerated().compactMap { removed.contains($0.offset) ? nil : $0.element }
@@ -205,6 +210,7 @@ enum ReaderTranslationChromaticBalloon {
             result[i].auxiliaryInkRects.append(rect)
             result[i].auxiliaryInkPolygons.append([CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY),
                 CGPoint(x: rect.maxX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.maxY)])
+            result[i].acceptedSource = result[i].acceptedSource.retainingReading(input[j].acceptedSource)
             removed.insert(j)
         }
         return result.enumerated().compactMap { removed.contains($0.offset) ? nil : $0.element }
@@ -250,6 +256,7 @@ enum ReaderTranslationChromaticBalloon {
                 auxiliaryInkPolygons: original.auxiliaryInkPolygons + [inkPolygon], balloonInterior: original.balloonInterior,
                 unitMemberRects: original.unitMemberRects, isOccludedFinePrint: original.isOccludedFinePrint,
                 isRecoveredLine: original.isRecoveredLine)
+            result[i].acceptedSource = result[i].acceptedSource.retainingReading(input[j].acceptedSource)
             removed.insert(j)
         }
         return result.enumerated().compactMap { removed.contains($0.offset) ? nil : $0.element }
@@ -303,7 +310,19 @@ enum ReaderTranslationChromaticBalloon {
                       width: CGFloat(r - l + 1) / scale, height: CGFloat(b - t + 1) / scale)
     }
 
-    static func interiors(_ regions: [ReaderTranslationRegion], image: CGImage) -> [ReaderTranslationBalloonInterior?] {
+    /// Sparse sample ties need measured source-pixel support. A component ID
+    /// or hash iteration order supplies no ownership evidence.
+    static func dominantComponentVote(_ votes: [Int: Int], support: ([Int]) -> [Int: Int] = { _ in [:] }) -> (id: Int, count: Int)? {
+        guard let count = votes.values.max() else { return nil }
+        let tied = votes.keys.filter { votes[$0] == count }.sorted()
+        if tied.count == 1 { return (tied[0], count) }
+        let measured = support(tied)
+        guard tied.allSatisfy({ measured[$0] != nil }), let maximum = measured.values.max(), maximum > 0 else { return nil }
+        let winners = tied.filter { measured[$0] == maximum }
+        return winners.count == 1 ? (winners[0], count) : nil
+    }
+
+    static func interiors(_ regions: [ReaderTranslationRegion], image: CGImage, preservingSourceSlots: Set<String> = []) -> [ReaderTranslationBalloonInterior?] {
         guard !regions.isEmpty, regions.count <= 256 else { return regions.map { _ in nil } }
         let scale = min(1, 1024 / CGFloat(max(image.width, image.height)))
         let w = max(1, Int(CGFloat(image.width) * scale)), h = max(1, Int(CGFloat(image.height) * scale)), n = w * h
@@ -398,14 +417,26 @@ enum ReaderTranslationChromaticBalloon {
                 }
                 var candidates: [Int: [Int]] = [:]
                 var partialSourceCandidates = Set<Int>()
-                for (index, box) in boxes.enumerated() where regions[index].source.contains(where: \.isLetter) {
+                for (index, box) in boxes.enumerated() where !preservingSourceSlots.contains(regions[index].id) &&
+                    regions[index].source.contains(where: \.isLetter) {
                     var votes: [Int: Int] = [:]
                     for fy in [0.08, 0.29, 0.5, 0.71, 0.92] { for fx in [0.08, 0.29, 0.5, 0.71, 0.92] {
                         let x = max(0, min(w - 1, Int(box.minX + box.width * fx)))
                         let y = max(0, min(h - 1, Int(box.minY + box.height * fy)))
                         let id = Int(labels[y * w + x]); if id >= 0 { votes[id, default: 0] += 1 }
                     } }
-                    guard let (id, count) = votes.max(by: { $0.value < $1.value }), count >= 2 else { continue }
+                    guard let (id, count) = dominantComponentVote(votes, support: { tied in
+                        var measured = Dictionary(uniqueKeysWithValues: tied.map { ($0, 0) })
+                        let left = max(0, min(w - 1, Int(floor(box.minX))))
+                        let right = max(left, min(w - 1, Int(ceil(box.maxX)) - 1))
+                        let top = max(0, min(h - 1, Int(floor(box.minY))))
+                        let bottom = max(top, min(h - 1, Int(ceil(box.maxY)) - 1))
+                        for y in top...bottom { for x in left...right {
+                            let label = Int(labels[y * w + x])
+                            if measured[label] != nil { measured[label]! += 1 }
+                        } }
+                        return measured
+                    }), count >= 2 else { continue }
                     let c = components[id], area = (c.r - c.l + 1) * (c.b - c.t + 1)
                     let rect = CGRect(x: c.l, y: c.t, width: c.r - c.l + 1, height: c.b - c.t + 1)
                     // A balloon cropped by one page edge is still closed by that edge.
@@ -439,7 +470,8 @@ enum ReaderTranslationChromaticBalloon {
                     candidates[id, default: []].append(index)
                     if partialSource { partialSourceCandidates.insert(index) }
                 }
-                for (id, indices) in candidates {
+                for id in candidates.keys.sorted() {
+                    let indices = candidates[id]!
                     let c = components[id], cw = c.r - c.l + 1, ch = c.b - c.t + 1
                     // Fill internal holes, but preserve the exterior and every concavity of the contour.
                     var exterior = [UInt8](repeating: 0, count: cw * ch), head = 0
@@ -530,7 +562,8 @@ enum ReaderTranslationChromaticBalloon {
                 }
             }
         }
-        return result
+        return ReaderTranslationWhiteRimBalloon.fillMissing(result, regions: regions, image: image,
+            preservingSourceSlots: preservingSourceSlots)
     }
     /// An area centroid can land in the neck between connected lobes. Keep the
     /// anchor inside the measured horizontal slice, without inventing a wider

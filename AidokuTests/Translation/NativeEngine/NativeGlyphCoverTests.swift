@@ -103,95 +103,26 @@ struct NativeGlyphCoverTests {
         s.preserveSourceColors = true
         return s
     }
-    @Test(arguments: [0.0, 10.0, 10.019])
-    func actualRendererAdapterCommitsArtworkWithoutClaimingErasureProof(cleanupOffset: Double) throws {
-        let (_, expected, layout, initial, image) = try adapterFixture("smooth-gradient")
-        var card = initial
-        card.item.y += cleanupOffset
-        card.cleanupSourceFrame = layout.sourceRect.offsetBy(dx: 0, dy: cleanupOffset)
-        for index in card.sourcePanels.indices {
-            card.sourcePanels[index].rect = card.sourcePanels[index].rect.offsetBy(dx: 0, dy: cleanupOffset)
-            card.sourcePanels[index].coverage = card.sourcePanels[index].coverage.map { $0.offsetBy(dx: 0, dy: cleanupOffset) }
-        }
-        var cards = [card], restoration = NativeTranslationRestoration.Result()
-        let cleanupClip = try #require(card.cleanupSourceFrame).insetBy(dx:0.019,dy:0.031)
-        restoration.cleanupGeometry = .init(frame:try #require(card.cleanupSourceFrame),clip:cleanupClip)
-        restoration.appearances["one"] = .init(foreground: card.style.foreground, background: card.background, restored: false,
-            sourceSample: ["foreground": [20.0, 20, 20]])
-        NativeTranslationRenderer.applyGlyphCover(cards: &cards, restoration: &restoration, layout: layout, source: image, settings: settings(), gloss: .init())
-        let target = try #require(expected["result"] as? [String: Any]), patch = try #require(restoration.patches.first)
-        let paint = try #require(target["rgba"] as? [NSNumber]).map(\.uint8Value)
-        let patchData = try #require(patch.image.dataProvider?.data) as Data
-        #expect(restoration.patches.count == 1 && patchData == Data(paint))
-        let sourceCrop = try #require(target["sourceCrop"] as? [NSNumber]).map(\.doubleValue)
-        #expect(patch.rect == rect(sourceCrop).offsetBy(dx: 0, dy: cleanupOffset))
-        #expect(cards[0].item.sourceFrame == initial.item.sourceFrame)
-        #expect(patch.layoutSafe == nil && patch.candidate == nil && !patch.finalForcedErasure)
-        #expect(cards[0].glyphCoverPatch?.image === patch.image && cards[0].glyphCoverPatch?.rect == NativeTranslationRenderer.usedRect(patch.rect))
-        #expect(patch.cleanupClip == cleanupClip && cards[0].glyphCoverPatch?.cleanupClip == cleanupClip)
-        #expect(cards[0].glyphCoverPatch?.authoredCanvasRect == patch.rect)
-        if cleanupOffset == 10.019 {
-            let live = try #require(cards[0].glyphCoverPatch)
-            // Frozen crop top24 plus offset10.019 assigns a CSS top34.019.
-            // LayoutUnit truncates that positive authored value to34.015625.
-            #expect(Double(live.rect.minY) == 34.015625)
-            #expect(live.rect != patch.rect)
-        }
-        #expect(restoration.appearances["one"]?.erasureComplete == false)
-        #expect(cards[0].sourcePanels.isEmpty && cards[0].clusterRGB == nil && cards[0].strokePreserved)
-        let retainedOwner = try #require(cards[0].glyphCoverOwnerPanel)
-        #expect(retainedOwner.rect == card.sourcePanels[0].rect && retainedOwner.coverage == card.sourcePanels[0].coverage)
-        #expect(!retainedOwner.sourceErasure && retainedOwner.sourceFrameImage == nil)
-        // Frozen late force selects extant readability owners even after their
-        // background becomes transparent; artwork repair is not certification.
-        #expect(NativeTranslationRenderer.readabilityOwnerPanel(cards[0])?.rect == retainedOwner.rect)
-        #expect(cards[0].sourceBackgroundKind == card.sourceBackgroundKind && cards[0].sourceStrokeKind == "preserved")
-        #expect(!cards[0].glyphPlateReleased && cards[0].item.clipsText)
-        #expect(cards[0].item.rect == card.item.rect && cards[0].style.fontSize == card.style.fontSize)
-        #expect(try json(try #require(cards[0].glyphCoverRecord)) == json(try #require(target["metadata"])))
-        #expect(cards[0].style.outlineWidth == (target["outlineWidth"] as? Double).map { CGFloat($0) })
-    }
-    @Test func actualOwnerSelectionUsesConnectedParentAndUniqueDetachedPlate() throws {
-        let (_, _, layout, initial, image) = try adapterFixture("smooth-gradient")
+    /// Source inpainting is retired: legacy settings stay decodable but cannot
+    /// reactivate the panel renderer's GlyphCover repair. The main AOT renderer
+    /// owns restoration, so this stage must leave cards and patches untouched.
+    @Test(arguments: ["smooth-gradient", "texture-veto"])
+    func retiredSourceInpaintingLeavesGlyphCoverInert(fixture: String) throws {
+        let (_, _, layout, card, image) = try adapterFixture(fixture)
+        let overlay = settings()
+        #expect(!overlay.usesSourceInpainting)
         for isChild in [false, true] {
-            var card = initial
-            card.captionParentPlate = isChild
-            var cards = [card], restoration = NativeTranslationRestoration.Result()
+            var initial = card
+            initial.captionParentPlate = isChild
+            var cards = [initial], restoration = NativeTranslationRestoration.Result()
             NativeTranslationRenderer.applyGlyphCover(cards: &cards, restoration: &restoration,
-                layout: layout, source: image, settings: settings(), gloss: .init())
-            #expect(restoration.patches.count == 1 && cards[0].glyphCoverRecord != nil)
-            #expect(cards[0].captionParentPlate == isChild)
-            #expect(cards[0].glyphCoverOwnerPanel?.rect == initial.sourcePanels[0].rect)
+                layout: layout, source: image, settings: overlay, gloss: .init())
+            #expect(restoration.patches.isEmpty && restoration.limitations.isEmpty)
+            #expect(cards[0].glyphCoverRecord == nil && cards[0].glyphCoverReject == nil)
+            #expect(cards[0].glyphCoverPatch == nil && cards[0].glyphCoverOwnerPanel == nil)
+            #expect(cards[0].sourcePanels.count == 1 && cards[0].sourcePanels[0].rect == initial.sourcePanels[0].rect)
+            #expect(cards[0].captionParentPlate == isChild && !cards[0].strokePreserved)
+            #expect(cards[0].style.foreground == initial.style.foreground)
         }
-        var ambiguous = initial
-        ambiguous.sourcePanels.append(initial.sourcePanels[0])
-        var cards = [ambiguous], restoration = NativeTranslationRestoration.Result()
-        NativeTranslationRenderer.applyGlyphCover(cards: &cards, restoration: &restoration,
-            layout: layout, source: image, settings: settings(), gloss: .init())
-        #expect(restoration.patches.isEmpty && cards[0].glyphCoverReject == "owner")
-        #expect(cards[0].sourcePanels.count == 2 && cards[0].glyphCoverOwnerPanel == nil)
-        #expect(cards[0].style.foreground == initial.style.foreground)
-        // A real caption parent remains authoritative despite another detached
-        // region plate. Foreign children on that parent still veto the repair.
-        ambiguous.captionParentPlate = true
-        cards = [ambiguous]
-        NativeTranslationRenderer.applyGlyphCover(cards: &cards, restoration: &restoration,
-            layout: layout, source: image, settings: settings(), gloss: .init())
-        #expect(restoration.patches.count == 1 && cards[0].sourcePanels.count == 1)
-        ambiguous.sourcePanels[1].hasForeignChildren = true
-        cards = [ambiguous]; restoration = .init()
-        NativeTranslationRenderer.applyGlyphCover(cards: &cards, restoration: &restoration,
-            layout: layout, source: image, settings: settings(), gloss: .init())
-        #expect(restoration.patches.isEmpty && cards[0].glyphCoverReject == "shared")
-    }
-
-    @Test func actualRendererAdapterRetainsOpaqueOwnerWhenSourceTextureRefusesRepair() throws {
-        let (_, _, layout, card, image) = try adapterFixture("texture-veto")
-        var cards = [card], restoration = NativeTranslationRestoration.Result()
-        NativeTranslationRenderer.applyGlyphCover(cards: &cards, restoration: &restoration, layout: layout, source: image, settings: settings(), gloss: .init())
-        #expect(restoration.patches.isEmpty && cards[0].glyphCoverRecord == nil && cards[0].glyphCoverReject == "texture")
-        #expect(cards[0].glyphCoverOwnerPanel == nil)
-        #expect(cards[0].sourcePanels.count == 1 && cards[0].sourcePanels[0].rect == card.sourcePanels[0].rect)
-        #expect(cards[0].style.foreground == card.style.foreground && cards[0].style.outlineWidth == card.style.outlineWidth)
     }
 }

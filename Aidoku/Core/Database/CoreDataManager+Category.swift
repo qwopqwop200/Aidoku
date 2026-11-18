@@ -102,16 +102,19 @@ extension CoreDataManager {
         getCategories(sorted: sorted, context: context)
             .filter { excludeFilterGroups ? !$0.group : true }
             .compactMap { $0.title }
+            .unique()
     }
 
     func getFilterGroups(context: NSManagedObjectContext) -> [FilterGroup] {
         let decoder = JSONDecoder()
+        var seen: Set<String> = []
         return CoreDataManager.shared.getCategories(groupsOnly: true, context: context)
             .compactMap { (object: CategoryObject) -> FilterGroup? in
                 guard
                     let title = object.title,
                     let data = object.data as? Data,
-                    let filters = try? decoder.decode([LibraryFilter].self, from: data)
+                    let filters = try? decoder.decode([LibraryFilter].self, from: data),
+                    seen.insert(title).inserted
                 else {
                     return nil
                 }
@@ -204,6 +207,37 @@ extension CoreDataManager {
         return true
     }
 
+    /// Apply one drag to the visible rows while retaining unlisted rows in their stored slots.
+    func saveCategoryOrder(_ titles: [String], groups: Bool, context: NSManagedObjectContext) throws -> Bool {
+        let request = CategoryObject.fetchRequest()
+        request.predicate = NSPredicate(format: "group == %@", NSNumber(value: groups))
+        request.sortDescriptors = [NSSortDescriptor(key: "sort", ascending: true)]
+        let stored = try context.fetch(request)
+        guard stored.count <= 65_536 else { throw CategoryCapacityError.exhausted }
+        let wanted = Set(titles)
+        let visible = stored.filter { $0.title.map(wanted.contains) == true }
+        let byTitle = Dictionary(grouping: visible) { $0.title ?? "" }
+        guard byTitle.count == wanted.count else { return false }
+        var moved = titles.unique().flatMap { byTitle[$0] ?? [] }.makeIterator()
+        let ordered = stored.map { row in
+            row.title.map(wanted.contains) == true ? (moved.next() ?? row) : row
+        }
+        guard ordered != stored else { return true }
+        Self.normalizeCategoryRanks(ordered)
+        try context.save()
+        return true
+    }
+
+    func saveCategoryOrder(_ titles: [String], groups: Bool) -> Bool {
+        let context = container.newBackgroundContext()
+        do {
+            return try context.performAndWait { try saveCategoryOrder(titles, groups: groups, context: context) }
+        } catch {
+            LogManager.logger.error("Failed to reorder categories: \(error.localizedDescription)")
+            return false
+        }
+    }
+
     /// Moves a cateogry to a new position.
     func moveCategory(
         title: String,
@@ -257,6 +291,70 @@ extension CoreDataManager {
                 LogManager.logger.error("CoreDataManager.addCategoriesToManga: \(error.localizedDescription)")
             }
         }
+    }
+
+    // Keep actual relationship endpoints so undo restores only the links that were removed.
+    typealias RemovedCategoryMembership = [NSManagedObjectID: [NSManagedObjectID]]
+
+    private func readCategorySelection(
+        _ mangaIds: Set<MangaIdentifier>, in context: NSManagedObjectContext, body: ([LibraryMangaObject]) -> Void
+    ) throws {
+        for (source, ids) in Dictionary(grouping: mangaIds, by: \.sourceKey) {
+            for batch in ids.chunked(into: 500) {
+                let request = LibraryMangaObject.fetchRequest()
+                request.predicate = NSPredicate(format: "manga.sourceId == %@ AND manga.id IN %@", source, batch.map(\.mangaKey))
+                request.relationshipKeyPathsForPrefetching = ["manga", "categories"]
+                body(try context.fetch(request))
+            }
+        }
+    }
+
+    func addCategorySelection(_ titles: Set<String>, to mangaIds: Set<MangaIdentifier>, context: NSManagedObjectContext) throws {
+        guard !titles.isEmpty && !mangaIds.isEmpty else { return }
+        let request = CategoryObject.fetchRequest()
+        request.predicate = NSPredicate(format: "group == NO AND title IN %@", Array(titles))
+        request.sortDescriptors = [NSSortDescriptor(key: "sort", ascending: true)]
+        let categories = try context.fetch(request)
+        try readCategorySelection(mangaIds, in: context) { rows in
+            for members in Dictionary(grouping: rows, by: { $0.manga?.identifier }).values {
+                guard let first = members.first else { continue }
+                var existing = Set(members.flatMap { ($0.categories?.allObjects as? [CategoryObject] ?? []).compactMap(\.title) })
+                for category in categories {
+                    if let title = category.title, existing.insert(title).inserted { first.addToCategories(category) }
+                }
+            }
+        }
+    }
+
+    func removeCategoryMembership(_ title: String, mangaIds: Set<MangaIdentifier>, context: NSManagedObjectContext) throws -> RemovedCategoryMembership {
+        var removed: RemovedCategoryMembership = [:]
+        try readCategorySelection(mangaIds, in: context) { rows in
+            for row in rows {
+                let categories = row.categories?.allObjects as? [CategoryObject] ?? []
+                for category in categories where !category.group && category.title == title {
+                    row.removeFromCategories(category)
+                    removed[category.objectID, default: []].append(row.objectID)
+                }
+            }
+        }
+        return removed
+    }
+
+    func replayCategoryMembership(_ removed: RemovedCategoryMembership, restoring: Bool, context: NSManagedObjectContext) throws {
+        let request = CategoryObject.fetchRequest()
+        request.predicate = NSPredicate(format: "SELF IN %@", Array(removed.keys))
+        for category in try context.fetch(request) {
+            for batch in (removed[category.objectID] ?? []).chunked(into: 500) {
+                let rows = LibraryMangaObject.fetchRequest()
+                rows.predicate = NSPredicate(format: "SELF IN %@", batch)
+                rows.relationshipKeyPathsForPrefetching = ["categories"]
+                for row in try context.fetch(rows) {
+                    if restoring { row.addToCategories(category) }
+                    else { row.removeFromCategories(category) }
+                }
+            }
+        }
+        if context.hasChanges { try context.save() }
     }
 
     /// Remove categories from library manga.

@@ -35,6 +35,16 @@ struct ProviderCacheIdentityAuditTests {
         #expect(await transport.paths == ["/v1/responses", "/v1/chat/completions"])
     }
 
+    @Test func sharedServicePreservesBoundedClientPreparation() async throws {
+        let transport = ProviderCacheAuditTransport()
+        let client = RemoteTranslationClient(credentialStore: ProviderCacheAuditCredentials(), transport: transport)
+        let service = TranslationService(client: client,
+            cache: try TranslationCache(configuration: .init(diskEnabled: false)))
+        await service.prepare(configuration: configuration())
+        #expect(await transport.paths == ["/v1/models"])
+        #expect(await service.inFlightConsumerCount == 0)
+    }
+
     @Test func compactRejectionIsScopedToModelCredentialsAndReasoning() async throws {
         let client = RemoteTranslationClient(credentialStore: ProviderCacheAuditCredentials(), transport: ProviderCacheAuditTransport())
         let original = configuration()

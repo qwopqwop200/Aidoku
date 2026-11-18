@@ -38,6 +38,7 @@ actor DownloadTask: Identifiable {
     // callback is awaiting the queue; new entries belong to a successor.
     private var retired = false
     private var controlGeneration = 0
+    private var enqueueGeneration: UInt64 = 0
     private var warmedPages: (chapter: ChapterIdentifier, task: Task<[Page], Never>)?
 
     private var currentPage: Int = 0
@@ -73,10 +74,6 @@ actor DownloadTask: Identifiable {
         self.delegate = delegate
     }
 
-    func setDelegate(delegate: DownloadTaskDelegate?) {
-        self.delegate = delegate
-    }
-
     func resume() {
         guard !running, !retired else { return }
         controlGeneration += 1
@@ -105,17 +102,26 @@ actor DownloadTask: Identifiable {
     }
 
     func cancel(manga: MangaIdentifier? = nil, chapter: ChapterIdentifier? = nil) async {
-        let cancelled = downloads.filter {
-            if let chapter { return $0.chapterIdentifier == chapter }
-            if let manga { return $0.mangaIdentifier == manga }
-            return true
+        let cancelAll = manga == nil && chapter == nil
+        let cancelled: [Download]
+        let cancelledCurrent: Bool
+        if cancelAll {
+            cancelled = downloads
+            cancelledCurrent = !downloads.isEmpty
+            downloads = []
+        } else {
+            func matches(_ download: Download) -> Bool {
+                if let chapter { return download.chapterIdentifier == chapter }
+                return download.mangaIdentifier == manga
+            }
+            cancelled = downloads.filter(matches)
+            guard let first = cancelled.first else { return }
+            cancelledCurrent = downloads.first == first
+            downloads.removeAll(where: matches)
         }
-        guard !cancelled.isEmpty || (manga == nil && chapter == nil) else { return }
-        let cancelledCurrent = downloads.first.map { cancelled.contains($0) } ?? false
-        if !cancelledCurrent, manga != nil || chapter != nil {
+        if !cancelledCurrent, !cancelAll {
             // Editing future queue entries does not invalidate the active page
             // worker, its staged files, or a pending manual pause/resume join.
-            downloads.removeAll { cancelled.contains($0) }
             if let warmedPages, cancelled.contains(where: { $0.chapterIdentifier == warmedPages.chapter }) {
                 warmedPages.task.cancel()
                 self.warmedPages = nil
@@ -127,8 +133,9 @@ actor DownloadTask: Identifiable {
             }
             // Finish filesystem cleanup before yielding: a delegate callback can
             // re-enqueue a cancelled identifier and start its replacement work.
+            let generation = enqueueGeneration
             for download in cancelled {
-                guard !downloads.contains(download) else { continue }
+                if enqueueGeneration != generation, downloads.contains(download) { continue }
                 await delegate?.downloadCancelled(download: download)
             }
             return
@@ -141,8 +148,6 @@ actor DownloadTask: Identifiable {
         warmedPages?.task.cancel()
         warmedPages = nil
         running = false
-        // Remove by identity before suspending; indices cannot survive delegate callbacks.
-        downloads.removeAll { cancelled.contains($0) }
         let cancellation = Task {
             await previousWorker?.value
             for download in cancelled where cache.isSafe(chapter: download.chapterIdentifier) {
@@ -155,7 +160,7 @@ actor DownloadTask: Identifiable {
                 descriptionWriteFailed = false
                 failedPageNumbers = []
             }
-            if manga == nil && chapter == nil {
+            if cancelAll {
                 retired = true
                 await delegate?.taskCancelled(task: self)
             } else {
@@ -171,6 +176,7 @@ actor DownloadTask: Identifiable {
     func add(download: Download) {
         guard !retired, !downloads.contains(where: { $0 == download }) else { return }
         downloads.append(download)
+        enqueueGeneration &+= 1
     }
 }
 
@@ -232,7 +238,7 @@ extension DownloadTask {
         }
     }
 
-    struct NetworkPage {
+    private struct NetworkPage {
         let url: URL
         let context: PageContext?
         let targetPath: URL
@@ -244,11 +250,9 @@ extension DownloadTask {
     ///
     /// A concurrent download hands results back in whatever order they finish, so a failure has to
     /// name its page rather than be inferred from how many have completed.
-    struct PageDownloadResult {
-        let page: NetworkPage
-        let data: Data?
-        let targetPath: URL?
-        var stagedFile: URL? = nil
+    private struct PageDownloadResult {
+        let pageNumber: Int
+        let file: (staging: URL, destination: URL)?
     }
 
     // perform download
@@ -351,34 +355,30 @@ extension DownloadTask {
             while let result = await group.next() {
                 guard !Task.isCancelled, running, downloads.first == download, tmpDirectory.exists else {
                     group.cancelAll()
-                    result.stagedFile?.removeItem()
+                    result.file?.staging.removeItem()
                     // Join and clean files created by requests that raced cancellation.
-                    for await abandoned in group { abandoned.stagedFile?.removeItem() }
+                    for await abandoned in group { abandoned.file?.staging.removeItem() }
                     return
                 }
                 var failed = false
                 do {
-                    defer { result.stagedFile?.removeItem() }
-                    guard let path = result.targetPath else { throw DownloadError.pageProcessorFailed }
-                    if let file = result.stagedFile {
-                        try FileManager.default.moveItem(at: file, to: path)
-                    } else if let data = result.data {
-                        try data.write(to: path)
-                    } else { throw DownloadError.pageProcessorFailed }
+                    guard let file = result.file else { throw DownloadError.pageProcessorFailed }
+                    defer { file.staging.removeItem() }
+                    try FileManager.default.moveItem(at: file.staging, to: file.destination)
                 } catch {
                     failed = true
                     LogManager.logger.error("Error saving downloaded page: \(error)")
                 }
                 guard !Task.isCancelled, running, downloads.first == download else {
                     group.cancelAll()
-                    for await abandoned in group { abandoned.stagedFile?.removeItem() }
+                    for await abandoned in group { abandoned.file?.staging.removeItem() }
                     return
                 }
                 // Refill before publishing progress to keep transport slots busy.
                 if let page = next.next() {
                     group.addTask { await self.downloadPage(page, source: source, tmpDirectory: tmpDirectory, translationSettings: translationSettings) }
                 }
-                await incrementProgress(for: download.chapterIdentifier, failedPage: failed ? result.page.pageNumber : nil)
+                await incrementProgress(for: download.chapterIdentifier, failedPage: failed ? result.pageNumber : nil)
             }
         }
 
@@ -415,13 +415,13 @@ extension DownloadTask {
 
     // Every producer returns a file, including sources that transform images.
     // This bounds queued decoded output even when translation is much slower.
-    func downloadPage(_ page: NetworkPage, source: AidokuRunner.Source, tmpDirectory: URL,
-                              translationSettings: ReaderTranslationSettings? = nil) async -> PageDownloadResult {
+    private func downloadPage(_ page: NetworkPage, source: AidokuRunner.Source, tmpDirectory: URL,
+                              translationSettings: ReaderTranslationSettings?) async -> PageDownloadResult {
         let request = await source.getModifiedImageRequest(url: page.url, context: page.context)
         let network = self.network
         let fetched = await fetchPageResource(for: request, tmpDirectory: tmpDirectory,
             fetch: { try await network.download(for: request) }, cleanup: { $0.removeItem() })
-        guard fetched != nil || source.features.processesPages else { return .init(page: page, data: nil, targetPath: nil) }
+        guard fetched != nil || source.features.processesPages else { return .init(pageNumber: page.pageNumber, file: nil) }
         defer { fetched?.0.removeItem() }
         let staged = tmpDirectory.appendingPathComponent(".incoming-\(page.pageNumber)-\(UUID().uuidString)")
         do {
@@ -460,11 +460,11 @@ extension DownloadTask {
                 if output.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]) { fileExtension = "png" }
             }
             try Task.checkCancellation()
-            return .init(page: page, data: nil, targetPath: page.targetPath.appendingPathExtension(fileExtension), stagedFile: staged)
+            return .init(pageNumber: page.pageNumber, file: (staged, page.targetPath.appendingPathExtension(fileExtension)))
         } catch {
             staged.removeItem()
             if !(error is CancellationError) { LogManager.logger.error("Error processing downloaded page: \(error)") }
-            return .init(page: page, data: nil, targetPath: nil)
+            return .init(pageNumber: page.pageNumber, file: nil)
         }
     }
 
@@ -597,7 +597,7 @@ extension DownloadTask {
 
             // save metadata for failed download in downloads view
             try? await DownloadManager.shared.saveChapterMetadata(manga: download.manga, chapter: download.chapter, to: tmpDirectory)
-
+            guard !Task.isCancelled, running, downloads.first == download else { return }
             markFailed(tmpDirectory: tmpDirectory)
 
             if let downloadIndex = downloads.firstIndex(where: { $0 == download }) {
@@ -615,7 +615,7 @@ extension DownloadTask {
                 if AppSettings.downloads.compress.get() {
                     let archive = tmpDirectory.appendingPathExtension("cbz")
                     defer { archive.removeItem() }
-                    try FileManager.default.zipItem(at: tmpDirectory, to: archive, shouldKeepParent: false)
+                    try await Self.writeChapterArchive(from: tmpDirectory, to: archive)
                     try Task.checkCancellation()
                     try FileManager.default.moveItem(at: archive, to: directory.appendingPathExtension("cbz"))
                     tmpDirectory.removeItem()
@@ -662,6 +662,19 @@ extension DownloadTask {
         descriptionWriteFailed = false
         failedPageNumbers = []
         await next()
+    }
+
+    // Keep the worker actor available for suspension. Cancellation interrupts ZIP
+    // writes, and the caller joins the writer before promoting or removing its file.
+    @concurrent
+    nonisolated static func writeChapterArchive(from directory: URL, to archive: URL) async throws {
+        let progress = Progress(totalUnitCount: 0)
+        try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            try FileManager.default.zipItem(at: directory, to: archive, shouldKeepParent: false, progress: progress)
+        } onCancel: {
+            progress.cancel()
+        }
     }
 
     // store file with failed pages in failed download directory

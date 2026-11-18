@@ -319,7 +319,6 @@ extension MangaListCell {
         } else {
             urlRequest = URLRequest(url: url)
         }
-        var cached = ImagePipeline.shared.cache.containsCachedImage(for: .init(urlRequest: urlRequest))
 
         guard generation == imageGeneration, !Task.isCancelled else { return }
         self.url = (urlRequest.url ?? url).absoluteString
@@ -332,9 +331,7 @@ extension MangaListCell {
             userInfo: [.processesKey: source?.features.processesCovers ?? false]
         )
 
-        cached = cached || ImagePipeline.shared.cache.containsCachedImage(for: request)
-
-        imageTask = ImagePipeline.shared.loadImage(with: request) { [weak self] result in
+        imageTask = CoverImageProcessing.load(request) { [weak self] result, cached in
             guard let self, generation == self.imageGeneration else { return }
             switch result {
                 case .success(let response):

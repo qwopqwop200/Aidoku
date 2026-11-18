@@ -41,11 +41,13 @@ def fixture(mode="translateOnly", target="ko", translated="안녕, 만나서 반
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--reuse-built", action="store_true",
-                        help="Use a successfully built current host without invoking its launcher.")
+    built = parser.add_mutually_exclusive_group()
+    built.add_argument("--reuse-built", action="store_true",
+                       help="Use a successfully built current default host without invoking its launcher.")
+    built.add_argument("--binary", type=Path, help="Use a specific successfully built current host.")
     arguments = parser.parse_args()
-    command = ([str(ROOT / "build/image-translation-host/image-translation")]
-               if arguments.reuse_built else ["swift", str(ROOT / "Scripts/image-translation.swift")])
+    path = arguments.binary or (ROOT / "build/image-translation-host/image-translation" if arguments.reuse_built else None)
+    command = [str(path.resolve())] if path is not None else ["swift", str(ROOT / "Scripts/image-translation.swift")]
     # Never read .env or inherit provider credentials into this neutral check.
     environment = {key: value for key, value in os.environ.items() if not key.startswith("AIDOKU_")}
     environment["AIDOKU_PIPELINE_ROOT"] = str(ROOT)
@@ -75,6 +77,22 @@ def main():
             "Planner padding must replace fixed host 1px insets"
         assert plain["fontScript"] == "korean" and plain["wrappingScript"] == "korean"
         assert plain["lineHeight"] >= plain["fontSize"] > 0
+
+        # The host must pass the outer reader viewport AND its source fit;
+        # the two coordinate domains differ on horizontally/vertically letterboxed pages.
+        for image, frame in [((1600, 800), [0, 358.5, 430, 215]), ((800, 3200), [98.5, 0, 233, 932])]:
+            corners = [[.02, .03, .21, .13], [.77, .84, .21, .13]]
+            boxed = run({**fixture(), "imageWidth": image[0], "imageHeight": image[1],
+                         "viewportWidth": 430, "viewportHeight": 932,
+                         "regions": [{"rect": rect, "source": "文章", "translation": f"예문 {index}",
+                                      "sourceOrientation": "horizontal"}
+                                     for index, rect in enumerate(corners)]})
+            assert boxed["viewport"] == [430, 932] and len(boxed["items"]) == len(corners)
+            for index, rect in enumerate(corners):
+                item = next(x for x in boxed["items"] if x["text"] == f"예문 {index}")
+                assert item["sourceFrame"] == frame, (image, frame, item["sourceFrame"])
+                assert all(math.isclose(a, b, abs_tol=1e-9) for a, b in zip(item["sourceBounds"], rect)), item
+                assert item["fontSize"] > 0 and item["lineHeight"] >= item["fontSize"]
 
         latin = run(fixture(translated="Hello, friend!"))
         english = next(item for item in latin["items"] if "Hello" in item["text"])

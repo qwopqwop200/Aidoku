@@ -10,11 +10,7 @@ import SwiftUI
 struct BackupContentView: View {
     let backup: BackupInfo
 
-    @State private var restoreError: String?
-    @State private var missingSources: [String] = []
     @State private var showRestoreAlert = false
-    @State private var showRestoreErrorAlert = false
-    @State private var showMissingSourcesAlert = false
 
     @Environment(\.dismiss) private var dismiss
 
@@ -82,20 +78,10 @@ struct BackupContentView: View {
             .alert(NSLocalizedString("RESTORE_BACKUP"), isPresented: $showRestoreAlert) {
                 Button(NSLocalizedString("CANCEL"), role: .cancel) {}
                 Button(NSLocalizedString("RESTORE"), role: .destructive) {
-                    restore()
+                    Task { await BackupManager.shared.restore(from: backup.url) }
                 }
             } message: {
                 Text(NSLocalizedString("RESTORE_BACKUP_TEXT"))
-            }
-            .alert(NSLocalizedString("BACKUP_ERROR"), isPresented: $showRestoreErrorAlert) {
-                Button(NSLocalizedString("OK"), role: .cancel) {}
-            } message: {
-                Text(String(format: NSLocalizedString("BACKUP_ERROR_TEXT"), restoreError ?? NSLocalizedString("UNKNOWN")))
-            }
-            .alert(NSLocalizedString("MISSING_SOURCES"), isPresented: $showMissingSourcesAlert) {
-                Button(NSLocalizedString("OK"), role: .cancel) {}
-            } message: {
-                Text(NSLocalizedString("MISSING_SOURCES_TEXT") + missingSources.map { "\n- \($0)" }.joined())
             }
         }
     }
@@ -108,17 +94,6 @@ struct BackupContentView: View {
             Text(value)
                 .lineLimit(1)
                 .foregroundStyle(.secondary)
-        }
-    }
-
-    func restore() {
-        Task {
-            // the backup contents are only decoded here, when they're actually needed
-            let loaded = await BackupManager.shared.restore(from: backup.url)
-            if !loaded {
-                restoreError = NSLocalizedString("CORRUPTED_BACKUP")
-                showRestoreErrorAlert = true
-            }
         }
     }
 }

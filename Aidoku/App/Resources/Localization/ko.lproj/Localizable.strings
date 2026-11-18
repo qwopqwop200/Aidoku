@@ -541,7 +541,7 @@
 "TRANSLATION_TARGET" = "번역할 언어";
 "TRANSLATION_SOURCE" = "원문 언어";
 "TRANSLATION_AUTO" = "자동 감지";
-"TRANSLATION_OCR_HELP" = "PP-OCRv6는 iOS 18 이상에서 작동합니다. 기본 모델은 중형이며 소형은 메모리를 덜 사용합니다. 초소형은 문자 사전이 더 작습니다. 이 모델들은 한국어 OCR을 지원하지 않지만, 한국어로 번역하는 것은 가능합니다.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6는 iOS 18 이상에서 작동합니다. 텍스트 탐지와 인식의 기본 모델은 Manga v0.3이며, 다른 OCR 모델도 선택할 수 있습니다.";
 "TRANSLATION_CLEAR_CACHE" = "번역 캐시 비우기";
 "TRANSLATION_CACHE_CLEARED" = "번역 캐시를 비웠습니다.";
 "TRANSLATION_NOTICES" = "OCR 및 번역 라이선스";
@@ -1095,3 +1095,9 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "%@ 소스의 %d 버전은 이 앱에서 지원하지 않습니다. 지원되는 버전을 설치해 주세요.";
+
+"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
+
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3는 일본어와 중국어(간체·번체) 원문만 지원합니다. 자동 원문 언어 판별과 원문 언어 선택도 이 언어들로 제한됩니다. 한국어를 비롯한 다른 언어로 번역하는 것은 가능합니다. Manga를 선택하면 탐지 임계값 0.85와 0.25가 적용되며, 기본 탐지 크기는 1120px입니다.";
+
+"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "지원되는 모든 OCR 언어";

@@ -1,0 +1,10 @@
+numpy==2.2.6
+scipy==1.15.3
+scikit-learn==1.6.1
+catboost==1.2.10
+lightgbm==4.7.0
+Pillow==13.0.0
+opencv-python==4.11.0.86
+fonttools==4.51.0
+numexpr==2.14.2
+bottleneck==1.6.0

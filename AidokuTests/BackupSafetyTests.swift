@@ -50,6 +50,157 @@ struct BackupSafetyTests {
         #expect(await BackupManager.shared.save(backup: backup(), url: directory) == false)
     }
 
+    @Test func summariesAndFullRestoreReadExistingBackupFormats() throws {
+        var expected = backup()
+        expected.name = "서재"
+        expected.automatic = true
+        expected.sourceLists = ["first", "second"]
+        expected.settings = ["Reader.example": .string("value")]
+
+        let plist = PropertyListEncoder()
+        plist.outputFormat = .binary
+        let binary = try plist.encode(expected)
+        plist.outputFormat = .xml
+        let xml = try plist.encode(expected)
+        let jsonEncoder = JSONEncoder()
+        jsonEncoder.dateEncodingStrategy = .secondsSince1970
+        let json = try jsonEncoder.encode(expected)
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: url) }
+        for data in [binary, xml, json, Data("\n ".utf8) + json] {
+            try data.write(to: url, options: .atomic)
+            let info = try #require(BackupInfo.load(from: url))
+            #expect(info.name == expected.name)
+            #expect(info.date == expected.date)
+            #expect(info.automatic)
+            #expect(info.counts.sourceLists == 2)
+            #expect(info.counts.settings == 1)
+            #expect(info.size == Int64(data.count))
+            #expect(Backup.load(from: url) == expected)
+        }
+        try Data("{".utf8).write(to: url, options: .atomic)
+        #expect(BackupInfo.load(from: url) == nil)
+        #expect(Backup.load(from: url) == nil)
+    }
+
+    @Test func cancelledQueuedBackupDoesNotEnterTheDataOperation() async {
+        let manager = BackupManager()
+        let started = AsyncStream<Void>.makeStream()
+        let release = AsyncStream<Void>.makeStream()
+        let first = Task {
+            await manager.withExclusiveDataAccess {
+                started.continuation.finish()
+                for await _ in release.stream {}
+                return true
+            }
+        }
+        for await _ in started.stream {}
+        let cancelled = Task { await manager.withExclusiveDataAccess { true } }
+        cancelled.cancel()
+        let cancelledResult = await cancelled.value
+        release.continuation.finish()
+        #expect(!cancelledResult)
+        #expect(await first.value)
+        #expect(await manager.withExclusiveDataAccess { true })
+    }
+
+    @Test func cancelledBackupDoesNotReplaceAnExistingFile() async throws {
+        let files = TemporaryBackupStore()
+        try FileManager.default.createDirectory(at: files.directory, withIntermediateDirectories: true)
+        let url = files.directory.appendingPathComponent("existing.aib")
+        let original = try PropertyListEncoder().encode(backup())
+        try original.write(to: url)
+        var changed = backup()
+        changed.name = "replacement"
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return await BackupManager().save(backup: changed, url: url)
+        }
+        #expect(await !task.value)
+        #expect(try Data(contentsOf: url) == original)
+    }
+
+    @Test func importPublishesCompleteCopiesAndRemovalRefreshesTheList() async throws {
+        let files = TemporaryBackupStore()
+        let manager = BackupManager()
+        let source = files.directory.appendingPathComponent("input.aib")
+        let destination = files.directory.appendingPathComponent("Backups", isDirectory: true)
+        try FileManager.default.createDirectory(at: files.directory, withIntermediateDirectories: true)
+        let first = try PropertyListEncoder().encode(backup())
+        try first.write(to: source)
+        #expect(await manager.importBackup(from: source, into: destination))
+        var newer = backup()
+        newer.name = "second"
+        let second = try PropertyListEncoder().encode(newer)
+        try second.write(to: source, options: .atomic)
+        #expect(await manager.importBackup(from: source, into: destination))
+
+        let original = destination.appendingPathComponent("input.aib")
+        let duplicate = destination.appendingPathComponent("input_1.aib")
+        #expect(try Data(contentsOf: original) == first)
+        #expect(try Data(contentsOf: duplicate) == second)
+        try FileManager.default.removeItem(at: source)
+        #expect(await !manager.importBackup(from: source, into: destination))
+        #expect(Set(destination.contents.map(\.lastPathComponent)) == [original.lastPathComponent, duplicate.lastPathComponent])
+
+        await confirmation(expectedCount: 1) { removed in
+            let observer = NotificationCenter.default.addObserver(forName: .updateBackupList, object: nil, queue: nil) { note in
+                if note.object as? URL == original { removed() }
+            }
+            defer { NotificationCenter.default.removeObserver(observer) }
+            await manager.removeBackup(url: original)
+        }
+        #expect(destination.contents.map(\.lastPathComponent) == [duplicate.lastPathComponent])
+    }
+
+    @Test func settingsOnlyRestoreLeavesLibraryRowsUnloaded() throws {
+        let context = try context()
+        context.retainsRegisteredObjects = true
+        let manga = MangaObject(context: context)
+        manga.id = "book"
+        let chapter = ChapterObject(context: context)
+        chapter.id = "chapter"
+        chapter.mangaId = manga.id
+        chapter.manga = manga
+        let history = HistoryObject(context: context)
+        history.mangaId = manga.id
+        history.chapterId = chapter.id
+        chapter.history = history
+        let source = SourceObject(context: context)
+        source.id = "external"
+        var backup = backup()
+        backup.settings = ["General.example": .bool(true)]
+        backup.sources = [BackupSource(source)]
+        try context.save()
+        context.reset()
+
+        try BackupManager.restoreDatabase(from: backup, context: context)
+
+        #expect(context.registeredObjects.isEmpty)
+        #expect(!context.hasChanges)
+    }
+
+    @Test func repeatedCustomSourceFromBackupUpdatesOneRow() throws {
+        let context = try context()
+        let json = """
+        [
+            {"id":"custom","apiVersion":"1","config":"AQ=="},
+            {"id":"custom","apiVersion":"2","config":"Ag=="}
+        ]
+        """
+        var backup = backup()
+        backup.sources = try JSONDecoder().decode([BackupSource].self, from: Data(json.utf8))
+        try BackupManager.restoreDatabase(from: backup, context: context)
+        try context.save()
+        context.reset()
+
+        let sources = try context.fetch(SourceObject.fetchRequest())
+        #expect(sources.count == 1)
+        #expect(sources.first?.apiVersion == "2")
+        #expect(sources.first?.customSource as? Data == Data([2]))
+    }
+
     @Test func restorePreservesLocalFilesAndUnselectedSections() throws {
         let context = try context()
         let manga = MangaObject(context: context)

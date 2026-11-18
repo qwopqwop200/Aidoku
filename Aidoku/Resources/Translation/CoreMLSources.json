@@ -4,6 +4,32 @@
   "converterRequirementsSha256": "b2e3385adec5cddfe348cf12f278aba6a7f46afdfd2ce43bf339dc00bd757bc8",
   "models": [
     {
+      "id": "koharu-layout-highres-rf648",
+      "role": "auxiliary-layout",
+      "sourceURL": "https://huggingface.co/mayocream/koharu-layout-highres",
+      "sourceRevision": "53fef6f1301f4cbd8324ddc24f554b3767fc9e45",
+      "sourceWeightsSha256": "03de2f77281974f5084cdd8652ace2b55dc15ac0378aed66654e62537cdda255",
+      "outputResource": "KoharuHighres648FP16.mlpackage",
+      "outputWeightsSha256": "8f81dd930a875d18b397030e8c2e605498090de541a09a9e4f44c48ff7b27f43",
+      "fixedInputSide": 648,
+      "computePrecision": "float16",
+      "computeUnits": "cpuAndGPU",
+      "strictStockDeviceParityPassed": false,
+      "validationScope": "Auxiliary model only; silver-label host evaluation and physical-device timing are distinct; final integration quality requires ON/OFF validation",
+      "license": "Apache-2.0. See KOHARU-LAYOUT-NOTICE.txt."
+    },
+    {
+      "id": "aot-1024-fp16",
+      "role": "inpainting",
+      "sourceURL": "https://huggingface.co/mayocream/aot-inpainting",
+      "sourceRevision": "cffe2346ac2b5ebe1f2d61335d602d12cc144c6f",
+      "sourceWeightsSha256": "1b4fea17a84a228c2097a42ab2f403357f07bb56ae022dc243b40817b7aa87d1",
+      "outputResource": "AOT-1024-FP16.mlpackage",
+      "outputWeightsSha256": "8a231ca2c21afea55edb72378aef77a2a8a2bd844a7dd397eca5d130572905d5",
+      "fixedInputSide": 1024,
+      "computePrecision": "float16"
+    },
+    {
       "id": "medium-detector",
       "tier": "Medium",
       "role": "detector",
@@ -80,6 +106,51 @@
       "dictionaryResource": "ppocrv6_tiny_rec_character_dict.txt",
       "dictionarySha256": "fecc468c6cd05ed73dc7cab36e296c8fe3f90e7feb3aa666fca8be41df6d70c5",
       "dynamicMaximumWidth": 2000
+    },
+    {
+      "id": "manga-det",
+      "tier": "Manga",
+      "role": "detector",
+      "sourceURL": "https://huggingface.co/Kellenok/PP-OCRv6_manga/resolve/6dabccae4be17cbe362028eed1572546a0a987f2/det/manga_det_v0.3.onnx",
+      "sourceRevision": "6dabccae4be17cbe362028eed1572546a0a987f2",
+      "sourceOnnxSha256": "97c434ae8deaad83513fb132b605d5085a3af8ffac2cb15e2aa096815c206172",
+      "outputResource": "PP-OCRv6-Manga-DetShapes.mlpackage",
+      "computePrecision": "float16",
+      "outputWeightsSha256": "c51069b19cb77a6754c097fdd86765b155f0f0af72341e1be911536e680db1aa",
+      "dynamicMaximumDimension": 1184,
+      "effectiveDynamicMaximumDimension": 1184,
+      "converterRequirementsSha256": "16e28a42e05c5c638a12e168e22bc7c237b8098e9816d42b38acd1107b278d71",
+      "sourceVersion": "v0.3"
+    },
+    {
+      "id": "manga-rec",
+      "tier": "Manga",
+      "role": "recognizer",
+      "sourceURL": "https://huggingface.co/Kellenok/PP-OCRv6_manga/resolve/6dabccae4be17cbe362028eed1572546a0a987f2/rec/manga_rec_v0.3.onnx",
+      "sourceRevision": "6dabccae4be17cbe362028eed1572546a0a987f2",
+      "sourceOnnxSha256": "5288bd221a9a047c6b7d1ff56bb98de8c875fb613df98ebe8754946448bda540",
+      "outputResource": "PP-OCRv6-Manga-RecWidths.mlpackage",
+      "computePrecision": "float16",
+      "outputWeightsSha256": "ca1afd51037703f3d7a6aaaaeb509fe7bc6b30916ea7f065283c71fa4eab2600",
+      "dynamicMaximumWidth": 2400,
+      "dictionaryResource": "ppocrv6_manga_rec_character_dict.txt",
+      "dictionarySha256": "3eb59aa28030fdd2e6dac1e7d7dab854fffb15828c31be836d0b2c98a98e2eb7",
+      "sourceDictionaryURL": "https://huggingface.co/Kellenok/PP-OCRv6_manga/resolve/6dabccae4be17cbe362028eed1572546a0a987f2/ppocrv6_dict.txt",
+      "sourceDictionarySha256": "4f0f8971ecb95e3a4d278985d6eaac154413e81fda0b4c941db17389580e9e9b",
+      "converterRequirementsSha256": "16e28a42e05c5c638a12e168e22bc7c237b8098e9816d42b38acd1107b278d71",
+      "sourceVersion": "v0.3",
+      "dictionaryCharacters": 19054,
+      "ctcAlternatives": 4
+    },
+    {
+      "id": "manga-ngram-v03",
+      "role": "recognition-language-model",
+      "sourceURL": "https://huggingface.co/Kellenok/PP-OCRv6_manga/resolve/6dabccae4be17cbe362028eed1572546a0a987f2/lm/manga_lm3.npz",
+      "sourceRevision": "6dabccae4be17cbe362028eed1572546a0a987f2",
+      "sourceSha256": "2ebdc0a75861e0809a3940da3aa8fc049ff600d029ce4ec5594b518533e38580",
+      "outputResource": "manga_ngram_v03.bin",
+      "outputSha256": "cc262c0cdf2e01157ef1c1b7017ddf25d5bd38e5e4437b59fc471aa9e5908111",
+      "runtime": "native visually gated arbiter using official interpolated3-gram tables"
     }
   ]
 }

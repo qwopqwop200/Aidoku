@@ -21,20 +21,24 @@ struct CoverInterceptorProcessor: ImageProcessing {
     func process(_ container: ImageContainer, context: ImageProcessingContext) throws -> ImageContainer {
         // image processing should be async so we don't have to block, but Nuke doesn't support this...
         // this isn't run on the main thread anyways, so appears to be fine for now
-        let output: AidokuRunner.PlatformImage? = try BlockingThrowingTask {
+        let output = try BlockingThrowingTask {
             try await processAsync(container, context: context)
         }.get()
 
         var container = container
-        container.image = output?.image
-            ?? container.data.flatMap { PlatformImage(data: $0) }
-            ?? container.image
+        // The app's empty decoder attaches untyped transport bytes for this callback.
+        // Keep payloads from format-specific decoders with their images.
+        if context.request.userInfo[.processesKey] as? Bool == true, container.type == nil, container.image.size == .zero {
+            container.data = nil
+        }
+        container.image = output
         return container
     }
 
-    func processAsync(_ container: ImageContainer, context: ImageProcessingContext) async throws -> AidokuRunner.PlatformImage? {
+    func processAsync(_ container: ImageContainer, context: ImageProcessingContext) async throws -> PlatformImage {
+        let decoded = container.data.flatMap { PlatformImage(data: $0) }
         guard let request = context.request.urlRequest else {
-            return nil
+            return decoded ?? container.image
         }
 
         let urlResponse = context.response.urlResponse as? HTTPURLResponse
@@ -48,8 +52,8 @@ struct CoverInterceptorProcessor: ImageProcessing {
         }
 
         let imageDescriptor = if let data = container.data {
-            if let image = PlatformImage(data: data) {
-                try await source.store(value: image)
+            if let decoded {
+                try await source.store(value: decoded)
             } else {
                 try await source.store(value: data)
             }
@@ -70,7 +74,7 @@ struct CoverInterceptorProcessor: ImageProcessing {
         do {
             let result = try await source.processCoverImage(response: response)
             try await source.remove(value: imageDescriptor)
-            return result
+            return result?.image ?? decoded ?? container.image
         } catch {
             // Release runner-owned pixels even when the source throws or is cancelled.
             await Task.detached { try? await source.remove(value: imageDescriptor) }.value
@@ -117,6 +121,27 @@ extension CoverInterceptorProcessor: Hashable {
 /// Source interceptors can replace all pixels (and may start from Nuke's empty
 /// decoder). Apply display sizing only after the final source image exists.
 enum CoverImageProcessing {
+    @MainActor
+    static func load(
+        _ request: ImageRequest,
+        pipeline: ImagePipeline = .shared,
+        completion: @escaping @MainActor @Sendable (Result<ImageResponse, ImagePipeline.Error>, Bool) -> Void
+    ) -> ImageTask? {
+        let cache = pipeline.cache
+        let cached = cache[request]
+        if let cached, !cached.isPreview {
+            completion(.success(ImageResponse(container: cached, request: request, cacheType: .memory)), true)
+            return nil
+        }
+
+        // Original data can suppress the fade, but only the complete display
+        // variant can be delivered directly to an offscreen or visible cell.
+        var original = request
+        original.processors = []
+        let wasCached = cached != nil || cache.containsCachedImage(for: original) || cache.containsCachedImage(for: request, caches: .disk)
+        return pipeline.loadImage(with: request) { completion($0, wasCached) }
+    }
+
     @MainActor
     static func processors(source: AidokuRunner.Source?, downsampleWidth: CGFloat?) -> [any ImageProcessing] {
         var processors: [any ImageProcessing] = []

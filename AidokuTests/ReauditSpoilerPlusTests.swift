@@ -19,6 +19,21 @@ struct ReauditSpoilerPlusTests {
         #expect(await transport.fetchCount() == 2)
     }
 
+    @Test func aLateResponseCannotReplaceNewerCachedDetailsForTheSameManga() async throws {
+        let transport = PausedTransport(useRequestNumber: true)
+        let source = SpoilerPlusSourceRunner(fetch: { await transport.fetch($0) })
+        let manga = AidokuRunner.Manga(sourceKey: "ja.spoilerplus", key: "/series-raw-free/", title: "")
+        let first = Task { try await source.getMangaUpdate(manga: manga, needsDetails: true, needsChapters: false) }
+        await transport.waitUntilPaused()
+        let latest = try await source.getMangaUpdate(manga: manga, needsDetails: true, needsChapters: false)
+        await transport.resume()
+        #expect(try await first.value.title == "Version 1")
+        #expect(latest.title == "Version 2")
+        let cached = try await source.getMangaUpdate(manga: manga, needsDetails: true, needsChapters: false)
+        #expect(cached.title == "Version 2")
+        #expect(await transport.fetchCount() == 2)
+    }
+
     @Test(arguments: ["123", "null", "[]", "{}"])
     func presentNonStringOrderKeyIsRejectedLikeAuthenticSerde(keyJSON: String) async throws {
         let source = apiSource(json: "{\"c\":\(keyJSON),\"e\":[\"/first.jpg\"]}")
@@ -146,6 +161,12 @@ struct ReauditSpoilerPlusTests {
         private var pausedWaiter: CheckedContinuation<Void, Never>?
         private var resumeWaiter: CheckedContinuation<Void, Never>?
 
+        let useRequestNumber: Bool
+
+        init(useRequestNumber: Bool = false) {
+            self.useRequestNumber = useRequestNumber
+        }
+
         func fetchCount() -> Int { requests }
 
         func waitUntilPaused() async {
@@ -158,6 +179,7 @@ struct ReauditSpoilerPlusTests {
         }
         func fetch(_ request: URLRequest) async -> (Data, URLResponse) {
             requests += 1
+            let number = requests
             if !didPause {
                 await withCheckedContinuation { continuation in
                     resumeWaiter = continuation
@@ -166,7 +188,7 @@ struct ReauditSpoilerPlusTests {
                     pausedWaiter = nil
                 }
             }
-            let title = request.url!.path.contains("first-raw-free") ? "First" : "Second"
+            let title = useRequestNumber ? "Version \(number)" : (request.url!.path.contains("first-raw-free") ? "First" : "Second")
             return (Data("<h1 class='title-detail'>\(title) Raw Free</h1>".utf8),
                     HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
         }

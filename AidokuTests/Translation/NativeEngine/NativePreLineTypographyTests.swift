@@ -46,4 +46,36 @@ import Testing
         #expect(layout.sourceUTF16Ownership == [NSRange(location: 0, length: 1), NSRange(location: 1, length: 2), NSRange(location: 3, length: 1)])
         #expect(layout.visibleUTF16Range.length == source.utf16.count)
     }
+
+    @Test(arguments: ["\n가\n\n", " A \r\n \tB\u{00A0} C ", "가나다\u{000C}라마바", "🧭e\u{0301}\n\n가", "Alpha beta gamma delta"])
+    func lineRelocationRetainsOriginalUTF16Ownership(source: String) throws {
+        let original = NativeTranslationTypography.layout(text: source, in: CGSize(width: 50, height: 240),
+            style: style(wrapping: .keepAllWithEmergency))
+        let ownership = try #require(original.sourceUTF16Ownership)
+        let zero = NativeTranslationTypography.applyingLineOffsets(layout: original,
+            offsets: [CGPoint](repeating: .zero, count: original.lineCount))
+        let moved = NativeTranslationTypography.applyingLineOffsets(layout: original,
+            offsets: (0..<original.lineCount).map { CGPoint(x: CGFloat($0 % 2), y: CGFloat($0 * 2)) })
+        let movedAgain = NativeTranslationTypography.applyingLineOffsets(layout: moved,
+            offsets: [CGPoint](repeating: .zero, count: moved.lineCount))
+        for layout in [zero, moved, movedAgain] {
+            #expect(layout.sourceUTF16Ownership == ownership)
+            #expect(layout.visibleUTF16Range == original.visibleUTF16Range)
+            #expect(layout.lineRanges == original.lineRanges)
+            #expect(layout.shapedText == original.shapedText)
+        }
+        #expect(zero.glyphBounds == original.glyphBounds)
+        #expect(movedAgain.glyphBounds == moved.glyphBounds)
+    }
+
+    @Test func lineRelocationDoesNotInventOwnershipForUnmappedLayouts() {
+        var ordinary = style()
+        ordinary.horizontalWhitespace = .preWrap
+        ordinary.horizontalWrapping = .normal
+        let original = NativeTranslationTypography.layout(text: "Plain text", in: CGSize(width: 100, height: 100), style: ordinary)
+        #expect(original.sourceUTF16Ownership == nil)
+        let moved = NativeTranslationTypography.applyingLineOffsets(layout: original, offsets: [CGPoint(x: 1, y: 2)])
+        #expect(moved.sourceUTF16Ownership == nil)
+        #expect(moved.lineRanges == original.lineRanges)
+    }
 }

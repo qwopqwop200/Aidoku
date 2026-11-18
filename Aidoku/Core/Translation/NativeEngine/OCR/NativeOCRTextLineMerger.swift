@@ -40,11 +40,15 @@ enum NativeOCRTextLineMerger {
         let box: CGRect
         let polygon: [CGPoint]
         var erasurePolygons: [[CGPoint]] = []
+        var detectorSeedEvidence: [NativeOCRDetectorSeedEvidence]? = nil
+        var acceptedSource: NativeOCRSourceMetadata = .init()
         let orientationHint: BrowserOCRSourceOrientation
         var orientation: Orientation
         var singleVerticalColumn: Bool
         var clippedByTile = false
         var sourceTileBounds: CGRect? = nil
+        var witnessedVerticalInlineGlyph = false
+        var hasHorizontalInlineOwner = false
     }
 
     private struct Geometry {
@@ -161,9 +165,13 @@ enum NativeOCRTextLineMerger {
                 retained.append((index, fallback([native])[0]))
             }
         }
-        let filtered = inheritHorizontalInlineGlyphs(suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(suppressSlantedHorizontalRuby(suppressSlantedVerticalRuby(lines)))))
+        let footers = witnessedVerticalRubyFooters(lines, imageWidth: imageWidth, imageHeight: imageHeight,
+            separationCheck: separationCheck, inkContrast: inkContrast, polarityContrast: polarityContrast)
+        let slantedRubyFiltered = suppressSlantedHorizontalRuby(suppressSlantedVerticalRuby(footers.lines, recordSources: true), recordSources: true)
+        let filtered = inheritHorizontalInlineGlyphs(
+            suppressSeparateHorizontalRuby(suppressSeparateVerticalRuby(slantedRubyFiltered, recordSources: true), recordSources: true))
         let semanticRuby = semanticRubyAnnotations(in: lines, retained: filtered)
-        let rubyInk = suppressedRubyInk(in: lines, retained: filtered)
+        let rubyInk = suppressedRubyInk(in: footers.lines, retained: filtered) + footers.ink
         let merged = mergeConservativeTextLines(
             filtered,
             imageWidth: CGFloat(imageWidth),
@@ -180,10 +188,111 @@ enum NativeOCRTextLineMerger {
                 orientationRaw: line.orientation.source.rawValue,
                 singleVerticalColumn: line.singleVerticalColumn,
                 auxiliaryInkRects: rubyInk.filter { line.box.contains($0.parent) }.map(\.reading) + line.erasurePolygons.map(boundingBox),
-                auxiliaryInkPolygons: rubyInk.filter { line.box.contains($0.parent) }.map(\.polygon) + line.erasurePolygons
+                auxiliaryInkPolygons: rubyInk.filter { line.box.contains($0.parent) }.map(\.polygon) + line.erasurePolygons,
+                detectorSeedEvidence: rubyInk.contains { line.box.contains($0.parent) } ? nil : line.detectorSeedEvidence,
+                acceptedSource: line.acceptedSource
             ))
         }
-        return (merged + retained).sorted { $0.index < $1.index }.map(\.line)
+        return NativeOCRAuxiliaryOwnership.deduplicating((merged + retained).sorted { $0.index < $1.index }.map(\.line))
+    }
+
+    /// A padded kana quad beside a short Han footer cannot establish small type
+    /// by width alone. Require smaller glyph advance, a unique same-column head,
+    /// and a full-size neighbouring column spanning both fragments. This proof
+    /// restores column order before RTL region sorting; it does not certify the
+    /// recognized kana as a reliable pronunciation.
+    private static func witnessedVerticalRubyFooters(
+        _ lines: [Line], imageWidth: Int, imageHeight: Int,
+        separationCheck: ((CGRect, CGRect, BrowserOCRSourceOrientation) -> Bool)?,
+        inkContrast: ((CGRect, CGRect) -> Bool)?, polarityContrast: ((CGRect, CGRect) -> Bool)?
+    ) -> (lines: [Line], ink: [(parent: CGRect, reading: CGRect, polygon: [CGPoint])]) {
+        guard lines.count <= 256 else { return (lines, []) }
+        let frame = CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight)
+        func upright(_ line: Line) -> Bool {
+            guard line.orientation == .vertical, line.orientationHint != .horizontal,
+                  line.singleVerticalColumn, line.polygon.count == 4, frame.contains(line.box) else { return false }
+            let p = line.polygon
+            return abs(p[1].y - p[0].y) <= line.box.width * 0.25 &&
+                abs(p[2].y - p[3].y) <= line.box.width * 0.25 &&
+                abs(p[3].x - p[0].x) <= line.box.width * 0.25 &&
+                abs(p[2].x - p[1].x) <= line.box.width * 0.25
+        }
+        func han(_ scalar: Unicode.Scalar) -> Bool {
+            (0x3400...0x4DBF).contains(scalar.value) || (0x4E00...0x9FFF).contains(scalar.value)
+        }
+        func japanese(_ scalar: Unicode.Scalar) -> Bool {
+            han(scalar) || (0x3041...0x3096).contains(scalar.value) || (0x30A1...0x30FA).contains(scalar.value)
+        }
+        func independent(_ text: String) -> Bool {
+            text.contains { "「」『』“”\"：:".contains($0) }
+        }
+        func separated(_ a: Line, _ b: Line) -> Bool {
+            separationCheck?(a.box, b.box, .vertical) == true || inkContrast?(a.box, b.box) == true ||
+                polarityContrast?(a.box, b.box) == true
+        }
+        var removed: Set<Int> = [], replacements: [Int: Line] = [:]
+        var ink: [(parent: CGRect, reading: CGRect, polygon: [CGPoint])] = []
+        for reading in lines {
+            guard !removed.contains(reading.index), reading.orientation == .vertical,
+                  reading.orientationHint != .horizontal, reading.confidence >= 0.75,
+                  (3...16).contains(reading.text.count), frame.contains(reading.box),
+                  reading.text.unicodeScalars.allSatisfy({ (0x3041...0x3096).contains($0.value) || $0.value == 0x30FC })
+            else { continue }
+            let ruby = reading.box
+            let parents = lines.filter { body in
+                guard upright(body), body.confidence >= 0.9, (2...8).contains(body.text.count),
+                      body.text.unicodeScalars.allSatisfy(han),
+                      reading.text.count >= body.text.count * 2 else { return false }
+                let b = body.box, font = min(b.width, b.height / CGFloat(body.text.count))
+                return ruby.height / CGFloat(reading.text.count) <= font * 0.7 &&
+                    rubyCrossThickness(reading, vertical: true) <= b.width * 1.4 &&
+                    ruby.height <= b.height * 1.35 &&
+                    ruby.minY >= b.minY - font * 0.35 && ruby.maxY <= b.maxY + font * 0.35 &&
+                    ruby.midX >= b.maxX && ruby.midX <= b.maxX + font * 0.5 &&
+                    ruby.minX >= b.midX - font * 0.1 && ruby.minX <= b.maxX + font * 0.1 &&
+                    ruby.maxX >= b.maxX && !separated(body, reading)
+            }
+            guard parents.count == 1, let body = parents.first, !removed.contains(body.index) else { continue }
+            let b = body.box, font = min(b.width, b.height / CGFloat(body.text.count))
+            let heads = lines.filter { head in
+                let h = head.box, gap = b.minY - h.maxY
+                return head.index != body.index && head.index != reading.index && upright(head) &&
+                    head.confidence >= 0.9 && (2...12).contains(head.text.count) &&
+                    head.text.unicodeScalars.contains(where: japanese) && !independent(head.text) &&
+                    h.width >= font * 0.8 && h.width <= font * 1.25 &&
+                    abs(h.midX - b.midX) <= font * 0.25 && gap >= 0 && gap <= font * 1.25
+            }
+            guard heads.count == 1, let head = heads.first, !removed.contains(head.index),
+                  replacements[head.index] == nil, !separated(head, body) else { continue }
+            let span = head.box.union(b)
+            let bridges = lines.filter { bridge in
+                let c = bridge.box
+                return bridge.index != head.index && bridge.index != body.index && bridge.index != reading.index &&
+                    upright(bridge) && bridge.confidence >= 0.9 && bridge.text.count >= 4 &&
+                    bridge.text.unicodeScalars.contains(where: japanese) && !independent(bridge.text) &&
+                    c.width >= font * 0.8 && c.width <= font * 1.6 &&
+                    c.midX < b.midX && b.midX - c.midX <= font * 1.6 &&
+                    c.maxX <= b.minX + font * 0.25 && b.minX - c.maxX <= font * 0.5 &&
+                    abs(c.minY - span.minY) <= font * 0.3 && c.maxY >= span.maxY &&
+                    !separated(head, bridge) && !separated(body, bridge)
+            }
+            guard bridges.count == 1 else { continue }
+            // Any additional body on the footer's rail makes ownership ambiguous.
+            guard !lines.contains(where: { other in
+                other.index != head.index && other.index != body.index && other.index != reading.index &&
+                    other.orientation == .vertical && other.box.intersects(span) &&
+                    abs(other.box.midX - b.midX) <= font * 0.5
+            }) else { continue }
+            let geometry = [head, body].enumerated().map(makeRegionGeometry)
+            replacements[head.index] = mergeTranslationRegion([0, 1], geometries: geometry,
+                imageWidth: CGFloat(imageWidth), imageHeight: CGFloat(imageHeight))
+            replacements[head.index]?.acceptedSource = NativeOCRSourceMetadata.union([head.acceptedSource, body.acceptedSource])
+                .retainingReading(reading.acceptedSource)
+            removed.formUnion([body.index, reading.index])
+            ink.append((span, ruby, reading.polygon))
+            ink += reading.erasurePolygons.map { (span, boundingBox($0), $0) }
+        }
+        return (lines.filter { !removed.contains($0.index) }.map { replacements[$0.index] ?? $0 }, ink)
     }
 
     // Retain only readings attributed to exactly one surviving body. Suppression
@@ -306,7 +415,9 @@ enum NativeOCRTextLineMerger {
                 orientationRaw: line.orientation.rawValue,
                 singleVerticalColumn: line.orientation == .vertical,
                 auxiliaryInkRects: boundedErasurePolygons(line.erasurePolygons).map(boundingBox),
-                auxiliaryInkPolygons: boundedErasurePolygons(line.erasurePolygons)
+                auxiliaryInkPolygons: boundedErasurePolygons(line.erasurePolygons),
+                detectorSeedEvidence: NativeOCRDetectorSeedEvidence.preservingUnion([line.detectorSeedEvidence]),
+                acceptedSource: line.acceptedSource
             )
         }
     }
@@ -337,6 +448,8 @@ enum NativeOCRTextLineMerger {
             box: box,
             polygon: native.polygon,
             erasurePolygons: boundedErasurePolygons(native.erasurePolygons),
+            detectorSeedEvidence: NativeOCRDetectorSeedEvidence.preservingUnion([native.detectorSeedEvidence]),
+            acceptedSource: native.acceptedSource,
             orientationHint: native.orientationIsEstimated ? .unknown : native.orientation,
             orientation: orientation,
             singleVerticalColumn: orientation == .vertical,
@@ -348,7 +461,7 @@ enum NativeOCRTextLineMerger {
     /// only the geometry avoids inflated bounding boxes masquerading as large
     /// type. Full-size kana, different slopes, and semantic katakana readings
     /// retain the existing conservative behavior.
-    private static func suppressSlantedHorizontalRuby(_ lines: [Line]) -> [Line] {
+    private static func suppressSlantedHorizontalRuby(_ lines: [Line], recordSources: Bool = false) -> [Line] {
         func angle(_ line: Line) -> CGFloat? {
             guard line.orientation == .horizontal, line.polygon.count == 4 else { return nil }
             let p = NativeOCRScopeGeometry.canonicalQuad(line.polygon, vertical: false) ?? line.polygon, a = atan2(p[1].y - p[0].y, p[1].x - p[0].x)
@@ -358,13 +471,14 @@ enum NativeOCRTextLineMerger {
         }
         let spatial = NativeOCRSpatialIndex(boxes: lines.map(\.box))
         var removed = Set<Int>()
+        var sourceParents: [Int: Set<Int>] = [:]
         for parent in lines {
             guard let tilt = angle(parent), parent.text.unicodeScalars.contains(where: { (0x3400...0x9FFF).contains($0.value) }) else { continue }
             func aligned(_ line: Line) -> Line {
                 let points = line.polygon.map { CGPoint(x: $0.x * cos(tilt) + $0.y * sin(tilt),
                                                        y: -$0.x * sin(tilt) + $0.y * cos(tilt)) }
                 return Line(index: line.index, text: line.text, confidence: line.confidence,
-                    box: boundingBox(points), polygon: rectanglePolygon(boundingBox(points)), erasurePolygons: line.erasurePolygons, orientationHint: line.orientationHint,
+                    box: boundingBox(points), polygon: rectanglePolygon(boundingBox(points)), erasurePolygons: line.erasurePolygons, detectorSeedEvidence: line.detectorSeedEvidence, acceptedSource: line.acceptedSource, orientationHint: line.orientationHint,
                     orientation: line.orientation, singleVerticalColumn: line.singleVerticalColumn)
             }
             let body = aligned(parent)
@@ -373,13 +487,15 @@ enum NativeOCRTextLineMerger {
                 guard reading.index != parent.index, let slope = angle(reading), abs(slope - tilt) <= 0.08 else { continue }
                 if !suppressSeparateHorizontalRuby([body, aligned(reading)]).contains(where: { $0.index == reading.index }) {
                     removed.insert(reading.index)
+                    if recordSources { sourceParents[reading.index, default: []].insert(parent.index) }
                 }
             }
         }
-        return lines.filter { !removed.contains($0.index) }
+        let kept = lines.filter { !removed.contains($0.index) }
+        return retainingRubySources(lines, kept: kept, parents: sourceParents)
     }
 
-    private static func suppressSlantedVerticalRuby(_ lines: [Line]) -> [Line] {
+    private static func suppressSlantedVerticalRuby(_ lines: [Line], recordSources: Bool = false) -> [Line] {
         func angle(_ line: Line) -> CGFloat? {
             guard (line.orientation == .vertical || line.text.count == 1 && line.orientationHint == .unknown),
                   line.polygon.count == 4 else { return nil }
@@ -396,6 +512,7 @@ enum NativeOCRTextLineMerger {
         guard !parents.isEmpty else { return lines }
         let spatial = NativeOCRSpatialIndex(boxes: lines.map(\.box))
         var removed = Set<Int>()
+        var sourceParents: [Int: Set<Int>] = [:]
         for parent in parents {
             let tilt = angle(parent)!
             func aligned(_ line: Line) -> Line {
@@ -406,7 +523,7 @@ enum NativeOCRTextLineMerger {
                 }
                 // Line geometry is immutable; all text/identity stays original.
                 return Line(index: copy.index, text: copy.text, confidence: copy.confidence,
-                    box: boundingBox(points), polygon: rectanglePolygon(boundingBox(points)), erasurePolygons: copy.erasurePolygons, orientationHint: copy.orientationHint,
+                    box: boundingBox(points), polygon: rectanglePolygon(boundingBox(points)), erasurePolygons: copy.erasurePolygons, detectorSeedEvidence: copy.detectorSeedEvidence, acceptedSource: copy.acceptedSource, orientationHint: copy.orientationHint,
                     orientation: copy.orientation, singleVerticalColumn: copy.singleVerticalColumn)
             }
             let body = aligned(parent)
@@ -418,16 +535,18 @@ enum NativeOCRTextLineMerger {
                 else { continue }
                 if !suppressSeparateVerticalRuby([body, aligned(reading)]).contains(where: { $0.index == reading.index }) {
                     removed.insert(reading.index)
+                    if recordSources { sourceParents[reading.index, default: []].insert(parent.index) }
                 }
             }
         }
-        return lines.filter { !removed.contains($0.index) }
+        let kept = lines.filter { !removed.contains($0.index) }
+        return retainingRubySources(lines, kept: kept, parents: sourceParents)
     }
 
     // Separate ruby can interrupt adjacency before columns are assembled. Require
     // both a kana reading and a smaller, vertically contained box touching the
     // right edge of a Han-bearing column; small dialogue alone is not evidence.
-    private static func suppressSeparateVerticalRuby(_ lines: [Line]) -> [Line] {
+    private static func suppressSeparateVerticalRuby(_ lines: [Line], recordSources: Bool = false) -> [Line] {
         func hasUprightColumnBounds(_ line: Line) -> Bool {
             guard line.polygon.count == 4 else { return false }
             let topWidth = abs(line.polygon[1].x - line.polygon[0].x)
@@ -444,7 +563,8 @@ enum NativeOCRTextLineMerger {
         }
         guard !parentIndices.isEmpty else { return lines }
         let spatial = NativeOCRSpatialIndex(boxes: parentIndices.map { lines[$0].box })
-        return lines.filter { reading in
+        var sourceParents: [Int: Set<Int>] = [:]
+        let kept = lines.filter { reading in
             let characters = reading.text.unicodeScalars
             let singleton = characters.count == 1 && reading.orientationHint == .unknown
             guard (reading.orientation == .vertical || singleton), reading.orientationHint != .horizontal,
@@ -455,7 +575,7 @@ enum NativeOCRTextLineMerger {
             // Accepted boxes touch the parent edge. A small expansion only
             // accommodates detector rounding without searching unrelated rows.
             let nearby = spatial.indices(intersecting: ruby.insetBy(dx: -ruby.width, dy: 0))
-            return !nearby.contains { candidate in
+            let matches = nearby.filter { candidate in
                 let parent = lines[parentIndices[candidate]]
                 let body = parent.box
                 let bodyAdvance = body.height / CGFloat(max(parent.text.count, 1))
@@ -489,12 +609,17 @@ enum NativeOCRTextLineMerger {
                     && ruby.minX <= body.maxX + body.width * 0.1
                     && ruby.maxX >= body.maxX - body.width * 0.2
             }
+            if recordSources {
+                sourceParents[reading.index] = Set(matches.map { lines[parentIndices[$0]].index })
+            }
+            return matches.isEmpty
         }
+        return retainingRubySources(lines, kept: kept, parents: sourceParents)
     }
 
     /// Horizontal furigana sits just above a Han-bearing baseline. Require
     /// smaller glyphs on both axes; a short independent caption is not ruby.
-    private static func suppressSeparateHorizontalRuby(_ lines: [Line]) -> [Line] {
+    private static func suppressSeparateHorizontalRuby(_ lines: [Line], recordSources: Bool = false) -> [Line] {
         let parents = lines.indices.filter { index in
             let line = lines[index]
             guard line.orientation == .horizontal, line.orientationHint != .vertical,
@@ -509,7 +634,8 @@ enum NativeOCRTextLineMerger {
         guard !parents.isEmpty else { return lines }
         let spatial = NativeOCRSpatialIndex(boxes: parents.map { lines[$0].box })
         let allSpatial = NativeOCRSpatialIndex(boxes: lines.map(\.box))
-        return lines.filter { reading in
+        var sourceParents: [Int: Set<Int>] = [:]
+        let kept = lines.filter { reading in
             let characters = reading.text.unicodeScalars
             let singleton = characters.count == 1 && reading.orientationHint == .unknown
             guard (reading.orientation == .horizontal || singleton), reading.orientationHint != .vertical,
@@ -533,7 +659,7 @@ enum NativeOCRTextLineMerger {
                     && gap >= -ruby.height * 0.1 && gap <= ruby.height * 0.35
             }
             guard !attachesAbove else { return true }
-            return !spatial.indices(intersecting: ruby.insetBy(dx: 0, dy: -ruby.height)).contains { candidate in
+            let matches = spatial.indices(intersecting: ruby.insetBy(dx: 0, dy: -ruby.height)).filter { candidate in
                 let parent = lines[parents[candidate]]
                 let body = parent.box
                 let advance = ruby.width / CGFloat(characters.count)
@@ -553,6 +679,23 @@ enum NativeOCRTextLineMerger {
                     && ruby.maxY >= body.minY - body.height * 0.1
                     && ruby.minY <= body.minY + body.height * 0.1
             }
+            if recordSources {
+                sourceParents[reading.index] = Set(matches.map { lines[parents[$0]].index })
+            }
+            return matches.isEmpty
+        }
+        return retainingRubySources(lines, kept: kept, parents: sourceParents)
+    }
+
+    /// Only parent indices witnessed by the actual removal operation transfer
+    /// provenance. Pure pairwise proof queries cannot create ownership edges.
+    private static func retainingRubySources(_ original: [Line], kept: [Line], parents: [Int: Set<Int>]) -> [Line] {
+        kept.map { line in
+            var value = line
+            for reading in original where parents[reading.index] == Set([line.index]) {
+                value.acceptedSource = value.acceptedSource.retainingReading(reading.acceptedSource)
+            }
+            return value
         }
     }
 
@@ -611,11 +754,11 @@ enum NativeOCRTextLineMerger {
         let horizontalResolved = inheritHorizontalWrappedTailOrientations(
             deduplicateLines(
                 mergeLineFragments(
-                    inheritVerticalLatinInitials(deduplicateLines(lines)),
+                    inheritVerticalInlineGlyphs(inheritVerticalLatinInitials(deduplicateLines(lines))),
                     imageWidth: imageWidth,
                     imageHeight: imageHeight,
                     recognizedLatinWords: recognizedLatinWords, separationCheck: separationCheck,
-                    polarityContrast: polarityContrast
+                    inkContrast: inkContrast, polarityContrast: polarityContrast
                 )
             )
         )
@@ -623,11 +766,16 @@ enum NativeOCRTextLineMerger {
         guard visualLines.count > 1 else { return visualLines }
 
         let geometries = visualLines.enumerated().map(makeRegionGeometry)
+        let slantedColumns = visualLines.map {
+            NativeOCRSlantedDependentColumns.Column(id: $0.index, text: $0.text, polygon: $0.polygon,
+                                                    isVertical: $0.orientation == .vertical && $0.singleVerticalColumn)
+        }
         let spatialIndex = NativeOCRSpatialIndex(boxes: visualLines.map(\.box))
         let connected = DisjointSet(geometries.count)
         let regularPairs = regularSpacingPairs(visualLines, orientation: .horizontal, fragments: false)
             .union(regularSpacingPairs(visualLines, orientation: .vertical, fragments: false))
-        let captionGutters = contrastingVerticalGutters(visualLines)
+        let spacedCaptions = spacedDependentCaptionPairs(visualLines, separationCheck: separationCheck, inkContrast: inkContrast)
+        let captionGutters = contrastingVerticalGutters(visualLines, spatialIndex: spatialIndex)
         let speakerTags = speakerNameTags(visualLines, spatialIndex: spatialIndex, inkContrast: inkContrast)
         let structuredCells = gridExclusions.map { exclusions in structuredTextSeparations(
             visualLines, spatialIndex: spatialIndex, exclusions: exclusions,
@@ -636,7 +784,9 @@ enum NativeOCRTextLineMerger {
         ) } ?? []
         var admittedPairs: Set<IndexPair> = []
         for left in geometries.indices {
-            for right in spatialIndex.indices(intersecting: searchBounds(visualLines[left])) where right > left {
+            let witnessed = spacedCaptions.compactMap { pair in pair.lower == left ? pair.upper : (pair.upper == left ? pair.lower : nil) }
+            let nearby = Set(spatialIndex.indices(intersecting: searchBounds(visualLines[left]))).union(witnessed)
+            for right in nearby.sorted() where right > left {
                 guard !captionGutters.contains(IndexPair(left, right)), !structuredCells.contains(IndexPair(left, right)),
                       !speakerTags.contains(left), !speakerTags.contains(right),
                       !areIndependentQuotedLanguages(geometries[left], geometries[right]) else { continue }
@@ -645,19 +795,36 @@ enum NativeOCRTextLineMerger {
                 if geometries[left].orientation == .vertical, geometries[right].orientation == .vertical,
                    ReaderTranslationBalloonMerger.separatesVerticalUtterances(geometries[left].line.text, box: geometries[left].box,
                        geometries[right].line.text, box: geometries[right].box) { continue }
+                let slantedContinuation = slantedColumns[left].isVertical && slantedColumns[right].isVertical
+                    && NativeOCRSlantedDependentColumns.accepts(
+                    slantedColumns[left], slantedColumns[right], nearby: slantedColumns,
+                    ownershipSeparated: separationCheck?(visualLines[left].box, visualLines[right].box, .vertical) == true,
+                    inkContrasted: inkContrast?(visualLines[left].box, visualLines[right].box) == true,
+                    polarityContrasted: polarityContrast?(visualLines[left].box, visualLines[right].box) == true
+                )
                 if canFormTranslationRegion(
                     geometries[left],
                     geometries[right]
-                ) || regularPairs.contains(IndexPair(left, right)) || witnessedPaddedVerticalColumns(
-                    visualLines[left], visualLines[right], lines: visualLines, spatialIndex: spatialIndex
+                ) || regularPairs.contains(IndexPair(left, right)) || spacedCaptions.contains(IndexPair(left, right))
+                    || slantedContinuation || witnessedPaddedVerticalColumns(
+                    visualLines[left], visualLines[right], lines: visualLines, spatialIndex: spatialIndex,
+                    separationCheck: separationCheck, inkContrast: inkContrast
                 ) {
+                    if independentlyColouredQuotedUtterances(geometries[left].line, geometries[right].line,
+                                                            inkContrast: inkContrast) { continue }
                     // A larger sign behind translucent dialogue can align with
                     // its columns. Distinct sampled ink and lettering size are
                     // evidence of separate text surfaces, not another column.
                     if geometries[left].orientation == .vertical,
                        max(geometries[left].fontSize, geometries[right].fontSize)
                         > min(geometries[left].fontSize, geometries[right].fontSize) * 1.25,
-                       inkContrast?(geometries[left].box, geometries[right].box) == true { continue }
+                       !samePrintedVerticalTypeSize(geometries[left].line, geometries[right].line),
+                       inkContrast?(geometries[left].box, geometries[right].box) == true {
+                        if !witnessedVerticalGlyphAdvance(
+                            geometries[left].line, geometries[right].line, lines: visualLines,
+                            spatialIndex: spatialIndex, inkContrast: inkContrast, separationCheck: separationCheck
+                        ) { continue }
+                    }
                     if separationCheck?(geometries[left].box, geometries[right].box, geometries[left].orientation.source) == true { continue }
                     admittedPairs.insert(IndexPair(left, right))
                     connected.union(left, right)
@@ -670,7 +837,7 @@ enum NativeOCRTextLineMerger {
         )
         let cellGeometries = trimmingOverlappingGridRows(geometries, separated: structuredCells, connected: connected)
         return candidates
-            .flatMap { splitSuspiciousRegion($0, geometries: geometries, admittedPairs: admittedPairs) }
+            .flatMap { splitSuspiciousRegion($0, geometries: geometries, admittedPairs: admittedPairs, spacedCaptions: spacedCaptions) }
             .map {
                 mergeTranslationRegion(
                     $0,
@@ -707,8 +874,9 @@ enum NativeOCRTextLineMerger {
             guard top[index] > line.box.minY || bottom[index] < line.box.maxY else { return geometry }
             let polygon = line.polygon.map { CGPoint(x: $0.x, y: min(max($0.y, top[index]), bottom[index])) }
             var trimmed = Line(index: line.index, text: line.text, confidence: line.confidence, box: boundingBox(polygon),
-                               polygon: polygon, erasurePolygons: line.erasurePolygons, orientationHint: line.orientationHint, orientation: line.orientation,
+                               polygon: polygon, erasurePolygons: line.erasurePolygons, detectorSeedEvidence: line.detectorSeedEvidence, acceptedSource: line.acceptedSource, orientationHint: line.orientationHint, orientation: line.orientation,
                                singleVerticalColumn: line.singleVerticalColumn, clippedByTile: line.clippedByTile)
+            trimmed.detectorSeedEvidence = nil
             trimmed.sourceTileBounds = line.sourceTileBounds
             return makeRegionGeometry((geometry.index, trimmed))
         }
@@ -905,7 +1073,7 @@ enum NativeOCRTextLineMerger {
                                    y: x * sine + y * cosine + (inverse ? origin.y : 0))
                 }
                 return Line(index: line.index, text: line.text, confidence: line.confidence,
-                            box: boundingBox(polygon), polygon: polygon, erasurePolygons: line.erasurePolygons,
+                            box: boundingBox(polygon), polygon: polygon, erasurePolygons: line.erasurePolygons, detectorSeedEvidence: line.detectorSeedEvidence, acceptedSource: line.acceptedSource,
                             orientationHint: line.orientationHint, orientation: line.orientation,
                             singleVerticalColumn: line.singleVerticalColumn, clippedByTile: line.clippedByTile)
             }
@@ -982,6 +1150,7 @@ enum NativeOCRTextLineMerger {
         imageHeight: CGFloat,
         recognizedLatinWords: Set<String>,
         separationCheck: ((CGRect, CGRect, BrowserOCRSourceOrientation) -> Bool)? = nil,
+        inkContrast: ((CGRect, CGRect) -> Bool)? = nil,
         polarityContrast: ((CGRect, CGRect) -> Bool)? = nil
     ) -> [Line] {
         let geometries = lines.enumerated().map(makeGeometry)
@@ -1006,6 +1175,34 @@ enum NativeOCRTextLineMerger {
                        orientation: .vertical,
                        maximumGap: verticalFragmentGap(leftGeometry, rightGeometry, regular: regularVertical.contains(IndexPair(left, right)))
                    ), separationCheck?(leftGeometry.line.box, rightGeometry.line.box, .vertical) != true {
+                    let upper = leftGeometry.line.box.minY < rightGeometry.line.box.minY ? leftGeometry.line : rightGeometry.line
+                    let lower = leftGeometry.line.box.minY < rightGeometry.line.box.minY ? rightGeometry.line : leftGeometry.line
+                    // A completed utterance and a separately coloured, single-letter
+                    // owner do not establish a continuation across a positive gap.
+                    if upper.box.maxY < lower.box.minY,
+                       upper.text.unicodeScalars.lazy.filter(isLetter).count >= 2,
+                       let terminal = upper.text.last, "。！？!?".contains(terminal),
+                       lower.text.count == 1, lower.text.unicodeScalars.allSatisfy(isLetter),
+                       inkContrast?(upper.box, lower.box) == true { continue }
+                    // A finished reaction above an independently aligned column row
+                    // belongs to a separate utterance, even when detector padding
+                    // makes its gap resemble an internal column fragment.
+                    if upper.box.maxY < lower.box.minY,
+                       upper.text.last.map({ "。！？!?".contains($0) }) == true,
+                       spatialIndex.indices(intersecting: lower.box.insetBy(dx: -lower.box.width * 3.5, dy: -lower.box.width * 0.6)).contains(where: { peerIndex in
+                           let peer = lines[peerIndex]
+                           return peer.index != lower.index && peer.index != upper.index &&
+                           peer.orientation == .vertical && peer.text.count >= 3 &&
+                           abs(peer.box.minY - lower.box.minY) <= min(peer.box.width, lower.box.width) * 0.6 &&
+                           abs(peer.box.maxY - lower.box.maxY) <= min(peer.box.width, lower.box.width) * 0.6 &&
+                           abs(peer.box.midX - lower.box.midX) <= max(peer.box.width, lower.box.width) * 3.5
+                       }) { continue }
+                    if hasSingleInternalCJKPause(upper.text),
+                       inkContrast?(leftGeometry.line.box, rightGeometry.line.box) == true ||
+                        polarityContrast?(leftGeometry.line.box, rightGeometry.line.box) == true,
+                       mergeCandidate(leftGeometry, rightGeometry, orientation: .vertical,
+                           maximumGap: verticalFragmentGap(leftGeometry, rightGeometry, regular: regularVertical.contains(IndexPair(left, right))),
+                           allowingInternalPause: false) == nil { continue }
                     candidates.append(candidate)
                 }
                 if leftGeometry.supportsHorizontal,
@@ -1030,6 +1227,10 @@ enum NativeOCRTextLineMerger {
                     // Image ownership is authoritative for every fragment edge,
                     // including non-overlapping words on neighbouring papers.
                     if separationCheck?(ordered[0].box, ordered[1].box, .horizontal) == true { continue }
+                    // The small-particle size exception needs no contrary image ink evidence.
+                    // Keep the existing mixed-colour horizontal title path unchanged.
+                    if horizontalKanaParticleAttachment(ordered[0], ordered[1]),
+                       inkContrast?(ordered[0].box, ordered[1].box) == true { continue }
                     let font = min(ordered[0].box.height, ordered[1].box.height)
                     // A display heading beside body text on the same row (a reversed title
                     // box next to ruled lines) is a different lettering unit: larger glyphs
@@ -1124,7 +1325,7 @@ enum NativeOCRTextLineMerger {
                 // A square CJK glyph has no intrinsic reading direction. The
                 // detector labels isolated glyphs horizontal even inside a
                 // vertical column; let aligned neighbours resolve that axis.
-                || compactSingleCJKGlyph
+                || (compactSingleCJKGlyph && !line.hasHorizontalInlineOwner)
                 || (line.orientationHint == .unknown
                     && clearlyVertical)
         )
@@ -1147,6 +1348,55 @@ enum NativeOCRTextLineMerger {
     /// Expand the conservative gap only when a local three-item run
     /// proves regular spacing. Use nearest neighbours so a blank paragraph gap
     /// cannot borrow evidence from a farther row or from another text column.
+    /// Sparse literary captions need repeated spacing and dependent clauses,
+    /// not just proximity. A single short interior noun/count column may sit
+    /// between full columns; independent sentences and quoted speakers cannot.
+    private static func spacedDependentCaptionPairs(
+        _ lines: [Line], separationCheck: ((CGRect, CGRect, BrowserOCRSourceOrientation) -> Bool)?,
+        inkContrast: ((CGRect, CGRect) -> Bool)?
+    ) -> Set<IndexPair> {
+        let eligible = lines.indices.filter { index in
+            let line = lines[index], text = line.text
+            return line.orientation == .vertical && line.singleVerticalColumn && text.count >= 3
+                && text.unicodeScalars.allSatisfy({ isCJK($0) && !CharacterSet.punctuationCharacters.contains($0) })
+                && line.box.height >= line.box.width * 3
+                && line.polygon.count == 4
+                && abs(line.polygon[0].x - line.polygon[3].x) <= line.box.width * 0.2
+        }.sorted { lines[$0].box.midX > lines[$1].box.midX }
+        guard eligible.count >= 4 else { return [] }
+        var result: Set<IndexPair> = []
+        for start in 0...(eligible.count - 4) {
+            let run = Array(eligible[start..<(start + 4)])
+            let boxes = run.map { lines[$0].box }
+            let widths = boxes.map(\.width), small = widths.min() ?? 0, large = widths.max() ?? 0
+            guard small > 0, large <= small * 1.2,
+                  (boxes.map(\.minY).max() ?? 0) - (boxes.map(\.minY).min() ?? 0) <= small * 0.2 else { continue }
+            let advances = run.map { lines[$0].box.height / CGFloat(lines[$0].text.count) }
+            guard (advances.max() ?? 0) <= (advances.min() ?? 0) * 1.2 else { continue }
+            let pitch = (0..<3).map { boxes[$0].midX - boxes[$0 + 1].midX }
+            guard (pitch.min() ?? 0) >= large * 1.7, (pitch.max() ?? 0) <= small * 2.3,
+                  (pitch.max() ?? 0) <= (pitch.min() ?? 0) * 1.1 else { continue }
+            let height = boxes.map(\.height).max() ?? 0
+            let short = run.indices.filter { boxes[$0].height < height * 0.6 }
+            guard short.count == 1, let bridge = short.first, bridge > 0, bridge < 3,
+                  boxes[bridge].height >= height * 0.3,
+                  run.indices.filter({ $0 != bridge }).allSatisfy({ boxes[$0].height >= height * 0.85 }) else { continue }
+            // Only dependent grammatical endings may lead into another full
+            // column. The one short interior column supplies a noun/count phrase.
+            guard (0..<3).allSatisfy({ position in
+                position == bridge || lines[run[position]].text.last.map { "はがをにのともでへ".contains($0) } == true
+            }) else { continue }
+            guard (0..<3).allSatisfy({ position in
+                let a = lines[run[position]], b = lines[run[position + 1]]
+                return separationCheck?(a.box, b.box, .vertical) != true
+                    && inkContrast?(a.box, b.box) != true
+                    && !ReaderTranslationBalloonMerger.separatesVerticalUtterances(a.text, box: a.box, b.text, box: b.box)
+            }) else { continue }
+            for position in 0..<3 { result.insert(IndexPair(run[position], run[position + 1])) }
+        }
+        return result
+    }
+
     private static func regularSpacingPairs(
         _ lines: [Line], orientation: Orientation, fragments: Bool
     ) -> Set<IndexPair> {
@@ -1263,18 +1513,57 @@ enum NativeOCRTextLineMerger {
                 let small = min(line.box.width, other.box.width)
                 guard other.index != a.index, other.index != b.index,
                       other.orientation == .vertical, other.singleVerticalColumn,
-                      other.text.count >= 3, small > 0,
+                      small > 0,
                       max(line.box.width, other.box.width) <= small * 1.4,
                       abs(line.box.minY - other.box.minY) <= small * 0.75,
                       overlapRatio(line.box.minY, line.box.maxY, other.box.minY, other.box.maxY) >= 0.75,
                       abs(line.box.midX - other.box.midX) >= small * 0.8,
                       separatedIntervalGap(line.box.minX, line.box.maxX, other.box.minX, other.box.maxX) <= small * 0.8
                 else { return nil }
-                return other.index
+                if other.text.count < 3 {
+                    // A full-size two-glyph column can establish a short upper
+                    // lobe beside a longer column. Match its printed advance,
+                    // so punctuation, censor marks and ruby cannot supply proof.
+                    guard other.text.count == 2, line.text.count >= 3 else { return nil }
+                    let ownGlyphs = line.text.filter { !$0.isWhitespace }
+                    let otherGlyphs = other.text.filter { !$0.isWhitespace }
+                    guard ownGlyphs.count >= 3, otherGlyphs.count == 2,
+                          ownGlyphs.unicodeScalars.allSatisfy(isCJK), otherGlyphs.unicodeScalars.allSatisfy(isCJK) else { return nil }
+                    let ownAdvance = line.box.height / CGFloat(ownGlyphs.count)
+                    let otherAdvance = other.box.height / 2
+                    guard min(ownAdvance, otherAdvance) > 0,
+                          max(ownAdvance, otherAdvance) <= min(ownAdvance, otherAdvance) * 1.35 else { return nil }
+                }
+                // Keep the spatial-array offset: native IDs can be sparse
+                // after invalid or duplicate detections have been discarded.
+                return index
             })
         }
         let upperNeighbours = neighbours(top), lowerNeighbours = neighbours(bottom)
-        return !upperNeighbours.isEmpty && !lowerNeighbours.isEmpty && upperNeighbours.isDisjoint(with: lowerNeighbours)
+        if !upperNeighbours.isEmpty && !lowerNeighbours.isEmpty && upperNeighbours.isDisjoint(with: lowerNeighbours) {
+            return true
+        }
+        // An upper solo utterance can precede a separate lower paragraph. In
+        // vertical reading, a lower column to its right starts that paragraph;
+        // a column to its left instead supports ordinary wrapped continuation.
+        // Require a complete terminal and a full printed-glyph gap as well as
+        // the independently aligned body, never punctuation or whitespace alone.
+        guard upperNeighbours.isEmpty,
+              lowerNeighbours.contains(where: { lines[$0].box.midX > bottom.box.midX }),
+              let terminal = top.text.last, "。！？!?".contains(terminal) else { return false }
+        let topGlyphs = top.text.filter { !$0.isWhitespace }
+        let bottomGlyphs = bottom.text.filter { !$0.isWhitespace }
+        let topBody = topGlyphs.dropLast()
+        let bottomLetters = bottomGlyphs.unicodeScalars.filter(isLetter)
+        guard topBody.count >= 3, bottomLetters.count >= 3,
+              topBody.unicodeScalars.allSatisfy(isCJK), bottomLetters.allSatisfy(isCJK),
+              gap >= max(top.box.height / CGFloat(topGlyphs.count),
+                         bottom.box.height / CGFloat(bottomGlyphs.count)) else { return false }
+        return lowerNeighbours.contains { index in
+            let other = lines[index]
+            let letters = other.text.unicodeScalars.filter(isLetter)
+            return other.box.midX > bottom.box.midX && letters.count >= 3 && letters.allSatisfy(isCJK)
+        }
     }
 
     // Resolve interrupted columns before joining adjacent columns into a box.
@@ -1303,11 +1592,39 @@ enum NativeOCRTextLineMerger {
             || (b.count >= 3 && b.allSatisfy(isLatin) && a.contains(where: isCJK))
     }
 
+    /// A centered, separately owned small particle can finish a display word.
+    /// This exception retains image boundary and polarity checks at the caller.
+    private static func horizontalKanaParticleAttachment(_ a: Line, _ b: Line) -> Bool {
+        let left = a.box.midX < b.box.midX ? a : b
+        let right = a.box.midX < b.box.midX ? b : a
+        let letters = left.text.unicodeScalars
+        guard left.orientation == .horizontal, right.orientation == .horizontal,
+              (2...8).contains(left.text.count), letters.allSatisfy({ isCJK($0) && isLetter($0) }),
+              right.text.count == 1, "なのとにへでもはがをやか".contains(right.text),
+              right.erasurePolygons.count == 1,
+              left.box.height > right.box.height * 1.6,
+              left.box.height <= right.box.height * 1.9 else { return false }
+        let advance = left.box.width / CGFloat(left.text.count)
+        let small = right.box.height
+        let body = boundingBox(right.erasurePolygons[0])
+        guard advance >= left.box.height * 0.7, advance <= left.box.height * 1.3,
+              right.box.width >= small * 0.75, right.box.width <= small * 1.25,
+              right.box.contains(body), body.width >= right.box.width * 0.4,
+              body.height >= small * 0.45, body.height <= small * 0.95,
+              abs(body.midX - right.box.midX) <= right.box.width * 0.15,
+              abs(body.midY - right.box.midY) <= small * 0.15,
+              abs(left.box.midY - right.box.midY) <= small * 0.15,
+              right.box.minX - left.box.maxX >= -small * 0.08,
+              right.box.minX - left.box.maxX <= small * 0.15 else { return false }
+        return true
+    }
+
     private static func mergeCandidate(
         _ left: Geometry,
         _ right: Geometry,
         orientation: Orientation,
-        maximumGap: CGFloat = 0.4
+        maximumGap: CGFloat = 0.4,
+        allowingInternalPause: Bool = true
     ) -> Candidate? {
         let leftFont = fontSize(left, orientation: orientation)
         let rightFont = fontSize(right, orientation: orientation)
@@ -1316,7 +1633,8 @@ enum NativeOCRTextLineMerger {
         if largerFont / smallerFont > 1.6 {
             let upper = left.line.box.minY < right.line.box.minY ? left.line : right.line
             let lower = left.line.box.minY < right.line.box.minY ? right.line : left.line
-            guard orientation == .vertical, paddedVerticalGlyphAdvance(upper, lower) else { return nil }
+            guard (orientation == .vertical && paddedVerticalGlyphAdvance(upper, lower, allowingInternalPause: allowingInternalPause)) ||
+                (orientation == .horizontal && horizontalKanaParticleAttachment(left.line, right.line)) else { return nil }
         }
 
         let primaryGap = orientation == .vertical
@@ -1356,7 +1674,7 @@ enum NativeOCRTextLineMerger {
             ) != nil || (orientation == .horizontal && paddedCJKNeighbours(ordered[0], ordered[1]))
                 || (orientation == .horizontal && paddedLatinLetterNeighbours(ordered[0], ordered[1]))
                 || (orientation == .horizontal && horizontalLatinOverlap(ordered[0], ordered[1]) != nil)
-                || (orientation == .vertical && paddedVerticalNeighbours(ordered[0], ordered[1])) else { return nil }
+                || (orientation == .vertical && paddedVerticalNeighbours(ordered[0], ordered[1], allowingInternalPause: allowingInternalPause)) else { return nil }
         }
         guard orientation == .vertical || !isScriptSwitchAtSizeJump(left.line, right.line) else { return nil }
         return Candidate(
@@ -1370,18 +1688,36 @@ enum NativeOCRTextLineMerger {
     /// Compare advances when a detector pads a same-column fragment wider than
     /// the preceding glyphs. Tight centres and a sub-glyph overlap distinguish
     /// a continuation from the neighbouring column or a duplicate tile.
-    private static func paddedVerticalGlyphAdvance(_ upper: Line, _ lower: Line) -> Bool {
+    /// One internal ellipsis retains a glyph advance in a CJK column. This
+    /// admission changes no gap, axis, tile, or paragraph ownership threshold.
+    private static func hasSingleInternalCJKPause(_ text: String) -> Bool {
+        let scalars = text.unicodeScalars
+        guard (3...24).contains(scalars.count), let first = scalars.first, let last = scalars.last,
+              isCJK(first), CharacterSet.letters.contains(first), isCJK(last), CharacterSet.letters.contains(last), scalars.lazy.filter({ $0.value == 0x2026 }).count == 1 else { return false }
+        return scalars.allSatisfy { (isCJK($0) && CharacterSet.letters.contains($0)) || $0.value == 0x2026 }
+    }
+
+    private static func paddedVerticalGlyphAdvance(_ upper: Line, _ lower: Line, allowingInternalPause: Bool = true) -> Bool {
         let a = upper.box, b = lower.box
         let first = upper.text.unicodeScalars, second = lower.text.unicodeScalars
+        // Full-cell Japanese ellipses retain the original vertical advance.
+        // Admit only a terminal run; internal or ASCII punctuation stays excluded.
+        let suffixPause = lower.text.hasSuffix("…") && lower.text.suffix(2).filter { $0 == "…" }.count <= 2
+            && (1...2).contains(lower.text.filter { $0 == "…" }.count)
+            && lower.text.dropLast(lower.text.filter { $0 == "…" }.count).unicodeScalars.allSatisfy(isCJK)
+        let lowerCJK = second.allSatisfy(isCJK) || suffixPause
         let latinInitial = first.count == 1 && first.allSatisfy { (0x41...0x5A).contains($0.value) }
         guard !upper.clippedByTile, !lower.clippedByTile,
               upper.orientation == .vertical || isSingleCJKGlyph(upper.text), lower.orientation == .vertical,
               !first.isEmpty, second.count >= 2,
-              latinInitial || first.allSatisfy(isCJK), second.allSatisfy(isCJK),
+              latinInitial || first.allSatisfy(isCJK) || (allowingInternalPause && hasSingleInternalCJKPause(upper.text) && second.allSatisfy { isCJK($0) && CharacterSet.letters.contains($0) }), lowerCJK,
               a.minY < b.minY, a.maxY < b.maxY else { return false }
         let x = a.height / CGFloat(first.count), y = b.height / CGFloat(second.count)
         let small = min(x, y), large = max(x, y), overlap = a.maxY - b.minY
-        return small > 0 && large <= small * 1.3 && overlap > 0 && overlap <= small * 0.55
+        // Integer detector corners can straddle the sub-glyph overlap edge.
+        // Bound rounding slack by both two source pixels and the printed advance.
+        let paddingTolerance = min(2, small * 0.02)
+        return small > 0 && large <= small * 1.3 && overlap > 0 && overlap <= small * 0.55 + paddingTolerance
             && a.width >= x * 0.7 && a.width <= x * 1.85 && b.width >= y * 0.7 && b.width <= y * 1.85
             && abs(a.midX - b.midX) <= min(a.width, b.width) * 0.18
             && overlapRatio(a.minX, a.maxX, b.minX, b.maxX) >= 0.9
@@ -1407,7 +1743,7 @@ enum NativeOCRTextLineMerger {
                     && separatedIntervalGap(line.box.minX, line.box.maxX, next.box.minX, next.box.maxX) <= line.box.width * 0.5
             }) else { return line }
             var vertical = Line(index: line.index, text: line.text, confidence: line.confidence, box: line.box,
-                polygon: line.polygon, erasurePolygons: line.erasurePolygons, orientationHint: .vertical, orientation: .vertical, singleVerticalColumn: true)
+                polygon: line.polygon, erasurePolygons: line.erasurePolygons, detectorSeedEvidence: line.detectorSeedEvidence, acceptedSource: line.acceptedSource, orientationHint: .vertical, orientation: .vertical, singleVerticalColumn: true)
             vertical.clippedByTile = line.clippedByTile; vertical.sourceTileBounds = line.sourceTileBounds
             let anchors = nearby.filter { paddedVerticalGlyphAdvance(vertical, lines[$0]) }
             return anchors.count == 1 ? vertical : line
@@ -1418,8 +1754,17 @@ enum NativeOCRTextLineMerger {
     /// recognition containing the other's text. Keep every glyph in that case.
     // Full-page DBNet boxes can overlap by less than half a glyph at a pause.
     // These are successive pieces of one column, not duplicate text crops.
-    private static func paddedVerticalNeighbours(_ upper: Line, _ lower: Line) -> Bool {
-        if paddedVerticalGlyphAdvance(upper, lower) { return true }
+    private static func paddedVerticalNeighbours(_ upper: Line, _ lower: Line, allowingInternalPause: Bool = true) -> Bool {
+        if paddedVerticalGlyphAdvance(upper, lower, allowingInternalPause: allowingInternalPause) { return true }
+        if upper.witnessedVerticalInlineGlyph || lower.witnessedVerticalInlineGlyph {
+            let a = upper.box, b = lower.box
+            let advance = min(a.height / CGFloat(max(1, upper.text.filter { !$0.isWhitespace }.count)),
+                              b.height / CGFloat(max(1, lower.text.filter { !$0.isWhitespace }.count)))
+            let overlap = a.maxY - b.minY
+            if a.minY < b.minY, a.maxY < b.maxY, overlap > 0, overlap <= advance * 0.55,
+               abs(a.midX - b.midX) <= min(a.width, b.width) * 0.18,
+               overlapRatio(a.minX, a.maxX, b.minX, b.maxX) >= 0.8 { return true }
+        }
         let a = upper.box, b = lower.box, font = min(upper.box.width, lower.box.width)
         let overlap = a.maxY - b.minY
         let next = lower.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1593,8 +1938,63 @@ enum NativeOCRTextLineMerger {
             guard neighbours.contains(where: { $0.box.midX < line.box.midX && $0.box.maxX < line.box.maxX }),
                   neighbours.contains(where: { $0.box.midX > line.box.midX && $0.box.minX > line.box.minX }) else { return line }
             return Line(index: line.index, text: line.text, confidence: line.confidence,
-                box: line.box, polygon: line.polygon, erasurePolygons: line.erasurePolygons, orientationHint: .horizontal,
+                box: line.box, polygon: line.polygon, erasurePolygons: line.erasurePolygons, detectorSeedEvidence: line.detectorSeedEvidence, acceptedSource: line.acceptedSource, orientationHint: .horizontal,
                 orientation: .horizontal, singleVerticalColumn: false, sourceTileBounds: line.sourceTileBounds)
+        }
+    }
+
+    /// A DBNet column can arrive as two long pieces and a padded square glyph
+    /// overlapping both. Establish that three-piece ownership before fragment
+    /// merging; otherwise the long pieces join across the glyph and leave its
+    /// text in an overlapping second region. One neighbour alone is insufficient.
+    private static func inheritVerticalInlineGlyphs(_ lines: [Line]) -> [Line] {
+        let spatial = NativeOCRSpatialIndex(boxes: lines.map(\.box))
+        return lines.enumerated().map { index, source in
+            guard isSingleCJKGlyph(source.text), source.orientationHint != .horizontal,
+                  !source.clippedByTile, source.box.height >= source.box.width * 0.65,
+                  source.box.height <= source.box.width * 1.6 else { return source }
+            let box = source.box
+            let nearby = spatial.indices(intersecting: box.insetBy(dx: -box.width * 0.6, dy: -box.height))
+                .filter { $0 != index }
+            // An inline glyph belonging to a horizontal word must not borrow
+            // overlapping detector padding from a vertical column behind it.
+            if source.orientation == .horizontal, nearby.contains(where: { other in
+                let line = lines[other]
+                return line.orientation == .horizontal && compactText(line.text).count >= 2
+                    && abs(line.box.midY - box.midY) <= box.height * 0.3
+                    && separatedIntervalGap(line.box.minX, line.box.maxX, box.minX, box.maxX) <= box.width * 0.5
+                    && mergeCandidate(makeGeometry((index, source)), makeGeometry((other, line)), orientation: .horizontal) != nil
+            }) {
+                var line = source
+                line.hasHorizontalInlineOwner = true
+                return line
+            }
+            let anchors = nearby.filter { other in
+                let line = lines[other], next = line.box
+                let letters = line.text.unicodeScalars.filter(isLetter)
+                // Compatibility normalization expands one printed ellipsis to
+                // three periods. Text comparisons may normalize it; physical
+                // glyph advance must retain the original grapheme count.
+                let count = line.text.filter { !$0.isWhitespace }.count
+                guard line.orientation == .vertical, !line.clippedByTile, count >= 2,
+                      !letters.isEmpty, letters.allSatisfy(isCJK),
+                      abs(next.midX - box.midX) <= min(next.width, box.width) * 0.18,
+                      overlapRatio(next.minX, next.maxX, box.minX, box.maxX) >= 0.8 else { return false }
+                let advance = next.height / CGFloat(count)
+                guard max(advance, box.height) <= min(advance, box.height) * 1.5 else { return false }
+                let overlap = next.minY < box.minY ? next.maxY - box.minY : box.maxY - next.minY
+                return overlap > 0 && overlap <= min(advance, box.height) * 0.55
+                    && ((next.minY < box.minY && next.maxY < box.maxY)
+                        || (next.minY > box.minY && next.maxY > box.maxY))
+            }
+            let upper = anchors.filter { lines[$0].box.minY < box.minY }
+            let lower = anchors.filter { lines[$0].box.minY > box.minY }
+            guard upper.count == 1, lower.count == 1 else { return source }
+            var line = source
+            line.orientation = .vertical
+            line.singleVerticalColumn = true
+            line.witnessedVerticalInlineGlyph = true
+            return line
         }
     }
 
@@ -1614,7 +2014,9 @@ enum NativeOCRTextLineMerger {
         let verticalOrder = component.sorted { $0.line.box.minY < $1.line.box.minY }
         let paddedColumn = orientation == .vertical && ratio <= 2.1 &&
             zip(verticalOrder, verticalOrder.dropFirst()).contains { paddedVerticalGlyphAdvance($0.line, $1.line) }
-        guard ratio <= 1.6 || paddedColumn else { return false }
+        let kanaAttachment = orientation == .horizontal && component.count == 2 &&
+            horizontalKanaParticleAttachment(component[0].line, component[1].line)
+        guard ratio <= 1.6 || paddedColumn || kanaAttachment else { return false }
         let centers = component.map {
             orientation == .vertical ? $0.centerX : $0.centerY
         }
@@ -1682,6 +2084,8 @@ enum NativeOCRTextLineMerger {
             box: box,
             polygon: polygon,
             erasurePolygons: boundedErasurePolygons(ordered.flatMap { $0.line.erasurePolygons }),
+            detectorSeedEvidence: NativeOCRDetectorSeedEvidence.preservingUnion(ordered.map { $0.line.detectorSeedEvidence }),
+            acceptedSource: .union(ordered.map { $0.line.acceptedSource }),
             orientationHint: orientation.source,
             orientation: orientation,
             singleVerticalColumn: orientation == .vertical
@@ -1946,6 +2350,7 @@ enum NativeOCRTextLineMerger {
             box: line.box,
             polygon: line.polygon,
             erasurePolygons: line.erasurePolygons,
+            detectorSeedEvidence: line.detectorSeedEvidence, acceptedSource: line.acceptedSource,
             orientationHint: line.orientationHint,
             orientation: line.orientation,
             singleVerticalColumn: line.singleVerticalColumn
@@ -2027,9 +2432,14 @@ enum NativeOCRTextLineMerger {
             for right in spatialIndex.indices(intersecting: ordered[left].box)
                 where right > left && !suppressed.contains(right) {
                 if canSuppressDuplicate(ordered[right], keeping: ordered[left]) {
+                    retained[retained.count - 1].acceptedSource = retained[retained.count - 1].acceptedSource
+                        .retainingDuplicate(ordered[right].acceptedSource,
+                            exactContentWitness: ordered[right].text.utf8.elementsEqual(ordered[left].text.utf8))
                     suppressed.insert(right)
                     retained[retained.count - 1].erasurePolygons = boundedErasurePolygons(
                         retained[retained.count - 1].erasurePolygons + ordered[right].erasurePolygons)
+                    retained[retained.count - 1].detectorSeedEvidence = NativeOCRDetectorSeedEvidence.preservingUnion([
+                        retained[retained.count - 1].detectorSeedEvidence, ordered[right].detectorSeedEvidence])
                 }
             }
         }
@@ -2037,6 +2447,7 @@ enum NativeOCRTextLineMerger {
     }
 
     private static func canSuppressDuplicate(_ right: Line, keeping left: Line) -> Bool {
+        if containsSameObservedDotRunFragment(right, in:left) { return true }
         if containsTileReadingEdgeFragment(right, in: left) { return true }
         if containsPartialDetection(right, in: left) { return true }
         if duplicatesTilePaddedLine(left, right) { return true }
@@ -2070,6 +2481,35 @@ enum NativeOCRTextLineMerger {
                 || occupiesSameTextLine(left, right)
         }
         return areaRatio >= 0.18 && containedArea >= 0.9
+    }
+
+    /// A second crop of the same complete DB records can retokenize an
+    /// ellipsis. Ownership, not punctuation similarity, certifies the alias.
+    /// Preserve the selected literal source; retain the alternate as provenance.
+    private static func containsSameObservedDotRunFragment(_ fragment:Line,in full:Line)->Bool {
+        guard fragment.orientation == full.orientation,
+              let part=fragment.acceptedSource.membership,let whole=full.acceptedSource.membership,
+              part.table === whole.table,!part.hasUntrackedInputs,!whole.hasUntrackedInputs,
+              let a=fragment.detectorSeedEvidence,let b=full.detectorSeedEvidence,
+              !a.isEmpty,b.count > a.count,a.allSatisfy(b.contains),
+              b.allSatisfy({ $0.isValid && $0.ownershipVersion == 2 &&
+                  $0.sourceWidth == whole.table.width && $0.sourceHeight == whole.table.height }),
+              boxArea(fragment.box) > 0,
+              intersectionArea(full.box,fragment.box)/boxArea(fragment.box) >= 0.9 else { return false }
+        func comparison(_ text:String)->String {
+            var output="",dot=false
+            for character in duplicateComparisonText(text) {
+                if character == "." || character == "…" || character == "⋯" || character == "‥" {
+                    if !dot { output.append(".") }
+                    dot=true
+                } else { output.append(character);dot=false }
+            }
+            return output
+        }
+        let small=comparison(fragment.text),large=comparison(full.text)
+        guard small != duplicateComparisonText(fragment.text) || large != duplicateComparisonText(full.text),
+              small.unicodeScalars.filter({ CharacterSet.letters.contains($0) || CharacterSet.decimalDigits.contains($0) }).count >= 2 else { return false }
+        return textContainsMeaningfulFragment(large,small)
     }
 
     /// A crop can cut a word/column while the full read also touches a tile's
@@ -2305,6 +2745,145 @@ enum NativeOCRTextLineMerger {
         )
     }
 
+    /// A missing closing quote must not join a complete coloured response to
+    /// the next speaker. Colour alone is insufficient: require a terminal,
+    /// independent owned ink bodies and agreement away from detector padding.
+    private static func independentlyColouredQuotedUtterances(
+        _ first: Line, _ second: Line, inkContrast: ((CGRect, CGRect) -> Bool)?
+    ) -> Bool {
+        guard let inkContrast, first.orientation == .vertical, second.orientation == .vertical,
+              first.singleVerticalColumn, second.singleVerticalColumn,
+              first.erasurePolygons.count == 1, second.erasurePolygons.count == 1 else { return false }
+        let right = first.box.midX > second.box.midX ? first : second
+        let left = first.box.midX > second.box.midX ? second : first
+        let previous = right.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let next = left.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard previous.first.map({ "「『“".contains($0) }) == true,
+              previous.last.map({ "?？!！".contains($0) }) == true,
+              !next.contains(where: { "」』”".contains($0) }),
+              previous.unicodeScalars.filter(isCJK).count >= 3,
+              next.unicodeScalars.filter(isCJK).count >= 3 else { return false }
+        let a = boundingBox(right.erasurePolygons[0]), b = boundingBox(left.erasurePolygons[0])
+        let font = min(right.box.width, left.box.width)
+        guard font > 0, right.box.contains(a), left.box.contains(b),
+              a.width >= right.box.width * 0.3, b.width >= left.box.width * 0.3,
+              a.height >= right.box.height * 0.75, b.height >= left.box.height * 0.75,
+              a.minX - b.maxX >= max(a.width, b.width) * 1.5,
+              right.box.minX - left.box.maxX >= font * 0.3,
+              abs(a.minY - b.minY) <= font * 0.3,
+              min(a.maxY, b.maxY) - max(a.minY, b.minY) >= font * 3,
+              inkContrast(right.box, left.box) else { return false }
+        // Leave a little paper around the strokes: a tightly cropped black
+        // body can itself become the colour sampler's dominant background.
+        let rightInk = a.insetBy(dx: -font * 0.2, dy: 0).intersection(right.box)
+        let leftInk = b.insetBy(dx: -font * 0.2, dy: 0).intersection(left.box)
+        guard inkContrast(rightInk, leftInk) else { return false }
+        return true
+    }
+
+    /// Detector padding can make equally printed columns look like a size jump.
+    /// Require both the original owned body and the printed advance to agree;
+    /// otherwise retain the image-contrast veto for distinct lettering surfaces.
+    private static func samePrintedVerticalTypeSize(_ first: Line, _ second: Line) -> Bool {
+        func measurements(_ line: Line) -> (body: CGRect, advance: CGFloat)? {
+            let glyphs = line.text.filter { !$0.isWhitespace }
+            guard line.orientation == .vertical, line.singleVerticalColumn,
+                  glyphs.unicodeScalars.filter(isCJK).count >= 3,
+                  glyphs.unicodeScalars.allSatisfy({ scalar in
+                      // These full-cell marks retain their printed advance.
+                      // ASCII punctuation and decorative symbols provide no
+                      // evidence that detector padding inflated the type size.
+                      isCJK(scalar) || scalar.value == 0x2026
+                          || scalar.value == 0xFF01 || scalar.value == 0xFF1F
+                  }),
+                  line.erasurePolygons.count == 1 else { return nil }
+            let body = boundingBox(line.erasurePolygons[0])
+            guard body.width >= line.box.width * 0.3, body.width <= line.box.width * 0.9,
+                  body.height >= line.box.height * 0.75,
+                  line.box.contains(body) else { return nil }
+            return (body, line.box.height / CGFloat(glyphs.count))
+        }
+        guard let a = measurements(first), let b = measurements(second) else { return false }
+        let advance = min(a.advance, b.advance), width = min(a.body.width, b.body.width)
+        return advance > 0 && width > 0
+            && max(a.advance, b.advance) <= advance * 1.18
+            && max(a.body.width, b.body.width) <= width * 1.25
+            && abs(first.box.minY - second.box.minY) <= advance * 0.25
+            && intervalGap(a.body.minX, a.body.maxX, b.body.minX, b.body.maxX) <= advance * 0.7
+    }
+
+    /// Three independently owned columns can establish a repeated glyph advance
+    /// when detector padding and tiny satellite components inflate one width.
+    /// This only checks a size/colour veto already raised by the padded boxes.
+    private static func witnessedVerticalGlyphAdvance(
+        _ first: Line, _ second: Line, lines: [Line], spatialIndex: NativeOCRSpatialIndex,
+        inkContrast: ((CGRect, CGRect) -> Bool)?,
+        separationCheck: ((CGRect, CGRect, BrowserOCRSourceOrientation) -> Bool)?
+    ) -> Bool {
+        guard let inkContrast else { return false }
+        func metrics(_ line: Line) -> (body: CGRect, width: CGFloat, advance: CGFloat, sample: CGRect)? {
+            let glyphs = line.text.filter { !$0.isWhitespace }
+            guard line.orientation == .vertical, line.singleVerticalColumn, line.polygon.count == 4,
+                  glyphs.unicodeScalars.filter(isCJK).count >= 3,
+                  glyphs.unicodeScalars.allSatisfy({ isCJK($0) || "「」『』！？…".unicodeScalars.contains($0) }),
+                  !line.erasurePolygons.isEmpty, line.erasurePolygons.count <= 4 else { return nil }
+            let bodies = line.erasurePolygons.map(boundingBox)
+            guard let body = bodies.max(by: { $0.width * $0.height < $1.width * $1.height }),
+                  body.width > 0, body.height > 0, line.box.contains(body),
+                  body.height >= line.box.height * 0.75,
+                  body.width >= line.box.width * 0.3, body.width <= line.box.width * 0.9,
+                  body.height >= body.width * 4,
+                  body.width * body.height >= bodies.reduce(CGFloat(0), { $0 + $1.width * $1.height }) * 0.9
+            else { return nil }
+            // An owned component rectangle gives no evidence of glyph shear.
+            // Keep its observed width; only the independently repeated vertical
+            // glyph advance establishes equal type size across these columns.
+            let width = body.width
+            let advance = body.height / CGFloat(glyphs.count)
+            guard advance > 0, width >= advance * 0.5, width <= advance * 0.95 else { return nil }
+            let sample = body.insetBy(dx: -advance * 0.2, dy: 0).intersection(line.box)
+            return (body, width, advance, sample)
+        }
+        guard let a = metrics(first), let b = metrics(second) else { return false }
+        func adjacent(_ a: (body: CGRect, width: CGFloat, advance: CGFloat, sample: CGRect),
+                      _ b: (body: CGRect, width: CGFloat, advance: CGFloat, sample: CGRect)) -> Bool {
+            let advance = min(a.advance, b.advance), width = min(a.width, b.width)
+            let centerGap = abs(a.body.midX - b.body.midX)
+            return max(a.advance, b.advance) <= advance * 1.18
+                && max(a.width, b.width) <= width * 1.5
+                && abs(a.body.minY - b.body.minY) <= advance * 0.4
+                && intervalGap(a.body.minX, a.body.maxX, b.body.minX, b.body.maxX) > 0
+                && intervalGap(a.body.minX, a.body.maxX, b.body.minX, b.body.maxX) <= advance * 0.7
+                && centerGap >= max(a.advance, b.advance) * 0.9 && centerGap <= advance * 1.5
+                && !inkContrast(a.sample, b.sample)
+        }
+        guard adjacent(a, b) else { return false }
+        let pairPitch = abs(a.body.midX - b.body.midX)
+        let search = first.box.union(second.box).insetBy(dx: -max(a.advance, b.advance) * 2, dy: 0)
+        return spatialIndex.indices(intersecting: search).contains { index in
+            let third = lines[index]
+            let thirdText = third.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let independentQuotation = thirdText.first.map { "「『“".contains($0) } == true
+                && thirdText.last.map { "」』”".contains($0) } == true
+            guard third.index != first.index, third.index != second.index, !independentQuotation,
+                  let c = metrics(third),
+                  c.body.midX < min(a.body.midX, b.body.midX) || c.body.midX > max(a.body.midX, b.body.midX)
+            else { return false }
+            let nearerFirst = abs(c.body.midX - a.body.midX) < abs(c.body.midX - b.body.midX)
+            let near = nearerFirst ? a : b
+            let far = nearerFirst ? b : a
+            let nearLine = nearerFirst ? first : second
+            guard separationCheck?(third.box, nearLine.box, .vertical) != true,
+                  !ReaderTranslationBalloonMerger.separatesVerticalUtterances(
+                    third.text, box: third.box, nearLine.text, box: nearLine.box),
+                  !independentlyColouredQuotedUtterances(third, nearLine, inkContrast: inkContrast)
+            else { return false }
+            let pitch = abs(c.body.midX - near.body.midX)
+            return adjacent(c, near) && !inkContrast(c.sample, far.sample)
+                && max(pitch, pairPitch) <= min(pitch, pairPitch) * 1.25
+        }
+    }
+
     // Whole, independently quoted subtitle rows must remain available to source-language filtering.
     // Do not split inline Latin names/units or an ordinary quotation wrapping across rows.
     private static func areIndependentQuotedLanguages(_ a: RegionGeometry, _ b: RegionGeometry) -> Bool {
@@ -2340,10 +2919,11 @@ enum NativeOCRTextLineMerger {
 
     /// Preserve a local gutter beside tightly packed columns. A fixed maximum
     /// gap alone makes a short independent caption join a nearby paragraph.
-    private static func contrastingVerticalGutters(_ lines: [Line]) -> Set<IndexPair> {
-        let ordered = lines.indices.filter { lines[$0].orientation == .vertical && lines[$0].singleVerticalColumn }
-            .sorted { lines[$0].box.midX < lines[$1].box.midX }
-        guard ordered.count >= 3 else { return [] }
+    private static func contrastingVerticalGutters(
+        _ lines: [Line], spatialIndex: NativeOCRSpatialIndex
+    ) -> Set<IndexPair> {
+        let vertical = lines.indices.filter { lines[$0].orientation == .vertical && lines[$0].singleVerticalColumn }
+        guard vertical.count >= 3 else { return [] }
         func gap(_ a: Int, _ b: Int) -> CGFloat? {
             let left = lines[a].box, right = lines[b].box
             let font = min(left.width, right.width)
@@ -2352,12 +2932,38 @@ enum NativeOCRTextLineMerger {
                   overlapRatio(left.minY, left.maxY, right.minY, right.maxY) >= 0.7 else { return nil }
             return (right.minX - left.maxX) / font
         }
+        // A column on another row must not hide a paragraph gutter just because
+        // its x coordinate falls between these columns. Reuse the page index to
+        // select actual row neighbours; no second raster or all-page pair scan.
+        var previous = [Int](repeating: -1, count: lines.count)
+        var next = [Int](repeating: -1, count: lines.count)
+        for index in vertical {
+            let box = lines[index].box
+            // Join candidates extend by at most one glyph; the wider search also
+            // includes the tightly spaced witness beyond either endpoint.
+            let search = box.insetBy(dx: -box.width * 4, dy: 0)
+            for other in spatialIndex.indices(intersecting: search)
+                where other != index && lines[other].orientation == .vertical && lines[other].singleVerticalColumn {
+                let x = lines[other].box.midX
+                guard x != box.midX else { continue }
+                if x < box.midX, gap(other, index) != nil {
+                    if previous[index] < 0 || x > lines[previous[index]].box.midX {
+                        previous[index] = other
+                    }
+                } else if x > box.midX, gap(index, other) != nil {
+                    if next[index] < 0 || x < lines[next[index]].box.midX {
+                        next[index] = other
+                    }
+                }
+            }
+        }
         var result: Set<IndexPair> = []
-        for position in 0..<(ordered.count - 1) {
-            let a = ordered[position], b = ordered[position + 1]
-            guard let wide = gap(a, b), wide >= 0.3 else { continue }
-            let before = position > 0 ? gap(ordered[position - 1], a) : nil
-            let after = position + 2 < ordered.count ? gap(b, ordered[position + 2]) : nil
+        for a in vertical {
+            let b = next[a]
+            guard b >= 0, previous[b] == a,
+                  let wide = gap(a, b), wide >= 0.3 else { continue }
+            let before = previous[a] >= 0 ? gap(previous[a], a) : nil
+            let after = next[b] >= 0 ? gap(b, next[b]) : nil
             if [before, after].compactMap({ $0 }).contains(where: { $0 <= wide * 0.35 }) {
                 result.insert(IndexPair(a, b))
             }
@@ -2415,9 +3021,16 @@ enum NativeOCRTextLineMerger {
         if isMangaVerticalContinuation(left, right) { return true }
         let smallerFont = min(left.fontSize, right.fontSize)
         let largerFont = max(left.fontSize, right.fontSize)
+        // Frozen experimental caption gap. Default off until heldout final-image
+        // evidence is available. This changes geometry only, never ownership vetoes.
+        let localRegionGap: CGFloat = ProcessInfo.processInfo.environment["AIDOKU_CJK_GAP05"] == "1"
+            && left.orientation == .horizontal
+            && left.line.text.unicodeScalars.filter(isCJK).count >= 3
+            && right.line.text.unicodeScalars.filter(isCJK).count >= 3
+            ? 0.5 : regionGapInFontSizes
         guard largerFont / smallerFont <= fontSizeRatio,
               boxDistance(left.box, right.box)
-                < smallerFont * regionGapInFontSizes
+                < smallerFont * localRegionGap
         else { return false }
 
         let primaryCenterDelta = left.orientation == .horizontal
@@ -2457,7 +3070,7 @@ enum NativeOCRTextLineMerger {
                 left.box.minX, left.box.maxX,
                 right.box.minX, right.box.maxX
             )
-        return primaryGap < smallerFont * regionGapInFontSizes
+        return primaryGap < smallerFont * localRegionGap
             && minimumRegionAlignmentDelta(left, right)
                 <= smallerFont * regionAlignmentInFontSizes
     }
@@ -2542,12 +3155,34 @@ enum NativeOCRTextLineMerger {
     /// boxes alone are ambiguous; require a third, normally spaced column to
     /// establish the local glyph pitch before joining the wide edge column.
     private static func witnessedPaddedVerticalColumns(
-        _ a: Line, _ b: Line, lines: [Line], spatialIndex: NativeOCRSpatialIndex
+        _ a: Line, _ b: Line, lines: [Line], spatialIndex: NativeOCRSpatialIndex,
+        separationCheck: ((CGRect, CGRect, BrowserOCRSourceOrientation) -> Bool)?,
+        inkContrast: ((CGRect, CGRect) -> Bool)?
     ) -> Bool {
+        func usesFullCellPunctuation(_ line: Line) -> Bool {
+            line.text.unicodeScalars.contains { "…：！？".unicodeScalars.contains($0) }
+        }
         func advance(_ line: Line) -> CGFloat? {
             let letters = line.text.unicodeScalars
-            let japanese = letters.allSatisfy(isCJK) ||
+            let legacyJapanese = letters.allSatisfy(isCJK) ||
                 (letters.first.map { (0x41...0x5A).contains($0.value) } == true && letters.dropFirst().allSatisfy(isCJK))
+            let realLetters = letters.reduce(0) { count, scalar in
+                count + (((0x3041...0x3096).contains(scalar.value) || (0x30A1...0x30FA).contains(scalar.value)
+                    || (0x3400...0x9FFF).contains(scalar.value)) ? 1 : 0)
+            }
+            // Only full-cell CJK punctuation shares the existing scalar advance.
+            // ASCII dots/colon/question marks cannot borrow this pitch estimate.
+            let punctuatedJapanese = realLetters >= 3 && letters.count <= realLetters * 2
+                && letters.allSatisfy { isCJK($0) || "…：！？".unicodeScalars.contains($0) }
+            let japanese = legacyJapanese || punctuatedJapanese
+            if !legacyJapanese {
+                // Presence and vertical coverage, not independent glyph width:
+                // detector components may legitimately overlap nearby columns.
+                guard line.erasurePolygons.contains(where: {
+                    let body = boundingBox($0).intersection(line.box)
+                    return !body.isNull && body.height >= line.box.height * 0.7 && body.width >= line.box.width * 0.2
+                }) else { return nil }
+            }
             guard line.orientation == .vertical, line.singleVerticalColumn,
                   letters.count >= 3, line.box.height >= line.box.width * 2.5,
                   japanese
@@ -2575,9 +3210,22 @@ enum NativeOCRTextLineMerger {
                   witness.box.width <= pitch * 1.85 else { return false }
             let distance = witness.box.midX < left.box.midX
                 ? left.box.midX - witness.box.midX : witness.box.midX - right.box.midX
-            return distance >= pitch * 0.75 && distance <= pitch * 1.3
-                && abs(witness.box.minY - a.box.minY) <= pitch * 0.3
-                && overlapRatio(witness.box.minY, witness.box.maxY, a.box.minY, a.box.maxY) >= 0.85
+            guard distance >= pitch * 0.75 && distance <= pitch * 1.3,
+                  abs(witness.box.minY - a.box.minY) <= pitch * 0.3,
+                  overlapRatio(witness.box.minY, witness.box.maxY, a.box.minY, a.box.maxY) >= 0.85 else { return false }
+            if usesFullCellPunctuation(a) || usesFullCellPunctuation(b) || usesFullCellPunctuation(witness) {
+                let near = witness.box.midX < left.box.midX ? left : right
+                let text = witness.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                let completeQuote = text.first.map { "「『“".contains($0) } == true
+                    && text.last.map { "」』”".contains($0) } == true
+                guard !completeQuote,
+                      separationCheck?(near.box, witness.box, .vertical) != true,
+                      inkContrast?(near.box, witness.box) != true,
+                      !ReaderTranslationBalloonMerger.separatesVerticalUtterances(
+                        near.text, box: near.box, witness.text, box: witness.box)
+                else { return false }
+            }
+            return true
         }
     }
 
@@ -2726,7 +3374,8 @@ enum NativeOCRTextLineMerger {
     private static func splitSuspiciousRegion(
         _ indices: [Int],
         geometries: [RegionGeometry],
-        admittedPairs: Set<IndexPair>
+        admittedPairs: Set<IndexPair>,
+        spacedCaptions: Set<IndexPair>
     ) -> [[Int]] {
         if indices.count > maximumLinesPerRegion {
             return indices.map { [$0] }
@@ -2735,7 +3384,7 @@ enum NativeOCRTextLineMerger {
         if indices.count == 2 {
             return admittedPairs.contains(IndexPair(indices[0], indices[1])) ? [indices] : indices.map { [$0] }
         }
-        if regionIsCohesive(indices, geometries: geometries, admittedPairs: admittedPairs) {
+        if regionIsCohesive(indices, geometries: geometries, admittedPairs: admittedPairs, spacedCaptions: spacedCaptions) {
             return [indices]
         }
 
@@ -2778,14 +3427,15 @@ enum NativeOCRTextLineMerger {
             }
         }
         return componentsOf(indices, set: splitSet).flatMap {
-            splitSuspiciousRegion($0, geometries: geometries, admittedPairs: admittedPairs)
+            splitSuspiciousRegion($0, geometries: geometries, admittedPairs: admittedPairs, spacedCaptions: spacedCaptions)
         }
     }
 
     private static func regionIsCohesive(
         _ indices: [Int],
         geometries: [RegionGeometry],
-        admittedPairs: Set<IndexPair>
+        admittedPairs: Set<IndexPair>,
+        spacedCaptions: Set<IndexPair>
     ) -> Bool {
         let members = indices.map { geometries[$0] }
         guard let orientation = members.first?.orientation,
@@ -2830,6 +3480,9 @@ enum NativeOCRTextLineMerger {
             >= regionComponentCrossAxisOverlapRatio
         else { return false }
 
+        if (1..<ordered.count).allSatisfy({ spacedCaptions.contains(IndexPair(ordered[$0 - 1].index, ordered[$0].index)) }) {
+            return true
+        }
         let bounds = unionBoxes(members.map(\.box))
         let coveredArea = members.reduce(0) { $0 + boxArea($1.box) }
         return coveredArea / max(1, boxArea(bounds))
@@ -2900,6 +3553,8 @@ enum NativeOCRTextLineMerger {
             box: box,
             polygon: mergedSourcePolygon(ordered.map(\.line), fallback: box),
             erasurePolygons: boundedErasurePolygons(ordered.flatMap { $0.line.erasurePolygons }),
+            detectorSeedEvidence: NativeOCRDetectorSeedEvidence.preservingUnion(ordered.map { $0.line.detectorSeedEvidence }),
+            acceptedSource: .union(ordered.map { $0.line.acceptedSource }),
             orientationHint: orientation.source,
             orientation: orientation,
             singleVerticalColumn: orientation == .vertical && oneVerticalColumn

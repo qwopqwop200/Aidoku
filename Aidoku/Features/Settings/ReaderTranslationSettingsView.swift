@@ -9,7 +9,6 @@ struct ReaderTranslationSettingsView: View {
     @State private var clearingCache = false
     @StateObject private var connectionTest = ReaderTranslationConnectionTest()
     @State private var pendingChange: Task<Void, Never>?
-    @State private var imageSupportStatus: TranslationImageSupport.Status = .unknown
 
     private let languages: [(String, String)] = [
         ("ko", "한국어"), ("en", "English"), ("ja", "日本語"), ("zh-Hans", "简体中文"),
@@ -24,7 +23,6 @@ struct ReaderTranslationSettingsView: View {
             translationTargetsSection
             providerSection
             translationOptionsSection
-            filteringSection
             overlaySection
             ocrSection
             ocrAdvancedSection
@@ -33,17 +31,13 @@ struct ReaderTranslationSettingsView: View {
         }
         .navigationTitle(NSLocalizedString("TRANSLATION_TITLE"))
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { refreshCredential(); refreshImageSupport() }
-        .onReceive(NotificationCenter.default.publisher(for: TranslationImageSupport.changed)) { _ in
-            refreshImageSupport()
-        }
+        .onAppear { refreshCredential() }
         .task { cachedBytes = (try? await ReaderTranslationDiskCache.shared.statistics().bytes) ?? 0 }
         .onDisappear {
             publishPendingChange()
             connectionTest.reset()
         }
-        .onChange(of: settings.configuration) { _ in connectionTest.reset(); refreshImageSupport() }
-        .onChange(of: settings.includePageImage) { _ in connectionTest.reset() }
+        .onChange(of: settings.configuration) { _ in connectionTest.reset() }
         .onChange(of: settings.sourceLanguage) { _ in connectionTest.reset() }
         .onChange(of: settings.targetLanguage) { _ in connectionTest.reset() }
         .onChange(of: apiKey) { _ in connectionTest.reset() }
@@ -56,6 +50,10 @@ struct ReaderTranslationSettingsView: View {
         }
     }
 
+    private var allOCRSourceLanguagesTitle: String {
+        NSLocalizedString(settings.modelTier == .manga ? "TRANSLATION_OCR_SUPPORTED_LANGUAGES" : "TRANSLATION_FILTER_ALL")
+    }
+
     private var languageSection: some View {
         Section(NSLocalizedString("TRANSLATION_LANGUAGE")) {
             Picker(NSLocalizedString("TRANSLATION_TARGET"), selection: persistedSettings.targetLanguage) {
@@ -63,22 +61,25 @@ struct ReaderTranslationSettingsView: View {
             }
             Picker(NSLocalizedString("TRANSLATION_PAGE_SOURCE"), selection: persistedSettings.sourceLanguage) {
                 Text(NSLocalizedString("TRANSLATION_AUTO")).tag("auto")
-                ForEach(ReaderTranslationLanguageOptions.codes, id: \.self) { code in
+                ForEach(ReaderTranslationLanguageOptions.codes.filter { settings.supportedOCRSourceLanguageCodes.contains($0) }, id: \.self) { code in
                     Text(ReaderTranslationLanguageOptions.name(code)).tag(code == "zh" ? "zh-Hans" : code)
                 }
                 // Preserve a legacy source choice until the user changes it.
-                if settings.sourceLanguage != "auto", !AutomaticSourceLanguageDetector.supportedLanguageCodes
+                if settings.modelTier != .manga, settings.sourceLanguage != "auto", !AutomaticSourceLanguageDetector.supportedLanguageCodes
                     .contains(ReaderTranslationLanguageFilter.canonical(settings.sourceLanguage)) {
                     Text(ReaderTranslationLanguageOptions.name(settings.sourceLanguage)).tag(settings.sourceLanguage)
                 }
             }
             if settings.sourceLanguage == "auto" {
                 NavigationLink {
-                    ReaderTranslationLanguageFilterView(selection: persistedSettings.translationSourceLanguages)
+                    ReaderTranslationLanguageFilterView(selection: persistedSettings.translationSourceLanguages,
+                        help: NSLocalizedString(settings.modelTier == .manga ? "TRANSLATION_OCR_MANGA_HELP" : "TRANSLATION_FILTER_HELP"),
+                        allowedCodes: settings.supportedOCRSourceLanguageCodes,
+                        allTitle: NSLocalizedString(settings.modelTier == .manga ? "TRANSLATION_OCR_SUPPORTED_LANGUAGES" : "TRANSLATION_FILTER_ALL"))
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(NSLocalizedString("TRANSLATION_SOURCE_FILTER"))
-                        Text(settings.translationSourceLanguages.isEmpty ? NSLocalizedString("TRANSLATION_FILTER_ALL") :
+                        Text(settings.translationSourceLanguages.isEmpty ? allOCRSourceLanguagesTitle :
                                 settings.translationSourceLanguages.map(ReaderTranslationLanguageOptions.name).joined(separator: ", "))
                             .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     }
@@ -161,11 +162,15 @@ struct ReaderTranslationSettingsView: View {
                 Text(NSLocalizedString("TRANSLATION_OCR_MEDIUM")).tag(IPhoneOCRModelTier.medium)
                 Text(NSLocalizedString("TRANSLATION_OCR_SMALL")).tag(IPhoneOCRModelTier.small)
                 Text(NSLocalizedString("TRANSLATION_OCR_TINY")).tag(IPhoneOCRModelTier.tiny)
+                Text(NSLocalizedString("TRANSLATION_OCR_MANGA")).tag(IPhoneOCRModelTier.manga)
             }
         } header: {
             Text("OCR")
         } footer: {
             Text(NSLocalizedString("TRANSLATION_OCR_HELP"))
+            if settings.modelTier == .manga {
+                Text(NSLocalizedString("TRANSLATION_OCR_MANGA_HELP"))
+            }
         }
     }
 
@@ -220,34 +225,8 @@ struct ReaderTranslationSettingsView: View {
             Picker(NSLocalizedString("TRANSLATION_CONCURRENCY"), selection: persistedSettings.maximumConcurrentRequests) {
                 ForEach([1, 2, 4, 8, 16], id: \.self) { Text(String($0)).tag($0) }
             }
-            Toggle(NSLocalizedString("TRANSLATION_INCLUDE_IMAGE"), isOn: persistedSettings.includePageImage)
-                .accessibilityIdentifier("translation.includePageImage")
-            imageSupportNotice
         } header: {
             Text(NSLocalizedString("TRANSLATION_ADVANCED"))
-        } footer: {
-            Text(NSLocalizedString("TRANSLATION_INCLUDE_IMAGE_HELP"))
-        }
-    }
-
-    private var filteringSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 6) {
-                Toggle(NSLocalizedString("TRANSLATION_LLM_SFX"), isOn: persistedSettings.filterSFXWithLLM)
-                    .accessibilityIdentifier("translation.filterSFXWithLLM")
-                Text(NSLocalizedString("TRANSLATION_LLM_SFX_HELP"))
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                Toggle(NSLocalizedString("TRANSLATION_LLM_BACKGROUND"), isOn: persistedSettings.filterBackgroundWithLLM)
-                    .accessibilityIdentifier("translation.filterBackgroundWithLLM")
-                Text(NSLocalizedString("TRANSLATION_LLM_BACKGROUND_HELP"))
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
-        } header: {
-            Text(NSLocalizedString("TRANSLATION_FILTERING"))
-        } footer: {
-            Text(NSLocalizedString("TRANSLATION_LLM_SFX_NO_IMAGE"))
         }
     }
 
@@ -415,7 +394,6 @@ struct ReaderTranslationSettingsView: View {
                 Label(NSLocalizedString("TRANSLATION_TEST_SUCCESS"), systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
                 Text(translated).font(.footnote).textSelection(.enabled)
-                imageSupportNotice
             }
             .accessibilityIdentifier("translation.test.success")
         case .failure(let error):
@@ -430,19 +408,6 @@ struct ReaderTranslationSettingsView: View {
         }
         Text(NSLocalizedString("TRANSLATION_TEST_HELP"))
             .font(.footnote).foregroundStyle(.secondary)
-    }
-
-    @ViewBuilder
-    private var imageSupportNotice: some View {
-        if imageSupportStatus == .unsupported {
-            Label(NSLocalizedString("TRANSLATION_IMAGE_UNSUPPORTED"), systemImage: "photo.badge.exclamationmark")
-                .font(.footnote).foregroundStyle(.secondary)
-                .accessibilityIdentifier("translation.imageUnsupported")
-        }
-    }
-
-    private func refreshImageSupport() {
-        imageSupportStatus = TranslationImageSupport.shared.status(for: settings.configuration)
     }
 
     private func testConnection() {
@@ -465,25 +430,9 @@ struct ReaderTranslationSettingsView: View {
 
     private var overlaySection: some View {
         Section {
-            Picker(NSLocalizedString("APPEARANCE"), selection: persistedSettings.overlay.appearance) {
-                Text(NSLocalizedString("TRANSLATION_SOURCE_COLORS")).tag(IPhoneOverlayAppearance.source)
-                Text(NSLocalizedString("TRANSLATION_WHITE")).tag(IPhoneOverlayAppearance.white)
-                Text(NSLocalizedString("TRANSLATION_DARK")).tag(IPhoneOverlayAppearance.dark)
-            }
-            .accessibilityIdentifier("translation.appearance")
-            // Source replacement is always opaque; the preference applies to plain plates.
-            if settings.overlay.appearance != .source {
-                HStack {
-                    Text(NSLocalizedString("TRANSLATION_OPACITY"))
-                    Spacer()
-                    Text(settings.overlay.opacity, format: .percent.precision(.fractionLength(0))).foregroundStyle(.secondary)
-                }
-                Slider(value: persistedSettings.overlay.opacity, in: 0.2...1, step: 0.01)
-            }
+            Text(NSLocalizedString("TRANSLATION_OVERLAY_HELP"))
         } header: {
             Text(NSLocalizedString("TRANSLATION_OVERLAY"))
-        } footer: {
-            Text(NSLocalizedString("TRANSLATION_OVERLAY_HELP"))
         }
     }
 

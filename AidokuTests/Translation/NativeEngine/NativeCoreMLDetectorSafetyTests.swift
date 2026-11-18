@@ -4,6 +4,97 @@ import Foundation
 import XCTest
 @testable import Aidoku
 final class NativeCoreMLDetectorSafetyTests: XCTestCase {
+    func testAlternateCellEnvelopeUsesSeparateAxisPitchAndPreservesParentOrder() throws {
+        let original = alternateTestRectangle(x: 20, y: 40, width: 10, height: 60)
+        let polygon = try XCTUnwrap(NativeCoreMLDBPostprocessor.alternateCellEnvelopes(
+            polygons: [original], sourceWidth: 200, sourceHeight: 400, mapWidth: 100, mapHeight: 100
+        )[0])
+        XCTAssertEqual(polygon, alternateTestRectangle(x: 17, y: 34, width: 16, height: 72))
+        let reversed = try XCTUnwrap(NativeCoreMLDBPostprocessor.alternateCellEnvelopes(
+            polygons: [Array(original.reversed())], sourceWidth: 200, sourceHeight: 400, mapWidth: 100, mapHeight: 100
+        )[0])
+        XCTAssertEqual(reversed, Array(polygon.reversed()))
+    }
+
+    func testAlternateCellEnvelopeDeclinesPeerAndPageBoundaryFootprints() throws {
+        let first = alternateTestRectangle(x: 20, y: 20, width: 10, height: 40)
+        let neighbor = alternateTestRectangle(x: 32, y: 20, width: 12, height: 40)
+        let intersectsShellOnly = alternateTestRectangle(x: 34, y: 20, width: 12, height: 40)
+        let edge = alternateTestRectangle(x: 1, y: 20, width: 10, height: 40)
+        func alternateIndices(_ polygons: [[CGPoint]]) throws -> Set<Int> {
+            Set(try NativeCoreMLDBPostprocessor.alternateCellEnvelopes(
+                polygons: polygons, sourceWidth: 200, sourceHeight: 100, mapWidth: 100, mapHeight: 100
+            ).keys)
+        }
+        XCTAssertEqual(try alternateIndices([first, neighbor, edge]), [])
+        XCTAssertEqual(try alternateIndices([first, intersectsShellOnly, edge]), [0])
+    }
+
+    func testAlternateCellEnvelopeCapsDistinctParentsAndPropagatesCancellation() throws {
+        let originals = (0..<10).map { index in
+            alternateTestRectangle(x: CGFloat(10 + 22 * index), y: 10, width: 10, height: 40)
+        }
+        let alternates = try NativeCoreMLDBPostprocessor.alternateCellEnvelopes(
+            polygons: originals, sourceWidth: 250, sourceHeight: 100, mapWidth: 250, mapHeight: 100)
+        XCTAssertEqual(alternates.keys.sorted(), Array(0..<NativeCoreMLDBPostprocessor.maximumAlternateCellEnvelopes))
+        XCTAssertThrowsError(try NativeCoreMLDBPostprocessor.alternateCellEnvelopes(
+            polygons: originals, sourceWidth: 250, sourceHeight: 100, mapWidth: 250, mapHeight: 100,
+            cancellationCheck: { throw CancellationError() })) { error in
+            XCTAssertTrue(error is CancellationError)
+        }
+    }
+
+    private func alternateTestRectangle(x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) -> [CGPoint] {
+        [CGPoint(x: x, y: y), CGPoint(x: x + width, y: y),
+         CGPoint(x: x + width, y: y + height), CGPoint(x: x, y: y + height)]
+    }
+
+    @available(iOS 18.0, *)
+    func testRFDBPrimaryPlanAddsIndependentProbabilityColumnOnlyInFirstPass() throws {
+        let side = 160
+        let peer = NativeCoreMLDetectionBox(polygon: [CGPoint(x: 25, y: 10), CGPoint(x: 39, y: 10),
+            CGPoint(x: 39, y: 140), CGPoint(x: 25, y: 140)], score: 0.8)
+        let scope = CGRect(x: 20, y: 10, width: 60, height: 130)
+        let text = NativeRFDETRLayoutPrimitive(queryID: 1, semanticClass: .text, confidence: 0.9,
+            normalizedBounds: .zero, sourceBounds: scope, mask: nil)
+        let layout = NativeRFDETRLayoutResult(imageIdentity: "synthetic", sourceWidth: side, sourceHeight: side,
+            primitives: [text], maskQueriesOmittedByBudget: 0, preprocessingMilliseconds: 0,
+            modelMilliseconds: 0, decodeMilliseconds: 0, computeUnits: "synthetic", fromCache: false)
+        var values = [Float](repeating: 0, count: side * side)
+        for y in 15..<135 {
+            for x in 27..<37 { values[y * side + x] = 0.9 } // Already owned by DB.
+            for x in 65..<75 { values[y * side + x] = 0.9 } // Independent column.
+        }
+        let probability = NativeMainEnsembleOCRProbability.Sample(sourceWidth: side, sourceHeight: side,
+            resizedWidth: side, resizedHeight: side, region: CGRect(x: 0, y: 0, width: side, height: side),
+            width: side, height: side, values: values)
+        let plan = NativeOCRRFPrimaryEnsemble.plan(boxes: [peer], layout: layout,
+            width: side, height: side, probability: probability)
+        XCTAssertEqual(plan.boxes.count, 2)
+        XCTAssertTrue(plan.supported.contains(1))
+        let recovered = try XCTUnwrap(plan.boxes.last)
+        let recoveredBounds = recovered.polygon.reduce(CGRect.null) {
+            $0.union(CGRect(origin: $1, size: .zero))
+        }
+        XCTAssertTrue(recoveredBounds.contains(CGPoint(x: 70, y: 80)))
+        XCTAssertFalse(recoveredBounds.intersects(CGRect(x: 25, y: 10, width: 14, height: 130)))
+        let partial = NativeMainEnsembleOCRProbability.Sample(sourceWidth: side, sourceHeight: side,
+            resizedWidth: side, resizedHeight: side, region: CGRect(x: 0, y: 10, width: side, height: side - 10),
+            width: side, height: side, values: values)
+        XCTAssertEqual(NativeOCRRFPrimaryEnsemble.plan(boxes: [peer], layout: layout,
+            width: side, height: side, probability: partial).boxes.count, 1)
+        let mark = NativeCoreMLRecognizedRegion(sourceIndex: 0, polygon: peer.polygon,
+            text: "?", confidence: 0.7, tokenObservations: [])
+        XCTAssertTrue(NativeOCRRFPrimaryEnsemble.admits(mark, threshold: 0.75,
+            supported: [0], stronglySupported: [], merged: [], dbScore: 0.8))
+        XCTAssertFalse(NativeOCRRFPrimaryEnsemble.admits(mark, threshold: 0.75,
+            supported: [], stronglySupported: [], merged: [], dbScore: 0.8))
+        let weakMark = NativeCoreMLRecognizedRegion(sourceIndex: 0, polygon: peer.polygon,
+            text: ".", confidence: 0.46, tokenObservations: [])
+        XCTAssertFalse(NativeOCRRFPrimaryEnsemble.admits(weakMark, threshold: 0.75,
+            supported: [0], stronglySupported: [], merged: [], dbScore: 0.8))
+    }
+
     func testDetectorOutputRejectsMatchingTensorWithInvalidRank() async throws {
         // Matching shapes are insufficient: decoding indexes the spatial axes
         // of a four-dimensional model output before materializing its values.
@@ -18,14 +109,15 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
         }
     }
 
-    func testDefaultDetectorCanvasUses1184PixelLimitAndRetainsSmallerSources() throws {
+    func testDefaultDetectorCanvasUses1120PixelLimitAndRetainsSmallerSources() throws {
         let cases: [(width: Int, height: Int, expectedWidth: Int, expectedHeight: Int)] = [
-            (2_560, 1_920, 1_184, 896),
-            (1_920, 2_560, 896, 1_184),
-            (2_560, 2_560, 1_184, 1_184),
+            (2_560, 1_920, 1_120, 864),
+            (1_920, 2_560, 864, 1_120),
+            (2_560, 2_560, 1_120, 1_120),
             (640, 960, 640, 960),
-            (1, 10_000, 32, 1_184),
+            (1, 10_000, 32, 1_120),
         ]
+        XCTAssertEqual(IPhoneOCRSettings.defaultDetectorMaximumSide(for: .medium), 1_184)
         for sample in cases {
             let canvas = try XCTUnwrap(NativeCoreMLDetectionCanvas.exact(
                 sourceWidth: sample.width, sourceHeight: sample.height
@@ -191,9 +283,10 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
         fill(&pixels, mapWidth: 64, rectangle: CGRect(x: 13, y: 40, width: 8, height: 1), value: 0.95)
         let map = NativeCoreMLDetectionMap(width: 64, height: 100, values: pixels)
         for minimum in [3.0, 20.0] {
-            let settings = ReaderOCRConfiguration(detectorMinimumBoxSide: minimum)
+            // Weak bridge splitting is specific to the Medium detector.
+            let settings = ReaderOCRConfiguration(modelTier: .medium, detectorMinimumBoxSide: minimum)
             let result = try NativeCoreMLDBPostprocessor.decode(map: map, sourceWidth: 64, sourceHeight: 100,
-                                                               configuration: settings.detectorPostprocessConfiguration,
+                                                               configuration: settings.detectorPostprocessConfiguration.withRecoveryBoxThreshold(nil),
                                                                allowsWeakBridgeSplit: true)
             XCTAssertEqual(result.boxes.count, minimum == 3 ? 2 : 0)
         }
@@ -206,22 +299,25 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
             try NativeCoreMLDBPostprocessor.decode(map: map, sourceWidth: 32, sourceHeight: 32,
                                                   configuration: settings.detectorPostprocessConfiguration)
         }
-        var settings = ReaderOCRConfiguration()
+        var settings = ReaderOCRConfiguration(modelTier: .medium, confidenceThreshold: 0.73)
         let rejectedRegion = try decode(settings)
         XCTAssertEqual(rejectedRegion.candidateComponents, 1)
         // Below the box threshold a component survives only as a weak box for adjacent-line recovery;
         // the pipeline never reads it in the primary pass.
+        XCTAssertEqual(rejectedRegion.boxes.count, 1)
         XCTAssertTrue(rejectedRegion.boxes.allSatisfy { $0.score < settings.detectorPostprocessConfiguration.boxThreshold })
         XCTAssertTrue(try NativeCoreMLDBPostprocessor.decode(
             map: map, sourceWidth: 32, sourceHeight: 32,
             configuration: settings.detectorPostprocessConfiguration.withRecoveryBoxThreshold(nil)).boxes.isEmpty)
         settings.detectorConfidenceThreshold = 0.45
-        XCTAssertEqual(try decode(settings).boxes.count, 1)
+        let accepted = try decode(settings)
+        XCTAssertEqual(accepted.boxes.count, 1)
+        XCTAssertTrue(accepted.boxes.allSatisfy { $0.score >= settings.detectorPostprocessConfiguration.boxThreshold })
         settings.detectorPixelThreshold = 0.55
         let rejectedPixels = try decode(settings)
         XCTAssertEqual(rejectedPixels.candidateComponents, 0)
         XCTAssertTrue(rejectedPixels.boxes.isEmpty)
-        XCTAssertEqual(settings.confidenceThreshold, 0.75)
+        XCTAssertEqual(settings.confidenceThreshold, 0.73)
     }
 
     func testAdjacentLineRecoveryAdmitsOnlySiblingLinesOfAcceptedCaptions() {
@@ -298,6 +394,25 @@ final class NativeCoreMLDetectorSafetyTests: XCTestCase {
         }.isEmpty)
         XCTAssertTrue(NativeOCRAdjacentLineRecovery.admits("死んじゃうよ!!"))
         XCTAssertFalse(NativeOCRAdjacentLineRecovery.admits("岛"))
+    }
+
+    func testShortPunctuatedSiblingRequiresTwoTextualColumnsAndGeometry() {
+        func column(_ x: CGFloat) -> [CGPoint] {
+            [CGPoint(x: x, y: 560), CGPoint(x: x + 24, y: 560),
+             CGPoint(x: x + 24, y: 660), CGPoint(x: x, y: 660)]
+        }
+        let anchor = column(400)
+        let adjacent = column(427)
+        XCTAssertTrue(NativeOCRAdjacentLineRecovery.shortPunctuatedSibling("だめだ……"))
+        XCTAssertTrue(NativeOCRAdjacentLineRecovery.shortPunctuatedSibling("あっ..."))
+        XCTAssertTrue(NativeOCRAdjacentLineRecovery.completes(
+            "あっ...", polygon: adjacent, anchor: "だめだ……", anchorPolygon: anchor))
+        XCTAssertFalse(NativeOCRAdjacentLineRecovery.completes(
+            "あっ...", polygon: column(500), anchor: "だめだ……", anchorPolygon: anchor))
+        XCTAssertFalse(NativeOCRAdjacentLineRecovery.shortPunctuatedSibling("ずっ"))
+        XCTAssertFalse(NativeOCRAdjacentLineRecovery.shortPunctuatedSibling("mく..."))
+        XCTAssertFalse(NativeOCRAdjacentLineRecovery.shortPunctuatedSibling("同激が弱い。分な量が"))
+        XCTAssertFalse(NativeOCRAdjacentLineRecovery.shortPunctuatedSibling("..."))
     }
 
     func testLatinStackRecoveryCompletesCapitalLetteringOnly() {

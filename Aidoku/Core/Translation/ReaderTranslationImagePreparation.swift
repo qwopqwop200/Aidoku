@@ -2,6 +2,17 @@ import UIKit
 
 /// Reader direction is supplied by the reader, never inferred from OCR language.
 enum ReaderTranslationImagePreparation {
+    /// Source geometry and DB evidence are expressed in the displayed, upright raster.
+    /// Ordinary CG-backed images retain object identity and incur no redraw.
+    nonisolated static func uprightSourceImage(_ image: UIImage) -> UIImage {
+        guard image.imageOrientation != .up || image.cgImage == nil else { return image }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = image.scale
+        return UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
+            image.draw(at: .zero)
+        }
+    }
+
     static func needsPanelOrder(_ regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings) -> Bool {
         guard settings.rightToLeftPanelOrder, regions.count > 1 else { return false }
         guard regions.allSatisfy({ $0.translationOrderVersion == ReaderTranslationPanelOrder.cacheVersion }) else { return true }
@@ -35,16 +46,23 @@ enum ReaderTranslationImagePreparation {
         return data
     }
 
+    static func preparedPage(_ image: UIImage) throws -> RemoteTranslationPageImage {
+        try preparedPage(image, evidence: nil)
+    }
+
+    static func preparedPage(_ image: UIImage, evidence: ReaderTranslationPreparedEvidence?) throws -> RemoteTranslationPageImage {
+        let jpeg = try translationJPEG(image)
+        var identity: String?
+        if #available(iOS 18.0, *), image.imageOrientation == .up, let pixels = image.cgImage {
+            identity = evidence?.sourceIdentity(for: pixels) ?? (try? NativeRFDETRSourceImage.decode(pixels).identity)
+        }
+        return .init(jpeg: jpeg, sourceIdentity: identity)
+    }
+
     static func apply(_ regions: [ReaderTranslationRegion], image: UIImage,
                       settings: ReaderTranslationSettings) -> [ReaderTranslationRegion] {
         guard needsPanelOrder(regions, settings: settings) else { return regions }
-        let pixels: CGImage?
-        if image.imageOrientation == .up { pixels = image.cgImage } else {
-            let format = UIGraphicsImageRendererFormat()
-            format.scale = image.scale
-            pixels = UIGraphicsImageRenderer(size: image.size, format: format).image { _ in image.draw(at: .zero) }.cgImage
-        }
-        guard let pixels else { return regions }
+        guard let pixels = uprightSourceImage(image).cgImage else { return regions }
         let ranks = ReaderTranslationPanelOrder.rightToLeftRanks(image: pixels,
             inputs: regions.map { .init(rect: $0.rect, isVertical: $0.sourceOrientation == .vertical) })
         return zip(regions, ranks).map { region, rank in

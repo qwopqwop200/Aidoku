@@ -60,6 +60,42 @@ struct ReaderTranslationCachePolicyAuditTests {
     }
 
     @Test
+    func pageImageSettingPreservesEntriesAndFencesPendingWrites() async throws {
+        let name = "ReaderTranslationCachePolicyAuditTests-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: name)!
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+        defer {
+            defaults.removePersistentDomain(forName: name)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        var settings = ReaderTranslationSettings(defaults: defaults)
+        settings.includePageImage = true
+        let cache = ReaderTranslationDiskCache(directory: directory)
+        try await cache.synchronizeSettings(settings)
+        let page = "saved-page"
+        let oldToken = try #require(await cache.captureTranslationWrite(settings: settings))
+        let original = try #require(await cache.resolveTranslationWrite(page: page, settings: settings, token: oldToken))
+        let value = Data("saved translation".utf8)
+        try await cache.store(value, for: original.key, kind: .translation, generation: original.generation)
+
+        var changed = settings
+        changed.includePageImage = false
+        try await cache.synchronizeSettings(changed)
+        #expect(ReaderTranslationCacheIdentity.translation(page: page, settings: changed) == original.key)
+        #expect(try await cache.data(for: original.key, kind: .translation) == value)
+        #expect(await cache.resolveTranslationWrite(page: page, settings: settings, token: oldToken) == nil)
+        let changedToken = try #require(await cache.captureTranslationWrite(settings: changed))
+        #expect(await cache.resolveTranslationWrite(page: page, settings: changed, token: changedToken)?.key == original.key)
+
+        try await cache.synchronizeSettings(settings)
+        #expect(await cache.resolveTranslationWrite(page: page, settings: settings, token: oldToken) == nil)
+        #expect(await cache.resolveTranslationWrite(page: page, settings: changed, token: changedToken) == nil)
+        let freshToken = try #require(await cache.captureTranslationWrite(settings: settings))
+        #expect(await cache.resolveTranslationWrite(page: page, settings: settings, token: freshToken)?.key == original.key)
+        #expect(try await cache.data(for: original.key, kind: .translation) == value)
+    }
+
+    @Test
     func settingsRoundTripCannotReviveAnInvalidatedWriter() async throws {
         let name = "ReaderTranslationCachePolicyAuditTests-" + UUID().uuidString
         let defaults = UserDefaults(suiteName: name)!

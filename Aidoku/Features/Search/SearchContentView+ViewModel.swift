@@ -13,35 +13,51 @@ extension SearchContentView {
     class ViewModel: ObservableObject {
         struct SearchResult: Identifiable, Equatable {
             let source: AidokuRunner.Source
-            let result: AidokuRunner.MangaPageResult
+            let links: [HomeComponent.Value.Link]
+            let contentID: String
 
             var id: String { source.id }
+
+            init(source: AidokuRunner.Source, result: AidokuRunner.MangaPageResult) {
+                self.source = source
+                var hasher = Hasher()
+                links = result.entries.map {
+                    hasher.combine($0)
+                    return $0.intoLink()
+                }
+                contentID = "\(source.key).\(hasher.finalize())"
+            }
 
             static func == (lhs: SearchResult, rhs: SearchResult) -> Bool {
                 lhs.id == rhs.id
             }
         }
 
-        var sources: [AidokuRunner.Source] = []
+        private(set) var sources: [AidokuRunner.Source] = []
         var filters: [FilterValue] = []
 
-        @Published var results: [SearchResult] = []
+        @Published private(set) var results: [SearchResult] = []
         @Published var history: [String] = []
-        @Published var isLoading: Bool = false
+        @Published private(set) var isLoading: Bool = false
 
         static let maxHistoryEntries = 20
 
         private var searchQuery: String = ""
         private var generation = 0
-        private var searchIsDebouncing = false
-        private var searchTask: Task<Void, Never>?
-
-        var resultsIsEmpty: Bool {
-            !results.contains(where: { !$0.result.entries.isEmpty })
-        }
+        private var debounceTask: Task<Void, Never>?
+        private var pendingSources: ArraySlice<AidokuRunner.Source> = []
+        private var activeRequests: [UUID: Task<Void, Never>] = [:]
+        private var completedSources: Set<ObjectIdentifier> = []
+        private var searchVisible = true
+        private var resumeOnAppearance = false
 
         init() {
             history = UserDefaults.standard.stringArray(forKey: "Search.history") ?? []
+        }
+
+        deinit {
+            debounceTask?.cancel()
+            for request in activeRequests.values { request.cancel() }
         }
     }
 }
@@ -52,36 +68,28 @@ extension SearchContentView.ViewModel {
             updateHistory(query: query)
         }
 
-        if query.isEmpty {
-            generation += 1
-            searchTask?.cancel()
-            searchIsDebouncing = false
-            results = []
-            searchQuery = ""
-            isLoading = false
-            return
-        }
-
-        guard searchQuery != query || (!delay && searchIsDebouncing) else { return }
-        generation += 1
-        let requestGeneration = generation
-        searchTask?.cancel()
+        guard searchQuery != query || (!delay && debounceTask != nil) else { return }
         searchQuery = query
-        searchIsDebouncing = delay
-        results = []
-        isLoading = true
-        searchTask = Task {
-            if delay {
-                try? await Task.sleep(nanoseconds: 250_000_000)
-            }
-            guard !Task.isCancelled, generation == requestGeneration else { return }
-            searchIsDebouncing = false
-            await appendFetchedData(query: query, sources: filteredSources(), generation: requestGeneration)
-        }
+        completedSources.removeAll()
+        if !results.isEmpty { results = [] }
+        restartSearch(delay: delay)
     }
 
     func waitForSearch() async {
-        await searchTask?.value
+        guard isLoading else { return }
+        for await loading in $isLoading.values {
+            if !loading { return }
+        }
+    }
+
+    func setSearchVisible(_ visible: Bool) {
+        guard searchVisible != visible else { return }
+        searchVisible = visible
+        if visible {
+            if resumeOnAppearance { restartSearch(delay: false) }
+        } else if isLoading {
+            restartSearch(delay: false)
+        }
     }
 
     func clearHistory() {
@@ -100,32 +108,19 @@ extension SearchContentView.ViewModel {
         }
     }
 
+    func updateSources(_ newSources: [AidokuRunner.Source]) {
+        guard !sources.elementsEqual(newSources, by: { $0 === $1 }) else { return }
+        completedSources.formIntersection(newSources.map(ObjectIdentifier.init))
+        sources = newSources
+        // A pending debounce reads the latest sources when it starts.
+        if !searchQuery.isEmpty && debounceTask == nil {
+            updateFilters(filters)
+        }
+    }
+
     func updateFilters(_ filters: [FilterValue]) {
         self.filters = filters
-        if !searchQuery.isEmpty {
-            generation += 1
-            let requestGeneration = generation
-            let query = searchQuery
-            searchTask?.cancel()
-            searchIsDebouncing = false
-            isLoading = true
-            searchTask = Task {
-                guard !Task.isCancelled, generation == requestGeneration else { return }
-
-                let filteredSources: [AidokuRunner.Source] = filteredSources()
-
-                // remove filtered out sources
-                results.removeAll { result in
-                    !filteredSources.contains(where: { $0.key == result.source.key })
-                }
-
-                // add sources that weren't included before
-                let newSources = filteredSources.filter { source in
-                    !results.contains(where: { $0.source.key == source.key })
-                }
-                await appendFetchedData(query: query, sources: newSources, generation: requestGeneration)
-            }
-        }
+        if !searchQuery.isEmpty { restartSearch(delay: false) }
     }
 }
 
@@ -190,45 +185,62 @@ extension SearchContentView.ViewModel {
         }
     }
 
-    private func appendFetchedData(
-        query: String,
-        sources: [AidokuRunner.Source],
-        generation requestGeneration: Int
-    ) async {
-        // sources freeze if we run too many tasks concurrently, so we limit it
-        let maxConcurrentTasks = 3
-
-        await withTaskGroup(of: (AidokuRunner.Source, AidokuRunner.MangaPageResult?).self) { group in
-            // add the initial tasks to the group
-            for i in 0..<min(sources.count, maxConcurrentTasks) {
-                let source = sources[i]
-                group.addTask {
-                    (source, try? await source.getSearchMangaList(query: query, page: 1, filters: []))
-                }
+    private func restartSearch(delay: Bool) {
+        generation += 1
+        debounceTask?.cancel()
+        debounceTask = nil
+        pendingSources = []
+        for request in activeRequests.values { request.cancel() }
+        resumeOnAppearance = !searchVisible && !searchQuery.isEmpty
+        isLoading = searchVisible && !searchQuery.isEmpty
+        guard isLoading else { return }
+        if delay {
+            debounceTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 250_000_000)
+                guard !Task.isCancelled, let self else { return }
+                self.debounceTask = nil
+                self.scheduleSources()
             }
+        } else {
+            scheduleSources()
+        }
+    }
 
-            var index = maxConcurrentTasks
-            while let (source, result) = await group.next() {
-                guard !Task.isCancelled, generation == requestGeneration else {
-                    group.cancelAll()
-                    return
-                }
-                if index < sources.count {
-                    // once a task completes, we can start a new one if there are still sources left
-                    let source = sources[index]
-                    group.addTask {
-                        (source, try? await source.getSearchMangaList(query: query, page: 1, filters: []))
+    private func scheduleSources() {
+        let eligible = filteredSources()
+        let allowed = Set(eligible.map(ObjectIdentifier.init))
+        completedSources.formIntersection(allowed)
+        if results.contains(where: { !allowed.contains(ObjectIdentifier($0.source)) }) {
+            results.removeAll { !allowed.contains(ObjectIdentifier($0.source)) }
+        }
+        pendingSources = eligible.filter { !completedSources.contains(ObjectIdentifier($0)) }[...]
+        startAvailableRequests()
+    }
+
+    private func startAvailableRequests() {
+        guard isLoading, debounceTask == nil else { return }
+        // A runner can finish after cancellation. Keep its slot occupied until it returns,
+        // even when the tab has reopened or the query has already changed.
+        while activeRequests.count < 3, let source = pendingSources.popFirst() {
+            let id = UUID()
+            let requestGeneration = generation
+            let query = searchQuery
+            activeRequests[id] = Task { [weak self] in
+                let page = Task.isCancelled ? nil : try? await source.getSearchMangaList(query: query, page: 1, filters: [])
+                guard let self else { return }
+                self.activeRequests.removeValue(forKey: id)
+                if !Task.isCancelled, self.generation == requestGeneration, let page {
+                    self.completedSources.insert(ObjectIdentifier(source))
+                    if !page.entries.isEmpty {
+                        self.results.append(.init(source: source, result: page))
                     }
-                    index += 1
                 }
-                if let result {
-                    guard !Task.isCancelled else { return }
-                    results.append(.init(source: source, result: result))
-                }
+                self.startAvailableRequests()
             }
         }
-
-        guard !Task.isCancelled, generation == requestGeneration else { return }
-        isLoading = false
+        if pendingSources.isEmpty && activeRequests.values.allSatisfy(\.isCancelled) {
+            pendingSources = []
+            isLoading = false
+        }
     }
 }

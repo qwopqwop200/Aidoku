@@ -1,6 +1,7 @@
 import Foundation
 
 actor SearchSuggestionService {
+    static let maximumResponseBytes = 1_048_576
     typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
     private struct CachedResult {
@@ -44,7 +45,7 @@ actor SearchSuggestionService {
             let retry = Double(response.value(forHTTPHeaderField: "Retry-After") ?? "") ?? 60
             await SearchSuggestionRequestThrottle.shared.deferRequests(for: url, seconds: retry)
         }
-        guard (200..<300).contains(response.statusCode), data.count <= 1_048_576 else {
+        guard (200..<300).contains(response.statusCode), data.count <= Self.maximumResponseBytes else {
             throw URLError(.badServerResponse)
         }
         let entries = try Self.decode(
@@ -145,7 +146,14 @@ actor SearchSuggestionHTTPClient {
             }
         }
         guard let session else { throw URLError(.unknown) }
-        return try await session.data(for: request)
+        do {
+            return try await SourceResponseBody.read(request, session: session) { response in
+                guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { return .headersOnly }
+                return .limited(SearchSuggestionService.maximumResponseBytes)
+            }
+        } catch is SourceResponseBody.TooLarge {
+            throw URLError(.badServerResponse)
+        }
     }
 }
 

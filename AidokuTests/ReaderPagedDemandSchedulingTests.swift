@@ -76,6 +76,74 @@ struct ReaderPagedDemandSchedulingTests {
         }
     }
 
+    @Test func memoryWarningKeepsBothSpreadsUntilTheSwipeSettles() throws {
+        try withReader(preload: 0, doublePages: true) { reader, pager in
+            let controllers = reader.pageViewControllers
+            let outgoing = ReaderDoublePageViewController(firstPage: controllers[10], secondPage: controllers[11], direction: .ltr)
+            let incoming = ReaderDoublePageViewController(firstPage: controllers[12], secondPage: controllers[13], direction: .ltr)
+            pager.setViewControllers([outgoing], direction: .forward, animated: false)
+            reader.pageViewController(pager, didFinishAnimating: true, previousViewControllers: [], transitionCompleted: true)
+            let poster = try #require(UIImage(systemName: "book"))
+            controllers[11].pageView?.setPageImage(poster)
+
+            NotificationCenter.default.post(name: UIApplication.didReceiveMemoryWarningNotification, object: nil)
+            #expect(controllers[11].pageView?.imageView.image === poster)
+            reader.pageViewController(pager, willTransitionTo: [incoming])
+            reader.loadPage(at: 40)
+            for current in [outgoing, incoming] {
+                pager.setViewControllers([current], direction: .forward, animated: false)
+                NotificationCenter.default.post(name: UIApplication.didReceiveMemoryWarningNotification, object: nil)
+                #expect((10...13).allSatisfy { controllers[$0].page != nil })
+                #expect(controllers[11].pageView?.imageView.image === poster)
+                #expect(controllers[40].page == nil)
+            }
+            reader.pageViewController(pager, didFinishAnimating: true, previousViewControllers: [outgoing], transitionCompleted: true)
+            NotificationCenter.default.post(name: UIApplication.didReceiveMemoryWarningNotification, object: nil)
+            #expect(controllers[10].page == nil && controllers[11].page == nil)
+            #expect(controllers[12].page != nil && controllers[13].page != nil)
+        }
+    }
+
+    @Test func automaticRotationRegroupsExistingPagesAndRetainsTheBitmap() throws {
+        try withReader(preload: 2) { reader, pager in
+            UserDefaults.standard.set("auto", forKey: "Reader.pagedPageLayout")
+            reader.view.bounds.size = CGSize(width: 390, height: 844)
+            reader.updatePageLayout()
+            let page = reader.pageViewControllers[21]
+            pager.setViewControllers([page], direction: .forward, animated: false)
+            reader.pageViewController(pager, didFinishAnimating: true, previousViewControllers: [], transitionCompleted: true)
+            let poster = try #require(UIImage(systemName: "book"))
+            page.pageView?.setPageImage(poster)
+
+            reader.updateAutomaticPageLayout(for: CGSize(width: 844, height: 390))
+            let spread = try #require(pager.viewControllers?.first as? ReaderDoublePageViewController)
+            #expect(spread.firstPageController === page || spread.secondPageController === page)
+            reader.updateAutomaticPageLayout(for: CGSize(width: 800, height: 400))
+            #expect(pager.viewControllers?.first === spread)
+            reader.updateAutomaticPageLayout(for: CGSize(width: 390, height: 844))
+            #expect(pager.viewControllers?.first === page)
+            #expect(page.page?.index == 20)
+            #expect(page.pageView?.imageView.image === poster)
+        }
+    }
+
+    @Test func retainedBitmapFitsTheResizedPage() {
+        let page = ReaderPageView(temporaryPageStore: ReaderTemporaryPageStore())
+        defer { page.releasePageResources() }
+        let size = CGSize(width: 100, height: 200)
+        let image = UIGraphicsImageRenderer(size: size).image { $0.fill(CGRect(origin: .zero, size: size)) }
+        page.frame.size = CGSize(width: 100, height: 300)
+        page.setPageImage(image)
+        page.layoutIfNeeded()
+        page.frame.size = CGSize(width: 300, height: 100)
+        page.layoutIfNeeded()
+        #expect(page.imageView.image === image)
+        #expect(page.constraints.contains {
+            $0.firstItem === page.imageView && $0.secondItem === page
+                && $0.firstAttribute == .height && $0.secondAttribute == .height && $0.relation == .equal && $0.isActive
+        })
+    }
+
     @Test func cancelledChapterPreviewDragPreservesPreviewWithZeroLookahead() throws {
         try withReader(preload: 0, adjacentChapters: true) { reader, pager in
             let controllers = reader.pageViewControllers

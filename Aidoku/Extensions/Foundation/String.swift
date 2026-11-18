@@ -44,12 +44,12 @@ extension String {
         return formatter.date(from: self)
     }
 
-    func fuzzyMatch(_ pattern: String) -> Bool? {
-        if pattern.isEmpty { return false }
-        var rem = pattern[...]
-        for char in self where char == rem[rem.startIndex] {
-            rem.removeFirst()
-            if rem.isEmpty { return true }
+    func fuzzyMatch(_ pattern: String) -> Bool {
+        var iterator = pattern.makeIterator()
+        guard var target = iterator.next() else { return false }
+        for character in self where character == target {
+            guard let next = iterator.next() else { return true }
+            target = next
         }
         return false
     }

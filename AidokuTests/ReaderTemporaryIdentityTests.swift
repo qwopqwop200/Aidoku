@@ -109,4 +109,29 @@ struct ReaderTemporaryIdentityTests {
         #expect(try Data(contentsOf: replaced) == secondBytes)
         await store.removeAll()
     }
+
+    @Test func randomArchivePageReadsPreferExactThenFirstNormalizedEntry() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".cbz")
+        defer { url.removeItem() }
+        let archive = try Archive(url: url, accessMode: .create)
+        for (path, text) in [("./P/%31.PNG", "alias"), ("p/1.png", "exact"), ("p/1.png", "duplicate"),
+                             ("p/2.png", "second"), ("p/3.png", "third")] {
+            let data = Data(text.utf8)
+            try archive.addEntry(with: path, type: .file, uncompressedSize: Int64(data.count)) { offset, size in
+                data.subdata(in: Int(offset)..<(Int(offset) + size))
+            }
+        }
+        let store = ReaderTemporaryPageStore()
+        let cancelled = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return await store.storeArchiveEntry(from: url, path: "p/3.png")
+        }
+        #expect(await cancelled.value == nil)
+        for (path, text) in [("p/1.png", "exact"), ("p/3.png", "third"), ("p/2.png", "second"), ("P/1.PNG", "alias")] {
+            let extracted = try #require(await store.storeArchiveEntry(from: url, path: path))
+            #expect(try Data(contentsOf: extracted) == Data(text.utf8))
+        }
+        #expect(await store.storeArchiveEntry(from: url, path: "missing.png") == nil)
+        await store.removeAll()
+    }
 }

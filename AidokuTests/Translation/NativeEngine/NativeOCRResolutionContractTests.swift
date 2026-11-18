@@ -6,13 +6,36 @@ import UIKit
 /// Real-model input contracts kept outside the routine fast plan.
 @Suite(.serialized)
 struct NativeOCRResolutionContractTests {
+    @Test func mangaRecognizerAccepts2400PixelLongLine() async throws {
+        let width = 2_400, height = 48
+        let frame = try #require(NativeOCRRGBAFrame(
+            width: width, height: height, bytes: [UInt8](repeating: 255, count: width * height * 4)
+        ))
+        let region = NativeCoreMLRecognitionRegion(sourceIndex: 0, polygon: [
+            CGPoint(x: 0, y: 0), CGPoint(x: width, y: 0),
+            CGPoint(x: width, y: height), CGPoint(x: 0, y: height)
+        ])
+        let recognizer = NativeCoreMLRecognizer(idleLongWidthPreparationEnabled: false, recognitionCacheCapacity: 0)
+        do {
+            let result = try await recognizer.recognize(frame: frame, regions: [region])
+            #expect(result.diagnostics.modelFunctionSequence == ["rec2400b1"])
+            #expect(result.diagnostics.predictedRegions == 1)
+            #expect(result.diagnostics.inputShape == [1, 3, 48, 2_400])
+            #expect(result.diagnostics.outputShape == [2, 300])
+            await recognizer.purgeResources()
+        } catch {
+            await recognizer.purgeResources()
+            throw error
+        }
+    }
+
     @Test func bundledDetectorsAccept1184PixelInputs() async throws {
         let width = 2_368, height = 64
         let frame = try #require(NativeOCRRGBAFrame(
             width: width, height: height, bytes: [UInt8](repeating: 255, count: width * height * 4)
         ))
         for tier in IPhoneOCRModelTier.allCases {
-            let pipeline = NativeCoreMLOCRPipeline(modelTier: tier)
+            let pipeline = NativeCoreMLOCRPipeline(modelTier: tier, detectorMaximumSide: 1_184)
             let result: NativeCoreMLOCRResult
             do {
                 result = try await pipeline.recognize(
@@ -55,10 +78,12 @@ struct NativeOCRResolutionContractTests {
                 idleLongWidthPreparationEnabled: false, recognitionCacheCapacity: 0)
             do {
                 let result = try await recognizer.recognize(frame: frame, regions: [region])
-                #expect(result.diagnostics.modelFunctionSequence == ["rec1184b1"])
+                let plannedWidth = tier == .manga ? 640 : 1_184
+                #expect(result.diagnostics.modelFunctionSequence == ["rec\(plannedWidth)b1"])
                 #expect(result.diagnostics.predictedRegions == 1)
-                #expect(result.diagnostics.inputShape == [1, 3, 48, 1_184])
-                #expect(result.diagnostics.outputShape == [2, 148])
+                let maximumWidth = IPhoneOCRSettings.maximumRecognizerWidth(for: tier)
+                #expect(result.diagnostics.inputShape == [1, 3, 48, maximumWidth])
+                #expect(result.diagnostics.outputShape == [2, (maximumWidth + 3) / 8])
                 #expect(result.regions.count == 1)
                 #expect(result.regions.first?.text.isEmpty == false)
                 await recognizer.purgeResources()

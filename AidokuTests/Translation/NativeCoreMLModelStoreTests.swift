@@ -24,7 +24,8 @@ struct NativeCoreMLModelStoreTests {
         }
         #expect(destinations[0] == destinations[1])
         #expect(try Data(contentsOf: destinations[0].appendingPathComponent("weight.bin")) == Data(repeating: 123, count: 2_100_000))
-        #expect(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("stable").path).count == 1)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("stable").path)
+            .filter { $0.hasSuffix(".mlmodelc") }.count == 1)
     }
 
     @Test func changedModelHasNewIdentityWithoutRemovingResidentModel() throws {

@@ -8,6 +8,128 @@ import UIKit
 
 struct NativeOCRTextLineMergerTests {
     @Test(arguments: [0.5, 1.0, 2.0])
+    func fullSizeTwoGlyphColumnWitnessesSeparateVerticalLobes(scale: CGFloat) {
+        // 0403 native 7/8 and 10/11/12: the upper lobe's second column has
+        // only two full-size glyphs. It still proves ownership of the top text.
+        let upper = [line("春の風を", 266 * scale, 594 * scale, 66 * scale, 215 * scale, orientation: .vertical),
+                     line("花園", 330 * scale, 593 * scale, 78 * scale, 128 * scale, orientation: .vertical)]
+        let lower = [line("見ている", 125 * scale, 875 * scale, 71 * scale, 225 * scale, orientation: .vertical),
+                     line("庭へ行こう", 195 * scale, 876 * scale, 68 * scale, 272 * scale, orientation: .vertical),
+                     line("明日は晴れ", 252 * scale, 874 * scale, 84 * scale, 278 * scale, orientation: .vertical)]
+        for input in [upper + lower, Array((upper + lower).reversed())] {
+            let result = merge(input, width: Int(2160 * scale), height: Int(2880 * scale))
+            #expect(result.count == 2)
+            #expect(result.contains { $0.text.contains(upper[0].text) && $0.text.contains(upper[1].text) })
+            #expect(!result.contains { $0.text.contains(upper[0].text) && $0.text.contains(lower[2].text) })
+        }
+        // A short pause inside one column remains joinable without two
+        // independently witnessed lobes.
+        #expect(merge([upper[0], lower[2]], width: Int(2160 * scale), height: Int(2880 * scale)).count == 1)
+        // A two-character censor marker has no Japanese glyph-advance proof.
+        let censor = line("■■", 330 * scale, 593 * scale, 78 * scale, 128 * scale, orientation: .vertical)
+        let censored = merge([upper[0], censor] + lower, width: Int(2160 * scale), height: Int(2880 * scale))
+        #expect(censored.contains { $0.text.contains(upper[0].text) && $0.text.contains(lower[2].text) })
+    }
+
+    @Test func foreignAuxiliarySliversYieldOnlyToActualBodyPolygons() {
+        func rect(_ x: CGFloat, _ y: CGFloat, _ width: CGFloat, _ height: CGFloat) -> [CGPoint] {
+            [CGPoint(x: x, y: y), CGPoint(x: x + width, y: y),
+             CGPoint(x: x + width, y: y + height), CGPoint(x: x, y: y + height)]
+        }
+        func body(_ polygon: [CGPoint], _ evidence: [[CGPoint]], text: String = "春の庭") -> PaddleOCRLine {
+            .init(poly: polygon.map { .init(x: $0.x, y: $0.y) }, text: text, score: 0.95,
+                  orientationRaw: "vertical", singleVerticalColumn: true,
+                  auxiliaryInkRects: evidence.map { points in
+                      CGRect(x: points.map(\.x).min()!, y: points.map(\.y).min()!,
+                             width: points.map(\.x).max()! - points.map(\.x).min()!,
+                             height: points.map(\.y).max()! - points.map(\.y).min()!)
+                  }, auxiliaryInkPolygons: evidence)
+        }
+        // 0374 native 19/20: two actual bodies, with a foreign stroke alias in
+        // each padded detector box. Grouping must retain both whole bodies.
+        let leftBody = rect(1962.65, 730.46, 43.13, 224.36)
+        let rightBody = rect(2024.65, 730.46, 45.84, 344.36)
+        let leftAlias = rect(2027.35, 746.12, 2.7, 20.87)
+        let rightAlias = rect(1997.70, 733.07, 8.08, 33.92)
+        let left = body(rect(1937, 706, 92, 271), [leftBody, leftAlias])
+        let right = body(rect(1984, 201, 115, 897), [rightBody, rightAlias])
+        for input in [[left, right], [right, left]] {
+            let result = NativeOCRAuxiliaryOwnership.deduplicating(input)
+            #expect(result.map { $0.auxiliaryInkPolygons.count } == [1, 1])
+            #expect(result.map(\.poly) == input.map(\.poly))
+            #expect(result.map(\.text) == input.map(\.text))
+            #expect(result.allSatisfy { $0.auxiliaryInkRects.count == 1 })
+        }
+        // No independently rooted own body: small punctuation/ruby/censor
+        // evidence must never lose ownership merely because a neighbour covers it.
+        let noBody = body(rect(1937, 706, 92, 271), [leftAlias])
+        #expect(NativeOCRAuxiliaryOwnership.deduplicating([noBody, right])[0] == noBody)
+        let noForeignBody = body(rect(1984, 201, 115, 897), [rightAlias])
+        #expect(NativeOCRAuxiliaryOwnership.deduplicating([left, noForeignBody])[0] == left)
+        let censor = body(rect(1937, 706, 92, 271), [leftBody, leftAlias], text: "■■")
+        #expect(NativeOCRAuxiliaryOwnership.deduplicating([censor, right])[0] == censor)
+        let ownAlias = rect(1970, 746, 3, 21)
+        let rooted = body(rect(1937, 706, 92, 271), [leftBody, ownAlias])
+        #expect(NativeOCRAuxiliaryOwnership.deduplicating([rooted, right])[0] == rooted)
+        let partial = body(rect(1937, 706, 92, 271), [leftBody, rect(2023.65, 746, 4, 21)])
+        #expect(NativeOCRAuxiliaryOwnership.deduplicating([partial, right])[0] == partial)
+        let externalRuby = body(rect(1937, 706, 92, 271), [leftBody, rect(2035, 700, 3, 21)])
+        #expect(NativeOCRAuxiliaryOwnership.deduplicating([externalRuby, right])[0] == externalRuby)
+        // The diamond's broad bbox covers this sliver, but its filled polygon
+        // does not. Polygon containment must reject that apparent ownership.
+        let diamond = [CGPoint(x: 2025, y: 730), CGPoint(x: 2070, y: 902),
+                       CGPoint(x: 2025, y: 1074), CGPoint(x: 1980, y: 902)]
+        let diagonal = body(rect(1980, 730, 100, 344), [diamond])
+        let corner = body(rect(1937, 706, 92, 271), [leftBody, rect(2027, 746, 3, 21)])
+        #expect(NativeOCRAuxiliaryOwnership.deduplicating([corner, diagonal])[0] == corner)
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0])
+    func paddedSingletonBetweenColumnFragmentsKeepsItsReadingPosition(scale: CGFloat) {
+        // run-2EAB1CCF pages 0348 (12/16/17) and 0379 (4/15/18), with neutral text.
+        // The singleton overlaps both long boxes; joining the long boxes first
+        // used to leave a second region over the same physical column.
+        for (upper, glyph, lower) in [
+            (line("春…風", 2063, 211, 88, 214, orientation: .vertical, orientationIsEstimated: true),
+             line("花", 2070, 390, 69, 96, orientation: .vertical, orientationIsEstimated: true),
+             line("咲いている", 2063, 452, 82, 327, orientation: .vertical, orientationIsEstimated: true)),
+            (line("春…", 2084, 141, 80, 148, orientation: .vertical, orientationIsEstimated: true),
+             line("花", 2087, 264, 69, 75, orientation: .horizontal, orientationIsEstimated: true),
+             line("咲いている庭の中", 2083, 312, 78, 508, orientation: .vertical, orientationIsEstimated: true))
+        ] {
+            func scaled(_ source: NativeCoreMLOCRLine) -> NativeCoreMLOCRLine {
+                .init(polygon: source.polygon.map { CGPoint(x: $0.x * scale, y: $0.y * scale) },
+                      text: source.text, score: source.score, orientation: source.orientation,
+                      orientationIsEstimated: source.orientationIsEstimated)
+            }
+            let input = [upper, glyph, lower].map(scaled)
+            let expected = upper.text + glyph.text + lower.text
+            for order in [input, Array(input.reversed()), [input[1], input[2], input[0]]] {
+                let result = merge(order, width: Int(3192 * scale), height: Int(2254 * scale))
+                #expect(result.map(\.text) == [expected])
+                #expect(result.first?.singleVerticalColumn == true)
+            }
+            let separated = NativeOCRTextLineMerger.merge(input, imageWidth: Int(3192 * scale),
+                imageHeight: Int(2254 * scale), separationCheck: { _, _, _ in true })
+            #expect(separated.count == 3)
+        }
+    }
+
+    @Test func overlappingColumnPaddingDoesNotClaimAnIndependentGlyph() {
+        let upper = line("春…", 2084, 141, 80, 148, orientation: .vertical, orientationIsEstimated: true)
+        let lower = line("咲いている庭の中", 2083, 312, 78, 508, orientation: .vertical, orientationIsEstimated: true)
+        let glyph = line("花", 2087, 264, 69, 75, orientation: .horizontal, orientationIsEstimated: true)
+        let horizontalOwner = line("庭園", 2160, 264, 140, 75, orientation: .horizontal)
+        let result = merge([upper, glyph, lower, horizontalOwner], width: 3192, height: 2254)
+        #expect(result.contains { $0.text == "花庭園" })
+        #expect(!result.contains { $0.text == upper.text + glyph.text + lower.text })
+        // A glyph in the neighbouring column provides no same-column witness.
+        let displaced = line("花", 2020, 264, 69, 75, orientation: .horizontal, orientationIsEstimated: true)
+        let nearby = merge([upper, displaced, lower], width: 3192, height: 2254)
+        #expect(!nearby.contains { $0.text == upper.text + displaced.text + lower.text })
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0])
     func touchingOutlinedCaptionColumnsKeepReadingOrder(scale: CGFloat) {
         // Actual phone-cache quads from the adjacent orange caption. Neutral text retains lengths.
         func detected(_ text: String, _ points: [[CGFloat]]) -> NativeCoreMLOCRLine {
@@ -2083,6 +2205,156 @@ NativeCoreMLOCRLine(polygon: [CGPoint(x: 675, y: 435), CGPoint(x: 688, y: 438), 
                              box("明日も晴れるといいな", 120, 128, 360, 152), box("そう思います", 120, 156, 270, 180)],
                             width: Int(900 * scale), height: Int(1200 * scale)).map(\.text)
         #expect(caption.contains { $0.contains("今日は") && $0.contains("明日も") && $0.contains("そう思います") }, "\(caption)")
+    }
+
+    @Test func ownedVerticalInkAndAdvanceDisambiguateDetectorPaddingFromTypeSize() {
+        for scale: CGFloat in [0.5, 1, 2] {
+            func column(_ text: String, _ x: CGFloat, _ y: CGFloat, _ width: CGFloat,
+                        _ height: CGFloat, _ inkX: CGFloat, _ inkWidth: CGFloat,
+                        _ inkHeight: CGFloat) -> NativeCoreMLOCRLine {
+                let result = line(text, x * scale, y * scale, width * scale, height * scale, orientation: .vertical)
+                let ink = [[
+                    CGPoint(x: inkX * scale, y: (y + 8) * scale),
+                    CGPoint(x: (inkX + inkWidth) * scale, y: (y + 8) * scale),
+                    CGPoint(x: (inkX + inkWidth) * scale, y: (y + 8 + inkHeight) * scale),
+                    CGPoint(x: inkX * scale, y: (y + 8 + inkHeight) * scale)
+                ]]
+                return NativeCoreMLOCRLine(polygon: result.polygon, text: result.text, score: result.score,
+                                          orientation: .vertical, erasurePolygons: ink)
+            }
+            // Actual 0250 geometry: 30/42px detector widths, but 15.6/18.6px
+            // owned ink and 30.75/31.5px printed advances describe the same type.
+            let ending = column("している", 54, 721, 30, 123, 61.5, 15.6, 107.4)
+            let middle = column("庭を見ている", 82, 717, 42, 189, 93.75, 18.6, 168)
+            let start = column("明日は晴れる", 118, 717, 42, 188, 129.9, 18.6, 166)
+            func group(_ rows: [NativeCoreMLOCRLine]) -> [PaddleOCRLine] {
+                NativeOCRTextLineMerger.merge(rows, imageWidth: Int(500 * scale), imageHeight: Int(1000 * scale),
+                                             inkContrast: { _, _ in true })
+            }
+            for rows in [[ending, middle, start], [start, middle, ending]] {
+                #expect(group(rows).count == 1)
+                #expect(group(rows).first?.auxiliaryInkPolygons.count == 3)
+            }
+            let noBody = NativeCoreMLOCRLine(polygon: ending.polygon, text: ending.text, score: ending.score,
+                                           orientation: .vertical)
+            #expect(group([noBody, middle, start]).count == 2)
+            let larger = column("庭を見ている", 82, 717, 42, 240, 92, 27, 220)
+            #expect(group([ending, larger]).count == 2)
+            // A complete supplied image-ownership veto remains authoritative.
+            let vetoed = NativeOCRTextLineMerger.merge([ending, middle, start], imageWidth: Int(500 * scale),
+                imageHeight: Int(1000 * scale), separationCheck: { _, _, _ in true }, inkContrast: { _, _ in true })
+            #expect(vetoed.count == 3)
+        }
+    }
+
+    @Test func fullCellPunctuationPreservesOwnedVerticalTypeSizeEvidence() {
+        for scale: CGFloat in [0.5, 1, 2] {
+            func column(_ text: String, _ x: CGFloat, _ width: CGFloat, _ height: CGFloat,
+                        _ bodyX: CGFloat, _ bodyWidth: CGFloat) -> NativeCoreMLOCRLine {
+                let detected = line(text, x * scale, 124 * scale, width * scale, height * scale, orientation: .vertical)
+                let body = line("", bodyX * scale, 136 * scale, bodyWidth * scale,
+                                (height - 30) * scale).polygon
+                return NativeCoreMLOCRLine(polygon: detected.polygon, text: text, score: 0.98,
+                                          orientation: .vertical, erasurePolygons: [body])
+            }
+            // Actual 0169 printed advances agree (733/16 and 601/13), even
+            // though tilted detector padding gives a 70/53 width ratio.
+            let left = column("今日は晴れたので庭の花を見た…！", 2276, 70, 733, 2296, 30.74)
+            func merged(_ rightText: String) -> [PaddleOCRLine] {
+                let right = column(rightText, 2332, 53, 601, 2346.5, 26.35)
+                return NativeOCRTextLineMerger.merge([left, right], imageWidth: Int(2600 * scale),
+                    imageHeight: Int(1950 * scale), inkContrast: { _, _ in true })
+            }
+            #expect(merged("誰にも見せたこと無いのに…").count == 1)
+            #expect(merged("誰にも見せたこと無いのに？").count == 1)
+            #expect(merged("誰にも見せたこと無いのに!").count == 2)
+            #expect(merged("誰にも見せたこと無いのに♡").count == 2)
+            #expect(merged("誰にも見せたこと無いのに■").count == 2)
+            #expect(merged("春夏秋………………").count == 2)
+        }
+    }
+
+    @Test func missingClosingQuoteKeepsDifferentlyColouredResponseSeparate() {
+        // 0519 actual detector and owned ink geometry; two independent speakers.
+        for scale: CGFloat in [0.5, 1, 2] {
+            func row(_ text: String, right: Bool, body: Bool = true, shift: CGFloat = 0) -> NativeCoreMLOCRLine {
+                let x: CGFloat = (right ? 494 : 394) + shift, y: CGFloat = right ? 292 : 293
+                let width: CGFloat = right ? 74 : 75, height: CGFloat = right ? 519 : 683
+                let original = line(text, x * scale, y * scale, width * scale, height * scale, orientation: .vertical)
+                let inkX: CGFloat = (right ? 516.0473 : 415.0338) + shift
+                let inkHeight: CGFloat = right ? 480.971 : 646.373
+                let ink = line("", inkX * scale, 313.3929 * scale, 32.9392 * scale,
+                               inkHeight * scale, orientation: .vertical).polygon
+                return .init(polygon: original.polygon, text: text, score: 0.98, orientation: .vertical,
+                             erasurePolygons: body ? [ink] : [])
+            }
+            let right = row("「あはい何でしょう?", right: true)
+            let left = row("ここじゃ何だから向こうで頼むよ", right: false)
+            func groups(_ rows: [NativeCoreMLOCRLine], _ ink: ((CGRect, CGRect) -> Bool)?) -> [PaddleOCRLine] {
+                NativeOCRTextLineMerger.merge(rows, imageWidth: Int(1050 * scale), imageHeight: Int(1500 * scale),
+                                             inkContrast: ink)
+            }
+            for rows in [[left, right], [right, left]] {
+                let result = groups(rows, { _, _ in true })
+                #expect(result.count == 2, "Terminal response with independent ink must separate")
+                for native in rows {
+                    #expect(result.contains { $0.text == native.text && $0.auxiliaryInkPolygons == native.erasurePolygons })
+                }
+                #expect(groups(rows, nil).count == 1)
+                #expect(groups(rows, { _, _ in false }).count == 1)
+                // A colour difference confined to detector padding is inconclusive.
+                #expect(groups(rows, { a, b in min(a.width, b.width) > 70 * scale }).count == 1)
+            }
+            // One multicolour quotation continues into its left column.
+            #expect(groups([right, row("続きは向こうで話しましょう」", right: false)], { _, _ in true }).count == 1)
+            #expect(groups([row("「あはい何でしょう", right: true), left], { _, _ in true }).count == 1)
+            #expect(groups([row("あはい何でしょう?", right: true), left], { _, _ in true }).count == 1)
+            #expect(groups([row("「あはい何でしょう?", right: true, body: false), left], { _, _ in true }).count == 1)
+            #expect(groups([row("「あはい何でしょう?", right: true, shift: -15), left], { _, _ in true }).count == 1)
+        }
+    }
+
+    @Test(arguments: [0.5, 1.0, 2.0])
+    func sparseFourColumnCaptionPreservesOneUtterance(scale: CGFloat) {
+        // fresh54/0028: one sparse caption, including a short interior count
+        // phrase. Its detector boxes and rightmost slant are taken from input.
+        let texts = ["全てが台無しになってしまう", "不純な何かが混ざるだけで", "ほんの一滴", "どんなに透明で綺麗な水も"]
+        let boxes: [CGRect] = [CGRect(x: 397, y: 305, width: 31, height: 304),
+                              CGRect(x: 459, y: 304, width: 28, height: 293),
+                              CGRect(x: 519, y: 303, width: 29, height: 123),
+                              CGRect(x: 578, y: 302, width: 31, height: 297)]
+        func rows(_ words: [String] = texts, shifted: Int? = nil) -> [NativeCoreMLOCRLine] {
+            boxes.enumerated().map { index, box in
+                let dx: CGFloat = shifted == index ? 20 : 0
+                let original = line(words[index], (box.minX + dx) * scale, box.minY * scale,
+                                    box.width * scale, box.height * scale, orientation: .vertical)
+                let polygon = index == 3 ? [CGPoint(x: 579 * scale, y: 302 * scale),
+                    CGPoint(x: 609 * scale, y: 303 * scale), CGPoint(x: 608 * scale, y: 599 * scale),
+                    CGPoint(x: 578 * scale, y: 599 * scale)] : original.polygon
+                return .init(polygon: polygon, text: words[index], score: 0.98, orientation: .vertical,
+                             erasurePolygons: [polygon])
+            }
+        }
+        for input in [rows(), Array(rows().reversed())] {
+            let result = merge(input, width: Int(992 * scale), height: Int(1403 * scale))
+            #expect(result.count == 1)
+            #expect(result.first?.text == texts.reversed().joined())
+            #expect(result.first?.auxiliaryInkPolygons.count == 4)
+        }
+        let separated = NativeOCRTextLineMerger.merge(rows(), imageWidth: Int(992 * scale), imageHeight: Int(1403 * scale),
+                                                     separationCheck: { _, _, _ in true })
+        #expect(separated.count == 4)
+        let differentInk = NativeOCRTextLineMerger.merge(rows(), imageWidth: Int(992 * scale), imageHeight: Int(1403 * scale),
+                                                        inkContrast: { _, _ in true })
+        #expect(differentInk.count == 4)
+        var independent = texts
+        independent[3] = "透明で綺麗な水だった。"
+        #expect(merge(rows(independent), width: Int(992 * scale), height: Int(1403 * scale)).count == 4)
+        independent = texts
+        independent[3] = "「どんなに透明な水も」"
+        #expect(merge(rows(independent), width: Int(992 * scale), height: Int(1403 * scale)).count == 4)
+        #expect(merge(rows(shifted: 2), width: Int(992 * scale), height: Int(1403 * scale)).count > 1)
+        #expect(merge(Array(rows().dropLast()), width: Int(992 * scale), height: Int(1403 * scale)).count == 3)
     }
 
     private func merge(

@@ -75,6 +75,21 @@ struct NativeRestorationExclusionProofTests {
         #expect(result.paintedCount == repaired.paintedCount - 1)
     }
 
+    @Test func invalidatedNativePaletteRetryRevokesSourceProof() throws {
+        var (source, repaired, palette) = try fixture()
+        // The selected palette describes the halo and misses the actual body ink.
+        palette.foreground = .init([250, 250, 250])
+        palette.metadata["foreground"] = [250, 250, 250]
+        let clipped = 30 * source.width + 47
+        source.paint(clipped, .init([20, 20, 20]))
+        repaired.paint(clipped, .init([253, 253, 253]))
+        repaired.usedNativeErasurePaletteRetry = true
+        let result = try #require(NativeRestorationPixels.protectExclusions(repaired, original: source,
+            box: box, auxiliary: [], excluded: [excluded], palette: palette))
+        #expect(!result.erasureComplete && !result.glyphsVerified && result.sourceErasureVerified == false)
+        #expect(result.rgba[clipped * 4 + 3] == 0)
+    }
+
     @Test func clippingProvenPaperPaddingRetainsIndependentSourceProof() throws {
         var (source, repaired, palette) = try fixture()
         let clipped = 30 * source.width + 47

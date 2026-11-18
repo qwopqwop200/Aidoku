@@ -51,7 +51,10 @@ enum HostOverlayAppearance {
     }
 
     static func value(settings: IPhoneOverlaySettings, fonts: HostLetterFonts) -> [String: Any] {
-        let letterFonts: Any = settings.preserveSourceColors ? fonts.appearanceValue : false
+        // Font registration is independent of retired color-mode preferences.
+        // The current rectangular replacement renderer predicts source roles
+        // directly; legacy preservation flags are normalized to false.
+        let letterFonts = fonts.appearanceValue
         return [
             "opacity": settings.renderedBackgroundOpacity,
             "sourceLetterFonts": letterFonts,

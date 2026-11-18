@@ -1,3 +1,4 @@
+import AidokuRunner
 import CoreData
 import Foundation
 import Testing
@@ -7,6 +8,48 @@ import ZIPFoundation
 @Suite(.serialized) @MainActor
 struct LocalImportSchedulingTests {
     private enum Failure: Error { case save }
+
+    @Test func seriesPickerPreservesCountsOrderAndPendingEdits() async throws {
+        let fixture = try ImportStore()
+        defer { fixture.close() }
+        let context = fixture.newContext()
+        let manager = LocalFileDataManager(context: context)
+        try context.performAndWait {
+            for (index, source) in [LocalSourceRunner.sourceKey, LocalSourceRunner.sourceKey, "external"].enumerated() {
+                let row = MangaObject(context: context)
+                row.id = "m\(index)"
+                row.sourceId = source
+                row.title = "Café \(index)"
+                let file = LocalFileInfoObject(context: context)
+                file.dateCreated = Date(timeIntervalSince1970: Double(index))
+                row.fileInfo = file
+                for number in 0..<index {
+                    let chapter = ChapterObject(context: context)
+                    chapter.sourceId = source
+                    chapter.mangaId = row.id
+                    chapter.id = "\(number)"
+                    chapter.manga = row
+                }
+            }
+            try context.save()
+        }
+        let rows = await manager.fetchLocalSeriesInfo(query: "CAFE")
+        #expect(rows == [
+            LocalSeriesInfo(id: "m1", coverUrl: "", name: "Café 1", chapterCount: 1),
+            LocalSeriesInfo(id: "m0", coverUrl: "", name: "Café 0", chapterCount: 0)
+        ])
+        try context.performAndWait {
+            let request = MangaObject.fetchRequest()
+            request.predicate = NSPredicate(format: "sourceId == %@ AND id == %@", LocalSourceRunner.sourceKey, "m1")
+            let row = try #require(context.fetch(request).first)
+            row.title = "Pending"
+            let newChapter = ChapterObject(context: context)
+            newChapter.manga = row
+        }
+        let pending = await manager.fetchLocalSeriesInfo(query: "pending")
+        #expect(pending.map(\.chapterCount) == [2])
+        #expect(pending.first?.name == "Pending")
+    }
 
     @Test func failedImportRollsBackSeriesAndChapterAndCanRetry() async throws {
         let fixture = try ImportStore()

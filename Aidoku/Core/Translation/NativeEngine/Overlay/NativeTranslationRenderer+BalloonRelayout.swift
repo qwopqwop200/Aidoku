@@ -58,7 +58,7 @@ extension NativeTranslationRenderer {
             inspected.insert(item.id)
             let contour = item.balloonInterior
             var observed: NativeBalloonRelayout.Interior?
-            if let contour, contour.contourVerified || unitCount >= 2 {
+            if let contour, contour.contourVerified || contour.modelEstimated == true || unitCount >= 2 {
                 observed = NativeBalloonRelayout.nativeUnitInterior(frame: cleanupFrame,
                     rect: contour.rect, spans: contour.spans, surfaceRGB: NativeTranslationRenderer.rgb(restoration.appearances[item.id]?.background))
             }

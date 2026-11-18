@@ -90,7 +90,7 @@ def shared_sources():
         + slice_text(exporter, "    static func outputSize(for pixels: CGSize)", "    static func render(") + "}\n"
         + "enum NativeTranslationRenderer {\n"
         + "struct SourcePatch {let image: CGImage; let rect: CGRect}\n"
-        + "struct Result {let sourcePatches: [SourcePatch]; let paintBounds: [CGRect]; let sourceRestorationRects: [CGRect]}\n}\n"
+        + "struct Result {let sourcePatches: [SourcePatch]; let paintBounds: [CGRect]; let sourceRestorationRects: [CGRect]; var includesSourcePage = false}\n}\n"
         + "enum HostProductionExporter {\n"
         + slice_text(exporter, "    struct ExportLayers:", "    /// Core Image contexts") + "}\n"
     )

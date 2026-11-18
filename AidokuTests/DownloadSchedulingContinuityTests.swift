@@ -1,10 +1,60 @@
 import AidokuRunner
 import Foundation
 import Testing
+import ZIPFoundation
 @testable import Aidoku
 
 @Suite(.serialized) @MainActor
 struct DownloadSchedulingContinuityTests {
+    @Test func cancelledArchiveLeavesStagedPagesAvailableToResume() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { folder.removeItem() }
+        let staged = folder.appendingPathComponent("staged")
+        staged.createDirectory()
+        let page = Data("downloaded page".utf8)
+        try page.write(to: staged.appendingPathComponent("001.txt"))
+        let archive = folder.appendingPathComponent("partial.cbz")
+        let gate = DownloadSchedulingGate()
+        let writing = Task {
+            await gate.wait()
+            try await DownloadTask.writeChapterArchive(from: staged, to: archive)
+        }
+        try await wait { await gate.entries == 1 }
+        writing.cancel()
+        await gate.open()
+        await #expect(throws: CancellationError.self) { try await writing.value }
+        #expect(!archive.exists)
+        try await DownloadTask.writeChapterArchive(from: staged, to: archive)
+        let extracted = folder.appendingPathComponent("extracted")
+        try FileManager.default.unzipItem(at: archive, to: extracted)
+        #expect(try Data(contentsOf: extracted.appendingPathComponent("001.txt")) == page)
+    }
+
+    @Test(arguments: [false, true])
+    func cancellingInterleavedMangaPreservesOtherChaptersAndCallbackOrder(cancelHead: Bool) async throws {
+        let source = "download-manga-cancel-" + UUID().uuidString
+        let cache = DownloadCache()
+        defer { cache.directory(sourceKey: source).removeItem() }
+        let left = AidokuRunner.Manga(sourceKey: source, key: "left", title: "Left")
+        let right = AidokuRunner.Manga(sourceKey: source, key: "right", title: "Right")
+        let rows = ["1", "2", "3"].flatMap { key in
+            [left, right].map { Download.from(manga: $0, chapter: .init(key: key)) }
+        }
+        for row in rows { cache.tmpDirectory(for: row.chapterIdentifier).createDirectory() }
+        let observer = DownloadSchedulingDelegate()
+        let worker = DownloadTask(id: source, cache: cache, downloads: rows, sourceLookup: { _ in nil }, delegate: observer)
+        let target = (cancelHead ? left : right).identifier
+        await worker.cancel(manga: target)
+        let removed = rows.filter { $0.mangaIdentifier == target }.map(\.chapterIdentifier)
+        let retained = rows.filter { $0.mangaIdentifier != target }.map(\.chapterIdentifier)
+        #expect(await observer.cancelled == removed)
+        #expect(removed.allSatisfy { !cache.tmpDirectory(for: $0).exists })
+        #expect(retained.allSatisfy { cache.tmpDirectory(for: $0).exists })
+        await worker.resume()
+        try await wait { await observer.finished }
+        #expect(await observer.failed == retained)
+    }
+
     @Test func cancellingFutureChapterDoesNotRestartOrJoinActiveLookup() async throws {
         let source = "download-continuity-" + UUID().uuidString
         let cache = DownloadCache()

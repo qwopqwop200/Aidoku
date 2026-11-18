@@ -1,7 +1,5 @@
 // OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
-import Foundation
-
-enum BrowserOCRSourceOrientation: String, Equatable, Sendable {
+enum BrowserOCRSourceOrientation: String, Equatable, Encodable, Sendable {
     case horizontal
     case vertical
     case unknown

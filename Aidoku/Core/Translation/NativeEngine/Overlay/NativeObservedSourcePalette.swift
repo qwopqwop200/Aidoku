@@ -183,7 +183,13 @@ enum NativeObservedSourcePalette {
         return (max(foreground, background) + 0.05) / (min(foreground, background) + 0.05)
     }
 
-    private static func bins(_ pixels: Pixels) -> [(key: Int, bin: Bin)] {
+    private static func bins(_ pixels: Pixels, features: NativeSourceROIFeatures? = nil) -> [(key: Int, bin: Bin)] {
+        if let features, features.matches(rgba: pixels.rgba, width: pixels.width, height: pixels.height, box: pixels.inner) {
+            return features.four.map { value in
+                var bin = Bin(); bin.count = value.count; bin.sum = value.sum
+                return (key: value.key, bin: bin)
+            }
+        }
         var values: [Int: Bin] = [:]
         var order: [Int] = []
         for y in 0..<pixels.height {
@@ -204,6 +210,11 @@ enum NativeObservedSourcePalette {
     static func observedGlyphPalette(
         rgba: [UInt8], width: Int, height: Int, box: [Double], hint: Payload? = nil
     ) -> [Payload]? {
+        observedGlyphPalette(rgba: rgba, width: width, height: height, box: box, hint: hint, features: nil)
+    }
+    static func observedGlyphPalette(
+        rgba: [UInt8], width: Int, height: Int, box: [Double], hint: Payload?, features: NativeSourceROIFeatures?
+    ) -> [Payload]? {
         guard let inner = rect(box), let pixels = Pixels(rgba: rgba, width: width, height: height, inner: inner) else { return nil }
         do {
             let source = try NativeKernelBuffer(values: rgba)
@@ -215,7 +226,7 @@ enum NativeObservedSourcePalette {
             let queue = try NativeKernelBuffer<Int32>(count: pixels.count)
             let core = try NativeKernelBuffer<Int32>(count: pixels.count)
             let stats = try NativeKernelBuffer<Int32>(count: 5)
-            let bins = stableSort(bins(pixels).map(\.bin)) { $0.count > $1.count }
+            let bins = stableSort(bins(pixels, features: features).map(\.bin)) { $0.count > $1.count }
             let area = Double(bins.reduce(0) { $0 + $1.count })
             var seeds: [RGB] = []
             for bin in bins where Double(bin.count) >= max(4, area * 0.002) {
@@ -411,13 +422,22 @@ enum NativeObservedSourcePalette {
         var payload: Payload {
             ["foreground": foreground, "stroke": stroke, "band": band, "glyphPixels": glyphPixels,
              "hitRatio": hitRatio, "exitRatio": exitRatio, "coverage": coverage, "backgroundExits": backgroundExits,
-             "exits": exits, "score": score]
+             "exits": exits, "score": score,
+             "foregroundModelConfidence": min(hitRatio, coverage),
+             "foregroundProvenance": "independent observed stroke-pair glyph candidate; uncalibrated local hit/coverage score"]
         }
     }
 
     static func observedStrokePalette(
         rgba: [UInt8], width: Int, height: Int, box: [Double], glyphs glyphPayloads: [Payload]?,
         display: RGB?, result resultPayload: Payload?, opaque: Bool = false
+    ) -> Payload? {
+        observedStrokePalette(rgba: rgba, width: width, height: height, box: box, glyphs: glyphPayloads,
+            display: display, result: resultPayload, opaque: opaque, features: nil)
+    }
+    static func observedStrokePalette(
+        rgba: [UInt8], width: Int, height: Int, box: [Double], glyphs glyphPayloads: [Payload]?,
+        display: RGB?, result resultPayload: Payload?, opaque: Bool, features: NativeSourceROIFeatures?
     ) -> Payload? {
         guard let inner = rect(box), let pixels = Pixels(rgba: rgba, width: width, height: height, inner: inner, opaque: opaque) else { return nil }
         let result = Result(resultPayload), glyphs = (glyphPayloads ?? []).compactMap(Glyph.init)
@@ -451,7 +471,7 @@ enum NativeObservedSourcePalette {
         do {
             let source = try NativeKernelBuffer(values: rgba)
             var seeds: [RGB] = []
-            for bin in stableSort(bins(pixels).map(\.bin), by: { $0.count > $1.count }) where bin.count >= 4 {
+            for bin in stableSort(bins(pixels, features: features).map(\.bin), by: { $0.count > $1.count }) where bin.count >= 4 {
                 let color = bin.color
                 if seeds.contains(where: { distance($0, color) < 32 }) { continue }
                 seeds.append(color)

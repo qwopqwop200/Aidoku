@@ -23,6 +23,21 @@ enum CustomSourceConfig {
 }
 
 extension CustomSourceConfig {
+    /// Reading installed metadata must not start a runner or register its settings.
+    func toInfo() -> SourceInfo {
+        let identity: (key: String, name: String, languages: [String])
+        switch self {
+            case .demo:
+                identity = ("demo", "Demo Source", ["en"])
+            case .local:
+                identity = (LocalSourceRunner.sourceKey, NSLocalizedString("LOCAL_FILES"), ["multi"])
+            case let .komga(config), let .kavita(config), let .suwayomi(config):
+                identity = (config.key, config.name, ["multi"])
+        }
+        return SourceInfo(sourceId: identity.key, name: identity.name, languages: identity.languages,
+                          version: 1, contentRating: .safe, external: false)
+    }
+
     func toSource() -> AidokuRunner.Source {
         switch self {
             case .demo:

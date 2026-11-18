@@ -99,6 +99,17 @@ struct NativeSourceRunnerRegistryTests {
         }
     }
 
+    @Test func compatibilityLookupDoesNotInitializeTheFactory() throws {
+        let registry = NativeSourceRunnerRegistry()
+        try registry.register(sourceKey: "test.staged", supportedVersions: [2]) { _ in
+            Issue.record("A metadata availability check created a runner")
+            return FixtureRunner()
+        }
+        #expect(registry.supports(sourceKey: "test.staged", version: 2))
+        #expect(!registry.supports(sourceKey: "test.staged", version: 1))
+        #expect(!registry.supports(sourceKey: "test.unknown", version: 2))
+    }
+
     @Test func matchedFactoryFailureIsPropagated() async throws {
         let registry = NativeSourceRunnerRegistry()
         let url = try directory(manifest: manifest())

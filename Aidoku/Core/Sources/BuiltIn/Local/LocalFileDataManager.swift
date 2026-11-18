@@ -91,23 +91,40 @@ extension LocalFileDataManager {
 
 // MARK: Fetching
 extension LocalFileDataManager {
-    // fetch list of series with some basic info from db
-    func fetchLocalSeriesInfo(query: String? = nil) -> [LocalSeriesInfo] {
-        let request = MangaObject.fetchRequest()
+    private func localSeriesRequest<Result: NSFetchRequestResult>(query: String?) -> NSFetchRequest<Result> {
+        let request = NSFetchRequest<Result>(entityName: "Manga")
         request.predicate = if let query, !query.isEmpty {
             NSPredicate(format: "sourceId == %@ AND title CONTAINS[cd] %@", LocalSourceRunner.sourceKey, query)
         } else {
             NSPredicate(format: "sourceId == %@", LocalSourceRunner.sourceKey)
         }
         request.sortDescriptors = [NSSortDescriptor(key: "fileInfo.dateCreated", ascending: false)]
+        return request
+    }
+
+    func fetchLocalSeriesInfo(query: String? = nil) -> [LocalSeriesInfo] {
+        guard !Task.isCancelled else { return [] }
         do {
-            let results = try context.fetch(request)
-            return results.map {
+            if context.hasChanges {
+                // Dictionary projections read the persistent store. Include any staged edits.
+                let request: NSFetchRequest<MangaObject> = localSeriesRequest(query: query)
+                return try context.fetch(request).map {
+                    LocalSeriesInfo(id: $0.id, coverUrl: $0.cover ?? "", name: $0.title, chapterCount: $0.chapters?.count ?? 0)
+                }
+            }
+            let count = NSExpressionDescription()
+            count.name = "numberOfChapters"
+            count.expression = NSExpression(forKeyPath: "chapters.@count")
+            count.expressionResultType = .integer64AttributeType
+            let request: NSFetchRequest<NSDictionary> = localSeriesRequest(query: query)
+            request.resultType = .dictionaryResultType
+            request.propertiesToFetch = ["id", "title", "cover", count]
+            return try context.fetch(request).map {
                 LocalSeriesInfo(
-                    id: $0.id,
-                    coverUrl: $0.cover ?? "",
-                    name: $0.title,
-                    chapterCount: $0.chapters?.count ?? 0
+                    id: $0["id"] as? String ?? "",
+                    coverUrl: $0["cover"] as? String ?? "",
+                    name: $0["title"] as? String ?? "",
+                    chapterCount: ($0["numberOfChapters"] as? NSNumber)?.intValue ?? 0
                 )
             }
         } catch {
@@ -118,13 +135,7 @@ extension LocalFileDataManager {
 
     // fetch all series from db that have associated local file information
     func fetchLocalSeries(query: String? = nil) -> [AidokuRunner.Manga] {
-        let request = MangaObject.fetchRequest()
-        request.predicate = if let query, !query.isEmpty {
-            NSPredicate(format: "sourceId == %@ AND title CONTAINS[cd] %@", LocalSourceRunner.sourceKey, query)
-        } else {
-            NSPredicate(format: "sourceId == %@", LocalSourceRunner.sourceKey)
-        }
-        request.sortDescriptors = [NSSortDescriptor(key: "fileInfo.dateCreated", ascending: false)]
+        let request: NSFetchRequest<MangaObject> = localSeriesRequest(query: query)
         do {
             let results = try context.fetch(request)
             return results.map { $0.toNewManga() }

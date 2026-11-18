@@ -30,7 +30,6 @@ final class TemporarySharedImageSession {
 
     func removeFiles() { try? FileManager.default.removeItem(at: directory) }
     deinit { removeFiles() }
-    static func removeAllSessions() { try? FileManager.default.removeItem(at: root) }
 }
 
 private final class TemporaryImageRunner: AidokuRunner.Runner {

@@ -66,6 +66,14 @@ struct HitomiNativeUtilityTests {
         #expect(try HitomiSearch.decodeGalleryIDs(Data([0, 0, 0, 1, 255, 255, 255, 255])) == [4_294_967_295])
     }
 
+    @Test func slicesUseBodyRelativeOffsetsAndAllowUnalignedBigEndianIDs() throws {
+        let body = Data([255, 0, 0, 0, 2, 128, 0, 0, 1, 0, 0, 0, 2] + Array(repeating: 0, count: 20)).dropFirst()
+        #expect(try HitomiSearch.decodeGalleryIDs(body.prefix(12)) == [2_147_483_649, 2])
+        let ids = try HitomiSearch.extractRange(body, response: response(200), range: 4...11)
+        #expect(HitomiSearch.decodeNozomi(ids) == [2_147_483_649, 2])
+        #expect(try HitomiSearch.decodeGalleryIDs(Data(repeating: 0, count: 4)).isEmpty)
+    }
+
     @Test func binarySearchUsesNormalizedHashAndCachesOnlyIndexNodes() async throws {
         let key = Array(SHA256.hash(data: Data("some term".utf8)).prefix(4))
         let node = Data([0, 0, 0, 1, 0, 0, 0, 4] + key

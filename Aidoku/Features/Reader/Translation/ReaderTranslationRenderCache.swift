@@ -11,6 +11,45 @@ final class ReaderTranslationRenderCache {
         let image: UIImage
         let bytes: Int
         let pageIdentity: String
+        let snapshotSource: SnapshotSource?
+    }
+    struct SourceAspectSnapshot {
+        let viewport: CGSize
+
+        init?(source: UIImage, renderedSource: UIImage, viewport: CGSize, aspectFit: Bool) {
+            let bounds = CGRect(origin: .zero, size: viewport)
+            guard renderedSource === source, ReaderTranslationGeometry.displayRect(
+                ReaderTranslationSplitGeometry.unit, imageSize: source.size, bounds: bounds, aspectFit: aspectFit
+            ) == bounds else { return nil }
+            self.viewport = viewport
+        }
+    }
+    private final class SnapshotSource {
+        weak var image: UIImage?
+        // Some Reader paths rewrap the same immutable pixel buffer. Its object
+        // identity proves all CGImage inputs to computeSourceDigest; scale and
+        // orientation are the two inputs supplied by UIImage itself.
+        private weak var pixels: CGImage?
+        private let scale: CGFloat
+        private let orientation: UIImage.Orientation
+        let digest: String?
+        let sourceAspect: SourceAspectSnapshot?
+        init(image: UIImage, digest: String?, sourceAspect: SourceAspectSnapshot?) {
+            self.image = image
+            // UIKit animated images also expose their first frame as a CGImage.
+            pixels = image.translationStaticPixels
+            scale = image.scale
+            orientation = image.imageOrientation
+            self.digest = image.images == nil ? digest : nil
+            self.sourceAspect = sourceAspect
+        }
+        func matches(_ source: UIImage) -> Bool {
+            if image === source { return true }
+            guard let digest else { return false }
+            if let pixels, source.translationStaticPixels === pixels, source.scale == scale,
+               source.imageOrientation == orientation { return true }
+            return ReaderTranslationRenderAsset.sourceDigests.value(for: source) == digest
+        }
     }
     nonisolated static let bitmapByteLimit = 32 * 1_024 * 1_024
     private(set) var currentBitmapByteLimit = bitmapByteLimit
@@ -44,6 +83,9 @@ final class ReaderTranslationRenderCache {
         let task: Task<Void, Never>
     }
     private var pendingAssetValidations: [UUID: PendingAssetWrite] = [:]
+    // A cancelled ImageIO operation can retain its input until it actually returns.
+    // Keep the one-raster reservation through cancellation and cache clears.
+    private var settledPNG: (key: String, id: UUID, bytes: Int, task: Task<Void, Never>)?
     private var assetDiskMutations: [String: AssetWrite] = [:]
     var pendingAssetWrites: Int { assetWrites.count + pendingAssetValidations.count }
     private struct AssetRead {
@@ -83,10 +125,8 @@ final class ReaderTranslationRenderCache {
     private var variants: [String: [String]] = [:]
 
     init(disk: ReaderTranslationDiskCache,
-         encodeAsset: @escaping @Sendable (ReaderTranslationRenderAsset) -> Data? = { try? JSONEncoder().encode($0) },
-         decodeAsset: @escaping @Sendable (Data) -> ReaderTranslationRenderAsset? = {
-             try? JSONDecoder().decode(ReaderTranslationRenderAsset.self, from: $0)
-         }) {
+         encodeAsset: @escaping @Sendable (ReaderTranslationRenderAsset) -> Data? = { $0.encodeForDisk() },
+         decodeAsset: @escaping @Sendable (Data) -> ReaderTranslationRenderAsset? = { ReaderTranslationRenderAsset.decodeFromDisk($0) }) {
         self.disk = disk
         self.encodeAsset = encodeAsset
         self.decodeAsset = decodeAsset
@@ -107,6 +147,25 @@ final class ReaderTranslationRenderCache {
         imageOrder.removeAll { $0 == key }
         imageOrder.append(key)
         return entry.image
+    }
+
+    /// A viewport snapshot includes the original pixels; an unchanged remote
+    /// URL and translated layout cannot attest a reloaded source image.
+    func cachedSnapshot(for key: String, source: UIImage, sourceAspectViewport: CGSize? = nil) -> UIImage? {
+        guard let binding = images[key]?.snapshotSource, binding.matches(source) else { return nil }
+        if let sourceAspectViewport, binding.sourceAspect?.viewport != sourceAspectViewport { return nil }
+        return cachedImage(for: key)
+    }
+
+    func loadSnapshot(_ key: String, source: UIImage) async -> UIImage? {
+        guard !Task.isCancelled else { return nil }
+        if let snapshot = cachedSnapshot(for: key, source: source) { return snapshot }
+        guard let expected = images[key]?.snapshotSource?.digest else { return nil }
+        let fingerprint = Task.detached(priority: .utility) { ReaderTranslationRenderAsset.digestSource(source) }
+        let actual = await withTaskCancellationHandler { await fingerprint.value } onCancel: { fingerprint.cancel() }
+        guard !Task.isCancelled, actual == expected else { return nil }
+        // Revalidate the entry after suspension; a newer write can replace it.
+        return cachedSnapshot(for: key, source: source)
     }
 
     func cachedLayout(for key: String) -> Data? {
@@ -151,29 +210,38 @@ final class ReaderTranslationRenderCache {
     /// Layout payloads contain the translated text as well as geometry. A page
     /// retranslated under the same settings must not replay an older payload.
     nonisolated static func layoutKey(renderKey: String, regions: [ReaderTranslationRegion]) -> String {
+        layoutKey(renderKey: renderKey, regionsDigest: ReaderTranslationRenderAsset.digest(regions))
+    }
+
+    nonisolated static func layoutKey(renderKey: String, regionsDigest: String) -> String {
         ReaderTranslationCacheIdentity.encoded([
-            "reader-layout-native-v1", renderKey, ReaderTranslationRenderAsset.digest(regions)
+            "reader-layout-native-text-box-leading-v6", renderKey, regionsDigest
         ])
     }
 
     /// Viewport snapshots also contain translated text. Geometry alone cannot
     /// distinguish a newly translated page from the bitmap it replaced.
     nonisolated static func snapshotKey(renderKey: String, regions: [ReaderTranslationRegion]) -> String {
+        snapshotKey(renderKey: renderKey, regionsDigest: ReaderTranslationRenderAsset.digest(regions))
+    }
+
+    nonisolated static func snapshotKey(renderKey: String, regionsDigest: String) -> String {
         ReaderTranslationCacheIdentity.encoded([
-            "reader-snapshot-native-v1", renderKey, ReaderTranslationRenderAsset.digest(regions)
+            "reader-snapshot-native-text-box-leading-v6", renderKey, regionsDigest
         ])
     }
 
     /// This namespace shares layout invalidation/eviction, but never goes through
     /// layoutData's native-plan decoder. Layouts remain independently usable.
     nonisolated static func renderAssetStorageKey(_ key: String) -> String {
-        "reader-render-asset-native-v1-" + key
+        "reader-render-asset-native-text-box-leading-v6-" + key
     }
 
     private func retainRenderAsset(_ asset: ReaderTranslationRenderAsset, key: String) {
-        guard asset.isValid, asset.byteCost <= Self.renderAssetByteLimit else { return }
+        let limit = Self.renderAssetByteLimit - (settledPNG?.bytes ?? 0)
+        guard asset.isValid, asset.byteCost <= limit else { return }
         removeMemoryRenderAsset(key)
-        while renderAssetBytes + asset.byteCost > Self.renderAssetByteLimit || renderAssets.count >= 16,
+        while renderAssetBytes + asset.byteCost > limit || renderAssets.count >= 16,
               let oldest = renderAssetOrder.first {
             removeMemoryRenderAsset(oldest)
         }
@@ -210,7 +278,12 @@ final class ReaderTranslationRenderCache {
                 let priorities = ReaderAssetReadPriorities()
                 priorities.set(priority, for: consumer)
                 let promotion = TranslationRequestPromotion(foregroundSource: { priorities.isForeground })
+                let pendingPNG = settledPNG?.key == key ? settledPNG?.task : nil
                 let task = Task { [weak self, disk, assetReadGate, decodeAsset] in
+                    // A successful preparation delivers its asset to these consumers
+                    // before serializing it. A failed encode can still replay disk.
+                    await pendingPNG?.value
+                    guard !Task.isCancelled else { return }
                     let span = ReaderTranslationDiagnostics.Span("asset_disk_decode")
                     let asset = try? await assetReadGate.withPermit(priority: .promotable(promotion)) {
                         guard !Task.isCancelled,
@@ -291,7 +364,7 @@ final class ReaderTranslationRenderCache {
 
     nonisolated static func loadedImageKey(renderKey: String, regionsDigest: String, sourceDigest: String, size: CGSize) -> String {
         ReaderTranslationCacheIdentity.encoded([
-            "reader-loaded-composite-native-v1", renderKey, regionsDigest, sourceDigest, ReaderTranslationCacheIdentity.encoded(size)
+            "reader-loaded-composite-native-text-box-leading-v6", renderKey, regionsDigest, sourceDigest, ReaderTranslationCacheIdentity.encoded(size)
         ])
     }
 
@@ -302,10 +375,56 @@ final class ReaderTranslationRenderCache {
         retain(image, key: key, pageIdentity: pageIdentity)
     }
 
+    /// Schedule only a canonical, already-rendered bitmap. Rejecting optional
+    /// admission leaves the caller's existing, serial render path available.
+    func prepareSettledAssetAfterDisplay(key: String, context: AssetStorageContext, bitmapBytes: Int,
+                                        prepare: @escaping @Sendable () throws -> ReaderTranslationRenderAsset) -> Bool {
+        guard !Task.isCancelled, generation == context.generation, settledPNG == nil,
+              bitmapBytes > 0, bitmapBytes <= min(currentBitmapByteLimit, Self.renderAssetByteLimit - renderAssetBytes),
+              pendingAssetWrites < 4 else { return false }
+        let id = beginAssetStoreAdmission(key: key)
+        let task = Task(priority: .utility) { [weak self] in
+            guard let self else { return }
+            defer {
+                finishAssetStoreAdmission(key: key, id: id)
+                pendingAssetValidations.removeValue(forKey: id)
+                if settledPNG?.id == id { settledPNG = nil }
+            }
+            let diskGeneration = await context.diskGeneration.value
+            guard !Task.isCancelled, generation == context.generation, assetStoreAdmissions[key]?.contains(id) == true,
+                  await disk.currentGeneration() == diskGeneration, !Task.isCancelled else { return }
+            guard await acquireEncodingSlot() else { return }
+            let encoding = Task.detached(priority: .utility) {
+                try Task.checkCancellation()
+                return try prepare()
+            }
+            let asset = try? await withTaskCancellationHandler { try await encoding.value } onCancel: { encoding.cancel() }
+            releaseEncodingSlot()
+            guard let asset, asset.isValid,
+                  await acceptAssetStore(key: key, id: id, diskGeneration: diskGeneration, issued: context.generation) else { return }
+            settledPNG = nil
+            cancelAssetRead(key: key, replacement: asset)
+            retainRenderAsset(asset, key: key)
+            let writer = Task(priority: .utility) {
+                defer { if self.assetWrites[key]?.id == id { self.assetWrites.removeValue(forKey: key) } }
+                await self.storeRenderAsset(asset, key: key, diskGeneration: diskGeneration, issued: context.generation, id: id)
+            }
+            assetWrites[key] = AssetWrite(id: id, task: writer)
+        }
+        settledPNG = (key, id, bitmapBytes, task)
+        pendingAssetValidations[id] = PendingAssetWrite(key: key, task: task)
+        return true
+    }
+
     /// Optional serialization and disk persistence are bounded background work,
     /// never a display barrier. Both cache generations are checked before retention.
-    func storeRenderAssetAfterDisplay(_ asset: ReaderTranslationRenderAsset, key: String, context: AssetStorageContext) {
+    func storeRenderAssetAfterDisplay(_ asset: ReaderTranslationRenderAsset, key: String, context: AssetStorageContext,
+                                      replacing failed: ReaderTranslationRenderAsset? = nil) {
         guard !Task.isCancelled, generation == context.generation, asset.isValid else { return }
+        if let failed {
+            repairRenderAsset(asset, key: key, context: context, replacing: failed)
+            return
+        }
         // A same-key accepted writer is replaced only after validation, so allow
         // its replacement without granting another encoding slot.
         let replacing = assetWrites[key] == nil ? 0 : 1
@@ -328,6 +447,44 @@ final class ReaderTranslationRenderCache {
             await self.storeRenderAsset(asset, key: key, diskGeneration: diskGeneration, issued: context.generation, id: id)
         }
         pendingAssetValidations[id] = PendingAssetWrite(key: key, task: task)
+    }
+
+    func discardFailedMemoryAsset(_ failed: ReaderTranslationRenderAsset, key: String) {
+        if renderAssets[key] == failed { removeMemoryRenderAsset(key) }
+    }
+
+    // A late failed replay is never entitled to cancel a newer producer. Compare again after
+    // encoding and after the cross-connection disk transaction before publishing repaired RAM.
+    private func repairRenderAsset(_ asset: ReaderTranslationRenderAsset, key: String, context: AssetStorageContext,
+                                   replacing failed: ReaderTranslationRenderAsset) {
+        func mayReplace() -> Bool {
+            generation == context.generation && assetStoreAdmissions[key] == nil && assetStores[key] == nil
+                && assetDiskMutations[key] == nil && (renderAssets[key] == nil || renderAssets[key] == failed)
+        }
+        guard mayReplace(), assetWrites[key] == nil, pendingAssetWrites < 4 else { return }
+        let id = UUID()
+        let task = Task { [weak self, decodeAsset] in
+            guard let self else { return }
+            defer { if assetWrites[key]?.id == id { assetWrites.removeValue(forKey: key) } }
+            let diskGeneration = await context.diskGeneration.value
+            guard !Task.isCancelled, mayReplace(), let data = await encodedAsset(asset),
+                  data.count <= ReaderTranslationRenderAsset.maximumEncodedBytes, !Task.isCancelled,
+                  mayReplace(), assetWrites[key]?.id == id else { return }
+            let condition = ReaderTranslationDiskCache.ReplacementCondition(maximumBytes: ReaderTranslationRenderAsset.maximumEncodedBytes) {
+                decodeAsset($0) == failed
+            }
+            let committed = try? await disk.store(data, for: Self.renderAssetStorageKey(key), kind: .layout,
+                                                  generation: diskGeneration, replacing: condition)
+            guard !Task.isCancelled, mayReplace(), assetWrites[key]?.id == id else { return }
+            guard committed == true else {
+                // A different connection may already have updated this key. Let the next read reach disk.
+                discardFailedMemoryAsset(failed, key: key)
+                return
+            }
+            cancelAssetRead(key: key, replacement: asset)
+            retainRenderAsset(asset, key: key)
+        }
+        assetWrites[key] = AssetWrite(id: id, task: task)
     }
 
     func storeRenderAsset(_ asset: ReaderTranslationRenderAsset, key: String, diskGeneration: UInt64) async {
@@ -368,7 +525,7 @@ final class ReaderTranslationRenderCache {
         guard await disk.currentGeneration() == diskGeneration, !Task.isCancelled,
               generation == issued, assetStores[key] == id else { return }
         // These are already completed rendering bytes. Make them replayable while
-        // optional JSON encoding/persistence runs, otherwise another display can
+        // optional encoding/persistence runs, otherwise another display can
         // miss both tiers and repeat the native render. This shares the same Data
         // under the existing byte-bounded LRU; no decoded bitmap is retained here.
         cancelAssetRead(key: key, replacement: asset)
@@ -404,7 +561,7 @@ final class ReaderTranslationRenderCache {
 
     private func encodedAsset(_ asset: ReaderTranslationRenderAsset) async -> Data? {
         guard await acquireEncodingSlot() else { return nil }
-        // A cancelled synchronous JSON encode still owns its slot until it returns.
+        // A cancelled synchronous encode still owns its slot until it returns.
         // Key replacement and clearMemory must never reset this lifetime count.
         defer { releaseEncodingSlot() }
         guard !Task.isCancelled else { return nil }
@@ -471,11 +628,16 @@ final class ReaderTranslationRenderCache {
         try Task.checkCancellation()
     }
 
-    func store(_ image: UIImage, key: String, pageIdentity: String, diskGeneration: UInt64) async {
+    func store(_ image: UIImage, key: String, pageIdentity: String, diskGeneration: UInt64,
+               source: UIImage? = nil, sourceDigest: String? = nil, sourceAspect: SourceAspectSnapshot? = nil) async {
         let issued = generation
         guard !Task.isCancelled, await disk.currentGeneration() == diskGeneration, !Task.isCancelled, generation == issued,
               shouldKeepImage(for: pageIdentity) else { return }
-        retain(image, key: key, pageIdentity: pageIdentity)
+        let snapshotSource = source.map {
+            SnapshotSource(image: $0, digest: sourceDigest ?? ReaderTranslationRenderAsset.sourceDigests.value(for: $0),
+                           sourceAspect: sourceAspect)
+        }
+        retain(image, key: key, pageIdentity: pageIdentity, snapshotSource: snapshotSource)
     }
 
     private func removeImage(_ key: String) {
@@ -483,7 +645,7 @@ final class ReaderTranslationRenderCache {
         imageOrder.removeAll { $0 == key }
     }
 
-    private func retain(_ image: UIImage, key: String, pageIdentity: String) {
+    private func retain(_ image: UIImage, key: String, pageIdentity: String, snapshotSource: SnapshotSource? = nil) {
         guard let pixels = image.cgImage else { return }
         let cost = pixels.bytesPerRow * pixels.height
         guard cost <= currentBitmapByteLimit else { return }
@@ -498,7 +660,7 @@ final class ReaderTranslationRenderCache {
             (nearbyOrder.firstIndex(of: entry.pageIdentity) ?? 0) >= rank else { return }
             removeImage(victim)
         }
-        images[key] = Bitmap(image: image, bytes: cost, pageIdentity: pageIdentity)
+        images[key] = Bitmap(image: image, bytes: cost, pageIdentity: pageIdentity, snapshotSource: snapshotSource)
         bitmapBytes += cost
         imageOrder.append(key)
         var keys = variants[pageIdentity, default: []].filter { $0 != key }
