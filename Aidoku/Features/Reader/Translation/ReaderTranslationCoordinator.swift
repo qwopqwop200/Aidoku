@@ -4,6 +4,7 @@ import UIKit
 protocol ReaderTranslationOwner: AnyObject {
     var navigationItem: UINavigationItem { get }
     var translationUpcomingPages: [Page] { get }
+    var translationChapterItems: [ReaderTranslationSession.Item] { get }
     var translationVisiblePages: [ReaderTranslationPage] { get }
     var translationPreviewPages: [ReaderTranslationPage] { get }
     var translationChapterKey: String { get }
@@ -13,6 +14,9 @@ protocol ReaderTranslationOwner: AnyObject {
 }
 
 extension ReaderTranslationOwner {
+    var translationChapterItems: [ReaderTranslationSession.Item] {
+        ReaderTranslationSession.chapterItems(translationUpcomingPages)
+    }
     var translationPreviewPages: [ReaderTranslationPage] { [] }
     var translationReadsRightToLeft: Bool { false }
     var translationPersistsCache: Bool { true }
@@ -133,9 +137,9 @@ final class ReaderTranslationCoordinator {
     ) {
         let persistsCache = owner.translationPersistsCache
         self.preloader = ReaderTranslationPreloader(diskCache: persistsCache ? .shared : nil, retainImage: { [weak owner] page in
-            guard let owner, let position = owner.translationUpcomingPages.firstIndex(where: {
-                $0.translationCacheKey == page.translationCacheKey
-            }) else { return false }
+            guard let owner else { return false }
+            let key = page.translationCacheKey
+            guard let position = owner.translationChapterItems.firstIndex(where: { $0.key == key }) else { return false }
             return abs(position - owner.translationCurrentPageIndex) <= 2
         })
         self.owner = owner
@@ -458,7 +462,7 @@ final class ReaderTranslationCoordinator {
             let context = visible.first.flatMap { page in
                 page.imageView.map { ReaderTranslationLayoutGeometry(page: page, imageView: $0).context }
             }
-            session.update(items: ReaderTranslationSession.chapterItems(owner.translationUpcomingPages),
+            session.update(items: owner.translationChapterItems,
                 visible: visible, context: owner.translationChapterKey,
                 currentPageIndex: owner.translationCurrentPageIndex, renderContext: context,
                 processUncachedPages: false)
@@ -478,11 +482,10 @@ final class ReaderTranslationCoordinator {
         let visible = owner.translationVisiblePages
         let visibleKeys = visible.compactMap { $0.sourcePage?.translationCacheKey }
         session.refreshVisiblePages(visible, previews: readSettings().automaticallyTranslate ? owner.translationPreviewPages : [])
-        let pages = owner.translationUpcomingPages
         let renderContext = visible.first.flatMap { page in
             page.imageView.map { ReaderTranslationLayoutGeometry(page: page, imageView: $0).context }
         }
-        session.update(items: ReaderTranslationSession.chapterItems(pages), visible: visible, context: owner.translationChapterKey,
+        session.update(items: owner.translationChapterItems, visible: visible, context: owner.translationChapterKey,
                        currentPageIndex: owner.translationCurrentPageIndex, renderContext: renderContext)
         if visibleKeys != diagnosticVisibleKeys {
             diagnosticVisibleKeys = visibleKeys

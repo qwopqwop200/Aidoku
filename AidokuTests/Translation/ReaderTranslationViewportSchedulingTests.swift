@@ -1,9 +1,32 @@
+import AidokuRunner
 import Testing
 import UIKit
 @testable import Aidoku
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationViewportSchedulingTests {
+    @Test func unchangedChapterReusesKeysAndInPlaceEditsReplaceItsSnapshot() throws {
+        let reader = ReaderViewController(source: nil,
+            manga: .init(sourceKey: "viewport", key: "book", title: "Book"), chapter: .init(key: "chapter"))
+        let source = Aidoku.Page(sourceId: "viewport", chapterId: "chapter", index: 7, imageURL: "file:///a.png")
+        var text = source
+        text.text = "text"
+        reader.pages = [text, source]
+        let owner: any ReaderTranslationOwner = reader
+        let first = owner.translationChapterItems
+        let reused = owner.translationChapterItems
+        #expect(first.map(\.position) == [0])
+        #expect(first.map(\.key) == [source.translationCacheKey])
+        let sameStorage = first.withUnsafeBufferPointer { firstBuffer in
+            reused.withUnsafeBufferPointer { $0.baseAddress == firstBuffer.baseAddress }
+        }
+        #expect(sameStorage)
+        reader.pages[1].imageURL = "file:///replacement.png"
+        let updated = try #require(owner.translationChapterItems.first)
+        #expect(updated.key == reader.pages[1].translationCacheKey)
+        #expect(updated.key != first[0].key)
+    }
+
     @Test(arguments: [false, true])
     func scrubbingAndChapterChangesDoNotRetainOutgoingVisibleWork(changesChapter: Bool) async throws {
         let suite = "AidokuTests.ViewportScheduling.\(UUID().uuidString)"
