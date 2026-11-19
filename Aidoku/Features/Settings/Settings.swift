@@ -529,6 +529,48 @@ extension Settings {
                 )
             ]))
         ),
+    ] + (UpscaleProcessor.isAvailable ? [
+        .init(
+            title: NSLocalizedString("UPSCALING"),
+            value: .group(.init(
+                footer: NSLocalizedString("UPSCALE_MAX_IMAGE_HEIGHT_TEXT"),
+                items: [
+                    .init(
+                        key: "Reader.upscaleImages",
+                        title: String(format: NSLocalizedString("%@_EXPERIMENTAL"), NSLocalizedString("UPSCALE_IMAGES")),
+                        requiresFalse: "Reader.downsampleImages",
+                        value: .toggle(.init())
+                    ),
+                    .init(
+                        key: "Reader.upscalingModels",
+                        title: NSLocalizedString("UPSCALING_MODELS"),
+                        requires: "Reader.upscaleImages",
+                        value: .page(.init(items: []))
+                    ),
+                    .init(
+                        key: "Reader.upscaleMaxHeight",
+                        title: NSLocalizedString("UPSCALE_MAX_IMAGE_HEIGHT"),
+                        requires: "Reader.upscaleImages",
+                        value: .stepper(.init(
+                            minimumValue: 200,
+                            maximumValue: 4000,
+                            stepValue: 100
+                        ))
+                    ),
+                    .init(
+                        key: AppSettings.reader.upscaleQuality.key,
+                        title: NSLocalizedString("UPSCALE_QUALITY"),
+                        notification: .init(AppSettings.reader.upscaleQuality.key),
+                        requires: "Reader.upscaleImages",
+                        value: .select(.init(
+                            values: ReaderSettings.UpscaleQuality.allCases.map(\.rawValue),
+                            titles: ReaderSettings.UpscaleQuality.allCases.map(\.title)
+                        ))
+                    )
+                ]
+            ))
+        ),
+    ] : []) + [
         .init(
             title: NSLocalizedString("PAGED"),
             value: .group(.init(items: [

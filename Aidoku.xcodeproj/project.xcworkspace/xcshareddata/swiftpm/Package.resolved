@@ -7,7 +7,7 @@
       "location" : "https://github.com/qwopqwop200/AidokuRunner",
       "state" : {
         "branch" : "aidoku",
-        "revision" : "e201da96af73d9a21dd11b2e025d9d0039a36401"
+        "revision" : "4a2fb6defb1cec2f48ae1f04edaaed180aab8f54"
       }
     },
     {
@@ -123,6 +123,15 @@
       "state" : {
         "revision" : "6a6475db9bf9f7e04731ab60053c3ca4934c1ac6",
         "version" : "3.1.1"
+      }
+    },
+    {
+      "identity" : "wasm3",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Skittyblock/Wasm3",
+      "state" : {
+        "branch" : "main",
+        "revision" : "6a64d8bfc6a235f1ee3f8b57f692494fbf72ed19"
       }
     },
     {

@@ -637,6 +637,16 @@
 "COPY_URL" = "URLをコピー";
 "LEGACY_SOURCE_LIST" = "レガシーソースリスト";
 "LEGACY_SOURCE_LIST_WARNING" = "警告: レガシーソースリスト";
+"UPSCALING" = "アップスケール";
+"UPSCALE_IMAGES" = "画像をアップスケール";
+"UPSCALING_MODELS" = "アップスケールモデル";
+"UPSCALE_MAX_IMAGE_HEIGHT" = "最大画像高さ";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "最大画像高さを超える画像はアップスケールされません。";
+"ENABLED_MODEL" = "有効なモデル";
+"AVAILABLE_MODELS" = "利用可能なモデル";
+"NO_AVAILABLE_MODELS" = "利用可能なモデルがありません";
+"NO_AVAILABLE_MODELS_TEXT" = "利用可能なモデルの取得に失敗しました。ネットワーク接続を確認し、アプリが最新バージョンであることを確認してください。";
+"MODEL_INFO" = "モデル情報";
 "DISABLE_QUICK_ACTIONS" = "クイックアクションを無効化";
 "DISABLE_DOUBLE_TAP_ZOOM" = "ダブルタップで拡大を無効化";
 "LIVE_TEXT" = "テキスト認識表示";

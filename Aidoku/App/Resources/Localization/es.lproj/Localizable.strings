@@ -428,6 +428,7 @@
 "TRACK_COMPLETED" = "Completado";
 "COMIC" = "Cómic";
 "BOOK" = "Libro";
+"UPSCALING" = "Ampliación";
 "ZONE_L_SHAPED" = "En forma de L";
 "NAME" = "Nombre";
 "DATE" = "Fecha";
@@ -487,6 +488,11 @@
 "OTHER_SETTINGS" = "Otra configuración";
 "USE_CHAPTERS" = "Usar capítulos";
 "TOGGLE_LOCK" = "Alternar bloqueo";
+"UPSCALE_IMAGES" = "Ampliar imágenes";
+"UPSCALING_MODELS" = "Modelos de ampliación";
+"ENABLED_MODEL" = "Modelo activado";
+"AVAILABLE_MODELS" = "Modelos disponibles";
+"MODEL_INFO" = "Información de modelo";
 "RELOAD_FAILED" = "Error al recargar";
 "TAP_ZONES" = "Zonas de toque";
 "RESET_COVER" = "Restablecer portada";
@@ -552,6 +558,7 @@
 "LOCAL_FILE_IMPORT_TEXT" = "Importa un archivo CBZ o ZIP que contenga imágenes para leer.";
 "SOURCE_NAME_INFO" = "El nombre que se muestra para esta fuente en la pestaña Explorar.";
 "SERVER_ERROR_AUTHENTICATION" = "No se puede iniciar sesión. Asegúrate de que tus credenciales se hayan ingresado correctamente.";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Las imágenes que sean más grandes que la altura máxima de imagen no se ampliarán.";
 "RESET_SETTINGS_CONFIRM_%@" = "¿Seguro que quieres restablecer toda la configuración de %@?";
 "NO_EXTERNAL_SOURCES_INFO" = "Configura listas de fuentes en la pestaña de configuración para instalar fuentes externas.";
 "SOURCE_IMPORT_FAIL_TEXT" = "No se pudo importar la fuente. Asegúrate de que el archivo .aix sea válido.";
@@ -605,6 +612,9 @@
 "CURRENT_STREAK" = "Racha actual";
 "LONGEST_STREAK" = "Racha más larga";
 "UNAVAILABLE_SOURCE_LISTS" = "Listas de fuentes no disponibles";
+"UPSCALE_MAX_IMAGE_HEIGHT" = "Altura máxima de imagen";
+"NO_AVAILABLE_MODELS" = "No hay modelos disponibles";
+"NO_AVAILABLE_MODELS_TEXT" = "No se pudieron obtener los modelos disponibles. Revisa tu conexión de red y asegúrate de que la aplicación esté ejecutando la última versión.";
 "DISABLE_QUICK_ACTIONS" = "Desactivar acciones rápidas";
 "LIVE_TEXT" = "Texto en vivo";
 "ZONE_LEFT_RIGHT" = "Izquierda y derecha";

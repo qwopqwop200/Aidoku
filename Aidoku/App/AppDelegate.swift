@@ -117,6 +117,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 "Reader.skipDuplicateChapters": true,
                 "Reader.markDuplicateChapters": true,
                 "Reader.downsampleImages": false,
+                "Reader.upscaleImages": false,
+                "Reader.upscaleMaxHeight": 2000,
                 "Reader.cropBorders": false,
                 "Reader.disableQuickActions": false,
                 "Reader.disableDoubleTap": false,

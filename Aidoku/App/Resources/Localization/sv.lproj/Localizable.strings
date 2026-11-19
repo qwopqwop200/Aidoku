@@ -589,6 +589,16 @@
 "ALL_TIME" = "Totalt";
 "THIS_MONTH" = "Denna månad";
 "THIS_YEAR" = "Detta år";
+"UPSCALING" = "Uppskalning";
+"UPSCALE_IMAGES" = "Uppskala bilder";
+"UPSCALING_MODELS" = "Uppskalningsmodeller";
+"UPSCALE_MAX_IMAGE_HEIGHT" = "Max bildhöjd";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Bilder som är större än den maximala bildhöjden kommer ej uppskalas.";
+"ENABLED_MODEL" = "Aktiverad modell";
+"AVAILABLE_MODELS" = "Tillgängliga modeller";
+"NO_AVAILABLE_MODELS" = "Inga modeller tillgängliga";
+"NO_AVAILABLE_MODELS_TEXT" = "Kunde ej hämta tillgängliga modeller. Dubbelkolla din nätverksuppkoppling och se till att du kör den senaste appversionen.";
+"MODEL_INFO" = "Modellinfo";
 "DISABLE_QUICK_ACTIONS" = "Inaktivera snabbåtgärder";
 "LIVE_TEXT" = "Live-text";
 "READER_BG_COLOR_AUTO" = "Automatisk";

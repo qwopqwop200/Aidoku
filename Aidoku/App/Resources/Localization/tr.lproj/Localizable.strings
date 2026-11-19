@@ -658,6 +658,16 @@
 "NO_CURRENT_STREAK_TEXT" = "Kesintisiz bir okuma serisi oluşturmak için her gün okuyun.";
 "LONGEST_STREAK" = "En Uzun Okuma Serisi";
 "DAYS" = "Gün";
+"UPSCALING" = "Çözünürlük Artırma";
+"UPSCALE_IMAGES" = "Görsel Çözünürlüğünü Artır";
+"UPSCALING_MODELS" = "Çözünürlük Artırma Modelleri";
+"UPSCALE_MAX_IMAGE_HEIGHT" = "Maksimum Görsel Yüksekliği";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Maksimum görsel yüksekliğinden daha büyük olan görsellerin çözünürlüğü artırılmaz.";
+"ENABLED_MODEL" = "Etkinleştirilen Model";
+"AVAILABLE_MODELS" = "Mevcut Modeller";
+"NO_AVAILABLE_MODELS" = "Mevcut Model Yok";
+"NO_AVAILABLE_MODELS_TEXT" = "Mevcut modeller alınamadı. Ağ bağlantınızı kontrol edin ve uygulamanızın en son sürümü çalıştırdığından emin olun.";
+"MODEL_INFO" = "Model Bilgisi";
 "DISABLE_QUICK_ACTIONS" = "Hızlı Eylemleri Devre Dışı Bırak";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Çift Dokunma Yakınlaştırmasını Devre Dışı Bırak";
 "LIVE_TEXT" = "Canlı Metin";

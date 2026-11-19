@@ -433,6 +433,16 @@
 "UNAVAILABLE_SOURCE_LISTS" = "Daftar Sumber yang Tidak Tersedia";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Terjadi kesalahan saat mengambil daftar sumber di atas.";
 "COPY_URL" = "Salin URL";
+"UPSCALING" = "Peningkatan skala";
+"UPSCALE_IMAGES" = "Gambar Berkualitas Tinggi";
+"UPSCALING_MODELS" = "Peningkatan Model";
+"UPSCALE_MAX_IMAGE_HEIGHT" = "Tinggi Gambar Maksimum";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Gambar yang lebih besar dari tinggi gambar maksimum tidak akan di-upscaled.";
+"ENABLED_MODEL" = "Model yang Diaktifkan";
+"AVAILABLE_MODELS" = "Model yang Tersedia";
+"NO_AVAILABLE_MODELS" = "Tidak ada model yang tersedia";
+"NO_AVAILABLE_MODELS_TEXT" = "Gagal mengambil model yang tersedia. Periksa koneksi jaringan Anda dan pastikan aplikasi Anda menggunakan versi terbaru.";
+"MODEL_INFO" = "Informasi Model";
 "DOWNSAMPLE_IMAGES" = "Turunkan Resolusi Gambar";
 "CROP_BORDERS" = "Pangkas Tepi";
 "DISABLE_QUICK_ACTIONS" = "Nonaktifkan Aksi Cepat";

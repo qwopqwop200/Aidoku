@@ -329,7 +329,11 @@ extension BrowseViewController {
             !item.info.disabled,
             let source = SourceManager.shared.store.source(for: item.info.sourceId)
         {
-            let vc = NewSourceViewController(source: source)
+            let vc: UIViewController = if let legacySource = source.legacySource {
+                SourceViewController(source: legacySource)
+            } else {
+                NewSourceViewController(source: source)
+            }
             navigationController?.pushViewController(vc, animated: true)
         }
         tableView.deselectRow(at: indexPath, animated: true)

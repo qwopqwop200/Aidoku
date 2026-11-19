@@ -478,6 +478,16 @@
 "UNAVAILABLE_SOURCE_LISTS" = "사용할 수 없는 소스 목록";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "위 소스 목록을 받아오는 중 오류가 발생했습니다.";
 "COPY_URL" = "URL 복사";
+"UPSCALING" = "업스케일";
+"UPSCALE_IMAGES" = "이미지 업스케일";
+"UPSCALING_MODELS" = "업스케일링 모델";
+"UPSCALE_MAX_IMAGE_HEIGHT" = "최대 이미지 높이";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "최대 이미지 높이를 초과하는 이미지는 업스케일되지 않습니다.";
+"ENABLED_MODEL" = "활성화된 모델";
+"AVAILABLE_MODELS" = "사용할 수 있는 모델";
+"NO_AVAILABLE_MODELS" = "사용할 수 있는 모델 없음";
+"NO_AVAILABLE_MODELS_TEXT" = "사용할 수 있는 모델을 받아오는 데에 실패했습니다. 네트워크 연결을 확인하고 앱이 최신 버전인지 확인해 주세요.";
+"MODEL_INFO" = "모델 정보";
 "DISABLE_QUICK_ACTIONS" = "빠른 동작 비활성화";
 "TAP_ZONES" = "탭 영역";
 "ZONE_LEFT_RIGHT" = "왼쪽/오른쪽";

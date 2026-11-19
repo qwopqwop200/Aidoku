@@ -472,6 +472,7 @@
 "NO_HISTORY" = "沒有閱讀記錄";
 "NO_RECENT_SEARCHES" = "沒有最近的搜尋項目";
 "NO_RESULTS_FOR_%@" = "沒有「%@」的結果";
+"NO_AVAILABLE_MODELS" = "沒有可用的模型";
 "NO_HISTORY_TEXT" = "閱讀記錄會顯示在此處。";
 "NO_RECENT_SEARCHES_TEXT" = "你最近的搜尋項目會顯示在此處。";
 "BACKGROUND_REFRESH" = "背景更新";
@@ -638,6 +639,18 @@
 "BACKGROUND_REFRESH_TEXT" = "手動開始更新書庫後，即使 App 切換至背景，也允許更新完成。";
 "NO_RESULTS_TEXT" = "檢查拼字或嘗試重新搜尋。";
 "LEARN_MORE" = "瞭解更多…";
+"UPSCALING" = "超解析度";
+"UPSCALE_IMAGES" = "超解析度圖片";
+"UPSCALING_MODELS" = "超解析度模型";
+"UPSCALE_MAX_IMAGE_HEIGHT" = "最大圖片高度";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "如果原圖高度大於最大高度則不會進行超解析度處理。";
+"UPSCALE_QUALITY" = "超解析度品質";
+"UPSCALE_QUALITY_FAST" = "快速";
+"UPSCALE_QUALITY_BEST" = "最佳品質";
+"ENABLED_MODEL" = "已啟用的模型";
+"AVAILABLE_MODELS" = "可用的模型";
+"NO_AVAILABLE_MODELS_TEXT" = "無法取得可用的模型。請檢查網路連接以及確保應用程式是最新版本。";
+"MODEL_INFO" = "模型資訊";
 "CLEAR_SOURCE_CACHE_TEXT" = "清除此來源網址的 Cookie、網站資料和快取的來源內容。您可能需要重新登入，載入時間也可能暫時增加。";
 "OEL" = "英文原創漫畫";
 "SOURCE_BREAKING_CHANGE" = "來源不相容變更";

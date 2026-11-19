@@ -547,6 +547,19 @@
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "You currently have a legacy source list configured. This format is outdated and will stop working in a future version of Aidoku. While it will still work for now, it is recommended that you find a replacement and configure it in Settings > Source Lists.";
 
 // Upscaling
+"UPSCALING" = "Upscaling";
+"UPSCALE_IMAGES" = "Upscale Images";
+"UPSCALING_MODELS" = "Upscaling Models";
+"UPSCALE_MAX_IMAGE_HEIGHT" = "Maximum Image Height";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Images larger than the maxmimum image height won't be upscaled.";
+"UPSCALE_QUALITY" = "Upscaling Quality";
+"UPSCALE_QUALITY_FAST" = "Fast";
+"UPSCALE_QUALITY_BEST" = "Best Quality";
+"ENABLED_MODEL" = "Enabled Model";
+"AVAILABLE_MODELS" = "Available Models";
+"NO_AVAILABLE_MODELS" = "No Available Models";
+"NO_AVAILABLE_MODELS_TEXT" = "Failed to fetch available models. Check your network connection and ensure your app is running the latest version.";
+"MODEL_INFO" = "Model Info";
 "LOCK_HISTORY_TAB" = "Lock History Tab";
 
 // Reader Settings

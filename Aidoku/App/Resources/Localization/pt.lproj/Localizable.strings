@@ -421,6 +421,10 @@
 "EMAIL" = "E-mail";
 "PASSWORD" = "Palavra-passe";
 "COPY_URL" = "Copiar URL";
+"UPSCALE_MAX_IMAGE_HEIGHT" = "Altura máxima da imagem";
+"ENABLED_MODEL" = "Modelo ativado";
+"AVAILABLE_MODELS" = "Modelos disponíveis";
+"NO_AVAILABLE_MODELS" = "Nenhuns modelos disponíveis";
 "ZONE_KINDLE" = "Kindle";
 "DISABLED" = "Desativado";
 "TRACK_COMPLETED" = "Completo";

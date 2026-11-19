@@ -478,6 +478,16 @@
 "UNAVAILABLE_SOURCE_LISTS" = "Nedostupni popisi izvora";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Dogodila se greška prilikom dohvaćanja gore navedenih popisa izvora.";
 "COPY_URL" = "Kopiraj URL";
+"UPSCALING" = "Povećavanje";
+"UPSCALE_IMAGES" = "Povećaj slike";
+"UPSCALING_MODELS" = "Povećavanje modela";
+"UPSCALE_MAX_IMAGE_HEIGHT" = "Maksimalna visina slika";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Slike veće od maksimalne visine slika se neće povećati.";
+"ENABLED_MODEL" = "Uključen model";
+"AVAILABLE_MODELS" = "Dostupni modeli";
+"NO_AVAILABLE_MODELS" = "Nema dostupnih modela";
+"NO_AVAILABLE_MODELS_TEXT" = "Dohvaćanje dostupnih modela nije uspjelo. Provjeri mrežnu vezu i osiguraj da pokrećeš najnoviju verziju aplikacije.";
+"MODEL_INFO" = "Informacije modela";
 "DISABLE_QUICK_ACTIONS" = "Isključi brze radnje";
 "TAP_ZONES" = "Područja dodira";
 "ZONE_LEFT_RIGHT" = "Lijevo i desno";

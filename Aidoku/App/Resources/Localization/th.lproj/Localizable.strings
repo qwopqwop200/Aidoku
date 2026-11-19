@@ -536,6 +536,10 @@
 "UNAVAILABLE_SOURCE_LISTS" = "รายการแหล่งข้อมูลที่ไม่พร้อมใช้งาน";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "เกิดข้อผิดพลาดขณะดึงรายการแหล่งข้อมูลข้างต้น";
 "COPY_URL" = "คัดลอก URL";
+"UPSCALING" = "การเพิ่มขนาด";
+"UPSCALE_IMAGES" = "เพิ่มขนาดรูปภาพ";
+"UPSCALING_MODELS" = "การเพิ่มขนาดโมเดล";
+"UPSCALE_MAX_IMAGE_HEIGHT" = "ความสูงของภาพมากสุด";
 "COMIC" = "การ์ตูน";
 "BOOK" = "หนังสือ";
 "TITLE_DISPLAY_MODE" = "โหมดการแสดงชื่อเรื่อง";
@@ -578,6 +582,12 @@
 "ADD_TO_OTHER_SERIES_INFO" = "ไฟล์จะถูกเพิ่มเข้าไปในซีรีส์ที่เลือกไว้";
 "%i_PAGES" = "%i หน้า";
 "1_PAGE" = "1 หน้า";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "รูปภาพที่มีขนาดสูงกว่าขีดจำกัดจะไม่สามารถขยายขนาดได้";
+"ENABLED_MODEL" = "เปิดการใช้โมเดล";
+"AVAILABLE_MODELS" = "โมเดลที่มี";
+"NO_AVAILABLE_MODELS" = "ไม่พบโมเดล";
+"NO_AVAILABLE_MODELS_TEXT" = "การดึงข้อมูลโมเดลล้มเหลว ตรวจสอบการเชื่อมต่อเครือข่ายของคุณ และให้แน่ใจว่าคุณแอปเวอร์ชั่นล่าสุดอยู่";
+"MODEL_INFO" = "ข้อมูลโมเดล";
 "CBZ_NAME" = "ไฟล์บีบอัด Zip หนังสือการ์ตูน";
 "DISABLE_QUICK_ACTIONS" = "ปิดใช้งานการดำเนินการด่วน";
 "TAP_ZONES" = "โซนการแตะ";

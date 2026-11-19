@@ -459,6 +459,9 @@
 "SAVE_SEARCH_FAIL" = "Impossibile salvare";
 "SAVED_SEARCH_NAME" = "Nome";
 "READER_BG_COLOR_AUTO" = "Automatico";
+"ENABLED_MODEL" = "Modelli abilitati";
+"AVAILABLE_MODELS" = "Modelli disponibili";
+"NO_AVAILABLE_MODELS" = "Modelli non disponibili";
 "COPY_URL" = "Copia URL";
 "TEXT_READER_STYLE" = "Stile lettore";
 "CREATE_BACKUP" = "Crea backup";

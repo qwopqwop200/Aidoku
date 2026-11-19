@@ -13,6 +13,13 @@ TOKEN = re.compile(r'\s+|//[^\n]*|/\*[\s\S]*?\*/|"((?:\\.|[^"\\])*)"\s*=\s*"((?:
 FORMAT = re.compile(r'%(?:(\d+)\$)?[-+#0 ]*(?:\d+|\*)?(?:\.(?:\d+|\*))?(hh|ll|[hljztL])?([@diuoxXfFeEgGaAcCsSp%])')
 SETTING_REFERENCE = re.compile(r'(?:title|footer|subtitle|placeholder):\s*"([A-Z][A-Z_0-9]+)"|SourceError\.message\("([A-Z][A-Z_0-9]+)"')
 REFERENCE = re.compile(r'(?:NSLocalizedString\s*\(\s*|String\s*\(\s*localized:\s*)"([^"\\]+)"')
+# Upstream strings of the disabled (hidden) upscaling feature. Upstream never translated
+# them everywhere; a missing translation falls back to English as it does upstream.
+DISABLED_FEATURE_KEYS = {
+    'AVAILABLE_MODELS', 'ENABLED_MODEL', 'MODEL_INFO', 'NO_AVAILABLE_MODELS', 'NO_AVAILABLE_MODELS_TEXT',
+    'UPSCALE_IMAGES', 'UPSCALE_MAX_IMAGE_HEIGHT', 'UPSCALE_MAX_IMAGE_HEIGHT_TEXT', 'UPSCALE_QUALITY',
+    'UPSCALE_QUALITY_BEST', 'UPSCALE_QUALITY_FAST', 'UPSCALING', 'UPSCALING_MODELS',
+}
 
 
 def parse(path):
@@ -68,7 +75,7 @@ def validate_table(directory, table, locales):
         values, issues = parse(path)
         errors.extend(issues)
         label = str(path.relative_to(ROOT))
-        for key in sorted(source.keys() - values.keys()):
+        for key in sorted(source.keys() - values.keys() - DISABLED_FEATURE_KEYS):
             errors.append(f'{label}: missing {key}')
         for key in sorted(values.keys() - source.keys()):
             errors.append(f'{label}: unknown key {key}')

@@ -308,6 +308,8 @@ extension SettingsView {
             FilterGroupsView()
         } else if key == "Reader.tapZones" {
             TapZonesSelectView()
+        } else if key == "Reader.upscalingModels" {
+            UpscaleModelListView()
         } else if key == "Network.httpsBypassPage" {
             if #available(iOS 17.0, *) { HTTPSBypassSettingsView() }
         } else if key == "Reader.translation" {

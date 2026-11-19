@@ -11,7 +11,11 @@ import CoreData
 extension SourceObject {
     func load(from source: AidokuRunner.Source) {
         id = source.key
-        apiVersion = source.apiVersion
+        apiVersion = if let legacySource = source.legacySource {
+            legacySource.apiVersion
+        } else {
+            source.apiVersion
+        }
         if let url = source.url {
             path = url.pathComponents[url.pathComponents.count - 2..<url.pathComponents.count]
                 .joined(separator: "/")

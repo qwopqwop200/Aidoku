@@ -509,6 +509,13 @@
 "UNAVAILABLE_SOURCE_LISTS" = "Listes de sources indisponibles";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Une erreur s’est produite lors de la récupération des listes de sources ci-dessus.";
 "COPY_URL" = "Copier l'URL";
+"UPSCALE_MAX_IMAGE_HEIGHT" = "Hauteur maximale de l’image";
+"UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "Les images dont la hauteur dépasse la hauteur maximale ne seront pas agrandies.";
+"ENABLED_MODEL" = "Modèle activé";
+"AVAILABLE_MODELS" = "Modèles disponibles";
+"NO_AVAILABLE_MODELS" = "Aucun modèle disponible";
+"NO_AVAILABLE_MODELS_TEXT" = "Échec de la récupération des modèles disponibles. Vérifiez votre connexion réseau et assurez-vous que votre application est à jour.";
+"MODEL_INFO" = "Informations sur le modèle";
 "DISABLE_QUICK_ACTIONS" = "Désactiver les actions rapides";
 "ZONE_LEFT_RIGHT" = "Gauche et droite";
 "DISABLED" = "Désactivé";
@@ -641,6 +648,9 @@
 "READING_SESSIONS" = "Sessions de lecture";
 "CLEAR_SOURCE_CACHE" = "Vider le cache de la source";
 "COMIC" = "Comic";
+"UPSCALING" = "mise à l'échelle";
+"UPSCALE_IMAGES" = "Mettre les images à l'échelle";
+"UPSCALING_MODELS" = "Mettre à l'échelle les modèles";
 "ALL_CHAPTERS_LOCKED" = "Tous les chapitres verrouillés";
 "ON_DECK" = "À lire ensuite";
 "INSIGHTS" = "Statistiques de lecture";
