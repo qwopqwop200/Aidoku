@@ -44,7 +44,7 @@ entry still applies to kept code and passes:
 - OCR and translation contracts over files the V2 host compiles: CTC collapse
   and n-gram correction, detector padding, role verification planner, codec
   source fidelity and the language filter's excluded-source preservation.
-- Non-translation: Hoshi storage and sanitizer boundaries, blocking-task priority.
+- Non-translation: blocking-task priority. (hoshidicts' sanitizer probes moved to its fork.)
 
 The V2 host smoke uses `Scripts/tests/fixtures/v2-host/VerticalSingleGlyphBalloon.png`
 and the incremental host cache `build/image-translation-v2`. Score a V2 run on

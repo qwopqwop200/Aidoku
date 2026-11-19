@@ -9,7 +9,7 @@ Work from this directory, the Git root containing `Aidoku.xcodeproj`; the parent
 - `Aidoku/Features` and `Aidoku/Extensions`: screens and framework extensions.
 - `Aidoku/Resources/Translation`: V2 Core ML models (detector, recognizer, RF-DETR layout, AOT), dictionaries and the serif font.
 - `AidokuShare`: share extension; `AidokuTests`: app-hosted tests.
-- `Scripts`: native host tooling and regression tests; `Vendor`: patched dependencies. Read `Vendor/README.md` before modifying them.
+- `Scripts`: native host tooling and regression tests. Patched dependencies (Nuke, AidokuRunner, hoshidicts) are SwiftPM packages on the `aidoku` branch of the qwopqwop200 forks; each fork's `AIDOKU_PATCHES.md` lists its patches.
 
 ## Build, Test, and Development Commands
 

@@ -121,7 +121,6 @@ Select affected suites based on changed behavior, not the entire app test plan.
 
 ```sh
 python3 Scripts/test_quick.py --ios SuiteName --device <UDID> --configuration Release
-swift test --package-path Vendor/AidokuRunner
 ```
 
 Coverage limits: no physical iPhone installation or live account login/Cloudflare

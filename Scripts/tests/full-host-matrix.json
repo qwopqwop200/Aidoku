@@ -49,20 +49,6 @@
       ]
     },
     {
-      "name": "native-host: run-hoshi-storage-regression",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-hoshi-storage-regression.py"
-      ]
-    },
-    {
-      "name": "native-host: Hoshi, Glaze and unordered_dense sanitizer boundaries",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-hoshi-boundaries-regression.py"
-      ]
-    },
-    {
       "name": "native-host: NativeCoreMLDetector input padding and fill contract",
       "command": [
         "$PYTHON",

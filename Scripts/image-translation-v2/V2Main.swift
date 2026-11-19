@@ -87,7 +87,7 @@ enum V2Main {
                 try signature.write(to: stamp, atomically: true, encoding: .utf8)
             }
         }
-        for file in [V2RecognitionEngine.dictionaryResourceName + ".txt", V2RecognitionEngine.languageModelResourceName + ".bin"] {
+        for file in [V2RecognitionEngine.dictionaryResourceName + ".deflate", V2RecognitionEngine.languageModelResourceName + ".bin"] {
             let target = resources.appendingPathComponent(file)
             if !FileManager.default.fileExists(atPath: target.path) {
                 try FileManager.default.copyItem(at: source.appendingPathComponent(file), to: target)

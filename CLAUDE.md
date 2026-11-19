@@ -80,8 +80,8 @@ swiftlint lint
 Other test suites, each run from the repository root:
 
 - **Localization** (CI): `python3 -m unittest discover -s Scripts -v` and `python3 Scripts/validate_localizations.py`. See `Scripts/LOCALIZATION.md`.
-- **Host matrix**: `python3 Scripts/test_quick.py --full-host` runs `Scripts/tests/full-host-matrix.json` (V2 host smokes, OCR/translation contracts, Hoshi, blocking priority); see `Scripts/TESTING.md`.
-- **Vendored packages**: `swift test --package-path Vendor/Nuke --jobs 2` and `swift test --package-path Vendor/AidokuRunner --jobs 2`. Hoshi native regressions are `Scripts/tests/run-hoshi-*.py`. The blocking-task priority check is `python3 Scripts/tests/run-blocking-priority-regression.py`.
+- **Host matrix**: `python3 Scripts/test_quick.py --full-host` runs `Scripts/tests/full-host-matrix.json` (V2 host smokes, OCR/translation contracts, blocking priority); see `Scripts/TESTING.md`.
+- **Patched packages**: run `swift test --jobs 2` in a checkout of the Nuke or AidokuRunner fork; hoshidicts' sanitizer regressions are in its `Tests/AidokuRegression`. The blocking-task priority check is `python3 Scripts/tests/run-blocking-priority-regression.py`.
 
 ## Lint conventions (`.swiftlint.yml`)
 
@@ -97,11 +97,11 @@ Other test suites, each run from the repository root:
 - `Aidoku/Features`: screens (Reader, Library, Browse, Manga, Settings, and so on).
 - `Aidoku/Extensions`: extensions to Apple and third-party types, organized by framework.
 
-**Sources.** `SourceManager` (`Core/Sources/SourceManager.swift`) owns every installed source as an `AidokuRunner.Source`. Installed package metadata selects an exact source ID/version registered by `NativeSourceRegistration`; supported adapters execute native Swift in `Core/Sources/BuiltIn`. `Vendor/AidokuRunner` supplies native models/protocols and registry dispatch. Unsupported sources fail explicitly; neither historical source WASM nor a JavaScript fallback is executed. Built-in providers include Local CBZ, Komga, Kavita and Suwayomi. WebKit remains for browser-dependent authentication, interactive challenges and user-agent discovery; see `Docs/native-source-auth.md`.
+**Sources.** `SourceManager` (`Core/Sources/SourceManager.swift`) owns every installed source as an `AidokuRunner.Source`. Installed package metadata selects an exact source ID/version registered by `NativeSourceRegistration`; supported adapters execute native Swift in `Core/Sources/BuiltIn`. The AidokuRunner package supplies native models/protocols and registry dispatch. Unsupported sources fail explicitly; neither historical source WASM nor a JavaScript fallback is executed. Built-in providers include Local CBZ, Komga, Kavita and Suwayomi. WebKit remains for browser-dependent authentication, interactive challenges and user-agent discovery; see `Docs/native-source-auth.md`.
 
 **Persistence.** Core Data lives behind `CoreDataManager`, with one extension file per entity (`CoreDataManager+Chapter.swift` and so on). The model is `Aidoku.xcdatamodeld`.
 
-**Vendored dependencies.** `Vendor/` contains the native-only AidokuRunner, Nuke, and HoshiDicts (a native dictionary library). These are **locally patched forks**, not pristine upstream copies. Read `Vendor/README.md` before editing or updating them. Keep C headers and implementations in sync. For changes to a vendored package, run its affected package tests and relevant fast app checks. Run full app tests only under the verification-scope exceptions above.
+**Patched dependencies.** The native-only AidokuRunner, Nuke, and hoshidicts (a native dictionary library) are **patched forks**, not pristine upstream: SwiftPM packages on the `aidoku` branch of `github.com/qwopqwop200/{AidokuRunner,Nuke,hoshidicts}`, each with an `AIDOKU_PATCHES.md`. Change them in the fork, push, then update `Package.resolved`. Keep C headers and implementations in sync. For changes to a patched package, run its package tests and relevant fast app checks. Run full app tests only under the verification-scope exceptions above.
 
 **Translation pipeline** (`Core/Translation`, `Features/Reader/Translation`): page translation has one pipeline, V2 (`Core/Translation/V2`, `Docs/translation-v2.md`).
 - `ReaderTranslationV2Service` runs pages and translated downloads through `V2Pipeline`: S1 RF-DETR layout || S2 PP-OCRv6 manga detection, S3 recognition, S4 grouping/roles, S5 one provider request per page, S6 removal mask, S7 AOT inpainting, S8 style, S9 layout, S10 Core Text paint. Models load lazily and are released on memory warnings; results are cached under `v2-` keys in `ReaderTranslationDiskCache`.

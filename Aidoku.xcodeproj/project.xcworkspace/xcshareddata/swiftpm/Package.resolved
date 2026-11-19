@@ -1,6 +1,15 @@
 {
-  "originHash" : "06db89e7bf31fcdee4b3b66c18c7239cead6d3ea72ffa3af535d2384c1e0b666",
+  "originHash" : "5b0f09ce510d0397f79ad26856d7e66cb9ea295d654803005306804c2e8f2217",
   "pins" : [
+    {
+      "identity" : "aidokurunner",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/qwopqwop200/AidokuRunner",
+      "state" : {
+        "branch" : "aidoku",
+        "revision" : "e201da96af73d9a21dd11b2e025d9d0039a36401"
+      }
+    },
     {
       "identity" : "cocoalumberjack",
       "kind" : "remoteSourceControl",
@@ -20,12 +29,30 @@
       }
     },
     {
+      "identity" : "hoshidicts",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/qwopqwop200/hoshidicts.git",
+      "state" : {
+        "branch" : "aidoku",
+        "revision" : "813b6237b22ccdbd13928622bde114370726e15e"
+      }
+    },
+    {
       "identity" : "networkimage",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/gonzalezreal/NetworkImage",
       "state" : {
         "revision" : "2849f5323265386e200484b0d0f896e73c3411b9",
         "version" : "6.0.1"
+      }
+    },
+    {
+      "identity" : "nuke",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/qwopqwop200/Nuke",
+      "state" : {
+        "branch" : "aidoku",
+        "revision" : "b61b594f7fce0fe29c76602e1604158803114e22"
       }
     },
     {

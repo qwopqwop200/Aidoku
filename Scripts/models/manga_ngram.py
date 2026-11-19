@@ -9,6 +9,7 @@ import hashlib
 import json
 from pathlib import Path
 import struct
+import zlib
 
 import numpy as np
 
@@ -71,8 +72,9 @@ def main():
     symbols = (directory / 'dict.txt').read_text().splitlines() + [' ']
     if len(symbols) != 19054:
         raise ValueError('Unexpected recognition dictionary')
-    (directory / 'ppocrv6_manga_rec_character_dict.txt').write_text(
-        ''.join(json.dumps(c, ensure_ascii=False) + '\n' for c in symbols))
+    text = ''.join(json.dumps(c, ensure_ascii=False) + '\n' for c in symbols).encode()
+    deflate = zlib.compressobj(9, zlib.DEFLATED, -15)  # raw DEFLATE, read with NSData .zlib
+    (directory / 'ppocrv6_manga_rec_character_dict.deflate').write_bytes(deflate.compress(text) + deflate.flush())
     # The observed discounted mass + interpolation mass should sum to one
     # within publisher float16 table rounding, including the padded BOS context.
     contexts = [[], [1], [1,1]]; checks = []

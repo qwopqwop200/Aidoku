@@ -12,7 +12,7 @@ still use WebKit. The app as a whole therefore still has a browser component.
 | Translation requests | Swift URLSession transport, parsing and bounded batching | `RemoteTranslationClient`, `ReaderTranslationService` |
 | Reader display and export | The finished V2 page bitmap is attached above the source image and saved as is | `ReaderTranslationPage`, `ReaderTranslationImageExporter` |
 | Dictionary popup | UIKit text, links and view layout | `NativeDictionaryPopupView` |
-| Installed source metadata and adapters | Native registry dispatch by exact ID/version; unsupported packages fail | `NativeSourceRegistration`, `Vendor/AidokuRunner` |
+| Installed source metadata and adapters | Native registry dispatch by exact ID/version; unsupported packages fail | `NativeSourceRegistration`, AidokuRunner package (fork) |
 | Web login, challenge solving and user agent | WebKit for browser-dependent flows | `WebView`, `CloudflareHandler`, `UserAgentProvider` |
 | Image translation CLI | Native production algorithms with an AppKit/Core Graphics host adapter | `Scripts/image-translation.swift` |
 

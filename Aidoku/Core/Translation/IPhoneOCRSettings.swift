@@ -1,7 +1,7 @@
 import Foundation
 
 enum IPhoneOCRSettings {
-    /// Languages `ppocrv6_manga_rec_character_dict.txt` can spell: CJK, kana,
+    /// Languages `ppocrv6_manga_rec_character_dict` can spell: CJK, kana,
     /// ASCII and Latin-1/Extended-A/B letters. It has no Hangul or Cyrillic and
     /// almost none of Vietnamese's stacked diacritics (U+1EA0...U+1EF9), so
     /// Korean (never offered) and Vietnamese are excluded. A literal set (not

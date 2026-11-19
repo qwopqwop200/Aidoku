@@ -269,14 +269,14 @@
 			mainGroup = FB1B4825277CE18D0056D02C;
 			packageReferences = (
                 A1D0C0000000000000000032 /* SVGKit */,				FB7B7ED6278CE949001E6EAF /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
-				FB171149296770CC00AD523D /* XCLocalSwiftPackageReference "Nuke" */,
+				FB171149296770CC00AD523D /* XCRemoteSwiftPackageReference "Nuke" */,
 				FBE53F0A29CC015E00899601 /* XCRemoteSwiftPackageReference "Texture" */,
 				FB662EDC2DA816CF00007514 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
-				FBFDF5F62DF799180064F603 /* XCLocalSwiftPackageReference "AidokuRunner" */,
+				FBFDF5F62DF799180064F603 /* XCRemoteSwiftPackageReference "AidokuRunner" */,
 				FBBCB31B2E08D6AF00ED5CAB /* XCRemoteSwiftPackageReference "Gifu" */,
 				FBAED40A2E3A762800B81E74 /* XCRemoteSwiftPackageReference "swiftui-introspect" */,
 				FB2C83972E43F074003CA85F /* XCRemoteSwiftPackageReference "SwiftSoup" */,
-				EE7A41EF2F5D20000044AF4C /* XCLocalSwiftPackageReference "HoshiDicts" */,
+				EE7A41EF2F5D20000044AF4C /* XCRemoteSwiftPackageReference "hoshidicts" */,
 			);
 			productRefGroup = FB1B4836277CE1920056D02C /* Products */;
 			projectDirPath = "";
@@ -689,22 +689,31 @@
 		A1D0C0000000000000000008 = { isa = XCConfigurationList; buildConfigurations = (A1D0C0000000000000000009, A1D0C000000000000000000A, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		FBFDF5F62DF799180064F603 /* XCLocalSwiftPackageReference "AidokuRunner" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Vendor/AidokuRunner;
-		};
-		EE7A41EF2F5D20000044AF4C /* XCLocalSwiftPackageReference "HoshiDicts" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Vendor/HoshiDicts;
-		};
-		FB171149296770CC00AD523D /* XCLocalSwiftPackageReference "Nuke" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Vendor/Nuke;
-		};
-/* End XCLocalSwiftPackageReference section */
-
 /* Begin XCRemoteSwiftPackageReference section */
+		EE7A41EF2F5D20000044AF4C /* XCRemoteSwiftPackageReference "hoshidicts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/qwopqwop200/hoshidicts.git";
+			requirement = {
+				branch = aidoku;
+				kind = branch;
+			};
+		};
+		FB171149296770CC00AD523D /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/qwopqwop200/Nuke";
+			requirement = {
+				branch = aidoku;
+				kind = branch;
+			};
+		};
+		FBFDF5F62DF799180064F603 /* XCRemoteSwiftPackageReference "AidokuRunner" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/qwopqwop200/AidokuRunner";
+			requirement = {
+				branch = aidoku;
+				kind = branch;
+			};
+		};
         A1D0C0000000000000000032 /* SVGKit */ = {
             isa = XCRemoteSwiftPackageReference;
             repositoryURL = "https://github.com/SVGKit/SVGKit.git";
@@ -769,12 +778,12 @@
         };
 		EE7A41CA2F5CF7710044AF4C /* CHoshiDicts */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = EE7A41EF2F5D20000044AF4C /* XCLocalSwiftPackageReference "HoshiDicts" */;
+			package = EE7A41EF2F5D20000044AF4C /* XCRemoteSwiftPackageReference "hoshidicts" */;
 			productName = CHoshiDicts;
 		};
 		FB17114A296770CC00AD523D /* NukeUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FB171149296770CC00AD523D /* XCLocalSwiftPackageReference "Nuke" */;
+			package = FB171149296770CC00AD523D /* XCRemoteSwiftPackageReference "Nuke" */;
 			productName = NukeUI;
 		};
 		FB2C83982E43F074003CA85F /* SwiftSoup */ = {
@@ -813,7 +822,7 @@
 		};
 		FBFDF5F72DF799180064F603 /* AidokuRunner */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FBFDF5F62DF799180064F603 /* XCLocalSwiftPackageReference "AidokuRunner" */;
+			package = FBFDF5F62DF799180064F603 /* XCRemoteSwiftPackageReference "AidokuRunner" */;
 			productName = AidokuRunner;
 		};
 /* End XCSwiftPackageProductDependency section */

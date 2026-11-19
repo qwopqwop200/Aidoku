@@ -60,7 +60,9 @@ final class V2RecognitionEngine: @unchecked Sendable {
     init(modelURL: URL, dictionaryURL: URL, languageModelURL: URL?) throws {
         let compiledURL = modelURL.pathExtension == "mlmodelc"
             ? modelURL : try MLModel.compileModel(at: modelURL)
-        dictionary = try Self.parseDictionary(Data(contentsOf: dictionaryURL, options: .mappedIfSafe))
+        // Raw DEFLATE (NSData .zlib); keeps the 19k-line table out of text diffs.
+        dictionary = try Self.parseDictionary(
+            (Data(contentsOf: dictionaryURL, options: .mappedIfSafe) as NSData).decompressed(using: .zlib) as Data)
         guard dictionary.count == Self.expectedDictionaryCharacterCount else {
             throw Failure.dictionaryCharacterCount(expected: Self.expectedDictionaryCharacterCount,
                                                    actual: dictionary.count)
@@ -95,7 +97,7 @@ final class V2RecognitionEngine: @unchecked Sendable {
         guard let model = find(modelResourceName, ["mlmodelc", "mlpackage"]) else {
             throw Failure.resourceMissing(modelResourceName)
         }
-        guard let dictionary = find(dictionaryResourceName, ["txt"]) else {
+        guard let dictionary = find(dictionaryResourceName, ["deflate"]) else {
             throw Failure.resourceMissing(dictionaryResourceName)
         }
         return try V2RecognitionEngine(modelURL: model, dictionaryURL: dictionary,
