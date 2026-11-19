@@ -22,7 +22,7 @@
 "READ" = "Läst";
 "ONESHOT" = "One-shot";
 "CLEAR_READ_HISTORY_TEXT" = "Denna handling är oåterkallelig. All läshistorik kommer att tas bort.";
-"PILLARBOX_ORIENTATION_INFO" = "Välj i vilka skärmorienteringar sidomarginaler ska visas.";
+"PILLARBOX_ORIENTATION_INFO" = "Välj vilka skärmorienteringar som använder sidomarginaler.";
 "ADD_TO_LIBRARY" = "Lägg till i bibliotek";
 "MARK_ALL" = "Markera alla";
 "EXPORT_LOGS" = "Exportera loggar";
@@ -79,9 +79,9 @@
 "%@_AGO" = "för %@ sedan";
 "SHARE" = "Dela";
 "INCOGNITO_MODE" = "Inkognitoläge";
-"IS_TRACKING" = "Spåras";
+"IS_TRACKING" = "Spårade";
 "SORT_LAST_UPDATED" = "Senast uppdaterad";
-"RESTORE_BACKUP" = "Vill du återställa till denna säkerhetskopia?";
+"RESTORE_BACKUP" = "Återställa denna säkerhetskopia?";
 "FAILED_CHAPTER_LOAD" = "Kunde ej ladda kapitlet";
 "REORDER" = "Ordna om";
 "FINISHED" = "Slutdatum";
@@ -104,7 +104,7 @@
 "DISPLAY_LOGS" = "Visa loggar";
 "AUTH_FOR_LIBRARY" = "Autentisera för att visa bibliotek.";
 "INFO" = "Info";
-"LIBRARY_UPDATING" = "Biblioteksuppdatering";
+"LIBRARY_UPDATING" = "Biblioteksuppdateringar";
 "HISTORY_LOCKED" = "Historiken är låst.";
 "PIN" = "Fäst";
 "TRACKERS" = "Spårningstjänster";
@@ -118,7 +118,7 @@
 "STARTED" = "Startdatum";
 "AUTOMATIC" = "Automatisk";
 "AVAILABLE" = "Tillgänglig";
-"THAT_HAVENT_BEEN_READ" = "Utan kapitel markerade som lästa";
+"WITH_NO_CHAPTERS_READ" = "Utan kapitel markerade som lästa";
 "RENAME_CATEGORY" = "Döp om kategori";
 "SINGLE_PAGE" = "En sida";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "Den angivna källistans URL är ogiltig eller redan tillagd.";
@@ -192,7 +192,7 @@
 "MULTI_LANGUAGE" = "Flerspråkig";
 "LIST_HEADER" = "Lista";
 "SORT_TOTAL_CHAPTERS" = "Antal kapitel";
-"MORE" = "mer";
+"MORE" = "Mer";
 "REMOVE_DOWNLOAD" = "Ta bort nedladdning";
 "%i_PAGES_LEFT" = "%i sidor kvar";
 "LANGUAGES" = "Språk";
@@ -365,6 +365,7 @@
 "LOCAL_FILES" = "Lokala filer";
 "LOCAL_FILES_TAGLINE" = "Läs från lokala filer";
 "IMPORT" = "Importera";
+"IMPORT_SETTINGS" = "Import";
 "IMPORT_FILE" = "Importera fil";
 "LOCAL_FILE_IMPORT" = "Lokal filimport";
 "LOCAL_FILE_IMPORT_TEXT" = "Importera en CBZ- eller ZIP-fil med bilder att läsa.";
@@ -442,6 +443,7 @@
 "NO_UPDATES" = "Inga uppdateringar";
 "%lld_PLUS_MORE" = "+%lld till";
 "LOGIN" = "Logga in";
+"LOGIN_SECTION" = "Inloggning";
 "LOGOUT_CONFIRM" = "Vill du verkligen logga ut?";
 "USERNAME" = "Användarnamn";
 "EMAIL" = "E-post";
@@ -473,7 +475,7 @@
 "SOURCE_BREAKING_CHANGE" = "Inkompatibel ändring i källan";
 "SOURCE_BREAKING_CHANGE_TEXT" = "Denna källa har uppdaterats på ett sätt som kräver migrering för att behålla bibliotek och historik.";
 "ALL_CHAPTERS_LOCKED" = "Alla kapitel är låsta";
-"BACKUP_ERROR" = "Fel vid återställning av säkerhetskopia";
+"BACKUP_ERROR" = "Fel med säkerhetskopia";
 "BACKUP_ERROR_TEXT" = "Ett fel uppstod under återställning: %@. Säkerhetskopian kan vara ogiltig.";
 "READER_ORIENTATION" = "Skärmorientering";
 "FOLLOW_DEVICE" = "Följ enhet";
@@ -490,7 +492,7 @@
 "NO_DOWNLOADS" = "Inga nedladdningar";
 "NO_DOWNLOADS_TEXT" = "Nedladdat innehåll visas här.";
 "DOWNLOADED_CHAPTERS" = "Nedladdade kapitel";
-"TOTAL_DOWNLOADS" = "Lagringsutrymme för nedladdningar";
+"DOWNLOAD_STORAGE_USED" = "Lagringsutrymme för nedladdningar";
 "%i_SERIES" = "%i serier";
 "IN_LIBRARY" = "I biblioteket";
 "VIEW_SERIES" = "Gå till serie";
@@ -550,7 +552,7 @@
 "FORMAT_ARCHIVE" = "Arkiv";
 "LOGIN_VIA_OIDC" = "Logga in via OIDC";
 "SET_COVER_IMAGE" = "Välj omslagsbild";
-"UPLOAD_CUSTOM_COVER" = "Välj eget omslag";
+"CHOOSE_CUSTOM_COVER" = "Välj eget omslag";
 "RESET_COVER" = "Återställ omslag";
 "NO_HISTORY" = "Ingen historik";
 "NO_HISTORY_TEXT" = "Läshistoriken kommer att visas här.";
@@ -649,7 +651,7 @@
 "EDIT_FILTER_GROUP" = "Redigera filtergrupp";
 "CLEAR_FILTERS" = "Rensa filter";
 "SHOW_UNCATEGORIZED_CATEGORY" = "Visa okategoriserad kategori";
-"MISSING_SOURCE_LIST" = "Källista saknas";
+"MISSING_SOURCE_LIST" = "Inte i någon källista";
 "MISSING_SOURCE_LIST_INFO" = "Denna externa källa är inte tillgänglig på någon utav de konfigurerade källistorna. Detta innebär att den inte kommer få några fler uppdateringar och kan sluta fungera i framtiden.";
 "SAVE" = "Spara";
 "SAVED_SEARCHES" = "Sparade sökningar";
@@ -694,7 +696,7 @@
 "API_KEY_LOGIN_INFO" = "Om du anger en API-nyckel manuellt används den för inloggning i stället för andra inloggningsmetoder. Lämna fältet tomt för att använda andra inloggningsmetoder.";
 "REFRESH_DETAILS" = "Uppdatera detaljer";
 "LOGIN_METHOD" = "Inloggningsmetod";
-"BASIC" = "Enkel";
+"BASIC" = "Användarnamn och lösenord";
 "COMPACT" = "Kompakt";
 "CUSTOM" = "Anpassad";
 "PORTRAIT_COLUMNS" = "Kolumner i stående läge";
@@ -703,7 +705,7 @@
 "DISABLE_DOUBLE_TAP_ZOOM" = "Stäng av dubbeltryckszoom";
 "PAGE_OFFSET" = "Sidförskjutning";
 "SYNC_WITH_TRACKER_INFO_1" = "Spårningstjänsten visar att 1 kapitel redan har lästs. Vill du markera detta kapitel som läst?";
-"UNSET_AS_SINGLE_PAGE" = "Ta bort inställning som enskild sida";
+"UNSET_AS_SINGLE_PAGE" = "Ta bort inställning för enskild sida";
 "CONTINUOUS_WITH_GAPS" = "Sammanhängande med mellanrum";
 "TOGGLE_PAGE_OFFSET" = "Växla sidförskjutning";
 "LAYOUT" = "Layout";
@@ -1048,7 +1050,6 @@
 "AUTO_SCROLL_POSITION" = "Placering av knappen för automatisk rullning";
 "POSITION_LEFT" = "Vänster";
 "POSITION_RIGHT" = "Höger";
-"UPLOAD_FILE" = "Importera fil";
 "MIGRATE_CHAPTER_HISTORY" = "Migrera kapitelhistorik";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Migrera läshistorik överbliven från äldre versioner som inte är kopplad till kapitel i den lokala databasen. Detta sker normalt automatiskt efter en uppdatering. Om det inte slutfördes kan du köra det igen här.";
 
@@ -1198,6 +1199,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 stöder endast källtext på japanska och kinesiska (förenklad och traditionell). Automatisk identifiering av källspråket och val av källspråk är begränsade till dessa språk. Du kan fortfarande översätta till koreanska eller andra målspråk. När du väljer Manga används detekteringströsklarna 0.85 och 0.25; standardstorleken för textdetektering är 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 stöder endast källtext på japanska och kinesiska (förenklad och traditionell). Automatisk identifiering av källspråket och val av källspråk är begränsade till dessa språk. Du kan fortfarande översätta till valfritt målspråk. När du väljer Manga används detekteringströsklarna 0.85 och 0.25; standardstorleken för textdetektering är 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alla OCR-språk som stöds";

@@ -133,7 +133,7 @@
 "BACKUP_NAME" = "백업 이름";
 "RENAME_BACKUP_TEXT" = "백업의 새 이름을 입력하세요.";
 "MISSING_SOURCES" = "누락된 소스";
-"RESTORE_BACKUP" = "이 백업으로 복원하시겠습니까?";
+"RESTORE_BACKUP" = "이 백업을 복원하시겠습니까?";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "이 백업으로 복원하려면 설정의 백업 페이지에서 찾으세요.";
 "IMPORT_FAIL" = "가져오기 실패";
 "BACKUP_IMPORT_FAIL_TEXT" = "백업을 가져오지 못했습니다. 백업 형식이 올바른지 확인하세요.";
@@ -215,7 +215,7 @@
 "NEVER" = "사용 안 함";
 "WEEKLY" = "매주";
 "WITH_UNREAD_CHAPTERS" = "읽지 않은 챕터가 있는 작품";
-"THAT_HAVENT_BEEN_READ" = "읽음으로 표시된 챕터가 없는 작품";
+"WITH_NO_CHAPTERS_READ" = "읽음으로 표시된 챕터가 없는 작품";
 "SOURCE_LISTS" = "소스 목록";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "입력한 소스 목록 URL이 올바르지 않거나 이미 추가되어 있습니다.";
 "CORRUPTED_BACKUP" = "손상된 백업";
@@ -241,14 +241,14 @@
 "AUTOMATIC" = "자동";
 "CLEAR_TRACKED_MANGA_TEXT" = "모든 만화에 연결된 트래커 정보를 제거합니다. 이 작업은 되돌릴 수 없습니다.";
 "VOLUMES" = "권";
-"STARTED" = "읽기 시작일";
+"STARTED" = "시작일";
 "STATUS" = "상태";
 "START_TRACKING" = "트래킹 시작";
 "STOP_TRACKING" = "트래킹 중지";
 "TRACK_REREADING" = "다시 읽는 중";
 "SCORE" = "점수";
 "TRACK_PAUSED" = "일시 정지됨";
-"FINISHED" = "읽기 완료일";
+"FINISHED" = "완료일";
 "TRACK_READING" = "읽는 중";
 "TRACK_PLANNING" = "읽을 예정";
 "TRACK_DROPPED" = "읽기 중단";
@@ -304,7 +304,7 @@
 "%i_CHAPTERS" = "%i챕터";
 "RENAME_CATEGORY_FAIL_INFO" = "이미 사용 중인 카테고리 이름입니다. 다른 이름을 입력하세요.";
 "ALL_CHAPTERS_READ" = "모든 챕터 읽음";
-"IS_TRACKING" = "트래킹";
+"IS_TRACKING" = "트래킹됨";
 "DEFAULT_READING_MODE" = "기본 읽기 모드";
 "PILLARBOX" = "좌우 여백";
 "PILLARBOX_AMOUNT" = "좌우 여백 크기";
@@ -317,7 +317,7 @@
 "PIN" = "고정";
 "UNPIN" = "고정 해제";
 "CROP_BORDERS" = "테두리 자르기";
-"BACKUP_ERROR" = "백업 복원 오류";
+"BACKUP_ERROR" = "백업 오류";
 "BACKUP_ERROR_TEXT" = "복원 중 오류가 발생했습니다: %@. 백업이 올바르지 않을 수 있습니다.";
 "RESUME" = "재개";
 "WARNING" = "경고";
@@ -353,7 +353,7 @@
 "NO_DOWNLOADS" = "다운로드 없음";
 "NO_DOWNLOADS_TEXT" = "다운로드한 콘텐츠가 여기에 표시됩니다.";
 "DOWNLOADED_CHAPTERS" = "다운로드한 챕터";
-"TOTAL_DOWNLOADS" = "다운로드 총 용량";
+"DOWNLOAD_STORAGE_USED" = "다운로드 총 용량";
 "%i_SERIES" = "작품 %i개";
 "IN_LIBRARY" = "라이브러리에 있음";
 "VIEW_SERIES" = "시리즈 보기";
@@ -391,6 +391,7 @@
 "LOCAL_FILES" = "로컬 파일";
 "LOCAL_FILES_TAGLINE" = "로컬 파일에서 읽기";
 "IMPORT" = "가져오기";
+"IMPORT_SETTINGS" = "가져오기";
 "IMPORT_FILE" = "파일 가져오기";
 "LOCAL_FILE_IMPORT" = "로컬 파일 가져오기";
 "LOCAL_FILE_IMPORT_TEXT" = "이미지가 포함된 CBZ 파일이나 ZIP 파일을 가져옵니다.";
@@ -458,9 +459,10 @@
 "VOLUME" = "권";
 "OPEN_WEBSITE" = "웹사이트 열기";
 "SET_COVER_IMAGE" = "표지 이미지 설정";
-"UPLOAD_CUSTOM_COVER" = "사용자 지정 표지 선택";
+"CHOOSE_CUSTOM_COVER" = "사용자 지정 표지 선택";
 "RESET_COVER" = "표지 초기화";
 "LOGIN" = "로그인";
+"LOGIN_SECTION" = "로그인";
 "LOGOUT_CONFIRM" = "로그아웃하시겠습니까?";
 "USERNAME" = "사용자명";
 "EMAIL" = "이메일";
@@ -733,7 +735,7 @@
 "PRIMARILY_NSFW" = "주로 성인 콘텐츠";
 "REMOVE_LOCAL_SOURCE" = "로컬 소스를 삭제하시겠습니까?";
 "REMOVE_LOCAL_SOURCE_TEXT" = "가져온 모든 로컬 파일이 제거됩니다.";
-"MISSING_SOURCE_LIST" = "누락된 소스 목록";
+"MISSING_SOURCE_LIST" = "소스 목록에 없음";
 "MISSING_SOURCE_LIST_INFO" = "이 외부 소스는 추가된 소스 목록에 포함되어 있지 않습니다. 업데이트를 받을 수 없으며 나중에 작동하지 않을 수 있습니다.";
 "RESTART" = "다시 시작";
 "HTML_ERROR" = "HTML 오류";
@@ -794,7 +796,7 @@
 "SOURCES" = "소스";
 "REFRESH_LOGIN" = "다시 로그인";
 "LOGIN_METHOD" = "로그인 방법";
-"BASIC" = "기본";
+"BASIC" = "사용자명 및 비밀번호";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud 동기화는 실험적인 기능입니다. 활성화하거나 비활성화하면 데이터 손실이 발생할 수 있습니다.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud 동기화는 TestFlight를 통해 설치된 경우에만 사용할 수 있습니다.";
 "LAYOUT" = "레이아웃";
@@ -961,7 +963,7 @@
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "소스의 트래킹을 끄면 해당 소스의 트래커 연결이 모두 해제됩니다. 켜면 라이브러리에 있는 해당 소스의 작품이 자동으로 연결됩니다.";
 "TRACKER_LOGOUT_INFO" = "로그아웃하면 모든 작품에서 이 트래커와 연결된 정보가 제거됩니다.";
 "SET_AS_SINGLE_PAGE" = "단일 페이지로 설정";
-"UNSET_AS_SINGLE_PAGE" = "단일 페이지로 설정 해제";
+"UNSET_AS_SINGLE_PAGE" = "단일 페이지 설정 해제";
 "CONTINUOUS_WITH_GAPS" = "간격을 두고 연속 보기";
 "MIGRATE_CONFIRM_TEXT" = "다른 소스로 이전하면 원래 항목의 읽기 기록이 제거됩니다.";
 "MIGRATE_WITH_HISTORY" = "읽기 기록을 유지하며 이전";
@@ -980,7 +982,6 @@
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "%@ 토큰이 만료되었으므로 설정에서 다시 로그인할 때까지 관련 트래커 작동이 중지됩니다.";
 "TOGGLE_BARS" = "도구 막대 표시 전환";
 "TOGGLE_PAGE_OFFSET" = "페이지 오프셋 전환";
-"UPLOAD_FILE" = "파일 가져오기";
 "MIGRATE_CHAPTER_HISTORY" = "챕터 읽기 기록 이전";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "이전 버전에서 남아 현재 기기의 챕터와 연결되지 않은 읽기 기록을 이전합니다. 일반적으로 앱 업데이트 후 자동으로 처리됩니다. 완료되지 않았다면 여기에서 다시 실행할 수 있습니다.";
 
@@ -1098,6 +1099,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3는 일본어와 중국어(간체·번체) 원문만 지원합니다. 자동 원문 언어 판별과 원문 언어 선택도 이 언어들로 제한됩니다. 한국어를 비롯한 다른 언어로 번역하는 것은 가능합니다. Manga를 선택하면 탐지 임계값 0.85와 0.25가 적용되며, 기본 탐지 크기는 1120px입니다.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3는 일본어와 중국어(간체·번체) 원문만 지원합니다. 자동 원문 언어 판별과 원문 언어 선택도 이 언어들로 제한됩니다. 번역 대상 언어는 어떤 언어든 선택할 수 있습니다. Manga를 선택하면 탐지 임계값 0.85와 0.25가 적용되며, 기본 탐지 크기는 1120px입니다.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "지원되는 모든 OCR 언어";

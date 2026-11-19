@@ -116,7 +116,7 @@
 "MIGRATE_%i_ITEMS?" = "Të migrohen %i artikuj?";
 "MIGRATE_ONE_ITEM?" = "Të migrohet 1 artikull?";
 "UPLOAD_DATE" = "Data e Ngarkimit";
-"IS_TRACKING" = "Gjurmimi";
+"IS_TRACKING" = "Të gjurmuara";
 "ALL_CHAPTERS_READ" = "Të gjithë kapitujt janë lexuar";
 "DEFAULT_READING_MODE" = "Mënyra Standarde e Leximit";
 "PILLARBOX" = "Margjinat anësore";
@@ -151,8 +151,8 @@
 "MIGRATE" = "Migro";
 "PILLARBOX_ORIENTATION" = "Orientimet për margjinat anësore";
 "BOTH" = "Të dyja";
-"PILLARBOX_ORIENTATION_INFO" = "Zgjidhni orientimet e ekranit ku do të shfaqen margjinat anësore.";
-"BACKUP_ERROR" = "Gabim gjatë rikthimit të kopjes rezervë";
+"PILLARBOX_ORIENTATION_INFO" = "Zgjidhni cilat orientime të pajisjes përdorin margjinat anësore.";
+"BACKUP_ERROR" = "Gabim i kopjes rezervë";
 "ADD_TO_CATEGORIES" = "Shto në kategori";
 "DOWNLOAD_ANYWAY_MESSAGE" = "Aktualisht nuk jeni në Wi-Fi. Shkarko gjithsesi?";
 "LIBRARY" = "Bibliotekë";
@@ -204,7 +204,7 @@
 "STATUS_HIATUS" = "Pezull";
 "SUGGESTIVE" = "Me nënkuptime seksuale";
 "NSFW" = "NSFW";
-"MORE" = "më shumë";
+"MORE" = "Më shumë";
 "SOURCE_ORDER" = "Rendi i dhënë nga burimi";
 "MISSING_SOURCE" = "Burimi Mungon";
 "MISSING_SOURCE_TEXT" = "Burimi origjinal për këtë manga duket se mungon. Shkarkoni sërish burimin ose hiqeni këtë titull nga biblioteka.";
@@ -273,7 +273,7 @@
 "READER" = "Lexuesi";
 "OPEN_READER_VIEW" = "Hap Pamjen e Lexuesit";
 "UNREAD_CHAPTER_BADGES" = "Distinktivët e Kapitujve të Palexuar";
-"LIBRARY_UPDATING" = "Përditësimi i Bibliotekës";
+"LIBRARY_UPDATING" = "Përditësimet e Bibliotekës";
 "UPDATE_INTERVAL" = "Intervali i Përditësimit";
 "SKIP_TITLES" = "Anashkalo Titujt";
 "ONLY_UPDATE_ON_WIFI" = "Përditëso vetëm në Wi-Fi";
@@ -288,7 +288,7 @@
 "WEEKLY" = "Çdo javë";
 "WITH_UNREAD_CHAPTERS" = "Me kapituj të palexuar";
 "WITH_COMPLETED_STATUS" = "Me status të përfunduar";
-"THAT_HAVENT_BEEN_READ" = "Pa kapituj të shënuar si të lexuar";
+"WITH_NO_CHAPTERS_READ" = "Pa kapituj të shënuar si të lexuar";
 "SOURCE_LISTS" = "Listat e Burimeve";
 "SOURCE_LIST_ADDED" = "Lista e Burimeve u Shtua";
 "SOURCE_LIST_ADDED_TEXT" = "Tani mund të shfletoni burime të jashtme në skedën e Shfletimit.";
@@ -560,7 +560,7 @@
 "NO_DOWNLOADS_TEXT" = "Përmbajtja e shkarkuar do të shfaqet këtu.";
 "DOWNLOADED_CHAPTERS" = "Kapitujt e shkarkuar";
 "DOWNLOAD_INCOMPLETE" = "Shkarkim jo i plotë";
-"TOTAL_DOWNLOADS" = "Madhësia totale e shkarkimeve";
+"DOWNLOAD_STORAGE_USED" = "Madhësia totale e shkarkimeve";
 "%i_SERIES" = "%i seri";
 "IN_LIBRARY" = "Në Bibliotekë";
 "VIEW_SERIES" = "Shiko serinë";
@@ -617,7 +617,7 @@
 "PRIMARILY_NSFW" = "Kryesisht NSFW";
 "REMOVE_LOCAL_SOURCE" = "Të hiqet burimi lokal?";
 "REMOVE_LOCAL_SOURCE_TEXT" = "Kjo do të heqë të gjithë skedarët lokalë të importuar.";
-"MISSING_SOURCE_LIST" = "Mungon në listat e burimeve";
+"MISSING_SOURCE_LIST" = "Nuk është në listat e burimeve";
 "MISSING_SOURCE_LIST_INFO" = "Ky burim i jashtëm nuk disponohet në asnjë listë burimesh të konfiguruara. Kjo do të thotë se nuk do të marrë përditësime dhe mund të prishet në të ardhmen.";
 "BASE_URL" = "URL-ja bazë";
 "SEE_ALL" = "Shih të gjitha";
@@ -667,6 +667,7 @@
 "LOCAL_FILES_INFO" = "Burimi i skedarëve lokalë ju lejon të importoni skedarë dhe të menaxhoni bibliotekën tuaj të leximit drejtpërdrejt në Aidoku.";
 "LOCAL_FILES_SETUP" = "Konfigurimi i skedarëve lokalë";
 "IMPORT" = "Importo";
+"IMPORT_SETTINGS" = "Importimi";
 "IMPORT_FILE" = "Importo skedarin";
 "LOCAL_FILE_IMPORT" = "Importimi i skedarëve lokalë";
 "LOCAL_FILE_IMPORT_TEXT" = "Importoni një skedar CBZ ose ZIP që përmban imazhe për t'u lexuar.";
@@ -775,7 +776,7 @@
 "VOLUME" = "Vëllimi";
 "OPEN_WEBSITE" = "Hap faqen e internetit";
 "SET_COVER_IMAGE" = "Cakto imazhin e kopertinës";
-"UPLOAD_CUSTOM_COVER" = "Zgjidh kopertinën e personalizuar";
+"CHOOSE_CUSTOM_COVER" = "Zgjidh kopertinën e personalizuar";
 "RESET_COVER" = "Rivendos kopertinën";
 "NO_HISTORY" = "Asnjë Histori";
 "NO_HISTORY_TEXT" = "Historia e leximit do të shfaqet këtu.";
@@ -784,6 +785,7 @@
 "NO_RECENT_SEARCHES_TEXT" = "Kërkimet tuaja të fundit do të shfaqen këtu.";
 "SOURCES" = "Burimet";
 "LOGIN" = "Identifikohu";
+"LOGIN_SECTION" = "Identifikimi";
 "LOGOUT_CONFIRM" = "A jeni të sigurt që dëshironi të dilni?";
 "USERNAME" = "Emri i përdoruesit";
 "EMAIL" = "Email";
@@ -795,7 +797,7 @@
 "LOGIN_WEBVIEW_WARNING_TEXT" = "Të gjitha cookies të vendosura në pamjen e paraqitur në ueb do t'i jepen burimit. Mos hyni në asnjë burim që nuk i besoni.";
 "REFRESH_LOGIN" = "Rifresko hyrjen";
 "LOGIN_METHOD" = "Mënyra e hyrjes";
-"BASIC" = "Bazë";
+"BASIC" = "Emri i përdoruesit dhe fjalëkalimi";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "Sinkronizimi me iCloud është një veçori eksperimentale. Aktivizimi ose çaktivizimi i tij mund të shkaktojë humbje të të dhënave.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "Sinkronizimi me iCloud ofrohet vetëm kur aplikacioni instalohet përmes TestFlight.";
 "LAYOUT" = "Paraqitja";
@@ -914,7 +916,7 @@
 "KANJI_META_COUNT" = "Numri i hyrjeve të meta të dhënave kanji";
 "TAG_COUNT" = "Numri i etiketave";
 "MEDIA_COUNT" = "Numri i skedarëve media";
-"IS_UPDATABLE" = "Është i përditësueshëm";
+"IS_UPDATABLE" = "I përditësueshëm";
 "SIZE" = "Madhësia";
 "REMOVE_DICTIONARY" = "Hiq fjalorin";
 "REMOVE_WORD" = "Hiq fjalën";
@@ -985,7 +987,7 @@
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Çaktivizimi i gjurmimit për një burim heq lidhjet e tij me gjurmuesit. Aktivizimi lidh automatikisht artikujt e bibliotekës që vijnë nga ai burim.";
 "TRACKER_LOGOUT_INFO" = "Dalja do të heqë informacionin e lidhur të gjurmimit nga ky gjurmues për të gjitha seritë.";
 "SET_AS_SINGLE_PAGE" = "Cakto si Faqe të vetme";
-"UNSET_AS_SINGLE_PAGE" = "Hiq cilësimin si faqe e vetme";
+"UNSET_AS_SINGLE_PAGE" = "Hiq cilësimin e faqes së vetme";
 "RELOAD_FAILED" = "Ringarkimi dështoi";
 "RELOAD_FAILED_TEXT" = "Ringarkimi i imazhit dështoi. Ju lutemi provoni përsëri.";
 "CONTINUOUS_WITH_GAPS" = "E vazhdueshme me Boshllëqe";
@@ -1027,7 +1029,6 @@
 "TOGGLE_BARS" = "Shfaq ose fshih shiritat e veglave";
 "CLOSE_READER" = "Mbyll lexuesin";
 "TOGGLE_PAGE_OFFSET" = "Ndrysho zhvendosjen e faqes";
-"UPLOAD_FILE" = "Importo skedarin";
 "MIGRATE_CHAPTER_HISTORY" = "Migrimi i Historisë së Kapitullit";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Migroni historinë e leximit të mbetur nga versionet më të vjetra që nuk është e lidhur me kapitujt në bazën e të dhënave lokale. Kjo zakonisht ndodh automatikisht pas një përditësimi. Nëse nuk ka përfunduar, mund ta ekzekutoni përsëri këtu.";
 
@@ -1176,6 +1177,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 mbështet vetëm tekst burimor në japonisht dhe kinezisht (të thjeshtuar dhe tradicionale). Zbulimi automatik i gjuhës burimore dhe përzgjedhja e saj kufizohen në këto gjuhë. Përkthimi në koreanisht ose në gjuhë të tjera të synuara mbetet i mundur. Zgjedhja e modelit Manga vendos pragjet e zbulimit në 0,85 dhe 0,25; madhësia e paracaktuar për zbulimin është 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 mbështet vetëm tekst burimor në japonisht dhe kinezisht (të thjeshtuar dhe tradicionale). Zbulimi automatik i gjuhës burimore dhe përzgjedhja e saj kufizohen në këto gjuhë. Përkthimi në çdo gjuhë të synuar mbetet i mundur. Zgjedhja e modelit Manga vendos pragjet e zbulimit në 0,85 dhe 0,25; madhësia e paracaktuar për zbulimin është 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Të gjitha gjuhët e mbështetura nga OCR";

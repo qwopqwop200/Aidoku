@@ -309,7 +309,7 @@ actor SuwayomiSourceRunner: Runner {
                         items: [
                             .init(
                                 key: "login",
-                                title: "LOGIN",
+                                title: "LOGIN_SECTION",
                                 notification: "login",
                                 requires: "server",
                                 refreshes: ["content", "filters"],

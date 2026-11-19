@@ -275,7 +275,7 @@
 "NO_DOWNLOADS_TEXT" = "Maudhui yaliyopakuliwa yataonekana hapa.";
 "DOWNLOADED_CHAPTERS" = "Sura Zilizopakuliwa";
 "DOWNLOAD_INCOMPLETE" = "Upakuaji haujakamilika";
-"TOTAL_DOWNLOADS" = "Ukubwa wa Jumla wa Vipakuliwa";
+"DOWNLOAD_STORAGE_USED" = "Ukubwa wa Jumla wa Vipakuliwa";
 "%i_SERIES" = "Mifululizo %i";
 "IN_LIBRARY" = "Katika Maktaba";
 "VIEW_SERIES" = "Tazama Mfululizo";
@@ -375,7 +375,7 @@
 "PRIMARILY_NSFW" = "Hasa NSFW";
 "REMOVE_LOCAL_SOURCE" = "Ungependa kuondoa Chanzo cha Ndani?";
 "REMOVE_LOCAL_SOURCE_TEXT" = "Hii itaondoa faili zote za ndani zilizoingizwa.";
-"MISSING_SOURCE_LIST" = "Orodha ya Vyanzo Haipo";
+"MISSING_SOURCE_LIST" = "Haipo kwenye Orodha za Vyanzo";
 "MISSING_SOURCE_LIST_INFO" = "Chanzo hiki cha nje hakipatikani kwenye orodha zozote za vyanzo zilizosanidiwa. Hii ina maana kwamba hakitapokea masasisho na huenda kikaacha kufanya kazi katika siku zijazo.";
 "SOURCE_INFO" = "Maelezo ya Chanzo";
 "LANGUAGE" = "Lugha";
@@ -434,6 +434,7 @@
 "LOCAL_FILES_INFO" = "Chanzo cha faili za ndani hukuruhusu kuingiza na kudhibiti maktaba yako ya usomaji moja kwa moja ndani ya Aidoku.";
 "LOCAL_FILES_SETUP" = "Usanidi wa Faili za Ndani";
 "IMPORT" = "Ingiza";
+"IMPORT_SETTINGS" = "Uingizaji";
 "IMPORT_FILE" = "Ingiza Faili";
 "LOCAL_FILE_IMPORT" = "Uingizaji wa Faili za Ndani";
 "LOCAL_FILE_IMPORT_TEXT" = "Ingiza faili ya CBZ au ZIP iliyo na picha ili kusoma.";
@@ -543,7 +544,7 @@
 "STATUS_HIATUS" = "Imesitishwa kwa muda";
 "SUGGESTIVE" = "Yenye dokezo la ngono";
 "NSFW" = "NSFW";
-"MORE" = "zaidi";
+"MORE" = "Zaidi";
 "SOURCE_ORDER" = "Mpangilio wa Chanzo";
 "MISSING_SOURCE" = "Chanzo Kimekosekana";
 "MISSING_SOURCE_TEXT" = "Chanzo asili cha manga hii hakikupatikana. Tafadhali sakinisha upya chanzo hicho au uondoe manga hii kwenye maktaba yako.";
@@ -596,7 +597,7 @@
 "SAVE_TO_PHOTOS" = "Hifadhi kwenye Picha";
 "OPEN_WEBSITE" = "Fungua Tovuti";
 "SET_COVER_IMAGE" = "Weka Picha ya Jalada";
-"UPLOAD_CUSTOM_COVER" = "Chagua Jalada Maalum";
+"CHOOSE_CUSTOM_COVER" = "Chagua Jalada Maalum";
 "RESET_COVER" = "Weka Upya Jalada";
 "HISTORY" = "Historia";
 "%@_AGO" = "%@ zilizopita";
@@ -618,6 +619,7 @@
 "NO_RECENT_SEARCHES_TEXT" = "Utafutaji wako wa hivi majuzi utaonekana hapa.";
 "SOURCES" = "Vyanzo";
 "LOGIN" = "Ingia";
+"LOGIN_SECTION" = "Taarifa za Kuingia";
 "LOGOUT" = "Toka";
 "LOGOUT_FROM_%@" = "Ungependa kutoka kwenye %@?";
 "LOGOUT_CONFIRM" = "Je, una uhakika unataka kutoka?";
@@ -631,7 +633,7 @@
 "LOGIN_WEBVIEW_WARNING_TEXT" = "Vidakuzi vyote vilivyowekwa katika mwonekano wa wavuti uliowasilishwa vitatolewa kwa chanzo. Usiingie kwenye chanzo chochote ambacho hukiamini.";
 "REFRESH_LOGIN" = "Sasisha Taarifa za Kuingia";
 "LOGIN_METHOD" = "Mbinu ya Kuingia";
-"BASIC" = "Msingi";
+"BASIC" = "Jina la Mtumiaji na Nenosiri";
 "SETTINGS" = "Mipangilio";
 "AUTH_TO_ENABLE" = "Thibitisha ili kuwezesha.";
 "AUTH_TO_DISABLE" = "Thibitisha ili kuzima.";
@@ -666,7 +668,7 @@
 "PIN_DISABLED" = "Imezimwa";
 "PIN_UNREAD" = "Haijasomwa";
 "PIN_UPDATED_CHAPTERS" = "Sura Zilizosasishwa";
-"LIBRARY_UPDATING" = "Kusasisha Maktaba";
+"LIBRARY_UPDATING" = "Masasisho ya Maktaba";
 "UPDATE_INTERVAL" = "Muda Kati ya Masasisho";
 "SKIP_TITLES" = "Ruka Majina";
 "ONLY_UPDATE_ON_WIFI" = "Sasisha kwenye Wi-Fi Pekee";
@@ -690,7 +692,7 @@
 "WEEKLY" = "Kila wiki";
 "WITH_UNREAD_CHAPTERS" = "Na sura ambazo hazijasomwa";
 "WITH_COMPLETED_STATUS" = "Na hali iliyokamilishwa";
-"THAT_HAVENT_BEEN_READ" = "Bila sura zilizowekwa alama kuwa zimesomwa";
+"WITH_NO_CHAPTERS_READ" = "Bila sura zilizowekwa alama kuwa zimesomwa";
 "NO_RESULTS_FOR_%@" = "Hakuna Matokeo ya “%@”";
 "NO_RESULTS_TEXT" = "Angalia tahajia au ujaribu utafutaji mpya.";
 "LEARN_MORE" = "Jifunze zaidi…";
@@ -908,8 +910,8 @@
 "TRACK_PAUSED" = "Imesitishwa";
 "TRACK_DROPPED" = "Imeachwa";
 "TRACK_REREADING" = "Inasomwa Upya";
-"STARTED" = "Tarehe ya Kuanza Kusoma";
-"FINISHED" = "Tarehe ya Kumaliza Kusoma";
+"STARTED" = "Tarehe ya Kuanza";
+"FINISHED" = "Tarehe ya Kumaliza";
 "STOP_TRACKING" = "Acha Kufuatilia";
 "SET_TRACK_CHAPTER_OFFSET" = "Weka Tofauti ya Nambari za Sura";
 "TRACK_CHAPTER_OFFSET_TEXT" = "Rekebisha masasisho ya kiotomatiki ya sura kwenye kifuatiliaji kwa manga hii wakati nambari za sura za chanzo zinatofautiana na nambari za sura za kifuatiliaji.";
@@ -1008,7 +1010,7 @@
 "BOTH" = "Zote mbili";
 "%@_TRACKER_LOGIN_NEEDED" = "Kuingia kwa %@ Kunahitajika";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "Tokeni yako ya %@ imekwisha muda, kwa hivyo kifuatiliaji husika kitaacha kufanya kazi hadi utakapoingia tena katika mipangilio.";
-"BACKUP_ERROR" = "Hitilafu ya Kurejesha Hifadhi Rudufu";
+"BACKUP_ERROR" = "Hitilafu ya Hifadhi Rudufu";
 "BACKUP_ERROR_TEXT" = "Hitilafu imetokea wakati wa kurejesha: %@. Hifadhi rudufu inaweza kuwa batili.";
 "READER_ORIENTATION" = "Mwelekeo";
 "FOLLOW_DEVICE" = "Fuata Kifaa";
@@ -1028,7 +1030,6 @@
 "TOGGLE_BARS" = "Onyesha au ufiche upau wa vidhibiti";
 "CLOSE_READER" = "Funga Kisomaji";
 "TOGGLE_PAGE_OFFSET" = "Washa au Zima Uhamisho wa Mpangilio wa Kurasa";
-"UPLOAD_FILE" = "Ingiza Faili";
 "MIGRATE_CHAPTER_HISTORY" = "Hamisha Historia ya Sura";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Hamisha historia ya usomaji iliyosalia kutoka kwa matoleo ya zamani ambayo hayajaunganishwa na sura katika hifadhidata ya ndani. Hii kawaida hufanyika kiotomatiki baada ya sasisho. Ikiwa haikuisha, unaweza kuiendesha tena hapa.";
 
@@ -1177,6 +1178,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 inasaidia maandishi asilia ya Kijapani na Kichina (kilichorahisishwa na cha jadi) pekee. Utambuzi wa kiotomatiki wa lugha asilia na machaguo ya lugha asilia pia yamewekewa mipaka ya lugha hizi. Bado unaweza kutafsiri kwenda Kikorea au lugha nyingine lengwa. Kuchagua Manga huweka viwango vya kugundua maandishi kuwa 0.85 na 0.25; ukubwa chaguomsingi wa ugunduzi ni pikseli 1120.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 inasaidia maandishi asilia ya Kijapani na Kichina (kilichorahisishwa na cha jadi) pekee. Utambuzi wa kiotomatiki wa lugha asilia na machaguo ya lugha asilia pia yamewekewa mipaka ya lugha hizi. Bado unaweza kutafsiri kwenda lugha yoyote lengwa. Kuchagua Manga huweka viwango vya kugundua maandishi kuwa 0.85 na 0.25; ukubwa chaguomsingi wa ugunduzi ni pikseli 1120.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Lugha zote zinazotumika na OCR";

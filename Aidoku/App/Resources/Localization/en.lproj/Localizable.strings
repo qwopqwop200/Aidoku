@@ -56,7 +56,7 @@
 "NO_DOWNLOADS_TEXT" = "Downloaded content will appear here.";
 "DOWNLOADED_CHAPTERS" = "Downloaded Chapters";
 "DOWNLOAD_INCOMPLETE" = "Incomplete Download";
-"TOTAL_DOWNLOADS" = "Download Storage Used";
+"DOWNLOAD_STORAGE_USED" = "Download Storage Used";
 "%i_SERIES" = "%i series";
 "IN_LIBRARY" = "In Library";
 "VIEW_SERIES" = "View Series";
@@ -88,7 +88,7 @@
 "AND_MORE" = "and more";
 "NOT_%@" = "Not %@";
 "FILTER_SEPARATOR" = ", ";
-"IS_TRACKING" = "Tracking";
+"IS_TRACKING" = "Tracked";
 "FILTER_HAS_UNREAD" = "Unread";
 "FILTER_STARTED" = "Started";
 "ASCENDING" = "Ascending";
@@ -162,7 +162,7 @@
 "PRIMARILY_NSFW" = "Primarily NSFW";
 "REMOVE_LOCAL_SOURCE" = "Remove Local Source?";
 "REMOVE_LOCAL_SOURCE_TEXT" = "This will remove all imported local files.";
-"MISSING_SOURCE_LIST" = "Missing Source List";
+"MISSING_SOURCE_LIST" = "Not in Source Lists";
 "MISSING_SOURCE_LIST_INFO" = "This external source is not available on any configured source lists. This means that it will not receive updates and may break in the future.";
 
 // Source
@@ -225,6 +225,7 @@
 "LOCAL_FILES_INFO" = "The local files source allows you to import and manage your own reading library directly within Aidoku.";
 "LOCAL_FILES_SETUP" = "Local Files Setup";
 "IMPORT" = "Import";
+"IMPORT_SETTINGS" = "Import";
 "IMPORT_FILE" = "Import File";
 "LOCAL_FILE_IMPORT" = "Local File Import";
 "LOCAL_FILE_IMPORT_TEXT" = "Import a CBZ or ZIP file containing images to read.";
@@ -342,7 +343,7 @@
 "STATUS_HIATUS" = "Hiatus";
 "SUGGESTIVE" = "Suggestive";
 "NSFW" = "NSFW";
-"MORE" = "more";
+"MORE" = "More";
 "SOURCE_ORDER" = "Source Order";
 "MISSING_SOURCE" = "Missing Source";
 "MISSING_SOURCE_TEXT" = "The original source for this manga could not be found. Please reinstall the source or remove this title from your library.";
@@ -397,7 +398,7 @@
 "SAVE_TO_PHOTOS" = "Save to Photos";
 "OPEN_WEBSITE" = "Open Website";
 "SET_COVER_IMAGE" = "Set Cover Image";
-"UPLOAD_CUSTOM_COVER" = "Choose Custom Cover";
+"CHOOSE_CUSTOM_COVER" = "Choose Custom Cover";
 "RESET_COVER" = "Reset Cover";
 
 // History
@@ -427,6 +428,7 @@
 
 // Account
 "LOGIN" = "Log In";
+"LOGIN_SECTION" = "Login";
 "LOGOUT" = "Log Out";
 "LOGOUT_FROM_%@" = "Log out from %@?";
 "LOGOUT_CONFIRM" = "Are you sure you want to log out?";
@@ -440,7 +442,7 @@
 "LOGIN_WEBVIEW_WARNING_TEXT" = "All cookies set in the presented web view will be given to the source. Do not log in to any source you do not trust.";
 "REFRESH_LOGIN" = "Refresh Login";
 "LOGIN_METHOD" = "Login Method";
-"BASIC" = "Basic";
+"BASIC" = "Username & Password";
 
 // Settings
 "SETTINGS" = "Settings";
@@ -477,7 +479,7 @@
 "PIN_DISABLED" = "Disabled";
 "PIN_UNREAD" = "Unread";
 "PIN_UPDATED_CHAPTERS" = "Updated Chapters";
-"LIBRARY_UPDATING" = "Library Updating";
+"LIBRARY_UPDATING" = "Library Updates";
 "UPDATE_INTERVAL" = "Update Interval";
 "SKIP_TITLES" = "Skip Titles";
 "ONLY_UPDATE_ON_WIFI" = "Only Update on Wi-Fi";
@@ -501,7 +503,7 @@
 "WEEKLY" = "Weekly";
 "WITH_UNREAD_CHAPTERS" = "With unread chapters";
 "WITH_COMPLETED_STATUS" = "With completed status";
-"THAT_HAVENT_BEEN_READ" = "With no chapters marked as read";
+"WITH_NO_CHAPTERS_READ" = "With no chapters marked as read";
 "NO_RESULTS_FOR_%@" = "No Results for “%@”";
 "NO_RESULTS_TEXT" = "Check the spelling or try a new search.";
 "LEARN_MORE" = "Learn more…";
@@ -622,7 +624,7 @@
 "KANJI_META_COUNT" = "Kanji Meta Count";
 "TAG_COUNT" = "Tag Count";
 "MEDIA_COUNT" = "Media Count";
-"IS_UPDATABLE" = "Is Updatable";
+"IS_UPDATABLE" = "Updatable";
 "SIZE" = "Size";
 "REMOVE_DICTIONARY" = "Remove Dictionary";
 "REMOVE_WORD" = "Remove Word";
@@ -658,7 +660,7 @@
 "RESTORE_MISSING_SOURCES_TEXT" = "Would you like to search for and install missing sources?";
 "INSTALL_SOURCES" = "Install Sources";
 "INSTALLING_SOURCES" = "Installing sources…";
-"RESTORE_BACKUP" = "Restore to this backup?";
+"RESTORE_BACKUP" = "Restore This Backup?";
 "RESTORE_BACKUP_TEXT" = "All current data will be removed and replaced by the data from this backup.";
 "BACKUP_IMPORT_SUCCESS" = "Backup Imported";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "To restore to this backup, find it in the backups page in settings.";
@@ -735,8 +737,8 @@
 "TRACK_PAUSED" = "Paused";
 "TRACK_DROPPED" = "Dropped";
 "TRACK_REREADING" = "Rereading";
-"STARTED" = "Started Reading";
-"FINISHED" = "Finished Reading";
+"STARTED" = "Start Date";
+"FINISHED" = "Finish Date";
 "STOP_TRACKING" = "Stop Tracking";
 "SET_TRACK_CHAPTER_OFFSET" = "Set Chapter Offset";
 "TRACK_CHAPTER_OFFSET_TEXT" = "Adjust automatic tracker chapter updates for this title when source chapter numbers differ from tracker chapter numbers.";
@@ -776,7 +778,7 @@
 "SUPPORT_VIA_KOFI" = "Support via Ko-fi";
 "SORT_UNREAD_CHAPTERS" = "Unread Chapters";
 "SET_AS_SINGLE_PAGE" = "Set as Single Page";
-"UNSET_AS_SINGLE_PAGE" = "Unset as Single Page";
+"UNSET_AS_SINGLE_PAGE" = "Remove Single Page Setting";
 "RELOAD" = "Reload";
 "RELOAD_FAILED" = "Reload Failed";
 "RELOAD_FAILED_TEXT" = "Failed to reload the image. Please try again.";
@@ -830,7 +832,7 @@
 "PILLARBOX" = "Pillarbox";
 "PILLARBOX_AMOUNT" = "Pillarbox Amount";
 "PILLARBOX_ORIENTATION" = "Pillarbox Orientation";
-"PILLARBOX_ORIENTATION_INFO" = "Pillarbox Orientation determines which orientations pillarboxing should be enabled for.";
+"PILLARBOX_ORIENTATION_INFO" = "Choose which device orientations use pillarboxing.";
 "AUTO_SCROLL" = "Auto Scroll";
 "AUTO_SCROLL_SPEED" = "Auto Scroll Speed";
 "AUTO_SCROLL_POSITION" = "Auto Scroll Button Position";
@@ -839,7 +841,7 @@
 "BOTH" = "Both";
 "%@_TRACKER_LOGIN_NEEDED" = "%@ Login Needed";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "Your %@ token has expired, so the associated tracker will stop working until you log in again in Settings.";
-"BACKUP_ERROR" = "Backup Restore Error";
+"BACKUP_ERROR" = "Backup Error";
 "BACKUP_ERROR_TEXT" = "An error occurred while restoring: %@. The backup may be invalid.";
 "READER_ORIENTATION" = "Orientation";
 "FOLLOW_DEVICE" = "Follow Device";
@@ -1018,7 +1020,6 @@
 "TRANSLATION_TAG_FILTER" = "Manga Tag Languages";
 
 // App localization coverage
-"UPLOAD_FILE" = "Import File";
 "MIGRATE_CHAPTER_HISTORY" = "Migrate Chapter History";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Migrate reading history left over from older versions that is not linked to chapters in the local database. This normally happens automatically after an update. If it did not finish, you can run it again here.";
 
@@ -1143,6 +1144,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 supports only Japanese and Chinese (Simplified and Traditional) source text. Automatic source detection and source-language choices are limited to these languages. You can still translate into Korean or other target languages. Choosing Manga applies detector thresholds of 0.85 and 0.25; its default detection size is 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 supports only Japanese and Chinese (Simplified and Traditional) source text. Automatic source detection and source-language choices are limited to these languages. You can still translate into any target language. Choosing Manga applies detector thresholds of 0.85 and 0.25; its default detection size is 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "All Supported OCR Languages";

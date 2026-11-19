@@ -58,7 +58,7 @@
 "UNTITLED" = "Uten navn";
 "STATUS_CANCELLED" = "Avbrutt";
 "STATUS_COMPLETED" = "Fullført";
-"MORE" = "mer";
+"MORE" = "Mer";
 "SOURCE_ORDER" = "Kildens rekkefølge";
 "MISSING_SOURCE" = "Manglende kilde";
 "SELECT_CHAPTERS" = "Velg kapitler";
@@ -131,7 +131,7 @@
 "BACKUPS" = "Sikkerhetskopier";
 "BACKUP_NAME" = "Sikkerhetskopinavn";
 "MISSING_SOURCES" = "Manglende kilder";
-"RESTORE_BACKUP" = "Vil du gjenopprette til denne sikkerhetskopien?";
+"RESTORE_BACKUP" = "Gjenopprette denne sikkerhetskopien?";
 "EXPORT_LOGS" = "Eksporter logger";
 "DISPLAY_LOGS" = "Vis logger";
 "ADVANCED" = "Avansert";
@@ -440,7 +440,7 @@
 "NO_DOWNLOADS_TEXT" = "Nedlastet innhold vises her.";
 "DOWNLOADED_CHAPTERS" = "Nedlastede kapitler";
 "DOWNLOAD_INCOMPLETE" = "Ufullstendig nedlasting";
-"TOTAL_DOWNLOADS" = "Lagringsplass brukt av nedlastinger";
+"DOWNLOAD_STORAGE_USED" = "Lagringsplass brukt av nedlastinger";
 "%i_SERIES" = "%i serier";
 "IN_LIBRARY" = "I biblioteket";
 "VIEW_SERIES" = "Se serien";
@@ -459,7 +459,7 @@
 "AND_MORE" = "og flere";
 "NOT_%@" = "Ikke %@";
 "FILTER_SEPARATOR" = ", ";
-"IS_TRACKING" = "Sporing";
+"IS_TRACKING" = "Sporet";
 "FILTER_HAS_UNREAD" = "Ulest";
 "FILTER_STARTED" = "Startet";
 "ASCENDING" = "Stigende";
@@ -517,7 +517,7 @@
 "PRIMARILY_NSFW" = "Primært NSFW";
 "REMOVE_LOCAL_SOURCE" = "Vil du fjerne lokal kilde?";
 "REMOVE_LOCAL_SOURCE_TEXT" = "Dette vil fjerne alle importerte lokale filer.";
-"MISSING_SOURCE_LIST" = "Manglende kildeliste";
+"MISSING_SOURCE_LIST" = "Ikke i noen kildeliste";
 "MISSING_SOURCE_LIST_INFO" = "Denne eksterne kilden er ikke tilgjengelig på noen konfigurerte kildelister. Dette betyr at den ikke vil motta oppdateringer og kan slutte å fungere i fremtiden.";
 "BASE_URL" = "Basisadresse";
 "SEE_ALL" = "Se alle";
@@ -567,6 +567,7 @@
 "LOCAL_FILES_INFO" = "Kilden for lokale filer lar deg importere og administrere ditt eget lesebibliotek direkte i Aidoku.";
 "LOCAL_FILES_SETUP" = "Oppsett av lokale filer";
 "IMPORT" = "Importer";
+"IMPORT_SETTINGS" = "Import";
 "IMPORT_FILE" = "Importer fil";
 "LOCAL_FILE_IMPORT" = "Lokal filimport";
 "LOCAL_FILE_IMPORT_TEXT" = "Importer en CBZ- eller ZIP-fil som inneholder bilder som skal leses.";
@@ -690,7 +691,7 @@
 "SKIPPING_CHAPTERS" = "Hopper over %i kapitler fordi de mangler i kilden eller er filtrert ut";
 "OPEN_WEBSITE" = "Åpne nettstedet";
 "SET_COVER_IMAGE" = "Angi omslagsbilde";
-"UPLOAD_CUSTOM_COVER" = "Velg eget omslag";
+"CHOOSE_CUSTOM_COVER" = "Velg eget omslag";
 "RESET_COVER" = "Tilbakestill omslag";
 "%@_AGO" = "%@ siden";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "Dette vil fjerne historikken for dette kapittelet. Er du sikker på at du vil fortsette?";
@@ -706,6 +707,7 @@
 "NO_RECENT_SEARCHES_TEXT" = "De siste søkene dine vises her.";
 "SOURCES" = "Kilder";
 "LOGIN" = "Logg inn";
+"LOGIN_SECTION" = "Innlogging";
 "LOGOUT" = "Logg ut";
 "LOGOUT_FROM_%@" = "Vil du logge ut fra %@?";
 "LOGOUT_CONFIRM" = "Er du sikker på at du vil logge ut?";
@@ -719,7 +721,7 @@
 "LOGIN_WEBVIEW_WARNING_TEXT" = "Alle informasjonskapsler som er satt i den presenterte webvisningen vil bli gitt til kilden. Ikke logg inn på noen kilde du ikke stoler på.";
 "REFRESH_LOGIN" = "Oppdater pålogging";
 "LOGIN_METHOD" = "Påloggingsmetode";
-"BASIC" = "Grunnleggende";
+"BASIC" = "Brukernavn og passord";
 "AUTH_TO_ENABLE" = "Autentiser for å aktivere.";
 "AUTH_TO_DISABLE" = "Autentiser for å deaktivere.";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud-synkronisering er en eksperimentell funksjon. Aktivering eller deaktivering kan føre til tap av data.";
@@ -738,7 +740,7 @@
 "PIN_TITLES" = "Fest titler";
 "PIN_DISABLED" = "Deaktivert";
 "PIN_UPDATED_CHAPTERS" = "Oppdaterte kapitler";
-"LIBRARY_UPDATING" = "Bibliotekoppdatering";
+"LIBRARY_UPDATING" = "Bibliotekoppdateringer";
 "UPDATE_INTERVAL" = "Oppdateringsintervall";
 "SKIP_TITLES" = "Hopp over titler";
 "ONLY_UPDATE_ON_WIFI" = "Oppdater bare via Wi-Fi";
@@ -755,7 +757,7 @@
 "DELETE_DOWNLOAD_AFTER_READING" = "Slett nedlasting etter lesing";
 "EVERY_6_HOURS" = "Hver 6. time";
 "EVERY_12_HOURS" = "Hver 12. time";
-"THAT_HAVENT_BEEN_READ" = "Uten kapitler merket som lest";
+"WITH_NO_CHAPTERS_READ" = "Uten kapitler merket som lest";
 "NO_RESULTS_FOR_%@" = "Ingen resultater for “%@”";
 "NO_RESULTS_TEXT" = "Sjekk stavemåten eller prøv et nytt søk.";
 "LEARN_MORE" = "Lær mer …";
@@ -984,7 +986,7 @@
 "CACHE_SIZE_%@" = "Størrelse på hurtigbuffer: %@";
 "SUPPORT_VIA_KOFI" = "Støtte via Ko-fi";
 "SET_AS_SINGLE_PAGE" = "Sett som enkeltside";
-"UNSET_AS_SINGLE_PAGE" = "Fjern innstilling som enkeltside";
+"UNSET_AS_SINGLE_PAGE" = "Fjern innstilling for enkeltside";
 "RELOAD_FAILED" = "Ny innlasting mislyktes";
 "RELOAD_FAILED_TEXT" = "Kunne ikke laste inn bildet på nytt. Vennligst prøv igjen.";
 "SORT_LAST_UPDATED" = "Sist oppdatert";
@@ -1020,7 +1022,7 @@
 "PILLARBOX" = "Sidemarger";
 "PILLARBOX_AMOUNT" = "Bredde på sidemarger";
 "PILLARBOX_ORIENTATION" = "Skjermretninger med sidemarger";
-"PILLARBOX_ORIENTATION_INFO" = "Velg hvilke skjermretninger som skal vise sidemarger.";
+"PILLARBOX_ORIENTATION_INFO" = "Velg hvilke skjermretninger som bruker sidemarger.";
 "AUTO_SCROLL" = "Automatisk rulling";
 "AUTO_SCROLL_SPEED" = "Hastighet for automatisk rulling";
 "AUTO_SCROLL_POSITION" = "Plassering av kontroll for automatisk rulling";
@@ -1028,7 +1030,7 @@
 "POSITION_RIGHT" = "Høyre";
 "%@_TRACKER_LOGIN_NEEDED" = "Pålogging til %@ kreves";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "%@-tokenet ditt har utløpt, så den tilknyttede sporingstjenesten vil slutte å fungere til du logger på igjen i innstillingene.";
-"BACKUP_ERROR" = "Feil ved gjenoppretting av sikkerhetskopi";
+"BACKUP_ERROR" = "Feil med sikkerhetskopi";
 "BACKUP_ERROR_TEXT" = "Det oppsto en feil under gjenoppretting: %@. Sikkerhetskopien kan være ugyldig.";
 "READER_ORIENTATION" = "Orientering";
 "FOLLOW_DEVICE" = "Følg enhet";
@@ -1048,7 +1050,6 @@
 "TOGGLE_BARS" = "Vis eller skjul verktøylinjer";
 "CLOSE_READER" = "Lukk leser";
 "TOGGLE_PAGE_OFFSET" = "Slå sideforskyvning av/på";
-"UPLOAD_FILE" = "Importer fil";
 "MIGRATE_CHAPTER_HISTORY" = "Migrer kapittelhistorikk";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Migrer lesehistorikk til overs fra eldre versjoner som ikke er knyttet til kapitler i den lokale databasen. Dette skjer normalt automatisk etter en oppdatering. Hvis den ikke ble fullført, kan du kjøre den på nytt her.";
 
@@ -1196,6 +1197,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 støtter bare kildetekst på japansk og kinesisk (forenklet og tradisjonell). Automatisk identifisering av kildespråket og valg av kildespråk er begrenset til disse språkene. Du kan fortsatt oversette til koreansk eller andre målspråk. Når du velger Manga, brukes deteksjonstersklene 0.85 og 0.25; standardstørrelsen for tekstlokalisering er 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 støtter bare kildetekst på japansk og kinesisk (forenklet og tradisjonell). Automatisk identifisering av kildespråket og valg av kildespråk er begrenset til disse språkene. Du kan fortsatt oversette til et hvilket som helst målspråk. Når du velger Manga, brukes deteksjonstersklene 0.85 og 0.25; standardstørrelsen for tekstlokalisering er 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alle støttede OCR-språk";

@@ -130,7 +130,7 @@
 "LANDSCAPE" = "Landschap";
 "UNREAD_CHAPTER_BADGES" = "Badges voor ongelezen hoofdstukken";
 "PIN_UNREAD" = "Ongelezen";
-"LIBRARY_UPDATING" = "Bibliotheek bijwerken";
+"LIBRARY_UPDATING" = "Bibliotheekupdates";
 "UPDATE_INTERVAL" = "Bijwerkinterval";
 "SKIP_TITLES" = "Sla titels over";
 "EXCLUDED_CATEGORIES" = "Uitgesloten categorieën";
@@ -139,7 +139,7 @@
 "DAILY" = "Dagelijks";
 "EVERY_2_DAYS" = "Elke 2 dagen";
 "WITH_COMPLETED_STATUS" = "Met de status voltooid";
-"THAT_HAVENT_BEEN_READ" = "Zonder als gelezen gemarkeerde hoofdstukken";
+"WITH_NO_CHAPTERS_READ" = "Zonder als gelezen gemarkeerde hoofdstukken";
 "SOURCE_LISTS" = "Bronnenlijsten";
 "SOURCE_LIST_ADDED" = "Bronnenlijst toegevoegd";
 "SOURCE_LIST_ADDED_TEXT" = "Je kunt nu externe bronnen bekijken op het tabblad Bladeren.";
@@ -226,7 +226,7 @@
 "MIGRATE_%i_ITEMS?" = "%i items migreren?";
 "DEFAULT_READING_MODE" = "Standaardleesmodus";
 "BOTH" = "Beide";
-"BACKUP_ERROR" = "Fout bij herstellen van back-up";
+"BACKUP_ERROR" = "Back-upfout";
 // General
 "CONTINUE" = "Doorgaan";
 "BACKUP_ERROR_TEXT" = "Er is een fout opgetreden tijdens het herstellen: %@. De back-up is mogelijk ongeldig.";
@@ -251,7 +251,7 @@
 "LIST_ALL" = "Alle";
 "LIST_HEADER" = "Lijst";
 "NSFW" = "NSFW";
-"MORE" = "meer";
+"MORE" = "Meer";
 "SOURCE_ORDER" = "Volgorde van de bron";
 "CHAPTERS" = "Hoofdstukken";
 "NO_CHAPTERS_AVAILABLE" = "Geen hoofdstukken beschikbaar";
@@ -316,7 +316,7 @@
 "PILLARBOX" = "Marges aan de zijkant";
 "PILLARBOX_AMOUNT" = "Breedte van zijmarges";
 "PILLARBOX_ORIENTATION" = "Schermoriëntatie voor zijmarges";
-"PILLARBOX_ORIENTATION_INFO" = "Kies de schermoriëntaties waarin zijmarges worden weergegeven.";
+"PILLARBOX_ORIENTATION_INFO" = "Kies in welke schermoriëntaties zijmarges worden gebruikt.";
 "NO_WIFI_ALERT_MESSAGE" = "Je moet verbonden zijn met wifi om deze inhoud te downloaden. Maak verbinding met wifi en probeer het opnieuw.";
 "DOWNLOAD_ANYWAY_MESSAGE" = "Je hebt momenteel geen wifi-verbinding. Toch downloaden?";
 "LINK_COPIED" = "Link gekopieerd";
@@ -616,7 +616,7 @@
 "NO_DOWNLOADS_TEXT" = "Gedownloade inhoud wordt hier weergegeven.";
 "DOWNLOADED_CHAPTERS" = "Gedownloade hoofdstukken";
 "DOWNLOAD_INCOMPLETE" = "Onvolledige download";
-"TOTAL_DOWNLOADS" = "Opslaggebruik van downloads";
+"DOWNLOAD_STORAGE_USED" = "Opslaggebruik van downloads";
 "%i_SERIES" = "%i series";
 "IN_LIBRARY" = "In bibliotheek";
 "VIEW_FILES" = "Bestanden bekijken";
@@ -669,7 +669,7 @@
 "PRIMARILY_NSFW" = "Voornamelijk NSFW";
 "REMOVE_LOCAL_SOURCE" = "Lokale bron verwijderen?";
 "REMOVE_LOCAL_SOURCE_TEXT" = "Hiermee worden alle geïmporteerde lokale bestanden verwijderd.";
-"MISSING_SOURCE_LIST" = "Ontbrekende bronnenlijst";
+"MISSING_SOURCE_LIST" = "Niet in bronnenlijsten";
 "MISSING_SOURCE_LIST_INFO" = "Deze externe bron staat niet in een van de ingestelde bronnenlijsten. Daardoor ontvangt deze geen updates en werkt deze in de toekomst mogelijk niet meer.";
 "RANGE_FROM" = "Van";
 "RANGE_TO" = "Tot";
@@ -696,6 +696,7 @@
 "LOCAL_FILES_INFO" = "Met de bron voor lokale bestanden kun je je eigen leesbibliotheek rechtstreeks in Aidoku importeren en beheren.";
 "LOCAL_FILES_SETUP" = "Lokale bestanden instellen";
 "IMPORT" = "Importeren";
+"IMPORT_SETTINGS" = "Import";
 "IMPORT_FILE" = "Bestand importeren";
 "LOCAL_FILE_IMPORT" = "Lokale bestandsimport";
 "LOCAL_FILE_IMPORT_TEXT" = "Importeer een CBZ- of ZIP-bestand met afbeeldingen om te lezen.";
@@ -803,7 +804,7 @@
 "REFRESH_DETAILS" = "Details vernieuwen";
 "VOLUME" = "Deel";
 "SET_COVER_IMAGE" = "Omslagafbeelding instellen";
-"UPLOAD_CUSTOM_COVER" = "Eigen omslag kiezen";
+"CHOOSE_CUSTOM_COVER" = "Eigen omslag kiezen";
 "RESET_COVER" = "Omslag herstellen";
 "NO_HISTORY" = "Geen geschiedenis";
 "NO_HISTORY_TEXT" = "Hier verschijnt de leesgeschiedenis.";
@@ -812,6 +813,7 @@
 "NO_RECENT_SEARCHES_TEXT" = "Je recente zoekopdrachten worden hier weergegeven.";
 "SOURCES" = "Inhoudsbronnen";
 "LOGIN" = "Inloggen";
+"LOGIN_SECTION" = "Inloggegevens";
 "LOGOUT_CONFIRM" = "Weet je zeker dat je wilt uitloggen?";
 "USERNAME" = "Gebruikersnaam";
 "EMAIL" = "E-mail";
@@ -823,7 +825,7 @@
 "LOGIN_WEBVIEW_WARNING_TEXT" = "Alle cookies die in de getoonde webweergave worden geplaatst, worden aan de bron doorgegeven. Log niet in bij bronnen die je niet vertrouwt.";
 "REFRESH_LOGIN" = "Login vernieuwen";
 "LOGIN_METHOD" = "Inlogmethode";
-"BASIC" = "Basis";
+"BASIC" = "Gebruikersnaam en wachtwoord";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud Sync is een experimentele functie. Het in- of uitschakelen ervan kan gegevensverlies veroorzaken.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud Sync is alleen beschikbaar indien geïnstalleerd via TestFlight.";
 "LAYOUT" = "Indeling";
@@ -942,7 +944,7 @@
 "KANJI_META_COUNT" = "Aantal kanji-metagegevensvermeldingen";
 "TAG_COUNT" = "Aantal tags";
 "MEDIA_COUNT" = "Aantal media";
-"IS_UPDATABLE" = "Kan worden bijgewerkt";
+"IS_UPDATABLE" = "Bij te werken";
 "SIZE" = "Grootte";
 "REMOVE_DICTIONARY" = "Woordenboek verwijderen";
 "REMOVE_WORD" = "Woord verwijderen";
@@ -1011,7 +1013,7 @@
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Als je tracking voor een bron uitschakelt, worden de trackerkoppelingen voor die bron verwijderd. Als je tracking inschakelt, worden bibliotheekitems uit die bron automatisch gekoppeld.";
 "TRACKER_LOGOUT_INFO" = "Als je uitlogt, wordt de gekoppelde trackinginformatie van deze tracker voor alle series verwijderd.";
 "SET_AS_SINGLE_PAGE" = "Instellen als enkele pagina";
-"UNSET_AS_SINGLE_PAGE" = "Instelling als enkele pagina opheffen";
+"UNSET_AS_SINGLE_PAGE" = "Instelling enkele pagina verwijderen";
 "RELOAD_FAILED" = "Opnieuw laden mislukt";
 "RELOAD_FAILED_TEXT" = "Kan de afbeelding niet opnieuw laden. Probeer het opnieuw.";
 "CONTINUOUS_WITH_GAPS" = "Doorlopend met tussenruimtes";
@@ -1050,7 +1052,6 @@
 "TOGGLE_BARS" = "Werkbalken tonen of verbergen";
 "CLOSE_READER" = "Lezer sluiten";
 "TOGGLE_PAGE_OFFSET" = "Pagina-offset omschakelen";
-"UPLOAD_FILE" = "Bestand importeren";
 "MIGRATE_CHAPTER_HISTORY" = "Hoofdstukgeschiedenis migreren";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Migreer de leesgeschiedenis die overblijft uit oudere versies en die niet is gekoppeld aan hoofdstukken in de lokale database. Normaal gesproken gebeurt dit automatisch na een update. Als het niet is voltooid, kun je het hier opnieuw uitvoeren.";
 
@@ -1198,6 +1199,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 ondersteunt alleen Japanse en Chinese brontekst (vereenvoudigd en traditioneel). Automatische herkenning van de brontaal en de beschikbare brontalen zijn beperkt tot deze talen. Je kunt nog steeds naar het Koreaans of andere doeltalen vertalen. Als je Manga kiest, worden de detectiedrempels 0.85 en 0.25 toegepast; de standaardgrootte voor detectie is 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 ondersteunt alleen Japanse en Chinese brontekst (vereenvoudigd en traditioneel). Automatische herkenning van de brontaal en de beschikbare brontalen zijn beperkt tot deze talen. Je kunt nog steeds naar elke doeltaal vertalen. Als je Manga kiest, worden de detectiedrempels 0.85 en 0.25 toegepast; de standaardgrootte voor detectie is 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alle ondersteunde OCR-talen";

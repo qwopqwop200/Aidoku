@@ -66,7 +66,7 @@ enum Settings {
                 ))
             ),
             .init(
-                title: NSLocalizedString("IMPORT"),
+                title: NSLocalizedString("IMPORT_SETTINGS"),
                 value: .page(.init(
                     items: importSettings,
                     inlineTitle: true,
@@ -351,7 +351,7 @@ extension Settings {
                             titles: [
                                 NSLocalizedString("WITH_UNREAD_CHAPTERS"),
                                 NSLocalizedString("WITH_COMPLETED_STATUS"),
-                                NSLocalizedString("THAT_HAVENT_BEEN_READ")
+                                NSLocalizedString("WITH_NO_CHAPTERS_READ")
                             ]
                         ))
                     ),

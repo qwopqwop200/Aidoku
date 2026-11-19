@@ -84,7 +84,7 @@
 "STATUS_ONGOING" = "Devam eden";
 "STATUS_CANCELLED" = "İptal edilmiş";
 "STATUS_COMPLETED" = "Tamamlanmış";
-"MORE" = "daha fazla";
+"MORE" = "Daha Fazla";
 "SOURCE_ORDER" = "Kaynak Sırası";
 "SELECT_CHAPTERS" = "Bölümleri Seç";
 "SELECT_ALL" = "Hepsini Seç";
@@ -163,7 +163,7 @@
 "READER" = "Okuyucu";
 "OPEN_READER_VIEW" = "Okuyucu Görünümünü Aç";
 "PIN_UNREAD" = "Okunmamış";
-"LIBRARY_UPDATING" = "Kütüphane Güncellemesi";
+"LIBRARY_UPDATING" = "Kütüphane Güncellemeleri";
 "UPDATE_INTERVAL" = "Güncelleme Sıklığı";
 "SKIP_TITLES" = "Başlıkları Geç";
 "ONLY_UPDATE_ON_WIFI" = "Yalnızca Wi-Fi ile Güncelle";
@@ -176,7 +176,7 @@
 "WEEKLY" = "Haftalık";
 "WITH_UNREAD_CHAPTERS" = "Okunmamış Bölümü Olanlar";
 "WITH_COMPLETED_STATUS" = "Tamamlanmış Olanlar";
-"THAT_HAVENT_BEEN_READ" = "Okunmuş İşaretli Bölümü Olmayanlar";
+"WITH_NO_CHAPTERS_READ" = "Okunmuş İşaretli Bölümü Olmayanlar";
 "SOURCE_LISTS" = "Kaynak Listeleri";
 "SOURCE_LIST_ADDED" = "Kaynak Listesi Eklendi";
 "SOURCE_LIST_ADDED_TEXT" = "Artık Gözat sekmesinde harici kaynaklara göz atabilirsiniz.";
@@ -194,7 +194,7 @@
 "BACKUP_INFO" = "Dışa aktarmak için yedeğe basılı tutun ya da silmek için sola kaydırın.";
 "MISSING_SOURCES" = "Eksik Kaynaklar";
 "MISSING_SOURCES_TEXT" = "Geri yüklenen yedek, şu anda yüklü olmayan aşağıdaki kaynaklardan veriler içerebilir:";
-"RESTORE_BACKUP" = "Bu yedek geri yüklensin mi?";
+"RESTORE_BACKUP" = "Bu Yedek Geri Yüklensin mi?";
 "RESTORE_BACKUP_TEXT" = "Mevcut tüm veriler silinecek ve bu yedekteki verilerle değiştirilecek.";
 "BACKUP_IMPORT_SUCCESS" = "Yedek İçe Aktarıldı";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Bu yedeği geri yüklemek için, yedeği ayarlardaki yedekler sayfasında bulun.";
@@ -303,20 +303,20 @@
 "UPLOAD_DATE" = "Yükleme Tarihi";
 "ALL_CHAPTERS_READ" = "Tüm Bölümler Okundu";
 "DEFAULT_READING_MODE" = "Varsayılan Okuma Modu";
-"IS_TRACKING" = "Takip Ediliyor";
+"IS_TRACKING" = "Takip Edilen";
 "PILLARBOX" = "Yan Kenar Boşlukları";
 "PILLARBOX_AMOUNT" = "Yan Kenar Boşluğu Genişliği";
 "PILLARBOX_ORIENTATION" = "Kenar Boşlukları İçin Ekran Yönü";
 "BOTH" = "İkisi de";
 "CROP_BORDERS" = "Kenarları Kırp";
-"PILLARBOX_ORIENTATION_INFO" = "Yan kenar boşluklarının hangi ekran yönlerinde etkin olacağını belirler.";
+"PILLARBOX_ORIENTATION_INFO" = "Yan kenar boşluklarının kullanılacağı ekran yönlerini seçin.";
 "COPY" = "Kopyala";
 "PIN" = "Sabitle";
 "UNPIN" = "Sabitlemeyi Kaldır";
 "REORDER" = "Yeniden sırala";
 "COVER" = "Kapak";
 "BACKUP_ERROR_TEXT" = "Geri yükleme sırasında bir hata oluştu: %@. Yedek geçersiz olabilir.";
-"BACKUP_ERROR" = "Yedek Geri Yükleme Hatası";
+"BACKUP_ERROR" = "Yedekleme Hatası";
 
 // Manga Updates
 "MANGA_UPDATES" = "Güncellemeler";
@@ -362,7 +362,7 @@
 "PAUSED" = "Duraklatıldı";
 "CANCEL_ALL_DOWNLOADS" = "Bütün indirmeleri iptal et";
 "DOWNLOADS" = "İndirilenler";
-"TOTAL_DOWNLOADS" = "Toplam İndirme Boyutu";
+"DOWNLOAD_STORAGE_USED" = "Toplam İndirme Boyutu";
 "VIEW_SERIES" = "Seriyi Görüntüle";
 "VIEW_FILES" = "Dosyaları gör";
 "COMPRESS_DOWNLOADS" = "İndirilenleri sıkıştır";
@@ -426,6 +426,7 @@
 "LOCAL_FILES" = "Yerel dosyalar";
 "LOCAL_FILES_TAGLINE" = "Yerel dosyalardan oku";
 "IMPORT" = "İçe aktar";
+"IMPORT_SETTINGS" = "İçe Aktarma";
 "IMPORT_FILE" = "Dosya içe aktar";
 "LOCAL_FILE_IMPORT" = "Yerel dosya içe aktarma";
 "LOCAL_FILE_IMPORT_TEXT" = "Okumak için görüntü içeren bir CBZ veya ZIP dosyasını içe aktarın.";
@@ -490,7 +491,7 @@
 "EDIT_FILTER_GROUP" = "Filtre Grubunu Düzenle";
 "CLEAR_FILTERS" = "Filtreleri Temizle";
 "SHOW_UNCATEGORIZED_CATEGORY" = "\"Kategorisiz\" Kategorisini Göster";
-"MISSING_SOURCE_LIST" = "Kaynak Listesinde Yok";
+"MISSING_SOURCE_LIST" = "Kaynak Listelerinde Yok";
 "AUTHOR" = "Yazar";
 "AUTHOR_NAME" = "Yazar adı";
 "USERNAME" = "Kullanıcı Adı";
@@ -562,6 +563,7 @@
 "BASIC_LOGIN" = "Temel Giriş";
 "API_KEY_LOGIN_INFO" = "Giriş için manuel bir API anahtarı sağlamak, diğer giriş yöntemlerini geçersiz kılar. Diğer yöntemleri kullanmak için boş bırakabilirsiniz.";
 "LOGIN" = "Giriş Yap";
+"LOGIN_SECTION" = "Giriş";
 "LOGIN_FAILED" = "Giriş Başarısız";
 "LOGIN_WEBVIEW_WARNING" = "Web görünümü üzerinden giriş yapılsın mı?";
 "REFRESH_LOGIN" = "Girişi Yenile";
@@ -614,7 +616,7 @@
 "TOGGLE_LOCK" = "Kilidi Aç/Kapat";
 "REFRESH_DETAILS" = "Detayları Yenile";
 "SET_COVER_IMAGE" = "Kapak Görseli Ayarla";
-"UPLOAD_CUSTOM_COVER" = "Özel Kapak Seç";
+"CHOOSE_CUSTOM_COVER" = "Özel Kapak Seç";
 "RESET_COVER" = "Kapağı Sıfırla";
 "NO_HISTORY" = "Geçmiş Yok";
 "NO_HISTORY_TEXT" = "Okuma geçmişiniz burada görünecek.";
@@ -622,7 +624,7 @@
 "NO_RECENT_SEARCHES" = "Son Arama Yok";
 "NO_RECENT_SEARCHES_TEXT" = "Son aramalarınız burada görünecek.";
 "LOGOUT_CONFIRM" = "Çıkış yapmak istediğinize emin misiniz?";
-"BASIC" = "Temel";
+"BASIC" = "Kullanıcı Adı ve Şifre";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud Senkronizasyonu deneysel bir özelliktir. Etkinleştirmek veya devre dışı bırakmak veri kaybına yol açabilir.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud Senkronizasyonu yalnızca TestFlight aracılığıyla yüklendiğinde kullanılabilir.";
 "LAYOUT" = "Düzen";
@@ -1050,7 +1052,6 @@
 "AUTO_SCROLL_POSITION" = "Otomatik Kaydırma Düğmesinin Konumu";
 "POSITION_LEFT" = "Sol";
 "POSITION_RIGHT" = "Sağ";
-"UPLOAD_FILE" = "Dosya içe aktar";
 "MIGRATE_CHAPTER_HISTORY" = "Bölüm Geçmişini Taşı";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Yerel veritabanındaki bölümlerle bağlantısı olmayan eski sürümlerden kalan okuma geçmişini taşıyın. Bu normalde bir güncellemeden sonra otomatik olarak gerçekleşir. Eğer bitmediyse buradan tekrar çalıştırabilirsiniz.";
 
@@ -1199,4 +1200,4 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Desteklenen tüm OCR dilleri";
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 yalnızca Japonca ve Çince (Basitleştirilmiş ve Geleneksel) kaynak metinleri destekler. Otomatik kaynak dil algılama ve kaynak dil seçenekleri bu dillerle sınırlıdır. Koreceye veya diğer hedef dillere çeviri yapılabilir. Manga seçildiğinde algılama eşikleri 0,85 ve 0,25 olarak ayarlanır; varsayılan algılama boyutu 1120 pikseldir.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 yalnızca Japonca ve Çince (Basitleştirilmiş ve Geleneksel) kaynak metinleri destekler. Otomatik kaynak dil algılama ve kaynak dil seçenekleri bu dillerle sınırlıdır. Herhangi bir hedef dile çeviri yapılabilir. Manga seçildiğinde algılama eşikleri 0,85 ve 0,25 olarak ayarlanır; varsayılan algılama boyutu 1120 pikseldir.";

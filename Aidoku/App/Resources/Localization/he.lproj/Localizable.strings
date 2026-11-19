@@ -161,8 +161,8 @@
 "SOURCE_ORDER" = "סדר הפרקים במקור";
 "UPDATE_INTERVAL" = "מרווח בין עדכונים";
 "OPEN_READER_VIEW" = "פתח תצוגת קורא";
-"LIBRARY_UPDATING" = "עדכון ספרייה";
-"RESTORE_BACKUP" = "לשחזר מגיבוי זה?";
+"LIBRARY_UPDATING" = "עדכוני ספרייה";
+"RESTORE_BACKUP" = "לשחזר גיבוי זה?";
 "SOURCE_LISTS" = "רשימות מקורות";
 "SOURCE_LIST_ADDED" = "רשימת המקורות נוספה";
 "RENAME_BACKUP" = "שנה שם גיבוי";
@@ -222,11 +222,11 @@
 "TRACKERS" = "שירותי מעקב";
 "LOGOUT" = "התנתק";
 "VOLUMES" = "כרכים";
-"STARTED" = "תאריך תחילת הקריאה";
+"STARTED" = "תאריך התחלה";
 "TRACK_REREADING" = "בקריאה חוזרת";
 "SCORE" = "ציון";
 "TRACK_PAUSED" = "מושהה";
-"FINISHED" = "תאריך סיום הקריאה";
+"FINISHED" = "תאריך סיום";
 "TRACK_READING" = "בקריאה";
 "TRACK_PLANNING" = "מתוכנן";
 "TRACK_DROPPED" = "ננטש";
@@ -291,7 +291,7 @@
 "WEEKLY" = "כל שבוע";
 "WITH_UNREAD_CHAPTERS" = "עם פרקים שלא נקראו";
 "WITH_COMPLETED_STATUS" = "בסטטוס הושלם";
-"THAT_HAVENT_BEEN_READ" = "ללא פרקים שסומנו כנקראו";
+"WITH_NO_CHAPTERS_READ" = "ללא פרקים שסומנו כנקראו";
 "LOGOUT_FROM_%@" = "להתנתק מ-%@?";
 "CLEAR_TRACKED_MANGA_TEXT" = "פעולה זו אינה הפיכה. כל הקישורים לשירותי מעקב שנוספו למנגה יוסרו.";
 "DONE" = "סיום";
@@ -544,7 +544,7 @@
 "NO_DOWNLOADS_TEXT" = "תוכן שהורד יופיע כאן.";
 "DOWNLOADED_CHAPTERS" = "פרקים שהורדו";
 "DOWNLOAD_INCOMPLETE" = "הורדה לא מלאה";
-"TOTAL_DOWNLOADS" = "הגודל הכולל של ההורדות";
+"DOWNLOAD_STORAGE_USED" = "הגודל הכולל של ההורדות";
 "%i_SERIES" = "%i סדרות";
 "IN_LIBRARY" = "בספרייה";
 "VIEW_SERIES" = "הצג סדרה";
@@ -604,7 +604,7 @@
 "PRIMARILY_NSFW" = "בעיקר NSFW";
 "REMOVE_LOCAL_SOURCE" = "להסיר מקור מקומי?";
 "REMOVE_LOCAL_SOURCE_TEXT" = "פעולה זו תסיר את כל הקבצים המקומיים המיובאים.";
-"MISSING_SOURCE_LIST" = "רשימת מקורות חסרה";
+"MISSING_SOURCE_LIST" = "לא ברשימות המקורות";
 "MISSING_SOURCE_LIST_INFO" = "מקור חיצוני זה אינו זמין באף רשימות מקורות מוגדרות. המשמעות היא שהוא לא יקבל עדכונים ועלול להישבר בעתיד.";
 "BASE_URL" = "כתובת URL בסיסית";
 "SEE_ALL" = "ראה הכל";
@@ -654,6 +654,7 @@
 "LOCAL_FILES_INFO" = "מקור הקבצים המקומיים מאפשר לייבא ולנהל את ספריית הקריאה שלך ישירות בתוך Aidoku.";
 "LOCAL_FILES_SETUP" = "הגדרת קבצים מקומיים";
 "IMPORT" = "ייבוא";
+"IMPORT_SETTINGS" = "ייבוא";
 "IMPORT_FILE" = "ייבוא קובץ";
 "LOCAL_FILE_IMPORT" = "ייבוא קבצים מקומיים";
 "LOCAL_FILE_IMPORT_TEXT" = "ייבא קובץ CBZ או ZIP המכיל תמונות לקריאה.";
@@ -767,7 +768,7 @@
 "SKIPPING_CHAPTERS" = "מדלג על %i פרקים, משום שהם חסרים במקור או הוסרו בסינון";
 "OPEN_WEBSITE" = "פתח אתר";
 "SET_COVER_IMAGE" = "הגדר כתמונת כריכה";
-"UPLOAD_CUSTOM_COVER" = "בחר כריכה מותאמת אישית";
+"CHOOSE_CUSTOM_COVER" = "בחר כריכה מותאמת אישית";
 "RESET_COVER" = "אפס כריכה";
 "NO_HISTORY" = "אין היסטוריה";
 "NO_HISTORY_TEXT" = "היסטוריית הקריאה תופיע כאן.";
@@ -779,6 +780,7 @@
 "NO_RECENT_SEARCHES_TEXT" = "החיפושים האחרונים שלך יופיעו כאן.";
 "SOURCES" = "מקורות תוכן";
 "LOGIN" = "התחבר";
+"LOGIN_SECTION" = "התחברות";
 "LOGOUT_CONFIRM" = "האם אתה בטוח שאתה רוצה להתנתק?";
 "USERNAME" = "שם משתמש";
 "EMAIL" = "דוא\"ל";
@@ -790,7 +792,7 @@
 "LOGIN_WEBVIEW_WARNING_TEXT" = "כל העוגיות המוגדרות בתצוגת האינטרנט המוצגת יינתנו למקור. אל תיכנס לשום מקור שאינך סומך עליו.";
 "REFRESH_LOGIN" = "רענן התחברות";
 "LOGIN_METHOD" = "שיטת התחברות";
-"BASIC" = "בסיסי";
+"BASIC" = "שם משתמש וסיסמה";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud Sync הוא תכונה ניסיונית. הפעלה או השבתה עלולה לגרום לאובדן נתונים.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud Sync זמין רק כשהוא מותקן דרך TestFlight.";
 "LAYOUT" = "פריסה";
@@ -996,7 +998,7 @@
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "השבתת המעקב עבור מקור תסיר את קישורי המעקב של אותו מקור. הפעלתו תקשר אוטומטית את פריטי הספרייה השייכים לאותו מקור.";
 "TRACKER_LOGOUT_INFO" = "התנתקות תסיר את פרטי המעקב המקושרים לשירות זה עבור כל הסדרות.";
 "SET_AS_SINGLE_PAGE" = "הגדר כעמוד יחיד";
-"UNSET_AS_SINGLE_PAGE" = "בטל הגדרה כעמוד יחיד";
+"UNSET_AS_SINGLE_PAGE" = "הסר הגדרת עמוד יחיד";
 "RELOAD_FAILED" = "טעינה מחדש נכשלה";
 "RELOAD_FAILED_TEXT" = "הטעינה מחדש של התמונה נכשלה. אנא נסה שוב.";
 "%i_OF_%i" = "%i מתוך %i";
@@ -1026,7 +1028,7 @@
 "BOTH" = "שניהם";
 "%@_TRACKER_LOGIN_NEEDED" = "נדרשת התחברות ל-%@";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "פג תוקפו של אסימון ה-%@ שלך, ולכן שירות המעקב המשויך יפסיק לפעול עד שתתחבר מחדש בהגדרות.";
-"BACKUP_ERROR" = "שגיאת שחזור גיבוי";
+"BACKUP_ERROR" = "שגיאת גיבוי";
 "BACKUP_ERROR_TEXT" = "אירעה שגיאה במהלך השחזור: %@. ייתכן שהגיבוי אינו תקין.";
 "READER_ORIENTATION" = "כיוון המסך";
 "FOLLOW_DEVICE" = "לפי כיוון המכשיר";
@@ -1046,7 +1048,6 @@
 "TOGGLE_BARS" = "הצג או הסתר סרגלי כלים";
 "CLOSE_READER" = "סגור את הקורא";
 "TOGGLE_PAGE_OFFSET" = "החלף היסט עמוד";
-"UPLOAD_FILE" = "ייבוא קובץ";
 "MIGRATE_CHAPTER_HISTORY" = "העבר היסטוריית פרקים";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "מעביר היסטוריית קריאה שנותרה מגרסאות קודמות ואינה מקושרת לפרקים במסד הנתונים המקומי. התהליך מתבצע בדרך כלל אוטומטית לאחר עדכון. אם הוא לא הושלם, ניתן להפעילו שוב כאן.";
 
@@ -1195,4 +1196,4 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "כל השפות הנתמכות ב-OCR";
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 תומך בטקסט מקור ביפנית ובסינית (מפושטת ומסורתית) בלבד. הזיהוי האוטומטי של שפת המקור ואפשרויות הבחירה של שפת המקור מוגבלים לשפות אלה. עדיין ניתן לתרגם לקוריאנית או לשפות יעד אחרות. בחירה ב-Manga מחילה ספי איתור של 0.85 ו-0.25; גודל האיתור המוגדר כברירת מחדל הוא 1120 פיקסלים.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 תומך בטקסט מקור ביפנית ובסינית (מפושטת ומסורתית) בלבד. הזיהוי האוטומטי של שפת המקור ואפשרויות הבחירה של שפת המקור מוגבלים לשפות אלה. עדיין ניתן לתרגם לכל שפת יעד. בחירה ב-Manga מחילה ספי איתור של 0.85 ו-0.25; גודל האיתור המוגדר כברירת מחדל הוא 1120 פיקסלים.";

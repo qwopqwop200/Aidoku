@@ -132,7 +132,7 @@
 "BACKUP_INFO" = "Tekan lama pada cadangan untuk mengekspornya, atau geser ke kiri untuk menghapus.";
 "MISSING_SOURCES" = "Sumber Hilang";
 "MISSING_SOURCES_TEXT" = "Cadangan yang dipulihkan mungkin mengandung data dari sumber-sumber berikut, yang saat ini tidak terpasang:";
-"RESTORE_BACKUP" = "Pulihkan ke cadangan ini?";
+"RESTORE_BACKUP" = "Pulihkan Cadangan Ini?";
 "RESTORE_BACKUP_TEXT" = "Semua data saat ini akan dihapus dan diganti dengan data dari cadangan ini.";
 "BACKUP_IMPORT_SUCCESS" = "Cadangan Diimpor";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Untuk memulihkan cadangan ini, temukan di halaman cadangan di pengaturan.";
@@ -180,7 +180,7 @@
 "UPDATES" = "Pembaruan";
 "SELECT_CHAPTERS" = "Pilih Bab";
 "MARK_UNREAD" = "Tandai Belum Dibaca";
-"MORE" = "selengkapnya";
+"MORE" = "Selengkapnya";
 "MISSING_SOURCE_TEXT" = "Sumber asli manga ini tidak ditemukan. Pasang ulang sumber tersebut atau hapus judul ini dari perpustakaan Anda.";
 "MARK" = "Tandai";
 "NO_CHAPTERS_AVAILABLE" = "Tidak Ada Bab yang Tersedia";
@@ -216,7 +216,7 @@
 "WITH_UNREAD_CHAPTERS" = "Dengan bab belum dibaca";
 "RESTORE" = "Pulihkan";
 "NEVER" = "Tidak Pernah";
-"THAT_HAVENT_BEEN_READ" = "Tanpa bab yang ditandai sudah dibaca";
+"WITH_NO_CHAPTERS_READ" = "Tanpa bab yang ditandai sudah dibaca";
 "SOURCE_LIST_ADD" = "Tambahkan Daftar Sumber";
 "SOURCE_LIST_URL" = "URL Daftar Sumber";
 "SOURCE_LIST_ADD_FAIL" = "Gagal Menambahkan Daftar Sumber";
@@ -236,7 +236,7 @@
 "PAGE_X_OF_X" = "Halaman %i dari %i";
 "MULTI_LANGUAGE" = "Multi-Bahasa";
 "LOGOUT_FROM_%@" = "Keluar dari %@?";
-"FINISHED" = "Tanggal Selesai Membaca";
+"FINISHED" = "Tanggal Selesai";
 "LOCKED_CATEGORIES" = "Kategori Terkunci";
 "AUTH_FOR_LIBRARY" = "Otentikasi untuk melihat perpustakaan.";
 "SET_AS_WIDE_PAGE" = "Tetapkan sebagai Halaman Lebar";
@@ -247,7 +247,7 @@
 "DOUBLE_PAGE" = "Halaman Ganda";
 "STATUS" = "Status";
 "VOLUMES" = "Volume";
-"STARTED" = "Tanggal Mulai Membaca";
+"STARTED" = "Tanggal Mulai";
 "TRACKERS" = "Pelacak";
 "SCORE" = "Skor";
 "TRACK_PAUSED" = "Ditunda";
@@ -275,7 +275,7 @@
 "NO_DOWNLOADS" = "Tidak ada unduhan";
 "NO_DOWNLOADS_TEXT" = "Konten yang diunduh akan muncul di sini.";
 "DOWNLOADED_CHAPTERS" = "Bab yang Diunduh";
-"TOTAL_DOWNLOADS" = "Total Ukuran Unduhan";
+"DOWNLOAD_STORAGE_USED" = "Total Ukuran Unduhan";
 "%i_SERIES" = "%i seri";
 "IN_LIBRARY" = "Di Perpustakaan";
 "VIEW_SERIES" = "Lihat Seri";
@@ -325,6 +325,7 @@
 "LOCAL_FILES" = "Berkas Lokal";
 "LOCAL_FILES_TAGLINE" = "Membaca dari berkas lokal";
 "IMPORT" = "Impor";
+"IMPORT_SETTINGS" = "Impor";
 "IMPORT_FILE" = "Impor Berkas";
 "LOCAL_FILE_IMPORT" = "Impor Berkas Lokal";
 "LOCAL_FILE_IMPORT_TEXT" = "Impor berkas CBZ atau ZIP yang berisi gambar untuk dibaca.";
@@ -406,12 +407,13 @@
 "SKIPPING_CHAPTERS" = "Melewatkan %i bab, baik karena sumbernya tidak menyertakan bab-bab tersebut atau karena bab-bab tersebut telah disaring";
 "OPEN_WEBSITE" = "Buka Situs Web";
 "SET_COVER_IMAGE" = "Atur Gambar Sampul";
-"UPLOAD_CUSTOM_COVER" = "Pilih Sampul Kustom";
+"CHOOSE_CUSTOM_COVER" = "Pilih Sampul Kustom";
 "RESET_COVER" = "Atur Ulang Sampul";
 "MANGA_UPDATES" = "Pembaruan";
 "NO_UPDATES" = "Tidak ada pembaruan";
 "%lld_PLUS_MORE" = "+%lld lainnya";
 "LOGIN" = "Masuk";
+"LOGIN_SECTION" = "Informasi Masuk";
 "LOGOUT_CONFIRM" = "Apakah Anda yakin ingin keluar?";
 "USERNAME" = "Nama Pengguna";
 "EMAIL" = "Surel";
@@ -524,7 +526,7 @@
 "BOTH" = "Keduanya";
 "%@_TRACKER_LOGIN_NEEDED" = "Login %@ Diperlukan";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "Token %@ Anda telah kedaluwarsa, sehingga pelacak yang terkait akan berhenti berfungsi hingga Anda masuk kembali di pengaturan.";
-"BACKUP_ERROR" = "Kesalahan Pemulihan Cadangan";
+"BACKUP_ERROR" = "Kesalahan Cadangan";
 "BACKUP_ERROR_TEXT" = "Terjadi kesalahan saat memulihkan: %@. Cadangan mungkin tidak valid.";
 "READER_ORIENTATION" = "Orientasi";
 "FOLLOW_DEVICE" = "Ikuti Perangkat";
@@ -649,7 +651,7 @@
 "EDIT_FILTER_GROUP" = "Ubah Grup Filter";
 "CLEAR_FILTERS" = "Hapus Filter";
 "SHOW_UNCATEGORIZED_CATEGORY" = "Tampilkan Kategori Tidak Berkategori";
-"MISSING_SOURCE_LIST" = "Daftar Sumber Tidak Ditemukan";
+"MISSING_SOURCE_LIST" = "Tidak Ada di Daftar Sumber";
 "MISSING_SOURCE_LIST_INFO" = "Sumber eksternal ini tidak tersedia di daftar sumber yang dikonfigurasi. Ini berarti sumber tersebut tidak akan menerima pembaruan dan mungkin tidak berfungsi di masa mendatang.";
 "SAVE" = "Simpan";
 "SAVED_SEARCHES" = "Pencarian Tersimpan";
@@ -690,11 +692,11 @@
 "BASIC_LOGIN" = "Login Dasar";
 "API_KEY_LOGIN_INFO" = "Memberikan kunci API secara manual untuk login akan menimpa metode login lainnya. Anda dapat mengosongkannya untuk menggunakan metode login lain.";
 "LOGIN_METHOD" = "Metode Login";
-"BASIC" = "Dasar";
+"BASIC" = "Nama Pengguna & Kata Sandi";
 "RESUME_LAST_OPENED_CHAPTER" = "Lanjutkan Bab Terakhir yang Dibuka";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Nonaktifkan Zoom Ketuk Dua Kali";
 "PAGE_OFFSET" = "Offset Halaman";
-"UNSET_AS_SINGLE_PAGE" = "Batalkan Pengaturan sebagai Halaman Tunggal";
+"UNSET_AS_SINGLE_PAGE" = "Hapus Pengaturan Halaman Tunggal";
 "TOGGLE_PAGE_OFFSET" = "Aktifkan/nonaktifkan offset halaman";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Hapus dari Perpustakaan?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Menghapus seri ini dari perpustakaan Anda juga akan menghapus semua tautan pelacaknya. Apakah Anda yakin ingin melanjutkan?";
@@ -1046,7 +1048,6 @@
 "AUTO_SCROLL_POSITION" = "Posisi Tombol Gulir Otomatis";
 "POSITION_LEFT" = "Kiri";
 "POSITION_RIGHT" = "Kanan";
-"UPLOAD_FILE" = "Impor Berkas";
 "MIGRATE_CHAPTER_HISTORY" = "Migrasikan Riwayat Bab";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Migrasikan riwayat bacaan yang tersisa dari versi lama yang tidak tertaut ke bab di database lokal. Ini biasanya terjadi secara otomatis setelah pembaruan. Jika belum selesai, Anda dapat menjalankannya kembali di sini.";
 
@@ -1195,6 +1196,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 hanya mendukung teks sumber dalam bahasa Jepang dan bahasa Tionghoa (aksara sederhana dan tradisional). Deteksi otomatis bahasa sumber dan pilihan bahasa sumber juga terbatas pada bahasa-bahasa tersebut. Anda tetap dapat menerjemahkan ke bahasa Korea atau bahasa tujuan lainnya. Memilih Manga menerapkan ambang deteksi 0.85 dan 0.25; ukuran deteksi bawaannya adalah 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 hanya mendukung teks sumber dalam bahasa Jepang dan bahasa Tionghoa (aksara sederhana dan tradisional). Deteksi otomatis bahasa sumber dan pilihan bahasa sumber juga terbatas pada bahasa-bahasa tersebut. Anda tetap dapat menerjemahkan ke bahasa tujuan apa pun. Memilih Manga menerapkan ambang deteksi 0.85 dan 0.25; ukuran deteksi bawaannya adalah 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Semua bahasa OCR yang didukung";

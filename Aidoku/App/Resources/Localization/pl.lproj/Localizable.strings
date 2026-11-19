@@ -50,7 +50,7 @@
 "UNINSTALL" = "Odinstaluj";
 "LANGUAGES" = "Języki";
 "VERSION" = "Wersja";
-"MORE" = "więcej";
+"MORE" = "Więcej";
 "SELECT_CHAPTERS" = "Wybierz rozdziały";
 
 // Reader
@@ -157,7 +157,7 @@
 "OPEN_READER_VIEW" = "Otwórz widok czytnika";
 "UNREAD_CHAPTER_BADGES" = "Oznaczenia nieprzeczytanych rozdziałów";
 "PIN_UNREAD" = "Nieprzeczytane";
-"LIBRARY_UPDATING" = "Aktualizacja biblioteki";
+"LIBRARY_UPDATING" = "Aktualizacje biblioteki";
 "UPDATE_INTERVAL" = "Częstotliwość aktualizacji";
 "SKIP_TITLES" = "Pomiń wybrane tytuły";
 "ONLY_UPDATE_ON_WIFI" = "Aktualizuj tylko przez Wi-Fi";
@@ -170,7 +170,7 @@
 "WEEKLY" = "Tygodniowo";
 "WITH_UNREAD_CHAPTERS" = "Z nieprzeczytanymi rozdziałami";
 "WITH_COMPLETED_STATUS" = "Ze statusem ukończenia";
-"THAT_HAVENT_BEEN_READ" = "Bez rozdziałów oznaczonych jako przeczytane";
+"WITH_NO_CHAPTERS_READ" = "Bez rozdziałów oznaczonych jako przeczytane";
 "SOURCE_LISTS" = "Listy źródeł";
 "SOURCE_LIST_ADDED" = "Dodano listę źródeł";
 "SOURCE_LIST_ADD" = "Dodaj listę źródeł";
@@ -186,7 +186,7 @@
 "BACKUP_INFO" = "Przytrzymaj palec na kopii, aby ją wyeksportować albo przesuń w lewo, aby usunąć.";
 "MISSING_SOURCES" = "Brakuje źródeł";
 "MISSING_SOURCES_TEXT" = "Przywrócona kopia zapasowa może zawierać dane z następujących źródeł, które nie są obecnie zainstalowane:";
-"RESTORE_BACKUP" = "Przywrócić kopię zapasową?";
+"RESTORE_BACKUP" = "Przywrócić tę kopię zapasową?";
 "BACKUP_IMPORT_SUCCESS" = "Zaimportowano kopię zapasową";
 "IMPORT_FAIL" = "Import nie powiódł się";
 "EXPORT" = "Eksportuj";
@@ -242,14 +242,14 @@
 "TRACK_DROPPED" = "Porzucone";
 "CLEAR_TRACKED_MANGA_TEXT" = "Ta czynność jest nieodwracalna. Wszystkie powiązania mang z trackerami zostaną usunięte.";
 "VOLUMES" = "Tomy";
-"STARTED" = "Początek czytania";
+"STARTED" = "Data rozpoczęcia";
 "STATUS" = "Status";
 "START_TRACKING" = "Zacznij śledzić";
 "STOP_TRACKING" = "Przestań śledzić";
 "TRACK_REREADING" = "Ponowne czytanie";
 "SCORE" = "Ocena";
 "TRACK_PAUSED" = "Wstrzymane";
-"FINISHED" = "Koniec czytania";
+"FINISHED" = "Data zakończenia";
 "TRACK_READING" = "Czytane";
 "ONESHOT" = "Jednorazowiec";
 "MANHWA" = "Manhwa";
@@ -306,7 +306,7 @@
 "BOTH" = "Oba";
 "IS_TRACKING" = "Śledzone";
 "PILLARBOX" = "Marginesy boczne";
-"PILLARBOX_ORIENTATION_INFO" = "Wybierz orientacje ekranu, w których mają być wyświetlane marginesy boczne.";
+"PILLARBOX_ORIENTATION_INFO" = "Wybierz orientacje urządzenia, w których mają być używane marginesy boczne.";
 "PILLARBOX_ORIENTATION" = "Orientacja dla marginesów bocznych";
 "PILLARBOX_AMOUNT" = "Szerokość marginesów bocznych";
 "COPY" = "Kopiuj";
@@ -335,7 +335,7 @@
 "NO_WIFI_ALERT_MESSAGE" = "Aby pobrać tę zawartość, musisz mieć połączenie z Wi-Fi. Połącz się z Wi-Fi i spróbuj ponownie.";
 "SCANLATOR" = "Grupa skanlacyjna";
 "NO_SCANLATOR" = "Brak grupy skanlacyjnej";
-"BACKUP_ERROR" = "Błąd przywracania kopii zapasowej";
+"BACKUP_ERROR" = "Błąd kopii zapasowej";
 "BACKUP_ERROR_TEXT" = "Wystąpił błąd podczas przywracania: %@. Kopia zapasowa może być nieprawidłowa.";
 "DONE" = "Gotowe";
 "EDIT" = "Edytuj";
@@ -588,7 +588,7 @@
 "NO_DOWNLOADS" = "Brak pobranych plików";
 "DOWNLOADED_CHAPTERS" = "Pobrane rozdziały";
 "DOWNLOAD_INCOMPLETE" = "Niekompletne pobieranie";
-"TOTAL_DOWNLOADS" = "Miejsce zajęte przez pobrane pliki";
+"DOWNLOAD_STORAGE_USED" = "Miejsce zajęte przez pobrane pliki";
 "%i_SERIES" = "Liczba serii: %i";
 "VIEW_SERIES" = "Zobacz serię";
 "VIEW_FILES" = "Wyświetl pliki";
@@ -638,7 +638,7 @@
 "PRIMARILY_NSFW" = "Przede wszystkim NSFW";
 "REMOVE_LOCAL_SOURCE" = "Usunąć lokalne źródło?";
 "REMOVE_LOCAL_SOURCE_TEXT" = "Spowoduje to usunięcie wszystkich zaimportowanych plików lokalnych.";
-"MISSING_SOURCE_LIST" = "Brak na liście źródeł";
+"MISSING_SOURCE_LIST" = "Brak na listach źródeł";
 "MISSING_SOURCE_LIST_INFO" = "To zewnętrzne źródło nie jest dostępne na żadnej skonfigurowanej liście źródeł. Oznacza to, że nie będzie otrzymywać aktualizacji i może się zepsuć w przyszłości.";
 "BASE_URL" = "Bazowy adres URL";
 "SEE_ALL" = "Zobacz wszystko";
@@ -688,6 +688,7 @@
 "LOCAL_FILES_INFO" = "Źródło plików lokalnych umożliwia importowanie tytułów i zarządzanie własną biblioteką do czytania bezpośrednio w Aidoku.";
 "LOCAL_FILES_SETUP" = "Konfiguracja plików lokalnych";
 "IMPORT" = "Import";
+"IMPORT_SETTINGS" = "Import";
 "IMPORT_FILE" = "Importuj plik";
 "LOCAL_FILE_IMPORT" = "Import plików lokalnych";
 "LOCAL_FILE_IMPORT_TEXT" = "Zaimportuj plik CBZ lub ZIP zawierający obrazy do odczytania.";
@@ -796,7 +797,7 @@
 "VOLUME" = "Tom";
 "OPEN_WEBSITE" = "Otwórz stronę internetową";
 "SET_COVER_IMAGE" = "Ustaw obraz okładki";
-"UPLOAD_CUSTOM_COVER" = "Wybierz własną okładkę";
+"CHOOSE_CUSTOM_COVER" = "Wybierz własną okładkę";
 "RESET_COVER" = "Zresetuj okładkę";
 "NO_HISTORY" = "Brak historii";
 "NO_HISTORY_TEXT" = "Tutaj pojawi się historia czytania.";
@@ -805,6 +806,7 @@
 "NO_RECENT_SEARCHES_TEXT" = "Tutaj pojawią się Twoje ostatnie wyszukiwania.";
 "SOURCES" = "Źródła treści";
 "LOGIN" = "Zaloguj się";
+"LOGIN_SECTION" = "Logowanie";
 "LOGOUT_CONFIRM" = "Czy na pewno chcesz się wylogować?";
 "USERNAME" = "Nazwa użytkownika";
 "EMAIL" = "E-mail";
@@ -816,7 +818,7 @@
 "LOGIN_WEBVIEW_WARNING_TEXT" = "Wszystkie pliki cookie zapisane we wbudowanej przeglądarce zostaną przekazane źródłu. Nie loguj się do źródeł, którym nie ufasz.";
 "REFRESH_LOGIN" = "Odśwież sesję logowania";
 "LOGIN_METHOD" = "Metoda logowania";
-"BASIC" = "Podstawowy";
+"BASIC" = "Nazwa użytkownika i hasło";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "Synchronizacja iCloud jest funkcją eksperymentalną. Włączenie lub wyłączenie może spowodować utratę danych.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "Synchronizacja iCloud jest dostępna tylko w przypadku instalacji za pośrednictwem TestFlight.";
 "LAYOUT" = "Układ";
@@ -1006,7 +1008,7 @@
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Wyłączenie śledzenia dla źródła usuwa powiązania z trackerem tylko dla tego źródła. Włączenie automatycznie łączy z trackerem tytuły z tego źródła znajdujące się w bibliotece.";
 "TRACKER_LOGOUT_INFO" = "Wylogowanie usunie z Aidoku powiązania wszystkich serii z tym trackerem.";
 "SET_AS_SINGLE_PAGE" = "Ustaw jako pojedynczą stronę";
-"UNSET_AS_SINGLE_PAGE" = "Usuń ustawienie jako pojedyncza strona";
+"UNSET_AS_SINGLE_PAGE" = "Usuń ustawienie pojedynczej strony";
 "RELOAD_FAILED" = "Ponowne załadowanie nie powiodło się";
 "RELOAD_FAILED_TEXT" = "Nie udało się ponownie załadować obrazu. Spróbuj ponownie.";
 "CONTINUOUS_WITH_GAPS" = "Ciągłe z odstępami";
@@ -1048,7 +1050,6 @@
 "TOGGLE_BARS" = "Pokaż lub ukryj paski narzędzi";
 "CLOSE_READER" = "Zamknij czytnik";
 "TOGGLE_PAGE_OFFSET" = "Przełącz przesunięcie strony";
-"UPLOAD_FILE" = "Importuj plik";
 "MIGRATE_CHAPTER_HISTORY" = "Migruj historię rozdziałów";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Przenieś historię czytania pozostałą ze starszych wersji, która nie jest powiązana z rozdziałami w lokalnej bazie danych. Zwykle dzieje się to automatycznie po aktualizacji. Jeśli proces się nie zakończył, możesz go uruchomić ponownie tutaj.";
 
@@ -1168,6 +1169,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 obsługuje tylko tekst źródłowy w języku japońskim i chińskim (uproszczonym i tradycyjnym). Automatyczne wykrywanie języka źródłowego oraz wybór języka źródłowego są ograniczone do tych języków. Nadal można tłumaczyć na koreański i inne języki docelowe. Wybranie modelu Manga ustawia progi detektora na 0,85 i 0,25; domyślny rozmiar obrazu do wykrywania tekstu wynosi 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 obsługuje tylko tekst źródłowy w języku japońskim i chińskim (uproszczonym i tradycyjnym). Automatyczne wykrywanie języka źródłowego oraz wybór języka źródłowego są ograniczone do tych języków. Nadal można tłumaczyć na dowolny język docelowy. Wybranie modelu Manga ustawia progi detektora na 0,85 i 0,25; domyślny rozmiar obrazu do wykrywania tekstu wynosi 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Wszystkie obsługiwane języki OCR";

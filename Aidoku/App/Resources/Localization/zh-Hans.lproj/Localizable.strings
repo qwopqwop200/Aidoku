@@ -171,7 +171,7 @@
 "WEEKLY" = "每周";
 "WITH_UNREAD_CHAPTERS" = "有未读章节";
 "WITH_COMPLETED_STATUS" = "状态为已完结";
-"THAT_HAVENT_BEEN_READ" = "没有已读章节";
+"WITH_NO_CHAPTERS_READ" = "没有已读章节";
 "SOURCE_LISTS" = "图源列表";
 "SOURCE_LIST_ADDED" = "已添加图源列表";
 "SOURCE_LIST_ADDED_TEXT" = "现在可以在“浏览”标签页中查看外部图源。";
@@ -195,7 +195,7 @@
 "INSTALL_SOURCES" = "安装图源";
 "INSTALLING_SOURCES" = "正在安装图源…";
 "MISSING_SOURCES_TEXT" = "恢复的备份可能包含来自以下图源的数据，但这些图源当前未安装：";
-"RESTORE_BACKUP" = "恢复到此备份？";
+"RESTORE_BACKUP" = "恢复此备份？";
 "RESTORE_BACKUP_TEXT" = "所有当前数据将被删除并用此备份中的数据替换。";
 "BACKUP_IMPORT_SUCCESS" = "备份已导入";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "要恢复到此备份，请在设置中的备份页面中找到它。";
@@ -250,14 +250,14 @@
 "LOGOUT" = "退出登录";
 "LOGOUT_FROM_%@" = "从 %@ 退出登录？";
 "STATUS" = "状态";
-"STARTED" = "开始阅读日期";
+"STARTED" = "开始日期";
 "TRACK_PLANNING" = "计划阅读";
 "START_TRACKING" = "开始追踪";
 "STOP_TRACKING" = "停止追踪";
 "TRACK_DROPPED" = "已放弃";
 "SCORE" = "评分";
 "TRACK_PAUSED" = "暂停阅读";
-"FINISHED" = "读完日期";
+"FINISHED" = "完成日期";
 "TRACK_READING" = "阅读中";
 "TRACK_REREADING" = "重读中";
 "ONESHOT" = "短篇";
@@ -315,14 +315,14 @@
 "FIRST_ALTERNATIVE" = "首个可用的替代图源";
 "RENAME_CATEGORY_FAIL_INFO" = "分类名称必须唯一。";
 "UPLOAD_DATE" = "上传日期";
-"IS_TRACKING" = "追踪中";
+"IS_TRACKING" = "已追踪";
 "ALL_CHAPTERS_READ" = "所有章节已读";
 "DEFAULT_READING_MODE" = "默认阅读模式";
 "PILLARBOX_AMOUNT" = "左右留白大小";
 "BOTH" = "两者";
 "PILLARBOX" = "左右留白";
 "PILLARBOX_ORIENTATION" = "应用留白的屏幕方向";
-"PILLARBOX_ORIENTATION_INFO" = "选择在哪些屏幕方向下启用左右留白。";
+"PILLARBOX_ORIENTATION_INFO" = "选择哪些设备方向使用左右留白。";
 "COVER" = "封面";
 "CROP_BORDERS" = "裁剪边缘";
 "REORDER" = "重新排序";
@@ -331,7 +331,7 @@
 "UNPIN" = "取消置顶";
 "%@_TRACKER_LOGIN_NEEDED" = "需要 %@ 登录";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "您的 %@ 令牌已过期，因此该追踪器将停止工作，直到您在设置中重新登录。";
-"BACKUP_ERROR" = "备份恢复错误";
+"BACKUP_ERROR" = "备份错误";
 "BACKUP_ERROR_TEXT" = "恢复时发生错误：%@。备份可能无效。";
 "PAUSE" = "暂停";
 "RESUME" = "继续";
@@ -396,6 +396,7 @@
 "ALL_SOURCES_INSTALLED" = "已安装所有图源";
 "ALL_SOURCES_INSTALLED_INFO" = "没有其他外部图源可以安装。";
 "IMPORT" = "导入";
+"IMPORT_SETTINGS" = "导入";
 "LOCAL_FILES" = "本地文件";
 "LOCAL_FILES_SETUP" = "本地文件设置";
 "IMPORT_FILE" = "导入文件";
@@ -459,6 +460,7 @@
 "LOCKED" = "已锁定";
 "VOLUME" = "卷数";
 "LOGIN" = "登录";
+"LOGIN_SECTION" = "登录信息";
 "USERNAME" = "用户名";
 "EMAIL" = "邮箱";
 "PASSWORD" = "密码";
@@ -504,7 +506,7 @@
 "NO_DOWNLOADS" = "无下载内容";
 "NO_DOWNLOADS_TEXT" = "下载内容将显示在此处。";
 "DOWNLOADED_CHAPTERS" = "已下载章节";
-"TOTAL_DOWNLOADS" = "下载总大小";
+"DOWNLOAD_STORAGE_USED" = "下载总大小";
 "%i_SERIES" = "%i 部作品";
 "IN_LIBRARY" = "在书架";
 "VIEW_SERIES" = "查看作品";
@@ -516,7 +518,7 @@
 "DISABLED" = "已禁用";
 "ANIMATE_PAGE_TRANSITIONS" = "页面过渡动画";
 "SET_COVER_IMAGE" = "设为封面";
-"UPLOAD_CUSTOM_COVER" = "选择自定义封面";
+"CHOOSE_CUSTOM_COVER" = "选择自定义封面";
 "RESET_COVER" = "重置封面";
 "TURN_PAGE_LEFT" = "向左翻页";
 "TURN_PAGE_RIGHT" = "向右翻页";
@@ -647,7 +649,7 @@
 "PIN_UPDATED_CHAPTERS" = "有新章节";
 "PIN_TITLES" = "置顶作品";
 "CATEGORY" = "分类";
-"MISSING_SOURCE_LIST" = "图源列表缺失";
+"MISSING_SOURCE_LIST" = "不在图源列表中";
 "MISSING_SOURCE_LIST_INFO" = "此外部图源不在任何已配置的图源列表中，因此无法接收更新，将来可能无法使用。";
 "REFRESH_LOGIN" = "刷新登录";
 "LEGACY_SOURCE_LIST" = "旧版图源列表";
@@ -690,7 +692,7 @@
 "TEXT_HORIZONTAL_PADDING" = "左右边距";
 "RESUME_LAST_OPENED_CHAPTER" = "续读上次章节";
 "PAGE_OFFSET" = "页面偏移";
-"UNSET_AS_SINGLE_PAGE" = "取消设为单页";
+"UNSET_AS_SINGLE_PAGE" = "移除单页设置";
 "TOGGLE_PAGE_OFFSET" = "切换页面偏移";
 "REFRESH_NO_WIFI" = "未连接 Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "已启用“仅在 Wi-Fi 更新”，连接 Wi-Fi 后才能刷新书架。";
@@ -704,7 +706,7 @@
 "API_KEY_LOGIN_INFO" = "手动填写 API 密钥登录将优先使用此方式，覆盖其他登录方法。您可将其留空以使用其他登录方式。";
 "REFRESH_DETAILS" = "刷新详情";
 "LOGIN_METHOD" = "登录方式";
-"BASIC" = "基础";
+"BASIC" = "用户名和密码";
 "LAYOUT" = "布局";
 "STANDARD" = "标准";
 "COMPACT" = "紧凑";
@@ -1050,7 +1052,6 @@
 "AUTO_SCROLL_POSITION" = "自动滚动按钮位置";
 "POSITION_LEFT" = "左";
 "POSITION_RIGHT" = "右";
-"UPLOAD_FILE" = "导入文件";
 "MIGRATE_CHAPTER_HISTORY" = "迁移章节历史";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "迁移旧版本遗留的、未与本地数据库中章节关联的阅读历史。此操作通常会在更新后自动完成；如未完成，可在此处重新运行。";
 
@@ -1170,6 +1171,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 仅支持识别日语和中文（简体、繁体）原文。自动检测原文语言和手动选择原文语言的范围也仅限于这些语言。仍可翻译成韩语等其他目标语言。选择 Manga 后，检测阈值会设为 0.85 和 0.25；默认检测尺寸为 1120px。";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 仅支持识别日语和中文（简体、繁体）原文。自动检测原文语言和手动选择原文语言的范围也仅限于这些语言。仍可翻译成任意目标语言。选择 Manga 后，检测阈值会设为 0.85 和 0.25；默认检测尺寸为 1120px。";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "所有支持的 OCR 语言";

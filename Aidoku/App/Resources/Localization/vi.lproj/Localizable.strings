@@ -82,7 +82,7 @@
 "STATUS_HIATUS" = "Tạm ngưng";
 "SUGGESTIVE" = "Gợi cảm";
 "NSFW" = "18+";
-"MORE" = "xem thêm";
+"MORE" = "Xem thêm";
 "SOURCE_ORDER" = "Thứ tự nguồn";
 "MISSING_SOURCE" = "Thiếu nguồn";
 "MISSING_SOURCE_TEXT" = "Nguồn cho truyện này không có sẵn. Vui lòng xoá truyện này khỏi thư viện hoặc cài đặt lại nguồn.";
@@ -176,7 +176,7 @@
 "WEEKLY" = "Hàng tuần";
 "WITH_UNREAD_CHAPTERS" = "Có chương chưa đọc";
 "WITH_COMPLETED_STATUS" = "Có trạng thái hoàn thành";
-"THAT_HAVENT_BEEN_READ" = "Không có chương nào được đánh dấu đã đọc";
+"WITH_NO_CHAPTERS_READ" = "Không có chương nào được đánh dấu đã đọc";
 "SOURCE_LISTS" = "Danh sách nguồn";
 "SOURCE_LIST_ADDED" = "Đã thêm danh sách nguồn";
 "SOURCE_LIST_ADDED_TEXT" = "Bây giờ bạn có thể duyệt các nguồn bên ngoài trong mục Duyệt.";
@@ -241,12 +241,12 @@
 "LOGOUT_FROM_%@" = "Đăng xuất khỏi %@?";
 "VOLUMES" = "Tập";
 "STATUS" = "Tình trạng";
-"STARTED" = "Ngày bắt đầu đọc";
+"STARTED" = "Ngày bắt đầu";
 "TRACK_PLANNING" = "Sẽ đọc";
 "START_TRACKING" = "Bắt đầu theo dõi";
 "STOP_TRACKING" = "Ngưng theo dõi";
 "TRACK_PAUSED" = "Tạm ngưng đọc";
-"FINISHED" = "Ngày đọc xong";
+"FINISHED" = "Ngày kết thúc";
 "TRACK_READING" = "Đang đọc";
 "TRACK_DROPPED" = "Đã bỏ";
 "MANHWA" = "Manhwa (Hàn)";
@@ -326,13 +326,13 @@
 "READER_BG_COLOR_BLACK" = "Đen";
 "AVAILABLE" = "Có thể sử dụng";
 "UPLOAD_DATE" = "Ngày tải lên";
-"IS_TRACKING" = "Đang theo dõi";
+"IS_TRACKING" = "Được theo dõi";
 "ALL_CHAPTERS_READ" = "Đã đọc xong tất cả các chương";
 "PILLARBOX_AMOUNT" = "Độ rộng khoảng trống hai bên";
 "PILLARBOX" = "Khoảng trống hai bên";
 "PILLARBOX_ORIENTATION" = "Hướng màn hình áp dụng khoảng trống";
 "PILLARBOX_ORIENTATION_INFO" = "Chọn hướng màn hình sẽ áp dụng khoảng trống hai bên.";
-"BACKUP_ERROR" = "Khôi phục sao lưu bị lỗi";
+"BACKUP_ERROR" = "Lỗi sao lưu";
 "ONLY_DOWNLOAD_ON_WIFI" = "Chỉ tải về bằng Wi-Fi";
 "BOTH" = "Cả hai";
 "DELETE_DOWNLOAD_AFTER_READING" = "Xóa bản tải về sau khi đọc";
@@ -356,7 +356,7 @@
 "NO_DOWNLOADS" = "Không có bản tải về";
 "NO_DOWNLOADS_TEXT" = "Nội dung tải về sẽ hiển thị ở đây.";
 "DOWNLOADED_CHAPTERS" = "Các chương đã tải về";
-"TOTAL_DOWNLOADS" = "Tổng dung lượng tải về";
+"DOWNLOAD_STORAGE_USED" = "Tổng dung lượng tải về";
 "IN_LIBRARY" = "Trong Thư viện";
 "REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Đang xóa mục khỏi Thư viện";
 "REFRESHING_LIBRARY" = "Đang làm mới Thư viện…";
@@ -381,6 +381,7 @@
 "NO_RESULTS" = "Không có kết quả";
 "NO_AVAILABLE_SOURCES_INFO" = "Điều chỉnh bộ lọc của bạn để xem thêm nhiều nguồn bên ngoài.";
 "IMPORT" = "Nhập";
+"IMPORT_SETTINGS" = "Nhập dữ liệu";
 "IMPORT_FILE" = "Nhập tệp";
 "LOCAL_FILE_IMPORT_TEXT" = "Nhập tệp CBZ hoặc ZIP có chứa hình ảnh để đọc.";
 "CHAPTER_TITLE" = "Tiêu đề Chương";
@@ -434,8 +435,9 @@
 "FORMAT_ARCHIVE" = "Tệp nén";
 "LOGIN_VIA_OIDC" = "Đăng nhập qua OIDC";
 "SET_COVER_IMAGE" = "Đặt ảnh bìa";
-"UPLOAD_CUSTOM_COVER" = "Chọn ảnh bìa tùy chỉnh";
+"CHOOSE_CUSTOM_COVER" = "Chọn ảnh bìa tùy chỉnh";
 "LOGIN" = "Đăng nhập";
+"LOGIN_SECTION" = "Thông tin đăng nhập";
 "LOGOUT_CONFIRM" = "Bạn chắc chắn muốn đăng xuất?";
 "USERNAME" = "Tên đăng nhập";
 "EMAIL" = "Email";
@@ -653,7 +655,7 @@
 "FILTER_GROUPS" = "Nhóm bộ lọc";
 "CLEAR_FILTERS" = "Xóa bộ lọc";
 "SHOW_UNCATEGORIZED_CATEGORY" = "Hiển thị danh mục chưa được phân loại";
-"MISSING_SOURCE_LIST" = "Danh sách nguồn bị thiếu";
+"MISSING_SOURCE_LIST" = "Không có trong danh sách nguồn";
 "MISSING_SOURCE_LIST_INFO" = "Nguồn bên ngoài này không có trong bất kỳ danh sách nguồn nào đã được cấu hình. Điều này có nghĩa là nó sẽ không nhận được bản cập nhật và có thể bị lỗi trong tương lai.";
 "SAVED_SEARCHES" = "Tìm kiếm đã lưu";
 "NAME_SAVED_SEARCH" = "Đặt tên tìm kiếm đã lưu";
@@ -663,7 +665,7 @@
 "API_KEY" = "Khóa API";
 "BASIC_LOGIN" = "Đăng nhập cơ bản";
 "LOGIN_METHOD" = "Phương thức đăng nhập";
-"BASIC" = "Cơ bản";
+"BASIC" = "Tên đăng nhập & mật khẩu";
 "LAYOUT" = "Bố cục";
 "STANDARD" = "Tiêu chuẩn";
 "COMPACT" = "Nhỏ gọn";
@@ -1037,7 +1039,7 @@
 "ENHANCED_TRACKERS_INFO" = "Trình theo dõi nâng cao có thể tự động liên kết tới các mục được thêm vào thư viện của bạn từ các nguồn được hỗ trợ, theo dõi lịch sử đọc hai chiều.";
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Tắt theo dõi cho một nguồn sẽ xóa tất cả liên kết theo dõi của nguồn đó. Bật lại sẽ tự động liên kết tất cả truyện thuộc nguồn đó trong thư viện.";
 "TRACKER_LOGOUT_INFO" = "Việc đăng xuất sẽ xóa thông tin theo dõi được liên kết khỏi trình theo dõi này cho tất cả các bộ.";
-"UNSET_AS_SINGLE_PAGE" = "Bỏ thiết lập trang đơn";
+"UNSET_AS_SINGLE_PAGE" = "Gỡ thiết lập trang đơn";
 "CONTINUOUS_WITH_GAPS" = "Liên tục có khoảng trống";
 "MIGRATE_CONFIRM_TEXT" = "Lịch sử đọc các mục gốc sẽ bị xóa khi di chuyển sang nguồn khác.";
 "MIGRATE_WITH_HISTORY" = "Di chuyển và lưu giữ lịch sử";
@@ -1050,7 +1052,6 @@
 "AUTO_SCROLL_POSITION" = "Vị trí nút cuộn tự động";
 "POSITION_LEFT" = "Trái";
 "POSITION_RIGHT" = "Phải";
-"UPLOAD_FILE" = "Nhập tệp";
 "MIGRATE_CHAPTER_HISTORY" = "Di chuyển lịch sử chương";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Di chuyển lịch sử đọc còn sót lại từ các phiên bản cũ hơn không được liên kết với các chương trong cơ sở dữ liệu cục bộ. Điều này thường xảy ra tự động sau khi cập nhật. Nếu nó chưa hoàn thành, bạn có thể chạy lại ở đây.";
 
@@ -1200,6 +1201,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 chỉ hỗ trợ văn bản nguồn bằng tiếng Nhật và tiếng Trung (Giản thể và Phồn thể). Tính năng tự động xác định ngôn ngữ nguồn và các lựa chọn ngôn ngữ nguồn cũng chỉ giới hạn ở các ngôn ngữ này. Bạn vẫn có thể dịch sang tiếng Hàn hoặc các ngôn ngữ đích khác. Khi chọn Manga, ngưỡng phát hiện được đặt thành 0.85 và 0.25; kích thước phát hiện mặc định là 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 chỉ hỗ trợ văn bản nguồn bằng tiếng Nhật và tiếng Trung (Giản thể và Phồn thể). Tính năng tự động xác định ngôn ngữ nguồn và các lựa chọn ngôn ngữ nguồn cũng chỉ giới hạn ở các ngôn ngữ này. Bạn vẫn có thể dịch sang bất kỳ ngôn ngữ đích nào. Khi chọn Manga, ngưỡng phát hiện được đặt thành 0.85 và 0.25; kích thước phát hiện mặc định là 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Tất cả ngôn ngữ được OCR hỗ trợ";

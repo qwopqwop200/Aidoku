@@ -695,9 +695,9 @@ extension NewSourceViewController {
         if source.id == LocalSourceRunner.sourceKey {
             rightBarButtonItems.append(
                 UIBarButtonItem(
-                    title: NSLocalizedString("UPLOAD_FILE"),
+                    title: NSLocalizedString("IMPORT_FILE"),
                     image: UIImage(systemName: "plus"),
-                    primaryAction: UIAction(title: NSLocalizedString("UPLOAD_FILE"), image: UIImage(systemName: "plus")) { [weak self] _ in
+                    primaryAction: UIAction(title: NSLocalizedString("IMPORT_FILE"), image: UIImage(systemName: "plus")) { [weak self] _ in
                         guard let self else { return }
                         self.importing = true
 //                        self.showImportSheet()

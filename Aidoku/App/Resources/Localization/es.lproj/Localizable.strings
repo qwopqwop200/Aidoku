@@ -163,7 +163,7 @@
 "VIEW_HISTORY" = "Ver historial";
 "INCOGNITO_MODE" = "Modo incógnito";
 "INCOGNITO_MODE_TEXT" = "Pausa el historial de lectura cuando está habilitado";
-"LIBRARY_UPDATING" = "Actualización de Biblioteca";
+"LIBRARY_UPDATING" = "Actualizaciones de biblioteca";
 "UPDATE_INTERVAL" = "Intervalo de actualización";
 "ONLY_UPDATE_ON_WIFI" = "Solo actualizar con Wi-Fi";
 "REFRESH_METADATA" = "Actualizar metadatos";
@@ -202,7 +202,7 @@
 "REMOVE_CHAPTER_HISTORY_TEXT" = "Esto eliminará el historial de este capítulo. ¿Seguro que quieres continuar?";
 "WITH_UNREAD_CHAPTERS" = "Con capítulos no leídos";
 "WITH_COMPLETED_STATUS" = "Con estado completado";
-"THAT_HAVENT_BEEN_READ" = "Sin capítulos marcados como leídos";
+"WITH_NO_CHAPTERS_READ" = "Sin capítulos marcados como leídos";
 "SOURCE_LIST_ADD_TEXT" = "Introduce el enlace de la lista de fuentes";
 "LOCK_HISTORY_TAB" = "Bloquear pestaña de historial";
 "LOGS" = "Registros";
@@ -303,21 +303,21 @@
 "SELECTED" = "Seleccionado";
 "MOST_CHAPTERS_SLOWER" = "Más capítulos (más lento)";
 "UPLOAD_DATE" = "Fecha de subida";
-"IS_TRACKING" = "Seguimiento";
+"IS_TRACKING" = "Con seguimiento";
 "ALL_CHAPTERS_READ" = "Todos los capítulos leídos";
 "DEFAULT_READING_MODE" = "Modo de lectura por defecto";
 "PILLARBOX_ORIENTATION" = "Orientaciones con márgenes laterales";
 "BOTH" = "Ambas";
 "PILLARBOX_AMOUNT" = "Anchura de los márgenes laterales";
 "PILLARBOX" = "Márgenes laterales";
-"PILLARBOX_ORIENTATION_INFO" = "Determina en qué orientaciones de pantalla se activan los márgenes laterales.";
+"PILLARBOX_ORIENTATION_INFO" = "Elige qué orientaciones del dispositivo usan márgenes laterales.";
 "COVER" = "Portada";
 "CROP_BORDERS" = "Recortar bordes";
 "REORDER" = "Reordenar";
 "PIN" = "Anclar";
 "UNPIN" = "Desanclar";
 "COPY" = "Copiar";
-"BACKUP_ERROR" = "Error al restaurar la copia de seguridad";
+"BACKUP_ERROR" = "Error de copia de seguridad";
 "BACKUP_ERROR_TEXT" = "Se ha producido un error al restaurar: %@. La copia de seguridad puede no ser válida.";
 "PAUSE" = "Pausar";
 "ONLY_DOWNLOAD_ON_WIFI" = "Solo descargar con Wi-Fi";
@@ -354,7 +354,7 @@
 "NO_DOWNLOADS" = "Sin descargas";
 "NO_DOWNLOADS_TEXT" = "El contenido descargado aparecerá aquí.";
 "DOWNLOADED_CHAPTERS" = "Capítulos descargados";
-"TOTAL_DOWNLOADS" = "Tamaño total de las descargas";
+"DOWNLOAD_STORAGE_USED" = "Tamaño total de las descargas";
 "%i_SERIES" = "%i series";
 "IN_LIBRARY" = "En la Biblioteca";
 "VIEW_SERIES" = "Ver serie";
@@ -405,6 +405,7 @@
 "RETRY" = "Reintentar";
 "UNIMPLEMENTED" = "Sin implementar";
 "IMPORT" = "Importar";
+"IMPORT_SETTINGS" = "Importación";
 "DESCRIPTION" = "Descripción";
 "SERIES" = "Series";
 "KOMGA" = "Komga";
@@ -481,6 +482,7 @@
 "AGE_RATING" = "Clasificación de edad";
 "RELEASE_DATE" = "Fecha de lanzamiento";
 "LOGIN" = "Iniciar sesión";
+"LOGIN_SECTION" = "Inicio de sesión";
 "OTHER_SETTINGS" = "Otra configuración";
 "USE_CHAPTERS" = "Usar capítulos";
 "TOGGLE_LOCK" = "Alternar bloqueo";
@@ -590,7 +592,7 @@
 "SORT_TIME_TO_READ" = "Tiempo de lectura";
 "SORT_AVERAGE_RATING" = "Calificación promedio";
 "SET_COVER_IMAGE" = "Establecer imagen de portada";
-"UPLOAD_CUSTOM_COVER" = "Elegir portada personalizada";
+"CHOOSE_CUSTOM_COVER" = "Elegir portada personalizada";
 "NO_HISTORY" = "Sin historial";
 "RECENTLY_SEARCHED" = "Buscado recientemente";
 "LOGIN_FAILED" = "Error de inicio de sesión";
@@ -654,7 +656,7 @@
 "SAVED_SEARCH_NAME" = "Nombre";
 "CLEAR_FILTERS" = "Borrar filtros";
 "SHOW_UNCATEGORIZED_CATEGORY" = "Mostrar categoría «Sin categoría»";
-"MISSING_SOURCE_LIST" = "Falta la lista de fuentes";
+"MISSING_SOURCE_LIST" = "No está en las listas de fuentes";
 "MISSING_SOURCE_LIST_INFO" = "Esta fuente externa no está disponible en ninguna de las listas de fuentes configuradas. Por ello, no recibirá actualizaciones y podría dejar de funcionar en el futuro.";
 "NAME_SAVED_SEARCH" = "Asignar nombre a la búsqueda guardada";
 "NAME_SAVED_SEARCH_INFO" = "Guardar esta búsqueda almacenará los filtros actualmente configurados y el texto de búsqueda.";
@@ -695,7 +697,7 @@
 "API_KEY_LOGIN_INFO" = "Si proporcionas manualmente una clave API para iniciar sesión, se anularán los demás métodos de inicio de sesión. Puedes dejar este campo en blanco para usar otros métodos.";
 "REFRESH_DETAILS" = "Actualizar detalles";
 "LOGIN_METHOD" = "Método de inicio de sesión";
-"BASIC" = "Básico";
+"BASIC" = "Usuario y contraseña";
 "STANDARD" = "Estándar";
 "COMPACT" = "Compacto";
 "CUSTOM" = "Personalizado";
@@ -707,7 +709,7 @@
 "SYNC_WITH_TRACKER_INFO_1" = "Según el servicio de seguimiento, ya has leído 1 capítulo. ¿Quieres marcarlo como leído?";
 "CONTINUOUS_WITH_GAPS" = "Continuo con huecos";
 "TOGGLE_PAGE_OFFSET" = "Alternar desplazamiento de página";
-"UNSET_AS_SINGLE_PAGE" = "Deshacer vista de página única";
+"UNSET_AS_SINGLE_PAGE" = "Quitar ajuste de página única";
 "OIDC" = "OIDC";
 "LAYOUT" = "Disposición";
 "CATEGORY_SEARCH" = "Buscar en la categoría";
@@ -1017,7 +1019,7 @@
 "KANJI_META_COUNT" = "Número de entradas de metadatos kanji";
 "TAG_COUNT" = "Recuento de etiquetas";
 "MEDIA_COUNT" = "Recuento de medios";
-"IS_UPDATABLE" = "Es actualizable";
+"IS_UPDATABLE" = "Actualizable";
 "SIZE" = "Tamaño";
 "REMOVE_DICTIONARY" = "Eliminar diccionario";
 "REMOVE_WORD" = "Quitar palabra";
@@ -1048,7 +1050,6 @@
 "AUTO_SCROLL_POSITION" = "Posición del botón de desplazamiento automático";
 "POSITION_LEFT" = "Izquierda";
 "POSITION_RIGHT" = "Derecha";
-"UPLOAD_FILE" = "Importar archivo";
 "MIGRATE_CHAPTER_HISTORY" = "Migrar historial de capítulos";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Migra el historial de lectura sobrante de versiones anteriores que no esté vinculado a capítulos en la base de datos local. Normalmente, esto sucede automáticamente después de una actualización. Si no finalizó, puedes ejecutarlo nuevamente aquí.";
 
@@ -1165,6 +1166,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 solo admite texto de origen en japonés y chino (simplificado y tradicional). La detección automática y la selección del idioma de origen también se limitan a estos idiomas. Se puede seguir traduciendo al coreano y a otros idiomas de destino. Al seleccionar Manga, se aplican umbrales de detección de texto de 0.85 y 0.25; el tamaño de detección predeterminado es de 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 solo admite texto de origen en japonés y chino (simplificado y tradicional). La detección automática y la selección del idioma de origen también se limitan a estos idiomas. Se puede seguir traduciendo a cualquier idioma de destino. Al seleccionar Manga, se aplican umbrales de detección de texto de 0.85 y 0.25; el tamaño de detección predeterminado es de 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Todos los idiomas OCR compatibles";

@@ -70,7 +70,7 @@
 "STATUS_ONGOING" = "U tijeku";
 "STATUS_COMPLETED" = "Dovršeno";
 "NSFW" = "Sadržaj za odrasle";
-"MORE" = "više";
+"MORE" = "Više";
 "SOURCE_ORDER" = "Redoslijed iz izvora";
 "MISSING_SOURCE" = "Nedostaje izvor";
 "SELECT_CHAPTERS" = "Odaberi poglavlja";
@@ -171,7 +171,7 @@
 "NEVER" = "Nikada";
 "DAILY" = "Dnevno";
 "EVERY_2_DAYS" = "Svaka 2 dana";
-"LIBRARY_UPDATING" = "Aktualiziranje biblioteke";
+"LIBRARY_UPDATING" = "Aktualiziranja biblioteke";
 "SKIP_TITLES" = "Preskoči naslove";
 "SOURCE_LIST_ADDED" = "Popis izvora dodan";
 "LOCK_HISTORY_TAB" = "Zaključaj karticu povijesti";
@@ -202,7 +202,7 @@
 "CLEAR_READ_HISTORY" = "Očisti povijest čitanja";
 "WITH_UNREAD_CHAPTERS" = "S nepročitanim poglavljima";
 "WITH_COMPLETED_STATUS" = "S završenim statusom";
-"THAT_HAVENT_BEEN_READ" = "Bez poglavlja označenih kao pročitana";
+"WITH_NO_CHAPTERS_READ" = "Bez poglavlja označenih kao pročitana";
 "SOURCE_LISTS" = "Popisi izvora";
 "SOURCE_LIST_ADDED_TEXT" = "Sada možeš pregledavati vanjske izvore na kartici Pregledavanje.";
 "SOURCE_LIST_URL" = "URL popisa izvora";
@@ -213,7 +213,7 @@
 "BACKUP_IMPORT_SUCCESS" = "Sigurnosna kopija uvezena";
 "BACKUP_INFO" = "Za izvoz pritisni sigurnosnu kopiju dugo ili prijeđi prstom ulijevo za brisanje.";
 "MISSING_SOURCES_TEXT" = "Vraćena sigurnosna kopija može sadržavati podatke iz sljedećih izvora koji trenutno nisu instalirani:";
-"RESTORE_BACKUP" = "Vratiti na ovu sigurnosnu kopiju?";
+"RESTORE_BACKUP" = "Vratiti ovu sigurnosnu kopiju?";
 "RESTORE_BACKUP_TEXT" = "Svi trenutni podaci bit će uklonjeni i zamijenjeni podacima iz ove sigurnosne kopije.";
 "CLEAR_READ_HISTORY_TEXT" = "Ovo je nepovratna radnja. Sva povijest čitanja će se ukloniti.";
 "CLEAR_NETWORK_CACHE_TEXT" = "Ovo je nepovratna radnja. Predmemorirani mrežni zahtjevi i slike će se izbrisati.";
@@ -309,13 +309,13 @@
 "DEFAULT_READING_MODE" = "Zadani način čitanja";
 "UPLOAD_DATE" = "Datum prijenosa";
 "ALL_CHAPTERS_READ" = "Sva poglavlja su pročitana";
-"PILLARBOX_ORIENTATION_INFO" = "Odaberi orijentacije zaslona u kojima će se prikazivati bočne margine.";
+"PILLARBOX_ORIENTATION_INFO" = "Odaberi orijentacije uređaja u kojima će se koristiti bočne margine.";
 "BOTH" = "Oba";
 "COPY" = "Kopiraj";
 "REORDER" = "Promijeni redoslijed";
 "PIN" = "Prikvači";
 "UNPIN" = "Otkvači";
-"BACKUP_ERROR" = "Greška obnavljanja sigurnosne kopije";
+"BACKUP_ERROR" = "Greška sigurnosne kopije";
 "BACKUP_ERROR_TEXT" = "Došlo je do greške tijekom obnavljanja: %@. Sigurnosna kopija je možda neispravna.";
 "LINK_COPIED" = "Poveznica kopirana";
 "LINK_COPIED_TEXT" = "Poveznica je kopirana u međuspremnik.";
@@ -340,6 +340,7 @@
 "SCANLATOR" = "Prevoditelj";
 "NO_SCANLATOR" = "Nema prevoditelja";
 "LOGIN" = "Prijavi se";
+"LOGIN_SECTION" = "Prijava";
 "LOGOUT_CONFIRM" = "Stvarno se želiš odjaviti?";
 "USERNAME" = "Korisničko ime";
 "EMAIL" = "E-mail adresa";
@@ -354,7 +355,7 @@
 "NO_DOWNLOADS" = "Nema preuzimanja";
 "NO_DOWNLOADS_TEXT" = "Preuzeti sadržaj će se pojaviti ovdje.";
 "DOWNLOADED_CHAPTERS" = "Preuzeta poglavlja";
-"TOTAL_DOWNLOADS" = "Ukupna veličina preuzimanja";
+"DOWNLOAD_STORAGE_USED" = "Ukupna veličina preuzimanja";
 "%i_SERIES" = "Serije: %i";
 "IN_LIBRARY" = "U biblioteci";
 "VIEW_SERIES" = "Prikaži seriju";
@@ -414,6 +415,7 @@
 "LOCAL_FILES" = "Lokalne datoteke";
 "LOCAL_FILES_TAGLINE" = "Čitaj iz lokalnih datoteka";
 "IMPORT" = "Uvoz";
+"IMPORT_SETTINGS" = "Uvoz";
 "IMPORT_FILE" = "Uvezi datoteku";
 "LOCAL_FILE_IMPORT" = "Uvoz lokalne datoteke";
 "LOCAL_FILE_IMPORT_TEXT" = "Uvezi CBZ ili ZIP datoteku koja sadrži slike za čitanje.";
@@ -466,7 +468,7 @@
 "LOCAL_FILES_INFO" = "Lokalni izvor omogućuje uvoz datoteka i upravljanje vlastitom bibliotekom za čitanje izravno unutar Aidokua.";
 "OPEN_WEBSITE" = "Otvori web stranicu";
 "SET_COVER_IMAGE" = "Postavi sliku omota";
-"UPLOAD_CUSTOM_COVER" = "Odaberi prilagođenu naslovnicu";
+"CHOOSE_CUSTOM_COVER" = "Odaberi prilagođenu naslovnicu";
 "RESET_COVER" = "Resetiraj omot";
 "LOGIN_FAILED_TEXT" = "Prijava na izvor nije uspjela. Provjeri jesu li tvoji podaci za prijavu ispravno uneseni.";
 "LOGIN_BASIC_TEXT" = "Svi uneseni podaci za prijavu će se izravno dati izvoru. Nemoj se prijavljivati na izvor kojem ne vjeruješ.";
@@ -649,7 +651,7 @@
 "FILTER_GROUPS" = "Grupe filtara";
 "CLEAR_FILTERS" = "Očisti filtre";
 "SHOW_UNCATEGORIZED_CATEGORY" = "Prikaži kategoriju „Nekategorizirano”";
-"MISSING_SOURCE_LIST" = "Nema na popisu izvora";
+"MISSING_SOURCE_LIST" = "Nije na popisima izvora";
 "MISSING_SOURCE_LIST_INFO" = "Ovaj eksterni izvor nije dostupan na nijednom konfiguriranom popisu izvora. To znači da neće primati aktualiziranja i da bi se u budućnosti mogao pokvariti.";
 "SAVE" = "Spremi";
 "SAVED_SEARCHES" = "Spremljene pretrage";
@@ -681,7 +683,7 @@
 "BASIC_LOGIN" = "Osnovna prijava";
 "API_KEY_LOGIN_INFO" = "Ručno unošenje API ključa za prijavu nadjačat će druge metode prijave. Ostavi prazno za korištenje drugih metoda prijave.";
 "LOGIN_METHOD" = "Metoda prijave";
-"BASIC" = "Osnovna";
+"BASIC" = "Korisničko ime i lozinka";
 "LAYOUT" = "Raspored";
 "STANDARD" = "Standardno";
 "COMPACT" = "Kompaktno";
@@ -701,7 +703,7 @@
 "UNAVAILABLE_TRACKER_ITEM" = "Nedostupna stavka alata praćenja";
 "UNAVAILABLE_TRACKER_ITEM_INFO" = "Ova povezana stavka alata praćenja povezana je s alatom praćenja koji više nije dostupan. Ukloni ovu stavku ili se ponovo prijavi na povezani alat praćenja.";
 "ENHANCED_TRACKERS" = "Poboljšani alati praćenja";
-"UNSET_AS_SINGLE_PAGE" = "Poništi postavku pojedinačne stranice";
+"UNSET_AS_SINGLE_PAGE" = "Ukloni postavku pojedinačne stranice";
 "CONTINUOUS_WITH_GAPS" = "Kontinuirano s prazninama";
 "TOGGLE_PAGE_OFFSET" = "Uključi/isključi odmak stranice";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Uklanjanjem ove serije iz biblioteke uklonit ćeš i njezine veze s alatima praćenja. Sigurno želiš nastaviti?";
@@ -1048,7 +1050,6 @@
 "AUTO_SCROLL_POSITION" = "Položaj kontrole automatskog pomicanja";
 "POSITION_LEFT" = "Lijevo";
 "POSITION_RIGHT" = "Desno";
-"UPLOAD_FILE" = "Uvezi datoteku";
 "MIGRATE_CHAPTER_HISTORY" = "Migriraj povijest poglavlja";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Migrira povijest čitanja preostalu iz starijih verzija koja nije povezana s poglavljima u lokalnoj bazi podataka. To se obično događa automatski nakon ažuriranja. Ako postupak nije završen, možeš ga ponovno pokrenuti ovdje.";
 
@@ -1169,5 +1170,5 @@
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Ova aplikacija ne podržava izvor %@ verzije %d. Instaliraj podržanu verziju.";
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 podržava samo izvorni tekst na japanskom i kineskom (pojednostavljeno i tradicionalno pismo). Automatsko određivanje i odabir izvornog jezika ograničeni su na te jezike. Prijevod na korejski i druge jezike i dalje je dostupan. Odabirom modela Manga primjenjuju se pragovi otkrivanja 0,85 i 0,25; zadana veličina slike za otkrivanje je 1120 piksela.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 podržava samo izvorni tekst na japanskom i kineskom (pojednostavljeno i tradicionalno pismo). Automatsko određivanje i odabir izvornog jezika ograničeni su na te jezike. Prijevod na bilo koji ciljni jezik i dalje je dostupan. Odabirom modela Manga primjenjuju se pragovi otkrivanja 0,85 i 0,25; zadana veličina slike za otkrivanje je 1120 piksela.";
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Svi podržani OCR jezici";

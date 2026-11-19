@@ -39,7 +39,7 @@
 "SORT_LAST_OPENED" = "Zuletzt geöffnet";
 "SUGGESTIVE" = "Anzüglich";
 "NSFW" = "NSFW";
-"MORE" = "mehr";
+"MORE" = "Mehr";
 "SOURCE_ORDER" = "Quellenreihenfolge";
 "MISSING_SOURCE" = "Fehlende Quelle";
 "SELECT_CHAPTERS" = "Kapitel auswählen";
@@ -212,7 +212,7 @@
 "CATEGORY_LOCKED" = "Die Kategorie ist gesperrt.";
 "LIBRARY_LOCKED" = "Die Bibliothek ist gesperrt.";
 "DOUBLE_PAGE" = "Doppelseite";
-"LIBRARY_UPDATING" = "Aktualisierung der Bibliothek";
+"LIBRARY_UPDATING" = "Bibliotheksaktualisierungen";
 "REFRESH_METADATA" = "Metadaten aktualisieren";
 "SOURCE_LIST_ADDED_TEXT" = "Du kannst jetzt im Tab „Durchsuchen“ externe Quellen durchsuchen.";
 "EVERY_12_HOURS" = "Alle 12 Stunden";
@@ -222,7 +222,7 @@
 "NEVER" = "Nie";
 "WITH_UNREAD_CHAPTERS" = "Mit ungelesenen Kapiteln";
 "WITH_COMPLETED_STATUS" = "Mit abgeschlossenem Status";
-"THAT_HAVENT_BEEN_READ" = "Ohne als gelesen markierte Kapitel";
+"WITH_NO_CHAPTERS_READ" = "Ohne als gelesen markierte Kapitel";
 "DAILY" = "Täglich";
 "SOURCE_LIST_ADDED" = "Quellenliste hinzugefügt";
 "SOURCE_LIST_URL" = "Quellenliste-URL";
@@ -247,7 +247,7 @@
 "FAILED_CHAPTER_LOAD_INFO" = "Möglicherweise bist du offline oder es gibt Probleme bei der Quelle.";
 "STATUS" = "Status";
 "VOLUMES" = "Bände";
-"STARTED" = "Begonnen am";
+"STARTED" = "Startdatum";
 "TRACK_REREADING" = "Wird erneut gelesen";
 "VIEW_ON_WEBSITE" = "Auf Website ansehen";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "Bist du sicher, dass du alle Downloads entfernen möchtest?";
@@ -286,7 +286,7 @@
 "STOP_TRACKING" = "Tracking stoppen";
 "TRACK_READING" = "Wird gelesen";
 "START_TRACKING" = "Tracking starten";
-"FINISHED" = "Beendet am";
+"FINISHED" = "Enddatum";
 "TRACK_PLANNING" = "Geplant";
 "ONESHOT" = "One-shot";
 "STATUS_NOT_PUBLISHED" = "Nicht veröffentlicht";
@@ -306,18 +306,18 @@
 "ALL_CHAPTERS_READ" = "Alle Kapitel gelesen";
 "DEFAULT_READING_MODE" = "Standard-Lesemodus";
 "PILLARBOX" = "Seitenränder";
-"IS_TRACKING" = "Tracking";
+"IS_TRACKING" = "Getrackt";
 "PILLARBOX_ORIENTATION" = "Bildschirmausrichtung für Seitenränder";
 "BOTH" = "Beide";
 "PILLARBOX_AMOUNT" = "Randgröße";
-"PILLARBOX_ORIENTATION_INFO" = "Legt fest, in welchen Bildschirmausrichtungen Seitenränder angezeigt werden.";
+"PILLARBOX_ORIENTATION_INFO" = "Wähle, in welchen Bildschirmausrichtungen Seitenränder verwendet werden.";
 "COVER" = "Cover";
 "COPY" = "Kopieren";
 "CROP_BORDERS" = "Ränder zuschneiden";
 "PIN" = "Anheften";
 "UNPIN" = "Loslösen";
 "REORDER" = "Neu anordnen";
-"BACKUP_ERROR" = "Fehler bei der Backup-Wiederherstellung";
+"BACKUP_ERROR" = "Backup-Fehler";
 "BACKUP_ERROR_TEXT" = "Beim Wiederherstellen ist ein Fehler aufgetreten: %@. Das Backup ist möglicherweise ungültig.";
 "PAUSE" = "Pausieren";
 "RESUME" = "Fortsetzen";
@@ -431,7 +431,7 @@
 "EDIT" = "Bearbeiten";
 "%@_EXPERIMENTAL" = "%@ (Experimentell)";
 "NO_DOWNLOADS" = "Keine Downloads";
-"TOTAL_DOWNLOADS" = "Speicherplatz für Downloads";
+"DOWNLOAD_STORAGE_USED" = "Speicherplatz für Downloads";
 "VIEW_SERIES" = "Serie anzeigen";
 "COMPRESS_DOWNLOADS" = "Downloads komprimieren";
 "PARALLEL_DOWNLOADS" = "Parallele Downloads";
@@ -445,6 +445,7 @@
 "CLEAR_FILTERS" = "Filter zurücksetzen";
 "SAVE" = "Speichern";
 "IMPORT" = "Importieren";
+"IMPORT_SETTINGS" = "Import";
 "CHAPTER_TITLE" = "Kapitel-Titel";
 "DESCRIPTION" = "Beschreibung";
 "VOLUME_CHAPTER_INVALID_ERROR" = "Ein Kapitel mit dieser Konfiguration existiert bereits.";
@@ -739,7 +740,7 @@
 "SHOW_UNCATEGORIZED_CATEGORY" = "Nicht kategorisierte Kategorie anzeigen";
 "DISABLE" = "Deaktivieren";
 "ENABLE" = "Aktivieren";
-"MISSING_SOURCE_LIST" = "Fehlende Quellenliste";
+"MISSING_SOURCE_LIST" = "Nicht in Quellenlisten";
 "MISSING_SOURCE_LIST_INFO" = "Diese externe Quelle ist in keiner eingerichteten Quellenliste enthalten. Sie erhält daher keine Updates und funktioniert möglicherweise künftig nicht mehr.";
 "RESTART" = "Neustart";
 "HTML_ERROR" = "HTML-Fehler";
@@ -834,12 +835,13 @@
 "VOLUME" = "Band";
 "OPEN_WEBSITE" = "Website öffnen";
 "SET_COVER_IMAGE" = "Titelbild festlegen";
-"UPLOAD_CUSTOM_COVER" = "Eigenes Titelbild auswählen";
+"CHOOSE_CUSTOM_COVER" = "Eigenes Titelbild auswählen";
 "RESET_COVER" = "Titelbild zurücksetzen";
 "NO_HISTORY" = "Kein Leseverlauf";
 "NO_RECENT_SEARCHES_TEXT" = "Deine letzten Suchen werden hier angezeigt.";
 "SOURCES" = "Inhaltsquellen";
 "LOGIN" = "Anmelden";
+"LOGIN_SECTION" = "Anmeldung";
 "EMAIL" = "E-Mail";
 "LOGIN_FAILED_TEXT" = "Anmeldung bei der Quelle fehlgeschlagen. Stelle sicher, dass deine Anmeldedaten korrekt eingegeben wurden.";
 "LOGIN_BASIC_TEXT" = "Alle eingegebenen Anmeldedaten werden direkt an die Quelle weitergegeben. Melde dich nicht bei einer Quelle an, der du nicht vertraust.";
@@ -847,7 +849,7 @@
 "LOGIN_WEBVIEW_WARNING_TEXT" = "Alle in der angezeigten Webansicht gesetzten Cookies werden an die Quelle weitergegeben. Melde dich nicht bei einer Quelle an, der du nicht vertraust.";
 "REFRESH_LOGIN" = "Anmeldung aktualisieren";
 "LOGIN_METHOD" = "Anmeldemethode";
-"BASIC" = "Passwort";
+"BASIC" = "Benutzername & Passwort";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud Sync ist eine experimentelle Funktion. Das Aktivieren oder Deaktivieren kann zu Datenverlust führen.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud Sync ist nur verfügbar, wenn es über TestFlight installiert wird.";
 "LAYOUT" = "Layout";
@@ -949,7 +951,7 @@
 "KANJI_META_COUNT" = "Anzahl der Kanji-Metadateneinträge";
 "TAG_COUNT" = "Tag-Anzahl";
 "MEDIA_COUNT" = "Medienanzahl";
-"IS_UPDATABLE" = "Ist aktualisierbar";
+"IS_UPDATABLE" = "Aktualisierbar";
 "SIZE" = "Größe";
 "REMOVE_DICTIONARY" = "Wörterbuch entfernen";
 "REMOVE_WORD" = "Wort entfernen";
@@ -1011,7 +1013,7 @@
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Wenn du das Tracking für eine Quelle deaktivierst, werden die Tracker-Verknüpfungen dieser Quelle entfernt. Beim Aktivieren werden die Bibliothekseinträge aus dieser Quelle automatisch verknüpft.";
 "TRACKER_LOGOUT_INFO" = "Durch das Abmelden werden die verknüpften Tracking-Informationen für alle Serien von diesem Tracker entfernt.";
 "SET_AS_SINGLE_PAGE" = "Als Einzelseite festlegen";
-"UNSET_AS_SINGLE_PAGE" = "Als Einzelseite deaktivieren";
+"UNSET_AS_SINGLE_PAGE" = "Einzelseiten-Einstellung entfernen";
 "RELOAD_FAILED_TEXT" = "Das Bild konnte nicht neu geladen werden. Bitte versuche es erneut.";
 "CONTINUOUS_WITH_GAPS" = "Kontinuierlich mit Lücken";
 "MIGRATE_CONFIRM_TEXT" = "Der Leseverlauf für die Originaleinträge wird bei der Migration zu einer anderen Quelle entfernt.";
@@ -1048,7 +1050,6 @@
 "OPEN_CHAPTER_LIST" = "Kapitelliste öffnen";
 "TOGGLE_BARS" = "Symbolleisten ein- oder ausblenden";
 "TOGGLE_PAGE_OFFSET" = "Seitenversatz umschalten";
-"UPLOAD_FILE" = "Datei importieren";
 "MIGRATE_CHAPTER_HISTORY" = "Kapitelverlauf migrieren";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Migriere Leseverlauf, der von älteren Versionen übrig geblieben ist und nicht mit Kapiteln in der lokalen Datenbank verknüpft ist. Dies geschieht normalerweise automatisch nach einem Update. Falls der Vorgang nicht abgeschlossen wurde, kannst du ihn hier erneut ausführen.";
 
@@ -1198,6 +1199,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 unterstützt nur japanischen und chinesischen Ausgangstext (vereinfachte und traditionelle Schriftzeichen). Auch die automatische Erkennung und die manuelle Auswahl der Ausgangssprache sind auf diese Sprachen beschränkt. Übersetzungen ins Koreanische und in andere Zielsprachen sind weiterhin möglich. Bei Auswahl von Manga werden die Schwellenwerte für die Textbereichserkennung auf 0.85 und 0.25 gesetzt; die Standardgröße für die Textbereichserkennung beträgt 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 unterstützt nur japanischen und chinesischen Ausgangstext (vereinfachte und traditionelle Schriftzeichen). Auch die automatische Erkennung und die manuelle Auswahl der Ausgangssprache sind auf diese Sprachen beschränkt. Übersetzungen in beliebige Zielsprachen sind weiterhin möglich. Bei Auswahl von Manga werden die Schwellenwerte für die Textbereichserkennung auf 0.85 und 0.25 gesetzt; die Standardgröße für die Textbereichserkennung beträgt 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alle unterstützten OCR-Sprachen";

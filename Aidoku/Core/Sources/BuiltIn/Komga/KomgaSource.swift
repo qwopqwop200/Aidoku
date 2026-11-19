@@ -498,7 +498,7 @@ actor KomgaSourceRunner: Runner {
                     items: [
                         .init(
                             key: "login",
-                            title: "LOGIN",
+                            title: "LOGIN_SECTION",
                             requires: "server",
                             refreshes: ["content", "listings", "filters"],
                             value: .login(.init(method: .basic, useEmail: true))
