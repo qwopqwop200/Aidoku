@@ -62,6 +62,8 @@
 
 // Downloads
 "DOWNLOAD" = "下載";
+"NEXT_UNREAD" = "下一個未讀";
+"NEXT_%i_UNREAD" = "接下來 %i 個未讀";
 "DOWNLOADED" = "已下載";
 // General
 "CONTINUE" = "繼續";

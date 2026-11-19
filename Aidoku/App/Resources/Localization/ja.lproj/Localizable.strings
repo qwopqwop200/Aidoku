@@ -30,6 +30,8 @@
 
 // Downloads
 "DOWNLOAD" = "ダウンロード";
+"NEXT_UNREAD" = "次の未読";
+"NEXT_%i_UNREAD" = "次の未読 %i 件";
 "DOWNLOADED" = "ダウンロード済み";
 "FILTER_BY" = "絞り込み";
 "SORT_TITLE" = "タイトル";

@@ -20,13 +20,20 @@ enum CoverRecovery {
             case let .dataLoadingFailed(loadingError) = pipelineError,
             let dataErr = loadingError as? DataLoader.Error,
             case let .statusCodeUnacceptable(code) = dataErr
-        else { return false }
+        else {
+            return false
+        }
         return staleStatusCodes.contains(code)
     }
 
     static func recover(from error: Error, identifier: MangaIdentifier, failedURL: URL? = nil) async -> URL? {
         guard shouldRecover(from: error) else { return nil }
         return await coordinator.recover(identifier: identifier, failedURL: failedURL) {
+            // Never auto-replace a cover the user explicitly customized.
+            let hasEditedCover = await CoreDataManager.shared.container.performBackgroundTask {
+                CoreDataManager.shared.hasEditedKey(mangaId: identifier, key: .cover, context: $0)
+            }
+            guard !hasEditedCover else { return nil }
             let stub = AidokuRunner.Manga(sourceKey: identifier.sourceKey, key: identifier.mangaKey, title: "")
             guard let cover = await MangaManager.shared.resetCover(manga: stub) else { return nil }
             return URL(string: cover)

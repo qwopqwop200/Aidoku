@@ -135,7 +135,7 @@ struct HomeListView: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     var loadMoreView: some View {
         if !entries.isEmpty, loadMore != nil {
             Color.clear.frame(height: 1)
@@ -148,7 +148,7 @@ struct HomeListView: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     func view(for entry: HomeComponent.Value.Link, position: Int) -> some View {
         let label = HStack(spacing: 12) {
             let mangaKey = entry.manga?.key

@@ -13,6 +13,8 @@
 
 // Downloads
 "DOWNLOAD" = "Pobierz";
+"NEXT_UNREAD" = "Następny nieprzeczytany";
+"NEXT_%i_UNREAD" = "Następne %i nieprzeczytane";
 "CLEAR" = "Wyczyść";
 "DOWNLOAD_QUEUE" = "Kolejka pobierania";
 "LIBRARY_SEARCH" = "Znajdź w Bibliotece";

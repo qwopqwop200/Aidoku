@@ -16,6 +16,7 @@ struct SourceHomeContentView: View {
 
     @State private var home: Home?
     @StateObject private var listingModel: SourceListingViewModel
+    @State private var containerWidth: CGFloat = 0
 
     @State private var hasLoaded = false
     @State private var loading = true
@@ -55,142 +56,158 @@ struct SourceHomeContentView: View {
     }
 
     var body: some View {
-        ScrollViewReader { reader in
-            ScrollView {
-                VStack {}.id(0) // indicator to scroll to the top
+        GeometryReader { geometry in
+            ScrollViewReader { reader in
+                ScrollView {
+                    VStack {}.id(0) // indicator to scroll to the top
 
-                Group {
-                    if loading || listingModel.loadingInitial {
-                        // loading skeleton
-                        loadingView().transition(.opacity)
-                    } else if let home, listingSelection == 0 {
-                        // home page
-                        homeView(for: home, partial: !homeFullyLoaded)
-                    } else if listingSelection > 0 || !source.features.providesHome, let listing = currentListing {
-                        // listing page - check if source provides custom Home-like layout
-                        if let listingHome = listingModel.home {
-                            homeView(for: listingHome, partial: false)
-                                .transition(.opacity)
-                        } else {
-                            // Display listing with listing.kind
-                            Group {
-                                switch listing.kind {
-                                    case .default:
-                                        HomeGridView(source: source, entries: listingModel.entries, bookmarkedItems: $listingModel.bookmarkedItems) {
-                                            await listingModel.loadMore()
-                                        }
-                                    case .list:
-                                        HomeListView(
-                                            source: source,
-                                            component: .init(title: nil, value: .mangaList(entries: listingModel.entries.map { $0.intoLink() })),
-                                            bookmarkedItems: $listingModel.bookmarkedItems
-                                        ) {
-                                            await listingModel.loadMore()
-                                        }
-                                        .id(listingSelection) // Force recreation on listing change
-                                        .padding(.bottom)
+                    scrollContent(containerWidth: containerWidth)
+                        .frame(maxWidth: .infinity)
+                        .opacity((error ?? listingModel.error) != nil ? 0 : 1)
+                }
+                .overlay {
+                    if let error = error ?? listingModel.error {
+                        ErrorView(
+                            error: error,
+                            restart: { try await source.restart() },
+                            retry: {
+                                if listingModel.error != nil {
+                                    await listingModel.loadMore()
+                                } else {
+                                    await reload()
                                 }
                             }
-                            .transition(.opacity)
-                        }
-                    } else {
-                        loadingView().frame(height: 200).hidden()
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .transition(.opacity)
+                        .padding()
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .opacity((error ?? listingModel.error) != nil ? 0 : 1)
-            }
-            .overlay {
-                if let error = error ?? listingModel.error {
-                    ErrorView(
-                        error: error,
-                        restart: { try await source.restart() },
-                        retry: {
-                            if listingModel.error != nil {
-                                await listingModel.loadMore()
-                            } else {
-                                await reload()
-                            }
+                .refreshable {
+                    // nesting task prevents it from being cancelled
+                    let task = Task {
+                        try? await Task.sleep(nanoseconds: 100_000_000) // delay to fix animation
+                        await reload()
+                    }
+                    await task.value
+                }
+                // update listingSelection when header selection changes;
+                // a separate variable is used in order to perform the rest of the changes along with listingSelection
+                // immediately rather than having a slight delay
+                .onChange(of: headerListingSelection) { value in
+                    loadListingTask?.cancel()
+                    listingModel.cancel()
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        reader.scrollTo(0)
+                        listingSelection = value
+                        error = nil
+                    }
+                    loadListingTask = Task {
+                        if value != 0 || !source.features.providesHome {
+                            await loadListing()
+                        } else if home == nil {
+                            loading = true
+                            homeFullyLoaded = false
+                            await loadHome()
+                        } else {
+                            loading = false
                         }
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .transition(.opacity)
-                    .padding()
+                    }
                 }
             }
-            .refreshable {
-                // nesting task prevents it from being cancelled
-                let task = Task {
-                    try? await Task.sleep(nanoseconds: 100_000_000) // delay to fix animation
+            .onChange(of: listings) { value in
+                // reset listing selection to the first if the selected one disappears
+                let maxListings = value.count - (source.features.providesHome ? 0 : 1)
+                if listingSelection > maxListings {
+                    headerListingSelection = 0
+                } else if !source.features.providesHome || (source.features.providesHome && listingSelection > 0) {
+                    // Initial discovery or a changed listing needs a load. A refresh already
+                    // loading this listing must not issue the same first-page request twice.
+                    if listingModel.currentListing != currentListing {
+                        Task { await loadListing() }
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .init("refresh-content"))) { _ in
+                loadTask?.cancel()
+                loadTask = Task {
+                    guard !Task.isCancelled else { return }
                     await reload()
-                }
-                await task.value
-            }
-            // update listingSelection when header selection changes;
-            // a separate variable is used in order to perform the rest of the changes along with listingSelection
-            // immediately rather than having a slight delay
-            .onChange(of: headerListingSelection) { value in
-                loadListingTask?.cancel()
-                listingModel.cancel()
-                withAnimation(.easeOut(duration: 0.2)) {
-                    reader.scrollTo(0)
-                    listingSelection = value
-                    error = nil
-                }
-                loadListingTask = Task {
-                    if value != 0 || !source.features.providesHome {
-                        await loadListing()
-                    } else if home == nil {
-                        loading = true
-                        homeFullyLoaded = false
+                    // reload home page even if we're not on it
+                    if source.features.providesHome && listingSelection != 0 {
                         await loadHome()
-                    } else {
-                        loading = false
                     }
                 }
             }
-        }
-        .onChange(of: listings) { value in
-            // reset listing selection to the first if the selected one disappears
-            let maxListings = value.count - (source.features.providesHome ? 0 : 1)
-            if listingSelection > maxListings {
-                headerListingSelection = 0
-            } else if !source.features.providesHome || (source.features.providesHome && listingSelection > 0) {
-                // Initial discovery or a changed listing needs a load. A refresh already
-                // loading this listing must not issue the same first-page request twice.
-                if listingModel.currentListing != currentListing {
-                    Task { await loadListing() }
-                }
+            .task {
+                guard !hasLoaded else { return }
+                hasLoaded = true
+                await reload(initial: true)
+            }
+            .environmentObject(path)
+            .onAppear {
+                containerWidth = geometry.size.width
+            }
+            .onChange(of: geometry.size.width) { width in
+                containerWidth = width
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .init("refresh-content"))) { _ in
-            loadTask?.cancel()
-            loadTask = Task {
-                guard !Task.isCancelled else { return }
-                await reload()
-                // reload home page even if we're not on it
-                if source.features.providesHome && listingSelection != 0 {
-                    await loadHome()
-                }
-            }
-        }
-        .task {
-            guard !hasLoaded else { return }
-            hasLoaded = true
-            await reload(initial: true)
-        }
-        .environmentObject(path)
     }
 
-    @ViewBuilder
-    private func loadingView() -> some View {
+    @ContentBuilder
+    private func scrollContent(containerWidth: CGFloat) -> some View {
+        if loading || listingModel.loadingInitial {
+            // loading skeleton
+            loadingView(width: containerWidth).transition(.opacity)
+        } else if let home, listingSelection == 0 {
+            // home page
+            homeView(for: home, partial: !homeFullyLoaded)
+        } else if listingSelection > 0 || !source.features.providesHome, let listing = currentListing {
+            // listing page - check if source provides custom Home-like layout
+            if let listingHome = listingModel.home {
+                homeView(for: listingHome, partial: false)
+                    .transition(.opacity)
+            } else {
+                // Display listing with listing.kind
+                Group {
+                    switch listing.kind {
+                        case .default:
+                            HomeGridView(
+                                source: source,
+                                entries: listingModel.entries,
+                                containerWidth: containerWidth,
+                                bookmarkedItems: $listingModel.bookmarkedItems
+                            ) {
+                                await listingModel.loadMore()
+                            }
+                        case .list:
+                            HomeListView(
+                                source: source,
+                                component: .init(title: nil, value: .mangaList(entries: listingModel.entries.map { $0.intoLink() })),
+                                bookmarkedItems: $listingModel.bookmarkedItems
+                            ) {
+                                await listingModel.loadMore()
+                            }
+                            .id(listingSelection) // Force recreation on listing change
+                            .padding(.bottom)
+                    }
+                }
+                .transition(.opacity)
+            }
+        } else {
+            loadingView(width: containerWidth).frame(height: 200).hidden()
+        }
+    }
+
+    @ContentBuilder
+    private func loadingView(width: CGFloat) -> some View {
         Group {
             if listingSelection == 0 && source.features.providesHome {
                 SourceHomeSkeletonView(source: source)
             } else if let listing = currentListing {
                 switch listing.kind {
                     case .default:
-                        HomeGridView.placeholder
+                        HomeGridView.placeholder(width: width)
                     case .list:
                         PlaceholderMangaHomeList(showTitle: false)
                 }
@@ -198,7 +215,8 @@ struct SourceHomeContentView: View {
         }
     }
 
-    func homeView(for home: Home, partial: Bool) -> some View {
+    @ContentBuilder
+    private func homeView(for home: Home, partial: Bool) -> some View {
         VStack(spacing: 24) {
             ForEach(home.components.indices, id: \.self) { offset in
                 let component = home.components[offset]
@@ -224,7 +242,9 @@ struct SourceHomeContentView: View {
         }
         .padding(.bottom)
     }
+}
 
+extension SourceHomeContentView {
     func reload(initial: Bool = false) async {
         loadListingTask?.cancel()
         listingModel.cancel()

@@ -252,6 +252,8 @@
 "EDIT" = "Hariri";
 "COPY" = "Nakili";
 "DOWNLOAD" = "Pakua";
+"NEXT_UNREAD" = "Inayofuata ambayo haijasomwa";
+"NEXT_%i_UNREAD" = "%i zinazofuata ambazo hazijasomwa";
 "DOWNLOADED" = "Imepakuliwa";
 "DOWNLOADING" = "Inapakua";
 "DOWNLOAD_QUEUE" = "Foleni ya Kupakua";

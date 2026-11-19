@@ -160,6 +160,8 @@
 
 // Downloads
 "DOWNLOAD" = "Baixar";
+"NEXT_UNREAD" = "Próximo não lido";
+"NEXT_%i_UNREAD" = "Próximos %i não lidos";
 "CATEGORY_ADD_TEXT" = "Digite o nome da nova categoria a ser criada.";
 
 // Categories

@@ -15,6 +15,8 @@
 
 // Downloads
 "DOWNLOAD" = "डाउनलोड";
+"NEXT_UNREAD" = "अगला अपठित";
+"NEXT_%i_UNREAD" = "अगले %i अपठित";
 "DOWNLOADED" = "डाउनलोड किया गया";
 "DOWNLOAD_QUEUE" = "डाउनलोड क़तार";
 "CANCEL_DOWNLOAD" = "डाउनलोड रद्द करें";

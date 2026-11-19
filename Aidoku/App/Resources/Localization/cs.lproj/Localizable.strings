@@ -16,6 +16,8 @@
 
 // Downloads
 "DOWNLOAD" = "Stáhnout";
+"NEXT_UNREAD" = "Další nepřečtená";
+"NEXT_%i_UNREAD" = "Dalších %i nepřečtených";
 "DOWNLOADED" = "Staženo";
 "DOWNLOAD_QUEUE" = "Seznam stahování";
 "CANCEL_DOWNLOAD" = "Zrušit stahování";

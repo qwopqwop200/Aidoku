@@ -200,6 +200,8 @@
 
 // Downloads
 "DOWNLOAD" = "ទាញយក";
+"NEXT_UNREAD" = "មិនទាន់អានបន្ទាប់";
+"NEXT_%i_UNREAD" = "មិនទាន់អាន %i បន្ទាប់";
 "DOWNLOADED" = "បានទាញយក";
 "REMOVE_DOWNLOADS" = "លុបការទាញយក";
 "LIBRARY_SEARCH" = "ស្វែងរកក្នុងបណ្ណាល័យ";

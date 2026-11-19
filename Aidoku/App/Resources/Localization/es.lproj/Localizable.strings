@@ -139,6 +139,8 @@
 
 // Downloads
 "DOWNLOAD" = "Descargar";
+"NEXT_UNREAD" = "Siguiente no leído";
+"NEXT_%i_UNREAD" = "Siguientes %i no leídos";
 "DOWNLOADED" = "Descargados";
 "DOWNLOAD_QUEUE" = "Cola de descargas";
 "CATEGORY_ADD_TEXT" = "Escribe el nombre de la nueva categoría a crear.";

@@ -149,6 +149,8 @@
 
 // Downloads
 "DOWNLOAD" = "Télécharger";
+"NEXT_UNREAD" = "Prochain non lu";
+"NEXT_%i_UNREAD" = "%i prochains non lus";
 "REMOVE_FROM_LIBRARY" = "Retirer de la bibliothèque";
 "CATEGORIES" = "Catégories";
 "EDIT_CATEGORIES" = "Modifier les catégories";

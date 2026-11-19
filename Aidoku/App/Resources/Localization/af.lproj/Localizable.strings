@@ -10,6 +10,8 @@
 
 // Downloads
 "DOWNLOAD" = "Aflaai";
+"NEXT_UNREAD" = "Volgende ongelese";
+"NEXT_%i_UNREAD" = "Volgende %i ongelese";
 "DOWNLOADED" = "Afgelaai";
 "CANCEL_DOWNLOAD" = "Kanselleer Aflaai";
 "REMOVE_ALL_DOWNLOADS" = "Verwyder Alle Aflaaisels";

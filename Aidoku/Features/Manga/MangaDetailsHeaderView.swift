@@ -278,7 +278,7 @@ struct MangaDetailsHeaderView: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     var labelsView: some View {
         if manga.status != .unknown || (manga.contentRating != .unknown && manga.contentRating != .safe) || (bookmarked && source != nil) {
             HStack(spacing: 6) {
@@ -393,7 +393,7 @@ struct MangaDetailsHeaderView: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     var tagsView: some View {
         if let tags = manga.tags, !tags.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {

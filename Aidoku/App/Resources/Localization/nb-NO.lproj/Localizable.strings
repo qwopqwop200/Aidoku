@@ -16,6 +16,8 @@
 
 // Downloads
 "DOWNLOAD" = "Last ned";
+"NEXT_UNREAD" = "Neste uleste";
+"NEXT_%i_UNREAD" = "Neste %i uleste";
 "DOWNLOADED" = "Nedlastet";
 "DOWNLOAD_QUEUE" = "Nedlastingskø";
 "CANCEL_DOWNLOAD" = "Avbryt nedlasting";

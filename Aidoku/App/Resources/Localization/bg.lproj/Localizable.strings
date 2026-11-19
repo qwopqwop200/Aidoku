@@ -60,6 +60,8 @@
 
 // Downloads
 "DOWNLOAD" = "Изтегляне";
+"NEXT_UNREAD" = "Следваща непрочетена";
+"NEXT_%i_UNREAD" = "Следващи %i непрочетени";
 "CATEGORY_ADD" = "Добавяне на категория";
 "CANCEL_DOWNLOAD" = "Откажи изтегляне";
 "MANGA_INFO" = "Информация за мангата";

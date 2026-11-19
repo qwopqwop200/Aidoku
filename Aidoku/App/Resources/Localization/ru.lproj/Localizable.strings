@@ -11,6 +11,8 @@
 
 // Downloads
 "DOWNLOAD" = "Скачать";
+"NEXT_UNREAD" = "Следующая непрочитанная";
+"NEXT_%i_UNREAD" = "Следующие %i непрочитанные";
 "DOWNLOADED" = "Скачано";
 "DOWNLOAD_QUEUE" = "Очередь загрузки";
 "CANCEL_DOWNLOAD" = "Отменить загрузку";

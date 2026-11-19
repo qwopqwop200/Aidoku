@@ -150,6 +150,8 @@
 
 // Downloads
 "DOWNLOAD" = "ดาวน์โหลด";
+"NEXT_UNREAD" = "ที่ยังไม่อ่านถัดไป";
+"NEXT_%i_UNREAD" = "ที่ยังไม่อ่าน %i รายการถัดไป";
 "REMOVE" = "นำออก";
 "REMOVE_DOWNLOADS" = "ล้างการดาวน์โหลด";
 "REMOVE_DOWNLOADS_CONFIRM" = "ล้างทุกการดาวน์โหลดที่เลือกหรือไม่?";

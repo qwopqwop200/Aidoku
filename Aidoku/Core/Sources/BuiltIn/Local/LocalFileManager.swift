@@ -26,7 +26,7 @@ actor LocalFileManager {
     private var scanTask: Task<Void, Never>?
 
     static let allowedFileExtensions = Set(["cbz", "zip"])
-    static let allowedImageExtensions = Set(["jpg", "jpeg", "png", "webp", "gif", "heic", "avif"])
+    static let allowedImageExtensions = Set(["jpg", "jpeg", "png", "webp", "gif", "heic", "avif", "jxl"])
     static let allowedTextExtensions = Set(["txt", "md"])
     static let allowedPageExtensions = allowedImageExtensions.union(allowedTextExtensions)
 
@@ -438,6 +438,8 @@ extension LocalFileManager {
         } else {
             chapter
         }
+        let volume = volume ?? comicInfo?.volume.map { Float($0) }
+            ?? LocalFileNameParser.getMangaVolumeNumber(from: url.lastPathComponent)
 
         let destURL: URL
 

@@ -181,8 +181,11 @@ extension MangaManager {
         // add enhanced trackers
         await TrackerManager.shared.bindEnhancedTrackers(manga: manga)
 
-        NotificationCenter.default.post(name: .addToLibrary, object: manga.identifier)
-        NotificationCenter.default.post(name: .updateLibrary, object: nil)
+        let mangaId = manga.identifier
+        await MainActor.run {
+            NotificationCenter.default.post(name: .addToLibrary, object: mangaId)
+            NotificationCenter.default.post(name: .updateLibrary, object: nil)
+        }
     }
 
     func removeFromLibrary(mangaId: MangaIdentifier) async {
@@ -200,9 +203,11 @@ extension MangaManager {
             }
         }
         guard saved else { return }
-        NotificationCenter.default.post(name: .removeFromLibrary, object: mangaId)
-        NotificationCenter.default.post(name: .updateLibrary, object: nil)
-        NotificationCenter.default.post(name: .updateTrackers, object: nil)
+        await MainActor.run {
+            NotificationCenter.default.post(name: .removeFromLibrary, object: mangaId)
+            NotificationCenter.default.post(name: .updateLibrary, object: nil)
+            NotificationCenter.default.post(name: .updateTrackers, object: nil)
+        }
     }
 
     func removeFromLibrary(mangaIds: [MangaIdentifier]) async {
@@ -224,11 +229,13 @@ extension MangaManager {
             await UIApplication.shared.appDelegate?.hideLoadingIndicator()
             return
         }
-        for id in mangaIds {
-            NotificationCenter.default.post(name: .removeFromLibrary, object: id)
+        await MainActor.run {
+            for id in mangaIds {
+                NotificationCenter.default.post(name: .removeFromLibrary, object: id)
+            }
+            NotificationCenter.default.post(name: .updateLibrary, object: nil)
+            NotificationCenter.default.post(name: .updateTrackers, object: nil)
         }
-        NotificationCenter.default.post(name: .updateLibrary, object: nil)
-        NotificationCenter.default.post(name: .updateTrackers, object: nil)
         await UIApplication.shared.appDelegate?.hideLoadingIndicator()
     }
 
@@ -806,6 +813,24 @@ extension MangaManager {
     }
 
     func resetCover(manga: AidokuRunner.Manga) async -> String? {
+        var cover: String?
+        defer {
+            // a cancelled reset must not clear the stored cover
+            if !Task.isCancelled {
+                // set new cover and get old cover url
+                let originalCover = await CoreDataManager.shared.setCover(
+                    mangaId: manga.identifier,
+                    coverUrl: cover,
+                    original: true
+                )
+
+                // if the original cover is an aidoku image, remove it
+                if originalCover != cover, let originalCover, let url = URL(string: originalCover)?.toAidokuFileUrl() {
+                    url.removeItem()
+                }
+            }
+        }
+
         guard let source = await SourceManager.shared.source(for: manga.sourceKey) else { return nil }
 
         // fetch new manga details (for cover)
@@ -815,19 +840,7 @@ extension MangaManager {
             needsChapters: false
         )
 
-        guard let cover = newManga?.cover else { return nil }
-
-        // set new cover and get old cover url
-        let originalCover = await CoreDataManager.shared.setCover(
-            mangaId: manga.identifier,
-            coverUrl: cover,
-            original: true
-        )
-
-        // if the original cover is an aidoku image, remove it
-        if originalCover != cover, let originalCover, let url = URL(string: originalCover)?.toAidokuFileUrl() {
-            url.removeItem()
-        }
+        cover = newManga?.cover
 
         return cover
     }
@@ -967,6 +980,19 @@ extension MangaManager {
                     mangaObjectToUpdate?.load(from: newManga)
                 }
 
+                // copy categories
+                if copy {
+                    let categories = CoreDataManager.shared.getCategories(
+                        mangaId: oldManga.identifier,
+                        context: context
+                    )
+                    CoreDataManager.shared.addCategoriesToManga(
+                        mangaId: newManga.identifier,
+                        categories: categories,
+                        context: context
+                    )
+                }
+
                 // migrate history
                 let storedOldHistory = CoreDataManager.shared.getHistoryForManga(
                     mangaId: oldManga.identifier,
@@ -974,10 +1000,15 @@ extension MangaManager {
                 )
 
                 var maxChapterRead = storedOldHistory
-                    .filter { $0.completed }
-                    .compactMap { $0.chapter?.chapter != nil ? $0.chapter : nil }
-                    .max { $0.chapter!.decimalValue < $1.chapter!.decimalValue }?
-                    .chapter?.floatValue
+                    .compactMap { history -> NSNumber? in
+                        if history.completed, let chapterNum = history.chapter?.chapter {
+                            return chapterNum
+                        } else {
+                            return nil
+                        }
+                    }
+                    .max { $0.decimalValue < $1.decimalValue }?
+                    .floatValue
 
                 if maxChapterRead == nil || maxChapterRead == -1 {
                     // try finding max volume read instead, in case of no chapters
@@ -1081,9 +1112,16 @@ extension MangaManager {
             }
         }
 
-        // remove old item from library
-        if copy && forceRemoveFromLibrary && result != nil {
-            await shared.removeFromLibrary(mangaId: oldManga.identifier)
+        if copy && result != nil {
+            // remove old item from library
+            if forceRemoveFromLibrary {
+                await shared.removeFromLibrary(mangaId: oldManga.identifier)
+            } else {
+                // categories were copied; refresh library to show the new entry
+                await MainActor.run {
+                    NotificationCenter.default.post(name: .updateLibrary, object: nil)
+                }
+            }
         }
 
         return result

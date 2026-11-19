@@ -15,6 +15,8 @@
 
 // Downloads
 "DOWNLOAD" = "Downloaden";
+"NEXT_UNREAD" = "Volgende ongelezen";
+"NEXT_%i_UNREAD" = "Volgende %i ongelezen";
 "DOWNLOAD_QUEUE" = "Downloadwachtrij";
 "CANCEL_DOWNLOAD" = "Annuleer download";
 "REMOVE_ALL_DOWNLOADS" = "Verwijder alle downloads";

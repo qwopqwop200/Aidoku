@@ -13,6 +13,8 @@
 
 // Downloads
 "DOWNLOAD" = "ڈاؤنلوڈ";
+"NEXT_UNREAD" = "اگلا نہ پڑھا ہوا";
+"NEXT_%i_UNREAD" = "اگلے %i نہ پڑھے ہوئے";
 "DOWNLOADED" = "ڈاؤنلوڈڈ";
 "DOWNLOAD_QUEUE" = "ڈاؤنلوڈز کی قطار";
 "CANCEL_DOWNLOAD" = "ڈاؤنلوڈ کرنا ختم کردیں";

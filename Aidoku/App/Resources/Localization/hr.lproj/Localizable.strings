@@ -13,6 +13,8 @@
 
 // Downloads
 "DOWNLOAD" = "Preuzmi";
+"NEXT_UNREAD" = "Sljedeće nepročitano";
+"NEXT_%i_UNREAD" = "Sljedećih %i nepročitanih";
 "CANCEL" = "Otkaži";
 "UNKNOWN" = "Nepoznato";
 "DELETE" = "Izbriši";

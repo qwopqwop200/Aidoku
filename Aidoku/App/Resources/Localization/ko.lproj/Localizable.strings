@@ -34,6 +34,8 @@
 
 // Downloads
 "DOWNLOAD" = "내려받기";
+"NEXT_UNREAD" = "다음 읽지 않은 항목";
+"NEXT_%i_UNREAD" = "다음 읽지 않은 %i개";
 "DOWNLOADED" = "내려받음";
 "REMOVE_ALL_DOWNLOADS" = "내려받은 파일 모두 삭제";
 "DOWNLOAD_QUEUE" = "내려받기 대기열";

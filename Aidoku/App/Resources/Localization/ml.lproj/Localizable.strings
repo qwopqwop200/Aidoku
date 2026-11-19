@@ -13,6 +13,8 @@
 
 // Downloads
 "DOWNLOAD" = "ഡൗൺലോഡ്";
+"NEXT_UNREAD" = "അടുത്ത വായിക്കാത്തത്";
+"NEXT_%i_UNREAD" = "അടുത്ത %i വായിക്കാത്തവ";
 "DOWNLOADED" = "ഡൗൺലോഡ് ചെയ്തു";
 "OK" = "ശരി";
 "SHARE" = "പങ്കിടുക";

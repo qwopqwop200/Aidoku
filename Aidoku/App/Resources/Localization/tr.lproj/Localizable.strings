@@ -21,6 +21,8 @@
 
 // Downloads
 "DOWNLOAD" = "İndir";
+"NEXT_UNREAD" = "Sonraki okunmamış";
+"NEXT_%i_UNREAD" = "Sonraki %i okunmamış";
 "REMOVE_DOWNLOADS" = "İndirilenleri Kaldır";
 "CANCEL_DOWNLOAD" = "İndirmeyi iptal et";
 

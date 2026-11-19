@@ -204,6 +204,8 @@
 
 // Downloads
 "DOWNLOAD" = "Преузми";
+"NEXT_UNREAD" = "Следеће непрочитано";
+"NEXT_%i_UNREAD" = "Следећих %i непрочитаних";
 "DOWNLOADED" = "Преузето";
 "DOWNLOAD_QUEUE" = "Ред за преузимање";
 "CANCEL_DOWNLOAD" = "Откажи преузимање";

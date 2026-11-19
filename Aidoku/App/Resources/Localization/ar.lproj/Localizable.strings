@@ -137,6 +137,8 @@
 
 // Downloads
 "DOWNLOAD" = "تحميل";
+"NEXT_UNREAD" = "غير المقروء التالي";
+"NEXT_%i_UNREAD" = "%i غير مقروءة التالية";
 "DOWNLOADED" = "تم التنزيل";
 "CLEAR" = "مسح";
 "CANCEL_DOWNLOAD" = "إلغاء التنزيل";

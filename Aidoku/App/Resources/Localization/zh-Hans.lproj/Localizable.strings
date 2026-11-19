@@ -16,6 +16,8 @@
 
 // Downloads
 "DOWNLOAD" = "下载";
+"NEXT_UNREAD" = "下一个未读";
+"NEXT_%i_UNREAD" = "接下来 %i 个未读";
 "DOWNLOADED" = "已下载";
 "DOWNLOAD_QUEUE" = "下载队列";
 "CANCEL_DOWNLOAD" = "取消下载";

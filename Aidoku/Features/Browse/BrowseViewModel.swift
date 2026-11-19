@@ -133,12 +133,12 @@ class BrowseViewModel {
     func loadUpdates() {
         guard let appVersionString = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String else { return }
         let appVersion = SemanticVersion(appVersionString)
+        let installedSources = storedInstalledSources ?? installedSources
+        let pinnedSources = storedPinnedSources ?? pinnedSources
 
         // A reload during a search still needs to refresh the full update list.
-        let installed = storedInstalledSources ?? installedSources
-        let pinned = storedPinnedSources ?? pinnedSources
-        var installedVersions = Dictionary(installed.lazy.map { ($0.sourceId, $0.version) }, uniquingKeysWith: { first, _ in first })
-        installedVersions.merge(pinned.lazy.map { ($0.sourceId, $0.version) }, uniquingKeysWith: { first, _ in first })
+        var installedVersions = Dictionary(installedSources.lazy.map { ($0.sourceId, $0.version) }, uniquingKeysWith: { first, _ in first })
+        installedVersions.merge(pinnedSources.lazy.map { ($0.sourceId, $0.version) }, uniquingKeysWith: { first, _ in first })
         let updates = unfilteredExternalSources
             .compactMap { info -> SourceInfo? in
                 guard let version = installedVersions[info.id], info.version > version else { return nil }
@@ -165,9 +165,9 @@ class BrowseViewModel {
                 }
                 return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             }
-        if let query = query?.lowercased(), !query.isEmpty {
+        if storedUpdatesSources != nil {
             storedUpdatesSources = updates
-            updatesSources = updates.filter { $0.name.lowercased().contains(query) }
+            search(query: query)
         } else {
             updatesSources = updates
         }
@@ -187,10 +187,18 @@ class BrowseViewModel {
                 let storedUpdatesSources = storedUpdatesSources,
                 let storedPinnedSources = storedPinnedSources,
                 let storedInstalledSources = storedInstalledSources
-            else { return }
-            updatesSources = storedUpdatesSources.filter { $0.name.lowercased().contains(query) }
-            pinnedSources = storedPinnedSources.filter { $0.name.lowercased().contains(query) }
-            installedSources = storedInstalledSources.filter { $0.name.lowercased().contains(query) }
+            else {
+                return
+            }
+            func searchFilter(_ info: SourceInfo) -> Bool {
+                let fields: [String] = [info.name.lowercased()]
+                    + info.altNames.map({ $0.lowercased() })
+                    + info.urls.map({ $0.lowercased() })
+                return fields.contains { $0.contains(query) }
+            }
+            updatesSources = storedUpdatesSources.filter(searchFilter)
+            pinnedSources = storedPinnedSources.filter(searchFilter)
+            installedSources = storedInstalledSources.filter(searchFilter)
         } else {
             // reset search, restore source arrays
             if let storedUpdatesSources = storedUpdatesSources {

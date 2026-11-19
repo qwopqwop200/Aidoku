@@ -31,6 +31,7 @@ extension AidokuRunner.Source {
             sourceId: key,
             iconUrl: imageUrl,
             name: name,
+            urls: urls.map { $0.absoluteString },
             languages: languages,
             version: version,
             contentRating: contentRating,

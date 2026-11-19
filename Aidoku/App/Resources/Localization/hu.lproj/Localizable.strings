@@ -80,6 +80,8 @@
 
 // Downloads
 "DOWNLOAD" = "Letöltés";
+"NEXT_UNREAD" = "Következő olvasatlan";
+"NEXT_%i_UNREAD" = "Következő %i olvasatlan";
 "BUTTON_FILTER" = "Szűrés";
 "CATEGORY_ADD" = "Kategória hozzáadása";
 "CANCEL_DOWNLOAD" = "Letöltés megszakítása";

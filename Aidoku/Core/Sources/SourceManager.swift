@@ -52,16 +52,22 @@ actor SourceManager {
 
     // queue the loading of sources and source lists
     func start() {
+        startSourcesLoadIfNeeded()
+        startSourceListsReload()
+    }
+
+    private func startSourcesLoadIfNeeded() {
+        guard loadSourcesTask == nil else { return }
         loadSourcesTask = Task {
             await reloadSources()
         }
-        startSourceListsReload()
     }
 }
 
 // MARK: Source Loading
 extension SourceManager {
     func waitForSourcesLoad() async {
+        startSourcesLoadIfNeeded()
         await loadSourcesTask?.value
     }
 
@@ -493,6 +499,9 @@ extension SourceManager {
 
     /// Interactive import callers retain the typed rejection, including unsupported id/version.
     func importSourceValidated(from url: URL) async throws -> AidokuRunner.Source? {
+        // Imported sources must be registered after the initial load, or they won't be openable.
+        await waitForSourcesLoad()
+
         // download and unzip source aix
         guard let temporaryDirectory = FileManager.default.createTemporaryDirectory() else { return nil }
         defer { try? FileManager.default.removeItem(at: temporaryDirectory) }

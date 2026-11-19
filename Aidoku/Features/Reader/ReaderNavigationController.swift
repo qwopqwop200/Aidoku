@@ -90,6 +90,8 @@ private struct _SwiftUIReaderNavigationController: UIViewControllerRepresentable
     final class Coordinator {
         var nav: ReaderNavigationController?
         var reader: ReaderViewController?
+        // chapter key last set by swiftui
+        var chapterKey: String?
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -106,6 +108,7 @@ private struct _SwiftUIReaderNavigationController: UIViewControllerRepresentable
         let nav = ReaderNavigationController(readerViewController: reader)
         context.coordinator.reader = reader
         context.coordinator.nav = nav
+        context.coordinator.chapterKey = chapter.key
         return nav
     }
 
@@ -121,8 +124,12 @@ private struct _SwiftUIReaderNavigationController: UIViewControllerRepresentable
                 startPage: startPage
             )
             context.coordinator.reader = newReader
+            context.coordinator.chapterKey = chapter.key
             uiViewController.setViewControllers([newReader], animated: false)
         } else {
+            // updatePresentedChapter only follows chapters SwiftUI changed, keeping the reader
+            // on its current chapter when the series page refreshes.
+            context.coordinator.chapterKey = chapter.key
             reader.updatePresentedChapter(chapter, chapters: manga.chapters)
         }
     }

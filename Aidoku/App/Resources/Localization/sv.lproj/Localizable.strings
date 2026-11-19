@@ -221,6 +221,8 @@
 
 // Downloads
 "DOWNLOAD" = "Ladda ned";
+"NEXT_UNREAD" = "Nästa olästa";
+"NEXT_%i_UNREAD" = "Nästa %i olästa";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "Historiken kommer att tas bort för detta kapitel. Är du säker på att du vill fortsätta?";
 "BUTTON_FILTER" = "Filter";
 "MIGRATE_ONE_ITEM?" = "Överför 1 objekt?";

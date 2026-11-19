@@ -12,6 +12,8 @@
 
 // Downloads
 "DOWNLOAD" = "Завантажити";
+"NEXT_UNREAD" = "Наступне непрочитане";
+"NEXT_%i_UNREAD" = "Наступні %i непрочитані";
 "DOWNLOADED" = "Завантажено";
 "DOWNLOAD_QUEUE" = "Черга на завантаження";
 "REMOVE_DOWNLOAD" = "Видалити завантаження";

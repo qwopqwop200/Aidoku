@@ -112,6 +112,8 @@
 
 // Downloads
 "DOWNLOAD" = "הורד";
+"NEXT_UNREAD" = "הבא שלא נקרא";
+"NEXT_%i_UNREAD" = "%i הבאים שלא נקראו";
 "CANCEL_DOWNLOAD" = "בטל הורדה";
 "REMOVE_DOWNLOAD" = "מחק הורדה";
 "REMOVE_DOWNLOADS" = "מחק הורדות";

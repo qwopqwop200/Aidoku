@@ -22,6 +22,8 @@
 
 // Downloads
 "DOWNLOAD" = "Herunterladen";
+"NEXT_UNREAD" = "Nächste ungelesene";
+"NEXT_%i_UNREAD" = "Nächste %i ungelesene";
 "DOWNLOAD_QUEUE" = "Download-Warteschlange";
 "CANCEL_DOWNLOAD" = "Download abbrechen";
 "ADD_TO_LIBRARY" = "Zu Bibliothek hinzufügen";

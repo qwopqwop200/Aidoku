@@ -107,6 +107,8 @@
 
 // Downloads
 "DOWNLOAD" = "Elŝuti";
+"NEXT_UNREAD" = "Sekva nelegita";
+"NEXT_%i_UNREAD" = "Sekvaj %i nelegitaj";
 "DOWNLOADED" = "Elŝutita";
 "REMOVE_FROM_LIBRARY" = "Forigi el biblioteko";
 "LIST_HEADER" = "Listo";

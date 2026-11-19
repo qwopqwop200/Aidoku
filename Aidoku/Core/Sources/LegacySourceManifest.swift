@@ -8,6 +8,8 @@ struct LegacySourceManifest: Decodable {
         let name: String
         let version: Int
         let nsfw: Int?
+        let url: String?
+        let urls: [String]?
     }
     struct Language: Decodable {
         let code: String

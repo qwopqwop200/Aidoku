@@ -14,6 +14,8 @@
 "SHARE" = "Shpërndaje";
 "WARNING" = "Paralajmërim";
 "DOWNLOAD" = "Shkarko";
+"NEXT_UNREAD" = "I radhës i palexuar";
+"NEXT_%i_UNREAD" = "%i të radhës të palexuar";
 "DOWNLOADED" = "Të shkarkuara";
 "DOWNLOAD_QUEUE" = "Radha e shkarkimit";
 "REMOVE_DOWNLOAD" = "Hiqe shkarkimin";

@@ -257,7 +257,13 @@ extension MangaView.ViewModel {
     private func registerTrackingNotifications() {
         NotificationCenter.default.publisher(for: .syncTrackItem)
             .sink { [weak self] output in
-                guard let self, let item = output.object as? TrackItem else { return }
+                guard
+                    let self,
+                    let item = output.object as? TrackItem,
+                    item.mangaId == self.manga.identifier
+                else {
+                    return
+                }
                 Task { @MainActor in
                     await self.checkTrackerSync(item: item)
                 }
@@ -336,8 +342,11 @@ extension MangaView.ViewModel {
 
 extension MangaView.ViewModel {
     func checkForCategories() async {
-        hasCategories = await CoreDataManager.shared.container.performBackgroundTask { context in
+        let hasCategories = await CoreDataManager.shared.container.performBackgroundTask { context in
             !CoreDataManager.shared.getCategoryTitles(sorted: false, context: context).isEmpty
+        }
+        if self.hasCategories != hasCategories {
+            self.hasCategories = hasCategories
         }
     }
 
@@ -663,7 +672,9 @@ extension MangaView.ViewModel {
                 context: context
             )
         }
-        bookmarked = inLibrary
+        if bookmarked != inLibrary {
+            bookmarked = inLibrary
+        }
     }
 
     private func loadHistory(expectedRequestID: UUID? = nil) async {

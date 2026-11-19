@@ -11,6 +11,9 @@ import Foundation
 struct KavitaEmptyResponse: Decodable {}
 
 struct KavitaHelper: Sendable {
+    private static let fractionalFormatter = makeFormatter("yyyy-MM-dd'T'HH:mm:ss.SSSSSSS")
+    private static let wholeFormatter = makeFormatter("yyyy-MM-dd'T'HH:mm:ss")
+
     let sourceKey: String
     // Optional transport keeps cancellation/retry behavior testable without a server.
     var transport: (@Sendable (URLRequest) async throws -> (Data, URLResponse))?
@@ -123,19 +126,9 @@ struct KavitaHelper: Sendable {
             decoder.dateDecodingStrategy = .custom({ decoder in
                 let container = try decoder.singleValueContainer()
                 let string = try container.decode(String.self)
-                let formatter = DateFormatter()
-                formatter.timeZone = if #available(iOS 16.0, macOS 13.0, *) {
-                    .gmt
-                } else {
-                    .init(secondsFromGMT: 0)
-                }
-                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSSS"
-                var date = formatter.date(from: string)
-                if date == nil {
-                    formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-                    date = formatter.date(from: string)
-                }
-                return date ?? .distantPast
+                return Self.fractionalFormatter.date(from: string)
+                    ?? Self.wholeFormatter.date(from: string)
+                    ?? .distantPast
             })
             if let result = try? decoder.decode(T.self, from: data) as T? {
                 return result
@@ -244,6 +237,18 @@ struct KavitaHelper: Sendable {
         UserDefaults.standard.set(response.refreshToken, forKey: "\(sourceKey).refreshToken")
 
         return true
+    }
+
+    private static func makeFormatter(_ format: String) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = if #available(iOS 16.0, macOS 13.0, *) {
+            .gmt
+        } else {
+            .init(secondsFromGMT: 0)
+        }
+        formatter.dateFormat = format
+        return formatter
     }
 }
 

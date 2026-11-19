@@ -16,6 +16,8 @@
 
 // Downloads
 "DOWNLOAD" = "Tải";
+"NEXT_UNREAD" = "Chưa đọc tiếp theo";
+"NEXT_%i_UNREAD" = "%i chưa đọc tiếp theo";
 "DOWNLOADED" = "Đã tải về";
 "DOWNLOAD_QUEUE" = "Hàng đợi tải về";
 "CANCEL_DOWNLOAD" = "Huỷ tải về";

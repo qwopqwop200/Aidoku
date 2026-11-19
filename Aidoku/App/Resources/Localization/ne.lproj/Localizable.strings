@@ -115,6 +115,8 @@
 "WARNING" = "सावधान";
 "LOADING_ELLIPSIS" = "लोड हुँदै…";
 "DOWNLOAD" = "डाउनलोड";
+"NEXT_UNREAD" = "अर्को नपढिएको";
+"NEXT_%i_UNREAD" = "अर्को %i नपढिएका";
 "DOWNLOADED" = "डाउनलोड गरिएको";
 "CANCEL_DOWNLOAD" = "डाउनलोड रद्द गर्नुहोस्";
 "REMOVE_ALL_DOWNLOADS" = "सबै डाउनलोड हटाउनुहोस्";

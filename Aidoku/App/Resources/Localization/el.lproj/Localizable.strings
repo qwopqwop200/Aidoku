@@ -40,6 +40,8 @@
 
 // Downloads
 "DOWNLOAD" = "Λήψη";
+"NEXT_UNREAD" = "Επόμενο μη αναγνωσμένο";
+"NEXT_%i_UNREAD" = "Επόμενα %i μη αναγνωσμένα";
 "DOWNLOADED" = "Ληφθέν";
 "DOWNLOAD_QUEUE" = "Ουρά Λήψης";
 "CANCEL_DOWNLOAD" = "Ακύρωση Λήψης";

@@ -7,6 +7,8 @@
 
 // Downloads
 "DOWNLOAD" = "Scarica";
+"NEXT_UNREAD" = "Prossimo non letto";
+"NEXT_%i_UNREAD" = "Prossimi %i non letti";
 "DOWNLOADED" = "Scaricato";
 "DOWNLOAD_QUEUE" = "Coda dei Download";
 "REMOVE_DOWNLOADS_CONFIRM" = "Rimuovere tutti i download selezionati?";

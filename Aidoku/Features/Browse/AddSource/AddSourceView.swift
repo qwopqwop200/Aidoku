@@ -85,7 +85,9 @@ struct AddSourceView: View {
                             externalSources
                         } else {
                             externalSources.filter {
-                                $0.name.lowercased().contains(query) || $0.altNames.contains { $0.lowercased().contains(query) }
+                                $0.name.lowercased().contains(query)
+                                    || $0.altNames.contains { $0.lowercased().contains(query) }
+                                    || $0.urls.contains { $0.lowercased().contains(query) }
                             }
                         }
                         if filteredSources.isEmpty {

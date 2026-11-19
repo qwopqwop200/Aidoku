@@ -16,6 +16,8 @@
 
 // Downloads
 "DOWNLOAD" = "ჩამოტვირთვა";
+"NEXT_UNREAD" = "შემდეგი წაუკითხავი";
+"NEXT_%i_UNREAD" = "შემდეგი %i წაუკითხავი";
 "DOWNLOADED" = "ჩამოტვირთული";
 "DOWNLOAD_QUEUE" = "ჩამოტვირთვის რიგი";
 "REMOVE_DOWNLOAD" = "ჩამოტვირთვის წაშლა";

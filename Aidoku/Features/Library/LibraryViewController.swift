@@ -270,6 +270,22 @@ class LibraryViewController: OldMangaCollectionViewController {
     override func observe() {
         super.observe()
 
+        registerLibraryNotifications()
+        registerDownloadsNotifications()
+        registerSettingsNotifications()
+        registerHistoryNotifications()
+
+        // lock library when moving to background
+        addObserver(forName: UIApplication.willResignActiveNotification) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                self.viewModel.locked = self.viewModel.isCategoryLocked()
+                self.updateLockState()
+            }
+        }
+    }
+
+    private func registerDownloadsNotifications() {
         let checkNavbarDownloadButton: (Notification) -> Void = { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
@@ -307,13 +323,20 @@ class LibraryViewController: OldMangaCollectionViewController {
         }
         addObserver(forName: .downloadRemoved, using: updateDownloadCounts)
         addObserver(forName: .downloadsRemoved, using: updateDownloadCounts)
+    }
 
+    private func registerLibraryNotifications() {
         addObserver(forName: .updateLibrary) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
+                self.viewModel.reloadSettings()
                 await self.viewModel.loadLibrary()
                 self.updateEmptyStack()
                 self.updateDataSource()
+                self.updateMoreMenu()
+                if #available(iOS 26.0, *) {
+                    self.updateFilterMenuState()
+                }
             }
         }
         addObserver(forName: .updateLibraryLock) { [weak self] _ in
@@ -374,7 +397,16 @@ class LibraryViewController: OldMangaCollectionViewController {
                 self.updateDataSource()
             }
         }
+        addObserver(forName: .filteredChapters) { [weak self] notification in
+            guard let self, let id = notification.object as? MangaIdentifier else { return }
+            Task {
+                await self.viewModel.fetchUnreads(for: id)
+                self.updateDataSource()
+            }
+        }
+    }
 
+    private func registerSettingsNotifications() {
         addObserver(forName: AppSettings.library.pinTitles.key) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
@@ -383,7 +415,6 @@ class LibraryViewController: OldMangaCollectionViewController {
                 self.updateDataSource()
             }
         }
-
         let refreshBadges: (Notification) -> Void = { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
@@ -393,15 +424,9 @@ class LibraryViewController: OldMangaCollectionViewController {
         }
         addObserver(forName: AppSettings.library.unreadChapterBadges.key, using: refreshBadges)
         addObserver(forName: AppSettings.library.downloadedChapterBadges.key, using: refreshBadges)
-        addObserver(forName: .filteredChapters) { [weak self] notification in
-            guard let self, let id = notification.object as? MangaIdentifier else { return }
-            Task {
-                await self.viewModel.fetchUnreads(for: id)
-                self.updateDataSource()
-            }
-        }
+    }
 
-        // update history
+    private func registerHistoryNotifications() {
         addObserver(forName: .updateHistory) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
@@ -436,15 +461,6 @@ class LibraryViewController: OldMangaCollectionViewController {
                 if await self.viewModel.mangaRead(mangaId: item.chapterId.mangaIdentifier) {
                     self.updateDataSource()
                 }
-            }
-        }
-
-        // lock library when moving to background
-        addObserver(forName: UIApplication.willResignActiveNotification) { [weak self] _ in
-            guard let self else { return }
-            Task { @MainActor in
-                self.viewModel.locked = self.viewModel.isCategoryLocked()
-                self.updateLockState()
             }
         }
     }
@@ -1531,19 +1547,29 @@ extension LibraryViewController {
                 }
             }
 
-            let downloadUnreadAction = UIAction(title: NSLocalizedString("UNREAD")) { _ in
-                let downloadOnlyOnWifi = AppSettings.downloads.downloadOnlyOnWifi.get()
-                if downloadOnlyOnWifi && Reachability.getConnectionType() == .wifi || !downloadOnlyOnWifi  {
-                    Task {
-                        for manga in mangaInfo {
-                            await DownloadManager.shared.downloadUnread(manga: manga.toManga().toNew())
-                        }
-                    }
+            func downloadUnreadAction(limit: Int? = nil) -> UIAction {
+                let title = if limit == 1 {
+                    NSLocalizedString("NEXT_UNREAD")
                 } else {
-                    self.presentAlert(
-                        title: NSLocalizedString("NO_WIFI_ALERT_TITLE"),
-                        message: NSLocalizedString("NO_WIFI_ALERT_MESSAGE")
-                    )
+                    limit.map {
+                        String(format: NSLocalizedString("NEXT_%i_UNREAD"), $0)
+                    } ?? NSLocalizedString("UNREAD")
+                }
+
+                return UIAction(title: title) { _ in
+                    let downloadOnlyOnWifi = AppSettings.downloads.downloadOnlyOnWifi.get()
+                    if downloadOnlyOnWifi && Reachability.getConnectionType() == .wifi || !downloadOnlyOnWifi {
+                        Task {
+                            for manga in mangaInfo {
+                                await DownloadManager.shared.downloadUnread(manga: manga.toManga().toNew(), limit: limit)
+                            }
+                        }
+                    } else {
+                        self.presentAlert(
+                            title: NSLocalizedString("NO_WIFI_ALERT_TITLE"),
+                            message: NSLocalizedString("NO_WIFI_ALERT_MESSAGE")
+                        )
+                    }
                 }
             }
 
@@ -1554,7 +1580,13 @@ extension LibraryViewController {
                 bottomMenuChildren.append(UIMenu(
                     title: NSLocalizedString("DOWNLOAD"),
                     image: UIImage(systemName: "arrow.down.circle"),
-                    children: [downloadAllAction, downloadUnreadAction]
+                    children: [
+                        downloadUnreadAction(limit: 1),
+                        downloadUnreadAction(limit: 5),
+                        downloadUnreadAction(limit: 10),
+                        downloadUnreadAction(),
+                        downloadAllAction
+                    ]
                 ))
             }
 

@@ -21,6 +21,7 @@ class MangaCollectionViewController: BaseCollectionViewController {
 
     struct SkeletonView: View {
         let usesListLayout: Bool
+        let containerWidth: CGFloat
 
         var body: some View {
             if usesListLayout {
@@ -28,16 +29,26 @@ class MangaCollectionViewController: BaseCollectionViewController {
                     .redacted(reason: .placeholder)
                     .shimmering()
             } else {
-                HomeGridView.placeholder
+                GeometryReader { geometry in
+                    HomeGridView.placeholder(width: containerWidth, availableWidth: geometry.size.width)
+                }
             }
         }
     }
     lazy var skeletonViewController = {
-        let hostingController = UIHostingController(rootView: SkeletonView(usesListLayout: usesListLayout))
+        let hostingController = UIHostingController(rootView: SkeletonView(usesListLayout: usesListLayout, containerWidth: 0))
         hostingController.view.backgroundColor = .clear
         hostingController.view.clipsToBounds = false
         return hostingController
     }()
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+
+        let width = collectionView.bounds.width
+        guard skeletonViewController.parent != nil, skeletonViewController.rootView.containerWidth != width else { return }
+        skeletonViewController.rootView = SkeletonView(usesListLayout: usesListLayout, containerWidth: width)
+    }
 
     override func configure() {
         super.configure()
@@ -69,10 +80,10 @@ class MangaCollectionViewController: BaseCollectionViewController {
         skeletonViewController.view.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
-            errorView.topAnchor.constraint(equalTo: view.topAnchor),
-            errorView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            errorView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            errorView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            errorView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            errorView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            errorView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
+            errorView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
 
             skeletonViewController.view.topAnchor.constraint(equalTo: collectionView.safeAreaLayoutGuide.topAnchor),
             skeletonViewController.view.bottomAnchor.constraint(equalTo: collectionView.bottomAnchor),

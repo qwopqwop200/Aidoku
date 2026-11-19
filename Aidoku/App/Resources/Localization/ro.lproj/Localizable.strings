@@ -15,6 +15,8 @@
 
 // Downloads
 "DOWNLOAD" = "Descarcă";
+"NEXT_UNREAD" = "Următorul necitit";
+"NEXT_%i_UNREAD" = "Următoarele %i necitite";
 "DOWNLOADED" = "Descărcat";
 "DOWNLOAD_QUEUE" = "Coadă de descărcări";
 "CANCEL_DOWNLOAD" = "Anulează descărcarea";
