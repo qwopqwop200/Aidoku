@@ -18,6 +18,8 @@ import UniformTypeIdentifiers
 //   --replay-fill-unmatched    replay: give blocks with no legacy counterpart a synthetic Korean
 //                              placeholder of similar length so S6-S10 exercise every block
 //   --no-png                   skip final PNG encoding
+//   --translate-delay-ms N     replay: hold S5 for N ms (models a live LLM wait; no CPU used)
+//   --writers N                concurrent PNG/JSON writers off the page slots (default 2)
 // Live LLM translation is intentionally not wired in this host yet.
 
 struct V2HostError: Error, CustomStringConvertible {
@@ -34,6 +36,8 @@ struct V2HostOptions {
     var writePNG = true
     var split: String?
     var limit: Int?
+    var translateDelay: UInt64 = 0
+    var writers = 2
 }
 
 @main
@@ -70,6 +74,8 @@ enum V2Main {
             case "--limit": options.limit = Int(try value(argument))
             case "--no-png": options.writePNG = false
             case "--replay-fill-unmatched": options.fillUnmatched = true
+            case "--translate-delay-ms": options.translateDelay = UInt64(max(0, Int(try value(argument)) ?? 0))
+            case "--writers": options.writers = max(1, Int(try value(argument)) ?? 2)
             default:
                 guard !argument.hasPrefix("--") else { throw V2HostError("unknown option \(argument)") }
                 options.images += try expand(argument)
@@ -218,14 +224,19 @@ enum V2Main {
 
         let loadStart = DispatchTime.now().uptimeNanoseconds
         let bundle = try prepareBundle(root: root, cache: cache)
-        let models = try V2Models.load(bundle: bundle)
+        // AIDOKU_V2_DETECTORS / AIDOKU_V2_INPAINTERS override the resident pool sizes (default 2/2).
+        let pool = { (name: String) in max(1, Int(environment[name] ?? "") ?? 2) }
+        let models = try V2Models.load(bundle: bundle, detectorInstances: pool("AIDOKU_V2_DETECTORS"),
+                                       inpainterInstances: pool("AIDOKU_V2_INPAINTERS"))
         try await models.warmUp()
         let loadMilliseconds = V2Pipeline.milliseconds(since: loadStart)
         log("Models resident in \(Int(loadMilliseconds)) ms; \(options.images.count) page(s), jobs \(options.jobs)")
 
         let replay = try options.replay.map { try V2TranslationReplay(root: $0) }
         let fillUnmatched = options.fillUnmatched
+        let delay = options.translateDelay
         let translator: V2Translator = { page, blocks in
+            if delay > 0 { try await Task.sleep(nanoseconds: delay * 1_000_000) }
             guard let replay else { return blocks }
             let matched = V2TranslationReplay.apply(replay.entries(pageID: page.id) ?? [], to: blocks)
             guard fillUnmatched else { return matched }
@@ -242,8 +253,11 @@ enum V2Main {
 
         let runStart = DispatchTime.now().uptimeNanoseconds
         var records: [PageRecord] = []
-        let writer = V2SerialExecutor(label: "Aidoku.V2.Writer")
-        try await withThrowingTaskGroup(of: PageRecord.self) { group in
+        // PNG/JSON writes run on their own executors, so a finished page frees its slot at once.
+        let writers = V2InstancePool((0..<options.writers).map { V2SerialExecutor(label: "Aidoku.V2.Writer\($0)") })
+        var writes: [Task<Double, Error>] = []
+        var writeMilliseconds: [String: Double] = [:]
+        try await withThrowingTaskGroup(of: (PageRecord, CGImage?).self) { group in
             var next = 0
             func submit() {
                 guard next < options.images.count else { return }
@@ -252,8 +266,8 @@ enum V2Main {
                 group.addTask {
                     let image: CGImage
                     do { image = try loadImage(item.path) } catch {
-                        return PageRecord(pageID: item.id, image: item.path, width: 0, height: 0, blocks: [], placed: [],
-                                          timings: [:], failure: "load: \(error)")
+                        return (PageRecord(pageID: item.id, image: item.path, width: 0, height: 0, blocks: [], placed: [],
+                                           timings: [:], failure: "load: \(error)"), nil)
                     }
                     let page = V2Page(id: item.id, image: image)
                     let result = await V2Pipeline.run(page, models: models, translate: translator)
@@ -272,33 +286,35 @@ enum V2Main {
                         record.replaySyntheticBlocks = result.blocks.filter { $0.translation != nil && !legacyIDs.contains($0.id) }
                             .map(\.id)
                     }
-                    // Encoding/writing stays off the per-page critical path measured above.
-                    let encodesPNG = options.writePNG
-                    let finalImage = result.output
-                    let pageRecord = record
-                    let written = try await writer.run { () -> Double in
-                        let start = DispatchTime.now().uptimeNanoseconds
-                        let encoder = JSONEncoder()
-                        encoder.outputFormatting = [.sortedKeys]
-                        try encoder.encode(pageRecord).write(to: pagesDirectory.appendingPathComponent(item.id + ".json"))
-                        if encodesPNG, let finalImage {
-                            try writePNG(finalImage, to: pagesDirectory.appendingPathComponent(item.id + ".png"))
-                        }
-                        return V2Pipeline.milliseconds(since: start)
-                    }
-                    record.writeMilliseconds = written
-                    return record
+                    return (record, result.output)
                 }
             }
             for _ in 0..<options.jobs { submit() }
-            while let record = try await group.next() {
+            while let (record, finalImage) = try await group.next() {
                 records.append(record)
+                let encodesPNG = options.writePNG
+                writes.append(Task.detached(priority: .utility) {
+                    try await writers.with { writer in
+                        try await writer.run { () -> Double in
+                            let start = DispatchTime.now().uptimeNanoseconds
+                            let encoder = JSONEncoder()
+                            encoder.outputFormatting = [.sortedKeys]
+                            try encoder.encode(record).write(to: pagesDirectory.appendingPathComponent(record.pageID + ".json"))
+                            if encodesPNG, let finalImage {
+                                try writePNG(finalImage, to: pagesDirectory.appendingPathComponent(record.pageID + ".png"))
+                            }
+                            return V2Pipeline.milliseconds(since: start)
+                        }
+                    }
+                })
                 let total = record.timings[V2Pipeline.Stage.nonLLM] ?? 0
                 log("[\(records.count)/\(options.images.count)] \(record.pageID) blocks \(record.blocks.count) "
                     + "non-LLM \(Int(total)) ms" + (record.failure.map { " FAIL \($0)" } ?? ""))
                 submit()
             }
         }
+        let pagesWall = V2Pipeline.milliseconds(since: runStart)
+        for (record, write) in zip(records, writes) { writeMilliseconds[record.pageID] = try await write.value }
         let wall = V2Pipeline.milliseconds(since: runStart)
 
         var stages: [String: [String: Double]] = [:]
@@ -318,6 +334,9 @@ enum V2Main {
             "modelLoadMilliseconds": loadMilliseconds,
             "modelLoadByModel": models.loadMilliseconds,
             "runWallMilliseconds": wall,
+            "pagesWallMilliseconds": pagesWall,
+            "writeMilliseconds": ["median": percentile(Array(writeMilliseconds.values), 0.5),
+                                  "p90": percentile(Array(writeMilliseconds.values), 0.9)],
             "throughputPagesPerSecond": Double(records.count) / max(wall / 1000, 0.001),
             "stageMilliseconds": stages,
             "stubs": V2HostStubs.active,

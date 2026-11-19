@@ -67,9 +67,18 @@ memory warnings; S5 uses the live `RemoteTranslationClient` through
 settings). The rendered page is cached under `v2-<version>-` keys (image as
 `.layout`, blocks as `.translation`) and presented by `ReaderTranslationPage.processV2`
 through the cached-page canvas; the legacy session stays off in V2 mode.
-Compute admission is split: S1-S4 and S8/S6-S10 each take a priority-ordered
-slot (2 each, visible before look-ahead) and no slot is held during the
-provider wait. The coordinator pre-translates the next 1-2 pages with the
+Compute admission is split: S1-S4 and the back work each take a priority-ordered
+slot (2 each, visible before look-ahead) and no slot is held while merely
+waiting for the provider. S8, S6 and S7 read no translation text, so
+`V2Pipeline` starts them right after S4 (on the blocks predicted to be painted:
+replayed or language-eligible, non-background) and they run during the provider
+call under their own back slot; only S9/S10 wait for S5. If S5 paints a
+different block set, S6/S7 are recomputed after S5 (`speculation_miss`), so
+output never depends on the overlap. The page is decoded once: for an opaque
+sRGB page the detector/recognizer RGBA frame is also the S1/S6/S7 raster
+(`decode_conversions` = 1). The page JPEG is only encoded when the page image
+is sent (concurrently with S1-S4), and the disk-cache JPEG is written after the
+page is returned. The coordinator pre-translates the next 1-2 pages with the
 legacy look-ahead policy (pretranslation limit, background-only mode); a page
 that becomes visible joins and promotes its running look-ahead. Blocks pass the
 legacy source-language rule (manga recognizer, plus Han-only recall) before S5.
@@ -103,3 +112,24 @@ The training/fitting scripts that generated `V2RemovalMaskWeights.swift` and
 `V2StyleParameters.swift`, and the per-stage experiment reports, are kept outside
 the repository (they depend on private page data). `Scripts/v2/eval.py` scores a
 V2 run against the GT split.
+
+## Speed pass (output byte-identical)
+
+Six per-stage optimizations; on all 179 dev pages the page JSON (excluding
+timings) and final PNG bytes are identical to the previous V2 build. Idle Mac,
+`--jobs 3`, interleaved old/new runs (medians, ms):
+
+| Stage | Before | After | Change |
+|---|---|---|---|
+| S2 detect | 171 | 115 | MLMultiArray input, geometry-only postprocess |
+| S3 recognize | 64 | 52 | more resident handles on Mac (iOS unchanged) |
+| S6 mask | 83 (p90 233) | 50 (p90 165) | scratch reuse, direct features, threaded large blocks |
+| S8 style | 20 | 17 | per-cluster loops over member pixels |
+| S10 paint | 15 | 6 | row-copied background, cached fonts, parallel disjoint items |
+| S1 layout | 108 | 145 | mask output skipped; slower here under the extra GPU/CPU concurrency |
+| S7 inpaint | 261 | 288 | parallel scatter; same contention |
+| Replay wall, 179 pages | 45.6 s | 38.1 s | 1.2x throughput |
+
+The bigger user-visible change is scheduling: S6/S7/S8 start right after S4 and
+run during the LLM call. With a modeled 1.5 s LLM call, non-LLM time left on the
+critical path is **207 ms median / 279 ms p90** (was ~640 / ~880).

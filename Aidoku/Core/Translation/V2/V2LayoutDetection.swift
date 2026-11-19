@@ -10,6 +10,9 @@ import Foundation
 // ranking with per-class floors, 162x162 instance-mask logits sampled
 // bilinearly (logit > 0). The legacy actor's caches, raw-cache policy,
 // semantic grids and support grids are not needed by V2 and are omitted.
+// No V2 stage reads region masks, so `detect` neither reads the 31 MB mask
+// output (Core ML materializes it lazily) nor samples it; `decode` keeps the
+// mask path for callers that ask for it.
 
 @available(iOS 18.0, macOS 15.0, *)
 final class V2RFDETRModel: @unchecked Sendable {
@@ -29,7 +32,8 @@ final class V2RFDETRModel: @unchecked Sendable {
     struct RawOutput: @unchecked Sendable {
         let boxes: MLMultiArray
         let logits: MLMultiArray
-        let masks: MLMultiArray
+        /// Nil when predicted with `masks: false`.
+        let masks: MLMultiArray?
     }
 
     let model: MLModel
@@ -50,9 +54,15 @@ final class V2RFDETRModel: @unchecked Sendable {
         }
     }
 
-    /// Synchronous inference; call through `executor`.
-    func predict(_ raster: V2PageRaster) throws -> RawOutput {
-        let input = try Self.preprocess(raster)
+    /// Model-owned input tensor, refilled for every page (calls are serialized by `executor`).
+    private var input: MLMultiArray?
+
+    /// Synchronous inference; call through `executor`. Pass `masks: false` when the
+    /// instance masks are not needed (the output is then not validated or read).
+    func predict(_ raster: V2PageRaster, masks: Bool = true) throws -> RawOutput {
+        let input = try self.input ?? Self.makeInput()
+        self.input = input
+        Self.preprocess(raster, into: input)
         let provider = try MLDictionaryFeatureProvider(dictionary: ["image": MLFeatureValue(multiArray: input)])
         let output = try model.prediction(from: provider)
         func array(_ name: String, _ shape: [Int]) throws -> MLMultiArray {
@@ -62,81 +72,89 @@ final class V2RFDETRModel: @unchecked Sendable {
             }
             return value
         }
+        let maskShape = [1, Self.queries, Self.maskSide, Self.maskSide]
         return RawOutput(boxes: try array("boxes", [1, Self.queries, 4]),
                          logits: try array("logits", [1, Self.queries, Self.classes]),
-                         masks: try array("instance_masks", [1, Self.queries, Self.maskSide, Self.maskSide]))
+                         masks: masks ? try array("instance_masks", maskShape) : nil)
     }
 
-    private struct Filter { let first: Int; let weights: [Float] }
+    /// Flattened per-output-pixel filter taps: output `i` reads source
+    /// `first[i] ..< first[i] + count[i]` with `weights[offset[i]...]`.
+    private struct Taps {
+        var first: [Int] = [], count: [Int] = [], offset: [Int] = [], weights: [Float] = []
 
-    /// PyTorch CPU bilinear antialias separable triangle filter (legacy copy).
-    private static func filters(source: Int, target: Int) -> [Filter] {
-        let scale = Float(source) / Float(target)
-        let support = max(scale, 1), inverse = 1 / support
-        return (0..<target).map { i in
-            let center = scale * (Float(i) + 0.5)
-            let first = max(0, Int(center - support + 0.5))
-            let end = min(source, Int(center + support + 0.5))
-            var weights = (first..<end).map { j in max(0, 1 - abs((Float(j) + 0.5 - center) * inverse)) }
-            let sum = weights.reduce(Float(0), +)
-            for j in weights.indices { weights[j] /= sum }
-            return Filter(first: first, weights: weights)
+        /// PyTorch CPU bilinear antialias separable triangle filter (legacy copy).
+        init(source: Int, target: Int) {
+            let scale = Float(source) / Float(target)
+            let support = max(scale, 1), inverse = 1 / support
+            for i in 0..<target {
+                let center = scale * (Float(i) + 0.5)
+                let lower = max(0, Int(center - support + 0.5))
+                let end = min(source, Int(center + support + 0.5))
+                var taps = (lower..<end).map { j in max(0, 1 - abs((Float(j) + 0.5 - center) * inverse)) }
+                let sum = taps.reduce(Float(0), +)
+                for j in taps.indices { taps[j] /= sum }
+                first.append(lower)
+                count.append(taps.count)
+                offset.append(weights.count)
+                weights += taps
+            }
         }
     }
+
+    /// Byte -> Float(byte) / 255, exactly as the legacy per-pixel division.
+    private static let unit: [Float] = (0..<256).map { Float($0) / 255 }
 
     private struct ResizeKernel: @unchecked Sendable {
         let source: UnsafePointer<UInt8>
         let output: UnsafeMutablePointer<Float>
         let sourceWidth: Int
-        let horizontal: [Filter]
-        let vertical: [Filter]
+        let horizontal: Taps
+        let vertical: Taps
 
-        // Same per-row horizontal pass, vertical accumulation order and
-        // normalization as the legacy kernel; reads RGBA instead of packed RGB.
+        // Same arithmetic, accumulation order and normalization as the legacy
+        // kernel (per-row horizontal pass, then vertical accumulation from 0);
+        // the horizontal rows of one band live in one contiguous scratch buffer.
         func write(rows outputRows: Range<Int>) {
-            let side = V2RFDETRModel.side
-            var rows: [Int: [Float]] = [:]
-            var normalized = [Float](repeating: 0, count: sourceWidth * 3)
-            for y in outputRows {
-                let filter = vertical[y]
-                let required = filter.first..<(filter.first + filter.weights.count)
-                rows = rows.filter { required.contains($0.key) }
-                for row in required where rows[row] == nil {
-                    var resized = [Float](repeating: 0, count: side * 3)
-                    normalized.withUnsafeMutableBufferPointer { buffer in
-                        let values = buffer.baseAddress!
+            let side = V2RFDETRModel.side, plane = side * side
+            guard let firstRow = outputRows.first.map({ vertical.first[$0] }),
+                  let lastRow = outputRows.last.map({ vertical.first[$0] + vertical.count[$0] }) else { return }
+            let rowCount = lastRow - firstRow
+            let scratch = UnsafeMutablePointer<Float>.allocate(capacity: rowCount * 3 * side)
+            defer { scratch.deallocate() }
+            V2RFDETRModel.unit.withUnsafeBufferPointer { unitBuffer in
+                horizontal.weights.withUnsafeBufferPointer { weightBuffer in
+                    let unit = unitBuffer.baseAddress!, weights = weightBuffer.baseAddress!
+                    for row in firstRow..<lastRow {
                         let rowBytes = source + row * sourceWidth * 4
-                        for x in 0..<sourceWidth {
-                            values[x * 3] = Float(rowBytes[x * 4]) / 255
-                            values[x * 3 + 1] = Float(rowBytes[x * 4 + 1]) / 255
-                            values[x * 3 + 2] = Float(rowBytes[x * 4 + 2]) / 255
-                        }
+                        let resized = scratch + (row - firstRow) * 3 * side
                         for x in 0..<side {
-                            let filter = horizontal[x]
-                            let first = values + filter.first * 3
+                            let tap = weights + horizontal.offset[x]
+                            var pixel = rowBytes + horizontal.first[x] * 4
                             var red: Float = 0, green: Float = 0, blue: Float = 0
-                            for (j, weight) in filter.weights.enumerated() {
-                                red += first[j * 3] * weight
-                                green += first[j * 3 + 1] * weight
-                                blue += first[j * 3 + 2] * weight
+                            for j in 0..<horizontal.count[x] {
+                                let weight = tap[j]
+                                red += unit[Int(pixel[0])] * weight
+                                green += unit[Int(pixel[1])] * weight
+                                blue += unit[Int(pixel[2])] * weight
+                                pixel += 4
                             }
                             resized[x] = red
                             resized[side + x] = green
                             resized[2 * side + x] = blue
                         }
                     }
-                    rows[row] = resized
                 }
+            }
+            for y in outputRows {
+                let first = vertical.first[y], count = vertical.count[y], offset = vertical.offset[y]
                 for channel in 0..<3 {
-                    let channelOffset = channel * side
-                    let target = output + channel * side * side + y * side
-                    for x in 0..<side { target[x] = 0 }
-                    for j in filter.weights.indices {
-                        let weight = filter.weights[j]
-                        rows[filter.first + j]!.withUnsafeBufferPointer { row in
-                            let pixels = row.baseAddress! + channelOffset
-                            for x in 0..<side { target[x] += pixels[x] * weight }
-                        }
+                    let target = output + channel * plane + y * side
+                    target.initialize(repeating: 0, count: side)
+                    for j in 0..<count {
+                        let weight = vertical.weights[offset + j]
+                        let pixels = scratch + (first + j - firstRow) * 3 * side + channel * side
+                        for x in 0..<side { target[x] += pixels[x] * weight }
                     }
                     let mean = V2RFDETRModel.mean[channel], std = V2RFDETRModel.std[channel]
                     for x in 0..<side { target[x] = (target[x] - mean) / std }
@@ -145,11 +163,21 @@ final class V2RFDETRModel: @unchecked Sendable {
         }
     }
 
+    static func makeInput() throws -> MLMultiArray {
+        try MLMultiArray(shape: [1, 3, NSNumber(value: side), NSNumber(value: side)], dataType: .float32)
+    }
+
     static func preprocess(_ raster: V2PageRaster) throws -> MLMultiArray {
-        let result = try MLMultiArray(shape: [1, 3, NSNumber(value: side), NSNumber(value: side)], dataType: .float32)
+        let result = try makeInput()
+        preprocess(raster, into: result)
+        return result
+    }
+
+    /// Fills a contiguous [1, 3, side, side] Float32 tensor.
+    static func preprocess(_ raster: V2PageRaster, into result: MLMultiArray) {
         let output = result.dataPointer.assumingMemoryBound(to: Float.self)
-        let horizontal = filters(source: raster.width, target: side)
-        let vertical = filters(source: raster.height, target: side)
+        let horizontal = Taps(source: raster.width, target: side)
+        let vertical = Taps(source: raster.height, target: side)
         raster.rgba.withUnsafeBufferPointer { rgba in
             let kernel = ResizeKernel(source: rgba.baseAddress!, output: output, sourceWidth: raster.width,
                                       horizontal: horizontal, vertical: vertical)
@@ -159,7 +187,6 @@ final class V2RFDETRModel: @unchecked Sendable {
                 kernel.write(rows: start..<min(start + rowsPerBand, side))
             }
         }
-        return result
     }
 }
 
@@ -172,8 +199,9 @@ enum V2LayoutDetection {
     static func detect(_ raster: V2PageRaster, models: V2Models) async throws -> [V2LayoutRegion] {
         let model = models.layout
         return try await model.executor.run {
-            let raw = try model.predict(raster)
-            return try decode(raw, width: raster.width, height: raster.height)
+            // No V2 stage reads `V2LayoutRegion.mask`, so S1 skips mask sampling.
+            let raw = try model.predict(raster, masks: false)
+            return try decode(raw, width: raster.width, height: raster.height, masks: false)
         }
     }
 
@@ -192,14 +220,14 @@ enum V2LayoutDetection {
     }
 
     /// Pure decode of one RF-DETR output into page-pixel regions, ordered by
-    /// descending score. Each region's mask covers its integral bounds.
-    static func decode(_ raw: V2RFDETRModel.RawOutput, width: Int, height: Int) throws -> [V2LayoutRegion] {
+    /// descending score. With `masks`, each region's mask covers its integral
+    /// bounds; without, `mask` is nil and `raw.masks` is never read.
+    static func decode(_ raw: V2RFDETRModel.RawOutput, width: Int, height: Int,
+                       masks: Bool = true) throws -> [V2LayoutRegion] {
         let queries = V2RFDETRModel.queries, classes = V2RFDETRModel.classes, maskSide = V2RFDETRModel.maskSide
         let boxData = raw.boxes.dataPointer.assumingMemoryBound(to: Float.self)
         let logitData = raw.logits.dataPointer.assumingMemoryBound(to: Float.self)
-        let maskData = raw.masks.dataPointer.assumingMemoryBound(to: Float.self)
         let boxStride = raw.boxes.strides.map(\.intValue), logitStride = raw.logits.strides.map(\.intValue)
-        let maskStride = raw.masks.strides.map(\.intValue)
         let thresholds = V2RFDETRModel.thresholds
         let floor = thresholds.min() ?? 0
         var scores: [(flat: Int, confidence: Float)] = []
@@ -227,6 +255,13 @@ enum V2LayoutDetection {
                              width: CGFloat(v[2]) * CGFloat(width), height: CGFloat(v[3]) * CGFloat(height))
             let bounds = box.integral.intersection(page)
             guard !bounds.isNull, bounds.width >= 1, bounds.height >= 1 else { continue }
+            guard masks else {
+                regions.append(V2LayoutRegion(kind: kind, bounds: bounds, score: candidate.confidence, mask: nil))
+                continue
+            }
+            guard let maskArray = raw.masks else { throw V2RFDETRModel.Failure.modelContract("instance_masks") }
+            let maskData = maskArray.dataPointer.assumingMemoryBound(to: Float.self)
+            let maskStride = maskArray.strides.map(\.intValue)
             let plane = maskData + q * maskStride[1]
             let rowStride = maskStride[2], pixelStride = maskStride[3]
             let x0 = Int(bounds.minX), y0 = Int(bounds.minY), w = Int(bounds.width), h = Int(bounds.height)

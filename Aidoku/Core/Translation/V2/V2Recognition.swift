@@ -27,11 +27,16 @@ final class V2RecognitionEngine: @unchecked Sendable {
     static let maximumWidth = IPhoneOCRSettings.mangaMaximumRecognizerWidth
 
     /// Independent handles predict concurrently; each resident handle costs
-    /// about 180 MB on macOS (measured, widths up to 2400). Half the active
-    /// cores up to six on macOS; iOS keeps the legacy two, three on >= 7 GB.
+    /// about 180 MB on macOS (measured, widths up to 2400). A prediction keeps
+    /// about 1.2 cores busy, so on macOS every core but four (left to the other
+    /// stages of concurrent pages) gets a handle, at most ten (six below 16 GB):
+    /// on a 14-core M4 Pro with three pages in flight, ten handles cut the S3
+    /// median by about a quarter versus six without slowing other stages.
+    /// iOS keeps the legacy two, three on >= 7 GB.
     static var defaultHandleCount: Int {
 #if os(macOS)
-        min(6, max(2, ProcessInfo.processInfo.activeProcessorCount / 2))
+        min(ProcessInfo.processInfo.physicalMemory >= 16 * 1_024 * 1_024 * 1_024 ? 10 : 6,
+            max(2, ProcessInfo.processInfo.activeProcessorCount - 4))
 #else
         ProcessInfo.processInfo.physicalMemory >= 7 * 1_024 * 1_024 * 1_024
             ? min(3, max(2, ProcessInfo.processInfo.activeProcessorCount / 2)) : 2

@@ -113,10 +113,12 @@ do {
     if args.count >= 2, args[0] == "--pipeline", args[1] == "v2" {
         // Speed-first V2 pipeline (Docs/translation-v2.md): own module, own cache,
         // explicit legacy closure. Every Swift file in Translation/V2 is compiled.
-        let v2Cache = ProcessInfo.processInfo.environment["AIDOKU_V2_CACHE"]
+        var v2Cache = ProcessInfo.processInfo.environment["AIDOKU_V2_CACHE"]
             .flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, relativeTo: root).standardizedFileURL }
             ?? root.appendingPathComponent("build/image-translation-v2")
         try manager.createDirectory(at: v2Cache, withIntermediateDirectories: true)
+        // One canonical spelling (/tmp vs /private/tmp): clang modules record their cache path.
+        v2Cache = v2Cache.resolvingSymlinksInPath()
         let v2Lock = open(v2Cache.appendingPathComponent("build.lock").path, O_CREAT | O_RDWR, 0o600)
         guard v2Lock >= 0, flock(v2Lock, LOCK_EX) == 0 else { throw NSError(domain: "BuildLock", code: 2) }
         let v2Folder = sources.appendingPathComponent("V2")

@@ -81,4 +81,28 @@ struct V2StyleTests {
         let result = V2Style.estimate(page, blocks: [tiny])
         #expect(result.count == 1 && result[0].style != nil)
     }
+
+    @Test func squaredDistanceMatchesBruteForce() {
+        var state: UInt32 = 5
+        for (w, h) in [(1, 1), (1, 7), (8, 1), (19, 13)] {
+            for density: UInt32 in [0, 3, 50, 100] {
+                let target = (0..<(w * h)).map { _ -> Bool in
+                    state = state &* 1_664_525 &+ 1_013_904_223
+                    return (state >> 8) % 100 < density
+                }
+                let fast = V2StyleEstimator.squaredDistance(to: target, width: w, height: h)
+                for y in 0..<h {
+                    for x in 0..<w {
+                        var best = Int64(1) << 40
+                        for yy in 0..<h {
+                            for xx in 0..<w where target[yy * w + xx] {
+                                best = min(best, Int64((x - xx) * (x - xx) + (y - yy) * (y - yy)))
+                            }
+                        }
+                        #expect(Int64(fast[y * w + x]) == min(best, Int64(Int32.max)))
+                    }
+                }
+            }
+        }
+    }
 }

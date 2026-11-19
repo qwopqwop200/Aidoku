@@ -85,4 +85,71 @@ struct V2LayoutTests {
         #expect(inside > 0)
         #expect(outside == 0)
     }
+
+    private func rgba(_ image: CGImage) throws -> [UInt8] {
+        let space = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        var pixels = [UInt8](repeating: 0, count: image.width * image.height * 4)
+        let reader = try #require(CGContext(data: &pixels, width: image.width, height: image.height, bitsPerComponent: 8,
+                                            bytesPerRow: image.width * 4, space: space,
+                                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        reader.setBlendMode(.copy)
+        reader.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        return pixels
+    }
+
+    private func noisyRaster(width: Int, height: Int) -> V2PageRaster {
+        var bytes = [UInt8](repeating: 255, count: width * height * 4)
+        for index in 0..<(width * height) {
+            bytes[index * 4] = UInt8(truncatingIfNeeded: index &* 37)
+            bytes[index * 4 + 1] = UInt8(truncatingIfNeeded: index &* 11 &+ 7)
+            bytes[index * 4 + 2] = UInt8(truncatingIfNeeded: index / width &* 5)
+        }
+        return V2PageRaster(width: width, height: height, rgba: bytes)
+    }
+
+    @Test func independentGroupsSplitOnlyPixelDisjointClips() {
+        let clips = [CGRect(x: 0, y: 0, width: 10, height: 10), CGRect(x: 100, y: 0, width: 10, height: 10),
+                     CGRect(x: 10.5, y: 0, width: 10, height: 10), CGRect(x: 19, y: 0, width: 50, height: 5)]
+        // 0 and 2 share the guard pixel, 2 and 3 overlap: one chain, kept in paint order.
+        #expect(V2Painter.independentGroups(clips) == [[0, 2, 3], [1]])
+        #expect(V2Painter.independentGroups(clips + [.null]) == [[0, 1, 2, 3, 4]])
+        #expect(V2Painter.independentGroups([CGRect(x: 0, y: 0, width: 10, height: 10),
+                                             CGRect(x: 13, y: 13, width: 10, height: 10)]) == [[0], [1]])
+        #expect(V2Painter.independentGroups([]).isEmpty)
+    }
+
+    @Test func rasterBackgroundCopyEqualsDraw() throws {
+        let raster = noisyRaster(width: 37, height: 23)
+        let image = try raster.image()
+        let space = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        func context() throws -> CGContext {
+            try #require(CGContext(data: nil, width: 37, height: 23, bitsPerComponent: 8, bytesPerRow: 0, space: space,
+                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        }
+        let copied = try context(), drawn = try context()
+        #expect(V2Painter.copyPixels(of: image, into: copied))
+        drawn.draw(image, in: CGRect(x: 0, y: 0, width: 37, height: 23))
+        #expect(try rgba(#require(copied.makeImage())) == rgba(#require(drawn.makeImage())))
+        #expect(try rgba(#require(copied.makeImage())) == raster.rgba)
+        // Other formats keep the drawing path.
+        let gray = try #require(CGContext(data: nil, width: 37, height: 23, bitsPerComponent: 8, bytesPerRow: 0,
+                                          space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue))
+        #expect(!V2Painter.copyPixels(of: try #require(gray.makeImage()), into: try context()))
+    }
+
+    @Test func concurrentPaintEqualsOneItemAtATime() throws {
+        let size = 600
+        let background = try noisyRaster(width: size, height: size).image()
+        let blocks = [block(0, CGRect(x: 30, y: 30, width: 200, height: 120), "첫 번째 대사"),
+                      block(1, CGRect(x: 330, y: 30, width: 200, height: 120), "두 번째 대사"),
+                      block(2, CGRect(x: 30, y: 400, width: 500, height: 120), "세 번째 말풍선")]
+        let placed = V2Layout.place(blocks, pageSize: CGSize(width: size, height: size))
+        #expect(placed.count == 3)
+        #expect(V2Painter.independentGroups(placed.map { $0.frame.insetBy(dx: -2, dy: -2) }).count == 3)
+        var sequential = background
+        for item in placed { sequential = V2Painter.paint(background: sequential, blocks: blocks, placed: [item]) }
+        let together = V2Painter.paint(background: background, blocks: blocks, placed: placed)
+        #expect(try rgba(together) == rgba(sequential))
+        #expect(try rgba(together) != rgba(background))
+    }
 }

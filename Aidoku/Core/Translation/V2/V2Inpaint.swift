@@ -25,6 +25,9 @@ final class V2AOTModel: @unchecked Sendable {
     private let image: MLMultiArray
     private let mask: MLMultiArray
     private let provider: MLDictionaryFeatureProvider
+    /// Preallocated `raw_rgb` backing: Core ML writes the prediction here (no per-page output allocation).
+    private let output: MLMultiArray
+    private let options = MLPredictionOptions()
     /// Last restore's phase timings in ms (fill, predict, scatter); diagnostics only.
     private(set) var lastPhases: [Double] = [0, 0, 0]
 
@@ -41,6 +44,8 @@ final class V2AOTModel: @unchecked Sendable {
         guard image.strides.map(\.intValue) == [3_145_728, 1_048_576, 1024, 1],
               mask.strides.map(\.intValue) == [1_048_576, 1_048_576, 1024, 1] else { throw Failure.modelContract }
         provider = try MLDictionaryFeatureProvider(dictionary: ["masked_image": image, "mask": mask])
+        output = try MLMultiArray(shape: [1, 3, 1024, 1024], dataType: .float16)
+        options.outputBackings = ["raw_rgb": output]
     }
 
     /// Synchronous whole-page restore (legacy transport); call through `executor`.
@@ -53,26 +58,62 @@ final class V2AOTModel: @unchecked Sendable {
         return restored
     }
 
-    /// Restores one raster (page or crop) in place; only nonzero `removal` pixels change.
-    func restoreInPlace(_ raster: inout V2PageRaster, removal: [UInt8]) throws {
+    /// `restore` straight into the bytes of the returned image: one page copy
+    /// instead of two (raster copy + `image()` copy). Same pixels as
+    /// `try restore(raster, removal:).image()`.
+    func restoreImage(_ raster: V2PageRaster, removal: [UInt8]) throws -> CGImage {
+        guard removal.count == raster.width * raster.height else { throw Failure.maskSize }
         let width = raster.width, height = raster.height
-        let t0 = DispatchTime.now().uptimeNanoseconds
-        let content = Self.fill(rgba: raster.rgba, mask: removal, width: width, height: height,
-                                image: image, maskTensor: mask)
-        let t1 = DispatchTime.now().uptimeNanoseconds
-        let output = try autoreleasepool { try model.prediction(from: provider) }
-        let t2 = DispatchTime.now().uptimeNanoseconds
-        defer {
-            let t3 = DispatchTime.now().uptimeNanoseconds
-            lastPhases = [Double(t1 - t0) / 1e6, Double(t2 - t1) / 1e6, Double(t3 - t2) / 1e6]
+        var data = raster.rgba.withUnsafeBytes { Data($0) }
+        if removal.contains(where: { $0 != 0 }) {
+            let content = try predict(rgba: raster.rgba, removal: removal, width: width, height: height)
+            let t2 = DispatchTime.now().uptimeNanoseconds
+            try data.withUnsafeMutableBytes { bytes in
+                try Self.scatter(into: bytes.bindMemory(to: UInt8.self), mask: removal, width: width, height: height,
+                                 raw: output, content: content)
+            }
+            lastPhases[2] = Double(DispatchTime.now().uptimeNanoseconds - t2) / 1e6
         }
-        guard let raw = output.featureValue(for: "raw_rgb")?.multiArrayValue,
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let provider = CGDataProvider(data: data as CFData),
+              let image = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32,
+                bytesPerRow: width * 4, space: space,
+                bitmapInfo: CGBitmapInfo(rawValue: CGBitmapInfo.byteOrder32Big.rawValue
+                    | CGImageAlphaInfo.premultipliedLast.rawValue),
+                provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
+        else { throw V2PageRaster.Failure.invalidImage }
+        return image
+    }
+
+    /// Fill + prediction into `output`; records the fill/predict phases. Returns the content size.
+    private func predict(rgba: [UInt8], removal: [UInt8], width: Int, height: Int) throws -> (Int, Int) {
+        let t0 = DispatchTime.now().uptimeNanoseconds
+        let content = Self.fill(rgba: rgba, mask: removal, width: width, height: height, image: image, maskTensor: mask)
+        let t1 = DispatchTime.now().uptimeNanoseconds
+        let result = try autoreleasepool { try model.prediction(from: provider, options: options) }
+        let t2 = DispatchTime.now().uptimeNanoseconds
+        lastPhases = [Double(t1 - t0) / 1e6, Double(t2 - t1) / 1e6, 0]
+        // Core ML may decline the backing (then the returned array holds the prediction).
+        guard let raw = result.featureValue(for: "raw_rgb")?.multiArrayValue,
               raw.shape.map(\.intValue) == [1, 3, 1024, 1024], raw.dataType == .float16 else {
             throw Failure.modelContract
         }
-        try raster.rgba.withUnsafeMutableBufferPointer { pixels in
-            try Self.scatter(into: pixels, mask: removal, width: width, height: height, raw: raw, content: content)
+        if raw.dataPointer != output.dataPointer {
+            guard raw.strides == output.strides else { throw Failure.modelContract }
+            output.dataPointer.copyMemory(from: raw.dataPointer, byteCount: 3 * Self.side * Self.side * 2)
         }
+        return content
+    }
+
+    /// Restores one raster (page or crop) in place; only nonzero `removal` pixels change.
+    func restoreInPlace(_ raster: inout V2PageRaster, removal: [UInt8]) throws {
+        let width = raster.width, height = raster.height
+        let content = try predict(rgba: raster.rgba, removal: removal, width: width, height: height)
+        let t2 = DispatchTime.now().uptimeNanoseconds
+        try raster.rgba.withUnsafeMutableBufferPointer { pixels in
+            try Self.scatter(into: pixels, mask: removal, width: width, height: height, raw: output, content: content)
+        }
+        lastPhases[2] = Double(DispatchTime.now().uptimeNanoseconds - t2) / 1e6
     }
 
     /// Restores one window of the page: crop, native-resolution AOT when the
@@ -182,33 +223,61 @@ final class V2AOTModel: @unchecked Sendable {
     }
 
     /// Legacy `scatter`: bilinear restore of mask pixels only (RGBA, alpha untouched).
+    /// Rows run in parallel with the legacy per-pixel arithmetic (column taps precomputed).
     static func scatter(into restored: UnsafeMutableBufferPointer<UInt8>, mask: [UInt8], width w: Int, height h: Int,
                         raw: MLMultiArray, content: (Int, Int)) throws {
         let (sw, sh) = content
-        let strides = raw.strides.map(\.intValue), values = raw.dataPointer.assumingMemoryBound(to: Float16.self)
-        func sample(_ c: Int, _ x: Int, _ y: Int) -> Double {
-            Double((Float(values[c * strides[1] + y * strides[2] + x * strides[3]]) + 1) / 2)
+        let strides = raw.strides.map(\.intValue)
+        let channel = strides[1], rowStride = strides[2], columnStride = strides[3]
+        // Column taps: (x0, x1) offsets into a channel row and the weight, as in the per-pixel legacy loop.
+        var taps = [(Int, Int, Double)](repeating: (0, 0, 0), count: w)
+        for x in 0..<w {
+            let sx = min(Float(sw - 1), max(0, (Float(x) + 0.5) * Float(sw) / Float(w) - 0.5))
+            let x0 = Int(floor(sx)), x1 = min(sw - 1, x0 + 1)
+            taps[x] = (x0 * columnStride, x1 * columnStride, Double(sx) - Double(x0))
         }
-        for y in 0..<h {
-            let row = y * w
-            var first = 0
-            while first < w && mask[row + first] == 0 { first += 1 }
-            if first == w { continue }
-            let sy = min(Float(sh - 1), max(0, (Float(y) + 0.5) * Float(sh) / Float(h) - 0.5))
-            let y0 = Int(floor(sy)), y1 = min(sh - 1, y0 + 1), dy = Double(sy) - Double(y0)
-            for x in first..<w where mask[row + x] != 0 {
-                let sx = min(Float(sw - 1), max(0, (Float(x) + 0.5) * Float(sw) / Float(w) - 0.5))
-                let x0 = Int(floor(sx)), x1 = min(sw - 1, x0 + 1), dx = Double(sx) - Double(x0)
-                for c in 0..<3 {
-                    let top = sample(c, x0, y0) * (1 - dx) + sample(c, x1, y0) * dx
-                    let bottom = y1 == y0 ? top : sample(c, x0, y1) * (1 - dx) + sample(c, x1, y1) * dx
-                    let selected = top * (1 - dy) + bottom * dy
-                    guard selected.isFinite else { throw Failure.nonfinite }
-                    restored[(row + x) * 4 + c] = UInt8(floor(min(1, max(0, selected)) * 255 + 0.5))
+        nonisolated(unsafe) let values = UnsafePointer(raw.dataPointer.assumingMemoryBound(to: Float16.self))
+        nonisolated(unsafe) let target = restored.baseAddress!
+        var failed = false
+        mask.withUnsafeBufferPointer { maskBuffer in
+            taps.withUnsafeBufferPointer { tapBuffer in
+                nonisolated(unsafe) let masks = maskBuffer.baseAddress!
+                nonisolated(unsafe) let columns = tapBuffer.baseAddress!
+                @Sendable func rows(_ firstRow: Int, _ lastRow: Int) -> Bool {
+                    for y in firstRow..<lastRow {
+                        let row = y * w
+                        var first = 0
+                        while first < w && masks[row + first] == 0 { first += 1 }
+                        if first == w { continue }
+                        let sy = min(Float(sh - 1), max(0, (Float(y) + 0.5) * Float(sh) / Float(h) - 0.5))
+                        let y0 = Int(floor(sy)), y1 = min(sh - 1, y0 + 1), dy = Double(sy) - Double(y0)
+                        let top0 = y0 * rowStride, top1 = y1 * rowStride
+                        for x in first..<w where masks[row + x] != 0 {
+                            let (x0, x1, dx) = columns[x]
+                            for c in 0..<3 {
+                                let base = values + c * channel
+                                func sample(_ offset: Int) -> Double { Double((Float(base[offset]) + 1) / 2) }
+                                let top = sample(top0 + x0) * (1 - dx) + sample(top0 + x1) * dx
+                                let bottom = y1 == y0 ? top : sample(top1 + x0) * (1 - dx) + sample(top1 + x1) * dx
+                                let selected = top * (1 - dy) + bottom * dy
+                                guard selected.isFinite else { return false }
+                                target[(row + x) * 4 + c] = UInt8(floor(min(1, max(0, selected)) * 255 + 0.5))
+                            }
+                            target[(row + x) * 4 + 3] = 255
+                        }
+                    }
+                    return true
                 }
-                restored[(row + x) * 4 + 3] = 255
+                let lanes = h >= 64 ? 8 : 1
+                let lock = NSLock()
+                nonisolated(unsafe) var bad = false
+                DispatchQueue.concurrentPerform(iterations: lanes) { lane in
+                    if !rows(h * lane / lanes, h * (lane + 1) / lanes) { lock.lock(); bad = true; lock.unlock() }
+                }
+                failed = bad
             }
         }
+        if failed { throw Failure.nonfinite }
     }
 }
 
@@ -320,7 +389,18 @@ enum V2Inpaint {
     /// Restores `mask` (page-size, nonzero = erase) with AOT. Pixels outside the mask are unchanged.
     static func restore(_ page: V2Page, mask: [UInt8], models: V2Models) async throws -> CGImage {
         guard mask.contains(where: { $0 != 0 }) else { return page.image }
-        return try await restore(V2PageRaster(page.image), mask: mask, models: models).image()
+        return try await restoreImage(V2PageRaster(page.image), mask: mask, models: models)
+    }
+
+    /// `restore(raster, mask:, models:).image()` with one page copy in whole-page mode (same pixels).
+    static func restoreImage(_ raster: V2PageRaster, mask: [UInt8], models: V2Models,
+                             mode: Mode = V2Inpaint.mode) async throws -> CGImage {
+        guard mode == .wholePage else { return try await restore(raster, mask: mask, models: models, mode: mode).image() }
+        guard mask.count == raster.width * raster.height else { throw V2AOTModel.Failure.maskSize }
+        guard mask.contains(where: { $0 != 0 }) else { return try raster.image() }
+        return try await models.inpainters.with { model in
+            try await model.executor.run { try model.restoreImage(raster, removal: mask) }
+        }
     }
 
     static func restore(_ raster: V2PageRaster, mask: [UInt8], models: V2Models,

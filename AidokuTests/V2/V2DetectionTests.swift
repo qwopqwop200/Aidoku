@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreML
 import CoreText
 import Foundation
 import Testing
@@ -87,5 +88,28 @@ struct V2DetectionTests {
         #expect(legacy.boxes.contains { $0.detectorSeedEvidence != nil })
         #expect(fast.boxes.allSatisfy { $0.detectorSeedEvidence == nil && $0.recognitionColumnEvidence == nil })
         #expect(again.boxes == legacy.boxes)
+    }
+
+    @Test func frameGeometryEntryPointMatchesLegacyFrameDetection() async throws {
+        let detector = NativeCoreMLDetector()
+        let frame = try #require(NativeOCRCGImageAdapter.makeRGBAFrame(from: Self.letteredPage()))
+        let legacy = try await detector.detect(frame: frame, requestID: "legacy")
+        let fast = try await detector.detectGeometry(frame: frame, requestID: "geometry")
+        #expect(!legacy.boxes.isEmpty)
+        #expect(fast.boxes.map(\.polygon) == legacy.boxes.map(\.polygon))
+        #expect(fast.boxes.map(\.score) == legacy.boxes.map(\.score))
+        #expect(fast.boxes.map(\.erasurePolygons) == legacy.boxes.map(\.erasurePolygons))
+        #expect(fast.boxes.map(\.recognitionPolygon) == legacy.boxes.map(\.recognitionPolygon))
+        let lines = try await V2Detection.detect(frame: frame, page: V2Page(id: "p", image: Self.letteredPage()), detector: detector)
+        #expect(lines == legacy.boxes.compactMap { V2Detection.line(polygon: $0.polygon, score: $0.score) })
+    }
+
+    @Test func multiarrayInputIsBitIdenticalToTensorInput() async throws {
+        let frame = try #require(NativeOCRCGImageAdapter.makeRGBAFrame(from: Self.letteredPage()))
+        let canvas = try #require(NativeCoreMLDetectionCanvas.exact(sourceWidth: frame.width, sourceHeight: frame.height))
+        let tensor = try await NativeCoreMLDetectionPreprocessor.prepare(frame: frame, canvas: canvas).values()
+        let array = try await NativeCoreMLDetectionPreprocessor.prepareArray(frame: frame, canvas: canvas)
+        let values = array.input.withUnsafeBufferPointer(ofType: Float.self) { Array($0) }
+        #expect(values.map(\.bitPattern) == tensor.map(\.bitPattern))
     }
 }

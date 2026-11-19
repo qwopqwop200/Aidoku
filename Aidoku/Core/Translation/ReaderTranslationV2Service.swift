@@ -41,9 +41,10 @@ actor ReaderTranslationV2Service {
     private var models: V2Models?
     private var loading: Task<V2Models, Error>?
     private var modelGeneration: UInt64 = 0
-    /// Non-LLM compute admission: S1-S4 (before the provider call) and
-    /// S8/S6-S10 (after it) have separate slots. No slot is held during the
-    /// provider wait; that runs under the reader's provider limiter only.
+    /// Non-LLM compute admission: S1-S4 (before the provider call) and the back
+    /// work have separate slots. The back slot brackets the overlapped S8/S6/S7
+    /// (which run during the provider call) and, separately, the S9/S10 tail; it
+    /// is never held while merely waiting for the provider.
     nonisolated let frontSlots: V2ComputeSlots
     nonisolated let backSlots: V2ComputeSlots
     /// Coalesced page work (visible demand joins and promotes a look-ahead).
@@ -236,40 +237,55 @@ actor ReaderTranslationV2Service {
         defer { hold.releaseAll() }
         try await hold.acquireFront(priority: priority)
         let page = V2Page(id: key ?? UUID().uuidString, image: source)
+        // The provider only receives the page JPEG when the setting asks for it; encode it
+        // concurrently with S1-S4 so it is ready when S5 starts.
+        let jpegTask: Task<Data, Error>? = replayBlocks == nil && settings.includePageImage
+            ? Task.detached(priority: .userInitiated) {
+                try ReaderTranslationImagePreparation.translationJPEG(UIImage(cgImage: source))
+            } : nil
+        defer { jpegTask?.cancel() }
         let translator: V2Translator = { page, blocks in
-            // S1-S4 are done: free the compute slot before any provider wait.
-            hold.releaseFront()
             do {
-                let translated: [V2Block]
-                if let replayBlocks {
-                    translated = Self.replay(replayBlocks, onto: blocks)
-                } else {
+                if let replayBlocks { return Self.replay(replayBlocks, onto: blocks) }
+                try Task.checkCancellation()
+                return try await Self.translateEligible(blocks, settings: settings) { eligible in
+                    let jpeg = try await jpegTask?.value
                     try Task.checkCancellation()
-                    translated = try await Self.translateEligible(blocks, settings: settings) { eligible in
-                        let jpeg = try ReaderTranslationImagePreparation.translationJPEG(UIImage(cgImage: page.image))
-                        try Task.checkCancellation()
-                        return try await translate(eligible, CGSize(width: page.width, height: page.height),
-                                                   settings, jpeg, priority)
-                    }
+                    return try await translate(eligible, CGSize(width: page.width, height: page.height),
+                                               settings, jpeg, priority)
                 }
-                try await hold.acquireBack(priority: priority)
-                return translated
             } catch {
                 failure.store(error)
                 throw error
             }
         }
-        let result = await V2Pipeline.run(page, models: models, translate: translator)
+        let hooks = V2PipelineHooks(
+            // S1-S4 are done: free the front slot before the provider call starts.
+            frontFinished: { hold.releaseFront() },
+            acquireBack: { try await hold.acquireBack(priority: priority) },
+            releaseBack: { hold.releaseBack() },
+            predictTranslated: { blocks in
+                if let replayBlocks {
+                    return Set(Self.replay(replayBlocks, onto: blocks).filter(V2Layout.isPaintable).map(\.id))
+                }
+                return Self.eligibleForTranslation(blocks, settings: settings)
+            })
+        let result = await V2Pipeline.run(page, models: models, translate: translator, hooks: hooks)
         hold.releaseAll()
         try Task.checkCancellation()
         if let error = failure.error { throw error }
         guard let output = result.output else { throw Failure.imageUnavailable }
         if let key, let cache, result.failure == nil {
-            if replayBlocks == nil, let translationGeneration, let data = try? JSONEncoder().encode(result.blocks) {
-                try? await cache.store(data, for: Self.blocksKey(key), kind: .translation, generation: translationGeneration)
-            }
-            if let layoutGeneration, let data = Self.encode(output) {
-                try? await cache.store(data, for: Self.imageKey(key), kind: .layout, generation: layoutGeneration)
+            // JPEG encoding and the disk write run after the page is returned for display.
+            let blocks = result.blocks
+            let storesBlocks = replayBlocks == nil
+            Task.detached(priority: .utility) {
+                if storesBlocks, let translationGeneration, let data = try? JSONEncoder().encode(blocks) {
+                    try? await cache.store(data, for: Self.blocksKey(key), kind: .translation, generation: translationGeneration)
+                }
+                if let layoutGeneration, let data = Self.encode(output) {
+                    try? await cache.store(data, for: Self.imageKey(key), kind: .layout, generation: layoutGeneration)
+                }
             }
         }
         return PageOutput(image: output, timings: result.timings, fromCache: false)
@@ -413,13 +429,17 @@ final class V2SlotHold: @unchecked Sendable {
         if release { front.release() }
     }
 
-    func releaseAll() {
-        releaseFront()
+    func releaseBack() {
         let release = lock.withLock { () -> Bool in
             defer { holdsBack = false }
             return holdsBack
         }
         if release { back.release() }
+    }
+
+    func releaseAll() {
+        releaseFront()
+        releaseBack()
     }
 }
 

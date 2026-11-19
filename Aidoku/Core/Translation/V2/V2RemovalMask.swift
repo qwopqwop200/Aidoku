@@ -96,22 +96,24 @@ enum V2RemovalMask {
         guard x1 > x0, y1 > y0 else { return nil }
         let frame = Frame(x: x0, y: y0, width: x1 - x0, height: y1 - y0)
         let w = frame.width, h = frame.height, n = w * h
+        let space = Workspace(width: w, height: h)
 
         // Rasterise the line polygons and the dilated ROI.
-        var poly = [Float](repeating: 0, count: n)
+        let poly = space.plane(zero: true)
         for polygon in polygons {
-            fill(polygon.map { CGPoint(x: $0.x - CGFloat(x0), y: $0.y - CGFloat(y0)) }, into: &poly, width: w, height: h)
+            fill(polygon.map { CGPoint(x: $0.x - CGFloat(x0), y: $0.y - CGFloat(y0)) }, into: poly, width: w, height: h)
         }
-        var roi = poly
-        morph(&roi, width: w, height: h, radius: roiRadius, max: true)
+        let roi = space.copy(poly)
+        morph(roi, width: w, height: h, radius: roiRadius, max: true, space: space)
         var roiIndices = [Int]()
         roiIndices.reserveCapacity(n / 2)
         for i in 0..<n where roi[i] > 0 { roiIndices.append(i) }
         guard !roiIndices.isEmpty else { return nil }
+        let rows = roiIndices.count
 
         // Colour planes.
-        var red = [Float](repeating: 0, count: n), green = red, blue = red
-        var luma = red, high = red, low = red
+        let red = space.plane(), green = space.plane(), blue = space.plane()
+        let luma = space.plane(), high = space.plane(), low = space.plane()
         for y in 0..<h {
             var source = ((y0 + y) * width + x0) * 4
             for x in 0..<w {
@@ -125,148 +127,327 @@ enum V2RemovalMask {
         }
 
         // Block background from the 3 px ring around the ROI.
-        var ringMask = roi
-        morph(&ringMask, width: w, height: h, radius: 3, max: true)
+        let ringMask = space.copy(roi)
+        morph(ringMask, width: w, height: h, radius: 3, max: true, space: space)
         var ring = [Int]()
         for i in 0..<n where ringMask[i] > 0 && roi[i] == 0 { ring.append(i) }
+        space.recycle(ringMask); space.recycle(roi)
         if ring.count < 8 { ring = roiIndices.filter { poly[$0] == 0 } }
         if ring.count < 8 { ring = roiIndices }
-        let background = (median(ring.map { red[$0] }), median(ring.map { green[$0] }), median(ring.map { blue[$0] }))
-        let backgroundLuma = 0.299 * background.0 + 0.587 * background.1 + 0.114 * background.2
-        let ringLuma = ring.map { luma[$0] }.sorted()
-        let ringMean = ringLuma.reduce(0, +) / Float(ringLuma.count)
-        let ringStd = sqrt(ringLuma.reduce(0) { $0 + ($1 - ringMean) * ($1 - ringMean) } / Float(ringLuma.count))
-        let ringLow = percentile(sorted: ringLuma, 10), ringHigh = percentile(sorted: ringLuma, 90)
-        let insideLuma = (0..<n).filter { poly[$0] > 0 }.map { luma[$0] }.sorted()
-        let inkLuma = insideLuma.isEmpty ? backgroundLuma : percentile(sorted: insideLuma, 10)
-
-        var distance = [Float](repeating: 0, count: n)
+        let background = (orderMedian(red, at: ring), orderMedian(green, at: ring), orderMedian(blue, at: ring))
+        let distance = space.plane()
         for i in 0..<n {
             distance[i] = max(abs(red[i] - background.0), abs(green[i] - background.1), abs(blue[i] - background.2))
         }
-        var dark = [[Float]](), light = [[Float]]()
-        for scale in scales {
-            var closed = high, opened = low
-            morph(&closed, width: w, height: h, radius: scale, max: true)
-            morph(&closed, width: w, height: h, radius: scale, max: false)
-            morph(&opened, width: w, height: h, radius: scale, max: false)
-            morph(&opened, width: w, height: h, radius: scale, max: true)
-            for i in 0..<n { closed[i] -= low[i]; opened[i] = high[i] - opened[i] }
-            dark.append(closed); light.append(opened)
-        }
-        var darkNear = dark[1], lightNear = light[1], distanceNear = distance
-        morph(&darkNear, width: w, height: h, radius: 2, max: true)
-        morph(&lightNear, width: w, height: h, radius: 2, max: true)
-        morph(&distanceNear, width: w, height: h, radius: 2, max: true)
-        var lumaSquare = luma
-        for i in 0..<n { lumaSquare[i] *= luma[i] }
-        let lumaMean = boxBlur(luma, width: w, height: h, radius: 2)
-        let lumaSquareMean = boxBlur(lumaSquare, width: w, height: h, radius: 2)
-        var inverse = poly
-        for i in 0..<n { inverse[i] = poly[i] > 0 ? 0 : 1 }
-        let inside = chamfer(poly, width: w, height: h), outside = chamfer(inverse, width: w, height: h)
-        let logThickness = Float(log(thickness) / 5)
-
-        // Stroke-width-normalised features: stroke width from the distance transform of
-        // high-contrast pixels inside the line polygons, then black-hat / top-hat at 1 and
-        // 2.5 stroke widths so very thick lettering is not out of distribution.
-        var ink = [Float](repeating: 0, count: n)
-        var inkCount = 0
-        for i in 0..<n where poly[i] > 0 && distance[i] >= 0.25 { ink[i] = 1; inkCount += 1 }
-        let inkDepth: [Float]
-        let stroke: Float
-        if inkCount >= 4 {
-            inkDepth = chamfer(ink, width: w, height: h)
-            let depths = (0..<n).filter { ink[$0] > 0 }.map { inkDepth[$0] }.sorted()
-            stroke = min(Float(thickness), max(1, 2 * percentile(sorted: depths, 90)))
-        } else {
-            inkDepth = [Float](repeating: 0, count: n)
-            stroke = max(1, Float(0.1 * thickness))
-        }
-        var notInk = ink
-        for i in 0..<n { notInk[i] = 1 - ink[i] }
-        let inkGap = chamfer(notInk, width: w, height: h)
-        var strokeDark = [[Float]](), strokeLight = [[Float]]()
-        for scale in [max(1, roundEven(Double(stroke))), max(2, roundEven(2.5 * Double(stroke)))] {
-            var closed = high, opened = low
-            morph(&closed, width: w, height: h, radius: scale, max: true)
-            morph(&closed, width: w, height: h, radius: scale, max: false)
-            morph(&opened, width: w, height: h, radius: scale, max: false)
-            morph(&opened, width: w, height: h, radius: scale, max: true)
-            for i in 0..<n { closed[i] -= low[i]; opened[i] = high[i] - opened[i] }
-            strokeDark.append(closed); strokeLight.append(opened)
-        }
-        let invStroke = 1 / stroke, logStroke = log(stroke / Float(thickness))
+        space.recycle(red); space.recycle(green); space.recycle(blue)
+        let backgroundLuma = 0.299 * background.0 + 0.587 * background.1 + 0.114 * background.2
+        let ringLuma = sortedValues(luma, at: ring)
+        let ringMean = ringLuma.reduce(0, +) / Float(ringLuma.count)
+        let ringStd = sqrt(ringLuma.reduce(0) { $0 + ($1 - ringMean) * ($1 - ringMean) } / Float(ringLuma.count))
+        let ringLow = percentile(sorted: ringLuma, 10), ringHigh = percentile(sorted: ringLuma, 90)
+        var insideIndices = [Int]()
+        insideIndices.reserveCapacity(n / 2)
+        for i in 0..<n where poly[i] > 0 { insideIndices.append(i) }
+        let inkLuma = insideIndices.isEmpty ? backgroundLuma : orderPercentile(luma, at: insideIndices, 10)
 
         let f1 = stage1.features
         precondition(f1 == 29)
-        let rows = roiIndices.count
         // Feature-major (one contiguous plane of `rows` values per feature); stage 2 appends to it.
-        var features = [Float](repeating: 0, count: rows * stage2.features)
+        let features = UnsafeMutablePointer<Float>.allocate(capacity: rows * stage2.features)
+        defer { features.deallocate() }
+        let index = UnsafeMutablePointer<Int>.allocate(capacity: rows)
+        defer { index.deallocate() }
+        index.initialize(from: roiIndices, count: rows)
+        func column(_ f: Int) -> UnsafeMutablePointer<Float> { features + f * rows }
+        func gather(_ plane: UnsafePointer<Float>, into f: Int) {
+            let target = column(f)
+            for row in 0..<rows { target[row] = plane[index[row]] }
+        }
+        func constant(_ value: Float, into f: Int) { column(f).update(repeating: value, count: rows) }
+        // Black-hat (closing - low) into column f and top-hat (high - opening) into column g;
+        // `keep` also leaves both full planes for the 2 px neighbourhood features.
+        func hats(_ scale: Int, dark f: Int, light g: Int, space: Workspace,
+                  keep: (UnsafeMutablePointer<Float>, UnsafeMutablePointer<Float>)? = nil) {
+            let closed = space.copy(high), opened = space.copy(low)
+            morph2(closed, width: w, height: h, radius: scale, firstMax: true, space: space)
+            morph2(opened, width: w, height: h, radius: scale, firstMax: false, space: space)
+            if let (dark, light) = keep {
+                for i in 0..<n { dark[i] = closed[i] - low[i]; light[i] = high[i] - opened[i] }
+                gather(dark, into: f); gather(light, into: g)
+            } else {
+                let dark = column(f), light = column(g)
+                for row in 0..<rows {
+                    let i = index[row]
+                    dark[row] = closed[i] - low[i]; light[row] = high[i] - opened[i]
+                }
+            }
+            space.recycle(closed); space.recycle(opened)
+        }
+        let parallel = n >= parallelPixels
+
+        do {
+            let a = column(0), b = column(1), c = column(2), d = column(3), e = column(19)
+            for row in 0..<rows {
+                let i = index[row]
+                a[row] = luma[i]; b[row] = high[i] - low[i]; c[row] = distance[i]
+                d[row] = luma[i] - backgroundLuma; e[row] = abs(luma[i] - inkLuma)
+            }
+        }
         let invThickness = 1 / Float(max(thickness, 1))
-        features.withUnsafeMutableBufferPointer { fp in
-            let x = fp.baseAddress!
-            for (row, i) in roiIndices.enumerated() {
-                x[row] = luma[i]; x[rows + row] = high[i] - low[i]; x[2 * rows + row] = distance[i]
-                x[3 * rows + row] = luma[i] - backgroundLuma
-                x[4 * rows + row] = dark[0][i]; x[5 * rows + row] = light[0][i]
-                x[6 * rows + row] = dark[1][i]; x[7 * rows + row] = light[1][i]
-                x[8 * rows + row] = dark[2][i]; x[9 * rows + row] = light[2][i]
-                x[10 * rows + row] = darkNear[i]; x[11 * rows + row] = lightNear[i]; x[12 * rows + row] = distanceNear[i]
-                x[13 * rows + row] = sqrt(max(lumaSquareMean[i] - lumaMean[i] * lumaMean[i], 0))
-                x[14 * rows + row] = min(1, max(-1, (outside[i] - inside[i]) * invThickness))
-                x[15 * rows + row] = backgroundLuma; x[16 * rows + row] = ringStd; x[17 * rows + row] = inkLuma
-                x[18 * rows + row] = logThickness; x[19 * rows + row] = abs(luma[i] - inkLuma)
-                x[20 * rows + row] = ringLow; x[21 * rows + row] = ringHigh
-                x[22 * rows + row] = strokeDark[0][i]; x[23 * rows + row] = strokeLight[0][i]
-                x[24 * rows + row] = strokeDark[1][i]; x[25 * rows + row] = strokeLight[1][i]
-                x[26 * rows + row] = min(2, max(0, inkDepth[i] * invStroke))
-                x[27 * rows + row] = min(3, max(0, inkGap[i] * invStroke))
-                x[28 * rows + row] = logStroke
+        constant(backgroundLuma, into: 15); constant(ringStd, into: 16); constant(inkLuma, into: 17)
+        constant(Float(log(thickness) / 5), into: 18)
+        constant(ringLow, into: 20); constant(ringHigh, into: 21)
+
+        // High-contrast pixels inside the line polygons (stroke-width features below).
+        let ink = space.plane(zero: true)
+        var inkIndices = [Int]()
+        for i in 0..<n where poly[i] > 0 && distance[i] >= 0.25 { ink[i] = 1; inkIndices.append(i) }
+        let inkGap = space.plane()
+        var stroke: Float = 1
+
+        // Independent feature groups (disjoint feature columns, read-only shared planes).
+        let groups = 5
+        runGroups(groups, parallel: parallel) { group in
+            let local = Workspace(width: w, height: h)
+            switch group {
+            case 0:
+                hats(scales[0], dark: 4, light: 5, space: local)
+                hats(scales[2], dark: 8, light: 9, space: local)
+            case 1:
+                let darkMiddle = local.plane(), lightMiddle = local.plane()
+                hats(scales[1], dark: 6, light: 7, space: local, keep: (darkMiddle, lightMiddle))
+                morph(darkMiddle, width: w, height: h, radius: 2, max: true, space: local)
+                gather(darkMiddle, into: 10)
+                morph(lightMiddle, width: w, height: h, radius: 2, max: true, space: local)
+                gather(lightMiddle, into: 11)
+                let distanceNear = local.copy(distance)
+                morph(distanceNear, width: w, height: h, radius: 2, max: true, space: local)
+                gather(distanceNear, into: 12)
+                let lumaMean = local.copy(luma), lumaSquareMean = local.plane()
+                for i in 0..<n { lumaSquareMean[i] = luma[i] * luma[i] }
+                boxBlur(lumaMean, width: w, height: h, radius: 2, space: local)
+                boxBlur(lumaSquareMean, width: w, height: h, radius: 2, space: local)
+                let target = column(13)
+                for row in 0..<rows {
+                    let i = index[row]
+                    target[row] = sqrt(max(lumaSquareMean[i] - lumaMean[i] * lumaMean[i], 0))
+                }
+            case 2:
+                let inside = local.plane(), outside = local.plane()
+                chamfer(poly, into: inside, width: w, height: h, inverted: false)
+                chamfer(poly, into: outside, width: w, height: h, inverted: true)
+                let target = column(14)
+                for row in 0..<rows {
+                    let i = index[row]
+                    target[row] = min(1, max(-1, (outside[i] - inside[i]) * invThickness))
+                }
+            case 3:
+                // Stroke width from the distance transform of the ink pixels, then black-hat /
+                // top-hat at 1 and 2.5 stroke widths so very thick lettering is not out of distribution.
+                let inkDepth = local.plane(zero: true)
+                let width: Float
+                if inkIndices.count >= 4 {
+                    chamfer(ink, into: inkDepth, width: w, height: h, inverted: false)
+                    width = min(Float(thickness), max(1, 2 * orderPercentile(inkDepth, at: inkIndices, 90)))
+                } else {
+                    width = max(1, Float(0.1 * thickness))
+                }
+                stroke = width
+                let invStroke = 1 / width, depth = column(26)
+                for row in 0..<rows { depth[row] = min(2, max(0, inkDepth[index[row]] * invStroke)) }
+                constant(log(width / Float(thickness)), into: 28)
+                hats(max(1, roundEven(Double(width))), dark: 22, light: 23, space: local)
+                hats(max(2, roundEven(2.5 * Double(width))), dark: 24, light: 25, space: local)
+            default:
+                chamfer(ink, into: inkGap, width: w, height: h, inverted: true)
             }
         }
-        let p1Values = mlp(features, rows: rows, network: stage1)
-        var p1 = [Float](repeating: 0, count: n)
-        for (row, i) in roiIndices.enumerated() { p1[i] = p1Values[row] }
-
-        // Auto-context neighbourhood of the stage-1 probability.
-        var context = [[Float]]()
-        for radius in [1, 2, 4] {
-            var plane = p1
-            morph(&plane, width: w, height: h, radius: radius, max: true)
-            context.append(plane)
+        do {
+            let invStroke = 1 / stroke, gap = column(27)
+            for row in 0..<rows { gap[row] = min(3, max(0, inkGap[index[row]] * invStroke)) }
         }
-        var eroded = p1
-        morph(&eroded, width: w, height: h, radius: 1, max: false)
-        context.append(eroded)
-        context.append(boxBlur(p1, width: w, height: h, radius: 2))
-        context.append(boxBlur(p1, width: w, height: h, radius: blurHalf))
-        context.append(boxBlur(p1, width: w, height: h, radius: 2 * blurHalf))
-        var closedP = p1
-        let closeRadius = max(2, roundEven(0.06 * thickness))
-        morph(&closedP, width: w, height: h, radius: closeRadius, max: true)
-        morph(&closedP, width: w, height: h, radius: closeRadius, max: false)
-        context.append(closedP)
-        var spread = p1
-        morph(&spread, width: w, height: h, radius: max(4, roundEven(0.15 * thickness)), max: true)
-        context.append(spread)
+        space.recycle(ink); space.recycle(inkGap); space.recycle(distance)
+        space.recycle(luma); space.recycle(high); space.recycle(low)
 
+        let p1 = space.plane(zero: true)
+        do {
+            let p1Values = column(f1)
+            mlp(features, rows: rows, network: stage1, output: p1Values, parallel: parallel)
+            for row in 0..<rows { p1[index[row]] = p1Values[row] }
+        }
+
+        // Auto-context neighbourhood of the stage-1 probability, one feature column each.
         let f2 = stage2.features
-        precondition(f2 == f1 + 1 + context.count)
-        features.withUnsafeMutableBufferPointer { fp in
-            let x = fp.baseAddress! + f1 * rows
-            for (row, i) in roiIndices.enumerated() { x[row] = p1[i] }
-            for (k, plane) in context.enumerated() {
-                let target = x + (k + 1) * rows
-                for (row, i) in roiIndices.enumerated() { target[row] = plane[i] }
+        precondition(f2 == f1 + 1 + 9)
+        let closeRadius = max(2, roundEven(0.06 * thickness))
+        let spreadRadius = max(4, roundEven(0.15 * thickness))
+        let blurRadii = [2, blurHalf, 2 * blurHalf]
+        runGroups(3, parallel: parallel) { group in
+            let local = Workspace(width: w, height: h)
+            func context(_ k: Int, _ transform: (UnsafeMutablePointer<Float>) -> Void) {
+                let plane = local.copy(p1)
+                transform(plane)
+                gather(plane, into: f1 + 1 + k)
+                local.recycle(plane)
+            }
+            switch group {
+            case 0:
+                for (k, radius) in [1, 2, 4].enumerated() {
+                    context(k) { morph($0, width: w, height: h, radius: radius, max: true, space: local) }
+                }
+                context(3) { morph($0, width: w, height: h, radius: 1, max: false, space: local) }
+            case 1:
+                for (k, radius) in blurRadii.enumerated() {
+                    context(4 + k) { boxBlur($0, width: w, height: h, radius: radius, space: local) }
+                }
+            default:
+                context(7) { morph2($0, width: w, height: h, radius: closeRadius, firstMax: true, space: local) }
+                context(8) { morph($0, width: w, height: h, radius: spreadRadius, max: true, space: local) }
             }
         }
-        let p2 = mlp(features, rows: rows, network: stage2)
+        space.recycle(p1)
+
+        let p2 = UnsafeMutablePointer<Float>.allocate(capacity: rows)
+        defer { p2.deallocate() }
+        mlp(features, rows: rows, network: stage2, output: p2, parallel: parallel)
         let cut = thickness >= largeThickness ? largeThreshold : threshold
-        var out = [Float](repeating: 0, count: n)
-        for (row, i) in roiIndices.enumerated() where p2[row] >= cut { out[i] = 1 }
-        morph(&out, width: w, height: h, radius: outputDilation, max: true)
-        return BlockMask(frame: frame, mask: out.map { $0 > 0 ? 1 : 0 })
+        let out = space.plane(zero: true)
+        for row in 0..<rows where p2[row] >= cut { out[index[row]] = 1 }
+        morph(out, width: w, height: h, radius: outputDilation, max: true, space: space)
+        let mask = [UInt8](unsafeUninitializedCapacity: n) { buffer, count in
+            for i in 0..<n { buffer[i] = out[i] > 0 ? 1 : 0 }
+            count = n
+        }
+        return BlockMask(frame: frame, mask: mask)
+    }
+
+    /// Blocks smaller than this run their feature groups serially.
+    static let parallelPixels = 65_536
+
+    /// Runs `body(0..<count)`; concurrently (nested under the per-block loop) for large blocks.
+    static func runGroups(_ count: Int, parallel: Bool, _ body: (Int) -> Void) {
+        if parallel {
+            DispatchQueue.concurrentPerform(iterations: count, execute: body)
+        } else {
+            for group in 0..<count { body(group) }
+        }
+    }
+
+    /// Equal-size float planes and morphology/blur scratch for one block, recycled so a block
+    /// touches a handful of planes instead of allocating (and page-faulting) dozens.
+    final class Workspace {
+        let width: Int, height: Int, count: Int
+        private var spare: [UnsafeMutablePointer<Float>] = []
+        private var owned: [UnsafeMutablePointer<Float>] = []
+        private var bands: UnsafeMutablePointer<Float>?
+        private var bandCapacity = 0
+
+        init(width: Int, height: Int) {
+            self.width = width; self.height = height; count = width * height
+        }
+
+        deinit {
+            for plane in owned { plane.deallocate() }
+            bands?.deallocate()
+        }
+
+        func plane(zero: Bool = false) -> UnsafeMutablePointer<Float> {
+            let plane: UnsafeMutablePointer<Float>
+            if let reused = spare.popLast() {
+                plane = reused
+            } else {
+                plane = .allocate(capacity: count)
+                owned.append(plane)
+            }
+            if zero { plane.update(repeating: 0, count: count) }
+            return plane
+        }
+
+        func copy(_ source: UnsafePointer<Float>) -> UnsafeMutablePointer<Float> {
+            let plane = plane()
+            plane.update(from: source, count: count)
+            return plane
+        }
+
+        func recycle(_ plane: UnsafeMutablePointer<Float>) { spare.append(plane) }
+
+        /// Scratch of at least `capacity` floats (contents undefined).
+        func band(_ capacity: Int) -> UnsafeMutablePointer<Float> {
+            if capacity > bandCapacity {
+                bands?.deallocate()
+                bands = .allocate(capacity: capacity)
+                bandCapacity = capacity
+            }
+            return bands!
+        }
+    }
+
+    /// Value at each index, ascending.
+    static func sortedValues(_ plane: UnsafePointer<Float>, at indices: [Int]) -> [Float] {
+        guard !indices.isEmpty else { return [] }
+        var values = gathered(plane, at: indices)
+        values.withUnsafeMutableBufferPointer { vDSP_vsort($0.baseAddress!, vDSP_Length($0.count), 1) }
+        return values
+    }
+
+    /// Gathered values; `orderMedian` / `orderPercentile` equal `median` / `percentile(sorted:)` of
+    /// them (exact order statistics by selection instead of a full sort).
+    static func gathered(_ plane: UnsafePointer<Float>, at indices: [Int]) -> [Float] {
+        [Float](unsafeUninitializedCapacity: indices.count) { buffer, count in
+            for (k, i) in indices.enumerated() { buffer[k] = plane[i] }
+            count = indices.count
+        }
+    }
+
+    static func orderMedian(_ plane: UnsafePointer<Float>, at indices: [Int]) -> Float {
+        guard !indices.isEmpty else { return 0 }
+        var values = gathered(plane, at: indices)
+        return values.withUnsafeMutableBufferPointer { buffer in
+            let a = buffer.baseAddress!, c = buffer.count
+            select(a, count: c, c / 2)
+            guard c % 2 == 0 else { return a[c / 2] }
+            var below = a[0]
+            for i in 1..<(c / 2) { below = max(below, a[i]) }
+            return (below + a[c / 2]) / 2
+        }
+    }
+
+    static func orderPercentile(_ plane: UnsafePointer<Float>, at indices: [Int], _ q: Float) -> Float {
+        guard !indices.isEmpty else { return 0 }
+        var values = gathered(plane, at: indices)
+        return values.withUnsafeMutableBufferPointer { buffer in
+            let a = buffer.baseAddress!, c = buffer.count
+            let position = Float(c - 1) * q / 100
+            let lower = Int(position), upper = min(c - 1, lower + 1)
+            select(a, count: c, lower)
+            var next = a[lower]
+            if upper > lower {
+                next = a[upper]
+                for i in upper..<c { next = min(next, a[i]) }
+            }
+            return a[lower] + (next - a[lower]) * (position - Float(lower))
+        }
+    }
+
+    /// Quickselect: afterwards a[k] is the k-th smallest, with no larger value before it and
+    /// no smaller value after it.
+    static func select(_ a: UnsafeMutablePointer<Float>, count: Int, _ k: Int) {
+        func swap(_ x: Int, _ y: Int) { let t = a[x]; a[x] = a[y]; a[y] = t }
+        var lo = 0, hi = count - 1
+        while hi > lo {
+            let mid = lo + (hi - lo) / 2
+            if a[mid] < a[lo] { swap(mid, lo) }
+            if a[hi] < a[lo] { swap(hi, lo) }
+            if a[hi] < a[mid] { swap(hi, mid) }
+            let pivot = a[mid]
+            var i = lo, j = hi
+            while i <= j {
+                while a[i] < pivot { i += 1 }
+                while a[j] > pivot { j -= 1 }
+                if i <= j { swap(i, j); i += 1; j -= 1 }
+            }
+            if k <= j { hi = j } else if k >= i { lo = i } else { return }
+        }
     }
 
     // MARK: - MLP (two ReLU layers, sigmoid output)
@@ -298,57 +479,69 @@ enum V2RemovalMask {
     /// Two ReLU layers and a sigmoid output. `input` is feature-major: feature f of row r at
     /// f * rows + r (extra trailing planes are ignored).
     static func mlp(_ input: [Float], rows: Int, network net: Network) -> [Float] {
-        let features = net.features, hidden = net.hidden
-        precondition(input.count >= rows * features)
+        precondition(input.count >= rows * net.features)
         var output = [Float](repeating: 0, count: rows)
-        let chunk = min(rows, 16_384)
-        guard chunk > 0 else { return output }
-        var x = [Float](repeating: 0, count: chunk * features)
-        var layer1 = [Float](repeating: 0, count: chunk * hidden), layer2 = layer1
-        var zero: Float = 0
-        var start = 0
-        while start < rows {
-            let count = min(chunk, rows - start), n = vDSP_Length(count)
-            input.withUnsafeBufferPointer { ip in
-                x.withUnsafeMutableBufferPointer { xp in
-                    for f in 0..<features {
-                        (xp.baseAddress! + f * count).update(from: ip.baseAddress! + f * rows + start, count: count)
-                    }
-                }
-            }
-            // layer = W[hidden x in] * X[in x count]; bias and ReLU per hidden row.
-            vDSP_mmul(net.w1, 1, x, 1, &layer1, 1, vDSP_Length(hidden), n, vDSP_Length(features))
-            layer1.withUnsafeMutableBufferPointer { lp in
-                for j in 0..<hidden {
-                    var bias = net.b1[j]
-                    let row = lp.baseAddress! + j * count
-                    vDSP_vsadd(row, 1, &bias, row, 1, n)
-                    vDSP_vthres(row, 1, &zero, row, 1, n)
-                }
-            }
-            vDSP_mmul(net.w2, 1, layer1, 1, &layer2, 1, vDSP_Length(hidden), n, vDSP_Length(hidden))
-            layer2.withUnsafeMutableBufferPointer { lp in
-                for j in 0..<hidden {
-                    var bias = net.b2[j]
-                    let row = lp.baseAddress! + j * count
-                    vDSP_vsadd(row, 1, &bias, row, 1, n)
-                    vDSP_vthres(row, 1, &zero, row, 1, n)
-                }
-            }
+        guard rows > 0 else { return output }
+        input.withUnsafeBufferPointer { ip in
             output.withUnsafeMutableBufferPointer { op in
-                let o = op.baseAddress! + start
-                vDSP_mmul(net.w3, 1, layer2, 1, o, 1, 1, n, vDSP_Length(hidden))
-                // sigmoid(z + b3) = 1 / (1 + exp(-(z + b3)))
-                var negBias = -net.b3, minusOne: Float = -1, one: Float = 1
-                vDSP_vsmsa(o, 1, &minusOne, &negBias, o, 1, n)
-                var length = Int32(count)
-                vvexpf(o, o, &length)
-                vDSP_vsadd(o, 1, &one, o, 1, n)
-                vvrecf(o, o, &length)
+                mlp(ip.baseAddress!, rows: rows, network: net, output: op.baseAddress!)
             }
-            start += count
         }
         return output
+    }
+
+    /// Pointer form of `mlp(_:rows:network:)`. Rows are evaluated in fixed chunks of 16 384
+    /// (each chunk is one identical BLAS call however they are scheduled); `parallel` runs the
+    /// chunks concurrently, and a single chunk reads the input planes in place.
+    static func mlp(_ input: UnsafePointer<Float>, rows: Int, network net: Network, output: UnsafeMutablePointer<Float>,
+                    parallel: Bool = false) {
+        let chunk = min(rows, 16_384)
+        guard chunk > 0 else { return }
+        let chunks = (rows + chunk - 1) / chunk
+        runGroups(chunks, parallel: parallel && chunks > 1) { index in
+            let start = index * chunk, count = min(chunk, rows - start)
+            mlpChunk(input, rows: rows, start: start, count: count, network: net, output: output + start)
+        }
+    }
+
+    private static func mlpChunk(_ input: UnsafePointer<Float>, rows: Int, start: Int, count: Int, network net: Network,
+                                 output o: UnsafeMutablePointer<Float>) {
+        let features = net.features, hidden = net.hidden, n = vDSP_Length(count)
+        let x = count < rows ? UnsafeMutablePointer<Float>.allocate(capacity: count * features) : nil
+        let layer1 = UnsafeMutablePointer<Float>.allocate(capacity: count * hidden)
+        let layer2 = UnsafeMutablePointer<Float>.allocate(capacity: count * hidden)
+        defer { x?.deallocate(); layer1.deallocate(); layer2.deallocate() }
+        var zero: Float = 0
+        let block: UnsafePointer<Float>
+        if let x {
+            for f in 0..<features { (x + f * count).update(from: input + f * rows + start, count: count) }
+            block = UnsafePointer(x)
+        } else {
+            block = input
+        }
+        // layer = W[hidden x in] * X[in x count]; bias and ReLU per hidden row.
+        vDSP_mmul(net.w1, 1, block, 1, layer1, 1, vDSP_Length(hidden), n, vDSP_Length(features))
+        for j in 0..<hidden {
+            var bias = net.b1[j]
+            let row = layer1 + j * count
+            vDSP_vsadd(row, 1, &bias, row, 1, n)
+            vDSP_vthres(row, 1, &zero, row, 1, n)
+        }
+        vDSP_mmul(net.w2, 1, layer1, 1, layer2, 1, vDSP_Length(hidden), n, vDSP_Length(hidden))
+        for j in 0..<hidden {
+            var bias = net.b2[j]
+            let row = layer2 + j * count
+            vDSP_vsadd(row, 1, &bias, row, 1, n)
+            vDSP_vthres(row, 1, &zero, row, 1, n)
+        }
+        vDSP_mmul(net.w3, 1, layer2, 1, o, 1, 1, n, vDSP_Length(hidden))
+        // sigmoid(z + b3) = 1 / (1 + exp(-(z + b3)))
+        var negBias = -net.b3, minusOne: Float = -1, one: Float = 1
+        vDSP_vsmsa(o, 1, &minusOne, &negBias, o, 1, n)
+        var length = Int32(count)
+        vvexpf(o, o, &length)
+        vDSP_vsadd(o, 1, &one, o, 1, n)
+        vvrecf(o, o, &length)
     }
 
     // MARK: - Image primitives
@@ -357,24 +550,43 @@ enum V2RemovalMask {
     /// vDSP, O(1) per pixel); samples outside the frame are ignored.
     static func morph(_ plane: inout [Float], width w: Int, height h: Int, radius r: Int, max isMax: Bool) {
         guard r > 0, w > 0, h > 0 else { return }
-        var scratch = [Float](repeating: 0, count: w * h)
-        plane.withUnsafeMutableBufferPointer { p in
-            scratch.withUnsafeMutableBufferPointer { t in
-                filterColumns(p.baseAddress!, width: w, height: h, radius: r, max: isMax)
-                vDSP_mtrans(p.baseAddress!, 1, t.baseAddress!, 1, vDSP_Length(w), vDSP_Length(h))
-                filterColumns(t.baseAddress!, width: h, height: w, radius: r, max: isMax)
-                vDSP_mtrans(t.baseAddress!, 1, p.baseAddress!, 1, vDSP_Length(h), vDSP_Length(w))
-            }
-        }
+        let space = Workspace(width: w, height: h)
+        plane.withUnsafeMutableBufferPointer { morph($0.baseAddress!, width: w, height: h, radius: r, max: isMax, space: space) }
+    }
+
+    static func morph(_ p: UnsafeMutablePointer<Float>, width w: Int, height h: Int, radius r: Int, max isMax: Bool,
+                      space: Workspace) {
+        guard r > 0, w > 0, h > 0 else { return }
+        let t = space.plane()
+        filterColumns(p, width: w, height: h, radius: r, max: isMax, space: space)
+        vDSP_mtrans(p, 1, t, 1, vDSP_Length(w), vDSP_Length(h))
+        filterColumns(t, width: h, height: w, radius: r, max: isMax, space: space)
+        vDSP_mtrans(t, 1, p, 1, vDSP_Length(h), vDSP_Length(w))
+        space.recycle(t)
+    }
+
+    /// Closing (`firstMax`) or opening: two square filters of radius r. The square filter is
+    /// separable in either order, so the inner pair runs on the transposed plane and the
+    /// result is exactly the two `morph` calls with two fewer transposes.
+    static func morph2(_ p: UnsafeMutablePointer<Float>, width w: Int, height h: Int, radius r: Int, firstMax: Bool,
+                       space: Workspace) {
+        guard r > 0, w > 0, h > 0 else { return }
+        let t = space.plane()
+        filterColumns(p, width: w, height: h, radius: r, max: firstMax, space: space)
+        vDSP_mtrans(p, 1, t, 1, vDSP_Length(w), vDSP_Length(h))
+        filterColumns(t, width: h, height: w, radius: r, max: firstMax, space: space)
+        filterColumns(t, width: h, height: w, radius: r, max: !firstMax, space: space)
+        vDSP_mtrans(t, 1, p, 1, vDSP_Length(h), vDSP_Length(w))
+        filterColumns(p, width: w, height: h, radius: r, max: !firstMax, space: space)
+        space.recycle(t)
     }
 
     /// Vertical running max/min of window 2r+1 applied in place to every column.
     private static func filterColumns(_ data: UnsafeMutablePointer<Float>, width w: Int, height h: Int, radius r: Int,
-                                      max isMax: Bool) {
+                                      max isMax: Bool, space: Workspace) {
         let k = 2 * r + 1, length = (h + 2 * r + k - 1) / k * k, n = vDSP_Length(w)
-        let prefix = UnsafeMutablePointer<Float>.allocate(capacity: length * w)
-        let suffix = UnsafeMutablePointer<Float>.allocate(capacity: length * w)
-        defer { prefix.deallocate(); suffix.deallocate() }
+        let prefix = space.band(2 * length * w)
+        let suffix = prefix + length * w
         let neutral: Float = isMax ? -.infinity : .infinity
         func op(_ a: UnsafePointer<Float>, _ b: UnsafePointer<Float>, _ out: UnsafeMutablePointer<Float>) {
             if isMax { vDSP_vmax(a, 1, b, 1, out, 1, n) } else { vDSP_vmin(a, 1, b, 1, out, 1, n) }
@@ -385,30 +597,30 @@ enum V2RemovalMask {
         }
         var start = 0
         while start < length {
-            let end = start + k
-            for i in start..<end {
-                let target = prefix + i * w
-                if let row = source(i) {
-                    if i == start { target.update(from: row, count: w) } else { op(target - w, row, target) }
-                } else if i == start {
-                    target.update(repeating: neutral, count: w)
-                } else {
-                    target.update(from: target - w, count: w)
-                }
+        let end = start + k
+        for i in start..<end {
+            let target = prefix + i * w
+            if let row = source(i) {
+                if i == start { target.update(from: row, count: w) } else { op(target - w, row, target) }
+            } else if i == start {
+                target.update(repeating: neutral, count: w)
+            } else {
+                target.update(from: target - w, count: w)
             }
-            var i = end - 1
-            while i >= start {
-                let target = suffix + i * w
-                if let row = source(i) {
-                    if i == end - 1 { target.update(from: row, count: w) } else { op(target + w, row, target) }
-                } else if i == end - 1 {
-                    target.update(repeating: neutral, count: w)
-                } else {
-                    target.update(from: target + w, count: w)
-                }
-                i -= 1
+        }
+        var i = end - 1
+        while i >= start {
+            let target = suffix + i * w
+            if let row = source(i) {
+                if i == end - 1 { target.update(from: row, count: w) } else { op(target + w, row, target) }
+            } else if i == end - 1 {
+                target.update(repeating: neutral, count: w)
+            } else {
+                target.update(from: target + w, count: w)
             }
-            start = end
+            i -= 1
+        }
+        start = end
         }
         // Output y covers padded rows [y, y + 2r].
         for y in 0..<h { op(suffix + y * w, prefix + (y + 2 * r) * w, data + y * w) }
@@ -417,20 +629,23 @@ enum V2RemovalMask {
     /// Normalised box blur of size 2r+1 with reflect-101 borders (OpenCV `blur` default).
     static func boxBlur(_ plane: [Float], width w: Int, height h: Int, radius r: Int) -> [Float] {
         var output = plane
-        var scratch = [Float](repeating: 0, count: w * h)
-        output.withUnsafeMutableBufferPointer { p in
-            scratch.withUnsafeMutableBufferPointer { t in
-                blurColumns(p.baseAddress!, width: w, height: h, radius: r)
-                vDSP_mtrans(p.baseAddress!, 1, t.baseAddress!, 1, vDSP_Length(w), vDSP_Length(h))
-                blurColumns(t.baseAddress!, width: h, height: w, radius: r)
-                vDSP_mtrans(t.baseAddress!, 1, p.baseAddress!, 1, vDSP_Length(h), vDSP_Length(w))
-            }
-        }
+        let space = Workspace(width: w, height: h)
+        output.withUnsafeMutableBufferPointer { boxBlur($0.baseAddress!, width: w, height: h, radius: r, space: space) }
         return output
     }
 
+    static func boxBlur(_ p: UnsafeMutablePointer<Float>, width w: Int, height h: Int, radius r: Int, space: Workspace) {
+        let t = space.plane()
+        blurColumns(p, width: w, height: h, radius: r, space: space)
+        vDSP_mtrans(p, 1, t, 1, vDSP_Length(w), vDSP_Length(h))
+        blurColumns(t, width: h, height: w, radius: r, space: space)
+        vDSP_mtrans(t, 1, p, 1, vDSP_Length(h), vDSP_Length(w))
+        space.recycle(t)
+    }
+
     /// Vertical running mean of window 2r+1 (reflect-101) applied in place to every column.
-    private static func blurColumns(_ data: UnsafeMutablePointer<Float>, width w: Int, height h: Int, radius r: Int) {
+    private static func blurColumns(_ data: UnsafeMutablePointer<Float>, width w: Int, height h: Int, radius r: Int,
+                                    space: Workspace) {
         func reflect(_ i: Int) -> Int {
             guard h > 1 else { return 0 }
             var j = i
@@ -438,9 +653,8 @@ enum V2RemovalMask {
             return j
         }
         let n = vDSP_Length(w)
-        let copy = UnsafeMutablePointer<Float>.allocate(capacity: w * h)
-        let sum = UnsafeMutablePointer<Float>.allocate(capacity: w)
-        defer { copy.deallocate(); sum.deallocate() }
+        let copy = space.band(w * h + w)
+        let sum = copy + w * h
         copy.update(from: data, count: w * h)
         sum.update(repeating: 0, count: w)
         for k in -r...r { vDSP_vadd(sum, 1, copy + reflect(k) * w, 1, sum, 1, n) }
@@ -457,43 +671,74 @@ enum V2RemovalMask {
     /// 3x3 chamfer distance (OpenCV DIST_L2 mask 3: 0.955 / 1.3693) from each nonzero
     /// pixel to the nearest zero pixel; zero pixels get 0.
     static func chamfer(_ plane: [Float], width w: Int, height h: Int) -> [Float] {
-        let a: Float = 0.955, b: Float = 1.3693, far: Float = 1e6
-        var d = plane.map { $0 > 0 ? far : 0 }
-        for y in 0..<h {
-            for x in 0..<w where d[y * w + x] > 0 {
-                var v = d[y * w + x]
-                if x > 0 { v = min(v, d[y * w + x - 1] + a) }
-                if y > 0 {
-                    v = min(v, d[(y - 1) * w + x] + a)
-                    if x > 0 { v = min(v, d[(y - 1) * w + x - 1] + b) }
-                    if x + 1 < w { v = min(v, d[(y - 1) * w + x + 1] + b) }
-                }
-                d[y * w + x] = v
-            }
-        }
-        for y in stride(from: h - 1, through: 0, by: -1) {
-            for x in stride(from: w - 1, through: 0, by: -1) where d[y * w + x] > 0 {
-                var v = d[y * w + x]
-                if x + 1 < w { v = min(v, d[y * w + x + 1] + a) }
-                if y + 1 < h {
-                    v = min(v, d[(y + 1) * w + x] + a)
-                    if x + 1 < w { v = min(v, d[(y + 1) * w + x + 1] + b) }
-                    if x > 0 { v = min(v, d[(y + 1) * w + x - 1] + b) }
-                }
-                d[y * w + x] = v
-            }
+        var d = [Float](repeating: 0, count: w * h)
+        plane.withUnsafeBufferPointer { p in
+            d.withUnsafeMutableBufferPointer { chamfer(p.baseAddress!, into: $0.baseAddress!, width: w, height: h, inverted: false) }
         }
         return d
     }
 
+    /// Pointer form of `chamfer`; `inverted` measures the zero pixels of `plane` instead.
+    /// Each pass takes the minimum over the same candidates as the classic raster scan (min is
+    /// exact and order-free; zero pixels stay 0 because every candidate is >= 0), so only the
+    /// bounding box of the nonzero pixels is scanned: the previous-row terms vectorise, then one
+    /// sequential sweep adds the in-row term.
+    static func chamfer(_ plane: UnsafePointer<Float>, into d: UnsafeMutablePointer<Float>, width w: Int, height h: Int,
+                        inverted: Bool) {
+        let a: Float = 0.955, b: Float = 1.3693, far: Float = 1e6
+        var top = h, bottom = -1, left = w, right = -1
+        for y in 0..<h {
+            let source = plane + y * w, row = d + y * w
+            var first = -1, last = -1
+            for x in 0..<w {
+                let seed = (source[x] > 0) != inverted
+                row[x] = seed ? far : 0
+                if seed { if first < 0 { first = x }; last = x }
+            }
+            if first >= 0 {
+                top = min(top, y); bottom = y
+                left = min(left, first); right = max(right, last)
+            }
+        }
+        guard bottom >= 0 else { return }
+        // Columns [left, right] of `row` against the neighbouring row `other` (frame-clipped).
+        func vertical(_ row: UnsafeMutablePointer<Float>, _ other: UnsafePointer<Float>) {
+            var x = left
+            if x == 0 {
+                row[0] = min(row[0], other[0] + a)
+                if w > 1 { row[0] = min(row[0], other[1] + b) }
+                x = 1
+            }
+            let end = right == w - 1 ? w - 1 : right + 1
+            while x < end {
+                row[x] = min(min(row[x], other[x] + a), min(other[x - 1] + b, other[x + 1] + b))
+                x += 1
+            }
+            if right == w - 1, w > 1 { row[w - 1] = min(min(row[w - 1], other[w - 1] + a), other[w - 2] + b) }
+        }
+        for y in top...bottom {
+            let row = d + y * w
+            if y > 0 { vertical(row, row - w) }
+            var x = max(1, left)
+            while x <= right { row[x] = min(row[x], row[x - 1] + a); x += 1 }
+        }
+        for y in stride(from: bottom, through: top, by: -1) {
+            let row = d + y * w
+            if y + 1 < h { vertical(row, row + w) }
+            var x = min(w - 2, right)
+            while x >= left { row[x] = min(row[x], row[x + 1] + a); x -= 1 }
+        }
+    }
+
     /// Fills pixels whose centre (integer coordinate) lies inside or on the polygon.
-    static func fill(_ polygon: [CGPoint], into plane: inout [Float], width w: Int, height h: Int) {
+    static func fill(_ polygon: [CGPoint], into plane: UnsafeMutablePointer<Float>, width w: Int, height h: Int) {
         let ys = polygon.map(\.y)
         let top = max(0, Int(ceil(ys.min()! - 1e-6))), bottom = min(h - 1, Int(floor(ys.max()! + 1e-6)))
         guard top <= bottom else { return }
+        var crossings = [CGFloat]()
         for y in top...bottom {
             let yc = CGFloat(y)
-            var crossings = [CGFloat]()
+            crossings.removeAll(keepingCapacity: true)
             var lo = CGFloat.infinity, hi = -CGFloat.infinity
             for k in 0..<polygon.count {
                 let p = polygon[k], q = polygon[(k + 1) % polygon.count]
@@ -508,14 +753,13 @@ enum V2RemovalMask {
                 if yc >= a.y, yc < b.y { crossings.append(x) }
             }
             crossings.sort()
-            var spans = [(CGFloat, CGFloat)]()
-            var k = 0
-            while k + 1 < crossings.count { spans.append((crossings[k], crossings[k + 1])); k += 2 }
-            if spans.isEmpty, lo <= hi { spans.append((lo, hi)) }
-            for (left, right) in spans {
+            func span(_ left: CGFloat, _ right: CGFloat) {
                 let from = max(0, Int(ceil(left - 1e-6))), to = min(w - 1, Int(floor(right + 1e-6)))
-                if from <= to { for x in from...to { plane[y * w + x] = 1 } }
+                if from <= to { (plane + y * w + from).update(repeating: 1, count: to - from + 1) }
             }
+            var k = 0
+            while k + 1 < crossings.count { span(crossings[k], crossings[k + 1]); k += 2 }
+            if crossings.count < 2, lo <= hi { span(lo, hi) }
         }
     }
 

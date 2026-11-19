@@ -27,8 +27,20 @@ enum V2Detection {
         detector: NativeCoreMLDetector,
         configuration: NativeCoreMLDBPostprocessConfiguration = V2Detection.configuration
     ) async throws -> [V2Line] {
-        // Geometry-only entry point: skips the legacy evidence V2 never reads (~48 ms/page).
+        // Geometry-only entry point: skips the legacy evidence V2 never reads, the input digest
+        // and the MLTensor round trip (multiarray feature-provider prediction, bit-identical output).
         let result = try await detector.detectGeometry(image: page.image, requestID: page.id, configuration: configuration)
+        return result.boxes.compactMap { line(polygon: $0.polygon, score: $0.score) }
+    }
+
+    /// Detection from an RGBA frame the caller already converted (shared with S3 recognition).
+    static func detect(
+        frame: NativeOCRRGBAFrame,
+        page: V2Page,
+        detector: NativeCoreMLDetector,
+        configuration: NativeCoreMLDBPostprocessConfiguration = V2Detection.configuration
+    ) async throws -> [V2Line] {
+        let result = try await detector.detectGeometry(frame: frame, requestID: page.id, configuration: configuration)
         return result.boxes.compactMap { line(polygon: $0.polygon, score: $0.score) }
     }
 

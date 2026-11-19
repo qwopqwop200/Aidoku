@@ -276,6 +276,13 @@ struct NativeCoreMLDetectionPrediction: Sendable {
 }
 
 @available(iOS 18.0, *)
+struct NativeCoreMLDetectionArrayPrediction: @unchecked Sendable {
+    let output: MLMultiArray
+    let modelWasLoaded: Bool
+    let modelLoadMilliseconds: Double
+}
+
+@available(iOS 18.0, *)
 private final class NativeCoreMLDetectorModelPredictor: Sendable {
     private struct ModelHandle: @unchecked Sendable {
         let model: MLModel
@@ -466,6 +473,27 @@ private final class NativeCoreMLDetectorModelPredictor: Sendable {
             throw NativeCoreMLDetectorError.modelOutputMissing
         }
         return NativeCoreMLDetectionPrediction(
+            output: output,
+            modelWasLoaded: modelAccess.wasLoaded,
+            modelLoadMilliseconds: modelAccess.loadMilliseconds
+        )
+    }
+
+    /// Feature-provider prediction for the geometry-only path. Same program,
+    /// compute units and Float32 input values as `predict(input:)`; the output
+    /// is bit-identical (verified on the dev pages) and avoids the `MLTensor`
+    /// round trip, which costs about a third of the prediction time.
+    func predict(
+        array: MLMultiArray,
+        canvas: NativeCoreMLDetectionCanvas
+    ) async throws -> NativeCoreMLDetectionArrayPrediction {
+        let modelAccess = try await modelStore.model(for: canvas)
+        let provider = try MLDictionaryFeatureProvider(dictionary: [inputFeatureName: MLFeatureValue(multiArray: array)])
+        let prediction = try await modelAccess.handle.model.prediction(from: provider)
+        guard let output = prediction.featureValue(for: outputFeatureName)?.multiArrayValue else {
+            throw NativeCoreMLDetectorError.modelOutputMissing
+        }
+        return NativeCoreMLDetectionArrayPrediction(
             output: output,
             modelWasLoaded: modelAccess.wasLoaded,
             modelLoadMilliseconds: modelAccess.loadMilliseconds
@@ -801,9 +829,22 @@ final class NativeCoreMLDetector: @unchecked Sendable {
         configuration: NativeCoreMLDBPostprocessConfiguration = .manga,
         cancellationCheck: @escaping @Sendable () throws -> Void = {}
     ) async throws -> NativeCoreMLDetectionResult {
-        try await performDetection(
+        try await performGeometryDetection(
             providedFrame: nil, image: image, requestID: requestID, configuration: configuration,
-            recognitionScopes: nil, geometryOnly: true, cancellationCheck: cancellationCheck
+            cancellationCheck: cancellationCheck
+        )
+    }
+
+    /// Geometry-only detection from caller-owned pixels (V2 shares one frame with recognition).
+    func detectGeometry(
+        frame: NativeOCRRGBAFrame,
+        requestID: String = UUID().uuidString,
+        configuration: NativeCoreMLDBPostprocessConfiguration = .manga,
+        cancellationCheck: @escaping @Sendable () throws -> Void = {}
+    ) async throws -> NativeCoreMLDetectionResult {
+        try await performGeometryDetection(
+            providedFrame: frame, image: nil, requestID: requestID, configuration: configuration,
+            cancellationCheck: cancellationCheck
         )
     }
 
@@ -850,7 +891,6 @@ final class NativeCoreMLDetector: @unchecked Sendable {
         recognitionScopes: [CGRect]?,
         probabilityObserver: NativeMainEnsembleOCRProbability.Observer? = nil,
         probabilityOnlyInput: NativeCoreMLDetectionPreparedTensor? = nil,
-        geometryOnly: Bool = false,
         cancellationCheck: @escaping @Sendable () throws -> Void
     ) async throws -> NativeCoreMLDetectionResult {
         let issuedGeneration = generation.begin()
@@ -1057,10 +1097,6 @@ final class NativeCoreMLDetector: @unchecked Sendable {
                     }
                     // OCR retains its detection evidence; source replacement no longer needs erasure masks.
                     let boxes = result.boxes
-                    if geometryOnly {
-                        dbPostprocessingMilliseconds += Self.nowMilliseconds() - stageStarted
-                        return result
-                    }
                     let mapGeometry = NativeCoreMLDetectionMapGeometry(originX: region.x, originY: region.y,
                         fullWidth: prepared.resizedWidth, fullHeight: prepared.resizedHeight)
                     let columns = try NativeOCRDBChildColumnEvidence.extract(map: map, boxes: boxes,
@@ -1285,6 +1321,109 @@ final class NativeCoreMLDetector: @unchecked Sendable {
         }
     }
 
+    /// The full-frame, unscoped `performDetection` restricted to DB geometry:
+    /// multiarray input without digest, feature-provider prediction, direct
+    /// output read and one DB decode. Boxes equal the legacy result's
+    /// polygon, score, erasure and recognition geometry.
+    private func performGeometryDetection(
+        providedFrame: NativeOCRRGBAFrame?,
+        image: CGImage?,
+        requestID: String,
+        configuration: NativeCoreMLDBPostprocessConfiguration,
+        cancellationCheck: @escaping @Sendable () throws -> Void
+    ) async throws -> NativeCoreMLDetectionResult {
+        let issuedGeneration = generation.begin()
+        let started = Self.nowMilliseconds()
+        let check: @Sendable () throws -> Void = { [self] in
+            try requireCurrent(issuedGeneration, cancellationCheck: cancellationCheck)
+        }
+        return try await withTaskCancellationHandler {
+            try check()
+            let frame: NativeOCRRGBAFrame
+            if let providedFrame {
+                frame = providedFrame
+            } else if let image, let converted = await NativeOCRCGImageAdapter.makeRGBAFrameOffMain(from: image) {
+                frame = converted
+            } else {
+                throw NativeCoreMLDetectorError.imageConversionFailed
+            }
+            try check()
+            // Geometry-only path; keep this line distinct from the legacy path's
+            // canvas guard, which the host launcher patches by exact text anchor.
+            guard let geometryCanvas = canvasSelector(frame.width, frame.height) else {
+                let resized = NativeCoreMLDetectionPreprocessor.resizeDimensions(
+                    sourceWidth: frame.width, sourceHeight: frame.height) ?? (0, 0)
+                throw NativeCoreMLDetectorError.unsupportedInputShape(
+                    sourceWidth: frame.width, sourceHeight: frame.height,
+                    resizedWidth: resized.width, resizedHeight: resized.height)
+            }
+            let preprocessingStarted = Self.nowMilliseconds()
+            let prepared = try await NativeCoreMLDetectionPreprocessor.prepareArray(
+                frame: frame, canvas: geometryCanvas, cancellationCheck: check)
+            let preprocessingElapsed = Self.nowMilliseconds() - preprocessingStarted
+            try check()
+            let resourceAccess = try loadResources(cancellationCheck: check)
+            let predictor = resourceAccess.resources.predictor
+            let predictionStarted = Self.nowMilliseconds()
+            let prediction: NativeCoreMLDetectionArrayPrediction
+            do {
+                prediction = try await predictor.predict(array: prepared.input, canvas: geometryCanvas)
+            } catch let error as CancellationError {
+                throw error
+            } catch let error as NativeCoreMLDetectorError {
+                throw error
+            } catch {
+                throw NativeCoreMLDetectorError.predictionFailed(String(describing: error))
+            }
+            let predictionElapsed = Self.nowMilliseconds() - predictionStarted
+            try check()
+            let postprocessingStarted = Self.nowMilliseconds()
+            let region = NativeCoreMLDetectionMapRegion.full(width: prepared.resizedWidth, height: prepared.resizedHeight)
+            let map = try NativeCoreMLDetectionOutput.makeMap(
+                output: prediction.output, region: region, fullWidth: prepared.resizedWidth,
+                fullHeight: prepared.resizedHeight, expectedShape: geometryCanvas.outputShape)
+            let materializationElapsed = Self.nowMilliseconds() - postprocessingStarted
+            try check()
+            let decodeStarted = Self.nowMilliseconds()
+            let result = try NativeCoreMLDBPostprocessor.decode(
+                map: map, sourceWidth: frame.width, sourceHeight: frame.height,
+                geometry: NativeCoreMLDetectionMapGeometry(originX: 0, originY: 0,
+                    fullWidth: prepared.resizedWidth, fullHeight: prepared.resizedHeight),
+                configuration: configuration,
+                allowsWeakBridgeSplit: allowsWeakBridgeSplit && configuration.withRecoveryBoxThreshold(nil) == .production,
+                allowsThinFinePrintRecovery: allowsWeakBridgeSplit,
+                cancellationCheck: check
+            )
+            let finished = Self.nowMilliseconds()
+            try check()
+            let diagnostics = NativeCoreMLDetectionDiagnostics(
+                requestID: requestID, generation: issuedGeneration, backend: "coreml", executionProvider: "CoreML",
+                computeUnits: predictor.computeUnits, modelName: predictor.modelName,
+                inputFeatureName: predictor.inputFeatureName, outputFeatureName: predictor.outputFeatureName,
+                inputShape: geometryCanvas.inputShape, outputShape: geometryCanvas.outputShape,
+                sourceWidth: frame.width, sourceHeight: frame.height,
+                resizedWidth: prepared.resizedWidth, resizedHeight: prepared.resizedHeight,
+                threshold: configuration.threshold, boxThreshold: configuration.boxThreshold,
+                unclipRatio: configuration.unclipRatio, maximumCandidates: configuration.maximumCandidates,
+                candidateComponents: result.candidateComponents, detectedBoxes: result.boxes.count,
+                modelWasAlreadyLoaded: resourceAccess.wasAlreadyLoaded && !prediction.modelWasLoaded,
+                modelLoadMilliseconds: (resourceAccess.wasAlreadyLoaded ? 0 : resourceAccess.resources.loadMilliseconds)
+                    + prediction.modelLoadMilliseconds,
+                inputTensorCreationMilliseconds: prepared.inputCreationMilliseconds, tensorGraphMilliseconds: 0,
+                preprocessingMilliseconds: preprocessingElapsed, predictionMilliseconds: predictionElapsed,
+                outputMaterializationMilliseconds: materializationElapsed,
+                dbPostprocessingMilliseconds: finished - decodeStarted,
+                postprocessingMilliseconds: finished - postprocessingStarted,
+                totalMilliseconds: finished - started
+            )
+            store(diagnostics)
+            return NativeCoreMLDetectionResult(requestID: requestID, width: frame.width, height: frame.height,
+                                               boxes: result.boxes, diagnostics: diagnostics)
+        } onCancel: { [generation] in
+            generation.cancel(ifCurrent: issuedGeneration)
+        }
+    }
+
     private func loadResources(
         cancellationCheck: @escaping @Sendable () throws -> Void = {}
     ) throws -> ResourceAccess {
@@ -1410,6 +1549,16 @@ struct NativeCoreMLDetectionPreparedTensor: Sendable {
     func values() async -> [Float] {
         await input.shapedArray(of: Float.self).scalars
     }
+}
+
+/// Multiarray counterpart of `NativeCoreMLDetectionPreparedTensor` for the geometry-only path.
+@available(iOS 18.0, *)
+struct NativeCoreMLDetectionPreparedArray: @unchecked Sendable {
+    let input: MLMultiArray
+    let canvas: NativeCoreMLDetectionCanvas
+    let resizedWidth: Int
+    let resizedHeight: Int
+    let inputCreationMilliseconds: Double
 }
 
 @available(iOS 18.0, *)
@@ -1542,6 +1691,54 @@ enum NativeCoreMLDetectionPreprocessor {
             inputTensorCreationMilliseconds: nowMilliseconds() - started, tensorGraphMilliseconds: 0)
     }
 
+    /// Geometry-only (V2) input: the same planar canvas written straight into a
+    /// Core ML multiarray. No `MLTensor` and no input digest (V2 never records
+    /// probability provenance); the Float values are identical to `prepare`.
+    static func prepareArray(
+        frame: NativeOCRRGBAFrame,
+        canvas: NativeCoreMLDetectionCanvas,
+        cancellationCheck: () throws -> Void = {}
+    ) async throws -> NativeCoreMLDetectionPreparedArray {
+        try cancellationCheck()
+        guard let dimensions = contentDimensions(
+            sourceWidth: frame.width, sourceHeight: frame.height,
+            maximumSide: max(canvas.width, canvas.height)
+        ), dimensions.width > 0, dimensions.height > 0,
+        dimensions.width <= frame.width, dimensions.height <= frame.height,
+        dimensions.width <= canvas.width, dimensions.height <= canvas.height
+        else { throw NativeCoreMLDetectorError.modelInputCreationFailed }
+        let started = nowMilliseconds()
+        let sourceXs = await resizeCoordinates(sourceLength: frame.width, targetLength: dimensions.width,
+                                               resizesOtherAxis: frame.height != dimensions.height)
+        try cancellationCheck()
+        try Task.checkCancellation()
+        let sourceYs = await resizeCoordinates(sourceLength: frame.height, targetLength: dimensions.height, vertical: true,
+                                               resizesOtherAxis: frame.width != dimensions.width)
+        try cancellationCheck()
+        try Task.checkCancellation()
+        let array: MLMultiArray
+        do {
+            array = try MLMultiArray(shape: canvas.inputShape.map { NSNumber(value: $0) }, dataType: .float32)
+        } catch {
+            throw NativeCoreMLDetectorError.modelInputCreationFailed
+        }
+        let contiguous = [3 * canvas.height * canvas.width, canvas.height * canvas.width, canvas.width, 1]
+        try array.withUnsafeMutableBytes { bytes, strides in
+            guard strides == contiguous, bytes.count >= contiguous[0] * MemoryLayout<Float>.stride,
+                  let base = bytes.baseAddress?.assumingMemoryBound(to: Float.self)
+            else { throw NativeCoreMLDetectorError.modelInputCreationFailed }
+            try fillBoundedInput(
+                frame: frame, canvasWidth: canvas.width, canvasHeight: canvas.height,
+                width: dimensions.width, height: dimensions.height,
+                sourceXs: sourceXs, sourceYs: sourceYs, into: base, cancellationCheck: cancellationCheck
+            )
+        }
+        return NativeCoreMLDetectionPreparedArray(
+            input: array, canvas: canvas, resizedWidth: dimensions.width, resizedHeight: dimensions.height,
+            inputCreationMilliseconds: nowMilliseconds() - started
+        )
+    }
+
     /// Rows submitted to one `concurrentPerform` pass. Cancellation is observed
     /// on the calling task between passes (GCD workers have no current Task).
     private static let boundedRowsPerPass = 256
@@ -1560,6 +1757,27 @@ enum NativeCoreMLDetectionPreprocessor {
         sourceXs: [(Int, Int, Float)], sourceYs: [(Int, Int, Float)],
         cancellationCheck: () throws -> Void = {}
     ) throws -> [Float] {
+        let count = canvasWidth * canvasHeight * 3
+        return try [Float](unsafeUninitializedCapacity: max(0, count)) { target, initializedCount in
+            guard let output = target.baseAddress else { return }
+            try fillBoundedInput(
+                frame: frame, canvasWidth: canvasWidth, canvasHeight: canvasHeight,
+                width: width, height: height, sourceXs: sourceXs, sourceYs: sourceYs,
+                into: output, cancellationCheck: cancellationCheck
+            )
+            initializedCount = count
+        }
+    }
+
+    /// Writes the planar canvas (`3 * canvasWidth * canvasHeight` Floats) into
+    /// caller-owned contiguous storage, e.g. a Core ML multiarray buffer.
+    static func fillBoundedInput(
+        frame: NativeOCRRGBAFrame, canvasWidth: Int, canvasHeight: Int,
+        width: Int, height: Int,
+        sourceXs: [(Int, Int, Float)], sourceYs: [(Int, Int, Float)],
+        into output: UnsafeMutablePointer<Float>,
+        cancellationCheck: () throws -> Void = {}
+    ) throws {
         guard width > 0, height > 0, width <= canvasWidth, height <= canvasHeight,
               sourceXs.count >= width, sourceYs.count >= height,
               frame.width > 0, frame.height > 0, frame.bytesPerRow >= frame.width * 4,
@@ -1580,7 +1798,6 @@ enum NativeCoreMLDetectionPreprocessor {
             }
         }
         let plane = canvasWidth * canvasHeight
-        let count = plane * 3
         let coversCanvas = width == canvasWidth && height == canvasHeight
         let mean0 = channelMean[0], mean1 = channelMean[1], mean2 = channelMean[2]
         let deviation0 = channelStandardDeviation[0]
@@ -1591,8 +1808,7 @@ enum NativeCoreMLDetectionPreprocessor {
         let rightOffsets = sourceXs.prefix(width).map { $0.1 * 4 }
         let xWeights = sourceXs.prefix(width).map { $0.2 }
         let rows = Array(sourceYs.prefix(height))
-        return try [Float](unsafeUninitializedCapacity: count) { target, initializedCount in
-            guard let output = target.baseAddress else { return }
+        do {
             if !coversCanvas {
                 for channel in 0..<3 {
                     let channelBase = output + channel * plane
@@ -1675,7 +1891,6 @@ enum NativeCoreMLDetectionPreprocessor {
             }
             }
             }
-            initializedCount = count
         }
     }
 
